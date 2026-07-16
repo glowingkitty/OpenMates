@@ -15,6 +15,8 @@ import json
 import os
 from pathlib import Path
 import math
+import secrets
+import string
 import time
 from typing import Any
 from urllib.parse import quote, urlencode, urlparse, urlunparse
@@ -37,6 +39,9 @@ CIPHERTEXT_HEADER_LENGTH = 6
 CIPHERTEXT_MAGIC = b"OM"
 SHARE_FIXED_SALT = b"openmates-share-v1"
 CONNECTED_ACCOUNT_TRANSFER_PREFIX = "OMCA1."
+API_KEY_PREFIX = "sk-api-"
+API_KEY_RANDOM_LENGTH = 32
+API_KEY_CHARS = string.ascii_letters + string.digits
 
 
 class OpenMatesConfigError(RuntimeError):
@@ -80,6 +85,7 @@ class OpenMates:
         self.embeds = OpenMatesEmbeds(self)
         self.feedback = OpenMatesFeedback(self)
         self.inspirations = OpenMatesInspirations(self)
+        self.api_keys = OpenMatesApiKeys(self)
         self.learning_mode = OpenMatesLearningMode(self)
         self.memories = OpenMatesMemories(self)
         self.new_chat_suggestions = OpenMatesNewChatSuggestions(self)
@@ -433,6 +439,32 @@ def _encrypt_aes_gcm_text(plaintext: str, key: bytes) -> str:
 def _encrypt_aes_gcm_bytes(plaintext: bytes, key: bytes) -> str:
     iv = os.urandom(AES_GCM_IV_LENGTH)
     return base64.b64encode(iv + AESGCM(key).encrypt(iv, plaintext, None)).decode("utf-8")
+
+
+def _encrypt_raw_key_for_api_key(raw_key: bytes, api_key: str, salt: bytes) -> tuple[str, str]:
+    wrapping_key = hashlib.pbkdf2_hmac("sha256", api_key.encode("utf-8"), salt, SDK_KDF_ITERATIONS, dklen=32)
+    iv = os.urandom(AES_GCM_IV_LENGTH)
+    encrypted = AESGCM(wrapping_key).encrypt(iv, raw_key, None)
+    return base64.b64encode(encrypted).decode("utf-8"), base64.b64encode(iv).decode("utf-8")
+
+
+def _generate_api_key() -> str:
+    return API_KEY_PREFIX + "".join(secrets.choice(API_KEY_CHARS) for _ in range(API_KEY_RANDOM_LENGTH))
+
+
+def _create_api_key_material(name: str, master_key: bytes) -> tuple[str, dict[str, Any]]:
+    api_key = _generate_api_key()
+    salt = os.urandom(16)
+    encrypted_master_key, key_iv = _encrypt_raw_key_for_api_key(master_key, api_key, salt)
+    key_prefix = f"{api_key[:12]}..."
+    return api_key, {
+        "encrypted_name": _encrypt_aes_gcm_text(name.strip(), master_key),
+        "api_key_hash": hashlib.sha256(api_key.encode("utf-8")).hexdigest(),
+        "encrypted_key_prefix": _encrypt_aes_gcm_text(key_prefix, master_key),
+        "encrypted_master_key": encrypted_master_key,
+        "salt": base64.b64encode(salt).decode("utf-8"),
+        "key_iv": key_iv,
+    }
 
 
 def _base64url_encode(data: bytes) -> str:
@@ -1352,6 +1384,62 @@ class OpenMatesSettings:
     def share_debug_logs(self, *, confirmed: bool = False, duration: str = "1h") -> dict[str, Any]:
         _require_confirmed(confirmed, "Sharing debug logs")
         return _unsupported_sdk_feature("Debug-log sharing")
+
+
+class OpenMatesApiKeys:
+    """Developer API-key management SDK namespace."""
+
+    def __init__(self, client: OpenMates):
+        self._client = client
+
+    def list(self) -> dict[str, Any]:
+        data = self._client._get("/v1/sdk/settings/api-keys")
+        master_key = self._client._get_master_key()
+        return {"api_keys": [self._decrypt_record(key, master_key) for key in data.get("api_keys", []) if isinstance(key, dict)]}
+
+    def create(
+        self,
+        name: str,
+        *,
+        full_access: bool = True,
+        scopes: dict[str, Any] | None = None,
+        credit_limit: dict[str, Any] | None = None,
+        expires_at: str | None = None,
+    ) -> dict[str, Any]:
+        clean_name = name.strip()
+        if not clean_name:
+            raise OpenMatesConfigError("API key name is required")
+        master_key = self._client._get_master_key()
+        api_key, material = _create_api_key_material(clean_name, master_key)
+        record = self._client._post("/v1/sdk/settings/api-keys", {
+            **material,
+            "full_access": full_access,
+            "scopes": scopes or {},
+            "credit_limit": credit_limit,
+            "expires_at": expires_at,
+        })
+        return {"api_key": api_key, "key": self._decrypt_record(record, master_key)}
+
+    def revoke(self, key_id: str) -> dict[str, Any]:
+        return self._client._delete(f"/v1/sdk/settings/api-keys/{quote(key_id, safe='')}")
+
+    def _decrypt_record(self, record: dict[str, Any], master_key: bytes) -> dict[str, Any]:
+        encrypted_name = record.get("encrypted_name") if isinstance(record.get("encrypted_name"), str) else ""
+        encrypted_prefix = record.get("encrypted_key_prefix") if isinstance(record.get("encrypted_key_prefix"), str) else ""
+        last_used_at = record.get("last_used_at") if isinstance(record.get("last_used_at"), str) else None
+        return {
+            "id": str(record.get("id") or ""),
+            "name": (_decrypt_aes_gcm_text(encrypted_name, master_key) if encrypted_name else None) or encrypted_name or "Unnamed API key",
+            "key_prefix": (_decrypt_aes_gcm_text(encrypted_prefix, master_key) if encrypted_prefix else None) or encrypted_prefix or "sk-api-...",
+            "created_at": record.get("created_at") if isinstance(record.get("created_at"), str) else None,
+            "expires_at": record.get("expires_at") if isinstance(record.get("expires_at"), str) else None,
+            "last_used_at": last_used_at,
+            "last_used_label": last_used_at or "Never used",
+            "full_access": record.get("full_access") if isinstance(record.get("full_access"), bool) else True,
+            "scopes": record.get("scopes") if isinstance(record.get("scopes"), dict) else {},
+            "credit_limit": record.get("credit_limit") if isinstance(record.get("credit_limit"), dict) else None,
+            "pending_device_count": record.get("pending_device_count") if isinstance(record.get("pending_device_count"), int) else 0,
+        }
 
 
 class OpenMatesMemories:

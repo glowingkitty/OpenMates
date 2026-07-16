@@ -165,6 +165,52 @@ def test_selected_scope_allows_matching_sdk_surface():
     assert required_scope == "notification:write"
 
 
+def test_full_access_allows_sdk_api_key_management():
+    required_scope = _require_sdk_scope_for_surface(
+        _api_key_info({"full_access": True}),
+        "settings",
+        "POST",
+        "api-keys",
+    )
+
+    assert required_scope == "developer:api_keys:create"
+
+
+def test_developer_scope_allows_sdk_api_key_read_only():
+    required_scope = _require_sdk_scope_for_surface(
+        _api_key_info(
+            {
+                "full_access": False,
+                "scopes": {"developer": ["developer:api_keys:read"]},
+            }
+        ),
+        "settings",
+        "GET",
+        "api-keys",
+    )
+
+    assert required_scope == "developer:api_keys:read"
+
+    with pytest.raises(HTTPException) as exc:
+        _require_sdk_scope_for_surface(
+            _api_key_info(
+                {
+                    "full_access": False,
+                    "scopes": {"developer": ["developer:api_keys:read"]},
+                }
+            ),
+            "settings",
+            "POST",
+            "api-keys",
+        )
+
+    assert exc.value.status_code == 403
+    assert exc.value.detail == {
+        "error": "missing_scope",
+        "missing_scope": "developer:api_keys:create",
+    }
+
+
 def test_missing_scope_returns_typed_error_detail():
     with pytest.raises(HTTPException) as exc:
         _require_sdk_scope_for_surface(

@@ -21,6 +21,8 @@ import {
   decryptBytesWithAesGcm,
   decryptWithAesGcmCombined,
   deriveChatCompletionRecoveryKeypair,
+  bytesToBase64,
+  createApiKeyCryptoMaterial,
   encryptBytesWithAesGcm,
   encryptWithAesGcmCombined,
   hashItemKey,
@@ -113,6 +115,33 @@ export interface ConfirmedMutationOptions {
 
 export interface RequestOptions {
   query?: Record<string, string | number | boolean | undefined | null>;
+}
+
+export interface ApiKeyCreateOptions {
+  name: string;
+  fullAccess?: boolean;
+  scopes?: Record<string, unknown>;
+  creditLimit?: Record<string, unknown> | null;
+  expiresAt?: string | null;
+}
+
+export interface ApiKeyRecord {
+  id: string;
+  name: string;
+  keyPrefix: string;
+  createdAt?: string | null;
+  expiresAt?: string | null;
+  lastUsedAt?: string | null;
+  lastUsedLabel: string;
+  fullAccess: boolean;
+  scopes: Record<string, unknown>;
+  creditLimit?: Record<string, unknown> | null;
+  pendingDeviceCount: number;
+}
+
+export interface ApiKeyCreateResult {
+  apiKey: string;
+  key: ApiKeyRecord;
 }
 
 export interface ApplicationPreviewStartOptions {
@@ -252,6 +281,7 @@ export class OpenMates {
   readonly embeds: OpenMatesEmbeds;
   readonly feedback: OpenMatesFeedback;
   readonly inspirations: OpenMatesInspirations;
+  readonly apiKeys: OpenMatesApiKeys;
   readonly learningMode: OpenMatesLearningMode;
   readonly memories: OpenMatesMemories;
   readonly newChatSuggestions: OpenMatesNewChatSuggestions;
@@ -283,6 +313,7 @@ export class OpenMates {
     this.embeds = new OpenMatesEmbeds(this);
     this.feedback = new OpenMatesFeedback(this);
     this.inspirations = new OpenMatesInspirations(this);
+    this.apiKeys = new OpenMatesApiKeys(this);
     this.learningMode = new OpenMatesLearningMode(this);
     this.memories = new OpenMatesMemories(this);
     this.newChatSuggestions = new OpenMatesNewChatSuggestions(this);
@@ -853,6 +884,7 @@ export class OpenMatesChats {
           remainingMs,
         );
       } catch (error) {
+        if (error instanceof Error && (error.name === "AbortError" || error.name === "TimeoutError")) break;
         if (!(error instanceof OpenMatesApiError) || error.status !== 404) throw error;
       }
       const remainingMs = deadline - Date.now();
@@ -1125,6 +1157,69 @@ export class OpenMatesSettings {
   async shareDebugLogs(options: { duration?: string; confirmed: true }): Promise<Record<string, unknown>> {
     requireConfirmed(options, "Sharing debug logs");
     return unsupportedSdkFeature("Debug-log sharing");
+  }
+}
+
+export class OpenMatesApiKeys {
+  private readonly client: OpenMates;
+
+  constructor(client: OpenMates) {
+    this.client = client;
+  }
+
+  async list(): Promise<{ apiKeys: ApiKeyRecord[] }> {
+    const data = await this.client.get<{ api_keys?: Array<Record<string, unknown>> }>("/v1/sdk/settings/api-keys");
+    const masterKey = await this.client.masterKey();
+    const apiKeys = [];
+    for (const key of data.api_keys ?? []) {
+      apiKeys.push(await this.decryptRecord(key, masterKey));
+    }
+    return { apiKeys };
+  }
+
+  async create(options: ApiKeyCreateOptions): Promise<ApiKeyCreateResult> {
+    const name = options.name.trim();
+    if (!name) throw new OpenMatesConfigError("API key name is required");
+    const masterKey = await this.client.masterKey();
+    const material = await createApiKeyCryptoMaterial(name, bytesToBase64(masterKey));
+    const key = await this.client.request<Record<string, unknown>>("/v1/sdk/settings/api-keys", {
+      encrypted_name: material.encryptedName,
+      api_key_hash: material.apiKeyHash,
+      encrypted_key_prefix: material.encryptedKeyPrefix,
+      encrypted_master_key: material.encryptedMasterKey,
+      salt: material.saltB64,
+      key_iv: material.keyIv,
+      full_access: options.fullAccess ?? true,
+      scopes: options.scopes ?? {},
+      credit_limit: options.creditLimit ?? null,
+      expires_at: options.expiresAt ?? null,
+    });
+    return { apiKey: material.apiKey, key: await this.decryptRecord(key, masterKey) };
+  }
+
+  async revoke(id: string): Promise<Record<string, unknown>> {
+    return this.client.delete<Record<string, unknown>>(`/v1/sdk/settings/api-keys/${encodeURIComponent(id)}`);
+  }
+
+  private async decryptRecord(record: Record<string, unknown>, masterKey: Uint8Array): Promise<ApiKeyRecord> {
+    const encryptedName = typeof record.encrypted_name === "string" ? record.encrypted_name : "";
+    const encryptedPrefix = typeof record.encrypted_key_prefix === "string" ? record.encrypted_key_prefix : "";
+    const name = encryptedName ? await decryptWithAesGcmCombined(encryptedName, masterKey) : null;
+    const keyPrefix = encryptedPrefix ? await decryptWithAesGcmCombined(encryptedPrefix, masterKey) : null;
+    const lastUsedAt = typeof record.last_used_at === "string" ? record.last_used_at : null;
+    return {
+      id: String(record.id ?? ""),
+      name: name || encryptedName || "Unnamed API key",
+      keyPrefix: keyPrefix || encryptedPrefix || "sk-api-...",
+      createdAt: typeof record.created_at === "string" ? record.created_at : null,
+      expiresAt: typeof record.expires_at === "string" ? record.expires_at : null,
+      lastUsedAt,
+      lastUsedLabel: lastUsedAt ? new Date(lastUsedAt).toLocaleString() : "Never used",
+      fullAccess: typeof record.full_access === "boolean" ? record.full_access : true,
+      scopes: (record.scopes && typeof record.scopes === "object" ? record.scopes : {}) as Record<string, unknown>,
+      creditLimit: (record.credit_limit && typeof record.credit_limit === "object" ? record.credit_limit : null) as Record<string, unknown> | null,
+      pendingDeviceCount: typeof record.pending_device_count === "number" ? record.pending_device_count : 0,
+    };
   }
 }
 

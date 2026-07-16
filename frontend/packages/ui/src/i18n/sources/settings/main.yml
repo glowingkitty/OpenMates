@@ -2371,6 +2371,26 @@ developers_devices_revoke:
   he: בטל גישה
   verified_by_human: []
 
+developers_devices_reject:
+  context: Reject pending API key device button
+  en: Reject
+  verified_by_human: [en]
+
+developers_devices_ip_address:
+  context: API key device IP address detail label
+  en: IP address
+  verified_by_human: [en]
+
+developers_devices_access_type:
+  context: API key device access type detail label
+  en: Access type
+  verified_by_human: [en]
+
+developers_devices_api_key:
+  context: API key device API key detail label
+  en: API key
+  verified_by_human: [en]
+
 developers_devices_confirm_revoke:
   context: Confirm revoke device message
   en: Are you sure you want to revoke access for this device?
@@ -12949,6 +12969,31 @@ api_keys.copied_done:
   sv: Jag har kopierat nyckeln
   he: העתקתי את המפתח
   verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+
+api_keys.confirm_device:
+  context: Quick link from an API key row to pending device approval
+  en: Confirm device
+  de: Gerät bestätigen
+  zh: 确认设备
+  es: Confirmar dispositivo
+  fr: Confirmer l'appareil
+  pt: Confirmar dispositivo
+  ru: Подтвердить устройство
+  ja: デバイスを確認
+  ko: 기기 확인
+  it: Conferma dispositivo
+  tr: Cihazı onayla
+  vi: Xác nhận thiết bị
+  id: Konfirmasi perangkat
+  pl: Potwierdź urządzenie
+  nl: Apparaat bevestigen
+  ar: تأكيد الجهاز
+  hi: डिवाइस की पुष्टि करें
+  th: ยืนยันอุปกรณ์
+  cs: Potvrdit zařízení
+  sv: Bekräfta enhet
+  he: אשר מכשיר
+  verified_by_human: [en]
 
 api_keys.loading:
   context: Loading text while API keys are loading

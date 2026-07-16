@@ -82,6 +82,45 @@ describe("OpenMates SDK", () => {
     });
   });
 
+  it("lists API keys with decrypted labels and Never used metadata", async () => {
+    const masterKey = generateSalt(32);
+    const material = await createApiKeyCryptoMaterial("SDK Listed Key", bytesToBase64(masterKey));
+    await withServer((request, response) => {
+      assert.equal(request.headers.authorization, `Bearer ${material.apiKey}`);
+      response.setHeader("content-type", "application/json");
+      if (request.url === "/v1/sdk/session") {
+        response.end(JSON.stringify({
+          user: { id: "user-1" },
+          key_wrapper: {
+            encrypted_key: material.encryptedMasterKey,
+            salt: material.saltB64,
+            key_iv: material.keyIv,
+          },
+        }));
+        return;
+      }
+      assert.equal(request.url, "/v1/sdk/settings/api-keys");
+      response.end(JSON.stringify({
+        api_keys: [{
+          id: "key-1",
+          encrypted_name: material.encryptedName,
+          encrypted_key_prefix: material.encryptedKeyPrefix,
+          created_at: "2026-07-15T10:00:00Z",
+          last_used_at: null,
+          full_access: true,
+          scopes: {},
+          credit_limit: null,
+          pending_device_count: 2,
+        }],
+      }));
+    }, async (apiUrl) => {
+      const result = await new OpenMates({ apiKey: material.apiKey, apiUrl }).apiKeys.list();
+      assert.equal(result.apiKeys[0].name, "SDK Listed Key");
+      assert.equal(result.apiKeys[0].lastUsedLabel, "Never used");
+      assert.equal(result.apiKeys[0].pendingDeviceCount, 2);
+    });
+  });
+
   it("exposes native image generation skill methods", async () => {
     await withServer((request, response) => {
       assert.equal(request.url, "/v1/apps/images/skills/generate");

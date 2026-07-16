@@ -42,6 +42,7 @@
         full_access?: boolean;
         scopes?: Record<string, unknown>;
         credit_limit?: { period: string; credits: number } | null;
+        pending_device_count?: number;
     }
 
     type CreditPeriod = 'unlimited' | 'daily' | 'weekly' | 'monthly' | 'lifetime';
@@ -156,7 +157,52 @@
         loadApiKeys();
     });
 
-    async function loadApiKeys() {
+    async function normalizeApiKey(key: Record<string, unknown>): Promise<ApiKey> {
+        let decryptedName = (key.encrypted_name as string) || '';
+        let decryptedPrefix = (key.encrypted_key_prefix as string) || '';
+        const lastUsed = (key.last_used_at as string) || null;
+
+        try {
+            if (key.encrypted_name) {
+                const decrypted = await decryptWithMasterKey(key.encrypted_name as string);
+                if (decrypted) decryptedName = decrypted;
+            }
+            if (key.encrypted_key_prefix) {
+                const decrypted = await decryptWithMasterKey(key.encrypted_key_prefix as string);
+                if (decrypted) decryptedPrefix = decrypted;
+            }
+        } catch (err) {
+            console.error('Error decrypting API key fields:', err);
+        }
+
+        return {
+            id: key.id as string,
+            created_at: (key.created_at as string) || null,
+            name: decryptedName,
+            key_prefix: decryptedPrefix,
+            last_used: lastUsed,
+            full_access: (key.full_access as boolean | undefined) ?? true,
+            scopes: (key.scopes as Record<string, unknown>) || {},
+            credit_limit: (key.credit_limit as ApiKey['credit_limit']) || null,
+            pending_device_count: Number(key.pending_device_count || 0),
+        } satisfies ApiKey;
+    }
+
+    function mergeApiKeys(nextKeys: ApiKey[], preserveExisting = false) {
+        if (!preserveExisting) {
+            apiKeys = nextKeys;
+            return;
+        }
+        const merged = new Map(apiKeys.map((key) => [key.id, key]));
+        for (const key of nextKeys) merged.set(key.id, key);
+        apiKeys = Array.from(merged.values()).sort((a, b) => {
+            const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
+            const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
+            return bTime - aTime;
+        });
+    }
+
+    async function loadApiKeys({ preserveExisting = false } = {}) {
         try {
             loading = true;
             error = '';
@@ -178,42 +224,11 @@
 
             const data = await response.json();
             const rawKeys = data.api_keys || [];
-            const masterKey = await getKeyFromStorage();
-            if (!masterKey) {
+            if (!(await getKeyFromStorage())) {
                 throw new Error('Master key not found. Please log in again.');
             }
 
-            apiKeys = await Promise.all(
-                rawKeys.map(async (key: Record<string, unknown>) => {
-                    let decryptedName = (key.encrypted_name as string) || '';
-                    let decryptedPrefix = (key.encrypted_key_prefix as string) || '';
-                    const lastUsed = (key.last_used_at as string) || null;
-
-                    try {
-                        if (key.encrypted_name) {
-                            const decrypted = await decryptWithMasterKey(key.encrypted_name as string);
-                            if (decrypted) decryptedName = decrypted;
-                        }
-                        if (key.encrypted_key_prefix) {
-                            const decrypted = await decryptWithMasterKey(key.encrypted_key_prefix as string);
-                            if (decrypted) decryptedPrefix = decrypted;
-                        }
-                    } catch (err) {
-                        console.error('Error decrypting API key fields:', err);
-                    }
-
-                    return {
-                        id: key.id as string,
-                        created_at: (key.created_at as string) || null,
-                        name: decryptedName,
-                        key_prefix: decryptedPrefix,
-                        last_used: lastUsed,
-                        full_access: (key.full_access as boolean | undefined) ?? true,
-                        scopes: (key.scopes as Record<string, unknown>) || {},
-                        credit_limit: (key.credit_limit as ApiKey['credit_limit']) || null,
-                    } satisfies ApiKey;
-                })
-            );
+            mergeApiKeys(await Promise.all(rawKeys.map(normalizeApiKey)), preserveExisting);
         } catch (err: unknown) {
             console.error('Error loading API keys:', err);
             error = (err instanceof Error ? err.message : null) || 'Failed to load API keys';
@@ -353,10 +368,13 @@
                 throw new Error(errorData.detail || 'Failed to create API key');
             }
 
+            const createdRecord = await response.json();
+            const optimisticKey = await normalizeApiKey(createdRecord);
+            mergeApiKeys([optimisticKey], true);
             createdKey = apiKey;
             showCreatedKey = true;
             newKeyName = '';
-            await loadApiKeys();
+            await loadApiKeys({ preserveExisting: true });
         } catch (err: unknown) {
             error = (err instanceof Error ? err.message : null) || 'Failed to create API key';
         } finally {
@@ -395,6 +413,11 @@
         return new Date(dateString).toLocaleDateString();
     }
 
+    function formatDateTime(dateString: string | null | undefined) {
+        if (!dateString) return $text('settings.api_keys.unknown');
+        return new Date(dateString).toLocaleString();
+    }
+
     function describeCreditLimit(key: ApiKey) {
         if (!key.credit_limit) return $text('settings.api_keys.unlimited_credits');
         return $text('settings.api_keys.credit_limit_summary')
@@ -404,7 +427,7 @@
 
     function describeLastUsed(key: ApiKey) {
         if (!key.last_used) return $text('settings.api_keys.never_used');
-        return $text('settings.api_keys.last_used_on').replace('{date}', formatDate(key.last_used));
+        return $text('settings.api_keys.last_used_on').replace('{date}', formatDateTime(key.last_used));
     }
 
     function describeAccess(key: ApiKey) {
@@ -439,6 +462,15 @@
             direction: 'forward',
             icon: 'key',
             title: key.name || $text('settings.api_keys.detail_title')
+        });
+    }
+
+    function navigateToDevices() {
+        dispatch('openSettings', {
+            settingsPath: 'developers/devices',
+            direction: 'forward',
+            icon: 'devices',
+            title: $text('common.devices')
         });
     }
 
@@ -668,10 +700,19 @@
                     type="subsubmenu"
                     icon="subsetting_icon key"
                     title={key.name}
-                    subtitleTop={`${key.key_prefix} · ${describeAccess(key)} · ${describeCreditLimit(key)}`}
+                    subtitleTop={`${key.key_prefix} · ${describeLastUsed(key)} · ${describeAccess(key)} · ${describeCreditLimit(key)}`}
                     data-testid="api-key-item"
                     onClick={() => navigateToApiKeyDetails(key)}
                 />
+                {#if (key.pending_device_count || 0) > 0}
+                    <SettingsButton
+                        variant="secondary"
+                        dataTestid="api-key-confirm-device-link"
+                        onClick={navigateToDevices}
+                    >
+                        {$text('settings.api_keys.confirm_device')}
+                    </SettingsButton>
+                {/if}
             {/each}
         {/if}
 

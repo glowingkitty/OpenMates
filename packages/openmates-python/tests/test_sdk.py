@@ -95,6 +95,54 @@ def test_native_app_skill_method_uses_generated_namespace(monkeypatch):
     assert requests[0]["json"] == {"requests": [{"query": "hello"}]}
 
 
+def test_api_keys_list_decrypts_labels_and_never_used(monkeypatch):
+    api_key = "sk-api-python-list"
+    master_key = os.urandom(32)
+    wrapper = _wrap_master_key(api_key, master_key)
+    requests_seen = []
+
+    class FakeResponse:
+        status_code = 200
+
+        def __init__(self, payload):
+            self._payload = payload
+
+        def json(self):
+            return self._payload
+
+    def fake_post(url, *, json, headers, timeout):
+        requests_seen.append(("POST", url, headers))
+        assert url == "https://api.openmates.org/v1/sdk/session"
+        return FakeResponse({"user": {"id": "user-1"}, "key_wrapper": wrapper})
+
+    def fake_get(url, *, headers, timeout):
+        requests_seen.append(("GET", url, headers))
+        assert url == "https://api.openmates.org/v1/sdk/settings/api-keys"
+        return FakeResponse({
+            "api_keys": [{
+                "id": "key-1",
+                "encrypted_name": _encrypt_combined(b"Python Listed Key", master_key),
+                "encrypted_key_prefix": _encrypt_combined(b"sk-api-pyth...", master_key),
+                "created_at": "2026-07-15T10:00:00Z",
+                "last_used_at": None,
+                "full_access": True,
+                "scopes": {},
+                "credit_limit": None,
+                "pending_device_count": 1,
+            }]
+        })
+
+    monkeypatch.setattr("openmates.sdk.requests.post", fake_post)
+    monkeypatch.setattr("openmates.sdk.requests.get", fake_get)
+
+    result = OpenMates(api_key=api_key).api_keys.list()
+
+    assert result["api_keys"][0]["name"] == "Python Listed Key"
+    assert result["api_keys"][0]["last_used_label"] == "Never used"
+    assert result["api_keys"][0]["pending_device_count"] == 1
+    assert requests_seen[0][2]["Authorization"] == f"Bearer {api_key}"
+
+
 def test_native_models3d_skill_method_uses_generated_namespace(monkeypatch):
     requests = []
 

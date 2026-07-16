@@ -74,6 +74,7 @@ const {
 const {
   decryptBytesWithAesGcm,
   decryptWithAesGcmCombined,
+  createApiKeyCryptoMaterial,
   encryptBytesWithAesGcm,
   sealChatCompletionRecoveryPayload,
 } = await import("../src/crypto.ts");
@@ -315,6 +316,42 @@ describe("OpenMatesClient session API URL", () => {
       assert.deepEqual(seenBody.scopes, {});
       assert.equal(seenBody.credit_limit, null);
       assert.equal(seenBody.expires_at, null);
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  it("lists API keys with decrypted display fields and pending device counts", async () => {
+    const material = await createApiKeyCryptoMaterial("CLI Listed Key", "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=");
+    const server = createServer((_request: IncomingMessage, response: ServerResponse) => {
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(JSON.stringify({
+        api_keys: [{
+          id: "key-1",
+          encrypted_name: material.encryptedName,
+          encrypted_key_prefix: material.encryptedKeyPrefix,
+          created_at: "2026-07-15T10:00:00Z",
+          last_used_at: null,
+          full_access: true,
+          scopes: {},
+          credit_limit: null,
+          pending_device_count: 1,
+        }],
+      }));
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+
+    try {
+      writeLegacySession(`http://127.0.0.1:${address.port}`);
+      const client = OpenMatesClient.load({ apiUrl: `http://127.0.0.1:${address.port}` });
+      const result = await client.listApiKeys();
+
+      assert.equal(result.api_keys[0].name, "CLI Listed Key");
+      assert.match(result.api_keys[0].key_prefix, /^sk-api-.+\.\.\.$/);
+      assert.equal(result.api_keys[0].last_used_at, null);
+      assert.equal(result.api_keys[0].pending_device_count, 1);
     } finally {
       await new Promise<void>((resolve) => server.close(() => resolve()));
     }

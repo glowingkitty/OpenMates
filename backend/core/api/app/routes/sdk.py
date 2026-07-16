@@ -171,6 +171,44 @@ def _require_sdk_scope_for_surface(
         _require_chat_scope(api_key_info, required_scope)
         return required_scope
 
+    if surface == "settings":
+        parts = [part for part in path.split("/") if part]
+        if parts and parts[0] == "api-keys":
+            action = "read" if request_method_is_read(method) else "create" if method.upper() == "POST" and len(parts) == 1 else "revoke"
+            required_scope = f"developer:api_keys:{action}"
+            try:
+                ApiKeyAuthorizationService().require_scope(
+                    api_key_info.get("api_key_metadata") or {},
+                    "developer",
+                    required_scope,
+                )
+            except ApiKeyScopeError as exc:
+                raise HTTPException(
+                    status_code=403,
+                    detail={"error": "missing_scope", "missing_scope": exc.missing_scope},
+                ) from exc
+            return required_scope
+        if parts and parts[0] == "api-key-devices":
+            if request_method_is_read(method):
+                action = "read"
+            elif len(parts) >= 3 and parts[2] == "approve":
+                action = "approve"
+            else:
+                action = "revoke"
+            required_scope = f"developer:devices:{action}"
+            try:
+                ApiKeyAuthorizationService().require_scope(
+                    api_key_info.get("api_key_metadata") or {},
+                    "developer",
+                    required_scope,
+                )
+            except ApiKeyScopeError as exc:
+                raise HTTPException(
+                    status_code=403,
+                    detail={"error": "missing_scope", "missing_scope": exc.missing_scope},
+                ) from exc
+            return required_scope
+
     group, prefix = scope_config
     required_scope = f"{prefix}:{_sdk_scope_action(method)}"
     try:
@@ -599,6 +637,53 @@ async def _dispatch_sdk_surface(
             LanguageUpdateRequest,
             UiFontUpdateRequest,
         )
+
+        if path == "api-keys" and request.method == "GET":
+            return _jsonable(await _sdk_route_handler(settings_routes.get_api_keys)(
+                request,
+                user,
+                directus_service,
+                cache_service,
+            ))
+        if path == "api-keys" and request.method == "POST":
+            return _jsonable(await _sdk_route_handler(settings_routes.create_api_key)(
+                request,
+                settings_routes.ApiKeyCreateRequest(**(body or {})),
+                user,
+                directus_service,
+                cache_service,
+            ))
+        if path.startswith("api-keys/") and request.method == "DELETE":
+            key_id = path.split("/", 1)[1]
+            return _jsonable(await _sdk_route_handler(settings_routes.delete_api_key)(
+                request,
+                key_id,
+                user,
+                directus_service,
+                cache_service,
+            ))
+        if path == "api-key-devices" and request.method == "GET":
+            return _jsonable(await _sdk_route_handler(settings_routes.get_api_key_devices)(
+                request,
+                user,
+                directus_service,
+            ))
+        if path.startswith("api-key-devices/") and request.method == "POST":
+            parts = path.split("/")
+            if len(parts) == 3 and parts[2] == "approve":
+                return _jsonable(await _sdk_route_handler(settings_routes.approve_api_key_device)(
+                    request,
+                    parts[1],
+                    user,
+                    directus_service,
+                ))
+            if len(parts) == 3 and parts[2] == "revoke":
+                return _jsonable(await _sdk_route_handler(settings_routes.revoke_api_key_device)(
+                    request,
+                    parts[1],
+                    user,
+                    directus_service,
+                ))
 
         if path == "language" and request.method == "POST":
             return _jsonable(await _sdk_route_handler(settings_routes.update_user_language)(
