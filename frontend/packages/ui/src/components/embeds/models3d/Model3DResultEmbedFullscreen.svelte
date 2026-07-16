@@ -32,19 +32,19 @@
     onNavigateNext,
   }: Props = $props();
 
-  let content = $derived({
+  let modelContent = $derived({
     ...(data.embedData ?? {}),
     ...(data.attrs ?? {}),
     ...(data.decodedContent ?? {}),
   });
-  let title = $derived(typeof content.title === 'string' ? content.title : $text('embeds.models3d.search.result_title'));
-  let provider = $derived(typeof content.provider === 'string' ? content.provider : '');
-  let sourcePageUrl = $derived(typeof content.source_page_url === 'string' ? content.source_page_url : '');
+  let title = $derived(typeof modelContent.title === 'string' ? modelContent.title : $text('embeds.models3d.search.result_title'));
+  let provider = $derived(typeof modelContent.provider === 'string' ? modelContent.provider : '');
+  let sourcePageUrl = $derived(typeof modelContent.source_page_url === 'string' ? modelContent.source_page_url : '');
   let previewUrl = $derived(
-    typeof content.preview_image_url === 'string'
-      ? content.preview_image_url
-      : typeof content.thumbnail_url === 'string'
-        ? content.thumbnail_url
+    typeof modelContent.preview_image_url === 'string'
+      ? modelContent.preview_image_url
+      : typeof modelContent.thumbnail_url === 'string'
+        ? modelContent.thumbnail_url
         : ''
   );
   let imageUrl = $derived(proxyImage(previewUrl, 960));
@@ -87,9 +87,9 @@
       </div>
       <section class="metadata">
         <h2>{title}</h2>
-        {#if typeof content.creator_name === 'string'}<p>{content.creator_name}</p>{/if}
-        {#if typeof content.license === 'string'}<p>{content.license}</p>{/if}
-        {#if typeof content.files_count === 'number'}<p>{$text('embeds.models3d.search.files_count', { values: { count: content.files_count } })}</p>{/if}
+        {#if typeof modelContent.creator_name === 'string'}<p>{modelContent.creator_name}</p>{/if}
+        {#if typeof modelContent.license === 'string'}<p>{modelContent.license}</p>{/if}
+        {#if typeof modelContent.files_count === 'number'}<p>{$text('embeds.models3d.search.files_count', { values: { count: modelContent.files_count } })}</p>{/if}
         {#if sourcePageUrl}
           <a href={sourcePageUrl} target="_blank" rel="noopener noreferrer" data-testid="models3d-open-provider-cta-inline">{ctaLabel}</a>
         {/if}
