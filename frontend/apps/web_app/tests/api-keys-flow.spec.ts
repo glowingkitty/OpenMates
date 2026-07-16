@@ -84,10 +84,19 @@ async function ensureSettingsMenuOpen(page: any, logCheckpoint: (msg: string) =>
 }
 
 async function navigateToApiKeys(page: any, logCheckpoint: (msg: string) => void): Promise<void> {
+	const existingSettingsMenu = page.getByTestId('settings-menu');
+	if (await existingSettingsMenu.isVisible({ timeout: 1000 }).catch(() => false)) {
+		const activeView = await existingSettingsMenu.getAttribute('data-active-view');
+		if (activeView === 'developers/api-keys') {
+			await expect(page.getByTestId('api-key-create-button')).toBeVisible({ timeout: 15000 });
+			logCheckpoint('API Keys page already loaded.');
+			return;
+		}
+	}
+
 	const settingsMenu = await ensureSettingsMenuOpen(page, logCheckpoint);
 
 	const developersItem = settingsMenu.getByRole('menuitem', { name: /developers/i }).first();
-	await developersItem.scrollIntoViewIfNeeded();
 	await expect(developersItem).toBeVisible({ timeout: 10000 });
 	await developersItem.click();
 	logCheckpoint('Navigated to Developers.');
@@ -103,7 +112,6 @@ async function navigateToApiKeys(page: any, logCheckpoint: (msg: string) => void
 		.first();
 	const apiKeysVisible = await apiKeysItem.isVisible({ timeout: 5000 }).catch(() => false);
 	const targetItem = apiKeysVisible ? apiKeysItem : apiKeysItemFallback;
-	await targetItem.scrollIntoViewIfNeeded();
 	await expect(targetItem).toBeVisible({ timeout: 10000 });
 	await targetItem.click();
 	logCheckpoint('Navigated to API Keys.');
