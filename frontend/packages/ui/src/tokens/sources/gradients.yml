@@ -40,6 +40,8 @@ apps:
   calendar:          { start: "#007a6e", end: "#3cc4b6" }
   mail:              { start: "#a82e1c", end: "#ef6a58" }
   reminder:          { start: "#8b0000", end: "#ff6f00" }
+  tasks:             { start: "#5b4fcf", end: "#22a7d6" }
+  workflows:         { start: "#6540a8", end: "#16b08a" }
   business:          { start: "#004040", end: "#008080" }
   web:               { start: "#de1e66", end: "#ff763b" }
   videos:            { start: "#8a0806", end: "#f44a3c", dark_start: "#c92220" }

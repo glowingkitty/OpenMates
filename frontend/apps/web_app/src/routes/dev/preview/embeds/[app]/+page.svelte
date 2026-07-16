@@ -548,6 +548,46 @@
 				inlineLinkText: 'Berlin rain on June 3',
 				quoteText: 'Rain expected in Berlin, 14-19 C, 5.8 mm total precipitation, 13 rain hours.'
 			}
+		],
+		tasks: [
+			{
+				skillLabel: 'Create',
+				appId: 'tasks',
+				previewPath: 'embeds/tasks/TaskCreateEmbedPreview',
+				fullscreenPath: 'embeds/tasks/TaskCreateEmbedFullscreen',
+				inlineLinkText: 'Balcony herb garden checklist',
+				quoteText: 'Created tasks for buying starter soil, clearing planter boxes, and preparing basil seeds.',
+				isAppSkill: true
+			},
+			{
+				skillLabel: 'Search',
+				appId: 'tasks',
+				previewPath: 'embeds/tasks/TaskSearchEmbedPreview',
+				fullscreenPath: 'embeds/tasks/TaskSearchEmbedFullscreen',
+				inlineLinkText: 'Packing list tasks',
+				quoteText: 'Found packing tasks for travel documents, camera batteries, and charger preparation.',
+				isAppSkill: true
+			}
+		],
+		workflows: [
+			{
+				skillLabel: 'Create or Modify',
+				appId: 'workflows',
+				previewPath: 'embeds/workflows/WorkflowCreateEmbedPreview',
+				fullscreenPath: 'embeds/workflows/WorkflowCreateEmbedFullscreen',
+				inlineLinkText: 'Weekly garden check-in workflow',
+				quoteText: 'Created a simple manual workflow for a weekly balcony garden check-in.',
+				isAppSkill: true
+			},
+			{
+				skillLabel: 'Search',
+				appId: 'workflows',
+				previewPath: 'embeds/workflows/WorkflowSearchEmbedPreview',
+				fullscreenPath: 'embeds/workflows/WorkflowSearchEmbedFullscreen',
+				inlineLinkText: 'Travel packing workflows',
+				quoteText: 'Found reusable workflows for packing reminders and departure day weather checks.',
+				isAppSkill: true
+			}
 		]
 	};
 
@@ -576,7 +616,9 @@
 		home: 'home',
 		nutrition: 'nutrition',
 		social_media: 'socialmedia',
-		weather: 'weather'
+		weather: 'weather',
+		tasks: 'task',
+		workflows: 'workflow'
 	};
 
 	const ALL_APPS = [
@@ -603,7 +645,9 @@
 		'home',
 		'nutrition',
 		'social_media',
-		'weather'
+		'weather',
+		'tasks',
+		'workflows'
 	];
 
 	// ─── Glob maps ────────────────────────────────────────────────────

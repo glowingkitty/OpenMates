@@ -464,6 +464,16 @@ export class GroupRenderer implements EmbedRenderer {
             content,
           ),
       ],
+      [
+        "tasks-task",
+        (item, embedData, decodedContent, content) =>
+          this.renderTaskChildComponent(item, embedData, decodedContent, content),
+      ],
+      [
+        "workflows-workflow",
+        (item, embedData, decodedContent, content) =>
+          this.renderWorkflowChildComponent(item, embedData, decodedContent, content),
+      ],
     ]);
 
     // Startup check: warn if EMBED_RENDERER_MAP contains GroupRenderer types
@@ -1291,7 +1301,7 @@ export class GroupRenderer implements EmbedRenderer {
     const resultCount =
       typeof decodedContent?.result_count === "number"
         ? decodedContent.result_count
-        : 0;
+        : undefined;
     const results = decodedContent?.results || decodedContent?.preview_results || [];
     const rawChildEmbedIds = embedData?.embed_ids || decodedContent?.embed_ids;
     const childEmbedIds = typeof rawChildEmbedIds === "string"
@@ -1454,6 +1464,88 @@ export class GroupRenderer implements EmbedRenderer {
             status,
             results: normalized.results,
             result_count: normalized.resultCount,
+            taskId,
+            isMobile: false,
+            onFullscreen: handleFullscreen,
+          },
+        });
+        mountedComponents.set(target, component);
+        return;
+      }
+
+      if (appId === "tasks" && skillId === "create") {
+        const { default: TaskCreateEmbedPreview } = await import("../../../embeds/tasks/TaskCreateEmbedPreview.svelte");
+        const component = mount(TaskCreateEmbedPreview, {
+          target,
+          props: {
+            id: embedId,
+            query: query || "",
+            instruction: decodedContent?.instruction || decodedContent?.title || "",
+            status,
+            results,
+            resultCount,
+            childEmbedIds,
+            taskId,
+            isMobile: false,
+            onFullscreen: handleFullscreen,
+          },
+        });
+        mountedComponents.set(target, component);
+        return;
+      }
+
+      if (appId === "tasks" && skillId === "search") {
+        const { default: TaskSearchEmbedPreview } = await import("../../../embeds/tasks/TaskSearchEmbedPreview.svelte");
+        const component = mount(TaskSearchEmbedPreview, {
+          target,
+          props: {
+            id: embedId,
+            query: query || "",
+            status,
+            results,
+            resultCount,
+            childEmbedIds,
+            taskId,
+            isMobile: false,
+            onFullscreen: handleFullscreen,
+          },
+        });
+        mountedComponents.set(target, component);
+        return;
+      }
+
+      if (appId === "workflows" && skillId === "create-or-modify") {
+        const { default: WorkflowCreateEmbedPreview } = await import("../../../embeds/workflows/WorkflowCreateEmbedPreview.svelte");
+        const component = mount(WorkflowCreateEmbedPreview, {
+          target,
+          props: {
+            id: embedId,
+            query: query || "",
+            instruction: decodedContent?.instruction || decodedContent?.title || "",
+            status,
+            results,
+            resultCount,
+            childEmbedIds,
+            taskId,
+            isMobile: false,
+            onFullscreen: handleFullscreen,
+          },
+        });
+        mountedComponents.set(target, component);
+        return;
+      }
+
+      if (appId === "workflows" && skillId === "search") {
+        const { default: WorkflowSearchEmbedPreview } = await import("../../../embeds/workflows/WorkflowSearchEmbedPreview.svelte");
+        const component = mount(WorkflowSearchEmbedPreview, {
+          target,
+          props: {
+            id: embedId,
+            query: query || "",
+            status,
+            results,
+            resultCount,
+            childEmbedIds,
             taskId,
             isMobile: false,
             onFullscreen: handleFullscreen,
@@ -6080,6 +6172,112 @@ export class GroupRenderer implements EmbedRenderer {
         err,
       );
       content.innerHTML = `<div style="padding:10px;color:var(--color-font-secondary)">Weather preview unavailable</div>`;
+    }
+  }
+
+  /**
+   * Render a task child embed using TaskEmbedPreview.
+   */
+  private async renderTaskChildComponent(
+    item: EmbedNodeAttributes,
+    embedData: EmbedData | null = null,
+    decodedContent: DecodedEmbedContent | null = null,
+    content: HTMLElement,
+  ): Promise<void> {
+    const embedId = item.contentRef?.replace("embed:", "") || item.id || "";
+
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn("[GroupRenderer] Error unmounting existing component:", e);
+      }
+    }
+    content.innerHTML = "";
+
+    if (!content.isConnected) {
+      console.warn(
+        "[GroupRenderer] Skipping TaskEmbedPreview mount - target detached from DOM",
+      );
+      return;
+    }
+
+    try {
+      const { default: TaskEmbedPreview } = await import("../../../embeds/tasks/TaskEmbedPreview.svelte");
+      const component = mount(TaskEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          taskId: (decodedContent?.task_id || decodedContent?.id || "") as string,
+          shortId: (decodedContent?.short_id || "") as string,
+          title: (decodedContent?.title || "") as string,
+          description: (decodedContent?.description || "") as string,
+          status: (decodedContent?.status || "todo") as string,
+          assignee: (decodedContent?.assignee || decodedContent?.assignee_type || "") as string,
+          isMobile: false,
+          onFullscreen: () =>
+            this.openFullscreen(item, embedData, decodedContent),
+        },
+      });
+
+      mountedComponents.set(content, component);
+    } catch (err) {
+      console.error("[GroupRenderer] Failed to mount TaskEmbedPreview:", err);
+      content.innerHTML = `<div style="padding:10px;color:var(--color-font-secondary)">Task preview unavailable</div>`;
+    }
+  }
+
+  /**
+   * Render a workflow child embed using WorkflowEmbedPreview.
+   */
+  private async renderWorkflowChildComponent(
+    item: EmbedNodeAttributes,
+    embedData: EmbedData | null = null,
+    decodedContent: DecodedEmbedContent | null = null,
+    content: HTMLElement,
+  ): Promise<void> {
+    const embedId = item.contentRef?.replace("embed:", "") || item.id || "";
+
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn("[GroupRenderer] Error unmounting existing component:", e);
+      }
+    }
+    content.innerHTML = "";
+
+    if (!content.isConnected) {
+      console.warn(
+        "[GroupRenderer] Skipping WorkflowEmbedPreview mount - target detached from DOM",
+      );
+      return;
+    }
+
+    try {
+      const { default: WorkflowEmbedPreview } = await import("../../../embeds/workflows/WorkflowEmbedPreview.svelte");
+      const component = mount(WorkflowEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          workflowId: (decodedContent?.workflow_id || decodedContent?.id || "") as string,
+          title: (decodedContent?.title || "") as string,
+          description: (decodedContent?.description || "") as string,
+          status: (decodedContent?.status || "manual") as string,
+          enabled: typeof decodedContent?.enabled === "boolean" ? decodedContent.enabled : true,
+          triggerSummary: (decodedContent?.trigger_summary || "") as string,
+          isMobile: false,
+          onFullscreen: () =>
+            this.openFullscreen(item, embedData, decodedContent),
+        },
+      });
+
+      mountedComponents.set(content, component);
+    } catch (err) {
+      console.error("[GroupRenderer] Failed to mount WorkflowEmbedPreview:", err);
+      content.innerHTML = `<div style="padding:10px;color:var(--color-font-secondary)">Workflow preview unavailable</div>`;
     }
   }
 

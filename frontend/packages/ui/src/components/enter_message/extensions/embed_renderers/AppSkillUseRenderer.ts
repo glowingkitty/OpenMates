@@ -316,6 +316,8 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       listing: true,
       weather_day: true,
       model_result: true,
+      task: true,
+      workflow: true,
     };
     const childType = decodedContent?.type || embedData?.type;
     if (childType && CHILD_TYPE_OVERRIDES[childType as string]) {
@@ -590,6 +592,30 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           decodedContent,
           content,
         );
+      }
+
+      if (appId === "tasks" && skillId === "create") {
+        return this.renderTaskCreateComponent(attrs, embedData, decodedContent, content);
+      }
+
+      if (appId === "tasks" && skillId === "search") {
+        return this.renderTaskSearchComponent(attrs, embedData, decodedContent, content);
+      }
+
+      if (appId === "tasks" && skillId === "task") {
+        return this.renderTaskChildComponent(attrs, embedData, decodedContent, content);
+      }
+
+      if (appId === "workflows" && skillId === "create-or-modify") {
+        return this.renderWorkflowCreateComponent(attrs, embedData, decodedContent, content);
+      }
+
+      if (appId === "workflows" && skillId === "search") {
+        return this.renderWorkflowSearchComponent(attrs, embedData, decodedContent, content);
+      }
+
+      if (appId === "workflows" && skillId === "workflow") {
+        return this.renderWorkflowChildComponent(attrs, embedData, decodedContent, content);
       }
 
       // For images search, render images search preview using Svelte component
@@ -929,6 +955,209 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     return ["get-events", "create-event", "update-event", "delete-event"].includes(
       skillId,
     );
+  }
+
+  private prepareMount(content: HTMLElement): void {
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn(
+          "[AppSkillUseRenderer] Error unmounting existing component:",
+          e,
+        );
+      }
+    }
+    content.innerHTML = "";
+  }
+
+  private async renderTaskCreateComponent(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any,
+    content: HTMLElement,
+  ): Promise<void> {
+    this.prepareMount(content);
+    try {
+      const { default: TaskCreateEmbedPreview } = await import("../../../embeds/tasks/TaskCreateEmbedPreview.svelte");
+      const embedId = attrs.contentRef?.replace("embed:", "") || "";
+      const component = mount(TaskCreateEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          query: decodedContent?.query || (attrs as any).query || "",
+          instruction: decodedContent?.instruction || decodedContent?.title || "",
+          status: (decodedContent?.status || embedData?.status || attrs.status || "processing") as "processing" | "finished" | "error",
+          results: decodedContent?.results || decodedContent?.preview_results || [],
+          resultCount: decodedContent?.result_count,
+          childEmbedIds: decodedContent?.embed_ids || embedData?.embed_ids || [],
+          taskId: decodedContent?.task_id || "",
+          isMobile: false,
+          onFullscreen: () => this.openFullscreen(attrs, embedData, decodedContent),
+        },
+      });
+      mountedComponents.set(content, component);
+    } catch (error) {
+      console.error("[AppSkillUseRenderer] Error mounting TaskCreateEmbedPreview:", error);
+      this.renderGenericSkill(attrs, embedData, decodedContent, content);
+    }
+  }
+
+  private async renderTaskSearchComponent(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any,
+    content: HTMLElement,
+  ): Promise<void> {
+    this.prepareMount(content);
+    try {
+      const { default: TaskSearchEmbedPreview } = await import("../../../embeds/tasks/TaskSearchEmbedPreview.svelte");
+      const embedId = attrs.contentRef?.replace("embed:", "") || "";
+      const component = mount(TaskSearchEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          query: decodedContent?.query || (attrs as any).query || "",
+          status: (decodedContent?.status || embedData?.status || attrs.status || "processing") as "processing" | "finished" | "error",
+          results: decodedContent?.results || decodedContent?.preview_results || [],
+          resultCount: decodedContent?.result_count,
+          childEmbedIds: decodedContent?.embed_ids || embedData?.embed_ids || [],
+          taskId: decodedContent?.task_id || "",
+          isMobile: false,
+          onFullscreen: () => this.openFullscreen(attrs, embedData, decodedContent),
+        },
+      });
+      mountedComponents.set(content, component);
+    } catch (error) {
+      console.error("[AppSkillUseRenderer] Error mounting TaskSearchEmbedPreview:", error);
+      this.renderGenericSkill(attrs, embedData, decodedContent, content);
+    }
+  }
+
+  private async renderTaskChildComponent(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any,
+    content: HTMLElement,
+  ): Promise<void> {
+    this.prepareMount(content);
+    try {
+      const { default: TaskEmbedPreview } = await import("../../../embeds/tasks/TaskEmbedPreview.svelte");
+      const embedId = attrs.contentRef?.replace("embed:", "") || "";
+      const component = mount(TaskEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          taskId: decodedContent?.task_id || decodedContent?.id || "",
+          shortId: decodedContent?.short_id || "",
+          title: decodedContent?.title || "",
+          description: decodedContent?.description || "",
+          status: decodedContent?.status || "todo",
+          assignee: decodedContent?.assignee || decodedContent?.assignee_type || "",
+          isMobile: false,
+          onFullscreen: () => this.openFullscreen(attrs, embedData, decodedContent),
+        },
+      });
+      mountedComponents.set(content, component);
+    } catch (error) {
+      console.error("[AppSkillUseRenderer] Error mounting TaskEmbedPreview:", error);
+      this.renderGenericSkill(attrs, embedData, decodedContent, content);
+    }
+  }
+
+  private async renderWorkflowCreateComponent(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any,
+    content: HTMLElement,
+  ): Promise<void> {
+    this.prepareMount(content);
+    try {
+      const { default: WorkflowCreateEmbedPreview } = await import("../../../embeds/workflows/WorkflowCreateEmbedPreview.svelte");
+      const embedId = attrs.contentRef?.replace("embed:", "") || "";
+      const component = mount(WorkflowCreateEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          query: decodedContent?.query || (attrs as any).query || "",
+          instruction: decodedContent?.instruction || decodedContent?.title || "",
+          status: (decodedContent?.status || embedData?.status || attrs.status || "processing") as "processing" | "finished" | "error",
+          results: decodedContent?.results || decodedContent?.preview_results || [],
+          resultCount: decodedContent?.result_count,
+          childEmbedIds: decodedContent?.embed_ids || embedData?.embed_ids || [],
+          taskId: decodedContent?.task_id || "",
+          isMobile: false,
+          onFullscreen: () => this.openFullscreen(attrs, embedData, decodedContent),
+        },
+      });
+      mountedComponents.set(content, component);
+    } catch (error) {
+      console.error("[AppSkillUseRenderer] Error mounting WorkflowCreateEmbedPreview:", error);
+      this.renderGenericSkill(attrs, embedData, decodedContent, content);
+    }
+  }
+
+  private async renderWorkflowSearchComponent(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any,
+    content: HTMLElement,
+  ): Promise<void> {
+    this.prepareMount(content);
+    try {
+      const { default: WorkflowSearchEmbedPreview } = await import("../../../embeds/workflows/WorkflowSearchEmbedPreview.svelte");
+      const embedId = attrs.contentRef?.replace("embed:", "") || "";
+      const component = mount(WorkflowSearchEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          query: decodedContent?.query || (attrs as any).query || "",
+          status: (decodedContent?.status || embedData?.status || attrs.status || "processing") as "processing" | "finished" | "error",
+          results: decodedContent?.results || decodedContent?.preview_results || [],
+          resultCount: decodedContent?.result_count,
+          childEmbedIds: decodedContent?.embed_ids || embedData?.embed_ids || [],
+          taskId: decodedContent?.task_id || "",
+          isMobile: false,
+          onFullscreen: () => this.openFullscreen(attrs, embedData, decodedContent),
+        },
+      });
+      mountedComponents.set(content, component);
+    } catch (error) {
+      console.error("[AppSkillUseRenderer] Error mounting WorkflowSearchEmbedPreview:", error);
+      this.renderGenericSkill(attrs, embedData, decodedContent, content);
+    }
+  }
+
+  private async renderWorkflowChildComponent(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any,
+    content: HTMLElement,
+  ): Promise<void> {
+    this.prepareMount(content);
+    try {
+      const { default: WorkflowEmbedPreview } = await import("../../../embeds/workflows/WorkflowEmbedPreview.svelte");
+      const embedId = attrs.contentRef?.replace("embed:", "") || "";
+      const component = mount(WorkflowEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          workflowId: decodedContent?.workflow_id || decodedContent?.id || "",
+          title: decodedContent?.title || "",
+          description: decodedContent?.description || "",
+          status: decodedContent?.status || "manual",
+          enabled: typeof decodedContent?.enabled === "boolean" ? decodedContent.enabled : true,
+          triggerSummary: decodedContent?.trigger_summary || "",
+          isMobile: false,
+          onFullscreen: () => this.openFullscreen(attrs, embedData, decodedContent),
+        },
+      });
+      mountedComponents.set(content, component);
+    } catch (error) {
+      console.error("[AppSkillUseRenderer] Error mounting WorkflowEmbedPreview:", error);
+      this.renderGenericSkill(attrs, embedData, decodedContent, content);
+    }
   }
 
   private renderCalendarActionComponent(

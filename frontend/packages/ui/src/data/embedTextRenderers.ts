@@ -42,6 +42,8 @@ export function resolveResultCount(c: Record<string, unknown>): number | null {
 	const embedIds = c.embed_ids;
 	if (typeof embedIds === 'string') return embedIds.split('|').filter(Boolean).length;
 	if (Array.isArray(embedIds)) return embedIds.length;
+	if (Array.isArray(c.results)) return c.results.length;
+	if (Array.isArray(c.preview_results)) return c.preview_results.length;
 	return null;
 }
 
@@ -117,6 +119,50 @@ function renderModel3DResult(content: Record<string, unknown>): string {
 	return lines.join('\n');
 }
 
+function renderTasksParent(content: Record<string, unknown>): string {
+	const skill = str(content.skill_id) === 'search' ? 'Search' : 'Create';
+	const query = str(content.query) ?? str(content.instruction) ?? str(content.title);
+	const count = resolveResultCount(content);
+	const lines = [`**Tasks | ${skill}**`];
+	if (query) lines.push(`query: ${query}`);
+	if (count !== null) lines.push(`tasks: ${count}`);
+	return lines.join('\n');
+}
+
+function renderTask(content: Record<string, unknown>): string {
+	const title = str(content.title) ?? 'Task';
+	const status = str(content.status);
+	const assignee = str(content.assignee) ?? str(content.assignee_type);
+	const description = str(content.description);
+	const lines = [`**${title}**`];
+	if (status) lines.push(`status: ${status}`);
+	if (assignee) lines.push(`assignee: ${assignee}`);
+	if (description) lines.push(trunc(description, 240));
+	return lines.join('\n');
+}
+
+function renderWorkflowsParent(content: Record<string, unknown>): string {
+	const skill = str(content.skill_id) === 'search' ? 'Search' : 'Create or modify';
+	const query = str(content.query) ?? str(content.instruction) ?? str(content.title);
+	const count = resolveResultCount(content);
+	const lines = [`**Workflows | ${skill}**`];
+	if (query) lines.push(`query: ${query}`);
+	if (count !== null) lines.push(`workflows: ${count}`);
+	return lines.join('\n');
+}
+
+function renderWorkflow(content: Record<string, unknown>): string {
+	const title = str(content.title) ?? 'Workflow';
+	const status = str(content.status);
+	const trigger = str(content.trigger_summary);
+	const description = str(content.description);
+	const lines = [`**${title}**`];
+	if (status) lines.push(`status: ${status}`);
+	if (trigger) lines.push(`trigger: ${trigger}`);
+	if (description) lines.push(trunc(description, 240));
+	return lines.join('\n');
+}
+
 function renderMindMap(content: Record<string, unknown>): string {
 	return renderMindMapText(content);
 }
@@ -187,6 +233,10 @@ export const EMBED_TEXT_RENDERERS: Record<string, EmbedTextRenderer> = {
 	'app:social_media:search': renderSocialMediaSearch,
 	'app:weather:forecast': renderWeatherForecast,
 	'app:weather:rain_radar': renderWeatherRainRadar,
+	'app:tasks:create': renderTasksParent,
+	'app:tasks:search': renderTasksParent,
+	'app:workflows:create-or-modify': renderWorkflowsParent,
+	'app:workflows:search': renderWorkflowsParent,
 
 	// ── Direct embeds ────────────────────────────────────────────────
 	'web-website': renderWebsite,
@@ -220,6 +270,8 @@ export const EMBED_TEXT_RENDERERS: Record<string, EmbedTextRenderer> = {
 	'nutrition-recipe': renderNutritionRecipe,
 	'weather-day': renderWeatherDay,
 	'social-media-post': renderSocialMediaPost,
+	'tasks-task': renderTask,
+	'workflows-workflow': renderWorkflow,
 	'focus-mode-activation': (c) => {
 		const name = str(c.focus_mode_name) ?? '';
 		return `**Focus Mode**${name ? ` — ${name}` : ''}`;
