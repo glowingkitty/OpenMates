@@ -49,6 +49,20 @@ Before touching native product UI, inspect the actual web app route where the co
 
 If an interaction state is needed, drive the existing `*.spec.ts` test or a temporary browser/scripted flow based on existing tests to reach that state, then inspect the computed values. Svelte and CSS source files explain intent, but the browser-computed output is the final parity target.
 
+## Apple/Web Parity Program
+
+For broad Apple UI parity work, use the program contract in `docs/specs/apple-ui-parity-program/spec.yml` and the matrix in `docs/architecture/apple/parity-matrix.md` before adding one-off native UI tests.
+
+The current rollout is chat-first. Regenerate the inventory with `python3 scripts/apple_parity_audit.py`; the program data lives in `test-results/apple-parity-inventory.json` under `programs.apple_ui_parity_program`.
+
+Use the hybrid gate consistently:
+
+- Blocking from the start: missing mappings, missing required identifiers, missing fixtures, stale fixtures, missing native tests, missing known renderers, forbidden generic fallbacks, broken behavior, and structural order drift.
+- Warning from the start: unpromoted visual/style drift from typography, spacing, color, radius, shadow, animation, or rasterization.
+- Promotable to blocking: reviewed visual/style checks with an explicit surface, state, tolerance, artifact source, and native-difference rule.
+
+For chat parity changes, run `python3 scripts/apple_chat_parity_audit.py` after regenerating the inventory. It verifies the chat guardrails and the Apple UI parity program inventory before Mac/Xcode evidence is available.
+
 ## SwiftUI / UIKit Strategy
 
 OpenMates is SwiftUI-first for product UI composition, design-token usage, and parity with the Svelte web source of truth. Do not rewrite screens to UIKit by default.

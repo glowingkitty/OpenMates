@@ -11,8 +11,11 @@ identifiers must stay aligned with web data-testid concepts.
 from __future__ import annotations
 
 import argparse
+import json
 import re
 from pathlib import Path
+
+import apple_parity_audit
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -30,6 +33,9 @@ CHAT_RENDERING_ORACLE_SPEC = REPO_ROOT / "frontend/apps/web_app/tests/chat-rende
 APPLE_REAL_ACCOUNT_TEST = REPO_ROOT / "apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift"
 CHAT_RENDERING_COMPARATOR = REPO_ROOT / "scripts/compare_chat_render_parity.py"
 CHAT_RENDERING_PARITY_DOC = REPO_ROOT / "docs/architecture/apple/chat-rendering-parity.md"
+APPLE_UI_PARITY_PROGRAM_SPEC = REPO_ROOT / "docs/specs/apple-ui-parity-program/spec.yml"
+APPLE_CHAT_UI_CONTRACT_SPEC = REPO_ROOT / "frontend/apps/web_app/tests/apple-chat-ui-contracts.spec.ts"
+PARITY_INVENTORY = REPO_ROOT / "test-results/apple-parity-inventory.json"
 
 
 REQUIRED_IDENTIFIERS = {
@@ -212,6 +218,51 @@ def audit_loaded_chat_parity_harness() -> list[str]:
     return failures
 
 
+def audit_program_inventory() -> list[str]:
+    failures: list[str] = []
+    if not APPLE_UI_PARITY_PROGRAM_SPEC.exists():
+        return [fail(f"Missing Apple UI parity program spec {APPLE_UI_PARITY_PROGRAM_SPEC.relative_to(REPO_ROOT)}")]
+    if not APPLE_CHAT_UI_CONTRACT_SPEC.exists():
+        failures.append(fail(f"Missing broad chat UI contract spec {APPLE_CHAT_UI_CONTRACT_SPEC.relative_to(REPO_ROOT)}"))
+
+    expected_inventory = json.dumps(apple_parity_audit.build_inventory(), indent=2, sort_keys=True) + "\n"
+    if not PARITY_INVENTORY.exists():
+        failures.append(fail(f"Missing parity inventory {PARITY_INVENTORY.relative_to(REPO_ROOT)}; run scripts/apple_parity_audit.py"))
+        return failures
+    if PARITY_INVENTORY.read_text(encoding="utf-8") != expected_inventory:
+        failures.append(fail(f"Stale parity inventory {PARITY_INVENTORY.relative_to(REPO_ROOT)}; run scripts/apple_parity_audit.py"))
+        return failures
+
+    inventory = json.loads(expected_inventory)
+    program = inventory.get("programs", {}).get("apple_ui_parity_program")
+    if not isinstance(program, dict):
+        failures.append(fail("Parity inventory missing programs.apple_ui_parity_program"))
+        return failures
+    if program.get("spec_path") != "docs/specs/apple-ui-parity-program/spec.yml":
+        failures.append(fail("Apple UI parity program inventory points at the wrong spec path"))
+    if program.get("first_rollout") != "chat":
+        failures.append(fail("Apple UI parity program inventory no longer prioritizes chat first"))
+
+    chat_surfaces = program.get("chat_surfaces")
+    if not isinstance(chat_surfaces, list) or not chat_surfaces:
+        failures.append(fail("Apple UI parity program inventory has no chat surfaces"))
+        return failures
+
+    all_web_specs = {
+        web_spec
+        for surface in chat_surfaces
+        if isinstance(surface, dict)
+        for web_spec in surface.get("web_specs", [])
+    }
+    if "frontend/apps/web_app/tests/apple-chat-ui-contracts.spec.ts" not in all_web_specs:
+        failures.append(fail("Chat-first program inventory does not include apple-chat-ui-contracts.spec.ts"))
+
+    ranked_gaps = program.get("ranked_chat_gaps")
+    if not isinstance(ranked_gaps, list) or not ranked_gaps:
+        failures.append(fail("Apple UI parity program inventory has no ranked chat gaps"))
+    return failures
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Audit Apple chat-flow scalability and parity guardrails")
     parser.add_argument("--surface", choices=("chat-flow",), default="chat-flow")
@@ -224,6 +275,7 @@ def main() -> int:
         failures.extend(audit_forbidden_controls())
         failures.extend(audit_web_to_apple_constants())
         failures.extend(audit_loaded_chat_parity_harness())
+        failures.extend(audit_program_inventory())
 
     if failures:
         print("Apple chat parity audit failed:")

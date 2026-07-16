@@ -1,0 +1,763 @@
+schema_version: 2
+id: apple-ui-parity-program
+title: Apple UI Parity Program
+status: implementing
+
+goal: >
+  Establish a durable Apple/web UI parity program that treats the rendered web
+  app as the source of truth, turns the existing Apple parity matrix into
+  enforceable contracts, and closes chat-first parity gaps through deterministic
+  coverage, native UI tests, and reviewed visual artifacts. The first rollout
+  prioritizes owned chat surfaces before expanding the same machinery to
+  settings, auth, billing, embeds, and other Apple counterparts.
+
+scope:
+  in:
+    - A broad Apple/web parity program contract anchored to `docs/architecture/apple/parity-matrix.md`.
+    - Chat-first rollout across app shell, chat list/sidebar, transcript, message bubbles, composer, attachments, streaming, empty, loading, error, offline, and responsive states.
+    - Reuse and expansion of the existing rendered web UI contract pipeline from `docs/specs/apple-ui-contracts/spec.yml`.
+    - Deterministic failure gates for missing mappings, missing Apple accessibility identifiers, missing fixtures, missing native tests, stale contract artifacts, and structural or behavioral drift.
+    - Warning-first visual/style drift reporting with an explicit promotion path to blocking failures per reviewed surface.
+    - A machine-readable priority inventory connecting web specs, web source, Apple source, native tests, visual artifacts, and intentional native differences.
+    - Nightly and CI-friendly checks that surface parity gaps without requiring every native visual comparison to run on every commit.
+  out:
+    - Blind one-to-one duplication of every web Playwright test in Apple UI tests.
+    - Pixel-perfect screenshot failure gates across all Apple surfaces before each surface has been reviewed and promoted.
+    - Replacing native SwiftUI/UIKit/AppKit owned product UI with a WebView to shortcut parity.
+    - Rewriting existing chat architecture unless a specific approved chat parity spec requires it.
+    - Watch-only parity work; watchOS remains governed by separate constrained-platform specs.
+    - Committing private credentials, private screenshots, raw user content, device hostnames, or production identifiers.
+
+context_discovery:
+  github_issues:
+    - GitHub MCP discovery returned `401 Bad credentials`; no issue results were available in this session.
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/architecture/apple/parity-matrix.md
+    - docs/architecture/platforms/apple.md
+    - docs/architecture/infrastructure/cronjobs.md
+    - docs/specs/apple-ui-contracts/spec.yml
+    - docs/specs/apple-responsive-shell-parity/spec.yml
+    - docs/specs/apple-chat-history-full-parity/spec.yml
+    - docs/specs/apple-chat-streaming-parity/spec.yml
+    - docs/specs/apple-embed-rendering-parity/spec.yml
+    - apple/SVELTE_SWIFT_COUNTERPARTS.md
+    - apple/AGENTS.md
+    - apple/CLAUDE.md
+  code_patterns:
+    - scripts/apple_parity_audit.py
+    - scripts/apple_chat_parity_audit.py
+    - scripts/apple_ui_contracts.py
+    - scripts/nightly-apple-parity-review.sh
+    - frontend/apps/web_app/tests/apple-ui-contracts.spec.ts
+    - frontend/apps/web_app/tests/apple-chat-history-contracts.spec.ts
+    - frontend/apps/web_app/tests/apple-embed-rendering-contracts.spec.ts
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    - frontend/apps/web_app/tests/chat-rendering-parity-oracle.spec.ts
+    - frontend/apps/web_app/tests/chat-response-processing-ui.spec.ts
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    - apple/OpenMatesUITests/ChatResponsiveParityUITests.swift
+    - apple/OpenMatesUITests/ChatShellResponsiveParityUITests.swift
+    - apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
+  tests:
+    - frontend/apps/web_app/tests/apple-ui-contracts.spec.ts
+    - frontend/apps/web_app/tests/apple-chat-history-contracts.spec.ts
+    - frontend/apps/web_app/tests/apple-embed-rendering-contracts.spec.ts
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    - frontend/apps/web_app/tests/chat-rendering-parity-oracle.spec.ts
+    - frontend/apps/web_app/tests/chat-response-processing-ui.spec.ts
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    - apple/OpenMatesUITests/ChatResponsiveParityUITests.swift
+    - apple/OpenMatesUITests/ChatShellResponsiveParityUITests.swift
+    - apple/OpenMatesTests/ChatHistoryRenderDocumentTests.swift
+    - apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
+  verified_findings:
+    - The parity matrix already identifies a large Apple testability gap: far fewer stable native accessibility identifiers than web `data-testid` values.
+    - The approved `apple-ui-contracts` spec already chose a hybrid model: deterministic structure/testability failures block, visual/style drift starts warning-only.
+    - Multiple chat-focused Apple parity specs already exist, so this program spec must coordinate and prioritize rather than duplicate their implementation ledgers.
+    - Nightly Apple parity review already exists and can feed a program inventory and follow-up queue.
+
+apple_impact:
+  affected_files:
+    - docs/architecture/apple/parity-matrix.md
+    - docs/specs/apple-ui-contracts/spec.yml
+    - docs/specs/apple-chat-history-full-parity/spec.yml
+    - docs/specs/apple-chat-streaming-parity/spec.yml
+    - scripts/apple_parity_audit.py
+    - scripts/apple_chat_parity_audit.py
+    - scripts/apple_ui_contracts.py
+    - scripts/nightly-apple-parity-review.sh
+    - frontend/apps/web_app/tests/apple-*-contracts.spec.ts
+    - frontend/apps/web_app/tests/chat-*.spec.ts
+    - apple/OpenMates/Sources/App/*.swift
+    - apple/OpenMates/Sources/Features/Chat/**/*.swift
+    - apple/OpenMates/Sources/Features/Embeds/**/*.swift
+    - apple/OpenMatesUITests/*.swift
+    - apple/OpenMatesTests/*.swift
+  parity_expectations:
+    - The rendered web app remains the source of truth for owned OpenMates UI hierarchy, behavior, state, semantics, tokens, and visual intent.
+    - Apple may use native controls where the operating system owns the surface, but surrounding OpenMates UI must satisfy the same product contract.
+    - Chat-first parity must prove behavior and structure through deterministic checks before visual review can be treated as meaningful.
+    - Every intentionally native difference must be recorded with a reason and must not hide a missing owned OpenMates product state.
+  verification:
+    - Deterministic parity inventory and contract audit on Linux.
+    - Web Playwright contract extraction after dev deployment for selected chat surfaces.
+    - Remote Apple simulator build/test evidence for targeted chat UI tests.
+    - Paired web/native artifact review for promoted chat visual states.
+  intentional_native_differences:
+    - Status bars, safe areas, system keyboards, OS file/photo/audio pickers, text rasterization, scrolling physics, and permission dialogs may differ.
+    - XCTest/XCUITest and remote simulator screenshots replace Playwright as native interaction proof.
+    - SwiftUI/AppKit/UIKit composition can differ internally while preserving owned product UI structure and visible state.
+
+clarification:
+  rounds:
+    - question: For the first approved spec, should this be a broad Apple UI parity program or a focused first vertical slice?
+      answer: Broad program.
+    - question: How strict should the broad Apple UI parity program be at first?
+      answer: "Hybrid gate: fail deterministic coverage/testability/contract drift, keep visual differences warning-only until each surface is reviewed and promoted."
+    - question: Which surfaces should the first broad parity program prioritize for enforceable coverage?
+      answer: Chat first.
+  vision_summary: >
+    The program should make actual Apple UI parity measurable and enforceable,
+    not merely add disconnected native E2E tests. The first rollout is chat-first
+    and broad enough to build reusable inventory, contract, native-test, visual
+    review, and nightly gates for later settings/auth/billing/embed surfaces.
+  approved_by_user: true
+
+implementation_state:
+  subject_commit: fe9012b2e929e0a0b969541df2cf915bdd4ad124
+
+approvals:
+  product_contract:
+    status: approved
+    approved_at: "2026-07-16T19:01:21Z"
+  implementation_plan:
+    status: approved
+    approved_at: "2026-07-16T19:01:21Z"
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Create a broad Apple UI parity program spec rather than only a chat-only slice.
+    reason: The user selected a broad program and the repository already has multiple vertical parity specs that need coordination.
+    decided_at: "2026-07-16T00:00:00Z"
+  - id: D-2
+    status: active
+    decision: Use a hybrid gate initially.
+    reason: Deterministic structure, identifier, contract, and behavior gaps should fail, while SwiftUI/browser visual differences need reviewed promotion before blocking.
+    decided_at: "2026-07-16T00:00:00Z"
+  - id: D-3
+    status: active
+    decision: Prioritize chat surfaces before settings, auth, billing, and broader embeds.
+    reason: Chat is the core product surface and already has the most relevant Apple parity specs, tests, and known gaps.
+    decided_at: "2026-07-16T00:00:00Z"
+  - id: D-4
+    status: active
+    decision: Expand the existing rendered web contract pipeline instead of inventing a separate parity mechanism.
+    reason: "`apple-ui-contracts` already defines contract fixtures, severity levels, and first-slice Apple consumption."
+    decided_at: "2026-07-16T00:00:00Z"
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    approach: Add many Apple E2E tests by mirroring the web Playwright suite one-to-one.
+    outcome: rejected
+    recorded_at: "2026-07-16T00:00:00Z"
+    evidence: The user asked whether many matching E2E tests were enough; the selected direction is a parity system with shared contracts and targeted native tests.
+  - id: ATTEMPT-2
+    task_id: TASK-1
+    approach: Create only a focused first-surface spec.
+    outcome: rejected
+    recorded_at: "2026-07-16T00:00:00Z"
+    evidence: The user selected a broad program while keeping chat as the first rollout priority.
+  - id: ATTEMPT-3
+    task_id: TASK-2
+    approach: Extend the existing Linux-safe Apple parity inventory instead of adding a separate program inventory file.
+    outcome: succeeded
+    recorded_at: "2026-07-16T19:09:06Z"
+    evidence: "`python3 scripts/apple_parity_audit.py` wrote the inventory with `programs.apple_ui_parity_program`, and `python3 scripts/spec_validate.py docs/specs/apple-ui-parity-program/spec.yml` passed."
+  - id: ATTEMPT-4
+    task_id: TASK-4
+    approach: Extend the deterministic Apple chat audit to enforce that the broad parity program inventory is present, fresh, chat-first, and includes the umbrella web contract spec.
+    outcome: succeeded
+    recorded_at: "2026-07-16T19:27:46Z"
+    evidence: "`python3 scripts/apple_chat_parity_audit.py` passed after regenerating `test-results/apple-parity-inventory.json`."
+  - id: ATTEMPT-5
+    task_id: TASK-4
+    approach: Update Apple agent instructions and the canonical iOS skill so future Apple work uses the parity program before ad hoc native UI tests.
+    outcome: succeeded
+    recorded_at: "2026-07-16T19:27:46Z"
+    evidence: "`python3 scripts/sync_agent_parity.py --check` passed after syncing `.agents/skills/ios` and normalizing Codex hook mirrors to Claude sources."
+
+handoff:
+  current_task_id: TASK-3
+  next_action: Deploy the umbrella chat UI contract spec, then dispatch the Playwright contract run through the test control plane.
+  command: python3 scripts/tests.py run --spec apple-chat-ui-contracts.spec.ts
+  expected_outcome: The deployed dev Playwright run captures chat UI contract artifacts or reports a concrete selector/state gap.
+  blocker: null
+  last_verified_commit: fe9012b2e929e0a0b969541df2cf915bdd4ad124
+
+scenarios:
+  - id: S-1
+    title: Program inventory ranks chat parity gaps from source and tests
+    given:
+      - The repository contains web chat specs, web chat source, Apple chat source, native tests, and the counterpart map.
+      - The parity matrix lists product surfaces and known status definitions.
+    when:
+      - The parity inventory runs for the chat-first program scope.
+    then:
+      - It produces a machine-readable inventory of chat surfaces, web specs, web selectors, Apple files, Apple identifiers, native tests, contract fixtures, and visual artifacts.
+      - It flags missing mappings, stale counterpart paths, missing identifiers, missing native tests, missing fixtures, and intentionally native differences.
+      - It ranks chat gaps before settings, auth, billing, and broader non-chat surfaces.
+
+  - id: S-2
+    title: Web chat contracts capture rendered source-of-truth states
+    given:
+      - The deployed dev web app renders selected chat surfaces with synthetic or sanitized test data.
+      - The contract extractor knows the chat selectors and states to capture.
+    when:
+      - The web contract Playwright specs run after deployment.
+    then:
+      - They capture normalized rendered DOM, computed style, layout, interaction state, accessibility-relevant semantics, and optional screenshot metadata.
+      - The first promoted contracts cover shell, chat list, transcript, message bubbles, composer, attachments, streaming or processing, empty, loading, error, offline, and responsive states.
+      - Private user data, raw chat IDs, credentials, local hostnames, and volatile timestamps are excluded.
+
+  - id: S-3
+    title: Deterministic Apple contract audits fail structural and testability drift
+    given:
+      - Promoted web chat contracts and the chat parity inventory exist.
+      - Apple chat source and native test hierarchy can be inspected or exercised.
+    when:
+      - The deterministic Apple parity audit runs.
+    then:
+      - Missing mapped Apple identifiers, missing required states, stale fixtures, missing renderers, forbidden generic fallbacks, and structural ordering mismatches fail.
+      - Visual/style drift is reported as warning-level unless the specific surface has been promoted to blocking.
+      - Intentional native differences are allowed only when documented and scoped to OS-owned or explicitly approved native behavior.
+
+  - id: S-4
+    title: Targeted Apple UI tests prove chat-first user journeys
+    given:
+      - The Apple app can run on remote iPhone and iPad simulators, with macOS evidence collected when available.
+      - Chat web contracts and synthetic fixtures are available to native tests or audit scripts.
+    when:
+      - Targeted native UI tests exercise chat shell, list, transcript, composer, attachments, streaming, restoration, and responsive states.
+    then:
+      - Native tests prove product behavior and structure for the same contracts rather than copying every web test line by line.
+      - iPhone and iPad evidence is required for promoted chat gates; macOS evidence is required unless the spec records a sanitized external blocker or user-approved waiver.
+      - Failures identify the owning surface and missing parity contract rather than producing only generic screenshot diffs.
+
+  - id: S-5
+    title: Visual artifacts are reviewed and promoted surface by surface
+    given:
+      - A deterministic chat contract passes for a selected surface.
+      - Web and Apple screenshots or rendered artifacts are available for light, dark, compact, and regular layouts where applicable.
+    when:
+      - A reviewer compares visual artifacts for the selected surface.
+    then:
+      - Visual drift starts as warning-level with attached artifacts and clear owner notes.
+      - Reviewed stable differences are either documented as intentional native differences or promoted to blocking checks.
+      - Promotion requires a specific surface/state, tolerance, artifact source, and fallback rule; it is not applied globally by default.
+
+  - id: S-6
+    title: The program expands beyond chat through the matrix
+    given:
+      - Chat-first inventory, contract, audit, native-test, and visual-review gates are established.
+      - The parity matrix still contains settings, auth, billing, embeds, sharing, offline/sync, and other non-chat surfaces.
+    when:
+      - The nightly Apple parity review or a follow-up implementation session runs.
+    then:
+      - It selects the next highest-value surfaces using missing identifiers, missing tests, user-visible risk, and recent web UI changes.
+      - The same hybrid gate pattern is reused instead of creating unrelated one-off tests.
+      - The matrix records which surfaces are missing, partial, visually gapped, functionally gapped, testability-gapped, or promoted parity candidates.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: A deterministic inventory ranks chat-first Apple parity gaps across source mappings, web specs/selectors, Apple identifiers, native tests, contract fixtures, and visual artifacts.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids:
+      - T-LINT-PARITY-INVENTORY
+  - id: AC-2
+    scenario: S-2
+    text: Web Playwright contract extraction captures sanitized rendered contracts for promoted chat states after dev deployment.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids:
+      - T-E2E-WEB-CHAT-CONTRACTS
+  - id: AC-3
+    scenario: S-3
+    text: Apple contract audits fail deterministic structural, behavior, fixture, identifier, and testability drift while keeping unpromoted visual drift warning-only.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids:
+      - T-LINT-APPLE-CHAT-AUDIT
+  - id: AC-4
+    scenario: S-4
+    text: Targeted Apple UI tests prove chat-first parity journeys on iPhone and iPad, with macOS evidence, blocker, or waiver recorded before completion.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids:
+      - T-APPLE-CHAT-PARITY-UI
+      - V-MACOS-CHAT-PARITY
+  - id: AC-5
+    scenario: S-5
+    text: Visual parity artifacts for promoted chat surfaces are reviewed, warning-level drift is tracked, and reviewed states can be promoted to blocking checks with explicit tolerances.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: manual
+    verification_ids:
+      - V-VISUAL-REVIEW
+  - id: AC-6
+    scenario: S-6
+    text: The parity matrix and nightly review consume the program inventory to select next surfaces after chat without creating disconnected one-off native tests.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids:
+      - T-LINT-MATRIX-UPDATE
+
+assumptions:
+  - id: A-1
+    text: The existing Apple parity and UI-contract scripts can be extended instead of replaced.
+    category: tooling
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: scripts/apple_parity_audit.py
+        summary: Existing script already produces Apple parity inventory data.
+      - source: scripts/apple_chat_parity_audit.py
+        summary: Existing script already focuses on chat parity audit signals.
+      - source: scripts/apple_ui_contracts.py
+        summary: Existing script supports web UI contract fixture handling.
+  - id: A-2
+    text: Chat-first parity can use synthetic or sanitized fixtures for committed artifacts.
+    category: privacy
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: docs/specs/apple-ui-contracts/spec.yml
+        summary: Existing approved contract excludes private user data and volatile identifiers from committed fixtures.
+  - id: A-3
+    text: Remote Apple verification may be unavailable for macOS execution even when iPhone and iPad simulator tests run.
+    category: verification
+    required_before: completion
+    status: unchecked
+
+contracts:
+  api:
+    - No product API changes are required for the parity program itself.
+    - Test-only fixture injection, if added by implementation specs, must be gated by DEBUG or UI-test launch arguments and must not alter normal production behavior.
+  data:
+    - Program inventory records web source files, web specs, web selectors, Apple source files, Apple identifiers, native tests, web contract fixtures, artifact paths, statuses, owners, and intentional native differences.
+    - Generated inventory artifacts live under `test-results/` and committed approved fixtures live under Apple/web test fixture directories already used by the contract pipeline.
+    - Contract artifacts must sanitize private content, raw chat IDs, credentials, device names, local hostnames, and volatile values.
+  ui_states:
+    - Chat shell compact and regular navigation.
+    - Chat list grouping, active, unread, empty, hidden, and context-action states.
+    - Transcript user, assistant, system, loading, processing, streaming, completed, error, and restored states.
+    - Message bubbles, markdown, citations, generated-by/report actions, highlights, avatars, and mate identity.
+    - Composer default, focused, disabled, attachment, audio, processing, failed-send, and post-send clearance states.
+    - Light, dark, compact iPhone, regular iPad, and macOS-equivalent layouts for promoted states.
+  privacy_security:
+    - No private test credentials, raw issue data, private screenshots, encryption keys, tokens, hostnames, or user content may be committed.
+    - Native test identifiers and debug labels must be synthetic and must not expose decrypted chat content or secrets.
+    - Visual artifacts from real accounts remain transient test artifacts unless manually sanitized.
+  gate_policy:
+    - Blocking from the start: missing mappings, missing required identifiers, missing fixtures, stale fixtures, missing native tests, missing known renderers, forbidden generic fallback, broken behavior, and structural order drift.
+    - Warning from the start: unpromoted visual/style differences caused by typography, spacing, color, radius, shadow, animation, or rasterization.
+    - Promotable to blocking: reviewed visual/style checks with explicit surface, state, tolerance, artifact source, and native-difference rule.
+
+tests:
+  - id: T-LINT-PARITY-INVENTORY
+    type: lint
+    file: scripts/apple_parity_audit.py
+    command: python3 scripts/apple_parity_audit.py
+    covers:
+      - AC-1
+    assertions:
+      - inventory includes web chat specs and selectors
+      - inventory includes mapped Apple source and identifiers
+      - inventory flags missing mappings, identifiers, fixtures, tests, and artifacts
+      - chat surfaces are ranked ahead of non-chat follow-ups for the first rollout
+    red_phase:
+      required: false
+      expected: fail
+      evidence:
+        status: not_run
+        timestamp: "2026-07-16T19:12:42Z"
+        notes: Existing inventory script was extended in place before a separate red run was captured for this tooling slice.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 scripts/apple_parity_audit.py
+        run_id: local-20260716T191242Z
+        subject_commit: fe9012b2e929e0a0b969541df2cf915bdd4ad124
+        timestamp: "2026-07-16T19:12:42Z"
+
+  - id: T-E2E-WEB-CHAT-CONTRACTS
+    type: playwright
+    file: frontend/apps/web_app/tests/apple-chat-ui-contracts.spec.ts
+    command: python3 scripts/tests.py run --spec apple-chat-ui-contracts.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-2
+    assertions:
+      - shell, chat list, transcript, message bubble, composer, attachment, streaming, empty, loading, error, and responsive states are captured or explicitly scoped
+      - contracts include DOM structure, computed style, geometry, semantics, severity, and artifact metadata
+      - contracts exclude private and volatile data
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: python3 scripts/tests.py run --spec apple-chat-ui-contracts.spec.ts
+        run_id: "29543201955"
+        subject_commit: "7206f4981"
+        timestamp: "2026-07-16T23:54:01Z"
+        notes: "Deployed dev did not contain the new spec yet; GitHub Actions failed with `Error: No tests found.`"
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: pending
+
+  - id: T-LINT-APPLE-CHAT-AUDIT
+    type: lint
+    file: scripts/apple_chat_parity_audit.py
+    command: python3 scripts/apple_chat_parity_audit.py
+    covers:
+      - AC-3
+    assertions:
+      - required Apple identifiers exist for promoted chat contracts
+      - missing required states, stale fixtures, structural order drift, and forbidden generic fallback fail
+      - unpromoted visual differences are reported as warnings
+      - intentional native differences are listed with a reason
+    red_phase:
+      required: false
+      expected: fail
+      evidence:
+        status: not_run
+        timestamp: "2026-07-16T19:27:46Z"
+        notes: Existing chat audit was extended in place before a separate red run was captured.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 scripts/apple_chat_parity_audit.py
+        run_id: local-20260716T192746Z
+        subject_commit: fe9012b2e929e0a0b969541df2cf915bdd4ad124
+        timestamp: "2026-07-16T19:27:46Z"
+
+  - id: T-APPLE-CHAT-PARITY-UI
+    type: manual
+    file: apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/ChatFlowParityUITests
+    covers:
+      - AC-4
+    assertions:
+      - targeted native UI tests exercise the promoted chat contracts instead of mirroring every web test
+      - iPhone simulator evidence covers compact chat shell, transcript, composer, and at least one attachment or processing state
+      - iPad simulator evidence covers regular responsive layout for the same promoted states
+      - failures name the missing parity contract or surface
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+
+  - id: T-LINT-MATRIX-UPDATE
+    type: lint
+    file: docs/architecture/apple/parity-matrix.md
+    command: python3 scripts/spec_validate.py docs/specs/apple-ui-parity-program/spec.yml
+    covers:
+      - AC-6
+    assertions:
+      - matrix references the program inventory and chat-first rollout status
+      - next non-chat surfaces are selected by explicit gap signals
+      - follow-up surfaces reuse the same hybrid gate model
+    red_phase:
+      required: false
+      expected: fail
+      evidence:
+        status: not_run
+        timestamp: "2026-07-16T19:12:42Z"
+        notes: Matrix update is documentation plus spec validation; no separate red phase was useful.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 scripts/spec_validate.py docs/specs/apple-ui-parity-program/spec.yml
+        run_id: local-20260716T192746Z
+        subject_commit: fe9012b2e929e0a0b969541df2cf915bdd4ad124
+        timestamp: "2026-07-16T19:27:46Z"
+
+verifications:
+  - id: V-VISUAL-REVIEW
+    kind: artifact_review
+    phase: final
+    status: pending
+    required_for_done: true
+    covers:
+      - AC-5
+    evidence:
+      status: pending
+    notes: Paired web/native visual artifacts for promoted chat states must be reviewed before visual warnings can be promoted or waived.
+  - id: V-MACOS-CHAT-PARITY
+    kind: manual_check
+    phase: final
+    status: pending
+    required_for_done: true
+    covers:
+      - AC-4
+    evidence:
+      status: pending
+    notes: macOS chat parity requires execution evidence, a sanitized remote-runner blocker, or an explicit user-approved waiver before completion.
+
+implementation_plan:
+  spec_path: docs/specs/apple-ui-parity-program/spec.yml
+  existing_patterns:
+    - docs/architecture/apple/parity-matrix.md surface/status taxonomy
+    - docs/specs/apple-ui-contracts/spec.yml hybrid contract severity model
+    - scripts/apple_parity_audit.py inventory generation
+    - scripts/apple_chat_parity_audit.py chat-specific deterministic checks
+    - scripts/apple_ui_contracts.py contract fixture validation and promotion
+    - frontend/apps/web_app/tests/apple-*-contracts.spec.ts web rendered contract extraction
+    - apple/OpenMatesUITests/*ParityUITests.swift native parity UI tests
+  architecture: >
+    Extend the existing parity matrix, inventory scripts, web contract fixtures,
+    and native UI test suite into one program-level gate. The program first
+    ranks chat gaps, expands rendered web contracts for promoted chat states,
+    fails deterministic Apple structure/testability drift, collects targeted
+    native evidence, then uses reviewed visual artifacts to promote surface-level
+    visual checks from warning to blocking.
+  data_flow:
+    - Web source, web specs, Apple source, native tests, and counterpart maps feed the parity inventory.
+    - Deployed web Playwright contract specs produce sanitized rendered contract artifacts.
+    - Contract promotion validates fixtures before native tests or audits consume them.
+    - Apple deterministic audits compare fixtures, identifiers, structural order, renderer coverage, and allowed native differences.
+    - Remote Apple UI tests produce simulator evidence and artifacts for promoted chat states.
+    - Visual reviews update the matrix and may promote specific visual checks to blocking.
+  affected_files:
+    - path: docs/specs/apple-ui-parity-program/spec.yml
+      reason: Program-level product contract and implementation ledger.
+    - path: docs/architecture/apple/parity-matrix.md
+      reason: Surface status, priority order, and promotion state source.
+    - path: scripts/apple_parity_audit.py
+      reason: Broad parity inventory generation and gap ranking.
+    - path: scripts/apple_chat_parity_audit.py
+      reason: Chat-first deterministic audit and failure policy.
+    - path: scripts/apple_ui_contracts.py
+      reason: Contract schema, fixture validation, and promotion support.
+    - path: frontend/apps/web_app/tests/apple-chat-ui-contracts.spec.ts
+      reason: Planned rendered web contract extraction for chat-first surfaces.
+    - path: apple/OpenMatesUITests/ChatFlowParityUITests.swift
+      reason: Planned native UI test consumption of promoted chat contracts.
+    - path: apple/AGENTS.md
+      reason: Apple development instructions now point agents at the parity program and hybrid gate.
+    - path: .claude/skills/ios/SKILL.md
+      reason: Canonical iOS skill now requires the parity program in Linux audit mode.
+    - path: .agents/skills/ios/SKILL.md
+      reason: Generated iOS skill mirror synchronized from the canonical Claude skill.
+  verification_strategy:
+    - python3 scripts/spec_validate.py docs/specs/apple-ui-parity-program/spec.yml
+    - python3 scripts/apple_parity_audit.py
+    - python3 scripts/tests.py run --spec apple-chat-ui-contracts.spec.ts
+    - python3 scripts/apple_chat_parity_audit.py
+    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/ChatFlowParityUITests
+    - python3 scripts/apple_remote.py test-ios --simulator "iPad Pro 13-inch (M5)" --only-testing OpenMatesUITests/ChatFlowParityUITests
+    - Paired web/native visual artifact review for promoted chat states
+  verification_order:
+    - Validate spec shape.
+    - Run inventory red phase before implementation.
+    - Run web contract red phase against deployed dev before implementation is deployed.
+    - Run deterministic Apple audit red phase before Apple fixes.
+    - Implement inventory, contract, audit, native test, and matrix slices in that order.
+    - Deploy web contract changes before green Playwright evidence.
+    - Run iPhone and iPad native tests through `scripts/apple_remote.py` after web and deterministic gates.
+    - Record visual artifact review and macOS evidence, blocker, or waiver before completion.
+
+tasks:
+  - id: TASK-1
+    title: Approve program product contract and refine task plan
+    status: done
+    phase: complete
+    covers:
+      scenarios: [S-1, S-2, S-3, S-4, S-5, S-6]
+      acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6]
+    expected_files:
+      - docs/specs/apple-ui-parity-program/spec.yml
+    verification_ids:
+      - T-LINT-MATRIX-UPDATE
+    dependencies: []
+    blockers: []
+    follow_up_tasks:
+      - TASK-2
+      - TASK-3
+      - TASK-4
+      - TASK-5
+      - TASK-6
+    ownership:
+      files:
+        - docs/specs/apple-ui-parity-program/spec.yml
+      shared_files: []
+
+  - id: TASK-2
+    title: Build chat-first parity inventory and matrix update
+    status: done
+    phase: complete
+    covers:
+      scenarios: [S-1, S-6]
+      acceptance_criteria: [AC-1, AC-6]
+    expected_files:
+      - scripts/apple_parity_audit.py
+      - docs/architecture/apple/parity-matrix.md
+      - test-results/apple-parity-inventory.json
+    verification_ids:
+      - T-LINT-PARITY-INVENTORY
+      - T-LINT-MATRIX-UPDATE
+    dependencies:
+      - TASK-1
+    blockers: []
+    follow_up_tasks:
+      - TASK-3
+    ownership:
+      files:
+        - scripts/apple_parity_audit.py
+        - docs/architecture/apple/parity-matrix.md
+      shared_files:
+        - test-results/apple-parity-inventory.json
+
+  - id: TASK-3
+    title: Expand rendered web chat contracts
+    status: in_progress
+    phase: running_checks
+    covers:
+      scenarios: [S-2]
+      acceptance_criteria: [AC-2]
+    expected_files:
+      - frontend/apps/web_app/tests/apple-chat-ui-contracts.spec.ts
+      - scripts/apple_ui_contracts.py
+      - apple/OpenMatesUITests/Fixtures/WebUIContracts/*.json
+    verification_ids:
+      - T-E2E-WEB-CHAT-CONTRACTS
+    dependencies:
+      - TASK-2
+    blockers: []
+    follow_up_tasks:
+      - TASK-4
+    ownership:
+      files:
+        - frontend/apps/web_app/tests/apple-chat-ui-contracts.spec.ts
+        - scripts/apple_ui_contracts.py
+      shared_files:
+        - apple/OpenMatesUITests/Fixtures/WebUIContracts/*.json
+
+  - id: TASK-4
+    title: Enforce deterministic Apple chat contract audit
+    status: pending
+    phase: drafting
+    covers:
+      scenarios: [S-3]
+      acceptance_criteria: [AC-3]
+    expected_files:
+      - scripts/apple_chat_parity_audit.py
+      - apple/OpenMates/Sources/Features/Chat/**/*.swift
+      - apple/OpenMatesUITests/*.swift
+    verification_ids:
+      - T-LINT-APPLE-CHAT-AUDIT
+    dependencies:
+      - TASK-3
+    blockers: []
+    follow_up_tasks:
+      - TASK-5
+    ownership:
+      files:
+        - scripts/apple_chat_parity_audit.py
+      shared_files:
+        - apple/OpenMates/Sources/Features/Chat/**/*.swift
+        - apple/OpenMatesUITests/*.swift
+
+  - id: TASK-5
+    title: Add targeted Apple chat parity UI evidence
+    status: pending
+    phase: drafting
+    covers:
+      scenarios: [S-4]
+      acceptance_criteria: [AC-4]
+    expected_files:
+      - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+      - apple/OpenMatesUITests/ChatResponsiveParityUITests.swift
+      - apple/OpenMatesUITests/Fixtures/WebUIContracts/*.json
+    verification_ids:
+      - T-APPLE-CHAT-PARITY-UI
+      - V-MACOS-CHAT-PARITY
+    dependencies:
+      - TASK-4
+    blockers: []
+    follow_up_tasks:
+      - TASK-6
+    ownership:
+      files:
+        - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+        - apple/OpenMatesUITests/ChatResponsiveParityUITests.swift
+      shared_files:
+        - apple/OpenMatesUITests/Fixtures/WebUIContracts/*.json
+
+  - id: TASK-6
+    title: Review and promote chat visual parity artifacts
+    status: pending
+    phase: drafting
+    covers:
+      scenarios: [S-5, S-6]
+      acceptance_criteria: [AC-5, AC-6]
+    expected_files:
+      - docs/architecture/apple/parity-matrix.md
+      - test-results/apple-parity-inventory.json
+      - test-results/apple-ui-contracts/**
+    verification_ids:
+      - V-VISUAL-REVIEW
+      - T-LINT-MATRIX-UPDATE
+    dependencies:
+      - TASK-5
+    blockers: []
+    follow_up_tasks: []
+    ownership:
+      files:
+        - docs/architecture/apple/parity-matrix.md
+      shared_files:
+        - test-results/apple-parity-inventory.json
+        - test-results/apple-ui-contracts/**
+
+risks:
+  - Broad parity programs can become vague; this spec narrows the first rollout to chat and requires concrete inventory/test/artifact gates.
+  - Native visual comparisons can be flaky if promoted too early; visual drift remains warning-only until reviewed per surface.
+  - Existing vertical chat specs may overlap; this spec coordinates gates and priority but should not duplicate their detailed implementation ledgers.
+  - Remote Apple verification can be blocked by simulator, signing, or runner availability; blockers must be sanitized and recorded in the spec.
+  - Adding identifiers only for tests can distort accessibility if not implemented as real stable product semantics.
+
+open_questions:
+  - Which chat visual states should be promoted from warning to blocking first after the initial inventory: shell, transcript, composer, or streaming?
+  - Should nightly Apple parity review become a blocking daily-test signal after chat gates stabilize, or remain advisory plus PR-scoped blocking checks?
+  - What macOS evidence threshold is acceptable if remote execution remains unavailable but iPhone and iPad simulator coverage passes?

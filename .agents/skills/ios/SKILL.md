@@ -83,13 +83,21 @@ python3 scripts/sessions.py start --mode <feature|bug> --task "<task>"
 When working without Xcode/Mac access:
 
 1. Read `docs/architecture/apple/parity-matrix.md` if it exists.
-2. Run or update `scripts/apple_parity_audit.py` to compare web `data-testid` values with Apple `.accessibilityIdentifier(...)` values.
-3. Read the relevant web Playwright specs and source files.
-4. Read the corresponding Apple Swift files.
-5. Compare protocol names, data models, state machines, error states, loading states, offline behavior, and testability identifiers.
-6. Document findings in `docs/architecture/apple/<surface>-parity.md`.
-7. Separate findings into `Confirmed from source`, `Likely gap`, `Intentional native difference`, and `Needs Mac verification`.
-8. Produce a Mac verification checklist with exact screens, actions, expected screenshots, and tests to add/run later.
+2. For broad UI parity work, read `docs/specs/apple-ui-parity-program/spec.yml` and use its chat-first inventory before adding one-off native tests.
+3. Run or update `scripts/apple_parity_audit.py` to compare web `data-testid` values with Apple `.accessibilityIdentifier(...)` values and refresh `test-results/apple-parity-inventory.json`.
+4. For chat parity, run `scripts/apple_chat_parity_audit.py`; it verifies the chat guardrails and the `programs.apple_ui_parity_program` inventory section.
+5. Read the relevant web Playwright specs and source files.
+6. Read the corresponding Apple Swift files.
+7. Compare protocol names, data models, state machines, error states, loading states, offline behavior, and testability identifiers.
+8. Document findings in `docs/architecture/apple/<surface>-parity.md`.
+9. Separate findings into `Confirmed from source`, `Likely gap`, `Intentional native difference`, and `Needs Mac verification`.
+10. Produce a Mac verification checklist with exact screens, actions, expected screenshots, and tests to add/run later.
+
+The Apple UI parity program uses a hybrid gate: deterministic structure,
+identifier, fixture, native-test, known-renderer, fallback, behavior, and
+ordering gaps are blocking; visual/style differences stay warning-only until a
+specific surface and state are reviewed and promoted with explicit tolerance and
+artifact rules.
 
 Linux audits may update docs, scripts, and safe static identifiers. Do not make broad Swift behavior changes that require compiler validation unless the user explicitly asks and accepts Mac verification later.
 
