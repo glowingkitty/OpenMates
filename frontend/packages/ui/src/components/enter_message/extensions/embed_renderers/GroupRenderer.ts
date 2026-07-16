@@ -530,10 +530,10 @@ export class GroupRenderer implements EmbedRenderer {
     );
 
     // Load embed content from EmbedStore if contentRef is present
-    let embedData = null;
-    let decodedContent = null;
+    let embedData = (context.embedData as EmbedData | null | undefined) ?? null;
+    let decodedContent = (context.decodedContent as DecodedEmbedContent | null | undefined) ?? null;
 
-    if (attrs.contentRef && attrs.contentRef.startsWith("embed:")) {
+    if (!embedData && attrs.contentRef && attrs.contentRef.startsWith("embed:")) {
       try {
         const { resolveEmbed, decodeToonContent } =
           await import("../../../../services/embedResolver");

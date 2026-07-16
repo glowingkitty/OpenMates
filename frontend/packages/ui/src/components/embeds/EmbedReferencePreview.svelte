@@ -263,6 +263,8 @@
         attrs,
         container: containerEl,
         content: containerEl,
+        embedData,
+        decodedContent,
       });
 
       if (maybePromise instanceof Promise) {

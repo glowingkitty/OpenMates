@@ -9,6 +9,10 @@ export interface EmbedRenderContext {
   attrs: EmbedNodeAttributes;
   container: HTMLElement;
   content: HTMLElement;
+  /** Optional pre-resolved embed row, used by reference previews to avoid duplicate lookup races. */
+  embedData?: unknown;
+  /** Optional pre-decoded TOON content matching embedData. */
+  decodedContent?: Record<string, unknown> | null;
 }
 
 /**
