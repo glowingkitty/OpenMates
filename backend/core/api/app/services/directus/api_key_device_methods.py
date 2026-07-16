@@ -35,7 +35,7 @@ async def get_api_key_device_by_hash(
         params = {
             "filter[api_key_id][_eq]": api_key_id,
             "filter[device_hash][_eq]": device_hash,
-            "limit": 1
+            "sort": "-approved_at,-last_access_at",
         }
         
         response = await self._make_api_request("GET", url, params=params)
@@ -43,7 +43,13 @@ async def get_api_key_device_by_hash(
         if response.status_code == 200:
             data = response.json().get("data", [])
             if data and len(data) > 0:
-                return data[0]
+                return max(
+                    data,
+                    key=lambda row: (
+                        bool(row.get("approved_at")),
+                        row.get("last_access_at") or row.get("first_access_at") or "",
+                    ),
+                )
         return None
         
     except Exception as e:
@@ -109,6 +115,14 @@ async def create_api_key_device(
     """
     try:
         from backend.core.api.app.utils.device_fingerprint import get_geo_data_from_ip
+
+        existing_device = await get_api_key_device_by_hash(self, api_key_id, device_hash)
+        if existing_device:
+            logger.info(
+                "API key device record already exists for "
+                f"api_key_id={api_key_id}, device_hash={device_hash[:8]}..."
+            )
+            return True, existing_device, "Device record already exists"
         
         # Get user's vault_key_id for encryption
         user_data = await self.get_user_fields_direct(user_id, ['vault_key_id'])
@@ -251,7 +265,7 @@ async def get_api_key_devices(
         response = await self._make_api_request("GET", url, params=params)
         
         if response.status_code == 200:
-            data = response.json().get("data", [])
+            data = _dedupe_api_key_devices(response.json().get("data", []))
             
             # Decrypt fields if user_id is provided
             if user_id and data:
@@ -306,6 +320,61 @@ async def get_api_key_devices(
         return []
 
 
+def _dedupe_api_key_devices(devices: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Merge duplicate rows for the same API key/device hash."""
+    merged: Dict[Tuple[str, str], Dict[str, Any]] = {}
+
+    for device in devices:
+        api_key_id = device.get("api_key_id")
+        device_hash = device.get("device_hash")
+        key = (api_key_id, device_hash)
+        if not api_key_id or not device_hash:
+            merged[(device.get("id", ""), "")] = device
+            continue
+
+        existing = merged.get(key)
+        if not existing:
+            merged[key] = device.copy()
+            continue
+
+        existing_first = existing.get("first_access_at") or ""
+        device_first = device.get("first_access_at") or ""
+        if device_first and (not existing_first or device_first < existing_first):
+            existing["first_access_at"] = device_first
+
+        existing_last = existing.get("last_access_at") or ""
+        device_last = device.get("last_access_at") or ""
+        if device_last and device_last > existing_last:
+            existing["last_access_at"] = device_last
+
+        if not existing.get("approved_at") and device.get("approved_at"):
+            existing["id"] = device.get("id", existing.get("id"))
+            existing["approved_at"] = device.get("approved_at")
+
+    return list(merged.values())
+
+
+async def _get_duplicate_api_key_device_ids(
+    self,
+    api_key_id: str,
+    device_hash: str,
+) -> List[str]:
+    """Return all row IDs for one logical API-key device."""
+    url = f"{self.base_url}/items/api_key_devices"
+    response = await self._make_api_request(
+        "GET",
+        url,
+        params={
+            "filter[api_key_id][_eq]": api_key_id,
+            "filter[device_hash][_eq]": device_hash,
+            "fields": "id",
+        },
+    )
+    if response.status_code != 200:
+        return []
+    return [row.get("id") for row in response.json().get("data", []) if row.get("id")]
+
+
 async def approve_api_key_device(
     self,
     device_id: str
@@ -333,17 +402,24 @@ async def approve_api_key_device(
             api_key_id = device_data.get("api_key_id")
             device_hash = device_data.get("device_hash")
         
-        # Update device to approved (set approved_at timestamp)
-        url = f"{self.base_url}/items/api_key_devices/{device_id}"
         now = datetime.now(timezone.utc).isoformat()
         update_data = {
             "approved_at": now,
             "updated_at": now
         }
-        
-        response = await self._make_api_request("PATCH", url, json=update_data)
-        
-        if response.status_code == 200:
+
+        device_ids = [device_id]
+        if api_key_id and device_hash:
+            device_ids = await _get_duplicate_api_key_device_ids(self, api_key_id, device_hash) or [device_id]
+
+        updated_any = False
+        for target_device_id in device_ids:
+            url = f"{self.base_url}/items/api_key_devices/{target_device_id}"
+            response = await self._make_api_request("PATCH", url, json=update_data)
+            if response.status_code == 200:
+                updated_any = True
+
+        if updated_any:
             logger.info(f"Approved API key device {device_id}")
             
             # Invalidate device approval cache if we have the keys
@@ -395,11 +471,18 @@ async def revoke_api_key_device(
             api_key_id = device_data.get("api_key_id")
             device_hash = device_data.get("device_hash")
         
-        # Delete device record
-        url = f"{self.base_url}/items/api_key_devices/{device_id}"
-        response = await self._make_api_request("DELETE", url)
-        
-        if response.status_code == 200 or response.status_code == 204:
+        device_ids = [device_id]
+        if api_key_id and device_hash:
+            device_ids = await _get_duplicate_api_key_device_ids(self, api_key_id, device_hash) or [device_id]
+
+        deleted_any = False
+        for target_device_id in device_ids:
+            url = f"{self.base_url}/items/api_key_devices/{target_device_id}"
+            response = await self._make_api_request("DELETE", url)
+            if response.status_code == 200 or response.status_code == 204:
+                deleted_any = True
+
+        if deleted_any:
             logger.info(f"Revoked API key device {device_id}")
             
             # Invalidate device approval cache if we have the keys

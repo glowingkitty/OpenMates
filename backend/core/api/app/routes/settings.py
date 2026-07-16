@@ -1081,6 +1081,7 @@ class ApiKeyResponse(BaseModel):
     full_access: bool = True
     scopes: Dict[str, Any] = Field(default_factory=dict)
     credit_limit: Optional[Dict[str, Any]] = None
+    pending_device_count: int = 0
 
 class ApiKeyListResponse(BaseModel):
     api_keys: list[ApiKeyResponse]
@@ -1108,6 +1109,13 @@ async def get_api_keys(
         
         logger.debug(f"Retrieved {len(api_keys_data) if api_keys_data else 0} API keys from Directus for user {current_user.id}")
         
+        pending_devices = await directus_service.get_pending_api_key_devices(current_user.id)
+        pending_device_counts: Dict[str, int] = {}
+        for device in pending_devices or []:
+            api_key_id = device.get('api_key_id')
+            if api_key_id:
+                pending_device_counts[api_key_id] = pending_device_counts.get(api_key_id, 0) + 1
+
         # Convert to response format (client will decrypt encrypted fields)
         api_keys = []
         if api_keys_data:
@@ -1147,7 +1155,8 @@ async def get_api_keys(
                         encrypted_key_prefix=key.get('encrypted_key_prefix'),
                         full_access=key.get('full_access', True),
                         scopes=key.get('scopes') or {},
-                        credit_limit=key.get('credit_limit')
+                        credit_limit=key.get('credit_limit'),
+                        pending_device_count=pending_device_counts.get(key.get('id'), 0)
                     )
                     api_keys.append(api_key_response)
                 except Exception as key_error:
@@ -1278,7 +1287,8 @@ async def create_api_key(
             encrypted_key_prefix=created_key.get('encrypted_key_prefix'),
             full_access=created_key.get('full_access', True),
             scopes=created_key.get('scopes') or {},
-            credit_limit=created_key.get('credit_limit')
+            credit_limit=created_key.get('credit_limit'),
+            pending_device_count=0
         )
 
     except HTTPException as e:
@@ -1365,8 +1375,7 @@ class DeviceResponse(BaseModel):
     last_access_at: Optional[str] = None
     access_type: str
     machine_identifier: Optional[str] = None
-    # Note: encrypted_device_name is excluded from REST API responses
-    # This field is only available via CLI tools that have decryption keys
+    encrypted_device_name: Optional[str] = None
 
 class DeviceListResponse(BaseModel):
     """Response model for list of API key devices"""
@@ -1413,8 +1422,8 @@ async def get_api_key_devices(
                 first_access_at=device.get('first_access_at'),
                 last_access_at=device.get('last_access_at'),
                 access_type=device.get('access_type', 'rest_api'),
-                machine_identifier=device.get('machine_identifier')
-                # Note: encrypted_device_name excluded from REST API (only available via CLI)
+                machine_identifier=device.get('machine_identifier'),
+                encrypted_device_name=device.get('encrypted_device_name')
             )
             for device in all_devices
         ]
@@ -1455,7 +1464,8 @@ async def approve_api_key_device(
     request: Request,
     device_id: str,
     current_user: User = Depends(get_current_user),  # Web app only - no API key access
-    directus_service: DirectusService = Depends(get_directus_service)
+    directus_service: DirectusService = Depends(get_directus_service),
+    cache_service: CacheService = Depends(get_cache_service),
 ):
     """
     Approve an API key device, allowing it to use the API key.
@@ -1474,10 +1484,10 @@ async def approve_api_key_device(
         api_key_id = user_device.get('api_key_id')
         device_hash = user_device.get('device_hash')
 
-        if api_key_id and device_hash and hasattr(directus_service, 'cache') and directus_service.cache:
+        if api_key_id and device_hash:
             device_approval_cache_key = f"api_key_device_approval:{api_key_id}:{device_hash}"
             try:
-                await directus_service.cache.delete(device_approval_cache_key)
+                await cache_service.delete(device_approval_cache_key)
             except Exception as cache_error:
                 logger.warning(f"Failed to invalidate device approval cache: {cache_error}")
         
@@ -1496,7 +1506,8 @@ async def revoke_api_key_device(
     request: Request,
     device_id: str,
     current_user: User = Depends(get_current_user),
-    directus_service: DirectusService = Depends(get_directus_service)
+    directus_service: DirectusService = Depends(get_directus_service),
+    cache_service: CacheService = Depends(get_cache_service),
 ):
     """
     Revoke access for an API key device by deleting the device record.
@@ -1528,10 +1539,10 @@ async def revoke_api_key_device(
             raise HTTPException(status_code=500, detail=message)
         
         # Invalidate device approval cache (already done in revoke_api_key_device, but ensure it's done)
-        if api_key_id and device_hash and hasattr(directus_service, 'cache') and directus_service.cache:
+        if api_key_id and device_hash:
             device_approval_cache_key = f"api_key_device_approval:{api_key_id}:{device_hash}"
             try:
-                await directus_service.cache.delete(device_approval_cache_key)
+                await cache_service.delete(device_approval_cache_key)
             except Exception as cache_error:
                 logger.warning(f"Failed to invalidate device approval cache: {cache_error}")
         
@@ -4123,9 +4134,11 @@ async def delete_account(
             if not delete_request.auth_code:
                 raise HTTPException(status_code=400, detail="Passkey credential ID is required")
             
-            # Verify passkey belongs to user
+            # Verify the credential belongs to this account and was just asserted
+            # through WebAuthn. A credential ID alone is not proof of possession.
             passkey = await directus_service.get_passkey_by_credential_id(delete_request.auth_code)
-            if not passkey or passkey.get("user_id") != user_id:
+            recent_passkey = await cache_service.get(f"reauth_recent_passkey:{user_id}")
+            if not passkey or passkey.get("user_id") != user_id or recent_passkey != delete_request.auth_code:
                 logger.warning(f"Invalid passkey verification for account deletion: user {user_id}")
                 raise HTTPException(status_code=401, detail="Invalid passkey authentication")
             

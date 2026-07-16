@@ -24,8 +24,19 @@ def fake_request():
 
 
 class FakeDeleteCache:
+    def __init__(self, values=None):
+        self.values = values or {}
+
     async def get(self, key):
-        return None
+        return self.values.get(key)
+
+    async def delete(self, key):
+        self.values.pop(key, None)
+
+
+class FakePasskeyDeleteDirectus:
+    async def get_passkey_by_credential_id(self, credential_id):
+        return {"id": "passkey-1", "user_id": "user-1", "credential_id": credential_id}
 
 
 class FakePreviewCache:
@@ -59,8 +70,9 @@ async def test_cli_delete_requires_verified_email_code_before_auth(monkeypatch):
         lambda *args, **kwargs: ("device-hash", None, None, None, None, None, None, None),
     )
 
+    delete_account_route = getattr(settings.delete_account, "__wrapped__", settings.delete_account)
     with pytest.raises(HTTPException) as exc_info:
-        await settings.delete_account(
+        await delete_account_route(
             request=fake_request(),
             delete_request=settings.DeleteAccountRequest(
                 confirm_data_deletion=True,
@@ -76,6 +88,38 @@ async def test_cli_delete_requires_verified_email_code_before_auth(monkeypatch):
 
     assert exc_info.value.status_code == 401
     assert exc_info.value.detail == "Email verification required"
+
+
+@pytest.mark.anyio
+async def test_delete_account_passkey_requires_recent_webauthn_proof(monkeypatch):
+    async def fake_preview(**kwargs):
+        return SimpleNamespace()
+
+    monkeypatch.setattr(settings, "_calculate_delete_account_preview", fake_preview)
+    monkeypatch.setattr(
+        settings,
+        "generate_device_fingerprint_hash",
+        lambda *args, **kwargs: ("device-hash", None, None, None, None, None, None, None),
+    )
+
+    delete_account_route = getattr(settings.delete_account, "__wrapped__", settings.delete_account)
+    with pytest.raises(HTTPException) as exc_info:
+        await delete_account_route(
+            request=fake_request(),
+            delete_request=settings.DeleteAccountRequest(
+                confirm_data_deletion=True,
+                auth_method="passkey",
+                auth_code="credential-1",
+            ),
+            current_user=SimpleNamespace(id="user-1", vault_key_id="vault-key-1"),
+            directus_service=FakePasskeyDeleteDirectus(),
+            encryption_service=SimpleNamespace(),
+            compliance_service=SimpleNamespace(),
+            cache_service=FakeDeleteCache(),
+        )
+
+    assert exc_info.value.status_code == 401
+    assert exc_info.value.detail == "Invalid passkey authentication"
 
 
 @pytest.mark.anyio

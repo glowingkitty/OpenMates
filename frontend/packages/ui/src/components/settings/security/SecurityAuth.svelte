@@ -259,6 +259,7 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
                     },
                     client_data_json: clientDataJSONB64,
                     authenticator_data: authenticatorDataB64,
+                    hashed_email: emailHash,
                     session_id: getSessionId()
                 })
             });

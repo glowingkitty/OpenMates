@@ -65,6 +65,7 @@ const { openSignupInterface } = require('./helpers/chat-test-helpers');
  */
 
 const SIGNUP_TEST_EMAIL_DOMAINS = process.env.SIGNUP_TEST_EMAIL_DOMAINS;
+const PASSKEY_STAY_LOGGED_IN_CASES = [true, false] as const;
 
 /**
  * Attach a virtual authenticator so WebAuthn prompts are satisfied automatically.
@@ -118,7 +119,8 @@ async function teardownVirtualPasskeyAuthenticator(
  * the PRF error screen, which is also valid behavior to test.
  */
 
-test('completes passkey signup flow with email', async ({
+for (const stayLoggedIn of PASSKEY_STAY_LOGGED_IN_CASES) {
+test(`completes passkey signup and account deletion with stay logged in ${stayLoggedIn ? 'enabled' : 'disabled'}`, async ({
 	page,
 	context
 }: {
@@ -148,9 +150,10 @@ test('completes passkey signup flow with email', async ({
 	// GHA runners are slower — 240s was insufficient; 420s provides comfortable margin.
 	test.setTimeout(420000);
 
-	const logSignupCheckpoint = createSignupLogger('SIGNUP_PASSKEY');
+	const caseLabel = stayLoggedIn ? 'STAY_LOGGED_IN' : 'SESSION_ONLY';
+	const logSignupCheckpoint = createSignupLogger(`SIGNUP_PASSKEY_${caseLabel}`);
 	const takeStepScreenshot = createStepScreenshotter(logSignupCheckpoint, {
-		filenamePrefix: 'passkey'
+		filenamePrefix: `passkey-${stayLoggedIn ? 'stay-logged-in' : 'session-only'}`
 	});
 
 	await archiveExistingScreenshots(logSignupCheckpoint);
@@ -218,10 +221,14 @@ test('completes passkey signup flow with email', async ({
 		await usernameInput.fill(signupUsername);
 		await takeStepScreenshot(page, 'basics-filled');
 
-		// Toggle "Stay logged in" on (explicitly test toggle wiring).
+		// Explicitly exercise both long-lived and session-only passkey signup.
 		const stayLoggedInToggle = page.locator('#stayLoggedIn');
-		await setToggleChecked(stayLoggedInToggle, true);
-		await expect(stayLoggedInToggle).toBeChecked();
+		await setToggleChecked(stayLoggedInToggle, stayLoggedIn);
+		if (stayLoggedIn) {
+			await expect(stayLoggedInToggle).toBeChecked();
+		} else {
+			await expect(stayLoggedInToggle).not.toBeChecked();
+		}
 
 		// Toggle newsletter on then off so we test the control without sending a subscription.
 		const newsletterToggle = page.locator('#newsletter-subscribe-toggle');
@@ -315,12 +322,37 @@ test('completes passkey signup flow with email', async ({
 		await takeStepScreenshot(page, 'delete-account-confirmed');
 		logSignupCheckpoint('Confirmed delete account data warning.');
 
+		const passkeyVerifyResponsePromise = page.waitForResponse(
+			(response: any) =>
+				response.url().includes('/auth/passkey/assertion/verify') &&
+				response.request().method() === 'POST',
+			{ timeout: 30000 }
+		);
+		const deleteAccountResponsePromise = page.waitForResponse(
+			(response: any) =>
+				response.url().includes('/settings/delete-account') &&
+				response.request().method() === 'POST',
+			{ timeout: 30000 }
+		);
+
 		// Start deletion and complete passkey authentication (auto-starts).
 		await page.getByTestId('delete-account-container').getByTestId('delete-button').click();
 		const authModal = page.getByTestId('auth-modal');
 		await expect(authModal).toBeVisible();
 		await takeStepScreenshot(page, 'delete-account-auth');
 		logSignupCheckpoint('Passkey auth modal opened for deletion.');
+
+		const passkeyVerifyResponse = await passkeyVerifyResponsePromise;
+		expect(passkeyVerifyResponse.status()).toBe(200);
+		const passkeyVerifyBody = await passkeyVerifyResponse.json();
+		expect(passkeyVerifyBody.success).toBe(true);
+		logSignupCheckpoint('Passkey assertion verified before account deletion.');
+
+		const deleteAccountResponse = await deleteAccountResponsePromise;
+		expect(deleteAccountResponse.status()).toBe(200);
+		const deleteAccountBody = await deleteAccountResponse.json();
+		expect(deleteAccountBody.success).toBe(true);
+		logSignupCheckpoint('Delete account API accepted recent passkey proof.');
 
 		// Wait for deletion success after passkey authentication completes.
 		await expect(page.getByTestId('delete-account-container').getByTestId('success-message')).toBeVisible({
@@ -339,3 +371,4 @@ test('completes passkey signup flow with email', async ({
 		await teardownVirtualPasskeyAuthenticator(client, authenticatorId);
 	}
 });
+}

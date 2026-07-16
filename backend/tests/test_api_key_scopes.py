@@ -7,14 +7,17 @@ Run: python3 -m pytest backend/tests/test_api_key_scopes.py
 """
 
 import hashlib
+from types import SimpleNamespace
 
 import pytest
 
+from backend.core.api.app.routes import settings
 from backend.core.api.app.services.api_key_authorization import (
     ApiKeyBudgetError,
     ApiKeyScopeError,
     ApiKeyAuthorizationService,
 )
+from backend.core.api.app.services.directus.api_key_device_methods import _dedupe_api_key_devices
 from backend.core.api.app.utils.api_key_device_ownership import api_key_device_belongs_to_user
 
 
@@ -122,3 +125,77 @@ def test_owned_api_key_device_verification_rejects_other_users():
     }
 
     assert not api_key_device_belongs_to_user(device, "user-123")
+
+
+def test_api_key_device_dedupe_prefers_approved_duplicate():
+    devices = _dedupe_api_key_devices([
+        {
+            "id": "pending-device",
+            "api_key_id": "api-key-123",
+            "device_hash": "device-hash-123",
+            "approved_at": None,
+            "first_access_at": "2026-07-16T10:00:00+00:00",
+            "last_access_at": "2026-07-16T10:00:00+00:00",
+        },
+        {
+            "id": "approved-device",
+            "api_key_id": "api-key-123",
+            "device_hash": "device-hash-123",
+            "approved_at": "2026-07-16T10:05:00+00:00",
+            "first_access_at": "2026-07-16T10:01:00+00:00",
+            "last_access_at": "2026-07-16T10:06:00+00:00",
+        },
+    ])
+
+    assert devices == [{
+        "id": "approved-device",
+        "api_key_id": "api-key-123",
+        "device_hash": "device-hash-123",
+        "approved_at": "2026-07-16T10:05:00+00:00",
+        "first_access_at": "2026-07-16T10:00:00+00:00",
+        "last_access_at": "2026-07-16T10:06:00+00:00",
+    }]
+
+
+class _FakeApiKeyDeviceDirectus:
+    def __init__(self, user_id: str):
+        self.device = {
+            "id": "device-123",
+            "api_key_id": "api-key-123",
+            "hashed_user_id": hashlib.sha256(user_id.encode()).hexdigest(),
+            "device_hash": "device-hash-123",
+        }
+
+    async def get_api_key_device_by_id(self, device_id):
+        assert device_id == "device-123"
+        return self.device
+
+    async def approve_api_key_device(self, device_id):
+        assert device_id == "device-123"
+        return True, "Device approved successfully"
+
+
+class _FakeApiKeyDeviceCache:
+    def __init__(self):
+        self.deleted_keys = []
+
+    async def delete(self, key):
+        self.deleted_keys.append(key)
+
+
+@pytest.mark.anyio
+async def test_approve_api_key_device_invalidates_injected_cache():
+    user_id = "user-123"
+    cache = _FakeApiKeyDeviceCache()
+
+    approve_device_route = getattr(settings.approve_api_key_device, "__wrapped__", settings.approve_api_key_device)
+    response = await approve_device_route(
+        request=SimpleNamespace(),
+        device_id="device-123",
+        current_user=SimpleNamespace(id=user_id),
+        directus_service=_FakeApiKeyDeviceDirectus(user_id),
+        cache_service=cache,
+    )
+
+    assert response.success is True
+    assert cache.deleted_keys == ["api_key_device_approval:api-key-123:device-hash-123"]

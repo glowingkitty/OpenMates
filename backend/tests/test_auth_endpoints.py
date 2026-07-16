@@ -450,6 +450,14 @@ class TestAuthClientVerification:
 
             assert found_paths == expected_paths
 
+    def test_passkey_assertion_rejects_wrong_account_credential(self):
+        repo_root = Path(__file__).parent.parent.parent
+        source = (repo_root / "backend/core/api/app/routes/auth_routes/auth_passkey.py").read_text()
+
+        assert "PASSKEY_WRONG_ACCOUNT_MESSAGE" in source
+        assert 'provided_user_id = user_data.get("id") if exists_result and user_data else None' in source
+        assert "provided_user_id != user_id" in source
+
 
 class TestSignupGiftCardFreeTestingEligibility:
     @pytest.mark.anyio

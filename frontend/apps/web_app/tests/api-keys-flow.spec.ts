@@ -348,9 +348,7 @@ test('creates an API key, verifies format, and deletes it', async ({ page }: { p
 	});
 	log('Clicked done button.');
 
-	// Verify the new key appears in the API keys list
-	await page.waitForTimeout(3000);
-
+	// Verify the new key appears in the API keys list immediately after Done.
 	const keyItems = page.getByTestId('api-key-item');
 	await expect(async () => {
 		const count = await keyItems.count();
@@ -358,8 +356,9 @@ test('creates an API key, verifies format, and deletes it', async ({ page }: { p
 	}).toPass({ timeout: 20000 });
 
 	const keyByName = page.getByTestId('api-key-item').filter({ hasText: keyName }).first();
-	const nameFound = await keyByName.isVisible({ timeout: 5000 }).catch(() => false);
-	log(`Key found by name "${keyName}": ${nameFound}. Total key items: ${await keyItems.count()}`);
+	await expect(keyByName, `Expected optimistic API key row ${keyName} to exist.`).toBeVisible({ timeout: 5000 });
+	await expect(keyByName).toContainText(/Never used/i);
+	log(`Key found by name "${keyName}" immediately. Total key items: ${await keyItems.count()}`);
 
 	await screenshot(page, 'key-in-list');
 	log('Key items visible in list after creation.');
@@ -561,12 +560,21 @@ test('creates API key, verifies device approval flow, and saves working key', as
 	log('Confirmed: REST API call correctly blocked before device approval.');
 
 	// ── Phase 4: Navigate to Devices and approve the pending device ───────────
-	const reviewDeviceButton = page.getByRole('button', { name: /review in developer settings/i }).first();
-	if (await reviewDeviceButton.isVisible({ timeout: 5000 }).catch(() => false)) {
-		await reviewDeviceButton.click();
-		log('Opened Devices from pending-device notification.');
+	await page.reload();
+	await page.waitForLoadState('domcontentloaded');
+	await navigateToApiKeys(page, log);
+	const keyRowWithPendingDevice = page.getByTestId('api-key-item').filter({ hasText: keyName }).first();
+	await expect(keyRowWithPendingDevice).toBeVisible({ timeout: 15000 });
+	const confirmDeviceLink = page.getByTestId('api-key-confirm-device-link').first();
+	if (await confirmDeviceLink.isVisible({ timeout: 5000 }).catch(() => false)) {
+		await confirmDeviceLink.click();
+		await expect(page.getByTestId('settings-menu')).toHaveAttribute('data-active-view', 'developers/devices', {
+			timeout: 10000
+		});
+		log('Opened Devices from API-key Confirm device quick link.');
 	} else {
 		await navigateToDevices(page, log);
+		log('Opened Devices from Developers menu fallback.');
 	}
 	await screenshot(page, 'devices-page');
 
@@ -600,18 +608,22 @@ test('creates API key, verifies device approval flow, and saves working key', as
 	log('Confirmed: Approved status badge is visible.');
 	await screenshot(page, 'device-approved');
 
-	// ── Phase 5: Make SDK API call again — expect 200 ─────────────────────────
-	log(`Making SDK API call to ${sdkChatsUrl} with approved key...`);
+	// ── Phase 5: Immediately retry SDK API call — expect approval cache to be clear ─
+	log(`Immediately retrying SDK API call to ${sdkChatsUrl} with approved key...`);
 	const approvedResponse = await request.get(sdkChatsUrl, {
 		headers: { Authorization: `Bearer ${rawApiKey}` }
 	});
-	log(`REST API response (after device approval): ${approvedResponse.status()}`);
+	const approvedResponseBody = await approvedResponse.text();
+	log(`REST API response (immediately after device approval): ${approvedResponse.status()}`);
 	await screenshot(page, 'api-call-after-approval');
 
-	expect(approvedResponse.status()).toBe(200);
-	const approvedData = await approvedResponse.json();
+	expect(
+		approvedResponse.status(),
+		`Expected immediate retry after approval to pass, got ${approvedResponse.status()}: ${approvedResponseBody}`
+	).toBe(200);
+	const approvedData = JSON.parse(approvedResponseBody);
 	expect(approvedData).toHaveProperty('chats');
-	log('Confirmed: REST API call succeeded after device approval!');
+	log('Confirmed: REST API call succeeded immediately after device approval.');
 
 	// ── Phase 5b: Register and approve the stable CLI API-key device ───────────
 	const cliDeviceHeaders = {

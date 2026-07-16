@@ -97,6 +97,8 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 event_logger = logging.getLogger("app.events")
 
+PASSKEY_WRONG_ACCOUNT_MESSAGE = "This passkey belongs to a different OpenMates account. Choose the passkey for this account and try again."
+
 # WebAuthn Configuration
 def get_rp_id_from_request(request: Request) -> str:
     """
@@ -1756,22 +1758,21 @@ async def passkey_assertion_verify(
         # If hashed_email was provided, verify it matches the user
         if verify_request.hashed_email:
             exists_result, user_data, _ = await directus_service.get_user_by_hashed_email(verify_request.hashed_email)
-            if exists_result and user_data:
-                provided_user_id = user_data.get("id")
-                if provided_user_id != user_id:
-                    logger.error("User ID mismatch: passkey belongs to different user")
-                    return PasskeyAssertionVerifyResponse(
-                        success=False,
-                        message="Passkey verification failed.",
-                        user_id=None,
-                        hashed_email=None,
-                        encrypted_email=None,
-                        encrypted_master_key=None,
-                        key_iv=None,
-                        salt=None,
-                        user_email_salt=None,
-                        auth_session=None
-                    )
+            provided_user_id = user_data.get("id") if exists_result and user_data else None
+            if provided_user_id != user_id:
+                logger.warning("Passkey assertion rejected: selected credential belongs to a different account")
+                return PasskeyAssertionVerifyResponse(
+                    success=False,
+                    message=PASSKEY_WRONG_ACCOUNT_MESSAGE,
+                    user_id=None,
+                    hashed_email=None,
+                    encrypted_email=None,
+                    encrypted_master_key=None,
+                    key_iv=None,
+                    salt=None,
+                    user_email_salt=None,
+                    auth_session=None
+                )
         
         # Verify clientDataJSON challenge matches expected challenge from cache
         # This prevents replay attacks and ensures the response is for the current session
@@ -2382,7 +2383,7 @@ async def verify_device_passkey(
             )
             return PasskeyDeviceVerifyResponse(
                 success=False,
-                message="Passkey verification failed."
+                message=PASSKEY_WRONG_ACCOUNT_MESSAGE
             )
         
         # Step 4: Verify the WebAuthn signature
