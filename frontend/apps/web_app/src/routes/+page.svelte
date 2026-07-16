@@ -97,6 +97,7 @@
 	let originalHashChatId: string | null = null; // Store original hash chat ID from URL (read before anything modifies it)
 	let deepLinkProcessed = $state(false); // Track if any deep link was processed during onMount to avoid loading welcome chat
 	let pendingDeepLinkHandler: ((event: Event) => void) | null = null; // Store event handler for cleanup
+	let isReplayingPendingDeepLink = false;
 	let bfcacheRestoreHandler: ((event: PageTransitionEvent) => void) | null = null; // Store BFCache restore handler for cleanup
 	let globalOpenSearchShortcutHandler: ((event: KeyboardEvent) => void) | null = null; // Persistent Cmd/Ctrl+F handler
 	let hasAutoOpenedGiftCardRedeemAfterAuth = $state(false);
@@ -1321,6 +1322,30 @@
 
 		await processDeepLink(hash, handlers);
 	}
+
+	async function replayPendingDeepLinkIfAuthenticated() {
+		if (!browser || isReplayingPendingDeepLink || !$authStore.isAuthenticated) return;
+		const pendingDeepLink = sessionStorage.getItem('pendingDeepLink');
+		if (!pendingDeepLink) return;
+
+		isReplayingPendingDeepLink = true;
+		sessionStorage.removeItem('pendingDeepLink');
+		try {
+			await handlePendingDeepLink(
+				new CustomEvent('processPendingDeepLink', {
+					detail: { hash: pendingDeepLink }
+				})
+			);
+		} finally {
+			isReplayingPendingDeepLink = false;
+		}
+	}
+
+	$effect(() => {
+		if ($authStore.isAuthenticated) {
+			void replayPendingDeepLinkIfAuthenticated();
+		}
+	});
 
 	onMount(async () => {
 		console.debug('[+page.svelte] onMount started');
