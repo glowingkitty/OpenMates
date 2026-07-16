@@ -4,6 +4,7 @@
 // credentials are read only from the test process environment and are never
 // logged or committed.
 
+import CryptoKit
 import Foundation
 import XCTest
 
@@ -28,7 +29,7 @@ final class ChatFlowRealAccountUITests: XCTestCase {
     }
 
     func testPasswordOtpLoginLoadsRecentChatsForWebParityManifest() throws {
-        let credentials = try RealAccountTestCredentials.fromEnvironment()
+        let credentials = try parityCredentials()
         RealAccountUITestSupport.installNotificationPermissionHandler(on: self)
         let app = RealAccountUITestSupport.launchApp()
 
@@ -45,7 +46,7 @@ final class ChatFlowRealAccountUITests: XCTestCase {
             "Expected at least one loaded chat row. Visible UI: \(visibleStateLabels(in: app))"
         )
 
-        let manifest = makeLoadedChatsManifest(app: app, rows: rows)
+        let manifest = makeLoadedChatsManifest(app: app, rows: rows, credentials: credentials)
         try attachAndWriteManifest(manifest)
         attachScreenshot(name: "Apple loaded chats parity")
     }
@@ -85,6 +86,17 @@ final class ChatFlowRealAccountUITests: XCTestCase {
         XCTAssertTrue(panel.waitForExistence(timeout: 15), "Chat history panel did not open")
     }
 
+    private func parityCredentials() throws -> RealAccountTestCredentials {
+        let slotValue = ProcessInfo.processInfo.environment["CHAT_RENDERING_PARITY_ACCOUNT_SLOT"] ?? ""
+        if !slotValue.isEmpty {
+            guard let slot = Int(slotValue) else {
+                throw XCTSkip("CHAT_RENDERING_PARITY_ACCOUNT_SLOT must be an integer from 1-20")
+            }
+            return try RealAccountTestCredentials.fromSlot(slot)
+        }
+        return try RealAccountTestCredentials.fromEnvironment()
+    }
+
     private func chatRows(in app: XCUIApplication) -> XCUIElementQuery {
         app.descendants(matching: .any)
             .matching(NSPredicate(format: "identifier == %@ AND value == %@", "chat-item-wrapper", "user-chat"))
@@ -108,7 +120,7 @@ final class ChatFlowRealAccountUITests: XCTestCase {
         return marker.waitForExistence(timeout: timeout)
     }
 
-    private func makeLoadedChatsManifest(app: XCUIApplication, rows: XCUIElementQuery) -> [String: Any] {
+    private func makeLoadedChatsManifest(app: XCUIApplication, rows: XCUIElementQuery, credentials: RealAccountTestCredentials) -> [String: Any] {
         let maxRows = Int(ProcessInfo.processInfo.environment["CHAT_RENDERING_PARITY_MAX_ROWS"] ?? "40") ?? 40
         let rowCount = min(rows.count, maxRows)
         let windowFrame = app.windows.firstMatch.frame
@@ -142,6 +154,7 @@ final class ChatFlowRealAccountUITests: XCTestCase {
             "client": "apple",
             "generated_at": ISO8601DateFormatter().string(from: Date()),
             "environment": [
+                "account_email_hash": stableHash(credentials.email),
                 "viewport_width": Int(windowFrame.size.width.rounded()),
                 "viewport_height": Int(windowFrame.size.height.rounded()),
                 "max_chat_rows": maxRows
@@ -165,6 +178,11 @@ final class ChatFlowRealAccountUITests: XCTestCase {
             .replacingOccurrences(of: ", sub-chat", with: "")
             .replacingOccurrences(of: ", pinned", with: "")
             .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func stableHash(_ value: String) -> String {
+        let digest = SHA256.hash(data: Data(value.utf8))
+        return digest.prefix(8).map { String(format: "%02x", $0) }.joined()
     }
 
     private func titleState(for title: String) -> String {

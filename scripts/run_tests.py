@@ -4953,6 +4953,7 @@ class TestOrchestrator:
         self.force = args.force
         self.environment = args.environment
         self.max_concurrent = args.max_concurrent
+        self.account = args.account
         self.fail_fast = not args.no_fail_fast
         self.use_mocks = not args.no_mocks
         self.dry_run = args.dry_run
@@ -4973,6 +4974,8 @@ class TestOrchestrator:
         _log(f"Run ID: {self.run_id}")
         if self.spec:
             _log(f"Single spec: {self.spec}")
+        if self.account is not None:
+            _log(f"Pinned Playwright account: {self.account}")
         if self.only_failed:
             _log("Mode: --only-failed (rerunning previous failures)")
         print()
@@ -5268,7 +5271,8 @@ class TestOrchestrator:
 
         if self.dry_run:
             _log("Dry run — would dispatch these specs:")
-            for _batch_idx, spec, account in build_playwright_dispatch_plan(specs, self.max_concurrent):
+            plan_account_slots = (self.account,) if self.account is not None else NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS
+            for _batch_idx, spec, account in build_playwright_dispatch_plan(specs, self.max_concurrent, plan_account_slots):
                 reserved = " reserved" if spec in RESERVED_PLAYWRIGHT_ACCOUNTS_BY_SPEC else ""
                 print(f"    account {account:02d}{reserved}  {spec}")
             return SuiteResult(status="skipped", reason="dry run")
@@ -5317,10 +5321,23 @@ class TestOrchestrator:
             if preflight_reason:
                 _log(f"Account preflight limited dispatch: {preflight_reason}", "WARN")
         elif self.spec and self.spec != ACCOUNT_PREFLIGHT_SPEC:
-            account = _account_for_spec_in_batch(self.spec, 0)
+            reserved_account = RESERVED_PLAYWRIGHT_ACCOUNTS_BY_SPEC.get(self.spec)
+            if self.account is not None and reserved_account is not None and self.account != reserved_account:
+                return SuiteResult(
+                    status="failed",
+                    tests=[{
+                        "name": self.spec,
+                        "status": "failed",
+                        "duration_seconds": 0,
+                        "error": f"{self.spec} requires reserved account slot {reserved_account}; received --account {self.account}",
+                    }],
+                    reason=f"Reserved-account spec requires slot {reserved_account}",
+                )
+
+            account = self.account if self.account is not None else _account_for_spec_in_batch(self.spec, 0)
             preflight = self._run_account_preflight(client, accounts=[account])
             if preflight.status == "failed":
-                if self.spec in RESERVED_PLAYWRIGHT_ACCOUNTS_BY_SPEC:
+                if self.account is not None or self.spec in RESERVED_PLAYWRIGHT_ACCOUNTS_BY_SPEC:
                     return preflight
 
                 fallback_accounts = [
@@ -5735,6 +5752,8 @@ def main() -> int:
                         help="Target environment (default: development)")
     parser.add_argument("--max-concurrent", type=int, default=20,
                         help="Max concurrent GitHub Actions runners (default: 20)")
+    parser.add_argument("--account", type=int, choices=range(1, 21), metavar="1-20", default=None,
+                        help="Pin a single Playwright spec to a specific GitHub Actions test-account slot")
     parser.add_argument("--no-fail-fast", action="store_true",
                         help="Don't stop on first batch failure")
     parser.add_argument("--no-mocks", action="store_true",
@@ -5755,6 +5774,9 @@ def main() -> int:
     mode_flags = sum(int(x) for x in (args.daily, args.hourly_dev, args.hourly_prod))
     if mode_flags > 1:
         _log("Pass at most one of: --daily, --hourly-dev, --hourly-prod", "ERROR")
+        return 2
+    if args.account is not None and not args.spec:
+        _log("--account requires --spec so one GitHub Actions run maps to one explicit test-account slot", "ERROR")
         return 2
 
     # Always source .env into the process so cron jobs (which only run via

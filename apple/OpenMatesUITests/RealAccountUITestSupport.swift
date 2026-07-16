@@ -260,6 +260,14 @@ struct RealAccountTestCredentials {
             throw XCTSkip("Reserved Apple account slot must be 14-20")
         }
 
+        return try fromSlot(slot)
+    }
+
+    static func fromSlot(_ slot: Int) throws -> RealAccountTestCredentials {
+        guard (1...20).contains(slot) else {
+            throw XCTSkip("Apple test account slot must be 1-20")
+        }
+
         let environment = ProcessInfo.processInfo.environment
         let prefix = "OPENMATES_TEST_ACCOUNT_\(slot)"
         if let credentials = read(environment: environment, prefix: prefix) {
@@ -270,7 +278,7 @@ struct RealAccountTestCredentials {
             return credentials
         }
 
-        throw XCTSkip("Missing reserved credentials for slot \(slot)")
+        throw XCTSkip("Missing credentials for slot \(slot)")
     }
 
     private static func read(environment: [String: String], prefix: String) -> RealAccountTestCredentials? {

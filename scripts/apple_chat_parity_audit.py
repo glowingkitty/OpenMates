@@ -187,11 +187,17 @@ def audit_loaded_chat_parity_harness() -> list[str]:
     checks = [
         (web_oracle, "surface: 'loaded-user-chats'", "Web oracle no longer exports the loaded-user-chats surface"),
         (web_oracle, "web-loaded-chats-manifest.json", "Web oracle no longer writes the web loaded-chats manifest"),
+        (web_oracle, "account_email_hash", "Web oracle no longer records the hashed account identity"),
         (web_oracle, "web-loaded-chats-sidebar.png", "Web oracle no longer captures the loaded-chats screenshot"),
         (apple_test, "testPasswordOtpLoginLoadsRecentChatsForWebParityManifest", "Apple real-account test no longer emits the loaded-chats parity manifest"),
         (apple_test, "apple-loaded-chats-manifest.json", "Apple test no longer writes the loaded-chats manifest"),
+        (apple_test, "account_email_hash", "Apple test no longer records the hashed account identity"),
+        (apple_test, "CHAT_RENDERING_PARITY_ACCOUNT_SLOT", "Apple parity test no longer supports explicit account-slot selection"),
         (comparator, 'EXPECTED_SURFACE = "loaded-user-chats"', "Comparator no longer validates the loaded-user-chats surface"),
+        (comparator, "account mismatch", "Comparator no longer rejects mixed-account manifests"),
         (parity_doc, "chat-rendering-parity-oracle.spec.ts", "Parity doc no longer references the web oracle spec"),
+        (parity_doc, "--account 1", "Parity doc no longer documents pinned web account selection"),
+        (parity_doc, "CHAT_RENDERING_PARITY_ACCOUNT_SLOT=1", "Parity doc no longer documents pinned Apple account selection"),
         (parity_doc, "compare_chat_render_parity.py", "Parity doc no longer references the comparator"),
     ]
     for source, needle, message in checks:

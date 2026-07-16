@@ -151,6 +151,7 @@ async function collectLoadedChatsManifest(page: any): Promise<Record<string, unk
 		client: 'web',
 		generated_at: new Date().toISOString(),
 		environment: {
+			account_email_hash: hashStableId(TEST_EMAIL || null),
 			base_url: process.env.PLAYWRIGHT_TEST_BASE_URL || null,
 			viewport_width: viewport.width,
 			viewport_height: viewport.height,

@@ -72,11 +72,24 @@ def chat_count(manifest: dict[str, Any]) -> int:
     return len(chats) if isinstance(chats, list) else 0
 
 
+def account_email_hash(manifest: dict[str, Any]) -> str | None:
+    environment = manifest.get("environment")
+    if not isinstance(environment, dict):
+        return None
+    value = environment.get("account_email_hash")
+    return value if isinstance(value, str) and value else None
+
+
 def validate_manifest(manifest: dict[str, Any], client: str) -> list[str]:
     failures: list[str] = []
     require(manifest.get("schema_version") == 1, f"{client}: schema_version must be 1", failures)
     require(manifest.get("surface") == EXPECTED_SURFACE, f"{client}: surface must be {EXPECTED_SURFACE}", failures)
     require(manifest.get("client") == client, f"{client}: client must be {client}", failures)
+    require(
+        bool(account_email_hash(manifest)),
+        f"{client}: environment.account_email_hash missing; regenerate the manifest with the current harness",
+        failures,
+    )
     require(chat_count(manifest) > 0, f"{client}: expected at least one chat row", failures)
 
     required = manifest.get("required_elements")
@@ -107,6 +120,15 @@ def compare_manifests(
     web_titles = chat_titles(web)
     apple_titles = chat_titles(apple)
     overlap = [title for title in web_titles if title in set(apple_titles)]
+    web_account_hash = account_email_hash(web)
+    apple_account_hash = account_email_hash(apple)
+
+    if web_account_hash and apple_account_hash:
+        require(
+            web_account_hash == apple_account_hash,
+            "account mismatch: web and Apple manifests were generated from different test accounts",
+            failures,
+        )
 
     require(
         len(overlap) >= minimum_overlap,
@@ -133,6 +155,9 @@ def compare_manifests(
 def print_summary(web: dict[str, Any], apple: dict[str, Any] | None) -> None:
     print("Chat rendering parity summary")
     print(f"- web rows: {chat_count(web)}")
+    web_account_hash = account_email_hash(web)
+    if web_account_hash:
+        print(f"- web account hash: {web_account_hash}")
     web_titles = chat_titles(web)
     if web_titles:
         print(f"- web first title: {web_titles[0]}")
@@ -141,6 +166,9 @@ def print_summary(web: dict[str, Any], apple: dict[str, Any] | None) -> None:
         return
     apple_titles = chat_titles(apple)
     print(f"- apple rows: {chat_count(apple)}")
+    apple_account_hash = account_email_hash(apple)
+    if apple_account_hash:
+        print(f"- apple account hash: {apple_account_hash}")
     if apple_titles:
         print(f"- apple first title: {apple_titles[0]}")
     print(f"- overlapping titles: {len([title for title in web_titles if title in set(apple_titles)])}")

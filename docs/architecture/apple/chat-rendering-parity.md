@@ -43,14 +43,23 @@ artifacts/chat-rendering-parity/apple-loaded-chats-manifest.json
 
 The manifest intentionally contains visible UI facts, not secrets or message
 plaintext. It includes loaded row count, visible titles, placeholder states,
-category presence, row frames, and required testability signals.
+category presence, row frames, required testability signals, and a short
+non-secret hash of the test-account email so the comparator can reject mixed
+CI/local account artifacts before reporting UI differences.
 
 ## Commands
 
 Dispatch the web oracle through the test control plane:
 
 ```bash
-python3 scripts/tests.py run --spec chat-rendering-parity-oracle.spec.ts
+python3 scripts/tests.py run -- --spec chat-rendering-parity-oracle.spec.ts
+```
+
+Pin the web oracle to a specific GitHub Actions test-account slot when comparing
+against a matching numbered local Apple credential slot:
+
+```bash
+python3 scripts/tests.py run -- --spec chat-rendering-parity-oracle.spec.ts --account 1
 ```
 
 Run the Apple candidate through the remote Mac wrapper:
@@ -59,11 +68,25 @@ Run the Apple candidate through the remote Mac wrapper:
 CHAT_RENDERING_PARITY_ARTIFACT_DIR=artifacts/chat-rendering-parity python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesUITests/ChatFlowRealAccountUITests/testPasswordOtpLoginLoadsRecentChatsForWebParityManifest"
 ```
 
+Pin the Apple candidate to the same numbered local credential slot:
+
+```bash
+CHAT_RENDERING_PARITY_ACCOUNT_SLOT=1 CHAT_RENDERING_PARITY_ARTIFACT_DIR=artifacts/chat-rendering-parity python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesUITests/ChatFlowRealAccountUITests/testPasswordOtpLoginLoadsRecentChatsForWebParityManifest"
+```
+
 Compare the manifests:
 
 ```bash
 python3 scripts/compare_chat_render_parity.py --web artifacts/chat-rendering-parity/web-loaded-chats-manifest.json --apple artifacts/chat-rendering-parity/apple-loaded-chats-manifest.json
 ```
+
+Both manifests must be generated from the same test-account credential source.
+The comparator checks `environment.account_email_hash` in both artifacts and
+fails early when a GitHub Actions web oracle is compared to a local Apple run for
+a different `.env` account. `--account N` only selects the GitHub Actions secret
+slot; `CHAT_RENDERING_PARITY_ACCOUNT_SLOT=N` selects the matching local numbered
+Apple credentials. The slot numbers must refer to the same actual account in both
+credential stores.
 
 Validate only the web oracle artifact when Apple output is not available yet:
 
