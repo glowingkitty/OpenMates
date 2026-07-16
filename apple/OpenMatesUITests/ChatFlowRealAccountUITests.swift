@@ -78,14 +78,19 @@ final class ChatFlowRealAccountUITests: XCTestCase {
 
     private func openChatsPanel(in app: XCUIApplication) {
         let panel = RealAccountUITestSupport.accessibilityElement(in: app, identifier: "chat-history-panel")
-        if panel.exists && panel.isHittable {
+        let rows = chatRows(in: app)
+        if panel.exists && (panel.isHittable || rows.firstMatch.exists) {
             return
         }
 
         let toggle = RealAccountUITestSupport.accessibilityElement(in: app, identifier: "sidebar-toggle")
-        XCTAssertTrue(toggle.waitForExistence(timeout: 10), "Missing sidebar-toggle")
+        XCTAssertTrue(
+            toggle.waitForExistence(timeout: 10),
+            "Missing sidebar-toggle. Visible UI: \(visibleStateLabels(in: app))"
+        )
         toggle.tap()
         XCTAssertTrue(panel.waitForExistence(timeout: 15), "Chat history panel did not open")
+        XCTAssertTrue(waitForChatRows(rows, timeout: 15), "Chat history panel opened without chat rows")
     }
 
     private func parityCredentials() throws -> RealAccountTestCredentials {
