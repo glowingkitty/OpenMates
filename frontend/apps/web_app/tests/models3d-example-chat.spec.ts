@@ -64,7 +64,20 @@ test.describe('Example chat: Models3D Printables', () => {
 
 		await firstChildEmbed.click();
 		const resultFullscreen = page.getByTestId('models3d-result-fullscreen');
-		await expect(resultFullscreen).toBeVisible({ timeout: 60000 });
+		try {
+			await expect(resultFullscreen).toBeVisible({ timeout: 60000 });
+		} catch (error) {
+			const debugState = await page.evaluate(() => ({
+				url: window.location.href,
+				embedFullscreenOverlayCount: document.querySelectorAll('[data-testid="embed-fullscreen-overlay"]').length,
+				embedFullscreenLoadingCount: document.querySelectorAll('[data-testid="embed-fullscreen-loading"]').length,
+				fullscreenContainerCount: document.querySelectorAll('.fullscreen-embed-container').length,
+				models3dResultFullscreenCount: document.querySelectorAll('[data-testid="models3d-result-fullscreen"]').length,
+				activeModelResultCount: document.querySelectorAll('[data-testid="embed-preview"][data-app-id="models3d"][data-skill-id="model_result"][data-status="finished"]').length,
+				bodyText: document.body.innerText.slice(0, 1200)
+			}));
+			throw new Error(`Models3D result fullscreen did not open: ${JSON.stringify(debugState)}\n${error instanceof Error ? error.message : String(error)}`);
+		}
 		const cta = page.getByTestId('models3d-open-provider-cta');
 		await expect(cta).toBeVisible({ timeout: 15000 });
 		await expect(cta).toContainText('Open on Printables');
