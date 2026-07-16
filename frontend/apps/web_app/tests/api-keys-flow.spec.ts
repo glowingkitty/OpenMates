@@ -202,8 +202,14 @@ async function navigateToDevices(page: any, logCheckpoint: (msg: string) => void
 			if (await backButton.isVisible({ timeout: 1000 }).catch(() => false)) {
 				await backButton.click();
 			}
-			logCheckpoint('Devices page already loaded.');
-			return;
+
+			const bannerBackButton = page.getByTestId('banner-back-button').first();
+			const settingsBackButton = (await bannerBackButton.isVisible({ timeout: 1000 }).catch(() => false))
+				? bannerBackButton
+				: page.locator('#settings-back-button');
+			await expect(settingsBackButton).toBeVisible({ timeout: 5000 });
+			await settingsBackButton.click();
+			logCheckpoint('Returned to Developers settings menu to refresh Devices.');
 		}
 	}
 
