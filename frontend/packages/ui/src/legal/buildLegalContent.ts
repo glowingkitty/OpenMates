@@ -112,6 +112,32 @@ export function buildPrivacyPolicyContent(
   lines.push(`*${t("legal.privacy.last_updated")}: ${formattedDate}*`);
   lines.push("");
 
+  const quickAnswerItems = [
+    "employee_access",
+    "device_only_encryption",
+    "recent_context_cache",
+    "storage_protection",
+    "third_party_providers",
+    "model_training",
+    "placeholder_protection",
+    "logs_diagnostics",
+    "deletion",
+    "open_source",
+    "sensitive_topics",
+    "highest_privacy",
+  ];
+
+  lines.push(`## ${t("legal.privacy.quick_answers.heading")}`);
+  lines.push("");
+  lines.push(t("legal.privacy.quick_answers.intro"));
+  lines.push("");
+  for (const item of quickAnswerItems) {
+    lines.push(`### ${t(`legal.privacy.quick_answers.${item}.question`)}`);
+    lines.push("");
+    lines.push(t(`legal.privacy.quick_answers.${item}.answer`));
+    lines.push("");
+  }
+
   // ──────────────────────────────────────────────────────────────
   // Section 1 — Overview
   // ──────────────────────────────────────────────────────────────

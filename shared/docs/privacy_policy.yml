@@ -9,15 +9,16 @@
 #
 # Structure:
 #   1. data_protection_overview       — plain-language summary of the privacy model
-#   2. data_protection_measures       — the six technical protections we implement
-#   3. data_categories                — what personal data we collect
-#   4. provider_groups                — third-party providers grouped by WHEN they are used
-#   5. data_processing_notes          — ephemeral stability logs + device fingerprinting specifics
-#   6. data_retention                 — how long we keep what
-#   7. limitations_of_erasure         — what survives account deletion and why
-#   8. legal_basis                    — GDPR Art. 6 bases
-#   9. legal_rights                   — GDPR and CCPA/CPRA rights that are actually implemented
-#  10. contact                        — controller, DPO, email
+#   2. quick_answers                  — top-of-policy FAQ for non-technical users
+#   3. data_protection_measures       — the six technical protections we implement
+#   4. data_categories                — what personal data we collect
+#   5. provider_groups                — third-party providers grouped by WHEN they are used
+#   6. data_processing_notes          — ephemeral stability logs + device fingerprinting specifics
+#   7. data_retention                 — how long we keep what
+#   8. limitations_of_erasure         — what survives account deletion and why
+#   9. legal_basis                    — GDPR Art. 6 bases
+#  10. legal_rights                   — GDPR and CCPA/CPRA rights that are actually implemented
+#  11. contact                        — controller, DPO, email
 
 data_protection_overview: >
   OpenMates is designed so that most of your data is encrypted on your device
@@ -27,6 +28,85 @@ data_protection_overview: >
   to disk, logs, or traces, and when you delete your account we destroy the
   encryption key that protects your data — cryptographically shredding every
   encrypted field we still hold.
+
+quick_answers:
+  employee_access: >
+    Private chats are not routinely reviewed by OpenMates employees, and we do
+    not provide a normal admin screen for browsing private chat content.
+    Relevant content can still be processed temporarily in server memory when
+    the user asks for an AI response or uses a feature that needs server
+    processing.
+  device_only_encryption: >
+    Permanent chat history is client-side encrypted before durable storage, so
+    database and backup records should be ciphertext. OpenMates is not a
+    device-only access system because servers can process relevant plaintext in
+    memory when needed to answer a request.
+  recent_context_cache: >
+    OpenMates may keep a short-lived, server-readable AI context cache for
+    recent chats, currently designed around the last 3 chats. The cache is
+    encrypted with server-side Vault encryption, but OpenMates servers can
+    decrypt it while processing a request. On cache miss, the server may ask an
+    active client to resend the needed decrypted context and cache it
+    temporarily again.
+  storage_protection: >
+    Saved chats are stored on OpenMates infrastructure as encrypted data. Chat
+    content, titles, summaries, tags, app settings, memories, reminders, and
+    sensitive profile fields are designed to be encrypted before durable
+    storage. Persistent storage, backups, and sync caches should not contain
+    readable chat text.
+  third_party_providers: >
+    When a user chooses a model or uses a feature powered by a third-party
+    provider, the content needed to process that request may be sent to that
+    provider. OpenMates tries to reduce exposure by replacing recognized
+    personal details and secrets with placeholders before sending, but anything
+    not detected may be sent as typed.
+  model_training: >
+    OpenMates does not use private chats to train OpenMates-owned AI models. For
+    third-party providers, training use depends on the provider. Most audited
+    chat-model providers state that they do not train on API customer data, or
+    only train if the customer opts in. Some image or 3D generation providers
+    have broader or limited-use policies. The public policy renders a
+    provider-by-provider training table with status, source document, and last
+    verification date.
+  placeholder_protection: >
+    Placeholder substitution reduces risk but is not a guarantee. It works best
+    for recognized personal data, saved privacy-profile values, and common
+    secret patterns. It may miss typos, unusual formats, context-only sensitive
+    information, other people's personal data, or sensitive topics that are not
+    technically identifiable as personal data.
+  logs_diagnostics: >
+    OpenMates is designed so chat content is not written to logs or traces.
+    Application logs and telemetry include redaction and filtering for
+    authentication headers, cookies, tokens, passwords, emails, IP addresses,
+    and chat content. Browser stability logs are sanitized, use temporary
+    session identifiers, and can be disabled in privacy settings.
+  deletion: >
+    When users delete chats or their account, OpenMates deletes the corresponding
+    data according to the retention rules. For account deletion, OpenMates also
+    destroys encryption keys so remaining encrypted data in backups or caches
+    becomes unreadable ciphertext. Some records may remain for legal or
+    operational reasons, such as invoices, payment records, audit logs,
+    third-party provider logs, or short-lived encrypted backups.
+  open_source: >
+    Open source means the OpenMates software code is public and can be inspected
+    by others. It does not mean private user data is public. Chats, account
+    data, settings, memories, uploads, and billing data are not published on
+    GitHub. The code is public; personal data is not.
+  sensitive_topics: >
+    OpenMates is privacy-conscious, but it is not a zero-knowledge or
+    device-only system. It is reasonable for everyday private AI use when users
+    avoid unnecessary personal details. For highly sensitive legal, medical,
+    financial, business-confidential, or safety-critical topics, users should be
+    careful about what they enter and which model or provider they use.
+  highest_privacy: >
+    Users with very high privacy requirements can consider self-hosting
+    OpenMates and using local or offline AI models instead of third-party AI
+    providers. This gives more control over infrastructure, model choice, logs,
+    backups, and provider exposure. It requires technical experience, ongoing
+    maintenance, secure server administration, and enough hardware for useful
+    local AI inference. Self-hosting does not automatically make everything
+    private: the operator must still secure the server, backups, secrets,
+    network access, logs, and any external providers they enable.
 
 # The six technical privacy measures we actually implement. Each is verifiable
 # in the codebase and is linked to the corresponding GDPR article.

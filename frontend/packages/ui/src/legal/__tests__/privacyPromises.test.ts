@@ -47,8 +47,7 @@ describe("Privacy Promises — generated registry", () => {
 describe("buildPrivacyPolicyContent — Privacy Promises section", () => {
   const rendered = buildPrivacyPolicyContent(
     echoTranslator,
-    "2026-04-13T00:00:00Z",
-    "en",
+    { lastUpdated: "2026-04-13T00:00:00Z", locale: "en" },
   );
 
   it("renders the promises intro once", () => {

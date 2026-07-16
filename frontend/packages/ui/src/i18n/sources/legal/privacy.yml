@@ -3353,6 +3353,670 @@ overview.summary:
     אתה מוחק את החשבון שלך אנחנו משמידים את מפתח ההצפנה שמגן על הנתונים שלך
     — ובכך גורסים קריפטוגרפית כל שדה מוצפן שעדיין יש לנו.
   verified_by_human: []
+quick_answers.heading:
+  context: Heading for the plain-language FAQ at the top of the privacy policy
+  en: Quick answers about your privacy
+  de: Kurze Antworten zu deiner Privatsphäre
+  zh: 关于你隐私的快速回答
+  es: Respuestas rápidas sobre tu privacidad
+  fr: Réponses rapides sur ta confidentialité
+  pt: Respostas rápidas sobre sua privacidade
+  ru: Краткие ответы о вашей конфиденциальности
+  ja: プライバシーに関するクイック回答
+  ko: 개인정보에 대한 빠른 답변
+  it: Risposte rapide sulla tua privacy
+  tr: Gizliliğiniz hakkında hızlı yanıtlar
+  vi: Câu trả lời nhanh về quyền riêng tư của bạn
+  id: Jawaban cepat tentang privasi Anda
+  pl: Krótkie odpowiedzi o twojej prywatności
+  nl: Snelle antwoorden over je privacy
+  ar: إجابات سريعة حول خصوصيتك
+  hi: आपकी गोपनीयता के बारे में त्वरित उत्तर
+  th: คำตอบสั้น ๆ เกี่ยวกับความเป็นส่วนตัวของคุณ
+  cs: Rychlé odpovědi k vašemu soukromí
+  sv: Snabba svar om din integritet
+  he: תשובות מהירות על הפרטיות שלך
+  verified_by_human: []
+quick_answers.intro:
+  context: Intro for the privacy FAQ section
+  en: >-
+    These answers summarize the most important privacy points in plain language.
+    The detailed policy and provider tables below explain the same topics in
+    more depth.
+  de: >-
+    Diese Antworten fassen die wichtigsten Datenschutzpunkte in einfacher
+    Sprache zusammen. Die ausführliche Erklärung und die Anbieter-Tabellen
+    weiter unten erklären dieselben Themen genauer.
+  zh: 这些回答用通俗语言总结最重要的隐私要点。下面的详细政策和提供商表格会更深入地解释同样的主题。
+  es: Estas respuestas resumen los puntos de privacidad más importantes en lenguaje claro. La política detallada y las tablas de proveedores de abajo explican los mismos temas con más profundidad.
+  fr: Ces réponses résument les points de confidentialité les plus importants en langage simple. La politique détaillée et les tableaux des fournisseurs ci-dessous expliquent les mêmes sujets plus en profondeur.
+  pt: Estas respostas resumem os pontos de privacidade mais importantes em linguagem simples. A política detalhada e as tabelas de provedores abaixo explicam os mesmos temas em mais profundidade.
+  ru: Эти ответы простым языком обобщают самые важные моменты о конфиденциальности. Подробная политика и таблицы провайдеров ниже объясняют те же темы глубже.
+  ja: これらの回答は、最も重要なプライバシーのポイントをわかりやすくまとめたものです。下の詳細なポリシーとプロバイダー表では、同じ内容をさらに詳しく説明しています。
+  ko: 이 답변들은 가장 중요한 개인정보 보호 사항을 쉬운 말로 요약합니다. 아래의 자세한 정책과 제공업체 표에서 같은 내용을 더 깊이 설명합니다.
+  it: Queste risposte riassumono in linguaggio semplice i punti più importanti sulla privacy. L'informativa dettagliata e le tabelle dei fornitori qui sotto spiegano gli stessi temi in modo più approfondito.
+  tr: Bu yanıtlar en önemli gizlilik noktalarını sade dille özetler. Aşağıdaki ayrıntılı politika ve sağlayıcı tabloları aynı konuları daha derin açıklar.
+  vi: Các câu trả lời này tóm tắt những điểm riêng tư quan trọng nhất bằng ngôn ngữ dễ hiểu. Chính sách chi tiết và bảng nhà cung cấp bên dưới giải thích các chủ đề này sâu hơn.
+  id: Jawaban ini merangkum poin privasi terpenting dengan bahasa sederhana. Kebijakan terperinci dan tabel penyedia di bawah menjelaskan topik yang sama lebih mendalam.
+  pl: Te odpowiedzi prostym językiem podsumowują najważniejsze kwestie prywatności. Szczegółowa polityka i tabele dostawców poniżej wyjaśniają te same tematy dokładniej.
+  nl: Deze antwoorden vatten de belangrijkste privacy-punten in gewone taal samen. Het uitgebreide beleid en de providertabellen hieronder leggen dezelfde onderwerpen verder uit.
+  ar: تلخص هذه الإجابات أهم نقاط الخصوصية بلغة واضحة. تشرح السياسة التفصيلية وجداول المزوّدين أدناه الموضوعات نفسها بمزيد من العمق.
+  hi: ये उत्तर सबसे महत्वपूर्ण गोपनीयता बिंदुओं को सरल भाषा में संक्षेप में बताते हैं। नीचे दी गई विस्तृत नीति और प्रदाता तालिकाएँ इन्हीं विषयों को अधिक गहराई से समझाती हैं।
+  th: คำตอบเหล่านี้สรุปประเด็นความเป็นส่วนตัวที่สำคัญที่สุดด้วยภาษาที่เข้าใจง่าย นโยบายฉบับละเอียดและตารางผู้ให้บริการด้านล่างอธิบายเรื่องเดียวกันอย่างละเอียดขึ้น
+  cs: Tyto odpovědi shrnují nejdůležitější body ochrany soukromí jednoduchým jazykem. Podrobná politika a tabulky poskytovatelů níže vysvětlují stejná témata hlouběji.
+  sv: Dessa svar sammanfattar de viktigaste integritetspunkterna på enkel svenska. Den detaljerade policyn och leverantörstabellerna nedan förklarar samma ämnen mer utförligt.
+  he: תשובות אלה מסכמות בשפה פשוטה את נקודות הפרטיות החשובות ביותר. המדיניות המפורטת וטבלאות הספקים שבהמשך מסבירות את אותם נושאים לעומק.
+  verified_by_human: []
+quick_answers.employee_access.question:
+  context: FAQ question about employee access to private chats
+  en: Can OpenMates employees read my private chats?
+  de: Können OpenMates-Mitarbeiter meine privaten Chats lesen?
+  zh: OpenMates 员工可以阅读我的私人聊天吗？
+  es: ¿Pueden los empleados de OpenMates leer mis chats privados?
+  fr: Les employés d'OpenMates peuvent-ils lire mes chats privés ?
+  pt: Funcionários da OpenMates podem ler meus chats privados?
+  ru: Могут ли сотрудники OpenMates читать мои приватные чаты?
+  ja: OpenMates の従業員は私のプライベートチャットを読めますか？
+  ko: OpenMates 직원이 제 비공개 채팅을 읽을 수 있나요?
+  it: I dipendenti di OpenMates possono leggere le mie chat private?
+  tr: OpenMates çalışanları özel sohbetlerimi okuyabilir mi?
+  vi: Nhân viên OpenMates có thể đọc các cuộc trò chuyện riêng tư của tôi không?
+  id: Dapatkah karyawan OpenMates membaca chat pribadi saya?
+  pl: Czy pracownicy OpenMates mogą czytać moje prywatne czaty?
+  nl: Kunnen OpenMates-medewerkers mijn privéchats lezen?
+  ar: هل يستطيع موظفو OpenMates قراءة محادثاتي الخاصة؟
+  hi: क्या OpenMates कर्मचारी मेरी निजी चैट पढ़ सकते हैं?
+  th: พนักงาน OpenMates อ่านแชตส่วนตัวของฉันได้หรือไม่?
+  cs: Mohou zaměstnanci OpenMates číst mé soukromé chaty?
+  sv: Kan OpenMates-anställda läsa mina privata chattar?
+  he: האם עובדי OpenMates יכולים לקרוא את הצ'אטים הפרטיים שלי?
+  verified_by_human: []
+quick_answers.employee_access.answer:
+  context: FAQ answer about employee access to private chats
+  en: >-
+    Private chats are not routinely reviewed by OpenMates employees, and we do
+    not provide a normal admin screen for browsing private chat content. However,
+    OpenMates is not a strict end-to-end encrypted or zero-knowledge system:
+    relevant content can be processed temporarily in server memory when you ask
+    for an AI response or use a feature that needs server processing.
+  de: >-
+    Private Chats werden nicht routinemäßig von OpenMates-Mitarbeitern geprüft,
+    und es gibt keine normale Admin-Ansicht zum Durchsuchen privater Chat-Inhalte.
+    OpenMates ist aber kein strikt Ende-zu-Ende-verschlüsseltes oder
+    Zero-Knowledge-System: Relevante Inhalte können kurzzeitig im
+    Server-Arbeitsspeicher verarbeitet werden, wenn du eine KI-Antwort anforderst
+    oder eine Funktion nutzt, die Serververarbeitung braucht.
+  zh: 私人聊天不会被 OpenMates 员工例行查看，我们也不提供用于浏览私人聊天内容的普通管理员界面。不过，OpenMates 不是严格的端到端加密或零知识系统：当你请求 AI 回复或使用需要服务器处理的功能时，相关内容可能会在服务器内存中临时处理。
+  es: "Los chats privados no son revisados de forma rutinaria por empleados de OpenMates y no ofrecemos una pantalla normal de administrador para navegar por contenido privado. Sin embargo, OpenMates no es un sistema estrictamente cifrado de extremo a extremo ni de conocimiento cero: el contenido relevante puede procesarse temporalmente en la memoria del servidor cuando pides una respuesta de IA o usas una función que requiere procesamiento del servidor."
+  fr: "Les chats privés ne sont pas examinés régulièrement par les employés d'OpenMates, et nous ne fournissons pas d'écran d'administration normal permettant de parcourir leur contenu. Cependant, OpenMates n'est pas un système strictement chiffré de bout en bout ni zero-knowledge : le contenu pertinent peut être traité temporairement en mémoire serveur lorsque tu demandes une réponse IA ou utilises une fonction nécessitant un traitement serveur."
+  pt: "Chats privados não são revisados rotineiramente por funcionários da OpenMates, e não oferecemos uma tela administrativa normal para navegar por conteúdo de chats privados. Porém, o OpenMates não é um sistema estritamente criptografado de ponta a ponta nem de conhecimento zero: conteúdo relevante pode ser processado temporariamente na memória do servidor quando você pede uma resposta de IA ou usa um recurso que precisa de processamento no servidor."
+  ru: "Приватные чаты не просматриваются сотрудниками OpenMates на регулярной основе, и у нас нет обычной админ-панели для просмотра их содержимого. Однако OpenMates не является строгой системой сквозного шифрования или zero-knowledge: релевантный контент может временно обрабатываться в памяти сервера, когда вы запрашиваете ответ ИИ или используете функцию, требующую серверной обработки."
+  ja: プライベートチャットを OpenMates の従業員が日常的に確認することはなく、プライベートチャット内容を閲覧する通常の管理画面も提供していません。ただし OpenMates は厳密なエンドツーエンド暗号化やゼロ知識のシステムではありません。AI 応答を求める場合やサーバー処理が必要な機能を使う場合、関連コンテンツはサーバーメモリ内で一時的に処理されることがあります。
+  ko: 비공개 채팅은 OpenMates 직원이 정기적으로 검토하지 않으며, 비공개 채팅 내용을 둘러볼 수 있는 일반 관리자 화면도 제공하지 않습니다. 그러나 OpenMates는 엄격한 종단간 암호화 또는 제로 지식 시스템이 아닙니다. AI 응답을 요청하거나 서버 처리가 필요한 기능을 사용할 때 관련 콘텐츠가 서버 메모리에서 일시적으로 처리될 수 있습니다.
+  it: "Le chat private non vengono esaminate abitualmente dai dipendenti di OpenMates e non forniamo una normale schermata admin per sfogliare i contenuti delle chat private. Tuttavia OpenMates non è un sistema rigorosamente cifrato end-to-end o zero-knowledge: i contenuti rilevanti possono essere elaborati temporaneamente nella memoria del server quando chiedi una risposta IA o usi una funzione che richiede elaborazione server."
+  tr: "Özel sohbetler OpenMates çalışanları tarafından rutin olarak incelenmez ve özel sohbet içeriğini gezmek için normal bir yönetici ekranı sunmayız. Ancak OpenMates katı uçtan uca şifreli veya sıfır bilgi sistemi değildir: Bir yapay zeka yanıtı istediğinizde ya da sunucu işlemesi gereken bir özellik kullandığınızda ilgili içerik sunucu belleğinde geçici olarak işlenebilir."
+  vi: "Các cuộc trò chuyện riêng tư không được nhân viên OpenMates xem xét thường xuyên, và chúng tôi không cung cấp màn hình quản trị thông thường để duyệt nội dung trò chuyện riêng tư. Tuy nhiên, OpenMates không phải là hệ thống mã hóa đầu cuối nghiêm ngặt hoặc zero-knowledge: nội dung liên quan có thể được xử lý tạm thời trong bộ nhớ máy chủ khi bạn yêu cầu phản hồi AI hoặc dùng tính năng cần xử lý phía máy chủ."
+  id: "Chat pribadi tidak ditinjau secara rutin oleh karyawan OpenMates, dan kami tidak menyediakan layar admin biasa untuk menelusuri konten chat pribadi. Namun, OpenMates bukan sistem enkripsi ujung-ke-ujung atau zero-knowledge yang ketat: konten yang relevan dapat diproses sementara di memori server saat Anda meminta respons AI atau menggunakan fitur yang memerlukan pemrosesan server."
+  pl: "Prywatne czaty nie są rutynowo przeglądane przez pracowników OpenMates i nie udostępniamy zwykłego panelu administratora do przeglądania ich treści. OpenMates nie jest jednak ścisłym systemem szyfrowania end-to-end ani zero-knowledge: odpowiednie treści mogą być tymczasowo przetwarzane w pamięci serwera, gdy prosisz o odpowiedź AI albo używasz funkcji wymagającej przetwarzania po stronie serwera."
+  nl: "Privéchats worden niet routinematig beoordeeld door OpenMates-medewerkers, en we bieden geen normaal beheerscherm om privéchatinhoud te doorzoeken. OpenMates is echter geen strikt end-to-end-versleuteld of zero-knowledge systeem: relevante inhoud kan tijdelijk in servergeheugen worden verwerkt wanneer je om een AI-antwoord vraagt of een functie gebruikt die serververwerking nodig heeft."
+  ar: "لا تتم مراجعة المحادثات الخاصة بشكل روتيني من قبل موظفي OpenMates، ولا نوفر شاشة إدارة عادية لتصفح محتوى المحادثات الخاصة. ومع ذلك، فإن OpenMates ليس نظام تشفير طرفي صارمًا أو نظام معرفة صفرية: قد تتم معالجة المحتوى ذي الصلة مؤقتًا في ذاكرة الخادم عندما تطلب ردًا من الذكاء الاصطناعي أو تستخدم ميزة تحتاج إلى معالجة خادمية."
+  hi: "निजी चैट OpenMates कर्मचारियों द्वारा नियमित रूप से समीक्षा नहीं की जातीं, और हम निजी चैट सामग्री ब्राउज़ करने के लिए सामान्य एडमिन स्क्रीन प्रदान नहीं करते। हालांकि, OpenMates कठोर एंड-टू-एंड एन्क्रिप्टेड या ज़ीरो-नॉलेज सिस्टम नहीं है: जब आप AI उत्तर माँगते हैं या सर्वर प्रोसेसिंग वाली सुविधा का उपयोग करते हैं, तो संबंधित सामग्री अस्थायी रूप से सर्वर मेमोरी में प्रोसेस हो सकती है।"
+  th: "แชตส่วนตัวไม่ได้ถูกพนักงาน OpenMates ตรวจสอบเป็นประจำ และเราไม่มีหน้าผู้ดูแลระบบทั่วไปสำหรับเปิดดูเนื้อหาแชตส่วนตัว อย่างไรก็ตาม OpenMates ไม่ใช่ระบบเข้ารหัสเอนด์ทูเอนด์หรือ zero-knowledge อย่างเคร่งครัด: เนื้อหาที่เกี่ยวข้องอาจถูกประมวลผลชั่วคราวในหน่วยความจำเซิร์ฟเวอร์เมื่อคุณขอคำตอบจาก AI หรือใช้ฟีเจอร์ที่ต้องประมวลผลบนเซิร์ฟเวอร์"
+  cs: "Soukromé chaty zaměstnanci OpenMates běžně nekontrolují a neposkytujeme běžnou administrátorskou obrazovku pro procházení jejich obsahu. OpenMates však není striktně end-to-end šifrovaný ani zero-knowledge systém: relevantní obsah může být dočasně zpracován v paměti serveru, když žádáte odpověď AI nebo používáte funkci vyžadující serverové zpracování."
+  sv: "Privata chattar granskas inte rutinmässigt av OpenMates-anställda, och vi tillhandahåller ingen vanlig adminvy för att bläddra i privat chattinnehåll. OpenMates är dock inte ett strikt end-to-end-krypterat eller zero-knowledge-system: relevant innehåll kan behandlas tillfälligt i serverminne när du ber om ett AI-svar eller använder en funktion som kräver serverbearbetning."
+  he: "צ'אטים פרטיים אינם נבדקים באופן שגרתי על ידי עובדי OpenMates, ואיננו מספקים מסך ניהול רגיל לעיון בתוכן צ'אט פרטי. עם זאת, OpenMates אינה מערכת הצפנה מקצה לקצה או zero-knowledge במובן המחמיר: תוכן רלוונטי עשוי להיות מעובד זמנית בזיכרון השרת כאשר מבקשים תשובת AI או משתמשים בתכונה שדורשת עיבוד שרת."
+  verified_by_human: []
+quick_answers.device_only_encryption.question:
+  context: FAQ question about whether only user devices can read chats
+  en: Are my chats encrypted so only my devices can read them?
+  de: Sind meine Chats so verschlüsselt, dass nur meine Geräte sie lesen können?
+  zh: 我的聊天是否加密到只有我的设备才能读取？
+  es: ¿Mis chats están cifrados para que solo mis dispositivos puedan leerlos?
+  fr: Mes chats sont-ils chiffrés de sorte que seuls mes appareils puissent les lire ?
+  pt: Meus chats são criptografados para que apenas meus dispositivos possam lê-los?
+  ru: Мои чаты зашифрованы так, что читать их могут только мои устройства?
+  ja: 私のチャットは自分のデバイスだけが読めるように暗号化されていますか？
+  ko: 제 채팅은 제 기기만 읽을 수 있도록 암호화되나요?
+  it: Le mie chat sono cifrate in modo che solo i miei dispositivi possano leggerle?
+  tr: Sohbetlerim yalnızca cihazlarım okuyabilecek şekilde şifreleniyor mu?
+  vi: Các cuộc trò chuyện của tôi có được mã hóa để chỉ thiết bị của tôi đọc được không?
+  id: Apakah chat saya dienkripsi sehingga hanya perangkat saya yang dapat membacanya?
+  pl: Czy moje czaty są szyfrowane tak, aby tylko moje urządzenia mogły je odczytać?
+  nl: Zijn mijn chats zo versleuteld dat alleen mijn apparaten ze kunnen lezen?
+  ar: هل محادثاتي مشفرة بحيث لا تقرأها إلا أجهزتي؟
+  hi: क्या मेरी चैट इस तरह एन्क्रिप्ट हैं कि केवल मेरे डिवाइस उन्हें पढ़ सकें?
+  th: แชตของฉันถูกเข้ารหัสให้มีเพียงอุปกรณ์ของฉันเท่านั้นที่อ่านได้หรือไม่?
+  cs: Jsou mé chaty šifrovány tak, aby je mohla číst pouze má zařízení?
+  sv: Är mina chattar krypterade så att bara mina enheter kan läsa dem?
+  he: האם הצ'אטים שלי מוצפנים כך שרק המכשירים שלי יכולים לקרוא אותם?
+  verified_by_human: []
+quick_answers.device_only_encryption.answer:
+  context: FAQ answer about device-only encryption limits
+  en: >-
+    No. OpenMates uses client-side encryption for durable storage and sync, not
+    device-only access. Permanent chat history is encrypted before it is stored,
+    so database and backup records should be ciphertext. But OpenMates servers
+    can process relevant plaintext in memory when needed to answer your request.
+  de: >-
+    Nein. OpenMates nutzt clientseitige Verschlüsselung für dauerhafte
+    Speicherung und Synchronisierung, aber kein Modell, bei dem ausschließlich
+    deine Geräte Inhalte lesen können. Dauerhafte Chat-Verläufe werden vor der
+    Speicherung verschlüsselt, sodass Datenbank- und Backup-Einträge Chiffretext
+    sein sollten. OpenMates-Server können relevante Klartextinhalte aber im
+    Arbeitsspeicher verarbeiten, wenn das für deine Anfrage nötig ist.
+  zh: 不。OpenMates 使用客户端加密来进行持久存储和同步，但并不是只有设备才能访问。永久聊天记录在存储前会被加密，因此数据库和备份记录应当是密文。但在回答你的请求所需时，OpenMates 服务器可以在内存中处理相关明文。
+  es: No. OpenMates usa cifrado del lado del cliente para almacenamiento duradero y sincronización, no acceso exclusivo del dispositivo. El historial permanente se cifra antes de almacenarse, por lo que la base de datos y las copias de seguridad deberían contener texto cifrado. Pero los servidores de OpenMates pueden procesar texto claro relevante en memoria cuando sea necesario para responder a tu solicitud.
+  fr: Non. OpenMates utilise le chiffrement côté client pour le stockage durable et la synchronisation, pas un accès réservé uniquement aux appareils. L'historique permanent est chiffré avant stockage, donc les bases de données et sauvegardes devraient contenir du texte chiffré. Mais les serveurs OpenMates peuvent traiter en mémoire le texte clair pertinent lorsque c'est nécessaire pour répondre à ta demande.
+  pt: Não. O OpenMates usa criptografia do lado do cliente para armazenamento durável e sincronização, não acesso exclusivo dos dispositivos. O histórico permanente do chat é criptografado antes de ser armazenado, então banco de dados e backups devem conter texto cifrado. Mas os servidores OpenMates podem processar texto claro relevante na memória quando isso for necessário para responder à sua solicitação.
+  ru: Нет. OpenMates использует клиентское шифрование для долговременного хранения и синхронизации, а не доступ только с устройств. Постоянная история чатов шифруется перед хранением, поэтому записи в базе данных и резервных копиях должны быть шифротекстом. Но серверы OpenMates могут обрабатывать релевантный открытый текст в памяти, когда это нужно для ответа на ваш запрос.
+  ja: いいえ。OpenMates は永続的な保存と同期にクライアント側暗号化を使いますが、デバイスだけがアクセスできる仕組みではありません。永続的なチャット履歴は保存前に暗号化されるため、データベースやバックアップの記録は暗号文であるべきです。ただし、リクエストに回答するため必要な場合、OpenMates サーバーは関連する平文をメモリ内で処理できます。
+  ko: 아닙니다. OpenMates는 영구 저장과 동기화에 클라이언트 측 암호화를 사용하지만, 기기만 접근할 수 있는 방식은 아닙니다. 영구 채팅 기록은 저장 전에 암호화되므로 데이터베이스와 백업 기록은 암호문이어야 합니다. 그러나 요청에 답하기 위해 필요한 경우 OpenMates 서버는 관련 평문을 메모리에서 처리할 수 있습니다.
+  it: No. OpenMates usa la cifratura lato client per archiviazione durevole e sincronizzazione, non accesso riservato solo ai dispositivi. La cronologia permanente delle chat viene cifrata prima dell'archiviazione, quindi database e backup dovrebbero contenere testo cifrato. Tuttavia i server OpenMates possono elaborare in memoria il testo in chiaro rilevante quando serve per rispondere alla tua richiesta.
+  tr: Hayır. OpenMates kalıcı depolama ve senkronizasyon için istemci tarafı şifreleme kullanır; yalnızca cihaz erişimi değildir. Kalıcı sohbet geçmişi saklanmadan önce şifrelenir, bu nedenle veritabanı ve yedek kayıtları şifreli metin olmalıdır. Ancak OpenMates sunucuları isteğinize yanıt vermek için gerektiğinde ilgili düz metni bellekte işleyebilir.
+  vi: Không. OpenMates dùng mã hóa phía máy khách cho lưu trữ bền vững và đồng bộ, không phải quyền truy cập chỉ từ thiết bị. Lịch sử trò chuyện lâu dài được mã hóa trước khi lưu, nên cơ sở dữ liệu và bản sao lưu phải là bản mã. Nhưng máy chủ OpenMates có thể xử lý nội dung rõ liên quan trong bộ nhớ khi cần để trả lời yêu cầu của bạn.
+  id: Tidak. OpenMates menggunakan enkripsi sisi klien untuk penyimpanan tahan lama dan sinkronisasi, bukan akses hanya oleh perangkat. Riwayat chat permanen dienkripsi sebelum disimpan, sehingga catatan database dan cadangan seharusnya berupa ciphertext. Namun server OpenMates dapat memproses teks jelas yang relevan di memori jika diperlukan untuk menjawab permintaan Anda.
+  pl: Nie. OpenMates używa szyfrowania po stronie klienta do trwałego przechowywania i synchronizacji, a nie dostępu wyłącznie z urządzeń. Stała historia czatu jest szyfrowana przed zapisaniem, więc rekordy bazy danych i kopii zapasowych powinny być szyfrogramem. Serwery OpenMates mogą jednak przetwarzać odpowiedni tekst jawny w pamięci, gdy jest to potrzebne do obsługi twojej prośby.
+  nl: Nee. OpenMates gebruikt client-side versleuteling voor duurzame opslag en synchronisatie, niet alleen-apparaat-toegang. Permanente chatgeschiedenis wordt vóór opslag versleuteld, dus database- en back-uprecords zouden ciphertext moeten zijn. Maar OpenMates-servers kunnen relevante platte tekst in het geheugen verwerken wanneer dat nodig is om je verzoek te beantwoorden.
+  ar: لا. يستخدم OpenMates التشفير من جهة العميل للتخزين الدائم والمزامنة، وليس وصولًا مقتصرًا على الأجهزة فقط. يتم تشفير سجل المحادثات الدائم قبل تخزينه، لذلك يجب أن تكون سجلات قاعدة البيانات والنسخ الاحتياطية نصًا مشفرًا. لكن خوادم OpenMates يمكنها معالجة النص الواضح ذي الصلة في الذاكرة عند الحاجة للإجابة على طلبك.
+  hi: नहीं। OpenMates टिकाऊ स्टोरेज और सिंक के लिए क्लाइंट-साइड एन्क्रिप्शन का उपयोग करता है, केवल-डिवाइस एक्सेस का नहीं। स्थायी चैट इतिहास संग्रहित होने से पहले एन्क्रिप्ट होता है, इसलिए डेटाबेस और बैकअप रिकॉर्ड ciphertext होने चाहिए। लेकिन आपके अनुरोध का उत्तर देने के लिए ज़रूरत पड़ने पर OpenMates सर्वर संबंधित plaintext को मेमोरी में प्रोसेस कर सकते हैं।
+  th: ไม่ใช่ OpenMates ใช้การเข้ารหัสฝั่งไคลเอนต์สำหรับการจัดเก็บถาวรและการซิงก์ ไม่ใช่การเข้าถึงเฉพาะอุปกรณ์เท่านั้น ประวัติแชตถาวรถูกเข้ารหัสก่อนจัดเก็บ ดังนั้นฐานข้อมูลและข้อมูลสำรองควรเป็น ciphertext แต่เซิร์ฟเวอร์ OpenMates สามารถประมวลผลข้อความที่อ่านได้ในหน่วยความจำเมื่อจำเป็นต่อการตอบคำขอของคุณ
+  cs: Ne. OpenMates používá klientské šifrování pro trvalé ukládání a synchronizaci, nikoli přístup pouze ze zařízení. Trvalá historie chatu je před uložením šifrována, takže databáze a zálohy by měly obsahovat šifrovaný text. Servery OpenMates však mohou v paměti zpracovat relevantní prostý text, když je to potřeba k odpovědi na váš požadavek.
+  sv: Nej. OpenMates använder klientsideskryptering för varaktig lagring och synkronisering, inte enbart enhetsåtkomst. Permanent chatthistorik krypteras innan den lagras, så databas- och backup-poster bör vara ciphertext. Men OpenMates-servrar kan behandla relevant klartext i minnet när det behövs för att besvara din begäran.
+  he: לא. OpenMates משתמשת בהצפנה בצד הלקוח לאחסון מתמשך ולסנכרון, לא בגישה של מכשירים בלבד. היסטוריית צ'אט קבועה מוצפנת לפני האחסון, כך שרשומות מסד נתונים וגיבויים אמורות להיות טקסט מוצפן. אבל שרתי OpenMates יכולים לעבד טקסט גלוי רלוונטי בזיכרון כשזה נחוץ כדי לענות לבקשה שלך.
+  verified_by_human: []
+quick_answers.recent_context_cache.question:
+  context: FAQ question about recent server-readable AI context cache
+  en: What is the recent AI context cache?
+  de: Was ist der aktuelle KI-Kontext-Cache?
+  zh: 什么是最近 AI 上下文缓存？
+  es: ¿Qué es la caché reciente de contexto de IA?
+  fr: Qu'est-ce que le cache récent de contexte IA ?
+  pt: O que é o cache recente de contexto de IA?
+  ru: Что такое недавний кэш контекста ИИ?
+  ja: 最近の AI コンテキストキャッシュとは何ですか？
+  ko: 최근 AI 컨텍스트 캐시는 무엇인가요?
+  it: Che cos'è la cache recente del contesto IA?
+  tr: Son AI bağlam önbelleği nedir?
+  vi: Bộ nhớ đệm ngữ cảnh AI gần đây là gì?
+  id: Apa itu cache konteks AI terbaru?
+  pl: Czym jest ostatnia pamięć podręczna kontekstu AI?
+  nl: Wat is de recente AI-contextcache?
+  ar: ما ذاكرة سياق الذكاء الاصطناعي الحديثة؟
+  hi: हालिया AI संदर्भ कैश क्या है?
+  th: แคชบริบท AI ล่าสุดคืออะไร?
+  cs: Co je nedávná mezipaměť kontextu AI?
+  sv: Vad är den senaste AI-kontextcachen?
+  he: מהו מטמון ההקשר האחרון של AI?
+  verified_by_human: []
+quick_answers.recent_context_cache.answer:
+  context: FAQ answer about recent server-readable AI context cache
+  en: >-
+    To make follow-up responses fast, OpenMates may keep a short-lived,
+    server-readable AI context cache for recent chats, currently designed around
+    the last 3 chats. This cache is encrypted with server-side Vault encryption,
+    but OpenMates servers can decrypt it while processing your request. If the
+    cache is missing, the server may ask your active client to resend the needed
+    decrypted context and cache it temporarily again.
+  de: >-
+    Damit Folgeantworten schnell funktionieren, kann OpenMates einen kurzlebigen,
+    serverlesbaren KI-Kontext-Cache für aktuelle Chats halten, derzeit auf die
+    letzten 3 Chats ausgelegt. Dieser Cache ist mit serverseitiger
+    Vault-Verschlüsselung geschützt, kann aber von OpenMates-Servern während der
+    Verarbeitung deiner Anfrage entschlüsselt werden. Fehlt der Cache, kann der
+    Server deinen aktiven Client bitten, den benötigten entschlüsselten Kontext
+    erneut zu senden und ihn vorübergehend wieder zu cachen.
+  zh: 为了让后续回复更快，OpenMates 可能会为最近聊天保留一个短期、服务器可读的 AI 上下文缓存，目前设计围绕最近 3 个聊天。该缓存使用服务器端 Vault 加密，但 OpenMates 服务器可以在处理你的请求时解密它。如果缓存缺失，服务器可能会请求你的活动客户端重新发送所需的解密上下文，并再次临时缓存。
+  es: Para que las respuestas de seguimiento sean rápidas, OpenMates puede mantener una caché de contexto de IA reciente, de corta duración y legible por el servidor, diseñada actualmente alrededor de los últimos 3 chats. Esta caché está cifrada con Vault del lado del servidor, pero los servidores de OpenMates pueden descifrarla mientras procesan tu solicitud. Si falta la caché, el servidor puede pedir a tu cliente activo que vuelva a enviar el contexto descifrado necesario y lo almacene temporalmente de nuevo.
+  fr: Pour accélérer les réponses de suivi, OpenMates peut conserver un cache de contexte IA récent, de courte durée et lisible par le serveur, actuellement conçu autour des 3 derniers chats. Ce cache est chiffré avec Vault côté serveur, mais les serveurs OpenMates peuvent le déchiffrer pendant le traitement de ta demande. Si le cache manque, le serveur peut demander à ton client actif de renvoyer le contexte déchiffré nécessaire et le remettre temporairement en cache.
+  pt: Para tornar respostas de acompanhamento rápidas, o OpenMates pode manter um cache curto e legível pelo servidor de contexto de IA para chats recentes, atualmente projetado em torno dos últimos 3 chats. Esse cache é criptografado com Vault no lado do servidor, mas os servidores OpenMates podem descriptá-lo ao processar sua solicitação. Se o cache estiver ausente, o servidor pode pedir ao seu cliente ativo para reenviar o contexto descriptografado necessário e armazená-lo temporariamente de novo.
+  ru: Чтобы последующие ответы работали быстро, OpenMates может хранить краткоживущий, читаемый сервером кэш контекста ИИ для недавних чатов, сейчас рассчитанный на последние 3 чата. Этот кэш шифруется серверным Vault, но серверы OpenMates могут расшифровывать его во время обработки вашего запроса. Если кэша нет, сервер может попросить ваш активный клиент снова отправить нужный расшифрованный контекст и временно закэшировать его заново.
+  ja: フォローアップ応答を高速にするため、OpenMates は最近のチャット用に短期間のサーバー可読 AI コンテキストキャッシュを保持することがあります。現在は直近 3 件のチャットを中心に設計されています。このキャッシュはサーバー側 Vault 暗号化で保護されていますが、OpenMates サーバーはリクエスト処理中に復号できます。キャッシュがない場合、サーバーはアクティブなクライアントに必要な復号済みコンテキストの再送を依頼し、再び一時的にキャッシュすることがあります。
+  ko: 후속 응답을 빠르게 하기 위해 OpenMates는 최근 채팅에 대해 수명이 짧고 서버가 읽을 수 있는 AI 컨텍스트 캐시를 유지할 수 있으며, 현재는 최근 3개 채팅을 기준으로 설계되어 있습니다. 이 캐시는 서버 측 Vault 암호화로 보호되지만 OpenMates 서버는 요청 처리 중 이를 복호화할 수 있습니다. 캐시가 없으면 서버는 활성 클라이언트에 필요한 복호화된 컨텍스트를 다시 보내도록 요청하고 이를 다시 임시 캐시할 수 있습니다.
+  it: Per rendere rapide le risposte successive, OpenMates può mantenere una cache di contesto IA recente, di breve durata e leggibile dal server, attualmente progettata intorno alle ultime 3 chat. Questa cache è cifrata con Vault lato server, ma i server OpenMates possono decifrarla durante l'elaborazione della tua richiesta. Se la cache manca, il server può chiedere al tuo client attivo di reinviare il contesto decifrato necessario e memorizzarlo di nuovo temporaneamente.
+  tr: Takip yanıtlarını hızlı yapmak için OpenMates, son sohbetler için kısa ömürlü ve sunucu tarafından okunabilir bir AI bağlam önbelleği tutabilir; şu anda son 3 sohbet etrafında tasarlanmıştır. Bu önbellek sunucu tarafı Vault şifrelemesiyle korunur, ancak OpenMates sunucuları isteğinizi işlerken şifresini çözebilir. Önbellek yoksa sunucu aktif istemcinizden gerekli çözülmüş bağlamı yeniden göndermesini isteyebilir ve bunu tekrar geçici olarak önbelleğe alabilir.
+  vi: Để phản hồi tiếp nối nhanh hơn, OpenMates có thể giữ bộ nhớ đệm ngữ cảnh AI ngắn hạn mà máy chủ có thể đọc cho các cuộc trò chuyện gần đây, hiện được thiết kế quanh 3 cuộc trò chuyện gần nhất. Bộ nhớ đệm này được mã hóa bằng Vault phía máy chủ, nhưng máy chủ OpenMates có thể giải mã nó khi xử lý yêu cầu của bạn. Nếu thiếu bộ nhớ đệm, máy chủ có thể yêu cầu máy khách đang hoạt động của bạn gửi lại ngữ cảnh đã giải mã cần thiết và tạm thời lưu lại.
+  id: Agar respons lanjutan cepat, OpenMates dapat menyimpan cache konteks AI jangka pendek yang dapat dibaca server untuk chat terbaru, saat ini dirancang di sekitar 3 chat terakhir. Cache ini dienkripsi dengan enkripsi Vault sisi server, tetapi server OpenMates dapat mendekripsinya saat memproses permintaan Anda. Jika cache tidak ada, server dapat meminta klien aktif Anda mengirim ulang konteks terdekripsi yang diperlukan dan menyimpannya sementara lagi.
+  pl: Aby odpowiedzi kontynuujące były szybkie, OpenMates może utrzymywać krótkotrwałą, czytelną dla serwera pamięć podręczną kontekstu AI dla ostatnich czatów, obecnie zaprojektowaną wokół ostatnich 3 czatów. Ta pamięć jest szyfrowana po stronie serwera przez Vault, ale serwery OpenMates mogą ją odszyfrować podczas obsługi twojej prośby. Jeśli jej brakuje, serwer może poprosić aktywnego klienta o ponowne przesłanie potrzebnego odszyfrowanego kontekstu i tymczasowo zapisać go ponownie.
+  nl: Om vervolgantwoorden snel te maken, kan OpenMates een kortlevende, serverleesbare AI-contextcache voor recente chats bewaren, momenteel ontworpen rond de laatste 3 chats. Deze cache is versleuteld met server-side Vault-versleuteling, maar OpenMates-servers kunnen die ontsleutelen tijdens de verwerking van je verzoek. Als de cache ontbreekt, kan de server je actieve client vragen de benodigde ontsleutelde context opnieuw te sturen en die tijdelijk opnieuw cachen.
+  ar: لجعل الردود المتتابعة سريعة، قد يحتفظ OpenMates بذاكرة سياق ذكاء اصطناعي قصيرة العمر وقابلة للقراءة من الخادم للمحادثات الحديثة، وهي مصممة حاليًا حول آخر 3 محادثات. تُشفّر هذه الذاكرة بتشفير Vault من جهة الخادم، لكن خوادم OpenMates يمكنها فك تشفيرها أثناء معالجة طلبك. إذا كانت الذاكرة غير موجودة، فقد يطلب الخادم من عميلك النشط إعادة إرسال السياق المفكوك التشفير المطلوب وتخزينه مؤقتًا مرة أخرى.
+  hi: फॉलो-अप उत्तर तेज़ बनाने के लिए OpenMates हाल की चैट के लिए अल्पकालिक, सर्वर-पठनीय AI संदर्भ कैश रख सकता है, जो अभी अंतिम 3 चैट के आसपास डिज़ाइन है। यह कैश सर्वर-साइड Vault एन्क्रिप्शन से एन्क्रिप्ट होता है, लेकिन OpenMates सर्वर आपके अनुरोध को प्रोसेस करते समय इसे डिक्रिप्ट कर सकते हैं। यदि कैश नहीं है, तो सर्वर आपके सक्रिय क्लाइंट से आवश्यक डिक्रिप्टेड संदर्भ फिर से भेजने और उसे अस्थायी रूप से फिर कैश करने के लिए कह सकता है।
+  th: เพื่อให้คำตอบต่อเนื่องรวดเร็ว OpenMates อาจเก็บแคชบริบท AI แบบอายุสั้นที่เซิร์ฟเวอร์อ่านได้สำหรับแชตล่าสุด ปัจจุบันออกแบบรอบแชต 3 รายการล่าสุด แคชนี้เข้ารหัสด้วย Vault ฝั่งเซิร์ฟเวอร์ แต่เซิร์ฟเวอร์ OpenMates สามารถถอดรหัสระหว่างประมวลผลคำขอของคุณได้ หากไม่มีแคช เซิร์ฟเวอร์อาจขอให้ไคลเอนต์ที่ใช้งานอยู่ส่งบริบทที่ถอดรหัสแล้วที่จำเป็นอีกครั้งและแคชชั่วคราวอีกครั้ง
+  cs: Aby byly navazující odpovědi rychlé, může OpenMates udržovat krátkodobou, serverem čitelnou mezipaměť kontextu AI pro nedávné chaty, aktuálně navrženou kolem posledních 3 chatů. Tato mezipaměť je šifrována serverovým Vaultem, ale servery OpenMates ji mohou během zpracování vašeho požadavku dešifrovat. Pokud mezipaměť chybí, server může požádat váš aktivní klient o opětovné odeslání potřebného dešifrovaného kontextu a dočasně jej znovu uložit.
+  sv: För att göra uppföljningssvar snabba kan OpenMates behålla en kortlivad, serverläsbar AI-kontextcache för senaste chattar, för närvarande utformad kring de 3 senaste chattarna. Denna cache krypteras med server-side Vault-kryptering, men OpenMates-servrar kan dekryptera den medan din begäran behandlas. Om cachen saknas kan servern be din aktiva klient skicka om nödvändig dekrypterad kontext och tillfälligt cacha den igen.
+  he: כדי להפוך תשובות המשך למהירות, OpenMates עשויה לשמור מטמון הקשר AI קצר-חיים וקריא לשרת עבור צ'אטים אחרונים, שמיועד כיום סביב 3 הצ'אטים האחרונים. המטמון מוצפן בהצפנת Vault בצד השרת, אך שרתי OpenMates יכולים לפענח אותו בזמן עיבוד הבקשה שלך. אם המטמון חסר, השרת עשוי לבקש מהלקוח הפעיל שלך לשלוח מחדש את ההקשר המפוענח הדרוש ולשמור אותו זמנית שוב.
+  verified_by_human: []
+quick_answers.storage_protection.question:
+  context: FAQ question about storage and protection of chats
+  en: Where are my chats stored, and how are they protected?
+  de: Wo werden meine Chats gespeichert und wie werden sie geschützt?
+  zh: 我的聊天存储在哪里，如何受到保护？
+  es: ¿Dónde se almacenan mis chats y cómo se protegen?
+  fr: Où mes chats sont-ils stockés et comment sont-ils protégés ?
+  pt: Onde meus chats são armazenados e como são protegidos?
+  ru: Где хранятся мои чаты и как они защищены?
+  ja: 私のチャットはどこに保存され、どのように保護されますか？
+  ko: 제 채팅은 어디에 저장되고 어떻게 보호되나요?
+  it: Dove vengono archiviate le mie chat e come sono protette?
+  tr: Sohbetlerim nerede saklanır ve nasıl korunur?
+  vi: Các cuộc trò chuyện của tôi được lưu ở đâu và được bảo vệ thế nào?
+  id: Di mana chat saya disimpan dan bagaimana dilindungi?
+  pl: Gdzie są przechowywane moje czaty i jak są chronione?
+  nl: Waar worden mijn chats opgeslagen en hoe worden ze beschermd?
+  ar: أين تُخزن محادثاتي وكيف تتم حمايتها؟
+  hi: मेरी चैट कहाँ संग्रहीत होती हैं और कैसे सुरक्षित रहती हैं?
+  th: แชตของฉันถูกจัดเก็บที่ไหนและได้รับการปกป้องอย่างไร?
+  cs: Kde jsou mé chaty uloženy a jak jsou chráněny?
+  sv: Var lagras mina chattar och hur skyddas de?
+  he: איפה הצ'אטים שלי מאוחסנים וכיצד הם מוגנים?
+  verified_by_human: []
+quick_answers.storage_protection.answer:
+  context: FAQ answer about storage and protection of chats
+  en: Saved chats are stored on OpenMates infrastructure as encrypted data. Chat content, titles, summaries, tags, app settings, memories, reminders, and sensitive profile fields are designed to be encrypted before durable storage. Persistent storage, backups, and sync caches should not contain readable chat text.
+  de: Gespeicherte Chats werden auf der OpenMates-Infrastruktur als verschlüsselte Daten gespeichert. Chat-Inhalte, Titel, Zusammenfassungen, Tags, App-Einstellungen, Erinnerungen, Erinnerungsnotizen und sensible Profilfelder sollen vor dauerhafter Speicherung verschlüsselt werden. Dauerhafte Speicher, Backups und Sync-Caches sollten keinen lesbaren Chat-Text enthalten.
+  zh: 已保存的聊天会作为加密数据存储在 OpenMates 基础设施上。聊天内容、标题、摘要、标签、应用设置、记忆、提醒和敏感资料字段都设计为在持久存储前加密。持久存储、备份和同步缓存不应包含可读的聊天文本。
+  es: Los chats guardados se almacenan en la infraestructura de OpenMates como datos cifrados. El contenido, títulos, resúmenes, etiquetas, ajustes de apps, memorias, recordatorios y campos sensibles del perfil están diseñados para cifrarse antes del almacenamiento duradero. El almacenamiento persistente, las copias de seguridad y las cachés de sincronización no deberían contener texto de chat legible.
+  fr: Les chats enregistrés sont stockés sur l'infrastructure OpenMates sous forme de données chiffrées. Le contenu, les titres, résumés, tags, paramètres d'app, mémoires, rappels et champs de profil sensibles sont conçus pour être chiffrés avant le stockage durable. Le stockage persistant, les sauvegardes et les caches de synchronisation ne devraient pas contenir de texte de chat lisible.
+  pt: Chats salvos são armazenados na infraestrutura OpenMates como dados criptografados. Conteúdo, títulos, resumos, tags, configurações de apps, memórias, lembretes e campos sensíveis de perfil são projetados para serem criptografados antes do armazenamento durável. Armazenamento persistente, backups e caches de sincronização não devem conter texto de chat legível.
+  ru: Сохранённые чаты хранятся в инфраструктуре OpenMates как зашифрованные данные. Содержимое чатов, заголовки, резюме, теги, настройки приложений, памяти, напоминания и чувствительные поля профиля должны шифроваться перед долговременным хранением. Постоянное хранилище, резервные копии и кэши синхронизации не должны содержать читаемый текст чатов.
+  ja: 保存されたチャットは OpenMates のインフラ上に暗号化データとして保存されます。チャット内容、タイトル、要約、タグ、アプリ設定、メモリ、リマインダー、機密プロフィール項目は、永続保存前に暗号化されるよう設計されています。永続ストレージ、バックアップ、同期キャッシュには読めるチャット本文が含まれないべきです。
+  ko: 저장된 채팅은 OpenMates 인프라에 암호화된 데이터로 저장됩니다. 채팅 내용, 제목, 요약, 태그, 앱 설정, 메모리, 알림 및 민감한 프로필 필드는 영구 저장 전에 암호화되도록 설계되어 있습니다. 영구 저장소, 백업 및 동기화 캐시는 읽을 수 있는 채팅 텍스트를 포함하지 않아야 합니다.
+  it: Le chat salvate vengono archiviate sull'infrastruttura OpenMates come dati cifrati. Contenuti, titoli, riassunti, tag, impostazioni delle app, memorie, promemoria e campi sensibili del profilo sono progettati per essere cifrati prima dell'archiviazione durevole. Archiviazione persistente, backup e cache di sincronizzazione non dovrebbero contenere testo di chat leggibile.
+  tr: Kaydedilen sohbetler OpenMates altyapısında şifreli veri olarak saklanır. Sohbet içeriği, başlıklar, özetler, etiketler, uygulama ayarları, anılar, hatırlatıcılar ve hassas profil alanları kalıcı depolamadan önce şifrelenecek şekilde tasarlanmıştır. Kalıcı depolama, yedekler ve senkronizasyon önbellekleri okunabilir sohbet metni içermemelidir.
+  vi: Các cuộc trò chuyện đã lưu được lưu trên hạ tầng OpenMates dưới dạng dữ liệu mã hóa. Nội dung, tiêu đề, tóm tắt, thẻ, cài đặt ứng dụng, bộ nhớ, nhắc nhở và trường hồ sơ nhạy cảm được thiết kế để mã hóa trước khi lưu trữ bền vững. Lưu trữ lâu dài, bản sao lưu và bộ nhớ đệm đồng bộ không nên chứa văn bản trò chuyện đọc được.
+  id: Chat yang disimpan disimpan di infrastruktur OpenMates sebagai data terenkripsi. Konten chat, judul, ringkasan, tag, pengaturan app, memori, pengingat, dan bidang profil sensitif dirancang untuk dienkripsi sebelum penyimpanan tahan lama. Penyimpanan persisten, cadangan, dan cache sinkronisasi seharusnya tidak berisi teks chat yang dapat dibaca.
+  pl: Zapisane czaty są przechowywane w infrastrukturze OpenMates jako dane zaszyfrowane. Treść czatu, tytuły, podsumowania, tagi, ustawienia aplikacji, pamięci, przypomnienia i wrażliwe pola profilu są projektowane tak, aby były szyfrowane przed trwałym zapisem. Trwałe magazyny, kopie zapasowe i pamięci synchronizacji nie powinny zawierać czytelnego tekstu czatu.
+  nl: Opgeslagen chats worden op OpenMates-infrastructuur bewaard als versleutelde gegevens. Chatinhoud, titels, samenvattingen, tags, app-instellingen, herinneringen, reminders en gevoelige profielvelden zijn ontworpen om vóór duurzame opslag te worden versleuteld. Persistente opslag, back-ups en synchronisatiecaches zouden geen leesbare chattekst moeten bevatten.
+  ar: تُخزن المحادثات المحفوظة على بنية OpenMates كبيانات مشفرة. صُممت محتويات المحادثات والعناوين والملخصات والوسوم وإعدادات التطبيقات والذكريات والتذكيرات وحقول الملف الشخصي الحساسة لتُشفّر قبل التخزين الدائم. يجب ألا يحتوي التخزين الدائم أو النسخ الاحتياطية أو ذاكرات المزامنة على نص محادثة قابل للقراءة.
+  hi: सहेजी गई चैट OpenMates अवसंरचना पर एन्क्रिप्टेड डेटा के रूप में संग्रहीत होती हैं। चैट सामग्री, शीर्षक, सारांश, टैग, ऐप सेटिंग्स, मेमोरी, रिमाइंडर और संवेदनशील प्रोफ़ाइल फ़ील्ड टिकाऊ स्टोरेज से पहले एन्क्रिप्ट होने के लिए डिज़ाइन हैं। स्थायी स्टोरेज, बैकअप और सिंक कैश में पढ़ने योग्य चैट टेक्स्ट नहीं होना चाहिए।
+  th: แชตที่บันทึกไว้ถูกจัดเก็บบนโครงสร้างพื้นฐานของ OpenMates ในรูปแบบข้อมูลที่เข้ารหัส เนื้อหาแชต ชื่อเรื่อง สรุป แท็ก การตั้งค่าแอป ความทรงจำ การแจ้งเตือน และฟิลด์โปรไฟล์ที่ละเอียดอ่อนถูกออกแบบให้เข้ารหัสก่อนจัดเก็บถาวร พื้นที่จัดเก็บถาวร ข้อมูลสำรอง และแคชซิงก์ไม่ควรมีข้อความแชตที่อ่านได้
+  cs: Uložené chaty jsou v infrastruktuře OpenMates uloženy jako šifrovaná data. Obsah chatu, názvy, shrnutí, štítky, nastavení aplikací, paměti, připomenutí a citlivá pole profilu jsou navrženy tak, aby byly před trvalým uložením šifrovány. Trvalé úložiště, zálohy a synchronizační mezipaměti by neměly obsahovat čitelný text chatu.
+  sv: Sparade chattar lagras på OpenMates infrastruktur som krypterad data. Chattinnehåll, titlar, sammanfattningar, taggar, appinställningar, minnen, påminnelser och känsliga profilfält är utformade för att krypteras före varaktig lagring. Permanent lagring, backuper och synkcacher bör inte innehålla läsbar chatttext.
+  he: צ'אטים שמורים מאוחסנים בתשתית OpenMates כנתונים מוצפנים. תוכן צ'אט, כותרות, סיכומים, תגיות, הגדרות אפליקציה, זיכרונות, תזכורות ושדות פרופיל רגישים מיועדים להיות מוצפנים לפני אחסון מתמשך. אחסון מתמשך, גיבויים ומטמוני סנכרון לא אמורים להכיל טקסט צ'אט קריא.
+  verified_by_human: []
+quick_answers.third_party_providers.question:
+  context: FAQ question about third-party providers seeing messages
+  en: Do third-party AI providers see my messages?
+  de: Sehen Drittanbieter-KI-Anbieter meine Nachrichten?
+  zh: 第三方 AI 提供商会看到我的消息吗？
+  es: ¿Los proveedores externos de IA ven mis mensajes?
+  fr: Les fournisseurs IA tiers voient-ils mes messages ?
+  pt: Provedores externos de IA veem minhas mensagens?
+  ru: Видят ли сторонние поставщики ИИ мои сообщения?
+  ja: サードパーティの AI プロバイダーは私のメッセージを見ますか？
+  ko: 타사 AI 제공업체가 제 메시지를 보나요?
+  it: I fornitori IA di terze parti vedono i miei messaggi?
+  tr: Üçüncü taraf AI sağlayıcıları mesajlarımı görür mü?
+  vi: Nhà cung cấp AI bên thứ ba có thấy tin nhắn của tôi không?
+  id: Apakah penyedia AI pihak ketiga melihat pesan saya?
+  pl: Czy zewnętrzni dostawcy AI widzą moje wiadomości?
+  nl: Zien externe AI-providers mijn berichten?
+  ar: هل يرى مزودو الذكاء الاصطناعي الخارجيون رسائلي؟
+  hi: क्या तृतीय-पक्ष AI प्रदाता मेरे संदेश देखते हैं?
+  th: ผู้ให้บริการ AI ภายนอกเห็นข้อความของฉันหรือไม่?
+  cs: Vidí externí poskytovatelé AI mé zprávy?
+  sv: Ser tredjepartsleverantörer av AI mina meddelanden?
+  he: האם ספקי AI חיצוניים רואים את ההודעות שלי?
+  verified_by_human: []
+quick_answers.third_party_providers.answer:
+  context: FAQ answer about third-party providers seeing messages
+  en: Yes, when you choose a model or use a feature powered by a third-party provider, the content needed to process that request may be sent to that provider. OpenMates tries to reduce exposure by replacing recognized personal details and secrets with placeholders before sending, but anything not detected may be sent as typed.
+  de: Ja. Wenn du ein Modell auswählst oder eine Funktion nutzt, die von einem Drittanbieter betrieben wird, können die für diese Anfrage nötigen Inhalte an diesen Anbieter gesendet werden. OpenMates versucht, die Offenlegung zu reduzieren, indem erkannte personenbezogene Daten und Geheimnisse vor dem Senden durch Platzhalter ersetzt werden; alles, was nicht erkannt wird, kann aber so gesendet werden, wie du es eingegeben hast.
+  zh: 是的。当你选择某个模型或使用由第三方提供商支持的功能时，处理该请求所需的内容可能会发送给该提供商。OpenMates 会尝试在发送前用占位符替换识别到的个人信息和密钥，但未被识别的内容可能会按输入原样发送。
+  es: Sí. Cuando eliges un modelo o usas una función impulsada por un proveedor externo, el contenido necesario para procesar esa solicitud puede enviarse a ese proveedor. OpenMates intenta reducir la exposición sustituyendo datos personales y secretos reconocidos por marcadores antes de enviar, pero cualquier cosa no detectada puede enviarse tal como la escribiste.
+  fr: Oui. Lorsque tu choisis un modèle ou utilises une fonction fournie par un prestataire tiers, le contenu nécessaire au traitement de cette demande peut lui être envoyé. OpenMates essaie de réduire l'exposition en remplaçant les données personnelles et secrets reconnus par des placeholders avant l'envoi, mais tout ce qui n'est pas détecté peut être envoyé tel que saisi.
+  pt: Sim. Quando você escolhe um modelo ou usa um recurso fornecido por um terceiro, o conteúdo necessário para processar essa solicitação pode ser enviado a esse provedor. O OpenMates tenta reduzir a exposição substituindo detalhes pessoais e segredos reconhecidos por placeholders antes do envio, mas qualquer coisa não detectada pode ser enviada como digitada.
+  ru: Да. Когда вы выбираете модель или используете функцию стороннего провайдера, содержимое, необходимое для обработки запроса, может быть отправлено этому провайдеру. OpenMates старается снизить раскрытие, заменяя распознанные персональные данные и секреты плейсхолдерами перед отправкой, но всё нераспознанное может быть отправлено так, как вы ввели.
+  ja: はい。サードパーティ提供のモデルを選択したり機能を使ったりする場合、そのリクエストの処理に必要な内容がそのプロバイダーへ送信されることがあります。OpenMates は認識した個人情報や秘密情報を送信前にプレースホルダーへ置き換えて露出を減らそうとしますが、検出されなかったものは入力どおり送信される可能性があります。
+  ko: 예. 타사 제공업체가 제공하는 모델을 선택하거나 기능을 사용할 때, 해당 요청을 처리하는 데 필요한 콘텐츠가 그 제공업체로 전송될 수 있습니다. OpenMates는 인식한 개인 정보와 비밀 값을 전송 전에 자리표시자로 바꾸어 노출을 줄이려 하지만, 감지되지 않은 내용은 입력한 그대로 전송될 수 있습니다.
+  it: Sì. Quando scegli un modello o usi una funzione alimentata da un fornitore terzo, il contenuto necessario per elaborare quella richiesta può essere inviato a quel fornitore. OpenMates cerca di ridurre l'esposizione sostituendo dettagli personali e segreti riconosciuti con placeholder prima dell'invio, ma ciò che non viene rilevato può essere inviato come lo hai digitato.
+  tr: Evet. Bir model seçtiğinizde veya üçüncü taraf sağlayıcı tarafından desteklenen bir özellik kullandığınızda, bu isteği işlemek için gereken içerik o sağlayıcıya gönderilebilir. OpenMates tanınan kişisel ayrıntıları ve sırları göndermeden önce yer tutucularla değiştirerek maruziyeti azaltmaya çalışır, ancak algılanmayan her şey yazdığınız gibi gönderilebilir.
+  vi: Có. Khi bạn chọn một mô hình hoặc dùng tính năng do nhà cung cấp bên thứ ba vận hành, nội dung cần để xử lý yêu cầu đó có thể được gửi cho nhà cung cấp đó. OpenMates cố giảm lộ dữ liệu bằng cách thay các chi tiết cá nhân và bí mật được nhận diện bằng placeholder trước khi gửi, nhưng những gì không được phát hiện có thể được gửi như bạn đã nhập.
+  id: Ya. Saat Anda memilih model atau menggunakan fitur yang didukung penyedia pihak ketiga, konten yang diperlukan untuk memproses permintaan itu dapat dikirim ke penyedia tersebut. OpenMates mencoba mengurangi paparan dengan mengganti detail pribadi dan rahasia yang dikenali dengan placeholder sebelum dikirim, tetapi apa pun yang tidak terdeteksi dapat dikirim sebagaimana Anda mengetiknya.
+  pl: Tak. Gdy wybierasz model albo używasz funkcji obsługiwanej przez zewnętrznego dostawcę, treść potrzebna do przetworzenia tej prośby może zostać wysłana do tego dostawcy. OpenMates próbuje ograniczać ujawnienie, zastępując rozpoznane dane osobowe i sekrety placeholderami przed wysłaniem, ale wszystko, czego nie wykryje, może zostać wysłane tak, jak zostało wpisane.
+  nl: Ja. Wanneer je een model kiest of een functie gebruikt die door een externe provider wordt aangedreven, kan de inhoud die nodig is om dat verzoek te verwerken naar die provider worden gestuurd. OpenMates probeert blootstelling te verminderen door herkende persoonsgegevens en geheimen vóór verzending door placeholders te vervangen, maar alles wat niet wordt gedetecteerd kan worden verzonden zoals je het typte.
+  ar: نعم. عندما تختار نموذجًا أو تستخدم ميزة تعمل بواسطة مزود خارجي، قد يُرسل المحتوى اللازم لمعالجة ذلك الطلب إلى ذلك المزود. يحاول OpenMates تقليل الانكشاف باستبدال التفاصيل الشخصية والأسرار التي يتعرف عليها بعناصر نائبة قبل الإرسال، لكن أي شيء لا يتم اكتشافه قد يُرسل كما كتبته.
+  hi: हाँ। जब आप कोई मॉडल चुनते हैं या तृतीय-पक्ष प्रदाता द्वारा संचालित सुविधा का उपयोग करते हैं, तो उस अनुरोध को प्रोसेस करने के लिए आवश्यक सामग्री उस प्रदाता को भेजी जा सकती है। OpenMates भेजने से पहले पहचानी गई व्यक्तिगत जानकारी और secrets को placeholders से बदलकर exposure कम करने की कोशिश करता है, लेकिन जो चीज़ detect नहीं होती वह आपके लिखे अनुसार भेजी जा सकती है।
+  th: ใช่ เมื่อคุณเลือกโมเดลหรือใช้ฟีเจอร์ที่ขับเคลื่อนโดยผู้ให้บริการภายนอก เนื้อหาที่จำเป็นต่อการประมวลผลคำขอนั้นอาจถูกส่งไปยังผู้ให้บริการดังกล่าว OpenMates พยายามลดการเปิดเผยโดยแทนที่ข้อมูลส่วนบุคคลและความลับที่ตรวจพบด้วย placeholder ก่อนส่ง แต่สิ่งที่ตรวจไม่พบอาจถูกส่งตามที่คุณพิมพ์
+  cs: Ano. Když zvolíte model nebo použijete funkci provozovanou externím poskytovatelem, obsah potřebný ke zpracování tohoto požadavku může být tomuto poskytovateli odeslán. OpenMates se snaží omezit expozici nahrazením rozpoznaných osobních údajů a tajemství zástupnými symboly před odesláním, ale vše nerozpoznané může být odesláno tak, jak jste to napsali.
+  sv: Ja. När du väljer en modell eller använder en funktion som drivs av en tredjepartsleverantör kan innehållet som behövs för att behandla begäran skickas till den leverantören. OpenMates försöker minska exponering genom att ersätta igenkända personuppgifter och hemligheter med platshållare före sändning, men allt som inte upptäcks kan skickas som du skrev det.
+  he: כן. כאשר בוחרים מודל או משתמשים בתכונה שמופעלת על ידי ספק חיצוני, התוכן הדרוש לעיבוד הבקשה עשוי להישלח לאותו ספק. OpenMates מנסה לצמצם חשיפה על ידי החלפת פרטים אישיים וסודות מזוהים במצייני מקום לפני השליחה, אך כל דבר שלא זוהה עשוי להישלח כפי שהוקלד.
+  verified_by_human: []
+quick_answers.model_training.question:
+  context: FAQ question about AI model training
+  en: Are my chats used to train AI models?
+  de: Werden meine Chats zum Training von KI-Modellen verwendet?
+  zh: 我的聊天会用于训练 AI 模型吗？
+  es: ¿Mis chats se usan para entrenar modelos de IA?
+  fr: Mes chats sont-ils utilisés pour entraîner des modèles IA ?
+  pt: Meus chats são usados para treinar modelos de IA?
+  ru: Используются ли мои чаты для обучения моделей ИИ?
+  ja: 私のチャットは AI モデルの学習に使われますか？
+  ko: 제 채팅이 AI 모델 학습에 사용되나요?
+  it: Le mie chat vengono usate per addestrare modelli IA?
+  tr: Sohbetlerim AI modellerini eğitmek için kullanılır mı?
+  vi: Các cuộc trò chuyện của tôi có được dùng để huấn luyện mô hình AI không?
+  id: Apakah chat saya digunakan untuk melatih model AI?
+  pl: Czy moje czaty są używane do trenowania modeli AI?
+  nl: Worden mijn chats gebruikt om AI-modellen te trainen?
+  ar: هل تُستخدم محادثاتي لتدريب نماذج الذكاء الاصطناعي؟
+  hi: क्या मेरी चैट AI मॉडल प्रशिक्षण के लिए उपयोग होती हैं?
+  th: แชตของฉันถูกใช้ฝึกโมเดล AI หรือไม่?
+  cs: Používají se mé chaty k trénování modelů AI?
+  sv: Används mina chattar för att träna AI-modeller?
+  he: האם הצ'אטים שלי משמשים לאימון מודלי AI?
+  verified_by_human: []
+quick_answers.model_training.answer:
+  context: FAQ answer about AI model training
+  en: OpenMates does not use your private chats to train OpenMates-owned AI models. For third-party providers, the answer depends on the provider. Most audited chat-model providers state that they do not train on API customer data, or only train if the customer opts in. Some image or 3D generation providers have broader or limited-use policies. The provider-by-provider training table below lists the status, source document, and last verification date.
+  de: OpenMates verwendet deine privaten Chats nicht zum Training eigener KI-Modelle. Bei Drittanbietern hängt die Antwort vom jeweiligen Anbieter ab. Die meisten geprüften Chat-Modell-Anbieter erklären, dass sie API-Kundendaten nicht trainieren oder nur trainieren, wenn der Kunde aktiv zustimmt. Einige Bild- oder 3D-Generierungsanbieter haben breitere oder eingeschränkte Nutzungsregeln. Die Anbieter-Tabelle weiter unten zeigt Status, Quelldokument und Datum der letzten Prüfung.
+  zh: OpenMates 不会使用你的私人聊天来训练 OpenMates 自有 AI 模型。对于第三方提供商，答案取决于具体提供商。大多数已审核的聊天模型提供商表示不会使用 API 客户数据训练，或只在客户选择同意时训练。一些图像或 3D 生成提供商有更广泛或有限使用政策。下面的逐提供商训练表列出了状态、来源文件和最后验证日期。
+  es: OpenMates no usa tus chats privados para entrenar modelos de IA propios de OpenMates. Para proveedores externos, la respuesta depende del proveedor. La mayoría de los proveedores de modelos de chat auditados dicen que no entrenan con datos de clientes de API, o que solo entrenan si el cliente acepta. Algunos proveedores de generación de imágenes o 3D tienen políticas más amplias o de uso limitado. La tabla de entrenamiento por proveedor de abajo indica el estado, documento fuente y fecha de última verificación.
+  fr: OpenMates n'utilise pas tes chats privés pour entraîner des modèles IA appartenant à OpenMates. Pour les fournisseurs tiers, la réponse dépend du fournisseur. La plupart des fournisseurs de modèles de chat audités indiquent ne pas entraîner sur les données clients API, ou seulement si le client l'accepte. Certains fournisseurs de génération d'images ou 3D ont des politiques plus larges ou d'usage limité. Le tableau d'entraînement par fournisseur ci-dessous indique le statut, le document source et la dernière date de vérification.
+  pt: O OpenMates não usa seus chats privados para treinar modelos de IA próprios da OpenMates. Para provedores externos, a resposta depende do provedor. A maioria dos provedores de modelos de chat auditados afirma que não treina com dados de clientes de API, ou só treina se o cliente optar por isso. Alguns provedores de geração de imagem ou 3D têm políticas mais amplas ou de uso limitado. A tabela por provedor abaixo lista o status, documento de origem e data da última verificação.
+  ru: OpenMates не использует ваши приватные чаты для обучения собственных моделей ИИ OpenMates. Для сторонних провайдеров ответ зависит от провайдера. Большинство проверенных поставщиков чат-моделей заявляют, что не обучаются на данных API-клиентов или делают это только при согласии клиента. У некоторых поставщиков генерации изображений или 3D есть более широкие или ограниченные политики использования. Таблица ниже по каждому провайдеру показывает статус, исходный документ и дату последней проверки.
+  ja: OpenMates はあなたのプライベートチャットを OpenMates 所有の AI モデルの学習に使用しません。サードパーティプロバイダーについては、プロバイダーによって異なります。監査済みのチャットモデルプロバイダーの多くは、API 顧客データで学習しない、または顧客がオプトインした場合のみ学習すると述べています。一部の画像または 3D 生成プロバイダーには、より広い利用方針または限定利用方針があります。下のプロバイダー別学習表に、ステータス、出典文書、最終確認日を記載しています。
+  ko: OpenMates는 사용자의 비공개 채팅을 OpenMates 소유 AI 모델 학습에 사용하지 않습니다. 타사 제공업체의 경우 답은 제공업체에 따라 다릅니다. 감사된 대부분의 채팅 모델 제공업체는 API 고객 데이터로 학습하지 않거나 고객이 옵트인한 경우에만 학습한다고 밝힙니다. 일부 이미지 또는 3D 생성 제공업체는 더 넓거나 제한적 사용 정책을 갖습니다. 아래 제공업체별 학습 표에는 상태, 출처 문서, 마지막 검증 날짜가 나와 있습니다.
+  it: OpenMates non usa le tue chat private per addestrare modelli IA di proprietà di OpenMates. Per i fornitori terzi, la risposta dipende dal fornitore. La maggior parte dei fornitori di modelli chat verificati dichiara di non addestrare sui dati dei clienti API, o di farlo solo se il cliente accetta. Alcuni fornitori di generazione immagini o 3D hanno politiche più ampie o di uso limitato. La tabella per fornitore qui sotto elenca stato, documento fonte e data dell'ultima verifica.
+  tr: OpenMates özel sohbetlerinizi OpenMates'e ait AI modellerini eğitmek için kullanmaz. Üçüncü taraf sağlayıcılarda yanıt sağlayıcıya bağlıdır. Denetlenen sohbet modeli sağlayıcılarının çoğu API müşteri verileriyle eğitim yapmadığını veya yalnızca müşteri açıkça seçerse yaptığını belirtir. Bazı görüntü veya 3D üretim sağlayıcılarının daha geniş ya da sınırlı kullanım politikaları vardır. Aşağıdaki sağlayıcı bazlı eğitim tablosu durumu, kaynak belgeyi ve son doğrulama tarihini listeler.
+  vi: OpenMates không dùng các cuộc trò chuyện riêng tư của bạn để huấn luyện mô hình AI thuộc sở hữu OpenMates. Với nhà cung cấp bên thứ ba, câu trả lời phụ thuộc vào từng nhà cung cấp. Hầu hết nhà cung cấp mô hình chat đã kiểm toán nói rằng họ không huấn luyện trên dữ liệu khách hàng API, hoặc chỉ huấn luyện nếu khách hàng chọn tham gia. Một số nhà cung cấp tạo ảnh hoặc 3D có chính sách rộng hơn hoặc giới hạn sử dụng. Bảng theo từng nhà cung cấp bên dưới liệt kê trạng thái, tài liệu nguồn và ngày xác minh gần nhất.
+  id: OpenMates tidak menggunakan chat pribadi Anda untuk melatih model AI milik OpenMates. Untuk penyedia pihak ketiga, jawabannya bergantung pada penyedia. Sebagian besar penyedia model chat yang diaudit menyatakan tidak melatih dengan data pelanggan API, atau hanya melatih jika pelanggan memilih ikut serta. Beberapa penyedia pembuatan gambar atau 3D memiliki kebijakan yang lebih luas atau terbatas. Tabel pelatihan per penyedia di bawah mencantumkan status, dokumen sumber, dan tanggal verifikasi terakhir.
+  pl: OpenMates nie używa twoich prywatnych czatów do trenowania modeli AI należących do OpenMates. W przypadku zewnętrznych dostawców odpowiedź zależy od dostawcy. Większość sprawdzonych dostawców modeli czatowych deklaruje, że nie trenuje na danych klientów API albo robi to tylko po aktywnej zgodzie klienta. Niektórzy dostawcy generowania obrazów lub 3D mają szersze albo ograniczone polityki użycia. Tabela według dostawców poniżej pokazuje status, dokument źródłowy i datę ostatniej weryfikacji.
+  nl: OpenMates gebruikt je privéchats niet om AI-modellen van OpenMates te trainen. Voor externe providers hangt het antwoord af van de provider. De meeste gecontroleerde chatmodelproviders zeggen dat ze niet trainen op API-klantgegevens, of alleen trainen als de klant opt-in geeft. Sommige beeld- of 3D-generatieproviders hebben bredere of beperkte gebruiksvoorwaarden. De provider-per-provider trainingstabel hieronder vermeldt status, brondocument en laatste verificatiedatum.
+  ar: لا يستخدم OpenMates محادثاتك الخاصة لتدريب نماذج ذكاء اصطناعي مملوكة لـ OpenMates. بالنسبة للمزوّدين الخارجيين، تعتمد الإجابة على المزود. يذكر معظم مزودي نماذج المحادثة المدققين أنهم لا يدربون على بيانات عملاء API، أو لا يدربون إلا إذا وافق العميل صراحة. لدى بعض مزودي إنشاء الصور أو النماذج ثلاثية الأبعاد سياسات أوسع أو محدودة الاستخدام. يعرض جدول التدريب حسب المزود أدناه الحالة ووثيقة المصدر وتاريخ آخر تحقق.
+  hi: OpenMates आपकी निजी चैट का उपयोग OpenMates-स्वामित्व वाले AI मॉडल प्रशिक्षण के लिए नहीं करता। तृतीय-पक्ष प्रदाताओं के लिए उत्तर प्रदाता पर निर्भर है। अधिकांश audited chat-model प्रदाता कहते हैं कि वे API ग्राहक डेटा पर प्रशिक्षण नहीं करते, या केवल ग्राहक के opt in करने पर करते हैं। कुछ image या 3D generation प्रदाताओं की व्यापक या limited-use नीतियाँ हैं। नीचे provider-by-provider training तालिका स्थिति, source document और last verification date दिखाती है।
+  th: OpenMates ไม่ใช้แชตส่วนตัวของคุณเพื่อฝึกโมเดล AI ที่ OpenMates เป็นเจ้าของ สำหรับผู้ให้บริการภายนอก คำตอบขึ้นอยู่กับผู้ให้บริการ ผู้ให้บริการโมเดลแชตที่ตรวจสอบแล้วส่วนใหญ่ระบุว่าไม่ฝึกด้วยข้อมูลลูกค้า API หรือฝึกเฉพาะเมื่อผู้ใช้เลือกยินยอม ผู้ให้บริการสร้างภาพหรือ 3D บางรายมีนโยบายกว้างกว่าหรือใช้งานแบบจำกัด ตารางการฝึกแยกตามผู้ให้บริการด้านล่างแสดงสถานะ เอกสารต้นทาง และวันที่ตรวจสอบล่าสุด
+  cs: OpenMates nepoužívá vaše soukromé chaty k trénování modelů AI vlastněných OpenMates. U externích poskytovatelů záleží odpověď na konkrétním poskytovateli. Většina ověřených poskytovatelů chatovacích modelů uvádí, že netrénuje na datech zákazníků API, nebo trénuje pouze při aktivním souhlasu zákazníka. Někteří poskytovatelé generování obrázků nebo 3D mají širší či omezené zásady použití. Tabulka podle poskytovatelů níže uvádí stav, zdrojový dokument a datum posledního ověření.
+  sv: OpenMates använder inte dina privata chattar för att träna AI-modeller som ägs av OpenMates. För tredjepartsleverantörer beror svaret på leverantören. De flesta granskade chattmodellleverantörer uppger att de inte tränar på API-kunddata, eller bara tränar om kunden väljer det. Vissa bild- eller 3D-genereringsleverantörer har bredare eller begränsade användningspolicyer. Tabellen per leverantör nedan listar status, källdokument och senaste verifieringsdatum.
+  he: OpenMates אינה משתמשת בצ'אטים הפרטיים שלך כדי לאמן מודלי AI בבעלות OpenMates. עבור ספקים חיצוניים, התשובה תלויה בספק. רוב ספקי מודלי הצ'אט שנבדקו מצהירים שאינם מאמנים על נתוני לקוחות API, או מאמנים רק אם הלקוח בוחר בכך. לחלק מספקי יצירת תמונות או 3D יש מדיניות רחבה יותר או מוגבלת. טבלת האימון לפי ספק שבהמשך מציגה סטטוס, מסמך מקור ותאריך אימות אחרון.
+  verified_by_human: []
+quick_answers.placeholder_protection.question:
+  context: FAQ question about placeholder substitution limits
+  en: Does placeholder protection make sensitive data safe to send?
+  de: Macht Platzhalter-Schutz sensible Daten sicher zum Senden?
+  zh: 占位符保护是否让敏感数据可以安全发送？
+  es: ¿La protección con marcadores hace que sea seguro enviar datos sensibles?
+  fr: La protection par placeholders rend-elle les données sensibles sûres à envoyer ?
+  pt: A proteção por placeholders torna seguro enviar dados sensíveis?
+  ru: Делает ли защита плейсхолдерами отправку чувствительных данных безопасной?
+  ja: プレースホルダー保護で機密データを安全に送信できますか？
+  ko: 자리표시자 보호가 민감한 데이터를 안전하게 보내게 해주나요?
+  it: La protezione con placeholder rende sicuro inviare dati sensibili?
+  tr: Yer tutucu koruması hassas verileri göndermeyi güvenli hale getirir mi?
+  vi: Bảo vệ bằng placeholder có làm dữ liệu nhạy cảm an toàn để gửi không?
+  id: Apakah perlindungan placeholder membuat data sensitif aman dikirim?
+  pl: Czy ochrona placeholderami sprawia, że dane wrażliwe są bezpieczne do wysłania?
+  nl: Maakt placeholderbescherming gevoelige gegevens veilig om te verzenden?
+  ar: هل تجعل حماية العناصر النائبة إرسال البيانات الحساسة آمنًا؟
+  hi: क्या placeholder सुरक्षा संवेदनशील डेटा भेजना सुरक्षित बना देती है?
+  th: การป้องกันด้วย placeholder ทำให้ส่งข้อมูลละเอียดอ่อนได้อย่างปลอดภัยหรือไม่?
+  cs: Zajišťuje ochrana pomocí zástupných symbolů bezpečné odesílání citlivých dat?
+  sv: Gör platshållarskydd känsliga data säkra att skicka?
+  he: האם הגנת מצייני מקום הופכת שליחת מידע רגיש לבטוחה?
+  verified_by_human: []
+quick_answers.placeholder_protection.answer:
+  context: FAQ answer about placeholder substitution limits
+  en: No. Placeholder protection reduces risk, but it is not a guarantee. It works best for recognized personal data, saved privacy-profile values, and common secret patterns. It may miss typos, unusual formats, context-only sensitive information, other people's personal data, or sensitive topics that are not technically identifiable as personal data.
+  de: Nein. Platzhalter-Schutz reduziert Risiken, ist aber keine Garantie. Er funktioniert am besten bei erkannten personenbezogenen Daten, gespeicherten Privacy-Profilwerten und typischen Geheimnis-Mustern. Tippfehler, ungewöhnliche Formate, nur aus dem Kontext erkennbare sensible Informationen, Daten anderer Personen oder sensible Themen, die technisch nicht als personenbezogene Daten erkannt werden, können übersehen werden.
+  zh: 不。占位符保护会降低风险，但不是保证。它最适合识别到的个人数据、已保存的隐私资料值和常见密钥模式。它可能漏掉拼写错误、不常见格式、仅凭上下文才敏感的信息、他人的个人数据，或技术上无法识别为个人数据的敏感主题。
+  es: No. La protección con marcadores reduce el riesgo, pero no es una garantía. Funciona mejor con datos personales reconocidos, valores guardados en el perfil de privacidad y patrones comunes de secretos. Puede no detectar errores tipográficos, formatos inusuales, información sensible solo por contexto, datos personales de otras personas o temas sensibles que técnicamente no son identificables como datos personales.
+  fr: Non. La protection par placeholders réduit le risque, mais ce n'est pas une garantie. Elle fonctionne le mieux pour les données personnelles reconnues, les valeurs enregistrées dans le profil de confidentialité et les modèles courants de secrets. Elle peut manquer les fautes de frappe, formats inhabituels, informations sensibles seulement par contexte, données personnelles d'autres personnes ou sujets sensibles qui ne sont pas techniquement identifiables comme données personnelles.
+  pt: Não. A proteção por placeholders reduz o risco, mas não é garantia. Ela funciona melhor para dados pessoais reconhecidos, valores salvos no perfil de privacidade e padrões comuns de segredos. Pode deixar passar erros de digitação, formatos incomuns, informações sensíveis apenas pelo contexto, dados pessoais de outras pessoas ou temas sensíveis que tecnicamente não são identificáveis como dados pessoais.
+  ru: Нет. Защита плейсхолдерами снижает риск, но не является гарантией. Лучше всего она работает для распознанных персональных данных, сохранённых значений профиля приватности и типичных шаблонов секретов. Она может пропустить опечатки, необычные форматы, чувствительную информацию, понятную только из контекста, данные других людей или чувствительные темы, которые технически не определяются как персональные данные.
+  ja: いいえ。プレースホルダー保護はリスクを下げますが、保証ではありません。認識された個人情報、保存済みのプライバシープロフィール値、一般的な秘密情報パターンに最も有効です。タイプミス、珍しい形式、文脈でのみ機密と分かる情報、他人の個人情報、技術的に個人情報として識別できない機密トピックは見逃されることがあります。
+  ko: 아닙니다. 자리표시자 보호는 위험을 줄이지만 보장은 아닙니다. 인식된 개인 데이터, 저장된 개인정보 프로필 값, 일반적인 비밀 패턴에 가장 잘 작동합니다. 오타, 특이한 형식, 맥락상으로만 민감한 정보, 다른 사람의 개인 데이터, 기술적으로 개인 데이터로 식별되지 않는 민감한 주제는 놓칠 수 있습니다.
+  it: No. La protezione con placeholder riduce il rischio, ma non è una garanzia. Funziona meglio per dati personali riconosciuti, valori salvati nel profilo privacy e pattern comuni di segreti. Può non rilevare refusi, formati insoliti, informazioni sensibili solo per contesto, dati personali di altre persone o temi sensibili che tecnicamente non sono identificabili come dati personali.
+  tr: Hayır. Yer tutucu koruması riski azaltır, ancak garanti değildir. Tanınan kişisel veriler, kaydedilmiş gizlilik profili değerleri ve yaygın gizli bilgi kalıpları için en iyi çalışır. Yazım hatalarını, alışılmadık formatları, yalnızca bağlamdan hassas olan bilgileri, başkalarının kişisel verilerini veya teknik olarak kişisel veri olarak tanımlanamayan hassas konuları kaçırabilir.
+  vi: Không. Bảo vệ bằng placeholder giảm rủi ro, nhưng không phải bảo đảm. Nó hoạt động tốt nhất với dữ liệu cá nhân được nhận diện, giá trị hồ sơ riêng tư đã lưu và mẫu bí mật phổ biến. Nó có thể bỏ sót lỗi chính tả, định dạng lạ, thông tin nhạy cảm chỉ rõ qua ngữ cảnh, dữ liệu cá nhân của người khác hoặc chủ đề nhạy cảm không thể nhận diện kỹ thuật là dữ liệu cá nhân.
+  id: Tidak. Perlindungan placeholder mengurangi risiko, tetapi bukan jaminan. Ini paling baik untuk data pribadi yang dikenali, nilai profil privasi yang disimpan, dan pola rahasia umum. Ini dapat melewatkan salah ketik, format tidak biasa, informasi sensitif yang hanya terlihat dari konteks, data pribadi orang lain, atau topik sensitif yang secara teknis tidak dapat diidentifikasi sebagai data pribadi.
+  pl: Nie. Ochrona placeholderami zmniejsza ryzyko, ale nie jest gwarancją. Najlepiej działa dla rozpoznanych danych osobowych, zapisanych wartości profilu prywatności i typowych wzorców sekretów. Może pominąć literówki, nietypowe formaty, informacje wrażliwe wynikające tylko z kontekstu, dane osobowe innych osób albo tematy wrażliwe, których technicznie nie da się rozpoznać jako danych osobowych.
+  nl: Nee. Placeholderbescherming vermindert risico, maar is geen garantie. Ze werkt het best voor herkende persoonsgegevens, opgeslagen privacyprofielwaarden en veelvoorkomende geheimpatronen. Ze kan typefouten, ongebruikelijke formaten, alleen contextueel gevoelige informatie, persoonsgegevens van anderen of gevoelige onderwerpen die technisch niet als persoonsgegevens herkenbaar zijn missen.
+  ar: لا. تقلل حماية العناصر النائبة المخاطر، لكنها ليست ضمانًا. تعمل بشكل أفضل مع البيانات الشخصية التي يتم التعرف عليها، وقيم ملف الخصوصية المحفوظة، وأنماط الأسرار الشائعة. قد تفوّت الأخطاء المطبعية أو الصيغ غير المعتادة أو المعلومات الحساسة التي تظهر من السياق فقط أو بيانات أشخاص آخرين أو موضوعات حساسة لا يمكن تقنيًا تحديدها كبيانات شخصية.
+  hi: नहीं। placeholder सुरक्षा जोखिम कम करती है, लेकिन गारंटी नहीं है। यह पहचाने गए व्यक्तिगत डेटा, सहेजे गए privacy-profile values और सामान्य secret patterns के लिए सबसे अच्छा काम करती है। यह typos, असामान्य formats, केवल context से संवेदनशील जानकारी, अन्य लोगों का व्यक्तिगत डेटा, या ऐसे संवेदनशील विषय जिन्हें तकनीकी रूप से personal data नहीं पहचाना जा सकता, छोड़ सकती है।
+  th: ไม่ใช่ การป้องกันด้วย placeholder ช่วยลดความเสี่ยง แต่ไม่ใช่การรับประกัน มันทำงานได้ดีที่สุดกับข้อมูลส่วนบุคคลที่ตรวจพบ ค่าที่บันทึกไว้ในโปรไฟล์ความเป็นส่วนตัว และรูปแบบความลับทั่วไป มันอาจพลาดคำผิด รูปแบบที่ไม่ปกติ ข้อมูลละเอียดอ่อนที่รู้ได้จากบริบทเท่านั้น ข้อมูลส่วนบุคคลของผู้อื่น หรือหัวข้อละเอียดอ่อนที่ทางเทคนิคไม่สามารถระบุว่าเป็นข้อมูลส่วนบุคคล
+  cs: Ne. Ochrana pomocí zástupných symbolů snižuje riziko, ale není zárukou. Nejlépe funguje pro rozpoznané osobní údaje, uložené hodnoty privacy profilu a běžné vzory tajemství. Může minout překlepy, neobvyklé formáty, citlivé informace pouze z kontextu, osobní údaje jiných lidí nebo citlivá témata, která technicky nejsou identifikovatelná jako osobní údaje.
+  sv: Nej. Platshållarskydd minskar risk, men är ingen garanti. Det fungerar bäst för igenkända personuppgifter, sparade privacy-profilvärden och vanliga hemlighetsmönster. Det kan missa stavfel, ovanliga format, information som bara är känslig genom sammanhang, andra personers personuppgifter eller känsliga ämnen som tekniskt inte kan identifieras som personuppgifter.
+  he: לא. הגנת מצייני מקום מפחיתה סיכון, אך אינה הבטחה. היא עובדת היטב עבור מידע אישי מזוהה, ערכי פרופיל פרטיות שמורים ודפוסי סודות נפוצים. היא עשויה לפספס שגיאות הקלדה, פורמטים חריגים, מידע רגיש רק לפי הקשר, מידע אישי של אנשים אחרים או נושאים רגישים שאינם מזוהים טכנית כמידע אישי.
+  verified_by_human: []
+quick_answers.logs_diagnostics.question:
+  context: FAQ question about logs and diagnostics
+  en: What data appears in logs or diagnostics?
+  de: Welche Daten erscheinen in Logs oder Diagnosen?
+  zh: 日志或诊断中会出现哪些数据？
+  es: ¿Qué datos aparecen en registros o diagnósticos?
+  fr: Quelles données apparaissent dans les journaux ou diagnostics ?
+  pt: Que dados aparecem em logs ou diagnósticos?
+  ru: Какие данные попадают в логи или диагностику?
+  ja: ログや診断にはどのデータが表示されますか？
+  ko: 로그나 진단에는 어떤 데이터가 나타나나요?
+  it: Quali dati compaiono in log o diagnostica?
+  tr: Günlüklerde veya tanılamada hangi veriler görünür?
+  vi: Dữ liệu nào xuất hiện trong nhật ký hoặc chẩn đoán?
+  id: Data apa yang muncul di log atau diagnostik?
+  pl: Jakie dane pojawiają się w logach lub diagnostyce?
+  nl: Welke gegevens verschijnen in logs of diagnostiek?
+  ar: ما البيانات التي تظهر في السجلات أو التشخيصات؟
+  hi: लॉग या diagnostics में कौन सा डेटा आता है?
+  th: มีข้อมูลใดปรากฏในบันทึกหรือข้อมูลวินิจฉัย?
+  cs: Jaká data se objevují v logách nebo diagnostice?
+  sv: Vilka data visas i loggar eller diagnostik?
+  he: אילו נתונים מופיעים בלוגים או באבחון?
+  verified_by_human: []
+quick_answers.logs_diagnostics.answer:
+  context: FAQ answer about logs and diagnostics
+  en: OpenMates is designed so chat content is not written to logs or traces. Application logs and telemetry include redaction and filtering for authentication headers, cookies, tokens, passwords, emails, IP addresses, and chat content. Browser stability logs are sanitized, use temporary session identifiers, and can be disabled in privacy settings.
+  de: OpenMates ist so konzipiert, dass Chat-Inhalte nicht in Logs oder Traces geschrieben werden. Anwendungslogs und Telemetrie enthalten Redaktions- und Filterregeln für Authentifizierungs-Header, Cookies, Tokens, Passwörter, E-Mails, IP-Adressen und Chat-Inhalte. Browser-Stabilitätslogs werden bereinigt, verwenden temporäre Sitzungskennungen und können in den Datenschutzeinstellungen deaktiviert werden.
+  zh: OpenMates 的设计目标是聊天内容不会写入日志或追踪。应用日志和遥测会对认证标头、Cookie、令牌、密码、电子邮件、IP 地址和聊天内容进行脱敏和过滤。浏览器稳定性日志会被清理，使用临时会话标识符，并可在隐私设置中关闭。
+  es: OpenMates está diseñado para que el contenido del chat no se escriba en registros ni trazas. Los registros de aplicación y la telemetría incluyen redacción y filtrado de encabezados de autenticación, cookies, tokens, contraseñas, correos, direcciones IP y contenido de chat. Los registros de estabilidad del navegador se sanea, usan identificadores temporales de sesión y pueden desactivarse en ajustes de privacidad.
+  fr: OpenMates est conçu pour que le contenu des chats ne soit pas écrit dans les journaux ou traces. Les journaux applicatifs et la télémétrie incluent la rédaction et le filtrage des en-têtes d'authentification, cookies, jetons, mots de passe, e-mails, adresses IP et contenu de chat. Les journaux de stabilité du navigateur sont nettoyés, utilisent des identifiants de session temporaires et peuvent être désactivés dans les paramètres de confidentialité.
+  pt: O OpenMates é projetado para que o conteúdo do chat não seja escrito em logs ou rastros. Logs de aplicação e telemetria incluem redação e filtragem para cabeçalhos de autenticação, cookies, tokens, senhas, emails, endereços IP e conteúdo de chat. Logs de estabilidade do navegador são sanitizados, usam identificadores temporários de sessão e podem ser desativados nas configurações de privacidade.
+  ru: OpenMates спроектирован так, чтобы содержимое чатов не записывалось в логи или трассы. Логи приложений и телеметрия включают редактирование и фильтрацию заголовков аутентификации, cookie, токенов, паролей, email, IP-адресов и содержимого чатов. Логи стабильности браузера очищаются, используют временные идентификаторы сеанса и могут быть отключены в настройках приватности.
+  ja: OpenMates は、チャット内容がログやトレースに書き込まれないよう設計されています。アプリケーションログとテレメトリには、認証ヘッダー、Cookie、トークン、パスワード、メール、IP アドレス、チャット内容の編集・フィルタリングが含まれます。ブラウザ安定性ログはサニタイズされ、一時的なセッション識別子を使い、プライバシー設定で無効にできます。
+  ko: OpenMates는 채팅 내용이 로그나 추적에 기록되지 않도록 설계되어 있습니다. 애플리케이션 로그와 텔레메트리는 인증 헤더, 쿠키, 토큰, 비밀번호, 이메일, IP 주소 및 채팅 콘텐츠에 대한 마스킹과 필터링을 포함합니다. 브라우저 안정성 로그는 정제되고 임시 세션 식별자를 사용하며 개인정보 설정에서 비활성화할 수 있습니다.
+  it: OpenMates è progettato perché i contenuti delle chat non vengano scritti in log o tracce. I log applicativi e la telemetria includono oscuramento e filtraggio di header di autenticazione, cookie, token, password, email, indirizzi IP e contenuti chat. I log di stabilità del browser sono sanificati, usano identificatori temporanei di sessione e possono essere disattivati nelle impostazioni privacy.
+  tr: OpenMates sohbet içeriğinin günlüklere veya izlere yazılmaması için tasarlanmıştır. Uygulama günlükleri ve telemetri; kimlik doğrulama başlıkları, çerezler, tokenlar, parolalar, e-postalar, IP adresleri ve sohbet içeriği için redaksiyon ve filtreleme içerir. Tarayıcı kararlılık günlükleri temizlenir, geçici oturum tanımlayıcıları kullanır ve gizlilik ayarlarından kapatılabilir.
+  vi: OpenMates được thiết kế để nội dung trò chuyện không được ghi vào nhật ký hoặc dấu vết. Nhật ký ứng dụng và telemetry có biên tập và lọc header xác thực, cookie, token, mật khẩu, email, địa chỉ IP và nội dung trò chuyện. Nhật ký ổn định trình duyệt được làm sạch, dùng mã phiên tạm thời và có thể tắt trong cài đặt riêng tư.
+  id: OpenMates dirancang agar konten chat tidak ditulis ke log atau jejak. Log aplikasi dan telemetri mencakup redaksi dan pemfilteran untuk header autentikasi, cookie, token, kata sandi, email, alamat IP, dan konten chat. Log stabilitas browser disanitasi, memakai pengenal sesi sementara, dan dapat dinonaktifkan di pengaturan privasi.
+  pl: OpenMates jest zaprojektowany tak, aby treść czatów nie była zapisywana w logach ani śladach. Logi aplikacji i telemetria obejmują redakcję i filtrowanie nagłówków uwierzytelniania, cookies, tokenów, haseł, e-maili, adresów IP i treści czatu. Logi stabilności przeglądarki są oczyszczane, używają tymczasowych identyfikatorów sesji i można je wyłączyć w ustawieniach prywatności.
+  nl: OpenMates is ontworpen zodat chatinhoud niet naar logs of traces wordt geschreven. Applicatielogs en telemetrie bevatten redactie en filtering voor authenticatieheaders, cookies, tokens, wachtwoorden, e-mails, IP-adressen en chatinhoud. Browserstabiliteitslogs worden opgeschoond, gebruiken tijdelijke sessie-ID's en kunnen in privacy-instellingen worden uitgeschakeld.
+  ar: صُمم OpenMates بحيث لا يُكتب محتوى المحادثة في السجلات أو التتبعات. تتضمن سجلات التطبيق والقياسات إخفاءً وتصفية لرؤوس المصادقة وملفات تعريف الارتباط والرموز وكلمات المرور والبريد الإلكتروني وعناوين IP ومحتوى المحادثة. تُنقّى سجلات استقرار المتصفح، وتستخدم معرفات جلسة مؤقتة، ويمكن تعطيلها في إعدادات الخصوصية.
+  hi: OpenMates इस तरह डिज़ाइन है कि चैट सामग्री logs या traces में न लिखी जाए। Application logs और telemetry authentication headers, cookies, tokens, passwords, emails, IP addresses और chat content के लिए redaction और filtering शामिल करते हैं। Browser stability logs sanitized होते हैं, temporary session identifiers का उपयोग करते हैं, और privacy settings में बंद किए जा सकते हैं।
+  th: OpenMates ถูกออกแบบไม่ให้เนื้อหาแชตถูกเขียนลงในบันทึกหรือ traces บันทึกแอปและ telemetry มีการปกปิดและกรอง authentication headers, cookies, tokens, passwords, emails, IP addresses และเนื้อหาแชต บันทึกเสถียรภาพของเบราว์เซอร์ถูกทำความสะอาด ใช้ตัวระบุเซสชันชั่วคราว และปิดได้ในตั้งค่าความเป็นส่วนตัว
+  cs: OpenMates je navržen tak, aby obsah chatu nebyl zapisován do logů ani trasování. Aplikační logy a telemetrie zahrnují redakci a filtrování autentizačních hlaviček, cookies, tokenů, hesel, e-mailů, IP adres a obsahu chatu. Logy stability prohlížeče jsou sanitizované, používají dočasné identifikátory relace a lze je vypnout v nastavení soukromí.
+  sv: OpenMates är utformat så att chattinnehåll inte skrivs till loggar eller spårningar. Applikationsloggar och telemetri innehåller maskning och filtrering för autentiseringsheaders, cookies, tokens, lösenord, e-post, IP-adresser och chattinnehåll. Webbläsarens stabilitetsloggar saneras, använder tillfälliga sessions-ID:n och kan stängas av i integritetsinställningar.
+  he: OpenMates מתוכננת כך שתוכן צ'אט לא ייכתב ללוגים או למעקבים. לוגי אפליקציה וטלמטריה כוללים הסתרה וסינון של כותרות אימות, עוגיות, אסימונים, סיסמאות, אימיילים, כתובות IP ותוכן צ'אט. לוגי יציבות דפדפן עוברים ניקוי, משתמשים במזהי סשן זמניים וניתן לכבות אותם בהגדרות הפרטיות.
+  verified_by_human: []
+quick_answers.deletion.question:
+  context: FAQ question about deleting chats and accounts
+  en: What happens when I delete my account or chats?
+  de: Was passiert, wenn ich mein Konto oder Chats lösche?
+  zh: 删除账户或聊天后会发生什么？
+  es: ¿Qué ocurre cuando elimino mi cuenta o mis chats?
+  fr: Que se passe-t-il lorsque je supprime mon compte ou mes chats ?
+  pt: O que acontece quando excluo minha conta ou chats?
+  ru: Что происходит, когда я удаляю аккаунт или чаты?
+  ja: アカウントやチャットを削除するとどうなりますか？
+  ko: 계정이나 채팅을 삭제하면 어떻게 되나요?
+  it: Cosa succede quando elimino il mio account o le mie chat?
+  tr: Hesabımı veya sohbetlerimi sildiğimde ne olur?
+  vi: Điều gì xảy ra khi tôi xóa tài khoản hoặc cuộc trò chuyện?
+  id: Apa yang terjadi saat saya menghapus akun atau chat?
+  pl: Co się dzieje, gdy usuwam konto lub czaty?
+  nl: Wat gebeurt er als ik mijn account of chats verwijder?
+  ar: ماذا يحدث عندما أحذف حسابي أو محادثاتي؟
+  hi: जब मैं अपना खाता या चैट हटाता हूँ तो क्या होता है?
+  th: จะเกิดอะไรขึ้นเมื่อฉันลบบัญชีหรือแชต?
+  cs: Co se stane, když smažu účet nebo chaty?
+  sv: Vad händer när jag tar bort mitt konto eller mina chattar?
+  he: מה קורה כשאני מוחק את החשבון או הצ'אטים שלי?
+  verified_by_human: []
+quick_answers.deletion.answer:
+  context: FAQ answer about deleting chats and accounts
+  en: When you delete chats or your account, OpenMates deletes the corresponding data according to the retention rules below. For account deletion, OpenMates also destroys encryption keys so any remaining encrypted data in backups or caches becomes unreadable ciphertext. Some records may remain for legal or operational reasons, such as invoices, payment records, audit logs, third-party provider logs, or short-lived encrypted backups.
+  de: Wenn du Chats oder dein Konto löschst, löscht OpenMates die entsprechenden Daten nach den unten genannten Aufbewahrungsregeln. Bei Kontolöschung zerstört OpenMates außerdem Verschlüsselungsschlüssel, sodass verbleibende verschlüsselte Daten in Backups oder Caches zu unlesbarem Chiffretext werden. Einige Einträge können aus rechtlichen oder betrieblichen Gründen bleiben, etwa Rechnungen, Zahlungsdaten, Audit-Logs, Logs von Drittanbietern oder kurzlebige verschlüsselte Backups.
+  zh: 当你删除聊天或账户时，OpenMates 会按照下面的保留规则删除相应数据。对于账户删除，OpenMates 还会销毁加密密钥，使备份或缓存中剩余的加密数据变成不可读密文。某些记录可能因法律或运营原因保留，例如发票、付款记录、审计日志、第三方提供商日志或短期加密备份。
+  es: Cuando eliminas chats o tu cuenta, OpenMates elimina los datos correspondientes según las reglas de conservación de abajo. Al eliminar la cuenta, OpenMates también destruye claves de cifrado para que cualquier dato cifrado restante en copias de seguridad o cachés se vuelva texto cifrado ilegible. Algunos registros pueden permanecer por razones legales u operativas, como facturas, registros de pago, auditoría, registros de proveedores externos o copias cifradas de corta duración.
+  fr: Lorsque tu supprimes des chats ou ton compte, OpenMates supprime les données correspondantes selon les règles de conservation ci-dessous. Pour une suppression de compte, OpenMates détruit aussi les clés de chiffrement afin que les données chiffrées restantes dans les sauvegardes ou caches deviennent du texte chiffré illisible. Certains enregistrements peuvent rester pour des raisons légales ou opérationnelles, comme factures, paiements, journaux d'audit, journaux de fournisseurs tiers ou sauvegardes chiffrées de courte durée.
+  pt: Quando você exclui chats ou sua conta, o OpenMates exclui os dados correspondentes conforme as regras de retenção abaixo. Na exclusão da conta, o OpenMates também destrói chaves de criptografia para que qualquer dado criptografado restante em backups ou caches se torne texto cifrado ilegível. Alguns registros podem permanecer por motivos legais ou operacionais, como faturas, registros de pagamento, logs de auditoria, logs de provedores externos ou backups criptografados de curta duração.
+  ru: Когда вы удаляете чаты или аккаунт, OpenMates удаляет соответствующие данные по правилам хранения ниже. При удалении аккаунта OpenMates также уничтожает ключи шифрования, поэтому любые оставшиеся зашифрованные данные в резервных копиях или кэшах становятся нечитаемым шифротекстом. Некоторые записи могут сохраняться по юридическим или операционным причинам, например счета, платежные записи, аудит-логи, логи сторонних провайдеров или краткоживущие зашифрованные резервные копии.
+  ja: チャットやアカウントを削除すると、OpenMates は下記の保持ルールに従って対応するデータを削除します。アカウント削除時には暗号化キーも破棄するため、バックアップやキャッシュに残った暗号化データは読めない暗号文になります。請求書、支払い記録、監査ログ、サードパーティプロバイダーのログ、短期間の暗号化バックアップなど、一部の記録は法的または運用上の理由で残ることがあります。
+  ko: 채팅이나 계정을 삭제하면 OpenMates는 아래 보존 규칙에 따라 해당 데이터를 삭제합니다. 계정 삭제 시 OpenMates는 암호화 키도 파기하여 백업이나 캐시에 남은 암호화 데이터가 읽을 수 없는 암호문이 되게 합니다. 청구서, 결제 기록, 감사 로그, 타사 제공업체 로그 또는 수명이 짧은 암호화 백업과 같은 일부 기록은 법적 또는 운영상 이유로 남을 수 있습니다.
+  it: Quando elimini chat o account, OpenMates elimina i dati corrispondenti secondo le regole di conservazione qui sotto. Per l'eliminazione dell'account, OpenMates distrugge anche le chiavi di cifratura, così eventuali dati cifrati rimasti in backup o cache diventano testo cifrato illeggibile. Alcuni record possono rimanere per motivi legali o operativi, come fatture, registri di pagamento, audit log, log di fornitori terzi o backup cifrati di breve durata.
+  tr: Sohbetleri veya hesabınızı sildiğinizde OpenMates ilgili verileri aşağıdaki saklama kurallarına göre siler. Hesap silmede OpenMates ayrıca şifreleme anahtarlarını yok eder, böylece yedeklerde veya önbelleklerde kalan şifreli veriler okunamaz şifreli metne dönüşür. Faturalar, ödeme kayıtları, denetim günlükleri, üçüncü taraf sağlayıcı günlükleri veya kısa ömürlü şifreli yedekler gibi bazı kayıtlar yasal veya operasyonel nedenlerle kalabilir.
+  vi: Khi bạn xóa cuộc trò chuyện hoặc tài khoản, OpenMates xóa dữ liệu tương ứng theo các quy tắc lưu giữ bên dưới. Khi xóa tài khoản, OpenMates cũng hủy khóa mã hóa để mọi dữ liệu mã hóa còn lại trong bản sao lưu hoặc bộ nhớ đệm trở thành bản mã không đọc được. Một số bản ghi có thể còn lại vì lý do pháp lý hoặc vận hành, như hóa đơn, hồ sơ thanh toán, nhật ký kiểm toán, nhật ký nhà cung cấp bên thứ ba hoặc bản sao lưu mã hóa ngắn hạn.
+  id: Saat Anda menghapus chat atau akun, OpenMates menghapus data terkait sesuai aturan retensi di bawah. Untuk penghapusan akun, OpenMates juga menghancurkan kunci enkripsi sehingga data terenkripsi yang tersisa di cadangan atau cache menjadi ciphertext yang tidak dapat dibaca. Beberapa catatan dapat tetap ada karena alasan hukum atau operasional, seperti faktur, catatan pembayaran, log audit, log penyedia pihak ketiga, atau cadangan terenkripsi jangka pendek.
+  pl: Gdy usuwasz czaty lub konto, OpenMates usuwa odpowiednie dane zgodnie z zasadami retencji poniżej. Przy usuwaniu konta OpenMates niszczy także klucze szyfrowania, więc pozostałe zaszyfrowane dane w kopiach zapasowych lub cache stają się nieczytelnym szyfrogramem. Niektóre rekordy mogą pozostać z powodów prawnych lub operacyjnych, np. faktury, dane płatności, logi audytowe, logi dostawców zewnętrznych albo krótkotrwałe zaszyfrowane kopie zapasowe.
+  nl: Wanneer je chats of je account verwijdert, verwijdert OpenMates de bijbehorende gegevens volgens de retentieregels hieronder. Bij accountverwijdering vernietigt OpenMates ook encryptiesleutels, zodat resterende versleutelde gegevens in back-ups of caches onleesbare ciphertext worden. Sommige records kunnen blijven om juridische of operationele redenen, zoals facturen, betalingsrecords, auditlogs, logs van externe providers of kortlevende versleutelde back-ups.
+  ar: عندما تحذف محادثاتك أو حسابك، يحذف OpenMates البيانات المقابلة وفق قواعد الاحتفاظ أدناه. عند حذف الحساب، يدمّر OpenMates أيضًا مفاتيح التشفير حتى تصبح أي بيانات مشفرة متبقية في النسخ الاحتياطية أو الذاكرات نصًا مشفرًا غير قابل للقراءة. قد تبقى بعض السجلات لأسباب قانونية أو تشغيلية، مثل الفواتير وسجلات الدفع وسجلات التدقيق وسجلات المزوّدين الخارجيين أو النسخ الاحتياطية المشفرة قصيرة العمر.
+  hi: जब आप चैट या खाता हटाते हैं, OpenMates नीचे दिए retention rules के अनुसार संबंधित डेटा हटाता है। Account deletion में OpenMates encryption keys भी नष्ट करता है ताकि backups या caches में बचा encrypted data unreadable ciphertext बन जाए। कुछ records कानूनी या operational कारणों से रह सकते हैं, जैसे invoices, payment records, audit logs, third-party provider logs, या short-lived encrypted backups।
+  th: เมื่อคุณลบแชตหรือบัญชี OpenMates จะลบข้อมูลที่เกี่ยวข้องตามกฎการเก็บรักษาด้านล่าง สำหรับการลบบัญชี OpenMates จะทำลายกุญแจเข้ารหัสด้วย เพื่อให้ข้อมูลที่เข้ารหัสซึ่งเหลืออยู่ในข้อมูลสำรองหรือแคชกลายเป็น ciphertext ที่อ่านไม่ได้ บันทึกบางอย่างอาจคงอยู่ด้วยเหตุผลทางกฎหมายหรือการปฏิบัติงาน เช่น ใบแจ้งหนี้ บันทึกการชำระเงิน บันทึก audit บันทึกของผู้ให้บริการภายนอก หรือข้อมูลสำรองเข้ารหัสอายุสั้น
+  cs: Když smažete chaty nebo účet, OpenMates smaže odpovídající data podle pravidel uchovávání níže. Při smazání účtu OpenMates také zničí šifrovací klíče, takže jakákoli zbývající šifrovaná data v zálohách nebo cache se stanou nečitelným šifrovaným textem. Některé záznamy mohou zůstat z právních nebo provozních důvodů, například faktury, platební záznamy, auditní logy, logy externích poskytovatelů nebo krátkodobé šifrované zálohy.
+  sv: När du tar bort chattar eller ditt konto raderar OpenMates motsvarande data enligt retentionsreglerna nedan. Vid kontoradering förstör OpenMates också krypteringsnycklar så att kvarvarande krypterad data i backuper eller cacher blir oläsbar ciphertext. Vissa poster kan finnas kvar av juridiska eller operativa skäl, såsom fakturor, betalningsposter, revisionsloggar, tredjepartsleverantörers loggar eller kortlivade krypterade backuper.
+  he: כאשר מוחקים צ'אטים או חשבון, OpenMates מוחקת את הנתונים המתאימים לפי כללי השמירה שבהמשך. במחיקת חשבון OpenMates גם משמידה מפתחות הצפנה, כך שכל נתון מוצפן שנותר בגיבויים או מטמונים הופך לטקסט מוצפן בלתי קריא. רשומות מסוימות עשויות להישאר מסיבות משפטיות או תפעוליות, כגון חשבוניות, רשומות תשלום, לוגי ביקורת, לוגי ספקים חיצוניים או גיבויים מוצפנים קצרי-חיים.
+  verified_by_human: []
+quick_answers.open_source.question:
+  context: FAQ question about what open source means for privacy
+  en: What does open source mean for my privacy?
+  de: Was bedeutet Open Source für meine Privatsphäre?
+  zh: 开源对我的隐私意味着什么？
+  es: ¿Qué significa código abierto para mi privacidad?
+  fr: Que signifie l'open source pour ma confidentialité ?
+  pt: O que código aberto significa para minha privacidade?
+  ru: Что открытый исходный код означает для моей приватности?
+  ja: オープンソースは私のプライバシーに何を意味しますか？
+  ko: 오픈소스는 제 개인정보 보호에 어떤 의미인가요?
+  it: Cosa significa open source per la mia privacy?
+  tr: Açık kaynak gizliliğim için ne anlama gelir?
+  vi: Mã nguồn mở có ý nghĩa gì với quyền riêng tư của tôi?
+  id: Apa arti sumber terbuka bagi privasi saya?
+  pl: Co open source oznacza dla mojej prywatności?
+  nl: Wat betekent open source voor mijn privacy?
+  ar: ماذا يعني المصدر المفتوح لخصوصيتي؟
+  hi: open source का मेरी privacy के लिए क्या अर्थ है?
+  th: โอเพนซอร์สหมายถึงอะไรต่อความเป็นส่วนตัวของฉัน?
+  cs: Co znamená open source pro mé soukromí?
+  sv: Vad betyder öppen källkod för min integritet?
+  he: מה המשמעות של קוד פתוח לפרטיות שלי?
+  verified_by_human: []
+quick_answers.open_source.answer:
+  context: FAQ answer about what open source means for privacy
+  en: Open source means the OpenMates software code is public and can be inspected by others. It does not mean your private data is public. Your chats, account data, settings, memories, uploads, and billing data are not published on GitHub. The code is public; your personal data is not.
+  de: Open Source bedeutet, dass der OpenMates-Programmcode öffentlich ist und von anderen geprüft werden kann. Es bedeutet nicht, dass deine privaten Daten öffentlich sind. Deine Chats, Kontodaten, Einstellungen, Erinnerungen, Uploads und Abrechnungsdaten werden nicht auf GitHub veröffentlicht. Der Code ist öffentlich; deine persönlichen Daten sind es nicht.
+  zh: 开源意味着 OpenMates 软件代码是公开的，其他人可以检查。它并不意味着你的私人数据是公开的。你的聊天、账户数据、设置、记忆、上传内容和账单数据不会发布到 GitHub。代码是公开的；你的个人数据不是。
+  es: Código abierto significa que el código del software OpenMates es público y puede ser inspeccionado por otros. No significa que tus datos privados sean públicos. Tus chats, datos de cuenta, ajustes, memorias, subidas y datos de facturación no se publican en GitHub. El código es público; tus datos personales no.
+  fr: Open source signifie que le code logiciel d'OpenMates est public et peut être inspecté par d'autres. Cela ne signifie pas que tes données privées sont publiques. Tes chats, données de compte, paramètres, mémoires, fichiers envoyés et données de facturation ne sont pas publiés sur GitHub. Le code est public ; tes données personnelles ne le sont pas.
+  pt: Código aberto significa que o código do software OpenMates é público e pode ser inspecionado por outras pessoas. Isso não significa que seus dados privados sejam públicos. Seus chats, dados da conta, configurações, memórias, uploads e dados de cobrança não são publicados no GitHub. O código é público; seus dados pessoais não.
+  ru: Открытый исходный код означает, что код OpenMates публичен и может быть проверен другими. Это не означает, что ваши приватные данные публичны. Ваши чаты, данные аккаунта, настройки, памяти, загрузки и платёжные данные не публикуются на GitHub. Код публичен; ваши персональные данные — нет.
+  ja: オープンソースとは、OpenMates のソフトウェアコードが公開され、他の人が検査できるという意味です。あなたの個人データが公開されるという意味ではありません。チャット、アカウントデータ、設定、メモリ、アップロード、請求データは GitHub に公開されません。公開されるのはコードであり、あなたの個人データではありません。
+  ko: 오픈소스는 OpenMates 소프트웨어 코드가 공개되어 다른 사람이 검사할 수 있다는 뜻입니다. 사용자의 비공개 데이터가 공개된다는 뜻은 아닙니다. 채팅, 계정 데이터, 설정, 메모리, 업로드 및 결제 데이터는 GitHub에 게시되지 않습니다. 코드는 공개되지만 개인 데이터는 공개되지 않습니다.
+  it: Open source significa che il codice software di OpenMates è pubblico e può essere ispezionato da altri. Non significa che i tuoi dati privati siano pubblici. Le tue chat, dati account, impostazioni, memorie, upload e dati di fatturazione non sono pubblicati su GitHub. Il codice è pubblico; i tuoi dati personali no.
+  tr: Açık kaynak, OpenMates yazılım kodunun herkese açık olduğu ve başkaları tarafından incelenebileceği anlamına gelir. Özel verilerinizin herkese açık olduğu anlamına gelmez. Sohbetleriniz, hesap verileriniz, ayarlarınız, anılarınız, yüklemeleriniz ve fatura verileriniz GitHub'da yayınlanmaz. Kod herkese açıktır; kişisel verileriniz değildir.
+  vi: Mã nguồn mở nghĩa là mã phần mềm OpenMates công khai và người khác có thể kiểm tra. Điều đó không có nghĩa dữ liệu riêng tư của bạn công khai. Trò chuyện, dữ liệu tài khoản, cài đặt, bộ nhớ, tệp tải lên và dữ liệu thanh toán của bạn không được đăng lên GitHub. Mã là công khai; dữ liệu cá nhân của bạn thì không.
+  id: Sumber terbuka berarti kode perangkat lunak OpenMates bersifat publik dan dapat diperiksa orang lain. Itu tidak berarti data pribadi Anda publik. Chat, data akun, pengaturan, memori, unggahan, dan data penagihan Anda tidak dipublikasikan di GitHub. Kodenya publik; data pribadi Anda tidak.
+  pl: Open source oznacza, że kod oprogramowania OpenMates jest publiczny i może być sprawdzany przez innych. Nie oznacza to, że twoje prywatne dane są publiczne. Twoje czaty, dane konta, ustawienia, pamięci, przesłane pliki i dane rozliczeniowe nie są publikowane na GitHubie. Kod jest publiczny; twoje dane osobowe nie.
+  nl: Open source betekent dat de softwarecode van OpenMates openbaar is en door anderen kan worden geïnspecteerd. Het betekent niet dat je privégegevens openbaar zijn. Je chats, accountgegevens, instellingen, herinneringen, uploads en factuurgegevens worden niet op GitHub gepubliceerd. De code is openbaar; je persoonlijke gegevens niet.
+  ar: يعني المصدر المفتوح أن كود برنامج OpenMates عام ويمكن للآخرين فحصه. لا يعني ذلك أن بياناتك الخاصة عامة. لا تُنشر محادثاتك وبيانات حسابك وإعداداتك وذكرياتك وملفاتك المرفوعة وبيانات الفوترة على GitHub. الكود عام؛ بياناتك الشخصية ليست كذلك.
+  hi: open source का अर्थ है कि OpenMates software code सार्वजनिक है और अन्य लोग उसका निरीक्षण कर सकते हैं। इसका अर्थ यह नहीं कि आपका निजी डेटा सार्वजनिक है। आपकी chats, account data, settings, memories, uploads और billing data GitHub पर प्रकाशित नहीं होते। Code सार्वजनिक है; आपका personal data नहीं।
+  th: โอเพนซอร์สหมายความว่าโค้ดซอฟต์แวร์ของ OpenMates เป็นสาธารณะและผู้อื่นตรวจสอบได้ ไม่ได้หมายความว่าข้อมูลส่วนตัวของคุณเป็นสาธารณะ แชต ข้อมูลบัญชี การตั้งค่า ความทรงจำ ไฟล์อัปโหลด และข้อมูลการเรียกเก็บเงินของคุณไม่ได้เผยแพร่บน GitHub โค้ดเป็นสาธารณะ แต่ข้อมูลส่วนบุคคลของคุณไม่ใช่
+  cs: Open source znamená, že kód softwaru OpenMates je veřejný a mohou jej kontrolovat ostatní. Neznamená to, že vaše soukromá data jsou veřejná. Vaše chaty, údaje účtu, nastavení, paměti, nahrané soubory a fakturační data nejsou publikovány na GitHubu. Kód je veřejný; vaše osobní data ne.
+  sv: Öppen källkod betyder att OpenMates programkod är offentlig och kan granskas av andra. Det betyder inte att dina privata data är offentliga. Dina chattar, kontodata, inställningar, minnen, uppladdningar och faktureringsdata publiceras inte på GitHub. Koden är offentlig; dina personuppgifter är det inte.
+  he: קוד פתוח אומר שקוד התוכנה של OpenMates ציבורי וניתן לבדיקה על ידי אחרים. זה לא אומר שהמידע הפרטי שלך ציבורי. הצ'אטים, נתוני החשבון, ההגדרות, הזיכרונות, ההעלאות ונתוני החיוב שלך אינם מתפרסמים ב-GitHub. הקוד ציבורי; הנתונים האישיים שלך אינם.
+  verified_by_human: []
+quick_answers.sensitive_topics.question:
+  context: FAQ question about suitability for sensitive topics
+  en: Is OpenMates suitable for sensitive topics?
+  de: Ist OpenMates für sensible Themen geeignet?
+  zh: OpenMates 适合敏感话题吗？
+  es: ¿OpenMates es adecuado para temas sensibles?
+  fr: OpenMates convient-il aux sujets sensibles ?
+  pt: O OpenMates é adequado para temas sensíveis?
+  ru: Подходит ли OpenMates для чувствительных тем?
+  ja: OpenMates は機密性の高い話題に適していますか？
+  ko: OpenMates는 민감한 주제에 적합한가요?
+  it: OpenMates è adatto ad argomenti sensibili?
+  tr: OpenMates hassas konular için uygun mu?
+  vi: OpenMates có phù hợp cho chủ đề nhạy cảm không?
+  id: Apakah OpenMates cocok untuk topik sensitif?
+  pl: Czy OpenMates nadaje się do wrażliwych tematów?
+  nl: Is OpenMates geschikt voor gevoelige onderwerpen?
+  ar: هل يناسب OpenMates المواضيع الحساسة؟
+  hi: क्या OpenMates संवेदनशील विषयों के लिए उपयुक्त है?
+  th: OpenMates เหมาะสำหรับหัวข้อละเอียดอ่อนหรือไม่?
+  cs: Je OpenMates vhodný pro citlivá témata?
+  sv: Är OpenMates lämpligt för känsliga ämnen?
+  he: האם OpenMates מתאים לנושאים רגישים?
+  verified_by_human: []
+quick_answers.sensitive_topics.answer:
+  context: FAQ answer about suitability for sensitive topics
+  en: OpenMates is privacy-conscious, but it is not a zero-knowledge or device-only system. It is reasonable for everyday private AI use when you avoid unnecessary personal details. For highly sensitive legal, medical, financial, business-confidential, or safety-critical topics, be careful about what you enter and which model or provider you use.
+  de: OpenMates ist privacy-bewusst gebaut, aber kein Zero-Knowledge- oder Nur-Geräte-System. Für alltägliche private KI-Nutzung ist es sinnvoll, wenn du unnötige personenbezogene Details vermeidest. Bei hochsensiblen rechtlichen, medizinischen, finanziellen, geschäftsvertraulichen oder sicherheitskritischen Themen solltest du genau überlegen, was du eingibst und welches Modell oder welchen Anbieter du nutzt.
+  zh: OpenMates 注重隐私，但不是零知识或仅设备可读系统。对于日常私人 AI 使用，只要避免不必要的个人细节，它是合理的。对于高度敏感的法律、医疗、财务、商业机密或安全关键主题，请谨慎考虑输入内容以及使用的模型或提供商。
+  es: OpenMates está diseñado con privacidad en mente, pero no es un sistema de conocimiento cero ni solo de dispositivos. Es razonable para uso privado cotidiano de IA si evitas detalles personales innecesarios. Para temas legales, médicos, financieros, confidenciales de negocio o críticos para la seguridad, ten cuidado con lo que introduces y con el modelo o proveedor que usas.
+  fr: OpenMates est conçu avec la confidentialité en tête, mais ce n'est pas un système zero-knowledge ni réservé aux appareils. Il est raisonnable pour un usage IA privé quotidien si tu évites les détails personnels inutiles. Pour les sujets juridiques, médicaux, financiers, confidentiels d'entreprise ou critiques pour la sécurité, fais attention à ce que tu saisis et au modèle ou fournisseur utilisé.
+  pt: O OpenMates é consciente de privacidade, mas não é um sistema de conhecimento zero nem apenas de dispositivos. É razoável para uso privado cotidiano de IA quando você evita detalhes pessoais desnecessários. Para temas jurídicos, médicos, financeiros, confidenciais de negócios ou críticos para segurança, tenha cuidado com o que insere e com o modelo ou provedor que usa.
+  ru: OpenMates ориентирован на приватность, но не является zero-knowledge или системой только для устройств. Он разумен для повседневного частного использования ИИ, если избегать лишних персональных деталей. Для особо чувствительных юридических, медицинских, финансовых, коммерчески конфиденциальных или критичных для безопасности тем будьте осторожны с тем, что вводите, и с моделью или провайдером, которые используете.
+  ja: OpenMates はプライバシーを重視していますが、ゼロ知識やデバイスのみのシステムではありません。不要な個人情報を避ければ、日常的なプライベート AI 利用には妥当です。法務、医療、金融、ビジネス機密、安全上重要な話題では、入力内容と使用するモデルまたはプロバイダーに注意してください。
+  ko: OpenMates는 개인정보 보호를 의식해 설계되었지만, 제로 지식 또는 기기 전용 시스템은 아닙니다. 불필요한 개인 정보를 피한다면 일상적인 비공개 AI 사용에는 합리적입니다. 법률, 의료, 금융, 기업 기밀 또는 안전상 중요한 고도 민감 주제의 경우 입력 내용과 사용하는 모델 또는 제공업체에 주의하세요.
+  it: OpenMates è attento alla privacy, ma non è un sistema zero-knowledge o solo-device. È ragionevole per l'uso privato quotidiano dell'IA se eviti dettagli personali non necessari. Per temi legali, medici, finanziari, riservati aziendali o critici per la sicurezza, fai attenzione a ciò che inserisci e al modello o fornitore che usi.
+  tr: OpenMates gizlilik bilinciyle tasarlanmıştır, ancak sıfır bilgi veya yalnızca cihaz sistemi değildir. Gereksiz kişisel ayrıntılardan kaçındığınızda günlük özel AI kullanımı için makuldür. Çok hassas hukuki, tıbbi, finansal, iş-gizli veya güvenlik açısından kritik konularda ne girdiğinize ve hangi model veya sağlayıcıyı kullandığınıza dikkat edin.
+  vi: OpenMates chú trọng quyền riêng tư, nhưng không phải hệ thống zero-knowledge hoặc chỉ thiết bị. Nó hợp lý cho việc dùng AI riêng tư hằng ngày khi bạn tránh chi tiết cá nhân không cần thiết. Với chủ đề pháp lý, y tế, tài chính, bí mật kinh doanh hoặc quan trọng về an toàn, hãy cẩn thận với nội dung bạn nhập và mô hình hoặc nhà cung cấp bạn dùng.
+  id: OpenMates sadar privasi, tetapi bukan sistem zero-knowledge atau hanya-perangkat. Ini wajar untuk penggunaan AI pribadi sehari-hari saat Anda menghindari detail pribadi yang tidak perlu. Untuk topik hukum, medis, keuangan, rahasia bisnis, atau kritis keselamatan yang sangat sensitif, berhati-hatilah dengan apa yang Anda masukkan dan model atau penyedia yang Anda gunakan.
+  pl: OpenMates jest projektowany z myślą o prywatności, ale nie jest systemem zero-knowledge ani tylko-urządzeniowym. Jest rozsądny do codziennego prywatnego użycia AI, jeśli unikasz zbędnych danych osobowych. Przy bardzo wrażliwych tematach prawnych, medycznych, finansowych, poufnych biznesowo lub krytycznych dla bezpieczeństwa uważaj, co wpisujesz i jakiego modelu lub dostawcy używasz.
+  nl: OpenMates is privacybewust, maar geen zero-knowledge of alleen-apparaat-systeem. Het is redelijk voor dagelijks privé-AI-gebruik wanneer je onnodige persoonlijke details vermijdt. Voor zeer gevoelige juridische, medische, financiële, bedrijfsvertrouwelijke of veiligheidskritieke onderwerpen moet je voorzichtig zijn met wat je invoert en welk model of welke provider je gebruikt.
+  ar: OpenMates مصمم بوعي للخصوصية، لكنه ليس نظام معرفة صفرية أو نظامًا يقتصر على الأجهزة فقط. إنه مناسب للاستخدام الخاص اليومي للذكاء الاصطناعي عندما تتجنب التفاصيل الشخصية غير الضرورية. للموضوعات القانونية أو الطبية أو المالية أو التجارية السرية أو الحرجة للسلامة، كن حذرًا بشأن ما تدخله وأي نموذج أو مزود تستخدمه.
+  hi: OpenMates privacy-conscious है, लेकिन zero-knowledge या device-only system नहीं है। यदि आप अनावश्यक personal details से बचते हैं, तो यह रोज़मर्रा के निजी AI उपयोग के लिए उचित है। अत्यधिक संवेदनशील legal, medical, financial, business-confidential या safety-critical विषयों के लिए सावधान रहें कि आप क्या दर्ज करते हैं और कौन सा model या provider उपयोग करते हैं।
+  th: OpenMates ให้ความสำคัญกับความเป็นส่วนตัว แต่ไม่ใช่ระบบ zero-knowledge หรือระบบที่อ่านได้เฉพาะอุปกรณ์ เหมาะสมสำหรับการใช้ AI ส่วนตัวในชีวิตประจำวันเมื่อคุณหลีกเลี่ยงรายละเอียดส่วนบุคคลที่ไม่จำเป็น สำหรับหัวข้อที่ละเอียดอ่อนมาก เช่น กฎหมาย การแพทย์ การเงิน ความลับทางธุรกิจ หรือเรื่องสำคัญต่อความปลอดภัย โปรดระวังสิ่งที่ป้อนและโมเดลหรือผู้ให้บริการที่ใช้
+  cs: OpenMates je navržen s ohledem na soukromí, ale není zero-knowledge ani pouze zařízení systém. Je rozumný pro běžné soukromé používání AI, pokud se vyhýbáte zbytečným osobním detailům. U vysoce citlivých právních, lékařských, finančních, obchodně důvěrných nebo bezpečnostně kritických témat buďte opatrní, co zadáváte a jaký model nebo poskytovatele používáte.
+  sv: OpenMates är integritetsmedvetet, men inte ett zero-knowledge- eller enbart-enhets-system. Det är rimligt för vardaglig privat AI-användning när du undviker onödiga personliga detaljer. För mycket känsliga juridiska, medicinska, finansiella, affärshemliga eller säkerhetskritiska ämnen bör du vara försiktig med vad du skriver och vilken modell eller leverantör du använder.
+  he: OpenMates מודעת לפרטיות, אך אינה מערכת zero-knowledge או מכשירים בלבד. היא סבירה לשימוש AI פרטי יומיומי כאשר נמנעים מפרטים אישיים מיותרים. לנושאים רגישים מאוד כגון משפטיים, רפואיים, פיננסיים, סודיים עסקית או קריטיים לבטיחות, יש להיזהר במה שמזינים ובאיזה מודל או ספק משתמשים.
+  verified_by_human: []
+quick_answers.highest_privacy.question:
+  context: FAQ question about highest privacy needs and self-hosting
+  en: What if I have the highest privacy requirements?
+  de: Was ist, wenn ich die höchsten Datenschutzanforderungen habe?
+  zh: 如果我有最高隐私要求怎么办？
+  es: ¿Y si tengo los requisitos de privacidad más altos?
+  fr: Et si j'ai les exigences de confidentialité les plus élevées ?
+  pt: E se eu tiver os requisitos de privacidade mais altos?
+  ru: Что если у меня самые высокие требования к приватности?
+  ja: 最高レベルのプライバシー要件がある場合はどうすればよいですか？
+  ko: 최고 수준의 개인정보 보호 요구가 있다면 어떻게 해야 하나요?
+  it: E se avessi requisiti di privacy massimi?
+  tr: En yüksek gizlilik gereksinimlerim varsa ne olur?
+  vi: Nếu tôi có yêu cầu riêng tư cao nhất thì sao?
+  id: Bagaimana jika saya memiliki persyaratan privasi tertinggi?
+  pl: Co jeśli mam najwyższe wymagania prywatności?
+  nl: Wat als ik de hoogste privacy-eisen heb?
+  ar: ماذا لو كانت لدي أعلى متطلبات الخصوصية؟
+  hi: यदि मेरी privacy requirements सबसे अधिक हैं तो क्या?
+  th: ถ้าฉันมีข้อกำหนดด้านความเป็นส่วนตัวสูงสุดล่ะ?
+  cs: Co když mám nejvyšší požadavky na soukromí?
+  sv: Vad händer om jag har de högsta integritetskraven?
+  he: מה אם יש לי דרישות פרטיות גבוהות ביותר?
+  verified_by_human: []
+quick_answers.highest_privacy.answer:
+  context: FAQ answer about highest privacy needs and self-hosting
+  en: "If you have very high privacy requirements, consider self-hosting OpenMates and using local or offline AI models instead of third-party AI providers. This gives you more control over infrastructure, model choice, logs, backups, and provider exposure. It requires technical experience, ongoing maintenance, secure server administration, and enough hardware for useful local AI inference. Self-hosting does not automatically make everything private: you still need to secure the server, backups, secrets, network access, logs, and any external providers you enable."
+  de: "Wenn du sehr hohe Datenschutzanforderungen hast, kannst du erwägen, OpenMates selbst zu hosten und lokale oder offline laufende KI-Modelle statt Drittanbieter-KI-Anbietern zu verwenden. Das gibt dir mehr Kontrolle über Infrastruktur, Modellauswahl, Logs, Backups und Anbieter-Exposition. Es erfordert technische Erfahrung, laufende Wartung, sichere Serveradministration und ausreichend Hardware für brauchbare lokale KI-Inferenz. Self-Hosting macht nicht automatisch alles privat: Du musst Server, Backups, Geheimnisse, Netzwerkzugriff, Logs und alle aktivierten externen Anbieter trotzdem absichern."
+  zh: 如果你有非常高的隐私要求，可以考虑自行托管 OpenMates，并使用本地或离线 AI 模型，而不是第三方 AI 提供商。这让你对基础设施、模型选择、日志、备份和提供商暴露有更多控制。它需要技术经验、持续维护、安全的服务器管理，以及足够的硬件来进行有用的本地 AI 推理。自托管不会自动让一切变得私密：你仍需保护服务器、备份、密钥、网络访问、日志和任何启用的外部提供商。
+  es: "Si tienes requisitos de privacidad muy altos, considera autoalojar OpenMates y usar modelos de IA locales u offline en lugar de proveedores externos. Esto te da más control sobre infraestructura, elección de modelo, registros, copias de seguridad y exposición a proveedores. Requiere experiencia técnica, mantenimiento continuo, administración segura del servidor y hardware suficiente para inferencia local útil. Autoalojar no hace que todo sea privado automáticamente: aún debes proteger servidor, copias, secretos, acceso de red, registros y cualquier proveedor externo que actives."
+  fr: "Si tu as des exigences de confidentialité très élevées, envisage d'auto-héberger OpenMates et d'utiliser des modèles IA locaux ou hors ligne plutôt que des fournisseurs IA tiers. Cela donne plus de contrôle sur l'infrastructure, le choix des modèles, les journaux, les sauvegardes et l'exposition aux fournisseurs. Cela exige de l'expérience technique, une maintenance continue, une administration serveur sécurisée et assez de matériel pour une inférence IA locale utile. L'auto-hébergement ne rend pas tout automatiquement privé : tu dois toujours sécuriser serveur, sauvegardes, secrets, accès réseau, journaux et tout fournisseur externe activé."
+  pt: "Se você tem requisitos de privacidade muito altos, considere auto-hospedar o OpenMates e usar modelos de IA locais ou offline em vez de provedores externos de IA. Isso dá mais controle sobre infraestrutura, escolha de modelos, logs, backups e exposição a provedores. Exige experiência técnica, manutenção contínua, administração segura do servidor e hardware suficiente para inferência local útil. Auto-hospedar não torna tudo privado automaticamente: você ainda precisa proteger servidor, backups, segredos, acesso de rede, logs e qualquer provedor externo que ativar."
+  ru: "Если у вас очень высокие требования к приватности, рассмотрите самостоятельный хостинг OpenMates и использование локальных или офлайн-моделей ИИ вместо сторонних провайдеров. Это даёт больше контроля над инфраструктурой, выбором моделей, логами, резервными копиями и раскрытием провайдерам. Требуются технический опыт, постоянное обслуживание, безопасное администрирование сервера и достаточное оборудование для полезного локального инференса ИИ. Самостоятельный хостинг не делает всё автоматически приватным: всё равно нужно защищать сервер, резервные копии, секреты, сетевой доступ, логи и любых включённых внешних провайдеров."
+  ja: 非常に高いプライバシー要件がある場合、サードパーティ AI プロバイダーではなく、OpenMates をセルフホストし、ローカルまたはオフライン AI モデルを使うことを検討できます。これにより、インフラ、モデル選択、ログ、バックアップ、プロバイダーへの露出をより制御できます。ただし技術経験、継続的な保守、安全なサーバー管理、有用なローカル AI 推論に十分なハードウェアが必要です。セルフホストしてもすべてが自動的にプライベートになるわけではありません。サーバー、バックアップ、秘密情報、ネットワークアクセス、ログ、有効化した外部プロバイダーを保護する必要があります。
+  ko: 매우 높은 개인정보 보호 요구가 있다면 타사 AI 제공업체 대신 OpenMates를 직접 호스팅하고 로컬 또는 오프라인 AI 모델을 사용하는 것을 고려하세요. 이를 통해 인프라, 모델 선택, 로그, 백업 및 제공업체 노출을 더 많이 제어할 수 있습니다. 기술 경험, 지속적인 유지관리, 안전한 서버 관리, 유용한 로컬 AI 추론을 위한 충분한 하드웨어가 필요합니다. 셀프호스팅이 모든 것을 자동으로 비공개로 만들지는 않습니다. 서버, 백업, 비밀 값, 네트워크 접근, 로그 및 활성화한 외부 제공업체를 계속 보호해야 합니다.
+  it: "Se hai requisiti di privacy molto elevati, considera di ospitare OpenMates autonomamente e usare modelli IA locali o offline invece di fornitori IA terzi. Questo ti dà più controllo su infrastruttura, scelta dei modelli, log, backup ed esposizione ai fornitori. Richiede esperienza tecnica, manutenzione continua, amministrazione sicura del server e hardware sufficiente per inferenza IA locale utile. Il self-hosting non rende automaticamente tutto privato: devi comunque proteggere server, backup, segreti, accesso di rete, log e qualsiasi fornitore esterno che abiliti."
+  tr: "Çok yüksek gizlilik gereksinimleriniz varsa, üçüncü taraf AI sağlayıcıları yerine OpenMates'i kendiniz barındırmayı ve yerel veya çevrimdışı AI modelleri kullanmayı değerlendirin. Bu altyapı, model seçimi, günlükler, yedekler ve sağlayıcı maruziyeti üzerinde daha fazla kontrol sağlar. Teknik deneyim, sürekli bakım, güvenli sunucu yönetimi ve yararlı yerel AI çıkarımı için yeterli donanım gerektirir. Kendi barındırma her şeyi otomatik olarak özel yapmaz: sunucuyu, yedekleri, sırları, ağ erişimini, günlükleri ve etkinleştirdiğiniz harici sağlayıcıları yine güvence altına almalısınız."
+  vi: "Nếu bạn có yêu cầu riêng tư rất cao, hãy cân nhắc tự host OpenMates và dùng mô hình AI cục bộ hoặc offline thay vì nhà cung cấp AI bên thứ ba. Điều này cho bạn nhiều quyền kiểm soát hơn với hạ tầng, lựa chọn mô hình, nhật ký, bản sao lưu và mức lộ với nhà cung cấp. Nó đòi hỏi kinh nghiệm kỹ thuật, bảo trì liên tục, quản trị máy chủ an toàn và phần cứng đủ mạnh cho suy luận AI cục bộ hữu ích. Tự host không tự động làm mọi thứ riêng tư: bạn vẫn cần bảo vệ máy chủ, bản sao lưu, bí mật, truy cập mạng, nhật ký và mọi nhà cung cấp bên ngoài bạn bật."
+  id: "Jika Anda memiliki persyaratan privasi sangat tinggi, pertimbangkan self-hosting OpenMates dan menggunakan model AI lokal atau offline alih-alih penyedia AI pihak ketiga. Ini memberi Anda lebih banyak kendali atas infrastruktur, pilihan model, log, cadangan, dan paparan penyedia. Ini memerlukan pengalaman teknis, pemeliharaan berkelanjutan, administrasi server yang aman, dan perangkat keras yang cukup untuk inferensi AI lokal yang berguna. Self-hosting tidak otomatis membuat semuanya privat: Anda tetap perlu mengamankan server, cadangan, rahasia, akses jaringan, log, dan penyedia eksternal apa pun yang Anda aktifkan."
+  pl: "Jeśli masz bardzo wysokie wymagania prywatności, rozważ samodzielne hostowanie OpenMates i używanie lokalnych lub offline modeli AI zamiast zewnętrznych dostawców. Daje to większą kontrolę nad infrastrukturą, wyborem modeli, logami, kopiami zapasowymi i ekspozycją na dostawców. Wymaga doświadczenia technicznego, stałej konserwacji, bezpiecznej administracji serwerem i wystarczającego sprzętu do użytecznej lokalnej inferencji AI. Self-hosting nie czyni wszystkiego automatycznie prywatnym: nadal musisz zabezpieczyć serwer, kopie, sekrety, dostęp sieciowy, logi i wszystkich zewnętrznych dostawców, których włączysz."
+  nl: "Als je zeer hoge privacy-eisen hebt, overweeg dan OpenMates zelf te hosten en lokale of offline AI-modellen te gebruiken in plaats van externe AI-providers. Dit geeft meer controle over infrastructuur, modelkeuze, logs, back-ups en providerblootstelling. Het vereist technische ervaring, doorlopend onderhoud, veilig serverbeheer en voldoende hardware voor bruikbare lokale AI-inferentie. Zelf hosten maakt niet automatisch alles privé: je moet nog steeds server, back-ups, geheimen, netwerktoegang, logs en elke externe provider die je inschakelt beveiligen."
+  ar: "إذا كانت لديك متطلبات خصوصية عالية جدًا، ففكر في استضافة OpenMates بنفسك واستخدام نماذج ذكاء اصطناعي محلية أو غير متصلة بدلًا من مزودي الذكاء الاصطناعي الخارجيين. يمنحك ذلك تحكمًا أكبر في البنية التحتية واختيار النموذج والسجلات والنسخ الاحتياطية والتعرض للمزوّدين. يتطلب خبرة تقنية وصيانة مستمرة وإدارة خادم آمنة وعتادًا كافيًا لاستدلال ذكاء اصطناعي محلي مفيد. الاستضافة الذاتية لا تجعل كل شيء خاصًا تلقائيًا: ما زلت بحاجة إلى تأمين الخادم والنسخ الاحتياطية والأسرار والوصول الشبكي والسجلات وأي مزودين خارجيين تفعّلهم."
+  hi: "यदि आपकी privacy requirements बहुत अधिक हैं, तो third-party AI providers के बजाय OpenMates को self-host करने और local या offline AI models उपयोग करने पर विचार करें। इससे infrastructure, model choice, logs, backups और provider exposure पर अधिक नियंत्रण मिलता है। इसके लिए technical experience, ongoing maintenance, secure server administration और उपयोगी local AI inference के लिए पर्याप्त hardware चाहिए। Self-hosting सब कुछ अपने आप private नहीं बनाता: आपको server, backups, secrets, network access, logs और enable किए गए external providers को फिर भी सुरक्षित करना होगा।"
+  th: หากคุณมีข้อกำหนดด้านความเป็นส่วนตัวสูงมาก ให้พิจารณาโฮสต์ OpenMates เองและใช้โมเดล AI แบบ local หรือ offline แทนผู้ให้บริการ AI ภายนอก วิธีนี้ให้คุณควบคุมโครงสร้างพื้นฐาน การเลือกโมเดล บันทึก ข้อมูลสำรอง และการเปิดเผยต่อผู้ให้บริการได้มากขึ้น แต่ต้องมีประสบการณ์เทคนิค การบำรุงรักษาต่อเนื่อง การดูแลเซิร์ฟเวอร์อย่างปลอดภัย และฮาร์ดแวร์เพียงพอสำหรับการ inference AI ในเครื่องที่ใช้งานได้ Self-hosting ไม่ได้ทำให้ทุกอย่างเป็นส่วนตัวโดยอัตโนมัติ คุณยังต้องปกป้องเซิร์ฟเวอร์ ข้อมูลสำรอง ความลับ การเข้าถึงเครือข่าย บันทึก และผู้ให้บริการภายนอกที่เปิดใช้งาน
+  cs: "Pokud máte velmi vysoké požadavky na soukromí, zvažte vlastní hostování OpenMates a použití místních nebo offline modelů AI místo externích poskytovatelů AI. Získáte větší kontrolu nad infrastrukturou, výběrem modelů, logy, zálohami a expozicí vůči poskytovatelům. Vyžaduje to technické zkušenosti, průběžnou údržbu, bezpečnou správu serveru a dostatečný hardware pro užitečnou lokální AI inferenci. Vlastní hostování automaticky neudělá vše soukromým: stále musíte zabezpečit server, zálohy, tajemství, síťový přístup, logy a všechny externí poskytovatele, které povolíte."
+  sv: "Om du har mycket höga integritetskrav kan du överväga att självhosta OpenMates och använda lokala eller offline AI-modeller i stället för tredjepartsleverantörer. Det ger mer kontroll över infrastruktur, modellval, loggar, backuper och leverantörsexponering. Det kräver teknisk erfarenhet, löpande underhåll, säker serveradministration och tillräcklig hårdvara för användbar lokal AI-inferens. Självhostning gör inte automatiskt allt privat: du måste fortfarande säkra servern, backuper, hemligheter, nätverksåtkomst, loggar och alla externa leverantörer du aktiverar."
+  he: "אם יש לך דרישות פרטיות גבוהות מאוד, שקול לארח את OpenMates בעצמך ולהשתמש במודלי AI מקומיים או לא מקוונים במקום ספקי AI חיצוניים. זה נותן יותר שליטה על תשתית, בחירת מודלים, לוגים, גיבויים וחשיפה לספקים. זה דורש ניסיון טכני, תחזוקה שוטפת, ניהול שרת מאובטח וחומרה מספקת להרצת AI מקומית שימושית. אירוח עצמי לא הופך הכול לפרטי אוטומטית: עדיין צריך לאבטח את השרת, הגיבויים, הסודות, הגישה לרשת, הלוגים וכל ספק חיצוני שמפעילים."
+  verified_by_human: []
 protection.heading:
   context: Section heading for "How we protect your data"
   en: How we protect your data
