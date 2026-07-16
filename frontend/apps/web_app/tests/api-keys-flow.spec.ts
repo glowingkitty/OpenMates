@@ -58,10 +58,15 @@ async function ensureSettingsMenuOpen(page: any, logCheckpoint: (msg: string) =>
 
 	const settingsMenu = page.getByTestId('settings-menu');
 	if (!(await settingsMenu.isVisible({ timeout: 1000 }).catch(() => false))) {
-		const openSettingsButton = page.getByRole('button', { name: /open settings menu/i }).first();
-		await expect(openSettingsButton).toBeVisible({ timeout: 10000 });
-		await openSettingsButton.click();
-		logCheckpoint('Opened settings menu.');
+		const closeSettingsButton = page.getByRole('button', { name: /close settings menu/i }).first();
+		if (await closeSettingsButton.isVisible({ timeout: 1000 }).catch(() => false)) {
+			logCheckpoint('Settings menu was already open.');
+		} else {
+			const openSettingsButton = page.getByRole('button', { name: /open settings menu/i }).first();
+			await expect(openSettingsButton).toBeVisible({ timeout: 10000 });
+			await openSettingsButton.click();
+			logCheckpoint('Opened settings menu.');
+		}
 	}
 	await expect(settingsMenu).toBeVisible({ timeout: 10000 });
 
@@ -153,10 +158,15 @@ async function ensureDevelopersSettingsOpen(
 ): Promise<any> {
 	const settingsMenu = page.getByTestId('settings-menu');
 	if (!(await settingsMenu.isVisible({ timeout: 1000 }).catch(() => false))) {
-		const openSettingsButton = page.getByRole('button', { name: /open settings menu/i }).first();
-		await expect(openSettingsButton).toBeVisible({ timeout: 10000 });
-		await openSettingsButton.click();
-		logCheckpoint('Opened settings menu.');
+		const closeSettingsButton = page.getByRole('button', { name: /close settings menu/i }).first();
+		if (await closeSettingsButton.isVisible({ timeout: 1000 }).catch(() => false)) {
+			logCheckpoint('Settings menu was already open.');
+		} else {
+			const openSettingsButton = page.getByRole('button', { name: /open settings menu/i }).first();
+			await expect(openSettingsButton).toBeVisible({ timeout: 10000 });
+			await openSettingsButton.click();
+			logCheckpoint('Opened settings menu.');
+		}
 	}
 	await expect(settingsMenu).toBeVisible({ timeout: 10000 });
 
