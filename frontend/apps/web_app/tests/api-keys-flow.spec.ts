@@ -179,6 +179,19 @@ async function ensureDevelopersSettingsOpen(
 }
 
 async function navigateToDevices(page: any, logCheckpoint: (msg: string) => void): Promise<void> {
+	const existingSettingsMenu = page.getByTestId('settings-menu');
+	if (await existingSettingsMenu.isVisible({ timeout: 1000 }).catch(() => false)) {
+		const activeView = await existingSettingsMenu.getAttribute('data-active-view');
+		if (activeView === 'developers/devices') {
+			const backButton = page.getByTestId('device-detail-back-button').first();
+			if (await backButton.isVisible({ timeout: 1000 }).catch(() => false)) {
+				await backButton.click();
+			}
+			logCheckpoint('Devices page already loaded.');
+			return;
+		}
+	}
+
 	const settingsMenu = await ensureDevelopersSettingsOpen(page, logCheckpoint);
 
 	const devicesItem = settingsMenu
@@ -190,7 +203,9 @@ async function navigateToDevices(page: any, logCheckpoint: (msg: string) => void
 	await devicesItem.click({ timeout: 8000 });
 	logCheckpoint('Navigated to Devices page.');
 
-	await expect(page.getByTestId('devices-container')).toBeVisible({ timeout: 8000 });
+	await expect(page.getByTestId('settings-menu')).toHaveAttribute('data-active-view', 'developers/devices', {
+		timeout: 8000
+	});
 }
 
 async function completeDefaultApiKeyGuidedFlow(
@@ -578,52 +593,24 @@ test('creates API key, verifies device approval flow, and saves working key', as
 	log('Confirmed: REST API call correctly blocked before device approval.');
 
 	// ── Phase 4: Navigate to Devices and approve the pending device ───────────
-	await page.reload();
-	await page.waitForLoadState('domcontentloaded');
-	await navigateToApiKeys(page, log);
-	const keyRowWithPendingDevice = page.getByTestId('api-key-item').filter({ hasText: keyName }).first();
-	await expect(keyRowWithPendingDevice).toBeVisible({ timeout: 15000 });
-	const confirmDeviceLink = page.getByTestId('api-key-confirm-device-link').first();
-	if (await confirmDeviceLink.isVisible({ timeout: 5000 }).catch(() => false)) {
-		await confirmDeviceLink.click();
-		await expect(page.getByTestId('settings-menu')).toHaveAttribute('data-active-view', 'developers/devices', {
-			timeout: 10000
-		});
-		log('Opened Devices from API-key Confirm device quick link.');
-	} else {
-		await navigateToDevices(page, log);
-		log('Opened Devices from Developers menu fallback.');
-	}
+	await navigateToDevices(page, log);
+	log('Opened Devices from Developers menu.');
 	await screenshot(page, 'devices-page');
 
-	const devicesContainer = page.getByTestId('devices-container');
-	await expect(devicesContainer).toBeVisible({ timeout: 8000 });
-
-	await page.waitForTimeout(2000);
-
-	let pendingCard = page.locator('[data-testid="device-card"].pending').first();
-	if (!(await pendingCard.isVisible({ timeout: 15000 }).catch(() => false))) {
-		log('Pending device card not visible yet; reloading and reopening Devices.');
-		await page.reload();
-		await page.waitForLoadState('domcontentloaded');
-		await navigateToDevices(page, log);
-		pendingCard = page.locator('[data-testid="device-card"].pending').first();
-		await expect(pendingCard).toBeVisible({ timeout: 30000 });
-	}
-	log('Found pending device card.');
+	const pendingRow = page.getByTestId('device-row').filter({ hasText: /Pending/i }).first();
+	await expect(pendingRow).toBeVisible({ timeout: 30000 });
+	await pendingRow.click();
+	log('Opened pending device detail.');
 	await screenshot(page, 'pending-device');
 
-	const approveButton = pendingCard.getByTestId('device-approve-button');
+	const approveButton = page.getByTestId('device-approve-button');
 	await expect(approveButton).toBeVisible({ timeout: 5000 });
 	await approveButton.click();
 	log('Clicked Approve button.');
 
-	await expect(pendingCard).not.toBeVisible({ timeout: 10000 });
-	log('Pending device card is gone — device approved.');
-
-	const approvedBadge = devicesContainer.locator('[data-testid="status-badge"].approved').first();
-	await expect(approvedBadge).toBeVisible({ timeout: 8000 });
-	log('Confirmed: Approved status badge is visible.');
+	await expect(approveButton).not.toBeVisible({ timeout: 10000 });
+	await expect(page.getByText(/Approved/i).first()).toBeVisible({ timeout: 8000 });
+	log('Confirmed: device approved.');
 	await screenshot(page, 'device-approved');
 
 	// ── Phase 5: Immediately retry SDK API call — expect approval cache to be clear ─
@@ -658,26 +645,15 @@ test('creates API key, verifies device approval flow, and saves working key', as
 		`Expected 403 for CLI device before approval, got ${cliBlockedResponse.status()}`
 	).toBe(true);
 
-	await page.reload();
-	await page.waitForLoadState('domcontentloaded');
 	await navigateToDevices(page, log);
-	await expect(devicesContainer).toBeVisible({ timeout: 8000 });
-	await page.waitForTimeout(2000);
-
-	let cliPendingCard = page.locator('[data-testid="device-card"].pending').first();
-	if (!(await cliPendingCard.isVisible({ timeout: 15000 }).catch(() => false))) {
-		log('CLI pending device card not visible yet; reloading and reopening Devices.');
-		await page.reload();
-		await page.waitForLoadState('domcontentloaded');
-		await navigateToDevices(page, log);
-		cliPendingCard = page.locator('[data-testid="device-card"].pending').first();
-		await expect(cliPendingCard).toBeVisible({ timeout: 30000 });
-	}
+	const cliPendingCard = page.getByTestId('device-row').filter({ hasText: /Pending/i }).first();
+	await expect(cliPendingCard).toBeVisible({ timeout: 30000 });
+	await cliPendingCard.click();
 	await screenshot(page, 'cli-pending-device');
-	const cliApproveButton = cliPendingCard.getByTestId('device-approve-button');
+	const cliApproveButton = page.getByTestId('device-approve-button');
 	await expect(cliApproveButton).toBeVisible({ timeout: 5000 });
 	await cliApproveButton.click();
-	await expect(cliPendingCard).not.toBeVisible({ timeout: 10000 });
+	await expect(cliApproveButton).not.toBeVisible({ timeout: 10000 });
 	await screenshot(page, 'cli-device-approved');
 
 	const cliApprovedResponse = await request.get(sdkChatsUrl, { headers: cliDeviceHeaders });
