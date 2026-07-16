@@ -50,27 +50,27 @@ generate.description:
 
 search:
   context: Skill name for searching existing 3D models
-  en: Search 3D models
-  de: 3D-Modelle suchen
-  zh: Search 3D models
-  es: Search 3D models
-  fr: Search 3D models
-  pt: Search 3D models
-  ru: Search 3D models
-  ja: Search 3D models
-  ko: Search 3D models
-  it: Search 3D models
-  tr: Search 3D models
-  vi: Search 3D models
-  id: Search 3D models
-  pl: Search 3D models
-  nl: Search 3D models
-  ar: Search 3D models
-  hi: Search 3D models
-  th: Search 3D models
-  cs: Search 3D models
-  sv: Search 3D models
-  he: Search 3D models
+  en: Search
+  de: Search
+  zh: Search
+  es: Search
+  fr: Search
+  pt: Search
+  ru: Search
+  ja: Search
+  ko: Search
+  it: Search
+  tr: Search
+  vi: Search
+  id: Search
+  pl: Search
+  nl: Search
+  ar: Search
+  hi: Search
+  th: Search
+  cs: Search
+  sv: Search
+  he: Search
   verified_by_human: [en, de]
 
 search.description:
