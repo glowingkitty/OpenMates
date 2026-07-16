@@ -431,6 +431,29 @@ def test_prod_smoke_dispatch_matches_unique_token(monkeypatch, tmp_path):
     assert waited_run_ids == [[333]]
 
 
+def test_prod_smoke_parser_accepts_flattened_cli_artifact(tmp_path):
+    run_tests = load_run_tests_module()
+    (tmp_path / "paid-chat.json").write_text(
+        '{"status":"failed","scenarios":{"paid_chat":{"status":"failed","error":"HTTP 401"}}}',
+        encoding="utf-8",
+    )
+
+    results = run_tests._parse_prod_smoke_artifact(
+        tmp_path,
+        run_tests.PROD_SMOKE_SPECS_BY_SUITE[run_tests.PROD_SMOKE_SUITE_PAID_CHAT],
+    )
+
+    assert results == [{
+        "key": "paid-chat",
+        "filename": "verify_prod_cli_smoke.py",
+        "name": "CLI paid chat smoke",
+        "status": "failed",
+        "error": "HTTP 401",
+        "passed": 0,
+        "failed": 1,
+    }]
+
+
 def test_preflight_account_payload_deduplicates_emails():
     run_tests = load_run_tests_module()
 

@@ -3571,8 +3571,10 @@ def _parse_prod_smoke_artifact(
         return []
 
     # The JSON files live under one of these locations depending on how the
-    # artifact was unpacked. Try both.
+    # artifact was unpacked. GitHub flattens uploaded directory contents in
+    # some cases, so the artifact root itself is a valid candidate.
     candidates = [
+        art_path,
         art_path / "test-results",
         art_path / f"prod-smoke-results-{art_path.name}" / "test-results",
     ]
@@ -3585,13 +3587,16 @@ def _parse_prod_smoke_artifact(
                     candidates.append(inner)
                     break
 
-    base: Optional[Path] = next((c for c in candidates if c.is_dir()), None)
-    if base is None:
+    candidate_dirs = [c for c in candidates if c.is_dir()]
+    if not candidate_dirs:
         return []
 
     out: list[dict] = []
     for spec_key, spec_label, spec_filename in (specs or PROD_SMOKE_SPECS):
-        json_path = base / f"{spec_key}.json"
+        json_path = next(
+            (candidate / f"{spec_key}.json" for candidate in candidate_dirs if (candidate / f"{spec_key}.json").is_file()),
+            candidate_dirs[0] / f"{spec_key}.json",
+        )
         if not json_path.is_file() or json_path.stat().st_size == 0:
             out.append({
                 "key": spec_key,
