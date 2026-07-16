@@ -1812,9 +1812,7 @@ async function sendApiKeyChatNew(
 ): Promise<Record<string, unknown>> {
   const sdk = new OpenMates({ apiKey, apiUrl: client.apiUrl });
   const response = await sdk.chats.send(message, {
-    saveToAccount: true,
-    title: message.slice(0, 80),
-    recoveryTimeoutMs: parseResponseTimeoutMs(flags),
+    saveToAccount: false,
   });
   const result = normalizeApiKeyChatResponse(response);
   if (flags.json !== true) {

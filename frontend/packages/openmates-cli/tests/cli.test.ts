@@ -29,12 +29,6 @@ import {
   INTEREST_TAG_IDS,
   normalizeInterestTagIds,
 } from "../dist/index.js";
-import {
-  bytesToBase64,
-  createApiKeyCryptoMaterial,
-  generateSalt,
-  sealChatCompletionRecoveryPayload,
-} from "../dist/crypto.js";
 
 const execFileAsync = promisify(execFile);
 const PACKAGE_ROOT = fileURLToPath(new URL("..", import.meta.url));
@@ -723,103 +717,37 @@ async function withSdkChatMockApi<T>(
     requests: Array<{ method?: string; url?: string; body?: Record<string, unknown> }>;
   }) => T | Promise<T>,
 ): Promise<T> {
-  const masterKey = generateSalt(32);
-  const material = await createApiKeyCryptoMaterial("CLI chat test key", bytesToBase64(masterKey));
+  const apiKey = "sk-cli-chat-test";
   const requests: Array<{ method?: string; url?: string; body?: Record<string, unknown> }> = [];
-  let savedChat: Record<string, unknown> | null = null;
-  let deletedChatId: string | null = null;
 
   const server = createServer(async (request, response) => {
     try {
-      if (request.url?.startsWith("/v1/sdk/") && request.headers.authorization !== `Bearer ${material.apiKey}`) {
+      if (request.url?.startsWith("/v1/sdk/") && request.headers.authorization !== `Bearer ${apiKey}`) {
         writeJsonStatus(response, 401, { detail: "missing api key" });
-        return;
-      }
-
-      if (request.method === "GET" && request.url === "/v1/sdk/session") {
-        writeJson(response, {
-          user: { id: "11111111-1111-4111-8111-111111111111" },
-          key_wrapper: {
-            encrypted_key: material.encryptedMasterKey,
-            salt: material.saltB64,
-            key_iv: material.keyIv,
-          },
-        });
         return;
       }
 
       if (request.method === "POST" && request.url === "/v1/sdk/chats") {
         const body = await readJsonBody(request);
         requests.push({ method: request.method, url: request.url, body });
-        const chatId = String(body.chat_id);
-        const turnId = String(body.turn_id);
-        const assistantMessageId = "22222222-2222-4222-8222-222222222222";
-        const jobId = "33333333-3333-4333-8333-333333333333";
-        const recoveryPublicKey = String(body.recovery_public_key);
-        savedChat = {
-          id: chatId,
-          ...(body.encrypted_chat_metadata as Record<string, unknown>),
-          updated_at: 1_700_000_000,
-        };
-        const sealedPayload = await sealChatCompletionRecoveryPayload(
-          new TextEncoder().encode(JSON.stringify({
-            assistant_message_id: assistantMessageId,
-            category: "general_knowledge",
-            chat_id: chatId,
-            content: "saved api-key chat ok",
-            job_id: jobId,
-            key_version: 1,
-            model_name: "test-model",
-            turn_id: turnId,
-          })),
-          {
-            ownerId: "11111111-1111-4111-8111-111111111111",
-            chatId,
-            turnId,
-            jobId,
-            assistantMessageId,
-            keyVersion: 1,
-            recoveryPublicKey,
+        writeJson(response, {
+          persistent: false,
+          chat_id: null,
+          response: {
+            content: "api-key stateless chat ok",
+            raw: { model: "test-model", category: "general_knowledge" },
           },
-        );
-        (savedChat as Record<string, unknown>).__claim = {
-          state: "LEASED",
-          job_id: jobId,
-          chat_id: chatId,
-          turn_id: turnId,
-          assistant_message_id: assistantMessageId,
-          chat_key_version: 1,
-          lease_generation: 1,
-          lease_token: "lease-token-1",
-          sealed_payload: JSON.stringify(sealedPayload),
-        };
-        writeJson(response, { chat_id: chatId, task_id: "task-1", preflight: { queued: true } });
-        return;
-      }
-
-      if (request.method === "POST" && request.url === "/v1/sdk/chats/recovery/task-1/claim") {
-        await readJsonBody(request);
-        writeJson(response, savedChat?.["__claim"] ?? { state: "PENDING" });
-        return;
-      }
-
-      if (request.method === "POST" && request.url === "/v1/sdk/chats/recovery/task-1/persist") {
-        const body = await readJsonBody(request);
-        requests.push({ method: request.method, url: request.url, body });
-        writeJson(response, { state: "TERMINAL", committed_messages_v: 1 });
+        });
         return;
       }
 
       if (request.method === "GET" && request.url?.startsWith("/v1/sdk/chats?")) {
-        const chat = savedChat
-          ? Object.fromEntries(Object.entries(savedChat).filter(([key]) => key !== "__claim"))
-          : null;
-        writeJson(response, { chats: chat && deletedChatId !== String(chat.id) ? [chat] : [] });
+        requests.push({ method: request.method, url: request.url });
+        writeJson(response, { chats: [] });
         return;
       }
 
       if (request.method === "DELETE" && request.url?.startsWith("/v1/sdk/chats/")) {
-        deletedChatId = decodeURIComponent(request.url.split("/").pop() ?? "");
         requests.push({ method: request.method, url: request.url });
         writeJson(response, { deleted: true });
         return;
@@ -836,7 +764,7 @@ async function withSdkChatMockApi<T>(
   const address = server.address();
   assert.ok(address && typeof address === "object");
   try {
-    return await run({ apiUrl: `http://127.0.0.1:${address.port}`, apiKey: material.apiKey, requests });
+    return await run({ apiUrl: `http://127.0.0.1:${address.port}`, apiKey, requests });
   } finally {
     server.closeAllConnections();
     await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
@@ -3001,36 +2929,21 @@ describe("unauthenticated example chats", () => {
     });
   });
 
-  it("sends and lists saved chats through API-key SDK mode without a local session", async () => {
+  it("sends API-key chat through SDK mode without a local session or anonymous fallback", async () => {
     await withSdkChatMockApi(async ({ apiUrl, apiKey, requests }) => {
       const createOutput = await runCliAsync([
         "--api-url", apiUrl,
         "--api-key", apiKey,
         "chats", "new", "Workflow chat delivery test", "--json",
       ]);
-      const created = JSON.parse(createOutput) as { status?: string; chat_id?: string; assistant?: string };
+      const created = JSON.parse(createOutput) as { status?: string; chat_id?: string | null; assistant?: string };
       assert.equal(created.status, "completed");
-      assert.equal(created.assistant, "saved api-key chat ok");
-      assert.equal(typeof created.chat_id, "string");
+      assert.equal(created.assistant, "api-key stateless chat ok");
+      assert.equal(created.chat_id, null);
       assert.equal(requests[0]?.url, "/v1/sdk/chats");
       assert.equal(requests[0]?.body?.message, "Workflow chat delivery test");
-      assert.equal(requests[0]?.body?.save_to_account, true);
-
-      const listOutput = await runCliAsync([
-        "--api-url", apiUrl,
-        "--api-key", apiKey,
-        "chats", "list", "--json",
-      ]);
-      const listed = JSON.parse(listOutput) as { chats?: Array<{ title?: string | null }> };
-      assert.equal(listed.chats?.[0]?.title, "Workflow chat delivery test");
-
-      const deleteOutput = await runCliAsync([
-        "--api-url", apiUrl,
-        "--api-key", apiKey,
-        "chats", "delete", String(created.chat_id), "--yes",
-      ]);
-      assert.match(deleteOutput, /Deleted/);
-      assert.equal(requests.at(-1)?.method, "DELETE");
+      assert.equal(requests[0]?.body?.save_to_account, false);
+      assert.equal(requests.some((request) => request.url === "/v1/anonymous/chat/stream"), false);
     });
   });
 
