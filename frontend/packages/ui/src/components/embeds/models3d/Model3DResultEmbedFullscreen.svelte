@@ -32,7 +32,11 @@
     onNavigateNext,
   }: Props = $props();
 
-  let content = $derived(data.decodedContent);
+  let content = $derived({
+    ...(data.embedData ?? {}),
+    ...(data.attrs ?? {}),
+    ...(data.decodedContent ?? {}),
+  });
   let title = $derived(typeof content.title === 'string' ? content.title : $text('embeds.models3d.search.result_title'));
   let provider = $derived(typeof content.provider === 'string' ? content.provider : '');
   let sourcePageUrl = $derived(typeof content.source_page_url === 'string' ? content.source_page_url : '');
