@@ -352,6 +352,85 @@ def test_dispatch_passes_full_checkout_ref_to_workflow(monkeypatch):
     assert "checkout_ref=abc123" in commands[0]
 
 
+def test_prod_smoke_dispatch_matches_unique_token(monkeypatch, tmp_path):
+    run_tests = load_run_tests_module()
+    commands: list[list[str]] = []
+    waited_run_ids: list[list[int]] = []
+
+    monkeypatch.setattr(run_tests, "_docker_restarted_recently", lambda: False)
+    monkeypatch.setattr(run_tests, "_git_info", lambda: ("abc123", "dev"))
+    monkeypatch.setattr(run_tests.time, "sleep", lambda _seconds: None)
+
+    def fake_run(command, **_kwargs):
+        commands.append(command)
+        return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+    monkeypatch.setattr(run_tests.subprocess, "run", fake_run)
+
+    class FakeClient:
+        def __init__(self):
+            self.recent_run_calls = 0
+
+        def _recent_run_ids(self, limit=5, workflow=run_tests.WORKFLOW_NAME):
+            return [111]
+
+        def _recent_runs(self, limit=5, workflow=run_tests.WORKFLOW_NAME):
+            token = next(
+                item.removeprefix("dispatch_token=")
+                for item in commands[0]
+                if item.startswith("dispatch_token=")
+            )
+            return [
+                {"databaseId": 222, "displayTitle": "Prod smoke paid-chat prod-other"},
+                {"databaseId": 333, "displayTitle": f"Prod smoke paid-chat {token}"},
+            ]
+
+        def wait_for_runs(self, run_ids, **_kwargs):
+            waited_run_ids.append(run_ids)
+            return {run_ids[0]: {"status": "completed", "conclusion": "success"}}
+
+        def download_artifact(self, _run_id, _artifact_name, artifact_dir):
+            results_dir = artifact_dir / "test-results"
+            results_dir.mkdir(parents=True)
+            (results_dir / "paid-chat.json").write_text(
+                '{"status":"passed","scenarios":{"paid_chat":{"status":"passed"}}}',
+                encoding="utf-8",
+            )
+            return artifact_dir
+
+        def get_failed_job_error(self, _run_id):
+            return ""
+
+    class FakeNotification:
+        discord_webhook_prod_smoke = None
+
+        def _send_summary_to_discord(self, *_args, **_kwargs):
+            return None
+
+        def send_prod_failure_email(self, *_args, **_kwargs):
+            return None
+
+        def send_per_test_md_messages(self, *_args, **_kwargs):
+            return None
+
+    monkeypatch.setattr(run_tests, "GitHubActionsClient", FakeClient)
+
+    result = run_tests._run_prod_smoke_suite(
+        FakeNotification(),
+        force=True,
+        suite=run_tests.PROD_SMOKE_SUITE_PAID_CHAT,
+        archive_dir=tmp_path,
+        mode_flag="prod-paid-chat",
+        mode_label="prod paid chat",
+        display_title="Prod paid chat",
+    )
+
+    assert result == 0
+    assert "suite=paid-chat" in commands[0]
+    assert any(item.startswith("dispatch_token=prod-paid-chat-") for item in commands[0])
+    assert waited_run_ids == [[333]]
+
+
 def test_preflight_account_payload_deduplicates_emails():
     run_tests = load_run_tests_module()
 

@@ -26,7 +26,9 @@ Usage:
     python3 scripts/tests.py run --daily                   # cron mode (3 AM nightly)
     python3 scripts/tests.py run --daily --force           # skip commit check
     python3 scripts/tests.py run --hourly-dev              # hourly dev smoke (4 specs)
-    python3 scripts/tests.py run --hourly-prod             # hourly prod smoke
+    python3 scripts/tests.py run --hourly-prod             # free hourly prod smoke (legacy alias)
+    python3 scripts/tests.py run --prod-paid-chat          # paid prod chat smoke (scheduled slots)
+    python3 scripts/tests.py run --prod-app-skill          # prod CLI app-skill smoke (daily slot)
     python3 scripts/tests.py run --hourly-dev --dry-run-notify  # test Discord wiring
     python3 scripts/tests.py run --max-concurrent 10       # override batch size
     python3 scripts/tests.py run --no-fail-fast            # run all batches
@@ -57,6 +59,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
+from zoneinfo import ZoneInfo
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -69,6 +72,8 @@ SPEC_DIR = PROJECT_ROOT / "frontend" / "apps" / "web_app" / "tests"
 LOCKFILE = Path("/tmp/openmates-daily-tests.lock")
 LOCKFILE_HOURLY_DEV = Path("/tmp/openmates-hourly-dev-tests.lock")
 LOCKFILE_HOURLY_PROD = Path("/tmp/openmates-hourly-prod-tests.lock")
+LOCKFILE_PROD_PAID_CHAT = Path("/tmp/openmates-prod-paid-chat-tests.lock")
+LOCKFILE_PROD_APP_SKILL = Path("/tmp/openmates-prod-app-skill-tests.lock")
 # Written by the Claude Code docker-restart-marker hook whenever a
 # `docker compose down/restart/stop` command is detected. Hourly smoke
 # runs check this file and skip if Docker was restarted too recently.
@@ -83,6 +88,9 @@ ESSENTIAL_TEST_KEYWORDS = ("signup", "login", "chat-flow")
 WORKFLOW_NAME = "playwright-spec.yml"
 CLI_INTEGRATION_SPEC = "__cli_integration_code_docs__"
 PROD_SMOKE_WORKFLOW = "prod-smoke.yml"
+PROD_SMOKE_SUITE_FREE_HOURLY = "free-hourly"
+PROD_SMOKE_SUITE_PAID_CHAT = "paid-chat"
+PROD_SMOKE_SUITE_APP_SKILL_WEB_SEARCH = "app-skill-web-search"
 GH_REPO = "glowingkitty/OpenMates"
 GH_BRANCH = "dev"
 MAX_ACCOUNTS = 20
@@ -134,7 +142,14 @@ HOURLY_DEV_SPECS: list[str] = [
 # Where each hourly mode parks its result archives + heartbeat marker.
 HOURLY_DEV_DIR = RESULTS_DIR / "hourly-dev"
 HOURLY_PROD_DIR = RESULTS_DIR / "hourly-prod"
+PROD_PAID_CHAT_DIR = RESULTS_DIR / "prod-paid-chat"
+PROD_APP_SKILL_DIR = RESULTS_DIR / "prod-app-skill"
 HOURLY_ARCHIVE_RETENTION_DAYS = 7
+BERLIN_TZ = ZoneInfo("Europe/Berlin")
+PROD_FREE_HOURLY_START_HOUR = 6
+PROD_FREE_HOURLY_END_HOUR = 23
+PROD_PAID_CHAT_HOURS = frozenset({7, 13, 19})
+PROD_APP_SKILL_HOURS = frozenset({9})
 
 
 # ---------------------------------------------------------------------------
@@ -2077,6 +2092,35 @@ class NotificationService:
         else:
             _log("No email credentials available — skipping urgent essential-flow email", "WARN")
 
+    def send_prod_failure_email(self, result: RunResult, mode_label: str, run_url: Optional[str] = None) -> None:
+        """Send a production smoke failure email from the dev-server runner."""
+        if _problem_count(result.summary) == 0:
+            return
+        if not self.admin_email:
+            _log("ADMIN_NOTIFY_EMAIL not set — cannot send prod smoke failure email", "ERROR")
+            return
+
+        subject = f"[OpenMates] {mode_label} FAILED"
+        text = self._build_summary_text(result)
+        if run_url:
+            text = f"{text}\nGitHub Actions run: {run_url}\n"
+        html = self._build_summary_html(result)
+        if run_url:
+            html = html.replace(
+                "</body></html>",
+                f'<p><a href="{run_url}" style="color:#60a5fa">View GitHub Actions run</a></p></body></html>',
+            )
+
+        if self.brevo_api_key:
+            self._send_via_brevo(subject, text, html)
+        elif self.internal_token:
+            payload = self._build_internal_api_payload(result)
+            payload["subject_override"] = subject
+            payload["run_url"] = run_url
+            self._send_via_internal_api("dispatch-test-summary-email", payload)
+        else:
+            _log("No email credentials available — cannot send prod smoke failure email", "ERROR")
+
     def push_to_openobserve(self, result: RunResult) -> None:
         """Push test run summary to OpenObserve via internal API."""
         if not self.internal_token:
@@ -3338,6 +3382,13 @@ def _archive_hourly_run(archive_dir: Path, result: RunResult) -> Path:
     return run_file
 
 
+def _display_path(path: Path) -> str:
+    try:
+        return str(path.relative_to(PROJECT_ROOT))
+    except ValueError:
+        return str(path)
+
+
 def _heartbeat_should_fire(archive_dir: Path) -> bool:
     """Return True at most once per UTC day.
 
@@ -3428,7 +3479,7 @@ def run_hourly_dev_mode(notification: NotificationService, force: bool) -> int:
     )
 
     archive_path = _archive_hourly_run(HOURLY_DEV_DIR, result)
-    _log(f"Archived hourly-dev run to {archive_path.relative_to(PROJECT_ROOT)}")
+    _log(f"Archived hourly-dev run to {_display_path(archive_path)}")
 
     s = result.summary
     print()
@@ -3480,23 +3531,28 @@ def run_hourly_dev_mode(notification: NotificationService, force: bool) -> int:
     return 1 if problem_count > 0 else 0
 
 
-# prod-smoke.yml writes one playwright JSON file per spec into the artifact:
-# test-results/{reachability,signup}.json. We use these as the source of
-# truth for per-spec status. Step `conclusion` is unreliable here because
-# every step uses `continue-on-error: true && exit 0`, so all step
-# conclusions are `success` even when the underlying spec failed.
+# prod-smoke.yml writes one JSON file per selected suite into the artifact:
+# test-results/{reachability,paid-chat,app-skill-web-search}.json. We use these
+# as the source of truth for per-suite status. Step `conclusion` is unreliable
+# here because selected steps use `continue-on-error: true && exit 0`, so step
+# conclusions are `success` even when the underlying command failed.
 PROD_SMOKE_SPECS: list[tuple[str, str, str]] = [
     # (key, human-readable label, spec filename)
     ("reachability", "reachability spec", "prod-smoke-reachability.spec.ts"),
-    (
-        "signup",
-        "signup + gift card + chat + login + history + chat + delete spec",
-        "prod-smoke-signup-giftcard-chat.spec.ts",
-    ),
+    ("paid-chat", "CLI paid chat smoke", "verify_prod_cli_smoke.py"),
+    ("app-skill-web-search", "CLI web-search app-skill smoke", "verify_prod_cli_smoke.py"),
 ]
+PROD_SMOKE_SPECS_BY_SUITE: dict[str, list[tuple[str, str, str]]] = {
+    PROD_SMOKE_SUITE_FREE_HOURLY: [PROD_SMOKE_SPECS[0]],
+    PROD_SMOKE_SUITE_PAID_CHAT: [PROD_SMOKE_SPECS[1]],
+    PROD_SMOKE_SUITE_APP_SKILL_WEB_SEARCH: [PROD_SMOKE_SPECS[2]],
+}
 
 
-def _parse_prod_smoke_artifact(art_path: Path) -> list[dict]:
+def _parse_prod_smoke_artifact(
+    art_path: Path,
+    specs: Optional[list[tuple[str, str, str]]] = None,
+) -> list[dict]:
     """Parse per-spec results from a downloaded prod-smoke artifact.
 
     Returns one dict per spec in the order they ran:
@@ -3534,7 +3590,7 @@ def _parse_prod_smoke_artifact(art_path: Path) -> list[dict]:
         return []
 
     out: list[dict] = []
-    for spec_key, spec_label, spec_filename in PROD_SMOKE_SPECS:
+    for spec_key, spec_label, spec_filename in (specs or PROD_SMOKE_SPECS):
         json_path = base / f"{spec_key}.json"
         if not json_path.is_file() or json_path.stat().st_size == 0:
             out.append({
@@ -3580,6 +3636,35 @@ def _parse_prod_smoke_artifact(art_path: Path) -> list[dict]:
             })
             continue
 
+        # CLI verifier JSON: {status, scenarios: {name: {status, error?}}}
+        if "scenarios" in data and data.get("status") in {"passed", "failed"}:
+            scenarios = data.get("scenarios") if isinstance(data.get("scenarios"), dict) else {}
+            failed_scenarios = [
+                (name, value)
+                for name, value in scenarios.items()
+                if isinstance(value, dict) and value.get("status") != "passed"
+            ]
+            first_error = ""
+            if failed_scenarios:
+                scenario_name, scenario_data = failed_scenarios[0]
+                first_error = str(scenario_data.get("error") or f"{scenario_name} failed")
+            passed_count = sum(
+                1
+                for value in scenarios.values()
+                if isinstance(value, dict) and value.get("status") == "passed"
+            )
+            failed_count = len(failed_scenarios)
+            out.append({
+                "key": spec_key,
+                "filename": spec_filename,
+                "name": spec_label,
+                "status": "passed" if data.get("status") == "passed" else "failed",
+                "error": first_error,
+                "passed": passed_count,
+                "failed": failed_count,
+            })
+            continue
+
         # Playwright JSON: stats.expected = passed, stats.unexpected = failed
         stats = data.get("stats", {}) or {}
         expected = int(stats.get("expected", 0) or 0)
@@ -3618,14 +3703,53 @@ def _parse_prod_smoke_artifact(art_path: Path) -> list[dict]:
     return out
 
 
-def run_hourly_prod_mode(notification: NotificationService, force: bool) -> int:
-    """Hourly prod smoke: dispatch the existing prod-smoke.yml workflow once
-    and report its result. The workflow internally runs all 3 prod specs.
-    """
+def _berlin_now() -> datetime:
+    return datetime.now(BERLIN_TZ)
+
+
+def _skip_outside_prod_schedule(
+    *,
+    force: bool,
+    mode_label: str,
+    allowed_hours: Optional[frozenset[int]] = None,
+    hour_range: Optional[tuple[int, int]] = None,
+) -> bool:
+    if force:
+        return False
+    now = _berlin_now()
+    if allowed_hours is not None and now.hour not in allowed_hours:
+        _log(
+            f"Skipping {mode_label}: Berlin hour {now.hour:02d} is outside "
+            f"scheduled hours {sorted(allowed_hours)}"
+        )
+        return True
+    if hour_range is not None:
+        start_hour, end_hour = hour_range
+        if now.hour < start_hour or now.hour > end_hour:
+            _log(
+                f"Skipping {mode_label}: Berlin hour {now.hour:02d} is outside "
+                f"{start_hour:02d}:00-{end_hour:02d}:59"
+            )
+            return True
+    return False
+
+
+def _run_prod_smoke_suite(
+    notification: NotificationService,
+    *,
+    force: bool,
+    suite: str,
+    archive_dir: Path,
+    mode_flag: str,
+    mode_label: str,
+    display_title: str,
+    dry_run: bool = False,
+) -> int:
+    """Dispatch one selected prod-smoke.yml suite and notify from dev server."""
     if not force and _docker_restarted_recently():
         _log(
             f"Docker restarted within the last {DOCKER_GRACE_MINUTES} min "
-            "— skipping hourly-prod smoke run to avoid false failures"
+            f"— skipping {mode_label} smoke run to avoid false failures"
         )
         return 0
 
@@ -3634,14 +3758,20 @@ def run_hourly_prod_mode(notification: NotificationService, force: bool) -> int:
 
     print()
     print("=" * 60)
-    print("  OpenMates Hourly Smoke — PROD")
+    print(f"  {display_title}")
     print("=" * 60)
     _log(f"Git: {git_sha}@{git_branch}")
-    _log(f"Workflow: {PROD_SMOKE_WORKFLOW}")
+    _log(f"Workflow: {PROD_SMOKE_WORKFLOW} suite={suite}")
     print()
+
+    if dry_run:
+        _log("Dry run — would dispatch production smoke workflow")
+        print(f"    gh workflow run {PROD_SMOKE_WORKFLOW} --repo {GH_REPO} --ref {GH_BRANCH} -f suite={suite}")
+        return 0
 
     client = GitHubActionsClient()
     pre_ids = client._recent_run_ids(limit=5, workflow=PROD_SMOKE_WORKFLOW)
+    dispatch_token = f"prod-{suite}-{os.getpid()}-{time.time_ns()}"
 
     new_run_id: Optional[int] = None
     suite_result: Optional[SuiteResult] = None  # set by failure paths OR by artifact parser
@@ -3649,7 +3779,9 @@ def run_hourly_prod_mode(notification: NotificationService, force: bool) -> int:
 
     rc = subprocess.run(
         ["gh", "workflow", "run", PROD_SMOKE_WORKFLOW,
-         "--repo", GH_REPO, "--ref", GH_BRANCH],
+         "--repo", GH_REPO, "--ref", GH_BRANCH,
+         "-f", f"suite={suite}",
+         "-f", f"dispatch_token={dispatch_token}"],
         capture_output=True, text=True,
     )
     if rc.returncode != 0:
@@ -3663,15 +3795,22 @@ def run_hourly_prod_mode(notification: NotificationService, force: bool) -> int:
                     "error": f"Dispatch failed: {detail}"}],
         )
     else:
-        # Find the new run ID
-        time.sleep(5)
-        for _ in range(10):
+        # Find the exact dispatched run by token. Multiple prod suites can be
+        # scheduled in the same Berlin hour, so selecting the newest run is
+        # race-prone.
+        for _ in range(15):
+            new_run_id = _matching_dispatched_run_id(
+                client._recent_runs(limit=30, workflow=PROD_SMOKE_WORKFLOW),
+                dispatch_token,
+            )
+            if new_run_id is not None:
+                break
+            time.sleep(2)
+        if new_run_id is None:
             post_ids = client._recent_run_ids(limit=10, workflow=PROD_SMOKE_WORKFLOW)
             fresh = [rid for rid in post_ids if rid not in pre_ids]
-            if fresh:
+            if len(fresh) == 1:
                 new_run_id = fresh[0]
-                break
-            time.sleep(3)
 
         if new_run_id is None:
             _log("Could not find dispatched prod-smoke run", "ERROR")
@@ -3682,7 +3821,7 @@ def run_hourly_prod_mode(notification: NotificationService, force: bool) -> int:
                         "error": "Could not find dispatched workflow run"}],
             )
         else:
-            _log(f"Waiting for prod-smoke run {new_run_id}...")
+            _log(f"Waiting for prod-smoke run {new_run_id} ({suite})...")
             statuses = client.wait_for_runs(
                 [new_run_id], fail_fast=False,
                 timeout=PROD_SMOKE_RUN_TIMEOUT,
@@ -3707,7 +3846,8 @@ def run_hourly_prod_mode(notification: NotificationService, force: bool) -> int:
         art_path = client.download_artifact(
             new_run_id, f"prod-smoke-results-{new_run_id}", artifact_dir
         )
-        spec_results = _parse_prod_smoke_artifact(art_path) if art_path else []
+        selected_specs = PROD_SMOKE_SPECS_BY_SUITE.get(suite, PROD_SMOKE_SPECS)
+        spec_results = _parse_prod_smoke_artifact(art_path, selected_specs) if art_path else []
         # Job-level log snippet — used when an individual spec's JSON is
         # empty/missing (the spec crashed before producing structured output).
         if conclusion != "success":
@@ -3759,24 +3899,24 @@ def run_hourly_prod_mode(notification: NotificationService, force: bool) -> int:
                 )
 
     result = ResultAggregator.build_run_result(
-        suites={"prod-smoke": suite_result},
+        suites={suite: suite_result},
         run_id=run_id,
         git_sha=git_sha,
         git_branch=git_branch,
         environment="production",
         duration=0.0,  # we don't time the GH workflow itself
-        flags={"mode": "hourly-prod", "force": force},
+        flags={"mode": mode_flag, "suite": suite, "force": force},
     )
 
-    archive_path = _archive_hourly_run(HOURLY_PROD_DIR, result)
-    _log(f"Archived hourly-prod run to {archive_path.relative_to(PROJECT_ROOT)}")
+    archive_path = _archive_hourly_run(archive_dir, result)
+    _log(f"Archived {mode_flag} run to {_display_path(archive_path)}")
 
     s = result.summary
     problem_count = _problem_count(s)
     print()
     print("=" * 60)
     icon = "✓" if problem_count == 0 else "✗"
-    print(f"  {icon} hourly-prod: {s['passed']}/{s['total']} passed, "
+    print(f"  {icon} {mode_flag}: {s['passed']}/{s['total']} passed, "
           f"{_problem_summary_label(s)}")
     print("=" * 60)
     print()
@@ -3822,8 +3962,12 @@ def run_hourly_prod_mode(notification: NotificationService, force: bool) -> int:
         else None
     )
 
-    post_on_success = force or _heartbeat_should_fire(HOURLY_PROD_DIR)
-    state_file = HOURLY_PROD_DIR / DISCORD_STATE_FILE_NAME
+    # Production notifications are failure-only. Use --dry-run-notify to test
+    # webhook wiring instead of sending green heartbeat messages from cron.
+    post_on_success = False
+    state_file = archive_dir / DISCORD_STATE_FILE_NAME
+    if problem_count > 0 and not notification.discord_webhook_prod_smoke:
+        _log("DISCORD_WEBHOOK_PROD_SMOKE not set — cannot send prod smoke Discord failure", "ERROR")
     try:
         # Lightweight summary first (overview of which specs failed +
         # clickable links). Skipped automatically when the failure set is
@@ -3831,13 +3975,14 @@ def run_hourly_prod_mode(notification: NotificationService, force: bool) -> int:
         notification._send_summary_to_discord(
             result,
             webhook_url=notification.discord_webhook_prod_smoke,
-            mode_label="prod hourly",
+            mode_label=mode_label,
             post_on_success=post_on_success,
             env_var_name="DISCORD_WEBHOOK_PROD_SMOKE",
             run_url=run_url,
             state_file=state_file,
-            suite_name_for_dedup="prod-smoke",
+            suite_name_for_dedup=suite,
         )
+        notification.send_prod_failure_email(result, mode_label, run_url)
         # Always call the per-test sender so recoveries get reported
         # and the state file gets pruned even on a green tick. When
         # there are no current failures and no screenshots, the call
@@ -3845,7 +3990,7 @@ def run_hourly_prod_mode(notification: NotificationService, force: bool) -> int:
         notification.send_per_test_md_messages(
             result,
             webhook_url=notification.discord_webhook_prod_smoke,
-            suite_name="prod-smoke",
+            suite_name=suite,
             # staged_root may be None on a fully-green run; pass a
             # non-existent path so the per-test builder simply finds
             # nothing and the recovery scan still runs.
@@ -3860,6 +4005,71 @@ def run_hourly_prod_mode(notification: NotificationService, force: bool) -> int:
             shutil.rmtree(staged_root, ignore_errors=True)
 
     return 1 if problem_count > 0 else 0
+
+
+def run_hourly_prod_mode(notification: NotificationService, force: bool, dry_run: bool = False) -> int:
+    """Backward-compatible alias for the free production hourly smoke."""
+    return run_prod_free_hourly_mode(notification, force=force, dry_run=dry_run)
+
+
+def run_prod_free_hourly_mode(notification: NotificationService, force: bool, dry_run: bool = False) -> int:
+    """Free prod smoke: hourly between 06:00 and 23:59 Berlin time."""
+    if _skip_outside_prod_schedule(
+        force=force,
+        mode_label="prod-free-hourly",
+        hour_range=(PROD_FREE_HOURLY_START_HOUR, PROD_FREE_HOURLY_END_HOUR),
+    ):
+        return 0
+    return _run_prod_smoke_suite(
+        notification,
+        force=force,
+        suite=PROD_SMOKE_SUITE_FREE_HOURLY,
+        archive_dir=HOURLY_PROD_DIR,
+        mode_flag="prod-free-hourly",
+        mode_label="prod free hourly",
+        display_title="OpenMates Free Hourly Smoke — PROD",
+        dry_run=dry_run,
+    )
+
+
+def run_prod_paid_chat_mode(notification: NotificationService, force: bool, dry_run: bool = False) -> int:
+    """Paid prod chat smoke: three Berlin-time slots per day."""
+    if _skip_outside_prod_schedule(
+        force=force,
+        mode_label="prod-paid-chat",
+        allowed_hours=PROD_PAID_CHAT_HOURS,
+    ):
+        return 0
+    return _run_prod_smoke_suite(
+        notification,
+        force=force,
+        suite=PROD_SMOKE_SUITE_PAID_CHAT,
+        archive_dir=PROD_PAID_CHAT_DIR,
+        mode_flag="prod-paid-chat",
+        mode_label="prod paid chat",
+        display_title="OpenMates Paid Chat Smoke — PROD",
+        dry_run=dry_run,
+    )
+
+
+def run_prod_app_skill_mode(notification: NotificationService, force: bool, dry_run: bool = False) -> int:
+    """Production app-skill smoke: direct CLI web-search command, daily by default."""
+    if _skip_outside_prod_schedule(
+        force=force,
+        mode_label="prod-app-skill",
+        allowed_hours=PROD_APP_SKILL_HOURS,
+    ):
+        return 0
+    return _run_prod_smoke_suite(
+        notification,
+        force=force,
+        suite=PROD_SMOKE_SUITE_APP_SKILL_WEB_SEARCH,
+        archive_dir=PROD_APP_SKILL_DIR,
+        mode_flag="prod-app-skill",
+        mode_label="prod app-skill",
+        display_title="OpenMates App-Skill Smoke — PROD",
+        dry_run=dry_run,
+    )
 
 
 def run_dry_run_notify_mode(notification: NotificationService, mode: str) -> int:
@@ -5740,7 +5950,13 @@ def main() -> int:
                              "DISCORD_WEBHOOK_DEV_SMOKE). See OPE-349.")
     parser.add_argument("--hourly-prod", action="store_true",
                         help="Hourly PROD smoke (dispatches prod-smoke.yml, "
-                             "posts on failure to DISCORD_WEBHOOK_PROD_SMOKE).")
+                             "free reachability suite; legacy alias for --prod-free-hourly).")
+    parser.add_argument("--prod-free-hourly", action="store_true",
+                        help="Free production smoke, hourly between 06:00 and 23:59 Europe/Berlin.")
+    parser.add_argument("--prod-paid-chat", action="store_true",
+                        help="Paid production CLI chat smoke, scheduled at 07:00, 13:00, and 19:00 Europe/Berlin.")
+    parser.add_argument("--prod-app-skill", action="store_true",
+                        help="Production CLI app-skill smoke for web search, scheduled once daily by default.")
     parser.add_argument("--dry-run-notify", action="store_true",
                         help="Send a one-shot ✅ test embed to the Discord "
                              "webhook of the chosen mode (--daily / --hourly-dev "
@@ -5771,9 +5987,20 @@ def main() -> int:
 
     # Reject incompatible mode combinations early so the user gets a clear
     # error instead of weird half-runs.
-    mode_flags = sum(int(x) for x in (args.daily, args.hourly_dev, args.hourly_prod))
+    mode_flags = sum(int(x) for x in (
+        args.daily,
+        args.hourly_dev,
+        args.hourly_prod,
+        args.prod_free_hourly,
+        args.prod_paid_chat,
+        args.prod_app_skill,
+    ))
     if mode_flags > 1:
-        _log("Pass at most one of: --daily, --hourly-dev, --hourly-prod", "ERROR")
+        _log(
+            "Pass at most one of: --daily, --hourly-dev, --hourly-prod, "
+            "--prod-free-hourly, --prod-paid-chat, --prod-app-skill",
+            "ERROR",
+        )
         return 2
     if args.account is not None and not args.spec:
         _log("--account requires --spec so one GitHub Actions run maps to one explicit test-account slot", "ERROR")
@@ -5793,9 +6020,15 @@ def main() -> int:
             return run_dry_run_notify_mode(notification, "hourly-dev")
         if args.hourly_prod:
             return run_dry_run_notify_mode(notification, "hourly-prod")
+        if args.prod_free_hourly or args.prod_paid_chat or args.prod_app_skill:
+            return run_dry_run_notify_mode(notification, "hourly-prod")
         if args.daily:
             return run_dry_run_notify_mode(notification, "daily")
-        _log("--dry-run-notify requires one of: --daily, --hourly-dev, --hourly-prod", "ERROR")
+        _log(
+            "--dry-run-notify requires one of: --daily, --hourly-dev, --hourly-prod, "
+            "--prod-free-hourly, --prod-paid-chat, --prod-app-skill",
+            "ERROR",
+        )
         return 2
 
     # --hourly-dev: separate lockfile so it never collides with --daily or
@@ -5814,17 +6047,45 @@ def main() -> int:
             if lock_fd:
                 lock_fd.close()
 
-    # --hourly-prod: separate lockfile (same rationale as --hourly-dev).
-    if args.hourly_prod:
+    # --hourly-prod / --prod-free-hourly: separate lockfile (same rationale as --hourly-dev).
+    if args.hourly_prod or args.prod_free_hourly:
         lock_fd = None
         try:
             lock_fd = open(LOCKFILE_HOURLY_PROD, "w")
             fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except (IOError, OSError):
-            _log("Another --hourly-prod run is in progress — skipping this hour")
+            _log("Another prod free-hourly run is in progress — skipping this tick")
             return 0
         try:
-            return run_hourly_prod_mode(NotificationService(), force=args.force)
+            return run_prod_free_hourly_mode(NotificationService(), force=args.force, dry_run=args.dry_run)
+        finally:
+            if lock_fd:
+                lock_fd.close()
+
+    if args.prod_paid_chat:
+        lock_fd = None
+        try:
+            lock_fd = open(LOCKFILE_PROD_PAID_CHAT, "w")
+            fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except (IOError, OSError):
+            _log("Another prod paid-chat run is in progress — skipping this tick")
+            return 0
+        try:
+            return run_prod_paid_chat_mode(NotificationService(), force=args.force, dry_run=args.dry_run)
+        finally:
+            if lock_fd:
+                lock_fd.close()
+
+    if args.prod_app_skill:
+        lock_fd = None
+        try:
+            lock_fd = open(LOCKFILE_PROD_APP_SKILL, "w")
+            fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except (IOError, OSError):
+            _log("Another prod app-skill run is in progress — skipping this tick")
+            return 0
+        try:
+            return run_prod_app_skill_mode(NotificationService(), force=args.force, dry_run=args.dry_run)
         finally:
             if lock_fd:
                 lock_fd.close()

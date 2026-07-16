@@ -101,7 +101,9 @@ Continuous automated maintenance reduces manual toil: deploy failures are auto-i
 | `03:20 Sun`                   | `weekly-technical-debt.sh`             | Deterministic debt scan + OpenCode top 5 recommendations |
 | `05:15 Mon`                   | `weekly-contract-audits.sh`            | Deterministic contract audits + OpenCode recommendations |
 | `* * * * *`                   | `update_obsidian_daily_note.py`        | Refresh Obsidian daily note stats/activity |
-| `0 8-18 * * *` (GHA)          | `.github/workflows/prod-smoke.yml`     | Hourly **prod** smoke (reachability + signup+gift card + login+chat), 10–20 Berlin (OPE-76) |
+| hourly, 06–23 Berlin          | `tests.py run --prod-free-hourly`      | Free production reachability smoke; dispatches `prod-smoke.yml` and dev server sends alerts |
+| 07, 13, 19 Berlin             | `tests.py run --prod-paid-chat`        | Paid production CLI chat smoke with one tiny `PONG` prompt |
+| 09 Berlin                     | `tests.py run --prod-app-skill`        | Production CLI `apps web search` app-skill smoke |
 | `04:30 daily` (Dependabot)     | `.github/dependabot.yml`               | Daily npm/pnpm version update PRs with cooldown |
 | `*/1h (xx:30)`                | `check-dependabot-daily.sh`            | Process Dependabot security alerts        |
 | `*/1h (xx:35)`                | `check-eu-vulns-daily.sh`              | EU/OSV/NVD vulnerability detection        |

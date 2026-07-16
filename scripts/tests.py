@@ -745,6 +745,14 @@ def print_triage(triage: dict[str, Any], as_json: bool = False) -> None:
 def infer_run_suite_and_tests(args: list[str]) -> tuple[str, list[str]]:
     suite = "all"
     tests: list[str] = []
+    if "--hourly-prod" in args or "--prod-free-hourly" in args:
+        suite = "prod-free-hourly"
+    elif "--prod-paid-chat" in args:
+        suite = "prod-paid-chat"
+    elif "--prod-app-skill" in args:
+        suite = "prod-app-skill"
+    elif "--hourly-dev" in args:
+        suite = "hourly-dev"
     for index, arg in enumerate(args):
         if arg == "--suite" and index + 1 < len(args):
             suite = args[index + 1]
@@ -768,6 +776,10 @@ def command_run(runner_args: list[str]) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
+    raw_argv = list(sys.argv[1:] if argv is None else argv)
+    if raw_argv and raw_argv[0] == "run":
+        return command_run(raw_argv[1:])
+
     parser = argparse.ArgumentParser(description="OpenMates unified test control plane")
     sub = parser.add_subparsers(dest="command", required=True)
 
@@ -800,7 +812,7 @@ def main(argv: list[str] | None = None) -> int:
     run_parser = sub.add_parser("run", help="Run tests through the unified control plane and record state")
     run_parser.add_argument("runner_args", nargs=argparse.REMAINDER)
 
-    args = parser.parse_args(argv)
+    args = parser.parse_args(raw_argv)
     if args.command == "status":
         print_status(load_state())
         return 0
