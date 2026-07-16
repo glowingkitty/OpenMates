@@ -18,6 +18,7 @@ import {
   hasFullscreenComponent,
   resolveRegistryKey,
 } from "../../../../services/embedFullscreenResolver";
+import { normalizeEmbedType as registryNormalizeEmbedType } from "../../../../data/embedRegistry.generated";
 import {
   downloadCodeFilesAsZip,
   type CodeFileData,
@@ -6216,6 +6217,7 @@ export class GroupRenderer implements EmbedRenderer {
   ): Promise<void> {
     // Determine embed type from attrs
     const embedType = attrs.type === "web-website" ? "website" : attrs.type;
+    const normalizedEmbedType = registryNormalizeEmbedType(embedType) || embedType;
 
     // For preview embeds (contentRef starts with 'preview:'), decodedContent is
     // always null because preview embeds are not stored in EmbedStore. We
@@ -6246,13 +6248,13 @@ export class GroupRenderer implements EmbedRenderer {
       : attrs.id;
     let targetEmbedId = rawEmbedId;
     let focusChildEmbedId: string | undefined;
-    let targetEmbedType = embedType;
+    let targetEmbedType = normalizedEmbedType;
     let targetEmbedData = embedData;
     let targetDecodedContent = finalDecodedContent;
     let targetAttrs: EmbedNodeAttributes | undefined = attrs;
 
     const directRegistryKey = resolveRegistryKey(
-      embedType,
+      normalizedEmbedType,
       finalDecodedContent ?? undefined,
     );
     const canOpenDirectly = !!directRegistryKey &&
@@ -6261,6 +6263,8 @@ export class GroupRenderer implements EmbedRenderer {
     if (rawEmbedId && attrs.contentRef?.startsWith("embed:") && !canOpenDirectly) {
       try {
         const resolvedTarget = await resolveEmbedFullscreenTarget(rawEmbedId, {
+          embedType: normalizedEmbedType,
+          decodedContent: finalDecodedContent ?? undefined,
           exampleResolver: resolveExampleFullscreenTarget,
         });
         targetEmbedId = resolvedTarget.targetEmbedId;
