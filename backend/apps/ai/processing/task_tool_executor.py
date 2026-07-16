@@ -46,6 +46,12 @@ def is_task_tool_name(tool_name: str) -> bool:
     return tool_name.replace("_", "-") in TASK_TOOL_CANONICAL_NAMES
 
 
+def is_legacy_task_runtime_tool_name(tool_name: str) -> bool:
+    """Return whether a tool name belongs to Tasks runtime tools, not Tasks app skills."""
+    canonical_name = tool_name.replace(":", "-").replace("|", "-").replace(".", "-").replace("_", "-")
+    return is_task_tool_name(tool_name) or is_task_tool_name(canonical_name)
+
+
 def task_tool_name_variants(tool_name: str) -> set[str]:
     if not is_task_tool_name(tool_name):
         return set()

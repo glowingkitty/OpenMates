@@ -68,6 +68,7 @@ from backend.apps.ai.processing.task_tool_executor import (
     TASK_TOOL_CANONICAL_NAMES,
     TASK_TOOL_RESOLVER_APP_ID,
     execute_task_tool_call,
+    is_legacy_task_runtime_tool_name,
     is_task_tool_name,
     publish_task_tool_result,
     task_tool_skill_id,
@@ -3352,7 +3353,7 @@ async def handle_main_processing(
 
                     if app_id == "system" and skill_id == "activate_focus_mode":
                         focus_activation_seen_this_turn = True
-                    elif app_id == TASK_TOOL_RESOLVER_APP_ID:
+                    elif is_legacy_task_runtime_tool_name(tool_name):
                         logger.debug(f"{log_prefix} INLINE: Task tool '{tool_name}' does not use app-skill placeholders.")
                         continue
                     elif focus_activation_seen_this_turn and app_id != "system":
@@ -3945,7 +3946,7 @@ async def handle_main_processing(
                 app_id = app_id.strip()
                 skill_id = skill_id.strip()
 
-                if app_id == TASK_TOOL_RESOLVER_APP_ID or is_task_tool_name(tool_name):
+                if is_legacy_task_runtime_tool_name(tool_name):
                     if task_tool_context is None:
                         tool_result_content_str = json.dumps({
                             "status": "rejected",

@@ -23,6 +23,7 @@ from backend.apps.ai.processing.task_runtime_tools import (
 from backend.apps.ai.processing.task_tool_executor import (
     _check_expected_version,
     execute_task_tool_call,
+    is_legacy_task_runtime_tool_name,
     is_task_tool_name,
     task_tool_name_variants,
 )
@@ -193,6 +194,13 @@ def test_task_tool_allow_list_preserves_provider_emitted_name() -> None:
     assert "task-create" in allowed_names
     assert is_task_tool_name(TASK_TOOL_CREATE)
     assert is_task_tool_name("task-create")
+
+
+def test_tasks_app_skill_names_are_not_legacy_task_runtime_tools() -> None:
+    assert is_legacy_task_runtime_tool_name("task_create")
+    assert is_legacy_task_runtime_tool_name("task-create")
+    assert not is_legacy_task_runtime_tool_name("tasks_create")
+    assert not is_legacy_task_runtime_tool_name("tasks-create")
 
 
 def test_task_tool_schema_sanitizer_removes_google_unsupported_additional_properties() -> None:
