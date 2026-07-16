@@ -88,8 +88,8 @@ decisions:
     decided_at: "2026-07-16T00:00:00Z"
   - id: D-3
     status: active
-    decision: Report completed reachable stale accounts instead of sending the existing incomplete-signup email templates.
-    reason: Completed stale accounts need stale-account-specific copy; reusing incomplete-signup reminders would mislead users.
+    decision: Reachable stale accounts use inactive-account deletion copy and campaign identity inactive_account_deletion_v1.
+    reason: Completed stale accounts need stale-account-specific copy; reusing incomplete-signup reminders would mislead users and old delivery history must not suppress the new warning flow.
     decided_at: "2026-07-16T13:36:25Z"
 
 attempts:
@@ -99,6 +99,12 @@ attempts:
     outcome: succeeded
     recorded_at: "2026-07-16T00:00:00Z"
     summary: Found 281 protected users and 1299 stale candidates under the proposed policy before chat/message cross-check.
+  - id: ATTEMPT-2
+    task_id: TASK-1
+    approach: Replace incomplete-signup deletion templates with inactive-account templates and rebuild generated locale JSON.
+    outcome: succeeded
+    recorded_at: "2026-07-16T19:33:00Z"
+    summary: New inactive-account templates rendered successfully and 4 English test emails were sent to test@openmates.org.
 
 handoff:
   current_task_id: TASK-1
@@ -255,9 +261,9 @@ tests:
       evidence:
         status: passed
         command: docker exec api python -m pytest /app/backend/tests/test_security_regressions.py
-        run_id: local-api-container-20260716T1336Z
-        subject_commit: beec181f42d90795e985079b817099f4877789f8
-        timestamp: "2026-07-16T13:36:25Z"
+        run_id: local-api-container-20260716T1932Z
+        subject_commit: 818338f13c02bafdcdcc3b9d14a1b50ff15d7059
+        timestamp: "2026-07-16T19:32:00Z"
   - id: T-E2E-001
     type: playwright
     file: frontend/apps/web_app/tests/signup-skip-2fa-flow.spec.ts
@@ -302,6 +308,34 @@ verifications:
       subject_commit: beec181f42d90795e985079b817099f4877789f8
       summary: "Production read-only audit found 1301 stale-by-value candidates before content guard, 180 blocked by owned chats/messages, 37 reachable zero-content candidates for email reminders, and 1084 unreachable zero-value zero-content candidates. No prod writes were made."
       timestamp: "2026-07-16T13:40:58Z"
+  - id: V-INACTIVE-EMAIL-TEMPLATE-001
+    kind: deterministic_check
+    phase: green
+    required_for_done: true
+    covers:
+      - AC-2
+    status: passed
+    evidence:
+      status: passed
+      command: docker exec api python -c "render inactive-account-deletion-reminder and inactive-account-deleted through EmailTemplateService"
+      run_id: local-api-container-20260716T1930Z
+      subject_commit: 818338f13c02bafdcdcc3b9d14a1b50ff15d7059
+      summary: Inactive-account reminder and deletion confirmation MJML rendered against generated locale JSON.
+      timestamp: "2026-07-16T19:30:00Z"
+  - id: V-INACTIVE-EMAIL-SEND-001
+    kind: deterministic_check
+    phase: green
+    required_for_done: true
+    covers:
+      - AC-2
+    status: passed
+    evidence:
+      status: passed
+      command: docker exec api python /app/backend/scripts/send_inactive_account_deletion_email_tests.py --to test@openmates.org --username Test --langs en
+      run_id: local-api-container-20260716T1933Z
+      subject_commit: 818338f13c02bafdcdcc3b9d14a1b50ff15d7059
+      summary: Sent 4 English inactive-account test emails through Brevo; skipped 0.
+      timestamp: "2026-07-16T19:33:00Z"
 
 implementation_plan:
   spec_path: docs/specs/stale-account-cleanup-policy/spec.yml

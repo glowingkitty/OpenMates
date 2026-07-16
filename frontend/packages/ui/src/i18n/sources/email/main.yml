@@ -742,6 +742,171 @@ post_purchase_security_setup.open_2fa_settings:
   sv: Ställ in 2FA
   he: הגדר אימות דו-שלבי
   verified_by_human: []
+inactive_account_deletion_reminder.subject_14d:
+  context: Subject for inactive account deletion reminder sent 14 days before deletion
+  en: Your inactive OpenMates account will be deleted in 14 days
+  de: Dein inaktives OpenMates-Konto wird in 14 Tagen gelöscht
+  verified_by_human: []
+inactive_account_deletion_reminder.headline_14d:
+  context: Headline for inactive account deletion reminder sent 14 days before deletion
+  en: Your account is scheduled for deletion
+  de: Dein Konto ist zur Löschung vorgesehen
+  verified_by_human: []
+inactive_account_deletion_reminder.deletion_time_14d:
+  context: Time until deletion for the 14-day inactive account reminder
+  en: in 14 days
+  de: in 14 Tagen
+  verified_by_human: []
+inactive_account_deletion_reminder.wait_time_14d:
+  context: Wait time phrase for the manual delete link in the 14-day reminder
+  en: 14 days
+  de: 14 Tage
+  verified_by_human: []
+inactive_account_deletion_reminder.reminder_info_14d:
+  context: Follow-up reminder schedule for the 14-day inactive account reminder
+  en: If you take no action, you will be reminded again 7 days before deletion and 1 day before deletion.
+  de: Wenn du nichts unternimmst, wirst du erneut 7 Tage vor der Löschung und 1 Tag vor der Löschung informiert.
+  verified_by_human: []
+inactive_account_deletion_reminder.subject_7d:
+  context: Subject for inactive account deletion reminder sent 7 days before deletion
+  en: Your inactive OpenMates account will be deleted in 7 days
+  de: Dein inaktives OpenMates-Konto wird in 7 Tagen gelöscht
+  verified_by_human: []
+inactive_account_deletion_reminder.headline_7d:
+  context: Headline for inactive account deletion reminder sent 7 days before deletion
+  en: Your account will be deleted soon
+  de: Dein Konto wird bald gelöscht
+  verified_by_human: []
+inactive_account_deletion_reminder.deletion_time_7d:
+  context: Time until deletion for the 7-day inactive account reminder
+  en: in 7 days
+  de: in 7 Tagen
+  verified_by_human: []
+inactive_account_deletion_reminder.wait_time_7d:
+  context: Wait time phrase for the manual delete link in the 7-day reminder
+  en: 7 days
+  de: 7 Tage
+  verified_by_human: []
+inactive_account_deletion_reminder.reminder_info_7d:
+  context: Follow-up reminder schedule for the 7-day inactive account reminder
+  en: If you take no action, you will receive one final reminder 1 day before deletion.
+  de: Wenn du nichts unternimmst, erhältst du 1 Tag vor der Löschung eine letzte Erinnerung.
+  verified_by_human: []
+inactive_account_deletion_reminder.subject_1d:
+  context: Subject for inactive account deletion final reminder sent 1 day before deletion
+  en: Your inactive OpenMates account will be deleted tomorrow
+  de: Dein inaktives OpenMates-Konto wird morgen gelöscht
+  verified_by_human: []
+inactive_account_deletion_reminder.headline_1d:
+  context: Headline for inactive account deletion final reminder sent 1 day before deletion
+  en: Final reminder before account deletion
+  de: Letzte Erinnerung vor der Kontolöschung
+  verified_by_human: []
+inactive_account_deletion_reminder.deletion_time_1d:
+  context: Time until deletion for the 1-day inactive account reminder
+  en: tomorrow
+  de: morgen
+  verified_by_human: []
+inactive_account_deletion_reminder.wait_time_1d:
+  context: Wait time phrase for the manual delete link in the 1-day reminder
+  en: 1 day
+  de: 1 Tag
+  verified_by_human: []
+inactive_account_deletion_reminder.reminder_info_1d:
+  context: Empty follow-up reminder slot for final inactive account reminder
+  en: ""
+  de: ""
+  verified_by_human: []
+inactive_account_deletion_reminder.greeting:
+  context: Greeting in inactive account deletion reminder email
+  en: Hey{greeting_name},
+  de: Hallo{greeting_name},
+  verified_by_human: []
+inactive_account_deletion_reminder.intro:
+  context: Intro paragraph in inactive account deletion reminder email
+  en: >-
+    We noticed that this OpenMates account has been inactive and currently has no credits, no usage, no active payment state, and no saved chats.
+  de: >-
+    Wir haben festgestellt, dass dieses OpenMates-Konto inaktiv ist und aktuell keine Credits, keine Nutzung, keinen aktiven Zahlungsstatus und keine gespeicherten Chats hat.
+  verified_by_human: []
+inactive_account_deletion_reminder.scheduled:
+  context: Bold scheduled deletion sentence in inactive account deletion reminder email
+  en: Your inactive account is scheduled for deletion {deletion_time_text}.
+  de: Dein inaktives Konto ist {deletion_time_text} zur Löschung vorgesehen.
+  verified_by_human: []
+inactive_account_deletion_reminder.keep_account:
+  context: Paragraph explaining how to keep an inactive account
+  en: >-
+    If you want to keep the account, log in to <a href="{finish_setup_link}" style="color: #4867CD; text-decoration: underline;">OpenMates.org</a> and start using it again before then. Adding credits, creating a chat, or using OpenMates will remove the account from this cleanup flow.
+  de: >-
+    Wenn du das Konto behalten möchtest, melde dich vor der Löschung wieder auf <a href="{finish_setup_link}" style="color: #4867CD; text-decoration: underline;">OpenMates.org</a> an und nutze es erneut. Credits hinzuzufügen, einen Chat zu erstellen oder OpenMates zu verwenden, entfernt das Konto aus diesem Aufräumprozess.
+  verified_by_human: []
+inactive_account_deletion_reminder.delete_now:
+  context: Paragraph with direct delete account link in inactive account deletion reminder email
+  en: >-
+    If you do not want to keep the account, you can delete it now from your account settings: <a href="{direct_delete_account_link}" style="color: #4867CD; text-decoration: underline;">delete account</a>.
+  de: >-
+    Wenn du das Konto nicht behalten möchtest, kannst du es jetzt in deinen Kontoeinstellungen löschen: <a href="{direct_delete_account_link}" style="color: #4867CD; text-decoration: underline;">Konto löschen</a>.
+  verified_by_human: []
+inactive_account_deletion_reminder.signoff:
+  context: Signoff in inactive account deletion reminder email
+  en: Thank you,
+  de: Danke,
+  verified_by_human: []
+inactive_account_deletion_reminder.creator_title:
+  context: Creator title shown below Marco's signature in inactive account deletion reminder email
+  en: Creator of OpenMates
+  de: Gründer von OpenMates
+  verified_by_human: []
+inactive_account_deleted.subject:
+  context: Subject for inactive account deleted confirmation email
+  en: Your inactive OpenMates account has been deleted
+  de: Dein inaktives OpenMates-Konto wurde gelöscht
+  verified_by_human: []
+inactive_account_deleted.header:
+  context: Header for inactive account deleted confirmation email
+  en: Your OpenMates account was deleted
+  de: Dein OpenMates-Konto wurde gelöscht
+  verified_by_human: []
+inactive_account_deleted.greeting:
+  context: Greeting in inactive account deleted confirmation email
+  en: Hey{greeting_name},
+  de: Hallo{greeting_name},
+  verified_by_human: []
+inactive_account_deleted.deleted_notice:
+  context: Deletion notice in inactive account deleted confirmation email
+  en: Your inactive OpenMates account has now been deleted because it remained inactive after the staged deletion reminders.
+  de: Dein inaktives OpenMates-Konto wurde jetzt gelöscht, weil es nach den gestaffelten Löschhinweisen weiterhin inaktiv war.
+  verified_by_human: []
+inactive_account_deleted.no_action:
+  context: No action required sentence in inactive account deleted confirmation email
+  en: No further action is needed.
+  de: Du musst nichts weiter tun.
+  verified_by_human: []
+inactive_account_deleted.signup_again:
+  context: Signup again paragraph in inactive account deleted confirmation email
+  en: >-
+    If you want to use OpenMates again later, you can create a new account at <a href="{signup_link}" style="color: #4867CD; text-decoration: underline;">OpenMates.org</a>.
+  de: >-
+    Wenn du OpenMates später wieder verwenden möchtest, kannst du auf <a href="{signup_link}" style="color: #4867CD; text-decoration: underline;">OpenMates.org</a> ein neues Konto erstellen.
+  verified_by_human: []
+inactive_account_deleted.newsletter:
+  context: Newsletter preference paragraph in inactive account deleted confirmation email
+  en: >-
+    This does not change your newsletter preferences. You can manage them anytime in the newsletter settings.
+  de: >-
+    Deine Newsletter-Einstellungen bleiben davon unberührt. Du kannst sie jederzeit in den Newsletter-Einstellungen verwalten.
+  verified_by_human: []
+inactive_account_deleted.signoff:
+  context: Signoff in inactive account deleted confirmation email
+  en: Thank you,
+  de: Danke,
+  verified_by_human: []
+inactive_account_deleted.creator_title:
+  context: Creator title shown below Marco's signature in inactive account deleted confirmation email
+  en: Creator of OpenMates
+  de: Gründer von OpenMates
+  verified_by_human: []
 incomplete_signup_deletion_reminder.subject_14d:
   context: Subject for incomplete signup deletion reminder sent 14 days before deletion
   en: Complete your OpenMates signup before your account is deleted

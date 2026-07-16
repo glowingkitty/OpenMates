@@ -20,33 +20,33 @@
           <mj-image width="50px" height="50px" src="icons/user.png" align="center" alt="User icon" css-class="email-icon-50" />
 
           <mj-text font-size="30px" padding-bottom="20px">
-            <mark>{{ t.email.incomplete_signup_account_deleted.header.text }}</mark>
+            <mark>{{ t.email.inactive_account_deleted.header.text }}</mark>
           </mj-text>
 
           <mj-text align="left" padding-bottom="12px">
-            {{ t.email.incomplete_signup_account_deleted.greeting.text }}
+            {{ t.email.inactive_account_deleted.greeting.text }}
           </mj-text>
 
           <mj-text align="left" padding-bottom="12px">
-            {{ t.email.incomplete_signup_account_deleted.deleted_notice.text }}
+            {{ t.email.inactive_account_deleted.deleted_notice.text }}
           </mj-text>
 
           <mj-text align="left" padding-bottom="12px">
-            {{ t.email.incomplete_signup_account_deleted.no_action.text }}
+            {{ t.email.inactive_account_deleted.no_action.text }}
           </mj-text>
 
           <mj-text align="left" padding-bottom="12px">
-            {{ t.email.incomplete_signup_account_deleted.signup_again.text }}
+            {{ t.email.inactive_account_deleted.signup_again.text }}
           </mj-text>
 
           <mj-text align="left" padding-bottom="12px">
-            {{ t.email.incomplete_signup_account_deleted.newsletter.text }}
+            {{ t.email.inactive_account_deleted.newsletter.text }}
           </mj-text>
 
           <mj-text align="left" padding-top="16px" padding-bottom="0">
-            {{ t.email.incomplete_signup_account_deleted.signoff.text }}<br />
+            {{ t.email.inactive_account_deleted.signoff.text }}<br />
             Marco<br />
-            <span style="font-size: 14px; color: #808080;">{{ t.email.incomplete_signup_account_deleted.creator_title.text }}</span>
+            <span style="font-size: 14px; color: #808080;">{{ t.email.inactive_account_deleted.creator_title.text }}</span>
           </mj-text>
         </mj-column>
       </mj-section>

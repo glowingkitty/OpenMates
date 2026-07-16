@@ -1,5 +1,5 @@
 """
-Purpose: Sends staged deletion reminders for incomplete signups and deletes stale accounts after notice.
+Purpose: Sends staged deletion reminders for inactive accounts and deletes stale accounts after notice.
 Architecture: Daily Celery Beat task; Directus email_deliveries rows provide durable idempotency.
 """
 
@@ -23,8 +23,8 @@ from backend.shared.python_utils.frontend_url import get_frontend_base_url
 
 logger = logging.getLogger(__name__)
 
-CAMPAIGN_KEY = "incomplete_signup_deletion_v1"
-EMAIL_TYPE = "incomplete_signup_deletion"
+CAMPAIGN_KEY = "inactive_account_deletion_v1"
+EMAIL_TYPE = "inactive_account_deletion"
 USER_PAGE_SIZE = 200
 INITIAL_NOTICE_AFTER_DAYS = 14
 SECOND_NOTICE_AFTER_DAYS = 7
@@ -33,9 +33,7 @@ DELETE_AFTER_FINAL_NOTICE_DAYS = 1
 PENDING_BANK_TRANSFER_GRACE_DAYS = 7
 ACTIVE_SUBSCRIPTION_STATUSES = {"active", "trialing"}
 PENDING_BANK_TRANSFER_STATUSES = {"pending", "admin_review"}
-ANNOUNCEMENT_CHAT_ID = "announcements-introducing-openmates-v09"
-ANNOUNCEMENT_THUMBNAIL_PATH_TEMPLATE = "/newsletter-assets/intro-thumbnail-{lang}.jpg"
-SEND_DELAY_SECONDS = float(os.getenv("INCOMPLETE_SIGNUP_EMAIL_SEND_DELAY_SECONDS", "0.25"))
+SEND_DELAY_SECONDS = float(os.getenv("INACTIVE_ACCOUNT_EMAIL_SEND_DELAY_SECONDS", "0.25"))
 SUPPORTED_TEMPLATE_LANGS = {"en", "de"}
 STRIPE_SECRET_PATH = "kv/data/providers/stripe"
 TRANSLATION_SERVICE = TranslationService()
@@ -54,16 +52,6 @@ def _greeting_name(username: str | None) -> str:
     return f" {username}" if username else ""
 
 
-def _announcement_url(base_url: str, lang: str) -> str:
-    lang_query = "?lang=de" if lang == "de" else ""
-    return f"{base_url}/{lang_query}#chat-id={ANNOUNCEMENT_CHAT_ID}&autoplay-video"
-
-
-def _announcement_thumbnail_url(base_url: str, lang: str) -> str:
-    thumbnail_lang = "DE" if lang == "de" else "EN"
-    return f"{base_url}{ANNOUNCEMENT_THUMBNAIL_PATH_TEMPLATE.format(lang=thumbnail_lang)}"
-
-
 @app.task(
     name="app.tasks.email_tasks.incomplete_signup_deletion_task.process_incomplete_signup_deletions",
     base=BaseServiceTask,
@@ -78,7 +66,7 @@ def process_incomplete_signup_deletions(
     include_details: bool = False,
     delete_unreachable_zero_value: bool = False,
 ) -> dict:
-    """Daily sweep for incomplete signup deletion reminders and due deletions."""
+    """Daily sweep for inactive-account deletion reminders and due deletions."""
     return asyncio.run(
         _async_process_incomplete_signup_deletions(
             self,
@@ -442,7 +430,7 @@ async def _mark_signup_completed(task: BaseServiceTask, user_id: str, reason: st
         admin_required=True,
     )
     if updated:
-        logger.info("Marked incomplete signup user %s complete (%s)", user_id[:8], reason)
+        logger.info("Marked stale account user %s complete (%s)", user_id[:8], reason)
 
 
 async def _decrypt_email_and_username(task: BaseServiceTask, user: dict[str, Any]) -> tuple[str | None, str]:
@@ -472,7 +460,7 @@ async def _decrypt_email_and_username(task: BaseServiceTask, user: dict[str, Any
                     if decrypted_username:
                         username = decrypted_username
                 except Exception:
-                    logger.debug("Could not decrypt username for incomplete signup user %s", user.get("id", "?")[:8])
+                    logger.debug("Could not decrypt username for inactive account user %s", user.get("id", "?")[:8])
             return contact_email, username
 
     return None, ""
@@ -481,8 +469,6 @@ async def _decrypt_email_and_username(task: BaseServiceTask, user: dict[str, Any
 def _reminder_context(stage: str, username: str, account_id: str, lang: str) -> tuple[str, dict[str, Any]]:
     base_url = get_frontend_base_url()
     finish_setup_link = base_url
-    latest_announcement_video_link = _announcement_url(base_url, lang)
-    announcement_thumbnail_url = _announcement_thumbnail_url(base_url, lang)
     direct_delete_account_link = f"{base_url}/#settings/account/delete/{account_id}"
     newsletter_settings_link = f"{base_url}/#settings/newsletter"
 
@@ -493,7 +479,7 @@ def _reminder_context(stage: str, username: str, account_id: str, lang: str) -> 
     else:
         key_suffix = "1d"
 
-    key_prefix = "email.incomplete_signup_deletion_reminder"
+    key_prefix = "email.inactive_account_deletion_reminder"
     context = {
         "deletion_time_text": _email_text(f"{key_prefix}.deletion_time_{key_suffix}", lang),
         "wait_time_text": _email_text(f"{key_prefix}.wait_time_{key_suffix}", lang),
@@ -509,8 +495,6 @@ def _reminder_context(stage: str, username: str, account_id: str, lang: str) -> 
     context.update({
         "username": username,
         "finish_setup_link": finish_setup_link,
-        "latest_announcement_video_link": latest_announcement_video_link,
-        "announcement_thumbnail_url": announcement_thumbnail_url,
         "direct_delete_account_link": direct_delete_account_link,
         "newsletter_settings_link": newsletter_settings_link,
     })
@@ -520,7 +504,7 @@ def _reminder_context(stage: str, username: str, account_id: str, lang: str) -> 
 async def _send_reminder(task: BaseServiceTask, user: dict[str, Any], stage: str, email: str, username: str) -> bool:
     account_id = user.get("account_id")
     if not account_id:
-        logger.warning("Incomplete signup user %s missing account_id; cannot send delete link", user.get("id", "?")[:8])
+        logger.warning("Inactive account user %s missing account_id; cannot send delete link", user.get("id", "?")[:8])
         return False
 
     lang = _email_lang(user.get("language"))
@@ -534,7 +518,7 @@ async def _send_reminder(task: BaseServiceTask, user: dict[str, Any], stage: str
         recipient_kind="directus_user",
         recipient_id=user["id"],
         stage=stage,
-        template="incomplete-signup-deletion-reminder",
+        template="inactive-account-deletion-reminder",
         recipient_email=email,
         recipient_name=username,
         context=context,
@@ -542,7 +526,7 @@ async def _send_reminder(task: BaseServiceTask, user: dict[str, Any], stage: str
         lang=lang,
     )
     if status == "already_reserved":
-        logger.info("Incomplete signup %s reminder already reserved for user %s", stage, user["id"][:8])
+        logger.info("Inactive account %s reminder already reserved for user %s", stage, user["id"][:8])
         return False
     if sent:
         await asyncio.sleep(SEND_DELAY_SECONDS)
@@ -555,22 +539,22 @@ async def _delete_and_send_confirmation(task: BaseServiceTask, user: dict[str, A
     user_id = user["id"]
     deleted = await _async_delete_user_account(
         user_id=user_id,
-        deletion_type="incomplete_signup_timeout",
-        reason="Incomplete signup not completed after staged deletion reminders",
+        deletion_type="inactive_account_timeout",
+        reason="Inactive account remained zero-value with no owned content after staged deletion reminders",
         ip_address=None,
         device_fingerprint=None,
         refund_invoices=False,
-        task_id=f"incomplete-signup-deletion-{user_id}",
+        task_id=f"inactive-account-deletion-{user_id}",
         email_encryption_key=None,
     )
     if not deleted:
-        logger.error("Incomplete signup deletion failed for user %s", user_id[:8])
+        logger.error("Inactive account deletion failed for user %s", user_id[:8])
         return False
 
     base_url = get_frontend_base_url()
     newsletter_settings_link = f"{base_url}/#settings/newsletter"
     lang = _email_lang(user.get("language"))
-    subject = _email_text("email.incomplete_signup_account_deleted.subject", lang)
+    subject = _email_text("email.inactive_account_deleted.subject", lang)
     sent, status = await send_email_once(
         directus=task.directus_service,
         email_template_service=task.email_template_service,
@@ -579,7 +563,7 @@ async def _delete_and_send_confirmation(task: BaseServiceTask, user: dict[str, A
         recipient_kind="directus_user",
         recipient_id=user_id,
         stage="deleted",
-        template="incomplete-signup-account-deleted",
+        template="inactive-account-deleted",
         recipient_email=email,
         recipient_name=username,
         context={
@@ -689,7 +673,7 @@ async def _async_process_incomplete_signup_deletions(
 
             for user in users:
                 if max_users is not None and stats["checked"] >= max_users:
-                    logger.info("Incomplete signup deletion run hit max_users=%s", max_users)
+                    logger.info("Inactive account deletion run hit max_users=%s", max_users)
                     stats["stopped_by_limit"] = "max_users"
                     return stats
 
@@ -766,11 +750,6 @@ async def _async_process_incomplete_signup_deletions(
                             return stats
                     continue
 
-                if user.get("signup_completed"):
-                    stats["reachable_stale_completed_needs_template"] += 1
-                    _append_detail(stats, "reachable_stale_completed", user, action="needs_stale_account_email_template")
-                    continue
-
                 if action == "send_14d":
                     if dry_run:
                         stats["sent_14d"] += 1
@@ -837,10 +816,10 @@ async def _async_process_incomplete_signup_deletions(
                 break
             page += 1
 
-        logger.info("Incomplete signup deletion run completed: %s", stats)
+        logger.info("Inactive account deletion run completed: %s", stats)
         return stats
     except Exception as exc:
-        logger.error("Incomplete signup deletion run failed: %s", exc, exc_info=True)
+        logger.error("Inactive account deletion run failed: %s", exc, exc_info=True)
         stats["error"] = str(exc)
         return stats
     finally:

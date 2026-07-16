@@ -579,7 +579,7 @@ async def test_stale_zero_value_without_email_is_reported_for_explicit_deletion(
 
 
 @pytest.mark.anyio
-async def test_completed_reachable_stale_account_is_not_sent_incomplete_signup_email():
+async def test_completed_reachable_stale_account_receives_inactive_account_warning_email():
     from backend.core.api.app.tasks.email_tasks.incomplete_signup_deletion_task import _async_process_incomplete_signup_deletions
 
     now = datetime.now(timezone.utc)
@@ -615,9 +615,9 @@ async def test_completed_reachable_stale_account_is_not_sent_incomplete_signup_e
 
     result = await _async_process_incomplete_signup_deletions(task, dry_run=True, include_details=True)
 
-    assert result["sent_14d"] == 0
-    assert result["reachable_stale_completed_needs_template"] == 1
-    assert result["reachable_stale_completed"][0]["action"] == "needs_stale_account_email_template"
+    assert result["sent_14d"] == 1
+    assert result["reachable_stale_completed_needs_template"] == 0
+    assert result["due_actions"][0]["action"] == "send_14d"
 
 
 def test_paid_credit_update_marks_signup_complete():

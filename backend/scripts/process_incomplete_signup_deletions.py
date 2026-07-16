@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Purpose: Preview or canary-run incomplete-signup deletion reminders without waiting for Celery Beat.
+Purpose: Preview or canary-run inactive-account deletion reminders without waiting for Celery Beat.
 """
 
 import argparse
@@ -11,7 +11,7 @@ import sys
 
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Preview or run incomplete-signup deletion reminders/deletions.",
+        description="Preview or run inactive-account deletion reminders/deletions.",
         epilog=(
             "Examples:\n"
             "  Preview tomorrow: docker exec api python /app/backend/scripts/process_incomplete_signup_deletions.py --dry-run\n"
@@ -59,7 +59,7 @@ def _format_summary(result: dict, *, dry_run: bool) -> str:
     }
     total_actions = sum(actions.values())
     action_word = "would happen" if dry_run else "were completed"
-    title = "Incomplete Signup Deletion Preview" if dry_run else "Incomplete Signup Deletion Run"
+    title = "Inactive Account Deletion Preview" if dry_run else "Inactive Account Deletion Run"
     lines = [title, ""]
     lines.append(f"Checked {_format_count(int(result.get('checked') or 0), 'active regular account')}.")
 
@@ -112,7 +112,7 @@ def _format_summary(result: dict, *, dry_run: bool) -> str:
     if reachable_completed:
         lines.extend([
             "",
-            f"Reachable completed stale accounts needing a stale-account email template: {reachable_completed}",
+            f"Reachable stale accounts unexpectedly blocked from inactive-account reminders: {reachable_completed}",
         ])
 
     if result.get("due_actions"):
@@ -138,7 +138,7 @@ def _format_summary(result: dict, *, dry_run: bool) -> str:
             )
 
     if result.get("reachable_stale_completed"):
-        lines.extend(["", "Reachable completed stale accounts:"])
+        lines.extend(["", "Reachable stale accounts unexpectedly blocked from inactive-account reminders:"])
         for candidate in result["reachable_stale_completed"]:
             lines.append(
                 f"- user={candidate.get('user_id')} account={candidate.get('account_id')} "

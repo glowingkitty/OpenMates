@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Send test emails for incomplete-signup account deletion reminders.
+Send test emails for inactive-account deletion reminders.
 
 This script sends the four transactional email variants through the existing
 EmailTemplateService/Brevo path without querying or modifying user accounts.
@@ -21,8 +21,6 @@ from backend.shared.python_utils.frontend_url import get_frontend_base_url
 
 logger = logging.getLogger(__name__)
 
-ANNOUNCEMENT_CHAT_ID = "announcements-introducing-openmates-v09"
-ANNOUNCEMENT_THUMBNAIL_PATH_TEMPLATE = "/newsletter-assets/intro-thumbnail-{lang}.jpg"
 SUPPORTED_TEMPLATE_LANGS = {"en", "de"}
 TRANSLATION_SERVICE = TranslationService()
 
@@ -44,19 +42,9 @@ def _greeting_name(username: str | None) -> str:
     return f" {username}" if username else ""
 
 
-def _announcement_url(base_url: str, lang: str) -> str:
-    lang_query = "?lang=de" if lang == "de" else ""
-    return f"{base_url}/{lang_query}#chat-id={ANNOUNCEMENT_CHAT_ID}&autoplay-video"
-
-
-def _announcement_thumbnail_url(base_url: str, lang: str) -> str:
-    thumbnail_lang = "DE" if lang == "de" else "EN"
-    return f"{base_url}{ANNOUNCEMENT_THUMBNAIL_PATH_TEMPLATE.format(lang=thumbnail_lang)}"
-
-
 def _build_reminder_variant(days_remaining: int, base_url: str, username: str, account_id: str, lang: str) -> EmailVariant:
     key_suffix = f"{days_remaining}d"
-    key_prefix = "email.incomplete_signup_deletion_reminder"
+    key_prefix = "email.inactive_account_deletion_reminder"
     context = {
         "deletion_time_text": _email_text(f"{key_prefix}.deletion_time_{key_suffix}", lang),
         "wait_time_text": _email_text(f"{key_prefix}.wait_time_{key_suffix}", lang),
@@ -71,14 +59,12 @@ def _build_reminder_variant(days_remaining: int, base_url: str, username: str, a
 
     return EmailVariant(
         label=f"{lang} {days_remaining}-day reminder",
-        template="incomplete-signup-deletion-reminder",
+        template="inactive-account-deletion-reminder",
         subject=subject,
         context={
             "darkmode": False,
             "username": username,
             "finish_setup_link": base_url,
-            "latest_announcement_video_link": _announcement_url(base_url, lang),
-            "announcement_thumbnail_url": _announcement_thumbnail_url(base_url, lang),
             "direct_delete_account_link": f"{base_url}/#settings/account/delete/{account_id}",
             "newsletter_settings_link": f"{base_url}/#settings/newsletter",
             **context,
@@ -87,10 +73,10 @@ def _build_reminder_variant(days_remaining: int, base_url: str, username: str, a
 
 
 def _build_deleted_variant(base_url: str, username: str, lang: str) -> EmailVariant:
-    subject = _email_text("email.incomplete_signup_account_deleted.subject", lang)
+    subject = _email_text("email.inactive_account_deleted.subject", lang)
     return EmailVariant(
         label=f"{lang} account deleted confirmation",
-        template="incomplete-signup-account-deleted",
+        template="inactive-account-deleted",
         subject=subject,
         context={
             "darkmode": False,
@@ -128,7 +114,7 @@ async def _send_tests(args: argparse.Namespace) -> int:
     directus = DirectusService()
     try:
         email_template_service = EmailTemplateService(secrets_manager=secrets_manager)
-        campaign_key = args.campaign_key or f"incomplete_signup_deletion_test_{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}"
+        campaign_key = args.campaign_key or f"inactive_account_deletion_test_{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}"
         sent = 0
         skipped = 0
         for lang, variants in variants_by_lang.items():
@@ -137,7 +123,7 @@ async def _send_tests(args: argparse.Namespace) -> int:
                 ok, status = await send_email_once(
                     directus=directus,
                     email_template_service=email_template_service,
-                    email_type="incomplete_signup_deletion",
+                    email_type="inactive_account_deletion",
                     campaign_key=campaign_key,
                     recipient_kind="test_email_address",
                     recipient_id=args.to.lower().strip(),
@@ -166,13 +152,13 @@ async def _send_tests(args: argparse.Namespace) -> int:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Send incomplete-signup deletion reminder test emails via Brevo.")
+    parser = argparse.ArgumentParser(description="Send inactive-account deletion reminder test emails via Brevo.")
     parser.add_argument("--to", default="testing@openmates.org", help="Recipient email address")
     parser.add_argument("--username", default="", help="Recipient display name in the email body")
     parser.add_argument("--account-id", default="test-account-id", help="Account ID used in the delete-account deep link")
     parser.add_argument("--base-url", default=None, help="Override frontend base URL")
     parser.add_argument("--campaign-key", default=None, help="Optional deterministic campaign key for idempotency testing")
-    parser.add_argument("--langs", default="en,de", help="Comma-separated languages to send. Supported: en,de")
+    parser.add_argument("--langs", default="en", help="Comma-separated languages to send. Supported: en,de")
     return asyncio.run(_send_tests(parser.parse_args()))
 
 

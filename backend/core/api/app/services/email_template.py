@@ -418,7 +418,7 @@ class EmailTemplateService:
                 'community_share_notification',
                 'password-security-reminder',
                 'post-purchase-security-setup',
-                'incomplete-signup-deletion-reminder', 'incomplete-signup-account-deleted',
+                'inactive-account-deletion-reminder', 'inactive-account-deleted',
                 'account-deletion-warning-correction',
                 'storage-billing-failed-1', 'storage-billing-failed-2',
                 'storage-billing-failed-3', 'storage-files-deleted',

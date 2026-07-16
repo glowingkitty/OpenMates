@@ -64,7 +64,7 @@
           <mj-text align="left" padding-top="16px" padding-bottom="0">
             {{ t.email.account_deletion_warning_correction.signoff.text }}<br />
             Marco<br />
-            <span style="font-size: 14px; color: #808080;">{{ t.email.incomplete_signup_deletion_reminder.creator_title.text }}</span>
+            <span style="font-size: 14px; color: #808080;">{{ t.email.inactive_account_deletion_reminder.creator_title.text }}</span>
           </mj-text>
         </mj-column>
       </mj-section>
