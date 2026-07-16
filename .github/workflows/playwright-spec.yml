@@ -123,8 +123,14 @@ jobs:
 
           echo "::add-mask::$api_key"
 
+          probe_home=$(mktemp -d)
+          cleanup_probe_home() {
+            rm -rf "$probe_home"
+          }
+          trap cleanup_probe_home EXIT
+
           set +e
-          OPENMATES_API_KEY="$api_key" node frontend/packages/openmates-cli/dist/cli.js \
+          HOME="$probe_home" OPENMATES_API_KEY="$api_key" node frontend/packages/openmates-cli/dist/cli.js \
             --api-url "$API_URL" apps math calculate "1+1" --json \
             > frontend/apps/web_app/artifacts/api_key_probe.out \
             2> frontend/apps/web_app/artifacts/api_key_probe.err
@@ -133,7 +139,7 @@ jobs:
 
           if [ "$probe_status" -ne 0 ] && grep -Eq "New device detected|Device not approved" frontend/apps/web_app/artifacts/api_key_probe.err; then
             node scripts/approve_test_api_key_device.mjs --api-url "$API_URL"
-            OPENMATES_API_KEY="$api_key" node frontend/packages/openmates-cli/dist/cli.js \
+            HOME="$probe_home" OPENMATES_API_KEY="$api_key" node frontend/packages/openmates-cli/dist/cli.js \
               --api-url "$API_URL" apps math calculate "1+1" --json \
               > frontend/apps/web_app/artifacts/api_key_probe.out \
               2> frontend/apps/web_app/artifacts/api_key_probe.err
@@ -141,6 +147,9 @@ jobs:
             cat frontend/apps/web_app/artifacts/api_key_probe.err >&2
             exit "$probe_status"
           fi
+
+          cleanup_probe_home
+          trap - EXIT
 
           echo "OPENMATES_TEST_ACCOUNT_API_KEY=$api_key" >> "$GITHUB_ENV"
           echo "OPENMATES_CI_API_KEY_ID=$api_key_id" >> "$GITHUB_ENV"
