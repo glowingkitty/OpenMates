@@ -47,6 +47,55 @@ def _request_id(payload: dict[str, Any]) -> str | None:
     return None
 
 
+def _create_cache_service() -> Any:
+    from backend.core.api.app.services.cache import CacheService
+
+    return CacheService()
+
+
+async def _refresh_terminal_sync_cache(
+    *,
+    user_id: str,
+    chat_id: Any,
+    committed_messages_v: Any,
+) -> None:
+    if not isinstance(chat_id, str) or not chat_id:
+        logger.warning("Recovery terminal cache refresh skipped: missing chat_id")
+        return
+    if not isinstance(committed_messages_v, int) or committed_messages_v < 1:
+        logger.warning(
+            "Recovery terminal cache refresh skipped for chat=%s: invalid committed_messages_v=%r",
+            chat_id,
+            committed_messages_v,
+        )
+        return
+
+    cache_service = _create_cache_service()
+    try:
+        await cache_service.delete_sync_messages_history(user_id, chat_id)
+        version_updated = await cache_service.set_chat_version_component(
+            user_id,
+            chat_id,
+            "messages_v",
+            committed_messages_v,
+        )
+        if not version_updated:
+            logger.warning(
+                "Recovery terminal cache version update returned false for user=%s chat=%s messages_v=%s",
+                user_id[:8],
+                chat_id,
+                committed_messages_v,
+            )
+        logger.info(
+            "Recovery terminal cache refreshed for user=%s chat=%s messages_v=%s",
+            user_id[:8],
+            chat_id,
+            committed_messages_v,
+        )
+    finally:
+        await cache_service.close()
+
+
 async def invalidate_recovery_leases_for_device(
     *,
     directus_service: Any,
@@ -300,6 +349,22 @@ async def handle_recovery_job_persist(
                 "encrypted_assistant_message": encrypted_message,
             },
         )
+        try:
+            expected_messages_v = payload.get("expected_messages_v")
+            committed_messages_v = result.get("committed_messages_v")
+            if not isinstance(committed_messages_v, int) and isinstance(expected_messages_v, int):
+                committed_messages_v = expected_messages_v + 1
+            await _refresh_terminal_sync_cache(
+                user_id=user_id,
+                chat_id=encrypted_message.get("chat_id"),
+                committed_messages_v=committed_messages_v,
+            )
+        except Exception:
+            logger.exception(
+                "Recovery terminal cache refresh failed after Directus commit for user=%s job=%s",
+                user_id[:8],
+                payload.get("job_id"),
+            )
         await manager.send_personal_message(
             {
                 "type": "recovery_job_persisted",

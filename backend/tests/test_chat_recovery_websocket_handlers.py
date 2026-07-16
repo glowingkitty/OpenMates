@@ -29,7 +29,34 @@ class FakeRecoveryService:
         self.calls.append((operation, data))
         if operation == "lease_job":
             return {"job_id": data["job_id"], "state": "LEASED", "sealed_payload": "{}"}
-        return {"job_id": data["job_id"], "state": "TERMINAL"}
+        return {"job_id": data["job_id"], "state": "TERMINAL", "committed_messages_v": 5}
+
+
+class FakeCacheService:
+    instances: list["FakeCacheService"] = []
+
+    def __init__(self) -> None:
+        self.deleted_sync_messages: list[tuple[str, str]] = []
+        self.version_updates: list[tuple[str, str, str, int]] = []
+        self.closed = False
+        self.instances.append(self)
+
+    async def delete_sync_messages_history(self, user_id: str, chat_id: str) -> bool:
+        self.deleted_sync_messages.append((user_id, chat_id))
+        return True
+
+    async def set_chat_version_component(
+        self,
+        user_id: str,
+        chat_id: str,
+        component: str,
+        value: int,
+    ) -> bool:
+        self.version_updates.append((user_id, chat_id, component, value))
+        return True
+
+    async def close(self) -> None:
+        self.closed = True
 
 
 @pytest.mark.asyncio
@@ -64,7 +91,9 @@ async def test_claim_binds_authenticated_owner_and_device(monkeypatch) -> None:
 @pytest.mark.asyncio
 async def test_terminal_persistence_overrides_encrypted_message_owner(monkeypatch) -> None:
     monkeypatch.setattr(chat_recovery_job_handlers, "ChatRecoveryService", FakeRecoveryService)
+    monkeypatch.setattr(chat_recovery_job_handlers, "_create_cache_service", FakeCacheService)
     FakeRecoveryService.calls = []
+    FakeCacheService.instances = []
     manager = FakeManager()
     encrypted_message = {
         "client_message_id": "assistant-1",
@@ -98,5 +127,11 @@ async def test_terminal_persistence_overrides_encrypted_message_owner(monkeypatc
     assert data["hashed_user_id"] == "owner-hash"
     assert data["device_hash"] == "device-hash"
     assert data["encrypted_assistant_message"]["hashed_user_id"] == "owner-hash"
+    cache = FakeCacheService.instances[0]
+    assert cache.deleted_sync_messages == [("user-1", "22222222-2222-4222-8222-222222222222")]
+    assert cache.version_updates == [
+        ("user-1", "22222222-2222-4222-8222-222222222222", "messages_v", 5)
+    ]
+    assert cache.closed is True
     assert manager.messages[0]["type"] == "recovery_job_persisted"
     assert manager.messages[0]["payload"]["request_id"] == "persist-request-1"
