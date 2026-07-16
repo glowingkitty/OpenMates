@@ -72,6 +72,7 @@ from backend.apps.ai.processing.task_tool_executor import (
     is_task_tool_name,
     publish_task_tool_result,
     should_suppress_task_runtime_tools_for_app_skill,
+    task_app_skill_ids_from_message_text,
     task_tool_skill_id,
     task_tool_name_variants,
 )
@@ -2028,6 +2029,17 @@ async def handle_main_processing(
     # explicitly requested specific skills via @skill:app:skill_id. In that case we use only
     # the user's selection and add a mandatory instruction to use those tools.
     user_requested_skills_only = getattr(preprocessing_results, "user_requested_skills_only", False)
+    task_app_skill_mentions = task_app_skill_ids_from_message_text(request_data.current_user_content)
+    if task_app_skill_mentions:
+        if preselected_skills is None:
+            preselected_skills = set()
+        preselected_skills = preselected_skills | task_app_skill_mentions
+        user_requested_skills_only = True
+        logger.info(
+            "%s [USER_SKILLS] Forced explicit Tasks app skill mention(s) into preselected skills: %s",
+            log_prefix,
+            sorted(task_app_skill_mentions),
+        )
     if user_requested_skills_only and preselected_skills:
         logger.info(
             f"{log_prefix} [USER_SKILLS] User explicitly requested skill(s); not merging always_include_skills. "

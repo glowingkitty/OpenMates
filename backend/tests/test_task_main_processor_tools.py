@@ -26,6 +26,7 @@ from backend.apps.ai.processing.task_tool_executor import (
     is_legacy_task_runtime_tool_name,
     is_task_tool_name,
     should_suppress_task_runtime_tools_for_app_skill,
+    task_app_skill_ids_from_message_text,
     task_tool_name_variants,
 )
 from backend.apps.ai.processing.task_tool_context import resolve_task_tool_context
@@ -221,6 +222,12 @@ def test_explicit_tasks_app_skill_suppresses_legacy_task_runtime_tools() -> None
         {"web-search"},
         user_requested_skills_only=True,
     )
+
+
+def test_tasks_app_skill_mentions_resolve_from_backend_wire_syntax() -> None:
+    assert task_app_skill_ids_from_message_text("@skill:tasks:create create three tasks") == {"tasks-create"}
+    assert task_app_skill_ids_from_message_text("@skill:tasks:search find launch tasks") == {"tasks-search"}
+    assert task_app_skill_ids_from_message_text("@skill:tasks:unknown do something") == set()
 
 
 def test_task_tool_schema_sanitizer_removes_google_unsupported_additional_properties() -> None:

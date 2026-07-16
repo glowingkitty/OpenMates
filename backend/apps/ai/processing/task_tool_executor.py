@@ -40,6 +40,8 @@ TASK_TOOL_CANONICAL_NAMES = {
 }
 TASK_TOOL_RESOLVER_APP_ID = "tasks"
 TASK_TOOL_JOB_CACHE_PREFIX = "user_task_update_job:"
+TASK_APP_SKILL_MENTION_RE = re.compile(r"@skill:tasks:([a-zA-Z0-9_-]+)")
+TASK_APP_SKILL_IDS = {"create", "search"}
 
 
 def is_task_tool_name(tool_name: str) -> bool:
@@ -61,6 +63,18 @@ def should_suppress_task_runtime_tools_for_app_skill(
     if not user_requested_skills_only or not preselected_skills:
         return False
     return any(skill.startswith(f"{TASK_TOOL_RESOLVER_APP_ID}-") for skill in preselected_skills)
+
+
+def task_app_skill_ids_from_message_text(message_text: str | None) -> set[str]:
+    """Return Tasks app-skill IDs explicitly mentioned in backend wire syntax."""
+    if not message_text:
+        return set()
+    task_skill_ids: set[str] = set()
+    for match in TASK_APP_SKILL_MENTION_RE.finditer(message_text):
+        skill_id = match.group(1).replace("_", "-")
+        if skill_id in TASK_APP_SKILL_IDS:
+            task_skill_ids.add(f"{TASK_TOOL_RESOLVER_APP_ID}-{skill_id}")
+    return task_skill_ids
 
 
 def task_tool_name_variants(tool_name: str) -> set[str]:
