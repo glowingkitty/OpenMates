@@ -3468,7 +3468,7 @@ quick_answers.employee_access.answer:
   verified_by_human: []
 quick_answers.device_only_encryption.question:
   context: FAQ question about whether only user devices can read chats
-  en: Are my chats encrypted so only my devices can read them?
+  en: How are my chats protected?
   de: Sind meine Chats so verschlüsselt, dass nur meine Geräte sie lesen können?
   zh: 我的聊天是否加密到只有我的设备才能读取？
   es: ¿Mis chats están cifrados para que solo mis dispositivos puedan leerlos?
@@ -3493,10 +3493,14 @@ quick_answers.device_only_encryption.question:
 quick_answers.device_only_encryption.answer:
   context: FAQ answer about device-only encryption limits
   en: >-
-    No. OpenMates uses client-side encryption for durable storage and sync, not
-    device-only access. Permanent chat history is encrypted before it is stored,
-    so database and backup records should be ciphertext. But OpenMates servers
-    can process relevant plaintext in memory when needed to answer your request.
+    Your saved chat history is encrypted on your device before it is stored or
+    synced. OpenMates does not provide staff with a normal admin tool to browse
+    private chats, and decrypted chat content is not intended to be written to
+    databases, backups, logs, or traces. When you ask for an AI response or use
+    a server-powered feature, OpenMates may temporarily process the relevant
+    decrypted content in server memory so the request can work. This means
+    hosted OpenMates is privacy-protective, but not a strict zero-knowledge or
+    device-only system.
   de: >-
     Nein. OpenMates nutzt clientseitige Verschlüsselung für dauerhafte
     Speicherung und Synchronisierung, aber kein Modell, bei dem ausschließlich
@@ -3995,7 +3999,7 @@ quick_answers.highest_privacy.question:
   verified_by_human: []
 quick_answers.highest_privacy.answer:
   context: FAQ answer about highest privacy needs and self-hosting
-  en: "If you have very high privacy requirements, consider self-hosting OpenMates and using local or offline AI models instead of third-party AI providers. This gives you more control over infrastructure, model choice, logs, backups, and provider exposure. It requires technical experience, ongoing maintenance, secure server administration, and enough hardware for useful local AI inference. Self-hosting does not automatically make everything private: you still need to secure the server, backups, secrets, network access, logs, and any external providers you enable."
+  en: "If you have very high privacy requirements, consider the [self-hosting edition](https://github.com/glowingkitty/OpenMates/blob/dev/docs/self-hosting/setup.md) of OpenMates with local or offline AI models instead of third-party AI providers. This gives you more control over infrastructure, model choice, logs, backups, and provider exposure. It requires technical experience, ongoing maintenance, secure server administration, and enough hardware for useful local AI inference. Self-hosting does not automatically make everything private: you still need to secure the server, backups, secrets, network access, logs, and any external providers you enable."
   de: "Wenn du sehr hohe Datenschutzanforderungen hast, kannst du erwägen, OpenMates selbst zu hosten und lokale oder offline laufende KI-Modelle statt Drittanbieter-KI-Anbietern zu verwenden. Das gibt dir mehr Kontrolle über Infrastruktur, Modellauswahl, Logs, Backups und Anbieter-Exposition. Es erfordert technische Erfahrung, laufende Wartung, sichere Serveradministration und ausreichend Hardware für brauchbare lokale KI-Inferenz. Self-Hosting macht nicht automatisch alles privat: Du musst Server, Backups, Geheimnisse, Netzwerkzugriff, Logs und alle aktivierten externen Anbieter trotzdem absichern."
   zh: 如果你有非常高的隐私要求，可以考虑自行托管 OpenMates，并使用本地或离线 AI 模型，而不是第三方 AI 提供商。这让你对基础设施、模型选择、日志、备份和提供商暴露有更多控制。它需要技术经验、持续维护、安全的服务器管理，以及足够的硬件来进行有用的本地 AI 推理。自托管不会自动让一切变得私密：你仍需保护服务器、备份、密钥、网络访问、日志和任何启用的外部提供商。
   es: "Si tienes requisitos de privacidad muy altos, considera autoalojar OpenMates y usar modelos de IA locales u offline en lugar de proveedores externos. Esto te da más control sobre infraestructura, elección de modelo, registros, copias de seguridad y exposición a proveedores. Requiere experiencia técnica, mantenimiento continuo, administración segura del servidor y hardware suficiente para inferencia local útil. Autoalojar no hace que todo sea privado automáticamente: aún debes proteger servidor, copias, secretos, acceso de red, registros y cualquier proveedor externo que actives."

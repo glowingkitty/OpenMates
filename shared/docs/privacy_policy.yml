@@ -37,10 +37,14 @@ quick_answers:
     the user asks for an AI response or uses a feature that needs server
     processing.
   device_only_encryption: >
-    Permanent chat history is client-side encrypted before durable storage, so
-    database and backup records should be ciphertext. OpenMates is not a
-    device-only access system because servers can process relevant plaintext in
-    memory when needed to answer a request.
+    Saved chat history is encrypted on the user's device before it is stored or
+    synced. OpenMates does not provide staff with a normal admin tool to browse
+    private chats, and decrypted chat content is not intended to be written to
+    databases, backups, logs, or traces. When a user asks for an AI response or
+    uses a server-powered feature, OpenMates may temporarily process the relevant
+    decrypted content in server memory so the request can work. This means hosted
+    OpenMates is privacy-protective, but not a strict zero-knowledge or
+    device-only system.
   recent_context_cache: >
     OpenMates may keep a short-lived, server-readable AI context cache for
     recent chats, currently designed around the last 3 chats. The cache is
@@ -99,10 +103,12 @@ quick_answers:
     financial, business-confidential, or safety-critical topics, users should be
     careful about what they enter and which model or provider they use.
   highest_privacy: >
-    Users with very high privacy requirements can consider self-hosting
-    OpenMates and using local or offline AI models instead of third-party AI
-    providers. This gives more control over infrastructure, model choice, logs,
-    backups, and provider exposure. It requires technical experience, ongoing
+    Users with very high privacy requirements can consider the self-hosting
+    edition of OpenMates and use local or offline AI models instead of
+    third-party AI providers. The setup guide is published at
+    https://github.com/glowingkitty/OpenMates/blob/dev/docs/self-hosting/setup.md.
+    This gives more control over infrastructure, model choice, logs, backups,
+    and provider exposure. It requires technical experience, ongoing
     maintenance, secure server administration, and enough hardware for useful
     local AI inference. Self-hosting does not automatically make everything
     private: the operator must still secure the server, backups, secrets,
