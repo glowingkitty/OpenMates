@@ -744,9 +744,12 @@
     }
     
     
+    // Stop default link navigation/prose marks before opening fullscreen through
+    // the unified controller. Large previews originate from markdown links; if
+    // their default action runs, the hash can change without a fullscreen host.
+    e.preventDefault();
     // Stop event propagation to prevent the click from bubbling to ReadOnlyMessage
-    // which would show the context menu instead of opening fullscreen
-    // NOTE: We don't call preventDefault() here because it might interfere with the click
+    // which would show the context menu instead of opening fullscreen.
     e.stopPropagation();
     
     if ((status === 'finished' || status === 'error') && onFullscreen) {
