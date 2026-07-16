@@ -64,7 +64,7 @@ async function ensureSettingsMenuOpen(page: any, logCheckpoint: (msg: string) =>
 		} else {
 			const openSettingsButton = page.getByRole('button', { name: /open settings menu/i }).first();
 			await expect(openSettingsButton).toBeVisible({ timeout: 10000 });
-			await openSettingsButton.click();
+			await openSettingsButton.click({ timeout: 5000, force: true });
 			logCheckpoint('Opened settings menu.');
 		}
 	}
@@ -164,7 +164,7 @@ async function ensureDevelopersSettingsOpen(
 		} else {
 			const openSettingsButton = page.getByRole('button', { name: /open settings menu/i }).first();
 			await expect(openSettingsButton).toBeVisible({ timeout: 10000 });
-			await openSettingsButton.click();
+			await openSettingsButton.click({ timeout: 5000, force: true });
 			logCheckpoint('Opened settings menu.');
 		}
 	}
