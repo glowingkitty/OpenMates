@@ -354,6 +354,12 @@ private struct DevEmbedPreviewSkillSection: View {
                         .stroke(Color.grey30, lineWidth: 1)
                 }
             }
+
+            if !skill.childEmbeds.isEmpty {
+                DevEmbedDisplayBlock(title: "FULLSCREEN ROUTE HARNESS") {
+                    DevEmbedFullscreenRouteHarness(skill: skill)
+                }
+            }
         }
         .padding(.spacing6)
         .background(Color.grey10)
@@ -375,6 +381,70 @@ private struct DevEmbedPreviewSkillSection: View {
             ),
             allEmbedRecords: skill.allRecords
         ) { _ in }
+    }
+}
+
+private struct DevEmbedFullscreenRouteHarness: View {
+    let skill: DevEmbedPreviewSkill
+    @State private var activeEmbed: EmbedRecord?
+    @State private var previousEmbeds: [EmbedRecord] = []
+
+    init(skill: DevEmbedPreviewSkill) {
+        self.skill = skill
+        _activeEmbed = State(initialValue: skill.primaryEmbed)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: .spacing4) {
+            Text(activeRouteLabel)
+                .font(.omMicro.weight(.semibold))
+                .foregroundStyle(Color.fontSecondary)
+                .accessibilityIdentifier("dev-embed-active-route")
+
+            if let activeEmbed {
+                EmbedFullscreenContainer(
+                    embeds: [activeEmbed],
+                    initialEmbedId: activeEmbed.id,
+                    allEmbedRecords: skill.allRecords,
+                    chatId: nil,
+                    onOpenEmbed: { child, parent in
+                        if previousEmbeds.last?.id != parent.id {
+                            previousEmbeds.append(parent)
+                        }
+                        self.activeEmbed = child
+                    },
+                    onClose: closeRoute
+                )
+                .id(activeEmbed.id)
+                .frame(height: 560)
+                .clipShape(RoundedRectangle(cornerRadius: .radius8))
+                .overlay {
+                    RoundedRectangle(cornerRadius: .radius8)
+                        .stroke(Color.grey30, lineWidth: 1)
+                }
+            } else {
+                Button("Reset fullscreen route") {
+                    previousEmbeds = []
+                    activeEmbed = skill.primaryEmbed
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("dev-embed-route-reset")
+            }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("dev-embed-fullscreen-route-harness")
+    }
+
+    private var activeRouteLabel: String {
+        "Active embed: \(activeEmbed?.id ?? "none")"
+    }
+
+    private func closeRoute() {
+        if let previous = previousEmbeds.popLast() {
+            activeEmbed = previous
+        } else {
+            activeEmbed = nil
+        }
     }
 }
 

@@ -119,6 +119,50 @@ final class EmbedRenderingParityUITests: XCTestCase {
         attachScreenshot(name: "Sheets fullscreen")
     }
 
+    func testFullscreenParentChildRouteStackReturnsToParentBeforeClosing() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--dev-preview", "embeds", "--dev-preview-app", "web"]
+        app.launchEnvironment["DEV_PREVIEW"] = "embeds"
+        app.launchEnvironment["DEV_PREVIEW_APP"] = "web"
+        app.launch()
+
+        let gallery = app.descendants(matching: .any)["dev-embed-preview-gallery"]
+        XCTAssertTrue(gallery.waitForExistence(timeout: 8), "Web embed gallery did not load")
+
+        let routeHarness = app.descendants(matching: .any)["dev-embed-fullscreen-route-harness"]
+        scrollUntilHittable(app: app, element: routeHarness)
+        XCTAssertTrue(routeHarness.isHittable, "Fullscreen route harness did not become visible")
+
+        let routeLabel = app.staticTexts["dev-embed-active-route"]
+        XCTAssertTrue(routeLabel.label.contains("preview-web-search-1"), "Parent fullscreen route was not active")
+
+        let firstChildPreview = app.descendants(matching: .any)["embed-preview-preview-web-search-result-1"]
+        scrollUntilHittable(app: app, element: firstChildPreview)
+        XCTAssertTrue(firstChildPreview.isHittable, "First web child preview was not tappable")
+        firstChildPreview.tap()
+
+        XCTAssertTrue(
+            waitForLabel(routeLabel, containing: "preview-web-search-result-1", timeout: 5),
+            "Opening a child from parent fullscreen did not make the child route active"
+        )
+
+        tapFirstHittableButton(app: app, identifier: "embed-minimize")
+        XCTAssertTrue(
+            waitForLabel(routeLabel, containing: "preview-web-search-1", timeout: 5),
+            "Closing child fullscreen did not return to the parent fullscreen route"
+        )
+
+        tapFirstHittableButton(app: app, identifier: "embed-minimize")
+        XCTAssertTrue(
+            waitForLabel(routeLabel, containing: "none", timeout: 5),
+            "Closing parent fullscreen did not return to the non-fullscreen state"
+        )
+        XCTAssertTrue(app.buttons["dev-embed-route-reset"].waitForExistence(timeout: 3))
+        XCTAssertFalse(app.tables.firstMatch.exists, "Embed fullscreen route stack must not render default List/table chrome")
+
+        attachScreenshot(name: "Fullscreen parent child route stack")
+    }
+
     private func attachScreenshot(name: String) {
         let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         attachment.name = name
@@ -130,5 +174,29 @@ final class EmbedRenderingParityUITests: XCTestCase {
         for _ in 0..<8 where !element.exists {
             app.swipeUp()
         }
+    }
+
+    private func scrollUntilHittable(app: XCUIApplication, element: XCUIElement) {
+        for _ in 0..<10 where !element.isHittable {
+            app.swipeUp()
+        }
+    }
+
+    private func waitForLabel(_ element: XCUIElement, containing expected: String, timeout: TimeInterval) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if element.label.contains(expected) { return true }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+        }
+        return element.label.contains(expected)
+    }
+
+    private func tapFirstHittableButton(app: XCUIApplication, identifier: String) {
+        let matches = app.buttons.matching(identifier: identifier).allElementsBoundByIndex
+        if let button = matches.first(where: { $0.isHittable }) {
+            button.tap()
+            return
+        }
+        XCTFail("No hittable button found for identifier \(identifier)")
     }
 }
