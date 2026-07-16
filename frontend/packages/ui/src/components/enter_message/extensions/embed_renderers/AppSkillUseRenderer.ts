@@ -24,7 +24,11 @@ import {
 import { chatSyncService } from "../../../../services/chatSyncService";
 import { unmarkEmbedAsProcessed } from "../../../../services/chatSyncServiceHandlersAI";
 import { embedStore } from "../../../../services/embedStore";
-import { dispatchEmbedFullscreen } from "../../../../services/embedFullscreenController";
+import {
+  dispatchEmbedFullscreen,
+  resolveEmbedFullscreenTarget,
+} from "../../../../services/embedFullscreenController";
+import { resolveExampleFullscreenTarget } from "../../../../demo_chats/exampleChatStore";
 import { mount, unmount } from "svelte";
 import WebSearchEmbedPreview from "../../../embeds/web/WebSearchEmbedPreview.svelte";
 import MailSearchEmbedPreview from "../../../embeds/mail/MailSearchEmbedPreview.svelte";
@@ -4972,14 +4976,32 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     embedData: any,
     decodedContent: any,
   ): Promise<void> {
-    // Dispatch custom event to open fullscreen view
-    // The fullscreen component will handle loading and displaying embed content
+    const rawEmbedId = attrs.contentRef?.replace("embed:", "");
+    const inferredEmbedType = decodedContent?.type || embedData?.type || "app-skill-use";
+    let targetEmbedId = rawEmbedId;
+    let focusChildEmbedId: string | undefined;
+
+    if (rawEmbedId) {
+      const resolvedTarget = await resolveEmbedFullscreenTarget(rawEmbedId, {
+        embedType: inferredEmbedType,
+        decodedContent,
+        exampleResolver: resolveExampleFullscreenTarget,
+      });
+      targetEmbedId = resolvedTarget.targetEmbedId;
+      focusChildEmbedId = resolvedTarget.focusChildEmbedId;
+    }
+
+    // Dispatch custom event to open fullscreen view.
+    // Direct child embeds (for example models3d model_result) must carry their
+    // concrete type so ActiveChat renders the child fullscreen instead of the
+    // generic parent app-skill fullscreen.
     const detail = {
-      embedId: attrs.contentRef?.replace("embed:", ""),
+      embedId: targetEmbedId,
       embedData,
       decodedContent,
-      embedType: "app-skill-use",
+      embedType: inferredEmbedType,
       attrs,
+      focusChildEmbedId,
     };
     dispatchEmbedFullscreen(detail);
     console.debug(
