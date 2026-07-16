@@ -652,20 +652,24 @@ test('creates API key, verifies device approval flow, and saves working key', as
 	log('Confirmed: REST API call succeeded immediately after device approval.');
 
 	// ── Phase 5b: Register and approve the stable CLI API-key device ───────────
+	const cliDeviceIdentity = `cli:${os.platform()}:${os.arch()}:${Date.now()}`;
 	const cliDeviceHeaders = {
 		Authorization: `Bearer ${rawApiKey}`,
 		'User-Agent': `OpenMates CLI/0.1 (${os.platform()} ${os.release()})`,
 		'X-OpenMates-SDK': 'cli',
-		'X-OpenMates-Device-Identity': `cli:${os.platform()}:${os.arch()}`
+		'X-OpenMates-Device-Identity': cliDeviceIdentity
 	};
 	log('Making CLI-style SDK API call with new key; expecting pending-device block...');
 	const cliBlockedResponse = await request.get(sdkChatsUrl, { headers: cliDeviceHeaders });
+	const cliBlockedResponseBody = await cliBlockedResponse.text();
 	log(`CLI-style SDK API response (before device approval): ${cliBlockedResponse.status()}`);
 	expect(
 		cliBlockedResponse.status() === 403,
-		`Expected 403 for CLI device before approval, got ${cliBlockedResponse.status()}`
+		`Expected 403 for CLI device before approval, got ${cliBlockedResponse.status()}: ${cliBlockedResponseBody}`
 	).toBe(true);
 
+	await page.reload({ waitUntil: 'domcontentloaded' });
+	log('Reloaded app before reopening Devices for CLI device approval.');
 	await navigateToDevices(page, log);
 	const cliPendingCard = page.getByTestId('device-row').filter({ hasText: /Pending/i }).first();
 	await expect(cliPendingCard).toBeVisible({ timeout: 30000 });
