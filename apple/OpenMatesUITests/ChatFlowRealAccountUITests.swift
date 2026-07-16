@@ -48,6 +48,8 @@ final class ChatFlowRealAccountUITests: XCTestCase {
 
         let manifest = makeLoadedChatsManifest(app: app, rows: rows, credentials: credentials)
         try attachAndWriteManifest(manifest)
+        let openedManifest = try makeOpenedChatsManifest(app: app, rows: rows, loadedManifest: manifest, credentials: credentials)
+        try attachAndWriteOpenedManifest(openedManifest)
         attachScreenshot(name: "Apple loaded chats parity")
     }
 
@@ -173,6 +175,126 @@ final class ChatFlowRealAccountUITests: XCTestCase {
         ]
     }
 
+    private func makeOpenedChatsManifest(
+        app: XCUIApplication,
+        rows: XCUIElementQuery,
+        loadedManifest: [String: Any],
+        credentials: RealAccountTestCredentials
+    ) throws -> [String: Any] {
+        let limit = Int(ProcessInfo.processInfo.environment["CHAT_RENDERING_PARITY_OPENED_CHAT_LIMIT"] ?? "10") ?? 10
+        let loadedChats = loadedManifest["chats"] as? [[String: Any]] ?? []
+        let chatCount = min(min(rows.count, loadedChats.count), limit)
+        var openedChats: [[String: Any]] = []
+
+        for index in 0..<chatCount {
+            openChatsPanel(in: app)
+            let row = rows.element(boundBy: index)
+            XCTAssertTrue(row.waitForExistence(timeout: 10), "Missing chat row \(index) before opened-chat parity export")
+            row.tap()
+            XCTAssertTrue(waitForOpenedChatMessages(in: app, timeout: 30), "Expected messages after opening chat row \(index)")
+            openedChats.append(makeOpenedChatRenderState(app: app, index: index, loadedChat: loadedChats[index]))
+        }
+
+        return [
+            "schema_version": 1,
+            "surface": "opened-user-chats",
+            "client": "apple",
+            "generated_at": ISO8601DateFormatter().string(from: Date()),
+            "environment": [
+                "account_email_hash": stableHash(credentials.email),
+                "opened_chat_limit": limit
+            ],
+            "sidebar": [
+                "chat_count": loadedManifestValue(loadedManifest, keyPath: ["sidebar", "chat_count"]) ?? chatCount
+            ],
+            "opened_chats": openedChats
+        ]
+    }
+
+    private func waitForOpenedChatMessages(in app: XCUIApplication, timeout: TimeInterval) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        repeat {
+            if messageElements(in: app).count > 0 {
+                return true
+            }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.25))
+        } while Date() < deadline
+        return messageElements(in: app).count > 0
+    }
+
+    private func makeOpenedChatRenderState(app: XCUIApplication, index: Int, loadedChat: [String: Any]) -> [String: Any] {
+        let messages = (0..<messageElements(in: app).count).compactMap { messageIndex -> [String: Any]? in
+            let element = messageElements(in: app).element(boundBy: messageIndex)
+            guard element.exists else { return nil }
+            return decodeMessageRenderManifest(element: element, index: messageIndex)
+        }
+
+        return [
+            "index": index,
+            "titleText": loadedChat["titleText"] as? String ?? "",
+            "message_count": messages.count,
+            "messages": messages
+        ]
+    }
+
+    private func messageElements(in app: XCUIApplication) -> XCUIElementQuery {
+        app.descendants(matching: .any).matching(
+            NSPredicate(format: "identifier IN %@", ["message-user", "message-assistant", "message-system"])
+        )
+    }
+
+    private func decodeMessageRenderManifest(element: XCUIElement, index: Int) -> [String: Any]? {
+        guard let rawValue = element.value as? String,
+              let data = rawValue.data(using: .utf8),
+              let decoded = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return [
+                "index": index,
+                "role": element.identifier.replacingOccurrences(of: "message-", with: ""),
+                "content_hash": stableHash(element.label.split(whereSeparator: { $0.isWhitespace }).joined(separator: " ")),
+                "text_length": element.label.count,
+                "block_counts": emptyBlockCounts(),
+                "has_sender_name": false,
+                "has_thinking": false,
+                "is_streaming": false
+            ]
+        }
+
+        return [
+            "index": index,
+            "role": decoded["role"] as? String ?? element.identifier.replacingOccurrences(of: "message-", with: ""),
+            "content_hash": decoded["content_hash"] as? String ?? "",
+            "text_length": decoded["text_length"] as? Int ?? 0,
+            "block_counts": decoded["block_counts"] as? [String: Int] ?? emptyBlockCounts(),
+            "embed_count": decoded["embed_count"] as? Int ?? 0,
+            "has_sender_name": decoded["has_sender_name"] as? Bool ?? false,
+            "has_thinking": decoded["has_thinking"] as? Bool ?? false,
+            "is_streaming": decoded["is_streaming"] as? Bool ?? false
+        ]
+    }
+
+    private func emptyBlockCounts() -> [String: Int] {
+        [
+            "paragraph": 0,
+            "heading": 0,
+            "code_block": 0,
+            "blockquote": 0,
+            "list": 0,
+            "table": 0,
+            "source_quote": 0,
+            "embed_group": 0,
+            "interactive_question": 0,
+            "inline_code": 0
+        ]
+    }
+
+    private func loadedManifestValue(_ manifest: [String: Any], keyPath: [String]) -> Int? {
+        var current: Any? = manifest
+        for key in keyPath {
+            current = (current as? [String: Any])?[key]
+        }
+        return current as? Int
+    }
+
     private func normalizedChatTitle(from label: String) -> String {
         label
             .replacingOccurrences(of: ", sub-chat", with: "")
@@ -203,6 +325,18 @@ final class ChatFlowRealAccountUITests: XCTestCase {
         let directory = parityArtifactDirectoryURL()
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         try data.write(to: directory.appendingPathComponent("apple-loaded-chats-manifest.json"))
+    }
+
+    private func attachAndWriteOpenedManifest(_ manifest: [String: Any]) throws {
+        let data = try JSONSerialization.data(withJSONObject: manifest, options: [.prettyPrinted, .sortedKeys])
+        let attachment = XCTAttachment(data: data, uniformTypeIdentifier: "public.json")
+        attachment.name = "apple-opened-chats-manifest.json"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+
+        let directory = parityArtifactDirectoryURL()
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        try data.write(to: directory.appendingPathComponent("apple-opened-chats-manifest.json"))
     }
 
     private func parityArtifactDirectoryURL() -> URL {

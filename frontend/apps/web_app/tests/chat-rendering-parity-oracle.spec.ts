@@ -20,8 +20,10 @@ const ARTIFACT_DIR = process.env.CHAT_RENDERING_PARITY_ARTIFACT_DIR
 	? path.resolve(process.env.CHAT_RENDERING_PARITY_ARTIFACT_DIR)
 	: path.resolve(process.cwd(), 'artifacts', 'chat-rendering-parity');
 const WEB_MANIFEST_PATH = path.join(ARTIFACT_DIR, 'web-loaded-chats-manifest.json');
+const WEB_OPENED_MANIFEST_PATH = path.join(ARTIFACT_DIR, 'web-opened-chats-manifest.json');
 const WEB_SCREENSHOT_PATH = path.join(ARTIFACT_DIR, 'web-loaded-chats-sidebar.png');
 const MAX_CHAT_ROWS = Number(process.env.CHAT_RENDERING_PARITY_MAX_ROWS || 40);
+const OPENED_CHAT_LIMIT = Number(process.env.CHAT_RENDERING_PARITY_OPENED_CHAT_LIMIT || 10);
 const STATIC_GROUP_KEYS = ['incognito', 'shared_by_others', 'intro', 'examples', 'announcements', 'tips_and_tricks', 'legal'];
 
 type RawChatRow = {
@@ -44,6 +46,10 @@ function hashStableId(value: string | null): string | null {
 	return crypto.createHash('sha256').update(value).digest('hex').slice(0, 16);
 }
 
+function normalizeText(value: string | null | undefined): string {
+	return (value || '').replace(/\s+/g, ' ').trim();
+}
+
 async function ensureSidebarOpen(page: any, log: (message: string, metadata?: Record<string, unknown>) => void): Promise<void> {
 	const activityHistory = page.getByTestId('activity-history-wrapper');
 	if (await activityHistory.isVisible({ timeout: 1500 }).catch(() => false)) {
@@ -56,6 +62,116 @@ async function ensureSidebarOpen(page: any, log: (message: string, metadata?: Re
 	await sidebarToggle.click();
 	await expect(activityHistory).toBeVisible({ timeout: 15000 });
 	log('Opened chat sidebar.');
+}
+
+async function openUserChatByIndex(page: any, index: number): Promise<void> {
+	await page.evaluate(({ targetIndex, staticGroupKeys }: { targetIndex: number; staticGroupKeys: string[] }) => {
+		const staticGroups = new Set(staticGroupKeys);
+		const rows = Array.from(document.querySelectorAll('[data-testid="chat-item-wrapper"]')).filter((row) => {
+			const groupKey = row.closest('[data-testid="chat-group"]')?.getAttribute('data-group-key') || null;
+			return !groupKey || !staticGroups.has(groupKey);
+		});
+		const row = rows[targetIndex] as HTMLElement | undefined;
+		if (!row) throw new Error(`Missing user chat row at index ${targetIndex}`);
+		row.click();
+	}, { targetIndex: index, staticGroupKeys: STATIC_GROUP_KEYS });
+}
+
+async function waitForOpenedChat(page: any): Promise<void> {
+	await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 30000 });
+	await expect(async () => {
+		const count = await page.locator('[data-testid="message-user"], [data-testid="message-assistant"], [data-testid="message-system"]').count();
+		expect(count, 'Expected opened chat to render at least one message.').toBeGreaterThan(0);
+	}).toPass({ timeout: 30000, intervals: [500, 1000, 2000] });
+}
+
+async function collectOpenedChatRenderState(page: any, chatIndex: number, titleText: string): Promise<Record<string, unknown>> {
+	return page.evaluate(({ chatIndex, titleText }: { chatIndex: number; titleText: string }) => {
+		function normalize(value: string | null | undefined): string {
+			return (value || '').replace(/\s+/g, ' ').trim();
+		}
+
+		async function hash(value: string): Promise<string> {
+			const data = new TextEncoder().encode(value);
+			const digest = await crypto.subtle.digest('SHA-256', data);
+			return Array.from(new Uint8Array(digest)).slice(0, 8).map((byte) => byte.toString(16).padStart(2, '0')).join('');
+		}
+
+		function visible(element: Element): boolean {
+			return element.getClientRects().length > 0;
+		}
+
+		function blockCounts(wrapper: Element) {
+			const content = wrapper.querySelector('[data-testid="message-content"]') || wrapper;
+			const preCode = content.querySelectorAll('pre code').length;
+			return {
+				paragraph: content.querySelectorAll('p').length || (normalize(content.textContent).length > 0 ? 1 : 0),
+				heading: content.querySelectorAll('h1,h2,h3,h4,h5,h6').length,
+				code_block: content.querySelectorAll('pre').length,
+				blockquote: content.querySelectorAll('blockquote').length,
+				list: content.querySelectorAll('ul,ol').length,
+				table: content.querySelectorAll('table').length,
+				source_quote: content.querySelectorAll('[data-testid="source-quote-block"], .source-quote-block').length,
+				embed_group: content.querySelectorAll('[data-testid="embed-preview"], [data-embed-id], [data-type="embed-preview-large"]').length,
+				interactive_question: content.querySelectorAll('[data-testid="interactive-question-card"], .interactive-question-card').length,
+				inline_code: Math.max(0, content.querySelectorAll('code').length - preCode)
+			};
+		}
+
+		return Promise.all(
+			Array.from(document.querySelectorAll('[data-testid="message-user"], [data-testid="message-assistant"], [data-testid="message-system"]'))
+				.filter(visible)
+				.map(async (wrapper, messageIndex) => {
+					const testId = wrapper.getAttribute('data-testid') || '';
+					const role = testId.replace('message-', '') || 'unknown';
+					const content = wrapper.querySelector('[data-testid="message-content"]') || wrapper;
+					const normalizedText = normalize((content as HTMLElement).innerText || content.textContent || '');
+					return {
+						index: messageIndex,
+						role,
+						content_hash: await hash(normalizedText),
+						text_length: normalizedText.length,
+						block_counts: blockCounts(wrapper),
+						has_sender_name: Boolean(wrapper.querySelector('[data-testid="chat-mate-name"], [data-testid="message-sender-name"]')),
+						has_thinking: Boolean(wrapper.querySelector('[data-testid="thinking-section"], .thinking-section')),
+						is_streaming: Boolean(content.classList.contains('is-streaming'))
+					};
+				})
+		).then((messages) => ({
+			index: chatIndex,
+			titleText,
+			message_count: messages.length,
+			messages
+		}));
+	}, { chatIndex, titleText });
+}
+
+async function collectOpenedChatsManifest(page: any, loadedManifest: Record<string, unknown>): Promise<Record<string, unknown>> {
+	const loadedChats = (loadedManifest.chats as Array<{ titleText: string }>).slice(0, OPENED_CHAT_LIMIT);
+	const openedChats: Record<string, unknown>[] = [];
+
+	for (let index = 0; index < loadedChats.length; index += 1) {
+		await ensureSidebarOpen(page, () => undefined);
+		await openUserChatByIndex(page, index);
+		await waitForOpenedChat(page);
+		openedChats.push(await collectOpenedChatRenderState(page, index, normalizeText(loadedChats[index].titleText)));
+	}
+
+	return {
+		schema_version: 1,
+		surface: 'opened-user-chats',
+		client: 'web',
+		generated_at: new Date().toISOString(),
+		environment: {
+			account_email_hash: hashStableId(TEST_EMAIL || null),
+			base_url: process.env.PLAYWRIGHT_TEST_BASE_URL || null,
+			opened_chat_limit: OPENED_CHAT_LIMIT
+		},
+		sidebar: {
+			chat_count: (loadedManifest.sidebar as { chat_count: number }).chat_count
+		},
+		opened_chats: openedChats
+	};
 }
 
 async function waitForLoadedChats(page: any): Promise<void> {
@@ -196,12 +312,16 @@ test('exports loaded user chats web oracle for Apple parity', async ({ page }: {
 	await page.screenshot({ path: WEB_SCREENSHOT_PATH, fullPage: true });
 	const manifest = await collectLoadedChatsManifest(page);
 	fs.writeFileSync(WEB_MANIFEST_PATH, JSON.stringify(manifest, null, 2) + '\n', 'utf8');
+	const openedManifest = await collectOpenedChatsManifest(page, manifest);
+	fs.writeFileSync(WEB_OPENED_MANIFEST_PATH, JSON.stringify(openedManifest, null, 2) + '\n', 'utf8');
 
 	log('Wrote loaded chats web parity oracle.', {
 		manifest: path.relative(process.cwd(), WEB_MANIFEST_PATH),
+		openedManifest: path.relative(process.cwd(), WEB_OPENED_MANIFEST_PATH),
 		screenshot: path.relative(process.cwd(), WEB_SCREENSHOT_PATH)
 	});
 
 	expect((manifest.sidebar as { chat_count: number }).chat_count).toBeGreaterThan(0);
 	expect((manifest.required_elements as { chat_title: boolean }).chat_title).toBe(true);
+	expect((openedManifest.opened_chats as unknown[]).length).toBeGreaterThan(0);
 });

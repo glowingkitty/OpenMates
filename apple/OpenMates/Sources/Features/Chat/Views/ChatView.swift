@@ -39,6 +39,7 @@
 //          TypographyTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
 
+import CryptoKit
 import SwiftUI
 #if os(iOS)
 import UIKit
@@ -2982,6 +2983,92 @@ struct MessageBubble: View {
         return document
     }
 
+    #if DEBUG
+    private var parityRenderManifestValue: String {
+        let contentHash = Self.stableHash(Self.normalizedText(displayContent))
+        let blockCounts = parityBlockCounts(from: stableRenderDocument)
+        let payload: [String: Any] = [
+            "schema_version": 1,
+            "role": message.role.rawValue,
+            "content_hash": contentHash,
+            "text_length": Self.normalizedText(displayContent).count,
+            "block_counts": blockCounts,
+            "embed_count": embeds.count,
+            "has_thinking": thinkingContent?.isEmpty == false,
+            "has_sender_name": !isUser && !isSystem,
+            "is_streaming": streamingContent != nil
+        ]
+        guard JSONSerialization.isValidJSONObject(payload),
+              let data = try? JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys]),
+              let json = String(data: data, encoding: .utf8) else {
+            return "{}"
+        }
+        return json
+    }
+
+    private func parityBlockCounts(from document: ChatHistoryRenderDocument?) -> [String: Int] {
+        guard let document else {
+            return [
+                "paragraph": displayContent.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0 : 1,
+                "heading": 0,
+                "code_block": 0,
+                "blockquote": 0,
+                "list": 0,
+                "table": 0,
+                "source_quote": 0,
+                "embed_group": embeds.isEmpty ? 0 : embeds.count,
+                "interactive_question": 0
+            ]
+        }
+
+        var counts: [String: Int] = [
+            "paragraph": 0,
+            "heading": 0,
+            "code_block": 0,
+            "blockquote": 0,
+            "list": 0,
+            "table": 0,
+            "source_quote": 0,
+            "embed_group": 0,
+            "interactive_question": 0
+        ]
+        for block in document.blocks {
+            switch block.kind {
+            case .paragraph:
+                counts["paragraph", default: 0] += 1
+            case .heading:
+                counts["heading", default: 0] += 1
+            case .codeBlock:
+                counts["code_block", default: 0] += 1
+            case .blockquote:
+                counts["blockquote", default: 0] += 1
+            case .unorderedList, .orderedList:
+                counts["list", default: 0] += 1
+            case .table:
+                counts["table", default: 0] += 1
+            case .sourceQuote:
+                counts["source_quote", default: 0] += 1
+            case .embedGroup:
+                counts["embed_group", default: 0] += max(1, block.embedReferences.count)
+            case .interactiveQuestion, .interactiveQuestionFallback:
+                counts["interactive_question", default: 0] += 1
+            case .horizontalRule, .hiddenProtocol, .demoGroup:
+                break
+            }
+        }
+        return counts
+    }
+
+    private static func normalizedText(_ value: String) -> String {
+        value.split(whereSeparator: { $0.isWhitespace }).joined(separator: " ")
+    }
+
+    private static func stableHash(_ value: String) -> String {
+        let digest = SHA256.hash(data: Data(value.utf8))
+        return digest.prefix(8).map { String(format: "%02x", $0) }.joined()
+    }
+    #endif
+
     private var viewAllowsInteractiveQuestionSubmit: Bool {
         !isUser && streamingContent == nil
     }
@@ -3297,6 +3384,9 @@ struct MessageBubble: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier(resolvedAccessibilityIdentifier)
+        #if DEBUG
+        .accessibilityValue(parityRenderManifestValue)
+        #endif
     }
 }
 

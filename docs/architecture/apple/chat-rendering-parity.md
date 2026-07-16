@@ -31,6 +31,7 @@ load, captures a screenshot, and writes:
 ```txt
 artifacts/chat-rendering-parity/web-loaded-chats-manifest.json
 artifacts/chat-rendering-parity/web-loaded-chats-sidebar.png
+artifacts/chat-rendering-parity/web-opened-chats-manifest.json
 ```
 
 The Apple UI test logs into the same account, opens the chat panel, captures a
@@ -39,13 +40,18 @@ this file when `CHAT_RENDERING_PARITY_ARTIFACT_DIR` is set:
 
 ```txt
 artifacts/chat-rendering-parity/apple-loaded-chats-manifest.json
+artifacts/chat-rendering-parity/apple-opened-chats-manifest.json
 ```
 
 The manifest intentionally contains visible UI facts, not secrets or message
 plaintext. It includes loaded row count, visible titles, placeholder states,
 category presence, row frames, required testability signals, and a short
 non-secret hash of the test-account email so the comparator can reject mixed
-CI/local account artifacts before reporting UI differences.
+CI/local account artifacts before reporting UI differences. The opened-chat
+manifest opens the first 10 loaded user chats and records each rendered message's
+role, normalized content hash, text length, block counts, embed counts, sender
+name presence, thinking section presence, and streaming state. It avoids raw
+message plaintext while still detecting role/order/content/rendering drift.
 
 ## Commands
 
@@ -80,6 +86,12 @@ Compare the manifests:
 python3 scripts/compare_chat_render_parity.py --web artifacts/chat-rendering-parity/web-loaded-chats-manifest.json --apple artifacts/chat-rendering-parity/apple-loaded-chats-manifest.json
 ```
 
+Compare opened-chat rendering for the first 10 loaded chats:
+
+```bash
+python3 scripts/compare_chat_render_parity.py --web artifacts/chat-rendering-parity/web-opened-chats-manifest.json --apple artifacts/chat-rendering-parity/apple-opened-chats-manifest.json --strict-order --minimum-overlap 10
+```
+
 Both manifests must be generated from the same test-account credential source.
 The comparator checks `environment.account_email_hash` in both artifacts and
 fails early when a GitHub Actions web oracle is compared to a local Apple run for
@@ -105,6 +117,8 @@ python3 scripts/compare_chat_render_parity.py --strict-order --minimum-overlap 5
 - Web oracle manifest validates with `--web-only`.
 - Apple candidate manifest exists for the same test-account run.
 - Comparator passes with at least one overlapping visible chat title.
+- Opened-chat comparator passes for the first 10 loaded chats with matching
+  message role sequence, normalized content hashes, and render block counts.
 - Apple screenshot artifact shows the loaded chat panel, not an empty or loading state.
 - No committed artifact contains credentials, auth tokens, message plaintext, or private machine paths.
 
