@@ -54,6 +54,7 @@ import {
   listMentionOptions,
   type MentionType,
 } from "./mentions.js";
+import { APP_SKILL_METADATA } from "./generated/appSkills.js";
 import { OutputRedactor } from "./outputRedactor.js";
 import { processFiles, formatEmbedsForMessage } from "./fileEmbed.js";
 import type { PreparedEmbed } from "./embedCreator.js";
@@ -2171,6 +2172,363 @@ function printWorkflowCapabilityHelp(capability: WorkflowCapability): void {
 // Apps
 // ---------------------------------------------------------------------------
 
+type JsonSchema = {
+  type?: string;
+  description?: string;
+  properties?: Record<string, JsonSchema>;
+  items?: JsonSchema;
+  required?: string[];
+  enum?: unknown[];
+  default?: unknown;
+};
+
+type GeneratedAppSkillCommand = {
+  app_id: string;
+  skill_id: string;
+  description?: string;
+  schema?: JsonSchema;
+};
+
+type AppSkillInputShape = {
+  kind: "request-array" | "flat";
+  schema: JsonSchema;
+  properties: Record<string, JsonSchema>;
+  required: string[];
+};
+
+const GENERATED_APP_SKILL_COMMANDS = APP_SKILL_METADATA as readonly GeneratedAppSkillCommand[];
+
+const APP_SKILL_COMMAND_EXAMPLES: Record<string, string[]> = {
+  "code/get_docs": [
+    "openmates apps code get_docs --library React --question \"How do I use useState?\" --json",
+  ],
+  "code/search_repos": [
+    "openmates apps code search_repos \"svelte markdown editor\" --count 3 --json",
+  ],
+  "electronics/search_components": [
+    "openmates apps electronics search_components --category power_converters --input-voltage-min 12 --input-voltage-max 12 --output-voltage 3.3 --output-current-max 3 --max-results 3 --json",
+  ],
+  "events/search": [
+    "openmates apps events search \"technology meetup\" --location Berlin --provider auto --json",
+  ],
+  "fitness/search_classes": [
+    "openmates apps fitness search_classes Yoga --address \"Sorauer Str. 12, Berlin\" --radius-km 3 --attendance-mode onsite --days 7 --limit 5 --json",
+  ],
+  "fitness/search_locations": [
+    "openmates apps fitness search_locations HIIT --address \"Sorauer Str. 12, Berlin\" --radius-km 2 --limit 5 --json",
+  ],
+  "health/search_appointments": [
+    "openmates apps health search_appointments --speciality zahnarzt --city Berlin --json",
+  ],
+  "home/search": [
+    "openmates apps home search Berlin --listing-type rent --json",
+  ],
+  "images/search": [
+    "openmates apps images search \"sunset over ocean\" --json",
+  ],
+  "maps/search": [
+    "openmates apps maps search \"cafes in Berlin Mitte\" --json",
+  ],
+  "math/calculate": [
+    "openmates apps math calculate \"sqrt(144)\" --mode numeric --precision 10 --json",
+  ],
+  "music/generate": [
+    "openmates apps music generate \"A 30 second upbeat electronic test jingle\" --mode jingle --duration-seconds 30 --json",
+  ],
+  "news/search": [
+    "openmates apps news search \"artificial intelligence\" --freshness pw --json",
+  ],
+  "shopping/search_products": [
+    "openmates apps shopping search_products \"bio joghurt\" --provider REWE --json",
+  ],
+  "travel/search_connections": [
+    "openmates apps travel search_connections --origin Berlin --destination Munich --date 2026-08-01 --json",
+    "openmates apps travel search_connections --origin Berlin --destination Munich --date 2026-08-01 --transport train --json",
+  ],
+  "travel/search_stays": [
+    "openmates apps travel search_stays \"Hotels in Berlin\" --check-in-date 2026-08-01 --check-out-date 2026-08-03 --json",
+  ],
+  "videos/get_transcript": [
+    "openmates apps videos get_transcript --url https://www.youtube.com/watch?v=dQw4w9WgXcQ --json",
+  ],
+  "videos/search": [
+    "openmates apps videos search \"python programming tutorial\" --json",
+  ],
+  "weather/forecast": [
+    "openmates apps weather forecast Berlin --days 2 --json",
+  ],
+  "web/read": [
+    "openmates apps web read https://example.com --json",
+  ],
+  "web/search": [
+    "openmates apps web search \"OpenMates AI assistant\" --json",
+  ],
+};
+
+function findGeneratedAppSkillCommand(
+  appId: string | undefined,
+  skillId: string | undefined,
+): GeneratedAppSkillCommand | undefined {
+  if (!appId || !skillId) return undefined;
+  return GENERATED_APP_SKILL_COMMANDS.find(
+    (command) => command.app_id === appId && command.skill_id === skillId,
+  );
+}
+
+function appSkillInputShape(command: GeneratedAppSkillCommand): AppSkillInputShape {
+  const schema = command.schema ?? { type: "object", properties: {} };
+  const requests = schema.properties?.requests;
+  if (requests?.type === "array") {
+    const itemSchema = requests.items ?? { type: "object", properties: {} };
+    return {
+      kind: "request-array",
+      schema: itemSchema,
+      properties: itemSchema.properties ?? {},
+      required: itemSchema.required ?? [],
+    };
+  }
+  return {
+    kind: "flat",
+    schema,
+    properties: schema.properties ?? {},
+    required: schema.required ?? [],
+  };
+}
+
+async function handleGeneratedAppSkillCommand(
+  client: OpenMatesClient,
+  command: GeneratedAppSkillCommand,
+  positionals: string[],
+  flags: Record<string, string | boolean>,
+  apiKey?: string,
+): Promise<void> {
+  if (flags.help === true) {
+    printGeneratedAppSkillCommandHelp(command);
+    return;
+  }
+
+  const inputData = buildGeneratedAppSkillInput(command, positionals, flags);
+  try {
+    const result = await client.runSkill({
+      app: command.app_id,
+      skill: command.skill_id,
+      inputData,
+      apiKey,
+    });
+    if (flags.json === true) {
+      printJson(result);
+    } else {
+      printSkillResult(command.app_id, command.skill_id, result);
+    }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`\x1b[31m✗ ${command.app_id}/${command.skill_id} failed:\x1b[0m ${msg}`);
+    process.exit(1);
+  }
+}
+
+function buildGeneratedAppSkillInput(
+  command: GeneratedAppSkillCommand,
+  positionals: string[],
+  flags: Record<string, string | boolean>,
+): Record<string, unknown> {
+  if (typeof flags.input === "string") {
+    try {
+      const parsed = JSON.parse(flags.input) as unknown;
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+        throw new Error("input must be a JSON object");
+      }
+      return parsed as Record<string, unknown>;
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : String(err);
+      throw new Error(`Invalid --input JSON: ${detail}`);
+    }
+  }
+
+  const shape = appSkillInputShape(command);
+  const value = buildGeneratedAppSkillValue(command, shape, positionals, flags);
+  if (shape.kind === "request-array") {
+    return { requests: [value] };
+  }
+  return value;
+}
+
+function buildGeneratedAppSkillValue(
+  command: GeneratedAppSkillCommand,
+  shape: AppSkillInputShape,
+  positionals: string[],
+  flags: Record<string, string | boolean>,
+): Record<string, unknown> {
+  if (command.app_id === "travel" && command.skill_id === "search_connections") {
+    return buildTravelConnectionsRequest(positionals, flags);
+  }
+
+  const value: Record<string, unknown> = {};
+  const consumedPositionals = applyPrimaryPositionals(command, shape, value, positionals);
+  for (const [name, schema] of Object.entries(shape.properties)) {
+    if (value[name] !== undefined || name === "requests") continue;
+    const raw = readFlag(flags, name);
+    if (raw === undefined) continue;
+    value[name] = coerceAppSkillFlagValue(name, raw, schema);
+  }
+
+  const remainingPositionals = positionals.slice(consumedPositionals);
+  if (remainingPositionals.length > 0) {
+    throw new Error(
+      `Unexpected argument(s): ${remainingPositionals.join(" ")}\n\nRun: openmates apps ${command.app_id} ${command.skill_id} --help`,
+    );
+  }
+
+  const missing = shape.required.filter((name) => value[name] === undefined || value[name] === "");
+  if (missing.length > 0) {
+    throw new Error(
+      `Missing required option(s): ${missing.map((name) => `--${kebabCase(name)}`).join(", ")}\n\nRun: openmates apps ${command.app_id} ${command.skill_id} --help`,
+    );
+  }
+  return value;
+}
+
+function buildTravelConnectionsRequest(
+  positionals: string[],
+  flags: Record<string, string | boolean>,
+): Record<string, unknown> {
+  const origin = stringFlag(flags, "origin") ?? positionals[0];
+  const destination = stringFlag(flags, "destination") ?? positionals[1];
+  const date = stringFlag(flags, "date") ?? positionals[2];
+  if (!origin || !destination || !date) {
+    throw new Error(
+      "Missing travel route. Use --origin <place> --destination <place> --date <YYYY-MM-DD>.\n\n" +
+        "Example: openmates apps travel search_connections --origin Berlin --destination Munich --date 2026-08-01 --json",
+    );
+  }
+  const request: Record<string, unknown> = {
+    legs: [{ origin, destination, date }],
+  };
+  const transport = stringFlag(flags, "transport") ?? stringFlag(flags, "transport-method");
+  if (transport) request.transport_methods = [transport];
+  return request;
+}
+
+function applyPrimaryPositionals(
+  command: GeneratedAppSkillCommand,
+  shape: AppSkillInputShape,
+  value: Record<string, unknown>,
+  positionals: string[],
+): number {
+  if (positionals.length === 0) return 0;
+
+  if (command.app_id === "code" && command.skill_id === "get_docs") {
+    if (value.library === undefined) value.library = positionals[0];
+    if (value.question === undefined && positionals.length > 1) {
+      value.question = positionals.slice(1).join(" ");
+    }
+    return positionals.length;
+  }
+
+  const primary = primaryPositionalProperty(shape.properties, shape.required);
+  if (!primary || value[primary] !== undefined) return 0;
+  value[primary] = positionals.join(" ");
+  return positionals.length;
+}
+
+function primaryPositionalProperty(
+  properties: Record<string, JsonSchema>,
+  required: string[],
+): string | undefined {
+  const preferred = ["query", "url", "location", "expression", "prompt", "speciality", "library"];
+  for (const name of preferred) {
+    if (properties[name]?.type === "string") return name;
+  }
+  return required.find((name) => properties[name]?.type === "string");
+}
+
+function readFlag(
+  flags: Record<string, string | boolean>,
+  name: string,
+): string | boolean | undefined {
+  return flags[name] ?? flags[kebabCase(name)];
+}
+
+function stringFlag(flags: Record<string, string | boolean>, name: string): string | undefined {
+  const raw = readFlag(flags, name);
+  return typeof raw === "string" && raw.trim() ? raw.trim() : undefined;
+}
+
+function coerceAppSkillFlagValue(
+  name: string,
+  raw: string | boolean,
+  schema: JsonSchema,
+): unknown {
+  if (schema.type === "boolean") return raw === true || raw === "true";
+  if (schema.type === "integer") {
+    if (typeof raw !== "string") throw new Error(`--${kebabCase(name)} requires an integer value`);
+    const parsed = Number.parseInt(raw, 10);
+    if (!Number.isInteger(parsed)) throw new Error(`--${kebabCase(name)} must be an integer`);
+    return parsed;
+  }
+  if (schema.type === "number") {
+    if (typeof raw !== "string") throw new Error(`--${kebabCase(name)} requires a number value`);
+    const parsed = Number(raw);
+    if (!Number.isFinite(parsed)) throw new Error(`--${kebabCase(name)} must be a number`);
+    return parsed;
+  }
+  if (schema.type === "array") {
+    if (typeof raw !== "string") return [];
+    return raw.split(/[,\n]/).map((value) => value.trim()).filter(Boolean);
+  }
+  return typeof raw === "string" ? raw : String(raw);
+}
+
+function printGeneratedAppSkillCommandHelp(command: GeneratedAppSkillCommand): void {
+  const shape = appSkillInputShape(command);
+  header(`${capitalise(command.app_id)} › ${command.skill_id}`);
+  if (command.description) console.log(`\n${command.description}\n`);
+  console.log("Usage:");
+  console.log(`  openmates apps ${command.app_id} ${command.skill_id} [value] [options] [--json]`);
+  console.log(`  openmates apps ${command.app_id} ${command.skill_id} --input '<json>' [--json]`);
+  console.log("\nOptions:");
+  console.log("  --input <json>       Full app-skill input object. Use this for advanced/nested payloads.");
+  for (const [name, schema] of Object.entries(shape.properties)) {
+    const required = shape.required.includes(name) ? " required" : "";
+    const type = appSkillCliType(schema);
+    const description = schema.description ? `  ${schema.description.replace(/\s+/g, " ").slice(0, 120)}` : "";
+    console.log(`  --${kebabCase(name)} <${type}>${required}${description}`);
+  }
+  if (command.app_id === "travel" && command.skill_id === "search_connections") {
+    console.log("  --origin <place>     Route origin for a typed connection search.");
+    console.log("  --destination <place> Route destination for a typed connection search.");
+    console.log("  --date <YYYY-MM-DD>  Departure date for a typed connection search.");
+    console.log("  --transport <mode>   Optional transport mode, e.g. train or plane.");
+  }
+  console.log("  --api-key <key>      Use an API key instead of a stored CLI session.");
+  console.log("  --json               Print the raw response envelope as JSON.");
+  console.log("\nExamples:");
+  const key = `${command.app_id}/${command.skill_id}`;
+  const examples = APP_SKILL_COMMAND_EXAMPLES[key] ?? [buildGeneratedAppSkillExample(command, shape)];
+  for (const example of examples) console.log(`  ${example}`);
+  console.log("\nInspect metadata:");
+  console.log(`  openmates apps skill-info ${command.app_id} ${command.skill_id}`);
+}
+
+function appSkillCliType(schema: JsonSchema): string {
+  if (schema.enum && schema.enum.length > 0) return schema.enum.map(String).join("|");
+  if (schema.type === "array") return "csv";
+  return schema.type ?? "value";
+}
+
+function buildGeneratedAppSkillExample(
+  command: GeneratedAppSkillCommand,
+  shape: AppSkillInputShape,
+): string {
+  const primary = primaryPositionalProperty(shape.properties, shape.required);
+  const value = primary ? String(buildExampleValue(primary, shape.properties[primary]?.type ?? "string", shape.properties[primary]?.description ?? "")) : "<value>";
+  return `openmates apps ${command.app_id} ${command.skill_id} ${JSON.stringify(value)} --json`;
+}
+
+function kebabCase(value: string): string {
+  return value.replace(/_/g, "-");
+}
+
 async function handleApps(
   client: OpenMatesClient,
   subcommand: string | undefined,
@@ -2197,6 +2555,11 @@ async function handleApps(
     const potentialApp = subcommand;
     const potentialSkill = rest[0];
     if (potentialSkill) {
+      const command = findGeneratedAppSkillCommand(potentialApp, potentialSkill);
+      if (command) {
+        printGeneratedAppSkillCommandHelp(command);
+        return;
+      }
       console.error(
         "Generic app-skill CLI execution is not supported.\n\n" +
           "Use an explicit typed command for this app skill, or inspect metadata with:\n" +
@@ -2371,6 +2734,12 @@ async function handleApps(
 
   if (subcommand === "models3d" && rest[0] === "search") {
     await handleModels3dSearch(client, flags, apiKey);
+    return;
+  }
+
+  const generatedCommand = findGeneratedAppSkillCommand(subcommand, rest[0]);
+  if (generatedCommand) {
+    await handleGeneratedAppSkillCommand(client, generatedCommand, rest.slice(1), flags, apiKey);
     return;
   }
 
@@ -7633,6 +8002,8 @@ function printAppsHelp(): void {
   openmates apps info <app-id> [--json]               App info (explicit)
   openmates apps skill-info <app-id> <skill-id> [--json]
   openmates apps examples <app-id> [skill-id] [--json]
+  openmates apps <app-id> <skill-id> [value] [options] [--json]
+  openmates apps <app-id> <skill-id> --input '<json>' [--json]
   openmates apps code run --language python --code 'print("Hello")'
   openmates apps code run --entry main.py --file main.py [--file requirements.txt]
   openmates apps code run --entry main.py --dir ./project [--exclude node_modules]
@@ -7646,6 +8017,10 @@ Authentication:
 Examples:
   openmates apps list
   openmates apps web
+  openmates apps web search "OpenMates AI assistant" --json
+  openmates apps weather forecast Berlin --days 2 --json
+  openmates apps math calculate "sqrt(144)" --mode numeric --json
+  openmates apps code get_docs --library React --question "How do I use useState?" --json
   openmates apps examples travel search_connections
   openmates apps code run --language python --filename hello.py --code 'print("Hello from CLI")'
   openmates apps models3d search --query benchy --count 2 --providers Printables --json

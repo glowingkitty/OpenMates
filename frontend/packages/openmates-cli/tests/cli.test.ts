@@ -1911,8 +1911,8 @@ describe("embed version commands", () => {
 });
 
 describe("apps metadata commands", () => {
-  it("rejects generic app-skill execution", async () => {
-    await withSkillFormattingMockApi(async ({ apiUrl }) => {
+  it("runs generated app-skill commands with explicit schema-backed input", async () => {
+    await withSkillFormattingMockApi(async ({ apiUrl, requests }) => {
       const { stdout, stderr } = await execFileAsync("node", [
         "dist/cli.js",
         "--api-url", apiUrl,
@@ -1923,11 +1923,14 @@ describe("apps metadata commands", () => {
         encoding: "utf-8",
         env: { ...process.env, TERM: "dumb" },
         timeout: 15_000,
-      }).catch((error: { stdout?: string; stderr?: string }) => error);
+      });
 
-      assert.equal(stdout, "");
-      assert.match(stderr ?? "", /Generic app-skill CLI execution is not supported/);
-      assert.match(stderr ?? "", /openmates apps skill-info tasks create/);
+      assert.match(stdout, /Draft checklist/);
+      assert.equal(stderr, "");
+      assert.deepEqual(requests[0], {
+        url: "/v1/apps/tasks/skills/create",
+        body: { tasks: [{ title: "Draft checklist" }] },
+      });
     });
   });
 
@@ -2036,8 +2039,8 @@ describe("apps metadata commands", () => {
     });
   });
 
-  it("does not route nested app-skill errors through generic execution", async () => {
-    await withSkillFormattingMockApi(async ({ apiUrl }) => {
+  it("routes nested app-skill errors through explicit command result formatting", async () => {
+    await withSkillFormattingMockApi(async ({ apiUrl, requests }) => {
       const { stdout, stderr } = await execFileAsync("node", [
         "dist/cli.js",
         "--api-url", apiUrl,
@@ -2048,11 +2051,15 @@ describe("apps metadata commands", () => {
         encoding: "utf-8",
         env: { ...process.env, TERM: "dumb" },
         timeout: 15_000,
-      }).catch((error: { stdout?: string; stderr?: string }) => error);
+      });
 
       assert.equal(stdout, "");
-      assert.match(stderr, /Generic app-skill CLI execution is not supported/);
+      assert.match(stderr, /Workflow encryption requires the user's Vault key id/);
       assert.doesNotMatch(stderr, /No results found/i);
+      assert.deepEqual(requests[0], {
+        url: "/v1/apps/workflows/skills/search",
+        body: { query: "vault-blocked" },
+      });
     });
   });
 });
