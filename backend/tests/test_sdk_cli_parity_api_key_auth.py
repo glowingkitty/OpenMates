@@ -17,6 +17,7 @@ from backend.core.api.app.routes import sdk as sdk_routes
 from backend.core.api.app.routes.sdk import (
     _dispatch_sdk_surface,
     _extract_chat_response_content,
+    _extract_chat_response_model_name,
     _require_sdk_scope_for_surface,
 )
 
@@ -287,6 +288,12 @@ def test_sdk_chat_response_normalizes_openai_completion_shape():
     }
 
     assert _extract_chat_response_content(result) == "SDK live npm smoke ok"
+
+
+def test_sdk_chat_response_extracts_model_name_shapes():
+    assert _extract_chat_response_model_name({"model_name": "Mistral Small 3.2"}) == "Mistral Small 3.2"
+    assert _extract_chat_response_model_name({"modelName": "GPT Test"}) == "GPT Test"
+    assert _extract_chat_response_model_name({"usage": {"model_name": "Claude Test"}}) == "Claude Test"
 
 
 @pytest.mark.asyncio

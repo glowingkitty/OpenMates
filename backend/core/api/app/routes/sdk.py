@@ -302,6 +302,21 @@ def _extract_chat_response_content(result: Any) -> str | None:
     return None
 
 
+def _extract_chat_response_model_name(result: Any) -> str | None:
+    if not isinstance(result, dict):
+        return None
+    for key in ("model_name", "modelName", "selected_model_name"):
+        value = result.get(key)
+        if isinstance(value, str) and value:
+            return value
+    usage = result.get("usage")
+    if isinstance(usage, dict):
+        value = usage.get("model_name") or usage.get("modelName")
+        if isinstance(value, str) and value:
+            return value
+    return None
+
+
 def _sdk_recovery_job_id(inference_task_id: str) -> str:
     try:
         namespace = uuid.UUID(inference_task_id)
@@ -1107,10 +1122,11 @@ async def create_sdk_chat(
         return {"persistent": request_body.save_to_account, "stream": True}
     raw_result = _jsonable(result)
     content = _extract_chat_response_content(raw_result)
+    model_name = _extract_chat_response_model_name(raw_result)
     return {
         "persistent": request_body.save_to_account,
         "chat_id": None,
-        "response": {"content": content, "raw": raw_result},
+        "response": {"content": content, "model_name": model_name, "raw": raw_result},
     }
 
 
