@@ -8049,7 +8049,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
          // handleChatClick → dispatch chatSelected → +page.svelte calls loadChat() — all
          // while the AI response is still streaming. Without this guard, resetChatHeaderState()
          // clears isNewChatGeneratingTitle and the banner disappears mid-stream.
-         const isSameActiveChat = chat.chat_id === currentChat?.chat_id;
+          const hashParams = typeof window !== 'undefined'
+              ? new URLSearchParams(window.location.hash.slice(1))
+              : null;
+          const hashChatId = hashParams?.get('chat-id') ?? null;
+          const hashEmbedId = hashParams?.get('embed-id') ?? hashParams?.get('embed_id') ?? null;
+          const isSameChatEmbedRouteEcho = !!hashEmbedId && hashChatId === chat.chat_id;
+          const isSameActiveChat = chat.chat_id === currentChat?.chat_id || isSameChatEmbedRouteEcho;
          const isNewChatHeaderActive = isNewChatGeneratingTitle || isNewChatCreditsError;
          const hasStreamingMessages = currentMessages.some(m => m.status === 'streaming');
          // When loadChat re-runs for the already-active chat (e.g. after closing a fullscreen
