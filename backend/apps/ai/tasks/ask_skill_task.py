@@ -56,7 +56,7 @@ from backend.shared.python_utils.learning_mode import (
 from .stream_consumer import _consume_main_processing_stream
 
 # Import override parser for @ mentioning syntax (e.g., @ai-model:claude-opus-4-5)
-from backend.core.api.app.utils.override_parser import parse_overrides_from_messages, UserOverrides
+from backend.core.api.app.utils.override_parser import parse_overrides, parse_overrides_from_messages, UserOverrides
 
 # Import embed service for cleanup on task failure
 from backend.core.api.app.services.embed_service import EmbedService
@@ -939,6 +939,22 @@ async def _async_process_ai_skill_ask_task(
                                 f"after removing override syntax. New length: {len(cleaned_messages[i]['content'])}"
                             )
                             break
+
+        if (not user_overrides or not user_overrides.has_overrides) and request_data.current_user_content:
+            user_overrides = parse_overrides(
+                request_data.current_user_content,
+                log_prefix=f"[Task ID: {task_id}]",
+            )
+            if user_overrides.has_overrides:
+                request_data.current_user_content = user_overrides.cleaned_message
+                logger.info(
+                    f"[Task ID: {task_id}] USER_OVERRIDE: Detected user overrides in current_user_content. "
+                    f"model_id={user_overrides.model_id}, "
+                    f"model_provider={user_overrides.model_provider}, "
+                    f"mate_id={user_overrides.mate_id}, "
+                    f"skills={user_overrides.skills}, "
+                    f"focus_modes={user_overrides.focus_modes}"
+                )
     except Exception as e_override:
         logger.warning(
             f"[Task ID: {task_id}] Failed to parse user overrides (non-fatal): {e_override}. "

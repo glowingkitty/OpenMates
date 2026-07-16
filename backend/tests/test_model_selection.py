@@ -311,6 +311,16 @@ class TestOverrideParser:
         assert result.skills[0] == ("web", "search")
         assert result.has_overrides is True
 
+    def test_parse_tasks_skill_override_from_current_content(self):
+        """Current-turn content can carry Tasks skill overrides outside history."""
+        from backend.core.api.app.utils.override_parser import parse_overrides
+
+        result = parse_overrides("Create tasks @skill:tasks:create")
+
+        assert result.skills == [("tasks", "create")]
+        assert result.cleaned_message == "Create tasks"
+        assert result.has_overrides is True
+
     def test_parse_focus_override(self):
         """Should parse @focus:app:focus_id syntax."""
         from backend.core.api.app.utils.override_parser import parse_overrides
