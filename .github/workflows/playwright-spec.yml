@@ -104,7 +104,7 @@ jobs:
           existing_keys_json=$(node frontend/packages/openmates-cli/dist/cli.js \
             --api-url "$API_URL" \
             settings developers api-keys list --json)
-          printf '%s' "$existing_keys_json" | node -e 'let raw=""; process.stdin.on("data", d => raw += d); process.stdin.on("end", () => { const start = raw.indexOf("{"); if (start < 0) return; const data = JSON.parse(raw.slice(start)); for (const key of data.api_keys || []) { if (typeof key.id === "string" && typeof key.name === "string" && key.name.startsWith("gha-")) console.log(key.id); } });' \
+          printf '%s' "$existing_keys_json" | node -e 'let raw=""; process.stdin.on("data", d => raw += d); process.stdin.on("end", () => { const start = raw.indexOf("{"); if (start < 0) return; const data = JSON.parse(raw.slice(start)); const keys = Array.isArray(data.api_keys) ? data.api_keys : []; const stale = keys.filter((key) => typeof key.id === "string" && typeof key.name === "string" && key.name.startsWith("gha-")); const revoke = stale.length > 0 ? stale : keys.length >= 5 ? keys.slice().sort((a, b) => String(a.last_used_at || a.created_at || "").localeCompare(String(b.last_used_at || b.created_at || ""))).slice(0, 1) : []; for (const key of revoke) { if (typeof key.id === "string") console.log(key.id); } });' \
             | while IFS= read -r stale_key_id; do
                 if [ -n "$stale_key_id" ]; then
                   node frontend/packages/openmates-cli/dist/cli.js \
