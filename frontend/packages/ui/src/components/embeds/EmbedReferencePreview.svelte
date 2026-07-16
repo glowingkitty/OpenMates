@@ -141,6 +141,7 @@
     }
 
     return {
+      ...(decodedContent ?? {}),
       id,
       type: resolvedType,
       status: String(data.status || 'finished') as EmbedNodeAttributes['status'],

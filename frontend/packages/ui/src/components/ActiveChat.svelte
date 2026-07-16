@@ -1492,12 +1492,30 @@
                         decodedContentKeys: finalDecodedContent ? Object.keys(finalDecodedContent) : []
                     });
                 } else if (!finalEmbedData && !finalDecodedContent) {
+                    const attrsRecord = attrs && typeof attrs === 'object'
+                        ? attrs as Record<string, unknown>
+                        : null;
+                    if (attrsRecord && embedType) {
+                        finalDecodedContent = {
+                            ...attrsRecord,
+                            type: typeof attrsRecord.type === 'string' ? attrsRecord.type : embedType,
+                        };
+                        finalEmbedData = {
+                            embed_id: embedId,
+                            type: embedType,
+                            status: 'finished',
+                            content: '',
+                            createdAt: Date.now(),
+                            updatedAt: Date.now(),
+                        };
+                    } else {
                     // Only error if we have no data at all (neither from EmbedStore nor from event)
                     console.error('[ActiveChat] Embed not found in EmbedStore and no fallback data:', embedId);
                     // Clean up the URL hash that was set eagerly before async resolution —
                     // without this, the URL shows #embed-id=xxx but no fullscreen renders.
                     clearFullscreenRoute();
                     return;
+                    }
                 }
             } catch (error) {
                 console.error('[ActiveChat] Error loading embed for fullscreen:', error);
