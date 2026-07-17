@@ -1,6 +1,8 @@
 # backend/tests/test_sync_api.py
 """Regression tests for optional native/desktop offline sync chunks."""
 
+import hashlib
+
 from types import SimpleNamespace
 
 import pytest
@@ -41,10 +43,19 @@ async def test_offline_prefetch_starts_after_startup_window_and_excludes_sub_cha
         async def get_embed_keys_by_hashed_chat_ids_batch(self, hashed_chat_ids):
             return []
 
+    class FakeDirectusChatKeyWrapper:
+        def __init__(self):
+            self.calls: list[dict[str, object]] = []
+
+        async def get_wrappers_by_hashed_chat_ids_batch(self, hashed_chat_ids, *, hashed_user_id):
+            self.calls.append({"hashed_chat_ids": hashed_chat_ids, "hashed_user_id": hashed_user_id})
+            return []
+
     class FakeDirectus:
         def __init__(self):
             self.chat = FakeDirectusChat()
             self.embed = FakeDirectusEmbed()
+            self.chat_key_wrapper = FakeDirectusChatKeyWrapper()
 
     class FakeCache:
         async def get_sync_messages_history(self, user_id, chat_id):
@@ -65,18 +76,24 @@ async def test_offline_prefetch_starts_after_startup_window_and_excludes_sub_cha
     monkeypatch.setattr(sync_api, "get_latest_chat_compression_checkpoint", fake_checkpoint)
     monkeypatch.setattr(sync_api, "_fetch_code_run_outputs_for_chats", fake_code_outputs)
 
+    directus = FakeDirectus()
     response = await build_offline_prefetch_chunk(
         user_id="user-1",
         cursor=10,
         limit=3,
         include_embeds=True,
         cache_service=FakeCache(),
-        directus_service=FakeDirectus(),
+        directus_service=directus,
     )
 
     assert requested_offsets[0] == 10
     assert [chat["id"] for chat in response.chats] == ["parent-11", "parent-13", "parent-14"]
     assert set(response.messages_by_chat_id) == {"parent-11", "parent-13", "parent-14"}
+    assert response.chat_key_wrappers == []
+    assert directus.chat_key_wrapper.calls == [{
+        "hashed_chat_ids": [hashlib.sha256(chat_id.encode()).hexdigest() for chat_id in ["parent-11", "parent-13", "parent-14"]],
+        "hashed_user_id": hashlib.sha256("user-1".encode()).hexdigest(),
+    }]
     assert response.next_cursor == 15
     assert response.done is False
 
