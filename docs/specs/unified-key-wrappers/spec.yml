@@ -1,7 +1,7 @@
 schema_version: 2
 id: unified-key-wrappers
 title: Unified Key Wrappers
-status: implementing
+status: verified
 
 goal: >
   Unify OpenMates client-side encrypted object key handling so chats, embeds,
@@ -155,12 +155,10 @@ attempts:
 
 handoff:
   current_task_id: TASK-6
-  next_action: Ask the user to confirm deployed dev chat decryptability and absence of migration or repair UI.
-  command: "manual: ask user to confirm dev chat decryptability and no migration UI"
-  expected_outcome: User confirms chats still decrypt on app.dev.openmates.org without migration or repair UI.
-  blocker:
-    type: user_confirmation
-    reason: User confirmation is required before this spec can be marked complete.
+  next_action: Spec complete; monitor future regressions through the recorded CLI and Playwright coverage.
+  command: "python3 scripts/spec_verify.py docs/specs/unified-key-wrappers/spec.yml"
+  expected_outcome: All required evidence remains current for the verified subject commit.
+  blocker: null
   last_verified_commit: 920cb079b9e5b7cd40e5ff7942511c75dcdb05c6
 
 scenarios:
@@ -947,11 +945,12 @@ verifications:
     required_for_done: true
     covers:
       - AC-1
-    status: pending
+    status: passed
     evidence:
-      status: ""
-      summary: "User confirms no migration prompt was seen and chats still decrypt on dev."
-      timestamp: ""
+      status: passed
+      reason: User replied, "Yes so far all good," after being asked to confirm dev chat decryptability and absence of migration or repair UI.
+      summary: "User confirmed deployed dev behavior is good so far: chats decrypt normally and no migration, repair, or upgrade-encryption prompt was seen."
+      timestamp: "2026-07-17T16:13:00Z"
 
 implementation_plan:
   spec_path: docs/specs/unified-key-wrappers/spec.yml
