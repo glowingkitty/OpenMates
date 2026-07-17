@@ -232,6 +232,10 @@ describe("handlePendingAIResponseImpl", () => {
 
 
 describe("handleRecoveryJobsAvailableImpl", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it("persists an available recovery job even when the assistant row is locally synced", async () => {
     const handlers = new Map<string, (payload: unknown) => void>();
     let claimRequestId: string | undefined;
@@ -669,6 +673,131 @@ describe("handleRecoveryJobsAvailableImpl", () => {
     expect(mocks.chatDB.saveMessage).toHaveBeenCalledWith(
       expect.objectContaining({ message_id: "assistant-1", status: "synced" }),
     );
+  });
+
+  it("refreshes the chat version and retries terminal persistence after a recovery version conflict", async () => {
+    const handlers = new Map<string, Set<(payload: unknown) => void>>();
+    const emit = (type: string, payload: unknown) => {
+      for (const handler of Array.from(handlers.get(type) ?? [])) handler(payload);
+    };
+    let claimRequestId: string | undefined;
+    const persistRequestIds: string[] = [];
+    const persistExpectedVersions: unknown[] = [];
+    let currentMessagesV = 2;
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    mocks.webSocketService.on.mockImplementation((type: string, handler: (payload: unknown) => void) => {
+      const set = handlers.get(type) ?? new Set();
+      set.add(handler);
+      handlers.set(type, set);
+    });
+    mocks.webSocketService.off.mockImplementation((type: string, handler: (payload: unknown) => void) => {
+      handlers.get(type)?.delete(handler);
+    });
+    mocks.webSocketService.sendMessage.mockImplementation(async (
+      type: string,
+      payload: Record<string, unknown>,
+    ) => {
+      if (type === "recovery_job_claim") {
+        claimRequestId = payload.request_id as string;
+      }
+      if (type === "recovery_job_persist") {
+        persistRequestIds.push(payload.request_id as string);
+        persistExpectedVersions.push(payload.expected_messages_v);
+      }
+    });
+    mocks.chatDB.getChat.mockImplementation(async () => ({
+      chat_id: "chat-1",
+      user_id: "user-1",
+      messages_v: currentMessagesV,
+    }));
+    mocks.chatKeyManager.getKey.mockResolvedValue(new Uint8Array([1, 2, 3]));
+    mocks.ensureChatKeySafeForWrite.mockResolvedValue(true);
+    mocks.deriveChatCompletionRecoveryKeypair.mockResolvedValue({ privateKey: "private-key" });
+    mocks.openChatCompletionRecoveryEnvelope.mockResolvedValue(
+      new TextEncoder().encode(JSON.stringify({
+        assistant_message_id: "assistant-1",
+        category: "general",
+        chat_id: "chat-1",
+        content: "Recovered response",
+        job_id: "job-1",
+        key_version: 1,
+        model_name: "model-1",
+        turn_id: "turn-1",
+      })),
+    );
+    mocks.chatDB.getEncryptedFields.mockResolvedValue({
+      encrypted_content: "encrypted-content",
+      encrypted_sender_name: "encrypted-sender",
+      encrypted_category: "encrypted-category",
+      encrypted_model_name: "encrypted-model",
+    });
+    let contentBatchRequests = 0;
+    const service = {
+      dispatchEvent: vi.fn(),
+      hasCompletedInitialSync_FOR_HANDLERS_ONLY: true,
+      requestChatContentBatch_FOR_HANDLERS_ONLY: vi.fn().mockImplementation(async () => {
+        contentBatchRequests += 1;
+        if (contentBatchRequests > 1) currentMessagesV = 4;
+      }),
+    } as unknown as ChatSynchronizationService;
+
+    const recovery = handleRecoveryJobsAvailableImpl(service, {
+      jobs: [{
+        job_id: "job-1",
+        chat_id: "chat-1",
+        turn_id: "turn-1",
+        assistant_message_id: "assistant-1",
+        chat_key_version: 1,
+      }],
+    });
+    await vi.waitFor(() => {
+      expect(claimRequestId).toEqual(expect.any(String));
+    });
+    emit("recovery_job_claimed", {
+      job_id: "job-1",
+      request_id: claimRequestId,
+      state: "LEASED",
+      lease_token: "lease-token",
+      lease_generation: 2,
+      sealed_payload: '{"v":1}',
+      chat_id: "chat-1",
+      turn_id: "turn-1",
+      assistant_message_id: "assistant-1",
+      chat_key_version: 1,
+    });
+    await vi.waitFor(() => {
+      expect(persistRequestIds).toHaveLength(1);
+    });
+    emit("error", {
+      code: "version_conflict",
+      job_id: "job-1",
+      request_id: persistRequestIds[0],
+      message: "Encrypted completion recovery was rejected.",
+    });
+    await vi.waitFor(() => {
+      expect(persistRequestIds).toHaveLength(2);
+    });
+    emit("recovery_job_persisted", {
+      job_id: "job-1",
+      request_id: persistRequestIds[1],
+      state: "TERMINAL",
+      committed_messages_v: 5,
+    });
+    await recovery;
+
+    expect(persistExpectedVersions).toEqual([2, 4]);
+    expect(service.requestChatContentBatch_FOR_HANDLERS_ONLY).toHaveBeenCalledTimes(2);
+    expect(mocks.chatDB.saveMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ message_id: "assistant-1", status: "synced" }),
+    );
+    expect(mocks.chatDB.updateChat).toHaveBeenCalledWith(
+      expect.objectContaining({ messages_v: 5 }),
+    );
+    expect(consoleError).not.toHaveBeenCalledWith(
+      expect.stringContaining("[ChatSyncService:Recovery] Failed recovery job"),
+      expect.anything(),
+    );
+    consoleError.mockRestore();
   });
 
   it("ignores delayed claim and persist frames from an earlier recovery attempt", async () => {

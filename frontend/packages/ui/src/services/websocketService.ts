@@ -179,6 +179,15 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
+function isRetryableRecoveryProtocolError(payload: unknown): boolean {
+  if (!isRecord(payload)) return false;
+  return (
+    payload.code === "version_conflict" &&
+    typeof payload.job_id === "string" &&
+    typeof payload.request_id === "string"
+  );
+}
+
 class WebSocketService extends EventTarget {
   private ws: WebSocket | null = null;
   private url: string | null = null;
@@ -482,6 +491,13 @@ class WebSocketService extends EventTarget {
 
   private registerDefaultErrorHandlers(): void {
     this.on("error", (payload: unknown) => {
+      if (isRetryableRecoveryProtocolError(payload)) {
+        console.debug(
+          "[WebSocketService] Received retryable recovery protocol error:",
+          payload,
+        );
+        return;
+      }
       console.error(
         "[WebSocketService] Received error message from server:",
         payload,

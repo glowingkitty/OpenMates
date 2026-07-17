@@ -25,10 +25,21 @@ const CHAT_RECOVERY_RETRY_DELAY_MS = CHAT_RECOVERY_LEASE_EXPIRY_MS + 1_000;
 const INITIAL_SYNC_POLL_MS = 100;
 const RECOVERY_PREREQUISITE_POLL_MS = 250;
 const RECOVERY_PREREQUISITE_TIMEOUT_MS = 120_000;
+const RECOVERY_VERSION_REFRESH_POLL_MS = 100;
+const RECOVERY_VERSION_REFRESH_TIMEOUT_MS = 5_000;
 const RECOVERY_RETRYABLE_ERROR_CODES = new Set(["lease_conflict"]);
 const recoveryJobsInProgress = new Set<string>();
 
 class RecoveryEventTimeoutError extends Error {}
+
+class RecoveryProtocolError extends Error {
+  constructor(
+    public readonly code: string,
+    message: string,
+  ) {
+    super(message);
+  }
+}
 
 interface AvailableRecoveryJob {
   job_id: string;
@@ -70,6 +81,25 @@ async function waitForRecoveryPrerequisites(job: AvailableRecoveryJob): Promise<
   return null;
 }
 
+async function waitForRefreshedChatVersion(
+  serviceInstance: ChatSynchronizationService,
+  chatId: string,
+  previousMessagesV: number,
+): Promise<Chat | null> {
+  await serviceInstance.requestChatContentBatch_FOR_HANDLERS_ONLY([chatId]);
+  const deadline = Date.now() + RECOVERY_VERSION_REFRESH_TIMEOUT_MS;
+  while (Date.now() < deadline) {
+    const chat = await chatDB.getChat(chatId);
+    if (
+      chat &&
+      Number.isSafeInteger(chat.messages_v) &&
+      chat.messages_v > previousMessagesV
+    ) return chat;
+    await new Promise((resolve) => window.setTimeout(resolve, RECOVERY_VERSION_REFRESH_POLL_MS));
+  }
+  return null;
+}
+
 function waitForRecoveryEvent(
   type: string,
   jobId: string,
@@ -103,7 +133,10 @@ function waitForRecoveryEvent(
       ) return;
       if (RECOVERY_RETRYABLE_ERROR_CODES.has(event.code)) return;
       cleanup();
-      reject(new Error(typeof event.message === "string" ? event.message : `${type} was rejected.`));
+      reject(new RecoveryProtocolError(
+        event.code,
+        typeof event.message === "string" ? event.message : `${type} was rejected.`,
+      ));
     };
     const cleanup = () => {
       window.clearTimeout(timeout);
@@ -249,7 +282,7 @@ export async function handleRecoveryJobsAvailableImpl(
         created_at: now,
       } as Message;
       const encryptedFields = await chatDB.getEncryptedFields(aiMessage, job.chat_id);
-      const persistedResult = await requestRecoveryEvent(
+      const persistRecoveredMessage = (expectedMessagesV: number) => requestRecoveryEvent(
         "recovery_job_persisted",
         "recovery_job_persist",
         job.job_id,
@@ -258,7 +291,7 @@ export async function handleRecoveryJobsAvailableImpl(
           job_id: job.job_id,
           lease_token: claim.lease_token,
           lease_generation: claim.lease_generation,
-          expected_messages_v: chat.messages_v,
+          expected_messages_v: expectedMessagesV,
           encrypted_assistant_message: {
             client_message_id: job.assistant_message_id,
             chat_id: job.chat_id,
@@ -272,6 +305,22 @@ export async function handleRecoveryJobsAvailableImpl(
           },
         },
       );
+
+      let persistedResult: Record<string, unknown>;
+      let persistBaseChat = chat;
+      try {
+        persistedResult = await persistRecoveredMessage(chat.messages_v);
+      } catch (error) {
+        if (!(error instanceof RecoveryProtocolError) || error.code !== "version_conflict") throw error;
+        const refreshedChat = await waitForRefreshedChatVersion(
+          serviceInstance,
+          job.chat_id,
+          chat.messages_v,
+        );
+        if (!refreshedChat) throw error;
+        persistBaseChat = refreshedChat;
+        persistedResult = await persistRecoveredMessage(refreshedChat.messages_v);
+      }
       if (
         persistedResult.state !== "TERMINAL" ||
         (persistedResult.committed_messages_v !== undefined &&
@@ -283,11 +332,11 @@ export async function handleRecoveryJobsAvailableImpl(
 
       await chatDB.saveMessage(aiMessage);
       const updatedChat = {
-        ...chat,
+        ...persistBaseChat,
         messages_v:
           typeof persistedResult.committed_messages_v === "number"
             ? persistedResult.committed_messages_v
-            : chat.messages_v + 1,
+            : persistBaseChat.messages_v + 1,
         last_edited_overall_timestamp: now,
         updated_at: now,
       };
