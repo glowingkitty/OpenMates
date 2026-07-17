@@ -44,7 +44,11 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
-const { loginToTestAccount } = require('./helpers/chat-test-helpers');
+const {
+	loginToTestAccount,
+	startNewChat,
+	waitForChatReady
+} = require('./helpers/chat-test-helpers');
 const {
 	createSignupLogger,
 	createStepScreenshotter,
@@ -287,7 +291,7 @@ test.describe('CLI PDF Skills', () => {
 		// OPE-362: pair-auth occasionally drops the web session. If the session
 		// was lost, re-login using the robust loginToTestAccount helper.
 		await page.goto('/');
-		await page.waitForTimeout(2000);
+		await page.waitForLoadState('load');
 		let reloggedIn = false;
 		const isAuthenticated = await page
 			.locator('[data-authenticated="true"]')
@@ -299,18 +303,18 @@ test.describe('CLI PDF Skills', () => {
 			reloggedIn = true;
 		}
 
-		// Open a new chat
-		const newChatBtn = page
-			.locator('[data-testid="new-chat-btn"], .new-chat-btn, [aria-label*="new chat" i]')
-			.first();
-		if (await newChatBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
-			await newChatBtn.click();
-		}
+		await waitForChatReady(page, logCheckpoint);
+		await startNewChat(page, logCheckpoint);
 
-		// Ensure editor is ready
+		const messageInput = page.locator('[data-action="message-input"]').last();
+		await expect(messageInput).toHaveAttribute('data-current-chat-id', /.+/, {
+			timeout: 15000
+		});
+
+		// Ensure editor is ready in the stabilized new-chat context.
 		const messageEditor = page.getByTestId('message-editor');
 		await expect(messageEditor).toBeVisible({ timeout: 15000 });
-		logCheckpoint('Editor ready.');
+		logCheckpoint('Editor ready in stable new-chat context.');
 		await messageEditor.click();
 		await page.keyboard.type('Please read this document and tell me what it contains on page 1.');
 		logCheckpoint('Prompt entered before attaching PDF.');
