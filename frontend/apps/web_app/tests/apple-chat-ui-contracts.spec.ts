@@ -33,6 +33,7 @@ const SHELL_ELEMENTS = [
 ];
 
 const CHAT_LIST_ELEMENTS = [
+	{ testId: 'search-button', semanticId: 'chat-list-search-button' },
 	{ testId: 'chat-history', semanticId: 'chat-list', required: false, severity: 'fail' },
 	{ testId: 'chat-item-wrapper', semanticId: 'chat-list-row', required: false, severity: 'fail' },
 	{ testId: 'chat-item', semanticId: 'chat-list-item', required: false, severity: 'fail' },
@@ -62,6 +63,10 @@ async function openAuthenticatedChat(page: any): Promise<void> {
 	await page.goto(getE2EDebugUrl('/'));
 	await page.waitForLoadState('load');
 	await expect(page.getByTestId('sidebar-toggle')).toBeVisible({ timeout: 30_000 });
+	await expect(page.getByTestId('chat-history-container')).toBeVisible({ timeout: 30_000 });
+}
+
+async function openChatList(page: any): Promise<void> {
 	const chatList = page.getByTestId('chat-history');
 	if (!(await chatList.isVisible({ timeout: 2000 }).catch(() => false))) {
 		const toggle = page.getByTestId('sidebar-toggle');
@@ -69,6 +74,7 @@ async function openAuthenticatedChat(page: any): Promise<void> {
 			await toggle.click();
 		}
 	}
+	await expect(chatList).toBeVisible({ timeout: 30_000 });
 }
 
 async function openExampleTranscript(page: any): Promise<void> {
@@ -89,9 +95,10 @@ test.describe('Apple broad chat UI web contracts', () => {
 			await openAuthenticatedChat(page);
 			states.push(await captureContractState(page, {
 				id: 'authenticated-shell',
-				description: 'Authenticated app shell with chat navigation entry points.',
+				description: 'Authenticated app shell with closed chat navigation entry points.',
 				elements: SHELL_ELEMENTS
 			}));
+			await openChatList(page);
 			states.push(await captureContractState(page, {
 				id: 'chat-list',
 				description: 'Authenticated chat list/sidebar signals for Apple testability mapping.',
