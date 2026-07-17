@@ -256,12 +256,12 @@ async def dispatch_local_connector_request(
     pending_cache_key = _local_connector_pending_cache_key(connector_session_id, request_id)
     result_cache_key = _local_connector_result_cache_key(connector_session_id, request_id)
     cache_service = None
+    cache_available = False
     try:
         from backend.core.api.app.services.cache import CacheService
         from backend.core.api.app.routes.websockets import manager
 
         cache_service = CacheService()
-        await cache_service.delete(result_cache_key)
         pending_stored = await cache_service.set(
             pending_cache_key,
             {
@@ -273,8 +273,9 @@ async def dispatch_local_connector_request(
             },
             ttl=timeout_seconds + 10,
         )
-        if not pending_stored:
-            raise RuntimeError("local_connector_request_cache_unavailable")
+        cache_available = bool(pending_stored)
+        if cache_available:
+            await cache_service.delete(result_cache_key)
         await manager.broadcast_to_user_specific_event(
             user_id=user_id,
             event_name="local_connector_request",
@@ -284,22 +285,23 @@ async def dispatch_local_connector_request(
         while True:
             if future.done():
                 return future.result()
-            cached_result = await cache_service.get(result_cache_key)
-            if isinstance(cached_result, dict):
-                return LocalConnectorRequestResult(
-                    request_id=str(cached_result.get("request_id") or request_id),
-                    status=str(cached_result.get("status") or "error"),
-                    result=cached_result.get("result") if isinstance(cached_result.get("result"), dict) else {},
-                    error_code=_optional_str(cached_result.get("error_code")),
-                    error_message=_optional_str(cached_result.get("error_message")),
-                )
+            if cache_available:
+                cached_result = await cache_service.get(result_cache_key)
+                if isinstance(cached_result, dict):
+                    return LocalConnectorRequestResult(
+                        request_id=str(cached_result.get("request_id") or request_id),
+                        status=str(cached_result.get("status") or "error"),
+                        result=cached_result.get("result") if isinstance(cached_result.get("result"), dict) else {},
+                        error_code=_optional_str(cached_result.get("error_code")),
+                        error_message=_optional_str(cached_result.get("error_message")),
+                    )
             if loop.time() >= deadline:
                 raise TimeoutError("local_connector_request_timeout")
             await asyncio.sleep(LOCAL_CONNECTOR_RESULT_POLL_SECONDS)
     finally:
         if _pending_local_connector_results.get(key) is future:
             _pending_local_connector_results.pop(key, None)
-        if cache_service is not None:
+        if cache_service is not None and cache_available:
             await cache_service.delete(pending_cache_key)
             await cache_service.delete(result_cache_key)
 
