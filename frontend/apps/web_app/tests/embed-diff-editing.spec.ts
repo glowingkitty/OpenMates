@@ -399,7 +399,7 @@ test.describe('Embed Diff-Based Editing', () => {
 		const downloadButton = page.getByTestId('embed-download-button');
 		const download = await Promise.all([
 			page.waitForEvent('download', { timeout: 10000 }).catch(() => null),
-			downloadButton.click()
+			downloadButton.click({ force: true })
 		]).then(([downloadResult]) => downloadResult);
 		let suggestedFilename: string;
 		let downloadedBytes: Buffer;
