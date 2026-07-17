@@ -865,9 +865,21 @@ async function persistTerminal(database, raw, now) {
     verifyLease(row, body, now);
     const message = validateMessage(rawMessage, 'assistant', { chatId: row.chat_id, ownerHash });
     if (message.client_message_id !== row.assistant_message_id) fail(409, 'message_identity_mismatch');
+    const existingMessage = await trx(MESSAGES).where({ client_message_id: row.assistant_message_id }).first();
+    if (existingMessage) {
+      if (existingMessage.chat_id !== row.chat_id || existingMessage.hashed_user_id !== ownerHash || existingMessage.role !== 'assistant') fail(409, 'message_identity_conflict');
+      const chat = await ownedChat(trx, row.chat_id, ownerHash);
+      await trx(JOBS).where({ id: row.id, lease_generation: row.lease_generation }).update({
+        state: 'TERMINAL', sealed_payload: null, sealed_payload_digest: null,
+        lease_token_digest: null, lease_holder_hash: null, lease_expires_at: null, tenure_started_at: null,
+        terminal_ciphertext_digest: ciphertextDigest, completed_at: now,
+        tombstone_expires_at: new Date(now.getTime() + TOMBSTONE_TTL_MS),
+      });
+      await trx(PREFLIGHTS).where({ id: row.preflight_id }).update({ state: 'TERMINAL', terminal_at: now });
+      return { job_id: row.id, state: 'TERMINAL', idempotent: true, committed_messages_v: chat.messages_v };
+    }
     const chat = await ownedChat(trx, row.chat_id, ownerHash);
     if (chat.messages_v !== expectedVersion) fail(409, 'version_conflict');
-    if (await trx(MESSAGES).where({ client_message_id: row.assistant_message_id }).first()) fail(409, 'message_identity_conflict');
     await trx(MESSAGES).insert({ id: randomUUID(), ...message });
     const committedVersion = expectedVersion + 1;
     const timestamp = Math.floor(now.getTime() / 1000);

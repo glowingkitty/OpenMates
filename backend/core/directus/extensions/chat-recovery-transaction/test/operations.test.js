@@ -894,6 +894,35 @@ test('persist_terminal atomically commits ciphertext and erases recovery materia
   });
 });
 
+test('persist_terminal completes idempotently when another path already stored the assistant message', async () => {
+  const seed = leasedSeed();
+  seed.chats[0].messages_v = 2;
+  seed.messages.push(assistantMessage());
+  const database = fakeDatabase(seed);
+  const now = new Date('2029-01-01T00:00:00Z');
+  const lease = await executeOperation(database, 'lease_job', {
+    protocol_version: 1, job_id: JOB_ID, hashed_user_id: OWNER, device_hash: 'device-a',
+  }, now);
+
+  const result = await executeOperation(database, 'persist_terminal', {
+    protocol_version: 1, job_id: JOB_ID, hashed_user_id: OWNER, device_hash: 'device-a',
+    lease_generation: lease.lease_generation, lease_token: lease.lease_token, expected_messages_v: 1,
+    encrypted_assistant_message: assistantMessage(),
+  }, new Date(now.getTime() + 1000));
+
+  assert.deepEqual(result, {
+    job_id: JOB_ID,
+    state: 'TERMINAL',
+    idempotent: true,
+    committed_messages_v: 2,
+  });
+  assert.equal(database.rows.messages.length, 2);
+  assert.equal(database.rows.chats[0].messages_v, 2);
+  assert.equal(database.rows.chat_completion_recovery_jobs[0].state, 'TERMINAL');
+  assert.equal(database.rows.chat_completion_recovery_jobs[0].sealed_payload, null);
+  assert.equal(database.rows.chat_turn_preflights[0].state, 'TERMINAL');
+});
+
 test('persist_terminal rolls back message and chat writes when terminal job update fails', async () => {
   const database = fakeDatabase(leasedSeed(), { operation: 'update', table: 'chat_completion_recovery_jobs', occurrence: 2 });
   const now = new Date('2029-01-01T00:00:00Z');
