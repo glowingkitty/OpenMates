@@ -331,6 +331,9 @@ describe('connectedAccountStorageService', () => {
 				label: 'Work',
 				capabilities: ['read'],
 				runtime_modes: { read: 'allow_automatically' },
+				execution_mode: 'oauth',
+				connector_provider_id: null,
+				connector_status: null,
 				updated_at: undefined
 			}
 		]);
