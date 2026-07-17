@@ -103,18 +103,26 @@ async function waitForStableBox(page: any, locator: any): Promise<void> {
 	}
 }
 
+async function firstVisibleOrFirst(locator: any): Promise<any> {
+	const count = await locator.count().catch(() => 0);
+	for (let index = 0; index < count; index++) {
+		const candidate = locator.nth(index);
+		if (await candidate.isVisible().catch(() => false)) {
+			return candidate;
+		}
+	}
+	return locator.first();
+}
+
 function roundNumber(value: number | undefined): number | null {
 	if (typeof value !== 'number' || Number.isNaN(value)) return null;
 	return Math.round(value * 100) / 100;
 }
 
 async function captureElement(page: any, definition: ContractElementDefinition): Promise<any> {
-	const locator = page.getByTestId(definition.testId).first();
-	if (definition.required !== false) {
-		await waitForStableBox(page, locator);
-	}
-
-	const exists = await locator.count().then((count: number) => count > 0).catch(() => false);
+	const matches = page.getByTestId(definition.testId);
+	const exists = await matches.count().then((count: number) => count > 0).catch(() => false);
+	const locator = await firstVisibleOrFirst(matches);
 	if (!exists) {
 		return {
 			semanticId: definition.semanticId ?? definition.testId,
@@ -126,6 +134,9 @@ async function captureElement(page: any, definition: ContractElementDefinition):
 			computedStyle: {},
 			boundingBox: null
 		};
+	}
+	if (definition.required !== false) {
+		await waitForStableBox(page, locator);
 	}
 
 	const box = await locator.boundingBox();

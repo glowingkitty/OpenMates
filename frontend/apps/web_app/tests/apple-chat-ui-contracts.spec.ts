@@ -72,7 +72,8 @@ async function openAuthenticatedChat(page: any): Promise<void> {
 }
 
 async function openExampleTranscript(page: any): Promise<void> {
-	await page.goto(getE2EDebugUrl(EXAMPLE_CHAT_PATH), { waitUntil: 'networkidle' });
+	await page.goto(getE2EDebugUrl(EXAMPLE_CHAT_PATH), { waitUntil: 'domcontentloaded' });
+	await page.waitForLoadState('load');
 	await expect(page.getByTestId('chat-history-container')).toBeVisible({ timeout: 45_000 });
 	await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 30_000 });
 }
