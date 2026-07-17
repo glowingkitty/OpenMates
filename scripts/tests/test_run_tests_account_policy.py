@@ -121,6 +121,8 @@ def test_single_regular_spec_falls_back_to_healthy_normal_account(monkeypatch):
     orchestrator.git_sha = "abc123"
     orchestrator.dot_env = {}
     orchestrator.spec = "regular.spec.ts"
+    orchestrator.account = None
+    orchestrator.create_account_slot = None
     orchestrator.only_failed = False
     orchestrator.fail_fast = True
     orchestrator.use_mocks = True
@@ -182,6 +184,8 @@ def test_single_reserved_spec_does_not_fall_back_when_reserved_account_fails(mon
     orchestrator.git_sha = "abc123"
     orchestrator.dot_env = {}
     orchestrator.spec = "account-recovery-flow.spec.ts"
+    orchestrator.account = None
+    orchestrator.create_account_slot = None
     orchestrator.only_failed = False
     orchestrator.fail_fast = True
     orchestrator.use_mocks = True
@@ -209,6 +213,52 @@ def test_single_reserved_spec_does_not_fall_back_when_reserved_account_fails(mon
 
     assert result is expected
     assert preflight_calls == [[14]]
+
+
+def test_single_account_preflight_honors_explicit_account(monkeypatch):
+    run_tests = load_run_tests_module()
+    preflight_calls: list[list[int] | None] = []
+
+    orchestrator = object.__new__(run_tests.TestOrchestrator)
+    orchestrator.max_concurrent = 20
+    orchestrator.dry_run = False
+    orchestrator.environment = "production"
+    orchestrator.git_sha = "abc123"
+    orchestrator.dot_env = {}
+    orchestrator.spec = run_tests.ACCOUNT_PREFLIGHT_SPEC
+    orchestrator.account = 19
+    orchestrator.create_account_slot = None
+    orchestrator.only_failed = False
+    orchestrator.fail_fast = True
+    orchestrator.use_mocks = True
+    orchestrator._discover_specs = lambda: [run_tests.ACCOUNT_PREFLIGHT_SPEC]
+
+    expected = run_tests.SuiteResult(
+        status="passed",
+        tests=[{
+            "name": run_tests.ACCOUNT_PREFLIGHT_SPEC,
+            "file": run_tests.ACCOUNT_PREFLIGHT_SPEC,
+            "status": "passed",
+            "account": 19,
+        }],
+    )
+
+    def fake_preflight(_client, accounts=None):
+        preflight_calls.append(accounts)
+        return expected
+
+    class UnexpectedBatchRunner:
+        def __init__(self, **_kwargs):
+            raise AssertionError("explicit account preflight should not dispatch through BatchRunner")
+
+    monkeypatch.setattr(orchestrator, "_run_account_preflight", fake_preflight)
+    monkeypatch.setattr(run_tests, "GitHubActionsClient", lambda **_kwargs: object())
+    monkeypatch.setattr(run_tests, "BatchRunner", UnexpectedBatchRunner)
+
+    result = orchestrator._run_playwright()
+
+    assert result is expected
+    assert preflight_calls == [[19]]
 
 
 def test_hourly_dev_specs_exist():
@@ -350,6 +400,40 @@ def test_dispatch_passes_full_checkout_ref_to_workflow(monkeypatch):
 
     assert client.dispatch_spec("chat-flow.spec.ts", account=1) == 123
     assert "checkout_ref=abc123" in commands[0]
+
+
+def test_dispatch_can_pass_create_account_slot_to_workflow(monkeypatch):
+    run_tests = load_run_tests_module()
+    commands: list[list[str]] = []
+
+    monkeypatch.setattr(run_tests.GitHubActionsClient, "_check_gh", lambda _self: None)
+    monkeypatch.setattr(run_tests.time, "sleep", lambda _seconds: None)
+
+    def fake_run(command, **_kwargs):
+        commands.append(command)
+        return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+    client = run_tests.GitHubActionsClient()
+    monkeypatch.setattr(run_tests.subprocess, "run", fake_run)
+    monkeypatch.setattr(
+        client,
+        "_recent_runs",
+        lambda limit=50: [{
+            "databaseId": 123,
+            "displayTitle": next(
+                item.removeprefix("dispatch_token=")
+                for item in commands[0]
+                if item.startswith("dispatch_token=")
+            ),
+        }],
+    )
+
+    assert client.dispatch_spec(
+        run_tests.PROVISION_AUTH_ACCOUNTS_SPEC,
+        account=19,
+        create_account_slot=19,
+    ) == 123
+    assert "create_account_slot=19" in commands[0]
 
 
 def test_prod_smoke_dispatch_matches_unique_token(monkeypatch, tmp_path):

@@ -221,7 +221,7 @@ test('changes account email and verifies login with the new address', async ({ p
 
 	const isCurrentMailosaur = TEST_EMAIL?.endsWith('.mailosaur.net');
 	const migrationEmail = getGmailAlias('testacct');
-	const temporaryEmail = getGmailAlias('roundtrip');
+	const temporaryEmail = getGmailAlias(`roundtrip-${Date.now().toString(36)}`);
 	test.skip(!migrationEmail || !temporaryEmail, 'Could not build Gmail test aliases.');
 
 	const quota = await checkEmailQuota(isCurrentMailosaur ? migrationEmail! : temporaryEmail!);

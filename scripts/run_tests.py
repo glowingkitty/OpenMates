@@ -95,6 +95,7 @@ GH_REPO = "glowingkitty/OpenMates"
 GH_BRANCH = "dev"
 MAX_ACCOUNTS = 20
 ACCOUNT_PREFLIGHT_SPEC = "test-account-preflight.spec.ts"
+PROVISION_AUTH_ACCOUNTS_SPEC = "cli-provision-auth-accounts.spec.ts"
 E2E_CREDIT_GUARD_DEFAULT_MINIMUM = 20_000
 E2E_CREDIT_GUARD_DEFAULT_TARGET = 50_000
 RESERVED_PLAYWRIGHT_ACCOUNTS_BY_SPEC = {
@@ -884,7 +885,13 @@ class GitHubActionsClient:
             _log("gh not authenticated. Run: gh auth login", "ERROR")
             sys.exit(1)
 
-    def dispatch_spec(self, spec: str, account: int, use_mocks: bool = True) -> Optional[int]:
+    def dispatch_spec(
+        self,
+        spec: str,
+        account: int,
+        use_mocks: bool = True,
+        create_account_slot: Optional[int] = None,
+    ) -> Optional[int]:
         """
         Dispatch a single spec workflow run.
         Returns the run ID or None on failure.
@@ -906,6 +913,8 @@ class GitHubActionsClient:
         ]
         if self.git_sha:
             command.extend(["-f", f"checkout_ref={self.git_sha}"])
+        if create_account_slot is not None:
+            command.extend(["-f", f"create_account_slot={create_account_slot}"])
 
         rc = subprocess.run(
             command,
@@ -1233,6 +1242,7 @@ class BatchRunner:
         fail_fast: bool = True,
         use_mocks: bool = True,
         normal_account_slots: tuple[int, ...] = NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS,
+        create_account_slot: Optional[int] = None,
     ) -> None:
         self.client = client
         self.specs = specs
@@ -1240,6 +1250,7 @@ class BatchRunner:
         self.fail_fast = fail_fast
         self.use_mocks = use_mocks
         self.normal_account_slots = normal_account_slots
+        self.create_account_slot = create_account_slot
 
     def run_all_batches(self) -> SuiteResult:
         """Execute all specs in batches. Returns aggregated SuiteResult."""
@@ -1314,11 +1325,12 @@ class BatchRunner:
                 normal_account_index += 1
             _log(f"  Dispatching {spec} (account {account})")
 
-            run_id = self.client.dispatch_spec(spec, account, self.use_mocks)
+            create_account_slot = self.create_account_slot if spec == PROVISION_AUTH_ACCOUNTS_SPEC else None
+            run_id = self.client.dispatch_spec(spec, account, self.use_mocks, create_account_slot=create_account_slot)
             if run_id is None:
                 # Retry once
                 time.sleep(5)
-                run_id = self.client.dispatch_spec(spec, account, self.use_mocks)
+                run_id = self.client.dispatch_spec(spec, account, self.use_mocks, create_account_slot=create_account_slot)
 
             if run_id is None:
                 dispatch_errors.append(SpecResult(
@@ -5169,6 +5181,7 @@ class TestOrchestrator:
         self.environment = args.environment
         self.max_concurrent = args.max_concurrent
         self.account = args.account
+        self.create_account_slot = args.create_account_slot
         self.fail_fast = not args.no_fail_fast
         self.use_mocks = not args.no_mocks
         self.dry_run = args.dry_run
@@ -5191,6 +5204,8 @@ class TestOrchestrator:
             _log(f"Single spec: {self.spec}")
         if self.account is not None:
             _log(f"Pinned Playwright account: {self.account}")
+        if self.create_account_slot is not None:
+            _log(f"Create account slot: {self.create_account_slot}")
         if self.only_failed:
             _log("Mode: --only-failed (rerunning previous failures)")
         print()
@@ -5535,6 +5550,8 @@ class TestOrchestrator:
                 )
             if preflight_reason:
                 _log(f"Account preflight limited dispatch: {preflight_reason}", "WARN")
+        elif self.spec == ACCOUNT_PREFLIGHT_SPEC and self.account is not None:
+            return self._run_account_preflight(client, accounts=[self.account])
         elif self.spec and self.spec != ACCOUNT_PREFLIGHT_SPEC:
             reserved_account = RESERVED_PLAYWRIGHT_ACCOUNTS_BY_SPEC.get(self.spec)
             if self.account is not None and reserved_account is not None and self.account != reserved_account:
@@ -5588,6 +5605,7 @@ class TestOrchestrator:
             fail_fast=self.fail_fast,
             use_mocks=self.use_mocks,
             normal_account_slots=normal_account_slots,
+            create_account_slot=self.create_account_slot,
         )
         result = runner.run_all_batches()
 
@@ -5809,6 +5827,7 @@ class TestOrchestrator:
     # triggered manually via --spec.
     EXCLUDED_SPECS = {
         "create-test-account.spec.ts",
+        PROVISION_AUTH_ACCOUNTS_SPEC,
         "selfhost-smoke.spec.ts",
         ACCOUNT_PREFLIGHT_SPEC,
     }
@@ -5975,6 +5994,8 @@ def main() -> int:
                         help="Max concurrent GitHub Actions runners (default: 20)")
     parser.add_argument("--account", type=int, choices=range(1, 21), metavar="1-20", default=None,
                         help="Pin a single Playwright spec to a specific GitHub Actions test-account slot")
+    parser.add_argument("--create-account-slot", type=int, choices=range(14, 21), metavar="14-20", default=None,
+                        help="Provision a reserved auth-test account slot via cli-provision-auth-accounts.spec.ts")
     parser.add_argument("--no-fail-fast", action="store_true",
                         help="Don't stop on first batch failure")
     parser.add_argument("--no-mocks", action="store_true",
@@ -6009,6 +6030,9 @@ def main() -> int:
         return 2
     if args.account is not None and not args.spec:
         _log("--account requires --spec so one GitHub Actions run maps to one explicit test-account slot", "ERROR")
+        return 2
+    if args.create_account_slot is not None and args.spec != PROVISION_AUTH_ACCOUNTS_SPEC:
+        _log("--create-account-slot requires --spec cli-provision-auth-accounts.spec.ts", "ERROR")
         return 2
 
     # Always source .env into the process so cron jobs (which only run via
