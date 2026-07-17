@@ -166,6 +166,32 @@ class TestBaseServiceTask:
         for prop_name in expected_properties:
             assert hasattr(BaseServiceTask, prop_name), f"Missing property: {prop_name}"
 
+    def test_drops_stale_loop_bound_services(self):
+        import asyncio
+        from backend.core.api.app.tasks.base_task import BaseServiceTask
+
+        stale_loop = asyncio.new_event_loop()
+        current_loop = asyncio.new_event_loop()
+        task = BaseServiceTask()
+        marker = object()
+        try:
+            task._service_loop = stale_loop
+            task._cache_service = marker
+            task._directus_service = marker
+            task._secrets_manager = marker
+            task._encryption_service = marker
+
+            task._drop_loop_bound_services_for_new_loop(current_loop)
+
+            assert task._service_loop is current_loop
+            assert task._cache_service is None
+            assert task._directus_service is None
+            assert task._secrets_manager is None
+            assert task._encryption_service is None
+        finally:
+            stale_loop.close()
+            current_loop.close()
+
 
 class TestCeleryConfig:
     """Verify Celery app configuration."""
@@ -180,3 +206,13 @@ class TestCeleryConfig:
         import backend.core.api.app.tasks.email_tasks  # noqa: F401
 
         assert "app.tasks.email_tasks.ai_response_notification_email_task.send_ai_response_notification" in app.tasks
+
+
+class TestAppHealthChecks:
+    def test_worker_queue_names_follow_task_config(self):
+        from backend.core.api.app.tasks.health_check_tasks import _get_app_worker_queue_names
+
+        assert _get_app_worker_queue_names("models3d") == {"app_images"}
+        assert _get_app_worker_queue_names("social_media") == {"app_social_media"}
+        assert _get_app_worker_queue_names("videos") == {"app_videos"}
+        assert _get_app_worker_queue_names("unknown_app") == {"app_unknown_app"}

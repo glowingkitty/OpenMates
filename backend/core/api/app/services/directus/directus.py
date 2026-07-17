@@ -78,6 +78,7 @@ class DirectusService:
         self._auth_lock = None
         self.max_retries = int(os.getenv("DIRECTUS_MAX_RETRIES", "3"))
         
+        self._owns_cache_service = cache_service is None
         self.cache = cache_service or CacheService()
         self.cache_ttl = int(os.getenv("DIRECTUS_CACHE_TTL", "3600"))
         # Directus' default ACCESS_TOKEN_TTL is 15 minutes. Cache admin tokens a
@@ -119,6 +120,8 @@ class DirectusService:
         """Close the httpx client."""
         await self._client.aclose()
         logger.info("DirectusService httpx client closed.")
+        if self._owns_cache_service and self.cache is not None:
+            await self.cache.close()
 
     async def get_items(
         self,

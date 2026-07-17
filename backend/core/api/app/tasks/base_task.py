@@ -162,8 +162,37 @@ class BaseServiceTask(DedupedTask):
     _invoice_ninja_service: Optional[InvoiceNinjaService] = None # Add InvoiceNinjaService attribute
     _cache_service: Optional[CacheService] = None # Added CacheService
     _payment_service: Optional[PaymentService] = None # Add PaymentService attribute
+    _service_loop: Optional[asyncio.AbstractEventLoop] = None
+
+    def _drop_loop_bound_services_for_new_loop(self, current_loop: asyncio.AbstractEventLoop) -> None:
+        if self._service_loop is None or self._service_loop is current_loop:
+            self._service_loop = current_loop
+            return
+
+        try:
+            task_id = self.request.id
+        except Exception:
+            task_id = "unknown"
+        logger.info(
+            f"Task {task_id} service instances were bound to a stale event loop; "
+            "reinitializing for the current Celery invocation."
+        )
+        self._directus_service = None
+        self._encryption_service = None
+        self._s3_service = None
+        self._invoice_template_service = None
+        self._credit_note_template_service = None
+        self._email_template_service = None
+        self._secrets_manager = None
+        self._translation_service = None
+        self._invoice_ninja_service = None
+        self._cache_service = None
+        self._payment_service = None
+        self._service_loop = current_loop
 
     async def initialize_services(self):
+        self._drop_loop_bound_services_for_new_loop(asyncio.get_running_loop())
+
         # Determine if in development environment
         is_dev = os.getenv("SERVER_ENVIRONMENT", "development").lower() == "development"
         is_production = not is_dev # is_production is true if not development
@@ -432,3 +461,4 @@ class BaseServiceTask(DedupedTask):
         # Also reset encryption service since it may hold a reference to the cache service
         if self._encryption_service is not None:
             self._encryption_service = None
+        self._service_loop = None

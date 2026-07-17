@@ -38,6 +38,7 @@ class CacheServiceBase:
         self.redis_url = os.getenv("DRAGONFLY_URL", "cache:6379")
         self.DRAGONFLY_PASSWORD = os.getenv("DRAGONFLY_PASSWORD", "openmates_cache")
         self._client = None
+        self._client_loop = None
         self._connection_error = False
 
         # Extract host and port from DRAGONFLY_URL
@@ -84,6 +85,12 @@ class CacheServiceBase:
     @property
     async def client(self) -> Optional[redis.Redis]:
         """Get async Redis client, creating it if needed"""
+        current_loop = asyncio.get_running_loop()
+        if self._client is not None and self._client_loop is not None and self._client_loop is not current_loop:
+            logger.info("Cache client was bound to a stale event loop; recreating for current loop")
+            self._client = None
+            self._client_loop = None
+
         if self._client is None:
             now = time.monotonic()
             if now < type(self)._next_connection_retry_at:
@@ -101,6 +108,7 @@ class CacheServiceBase:
                     decode_responses=False
                 )
                 pong = await self._client.ping()
+                self._client_loop = current_loop
                 self._connection_error = False
                 type(self)._next_connection_retry_at = 0.0
                 type(self)._last_connection_warning_at = 0.0
@@ -120,6 +128,7 @@ class CacheServiceBase:
                     logger.debug(f"Cache connection retry suppressed during cooldown: {str(e)}")
                 self._connection_error = True
                 self._client = None
+                self._client_loop = None
         return self._client
 
     async def get_key_ttl(self, key: str) -> int:
@@ -213,6 +222,7 @@ class CacheServiceBase:
                 # Reset client reference so next task creates a fresh client
                 # bound to its own event loop
                 self._client = None
+                self._client_loop = None
                 self._connection_error = False
 
     async def delete(self, key: str) -> bool:

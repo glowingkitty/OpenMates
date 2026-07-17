@@ -6,6 +6,7 @@
 # flooding degraded-service reports with duplicate warnings in the same sweep.
 
 import pytest
+import asyncio
 
 try:
     from backend.core.api.app.services import cache_base
@@ -17,6 +18,33 @@ except ImportError as _exc:
 @pytest.fixture
 def anyio_backend():
     return "asyncio"
+
+
+def test_cache_client_recreated_when_event_loop_changes(monkeypatch):
+    class FakeRedis:
+        instances = []
+
+        def __init__(self, **_kwargs):
+            FakeRedis.instances.append(self)
+
+        async def ping(self):
+            return True
+
+    monkeypatch.setattr(cache_base.redis, "Redis", FakeRedis)
+    monkeypatch.setattr(CacheServiceBase, "_next_connection_retry_at", 0.0)
+    monkeypatch.setattr(CacheServiceBase, "_last_connection_warning_at", -1000.0)
+
+    service = CacheServiceBase()
+
+    async def get_client():
+        return await service.client
+
+    first_client = asyncio.run(get_client())
+    second_client = asyncio.run(get_client())
+
+    assert first_client is FakeRedis.instances[0]
+    assert second_client is FakeRedis.instances[1]
+    assert first_client is not second_client
 
 
 @pytest.mark.anyio

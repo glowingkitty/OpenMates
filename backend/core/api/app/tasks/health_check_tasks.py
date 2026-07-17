@@ -1133,6 +1133,22 @@ async def _check_app_api_health(app_id: str, port: int = 8000) -> tuple[bool, Op
         return False, _sanitize_error_message(str(e))
 
 
+def _get_app_worker_queue_names(app_id: str) -> set[str]:
+    module_name = f"backend.apps.{app_id}.tasks"
+    try:
+        from backend.core.api.app.tasks.celery_config import TASK_CONFIG
+
+        queues = {
+            config["name"]
+            for config in TASK_CONFIG
+            if config.get("module") == module_name
+        }
+    except Exception:
+        queues = set()
+
+    return queues or {f"app_{app_id}"}
+
+
 async def _check_app_worker_health(app_id: str) -> tuple[bool, Optional[str]]:
     """
     Check app worker health via Celery worker inspection.
@@ -1146,8 +1162,7 @@ async def _check_app_worker_health(app_id: str) -> tuple[bool, Optional[str]]:
     try:
         from backend.core.api.app.tasks.celery_config import app as celery_app
         
-        # Worker queue name follows pattern: app_{app_id}
-        queue_name = f"app_{app_id}"
+        expected_queue_names = _get_app_worker_queue_names(app_id)
         
         # Inspect active workers
         inspect = celery_app.control.inspect()
@@ -1163,8 +1178,8 @@ async def _check_app_worker_health(app_id: str) -> tuple[bool, Optional[str]]:
         for worker_name, queues in active_workers.items():
             if queues:
                 # queues is a list of queue dicts with 'name' key
-                queue_names = [q.get('name') for q in queues if isinstance(q, dict)]
-                if queue_name in queue_names:
+                worker_queue_names = {q.get('name') for q in queues if isinstance(q, dict)}
+                if expected_queue_names.intersection(worker_queue_names):
                     worker_found = True
                     break
         
