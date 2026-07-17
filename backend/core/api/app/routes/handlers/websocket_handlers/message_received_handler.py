@@ -68,6 +68,32 @@ BENCHMARK_METADATA_STRING_FIELDS = {
 }
 
 
+def _decode_embed_toon(value: Any) -> dict[str, Any]:
+    if isinstance(value, dict):
+        return value
+    if not isinstance(value, str) or not value.strip():
+        return {}
+    try:
+        from toon_format import decode as toon_decode  # type: ignore[import]
+
+        decoded = toon_decode(value)
+        return decoded if isinstance(decoded, dict) else {}
+    except Exception:
+        try:
+            decoded = json.loads(value)
+            return decoded if isinstance(decoded, dict) else {}
+        except Exception:
+            return {}
+
+
+def _extract_uploaded_pdf_original_s3_key(content: dict[str, Any]) -> str | None:
+    files = _decode_embed_toon(content.get("files"))
+    original = files.get("original") if isinstance(files, dict) else None
+    if isinstance(original, dict) and isinstance(original.get("s3_key"), str):
+        return original["s3_key"]
+    return None
+
+
 def _sanitize_benchmark_metadata(value: Any) -> dict[str, str] | None:
     if not isinstance(value, dict) or value.get("source") != "benchmark":
         return None
@@ -873,7 +899,48 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                     await cache_service.add_embed_id_to_chat_index(chat_id, embed_id)
 
                     logger.debug(f"Cached embed {embed_id} (type: {embed_type}) for message {message_id}")
-                    
+
+                    if embed_type == "pdf" and embed_status == "processing":
+                        content = _decode_embed_toon(embed_content)
+                        original_s3_key = _extract_uploaded_pdf_original_s3_key(content)
+                        if original_s3_key and content.get("vault_wrapped_aes_key") and content.get("aes_nonce"):
+                            try:
+                                from backend.core.api.app.tasks.celery_config import send_task_validated
+
+                                page_count = content.get("page_count")
+                                send_task_validated(
+                                    task_name="apps.pdf.tasks.process_pdf",
+                                    kwargs={
+                                        "arguments": {
+                                            "embed_id": embed_id,
+                                            "user_id": user_id,
+                                            "vault_key_id": user_vault_key_id,
+                                            "s3_key": original_s3_key,
+                                            "s3_base_url": content.get("s3_base_url") or "",
+                                            "vault_wrapped_aes_key": content["vault_wrapped_aes_key"],
+                                            "aes_nonce": content["aes_nonce"],
+                                            "filename": content.get("filename") or embed_text_preview or "document.pdf",
+                                            "page_count": page_count if isinstance(page_count, int) else 0,
+                                            "credits_charged": 0,
+                                            "user_id_hash": hashed_user_id,
+                                            "chat_id": chat_id,
+                                            "message_id": message_id,
+                                        }
+                                    },
+                                    queue="app_pdf",
+                                )
+                                logger.info(
+                                    "Triggered contextual PDF processing for embed %s in chat %s",
+                                    embed_id,
+                                    chat_id,
+                                )
+                            except Exception as pdf_trigger_err:
+                                logger.warning(
+                                    "Failed to trigger contextual PDF processing for embed %s: %s",
+                                    embed_id,
+                                    pdf_trigger_err,
+                                )
+                     
                 except Exception as e_embed:
                     logger.error(f"Error processing embed from client: {e_embed}", exc_info=True)
                     # Non-critical error - continue processing other embeds
