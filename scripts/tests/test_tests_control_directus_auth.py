@@ -178,7 +178,7 @@ def test_directus_load_state_repairs_stale_problem_rows(monkeypatch):
             return [stale_row]
         decoded_filter = json.loads(params["filter"])
         if decoded_filter.get("stable_status"):
-            return []
+            return [stale_row]
         if decoded_filter.get("test_key"):
             return [fresh_row]
         return []

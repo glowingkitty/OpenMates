@@ -364,11 +364,16 @@ class DirectusTestControlStore(InMemoryTestControlStore):
             "test_current_state",
             params={"filter": json.dumps(problem_filter), "limit": -1, "sort": "test_key"},
         )
-        fresh_problem_by_key = {
-            str(row.get("test_key")): row
-            for row in fresh_problem_rows
-            if row.get("test_key")
-        }
+        fresh_problem_by_key: dict[str, dict[str, Any]] = {}
+        for row in fresh_problem_rows:
+            key = str(row.get("test_key") or "")
+            if not key:
+                continue
+            exact_rows = self._items(
+                "test_current_state",
+                params={"filter": json.dumps({"test_key": {"_eq": key}}), "limit": 1},
+            )
+            fresh_problem_by_key[key] = exact_rows[0] if exact_rows else row
         repaired_rows = []
         for row in rows:
             key = str(row.get("test_key") or "")
