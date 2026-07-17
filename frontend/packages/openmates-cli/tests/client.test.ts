@@ -2071,11 +2071,21 @@ describe("sync delta request helpers", () => {
     );
   });
 
-  it("keeps the cached messages version when local messages are present", () => {
+  it("caps the cached messages version to the local message count", () => {
     assert.equal(
       getClientMessagesVersionForSync({
         details: { id: "child-chat-id", messages_v: 2 },
         messages: ['{"id":"message-id"}'],
+      }),
+      1,
+    );
+  });
+
+  it("keeps the cached messages version when it matches the local message count", () => {
+    assert.equal(
+      getClientMessagesVersionForSync({
+        details: { id: "child-chat-id", messages_v: 2 },
+        messages: ['{"id":"message-id-1"}', '{"id":"message-id-2"}'],
       }),
       2,
     );

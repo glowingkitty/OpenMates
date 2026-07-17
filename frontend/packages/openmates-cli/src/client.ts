@@ -98,7 +98,9 @@ function normalizeUnixSeconds(value: unknown, fallback: number): number {
 
 export function getClientMessagesVersionForSync(cached: CachedChat): number {
   if (cached.messages.length === 0) return 0;
-  return typeof cached.details.messages_v === "number" ? cached.details.messages_v : 0;
+  const messagesVersion =
+    typeof cached.details.messages_v === "number" ? cached.details.messages_v : 0;
+  return Math.min(messagesVersion, cached.messages.length);
 }
 
 interface PendingAIResponseFrame {
@@ -3234,7 +3236,7 @@ export class OpenMatesClient {
     chat: ChatListItem;
     messages: DecryptedMessage[];
   }> {
-    const cache = await this.ensureSynced();
+    const cache = await this.ensureSynced(true);
     const masterKey = this.getMasterKeyBytes();
     const normalized = query.trim().toLowerCase();
 
