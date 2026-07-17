@@ -38,7 +38,8 @@ def test_workflow_payload_cipher_requires_vault_key_reference():
 
 
 def test_workflow_blob_schema_stays_vault_not_client_wrapper():
-    schema = Path("backend/core/directus/schemas/workflow_encrypted_blobs.yml").read_text()
+    backend_root = Path(__file__).resolve().parents[1]
+    schema = (backend_root / "core/directus/schemas/workflow_encrypted_blobs.yml").read_text()
 
     assert "vault_key_ref" in schema
     assert "key_version" in schema
