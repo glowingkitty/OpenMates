@@ -102,7 +102,7 @@ test('existing seeded chat decrypts after chat key wrapper migration', async ({ 
 	await loginToTestAccount(page, (message: string) => console.log(`[CHAT_KEY_WRAPPER] ${message}`));
 	const { chatId, expectedText, expectedSurface } = await resolveSeededChat(page);
 
-	await page.goto(getE2EDebugUrl(`/chat/${chatId}`), { waitUntil: 'domcontentloaded' });
+	await page.goto(getE2EDebugUrl(`/#chat-id=${chatId}`), { waitUntil: 'domcontentloaded' });
 	if (expectedSurface === 'header') {
 		await expect(page.getByTestId('chat-header-title').filter({ hasText: expectedText })).toBeVisible({ timeout: 60000 });
 	} else {
