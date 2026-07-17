@@ -182,6 +182,23 @@ def _handle_task_error(exc: Exception) -> None:
     raise exc
 
 
+def _unwrap_query_default(value: Any) -> Any:
+    if value.__class__.__module__ == "fastapi.params":
+        return value.default
+    return value
+
+
+def _query_list_values(value: Any) -> list[str]:
+    value = _unwrap_query_default(value)
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return value
+    if isinstance(value, tuple):
+        return list(value)
+    return [str(value)]
+
+
 @router.get("")
 @limiter.limit("60/minute")
 async def list_user_tasks(
@@ -200,19 +217,21 @@ async def list_user_tasks(
     workflow_projection_service: WorkflowTaskProjectionService = Depends(get_workflow_task_projection_service),
 ) -> dict[str, Any]:
     current_user = await _current_user(request, response)
+    label_hash_values = [*_query_list_values(label_hash), *_query_list_values(label_hashes)]
+    priority_value = _unwrap_query_default(priority)
     tasks = await service.list_tasks(
         current_user.id,
         status=status,
         project_id=project_id,
         chat_id=chat_id,
         assignee_hash=assignee_hash,
-        label_hashes=[*(label_hash or []), *(label_hashes or [])],
-        priority=priority,
+        label_hashes=label_hash_values,
+        priority=priority_value,
         due_before=due_before,
         limit=limit,
     )
     projections = []
-    if not any((chat_id, project_id, assignee_hash, label_hash, label_hashes, priority is not None, due_before is not None)):
+    if not any((chat_id, project_id, assignee_hash, label_hash_values, priority_value is not None, due_before is not None)):
         projections = await run_in_threadpool(workflow_projection_service.list_projections, current_user.id)
         if status is not None:
             projections = [projection for projection in projections if projection.status == status]
