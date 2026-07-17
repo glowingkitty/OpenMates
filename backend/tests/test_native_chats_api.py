@@ -6,6 +6,7 @@ authenticated user account. The same routes serve independent Apple clients.
 """
 
 import json
+import hashlib
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
@@ -16,8 +17,13 @@ from backend.core.api.app.routes.auth_routes.auth_dependencies import get_curren
 from backend.core.api.app.routes.chats import list_chat_messages, list_chats, router
 
 
-def _request(chat_service):
-    return SimpleNamespace(app=SimpleNamespace(state=SimpleNamespace(directus_service=SimpleNamespace(chat=chat_service))))
+def _request(chat_service, chat_key_wrapper_service=None):
+    if chat_key_wrapper_service is None:
+        chat_key_wrapper_service = SimpleNamespace(get_wrappers_by_hashed_chat_ids_batch=AsyncMock(return_value=[]))
+    return SimpleNamespace(app=SimpleNamespace(state=SimpleNamespace(directus_service=SimpleNamespace(
+        chat=chat_service,
+        chat_key_wrapper=chat_key_wrapper_service,
+    ))))
 
 
 def test_native_chat_routes_require_session_authentication() -> None:
@@ -45,9 +51,10 @@ async def test_list_chats_returns_bounded_encrypted_metadata() -> None:
             }
         ])
     )
+    chat_key_wrapper_service = SimpleNamespace(get_wrappers_by_hashed_chat_ids_batch=AsyncMock(return_value=[]))
 
     result = await list_chats(
-        request=_request(chat_service),
+        request=_request(chat_service, chat_key_wrapper_service),
         limit=20,
         current_user=SimpleNamespace(id="user-1"),
     )
@@ -59,6 +66,7 @@ async def test_list_chats_returns_bounded_encrypted_metadata() -> None:
                 "encrypted_title": "cipher-title",
                 "encrypted_chat_summary": "cipher-summary",
                 "encrypted_chat_key": "wrapped-chat-key",
+                "chat_key_wrappers": [],
                 "pinned": False,
                 "updated_at": "200",
                 "last_message_at": "190",
@@ -72,6 +80,10 @@ async def test_list_chats_returns_bounded_encrypted_metadata() -> None:
         offset=0,
         sort="-pinned,-last_edited_overall_timestamp",
         admin_required=True,
+    )
+    chat_key_wrapper_service.get_wrappers_by_hashed_chat_ids_batch.assert_awaited_once_with(
+        [hashlib.sha256("chat-owned".encode()).hexdigest()],
+        hashed_user_id=hashlib.sha256("user-1".encode()).hexdigest(),
     )
     assert "title" not in result["chats"][0]
     assert "chat_summary" not in result["chats"][0]
