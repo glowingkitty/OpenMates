@@ -386,8 +386,8 @@ test.describe('Embed Diff-Based Editing', () => {
 		log(`Document embeds after turn 2: ${docCount}`);
 		expect(docCount).toBeGreaterThanOrEqual(1);
 
-		const firstDocEmbed = allDocEmbeds.first();
-		await firstDocEmbed.click();
+		const latestDocEmbed = allDocEmbeds.last();
+		await latestDocEmbed.click();
 		const docArtifactPage = page.getByTestId('doc-artifact-page').first();
 		await expect(docArtifactPage).toBeVisible({ timeout: 90000 });
 		const docArtifactPageCount = await page.getByTestId('doc-artifact-page').count();
@@ -396,8 +396,8 @@ test.describe('Embed Diff-Based Editing', () => {
 		await screenshot(page, '05-doc-fullscreen-artifact');
 
 		const [download] = await Promise.all([
-			page.waitForEvent('download'),
-			page.getByRole('button', { name: 'Download' }).click()
+			page.waitForEvent('download', { timeout: 30000 }),
+			page.getByTestId('embed-download-button').click()
 		]);
 		const suggestedFilename = download.suggestedFilename();
 		log(`Downloaded document filename: ${suggestedFilename}`);

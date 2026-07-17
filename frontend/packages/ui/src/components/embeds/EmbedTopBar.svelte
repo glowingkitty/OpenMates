@@ -137,6 +137,7 @@
       <div class="button-wrapper">
         <button
           class="clickable-icon icon_download top-button"
+          data-testid="embed-download-button"
           onclick={onDownload}
           aria-label="Download"
           title="Download"

@@ -255,6 +255,7 @@
   const PAGE_GAP = 32;
   const PAGE_MARGIN_Y = 96;
   const SPACER_HEIGHT = PAGE_MARGIN_Y + PAGE_GAP + PAGE_MARGIN_Y; // 224px
+  const DOWNLOAD_URL_REVOKE_DELAY_MS = 60_000;
 
   // =============================================
   // Zoom State
@@ -614,6 +615,17 @@
   // Action Handlers
   // =============================================
 
+  function triggerBlobDownload(blob: Blob, downloadFilename: string): void {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = downloadFilename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.setTimeout(() => URL.revokeObjectURL(url), DOWNLOAD_URL_REVOKE_DELAY_MS);
+  }
+
   async function handleCopy() {
     try {
       const contentToCopy = piiRevealed && hasPII
@@ -643,14 +655,7 @@
           aesKey,
           'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
         );
-        const url = URL.createObjectURL(docxBlob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = downloadFilename;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        triggerBlobDownload(docxBlob, downloadFilename);
         notificationStore.success('Document downloaded successfully');
         return;
       }
@@ -694,14 +699,7 @@ ${downloadHtmlContent}
         margins: { top: 1440, right: 1440, bottom: 1440, left: 1440 },
       }) as Blob;
 
-      const url = URL.createObjectURL(docxBlob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = downloadFilename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      triggerBlobDownload(docxBlob, downloadFilename);
 
       notificationStore.success('Document downloaded successfully');
     } catch (error) {
