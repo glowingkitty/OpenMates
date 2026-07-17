@@ -122,6 +122,10 @@ unranked:
     name: Gemini 3 Pro Image Preview
     provider_id: google
     country_origin: US
+  - model_id: gemma-4-31b
+    name: Gemma 4 31B
+    provider_id: google
+    country_origin: US
   - model_id: gemini-3.5-flash
     name: Gemini 3.5 Flash
     provider_id: google

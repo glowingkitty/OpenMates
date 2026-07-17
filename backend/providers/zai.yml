@@ -59,14 +59,13 @@ models:
     description: "Z.ai GLM 4.7 - 355B params, ~1000 tok/s via Cerebras."
     country_origin: "CN" # ISO 3166-1 alpha-2 country code for model origin (China)
     for_app_skill: "ai.ask" # This model is for the AI ask skill (text generation)
-    release_date: "2025-12-22" # Model release date (GLM 4.7 release from rankings)
+    release_date: "2026-01-06" # Cerebras public preview availability date
     allow_auto_select: true
     external_ids: # Mapping to external leaderboard IDs for cross-referencing
       lmarena: "glm-4.7"
       openrouter: "z-ai/glm-4.7"
     input_types:
       - text
-      - image
     output_types:
       - text
     default_server: "cerebras"
@@ -99,3 +98,7 @@ models:
         price: 2.75
         currency: USD
         max_context: 131000
+    features:
+      max_output_tokens: 40000
+      tool_use: true
+      streaming: true

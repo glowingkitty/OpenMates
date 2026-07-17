@@ -138,6 +138,7 @@ export const CHAT_MODELS: ModelInfo[] = [
   { id: "gpt-5.4", name: "GPT-5.4" },
   { id: "gpt-oss-120b", name: "GPT-OSS-120b" },
   { id: "gpt-oss-20b", name: "GPT-OSS-20b" },
+  { id: "gemma-4-31b", name: "Gemma 4 31B" },
   { id: "gemini-3-flash-preview", name: "Gemini 3 Flash" },
   { id: "gemini-3-pro-image-preview", name: "Gemini 3 Pro" },
   { id: "gemini-3.1-pro-preview", name: "Gemini 3.1 Pro" },

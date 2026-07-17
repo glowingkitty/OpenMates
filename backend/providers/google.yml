@@ -9,6 +9,44 @@ logo_svg: "logos/google.svg" # Path for UI, relative to a common logos directory
 privacy_policy: "https://privacy.google.com/"
 
 models:
+  - id: "gemma-4-31b"
+    name: "Gemma 4 31B"
+    description: "Google Gemma 4 31B multimodal model served via Cerebras public preview, optimized for fast image-aware chat, screenshots, documents, diagrams, and design assets."
+    country_origin: "US" # ISO 3166-1 alpha-2 country code for model origin
+    for_app_skill: "ai.ask" # This model is for the AI ask skill (text generation)
+    release_date: "2026-06-29" # Cerebras public preview availability date
+    allow_auto_select: true
+    input_types:
+      - text
+      - image
+    output_types:
+      - text
+    default_server: "cerebras" # Cerebras public preview endpoint
+    servers:
+      - id: "cerebras"
+        name: "Cerebras"
+        model_id: "gemma-4-31b"
+        region: "US" # Server region for UI display
+    pricing:
+      tokens:
+        input:
+          per_credit_unit: 335 # Based on $0.99/M input (Cerebras developer pricing)
+        output:
+          per_credit_unit: 220 # Based on $1.49/M output (Cerebras developer pricing)
+    costs:
+      input_per_million_token:
+        price: 0.99
+        currency: USD
+        max_context: 131000
+      output_per_million_token:
+        price: 1.49
+        currency: USD
+        max_context: 131000
+    features:
+      max_output_tokens: 40000
+      tool_use: true
+      streaming: true
+
   - id: "gemini-3-flash-preview"
     name: "Gemini 3 Flash"
     description: "Fast Gemini 3 preview model (primary: Google AI Studio US; fallback: Google Vertex AI global)."
