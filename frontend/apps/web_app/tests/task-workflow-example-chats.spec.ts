@@ -35,8 +35,8 @@ test.describe('Task and workflow public example chats', () => {
 		await expect(taskCards.first()).toContainText('Review transcript for private data');
 
 		await taskCards.first().click();
-		await expect(fullscreen.getByTestId('task-embed-fullscreen')).toBeVisible({ timeout: 15_000 });
-		await expect(fullscreen.getByTestId('task-embed-title')).toContainText('Review transcript for private data');
+		await expect(page.getByTestId('task-embed-fullscreen')).toBeVisible({ timeout: 15_000 });
+		await expect(page.getByTestId('task-embed-title')).toContainText('Review transcript for private data');
 	});
 
 	test('renders the real CLI-created Workflows example from the public SEO URL', async ({ page }) => {
