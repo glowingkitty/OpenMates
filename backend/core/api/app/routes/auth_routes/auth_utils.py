@@ -23,6 +23,14 @@ def _account_contact_email_id(user_id: str) -> str:
     return str(uuid.uuid5(ACCOUNT_CONTACT_EMAIL_UUID_NAMESPACE, user_id))
 
 
+def _normalize_directus_datetime(value: Any) -> Any:
+    if isinstance(value, (int, float)):
+        return datetime.fromtimestamp(value, timezone.utc).isoformat()
+    if isinstance(value, str) and value.isdigit():
+        return datetime.fromtimestamp(int(value), timezone.utc).isoformat()
+    return value
+
+
 async def has_pending_signup_gift_card(
     directus_service: Any,
     pending_gift_card_code: Optional[str],
@@ -56,6 +64,7 @@ async def store_account_lifecycle_contact_email(
     contact_id = _account_contact_email_id(user_id)
     encrypted_email = await encryption_service.encrypt_account_contact_email(email)
     now = datetime.now(timezone.utc).isoformat()
+    verified_at_value = _normalize_directus_datetime(verified_at)
     payload = {
         "id": contact_id,
         "user_id": user_id,
@@ -63,7 +72,7 @@ async def store_account_lifecycle_contact_email(
         "encrypted_email_address": encrypted_email,
         "purpose": ACCOUNT_LIFECYCLE_EMAIL_PURPOSE,
         "source": "signup",
-        "verified_at": verified_at,
+        "verified_at": verified_at_value,
         "metadata": {
             "signup_version": 1,
             "stored_at": now,

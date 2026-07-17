@@ -212,7 +212,7 @@ async def test_store_account_lifecycle_contact_email_uses_vault_encryption():
     assert payload["encrypted_email_address"] == "vault:v1:encrypted-email"
     assert payload["purpose"] == "account_lifecycle"
     assert payload["source"] == "signup"
-    assert payload["verified_at"] == 1234567890
+    assert payload["verified_at"] == "2009-02-13T23:31:30+00:00"
     assert directus_service.create_item.call_args.kwargs["admin_required"] is True
     directus_service.update_item.assert_not_called()
 
