@@ -127,7 +127,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: fe9012b2e929e0a0b969541df2cf915bdd4ad124
+  subject_commit: 6d6c0c47af35e4d403950db08607f475c75667b3
 
 approvals:
   product_contract:
@@ -190,14 +190,20 @@ attempts:
     outcome: succeeded
     recorded_at: "2026-07-16T19:27:46Z"
     evidence: "`python3 scripts/sync_agent_parity.py --check` passed after syncing `.agents/skills/ios` and normalizing Codex hook mirrors to Claude sources."
+  - id: ATTEMPT-6
+    task_id: TASK-3
+    approach: Stabilize and deploy the umbrella chat UI contract spec against the rendered dev web app.
+    outcome: succeeded
+    recorded_at: "2026-07-17T00:59:31Z"
+    evidence: "`python3 scripts/tests.py run --spec apple-chat-ui-contracts.spec.ts` passed on deployed dev commit `6d6c0c47a` with GitHub Actions run `29546164727`."
 
 handoff:
-  current_task_id: TASK-3
-  next_action: Deploy the umbrella chat UI contract spec, then dispatch the Playwright contract run through the test control plane.
-  command: python3 scripts/tests.py run --spec apple-chat-ui-contracts.spec.ts
-  expected_outcome: The deployed dev Playwright run captures chat UI contract artifacts or reports a concrete selector/state gap.
+  current_task_id: TASK-5
+  next_action: Run or attempt the targeted Apple chat parity UI test through the remote Mac wrapper.
+  command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/ChatFlowParityUITests
+  expected_outcome: Remote Apple execution produces iPhone chat parity evidence or a sanitized blocker class for the spec ledger.
   blocker: null
-  last_verified_commit: fe9012b2e929e0a0b969541df2cf915bdd4ad124
+  last_verified_commit: 6d6c0c47af35e4d403950db08607f475c75667b3
 
 scenarios:
   - id: S-1
@@ -405,9 +411,9 @@ tests:
       evidence:
         status: passed
         command: python3 scripts/apple_parity_audit.py
-        run_id: local-20260716T191242Z
-        subject_commit: fe9012b2e929e0a0b969541df2cf915bdd4ad124
-        timestamp: "2026-07-16T19:12:42Z"
+        run_id: local-20260717T010049Z
+        subject_commit: 6d6c0c47af35e4d403950db08607f475c75667b3
+        timestamp: "2026-07-17T01:00:49Z"
 
   - id: T-E2E-WEB-CHAT-CONTRACTS
     type: playwright
@@ -434,7 +440,14 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: pending
+        status: passed
+        command: python3 scripts/tests.py run --spec apple-chat-ui-contracts.spec.ts
+        run_id: "29546164727"
+        subject_commit: 6d6c0c47af35e4d403950db08607f475c75667b3
+        timestamp: "2026-07-17T00:59:31Z"
+        target: app.dev.openmates.org
+        deployment_reference: dpl_ZYS7KL544nWmKXW4dLWXdSMshiF4
+        notes: "The deployed dev run captured iPhone and iPad chat UI contract artifacts after stabilizing hidden toggle, network wait, and offscreen composer focus behavior."
 
   - id: T-LINT-APPLE-CHAT-AUDIT
     type: lint
@@ -460,9 +473,9 @@ tests:
       evidence:
         status: passed
         command: python3 scripts/apple_chat_parity_audit.py
-        run_id: local-20260716T192746Z
-        subject_commit: fe9012b2e929e0a0b969541df2cf915bdd4ad124
-        timestamp: "2026-07-16T19:27:46Z"
+        run_id: local-20260717T010049Z
+        subject_commit: 6d6c0c47af35e4d403950db08607f475c75667b3
+        timestamp: "2026-07-17T01:00:49Z"
 
   - id: T-APPLE-CHAT-PARITY-UI
     type: manual
@@ -509,9 +522,9 @@ tests:
       evidence:
         status: passed
         command: python3 scripts/spec_validate.py docs/specs/apple-ui-parity-program/spec.yml
-        run_id: local-20260716T192746Z
-        subject_commit: fe9012b2e929e0a0b969541df2cf915bdd4ad124
-        timestamp: "2026-07-16T19:27:46Z"
+        run_id: local-20260717T010049Z
+        subject_commit: 6d6c0c47af35e4d403950db08607f475c75667b3
+        timestamp: "2026-07-17T01:00:49Z"
 
 verifications:
   - id: V-VISUAL-REVIEW
