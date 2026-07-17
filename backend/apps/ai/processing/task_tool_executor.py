@@ -121,6 +121,10 @@ def explicit_task_app_skill_tool_name(tool_name: str, task_app_skill_mentions: s
     return canonical
 
 
+def should_keep_tasks_create_payload_as_single_request(app_id: str, skill_id: str, arguments: dict[str, Any]) -> bool:
+    return app_id == TASK_TOOL_RESOLVER_APP_ID and skill_id == "create" and isinstance(arguments.get("tasks"), list)
+
+
 def task_tool_skill_id(tool_name: str) -> str:
     canonical = tool_name.replace("_", "-")
     if not canonical.startswith("task-"):

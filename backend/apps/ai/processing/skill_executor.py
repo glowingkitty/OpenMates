@@ -56,6 +56,7 @@ from backend.apps.ai.processing.rate_limiting import (  # noqa: E402
 )
 from backend.apps.ai.processing.celery_helpers import execute_skill_via_celery, get_celery_task_status  # noqa: E402
 from backend.apps.ai.processing.content_sanitization import sanitize_external_content  # noqa: E402
+from backend.apps.ai.processing.task_tool_executor import should_keep_tasks_create_payload_as_single_request  # noqa: E402
 
 # Re-export helper functions and exceptions for backward compatibility
 # TODO(audit-2026-03-19): Move check_rate_limit, wait_for_rate_limit, sanitize_external_content, execute_skill_via_celery
@@ -462,7 +463,15 @@ async def execute_skill_with_multiple_requests(
         else:
             # Empty requests array
             return [{"error": "Empty requests array"}]
-    
+
+    if should_keep_tasks_create_payload_as_single_request(app_id, skill_id, arguments):
+        result = await execute_skill(
+            app_id, skill_id, arguments, timeout,
+            extracted_chat_id, extracted_message_id, extracted_user_id,
+            skill_task_id, cache_service, max_retries
+        )
+        return [result]
+
     # Check for legacy pattern: a parameter with a list of values
     # Example: {"query": ["search1", "search2", "search3"]}
     # This is for backward compatibility - convert to standard format
@@ -549,4 +558,3 @@ def _extract_multiple_requests(arguments: Dict[str, Any]) -> Optional[List[Dict[
     
     # If no multiple requests pattern found, return None to indicate single request
     return None
-

@@ -13,6 +13,7 @@ from typing import Any
 import pytest
 
 from backend.apps.tasks.skills.create_skill import CreateSkill
+from backend.apps.ai.processing.task_tool_executor import should_keep_tasks_create_payload_as_single_request
 
 
 class FakeTaskStageService:
@@ -120,3 +121,16 @@ async def test_task_create_accepts_flat_single_task_arguments() -> None:
             "status": "todo",
         }
     ]
+
+
+def test_task_create_multiple_tasks_stay_in_single_skill_payload() -> None:
+    assert should_keep_tasks_create_payload_as_single_request(
+        "tasks",
+        "create",
+        {"tasks": [{"title": "One"}, {"title": "Two"}]},
+    )
+    assert not should_keep_tasks_create_payload_as_single_request(
+        "web",
+        "search",
+        {"query": ["one", "two"]},
+    )
