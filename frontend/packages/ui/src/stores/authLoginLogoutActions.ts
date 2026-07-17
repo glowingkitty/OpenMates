@@ -39,6 +39,10 @@ import { applyServerUiFont } from "./uiFont";
 import { promoteGuestTopicPreferencesIfNeeded } from "../services/topicPreferencesSync";
 import { markDeviceReceivedFreeTestingCredits } from "./serverStatusStore";
 import { isExampleChat } from "../demo_chats/exampleChatStore";
+import {
+  notificationStore,
+  SECURITY_REMINDER_NOTIFICATION_DEDUPE_KEY,
+} from "./notificationStore";
 
 // Import core auth state and related flags
 import {
@@ -102,6 +106,9 @@ export function resetLocalLogoutState(): void {
   resetUserAvailableSkills();
   workflowWorkspaceStore.reset();
   dailyInspirationStore.reset();
+  notificationStore.removeNotificationsByDedupeKey(
+    SECURITY_REMINDER_NOTIFICATION_DEDUPE_KEY,
+  );
   // Immediately repopulate public default inspirations in the same tab session.
   // We intentionally skip IndexedDB on logout because the master key was just
   // cleared and any personalized encrypted records are not usable anymore.

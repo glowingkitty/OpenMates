@@ -218,7 +218,14 @@ vi.mock("../signupState", async () => {
 });
 
 vi.mock("../notificationStore", () => ({
-  notificationStore: { autoLogout: vi.fn(), error: vi.fn() },
+  SECURITY_REMINDER_NOTIFICATION_DEDUPE_KEY: "security-reminder",
+  notificationStore: {
+    autoLogout: vi.fn(),
+    error: vi.fn(),
+    removeNotificationsByDedupeKey: vi.fn((dedupeKey: string) =>
+      cleanupCalls.push(`notificationStore.removeNotificationsByDedupeKey:${dedupeKey}`),
+    ),
+  },
 }));
 
 vi.mock("../theme", () => ({
@@ -289,6 +296,9 @@ describe("logout cleanup completeness", () => {
     expect(cleanupCalls).toContain("aiTypingStore.reset");
     expect(cleanupCalls).toContain("workflowWorkspaceStore.reset");
     expect(cleanupCalls).toContain("dailyInspirationStore.reset");
+    expect(cleanupCalls).toContain(
+      "notificationStore.removeNotificationsByDedupeKey:security-reminder",
+    );
     expect(cleanupCalls).toContain("resetUserAvailableSkills");
     expect(cleanupCalls).toContain("clearKeyFromStorage");
     expect(cleanupCalls).toContain("clearAllEmailData");

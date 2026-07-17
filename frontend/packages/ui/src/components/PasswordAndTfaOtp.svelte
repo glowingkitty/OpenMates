@@ -13,7 +13,10 @@
     import * as cryptoService from '../services/cryptoService';
     import { updateProfile } from '../stores/userProfile';
     import { getSessionId } from '../utils/sessionId';
-    import { notificationStore } from '../stores/notificationStore';
+    import {
+        notificationStore,
+        SECURITY_REMINDER_NOTIFICATION_DEDUPE_KEY,
+    } from '../stores/notificationStore';
     import AccountRecovery from './AccountRecovery.svelte';
 
     const dispatch = createEventDispatcher();
@@ -631,6 +634,7 @@
                         },
                         duration: 0,
                         dismissible: true,
+                        dedupeKey: SECURITY_REMINDER_NOTIFICATION_DEDUPE_KEY,
                     });
                 } catch (notifError) {
                     console.warn('[PasswordAndTfaOtp] Failed to show 2FA reminder notification:', notifError);

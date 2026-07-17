@@ -99,6 +99,7 @@ vi.mock("../../utils/cookies", () => ({
 }));
 
 vi.mock("../notificationStore", () => ({
+  SECURITY_REMINDER_NOTIFICATION_DEDUPE_KEY: "security-reminder",
   notificationStore: {
     autoLogout: vi.fn((_message, _secondary, _duration, _title, options) => {
       autoLogoutAction = options?.onAction;
@@ -108,6 +109,9 @@ vi.mock("../notificationStore", () => ({
     }),
     removeNotification: vi.fn((id: string) =>
       cleanupCalls.push(`notificationStore.removeNotification:${id}`),
+    ),
+    removeNotificationsByDedupeKey: vi.fn((dedupeKey: string) =>
+      cleanupCalls.push(`notificationStore.removeNotificationsByDedupeKey:${dedupeKey}`),
     ),
     error: vi.fn(),
   },
@@ -380,6 +384,9 @@ describe("checkAuth auto logout cleanup", () => {
     expect(cleanupCalls).toContain("resetChatNavigationList");
     expect(cleanupCalls).toContain("aiTypingStore.reset");
     expect(cleanupCalls).toContain("workflowWorkspaceStore.reset");
+    expect(cleanupCalls).toContain(
+      "notificationStore.removeNotificationsByDedupeKey:security-reminder",
+    );
 
     const authState = get(authStore);
     expect(authState.isAuthenticated).toBe(false);
