@@ -464,10 +464,7 @@ struct ChatView: View {
         .onChange(of: scenePhase) { _, phase in
             if phase != .active { flushEncryptedDraft() }
         }
-        .onDisappear {
-            draftSaveTask?.cancel()
-            flushEncryptedDraft()
-        }
+        .onDisappear(perform: handleDisappear)
         .onChange(of: piiPrivacySettingsStore.settings) { _, _ in
             updatePIIMatches(for: messageText)
         }
@@ -510,6 +507,11 @@ struct ChatView: View {
 
     private var embedRecordIdsSignature: String {
         viewModel.embedRecords.keys.sorted().joined(separator: "|")
+    }
+
+    private func handleDisappear() {
+        draftSaveTask?.cancel()
+        flushEncryptedDraft()
     }
 
     private var effectiveBannerState: ChatBannerState? {
