@@ -9256,7 +9256,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             const hasAnonymousStartupChat =
                 (!!activeChatIdAtStartup && isAnonymousChatId(activeChatIdAtStartup)) ||
                 (!!hashChatIdAtStartup && isAnonymousChatId(hashChatIdAtStartup));
-            
+
+            if (!$authStore.isAuthenticated && !currentChat?.chat_id && hashChatIdAtStartup && isAnonymousChatId(hashChatIdAtStartup)) {
+                await restoreAnonymousHashChatOnMount();
+            }
+
             if (!$authStore.isAuthenticated && !currentChat?.chat_id && !$activeChatStore && !$isInSignupProcess && !isInNewChatMode && !hasSessionStorageDrafts && !hasAnonymousStartupChat) {
                 console.debug("[ActiveChat] [NON-AUTH] Fallback: Showing logged-out welcome screen");
                 showWelcome = true;
