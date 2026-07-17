@@ -146,3 +146,48 @@ def test_bulk_import_records_started_events_as_running_runs(monkeypatch):
         "updated_at": "2026-07-17T10:00:00Z",
         "updated_at_unix": rows[0]["updated_at_unix"],
     }]
+
+
+def test_directus_load_state_repairs_stale_problem_rows(monkeypatch):
+    tests_control = load_tests_control()
+    monkeypatch.setattr(tests_control.DirectusTestControlStore, "_mint_local_dev_token", lambda self: "token")
+    store = tests_control.DirectusTestControlStore()
+
+    stale_row = {
+        "id": "row-1",
+        "test_key": "pytest_unit::tests/test_workflow_key_boundary.py::test_workflow_blob_schema_stays_vault_not_client_wrapper",
+        "suite": "pytest_unit",
+        "test_name": "tests/test_workflow_key_boundary.py::test_workflow_blob_schema_stays_vault_not_client_wrapper",
+        "stable_status": "failed",
+        "stable_run_key": "old-run",
+        "error_summary": "missing schema",
+        "metadata": {"error": "missing schema", "status": "failed"},
+    }
+    fresh_row = {
+        **stale_row,
+        "stable_status": "passed",
+        "stable_run_key": "new-run",
+        "error_summary": None,
+        "metadata": {"error": None, "status": "passed"},
+    }
+
+    def fake_items(collection, params=None):
+        assert collection == "test_current_state"
+        params = params or {}
+        if "filter" not in params:
+            return [stale_row]
+        decoded_filter = json.loads(params["filter"])
+        if decoded_filter.get("stable_status"):
+            return []
+        if decoded_filter.get("test_key"):
+            return [fresh_row]
+        return []
+
+    monkeypatch.setattr(store, "_items", fake_items)
+
+    state = store.load_state()
+    record = state["tests"][stale_row["test_key"]]
+
+    assert record["status"] == "passed"
+    assert record["run_id"] == "new-run"
+    assert state["summary"]["failed"] == 0

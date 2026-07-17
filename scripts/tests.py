@@ -347,6 +347,7 @@ class DirectusTestControlStore(InMemoryTestControlStore):
 
     def load_state(self) -> dict[str, Any]:
         rows = self._items("test_current_state", params={"limit": -1, "sort": "test_key"})
+        rows = self._fresh_current_state_rows(rows)
         tests = {str(row.get("test_key")): self._state_row_to_record(row) for row in rows if row.get("test_key")}
         latest_run_id = self._latest_current_state_run(rows)
         return {
@@ -356,6 +357,37 @@ class DirectusTestControlStore(InMemoryTestControlStore):
             "tests": tests,
             "recorded_event_ids": [],
         }
+
+    def _fresh_current_state_rows(self, rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        problem_filter = {"stable_status": {"_in": sorted(PROBLEM_STATUSES)}}
+        fresh_problem_rows = self._items(
+            "test_current_state",
+            params={"filter": json.dumps(problem_filter), "limit": -1, "sort": "test_key"},
+        )
+        fresh_problem_by_key = {
+            str(row.get("test_key")): row
+            for row in fresh_problem_rows
+            if row.get("test_key")
+        }
+        repaired_rows = []
+        for row in rows:
+            key = str(row.get("test_key") or "")
+            if not key:
+                repaired_rows.append(row)
+                continue
+            if key in fresh_problem_by_key:
+                repaired_rows.append(fresh_problem_by_key[key])
+                continue
+            status = str(row.get("stable_status") or row.get("active_status") or "")
+            if status in PROBLEM_STATUSES:
+                exact_rows = self._items(
+                    "test_current_state",
+                    params={"filter": json.dumps({"test_key": {"_eq": key}}), "limit": 1},
+                )
+                repaired_rows.append(exact_rows[0] if exact_rows else row)
+                continue
+            repaired_rows.append(row)
+        return repaired_rows
 
     def _latest_current_state_run(self, rows: list[dict[str, Any]]) -> str:
         counts: dict[str, int] = {}
