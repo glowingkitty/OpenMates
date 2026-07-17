@@ -48,7 +48,11 @@ def _configured_test_account_hashes() -> set[str]:
     return hashes
 
 
-def _verify_dev_cleanup_secret(request: Request) -> None:
+async def _verify_dev_cleanup_secret(
+    request: Request,
+    directus_service: DirectusService,
+    cache_service: CacheService,
+) -> None:
     expected_key = os.getenv("OPENMATES_TEST_ACCOUNT_API_KEY", "")
     if not expected_key:
         logger.error("Dev signup cleanup called but OPENMATES_TEST_ACCOUNT_API_KEY is not configured.")
@@ -59,8 +63,24 @@ def _verify_dev_cleanup_secret(request: Request) -> None:
         raise HTTPException(status_code=401, detail="Missing cleanup API key")
 
     provided_key = auth_header[7:]
-    if not hmac.compare_digest(provided_key, expected_key):
-        raise HTTPException(status_code=403, detail="Invalid cleanup API key")
+    if hmac.compare_digest(provided_key, expected_key):
+        return
+
+    if provided_key.startswith("sk-api-"):
+        try:
+            from backend.core.api.app.utils.api_key_auth import ApiKeyAuthService
+
+            api_key_auth = ApiKeyAuthService(directus_service, cache_service, app=request.scope.get("app"))
+            user_info = await api_key_auth.authenticate_api_key(provided_key, request=None)
+            api_key_user_id = user_info.get("user_id")
+            for hashed_email in _configured_test_account_hashes():
+                exists, user, _message = await directus_service.get_user_by_hashed_email(hashed_email)
+                if exists and user and user.get("id") == api_key_user_id:
+                    return
+        except Exception:
+            logger.warning("Dev signup cleanup rejected API key fallback", exc_info=True)
+
+    raise HTTPException(status_code=403, detail="Invalid cleanup API key")
 
 
 @router.post("/check_invite_token_valid", response_model=InviteCodeResponse, dependencies=[Depends(verify_allowed_origin)])
@@ -117,7 +137,7 @@ async def cleanup_failed_signup(
     """Queue deletion for one disposable signup account after a failed dev E2E run."""
     if _is_production_environment():
         raise HTTPException(status_code=404, detail="Not found")
-    _verify_dev_cleanup_secret(request)
+    await _verify_dev_cleanup_secret(request, directus_service, cache_service)
 
     hashed_email = cleanup_request.hashed_email.strip()
     if not hashed_email:
@@ -182,12 +202,13 @@ async def verify_signup_lifecycle_contact(
     request: Request,
     verify_request: DevSignupLifecycleContactRequest,
     directus_service: DirectusService = Depends(get_directus_service),
+    cache_service: CacheService = Depends(get_cache_service),
     encryption_service: EncryptionService = Depends(get_encryption_service),
 ) -> DevSignupLifecycleContactResponse:
     """Dev-only assertion that a disposable signup stored its lifecycle contact email."""
     if _is_production_environment():
         raise HTTPException(status_code=404, detail="Not found")
-    _verify_dev_cleanup_secret(request)
+    await _verify_dev_cleanup_secret(request, directus_service, cache_service)
 
     hashed_email = verify_request.hashed_email.strip()
     if not hashed_email:
