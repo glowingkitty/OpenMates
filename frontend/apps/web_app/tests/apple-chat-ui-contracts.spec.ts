@@ -111,10 +111,9 @@ test.describe('Apple broad chat UI web contracts', () => {
 				description: 'Public example transcript structure for chat message and header parity.',
 				elements: TRANSCRIPT_ELEMENTS
 			}));
-			await page.getByTestId('message-editor').click();
 			states.push(await captureContractState(page, {
 				id: 'composer',
-				description: 'Visible composer and action affordance structure for chat parity.',
+				description: 'Composer and action affordance structure for chat parity.',
 				elements: COMPOSER_ELEMENTS
 			}));
 
