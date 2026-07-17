@@ -42,6 +42,7 @@ const { test, expect } = require('./helpers/cookie-audit');
 const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 const {
@@ -56,6 +57,9 @@ const CLI_DIST = fs.existsSync('/workspace/cli/dist/cli.js')
 
 // 2-page test PDF with searchable text on both pages
 const TEST_PDF = path.join(__dirname, 'fixtures', 'test_document.pdf');
+const CLI_SYNC_CACHE_FILE = path.join(os.homedir(), '.openmates', 'sync_cache.json');
+const CHAT_SHOW_ATTEMPTS = 6;
+const CHAT_SHOW_RETRY_MS = 5000;
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
@@ -207,6 +211,12 @@ async function runCli(
 			resolve({ code, stdout: out.join(''), stderr: err.join('') });
 		});
 	});
+}
+
+function clearCliSyncCache(): void {
+	if (fs.existsSync(CLI_SYNC_CACHE_FILE)) {
+		fs.unlinkSync(CLI_SYNC_CACHE_FILE);
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -378,8 +388,43 @@ test.describe('CLI PDF Skills', () => {
 		// the new web session, so CLI may not decrypt all messages. In that case,
 		// relax assertions: the browser-side verification (AI embed visible) already
 		// proved the PDF flow works; CLI verification is a bonus.
-		const showResult = await runCli(apiUrl, ['chats', 'show', chatId!, '--json'], 30_000);
-		consoleLogs.push(`[chats show stdout] ${showResult.stdout.slice(0, 1000)}`);
+		let showResult: { code: number | null; stdout: string; stderr: string } | null = null;
+		let showData: any = null;
+		let messages: any[] = [];
+		let assistantMsgs: any[] = [];
+		for (let attempt = 1; attempt <= CHAT_SHOW_ATTEMPTS; attempt += 1) {
+			clearCliSyncCache();
+			showResult = await runCli(apiUrl, ['chats', 'show', chatId!, '--json'], 30_000);
+			consoleLogs.push(
+				`[chats show attempt ${attempt} stdout] ${showResult.stdout.slice(0, 1000)}`
+			);
+
+			if (reloggedIn && showResult.code !== 0) {
+				break;
+			}
+
+			if (showResult.code === 0) {
+				try {
+					showData = JSON.parse(showResult.stdout);
+				} catch (_e) {
+					throw new Error(`Expected JSON from chats show, got:\n${showResult.stdout}`);
+				}
+
+				messages = showData.messages || [];
+				assistantMsgs = messages.filter((m: any) => m.role === 'assistant');
+				if ((reloggedIn && messages.length <= 1) || (messages.length > 1 && assistantMsgs.length > 0)) {
+					break;
+				}
+			}
+
+			if (attempt < CHAT_SHOW_ATTEMPTS) {
+				await page.waitForTimeout(CHAT_SHOW_RETRY_MS);
+			}
+		}
+
+		if (!showResult) {
+			throw new Error('CLI chats show did not run.');
+		}
 
 		if (reloggedIn && showResult.code !== 0) {
 			logCheckpoint(
@@ -388,15 +433,6 @@ test.describe('CLI PDF Skills', () => {
 			);
 		} else {
 			expect(showResult.code).toBe(0);
-
-			let showData: any;
-			try {
-				showData = JSON.parse(showResult.stdout);
-			} catch (_e) {
-				throw new Error(`Expected JSON from chats show, got:\n${showResult.stdout}`);
-			}
-
-			const messages = showData.messages || [];
 
 			if (reloggedIn && messages.length <= 1) {
 				logCheckpoint(
@@ -407,7 +443,6 @@ test.describe('CLI PDF Skills', () => {
 				expect(messages.length).toBeGreaterThan(1); // at least user + assistant
 
 				// Find the assistant message
-				const assistantMsgs = messages.filter((m: any) => m.role === 'assistant');
 				expect(assistantMsgs.length).toBeGreaterThan(0);
 
 				// The response should mention the document content (page 1 keywords)
