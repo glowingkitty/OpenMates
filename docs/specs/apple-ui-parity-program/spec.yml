@@ -127,7 +127,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 6d6c0c47af35e4d403950db08607f475c75667b3
+  subject_commit: 5ee8895e2ebe2071b30034ace7bd1faad46bd038
 
 approvals:
   product_contract:
@@ -194,16 +194,28 @@ attempts:
     task_id: TASK-3
     approach: Stabilize and deploy the umbrella chat UI contract spec against the rendered dev web app.
     outcome: succeeded
-    recorded_at: "2026-07-17T00:59:31Z"
-    evidence: "`python3 scripts/tests.py run --spec apple-chat-ui-contracts.spec.ts` passed on deployed dev commit `6d6c0c47a` with GitHub Actions run `29546164727`."
+    recorded_at: "2026-07-17T01:30:16Z"
+    evidence: "`python3 scripts/tests.py run --spec apple-chat-ui-contracts.spec.ts` passed on deployed dev commit `5ee8895e` with GitHub Actions run `29547512145`."
+  - id: ATTEMPT-7
+    task_id: TASK-5
+    approach: Run targeted Apple chat parity UI evidence through the remote Mac wrapper.
+    outcome: succeeded
+    recorded_at: "2026-07-17T01:30:32Z"
+    evidence: "Remote iPhone `ChatFlowParityUITests` passed on synced commit `5ee8895e`; iPad regular-layout hierarchy and visual product-chrome tests passed individually. Full iPad class red evidence shows phone/compact-specific tests are not valid regular-layout gates."
+  - id: ATTEMPT-8
+    task_id: TASK-5
+    approach: Attempt macOS chat parity startup verification through the remote Mac wrapper.
+    outcome: blocked
+    recorded_at: "2026-07-17T01:30:32Z"
+    evidence: "`python3 scripts/apple_remote.py verify-macos-startup --duration 60` reached Xcode build but failed with sanitized `macos_signing_profiles_missing` for the app and share extension bundle identifiers."
 
 handoff:
-  current_task_id: TASK-5
-  next_action: Run or attempt the targeted Apple chat parity UI test through the remote Mac wrapper.
-  command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/ChatFlowParityUITests
-  expected_outcome: Remote Apple execution produces iPhone chat parity evidence or a sanitized blocker class for the spec ledger.
+  current_task_id: TASK-6
+  next_action: Review paired web/native visual artifacts for the promoted chat states or record a visual-review blocker.
+  command: Review Playwright `apple-chat-ui-contracts` artifacts alongside XCUITest `Seeded chat-flow visual snapshot` attachments.
+  expected_outcome: Visual review evidence is recorded for the chat-first promoted surface, or a sanitized artifact-access blocker is recorded.
   blocker: null
-  last_verified_commit: 6d6c0c47af35e4d403950db08607f475c75667b3
+  last_verified_commit: 5ee8895e2ebe2071b30034ace7bd1faad46bd038
 
 scenarios:
   - id: S-1
@@ -360,7 +372,10 @@ assumptions:
     text: Remote Apple verification may be unavailable for macOS execution even when iPhone and iPad simulator tests run.
     category: verification
     required_before: completion
-    status: unchecked
+    status: confirmed
+    evidence:
+      - source: python3 scripts/apple_remote.py verify-macos-startup --duration 60
+        summary: "macOS verification reached Xcode but was blocked by missing Mac App Development provisioning profiles for the app and share extension bundle identifiers."
 
 contracts:
   api:
@@ -411,9 +426,9 @@ tests:
       evidence:
         status: passed
         command: python3 scripts/apple_parity_audit.py
-        run_id: local-20260717T010049Z
-        subject_commit: 6d6c0c47af35e4d403950db08607f475c75667b3
-        timestamp: "2026-07-17T01:00:49Z"
+        run_id: local-20260717T012500Z
+        subject_commit: 5ee8895e2ebe2071b30034ace7bd1faad46bd038
+        timestamp: "2026-07-17T01:25:00Z"
 
   - id: T-E2E-WEB-CHAT-CONTRACTS
     type: playwright
@@ -442,11 +457,11 @@ tests:
       evidence:
         status: passed
         command: python3 scripts/tests.py run --spec apple-chat-ui-contracts.spec.ts
-        run_id: "29546164727"
-        subject_commit: 6d6c0c47af35e4d403950db08607f475c75667b3
-        timestamp: "2026-07-17T00:59:31Z"
+        run_id: "29547512145"
+        subject_commit: 5ee8895e2ebe2071b30034ace7bd1faad46bd038
+        timestamp: "2026-07-17T01:30:16Z"
         target: app.dev.openmates.org
-        deployment_reference: dpl_ZYS7KL544nWmKXW4dLWXdSMshiF4
+        deployment_reference: dpl_HEcoPsTjaFZyavrmxgDa4QDa8gu3
         notes: "The deployed dev run captured iPhone and iPad chat UI contract artifacts after stabilizing hidden toggle, network wait, and offscreen composer focus behavior."
 
   - id: T-LINT-APPLE-CHAT-AUDIT
@@ -473,9 +488,9 @@ tests:
       evidence:
         status: passed
         command: python3 scripts/apple_chat_parity_audit.py
-        run_id: local-20260717T010049Z
-        subject_commit: 6d6c0c47af35e4d403950db08607f475c75667b3
-        timestamp: "2026-07-17T01:00:49Z"
+        run_id: local-20260717T012500Z
+        subject_commit: 5ee8895e2ebe2071b30034ace7bd1faad46bd038
+        timestamp: "2026-07-17T01:25:00Z"
 
   - id: T-APPLE-CHAT-PARITY-UI
     type: manual
@@ -492,12 +507,25 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: pending
+        status: failed_as_expected
+        command: python3 scripts/apple_remote.py test-ios --simulator "iPad Pro 13-inch (M5)" --only-testing "OpenMatesUITests/ChatFlowParityUITests"
+        run_id: remote-macos-peer-20260717T031245Z
+        subject_commit: 5ee8895e2ebe2071b30034ace7bd1faad46bd038
+        timestamp: "2026-07-17T01:12:45Z"
+        reason: Establishes red evidence that unscoped full-class iPad execution is not a valid regular-layout parity gate because it includes phone/compact-only assertions.
+        notes: "Full class on iPad failed because phone/compact-specific welcome-card assertions are not valid regular-layout gates; seeded chat-flow hierarchy and visual product-chrome tests passed inside the same run."
     green_phase:
       required: true
       expected: pass
       evidence:
-        status: pending
+        status: passed
+        command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesUITests/ChatFlowParityUITests"; python3 scripts/apple_remote.py test-ios --simulator "iPad Pro 13-inch (M5)" --only-testing "OpenMatesUITests/ChatFlowParityUITests/testVisibleChatFlowElementsMatchWebParitySnapshot"; python3 scripts/apple_remote.py test-ios --simulator "iPad Pro 13-inch (M5)" --only-testing "OpenMatesUITests/ChatFlowParityUITests/testVisualChatFlowSurfaceUsesProductChromeOnly"
+        run_id: remote-macos-peer-20260717T032409Z
+        subject_commit: 5ee8895e2ebe2071b30034ace7bd1faad46bd038
+        timestamp: "2026-07-17T01:24:09Z"
+        target: iPhone 17 and iPad Pro 13-inch simulator
+        reason: Proves the promoted chat parity hierarchy and visual product-chrome states on compact iPhone and regular iPad simulator layouts.
+        notes: "The full iPhone chat parity UI suite passed; iPad hierarchy and visual product-chrome parity tests passed individually for regular-layout evidence."
 
   - id: T-LINT-MATRIX-UPDATE
     type: lint
@@ -522,31 +550,50 @@ tests:
       evidence:
         status: passed
         command: python3 scripts/spec_validate.py docs/specs/apple-ui-parity-program/spec.yml
-        run_id: local-20260717T010049Z
-        subject_commit: 6d6c0c47af35e4d403950db08607f475c75667b3
-        timestamp: "2026-07-17T01:00:49Z"
+        run_id: local-20260717T012500Z
+        subject_commit: 5ee8895e2ebe2071b30034ace7bd1faad46bd038
+        timestamp: "2026-07-17T01:25:00Z"
 
 verifications:
   - id: V-VISUAL-REVIEW
     kind: artifact_review
     phase: final
-    status: pending
+    status: blocked
     required_for_done: true
     covers:
       - AC-5
     evidence:
-      status: pending
-    notes: Paired web/native visual artifacts for promoted chat states must be reviewed before visual warnings can be promoted or waived.
+      status: blocked
+      command: Review Playwright `apple-chat-ui-contracts` artifacts alongside XCUITest `Seeded chat-flow visual snapshot` attachments.
+      run_id: remote-macos-peer-20260717T032409Z
+      subject_commit: 5ee8895e2ebe2071b30034ace7bd1faad46bd038
+      timestamp: "2026-07-17T01:30:32Z"
+      actor: OpenCode Linux session
+      reason: Paired visual review requires native XCUITest screenshot attachments, but the remote wrapper returned only sanitized result-bundle paths and did not expose a downloadable artifact path in this session.
+      failure_class: native_visual_artifact_access_blocked
+      recheck_condition: Re-run the iPhone and iPad visual tests with an artifact export path or review the named XCUITest attachments directly on the remote Mac.
+      next_action: Export or inspect the XCUITest `Seeded chat-flow visual snapshot` attachments and compare them with the Playwright `apple-chat-ui-contracts` artifacts before promoting visual drift to blocking.
+    notes: Visual review is blocked on native artifact access; deterministic structure/testability gates and targeted native visual-state tests passed.
   - id: V-MACOS-CHAT-PARITY
     kind: manual_check
     phase: final
-    status: pending
+    status: blocked
     required_for_done: true
     covers:
       - AC-4
     evidence:
-      status: pending
-    notes: macOS chat parity requires execution evidence, a sanitized remote-runner blocker, or an explicit user-approved waiver before completion.
+      status: blocked
+      command: python3 scripts/apple_remote.py verify-macos-startup --duration 60
+      run_id: remote-macos-peer-20260717T012432Z
+      subject_commit: 5ee8895e2ebe2071b30034ace7bd1faad46bd038
+      timestamp: "2026-07-17T01:24:32Z"
+      actor: OpenCode remote Mac wrapper
+      reason: macOS parity execution was attempted after iOS evidence and reached Xcode, but signing prerequisites were missing outside the source change scope.
+      failure_class: macos_signing_profiles_missing
+      recheck_condition: Re-run after Mac App Development provisioning profiles are installed or automatic provisioning is explicitly allowed for the macOS app and share extension bundle identifiers.
+      next_action: Provision macOS development signing profiles, then rerun `python3 scripts/apple_remote.py verify-macos-startup --duration 60`.
+      notes: "macOS build failed because Mac App Development provisioning profiles were unavailable for the app and share extension bundle identifiers."
+    notes: macOS chat parity has sanitized blocker evidence; passing macOS execution still requires valid signing profiles or an explicit user-approved waiver.
 
 implementation_plan:
   spec_path: docs/specs/apple-ui-parity-program/spec.yml
