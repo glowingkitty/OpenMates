@@ -38,6 +38,16 @@ import {
   generateEmbedShareBlob,
   type ShareDuration,
 } from "./shareEncryption.js";
+import {
+  buildCreateUserTaskInput,
+  buildUpdateUserTaskInput,
+  decryptUserTask,
+  decryptUserTasks,
+  findTask,
+  type DecryptedUserTask,
+  type TaskCreateOptions,
+  type TaskUpdateOptions,
+} from "./tasksCli.js";
 import type {
   WorkflowCapability,
   WorkflowDetail,
@@ -69,7 +79,9 @@ import type {
   UserPlanStatus,
   UserPlanUpdateInput,
   UserPlanVerificationRecord,
+  UserTaskActionInput,
   UserTaskCreateInput,
+  UserTaskReorderInput,
   UserTaskRecord,
   UserTaskStartAIInput,
   UserTaskStatus,
@@ -209,6 +221,11 @@ export interface DraftRecord extends EncryptedDraftRecord {
   markdown: string;
   preview: string | null;
 }
+
+export type TaskListFilters = { status?: UserTaskStatus; chatId?: string; projectId?: string };
+export type TaskPlainCreateOptions = TaskCreateOptions;
+export type TaskPlainUpdateOptions = TaskUpdateOptions;
+export type TaskRecord = Omit<DecryptedUserTask, "encrypted">;
 
 export interface SdkSessionResponse {
   user?: {
@@ -1365,7 +1382,127 @@ export class OpenMatesTasks {
     this.client = client;
   }
 
-  async list(filters: { status?: UserTaskStatus; chatId?: string; projectId?: string } = {}): Promise<UserTaskRecord[]> {
+  async list(filters: TaskListFilters = {}): Promise<TaskRecord[]> {
+    return (await this.listInternal(filters)).map(toPublicTask);
+  }
+
+  async listDecrypted(filters: TaskListFilters = {}): Promise<TaskRecord[]> {
+    return this.list(filters);
+  }
+
+  async show(id: string, filters: TaskListFilters = {}): Promise<TaskRecord> {
+    return toPublicTask(await this.resolve(id, filters));
+  }
+
+  async create(input: TaskPlainCreateOptions): Promise<TaskRecord> {
+    const masterKey = await this.client.masterKey();
+    const created = await this.createRaw(await buildCreateUserTaskInput(masterKey, input));
+    return toPublicTask(await decryptUserTask(created, masterKey));
+  }
+
+  async update(id: string, input: TaskPlainUpdateOptions, filters: TaskListFilters = {}): Promise<TaskRecord> {
+    let task = await this.resolve(id, filters);
+    const masterKey = await this.client.masterKey();
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        const updated = await this.updateRaw(task.taskId, await buildUpdateUserTaskInput(task, masterKey, input));
+        return toPublicTask(await decryptUserTask(updated, masterKey));
+      } catch (error) {
+        if (attempt > 0 || !isTaskVersionConflict(error)) throw error;
+        await delay(1000);
+        task = await this.resolve(id, filters);
+      }
+    }
+    throw new OpenMatesConfigError("Task update retry failed unexpectedly");
+  }
+
+  async edit(id: string, input: TaskPlainUpdateOptions, filters: TaskListFilters = {}): Promise<TaskRecord> {
+    return this.update(id, input, filters);
+  }
+
+  async start(id: string, filters: TaskListFilters = {}): Promise<TaskRecord> {
+    let task = await this.resolve(id, filters);
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        const started = await this.startAIRaw(task.taskId, {
+          version: task.version,
+          primary_chat_id: task.primaryChatId ?? undefined,
+          linked_project_ids: task.linkedProjectIds,
+          plaintext_title: task.title,
+          plaintext_description: task.description,
+          plaintext_latest_instruction: task.latestInstruction,
+        });
+        return toPublicTask(await decryptUserTask(started, await this.client.masterKey()));
+      } catch (error) {
+        if (attempt > 0 || !isTaskVersionConflict(error)) throw error;
+        await delay(1000);
+        task = await this.resolve(id, filters);
+      }
+    }
+    throw new OpenMatesConfigError("Task start retry failed unexpectedly");
+  }
+
+  async startAI(id: string, filters: TaskListFilters = {}): Promise<TaskRecord> {
+    return this.start(id, filters);
+  }
+
+  async delete(id: string, options: ConfirmedMutationOptions & { filters?: TaskListFilters } = {}): Promise<{ deleted?: boolean; task_id?: string }> {
+    requireConfirmed(options, "Deleting a task");
+    let task = await this.resolve(id, options.filters ?? {});
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        return await this.client.delete<{ deleted?: boolean; task_id?: string }>(`/v1/user-tasks/${encodeURIComponent(task.taskId)}?version=${encodeURIComponent(String(task.version))}`);
+      } catch (error) {
+        if (attempt > 0 || !isTaskVersionConflict(error)) throw error;
+        await delay(1000);
+        task = await this.resolve(id, options.filters ?? {});
+      }
+    }
+    throw new OpenMatesConfigError("Task delete retry failed unexpectedly");
+  }
+
+  async done(id: string, filters: TaskListFilters = {}): Promise<TaskRecord> {
+    return this.actionById(id, "complete", {}, filters);
+  }
+
+  async complete(id: string, filters: TaskListFilters = {}): Promise<TaskRecord> {
+    return this.done(id, filters);
+  }
+
+  async block(id: string, reason: string, filters: TaskListFilters = {}): Promise<TaskRecord> {
+    return this.actionById(id, "block", { blocked_reason_code: reason }, filters);
+  }
+
+  async unblock(id: string, filters: TaskListFilters = {}): Promise<TaskRecord> {
+    return this.actionById(id, "unblock", {}, filters);
+  }
+
+  async skip(id: string, filters: TaskListFilters = {}): Promise<TaskRecord> {
+    return this.actionById(id, "skip", {}, filters);
+  }
+
+  async reorder(id: string, move: Omit<UserTaskReorderInput["moves"][number], "task_id" | "version">, filters: TaskListFilters = {}): Promise<TaskRecord[]> {
+    let task = await this.resolve(id, filters);
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        const response = await this.client.request<{ tasks?: UserTaskRecord[] }>("/v1/user-tasks/reorder", {
+          moves: [{ ...move, task_id: task.taskId, version: task.version }],
+        });
+        return (await decryptUserTasks(response.tasks ?? [], await this.client.masterKey())).map(toPublicTask);
+      } catch (error) {
+        if (attempt > 0 || !isTaskVersionConflict(error)) throw error;
+        await delay(1000);
+        task = await this.resolve(id, filters);
+      }
+    }
+    throw new OpenMatesConfigError("Task reorder retry failed unexpectedly");
+  }
+
+  async move(id: string, move: Omit<UserTaskReorderInput["moves"][number], "task_id" | "version">, filters: TaskListFilters = {}): Promise<TaskRecord[]> {
+    return this.reorder(id, move, filters);
+  }
+
+  private async listRaw(filters: TaskListFilters = {}): Promise<UserTaskRecord[]> {
     const response = await this.client.get<{ tasks?: UserTaskRecord[] }>(withQuery("/v1/user-tasks", {
       status: filters.status,
       chat_id: filters.chatId,
@@ -1374,23 +1511,65 @@ export class OpenMatesTasks {
     return response.tasks ?? [];
   }
 
-  async create(input: UserTaskCreateInput): Promise<UserTaskRecord> {
+  private async createRaw(input: UserTaskCreateInput): Promise<UserTaskRecord> {
     const response = await this.client.request<{ task?: UserTaskRecord }>("/v1/user-tasks", input);
     if (!response.task) throw new OpenMatesApiError(500, { detail: "User task response missing task" });
     return response.task;
   }
 
-  async update(taskId: string, input: UserTaskUpdateInput): Promise<UserTaskRecord> {
+  private async updateRaw(taskId: string, input: UserTaskUpdateInput): Promise<UserTaskRecord> {
     const response = await this.client.patch<{ task?: UserTaskRecord }>(`/v1/user-tasks/${encodeURIComponent(taskId)}`, input);
     if (!response.task) throw new OpenMatesApiError(500, { detail: "User task response missing task" });
     return response.task;
   }
 
-  async startAI(taskId: string, input: UserTaskStartAIInput): Promise<UserTaskRecord> {
+  private async startAIRaw(taskId: string, input: UserTaskStartAIInput): Promise<UserTaskRecord> {
     const response = await this.client.request<{ task?: UserTaskRecord }>(`/v1/user-tasks/${encodeURIComponent(taskId)}/start-ai`, input);
     if (!response.task) throw new OpenMatesApiError(500, { detail: "User task response missing task" });
     return response.task;
   }
+
+  private async listInternal(filters: TaskListFilters): Promise<DecryptedUserTask[]> {
+    return decryptUserTasks(await this.listRaw(filters), await this.client.masterKey());
+  }
+
+  private async resolve(id: string, filters: TaskListFilters): Promise<DecryptedUserTask> {
+    return findTask(await this.listInternal(filters), id);
+  }
+
+  private async actionRaw(taskId: string, action: string, input: UserTaskActionInput): Promise<UserTaskRecord> {
+    const response = await this.client.request<{ task?: UserTaskRecord }>(`/v1/user-tasks/${encodeURIComponent(taskId)}/${encodeURIComponent(action)}`, input);
+    if (!response.task) throw new OpenMatesApiError(500, { detail: "User task response missing task" });
+    return response.task;
+  }
+
+  private async actionById(id: string, action: string, patch: Partial<UserTaskActionInput>, filters: TaskListFilters): Promise<TaskRecord> {
+    let task = await this.resolve(id, filters);
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        const updated = await this.actionRaw(task.taskId, action, { version: task.version, ...patch });
+        return toPublicTask(await decryptUserTask(updated, await this.client.masterKey()));
+      } catch (error) {
+        if (attempt > 0 || !isTaskVersionConflict(error)) throw error;
+        await delay(1000);
+        task = await this.resolve(id, filters);
+      }
+    }
+    throw new OpenMatesConfigError("Task action retry failed unexpectedly");
+  }
+}
+
+function toPublicTask(task: DecryptedUserTask): TaskRecord {
+  const { encrypted: _encrypted, ...publicTask } = task;
+  return publicTask;
+}
+
+function isTaskVersionConflict(error: unknown): boolean {
+  return error instanceof OpenMatesApiError && error.status === 409 && String(JSON.stringify(error.data)).includes("TASK_VERSION_CONFLICT");
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 export class OpenMatesPlans {

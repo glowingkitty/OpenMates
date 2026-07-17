@@ -441,6 +441,176 @@ def _encrypt_aes_gcm_bytes(plaintext: bytes, key: bytes) -> str:
     return base64.b64encode(iv + AESGCM(key).encrypt(iv, plaintext, None)).decode("utf-8")
 
 
+def _build_task_create_input(master_key: bytes, payload: dict[str, Any]) -> dict[str, Any]:
+    title = str(payload.get("title") or "").strip()
+    if not title:
+        raise OpenMatesConfigError("Task title is required")
+    task_key = os.urandom(32)
+    now = int(time.time())
+    assignee_type, assignee_hash = _task_assignee(payload.get("assign") or payload.get("assignee"))
+    project_ids = _string_list(payload.get("project_ids") or payload.get("linked_project_ids") or [])
+    status = str(payload.get("status") or ("in_progress" if assignee_type == "ai" and not payload.get("due_at") else "todo"))
+    task: dict[str, Any] = {
+        "task_id": str(payload.get("task_id") or uuid.uuid4()),
+        "version": 1,
+        "encrypted_task_key": _encrypt_aes_gcm_bytes(task_key, master_key),
+        "encrypted_title": _encrypt_aes_gcm_text(title, task_key),
+        "encrypted_description": _encrypt_aes_gcm_text(str(payload.get("description") or ""), task_key),
+        "encrypted_tags": _encrypt_aes_gcm_text(json.dumps(_string_list(payload.get("tags") or [])), task_key),
+        "encrypted_linked_project_ids": _encrypt_aes_gcm_text(json.dumps(project_ids), task_key),
+        "status": status,
+        "assignee_type": assignee_type,
+        "assignee_hash": assignee_hash,
+        "primary_chat_id": payload.get("chat_id") or payload.get("primary_chat_id") or None,
+        "linked_project_ids": project_ids,
+        "plan_id": payload.get("plan_id") or payload.get("plan") or None,
+        "due_at": payload.get("due_at"),
+        "priority": int(payload.get("priority") or 0),
+        "position": int(payload.get("position") or now),
+        "created_at": int(payload.get("created_at") or now),
+        "updated_at": int(payload.get("updated_at") or now),
+    }
+    return task
+
+
+def _build_task_update_input(task: dict[str, Any], master_key: bytes, payload: dict[str, Any]) -> dict[str, Any]:
+    task_key = _task_key_from_record(task.get("encrypted") if isinstance(task.get("encrypted"), dict) else task, master_key)
+    patch: dict[str, Any] = {"version": int(task["version"]), "updated_at": int(time.time())}
+    if "title" in payload:
+        patch["encrypted_title"] = _encrypt_aes_gcm_text(str(payload.get("title") or ""), task_key)
+    if "description" in payload:
+        patch["encrypted_description"] = _encrypt_aes_gcm_text(str(payload.get("description") or ""), task_key)
+    if "status" in payload:
+        patch["status"] = payload.get("status")
+    if "assign" in payload or "assignee" in payload:
+        assignee_type, assignee_hash = _task_assignee(payload.get("assign") or payload.get("assignee"))
+        patch["assignee_type"] = assignee_type
+        patch["assignee_hash"] = assignee_hash
+    if "chat_id" in payload or "primary_chat_id" in payload:
+        patch["primary_chat_id"] = payload.get("chat_id") if "chat_id" in payload else payload.get("primary_chat_id")
+    if "project_ids" in payload or "linked_project_ids" in payload:
+        project_ids = _string_list(payload.get("project_ids") or payload.get("linked_project_ids") or [])
+        patch["linked_project_ids"] = project_ids
+        patch["encrypted_linked_project_ids"] = _encrypt_aes_gcm_text(json.dumps(project_ids), task_key)
+    if "plan_id" in payload or "plan" in payload:
+        patch["plan_id"] = payload.get("plan_id") if "plan_id" in payload else payload.get("plan")
+    return patch
+
+
+def _decrypt_task_record(record: dict[str, Any], master_key: bytes) -> dict[str, Any]:
+    if record.get("source") == "workflow_run":
+        return _workflow_projection_task(record)
+    task_key = _task_key_from_record(record, master_key)
+    tags = _json_string_list(_decrypt_aes_gcm_text(str(record.get("encrypted_tags") or ""), task_key))
+    linked_project_ids = _json_string_list(_decrypt_aes_gcm_text(str(record.get("encrypted_linked_project_ids") or ""), task_key))
+    task = {
+        "task_id": record["task_id"],
+        "short_id": record.get("short_id") or _derive_task_short_id(record),
+        "title": _decrypt_aes_gcm_text(str(record.get("encrypted_title") or ""), task_key) or "(untitled task)",
+        "description": _decrypt_aes_gcm_text(str(record.get("encrypted_description") or ""), task_key) or "",
+        "tags": tags,
+        "latest_instruction": _decrypt_aes_gcm_text(str(record.get("encrypted_latest_instruction") or ""), task_key) or "",
+        "status": record.get("status"),
+        "assignee_type": record.get("assignee_type"),
+        "assignee_hash": record.get("assignee_hash"),
+        "primary_chat_id": record.get("primary_chat_id"),
+        "linked_project_ids": linked_project_ids or _string_list(record.get("linked_project_ids") or []),
+        "plan_id": record.get("plan_id"),
+        "due_at": record.get("due_at"),
+        "priority": int(record.get("priority") or 0),
+        "position": int(record.get("position") or 0),
+        "queue_state": record.get("queue_state") or "none",
+        "blocked_reason_code": record.get("blocked_reason_code"),
+        "ai_execution_state": record.get("ai_execution_state"),
+        "version": int(record.get("version") or 1),
+        "encrypted": record,
+    }
+    return task
+
+
+def _task_key_from_record(record: dict[str, Any], master_key: bytes) -> bytes:
+    encrypted_task_key = record.get("encrypted_task_key")
+    if not isinstance(encrypted_task_key, str):
+        raise OpenMatesConfigError(f"Task {record.get('task_id')} is missing encrypted task key")
+    task_key = _decrypt_aes_gcm_bytes(encrypted_task_key, master_key)
+    if task_key is None:
+        raise OpenMatesConfigError(f"Failed to decrypt task key for {record.get('task_id')}")
+    return task_key
+
+
+def _find_task(tasks: list[dict[str, Any]], task_id: str) -> dict[str, Any]:
+    for task in tasks:
+        if task.get("task_id") == task_id:
+            return task
+    matches = [task for task in tasks if task.get("short_id") == task_id]
+    if len(matches) > 1:
+        raise OpenMatesConfigError(f"Task '{task_id}' is ambiguous. Use the full task ID.")
+    if not matches:
+        raise OpenMatesConfigError(f"Task '{task_id}' was not found.")
+    return matches[0]
+
+
+def _task_assignee(value: Any) -> tuple[str, str | None]:
+    if value in (None, "", "user"):
+        return "user", None
+    if value in ("ai", "openmates", "OpenMates"):
+        return "ai", None
+    return "user", str(value)
+
+
+def _string_list(value: Any) -> list[str]:
+    return [item for item in value if isinstance(item, str)] if isinstance(value, list) else []
+
+
+def _json_string_list(value: str | None) -> list[str]:
+    parsed = _parse_maybe_json(value)
+    return _string_list(parsed)
+
+
+def _derive_task_short_id(record: dict[str, Any]) -> str:
+    prefix = str(record.get("short_id_prefix") or "TASK")
+    source = str(record.get("task_id") or f"{record.get('created_at', '')}-{record.get('position', '')}")
+    digest = hashlib.sha256(source.encode("utf-8")).hexdigest()[:4].upper()
+    return f"{prefix}-{int(digest, 16) % 10000}"
+
+
+def _workflow_projection_task(record: dict[str, Any]) -> dict[str, Any]:
+    stable_id = str(record.get("workflow_run_id") or record.get("task_id") or "")
+    short_id = record.get("short_id") or f"WF-{hashlib.sha256(stable_id.encode('utf-8')).hexdigest()[:6].upper()}"
+    return {
+        "task_id": record.get("task_id"),
+        "source": "workflow_run",
+        "short_id": short_id,
+        "title": record.get("title") or "Workflow run",
+        "description": record.get("blocked_message") or "",
+        "tags": [],
+        "latest_instruction": "",
+        "status": record.get("status"),
+        "assignee_type": "user",
+        "assignee_hash": None,
+        "primary_chat_id": None,
+        "linked_project_ids": [],
+        "plan_id": None,
+        "due_at": record.get("due_at"),
+        "priority": int(record.get("priority") or 0),
+        "position": int(record.get("position") or 0),
+        "queue_state": str(record.get("run_status") or "workflow"),
+        "blocked_reason_code": record.get("blocked_reason_code") or record.get("blocked_reason"),
+        "ai_execution_state": None,
+        "read_only": True,
+        "version": int(record.get("version") or 1),
+        "encrypted": record,
+    }
+
+
+def _public_task(task: dict[str, Any]) -> dict[str, Any]:
+    return {key: value for key, value in task.items() if key != "encrypted"}
+
+
+def _is_task_version_conflict(exc: OpenMatesApiError) -> bool:
+    return exc.status_code == 409 and "TASK_VERSION_CONFLICT" in json.dumps(exc.data)
+
+
 def _encrypt_raw_key_for_api_key(raw_key: bytes, api_key: str, salt: bytes) -> tuple[str, str]:
     wrapping_key = hashlib.pbkdf2_hmac("sha256", api_key.encode("utf-8"), salt, SDK_KDF_ITERATIONS, dklen=32)
     iv = os.urandom(AES_GCM_IV_LENGTH)
@@ -1002,6 +1172,15 @@ class OpenMatesTasks:
         chat_id: str | None = None,
         project_id: str | None = None,
     ) -> list[dict[str, Any]]:
+        return self.list_decrypted(status=status, chat_id=chat_id, project_id=project_id)
+
+    def _list_raw(
+        self,
+        *,
+        status: str | None = None,
+        chat_id: str | None = None,
+        project_id: str | None = None,
+    ) -> list[dict[str, Any]]:
         return self._client._get(
             _with_query(
                 "/v1/user-tasks",
@@ -1011,14 +1190,149 @@ class OpenMatesTasks:
             )
         ).get("tasks", [])
 
+    def list_decrypted(
+        self,
+        *,
+        status: str | None = None,
+        chat_id: str | None = None,
+        project_id: str | None = None,
+    ) -> list[dict[str, Any]]:
+        return [
+            _public_task(task)
+            for task in self._list_internal(status=status, chat_id=chat_id, project_id=project_id)
+        ]
+
+    def show(self, task_id: str, **filters: Any) -> dict[str, Any]:
+        return _public_task(self._resolve(task_id, filters))
+
     def create(self, payload: dict[str, Any]) -> dict[str, Any]:
+        master_key = self._client._get_master_key()
+        created = self._create_raw(_build_task_create_input(master_key, payload))
+        return _public_task(_decrypt_task_record(created, master_key))
+
+    def _create_raw(self, payload: dict[str, Any]) -> dict[str, Any]:
         return self._client._post("/v1/user-tasks", payload).get("task", {})
 
     def update(self, task_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        return self.edit(task_id, payload)
+
+    def _update_raw(self, task_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         return self._client._patch(f"/v1/user-tasks/{_quote(task_id)}", payload).get("task", {})
 
+    def edit(self, task_id: str, payload: dict[str, Any], **filters: Any) -> dict[str, Any]:
+        task = self._resolve(task_id, filters)
+        master_key = self._client._get_master_key()
+        for attempt in range(2):
+            try:
+                updated = self._update_raw(str(task["task_id"]), _build_task_update_input(task, master_key, payload))
+                return _public_task(_decrypt_task_record(updated, master_key))
+            except OpenMatesApiError as exc:
+                if attempt > 0 or not _is_task_version_conflict(exc):
+                    raise
+                time.sleep(1)
+                task = self._resolve(task_id, filters)
+        raise OpenMatesConfigError("Task update retry failed unexpectedly")
+
     def start_ai(self, task_id: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+        return self.start(task_id)
+
+    def _start_ai_raw(self, task_id: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
         return self._client._post(f"/v1/user-tasks/{_quote(task_id)}/start-ai", payload or {}).get("task", {})
+
+    def start(self, task_id: str, **filters: Any) -> dict[str, Any]:
+        task = self._resolve(task_id, filters)
+        for attempt in range(2):
+            try:
+                started = self._start_ai_raw(str(task["task_id"]), {
+                    "version": task["version"],
+                    "primary_chat_id": task.get("primary_chat_id") or None,
+                    "linked_project_ids": task.get("linked_project_ids") or [],
+                    "plaintext_title": task.get("title") or "",
+                    "plaintext_description": task.get("description") or "",
+                    "plaintext_latest_instruction": task.get("latest_instruction") or "",
+                })
+                return _public_task(_decrypt_task_record(started, self._client._get_master_key()))
+            except OpenMatesApiError as exc:
+                if attempt > 0 or not _is_task_version_conflict(exc):
+                    raise
+                time.sleep(1)
+                task = self._resolve(task_id, filters)
+        raise OpenMatesConfigError("Task start retry failed unexpectedly")
+
+    def delete(self, task_id: str, *, confirmed: bool = False, **filters: Any) -> dict[str, Any]:
+        _require_confirmed(confirmed, "Deleting a task")
+        task = self._resolve(task_id, filters)
+        for attempt in range(2):
+            try:
+                return self._client._delete(f"/v1/user-tasks/{_quote(str(task['task_id']))}?version={_quote(str(task['version']))}")
+            except OpenMatesApiError as exc:
+                if attempt > 0 or not _is_task_version_conflict(exc):
+                    raise
+                time.sleep(1)
+                task = self._resolve(task_id, filters)
+        raise OpenMatesConfigError("Task delete retry failed unexpectedly")
+
+    def delete_by_id(self, task_id: str, *, confirmed: bool = False, **filters: Any) -> dict[str, Any]:
+        return self.delete(task_id, confirmed=confirmed, **filters)
+
+    def complete(self, task_id: str, **filters: Any) -> dict[str, Any]:
+        return self.done(task_id, **filters)
+
+    def done(self, task_id: str, **filters: Any) -> dict[str, Any]:
+        return self._action_by_id(task_id, "complete", {}, filters)
+
+    def block(self, task_id: str, reason: str, **filters: Any) -> dict[str, Any]:
+        return self._action_by_id(task_id, "block", {"blocked_reason_code": reason}, filters)
+
+    def unblock(self, task_id: str, **filters: Any) -> dict[str, Any]:
+        return self._action_by_id(task_id, "unblock", {}, filters)
+
+    def skip(self, task_id: str, **filters: Any) -> dict[str, Any]:
+        return self._action_by_id(task_id, "skip", {}, filters)
+
+    def reorder(self, task_id: str, move: dict[str, Any], **filters: Any) -> list[dict[str, Any]]:
+        return self.move(task_id, move, **filters)
+
+    def move(self, task_id: str, move: dict[str, Any], **filters: Any) -> list[dict[str, Any]]:
+        task = self._resolve(task_id, filters)
+        for attempt in range(2):
+            try:
+                updated = self._client._post("/v1/user-tasks/reorder", {"moves": [{**move, "task_id": task["task_id"], "version": task["version"]}]}).get("tasks", [])
+                master_key = self._client._get_master_key()
+                return [_public_task(_decrypt_task_record(record, master_key)) for record in updated if isinstance(record, dict)]
+            except OpenMatesApiError as exc:
+                if attempt > 0 or not _is_task_version_conflict(exc):
+                    raise
+                time.sleep(1)
+                task = self._resolve(task_id, filters)
+        raise OpenMatesConfigError("Task reorder retry failed unexpectedly")
+
+    def _action_raw(self, task_id: str, action: str, payload: dict[str, Any]) -> dict[str, Any]:
+        return self._client._post(f"/v1/user-tasks/{_quote(task_id)}/{_quote(action)}", payload).get("task", {})
+
+    def _action_by_id(self, task_id: str, action: str, patch: dict[str, Any], filters: dict[str, Any]) -> dict[str, Any]:
+        task = self._resolve(task_id, filters)
+        for attempt in range(2):
+            try:
+                updated = self._action_raw(str(task["task_id"]), action, {"version": task["version"], **patch})
+                return _public_task(_decrypt_task_record(updated, self._client._get_master_key()))
+            except OpenMatesApiError as exc:
+                if attempt > 0 or not _is_task_version_conflict(exc):
+                    raise
+                time.sleep(1)
+                task = self._resolve(task_id, filters)
+        raise OpenMatesConfigError("Task action retry failed unexpectedly")
+
+    def _list_internal(self, **filters: Any) -> list[dict[str, Any]]:
+        master_key = self._client._get_master_key()
+        return [
+            _decrypt_task_record(task, master_key)
+            for task in self._list_raw(**filters)
+            if isinstance(task, dict)
+        ]
+
+    def _resolve(self, task_id: str, filters: dict[str, Any]) -> dict[str, Any]:
+        return _find_task(self._list_internal(**filters), task_id)
 
 
 class OpenMatesProjects:

@@ -82,7 +82,12 @@ export type {
   EncryptedDraftRecord,
   FocusModeSelection,
   OpenMatesOptions,
+  TaskListFilters,
+  TaskPlainCreateOptions,
+  TaskPlainUpdateOptions,
+  TaskRecord,
 } from "./sdk.js";
+export type { DecryptedUserTask } from "./tasksCli.js";
 export type {
   OpenMatesSession,
   SyncCache,

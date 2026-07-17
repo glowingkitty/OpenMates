@@ -470,6 +470,23 @@ async def test_update_task_replaces_wrappers_with_project_hash_update() -> None:
 
 
 @pytest.mark.asyncio
+async def test_update_task_accepts_empty_conditional_update_response_when_version_committed() -> None:
+    existing = {"id": "task-row", "version": 2, "task_id": "task-1", "status": "todo"}
+    committed = {"id": "task-row", "version": 3, "task_id": "task-1", "status": "done"}
+    directus = SimpleNamespace()
+    directus.get_items = AsyncMock(side_effect=[[existing], [committed]])
+    directus.update_item_if_version = AsyncMock(return_value=None)
+
+    methods = UserTaskMethods(with_lock_cache(directus))
+
+    updated = await methods.update_task("task-1", "user-1", {"version": 2, "status": "done"})
+
+    assert updated is not None
+    assert updated["version"] == committed["version"]
+    assert updated["status"] == committed["status"]
+
+
+@pytest.mark.asyncio
 async def test_update_task_fails_visibly_when_old_wrapper_delete_fails() -> None:
     existing = {"id": "task-row", "version": 2, "task_id": "task-1"}
     directus = SimpleNamespace()

@@ -371,15 +371,10 @@ def test_task_workflow_app_skill_methods_expose_embed_contracts(monkeypatch):
 
 def test_task_workspace_methods_match_npm_sdk_contract(monkeypatch):
     requests = []
-    task = {
-        "task_id": "task-1",
-        "encrypted_task_key": "cipher-key",
-        "encrypted_title": "cipher-title",
-        "status": "todo",
-        "assignee_type": "user",
-        "created_at": 100,
-        "updated_at": 100,
-    }
+    api_key = "sk-api-test"
+    master_key = bytes([9]) * 32
+    wrapper = _wrap_master_key(api_key, master_key)
+    stored_task = None
 
     class FakeResponse:
         status_code = 200
@@ -391,41 +386,67 @@ def test_task_workspace_methods_match_npm_sdk_contract(monkeypatch):
             return self._payload
 
     def fake_get(url, *, headers, timeout):
+        nonlocal stored_task
         requests.append({"method": "GET", "url": url, "json": None, "headers": headers})
-        assert headers["Authorization"] == "Bearer sk-api-test"
+        assert headers["Authorization"] == f"Bearer {api_key}"
         assert headers["X-OpenMates-SDK"] == "pip"
-        return FakeResponse({"tasks": [task]})
+        return FakeResponse({"tasks": [stored_task] if stored_task else []})
 
     def fake_post(url, *, json, headers, timeout):
+        nonlocal stored_task
         requests.append({"method": "POST", "url": url, "json": json, "headers": headers})
-        assert headers["Authorization"] == "Bearer sk-api-test"
+        assert headers["Authorization"] == f"Bearer {api_key}"
         assert headers["X-OpenMates-SDK"] == "pip"
-        return FakeResponse({"task": {**task, **json}})
+        if url.endswith("/v1/sdk/session"):
+            return FakeResponse({"key_wrapper": wrapper})
+        if url.endswith("/v1/user-tasks"):
+            assert isinstance(json.get("encrypted_title"), str)
+            assert "title" not in json
+            stored_task = {**json, "short_id": "TASK-1"}
+            return FakeResponse({"task": stored_task})
+        if url.endswith("/start-ai"):
+            assert isinstance(json.get("plaintext_title"), str)
+            stored_task = {**stored_task, "status": "in_progress"}
+            return FakeResponse({"task": stored_task})
+        return FakeResponse({"task": stored_task})
 
     def fake_patch(url, *, json, headers, timeout):
+        nonlocal stored_task
         requests.append({"method": "PATCH", "url": url, "json": json, "headers": headers})
-        assert headers["Authorization"] == "Bearer sk-api-test"
+        assert headers["Authorization"] == f"Bearer {api_key}"
         assert headers["X-OpenMates-SDK"] == "pip"
-        return FakeResponse({"task": {**task, **json}})
+        stored_task = {**stored_task, **json}
+        return FakeResponse({"task": stored_task})
 
     monkeypatch.setattr("openmates.sdk.requests.get", fake_get)
     monkeypatch.setattr("openmates.sdk.requests.post", fake_post)
     monkeypatch.setattr("openmates.sdk.requests.patch", fake_patch)
 
-    client = OpenMates(api_key="sk-api-test")
-    assert client.tasks.list(status="todo", chat_id="chat-1", project_id="project-1")[0]["task_id"] == "task-1"
-    assert client.tasks.create(task)["encrypted_title"] == "cipher-title"
-    assert client.tasks.update("task-1", {"status": "done", "version": 1})["status"] == "done"
-    assert client.tasks.start_ai("task-1", {"version": 2, "plaintext_title": "Draft launch plan"})["task_id"] == "task-1"
+    client = OpenMates(api_key=api_key)
+    created = client.tasks.create({"title": "Draft launch plan", "description": "Use project context"})
+    assert created["title"] == "Draft launch plan"
+    assert "encrypted" not in created
+    assert client.tasks.list(status="todo", chat_id="chat-1", project_id="project-1")[0]["task_id"] == created["task_id"]
+    assert client.tasks.update("TASK-1", {"status": "done", "title": "Draft launch plan done"})["title"] == "Draft launch plan done"
+    assert client.tasks.start_ai("TASK-1")["status"] == "in_progress"
+    created_path = f"/v1/user-tasks/{created['task_id']}"
 
-    assert [(request["method"], request["url"].replace("https://api.openmates.org", "")) for request in requests] == [
-        ("GET", "/v1/user-tasks?status=todo&chat_id=chat-1&project_id=project-1"),
-        ("POST", "/v1/user-tasks"),
-        ("PATCH", "/v1/user-tasks/task-1"),
-        ("POST", "/v1/user-tasks/task-1/start-ai"),
+    assert ("POST", "/v1/sdk/session") in [
+        (request["method"], request["url"].replace("https://api.openmates.org", "")) for request in requests
     ]
-    assert requests[1]["json"] == task
-    assert requests[3]["json"] == {"version": 2, "plaintext_title": "Draft launch plan"}
+    assert [
+        (request["method"], request["url"].replace("https://api.openmates.org", ""))
+        for request in requests
+        if request["method"] != "POST" or not request["url"].endswith("/v1/sdk/session")
+    ] == [
+        ("POST", "/v1/user-tasks"),
+        ("GET", "/v1/user-tasks?status=todo&chat_id=chat-1&project_id=project-1"),
+        ("GET", "/v1/user-tasks"),
+        ("PATCH", created_path),
+        ("GET", "/v1/user-tasks"),
+        ("POST", f"{created_path}/start-ai"),
+    ]
+    assert isinstance(requests[1]["json"].get("encrypted_title"), str)
 
 
 def test_workflow_workspace_methods_match_npm_sdk_contract(monkeypatch):

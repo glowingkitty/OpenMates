@@ -475,6 +475,8 @@ class UserTaskMethods:
                 owner_hash=hash_id(user_id),
             )
             if not updated:
+                updated = await self._committed_task_after_empty_update(task_id, user_id, next_version)
+            if not updated:
                 if not await self._delete_key_wrappers(created_wrappers):
                     raise RuntimeError("Failed to clean up new user task key wrappers")
                 await self._restore_task_key_wrappers(user_id, task_id, existing_wrappers)
@@ -482,7 +484,7 @@ class UserTaskMethods:
             return updated
 
         update["version"] = next_version
-        return await self.directus_service.update_item_if_version(
+        updated = await self.directus_service.update_item_if_version(
             "user_tasks",
             existing["id"],
             update,
@@ -490,6 +492,13 @@ class UserTaskMethods:
             owner_hash_field="hashed_user_id",
             owner_hash=hash_id(user_id),
         )
+        return updated or await self._committed_task_after_empty_update(task_id, user_id, next_version)
+
+    async def _committed_task_after_empty_update(self, task_id: str, user_id: str, expected_version: int) -> dict[str, Any] | None:
+        current = await self.get_task(task_id, user_id)
+        if current and int(current.get("version") or 0) == int(expected_version):
+            return current
+        return None
 
     def _task_lock_key(self, user_id: str, task_id: str) -> str:
         return f"user_task_write_lock:{hash_id(user_id)}:{hash_id(task_id)}"
