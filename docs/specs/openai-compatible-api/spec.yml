@@ -1,0 +1,1374 @@
+schema_version: 2
+id: openai-compatible-api
+title: OpenAI-Compatible Chat Completions API
+status: approved
+
+goal: >
+  Make OpenMates usable as a reliable OpenAI-compatible provider for agentic
+  coding tools and other AI applications by exposing canonical `/v1` Chat
+  Completions and Models endpoints while preserving a strict boundary between
+  external client tools and OpenMates app skills.
+
+scope:
+  in:
+    - Canonical authenticated `POST /v1/chat/completions` endpoint.
+    - Canonical authenticated `GET /v1/models` endpoint.
+    - Canonical authenticated `GET /v1/models/{model}` endpoint.
+    - Non-streaming OpenAI-style chat completion responses.
+    - "Streaming OpenAI-style Server-Sent Events with `data: {...}` chunks and final `data: [DONE]`."
+    - "Standard client-supplied OpenAI function tools using `tools: [{ type: \"function\", function: ... }]`."
+    - Standard `tool_choice` values `none`, `auto`, `required`, and named function tool choice.
+    - Assistant `message.tool_calls` responses that external clients execute themselves.
+    - "Follow-up `role: \"tool\"` messages with `tool_call_id`."
+    - OpenAI-style error responses for invalid auth, missing model, malformed tools, unsupported tool types, and unavailable models.
+    - Real dev-server compatibility tests using official OpenAI Python SDK, official OpenAI JS SDK, Vercel AI SDK OpenAI-compatible provider, and OpenCode as a canary.
+  out:
+    - Automatic execution of OpenMates app skills from `/v1/chat/completions`.
+    - Mixing external client tools and OpenMates app skills in the same Chat Completions request.
+    - Exposing OpenMates app-skill tools through `/v1/chat/completions` by default.
+    - OpenAI Responses API `/v1/responses` compatibility in this slice.
+    - Legacy `/v1/completions`, `/v1/embeddings`, image generation, audio, batches, assistants, or files endpoints.
+    - "Hosted OpenAI tool types such as `web_search`, `file_search`, `code_interpreter`, `computer_use`, or `type: \"custom\"` in the first slice."
+    - Browser UI changes.
+    - Apple app changes.
+
+context_discovery:
+  github_issues:
+    - "GitHub MCP issue search was unavailable: get_me returned 401 Bad credentials. Local docs/specs search found no existing canonical `/v1/chat/completions` or `/v1/models` spec."
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/architecture/apps/rest-api.md
+    - docs/specs/workflows-cli-runtime/spec.yml
+    - "https://opencode.ai/docs/providers/: OpenCode custom providers use `@ai-sdk/openai-compatible`, `options.baseURL`, `options.apiKey`, and declared models."
+    - "https://opencode.ai/docs/config/: OpenCode config controls providers, models, and tools separately."
+    - "https://ai-sdk.dev/providers/openai-compatible-providers: Vercel AI SDK OpenAI-compatible provider supports text generation, streaming, tool calling, system messages, and multimodal inputs."
+    - "https://aider.chat/docs/llms/openai-compat.html: Aider uses `OPENAI_API_BASE`, `OPENAI_API_KEY`, and `openai/<model-name>`."
+    - "https://docs.cline.bot/provider-config/openai-compatible: Cline OpenAI-compatible profiles require Base URL, API key, and Model ID, with tool/function calling as a model capability."
+    - "https://docs.getbifrost.ai/cli-agents/roo-code: Roo Code requires native OpenAI-compatible function calling for coding-agent use."
+    - "https://docs.continue.dev/customize/model-providers/top-level/openai: Continue uses `apiBase` and `/chat/completions`, with an option to avoid `/responses`."
+    - "https://docs.litellm.ai/docs/providers/openai_compatible: LiteLLM expects base URLs ending in `/v1` and uses official OpenAI client routing."
+    - "https://vercel.com/docs/ai-gateway/sdks-and-apis/openai-chat-completions: Vercel AI Gateway lists `/models`, `/models/{model}`, and `/chat/completions` as the compatibility surface."
+  code_patterns:
+    - backend/core/api/app/routes/apps_api.py currently auto-registers `POST /v1/apps/{app_id}/skills/{skill_id}` and special-cases `ai/ask` to return OpenAI-style responses.
+    - backend/apps/ai/skills/ask_skill.py defines `OpenAICompletionRequest`, `OpenAICompletionResponse`, streaming chunk models, and transforms OpenAI-shaped requests into synthetic `AskSkillRequest` values.
+    - backend/apps/ai/processing/tool_generator.py converts OpenMates app skills into OpenAI function-tool definitions for internal model calls.
+    - backend/apps/ai/processing/main_processor.py enforces a strict allow-list for internally preselected OpenMates app-skill tools and rejects hallucinated tools before execution.
+    - backend/apps/ai/llm_providers/openai_client.py already handles upstream OpenAI `tools`, `tool_choice`, streamed tool-call deltas, and parsed tool-call responses for provider calls.
+    - backend/tests/test_rest_api_ai.py contains real dev integration tests for `/v1/apps/ai/skills/ask`, gated by `OPENMATES_TEST_ACCOUNT_API_KEY`.
+    - backend/tests/conftest.py points REST API integration tests at `https://api.dev.openmates.org` and skips when the test API key is absent.
+  tests:
+    - backend/tests/test_rest_api_ai.py
+    - backend/tests/test_openai_tool_choice.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - backend/tests/test_llm_utils_stream_fallback.py
+    - scripts/run-tests.sh integration-test handling
+    - .github/workflows/playwright-spec.yml live CLI integration secret handling
+
+apple_impact:
+  affected_files:
+    - none
+  parity_expectations:
+    - This is an external HTTP API compatibility surface. The Apple app does not consume OpenAI-compatible endpoints as a client in this slice.
+  verification:
+    - Apple not affected.
+  intentional_native_differences:
+    - none
+
+clarification:
+  rounds:
+    - question: Should OpenMates expose a canonical `/v1/chat/completions` route or require clients to call `/v1/apps/ai/skills/ask`?
+      answer: Add canonical Chat Completions and Models endpoints so OpenMates works with OpenAI-compatible clients.
+    - question: Should the alias HTTP-forward to the app-skill endpoint?
+      answer: No. Implement first-class FastAPI routes that share the same in-process dispatch and service logic rather than proxying over HTTP.
+    - question: Should OpenAI tool calling be included?
+      answer: Yes, for compatibility with agentic coding tools, but it must not collide with OpenMates app skills.
+    - question: How should compatibility modes separate OpenAI client tools from OpenMates app skills?
+      answer: "`/v1/chat/completions` uses external client tools only; OpenMates app skills remain available through `/v1/apps/ai/skills/ask` and explicit OpenMates APIs."
+  vision_summary: >
+    OpenMates should be a safe, plug-and-play OpenAI-compatible provider for
+    tools such as OpenCode, Aider, Cline, Roo Code, Continue, LiteLLM, official
+    OpenAI SDKs, and Vercel AI SDK. The canonical Chat Completions endpoint must
+    behave like OpenAI for external client tools: return tool calls, accept tool
+    results, and never execute those external tools server-side. Users who want
+    OpenMates app skills should continue using the AI Ask app-skill endpoint.
+  approved_by_user: true
+
+implementation_state:
+  subject_commit: e31c45823+working-tree
+
+approvals:
+  product_contract:
+    status: approved
+    approved_at: "2026-07-17T00:00:00Z"
+    reason: The user explicitly approved the compatibility modes and asked to finalize the implementation/test spec.
+  implementation_plan:
+    status: approved
+    approved_at: "2026-07-17T00:00:00Z"
+    reason: The technical plan only operationalizes the approved product contract and adds no new material architecture decision beyond the external-tool boundary already approved by the user.
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Add canonical `/v1/chat/completions`, `/v1/models`, and `/v1/models/{model}` routes.
+    reason: Agentic coding tools and OpenAI SDK-compatible clients append these paths to a configured `/v1` base URL.
+    decided_at: "2026-07-17T00:00:00Z"
+  - id: D-2
+    status: active
+    decision: Implement the routes as first-class FastAPI handlers sharing in-process AI logic, not as HTTP proxies or redirects.
+    reason: Avoid extra latency, error-shape drift, and auth/rate-limit inconsistencies.
+    decided_at: "2026-07-17T00:00:00Z"
+  - id: D-3
+    status: active
+    decision: Treat tools supplied to `/v1/chat/completions` as external client tools only.
+    reason: OpenAI-compatible clients expect to execute their own tools after receiving `tool_calls`.
+    decided_at: "2026-07-17T00:00:00Z"
+  - id: D-4
+    status: active
+    decision: Do not expose or execute OpenMates app skills through `/v1/chat/completions` in this slice.
+    reason: OpenMates app skills are server-side tools with product-specific billing, side effects, confirmation semantics, embeds, and allow-listing; mixing them with client tools would be collision-prone.
+    decided_at: "2026-07-17T00:00:00Z"
+  - id: D-5
+    status: active
+    decision: Support standard OpenAI function tools first and reject hosted/custom tool types with OpenAI-style validation errors.
+    reason: OpenCode, Roo Code, Cline, Aider, Continue, OpenAI SDKs, LiteLLM, and Vercel AI SDK compatibility primarily depends on function/tool calling, not OpenAI-hosted tool services.
+    decided_at: "2026-07-17T00:00:00Z"
+  - id: D-6
+    status: active
+    decision: Use official OpenAI SDKs and Vercel AI SDK as authoritative automated compatibility gates; use OpenCode as an end-to-end canary.
+    reason: SDK failures are easier to attribute to the OpenMates API contract, while OpenCode adds its own agent runtime variables.
+    decided_at: "2026-07-17T00:00:00Z"
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    approach: Research OpenCode, Aider, Cline, Continue, Roo Code, AI SDK, LiteLLM, and Vercel AI Gateway docs before finalizing the route/tool contract.
+    outcome: succeeded
+    recorded_at: "2026-07-17T00:00:00Z"
+
+handoff:
+  current_task_id: TASK-7
+  next_action: Deploy to dev, then run live SDK and OpenCode smoke gates against `https://api.dev.openmates.org/v1`.
+  command: OPENMATES_TEST_ACCOUNT_API_KEY=<test-key> python3 scripts/openai_compat_smoke.py
+  expected_outcome: Official SDK smoke tests pass against the deployed dev API, including function tool calls and streaming.
+  blocker: null
+  last_verified_commit: e31c45823+working-tree
+
+scenarios:
+  - id: S-1
+    title: Client lists available models
+    given:
+      - Alice has a valid OpenMates API key.
+    when:
+      - Alice calls `GET https://api.dev.openmates.org/v1/models`.
+    then:
+      - "The response is OpenAI-shaped with `object: \"list\"` and `data` model objects."
+      - "Each listed model has `id`, `object: \"model\"`, `created`, and `owned_by`."
+      - At least one chat-capable OpenMates model is returned.
+
+  - id: S-2
+    title: Client retrieves one model
+    given:
+      - Alice has a model ID returned by `GET /v1/models`.
+    when:
+      - Alice calls `GET /v1/models/{model}`.
+    then:
+      - The response is one OpenAI-shaped model object.
+      - Unknown model IDs return a 404 OpenAI-style error.
+
+  - id: S-3
+    title: Client sends a non-streaming chat completion
+    given:
+      - "Alice configures an OpenAI SDK client with `base_url=https://api.dev.openmates.org/v1` and her OpenMates API key."
+    when:
+      - "Alice calls `client.chat.completions.create` with `model`, `messages`, and `stream: false`."
+    then:
+      - The response object is `chat.completion`.
+      - The assistant message has non-empty content.
+      - Usage metadata is present when available or safely estimated in the existing OpenMates way.
+      - The response is not wrapped in an OpenMates app-skill envelope.
+
+  - id: S-4
+    title: Client streams a chat completion
+    given:
+      - "Alice sends a Chat Completions request with `stream: true`."
+    when:
+      - The model begins responding.
+    then:
+      - The HTTP response uses `text/event-stream`.
+      - "Each event is formatted as `data: <json>\n\n`."
+      - Content arrives as OpenAI-style `chat.completion.chunk` choices with `delta` fields.
+      - "The stream ends with `data: [DONE]`."
+
+  - id: S-5
+    title: Agentic client receives a function tool call
+    given:
+      - Alice sends `POST /v1/chat/completions` with a client-defined `get_weather` function tool.
+      - Alice sets `tool_choice` to force `get_weather`.
+    when:
+      - OpenMates forwards the prompt and client tool definitions to the selected model.
+    then:
+      - "The response contains `choices[0].message.tool_calls` with `type: \"function\"`, `function.name: \"get_weather\"`, and JSON-string `function.arguments`."
+      - "`finish_reason` is `tool_calls`."
+      - OpenMates does not execute `get_weather` server-side.
+      - No OpenMates app-skill embed or app-skill usage is created for the client tool.
+
+  - id: S-6
+    title: Agentic client sends a tool result follow-up
+    given:
+      - Alice received a `tool_calls` response for `get_weather`.
+      - Alice executed the tool in her client.
+    when:
+      - "Alice sends a follow-up Chat Completions request with the original assistant `tool_calls` message and a `role: \"tool\"` message containing the result."
+    then:
+      - OpenMates accepts the `tool` role and `tool_call_id`.
+      - The model can produce a normal assistant answer based on the supplied tool result.
+      - OpenMates still does not execute the client tool server-side.
+
+  - id: S-7
+    title: Client tool name collides with an OpenMates app skill
+    given:
+      - Alice sends a client-defined function tool named `web-search` or a normalized variant such as `web_search`.
+    when:
+      - The model emits a call for that tool.
+    then:
+      - The call is returned to Alice as an external client `tool_call`.
+      - OpenMates does not route it to the Web Search app skill.
+      - Users who want OpenMates Web Search use `/v1/apps/ai/skills/ask` or the app-skill API instead.
+
+  - id: S-8
+    title: Unsupported fields fail visibly
+    given:
+      - Alice sends unsupported hosted tool types, missing model fields, malformed messages, or an unavailable model ID.
+    when:
+      - OpenMates validates the request.
+    then:
+      - The API returns an OpenAI-style error with `error.message`, `error.type`, `error.param`, and `error.code`.
+      - The error is not hidden as a generic assistant response.
+      - No inference or app-skill execution starts for pre-validation failures.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: "`GET /v1/models` returns an OpenAI-compatible model list for authenticated API-key requests."
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids:
+      - T-BACKEND-001
+      - T-DEV-HTTP-001
+      - T-PY-SDK-001
+      - T-JS-SDK-001
+  - id: AC-2
+    scenario: S-2
+    text: "`GET /v1/models/{model}` returns one model object for known IDs and a 404 OpenAI-style error for unknown IDs."
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids:
+      - T-BACKEND-001
+      - T-PY-SDK-001
+      - T-JS-SDK-001
+  - id: AC-3
+    scenario: S-3
+    text: "`POST /v1/chat/completions` supports non-streaming OpenAI SDK requests and returns unwrapped `chat.completion` responses."
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids:
+      - T-BACKEND-002
+      - T-DEV-HTTP-001
+      - T-PY-SDK-001
+      - T-JS-SDK-001
+  - id: AC-4
+    scenario: S-4
+    text: "Streaming Chat Completions use OpenAI-compatible SSE chunks and finish with `data: [DONE]`."
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids:
+      - T-BACKEND-003
+      - T-STREAM-001
+      - T-AI-SDK-001
+  - id: AC-5
+    scenario: S-5
+    text: "Standard client-supplied function tools and `tool_choice` produce OpenAI-style `message.tool_calls` responses without server-side client-tool execution."
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids:
+      - T-BACKEND-004
+      - T-PY-SDK-002
+      - T-JS-SDK-002
+      - T-AI-SDK-001
+  - id: AC-6
+    scenario: S-6
+    text: "Follow-up requests containing assistant `tool_calls` and `role: \"tool\"` messages are accepted and can produce final assistant answers."
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids:
+      - T-BACKEND-005
+      - T-PY-SDK-002
+      - T-JS-SDK-002
+      - T-AI-SDK-001
+  - id: AC-7
+    scenario: S-7
+    text: "Client tool names that resemble OpenMates app-skill names remain external client tools and never execute OpenMates app skills through `/v1/chat/completions`."
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids:
+      - T-BACKEND-006
+      - T-COLLISION-001
+  - id: AC-8
+    scenario: S-8
+    text: Invalid requests and unsupported hosted/custom tool types return OpenAI-style errors before inference dispatch.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids:
+      - T-BACKEND-007
+  - id: AC-9
+    scenario: S-3
+    text: "`/v1/apps/ai/skills/ask` remains available for OpenMates-native AI Ask and app-skill execution."
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids:
+      - T-REGRESSION-001
+  - id: AC-10
+    scenario: S-5
+    text: OpenCode can use OpenMates as a custom OpenAI-compatible provider for a simple real prompt after SDK compatibility gates pass.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids:
+      - T-OPENCODE-001
+
+assumptions:
+  - id: A-1
+    text: Existing API-key authentication can be reused for canonical OpenAI-compatible routes.
+    category: auth
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: backend/core/api/app/routes/apps_api.py
+        summary: Existing app-skill REST routes use the shared SessionOrApiKeyAuth dependency for authenticated API-key requests.
+  - id: A-2
+    text: The current model/provider metadata can produce at least one chat-capable model entry for `/v1/models`.
+    category: models
+    required_before: task_execution
+    status: confirmed
+    evidence:
+      - source: backend/providers/*.yml
+        summary: "`/v1/models` uses provider YAML model entries where `for_app_skill: ai.ask` and `output_types` includes `text`, exposed as provider-prefixed OpenAI model IDs."
+  - id: A-3
+    text: Standard function tools cover the first compatibility needs for OpenCode, Roo Code, Cline, Aider, Continue, OpenAI SDKs, LiteLLM, and Vercel AI SDK.
+    category: compatibility
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: ai-sdk.dev/providers/openai-compatible-providers
+        summary: Vercel AI SDK OpenAI-compatible provider lists tool calling as a supported chat-model capability.
+      - source: docs.getbifrost.ai/cli-agents/roo-code
+        summary: Roo Code requires native tool calling for coding-agent use.
+      - source: platform.openai.com API reference via Context7
+        summary: "Chat Completions tool calling uses function tools, `tool_choice`, assistant `tool_calls`, and follow-up `role: tool` messages."
+  - id: A-4
+    text: A first-class compatibility route can reuse existing billing and rate-limit paths without double-charging or bypassing usage accounting.
+    category: billing
+    required_before: implementation
+    status: unchecked
+    evidence:
+      - source: backend/apps/ai/skills/ask_skill.py
+        summary: Current OpenAI-shaped AI Ask requests transform into internal requests and collect usage metadata from the worker stream.
+
+contracts:
+  api:
+    - route: GET /v1/models
+      auth: Bearer OpenMates API key
+      request: none
+      response: "{ object: 'list', data: [{ id: string, object: 'model', created: integer, owned_by: string }] }"
+      errors:
+        - 401 OpenAI-style error when the API key is missing or invalid.
+    - route: GET /v1/models/{model}
+      auth: Bearer OpenMates API key
+      request: model path parameter
+      response: "{ id: string, object: 'model', created: integer, owned_by: string }"
+      errors:
+        - 401 OpenAI-style error when unauthenticated.
+        - 404 OpenAI-style error when the model ID is not available.
+    - route: POST /v1/chat/completions
+      auth: Bearer OpenMates API key
+      request: >
+        OpenAI Chat Completions request with required `model` and `messages`,
+        optional `stream`, `temperature`, `max_tokens`, `top_p`, `stop`,
+        `presence_penalty`, `frequency_penalty`, `tools`, and `tool_choice`.
+      response: OpenAI-compatible `chat.completion` for non-streaming requests.
+      streaming_response: "OpenAI-compatible `chat.completion.chunk` SSE events and final `data: [DONE]`."
+      errors:
+        - 400 OpenAI-style error for malformed messages, unsupported tool types, invalid `tool_choice`, or missing required fields.
+        - 401 OpenAI-style error for missing or invalid API keys.
+        - 402 OpenAI-style error for insufficient credits where existing billing path reports that condition.
+        - 404 OpenAI-style error for unavailable models.
+        - 429 OpenAI-style error for rate limits.
+        - 500 OpenAI-style error for server failures.
+  compatibility_modes:
+    - mode: openai_chat_no_tools
+      trigger: "`/v1/chat/completions` without `tools`."
+      behavior: Run normal chat completion and return OpenAI-style content; do not expose OpenMates app-skill tools implicitly.
+    - mode: openai_chat_external_tools
+      trigger: "`/v1/chat/completions` with standard function `tools`."
+      behavior: Forward client tool definitions to the model, return tool calls to the client, and accept later tool-result messages; never execute those tools in OpenMates.
+    - mode: openmates_ai_ask
+      trigger: "`/v1/apps/ai/skills/ask`."
+      behavior: Preserve current OpenMates-native AI Ask behavior, including app-skill execution through existing preselection, allow-listing, billing, embeds, and safety guards.
+  tool_boundary:
+    - Client tools are scoped to the single Chat Completions request and conversation messages supplied by the external caller.
+    - Client tool names are not resolved through OpenMates app metadata, even when names match or normalize to app-skill IDs.
+    - OpenMates app skills are server-side product tools and remain unavailable in `/v1/chat/completions` until a future explicit opt-in spec defines side-effect, confirmation, billing, and collision semantics.
+    - Unsupported hosted/custom OpenAI tool types fail validation rather than being silently ignored or converted to app skills.
+  privacy_security:
+    - API keys authorize only the authenticated user's OpenMates account and billing context.
+    - Client-supplied tool schemas and tool-result messages are request content and must be treated like user prompt data.
+    - OpenMates must not call arbitrary external client tool endpoints because the OpenAI Chat Completions contract delegates execution to the client.
+    - Pre-validation errors must happen before inference dispatch and before any credit charge.
+  docs:
+    - Public docs must state `base_url=https://api.openmates.org/v1` and dev examples with `https://api.dev.openmates.org/v1`.
+    - Docs must explain that `/v1/chat/completions` is for OpenAI-compatible clients and `/v1/apps/ai/skills/ask` is for OpenMates app skills.
+
+tests:
+  - id: T-BACKEND-001
+    type: pytest
+    file: backend/tests/test_openai_compatible_api_contract.py
+    command: python3 -m pytest backend/tests/test_openai_compatible_api_contract.py -k "models"
+    covers:
+      - AC-1
+      - AC-2
+    assertions:
+      - route registration includes `GET /v1/models` and `GET /v1/models/{model}`.
+      - model list shape is OpenAI-compatible.
+      - known model retrieval shape is OpenAI-compatible.
+      - unknown model returns OpenAI-style 404 error.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: pytest-red-openai-compat-20260717
+        timestamp: "2026-07-17T23:36:08Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: /home/superdev/projects/OpenMates/.venv/bin/python3 -m pytest backend/tests/test_openai_compatible_api_contract.py backend/tests/test_openai_compatible_tools_contract.py
+        run_id: pytest-openai-compat-contract-20260717
+        subject_commit: e31c45823+working-tree
+        timestamp: "2026-07-17T23:36:08Z"
+  - id: T-BACKEND-002
+    type: pytest
+    file: backend/tests/test_openai_compatible_api_contract.py
+    command: python3 -m pytest backend/tests/test_openai_compatible_api_contract.py -k "chat_completion_non_stream"
+    covers:
+      - AC-3
+    assertions:
+      - route registration includes `POST /v1/chat/completions`.
+      - non-streaming response shape is `chat.completion` without app-skill envelope.
+      - request metadata preserves authenticated API-key context for billing.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: pytest-red-openai-compat-20260717
+        timestamp: "2026-07-17T23:36:08Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: /home/superdev/projects/OpenMates/.venv/bin/python3 -m pytest backend/tests/test_openai_compatible_api_contract.py backend/tests/test_openai_compatible_tools_contract.py
+        run_id: pytest-openai-compat-contract-20260717
+        subject_commit: e31c45823+working-tree
+        timestamp: "2026-07-17T23:36:08Z"
+  - id: T-BACKEND-003
+    type: pytest
+    file: backend/tests/test_openai_compatible_api_contract.py
+    command: python3 -m pytest backend/tests/test_openai_compatible_api_contract.py -k "chat_completion_stream"
+    covers:
+      - AC-4
+    assertions:
+      - streaming response media type is `text/event-stream`.
+      - "chunks are OpenAI SSE `data:` events."
+      - stream terminates with `[DONE]`.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: pytest-red-openai-compat-20260717
+        timestamp: "2026-07-17T23:36:08Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: /home/superdev/projects/OpenMates/.venv/bin/python3 -m pytest backend/tests/test_openai_compatible_api_contract.py backend/tests/test_openai_compatible_tools_contract.py
+        run_id: pytest-openai-compat-contract-20260717
+        subject_commit: e31c45823+working-tree
+        timestamp: "2026-07-17T23:36:08Z"
+  - id: T-BACKEND-004
+    type: pytest
+    file: backend/tests/test_openai_compatible_tools_contract.py
+    command: python3 -m pytest backend/tests/test_openai_compatible_tools_contract.py -k "forced_tool_call"
+    covers:
+      - AC-5
+    assertions:
+      - standard function tools are accepted.
+      - "`tool_choice` string and named function forms are accepted."
+      - response can contain OpenAI-style `message.tool_calls`.
+      - client tool execution is not dispatched through SkillRegistry.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: pytest-red-openai-compat-20260717
+        timestamp: "2026-07-17T23:36:08Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: /home/superdev/projects/OpenMates/.venv/bin/python3 -m pytest backend/tests/test_openai_compatible_api_contract.py backend/tests/test_openai_compatible_tools_contract.py
+        run_id: pytest-openai-compat-contract-20260717
+        subject_commit: e31c45823+working-tree
+        timestamp: "2026-07-17T23:36:08Z"
+  - id: T-BACKEND-005
+    type: pytest
+    file: backend/tests/test_openai_compatible_tools_contract.py
+    command: python3 -m pytest backend/tests/test_openai_compatible_tools_contract.py -k "tool_result_followup"
+    covers:
+      - AC-6
+    assertions:
+      - "`role: tool` messages with `tool_call_id` validate."
+      - follow-up message history preserves assistant tool calls and tool results.
+      - final assistant answer can be returned after tool-result context.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: pytest-red-openai-compat-20260717
+        timestamp: "2026-07-17T23:36:08Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: /home/superdev/projects/OpenMates/.venv/bin/python3 -m pytest backend/tests/test_openai_compatible_api_contract.py backend/tests/test_openai_compatible_tools_contract.py
+        run_id: pytest-openai-compat-contract-20260717
+        subject_commit: e31c45823+working-tree
+        timestamp: "2026-07-17T23:36:08Z"
+  - id: T-BACKEND-006
+    type: pytest
+    file: backend/tests/test_openai_compatible_tools_contract.py
+    command: python3 -m pytest backend/tests/test_openai_compatible_tools_contract.py -k "tool_name_collision"
+    covers:
+      - AC-7
+    assertions:
+      - client tool names `web-search` and `web_search` remain external client tools.
+      - SkillRegistry dispatch is not called for colliding client tool names.
+      - no app-skill placeholder/embed side effect is emitted for colliding client tool names.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: pytest-red-openai-compat-20260717
+        timestamp: "2026-07-17T23:36:08Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: /home/superdev/projects/OpenMates/.venv/bin/python3 -m pytest backend/tests/test_openai_compatible_api_contract.py backend/tests/test_openai_compatible_tools_contract.py
+        run_id: pytest-openai-compat-contract-20260717
+        subject_commit: e31c45823+working-tree
+        timestamp: "2026-07-17T23:36:08Z"
+  - id: T-BACKEND-007
+    type: pytest
+    file: backend/tests/test_openai_compatible_api_contract.py
+    command: python3 -m pytest backend/tests/test_openai_compatible_api_contract.py -k "validation_errors"
+    covers:
+      - AC-8
+    assertions:
+      - missing model returns OpenAI-style 400 error before inference dispatch.
+      - unsupported hosted/custom tool types return OpenAI-style 400 error before inference dispatch.
+      - malformed messages return OpenAI-style 400 error before inference dispatch.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: pytest-red-openai-compat-20260717
+        timestamp: "2026-07-17T23:36:08Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: /home/superdev/projects/OpenMates/.venv/bin/python3 -m pytest backend/tests/test_openai_compatible_api_contract.py backend/tests/test_openai_compatible_tools_contract.py
+        run_id: pytest-openai-compat-contract-20260717
+        subject_commit: e31c45823+working-tree
+        timestamp: "2026-07-17T23:36:08Z"
+  - id: T-REGRESSION-001
+    type: pytest
+    file: backend/tests/test_rest_api_ai.py
+    command: OPENMATES_TEST_ACCOUNT_API_KEY=<test-key> python3 -m pytest -s backend/tests/test_rest_api_ai.py -k "test_execute_skill_ask"
+    covers:
+      - AC-9
+    assertions:
+      - existing `/v1/apps/ai/skills/ask` real inference still returns OpenAI-style choices.
+      - app-skill endpoint remains authenticated and billable through existing path.
+    red_phase:
+      required: false
+      expected: pass_existing
+      evidence:
+        status: not_required_regression
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        command: ""
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+  - id: T-DEV-HTTP-001
+    type: manual
+    file: scripts/openai_compat_smoke.py
+    command: OPENMATES_TEST_ACCOUNT_API_KEY=<test-key> python3 scripts/openai_compat_smoke.py --base-url https://api.dev.openmates.org/v1 --mode http-basic
+    covers:
+      - AC-1
+      - AC-3
+    assertions:
+      - raw HTTP `GET /models` succeeds.
+      - raw HTTP `POST /chat/completions` non-streaming real inference succeeds with a small deterministic prompt.
+    red_phase:
+      required: true
+      expected: fail_against_current_dev
+      evidence:
+        status: pending
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: ""
+        command: ""
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+  - id: T-STREAM-001
+    type: manual
+    file: scripts/openai_compat_smoke.py
+    command: OPENMATES_TEST_ACCOUNT_API_KEY=<test-key> python3 scripts/openai_compat_smoke.py --base-url https://api.dev.openmates.org/v1 --mode stream
+    covers:
+      - AC-4
+    assertions:
+      - streaming real inference returns parseable OpenAI SSE events.
+      - stream ends with `[DONE]`.
+    red_phase:
+      required: true
+      expected: fail_against_current_dev
+      evidence:
+        status: pending
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: ""
+        command: ""
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+  - id: T-PY-SDK-001
+    type: manual
+    file: scripts/openai_compat_smoke.py
+    command: OPENMATES_TEST_ACCOUNT_API_KEY=<test-key> python3 scripts/openai_compat_smoke.py --base-url https://api.dev.openmates.org/v1 --mode python-sdk-basic
+    covers:
+      - AC-1
+      - AC-2
+      - AC-3
+    assertions:
+      - official OpenAI Python SDK `models.list()` succeeds.
+      - official OpenAI Python SDK `models.retrieve()` succeeds for a returned model.
+      - official OpenAI Python SDK `chat.completions.create()` succeeds for non-streaming real inference.
+    red_phase:
+      required: true
+      expected: fail_against_current_dev
+      evidence:
+        status: pending
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: ""
+        command: ""
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+  - id: T-PY-SDK-002
+    type: manual
+    file: scripts/openai_compat_smoke.py
+    command: OPENMATES_TEST_ACCOUNT_API_KEY=<test-key> python3 scripts/openai_compat_smoke.py --base-url https://api.dev.openmates.org/v1 --mode python-sdk-tools
+    covers:
+      - AC-5
+      - AC-6
+    assertions:
+      - official OpenAI Python SDK forced function tool call returns `tool_calls`.
+      - "official OpenAI Python SDK follow-up with `role: tool` produces final assistant answer."
+    red_phase:
+      required: true
+      expected: fail_against_current_dev
+      evidence:
+        status: pending
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: ""
+        command: ""
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+  - id: T-JS-SDK-001
+    type: manual
+    file: frontend/packages/openmates-cli/tests/openai-compatible-smoke.mjs
+    command: cd frontend/packages/openmates-cli && OPENMATES_TEST_ACCOUNT_API_KEY=<test-key> node tests/openai-compatible-smoke.mjs --base-url https://api.dev.openmates.org/v1 --mode openai-js-basic
+    covers:
+      - AC-1
+      - AC-2
+      - AC-3
+    assertions:
+      - official OpenAI JS SDK model list/retrieve works.
+      - official OpenAI JS SDK non-streaming real inference works.
+    red_phase:
+      required: true
+      expected: fail_against_current_dev
+      evidence:
+        status: pending
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: ""
+        command: ""
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+  - id: T-JS-SDK-002
+    type: manual
+    file: frontend/packages/openmates-cli/tests/openai-compatible-smoke.mjs
+    command: cd frontend/packages/openmates-cli && OPENMATES_TEST_ACCOUNT_API_KEY=<test-key> node tests/openai-compatible-smoke.mjs --base-url https://api.dev.openmates.org/v1 --mode openai-js-tools
+    covers:
+      - AC-5
+      - AC-6
+    assertions:
+      - official OpenAI JS SDK forced function tool call returns `tool_calls`.
+      - "official OpenAI JS SDK follow-up with `role: tool` produces final assistant answer."
+    red_phase:
+      required: true
+      expected: fail_against_current_dev
+      evidence:
+        status: pending
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: ""
+        command: ""
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+  - id: T-AI-SDK-001
+    type: manual
+    file: frontend/packages/openmates-cli/tests/openai-compatible-smoke.mjs
+    command: cd frontend/packages/openmates-cli && OPENMATES_TEST_ACCOUNT_API_KEY=<test-key> node tests/openai-compatible-smoke.mjs --base-url https://api.dev.openmates.org/v1 --mode vercel-ai-sdk
+    covers:
+      - AC-4
+    assertions:
+      - "`@ai-sdk/openai-compatible` can generate text from OpenMates."
+      - "`@ai-sdk/openai-compatible` can stream text from OpenMates."
+    red_phase:
+      required: true
+      expected: fail_against_current_dev
+      evidence:
+        status: pending
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: ""
+        command: ""
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+  - id: T-COLLISION-001
+    type: manual
+    file: scripts/openai_compat_smoke.py
+    command: OPENMATES_TEST_ACCOUNT_API_KEY=<test-key> python3 scripts/openai_compat_smoke.py --base-url https://api.dev.openmates.org/v1 --mode collision
+    covers:
+      - AC-7
+    assertions:
+      - forced client tool named `web-search` returns as a client `tool_call`.
+      - no Web Search app-skill response envelope or embed appears.
+      - usage/log evidence does not show app-skill execution for the collision request.
+    red_phase:
+      required: true
+      expected: fail_against_current_dev
+      evidence:
+        status: pending
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: ""
+        command: ""
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+  - id: T-OPENCODE-001
+    type: manual
+    file: scripts/openai_compat_opencode_smoke.py
+    command: OPENMATES_TEST_ACCOUNT_API_KEY=<test-key> python3 scripts/openai_compat_opencode_smoke.py --base-url https://api.dev.openmates.org/v1 --model <model-id>
+    covers:
+      - AC-10
+    assertions:
+      - a temporary OpenCode config with `@ai-sdk/openai-compatible` and OpenMates baseURL can complete a simple prompt.
+      - OpenCode can use the returned model ID from `/v1/models` or an explicitly configured model ID.
+      - failures include raw HTTP status/body enough to distinguish OpenMates API failures from OpenCode runtime failures.
+    red_phase:
+      required: false
+      expected: fail_or_blocked_until_backend_green
+      evidence:
+        status: pending
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_sdk_gates
+      evidence:
+        status: ""
+        command: ""
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+
+verifications:
+  - id: V-SPEC-VALIDATE-001
+    kind: deterministic_check
+    phase: final
+    required_for_done: true
+    covers:
+      - AC-1
+      - AC-2
+      - AC-3
+      - AC-4
+      - AC-5
+      - AC-6
+      - AC-7
+      - AC-8
+      - AC-9
+      - AC-10
+    status: passed
+    evidence:
+      status: passed
+      summary: Spec validates after route, tests, smoke-script, task, and evidence updates.
+      timestamp: "2026-07-17T23:36:08Z"
+  - id: V-SPEC-VERIFY-001
+    kind: deterministic_check
+    phase: final
+    required_for_done: true
+    covers:
+      - AC-1
+      - AC-2
+      - AC-3
+      - AC-4
+      - AC-5
+      - AC-6
+      - AC-7
+      - AC-8
+      - AC-9
+      - AC-10
+    status: pending
+    evidence:
+      status: ""
+      summary: ""
+      timestamp: ""
+  - id: V-DOCS-001
+    kind: artifact_review
+    phase: final
+    required_for_done: true
+    covers:
+      - AC-1
+      - AC-3
+      - AC-5
+      - AC-9
+    status: pending
+    evidence:
+      status: ""
+      summary: ""
+      timestamp: ""
+
+implementation_plan:
+  spec_path: docs/specs/openai-compatible-api/spec.yml
+  existing_patterns:
+    - backend/core/api/app/routes/apps_api.py special AI Ask app-skill handler.
+    - backend/apps/ai/skills/ask_skill.py OpenAI request/response models and synthetic AskSkillRequest conversion.
+    - backend/apps/ai/llm_providers/openai_client.py upstream OpenAI tool-choice handling and streamed tool-call parsing.
+    - backend/tests/conftest.py dev REST API integration fixture.
+  architecture: >
+    Add a canonical OpenAI-compatible route module that shares authentication,
+    billing context, and inference dispatch with the existing AI Ask path, but
+    introduces an explicit external-tool mode for `/v1/chat/completions`. In
+    external-tool mode, client tools are passed to the model and returned as
+    OpenAI `tool_calls`; they are never resolved through OpenMates app metadata
+    or SkillRegistry. Models endpoints expose enabled chat-capable OpenMates
+    model IDs in OpenAI model-object shape.
+  data_flow:
+    - Client configures `base_url=https://api.openmates.org/v1` and an OpenMates API key.
+    - Client calls `/models` to list model IDs or supplies a known model ID.
+    - Client calls `/chat/completions` without tools for normal chat, or with function tools for external client-tool mode.
+    - OpenMates validates auth, model, message roles, tool schema, and unsupported fields before inference dispatch.
+    - OpenMates dispatches model inference with the authenticated user billing context.
+    - For text responses, OpenMates returns content in OpenAI Chat Completions shape.
+    - "For external client tool calls, OpenMates returns `message.tool_calls`; the client executes the tool and sends a later `role: tool` message."
+  affected_files:
+    - path: backend/core/api/app/routes/openai_compat.py
+      reason: New canonical OpenAI-compatible routes and error helpers.
+    - path: backend/core/api/main.py
+      reason: Include the new route module if route registration is not already centralized.
+    - path: backend/apps/ai/skills/ask_skill.py
+      reason: Extend OpenAI request/message models for tool messages, client tools, and tool-call responses while preserving AI Ask behavior.
+    - path: backend/apps/ai/processing/main_processor.py
+      reason: Ensure external client-tool mode bypasses OpenMates app-skill generation/execution and preserves tool-role history.
+    - path: backend/apps/ai/llm_providers/*
+      reason: Confirm selected model providers can receive standard function tools and return parsed tool calls through the unified stream/response interface.
+    - path: backend/tests/test_openai_compatible_api_contract.py
+      reason: Backend contract tests for route, model, chat, streaming, and error shapes.
+    - path: backend/tests/test_openai_compatible_tools_contract.py
+      reason: Backend contract tests for external function tools, tool-result follow-up, and collision safety.
+    - path: scripts/openai_compat_smoke.py
+      reason: Real dev-server HTTP and official OpenAI Python SDK smoke tests.
+    - path: frontend/packages/openmates-cli/tests/openai-compatible-smoke.mjs
+      reason: Official OpenAI JS SDK and Vercel AI SDK compatibility smoke tests.
+    - path: scripts/openai_compat_opencode_smoke.py
+      reason: OpenCode custom-provider canary after SDK gates pass.
+    - path: docs/architecture/apps/rest-api.md
+      reason: Document canonical OpenAI-compatible API surface and app-skill boundary.
+    - path: docs/user-guide/cli/server-management.md
+      reason: Add external-client setup notes if CLI/self-host docs reference OpenAI-compatible endpoints.
+  verification_strategy:
+    - python3 scripts/spec_validate.py docs/specs/openai-compatible-api/spec.yml
+    - python3 -m pytest backend/tests/test_openai_compatible_api_contract.py
+    - python3 -m pytest backend/tests/test_openai_compatible_tools_contract.py
+    - Deploy to dev before real dev-server smoke tests.
+    - OPENMATES_TEST_ACCOUNT_API_KEY=<test-key> python3 scripts/openai_compat_smoke.py --base-url https://api.dev.openmates.org/v1 --mode all-python
+    - cd frontend/packages/openmates-cli && OPENMATES_TEST_ACCOUNT_API_KEY=<test-key> node tests/openai-compatible-smoke.mjs --base-url https://api.dev.openmates.org/v1 --mode all-js
+    - OPENMATES_TEST_ACCOUNT_API_KEY=<test-key> python3 scripts/openai_compat_opencode_smoke.py --base-url https://api.dev.openmates.org/v1 --model <model-id>
+    - python3 scripts/spec_verify.py docs/specs/openai-compatible-api/spec.yml
+  verification_order:
+    - Backend contract tests red, then implementation, then backend green.
+    - Dev deploy before live compatibility smoke tests.
+    - Raw HTTP and official OpenAI Python SDK live dev tests.
+    - Official OpenAI JS SDK and Vercel AI SDK live dev tests.
+    - OpenCode custom-provider canary after SDK gates pass.
+    - Existing `/v1/apps/ai/skills/ask` real inference regression.
+    - Documentation review and spec verification.
+
+tasks:
+  - id: TASK-1
+    title: Write red backend route and model contract tests
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+        - S-4
+        - S-8
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+        - AC-4
+        - AC-8
+    verification_ids:
+      - T-BACKEND-001
+      - T-BACKEND-002
+      - T-BACKEND-003
+      - T-BACKEND-007
+    dependencies: []
+    ownership:
+      current_owner: unassigned
+      handoff_ready: true
+      files:
+        - backend/tests/test_openai_compatible_api_contract.py
+      shared_files: []
+    expected_files:
+      - backend/tests/test_openai_compatible_api_contract.py
+    blockers: []
+    follow_up_tasks: []
+  - id: TASK-2
+    title: Write red external tool and collision contract tests
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-5
+        - S-6
+        - S-7
+      acceptance_criteria:
+        - AC-5
+        - AC-6
+        - AC-7
+    verification_ids:
+      - T-BACKEND-004
+      - T-BACKEND-005
+      - T-BACKEND-006
+    dependencies:
+      - TASK-1
+    ownership:
+      current_owner: unassigned
+      handoff_ready: true
+      files:
+        - backend/tests/test_openai_compatible_tools_contract.py
+      shared_files: []
+    expected_files:
+      - backend/tests/test_openai_compatible_tools_contract.py
+    blockers: []
+    follow_up_tasks: []
+  - id: TASK-3
+    title: Implement canonical Models endpoints
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+    verification_ids:
+      - T-BACKEND-001
+    dependencies:
+      - TASK-1
+    ownership:
+      current_owner: unassigned
+      handoff_ready: true
+      files:
+        - backend/core/api/app/routes/openai_compat.py
+        - backend/core/api/main.py
+      shared_files: []
+    expected_files:
+      - backend/core/api/app/routes/openai_compat.py
+      - backend/core/api/main.py
+    blockers:
+      - assumption_id: A-2
+        reason: Confirm authoritative enabled chat-model source before final implementation.
+    follow_up_tasks: []
+  - id: TASK-4
+    title: Implement canonical Chat Completions text and streaming routes
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-3
+        - S-4
+        - S-8
+      acceptance_criteria:
+        - AC-3
+        - AC-4
+        - AC-8
+    verification_ids:
+      - T-BACKEND-002
+      - T-BACKEND-003
+      - T-BACKEND-007
+    dependencies:
+      - TASK-1
+      - TASK-3
+    ownership:
+      current_owner: unassigned
+      handoff_ready: true
+      files:
+        - backend/core/api/app/routes/openai_compat.py
+        - backend/apps/ai/skills/ask_skill.py
+      shared_files: []
+    expected_files:
+      - backend/core/api/app/routes/openai_compat.py
+      - backend/apps/ai/skills/ask_skill.py
+    blockers:
+      - assumption_id: A-4
+        reason: Confirm billing/rate-limit path reuse before green evidence.
+    follow_up_tasks: []
+  - id: TASK-5
+    title: Implement external client-tool mode and collision safety
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-5
+        - S-6
+        - S-7
+      acceptance_criteria:
+        - AC-5
+        - AC-6
+        - AC-7
+    verification_ids:
+      - T-BACKEND-004
+      - T-BACKEND-005
+      - T-BACKEND-006
+    dependencies:
+      - TASK-2
+      - TASK-4
+    ownership:
+      current_owner: unassigned
+      handoff_ready: true
+      files:
+        - backend/apps/ai/skills/ask_skill.py
+        - backend/apps/ai/processing/main_processor.py
+        - backend/apps/ai/llm_providers/openai_client.py
+      shared_files: []
+    expected_files:
+      - backend/apps/ai/skills/ask_skill.py
+      - backend/apps/ai/processing/main_processor.py
+      - backend/apps/ai/llm_providers/openai_client.py
+    blockers: []
+    follow_up_tasks: []
+  - id: TASK-6
+    title: Add live compatibility smoke scripts
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+        - S-4
+        - S-5
+        - S-6
+        - S-7
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+        - AC-4
+        - AC-5
+        - AC-6
+        - AC-7
+        - AC-10
+    verification_ids:
+      - T-DEV-HTTP-001
+      - T-STREAM-001
+      - T-PY-SDK-001
+      - T-PY-SDK-002
+      - T-JS-SDK-001
+      - T-JS-SDK-002
+      - T-AI-SDK-001
+      - T-COLLISION-001
+      - T-OPENCODE-001
+    dependencies:
+      - TASK-4
+      - TASK-5
+    ownership:
+      current_owner: unassigned
+      handoff_ready: true
+      files:
+        - scripts/openai_compat_smoke.py
+        - frontend/packages/openmates-cli/tests/openai-compatible-smoke.mjs
+        - scripts/openai_compat_opencode_smoke.py
+      shared_files: []
+    expected_files:
+      - scripts/openai_compat_smoke.py
+      - frontend/packages/openmates-cli/tests/openai-compatible-smoke.mjs
+      - scripts/openai_compat_opencode_smoke.py
+    blockers: []
+    follow_up_tasks: []
+  - id: TASK-7
+    title: Verify dev deployment with SDKs and OpenCode canary
+    status: pending
+    phase: running_checks
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+        - S-4
+        - S-5
+        - S-6
+        - S-7
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+        - AC-4
+        - AC-5
+        - AC-6
+        - AC-7
+        - AC-10
+    verification_ids:
+      - T-DEV-HTTP-001
+      - T-STREAM-001
+      - T-PY-SDK-001
+      - T-PY-SDK-002
+      - T-JS-SDK-001
+      - T-JS-SDK-002
+      - T-AI-SDK-001
+      - T-COLLISION-001
+      - T-OPENCODE-001
+    dependencies:
+      - TASK-6
+    ownership:
+      current_owner: unassigned
+      handoff_ready: true
+      files:
+        - docs/specs/openai-compatible-api/spec.yml
+      shared_files: []
+    expected_files:
+      - docs/specs/openai-compatible-api/spec.yml
+    blockers: []
+    follow_up_tasks: []
+  - id: TASK-8
+    title: Preserve AI Ask regression and document compatibility boundary
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-3
+        - S-5
+      acceptance_criteria:
+        - AC-3
+        - AC-5
+        - AC-9
+    verification_ids:
+      - T-REGRESSION-001
+      - V-DOCS-001
+    dependencies:
+      - TASK-5
+    ownership:
+      current_owner: unassigned
+      handoff_ready: true
+      files:
+        - docs/architecture/apps/rest-api.md
+        - docs/user-guide/cli/server-management.md
+        - backend/tests/test_rest_api_ai.py
+      shared_files: []
+    expected_files:
+      - docs/architecture/apps/rest-api.md
+      - docs/user-guide/cli/server-management.md
+      - backend/tests/test_rest_api_ai.py
+    blockers: []
+    follow_up_tasks: []
+  - id: TASK-9
+    title: Final spec verification
+    status: pending
+    phase: running_checks
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+        - S-4
+        - S-5
+        - S-6
+        - S-7
+        - S-8
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+        - AC-4
+        - AC-5
+        - AC-6
+        - AC-7
+        - AC-8
+        - AC-9
+        - AC-10
+    verification_ids:
+      - V-SPEC-VALIDATE-001
+      - V-SPEC-VERIFY-001
+    dependencies:
+      - TASK-7
+      - TASK-8
+    ownership:
+      current_owner: unassigned
+      handoff_ready: true
+      files:
+        - docs/specs/openai-compatible-api/spec.yml
+      shared_files: []
+    expected_files:
+      - docs/specs/openai-compatible-api/spec.yml
+    blockers: []
+    follow_up_tasks: []
+
+risks:
+  - id: R-1
+    risk: Client-supplied tools could accidentally route into OpenMates app-skill execution if names collide.
+    mitigation: External tool mode must bypass SkillRegistry and test collisions with `web-search` and `web_search`.
+  - id: R-2
+    risk: Streaming format drift could break AI SDK/OpenCode even if raw curl appears to work.
+    mitigation: Validate streaming with official OpenAI JS SDK and Vercel AI SDK, not only raw HTTP.
+  - id: R-3
+    risk: Some OpenMates providers may not support upstream function calling for all models.
+    mitigation: "`/v1/models` should expose capability metadata internally where available, and live tool-call tests should use a known tool-capable model."
+  - id: R-4
+    risk: Continue may default to `/responses` for some OpenAI model IDs.
+    mitigation: Docs should recommend Chat Completions-compatible configuration, and `/v1/responses` remains out of scope until a later spec.
+  - id: R-5
+    risk: Real compatibility tests spend credits and may be flaky when providers degrade.
+    mitigation: Use tiny deterministic prompts, explicit test-account key gating, retries only where safe, and clear failure attribution logs.
+
+open_questions:
+  - id: Q-1
+    status: resolved
+    question: Should `/v1/chat/completions` expose OpenMates app skills as tools?
+    answer: No. Use `/v1/apps/ai/skills/ask` for OpenMates app skills.
+  - id: Q-2
+    status: resolved
+    question: Should first-slice tool support include hosted/custom OpenAI tool types?
+    answer: No. Support standard function tools first and return explicit validation errors for unsupported tool types.
+  - id: Q-3
+    status: open
+    question: Which specific OpenMates model ID should be the default documented tool-capable compatibility test model?
+    next_action: Choose from actual enabled dev model metadata during TASK-3/TASK-6.

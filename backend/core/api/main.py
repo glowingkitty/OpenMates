@@ -46,6 +46,7 @@ from backend.core.api.app.routes import admin_client_logs  # noqa: E402 # Import
 from backend.core.api.app.routes import client_logs_ephemeral  # noqa: E402 # Import ephemeral client log forwarding (all users, anonymized)
 from backend.core.api.app.routes import e2e_api  # noqa: E402 # Import E2E test client log forwarding router (scoped HMAC auth)
 from backend.core.api.app.routes import apps_api  # noqa: E402 # Import apps API router for external API access
+from backend.core.api.app.routes import openai_compat  # noqa: E402 # Canonical OpenAI-compatible API routes
 from backend.core.api.app.routes import code_execution  # noqa: E402 # Import Code Run web-app execution router
 from backend.core.api.app.routes import electronics_pcb_schematic  # noqa: E402 # Electronics PCB schematic compile endpoints
 from backend.core.api.app.routes import application_preview, application_preview_gateway  # noqa: E402 # Generated application live preview routers
@@ -71,6 +72,7 @@ from backend.core.api.app.routes import connected_account_oauth  # noqa: E402 # 
 from backend.core.api.app.routes import provider_oauth_google_calendar  # noqa: E402 # Google Calendar connected-account OAuth adapter
 from backend.core.api.app.routes import settings_software_update  # noqa: E402 # Import software update settings router (admin-only)
 from backend.core.api.app.routes import learning_mode  # noqa: E402 # Account-wide Learning Mode policy endpoints
+from backend.core.api.app.routes import teams  # noqa: E402 # Teams V1 endpoints
 from backend.core.api.app.routes import workflows  # noqa: E402 # Server-side Workflows V1 endpoints
 from backend.core.api.app.routes import user_plans  # noqa: E402 # User-facing Plans V1 endpoints
 from backend.core.api.app.routes import user_tasks  # noqa: E402 # User-facing Tasks V1 endpoints
@@ -1357,6 +1359,7 @@ def create_app() -> FastAPI:
     app.include_router(settings.router, include_in_schema=True)  # Settings endpoints - some endpoints support API key auth
     app.include_router(sdk.router, include_in_schema=True)  # SDK bootstrap endpoints - API-key authenticated
     app.include_router(apps_api.router, include_in_schema=True)  # Apps API router - uses API key authentication for external API access
+    app.include_router(openai_compat.router, include_in_schema=True)  # OpenAI-compatible models/chat routes for external SDKs
     app.include_router(tasks_api.router, include_in_schema=True)  # Tasks API router - uses API key authentication for polling long-running tasks
     app.include_router(embeds_api.router, include_in_schema=True)  # Embeds API router - uses API key authentication for downloading embed files (images, etc.)
     app.include_router(generated_assets_api.router, include_in_schema=True)  # Short-lived decrypted download URLs for generated media assets
@@ -1372,6 +1375,7 @@ def create_app() -> FastAPI:
     app.include_router(sync_api.router, include_in_schema=False)  # Native/desktop optional offline prefetch - JWT auth, encrypted payloads only
     app.include_router(learning_mode.router, include_in_schema=False)  # Account-wide Learning Mode policy - web/CLI/Apple authenticated only
     app.include_router(workflows.router, include_in_schema=True)  # Workflows V1 - web/CLI/SDK/Apple authenticated API
+    app.include_router(teams.router, include_in_schema=True)  # Teams V1 - shared team context, membership, and billing API
     app.include_router(user_plans.router, include_in_schema=True)  # Plans V1 - user-facing plan management API
     app.include_router(user_tasks.router, include_in_schema=True)  # Tasks V1 - user-facing task management API
     app.include_router(token_broker.router, include_in_schema=False)  # Connected-account token refs - web/CLI/Apple authenticated only
