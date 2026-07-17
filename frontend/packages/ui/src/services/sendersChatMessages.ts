@@ -42,7 +42,7 @@ import { generateUUID } from "../message_parsing/utils";
 const CHAT_RECOVERY_PROTOCOL_VERSION = 1;
 const CHAT_RECOVERY_KEY_VERSION = 1;
 const CHAT_PREFLIGHT_TIMEOUT_MS = 20_000;
-const SEND_EMBED_LOAD_RETRY_ATTEMPTS = 6;
+const SEND_EMBED_LOAD_RETRY_ATTEMPTS = 12;
 const SEND_EMBED_LOAD_RETRY_DELAY_MS = 500;
 const PREFLIGHT_ERROR_CODES = new Set([
 	"client_update_required",
