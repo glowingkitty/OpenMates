@@ -12,7 +12,6 @@ import { getCategoryGradientColors } from '../utils/categoryUtils';
 const OG_EXAMPLE_SHARED_CHAT_CUTTLEFISH = 'shared_chat_cuttlefish';
 const DEFAULT_RESUME_CARD_GRADIENT_START = '#4867cd';
 const DEFAULT_RESUME_CARD_GRADIENT_END = '#a0beff';
-const CHAT_RECOVERY_PROTOCOL_VERSION_EPOCH_ONE = 1;
 
 export type GradientColors = { start: string; end: string };
 
@@ -105,10 +104,4 @@ export function getContinueGradientColors(
     appId?: string | null,
 ): GradientColors | null {
     return getAppGradientColors(appId) ?? (category ? getCategoryGradientColors(category) : null);
-}
-
-export function shouldSkipLegacyAIResponsePersistenceForRecovery(
-    chunk: { recovery_job_id?: string | null; recovery_protocol_version?: number | null },
-): boolean {
-    return chunk.recovery_protocol_version === CHAT_RECOVERY_PROTOCOL_VERSION_EPOCH_ONE && !!chunk.recovery_job_id;
 }
