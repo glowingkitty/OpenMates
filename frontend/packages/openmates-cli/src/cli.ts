@@ -107,6 +107,9 @@ import {
   decryptUserTask,
   decryptUserTasks,
   findTask,
+  labelHashes as buildLabelHashes,
+  normalizeLabels,
+  normalizeTaskPriority,
   normalizeTaskStatus,
   parseDueAt,
   renderTaskBoard,
@@ -526,7 +529,7 @@ async function handleTasks(
   }
 
   const masterKey = client.getMasterKeyBytes();
-  const scope = taskScopeFromFlags(flags);
+  const scope = taskScopeFromFlags(flags, masterKey);
 
   if (subcommand === "list" || subcommand === "status") {
     if (subcommand === "status" && rest[0]) {
@@ -560,12 +563,14 @@ async function handleTasks(
     const input = await buildCreateUserTaskInput(masterKey, {
       title,
       description: typeof flags.description === "string" ? flags.description : "",
+      labels: labelFlags(flags),
       status: normalizeTaskStatus(typeof flags.status === "string" ? flags.status : undefined),
       assign: taskAssignFlag(flags),
       chatId: typeof flags.chat === "string" ? flags.chat : null,
       projectIds: splitCsvFlag(flags.project ?? flags.projects),
       planId: typeof flags.plan === "string" ? flags.plan : null,
       dueAt: parseDueAt(flags.due),
+      priority: typeof flags.priority === "string" ? normalizeTaskPriority(flags.priority) : undefined,
     });
     const created = await client.createUserTask(input);
     printTaskOutput(await decryptUserTask(created, masterKey), flags);
@@ -579,11 +584,15 @@ async function handleTasks(
     const patch = await buildUpdateUserTaskInput(task, masterKey, {
       title: typeof flags.title === "string" ? flags.title : undefined,
       description: typeof flags.description === "string" ? flags.description : undefined,
+      labels: flags.label || flags.labels || flags.tag || flags.tags ? labelFlags(flags) : undefined,
+      addLabels: labelFlags(flags, "add-label", "add-labels", "add-tag", "add-tags"),
+      removeLabels: labelFlags(flags, "remove-label", "remove-labels", "remove-tag", "remove-tags"),
       status: normalizeTaskStatus(typeof flags.status === "string" ? flags.status : undefined),
       assign: taskAssignFlag(flags),
       chatId: flags.chat === true ? null : typeof flags.chat === "string" ? flags.chat : undefined,
       projectIds: flags.project || flags.projects ? splitCsvFlag(flags.project ?? flags.projects) : undefined,
       planId: flags.plan === true ? null : typeof flags.plan === "string" ? flags.plan : undefined,
+      priority: typeof flags.priority === "string" ? normalizeTaskPriority(flags.priority) : undefined,
     });
     const updated = await client.updateUserTask(task.taskId, patch);
     printTaskOutput(await decryptUserTask(updated, masterKey), flags);
@@ -648,21 +657,23 @@ async function handleTasks(
   throw new Error(`Unknown tasks command '${subcommand}'. Run 'openmates tasks --help'.`);
 }
 
-function taskScopeFromFlags(flags: Record<string, string | boolean>): { status?: UserTaskStatus; chatId?: string; projectId?: string; planId?: string } {
+function taskScopeFromFlags(flags: Record<string, string | boolean>, masterKey: Uint8Array): { status?: UserTaskStatus; chatId?: string; projectId?: string; planId?: string; labelHashes?: string[]; priority?: number } {
   return {
     status: normalizeTaskStatus(typeof flags.status === "string" ? flags.status : undefined),
     chatId: typeof flags.chat === "string" ? flags.chat : undefined,
     projectId: typeof flags.project === "string" ? flags.project : undefined,
     planId: typeof flags.plan === "string" ? flags.plan : undefined,
+    labelHashes: buildLabelHashes(masterKey, labelFlags(flags)),
+    priority: typeof flags.priority === "string" ? normalizeTaskPriority(flags.priority) : undefined,
   };
 }
 
 async function loadTasks(
   client: OpenMatesClient,
   masterKey: Uint8Array,
-  scope: { status?: UserTaskStatus; chatId?: string; projectId?: string; planId?: string },
+  scope: { status?: UserTaskStatus; chatId?: string; projectId?: string; planId?: string; labelHashes?: string[]; priority?: number },
 ): Promise<DecryptedUserTask[]> {
-  const records = await client.listUserTasks({ status: scope.status, chatId: scope.chatId, projectId: scope.projectId });
+  const records = await client.listUserTasks({ status: scope.status, chatId: scope.chatId, projectId: scope.projectId, labelHashes: scope.labelHashes, priority: scope.priority });
   const tasks = await decryptUserTasks(records, masterKey);
   return scope.planId ? tasks.filter((task) => task.planId === scope.planId) : tasks;
 }
@@ -671,7 +682,7 @@ async function resolveTask(
   client: OpenMatesClient,
   masterKey: Uint8Array,
   id: string,
-  scope: { status?: UserTaskStatus; chatId?: string; projectId?: string; planId?: string },
+  scope: { status?: UserTaskStatus; chatId?: string; projectId?: string; planId?: string; labelHashes?: string[]; priority?: number },
 ): Promise<DecryptedUserTask> {
   return findTask(await loadTasks(client, masterKey, { ...scope, status: undefined }), id);
 }
@@ -680,7 +691,7 @@ async function requiredResolvedTask(
   client: OpenMatesClient,
   masterKey: Uint8Array,
   id: string | undefined,
-  scope: { status?: UserTaskStatus; chatId?: string; projectId?: string; planId?: string },
+  scope: { status?: UserTaskStatus; chatId?: string; projectId?: string; planId?: string; labelHashes?: string[]; priority?: number },
   action: string,
 ): Promise<DecryptedUserTask> {
   if (!id) throw new Error(`Missing task ID. Usage: openmates tasks ${action} <task-id>`);
@@ -698,6 +709,7 @@ function taskToJson(task: DecryptedUserTask): Record<string, unknown> {
     short_id: task.shortId,
     title: task.title,
     description: task.description,
+    labels: task.labels,
     tags: task.tags,
     latest_instruction: task.latestInstruction,
     status: task.status,
@@ -708,6 +720,7 @@ function taskToJson(task: DecryptedUserTask): Record<string, unknown> {
     plan_id: task.planId,
     due_at: task.dueAt,
     priority: task.priority,
+    priority_level: task.priorityLevel,
     position: task.position,
     queue_state: task.queueState,
     blocked_reason_code: task.blockedReasonCode,
@@ -724,6 +737,11 @@ function taskTitleFromFlagsOrRest(flags: Record<string, string | boolean>, rest:
 
 function taskAssignFlag(flags: Record<string, string | boolean>): string | undefined {
   return typeof flags.assign === "string" ? flags.assign : typeof flags.assignee === "string" ? flags.assignee : undefined;
+}
+
+function labelFlags(flags: Record<string, string | boolean>, ...names: string[]): string[] {
+  const keys = names.length > 0 ? names : ["label", "labels", "tag", "tags"];
+  return normalizeLabels(keys.flatMap((key) => splitCsvFlag(flags[key])));
 }
 
 async function handleRemoteAccess(
@@ -5699,7 +5717,7 @@ async function sendMessageStreaming(
                       uploadResult,
                       fe.displayName,
                       session,
-                      { chatId: params.chatId, requestId: uploadResult.embed_id },
+                      { chatId: params.chatId, requestId: fe.embed.embedId },
                     )
                   : null;
               const embedRef = fe.embed.embedRef ?? createEmbedRef(embedType, uploadResult.embed_id);
@@ -5762,8 +5780,6 @@ async function sendMessageStreaming(
               fe.embed.status = embedType === "pdf" ? "processing" : "finished";
               fe.embed.contentHash = uploadResult.content_hash;
 
-              // Use the server-assigned embed_id
-              fe.embed.embedId = uploadResult.embed_id;
               fe.referenceBlock = createEmbedReferenceBlock(embedRef);
 
               if (!params.json) {
@@ -8153,11 +8169,11 @@ Examples:
 
 function printTasksHelp(): void {
   console.log(`Tasks commands:
-  openmates tasks list [--status <status>] [--chat <id>] [--project <id>] [--json]
-  openmates tasks board [--chat <id>] [--project <id>] [--json]
+  openmates tasks list [--status <status>] [--chat <id>] [--project <id>] [--label <label>] [--priority <level>] [--json]
+  openmates tasks board [--chat <id>] [--project <id>] [--label <label>] [--priority <level>] [--json]
   openmates tasks show <task-id|short-id> [--json]
-  openmates tasks create --title <title> [--description <text>] [--assign user|ai] [--chat <id>] [--project <id>] [--status <status>] [--due <date>] [--json]
-  openmates tasks edit <task-id|short-id> [--title <title>] [--description <text>] [--assign user|ai] [--status <status>] [--json]
+  openmates tasks create --title <title> [--description <text>] [--assign user|ai] [--chat <id>] [--project <id>] [--label <label>] [--priority <level>] [--status <status>] [--due <date>] [--json]
+  openmates tasks edit <task-id|short-id> [--title <title>] [--description <text>] [--label <label>] [--add-label <label>] [--remove-label <label>] [--priority <level>] [--assign user|ai] [--status <status>] [--json]
   openmates tasks delete <task-id|short-id> --confirm [--json]
   openmates tasks start <task-id|short-id> [--json]
   openmates tasks status [<task-id|short-id>] [--json]
@@ -8175,9 +8191,13 @@ Chat-scoped aliases:
 Statuses:
   backlog, todo, in_progress, blocked, done
 
+Priority levels:
+  none, low, medium, high, urgent
+
 Notes:
   Task IDs accept full task_id or human short IDs such as OM-6.
-  Normal output decrypts task title and description locally; use --json for machine-readable plaintext fields.`);
+  Labels organize tasks privately. --tag, --tags, --add-tag, and --remove-tag are accepted aliases.
+  Normal output decrypts task title, description, and labels locally; use --json for machine-readable plaintext fields.`);
 }
 
 function printDraftsHelp(): void {
