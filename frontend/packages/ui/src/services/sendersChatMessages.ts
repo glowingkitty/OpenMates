@@ -146,6 +146,10 @@ export function preflightExpectedMessagesVersion(localMessagesVersion: number | 
 	return Math.max(0, (localMessagesVersion ?? 1) - 1);
 }
 
+export function shouldIncludePreflightChatMetadata(localMessagesVersion: number | undefined): boolean {
+	return (localMessagesVersion ?? 1) <= 1;
+}
+
 export async function sendNewMessageImpl(
 	serviceInstance: ChatSynchronizationService,
 	message: Message,
@@ -270,9 +274,10 @@ export async function sendNewMessageImpl(
 	// causing the backend to skip title/icon/category generation for new chats.
 	// title_v starts at 0 and only increments to 1 when a title is actually stored — the correct signal.
 	const chatHasTitle = (chat?.title_v ?? 0) > 0;
+	const includePreflightChatMetadata = shouldIncludePreflightChatMetadata(chat?.messages_v);
 
 	console.debug(
-		`[ChatSyncService:Senders] Chat has title: ${chatHasTitle} (title_v: ${chat?.title_v}, messages_v: ${chat?.messages_v}) - ${chatHasTitle ? "FOLLOW-UP" : "NEW CHAT"}, isIncognito: ${isIncognitoChat}`
+		`[ChatSyncService:Senders] Chat has title: ${chatHasTitle} (title_v: ${chat?.title_v}, messages_v: ${chat?.messages_v}) - ${includePreflightChatMetadata ? "NEW CHAT" : "FOLLOW-UP"}, isIncognito: ${isIncognitoChat}`
 	);
 
 	// ========================================================================
@@ -1305,7 +1310,7 @@ export async function sendNewMessageImpl(
 			},
 			inference_request: payload
 		};
-		if (!chatHasTitle) {
+		if (includePreflightChatMetadata) {
 			preflightPayload.encrypted_chat_metadata = {
 				encrypted_title: chat?.encrypted_title ?? (await encryptWithChatKey("", chatKey)),
 				encrypted_chat_key: encryptedChatKey,

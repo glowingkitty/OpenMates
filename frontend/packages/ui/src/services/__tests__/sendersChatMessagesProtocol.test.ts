@@ -8,6 +8,7 @@
 import { describe, expect, it } from "vitest";
 import {
   preflightExpectedMessagesVersion,
+  shouldIncludePreflightChatMetadata,
   shouldSkipClientCodeBlockExtraction,
 } from "../sendersChatMessages";
 
@@ -28,5 +29,12 @@ describe("sendersChatMessages protocol fences", () => {
     expect(preflightExpectedMessagesVersion(undefined)).toBe(0);
     expect(preflightExpectedMessagesVersion(1)).toBe(0);
     expect(preflightExpectedMessagesVersion(7)).toBe(6);
+  });
+
+  it("only includes encrypted chat metadata on the first local message", () => {
+    expect(shouldIncludePreflightChatMetadata(undefined)).toBe(true);
+    expect(shouldIncludePreflightChatMetadata(1)).toBe(true);
+    expect(shouldIncludePreflightChatMetadata(2)).toBe(false);
+    expect(shouldIncludePreflightChatMetadata(7)).toBe(false);
   });
 });
