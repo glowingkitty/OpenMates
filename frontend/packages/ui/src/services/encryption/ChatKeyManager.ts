@@ -683,6 +683,27 @@ export class ChatKeyManager {
     chatKey: Uint8Array;
     encryptedChatKey: string;
   }> {
+    const persistedEncryptedChatKey = this.fetchEncryptedChatKey
+      ? await this.fetchEncryptedChatKey(chatId).catch(() => null)
+      : null;
+
+    if (persistedEncryptedChatKey) {
+      const persistedChatKey = await decryptChatKeyWithMasterKey(
+        persistedEncryptedChatKey,
+      );
+      if (!persistedChatKey) {
+        throw new Error(
+          `[ChatKeyManager] Refusing to generate replacement key for ${chatId}: persisted encrypted_chat_key could not be decrypted`,
+        );
+      }
+
+      this.injectKey(chatId, persistedChatKey, "master_key", true);
+      return {
+        chatKey: persistedChatKey,
+        encryptedChatKey: persistedEncryptedChatKey,
+      };
+    }
+
     // Step 1: Create the key (idempotent — returns existing if already created)
     const chatKey = this.createKeyForNewChat(chatId);
 
@@ -755,27 +776,6 @@ export class ChatKeyManager {
         LOCK_NAME,
         { signal: controller.signal },
         async () => {
-          // Re-check: another tab may have created the key while we waited
-          const existing = this.keys.get(chatId);
-          if (existing) {
-            const encryptedChatKey =
-              await encryptChatKeyWithMasterKey(existing);
-            return {
-              chatKey: existing,
-              encryptedChatKey: encryptedChatKey!,
-            };
-          }
-
-          // Also check IDB in case another tab persisted but we haven't loaded
-          const loaded = await this.getKey(chatId);
-          if (loaded) {
-            const encryptedChatKey = await encryptChatKeyWithMasterKey(loaded);
-            return {
-              chatKey: loaded,
-              encryptedChatKey: encryptedChatKey!,
-            };
-          }
-
           // Check deferredClearAll — if user is logging out, abort key generation
           // (Pitfall 5: don't create keys into a cache about to be cleared)
           if (this.deferredClearAll) {
@@ -784,7 +784,8 @@ export class ChatKeyManager {
             );
           }
 
-          // No key exists anywhere — safe to generate
+          // Re-check inside the lock. createAndPersistKey() prioritizes the
+          // persisted IDB key over any stale in-memory key from this tab.
           return this.createAndPersistKey(chatId);
         },
       );
