@@ -393,6 +393,7 @@ test.describe('Embed Diff-Based Editing', () => {
 		const docArtifactPageCount = await page.getByTestId('doc-artifact-page').count();
 		log(`Generated DOCX artifact page count in fullscreen: ${docArtifactPageCount}`);
 		expect(docArtifactPageCount).toBeGreaterThanOrEqual(1);
+		await expect(page.getByTestId('doc-artifact-pages')).toHaveAttribute('data-download-ready', 'true', { timeout: 30000 });
 		await screenshot(page, '05-doc-fullscreen-artifact');
 
 		const [download] = await Promise.all([
