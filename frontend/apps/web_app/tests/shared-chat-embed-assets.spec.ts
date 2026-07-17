@@ -308,9 +308,9 @@ test('shared chat loads uploaded PDF, image, and audio recording assets while lo
 
 		await sharedPage.goto(shareUrl);
 		await expect(sharedPage).toHaveURL(/#chat-id=/, { timeout: 60_000 });
-		await expect(sharedPage.getByTestId('shared-chat-badge')).toHaveText('Shared chat', {
-			timeout: 60_000
-		});
+		await expect(
+			sharedPage.getByTestId('chat-header-banner').getByTestId('shared-chat-badge')
+		).toHaveText('Shared chat', { timeout: 60_000 });
 
 		const imageEmbed = sharedPage
 			.locator('[data-testid="embed-preview"][data-app-id="images"]')
