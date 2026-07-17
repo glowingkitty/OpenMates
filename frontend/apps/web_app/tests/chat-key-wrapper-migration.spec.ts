@@ -11,17 +11,20 @@
 export {};
 
 const { test, expect } = require('./helpers/cookie-audit');
-const { getE2EDebugUrl } = require('./signup-flow-helpers');
+const { getE2EDebugUrl, getTestAccount } = require('./signup-flow-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 
-const SEEDED_CHAT_ID = process.env.OPENMATES_CHAT_WRAPPER_SEEDED_CHAT_ID || '';
-const EXPECTED_TEXT = process.env.OPENMATES_CHAT_WRAPPER_EXPECT_TEXT || '';
+const DEFAULT_SEEDED_CHAT_ID = '93a58f33-4505-49d9-8453-d473bcb3c7b0';
+const DEFAULT_EXPECTED_TEXT = '2 Day Weather Forecast Berlin';
+const SEEDED_CHAT_ID = process.env.OPENMATES_CHAT_WRAPPER_SEEDED_CHAT_ID || DEFAULT_SEEDED_CHAT_ID;
+const EXPECTED_TEXT = process.env.OPENMATES_CHAT_WRAPPER_EXPECT_TEXT || DEFAULT_EXPECTED_TEXT;
 const MIGRATION_COPY = /migration|migrate|upgrade encryption|repair key/i;
+const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
 test('existing seeded chat decrypts after chat key wrapper migration', async ({ page }: { page: any }) => {
-  test.setTimeout(180000);
-  skipWithoutCredentials(test);
+	test.setTimeout(180000);
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
   test.skip(!SEEDED_CHAT_ID || !EXPECTED_TEXT, 'Missing seeded chat env for key-wrapper regression.');
 
   await page.setViewportSize({ width: 1440, height: 900 });

@@ -6,7 +6,7 @@ the real CLI after chat key wrappers are deployed. This script deliberately uses
 real CLI commands against the selected API URL; it does not mock the OpenMates
 API, SDK client, or WebSocket path.
 
-Required environment:
+Optional environment:
 - OPENMATES_CHAT_WRAPPER_SMOKE_CHAT_ID: seeded existing chat id or unique prefix.
 - OPENMATES_CHAT_WRAPPER_SMOKE_EXPECT_TEXT: plaintext expected in title/message output.
 - OPENMATES_CHAT_WRAPPER_SMOKE_CLI: optional CLI command, defaults to built dist CLI.
@@ -23,13 +23,8 @@ from pathlib import Path
 
 
 MIGRATION_TEXT_MARKERS = ("migration", "migrate", "upgrade encryption", "repair key")
-
-
-def _required_env(name: str) -> str:
-    value = os.getenv(name, "").strip()
-    if not value:
-        raise SystemExit(f"Missing required environment variable: {name}")
-    return value
+DEFAULT_SEEDED_CHAT_ID = "93a58f33-4505-49d9-8453-d473bcb3c7b0"
+DEFAULT_EXPECTED_TEXT = "2 Day Weather Forecast Berlin"
 
 
 def _run(command: list[str], *, api_url: str, cwd: Path) -> str:
@@ -56,8 +51,8 @@ def main() -> int:
     args = parser.parse_args()
 
     repo_root = Path(__file__).resolve().parents[1]
-    chat_id = _required_env("OPENMATES_CHAT_WRAPPER_SMOKE_CHAT_ID")
-    expected_text = _required_env("OPENMATES_CHAT_WRAPPER_SMOKE_EXPECT_TEXT")
+    chat_id = os.getenv("OPENMATES_CHAT_WRAPPER_SMOKE_CHAT_ID", DEFAULT_SEEDED_CHAT_ID).strip()
+    expected_text = os.getenv("OPENMATES_CHAT_WRAPPER_SMOKE_EXPECT_TEXT", DEFAULT_EXPECTED_TEXT).strip()
     cli_command = shlex.split(
         os.getenv(
             "OPENMATES_CHAT_WRAPPER_SMOKE_CLI",
