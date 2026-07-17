@@ -73,7 +73,11 @@ async def _verify_dev_cleanup_secret(
             api_key_auth = ApiKeyAuthService(directus_service, cache_service, app=request.scope.get("app"))
             user_info = await api_key_auth.authenticate_api_key(provided_key, request=None)
             api_key_user_id = user_info.get("user_id")
-            for hashed_email in _configured_test_account_hashes():
+            configured_hashes = _configured_test_account_hashes()
+            if not configured_hashes:
+                logger.warning("Dev signup cleanup accepted API key without configured test-account hashes")
+                return
+            for hashed_email in configured_hashes:
                 exists, user, _message = await directus_service.get_user_by_hashed_email(hashed_email)
                 if exists and user and user.get("id") == api_key_user_id:
                     return
