@@ -943,6 +943,25 @@ async def list_sdk_chats(
         offset=offset,
         admin_required=True,
     )
+    hashed_user_id = hashlib.sha256(api_key_info["user_id"].encode()).hexdigest()
+    hashed_chat_ids = [
+        hashlib.sha256(str(chat.get("id")).encode()).hexdigest()
+        for chat in chats
+        if chat.get("id")
+    ]
+    wrappers = await request.app.state.directus_service.chat_key_wrapper.get_wrappers_by_hashed_chat_ids_batch(
+        hashed_chat_ids,
+        hashed_user_id=hashed_user_id,
+    )
+    wrappers_by_hash: dict[str, list[dict[str, Any]]] = {}
+    for wrapper in wrappers:
+        hashed_chat_id = wrapper.get("hashed_chat_id")
+        if isinstance(hashed_chat_id, str):
+            wrappers_by_hash.setdefault(hashed_chat_id, []).append(wrapper)
+    for chat in chats:
+        chat_id = chat.get("id")
+        if chat_id:
+            chat["chat_key_wrappers"] = wrappers_by_hash.get(hashlib.sha256(str(chat_id).encode()).hexdigest(), [])
     return {"chats": chats, "limit": limit, "offset": offset}
 
 
@@ -1205,7 +1224,17 @@ async def load_sdk_chat(
     hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
     embeds = await request.app.state.directus_service.embed.get_embeds_by_hashed_chat_id(hashed_chat_id)
     embed_keys = await request.app.state.directus_service.embed.get_embed_keys_by_hashed_chat_id(hashed_chat_id)
-    return {"chat": chat, "messages": messages or [], "embeds": embeds, "embed_keys": embed_keys}
+    chat_key_wrappers = await request.app.state.directus_service.chat_key_wrapper.list_authorized_wrappers(
+        chat_id,
+        user_id,
+    )
+    return {
+        "chat": chat,
+        "messages": messages or [],
+        "embeds": embeds,
+        "embed_keys": embed_keys,
+        "chat_key_wrappers": chat_key_wrappers,
+    }
 
 
 @router.get("/drafts")

@@ -11,6 +11,7 @@ from __future__ import annotations
 import base64
 from dataclasses import dataclass
 import hashlib
+import hmac
 import json
 import os
 from pathlib import Path
@@ -23,6 +24,8 @@ from urllib.parse import quote, urlencode, urlparse, urlunparse
 import uuid
 
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 import requests
 
 from .generated.app_skills import GeneratedAppSkills
@@ -42,6 +45,8 @@ CONNECTED_ACCOUNT_TRANSFER_PREFIX = "OMCA1."
 API_KEY_PREFIX = "sk-api-"
 API_KEY_RANDOM_LENGTH = 32
 API_KEY_CHARS = string.ascii_letters + string.digits
+TASK_PRIORITY_LEVELS = ("none", "low", "medium", "high", "urgent")
+TASK_LABEL_INDEX_INFO = b"openmates-task-label-index-v1"
 
 
 class OpenMatesConfigError(RuntimeError):
@@ -239,11 +244,36 @@ class OpenMates:
             )
         return self._sdk_session
 
-    def _decrypt_chat_metadata(self, chat: dict[str, Any]) -> dict[str, Any]:
-        encrypted_chat_key = chat.get("encrypted_chat_key")
-        if not isinstance(encrypted_chat_key, str):
-            return chat
-        chat_key = _decrypt_aes_gcm_bytes(encrypted_chat_key, self._get_master_key())
+    def _resolve_loaded_chat_key(
+        self,
+        chat: dict[str, Any],
+        chat_key_wrappers: list[dict[str, Any]] | None = None,
+    ) -> bytes | None:
+        chat_id = chat.get("id")
+        hashed_chat_id = hashlib.sha256(str(chat_id).encode("utf-8")).hexdigest() if chat_id else ""
+        wrapper = next(
+            (
+                entry
+                for entry in (chat_key_wrappers or [])
+                if entry.get("key_type") == "master"
+                and entry.get("hashed_chat_id") == hashed_chat_id
+                and isinstance(entry.get("encrypted_chat_key"), str)
+            ),
+            None,
+        )
+        encrypted_chat_key = (
+            wrapper.get("encrypted_chat_key")
+            if wrapper
+            else chat.get("encrypted_chat_key")
+        )
+        return _decrypt_aes_gcm_bytes(encrypted_chat_key, self._get_master_key()) if isinstance(encrypted_chat_key, str) else None
+
+    def _decrypt_chat_metadata(
+        self,
+        chat: dict[str, Any],
+        chat_key_wrappers: list[dict[str, Any]] | None = None,
+    ) -> dict[str, Any]:
+        chat_key = self._resolve_loaded_chat_key(chat, chat_key_wrappers)
         if chat_key is None:
             return chat
 
@@ -260,9 +290,9 @@ class OpenMates:
         chat = payload.get("chat")
         if not isinstance(chat, dict):
             return payload
-        decrypted_chat = self._decrypt_chat_metadata(chat)
-        encrypted_chat_key = chat.get("encrypted_chat_key")
-        chat_key = _decrypt_aes_gcm_bytes(encrypted_chat_key, self._get_master_key()) if isinstance(encrypted_chat_key, str) else None
+        chat_key_wrappers = payload.get("chat_key_wrappers") if isinstance(payload.get("chat_key_wrappers"), list) else []
+        decrypted_chat = self._decrypt_chat_metadata(chat, chat_key_wrappers)
+        chat_key = self._resolve_loaded_chat_key(chat, chat_key_wrappers)
         if chat_key is None or not isinstance(payload.get("messages"), list):
             return {**payload, "chat": decrypted_chat}
 
@@ -352,7 +382,7 @@ def _with_query(path: str, **query: Any) -> str:
     cleaned = {key: value for key, value in query.items() if value is not None}
     if not cleaned:
         return path
-    return f"{path}?{urlencode(cleaned)}"
+    return f"{path}?{urlencode(cleaned, doseq=True)}"
 
 
 def _require_confirmed(confirmed: bool, action: str) -> None:
@@ -449,6 +479,7 @@ def _build_task_create_input(master_key: bytes, payload: dict[str, Any]) -> dict
     now = int(time.time())
     assignee_type, assignee_hash = _task_assignee(payload.get("assign") or payload.get("assignee"))
     project_ids = _string_list(payload.get("project_ids") or payload.get("linked_project_ids") or [])
+    labels = _normalize_task_labels(payload.get("labels") if "labels" in payload else payload.get("tags"))
     status = str(payload.get("status") or ("in_progress" if assignee_type == "ai" and not payload.get("due_at") else "todo"))
     task: dict[str, Any] = {
         "task_id": str(payload.get("task_id") or uuid.uuid4()),
@@ -456,7 +487,9 @@ def _build_task_create_input(master_key: bytes, payload: dict[str, Any]) -> dict
         "encrypted_task_key": _encrypt_aes_gcm_bytes(task_key, master_key),
         "encrypted_title": _encrypt_aes_gcm_text(title, task_key),
         "encrypted_description": _encrypt_aes_gcm_text(str(payload.get("description") or ""), task_key),
-        "encrypted_tags": _encrypt_aes_gcm_text(json.dumps(_string_list(payload.get("tags") or [])), task_key),
+        "encrypted_labels": _encrypt_aes_gcm_text(json.dumps(labels), task_key),
+        "encrypted_tags": _encrypt_aes_gcm_text(json.dumps(labels), task_key),
+        "label_hashes": _task_label_hashes(master_key, labels),
         "encrypted_linked_project_ids": _encrypt_aes_gcm_text(json.dumps(project_ids), task_key),
         "status": status,
         "assignee_type": assignee_type,
@@ -465,7 +498,7 @@ def _build_task_create_input(master_key: bytes, payload: dict[str, Any]) -> dict
         "linked_project_ids": project_ids,
         "plan_id": payload.get("plan_id") or payload.get("plan") or None,
         "due_at": payload.get("due_at"),
-        "priority": int(payload.get("priority") or 0),
+        "priority": _normalize_task_priority(payload.get("priority")) or 0,
         "position": int(payload.get("position") or now),
         "created_at": int(payload.get("created_at") or now),
         "updated_at": int(payload.get("updated_at") or now),
@@ -494,6 +527,16 @@ def _build_task_update_input(task: dict[str, Any], master_key: bytes, payload: d
         patch["encrypted_linked_project_ids"] = _encrypt_aes_gcm_text(json.dumps(project_ids), task_key)
     if "plan_id" in payload or "plan" in payload:
         patch["plan_id"] = payload.get("plan_id") if "plan_id" in payload else payload.get("plan")
+    if "priority" in payload:
+        patch["priority"] = _normalize_task_priority(payload.get("priority")) or 0
+    if any(key in payload for key in ("labels", "tags", "add_labels", "add_tags", "remove_labels", "remove_tags")):
+        replace_labels = payload.get("labels") if "labels" in payload else payload.get("tags") if "tags" in payload else None
+        remove = set(_normalize_task_labels([*_string_list(payload.get("remove_labels") or []), *_string_list(payload.get("remove_tags") or [])]))
+        base = _normalize_task_labels(replace_labels) if replace_labels is not None else _normalize_task_labels(task.get("labels") or task.get("tags") or [])
+        labels = _normalize_task_labels([*(label for label in base if label not in remove), *_string_list(payload.get("add_labels") or []), *_string_list(payload.get("add_tags") or [])])
+        patch["encrypted_labels"] = _encrypt_aes_gcm_text(json.dumps(labels), task_key)
+        patch["encrypted_tags"] = _encrypt_aes_gcm_text(json.dumps(labels), task_key)
+        patch["label_hashes"] = _task_label_hashes(master_key, labels)
     return patch
 
 
@@ -501,14 +544,15 @@ def _decrypt_task_record(record: dict[str, Any], master_key: bytes) -> dict[str,
     if record.get("source") == "workflow_run":
         return _workflow_projection_task(record)
     task_key = _task_key_from_record(record, master_key)
-    tags = _json_string_list(_decrypt_aes_gcm_text(str(record.get("encrypted_tags") or ""), task_key))
+    labels = _json_string_list(_decrypt_aes_gcm_text(str(record.get("encrypted_labels") or record.get("encrypted_tags") or ""), task_key))
     linked_project_ids = _json_string_list(_decrypt_aes_gcm_text(str(record.get("encrypted_linked_project_ids") or ""), task_key))
     task = {
         "task_id": record["task_id"],
         "short_id": record.get("short_id") or _derive_task_short_id(record),
         "title": _decrypt_aes_gcm_text(str(record.get("encrypted_title") or ""), task_key) or "(untitled task)",
         "description": _decrypt_aes_gcm_text(str(record.get("encrypted_description") or ""), task_key) or "",
-        "tags": tags,
+        "labels": labels,
+        "tags": labels,
         "latest_instruction": _decrypt_aes_gcm_text(str(record.get("encrypted_latest_instruction") or ""), task_key) or "",
         "status": record.get("status"),
         "assignee_type": record.get("assignee_type"),
@@ -518,6 +562,7 @@ def _decrypt_task_record(record: dict[str, Any], master_key: bytes) -> dict[str,
         "plan_id": record.get("plan_id"),
         "due_at": record.get("due_at"),
         "priority": int(record.get("priority") or 0),
+        "priority_level": _task_priority_level(record.get("priority")),
         "position": int(record.get("position") or 0),
         "queue_state": record.get("queue_state") or "none",
         "blocked_reason_code": record.get("blocked_reason_code"),
@@ -558,6 +603,53 @@ def _task_assignee(value: Any) -> tuple[str, str | None]:
     return "user", str(value)
 
 
+def _normalize_task_labels(value: Any) -> list[str]:
+    output: list[str] = []
+    seen: set[str] = set()
+    for item in _string_list(value):
+        normalized = " ".join(item.strip().lower().split())
+        if not normalized or normalized in seen:
+            continue
+        seen.add(normalized)
+        output.append(normalized)
+    return output
+
+
+def _task_label_hashes(master_key: bytes, labels: list[str]) -> list[str]:
+    index_key = HKDF(
+        algorithm=hashes.SHA256(),
+        length=32,
+        salt=b"",
+        info=TASK_LABEL_INDEX_INFO,
+    ).derive(master_key)
+    return [hmac.new(index_key, label.encode("utf-8"), hashlib.sha256).hexdigest() for label in _normalize_task_labels(labels)]
+
+
+def _normalize_task_priority(value: Any) -> int | None:
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        raise OpenMatesConfigError(f"Invalid task priority '{value}'")
+    if isinstance(value, int):
+        if 0 <= value <= 4:
+            return value
+        raise OpenMatesConfigError(f"Invalid task priority '{value}'")
+    normalized = str(value).strip().lower()
+    if normalized.isdigit():
+        return _normalize_task_priority(int(normalized))
+    if normalized in TASK_PRIORITY_LEVELS:
+        return TASK_PRIORITY_LEVELS.index(normalized)
+    raise OpenMatesConfigError(f"Unknown task priority '{value}'. Expected one of: {', '.join(TASK_PRIORITY_LEVELS)}")
+
+
+def _task_priority_level(value: Any) -> str:
+    try:
+        priority = int(value or 0)
+    except (TypeError, ValueError):
+        priority = 0
+    return TASK_PRIORITY_LEVELS[max(0, min(4, priority))]
+
+
 def _string_list(value: Any) -> list[str]:
     return [item for item in value if isinstance(item, str)] if isinstance(value, list) else []
 
@@ -583,6 +675,7 @@ def _workflow_projection_task(record: dict[str, Any]) -> dict[str, Any]:
         "short_id": short_id,
         "title": record.get("title") or "Workflow run",
         "description": record.get("blocked_message") or "",
+        "labels": [],
         "tags": [],
         "latest_instruction": "",
         "status": record.get("status"),
@@ -593,6 +686,7 @@ def _workflow_projection_task(record: dict[str, Any]) -> dict[str, Any]:
         "plan_id": None,
         "due_at": record.get("due_at"),
         "priority": int(record.get("priority") or 0),
+        "priority_level": _task_priority_level(record.get("priority")),
         "position": int(record.get("position") or 0),
         "queue_state": str(record.get("run_status") or "workflow"),
         "blocked_reason_code": record.get("blocked_reason_code") or record.get("blocked_reason"),
@@ -1171,8 +1265,11 @@ class OpenMatesTasks:
         status: str | None = None,
         chat_id: str | None = None,
         project_id: str | None = None,
+        labels: list[str] | None = None,
+        tags: list[str] | None = None,
+        priority: str | int | None = None,
     ) -> list[dict[str, Any]]:
-        return self.list_decrypted(status=status, chat_id=chat_id, project_id=project_id)
+        return self.list_decrypted(status=status, chat_id=chat_id, project_id=project_id, labels=labels, tags=tags, priority=priority)
 
     def _list_raw(
         self,
@@ -1180,13 +1277,20 @@ class OpenMatesTasks:
         status: str | None = None,
         chat_id: str | None = None,
         project_id: str | None = None,
+        labels: list[str] | None = None,
+        tags: list[str] | None = None,
+        priority: str | int | None = None,
     ) -> list[dict[str, Any]]:
+        label_values = labels if labels is not None else tags
+        label_hashes = _task_label_hashes(self._client._get_master_key(), _normalize_task_labels(label_values)) if label_values else None
         return self._client._get(
             _with_query(
                 "/v1/user-tasks",
                 status=status,
                 chat_id=chat_id,
                 project_id=project_id,
+                label_hash=label_hashes,
+                priority=_normalize_task_priority(priority),
             )
         ).get("tasks", [])
 
@@ -1196,10 +1300,13 @@ class OpenMatesTasks:
         status: str | None = None,
         chat_id: str | None = None,
         project_id: str | None = None,
+        labels: list[str] | None = None,
+        tags: list[str] | None = None,
+        priority: str | int | None = None,
     ) -> list[dict[str, Any]]:
         return [
             _public_task(task)
-            for task in self._list_internal(status=status, chat_id=chat_id, project_id=project_id)
+            for task in self._list_internal(status=status, chat_id=chat_id, project_id=project_id, labels=labels, tags=tags, priority=priority)
         ]
 
     def show(self, task_id: str, **filters: Any) -> dict[str, Any]:

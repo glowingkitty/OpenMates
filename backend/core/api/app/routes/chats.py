@@ -7,6 +7,7 @@ chats to avoid existence disclosure.
 """
 
 import json
+import hashlib
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -29,6 +30,7 @@ def _watch_chat_payload(chat: dict[str, Any]) -> dict[str, Any]:
         "encrypted_title": chat.get("encrypted_title"),
         "encrypted_chat_summary": chat.get("encrypted_chat_summary"),
         "encrypted_chat_key": chat.get("encrypted_chat_key"),
+        "chat_key_wrappers": chat.get("chat_key_wrappers") or [],
         "pinned": chat.get("pinned", False),
         "updated_at": _string_timestamp(chat.get("updated_at")),
         "last_message_at": _string_timestamp(chat.get("last_message_timestamp")),
@@ -68,6 +70,24 @@ async def list_chats(
         sort=NATIVE_CHAT_SORT,
         admin_required=True,
     )
+    hashed_chat_ids = [
+        hashlib.sha256(str(chat.get("id")).encode()).hexdigest()
+        for chat in chats
+        if chat.get("id")
+    ]
+    wrappers = await request.app.state.directus_service.chat_key_wrapper.get_wrappers_by_hashed_chat_ids_batch(
+        hashed_chat_ids,
+        hashed_user_id=hashlib.sha256(current_user.id.encode()).hexdigest(),
+    )
+    wrappers_by_hash: dict[str, list[dict[str, Any]]] = {}
+    for wrapper in wrappers:
+        hashed_chat_id = wrapper.get("hashed_chat_id")
+        if isinstance(hashed_chat_id, str):
+            wrappers_by_hash.setdefault(hashed_chat_id, []).append(wrapper)
+    for chat in chats:
+        chat_id = chat.get("id")
+        if chat_id:
+            chat["chat_key_wrappers"] = wrappers_by_hash.get(hashlib.sha256(str(chat_id).encode()).hexdigest(), [])
     return {"chats": [_watch_chat_payload(chat) for chat in chats], "limit": limit}
 
 

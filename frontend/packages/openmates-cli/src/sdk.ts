@@ -44,8 +44,12 @@ import {
   decryptUserTask,
   decryptUserTasks,
   findTask,
+  labelHashes,
+  normalizeLabels,
+  normalizeTaskPriority,
   type DecryptedUserTask,
   type TaskCreateOptions,
+  type TaskPriorityLevel,
   type TaskUpdateOptions,
 } from "./tasksCli.js";
 import type {
@@ -200,6 +204,7 @@ export interface EncryptedChatMetadata {
   id: string;
   encrypted_title?: string;
   encrypted_chat_key?: string;
+  chat_key_wrappers?: ChatKeyWrapperRecord[];
   encrypted_chat_summary?: string;
   encrypted_category?: string;
   title?: string;
@@ -222,7 +227,7 @@ export interface DraftRecord extends EncryptedDraftRecord {
   preview: string | null;
 }
 
-export type TaskListFilters = { status?: UserTaskStatus; chatId?: string; projectId?: string };
+export type TaskListFilters = { status?: UserTaskStatus; chatId?: string; projectId?: string; labels?: string[]; tags?: string[]; priority?: TaskPriorityLevel | number | null };
 export type TaskPlainCreateOptions = TaskCreateOptions;
 export type TaskPlainUpdateOptions = TaskUpdateOptions;
 export type TaskRecord = Omit<DecryptedUserTask, "encrypted">;
@@ -259,6 +264,13 @@ export interface EmbedKeyRecord {
   key_type?: string;
   hashed_chat_id?: string;
   encrypted_embed_key?: string;
+  [key: string]: unknown;
+}
+
+export interface ChatKeyWrapperRecord {
+  hashed_chat_id?: string;
+  key_type?: string;
+  encrypted_chat_key?: string;
   [key: string]: unknown;
 }
 
@@ -422,12 +434,11 @@ export class OpenMates {
     return this.resolveLoadedEmbedKey(embedKeys, hashedEmbedId, masterKey, masterKey);
   }
 
-  async decryptChatMetadata<T extends EncryptedChatMetadata>(chat: T): Promise<T> {
-    if (typeof chat.encrypted_chat_key !== "string") {
-      return chat;
-    }
-    const masterKey = await this.getMasterKey();
-    const chatKey = await decryptBytesWithAesGcm(chat.encrypted_chat_key, masterKey);
+  async decryptChatMetadata<T extends EncryptedChatMetadata>(
+    chat: T,
+    chatKeyWrappers?: ChatKeyWrapperRecord[],
+  ): Promise<T> {
+    const chatKey = await this.resolveLoadedChatKey(chat, chatKeyWrappers);
     if (!chatKey) {
       return chat;
     }
@@ -451,10 +462,13 @@ export class OpenMates {
       return payload;
     }
     const chatMetadata = chat as EncryptedChatMetadata;
-    const decryptedChat = await this.decryptChatMetadata(chatMetadata);
-    const chatKey = typeof chatMetadata.encrypted_chat_key === "string"
-      ? await decryptBytesWithAesGcm(chatMetadata.encrypted_chat_key, await this.getMasterKey())
-      : null;
+    const chatKeyWrappers = Array.isArray(payload.chat_key_wrappers)
+      ? payload.chat_key_wrappers as ChatKeyWrapperRecord[]
+      : Array.isArray(chatMetadata.chat_key_wrappers)
+        ? chatMetadata.chat_key_wrappers
+        : [];
+    const decryptedChat = await this.decryptChatMetadata(chatMetadata, chatKeyWrappers);
+    const chatKey = await this.resolveLoadedChatKey(chatMetadata, chatKeyWrappers);
     if (!chatKey || !Array.isArray(payload.messages)) {
       return { ...payload, chat: decryptedChat } as T;
     }
@@ -485,6 +499,26 @@ export class OpenMates {
       )
       : payload.embeds;
     return { ...payload, chat: decryptedChat, messages, embeds } as T;
+  }
+
+  private async resolveLoadedChatKey(
+    chat: EncryptedChatMetadata,
+    chatKeyWrappers?: ChatKeyWrapperRecord[],
+  ): Promise<Uint8Array | null> {
+    const masterKey = await this.getMasterKey();
+    const hashedChatId = createHash("sha256").update(chat.id).digest("hex");
+    const wrapper = (chatKeyWrappers ?? []).find(
+      (entry) =>
+        entry.key_type === "master" &&
+        entry.hashed_chat_id === hashedChatId &&
+        typeof entry.encrypted_chat_key === "string",
+    );
+    const encryptedChatKey = typeof wrapper?.encrypted_chat_key === "string"
+      ? wrapper.encrypted_chat_key
+      : typeof chat.encrypted_chat_key === "string"
+        ? chat.encrypted_chat_key
+        : null;
+    return encryptedChatKey ? decryptBytesWithAesGcm(encryptedChatKey, masterKey) : null;
   }
 
   private async decryptLoadedChatEmbeds(
@@ -643,10 +677,15 @@ function loadOrCreateDeviceId(customPath?: string): string {
   return deviceId;
 }
 
-function withQuery(path: string, query: Record<string, string | number | boolean | undefined | null> = {}): string {
+function withQuery(path: string, query: Record<string, string | number | boolean | Array<string | number | boolean> | undefined | null> = {}): string {
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(query)) {
-    if (value !== undefined && value !== null) params.set(key, String(value));
+    if (value === undefined || value === null) continue;
+    if (Array.isArray(value)) {
+      for (const item of value) params.append(key, String(item));
+    } else {
+      params.set(key, String(value));
+    }
   }
   const serialized = params.toString();
   return serialized ? `${path}?${serialized}` : path;
@@ -1503,10 +1542,13 @@ export class OpenMatesTasks {
   }
 
   private async listRaw(filters: TaskListFilters = {}): Promise<UserTaskRecord[]> {
+    const masterKey = filters.labels || filters.tags ? await this.client.masterKey() : undefined;
     const response = await this.client.get<{ tasks?: UserTaskRecord[] }>(withQuery("/v1/user-tasks", {
       status: filters.status,
       chat_id: filters.chatId,
       project_id: filters.projectId,
+      label_hash: masterKey ? labelHashes(masterKey, normalizeLabels(filters.labels ?? filters.tags ?? [])) : undefined,
+      priority: normalizeTaskPriority(filters.priority),
     }));
     return response.tasks ?? [];
   }

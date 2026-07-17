@@ -5,9 +5,12 @@
 
 import hashlib
 import logging
+import re
 from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
+SHA256_HEX_RE = re.compile(r"^[0-9a-f]{64}$")
+PROJECT_KEY_WRAPPER_TYPES = {"master", "chat", "project", "plan", "team"}
 
 
 PROJECT_FIELDS = (
@@ -32,10 +35,51 @@ SOURCE_FIELDS = (
 PROJECT_SETTINGS_FIELDS = (
     "id,hashed_project_id,hashed_user_id,write_mode,encrypted_settings,updated_at"
 )
+PROJECT_KEY_WRAPPER_FIELDS = (
+    "id,hashed_project_id,hashed_user_id,key_type,hashed_chat_id,hashed_plan_id,"
+    "hashed_team_id,team_key_epoch,encrypted_project_key,wrapper_version,created_at,expires_at"
+)
 
 
 def hash_id(value: str) -> str:
     return hashlib.sha256(value.encode()).hexdigest()
+
+
+def _is_sha256_hex(value: str | None) -> bool:
+    return bool(value and SHA256_HEX_RE.fullmatch(value))
+
+
+def _validate_project_key_wrapper(wrapper: dict[str, Any]) -> bool:
+    key_type = wrapper.get("key_type")
+    if key_type not in PROJECT_KEY_WRAPPER_TYPES:
+        logger.error("Rejected project key wrapper with invalid key_type")
+        return False
+    if not wrapper.get("encrypted_project_key"):
+        logger.error("Rejected project key wrapper without encrypted key material")
+        return False
+
+    hashed_chat_id = wrapper.get("hashed_chat_id")
+    hashed_plan_id = wrapper.get("hashed_plan_id")
+    hashed_team_id = wrapper.get("hashed_team_id")
+    team_key_epoch = wrapper.get("team_key_epoch")
+    if hashed_chat_id is not None and not _is_sha256_hex(hashed_chat_id):
+        return False
+    if hashed_plan_id is not None and not _is_sha256_hex(hashed_plan_id):
+        return False
+    if hashed_team_id is not None and not _is_sha256_hex(hashed_team_id):
+        return False
+    if key_type in {"master", "project"} and any(value is not None for value in (hashed_chat_id, hashed_plan_id, hashed_team_id)):
+        return False
+    if key_type == "chat" and (hashed_chat_id is None or hashed_plan_id is not None or hashed_team_id is not None):
+        return False
+    if key_type == "plan" and (hashed_plan_id is None or hashed_chat_id is not None or hashed_team_id is not None):
+        return False
+    if key_type == "team":
+        if hashed_team_id is None or hashed_chat_id is not None or hashed_plan_id is not None:
+            return False
+        if not isinstance(team_key_epoch, int) or team_key_epoch < 1:
+            return False
+    return True
 
 
 class ProjectMethods:
@@ -70,6 +114,7 @@ class ProjectMethods:
         return None
 
     async def create_project(self, user_id: str, payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        key_wrappers = payload.pop("key_wrappers", []) or []
         now = payload.get("created_at") or payload.get("updated_at")
         record = {
             **payload,
@@ -84,11 +129,58 @@ class ProjectMethods:
             "last_opened_at": payload.get("last_opened_at", now),
             "item_count": payload.get("item_count", 0),
         }
+        if key_wrappers and not all(_validate_project_key_wrapper(wrapper) for wrapper in key_wrappers):
+            return None
         success, data = await self.directus_service.create_item("projects", record)
         if not success:
             logger.error("Failed to create project: %s", data)
             return None
+        created_wrappers: list[dict[str, Any]] = []
+        for wrapper in key_wrappers:
+            created_wrapper = await self.create_project_key_wrapper(user_id, payload["project_id"], wrapper)
+            if not created_wrapper:
+                for created in created_wrappers:
+                    wrapper_id = created.get("id")
+                    if wrapper_id:
+                        await self.directus_service.delete_item("project_key_wrappers", wrapper_id)
+                row_id = data.get("id") if isinstance(data, dict) else None
+                if row_id:
+                    await self.directus_service.delete_item("projects", row_id)
+                return None
+            created_wrappers.append(created_wrapper)
         return data
+
+    async def create_project_key_wrapper(self, user_id: str, project_id: str, wrapper: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        if not _validate_project_key_wrapper(wrapper):
+            return None
+        record = {
+            "hashed_project_id": hash_id(project_id),
+            "hashed_user_id": hash_id(user_id),
+            "key_type": wrapper.get("key_type"),
+            "hashed_chat_id": wrapper.get("hashed_chat_id"),
+            "hashed_plan_id": wrapper.get("hashed_plan_id"),
+            "hashed_team_id": wrapper.get("hashed_team_id"),
+            "team_key_epoch": wrapper.get("team_key_epoch"),
+            "encrypted_project_key": wrapper.get("encrypted_project_key"),
+            "wrapper_version": wrapper.get("wrapper_version", 1),
+            "created_at": wrapper.get("created_at"),
+            "expires_at": wrapper.get("expires_at"),
+        }
+        success, data = await self.directus_service.create_item("project_key_wrappers", record)
+        if not success:
+            logger.error("Failed to create project key wrapper: %s", data)
+            return None
+        return data
+
+    async def list_project_key_wrappers(self, user_id: str, project_id: str) -> List[Dict[str, Any]]:
+        params = {
+            "filter[hashed_project_id][_eq]": hash_id(project_id),
+            "filter[hashed_user_id][_eq]": hash_id(user_id),
+            "fields": PROJECT_KEY_WRAPPER_FIELDS,
+            "limit": 50,
+        }
+        response = await self.directus_service.get_items("project_key_wrappers", params=params, no_cache=True)
+        return response if isinstance(response, list) else []
 
     async def update_project(self, project_id: str, user_id: str, patch: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         existing = await self.get_project(project_id, user_id)

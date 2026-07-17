@@ -24,6 +24,7 @@ from backend.core.api.app.services.directus.gift_card_methods import (
     get_user_purchased_gift_cards
 )
 from backend.core.api.app.services.directus.chat_methods import ChatMethods # Import ChatMethods class
+from backend.core.api.app.services.directus.chat_key_wrapper_methods import ChatKeyWrapperMethods
 # from backend.core.api.app.services.directus.app_memory_methods import AppMemoryMethods # Old import, replaced
 from backend.core.api.app.services.directus.app_settings_and_memories_methods import AppSettingsAndMemoriesMethods # New import
 from backend.core.api.app.services.directus.usage import UsageMethods # Corrected import
@@ -99,6 +100,7 @@ class DirectusService:
         self.usage = UsageMethods(self, self.encryption_service)
         self.analytics = AnalyticsMethods(self) # Anonymous analytics methods
         self.chat = ChatMethods(self) # Initialize ChatMethods
+        self.chat_key_wrapper = ChatKeyWrapperMethods(self) # Initialize chat key wrapper migration/read helpers
         self.embed = EmbedMethods(self) # Initialize EmbedMethods
         self.project = ProjectMethods(self) # Initialize ProjectMethods
         self.user_plan = UserPlanMethods(self) # Initialize Plans V1 user-facing plan methods

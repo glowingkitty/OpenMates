@@ -44,7 +44,11 @@ def test_pip_sdk_decrypted_task_helpers_use_api_key_master_key(monkeypatch):
             })
         if url.endswith("/v1/user-tasks"):
             assert isinstance(json.get("encrypted_title"), str)
+            assert isinstance(json.get("encrypted_labels"), str)
+            assert len(json.get("label_hashes", [])) == 2
+            assert json.get("priority") == 3
             assert "title" not in json
+            assert "labels" not in json
             stored_task = {**json, "short_id": "TASK-1"}
             return FakeResponse({"task": stored_task})
         if url.endswith("/start-ai"):
@@ -73,6 +77,9 @@ def test_pip_sdk_decrypted_task_helpers_use_api_key_master_key(monkeypatch):
         nonlocal stored_task
         assert headers["Authorization"] == f"Bearer {api_key}"
         requests_seen.append({"method": "PATCH", "url": url, "json": json})
+        if json.get("label_hashes"):
+            assert len(json["label_hashes"]) == 2
+            assert json.get("priority") == 4
         stored_task = {**stored_task, **json}
         return FakeResponse({"task": stored_task})
 
@@ -89,13 +96,18 @@ def test_pip_sdk_decrypted_task_helpers_use_api_key_master_key(monkeypatch):
     monkeypatch.setattr("openmates.sdk.requests.delete", fake_delete)
 
     client = OpenMates(api_key=api_key)
-    created = client.tasks.create({"title": "SDK parity task", "description": "Plain task body", "assign": "user"})
+    created = client.tasks.create({"title": "SDK parity task", "description": "Plain task body", "labels": ["SDK", "Urgent"], "priority": "high", "assign": "user"})
     assert created["title"] == "SDK parity task"
+    assert created["labels"] == ["sdk", "urgent"]
+    assert created["priority"] == 3
+    assert created["priority_level"] == "high"
     assert "encrypted" not in created
-    assert client.tasks.list()[0]["title"] == "SDK parity task"
-    edited = client.tasks.edit("TASK-1", {"title": "SDK parity task edited", "status": "in_progress"})
+    assert client.tasks.list(labels=["sdk", "urgent"], priority="high")[0]["title"] == "SDK parity task"
+    edited = client.tasks.edit("TASK-1", {"title": "SDK parity task edited", "status": "in_progress", "add_labels": ["docs"], "remove_labels": ["urgent"], "priority": "urgent"})
     assert edited["title"] == "SDK parity task edited"
     assert edited["status"] == "in_progress"
+    assert edited["labels"] == ["sdk", "docs"]
+    assert edited["priority_level"] == "urgent"
     assert client.tasks.start_ai("TASK-1")["status"] == "in_progress"
     assert client.tasks.block("TASK-1", "needs_input")["status"] == "blocked"
     assert client.tasks.unblock("TASK-1")["status"] == "todo"
@@ -104,3 +116,4 @@ def test_pip_sdk_decrypted_task_helpers_use_api_key_master_key(monkeypatch):
     assert client.tasks.move("TASK-1", {"position": 42, "status": "todo"})[0]["position"] == 42
     assert client.tasks.delete_by_id("TASK-1", confirmed=True)["deleted"] is True
     assert any(request["url"].endswith("/v1/sdk/session") for request in requests_seen)
+    assert any("priority=3" in request["url"] and request["url"].count("label_hash=") == 2 for request in requests_seen if request["method"] == "GET")

@@ -9,7 +9,7 @@
  * Spec: docs/specs/tasks-v1/spec.yml.
  */
 
-import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { createHash, createHmac, hkdfSync, randomBytes, randomUUID } from "node:crypto";
 
 import type {
   UserTaskAssigneeType,
@@ -27,6 +27,10 @@ import {
 
 const TASK_STATUSES: UserTaskStatus[] = ["backlog", "todo", "in_progress", "blocked", "done"];
 const DEFAULT_STANDALONE_PREFIX = "TASK";
+const PRIORITY_LEVELS = ["none", "low", "medium", "high", "urgent"] as const;
+const LABEL_INDEX_INFO = "openmates-task-label-index-v1";
+
+export type TaskPriorityLevel = typeof PRIORITY_LEVELS[number];
 
 export interface DecryptedUserTask {
   taskId: string;
@@ -34,6 +38,7 @@ export interface DecryptedUserTask {
   shortId: string;
   title: string;
   description: string;
+  labels: string[];
   tags: string[];
   latestInstruction: string;
   status: UserTaskStatus;
@@ -44,6 +49,7 @@ export interface DecryptedUserTask {
   planId: string | null;
   dueAt: number | null;
   priority: number;
+  priorityLevel: TaskPriorityLevel;
   position: number;
   queueState: string;
   blockedReasonCode: string | null;
@@ -56,22 +62,32 @@ export interface DecryptedUserTask {
 export interface TaskCreateOptions {
   title: string;
   description?: string;
+  labels?: string[];
+  tags?: string[];
   status?: UserTaskStatus;
   assign?: string;
   chatId?: string | null;
   projectIds?: string[];
   planId?: string | null;
   dueAt?: number | null;
+  priority?: TaskPriorityLevel | number | null;
 }
 
 export interface TaskUpdateOptions {
   title?: string;
   description?: string;
+  labels?: string[];
+  tags?: string[];
+  addLabels?: string[];
+  addTags?: string[];
+  removeLabels?: string[];
+  removeTags?: string[];
   status?: UserTaskStatus;
   assign?: string;
   chatId?: string | null;
   projectIds?: string[];
   planId?: string | null;
+  priority?: TaskPriorityLevel | number | null;
 }
 
 export function normalizeTaskStatus(value: string | undefined): UserTaskStatus | undefined {
@@ -104,12 +120,47 @@ export function parseDueAt(value: string | boolean | undefined): number | null |
   return Math.floor(parsed / 1000);
 }
 
+export function normalizeLabels(labels: string[] | undefined): string[] {
+  const output: string[] = [];
+  const seen = new Set<string>();
+  for (const label of labels ?? []) {
+    const normalized = label.trim().toLowerCase().replace(/\s+/g, " ");
+    if (!normalized || seen.has(normalized)) continue;
+    seen.add(normalized);
+    output.push(normalized);
+  }
+  return output;
+}
+
+export function labelHashes(masterKey: Uint8Array, labels: string[]): string[] {
+  const indexKey = Buffer.from(hkdfSync("sha256", Buffer.from(masterKey), Buffer.alloc(0), LABEL_INDEX_INFO, 32));
+  return normalizeLabels(labels).map((label) => createHmac("sha256", indexKey).update(label).digest("hex"));
+}
+
+export function normalizeTaskPriority(value: TaskPriorityLevel | number | string | null | undefined): number | undefined {
+  if (value === undefined) return undefined;
+  if (value === null) return 0;
+  if (typeof value === "number") {
+    if (!Number.isInteger(value) || value < 0 || value > 4) throw new Error(`Invalid task priority '${value}'.`);
+    return value;
+  }
+  const normalized = value.trim().toLowerCase();
+  const index = PRIORITY_LEVELS.indexOf(normalized as TaskPriorityLevel);
+  if (index < 0) throw new Error(`Unknown task priority '${value}'. Expected one of: ${PRIORITY_LEVELS.join(", ")}`);
+  return index;
+}
+
+export function taskPriorityLevel(priority: number | null | undefined): TaskPriorityLevel {
+  return PRIORITY_LEVELS[Math.max(0, Math.min(4, Math.trunc(priority ?? 0)))] ?? "none";
+}
+
 export async function buildCreateUserTaskInput(masterKey: Uint8Array, input: TaskCreateOptions): Promise<UserTaskCreateInput> {
   const taskKey = randomBytes(32);
   const encryptedTaskKey = await encryptBytesWithAesGcm(taskKey, masterKey);
   const timestamp = nowSeconds();
   const assignee = parseAssignee(input.assign);
   const linkedProjectIds = input.projectIds ?? [];
+  const labels = normalizeLabels(input.labels ?? input.tags ?? []);
   const status = input.status ?? (assignee.assigneeType === "ai" && !input.dueAt ? "in_progress" : "todo");
   return {
     task_id: randomUUIDCompat(),
@@ -118,7 +169,9 @@ export async function buildCreateUserTaskInput(masterKey: Uint8Array, input: Tas
     encrypted_task_key: encryptedTaskKey,
     encrypted_title: await encryptWithAesGcmCombined(input.title, taskKey),
     encrypted_description: await encryptWithAesGcmCombined(input.description ?? "", taskKey),
-    encrypted_tags: await encryptWithAesGcmCombined("[]", taskKey),
+    encrypted_labels: await encryptWithAesGcmCombined(JSON.stringify(labels), taskKey),
+    encrypted_tags: await encryptWithAesGcmCombined(JSON.stringify(labels), taskKey),
+    label_hashes: labelHashes(masterKey, labels),
     encrypted_linked_project_ids: await encryptWithAesGcmCombined(JSON.stringify(linkedProjectIds), taskKey),
     status,
     assignee_type: assignee.assigneeType,
@@ -127,7 +180,7 @@ export async function buildCreateUserTaskInput(masterKey: Uint8Array, input: Tas
     linked_project_ids: linkedProjectIds,
     plan_id: input.planId ?? null,
     due_at: input.dueAt ?? null,
-    priority: 0,
+    priority: normalizeTaskPriority(input.priority) ?? 0,
     position: timestamp,
     created_at: timestamp,
     updated_at: timestamp,
@@ -151,6 +204,17 @@ export async function buildUpdateUserTaskInput(task: DecryptedUserTask, masterKe
     patch.encrypted_linked_project_ids = await encryptWithAesGcmCombined(JSON.stringify(input.projectIds), taskKey);
   }
   if (input.planId !== undefined) patch.plan_id = input.planId;
+  const priority = normalizeTaskPriority(input.priority);
+  if (priority !== undefined) patch.priority = priority;
+  const replaceLabels = input.labels ?? input.tags;
+  if (replaceLabels !== undefined || input.addLabels !== undefined || input.addTags !== undefined || input.removeLabels !== undefined || input.removeTags !== undefined) {
+    const remove = new Set(normalizeLabels([...(input.removeLabels ?? []), ...(input.removeTags ?? [])]));
+    const base = replaceLabels !== undefined ? normalizeLabels(replaceLabels) : task.labels;
+    const labels = normalizeLabels([...base.filter((label) => !remove.has(label)), ...(input.addLabels ?? []), ...(input.addTags ?? [])]);
+    patch.encrypted_labels = await encryptWithAesGcmCombined(JSON.stringify(labels), taskKey);
+    patch.encrypted_tags = await encryptWithAesGcmCombined(JSON.stringify(labels), taskKey);
+    patch.label_hashes = labelHashes(masterKey, labels);
+  }
   return patch;
 }
 
@@ -158,14 +222,15 @@ export async function decryptUserTask(record: UserTaskRecord, masterKey: Uint8Ar
   if (record.source === "workflow_run") return workflowProjectionToTask(record);
   if (typeof record.version !== "number") throw new Error(`Task ${record.task_id} is missing version.`);
   const taskKey = await taskKeyFromRecord(record, masterKey);
-  const tags = parseStringArray(await decryptOptional(record.encrypted_tags, taskKey));
+  const labels = parseStringArray(await decryptOptional(record.encrypted_labels || record.encrypted_tags, taskKey));
   const linkedProjectIds = parseStringArray(await decryptOptional(record.encrypted_linked_project_ids, taskKey));
   return {
     taskId: record.task_id,
     shortId: record.short_id || deriveShortId(record),
     title: await decryptOptional(record.encrypted_title, taskKey) || "(untitled task)",
     description: await decryptOptional(record.encrypted_description, taskKey),
-    tags,
+    labels,
+    tags: labels,
     latestInstruction: await decryptOptional(record.encrypted_latest_instruction, taskKey),
     status: record.status,
     assigneeType: record.assignee_type,
@@ -175,6 +240,7 @@ export async function decryptUserTask(record: UserTaskRecord, masterKey: Uint8Ar
     planId: record.plan_id ?? null,
     dueAt: record.due_at ?? null,
     priority: record.priority ?? 0,
+    priorityLevel: taskPriorityLevel(record.priority),
     position: record.position ?? 0,
     queueState: record.queue_state ?? "none",
     blockedReasonCode: record.blocked_reason_code ?? null,
@@ -192,6 +258,7 @@ function workflowProjectionToTask(record: UserTaskRecord): DecryptedUserTask {
     shortId: record.short_id || workflowProjectionShortId(record),
     title: record.title || "Workflow run",
     description: record.blocked_message ?? "",
+    labels: [],
     tags: [],
     latestInstruction: "",
     status: record.status,
@@ -202,6 +269,7 @@ function workflowProjectionToTask(record: UserTaskRecord): DecryptedUserTask {
     planId: null,
     dueAt: record.due_at ?? null,
     priority: record.priority ?? 0,
+    priorityLevel: taskPriorityLevel(record.priority),
     position: record.position ?? 0,
     queueState: String(record.run_status ?? "workflow"),
     blockedReasonCode: blockedReason,
@@ -235,9 +303,9 @@ export function findTask(tasks: DecryptedUserTask[], id: string): DecryptedUserT
 
 export function renderTaskList(tasks: DecryptedUserTask[]): string {
   if (tasks.length === 0) return "No tasks found.";
-  const lines = ["Tasks", "ID        Status       Assignee    Queue       Title"];
+  const lines = ["Tasks", "ID        Status       Priority  Labels              Title"];
   for (const task of tasks) {
-    lines.push(`${pad(task.shortId, 9)} ${pad(task.status, 12)} ${pad(assigneeLabel(task), 11)} ${pad(task.queueState, 11)} ${task.title}`);
+    lines.push(`${pad(task.shortId, 9)} ${pad(task.status, 12)} ${pad(task.priorityLevel, 9)} ${pad(task.labels.join(","), 19)} ${task.title}`);
   }
   return lines.join("\n");
 }
@@ -247,11 +315,13 @@ export function renderTaskDetail(task: DecryptedUserTask): string {
     `Task ${task.shortId}`,
     `Title: ${task.title}`,
     `Status: ${task.status}`,
+    `Priority: ${task.priorityLevel}`,
     `Assignee: ${assigneeLabel(task)}`,
     `Queue: ${task.queueState}`,
     `Task ID: ${task.taskId}`,
   ];
   if (task.description) lines.push(`Description: ${task.description}`);
+  if (task.labels.length > 0) lines.push(`Labels: ${task.labels.join(", ")}`);
   if (task.primaryChatId) lines.push(`Chat: ${task.primaryChatId}`);
   if (task.linkedProjectIds.length > 0) lines.push(`Projects: ${task.linkedProjectIds.join(", ")}`);
   if (task.planId) lines.push(`Plan: ${task.planId}`);

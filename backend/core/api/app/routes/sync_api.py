@@ -78,6 +78,7 @@ class OfflinePrefetchResponse(BaseModel):
     compression_checkpoints_by_chat_id: dict[str, list[dict[str, Any]]] = Field(default_factory=dict)
     embeds: list[dict[str, Any]] = Field(default_factory=list)
     embed_keys: list[dict[str, Any]] = Field(default_factory=list)
+    chat_key_wrappers: list[dict[str, Any]] = Field(default_factory=list)
     code_run_outputs: list[dict[str, Any]] = Field(default_factory=list)
     next_cursor: int | None = None
     done: bool = False
@@ -168,6 +169,7 @@ async def build_offline_prefetch_chunk(
 
     embeds: list[dict[str, Any]] = []
     embed_keys: list[dict[str, Any]] = []
+    chat_key_wrappers: list[dict[str, Any]] = []
     if include_embeds and selected_chat_ids:
         seen_embed_ids: set[str] = set()
         seen_key_ids: set[str] = set()
@@ -189,6 +191,12 @@ async def build_offline_prefetch_chunk(
                 embed_keys.append(key_entry)
                 seen_key_ids.add(key_id)
 
+    if hashed_chat_ids:
+        chat_key_wrappers = await directus_service.chat_key_wrapper.get_wrappers_by_hashed_chat_ids_batch(
+            hashed_chat_ids,
+            hashed_user_id=user_id_hash,
+        )
+
     code_run_outputs = await _fetch_code_run_outputs_for_chats(
         directus_service,
         selected_chat_ids,
@@ -203,6 +211,7 @@ async def build_offline_prefetch_chunk(
         compression_checkpoints_by_chat_id=compression_checkpoints_by_chat_id,
         embeds=embeds,
         embed_keys=embed_keys,
+        chat_key_wrappers=chat_key_wrappers,
         code_run_outputs=code_run_outputs,
         next_cursor=None if done else next_cursor_candidate,
         done=done,

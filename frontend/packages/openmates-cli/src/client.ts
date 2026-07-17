@@ -8,7 +8,7 @@
  * Tests: frontend/packages/openmates-cli/tests/
  */
 
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { arch, platform, release } from "node:os";
 import { createInterface } from "node:readline/promises";
 import { stdin, stdout } from "node:process";
@@ -324,7 +324,9 @@ export interface UserTaskRecord {
   encrypted_task_key?: string | null;
   encrypted_title: string;
   encrypted_description?: string | null;
+  encrypted_labels?: string | null;
   encrypted_tags?: string | null;
+  label_hashes?: string[] | null;
   encrypted_linked_project_ids?: string | null;
   encrypted_activity_summary?: string | null;
   encrypted_latest_instruction?: string | null;
@@ -973,7 +975,10 @@ function assertTaskPersistPayloadEncrypted(payload: Record<string, unknown>): vo
     "blocked_reason_code",
     "created_at",
     "key_wrappers",
+    "label_hashes",
     "linked_project_ids",
+    "plan_id",
+    "plan_step_id",
     "position",
     "primary_chat_id",
     "priority",
@@ -2927,20 +2932,46 @@ export class OpenMatesClient {
     return decryptBytesWithAesGcm(encryptedChatKey, masterKey);
   }
 
+  private getMasterWrapperEncryptedChatKey(
+    cache: SyncCache | null,
+    chatId: string,
+  ): string | null {
+    const hashedChatId = createHash("sha256").update(chatId).digest("hex");
+    const wrapper = (cache?.chatKeyWrappers ?? []).find(
+      (entry) =>
+        entry.key_type === "master" &&
+        entry.hashed_chat_id === hashedChatId &&
+        typeof entry.encrypted_chat_key === "string",
+    );
+    return typeof wrapper?.encrypted_chat_key === "string" ? wrapper.encrypted_chat_key : null;
+  }
+
+  private async resolveChatKey(
+    cache: SyncCache | null,
+    cached: CachedChat,
+    masterKey: Uint8Array,
+  ): Promise<Uint8Array | null> {
+    const chatId = String(cached.details.id ?? "");
+    const wrapperKey = chatId ? this.getMasterWrapperEncryptedChatKey(cache, chatId) : null;
+    const encryptedChatKey = wrapperKey ?? (
+      typeof cached.details.encrypted_chat_key === "string"
+        ? cached.details.encrypted_chat_key
+        : null
+    );
+    return encryptedChatKey ? this.decryptChatKey(encryptedChatKey, masterKey) : null;
+  }
+
   /**
    * Decrypt a single chat record from the sync cache into a ChatListItem.
    */
   private async decryptChatListItem(
     cached: CachedChat,
     masterKey: Uint8Array,
+    cache: SyncCache | null = loadSyncCache(),
   ): Promise<ChatListItem> {
     const d = cached.details;
     const id = String(d.id ?? "");
-    const encKey =
-      typeof d.encrypted_chat_key === "string" ? d.encrypted_chat_key : null;
-    const chatKeyBytes = encKey
-      ? await this.decryptChatKey(encKey, masterKey)
-      : null;
+    const chatKeyBytes = await this.resolveChatKey(cache, cached, masterKey);
 
     const title =
       typeof d.encrypted_title === "string" && chatKeyBytes
@@ -2980,7 +3011,7 @@ export class OpenMatesClient {
     const slice = cache.chats.slice(offset, offset + limit);
     const output: ChatListItem[] = [];
     for (const chat of slice) {
-      output.push(await this.decryptChatListItem(chat, masterKey));
+      output.push(await this.decryptChatListItem(chat, masterKey, cache));
     }
     return {
       chats: output,
@@ -3231,7 +3262,7 @@ export class OpenMatesClient {
     // The cache is already sorted most-recent-first, so the first match wins.
     if (!found) {
       for (const cached of cache.chats) {
-        const item = await this.decryptChatListItem(cached, masterKey);
+        const item = await this.decryptChatListItem(cached, masterKey, cache);
         const title = (item.title ?? "").toLowerCase();
         if (title === normalized) {
           found = cached;
@@ -3258,14 +3289,8 @@ export class OpenMatesClient {
       );
     }
 
-    const chatItem = await this.decryptChatListItem(found, masterKey);
-    const encKey =
-      typeof found.details.encrypted_chat_key === "string"
-        ? found.details.encrypted_chat_key
-        : null;
-    const chatKeyBytes = encKey
-      ? await this.decryptChatKey(encKey, masterKey)
-      : null;
+    const chatItem = await this.decryptChatListItem(found, masterKey, cache);
+    const chatKeyBytes = await this.resolveChatKey(cache, found, masterKey);
 
     const messages: DecryptedMessage[] = [];
     for (const raw of found.messages) {
@@ -3705,13 +3730,7 @@ export class OpenMatesClient {
     );
     if (!found) return [];
 
-    const encKey =
-      typeof found.details.encrypted_chat_key === "string"
-        ? found.details.encrypted_chat_key
-        : null;
-    if (!encKey) return [];
-
-    const chatKeyBytes = await this.decryptChatKey(encKey, masterKey);
+    const chatKeyBytes = await this.resolveChatKey(cache, found, masterKey);
     if (!chatKeyBytes) return [];
 
     const encSuggestions =
@@ -6139,12 +6158,14 @@ export class OpenMatesClient {
   // User tasks
   // -------------------------------------------------------------------------
 
-  async listUserTasks(filters: { status?: UserTaskStatus; chatId?: string; projectId?: string; limit?: number } = {}): Promise<UserTaskRecord[]> {
+  async listUserTasks(filters: { status?: UserTaskStatus; chatId?: string; projectId?: string; labelHashes?: string[]; priority?: number; limit?: number } = {}): Promise<UserTaskRecord[]> {
     this.requireSession();
     const params = new URLSearchParams();
     if (filters.status) params.set("status", filters.status);
     if (filters.chatId) params.set("chat_id", filters.chatId);
     if (filters.projectId) params.set("project_id", filters.projectId);
+    for (const labelHash of filters.labelHashes ?? []) params.append("label_hash", labelHash);
+    if (filters.priority !== undefined) params.set("priority", String(filters.priority));
     const limit = filters.limit;
     if (Number.isSafeInteger(limit) && limit !== undefined && limit > 0) params.set("limit", String(limit));
     const query = params.toString();
@@ -8019,6 +8040,7 @@ export class OpenMatesClient {
     const chats: CachedChat[] = [];
     const embeds: Record<string, unknown>[] = [];
     const embedKeys: Record<string, unknown>[] = [];
+    const chatKeyWrappers: Record<string, unknown>[] = [];
     let newChatSuggestions: Record<string, unknown>[] = [];
     let totalChatCount = 0;
     let reconciliation: AuthoritativeChatReconciliation = { authoritative: false };
@@ -8058,6 +8080,7 @@ export class OpenMatesClient {
             chats?: Array<{ chat_id: string; messages: string[] | null }>;
             embeds?: Record<string, unknown>[];
             embed_keys?: Record<string, unknown>[];
+            chat_key_wrappers?: Record<string, unknown>[];
           };
           for (const c of (p.chats ?? [])) {
             if (c.chat_id && Array.isArray(c.messages) && c.messages.length > 0) {
@@ -8066,6 +8089,7 @@ export class OpenMatesClient {
           }
           if (p.embeds) embeds.push(...p.embeds);
           if (p.embed_keys) embedKeys.push(...p.embed_keys);
+          if (p.chat_key_wrappers) chatKeyWrappers.push(...p.chat_key_wrappers);
 
         } else if (frame.type === "phase_2_last_20_chats_ready") {
           // Metadata (no messages) for up to 100 chats + authoritative total count.
@@ -8075,6 +8099,7 @@ export class OpenMatesClient {
             authoritative?: boolean;
             authoritative_chat_ids?: string[];
             deleted_chat_ids?: string[];
+            chat_key_wrappers?: Record<string, unknown>[];
           };
           totalChatCount = p.total_chat_count ?? 0;
           reconciliation = {
@@ -8087,6 +8112,7 @@ export class OpenMatesClient {
             if (!details || typeof details.id !== "string") continue;
             chats.push({ details, messages: [] });
           }
+          if (p.chat_key_wrappers) chatKeyWrappers.push(...p.chat_key_wrappers);
 
         } else if (frame.type === "background_message_sync") {
           // Chunked message batches for chats not already covered by phase_1b.
@@ -8094,6 +8120,7 @@ export class OpenMatesClient {
             chats?: Array<{ chat_id: string; messages: string[] }>;
             embeds?: Record<string, unknown>[];
             embed_keys?: Record<string, unknown>[];
+            chat_key_wrappers?: Record<string, unknown>[];
           };
           for (const c of (p.chats ?? [])) {
             if (c.chat_id && Array.isArray(c.messages) && c.messages.length > 0) {
@@ -8102,6 +8129,7 @@ export class OpenMatesClient {
           }
           if (p.embeds) embeds.push(...p.embeds);
           if (p.embed_keys) embedKeys.push(...p.embed_keys);
+          if (p.chat_key_wrappers) chatKeyWrappers.push(...p.chat_key_wrappers);
         } else if (frame.type === "pending_ai_response") {
           pendingAIResponses.push(frame.payload as PendingAIResponseFrame);
         }
@@ -8190,6 +8218,15 @@ export class OpenMatesClient {
           embedKeys.push(cached);
         }
       }
+      const serverChatKeyWrapperIds = new Set(
+        chatKeyWrappers.map((entry) => String((entry as Record<string, unknown>).id ?? "")),
+      );
+      for (const cached of existingCache.chatKeyWrappers ?? []) {
+        const cachedId = String((cached as Record<string, unknown>).id ?? "");
+        if (cachedId && !serverChatKeyWrapperIds.has(cachedId)) {
+          chatKeyWrappers.push(cached);
+        }
+      }
     }
 
     const reconciledChats = reconcileAuthoritativeChats(chats, reconciliation);
@@ -8202,8 +8239,10 @@ export class OpenMatesClient {
       );
       const keptEmbeds = embeds.filter((embed) => !deletedHashes.has(String(embed.hashed_chat_id ?? "")));
       const keptKeys = embedKeys.filter((key) => !deletedHashes.has(String(key.hashed_chat_id ?? "")));
+      const keptChatKeyWrappers = chatKeyWrappers.filter((key) => !deletedHashes.has(String(key.hashed_chat_id ?? "")));
       embeds.splice(0, embeds.length, ...keptEmbeds);
       embedKeys.splice(0, embedKeys.length, ...keptKeys);
+      chatKeyWrappers.splice(0, chatKeyWrappers.length, ...keptChatKeyWrappers);
     }
 
     // Sort by last_edited_overall_timestamp descending
@@ -8246,6 +8285,7 @@ export class OpenMatesClient {
       chats,
       embeds,
       embedKeys,
+      chatKeyWrappers,
       newChatSuggestions,
     };
 
@@ -8289,13 +8329,7 @@ export class OpenMatesClient {
         }
       }
 
-      const encryptedChatKey =
-        typeof chat.details.encrypted_chat_key === "string"
-          ? chat.details.encrypted_chat_key
-          : null;
-      if (!encryptedChatKey) continue;
-
-      const chatKeyBytes = await this.decryptChatKey(encryptedChatKey, masterKey);
+      const chatKeyBytes = await this.resolveChatKey(loadSyncCache(), chat, masterKey);
       if (!chatKeyBytes) continue;
 
       const completedAt = normalizeUnixSeconds(

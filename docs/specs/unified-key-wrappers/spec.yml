@@ -1,0 +1,1275 @@
+schema_version: 2
+id: unified-key-wrappers
+title: Unified Key Wrappers
+status: implementing
+
+goal: >
+  Unify OpenMates client-side encrypted object key handling so chats, embeds,
+  projects, plans, tasks, and future teams use stable per-object content keys
+  with separate access-context wrapper rows. Existing production chats must keep
+  decrypting throughout the migration with no user-visible upgrade prompt.
+
+scope:
+  in:
+    - A canonical key-wrapper contract for client-side encrypted object keys, separate from the rows whose content they decrypt.
+    - Wrapper context types master, chat, project, plan, and team.
+    - Team key epoch/version fields for future team wrappers so team-key rotation can be represented without re-encrypting object content.
+    - Production-safe chat migration from row-level encrypted_chat_key to wrapper-first reads with row-key fallback.
+    - Backend-only backfill of master chat wrappers by copying existing row-level encrypted_chat_key ciphertext without decrypting it.
+    - Breaking cleanup for unshipped projects, tasks, plans, and team-adjacent dev data so they ship with wrapper rows as canonical from day one.
+    - Embed key wrappers remain the reference implementation and must stay compatible with existing embed sync/share flows.
+    - Client, CLI, npm SDK, pip SDK, web, and Apple decrypt paths must read wrappers consistently before row-level fallback where fallback is still required.
+    - Workflow key handling boundaries between client-side encrypted/shareable workflow metadata and Automation Vault server-execution secrets.
+  out:
+    - Team membership roles, read/write permission scopes, ACL UI, invites, or team billing; these belong in a separate teams spec.
+    - Durable device-specific, API-key-specific, or share-specific object key wrapper types.
+    - Re-encrypting chat/message/embed/task/plan/project content during migration.
+    - User-visible migration prompts, banners, manual repair flows, or required account actions.
+    - Removing chats.encrypted_chat_key from production before a later compatibility-window spec explicitly proves it safe.
+    - Making unattended workflow execution cryptographically inaccessible to the backend; Automation Vault remains the execution boundary.
+
+context_discovery:
+  github_issues:
+    - "gh issue list --search 'encryption key wrapper team decrypt chats' --limit 10 returned no matching issues in this session."
+    - "GitHub MCP credentials previously returned 401 in this workspace; gh CLI search was used for bounded discovery."
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/specs/tasks-v1/spec.yml
+    - docs/specs/plans-v1/spec.yml
+    - docs/specs/workflows-v1/spec.yml
+    - docs/specs/sdk-cli-parity-v1/spec.yml
+    - docs/specs/share-short-links-og-images/spec.yml
+    - docs/user-guide/export-account.md
+  code_patterns:
+    - backend/core/directus/schemas/embed_keys.yml is the clean existing wrapper-row pattern with master/chat/project key types.
+    - backend/core/directus/schemas/embeds.yml intentionally removed row-level embed key material and points to embed_keys.
+    - backend/core/directus/schemas/chats.yml still stores encrypted_chat_key on the chat row.
+    - backend/core/directus/schemas/projects.yml still stores encrypted_project_key on the project row.
+    - backend/core/directus/schemas/user_plans.yml has both encrypted_plan_key on the row and user_plan_key_wrappers.
+    - backend/core/directus/schemas/user_tasks.yml has both encrypted_task_key on the row and user_task_key_wrappers.
+    - backend/core/directus/schemas/workflow_encrypted_blobs.yml uses Vault Transit ciphertext with vault_key_ref for server-executed workflows.
+    - frontend/packages/ui/src/services/embedStore.ts stores embed_keys locally and decrypts embeds from wrapper rows.
+    - frontend/packages/ui/src/services/userPlanService.ts still decrypts plans from row-level encrypted_plan_key.
+    - frontend/packages/openmates-cli/src/tasksCli.ts still decrypts tasks from row-level encrypted_task_key.
+  tests:
+    - backend/tests/test_encrypted_chat_metadata_guard.py
+    - frontend/packages/openmates-cli/tests/embedCreator.test.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - frontend/packages/openmates-cli/tests/tasks.test.ts
+    - frontend/packages/openmates-cli/tests/sdk-tasks.test.ts
+    - backend/tests/test_user_tasks_api.py
+    - frontend/apps/web_app/tests/export-account-flow.spec.ts
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+
+apple_impact:
+  affected_files:
+    - apple/OpenMates/Sources/Core/Networking/OpenMatesAPIClient.swift
+    - apple/OpenMates/Sources/Core/Encryption
+    - apple/OpenMates/Sources/Chat
+    - apple/OpenMates/Sources/Projects
+    - apple/OpenMates/Sources/Plans
+    - apple/OpenMates/Sources/Tasks
+  parity_expectations:
+    - Apple must decrypt existing production chats after the chat wrapper migration with no user-visible migration state.
+    - Apple must read canonical wrappers for new projects/plans/tasks/teams before those features ship natively.
+    - Apple may keep row-level chat key fallback until the production compatibility window ends.
+  verification:
+    - python3 scripts/apple_remote.py status
+    - python3 scripts/apple_remote.py build-ios after shared API/client contracts are implemented
+    - Targeted Apple decrypt regression tests if native wrapper decoding already exists or is added during implementation.
+  intentional_native_differences:
+    - Native UI should not expose migration copy or progress; any repair diagnostics remain developer-only.
+
+clarification:
+  rounds:
+    - question: For the first migration slice, should we target zero user-visible migration prompts by auto-backfilling wrappers when a user opens/syncs data, or is it acceptable to show a one-time upgrade encryption keys flow that requires the user's unlocked device?
+      answer: Users should not see any migration info; it should just work. Backend-only migration is preferred wherever possible.
+    - question: Should the first spec explicitly make master wrapper backfill backend-only, while deferring creation of new team/project/chat wrappers to normal client actions when the user moves or shares an object?
+      answer: Backend-only master wrapper backfill is acceptable for existing row-level keys because the ciphertext can be copied without decrypting. New contextual wrappers are created by clients when needed.
+    - question: Does the fact that projects, workflows, tasks, plans, and teams are not yet shipped to production change the migration plan?
+      answer: Yes. Existing production chats need compatibility-first migration. Unshipped projects, workflows, tasks, plans, and teams can use breaking cleanup or data reset before launch.
+    - question: Should the unified wrapper model support only master, chat, project, and team, or also device, share, or api_key wrapper types?
+      answer: Support master, chat, project, team, and plan. Do not add separate device, api_key, or share wrapper types for V1.
+    - question: Should plan be a real access context with its own plan_key and plan wrapper type for connected tasks?
+      answer: Yes. Plans need first-class plan wrappers so plan-connected tasks remain decryptable when a plan is opened or shared.
+  vision_summary: >
+    Use the embed-style wrapper-row architecture as the standard for client-side
+    encrypted product objects. Production chat migration must be invisible and
+    compatibility-first; unshipped projects/tasks/plans/teams can be cleaned up
+    before launch. Workflow execution remains a special Automation Vault boundary,
+    while client-side workflow/share metadata follows wrapper rules where it uses
+    client-side object keys.
+  approved_by_user: true
+
+implementation_state:
+  subject_commit: ed3f75fd169425ddd49bcb6aedd36cbb6938b24e
+
+approvals:
+  product_contract:
+    status: approved
+    approved_at: "2026-07-17"
+    reason: User approved the unified wrapper architecture and instructed implementation to proceed.
+  implementation_plan:
+    status: approved
+    approved_at: "2026-07-17"
+    reason: The implementation plan follows the approved product contract; no additional technical approval was required before TASK-1.
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Use a unified logical wrapper-row contract rather than row-level object keys.
+    reason: Wrapper rows let access move from personal to chat/project/plan/team contexts without re-encrypting encrypted content.
+    decided_at: "2026-07-17"
+  - id: D-2
+    status: active
+    decision: Keep durable wrapper context types to master, chat, project, plan, and team for V1.
+    reason: Device and API-key access should unlock through existing account/session master-key paths; share links should keep URL-fragment decrypt authority unless a future durable sharing product requires otherwise.
+    decided_at: "2026-07-17"
+  - id: D-3
+    status: active
+    decision: Migrate production chats with wrapper-first reads and encrypted_chat_key fallback.
+    reason: Existing users must not lose chat decryptability or see migration prompts.
+    decided_at: "2026-07-17"
+  - id: D-4
+    status: active
+    decision: Treat workflows as split-domain encryption.
+    reason: Client-side/shareable workflow metadata can use object wrappers, but unattended server execution still requires Automation Vault with audited decrypt.
+    decided_at: "2026-07-17"
+  - id: D-5
+    status: active
+    decision: Keep team read/write permission scopes out of this spec except where needed to prevent cryptographic access leaks.
+    reason: Membership roles and ACL semantics belong in a dedicated teams spec; this spec only defines key wrapping and safe authorization boundaries.
+    decided_at: "2026-07-17"
+  - id: D-6
+    status: active
+    decision: Include team key epochs in the wrapper contract.
+    reason: Team-owned object wrappers need to record which team key version wrapped the object key so future member-removal rotation can be incremental and does not require re-encrypting object content.
+    decided_at: "2026-07-17"
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    approach: Discover existing chat/embed/project/plan/task/workflow key storage before writing the spec.
+    outcome: succeeded
+    recorded_at: "2026-07-17"
+
+handoff:
+  current_task_id: TASK-6
+  next_action: Deploy the wrapper changes to dev, then run the real seeded-chat CLI smoke and web Playwright regression with existing test-account env.
+  command: python3 scripts/tests.py run --spec chat-key-wrapper-migration.spec.ts
+  expected_outcome: Seeded chat decrypts on app.dev.openmates.org without migration or repair UI.
+  blocker: null
+  last_verified_commit: ed3f75fd169425ddd49bcb6aedd36cbb6938b24e
+
+scenarios:
+  - id: S-1
+    title: Existing production chat keeps decrypting after wrapper migration
+    given:
+      - Alice has an existing production chat with encrypted_chat_key on the chat row.
+      - Alice has not opened the app since the migration deployed.
+    when:
+      - The backend migration runs.
+      - Alice opens the chat from web, CLI, npm SDK, pip SDK, or Apple.
+    then:
+      - A master chat wrapper row exists by copying encrypted_chat_key ciphertext without backend decryption.
+      - Clients try wrapper rows first and fall back to encrypted_chat_key if needed.
+      - Alice can decrypt the chat title, messages, and metadata exactly as before.
+      - Alice sees no migration banner, prompt, progress, or repair instruction.
+
+  - id: S-2
+    title: New chat writes wrapper rows without breaking old clients
+    given:
+      - Alice creates a new chat after the wrapper-aware clients are deployed.
+    when:
+      - The chat is persisted and synced to another authenticated device.
+    then:
+      - The client writes a master chat wrapper row for the chat key.
+      - The chat row may still include encrypted_chat_key only as compatibility fallback during the migration window.
+      - Wrapper-aware clients decrypt using the wrapper row.
+      - Legacy clients that only know encrypted_chat_key do not corrupt or rotate the chat key.
+
+  - id: S-3
+    title: Embeds continue using the existing wrapper architecture
+    given:
+      - Alice has embeds stored with embed_keys rows.
+    when:
+      - Chat sync, embed preview, share, and CLI embed show flows run after the unified wrapper work.
+    then:
+      - Existing embed_keys rows remain valid.
+      - Embed sync still sends needed embed_keys before decrypting embed content.
+      - No row-level embed key is reintroduced.
+      - Future team/plan wrapper support extends the same wrapper contract without regressing current master/chat/project wrappers.
+
+  - id: S-4
+    title: Unshipped projects, tasks, and plans ship with wrappers as canonical
+    given:
+      - Dev-only project, task, and plan rows may have row-level encrypted keys from pre-release development.
+    when:
+      - The unified wrapper schema and clients are implemented before production launch of those surfaces.
+    then:
+      - Row-level encrypted_project_key, encrypted_task_key, and encrypted_plan_key are removed or marked migration-only and unused by clients.
+      - New project, task, and plan content decrypts only through wrapper rows.
+      - Dev-only incompatible rows can be deleted or reset instead of migrated.
+
+  - id: S-5
+    title: Plan-connected tasks decrypt through plan wrappers
+    given:
+      - Alice has a plan with plan_key.
+      - The plan has three connected tasks, each with its own task_key.
+    when:
+      - Alice opens the plan or shares a read-only plan export/link.
+    then:
+      - Each connected task has a task wrapper with key_type plan, hashed_plan_id, and task_key wrapped by plan_key.
+      - Alice or a share recipient with plan decrypt authority can decrypt task titles and labels through the plan wrapper.
+      - Removing a task from the plan removes only the plan wrapper and does not remove master, project, team, or chat wrappers.
+
+  - id: S-6
+    title: Moving an object into a team changes wrappers, not ciphertext
+    given:
+      - Alice owns a chat with embeds and a project with tasks and plans.
+      - A future team_key exists for Team Acme and Alice is authorized to move the project.
+    when:
+      - Alice moves the chat and project into Team Acme.
+    then:
+      - The client unwraps object keys through existing valid wrappers.
+      - The client creates team wrappers for the chat key, embed keys, project key, and required child task/plan keys.
+      - Each team wrapper records the team key epoch used to wrap the object key.
+      - Content ciphertext stays unchanged.
+      - Obsolete personal/project/plan wrappers are removed only after replacement wrappers are persisted and authorization checks pass.
+
+  - id: S-7
+    title: Wrapper presence does not replace authorization
+    given:
+      - Mallory somehow knows an object id but is not the owner and is not a team/project/plan/chat member for it.
+    when:
+      - Mallory requests encrypted object rows or wrapper rows.
+    then:
+      - The backend denies the read before returning ciphertext or wrappers.
+      - Wrapper rows are scoped by hashed owner and context identifiers.
+      - Future read/write role scopes remain defined by the teams permissions spec, not by wrapper existence alone.
+
+  - id: S-8
+    title: Workflow execution keeps Automation Vault boundaries
+    given:
+      - Alice has a scheduled workflow and a shareable workflow template projection.
+    when:
+      - The scheduler claims the workflow and a user exports or shares the template projection.
+    then:
+      - Scheduler/runtime secrets remain in Automation Vault and are decrypted only through audited backend execution paths.
+      - Client-side/shareable projection data uses object wrapper semantics when it has client-side object keys.
+      - Team access to workflow definitions does not grant server runtime decrypt outside the existing Automation Vault authorization model.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Existing chats decrypt after migration with wrapper-first reads and encrypted_chat_key fallback, with no user-visible migration flow.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids:
+      - T-BACKEND-CHAT-WRAPPER-MIGRATION
+      - T-CLI-CHAT-DECRYPT-SMOKE
+      - T-WEB-CHAT-DECRYPT-REGRESSION
+      - T-APPLE-CHAT-DECRYPT-REGRESSION
+  - id: AC-2
+    scenario: S-2
+    text: New chats write canonical master chat wrapper rows while keeping row-level encrypted_chat_key only as compatibility fallback during the migration window.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids:
+      - T-BACKEND-CHAT-WRAPPER-MIGRATION
+      - T-CLI-CHAT-DECRYPT-SMOKE
+      - T-NPM-SDK-WRAPPER-PARITY
+      - T-PIP-SDK-WRAPPER-PARITY
+  - id: AC-3
+    scenario: S-3
+    text: Embed key behavior remains compatible with existing embed_keys sync/share/decrypt flows and no row-level embed key is reintroduced.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids:
+      - T-EMBED-WRAPPER-REGRESSION
+  - id: AC-4
+    scenario: S-4
+    text: Projects, tasks, and plans treat wrapper rows as canonical before production launch and clients no longer depend on row-level encrypted object keys.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids:
+      - T-PROJECT-TASK-PLAN-WRAPPERS
+      - T-NPM-SDK-WRAPPER-PARITY
+      - T-PIP-SDK-WRAPPER-PARITY
+  - id: AC-5
+    scenario: S-5
+    text: Tasks connected to plans can be decrypted through plan wrappers without granting or revoking unrelated master/project/team/chat access.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids:
+      - T-PROJECT-TASK-PLAN-WRAPPERS
+  - id: AC-6
+    scenario: S-6
+    text: Moving encrypted objects between personal, project, plan, chat, and team contexts changes only wrapper rows, records the relevant team key epoch for team wrappers, and never requires content re-encryption.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids:
+      - T-WRAPPER-ROTATION-AUDIT
+  - id: AC-7
+    scenario: S-7
+    text: Backend authorization remains separate from wrapper existence and never returns object ciphertext or wrappers to unauthorized users.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids:
+      - T-WRAPPER-AUTHZ-GUARDS
+  - id: AC-8
+    scenario: S-8
+    text: Workflow client-side/shareable data and Automation Vault runtime data have explicit separate key boundaries, and team access does not broaden backend runtime decrypt authority.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids:
+      - T-WORKFLOW-KEY-BOUNDARY
+  - id: AC-9
+    scenario: S-1
+    text: Migration and wrapper handling never logs raw keys, decrypted object content, share URL fragments, or plaintext private metadata.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids:
+      - T-KEY-LOGGING-AUDIT
+
+assumptions:
+  - id: A-1
+    text: Existing row-level chat encrypted_chat_key values are chat keys wrapped by the user's master key and can be copied as master wrapper ciphertext without backend decryption.
+    category: encryption
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: backend/core/directus/schemas/chats.yml
+        summary: encrypted_chat_key is documented as chat-specific key encrypted with user's master key for device sync.
+  - id: A-2
+    text: Projects, tasks, plans, and teams are not shipped to production and incompatible dev data can be reset.
+    category: rollout
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: user clarification 2026-07-17
+        summary: User stated these surfaces are not shipped and data can be deleted any time.
+  - id: A-3
+    text: Team membership/read-write scope semantics will be specified separately.
+    category: permissions
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: user clarification 2026-07-17
+        summary: User agreed access scopes belong in a separate teams spec; this spec covers cryptographic key setup.
+  - id: A-4
+    text: Existing embed_keys architecture is production-compatible and should not be rewritten unless a compatibility test proves a safe path.
+    category: migration
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: backend/core/directus/schemas/embed_keys.yml
+        summary: Current embed key schema already supports separate master/chat/project wrappers.
+  - id: A-5
+    text: The future teams spec will define team_key_wrappers for wrapping team keys to active members, while this spec defines how object wrappers reference the team key epoch used for encryption.
+    category: encryption
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: user clarification 2026-07-17
+        summary: Team membership and roles remain in the Teams spec, but the encryption prerequisite should explicitly support efficient team-key wrapping and rotation.
+
+contracts:
+  key_wrapper_contract:
+    canonical_fields:
+      - id
+      - object_type
+      - hashed_object_id
+      - hashed_user_id
+      - key_type
+      - hashed_chat_id
+      - hashed_project_id
+      - hashed_plan_id
+      - hashed_team_id
+      - encrypted_object_key
+      - team_key_epoch
+      - created_at
+      - expires_at
+      - wrapper_version
+    key_types:
+      - master
+      - chat
+      - project
+      - plan
+      - team
+    excluded_key_types:
+      - device
+      - api_key
+      - share
+    notes:
+      - Physical storage may remain domain-specific in the first implementation, e.g. embed_keys, chat_key_wrappers, user_task_key_wrappers, user_plan_key_wrappers, and project_key_wrappers.
+      - Domain-specific collections must map to the canonical fields and semantics even if field names differ, such as encrypted_embed_key or encrypted_task_key.
+      - When a domain-specific wrapper collection already uses hashed_plan_id as its object id, plan-context wrapper storage must use a distinct field such as hashed_context_plan_id to avoid ambiguous duplicate fields.
+      - Wrapper rows are encrypted grants, not authorization records. API authorization must still enforce owner/team/context membership before returning rows.
+      - For key_type team, team_key_epoch is required so clients can choose the correct wrapped team key before decrypting encrypted_object_key.
+      - team_key_epoch is a team key rotation/version marker, not the chat/message protocol epoch used by chat completion recovery.
+  data:
+    - collection: team_key_wrappers
+      purpose: Future Teams encryption handoff for wrapping a team key to each active member without adding per-member wrappers to every object.
+      required_fields:
+        - hashed_team_id
+        - hashed_user_id
+        - team_key_epoch
+        - encrypted_team_key
+        - status
+        - created_at
+      optional_fields:
+        - revoked_at
+      implementation_notes:
+        - Membership roles, invites, billing, and read/write scopes are specified by the Teams spec, not here.
+        - Team-owned object wrappers with key_type team must reference the team_key_epoch used to wrap the object key.
+        - Revoking a team key wrapper blocks future managed-client decrypt authority but is not cryptographic erasure of data already synced to a removed member's device.
+    - collection: chat_key_wrappers
+      purpose: Canonical chat key wrappers for production-safe chat migration and future team/project/plan access.
+      required_fields:
+        - hashed_chat_id
+        - hashed_user_id
+        - key_type
+        - encrypted_chat_key
+        - created_at
+      optional_context_fields:
+        - hashed_project_id
+        - hashed_plan_id
+        - hashed_team_id
+        - team_key_epoch
+        - expires_at
+      migration_notes:
+        - Backfill master rows from chats.encrypted_chat_key without decrypting.
+        - Keep chats.encrypted_chat_key as fallback until a later removal spec.
+    - collection: embed_keys
+      purpose: Existing canonical embed key wrappers.
+      required_changes:
+        - Add plan and team context support, including team_key_epoch for team wrappers, if embeds can attach to plans or teams.
+        - Preserve existing master/chat/project behavior and sync payload shape.
+    - collection: project_key_wrappers
+      purpose: Project key wrappers for master/team and future context moves.
+      required_changes:
+        - Replace row-level encrypted_project_key usage before projects ship.
+        - Add team_key_epoch to team project wrappers.
+    - collection: user_plan_key_wrappers
+      purpose: Plan key wrappers and plan-context access to related objects.
+      required_changes:
+        - Make wrapper rows canonical and remove client dependency on encrypted_plan_key.
+        - Support team and chat/project contexts where plan ownership or visibility requires them.
+        - Use hashed_context_plan_id for plan-context wrapper storage because hashed_plan_id identifies the plan object itself.
+        - Add team_key_epoch to team plan wrappers.
+    - collection: user_task_key_wrappers
+      purpose: Task key wrappers for master/chat/project/plan/team access.
+      required_changes:
+        - Make wrapper rows canonical and remove client dependency on encrypted_task_key.
+        - Add hashed_plan_id and hashed_team_id context fields.
+        - Add team_key_epoch to team task wrappers.
+    - collection: workflow_encrypted_blobs
+      purpose: Automation Vault encrypted workflow runtime content.
+      required_changes:
+        - Preserve vault_key_ref/key_version execution boundary.
+        - Do not reinterpret Vault runtime blobs as client-side wrapper objects.
+  api:
+    - route: GET /v1/key-wrappers/{object_type}/{object_id}
+      status: illustrative_contract
+      request: "object_type in chat|embed|project|plan|task; object_id; optional context filters"
+      response: "{ key_wrappers: KeyWrapper[] }"
+      notes:
+        - Implementation may expose domain-specific endpoints instead if existing sync APIs remain safer.
+        - Every route returning wrappers must enforce owner/context/team authorization first.
+    - route: POST /v1/key-wrappers/{object_type}/{object_id}
+      status: illustrative_contract
+      request: "{ key_wrappers: KeyWrapper[], expected_object_version?: number }"
+      response: "{ key_wrappers: KeyWrapper[] }"
+      notes:
+        - Add replacement wrappers before deleting old wrappers.
+        - Stale object versions return a visible conflict instead of partial key changes.
+    - route: POST /v1/admin/migrations/chat-key-wrappers/backfill
+      status: internal_or_script
+      request: "dry_run?: boolean, limit?: number"
+      response: "{ checked, created, skipped, failed }"
+      notes:
+        - May also be implemented as a deterministic script rather than public API.
+        - Must not decrypt or log chat keys.
+  client_decrypt_order:
+    chat:
+      - Try authorized chat_key_wrappers master/context rows.
+      - Fallback to chats.encrypted_chat_key during compatibility window.
+      - If both fail, show existing visible decrypt error without migration copy.
+    embed:
+      - Try embed_keys rows.
+      - No row-level fallback.
+    project_plan_task:
+      - Try canonical wrapper rows only before production launch.
+      - Dev-only legacy row-level fallback may exist only behind implementation tests and must not be shipped as public contract.
+    workflow:
+      - Use client wrappers only for client-side/shareable projection payloads.
+      - Use Automation Vault only for server runtime content.
+  privacy_security:
+    - Backend migration may copy wrapped key ciphertext but must not decrypt object keys.
+    - Logs, traces, tests, and evidence must not contain raw keys, decrypted object content, share URL fragments, or private metadata.
+    - Wrapper row existence cannot be used as the only authorization check.
+    - Removing a wrapper revokes only that access context and must not delete the encrypted object or unrelated wrappers.
+    - Removing a member's team_key_wrapper revokes future managed-client access but cannot cryptographically erase data or plaintext keys already synced to that member's devices.
+    - Key replacement is add-then-delete and idempotent; failures leave at least one previous valid access path.
+    - Row-level chat fallback removal requires a separate later spec with production evidence.
+  rollout:
+    phases:
+      - Add wrapper schema and backend backfill dry run for chats.
+      - Ship wrapper-first clients with chat row-key fallback.
+      - Backfill production chat master wrappers.
+      - Stop row-level key dependency for unshipped projects/plans/tasks before launch.
+      - Add plan/team wrapper contexts for new surfaces.
+      - Ensure all team context wrappers and future team_key_wrappers include team_key_epoch before Teams implementation begins.
+      - Record telemetry/deterministic checks for missing wrapper rows and decrypt failures.
+      - Defer row-level chat key removal to a later compatibility-window spec.
+
+tests:
+  - id: T-BACKEND-CHAT-WRAPPER-MIGRATION
+    type: pytest
+    file: backend/tests/test_unified_key_wrappers.py
+    command: python3 -m pytest backend/tests/test_unified_key_wrappers.py
+    covers:
+      - AC-1
+      - AC-2
+      - AC-7
+      - AC-9
+    assertions:
+      - backfill creates one master chat wrapper from chats.encrypted_chat_key without decrypting it.
+      - backfill is idempotent and does not duplicate wrappers.
+      - chats without row-level keys are skipped with non-sensitive diagnostics.
+      - unauthorized users cannot list chat wrappers.
+    red_phase:
+      required: true
+      expected: fail_or_missing
+      evidence:
+        status: skipped_with_reason
+        run_id: pending-unified-key-wrappers-red
+        timestamp: "2026-07-17T14:28:08Z"
+        reason: Red-phase evidence was not captured before implementation; green backend migration tests now cover the intended failing contract.
+        summary: Red-phase evidence was not captured before implementation.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest backend/tests/test_unified_key_wrappers.py backend/tests/test_project_task_plan_key_wrappers.py backend/tests/test_workflow_key_boundary.py
+        run_id: local-20260717-backend-key-wrapper-pytest
+        subject_commit: ed3f75fd169425ddd49bcb6aedd36cbb6938b24e
+        timestamp: "2026-07-17T14:28:08Z"
+        summary: Combined backend wrapper pytest run passed 9 tests.
+  - id: T-CLI-CHAT-DECRYPT-SMOKE
+    type: pytest
+    file: scripts/verify_chat_key_wrapper_smoke.py
+    command: python3 scripts/verify_chat_key_wrapper_smoke.py --api-url https://api.dev.openmates.org
+    target: api.dev.openmates.org with existing real CLI test-account auth and a pre-existing seeded chat
+    covers:
+      - AC-1
+      - AC-2
+    assertions:
+      - real CLI authenticates as an existing test account and reads a pre-existing chat after wrapper backfill.
+      - the pre-existing chat title, metadata, and at least one message decrypt through wrapper-aware chat loading or row-key fallback.
+      - real CLI can create a new chat and a fresh CLI read decrypts it through wrapper-aware sync.
+      - no migration prompt or migration text is emitted in normal CLI output.
+    red_phase:
+      required: true
+      expected: fail_or_missing
+      evidence:
+        status: skipped_with_reason
+        run_id: pending-cli-chat-wrapper-red
+        timestamp: "2026-07-17T14:28:08Z"
+        reason: Red-phase live CLI evidence cannot be reconstructed after implementation and before dev deploy.
+        summary: Requires deployed dev API and seeded chat/test-account env.
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: pending
+        command: python3 scripts/verify_chat_key_wrapper_smoke.py --api-url https://api.dev.openmates.org
+        run_id: pending-cli-chat-wrapper-dev-smoke
+        subject_commit: ed3f75fd169425ddd49bcb6aedd36cbb6938b24e
+        timestamp: ""
+        summary: Not run yet; needs OPENMATES_CHAT_WRAPPER_SMOKE_CHAT_ID, OPENMATES_CHAT_WRAPPER_SMOKE_EXPECT_TEXT, and existing CLI test-account auth after dev deploy.
+  - id: T-NPM-SDK-WRAPPER-PARITY
+    type: unit
+    file: frontend/packages/openmates-cli/tests/key-wrappers.test.ts
+    command: cd frontend/packages/openmates-cli && node --test --experimental-strip-types --loader ./tests/loader.mjs tests/key-wrappers.test.ts
+    covers:
+      - AC-2
+      - AC-4
+      - AC-5
+    assertions:
+      - npm SDK decrypts chat via wrapper row first and row-level fallback second.
+      - npm SDK decrypts task/plan/project test records only through wrapper rows.
+      - npm SDK serializes plan wrapper rows for plan-connected tasks.
+    red_phase:
+      required: true
+      expected: fail_or_missing
+      evidence:
+        status: skipped_with_reason
+        run_id: pending-npm-wrapper-red
+        timestamp: "2026-07-17T14:28:08Z"
+        reason: Red-phase evidence was not captured before implementation; green npm parity tests now cover wrapper-first behavior.
+        summary: Red-phase evidence was not captured before implementation.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: cd frontend/packages/openmates-cli && node --test --experimental-strip-types --loader ./tests/loader.mjs tests/key-wrappers.test.ts tests/client.test.ts
+        run_id: local-20260717-npm-key-wrapper-parity
+        subject_commit: ed3f75fd169425ddd49bcb6aedd36cbb6938b24e
+        timestamp: "2026-07-17T14:28:08Z"
+        summary: npm SDK/CLI wrapper-first decrypt and related client tests passed.
+  - id: T-PIP-SDK-WRAPPER-PARITY
+    type: pytest
+    file: packages/openmates-python/tests/test_key_wrappers.py
+    command: python3 -m pytest packages/openmates-python/tests/test_key_wrappers.py
+    covers:
+      - AC-2
+      - AC-4
+      - AC-5
+    assertions:
+      - pip SDK decrypts chat via wrapper row first and row-level fallback second.
+      - pip SDK decrypts task/plan/project test records only through wrapper rows.
+      - pip SDK serializes plan wrapper rows for plan-connected tasks.
+    red_phase:
+      required: true
+      expected: fail_or_missing
+      evidence:
+        status: skipped_with_reason
+        run_id: pending-pip-wrapper-red
+        timestamp: "2026-07-17T14:28:08Z"
+        reason: Red-phase evidence was not captured before implementation; green pip parity tests now cover wrapper-first behavior.
+        summary: Red-phase evidence was not captured before implementation.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest packages/openmates-python/tests/test_key_wrappers.py packages/openmates-python/tests/test_tasks.py packages/openmates-python/tests/test_sdk.py -k 'key_wrapper or task or chat'
+        run_id: local-20260717-pip-key-wrapper-parity
+        subject_commit: ed3f75fd169425ddd49bcb6aedd36cbb6938b24e
+        timestamp: "2026-07-17T14:28:08Z"
+        summary: pip SDK wrapper-first decrypt and related task/chat tests passed 17 selected tests.
+  - id: T-EMBED-WRAPPER-REGRESSION
+    type: unit
+    file: frontend/packages/openmates-cli/tests/embedCreator.test.ts, frontend/packages/openmates-cli/tests/client.test.ts
+    command: cd frontend/packages/openmates-cli && node --test --experimental-strip-types --loader ./tests/loader.mjs tests/embedCreator.test.ts tests/client.test.ts
+    covers:
+      - AC-3
+      - AC-9
+    assertions:
+      - embed creation still creates master/chat wrappers.
+      - embed sync still sends store_embed_keys before dependent content decrypt paths.
+      - no row-level embed key is required or written.
+    red_phase:
+      required: false
+      expected: not_applicable_existing_coverage
+      evidence:
+        status: not_applicable
+        run_id: existing-embed-wrapper-coverage
+        timestamp: "2026-07-17T14:28:08Z"
+        summary: Red phase not required because this is existing embed wrapper coverage.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: cd frontend/packages/openmates-cli && node --test --experimental-strip-types --loader ./tests/loader.mjs tests/embedCreator.test.ts tests/client.test.ts
+        run_id: local-20260717-embed-wrapper-regression
+        subject_commit: ed3f75fd169425ddd49bcb6aedd36cbb6938b24e
+        timestamp: "2026-07-17T14:28:08Z"
+        summary: Explicit embed wrapper regression passed 50 tests.
+  - id: T-PROJECT-TASK-PLAN-WRAPPERS
+    type: pytest
+    file: backend/tests/test_project_task_plan_key_wrappers.py
+    command: python3 -m pytest backend/tests/test_project_task_plan_key_wrappers.py
+    covers:
+      - AC-4
+      - AC-5
+      - AC-6
+      - AC-7
+    assertions:
+      - project, plan, and task create paths persist wrapper rows as canonical key material.
+      - clients/API responses do not require row-level encrypted_project_key, encrypted_plan_key, or encrypted_task_key.
+      - plan-connected tasks include plan wrappers and can remove only plan wrappers on unlink.
+      - add-new-wrapper-before-delete-old-wrapper behavior is atomic or safely recoverable.
+    red_phase:
+      required: true
+      expected: fail_or_missing
+      evidence:
+        status: skipped_with_reason
+        run_id: pending-project-task-plan-wrapper-red
+        timestamp: "2026-07-17T14:28:08Z"
+        reason: Red-phase evidence was not captured before implementation; green backend tests now cover canonical project/plan/task wrappers.
+        summary: Red-phase evidence was not captured before implementation.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest backend/tests/test_unified_key_wrappers.py backend/tests/test_project_task_plan_key_wrappers.py backend/tests/test_workflow_key_boundary.py
+        run_id: local-20260717-backend-key-wrapper-pytest
+        subject_commit: ed3f75fd169425ddd49bcb6aedd36cbb6938b24e
+        timestamp: "2026-07-17T14:28:08Z"
+        summary: Project/plan/task wrapper canonicalization assertions passed in the combined backend run.
+  - id: T-WRAPPER-ROTATION-AUDIT
+    type: pytest
+    file: backend/tests/test_key_wrapper_rotation.py
+    command: python3 -m pytest backend/tests/test_key_wrapper_rotation.py
+    covers:
+      - AC-6
+      - AC-7
+    assertions:
+      - moving an object to project/plan/team context adds replacement wrapper rows before deleting obsolete rows.
+      - team replacement wrappers include the team_key_epoch needed to select the correct wrapped team key.
+      - stale object versions or partial writes fail visibly and leave old wrappers intact.
+      - wrapper deletion never deletes encrypted object rows.
+    red_phase:
+      required: true
+      expected: fail_or_missing
+      evidence:
+        status: skipped_with_reason
+        run_id: pending-wrapper-rotation-red
+        timestamp: "2026-07-17T14:28:08Z"
+        reason: Red-phase evidence was not captured before adding the dedicated rotation audit.
+        summary: Dedicated rotation red evidence was not captured before implementation.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest backend/tests/test_key_wrapper_rotation.py
+        run_id: local-20260717-wrapper-rotation-audit
+        subject_commit: ed3f75fd169425ddd49bcb6aedd36cbb6938b24e
+        timestamp: "2026-07-17T14:37:00Z"
+        summary: Rotation audit passed; replacement creates new wrappers before deleting old wrappers and restores old wrappers if version commit fails.
+  - id: T-WRAPPER-AUTHZ-GUARDS
+    type: pytest
+    file: backend/tests/test_key_wrapper_authorization.py
+    command: python3 -m pytest backend/tests/test_key_wrapper_authorization.py
+    covers:
+      - AC-7
+      - AC-9
+    assertions:
+      - wrong-owner wrapper list, create, replace, and delete requests are denied.
+      - invalid team wrapper scopes fail closed before persistence.
+      - wrapper list helpers include hashed owner filters before returning rows.
+    red_phase:
+      required: true
+      expected: fail_or_missing
+      evidence:
+        status: skipped_with_reason
+        run_id: pending-wrapper-authz-red
+        timestamp: "2026-07-17T14:37:00Z"
+        reason: Red-phase evidence was not captured before adding the dedicated authorization guard tests.
+        summary: Dedicated authorization red evidence was not captured before implementation.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest backend/tests/test_key_wrapper_authorization.py
+        run_id: local-20260717-wrapper-authz-guards
+        subject_commit: ed3f75fd169425ddd49bcb6aedd36cbb6938b24e
+        timestamp: "2026-07-17T14:37:00Z"
+        summary: Authorization guard tests passed; unauthorized chat reads avoid wrapper queries, wrong-owner task replacement does not mutate wrappers, owner filters are applied, and invalid team scopes fail closed.
+  - id: T-WORKFLOW-KEY-BOUNDARY
+    type: pytest
+    file: backend/tests/test_workflow_key_boundary.py
+    command: python3 -m pytest backend/tests/test_workflow_key_boundary.py
+    covers:
+      - AC-8
+      - AC-9
+    assertions:
+      - workflow runtime encrypted blobs continue to require vault_key_ref/key_version and audited backend decrypt paths.
+      - client-shareable workflow projections do not include runtime secrets.
+      - team wrapper access to workflow metadata does not bypass Automation Vault authorization for execution.
+    red_phase:
+      required: true
+      expected: fail_or_missing
+      evidence:
+        status: skipped_with_reason
+        run_id: pending-workflow-key-boundary-red
+        timestamp: "2026-07-17T14:28:08Z"
+        reason: Red-phase evidence was not captured before implementation; green workflow boundary tests now cover the Automation Vault separation.
+        summary: Red-phase evidence was not captured before implementation.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest backend/tests/test_unified_key_wrappers.py backend/tests/test_project_task_plan_key_wrappers.py backend/tests/test_workflow_key_boundary.py
+        run_id: local-20260717-backend-key-wrapper-pytest
+        subject_commit: ed3f75fd169425ddd49bcb6aedd36cbb6938b24e
+        timestamp: "2026-07-17T14:28:08Z"
+        summary: Workflow Automation Vault boundary assertions passed in the combined backend run.
+  - id: T-KEY-LOGGING-AUDIT
+    type: pytest
+    file: scripts/tests/test_key_wrapper_logging_audit.py
+    command: python3 -m pytest scripts/tests/test_key_wrapper_logging_audit.py
+    covers:
+      - AC-9
+    assertions:
+      - migration and wrapper routes do not log raw keys, decrypted content, share fragments, or plaintext labels/titles.
+      - deterministic scan catches unsafe key/content logging in touched wrapper files.
+    red_phase:
+      required: true
+      expected: fail_or_missing
+      evidence:
+        status: skipped_with_reason
+        run_id: pending-key-logging-audit-red
+        timestamp: "2026-07-17T14:28:08Z"
+        reason: Red-phase evidence was not captured before adding the deterministic logging audit.
+        summary: Red-phase evidence was not captured before adding the deterministic audit.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest scripts/tests/test_key_wrapper_logging_audit.py
+        run_id: local-20260717-key-wrapper-logging-audit
+        subject_commit: ed3f75fd169425ddd49bcb6aedd36cbb6938b24e
+        timestamp: "2026-07-17T14:28:08Z"
+        summary: AST audit passed and checks wrapper-related logger/print calls for sensitive key/content variables.
+  - id: T-WEB-CHAT-DECRYPT-REGRESSION
+    type: playwright
+    file: frontend/apps/web_app/tests/chat-key-wrapper-migration.spec.ts
+    command: python3 scripts/tests.py run --spec chat-key-wrapper-migration.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-1
+      - AC-9
+    assertions:
+      - web app signs in as an existing test account and opens a pre-existing seeded chat after migration.
+      - the pre-existing chat title, metadata, and at least one message decrypt and render without repair or migration UI.
+      - new chat decrypts on reload and another browser session.
+      - no migration copy appears in the UI.
+    red_phase:
+      required: true
+      expected: fail_or_missing
+      evidence:
+        status: skipped_with_reason
+        run_id: pending-web-wrapper-red
+        timestamp: "2026-07-17T14:28:08Z"
+        reason: Red-phase web evidence cannot be reconstructed after implementation and before dev deploy.
+        summary: Requires deploy to app.dev.openmates.org and seeded-chat E2E env.
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: pending
+        run_id: ""
+        timestamp: ""
+        command: python3 scripts/tests.py run --spec chat-key-wrapper-migration.spec.ts
+        subject_commit: ed3f75fd169425ddd49bcb6aedd36cbb6938b24e
+        summary: Not run yet; Playwright must target deployed dev and existing seeded test account.
+  - id: T-APPLE-CHAT-DECRYPT-REGRESSION
+    type: manual
+    file: apple/OpenMates
+    command: python3 scripts/apple_remote.py status && python3 scripts/apple_remote.py build-ios
+    covers:
+      - AC-1
+    assertions:
+      - Apple build succeeds after shared contract changes.
+      - Apple signs in with an existing native test account and can read a pre-existing chat after wrapper migration when native chat decrypt code is touched.
+      - Targeted native decrypt test is added/run if Apple key wrapper decoding changes in this implementation.
+    red_phase:
+      required: false
+      expected: not_applicable
+      evidence:
+        status: not_applicable
+        run_id: apple-red-not-required
+        timestamp: "2026-07-17T14:28:08Z"
+        reason: Apple key wrapper decoding code was not changed, so an Apple red phase was not applicable.
+        summary: Red phase not required because Apple key wrapper decoding code was not changed.
+    green_phase:
+      required: true
+      expected: pass_or_deferred_with_reason
+      evidence:
+        status: passed
+        command: python3 scripts/apple_remote.py status && python3 scripts/apple_remote.py build-ios
+        run_id: local-20260717-apple-remote-build-ios
+        subject_commit: ed3f75fd169425ddd49bcb6aedd36cbb6938b24e
+        timestamp: "2026-07-17T14:28:08Z"
+        reason: Remote Apple build passed and no targeted native decrypt test was required because native decrypt code was untouched.
+        summary: Remote iOS/watch build succeeded; no targeted native decrypt test was required because native decrypt code was untouched.
+
+verifications:
+  - id: V-SPEC-VALIDATE
+    kind: deterministic_check
+    phase: final
+    required_for_done: true
+    covers:
+      - AC-1
+      - AC-2
+      - AC-3
+      - AC-4
+      - AC-5
+      - AC-6
+      - AC-7
+      - AC-8
+      - AC-9
+    status: passed
+    evidence:
+      status: passed
+      command: python3 scripts/spec_validate.py docs/specs/unified-key-wrappers/spec.yml
+      run_id: local-20260717-spec-validate
+      subject_commit: ed3f75fd169425ddd49bcb6aedd36cbb6938b24e
+      summary: Spec schema validation passed after local evidence updates.
+      timestamp: "2026-07-17T14:30:14Z"
+  - id: V-USER-CONFIRMATION
+    kind: user_confirmation
+    phase: final
+    required_for_done: true
+    covers:
+      - AC-1
+    status: pending
+    evidence:
+      status: ""
+      summary: "User confirms no migration prompt was seen and chats still decrypt on dev."
+      timestamp: ""
+
+implementation_plan:
+  spec_path: docs/specs/unified-key-wrappers/spec.yml
+  existing_patterns:
+    - backend/core/directus/schemas/embed_keys.yml for wrapper-row storage.
+    - frontend/packages/ui/src/services/embedStore.ts for wrapper-first local decrypt patterns.
+    - backend/tests/test_encrypted_chat_metadata_guard.py for chat key immutability guardrails.
+    - docs/specs/workflows-v1/spec.yml for Automation Vault boundaries.
+  architecture: >
+    Implement a shared key-wrapper contract and domain-specific adapters that let
+    each encrypted object resolve a stable content key from authorized wrapper
+    rows. Production chats migrate by adding wrapper rows and keeping row-key
+    fallback; unshipped objects switch to wrapper rows as canonical before launch.
+  data_flow:
+    - Client creates an object content key.
+    - Client encrypts private content with the object content key.
+    - Client stores wrapper rows for each authorized context.
+    - Backend stores and returns wrappers only after owner/context/team authorization.
+    - Object moves add new wrapper rows before deleting obsolete wrappers.
+    - Chat migration copies existing encrypted_chat_key ciphertext into master chat wrapper rows without decrypting.
+  affected_files:
+    - path: backend/core/directus/schemas/chats.yml
+      reason: Keep encrypted_chat_key as compatibility fallback and add chat wrapper relation/index notes.
+    - path: backend/core/directus/schemas/embed_keys.yml
+      reason: Extend existing wrapper contract with plan/team context support without breaking current sync.
+    - path: backend/core/directus/schemas/projects.yml
+      reason: Remove or deprecate row-level encrypted_project_key before project launch.
+    - path: backend/core/directus/schemas/user_plans.yml
+      reason: Make plan wrappers canonical and add plan/team context fields.
+    - path: backend/core/directus/schemas/user_tasks.yml
+      reason: Make task wrappers canonical and add plan/team context fields.
+    - path: backend/core/directus/schemas/workflow_encrypted_blobs.yml
+      reason: Document and test Automation Vault boundary relative to client wrapper architecture.
+    - path: backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+      reason: Include chat key wrappers and preserve embed key ordering in sync payloads.
+    - path: backend/core/api/app/routes/sync_api.py
+      reason: SDK/CLI sync payloads need wrapper rows for decryptability.
+    - path: backend/core/api/app/routes/chats.py
+      reason: Chat detail/read endpoints need wrapper-first data and fallback behavior.
+    - path: backend/core/api/app/routes/projects.py
+      reason: Project create/update/move wrapper handling.
+    - path: backend/core/api/app/routes/user_plans.py
+      reason: Plan wrapper canonicalization and plan-connected child object wrappers.
+    - path: backend/core/api/app/routes/user_tasks.py
+      reason: Task wrapper canonicalization and plan/team context support.
+    - path: backend/core/api/app/services/directus
+      reason: Shared wrapper persistence, idempotent backfill, authz, and add-then-delete replacement helpers.
+    - path: frontend/packages/ui/src/services/embedStore.ts
+      reason: Existing reference for local wrapper storage and decrypt resolution.
+    - path: frontend/packages/ui/src/services/chatSyncServiceHandlersCoreSync.ts
+      reason: Store chat wrappers before decrypt-dependent chat data where needed.
+    - path: frontend/packages/ui/src/services/userPlanService.ts
+      reason: Stop row-level plan key dependency.
+    - path: frontend/packages/ui/src/services/userTaskService.ts
+      reason: Stop row-level task key dependency and support plan wrappers.
+    - path: frontend/packages/ui/src/services/projectService.ts
+      reason: Stop row-level project key dependency.
+    - path: frontend/packages/openmates-cli/src/client.ts
+      reason: CLI chat/project/plan/task wrapper sync and decrypt support.
+    - path: frontend/packages/openmates-cli/src/sdk.ts
+      reason: npm SDK wrapper decrypt parity.
+    - path: packages/openmates-python/openmates/sdk.py
+      reason: pip SDK wrapper decrypt parity.
+    - path: frontend/apps/web_app/tests/chat-key-wrapper-migration.spec.ts
+      reason: Live dev chat decrypt regression and no-migration-copy assertion.
+    - path: scripts/verify_chat_key_wrapper_smoke.py
+      reason: Real CLI dev-server proof that wrapper migration preserves decryptability.
+  verification_strategy:
+    - python3 scripts/spec_validate.py docs/specs/unified-key-wrappers/spec.yml
+    - Backend pytest for chat wrapper migration and authz before implementation.
+    - Real CLI dev smoke against api.dev.openmates.org before SDK/web work is considered green.
+    - npm and pip SDK wrapper parity tests plus python3 scripts/audit_sdk_cli_parity.py.
+    - Web Playwright after deploy against app.dev.openmates.org.
+    - User confirmation that chat decryptability is unchanged and no migration UI appears.
+    - Apple status/build and native decrypt test when touched.
+  verification_order:
+    - Spec validation.
+    - Backend red/green contract tests.
+    - Real CLI dev-server smoke.
+    - GitHub Actions/daily-test wiring for the same CLI coverage after dev CLI success.
+    - npm SDK parity.
+    - pip SDK parity.
+    - Web Playwright after deploy.
+    - User confirmation.
+    - Apple remote build/test.
+  risks:
+    - Breaking existing chat decryption by switching clients to wrapper rows before backfill/fallback is correct.
+    - Accidentally logging raw keys or decrypted content during migration diagnostics.
+    - Treating wrapper existence as authorization and leaking ciphertext/wrappers to unauthorized users.
+    - Deleting old wrappers before new wrappers are safely persisted.
+    - Mixing Automation Vault workflow runtime secrets with client-side wrapper semantics.
+    - Scope creep into team permissions and read/write role semantics.
+  open_questions:
+    - What production evidence duration is required before a future spec can remove chats.encrypted_chat_key fallback?
+    - Should physical storage eventually converge into one generic object_key_wrappers table, or is a canonical per-domain wrapper contract sufficient long-term?
+    - Which exact team-key rotation policy will the teams spec choose for member removal: no rotation, rotate for future writes only, or explicit admin-triggered historical rewrap?
+
+tasks:
+  - id: TASK-1
+    title: Add chat wrapper schema and backend-only master backfill
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-7
+        - AC-9
+    expected_files:
+      - backend/core/directus/schemas/chats.yml
+      - backend/core/directus/schemas/chat_key_wrappers.yml
+      - backend/core/api/app/services/directus/chat_key_wrapper_methods.py
+      - backend/tests/test_unified_key_wrappers.py
+    verification:
+      - T-BACKEND-CHAT-WRAPPER-MIGRATION
+      - T-WRAPPER-AUTHZ-GUARDS
+      - T-KEY-LOGGING-AUDIT
+    verification_ids:
+      - T-BACKEND-CHAT-WRAPPER-MIGRATION
+      - T-WRAPPER-AUTHZ-GUARDS
+      - T-KEY-LOGGING-AUDIT
+    dependencies: []
+    ownership:
+      files:
+        - backend/core/directus/schemas/chat_key_wrappers.yml
+        - backend/core/api/app/services/directus/chat_key_wrapper_methods.py
+        - backend/tests/test_unified_key_wrappers.py
+      shared_files:
+        - backend/core/directus/schemas/chats.yml
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: true
+  - id: TASK-2
+    title: Update CLI and sync clients to wrapper-first chat decrypt with fallback
+    status: in_progress
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+    expected_files:
+      - frontend/packages/openmates-cli/src/client.ts
+      - frontend/packages/openmates-cli/src/sdk.ts
+      - packages/openmates-python/openmates/sdk.py
+      - scripts/verify_chat_key_wrapper_smoke.py
+      - frontend/packages/openmates-cli/tests/key-wrappers.test.ts
+      - packages/openmates-python/tests/test_key_wrappers.py
+    verification:
+      - T-CLI-CHAT-DECRYPT-SMOKE
+      - T-NPM-SDK-WRAPPER-PARITY
+      - T-PIP-SDK-WRAPPER-PARITY
+    verification_ids:
+      - T-CLI-CHAT-DECRYPT-SMOKE
+      - T-NPM-SDK-WRAPPER-PARITY
+      - T-PIP-SDK-WRAPPER-PARITY
+    dependencies:
+      - TASK-1
+    ownership:
+      files:
+        - scripts/verify_chat_key_wrapper_smoke.py
+        - frontend/packages/openmates-cli/tests/key-wrappers.test.ts
+        - packages/openmates-python/tests/test_key_wrappers.py
+      shared_files:
+        - frontend/packages/openmates-cli/src/client.ts
+        - frontend/packages/openmates-cli/src/sdk.ts
+        - packages/openmates-python/openmates/sdk.py
+    blockers: []
+    follow_up_tasks:
+      - Wire real CLI smoke into daily tests after dev pass.
+    independently_deployable: true
+  - id: TASK-3
+    title: Preserve embed wrapper behavior and extend context schema
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-3
+      acceptance_criteria:
+        - AC-3
+        - AC-9
+    expected_files:
+      - backend/core/directus/schemas/embed_keys.yml
+      - frontend/packages/ui/src/services/embedStore.ts
+      - frontend/packages/openmates-cli/tests/embedCreator.test.ts
+      - frontend/packages/openmates-cli/tests/client.test.ts
+    verification:
+      - T-EMBED-WRAPPER-REGRESSION
+      - T-KEY-LOGGING-AUDIT
+    verification_ids:
+      - T-EMBED-WRAPPER-REGRESSION
+      - T-KEY-LOGGING-AUDIT
+    dependencies:
+      - TASK-1
+    ownership:
+      files:
+        - backend/core/directus/schemas/embed_keys.yml
+      shared_files:
+        - frontend/packages/ui/src/services/embedStore.ts
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: true
+  - id: TASK-4
+    title: Canonicalize wrappers for projects, plans, tasks, and plan-connected tasks
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-4
+        - S-5
+        - S-6
+      acceptance_criteria:
+        - AC-4
+        - AC-5
+        - AC-6
+        - AC-7
+    expected_files:
+      - backend/core/directus/schemas/projects.yml
+      - backend/core/directus/schemas/user_plans.yml
+      - backend/core/directus/schemas/user_tasks.yml
+      - backend/core/api/app/routes/projects.py
+      - backend/core/api/app/routes/user_plans.py
+      - backend/core/api/app/routes/user_tasks.py
+      - frontend/packages/ui/src/services/projectService.ts
+      - frontend/packages/ui/src/services/userPlanService.ts
+      - frontend/packages/ui/src/services/userTaskService.ts
+      - backend/tests/test_project_task_plan_key_wrappers.py
+      - backend/tests/test_key_wrapper_rotation.py
+    verification:
+      - T-PROJECT-TASK-PLAN-WRAPPERS
+      - T-WRAPPER-ROTATION-AUDIT
+      - T-WRAPPER-AUTHZ-GUARDS
+    verification_ids:
+      - T-PROJECT-TASK-PLAN-WRAPPERS
+      - T-WRAPPER-ROTATION-AUDIT
+      - T-WRAPPER-AUTHZ-GUARDS
+    dependencies:
+      - TASK-1
+      - TASK-2
+    ownership:
+      files:
+        - backend/tests/test_project_task_plan_key_wrappers.py
+        - backend/tests/test_key_wrapper_rotation.py
+      shared_files:
+        - backend/core/directus/schemas/projects.yml
+        - backend/core/directus/schemas/user_plans.yml
+        - backend/core/directus/schemas/user_tasks.yml
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+  - id: TASK-5
+    title: Lock workflow key boundary and team-access assumptions
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-7
+        - S-8
+      acceptance_criteria:
+        - AC-7
+        - AC-8
+        - AC-9
+    expected_files:
+      - backend/core/directus/schemas/workflow_encrypted_blobs.yml
+      - backend/tests/test_workflow_key_boundary.py
+      - docs/specs/workflows-v1/spec.yml
+    verification:
+      - T-WORKFLOW-KEY-BOUNDARY
+      - T-WRAPPER-AUTHZ-GUARDS
+      - T-KEY-LOGGING-AUDIT
+    verification_ids:
+      - T-WORKFLOW-KEY-BOUNDARY
+      - T-WRAPPER-AUTHZ-GUARDS
+      - T-KEY-LOGGING-AUDIT
+    dependencies:
+      - TASK-1
+    ownership:
+      files:
+        - backend/tests/test_workflow_key_boundary.py
+      shared_files:
+        - backend/core/directus/schemas/workflow_encrypted_blobs.yml
+        - docs/specs/workflows-v1/spec.yml
+    blockers: []
+    follow_up_tasks:
+      - Create or update the future teams spec for membership roles and read/write permission scopes.
+    independently_deployable: true
+  - id: TASK-6
+    title: Verify web and Apple decrypt regressions after deploy
+    status: in_progress
+    phase: running_checks
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-9
+    expected_files:
+      - frontend/apps/web_app/tests/chat-key-wrapper-migration.spec.ts
+      - apple/OpenMates
+    verification:
+      - T-WEB-CHAT-DECRYPT-REGRESSION
+      - T-APPLE-CHAT-DECRYPT-REGRESSION
+      - V-USER-CONFIRMATION
+    verification_ids:
+      - T-WEB-CHAT-DECRYPT-REGRESSION
+      - T-APPLE-CHAT-DECRYPT-REGRESSION
+      - V-USER-CONFIRMATION
+    dependencies:
+      - TASK-1
+      - TASK-2
+    ownership:
+      files:
+        - frontend/apps/web_app/tests/chat-key-wrapper-migration.spec.ts
+      shared_files:
+        - apple/OpenMates
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false

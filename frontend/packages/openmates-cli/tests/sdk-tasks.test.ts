@@ -144,11 +144,20 @@ describe("OpenMates SDK user tasks", () => {
         }
         if (request.method === "POST" && request.url === "/v1/user-tasks") {
           assert.equal(typeof (body as Record<string, unknown>).encrypted_title, "string");
+          assert.equal(typeof (body as Record<string, unknown>).encrypted_labels, "string");
+          assert.equal(Array.isArray((body as Record<string, unknown>).label_hashes), true);
+          assert.equal(((body as Record<string, unknown>).label_hashes as string[]).length, 2);
+          assert.equal((body as Record<string, unknown>).priority, 3);
           assert.equal((body as Record<string, unknown>).title, undefined);
+          assert.equal((body as Record<string, unknown>).labels, undefined);
           storedTask = { ...(body as Record<string, any>), short_id: "TASK-1" };
           return { task: storedTask };
         }
         if (request.method === "PATCH" && request.url?.startsWith("/v1/user-tasks/")) {
+          if ((body as Record<string, unknown>).label_hashes) {
+            assert.equal(((body as Record<string, unknown>).label_hashes as string[]).length, 2);
+            assert.equal((body as Record<string, unknown>).priority, 4);
+          }
           storedTask = { ...storedTask, ...(body as Record<string, any>) };
           return { task: storedTask };
         }
@@ -186,16 +195,21 @@ describe("OpenMates SDK user tasks", () => {
       },
       async (apiUrl) => {
         const client = new OpenMates({ apiKey: material.apiKey, apiUrl, deviceId: "test-device" });
-        const created = await client.tasks.create({ title: "SDK parity task", description: "Plain task body", assign: "user" });
+        const created = await client.tasks.create({ title: "SDK parity task", description: "Plain task body", labels: ["SDK", "Urgent"], priority: "high", assign: "user" });
         assert.equal(created.title, "SDK parity task");
+        assert.deepEqual(created.labels, ["sdk", "urgent"]);
+        assert.equal(created.priority, 3);
+        assert.equal(created.priorityLevel, "high");
         assert.equal("encrypted" in created, false);
 
-        const listed = await client.tasks.listDecrypted();
+        const listed = await client.tasks.listDecrypted({ labels: ["sdk", "urgent"], priority: "high" });
         assert.equal(listed[0]?.title, "SDK parity task");
 
-        const edited = await client.tasks.edit("TASK-1", { title: "SDK parity task edited", status: "in_progress" });
+        const edited = await client.tasks.edit("TASK-1", { title: "SDK parity task edited", status: "in_progress", addLabels: ["docs"], removeLabels: ["urgent"], priority: "urgent" });
         assert.equal(edited.title, "SDK parity task edited");
         assert.equal(edited.status, "in_progress");
+        assert.deepEqual(edited.labels, ["sdk", "docs"]);
+        assert.equal(edited.priorityLevel, "urgent");
 
         assert.equal((await client.tasks.startAI("TASK-1")).status, "in_progress");
         assert.equal((await client.tasks.block("TASK-1", "needs_input")).status, "blocked");
@@ -209,5 +223,6 @@ describe("OpenMates SDK user tasks", () => {
     );
 
     assert.ok(seen.some((request) => request.url === "/v1/sdk/session"), "SDK session wrapper was not requested");
+    assert.ok(seen.some((request) => request.url?.startsWith("/v1/user-tasks?") && request.url.includes("priority=3") && (request.url.match(/label_hash=/g) ?? []).length === 2));
   });
 });

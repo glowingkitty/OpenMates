@@ -83,7 +83,7 @@ chats:
     encrypted_chat_key:
       type: string
       length: 512
-      note: "[Client-encrypted permanent storage] Chat-specific encryption key, encrypted with the user's master key for device sync"
+      note: "[Client-encrypted permanent storage] Compatibility fallback for the chat-specific encryption key, encrypted with the user's master key for device sync. Canonical wrapper-aware clients should prefer chat_key_wrappers rows during the migration window."
 
     encrypted_icon:
       type: string

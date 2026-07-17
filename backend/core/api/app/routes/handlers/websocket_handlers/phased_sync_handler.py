@@ -1,5 +1,6 @@
 # backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
 import logging
+import hashlib
 import time
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timezone
@@ -216,6 +217,26 @@ async def _fetch_code_run_outputs_for_chats(
         return rows if isinstance(rows, list) else []
     except Exception as exc:
         logger.warning("Failed to fetch Code Run outputs for sync: %s", exc, exc_info=True)
+        return []
+
+
+async def _fetch_chat_key_wrappers_for_chats(
+    directus_service: DirectusService,
+    chat_ids: List[str],
+    user_id: str,
+) -> List[Dict[str, Any]]:
+    """Fetch chat key wrappers for chat IDs already authorized by sync selection."""
+    if not chat_ids:
+        return []
+    try:
+        hashed_chat_ids = [hashlib.sha256(chat_id.encode()).hexdigest() for chat_id in chat_ids]
+        hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
+        return await directus_service.chat_key_wrapper.get_wrappers_by_hashed_chat_ids_batch(
+            hashed_chat_ids,
+            hashed_user_id=hashed_user_id,
+        )
+    except Exception as exc:
+        logger.warning("Failed to fetch chat key wrappers for sync: %s", exc, exc_info=True)
         return []
 
 
@@ -967,6 +988,11 @@ async def _handle_phase1b_sync(
             phase1_chat_ids,
             user_id,
         )
+        all_chat_key_wrappers = await _fetch_chat_key_wrappers_for_chats(
+            directus_service,
+            phase1_chat_ids,
+            user_id,
+        )
 
         # Send Phase 1b as separate WS message
         await manager.send_personal_message(
@@ -976,6 +1002,7 @@ async def _handle_phase1b_sync(
                     "chats": chats_data,
                     "embeds": all_embeds,
                     "embed_keys": all_embed_keys,
+                    "chat_key_wrappers": all_chat_key_wrappers,
                     "code_run_outputs": all_code_run_outputs,
                 }
             },
@@ -989,6 +1016,7 @@ async def _handle_phase1b_sync(
             f"[PHASE1b_COMPLETE] ✅ Phase 1b sync for user {user_id[:8]}... in {phase1b_elapsed:.3f}s: "
             f"{len(chats_data)} chats, {messages_total} messages, "
             f"{len(all_embeds)} embeds, {len(all_embed_keys)} embed_keys, "
+            f"{len(all_chat_key_wrappers)} chat_key_wrappers, "
             f"{len(all_code_run_outputs)} code_run_outputs"
         )
 
@@ -1213,6 +1241,16 @@ async def _handle_phase2_sync(
             chats_skipped,
             newer_drafts_sent,
         )
+        phase2_chat_ids = [
+            str(wrapper["chat_details"]["id"])
+            for wrapper in chats_to_send
+            if wrapper.get("chat_details", {}).get("id")
+        ]
+        phase2_chat_key_wrappers = await _fetch_chat_key_wrappers_for_chats(
+            directus_service,
+            phase2_chat_ids,
+            user_id,
+        )
 
         # Send metadata-only payload (no messages, no embeds, no embed_keys)
         await manager.send_personal_message(
@@ -1220,6 +1258,7 @@ async def _handle_phase2_sync(
                 "type": "phase_2_last_20_chats_ready",
                 "payload": {
                     "chats": chats_to_send,
+                    "chat_key_wrappers": phase2_chat_key_wrappers,
                     "chat_count": len(chats_to_send),
                     "total_chat_count": total_chat_count,
                     "phase": "phase2",
@@ -1417,6 +1456,13 @@ async def _handle_phase3_sync(
             )
             if batch_code_run_outputs:
                 payload_data["code_run_outputs"] = batch_code_run_outputs
+            batch_chat_key_wrappers = await _fetch_chat_key_wrappers_for_chats(
+                directus_service,
+                batch_chat_ids,
+                user_id,
+            )
+            if batch_chat_key_wrappers:
+                payload_data["chat_key_wrappers"] = batch_chat_key_wrappers
 
             await manager.send_personal_message(
                 {
@@ -1430,6 +1476,7 @@ async def _handle_phase3_sync(
             logger.debug(
                 f"Phase 3: Sent batch {batch_num} ({len(batch_data)} chats, "
                 f"{len(batch_embeds)} embeds, {len(batch_embed_keys)} embed_keys, "
+                f"{len(batch_chat_key_wrappers)} chat_key_wrappers, "
                 f"{len(batch_code_run_outputs)} code_run_outputs)"
             )
 

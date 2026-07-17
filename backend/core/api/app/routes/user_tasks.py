@@ -48,7 +48,9 @@ class UserTaskCreateRequest(BaseModel):
     encrypted_task_key: str | None = None
     encrypted_title: str = Field(min_length=1)
     encrypted_description: str | None = None
+    encrypted_labels: str | None = None
     encrypted_tags: str | None = None
+    label_hashes: list[str] = Field(default_factory=list)
     encrypted_linked_project_ids: str | None = None
     encrypted_activity_summary: str | None = None
     encrypted_latest_instruction: str | None = None
@@ -63,7 +65,7 @@ class UserTaskCreateRequest(BaseModel):
     task_type: Literal["work", "verification"] = "work"
     verification_id: str | None = None
     due_at: int | None = None
-    priority: int = 0
+    priority: int = Field(default=0, ge=0, le=4)
     position: int = 0
     version: int
     created_at: int
@@ -75,7 +77,9 @@ class UserTaskUpdateRequest(BaseModel):
     encrypted_title: str | None = None
     encrypted_task_key: str | None = None
     encrypted_description: str | None = None
+    encrypted_labels: str | None = None
     encrypted_tags: str | None = None
+    label_hashes: list[str] | None = None
     encrypted_linked_project_ids: str | None = None
     encrypted_activity_summary: str | None = None
     encrypted_latest_instruction: str | None = None
@@ -90,7 +94,7 @@ class UserTaskUpdateRequest(BaseModel):
     task_type: Literal["work", "verification"] | None = None
     verification_id: str | None = None
     due_at: int | None = None
-    priority: int | None = None
+    priority: int | None = Field(default=None, ge=0, le=4)
     position: int | None = None
     blocked_reason_code: str | None = None
     ai_execution_state: str | None = None
@@ -187,6 +191,9 @@ async def list_user_tasks(
     project_id: str | None = None,
     chat_id: str | None = None,
     assignee_hash: str | None = None,
+    label_hash: list[str] | None = Query(default=None),
+    label_hashes: list[str] | None = Query(default=None),
+    priority: int | None = Query(default=None, ge=0, le=4),
     due_before: int | None = None,
     limit: int = 100,
     service: UserTaskService = Depends(get_user_task_service),
@@ -199,11 +206,13 @@ async def list_user_tasks(
         project_id=project_id,
         chat_id=chat_id,
         assignee_hash=assignee_hash,
+        label_hashes=[*(label_hash or []), *(label_hashes or [])],
+        priority=priority,
         due_before=due_before,
         limit=limit,
     )
     projections = []
-    if not any((chat_id, project_id, assignee_hash, due_before is not None)):
+    if not any((chat_id, project_id, assignee_hash, label_hash, label_hashes, priority is not None, due_before is not None)):
         projections = await run_in_threadpool(workflow_projection_service.list_projections, current_user.id)
         if status is not None:
             projections = [projection for projection in projections if projection.status == status]

@@ -328,6 +328,10 @@ export interface CachedEmbedKey {
   [key: string]: unknown;
 }
 
+export interface CachedChatKeyWrapper {
+  [key: string]: unknown;
+}
+
 export interface CachedNewChatSuggestion {
   [key: string]: unknown;
 }
@@ -345,6 +349,8 @@ export interface SyncCache {
   embeds: CachedEmbed[];
   /** Embed keys for embed decryption */
   embedKeys: CachedEmbedKey[];
+  /** Chat key wrappers for wrapper-first chat decryption */
+  chatKeyWrappers?: CachedChatKeyWrapper[];
   /**
    * New chat suggestions from the last sync.
    * Each entry has id, chat_id, encrypted_suggestion, created_at.

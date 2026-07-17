@@ -231,6 +231,10 @@ async def handle_chat_content_batch(
             chat_ids,
             user_id,
         )
+        chat_key_wrappers = await directus_service.chat_key_wrapper.get_wrappers_by_hashed_chat_ids_batch(
+            hashed_ids_for_keys,
+            hashed_user_id=hashlib.sha256(user_id.encode()).hexdigest(),
+        ) if hashed_ids_for_keys else []
 
         response_payload_data: Dict[str, Any] = {
             "messages_by_chat_id": messages_by_chat_id,
@@ -238,6 +242,7 @@ async def handle_chat_content_batch(
             "compression_checkpoints_by_chat_id": compression_checkpoints_by_chat_id,
             "embeds": all_embeds,
             "embed_keys": all_embed_keys,
+            "chat_key_wrappers": chat_key_wrappers,
             "code_run_outputs": code_run_outputs,
         }
 

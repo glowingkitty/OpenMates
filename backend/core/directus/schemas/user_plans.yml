@@ -59,7 +59,7 @@ user_plans:
     encrypted_plan_key:
       type: text
       nullable: true
-      note: "[Client-encrypted durable storage] Plan key wrapped with the user's master key."
+      note: "[Migration-only client-encrypted field] Legacy plan key wrapped with the user's master key. Canonical clients must use user_plan_key_wrappers before launch."
     encrypted_title:
       type: text
       note: "[Client-encrypted durable storage] Plan title."
@@ -109,7 +109,7 @@ user_plan_key_wrappers:
       note: "[Indexed] SHA256(user_id) of the plan owner."
     key_type:
       type: string
-      note: "Wrapper type: master, chat, or project. Share links use URL-fragment key payloads, not durable wrappers."
+      note: "Wrapper type: master, chat, project, plan, or team. Share links use URL-fragment key payloads, not durable wrappers."
     hashed_chat_id:
       type: string
       nullable: true
@@ -118,6 +118,18 @@ user_plan_key_wrappers:
       type: string
       nullable: true
       note: "[Indexed] SHA256(project_id) for project scoped plan key wrappers."
+    hashed_context_plan_id:
+      type: string
+      nullable: true
+      note: "[Indexed] SHA256(plan_id) for plan scoped child-object wrappers. Null for the plan's own master/chat/project/team wrappers."
+    hashed_team_id:
+      type: string
+      nullable: true
+      note: "[Indexed] SHA256(team_id) for team scoped plan key wrappers."
+    team_key_epoch:
+      type: integer
+      nullable: true
+      note: "Team key rotation epoch for key_type='team'."
     encrypted_plan_key:
       type: text
       note: "Plan key wrapped with the context key. Never stores the raw plan key."
@@ -126,6 +138,10 @@ user_plan_key_wrappers:
     expires_at:
       type: integer
       nullable: true
+    wrapper_version:
+      type: integer
+      default: 1
+      note: "Wrapper contract version."
 
 user_plan_steps:
   type: collection

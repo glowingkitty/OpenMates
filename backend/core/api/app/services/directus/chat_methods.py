@@ -506,6 +506,7 @@ class ChatMethods:
             success, result_data = await self.directus_service.create_item('chats', chat_metadata)
             if success and result_data:
                 logger.info(f"Chat created in Directus: {result_data.get('id')}")
+                await self._ensure_chat_key_wrapper_from_metadata(result_data)
                 if chat_id_val:
                     await self.directus_service.cache.delete(f"chat:{chat_id_val}:metadata")
                 
@@ -602,6 +603,7 @@ class ChatMethods:
                                 'chats', chat_id_val, fields_to_update
                             )
                             if updated_data:
+                                await self._ensure_chat_key_wrapper_from_metadata(updated_data)
                                 await self.directus_service.cache.delete(f"chat:{chat_id_val}:metadata")
                                 return updated_data, True
                         except Exception as update_err:
@@ -624,6 +626,26 @@ class ChatMethods:
         except Exception as e:
             logger.error(f"Error creating chat in Directus: {e}", exc_info=True)
             return None, False
+
+    async def _ensure_chat_key_wrapper_from_metadata(self, chat_metadata: Dict[str, Any]) -> None:
+        encrypted_chat_key = chat_metadata.get("encrypted_chat_key")
+        chat_id = chat_metadata.get("id")
+        hashed_user_id = chat_metadata.get("hashed_user_id")
+        if not chat_id or not hashed_user_id or not encrypted_chat_key:
+            return
+        try:
+            await self.directus_service.chat_key_wrapper.ensure_master_wrapper_for_chat(
+                chat_id=str(chat_id),
+                hashed_user_id=str(hashed_user_id),
+                encrypted_chat_key=str(encrypted_chat_key),
+            )
+        except Exception as wrapper_error:
+            logger.warning(
+                "Failed to ensure chat key wrapper for chat %s: %s",
+                chat_id,
+                wrapper_error,
+                exc_info=True,
+            )
 
     async def message_exists_by_client_message_id(self, client_message_id: str) -> bool:
         """

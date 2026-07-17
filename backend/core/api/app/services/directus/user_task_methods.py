@@ -12,22 +12,22 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 SHA256_HEX_RE = re.compile(r"^[0-9a-f]{64}$")
-KEY_WRAPPER_TYPES = {"master", "chat", "project"}
+KEY_WRAPPER_TYPES = {"master", "chat", "project", "plan", "team"}
 
 
 USER_TASK_FIELDS = (
     "id,task_id,hashed_user_id,status,assignee_type,assignee_hash,"
-    "primary_chat_id,hashed_primary_chat_id,linked_project_hashes,parent_task_id,"
+    "primary_chat_id,hashed_primary_chat_id,linked_project_hashes,label_hashes,parent_task_id,"
     "plan_id,plan_step_id,task_type,verification_id,"
     "due_at,priority,position,version,created_at,updated_at,started_at,"
     "completed_at,blocked_reason_code,queue_state,ai_execution_state,encrypted_title,"
-    "encrypted_task_key,encrypted_description,encrypted_tags,encrypted_linked_project_ids,"
+    "encrypted_task_key,encrypted_description,encrypted_labels,encrypted_tags,encrypted_linked_project_ids,"
     "encrypted_activity_summary,encrypted_latest_instruction"
 )
 
 USER_TASK_KEY_WRAPPER_FIELDS = (
     "id,hashed_task_id,hashed_user_id,key_type,hashed_chat_id,hashed_project_id,"
-    "encrypted_task_key,created_at,expires_at"
+    "hashed_plan_id,hashed_team_id,team_key_epoch,encrypted_task_key,created_at,expires_at,wrapper_version"
 )
 
 
@@ -58,6 +58,27 @@ def _coerce_hashes(value: Any) -> set[str]:
     return set()
 
 
+def _coerce_blind_hashes(value: Any) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    hashes: list[str] = []
+    for item in value:
+        if not isinstance(item, str) or not is_sha256_hex(item):
+            raise ValueError("Task label hashes must be lowercase SHA-256 hex strings")
+        hashes.append(item)
+    return hashes
+
+
+def _coerce_priority(value: Any) -> int:
+    try:
+        priority = int(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("Task priority must be an integer from 0 to 4") from exc
+    if priority < 0 or priority > 4:
+        raise ValueError("Task priority must be an integer from 0 to 4")
+    return priority
+
+
 def _validate_wrapper_shape(wrapper: dict[str, Any], encrypted_key_field: str) -> bool:
     key_type = wrapper.get("key_type")
     if key_type not in KEY_WRAPPER_TYPES:
@@ -69,21 +90,40 @@ def _validate_wrapper_shape(wrapper: dict[str, Any], encrypted_key_field: str) -
 
     hashed_chat_id = wrapper.get("hashed_chat_id")
     hashed_project_id = wrapper.get("hashed_project_id")
+    hashed_plan_id = wrapper.get("hashed_plan_id")
+    hashed_team_id = wrapper.get("hashed_team_id")
+    team_key_epoch = wrapper.get("team_key_epoch")
     if hashed_chat_id is not None and not is_sha256_hex(hashed_chat_id):
         logger.error("Rejected user task key wrapper with invalid hashed_chat_id")
         return False
     if hashed_project_id is not None and not is_sha256_hex(hashed_project_id):
         logger.error("Rejected user task key wrapper with invalid hashed_project_id")
         return False
-    if key_type == "master" and (hashed_chat_id is not None or hashed_project_id is not None):
+    if hashed_plan_id is not None and not is_sha256_hex(hashed_plan_id):
+        logger.error("Rejected user task key wrapper with invalid hashed_plan_id")
+        return False
+    if hashed_team_id is not None and not is_sha256_hex(hashed_team_id):
+        logger.error("Rejected user task key wrapper with invalid hashed_team_id")
+        return False
+    if key_type == "master" and any(value is not None for value in (hashed_chat_id, hashed_project_id, hashed_plan_id, hashed_team_id)):
         logger.error("Rejected user task master wrapper with scoped hash")
         return False
-    if key_type == "chat" and (hashed_chat_id is None or hashed_project_id is not None):
+    if key_type == "chat" and (hashed_chat_id is None or any(value is not None for value in (hashed_project_id, hashed_plan_id, hashed_team_id))):
         logger.error("Rejected user task chat wrapper with invalid scope")
         return False
-    if key_type == "project" and (hashed_project_id is None or hashed_chat_id is not None):
+    if key_type == "project" and (hashed_project_id is None or any(value is not None for value in (hashed_chat_id, hashed_plan_id, hashed_team_id))):
         logger.error("Rejected user task project wrapper with invalid scope")
         return False
+    if key_type == "plan" and (hashed_plan_id is None or any(value is not None for value in (hashed_chat_id, hashed_project_id, hashed_team_id))):
+        logger.error("Rejected user task plan wrapper with invalid scope")
+        return False
+    if key_type == "team":
+        if hashed_team_id is None or any(value is not None for value in (hashed_chat_id, hashed_project_id, hashed_plan_id)):
+            logger.error("Rejected user task team wrapper with invalid scope")
+            return False
+        if not isinstance(team_key_epoch, int) or team_key_epoch < 1:
+            logger.error("Rejected user task team wrapper without valid team_key_epoch")
+            return False
     return True
 
 
@@ -92,6 +132,7 @@ def _validate_wrapper_set(
     *,
     primary_chat_hash: str | None,
     project_hashes: set[str],
+    plan_hash: str | None = None,
 ) -> bool:
     if not wrappers:
         logger.error("Rejected empty user task key wrapper set")
@@ -99,6 +140,7 @@ def _validate_wrapper_set(
     master_count = 0
     chat_hashes: set[str] = set()
     wrapper_project_hashes: set[str] = set()
+    plan_hashes: set[str] = set()
     for wrapper in wrappers:
         if not _validate_wrapper_shape(wrapper, "encrypted_task_key"):
             return False
@@ -117,6 +159,12 @@ def _validate_wrapper_set(
                 logger.error("Rejected user task project wrapper that does not match linked project metadata")
                 return False
             wrapper_project_hashes.add(hashed_project_id)
+        elif key_type == "plan":
+            hashed_plan_id = wrapper.get("hashed_plan_id")
+            if hashed_plan_id != plan_hash:
+                logger.error("Rejected user task plan wrapper that does not match plan metadata")
+                return False
+            plan_hashes.add(hashed_plan_id)
     if master_count != 1:
         logger.error("Rejected user task key wrapper set without exactly one master wrapper")
         return False
@@ -125,6 +173,9 @@ def _validate_wrapper_set(
         return False
     if not project_hashes.issubset(wrapper_project_hashes):
         logger.error("Rejected user task key wrapper set missing linked project wrappers")
+        return False
+    if plan_hash and plan_hash not in plan_hashes:
+        logger.error("Rejected user task key wrapper set missing linked plan wrapper")
         return False
     return True
 
@@ -141,25 +192,33 @@ class UserTaskMethods:
         chat_id: str | None = None,
         project_id: str | None = None,
         assignee_hash: str | None = None,
+        label_hashes: list[str] | None = None,
+        priority: int | None = None,
         due_before: int | None = None,
         limit: int = 100,
     ) -> list[dict[str, Any]]:
+        filter_terms: list[dict[str, Any]] = [{"hashed_user_id": {"_eq": hash_id(user_id)}}]
+        valid_label_hashes = _coerce_blind_hashes(label_hashes or [])
         params: dict[str, Any] = {
-            "filter[hashed_user_id][_eq]": hash_id(user_id),
             "fields": USER_TASK_FIELDS,
             "sort": "position,created_at",
             "limit": max(1, min(limit, 500)),
         }
         if status:
-            params["filter[status][_eq]"] = status
+            filter_terms.append({"status": {"_eq": status}})
         if chat_id:
-            params["filter[hashed_primary_chat_id][_eq]"] = hash_id(chat_id)
+            filter_terms.append({"hashed_primary_chat_id": {"_eq": hash_id(chat_id)}})
         if project_id:
-            params["filter[linked_project_hashes][_contains]"] = hash_id(project_id)
+            filter_terms.append({"linked_project_hashes": {"_contains": hash_id(project_id)}})
         if assignee_hash:
-            params["filter[assignee_hash][_eq]"] = assignee_hash
+            filter_terms.append({"assignee_hash": {"_eq": assignee_hash}})
+        if priority is not None:
+            filter_terms.append({"priority": {"_eq": _coerce_priority(priority)}})
+        for label_hash in valid_label_hashes:
+            filter_terms.append({"label_hashes": {"_contains": label_hash}})
         if due_before is not None:
-            params["filter[due_at][_lte]"] = due_before
+            filter_terms.append({"due_at": {"_lte": due_before}})
+        params["filter"] = {"_and": filter_terms} if len(filter_terms) > 1 else filter_terms[0]
 
         response = await self.directus_service.get_items("user_tasks", params=params, no_cache=True)
         return [_with_short_id(task) for task in response] if isinstance(response, list) else []
@@ -235,6 +294,8 @@ class UserTaskMethods:
             "status": payload.get("status") or "todo",
             "assignee_type": payload.get("assignee_type") or "user",
             "linked_project_hashes": [hash_id(project_id) for project_id in linked_project_ids if project_id],
+            "label_hashes": _coerce_blind_hashes(payload.get("label_hashes") or []),
+            "priority": _coerce_priority(payload.get("priority") or 0),
             "hashed_primary_chat_id": hash_id(primary_chat_id) if primary_chat_id else None,
             "version": int(version),
             "created_at": now,
@@ -244,6 +305,7 @@ class UserTaskMethods:
             key_wrappers,
             primary_chat_hash=record.get("hashed_primary_chat_id"),
             project_hashes=_coerce_hashes(record.get("linked_project_hashes")),
+            plan_hash=hash_id(record["plan_id"]) if record.get("plan_id") else None,
         ):
             return None
         success, data = await self.directus_service.create_item("user_tasks", record)
@@ -271,6 +333,8 @@ class UserTaskMethods:
     async def create_task_key_wrapper(self, user_id: str, task_id: str, wrapper: dict[str, Any]) -> dict[str, Any] | None:
         hashed_chat_id = wrapper.get("hashed_chat_id")
         hashed_project_id = wrapper.get("hashed_project_id")
+        hashed_plan_id = wrapper.get("hashed_plan_id")
+        hashed_team_id = wrapper.get("hashed_team_id")
         if not _validate_wrapper_shape(wrapper, "encrypted_task_key"):
             return None
         record = {
@@ -279,9 +343,13 @@ class UserTaskMethods:
             "key_type": wrapper.get("key_type"),
             "hashed_chat_id": hashed_chat_id,
             "hashed_project_id": hashed_project_id,
+            "hashed_plan_id": hashed_plan_id,
+            "hashed_team_id": hashed_team_id,
+            "team_key_epoch": wrapper.get("team_key_epoch"),
             "encrypted_task_key": wrapper.get("encrypted_task_key"),
             "created_at": wrapper.get("created_at"),
             "expires_at": wrapper.get("expires_at"),
+            "wrapper_version": wrapper.get("wrapper_version", 1),
         }
         success, data = await self.directus_service.create_item("user_task_key_wrappers", record, admin_required=True)
         if not success:
@@ -330,6 +398,7 @@ class UserTaskMethods:
             wrappers,
             primary_chat_hash=task.get("hashed_primary_chat_id"),
             project_hashes=_coerce_hashes(task.get("linked_project_hashes")),
+            plan_hash=hash_id(task["plan_id"]) if task.get("plan_id") else None,
         ):
             return None
         existing_wrappers = await self.list_task_key_wrappers(user_id, task_id)
@@ -420,6 +489,7 @@ class UserTaskMethods:
         if "linked_project_ids" in update:
             linked_project_ids = update.get("linked_project_ids") or []
             next_project_hashes = {hash_id(project_id) for project_id in linked_project_ids if project_id}
+        next_plan_hash = hash_id(update["plan_id"]) if update.get("plan_id") else (hash_id(existing["plan_id"]) if existing.get("plan_id") else None)
 
         relinks_context = next_chat_hash != existing_chat_hash or next_project_hashes != existing_project_hashes
         if relinks_context and not key_wrappers:
@@ -431,6 +501,10 @@ class UserTaskMethods:
         update.pop("task_id", None)
         update.pop("hashed_user_id", None)
         update.pop("version", None)
+        if "label_hashes" in update:
+            update["label_hashes"] = _coerce_blind_hashes(update.get("label_hashes") or [])
+        if "priority" in update:
+            update["priority"] = _coerce_priority(update.get("priority") or 0)
         if "primary_chat_id" in update:
             primary_chat_id = update.get("primary_chat_id")
             update["hashed_primary_chat_id"] = hash_id(primary_chat_id) if primary_chat_id else None
@@ -441,6 +515,7 @@ class UserTaskMethods:
             key_wrappers,
             primary_chat_hash=next_chat_hash,
             project_hashes=next_project_hashes,
+            plan_hash=next_plan_hash,
         ):
             return None
         if key_wrappers is not None:

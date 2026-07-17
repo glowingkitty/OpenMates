@@ -11,7 +11,7 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 SHA256_HEX_RE = re.compile(r"^[0-9a-f]{64}$")
-KEY_WRAPPER_TYPES = {"master", "chat", "project"}
+KEY_WRAPPER_TYPES = {"master", "chat", "project", "plan", "team"}
 
 
 USER_PLAN_FIELDS = (
@@ -25,7 +25,7 @@ USER_PLAN_FIELDS = (
 
 USER_PLAN_KEY_WRAPPER_FIELDS = (
     "id,hashed_plan_id,hashed_user_id,key_type,hashed_chat_id,hashed_project_id,"
-    "encrypted_plan_key,created_at,expires_at"
+    "hashed_context_plan_id,hashed_team_id,team_key_epoch,encrypted_plan_key,created_at,expires_at,wrapper_version"
 )
 
 CRITERION_FIELDS = (
@@ -69,21 +69,40 @@ def _validate_wrapper_shape(wrapper: dict[str, Any], encrypted_key_field: str) -
 
     hashed_chat_id = wrapper.get("hashed_chat_id")
     hashed_project_id = wrapper.get("hashed_project_id")
+    hashed_context_plan_id = wrapper.get("hashed_plan_id")
+    hashed_team_id = wrapper.get("hashed_team_id")
+    team_key_epoch = wrapper.get("team_key_epoch")
     if hashed_chat_id is not None and not is_sha256_hex(hashed_chat_id):
         logger.error("Rejected user plan key wrapper with invalid hashed_chat_id")
         return False
     if hashed_project_id is not None and not is_sha256_hex(hashed_project_id):
         logger.error("Rejected user plan key wrapper with invalid hashed_project_id")
         return False
-    if key_type == "master" and (hashed_chat_id is not None or hashed_project_id is not None):
+    if hashed_context_plan_id is not None and not is_sha256_hex(hashed_context_plan_id):
+        logger.error("Rejected user plan key wrapper with invalid hashed_plan_id")
+        return False
+    if hashed_team_id is not None and not is_sha256_hex(hashed_team_id):
+        logger.error("Rejected user plan key wrapper with invalid hashed_team_id")
+        return False
+    if key_type == "master" and any(value is not None for value in (hashed_chat_id, hashed_project_id, hashed_context_plan_id, hashed_team_id)):
         logger.error("Rejected user plan master wrapper with scoped hash")
         return False
-    if key_type == "chat" and (hashed_chat_id is None or hashed_project_id is not None):
+    if key_type == "chat" and (hashed_chat_id is None or any(value is not None for value in (hashed_project_id, hashed_context_plan_id, hashed_team_id))):
         logger.error("Rejected user plan chat wrapper with invalid scope")
         return False
-    if key_type == "project" and (hashed_project_id is None or hashed_chat_id is not None):
+    if key_type == "project" and (hashed_project_id is None or any(value is not None for value in (hashed_chat_id, hashed_context_plan_id, hashed_team_id))):
         logger.error("Rejected user plan project wrapper with invalid scope")
         return False
+    if key_type == "plan" and (hashed_context_plan_id is None or any(value is not None for value in (hashed_chat_id, hashed_project_id, hashed_team_id))):
+        logger.error("Rejected user plan plan wrapper with invalid scope")
+        return False
+    if key_type == "team":
+        if hashed_team_id is None or any(value is not None for value in (hashed_chat_id, hashed_project_id, hashed_context_plan_id)):
+            logger.error("Rejected user plan team wrapper with invalid scope")
+            return False
+        if not isinstance(team_key_epoch, int) or team_key_epoch < 1:
+            logger.error("Rejected user plan team wrapper without valid team_key_epoch")
+            return False
     return True
 
 
@@ -218,6 +237,8 @@ class UserPlanMethods:
     async def create_plan_key_wrapper(self, user_id: str, plan_id: str, wrapper: dict[str, Any]) -> dict[str, Any] | None:
         hashed_chat_id = wrapper.get("hashed_chat_id")
         hashed_project_id = wrapper.get("hashed_project_id")
+        hashed_context_plan_id = wrapper.get("hashed_plan_id")
+        hashed_team_id = wrapper.get("hashed_team_id")
         if not _validate_wrapper_shape(wrapper, "encrypted_plan_key"):
             return None
         record = {
@@ -226,9 +247,13 @@ class UserPlanMethods:
             "key_type": wrapper.get("key_type"),
             "hashed_chat_id": hashed_chat_id,
             "hashed_project_id": hashed_project_id,
+            "hashed_context_plan_id": hashed_context_plan_id,
+            "hashed_team_id": hashed_team_id,
+            "team_key_epoch": wrapper.get("team_key_epoch"),
             "encrypted_plan_key": wrapper.get("encrypted_plan_key"),
             "created_at": wrapper.get("created_at"),
             "expires_at": wrapper.get("expires_at"),
+            "wrapper_version": wrapper.get("wrapper_version", 1),
         }
         success, data = await self.directus_service.create_item("user_plan_key_wrappers", record)
         if not success:

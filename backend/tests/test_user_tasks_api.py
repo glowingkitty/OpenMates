@@ -37,6 +37,10 @@ def task_payload(**overrides):
     return base
 
 
+LABEL_HASH_A = "a" * 64
+LABEL_HASH_B = "b" * 64
+
+
 class FakeLockClient:
     def __init__(self):
         self.values = {}
@@ -91,6 +95,43 @@ async def test_create_task_hashes_owner_and_projects_without_plaintext_content()
     assert record["encrypted_task_key"] == "cipher-task-key"
     assert "title" not in record
     assert "description" not in record
+
+
+@pytest.mark.asyncio
+async def test_create_task_persists_label_hashes_and_priority_metadata() -> None:
+    directus = SimpleNamespace()
+    directus.create_item = AsyncMock(return_value=(True, {"id": "row-1", **task_payload()}))
+
+    methods = UserTaskMethods(with_lock_cache(directus))
+    await methods.create_task("user-1", task_payload(label_hashes=[LABEL_HASH_A, LABEL_HASH_B], priority=4))
+
+    _collection, record = directus.create_item.await_args.args
+    assert record["label_hashes"] == [LABEL_HASH_A, LABEL_HASH_B]
+    assert record["priority"] == 4
+    assert "labels" not in record
+
+
+@pytest.mark.asyncio
+async def test_list_tasks_filters_labels_with_and_semantics_and_priority() -> None:
+    directus = SimpleNamespace()
+    directus.get_items = AsyncMock(return_value=[])
+
+    methods = UserTaskMethods(with_lock_cache(directus))
+    await methods.list_tasks("user-1", label_hashes=[LABEL_HASH_A, LABEL_HASH_B], priority=3)
+
+    params = directus.get_items.await_args.kwargs["params"]
+    filter_terms = params["filter"]["_and"]
+    assert {"label_hashes": {"_contains": LABEL_HASH_A}} in filter_terms
+    assert {"label_hashes": {"_contains": LABEL_HASH_B}} in filter_terms
+    assert {"priority": {"_eq": 3}} in filter_terms
+
+
+@pytest.mark.asyncio
+async def test_task_label_hashes_must_be_valid_blind_indexes() -> None:
+    methods = UserTaskMethods(with_lock_cache(SimpleNamespace()))
+
+    with pytest.raises(ValueError, match="label hashes"):
+        await methods.list_tasks("user-1", label_hashes=["not-a-hash"])
 
 
 def test_task_short_id_matches_cli_derivation() -> None:
@@ -414,10 +455,11 @@ async def test_list_tasks_filters_by_chat_and_project_hashes() -> None:
     await methods.list_tasks("user-1", chat_id="chat-1", project_id="project-1", status="todo")
 
     params = directus.get_items.await_args.kwargs["params"]
-    assert params["filter[hashed_user_id][_eq]"] == hash_id("user-1")
-    assert params["filter[hashed_primary_chat_id][_eq]"] == hash_id("chat-1")
-    assert params["filter[linked_project_hashes][_contains]"] == hash_id("project-1")
-    assert params["filter[status][_eq]"] == "todo"
+    filter_terms = params["filter"]["_and"]
+    assert {"hashed_user_id": {"_eq": hash_id("user-1")}} in filter_terms
+    assert {"hashed_primary_chat_id": {"_eq": hash_id("chat-1")}} in filter_terms
+    assert {"linked_project_hashes": {"_contains": hash_id("project-1")}} in filter_terms
+    assert {"status": {"_eq": "todo"}} in filter_terms
 
 
 @pytest.mark.asyncio
