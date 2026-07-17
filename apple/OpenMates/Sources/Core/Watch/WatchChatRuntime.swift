@@ -269,7 +269,7 @@ struct WatchRemoteMessage: Equatable, Sendable {
     let role: WatchChatMessage.Role
     let content: String?
     let encryptedContent: String?
-    let embedRefs: [WatchEmbedRef]? = nil
+    let embedRefs: [WatchEmbedRef]?
     let createdAt: String
 
     init(
