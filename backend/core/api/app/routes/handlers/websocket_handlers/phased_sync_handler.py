@@ -14,6 +14,9 @@ from backend.core.api.app.routes.connection_manager import ConnectionManager
 from backend.core.api.app.routes.handlers.websocket_handlers.chat_compression_checkpoint_handler import (
     get_latest_chat_compression_checkpoint,
 )
+from backend.core.api.app.routes.handlers.websocket_handlers.sync_message_hydration import (
+    load_sync_messages_with_directus_fallback,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -906,25 +909,13 @@ async def _handle_phase1b_sync(
                     should_fetch_messages = False
 
             if should_fetch_messages:
-                # Try sync cache first
-                try:
-                    cached = await cache_service.get_sync_messages_history(user_id, chat_id)
-                    if cached:
-                        messages_data = cached
-                except Exception:
-                    pass
-
-                # Fallback to Directus
-                if not messages_data:
-                    try:
-                        messages_data = await directus_service.chat.get_all_messages_for_chat(
-                            chat_id=chat_id, decrypt_content=False
-                        ) or []
-                    except Exception as e:
-                        logger.warning(f"[PHASE1b] Failed to fetch messages for {chat_id}: {e}")
-
-                if server_message_count is None:
-                    server_message_count = len(messages_data)
+                messages_data, server_message_count = await load_sync_messages_with_directus_fallback(
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    user_id=user_id,
+                    chat_id=chat_id,
+                    log_prefix="[PHASE1b]",
+                )
 
             checkpoint = await get_latest_chat_compression_checkpoint(
                 directus_service,
@@ -1357,24 +1348,13 @@ async def _handle_phase3_sync(
             batch_data: List[Dict[str, Any]] = []
 
             for chat_id in batch_chat_ids:
-                messages_data: List[str] = []
-
-                # Try sync cache first
-                try:
-                    cached = await cache_service.get_sync_messages_history(user_id, chat_id)
-                    if cached:
-                        messages_data = cached
-                except Exception:
-                    pass
-
-                # Fallback to Directus
-                if not messages_data:
-                    try:
-                        messages_data = await directus_service.chat.get_all_messages_for_chat(
-                            chat_id=chat_id, decrypt_content=False
-                        ) or []
-                    except Exception as e:
-                        logger.warning(f"Phase 3: Failed to fetch messages for {chat_id}: {e}")
+                messages_data, server_message_count = await load_sync_messages_with_directus_fallback(
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    user_id=user_id,
+                    chat_id=chat_id,
+                    log_prefix="Phase 3",
+                )
 
                 server_ver = batch_versions.get(chat_id)
                 server_messages_v = server_ver.messages_v if server_ver else len(messages_data)
@@ -1388,8 +1368,8 @@ async def _handle_phase3_sync(
                     "chat_id": chat_id,
                     "messages": messages_data,
                     "compression_checkpoints": [checkpoint] if checkpoint else [],
-                    "server_message_count": len(messages_data),
-                    "messages_v": max(server_messages_v, len(messages_data))
+                    "server_message_count": server_message_count,
+                    "messages_v": max(server_messages_v, server_message_count)
                 })
                 total_messages_sent += len(messages_data)
 

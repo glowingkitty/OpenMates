@@ -15,6 +15,7 @@ from backend.core.api.app.routes.handlers.websocket_handlers import phased_sync_
 from backend.core.api.app.routes.handlers.websocket_handlers.phased_sync_handler import (
     _count_directus_filled_metadata_fields,
     _handle_phase1_sync,
+    _handle_phase1b_sync,
     _is_parent_chat_details,
     _merge_partial_cache_chat_details,
     _phase1_metadata_invariant_violations,
@@ -164,6 +165,75 @@ async def test_phase_all_does_not_run_phase3_background_content_sync(monkeypatch
 
     assert calls == ["phase1", "phase1b", "phase2", "app_settings"]
     assert all(message["type"] != "background_message_sync" for message in manager.sent)
+
+
+@pytest.mark.anyio
+async def test_phase1b_refetches_directus_when_sync_cache_is_partial(monkeypatch, doc_assert) -> None:
+    doc_assert("phase1b-partial-sync-cache-refetches-directus")
+
+    class FakeCache:
+        async def get_chat_versions(self, user_id, chat_id):
+            return SimpleNamespace(messages_v=3)
+
+        async def get_sync_messages_history(self, user_id, chat_id):
+            return ["cached-user-message"]
+
+        async def get_sync_embeds_for_chat(self, chat_id):
+            return []
+
+    class FakeDirectusChat:
+        async def get_message_count_for_chat(self, chat_id):
+            return 2
+
+        async def get_all_messages_for_chat(self, chat_id, decrypt_content=False):
+            return ["directus-user-message", "directus-assistant-message"]
+
+    class FakeDirectusEmbed:
+        async def get_embeds_by_hashed_chat_id(self, hashed_chat_id):
+            return []
+
+        async def get_embed_keys_by_hashed_chat_ids_batch(self, hashed_chat_ids):
+            return []
+
+    class FakeDirectus:
+        def __init__(self):
+            self.chat = FakeDirectusChat()
+            self.embed = FakeDirectusEmbed()
+
+    async def fake_checkpoint(*args, **kwargs):
+        return None
+
+    async def fake_code_outputs(*args, **kwargs):
+        return []
+
+    async def fake_key_wrappers(*args, **kwargs):
+        return []
+
+    monkeypatch.setattr(phased_sync_handler, "get_latest_chat_compression_checkpoint", fake_checkpoint)
+    monkeypatch.setattr(phased_sync_handler, "_fetch_code_run_outputs_for_chats", fake_code_outputs)
+    monkeypatch.setattr(phased_sync_handler, "_fetch_chat_key_wrappers_for_chats", fake_key_wrappers)
+
+    manager = SimpleNamespace(sent=[])
+
+    async def send_personal_message(message, user_id, device_fingerprint_hash):
+        manager.sent.append(message)
+
+    manager.send_personal_message = send_personal_message
+
+    await _handle_phase1b_sync(
+        manager=manager,
+        cache_service=FakeCache(),
+        directus_service=FakeDirectus(),
+        user_id="user-1",
+        device_fingerprint_hash="device-1",
+        phase1_chat_ids=["chat-1"],
+        client_chat_versions={"chat-1": {"messages_v": 0}},
+        sent_embed_ids=set(),
+    )
+
+    payload_chat = manager.sent[0]["payload"]["chats"][0]
+    assert payload_chat["messages"] == ["directus-user-message", "directus-assistant-message"]
+    assert payload_chat["server_message_count"] == 2
 
 
 @pytest.mark.anyio

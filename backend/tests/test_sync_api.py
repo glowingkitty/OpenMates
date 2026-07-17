@@ -112,3 +112,79 @@ async def test_offline_prefetch_done_after_last_allowed_cursor() -> None:
     assert response.chats == []
     assert response.next_cursor is None
     assert response.done is True
+
+
+@pytest.mark.anyio
+async def test_offline_prefetch_refetches_directus_when_sync_cache_is_partial(monkeypatch) -> None:
+    class FakeDirectusChat:
+        async def get_core_chats_and_user_drafts_for_cache_warming(self, user_id, limit=1000, offset=0):
+            return [{
+                "chat_details": {
+                    "id": "parent-10",
+                    "parent_id": None,
+                    "is_sub_chat": False,
+                    "encrypted_title": "title-10",
+                    "encrypted_chat_key": "key-10",
+                    "created_at": "2026-01-01T00:00:00Z",
+                }
+            }]
+
+        async def get_message_count_for_chat(self, chat_id):
+            return 2
+
+        async def get_all_messages_for_chat(self, chat_id, decrypt_content=False):
+            return ["directus-user-message", "directus-assistant-message"]
+
+    class FakeDirectusEmbed:
+        async def get_embeds_by_hashed_chat_id(self, hashed_chat_id):
+            return []
+
+        async def get_embed_keys_by_hashed_chat_ids_batch(self, hashed_chat_ids):
+            return []
+
+    class FakeDirectusChatKeyWrapper:
+        async def get_wrappers_by_hashed_chat_ids_batch(self, hashed_chat_ids, *, hashed_user_id):
+            return []
+
+    class FakeDirectus:
+        def __init__(self):
+            self.chat = FakeDirectusChat()
+            self.embed = FakeDirectusEmbed()
+            self.chat_key_wrapper = FakeDirectusChatKeyWrapper()
+
+    class FakeCache:
+        async def get_sync_messages_history(self, user_id, chat_id):
+            return ["cached-user-message"]
+
+        async def get_chat_versions(self, user_id, chat_id):
+            return SimpleNamespace(messages_v=3)
+
+        async def get_sync_embeds_for_chat(self, chat_id):
+            return []
+
+    async def fake_checkpoint(*args, **kwargs):
+        return None
+
+    async def fake_code_outputs(*args, **kwargs):
+        return []
+
+    monkeypatch.setattr(sync_api, "get_latest_chat_compression_checkpoint", fake_checkpoint)
+    monkeypatch.setattr(sync_api, "_fetch_code_run_outputs_for_chats", fake_code_outputs)
+
+    response = await build_offline_prefetch_chunk(
+        user_id="user-1",
+        cursor=10,
+        limit=1,
+        include_embeds=True,
+        cache_service=FakeCache(),
+        directus_service=FakeDirectus(),
+    )
+
+    assert response.messages_by_chat_id["parent-10"] == [
+        "directus-user-message",
+        "directus-assistant-message",
+    ]
+    assert response.versions_by_chat_id["parent-10"] == {
+        "messages_v": 3,
+        "server_message_count": 2,
+    }
