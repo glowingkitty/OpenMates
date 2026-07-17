@@ -753,13 +753,15 @@ private final class FakeWatchChatCrypto: WatchChatCrypto {
     }
 
     func decryptMessage(_ message: WatchRemoteMessage) async -> WatchChatMessage {
+        let content = message.encryptedContent.flatMap { decryptedValues[$0] } ?? message.content
+        let embedRefs = message.embedRefs ?? WatchMessageContentSanitizer.inlineEmbedRefs(content: content)
         WatchChatMessage(
             id: message.id,
             chatId: message.chatId,
             role: message.role,
-            content: message.encryptedContent.flatMap { decryptedValues[$0] } ?? message.content,
+            content: content,
             encryptedContent: message.encryptedContent,
-            embedRefs: message.embedRefs,
+            embedRefs: embedRefs.isEmpty ? nil : embedRefs,
             createdAt: message.createdAt,
             isPending: false
         )
