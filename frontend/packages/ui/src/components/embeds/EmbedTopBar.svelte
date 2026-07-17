@@ -327,6 +327,20 @@
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
   }
 
+  :global(a.clickable-icon.top-button) {
+    display: block;
+    width: 25px;
+    height: 25px;
+    cursor: pointer;
+    background: var(--color-primary);
+    -webkit-mask-position: center;
+    -webkit-mask-repeat: no-repeat;
+    -webkit-mask-size: contain;
+    mask-position: center;
+    mask-repeat: no-repeat;
+    mask-size: contain;
+  }
+
   /* Preview toggle: primary tint when preview mode is active */
   .preview-active {
     background-color: rgba(99, 102, 241, 0.25) !important;
