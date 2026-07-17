@@ -298,7 +298,7 @@ final class WatchChatRuntimeTests: XCTestCase {
         let directory = temporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
         let chat = Self.chat(id: "chat-a", title: "Alpha", lastMessageAt: "2026-07-06T10:00:00Z")
-        let embedRef = EmbedRef(
+        let embedRef = WatchEmbedRef(
             id: "embed-web-1",
             type: EmbedType.webWebsite.rawValue,
             status: "finished",
@@ -462,7 +462,7 @@ final class WatchChatRuntimeTests: XCTestCase {
         chatId: String,
         content: String?,
         encryptedContent: String? = nil,
-        embedRefs: [EmbedRef]? = nil
+        embedRefs: [WatchEmbedRef]? = nil
     ) -> WatchRemoteMessage {
         WatchRemoteMessage(
             id: id,

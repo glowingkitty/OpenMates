@@ -165,7 +165,7 @@ final class WatchEmbedPreviewTests: XCTestCase {
     }
 
     func testWatchMessageDisplayTextRemovesEmbedOnlyBlocks() throws {
-        let refs = [EmbedRef(id: "embed-a", type: EmbedType.webWebsite.rawValue, status: "finished", data: nil)]
+        let refs = [WatchEmbedRef(id: "embed-a", type: EmbedType.webWebsite.rawValue, status: "finished", data: nil)]
         let content = """
         Here is the result.
 

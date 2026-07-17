@@ -109,7 +109,7 @@ struct WatchEmbedPreviewModel: Equatable, Identifiable, Sendable {
 
 enum WatchEmbedPreviewMapper {
     static func makeModel(
-        for embedRef: EmbedRef,
+        for embedRef: WatchEmbedRef,
         chatId: String?,
         allEmbedRecords: [String: EmbedRecord] = [:]
     ) -> WatchEmbedPreviewModel {
@@ -120,7 +120,7 @@ enum WatchEmbedPreviewMapper {
         )
     }
 
-    static func embedRecord(from embedRef: EmbedRef) -> EmbedRecord {
+    static func embedRecord(from embedRef: WatchEmbedRef) -> EmbedRecord {
         let raw = embedRef.data ?? [:]
         let embedType = EmbedType.normalized(rawValue: embedRef.type)
         let appId = string(raw, keys: ["app_id", "appId"]) ?? embedType?.appId
@@ -396,7 +396,7 @@ enum WatchEmbedPreviewMapper {
 }
 
 enum WatchMessageContentSanitizer {
-    static func displayText(content: String?, embedRefs: [EmbedRef]?) -> String? {
+    static func displayText(content: String?, embedRefs: [WatchEmbedRef]?) -> String? {
         guard let content else { return nil }
         let embedIds = Set((embedRefs ?? []).map(\.id))
         var output: [String] = []
