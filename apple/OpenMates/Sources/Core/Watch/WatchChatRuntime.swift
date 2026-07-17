@@ -839,13 +839,14 @@ private final class WatchChatCryptoService: WatchChatCrypto {
     func decryptMessage(_ message: WatchRemoteMessage) async -> WatchChatMessage {
         let key = chatKeys[message.chatId]
         let content = await decrypt(message.encryptedContent, key: key) ?? message.content
+        let embedRefs = message.embedRefs ?? WatchMessageContentSanitizer.inlineEmbedRefs(content: content)
         return WatchChatMessage(
             id: message.id,
             chatId: message.chatId,
             role: message.role,
             content: content,
             encryptedContent: message.encryptedContent,
-            embedRefs: message.embedRefs,
+            embedRefs: embedRefs.isEmpty ? nil : embedRefs,
             createdAt: message.createdAt,
             isPending: false
         )

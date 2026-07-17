@@ -3323,6 +3323,25 @@ struct MessageBubble: View {
                     .onLongPressGesture {
                         onShowActions?()
                     }
+            } else if !embeds.isEmpty {
+                VStack(alignment: .leading, spacing: .spacing3) {
+                    ForEach(EmbedGrouper.group(embeds)) { group in
+                        GroupedEmbedView(group: group, allEmbedRecords: allEmbedRecords) { embed in
+                            onEmbedTap(embed)
+                        }
+                    }
+                }
+                .padding(.spacing6)
+                .background(Color.greyBlue)
+                .clipShape(RoundedRectangle(cornerRadius: 13))
+                .shadow(color: .black.opacity(0.25), radius: 4, x: 0, y: 4)
+                .overlay(alignment: .bottomTrailing) {
+                    SpeechTailView(side: .trailing, color: Color.greyBlue)
+                }
+                .searchTargetOutline(isSearchTarget)
+                .onLongPressGesture {
+                    onShowActions?()
+                }
             }
         }
     }

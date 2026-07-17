@@ -336,6 +336,36 @@ final class WatchChatRuntimeTests: XCTestCase {
         XCTAssertEqual(preview.continuation.chatId, "chat-a")
     }
 
+    func testOpenChatBuildsWatchEmbedRefsFromInlineJsonWhenApiOmitsRefs() async throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let chat = Self.chat(id: "chat-a", title: "Alpha", lastMessageAt: "2026-07-06T10:00:00Z")
+        let api = FakeWatchChatAPI(
+            messagesByChatId: [
+                "chat-a": [Self.remoteMessage(
+                    id: "msg-a",
+                    chatId: "chat-a",
+                    content: "```json\n{\"type\":\"web-website\",\"embed_id\":\"embed-web-1\",\"title\":\"Inline preview\"}\n```"
+                )]
+            ]
+        )
+        let runtime = WatchChatRuntime(
+            api: api,
+            cache: WatchChatOfflineCache(directory: directory),
+            crypto: FakeWatchChatCrypto()
+        )
+
+        await runtime.openChat(chat)
+
+        let message = try XCTUnwrap(runtime.selectedMessages.first)
+        XCTAssertNil(message.watchDisplayContent)
+        let ref = try XCTUnwrap(message.embedRefs?.first)
+        XCTAssertEqual(ref.id, "embed-web-1")
+        XCTAssertEqual(ref.type, EmbedType.webWebsite.rawValue)
+        XCTAssertEqual(ref.data?["title"]?.value as? String, "Inline preview")
+        XCTAssertEqual(message.watchEmbedRecords.first?.id, "embed-web-1")
+    }
+
     func testRealtimeSyncUsesCachedWatchClientStateWithoutIncognitoChats() async throws {
         let directory = temporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }

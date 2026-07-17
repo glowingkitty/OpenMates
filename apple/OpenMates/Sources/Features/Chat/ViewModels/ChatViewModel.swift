@@ -2670,8 +2670,13 @@ enum PublicChatContent {
 
     private static func extractEmbeds(from content: String, fallbackAppId: String?) -> (content: String, refs: [EmbedRef], records: [EmbedRecord]) {
         var cleaned = content
-        var refs: [EmbedRef] = []
         var records: [EmbedRecord] = []
+        var refsById: [String: (location: Int, ref: EmbedRef)] = [:]
+
+        func recordRef(_ ref: EmbedRef, location: Int) {
+            guard refsById[ref.id] == nil else { return }
+            refsById[ref.id] = (location, ref)
+        }
 
         let jsonPattern = #"```(json_embed|json)\s*([\s\S]*?)\s*```"#
         for match in regexMatches(jsonPattern, in: content).reversed() {
@@ -2747,7 +2752,7 @@ enum PublicChatContent {
             }
 
             records.insert(record, at: 0)
-            refs.insert(embedRef(for: record), at: 0)
+            recordRef(embedRef(for: record), location: match.range.location)
             cleaned.replaceSubrange(fullRange, with: "\n[[embed:\(record.id)]]\n")
         }
 
@@ -2757,10 +2762,18 @@ enum PublicChatContent {
                   let fullRange = Range(match.range(at: 0), in: cleaned) else { continue }
 
             let ref = String(cleaned[refRange])
+            recordRef(EmbedRef(id: ref, type: "web-website", status: "finished", data: nil), location: match.range.location)
             cleaned.replaceSubrange(fullRange, with: "\n[[embedref:\(ref)]]\n")
         }
 
-        return (sanitize(cleaned), refs, records)
+        let inlineEmbedPattern = #"\[\[embed(?:ref)?:([^\]]+)\]\]"#
+        for match in regexMatches(inlineEmbedPattern, in: cleaned).reversed() {
+            guard let idRange = Range(match.range(at: 1), in: cleaned) else { continue }
+            recordRef(EmbedRef(id: String(cleaned[idRange]), type: "web-website", status: "finished", data: nil), location: match.range.location)
+        }
+
+        let orderedRefs = refsById.values.sorted { lhs, rhs in lhs.location < rhs.location }.map { $0.ref }
+        return (sanitize(cleaned), orderedRefs, records)
     }
 
     private static func embedRef(for record: EmbedRecord) -> EmbedRef {

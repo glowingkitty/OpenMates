@@ -179,6 +179,28 @@ final class WatchEmbedPreviewTests: XCTestCase {
         XCTAssertEqual(displayText, "Here is the result.")
     }
 
+    func testWatchExtractsInlineEmbedMarkersWhenApiOmitsRefs() throws {
+        let content = """
+        [[embed:embed-inline]]
+
+        ```json
+        {"type":"web-website","embed_id":"embed-json","title":"Safe title","transcript":"private transcript","aes_key":"secret-key","vault_wrapped_aes_key":"secret-wrapped"}
+        ```
+
+        [!](embed:embed-large)
+        """
+
+        let refs = WatchMessageContentSanitizer.inlineEmbedRefs(content: content)
+
+        XCTAssertEqual(refs.map(\.id), ["embed-inline", "embed-json", "embed-large"])
+        XCTAssertEqual(refs.map(\.type), [EmbedType.webWebsite.rawValue, EmbedType.webWebsite.rawValue, EmbedType.webWebsite.rawValue])
+        XCTAssertEqual(refs[1].data?["title"]?.value as? String, "Safe title")
+        XCTAssertNil(refs[1].data?["transcript"])
+        XCTAssertNil(refs[1].data?["aes_key"])
+        XCTAssertNil(refs[1].data?["vault_wrapped_aes_key"])
+        XCTAssertNil(WatchMessageContentSanitizer.displayText(content: content, embedRefs: refs))
+    }
+
     private static func embed(
         id: String = "embed-1",
         type: String,

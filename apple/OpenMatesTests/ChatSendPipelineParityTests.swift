@@ -522,6 +522,56 @@ final class ChatSendPipelineParityTests: XCTestCase {
         )
     }
 
+    func testNativeAttachEmbedsCreatesUserAudioPreviewRefsFromCanonicalJson() throws {
+        let content = """
+        ```json
+        {"type":"audio-recording","embed_id":"audio-embed-1"}
+        ```
+        """
+        let message = Message(
+            id: "user-audio-1",
+            chatId: "chat-1",
+            role: .user,
+            content: content,
+            encryptedContent: nil,
+            createdAt: "2026-01-01T00:00:00Z",
+            updatedAt: nil,
+            appId: nil,
+            isStreaming: false,
+            embedRefs: nil
+        )
+
+        let attached = PublicChatContent.attachEmbeds(to: [message])
+        let updated = try XCTUnwrap(attached.messages.first)
+
+        XCTAssertEqual(updated.content, "[[embed:audio-embed-1]]")
+        XCTAssertEqual(updated.embedRefs?.map(\.id), ["audio-embed-1"])
+        XCTAssertEqual(attached.records["audio-embed-1"]?.type, "audio-recording")
+        XCTAssertEqual(updated.renderDocumentForDisplay?.blocks.first?.kind, .embedGroup)
+    }
+
+    func testNativeAttachEmbedsPreservesExistingInlineEmbedMarkersAsRefs() throws {
+        let message = Message(
+            id: "assistant-inline-1",
+            chatId: "chat-1",
+            role: .assistant,
+            content: "[[embed:embed-inline]]\n\n```json\n{\"type\":\"web-website\",\"embed_id\":\"embed-json\"}\n```\n\n[!](embed:embed-large)",
+            encryptedContent: nil,
+            createdAt: "2026-01-01T00:00:00Z",
+            updatedAt: nil,
+            appId: "web",
+            isStreaming: false,
+            embedRefs: nil
+        )
+
+        let updated = try XCTUnwrap(PublicChatContent.attachEmbeds(to: [message]).messages.first)
+
+        XCTAssertEqual(updated.embedRefs?.map(\.id), ["embed-inline", "embed-json", "embed-large"])
+        XCTAssertEqual(updated.content?.contains("[[embedref:embed-large]]"), true)
+        XCTAssertEqual(updated.content?.contains("[[embed:embed-inline]]"), true)
+        XCTAssertEqual(updated.renderDocumentForDisplay?.blocks.map(\.kind), [.embedGroup, .embedGroup, .embedGroup])
+    }
+
     func testPendingAssistantResponseQueueStoresOnlyIdsAndDedupes() throws {
         let suiteName = "ChatSendPipelineParityTests"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))

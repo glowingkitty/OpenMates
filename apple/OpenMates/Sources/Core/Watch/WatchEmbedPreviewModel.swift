@@ -396,6 +396,60 @@ enum WatchEmbedPreviewMapper {
 }
 
 enum WatchMessageContentSanitizer {
+    static func inlineEmbedRefs(content: String?) -> [WatchEmbedRef] {
+        guard let content else { return [] }
+        let pattern = #"```(?:json_embed|json)\s*([\s\S]*?)\s*```"#
+        let nsRange = NSRange(content.startIndex..<content.endIndex, in: content)
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return [] }
+        var refsById: [String: (location: Int, ref: WatchEmbedRef)] = [:]
+        var seenIds = Set<String>()
+        func appendRef(_ ref: WatchEmbedRef, location: Int) {
+            guard seenIds.insert(ref.id).inserted else { return }
+            refsById[ref.id] = (location, ref)
+        }
+        func appendFallbackRef(id: String, location: Int) {
+            appendRef(WatchEmbedRef(id: id, type: EmbedType.webWebsite.rawValue, status: "finished", data: nil), location: location)
+        }
+
+        for match in regex.matches(in: content, range: nsRange) {
+            guard let jsonRange = Range(match.range(at: 1), in: content),
+                  let data = String(content[jsonRange]).data(using: .utf8),
+                  let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { continue }
+            guard let embedId = (object["embed_id"] as? String) ?? (object["embedId"] as? String),
+                  !seenIds.contains(embedId) else { continue }
+            let type = object["type"] as? String ?? "web-website"
+            let status = object["status"] as? String ?? "finished"
+            appendRef(WatchEmbedRef(
+                id: embedId,
+                type: type,
+                status: status,
+                data: previewSafeInlineData(from: object)
+            ), location: match.range.location)
+        }
+
+        for markerPattern in [#"\[\[embed(?:ref)?:([^\]]+)\]\]"#, #"\[!\]\(embed:([^\)]+)\)"#] {
+            guard let markerRegex = try? NSRegularExpression(pattern: markerPattern) else { continue }
+            for match in markerRegex.matches(in: content, range: nsRange) {
+                guard let idRange = Range(match.range(at: 1), in: content) else { continue }
+                appendFallbackRef(id: String(content[idRange]), location: match.range.location)
+            }
+        }
+
+        return refsById.values.sorted { lhs, rhs in lhs.location < rhs.location }.map { $0.ref }
+    }
+
+    private static func previewSafeInlineData(from object: [String: Any]) -> [String: AnyCodable] {
+        let allowedKeys = Set([
+            "app_id", "appId", "embed_id", "embedId", "type", "status", "title", "name",
+            "filename", "duration", "duration_seconds",
+            "page_count", "line_count", "language", "query", "result_count", "provider",
+        ])
+        return object.reduce(into: [:]) { result, item in
+            guard allowedKeys.contains(item.key) else { return }
+            result[item.key] = AnyCodable(item.value)
+        }
+    }
+
     static func displayText(content: String?, embedRefs: [WatchEmbedRef]?) -> String? {
         guard let content else { return nil }
         let embedIds = Set((embedRefs ?? []).map(\.id))
@@ -445,6 +499,7 @@ enum WatchMessageContentSanitizer {
         let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return false }
         if trimmed.contains("\"embed_id\"") || trimmed.contains("embed_id:") { return true }
+        if trimmed.hasPrefix("[[embed:") || trimmed.hasPrefix("[[embedref:") || trimmed.hasPrefix("[!](embed:") { return true }
         return embedIds.contains { trimmed == "embed:\($0)" || trimmed == $0 }
     }
 }
