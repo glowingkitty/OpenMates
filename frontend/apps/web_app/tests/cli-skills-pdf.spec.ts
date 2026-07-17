@@ -355,6 +355,8 @@ test.describe('CLI PDF Skills', () => {
 		const aiPdfEmbed = page.getByTestId('message-assistant').locator('[data-testid="embed-preview"][data-app-id="pdf"]');
 		await expect(aiPdfEmbed.first()).toBeVisible({ timeout: 120_000 });
 		logCheckpoint('AI used pdf/read skill — embed visible in assistant response.');
+		await expect(page.locator('[data-action="stop-generation"]')).toHaveCount(0, { timeout: 120_000 });
+		logCheckpoint('AI response finished streaming.');
 		await takeScreenshot(page, 'ai-read-response');
 
 		// -----------------------------------------------------------------------
