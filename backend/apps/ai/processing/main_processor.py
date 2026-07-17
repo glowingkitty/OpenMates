@@ -69,6 +69,7 @@ from backend.apps.ai.processing.task_tool_executor import (
     TASK_TOOL_RESOLVER_APP_ID,
     assigned_app_ids_with_task_app_for_explicit_skill,
     execute_task_tool_call,
+    explicit_task_app_skill_tool_name,
     is_legacy_task_runtime_tool_name,
     is_task_tool_name,
     publish_task_tool_result,
@@ -3253,7 +3254,8 @@ async def handle_main_processing(
                 # non-preselected skills are still hallucinations regardless of
                 # separator format. See _canonicalize_tool_name() for details.
                 raw_function_name = chunk.function_name
-                canonical_name = _canonicalize_tool_name(raw_function_name)
+                canonical_name = explicit_task_app_skill_tool_name(raw_function_name, task_app_skill_mentions)
+                normalized_from_explicit_task_app = canonical_name != _canonicalize_tool_name(raw_function_name)
                 is_sub_chat_violation = (canonical_name == "start-sub-chats" and chat_depth >= 2)
                 if canonical_name not in allowed_tool_names or is_sub_chat_violation:
                     rejection_reason = "Nesting depth limit exceeded: Tier 2 (grandchild) chats cannot spawn sub-chats." if is_sub_chat_violation else INVALID_TOOL_RESULT_REASON
@@ -3292,7 +3294,7 @@ async def handle_main_processing(
                 # downstream code paths (placeholder creation, tool_resolver_map
                 # lookup, skill execution, dedup hashing) see a consistent hyphen
                 # form regardless of which separator the provider emitted.
-                if canonical_name != raw_function_name and not _is_task_tool_like(raw_function_name):
+                if canonical_name != raw_function_name and (normalized_from_explicit_task_app or not _is_task_tool_like(raw_function_name)):
                     logger.info(
                         f"{log_prefix} Normalized tool call name: "
                         f"'{raw_function_name}' -> '{canonical_name}'"
@@ -3903,7 +3905,7 @@ async def handle_main_processing(
 
         # Execute all tool calls (skills) in this turn
         for tool_call in tool_calls_for_this_turn:
-            tool_name = tool_call.function_name
+            tool_name = explicit_task_app_skill_tool_name(tool_call.function_name, task_app_skill_mentions)
             tool_arguments_str = tool_call.function_arguments_raw
             tool_call_id = tool_call.tool_call_id
             tool_result_content_str: str

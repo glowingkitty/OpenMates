@@ -898,14 +898,16 @@ export function taskUpdateJobBelongsToActiveTurn(
 }
 
 export function messageExplicitlyRequestsTasksAppSkill(message: string): boolean {
-  return /@skill:tasks:(create|search)\b/.test(message);
+  return /@skill:tasks:(create|search)\b/i.test(message)
+    || /@tasks-(create|search)\b/i.test(message);
 }
 
 function isStaleTaskUpdateJobError(error: unknown): boolean {
   if (!(error instanceof WebSocketProtocolError)) return false;
   return error.message.includes("Task update job already committed")
     || error.message.includes("Task update job expired")
-    || error.message.includes("Task update job not found");
+    || error.message.includes("Task update job not found")
+    || error.message.includes("Task update job is leased by another device");
 }
 
 export function buildTaskUpdateJobPersistPayload(params: {
@@ -4838,7 +4840,10 @@ export class OpenMatesClient {
       const privatePatch = claim.private_patch ?? {};
       const safeMetadata = claim.safe_metadata ?? {};
       const sourceChatId = claim.chat_id ?? job.chat_id ?? params.activeChatId;
-      if (!sourceChatId) throw new Error(`Task update job ${job.job_id} is missing a source chat id.`);
+      if (!sourceChatId) {
+        handledJobIds.add(job.job_id);
+        continue;
+      }
       const sourceChatKey = await resolveChatKey(sourceChatId);
       const event = eventByJobId.get(job.job_id) ?? {
         event_id: `task-event-${job.job_id}`,

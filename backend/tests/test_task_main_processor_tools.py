@@ -24,6 +24,7 @@ from backend.apps.ai.processing.task_tool_executor import (
     _check_expected_version,
     assigned_app_ids_with_task_app_for_explicit_skill,
     execute_task_tool_call,
+    explicit_task_app_skill_tool_name,
     is_legacy_task_runtime_tool_name,
     is_task_tool_name,
     should_suppress_task_runtime_tools_for_app_skill,
@@ -249,6 +250,12 @@ def test_explicit_tasks_app_skill_expands_assigned_app_allowlist() -> None:
     ) == ["tasks"]
     assert assigned_app_ids_with_task_app_for_explicit_skill(None, {"tasks-create"}) is None
     assert assigned_app_ids_with_task_app_for_explicit_skill(["sheets"], set()) == ["sheets"]
+
+
+def test_explicit_tasks_app_skill_accepts_legacy_singular_tool_aliases() -> None:
+    assert explicit_task_app_skill_tool_name("task_create", {"tasks-create"}) == "tasks-create"
+    assert explicit_task_app_skill_tool_name("task-search", {"tasks-search"}) == "tasks-search"
+    assert explicit_task_app_skill_tool_name("task_create", {"tasks-search"}) == "task-create"
 
 
 def test_task_tool_schema_sanitizer_removes_google_unsupported_additional_properties() -> None:

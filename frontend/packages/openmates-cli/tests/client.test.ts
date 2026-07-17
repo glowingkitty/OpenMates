@@ -671,6 +671,163 @@ describe("OpenMatesClient session API URL", () => {
       await new Promise<void>((resolve) => server.close(() => resolve()));
     }
   });
+
+  it("skips passive task update jobs that do not include source chat context", async () => {
+    const server = createServer((request: IncomingMessage, response: ServerResponse) => {
+      if (request.url === "/v1/auth/session") {
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ success: true, ws_token: "fresh-ws-token" }));
+        return;
+      }
+      response.writeHead(404);
+      response.end();
+    });
+    const wsServer = new WebSocketServer({ server });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+
+    const capturedFrameTypes: string[] = [];
+    let syncRequests = 0;
+
+    wsServer.on("connection", (socket: any) => {
+      socket.on("message", (raw: Buffer) => {
+        const frame = JSON.parse(raw.toString());
+        capturedFrameTypes.push(frame.type);
+
+        if (frame.type === "phased_sync_request") {
+          syncRequests += 1;
+          socket.send(JSON.stringify({
+            type: "phase_2_last_20_chats_ready",
+            payload: { total_chat_count: 0, chats: [] },
+          }));
+          if (syncRequests === 1) {
+            socket.send(JSON.stringify({
+              type: "task_update_jobs_available",
+              payload: {
+                jobs: [{
+                  job_id: "task-update-job-no-source",
+                  task_id: "task-no-source-1",
+                  revision: 1,
+                  task_key_version: 1,
+                  expires_at: 1780000600,
+                }],
+              },
+            }));
+          }
+          socket.send(JSON.stringify({ type: "phased_sync_complete", payload: {} }));
+        }
+
+        if (frame.type === "task_update_job_claim") {
+          socket.send(JSON.stringify({
+            type: "task_update_job_claimed",
+            payload: {
+              job_id: "task-update-job-no-source",
+              task_id: "task-no-source-1",
+              message_id: "user-message-1",
+              operation: "create",
+              state: "LEASED",
+              lease_token: "lease-token",
+              lease_generation: 1,
+              expected_task_version: 0,
+              private_patch: { title: "No source title" },
+              safe_metadata: { status: "todo", assignee_type: "user" },
+            },
+          }));
+        }
+      });
+    });
+
+    try {
+      writeLegacySession(`http://127.0.0.1:${address.port}`);
+      const client = OpenMatesClient.load({ apiUrl: `http://127.0.0.1:${address.port}` });
+      await client.ensureSynced(true);
+
+      assert.equal(syncRequests, 2);
+      assert.deepEqual(
+        capturedFrameTypes.filter((type) => type.startsWith("task_update_job") || type === "chat_system_message_added"),
+        ["task_update_job_claim"],
+      );
+    } finally {
+      await new Promise<void>((resolve) => wsServer.close(() => resolve()));
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  it("skips passive task update jobs already leased by another device", async () => {
+    const server = createServer((request: IncomingMessage, response: ServerResponse) => {
+      if (request.url === "/v1/auth/session") {
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ success: true, ws_token: "fresh-ws-token" }));
+        return;
+      }
+      response.writeHead(404);
+      response.end();
+    });
+    const wsServer = new WebSocketServer({ server });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+
+    const capturedFrameTypes: string[] = [];
+    let syncRequests = 0;
+
+    wsServer.on("connection", (socket: any) => {
+      socket.on("message", (raw: Buffer) => {
+        const frame = JSON.parse(raw.toString());
+        capturedFrameTypes.push(frame.type);
+
+        if (frame.type === "phased_sync_request") {
+          syncRequests += 1;
+          socket.send(JSON.stringify({
+            type: "phase_2_last_20_chats_ready",
+            payload: { total_chat_count: 0, chats: [] },
+          }));
+          if (syncRequests === 1) {
+            socket.send(JSON.stringify({
+              type: "task_update_jobs_available",
+              payload: {
+                jobs: [{
+                  job_id: "task-update-job-leased",
+                  task_id: "task-leased-1",
+                  chat_id: "chat-1",
+                  revision: 1,
+                  task_key_version: 1,
+                  expires_at: 1780000600,
+                }],
+              },
+            }));
+          }
+          socket.send(JSON.stringify({ type: "phased_sync_complete", payload: {} }));
+        }
+
+        if (frame.type === "task_update_job_claim") {
+          socket.send(JSON.stringify({
+            type: "error",
+            payload: {
+              code: "task_update_job_lease_conflict",
+              message: "Task update job is leased by another device",
+            },
+          }));
+        }
+      });
+    });
+
+    try {
+      writeLegacySession(`http://127.0.0.1:${address.port}`);
+      const client = OpenMatesClient.load({ apiUrl: `http://127.0.0.1:${address.port}` });
+      await client.ensureSynced(true);
+
+      assert.equal(syncRequests, 2);
+      assert.deepEqual(
+        capturedFrameTypes.filter((type) => type.startsWith("task_update_job") || type === "chat_system_message_added"),
+        ["task_update_job_claim"],
+      );
+    } finally {
+      await new Promise<void>((resolve) => wsServer.close(() => resolve()));
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
 });
 
 describe("memory type registry", () => {
@@ -1117,6 +1274,14 @@ describe("task update job helpers", () => {
     );
     assert.equal(
       messageExplicitlyRequestsTasksAppSkill("@skill:tasks:search find launch tasks"),
+      true,
+    );
+    assert.equal(
+      messageExplicitlyRequestsTasksAppSkill("@Tasks-Create create launch tasks"),
+      true,
+    );
+    assert.equal(
+      messageExplicitlyRequestsTasksAppSkill("@Tasks-Search find launch tasks"),
       true,
     );
     assert.equal(messageExplicitlyRequestsTasksAppSkill("create launch tasks"), false);

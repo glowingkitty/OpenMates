@@ -42,6 +42,10 @@ TASK_TOOL_RESOLVER_APP_ID = "tasks"
 TASK_TOOL_JOB_CACHE_PREFIX = "user_task_update_job:"
 TASK_APP_SKILL_MENTION_RE = re.compile(r"@skill:tasks:([a-zA-Z0-9_-]+)")
 TASK_APP_SKILL_IDS = {"create", "search"}
+TASK_APP_SKILL_LEGACY_ALIASES = {
+    "task-create": "tasks-create",
+    "task-search": "tasks-search",
+}
 
 
 def is_task_tool_name(tool_name: str) -> bool:
@@ -107,6 +111,14 @@ def task_tool_name_variants(tool_name: str) -> set[str]:
     if not is_task_tool_name(tool_name):
         return set()
     return {tool_name, tool_name.replace("_", "-"), tool_name.replace("-", "_")}
+
+
+def explicit_task_app_skill_tool_name(tool_name: str, task_app_skill_mentions: set[str]) -> str:
+    canonical = tool_name.replace(":", "-").replace("|", "-").replace(".", "-").replace("_", "-")
+    mapped = TASK_APP_SKILL_LEGACY_ALIASES.get(canonical)
+    if mapped and mapped in task_app_skill_mentions:
+        return mapped
+    return canonical
 
 
 def task_tool_skill_id(tool_name: str) -> str:
