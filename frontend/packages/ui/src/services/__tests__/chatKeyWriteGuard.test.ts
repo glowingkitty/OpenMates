@@ -64,4 +64,26 @@ describe("chat key write guard", () => {
       "We could not safely store this update because this chat has conflicting encryption keys. Please reload and try again.",
     );
   });
+
+  it("lets retrying callers suppress user-visible reporting for pending recovery", async () => {
+    const { ensureChatKeySafeForWrite } = await import("../chatKeyWriteGuard");
+
+    mocks.getChat.mockResolvedValue({
+      id: "chat-123",
+      encrypted_chat_key: "server-key-wrapper",
+      key_fingerprint: "fp-1",
+      candidate_encrypted_keys: ["local-stale-key-wrapper"],
+    });
+
+    const allowed = await ensureChatKeySafeForWrite(
+      "chat-123",
+      new Uint8Array([1]),
+      "retryable embed processing",
+      { reportFailure: false },
+    );
+
+    expect(allowed).toBe(false);
+    expect(console.error).not.toHaveBeenCalled();
+    expect(mocks.notificationError).not.toHaveBeenCalled();
+  });
 });

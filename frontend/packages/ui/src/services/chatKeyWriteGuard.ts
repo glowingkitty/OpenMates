@@ -12,6 +12,11 @@ import { computeKeyFingerprint } from "./encryption/ChatKeyManager";
 
 interface ChatKeyWriteGuardOptions {
   allowMissingEncryptedChatKey?: boolean;
+  reportFailure?: boolean;
+}
+
+function shouldReportFailure(options: ChatKeyWriteGuardOptions): boolean {
+  return options.reportFailure !== false;
 }
 
 export async function ensureChatKeySafeForWrite(
@@ -24,35 +29,42 @@ export async function ensureChatKeySafeForWrite(
   const encryptedChatKey =
     chat?.encrypted_chat_key ?? (await chatDB.getEncryptedChatKey(chatId));
   const rawFingerprint = computeKeyFingerprint(rawChatKey);
+  const reportFailure = shouldReportFailure(options);
 
   if (chat?.candidate_encrypted_keys?.length) {
-    console.error(
-      `[ChatKeyWriteGuard] Refusing ${context} for ${chatId}: chat has ` +
-        `${chat.candidate_encrypted_keys.length} candidate/conflicting key(s) pending recovery`,
-    );
-    notificationStore.error(
-      "We could not safely store this update because this chat has conflicting encryption keys. Please reload and try again.",
-    );
+    if (reportFailure) {
+      console.error(
+        `[ChatKeyWriteGuard] Refusing ${context} for ${chatId}: chat has ` +
+          `${chat.candidate_encrypted_keys.length} candidate/conflicting key(s) pending recovery`,
+      );
+      notificationStore.error(
+        "We could not safely store this update because this chat has conflicting encryption keys. Please reload and try again.",
+      );
+    }
     return false;
   }
 
   if (chat?.key_fingerprint && chat.key_fingerprint !== rawFingerprint) {
     if (encryptedChatKey) addCandidateKey(chatDB, chatId, encryptedChatKey).catch(() => {});
-    console.error(
-      `[ChatKeyWriteGuard] Refusing ${context} for ${chatId}: raw key fp=${rawFingerprint} ` +
-        `does not match stored chat key fp=${chat.key_fingerprint}`,
-    );
-    notificationStore.error(
-      "We could not safely store this update because this chat has conflicting encryption keys. Please reload and try again.",
-    );
+    if (reportFailure) {
+      console.error(
+        `[ChatKeyWriteGuard] Refusing ${context} for ${chatId}: raw key fp=${rawFingerprint} ` +
+          `does not match stored chat key fp=${chat.key_fingerprint}`,
+      );
+      notificationStore.error(
+        "We could not safely store this update because this chat has conflicting encryption keys. Please reload and try again.",
+      );
+    }
     return false;
   }
 
   if (!encryptedChatKey) {
     if (options.allowMissingEncryptedChatKey) return true;
-    console.error(
-      `[ChatKeyWriteGuard] Refusing ${context} for ${chatId}: no persisted encrypted_chat_key to validate against`,
-    );
+    if (reportFailure) {
+      console.error(
+        `[ChatKeyWriteGuard] Refusing ${context} for ${chatId}: no persisted encrypted_chat_key to validate against`,
+      );
+    }
     return false;
   }
 
@@ -64,12 +76,14 @@ export async function ensureChatKeySafeForWrite(
 
   if (keyMatches === false) {
     addCandidateKey(chatDB, chatId, encryptedChatKey).catch(() => {});
-    console.error(
-      `[ChatKeyWriteGuard] Refusing ${context} for ${chatId}: raw key does not match persisted encrypted_chat_key`,
-    );
-    notificationStore.error(
-      "We could not safely store this update because this chat has conflicting encryption keys. Please reload and try again.",
-    );
+    if (reportFailure) {
+      console.error(
+        `[ChatKeyWriteGuard] Refusing ${context} for ${chatId}: raw key does not match persisted encrypted_chat_key`,
+      );
+      notificationStore.error(
+        "We could not safely store this update because this chat has conflicting encryption keys. Please reload and try again.",
+      );
+    }
     return false;
   }
 

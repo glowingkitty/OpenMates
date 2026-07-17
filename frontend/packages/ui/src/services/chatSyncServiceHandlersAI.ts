@@ -3516,6 +3516,7 @@ export async function handleSendEmbedDataImpl(
               embedData.chat_id,
               chatKey,
               "early embed key derivation",
+              { reportFailure: false },
             ))
           ) {
             // Deterministic derivation: HKDF(chatKey, embedId) — same on every tab
@@ -3654,6 +3655,7 @@ export async function handleSendEmbedDataImpl(
             embedData.chat_id,
             chatKeyForEmbed,
             "finalized embed deferred processing",
+            { reportFailure: false },
           ))
         ) {
           if (
