@@ -377,6 +377,13 @@ struct ChatView: View {
     }
 
     private var lifecycleChatView: some View {
+        AnyView(lifecycleWithoutFocusView)
+        .onChange(of: activeFocusId) { _, focusId in
+            handleActiveFocusChange(focusId)
+        }
+    }
+
+    private var lifecycleWithoutFocusView: some View {
         decoratedChatView
         .onAppear(perform: handleInitialAppear)
         .onChange(of: inputFocusRequest) { _, _ in
@@ -440,9 +447,6 @@ struct ChatView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .pendingDeferredSendRequested)) { notification in
             handleComposerDeferredSend(notification)
-        }
-        .onChange(of: activeFocusId) { _, focusId in
-            handleActiveFocusChange(focusId)
         }
     }
 
