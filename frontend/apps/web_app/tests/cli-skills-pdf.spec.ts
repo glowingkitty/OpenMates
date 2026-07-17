@@ -223,6 +223,53 @@ function clearCliSyncCache(): void {
 	}
 }
 
+async function collectPdfReadDiagnostics(page: any): Promise<string> {
+	const locatorCounts = {
+		assistantMessages: await page.getByTestId('message-assistant').count().catch(() => -1),
+		pdfReadEmbeds: await page
+			.locator('[data-testid="embed-preview"][data-app-id="pdf"][data-skill-id="read"]')
+			.count()
+			.catch(() => -1),
+		pdfUploadEmbeds: await page
+			.locator('[data-testid="embed-full-width-wrapper"][data-embed-type="pdf"]')
+			.count()
+			.catch(() => -1),
+		stopGenerationButtons: await page.locator('[data-action="stop-generation"]').count().catch(() => -1)
+	};
+
+	const domState = await page
+		.evaluate(() => {
+			const describeElement = (el: Element) => ({
+				testId: el.getAttribute('data-testid'),
+				appId: el.getAttribute('data-app-id'),
+				skillId: el.getAttribute('data-skill-id'),
+				embedType: el.getAttribute('data-embed-type'),
+				embedStatus: el.getAttribute('data-embed-status'),
+				text: (el.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 240)
+			});
+
+			return {
+				url: window.location.href,
+				currentChatIds: Array.from(document.querySelectorAll('[data-current-chat-id]'))
+					.map((el) => el.getAttribute('data-current-chat-id'))
+					.filter(Boolean),
+				assistantMessages: Array.from(document.querySelectorAll('[data-testid="message-assistant"]'))
+					.slice(-3)
+					.map(describeElement),
+				embeds: Array.from(
+					document.querySelectorAll(
+						'[data-testid="embed-preview"], [data-testid="embed-full-width-wrapper"]'
+					)
+				)
+					.slice(-12)
+					.map(describeElement)
+			};
+		})
+		.catch((error: Error) => ({ error: error.message }));
+
+	return JSON.stringify({ locatorCounts, domState }, null, 2);
+}
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -357,8 +404,25 @@ test.describe('CLI PDF Skills', () => {
 		await expect(page).toHaveURL(/chat-id=[a-zA-Z0-9-]+/, { timeout: 15000 });
 
 		// Wait for AI response with pdf/read skill embed
-		const aiPdfEmbed = page.getByTestId('message-assistant').locator('[data-testid="embed-preview"][data-app-id="pdf"]');
-		await expect(aiPdfEmbed.first()).toBeVisible({ timeout: 120_000 });
+		const assistantMessage = page.getByTestId('message-assistant').last();
+		try {
+			await expect(assistantMessage).toBeVisible({ timeout: 120_000 });
+		} catch (error) {
+			const diagnostics = await collectPdfReadDiagnostics(page);
+			consoleLogs.push(`[pdf/read diagnostics: no assistant response] ${diagnostics}`);
+			throw error;
+		}
+
+		const aiPdfEmbed = assistantMessage.locator(
+			'[data-testid="embed-preview"][data-app-id="pdf"][data-skill-id="read"]'
+		);
+		try {
+			await expect(aiPdfEmbed.first()).toBeVisible({ timeout: 60_000 });
+		} catch (error) {
+			const diagnostics = await collectPdfReadDiagnostics(page);
+			consoleLogs.push(`[pdf/read diagnostics: missing embed] ${diagnostics}`);
+			throw error;
+		}
 		logCheckpoint('AI used pdf/read skill — embed visible in assistant response.');
 		await expect(page.locator('[data-action="stop-generation"]')).toHaveCount(0, { timeout: 120_000 });
 		logCheckpoint('AI response finished streaming.');

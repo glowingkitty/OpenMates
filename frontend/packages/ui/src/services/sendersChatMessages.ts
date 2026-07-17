@@ -42,6 +42,8 @@ import { generateUUID } from "../message_parsing/utils";
 const CHAT_RECOVERY_PROTOCOL_VERSION = 1;
 const CHAT_RECOVERY_KEY_VERSION = 1;
 const CHAT_PREFLIGHT_TIMEOUT_MS = 20_000;
+const SEND_EMBED_LOAD_RETRY_ATTEMPTS = 6;
+const SEND_EMBED_LOAD_RETRY_DELAY_MS = 500;
 const PREFLIGHT_ERROR_CODES = new Set([
 	"client_update_required",
 	"durable_preflight_failed",
@@ -676,7 +678,7 @@ export async function sendNewMessageImpl(
 
 	// Extract embed references from message content (now includes the newly created code embeds)
 	// Embeds are referenced as JSON code blocks: ```json\n{"type": "app_skill_use", "embed_id": "..."}\n```
-	const { extractEmbedReferences, loadEmbeds } = await import("./embedResolver");
+	const { extractEmbedReferences, loadEmbedsWithRetry } = await import("./embedResolver");
 	const embedRefs = extractEmbedReferences(contentForServer);
 
 	// Load embeds from EmbedStore (decrypted, ready to send as cleartext)
@@ -693,7 +695,11 @@ export async function sendNewMessageImpl(
 	const embeds: EmbedForServer[] = [];
 	if (embedRefs.length > 0) {
 		const embedIds = embedRefs.map((ref) => ref.embed_id);
-		const loadedEmbeds = await loadEmbeds(embedIds);
+		const loadedEmbeds = await loadEmbedsWithRetry(
+			embedIds,
+			SEND_EMBED_LOAD_RETRY_ATTEMPTS,
+			SEND_EMBED_LOAD_RETRY_DELAY_MS
+		);
 
 		// CRITICAL VALIDATION: Ensure all embed references have corresponding embed data
 		// If any embeds are missing, this indicates data corruption and should prevent message sending
