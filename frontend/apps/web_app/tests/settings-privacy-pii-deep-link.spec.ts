@@ -2,12 +2,11 @@
 export {};
 
 /**
- * Settings privacy PII deep-link checks.
+ * Settings deep-link checks.
  *
- * Verifies the deployed web app opens Hide personal data from the public PII
- * shortcuts without exposing settings state through query parameters. These
- * links are intentionally hash-based so the selected settings page remains
- * client-side after the initial document request.
+ * Verifies the deployed web app opens nested settings destinations from a cold
+ * hash navigation. These links are intentionally hash-based so the selected
+ * settings page remains client-side after the initial document request.
  */
 
 const { test, expect } = require('./helpers/cookie-audit');
@@ -18,6 +17,7 @@ const { skipWithoutCredentials } = require('./helpers/env-guard');
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
 const EXPECTED_SETTINGS_VIEW = 'privacy/hide-personal-data';
+const EXPECTED_ACCOUNT_DELETE_VIEW = 'account/delete';
 
 async function expectHidePersonalDataSettings(page: any): Promise<void> {
 	const settingsMenu = page.getByTestId('settings-menu');
@@ -31,7 +31,16 @@ async function expectHidePersonalDataSettings(page: any): Promise<void> {
 	}).toBe('');
 }
 
-test.describe('privacy PII settings deep links', () => {
+async function expectAccountDeleteSettings(page: any): Promise<void> {
+	const settingsMenu = page.getByTestId('settings-menu');
+	await expect(settingsMenu).toBeVisible({ timeout: 20000 });
+	await expect(settingsMenu).toHaveAttribute('data-active-view', EXPECTED_ACCOUNT_DELETE_VIEW, {
+		timeout: 20000
+	});
+	await expect(page.getByTestId('delete-account-container')).toBeVisible({ timeout: 20000 });
+}
+
+test.describe('settings deep links', () => {
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
 	test('opens Hide personal data from hash aliases and /privacy/pii', async ({ page }: { page: any }) => {
@@ -55,5 +64,16 @@ test.describe('privacy PII settings deep links', () => {
 
 		await page.goto(getE2EDebugUrl('/#settings/privacy/pii'), { waitUntil: 'domcontentloaded' });
 		await expectHidePersonalDataSettings(page);
+	});
+
+	test('opens Delete account from a cold authenticated hash navigation', async ({ page }: { page: any }) => {
+		test.slow();
+		test.setTimeout(180000);
+
+		const log = createSignupLogger('SETTINGS_ACCOUNT_DELETE_DEEP_LINK');
+		await loginToTestAccount(page, log);
+
+		await page.goto(getE2EDebugUrl('/#settings/account/delete'), { waitUntil: 'domcontentloaded' });
+		await expectAccountDeleteSettings(page);
 	});
 });

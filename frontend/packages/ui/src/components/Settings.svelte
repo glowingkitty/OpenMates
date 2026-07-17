@@ -92,7 +92,7 @@ changes to the documentation (to keep the documentation up to date).
     } from '../utils/categoryUtils';
     import { resolveIconName } from '../utils/iconNameResolver';
     import { LOCAL_CHAT_LIST_CHANGED_EVENT } from '../services/drafts/draftConstants';
-    import { clearSettingsPathFromHash, setSettingsPathInHash } from '../utils/settingsHashUtils';
+    import { clearSettingsPathFromHash, getSettingsPathFromHash, setSettingsPathInHash } from '../utils/settingsHashUtils';
 
     const CALENDAR_UPDATE_ACCOUNT_KEY = 'openmates_calendar_update_account_id';
 
@@ -849,6 +849,11 @@ changes to the documentation (to keep the documentation up to date).
         if (shouldPreserveComponentSettingsHash(window.location.hash)) return;
 
         if (isMenuVisible) {
+            const currentSettingsPath = getSettingsPathFromHash(window.location.hash);
+            // Cold deep links open the panel before the delayed route navigation applies.
+            if (activeSettingsView === 'main' && currentSettingsPath && currentSettingsPath !== 'main') {
+                return;
+            }
             hasSyncedSettingsHash = true;
             replaceCurrentHash(setSettingsPathInHash(window.location.hash, activeSettingsView));
             return;
