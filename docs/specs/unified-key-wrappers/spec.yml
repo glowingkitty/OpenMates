@@ -102,7 +102,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: ed3f75fd169425ddd49bcb6aedd36cbb6938b24e
+  subject_commit: 920cb079b9e5b7cd40e5ff7942511c75dcdb05c6
 
 approvals:
   product_contract:
@@ -155,11 +155,13 @@ attempts:
 
 handoff:
   current_task_id: TASK-6
-  next_action: Deploy the wrapper changes to dev, then run the real seeded-chat CLI smoke and web Playwright regression with existing test-account env.
-  command: python3 scripts/tests.py run --spec chat-key-wrapper-migration.spec.ts
-  expected_outcome: Seeded chat decrypts on app.dev.openmates.org without migration or repair UI.
-  blocker: null
-  last_verified_commit: ed3f75fd169425ddd49bcb6aedd36cbb6938b24e
+  next_action: Ask the user to confirm deployed dev chat decryptability and absence of migration or repair UI.
+  command: "manual: ask user to confirm dev chat decryptability and no migration UI"
+  expected_outcome: User confirms chats still decrypt on app.dev.openmates.org without migration or repair UI.
+  blocker:
+    type: user_confirmation
+    reason: User confirmation is required before this spec can be marked complete.
+  last_verified_commit: 920cb079b9e5b7cd40e5ff7942511c75dcdb05c6
 
 scenarios:
   - id: S-1
@@ -572,10 +574,10 @@ tests:
       evidence:
         status: passed
         command: python3 -m pytest backend/tests/test_unified_key_wrappers.py backend/tests/test_project_task_plan_key_wrappers.py backend/tests/test_workflow_key_boundary.py
-        run_id: local-20260717-backend-key-wrapper-pytest
-        subject_commit: ed3f75fd169425ddd49bcb6aedd36cbb6938b24e
-        timestamp: "2026-07-17T14:28:08Z"
-        summary: Combined backend wrapper pytest run passed 9 tests.
+        run_id: local-20260717-backend-key-wrapper-pytest-160946Z
+        subject_commit: 920cb079b9e5b7cd40e5ff7942511c75dcdb05c6
+        timestamp: "2026-07-17T16:09:46Z"
+        summary: Combined backend wrapper pytest run passed 15 tests, including migration, project/plan/task, workflow boundary, authz, and rotation coverage.
   - id: T-CLI-CHAT-DECRYPT-SMOKE
     type: pytest
     file: scripts/verify_chat_key_wrapper_smoke.py
@@ -602,12 +604,12 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: pending
+        status: passed
         command: python3 scripts/verify_chat_key_wrapper_smoke.py --api-url https://api.dev.openmates.org
-        run_id: pending-cli-chat-wrapper-dev-smoke
-        subject_commit: ed3f75fd169425ddd49bcb6aedd36cbb6938b24e
-        timestamp: ""
-        summary: Not run yet; needs OPENMATES_CHAT_WRAPPER_SMOKE_CHAT_ID, OPENMATES_CHAT_WRAPPER_SMOKE_EXPECT_TEXT, and existing CLI test-account auth after dev deploy.
+        run_id: local-20260717-cli-chat-wrapper-dev-smoke-160106Z
+        subject_commit: 920cb079b9e5b7cd40e5ff7942511c75dcdb05c6
+        timestamp: "2026-07-17T16:01:06Z"
+        summary: Real CLI smoke against api.dev.openmates.org passed; seeded chat decrypted without migration or repair copy.
   - id: T-NPM-SDK-WRAPPER-PARITY
     type: unit
     file: frontend/packages/openmates-cli/tests/key-wrappers.test.ts
@@ -635,10 +637,10 @@ tests:
       evidence:
         status: passed
         command: cd frontend/packages/openmates-cli && node --test --experimental-strip-types --loader ./tests/loader.mjs tests/key-wrappers.test.ts tests/client.test.ts
-        run_id: local-20260717-npm-key-wrapper-parity
-        subject_commit: ed3f75fd169425ddd49bcb6aedd36cbb6938b24e
-        timestamp: "2026-07-17T14:28:08Z"
-        summary: npm SDK/CLI wrapper-first decrypt and related client tests passed.
+        run_id: local-20260717-npm-key-wrapper-parity-160946Z
+        subject_commit: 920cb079b9e5b7cd40e5ff7942511c75dcdb05c6
+        timestamp: "2026-07-17T16:09:46Z"
+        summary: npm SDK/CLI wrapper-first decrypt, client, and embed regression tests passed 51 node tests.
   - id: T-PIP-SDK-WRAPPER-PARITY
     type: pytest
     file: packages/openmates-python/tests/test_key_wrappers.py
@@ -666,9 +668,9 @@ tests:
       evidence:
         status: passed
         command: python3 -m pytest packages/openmates-python/tests/test_key_wrappers.py packages/openmates-python/tests/test_tasks.py packages/openmates-python/tests/test_sdk.py -k 'key_wrapper or task or chat'
-        run_id: local-20260717-pip-key-wrapper-parity
-        subject_commit: ed3f75fd169425ddd49bcb6aedd36cbb6938b24e
-        timestamp: "2026-07-17T14:28:08Z"
+        run_id: local-20260717-pip-key-wrapper-parity-160946Z
+        subject_commit: 920cb079b9e5b7cd40e5ff7942511c75dcdb05c6
+        timestamp: "2026-07-17T16:09:46Z"
         summary: pip SDK wrapper-first decrypt and related task/chat tests passed 17 selected tests.
   - id: T-EMBED-WRAPPER-REGRESSION
     type: unit
@@ -695,10 +697,10 @@ tests:
       evidence:
         status: passed
         command: cd frontend/packages/openmates-cli && node --test --experimental-strip-types --loader ./tests/loader.mjs tests/embedCreator.test.ts tests/client.test.ts
-        run_id: local-20260717-embed-wrapper-regression
-        subject_commit: ed3f75fd169425ddd49bcb6aedd36cbb6938b24e
-        timestamp: "2026-07-17T14:28:08Z"
-        summary: Explicit embed wrapper regression passed 50 tests.
+        run_id: local-20260717-embed-wrapper-regression-160946Z
+        subject_commit: 920cb079b9e5b7cd40e5ff7942511c75dcdb05c6
+        timestamp: "2026-07-17T16:09:46Z"
+        summary: Explicit embed wrapper regression passed as part of the 51-test node wrapper/client/embed run.
   - id: T-PROJECT-TASK-PLAN-WRAPPERS
     type: pytest
     file: backend/tests/test_project_task_plan_key_wrappers.py
@@ -728,9 +730,9 @@ tests:
       evidence:
         status: passed
         command: python3 -m pytest backend/tests/test_unified_key_wrappers.py backend/tests/test_project_task_plan_key_wrappers.py backend/tests/test_workflow_key_boundary.py
-        run_id: local-20260717-backend-key-wrapper-pytest
-        subject_commit: ed3f75fd169425ddd49bcb6aedd36cbb6938b24e
-        timestamp: "2026-07-17T14:28:08Z"
+        run_id: local-20260717-backend-key-wrapper-pytest-160946Z
+        subject_commit: 920cb079b9e5b7cd40e5ff7942511c75dcdb05c6
+        timestamp: "2026-07-17T16:09:46Z"
         summary: Project/plan/task wrapper canonicalization assertions passed in the combined backend run.
   - id: T-WRAPPER-ROTATION-AUDIT
     type: pytest
@@ -759,9 +761,9 @@ tests:
       evidence:
         status: passed
         command: python3 -m pytest backend/tests/test_key_wrapper_rotation.py
-        run_id: local-20260717-wrapper-rotation-audit
-        subject_commit: ed3f75fd169425ddd49bcb6aedd36cbb6938b24e
-        timestamp: "2026-07-17T14:37:00Z"
+        run_id: local-20260717-wrapper-rotation-audit-160946Z
+        subject_commit: 920cb079b9e5b7cd40e5ff7942511c75dcdb05c6
+        timestamp: "2026-07-17T16:09:46Z"
         summary: Rotation audit passed; replacement creates new wrappers before deleting old wrappers and restores old wrappers if version commit fails.
   - id: T-WRAPPER-AUTHZ-GUARDS
     type: pytest
@@ -789,9 +791,9 @@ tests:
       evidence:
         status: passed
         command: python3 -m pytest backend/tests/test_key_wrapper_authorization.py
-        run_id: local-20260717-wrapper-authz-guards
-        subject_commit: ed3f75fd169425ddd49bcb6aedd36cbb6938b24e
-        timestamp: "2026-07-17T14:37:00Z"
+        run_id: local-20260717-wrapper-authz-guards-160946Z
+        subject_commit: 920cb079b9e5b7cd40e5ff7942511c75dcdb05c6
+        timestamp: "2026-07-17T16:09:46Z"
         summary: Authorization guard tests passed; unauthorized chat reads avoid wrapper queries, wrong-owner task replacement does not mutate wrappers, owner filters are applied, and invalid team scopes fail closed.
   - id: T-WORKFLOW-KEY-BOUNDARY
     type: pytest
@@ -819,9 +821,9 @@ tests:
       evidence:
         status: passed
         command: python3 -m pytest backend/tests/test_unified_key_wrappers.py backend/tests/test_project_task_plan_key_wrappers.py backend/tests/test_workflow_key_boundary.py
-        run_id: local-20260717-backend-key-wrapper-pytest
-        subject_commit: ed3f75fd169425ddd49bcb6aedd36cbb6938b24e
-        timestamp: "2026-07-17T14:28:08Z"
+        run_id: local-20260717-backend-key-wrapper-pytest-160946Z
+        subject_commit: 920cb079b9e5b7cd40e5ff7942511c75dcdb05c6
+        timestamp: "2026-07-17T16:09:46Z"
         summary: Workflow Automation Vault boundary assertions passed in the combined backend run.
   - id: T-KEY-LOGGING-AUDIT
     type: pytest
@@ -847,9 +849,9 @@ tests:
       evidence:
         status: passed
         command: python3 -m pytest scripts/tests/test_key_wrapper_logging_audit.py
-        run_id: local-20260717-key-wrapper-logging-audit
-        subject_commit: ed3f75fd169425ddd49bcb6aedd36cbb6938b24e
-        timestamp: "2026-07-17T14:28:08Z"
+        run_id: local-20260717-key-wrapper-logging-audit-160946Z
+        subject_commit: 920cb079b9e5b7cd40e5ff7942511c75dcdb05c6
+        timestamp: "2026-07-17T16:09:46Z"
         summary: AST audit passed and checks wrapper-related logger/print calls for sensitive key/content variables.
   - id: T-WEB-CHAT-DECRYPT-REGRESSION
     type: playwright
@@ -877,12 +879,14 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: pending
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: gha-29594812539
+        timestamp: "2026-07-17T16:01:30Z"
         command: python3 scripts/tests.py run --spec chat-key-wrapper-migration.spec.ts
-        subject_commit: ed3f75fd169425ddd49bcb6aedd36cbb6938b24e
-        summary: Not run yet; Playwright must target deployed dev and existing seeded test account.
+        subject_commit: 920cb079b9e5b7cd40e5ff7942511c75dcdb05c6
+        target: app.dev.openmates.org
+        deployment_reference: vercel:dpl_ALRz3fQMCvFtdfseFdAvtk3TiScF
+        summary: Playwright passed on deployed app.dev.openmates.org after Vercel Ready; test account chat decrypted without migration or repair UI.
   - id: T-APPLE-CHAT-DECRYPT-REGRESSION
     type: manual
     file: apple/OpenMates
@@ -933,10 +937,10 @@ verifications:
     evidence:
       status: passed
       command: python3 scripts/spec_validate.py docs/specs/unified-key-wrappers/spec.yml
-      run_id: local-20260717-spec-validate
-      subject_commit: ed3f75fd169425ddd49bcb6aedd36cbb6938b24e
-      summary: Spec schema validation passed after local evidence updates.
-      timestamp: "2026-07-17T14:30:14Z"
+      run_id: local-20260717-spec-validate-161000Z
+      subject_commit: 920cb079b9e5b7cd40e5ff7942511c75dcdb05c6
+      summary: Spec schema validation passed after live CLI/web and refreshed local evidence updates.
+      timestamp: "2026-07-17T16:10:00Z"
   - id: V-USER-CONFIRMATION
     kind: user_confirmation
     phase: final
