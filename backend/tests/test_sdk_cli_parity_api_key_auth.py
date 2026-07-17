@@ -39,11 +39,25 @@ class _FakeDirectusService:
             get_embed_keys_by_hashed_chat_id=self.get_embed_keys_by_hashed_chat_id,
             get_embed_keys_by_embed_id=self.get_embed_keys_by_embed_id,
         )
+        self.chat_key_wrapper = SimpleNamespace(
+            get_wrappers_by_hashed_chat_ids_batch=self.get_wrappers_by_hashed_chat_ids_batch,
+            list_authorized_wrappers=self.list_authorized_wrappers,
+        )
         self.suggestion_queries = []
         self.chat_metadata_queries = []
+        self.chat_key_wrapper_queries = []
         self.ownership_allowed = True
         self.embed_owner_allowed = True
         self.deleted_chat_id = None
+        self.chat_key_wrappers = [
+            {
+                "id": "chat-wrapper-1",
+                "hashed_chat_id": hashlib.sha256(b"chat-1").hexdigest(),
+                "hashed_user_id": hashlib.sha256(b"user-1").hexdigest(),
+                "key_type": "master",
+                "encrypted_chat_key": "cipher-wrapper",
+            }
+        ]
 
     async def get_user_profile(self, user_id):
         return True, {
@@ -98,6 +112,21 @@ class _FakeDirectusService:
 
     async def get_embed_keys_by_embed_id(self, embed_id):
         return [{"hashed_embed_id": "hash-embed-1", "key_type": "master", "encrypted_embed_key": "cipher-key"}]
+
+    async def get_wrappers_by_hashed_chat_ids_batch(self, hashed_chat_ids, *, hashed_user_id=None):
+        self.chat_key_wrapper_queries.append((hashed_chat_ids, hashed_user_id))
+        return [
+            wrapper for wrapper in self.chat_key_wrappers
+            if wrapper["hashed_chat_id"] in hashed_chat_ids
+            and (hashed_user_id is None or wrapper["hashed_user_id"] == hashed_user_id)
+        ]
+
+    async def list_authorized_wrappers(self, chat_id, user_id):
+        if not await self.check_chat_ownership(chat_id, user_id):
+            return []
+        hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
+        hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
+        return await self.get_wrappers_by_hashed_chat_ids_batch([hashed_chat_id], hashed_user_id=hashed_user_id)
 
     async def get_items(self, collection, params=None):
         if collection == "embeds":
@@ -482,7 +511,13 @@ async def test_sdk_chat_list_uses_admin_directus_read_after_api_key_auth(monkeyp
 
     result = await sdk_routes.list_sdk_chats(request, limit=25, offset=5)
 
-    assert result["chats"] == [{"id": "chat-1", "encrypted_title": "cipher-title"}]
+    assert result["chats"] == [
+        {
+            "id": "chat-1",
+            "encrypted_title": "cipher-title",
+            "chat_key_wrappers": request.app.state.directus_service.chat_key_wrappers,
+        }
+    ]
     assert request.app.state.directus_service.chat_metadata_queries == [
         ("user-1", {"limit": 25, "offset": 5, "admin_required": True})
     ]
@@ -604,6 +639,7 @@ async def test_sdk_load_chat_returns_encrypted_chat_and_messages_after_ownership
         "messages": [{"id": "message-1", "encrypted_content": "cipher-content"}],
         "embeds": [{"embed_id": "embed-1", "encrypted_content": "cipher-embed"}],
         "embed_keys": [{"hashed_embed_id": "hash-embed-1", "key_type": "master", "encrypted_embed_key": "cipher-key"}],
+        "chat_key_wrappers": request.app.state.directus_service.chat_key_wrappers,
     }
 
 
