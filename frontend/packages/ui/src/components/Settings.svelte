@@ -825,6 +825,7 @@ changes to the documentation (to keep the documentation up to date).
     let activeSubMenuIcon = $state('');
     let activeSubMenuTitleKey = $state(''); // Store the translation key
     let activeSubMenuTitleRaw = $state(''); // Raw title (used when no translation key, e.g. model name)
+    let pendingSettingsDeepLinkPath = $state<string | null>(null);
     // SVG path for provider icon (e.g. "icons/anthropic.svg") — set when on a model detail page
     let activeSubMenuProviderIconSvg = $state('');
     
@@ -851,7 +852,11 @@ changes to the documentation (to keep the documentation up to date).
         if (isMenuVisible) {
             const currentSettingsPath = getSettingsPathFromHash(window.location.hash);
             // Cold deep links open the panel before the delayed route navigation applies.
-            if (activeSettingsView === 'main' && currentSettingsPath && currentSettingsPath !== 'main') {
+            if (
+                activeSettingsView === 'main' &&
+                ((currentSettingsPath && currentSettingsPath !== 'main') ||
+                    (pendingSettingsDeepLinkPath && pendingSettingsDeepLinkPath !== 'main'))
+            ) {
                 return;
             }
             hasSyncedSettingsHash = true;
@@ -2488,6 +2493,7 @@ changes to the documentation (to keep the documentation up to date).
 
             // Reset the deep link store immediately to prevent multiple triggers
             settingsDeepLink.set(null);
+            pendingSettingsDeepLinkPath = settingsPath;
 
             // Scroll to top of the page
             if (typeof window !== 'undefined') {
@@ -2590,6 +2596,7 @@ changes to the documentation (to keep the documentation up to date).
                         title
                     }
                 }));
+                pendingSettingsDeepLinkPath = null;
             }, 300);
         }
     });
