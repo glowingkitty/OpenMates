@@ -378,49 +378,11 @@ struct ChatView: View {
             applyCameraCaptureRequestIfNeeded()
         }
         .task(id: chatId) {
-            draftSaveTask?.cancel()
-            await invalidateDeferredComposerSends()
-            composerSession.clear()
-            await ApplePrivacySettingsService.shared.load()
-            isPIIRevealed = false
-            viewModel.configure(wsManager: wsManager, chatStore: chatStore)
-            await viewModel.loadChat(id: chatId, initialChat: initialChat, initialMessages: initialMessages, initialEmbeds: initialEmbeds)
-            openInitialEmbedIfReady()
-            await restoreEncryptedDraft()
-            #if DEBUG
-            if ProcessInfo.processInfo.arguments.contains("--ui-test-seed-pending-composer-embed") {
-                if let embed = viewModel.seedUITestPendingComposerEmbed() {
-                    insertResolvedUITestEmbed(embed)
-                }
-            }
-            if ProcessInfo.processInfo.arguments.contains("--ui-test-force-recording-overlay") {
-                micPermissionState = .granted
-                composerOverlay = .recording
-                isInputFocused = true
-            }
-            #endif
-            // Advertise this chat for Handoff to other Apple devices
-            handoffManager.advertiseChatViewing(
-                chatId: chatId,
-                chatTitle: viewModel.chat?.displayTitle
-            )
-            // Clear notification badge when viewing a chat
-            PushNotificationManager.shared.clearBadge()
+            await handleChatTask()
         }
-        .onDisappear {
-            scrollPositionDebounceTask?.cancel()
-            handoffManager.stopAdvertising()
-            Task { await invalidateDeferredComposerSends() }
-        }
+        .onDisappear(perform: handleChatLifecycleDisappear)
         .onChange(of: viewModel.forkedChatId) {
-            guard let newChatId = viewModel.forkedChatId else { return }
-            // Navigate to forked chat via deep link notification
-            NotificationCenter.default.post(
-                name: .deepLinkReceived,
-                object: nil,
-                userInfo: ["url": URL(string: "openmates://chat/\(newChatId)")!]
-            )
-            viewModel.forkedChatId = nil
+            handleForkedChatChange()
         }
         .onChange(of: latestAssistantMessageId) { _, newMessageId in
             guard assistantFeedbackMessageId != newMessageId else { return }
@@ -512,6 +474,52 @@ struct ChatView: View {
     private func handleDisappear() {
         draftSaveTask?.cancel()
         flushEncryptedDraft()
+    }
+
+    private func handleChatTask() async {
+        draftSaveTask?.cancel()
+        await invalidateDeferredComposerSends()
+        composerSession.clear()
+        await ApplePrivacySettingsService.shared.load()
+        isPIIRevealed = false
+        viewModel.configure(wsManager: wsManager, chatStore: chatStore)
+        await viewModel.loadChat(id: chatId, initialChat: initialChat, initialMessages: initialMessages, initialEmbeds: initialEmbeds)
+        openInitialEmbedIfReady()
+        await restoreEncryptedDraft()
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("--ui-test-seed-pending-composer-embed") {
+            if let embed = viewModel.seedUITestPendingComposerEmbed() {
+                insertResolvedUITestEmbed(embed)
+            }
+        }
+        if ProcessInfo.processInfo.arguments.contains("--ui-test-force-recording-overlay") {
+            micPermissionState = .granted
+            composerOverlay = .recording
+            isInputFocused = true
+        }
+        #endif
+        handoffManager.advertiseChatViewing(
+            chatId: chatId,
+            chatTitle: viewModel.chat?.displayTitle
+        )
+        PushNotificationManager.shared.clearBadge()
+    }
+
+    private func handleChatLifecycleDisappear() {
+        scrollPositionDebounceTask?.cancel()
+        handoffManager.stopAdvertising()
+        Task { await invalidateDeferredComposerSends() }
+    }
+
+    private func handleForkedChatChange() {
+        guard let newChatId = viewModel.forkedChatId,
+              let url = URL(string: "openmates://chat/\(newChatId)") else { return }
+        NotificationCenter.default.post(
+            name: .deepLinkReceived,
+            object: nil,
+            userInfo: ["url": url]
+        )
+        viewModel.forkedChatId = nil
     }
 
     private var effectiveBannerState: ChatBannerState? {
