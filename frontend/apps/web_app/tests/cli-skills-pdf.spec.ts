@@ -47,7 +47,6 @@ const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 const {
 	createSignupLogger,
 	createStepScreenshotter,
-	generateTotp,
 	getTestAccount
 } = require('./signup-flow-helpers');
 
@@ -236,48 +235,7 @@ test.describe('CLI PDF Skills', () => {
 		// Step 1: Login to web app
 		// -----------------------------------------------------------------------
 		logCheckpoint('Step 1: Logging in to web app...');
-		await page.goto('/');
-		const loginBtn = page.getByTestId('header-login-signup-btn');
-		await expect(loginBtn).toBeVisible({ timeout: 15000 });
-		await loginBtn.click();
-
-		// Click Login tab to switch from signup to login view
-		const loginTab = page.getByTestId('tab-login');
-		await expect(loginTab).toBeVisible({ timeout: 10000 });
-		await loginTab.click();
-
-		const emailInput = page.locator('#login-email-input');
-		await expect(emailInput).toBeVisible({ timeout: 15000 });
-		await emailInput.fill(TEST_EMAIL);
-		const continueBtn = page.getByRole('button', { name: /continue/i });
-		await expect(continueBtn).toBeEnabled({ timeout: 5000 });
-		await continueBtn.click();
-
-		const passwordInput = page.locator('#login-password-input');
-		await expect(passwordInput).toBeVisible({ timeout: 15000 });
-		await passwordInput.fill(TEST_PASSWORD);
-
-		// Submit password first — OTP field appears after backend confirms 2FA required
-		const submitBtn = page.locator('button[type="submit"]', { hasText: /log in|login/i });
-		await submitBtn.click();
-
-		const otpInput = page.locator('#login-otp-input');
-		await expect(otpInput).toBeVisible({ timeout: 15000 });
-
-		let loginSuccess = false;
-		for (let attempt = 1; attempt <= 3 && !loginSuccess; attempt++) {
-			await otpInput.fill(generateTotp(TEST_OTP_KEY));
-			await submitBtn.click();
-			try {
-				await expect(otpInput).not.toBeVisible({ timeout: 8000 });
-				loginSuccess = true;
-			} catch {
-				if (attempt < 3) await page.waitForTimeout(31000);
-			}
-		}
-		// Wait for the authenticated DOM signal instead of a URL pattern —
-		// post-login URLs no longer reliably contain `/chat/`. (OPE-354)
-		await expect(page.locator('[data-authenticated="true"]')).toBeVisible({ timeout: 20000 });
+		await loginToTestAccount(page, logCheckpoint, takeScreenshot);
 		logCheckpoint('Web app logged in.');
 
 		// -----------------------------------------------------------------------
