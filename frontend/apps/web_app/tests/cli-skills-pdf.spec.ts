@@ -295,7 +295,8 @@ test.describe('CLI PDF Skills', () => {
 		let reloggedIn = false;
 		const isAuthenticated = await page
 			.locator('[data-authenticated="true"]')
-			.isVisible({ timeout: 5000 })
+			.waitFor({ state: 'visible', timeout: 5000 })
+			.then(() => true)
 			.catch(() => false);
 		if (!isAuthenticated) {
 			logCheckpoint('Session dropped after pair-auth (OPE-362) — re-logging in...');
