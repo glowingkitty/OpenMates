@@ -556,7 +556,7 @@ enum MessageRole: String, Codable, Sendable {
     case system
 }
 
-struct EmbedRef: Codable, Identifiable, @unchecked Sendable {
+struct EmbedRef: Codable, Equatable, Identifiable, @unchecked Sendable {
     let id: String
     let type: String
     let status: String?

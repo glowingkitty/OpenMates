@@ -52,6 +52,7 @@ enum WatchStrings {
     static var back: String { WatchLocalization.text("common.back") }
     static var cancel: String { WatchLocalization.text("common.cancel") }
     static var clientEncrypted: String { WatchLocalization.text("embeds.stored_encrypted") }
+    static var embedTapToShowDetails: String { WatchLocalization.text("embeds.tap_to_show_details") }
     static var loadingChats: String { WatchLocalization.text("activity.loading_chats") }
     static var loginFailed: String { WatchLocalization.text("login.login_failed") }
     static var messagePlaceholder: String { WatchLocalization.text("chat.placeholder.touch") }

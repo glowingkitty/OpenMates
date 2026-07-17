@@ -294,6 +294,48 @@ final class WatchChatRuntimeTests: XCTestCase {
         XCTAssertEqual(runtime.selectedMessages.first?.content, "Decrypted message")
     }
 
+    func testOpenChatPreservesEmbedRefsForWatchPreviews() async throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let chat = Self.chat(id: "chat-a", title: "Alpha", lastMessageAt: "2026-07-06T10:00:00Z")
+        let embedRef = EmbedRef(
+            id: "embed-web-1",
+            type: EmbedType.webWebsite.rawValue,
+            status: "finished",
+            data: [
+                "title": AnyCodable("Watch-sized preview"),
+                "url": AnyCodable("https://example.invalid/post"),
+            ]
+        )
+        let api = FakeWatchChatAPI(
+            messagesByChatId: [
+                "chat-a": [Self.remoteMessage(
+                    id: "msg-a",
+                    chatId: "chat-a",
+                    content: "```json\n{\"type\":\"web-website\",\"embed_id\":\"embed-web-1\"}\n```",
+                    embedRefs: [embedRef]
+                )]
+            ]
+        )
+        let runtime = WatchChatRuntime(
+            api: api,
+            cache: WatchChatOfflineCache(directory: directory),
+            crypto: FakeWatchChatCrypto()
+        )
+
+        await runtime.openChat(chat)
+
+        let message = try XCTUnwrap(runtime.selectedMessages.first)
+        XCTAssertEqual(message.embedRefs, [embedRef])
+        XCTAssertNil(message.watchDisplayContent)
+        XCTAssertEqual(message.watchEmbedRecords.first?.id, "embed-web-1")
+        let preview = try XCTUnwrap(message.watchEmbedRecords.first.map {
+            WatchEmbedPreviewMapper.makeModel(for: $0, chatId: message.chatId)
+        })
+        XCTAssertEqual(preview.title, "Watch-sized preview")
+        XCTAssertEqual(preview.continuation.chatId, "chat-a")
+    }
+
     func testRealtimeSyncUsesCachedWatchClientStateWithoutIncognitoChats() async throws {
         let directory = temporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
@@ -388,6 +430,7 @@ final class WatchChatRuntimeTests: XCTestCase {
             role: .assistant,
             content: content,
             encryptedContent: nil,
+            embedRefs: nil,
             createdAt: "2026-07-06T10:00:00Z",
             isPending: false
         )
@@ -418,7 +461,8 @@ final class WatchChatRuntimeTests: XCTestCase {
         id: String,
         chatId: String,
         content: String?,
-        encryptedContent: String? = nil
+        encryptedContent: String? = nil,
+        embedRefs: [EmbedRef]? = nil
     ) -> WatchRemoteMessage {
         WatchRemoteMessage(
             id: id,
@@ -426,6 +470,7 @@ final class WatchChatRuntimeTests: XCTestCase {
             role: .assistant,
             content: content,
             encryptedContent: encryptedContent,
+            embedRefs: embedRefs,
             createdAt: "2026-07-06T10:00:00Z"
         )
     }
@@ -684,6 +729,7 @@ private final class FakeWatchChatCrypto: WatchChatCrypto {
             role: message.role,
             content: message.encryptedContent.flatMap { decryptedValues[$0] } ?? message.content,
             encryptedContent: message.encryptedContent,
+            embedRefs: message.embedRefs,
             createdAt: message.createdAt,
             isPending: false
         )

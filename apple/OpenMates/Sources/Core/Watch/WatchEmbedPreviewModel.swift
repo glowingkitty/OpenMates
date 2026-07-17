@@ -57,6 +57,39 @@ struct WatchEmbedContinuation: Equatable, Sendable {
     }
 }
 
+struct WatchEmbedOpenRequest: Equatable, Sendable {
+    let chatId: String
+    let embedId: String
+
+    init?(chatId: String?, embedId: String) {
+        guard let chatId, !chatId.isEmpty, !embedId.isEmpty else { return nil }
+        self.chatId = chatId
+        self.embedId = embedId
+    }
+}
+
+enum WatchEmbedOpenConnectivityPayload {
+    static let kindKey = "kind"
+    static let chatIdKey = "chat_id"
+    static let embedIdKey = "embed_id"
+    static let watchEmbedOpenRequestKind = "openmates.watch.embed_open.request"
+
+    static func requestMessage(_ request: WatchEmbedOpenRequest) -> [String: Any] {
+        [
+            kindKey: watchEmbedOpenRequestKind,
+            chatIdKey: request.chatId,
+            embedIdKey: request.embedId,
+        ]
+    }
+
+    static func parseRequest(_ message: [String: Any]) -> WatchEmbedOpenRequest? {
+        guard message[kindKey] as? String == watchEmbedOpenRequestKind,
+              let chatId = message[chatIdKey] as? String,
+              let embedId = message[embedIdKey] as? String else { return nil }
+        return WatchEmbedOpenRequest(chatId: chatId, embedId: embedId)
+    }
+}
+
 struct WatchEmbedPreviewModel: Equatable, Identifiable, Sendable {
     static let cardWidth: Double = 156
     static let cardHeight: Double = 112
@@ -75,6 +108,37 @@ struct WatchEmbedPreviewModel: Equatable, Identifiable, Sendable {
 }
 
 enum WatchEmbedPreviewMapper {
+    static func makeModel(
+        for embedRef: EmbedRef,
+        chatId: String?,
+        allEmbedRecords: [String: EmbedRecord] = [:]
+    ) -> WatchEmbedPreviewModel {
+        makeModel(
+            for: embedRecord(from: embedRef),
+            chatId: chatId,
+            allEmbedRecords: allEmbedRecords
+        )
+    }
+
+    static func embedRecord(from embedRef: EmbedRef) -> EmbedRecord {
+        let raw = embedRef.data ?? [:]
+        let embedType = EmbedType.normalized(rawValue: embedRef.type)
+        let appId = string(raw, keys: ["app_id", "appId"]) ?? embedType?.appId
+        let skillId = string(raw, keys: ["skill_id", "skillId"])
+        let embedIds = string(raw, keys: ["embed_ids", "embedIds"])
+        return EmbedRecord(
+            id: embedRef.id,
+            type: embedType?.rawValue ?? embedRef.type,
+            status: embedRef.status.flatMap(EmbedStatus.init(rawValue:)) ?? .finished,
+            data: raw.isEmpty ? nil : .raw(raw),
+            parentEmbedId: string(raw, keys: ["parent_embed_id", "parentEmbedId"]),
+            appId: appId,
+            skillId: skillId,
+            embedIds: embedIds,
+            createdAt: nil
+        )
+    }
+
     static func makeModel(
         for embed: EmbedRecord,
         chatId: String?,
@@ -328,5 +392,69 @@ enum WatchEmbedPreviewMapper {
         case .reminder: return "reminder"
         case .unsupported: return "web"
         }
+    }
+}
+
+enum WatchMessageContentSanitizer {
+    static func displayText(content: String?, embedRefs: [EmbedRef]?) -> String? {
+        guard let content else { return nil }
+        let embedIds = Set((embedRefs ?? []).map(\.id))
+        var output: [String] = []
+        var fencedBlock: [String] = []
+        var isInFence = false
+
+        for line in content.components(separatedBy: .newlines) {
+            let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+            if trimmed.hasPrefix("```") {
+                fencedBlock.append(line)
+                if isInFence {
+                    if !isEmbedOnlyBlock(fencedBlock.joined(separator: "\n"), embedIds: embedIds) {
+                        output.append(contentsOf: fencedBlock)
+                    }
+                    fencedBlock = []
+                }
+                isInFence.toggle()
+                continue
+            }
+
+            if isInFence {
+                fencedBlock.append(line)
+                continue
+            }
+
+            guard !isEmbedOnlyLine(line, embedIds: embedIds) else { continue }
+            output.append(line)
+        }
+
+        if !fencedBlock.isEmpty, !isEmbedOnlyBlock(fencedBlock.joined(separator: "\n"), embedIds: embedIds) {
+            output.append(contentsOf: fencedBlock)
+        }
+
+        let trimmed = output.joined(separator: "\n")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
+    }
+
+    private static func isEmbedOnlyBlock(_ block: String, embedIds: Set<String>) -> Bool {
+        let lowercased = block.lowercased()
+        if lowercased.contains("embed_id") || lowercased.contains("embed-id") { return true }
+        return embedIds.contains { block.contains("embed:\($0)") || block.contains($0) }
+    }
+
+    private static func isEmbedOnlyLine(_ line: String, embedIds: Set<String>) -> Bool {
+        let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return false }
+        if trimmed.contains("\"embed_id\"") || trimmed.contains("embed_id:") { return true }
+        return embedIds.contains { trimmed == "embed:\($0)" || trimmed == $0 }
+    }
+}
+
+extension WatchChatMessage {
+    var watchEmbedRecords: [EmbedRecord] {
+        (embedRefs ?? []).map(WatchEmbedPreviewMapper.embedRecord(from:))
+    }
+
+    var watchDisplayContent: String? {
+        WatchMessageContentSanitizer.displayText(content: content, embedRefs: embedRefs)
     }
 }

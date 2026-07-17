@@ -493,6 +493,25 @@ final class WatchPhoneLoginBridge: NSObject, ObservableObject, WCSessionDelegate
         }
     }
 
+    @discardableResult
+    func sendEmbedOpenRequest(_ request: WatchEmbedOpenRequest) -> Bool {
+        guard WCSession.isSupported() else {
+            NativeDiagnostics.warning("phase=bridge.embedOpen.skipped reason=unsupported", category: diagnosticsCategory)
+            return false
+        }
+        let message = WatchEmbedOpenConnectivityPayload.requestMessage(request)
+        if WCSession.default.isReachable {
+            WCSession.default.sendMessage(message, replyHandler: nil, errorHandler: { _ in })
+        } else {
+            WCSession.default.transferUserInfo(message)
+        }
+        NativeDiagnostics.info(
+            "phase=bridge.embedOpen.sent reachable=\(WCSession.default.isReachable)",
+            category: diagnosticsCategory
+        )
+        return true
+    }
+
     nonisolated func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {
         let isReachable = session.isReachable
         dispatchToMain { bridge in
@@ -642,6 +661,11 @@ final class PhoneWatchLoginBridge: NSObject, ObservableObject, WCSessionDelegate
         requestNotification(for: request)
     }
 
+    private func receive(_ request: WatchEmbedOpenRequest) {
+        NativeDiagnostics.info("phase=phoneBridge.embedOpen.received", category: diagnosticsCategory)
+        Task { await PushNotificationManager.shared.showWatchEmbedNotification(chatId: request.chatId, embedId: request.embedId) }
+    }
+
     private func requestNotification(for request: WatchPairLoginRequest) {
         let center = UNUserNotificationCenter.current()
         let title = AppStrings.pairConnectAppleWatchTitle
@@ -682,17 +706,32 @@ final class PhoneWatchLoginBridge: NSObject, ObservableObject, WCSessionDelegate
     }
 
     nonisolated func session(_ session: WCSession, didReceiveMessage message: [String: Any]) {
-        guard let request = WatchPairLoginConnectivityPayload.parseRequest(message) else { return }
-        Task { @MainActor in self.receive(request) }
+        if let request = WatchPairLoginConnectivityPayload.parseRequest(message) {
+            Task { @MainActor in self.receive(request) }
+            return
+        }
+        if let request = WatchEmbedOpenConnectivityPayload.parseRequest(message) {
+            Task { @MainActor in self.receive(request) }
+        }
     }
 
     nonisolated func session(_ session: WCSession, didReceiveMessage message: [String: Any], replyHandler: @escaping ([String: Any]) -> Void) {
-        guard let request = WatchPairLoginConnectivityPayload.parseRequest(message) else {
-            replyHandler(["status": "ignored"])
+        if let request = WatchPairLoginConnectivityPayload.parseRequest(message) {
+            Task { @MainActor in self.receive(request) }
+            replyHandler(["status": "pending"])
             return
         }
+        if let request = WatchEmbedOpenConnectivityPayload.parseRequest(message) {
+            Task { @MainActor in self.receive(request) }
+            replyHandler(["status": "notification_scheduled"])
+            return
+        }
+        replyHandler(["status": "ignored"])
+    }
+
+    nonisolated func session(_ session: WCSession, didReceiveUserInfo userInfo: [String: Any]) {
+        guard let request = WatchEmbedOpenConnectivityPayload.parseRequest(userInfo) else { return }
         Task { @MainActor in self.receive(request) }
-        replyHandler(["status": "pending"])
     }
 }
 #endif

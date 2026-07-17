@@ -97,10 +97,14 @@ class SceneDelegate: NSObject, UIWindowSceneDelegate {
         switch activity.activityType {
         case HandoffManager.viewChatActivityType:
             if let chatId = activity.userInfo?["chatId"] as? String {
+                var userInfo: [String: Any] = ["chatId": chatId]
+                if let embedId = activity.userInfo?["embedId"] as? String {
+                    userInfo["embedId"] = embedId
+                }
                 NotificationCenter.default.post(
                     name: .handoffChatReceived,
                     object: nil,
-                    userInfo: ["chatId": chatId]
+                    userInfo: userInfo
                 )
             }
         case HandoffManager.browseChatsActivityType:

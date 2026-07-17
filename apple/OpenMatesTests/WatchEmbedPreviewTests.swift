@@ -60,6 +60,7 @@ final class WatchEmbedPreviewTests: XCTestCase {
             "watch-embed-continuation",
             "watch-embed-open-device",
             "watch-embed-qr-payload",
+            "watch-embed-notification-request",
         ])
         XCTAssertNoDuplicates(WatchUIContract.embedPreviewIdentifiers)
     }
@@ -146,6 +147,36 @@ final class WatchEmbedPreviewTests: XCTestCase {
         XCTAssertFalse(model.continuation.universalLink?.contains("private title") == true)
         XCTAssertFalse(model.continuation.universalLink?.contains("private dictated text") == true)
         XCTAssertEqual(model.continuation.qrPayload, model.continuation.universalLink)
+    }
+
+    func testWatchEmbedOpenRequestPayloadContainsOnlyRoutingIds() throws {
+        let request = try XCTUnwrap(WatchEmbedOpenRequest(chatId: "chat-secure", embedId: "embed-secure"))
+
+        let payload = WatchEmbedOpenConnectivityPayload.requestMessage(request)
+        let parsed = WatchEmbedOpenConnectivityPayload.parseRequest(payload)
+
+        XCTAssertEqual(parsed, request)
+        XCTAssertEqual(payload[WatchEmbedOpenConnectivityPayload.kindKey] as? String, WatchEmbedOpenConnectivityPayload.watchEmbedOpenRequestKind)
+        XCTAssertEqual(payload[WatchEmbedOpenConnectivityPayload.chatIdKey] as? String, "chat-secure")
+        XCTAssertEqual(payload[WatchEmbedOpenConnectivityPayload.embedIdKey] as? String, "embed-secure")
+        XCTAssertFalse(payload.keys.contains("title"))
+        XCTAssertFalse(payload.keys.contains("subtitle"))
+        XCTAssertFalse(payload.keys.contains("content"))
+    }
+
+    func testWatchMessageDisplayTextRemovesEmbedOnlyBlocks() throws {
+        let refs = [EmbedRef(id: "embed-a", type: EmbedType.webWebsite.rawValue, status: "finished", data: nil)]
+        let content = """
+        Here is the result.
+
+        ```json
+        {"type":"web-website","embed_id":"embed-a"}
+        ```
+        """
+
+        let displayText = WatchMessageContentSanitizer.displayText(content: content, embedRefs: refs)
+
+        XCTAssertEqual(displayText, "Here is the result.")
     }
 
     private static func embed(

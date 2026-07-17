@@ -83,6 +83,7 @@ private final class WatchAudioRecorder: ObservableObject {
 
 struct WatchChatShellView: View {
     @StateObject private var runtime: WatchChatRuntime
+    @StateObject private var phoneBridge = WatchPhoneLoginBridge()
 
     init(currentUserId: String?, webSocketToken: String?) {
         _runtime = StateObject(wrappedValue: WatchChatRuntime(
@@ -103,10 +104,12 @@ struct WatchChatShellView: View {
                 .tag("list")
 
             WatchChatThreadView(runtime: runtime)
+                .environmentObject(phoneBridge)
                 .tag("thread")
         }
         .tabViewStyle(.page(indexDisplayMode: .never))
         .task {
+            phoneBridge.start { _ in }
             await runtime.loadCachedSnapshot()
             await runtime.startRealtimeSync()
             await runtime.refresh()
@@ -156,6 +159,7 @@ private struct WatchChatListView: View {
 
 private struct WatchChatThreadView: View {
     @ObservedObject var runtime: WatchChatRuntime
+    @EnvironmentObject private var phoneBridge: WatchPhoneLoginBridge
     @StateObject private var audioRecorder = WatchAudioRecorder()
     @State private var draft = ""
     @State private var isPreparingAudio = false
@@ -190,7 +194,9 @@ private struct WatchChatThreadView: View {
             ScrollView {
                 LazyVStack(spacing: .spacing3) {
                     ForEach(runtime.selectedMessages) { message in
-                        WatchMessageBubble(message: message)
+                        WatchMessageBubble(message: message) { model in
+                            sendEmbedOpenNotification(model)
+                        }
                     }
                 }
                 .padding(.horizontal, .spacing4)
@@ -287,6 +293,14 @@ private struct WatchChatThreadView: View {
             await audioRecorder.startRecording()
         }
     }
+
+    private func sendEmbedOpenNotification(_ model: WatchEmbedPreviewModel) {
+        guard let request = WatchEmbedOpenRequest(
+            chatId: model.continuation.chatId ?? runtime.selectedChatId,
+            embedId: model.id
+        ) else { return }
+        phoneBridge.sendEmbedOpenRequest(request)
+    }
 }
 
 private struct WatchPendingAudioEmbedView: View {
@@ -375,17 +389,45 @@ private struct WatchChatRow: View {
 
 private struct WatchMessageBubble: View {
     let message: WatchChatMessage
+    let onOpenEmbed: (WatchEmbedPreviewModel) -> Void
 
     private var isUser: Bool { message.role == .user }
+    private var embedRecords: [EmbedRecord] { message.watchEmbedRecords }
+    private var embedLookup: [String: EmbedRecord] {
+        EmbedRecord.dictionaryById(embedRecords, context: "watchMessageBubble") { _ in }
+    }
+    private var embedPreviews: [WatchEmbedPreviewModel] {
+        embedRecords.map {
+            WatchEmbedPreviewMapper.makeModel(
+                for: $0,
+                chatId: message.chatId,
+                allEmbedRecords: embedLookup
+            )
+        }
+    }
 
     var body: some View {
         HStack {
             if isUser { Spacer(minLength: .spacing5) }
-            VStack(alignment: .leading, spacing: .spacing1) {
-                Text(message.content ?? WatchStrings.clientEncrypted)
-                    .font(.omXs)
-                    .foregroundStyle(isUser ? Color.grey100 : Color.fontPrimary)
-                    .fixedSize(horizontal: false, vertical: true)
+            VStack(alignment: .leading, spacing: .spacing2) {
+                if let displayContent = message.watchDisplayContent {
+                    Text(displayContent)
+                        .font(.omXs)
+                        .foregroundStyle(isUser ? Color.grey100 : Color.fontPrimary)
+                        .fixedSize(horizontal: false, vertical: true)
+                } else if embedPreviews.isEmpty {
+                    Text(WatchStrings.clientEncrypted)
+                        .font(.omXs)
+                        .foregroundStyle(isUser ? Color.grey100 : Color.fontPrimary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                ForEach(embedPreviews) { preview in
+                    WatchEmbedPreviewCard(model: preview) {
+                        onOpenEmbed(preview)
+                    }
+                }
+
                 if message.isPending {
                     Text(WatchStrings.pendingSend)
                         .font(.omMicro)
@@ -396,6 +438,88 @@ private struct WatchMessageBubble: View {
             .padding(.vertical, .spacing2)
             .background(isUser ? Color.greyBlue : Color.grey0, in: RoundedRectangle(cornerRadius: 13, style: .continuous))
             if !isUser { Spacer(minLength: .spacing5) }
+        }
+    }
+}
+
+private struct WatchEmbedPreviewCard: View {
+    let model: WatchEmbedPreviewModel
+    let onOpen: () -> Void
+
+    var body: some View {
+        Button(action: onOpen) {
+            VStack(alignment: .leading, spacing: 0) {
+                VStack(alignment: .leading, spacing: .spacing2) {
+                    HStack(alignment: .top, spacing: .spacing2) {
+                        AppIconView(appId: model.appId, size: 28)
+                            .accessibilityHidden(true)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(model.typeLabel)
+                                .font(.omMicro)
+                                .fontWeight(.semibold)
+                                .foregroundStyle(Color.fontSecondary)
+                                .lineLimit(1)
+                            Text(model.title)
+                                .font(.omXs)
+                                .fontWeight(.semibold)
+                                .foregroundStyle(Color.fontPrimary)
+                                .lineLimit(2)
+                        }
+                    }
+
+                    if let subtitle = model.subtitle ?? model.detail {
+                        Text(subtitle)
+                            .font(.omMicro)
+                            .foregroundStyle(Color.fontSecondary)
+                            .lineLimit(2)
+                    }
+
+                    Spacer(minLength: 0)
+                }
+                .padding(.spacing3)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+
+                HStack(spacing: .spacing2) {
+                    statusDot
+                    Text(WatchStrings.embedTapToShowDetails)
+                        .font(.omMicro)
+                        .fontWeight(.medium)
+                        .foregroundStyle(Color.fontButton)
+                        .lineLimit(1)
+                }
+                .padding(.horizontal, .spacing3)
+                .padding(.vertical, .spacing2)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.buttonPrimary)
+            }
+            .frame(width: WatchEmbedPreviewModel.cardWidth, height: WatchEmbedPreviewModel.cardHeight)
+            .background(Color.grey25)
+            .clipShape(RoundedRectangle(cornerRadius: .radius6, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: .radius6, style: .continuous)
+                    .stroke(model.state == .error ? Color.error : Color.grey30, lineWidth: 1)
+            )
+            .accessibilityElement(children: .combine)
+            .accessibilityIdentifier("watch-embed-preview")
+            .accessibilityLabel(model.title)
+            .accessibilityValue(model.typeLabel)
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("watch-embed-notification-request")
+    }
+
+    private var statusDot: some View {
+        Circle()
+            .fill(statusColor)
+            .frame(width: 6, height: 6)
+            .accessibilityHidden(true)
+    }
+
+    private var statusColor: Color {
+        switch model.state {
+        case .ready: return Color.grey0
+        case .processing: return Color.warning
+        case .error: return Color.error
         }
     }
 }

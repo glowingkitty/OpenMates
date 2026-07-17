@@ -42,6 +42,7 @@ final class PushNotificationManager: NSObject, ObservableObject {
 
     @Published var isRegistered = false
     @Published var pendingChatId: String?
+    @Published var pendingEmbedId: String?
     @Published var pendingReplyRequest: NotificationReplyRequest?
 
     override private init() {
@@ -140,6 +141,37 @@ final class PushNotificationManager: NSObject, ObservableObject {
         }
     }
 
+    func showWatchEmbedNotification(chatId: String, embedId: String) async {
+        let center = UNUserNotificationCenter.current()
+        var settings = await center.notificationSettings()
+        if settings.authorizationStatus == .notDetermined {
+            _ = try? await center.requestAuthorization(options: [.alert, .sound])
+            settings = await center.notificationSettings()
+        }
+        guard settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional else {
+            return
+        }
+
+        let content = UNMutableNotificationContent()
+        content.title = AppStrings.openMatesName
+        content.body = AppStrings.embedTapToShowDetails
+        content.sound = .default
+        content.threadIdentifier = chatId
+        content.userInfo = ["chat_id": chatId, "embed_id": embedId]
+
+        let request = UNNotificationRequest(
+            identifier: "openmates-watch-embed-\(chatId)-\(embedId)-\(UUID().uuidString)",
+            content: content,
+            trigger: nil
+        )
+
+        do {
+            try await center.add(request)
+        } catch {
+            NativeDiagnostics.warning("Watch embed notification scheduling failed: \(type(of: error))", category: "push_notifications")
+        }
+    }
+
     private func configureChatMessageCategory(center: UNUserNotificationCenter) {
         let replyAction = UNTextInputNotificationAction(
             identifier: NotificationAction.reply,
@@ -183,12 +215,14 @@ extension PushNotificationManager: UNUserNotificationCenterDelegate {
             completionHandler()
             return
         }
+        let embedId = (userInfo["embed_id"] as? String) ?? (userInfo["embedId"] as? String)
 
         let actionIdentifier = response.actionIdentifier
         let replyText = (response as? UNTextInputNotificationResponse)?.userText
         completeNotificationResponseOnMain(
             actionIdentifier: actionIdentifier,
             chatId: chatId,
+            embedId: embedId,
             replyText: replyText,
             completion: NotificationCompletionBox(completionHandler)
         )
@@ -197,6 +231,7 @@ extension PushNotificationManager: UNUserNotificationCenterDelegate {
     private nonisolated func completeNotificationResponseOnMain(
         actionIdentifier: String,
         chatId: String,
+        embedId: String?,
         replyText: String?,
         completion: NotificationCompletionBox
     ) {
@@ -205,6 +240,7 @@ extension PushNotificationManager: UNUserNotificationCenterDelegate {
                 self.handleNotificationResponse(
                     actionIdentifier: actionIdentifier,
                     chatId: chatId,
+                    embedId: embedId,
                     replyText: replyText
                 )
                 completion.complete()
@@ -215,6 +251,7 @@ extension PushNotificationManager: UNUserNotificationCenterDelegate {
                     self.handleNotificationResponse(
                         actionIdentifier: actionIdentifier,
                         chatId: chatId,
+                        embedId: embedId,
                         replyText: replyText
                     )
                     completion.complete()
@@ -223,7 +260,7 @@ extension PushNotificationManager: UNUserNotificationCenterDelegate {
         }
     }
 
-    private func handleNotificationResponse(actionIdentifier: String, chatId: String, replyText: String?) {
+    private func handleNotificationResponse(actionIdentifier: String, chatId: String, embedId: String?, replyText: String?) {
         if actionIdentifier == Self.NotificationAction.reply {
             let reply = replyText?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
             guard !reply.isEmpty else { return }
@@ -236,6 +273,7 @@ extension PushNotificationManager: UNUserNotificationCenterDelegate {
         if actionIdentifier == Self.NotificationAction.openChat ||
             actionIdentifier == UNNotificationDefaultActionIdentifier {
             NativeDiagnostics.info("Notification open action received", category: "push_notifications")
+            pendingEmbedId = embedId
             pendingChatId = chatId
             // Clear badge when user taps a notification.
             setBadgeCount(0)

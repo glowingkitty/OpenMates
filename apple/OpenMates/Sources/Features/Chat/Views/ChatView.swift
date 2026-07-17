@@ -129,6 +129,7 @@ struct ChatView: View {
     var inputFocusRequest = 0
     var cameraCaptureRequest = 0
     var searchTarget: ChatSearchSelection? = nil
+    var initialEmbedId: String? = nil
     /// Mirrors web `.chat-container.menu-open`; used by the banner header to
     /// collapse from viewport-responsive height to the fixed adjacent-panel height.
     var isSettingsOpen = false
@@ -147,6 +148,8 @@ struct ChatView: View {
     var onReportIssue: ((ReportIssuePrefill) -> Void)? = nil
     /// Sends the last visible message ID to the app shell for cross-device sync.
     var onScrollPositionChanged: ((String) -> Void)? = nil
+    /// Called after an external chat/embed deep link has opened the fullscreen embed route.
+    var onInitialEmbedOpened: ((String) -> Void)? = nil
 
     @StateObject private var viewModel = ChatViewModel()
     @StateObject private var handoffManager = HandoffManager()
@@ -157,6 +160,7 @@ struct ChatView: View {
     @State private var selectedEmbed: EmbedRecord?
     @State private var fullscreenPreviousEmbeds: [EmbedRecord] = []
     @State private var showEmbedFullscreen = false
+    @State private var openedInitialEmbedId: String?
     @State private var showReminder = false
     @State private var isPIIRevealed = false
     @State private var showAttachmentMenu = false
@@ -381,6 +385,7 @@ struct ChatView: View {
             isPIIRevealed = false
             viewModel.configure(wsManager: wsManager, chatStore: chatStore)
             await viewModel.loadChat(id: chatId, initialChat: initialChat, initialMessages: initialMessages, initialEmbeds: initialEmbeds)
+            openInitialEmbedIfReady()
             await restoreEncryptedDraft()
             #if DEBUG
             if ProcessInfo.processInfo.arguments.contains("--ui-test-seed-pending-composer-embed") {
@@ -431,7 +436,15 @@ struct ChatView: View {
         .onChange(of: initialEmbedSyncSignature) { _, _ in
             Task {
                 await viewModel.applySyncedEmbeds(initialEmbeds)
+                openInitialEmbedIfReady()
             }
+        }
+        .onChange(of: initialEmbedId) { _, _ in
+            openedInitialEmbedId = nil
+            openInitialEmbedIfReady()
+        }
+        .onChange(of: viewModel.embedRecords.keys.sorted()) { _, _ in
+            openInitialEmbedIfReady()
         }
         .onChange(of: messageText) { _, newValue in
             updatePIIMatches(for: newValue)
@@ -679,6 +692,15 @@ struct ChatView: View {
         fullscreenPreviousEmbeds = []
         selectedEmbed = embed
         showEmbedFullscreen = true
+    }
+
+    private func openInitialEmbedIfReady() {
+        guard let initialEmbedId,
+              openedInitialEmbedId != initialEmbedId,
+              let embed = viewModel.embedRecords[initialEmbedId] else { return }
+        openedInitialEmbedId = initialEmbedId
+        openEmbedFullscreen(embed)
+        onInitialEmbedOpened?(initialEmbedId)
     }
 
     private func openChildEmbedFullscreen(_ child: EmbedRecord, from parent: EmbedRecord) {

@@ -56,6 +56,11 @@ struct MainAppView: View {
         case closeSettings
     }
 
+    private struct PendingExternalEmbedOpen: Equatable {
+        let chatId: String
+        let embedId: String
+    }
+
     @EnvironmentObject var authManager: AuthManager
     @EnvironmentObject var themeManager: ThemeManager
     @EnvironmentObject var pushManager: PushNotificationManager
@@ -114,6 +119,7 @@ struct MainAppView: View {
     @State private var pendingBackgroundSyncContent = PendingSyncedContent()
     @State private var lastForegroundInteractionAt = Date.distantPast
     @State private var queuedNotificationReplies: [NotificationReplyRequest] = []
+    @State private var pendingExternalEmbedOpen: PendingExternalEmbedOpen?
     @State private var newChatFocusRequest = 0
     @State private var chatInputFocusRequest = 0
     @State private var chatCameraCaptureRequest = 0
@@ -373,6 +379,9 @@ struct MainAppView: View {
         #if os(iOS)
         .onReceive(NotificationCenter.default.publisher(for: .handoffChatReceived)) { notification in
             if let chatId = notification.userInfo?["chatId"] as? String {
+                if let embedId = notification.userInfo?["embedId"] as? String {
+                    pendingExternalEmbedOpen = PendingExternalEmbedOpen(chatId: chatId, embedId: embedId)
+                }
                 selectedChatId = chatId
                 showNewChat = false
             }
@@ -471,6 +480,9 @@ struct MainAppView: View {
 
     private func pendingDeepLinkChatDidChange(_ oldValue: String?, _ chatId: String?) {
         if let chatId {
+            if let embedId = deepLinkHandler.pendingEmbedId {
+                pendingExternalEmbedOpen = PendingExternalEmbedOpen(chatId: chatId, embedId: embedId)
+            }
             selectedChatId = chatId
             showNewChat = false
             deepLinkHandler.clearPending()
@@ -636,8 +648,12 @@ struct MainAppView: View {
 
     private func pendingPushChatDidChange(_ oldValue: String?, _ chatId: String?) {
         if let chatId {
+            if let embedId = pushManager.pendingEmbedId {
+                pendingExternalEmbedOpen = PendingExternalEmbedOpen(chatId: chatId, embedId: embedId)
+            }
             selectedChatId = chatId
             showNewChat = false
+            pushManager.pendingEmbedId = nil
             pushManager.pendingChatId = nil
         }
     }
@@ -1532,6 +1548,7 @@ struct MainAppView: View {
                 inputFocusRequest: chatInputFocusRequest,
                 cameraCaptureRequest: chatCameraCaptureRequest,
                 searchTarget: searchSelection?.chatId == chatId ? searchSelection : nil,
+                initialEmbedId: pendingExternalEmbedOpen?.chatId == chatId ? pendingExternalEmbedOpen?.embedId : nil,
                 isSettingsOpen: !isCompactShell && showSettings,
                 onShareChat: { openShareSettings(for: chatId) },
                 onPreviousChat: previousChatAction(for: chatId),
@@ -1542,6 +1559,11 @@ struct MainAppView: View {
                 onReportIssue: openReportIssue,
                 onScrollPositionChanged: { messageId in
                     sendScrollPositionUpdate(chatId: chatId, messageId: messageId)
+                },
+                onInitialEmbedOpened: { embedId in
+                    if pendingExternalEmbedOpen == PendingExternalEmbedOpen(chatId: chatId, embedId: embedId) {
+                        pendingExternalEmbedOpen = nil
+                    }
                 }
             )
         } else if !isAuthenticated, let chatId = selectedChatId {
@@ -1557,12 +1579,18 @@ struct MainAppView: View {
                 inputFocusRequest: chatInputFocusRequest,
                 cameraCaptureRequest: chatCameraCaptureRequest,
                 searchTarget: searchSelection?.chatId == chatId ? searchSelection : nil,
+                initialEmbedId: pendingExternalEmbedOpen?.chatId == chatId ? pendingExternalEmbedOpen?.embedId : nil,
                 isSettingsOpen: !isCompactShell && showSettings,
                 onPreviousChat: previousChatAction(for: chatId),
                 onNextChat: nextChatAction(for: chatId),
                 onOpenPublicChat: openPublicChat,
                 onNewChat: openNewChatScreen,
-                onReportIssue: openReportIssue
+                onReportIssue: openReportIssue,
+                onInitialEmbedOpened: { embedId in
+                    if pendingExternalEmbedOpen == PendingExternalEmbedOpen(chatId: chatId, embedId: embedId) {
+                        pendingExternalEmbedOpen = nil
+                    }
+                }
             )
         }
     }

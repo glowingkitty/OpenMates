@@ -55,6 +55,7 @@ enum WatchUIContract {
         "watch-embed-continuation",
         "watch-embed-open-device",
         "watch-embed-qr-payload",
+        "watch-embed-notification-request",
     ]
 
     static let forbiddenProductChrome = [
@@ -96,6 +97,7 @@ struct WatchChatMessage: Codable, Equatable, Identifiable, Sendable {
     let role: Role
     var content: String?
     var encryptedContent: String?
+    var embedRefs: [EmbedRef]? = nil
     let createdAt: String
     var isPending: Bool
 }
@@ -260,6 +262,7 @@ struct WatchRemoteMessage: Equatable, Sendable {
     let role: WatchChatMessage.Role
     let content: String?
     let encryptedContent: String?
+    let embedRefs: [EmbedRef]? = nil
     let createdAt: String
 }
 
@@ -451,6 +454,7 @@ final class WatchChatRuntime: ObservableObject {
             role: .user,
             content: trimmed,
             encryptedContent: encryptedContent,
+            embedRefs: nil,
             createdAt: createdAt,
             isPending: true
         )
@@ -816,6 +820,7 @@ private final class WatchChatCryptoService: WatchChatCrypto {
             role: message.role,
             content: content,
             encryptedContent: message.encryptedContent,
+            embedRefs: message.embedRefs,
             createdAt: message.createdAt,
             isPending: false
         )
@@ -942,6 +947,7 @@ private struct WatchChatMessageDTO: Decodable {
     let role: WatchChatMessage.Role
     let content: String?
     let encryptedContent: String?
+    let embedRefs: [EmbedRef]?
     let createdAt: String
 
     private enum CodingKeys: String, CodingKey {
@@ -953,6 +959,8 @@ private struct WatchChatMessageDTO: Decodable {
         case content
         case encryptedContent
         case encryptedContentSnake = "encrypted_content"
+        case embedRefs
+        case embedRefsSnake = "embed_refs"
         case createdAt
         case createdAtSnake = "created_at"
     }
@@ -967,6 +975,8 @@ private struct WatchChatMessageDTO: Decodable {
         content = try container.decodeIfPresent(String.self, forKey: .content)
         encryptedContent = try container.decodeIfPresent(String.self, forKey: .encryptedContent)
             ?? container.decodeIfPresent(String.self, forKey: .encryptedContentSnake)
+        embedRefs = try container.decodeIfPresent([EmbedRef].self, forKey: .embedRefs)
+            ?? container.decodeIfPresent([EmbedRef].self, forKey: .embedRefsSnake)
         createdAt = try container.decodeIfPresent(String.self, forKey: .createdAt)
             ?? container.decodeIfPresent(String.self, forKey: .createdAtSnake)
             ?? ""
@@ -997,6 +1007,7 @@ private extension WatchRemoteMessage {
             role: dto.role,
             content: dto.content,
             encryptedContent: dto.encryptedContent,
+            embedRefs: dto.embedRefs,
             createdAt: dto.createdAt,
         )
     }

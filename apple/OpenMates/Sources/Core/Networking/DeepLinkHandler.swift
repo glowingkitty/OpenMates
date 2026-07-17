@@ -8,6 +8,7 @@ import SwiftUI
 @MainActor
 final class DeepLinkHandler: ObservableObject {
     @Published var pendingChatId: String?
+    @Published var pendingEmbedId: String?
     @Published var pendingMessageId: String?
     @Published var pendingShareChatId: String?
     @Published var pendingShareKey: String?
@@ -36,6 +37,9 @@ final class DeepLinkHandler: ObservableObject {
             pendingSearch = true
         case "chat":
             pendingChatId = url.pathComponents.last
+            if let components = URLComponents(url: url, resolvingAgainstBaseURL: false) {
+                pendingEmbedId = components.queryItems?.first(where: { $0.name == "embed-id" || $0.name == "embed_id" })?.value
+            }
         case "share":
             pendingShareChatId = url.pathComponents.last
             if let key = url.fragment { pendingShareKey = key }
@@ -60,6 +64,7 @@ final class DeepLinkHandler: ObservableObject {
         if let chatId = params["chat-id"] {
             pendingChatId = chatId
             pendingMessageId = params["message-id"]
+            pendingEmbedId = params["embed-id"] ?? params["embed_id"]
         } else if let shareChatId = params["share-chat-id"] {
             pendingShareChatId = shareChatId
             pendingShareKey = params["key"]
@@ -98,7 +103,9 @@ final class DeepLinkHandler: ObservableObject {
         for pair in pairs {
             let parts = pair.split(separator: "=", maxSplits: 1)
             if parts.count == 2 {
-                params[String(parts[0])] = String(parts[1])
+                let key = String(parts[0])
+                let value = String(parts[1]).removingPercentEncoding ?? String(parts[1])
+                params[key] = value
             }
         }
         return params
@@ -106,6 +113,7 @@ final class DeepLinkHandler: ObservableObject {
 
     func clearPending() {
         pendingChatId = nil
+        pendingEmbedId = nil
         pendingMessageId = nil
         pendingShareChatId = nil
         pendingShareKey = nil
