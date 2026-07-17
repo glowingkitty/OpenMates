@@ -7,6 +7,7 @@ tests keep that distinction out of the later frontend embed work.
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -15,6 +16,9 @@ from backend.apps.base_app import BaseApp
 from backend.apps.workflows.skills import search_skill
 from backend.apps.workflows.skills.create_or_modify_skill import CreateOrModifySkill
 from backend.apps.workflows.skills.search_skill import SearchSkill
+
+
+WORKFLOWS_APP_DIR = Path(__file__).resolve().parents[1] / "apps" / "workflows"
 
 
 class FakeWorkflowAssistantService:
@@ -157,7 +161,7 @@ async def test_workflow_search_dispatch_receives_user_vault_key_context(monkeypa
     monkeypatch.setattr(search_skill, "get_assistant_service", lambda *_args, **_kwargs: assistant)
 
     app = BaseApp(
-        app_dir="/app/backend/apps/workflows",
+        app_dir=str(WORKFLOWS_APP_DIR),
         register_http_routes=False,
     )
     response = await app.dispatch_skill(
