@@ -255,6 +255,10 @@ struct ChatView: View {
     }
 
     var body: some View {
+        lifecycleChatView
+    }
+
+    private var baseChatView: some View {
         GeometryReader { geo in
             ZStack {
                 #if DEBUG
@@ -333,6 +337,10 @@ struct ChatView: View {
                 chatContainerWidth = width
             }
         }
+    }
+
+    private var decoratedChatView: some View {
+        baseChatView
         .overlay {
             if viewModel.streamingLifecycle.isActive {
                 ChatProcessingRing()
@@ -366,6 +374,10 @@ struct ChatView: View {
             .ignoresSafeArea()
         }
         #endif
+    }
+
+    private var lifecycleChatView: some View {
+        decoratedChatView
         .onAppear(perform: handleInitialAppear)
         .onChange(of: inputFocusRequest) { _, _ in
             handleInputFocusRequestChange()
