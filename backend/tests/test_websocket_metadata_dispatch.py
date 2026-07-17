@@ -7,12 +7,24 @@ The receive loop must remain free to process chat-turn preflight messages,
 otherwise a send can time out before its durable ACK is emitted.
 """
 
+import importlib
+import sys
 from types import SimpleNamespace
 
-from backend.core.api.app.routes import websockets
+
+def _load_websockets_module():
+    module_name = "backend.core.api.app.routes.websockets"
+    module = sys.modules.get(module_name)
+    if module is not None and not hasattr(module, "_schedule_sync_metadata_chats_background"):
+        sys.modules.pop(module_name, None)
+        routes_package = sys.modules.get("backend.core.api.app.routes")
+        if routes_package is not None and getattr(routes_package, "websockets", None) is module:
+            delattr(routes_package, "websockets")
+    return importlib.import_module(module_name)
 
 
 def test_sync_metadata_chats_is_scheduled_without_awaiting(monkeypatch):
+    websockets = _load_websockets_module()
     created_coroutines = []
     handler_awaited = False
 
