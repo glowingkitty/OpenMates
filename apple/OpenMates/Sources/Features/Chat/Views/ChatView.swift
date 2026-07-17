@@ -366,16 +366,12 @@ struct ChatView: View {
             .ignoresSafeArea()
         }
         #endif
-        .onAppear {
-            applyUITestRecordingOverlayIfNeeded()
-            applyInputFocusRequestIfNeeded()
-            applyCameraCaptureRequestIfNeeded()
-        }
+        .onAppear(perform: handleInitialAppear)
         .onChange(of: inputFocusRequest) { _, _ in
-            applyInputFocusRequestIfNeeded()
+            handleInputFocusRequestChange()
         }
         .onChange(of: cameraCaptureRequest) { _, _ in
-            applyCameraCaptureRequestIfNeeded()
+            handleCameraCaptureRequestChange()
         }
         .task(id: chatId) {
             await handleChatTask()
@@ -474,6 +470,20 @@ struct ChatView: View {
     private func handleDisappear() {
         draftSaveTask?.cancel()
         flushEncryptedDraft()
+    }
+
+    private func handleInitialAppear() {
+        applyUITestRecordingOverlayIfNeeded()
+        applyInputFocusRequestIfNeeded()
+        applyCameraCaptureRequestIfNeeded()
+    }
+
+    private func handleInputFocusRequestChange() {
+        applyInputFocusRequestIfNeeded()
+    }
+
+    private func handleCameraCaptureRequestChange() {
+        applyCameraCaptureRequestIfNeeded()
     }
 
     private func handleChatTask() async {
