@@ -271,6 +271,24 @@ struct WatchRemoteMessage: Equatable, Sendable {
     let encryptedContent: String?
     let embedRefs: [WatchEmbedRef]? = nil
     let createdAt: String
+
+    init(
+        id: String,
+        chatId: String,
+        role: WatchChatMessage.Role,
+        content: String?,
+        encryptedContent: String?,
+        embedRefs: [WatchEmbedRef]? = nil,
+        createdAt: String
+    ) {
+        self.id = id
+        self.chatId = chatId
+        self.role = role
+        self.content = content
+        self.encryptedContent = encryptedContent
+        self.embedRefs = embedRefs
+        self.createdAt = createdAt
+    }
 }
 
 protocol WatchChatAPI: Sendable {
