@@ -9146,9 +9146,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             currentChat?.chat_id === hashChatId &&
             currentMessages.length === 0 &&
             emptyRestoreAttempts < ANONYMOUS_HASH_EMPTY_RESTORE_ATTEMPTS;
+        const hashChatNotLoaded = !currentChat?.chat_id || currentChat.chat_id !== hashChatId;
         const shouldRestoreAnonymousHash =
             !$authStore.isAuthenticated &&
-            ((showWelcome && !currentChat?.chat_id) || sameHashChatMissingMessages) &&
+            (hashChatNotLoaded || sameHashChatMissingMessages) &&
             isAnonymousChatId(hashChatId) &&
             !restoringAnonymousHashChat;
 
