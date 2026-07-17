@@ -63,6 +63,9 @@ from backend.shared.python_utils.chat_version_integrity import (
     assess_chat_version_integrity,
     repair_chat_version_fields,
 )
+from backend.shared.python_utils.chat_completion_integrity import (
+    find_missing_assistant_responses_after_ai_usage,
+)
 
 
 # Shared inspection utilities — replaces duplicated helpers
@@ -326,6 +329,19 @@ def build_chat_health_summary(
     for usage in usage_entries:
         collect_timestamp_issues('usage.created_at', usage.get('created_at'), issues)
 
+    chat_id = str(chat_metadata.get('id', 'unknown') if chat_metadata else 'unknown')
+    missing_response_issues = find_missing_assistant_responses_after_ai_usage(
+        chat_id=chat_id,
+        messages=messages,
+        usage_entries=usage_entries,
+    )
+    for missing_response in missing_response_issues:
+        issues.append(
+            "User message "
+            f"{truncate_string(missing_response.user_message_id, 12)} has ai.ask usage "
+            "but no following assistant/system message persisted"
+        )
+
     if cache_info.get('error'):
         warnings.append(f"cache check failed: {cache_info.get('error')}")
 
@@ -342,6 +358,9 @@ def build_chat_health_summary(
         'issues': issues,
         'warnings': warnings,
         'version_check': version_check,
+        'missing_assistant_response_issues': [
+            issue.__dict__ for issue in missing_response_issues
+        ],
         'counts': {
             'messages': len(messages),
             'embeds': len(embeds),

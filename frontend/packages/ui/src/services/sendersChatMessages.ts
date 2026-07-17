@@ -1565,6 +1565,8 @@ export async function sendCompletedAIResponseImpl(
 			`[ChatSyncService:Senders] Error sending completed AI response for message_id: ${aiMessage.message_id}:`,
 			error
 		);
+		const { addPendingAIResponse } = await import("./pendingAIResponses");
+		addPendingAIResponse(aiMessage.message_id, aiMessage.chat_id);
 		// Ensure we unmark on error so it can be retried if needed
 		serviceInstance.unmarkMessageSyncing(aiMessage.message_id);
 	}
