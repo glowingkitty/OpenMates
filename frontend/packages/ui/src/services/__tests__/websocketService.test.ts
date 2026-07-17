@@ -68,4 +68,26 @@ describe("webSocketService recovery protocol errors", () => {
       expect.anything(),
     );
   });
+
+  it("does not emit a global server error for stale legacy recovery persistence", () => {
+    const consoleDebug = vi.spyOn(console, "debug").mockImplementation(() => undefined);
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const handlers = (webSocketService as unknown as {
+      messageHandlers: Map<string, Array<(payload: unknown) => void>>;
+    }).messageHandlers.get("error");
+
+    handlers?.[0]?.({
+      code: "recovery_persistence_required",
+      message: "This saved-chat completion must use encrypted recovery persistence.",
+    });
+
+    expect(consoleDebug).toHaveBeenCalledWith(
+      "[WebSocketService] Received retryable recovery protocol error:",
+      expect.objectContaining({ code: "recovery_persistence_required" }),
+    );
+    expect(consoleError).not.toHaveBeenCalledWith(
+      "[WebSocketService] Received error message from server:",
+      expect.anything(),
+    );
+  });
 });
