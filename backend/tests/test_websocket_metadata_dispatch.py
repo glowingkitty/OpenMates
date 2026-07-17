@@ -25,7 +25,11 @@ def test_sync_metadata_chats_is_scheduled_without_awaiting(monkeypatch):
         coroutine.close()
         return SimpleNamespace(done=lambda: False)
 
-    monkeypatch.setattr(websockets, "handle_sync_metadata_chats", fake_handle_sync_metadata_chats)
+    monkeypatch.setitem(
+        websockets._schedule_sync_metadata_chats_background.__globals__,
+        "handle_sync_metadata_chats",
+        fake_handle_sync_metadata_chats,
+    )
     monkeypatch.setattr(websockets.asyncio, "create_task", fake_create_task)
 
     task = websockets._schedule_sync_metadata_chats_background(
