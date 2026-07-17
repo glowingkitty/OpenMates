@@ -29,6 +29,7 @@ const CLI_DIST = fs.existsSync('/workspace/cli/dist/cli.js')
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 const SAMPLE_PDF = path.join(__dirname, 'fixtures', 'sample.pdf');
 const SAMPLE_IMAGE = path.join(__dirname, 'fixtures', 'sample.png');
+const CLI_SYNC_CACHE_FILE = path.join(os.homedir(), '.openmates', 'sync_cache.json');
 
 const consoleLogs: string[] = [];
 
@@ -78,6 +79,45 @@ function writeTinyWav(filePath: string): void {
 	}
 
 	fs.writeFileSync(filePath, buffer);
+}
+
+function clearCliSyncCache(): void {
+	if (fs.existsSync(CLI_SYNC_CACHE_FILE)) {
+		fs.unlinkSync(CLI_SYNC_CACHE_FILE);
+	}
+}
+
+function extractEmbedIdsFromText(content: unknown): string[] {
+	const text = String(content || '');
+	const ids = new Set<string>();
+	for (const match of text.matchAll(/"embed_id"\s*:\s*"([^"\s]+)"/gi)) ids.add(match[1]);
+	for (const match of text.matchAll(/\[!\]\(embed:([a-f0-9-]+)\)/gi)) ids.add(match[1]);
+	return [...ids];
+}
+
+function readEmbedContent(embedData: any): Record<string, unknown> {
+	const rawContent = embedData?.content || embedData?.data || {};
+	if (typeof rawContent === 'string') {
+		try {
+			return JSON.parse(rawContent);
+		} catch {
+			return {};
+		}
+	}
+	return rawContent && typeof rawContent === 'object' ? rawContent : {};
+}
+
+function isFinishedPdfEmbedContent(content: Record<string, unknown>): boolean {
+	const screenshots = content.screenshot_s3_keys;
+	return (
+		content.app_id === 'pdf' &&
+		content.skill_id === 'read' &&
+		content.status === 'finished' &&
+		Array.isArray(screenshots) &&
+		screenshots.length > 0 &&
+		typeof content.aes_key === 'string' &&
+		content.aes_key.length > 0
+	);
 }
 
 function spawnCliLogin(apiUrl: string) {
@@ -223,12 +263,63 @@ async function waitForChatShow(apiUrl: string, chatId: string, timeoutMs = 90_00
 	const startedAt = Date.now();
 	let lastOutput = '';
 	while (Date.now() - startedAt < timeoutMs) {
+		clearCliSyncCache();
 		const result = await runCli(apiUrl, ['chats', 'show', chatId, '--json'], 30_000);
 		lastOutput = result.stdout + result.stderr;
 		if (result.code === 0 && result.stdout.trim()) return JSON.parse(result.stdout);
 		await new Promise((resolve) => setTimeout(resolve, 2_000));
 	}
 	throw new Error(`Timed out waiting for chat ${chatId}: ${lastOutput.slice(0, 500)}`);
+}
+
+async function waitForFinishedPdfEmbed(
+	apiUrl: string,
+	chatId: string,
+	logCheckpoint: (message: string, metadata?: Record<string, unknown>) => void,
+	timeoutMs = 240_000
+): Promise<void> {
+	const startedAt = Date.now();
+	let lastSummary = 'no embeds checked';
+
+	while (Date.now() - startedAt < timeoutMs) {
+		const showData = await waitForChatShow(apiUrl, chatId, 45_000);
+		const embedIds = new Set<string>();
+		for (const message of showData.messages || []) {
+			for (const id of message.embedIds || message.embed_ids || []) embedIds.add(id);
+			for (const id of extractEmbedIdsFromText(message.content || message.text || '')) embedIds.add(id);
+		}
+
+		const summaries: string[] = [];
+		for (const embedId of embedIds) {
+			const embedResult = await runCli(apiUrl, ['embeds', 'show', embedId, '--json'], 30_000);
+			if (embedResult.code !== 0) {
+				summaries.push(`${embedId}:show_failed`);
+				continue;
+			}
+
+			let embedData: any;
+			try {
+				embedData = JSON.parse(embedResult.stdout);
+			} catch {
+				summaries.push(`${embedId}:invalid_json`);
+				continue;
+			}
+
+			const content = readEmbedContent(embedData);
+			summaries.push(
+				`${embedId}:${String(content.app_id || 'unknown')}/${String(content.skill_id || 'unknown')}/${String(content.status || 'unknown')}`
+			);
+			if (isFinishedPdfEmbedContent(content)) {
+				logCheckpoint('Uploaded PDF embed finalized before sharing.', { embedId });
+				return;
+			}
+		}
+
+		lastSummary = summaries.join(', ') || 'no embed ids found';
+		await new Promise((resolve) => setTimeout(resolve, 5_000));
+	}
+
+	throw new Error(`Timed out waiting for finished uploaded PDF embed: ${lastSummary}`);
 }
 
 test.beforeEach(async () => {
@@ -285,6 +376,7 @@ test('shared chat loads uploaded PDF, image, and audio recording assets while lo
 		fullChatId = showData.chat?.id;
 		expect(fullChatId).toMatch(/^[a-f0-9-]{36}$/);
 		logCheckpoint(`Created chat ${fullChatId}.`);
+		await waitForFinishedPdfEmbed(apiUrl, fullChatId!, logCheckpoint);
 
 		const shareResult = await runCli(apiUrl, ['chats', 'share', fullChatId!, '--json'], 30_000);
 		expect(shareResult.code).toBe(0);
