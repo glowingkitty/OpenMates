@@ -443,7 +443,7 @@ struct ChatView: View {
             openedInitialEmbedId = nil
             openInitialEmbedIfReady()
         }
-        .onChange(of: viewModel.embedRecords.keys.sorted()) { _, _ in
+        .onChange(of: embedRecordIdsSignature) { _, _ in
             openInitialEmbedIfReady()
         }
         .onChange(of: messageText) { _, newValue in
@@ -506,6 +506,10 @@ struct ChatView: View {
             String(initialEmbeds.count),
             initialEmbeds.map(\.id).max() ?? ""
         ].joined(separator: "|")
+    }
+
+    private var embedRecordIdsSignature: String {
+        viewModel.embedRecords.keys.sorted().joined(separator: "|")
     }
 
     private var effectiveBannerState: ChatBannerState? {
