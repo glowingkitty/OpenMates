@@ -268,10 +268,7 @@ class TestDevSignupCleanup:
         monkeypatch.setattr(api_key_auth.ApiKeyAuthService, "authenticate_api_key", fake_authenticate_api_key)
 
         directus_service = AsyncMock()
-        directus_service.get_user_by_hashed_email = AsyncMock(side_effect=[
-            (True, {"id": "configured-user", "is_admin": False}, "User found"),
-            (False, None, "User not found"),
-        ])
+        directus_service.get_user_by_hashed_email = AsyncMock(return_value=(False, None, "User not found"))
         cache_service = AsyncMock()
 
         response = await auth_invite.cleanup_failed_signup(
@@ -283,7 +280,7 @@ class TestDevSignupCleanup:
 
         assert response.success is True
         assert response.queued is False
-        assert directus_service.get_user_by_hashed_email.await_count == 2
+        directus_service.get_user_by_hashed_email.assert_awaited_once_with("disposable-hash")
 
     @pytest.mark.anyio
     async def test_cleanup_accepts_rotating_api_key_when_test_hashes_are_unconfigured(self, monkeypatch):
@@ -317,7 +314,7 @@ class TestDevSignupCleanup:
         directus_service.get_user_by_hashed_email.assert_awaited_once_with("disposable-hash")
 
     @pytest.mark.anyio
-    async def test_cleanup_rejects_rotating_api_key_for_non_test_account(self, monkeypatch):
+    async def test_cleanup_rejects_invalid_rotating_api_key(self, monkeypatch):
         from backend.core.api.app.routes.auth_routes import auth_invite
         from backend.core.api.app.schemas.auth import DevSignupCleanupRequest
         from backend.core.api.app.utils import api_key_auth
@@ -327,14 +324,12 @@ class TestDevSignupCleanup:
         monkeypatch.setattr(auth_invite, "_configured_test_account_hashes", lambda: {"configured-hash"})
 
         async def fake_authenticate_api_key(_self, api_key, request=None):
-            return {"user_id": "other-user"}
+            raise api_key_auth.ApiKeyNotFoundError("API key not found")
 
         monkeypatch.setattr(api_key_auth.ApiKeyAuthService, "authenticate_api_key", fake_authenticate_api_key)
 
         directus_service = AsyncMock()
-        directus_service.get_user_by_hashed_email = AsyncMock(
-            return_value=(True, {"id": "configured-user", "is_admin": False}, "User found")
-        )
+        directus_service.get_user_by_hashed_email = AsyncMock()
         cache_service = AsyncMock()
 
         with pytest.raises(HTTPException) as exc_info:
@@ -346,6 +341,7 @@ class TestDevSignupCleanup:
             )
 
         assert exc_info.value.status_code == 403
+        directus_service.get_user_by_hashed_email.assert_not_called()
 
 
 class TestHashUsernameImport:
