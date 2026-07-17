@@ -221,6 +221,7 @@
     if (extracted) return extracted;
     return generateFilenameFromTitle(displayTitle);
   });
+  let downloadFilename = $derived((displayFilename || 'document').replace(/\.docx$/i, '') + '.docx');
 
   // Calculate word count from content if not provided
   let actualWordCount = $derived.by(() => {
@@ -691,8 +692,6 @@
     try {
       console.debug('[DocsEmbedFullscreen] Starting document download as .docx');
 
-      const downloadFilename = (displayFilename || 'document').replace(/\.docx$/i, '') + '.docx';
-
       if (docxS3Key && aesKey) {
         if (preparedDocxDownloadUrl) {
           triggerPreparedDownloadUrl(preparedDocxDownloadUrl, downloadFilename);
@@ -765,6 +764,8 @@ ${downloadHtmlContent}
   {onClose}
   onCopy={handleCopy}
   onDownload={handleDownload}
+  downloadHref={preparedDocxDownloadUrl}
+  {downloadFilename}
   currentEmbedId={embedId}
   skillIconName={skillIconName}
   embedHeaderTitle={displayFilename}
