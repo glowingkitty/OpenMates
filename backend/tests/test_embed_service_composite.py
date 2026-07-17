@@ -59,6 +59,13 @@ def test_mail_search_has_cold_start_child_type_fallback():
     assert EmbedService._CHILD_EMBED_TYPE_FALLBACK[("mail", "search")] == "email"
 
 
+def test_task_and_workflow_skills_have_cold_start_child_type_fallbacks():
+    assert EmbedService._CHILD_EMBED_TYPE_FALLBACK[("tasks", "create")] == "task"
+    assert EmbedService._CHILD_EMBED_TYPE_FALLBACK[("tasks", "search")] == "task"
+    assert EmbedService._CHILD_EMBED_TYPE_FALLBACK[("workflows", "create-or-modify")] == "workflow"
+    assert EmbedService._CHILD_EMBED_TYPE_FALLBACK[("workflows", "search")] == "workflow"
+
+
 def test_get_child_embed_type_uses_code_search_repos_fallback_when_cache_empty():
     child_type = _run(EmbedService.get_child_embed_type(
         "code",

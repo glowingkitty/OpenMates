@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import {
   annotateChatWithUsage,
+  removeInternalTaskEventMessages,
   sanitizeEmbedContent,
   sanitizeExampleMessageContent,
 } from '../create-example-chat-from-share.mjs';
@@ -52,6 +53,31 @@ After!`);
   assert.equal(sanitized, 'Before\n\nAfter!');
 });
 
+test('removes internal task event system messages from public examples', () => {
+  const chat = removeInternalTaskEventMessages({
+    chat_id: 'source-chat',
+    messages: [
+      { message_id: 'user-1', role: 'user', content: 'Create tasks' },
+      { message_id: 'task-event-task-update-job-1', role: 'system', content: 'task-id created "Draft note" (todo)' },
+      { message_id: 'system-json-1', role: 'system', content: '{"kept":true}' },
+      { message_id: 'assistant-1', role: 'assistant', content: 'Done' },
+    ],
+    embeds: [],
+    sub_chats: [
+      {
+        chat_id: 'sub-chat',
+        messages: [
+          { message_id: 'task-event-task-update-job-2', role: 'system', content: 'task-id created "Sub" (todo)' },
+          { message_id: 'sub-assistant-1', role: 'assistant', content: 'Sub done' },
+        ],
+      },
+    ],
+  });
+
+  assert.deepEqual(chat.messages.map((message) => message.message_id), ['user-1', 'system-json-1', 'assistant-1']);
+  assert.deepEqual(chat.sub_chats[0].messages.map((message) => message.message_id), ['sub-assistant-1']);
+});
+
 test('continues to strip private encrypted storage fields', () => {
   const sanitized = sanitizeEmbedContent(`app_id: weather
 skill_id: rain_radar
@@ -66,6 +92,22 @@ summary:
 
   assert.doesNotMatch(sanitized, /s3_base_url|aes_key|s3_key/);
   assert.match(sanitized, /^summary:\n  in_10_min: No rain$/m);
+});
+
+test('strips transient task persistence fields from static task embeds', () => {
+  const sanitized = sanitizeEmbedContent(`type: task
+parent_app_skill_type: app_skill_use
+task_id: 00000000-0000-0000-0000-000000000000
+short_id: null
+title: Review transcript
+status: todo
+task_update_job_id: task-update-job-1
+pending_client_persistence: true
+embed_ref: review-transcript`);
+
+  assert.doesNotMatch(sanitized, /task_id|short_id|task_update_job_id|pending_client_persistence/);
+  assert.match(sanitized, /^title: Review transcript$/m);
+  assert.match(sanitized, /^status: todo$/m);
 });
 
 test('annotates assistant responses with summed source usage credits', () => {

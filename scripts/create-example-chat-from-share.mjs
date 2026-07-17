@@ -471,13 +471,15 @@ function normalizeRainRadarEmbedContent(content) {
 
 export function sanitizeEmbedContent(content) {
   const source = normalizeRainRadarEmbedContent(content) || String(content || '');
+  const isTaskSnapshot = /^type:\s*task\s*$/m.test(source) || /^parent_app_skill_type:\s*app_skill_use\s*$/m.test(source);
   const privateFieldPattern = /^(vault_key_id|user_id|vault_wrapped_aes_key|aes_key|aes_nonce|s3_base_url|s3_key|docx_s3_key|screenshot_s3_keys):\s*/;
+  const taskTransientFieldPattern = /^(task_id|short_id|task_update_job_id|pending_client_persistence):\s*/;
   const blockFieldPattern = /^(files|screenshots):\s*/;
   const publicLines = [];
   let skippingPrivateBlock = false;
 
   for (const line of source.split('\n')) {
-    if (privateFieldPattern.test(line)) {
+    if (privateFieldPattern.test(line) || (isTaskSnapshot && taskTransientFieldPattern.test(line))) {
       skippingPrivateBlock = false;
       continue;
     }
@@ -777,6 +779,22 @@ function isDirectSystemContent(message) {
   return message.role === 'system' && typeof message.content === 'string' && message.content.trimStart().startsWith('{');
 }
 
+function isInternalTaskEventMessage(message) {
+  if (message.role !== 'system') return false;
+  const messageId = String(message.message_id || message.id || '');
+  if (messageId.startsWith('task-event-')) return true;
+  const content = String(message.content || '').trim();
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12} (created|updated|blocked|completed|moved|unblocked) /.test(content);
+}
+
+export function removeInternalTaskEventMessages(chat) {
+  return {
+    ...chat,
+    messages: (chat.messages || []).filter((message) => !isInternalTaskEventMessage(message)),
+    sub_chats: (chat.sub_chats || []).map((subChat) => removeInternalTaskEventMessages(subChat)),
+  };
+}
+
 export function sanitizeExampleMessageContent(content) {
   return String(content || '')
     .split('\n')
@@ -978,7 +996,7 @@ function writeIfChanged(filePath, content, args) {
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
-  const loadedChat = withPromotedAppSkillUseMessages(loadExtractedChat(args));
+  const loadedChat = removeInternalTaskEventMessages(withPromotedAppSkillUseMessages(loadExtractedChat(args)));
   const usagePayload = await loadUsagePayload(args, loadedChat);
   const chat = annotateChatWithUsage(loadedChat, usagePayload);
   validateExtractedChat(chat);

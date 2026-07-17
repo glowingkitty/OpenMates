@@ -29,7 +29,7 @@
   let { data, onClose, embedId, hasPreviousEmbed = false, hasNextEmbed = false, onNavigatePrevious, onNavigateNext, navigateDirection, showChatButton = false, onShowChat }: Props = $props();
 
   let status = $derived((data.embedData?.status ?? data.decodedContent?.status ?? 'finished') as 'processing' | 'finished' | 'error' | 'cancelled');
-  let query = $derived(typeof data.decodedContent?.instruction === 'string' ? data.decodedContent.instruction : typeof data.decodedContent?.query === 'string' ? data.decodedContent.query : 'Created workflow');
+  let query = $derived(typeof data.decodedContent?.instruction === 'string' ? data.decodedContent.instruction : typeof data.decodedContent?.query === 'string' ? data.decodedContent.query : typeof data.decodedContent?.title === 'string' ? data.decodedContent.title : 'Created workflow');
   let embedIds = $derived(data.decodedContent?.embed_ids ?? data.embedData?.embed_ids);
   let initialChildEmbedId = $derived(data.focusChildEmbedId ?? undefined);
 

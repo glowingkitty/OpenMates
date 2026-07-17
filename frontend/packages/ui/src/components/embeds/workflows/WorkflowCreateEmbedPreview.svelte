@@ -14,6 +14,7 @@
     id: string;
     query?: string;
     instruction?: string;
+    title?: string;
     status: 'processing' | 'finished' | 'error';
     results?: unknown;
     resultCount?: number;
@@ -23,7 +24,7 @@
     onFullscreen: () => void;
   }
 
-  let { id, query = '', instruction = '', status, results = [], resultCount, childEmbedIds = [], taskId, isMobile = false, onFullscreen }: Props = $props();
+  let { id, query = '', instruction = '', title = '', status, results = [], resultCount, childEmbedIds = [], taskId, isMobile = false, onFullscreen }: Props = $props();
 
   function normalizePreviewResults(value: unknown): WorkflowEmbedResult[] {
     if (Array.isArray(value) && value.length > 0) return value as WorkflowEmbedResult[];
@@ -34,9 +35,10 @@
   let childIds = $derived(normalizeEmbedIdList(childEmbedIds));
   let resultState = $derived(getParentPreviewResultState({ status, previewResultCount: previewResults.length, resultCount, childEmbedIds: childIds }));
   let displayCount = $derived(resultCount ?? (previewResults.length > 0 ? previewResults.length : childIds.length));
-  let displayInstruction = $derived(instruction || query || 'Create workflow');
+  let displayInstruction = $derived(instruction || query || title || 'Create workflow');
   let summary = $derived.by(() => {
     if (status !== 'finished') return 'Building workflow...';
+    if (resultState === 'known_zero_results' && title) return 'Workflow created';
     if (resultState === 'known_zero_results') return 'No workflow created';
     if (resultState === 'missing_preview_metadata') return 'Open to view workflow';
     return `${displayCount} workflow${displayCount === 1 ? '' : 's'} created or updated`;
@@ -47,6 +49,7 @@
     const content = data.decodedContent;
     if (typeof content.query === 'string') query = content.query;
     if (typeof content.instruction === 'string') instruction = content.instruction;
+    if (typeof content.title === 'string') title = content.title;
     if (typeof content.result_count === 'number') resultCount = content.result_count;
     results = content.results || content.preview_results || [];
     childEmbedIds = content.embed_ids as string | string[] | undefined ?? childEmbedIds;

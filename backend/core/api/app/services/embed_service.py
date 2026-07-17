@@ -3694,6 +3694,10 @@ class EmbedService:
         ("nutrition", "search_recipes"): "recipe",
         ("code", "search_repos"): "repo",
         ("weather", "forecast"): "weather_day",
+        ("tasks", "create"): "task",
+        ("tasks", "search"): "task",
+        ("workflows", "create-or-modify"): "workflow",
+        ("workflows", "search"): "workflow",
     }
 
     @staticmethod

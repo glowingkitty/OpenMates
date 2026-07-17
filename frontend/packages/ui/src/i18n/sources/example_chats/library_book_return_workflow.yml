@@ -1,0 +1,331 @@
+title:
+  context: "Title of example chat: Library Book Return Workflow"
+  en: "Library Book Return Workflow"
+  de: "Library Book Return Workflow"
+  zh: "Library Book Return Workflow"
+  es: "Library Book Return Workflow"
+  fr: "Library Book Return Workflow"
+  pt: "Library Book Return Workflow"
+  ru: "Library Book Return Workflow"
+  ja: "Library Book Return Workflow"
+  ko: "Library Book Return Workflow"
+  it: "Library Book Return Workflow"
+  tr: "Library Book Return Workflow"
+  vi: "Library Book Return Workflow"
+  id: "Library Book Return Workflow"
+  pl: "Library Book Return Workflow"
+  nl: "Library Book Return Workflow"
+  ar: "Library Book Return Workflow"
+  hi: "Library Book Return Workflow"
+  th: "Library Book Return Workflow"
+  cs: "Library Book Return Workflow"
+  sv: "Library Book Return Workflow"
+  he: "Library Book Return Workflow"
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: Library Book Return Workflow"
+  en: "A real CLI-created Workflows app-skill chat that turns a simple library-return routine into a manual workflow."
+  de: "A real CLI-created Workflows app-skill chat that turns a simple library-return routine into a manual workflow."
+  zh: "A real CLI-created Workflows app-skill chat that turns a simple library-return routine into a manual workflow."
+  es: "A real CLI-created Workflows app-skill chat that turns a simple library-return routine into a manual workflow."
+  fr: "A real CLI-created Workflows app-skill chat that turns a simple library-return routine into a manual workflow."
+  pt: "A real CLI-created Workflows app-skill chat that turns a simple library-return routine into a manual workflow."
+  ru: "A real CLI-created Workflows app-skill chat that turns a simple library-return routine into a manual workflow."
+  ja: "A real CLI-created Workflows app-skill chat that turns a simple library-return routine into a manual workflow."
+  ko: "A real CLI-created Workflows app-skill chat that turns a simple library-return routine into a manual workflow."
+  it: "A real CLI-created Workflows app-skill chat that turns a simple library-return routine into a manual workflow."
+  tr: "A real CLI-created Workflows app-skill chat that turns a simple library-return routine into a manual workflow."
+  vi: "A real CLI-created Workflows app-skill chat that turns a simple library-return routine into a manual workflow."
+  id: "A real CLI-created Workflows app-skill chat that turns a simple library-return routine into a manual workflow."
+  pl: "A real CLI-created Workflows app-skill chat that turns a simple library-return routine into a manual workflow."
+  nl: "A real CLI-created Workflows app-skill chat that turns a simple library-return routine into a manual workflow."
+  ar: "A real CLI-created Workflows app-skill chat that turns a simple library-return routine into a manual workflow."
+  hi: "A real CLI-created Workflows app-skill chat that turns a simple library-return routine into a manual workflow."
+  th: "A real CLI-created Workflows app-skill chat that turns a simple library-return routine into a manual workflow."
+  cs: "A real CLI-created Workflows app-skill chat that turns a simple library-return routine into a manual workflow."
+  sv: "A real CLI-created Workflows app-skill chat that turns a simple library-return routine into a manual workflow."
+  he: "A real CLI-created Workflows app-skill chat that turns a simple library-return routine into a manual workflow."
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: Library Book Return Workflow. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "@skill:workflows:create-or-modify Do not ask follow-up questions. Create a simple manual workflow titled Library Book Return Checklist. It should have a manual trigger and three manual steps: gather borrowed books from the shelf, check due dates in the library account, and pack books in a tote bag before leaving home. Keep it concise and suitable for a public demo."
+  de: "@skill:workflows:create-or-modify Do not ask follow-up questions. Create a simple manual workflow titled Library Book Return Checklist. It should have a manual trigger and three manual steps: gather borrowed books from the shelf, check due dates in the library account, and pack books in a tote bag before leaving home. Keep it concise and suitable for a public demo."
+  zh: "@skill:workflows:create-or-modify Do not ask follow-up questions. Create a simple manual workflow titled Library Book Return Checklist. It should have a manual trigger and three manual steps: gather borrowed books from the shelf, check due dates in the library account, and pack books in a tote bag before leaving home. Keep it concise and suitable for a public demo."
+  es: "@skill:workflows:create-or-modify Do not ask follow-up questions. Create a simple manual workflow titled Library Book Return Checklist. It should have a manual trigger and three manual steps: gather borrowed books from the shelf, check due dates in the library account, and pack books in a tote bag before leaving home. Keep it concise and suitable for a public demo."
+  fr: "@skill:workflows:create-or-modify Do not ask follow-up questions. Create a simple manual workflow titled Library Book Return Checklist. It should have a manual trigger and three manual steps: gather borrowed books from the shelf, check due dates in the library account, and pack books in a tote bag before leaving home. Keep it concise and suitable for a public demo."
+  pt: "@skill:workflows:create-or-modify Do not ask follow-up questions. Create a simple manual workflow titled Library Book Return Checklist. It should have a manual trigger and three manual steps: gather borrowed books from the shelf, check due dates in the library account, and pack books in a tote bag before leaving home. Keep it concise and suitable for a public demo."
+  ru: "@skill:workflows:create-or-modify Do not ask follow-up questions. Create a simple manual workflow titled Library Book Return Checklist. It should have a manual trigger and three manual steps: gather borrowed books from the shelf, check due dates in the library account, and pack books in a tote bag before leaving home. Keep it concise and suitable for a public demo."
+  ja: "@skill:workflows:create-or-modify Do not ask follow-up questions. Create a simple manual workflow titled Library Book Return Checklist. It should have a manual trigger and three manual steps: gather borrowed books from the shelf, check due dates in the library account, and pack books in a tote bag before leaving home. Keep it concise and suitable for a public demo."
+  ko: "@skill:workflows:create-or-modify Do not ask follow-up questions. Create a simple manual workflow titled Library Book Return Checklist. It should have a manual trigger and three manual steps: gather borrowed books from the shelf, check due dates in the library account, and pack books in a tote bag before leaving home. Keep it concise and suitable for a public demo."
+  it: "@skill:workflows:create-or-modify Do not ask follow-up questions. Create a simple manual workflow titled Library Book Return Checklist. It should have a manual trigger and three manual steps: gather borrowed books from the shelf, check due dates in the library account, and pack books in a tote bag before leaving home. Keep it concise and suitable for a public demo."
+  tr: "@skill:workflows:create-or-modify Do not ask follow-up questions. Create a simple manual workflow titled Library Book Return Checklist. It should have a manual trigger and three manual steps: gather borrowed books from the shelf, check due dates in the library account, and pack books in a tote bag before leaving home. Keep it concise and suitable for a public demo."
+  vi: "@skill:workflows:create-or-modify Do not ask follow-up questions. Create a simple manual workflow titled Library Book Return Checklist. It should have a manual trigger and three manual steps: gather borrowed books from the shelf, check due dates in the library account, and pack books in a tote bag before leaving home. Keep it concise and suitable for a public demo."
+  id: "@skill:workflows:create-or-modify Do not ask follow-up questions. Create a simple manual workflow titled Library Book Return Checklist. It should have a manual trigger and three manual steps: gather borrowed books from the shelf, check due dates in the library account, and pack books in a tote bag before leaving home. Keep it concise and suitable for a public demo."
+  pl: "@skill:workflows:create-or-modify Do not ask follow-up questions. Create a simple manual workflow titled Library Book Return Checklist. It should have a manual trigger and three manual steps: gather borrowed books from the shelf, check due dates in the library account, and pack books in a tote bag before leaving home. Keep it concise and suitable for a public demo."
+  nl: "@skill:workflows:create-or-modify Do not ask follow-up questions. Create a simple manual workflow titled Library Book Return Checklist. It should have a manual trigger and three manual steps: gather borrowed books from the shelf, check due dates in the library account, and pack books in a tote bag before leaving home. Keep it concise and suitable for a public demo."
+  ar: "@skill:workflows:create-or-modify Do not ask follow-up questions. Create a simple manual workflow titled Library Book Return Checklist. It should have a manual trigger and three manual steps: gather borrowed books from the shelf, check due dates in the library account, and pack books in a tote bag before leaving home. Keep it concise and suitable for a public demo."
+  hi: "@skill:workflows:create-or-modify Do not ask follow-up questions. Create a simple manual workflow titled Library Book Return Checklist. It should have a manual trigger and three manual steps: gather borrowed books from the shelf, check due dates in the library account, and pack books in a tote bag before leaving home. Keep it concise and suitable for a public demo."
+  th: "@skill:workflows:create-or-modify Do not ask follow-up questions. Create a simple manual workflow titled Library Book Return Checklist. It should have a manual trigger and three manual steps: gather borrowed books from the shelf, check due dates in the library account, and pack books in a tote bag before leaving home. Keep it concise and suitable for a public demo."
+  cs: "@skill:workflows:create-or-modify Do not ask follow-up questions. Create a simple manual workflow titled Library Book Return Checklist. It should have a manual trigger and three manual steps: gather borrowed books from the shelf, check due dates in the library account, and pack books in a tote bag before leaving home. Keep it concise and suitable for a public demo."
+  sv: "@skill:workflows:create-or-modify Do not ask follow-up questions. Create a simple manual workflow titled Library Book Return Checklist. It should have a manual trigger and three manual steps: gather borrowed books from the shelf, check due dates in the library account, and pack books in a tote bag before leaving home. Keep it concise and suitable for a public demo."
+  he: "@skill:workflows:create-or-modify Do not ask follow-up questions. Create a simple manual workflow titled Library Book Return Checklist. It should have a manual trigger and three manual steps: gather borrowed books from the shelf, check due dates in the library account, and pack books in a tote bag before leaving home. Keep it concise and suitable for a public demo."
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: Library Book Return Workflow. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "cda4695f-7f68-42d7-9cfe-d719aa08dc3e", "app_id": "workflows", "skill_id": "create-or-modify"}
+    ```
+    
+    I have created the **Library Book Return Checklist** workflow. This manual automation includes the following steps:
+    
+    1.  **Gather books**: Gather borrowed books from the shelf.
+    2.  **Check due dates**: Check due dates in the library account.
+    3.  **Pack tote bag**: Pack books in a tote bag before leaving home.
+    
+    You can view and manage this checklist in the [Workflows app](/#settings/apps/workflows).
+  de: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "cda4695f-7f68-42d7-9cfe-d719aa08dc3e", "app_id": "workflows", "skill_id": "create-or-modify"}
+    ```
+    
+    I have created the **Library Book Return Checklist** workflow. This manual automation includes the following steps:
+    
+    1.  **Gather books**: Gather borrowed books from the shelf.
+    2.  **Check due dates**: Check due dates in the library account.
+    3.  **Pack tote bag**: Pack books in a tote bag before leaving home.
+    
+    You can view and manage this checklist in the [Workflows app](/#settings/apps/workflows).
+  zh: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "cda4695f-7f68-42d7-9cfe-d719aa08dc3e", "app_id": "workflows", "skill_id": "create-or-modify"}
+    ```
+    
+    I have created the **Library Book Return Checklist** workflow. This manual automation includes the following steps:
+    
+    1.  **Gather books**: Gather borrowed books from the shelf.
+    2.  **Check due dates**: Check due dates in the library account.
+    3.  **Pack tote bag**: Pack books in a tote bag before leaving home.
+    
+    You can view and manage this checklist in the [Workflows app](/#settings/apps/workflows).
+  es: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "cda4695f-7f68-42d7-9cfe-d719aa08dc3e", "app_id": "workflows", "skill_id": "create-or-modify"}
+    ```
+    
+    I have created the **Library Book Return Checklist** workflow. This manual automation includes the following steps:
+    
+    1.  **Gather books**: Gather borrowed books from the shelf.
+    2.  **Check due dates**: Check due dates in the library account.
+    3.  **Pack tote bag**: Pack books in a tote bag before leaving home.
+    
+    You can view and manage this checklist in the [Workflows app](/#settings/apps/workflows).
+  fr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "cda4695f-7f68-42d7-9cfe-d719aa08dc3e", "app_id": "workflows", "skill_id": "create-or-modify"}
+    ```
+    
+    I have created the **Library Book Return Checklist** workflow. This manual automation includes the following steps:
+    
+    1.  **Gather books**: Gather borrowed books from the shelf.
+    2.  **Check due dates**: Check due dates in the library account.
+    3.  **Pack tote bag**: Pack books in a tote bag before leaving home.
+    
+    You can view and manage this checklist in the [Workflows app](/#settings/apps/workflows).
+  pt: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "cda4695f-7f68-42d7-9cfe-d719aa08dc3e", "app_id": "workflows", "skill_id": "create-or-modify"}
+    ```
+    
+    I have created the **Library Book Return Checklist** workflow. This manual automation includes the following steps:
+    
+    1.  **Gather books**: Gather borrowed books from the shelf.
+    2.  **Check due dates**: Check due dates in the library account.
+    3.  **Pack tote bag**: Pack books in a tote bag before leaving home.
+    
+    You can view and manage this checklist in the [Workflows app](/#settings/apps/workflows).
+  ru: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "cda4695f-7f68-42d7-9cfe-d719aa08dc3e", "app_id": "workflows", "skill_id": "create-or-modify"}
+    ```
+    
+    I have created the **Library Book Return Checklist** workflow. This manual automation includes the following steps:
+    
+    1.  **Gather books**: Gather borrowed books from the shelf.
+    2.  **Check due dates**: Check due dates in the library account.
+    3.  **Pack tote bag**: Pack books in a tote bag before leaving home.
+    
+    You can view and manage this checklist in the [Workflows app](/#settings/apps/workflows).
+  ja: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "cda4695f-7f68-42d7-9cfe-d719aa08dc3e", "app_id": "workflows", "skill_id": "create-or-modify"}
+    ```
+    
+    I have created the **Library Book Return Checklist** workflow. This manual automation includes the following steps:
+    
+    1.  **Gather books**: Gather borrowed books from the shelf.
+    2.  **Check due dates**: Check due dates in the library account.
+    3.  **Pack tote bag**: Pack books in a tote bag before leaving home.
+    
+    You can view and manage this checklist in the [Workflows app](/#settings/apps/workflows).
+  ko: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "cda4695f-7f68-42d7-9cfe-d719aa08dc3e", "app_id": "workflows", "skill_id": "create-or-modify"}
+    ```
+    
+    I have created the **Library Book Return Checklist** workflow. This manual automation includes the following steps:
+    
+    1.  **Gather books**: Gather borrowed books from the shelf.
+    2.  **Check due dates**: Check due dates in the library account.
+    3.  **Pack tote bag**: Pack books in a tote bag before leaving home.
+    
+    You can view and manage this checklist in the [Workflows app](/#settings/apps/workflows).
+  it: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "cda4695f-7f68-42d7-9cfe-d719aa08dc3e", "app_id": "workflows", "skill_id": "create-or-modify"}
+    ```
+    
+    I have created the **Library Book Return Checklist** workflow. This manual automation includes the following steps:
+    
+    1.  **Gather books**: Gather borrowed books from the shelf.
+    2.  **Check due dates**: Check due dates in the library account.
+    3.  **Pack tote bag**: Pack books in a tote bag before leaving home.
+    
+    You can view and manage this checklist in the [Workflows app](/#settings/apps/workflows).
+  tr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "cda4695f-7f68-42d7-9cfe-d719aa08dc3e", "app_id": "workflows", "skill_id": "create-or-modify"}
+    ```
+    
+    I have created the **Library Book Return Checklist** workflow. This manual automation includes the following steps:
+    
+    1.  **Gather books**: Gather borrowed books from the shelf.
+    2.  **Check due dates**: Check due dates in the library account.
+    3.  **Pack tote bag**: Pack books in a tote bag before leaving home.
+    
+    You can view and manage this checklist in the [Workflows app](/#settings/apps/workflows).
+  vi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "cda4695f-7f68-42d7-9cfe-d719aa08dc3e", "app_id": "workflows", "skill_id": "create-or-modify"}
+    ```
+    
+    I have created the **Library Book Return Checklist** workflow. This manual automation includes the following steps:
+    
+    1.  **Gather books**: Gather borrowed books from the shelf.
+    2.  **Check due dates**: Check due dates in the library account.
+    3.  **Pack tote bag**: Pack books in a tote bag before leaving home.
+    
+    You can view and manage this checklist in the [Workflows app](/#settings/apps/workflows).
+  id: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "cda4695f-7f68-42d7-9cfe-d719aa08dc3e", "app_id": "workflows", "skill_id": "create-or-modify"}
+    ```
+    
+    I have created the **Library Book Return Checklist** workflow. This manual automation includes the following steps:
+    
+    1.  **Gather books**: Gather borrowed books from the shelf.
+    2.  **Check due dates**: Check due dates in the library account.
+    3.  **Pack tote bag**: Pack books in a tote bag before leaving home.
+    
+    You can view and manage this checklist in the [Workflows app](/#settings/apps/workflows).
+  pl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "cda4695f-7f68-42d7-9cfe-d719aa08dc3e", "app_id": "workflows", "skill_id": "create-or-modify"}
+    ```
+    
+    I have created the **Library Book Return Checklist** workflow. This manual automation includes the following steps:
+    
+    1.  **Gather books**: Gather borrowed books from the shelf.
+    2.  **Check due dates**: Check due dates in the library account.
+    3.  **Pack tote bag**: Pack books in a tote bag before leaving home.
+    
+    You can view and manage this checklist in the [Workflows app](/#settings/apps/workflows).
+  nl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "cda4695f-7f68-42d7-9cfe-d719aa08dc3e", "app_id": "workflows", "skill_id": "create-or-modify"}
+    ```
+    
+    I have created the **Library Book Return Checklist** workflow. This manual automation includes the following steps:
+    
+    1.  **Gather books**: Gather borrowed books from the shelf.
+    2.  **Check due dates**: Check due dates in the library account.
+    3.  **Pack tote bag**: Pack books in a tote bag before leaving home.
+    
+    You can view and manage this checklist in the [Workflows app](/#settings/apps/workflows).
+  ar: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "cda4695f-7f68-42d7-9cfe-d719aa08dc3e", "app_id": "workflows", "skill_id": "create-or-modify"}
+    ```
+    
+    I have created the **Library Book Return Checklist** workflow. This manual automation includes the following steps:
+    
+    1.  **Gather books**: Gather borrowed books from the shelf.
+    2.  **Check due dates**: Check due dates in the library account.
+    3.  **Pack tote bag**: Pack books in a tote bag before leaving home.
+    
+    You can view and manage this checklist in the [Workflows app](/#settings/apps/workflows).
+  hi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "cda4695f-7f68-42d7-9cfe-d719aa08dc3e", "app_id": "workflows", "skill_id": "create-or-modify"}
+    ```
+    
+    I have created the **Library Book Return Checklist** workflow. This manual automation includes the following steps:
+    
+    1.  **Gather books**: Gather borrowed books from the shelf.
+    2.  **Check due dates**: Check due dates in the library account.
+    3.  **Pack tote bag**: Pack books in a tote bag before leaving home.
+    
+    You can view and manage this checklist in the [Workflows app](/#settings/apps/workflows).
+  th: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "cda4695f-7f68-42d7-9cfe-d719aa08dc3e", "app_id": "workflows", "skill_id": "create-or-modify"}
+    ```
+    
+    I have created the **Library Book Return Checklist** workflow. This manual automation includes the following steps:
+    
+    1.  **Gather books**: Gather borrowed books from the shelf.
+    2.  **Check due dates**: Check due dates in the library account.
+    3.  **Pack tote bag**: Pack books in a tote bag before leaving home.
+    
+    You can view and manage this checklist in the [Workflows app](/#settings/apps/workflows).
+  cs: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "cda4695f-7f68-42d7-9cfe-d719aa08dc3e", "app_id": "workflows", "skill_id": "create-or-modify"}
+    ```
+    
+    I have created the **Library Book Return Checklist** workflow. This manual automation includes the following steps:
+    
+    1.  **Gather books**: Gather borrowed books from the shelf.
+    2.  **Check due dates**: Check due dates in the library account.
+    3.  **Pack tote bag**: Pack books in a tote bag before leaving home.
+    
+    You can view and manage this checklist in the [Workflows app](/#settings/apps/workflows).
+  sv: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "cda4695f-7f68-42d7-9cfe-d719aa08dc3e", "app_id": "workflows", "skill_id": "create-or-modify"}
+    ```
+    
+    I have created the **Library Book Return Checklist** workflow. This manual automation includes the following steps:
+    
+    1.  **Gather books**: Gather borrowed books from the shelf.
+    2.  **Check due dates**: Check due dates in the library account.
+    3.  **Pack tote bag**: Pack books in a tote bag before leaving home.
+    
+    You can view and manage this checklist in the [Workflows app](/#settings/apps/workflows).
+  he: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "cda4695f-7f68-42d7-9cfe-d719aa08dc3e", "app_id": "workflows", "skill_id": "create-or-modify"}
+    ```
+    
+    I have created the **Library Book Return Checklist** workflow. This manual automation includes the following steps:
+    
+    1.  **Gather books**: Gather borrowed books from the shelf.
+    2.  **Check due dates**: Check due dates in the library account.
+    3.  **Pack tote bag**: Pack books in a tote bag before leaving home.
+    
+    You can view and manage this checklist in the [Workflows app](/#settings/apps/workflows).
+  verified_by_human: []
+
