@@ -569,7 +569,9 @@ final class ChatSendPipelineParityTests: XCTestCase {
         XCTAssertEqual(updated.embedRefs?.map(\.id), ["embed-inline", "embed-json", "embed-large"])
         XCTAssertEqual(updated.content?.contains("[[embedref:embed-large]]"), true)
         XCTAssertEqual(updated.content?.contains("[[embed:embed-inline]]"), true)
-        XCTAssertEqual(updated.renderDocumentForDisplay?.blocks.map(\.kind), [.embedGroup, .embedGroup, .embedGroup])
+        let blocks = try XCTUnwrap(updated.renderDocumentForDisplay?.blocks)
+        XCTAssertEqual(blocks.map(\.kind), [.embedGroup, .embedGroup])
+        XCTAssertEqual(blocks.flatMap(\.embedReferences).map(\.id), ["embed-inline", "embed-json", "embed-large"])
     }
 
     func testPendingAssistantResponseQueueStoresOnlyIdsAndDedupes() throws {
