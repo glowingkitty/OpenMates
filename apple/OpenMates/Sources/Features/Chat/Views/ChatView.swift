@@ -441,16 +441,8 @@ struct ChatView: View {
         .onReceive(NotificationCenter.default.publisher(for: .pendingDeferredSendRequested)) { notification in
             handleComposerDeferredSend(notification)
         }
-        .onChange(of: viewModel.chat?.activeFocusId) { _, focusId in
-            if let focusId, !focusId.isEmpty {
-                focusModeManager.activate(.init(
-                    id: focusId,
-                    appId: focusId.components(separatedBy: "-").first ?? "ai",
-                    name: focusId
-                ))
-            } else {
-                focusModeManager.deactivate()
-            }
+        .onChange(of: activeFocusId) { _, focusId in
+            handleActiveFocusChange(focusId)
         }
     }
 
@@ -477,6 +469,10 @@ struct ChatView: View {
 
     private var embedRecordIdsSignature: String {
         viewModel.embedRecords.keys.sorted().joined(separator: "|")
+    }
+
+    private var activeFocusId: String? {
+        viewModel.chat?.activeFocusId
     }
 
     private func handleDisappear() {
@@ -542,6 +538,18 @@ struct ChatView: View {
             userInfo: ["url": url]
         )
         viewModel.forkedChatId = nil
+    }
+
+    private func handleActiveFocusChange(_ focusId: String?) {
+        guard let focusId, !focusId.isEmpty else {
+            focusModeManager.deactivate()
+            return
+        }
+        focusModeManager.activate(.init(
+            id: focusId,
+            appId: focusId.components(separatedBy: "-").first ?? "ai",
+            name: focusId
+        ))
     }
 
     private var effectiveBannerState: ChatBannerState? {
