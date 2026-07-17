@@ -9,6 +9,7 @@ Handles:
 Architecture: docs/architecture/messaging/embed-diff-editing.md
 """
 
+import json
 import logging
 import re
 from dataclasses import dataclass
@@ -273,6 +274,77 @@ def apply_patch_unique_removals(content: str, diff: ParsedDiff) -> PatchResult:
     )
 
 
+def apply_patch_json_key_replacements(content: str, diff: ParsedDiff) -> PatchResult:
+    """
+    Tier 2c: Apply safe top-level JSON key replacements from a diff.
+
+    DOCX embeds are reconstructed as pretty-printed JSON before patching, but
+    models sometimes emit compact JSON diff context. When exact/fuzzy line
+    matching fails, top-level key replacements like title/filename are still
+    safe if the removed value matches the current JSON value exactly.
+    """
+    try:
+        data = json.loads(content)
+    except (TypeError, ValueError) as exc:
+        return PatchResult(
+            success=False, new_content=None, tier=2,
+            error=f"JSON key fallback requires object JSON: {exc}"
+        )
+
+    if not isinstance(data, dict):
+        return PatchResult(
+            success=False, new_content=None, tier=2,
+            error="JSON key fallback requires a JSON object"
+        )
+
+    changed = False
+    key_line_pattern = re.compile(r'^"([A-Za-z_][\w-]*)"\s*:\s*(.+?)(,)?$')
+
+    for hunk in diff.hunks:
+        removed_lines = [line[1:].strip() for line in hunk.lines if line.startswith('-')]
+        added_lines = [line[1:].strip() for line in hunk.lines if line.startswith('+')]
+        added_by_key: Dict[str, str] = {}
+
+        for added in added_lines:
+            added_match = key_line_pattern.match(added)
+            if added_match:
+                added_by_key[added_match.group(1)] = added_match.group(2)
+
+        for removed in removed_lines:
+            removed_match = key_line_pattern.match(removed)
+            if not removed_match:
+                continue
+
+            key = removed_match.group(1)
+            if key not in added_by_key:
+                continue
+
+            try:
+                old_value = json.loads(removed_match.group(2))
+                new_value = json.loads(added_by_key[key])
+            except ValueError:
+                continue
+
+            if data.get(key) != old_value:
+                continue
+
+            data[key] = new_value
+            changed = True
+
+    if not changed:
+        return PatchResult(
+            success=False, new_content=None, tier=2,
+            error="JSON key fallback found no matching top-level replacements"
+        )
+
+    return PatchResult(
+        success=True,
+        new_content=json.dumps(data, ensure_ascii=False, indent=2),
+        tier=2,
+        error=None
+    )
+
+
 def apply_patch(content: str, diff: ParsedDiff) -> PatchResult:
     """
     Apply a parsed diff to content using 3-tier fallback strategy.
@@ -310,17 +382,27 @@ def apply_patch(content: str, diff: ParsedDiff) -> PatchResult:
         return result
 
     tier2b_error = result.error
+
+    result = apply_patch_json_key_replacements(content, diff)
+    if result.success:
+        logger.info(f"Patch applied successfully (tier 2, JSON key replacements) for {diff.embed_ref}")
+        return result
+
+    tier2c_error = result.error
     logger.warning(
         f"Patch application failed for {diff.embed_ref}. "
         f"Tier 1: {tier1_error}. Tier 2: {tier2_error}. "
-        f"Tier 2b: {tier2b_error}. "
+        f"Tier 2b: {tier2b_error}. Tier 2c: {tier2c_error}. "
         f"Falling back to visual diff card (tier 3)."
     )
 
     # Tier 3: Visual fallback — return failure so caller renders diff as card
     return PatchResult(
         success=False, new_content=None, tier=3,
-        error=f"Exact: {tier1_error}. Fuzzy: {tier2_error}. Unique removals: {tier2b_error}"
+        error=(
+            f"Exact: {tier1_error}. Fuzzy: {tier2_error}. "
+            f"Unique removals: {tier2b_error}. JSON keys: {tier2c_error}"
+        )
     )
 
 
