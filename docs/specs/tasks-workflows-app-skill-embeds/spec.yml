@@ -218,7 +218,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 61f4af41bdf7896abbaf8558467445ce7f8a30cc
+  subject_commit: a8c1e808048b9766f238ca86f9530dc8477392e7
 
 approvals:
   product_contract:
@@ -366,14 +366,28 @@ attempts:
     outcome: planned
     recorded_at: "2026-07-15T10:00:00Z"
     summary: Future scheduled workflow tasks are normal visible read-only tasks; delete skips the run; active/failed/input-waiting workflow runs create or link in-progress/blocked tasks.
+  - id: ATTEMPT-9
+    task_id: TASK-10
+    approach: Run deployed TASK-10 Playwright coverage after adding public Tasks and Workflows example chats from real CLI-created shared chats.
+    outcome: failed_as_expected
+    recorded_at: "2026-07-17T01:50:55Z"
+    summary: GitHub Actions run 29548360590 failed because the spec asserted child task fullscreen inside the parent overlay and workflow fullscreen title selection accepted empty instruction/query fields before the title.
+  - id: ATTEMPT-10
+    task_id: TASK-10
+    approach: Correct TASK-10 public example embed assertions and workflow fullscreen title fallback, then rerun deployed Playwright coverage.
+    outcome: succeeded
+    recorded_at: "2026-07-17T02:02:47Z"
+    summary: GitHub Actions run 29548889697 passed on deployed dev commit a8c1e808048b9766f238ca86f9530dc8477392e7.
 
 handoff:
-  current_task_id: TASK-6
-  next_action: Record deferred web and Apple embed detail reuse follow-up and run final spec verification.
+  current_task_id: TASK-10
+  next_action: Get user confirmation for the deployed public task/workflow example chat UX, then rerun final spec verification.
   command: python3 scripts/spec_verify.py docs/specs/tasks-workflows-app-skill-embeds/spec.yml
-  expected_outcome: Remaining phase-order verification is resolved or an explicit blocker/follow-up is recorded.
-  blocker: null
-  last_verified_commit: 61f4af41bdf7896abbaf8558467445ce7f8a30cc
+  expected_outcome: Spec verification passes once V-USER-WEB-EMBED-CONFIRMATION is recorded.
+  blocker:
+    reason: V-USER-WEB-EMBED-CONFIRMATION remains pending because automated Playwright passed, but user visual confirmation of the deployed responsive task/workflow example chat UX has not yet been recorded.
+    next_action: Ask the user to review the deployed dev example chat pages and confirm the responsive visual quality and parent/child embed interactions.
+  last_verified_commit: a8c1e808048b9766f238ca86f9530dc8477392e7
 
 scenarios:
   - id: S-1
@@ -1121,20 +1135,24 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: pending
+        status: failed_as_expected
         command: python3 scripts/tests.py run --spec task-workflow-example-chats.spec.ts
-        run_id: pending-web-red-task-workflow-examples
-        timestamp: ""
-        summary: Run against currently deployed dev before examples are added; expected failure is missing public task/workflow example chats or missing web child drilldown.
+        run_id: github-actions-29548360590
+        subject_commit: 1472d457e64f553f696fe124d3f5eda220336c0c
+        timestamp: "2026-07-17T01:50:55Z"
+        summary: Deployed TASK-10 run failed before the final correction because public example child drilldown and workflow title assertions did not yet match the rendered embed contracts.
     green_phase:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: pending
+        status: passed
         command: python3 scripts/tests.py run --spec task-workflow-example-chats.spec.ts
-        run_id: pending-web-green-task-workflow-examples
-        timestamp: ""
-        summary: Run after deployment to dev and Vercel Ready; must pass for public example chat rendering and drilldown.
+        run_id: github-actions-29548889697
+        subject_commit: a8c1e808048b9766f238ca86f9530dc8477392e7
+        target: app.dev.openmates.org
+        deployment_reference: Vercel deployment dpl_3TxZtndYA2AvjFtHqzricg1s8CLZ reached READY before GitHub Actions run 29548889697 dispatched.
+        timestamp: "2026-07-17T02:02:47Z"
+        summary: Passed after Vercel Ready for commit a8c1e8080; verifies the public Tasks example parent and child task embed drilldown plus the public Workflows example parent and fullscreen rendering.
 
 verifications:
   - id: V-SDK-CLI-PARITY
