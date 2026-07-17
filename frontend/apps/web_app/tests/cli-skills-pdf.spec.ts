@@ -301,6 +301,9 @@ test.describe('CLI PDF Skills', () => {
 		const messageEditor = page.getByTestId('message-editor');
 		await expect(messageEditor).toBeVisible({ timeout: 15000 });
 		logCheckpoint('Editor ready.');
+		await messageEditor.click();
+		await page.keyboard.type('Please read this document and tell me what it contains on page 1.');
+		logCheckpoint('Prompt entered before attaching PDF.');
 
 		// Attach PDF via file input
 		const fileInput = page.locator('input[type="file"][multiple]');
@@ -323,12 +326,6 @@ test.describe('CLI PDF Skills', () => {
 		// Step 4: Send a message asking the AI to read the PDF and submit
 		// -----------------------------------------------------------------------
 		logCheckpoint('Step 4: Sending message asking AI to read the PDF...');
-		// Escape any embed selection, position cursor at end, then type.
-		// Matches the proven pattern from pdf-flow.spec.ts.
-		await page.keyboard.press('Escape');
-		await page.waitForTimeout(300);
-		await messageEditor.press('End');
-		await page.keyboard.type('Please read this document and tell me what it contains on page 1.');
 
 		const sendBtn = page.locator('[data-action="send-message"]');
 		if (!(await sendBtn.isVisible({ timeout: 15000 }).catch(() => false))) {
