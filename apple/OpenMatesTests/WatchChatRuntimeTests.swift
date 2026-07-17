@@ -454,7 +454,7 @@ final class WatchChatRuntimeTests: XCTestCase {
     }
 
     private static func message(id: String, chatId: String, content: String) -> WatchChatMessage {
-        WatchChatMessage(
+        return WatchChatMessage(
             id: id,
             chatId: chatId,
             role: .assistant,
