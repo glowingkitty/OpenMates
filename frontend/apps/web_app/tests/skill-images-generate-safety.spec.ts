@@ -210,6 +210,8 @@ test.describe('Image safety pipeline (images-generate)', () => {
 		logCheckpoint('Step 1: Logging in...');
 		await loginViaPair(page, apiUrl, logCheckpoint);
 		await takeScreenshot(page, 'logged-in');
+		await page.close();
+		logCheckpoint('Closed web session after CLI pair approval to avoid recovery claimant races.');
 
 		const createdChatIds: string[] = [];
 
