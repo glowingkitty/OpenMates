@@ -78,6 +78,16 @@ let _chatUpdatedFlushPending = false;
 	let currentServerSortOrder: string[] = $state([]); // Server's preferred sort order for chats
 	let sessionStorageDraftUpdateTrigger = $state(0); // Trigger for reactivity when sessionStorage drafts change
 
+	function upsertLocalChatList(chat: ChatType): void {
+		const chatIndex = allChatsFromDB.findIndex(c => c.chat_id === chat.chat_id);
+		if (chatIndex !== -1) {
+			allChatsFromDB[chatIndex] = chat;
+			allChatsFromDB = [...allChatsFromDB];
+			return;
+		}
+		allChatsFromDB = [...allChatsFromDB, chat];
+	}
+
 	// Phased Loading State — progressive display with incremental pagination:
 	// Display starts at 11 user chats, each "Show more" click reveals 20 more.
 	// When all local chats (from IndexedDB) are shown, server pagination kicks in.
@@ -925,6 +935,10 @@ let _chatUpdatedFlushPending = false;
 		}
 	} else if (detail.chat) {
 		// If we have the updated chat payload, patch cache and list without full reload.
+		// Always patch the component-local list first. chatListCache may not be ready
+		// during cold-boot or sidebar remount, but the event payload is already the
+		// freshest chat shell written by the sync handler.
+		upsertLocalChatList(detail.chat);
 		// Use microtask coalescing: upsert into cache (cheap, synchronous) but defer the
 		// allChatsFromDB reassignment to the next microtask so that N burst events in the
 		// same JS task only trigger one Svelte reactive update instead of N re-renders.
@@ -1461,7 +1475,7 @@ let _chatUpdatedFlushPending = false;
 	 * without waiting for server round-trip
 	 */
 	const handleLocalChatListChanged = async (event: Event) => {
-		const customEvent = event as CustomEvent<{ chat_id?: string; draftDeleted?: boolean; sharedChatAdded?: boolean; autoOpen?: boolean }>;
+		const customEvent = event as CustomEvent<{ chat_id?: string; chat?: ChatType; draftDeleted?: boolean; sharedChatAdded?: boolean; autoOpen?: boolean }>;
 		console.debug('[Chats] Local chat list changed event received:', customEvent.detail);
 		
 		// Invalidate caches for the specific chat if provided, to ensure fresh preview data
@@ -1505,16 +1519,9 @@ let _chatUpdatedFlushPending = false;
 			const chatId = customEvent.detail?.chat_id;
 			if (chatId) {
 				try {
-					const updatedChat = await chatDB.getChat(chatId);
+					const updatedChat = customEvent.detail?.chat ?? await chatDB.getChat(chatId);
 					if (updatedChat) {
-						const chatIndex = allChatsFromDB.findIndex(c => c.chat_id === updatedChat.chat_id);
-						if (chatIndex !== -1) {
-							allChatsFromDB[chatIndex] = updatedChat;
-						} else {
-							allChatsFromDB = [...allChatsFromDB, updatedChat];
-						}
-						// Force reactivity for derived sorting/grouping
-						allChatsFromDB = [...allChatsFromDB];
+						upsertLocalChatList(updatedChat);
 						// Keep global cache in sync so subsequent refreshes don't "miss" the new chat
 						chatListCache.upsertChat(updatedChat);
 						console.debug('[Chats] Updated chat list incrementally from local draft change:', { chatId });
