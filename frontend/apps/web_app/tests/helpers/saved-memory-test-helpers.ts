@@ -100,11 +100,13 @@ async function verifySavedMemoryEntry(
     window.dispatchEvent(new CustomEvent('openSettingsMenu', { detail: { returnTo: path } }));
   }, settingsPath);
   const settingsMenu = page.getByTestId('settings-menu');
-  const settingsMenuVisible = await settingsMenu.isVisible({ timeout: 3000 }).catch(() => false);
-  if (!settingsMenuVisible) {
-    await page.getByTestId('profile-container').click();
+  const openedProgrammatically = await expect(settingsMenu).toBeVisible({ timeout: 5000 })
+    .then(() => true)
+    .catch(() => false);
+  if (!openedProgrammatically) {
+    await page.locator('#settings-menu-toggle').click();
+    await expect(settingsMenu).toBeVisible({ timeout: 10000 });
   }
-  await expect(settingsMenu).toBeVisible({ timeout: 10000 });
   const category = page.getByTestId('app-settings-memories-category');
   await expect(category).toBeVisible({ timeout: 20000 });
   await expect(category).toHaveAttribute('data-app-id', appId);
