@@ -585,6 +585,32 @@ describe("role-based server planning", () => {
     }
   });
 
+  it("keeps packaged core task workers wired to Vault and config volumes", () => {
+    const template = readFileSync(new URL("../templates/core/docker-compose.selfhost.yml", import.meta.url), "utf-8");
+    const baseBlock = template.slice(
+      template.indexOf("x-openmates-worker-base:"),
+      template.indexOf("services:")
+    );
+    const serviceBlock = (service: string) => {
+      const match = template.match(new RegExp(`\\n  ${service}:\\n([\\s\\S]*?)(?=\\n  [a-zA-Z0-9_-]+:|\\nvolumes:)`));
+      assert.ok(match, `missing ${service} service block`);
+      return match[1];
+    };
+
+    assert.match(baseBlock, /VAULT_URL: http:\/\/vault:8200/, "worker base must include Vault URL");
+    assert.match(baseBlock, /vault-setup-data:\/vault-data/, "worker base must mount Vault token data");
+    assert.match(baseBlock, /\.\.\/\.\.\/config:\/app_config/, "worker base must mount provider config");
+
+    for (const service of ["task-worker", "task-scheduler"]) {
+      const block = serviceBlock(service);
+      assert.match(block, /<<: \*openmates-worker-base/, `${service} must inherit worker base`);
+    }
+
+    const schedulerBlock = serviceBlock("task-scheduler");
+    assert.match(schedulerBlock, /vault-setup-data:\/vault-data/, "task-scheduler must keep Vault mount when adding beat volume");
+    assert.match(schedulerBlock, /\.\.\/\.\.\/config:\/app_config/, "task-scheduler must keep provider config mount when adding beat volume");
+  });
+
   it("uses an ARM-compatible ClamAV image in the packaged upload template", () => {
     const template = readFileSync(new URL("../templates/upload/docker-compose.yml", import.meta.url), "utf-8");
 

@@ -905,7 +905,7 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
     }
   });
 
-  it("resolves saved-chat recovery before optional post-processing metadata", async () => {
+  it("waits for saved-chat recovery post-processing metadata", async () => {
     const chatId = "chat-recovery-before-post-processing";
     const userMessageId = "user-message-recovery-before-post-processing";
     const turnId = "turn-before-post-processing";
@@ -947,7 +947,7 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
         socket.send(
           JSON.stringify({
             type: "post_processing_metadata",
-            payload: { chat_id: chatId, follow_up_suggestions: ["Too late"] },
+              payload: { chat_id: chatId, chat_summary: "Summary from post-processing." },
           }),
         );
       }, 250);
@@ -972,7 +972,8 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
       assert.equal(response.recoveryJobId, "recovery-job-before-post-processing");
       assert.equal(response.messageId, "assistant-before-post-processing");
       assert.equal(response.content, "Application preview is ready.");
-      assert.ok(Date.now() - startedAt < 200, "saved-chat recovery should not wait for post-processing");
+      assert.equal(response.chatSummary, "Summary from post-processing.");
+      assert.ok(Date.now() - startedAt >= 200, "saved-chat recovery should wait for post-processing");
     } finally {
       client.close();
     }

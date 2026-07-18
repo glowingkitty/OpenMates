@@ -1764,6 +1764,93 @@ describe("CLI saved-chat recovery preflight", () => {
       await new Promise<void>((resolve) => server.close(() => resolve()));
     }
   });
+
+  it("returns after confirmation for saved team messages that do not mention OpenMates", async () => {
+    const teamId = "55555555-5555-4555-8555-555555555555";
+    const ownerId = "66666666-6666-4666-8666-666666666666";
+    const captured: {
+      messagePayload?: Record<string, unknown>;
+      preflightPayload?: Record<string, unknown>;
+      frameTypes: string[];
+    } = { frameTypes: [] };
+    const wss = new WebSocketServer({ noServer: true });
+    const server = createServer((request: IncomingMessage, response: ServerResponse) => {
+      let raw = "";
+      request.setEncoding("utf8");
+      request.on("data", (chunk) => { raw += chunk; });
+      request.on("end", () => {
+        if (request.method === "POST" && request.url === "/v1/auth/session") {
+          response.writeHead(200, { "content-type": "application/json" });
+          response.end(JSON.stringify({ success: true, ws_token: "fresh-ws-token", user: { id: ownerId } }));
+          return;
+        }
+        if (request.method === "GET" && request.url === `/v1/sdk/memories?team_id=${teamId}`) {
+          response.writeHead(200, { "content-type": "application/json" });
+          response.end(JSON.stringify({ memories: [] }));
+          return;
+        }
+        if (request.method === "POST" && request.url === "/v1/teams") {
+          response.writeHead(200, { "content-type": "application/json" });
+          response.end(JSON.stringify({ team: { team_id: teamId, ...(raw ? JSON.parse(raw) as Record<string, unknown> : {}) } }));
+          return;
+        }
+        response.writeHead(404);
+        response.end();
+      });
+    });
+    server.on("upgrade", (request, socket, head) => {
+      wss.handleUpgrade(request, socket, head, (ws) => {
+        ws.on("message", (raw) => {
+          const frame = JSON.parse(raw.toString()) as { type: string; payload: Record<string, unknown> };
+          captured.frameTypes.push(frame.type);
+          if (frame.type === "chat_turn_preflight") {
+            captured.preflightPayload = frame.payload;
+            ws.send(JSON.stringify({
+              type: "chat_turn_preflight_ack",
+              payload: { preflight_id: "cccccccc-cccc-4ccc-8ccc-cccccccccccc", turn_id: frame.payload.turn_id },
+            }));
+          }
+          if (frame.type === "chat_message_added") {
+            captured.messagePayload = frame.payload;
+            const message = frame.payload.message as Record<string, unknown>;
+            ws.send(JSON.stringify({
+              type: "chat_message_confirmed",
+              payload: { chat_id: frame.payload.chat_id, message_id: message.message_id, new_messages_v: 1 },
+            }));
+          }
+        });
+      });
+    });
+
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+
+    try {
+      writeLegacySession(`http://127.0.0.1:${address.port}`);
+      const client = OpenMatesClient.load({ apiUrl: `http://127.0.0.1:${address.port}` });
+      await client.createTeam({ teamId, name: "Team No AI" });
+      const result = await client.sendMessage({
+        message: "Team note without a mate mention",
+        teamId,
+        precollectResponse: true,
+        responseTimeoutMs: 50,
+      });
+
+      assert.equal(result.status, "completed");
+      assert.equal(result.assistant, "");
+      assert.equal(result.messageId, null);
+      assert.equal(captured.messagePayload?.team_id, teamId);
+      assert.equal(captured.preflightPayload?.team_id, teamId);
+      assert.equal(typeof captured.preflightPayload?.encrypted_chat_key, "string");
+      assert.equal(captured.frameTypes.includes("recovery_job_claim"), false);
+      assert.equal(captured.frameTypes.includes("ai_response_completed"), false);
+    } finally {
+      wss.close();
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
 });
 
 describe("CLI incognito chat payloads", () => {

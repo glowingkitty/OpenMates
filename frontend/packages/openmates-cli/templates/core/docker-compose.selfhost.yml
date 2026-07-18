@@ -185,25 +185,27 @@ services:
     restart: on-failure
 
   task-worker:
-    image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-api:${OPENMATES_IMAGE_TAG:-dev}
+    <<: *openmates-worker-base
     container_name: task-worker
-    restart: unless-stopped
     mem_limit: ${TASK_WORKER_MEMORY_LIMIT:-3g}
-    env_file: ../../.env
-    command: python -m celery -A backend.core.api.app.tasks.celery_config worker --loglevel=info --queues=email,user_init,persistence,health_check,server_stats,demo,reminder,push --concurrency=${TASK_WORKER_CONCURRENCY:-3} --max-tasks-per-child=50 --max-memory-per-child=600000 --prefetch-multiplier=1
-    networks: [openmates]
-    depends_on: [api]
+    environment:
+      <<: *openmates-worker-env
+      CELERY_QUEUES: email,user_init,persistence,health_check,server_stats,demo,reminder,push
+      CELERY_AUTOSCALE_MAX: ${TASK_WORKER_CONCURRENCY:-${CELERY_AUTOSCALE_MAX:-3}}
+      CELERY_AUTOSCALE_MIN: ${CELERY_AUTOSCALE_MIN:-1}
+      CELERY_METRICS_PORT: "9101"
+    command: >
+      sh -c "chown -R celeryuser:celeryuser /vault-data && gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker --loglevel=info --queues=email,user_init,persistence,health_check,server_stats,demo,reminder,push --concurrency=$${CELERY_AUTOSCALE_MAX} --max-tasks-per-child=50 --max-memory-per-child=600000 --prefetch-multiplier=1"
 
   task-scheduler:
-    image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-api:${OPENMATES_IMAGE_TAG:-dev}
+    <<: *openmates-worker-base
     container_name: task-scheduler
-    restart: unless-stopped
-    env_file: ../../.env
     command: python -m celery -A backend.core.api.app.tasks.celery_config beat --loglevel=info --schedule=/celerybeat-data/celerybeat-schedule
     volumes:
+      - ../../config:/app_config
+      - vault-setup-data:/vault-data
+      - api-logs:/app/logs
       - celerybeat-schedule-data:/celerybeat-data
-    networks: [openmates]
-    depends_on: [api]
 
   app-ai-worker:
     <<: *openmates-worker-base
