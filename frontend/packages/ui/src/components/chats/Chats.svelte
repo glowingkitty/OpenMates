@@ -2456,6 +2456,7 @@ let _chatUpsertsDuringDbRead = new Map<string, ChatType>();
 	async function handleSearchQuery(query: string): Promise<void> {
 		setSearchQuery(query);
 		applyPendingCacheUpsertsToLocalList();
+		await tick();
 		triggerSearchWarmUpIfNeeded();
 
 		if (!query || query.trim().length === 0) {
