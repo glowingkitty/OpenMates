@@ -216,6 +216,10 @@ async function main(): Promise<void> {
       printSettingsHelp(client);
       return;
     }
+    if (command === "account") {
+      printSettingsHelp(client, ["account"]);
+      return;
+    }
     if (command === "workflows") {
       printWorkflowsHelp();
       return;
@@ -395,6 +399,11 @@ async function main(): Promise<void> {
 
   if (command === "settings") {
     await handleSettings(client, subcommand, rest, parsed.flags);
+    return;
+  }
+
+  if (command === "account") {
+    await handleSettings(client, "account", [subcommand, ...rest].filter((part): part is string => typeof part === "string"), parsed.flags);
     return;
   }
 
@@ -4010,8 +4019,12 @@ const SETTINGS_EXECUTABLE_COMMANDS: SettingsInfoCommand[] = [
   { path: ["account", "interests", "list"], description: "Show encrypted account topic interests", examples: ["openmates settings account interests list --json"] },
   { path: ["account", "interests", "set"], description: "Set encrypted account topic interests", examples: ["openmates settings account interests set software_development run_code privacy"] },
   { path: ["account", "interests", "clear"], description: "Clear encrypted account topic interests", examples: ["openmates settings account interests clear --yes"] },
-  { path: ["account", "export", "manifest"], description: "Show account export manifest", examples: ["openmates settings account export manifest --json"] },
-  { path: ["account", "export", "data"], description: "Fetch account export data", examples: ["openmates settings account export data --json"] },
+  { path: ["account", "export"], description: "Start a complete Account Export V1 job", examples: ["openmates account export --output ./openmates-export.json", "openmates settings account export --domains chats,usage --json"] },
+  { path: ["account", "export", "start"], description: "Start a complete Account Export V1 job", examples: ["openmates settings account export start --output ./openmates-export.json"] },
+  { path: ["account", "export", "status"], description: "Show account export job status", examples: ["openmates settings account export status <export-id> --json"] },
+  { path: ["account", "export", "manifest"], description: "Show account export manifest", examples: ["openmates settings account export manifest <export-id> --json"] },
+  { path: ["account", "export", "chunks"], description: "List account export chunks", examples: ["openmates settings account export chunks <export-id> --json"] },
+  { path: ["account", "export", "data"], description: "Fetch account export chunks", examples: ["openmates settings account export data <export-id> --json"] },
   { path: ["account", "import-chat"], description: "Import a CLI chat export file", examples: ["openmates settings account import-chat ./chat.yml", "openmates settings account import-chat ./payload.json"] },
   { path: ["account", "username", "set"], description: "Change account username", examples: ["openmates settings account username set alice_123"] },
   { path: ["account", "profile-picture", "set"], description: "Upload a profile picture", examples: ["openmates settings account profile-picture set ./avatar.jpg"] },
@@ -4110,6 +4123,55 @@ async function printSettingsResult(
   } else {
     printGenericObject(result);
   }
+}
+
+function parseCsvFlag(value: string | boolean | undefined): string[] | undefined {
+  if (typeof value !== "string") return undefined;
+  const items = value.split(",").map((item) => item.trim()).filter(Boolean);
+  return items.length > 0 ? items : undefined;
+}
+
+async function runAccountExport(
+  client: OpenMatesClient,
+  flags: Record<string, string | boolean>,
+): Promise<Record<string, unknown>> {
+  const filters = typeof flags.filters === "string"
+    ? parseJsonFlag<Record<string, unknown>>(flags.filters, "--filters")
+    : {};
+  const started = await client.startAccountExport({
+    domains: parseCsvFlag(flags.domains),
+    filters,
+    format: flags.format === "directory" ? "directory" : "zip",
+    includeAdvancedMetadata: flags["include-advanced-metadata"] === true,
+  });
+  const exportRecord = started.export as Record<string, unknown>;
+  const exportId = String(exportRecord.export_id ?? "");
+  const [manifest, chunks] = await Promise.all([
+    client.getAccountExportManifest(exportId),
+    client.listAccountExportChunks(exportId),
+  ]);
+  const completed = await client.completeAccountExport(exportId);
+  return {
+    export: completed.export,
+    manifest: manifest.manifest,
+    chunks: chunks.chunks,
+  };
+}
+
+function printAccountExportBundle(
+  bundle: Record<string, unknown>,
+  flags: Record<string, string | boolean>,
+): void {
+  if (typeof flags.output === "string") {
+    writeFileSync(flags.output, `${JSON.stringify(bundle, null, 2)}\n`, "utf-8");
+  }
+  if (flags.json === true) {
+    printJson(typeof flags.output === "string" ? { ...bundle, output: flags.output } : bundle);
+    return;
+  }
+  const exportRecord = bundle.export && typeof bundle.export === "object" ? bundle.export as Record<string, unknown> : {};
+  process.stdout.write(`Account export ${String(exportRecord.export_id ?? "")} ${String(exportRecord.status ?? "unknown")}\n`);
+  if (typeof flags.output === "string") process.stdout.write(`Wrote ${flags.output}\n`);
 }
 
 function printApiKeyList(
@@ -4954,13 +5016,42 @@ async function handleSettings(
     return;
   }
 
+  if (matches(tokens, ["account", "export"]) || matches(tokens, ["account", "export", "start"])) {
+    printAccountExportBundle(await runAccountExport(client, flags), flags);
+    return;
+  }
+
+  if (matches(tokens, ["account", "export", "status"])) {
+    const exportId = rest[2];
+    if (!exportId) throw new Error("Missing export ID. Example: openmates settings account export status <export-id>");
+    await printSettingsResult(client.getAccountExport(exportId), flags);
+    return;
+  }
+
   if (matches(tokens, ["account", "export", "manifest"])) {
-    await printSettingsResult(client.settingsGet("export-account-manifest"), flags);
+    const exportId = rest[2];
+    if (!exportId) {
+      await printSettingsResult(client.settingsGet("export-account-manifest"), flags);
+      return;
+    }
+    await printSettingsResult(client.getAccountExportManifest(exportId), flags);
+    return;
+  }
+
+  if (matches(tokens, ["account", "export", "chunks"])) {
+    const exportId = rest[2];
+    if (!exportId) throw new Error("Missing export ID. Example: openmates settings account export chunks <export-id>");
+    await printSettingsResult(client.listAccountExportChunks(exportId), flags);
     return;
   }
 
   if (matches(tokens, ["account", "export", "data"])) {
-    await printSettingsResult(client.settingsGet("export-account-data"), flags);
+    const exportId = rest[2];
+    if (!exportId) {
+      await printSettingsResult(client.settingsGet("export-account-data"), flags);
+      return;
+    }
+    await printSettingsResult(client.listAccountExportChunks(exportId), flags);
     return;
   }
 

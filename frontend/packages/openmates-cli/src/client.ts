@@ -260,6 +260,25 @@ export interface TeamContextOptions {
   personal?: boolean;
 }
 
+export interface AccountExportStartOptions {
+  domains?: string[];
+  filters?: Record<string, unknown>;
+  format?: "zip" | "directory";
+  includeAdvancedMetadata?: boolean;
+}
+
+export interface AccountExportResponse {
+  export: Record<string, unknown>;
+}
+
+export interface AccountExportManifestResponse {
+  manifest: Record<string, unknown>;
+}
+
+export interface AccountExportChunksResponse {
+  chunks: Array<Record<string, unknown>>;
+}
+
 export interface TeamCreateInput {
   name?: string;
   description?: string | null;
@@ -2270,6 +2289,67 @@ export class OpenMatesClient {
     if (options.personal) return null;
     if (options.teamId !== undefined) return options.teamId;
     return this.getActiveTeamId();
+  }
+
+  async startAccountExport(options: AccountExportStartOptions = {}): Promise<AccountExportResponse> {
+    this.requireSession();
+    const response = await this.http.post<AccountExportResponse>("/v1/account-exports", {
+      domains: options.domains,
+      filters: options.filters ?? {},
+      format: options.format ?? "zip",
+      include_advanced_metadata: options.includeAdvancedMetadata === true,
+    }, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Account export start failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
+  async getAccountExport(exportId: string): Promise<AccountExportResponse> {
+    this.requireSession();
+    const response = await this.http.get<AccountExportResponse>(`/v1/account-exports/${encodeURIComponent(exportId)}`, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Account export status failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
+  async getAccountExportManifest(exportId: string): Promise<AccountExportManifestResponse> {
+    this.requireSession();
+    const response = await this.http.get<AccountExportManifestResponse>(`/v1/account-exports/${encodeURIComponent(exportId)}/manifest`, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Account export manifest failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
+  async listAccountExportChunks(exportId: string): Promise<AccountExportChunksResponse> {
+    this.requireSession();
+    const response = await this.http.get<AccountExportChunksResponse>(`/v1/account-exports/${encodeURIComponent(exportId)}/chunks`, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Account export chunk list failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
+  async getAccountExportChunk(exportId: string, chunkId: string): Promise<Record<string, unknown>> {
+    this.requireSession();
+    const response = await this.http.get<{ chunk?: Record<string, unknown> }>(`/v1/account-exports/${encodeURIComponent(exportId)}/chunks/${encodeURIComponent(chunkId)}`, this.getCliRequestHeaders());
+    if (!response.ok || !response.data.chunk) throw new Error(`Account export chunk download failed with HTTP ${response.status}`);
+    return response.data.chunk;
+  }
+
+  async completeAccountExport(exportId: string): Promise<AccountExportResponse> {
+    this.requireSession();
+    const response = await this.http.post<AccountExportResponse>(`/v1/account-exports/${encodeURIComponent(exportId)}/complete`, {}, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Account export complete failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
+  async acceptPartialAccountExport(exportId: string): Promise<AccountExportResponse> {
+    this.requireSession();
+    const response = await this.http.post<AccountExportResponse>(`/v1/account-exports/${encodeURIComponent(exportId)}/accept-partial`, {}, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Account export accept partial failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
+  async cancelAccountExport(exportId: string): Promise<AccountExportResponse> {
+    this.requireSession();
+    const response = await this.http.post<AccountExportResponse>(`/v1/account-exports/${encodeURIComponent(exportId)}/cancel`, {}, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Account export cancel failed with HTTP ${response.status}`);
+    return response.data;
   }
 
   private appendTeamQuery(path: string, options: TeamContextOptions = {}): string {

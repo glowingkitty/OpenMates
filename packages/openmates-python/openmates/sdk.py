@@ -1912,6 +1912,65 @@ class OpenMatesAccount:
     def clear_interests(self) -> dict[str, Any]:
         return self.set_interests([])
 
+    def start_export(
+        self,
+        *,
+        domains: list[str] | None = None,
+        filters: dict[str, Any] | None = None,
+        format: str = "zip",
+        include_advanced_metadata: bool = False,
+    ) -> dict[str, Any]:
+        return self._client._post(
+            "/v1/account-exports",
+            {
+                "domains": domains,
+                "filters": filters or {},
+                "format": format,
+                "include_advanced_metadata": include_advanced_metadata,
+            },
+        )
+
+    def get_export(self, export_id: str) -> dict[str, Any]:
+        return self._client._get(f"/v1/account-exports/{quote(export_id, safe='')}")
+
+    def export_job_manifest(self, export_id: str) -> dict[str, Any]:
+        return self._client._get(f"/v1/account-exports/{quote(export_id, safe='')}/manifest")
+
+    def export_chunks(self, export_id: str) -> dict[str, Any]:
+        return self._client._get(f"/v1/account-exports/{quote(export_id, safe='')}/chunks")
+
+    def export_chunk(self, export_id: str, chunk_id: str) -> dict[str, Any]:
+        return self._client._get(
+            f"/v1/account-exports/{quote(export_id, safe='')}/chunks/{quote(chunk_id, safe='')}"
+        ).get("chunk", {})
+
+    def iter_export_chunks(self, export_id: str):
+        listed = self.export_chunks(export_id)
+        for chunk in listed.get("chunks", []):
+            chunk_id = chunk.get("chunk_id") if isinstance(chunk, dict) else None
+            yield self.export_chunk(export_id, str(chunk_id)) if chunk_id else chunk
+
+    def complete_export(self, export_id: str) -> dict[str, Any]:
+        return self._client._post(f"/v1/account-exports/{quote(export_id, safe='')}/complete", {})
+
+    def accept_partial_export(self, export_id: str) -> dict[str, Any]:
+        return self._client._post(f"/v1/account-exports/{quote(export_id, safe='')}/accept-partial", {})
+
+    def cancel_export(self, export_id: str) -> dict[str, Any]:
+        return self._client._post(f"/v1/account-exports/{quote(export_id, safe='')}/cancel", {})
+
+    def download_export(self, **options: Any) -> dict[str, Any]:
+        started = self.start_export(**options)
+        export_id = str(started.get("export", {}).get("export_id", ""))
+        manifest = self.export_job_manifest(export_id)
+        chunks = self.export_chunks(export_id)
+        completed = self.complete_export(export_id)
+        return {
+            "export": completed.get("export", {}),
+            "manifest": manifest.get("manifest", {}),
+            "chunks": chunks.get("chunks", []),
+        }
+
     def export_manifest(self) -> dict[str, Any]:
         return self._client._get("/v1/sdk/account/export/manifest")
 

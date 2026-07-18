@@ -138,6 +138,25 @@ export interface RequestOptions {
   query?: Record<string, string | number | boolean | undefined | null>;
 }
 
+export interface AccountExportStartOptions {
+  domains?: string[];
+  filters?: Record<string, unknown>;
+  format?: "zip" | "directory";
+  includeAdvancedMetadata?: boolean;
+}
+
+export interface AccountExportResponse {
+  export: Record<string, unknown>;
+}
+
+export interface AccountExportManifestResponse {
+  manifest: Record<string, unknown>;
+}
+
+export interface AccountExportChunksResponse {
+  chunks: Array<Record<string, unknown>>;
+}
+
 export interface ApiKeyCreateOptions {
   name: string;
   fullAccess?: boolean;
@@ -1260,6 +1279,63 @@ export class OpenMatesAccount {
 
   async clearInterests(): Promise<Record<string, unknown>> {
     return this.setInterests([]);
+  }
+
+  async startExport(options: AccountExportStartOptions = {}): Promise<AccountExportResponse> {
+    return this.client.request<AccountExportResponse>("/v1/account-exports", {
+      domains: options.domains,
+      filters: options.filters ?? {},
+      format: options.format ?? "zip",
+      include_advanced_metadata: options.includeAdvancedMetadata === true,
+    });
+  }
+
+  async getExport(exportId: string): Promise<AccountExportResponse> {
+    return this.client.get<AccountExportResponse>(`/v1/account-exports/${encodeURIComponent(exportId)}`);
+  }
+
+  async exportJobManifest(exportId: string): Promise<AccountExportManifestResponse> {
+    return this.client.get<AccountExportManifestResponse>(`/v1/account-exports/${encodeURIComponent(exportId)}/manifest`);
+  }
+
+  async exportChunks(exportId: string): Promise<AccountExportChunksResponse> {
+    return this.client.get<AccountExportChunksResponse>(`/v1/account-exports/${encodeURIComponent(exportId)}/chunks`);
+  }
+
+  async exportChunk(exportId: string, chunkId: string): Promise<Record<string, unknown>> {
+    const result = await this.client.get<{ chunk?: Record<string, unknown> }>(`/v1/account-exports/${encodeURIComponent(exportId)}/chunks/${encodeURIComponent(chunkId)}`);
+    return result.chunk ?? {};
+  }
+
+  async *iterExportChunks(exportId: string): AsyncGenerator<Record<string, unknown>> {
+    const listed = await this.exportChunks(exportId);
+    for (const chunk of listed.chunks) {
+      const chunkId = String(chunk.chunk_id ?? "");
+      yield chunkId ? await this.exportChunk(exportId, chunkId) : chunk;
+    }
+  }
+
+  async completeExport(exportId: string): Promise<AccountExportResponse> {
+    return this.client.request<AccountExportResponse>(`/v1/account-exports/${encodeURIComponent(exportId)}/complete`, {});
+  }
+
+  async acceptPartialExport(exportId: string): Promise<AccountExportResponse> {
+    return this.client.request<AccountExportResponse>(`/v1/account-exports/${encodeURIComponent(exportId)}/accept-partial`, {});
+  }
+
+  async cancelExport(exportId: string): Promise<AccountExportResponse> {
+    return this.client.request<AccountExportResponse>(`/v1/account-exports/${encodeURIComponent(exportId)}/cancel`, {});
+  }
+
+  async downloadExport(options: AccountExportStartOptions = {}): Promise<Record<string, unknown>> {
+    const started = await this.startExport(options);
+    const exportId = String(started.export.export_id ?? "");
+    const [manifest, chunks] = await Promise.all([
+      this.exportJobManifest(exportId),
+      this.exportChunks(exportId),
+    ]);
+    const completed = await this.completeExport(exportId);
+    return { export: completed.export, manifest: manifest.manifest, chunks: chunks.chunks };
   }
 
   async exportManifest(): Promise<Record<string, unknown>> {
