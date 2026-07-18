@@ -88,6 +88,13 @@ async function verifySavedMemoryEntry(
       await notification.getByTestId('notification-dismiss').click();
     }
   }
+  const chatNotifications = page.getByTestId('chat-notification');
+  for (let index = await chatNotifications.count() - 1; index >= 0; index--) {
+    const notification = chatNotifications.nth(index);
+    if (await notification.isVisible().catch(() => false)) {
+      await notification.getByRole('button', { name: 'Dismiss notification' }).click();
+    }
+  }
 
   await page.evaluate((path: string) => {
     window.dispatchEvent(new CustomEvent('openSettingsMenu', { detail: { returnTo: path } }));
