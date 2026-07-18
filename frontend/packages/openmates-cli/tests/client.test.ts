@@ -10,6 +10,7 @@
 
 import { describe, it, beforeEach, after } from "node:test";
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { createRequire } from "node:module";
@@ -875,6 +876,7 @@ describe("CLI streamed embed persistence", () => {
     const chatKey = new Uint8Array(32).fill(7);
     const frames: { type: string; payload: Record<string, any> }[] = [];
     const ws = {
+      waitForMessage: async () => undefined,
       sendAsync: async (type: string, payload: Record<string, any>) => {
         frames.push({ type, payload });
       },
@@ -899,6 +901,7 @@ describe("CLI streamed embed persistence", () => {
         chatId: "chat-123",
         chatKeyBytes: chatKey,
         fallbackMessageId: "message-123",
+        ownerId: "user-uuid-123",
       });
     };
 
@@ -907,6 +910,9 @@ describe("CLI streamed embed persistence", () => {
 
     const keyFrames = frames.filter((frame) => frame.type === "store_embed_keys");
     const diffFrames = frames.filter((frame) => frame.type === "store_embed_diff");
+    const expectedUserHash = createHash("sha256").update("user-uuid-123").digest("hex");
+    const storeFrames = frames.filter((frame) => frame.type === "store_embed");
+    assert.equal(storeFrames[0].payload.hashed_user_id, expectedUserHash);
     assert.equal(keyFrames.length, 2);
     assert.equal(diffFrames.length, 2);
     assert.ok(

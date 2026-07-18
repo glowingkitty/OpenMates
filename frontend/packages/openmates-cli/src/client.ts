@@ -3864,7 +3864,7 @@ export class OpenMatesClient {
     }
 
     const explicitTasksAppSkill = messageExplicitlyRequestsTasksAppSkill(params.message);
-    const { ws, session, ownerId } = await this.openWsClient({
+    const { ws, ownerId } = await this.openWsClient({
       taskUpdateJobs: !explicitTasksAppSkill,
     });
     if (!params.incognito && !ownerId) {
@@ -4021,6 +4021,9 @@ export class OpenMatesClient {
 
     const encryptedEmbeds: EncryptedEmbed[] = [...(params.encryptedEmbeds ?? [])];
     if (!params.incognito && params.preparedEmbeds && params.preparedEmbeds.length > 0) {
+      if (!ownerId) {
+        throw new Error("Authenticated user identity is required to encrypt embeds.");
+      }
       const masterKey = this.getMasterKeyBytes();
       for (const embed of params.preparedEmbeds) {
         const encrypted = await encryptEmbed(
@@ -4029,7 +4032,7 @@ export class OpenMatesClient {
           chatKeyBytes,
           chatId,
           messageId,
-          session.hashedEmail,
+          ownerId,
         );
         if (encrypted) encryptedEmbeds.push(encrypted);
       }
@@ -4649,6 +4652,7 @@ export class OpenMatesClient {
             chatId,
             chatKeyBytes,
             fallbackMessageId: assistantId,
+            ownerId,
           });
           await this.persistPostProcessingMetadata({
             ws,
@@ -4975,6 +4979,7 @@ export class OpenMatesClient {
     chatId: string;
     chatKeyBytes: Uint8Array;
     fallbackMessageId: string;
+    ownerId: string;
   }): Promise<void> {
     const finalized = new Map(
       params.embeds
@@ -4992,7 +4997,6 @@ export class OpenMatesClient {
     );
     if (finalized.size === 0) return;
 
-    const session = this.requireSession();
     const masterKey = this.getMasterKeyBytes();
     const parentKeys = new Map<string, Uint8Array>();
     const processed = new Set<string>();
@@ -5023,10 +5027,9 @@ export class OpenMatesClient {
       const createdAt = normalizeUnixSeconds(embed.createdAt, now);
       const updatedAt = normalizeUnixSeconds(embed.updatedAt, now);
       const messageId = embed.message_id || params.fallbackMessageId;
-      const userId = embed.user_id || session.hashedEmail;
       const hashedChatId = computeSHA256(params.chatId);
       const hashedMessageId = computeSHA256(messageId);
-      const hashedUserId = computeSHA256(userId);
+      const hashedUserId = computeSHA256(params.ownerId);
       const hashedEmbedId = computeSHA256(embed.embed_id);
       const encryptedContent = await encryptWithAesGcmCombined(
         embed.content ?? "",

@@ -195,7 +195,7 @@ export function createEmbedReferenceBlock(embedRef: string): string {
  * @param chatKey The chat's AES key (raw bytes) — null for new chats
  * @param chatId The chat UUID
  * @param messageId The message UUID
- * @param userId The user's hashed email
+ * @param userId The authenticated user's UUID
  * @returns Fully encrypted embed ready for WebSocket payload
  */
 export async function encryptEmbed(

@@ -1155,24 +1155,28 @@ async def check_upload_duplicate(
         # Stale detection applies to all uploads with an embed_id regardless of file type.
 
         # For any upload with an embed_id, validate that the embed actually exists
-        # in Directus with status='finished'. A stale record with no corresponding
-        # finished embed means a previous upload failed after storing the upload_files
-        # row but before processing completed — returning it as a dedup hit would
-        # leave the frontend stuck on 'Processing…' indefinitely.
+        # in Directus with status='finished' and belongs to the same canonical
+        # user hash. A stale record with no corresponding finished embed, or a
+        # legacy embed stored with the old email-hash owner, cannot be safely
+        # reused because later store_embed writes would be rejected.
         if embed_id:
             try:
+                expected_owner_hash = hashlib.sha256(payload.user_id.encode()).hexdigest()
                 embed_params = {
                     "filter[embed_id][_eq]": embed_id,
-                    "fields": "embed_id,status",
+                    "fields": "embed_id,status,hashed_user_id",
                     "limit": 1,
                 }
                 embed_items = await directus_service.get_items("embeds", embed_params)
-                embed_status = embed_items[0].get("status") if embed_items else None
+                embed_item = embed_items[0] if embed_items else None
+                embed_status = embed_item.get("status") if embed_item else None
+                embed_owner_hash = embed_item.get("hashed_user_id") if embed_item else None
 
-                if embed_status != "finished":
+                if embed_status != "finished" or embed_owner_hash != expected_owner_hash:
                     logger.warning(
                         f"{log_prefix} Stale dedup record detected: upload_files has embed_id={embed_id} "
-                        f"but embed status is {embed_status!r} (expected 'finished'). "
+                        f"but embed status is {embed_status!r} and owner hash matches expected: "
+                        f"{embed_owner_hash == expected_owner_hash}. "
                         f"Discarding stale record — fresh upload will be performed."
                     )
                     # Clean up the stale upload_files record so it won't block future uploads.
