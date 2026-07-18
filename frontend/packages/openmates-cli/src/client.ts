@@ -24,8 +24,11 @@ import {
   deriveEmailEncryptionKeyB64,
   encryptWithAesGcmCombined,
   encryptBytesWithAesGcm,
+  bytesToBase64,
+  bytesToBase64Url,
   base64ToBytes,
   hashItemKey,
+  deriveTeamInviteKey,
   createRecoveryKeyMaterial,
   createApiKeyCryptoMaterial,
   createSignupCryptoMaterial,
@@ -47,6 +50,8 @@ import {
   saveSyncCache,
   clearSyncCache,
   isSyncCacheFresh,
+  saveLocalTeamKey,
+  loadLocalTeamKey,
   loadAnonymousId,
   saveAnonymousId,
 } from "./storage.js";
@@ -224,6 +229,18 @@ export interface TeamCreateInput {
   encryptedTeamKey?: string;
   encryptedZeroBalance?: string;
   createdAt?: number;
+}
+
+export interface TeamInviteCreateInput extends Record<string, unknown> {
+  role?: Exclude<TeamRole, "owner">;
+  recipient_email?: string;
+  invite_id?: string;
+  invite_secret?: string;
+}
+
+export interface TeamInviteAcceptInput {
+  inviteSecret?: string | null;
+  recipientEmail?: string | null;
 }
 
 export type LearningModeAgeGroup = "under_10" | "10_12" | "13_15" | "16_18" | "adult";
@@ -2194,15 +2211,18 @@ export class OpenMatesClient {
     this.requireSession();
     const response = await this.http.get<{ teams?: TeamRecord[] }>("/v1/teams", this.getCliRequestHeaders());
     if (!response.ok) throw new Error(`Team list failed with HTTP ${response.status}`);
-    return response.data.teams ?? [];
+    const teams = response.data.teams ?? [];
+    await Promise.all(teams.map((team) => this.cacheTeamKeyFromRecord(team)));
+    return teams;
   }
 
   async createTeam(input: TeamCreateInput): Promise<TeamRecord> {
     this.requireSession();
     const now = Math.floor(Date.now() / 1000);
     const teamKeyBytes = randomBytes(32);
+    const teamId = input.teamId ?? randomUUID();
     const payload: Record<string, unknown> = {
-      team_id: input.teamId ?? randomUUID(),
+      team_id: teamId,
       slug: input.slug ?? undefined,
       encrypted_name: input.encryptedName ?? await encryptWithAesGcmCombined(input.name ?? "Untitled team", teamKeyBytes),
       encrypted_description: input.encryptedDescription ?? (input.description ? await encryptWithAesGcmCombined(input.description, teamKeyBytes) : undefined),
@@ -2213,6 +2233,9 @@ export class OpenMatesClient {
     };
     const response = await this.http.post<{ team?: TeamRecord }>("/v1/teams", payload, this.getCliRequestHeaders());
     if (!response.ok || !response.data.team) throw new Error(`Team create failed with HTTP ${response.status}`);
+    if (!input.encryptedTeamKey) {
+      saveLocalTeamKey(this.requireSession().hashedEmail, teamId, bytesToBase64(teamKeyBytes));
+    }
     return response.data.team;
   }
 
@@ -2220,7 +2243,17 @@ export class OpenMatesClient {
     this.requireSession();
     const response = await this.http.get<{ team?: TeamRecord }>(`/v1/teams/${encodeURIComponent(teamId)}`, this.getCliRequestHeaders());
     if (!response.ok || !response.data.team) throw new Error(`Team get failed with HTTP ${response.status}`);
+    await this.cacheTeamKeyFromRecord(response.data.team);
     return response.data.team;
+  }
+
+  private async cacheTeamKeyFromRecord(team: TeamRecord): Promise<void> {
+    const session = this.requireSession();
+    const teamId = typeof team.team_id === "string" ? team.team_id : null;
+    const encryptedTeamKey = typeof team.encrypted_team_key === "string" ? team.encrypted_team_key : null;
+    if (!teamId || !encryptedTeamKey || loadLocalTeamKey(session.hashedEmail, teamId)) return;
+    const teamKey = await decryptBytesWithAesGcm(encryptedTeamKey, this.getMasterKeyBytes());
+    if (teamKey) saveLocalTeamKey(session.hashedEmail, teamId, bytesToBase64(teamKey));
   }
 
   async updateTeam(teamId: string, input: Record<string, unknown>): Promise<TeamRecord> {
@@ -2240,22 +2273,84 @@ export class OpenMatesClient {
     return { success: response.data.success === true };
   }
 
-  async createTeamInvite(teamId: string, input: Record<string, unknown>): Promise<Record<string, unknown>> {
+  private async loadTeamKeyBytes(teamId: string): Promise<Uint8Array | null> {
+    const session = this.requireSession();
+    const localTeamKey = loadLocalTeamKey(session.hashedEmail, teamId);
+    if (localTeamKey) return base64ToBytes(localTeamKey);
+    const team = await this.getTeam(teamId);
+    const encryptedTeamKey = typeof team.encrypted_team_key === "string" ? team.encrypted_team_key : null;
+    if (!encryptedTeamKey) return null;
+    const teamKey = await decryptBytesWithAesGcm(encryptedTeamKey, this.getMasterKeyBytes());
+    if (!teamKey) return null;
+    saveLocalTeamKey(session.hashedEmail, teamId, bytesToBase64(teamKey));
+    return teamKey;
+  }
+
+  async createTeamInvite(teamId: string, input: TeamInviteCreateInput): Promise<Record<string, unknown>> {
     this.requireSession();
-    const response = await this.http.post<{ invite?: Record<string, unknown> }>(`/v1/teams/${encodeURIComponent(teamId)}/invites`, {
-      invite_id: input.invite_id ?? randomUUID(),
+    const inviteId = typeof input.invite_id === "string" ? input.invite_id : randomUUID();
+    const payload: Record<string, unknown> = {
+      invite_id: inviteId,
       created_at: input.created_at ?? Math.floor(Date.now() / 1000),
       ...input,
+    };
+    const recipientEmail = typeof input.recipient_email === "string" ? input.recipient_email.trim().toLowerCase() : null;
+    const explicitInviteSecret = typeof input.invite_secret === "string" ? input.invite_secret : null;
+    const cachedTeamKey = loadLocalTeamKey(this.requireSession().hashedEmail, teamId);
+    const inviteSecret = explicitInviteSecret ?? (recipientEmail && cachedTeamKey ? bytesToBase64Url(randomBytes(32)) : null);
+    if (recipientEmail && inviteSecret) {
+      const teamKey = cachedTeamKey ? base64ToBytes(cachedTeamKey) : await this.loadTeamKeyBytes(teamId);
+      if (!teamKey && explicitInviteSecret) throw new Error("Unable to load local team key for encrypted invite.");
+      if (teamKey) {
+        const origin = deriveAppUrl(this.apiUrl);
+        const inviteKey = await deriveTeamInviteKey({ recipientEmail, inviteSecret, inviteId, teamId, origin });
+        payload.encrypted_invite_team_key = await encryptBytesWithAesGcm(teamKey, inviteKey);
+        payload.invite_key_kdf_context = {
+          v: 1,
+          kdf: "HKDF-SHA256",
+          cipher: "AES-256-GCM",
+          team_id: teamId,
+          invite_id: inviteId,
+          origin,
+        };
+      }
+    }
+    const response = await this.http.post<{ invite?: Record<string, unknown> }>(`/v1/teams/${encodeURIComponent(teamId)}/invites`, {
+      ...payload,
+      invite_secret: undefined,
     }, this.getCliRequestHeaders());
     if (!response.ok || !response.data.invite) throw new Error(`Team invite create failed with HTTP ${response.status}`);
+    return inviteSecret ? { ...response.data.invite, invite_secret: inviteSecret, invite_url: `${deriveAppUrl(this.apiUrl)}/teams/invites/${inviteId}#key=${inviteSecret}` } : response.data.invite;
+  }
+
+  async getTeamInvite(inviteId: string): Promise<Record<string, unknown>> {
+    this.requireSession();
+    const response = await this.http.get<{ invite?: Record<string, unknown> }>(`/v1/teams/invites/${encodeURIComponent(inviteId)}`, this.getCliRequestHeaders());
+    if (!response.ok || !response.data.invite) throw new Error(`Team invite get failed with HTTP ${response.status}`);
     return response.data.invite;
   }
 
-  async acceptTeamInvite(inviteId: string): Promise<Record<string, unknown>> {
+  async acceptTeamInvite(inviteId: string, input: TeamInviteAcceptInput = {}): Promise<Record<string, unknown>> {
     this.requireSession();
-    const response = await this.http.post<{ access_request?: Record<string, unknown>; status_label?: string }>(`/v1/teams/invites/${encodeURIComponent(inviteId)}/accept`, { accepted_at: Math.floor(Date.now() / 1000) }, this.getCliRequestHeaders());
-    if (!response.ok || !response.data.access_request) throw new Error(`Team invite accept failed with HTTP ${response.status}`);
-    return { access_request: response.data.access_request, status_label: response.data.status_label };
+    const payload: Record<string, unknown> = { accepted_at: Math.floor(Date.now() / 1000) };
+    if (input.inviteSecret) {
+      const invite = await this.getTeamInvite(inviteId);
+      const context = invite.invite_key_kdf_context as Record<string, unknown> | undefined;
+      const teamId = typeof context?.team_id === "string" ? context.team_id : null;
+      const origin = typeof context?.origin === "string" ? context.origin : deriveAppUrl(this.apiUrl);
+      const encryptedInviteTeamKey = typeof invite.encrypted_invite_team_key === "string" ? invite.encrypted_invite_team_key : null;
+      if (!teamId || !encryptedInviteTeamKey) throw new Error("Team invite is missing encrypted key material.");
+      if (!input.recipientEmail) throw new Error("Accepting an encrypted team invite requires --email <recipient-email>.");
+      const recipientEmail = input.recipientEmail;
+      const inviteKey = await deriveTeamInviteKey({ recipientEmail, inviteSecret: input.inviteSecret, inviteId, teamId, origin });
+      const teamKey = await decryptBytesWithAesGcm(encryptedInviteTeamKey, inviteKey);
+      if (!teamKey) throw new Error("Unable to decrypt team invite key.");
+      payload.encrypted_team_key = await encryptBytesWithAesGcm(teamKey, this.getMasterKeyBytes());
+      saveLocalTeamKey(this.requireSession().hashedEmail, teamId, bytesToBase64(teamKey));
+    }
+    const response = await this.http.post<{ access_request?: Record<string, unknown>; membership?: Record<string, unknown>; status?: string; status_label?: string }>(`/v1/teams/invites/${encodeURIComponent(inviteId)}/accept`, payload, this.getCliRequestHeaders());
+    if (!response.ok || (!response.data.access_request && !response.data.membership)) throw new Error(`Team invite accept failed with HTTP ${response.status}`);
+    return { access_request: response.data.access_request, membership: response.data.membership, status: response.data.status, status_label: response.data.status_label };
   }
 
   async declineTeamInvite(inviteId: string): Promise<{ success: boolean }> {
@@ -3182,33 +3277,44 @@ export class OpenMatesClient {
     return decryptBytesWithAesGcm(encryptedChatKey, masterKey);
   }
 
-  private getMasterWrapperEncryptedChatKey(
+  private getContextWrapperEncryptedChatKey(
     cache: SyncCache | null,
     chatId: string,
+    teamId: string | null = null,
   ): string | null {
     const hashedChatId = createHash("sha256").update(chatId).digest("hex");
+    const hashedTeamId = teamId ? createHash("sha256").update(teamId).digest("hex") : null;
     const wrapper = (cache?.chatKeyWrappers ?? []).find(
       (entry) =>
-        entry.key_type === "master" &&
+        entry.key_type === (teamId ? "team" : "master") &&
         entry.hashed_chat_id === hashedChatId &&
+        (!hashedTeamId || entry.hashed_team_id === hashedTeamId) &&
         typeof entry.encrypted_chat_key === "string",
     );
     return typeof wrapper?.encrypted_chat_key === "string" ? wrapper.encrypted_chat_key : null;
   }
 
+  private async getChatWrappingKey(teamId: string | null, masterKey: Uint8Array): Promise<Uint8Array> {
+    if (!teamId) return masterKey;
+    const teamKey = await this.loadTeamKeyBytes(teamId);
+    if (!teamKey) throw new Error(`Team key not available locally for team '${teamId}'. Run 'openmates teams show ${teamId}' and try again.`);
+    return teamKey;
+  }
+
   private async resolveChatKey(
     cache: SyncCache | null,
     cached: CachedChat,
-    masterKey: Uint8Array,
+    wrappingKey: Uint8Array,
+    teamId: string | null = null,
   ): Promise<Uint8Array | null> {
     const chatId = String(cached.details.id ?? "");
-    const wrapperKey = chatId ? this.getMasterWrapperEncryptedChatKey(cache, chatId) : null;
+    const wrapperKey = chatId ? this.getContextWrapperEncryptedChatKey(cache, chatId, teamId) : null;
     const encryptedChatKey = wrapperKey ?? (
       typeof cached.details.encrypted_chat_key === "string"
         ? cached.details.encrypted_chat_key
         : null
     );
-    return encryptedChatKey ? this.decryptChatKey(encryptedChatKey, masterKey) : null;
+    return encryptedChatKey ? this.decryptChatKey(encryptedChatKey, wrappingKey) : null;
   }
 
   /**
@@ -3216,12 +3322,13 @@ export class OpenMatesClient {
    */
   private async decryptChatListItem(
     cached: CachedChat,
-    masterKey: Uint8Array,
+    wrappingKey: Uint8Array,
     cache: SyncCache | null = loadSyncCache(),
+    teamId: string | null = null,
   ): Promise<ChatListItem> {
     const d = cached.details;
     const id = String(d.id ?? "");
-    const chatKeyBytes = await this.resolveChatKey(cache, cached, masterKey);
+    const chatKeyBytes = await this.resolveChatKey(cache, cached, wrappingKey, teamId);
 
     const title =
       typeof d.encrypted_title === "string" && chatKeyBytes
@@ -3254,14 +3361,16 @@ export class OpenMatesClient {
   }
 
   async listChats(limit = 10, page = 1, options: TeamContextOptions = {}): Promise<ChatListPage> {
+    const teamId = this.resolveTeamContext(options);
     const cache = await this.ensureSynced(false, [], options);
     const masterKey = this.getMasterKeyBytes();
+    const wrappingKey = await this.getChatWrappingKey(teamId, masterKey);
     const total = cache.chats.length;
     const offset = (page - 1) * limit;
     const slice = cache.chats.slice(offset, offset + limit);
     const output: ChatListItem[] = [];
     for (const chat of slice) {
-      output.push(await this.decryptChatListItem(chat, masterKey, cache));
+      output.push(await this.decryptChatListItem(chat, wrappingKey, cache, teamId));
     }
     return {
       chats: output,
@@ -3446,12 +3555,14 @@ export class OpenMatesClient {
   }
 
   async searchChats(query: string, options: TeamContextOptions = {}): Promise<ChatListItem[]> {
+    const teamId = this.resolveTeamContext(options);
     const cache = await this.ensureSynced(false, [], options);
     const masterKey = this.getMasterKeyBytes();
+    const wrappingKey = await this.getChatWrappingKey(teamId, masterKey);
     const normalized = query.trim().toLowerCase();
     const results: ChatListItem[] = [];
     for (const cached of cache.chats) {
-      const item = await this.decryptChatListItem(cached, masterKey);
+      const item = await this.decryptChatListItem(cached, wrappingKey, cache, teamId);
       const title = (item.title ?? "").toLowerCase();
       const summary = (item.summary ?? "").toLowerCase();
       const cat = (item.category ?? "").toLowerCase();
@@ -3484,8 +3595,10 @@ export class OpenMatesClient {
     chat: ChatListItem;
     messages: DecryptedMessage[];
   }> {
+    const teamId = this.resolveTeamContext(options);
     const cache = await this.ensureSynced(true, [], options);
     const masterKey = this.getMasterKeyBytes();
+    const wrappingKey = await this.getChatWrappingKey(teamId, masterKey);
     const normalized = query.trim().toLowerCase();
 
     // "last" / "__last__" → most recently modified chat (cache is sorted desc by timestamp)
@@ -3512,7 +3625,7 @@ export class OpenMatesClient {
     // The cache is already sorted most-recent-first, so the first match wins.
     if (!found) {
       for (const cached of cache.chats) {
-        const item = await this.decryptChatListItem(cached, masterKey, cache);
+        const item = await this.decryptChatListItem(cached, wrappingKey, cache, teamId);
         const title = (item.title ?? "").toLowerCase();
         if (title === normalized) {
           found = cached;
@@ -3524,7 +3637,7 @@ export class OpenMatesClient {
     // Pass 3: partial title match (most recent first)
     if (!found) {
       for (const cached of cache.chats) {
-        const item = await this.decryptChatListItem(cached, masterKey);
+        const item = await this.decryptChatListItem(cached, wrappingKey, cache, teamId);
         const title = (item.title ?? "").toLowerCase();
         if (title.includes(normalized)) {
           found = cached;
@@ -3539,8 +3652,8 @@ export class OpenMatesClient {
       );
     }
 
-    const chatItem = await this.decryptChatListItem(found, masterKey, cache);
-    const chatKeyBytes = await this.resolveChatKey(cache, found, masterKey);
+    const chatItem = await this.decryptChatListItem(found, wrappingKey, cache, teamId);
+    const chatKeyBytes = await this.resolveChatKey(cache, found, wrappingKey, teamId);
 
     const messages: DecryptedMessage[] = [];
     for (const raw of found.messages) {
@@ -3975,6 +4088,7 @@ export class OpenMatesClient {
     const refreshChatId = String(cachedMatch?.details.id ?? chatId);
     const cache = await this.ensureSynced(true, [refreshChatId], { teamId });
     const masterKey = this.getMasterKeyBytes();
+    const wrappingKey = await this.getChatWrappingKey(teamId, masterKey);
 
     const found = cache.chats.find(
       (c) =>
@@ -3983,7 +4097,7 @@ export class OpenMatesClient {
     );
     if (!found) return [];
 
-    const chatKeyBytes = await this.resolveChatKey(cache, found, masterKey);
+    const chatKeyBytes = await this.resolveChatKey(cache, found, wrappingKey, teamId);
     if (!chatKeyBytes) return [];
 
     const encSuggestions =
@@ -4158,6 +4272,7 @@ export class OpenMatesClient {
 
     if (!params.incognito) {
       const masterKey = this.getMasterKeyBytes();
+      const wrappingKey = await this.getChatWrappingKey(teamId, masterKey);
 
       if (isNewChat) {
         chatKeyBytes = globalThis.crypto
@@ -4169,7 +4284,7 @@ export class OpenMatesClient {
             );
         encryptedChatKey = await encryptBytesWithAesGcm(
           chatKeyBytes,
-          masterKey,
+          wrappingKey,
         );
       } else {
         const cache = loadSyncCache(teamId) ?? (await this.ensureSynced(false, [], { teamId }));
@@ -4188,7 +4303,7 @@ export class OpenMatesClient {
               ? chat.details.encrypted_chat_key
               : null;
           if (encKey) {
-            chatKeyBytes = await decryptBytesWithAesGcm(encKey, masterKey);
+            chatKeyBytes = await decryptBytesWithAesGcm(encKey, wrappingKey);
             encryptedChatKey = encKey;
           }
         }
@@ -4924,6 +5039,7 @@ export class OpenMatesClient {
             ws,
             jobs: pendingTaskUpdateJobs,
             events: taskEvents,
+            teamId,
             activeChatId: chatId,
             activeChatKeyBytes: chatKeyBytes,
             fallbackUserMessageId: messageId,
@@ -4984,6 +5100,7 @@ export class OpenMatesClient {
     ws: OpenMatesWsClient;
     jobs: PendingTaskUpdateJobFrame[];
     events: TaskEventFrame[];
+    teamId?: string | null;
     activeChatId?: string | null;
     activeChatKeyBytes?: Uint8Array | null;
     fallbackUserMessageId?: string | null;
@@ -4994,20 +5111,21 @@ export class OpenMatesClient {
     if (params.jobs.length === 0) return handledJobIds;
 
     const masterKey = this.getMasterKeyBytes();
+    const wrappingKey = await this.getChatWrappingKey(params.teamId ?? null, masterKey);
     let decryptedTasksCache: DecryptedUserTask[] | null = null;
     const eventByJobId = new Map(params.events.map((event) => [event.task_update_job_id, event]));
 
     const resolveChatKey = async (targetChatId: string): Promise<Uint8Array> => {
       if (targetChatId === params.activeChatId && params.activeChatKeyBytes) return params.activeChatKeyBytes;
       const findChat = (chats: CachedChat[] | undefined) => chats?.find((chat) => String(chat.details.id ?? "") === targetChatId);
-      const targetChat = findChat(params.syncedChats) ?? findChat(loadSyncCache()?.chats);
+      const targetChat = findChat(params.syncedChats) ?? findChat(loadSyncCache(params.teamId)?.chats);
       const encryptedTargetChatKey = typeof targetChat?.details.encrypted_chat_key === "string"
         ? targetChat.details.encrypted_chat_key
         : null;
       if (!encryptedTargetChatKey) {
         throw new Error(`Encrypted chat key not found for task update job target '${targetChatId}'. Sync and try again.`);
       }
-      const targetChatKey = await decryptBytesWithAesGcm(encryptedTargetChatKey, masterKey);
+      const targetChatKey = await decryptBytesWithAesGcm(encryptedTargetChatKey, wrappingKey);
       if (!targetChatKey) {
         throw new Error(`Failed to decrypt chat key for task update job target '${targetChatId}'.`);
       }
@@ -5865,6 +5983,22 @@ export class OpenMatesClient {
       throw new Error(`Code Run status request failed with HTTP ${response.status}`);
     }
     return response.data;
+  }
+
+  async getRaw(path: string, apiKey?: string): Promise<{ contentType: string; data: Uint8Array }> {
+    const headers: Record<string, string> = {
+      ...this.getCliRequestHeaders(),
+      Accept: "image/svg+xml,application/octet-stream",
+    };
+    if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
+    const response = await this.http.getBinary(path, headers);
+    if (!response.ok) {
+      throw new Error(`Raw resource request failed with HTTP ${response.status}`);
+    }
+    return {
+      contentType: response.headers.get("content-type") ?? "application/octet-stream",
+      data: response.data,
+    };
   }
 
   // -------------------------------------------------------------------------
@@ -8582,6 +8716,7 @@ export class OpenMatesClient {
         ws,
         jobs: pendingTaskUpdateJobs,
         events: [],
+        teamId,
         activeChatId: null,
         activeChatKeyBytes: null,
         fallbackUserMessageId: null,
@@ -8621,6 +8756,7 @@ export class OpenMatesClient {
     if (pendingResponses.length === 0) return;
 
     const masterKey = this.getMasterKeyBytes();
+    const wrappingKey = await this.getChatWrappingKey(teamId ?? null, masterKey);
 
     for (const pending of pendingResponses) {
       const chatId = pending.chat_id;
@@ -8649,7 +8785,7 @@ export class OpenMatesClient {
         }
       }
 
-      const chatKeyBytes = await this.resolveChatKey(loadSyncCache(teamId), chat, masterKey);
+      const chatKeyBytes = await this.resolveChatKey(loadSyncCache(teamId), chat, wrappingKey, teamId ?? null);
       if (!chatKeyBytes) continue;
 
       const completedAt = normalizeUnixSeconds(

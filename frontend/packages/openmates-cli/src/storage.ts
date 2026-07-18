@@ -83,6 +83,16 @@ interface SessionOnDisk {
   activeTeamId?: string | null;
 }
 
+interface LocalTeamKeyEntry {
+  storage: MasterKeyStorageType;
+  encryptedData?: string;
+  plaintextKeyB64?: string;
+}
+
+interface LocalTeamKeysOnDisk {
+  teams: Record<string, LocalTeamKeyEntry>;
+}
+
 // ---------------------------------------------------------------------------
 // Filesystem helpers
 // ---------------------------------------------------------------------------
@@ -263,6 +273,9 @@ export function clearSession(): void {
   if (onDisk?.emailEncryptionKeyStorage) {
     deleteMasterKey(onDisk.emailEncryptionKeyStorage, `${onDisk.hashedEmail}:email`);
   }
+  if (onDisk?.activeTeamId) {
+    deleteLocalTeamKey(onDisk.hashedEmail, onDisk.activeTeamId);
+  }
 
   if (existsSync(filePath)) {
     rmSync(filePath);
@@ -365,6 +378,7 @@ export interface SyncCache {
 }
 
 const SYNC_CACHE_FILE = "sync_cache.json";
+const LOCAL_TEAM_KEYS_FILE = "team_keys.json";
 
 function teamKeyStorageId(hashedEmail: string, teamId: string): string {
   const digest = createHash("sha256").update(teamId).digest("hex").slice(0, 32);
@@ -372,21 +386,36 @@ function teamKeyStorageId(hashedEmail: string, teamId: string): string {
 }
 
 export function saveLocalTeamKey(hashedEmail: string, teamId: string, teamKeyB64: string): void {
-  storeMasterKey(teamKeyB64, teamKeyStorageId(hashedEmail, teamId));
+  const storageId = teamKeyStorageId(hashedEmail, teamId);
+  const result = storeMasterKey(teamKeyB64, storageId);
+  const filePath = join(ensureStateDir(), LOCAL_TEAM_KEYS_FILE);
+  const keys = readJsonFile<LocalTeamKeysOnDisk>(filePath) ?? { teams: {} };
+  keys.teams[storageId] = {
+    storage: result.type,
+    ...(result.type === "encrypted" ? { encryptedData: result.encryptedData } : {}),
+    ...(result.type === "plaintext" ? { plaintextKeyB64: teamKeyB64 } : {}),
+  };
+  writeJsonFile(filePath, keys);
 }
 
 export function loadLocalTeamKey(hashedEmail: string, teamId: string): string | null {
   const storageId = teamKeyStorageId(hashedEmail, teamId);
-  return retrieveMasterKey("keychain", storageId)
-    ?? retrieveMasterKey("encrypted", storageId)
-    ?? retrieveMasterKey("plaintext", storageId);
+  const filePath = join(ensureStateDir(), LOCAL_TEAM_KEYS_FILE);
+  const entry = readJsonFile<LocalTeamKeysOnDisk>(filePath)?.teams[storageId];
+  if (!entry) return null;
+  if (entry.storage === "plaintext") return entry.plaintextKeyB64 ?? null;
+  return retrieveMasterKey(entry.storage, storageId, entry.encryptedData);
 }
 
 export function deleteLocalTeamKey(hashedEmail: string, teamId: string): void {
   const storageId = teamKeyStorageId(hashedEmail, teamId);
   deleteMasterKey("keychain", storageId);
-  deleteMasterKey("encrypted", storageId);
-  deleteMasterKey("plaintext", storageId);
+  const filePath = join(ensureStateDir(), LOCAL_TEAM_KEYS_FILE);
+  const keys = readJsonFile<LocalTeamKeysOnDisk>(filePath);
+  if (keys?.teams[storageId]) {
+    delete keys.teams[storageId];
+    writeJsonFile(filePath, keys);
+  }
 }
 
 function syncCacheFile(teamId?: string | null): string {
