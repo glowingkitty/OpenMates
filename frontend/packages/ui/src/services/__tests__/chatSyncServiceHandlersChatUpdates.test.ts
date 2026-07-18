@@ -181,9 +181,16 @@ describe("handleChatDraftUpdatedImpl", () => {
       undefined,
       { isFromSync: true },
     );
+    expect(mocks.chatListCache.upsertChat).toHaveBeenCalledWith(
+      expect.objectContaining({ chat_id: "chat-ideabucket" }),
+    );
     expect(service.dispatchEvent).toHaveBeenCalledWith(
       expect.objectContaining({
-        detail: { chat_id: "chat-ideabucket", type: "draft" },
+        detail: expect.objectContaining({
+          chat_id: "chat-ideabucket",
+          type: "draft",
+          chat: expect.objectContaining({ chat_id: "chat-ideabucket" }),
+        }),
       }),
     );
   });

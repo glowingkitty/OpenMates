@@ -301,6 +301,7 @@ export async function handleChatDraftUpdatedImpl(
   try {
     // First, get the chat without passing a transaction (getChat will create its own)
     const chat = await chatDB.getChat(payload.chat_id);
+    let updatedChat: Chat;
 
     if (chat) {
       console.debug(
@@ -333,6 +334,7 @@ export async function handleChatDraftUpdatedImpl(
 
       // Use a separate transaction for updateChat (it will create its own internally)
       await chatDB.updateChat(chat);
+      updatedChat = chat;
     } else {
       console.warn(
         `[ChatSyncService:ChatUpdates] Chat ${payload.chat_id} not found when handling chat_draft_updated broadcast. Creating new chat entry for draft.`,
@@ -355,6 +357,7 @@ export async function handleChatDraftUpdatedImpl(
       };
       // Use a separate transaction for addChat (it will create its own internally)
       await chatDB.addChat(newChatForDraft, undefined, { isFromSync: true });
+      updatedChat = newChatForDraft;
     }
 
     // DB operations completed successfully - now do cache invalidation and event dispatch
@@ -365,11 +368,12 @@ export async function handleChatDraftUpdatedImpl(
 
     // Invalidate metadata cache since draft content changed
     chatMetadataCache.invalidateChat(payload.chat_id);
+    chatListCache.upsertChat(updatedChat);
 
     // Dispatch event to notify UI components
     serviceInstance.dispatchEvent(
       new CustomEvent("chatUpdated", {
-        detail: { chat_id: payload.chat_id, type: "draft" },
+        detail: { chat_id: payload.chat_id, type: "draft", chat: updatedChat },
       }),
     );
   } catch (error) {
