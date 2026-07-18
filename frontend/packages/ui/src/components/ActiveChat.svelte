@@ -4614,7 +4614,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
      let olderMessageWindowLoading = $state(false);
      let lastBoundChatHistoryRef = $state<ChatHistoryRef | null>(null);
      let anonymousShellHydratingChatId = $state<string | null>(null);
-     let anonymousHydrationDebug = $state('idle');
 
      async function readAnonymousSnapshotFromIndexedDb(chatId: string): Promise<{ chat: Chat; messages: ChatMessageModel[] } | null> {
         if (typeof indexedDB === 'undefined') return null;
@@ -4698,27 +4697,22 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         if (!chat?.is_anonymous || chat.chat_id !== initialAnonymousChatId || chat.messages_v !== 0 || currentMessages.length > 0 || anonymousShellHydratingChatId === chat.chat_id) return;
 
         anonymousShellHydratingChatId = chat.chat_id;
-        anonymousHydrationDebug = `effect-load:${chat.chat_id}:messages=${currentMessages.length}:v=${chat.messages_v ?? -1}`;
         void (async () => {
             for (let attempt = 0; attempt < 100; attempt += 1) {
                 const snapshot = await readAnonymousSnapshotFromIndexedDb(chat.chat_id);
-                anonymousHydrationDebug = `raw-snapshot:${chat.chat_id}:attempt=${attempt}:messages=${snapshot?.messages.length ?? -1}:v=${snapshot?.chat.messages_v ?? -1}`;
                 if (snapshot && snapshot.messages.length > 0 && currentChat?.chat_id === chat.chat_id) {
                     currentChat = snapshot.chat;
                     currentMessages = snapshot.messages;
                     chatHistoryRef?.updateMessages(snapshot.messages);
                     showWelcome = false;
-                    anonymousHydrationDebug = `raw-assign:${chat.chat_id}:messages=${snapshot.messages.length}:v=${snapshot.chat.messages_v ?? -1}`;
                     return;
                 }
 
                 await new Promise((resolve) => setTimeout(resolve, 100));
             }
         })().catch((error) => {
-            anonymousHydrationDebug = `raw-error:${chat.chat_id}:${error instanceof Error ? error.name : typeof error}`;
             console.warn('[ActiveChat] Failed to hydrate anonymous shell from IndexedDB snapshot:', error);
         }).finally(() => {
-            anonymousHydrationDebug = `effect-done:${chat.chat_id}:messages=${currentMessages.length}:v=${currentChat?.messages_v ?? -1}`;
             if (anonymousShellHydratingChatId === chat.chat_id) {
                 anonymousShellHydratingChatId = null;
             }
@@ -8807,9 +8801,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }
 
         currentMessages = newMessages;
-        if (currentChat?.is_anonymous) {
-            anonymousHydrationDebug = `loadChat-assign:${currentChat.chat_id}:messages=${newMessages.length}:v=${currentChat.messages_v ?? -1}`;
-        }
 
         // Hide welcome screen when we have messages to display
         // This ensures public chats (demo + legal, like welcome chat) show their content immediately
@@ -11082,9 +11073,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     class="active-chat-container"
     data-testid="active-chat-container"
     data-authenticated={$authStore.isAuthenticated ? 'true' : 'false'}
-    data-current-chat-id={currentChat?.chat_id ?? ''}
-    data-current-chat-is-anonymous={currentChat?.is_anonymous ? 'true' : 'false'}
-    data-anonymous-hydration-debug={anonymousHydrationDebug}
     data-current-chat-messages-version={currentChat?.messages_v ?? -1}
     data-current-message-count={currentMessages.length}
     class:ai-typing={isAssistantTyping}
