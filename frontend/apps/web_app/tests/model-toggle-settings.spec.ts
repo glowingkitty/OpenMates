@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 /**
  * Model enable/disable toggle persistence E2E test.
@@ -78,6 +77,13 @@ async function navigateToAiSettings(
 	logFn('Opened settings menu.');
 	await page.waitForTimeout(800);
 
+	const aiSettings = page.getByTestId('ai-settings');
+	if (await aiSettings.isVisible().catch(() => false)) {
+		logFn('AI Settings page already loaded.');
+		await takeStepScreenshot(page, `${stepLabel}-ai-settings`);
+		return;
+	}
+
 	// Click "AI" top-level menu item
 	const aiMenuItem = settingsMenu.getByRole('menuitem', { name: /^AI$/i }).first();
 	await expect(aiMenuItem).toBeVisible({ timeout: 5000 });
@@ -86,7 +92,6 @@ async function navigateToAiSettings(
 	await page.waitForTimeout(800);
 
 	// Verify AI settings loaded
-	const aiSettings = page.getByTestId('ai-settings');
 	await expect(aiSettings).toBeVisible({ timeout: 8000 });
 	logFn('AI Settings page loaded.');
 	await takeStepScreenshot(page, `${stepLabel}-ai-settings`);
