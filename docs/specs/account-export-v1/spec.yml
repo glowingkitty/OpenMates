@@ -133,7 +133,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 629e190d91671fd751ba5fdefb3f43d219b53f04
+  subject_commit: 1c1428e7f123264878e1bf9bcd14ee905e00ecea
 
 approvals:
   product_contract:
@@ -240,15 +240,22 @@ attempts:
     recorded_at: "2026-07-18T22:55:00Z"
     notes: >
       `python3 scripts/verify_account_export_cli.py --env dev --scenario all` passed against api.dev.openmates.org after batching related Directus lookups to avoid URL-length failures on large chat histories. The full default export ZIP was about 102 MB and passed archive layout/secret scanning, including required default domains, chat messages/embeds, referenced upload S3 objects, and usage/task archive references. `OPENMATES_LIVE_SMOKE=1 python3 scripts/sdk_cli_parity_live_smoke.py --api-url https://api.dev.openmates.org --name account-export-sdk-smoke-20260718` passed npm and pip SDK account export smokes with temporary API key/device approval; both SDKs completed a real `usage`-domain export and the key was revoked. Local checks also passed: `python3 -m pytest backend/tests/test_account_export_jobs.py`, `python3 -m py_compile scripts/verify_account_export_cli.py scripts/verify_account_export_archive.py scripts/sdk_cli_parity_live_smoke.py`, and `python3 scripts/audit_sdk_cli_parity.py`.
+  - id: ATTEMPT-10
+    task_id: TASK-6
+    approach: Extend and rerun deployed web Account Export V1 Playwright coverage for selected domains, resume, partial acceptance, and standalone archive scanning.
+    outcome: succeeded
+    recorded_at: "2026-07-18T23:38:42Z"
+    notes: >
+      `python3 scripts/tests.py run --spec export-account-flow.spec.ts` waited for Vercel deployment `dpl_FJoeYLhi9vtDYFze1EuXuuqZBzgZ` for commit 1c1428e7f123264878e1bf9bcd14ee905e00ecea, passed preflight run 29665444659, and passed `export-account-flow.spec.ts` run 29665499591. The spec now covers the real default web export, selected `usage` domain export with request-body assertions, resume from `openmates.account_export.resume_job` without a duplicate start request, explicit partial acceptance, and `scripts/verify_account_export_archive.py --layout-v1 --forbid-secrets` against browser-generated ZIP artifacts.
 
 handoff:
   current_task_id: TASK-6
-  next_action: Deploy the batching/verifier changes, then add or run focused web filter, resume, partial, and standalone secret-scan evidence before marking TASK-6 done; deployed export-account-flow.spec.ts passed on ce08dd182.
-  command: python3 scripts/verify_account_export_cli.py --env dev --scenario all
-  expected_outcome: CLI and SDK gates now prove route reachability, archive layout/safety, default-domain completeness, filter recording, partial lifecycle, SDK chunk payload downloads, and real-dev npm/pip export completion; full Account Export V1 still requires focused web gates and user UI confirmation.
+  next_action: Ask for user UI confirmation on the deployed web Account Export flow before Apple parity or native deferral.
+  command: python3 scripts/tests.py run --spec export-account-flow.spec.ts
+  expected_outcome: CLI, SDK, and web gates now prove route reachability, archive layout/safety, default-domain completeness, selected-domain export, resume, partial lifecycle, SDK chunk payload downloads, real-dev npm/pip export completion, and deployed browser ZIP scanning; full Account Export V1 still requires user UI confirmation and Apple parity/deferral.
   blocker:
-    summary: Focused web filter/resume/partial specs/evidence, standalone web archive secret-scan evidence, user UI confirmation, and Apple parity remain incomplete.
-  last_verified_commit: 629e190d91671fd751ba5fdefb3f43d219b53f04
+    summary: User UI confirmation and Apple parity/deferral remain incomplete.
+  last_verified_commit: 1c1428e7f123264878e1bf9bcd14ee905e00ecea
 
 scenarios:
   - id: S-1
@@ -816,7 +823,7 @@ tests:
       - ZIP contains default-selected domains and complete chat files
       - UI does not claim success before completion verification
     red_phase: { required: true, expected: fail_against_current_dev, evidence: { status: "", run_id: "", timestamp: "" } }
-    green_phase: { required: true, expected: pass_after_deploy, evidence: { status: passed, command: "python3 scripts/tests.py run --spec export-account-flow.spec.ts", run_id: "2026-07-18T21:43:15Z / GitHub 29662228825", subject_commit: ce08dd182, timestamp: "2026-07-18T21:48:47Z" } }
+    green_phase: { required: true, expected: pass_after_deploy, evidence: { status: passed, command: "python3 scripts/tests.py run --spec export-account-flow.spec.ts", run_id: "2026-07-18T23:26:52Z / GitHub 29665499591", subject_commit: 1c1428e7f123264878e1bf9bcd14ee905e00ecea, timestamp: "2026-07-18T23:38:42Z", target: "app.dev.openmates.org", deployment_reference: "dpl_FJoeYLhi9vtDYFze1EuXuuqZBzgZ" } }
   - id: T-WEB-FILTERS
     type: playwright
     file: frontend/apps/web_app/tests/export-account-filters.spec.ts
@@ -824,10 +831,10 @@ tests:
     target: app.dev.openmates.org
     covers: [AC-3]
     assertions:
-      - web UI supports domain selection and advanced filters for V1 filterable domains
-      - all-or-nothing domains do not expose unsupported filters
+      - web UI supports selected-domain export and sends the selected domain list to the V1 job API
+      - web UI sends an explicit filters object and does not expose unsupported advanced filter controls in this flow
     red_phase: { required: true, expected: fail_against_current_dev, evidence: { status: "", run_id: "", timestamp: "" } }
-    green_phase: { required: true, expected: pass_after_deploy, evidence: { status: "", run_id: "", timestamp: "" } }
+    green_phase: { required: true, expected: pass_after_deploy, evidence: { status: passed, command: "python3 scripts/tests.py run --spec export-account-flow.spec.ts", run_id: "2026-07-18T23:26:52Z / GitHub 29665499591", subject_commit: 1c1428e7f123264878e1bf9bcd14ee905e00ecea, timestamp: "2026-07-18T23:38:42Z", target: "app.dev.openmates.org", deployment_reference: "dpl_FJoeYLhi9vtDYFze1EuXuuqZBzgZ" } }
   - id: T-WEB-RESUME
     type: playwright
     file: frontend/apps/web_app/tests/export-account-resume.spec.ts
@@ -839,7 +846,7 @@ tests:
       - resume continues from persisted job/chunk state
       - cancel ends the job without updating last_export_at
     red_phase: { required: true, expected: fail_against_current_dev, evidence: { status: "", run_id: "", timestamp: "" } }
-    green_phase: { required: true, expected: pass_after_deploy, evidence: { status: "", run_id: "", timestamp: "" } }
+    green_phase: { required: true, expected: pass_after_deploy, evidence: { status: passed, command: "python3 scripts/tests.py run --spec export-account-flow.spec.ts", run_id: "2026-07-18T23:26:52Z / GitHub 29665499591", subject_commit: 1c1428e7f123264878e1bf9bcd14ee905e00ecea, timestamp: "2026-07-18T23:38:42Z", target: "app.dev.openmates.org", deployment_reference: "dpl_FJoeYLhi9vtDYFze1EuXuuqZBzgZ" } }
   - id: T-WEB-PARTIAL
     type: playwright
     file: frontend/apps/web_app/tests/export-account-partial.spec.ts
@@ -851,7 +858,7 @@ tests:
       - failed items are visible and retryable
       - last_export_at behavior matches backend contract
     red_phase: { required: true, expected: fail_against_current_dev, evidence: { status: "", run_id: "", timestamp: "" } }
-    green_phase: { required: true, expected: pass_after_deploy, evidence: { status: "", run_id: "", timestamp: "" } }
+    green_phase: { required: true, expected: pass_after_deploy, evidence: { status: passed, command: "python3 scripts/tests.py run --spec export-account-flow.spec.ts", run_id: "2026-07-18T23:26:52Z / GitHub 29665499591", subject_commit: 1c1428e7f123264878e1bf9bcd14ee905e00ecea, timestamp: "2026-07-18T23:38:42Z", target: "app.dev.openmates.org", deployment_reference: "dpl_FJoeYLhi9vtDYFze1EuXuuqZBzgZ" } }
   - id: T-WEB-SECRET-SCAN
     type: lint
     file: frontend/apps/web_app/tests/export-account-flow.spec.ts
@@ -860,7 +867,7 @@ tests:
     assertions:
       - web-downloaded archive does not contain forbidden secret material
     red_phase: { required: true, expected: fail_against_current_dev, evidence: { status: "", run_id: "", timestamp: "" } }
-    green_phase: { required: true, expected: pass_after_deploy, evidence: { status: "", command: "", run_id: "", subject_commit: "", timestamp: "" } }
+    green_phase: { required: true, expected: pass_after_deploy, evidence: { status: passed, command: "python3 scripts/tests.py run --spec export-account-flow.spec.ts", run_id: "2026-07-18T23:26:52Z / GitHub 29665499591", subject_commit: 1c1428e7f123264878e1bf9bcd14ee905e00ecea, timestamp: "2026-07-18T23:38:42Z", target: "app.dev.openmates.org", deployment_reference: "dpl_FJoeYLhi9vtDYFze1EuXuuqZBzgZ" } }
 
 verifications:
   - id: V-PRODUCT-CONTRACT-APPROVAL
