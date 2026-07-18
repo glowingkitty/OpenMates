@@ -15,6 +15,7 @@ class ChatListCache {
   private cacheReady = false;
   private cacheDirty = false;
   private updateInProgress = false;
+  private pendingUpserts = new Map<string, Chat>();
   private readonly CACHE_STALE_MS = 5 * 60 * 1000; // 5 minutes
 
   // Tracks whether the sidebar component (Chats.svelte) was destroyed since the
@@ -42,14 +43,35 @@ class ChatListCache {
    * Resets all staleness flags including the sidebar-destroyed tracker.
    */
   setCache(chats: Chat[]): void {
-    this.cachedChats = [...chats];
+    this.cachedChats = this.mergePendingUpserts(chats);
     this.cachedChatsTimestamp = Date.now();
     this.cacheReady = true;
     this.cacheDirty = false;
     this.sidebarDestroyedSinceLastSet = false;
     console.debug(
-      `[ChatListCache] Cache updated: ${chats.length} chats, timestamp: ${this.cachedChatsTimestamp}`,
+      `[ChatListCache] Cache updated: ${this.cachedChats.length} chats, timestamp: ${this.cachedChatsTimestamp}`,
     );
+  }
+
+  private mergePendingUpserts(chats: Chat[]): Chat[] {
+    if (this.pendingUpserts.size === 0) {
+      return [...chats];
+    }
+
+    const merged = [...chats];
+    for (const pendingChat of Array.from(this.pendingUpserts.values())) {
+      const index = merged.findIndex((chat) => chat.chat_id === pendingChat.chat_id);
+      if (index === -1) {
+        merged.push(pendingChat);
+      } else {
+        merged[index] = pendingChat;
+      }
+    }
+    console.debug(
+      `[ChatListCache] Merged ${this.pendingUpserts.size} pending upsert(s) into full cache snapshot`,
+    );
+    this.pendingUpserts.clear();
+    return merged;
   }
 
   /**
@@ -116,7 +138,10 @@ class ChatListCache {
    */
   upsertChat(chat: Chat): void {
     if (!this.cacheReady) {
-      console.debug("[ChatListCache] Cache not ready, skipping upsert");
+      this.pendingUpserts.set(chat.chat_id, chat);
+      console.debug(
+        `[ChatListCache] Cache not ready, queued pending upsert for chat: ${chat.chat_id}`,
+      );
       return;
     }
     const idx = this.cachedChats.findIndex((c) => c.chat_id === chat.chat_id);
@@ -137,6 +162,7 @@ class ChatListCache {
    * Remove a chat from the cache
    */
   removeChat(chatId: string): void {
+    this.pendingUpserts.delete(chatId);
     if (!this.cacheReady) return;
     this.cachedChats = this.cachedChats.filter((c) => c.chat_id !== chatId);
     this.cacheDirty = false;
@@ -291,6 +317,7 @@ class ChatListCache {
    */
   clear(): void {
     this.cachedChats = [];
+    this.pendingUpserts.clear();
     this.cacheReady = false;
     this.cacheDirty = false;
     this.cachedChatsTimestamp = 0;

@@ -102,9 +102,23 @@ describe("ChatListCache", () => {
       expect(result![0].title).toBe("New");
     });
 
-    it("does nothing when cache is not ready", () => {
+    it("queues upserts when cache is not ready and merges them into the next full snapshot", () => {
       chatListCache.upsertChat(makeChat("a"));
       expect(chatListCache.getCache()).toBeNull();
+
+      chatListCache.setCache([makeChat("b")]);
+      const result = chatListCache.getCache();
+      expect(result).toHaveLength(2);
+      expect(result!.map((chat: any) => chat.chat_id)).toEqual(["b", "a"]);
+    });
+
+    it("lets pending upserts override stale chats from the next full snapshot", () => {
+      chatListCache.upsertChat(makeChat("a", { title: "Pending" }));
+
+      chatListCache.setCache([makeChat("a", { title: "Stale" })]);
+      const result = chatListCache.getCache();
+      expect(result).toHaveLength(1);
+      expect(result![0].title).toBe("Pending");
     });
   });
 

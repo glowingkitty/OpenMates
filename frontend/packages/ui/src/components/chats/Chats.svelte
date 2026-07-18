@@ -66,6 +66,7 @@ const UPDATE_DEBOUNCE_MS = 300;
 // microtask checkpoint via Promise.resolve().then(). All events in the same JS task are
 // coalesced into a single Svelte reactive update.
 let _chatUpdatedFlushPending = false;
+let _chatUpsertsDuringDbRead = new Map<string, ChatType>();
 
 	// --- Component State ---
 	let allChatsFromDB: ChatType[] = $state([]); // Holds all chats fetched from chatDB
@@ -79,6 +80,9 @@ let _chatUpdatedFlushPending = false;
 	let sessionStorageDraftUpdateTrigger = $state(0); // Trigger for reactivity when sessionStorage drafts change
 
 	function upsertLocalChatList(chat: ChatType): void {
+		if (chatListCache.isUpdateInProgress()) {
+			_chatUpsertsDuringDbRead.set(chat.chat_id, chat);
+		}
 		const chatIndex = allChatsFromDB.findIndex(c => c.chat_id === chat.chat_id);
 		if (chatIndex !== -1) {
 			allChatsFromDB[chatIndex] = chat;
@@ -86,6 +90,19 @@ let _chatUpdatedFlushPending = false;
 			return;
 		}
 		allChatsFromDB = [...allChatsFromDB, chat];
+	}
+
+	function mergeDbSnapshotWithInFlightUpserts(chatsFromDb: ChatType[]): ChatType[] {
+		if (_chatUpsertsDuringDbRead.size === 0) {
+			return chatsFromDb;
+		}
+
+		const mergedById = new Map(chatsFromDb.map(chat => [chat.chat_id, chat]));
+		for (const [chatId, chat] of Array.from(_chatUpsertsDuringDbRead.entries())) {
+			mergedById.set(chatId, chat);
+		}
+		_chatUpsertsDuringDbRead = new Map();
+		return Array.from(mergedById.values());
 	}
 
 	// Phased Loading State — progressive display with incremental pagination:
@@ -2759,7 +2776,9 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 		// Fetch chats from IDB. On initial cold-boot mount a limit of 20 is passed so we only
 		// read the most-recently-edited chats — Phase 2 sync will load the full set shortly after.
 		// All other callers (sync events, chat updates) pass no limit to get the complete set.
-		const chatsFromDb = await chatDB.getAllChats(undefined, limit ? { limit } : undefined);
+		const chatsFromDb = mergeDbSnapshotWithInFlightUpserts(
+			await chatDB.getAllChats(undefined, limit ? { limit } : undefined)
+		);
 		console.debug(`[Chats] chatDB.getAllChats() returned ${chatsFromDb.length} chats`);
 
 		// CRITICAL: Post-read auth check. If auth flipped to false during the async IDB read
