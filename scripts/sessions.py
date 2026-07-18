@@ -5466,9 +5466,25 @@ def cmd_trigger_tests(args: argparse.Namespace) -> None:
 def cmd_debug_vercel(args: argparse.Namespace) -> None:
     """Start a session and print Vercel build logs via the REST API (works for ERROR deployments)."""
     # Auto-start a session
-    args.task = "debug Vercel deployment failure"
-    args.tags = None
-    cmd_start(args)
+    start_args = argparse.Namespace(
+        mode="bug",
+        task="debug Vercel deployment failure",
+        tags="debug",
+        issue=None,
+        chat=None,
+        embed=None,
+        logs=None,
+        user=None,
+        debug_id=None,
+        error_since=7,
+        vercel=False,
+        run_id=None,
+        since_last_deploy=False,
+        task_id=None,
+        linear_issue=None,
+        opencode_session=getattr(args, "opencode_session", None),
+    )
+    cmd_start(start_args)
 
     print()
     # Delegate to debug_vercel.py which uses the Vercel REST API.

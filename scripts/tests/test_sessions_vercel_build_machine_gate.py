@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import argparse
 import importlib.util
 import sys
 from pathlib import Path
@@ -93,3 +94,33 @@ def test_vercel_deploy_gate_blocks_node20_runtime(monkeypatch):
 
     with pytest.raises(RuntimeError, match="Node.js version must be 24.x"):
         sessions._enforce_vercel_standard_build_machine()
+
+
+def test_debug_vercel_starts_bug_session_with_complete_args(monkeypatch):
+    sessions = load_sessions_module()
+    captured = {}
+
+    def fake_start(args):
+        captured["start_args"] = args
+
+    def fake_run_cmd(cmd, cwd=None):
+        captured["cmd"] = cmd
+        captured["cwd"] = cwd
+        return 0, "vercel logs\n", ""
+
+    monkeypatch.setattr(sessions, "cmd_start", fake_start)
+    monkeypatch.setattr(sessions, "_run_cmd", fake_run_cmd)
+
+    sessions.cmd_debug_vercel(argparse.Namespace(opencode_session="oc-session"))
+
+    start_args = captured["start_args"]
+    assert start_args.mode == "bug"
+    assert start_args.task == "debug Vercel deployment failure"
+    assert start_args.tags == "debug"
+    assert start_args.vercel is False
+    assert start_args.error_since == 7
+    assert start_args.opencode_session == "oc-session"
+    assert captured["cmd"] == [
+        sys.executable,
+        str(sessions.PROJECT_ROOT / "backend" / "scripts" / "debug_vercel.py"),
+    ]
