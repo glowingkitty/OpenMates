@@ -16,6 +16,7 @@ export interface DecryptedChatMetadata {
   icon: string | null; // Decrypted icon name
   category: string | null; // Decrypted category name
   summary: string | null; // Decrypted chat summary (2-3 sentences)
+  tags: string[] | null; // Decrypted chat tags
   activeFocusId: string | null; // Decrypted active focus mode ID (e.g., "jobs-career_insights")
   lastDecrypted: number; // Timestamp when this metadata was last decrypted
 }
@@ -80,6 +81,7 @@ class ChatMetadataCache {
         decryptedMetadata.icon ||
         decryptedMetadata.category ||
         decryptedMetadata.summary ||
+        decryptedMetadata.tags?.length ||
         decryptedMetadata.draftPreview ||
         decryptedMetadata.activeFocusId;
       if (hasDecryptedContent) {
@@ -147,6 +149,7 @@ class ChatMetadataCache {
       // KEYS-04: getKeySync acceptable here -- sidebar render path, shows placeholder if key unavailable
       let category: string | null = null;
       let summary: string | null = null;
+      let tags: string[] | null = null;
       let activeFocusId: string | null = null;
       let chatKey = chatKeyManager.getKeySync(chat.chat_id);
       // Async fallback: try loading key from IDB if not in memory cache
@@ -156,7 +159,7 @@ class ChatMetadataCache {
       if (chatKey) {
         const { decryptWithChatKey } = await import("./cryptoService");
 
-        const [iconResult, categoryResult, summaryResult, focusResult] =
+        const [iconResult, categoryResult, summaryResult, tagsResult, focusResult] =
           await Promise.all([
             chat.encrypted_icon
               ? decryptWithChatKey(chat.encrypted_icon, chatKey)
@@ -167,6 +170,9 @@ class ChatMetadataCache {
             chat.encrypted_chat_summary
               ? decryptWithChatKey(chat.encrypted_chat_summary, chatKey)
               : null,
+            chat.encrypted_chat_tags
+              ? decryptWithChatKey(chat.encrypted_chat_tags, chatKey)
+              : null,
             chat.encrypted_active_focus_id
               ? decryptWithChatKey(chat.encrypted_active_focus_id, chatKey)
               : null,
@@ -175,6 +181,16 @@ class ChatMetadataCache {
         icon = iconResult;
         category = categoryResult;
         summary = summaryResult;
+        if (tagsResult) {
+          try {
+            const parsedTags = JSON.parse(tagsResult);
+            tags = Array.isArray(parsedTags)
+              ? parsedTags.filter((tag): tag is string => typeof tag === "string")
+              : null;
+          } catch {
+            tags = null;
+          }
+        }
         activeFocusId = focusResult;
       }
 
@@ -185,6 +201,7 @@ class ChatMetadataCache {
         icon,
         category,
         summary,
+        tags,
         activeFocusId,
         lastDecrypted: Date.now(),
       };

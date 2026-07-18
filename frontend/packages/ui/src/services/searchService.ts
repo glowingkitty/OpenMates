@@ -76,7 +76,7 @@ export interface MessageMatchSnippet {
   embedFocusIsActive?: boolean;
 }
 
-/** A single metadata snippet showing context around a search match in summary or tags */
+/** A single metadata snippet showing context around a search match in summary, tags, or draft preview */
 export interface MetadataMatchSnippet {
   chatId: string;
   /** The snippet text with context words around the match */
@@ -85,8 +85,8 @@ export interface MetadataMatchSnippet {
   matchStart: number;
   /** Length of the matched text within the snippet */
   matchLength: number;
-  /** Where the match was found: 'summary' or 'tags' */
-  matchSource: "summary" | "tags";
+  /** Where the match was found */
+  matchSource: "summary" | "tags" | "draft";
 }
 
 /** A chat search result containing title match info and message match snippets */
@@ -837,14 +837,14 @@ const indexedChatIds = new Set<string>();
 
 /**
  * Metadata search index for expanded search (chats 101–1000).
- * Stores decrypted summary and tags for metadata-only chats so they
+ * Stores decrypted summary, tags, and draft previews for metadata-only chats so they
  * can be searched without loading messages from the server.
  *
- * Key: chatId, Value: { summary, tags } — already decrypted plaintext.
+ * Key: chatId, Value: { summary, tags, draftPreview } — already decrypted plaintext.
  */
 const metadataIndex = new Map<
   string,
-  { summary: string | null; tags: string[] | null }
+  { summary: string | null; tags: string[] | null; draftPreview: string | null }
 >();
 
 /** Track which chats have had their metadata indexed */
@@ -1021,6 +1021,7 @@ async function indexChatMetadata(chat: Chat): Promise<void> {
       metadataIndex.set(chat.chat_id, {
         summary: metadata.summary,
         tags: metadata.tags,
+        draftPreview: metadata.draftPreview,
       });
     }
     indexedMetadataChatIds.add(chat.chat_id);
@@ -1086,7 +1087,7 @@ export async function warmUpMetadataSearchIndex(chats: Chat[]): Promise<void> {
 }
 
 /**
- * Search metadata (summary + tags) for a single chat using the metadataIndex.
+ * Search metadata (summary + tags + draft preview) for a single chat using the metadataIndex.
  * Used for metadata-only chats that have been pre-indexed.
  */
 function searchMetadataInChat(
@@ -1095,11 +1096,17 @@ function searchMetadataInChat(
 ): MetadataMatchSnippet[] {
   const meta = metadataIndex.get(chatId);
   if (!meta) return [];
-  return searchMetadataInline(chatId, query, meta.summary, meta.tags);
+  return searchMetadataInline(
+    chatId,
+    query,
+    meta.summary,
+    meta.tags,
+    meta.draftPreview,
+  );
 }
 
 /**
- * Search metadata (summary + tags) inline using provided values.
+ * Search metadata (summary + tags + draft preview) inline using provided values.
  * Shared implementation used by both metadataIndex lookup and inline cache search.
  */
 function searchMetadataInline(
@@ -1107,6 +1114,7 @@ function searchMetadataInline(
   query: string,
   summary: string | null,
   tags: string[] | null,
+  draftPreview: string | null = null,
 ): MetadataMatchSnippet[] {
   const snippets: MetadataMatchSnippet[] = [];
   const lowerQuery = query.toLowerCase();
@@ -1145,6 +1153,27 @@ function searchMetadataInline(
         });
         break; // One tag match is sufficient
       }
+    }
+  }
+
+  // Search in unsent draft previews so draft-only chats without a title/message
+  // remain discoverable across CLI, web, and cold-boot sync paths.
+  if (draftPreview) {
+    const lowerDraftPreview = draftPreview.toLowerCase();
+    const idx = lowerDraftPreview.indexOf(lowerQuery);
+    if (idx !== -1) {
+      const { snippet, snippetMatchStart, snippetMatchLength } = buildSnippet(
+        draftPreview,
+        idx,
+        query.length,
+      );
+      snippets.push({
+        chatId,
+        snippet,
+        matchStart: snippetMatchStart,
+        matchLength: snippetMatchLength,
+        matchSource: "draft",
+      });
     }
   }
 
@@ -1590,6 +1619,7 @@ export async function search(
           trimmedQuery,
           meta.summary,
           meta.tags,
+          meta.draftPreview,
         );
       }
     }
