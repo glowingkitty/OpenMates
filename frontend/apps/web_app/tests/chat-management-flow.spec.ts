@@ -32,10 +32,11 @@ const {
 	archiveExistingScreenshots,
 	createStepScreenshotter,
 	assertNoMissingTranslations,
-	getTestAccount
+	getTestAccount,
+	withMockMarker
 } = require('./signup-flow-helpers');
 
-const { loginToTestAccount, deleteActiveChat } = require('./helpers/chat-test-helpers');
+const { loginToTestAccount, deleteActiveChat, waitForAssistantMessage } = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 const consoleLogs: string[] = [];
@@ -85,7 +86,7 @@ async function createTestChat(
 	const messageEditor = page.getByTestId('message-editor');
 	await expect(messageEditor).toBeVisible({ timeout: 10000 });
 	await messageEditor.click();
-	await page.keyboard.type(message);
+	await page.keyboard.type(withMockMarker(message, 'chat_flow_capital', 'instant'));
 
 	const sendButton = page.locator('[data-action="send-message"]');
 	await expect(sendButton).toBeEnabled();
@@ -94,8 +95,7 @@ async function createTestChat(
 
 	await expect(page).toHaveURL(/chat-id=[a-zA-Z0-9-]+/, { timeout: 15000 });
 	// Wait for AI response so the chat has content
-	const assistantResponse = page.getByTestId('message-assistant');
-	await expect(assistantResponse.last()).toBeVisible({ timeout: 45000 });
+	await waitForAssistantMessage(page, { which: 'last', timeout: 60000, logCheckpoint });
 	await waitForChatSettled(page);
 	await page.waitForTimeout(3000); // Allow title to generate
 }
