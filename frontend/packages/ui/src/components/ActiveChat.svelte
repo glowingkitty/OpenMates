@@ -65,7 +65,7 @@
 
     import { initializeApp } from '../app';
     import { aiTypingStore, type AITypingStatus } from '../stores/aiTypingStore'; // Import the new store
-    import { decryptWithMasterKey } from '../services/cryptoService'; // Import decryption function
+    import { decryptWithChatKey, decryptWithMasterKey } from '../services/cryptoService'; // Import decryption function
     import { getModelDisplayName } from '../utils/modelDisplayName'; // For clean model name display
     import { modelsMetadata } from '../data/modelsMetadata'; // For reasoning model detection in typing indicator
     import { parse_message } from '../message_parsing/parse_message'; // Import markdown parser
@@ -102,6 +102,7 @@
     import { incognitoChatService } from '../services/incognitoChatService'; // Import incognito chat service
     import { anonymousChatStorage } from '../services/anonymousChatStorage';
     import { isAnonymousChatId } from '../services/anonymousChatIds';
+    import { unwrapAnonymousChatKey } from '../services/anonymousChatKeyWrapping';
     import { incognitoMode } from '../stores/incognitoModeStore'; // Import incognito mode store
     import { piiVisibilityStore } from '../stores/piiVisibilityStore'; // Import PII visibility store for hide/unhide toggle
     import { setEmbedPIIState, resetEmbedPIIState } from '../stores/embedPIIStore'; // Update embed PII state for preview/fullscreen components
@@ -4641,7 +4642,18 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         resolve(null);
                         return;
                     }
-                    resolve({ chat, messages: (messagesRequest.result ?? []) as ChatMessageModel[] });
+                    void (async () => {
+                        const chatKey = await unwrapAnonymousChatKey(chat.anonymous_encrypted_chat_key);
+                        const messages = await Promise.all(((messagesRequest.result ?? []) as ChatMessageModel[]).map(async (message) => {
+                            if (!chatKey || !message.encrypted_content || message.content) return message;
+                            const content = await decryptWithChatKey(message.encrypted_content, chatKey, {
+                                chatId,
+                                fieldName: 'encrypted_content'
+                            });
+                            return content ? { ...message, content } : message;
+                        }));
+                        resolve({ chat, messages });
+                    })().catch(reject);
                 };
             };
         });
