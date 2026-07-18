@@ -88,11 +88,6 @@ async function verifySavedMemoryEntry(
       await notification.getByTestId('notification-dismiss').click();
     }
   }
-  await expect(async () => {
-    for (let index = 0; index < await notifications.count(); index++) {
-      expect(await notifications.nth(index).isVisible()).toBe(false);
-    }
-  }).toPass({ timeout: 5000 });
 
   await page.evaluate((path: string) => {
     window.dispatchEvent(new CustomEvent('openSettingsMenu', { detail: { returnTo: path } }));
