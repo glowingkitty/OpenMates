@@ -9,7 +9,7 @@
 
 import { after, describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -20,6 +20,7 @@ process.env.HOME = tempHome;
 mkdirSync(join(tempHome, ".openmates"), { recursive: true, mode: 0o700 });
 
 const { OpenMatesClient } = await import("../src/client.ts");
+const { assertAccountExportPayloadSafe, writeAccountExportArchive } = await import("../src/accountExportArchive.ts");
 
 after(() => {
   if (originalHome === undefined) delete process.env.HOME;
@@ -115,5 +116,56 @@ describe("account export client", () => {
       format: "zip",
       include_advanced_metadata: false,
     });
+  });
+
+  it("writes Account Export V1 directory layout without root checksums", async () => {
+    const outputDir = join(tempHome, "account-export-layout");
+    const result = await writeAccountExportArchive({
+      export: { export_id: "export-1", status: "complete" },
+      manifest: {
+        export_id: "export-1",
+        schema_version: "account-export-v1",
+        selected_domains: ["chats"],
+        filters: { chats: { from: "2026-01-01" } },
+        report: { status: "complete", redactions: ["api_key", "refresh_token"], failures: [] },
+      },
+      chunks: [
+        {
+          chunk_id: "chats-0001",
+          domain: "chats",
+          sequence: 1,
+          status: "ready",
+          payload: {
+            source: "chats",
+            items: [
+              {
+                id: "chat-1",
+                title: "Readable Chat",
+                summary: "Short summary",
+                messages: [{ role: "user", content: "Hello" }],
+              },
+            ],
+          },
+        },
+      ],
+    }, { output: outputDir, format: "directory" });
+
+    assert.equal(result.format, "directory");
+    assert.ok(existsSync(join(outputDir, "README.md")));
+    assert.ok(existsSync(join(outputDir, "manifest.yml")));
+    assert.ok(existsSync(join(outputDir, "export-report.yml")));
+    assert.ok(existsSync(join(outputDir, "domains", "chats.json")));
+    assert.ok(existsSync(join(outputDir, "chats", "chat-1.md")));
+    assert.ok(existsSync(join(outputDir, "chats", "chat-1.yml")));
+    assert.equal(existsSync(join(outputDir, "checksums.sha256")), false);
+    assert.match(readFileSync(join(outputDir, "chats", "chat-1.md"), "utf-8"), /# Readable Chat/);
+    assert.doesNotMatch(readFileSync(join(outputDir, "export-report.yml"), "utf-8"), /api_key|refresh_token/);
+  });
+
+  it("rejects forbidden credential fields before writing archive payloads", () => {
+    assert.throws(
+      () => assertAccountExportPayloadSafe({ payload: { api_key: "sk-api-secret-value" } }),
+      /forbidden secret field 'api_key'/,
+    );
   });
 });

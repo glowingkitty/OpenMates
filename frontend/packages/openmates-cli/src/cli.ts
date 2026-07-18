@@ -77,6 +77,11 @@ import {
   type DesignIconExportFormat,
 } from "./designIcons.js";
 import {
+  assertAccountExportPayloadSafe,
+  sanitizeAccountExportManifest,
+  writeAccountExportArchive,
+} from "./accountExportArchive.js";
+import {
   getExampleChatConversation,
   listExampleChatsForApp,
   listExampleChatsForSkill,
@@ -4150,28 +4155,49 @@ async function runAccountExport(
     client.getAccountExportManifest(exportId),
     client.listAccountExportChunks(exportId),
   ]);
-  const completed = await client.completeAccountExport(exportId);
-  return {
+  const downloadedChunks: Array<Record<string, unknown>> = [];
+  try {
+    for (const chunk of chunks.chunks) {
+      const chunkId = String(chunk.chunk_id ?? "");
+      const downloaded = chunkId ? await client.getAccountExportChunk(exportId, chunkId) : chunk;
+      assertAccountExportPayloadSafe(downloaded);
+      downloadedChunks.push(downloaded);
+    }
+  } catch (error) {
+    await client.cancelAccountExport(exportId).catch(() => undefined);
+    throw error;
+  }
+
+  let completed = await client.completeAccountExport(exportId);
+  const completedStatus = String((completed.export as Record<string, unknown>).status ?? "");
+  if (completedStatus === "partial") {
+    if (flags["accept-partial"] !== true) {
+      throw new Error(`Account export ${exportId} is partial. Re-run with --accept-partial to accept it, or inspect/cancel the job first.`);
+    }
+    completed = await client.acceptPartialAccountExport(exportId);
+  }
+
+  const bundle = {
     export: completed.export,
-    manifest: manifest.manifest,
-    chunks: chunks.chunks,
+    manifest: sanitizeAccountExportManifest(manifest.manifest),
+    chunks: downloadedChunks,
   };
+  const archive = await writeAccountExportArchive(bundle, flags);
+  return { ...bundle, archive };
 }
 
 function printAccountExportBundle(
   bundle: Record<string, unknown>,
   flags: Record<string, string | boolean>,
 ): void {
-  if (typeof flags.output === "string") {
-    writeFileSync(flags.output, `${JSON.stringify(bundle, null, 2)}\n`, "utf-8");
-  }
   if (flags.json === true) {
-    printJson(typeof flags.output === "string" ? { ...bundle, output: flags.output } : bundle);
+    printJson(bundle);
     return;
   }
   const exportRecord = bundle.export && typeof bundle.export === "object" ? bundle.export as Record<string, unknown> : {};
+  const archive = bundle.archive && typeof bundle.archive === "object" ? bundle.archive as Record<string, unknown> : {};
   process.stdout.write(`Account export ${String(exportRecord.export_id ?? "")} ${String(exportRecord.status ?? "unknown")}\n`);
-  if (typeof flags.output === "string") process.stdout.write(`Wrote ${flags.output}\n`);
+  if (typeof archive.output === "string") process.stdout.write(`Wrote ${archive.output}\n`);
 }
 
 function printApiKeyList(

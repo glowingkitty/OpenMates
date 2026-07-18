@@ -50,6 +50,7 @@ TOP_LEVEL_CLASSIFICATION = {
     "mentions": "mentions via app/focus/memory metadata",
     "embeds": "embeds.*",
     "settings": "account/settings/billing/notifications/memories/reminders.*; newsletter stays CLI-only",
+    "account": "account.*",
     "connected-accounts": "connectedAccounts.import / connected_accounts.import_account",
     "connect-account": "local-connected-account-setup",
     "learning-mode": "learningMode.* / learning_mode.*",

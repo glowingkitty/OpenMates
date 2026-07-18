@@ -133,7 +133,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: d62ca332ddb110926c0ec983df8909937b4ca523
+  subject_commit: 32fd4a8530255d91fd6f653b18f9ccf41b684fa0
 
 approvals:
   product_contract:
@@ -185,14 +185,30 @@ attempts:
     outcome: rejected
     recorded_at: "2026-07-18"
     notes: Rejected because it would still risk browser freezes, dropped-connection failure, and missing S3/cold-storage data.
+  - id: ATTEMPT-3
+    task_id: TASK-4
+    approach: Run the built CLI against api.dev.openmates.org for an account export smoke after backend route deployment.
+    outcome: succeeded
+    recorded_at: "2026-07-18T17:59:46Z"
+    notes: >
+      `node frontend/packages/openmates-cli/dist/cli.js account export --domains chats,usage --output /tmp/opencode/openmates-account-export-smoke.json --json`
+      initially failed because live Caddy aborted non-allowlisted /v1/account-exports requests; adding the route to Caddy allowlists made the command complete and write a two-domain export bundle.
+  - id: ATTEMPT-4
+    task_id: TASK-5
+    approach: Run npm and pip SDK account export smoke probes against api.dev.openmates.org with a temporary test-account API key and approved test devices.
+    outcome: succeeded
+    recorded_at: "2026-07-18T17:59:46Z"
+    notes: >
+      Both SDK probes returned status=complete, domains=[chats, usage], chunks=2. The temporary API key was revoked after the probes.
 
 handoff:
-  current_task_id: TASK-2
-  next_action: Write red backend export job/domain/archive tests, then implement the backend account export job foundation before CLI/SDK work.
-  command: python3 scripts/spec_validate.py docs/specs/account-export-v1/spec.yml
-  expected_outcome: Spec stays structurally valid while implementation proceeds in the approved gate order.
-  blocker: null
-  last_verified_commit: not-yet-verified
+  current_task_id: TASK-4
+  next_action: Replace the current JSON bundle smoke with the real CLI archive writer/verifier for default ZIP layout, filters, partial handling, and secret scanning before web work starts.
+  command: node frontend/packages/openmates-cli/dist/cli.js account export --domains chats,usage --output /tmp/opencode/openmates-account-export-smoke.json --json
+  expected_outcome: Current foundation proves route reachability and CLI/SDK method parity, but full Account Export V1 gates remain pending until archive writer/verifier coverage is implemented.
+  blocker:
+    summary: Full default archive, filter, partial, S3 archive, and human-readable chat layout work remains incomplete.
+  last_verified_commit: 32fd4a8530255d91fd6f653b18f9ccf41b684fa0
 
 scenarios:
   - id: S-1
