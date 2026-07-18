@@ -489,6 +489,8 @@ test.describe('Anonymous free chat', () => {
 		}, { timeout: 15000 }).toBe(5);
 		const reloadDiagnostics = await page.evaluate((chatId: string) => new Promise<{
 			chatMessagesVersion: number | null;
+			activeChatHasAnonymousEncryptedKey: boolean;
+			activeChatIsAnonymous: boolean;
 			rawMessageCount: number;
 			indexedMessageCount: number;
 			hasAnonymousSessionKey: boolean;
@@ -513,9 +515,12 @@ test.describe('Anonymous free chat', () => {
 				};
 				transaction.oncomplete = () => {
 					const rawMessages = rawMessagesRequest.result as Array<{ chat_id: string }>;
+					const activeChat = chatRequest.result as { anonymous_encrypted_chat_key?: string; is_anonymous?: boolean; messages_v?: number } | undefined;
 					db.close();
 					resolve({
-						chatMessagesVersion: (chatRequest.result?.messages_v as number | undefined) ?? null,
+						chatMessagesVersion: (activeChat?.messages_v as number | undefined) ?? null,
+						activeChatHasAnonymousEncryptedKey: !!activeChat?.anonymous_encrypted_chat_key,
+						activeChatIsAnonymous: activeChat?.is_anonymous === true,
 						rawMessageCount: rawMessages.filter((message) => message.chat_id === chatId).length,
 						indexedMessageCount: indexedMessagesRequest.result.length,
 						hasAnonymousSessionKey: !!sessionStorage.getItem('openmates_anonymous_chat_key'),
