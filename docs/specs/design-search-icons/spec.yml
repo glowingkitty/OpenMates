@@ -762,13 +762,13 @@ tests:
       evidence:
         status: passed
         command: python3 scripts/tests.py run --spec design-search-icons.spec.ts
-        run_id: gha-29650656377
-        subject_commit: 0c4450b
+        run_id: gha-29653340742
+        subject_commit: da51dc2ec
         target: https://app.dev.openmates.org
-        deployment_reference: vercel-dpl_HPGix4b5LVax2GTKFF82bSypbr2a
-        timestamp: "2026-07-18T15:48:42Z"
-        reason: The test waited for Vercel Ready on commit 0c4450b and ran against `app.dev.openmates.org` through the GitHub Actions Playwright runner.
-        summary: Deployed Playwright passed for the settings-linked Design example, public logged-out example route, parent fullscreen child grid, non-broken OpenMates SVG previews, no Iconify or preview-server browser requests, no license CTA in the top header, Design child header icon, local recolor without backend refetch, and SVG/PNG native downloads.
+        deployment_reference: vercel-dpl_DVYj5AZMwhKQsLSN1J3NqTtJ4V8D
+        timestamp: "2026-07-18T17:10:26Z"
+        reason: The test waited for Vercel Ready on commit da51dc2ec and ran against `app.dev.openmates.org` through the GitHub Actions Playwright runner.
+        summary: Deployed Playwright passed for the Design settings title/description, Iconify provider logo, 5-credit skill pricing, settings-linked Design example, public logged-out example route, parent fullscreen child grid, non-broken OpenMates SVG previews, no Iconify or preview-server browser requests, no license CTA in the top header, Design child header icon, hidden internal SVG API path, local recolor without backend refetch, and SVG/PNG native downloads.
 
   - id: T-CLI-CHAT-001
     type: manual
