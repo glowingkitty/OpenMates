@@ -169,6 +169,11 @@ def _run_npm_sdk(env: dict[str, str]) -> dict[str, Any]:
           hasOpenCtaLabel: JSON.stringify(response).includes('open_cta_label'),
         }});
       }}
+      const designIconSearch = models3dOnly ? null : await client.apps.design.searchIcons({{
+        requests: [{{ query: 'home', count: 2, license_policy: 'permissive' }}],
+      }});
+      const iconGroup = designIconSearch?.data?.results?.[0];
+      const firstIcon = iconGroup?.results?.[0] ?? {{}};
       if (!models3dOnly) await client.settings.setDarkMode(Boolean(account.darkmode));
       const billing = models3dOnly ? null : await client.billing.overview();
       const invoices = models3dOnly ? {{ invoices: [] }} : await client.billing.listInvoices();
@@ -179,6 +184,17 @@ def _run_npm_sdk(env: dict[str, str]) -> dict[str, Any]:
         loadedEmbeds: Array.isArray(loaded?.embeds) ? loaded.embeds.length : null,
         skill: Boolean(skill),
         models3d: modelSearches,
+        designIcons: designIconSearch ? {{
+          success: designIconSearch?.data?.success === true,
+          provider: designIconSearch?.data?.provider,
+          resultCount: designIconSearch?.data?.result_count,
+          firstIcon: {{
+            iconId: firstIcon.icon_id,
+            licenseSpdx: firstIcon.license_spdx,
+            svgPath: firstIcon.svg_path,
+            hasSvgMarkup: Boolean(firstIcon.svg || firstIcon.svg_markup || firstIcon.png || firstIcon.preview_server_url),
+          }},
+        }} : null,
         billing: Boolean(billing),
         invoices: Array.isArray(invoices.invoices) ? invoices.invoices.length : null,
       }}));
@@ -237,6 +253,12 @@ for label, payload in [
         "missingDetailFields": missing_detail_fields,
         "hasOpenCtaLabel": "open_cta_label" in json.dumps(response),
     })
+design_icon_search = None
+if not models3d_only:
+    design_icon_search = client.apps.design.search_icons({"requests": [{"query": "home", "count": 2, "license_policy": "permissive"}]})
+    icon_data = design_icon_search.get("data", {})
+    icon_group = (icon_data.get("results") or [{}])[0]
+    first_icon = (icon_group.get("results") or [{}])[0]
 if not models3d_only:
     client.settings.set_dark_mode(bool(account.get("darkmode")))
 billing = None if models3d_only else client.billing.overview()
@@ -248,6 +270,17 @@ print(json.dumps({
     "loadedEmbeds": len(loaded.get("embeds", [])) if isinstance(loaded, dict) else None,
     "skill": bool(skill),
     "models3d": model_searches,
+    "designIcons": {
+        "success": icon_data.get("success") is True,
+        "provider": icon_data.get("provider"),
+        "resultCount": icon_data.get("result_count"),
+        "firstIcon": {
+            "iconId": first_icon.get("icon_id"),
+            "licenseSpdx": first_icon.get("license_spdx"),
+            "svgPath": first_icon.get("svg_path"),
+            "hasSvgMarkup": any(first_icon.get(field) for field in ["svg", "svg_markup", "png", "preview_server_url"]),
+        },
+    } if design_icon_search else None,
     "billing": bool(billing),
     "invoices": len(invoices.get("invoices", [])) if isinstance(invoices.get("invoices"), list) else None,
 }))
@@ -270,6 +303,24 @@ def _assert_models3d_details(result: dict[str, Any], *, sdk_name: str) -> None:
         missing = search.get("missingDetailFields") or []
         if missing:
             raise RuntimeError(f"{sdk_name} SDK models3d search missing detail fields {missing}: {search!r}")
+
+
+def _assert_design_icon_search(result: dict[str, Any], *, sdk_name: str) -> None:
+    search = result.get("designIcons")
+    if not isinstance(search, dict):
+        raise RuntimeError(f"{sdk_name} SDK smoke did not return design icon search summary")
+    if search.get("success") is not True or search.get("provider") != "Iconify":
+        raise RuntimeError(f"{sdk_name} SDK design icon search failed: {search!r}")
+    if not isinstance(search.get("resultCount"), int) or search["resultCount"] < 1:
+        raise RuntimeError(f"{sdk_name} SDK design icon search returned no results: {search!r}")
+    first_icon = search.get("firstIcon")
+    if not isinstance(first_icon, dict):
+        raise RuntimeError(f"{sdk_name} SDK design icon search returned invalid first icon: {search!r}")
+    svg_path = first_icon.get("svgPath")
+    if not isinstance(svg_path, str) or not svg_path.startswith("/v1/apps/design/icons/iconify/"):
+        raise RuntimeError(f"{sdk_name} SDK design icon search did not use OpenMates SVG path: {search!r}")
+    if first_icon.get("hasSvgMarkup") is True:
+        raise RuntimeError(f"{sdk_name} SDK design icon search returned forbidden SVG/PNG markup: {search!r}")
 
 
 def _cli_device_identity() -> str:
@@ -325,6 +376,8 @@ def main() -> int:
             npm_result = _run_npm_sdk(env)
         if args.models3d_only:
             _assert_models3d_details(npm_result, sdk_name="npm")
+        else:
+            _assert_design_icon_search(npm_result, sdk_name="npm")
 
         python_result = None
         if not args.skip_python:
@@ -337,6 +390,8 @@ def main() -> int:
                 python_result = _run_python_sdk(env)
             if args.models3d_only:
                 _assert_models3d_details(python_result, sdk_name="pip")
+            else:
+                _assert_design_icon_search(python_result, sdk_name="pip")
 
         print(json.dumps({"apiUrl": args.api_url, "keyId": key_id, "approvedDevices": approved_devices, "npm": npm_result, "python": python_result}, indent=2))
         return 0

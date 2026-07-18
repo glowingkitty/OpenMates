@@ -59,6 +59,7 @@ TOP_LEVEL_CLASSIFICATION = {
     "benchmark": "benchmark.*",
     "workflows": "workflows.*",
     "tasks": "tasks.*",
+    "teams": "teams.*",
     "remote-access": "local-remote-access",
     "support": "project-support-info",
     "update": "cli-self-update",
