@@ -93,6 +93,11 @@ class FakeS3Service:
 )
 async def test_presigned_url_allows_logged_out_shared_embed_asset_access(monkeypatch, s3_key):
     monkeypatch.setenv("SERVER_ENVIRONMENT", "production")
+    monkeypatch.setattr(
+        embeds_api,
+        "get_bucket_name",
+        lambda bucket_key, environment: f"{environment}-{bucket_key}",
+    )
     s3_service = FakeS3Service()
 
     result = await get_presigned_url(
