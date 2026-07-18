@@ -22,6 +22,11 @@ import { chatKeyManager } from "./encryption/ChatKeyManager";
 import { ensureChatKeySafeForWrite } from "./chatKeyWriteGuard";
 import { encryptWithChatKey, decryptWithChatKey } from "./encryption/MessageEncryptor";
 import { decryptChatKeyWithMasterKey, encryptChatKeyWithMasterKey } from "./encryption/MetadataEncryptor";
+import { activeChatStore } from "../stores/activeChatStore";
+import { notificationStore } from "../stores/notificationStore";
+import { unreadMessagesStore } from "../stores/unreadMessagesStore";
+
+const ASSISTANT_NOTIFICATION_PREVIEW_MAX_LENGTH = 120;
 
 /**
  * Pending message queue for cross-device sync.
@@ -59,6 +64,83 @@ const _pendingMessages: Map<string, Message[]> = new Map();
  * getChat + updateChat entirely on repeat calls.
  */
 const _chatKeyPersistedToIDB: Set<string> = new Set();
+
+function buildAssistantMessagePreview(content: string | undefined): string {
+  const plainText = (content || "")
+    .replace(/#{1,6}\s+/g, "")
+    .replace(/\*\*(.+?)\*\*/g, "$1")
+    .replace(/\*(.+?)\*/g, "$1")
+    .replace(/`{1,3}[^`]*`{1,3}/g, "")
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/!\[[^\]]*\]\([^)]+\)/g, "")
+    .replace(/>\s+/g, "")
+    .replace(/[-*+]\s+/g, "")
+    .replace(/\n+/g, " ")
+    .trim();
+
+  if (!plainText) return "New AI response ready";
+  return plainText.length > ASSISTANT_NOTIFICATION_PREVIEW_MAX_LENGTH
+    ? `${plainText.substring(0, ASSISTANT_NOTIFICATION_PREVIEW_MAX_LENGTH)}...`
+    : plainText;
+}
+
+function getVisibleHashChatId(): string | null {
+  if (typeof window === "undefined") return null;
+  const hash = window.location.hash.startsWith("#")
+    ? window.location.hash.slice(1)
+    : window.location.hash;
+  if (!hash) return null;
+  const params = new URLSearchParams(hash);
+  return params.get("chat-id") ?? params.get("chat_id");
+}
+
+function isChatVisiblyActive(chatId: string): boolean {
+  return activeChatStore.get() === chatId && getVisibleHashChatId() === chatId;
+}
+
+async function notifyBackgroundAssistantBroadcast(
+  chatId: string,
+  message: Message,
+  chat: Chat,
+): Promise<void> {
+  if (
+    message.role !== "assistant" ||
+    chat.is_sub_chat ||
+    chat.parent_id ||
+    isChatVisiblyActive(chatId)
+  ) {
+    return;
+  }
+
+  unreadMessagesStore.incrementUnread(chatId);
+
+  let chatTitle = chat.title || "New message";
+  if (!chat.title && chat.encrypted_title) {
+    try {
+      await chatKeyManager.withKey(
+        chatId,
+        "decrypt-assistant-broadcast-notification-title",
+        async (chatKey) => {
+          const decryptedTitle = await decryptWithChatKey(chat.encrypted_title!, chatKey);
+          if (decryptedTitle) chatTitle = decryptedTitle;
+        },
+      );
+    } catch (titleError) {
+      console.debug(
+        "[ChatSyncService:ChatUpdates] Could not decrypt chat title for assistant broadcast notification, using fallback:",
+        titleError,
+      );
+    }
+  }
+
+  notificationStore.chatMessage(
+    chatId,
+    chatTitle,
+    buildAssistantMessagePreview(message.content),
+    undefined,
+    message.category || chat.category || undefined,
+  );
+}
 
 /**
  * Flush all messages that were held back because the chat key was missing.
@@ -962,6 +1044,11 @@ export async function handleChatMessageReceivedImpl(
           },
         }),
       );
+      await notifyBackgroundAssistantBroadcast(
+        payload.chat_id,
+        incomingMessage,
+        chat,
+      );
     } else if (chat) {
       // CROSS-DEVICE KEY SAFETY: Before saving the message, verify the chat key
       // is available. Without the correct key, saveMessage() triggers
@@ -1041,6 +1128,11 @@ export async function handleChatMessageReceivedImpl(
             chat: finalChatState || chatUpdate,
           },
         }),
+      );
+      await notifyBackgroundAssistantBroadcast(
+        payload.chat_id,
+        incomingMessage,
+        finalChatState || chatUpdate,
       );
     } else {
       // This case implies a message arrived for a chat not in local DB.

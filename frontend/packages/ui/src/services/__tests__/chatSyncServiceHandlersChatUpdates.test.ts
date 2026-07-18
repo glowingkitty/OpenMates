@@ -7,7 +7,10 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ChatSynchronizationService } from "../chatSyncService";
-import { handleNewChatMessageImpl } from "../chatSyncServiceHandlersChatUpdates";
+import {
+  handleChatMessageReceivedImpl,
+  handleNewChatMessageImpl,
+} from "../chatSyncServiceHandlersChatUpdates";
 
 const mocks = vi.hoisted(() => ({
   chatDB: {
@@ -29,6 +32,20 @@ const mocks = vi.hoisted(() => ({
     getKeySync: vi.fn(),
     receiveKeyFromServer: vi.fn(),
     withKey: vi.fn(),
+  },
+  activeChatStore: {
+    get: vi.fn(),
+  },
+  notificationStore: {
+    chatMessage: vi.fn(),
+  },
+  unreadMessagesStore: {
+    incrementUnread: vi.fn(),
+  },
+  incognitoChatService: {
+    getChat: vi.fn(),
+    addMessage: vi.fn(),
+    updateChat: vi.fn(),
   },
   ensureChatKeySafeForWrite: vi.fn(),
   encryptWithChatKey: vi.fn(),
@@ -57,6 +74,18 @@ vi.mock("../chatSyncServiceHandlersAI", () => ({
   flushPendingFinalizedEmbedsForChat: vi.fn(),
   flushPendingTypingStartedForChat: vi.fn(),
 }));
+vi.mock("../../stores/activeChatStore", () => ({
+  activeChatStore: mocks.activeChatStore,
+}));
+vi.mock("../../stores/notificationStore", () => ({
+  notificationStore: mocks.notificationStore,
+}));
+vi.mock("../../stores/unreadMessagesStore", () => ({
+  unreadMessagesStore: mocks.unreadMessagesStore,
+}));
+vi.mock("../incognitoChatService", () => ({
+  incognitoChatService: mocks.incognitoChatService,
+}));
 
 describe("handleNewChatMessageImpl", () => {
   beforeEach(() => {
@@ -72,6 +101,9 @@ describe("handleNewChatMessageImpl", () => {
         await callback();
       },
     );
+    mocks.activeChatStore.get.mockReturnValue(null);
+    mocks.incognitoChatService.getChat.mockResolvedValue(null);
+    window.location.hash = "";
   });
 
   it("stores the current user id on new chat shells created from sync broadcasts", async () => {
@@ -98,6 +130,63 @@ describe("handleNewChatMessageImpl", () => {
     );
     expect(mocks.chatDB.saveMessage).toHaveBeenCalledWith(
       expect.objectContaining({ message_id: "message-1", chat_id: "chat-1" }),
+    );
+  });
+});
+
+describe("handleChatMessageReceivedImpl", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.chatDB.saveMessage.mockResolvedValue(undefined);
+    mocks.chatDB.updateChat.mockResolvedValue(undefined);
+    mocks.chatKeyManager.getKeySync.mockReturnValue(new Uint8Array([1, 2, 3]));
+    mocks.incognitoChatService.getChat.mockResolvedValue(null);
+    window.location.hash = "";
+  });
+
+  it("notifies for assistant broadcasts when the visible chat is different from stale active state", async () => {
+    const chat = {
+      chat_id: "chat-a",
+      title: "Chat A",
+      category: "science",
+      messages_v: 1,
+      last_edited_overall_timestamp: 100,
+      updated_at: 100,
+    };
+    mocks.chatDB.getChat.mockResolvedValue(chat);
+    mocks.activeChatStore.get.mockReturnValue("chat-a");
+    window.location.hash = "#chat-id=chat-b";
+    const service = {
+      activeAITasks: new Map([["chat-a", { taskId: "assistant-1" }]]),
+      dispatchEvent: vi.fn(),
+    } as unknown as ChatSynchronizationService;
+
+    await handleChatMessageReceivedImpl(service, {
+      event: "chat_message_added",
+      chat_id: "chat-a",
+      message: {
+        message_id: "assistant-1",
+        chat_id: "chat-a",
+        role: "assistant",
+        content: "# Hello **world** [link](https://example.com)",
+        status: "synced",
+        created_at: 100,
+        encrypted_content: "",
+      },
+      versions: { messages_v: 2 },
+      last_edited_overall_timestamp: 101,
+    });
+
+    expect(mocks.chatDB.saveMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ message_id: "assistant-1", role: "assistant" }),
+    );
+    expect(mocks.unreadMessagesStore.incrementUnread).toHaveBeenCalledWith("chat-a");
+    expect(mocks.notificationStore.chatMessage).toHaveBeenCalledWith(
+      "chat-a",
+      "Chat A",
+      "Hello world link",
+      undefined,
+      "science",
     );
   });
 });
