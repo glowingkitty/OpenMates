@@ -125,18 +125,20 @@
   staticMapImageUrl={mapImageUrl}
 >
   {#snippet detailContent(_ctx)}
-    {#if name}
-      <h2 class="location-title">{name}</h2>
-    {/if}
+    <div class="location-details" data-testid="map-location-fullscreen">
+      {#if name}
+        <h2 class="location-title">{name}</h2>
+      {/if}
 
-    {#if address}
-      <div class="location-address-row">
-        {#if showNearbyLabel}
-          <span class="nearby-label">{$text('embeds.maps_location.nearby')}</span>
-        {/if}
-        <p class="location-address">{address}</p>
-      </div>
-    {/if}
+      {#if address}
+        <div class="location-address-row">
+          {#if showNearbyLabel}
+            <span class="nearby-label">{$text('embeds.maps_location.nearby')}</span>
+          {/if}
+          <p class="location-address">{address}</p>
+        </div>
+      {/if}
+    </div>
   {/snippet}
 
   {#snippet embedHeaderCta()}
@@ -147,6 +149,12 @@
 </EntryWithMapTemplate>
 
 <style>
+  .location-details {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-8);
+  }
+
   .location-title {
     font-size: var(--font-size-h2-mobile);
     font-weight: 700;
