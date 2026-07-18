@@ -97,6 +97,16 @@ async function openMessageContextMenu(
 	);
 }
 
+async function triggerExplainInNewChat(page: any): Promise<void> {
+	const explainActionSelector = `${SELECTORS.contextMenuExplain}, ${SELECTORS.selectionToolbarExplain}`;
+	await expect(page.locator(explainActionSelector).first()).toBeVisible({ timeout: 5000 });
+	await page.evaluate((selector: string) => {
+		const button = document.querySelector(selector);
+		if (!button) throw new Error('Explain in new chat action closed before mousedown');
+		button.dispatchEvent(new MouseEvent('mousedown', { button: 0, bubbles: true, cancelable: true }));
+	}, explainActionSelector);
+}
+
 test('explains selected assistant text in a background new chat', async ({ page }: { page: any }) => {
 	test.slow();
 	test.setTimeout(300_000);
@@ -135,7 +145,7 @@ test('explains selected assistant text in a background new chat', async ({ page 
 	expect(userSelection.selected).toBe(true);
 	expect(userSelection.rect).not.toBeNull();
 	await openMessageContextMenu(page, SELECTORS.userMessageContent, userSelection.rect!);
-	await expect(page.locator(SELECTORS.contextMenuExplain)).toHaveCount(0);
+	await expect(page.locator(`${SELECTORS.contextMenuExplain}, ${SELECTORS.selectionToolbarExplain}`)).toHaveCount(0);
 	await page.mouse.click(10, 10);
 
 	log('Selecting assistant phrase and clicking Explain in new chat from the highlight menu.');
@@ -143,17 +153,11 @@ test('explains selected assistant text in a background new chat', async ({ page 
 	expect(assistantSelection.selected).toBe(true);
 	expect(assistantSelection.rect).not.toBeNull();
 	await openMessageContextMenu(page, SELECTORS.mateMessageContent, assistantSelection.rect!);
-	const explainButton = page.locator(SELECTORS.contextMenuExplain);
-	await expect(explainButton).toBeVisible({ timeout: 5000 });
 	// The product handles this action on mousedown to preserve the selected text
 	// before focus/click can collapse it. Dispatch that leading edge immediately;
-	// the context menu is transient and can close between a diagnostic screenshot
+	// the explain action is transient and can close between a diagnostic screenshot
 	// and a later locator action.
-	await page.evaluate((selector: string) => {
-		const button = document.querySelector(selector);
-		if (!button) throw new Error('Explain in new chat menu item closed before mousedown');
-		button.dispatchEvent(new MouseEvent('mousedown', { button: 0, bubbles: true, cancelable: true }));
-	}, SELECTORS.contextMenuExplain);
+	await triggerExplainInNewChat(page);
 
 	await expect(page).toHaveURL(sourceUrl, { timeout: 5000 });
 	await expect(page.locator(SELECTORS.notification).filter({ hasText: /background/i })).toBeVisible({ timeout: 20_000 });
