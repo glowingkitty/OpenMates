@@ -15,6 +15,10 @@
   import { copyToClipboard } from '../../../utils/clipboardUtils';
   import { notificationStore } from '../../../stores/notificationStore';
 
+  const ICONIFY_ICON_PAGE_PREFIX = 'https://icon-sets.iconify.design';
+  const ICONIFY_PREFIX_PATTERN = /^[a-z0-9][a-z0-9-]{0,63}$/;
+  const ICONIFY_NAME_PATTERN = /^[a-z0-9][a-z0-9-]{0,127}$/;
+
   interface Props {
     data?: EmbedFullscreenRawData;
     embedId?: string;
@@ -41,6 +45,11 @@
 
   function asNumber(value: unknown): number | undefined {
     return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : undefined;
+  }
+
+  function iconifyPageUrl(prefix: string, name: string): string {
+    if (!ICONIFY_PREFIX_PATTERN.test(prefix) || !ICONIFY_NAME_PATTERN.test(name)) return '';
+    return `${ICONIFY_ICON_PAGE_PREFIX}/${prefix}/${name}/`;
   }
 
   function applyIconColor(svg: string, color: string): string {
@@ -155,8 +164,9 @@
   let title = $derived(asString(content.display_name) || asString(content.name) || asString(content.icon_id) || 'Icon');
   let collection = $derived(asString(content.collection_name) || asString(content.prefix));
   let license = $derived(asString(content.license_title) || asString(content.license_spdx));
-  let licenseUrl = $derived(asString(content.license_url));
   let author = $derived(asString(content.author_name));
+  let provider = $derived(asString(content.provider) || 'Iconify');
+  let providerUrl = $derived(iconifyPageUrl(asString(content.prefix), asString(content.name)));
   let width = $derived(asNumber(content.width));
   let height = $derived(asNumber(content.height));
   let isPalette = $derived(content.palette === true);
@@ -170,7 +180,7 @@
 <UnifiedEmbedFullscreen
   appId="design"
   skillId="search_icons"
-  skillIconName="search"
+  skillIconName="design"
   embedHeaderTitle={title}
   embedHeaderSubtitle={collection}
   showSkillIcon={true}
@@ -184,8 +194,8 @@
   onDownload={iconSrc ? handleDownloadPng : undefined}
 >
   {#snippet embedHeaderCta()}
-    {#if licenseUrl}
-      <EmbedHeaderCtaButton label={license || 'View license'} href={licenseUrl} testId="design-icon-license-cta" />
+    {#if providerUrl}
+      <EmbedHeaderCtaButton label={`Open on ${provider}`} href={providerUrl} testId="design-icon-provider-cta" />
     {/if}
   {/snippet}
 

@@ -1,15 +1,15 @@
 # backend/core/api/app/routes/design_icons.py
 #
-# Authenticated Design icon SVG route.
+# Public Design icon SVG route.
 # Clients fetch sanitized Iconify SVGs from OpenMates rather than calling Iconify
-# directly or using the preview server. Safe SVG text is cached in app.state for
-# short-lived reuse by web, CLI, SDK, and native clients.
+# directly or using the preview server. The route accepts only validated Iconify
+# identifiers, sanitizes SVG text, rate-limits requests, and caches safe SVGs.
 
 from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import Response as FastAPIResponse
 
 from backend.shared.providers.iconify.client import (
@@ -35,19 +35,6 @@ except ModuleNotFoundError:
 
 router = APIRouter(prefix="/v1/apps/design/icons", tags=["Design Icons"])
 SVG_CACHE_CONTROL = "public, max-age=86400"
-
-
-async def require_design_icon_auth(request: Request, response: Response) -> dict[str, Any]:
-    """Authenticate via existing session-or-API-key dependency without import-time service setup."""
-    from backend.core.api.app.routes.apps_api import get_session_or_api_key_info
-
-    return await get_session_or_api_key_info(
-        request=request,
-        response=response,
-        cache_service=request.app.state.cache_service,
-        directus_service=request.app.state.directus_service,
-        refresh_token=request.cookies.get("auth_refresh_token"),
-    )
 
 
 def get_iconify_client() -> IconifyClient:
@@ -76,7 +63,6 @@ async def get_design_icon_svg(
     prefix: str,
     name: str,
     request: Request,
-    _auth: dict[str, Any] = Depends(require_design_icon_auth),
     iconify_client: IconifyClient = Depends(get_iconify_client),
 ) -> FastAPIResponse:
     """Return a sanitized Iconify SVG through the regular OpenMates API."""

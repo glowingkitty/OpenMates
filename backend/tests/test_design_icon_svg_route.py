@@ -1,6 +1,6 @@
 # backend/tests/test_design_icon_svg_route.py
 #
-# Contract tests for the authenticated OpenMates Design icon SVG route.
+# Contract tests for the public OpenMates Design icon SVG route.
 # The route must validate Iconify identifiers, fetch server-side, sanitize SVG,
 # cache safe SVG text, and never route SVG loading through the preview server.
 
@@ -10,7 +10,7 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from backend.core.api.app.routes.design_icons import get_iconify_client, require_design_icon_auth, router
+from backend.core.api.app.routes.design_icons import get_iconify_client, router
 from backend.shared.providers.iconify.client import IconifyProviderError
 
 
@@ -35,7 +35,6 @@ def _app(fake_client: FakeIconifyClient) -> FastAPI:
     app.state.iconify_svg_cache = {}
     app.include_router(router)
     app.dependency_overrides[get_iconify_client] = lambda: fake_client
-    app.dependency_overrides[require_design_icon_auth] = lambda: {"id": "user-1"}
     return app
 
 
@@ -100,8 +99,9 @@ def test_design_icon_svg_route_does_not_return_preview_server_urls() -> None:
     assert "api.iconify.design" not in response.text
 
 
-def test_design_icon_svg_route_declares_auth_dependency() -> None:
+def test_design_icon_svg_route_is_public() -> None:
     api_route = next(route for route in router.routes if str(getattr(route, "path", "")).endswith("/iconify/{prefix}/{name}.svg"))
     dependency_calls = {dependency.call for dependency in api_route.dependant.dependencies}
 
-    assert require_design_icon_auth in dependency_calls
+    assert get_iconify_client in dependency_calls
+    assert len(dependency_calls) == 1
