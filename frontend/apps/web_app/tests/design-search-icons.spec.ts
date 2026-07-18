@@ -19,6 +19,7 @@ const DESIGN_ICON_ROUTE = '/v1/apps/design/icons/iconify/';
 function trackIconRequests(page: any) {
 	const forbidden: string[] = [];
 	const openMatesSvg: string[] = [];
+	const openMatesSvgFailures: string[] = [];
 
 	page.on('request', (request: any) => {
 		const url = request.url();
@@ -29,8 +30,14 @@ function trackIconRequests(page: any) {
 			openMatesSvg.push(url);
 		}
 	});
+	page.on('response', (response: any) => {
+		const url = response.url();
+		if (url.includes(DESIGN_ICON_ROUTE) && response.status() >= 400) {
+			openMatesSvgFailures.push(`${response.status()} ${url}`);
+		}
+	});
 
-	return { forbidden, openMatesSvg };
+	return { forbidden, openMatesSvg, openMatesSvgFailures };
 }
 
 async function openDesignIconExample(page: any) {
@@ -81,24 +88,35 @@ test.describe('Design icon search example', () => {
 
 		const fullscreen = await openFullscreen(page, settingsParent);
 		const resultCards = await verifySearchGrid(fullscreen, 5, 30_000);
-		await expect(resultCards.first().locator(`img[src*="${DESIGN_ICON_ROUTE}"]`)).toBeVisible({ timeout: 30_000 });
+		const firstIconImage = resultCards.first().locator(`img[src*="${DESIGN_ICON_ROUTE}"]`);
+		await expect(firstIconImage).toBeVisible({ timeout: 30_000 });
+		await expect(firstIconImage).toHaveJSProperty('complete', true, { timeout: 30_000 });
+		expect(await firstIconImage.evaluate((img: HTMLImageElement) => img.naturalWidth), 'Fullscreen child preview SVG should render, not show a broken-image placeholder').toBeGreaterThan(0);
 		expect(requests.openMatesSvg.length, 'Icon previews should fetch SVGs through OpenMates API').toBeGreaterThan(0);
+		expect(requests.openMatesSvgFailures, 'Logged-out public examples must be able to fetch sanitized SVGs').toEqual([]);
 
 		await resultCards.first().click();
 		const resultFullscreen = page.getByTestId('design-icon-result-fullscreen');
 		await expect(resultFullscreen).toBeVisible({ timeout: 15_000 });
 		await expect(resultFullscreen).toContainText(/Apache 2\.0|MIT|Open Font License/);
 		await expect(resultFullscreen.locator('code')).toContainText(DESIGN_ICON_ROUTE);
+		await expect(page.locator('[data-testid="design-icon-license-cta"]')).toHaveCount(0);
+		await expect(page.locator('[data-skill-icon="design"]').first()).toBeVisible({ timeout: 15_000 });
 
 		const svgRequestsBeforeRecolor = requests.openMatesSvg.length;
 		await page.getByTestId('design-icon-color-input').fill('#2563eb');
 		await page.waitForTimeout(300);
 		expect(requests.openMatesSvg.length, 'Changing color must not call the backend again').toBe(svgRequestsBeforeRecolor);
 		await expect(resultFullscreen.getByRole('button', { name: 'Copy SVG' })).toBeEnabled();
-		await expect(resultFullscreen.getByRole('button', { name: 'Download SVG' })).toBeEnabled();
-		await expect(resultFullscreen.getByRole('button', { name: 'Download PNG' })).toBeEnabled();
+		const svgDownload = page.waitForEvent('download');
+		await resultFullscreen.getByRole('button', { name: 'Download SVG' }).click();
+		expect((await svgDownload).suggestedFilename()).toMatch(/\.svg$/);
+		const pngDownload = page.waitForEvent('download');
+		await resultFullscreen.getByRole('button', { name: 'Download PNG' }).click();
+		expect((await pngDownload).suggestedFilename()).toMatch(/\.png$/);
 
 		expect(requests.forbidden, 'Web rendering must not call Iconify or preview-server icon routes').toEqual([]);
+		expect(requests.openMatesSvgFailures, 'SVG/export requests should not fail for logged-out public examples').toEqual([]);
 		await closeFullscreen(page, page.getByTestId('embed-fullscreen-overlay'));
 	});
 });
