@@ -4638,6 +4638,19 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         });
      });
 
+     async function loadAnonymousMessagesForChat(chatId: string): Promise<ChatMessageModel[]> {
+        try {
+            const messages = await anonymousChatStorage.getMessagesForChat(chatId);
+            if (messages.length > 0) return messages;
+        } catch (error) {
+            console.warn(`[ActiveChat] Anonymous storage facade failed for ${chatId}; falling back to IndexedDB window`, error);
+        }
+
+        const windowResult = await chatDB.getMessageWindowForChat(chatId, { direction: 'latest' });
+        currentMessageWindowHasMoreBefore = windowResult.hasMoreBefore;
+        return windowResult.messages;
+     }
+
     async function loadCompressionCheckpointsForChat(chatId: string): Promise<ChatCompressionCheckpoint[]> {
         const checkpoints = await chatDB.getChatCompressionCheckpoints(chatId);
         const chatKey = await chatKeyManager.getKey(chatId);
@@ -8463,7 +8476,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 }
             } else if (currentChat.is_anonymous) {
                 try {
-                    newMessages = await anonymousChatStorage.getMessagesForChat(currentChat.chat_id);
+                    newMessages = await loadAnonymousMessagesForChat(currentChat.chat_id);
                     console.debug(`[ActiveChat] Loaded ${newMessages.length} messages from anonymousChatStorage for ${currentChat.chat_id}`);
                 } catch (error) {
                     console.error(`[ActiveChat] Error loading anonymous chat messages for ${currentChat.chat_id}:`, error);
@@ -9150,7 +9163,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 return;
             }
 
-            const anonymousMessages = await anonymousChatStorage.getMessagesForChat(hashChatId);
+            const anonymousMessages = await loadAnonymousMessagesForChat(hashChatId);
             currentChat = anonymousChat;
             currentMessages = anonymousMessages;
             chatHistoryRef?.updateMessages(anonymousMessages);
