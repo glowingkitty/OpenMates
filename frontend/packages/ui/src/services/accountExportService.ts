@@ -117,20 +117,34 @@ const ACCOUNT_EXPORT_FORBIDDEN_FIELD_NAMES = new Set([
   "api_key",
   "backup_code_hash",
   "chat_key",
+  "chat_key_wrappers",
   "credential_secret",
   "device_key",
+  "embed_key",
+  "embed_key_wrappers",
+  "encrypted_chat_key",
+  "encrypted_embed_key",
   "encrypted_master_key",
+  "encrypted_plan_key",
+  "encrypted_project_key",
+  "encrypted_task_key",
+  "encrypted_workflow_secret_key",
+  "key_wrappers",
   "lookup_hash",
   "master_key",
+  "plan_key",
   "password_hash",
   "private_key",
+  "project_key",
   "raw_key",
   "refresh_token",
   "share_key",
   "signing_secret",
+  "task_key",
   "token_hash",
   "totp_seed",
   "webhook_secret",
+  "workflow_secret_key",
 ]);
 
 const ACCOUNT_EXPORT_REDACTION_CATEGORIES = [
@@ -462,7 +476,8 @@ async function fetchAccountExportManifest(exportId: string): Promise<Record<stri
 async function downloadAccountExportChunks(exportId: string, onProgress: ExportProgressCallback): Promise<AccountExportChunk[]> {
   const response = await accountExportRequest<{ chunks: AccountExportChunk[] }>(`/v1/account-exports/${encodeURIComponent(exportId)}/chunks`);
   const chunks: AccountExportChunk[] = [];
-  for (const [index, chunk] of response.chunks.entries()) {
+  for (let index = 0; index < response.chunks.length; index += 1) {
+    const chunk = response.chunks[index];
     const chunkId = String(chunk.chunk_id ?? "");
     const downloaded = chunkId
       ? (await accountExportRequest<{ chunk: AccountExportChunk }>(`/v1/account-exports/${encodeURIComponent(exportId)}/chunks/${encodeURIComponent(chunkId)}`)).chunk
@@ -600,11 +615,11 @@ function assertAccountExportTextSafe(content: string, relativePath: string): voi
   for (const pattern of ACCOUNT_EXPORT_FORBIDDEN_VALUE_PATTERNS) {
     if (pattern.test(content)) throw new Error(`Account export file ${relativePath} contains forbidden secret-like content`);
   }
-  for (const field of ACCOUNT_EXPORT_FORBIDDEN_FIELD_NAMES) {
+  ACCOUNT_EXPORT_FORBIDDEN_FIELD_NAMES.forEach((field) => {
     if (new RegExp(`"?${field}"?\\s*:`, "i").test(content)) {
       throw new Error(`Account export file ${relativePath} contains forbidden secret field '${field}'`);
     }
-  }
+  });
 }
 
 function buildAccountExportV1Readme(bundle: AccountExportBundle): string {
@@ -672,11 +687,11 @@ function writeAccountExportV1ChatFiles(zip: JSZip, chatPayloads: Array<Record<st
       chats.push(...payload.items.filter((item): item is Record<string, unknown> => item !== null && typeof item === "object" && !Array.isArray(item)));
     }
   }
-  for (const [index, chat] of chats.entries()) {
+  chats.forEach((chat, index) => {
     const chatId = safeArchiveSegment(String(chat.id ?? chat.chat_id ?? `chat-${index + 1}`));
     writeSafeZipText(zip, `chats/${chatId}.yml`, serializeArchiveYaml({ chat, messages: Array.isArray(chat.messages) ? chat.messages : [] }));
     writeSafeZipText(zip, `chats/${chatId}.md`, buildAccountExportV1ChatMarkdown(chat));
-  }
+  });
 }
 
 function buildAccountExportV1ChatMarkdown(chat: Record<string, unknown>): string {

@@ -23,7 +23,13 @@ class FakeDirectusService:
     def __init__(self) -> None:
         self.collections: dict[str, list[dict]] = {
             "chats": [
-                {"id": "personal-chat", "hashed_user_id": _hash("user-1"), "hashed_team_id": None},
+                {
+                    "id": "personal-chat",
+                    "hashed_user_id": _hash("user-1"),
+                    "hashed_team_id": None,
+                    "encrypted_chat_key": "wrapped-chat-key",
+                    "chat_key_wrappers": {"device-1": "wrapped-key"},
+                },
                 {"id": "team-chat", "hashed_user_id": _hash("user-1"), "hashed_team_id": "team-hash"},
             ],
             "usage": [{"id": "usage-1", "user_id_hash": _hash("user-1"), "hashed_team_id": None}],
@@ -116,10 +122,20 @@ async def test_partial_export_requires_explicit_acceptance_for_last_export_at() 
 @pytest.mark.asyncio
 async def test_download_chunks_never_emit_forbidden_secret_fields() -> None:
     service = AccountExportService(directus_service=FakeDirectusService())
-    job = await service.start_export(user_id="user-1", domains=["connected_account_overview"])
+    job = await service.start_export(user_id="user-1", domains=["chats", "connected_account_overview"])
 
     chunks = await service.list_chunks(user_id="user-1", export_id=job["export_id"])
     serialized = repr(chunks).lower()
 
-    for forbidden in ("refresh_token", "access_token", "api_key", "password_hash", "totp", "private_key"):
+    for forbidden in (
+        "refresh_token",
+        "access_token",
+        "api_key",
+        "password_hash",
+        "totp",
+        "private_key",
+        "encrypted_chat_key",
+        "chat_key_wrappers",
+        "wrapped-chat-key",
+    ):
         assert forbidden not in serialized
