@@ -16,6 +16,9 @@ import { chatDB } from "./db";
 import { chatKeyManager } from "./encryption/ChatKeyManager";
 import { ensureChatKeySafeForWrite } from "./chatKeyWriteGuard";
 import { webSocketService } from "./websocketService";
+import { activeChatStore } from "../stores/activeChatStore";
+import { notificationStore } from "../stores/notificationStore";
+import { unreadMessagesStore } from "../stores/unreadMessagesStore";
 
 const CHAT_RECOVERY_PROTOCOL_VERSION = 1;
 const CHAT_RECOVERY_EVENT_TIMEOUT_MS = 20_000;
@@ -29,6 +32,23 @@ const RECOVERY_VERSION_REFRESH_POLL_MS = 100;
 const RECOVERY_VERSION_REFRESH_TIMEOUT_MS = 5_000;
 const RECOVERY_RETRYABLE_ERROR_CODES = new Set(["lease_conflict"]);
 const recoveryJobsInProgress = new Set<string>();
+
+function buildRecoveryMessagePreview(content: string): string {
+  const plainText = content
+    .replace(/#{1,6}\s+/g, "")
+    .replace(/\*\*(.+?)\*\*/g, "$1")
+    .replace(/\*(.+?)\*/g, "$1")
+    .replace(/`{1,3}[^`]*`{1,3}/g, "")
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/!\[[^\]]*\]\([^)]+\)/g, "")
+    .replace(/>\s+/g, "")
+    .replace(/[-*+]\s+/g, "")
+    .replace(/\n+/g, " ")
+    .trim();
+
+  if (!plainText) return "New AI response ready";
+  return plainText.length > 120 ? `${plainText.substring(0, 120)}...` : plainText;
+}
 
 class RecoveryEventTimeoutError extends Error {}
 
@@ -341,6 +361,17 @@ export async function handleRecoveryJobsAvailableImpl(
         updated_at: now,
       };
       await chatDB.updateChat(updatedChat);
+      const activeChatId = activeChatStore.get();
+      if (activeChatId !== job.chat_id && !updatedChat.is_sub_chat && !updatedChat.parent_id) {
+        unreadMessagesStore.incrementUnread(job.chat_id);
+        notificationStore.chatMessage(
+          job.chat_id,
+          updatedChat.title || "New message",
+          buildRecoveryMessagePreview(recovered.content),
+          undefined,
+          (recovered.category as string | null) || updatedChat.category || undefined,
+        );
+      }
       serviceInstance.dispatchEvent(
         new CustomEvent("chatUpdated", {
           detail: {

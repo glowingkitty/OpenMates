@@ -21,9 +21,13 @@ const mocks = vi.hoisted(() => ({
   notificationStore: {
     addNotificationWithOptions: vi.fn(),
     addNotification: vi.fn(),
+    chatMessage: vi.fn(),
   },
   activeChatStore: {
     get: vi.fn(() => "chat-1"),
+  },
+  unreadMessagesStore: {
+    incrementUnread: vi.fn(),
   },
   aiTypingStore: {
     clearTypingForChat: vi.fn(),
@@ -49,6 +53,9 @@ vi.mock("../../stores/notificationStore", () => ({
 }));
 vi.mock("../../stores/activeChatStore", () => ({
   activeChatStore: mocks.activeChatStore,
+}));
+vi.mock("../../stores/unreadMessagesStore", () => ({
+  unreadMessagesStore: mocks.unreadMessagesStore,
 }));
 vi.mock("../../stores/aiTypingStore", () => ({
   aiTypingStore: mocks.aiTypingStore,
@@ -237,6 +244,7 @@ describe("handleRecoveryJobsAvailableImpl", () => {
   });
 
   it("persists an available recovery job even when the assistant row is locally synced", async () => {
+    mocks.activeChatStore.get.mockReturnValue("chat-2");
     const handlers = new Map<string, (payload: unknown) => void>();
     let claimRequestId: string | undefined;
     let persistRequestId: string | undefined;
@@ -339,6 +347,14 @@ describe("handleRecoveryJobsAvailableImpl", () => {
     );
     expect(mocks.chatDB.saveMessage).toHaveBeenCalledWith(
       expect.objectContaining({ message_id: "assistant-1", status: "synced" }),
+    );
+    expect(mocks.unreadMessagesStore.incrementUnread).toHaveBeenCalledWith("chat-1");
+    expect(mocks.notificationStore.chatMessage).toHaveBeenCalledWith(
+      "chat-1",
+      "New message",
+      "Recovered response",
+      undefined,
+      "general",
     );
   });
 
