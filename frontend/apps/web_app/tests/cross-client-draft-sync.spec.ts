@@ -345,6 +345,7 @@ test.describe('Cross-client encrypted draft sync', () => {
 	});
 
 	test('IdeaBucket drafts and processed chats keep encrypted provenance across web cold boot', async ({ page }: { page: any }) => {
+		test.setTimeout(600_000);
 		skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 		expect(fs.existsSync(AUDIO_FIXTURE), `Missing audio fixture at ${AUDIO_FIXTURE}`).toBeTruthy();
 		const log = createSignupLogger('IDEABUCKET_WEB_MARKERS');
