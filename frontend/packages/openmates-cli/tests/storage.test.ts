@@ -9,6 +9,7 @@
 
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { existsSync, statSync, readFileSync, writeFileSync, chmodSync, rmSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
@@ -18,10 +19,17 @@ import {
   saveSession,
   loadSession,
   clearSession,
+  saveLocalTeamKey,
+  saveSyncCache,
+  pruneLocalTeamArtifacts,
 } from "../src/storage.ts";
 
 // Storage always writes to ~/.openmates — tests use the real directory.
 const STATE_DIR = join(homedir(), ".openmates");
+
+function teamDigest(teamId: string): string {
+  return createHash("sha256").update(teamId).digest("hex").slice(0, 32);
+}
 
 const SAMPLE_SESSION: OpenMatesSession = {
   apiUrl: "https://api.dev.openmates.org",
@@ -124,6 +132,46 @@ describe("clearSession", () => {
   it("does not throw when no session file exists", () => {
     clearSession(); // ensure it's already gone
     assert.doesNotThrow(() => clearSession());
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Team artifact pruning
+// ---------------------------------------------------------------------------
+
+describe("pruneLocalTeamArtifacts", () => {
+  after(() => {
+    pruneLocalTeamArtifacts(SAMPLE_SESSION.hashedEmail, []);
+  });
+
+  it("removes stale local team keys and sync caches", () => {
+    const retainedTeamId = "team-retained";
+    const staleTeamId = "team-stale";
+    const retainedKeyId = `${SAMPLE_SESSION.hashedEmail}:team:${teamDigest(retainedTeamId)}`;
+    const staleKeyId = `${SAMPLE_SESSION.hashedEmail}:team:${teamDigest(staleTeamId)}`;
+    const retainedCachePath = join(STATE_DIR, `sync_cache.team.${teamDigest(retainedTeamId)}.json`);
+    const staleCachePath = join(STATE_DIR, `sync_cache.team.${teamDigest(staleTeamId)}.json`);
+    const emptyCache = {
+      syncedAt: Date.now(),
+      totalChatCount: 0,
+      loadedChatCount: 0,
+      chats: [],
+      embeds: [],
+      embedKeys: [],
+    };
+
+    saveLocalTeamKey(SAMPLE_SESSION.hashedEmail, retainedTeamId, "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=");
+    saveLocalTeamKey(SAMPLE_SESSION.hashedEmail, staleTeamId, "AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgI=");
+    saveSyncCache(emptyCache, retainedTeamId);
+    saveSyncCache(emptyCache, staleTeamId);
+
+    pruneLocalTeamArtifacts(SAMPLE_SESSION.hashedEmail, [retainedTeamId]);
+
+    const keys = JSON.parse(readFileSync(join(STATE_DIR, "team_keys.json"), "utf-8"));
+    assert.ok(keys.teams[retainedKeyId], "retained team key should remain");
+    assert.strictEqual(keys.teams[staleKeyId], undefined, "stale team key should be removed");
+    assert.ok(existsSync(retainedCachePath), "retained team cache should remain");
+    assert.ok(!existsSync(staleCachePath), "stale team cache should be removed");
   });
 });
 

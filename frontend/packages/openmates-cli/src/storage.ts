@@ -14,6 +14,7 @@ import {
   chmodSync,
   existsSync,
   mkdirSync,
+  readdirSync,
   readFileSync,
   rmSync,
   writeFileSync,
@@ -415,6 +416,32 @@ export function deleteLocalTeamKey(hashedEmail: string, teamId: string): void {
   if (keys?.teams[storageId]) {
     delete keys.teams[storageId];
     writeJsonFile(filePath, keys);
+  }
+}
+
+export function pruneLocalTeamArtifacts(hashedEmail: string, teamIds: string[]): void {
+  const stateDir = ensureStateDir();
+  const allowedKeyIds = new Set(teamIds.map((teamId) => teamKeyStorageId(hashedEmail, teamId)));
+  const keysFilePath = join(stateDir, LOCAL_TEAM_KEYS_FILE);
+  const keys = readJsonFile<LocalTeamKeysOnDisk>(keysFilePath);
+  if (keys) {
+    let changed = false;
+    const prefix = `${hashedEmail}:team:`;
+    for (const storageId of Object.keys(keys.teams)) {
+      if (storageId.startsWith(prefix) && !allowedKeyIds.has(storageId)) {
+        deleteMasterKey("keychain", storageId);
+        delete keys.teams[storageId];
+        changed = true;
+      }
+    }
+    if (changed) writeJsonFile(keysFilePath, keys);
+  }
+
+  const allowedCacheFiles = new Set(teamIds.map((teamId) => syncCacheFile(teamId)));
+  for (const fileName of readdirSync(stateDir)) {
+    if (fileName.startsWith("sync_cache.team.") && fileName.endsWith(".json") && !allowedCacheFiles.has(fileName)) {
+      rmSync(join(stateDir, fileName), { force: true });
+    }
   }
 }
 

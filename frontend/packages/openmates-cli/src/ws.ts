@@ -636,6 +636,9 @@ export class OpenMatesWsClient {
     modelName: string | null;
     followUpSuggestions: string[];
     newChatSuggestions: string[];
+    chatSummary: string | null;
+    chatTags: string[];
+    updatedChatTitle: string | null;
     taskProposals: TaskProposalEvent[];
     taskUpdateProposals: TaskUpdateProposalEvent[];
     taskEvents: TaskEventFrame[];
@@ -657,6 +660,9 @@ export class OpenMatesWsClient {
       let recoveryJobId: string | null = null;
       let followUpSuggestions: string[] = [];
       let newChatSuggestions: string[] = [];
+      let chatSummary: string | null = null;
+      let chatTags: string[] = [];
+      let updatedChatTitle: string | null = null;
       let taskProposals: TaskProposalEvent[] = [];
       let taskUpdateProposals: TaskUpdateProposalEvent[] = [];
       const taskEvents: TaskEventFrame[] = [];
@@ -743,6 +749,9 @@ export class OpenMatesWsClient {
             modelName,
             followUpSuggestions,
             newChatSuggestions,
+            chatSummary,
+            chatTags,
+            updatedChatTitle,
             taskProposals,
             taskUpdateProposals,
             taskEvents,
@@ -778,6 +787,9 @@ export class OpenMatesWsClient {
               modelName,
               followUpSuggestions,
               newChatSuggestions,
+              chatSummary,
+              chatTags,
+              updatedChatTitle,
               taskProposals,
               taskUpdateProposals,
               taskEvents,
@@ -800,6 +812,9 @@ export class OpenMatesWsClient {
           modelName,
           followUpSuggestions,
           newChatSuggestions,
+          chatSummary,
+          chatTags,
+          updatedChatTitle,
           taskProposals,
           taskUpdateProposals,
           taskEvents,
@@ -1074,6 +1089,18 @@ export class OpenMatesWsClient {
                 (s): s is string => typeof s === "string" && s.length > 0,
               );
             }
+            if (typeof p.chat_summary === "string" && p.chat_summary.trim()) {
+              chatSummary = p.chat_summary.trim();
+            }
+            const rawChatTags = p.chat_tags;
+            if (Array.isArray(rawChatTags) && rawChatTags.length > 0) {
+              chatTags = (rawChatTags as unknown[]).filter(
+                (tag): tag is string => typeof tag === "string" && tag.trim().length > 0,
+              ).slice(0, 10);
+            }
+            if (typeof p.updated_chat_title === "string" && p.updated_chat_title.trim()) {
+              updatedChatTitle = p.updated_chat_title.trim();
+            }
             taskProposals = parseTaskProposals(p.task_proposals);
             taskUpdateProposals = parseTaskUpdateProposals(p.task_update_proposals);
             // If AI response already done, resolve immediately with suggestions.
@@ -1108,6 +1135,9 @@ export class OpenMatesWsClient {
             modelName,
             followUpSuggestions,
             newChatSuggestions,
+            chatSummary,
+            chatTags,
+            updatedChatTitle,
             taskProposals,
             taskUpdateProposals,
             taskEvents,

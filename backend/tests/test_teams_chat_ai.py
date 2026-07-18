@@ -31,7 +31,7 @@ from backend.apps.ai.skills.ask_skill import AskSkillRequest as AppAskSkillReque
 from backend.core.api.app.schemas.ai_skill_schemas import AskSkillRequest as CoreAskSkillRequest
 from backend.core.api.app.schemas.chat import AIHistoryMessage
 from backend.core.api.app.services.directus.team_methods import hash_id
-from backend.core.api.app.services.team_chat_ai_service import format_sender_attributed_content, should_trigger_team_ai
+from backend.core.api.app.services.team_chat_ai_service import extract_team_ai_context, format_sender_attributed_content, should_trigger_team_ai
 
 
 def test_team_chat_requires_openmates_mention_to_trigger_ai() -> None:
@@ -49,6 +49,18 @@ def test_ai_history_message_preserves_team_sender_name() -> None:
 def test_sender_attribution_formats_team_history_for_llm_content() -> None:
     assert format_sender_attributed_content("I prefer option A", "Alice") == "[Alice]: I prefer option A"
     assert format_sender_attributed_content("I prefer option A", None) == "I prefer option A"
+
+
+def test_team_ai_context_defaults_chat_object_hash() -> None:
+    context = extract_team_ai_context(
+        {"chat_id": "chat-1", "team_id": "team-1"},
+        {"chat_id": "chat-1"},
+    )
+
+    assert context["team_id"] == "team-1"
+    assert context["team_id_hash"] == hash_id("team-1")
+    assert context["team_workspace_type"] == "chat"
+    assert context["team_object_id_hash"] == hash_id("chat-1")
 
 
 def test_core_and_app_ask_skill_requests_carry_team_billing_context() -> None:

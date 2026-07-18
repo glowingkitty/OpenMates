@@ -6112,6 +6112,7 @@ async function sendMessageStreaming(
   // Parse @mentions in the message, resolve to backend wire syntax.
   // If any mentions fail to resolve, show error and abort.
   let finalMessage = params.message;
+  const isTeamAiTrigger = params.personal !== true && (typeof params.teamId === "string" || Boolean(client.getActiveTeamId()));
   if (params.message.includes("@")) {
     try {
       const mentionCtx = await client.buildMentionContext();
@@ -6119,9 +6120,12 @@ async function sendMessageStreaming(
       finalMessage = parsed.processedMessage;
 
       // Report unresolved mentions as errors
-      if (parsed.unresolved.length > 0) {
+      const unresolvedMentions = parsed.unresolved.filter(
+        (mention) => !(isTeamAiTrigger && mention.original.toLowerCase() === "@openmates"),
+      );
+      if (unresolvedMentions.length > 0) {
         clearTyping();
-        for (const u of parsed.unresolved) {
+        for (const u of unresolvedMentions) {
           process.stderr.write(
             `\x1b[31mError:\x1b[0m Unknown mention ${u.original}\n`,
           );
@@ -6323,6 +6327,14 @@ async function sendMessageStreaming(
       // If mention resolution fails (e.g., network error), send as-is
       // The backend will receive the raw @tokens and ignore unknown ones
     }
+  }
+
+  if (
+    isTeamAiTrigger &&
+    params.message.toLowerCase().includes("@openmates") &&
+    !finalMessage.toLowerCase().includes("@openmates")
+  ) {
+    finalMessage = `@openmates ${finalMessage}`.trim();
   }
 
   const piiResult = params.piiDetection !== false && redactor?.isInitialized

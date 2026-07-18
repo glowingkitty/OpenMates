@@ -52,6 +52,7 @@ import {
   isSyncCacheFresh,
   saveLocalTeamKey,
   loadLocalTeamKey,
+  pruneLocalTeamArtifacts,
   loadAnonymousId,
   saveAnonymousId,
 } from "./storage.js";
@@ -2284,6 +2285,11 @@ export class OpenMatesClient {
     if (!response.ok) throw new Error(`Team list failed with HTTP ${response.status}`);
     const teams = response.data.teams ?? [];
     await Promise.all(teams.map((team) => this.cacheTeamKeyFromRecord(team)));
+    const teamIds = teams.map((team) => team.team_id).filter((teamId): teamId is string => typeof teamId === "string" && teamId.length > 0);
+    pruneLocalTeamArtifacts(this.requireSession().hashedEmail, teamIds);
+    if (this.session?.activeTeamId && !teamIds.includes(this.session.activeTeamId)) {
+      this.setActiveTeamId(null);
+    }
     return teams;
   }
 
@@ -4815,8 +4821,9 @@ export class OpenMatesClient {
         inference_request: messagePayload,
       };
       if (isNewChat) {
+        const initialTitle = teamId && !shouldWaitForAi ? "New team chat" : "";
         preflightPayload.encrypted_chat_metadata = {
-          encrypted_title: await encryptWithAesGcmCombined("", chatKeyBytes),
+          encrypted_title: await encryptWithAesGcmCombined(initialTitle, chatKeyBytes),
           encrypted_chat_key: encryptedChatKey,
           created_at: createdAt,
           updated_at: createdAt,
@@ -4870,6 +4877,9 @@ export class OpenMatesClient {
       Number.isSafeInteger(confirmedPayload.new_messages_v)
     ) {
       terminalExpectedMessagesV = confirmedPayload.new_messages_v;
+    }
+    if (!params.incognito) {
+      clearSyncCache(teamId);
     }
 
     let assistant = "";
@@ -5381,6 +5391,9 @@ export class OpenMatesClient {
             chatKeyBytes,
             followUpSuggestions: resp.followUpSuggestions,
             newChatSuggestions: resp.newChatSuggestions,
+            chatSummary: resp.chatSummary,
+            chatTags: resp.chatTags,
+            updatedChatTitle: resp.updatedChatTitle,
             encryptedChatKey,
           });
           const persistedTaskJobIds = await this.persistPendingTaskUpdateJobs({
@@ -5905,6 +5918,9 @@ export class OpenMatesClient {
     chatKeyBytes: Uint8Array;
     followUpSuggestions: string[];
     newChatSuggestions: string[];
+    chatSummary: string | null;
+    chatTags: string[];
+    updatedChatTitle: string | null;
     encryptedChatKey: string | null;
   }): Promise<void> {
     const encryptedFollowUps = params.followUpSuggestions.length > 0
@@ -5919,14 +5935,26 @@ export class OpenMatesClient {
         encryptWithAesGcmCombined(suggestion, masterKey),
       ),
     );
+    const encryptedChatSummary = params.chatSummary
+      ? await encryptWithAesGcmCombined(params.chatSummary, params.chatKeyBytes)
+      : "";
+    const encryptedChatTags = params.chatTags.length > 0
+      ? await encryptWithAesGcmCombined(JSON.stringify(params.chatTags.slice(0, 10)), params.chatKeyBytes)
+      : "";
+    const encryptedUpdatedTitle = params.updatedChatTitle
+      ? await encryptWithAesGcmCombined(params.updatedChatTitle, params.chatKeyBytes)
+      : "";
 
-    if (!encryptedFollowUps && encryptedNewChatSuggestions.length === 0) return;
+    if (!encryptedFollowUps && encryptedNewChatSuggestions.length === 0 && !encryptedChatSummary && !encryptedChatTags && !encryptedUpdatedTitle) return;
 
     await params.ws.sendAsync("update_post_processing_metadata", {
       chat_id: params.chatId,
       ...(params.teamId ? { team_id: params.teamId } : {}),
       encrypted_follow_up_suggestions: encryptedFollowUps,
       encrypted_new_chat_suggestions: encryptedNewChatSuggestions,
+      encrypted_chat_summary: encryptedChatSummary,
+      encrypted_chat_tags: encryptedChatTags,
+      encrypted_title: encryptedUpdatedTitle,
       encrypted_chat_key: params.encryptedChatKey ?? "",
     });
     await params.ws.waitForMessage(

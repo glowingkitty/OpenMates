@@ -10,6 +10,7 @@ Secrets are read by existing CLI test-account tooling and are never printed.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import subprocess
@@ -143,6 +144,36 @@ def memory_ids(value: Any) -> set[str]:
     return {str(entry.get("id")) for entry in raw_entries if isinstance(entry, dict) and entry.get("id")}
 
 
+def state_dir() -> Path:
+    return Path(RUN_ENV["HOME"]) / ".openmates"
+
+
+def team_digest(team_id: str) -> str:
+    return hashlib.sha256(team_id.encode("utf-8")).hexdigest()[:32]
+
+
+def current_session_hashed_email() -> str:
+    session_path = state_dir() / "session.json"
+    require(session_path.exists(), "CLI session file did not exist")
+    session = json.loads(session_path.read_text(encoding="utf-8"))
+    hashed_email = session.get("hashedEmail")
+    require(isinstance(hashed_email, str) and hashed_email, "CLI session did not include hashedEmail")
+    return hashed_email
+
+
+def team_sync_cache_path(team_id: str) -> Path:
+    return state_dir() / f"sync_cache.team.{team_digest(team_id)}.json"
+
+
+def local_team_key_exists(hashed_email: str, team_id: str) -> bool:
+    keys_path = state_dir() / "team_keys.json"
+    if not keys_path.exists():
+        return False
+    keys = json.loads(keys_path.read_text(encoding="utf-8"))
+    storage_id = f"{hashed_email}:team:{team_digest(team_id)}"
+    return isinstance(keys.get("teams"), dict) and storage_id in keys["teams"]
+
+
 def create_test_team(prefix: str = "CLI Teams V1") -> str:
     suffix = str(time.time_ns())
     created = run_cli_json(["teams", "create", "--name", f"{prefix} {suffix}", "--slug", f"teams-v1-{suffix}", "--switch"])
@@ -251,19 +282,86 @@ def scenario_data_portability(api_url: str, skip_build: bool) -> dict[str, Any]:
 
 
 def scenario_chat(api_url: str, skip_build: bool) -> dict[str, Any]:
-    setup_cli(api_url, skip_build)
+    slots = available_test_account_slots()
+    require(len(slots) >= 2, "Chat verification requires two OPENMATES_TEST_ACCOUNT slots")
+    owner_slot, member_slot = slots[0], slots[1]
+    if not skip_build:
+        run(["npm", "run", "build"], cwd=CLI_DIR, timeout=240)
+    login_cli(api_url, owner_slot)
+    member_email = test_account_email(member_slot)
     team_id = create_test_team("CLI Teams chat")
     try:
+        run_cli_json(["teams", "add-credits", team_id, "--credits", "1"], timeout=120)
         first = run_cli_json(["chats", "new", "Team note stored without mate mention", "--team", team_id, "--response-timeout-seconds", "5"], timeout=60)
         chat_id = chat_id_from(first)
         require(first.get("assistant") == "", "No-mention team chat should not wait for or return an assistant response")
         require(first.get("messageId") is None, "No-mention team chat should not return an assistant message ID")
+        shown = run_cli_json(["chats", "show", chat_id, "--team", team_id], timeout=120)
+        chat = shown.get("chat", {}) if isinstance(shown, dict) else {}
+        require(chat.get("title") == "New team chat", f"No-AI team chat title was not deterministic: {chat}")
+
+        invite = run_cli_json(["teams", "invite", team_id, "--email", member_email, "--role", "member"], timeout=120)["invite"]
+        invite_input = invite.get("invite_url") or invite.get("invite_id")
+        require(isinstance(invite_input, str) and invite_input, "Invite response did not include an invite URL or ID")
+        login_cli(api_url, member_slot)
+        accepted = run_cli_json(["teams", "accept-invite", invite_input, "--email", member_email], timeout=120)
+        require(accepted.get("status_label") == "Waiting for team access approval", "Invite accept did not enter access-approval wait state")
+        login_cli(api_url, owner_slot)
+        requests = run_cli_json(["teams", "access-requests", team_id], timeout=120).get("access_requests", [])
+        matching = [request for request in requests if isinstance(request, dict) and request.get("invite_id") == invite.get("invite_id")]
+        require(matching, "Owner access-request list did not include accepted invite")
+        access_request_id = matching[0].get("access_request_id")
+        require(isinstance(access_request_id, str), "Access request lacks access_request_id")
+        run_cli_json(["teams", "approve-access", team_id, access_request_id], timeout=120)
+
+        login_cli(api_url, member_slot)
         second = run_cli_json(["chats", "send", "--chat", chat_id, "Second team note stored without AI", "--team", team_id, "--response-timeout-seconds", "5"], timeout=60)
         require(second.get("chatId") == chat_id, "Follow-up team message returned a different chat ID")
+        require(second.get("assistant") == "", "Second no-mention team message should not return an assistant response")
+        require(second.get("messageId") is None, "Second no-mention team message should not return an assistant message ID")
+
+        with tempfile.TemporaryDirectory(prefix="openmates-team-embed-") as tmp:
+            attachment_path = Path(tmp) / "team-note.txt"
+            attachment_path.write_text("Team embed verifier attachment", encoding="utf-8")
+            file_result = run_cli_json([
+                "chats",
+                "send",
+                "--chat",
+                chat_id,
+                f"Team file attachment @{attachment_path}",
+                "--team",
+                team_id,
+                "--response-timeout-seconds",
+                "5",
+            ], timeout=90)
+            require(file_result.get("chatId") == chat_id, "Team file message returned a different chat ID")
+
+        login_cli(api_url, owner_slot)
+        ai_result = run_cli_json([
+            "chats",
+            "send",
+            "--chat",
+            chat_id,
+            "@openmates Reply with exactly: team gate ok",
+            "--team",
+            team_id,
+            "--response-timeout-seconds",
+            "180",
+        ], timeout=240)
+        require(ai_result.get("chatId") == chat_id, "@openmates team message returned a different chat ID")
+        require(isinstance(ai_result.get("assistant"), str) and ai_result["assistant"].strip(), "@openmates team message did not return assistant content")
+        require(isinstance(ai_result.get("messageId"), str) and ai_result["messageId"], "@openmates team message did not return an assistant message ID")
+
         shown = run_cli_json(["chats", "show", chat_id, "--team", team_id], timeout=120)
+        chat = shown.get("chat", {}) if isinstance(shown, dict) else {}
+        require(isinstance(chat.get("title"), str) and chat["title"].strip(), "Team chat title was empty after @openmates response")
+        require(isinstance(chat.get("summary"), str) and chat["summary"].strip(), "Team chat summary was empty after @openmates post-processing")
         messages = shown.get("messages", []) if isinstance(shown, dict) else []
-        require(isinstance(messages, list) and len(messages) >= 2, "Team chat show did not return both user messages")
+        require(isinstance(messages, list) and len(messages) >= 5, "Team chat show did not return the expected discussion messages")
+        require(any(isinstance(message, dict) and message.get("role") == "assistant" and str(message.get("content") or "").strip() for message in messages), "Team chat show did not include the assistant response")
+        require(any(isinstance(message, dict) and message.get("embedIds") for message in messages), "Team chat show did not include the file embed on a team message")
     finally:
+        login_cli(api_url, owner_slot)
         cleanup_team(team_id)
     return {"status": "passed", "team_id_prefix": team_id[:8]}
 
@@ -326,10 +424,20 @@ def scenario_offboarding(api_url: str, skip_build: bool) -> dict[str, Any]:
         access_request_id = matching[0].get("access_request_id")
         require(isinstance(access_request_id, str), "Access request lacks access_request_id")
         run_cli_json(["teams", "approve-access", team_id, access_request_id], timeout=120)
+        login_cli(api_url, member_slot)
+        run_cli_json(["teams", "show", team_id], timeout=120)
+        cache_seed = run_cli_json(["chats", "new", "Offboarding local cache seed", "--team", team_id, "--response-timeout-seconds", "5"], timeout=60)
+        run_cli_json(["chats", "show", chat_id_from(cache_seed), "--team", team_id], timeout=120)
+        member_hashed_email = current_session_hashed_email()
+        require(local_team_key_exists(member_hashed_email, team_id), "Member local team key was not cached before removal")
+        require(team_sync_cache_path(team_id).exists(), "Member team sync cache was not created before removal")
+        login_cli(api_url, owner_slot)
         run_cli_json(["teams", "remove-member", team_id, "--user", member_user_id], timeout=120)
         login_cli(api_url, member_slot)
         teams = run_cli_json(["teams", "list"], timeout=120).get("teams", [])
         require(all(not isinstance(team, dict) or team.get("team_id") != team_id for team in teams), "Removed member still sees the team in teams list")
+        require(not local_team_key_exists(member_hashed_email, team_id), "Removed member local team key was not pruned")
+        require(not team_sync_cache_path(team_id).exists(), "Removed member team sync cache was not pruned")
         run_cli_failure(["teams", "show", team_id, "--json"], timeout=120)
     finally:
         login_cli(api_url, owner_slot)

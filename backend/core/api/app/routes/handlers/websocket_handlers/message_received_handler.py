@@ -26,8 +26,8 @@ from backend.core.api.app.routes.handlers.websocket_handlers.chat_turn_preflight
 from backend.core.api.app.routes.handlers.websocket_handlers.chat_turn_preflight_handler import server_client_capabilities
 from backend.core.api.app.services.chat_recovery_service import ChatRecoveryProtocolError, ChatRecoveryService
 from backend.core.api.app.services.chat_recovery_cutover import ChatRecoveryCutoverController
-from backend.core.api.app.services.team_chat_ai_service import should_trigger_team_ai
-from backend.core.api.app.services.directus.team_methods import TeamPermissionError, hash_id
+from backend.core.api.app.services.team_chat_ai_service import extract_team_ai_context, should_trigger_team_ai
+from backend.core.api.app.services.directus.team_methods import TeamPermissionError
 
 # Import comprehensive ASCII smuggling sanitization
 # This module protects against invisible Unicode characters used to embed hidden instructions
@@ -131,21 +131,6 @@ def _sanitize_connected_account_directory(value: Any) -> list[dict[str, Any]] | 
     return sanitized
 
 
-def _extract_team_ai_context(payload: Dict[str, Any], message_payload: Dict[str, Any]) -> dict[str, str | None]:
-    team_id = payload.get("team_id") or message_payload.get("team_id")
-    if not isinstance(team_id, str) or not team_id:
-        return {"team_id": None, "team_id_hash": None, "team_workspace_type": None, "team_object_id_hash": None}
-    team_id_hash = payload.get("team_id_hash") or hash_id(team_id)
-    workspace_type = payload.get("team_workspace_type") or message_payload.get("team_workspace_type") or "chat"
-    object_id_hash = payload.get("team_object_id_hash") or message_payload.get("team_object_id_hash")
-    return {
-        "team_id": team_id,
-        "team_id_hash": team_id_hash if isinstance(team_id_hash, str) else hash_id(team_id),
-        "team_workspace_type": workspace_type if isinstance(workspace_type, str) else "chat",
-        "team_object_id_hash": object_id_hash if isinstance(object_id_hash, str) else None,
-    }
-
-
 def _sanitize_connected_account_token_refs(value: Any) -> list[dict[str, Any]] | None:
     if value is None:
         return None
@@ -237,7 +222,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             )
             return
 
-        team_ai_context = _extract_team_ai_context(payload, message_payload_from_client)
+        team_ai_context = extract_team_ai_context(payload, message_payload_from_client)
         team_id = team_ai_context.get("team_id")
         is_team_chat = bool(team_id)
         raw_team_message_content = message_payload_from_client.get("content")
