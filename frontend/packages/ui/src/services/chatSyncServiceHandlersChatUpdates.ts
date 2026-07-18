@@ -317,6 +317,10 @@ export async function handleChatDraftUpdatedImpl(
       chat.encrypted_draft_md = payload.data.encrypted_draft_md;
       chat.encrypted_draft_preview =
         payload.data.encrypted_draft_preview || null;
+      chat.ideabucket = payload.data.ideabucket ?? chat.ideabucket;
+      chat.ideabucket_processing_window_id =
+        payload.data.ideabucket_processing_window_id ??
+        chat.ideabucket_processing_window_id;
       chat.draft_v = payload.versions.draft_v;
       // CRITICAL: Don't update last_edited_overall_timestamp from draft updates
       // Only messages should update this timestamp for proper sorting
@@ -340,6 +344,9 @@ export async function handleChatDraftUpdatedImpl(
         title_v: 0,
         encrypted_draft_md: payload.data.encrypted_draft_md,
         encrypted_draft_preview: payload.data.encrypted_draft_preview || null,
+        ideabucket: payload.data.ideabucket,
+        ideabucket_processing_window_id:
+          payload.data.ideabucket_processing_window_id ?? undefined,
         draft_v: payload.versions.draft_v,
         last_edited_overall_timestamp: payload.last_edited_overall_timestamp,
         unread_count: 0,

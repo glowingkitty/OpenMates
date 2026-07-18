@@ -1121,9 +1121,11 @@ let _chatUpdatedFlushPending = false;
 			console.info(`[Chats] Phase 2: totalServerChatCount=${totalServerChatCount}, hasMoreOnServer=${hasMoreOnServer}`);
 		}
 
-		// PERF: Phase 2 sync handler incrementally upserts each chat into chatListCache.
-		// Non-forced read picks up the in-memory cache (no full IDB re-scan).
-		await updateChatListFromDB(false);
+		// Phase 2 may store chats before the initial sidebar cache is ready, making
+		// incremental cache upserts a no-op. Force an IDB read so draft-only chats
+		// created from another client are visible immediately after sync.
+		chatListCache.markDirty();
+		await updateChatListFromDB(true);
 
 		// Search warm-up moved to on-first-focus (Step 13 of sync perf overhaul)
 	};

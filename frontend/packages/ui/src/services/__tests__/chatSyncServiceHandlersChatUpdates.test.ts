@@ -8,6 +8,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ChatSynchronizationService } from "../chatSyncService";
 import {
+  handleChatDraftUpdatedImpl,
   handleChatMessageReceivedImpl,
   handleNewChatMessageImpl,
 } from "../chatSyncServiceHandlersChatUpdates";
@@ -87,6 +88,19 @@ vi.mock("../incognitoChatService", () => ({
   incognitoChatService: mocks.incognitoChatService,
 }));
 
+function setWindowHash(hash: string): void {
+  if (!window.location) {
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: { hash },
+      writable: true,
+    });
+    return;
+  }
+
+  window.location.hash = hash;
+}
+
 describe("handleNewChatMessageImpl", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -103,7 +117,7 @@ describe("handleNewChatMessageImpl", () => {
     );
     mocks.activeChatStore.get.mockReturnValue(null);
     mocks.incognitoChatService.getChat.mockResolvedValue(null);
-    window.location.hash = "";
+    setWindowHash("");
   });
 
   it("stores the current user id on new chat shells created from sync broadcasts", async () => {
@@ -134,6 +148,47 @@ describe("handleNewChatMessageImpl", () => {
   });
 });
 
+describe("handleChatDraftUpdatedImpl", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.chatDB.getChat.mockResolvedValue(undefined);
+    mocks.chatDB.addChat.mockResolvedValue(undefined);
+    mocks.chatDB.updateChat.mockResolvedValue(undefined);
+  });
+
+  it("stores IdeaBucket metadata on draft-only chats created from sync broadcasts", async () => {
+    const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+
+    await handleChatDraftUpdatedImpl(service, {
+      event: "chat_draft_updated",
+      chat_id: "chat-ideabucket",
+      data: {
+        encrypted_draft_md: "encrypted-draft",
+        encrypted_draft_preview: "encrypted-preview",
+        ideabucket: true,
+        ideabucket_processing_window_id: "bucket-1",
+      },
+      versions: { draft_v: 1 },
+      last_edited_overall_timestamp: 100,
+    });
+
+    expect(mocks.chatDB.addChat).toHaveBeenCalledWith(
+      expect.objectContaining({
+        chat_id: "chat-ideabucket",
+        ideabucket: true,
+        ideabucket_processing_window_id: "bucket-1",
+      }),
+      undefined,
+      { isFromSync: true },
+    );
+    expect(service.dispatchEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        detail: { chat_id: "chat-ideabucket", type: "draft" },
+      }),
+    );
+  });
+});
+
 describe("handleChatMessageReceivedImpl", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -141,7 +196,7 @@ describe("handleChatMessageReceivedImpl", () => {
     mocks.chatDB.updateChat.mockResolvedValue(undefined);
     mocks.chatKeyManager.getKeySync.mockReturnValue(new Uint8Array([1, 2, 3]));
     mocks.incognitoChatService.getChat.mockResolvedValue(null);
-    window.location.hash = "";
+    setWindowHash("");
   });
 
   it("notifies for assistant broadcasts when the visible chat is different from stale active state", async () => {
@@ -155,7 +210,7 @@ describe("handleChatMessageReceivedImpl", () => {
     };
     mocks.chatDB.getChat.mockResolvedValue(chat);
     mocks.activeChatStore.get.mockReturnValue("chat-a");
-    window.location.hash = "#chat-id=chat-b";
+    setWindowHash("#chat-id=chat-b");
     const service = {
       activeAITasks: new Map([["chat-a", { taskId: "assistant-1" }]]),
       dispatchEvent: vi.fn(),

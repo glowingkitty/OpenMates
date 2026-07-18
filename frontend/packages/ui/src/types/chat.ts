@@ -709,6 +709,8 @@ export interface ChatDraftUpdatedPayload {
   data: {
     encrypted_draft_md: string | null;
     encrypted_draft_preview?: string | null;
+    ideabucket?: boolean;
+    ideabucket_processing_window_id?: string | null;
   };
   versions: { draft_v: number };
   last_edited_overall_timestamp: number;
