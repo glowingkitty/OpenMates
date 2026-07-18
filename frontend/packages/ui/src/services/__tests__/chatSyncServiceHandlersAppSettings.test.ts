@@ -804,6 +804,12 @@ describe("handleRecoveryJobsAvailableImpl", () => {
     await recovery;
 
     expect(persistExpectedVersions).toEqual([2, 4]);
+    expect(mocks.ensureChatKeySafeForWrite).toHaveBeenCalledWith(
+      "chat-1",
+      new Uint8Array([1, 2, 3]),
+      "completion recovery",
+      { reportFailure: false },
+    );
     expect(service.requestChatContentBatch_FOR_HANDLERS_ONLY).toHaveBeenCalledTimes(2);
     expect(mocks.chatDB.saveMessage).toHaveBeenCalledWith(
       expect.objectContaining({ message_id: "assistant-1", status: "synced" }),

@@ -246,7 +246,11 @@ export async function handleRecoveryJobsAvailableImpl(
         return;
       }
       const { chat, chatKey } = prerequisites;
-      if (!(await ensureChatKeySafeForWrite(job.chat_id, chatKey, "completion recovery"))) return;
+      if (!(
+        await ensureChatKeySafeForWrite(job.chat_id, chatKey, "completion recovery", {
+          reportFailure: false,
+        })
+      )) return;
 
       const claim = await requestRecoveryEvent(
         "recovery_job_claimed",
