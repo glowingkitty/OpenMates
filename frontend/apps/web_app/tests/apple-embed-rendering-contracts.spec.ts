@@ -20,6 +20,13 @@ const CONTRACT_SCHEMA_VERSION = 1;
 const REGISTRY_CAPTURE_DIMENSION_ID = 'iphone-light-ltr';
 const REGISTRY_CAPTURE_WORKERS = 6;
 const OUTPUT_DIR = path.resolve(process.cwd(), 'test-results', 'apple-ui-contracts', 'embeds');
+const FULLSCREEN_ROOT_TEST_IDS = [
+	'embed-fullscreen-overlay',
+	'fitness-search-fullscreen',
+	'task-embed-fullscreen',
+	'workflow-embed-fullscreen'
+] as const;
+const PREVIEW_ROOT_TEST_IDS = ['embed-preview', 'recording-preview', 'focus-mode-bar'] as const;
 
 const DIMENSIONS = [
 	{
@@ -135,6 +142,13 @@ function slugify(value: string): string {
 		.replace(/(^-|-$)/g, '');
 }
 
+function testIdTarget(page: any, testIds: readonly string[]): any {
+	return testIds.slice(1).reduce(
+		(locator: any, testId: string) => locator.or(page.getByTestId(testId)),
+		page.getByTestId(testIds[0])
+	);
+}
+
 async function waitForAllSectionsLoaded(page: any): Promise<void> {
 	await expect(async () => {
 		expect(await page.getByTestId('section-loading').count()).toBe(0);
@@ -244,15 +258,10 @@ async function captureRegistrySurface(
 	});
 	await applyGenericPreviewAppearance(page, theme, direction);
 	const renderError = page.getByTestId('render-error');
-	const target =
-		surface === 'fullscreen'
-			? page
-					.getByTestId('embed-fullscreen-overlay')
-					.or(page.getByTestId('fitness-search-fullscreen'))
-			: page
-					.getByTestId('embed-preview')
-					.or(page.getByTestId('recording-preview'))
-					.or(page.getByTestId('focus-mode-bar'));
+	const target = testIdTarget(
+		page,
+		surface === 'fullscreen' ? FULLSCREEN_ROOT_TEST_IDS : PREVIEW_ROOT_TEST_IDS
+	);
 	const exists = await target
 		.first()
 		.waitFor({ state: 'visible', timeout: 15_000 })
