@@ -64,6 +64,7 @@ import MindMapEmbedPreview from "../../../embeds/mindmaps/MindMapEmbedPreview.sv
 import { normalizeMindMapSource, toMindMapOutline } from "../../../embeds/mindmaps/mindMapContent";
 import ElectronicsSearchEmbedPreview from "../../../embeds/electronics/ElectronicsSearchEmbedPreview.svelte";
 import ElectronicsComponentEmbedPreview from "../../../embeds/electronics/ElectronicsComponentEmbedPreview.svelte";
+import DesignIconResultEmbedPreview from "../../../embeds/design/DesignIconResultEmbedPreview.svelte";
 import NutritionSearchEmbedPreview from "../../../embeds/nutrition/NutritionSearchEmbedPreview.svelte";
 import NutritionRecipeEmbedPreview from "../../../embeds/nutrition/NutritionRecipeEmbedPreview.svelte";
 import SocialMediaGetPostsEmbedPreview from "../../../embeds/social_media/SocialMediaGetPostsEmbedPreview.svelte";
@@ -435,6 +436,16 @@ export class GroupRenderer implements EmbedRenderer {
           ),
       ],
       [
+        "design-icon-result",
+        (item, embedData, decodedContent, content) =>
+          this.renderDesignIconResultComponent(
+            item,
+            embedData,
+            decodedContent,
+            content,
+          ),
+      ],
+      [
         "nutrition-recipe",
         (item, embedData, decodedContent, content) =>
           this.renderNutritionRecipeComponent(
@@ -788,6 +799,8 @@ export class GroupRenderer implements EmbedRenderer {
         return this.renderMindMapItem(item, embedData, decodedContent);
       case "electronics-component":
         return this.renderElectronicsComponentItem(item, embedData, decodedContent);
+      case "design-icon-result":
+        return this.renderDesignIconResultItem(item, embedData, decodedContent);
       case "nutrition-recipe":
         return this.renderNutritionRecipeItem(item, embedData, decodedContent);
       case "weather-day":
@@ -5838,6 +5851,74 @@ export class GroupRenderer implements EmbedRenderer {
   }
 
   /**
+   * Render a design icon child embed using DesignIconResultEmbedPreview.
+   */
+  private async renderDesignIconResultComponent(
+    item: EmbedNodeAttributes,
+    embedData: EmbedData | null = null,
+    decodedContent: DecodedEmbedContent | null = null,
+    content: HTMLElement,
+  ): Promise<void> {
+    const embedId = item.contentRef?.replace("embed:", "") || item.id || "";
+
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn("[GroupRenderer] Error unmounting existing component:", e);
+      }
+    }
+    content.innerHTML = "";
+
+    if (!content.isConnected) {
+      console.warn(
+        "[GroupRenderer] Skipping DesignIconResultEmbedPreview mount - target detached from DOM",
+      );
+      return;
+    }
+
+    try {
+      const component = mount(DesignIconResultEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          icon_id: decodedContent?.icon_id as string | undefined,
+          prefix: decodedContent?.prefix as string | undefined,
+          name: decodedContent?.name as string | undefined,
+          display_name: decodedContent?.display_name as string | undefined,
+          collection_name: decodedContent?.collection_name as string | undefined,
+          license_title: decodedContent?.license_title as string | undefined,
+          svg_path: decodedContent?.svg_path as string | undefined,
+          status: (embedData?.status || item.status || "finished") as
+            | "processing"
+            | "finished"
+            | "error",
+          isMobile: false,
+          onFullscreen: () =>
+            this.openFullscreen(item, embedData, decodedContent),
+        },
+      });
+
+      mountedComponents.set(content, component);
+      console.debug("[GroupRenderer] Mounted DesignIconResultEmbedPreview:", {
+        embedId,
+        title: decodedContent?.display_name,
+      });
+    } catch (err) {
+      console.error(
+        "[GroupRenderer] Failed to mount DesignIconResultEmbedPreview:",
+        err,
+      );
+      content.innerHTML = await this.renderDesignIconResultItem(
+        item,
+        embedData,
+        decodedContent,
+      );
+    }
+  }
+
+  /**
    * HTML fallback renderer for home-listing embeds (used in group rendering).
    */
   private async renderHomeListingItem(
@@ -5885,6 +5966,32 @@ export class GroupRenderer implements EmbedRenderer {
         <div class="embed-text-line">${esc(String(title))}</div>
         ${brand ? `<div class="embed-text-subline">${esc(String(brand))}</div>` : ""}
         ${priceEur ? `<div class="embed-text-subline">${esc(String(priceEur))}</div>` : ""}
+      </div>
+    `;
+  }
+
+  /**
+   * HTML fallback renderer for design-icon-result embeds.
+   */
+  private async renderDesignIconResultItem(
+    _item: EmbedNodeAttributes,
+    _embedData?: EmbedData | null,
+    decodedContent: DecodedEmbedContent | null = null,
+  ): Promise<string> {
+    const title = escapeHtml(
+      String(decodedContent?.display_name || decodedContent?.name || "Icon"),
+    );
+    const collection = decodedContent?.collection_name
+      ? escapeHtml(String(decodedContent.collection_name))
+      : "";
+
+    return `
+      <div class="embed-app-icon design">
+        <span class="icon icon_design"></span>
+      </div>
+      <div class="embed-text-content">
+        <div class="embed-text-line">${title}</div>
+        ${collection ? `<div class="embed-text-subline">${collection}</div>` : ""}
       </div>
     `;
   }
