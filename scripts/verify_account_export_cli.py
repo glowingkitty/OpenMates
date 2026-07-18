@@ -28,6 +28,8 @@ CLI_DIST = CLI_DIR / "dist/cli.js"
 ARCHIVE_VERIFIER = ROOT / "scripts/verify_account_export_archive.py"
 DEFAULT_DEV_API_URL = "https://api.dev.openmates.org"
 DEFAULT_PROD_API_URL = "https://api.openmates.org"
+DEFAULT_COMMAND_TIMEOUT_SECONDS = 180
+ARCHIVE_VERIFIER_TIMEOUT_SECONDS = 600
 DEFAULT_REQUIRED_DOMAINS = [
     "chats",
     "embeds",
@@ -145,7 +147,11 @@ def run_cli_json(args: list[str], api_url: str) -> dict:
 
 def run_archive_verifier(path: Path) -> None:
     source_flag = "--zip" if path.suffix == ".zip" else "--dir"
-    run(["python3", str(ARCHIVE_VERIFIER), source_flag, str(path), "--layout-v1", "--forbid-secrets"], cwd=ROOT)
+    run(
+        ["python3", str(ARCHIVE_VERIFIER), source_flag, str(path), "--layout-v1", "--forbid-secrets"],
+        cwd=ROOT,
+        timeout=ARCHIVE_VERIFIER_TIMEOUT_SECONDS,
+    )
 
 
 def validate_export_archive_completeness(path: Path, *, required_domains: list[str]) -> None:
@@ -168,12 +174,13 @@ def validate_export_archive_completeness(path: Path, *, required_domains: list[s
             if actual_count != expected_count:
                 raise RuntimeError(f"domain {domain} count mismatch: manifest={expected_count}, archive={actual_count}")
 
-        chats = json.loads(archive.read("domains/chats.json").decode("utf-8"))
-        for chat in _payload_items(chats):
-            if "messages" not in chat:
-                raise RuntimeError(f"chat {chat.get('id') or chat.get('chat_id')} missing messages collection")
-            if "embeds" not in chat:
-                raise RuntimeError(f"chat {chat.get('id') or chat.get('chat_id')} missing embeds collection")
+        if "chats" in required_domains:
+            chats = json.loads(archive.read("domains/chats.json").decode("utf-8"))
+            for chat in _payload_items(chats):
+                if "messages" not in chat:
+                    raise RuntimeError(f"chat {chat.get('id') or chat.get('chat_id')} missing messages collection")
+                if "embeds" not in chat:
+                    raise RuntimeError(f"chat {chat.get('id') or chat.get('chat_id')} missing embeds collection")
 
         if "domains/referenced_uploads.json" in names:
             uploads = json.loads(archive.read("domains/referenced_uploads.json").decode("utf-8"))
@@ -181,12 +188,14 @@ def validate_export_archive_completeness(path: Path, *, required_domains: list[s
                 if "s3_objects" not in upload:
                     raise RuntimeError(f"referenced upload {upload.get('id') or upload.get('embed_id')} missing s3_objects")
 
-        usage = json.loads(archive.read("domains/usage.json").decode("utf-8"))
-        if "archives" not in usage:
-            raise RuntimeError("usage domain missing S3 archive references collection")
-        tasks = json.loads(archive.read("domains/tasks.json").decode("utf-8"))
-        if "archives" not in tasks:
-            raise RuntimeError("tasks domain missing S3 archive references collection")
+        if "usage" in required_domains:
+            usage = json.loads(archive.read("domains/usage.json").decode("utf-8"))
+            if "archives" not in usage:
+                raise RuntimeError("usage domain missing S3 archive references collection")
+        if "tasks" in required_domains:
+            tasks = json.loads(archive.read("domains/tasks.json").decode("utf-8"))
+            if "archives" not in tasks:
+                raise RuntimeError("tasks domain missing S3 archive references collection")
 
 
 def _payload_count(payload: dict) -> int:
@@ -238,8 +247,8 @@ def api_request(api_url: str, method: str, path: str, headers: dict[str, str], p
         raise RuntimeError(f"HTTP {exc.code} from {path}: {detail}") from exc
 
 
-def run(command: list[str], *, cwd: Path, capture: bool = False) -> subprocess.CompletedProcess[str]:
-    completed = subprocess.run(command, cwd=cwd, text=True, capture_output=capture, check=False, timeout=180)
+def run(command: list[str], *, cwd: Path, capture: bool = False, timeout: int = DEFAULT_COMMAND_TIMEOUT_SECONDS) -> subprocess.CompletedProcess[str]:
+    completed = subprocess.run(command, cwd=cwd, text=True, capture_output=capture, check=False, timeout=timeout)
     if completed.returncode != 0:
         stderr = completed.stderr.strip() if completed.stderr else ""
         stdout = completed.stdout.strip() if completed.stdout else ""

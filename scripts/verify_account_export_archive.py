@@ -55,6 +55,11 @@ FORBIDDEN_FIELD_NAMES = {
     "workflow_secret_key",
 }
 
+FORBIDDEN_FIELD_PATTERN = re.compile(
+    rf"(^|[^A-Za-z0-9_])['\"]?({'|'.join(re.escape(field) for field in sorted(FORBIDDEN_FIELD_NAMES))})['\"]?\s*:",
+    re.IGNORECASE,
+)
+
 FORBIDDEN_VALUE_PATTERNS = [
     re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----"),
     re.compile(r"(?:^|[^a-z0-9])sk-(?:api|proj|live|test)[-_a-z0-9]{6,}", re.IGNORECASE),
@@ -141,16 +146,11 @@ def validate_layout(entries: list[ArchiveEntry]) -> list[str]:
 
 def validate_secret_scan(entries: list[ArchiveEntry]) -> list[str]:
     failures: list[str] = []
-    field_patterns = {
-        field: re.compile(rf"(^|[^A-Za-z0-9_])['\"]?{re.escape(field)}['\"]?\s*:", re.IGNORECASE)
-        for field in FORBIDDEN_FIELD_NAMES
-    }
     for entry in entries:
         if entry.content is None:
             continue
-        for field, pattern in field_patterns.items():
-            if pattern.search(entry.content):
-                failures.append(f"{entry.name} contains forbidden secret field {field}")
+        for field in sorted({match.group(2).lower() for match in FORBIDDEN_FIELD_PATTERN.finditer(entry.content)}):
+            failures.append(f"{entry.name} contains forbidden secret field {field}")
         for pattern in FORBIDDEN_VALUE_PATTERNS:
             if pattern.search(entry.content):
                 failures.append(f"{entry.name} contains forbidden secret-like value")

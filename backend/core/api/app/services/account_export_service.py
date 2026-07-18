@@ -18,6 +18,7 @@ from typing import Any
 
 EXPORT_JOB_TTL_HOURS = 24
 EXPORT_SCHEMA_VERSION = "account-export-v1"
+DIRECTUS_RELATED_QUERY_BATCH_SIZE = 50
 TERMINAL_EXPORT_STATUSES = {"complete", "partial_accepted", "failed", "cancelled", "expired"}
 
 DEFAULT_EXPORT_DOMAINS = [
@@ -374,11 +375,15 @@ class AccountExportService:
     async def _get_related_rows(self, *, collection: str, field: str, values: list[str]) -> list[dict[str, Any]]:
         if not values:
             return []
-        rows = await self.directus_service.get_items(
-            collection,
-            params={"filter": {field: {"_in": values}}, "limit": -1},
-        )
-        return [row for row in (rows or []) if _is_personal_row(row)]
+        rows: list[dict[str, Any]] = []
+        for start in range(0, len(values), DIRECTUS_RELATED_QUERY_BATCH_SIZE):
+            batch = values[start:start + DIRECTUS_RELATED_QUERY_BATCH_SIZE]
+            result = await self.directus_service.get_items(
+                collection,
+                params={"filter": {field: {"_in": batch}}, "limit": -1},
+            )
+            rows.extend(result or [])
+        return [_redact_for_export(row) for row in rows if _is_personal_row(row)]
 
     async def _safe_profile_payload(self, *, user_id: str) -> dict[str, Any]:
         if hasattr(self.directus_service, "get_user"):

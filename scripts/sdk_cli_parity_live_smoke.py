@@ -194,6 +194,8 @@ def _run_npm_sdk(env: dict[str, str]) -> dict[str, Any]:
       if (!models3dOnly) await client.settings.setDarkMode(Boolean(account.darkmode));
       const billing = models3dOnly ? null : await client.billing.overview();
       const invoices = models3dOnly ? {{ invoices: [] }} : await client.billing.listInvoices();
+      const accountExport = models3dOnly ? null : await client.account.downloadExport({{ domains: ['usage'] }});
+      const accountExportManifest = accountExport?.manifest ?? {{}};
       console.log(JSON.stringify({{
         account: account ? Boolean(account.id) : null,
         chats: chats.length,
@@ -215,6 +217,12 @@ def _run_npm_sdk(env: dict[str, str]) -> dict[str, Any]:
         }} : null,
         billing: Boolean(billing),
         invoices: Array.isArray(invoices.invoices) ? invoices.invoices.length : null,
+        accountExport: accountExport ? {{
+          status: accountExport.export?.status,
+          selectedDomains: accountExportManifest.selected_domains,
+          domainKeys: Object.keys(accountExportManifest.domains ?? {{}}),
+          chunks: Array.isArray(accountExport.chunks) ? accountExport.chunks.length : null,
+        }} : null,
       }}));
     """
     result = _run(["node", "--input-type=module", "-e", script], env=env, description="npm SDK smoke")
@@ -302,6 +310,8 @@ if not models3d_only:
     client.settings.set_dark_mode(bool(account.get("darkmode")))
 billing = None if models3d_only else client.billing.overview()
 invoices = {"invoices": []} if models3d_only else client.billing.list_invoices()
+account_export = None if models3d_only else client.account.download_export(domains=["usage"])
+account_export_manifest = account_export.get("manifest", {}) if isinstance(account_export, dict) else {}
 print(json.dumps({
     "account": bool(account.get("id")) if account else None,
     "chats": len(chats),
@@ -323,6 +333,12 @@ print(json.dumps({
     } if design_icon_search else None,
     "billing": bool(billing),
     "invoices": len(invoices.get("invoices", [])) if isinstance(invoices.get("invoices"), list) else None,
+    "accountExport": {
+        "status": account_export.get("export", {}).get("status"),
+        "selectedDomains": account_export_manifest.get("selected_domains"),
+        "domainKeys": list((account_export_manifest.get("domains") or {}).keys()),
+        "chunks": len(account_export.get("chunks", [])) if isinstance(account_export.get("chunks"), list) else None,
+    } if account_export else None,
 }))
 """ % os.fspath(PYTHON_SDK_PATH)
     result = _run(["python3", "-c", script], env=env, description="Python SDK smoke")
@@ -373,6 +389,20 @@ def _assert_design_icon_search(result: dict[str, Any], *, sdk_name: str) -> None
         raise RuntimeError(f"{sdk_name} SDK design icon SVG export is empty: {export!r}")
     if export.get("pngSkipped") is None and (not isinstance(export.get("pngBytes"), int) or export["pngBytes"] <= 0):
         raise RuntimeError(f"{sdk_name} SDK design icon PNG export is empty: {export!r}")
+
+
+def _assert_account_export(result: dict[str, Any], *, sdk_name: str) -> None:
+    account_export = result.get("accountExport")
+    if not isinstance(account_export, dict):
+        raise RuntimeError(f"{sdk_name} SDK smoke did not return account export summary")
+    if account_export.get("status") != "complete":
+        raise RuntimeError(f"{sdk_name} SDK account export did not complete: {account_export!r}")
+    if account_export.get("selectedDomains") != ["usage"]:
+        raise RuntimeError(f"{sdk_name} SDK account export selected domains mismatch: {account_export!r}")
+    if "usage" not in (account_export.get("domainKeys") or []):
+        raise RuntimeError(f"{sdk_name} SDK account export manifest missing usage domain: {account_export!r}")
+    if not isinstance(account_export.get("chunks"), int) or account_export["chunks"] < 1:
+        raise RuntimeError(f"{sdk_name} SDK account export returned no chunks: {account_export!r}")
 
 
 def _cli_device_identity() -> str:
@@ -430,6 +460,7 @@ def main() -> int:
             _assert_models3d_details(npm_result, sdk_name="npm")
         else:
             _assert_design_icon_search(npm_result, sdk_name="npm")
+            _assert_account_export(npm_result, sdk_name="npm")
 
         python_result = None
         if not args.skip_python:
@@ -444,6 +475,7 @@ def main() -> int:
                 _assert_models3d_details(python_result, sdk_name="pip")
             else:
                 _assert_design_icon_search(python_result, sdk_name="pip")
+                _assert_account_export(python_result, sdk_name="pip")
 
         print(json.dumps({"apiUrl": args.api_url, "keyId": key_id, "approvedDevices": approved_devices, "npm": npm_result, "python": python_result}, indent=2))
         return 0

@@ -133,7 +133,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: ce08dd182
+  subject_commit: working-tree-fb726b658
 
 approvals:
   product_contract:
@@ -233,15 +233,22 @@ attempts:
     recorded_at: "2026-07-18T21:48:47Z"
     notes: >
       `python3 scripts/tests.py run --spec export-account-flow.spec.ts` waited for Vercel deployment `dpl_D5HXwRAWVhoWziH7CWRvYPzTE2s4` for commit ce08dd182, passed preflight run 29662173240, and passed `export-account-flow.spec.ts` run 29662228825. Earlier deployed attempts exposed disabled settings import setup, missing encrypted chat-key redaction, substring secret-scan false positives, and shared_encrypted_chat_key leakage; those were fixed in f483b0c2d, 65c88cbe5, d084297f8, and ce08dd182.
+  - id: ATTEMPT-9
+    task_id: TASK-4
+    approach: Strengthen real-dev CLI/SDK verification for full default-domain completeness after backend materialization work.
+    outcome: succeeded
+    recorded_at: "2026-07-18T22:55:00Z"
+    notes: >
+      `python3 scripts/verify_account_export_cli.py --env dev --scenario all` passed against api.dev.openmates.org after batching related Directus lookups to avoid URL-length failures on large chat histories. The full default export ZIP was about 102 MB and passed archive layout/secret scanning, including required default domains, chat messages/embeds, referenced upload S3 objects, and usage/task archive references. `OPENMATES_LIVE_SMOKE=1 python3 scripts/sdk_cli_parity_live_smoke.py --api-url https://api.dev.openmates.org --name account-export-sdk-smoke-20260718` passed npm and pip SDK account export smokes with temporary API key/device approval; both SDKs completed a real `usage`-domain export and the key was revoked. Local checks also passed: `python3 -m pytest backend/tests/test_account_export_jobs.py`, `python3 -m py_compile scripts/verify_account_export_cli.py scripts/verify_account_export_archive.py scripts/sdk_cli_parity_live_smoke.py`, and `python3 scripts/audit_sdk_cli_parity.py`.
 
 handoff:
   current_task_id: TASK-6
-  next_action: Add or run focused web filter, resume, partial, and standalone secret-scan evidence before marking TASK-6 done; deployed export-account-flow.spec.ts passed on ce08dd182.
-  command: node frontend/packages/openmates-cli/dist/cli.js account export --domains chats,usage --output /tmp/opencode/openmates-account-export-smoke.json --json
-  expected_outcome: CLI and SDK gates now prove route reachability, archive layout/safety, filter recording, partial lifecycle, and SDK chunk payload downloads, but full Account Export V1 still requires backend completeness plus web gates.
+  next_action: Deploy the batching/verifier changes, then add or run focused web filter, resume, partial, and standalone secret-scan evidence before marking TASK-6 done; deployed export-account-flow.spec.ts passed on ce08dd182.
+  command: python3 scripts/verify_account_export_cli.py --env dev --scenario all
+  expected_outcome: CLI and SDK gates now prove route reachability, archive layout/safety, default-domain completeness, filter recording, partial lifecycle, SDK chunk payload downloads, and real-dev npm/pip export completion; full Account Export V1 still requires focused web gates and user UI confirmation.
   blocker:
-    summary: Full decrypted chat/embed completeness, S3 archive merging, durable persistence, focused web filter/resume/partial specs/evidence, standalone web archive secret-scan evidence, and user UI confirmation remain incomplete.
-  last_verified_commit: ce08dd182
+    summary: Focused web filter/resume/partial specs/evidence, standalone web archive secret-scan evidence, user UI confirmation, and Apple parity remain incomplete.
+  last_verified_commit: working-tree-fb726b658
 
 scenarios:
   - id: S-1
@@ -725,7 +732,7 @@ tests:
       - archive is streamed to disk and contains expected domain files
       - export summary is complete and no forbidden secret markers are present
     red_phase: { required: true, expected: fail, evidence: { status: "", run_id: "", timestamp: "" } }
-    green_phase: { required: true, expected: pass_against_dev, evidence: { status: passed, command: "python3 scripts/verify_account_export_cli.py --env dev --scenario complete-default-export", run_id: "local-2026-07-18T18:37:31Z", subject_commit: bb78c1789fc2a32f90ca9b3c3432c28d9a1b1ffe, timestamp: "2026-07-18T18:37:31Z" } }
+    green_phase: { required: true, expected: pass_against_dev, evidence: { status: passed, command: "python3 scripts/verify_account_export_cli.py --env dev --scenario all", run_id: "local-2026-07-18T22:44:00Z", subject_commit: working-tree-fb726b658, timestamp: "2026-07-18T22:44:00Z" } }
   - id: T-CLI-FILTERS-DEV
     type: manual
     file: scripts/verify_account_export_cli.py
@@ -735,7 +742,7 @@ tests:
       - real CLI filtered export includes only requested chat/task/project/plan/workflow/usage windows
       - required referenced embeds/uploads are still included
     red_phase: { required: true, expected: fail, evidence: { status: "", run_id: "", timestamp: "" } }
-    green_phase: { required: true, expected: pass_against_dev, evidence: { status: passed, command: "python3 scripts/verify_account_export_cli.py --env dev --scenario filtered-export", run_id: "local-2026-07-18T18:37:31Z", subject_commit: bb78c1789fc2a32f90ca9b3c3432c28d9a1b1ffe, timestamp: "2026-07-18T18:37:31Z" } }
+    green_phase: { required: true, expected: pass_against_dev, evidence: { status: passed, command: "python3 scripts/verify_account_export_cli.py --env dev --scenario all", run_id: "local-2026-07-18T22:44:00Z", subject_commit: working-tree-fb726b658, timestamp: "2026-07-18T22:44:00Z" } }
   - id: T-CLI-PARTIAL-DEV
     type: manual
     file: scripts/verify_account_export_cli.py
@@ -745,7 +752,7 @@ tests:
       - CLI shows retry/cancel/accept-partial choices for injected export failure
       - last_export_at is not updated before explicit acceptance
     red_phase: { required: true, expected: fail, evidence: { status: "", run_id: "", timestamp: "" } }
-    green_phase: { required: true, expected: pass_against_dev, evidence: { status: passed, command: "python3 scripts/verify_account_export_cli.py --env dev --scenario partial-export", run_id: "local-2026-07-18T18:37:31Z", subject_commit: bb78c1789fc2a32f90ca9b3c3432c28d9a1b1ffe, timestamp: "2026-07-18T18:37:31Z" } }
+    green_phase: { required: true, expected: pass_against_dev, evidence: { status: passed, command: "python3 scripts/verify_account_export_cli.py --env dev --scenario all", run_id: "local-2026-07-18T22:44:00Z", subject_commit: working-tree-fb726b658, timestamp: "2026-07-18T22:44:00Z" } }
   - id: T-CLI-SECRET-SCAN
     type: lint
     file: scripts/verify_account_export_archive.py
@@ -755,7 +762,7 @@ tests:
       - archive text files do not contain forbidden secret field names or known test secret values
       - export report lists redacted secret categories
     red_phase: { required: true, expected: fail, evidence: { status: "", run_id: "", timestamp: "" } }
-    green_phase: { required: true, expected: pass, evidence: { status: passed, command: "python3 scripts/verify_account_export_archive.py --zip <generated-temp-archive.zip> --forbid-secrets", run_id: "local-2026-07-18T18:37:31Z", subject_commit: bb78c1789fc2a32f90ca9b3c3432c28d9a1b1ffe, timestamp: "2026-07-18T18:37:31Z" } }
+    green_phase: { required: true, expected: pass, evidence: { status: passed, command: "python3 scripts/verify_account_export_archive.py --zip /tmp/opencode/account-export-cli-mqwwzu0d/complete-default-export.zip --layout-v1 --forbid-secrets", run_id: "local-2026-07-18T22:41:00Z", subject_commit: working-tree-fb726b658, timestamp: "2026-07-18T22:41:00Z" } }
   - id: T-CLI-ARCHIVE-LAYOUT
     type: lint
     file: scripts/verify_account_export_archive.py
@@ -766,7 +773,7 @@ tests:
       - no root checksums.sha256 file exists
       - chats contain one md and one yml per chat
     red_phase: { required: true, expected: fail, evidence: { status: "", run_id: "", timestamp: "" } }
-    green_phase: { required: true, expected: pass, evidence: { status: passed, command: "python3 scripts/verify_account_export_archive.py --zip <generated-temp-archive.zip> --layout-v1", run_id: "local-2026-07-18T18:37:31Z", subject_commit: bb78c1789fc2a32f90ca9b3c3432c28d9a1b1ffe, timestamp: "2026-07-18T18:37:31Z" } }
+    green_phase: { required: true, expected: pass, evidence: { status: passed, command: "python3 scripts/verify_account_export_archive.py --zip /tmp/opencode/account-export-cli-mqwwzu0d/complete-default-export.zip --layout-v1 --forbid-secrets", run_id: "local-2026-07-18T22:41:00Z", subject_commit: working-tree-fb726b658, timestamp: "2026-07-18T22:41:00Z" } }
   - id: T-NPM-SDK-EXPORT
     type: unit
     file: frontend/packages/openmates-cli/tests/account-export-sdk.test.ts
@@ -777,7 +784,7 @@ tests:
       - SDK request defaults and filter names match CLI/web contract
       - SDK redaction semantics match backend contract
     red_phase: { required: true, expected: fail, evidence: { status: "", run_id: "", timestamp: "" } }
-    green_phase: { required: true, expected: pass, evidence: { status: passed, command: "cd frontend/packages/openmates-cli && node --test --experimental-strip-types --loader ./tests/loader.mjs tests/account-export-sdk.test.ts; npm SDK dev smoke against https://api.dev.openmates.org", run_id: "local-2026-07-18T18:37:31Z", subject_commit: bb78c1789fc2a32f90ca9b3c3432c28d9a1b1ffe, timestamp: "2026-07-18T18:37:31Z" } }
+    green_phase: { required: true, expected: pass, evidence: { status: passed, command: "OPENMATES_LIVE_SMOKE=1 python3 scripts/sdk_cli_parity_live_smoke.py --api-url https://api.dev.openmates.org --name account-export-sdk-smoke-20260718", run_id: "local-2026-07-18T22:51:00Z", subject_commit: working-tree-fb726b658, timestamp: "2026-07-18T22:51:00Z" } }
   - id: T-PIP-SDK-EXPORT
     type: pytest
     file: packages/openmates-python/tests/test_account_export.py
@@ -788,7 +795,7 @@ tests:
       - SDK request defaults and filter names match CLI/web contract
       - SDK redaction semantics match backend contract
     red_phase: { required: true, expected: fail, evidence: { status: "", run_id: "", timestamp: "" } }
-    green_phase: { required: true, expected: pass, evidence: { status: passed, command: "python3 -m pytest packages/openmates-python/tests/test_account_export.py; pip SDK dev smoke against https://api.dev.openmates.org", run_id: "local-2026-07-18T18:37:31Z", subject_commit: bb78c1789fc2a32f90ca9b3c3432c28d9a1b1ffe, timestamp: "2026-07-18T18:37:31Z" } }
+    green_phase: { required: true, expected: pass, evidence: { status: passed, command: "OPENMATES_LIVE_SMOKE=1 python3 scripts/sdk_cli_parity_live_smoke.py --api-url https://api.dev.openmates.org --name account-export-sdk-smoke-20260718", run_id: "local-2026-07-18T22:51:00Z", subject_commit: working-tree-fb726b658, timestamp: "2026-07-18T22:51:00Z" } }
   - id: T-PARITY-AUDIT
     type: lint
     file: scripts/audit_sdk_cli_parity.py
@@ -797,7 +804,7 @@ tests:
     assertions:
       - account export CLI, npm SDK, and pip SDK surfaces remain in parity
     red_phase: { required: false, expected: pass_or_existing_failure, evidence: { status: "", run_id: "", timestamp: "" } }
-    green_phase: { required: true, expected: pass, evidence: { status: passed, command: "python3 scripts/audit_sdk_cli_parity.py", run_id: "local-2026-07-18T18:37:31Z", subject_commit: bb78c1789fc2a32f90ca9b3c3432c28d9a1b1ffe, timestamp: "2026-07-18T18:37:31Z" } }
+    green_phase: { required: true, expected: pass, evidence: { status: passed, command: "python3 scripts/audit_sdk_cli_parity.py", run_id: "local-2026-07-18T22:52:00Z", subject_commit: working-tree-fb726b658, timestamp: "2026-07-18T22:52:00Z" } }
   - id: T-WEB-EXPORT
     type: playwright
     file: frontend/apps/web_app/tests/export-account-flow.spec.ts
