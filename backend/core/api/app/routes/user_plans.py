@@ -12,8 +12,10 @@ from pydantic import BaseModel, Field
 
 from backend.core.api.app.models.user import User
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user_or_api_key
+from backend.core.api.app.services.directus.team_methods import TeamPermissionError
 from backend.core.api.app.services.feature_availability_guards import ensure_plans_enabled
 from backend.core.api.app.services.limiter import limiter
+from backend.core.api.app.services.team_workspace_service import move_workspace_record_to_team
 from backend.core.api.app.services.user_plan_service import (
     UserPlanConflictError,
     UserPlanNotFoundError,
@@ -97,6 +99,12 @@ class UserPlanUpdateRequest(BaseModel):
     updated_at: int | None = None
     version: int | None = None
     key_wrappers: list[UserPlanKeyWrapperRequest] | None = None
+
+
+class UserPlanMoveRequest(BaseModel):
+    team_id: str
+    confirmed: bool
+    moved_at: int | None = None
 
 
 class PlanActivationRequest(BaseModel):
@@ -198,6 +206,8 @@ async def _current_user(request: Request, response: Response) -> User:
 
 
 def _handle_plan_error(exc: Exception) -> None:
+    if isinstance(exc, TeamPermissionError):
+        raise HTTPException(status_code=403, detail="TEAM_PERMISSION_DENIED") from exc
     if isinstance(exc, UserPlanConflictError):
         raise HTTPException(status_code=409, detail="PLAN_VERSION_CONFLICT") from exc
     if isinstance(exc, UserPlanNotFoundError):
@@ -216,11 +226,17 @@ async def list_user_plans(
     project_id: str | None = None,
     chat_id: str | None = None,
     active_only: bool = False,
+    team_id: str | None = None,
     limit: int = 100,
     service: UserPlanService = Depends(get_user_plan_service),
 ) -> dict[str, Any]:
     current_user = await _current_user(request, response)
-    plans = await service.list_plans(current_user.id, status=status, project_id=project_id, chat_id=chat_id, active_only=active_only, limit=limit)
+    try:
+        if team_id:
+            await request.app.state.directus_service.team.require_team_role(team_id, current_user.id, {"owner", "admin", "member", "viewer"})
+    except Exception as exc:
+        _handle_plan_error(exc)
+    plans = await service.list_plans(current_user.id, status=status, project_id=project_id, chat_id=chat_id, active_only=active_only, team_id=team_id, limit=limit)
     return {"plans": plans}
 
 
@@ -252,6 +268,30 @@ async def update_user_plan(
     current_user = await _current_user(request, response)
     try:
         plan = await service.update_plan(plan_id, current_user.id, body.model_dump(exclude_unset=True))
+        return {"plan": plan}
+    except Exception as exc:
+        _handle_plan_error(exc)
+
+
+@router.post("/{plan_id}/move")
+@limiter.limit("20/minute")
+async def move_user_plan_to_team(
+    request: Request,
+    response: Response,
+    plan_id: str,
+    body: UserPlanMoveRequest,
+) -> dict[str, Any]:
+    current_user = await _current_user(request, response)
+    try:
+        plan = await move_workspace_record_to_team(
+            directus_service=request.app.state.directus_service,
+            actor_user_id=current_user.id,
+            team_id=body.team_id,
+            workspace_type="plan",
+            object_id=plan_id,
+            confirmed=body.confirmed,
+            moved_at=body.moved_at,
+        )
         return {"plan": plan}
     except Exception as exc:
         _handle_plan_error(exc)

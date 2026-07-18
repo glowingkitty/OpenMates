@@ -177,6 +177,130 @@ def test_recovery_send_does_not_enqueue_while_another_task_is_active(monkeypatch
     ]
 
 
+def test_team_recovery_send_skips_personal_cache_completeness_gate(monkeypatch):
+    from backend.core.api.app.routes.handlers.websocket_handlers import message_received_handler
+
+    manager = FakeManager()
+    cutover = SimpleNamespace(get_epoch=AsyncMock(return_value=1))
+    cached_messages = [
+        json.dumps(
+            {
+                "id": "msg-current",
+                "chat_id": "team-chat-123",
+                "role": "user",
+                "sender_name": "user",
+                "encrypted_content": "encrypted-current",
+                "created_at": 1_700_000_010,
+            }
+        ),
+        json.dumps(
+            {
+                "id": "msg-owner-previous",
+                "chat_id": "team-chat-123",
+                "role": "user",
+                "sender_name": "user",
+                "encrypted_content": "encrypted-previous",
+                "created_at": 1_700_000_000,
+            }
+        ),
+    ]
+    cache_service = SimpleNamespace(
+        get_user_vault_key_id=AsyncMock(return_value="vault-key-123"),
+        save_chat_message_and_update_versions=AsyncMock(
+            return_value={"messages_v": 5, "last_edited_overall_timestamp": 1_700_000_010}
+        ),
+        delete_user_draft_from_cache=AsyncMock(return_value=False),
+        delete_user_draft_version_from_chat_versions=AsyncMock(return_value=False),
+        get_ai_messages_history=AsyncMock(return_value=cached_messages),
+        get_user_by_id=AsyncMock(return_value={"language": "en"}),
+        get_chat_list_item_data=AsyncMock(return_value={}),
+        get_active_ai_task=AsyncMock(return_value=None),
+        set_active_ai_task=AsyncMock(),
+        update_user=AsyncMock(),
+    )
+    directus_service = SimpleNamespace(
+        chat=SimpleNamespace(
+            get_chat_metadata=AsyncMock(return_value={"messages_v": 4, "title_v": 1}),
+            check_chat_ownership=AsyncMock(return_value=False),
+        ),
+        team=SimpleNamespace(require_team_role=AsyncMock(return_value={"role": "owner"})),
+        get_user_profile=AsyncMock(),
+        get_user_fields_direct=AsyncMock(return_value={}),
+    )
+    encryption_service = SimpleNamespace(
+        encrypt_with_user_key=AsyncMock(return_value=("encrypted-current", 1)),
+        decrypt_with_user_key=AsyncMock(side_effect=["@openmates summarize this", "Earlier owner note"]),
+    )
+    enqueue = AsyncMock(
+        return_value={
+            "inference_task_id": "task-123",
+            "outbox_id": "outbox-123",
+        }
+    )
+    recovery_calls = []
+
+    class FakeRecoveryService:
+        def __init__(self, directus_service):
+            self.directus_service = directus_service
+
+        async def execute(self, operation, data):
+            recovery_calls.append((operation, data))
+            return {"dispatched": True}
+
+    monkeypatch.setitem(
+        sys.modules,
+        "backend.core.api.app.services.embed_service",
+        SimpleNamespace(EmbedService=FakeEmbedService),
+    )
+    monkeypatch.setitem(
+        sys.modules,
+        "backend.core.api.app.services.skill_registry",
+        SimpleNamespace(get_global_registry=lambda: FakeSkillRegistry(manager)),
+    )
+    monkeypatch.setattr(message_received_handler, "enqueue_chat_turn", enqueue)
+    monkeypatch.setattr(message_received_handler, "ChatRecoveryService", FakeRecoveryService)
+    monkeypatch.setattr(
+        message_received_handler,
+        "ChatRecoveryCutoverController",
+        lambda cache, directus: cutover,
+    )
+
+    asyncio.run(
+        message_received_handler.handle_message_received(
+            websocket=SimpleNamespace(),
+            manager=manager,
+            cache_service=cache_service,
+            directus_service=directus_service,
+            encryption_service=encryption_service,
+            user_id="user-123",
+            device_fingerprint_hash="device-123",
+            payload={
+                "chat_id": "team-chat-123",
+                "team_id": "team-123",
+                "protocol_version": 1,
+                "preflight_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+                "turn_id": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+                "recovery_public_key": "recovery-public-key",
+                "chat_key_version": 1,
+                "message": {
+                    "message_id": "msg-current",
+                    "role": "user",
+                    "content": "@openmates summarize this",
+                    "created_at": 1_700_000_010,
+                    "chat_has_title": True,
+                },
+            },
+        )
+    )
+
+    assert ("dispatch_skill", "ai", "ask", "team-chat-123") in manager.calls
+    assert not any(call[1] == "request_chat_history" for call in manager.calls if call[0] == "send_personal_message")
+    enqueue.assert_awaited_once()
+    assert recovery_calls[0][0] == "mark_outbox_dispatched"
+    cache_service.set_active_ai_task.assert_awaited_once_with("team-chat-123", "task-123")
+    directus_service.chat.check_chat_ownership.assert_not_awaited()
+
+
 def test_incognito_send_skips_durable_cutover_lookup(monkeypatch):
     from backend.core.api.app.routes.handlers.websocket_handlers import message_received_handler
 

@@ -23,6 +23,7 @@ from backend.core.api.app.utils.config_manager import ConfigManager
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.services.billing_service import BillingService
+from backend.core.api.app.services.team_billing_service import TeamBillingService, TeamInsufficientCreditsError
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.server_stats_service import ServerStatsService
 from backend.core.api.app.services.s3.service import S3UploadService
@@ -82,6 +83,12 @@ def get_billing_service(
     server_stats_service: ServerStatsService = Depends(get_server_stats_service)
 ) -> BillingService:
     return BillingService(cache_service, directus_service, encryption_service, server_stats_service)
+
+
+def get_team_billing_service(
+    directus_service: DirectusService = Depends(get_directus_service),
+) -> TeamBillingService:
+    return TeamBillingService(directus_service)
 
 def get_s3_service(request: Request) -> S3UploadService:
     if not hasattr(request.app.state, 's3_service'):
@@ -525,6 +532,16 @@ class CreditChargePayload(BaseModel):
     api_key_hash: Optional[str] = None  # SHA-256 hash of API key for tracking
     device_hash: Optional[str] = None  # SHA-256 hash of device for tracking
 
+
+class TeamCreditChargePayload(BaseModel):
+    team_id: str
+    actor_user_id: str
+    credits: int
+    skill_id: str
+    app_id: str
+    idempotency_key: Optional[str] = None
+    usage_details: Optional[Dict[str, Any]] = None
+
 @router.get("/billing/balance")
 async def get_user_credit_balance(
     user_id: str,
@@ -591,6 +608,40 @@ async def charge_credits_route(
     except Exception as e:
         logger.error(f"Error charging credits for user {payload.user_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error charging credits: {str(e)}")
+
+
+@router.post("/billing/team/charge")
+async def charge_team_credits_route(
+    payload: TeamCreditChargePayload,
+    team_billing_service: TeamBillingService = Depends(get_team_billing_service),
+) -> Dict[str, Any]:
+    logger.info(
+        "Internal API: Charging %s team credits for team '%s', app '%s', skill '%s'.",
+        payload.credits,
+        payload.team_id,
+        payload.app_id,
+        payload.skill_id,
+    )
+    if payload.credits <= 0:
+        return {"status": "skipped", "reason": "Non-positive credits"}
+    usage_details = payload.usage_details or {}
+    event_id = payload.idempotency_key or str(usage_details.get("message_id") or usage_details.get("chat_id") or int(time.time()))
+    try:
+        result = await team_billing_service.charge_team_credits(
+            team_id=payload.team_id,
+            actor_user_id=payload.actor_user_id,
+            event_id=event_id,
+            credits=payload.credits,
+            workspace_type=str(usage_details.get("workspace_type") or "chat"),
+            object_id_hash=usage_details.get("object_id_hash"),
+            encrypted_metadata=usage_details.get("encrypted_metadata"),
+        )
+        return {"status": "success", "charged_credits": payload.credits, "team_usage_event_id": result["usage_event"].get("id")}
+    except TeamInsufficientCreditsError as exc:
+        raise HTTPException(status_code=402, detail="INSUFFICIENT_TEAM_CREDITS") from exc
+    except Exception as exc:
+        logger.error("Error charging team credits for team %s: %s", payload.team_id, exc, exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error charging team credits") from exc
 
 
 class CreditRefundPayload(BaseModel):

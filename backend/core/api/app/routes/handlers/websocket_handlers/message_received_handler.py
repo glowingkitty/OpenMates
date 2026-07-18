@@ -1483,8 +1483,11 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
 
                     logger.debug(f"History validation for chat {chat_id}: expected_total={expected_total_messages}, expected_previous={expected_previous_messages}, actual_previous={actual_previous_messages}, current_msg_in_cache={current_msg_in_cache}, decryption_failures={decryption_failures}")
 
-                    # For existing chats with expected history, validate we have sufficient context
-                    if is_existing_chat and expected_previous_messages > 0:
+                    # For existing personal chats, validate we have sufficient context.
+                    # Team chat AI cache is per sender, so it will not contain messages
+                    # authored by other members; rejecting it here prevents explicit
+                    # @openmates team turns from ever dispatching.
+                    if not is_team_chat and is_existing_chat and expected_previous_messages > 0:
                         # Check if we have significantly fewer messages than expected
                         # Allow some tolerance for edge cases, but require at least 50% of expected messages
                         minimum_required = max(1, expected_previous_messages // 2)
@@ -1510,7 +1513,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
 
                     # Legacy validation for complete cache failures
                     if len(message_history_for_ai) < 1:
-                        if is_existing_chat:
+                        if not is_team_chat and is_existing_chat:
                             # Existing chat with no history at all - request it
                             logger.warning(f"No messages successfully decrypted from cache for chat {chat_id} ({decryption_failures} decryption failures out of {len(cached_messages_str_list)} cached). Requesting full history from client.")
                             await manager.send_personal_message(
@@ -1531,14 +1534,16 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                             logger.info(f"New chat {chat_id} has no cached history (expected). Proceeding with empty history.")
 
                     # Log final validation result
-                    if is_existing_chat:
+                    if is_existing_chat and not is_team_chat:
                         logger.info(f"History validation passed for existing chat {chat_id}: using {actual_previous_messages} cached messages (expected {expected_previous_messages})")
+                    elif is_team_chat:
+                        logger.info(f"Team chat {chat_id} proceeding with {actual_previous_messages} sender-local cached messages")
                     else:
                         logger.info(f"New chat {chat_id} proceeding with {actual_previous_messages} cached messages")
                 else:
                     # Cache is completely empty - request full history from client
                     # BUT: Only request history for existing chats (messages_v > 1), not new chats
-                    if is_existing_chat:
+                    if not is_team_chat and is_existing_chat:
                         # Existing chat with empty cache - request history
                         logger.info(f"AI cache is empty for existing chat {chat_id} (messages_v > 1). Requesting full chat history from client.")
                         await manager.send_personal_message(
@@ -1562,7 +1567,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                         # never processed by the AI pipeline — so it was never added to the cache.
                         # We must request history from the client so the AI has proper context.
                         db_messages_v = chat_metadata_from_db.get("messages_v", 0) if chat_metadata_from_db else 0
-                        if db_messages_v >= 1:
+                        if not is_team_chat and db_messages_v >= 1:
                             logger.info(
                                 f"Chat {chat_id} has empty AI cache but DB shows messages_v={db_messages_v}. "
                                 f"Pre-existing messages (e.g. inspiration intro) exist that were never AI-cached. "

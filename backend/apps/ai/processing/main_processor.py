@@ -1535,14 +1535,33 @@ async def _charge_skill_credits(
                 # Each individual request gets units_processed=1 to reflect one request
                 request_usage_details = {**usage_details, "units_processed": 1}
                 
-                charge_payload = {
-                    "user_id": request_data.user_id,
-                    "user_id_hash": request_data.user_id_hash,
-                    "credits": request_credits,
-                    "skill_id": skill_id,  # Required: ID of the skill that was executed
-                    "app_id": app_id,  # Required: ID of the app that contains the skill
-                    "usage_details": request_usage_details  # Contains chat_id, message_id, and other optional metadata
-                }
+                team_id = getattr(request_data, "team_id", None)
+                if team_id:
+                    request_usage_details = {
+                        **request_usage_details,
+                        "workspace_type": getattr(request_data, "team_workspace_type", None) or "chat",
+                        "object_id_hash": getattr(request_data, "team_object_id_hash", None),
+                    }
+                    charge_payload = {
+                        "team_id": team_id,
+                        "actor_user_id": request_data.user_id,
+                        "credits": request_credits,
+                        "skill_id": skill_id,
+                        "app_id": app_id,
+                        "idempotency_key": f"{app_id}.{skill_id}:{request_data.message_id}:{i}",
+                        "usage_details": request_usage_details,
+                    }
+                    url = f"{INTERNAL_API_BASE_URL}/internal/billing/team/charge"
+                else:
+                    charge_payload = {
+                        "user_id": request_data.user_id,
+                        "user_id_hash": request_data.user_id_hash,
+                        "credits": request_credits,
+                        "skill_id": skill_id,  # Required: ID of the skill that was executed
+                        "app_id": app_id,  # Required: ID of the app that contains the skill
+                        "usage_details": request_usage_details  # Contains chat_id, message_id, and other optional metadata
+                    }
+                    url = f"{INTERNAL_API_BASE_URL}/internal/billing/charge"
                 logger.info(f"{log_prefix} Charging {request_credits} credits for skill '{app_id}.{skill_id}' (request {i + 1}/{units_processed}).")
                 response = await client.post(url, json=charge_payload, headers=headers, timeout=10.0)
                 response.raise_for_status()

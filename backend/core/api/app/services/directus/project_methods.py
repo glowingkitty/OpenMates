@@ -14,7 +14,7 @@ PROJECT_KEY_WRAPPER_TYPES = {"master", "chat", "project", "plan", "team"}
 
 
 PROJECT_FIELDS = (
-    "id,project_id,hashed_user_id,encrypted_project_key,encrypted_name,"
+    "id,project_id,hashed_user_id,hashed_team_id,encrypted_project_key,encrypted_name,"
     "encrypted_description,encrypted_icon,encrypted_color,pinned,archived,"
     "is_private,is_shared,version,created_at,updated_at,last_opened_at,item_count"
 )
@@ -86,28 +86,36 @@ class ProjectMethods:
     def __init__(self, directus_service):
         self.directus_service = directus_service
 
-    async def list_projects(self, user_id: str, include_archived: bool = False) -> List[Dict[str, Any]]:
+    async def list_projects(self, user_id: str, include_archived: bool = False, team_id: str | None = None) -> List[Dict[str, Any]]:
         hashed_user_id = hash_id(user_id)
         params: Dict[str, Any] = {
-            "filter[hashed_user_id][_eq]": hashed_user_id,
             "fields": PROJECT_FIELDS,
             "sort": "-pinned,-last_opened_at,-updated_at",
             "limit": -1,
         }
+        if team_id:
+            params["filter[hashed_team_id][_eq]"] = hash_id(team_id)
+        else:
+            params["filter[hashed_user_id][_eq]"] = hashed_user_id
+            params["filter[hashed_team_id][_null]"] = True
         if not include_archived:
             params["filter[archived][_neq]"] = True
 
         response = await self.directus_service.get_items("projects", params=params, no_cache=True)
         return response if isinstance(response, list) else []
 
-    async def get_project(self, project_id: str, user_id: str) -> Optional[Dict[str, Any]]:
+    async def get_project(self, project_id: str, user_id: str, team_id: str | None = None) -> Optional[Dict[str, Any]]:
         hashed_user_id = hash_id(user_id)
         params = {
             "filter[project_id][_eq]": project_id,
-            "filter[hashed_user_id][_eq]": hashed_user_id,
             "fields": PROJECT_FIELDS,
             "limit": 1,
         }
+        if team_id:
+            params["filter[hashed_team_id][_eq]"] = hash_id(team_id)
+        else:
+            params["filter[hashed_user_id][_eq]"] = hashed_user_id
+            params["filter[hashed_team_id][_null]"] = True
         response = await self.directus_service.get_items("projects", params=params, no_cache=True)
         if response and isinstance(response, list):
             return response[0]

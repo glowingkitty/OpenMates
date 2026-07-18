@@ -15,7 +15,9 @@ from backend.core.api.app.models.user import User
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user
 from backend.core.api.app.services.feature_availability_guards import ensure_projects_enabled
 from backend.core.api.app.services.directus import DirectusService
+from backend.core.api.app.services.directus.team_methods import TeamPermissionError
 from backend.core.api.app.services.limiter import limiter
+from backend.core.api.app.services.team_workspace_service import TeamWorkspaceMoveError, move_workspace_record_to_team
 from backend.core.api.app.services.workflow_service import DirectusWorkflowRepository, WorkflowNotFoundError, WorkflowService
 
 logger = logging.getLogger(__name__)
@@ -62,6 +64,12 @@ class ProjectUpdateRequest(BaseModel):
     updated_at: Optional[int] = None
     last_opened_at: Optional[int] = None
     version: Optional[int] = None
+
+
+class ProjectMoveRequest(BaseModel):
+    team_id: str
+    confirmed: bool
+    moved_at: int | None = None
 
 
 class FolderCreateRequest(BaseModel):
@@ -158,10 +166,16 @@ def serialize_project_settings(settings: Optional[Dict[str, Any]]) -> Dict[str, 
 async def list_projects(
     request: Request,
     include_archived: bool = False,
+    team_id: str | None = None,
     current_user: User = Depends(get_current_user),
     directus_service: DirectusService = Depends(get_directus_service),
 ) -> Dict[str, Any]:
-    projects = await directus_service.project.list_projects(current_user.id, include_archived=include_archived)
+    if team_id:
+        try:
+            await directus_service.team.require_team_role(team_id, current_user.id, {"owner", "admin", "member", "viewer"})
+        except TeamPermissionError as exc:
+            raise HTTPException(status_code=403, detail="TEAM_PERMISSION_DENIED") from exc
+    projects = await directus_service.project.list_projects(current_user.id, include_archived=include_archived, team_id=team_id)
     return {"projects": projects}
 
 
@@ -184,14 +198,46 @@ async def create_project(
 async def get_project(
     request: Request,
     project_id: str,
+    team_id: str | None = None,
     current_user: User = Depends(get_current_user),
     directus_service: DirectusService = Depends(get_directus_service),
 ) -> Dict[str, Any]:
-    project = await directus_service.project.get_project(project_id, current_user.id)
+    if team_id:
+        try:
+            await directus_service.team.require_team_role(team_id, current_user.id, {"owner", "admin", "member", "viewer"})
+        except TeamPermissionError as exc:
+            raise HTTPException(status_code=403, detail="TEAM_PERMISSION_DENIED") from exc
+    project = await directus_service.project.get_project(project_id, current_user.id, team_id=team_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
     folders, items = await _load_project_children(project_id, current_user.id, directus_service)
     return {"project": project, "folders": folders, "items": items}
+
+
+@router.post("/{project_id}/move")
+@limiter.limit("20/minute")
+async def move_project_to_team(
+    request: Request,
+    project_id: str,
+    body: ProjectMoveRequest,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+) -> Dict[str, Any]:
+    try:
+        project = await move_workspace_record_to_team(
+            directus_service=directus_service,
+            actor_user_id=current_user.id,
+            team_id=body.team_id,
+            workspace_type="project",
+            object_id=project_id,
+            confirmed=body.confirmed,
+            moved_at=body.moved_at,
+        )
+    except TeamPermissionError as exc:
+        raise HTTPException(status_code=403, detail="TEAM_PERMISSION_DENIED") from exc
+    except TeamWorkspaceMoveError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {"project": project}
 
 
 @router.patch("/{project_id}")

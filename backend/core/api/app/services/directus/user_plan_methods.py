@@ -15,7 +15,7 @@ KEY_WRAPPER_TYPES = {"master", "chat", "project", "plan", "team"}
 
 
 USER_PLAN_FIELDS = (
-    "id,plan_id,hashed_user_id,status,primary_chat_id,hashed_primary_chat_id,"
+    "id,plan_id,hashed_user_id,hashed_team_id,status,primary_chat_id,hashed_primary_chat_id,"
     "linked_project_hashes,current_phase_id,current_step_id,current_task_id,"
     "planner_focus_id,version,created_at,updated_at,completed_at,"
     "encrypted_plan_key,encrypted_title,encrypted_summary,encrypted_goal,"
@@ -160,14 +160,19 @@ class UserPlanMethods:
         chat_id: str | None = None,
         project_id: str | None = None,
         active_only: bool = False,
+        team_id: str | None = None,
         limit: int = 100,
     ) -> list[dict[str, Any]]:
         params: dict[str, Any] = {
-            "filter[hashed_user_id][_eq]": hash_id(user_id),
             "fields": USER_PLAN_FIELDS,
             "sort": "-updated_at",
             "limit": max(1, min(limit, 500)),
         }
+        if team_id:
+            params["filter[hashed_team_id][_eq]"] = hash_id(team_id)
+        else:
+            params["filter[hashed_user_id][_eq]"] = hash_id(user_id)
+            params["filter[hashed_team_id][_null]"] = True
         if status:
             params["filter[status][_eq]"] = status
         if active_only:
@@ -179,13 +184,17 @@ class UserPlanMethods:
         response = await self.directus_service.get_items("user_plans", params=params, no_cache=True)
         return response if isinstance(response, list) else []
 
-    async def get_plan(self, plan_id: str, user_id: str) -> dict[str, Any] | None:
+    async def get_plan(self, plan_id: str, user_id: str, team_id: str | None = None) -> dict[str, Any] | None:
         params = {
             "filter[plan_id][_eq]": plan_id,
-            "filter[hashed_user_id][_eq]": hash_id(user_id),
             "fields": USER_PLAN_FIELDS,
             "limit": 1,
         }
+        if team_id:
+            params["filter[hashed_team_id][_eq]"] = hash_id(team_id)
+        else:
+            params["filter[hashed_user_id][_eq]"] = hash_id(user_id)
+            params["filter[hashed_team_id][_null]"] = True
         response = await self.directus_service.get_items("user_plans", params=params, no_cache=True)
         if response and isinstance(response, list):
             return response[0]

@@ -21,6 +21,7 @@ from backend.core.api.app.services.chat_recovery_service import (
     ChatRecoveryProtocolError,
     ChatRecoveryService,
 )
+from backend.core.api.app.services.directus.team_methods import TeamPermissionError, hash_id
 from backend.core.api.app.services.chat_recovery_telemetry import (
     record_recovery_duration,
     start_recovery_timing,
@@ -167,6 +168,14 @@ async def handle_chat_turn_preflight(
         encrypted_user_message = dict(payload["encrypted_user_message"])
         encrypted_user_message["hashed_user_id"] = user_id_hash
         inference_request = dict(payload["inference_request"])
+        team_id = payload.get("team_id")
+        hashed_team_id = None
+        if isinstance(team_id, str) and team_id:
+            try:
+                await directus_service.team.require_team_role(team_id, user_id, {"owner", "admin", "member"})
+            except TeamPermissionError:
+                raise ChatRecoveryProtocolError(403, "team_permission_denied") from None
+            hashed_team_id = hash_id(team_id)
         inference_request["client_capabilities"] = server_client_capabilities(
             manager,
             user_id,
@@ -187,6 +196,8 @@ async def handle_chat_turn_preflight(
             "expected_messages_v": payload["expected_messages_v"],
             "encrypted_user_message": encrypted_user_message,
         }
+        if hashed_team_id:
+            transaction_data["hashed_team_id"] = hashed_team_id
         if payload.get("encrypted_chat_metadata") is not None:
             transaction_data["encrypted_chat_metadata"] = payload["encrypted_chat_metadata"]
         started_at = start_recovery_timing()

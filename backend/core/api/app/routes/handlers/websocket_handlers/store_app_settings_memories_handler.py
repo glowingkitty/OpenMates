@@ -54,6 +54,10 @@ MAX_ENCRYPTED_ENTRY_BYTES: int = 20_000   # 20 KB upper bound for encrypted_item
 MAX_ITEM_KEY_BYTES: int = 500            # 500 bytes upper bound for the plain-text item_key
 
 
+def _hash_id(value: str) -> str:
+    return hashlib.sha256(value.encode()).hexdigest()
+
+
 async def handle_store_app_settings_memories_entry(
     websocket,
     manager: ConnectionManager,
@@ -86,7 +90,7 @@ async def handle_store_app_settings_memories_entry(
     """
     _otel_span, _otel_token = None, None
     try:
-        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span, end_ws_handler_span
+        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span
         _otel_span, _otel_token = start_ws_handler_span("store_app_settings_memories_entry", user_id, payload, user_otel_attrs)
     except Exception:
         pass
@@ -116,6 +120,7 @@ async def handle_store_app_settings_memories_entry(
             updated_at = entry.get("updated_at")
             item_version = entry.get("item_version", 1)
             sequence_number = entry.get("sequence_number")
+            team_id = payload.get("team_id") or entry.get("team_id")
         
             if not all([entry_id, app_id, item_key, encrypted_item_json is not None]):
                 logger.warning(f"[StoreAppSettingsMemories] Invalid entry from user {user_id[:8]}...: missing required fields (id={entry_id}, app_id={app_id}, item_key={item_key}, encrypted_item_json={'present' if encrypted_item_json else 'missing'})")
@@ -155,7 +160,19 @@ async def handle_store_app_settings_memories_entry(
                 return
 
             # Hash user ID for Directus storage (zero-knowledge)
-            hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
+            hashed_user_id = _hash_id(user_id)
+            hashed_team_id = _hash_id(str(team_id)) if team_id else None
+            if team_id:
+                try:
+                    await directus_service.team.require_team_role(str(team_id), user_id, {"owner", "admin", "member"})
+                except Exception:
+                    logger.warning("[StoreAppSettingsMemories] User %s denied team memory write for team %s", user_id[:8], str(team_id)[:8])
+                    await manager.send_personal_message(
+                        {"type": "error", "payload": {"message": "TEAM_PERMISSION_DENIED"}},
+                        user_id,
+                        device_fingerprint_hash,
+                    )
+                    return
         
             logger.info(f"[StoreAppSettingsMemories] Processing entry {entry_id} for user {user_id[:8]}..., app {app_id}, type {item_type}, key {item_key}")
         
@@ -165,6 +182,7 @@ async def handle_store_app_settings_memories_entry(
             directus_payload = {
                 "id": entry_id,  # Use client-generated ID
                 "hashed_user_id": hashed_user_id,
+                "hashed_team_id": hashed_team_id,
                 "app_id": app_id,
                 "item_key": item_key,
                 "item_type": item_type,  # Category ID for filtering
@@ -181,7 +199,10 @@ async def handle_store_app_settings_memories_entry(
                 existing_entries = await directus_service.get_items(
                     "user_app_settings_and_memories",
                     params={
-                        "filter": {"id": {"_eq": entry_id}},
+                        "filter": {
+                            "id": {"_eq": entry_id},
+                            **({"hashed_team_id": {"_eq": hashed_team_id}} if hashed_team_id else {"hashed_user_id": {"_eq": hashed_user_id}, "hashed_team_id": {"_null": True}}),
+                        },
                         "limit": 1
                     }
                 )

@@ -63,6 +63,10 @@ def _hash_project_id(project_id: str) -> str:
     return hashlib.sha256(project_id.encode("utf-8")).hexdigest()
 
 
+def _hash_team_id(team_id: str) -> str:
+    return hashlib.sha256(team_id.encode("utf-8")).hexdigest()
+
+
 def _trigger_storage_type(node_type: str) -> str:
     return node_type.removesuffix("_trigger")
 
@@ -196,12 +200,21 @@ class InMemoryWorkflowRepository:
         self.workflows[record["id"]] = deepcopy(record)
         return deepcopy(record)
 
-    def list_workflows(self, user_id: str) -> list[dict[str, Any]]:
+    def list_workflows(self, user_id: str, team_id: str | None = None) -> list[dict[str, Any]]:
         owner_hash = _hash_owner_id(user_id)
+        if team_id is not None:
+            team_hash = _hash_team_id(team_id)
+            return [
+                deepcopy(record)
+                for record in self.workflows.values()
+                if record.get("hashed_team_id") == team_hash and record["status"] != WorkflowStatus.DELETED.value
+            ]
         return [
             deepcopy(record)
             for record in self.workflows.values()
-            if record["owner_hash"] == owner_hash and record["status"] != WorkflowStatus.DELETED.value
+            if record["owner_hash"] == owner_hash
+            and not record.get("hashed_team_id")
+            and record["status"] != WorkflowStatus.DELETED.value
         ]
 
     def list_all_workflow_records(self, user_id: str | None = None) -> list[dict[str, Any]]:
@@ -212,9 +225,13 @@ class InMemoryWorkflowRepository:
             if (owner_hash is None or record["owner_hash"] == owner_hash) and record["status"] != WorkflowStatus.DELETED.value
         ]
 
-    def get_workflow(self, workflow_id: str, user_id: str) -> dict[str, Any] | None:
+    def get_workflow(self, workflow_id: str, user_id: str, team_id: str | None = None) -> dict[str, Any] | None:
         record = self.workflows.get(workflow_id)
-        if not record or record["owner_hash"] != _hash_owner_id(user_id) or record["status"] == WorkflowStatus.DELETED.value:
+        if not record or record["status"] == WorkflowStatus.DELETED.value:
+            return None
+        if team_id is not None:
+            return deepcopy(record) if record.get("hashed_team_id") == _hash_team_id(team_id) else None
+        if record["owner_hash"] != _hash_owner_id(user_id) or record.get("hashed_team_id"):
             return None
         return deepcopy(record)
 
@@ -384,6 +401,7 @@ class DirectusWorkflowRepository:
             "id": record["id"],
             "workflow_id": record["id"],
             "hashed_user_id": record["owner_hash"],
+            "hashed_team_id": record.get("hashed_team_id"),
             "encrypted_title": record["encrypted_title_ref"],
             "status": record["status"],
             "enabled": record["enabled"],
@@ -445,20 +463,24 @@ class DirectusWorkflowRepository:
                 },
             )
 
-    def list_workflows(self, user_id: str) -> list[dict[str, Any]]:
-        return self.list_all_workflow_records(user_id=user_id)
+    def list_workflows(self, user_id: str, team_id: str | None = None) -> list[dict[str, Any]]:
+        return self.list_all_workflow_records(user_id=None if team_id else user_id, team_id=team_id)
 
-    def list_all_workflow_records(self, user_id: str | None = None) -> list[dict[str, Any]]:
+    def list_all_workflow_records(self, user_id: str | None = None, team_id: str | None = None) -> list[dict[str, Any]]:
         filters: dict[str, Any] = {"status": {"_neq": WorkflowStatus.DELETED.value}}
-        if user_id is not None:
+        if team_id is not None:
+            filters["hashed_team_id"] = {"_eq": _hash_team_id(team_id)}
+        elif user_id is not None:
             filters["hashed_user_id"] = {"_eq": _hash_owner_id(user_id)}
+            filters["hashed_team_id"] = {"_null": True}
         items = self._get_items(self.WORKFLOWS, filters, sort="-updated_at", limit=-1)
         return [deepcopy(item["record_json"]) for item in items if isinstance(item.get("record_json"), dict)]
 
-    def get_workflow(self, workflow_id: str, user_id: str) -> dict[str, Any] | None:
+    def get_workflow(self, workflow_id: str, user_id: str, team_id: str | None = None) -> dict[str, Any] | None:
+        context_filter = {"hashed_team_id": {"_eq": _hash_team_id(team_id)}} if team_id is not None else {"hashed_user_id": {"_eq": _hash_owner_id(user_id)}, "hashed_team_id": {"_null": True}}
         item = self._find_one(
             self.WORKFLOWS,
-            {"_and": [{"id": {"_eq": workflow_id}}, {"hashed_user_id": {"_eq": _hash_owner_id(user_id)}}]},
+            {"_and": [{"id": {"_eq": workflow_id}}, context_filter]},
         )
         if not item or not isinstance(item.get("record_json"), dict):
             return None
@@ -929,12 +951,12 @@ class WorkflowService:
         """Return the Vault Transit key id required for workflow blob encryption."""
         return self._vault_key_id_for_user(user_id, vault_key_id)
 
-    def list_workflows(self, user_id: str, vault_key_id: str | None = None) -> list[WorkflowSummary]:
+    def list_workflows(self, user_id: str, vault_key_id: str | None = None, team_id: str | None = None) -> list[WorkflowSummary]:
         self.ensure_enabled()
         vault_key_id = self._vault_key_id_for_user(user_id, vault_key_id)
         records = [
             record
-            for record in self.repository.list_workflows(user_id)
+            for record in self.repository.list_workflows(user_id, team_id=team_id)
             if record.get("lifecycle", WorkflowLifecycle.PERSISTED.value) == WorkflowLifecycle.PERSISTED.value
         ]
         records = sorted(records, key=_workflow_list_sort_key)
@@ -951,10 +973,10 @@ class WorkflowService:
         records = sorted(records, key=_workflow_list_sort_key)
         return [self._summary_from_record(record, vault_key_id) for record in records]
 
-    def get_workflow(self, workflow_id: str, user_id: str, vault_key_id: str | None = None) -> WorkflowDetail:
+    def get_workflow(self, workflow_id: str, user_id: str, vault_key_id: str | None = None, team_id: str | None = None) -> WorkflowDetail:
         self.ensure_enabled()
         vault_key_id = self._vault_key_id_for_user(user_id, vault_key_id)
-        record = self.repository.get_workflow(workflow_id, user_id)
+        record = self.repository.get_workflow(workflow_id, user_id, team_id=team_id)
         if not record:
             raise WorkflowNotFoundError(workflow_id)
         return self._detail_from_record(record, vault_key_id)

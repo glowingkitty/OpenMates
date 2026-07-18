@@ -1217,6 +1217,27 @@ async def handle_preprocessing(
     
     if payment_enabled and getattr(request_data, "is_anonymous", False):
         logger.info(f"{log_prefix} Anonymous free-usage request. Skipping user credit precheck; shared budget is enforced by the anonymous API route.")
+    elif payment_enabled and getattr(request_data, "team_id", None):
+        from backend.core.api.app.services.team_billing_service import TeamBillingService
+
+        team_billing_service = TeamBillingService(directus_service)
+        try:
+            team_account = await team_billing_service.get_billing_summary(request_data.team_id, request_data.user_id)
+        except Exception as exc:
+            logger.warning(f"{log_prefix} Team credit precheck failed closed for team request: {type(exc).__name__}")
+            return PreprocessingResult(
+                can_proceed=False,
+                rejection_reason="team_credit_precheck_failed",
+                error_message="Team credits could not be verified. Please try again later.",
+            )
+        if int(team_account.get("balance_credits") or 0) < 1:
+            logger.warning(f"{log_prefix} Team {request_data.team_id} has insufficient credits for minimum request cost.")
+            return PreprocessingResult(
+                can_proceed=False,
+                rejection_reason="insufficient_team_credits",
+                error_message="This team does not have enough credits to use OpenMates.",
+            )
+        logger.info(f"{log_prefix} Team credit precheck passed for team_id: {request_data.team_id}.")
     elif payment_enabled:
         MINIMUM_REQUEST_COST = 1
         logger.info(f"{log_prefix} Performing credit check for user_id: {request_data.user_id}. Minimum cost: {MINIMUM_REQUEST_COST}")

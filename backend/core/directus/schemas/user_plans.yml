@@ -17,6 +17,10 @@ user_plans:
     hashed_user_id:
       type: string
       note: "[Indexed] SHA256(user_id) of the plan owner."
+    hashed_team_id:
+      type: string
+      nullable: true
+      note: "[Indexed, Nullable] SHA256(team_id) when the plan has been moved into a team workspace. Null means personal context."
     status:
       type: string
       note: "Plan state: draft, awaiting_confirmation, active, executing, blocked, completed, or archived."

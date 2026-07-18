@@ -72,6 +72,7 @@ class TokenBrokerService:
         allowed_actions: list[str],
         refresh_token_envelope: dict[str, Any],
         action_scope: dict[str, Any] | None = None,
+        team_id: str | None = None,
     ) -> TurnTokenRef:
         """Create a short-lived ref without exchanging the refresh token."""
 
@@ -89,6 +90,7 @@ class TokenBrokerService:
         payload = {
             "user_id": user_id,
             "connected_account_id": connected_account_id,
+            "team_id": team_id,
             "chat_id": chat_id,
             "message_id": message_id,
             "app_id": app_id,
@@ -117,6 +119,7 @@ class TokenBrokerService:
         app_id: str,
         action: str,
         action_scope: dict[str, Any] | None = None,
+        team_id: str | None = None,
     ) -> AccessTokenHandle:
         """Lazily exchange a matching turn-token ref for an access-token handle."""
 
@@ -127,6 +130,7 @@ class TokenBrokerService:
         self._assert_scope_matches(
             payload,
             user_id=user_id,
+            team_id=team_id,
             chat_id=chat_id,
             message_id=message_id,
             app_id=app_id,
@@ -261,6 +265,7 @@ class TokenBrokerService:
         payload: dict[str, Any],
         *,
         user_id: str,
+        team_id: str | None,
         chat_id: str,
         message_id: str,
         app_id: str,
@@ -268,6 +273,8 @@ class TokenBrokerService:
     ) -> None:
         if payload.get("user_id") != user_id:
             raise PermissionError("turn token ref owner mismatch")
+        if payload.get("team_id") != team_id:
+            raise PermissionError("turn token ref team context mismatch")
         if payload.get("chat_id") != chat_id:
             raise PermissionError("turn token ref chat mismatch")
         if payload.get("message_id") != message_id:

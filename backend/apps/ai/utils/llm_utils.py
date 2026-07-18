@@ -37,6 +37,7 @@ from backend.core.api.app.utils.text_sanitization import (
     sanitize_text_payload_for_ascii_smuggling,
     sanitize_text_simple,
 )
+from backend.core.api.app.services.team_chat_ai_service import format_sender_attributed_content
 from backend.core.api.app.utils.config_manager import config_manager
 from backend.core.api.app.services.cache import CacheService
 from toon_format import decode, encode
@@ -832,6 +833,10 @@ def _transform_message_history_for_llm(message_history: List[Dict[str, Any]]) ->
             plain_text_content,
             log_prefix=f"[LLM transform {role} msg {idx}] ",
         )
+        sender_name = msg.get("sender_name")
+        if role == "user" and sender_name:
+            safe_sender_name = sanitize_text_simple(str(sender_name), log_prefix=f"[LLM transform sender {idx}] ")
+            plain_text_content = format_sender_attributed_content(plain_text_content, safe_sender_name)
         
         # Always append the message, even if content is empty, to preserve message count
         # Empty messages might be important for maintaining conversation context

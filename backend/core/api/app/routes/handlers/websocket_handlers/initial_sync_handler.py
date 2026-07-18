@@ -158,6 +158,7 @@ async def handle_initial_sync(
                 user_draft_content_encrypted, user_draft_version_cache, user_draft_preview_encrypted = draft_cache_result
             else:
                 user_draft_content_encrypted, user_draft_version_cache, user_draft_preview_encrypted = None, 0, None
+            user_draft_metadata = await cache_service.get_user_draft_metadata_from_cache(user_id, server_chat_id)
 
             server_versions_for_client = ClientChatComponentVersions(
                 messages_v=cached_server_versions.messages_v,
@@ -252,6 +253,7 @@ async def handle_initial_sync(
                 )
                 current_chat_payload_dict["encrypted_draft_md"] = encrypted_draft_md
                 current_chat_payload_dict["encrypted_draft_preview"] = encrypted_draft_preview
+                current_chat_payload_dict.update(user_draft_metadata)
                 current_chat_payload_dict["unread_count"] = unread_count
                 current_chat_payload_dict["user_id"] = user_id  # Add user_id for client ownership tracking
                 
@@ -410,6 +412,7 @@ async def handle_initial_sync(
                 orphan_draft_md, orphan_draft_v, orphan_draft_preview = orphan_draft_result
                 if not orphan_draft_md or orphan_draft_md == "null":
                     continue  # Skip empty drafts
+                orphan_draft_metadata = await cache_service.get_user_draft_metadata_from_cache(user_id, orphan_chat_id)
 
                 # Check if client already has this chat — if so, skip
                 if orphan_chat_id in client_chat_ids_set:
@@ -428,6 +431,7 @@ async def handle_initial_sync(
                     "encrypted_title": None,
                     "encrypted_draft_md": orphan_draft_md,
                     "encrypted_draft_preview": orphan_draft_preview,
+                    **orphan_draft_metadata,
                     "unread_count": 0,
                     "user_id": user_id,
                     "messages": [],

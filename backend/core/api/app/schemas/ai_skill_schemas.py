@@ -27,6 +27,10 @@ class AskSkillRequest(BaseModel):
     benchmark_metadata: Optional[Dict[str, Any]] = Field(default=None, description="Sanitized CLI benchmark metadata for usage source tagging.")
     client_type: Optional[str] = Field(default=None, description="Client surface that originated this request, when explicitly declared by trusted clients.")
     client_capabilities: Optional[List[str]] = Field(default_factory=list, description="Explicit client capabilities available for this request.")
+    team_id: Optional[str] = Field(default=None, description="Team context for team-scoped AI requests. When set, billing and prechecks use team credits.")
+    team_id_hash: Optional[str] = Field(default=None, description="Hashed team id for privacy-preserving usage attribution.")
+    team_workspace_type: Optional[str] = Field(default="chat", description="Team workspace type used for team usage attribution.")
+    team_object_id_hash: Optional[str] = Field(default=None, description="Hashed team object id for usage attribution.")
     # Filepath → embed_id index built during embed resolution.
     # Maps the human-readable embed_ref shown to the LLM (e.g. "my_photo.jpg" or
     # "src/components/Button.tsx") back to the internal UUID embed_id used for

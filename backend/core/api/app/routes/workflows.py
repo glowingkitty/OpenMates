@@ -11,13 +11,15 @@ from __future__ import annotations
 import time
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from backend.core.api.app.models.user import User
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user_or_api_key
+from backend.core.api.app.services.directus.team_methods import TeamPermissionError
 from backend.core.api.app.services.feature_availability_guards import ensure_workflows_enabled
+from backend.core.api.app.services.team_workspace_service import TeamWorkspaceMoveError, move_workspace_record_to_team
 from backend.core.api.app.services.workflow_input_service import DirectusWorkflowInputRepository, WorkflowInputService
 from backend.core.api.app.services.workflow_models import WorkflowGraph, WorkflowLifecycle, WorkflowMissingInputError, WorkflowRunContentRetention, WorkflowRunStatus
 from backend.core.api.app.services.workflow_runtime_service import WorkflowRuntimeProtocolError, WorkflowRuntimeService
@@ -76,6 +78,12 @@ class WorkflowUpdateRequest(BaseModel):
     enabled: bool | None = None
     run_content_retention: WorkflowRunContentRetention | None = None
     version: int | None = None
+
+
+class WorkflowMoveRequest(BaseModel):
+    team_id: str
+    confirmed: bool
+    moved_at: int | None = None
 
 
 class WorkflowRunRequest(BaseModel):
@@ -179,6 +187,12 @@ def get_workflow_service(request: Request) -> WorkflowService:
     return service
 
 
+def get_directus_service(request: Request) -> Any:
+    if not hasattr(request.app.state, "directus_service"):
+        raise HTTPException(status_code=500, detail="Internal configuration error")
+    return request.app.state.directus_service
+
+
 def get_workflow_input_service(request: Request) -> WorkflowInputService:
     service = getattr(request.app.state, "workflow_input_service", None)
     if service is None:
@@ -237,6 +251,10 @@ async def _get_current_user_or_api_key_optional(request: Request, response: Resp
 
 
 def _handle_workflow_error(exc: Exception) -> None:
+    if isinstance(exc, TeamPermissionError):
+        raise HTTPException(status_code=403, detail="TEAM_PERMISSION_DENIED") from exc
+    if isinstance(exc, TeamWorkspaceMoveError):
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     if isinstance(exc, WorkflowRuntimeProtocolError):
         raise HTTPException(status_code=exc.status_code, detail=exc.code) from exc
     if isinstance(exc, WorkflowFeatureDisabledError):
@@ -267,6 +285,11 @@ def _handle_workflow_error(exc: Exception) -> None:
     raise exc
 
 
+async def _require_team_read_role(directus_service: Any, team_id: str | None, current_user: User) -> None:
+    if team_id:
+        await directus_service.team.require_team_role(team_id, current_user.id, {"owner", "admin", "member", "viewer"})
+
+
 def _handle_workflow_input_error(exc: Exception) -> None:
     if isinstance(exc, PermissionError | KeyError):
         raise HTTPException(status_code=404, detail="Workflow input session not found") from exc
@@ -277,11 +300,16 @@ def _handle_workflow_input_error(exc: Exception) -> None:
 
 @router.get("")
 async def list_workflows(
+    request: Request,
+    team_id: str | None = Query(default=None),
     current_user: User = Depends(get_current_user_or_api_key),
     service: WorkflowService = Depends(get_workflow_service),
+    directus_service: Any = Depends(get_directus_service),
 ) -> dict[str, Any]:
     try:
-        workflows = await run_in_threadpool(service.list_workflows, current_user.id, current_user.vault_key_id)
+        del request
+        await _require_team_read_role(directus_service, team_id, current_user)
+        workflows = await run_in_threadpool(service.list_workflows, current_user.id, current_user.vault_key_id, team_id)
         return {"workflows": [item.model_dump(mode="json") for item in workflows]}
     except Exception as exc:
         _handle_workflow_error(exc)
@@ -776,12 +804,37 @@ async def restore_workflow_version(
 @router.get("/{workflow_id}")
 async def get_workflow(
     workflow_id: str,
+    team_id: str | None = Query(default=None),
     current_user: User = Depends(get_current_user_or_api_key),
     service: WorkflowService = Depends(get_workflow_service),
+    directus_service: Any = Depends(get_directus_service),
 ) -> dict[str, Any]:
     try:
-        workflow = await run_in_threadpool(service.get_workflow, workflow_id, current_user.id, current_user.vault_key_id)
+        await _require_team_read_role(directus_service, team_id, current_user)
+        workflow = await run_in_threadpool(service.get_workflow, workflow_id, current_user.id, current_user.vault_key_id, team_id)
         return {"workflow": workflow.model_dump(mode="json", by_alias=True)}
+    except Exception as exc:
+        _handle_workflow_error(exc)
+
+
+@router.post("/{workflow_id}/move")
+async def move_workflow_to_team(
+    workflow_id: str,
+    body: WorkflowMoveRequest,
+    current_user: User = Depends(get_current_user_or_api_key),
+    directus_service: Any = Depends(get_directus_service),
+) -> dict[str, Any]:
+    try:
+        workflow = await move_workspace_record_to_team(
+            directus_service=directus_service,
+            actor_user_id=current_user.id,
+            team_id=body.team_id,
+            workspace_type="workflow",
+            object_id=workflow_id,
+            confirmed=body.confirmed,
+            moved_at=body.moved_at,
+        )
+        return {"workflow": workflow}
     except Exception as exc:
         _handle_workflow_error(exc)
 

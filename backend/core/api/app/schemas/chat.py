@@ -26,6 +26,7 @@ class AIHistoryMessage(MessageBase):
     Represents a message for AI history processing.
     Content is markdown string, decrypted from server cache (encryption_key_user_server).
     """
+    sender_name: Optional[str] = None
     created_at: int # Integer Unix timestamp
 
 class ChatBase(BaseModel):
@@ -227,6 +228,8 @@ class ChatSyncData(BaseModel):
     encrypted_chat_summary: Optional[str] = None # Client-encrypted summary from cache
     encrypted_draft_md: Optional[str] = None # Encrypted markdown for the user's draft
     encrypted_draft_preview: Optional[str] = None # Encrypted preview text for the user's draft (shown in chat list)
+    ideabucket: Optional[bool] = None # Sparse marker for IdeaBucket-origin drafts/chats
+    ideabucket_processing_window_id: Optional[str] = None # Non-content processing window identifier for IdeaBucket drafts
     encrypted_chat_key: Optional[str] = None # Encrypted chat-specific key for decryption
     encrypted_icon: Optional[str] = None # Encrypted icon name from Lucide library
     encrypted_category: Optional[str] = None # Encrypted category name

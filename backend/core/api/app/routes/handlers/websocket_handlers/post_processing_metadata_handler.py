@@ -10,6 +10,7 @@ from backend.core.api.app.services.directus.directus import DirectusService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.routes.connection_manager import ConnectionManager
 from backend.core.api.app.tasks.celery_config import app as celery_app
+from backend.core.api.app.services.directus.team_methods import TeamPermissionError, hash_id
 from backend.core.api.app.routes.handlers.websocket_handlers.encrypted_chat_metadata_handler import (
     allocate_chat_metadata_versions,
 )
@@ -57,6 +58,7 @@ async def handle_post_processing_metadata(
     try:
         try:
             chat_id = payload.get("chat_id")
+            team_id = payload.get("team_id")
             encrypted_follow_up_suggestions = payload.get("encrypted_follow_up_suggestions")
             encrypted_new_chat_suggestions = payload.get("encrypted_new_chat_suggestions", [])
             encrypted_chat_summary = payload.get("encrypted_chat_summary")
@@ -83,7 +85,28 @@ async def handle_post_processing_metadata(
             # Same fallback as encrypted_chat_metadata_handler: if the cache is primed but
             # the chat isn't there yet, the persist_encrypted_chat_metadata Celery task is
             # still in flight. Check Directus directly before hard-rejecting.
-            is_owner = await directus_service.chat.check_chat_ownership(chat_id, user_id)
+            is_team_chat = isinstance(team_id, str) and bool(team_id)
+            if is_team_chat:
+                try:
+                    await directus_service.team.require_team_role(str(team_id), user_id, {"owner", "admin", "member"})
+                except TeamPermissionError:
+                    logger.warning("User %s attempted to update team post-processing metadata without write role", user_id[:8])
+                    await manager.send_personal_message(
+                        {"type": "error", "payload": {"message": "You do not have permission to modify this team chat.", "chat_id": chat_id}},
+                        user_id,
+                        device_fingerprint_hash,
+                    )
+                    return
+                existing_chat = await directus_service.chat.get_chat_metadata(chat_id, admin_required=True)
+                if existing_chat and existing_chat.get("hashed_team_id") != hash_id(str(team_id)):
+                    logger.warning("User %s attempted to update post-processing metadata for chat %s outside team scope", user_id[:8], chat_id)
+                    await manager.send_personal_message(
+                        {"type": "error", "payload": {"message": "You do not have permission to modify this chat.", "chat_id": chat_id}},
+                        user_id,
+                        device_fingerprint_hash,
+                    )
+                    return
+            is_owner = True if is_team_chat else await directus_service.chat.check_chat_ownership(chat_id, user_id)
             if not is_owner:
                 import hashlib as _hashlib
                 existing_chat = await directus_service.chat.get_chat_metadata(chat_id)
@@ -111,7 +134,7 @@ async def handle_post_processing_metadata(
             if encrypted_follow_up_suggestions:
                 chat_update_fields["encrypted_follow_up_request_suggestions"] = encrypted_follow_up_suggestions
 
-            if encrypted_new_chat_suggestions and len(encrypted_new_chat_suggestions) > 0:
+            if not is_team_chat and encrypted_new_chat_suggestions and len(encrypted_new_chat_suggestions) > 0:
                 # CRITICAL: This task MUST be dispatched to 'persistence' queue, which is handled by 'task-worker' container.
                 # app-web-worker only handles 'app_web' queue for long-running web app skills (like scraping).
                 # If you see this task executing in app-web-worker logs, there's a queue routing misconfiguration.

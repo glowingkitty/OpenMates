@@ -19,6 +19,11 @@ projects:
       type: string
       note: "[Indexed] SHA256(user_id) of the project owner."
 
+    hashed_team_id:
+      type: string
+      nullable: true
+      note: "[Indexed, Nullable] SHA256(team_id) when the project has been moved into a team workspace. Null means personal context."
+
     encrypted_project_key:
       type: text
       nullable: true

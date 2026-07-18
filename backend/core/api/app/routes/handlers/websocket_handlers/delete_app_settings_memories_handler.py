@@ -25,6 +25,10 @@ from backend.core.api.app.routes.connection_manager import ConnectionManager
 logger = logging.getLogger(__name__)
 
 
+def _hash_id(value: str) -> str:
+    return hashlib.sha256(value.encode()).hexdigest()
+
+
 async def handle_delete_app_settings_memories_entry(
     websocket,
     manager: ConnectionManager,
@@ -52,13 +56,14 @@ async def handle_delete_app_settings_memories_entry(
     """
     _otel_span, _otel_token = None, None
     try:
-        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span, end_ws_handler_span
+        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span
         _otel_span, _otel_token = start_ws_handler_span("delete_app_settings_memories_entry", user_id, payload, user_otel_attrs)
     except Exception:
         pass
     try:
         try:
             entry_id = payload.get("entry_id")
+            team_id = payload.get("team_id")
             if not entry_id or not isinstance(entry_id, str):
                 logger.warning(
                     "[DeleteAppSettingsMemories] Missing entry_id from user %s", user_id[:8]
@@ -72,13 +77,25 @@ async def handle_delete_app_settings_memories_entry(
 
             # Verify the entry belongs to this user before deleting (zero-knowledge
             # ownership check — we compare hashed_user_id, never decrypt content).
-            hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
+            hashed_user_id = _hash_id(user_id)
+            hashed_team_id = _hash_id(str(team_id)) if team_id else None
+            if team_id:
+                try:
+                    await directus_service.team.require_team_role(str(team_id), user_id, {"owner", "admin", "member"})
+                except Exception:
+                    logger.warning("[DeleteAppSettingsMemories] User %s denied team memory delete for team %s", user_id[:8], str(team_id)[:8])
+                    await manager.send_personal_message(
+                        {"type": "error", "payload": {"message": "TEAM_PERMISSION_DENIED"}},
+                        user_id,
+                        device_fingerprint_hash,
+                    )
+                    return
             existing = await directus_service.get_items(
                 "user_app_settings_and_memories",
                 params={
                     "filter": {
                         "id": {"_eq": entry_id},
-                        "hashed_user_id": {"_eq": hashed_user_id},
+                        **({"hashed_team_id": {"_eq": hashed_team_id}} if hashed_team_id else {"hashed_user_id": {"_eq": hashed_user_id}, "hashed_team_id": {"_null": True}}),
                     },
                     "limit": 1,
                     "fields": ["id", "app_id", "item_type"],

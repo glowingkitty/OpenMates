@@ -11,13 +11,22 @@ import hashlib
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from pydantic import BaseModel
 
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user
 from backend.core.api.app.models.user import User
+from backend.core.api.app.services.directus.team_methods import TeamPermissionError, hash_id
+from backend.core.api.app.services.team_workspace_service import TeamWorkspaceMoveError, move_workspace_record_to_team
 
 
 router = APIRouter(prefix="/v1", tags=["Chats"])
 NATIVE_CHAT_SORT = "-pinned,-last_edited_overall_timestamp"
+
+
+class ChatMoveRequest(BaseModel):
+    team_id: str
+    confirmed: bool
+    moved_at: int | None = None
 
 
 def _string_timestamp(value: Any) -> str | None:
@@ -61,14 +70,21 @@ def _message_record(message: str | dict[str, Any]) -> dict[str, Any] | None:
 async def list_chats(
     request: Request,
     limit: int = Query(default=20, ge=1, le=100),
+    team_id: str | None = Query(default=None),
     current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
+    if team_id:
+        try:
+            await request.app.state.directus_service.team.require_team_role(team_id, current_user.id, {"owner", "admin", "member", "viewer"})
+        except TeamPermissionError as exc:
+            raise HTTPException(status_code=403, detail="TEAM_PERMISSION_DENIED") from exc
     chats = await request.app.state.directus_service.chat.get_user_chats_metadata(
         current_user.id,
         limit=limit,
         offset=0,
         sort=NATIVE_CHAT_SORT,
         admin_required=True,
+        team_id=team_id,
     )
     hashed_chat_ids = [
         hashlib.sha256(str(chat.get("id")).encode()).hexdigest()
@@ -95,11 +111,44 @@ async def list_chats(
 async def list_chat_messages(
     chat_id: str,
     request: Request,
+    team_id: str | None = Query(default=None),
     current_user: User = Depends(get_current_user),
 ) -> list[dict[str, Any]]:
     chat_service = request.app.state.directus_service.chat
-    if not await chat_service.check_chat_ownership(chat_id, current_user.id):
+    if team_id:
+        try:
+            await request.app.state.directus_service.team.require_team_role(team_id, current_user.id, {"owner", "admin", "member", "viewer"})
+        except TeamPermissionError as exc:
+            raise HTTPException(status_code=403, detail="TEAM_PERMISSION_DENIED") from exc
+        chat = await chat_service.get_chat_metadata(chat_id, admin_required=True)
+        if not chat or chat.get("hashed_team_id") != hash_id(team_id):
+            raise HTTPException(status_code=404, detail="Chat not found")
+    elif not await chat_service.check_chat_ownership(chat_id, current_user.id):
         raise HTTPException(status_code=404, detail="Chat not found")
     messages = await chat_service.get_all_messages_for_chat(chat_id, decrypt_content=False)
     records = [_message_record(message) for message in messages or []]
     return [_watch_message_payload(record) for record in records if record is not None]
+
+
+@router.post("/chats/{chat_id}/move")
+async def move_chat_to_team(
+    chat_id: str,
+    body: ChatMoveRequest,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+) -> dict[str, Any]:
+    try:
+        chat = await move_workspace_record_to_team(
+            directus_service=request.app.state.directus_service,
+            actor_user_id=current_user.id,
+            team_id=body.team_id,
+            workspace_type="chat",
+            object_id=chat_id,
+            confirmed=body.confirmed,
+            moved_at=body.moved_at,
+        )
+    except TeamPermissionError as exc:
+        raise HTTPException(status_code=403, detail="TEAM_PERMISSION_DENIED") from exc
+    except TeamWorkspaceMoveError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {"chat": _watch_chat_payload(chat)}

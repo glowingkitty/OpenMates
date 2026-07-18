@@ -1955,16 +1955,35 @@ async def _charge_credits(
     if credits <= 0 and not usage_details.get("local_self_hosted"):
         return {}
         
-    charge_payload = {
-        "user_id": request_data.user_id,
-        "user_id_hash": request_data.user_id_hash,
-        "credits": credits,
-        "skill_id": "ask",
-        "app_id": "ai",
-        "usage_details": usage_details,
-        "api_key_hash": request_data.api_key_hash,
-        "device_hash": request_data.device_hash,
-    }
+    team_id = getattr(request_data, "team_id", None)
+    if team_id:
+        usage_details = {
+            **usage_details,
+            "workspace_type": getattr(request_data, "team_workspace_type", None) or "chat",
+            "object_id_hash": getattr(request_data, "team_object_id_hash", None),
+        }
+        charge_payload = {
+            "team_id": team_id,
+            "actor_user_id": request_data.user_id,
+            "credits": credits,
+            "skill_id": "ask",
+            "app_id": "ai",
+            "idempotency_key": f"ai-ask:{request_data.message_id}",
+            "usage_details": usage_details,
+        }
+        charge_path = "/internal/billing/team/charge"
+    else:
+        charge_payload = {
+            "user_id": request_data.user_id,
+            "user_id_hash": request_data.user_id_hash,
+            "credits": credits,
+            "skill_id": "ask",
+            "app_id": "ai",
+            "usage_details": usage_details,
+            "api_key_hash": request_data.api_key_hash,
+            "device_hash": request_data.device_hash,
+        }
+        charge_path = "/internal/billing/charge"
     
     headers = {"Content-Type": "application/json"}
     if INTERNAL_API_SHARED_TOKEN:
@@ -1972,7 +1991,7 @@ async def _charge_credits(
     
     try:
         async with httpx.AsyncClient() as client:
-            url = f"{INTERNAL_API_BASE_URL}/internal/billing/charge"
+            url = f"{INTERNAL_API_BASE_URL}{charge_path}"
             logger.info(
                 f"{log_prefix} Charging {credits} credits. "
                 f"Payload summary: keys={sorted(charge_payload.keys())}, "

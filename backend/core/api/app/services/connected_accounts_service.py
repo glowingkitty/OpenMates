@@ -79,6 +79,7 @@ class ConnectedAccountRow:
     encrypted_refresh_token_bundle: str | None
     encrypted_capabilities: str
     encrypted_app_permissions: str
+    hashed_team_id: str | None = None
     provider_account_id_hash: str | None = None
     encrypted_provider_account_display: str | None = None
     encrypted_account_directory_hint: str | None = None
@@ -150,6 +151,7 @@ class ConnectedAccountRow:
             encrypted_refresh_token_bundle=_optional_str(payload.get("encrypted_refresh_token_bundle")),
             encrypted_capabilities=str(payload["encrypted_capabilities"]),
             encrypted_app_permissions=str(payload["encrypted_app_permissions"]),
+            hashed_team_id=_optional_str(payload.get("hashed_team_id")),
             provider_account_id_hash=_optional_str(payload.get("provider_account_id_hash")),
             encrypted_provider_account_display=_optional_str(
                 payload.get("encrypted_provider_account_display")
@@ -322,10 +324,14 @@ async def complete_pending_local_connector_request(
     pending_cache_key = _local_connector_pending_cache_key(connector_session_id, request_id)
     result_cache_key = _local_connector_result_cache_key(connector_session_id, request_id)
     future = _pending_local_connector_results.get(key)
-    from backend.core.api.app.services.cache import CacheService
+    try:
+        from backend.core.api.app.services.cache import CacheService
+    except Exception:
+        CacheService = None  # type: ignore[assignment]
 
-    cache_service = CacheService()
-    pending = await cache_service.get(pending_cache_key)
+    cache_service = CacheService() if CacheService is not None else None
+    cache_available = cache_service is not None and all(hasattr(cache_service, method) for method in ("get", "set", "delete"))
+    pending = await cache_service.get(pending_cache_key) if cache_available else None
     if not pending and (not future or future.done()):
         return False
     completed = LocalConnectorRequestResult(
@@ -337,18 +343,19 @@ async def complete_pending_local_connector_request(
     )
     if future and not future.done():
         future.set_result(completed)
-    await cache_service.set(
-        result_cache_key,
-        {
-            "request_id": request_id,
-            "status": status,
-            "result": result,
-            "error_code": error_code,
-            "error_message": error_message,
-        },
-        ttl=60,
-    )
-    await cache_service.delete(pending_cache_key)
+    if cache_available:
+        await cache_service.set(
+            result_cache_key,
+            {
+                "request_id": request_id,
+                "status": status,
+                "result": result,
+                "error_code": error_code,
+                "error_message": error_message,
+            },
+            ttl=60,
+        )
+        await cache_service.delete(pending_cache_key)
     return True
 
 

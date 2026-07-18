@@ -48,7 +48,7 @@ const OPERATION_FIELDS = Object.freeze({
     'protocol_version', 'hashed_user_id', 'chat_id', 'turn_id', 'user_message_id',
     'device_hash', 'chat_key_version', 'wrapped_chat_key', 'recovery_public_key',
     'inference_commitment', 'commitment_version', 'expected_messages_v', 'encrypted_user_message',
-    'encrypted_chat_metadata',
+    'encrypted_chat_metadata', 'hashed_team_id',
   ]),
   enqueue_inference: new Set([
     'protocol_version', 'preflight_id', 'hashed_user_id', 'device_hash',
@@ -530,6 +530,7 @@ const isEmptyDraftShell = (chat) => Number(chat.messages_v ?? 0) === 0
 async function preparePreflight(database, raw, now) {
   const body = operationBody(raw, 'prepare_preflight');
   const ownerHash = string(body.hashed_user_id, 'invalid_owner', 64);
+  const teamHash = body.hashed_team_id === undefined ? null : hexDigest(body.hashed_team_id, 'invalid_team');
   const chatId = uuid(body.chat_id, 'invalid_chat_id');
   const turnId = uuid(body.turn_id, 'invalid_turn_id');
   const userMessageId = string(body.user_message_id, 'invalid_message_id', 255);
@@ -555,7 +556,7 @@ async function preparePreflight(database, raw, now) {
   return database.transaction(async (trx) => {
     await lockIdentity(trx, `${ownerHash}:${chatId}:${keyVersion}`);
     let chat = await trx(CHATS).where({ id: chatId }).forUpdate().first();
-    if (chat && chat.hashed_user_id !== ownerHash) fail(404, 'chat_not_found');
+    if (chat && (teamHash ? chat.hashed_team_id !== teamHash : chat.hashed_user_id !== ownerHash || chat.hashed_team_id)) fail(404, 'chat_not_found');
     const existing = await trx(PREFLIGHTS).where({ hashed_user_id: ownerHash, chat_id: chatId, turn_id: turnId }).forUpdate().first();
     if (existing) {
       if (!samePreflight(existing, values) || existing.deletion_invalidated_at
@@ -573,6 +574,7 @@ async function preparePreflight(database, raw, now) {
       chat = {
         id: chatId,
         hashed_user_id: ownerHash,
+        hashed_team_id: teamHash,
         ...chatMetadata,
         messages_v: 0,
         title_v: 0,
@@ -599,7 +601,10 @@ async function preparePreflight(database, raw, now) {
     await trx(MESSAGES).insert({ id: randomUUID(), ...message });
     const committedVersion = expectedVersion + 1;
     const timestamp = Math.floor(now.getTime() / 1000);
-    if (await trx(CHATS).where({ id: chatId, hashed_user_id: ownerHash, messages_v: expectedVersion })
+    const chatUpdateWhere = teamHash
+      ? { id: chatId, hashed_team_id: teamHash, messages_v: expectedVersion }
+      : { id: chatId, hashed_user_id: ownerHash, messages_v: expectedVersion };
+    if (await trx(CHATS).where(chatUpdateWhere)
       .update({ messages_v: committedVersion, updated_at: timestamp, last_edited_overall_timestamp: timestamp }) !== 1) fail(409, 'version_conflict');
     const row = {
       id: randomUUID(), hashed_user_id: ownerHash, chat_id: chatId, turn_id: turnId, ...values,

@@ -15,6 +15,10 @@ workflows:
     hashed_user_id:
       type: string
       note: "[Indexed] SHA256(user_id) of the owner."
+    hashed_team_id:
+      type: string
+      nullable: true
+      note: "[Indexed, Nullable] SHA256(team_id) when the workflow has been moved into a team workspace. Null means personal context."
     encrypted_user_id:
       type: text
       note: "[Encrypted] Raw user_id for server-side scheduled execution."
