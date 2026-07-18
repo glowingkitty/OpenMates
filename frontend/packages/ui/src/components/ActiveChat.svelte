@@ -1830,9 +1830,15 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         
         const hadChatContext = fullscreenHasChatContext;
 
+        const closingEmbedFullscreenData = embedFullscreenData;
         showEmbedFullscreen = false;
-        embedFullscreenData = null;
         fullscreenHasChatContext = false;
+
+        queueMicrotask(() => {
+            if (!showEmbedFullscreen && embedFullscreenData === closingEmbedFullscreenData) {
+                embedFullscreenData = null;
+            }
+        });
 
         // Clear any active app-store skill example so the $effect doesn't
         // immediately re-mount the synthetic embed.
