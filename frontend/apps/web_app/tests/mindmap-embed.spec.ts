@@ -114,10 +114,17 @@ test('native mindmap upload renders preview and fullscreen controls', async ({ p
 	await dismissVisibleNotifications(page);
 	const downloadButton = fullscreenOverlay.getByTestId('embed-download-button');
 	await expect(downloadButton).toBeVisible({ timeout: 5000 });
-	const downloadPromise = page.waitForEvent('download', { timeout: 15000 });
-	await downloadButton.click();
-	const download = await downloadPromise;
-	expect(download.suggestedFilename()).toMatch(/launch-plan.*\.ommindmap$/);
+	await expect(downloadButton).toHaveAttribute('download', /launch-plan.*\.ommindmap$/);
+	await expect(downloadButton).toHaveAttribute('href', /^blob:/);
+	const downloadedMindMap = await downloadButton.evaluate(async (element: HTMLAnchorElement) => {
+		const response = await fetch(element.href);
+		return response.json();
+	});
+	expect(downloadedMindMap).toMatchObject({
+		openmatesType: 'mindmap',
+		title: 'Launch Plan',
+		rootId: 'launch-plan'
+	});
 
 	await fullscreenOverlay.getByTestId('embed-minimize').click();
 	await expect(fullscreenOverlay).not.toBeVisible({ timeout: 10000 });
