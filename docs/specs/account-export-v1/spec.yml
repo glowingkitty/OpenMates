@@ -1,0 +1,1157 @@
+schema_version: 2
+id: account-export-v1
+title: Account Export V1
+status: implementing
+
+goal: >
+  Replace the current fragile browser-only account export with a complete,
+  resumable, scalable personal data export system across CLI, npm SDK, pip SDK,
+  and web. The export must include all selected personal OpenMates data in
+  decrypted, human-navigable form wherever the user's key material permits it,
+  while never exporting reusable credentials, private keys, raw secrets, or
+  team-owned data through the personal export path.
+
+scope:
+  in:
+    - Personal account export only; team export remains separate and owner/admin-gated.
+    - Resumable export jobs with persisted progress, selected domains, filters, explicit completeness state, and safe retry after network loss.
+    - CLI-first export command that streams large exports to disk and proves the backend/API contract against the dev server.
+    - npm SDK and pip SDK parity for starting exports, polling status, listing chunks/manifests, and downloading/exporting helper output.
+    - Web app export UI using the same export job contract after CLI and SDK gates are green.
+    - Default-selected export domains for the most relevant personal backup content.
+    - Advanced filters for chats, tasks, projects, plans, workflows/runs, and usage in V1.
+    - Complete chat exports with exactly one readable markdown file and one structured YAML file per chat, including all messages and chat compression summaries.
+    - Shared deduplicated embeds/uploads folders referenced from chats, tasks, projects, plans, and workflows.
+    - Retrieval of hot Directus data plus current S3/cold-storage sources required for usage archives and task archives.
+    - Explicit domain-level success, skipped, redacted, partial, and failure reporting.
+    - Updating `last_export_at` only after a verified complete export, or after the user explicitly accepts a partial export.
+    - Updating account-export architecture/user docs and tests so they no longer overpromise unverified behavior.
+  out:
+    - Full account import/restore for the new export format.
+    - Rewriting current chat import beyond preserving existing chat-import behavior.
+    - Team export implementation changes except ensuring personal export excludes team-scoped rows and references the separate team-export contract.
+    - Exporting raw API keys, connected-account credentials, webhook signing secrets, password hashes, lookup hashes, backup-code hashes, TOTP seeds, private keys, master keys, chat keys, task keys, project keys, plan keys, workflow secret keys, recovery secrets, or share URL fragments.
+    - Server-side plaintext ZIP generation for content that must be decrypted only with client-held key material.
+    - Apple implementation before CLI, SDK, web, and user-confirmation gates are complete.
+
+sequencing_gates:
+  - gate: CLI_AND_SDK_FIRST
+    required_before: web_implementation
+    rule: CLI export and npm/pip SDK export must be fully implemented and verified against the real dev API before web export implementation begins.
+    evidence: [T-CLI-EXPORT-DEV, T-CLI-FILTERS-DEV, T-CLI-PARTIAL-DEV, T-CLI-SECRET-SCAN, T-CLI-ARCHIVE-LAYOUT, T-NPM-SDK-EXPORT, T-PIP-SDK-EXPORT, T-PARITY-AUDIT]
+  - gate: WEB_AFTER_CLI_SDK
+    required_before: user_ui_confirmation
+    rule: Web export work starts only after CLI and SDK gates are green, then must pass deployed Playwright spec tests against app.dev.openmates.org.
+    evidence: [T-WEB-EXPORT, T-WEB-FILTERS, T-WEB-RESUME, T-WEB-PARTIAL, T-WEB-SECRET-SCAN]
+  - gate: USER_CONFIRMATION_BEFORE_APPLE
+    required_before: apple_implementation
+    rule: Apple implementation/parity starts only after automated web spec tests pass and the user confirms the deployed web UI looks correct and behaves as expected.
+    evidence: [V-USER-CONFIRMATION]
+
+context_discovery:
+  github_issues:
+    - "GitHub MCP get_me returned 401 Bad credentials."
+    - "gh issue list --search 'account export data portability' --limit 10 returned no matching issues."
+    - "Prod reported issue QHSJ2 resolved to UUID 6975162b-43df-4b66-aa58-4a173d677654 and reports incomplete account export, missing embed data, and older chats without full history."
+  local_findings:
+    - docs/findings/issues/prod/2026/6975162b-43df-4b66-aa58-4a173d677654-admin-exported-account-data-incomplete-embed-data-are-co.md
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/architecture/core/account-backup.md
+    - docs/user-guide/export-account.md
+    - docs/specs/tasks-v1/spec.yml
+    - docs/specs/teams-v1/spec.yml
+    - docs/specs/user-data-permission-audit/spec.yml
+    - docs/specs/sdk-cli-parity-v1/spec.yml
+    - docs/specs/plans-v1/spec.yml
+    - docs/specs/workflows-v1/spec.yml
+  code_patterns:
+    - frontend/packages/ui/src/services/accountExportService.ts currently builds a JSZip archive from local IndexedDB and partial backend data.
+    - frontend/packages/ui/src/services/chatExportService.ts converts local chats/messages/embeds to YAML/Markdown.
+    - frontend/packages/ui/src/services/zipExportService.ts extracts selected embed files from locally loaded messages and local embed state.
+    - backend/core/api/app/routes/settings.py exposes GET /export-account-manifest and GET /export-account-data.
+    - backend/core/api/app/routes/handlers/websocket_handlers/chat_content_batch_handler.py can fetch encrypted messages, embeds, embed keys, chat key wrappers, compression checkpoints, and code run outputs for explicit chat batches.
+    - backend/core/api/app/services/usage_archive_service.py retrieves user-key-encrypted gzip usage archives from S3.
+    - backend/core/api/app/services/user_task_archive_service.py writes completed task archives to user-key-encrypted gzip S3 bundles.
+    - backend/core/api/app/tasks/email_tasks/email_delivery_archive_task.py archives old email delivery rows to private S3 gzip bundles.
+    - backend/core/api/app/services/s3/config.py defines usage_archives, task_archives, email_delivery_archives, chatfiles, invoices, profile_images_private, issue_logs, and userdata_backups buckets.
+    - backend/core/api/app/routes/sdk.py currently proxies SDK account export manifest/data to the settings endpoints.
+    - frontend/packages/openmates-cli/src/cli.ts currently exposes raw settings export endpoints, not a real account-export writer.
+    - frontend/packages/openmates-cli/src/sdk.ts and packages/openmates-python/openmates/sdk.py expose minimal export_manifest/export_data helpers.
+  tests:
+    - frontend/apps/web_app/tests/export-account-flow.spec.ts verifies a ZIP downloads and contains recently imported chats/files, but does not prove full server-authoritative history, S3 archives, domain coverage, filters, or failure behavior.
+    - frontend/packages/openmates-cli/tests/cli.test.ts currently only covers command/help surfaces for settings export.
+    - frontend/packages/openmates-cli/tests/client.test.ts covers raw settings export endpoint calls.
+    - packages/openmates-python/tests/test_sdk.py covers account export facade calls but not real export archive generation.
+    - No dedicated backend account export job test exists at discovery time.
+
+apple_impact:
+  affected_files:
+    - apple/OpenMates/Sources/Core/Networking/OpenMatesAPIClient.swift
+    - apple/OpenMates/Sources/Settings
+    - apple/OpenMates/Sources/Chat
+    - apple/OpenMates/Sources/Projects
+    - apple/OpenMates/Sources/Tasks
+    - apple/OpenMates/Sources/Workflows
+  parity_expectations:
+    - Apple must not implement Account Export V1 until CLI, SDK, web, and user-confirmation gates are complete.
+    - Apple should eventually expose the same personal export job contract or clearly defer account export with a native-safe explanation.
+    - Apple must not continue claiming full personal export if native UI cannot satisfy the V1 export contract.
+  verification:
+    - python3 scripts/apple_remote.py status
+    - python3 scripts/apple_remote.py build-ios after web/user confirmation or a documented Apple deferral.
+  intentional_native_differences:
+    - Apple may defer full local archive writing in V1 if the web/CLI implementation is complete and the native UI links users to CLI/web export without weakening data-portability access.
+
+clarification:
+  rounds:
+    - question: Should the default export be fully decrypted and human-readable for all decryptable user-owned content while excluding/redacting reusable secrets and credentials?
+      recommendation: Yes. Do not include reusable credentials or raw secrets, but include safe overview metadata for connected/API/webhook/security surfaces.
+      answer: Yes. No API keys, connected-account credentials, private keys, token secrets, password hashes, or webhook secrets. Include an overview of connected accounts without exposing access-enabling secrets.
+    - question: Should every domain support filters in V1, or only advanced filters for highest-value domains first?
+      recommendation: Only support advanced filters for chats, tasks, projects, plans, workflows/runs, and usage in V1; simpler domains are all-or-nothing.
+      answer: Only support advanced filters for chats, tasks, projects, plans, workflows/runs, and usage.
+    - question: Should V1 use a server-managed export job, or a hybrid resumable model where the server owns authoritative manifest/chunk progress and clients decrypt/package sensitive content?
+      recommendation: Use a hybrid resumable job model so large exports do not freeze the browser and old/cold data cannot be forgotten.
+      answer: Use the recommended hybrid resumable job model and double-check scalability for large exports, unstable connections, and S3 archive retrieval.
+    - question: Should V1 include full account import/restore for the new export format?
+      recommendation: Export/readability first. Keep existing chat import working, but leave full account restore/import for a later spec.
+      answer: Focus on export first; improve/update import later.
+    - question: Should the archive optimize for human navigation or machine re-importability when those goals conflict?
+      recommendation: Optimize V1 for human navigation and durable readability, while still using stable YAML/JSON schemas for future tools.
+      answer: Yes; optimize for human navigation with stable structured files.
+  vision_summary: >
+    Account Export V1 should be a reliable, resumable personal data export that
+    lets users choose domains and filters from CLI, SDKs, and web, then produces
+    a readable archive that includes complete personal chats, embeds, projects,
+    tasks, plans, workflows/runs, billing/invoices, usage, and selected account
+    metadata without exposing credentials or secrets. The first implementation
+    must fix the current false-success architecture by using an authoritative
+    backend manifest, explicit hot/cold data retrieval, chunked progress, client
+    decryption where required, domain-level verification, and clear partial/failure
+    reporting. Import/restore and team export are separate follow-up surfaces.
+  approved_by_user: true
+
+implementation_state:
+  subject_commit: d62ca332ddb110926c0ec983df8909937b4ca523
+
+approvals:
+  product_contract:
+    status: approved
+    approved_at: "2026-07-18"
+    reason: User approved the Account Export V1 product contract and explicitly required CLI/SDK first, web after CLI/SDK, user UI confirmation after web spec tests, and Apple parity last.
+  implementation_plan:
+    status: approved
+    approved_at: "2026-07-18"
+    reason: Existing plan and tasks enforce the approved sequencing gates before implementation starts.
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Personal export excludes team-scoped rows by default.
+    reason: User confirmed team export is separate and requires owner/admin permissions.
+    decided_at: "2026-07-18"
+  - id: D-2
+    status: active
+    decision: V1 does not export reusable credentials or raw secrets.
+    reason: Credentials and secret material would allow account/resource access and do not belong in a data portability archive.
+    decided_at: "2026-07-18"
+  - id: D-3
+    status: active
+    decision: Use a hybrid resumable export job instead of a single browser-only JSZip run.
+    reason: Large exports must survive disconnects and must not freeze browsers or omit old/cold records.
+    decided_at: "2026-07-18"
+  - id: D-4
+    status: active
+    decision: Optimize archive layout for human navigation first.
+    reason: Users need a readable archive today; stable schemas keep future machine import possible without making restore a V1 requirement.
+    decided_at: "2026-07-18"
+  - id: D-5
+    status: active
+    decision: Do not add a separate user-facing checksums.sha256 file in V1.
+    reason: The user found that confusing; any needed integrity metadata should be folded into manifest/export report internals.
+    decided_at: "2026-07-18"
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    approach: Investigate QHSJ2 through issue wrapper and current export architecture before drafting spec.
+    outcome: succeeded
+    recorded_at: "2026-07-18"
+    notes: Short issue ID resolution was fixed and deployed in e2c584d; export architecture investigation found current client-only/local-IDB completeness flaws.
+  - id: ATTEMPT-2
+    task_id: TASK-2
+    approach: Treat account export as a browser-only JSZip improvement.
+    outcome: rejected
+    recorded_at: "2026-07-18"
+    notes: Rejected because it would still risk browser freezes, dropped-connection failure, and missing S3/cold-storage data.
+
+handoff:
+  current_task_id: TASK-2
+  next_action: Write red backend export job/domain/archive tests, then implement the backend account export job foundation before CLI/SDK work.
+  command: python3 scripts/spec_validate.py docs/specs/account-export-v1/spec.yml
+  expected_outcome: Spec stays structurally valid while implementation proceeds in the approved gate order.
+  blocker: null
+  last_verified_commit: not-yet-verified
+
+scenarios:
+  - id: S-1
+    title: CLI exports a complete personal archive without browser involvement
+    given:
+      - Alice has personal chats, embeds, uploads, projects, tasks, plans, workflows, invoices, usage, memories, and account metadata.
+      - Some usage entries and completed tasks are no longer hot Directus rows because they were archived to S3.
+    when:
+      - Alice runs `openmates account export --output ./openmates-export.zip` against the dev server.
+    then:
+      - The CLI starts a resumable export job, streams chunks to disk, decrypts decryptable content locally where key material is available, and writes a readable ZIP.
+      - The archive includes every default-selected domain, including hot and S3-archived usage/tasks.
+      - The command finishes with a clear complete/partial/failed summary and never exports reusable credentials or raw secrets.
+
+  - id: S-2
+    title: User exports only selected domains and filters
+    given:
+      - Alice only wants chats from 2026-01-01 through 2026-03-31 and workflow runs from the last 30 days.
+    when:
+      - Alice runs a CLI export or uses the web export UI with selected domains and filters.
+    then:
+      - The manifest records selected domains and filter criteria.
+      - The export includes only matching chats and workflow/runs plus required referenced embeds/uploads.
+      - All-or-nothing domains that do not support advanced filters are either entirely included or entirely excluded.
+
+  - id: S-3
+    title: Web export survives connection loss and resumes
+    given:
+      - Alice starts a large web export on an unstable network.
+      - The browser disconnects after some chunks are prepared or downloaded.
+    when:
+      - Alice reconnects and opens the export page again.
+    then:
+      - The UI shows the existing export job and its last persisted progress.
+      - Alice can resume or cancel the job without restarting from zero.
+      - Completed chunks are not duplicated and missing chunks are requested again.
+
+  - id: S-4
+    title: Chat export is complete and navigable
+    given:
+      - Alice has old personal chats that are metadata-only locally, plus nested embeds, uploads, code outputs, and compression summaries.
+    when:
+      - Alice exports chats with default settings.
+    then:
+      - Each exported chat has exactly one `.md` and one `.yml` file containing full decrypted messages and chat compression summaries in chronological/navigable order.
+      - Chat files reference shared `embeds/` and `uploads/` entries rather than duplicating repeated embeds per chat.
+      - Export validation fails or marks partial if any selected chat is missing expected server messages, required key material, or referenced embed/upload records.
+
+  - id: S-5
+    title: Safe metadata is exported for credentials-adjacent surfaces
+    given:
+      - Alice has connected accounts, API keys/devices, and webhooks.
+    when:
+      - Alice includes advanced account metadata in a personal export.
+    then:
+      - The export includes provider/account labels, connection status, scopes/capabilities, created/updated timestamps, API key names/scopes/limits, device metadata, and webhook metadata.
+      - The export does not contain refresh tokens, access tokens, raw API keys, webhook signing secrets, token hashes, password hashes, backup-code hashes, TOTP seeds, private keys, or share URL fragments.
+
+  - id: S-6
+    title: Partial export is explicit and user-controlled
+    given:
+      - Alice selected invoices and one invoice PDF cannot be fetched from S3.
+    when:
+      - The export job reaches the validation phase.
+    then:
+      - The job status is `partial` or `failed`, not `complete`.
+      - The export report names the failed domain/item and reason without leaking secrets.
+      - Alice can retry, cancel, or explicitly download a partial export.
+      - "`last_export_at` is not updated unless the export is complete or Alice explicitly accepts the partial export."
+
+  - id: S-7
+    title: SDKs expose the same export contract
+    given:
+      - A developer uses the npm SDK or pip SDK with an authenticated account.
+    when:
+      - They start an account export with selected domains and filters, poll status, and download chunks/artifacts.
+    then:
+      - SDK methods map to the same backend job contract as CLI and web.
+      - SDKs expose typed/domain-aware options and do not invent different defaults.
+      - SDK output preserves the same redaction and completeness semantics.
+
+  - id: S-8
+    title: Personal export never mixes team data
+    given:
+      - Alice has personal data and belongs to Team Acme with team chats, projects, tasks, plans, workflows, memories, connected accounts, and usage.
+    when:
+      - Alice runs a personal account export.
+    then:
+      - Rows with team scope or non-null team ownership hashes are excluded.
+      - The export report explains that team data is available only through separate team export for owner/admin roles.
+      - Viewer/member team export rules remain governed by the Teams V1 spec.
+
+  - id: S-9
+    title: Apple parity starts only after CLI, SDK, web, and user confirmation gates
+    given:
+      - CLI export and npm/pip SDK export have passed against the real dev API.
+      - Deployed web export Playwright specs have passed against app.dev.openmates.org.
+      - The user has confirmed the deployed web export UI looks correct and behaves as expected.
+    when:
+      - Apple account export implementation or parity work begins.
+    then:
+      - Apple uses the same personal export job contract or explicitly defers to CLI/web with a native-safe explanation.
+      - Apple work does not start from incomplete, unverified, or UI-unapproved web behavior.
+      - Apple verification records native build/test evidence or a documented native deferral.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Account export uses persisted resumable jobs with statuses, selected domains, filters, progress, chunk cursors, retry/cancel, and domain-level result summaries.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-BACKEND-JOB, T-CLI-EXPORT-DEV, T-NPM-SDK-EXPORT, T-PIP-SDK-EXPORT, T-WEB-EXPORT]
+  - id: AC-2
+    scenario: S-1
+    text: The default selected personal export domains are chats, embeds, referenced uploads, projects, tasks, plans, workflows/runs, billing/invoices, usage, profile/account settings, memories/app settings, and compliance/consent history.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-BACKEND-DOMAINS, T-CLI-EXPORT-DEV, T-WEB-EXPORT]
+  - id: AC-3
+    scenario: S-2
+    text: Advanced filters are supported in V1 for chats, tasks, projects, plans, workflows/runs, and usage; other selected domains remain all-or-nothing.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-BACKEND-FILTERS, T-CLI-FILTERS-DEV, T-NPM-SDK-EXPORT, T-PIP-SDK-EXPORT, T-WEB-FILTERS]
+  - id: AC-4
+    scenario: S-4
+    text: Every exported chat has exactly one complete markdown file and one complete YAML file containing full decrypted messages and chat compression summaries, with shared embed/upload references.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-BACKEND-CHAT-COMPLETE, T-CLI-EXPORT-DEV, T-WEB-EXPORT]
+  - id: AC-5
+    scenario: S-4
+    text: Chat and embed completeness is server-authoritative, including metadata-only/local-missing chats, nested embeds, embed keys, upload files, code run outputs, and compression checkpoints.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-BACKEND-CHAT-COMPLETE, T-BACKEND-EMBED-UPLOADS, T-CLI-EXPORT-DEV, T-WEB-EXPORT]
+  - id: AC-6
+    scenario: S-1
+    text: Export retrieves, decrypts, and merges usage archives and task archives from S3 with hot Directus rows where user key material permits it.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-BACKEND-S3-ARCHIVES, T-CLI-EXPORT-DEV]
+  - id: AC-7
+    scenario: S-5
+    text: Credential-adjacent domains export safe overview metadata only and never include reusable credentials, raw tokens, private keys, password hashes, lookup hashes, TOTP seeds, backup-code hashes, webhook signing secrets, or share URL fragments.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-BACKEND-SECRET-REDACTION, T-CLI-SECRET-SCAN, T-NPM-SDK-EXPORT, T-PIP-SDK-EXPORT, T-WEB-SECRET-SCAN]
+  - id: AC-8
+    scenario: S-6
+    text: Required-domain failures cannot silently produce a successful export; partial exports require explicit user action and are documented in export-report.yml.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-BACKEND-PARTIAL-FAILURE, T-CLI-PARTIAL-DEV, T-WEB-PARTIAL]
+  - id: AC-9
+    scenario: S-6
+    text: "`last_export_at` is updated only after verified complete export, or after explicit user acceptance of a partial export."
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-BACKEND-LAST-EXPORT, T-WEB-PARTIAL]
+  - id: AC-10
+    scenario: S-3
+    text: Long web exports can resume after browser/server connection loss without duplicating chunks or losing progress.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-BACKEND-JOB, T-WEB-RESUME]
+  - id: AC-11
+    scenario: S-7
+    text: CLI, npm SDK, pip SDK, and web use the same export job contract, defaults, filter names, redaction semantics, and completion statuses.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-PARITY-AUDIT, T-CLI-EXPORT-DEV, T-NPM-SDK-EXPORT, T-PIP-SDK-EXPORT, T-WEB-EXPORT]
+  - id: AC-12
+    scenario: S-8
+    text: Personal export excludes team-scoped rows and points users to separate owner/admin team export for team-owned data.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-BACKEND-TEAM-ISOLATION, T-CLI-EXPORT-DEV, T-WEB-EXPORT]
+  - id: AC-13
+    scenario: S-1
+    text: The export archive is human-navigable with README.md, manifest.yml, export-report.yml, domain indexes, stable YAML/JSON schemas, and no separate user-facing checksums.sha256 file.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-CLI-ARCHIVE-LAYOUT, T-WEB-EXPORT, V-USER-CONFIRMATION]
+  - id: AC-14
+    scenario: S-9
+    text: Apple implementation/parity is dependency-blocked until CLI and SDK export gates pass, deployed web Playwright specs pass, and the user confirms the web export UI looks correct and behaves as expected.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-CLI-EXPORT-DEV, T-NPM-SDK-EXPORT, T-PIP-SDK-EXPORT, T-WEB-EXPORT, T-WEB-FILTERS, T-WEB-RESUME, T-WEB-PARTIAL, V-USER-CONFIRMATION, V-APPLE-IMPACT]
+
+assumptions:
+  - id: A-1
+    text: CLI exports can access the user's required client-side key material after authenticated setup, or can prompt for it safely without logging or persisting it insecurely.
+    category: encryption
+    required_before: implementation
+    status: unchecked
+    evidence: []
+    blocker_or_waiver: If contradicted, CLI V1 must export encrypted client-side fields with explicit unreadable markers or require a separate key-unlock step before implementation continues.
+  - id: A-2
+    text: Existing S3 archive services for usage and tasks can retrieve archived records for the authenticated owner without exposing other users' data.
+    category: privacy
+    required_before: task_execution
+    status: checking
+    evidence:
+      - source: backend/core/api/app/services/usage_archive_service.py
+        summary: Usage archives are user-key encrypted gzip JSON and retrieve by user hash/month.
+      - source: backend/core/api/app/services/user_task_archive_service.py
+        summary: Task archives are owner-hash grouped, gzip compressed, user-key encrypted, and indexed in user_task_archives.
+  - id: A-3
+    text: Web can stream or incrementally assemble export archives safely enough for selected V1 sizes; otherwise the UI must guide users to CLI for very large exports.
+    category: frontend
+    required_before: implementation
+    status: unchecked
+    evidence: []
+    blocker_or_waiver: If browser streaming is insufficient, web V1 must offer resumable domain/chunk downloads or CLI handoff instead of freezing.
+
+contracts:
+  api:
+    - route: POST /v1/account-exports
+      auth: session_or_api_key
+      request: "{ domains: string[], filters?: ExportFilters, format: zip|directory, include_advanced_metadata?: boolean }"
+      response: "{ export_id, status, selected_domains, filters, default_domains, expires_at }"
+      notes:
+        - Starts a personal export job only for the authenticated user.
+        - Rejects team-scoped export requests; team export remains under the team export API.
+        - Requires a data-portability/read scope for API-key callers.
+    - route: GET /v1/account-exports/{export_id}
+      auth: session_or_api_key
+      response: "{ export_id, status, progress, domains, chunks, failures, partial_allowed, resume_cursor?, expires_at }"
+      notes:
+        - Status values include queued, running, waiting_for_client_decryption, ready, partial, failed, cancelled, expired.
+        - Response includes enough cursor/chunk state for CLI/SDK/web resume.
+    - route: GET /v1/account-exports/{export_id}/manifest
+      auth: session_or_api_key
+      response: "manifest.yml-compatible structured manifest with domain counts, filters, sources, redactions, and completion state"
+    - route: GET /v1/account-exports/{export_id}/chunks/{chunk_id}
+      auth: session_or_api_key
+      response: "bounded export chunk containing encrypted or server-decrypted records according to domain contract"
+      notes:
+        - Chunks are bounded for memory and retry safety.
+        - Client-side encrypted fields remain encrypted until client/CLI decrypts locally.
+    - route: POST /v1/account-exports/{export_id}/client-results
+      auth: session_or_api_key
+      request: "{ chunk_id, status, decrypted_count?, failed_items?, output_refs? }"
+      notes:
+        - Lets clients report successful local decryption/packaging or item-level failures for resumable progress.
+    - route: POST /v1/account-exports/{export_id}/accept-partial
+      auth: session_or_api_key
+      request: "{ acknowledged_failures: string[] }"
+      notes:
+        - Required before marking partial export accepted or updating last_export_at for a partial export.
+    - route: POST /v1/account-exports/{export_id}/cancel
+      auth: session_or_api_key
+      response: "{ success: true, status: cancelled }"
+  cli:
+    - command: openmates account export --output <path> [--domain <domain>...] [--from <date>] [--to <date>] [--chat <id>] [--project <id>] [--task-status <status>] [--workflow <id>] [--include-advanced-metadata] [--resume <export_id>] [--accept-partial]
+      notes:
+        - Streams output to disk.
+        - Must hit real dev API/WebSocket paths for green CLI evidence.
+        - Prints clear complete/partial/failed summary.
+  sdk:
+    - npm: accountExports.start(options), accountExports.get(id), accountExports.manifest(id), accountExports.iterChunks(id), accountExports.download(options)
+    - pip: client.account_exports.start(options), get(id), manifest(id), iter_chunks(id), download(options)
+  archive_layout:
+    root_files:
+      - README.md
+      - manifest.yml
+      - export-report.yml
+    default_domain_folders:
+      - profile/
+      - account-security/
+      - chats/
+      - embeds/
+      - uploads/
+      - memories/
+      - settings/
+      - tasks/
+      - projects/
+      - plans/
+      - workflows/
+      - billing/
+      - usage/
+      - compliance/
+    advanced_optional_folders:
+      - reminders/
+      - connected-accounts/
+      - developer/
+      - support-and-issues/
+      - notifications/
+      - referrals/
+      - newsletters/
+    notes:
+      - No separate user-facing checksums.sha256 file in V1.
+      - Domain indexes explain references to shared embeds/uploads.
+      - Each chat gets one .md and one .yml file; compression summaries live inside the chat files.
+  data_domains:
+    default_selected:
+      - chats
+      - embeds
+      - referenced_uploads
+      - projects
+      - tasks
+      - plans
+      - workflows_runs
+      - billing_invoices
+      - usage
+      - profile_account_settings
+      - memories_app_settings
+      - compliance_consent_history
+    advanced_optional:
+      - reminders
+      - connected_account_overview
+      - api_key_device_metadata
+      - webhook_metadata
+      - support_issue_reports
+      - notifications_email_delivery_newsletter_referrals
+      - storage_inventory_unreferenced_files
+      - detailed_operational_records
+    v1_advanced_filters:
+      - chats
+      - tasks
+      - projects
+      - plans
+      - workflows_runs
+      - usage
+  privacy_security:
+    - Personal export excludes rows with non-null team scope or team ownership hashes.
+    - Reusable credentials and raw secrets are never exported.
+    - Safe metadata may include provider names, account labels, scopes/capabilities, status, timestamps, API-key names/scopes/limits, and webhook names/event types without secrets.
+    - Export logs and reports must redact private emails, object keys, share URL fragments, raw tokens, and key material.
+    - Client-side encrypted content is decrypted only by clients that hold the relevant user key material.
+
+tests:
+  - id: T-BACKEND-JOB
+    type: pytest
+    file: backend/tests/test_account_export_jobs.py
+    command: python3 -m pytest backend/tests/test_account_export_jobs.py
+    covers: [AC-1, AC-10]
+    assertions:
+      - start export creates a user-scoped resumable job
+      - status exposes progress, chunks, retry state, cancel state, and expiry
+      - reconnecting clients can resume from persisted cursor
+    red_phase: { required: true, expected: fail, evidence: { status: "", run_id: "", timestamp: "" } }
+    green_phase: { required: true, expected: pass, evidence: { status: "", command: "", run_id: "", subject_commit: "", timestamp: "" } }
+  - id: T-BACKEND-DOMAINS
+    type: pytest
+    file: backend/tests/test_account_export_domains.py
+    command: python3 -m pytest backend/tests/test_account_export_domains.py
+    covers: [AC-2]
+    assertions:
+      - default manifest includes all approved default-selected domains
+      - advanced optional domains are available but not default-selected
+      - manifest records per-domain counts and source collections
+    red_phase: { required: true, expected: fail, evidence: { status: "", run_id: "", timestamp: "" } }
+    green_phase: { required: true, expected: pass, evidence: { status: "", command: "", run_id: "", subject_commit: "", timestamp: "" } }
+  - id: T-BACKEND-FILTERS
+    type: pytest
+    file: backend/tests/test_account_export_filters.py
+    command: python3 -m pytest backend/tests/test_account_export_filters.py
+    covers: [AC-3]
+    assertions:
+      - chat date filters select matching chats only
+      - workflow/run date filters select matching workflow runs only
+      - unsupported advanced filters on all-or-nothing domains return visible validation errors
+    red_phase: { required: true, expected: fail, evidence: { status: "", run_id: "", timestamp: "" } }
+    green_phase: { required: true, expected: pass, evidence: { status: "", command: "", run_id: "", subject_commit: "", timestamp: "" } }
+  - id: T-BACKEND-CHAT-COMPLETE
+    type: pytest
+    file: backend/tests/test_account_export_chats.py
+    command: python3 -m pytest backend/tests/test_account_export_chats.py
+    covers: [AC-4, AC-5]
+    assertions:
+      - metadata-only local chats are hydrated from authoritative server data before export completes
+      - exported chat YAML/Markdown includes all server messages and compression summaries
+      - missing message/key/embed references mark export partial or failed, not complete
+    red_phase: { required: true, expected: fail, evidence: { status: "", run_id: "", timestamp: "" } }
+    green_phase: { required: true, expected: pass, evidence: { status: "", command: "", run_id: "", subject_commit: "", timestamp: "" } }
+  - id: T-BACKEND-EMBED-UPLOADS
+    type: pytest
+    file: backend/tests/test_account_export_embeds_uploads.py
+    command: python3 -m pytest backend/tests/test_account_export_embeds_uploads.py
+    covers: [AC-5]
+    assertions:
+      - nested embeds are included once and referenced from chats
+      - user-owned upload_files records needed by selected domains are included
+      - S3-backed upload failures produce item-level failures
+    red_phase: { required: true, expected: fail, evidence: { status: "", run_id: "", timestamp: "" } }
+    green_phase: { required: true, expected: pass, evidence: { status: "", command: "", run_id: "", subject_commit: "", timestamp: "" } }
+  - id: T-BACKEND-S3-ARCHIVES
+    type: pytest
+    file: backend/tests/test_account_export_s3_archives.py
+    command: python3 -m pytest backend/tests/test_account_export_s3_archives.py
+    covers: [AC-6]
+    assertions:
+      - usage archives are retrieved, decrypted, decompressed, and merged with hot usage rows
+      - task archives are retrieved, decrypted, decompressed, and merged with hot task rows
+      - missing/corrupt archive objects mark only the affected domain partial/failed
+    red_phase: { required: true, expected: fail, evidence: { status: "", run_id: "", timestamp: "" } }
+    green_phase: { required: true, expected: pass, evidence: { status: "", command: "", run_id: "", subject_commit: "", timestamp: "" } }
+  - id: T-BACKEND-SECRET-REDACTION
+    type: pytest
+    file: backend/tests/test_account_export_secret_redaction.py
+    command: python3 -m pytest backend/tests/test_account_export_secret_redaction.py
+    covers: [AC-7]
+    assertions:
+      - connected accounts export safe metadata without token bundles
+      - API keys/devices export safe metadata without raw keys or hashes
+      - webhooks export safe metadata without signing secrets
+    red_phase: { required: true, expected: fail, evidence: { status: "", run_id: "", timestamp: "" } }
+    green_phase: { required: true, expected: pass, evidence: { status: "", command: "", run_id: "", subject_commit: "", timestamp: "" } }
+  - id: T-BACKEND-PARTIAL-FAILURE
+    type: pytest
+    file: backend/tests/test_account_export_partial_failure.py
+    command: python3 -m pytest backend/tests/test_account_export_partial_failure.py
+    covers: [AC-8]
+    assertions:
+      - required-domain failures do not produce status complete
+      - accept-partial is required before partial export is downloadable as accepted
+      - export-report.yml-compatible response includes failed domain/item reasons
+    red_phase: { required: true, expected: fail, evidence: { status: "", run_id: "", timestamp: "" } }
+    green_phase: { required: true, expected: pass, evidence: { status: "", command: "", run_id: "", subject_commit: "", timestamp: "" } }
+  - id: T-BACKEND-LAST-EXPORT
+    type: pytest
+    file: backend/tests/test_account_export_last_export_at.py
+    command: python3 -m pytest backend/tests/test_account_export_last_export_at.py
+    covers: [AC-9]
+    assertions:
+      - manifest/job creation does not update last_export_at
+      - verified complete export updates last_export_at
+      - rejected partial export does not update last_export_at
+    red_phase: { required: true, expected: fail, evidence: { status: "", run_id: "", timestamp: "" } }
+    green_phase: { required: true, expected: pass, evidence: { status: "", command: "", run_id: "", subject_commit: "", timestamp: "" } }
+  - id: T-BACKEND-TEAM-ISOLATION
+    type: pytest
+    file: backend/tests/test_account_export_team_isolation.py
+    command: python3 -m pytest backend/tests/test_account_export_team_isolation.py
+    covers: [AC-12]
+    assertions:
+      - personal export excludes team-scoped chats/projects/tasks/plans/workflows/memories/connected accounts
+      - export report references separate team export instead of including team rows
+    red_phase: { required: true, expected: fail, evidence: { status: "", run_id: "", timestamp: "" } }
+    green_phase: { required: true, expected: pass, evidence: { status: "", command: "", run_id: "", subject_commit: "", timestamp: "" } }
+  - id: T-CLI-EXPORT-DEV
+    type: manual
+    file: scripts/verify_account_export_cli.py
+    command: python3 scripts/verify_account_export_cli.py --env dev --scenario complete-default-export
+    covers: [AC-1, AC-2, AC-4, AC-5, AC-6, AC-11, AC-12, AC-13]
+    assertions:
+      - real CLI command starts export against api.dev.openmates.org
+      - archive is streamed to disk and contains expected domain files
+      - export summary is complete and no forbidden secret markers are present
+    red_phase: { required: true, expected: fail, evidence: { status: "", run_id: "", timestamp: "" } }
+    green_phase: { required: true, expected: pass_against_dev, evidence: { status: "", command: "", run_id: "", subject_commit: "", timestamp: "" } }
+  - id: T-CLI-FILTERS-DEV
+    type: manual
+    file: scripts/verify_account_export_cli.py
+    command: python3 scripts/verify_account_export_cli.py --env dev --scenario filtered-export
+    covers: [AC-3]
+    assertions:
+      - real CLI filtered export includes only requested chat/task/project/plan/workflow/usage windows
+      - required referenced embeds/uploads are still included
+    red_phase: { required: true, expected: fail, evidence: { status: "", run_id: "", timestamp: "" } }
+    green_phase: { required: true, expected: pass_against_dev, evidence: { status: "", command: "", run_id: "", subject_commit: "", timestamp: "" } }
+  - id: T-CLI-PARTIAL-DEV
+    type: manual
+    file: scripts/verify_account_export_cli.py
+    command: python3 scripts/verify_account_export_cli.py --env dev --scenario partial-export
+    covers: [AC-8]
+    assertions:
+      - CLI shows retry/cancel/accept-partial choices for injected export failure
+      - last_export_at is not updated before explicit acceptance
+    red_phase: { required: true, expected: fail, evidence: { status: "", run_id: "", timestamp: "" } }
+    green_phase: { required: true, expected: pass_against_dev, evidence: { status: "", command: "", run_id: "", subject_commit: "", timestamp: "" } }
+  - id: T-CLI-SECRET-SCAN
+    type: lint
+    file: scripts/verify_account_export_archive.py
+    command: python3 scripts/verify_account_export_archive.py --zip <export.zip> --forbid-secrets
+    covers: [AC-7]
+    assertions:
+      - archive text files do not contain forbidden secret field names or known test secret values
+      - export report lists redacted secret categories
+    red_phase: { required: true, expected: fail, evidence: { status: "", run_id: "", timestamp: "" } }
+    green_phase: { required: true, expected: pass, evidence: { status: "", command: "", run_id: "", subject_commit: "", timestamp: "" } }
+  - id: T-CLI-ARCHIVE-LAYOUT
+    type: lint
+    file: scripts/verify_account_export_archive.py
+    command: python3 scripts/verify_account_export_archive.py --zip <export.zip> --layout-v1
+    covers: [AC-13]
+    assertions:
+      - root README.md, manifest.yml, and export-report.yml exist
+      - no root checksums.sha256 file exists
+      - chats contain one md and one yml per chat
+    red_phase: { required: true, expected: fail, evidence: { status: "", run_id: "", timestamp: "" } }
+    green_phase: { required: true, expected: pass, evidence: { status: "", command: "", run_id: "", subject_commit: "", timestamp: "" } }
+  - id: T-NPM-SDK-EXPORT
+    type: unit
+    file: frontend/packages/openmates-cli/tests/account-export-sdk.test.ts
+    command: cd frontend/packages/openmates-cli && node --test --experimental-strip-types --loader ./tests/loader.mjs tests/account-export-sdk.test.ts
+    covers: [AC-1, AC-3, AC-7, AC-11]
+    assertions:
+      - npm SDK exposes start/get/manifest/iterChunks/download helpers
+      - SDK request defaults and filter names match CLI/web contract
+      - SDK redaction semantics match backend contract
+    red_phase: { required: true, expected: fail, evidence: { status: "", run_id: "", timestamp: "" } }
+    green_phase: { required: true, expected: pass, evidence: { status: "", command: "", run_id: "", subject_commit: "", timestamp: "" } }
+  - id: T-PIP-SDK-EXPORT
+    type: pytest
+    file: packages/openmates-python/tests/test_account_export.py
+    command: python3 -m pytest packages/openmates-python/tests/test_account_export.py
+    covers: [AC-1, AC-3, AC-7, AC-11]
+    assertions:
+      - pip SDK exposes start/get/manifest/iter_chunks/download helpers
+      - SDK request defaults and filter names match CLI/web contract
+      - SDK redaction semantics match backend contract
+    red_phase: { required: true, expected: fail, evidence: { status: "", run_id: "", timestamp: "" } }
+    green_phase: { required: true, expected: pass, evidence: { status: "", command: "", run_id: "", subject_commit: "", timestamp: "" } }
+  - id: T-PARITY-AUDIT
+    type: lint
+    file: scripts/audit_sdk_cli_parity.py
+    command: python3 scripts/audit_sdk_cli_parity.py
+    covers: [AC-11]
+    assertions:
+      - account export CLI, npm SDK, and pip SDK surfaces remain in parity
+    red_phase: { required: false, expected: pass_or_existing_failure, evidence: { status: "", run_id: "", timestamp: "" } }
+    green_phase: { required: true, expected: pass, evidence: { status: "", command: "", run_id: "", subject_commit: "", timestamp: "" } }
+  - id: T-WEB-EXPORT
+    type: playwright
+    file: frontend/apps/web_app/tests/export-account-flow.spec.ts
+    command: python3 scripts/tests.py run --spec export-account-flow.spec.ts
+    target: app.dev.openmates.org
+    covers: [AC-1, AC-2, AC-4, AC-5, AC-11, AC-12, AC-13]
+    assertions:
+      - web export starts/resumes a job and downloads a V1 archive
+      - ZIP contains default-selected domains and complete chat files
+      - UI does not claim success before completion verification
+    red_phase: { required: true, expected: fail_against_current_dev, evidence: { status: "", run_id: "", timestamp: "" } }
+    green_phase: { required: true, expected: pass_after_deploy, evidence: { status: "", run_id: "", timestamp: "" } }
+  - id: T-WEB-FILTERS
+    type: playwright
+    file: frontend/apps/web_app/tests/export-account-filters.spec.ts
+    command: python3 scripts/tests.py run --spec export-account-filters.spec.ts
+    target: app.dev.openmates.org
+    covers: [AC-3]
+    assertions:
+      - web UI supports domain selection and advanced filters for V1 filterable domains
+      - all-or-nothing domains do not expose unsupported filters
+    red_phase: { required: true, expected: fail_against_current_dev, evidence: { status: "", run_id: "", timestamp: "" } }
+    green_phase: { required: true, expected: pass_after_deploy, evidence: { status: "", run_id: "", timestamp: "" } }
+  - id: T-WEB-RESUME
+    type: playwright
+    file: frontend/apps/web_app/tests/export-account-resume.spec.ts
+    command: python3 scripts/tests.py run --spec export-account-resume.spec.ts
+    target: app.dev.openmates.org
+    covers: [AC-10]
+    assertions:
+      - web UI shows resumable export after reload/reconnect
+      - resume continues from persisted job/chunk state
+      - cancel ends the job without updating last_export_at
+    red_phase: { required: true, expected: fail_against_current_dev, evidence: { status: "", run_id: "", timestamp: "" } }
+    green_phase: { required: true, expected: pass_after_deploy, evidence: { status: "", run_id: "", timestamp: "" } }
+  - id: T-WEB-PARTIAL
+    type: playwright
+    file: frontend/apps/web_app/tests/export-account-partial.spec.ts
+    command: python3 scripts/tests.py run --spec export-account-partial.spec.ts
+    target: app.dev.openmates.org
+    covers: [AC-8, AC-9]
+    assertions:
+      - partial export requires explicit acceptance
+      - failed items are visible and retryable
+      - last_export_at behavior matches backend contract
+    red_phase: { required: true, expected: fail_against_current_dev, evidence: { status: "", run_id: "", timestamp: "" } }
+    green_phase: { required: true, expected: pass_after_deploy, evidence: { status: "", run_id: "", timestamp: "" } }
+  - id: T-WEB-SECRET-SCAN
+    type: lint
+    file: frontend/apps/web_app/tests/export-account-flow.spec.ts
+    command: python3 scripts/verify_account_export_archive.py --zip <playwright-export.zip> --forbid-secrets
+    covers: [AC-7]
+    assertions:
+      - web-downloaded archive does not contain forbidden secret material
+    red_phase: { required: true, expected: fail_against_current_dev, evidence: { status: "", run_id: "", timestamp: "" } }
+    green_phase: { required: true, expected: pass_after_deploy, evidence: { status: "", command: "", run_id: "", subject_commit: "", timestamp: "" } }
+
+verifications:
+  - id: V-PRODUCT-CONTRACT-APPROVAL
+    kind: artifact_review
+    phase: final
+    required_for_done: false
+    covers: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8, AC-9, AC-10, AC-11, AC-12, AC-13]
+    status: pending
+    evidence:
+      status: ""
+      summary: ""
+      timestamp: ""
+  - id: V-USER-CONFIRMATION
+    kind: user_confirmation
+    phase: final
+    required_for_done: true
+    covers: [AC-13, AC-14]
+    status: pending
+    evidence:
+      status: ""
+      summary: ""
+      timestamp: ""
+  - id: V-APPLE-IMPACT
+    kind: manual_check
+    phase: final
+    required_for_done: true
+    covers: [AC-14]
+    status: pending
+    evidence:
+      status: ""
+      command: python3 scripts/apple_remote.py status && python3 scripts/apple_remote.py build-ios
+      summary: ""
+      timestamp: ""
+implementation_plan:
+  spec_path: docs/specs/account-export-v1/spec.yml
+  existing_patterns:
+    - backend/core/api/app/routes/settings.py current export endpoints
+    - backend/core/api/app/routes/handlers/websocket_handlers/chat_content_batch_handler.py explicit chat hydration
+    - backend/core/api/app/services/usage_archive_service.py S3 usage archive retrieval
+    - backend/core/api/app/services/user_task_archive_service.py S3 task archive format
+    - frontend/packages/openmates-cli/src/cli.ts CLI command dispatch
+    - frontend/packages/openmates-cli/src/sdk.ts npm SDK facade
+    - packages/openmates-python/openmates/sdk.py pip SDK facade
+    - frontend/packages/ui/src/components/settings/account/SettingsExportAccount.svelte web UI
+  architecture: >
+    Implement an account export job service that builds an authoritative personal
+    manifest from Directus and S3 archive sources, emits bounded chunks for CLI,
+    SDK, and web clients, records client-side decryption/packaging progress, and
+    marks jobs complete only after all selected domains are verified or explicitly
+    accepted as partial. CLI is the reference large-export writer; web uses the
+    same job contract with browser-safe chunking/resume behavior.
+  data_flow:
+    - User selects export domains and filters in CLI, SDK, or web.
+    - Backend validates auth/scope, rejects team export requests, and creates a personal export job.
+    - Backend builds manifest counts from hot Directus rows plus required S3 archive indexes.
+    - Clients download bounded chunks, decrypt client-side encrypted content locally when possible, and stream archive output.
+    - Clients report chunk/decryption results back to the job.
+    - Backend marks complete, partial, failed, cancelled, or expired and updates last_export_at only under the approved contract.
+  affected_files:
+    - path: backend/core/api/app/routes/account_exports.py
+      reason: New account export job API routes.
+    - path: backend/core/api/app/services/account_export_service.py
+      reason: Manifest, chunk, domain, S3 archive, and completeness orchestration.
+    - path: backend/core/directus/schemas/account_exports.yml
+      reason: Persist export job progress, selections, chunks, and outcomes if Directus is chosen for job state.
+    - path: backend/core/api/app/routes/sdk.py
+      reason: SDK account export route parity.
+    - path: frontend/packages/openmates-cli/src/cli.ts
+      reason: CLI account export command.
+    - path: frontend/packages/openmates-cli/src/client.ts
+      reason: CLI API client for export job endpoints.
+    - path: frontend/packages/openmates-cli/src/sdk.ts
+      reason: npm SDK account export facade.
+    - path: packages/openmates-python/openmates/sdk.py
+      reason: pip SDK account export facade.
+    - path: frontend/packages/ui/src/services/accountExportService.ts
+      reason: Replace browser-only local export with job-driven web export.
+    - path: frontend/packages/ui/src/components/settings/account/SettingsExportAccount.svelte
+      reason: Web UI domain selection, filters, progress, resume, partial handling.
+    - path: frontend/apps/web_app/tests/export-account-flow.spec.ts
+      reason: Update web E2E coverage for V1 contract.
+    - path: docs/architecture/core/account-backup.md
+      reason: Correct architecture claims.
+    - path: docs/user-guide/export-account.md
+      reason: Update user-facing export behavior and limitations.
+  verification_strategy:
+    - python3 scripts/spec_validate.py docs/specs/account-export-v1/spec.yml
+    - Red backend contract tests before implementation.
+    - Real CLI dev export before SDK/web implementation.
+    - npm SDK and pip SDK parity tests after CLI contract is green.
+    - Deploy to dev before Playwright green tests.
+    - User confirmation on downloaded archive readability and UX before Apple parity.
+    - python3 scripts/spec_verify.py docs/specs/account-export-v1/spec.yml before marking verified.
+  verification_order:
+    - Backend unit/contract red tests
+    - Real CLI command against dev server
+    - GitHub Actions daily-test wiring after dev CLI success
+    - npm SDK and pip SDK parity
+    - Web implementation and deployed Playwright green tests
+    - User confirmation of dev web export UX/archive readability
+    - User confirmation that deployed web export UI looks correct and behaves as expected
+    - Apple implementation/parity, then native impact check/build or documented deferral
+
+tasks:
+  - id: TASK-1
+    title: Approve Account Export V1 product contract
+    status: pending
+    phase: awaiting_approval
+    covers:
+      scenarios: [S-1, S-2, S-3, S-4, S-5, S-6, S-7, S-8, S-9]
+      acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8, AC-9, AC-10, AC-11, AC-12, AC-13, AC-14]
+    expected_files:
+      - docs/specs/account-export-v1/spec.yml
+    verification: [V-PRODUCT-CONTRACT-APPROVAL]
+    verification_ids: [V-PRODUCT-CONTRACT-APPROVAL]
+    dependencies: []
+    ownership:
+      files:
+        - docs/specs/account-export-v1/spec.yml
+      shared_files: []
+    blockers:
+      - Product contract awaits user approval.
+    follow_up_tasks: [TASK-2, TASK-3, TASK-4, TASK-5, TASK-6, TASK-7, TASK-8]
+    independently_deployable: false
+  - id: TASK-2
+    title: Write red backend export job/domain/archive tests
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-1, S-2, S-4, S-5, S-6, S-8]
+      acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8, AC-9, AC-12]
+    expected_files:
+      - backend/tests/test_account_export_jobs.py
+      - backend/tests/test_account_export_domains.py
+      - backend/tests/test_account_export_filters.py
+      - backend/tests/test_account_export_chats.py
+      - backend/tests/test_account_export_embeds_uploads.py
+      - backend/tests/test_account_export_s3_archives.py
+      - backend/tests/test_account_export_secret_redaction.py
+      - backend/tests/test_account_export_partial_failure.py
+      - backend/tests/test_account_export_last_export_at.py
+      - backend/tests/test_account_export_team_isolation.py
+    verification: [T-BACKEND-JOB, T-BACKEND-DOMAINS, T-BACKEND-FILTERS, T-BACKEND-CHAT-COMPLETE, T-BACKEND-EMBED-UPLOADS, T-BACKEND-S3-ARCHIVES, T-BACKEND-SECRET-REDACTION, T-BACKEND-PARTIAL-FAILURE, T-BACKEND-LAST-EXPORT, T-BACKEND-TEAM-ISOLATION]
+    verification_ids: [T-BACKEND-JOB, T-BACKEND-DOMAINS, T-BACKEND-FILTERS, T-BACKEND-CHAT-COMPLETE, T-BACKEND-EMBED-UPLOADS, T-BACKEND-S3-ARCHIVES, T-BACKEND-SECRET-REDACTION, T-BACKEND-PARTIAL-FAILURE, T-BACKEND-LAST-EXPORT, T-BACKEND-TEAM-ISOLATION]
+    dependencies: [TASK-1]
+    ownership:
+      files:
+        - backend/tests/test_account_export_jobs.py
+        - backend/tests/test_account_export_domains.py
+        - backend/tests/test_account_export_filters.py
+        - backend/tests/test_account_export_chats.py
+        - backend/tests/test_account_export_embeds_uploads.py
+        - backend/tests/test_account_export_s3_archives.py
+        - backend/tests/test_account_export_secret_redaction.py
+        - backend/tests/test_account_export_partial_failure.py
+        - backend/tests/test_account_export_last_export_at.py
+        - backend/tests/test_account_export_team_isolation.py
+      shared_files: []
+    blockers: []
+    follow_up_tasks: [TASK-3]
+    independently_deployable: false
+  - id: TASK-3
+    title: Implement backend account export job service and routes
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-1, S-2, S-4, S-5, S-6, S-8]
+      acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8, AC-9, AC-12]
+    expected_files:
+      - backend/core/api/app/routes/account_exports.py
+      - backend/core/api/app/services/account_export_service.py
+      - backend/core/directus/schemas/account_exports.yml
+      - backend/core/api/main.py
+      - backend/core/api/app/routes/sdk.py
+    verification: [T-BACKEND-JOB, T-BACKEND-DOMAINS, T-BACKEND-FILTERS, T-BACKEND-CHAT-COMPLETE, T-BACKEND-EMBED-UPLOADS, T-BACKEND-S3-ARCHIVES, T-BACKEND-SECRET-REDACTION, T-BACKEND-PARTIAL-FAILURE, T-BACKEND-LAST-EXPORT, T-BACKEND-TEAM-ISOLATION]
+    verification_ids: [T-BACKEND-JOB, T-BACKEND-DOMAINS, T-BACKEND-FILTERS, T-BACKEND-CHAT-COMPLETE, T-BACKEND-EMBED-UPLOADS, T-BACKEND-S3-ARCHIVES, T-BACKEND-SECRET-REDACTION, T-BACKEND-PARTIAL-FAILURE, T-BACKEND-LAST-EXPORT, T-BACKEND-TEAM-ISOLATION]
+    dependencies: [TASK-2]
+    ownership:
+      files:
+        - backend/core/api/app/routes/account_exports.py
+        - backend/core/api/app/services/account_export_service.py
+        - backend/core/directus/schemas/account_exports.yml
+        - backend/core/api/main.py
+        - backend/core/api/app/routes/sdk.py
+      shared_files:
+        - backend/core/api/app/routes/settings.py
+    blockers: []
+    follow_up_tasks: [TASK-4]
+    independently_deployable: false
+  - id: TASK-4
+    title: Implement CLI export writer and archive verifier
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-1, S-2, S-4, S-5, S-6, S-8]
+      acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8, AC-11, AC-12, AC-13]
+    expected_files:
+      - frontend/packages/openmates-cli/src/cli.ts
+      - frontend/packages/openmates-cli/src/client.ts
+      - frontend/packages/openmates-cli/tests/account-export.test.ts
+      - scripts/verify_account_export_cli.py
+      - scripts/verify_account_export_archive.py
+    verification: [T-CLI-EXPORT-DEV, T-CLI-FILTERS-DEV, T-CLI-PARTIAL-DEV, T-CLI-SECRET-SCAN, T-CLI-ARCHIVE-LAYOUT]
+    verification_ids: [T-CLI-EXPORT-DEV, T-CLI-FILTERS-DEV, T-CLI-PARTIAL-DEV, T-CLI-SECRET-SCAN, T-CLI-ARCHIVE-LAYOUT]
+    dependencies: [TASK-3]
+    ownership:
+      files:
+        - frontend/packages/openmates-cli/src/cli.ts
+        - frontend/packages/openmates-cli/src/client.ts
+        - frontend/packages/openmates-cli/tests/account-export.test.ts
+        - scripts/verify_account_export_cli.py
+        - scripts/verify_account_export_archive.py
+      shared_files: []
+    blockers:
+      - Confirm A-1 before implementing local decryption in CLI.
+    follow_up_tasks: [TASK-5]
+    independently_deployable: false
+  - id: TASK-5
+    title: Implement npm and pip SDK account export parity
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-7]
+      acceptance_criteria: [AC-1, AC-3, AC-7, AC-11]
+    expected_files:
+      - frontend/packages/openmates-cli/src/sdk.ts
+      - frontend/packages/openmates-cli/tests/account-export-sdk.test.ts
+      - packages/openmates-python/openmates/sdk.py
+      - packages/openmates-python/tests/test_account_export.py
+      - scripts/audit_sdk_cli_parity.py
+    verification: [T-NPM-SDK-EXPORT, T-PIP-SDK-EXPORT, T-PARITY-AUDIT]
+    verification_ids: [T-NPM-SDK-EXPORT, T-PIP-SDK-EXPORT, T-PARITY-AUDIT]
+    dependencies: [TASK-4]
+    ownership:
+      files:
+        - frontend/packages/openmates-cli/src/sdk.ts
+        - frontend/packages/openmates-cli/tests/account-export-sdk.test.ts
+        - packages/openmates-python/openmates/sdk.py
+        - packages/openmates-python/tests/test_account_export.py
+        - scripts/audit_sdk_cli_parity.py
+      shared_files: []
+    blockers: []
+    follow_up_tasks: [TASK-6]
+    independently_deployable: false
+  - id: TASK-6
+    title: Implement web export UI and browser-safe resume behavior
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-2, S-3, S-4, S-6, S-8]
+      acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-8, AC-9, AC-10, AC-11, AC-12, AC-13]
+    expected_files:
+      - frontend/packages/ui/src/services/accountExportService.ts
+      - frontend/packages/ui/src/components/settings/account/SettingsExportAccount.svelte
+      - frontend/apps/web_app/tests/export-account-flow.spec.ts
+      - frontend/apps/web_app/tests/export-account-filters.spec.ts
+      - frontend/apps/web_app/tests/export-account-resume.spec.ts
+      - frontend/apps/web_app/tests/export-account-partial.spec.ts
+    verification: [T-WEB-EXPORT, T-WEB-FILTERS, T-WEB-RESUME, T-WEB-PARTIAL, T-WEB-SECRET-SCAN]
+    verification_ids: [T-WEB-EXPORT, T-WEB-FILTERS, T-WEB-RESUME, T-WEB-PARTIAL, T-WEB-SECRET-SCAN]
+    dependencies: [TASK-5]
+    ownership:
+      files:
+        - frontend/packages/ui/src/services/accountExportService.ts
+        - frontend/packages/ui/src/components/settings/account/SettingsExportAccount.svelte
+        - frontend/apps/web_app/tests/export-account-flow.spec.ts
+        - frontend/apps/web_app/tests/export-account-filters.spec.ts
+        - frontend/apps/web_app/tests/export-account-resume.spec.ts
+        - frontend/apps/web_app/tests/export-account-partial.spec.ts
+      shared_files: []
+    blockers:
+      - Confirm A-3 before choosing final browser archive writer/resume design.
+    follow_up_tasks: [TASK-7]
+    independently_deployable: false
+  - id: TASK-7
+    title: Update docs and get user confirmation
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-1, S-2, S-3, S-4, S-5, S-6, S-8]
+      acceptance_criteria: [AC-13]
+    expected_files:
+      - docs/architecture/core/account-backup.md
+      - docs/user-guide/export-account.md
+    verification: [V-USER-CONFIRMATION]
+    verification_ids: [V-USER-CONFIRMATION]
+    dependencies: [TASK-6]
+    ownership:
+      files:
+        - docs/architecture/core/account-backup.md
+        - docs/user-guide/export-account.md
+      shared_files: []
+    blockers:
+      - Requires user review of a real dev export archive and UI experience.
+    follow_up_tasks: [TASK-8]
+    independently_deployable: false
+  - id: TASK-8
+    title: Implement or explicitly defer Apple account export parity
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-9]
+      acceptance_criteria: [AC-14]
+    expected_files:
+      - apple/OpenMates/Sources/Core/Networking/OpenMatesAPIClient.swift
+      - apple/OpenMates/Sources/Settings
+    verification: [V-APPLE-IMPACT]
+    verification_ids: [V-APPLE-IMPACT]
+    dependencies: [TASK-7]
+    ownership:
+      files:
+        - apple/OpenMates/Sources/Core/Networking/OpenMatesAPIClient.swift
+        - apple/OpenMates/Sources/Settings
+      shared_files: []
+    blockers:
+      - CLI and SDK gates must be green first.
+      - Deployed web Playwright specs must be green second.
+      - User must confirm the deployed web UI looks correct and behaves as expected third.
+    follow_up_tasks: []
+    independently_deployable: false
+
+risks:
+  - id: R-1
+    severity: high
+    risk: Browser exports can still freeze if web packaging loads large chunks or binary blobs into memory.
+    mitigation: CLI is reference large-export path; web must use bounded chunks/resume and either streaming writer support or explicit CLI handoff for very large exports.
+  - id: R-2
+    severity: high
+    risk: Client-side encrypted domains cannot be decrypted by server job workers without weakening encryption guarantees.
+    mitigation: Server provides authoritative encrypted chunks; clients decrypt locally and report progress/failures.
+  - id: R-3
+    severity: high
+    risk: Data-domain scope is broad and can regress when new collections are added.
+    mitigation: Add deterministic export-domain registry/test so new user-scoped collections require explicit include/exclude classification.
+  - id: R-4
+    severity: medium
+    risk: S3 archive retrieval can be slow or missing due to lifecycle expiration.
+    mitigation: Mark expired/missing archives explicitly in export-report.yml and avoid claiming complete for selected unavailable data.
+
+open_questions:
+  - id: OQ-1
+    question: "Which persistent store should hold export jobs/chunks in implementation: Directus, Redis with Directus summary, or a dedicated Postgres table?"
+    status: implementation_decision_needed
+  - id: OQ-2
+    question: "What exact CLI key-unlock flow is available for decrypting client-side encrypted data outside the browser?"
+    status: assumption_A-1
+  - id: OQ-3
+    question: "Which browser archive writer is acceptable for Safari-compatible streaming/resume behavior?"
+    status: assumption_A-3
+  - id: OQ-4
+    question: "Should advanced optional user-linked email delivery/newsletter/referral/support records be default-off in the UI but available from CLI/SDK flags?"
+    status: product_review_optional

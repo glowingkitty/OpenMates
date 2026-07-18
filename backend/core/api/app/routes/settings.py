@@ -4385,7 +4385,7 @@ async def get_export_manifest(
         app_settings = await directus_service.get_items(
             "user_app_settings_and_memories",
             params={
-                "filter": {"hashed_user_id": {"_eq": user_id_hash}},
+                "filter": {"hashed_user_id": {"_eq": user_id_hash}, "hashed_team_id": {"_null": True}},
                 "fields": "id",
                 "limit": 1
             }
@@ -4744,7 +4744,7 @@ async def get_export_data(
             app_settings = await directus_service.get_items(
                 "user_app_settings_and_memories",
                 params={
-                    "filter": {"hashed_user_id": {"_eq": user_id_hash}},
+                    "filter": {"hashed_user_id": {"_eq": user_id_hash}, "hashed_team_id": {"_null": True}},
                     "limit": -1
                 }
             )
@@ -6379,193 +6379,12 @@ async def import_chat(
     Rate-limited to 3/minute to prevent abuse.
     Endpoint: POST /v1/settings/import-chat
     """
-    from backend.core.api.app.utils.secrets_manager import SecretsManager
-    from backend.core.api.app.services.billing_service import BillingService
-    from backend.apps.ai.processing.content_sanitization import sanitize_message_for_import
-    import uuid as _uuid
-
-    user_id: str = current_user.id
-    user_id_hash: str = hashlib.sha256(user_id.encode()).hexdigest()
-
-    billing_service = BillingService(cache_service, directus_service, encryption_service)
-    secrets_manager = SecretsManager(cache_service=cache_service)
-
-    results: List[ImportedChatResult] = []
-    total_credits = 0
-
-    for chat_index, chat in enumerate(body.chats):
-        chat_task_id = f"import_{user_id[:8]}_{chat_index}"
-        new_chat_id = str(_uuid.uuid4())
-
-        # Sanitize each message sequentially (respects OpenRouter 100 RPM limit)
-        sanitized_messages = []
-        messages_blocked = 0
-        total_input_tokens = 0
-
-        for msg_index, msg in enumerate(chat.messages):
-            content = msg.content or ""
-            total_input_tokens += max(1, len(content) // 4)  # conservative token estimate
-
-            if not content.strip():
-                # Empty messages pass through unchanged (no safety cost)
-                sanitized_messages.append({
-                    "role": msg.role,
-                    "content": content,
-                    "completed_at": msg.completed_at,
-                    "assistant_category": msg.assistant_category,
-                    "thinking": msg.thinking,
-                    "has_thinking": msg.has_thinking,
-                    "thinking_tokens": msg.thinking_tokens,
-                })
-                continue
-
-            msg_task_id = f"{chat_task_id}_msg{msg_index}"
-            try:
-                scanned = await sanitize_message_for_import(
-                    content=content,
-                    task_id=msg_task_id,
-                    secrets_manager=secrets_manager,
-                    cache_service=cache_service,
-                )
-            except Exception as scan_err:
-                logger.error(
-                    f"[ImportChat] Safety scan error for {msg_task_id}: {scan_err}",
-                    exc_info=True,
-                )
-                # Treat scan error as block (fail-closed)
-                scanned = ""
-
-            if scanned == "":
-                # Message was blocked
-                messages_blocked += 1
-                final_content = _IMPORT_BLOCKED_PLACEHOLDER
-            else:
-                final_content = scanned
-
-            # Normalise assistant_category
-            category = (msg.assistant_category or "").strip().lower()
-            if category not in _VALID_ASSISTANT_CATEGORIES:
-                category = "general knowledge"
-
-            sanitized_messages.append({
-                "role": msg.role,
-                "content": final_content,
-                "completed_at": msg.completed_at,
-                "assistant_category": category if msg.role == "assistant" else None,
-                "thinking": msg.thinking if msg.role == "assistant" else None,
-                "has_thinking": msg.has_thinking if msg.role == "assistant" else None,
-                "thinking_tokens": msg.thinking_tokens if msg.role == "assistant" else None,
-            })
-
-        # Do not charge if ALL messages were blocked
-        messages_imported = len(sanitized_messages) - messages_blocked
-        credits_to_charge = 0
-        if messages_imported > 0 and total_input_tokens > 0:
-            credits_to_charge = max(1, total_input_tokens // _IMPORT_TOKENS_PER_CREDIT)
-
-        # ----------------------------------------------------------------
-        # Store chat + messages in Directus
-        # ----------------------------------------------------------------
-        try:
-            # Create the chat record
-            chat_payload: Dict[str, Any] = {
-                "id": new_chat_id,
-                "user_id": user_id,
-                "hashed_user_id": user_id_hash,
-                "title": (chat.title or "").strip() or None,
-                "draft": chat.draft,
-                "summary": chat.summary,
-                "imported": True,
-            }
-            await directus_service.create_item("chats", chat_payload)
-
-            # Create each message
-            for msg_data in sanitized_messages:
-                msg_id = str(_uuid.uuid4())
-                msg_payload: Dict[str, Any] = {
-                    "id": msg_id,
-                    "chat_id": new_chat_id,
-                    "user_id": user_id,
-                    "role": msg_data["role"],
-                    "content": msg_data["content"],
-                }
-                if msg_data.get("completed_at"):
-                    msg_payload["completed_at"] = msg_data["completed_at"]
-                if msg_data.get("assistant_category"):
-                    msg_payload["assistant_category"] = msg_data["assistant_category"]
-                if msg_data.get("thinking"):
-                    msg_payload["thinking"] = msg_data["thinking"]
-                if msg_data.get("has_thinking") is not None:
-                    msg_payload["has_thinking"] = msg_data["has_thinking"]
-                if msg_data.get("thinking_tokens") is not None:
-                    msg_payload["thinking_tokens"] = msg_data["thinking_tokens"]
-                await directus_service.create_item("messages", msg_payload)
-
-        except Exception as store_err:
-            logger.error(
-                f"[ImportChat] Failed to store chat {new_chat_id} for user {user_id}: {store_err}",
-                exc_info=True,
-            )
-            raise HTTPException(status_code=500, detail=f"Failed to store imported chat {chat_index + 1}")
-
-        # ----------------------------------------------------------------
-        # Charge credits for this chat
-        # ----------------------------------------------------------------
-        if credits_to_charge > 0:
-            try:
-                await billing_service.charge_user_credits(
-                    user_id=user_id,
-                    credits_to_deduct=credits_to_charge,
-                    user_id_hash=user_id_hash,
-                    app_id="settings",
-                    skill_id="chat_import",
-                    usage_details={
-                        "title": "Chat import & safety check",
-                        "chat_id": new_chat_id,
-                        "input_tokens": total_input_tokens,
-                    },
-                )
-                total_credits += credits_to_charge
-            except Exception as billing_err:
-                logger.error(
-                    f"[ImportChat] Billing failed for chat {new_chat_id}, user {user_id}: {billing_err}",
-                    exc_info=True,
-                )
-                # Non-fatal: chat is already stored, log and continue
-
-        # ----------------------------------------------------------------
-        # Broadcast new chat to all user's connected devices via WS
-        # ----------------------------------------------------------------
-        try:
-            await ws_manager.broadcast_to_user(
-                {
-                    "type": "chat_imported",
-                    "payload": {"chat_id": new_chat_id},
-                },
-                user_id,
-                exclude_device_hash=None,
-            )
-        except Exception:
-            pass  # Non-fatal
-
-        results.append(ImportedChatResult(
-            chat_id=new_chat_id,
-            title=chat.title,
-            messages_imported=messages_imported,
-            messages_blocked=messages_blocked,
-            credits_charged=credits_to_charge,
-            messages=[ImportMessageModel(**msg) for msg in sanitized_messages],
-        ))
-
-        logger.info(
-            f"[ImportChat] user={user_id} chat={new_chat_id} "
-            f"msgs={len(sanitized_messages)} blocked={messages_blocked} "
-            f"credits={credits_to_charge}"
-        )
-
-    return ImportChatResponse(
-        imported=results,
-        total_credits_charged=total_credits,
+    raise HTTPException(
+        status_code=503,
+        detail=(
+            "Chat import is temporarily disabled while OpenMates replaces the legacy "
+            "plaintext import path with a client-encrypted import flow."
+        ),
     )
 
 

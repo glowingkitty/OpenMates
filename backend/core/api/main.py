@@ -32,7 +32,7 @@ import httpx  # noqa: E402 # Used for CMS readiness check during lifespan startu
 from typing import Dict, Optional  # noqa: E402 # For type hinting
 
 # Make sure the path is correct based on your project structure
-from backend.core.api.app.routes import auth, chats, email, invoice, credit_note, settings, payments, referrals, websockets, sdk  # noqa: E402
+from backend.core.api.app.routes import account_exports, auth, chats, email, invoice, credit_note, settings, payments, referrals, websockets, sdk  # noqa: E402
 from backend.core.api.app.routes import anonymous  # noqa: E402 # Anonymous free usage routes
 from backend.core.api.app.routes import internal_api  # noqa: E402 # Import the new internal API router
 from backend.core.api.app.routes import apps  # noqa: E402 # Import apps router
@@ -1359,6 +1359,7 @@ def create_app() -> FastAPI:
     from backend.core.api.app.routes import embeds_api
     from backend.core.api.app.routes import profile_api
     app.include_router(settings.router, include_in_schema=True)  # Settings endpoints - some endpoints support API key auth
+    app.include_router(account_exports.router, include_in_schema=True)  # Account Export V1 - CLI/SDK first, web and Apple later
     app.include_router(sdk.router, include_in_schema=True)  # SDK bootstrap endpoints - API-key authenticated
     app.include_router(apps_api.router, include_in_schema=True)  # Apps API router - uses API key authentication for external API access
     app.include_router(openai_compat.router, include_in_schema=True)  # OpenAI-compatible models/chat routes for external SDKs
