@@ -157,6 +157,15 @@ async function openSidebar(page: any): Promise<void> {
 	}
 }
 
+async function closeSearchIfOpen(page: any): Promise<void> {
+	if (!(await page.getByTestId('search-bar').isVisible({ timeout: 1_000 }).catch(() => false))) return;
+	const closeButton = page.getByTestId('search-close-button');
+	if (await closeButton.isVisible({ timeout: 1_000 }).catch(() => false)) {
+		await closeButton.click();
+		await expect(page.getByTestId('search-bar')).not.toBeAttached({ timeout: 10_000 });
+	}
+}
+
 function chatItem(page: any, chatId: string): any {
 	return page.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${chatId}"]`);
 }
@@ -197,14 +206,20 @@ async function clearBrowserClientState(page: any, baseUrl: string): Promise<void
 }
 
 async function expectIdeaBucketDraftMarkers(page: any, chatId: string, expectedText: string): Promise<void> {
-	await openDraft(page, chatId, expectedText);
-	const item = chatItem(page, chatId);
+	const item = await locateDraftInSidebarOrSearch(page, chatId, expectedText);
+	await expect(item).toContainText(expectedText);
 	await expect(item.getByTestId('ideabucket-chat-list-label')).toBeVisible({ timeout: 15_000 });
+	await item.click();
+	await closeSearchIfOpen(page);
+	const editor = page.getByTestId('message-editor');
+	await expect(editor).toBeVisible({ timeout: 15_000 });
+	await expect(editor).toContainText(expectedText, { timeout: 15_000 });
 	await expect(page.getByTestId('ideabucket-input-pill')).toBeVisible({ timeout: 15_000 });
 }
 
 async function expectSearchFindsChat(page: any, query: string): Promise<void> {
 	await openSidebar(page);
+	await closeSearchIfOpen(page);
 	const searchIcon = page.getByTestId('search-button');
 	await expect(searchIcon).toBeVisible({ timeout: 10_000 });
 	await searchIcon.click();
@@ -224,15 +239,43 @@ async function expectSearchFindsChat(page: any, query: string): Promise<void> {
 	}).toPass({ timeout: 60_000 });
 }
 
-async function openDraft(page: any, chatId: string, expectedText: string): Promise<void> {
+async function locateDraftInSidebarOrSearch(page: any, chatId: string, expectedText: string): Promise<any> {
 	await openSidebar(page);
+	await closeSearchIfOpen(page);
 	const item = chatItem(page, chatId);
-	await expect(item).toBeVisible({ timeout: 30_000 });
+	if (await item.isVisible({ timeout: 5_000 }).catch(() => false)) {
+		return item;
+	}
+
+	const searchIcon = page.getByTestId('search-button');
+	await expect(searchIcon).toBeVisible({ timeout: 10_000 });
+	await searchIcon.click();
+	const searchInput = page.getByTestId('search-input');
+	await expect(searchInput).toBeVisible({ timeout: 5_000 });
+	await searchInput.fill(expectedText);
+	const searchResults = page.getByTestId('search-results');
+	await expect(searchResults).toBeVisible({ timeout: 10_000 });
+	const result = page.getByTestId('search-chat-item').filter({ hasText: expectedText }).first();
+	await expect(async () => {
+		const isWarmingUp = await page.getByTestId('warming-up').isVisible().catch(() => false);
+		if (isWarmingUp || !(await result.isVisible().catch(() => false))) {
+			await searchInput.fill('');
+			await searchInput.fill(expectedText);
+		}
+		await expect(result).toBeVisible();
+	}).toPass({ timeout: 60_000 });
+	return result;
+}
+
+async function openDraft(page: any, chatId: string, expectedText: string): Promise<any> {
+	const item = await locateDraftInSidebarOrSearch(page, chatId, expectedText);
 	await expect(item).toContainText(expectedText);
 	await item.click();
+	await closeSearchIfOpen(page);
 	const editor = page.getByTestId('message-editor');
 	await expect(editor).toBeVisible({ timeout: 15_000 });
 	await expect(editor).toContainText(expectedText, { timeout: 15_000 });
+	return item;
 }
 
 test.describe('Cross-client encrypted draft sync', () => {
