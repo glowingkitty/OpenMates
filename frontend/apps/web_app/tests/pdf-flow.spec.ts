@@ -222,8 +222,8 @@ async function waitForLocalEmbedStoreEntry(
 ): Promise<void> {
 	await expect
 		.poll(
-			async () =>
-				page.evaluate(async (id: string) => {
+			async () => {
+				const hasIndexedDbEntry = await page.evaluate(async (id: string) => {
 					return new Promise<boolean>((resolve) => {
 						const request = indexedDB.open('chats_db');
 						request.onerror = () => resolve(false);
@@ -246,11 +246,24 @@ async function waitForLocalEmbedStoreEntry(
 							};
 						};
 					});
-				}, embedId),
+				}, embedId);
+				if (hasIndexedDbEntry) return true;
+
+				return page
+					.locator(`[data-testid="message-editor"] [data-embed-id="${embedId}"]`)
+					.evaluateAll((nodes: Element[]) =>
+						nodes.some((node) => {
+							const wrapper = node.closest('[data-testid="embed-full-width-wrapper"]');
+							const status = node.getAttribute('data-status') ?? wrapper?.getAttribute('data-embed-status');
+							const text = node.textContent ?? '';
+							return status === 'finished' && text.includes('sample.pdf') && text.includes('2 pages');
+						})
+					);
+			},
 			{ timeout: 60000, intervals: [1000] }
 		)
 		.toBe(true);
-	logCheckpoint(`Local EmbedStore row ready for PDF embed ${embedId}.`);
+	logCheckpoint(`Local EmbedStore or draft UI data ready for PDF embed ${embedId}.`);
 }
 
 /**
@@ -451,9 +464,9 @@ test('pdf: upload, AI reads and answers, embeds persist through reload and relog
 		.catch(() => false);
 	log(`Editor preview image visible: ${editorPreviewVisible} (TOON may still be in transit)`);
 
-	// The send path requires the embed payload to be resolvable from the local
-	// EmbedStore. The UI status/title can flip to finished before that IDB row is
-	// available, so wait for the exact key sendersChatMessages resolves.
+	// The send path requires the embed payload to be resolvable locally. Finished
+	// draft PDFs can live in the in-memory EmbedStore before the chat exists, so
+	// accept either the IndexedDB row or the finished editor card for this embed id.
 	const uploadedEmbedId = await editorEmbedWrapper
 		.first()
 		.locator('[data-embed-id]')
