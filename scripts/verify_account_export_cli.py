@@ -17,6 +17,7 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
+import zipfile
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
@@ -27,6 +28,20 @@ CLI_DIST = CLI_DIR / "dist/cli.js"
 ARCHIVE_VERIFIER = ROOT / "scripts/verify_account_export_archive.py"
 DEFAULT_DEV_API_URL = "https://api.dev.openmates.org"
 DEFAULT_PROD_API_URL = "https://api.openmates.org"
+DEFAULT_REQUIRED_DOMAINS = [
+    "chats",
+    "embeds",
+    "referenced_uploads",
+    "projects",
+    "tasks",
+    "plans",
+    "workflows_runs",
+    "billing_invoices",
+    "usage",
+    "profile_account_settings",
+    "memories_app_settings",
+    "compliance_consent_history",
+]
 
 
 def main() -> int:
@@ -73,6 +88,7 @@ def run_complete_default_export(api_url: str, output_root: Path) -> None:
         if domain not in selected_domains:
             raise RuntimeError(f"default export missing selected domain {domain}")
     run_archive_verifier(archive_path)
+    validate_export_archive_completeness(archive_path, required_domains=DEFAULT_REQUIRED_DOMAINS)
 
 
 def run_filtered_export(api_url: str, output_root: Path) -> None:
@@ -96,6 +112,7 @@ def run_filtered_export(api_url: str, output_root: Path) -> None:
     if manifest.get("filters") != filters:
         raise RuntimeError(f"filtered export filters mismatch: {manifest.get('filters')!r}")
     run_archive_verifier(archive_path)
+    validate_export_archive_completeness(archive_path, required_domains=["chats", "usage"])
 
 
 def run_partial_export(api_url: str) -> None:
@@ -129,6 +146,56 @@ def run_cli_json(args: list[str], api_url: str) -> dict:
 def run_archive_verifier(path: Path) -> None:
     source_flag = "--zip" if path.suffix == ".zip" else "--dir"
     run(["python3", str(ARCHIVE_VERIFIER), source_flag, str(path), "--layout-v1", "--forbid-secrets"], cwd=ROOT)
+
+
+def validate_export_archive_completeness(path: Path, *, required_domains: list[str]) -> None:
+    with zipfile.ZipFile(path) as archive:
+        names = set(archive.namelist())
+        manifest = json.loads(archive.read("manifest.json").decode("utf-8"))
+        domains = manifest.get("domains") if isinstance(manifest.get("domains"), dict) else {}
+        for domain in required_domains:
+            if domain not in domains:
+                raise RuntimeError(f"manifest missing required domain {domain}")
+            source = str(domains[domain].get("source") or "")
+            if source == "not_yet_materialized":
+                raise RuntimeError(f"domain {domain} is still a placeholder source")
+            domain_path = f"domains/{domain}.json"
+            if domain_path not in names:
+                raise RuntimeError(f"archive missing {domain_path}")
+            payload = json.loads(archive.read(domain_path).decode("utf-8"))
+            actual_count = _payload_count(payload)
+            expected_count = int(domains[domain].get("count") or 0)
+            if actual_count != expected_count:
+                raise RuntimeError(f"domain {domain} count mismatch: manifest={expected_count}, archive={actual_count}")
+
+        chats = json.loads(archive.read("domains/chats.json").decode("utf-8"))
+        for chat in _payload_items(chats):
+            if "messages" not in chat:
+                raise RuntimeError(f"chat {chat.get('id') or chat.get('chat_id')} missing messages collection")
+            if "embeds" not in chat:
+                raise RuntimeError(f"chat {chat.get('id') or chat.get('chat_id')} missing embeds collection")
+
+        if "domains/referenced_uploads.json" in names:
+            uploads = json.loads(archive.read("domains/referenced_uploads.json").decode("utf-8"))
+            for upload in _payload_items(uploads):
+                if "s3_objects" not in upload:
+                    raise RuntimeError(f"referenced upload {upload.get('id') or upload.get('embed_id')} missing s3_objects")
+
+        usage = json.loads(archive.read("domains/usage.json").decode("utf-8"))
+        if "archives" not in usage:
+            raise RuntimeError("usage domain missing S3 archive references collection")
+        tasks = json.loads(archive.read("domains/tasks.json").decode("utf-8"))
+        if "archives" not in tasks:
+            raise RuntimeError("tasks domain missing S3 archive references collection")
+
+
+def _payload_count(payload: dict) -> int:
+    return len(_payload_items(payload)) + (len(payload.get("runs")) if isinstance(payload.get("runs"), list) else 0)
+
+
+def _payload_items(payload: dict) -> list[dict]:
+    items = payload.get("items")
+    return [item for item in items if isinstance(item, dict)] if isinstance(items, list) else []
 
 
 def assert_export_status(result: dict, allowed: set[str]) -> None:

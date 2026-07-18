@@ -34,7 +34,41 @@ class FakeDirectusService:
                 },
                 {"id": "team-chat", "hashed_user_id": _hash("user-1"), "hashed_team_id": "team-hash"},
             ],
+            "messages": [
+                {"id": "message-1", "client_message_id": "msg-1", "chat_id": "personal-chat", "encrypted_content": "ciphertext-1"},
+                {"id": "message-2", "client_message_id": "msg-2", "chat_id": "personal-chat", "encrypted_content": "ciphertext-2"},
+                {"id": "team-message", "client_message_id": "msg-team", "chat_id": "team-chat", "encrypted_content": "team"},
+            ],
+            "embeds": [
+                {
+                    "id": "embed-row-1",
+                    "embed_id": "embed-1",
+                    "hashed_user_id": _hash("user-1"),
+                    "hashed_chat_id": _hash("personal-chat"),
+                    "status": "finished",
+                    "s3_file_keys": [{"bucket": "chatfiles", "key": "user-1/embed-1/original.bin"}],
+                },
+                {"id": "team-embed", "embed_id": "embed-team", "hashed_user_id": _hash("user-1"), "hashed_team_id": "team-hash"},
+            ],
+            "upload_files": [
+                {
+                    "id": "upload-1",
+                    "embed_id": "embed-1",
+                    "user_id": "user-1",
+                    "original_filename": "export-test.pdf",
+                    "files_metadata": {"original": {"s3_key": "user-1/embed-1/original.bin", "size_bytes": 123}},
+                    "aes_key": "raw-upload-key",
+                    "vault_wrapped_aes_key": "vault-wrapped-upload-key",
+                },
+            ],
+            "projects": [{"id": "project-row-1", "project_id": "project-1", "hashed_user_id": _hash("user-1"), "hashed_team_id": None}],
+            "user_tasks": [{"id": "task-row-1", "task_id": "task-1", "hashed_user_id": _hash("user-1"), "hashed_team_id": None}],
+            "user_task_archives": [{"id": "task-archive-1", "hashed_user_id": _hash("user-1"), "archive_s3_key": "task-archives/hash/tasks.json.gz", "task_count": 1}],
+            "user_plans": [{"id": "plan-row-1", "plan_id": "plan-1", "hashed_user_id": _hash("user-1"), "hashed_team_id": None}],
+            "workflows": [{"id": "workflow-row-1", "workflow_id": "workflow-1", "hashed_user_id": _hash("user-1"), "hashed_team_id": None}],
+            "workflow_runs": [{"id": "workflow-run-row-1", "run_id": "run-1", "workflow_id": "workflow-1", "hashed_user_id": _hash("user-1")}],
             "usage": [{"id": "usage-1", "user_id_hash": _hash("user-1"), "hashed_team_id": None}],
+            "usage_monthly_chat_summaries": [{"id": "usage-archive-1", "user_id_hash": _hash("user-1"), "year_month": "2026-01", "is_archived": True, "archive_s3_key": "usage-archives/hash/2026-01/usage.json.gz"}],
             "invoices": [{"id": "invoice-1", "user_id_hash": _hash("user-1")}],
             "user_app_settings_and_memories": [{"id": "memory-1", "hashed_user_id": _hash("user-1"), "hashed_team_id": None}],
         }
@@ -48,7 +82,22 @@ class FakeDirectusService:
                 rows = [row for row in rows if row.get(field) == condition["_eq"]]
             if isinstance(condition, dict) and condition.get("_null") is True:
                 rows = [row for row in rows if row.get(field) is None]
+            if isinstance(condition, dict) and "_in" in condition:
+                rows = [row for row in rows if row.get(field) in condition["_in"]]
         return rows
+
+    async def get_user(self, user_id: str):
+        return {
+            "id": user_id,
+            "email": "person@example.invalid",
+            "first_name": "Test",
+            "last_name": "User",
+            "password": "password-hash",
+            "vault_key_id": "vault-key-id",
+            "last_export_at": None,
+            "terms_accepted_at": "2026-01-01T00:00:00Z",
+            "privacy_policy_accepted_at": "2026-01-01T00:00:00Z",
+        }
 
     async def update_user(self, user_id: str, payload: dict) -> None:
         self.updated_users.append((user_id, payload))
@@ -84,6 +133,46 @@ async def test_manifest_excludes_team_scoped_rows_and_counts_defaults() -> None:
     assert manifest["domains"]["usage"]["count"] == 1
     assert manifest["domains"]["memories_app_settings"]["count"] == 1
     assert manifest["excluded"]["team_data"] == "personal_export_excludes_team_scoped_rows"
+
+
+@pytest.mark.asyncio
+async def test_default_export_materializes_all_default_domains() -> None:
+    service = AccountExportService(directus_service=FakeDirectusService())
+
+    job = await service.start_export(user_id="user-1")
+    manifest = await service.get_manifest(user_id="user-1", export_id=job["export_id"])
+
+    for domain in service.default_domains:
+        assert manifest["domains"][domain]["status"] == "ready"
+        assert manifest["domains"][domain]["source"] != "not_yet_materialized"
+    assert manifest["domains"]["chats"]["count"] == 1
+    assert manifest["domains"]["embeds"]["count"] == 1
+    assert manifest["domains"]["referenced_uploads"]["count"] == 1
+    assert manifest["domains"]["projects"]["count"] == 1
+    assert manifest["domains"]["tasks"]["count"] == 1
+    assert manifest["domains"]["plans"]["count"] == 1
+    assert manifest["domains"]["workflows_runs"]["count"] == 2
+    assert manifest["domains"]["profile_account_settings"]["count"] == 1
+    assert manifest["domains"]["compliance_consent_history"]["count"] == 1
+
+
+@pytest.mark.asyncio
+async def test_export_payload_includes_related_messages_embeds_uploads_and_s3_references() -> None:
+    service = AccountExportService(directus_service=FakeDirectusService())
+
+    job = await service.start_export(user_id="user-1")
+    chunks = await service.list_chunks(user_id="user-1", export_id=job["export_id"])
+    by_domain = {chunk["domain"]: chunk["payload"] for chunk in chunks}
+
+    chat = by_domain["chats"]["items"][0]
+    assert [message["client_message_id"] for message in chat["messages"]] == ["msg-1", "msg-2"]
+    assert chat["embeds"][0]["embed_id"] == "embed-1"
+    assert by_domain["embeds"]["items"][0]["embed_id"] == "embed-1"
+    referenced_upload = by_domain["referenced_uploads"]["items"][0]
+    assert referenced_upload["embed_id"] == "embed-1"
+    assert referenced_upload["s3_objects"] == [{"bucket": "chatfiles", "key": "user-1/embed-1/original.bin", "size_bytes": 123}]
+    assert by_domain["usage"]["archives"] == [{"archive_s3_key": "usage-archives/hash/2026-01/usage.json.gz", "year_month": "2026-01"}]
+    assert by_domain["tasks"]["archives"] == [{"archive_s3_key": "task-archives/hash/tasks.json.gz", "task_count": 1}]
 
 
 @pytest.mark.asyncio

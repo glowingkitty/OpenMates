@@ -57,6 +57,7 @@ DOMAIN_COLLECTIONS = {
 
 FORBIDDEN_EXPORT_SECRET_FIELDS = {
     "access_token",
+    "aes_key",
     "api_key",
     "anonymous_encrypted_chat_key",
     "backup_code_hash",
@@ -77,6 +78,7 @@ FORBIDDEN_EXPORT_SECRET_FIELDS = {
     "lookup_hash",
     "master_key",
     "plan_key",
+    "password",
     "password_hash",
     "private_key",
     "project_key",
@@ -88,6 +90,8 @@ FORBIDDEN_EXPORT_SECRET_FIELDS = {
     "task_key",
     "token_hash",
     "totp_seed",
+    "vault_key_id",
+    "vault_wrapped_aes_key",
     "webhook_secret",
     "workflow_secret_key",
 }
@@ -266,6 +270,49 @@ class AccountExportService:
         job["domain_results"] = manifest_domains
 
     async def _domain_payload(self, *, user_id: str, domain: str) -> dict[str, Any]:
+        if domain == "chats":
+            return await self._chats_payload(user_id=user_id)
+        if domain == "embeds":
+            rows = await self._get_personal_rows(collection="embeds", user_field="hashed_user_id", user_id=user_id)
+            return {"source": "embeds", "items": rows}
+        if domain == "referenced_uploads":
+            return await self._referenced_uploads_payload(user_id=user_id)
+        if domain == "projects":
+            rows = await self._get_personal_rows(collection="projects", user_field="hashed_user_id", user_id=user_id)
+            return {"source": "projects", "items": self._apply_domain_filters(domain, rows)}
+        if domain == "tasks":
+            rows = await self._get_personal_rows(collection="user_tasks", user_field="hashed_user_id", user_id=user_id)
+            archives = await self._get_personal_rows(collection="user_task_archives", user_field="hashed_user_id", user_id=user_id)
+            return {
+                "source": "user_tasks+user_task_archives",
+                "items": self._apply_domain_filters(domain, rows),
+                "archives": [
+                    _redact_for_export({"archive_s3_key": row.get("archive_s3_key"), "task_count": row.get("task_count")})
+                    for row in archives
+                    if row.get("archive_s3_key")
+                ],
+            }
+        if domain == "plans":
+            rows = await self._get_personal_rows(collection="user_plans", user_field="hashed_user_id", user_id=user_id)
+            return {"source": "user_plans", "items": self._apply_domain_filters(domain, rows)}
+        if domain == "workflows_runs":
+            workflows = await self._get_personal_rows(collection="workflows", user_field="hashed_user_id", user_id=user_id)
+            runs = await self._get_personal_rows(collection="workflow_runs", user_field="hashed_user_id", user_id=user_id)
+            return {
+                "source": "workflows+workflow_runs",
+                "items": self._apply_domain_filters(domain, workflows),
+                "runs": self._apply_domain_filters(domain, runs),
+            }
+        if domain == "usage":
+            rows = await self._get_personal_rows(collection="usage", user_field="user_id_hash", user_id=user_id)
+            archives = await self._usage_archive_references(user_id=user_id)
+            return {"source": "usage+usage_archives", "items": rows, "archives": archives}
+        if domain == "profile_account_settings":
+            profile = await self._safe_profile_payload(user_id=user_id)
+            return {"source": "directus_users", "items": [profile] if profile else []}
+        if domain == "compliance_consent_history":
+            profile = await self._safe_profile_payload(user_id=user_id)
+            return {"source": "directus_users.consent_metadata", "items": [_consent_metadata(profile)] if profile else []}
         if domain in DOMAIN_COLLECTIONS:
             collection, user_field = DOMAIN_COLLECTIONS[domain]
             rows = await self._get_personal_rows(collection=collection, user_field=user_field, user_id=user_id)
@@ -278,12 +325,70 @@ class AccountExportService:
         params = {
             "filter": {
                 user_field: {"_eq": _hash_id(user_id)},
-                "hashed_team_id": {"_null": True},
             },
             "limit": -1,
         }
+        if user_field == "user_id":
+            params["filter"][user_field] = {"_eq": user_id}
         rows = await self.directus_service.get_items(collection, params=params)
         return [_redact_for_export(row) for row in (rows or []) if _is_personal_row(row)]
+
+    async def _chats_payload(self, *, user_id: str) -> dict[str, Any]:
+        chats = await self._get_personal_rows(collection="chats", user_field="hashed_user_id", user_id=user_id)
+        chat_ids = [str(chat["id"]) for chat in chats if chat.get("id")]
+        messages = await self._get_related_rows(collection="messages", field="chat_id", values=chat_ids)
+        embeds = await self._get_related_rows(collection="embeds", field="hashed_chat_id", values=[_hash_id(chat_id) for chat_id in chat_ids])
+        messages_by_chat: dict[str, list[dict[str, Any]]] = {}
+        for message in messages:
+            messages_by_chat.setdefault(str(message.get("chat_id")), []).append(_redact_for_export(message))
+        embeds_by_hash: dict[str, list[dict[str, Any]]] = {}
+        for embed in embeds:
+            embeds_by_hash.setdefault(str(embed.get("hashed_chat_id")), []).append(_redact_for_export(embed))
+        for chat in chats:
+            chat_id = str(chat.get("id"))
+            chat["messages"] = messages_by_chat.get(chat_id, [])
+            chat["embeds"] = embeds_by_hash.get(_hash_id(chat_id), [])
+        return {"source": "chats+messages+embeds", "items": self._apply_domain_filters("chats", chats)}
+
+    async def _referenced_uploads_payload(self, *, user_id: str) -> dict[str, Any]:
+        uploads = await self._get_personal_rows(collection="upload_files", user_field="user_id", user_id=user_id)
+        items = []
+        for upload in uploads:
+            item = _redact_for_export(upload)
+            item["s3_objects"] = _upload_s3_objects(upload)
+            items.append(item)
+        return {"source": "upload_files+chatfiles", "items": items}
+
+    async def _usage_archive_references(self, *, user_id: str) -> list[dict[str, Any]]:
+        archives: list[dict[str, Any]] = []
+        for collection in ("usage_monthly_chat_summaries", "usage_monthly_app_summaries", "usage_monthly_api_key_summaries"):
+            rows = await self._get_personal_rows(collection=collection, user_field="user_id_hash", user_id=user_id)
+            for row in rows:
+                if row.get("archive_s3_key"):
+                    archives.append(_redact_for_export({"archive_s3_key": row.get("archive_s3_key"), "year_month": row.get("year_month")}))
+        deduped: dict[str, dict[str, Any]] = {}
+        for archive in archives:
+            deduped[str(archive["archive_s3_key"])] = archive
+        return list(deduped.values())
+
+    async def _get_related_rows(self, *, collection: str, field: str, values: list[str]) -> list[dict[str, Any]]:
+        if not values:
+            return []
+        rows = await self.directus_service.get_items(
+            collection,
+            params={"filter": {field: {"_in": values}}, "limit": -1},
+        )
+        return [row for row in (rows or []) if _is_personal_row(row)]
+
+    async def _safe_profile_payload(self, *, user_id: str) -> dict[str, Any]:
+        if hasattr(self.directus_service, "get_user"):
+            profile = await self.directus_service.get_user(user_id)
+        else:
+            profile = {"id": user_id}
+        return _redact_for_export(profile or {})
+
+    def _apply_domain_filters(self, domain: str, rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        return rows
 
     def _normalize_domains(self, domains: list[str] | None, *, include_advanced_metadata: bool) -> list[str]:
         selected = list(domains or DEFAULT_EXPORT_DOMAINS)
@@ -339,11 +444,43 @@ def _public_job(job: dict[str, Any]) -> dict[str, Any]:
 
 def _domain_count(payload: dict[str, Any]) -> int:
     items = payload.get("items")
-    return len(items) if isinstance(items, list) else 0
+    count = len(items) if isinstance(items, list) else 0
+    runs = payload.get("runs")
+    if isinstance(runs, list):
+        count += len(runs)
+    return count
 
 
 def _is_personal_row(row: dict[str, Any]) -> bool:
     return not any(row.get(field) for field in ("hashed_team_id", "team_id_hash", "team_id"))
+
+
+def _upload_s3_objects(upload: dict[str, Any]) -> list[dict[str, Any]]:
+    objects: list[dict[str, Any]] = []
+    metadata = upload.get("files_metadata")
+    if isinstance(metadata, dict):
+        for variant in metadata.values():
+            if not isinstance(variant, dict) or not variant.get("s3_key"):
+                continue
+            objects.append(
+                {
+                    "bucket": variant.get("bucket") or "chatfiles",
+                    "key": variant.get("s3_key"),
+                    "size_bytes": variant.get("size_bytes"),
+                }
+            )
+    return objects
+
+
+def _consent_metadata(profile: dict[str, Any]) -> dict[str, Any]:
+    return _redact_for_export(
+        {
+            "user_id": profile.get("id"),
+            "terms_accepted_at": profile.get("terms_accepted_at"),
+            "privacy_policy_accepted_at": profile.get("privacy_policy_accepted_at"),
+            "last_export_at": profile.get("last_export_at"),
+        }
+    )
 
 
 def _redact_for_export(value: Any) -> Any:
