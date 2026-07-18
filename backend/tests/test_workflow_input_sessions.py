@@ -186,7 +186,7 @@ def test_workflow_input_persists_session_events_and_mutations() -> None:
 
 def test_directus_workflow_input_persists_sensitive_state_only_in_vault_blobs() -> None:
     service = workflow_service()
-    repository = DirectusWorkflowInputRepository(payload_cipher=service.payload_cipher)
+    repository = DirectusWorkflowInputRepository(payload_cipher=service.payload_cipher, token="test-token")
     fake_client = FakeDirectusClient()
     repository._client = fake_client
     input_service = WorkflowInputService(
