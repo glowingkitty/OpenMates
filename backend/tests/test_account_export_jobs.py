@@ -27,8 +27,10 @@ class FakeDirectusService:
                     "id": "personal-chat",
                     "hashed_user_id": _hash("user-1"),
                     "hashed_team_id": None,
+                    "anonymous_encrypted_chat_key": "anonymous-wrapped-chat-key",
                     "encrypted_chat_key": "wrapped-chat-key",
                     "chat_key_wrappers": {"device-1": "wrapped-key"},
+                    "shared_encrypted_chat_key": "shared-wrapped-chat-key",
                 },
                 {"id": "team-chat", "hashed_user_id": _hash("user-1"), "hashed_team_id": "team-hash"},
             ],
@@ -134,8 +136,12 @@ async def test_download_chunks_never_emit_forbidden_secret_fields() -> None:
         "password_hash",
         "totp",
         "private_key",
+        "anonymous_encrypted_chat_key",
         "encrypted_chat_key",
         "chat_key_wrappers",
+        "shared_encrypted_chat_key",
+        "anonymous-wrapped-chat-key",
         "wrapped-chat-key",
+        "shared-wrapped-chat-key",
     ):
         assert forbidden not in serialized

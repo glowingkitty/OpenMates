@@ -13,6 +13,7 @@ import JSZip from "jszip";
 const ACCOUNT_EXPORT_FORBIDDEN_FIELD_NAMES = new Set([
   "access_token",
   "api_key",
+  "anonymous_encrypted_chat_key",
   "backup_code_hash",
   "chat_key",
   "chat_key_wrappers",
@@ -37,6 +38,7 @@ const ACCOUNT_EXPORT_FORBIDDEN_FIELD_NAMES = new Set([
   "raw_key",
   "refresh_token",
   "share_key",
+  "shared_encrypted_chat_key",
   "signing_secret",
   "task_key",
   "token_hash",

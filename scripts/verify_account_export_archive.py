@@ -21,6 +21,7 @@ import zipfile
 FORBIDDEN_FIELD_NAMES = {
     "access_token",
     "api_key",
+    "anonymous_encrypted_chat_key",
     "backup_code_hash",
     "chat_key",
     "chat_key_wrappers",
@@ -45,6 +46,7 @@ FORBIDDEN_FIELD_NAMES = {
     "raw_key",
     "refresh_token",
     "share_key",
+    "shared_encrypted_chat_key",
     "signing_secret",
     "task_key",
     "token_hash",
