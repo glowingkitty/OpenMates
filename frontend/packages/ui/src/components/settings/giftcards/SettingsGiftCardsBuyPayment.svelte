@@ -201,7 +201,11 @@ Supports both saved payment methods and new payment form
             
             if (response.ok) {
                 authMethods = await response.json();
-                showAuthModal = true;
+                if (authMethods?.has_passkey || authMethods?.has_2fa) {
+                    showAuthModal = true;
+                } else {
+                    await handleAuthSuccess();
+                }
             } else {
                 console.error('Failed to get auth methods');
                 // Proceed without auth modal (shouldn't happen, but handle gracefully)

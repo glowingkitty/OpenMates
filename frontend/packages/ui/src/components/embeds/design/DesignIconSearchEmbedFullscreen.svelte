@@ -171,11 +171,15 @@
     />
   {/snippet}
 
-  {#snippet resultDetail({ result, onBack })}
+  {#snippet childFullscreen({ result, onClose: onChildClose, hasPrevious, hasNext, onPrevious, onNext })}
     <DesignIconResultEmbedFullscreen
       data={{ decodedContent: result, attrs: {}, embedData: {} }}
       embedId={result.embed_id}
-      onClose={onBack}
+      onClose={onChildClose}
+      hasPreviousEmbed={hasPrevious}
+      hasNextEmbed={hasNext}
+      onNavigatePrevious={onPrevious}
+      onNavigateNext={onNext}
     />
   {/snippet}
 </SearchResultsTemplate>
