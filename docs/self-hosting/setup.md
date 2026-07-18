@@ -176,6 +176,24 @@ Backups contain secrets. Store them on encrypted disks or move them to a secure 
 
 See [CLI server management](../user-guide/cli/server-management.md) for the full command reference.
 
+## Images And Runtime Containers
+
+OpenMates publishes a smaller set of GHCR images than the number of runtime containers in the generated Compose file. Several worker containers reuse the `openmates-api` image with different commands and queues.
+
+| Runtime container | Image |
+| --- | --- |
+| `api` | `ghcr.io/glowingkitty/openmates-api` |
+| `task-worker` | `ghcr.io/glowingkitty/openmates-api` |
+| `app-ai-worker` | `ghcr.io/glowingkitty/openmates-api` |
+| `app-images-worker` | `ghcr.io/glowingkitty/openmates-api` |
+| `openmates-docs-worker` | `ghcr.io/glowingkitty/openmates-docs-worker` |
+| `webapp` | `ghcr.io/glowingkitty/openmates-webapp` |
+| `directus` | `ghcr.io/glowingkitty/openmates-directus` |
+| `uploads` | `ghcr.io/glowingkitty/openmates-uploads` |
+| `preview` | `ghcr.io/glowingkitty/openmates-preview` |
+
+Install, start, update, and backup through the `openmates server` commands so the CLI can keep container names, image tags, secrets, and generated Compose files in sync.
+
 ## Production Setup
 
 For a public server, put OpenMates behind a reverse proxy such as Caddy, Traefik, or Nginx and use HTTPS.
