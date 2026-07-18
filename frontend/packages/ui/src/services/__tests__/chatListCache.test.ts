@@ -8,7 +8,7 @@
 // Architecture: frontend/packages/ui/src/services/chatListCache.ts
 // These tests exercise the pure in-memory ChatListCache class with NO browser deps.
 
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 
 // We need to import the class, but the module exports only a singleton.
 // Re-import the module to get a fresh instance per test via the class constructor.
@@ -135,6 +135,19 @@ describe("ChatListCache", () => {
       chatListCache.setCache([makeChat("b")]);
 
       expect(chatListCache.getPendingUpserts()).toHaveLength(0);
+    });
+
+    it("persists queued pending upserts across module reloads until the next full snapshot", async () => {
+      chatListCache.upsertChat(makeChat("a"));
+
+      vi.resetModules();
+      const { chatListCache: freshCache } = await import("../chatListCache");
+
+      expect(freshCache.getPendingUpserts().map((chat: any) => chat.chat_id)).toEqual(["a"]);
+
+      freshCache.setCache([makeChat("b")]);
+      expect(freshCache.getCache()!.map((chat: any) => chat.chat_id)).toEqual(["b", "a"]);
+      expect(freshCache.getPendingUpserts()).toHaveLength(0);
     });
   });
 

@@ -1556,11 +1556,30 @@ export async function search(
     (c) => !indexedChatIds.has(c.chat_id),
   );
 
-  if (unindexedChats.length > 0 && !warmUpInProgress) {
-    // Index unindexed chats — this is the "cold start" path. When background
-    // warm-up is already running, return title/metadata matches immediately
-    // instead of duplicating expensive message/embed indexing in the foreground.
-    await Promise.all(unindexedChats.map((c) => indexChatMessages(c.chat_id)));
+  if (unindexedChats.length > 0) {
+    const publicUnindexedChats = unindexedChats.filter((c) =>
+      isPublicChat(c.chat_id),
+    );
+    const privateUnindexedChats = unindexedChats.filter(
+      (c) => !isPublicChat(c.chat_id),
+    );
+
+    // Public/example chats can contain many embed references. Keep that indexing
+    // in the background so draft-preview and title matches can render first.
+    if (publicUnindexedChats.length > 0 && !warmUpInProgress) {
+      warmUpSearchIndex(publicUnindexedChats.map((c) => c.chat_id)).catch((error) => {
+        console.error("[SearchService] Error warming public search index:", error);
+      });
+    }
+
+    if (privateUnindexedChats.length > 0 && !warmUpInProgress) {
+      // Index unindexed private chats — this is the "cold start" path. When
+      // background warm-up is already running, return title/metadata matches
+      // immediately instead of duplicating expensive indexing in the foreground.
+      await Promise.all(
+        privateUnindexedChats.map((c) => indexChatMessages(c.chat_id)),
+      );
+    }
   }
 
   // Lazy-index metadata for metadata-only chats not yet indexed

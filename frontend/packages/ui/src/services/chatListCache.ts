@@ -17,6 +17,8 @@ class ChatListCache {
   private updateInProgress = false;
   private pendingUpserts = new Map<string, Chat>();
   private readonly CACHE_STALE_MS = 5 * 60 * 1000; // 5 minutes
+  private readonly PENDING_UPSERTS_STORAGE_KEY = "openmates_pending_chat_upserts";
+  private readonly PENDING_UPSERTS_STORAGE_TTL_MS = 10 * 60 * 1000;
 
   // Tracks whether the sidebar component (Chats.svelte) was destroyed since the
   // last full cache set. When the sidebar unmounts, chatUpdated event listeners
@@ -48,18 +50,20 @@ class ChatListCache {
     this.cacheReady = true;
     this.cacheDirty = false;
     this.sidebarDestroyedSinceLastSet = false;
+    this.clearStoredPendingUpserts();
     console.debug(
       `[ChatListCache] Cache updated: ${this.cachedChats.length} chats, timestamp: ${this.cachedChatsTimestamp}`,
     );
   }
 
   private mergePendingUpserts(chats: Chat[]): Chat[] {
-    if (this.pendingUpserts.size === 0) {
+    const pendingUpserts = this.getPendingUpsertsMap();
+    if (pendingUpserts.size === 0) {
       return [...chats];
     }
 
     const merged = [...chats];
-    for (const pendingChat of Array.from(this.pendingUpserts.values())) {
+    for (const pendingChat of Array.from(pendingUpserts.values())) {
       const index = merged.findIndex((chat) => chat.chat_id === pendingChat.chat_id);
       if (index === -1) {
         merged.push(pendingChat);
@@ -68,10 +72,108 @@ class ChatListCache {
       }
     }
     console.debug(
-      `[ChatListCache] Merged ${this.pendingUpserts.size} pending upsert(s) into full cache snapshot`,
+      `[ChatListCache] Merged ${pendingUpserts.size} pending upsert(s) into full cache snapshot`,
     );
     this.pendingUpserts.clear();
     return merged;
+  }
+
+  private getStoredPendingUpserts(): Map<string, Chat> {
+    if (typeof sessionStorage === "undefined") {
+      return new Map();
+    }
+
+    const raw = sessionStorage.getItem(this.PENDING_UPSERTS_STORAGE_KEY);
+    if (!raw) {
+      return new Map();
+    }
+
+    try {
+      const parsed = JSON.parse(raw) as {
+        updatedAt?: number;
+        chats?: Chat[];
+      };
+      if (
+        !parsed.updatedAt ||
+        !Array.isArray(parsed.chats) ||
+        Date.now() - parsed.updatedAt > this.PENDING_UPSERTS_STORAGE_TTL_MS
+      ) {
+        this.clearStoredPendingUpserts();
+        return new Map();
+      }
+
+      return new Map(
+        parsed.chats
+          .filter((chat): chat is Chat => Boolean(chat?.chat_id))
+          .map((chat) => [chat.chat_id, chat]),
+      );
+    } catch (error) {
+      console.warn("[ChatListCache] Failed to read stored pending upserts:", error);
+      this.clearStoredPendingUpserts();
+      return new Map();
+    }
+  }
+
+  private getPendingUpsertsMap(): Map<string, Chat> {
+    const pendingUpserts = this.getStoredPendingUpserts();
+    for (const [chatId, chat] of Array.from(this.pendingUpserts.entries())) {
+      pendingUpserts.set(chatId, chat);
+    }
+    return pendingUpserts;
+  }
+
+  private persistPendingUpserts(): void {
+    if (typeof sessionStorage === "undefined") {
+      return;
+    }
+
+    try {
+      const pendingUpserts = this.getPendingUpsertsMap();
+      if (pendingUpserts.size === 0) {
+        this.clearStoredPendingUpserts();
+        return;
+      }
+      sessionStorage.setItem(
+        this.PENDING_UPSERTS_STORAGE_KEY,
+        JSON.stringify({
+          updatedAt: Date.now(),
+          chats: Array.from(pendingUpserts.values()),
+        }),
+      );
+    } catch (error) {
+      console.warn("[ChatListCache] Failed to persist pending upserts:", error);
+    }
+  }
+
+  private clearStoredPendingUpserts(): void {
+    if (typeof sessionStorage !== "undefined") {
+      sessionStorage.removeItem(this.PENDING_UPSERTS_STORAGE_KEY);
+    }
+  }
+
+  private deleteStoredPendingUpsert(chatId: string): void {
+    if (typeof sessionStorage === "undefined") {
+      return;
+    }
+    const storedUpserts = this.getStoredPendingUpserts();
+    if (!storedUpserts.delete(chatId)) {
+      return;
+    }
+    if (storedUpserts.size === 0) {
+      this.clearStoredPendingUpserts();
+      return;
+    }
+    try {
+      sessionStorage.setItem(
+        this.PENDING_UPSERTS_STORAGE_KEY,
+        JSON.stringify({
+          updatedAt: Date.now(),
+          chats: Array.from(storedUpserts.values()),
+        }),
+      );
+    } catch (error) {
+      console.warn("[ChatListCache] Failed to delete stored pending upsert:", error);
+    }
   }
 
   /**
@@ -139,6 +241,7 @@ class ChatListCache {
   upsertChat(chat: Chat): void {
     if (!this.cacheReady) {
       this.pendingUpserts.set(chat.chat_id, chat);
+      this.persistPendingUpserts();
       console.debug(
         `[ChatListCache] Cache not ready, queued pending upsert for chat: ${chat.chat_id}`,
       );
@@ -164,7 +267,7 @@ class ChatListCache {
    * a cold IndexedDB initialization/full-list read is still in flight.
    */
   getPendingUpserts(): Chat[] {
-    return Array.from(this.pendingUpserts.values());
+    return Array.from(this.getPendingUpsertsMap().values());
   }
 
   /**
@@ -172,6 +275,8 @@ class ChatListCache {
    */
   removeChat(chatId: string): void {
     this.pendingUpserts.delete(chatId);
+    this.deleteStoredPendingUpsert(chatId);
+    this.persistPendingUpserts();
     if (!this.cacheReady) return;
     this.cachedChats = this.cachedChats.filter((c) => c.chat_id !== chatId);
     this.cacheDirty = false;
@@ -327,6 +432,7 @@ class ChatListCache {
   clear(): void {
     this.cachedChats = [];
     this.pendingUpserts.clear();
+    this.clearStoredPendingUpserts();
     this.cacheReady = false;
     this.cacheDirty = false;
     this.cachedChatsTimestamp = 0;
