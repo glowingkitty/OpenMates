@@ -138,7 +138,7 @@ test.describe('Demo chat embed rendering', () => {
 		await expect(authenticityBadge).toContainText('human judgment');
 	});
 
-	test('Urban Sports inline location link opens Fitness result fullscreen', async ({ page }) => {
+	test('Urban Sports inline location link opens map location fullscreen', async ({ page }) => {
 		test.setTimeout(90000);
 
 		await page.goto(getE2EDebugUrl('/#chat-id=example-urban-sports-fitness-studios'), { waitUntil: 'domcontentloaded' });
@@ -151,9 +151,9 @@ test.describe('Demo chat embed rendering', () => {
 		await expect(fenrizInlineLink).toBeVisible({ timeout: 30000 });
 		await fenrizInlineLink.click();
 
-		const fitnessFullscreen = page.getByTestId('fitness-result-fullscreen');
-		await expect(fitnessFullscreen).toBeVisible({ timeout: 10000 });
-		await expect(fitnessFullscreen.getByText('Fenriz Gym', { exact: true })).toBeVisible({ timeout: 10000 });
+		const mapLocationFullscreen = page.getByTestId('map-location-fullscreen');
+		await expect(mapLocationFullscreen).toBeVisible({ timeout: 10000 });
+		await expect(mapLocationFullscreen.getByText('Fenriz Gym', { exact: true })).toBeVisible({ timeout: 10000 });
 	});
 
 	test('public Habit Garden application example renders without starting a live preview', async ({ page }) => {

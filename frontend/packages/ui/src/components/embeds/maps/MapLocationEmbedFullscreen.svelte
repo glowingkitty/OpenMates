@@ -160,39 +160,41 @@
   {mapMarkers}
 >
   {#snippet detailContent(_ctx)}
-    {#if proxiedImageUrl}
-      <img class="place-image" src={proxiedImageUrl} alt={displayName || $text('common.location')} loading="lazy" />
-    {/if}
+    <div class="place-details" data-testid="map-location-fullscreen">
+      {#if proxiedImageUrl}
+        <img class="place-image" src={proxiedImageUrl} alt={displayName || $text('common.location')} loading="lazy" />
+      {/if}
 
-    {#if displayName}
-      <h2 class="place-title">{displayName}</h2>
-    {/if}
+      {#if displayName}
+        <h2 class="place-title">{displayName}</h2>
+      {/if}
 
-    {#if ratingText != null}
-      <div class="place-rating">
-        <span class="rating-star">★</span>
-        <span class="rating-value">{ratingText}</span>
-        {#if userRatingCount != null}
-          <span class="rating-count">
-            {userRatingCount.toLocaleString()} {$text('embeds.reviews')}
-          </span>
-        {/if}
-      </div>
-    {/if}
+      {#if ratingText != null}
+        <div class="place-rating">
+          <span class="rating-star">★</span>
+          <span class="rating-value">{ratingText}</span>
+          {#if userRatingCount != null}
+            <span class="rating-count">
+              {userRatingCount.toLocaleString()} {$text('embeds.reviews')}
+            </span>
+          {/if}
+        </div>
+      {/if}
 
-    {#if placeType}
-      <div class="place-type">{placeType}</div>
-    {/if}
+      {#if placeType}
+        <div class="place-type">{placeType}</div>
+      {/if}
 
-    {#if formattedAddress}
-      <p class="place-address">{formattedAddress}</p>
-    {/if}
+      {#if formattedAddress}
+        <p class="place-address">{formattedAddress}</p>
+      {/if}
 
-    {#if websiteUri}
-      <button class="website-link" onclick={handleOpenWebsite}>
-        {websiteUri.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '')}
-      </button>
-    {/if}
+      {#if websiteUri}
+        <button class="website-link" onclick={handleOpenWebsite}>
+          {websiteUri.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '')}
+        </button>
+      {/if}
+    </div>
   {/snippet}
 
   {#snippet embedHeaderCta()}
@@ -208,6 +210,12 @@
     height: 160px;
     object-fit: cover;
     border-radius: var(--radius-5);
+  }
+
+  .place-details {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-8);
   }
 
   .place-title {
