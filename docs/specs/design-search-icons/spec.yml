@@ -117,7 +117,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: e2762df
+  subject_commit: 3f36e1f
 
 approvals:
   product_contract:
@@ -182,12 +182,12 @@ attempts:
     reason: SVGL direct API calls returned Cloudflare 403 challenge pages from this environment, and logos require a separate trademark-aware scope.
 
 handoff:
-  current_task_id: TASK-4
-  next_action: Inspect existing parent-search/child-result embed architecture, then run a real natural-language CLI chat for the Design icon search example before implementing deployed web rendering.
-  command: openmates chats send "Find clean home and settings icons for a dashboard sidebar" --json
-  expected_outcome: Real CLI chat triggers `design.search_icons` with useful output and provides the source for a published app-skill example visible in settings.
+  current_task_id: TASK-5
+  next_action: Ask the user to confirm the deployed Design icon search example and web fullscreen behavior on dev before starting Apple parity.
+  command: python3 scripts/tests.py run --spec design-search-icons.spec.ts
+  expected_outcome: Deployed web evidence is green; user confirmation is the next required gate.
   blocker: null
-  last_verified_commit: e2762df
+  last_verified_commit: 3f36e1f
 
 scenarios:
   - id: S-1
@@ -319,7 +319,7 @@ acceptance_criteria:
     scenario: S-3
     text: The regular OpenMates API exposes an authenticated Iconify SVG fetch route that validates identifiers, fetches server-side, sanitizes SVG, caches safe SVGs, and prevents client-direct Iconify or preview-server loading.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: related_backend
     verification_ids:
@@ -328,7 +328,7 @@ acceptance_criteria:
     scenario: S-4
     text: Web fullscreen fetches SVG text from the OpenMates API once per opened icon, recolors monotone icons locally, copies the displayed SVG locally, and exports PNG locally without per-color or per-size backend requests.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: playwright
     verification_ids:
@@ -338,7 +338,7 @@ acceptance_criteria:
     scenario: S-5
     text: No-results, license-filtered-empty states, unsupported license filters, and provider failures are visible and typed rather than silent failures.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: related_backend
     verification_ids:
@@ -359,7 +359,7 @@ acceptance_criteria:
     scenario: S-7
     text: The deployed web app renders Design icon search parent and child embeds safely, with SVG loading through OpenMates API only and no browser requests to Iconify or preview-server icon routes.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: playwright
     verification_ids:
@@ -378,7 +378,7 @@ acceptance_criteria:
     scenario: S-9
     text: A real natural-language OpenMates CLI chat triggers `design.search_icons`, produces useful icon-search output, and is published as a Design app-skill example visible from app settings.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: manual
     verification_ids:
@@ -744,19 +744,26 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: ""
-        command: ""
-        run_id: ""
-        timestamp: ""
+        status: failed_as_expected
+        command: python3 scripts/tests.py run --spec design-search-icons.spec.ts
+        run_id: gha-29646828396
+        subject_commit: 7f0903b
+        timestamp: "2026-07-18T13:42:01Z"
+        reason: Initial deployed Playwright verification failed before completion because the test asserted inline child icon cards, while the product contract renders parent search cards inline and child cards through parent fullscreen.
+        summary: The failure screenshot showed the public example and two parent `design.search_icons` embeds rendered, then the assertion was corrected to verify child icon SVG previews inside parent fullscreen.
     green_phase:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: ""
-        command: ""
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: python3 scripts/tests.py run --spec design-search-icons.spec.ts
+        run_id: gha-29647174056
+        subject_commit: 3f36e1f
+        target: https://app.dev.openmates.org
+        deployment_reference: vercel-dpl_AzQa2qZaxcKi2GtffiPz3zRyWhu5
+        timestamp: "2026-07-18T14:01:35Z"
+        reason: The test waited for Vercel Ready on commit 3f36e1f and ran against `app.dev.openmates.org` through the GitHub Actions Playwright runner.
+        summary: Deployed Playwright passed for the Design settings example card, public example route, parent fullscreen child grid, child fullscreen metadata/export controls, OpenMates SVG-route fetches, and no browser requests to Iconify or preview-server icon routes.
 
   - id: T-CLI-CHAT-001
     type: manual
@@ -1074,8 +1081,8 @@ tasks:
 
   - id: TASK-4
     title: Audit embed architecture, publish example chat, and add web Design icon embeds
-    status: pending
-    phase: working_tasks
+    status: done
+    phase: complete
     covers:
       scenarios:
         - S-4
@@ -1111,11 +1118,7 @@ tasks:
         - frontend/packages/ui/src/data/embedRegistry.generated.ts
         - frontend/packages/ui/src/i18n/sources/embeds.yml
         - frontend/packages/openmates-cli/src/exampleChats.ts
-    blockers:
-      - Web starts only after CLI and SDK gates are green.
-      - Web component edits start only after inspecting existing parent-search/child-result and example-chat patterns for reuse opportunities.
-      - Published example chat starts only after a real natural-language CLI chat triggers `design.search_icons` with useful output quality.
-      - Playwright green evidence requires deploy and Vercel Ready state.
+    blockers: []
     follow_up_tasks:
       - TASK-5
       - TASK-6
