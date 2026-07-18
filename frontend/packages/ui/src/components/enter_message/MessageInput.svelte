@@ -187,6 +187,8 @@
          * isIncognitoMode=true shows the pill; toggle calls onIncognitoPillDeactivate.
          */
         isIncognitoMode?: boolean;
+        /** True when the active chat is an IdeaBucket draft or processed IdeaBucket chat. */
+        isIdeaBucketChat?: boolean;
         /** Called when user clicks the toggle on the incognito pill to disable incognito mode. */
         onIncognitoPillDeactivate?: () => void;
         /** Replaces the normal compose placeholder text when set. */
@@ -214,6 +216,7 @@
         onFocusPillDeepLink = undefined,
         onFocusPillDeactivate = undefined,
         isIncognitoMode = false,
+        isIdeaBucketChat = false,
         onIncognitoPillDeactivate = undefined,
         placeholderText = undefined,
         startNewChatOnClick = false,
@@ -269,6 +272,9 @@
     // --- Incognito Pill State ---
     // Visible when the current chat is an incognito chat. Toggle calls onIncognitoPillDeactivate.
     let showIncognitoPill = $derived(!!isIncognitoMode);
+
+    // Read-only provenance marker for IdeaBucket drafts/chats.
+    let showIdeaBucketPill = $derived(!!isIdeaBucketChat && !showFocusPill && !showIncognitoPill);
 
     // Icon name derived from the focus mode metadata (strip ".svg" suffix).
     let focusPillIconName = $derived(
@@ -5145,7 +5151,7 @@
         class="message-field {isMessageFieldFocused ? 'focused' : ''} {$recordingState.isRecordingActive ? 'recording-active' : ''} {!shouldShowActionButtons ? 'compact' : ''} {showMaps ? 'maps-open' : ''} {isFullscreen ? 'fullscreen-expanded' : ''} {isDraftPreview ? 'draft-preview' : ''}"
         data-testid="message-field"
         class:drag-over={isDragging}
-        class:has-focus-pill={showFocusPill || showIncognitoPill}
+        class:has-focus-pill={showFocusPill || showIncognitoPill || showIdeaBucketPill}
         class:inline-compact={inlineCompact && !isMessageFieldFocused && !hasContent}
         class:placeholder-fading={isPlaceholderFading}
         style={containerStyle}
@@ -5212,6 +5218,19 @@
                         checked={!focusPillDeactivating}
                         on:change={handleFocusPillToggle}
                     />
+                </div>
+            </div>
+        {/if}
+
+        {#if showIdeaBucketPill}
+            <div
+                class="focus-pill ideabucket-pill"
+                data-testid="ideabucket-input-pill"
+                transition:fade={{ duration: 200 }}
+            >
+                <div class="focus-pill-body ideabucket-pill-body" aria-label={$text('chat.ideabucket_input_pill')}>
+                    <span class="ideabucket-pill-dot" aria-hidden="true"></span>
+                    <span class="focus-pill-label">{$text('chat.ideabucket_input_pill')}</span>
                 </div>
             </div>
         {/if}
@@ -5430,6 +5449,28 @@
 <style>
     @import './MessageInput.styles.css';
     @import './EmbeddPreview.styles.css';
+
+    .ideabucket-pill {
+        background: linear-gradient(135deg, #7c3aed 0%, #db2777 55%, #f59e0b 100%) !important;
+        --focus-pill-gradient: none;
+    }
+
+    .ideabucket-pill-body {
+        cursor: default !important;
+    }
+
+    .ideabucket-pill-body:hover {
+        background: rgba(255, 255, 255, 0.06) !important;
+    }
+
+    .ideabucket-pill-dot {
+        width: 11px;
+        height: 11px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.95);
+        box-shadow: 0 0 10px rgba(255, 255, 255, 0.7);
+        flex-shrink: 0;
+    }
 
     .message-field.placeholder-fading :global(.ProseMirror p.is-editor-empty:first-child::before) {
         opacity: 0;

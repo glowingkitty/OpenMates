@@ -843,7 +843,10 @@
         : extractTextFromTiptap(lastMessage.content);
     } else if (draftTextContent) {
       // If there's a draft, display draft information
-      if (displayChatTitle) {
+      if (isIdeaBucketChat) {
+        displayLabel = $text('chat.ideabucket_draft');
+        displayText = draftTextContent;
+      } else if (displayChatTitle) {
         // For titled chats with draft, use specific translation that includes the beginning
         displayLabel = $text('enter_message.draft_with_beginning').replace('{draft_beginning}', truncateText(draftTextContent, 30));
         displayText = ''; // The label itself contains the preview for this case
@@ -1085,6 +1088,7 @@
   let isActive = $derived(activeChatId === chat?.chat_id);
   let isSharedByOthers = $derived(!!chat?.is_shared_by_others);
   let isOwnerShared = $derived(!!chat?.is_shared && !isSharedByOthers);
+  let isIdeaBucketChat = $derived(chat?.ideabucket === true);
   
   // Get unread count from store for this chat
   let unreadCount = $derived($unreadMessagesStore.unreadCounts.get(chat?.chat_id || '') || 0);
@@ -2080,6 +2084,9 @@
              even while the AI is still processing the response. -->
         <div class="status-only-preview">
           {#if displayLabel}<span class="status-label">{displayLabel}</span>{/if}
+          {#if isIdeaBucketChat}
+            <span class="ideabucket-chat-badge" data-testid="ideabucket-chat-badge">{$text('chat.ideabucket_badge')}</span>
+          {/if}
           {#if displayText}<span class="status-content-preview">{truncateText(displayText, 60)}</span>{/if}
         </div>
       {:else if isWaitingForMetadata}
@@ -2089,12 +2096,18 @@
           {#if displayLabel}
             <span class="status-message">{displayLabel}</span>
           {/if}
+          {#if isIdeaBucketChat}
+            <span class="ideabucket-chat-badge" data-testid="ideabucket-chat-badge">{$text('chat.ideabucket_badge')}</span>
+          {/if}
           <span class="draft-content-as-title">{truncateText(displayText, 60)}</span>
         </div>
       {:else if isDraftOnly}
         <!-- Draft-only chat: left-aligned without mate profile -->
         <div class="draft-only-layout">
-          <span class="status-message">{$text('enter_message.draft')}</span>
+          <span class="status-message" data-testid={isIdeaBucketChat ? 'ideabucket-chat-list-label' : undefined}>{isIdeaBucketChat ? $text('chat.ideabucket_draft') : $text('enter_message.draft')}</span>
+          {#if isIdeaBucketChat}
+            <span class="ideabucket-chat-badge" data-testid="ideabucket-chat-badge">{$text('chat.ideabucket_badge')}</span>
+          {/if}
           <span class="draft-content-as-title">{truncateText(draftTextContent, 60)}</span>
         </div>
       {:else}
@@ -2283,6 +2296,9 @@
                   <span class="clickable-icon icon_pin" title="Pinned"></span>
                 </span>
               {/if}
+              {#if isIdeaBucketChat}
+                <span class="ideabucket-chat-badge" data-testid="ideabucket-chat-badge">{$text('chat.ideabucket_badge')}</span>
+              {/if}
               <!-- Incognito label badge removed: incognito chats are now grouped under their own
                    "INCOGNITO" sidebar section header, making per-chat badges redundant. -->
             </div>
@@ -2294,7 +2310,7 @@
                 {typingIndicatorInTitleView}
               </span>
             {:else if displayLabel && !currentTypingMateInfo} 
-              <span class="status-message">
+              <span class="status-message" data-testid={isIdeaBucketChat ? 'ideabucket-chat-list-label' : undefined}>
                 {displayLabel}{#if displayText && displayLabel !== $text('enter_message.draft_with_beginning').replace('{draft_beginning}', truncateText(draftTextContent, 30))}&nbsp;{truncateText(displayText, 60)}{/if}
               </span>
             {:else if displayText && !currentTypingMateInfo} 
@@ -2444,6 +2460,19 @@
     border-radius: 2px;
     position: relative;
     flex-shrink: 0;
+  }
+
+  .ideabucket-chat-badge {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: 1px 7px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: white;
+    background: linear-gradient(135deg, #7c3aed 0%, #db2777 55%, #f59e0b 100%);
+    box-shadow: 0 0 10px rgba(219, 39, 119, 0.25);
   }
 
 

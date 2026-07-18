@@ -24,6 +24,9 @@ const { skipWithoutCredentials } = require('./helpers/env-guard');
 const CLI_DIST = fs.existsSync('/workspace/cli/dist/cli.js')
 	? '/workspace/cli/dist/cli.js'
 	: path.resolve(__dirname, '../../../packages/openmates-cli/dist/cli.js');
+const AUDIO_FIXTURE = fs.existsSync('/workspace/backend/tests/fixtures/test_audio.wav')
+	? '/workspace/backend/tests/fixtures/test_audio.wav'
+	: path.resolve(__dirname, '../../../../backend/tests/fixtures/test_audio.wav');
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount(1);
 
 function deriveApiUrl(baseUrl: string): string {
@@ -158,6 +161,69 @@ function chatItem(page: any, chatId: string): any {
 	return page.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${chatId}"]`);
 }
 
+function resultChatId(result: any): string {
+	const chatId = String(result.chatId ?? result.chat_id ?? '');
+	expect(chatId).toMatch(/^[0-9a-f-]{36}$/i);
+	return chatId;
+}
+
+async function clearBrowserClientState(page: any, baseUrl: string): Promise<void> {
+	const resetUrl = `${new URL(baseUrl).origin}/e2e-ideabucket-cold-boot`;
+	await page.route(resetUrl, (route: any) =>
+		route.fulfill({ contentType: 'text/html', body: '<!doctype html><title>IdeaBucket cold boot</title>' })
+	);
+	await page.goto(resetUrl);
+	await page.evaluate(async () => {
+		localStorage.clear();
+		sessionStorage.clear();
+		const databases = await indexedDB.databases();
+		await Promise.all(
+			databases
+				.map((database) => database.name)
+				.filter((name): name is string => Boolean(name))
+				.map(
+					(name) =>
+						new Promise<void>((resolve, reject) => {
+							const request = indexedDB.deleteDatabase(name);
+							request.onerror = () => reject(request.error ?? new Error(`Failed to delete ${name}`));
+							request.onblocked = () => reject(new Error(`Deleting ${name} was blocked`));
+							request.onsuccess = () => resolve();
+						})
+				)
+		);
+	});
+	await page.unroute(resetUrl);
+	await page.context().clearCookies();
+}
+
+async function expectIdeaBucketDraftMarkers(page: any, chatId: string, expectedText: string): Promise<void> {
+	await openDraft(page, chatId, expectedText);
+	const item = chatItem(page, chatId);
+	await expect(item.getByTestId('ideabucket-chat-list-label')).toBeVisible({ timeout: 15_000 });
+	await expect(page.getByTestId('ideabucket-input-pill')).toBeVisible({ timeout: 15_000 });
+}
+
+async function expectSearchFindsChat(page: any, query: string): Promise<void> {
+	await openSidebar(page);
+	const searchIcon = page.getByTestId('search-button');
+	await expect(searchIcon).toBeVisible({ timeout: 10_000 });
+	await searchIcon.click();
+	const searchInput = page.getByTestId('search-input');
+	await expect(searchInput).toBeVisible({ timeout: 5_000 });
+	await searchInput.fill(query);
+	const searchResults = page.getByTestId('search-results');
+	await expect(searchResults).toBeVisible({ timeout: 10_000 });
+	await expect(async () => {
+		const isWarmingUp = await page.getByTestId('warming-up').isVisible().catch(() => false);
+		const resultCount = await page.getByTestId('search-chat-item').count().catch(() => 0);
+		if (isWarmingUp || resultCount === 0) {
+			await searchInput.fill('');
+			await searchInput.fill(query);
+		}
+		await expect(searchResults).toContainText(query);
+	}).toPass({ timeout: 60_000 });
+}
+
 async function openDraft(page: any, chatId: string, expectedText: string): Promise<void> {
 	await openSidebar(page);
 	const item = chatItem(page, chatId);
@@ -268,6 +334,143 @@ test.describe('Cross-client encrypted draft sync', () => {
 			log('Missed chat deletion reconciled after reconnect.');
 		} finally {
 			await page.context().setOffline(false).catch(() => undefined);
+			for (const chatId of cleanupDraftIds) {
+				await runCli(apiUrl, ['drafts', 'clear', chatId], 10_000);
+			}
+			for (const chatId of cleanupChatIds) {
+				await runCli(apiUrl, ['chats', 'delete', chatId, '--yes'], 10_000);
+			}
+			if (cliPaired) await runCli(apiUrl, ['logout'], 10_000);
+		}
+	});
+
+	test('IdeaBucket drafts and processed chats keep encrypted provenance across web cold boot', async ({ page }: { page: any }) => {
+		skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+		expect(fs.existsSync(AUDIO_FIXTURE), `Missing audio fixture at ${AUDIO_FIXTURE}`).toBeTruthy();
+		const log = createSignupLogger('IDEABUCKET_WEB_MARKERS');
+		const screenshot = createStepScreenshotter(log, { filenamePrefix: 'ideabucket-web-markers' });
+		const baseUrl = process.env.PLAYWRIGHT_TEST_BASE_URL || '';
+		const apiUrl = deriveApiUrl(baseUrl);
+		const unique = Date.now().toString(36);
+		const draftText = `IdeaBucket editable draft ${unique}`;
+		const editedDraftText = `IdeaBucket edited draft ${unique}`;
+		const audioBucketId = `e2e-audio-${unique}`;
+		const draftBucketId = `e2e-draft-${unique}`;
+		const processBucketId = `e2e-process-${unique}`;
+		const processText = `IdeaBucket processed history ${unique}`;
+		const futureSchedule = String(Math.floor(Date.now() / 1000) + 3600);
+		const cleanupDraftIds = new Set<string>();
+		const cleanupChatIds = new Set<string>();
+		let cliPaired = false;
+
+		await loginToTestAccount(page, log, screenshot);
+		try {
+			log('Pairing CLI client for IdeaBucket web coverage.');
+			await pairCli(page, apiUrl, baseUrl);
+			cliPaired = true;
+			await page.goto(baseUrl);
+			await waitForChatReady(page, log);
+
+			log('Creating encrypted IdeaBucket text draft from CLI.');
+			const draft = await runCliJson(apiUrl, [
+				'ideabucket',
+				'add',
+				draftText,
+				'--bucket',
+				draftBucketId,
+				'--scheduled-at',
+				futureSchedule
+			]);
+			const draftChatId = resultChatId(draft);
+			cleanupDraftIds.add(draftChatId);
+			await page.reload();
+			await waitForChatReady(page, log);
+			await expectIdeaBucketDraftMarkers(page, draftChatId, draftText);
+			await screenshot(page, 'text-draft-markers');
+
+			const editor = page.getByTestId('message-editor');
+			await editor.click();
+			await page.keyboard.press('ControlOrMeta+A');
+			await page.keyboard.insertText(editedDraftText);
+			await expect(editor).toContainText(editedDraftText, { timeout: 10_000 });
+			await page.getByTestId('input-dismiss-button').click();
+			await expect
+				.poll(async () => {
+					const currentDraft = (await runCliJson(apiUrl, ['drafts', 'get', draftChatId, '--refresh'])).draft;
+					return currentDraft?.markdown ?? '';
+				}, {
+					timeout: 60_000,
+					intervals: [1_000, 2_000]
+				})
+				.toBe(editedDraftText);
+			log('IdeaBucket text draft remained editable in web.');
+
+			const status = await runCli(apiUrl, ['ideabucket', 'status', draftBucketId, '--json']);
+			expect(status.code, `IdeaBucket status failed:\n${status.stderr}`).toBe(0);
+			expect(status.stdout).not.toContain(draftText);
+			expect(status.stdout).not.toContain(editedDraftText);
+			log('IdeaBucket status returned only sparse encrypted-safe metadata.');
+
+			log('Cold booting browser state, then logging in again.');
+			await clearBrowserClientState(page, baseUrl);
+			await loginToTestAccount(page, log, screenshot);
+			await waitForChatReady(page, log);
+			await expectIdeaBucketDraftMarkers(page, draftChatId, editedDraftText);
+			await screenshot(page, 'cold-boot-draft-markers');
+
+			log('Creating encrypted IdeaBucket audio draft from CLI.');
+			const audioDraft = await runCliJson(apiUrl, [
+				'ideabucket',
+				'audio',
+				AUDIO_FIXTURE,
+				'--bucket',
+				audioBucketId,
+				'--scheduled-at',
+				futureSchedule
+			], 120_000);
+			const audioChatId = resultChatId(audioDraft);
+			cleanupDraftIds.add(audioChatId);
+			await page.reload();
+			await waitForChatReady(page, log);
+			await expectIdeaBucketDraftMarkers(page, audioChatId, 'IdeaBucket');
+			await expect(page.getByTestId('recording-preview-audio').first()).toBeVisible({ timeout: 30_000 });
+			await screenshot(page, 'audio-draft-embed-preview');
+
+			log('Creating and processing due IdeaBucket chat from CLI.');
+			const processedDraft = await runCliJson(apiUrl, [
+				'ideabucket',
+				'add',
+				processText,
+				'--bucket',
+				processBucketId,
+				'--scheduled-at',
+				String(Math.floor(Date.now() / 1000) - 5)
+			]);
+			const processedChatId = resultChatId(processedDraft);
+			cleanupDraftIds.add(processedChatId);
+			const processed = await runCliJson(apiUrl, ['ideabucket', 'process', processBucketId, '--now'], 90_000);
+			expect(processed.status).toBe('sent');
+			expect(String(processed.chat_id)).toBe(processedChatId);
+			cleanupDraftIds.delete(processedChatId);
+			cleanupChatIds.add(processedChatId);
+
+			await page.reload();
+			await waitForChatReady(page, log);
+			await openSidebar(page);
+			const processedItem = chatItem(page, processedChatId);
+			await expect(processedItem).toBeVisible({ timeout: 30_000 });
+			await expect(processedItem.getByTestId('ideabucket-chat-badge')).toBeVisible({ timeout: 15_000 });
+			await processedItem.click();
+			await expect(page.getByTestId('message-user')).toHaveCount(1, { timeout: 30_000 });
+			await expect(page.getByTestId('message-user').first()).toContainText(processText, { timeout: 30_000 });
+			await expect(page.getByTestId('message-system')).toHaveCount(1, { timeout: 30_000 });
+			await expect(page.getByTestId('system-message-text').first()).toContainText('ideabucket_triggered_send', { timeout: 30_000 });
+			await screenshot(page, 'processed-chat-marker-and-system-event');
+
+			await expectSearchFindsChat(page, processText);
+			await screenshot(page, 'processed-chat-search-result');
+			log('Processed IdeaBucket chat was searchable from chat history.');
+		} finally {
 			for (const chatId of cleanupDraftIds) {
 				await runCli(apiUrl, ['drafts', 'clear', chatId], 10_000);
 			}

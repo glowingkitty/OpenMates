@@ -12095,6 +12095,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                     activeFocusId={!showWelcome ? activeFocusId : null}
                                     activeFocusAppId={!showWelcome ? activeFocusAppId : null}
                                     activeFocusModeMetadata={!showWelcome ? activeFocusModeMetadata : null}
+                                    isIdeaBucketChat={!!currentChat?.ideabucket}
                                     onFocusPillDeepLink={() => {
                                         if (activeFocusAppId && activeFocusModeKey) {
                                             settingsDeepLink.set(`apps/${activeFocusAppId}/focus/${activeFocusModeKey}`);

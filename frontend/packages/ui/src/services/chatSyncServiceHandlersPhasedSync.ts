@@ -1256,6 +1256,9 @@ export async function handleLoadMoreChatsResponseImpl(
           draft_v: 0,
           encrypted_draft_md: null,
           encrypted_draft_preview: null,
+          ideabucket: details.ideabucket,
+          ideabucket_processing_window_id: details.ideabucket_processing_window_id,
+          ideabucket_triggered_at: details.ideabucket_triggered_at,
           last_edited_overall_timestamp:
             details.last_edited_overall_timestamp ||
             details.updated_at ||
@@ -1340,6 +1343,9 @@ export async function handleSyncMetadataChatsResponseImpl(
           draft_v: 0,
           encrypted_draft_md: null,
           encrypted_draft_preview: null,
+          ideabucket: details.ideabucket,
+          ideabucket_processing_window_id: details.ideabucket_processing_window_id,
+          ideabucket_triggered_at: details.ideabucket_triggered_at,
           last_edited_overall_timestamp:
             details.last_edited_overall_timestamp ||
             details.updated_at ||

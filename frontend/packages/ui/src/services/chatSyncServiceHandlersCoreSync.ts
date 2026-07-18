@@ -117,6 +117,9 @@ export async function handleInitialSyncResponseImpl(
           draft_v: serverChat.versions.draft_v,
           encrypted_draft_md: serverChat.encrypted_draft_md,
           encrypted_draft_preview: serverChat.encrypted_draft_preview,
+          ideabucket: serverChat.ideabucket,
+          ideabucket_processing_window_id: serverChat.ideabucket_processing_window_id,
+          ideabucket_triggered_at: serverChat.ideabucket_triggered_at,
           encrypted_chat_key: serverChat.encrypted_chat_key, // Add encrypted chat key for decryption
           encrypted_icon: serverChat.encrypted_icon, // Add encrypted icon for decryption
           encrypted_category: serverChat.encrypted_category, // Add encrypted category for decryption

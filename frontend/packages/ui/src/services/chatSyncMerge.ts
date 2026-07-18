@@ -86,6 +86,9 @@ export async function mergeServerChatWithLocal(
         nowTimestamp,
       encrypted_draft_md: serverChat.encrypted_draft_md,
       encrypted_draft_preview: serverChat.encrypted_draft_preview,
+      ideabucket: serverChat.ideabucket,
+      ideabucket_processing_window_id: serverChat.ideabucket_processing_window_id,
+      ideabucket_triggered_at: serverChat.ideabucket_triggered_at,
       encrypted_chat_key: serverChat.encrypted_chat_key,
       candidate_encrypted_keys: serverChat.candidate_encrypted_keys,
       encrypted_icon: serverChat.encrypted_icon,
@@ -157,6 +160,12 @@ export async function mergeServerChatWithLocal(
       : keyMismatch
         ? undefined
         : localChat.encrypted_draft_preview,
+    ideabucket: serverChat.ideabucket ?? localChat.ideabucket,
+    ideabucket_processing_window_id:
+      serverChat.ideabucket_processing_window_id ??
+      localChat.ideabucket_processing_window_id,
+    ideabucket_triggered_at:
+      serverChat.ideabucket_triggered_at ?? localChat.ideabucket_triggered_at,
     encrypted_chat_key: keyMismatch
       ? localChat.encrypted_chat_key
       : serverChat.encrypted_chat_key ?? localChat.encrypted_chat_key,

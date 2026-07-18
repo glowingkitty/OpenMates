@@ -22,6 +22,78 @@ new_chat:
   sv: Ny chatt
   he: "צ'אט חדש"
   verified_by_human: []
+ideabucket_badge:
+  context: Compact badge shown next to chats that came from IdeaBucket by OpenMates
+  en: IdeaBucket
+  de: IdeaBucket
+  zh: IdeaBucket
+  es: IdeaBucket
+  fr: IdeaBucket
+  pt: IdeaBucket
+  ru: IdeaBucket
+  ja: IdeaBucket
+  ko: IdeaBucket
+  it: IdeaBucket
+  tr: IdeaBucket
+  vi: IdeaBucket
+  id: IdeaBucket
+  pl: IdeaBucket
+  nl: IdeaBucket
+  ar: IdeaBucket
+  hi: IdeaBucket
+  th: IdeaBucket
+  cs: IdeaBucket
+  sv: IdeaBucket
+  he: IdeaBucket
+  verified_by_human: []
+ideabucket_draft:
+  context: Sidebar status label for an unsent IdeaBucket draft chat
+  en: IdeaBucket draft
+  de: IdeaBucket-Entwurf
+  zh: IdeaBucket 草稿
+  es: Borrador de IdeaBucket
+  fr: Brouillon IdeaBucket
+  pt: Rascunho do IdeaBucket
+  ru: Черновик IdeaBucket
+  ja: IdeaBucket 下書き
+  ko: IdeaBucket 초안
+  it: Bozza IdeaBucket
+  tr: IdeaBucket taslağı
+  vi: Bản nháp IdeaBucket
+  id: Draf IdeaBucket
+  pl: Szkic IdeaBucket
+  nl: IdeaBucket-concept
+  ar: مسودة IdeaBucket
+  hi: IdeaBucket ड्राफ़्ट
+  th: ฉบับร่าง IdeaBucket
+  cs: Koncept IdeaBucket
+  sv: IdeaBucket-utkast
+  he: טיוטת IdeaBucket
+  verified_by_human: []
+ideabucket_input_pill:
+  context: Pill shown above the message input when the active chat is an IdeaBucket draft
+  en: IdeaBucket for today
+  de: IdeaBucket für heute
+  zh: 今日 IdeaBucket
+  es: IdeaBucket de hoy
+  fr: IdeaBucket du jour
+  pt: IdeaBucket de hoje
+  ru: IdeaBucket на сегодня
+  ja: 今日の IdeaBucket
+  ko: 오늘의 IdeaBucket
+  it: IdeaBucket di oggi
+  tr: Bugünün IdeaBucket'ı
+  vi: IdeaBucket hôm nay
+  id: IdeaBucket hari ini
+  pl: Dzisiejszy IdeaBucket
+  nl: IdeaBucket voor vandaag
+  ar: IdeaBucket لليوم
+  hi: आज का IdeaBucket
+  th: IdeaBucket สำหรับวันนี้
+  cs: Dnešní IdeaBucket
+  sv: Dagens IdeaBucket
+  he: IdeaBucket להיום
+  verified_by_human: []
 request_feature:
   context: Text link shown at the end of chat history to open the feature request form
   en: Request feature
