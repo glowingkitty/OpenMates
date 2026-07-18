@@ -9132,7 +9132,21 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
         try {
             const anonymousChat = await getAnonymousHashChatWithRetry(hashChatId);
-            await loadChat(anonymousChat ?? fallbackChat);
+            if (!anonymousChat) {
+                await loadChat(fallbackChat);
+                return;
+            }
+
+            const anonymousMessages = await anonymousChatStorage.getMessagesForChat(hashChatId);
+            currentChat = anonymousChat;
+            currentMessages = anonymousMessages;
+            chatHistoryRef?.updateMessages(anonymousMessages);
+            activeChatDecryptedTitle = typeof anonymousChat.title === 'string' ? anonymousChat.title : '';
+            activeChatDecryptedCategory = anonymousChat.category || 'general_knowledge';
+            activeChatDecryptedIcon = anonymousChat.icon?.split(',')[0]?.trim() || 'sparkles';
+            activeChatDecryptedSummary = null;
+            showWelcome = false;
+            phasedSyncState.setCurrentActiveChatId(hashChatId);
             console.debug('[ActiveChat] Restored anonymous hash chat during mount:', hashChatId);
         } catch (error) {
             console.warn('[ActiveChat] Failed to restore anonymous hash chat during mount; loading shell:', error);
