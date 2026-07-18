@@ -160,12 +160,13 @@ test('explains selected assistant text in a background new chat', async ({ page 
 	await triggerExplainInNewChat(page);
 
 	await expect(page).toHaveURL(sourceUrl, { timeout: 5000 });
-	await expect(page.locator(SELECTORS.notification).filter({ hasText: /background/i })).toBeVisible({ timeout: 20_000 });
+	const explanationNotification = page.locator(SELECTORS.notification).filter({ hasText: /background/i });
+	await expect(explanationNotification).toBeVisible({ timeout: 20_000 });
 	const sourceChatTextAfter = await page.locator(SELECTORS.chatMessage).allTextContents();
 	expect(sourceChatTextAfter.join('\n')).not.toContain('Tell me more about: vector database');
 
 	log('Opening background explanation chat from notification action.');
-	const openAction = page.locator(SELECTORS.notificationAction).filter({ hasText: /open/i }).first();
+	const openAction = explanationNotification.locator(SELECTORS.notificationAction).filter({ hasText: /open/i }).first();
 	await expect(openAction).toBeVisible({ timeout: 10_000 });
 	await openAction.click();
 	await expect(page).not.toHaveURL(sourceUrl, { timeout: 15_000 });
