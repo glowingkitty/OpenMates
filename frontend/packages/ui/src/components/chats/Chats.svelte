@@ -105,6 +105,16 @@ let _chatUpsertsDuringDbRead = new Map<string, ChatType>();
 		return Array.from(mergedById.values());
 	}
 
+	function applyPendingCacheUpsertsToLocalList(): void {
+		const pendingChats = chatListCache.getPendingUpserts();
+		if (pendingChats.length === 0) return;
+
+		for (const chat of pendingChats) {
+			upsertLocalChatList(chat);
+		}
+		console.debug(`[Chats] Applied ${pendingChats.length} pending chat-list upsert(s) to local state`);
+	}
+
 	// Phased Loading State — progressive display with incremental pagination:
 	// Display starts at 11 user chats, each "Show more" click reveals 20 more.
 	// When all local chats (from IndexedDB) are shown, server pagination kicks in.
@@ -2176,6 +2186,7 @@ let _chatUpsertsDuringDbRead = new Map<string, ChatType>();
 			allChatsFromDB = cached;
 			return;
 		}
+		applyPendingCacheUpsertsToLocalList();
 		
 		try {
 			console.debug("[Chats] Ensuring local database is initialized...");
@@ -2444,6 +2455,7 @@ let _chatUpsertsDuringDbRead = new Map<string, ChatType>();
 
 	async function handleSearchQuery(query: string): Promise<void> {
 		setSearchQuery(query);
+		applyPendingCacheUpsertsToLocalList();
 		triggerSearchWarmUpIfNeeded();
 
 		if (!query || query.trim().length === 0) {
@@ -2796,8 +2808,8 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 			return;
 		}
 		
-		allChatsFromDB = chatsFromDb; // This assignment triggers reactive updates for sorted/grouped lists - Corrected variable
-		chatListCache.setCache(chatsFromDb); // Update global cache
+		chatListCache.setCache(chatsFromDb); // Update global cache, including pending upserts queued before cache init
+		allChatsFromDB = chatListCache.getCache(false) ?? chatsFromDb; // Use the merged cache snapshot for reactive updates
 		console.debug(`[Chats] Updated internal chat list. Count: ${allChatsFromDB.length}`); // Corrected variable
 		
 		// Debug: Log first few chat IDs if available
