@@ -1061,6 +1061,73 @@ export async function getChat(
 }
 
 /**
+ * Get a single chat by ID without decrypting chat-key encrypted metadata.
+ *
+ * Use this only for encrypted-field update paths that must not depend on the
+ * local chat key being available, such as synced draft broadcasts. Most callers
+ * should use getChat() so they receive decrypted display metadata.
+ */
+export async function getRawChat(
+  dbInstance: ChatDatabaseInstance,
+  chat_id: string,
+  transaction?: IDBTransaction,
+): Promise<Chat | null> {
+  if (
+    get(forcedLogoutInProgress) &&
+    !isPublicChat(chat_id) &&
+    !isAnonymousChatId(chat_id)
+  ) {
+    console.debug(
+      `[ChatDatabase] Skipping getRawChat for encrypted chat ${chat_id} during forced logout - returning null`,
+    );
+    return null;
+  }
+
+  await dbInstance.init();
+  return new Promise((resolve, reject) => {
+    const execute = async () => {
+      try {
+        const currentTransaction =
+          transaction ||
+          (await dbInstance.getTransaction(
+            dbInstance.CHATS_STORE_NAME,
+            "readonly",
+          ));
+        const store = currentTransaction.objectStore(
+          dbInstance.CHATS_STORE_NAME,
+        );
+        const request = store.get(chat_id);
+
+        request.onsuccess = () => {
+          const chatData = request.result;
+          if (!chatData) {
+            resolve(null);
+            return;
+          }
+          const rawChat = { ...chatData } as Chat;
+          delete rawChat.messages;
+          resolve(rawChat);
+        };
+        request.onerror = () => {
+          console.error(
+            `[ChatDatabase] Error getting raw chat ${chat_id}:`,
+            request.error,
+          );
+          reject(request.error);
+        };
+      } catch (error) {
+        console.error(
+          `[ChatDatabase] Error in getRawChat for chat_id ${chat_id}:`,
+          error,
+        );
+        reject(error);
+      }
+    };
+    execute();
+  });
+}
+
+/**
  * Delete a chat and all its messages
  * Also cleans up associated embeds (if not shared with other chats)
  */

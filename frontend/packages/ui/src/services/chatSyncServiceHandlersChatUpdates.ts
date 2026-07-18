@@ -25,6 +25,7 @@ import { decryptChatKeyWithMasterKey, encryptChatKeyWithMasterKey } from "./encr
 import { activeChatStore } from "../stores/activeChatStore";
 import { notificationStore } from "../stores/notificationStore";
 import { unreadMessagesStore } from "../stores/unreadMessagesStore";
+import { LOCAL_CHAT_LIST_CHANGED_EVENT } from "./drafts/draftConstants";
 
 const ASSISTANT_NOTIFICATION_PREVIEW_MAX_LENGTH = 120;
 
@@ -299,8 +300,10 @@ export async function handleChatDraftUpdatedImpl(
   // making the transaction invalid by the time updateChat() is called.
   // Instead, use separate transactions for each operation (same fix as handleChatMessageReceivedImpl).
   try {
-    // First, get the chat without passing a transaction (getChat will create its own)
-    const chat = await chatDB.getChat(payload.chat_id);
+    // Draft fields are already encrypted with the user's master key. Avoid
+    // chatDB.getChat() here because it decrypts chat-key metadata and can block
+    // a draft-only sync shell when the chat key is unavailable or stale.
+    const chat = await chatDB.getRawChat(payload.chat_id);
     let updatedChat: Chat;
 
     if (chat) {
@@ -332,8 +335,8 @@ export async function handleChatDraftUpdatedImpl(
       // chat.last_edited_overall_timestamp = payload.last_edited_overall_timestamp; // REMOVED
       chat.updated_at = Math.floor(Date.now() / 1000);
 
-      // Use a separate transaction for updateChat (it will create its own internally)
-      await chatDB.updateChat(chat);
+      // Store synced draft updates without generating a replacement chat key.
+      await chatDB.addChat(chat, undefined, { isFromSync: true });
       updatedChat = chat;
     } else {
       console.warn(
@@ -376,6 +379,13 @@ export async function handleChatDraftUpdatedImpl(
         detail: { chat_id: payload.chat_id, type: "draft", chat: updatedChat },
       }),
     );
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(
+        new CustomEvent(LOCAL_CHAT_LIST_CHANGED_EVENT, {
+          detail: { chat_id: payload.chat_id, chat: updatedChat },
+        }),
+      );
+    }
   } catch (error) {
     console.error(
       `[ChatSyncService:ChatUpdates] Error in handleChatDraftUpdated for chat_id ${payload.chat_id}:`,

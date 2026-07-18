@@ -1816,6 +1816,13 @@ class ChatDatabase {
     return chatCrudOps.getChat(this, chat_id, transaction);
   }
 
+  async getRawChat(
+    chat_id: string,
+    transaction?: IDBTransaction,
+  ): Promise<Chat | null> {
+    return chatCrudOps.getRawChat(this, chat_id, transaction);
+  }
+
   async saveCurrentUserChatDraft(
     chat_id: string,
     draft_content: string | null,

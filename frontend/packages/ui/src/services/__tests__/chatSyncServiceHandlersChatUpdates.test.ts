@@ -16,6 +16,7 @@ import {
 const mocks = vi.hoisted(() => ({
   chatDB: {
     getChat: vi.fn(),
+    getRawChat: vi.fn(),
     addChat: vi.fn(),
     updateChat: vi.fn(),
     saveMessage: vi.fn(),
@@ -105,6 +106,7 @@ describe("handleNewChatMessageImpl", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.chatDB.getChat.mockResolvedValue(undefined);
+    mocks.chatDB.getRawChat.mockResolvedValue(undefined);
     mocks.chatDB.addChat.mockResolvedValue(undefined);
     mocks.chatDB.updateChat.mockResolvedValue(undefined);
     mocks.chatDB.saveMessage.mockResolvedValue(undefined);
@@ -158,6 +160,7 @@ describe("handleChatDraftUpdatedImpl", () => {
 
   it("stores IdeaBucket metadata on draft-only chats created from sync broadcasts", async () => {
     const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+    mocks.chatDB.getChat.mockRejectedValue(new Error("decrypted getChat must not run"));
 
     await handleChatDraftUpdatedImpl(service, {
       event: "chat_draft_updated",
@@ -172,6 +175,8 @@ describe("handleChatDraftUpdatedImpl", () => {
       last_edited_overall_timestamp: 100,
     });
 
+    expect(mocks.chatDB.getChat).not.toHaveBeenCalled();
+    expect(mocks.chatDB.getRawChat).toHaveBeenCalledWith("chat-ideabucket");
     expect(mocks.chatDB.addChat).toHaveBeenCalledWith(
       expect.objectContaining({
         chat_id: "chat-ideabucket",
@@ -192,6 +197,46 @@ describe("handleChatDraftUpdatedImpl", () => {
           chat: expect.objectContaining({ chat_id: "chat-ideabucket" }),
         }),
       }),
+    );
+  });
+
+  it("updates existing draft chats from raw metadata without creating replacement keys", async () => {
+    const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+    mocks.chatDB.getRawChat.mockResolvedValue({
+      chat_id: "chat-existing-draft",
+      encrypted_title: null,
+      encrypted_draft_md: "old-draft",
+      encrypted_draft_preview: "old-preview",
+      messages_v: 0,
+      title_v: 0,
+      draft_v: 1,
+      unread_count: 0,
+      created_at: 90,
+      updated_at: 90,
+      last_edited_overall_timestamp: 90,
+    });
+
+    await handleChatDraftUpdatedImpl(service, {
+      event: "chat_draft_updated",
+      chat_id: "chat-existing-draft",
+      data: {
+        encrypted_draft_md: "new-draft",
+        encrypted_draft_preview: "new-preview",
+      },
+      versions: { draft_v: 2 },
+      last_edited_overall_timestamp: 100,
+    });
+
+    expect(mocks.chatDB.updateChat).not.toHaveBeenCalled();
+    expect(mocks.chatDB.addChat).toHaveBeenCalledWith(
+      expect.objectContaining({
+        chat_id: "chat-existing-draft",
+        encrypted_draft_md: "new-draft",
+        encrypted_draft_preview: "new-preview",
+        draft_v: 2,
+      }),
+      undefined,
+      { isFromSync: true },
     );
   });
 });
