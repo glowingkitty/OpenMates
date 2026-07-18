@@ -45,9 +45,10 @@ function deriveApiUrl(baseUrl: string): string {
 async function runCli(
 	apiUrl: string,
 	args: string[],
-	timeoutMs = 30_000
+	timeoutMs = 30_000,
+	options: { useApiKey?: boolean } = {}
 ): Promise<{ code: number | null; stdout: string; stderr: string }> {
-	const apiKey = process.env.OPENMATES_TEST_ACCOUNT_API_KEY;
+	const apiKey = options.useApiKey === false ? undefined : process.env.OPENMATES_TEST_ACCOUNT_API_KEY;
 	const cliDir = path.dirname(path.dirname(CLI_DIST));
 	const allArgs = apiKey ? ['--api-key', apiKey, ...args] : args;
 
@@ -83,7 +84,7 @@ function parseCliJson(result: { code: number | null; stdout: string; stderr: str
 	let parsed: any;
 	try {
 		parsed = JSON.parse(result.stdout);
-	} catch (e) {
+	} catch {
 		throw new Error(`Expected JSON output, got:\n${result.stdout}\nstderr:\n${result.stderr}`);
 	}
 	return parsed;
