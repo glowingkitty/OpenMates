@@ -68,7 +68,7 @@ const SEARCH_SKILLS: Record<string, string[]> = {
 	news: ['Search'],
 	travel: ['Search', 'Stays Search'],
 	events: ['Search'],
-	fitness: ['Search locations', 'Search classes'],
+	fitness: ['Classes'],
 	health: ['Search'],
 	shopping: ['Search'],
 	electronics: ['Search Components'],
@@ -146,7 +146,7 @@ for (const app of ALL_APPS) {
 
 			// ── Navigate ────────────────────────────────────────────────────
 			const response = await page.goto(`/dev/preview/embeds/${app}`, {
-				waitUntil: 'networkidle'
+				waitUntil: 'domcontentloaded'
 			});
 			expect(response?.status()).toBe(200);
 
@@ -302,7 +302,7 @@ test.describe('Search skill fullscreens — 2 result cards per row', () => {
 		for (const skillLabel of searchSkills) {
 			test(`${app}/${skillLabel}: fullscreen shows ≥ 2 result cards per row`, async ({ page }) => {
 				const response = await page.goto(`/dev/preview/embeds/${app}`, {
-					waitUntil: 'networkidle'
+					waitUntil: 'domcontentloaded'
 				});
 				expect(response?.status()).toBe(200);
 				await page.waitForTimeout(HYDRATION_WAIT);
