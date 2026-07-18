@@ -44,14 +44,14 @@ export function bytesToBase64(input: Uint8Array): string {
   return Buffer.from(input).toString("base64");
 }
 
+export function bytesToBase64Url(input: Uint8Array): string {
+  return Buffer.from(input).toString("base64url");
+}
+
 function toArrayBuffer(input: Uint8Array): ArrayBuffer {
   const output = new ArrayBuffer(input.byteLength);
   new Uint8Array(output).set(input);
   return output;
-}
-
-function bytesToBase64Url(input: Uint8Array): string {
-  return Buffer.from(input).toString("base64url");
 }
 
 function base64UrlToBytes(input: string, field: string, expectedLength?: number): Uint8Array {
@@ -66,6 +66,24 @@ function base64UrlToBytes(input: string, field: string, expectedLength?: number)
     throw new Error(`${field} must decode to ${expectedLength} bytes`);
   }
   return decoded;
+}
+
+export async function deriveTeamInviteKey(input: {
+  recipientEmail: string;
+  inviteSecret: string;
+  inviteId: string;
+  teamId: string;
+  origin: string;
+}): Promise<Uint8Array> {
+  const secretBytes = base64UrlToBytes(input.inviteSecret, "invite secret", 32);
+  const salt = await sha256(new TextEncoder().encode("openmates:team-invite:v1"));
+  const info = concatBytes(
+    lengthPrefix(new TextEncoder().encode(input.recipientEmail.trim().toLowerCase())),
+    lengthPrefix(new TextEncoder().encode(input.inviteId)),
+    lengthPrefix(new TextEncoder().encode(input.teamId)),
+    lengthPrefix(new TextEncoder().encode(input.origin.replace(/\/$/, ""))),
+  );
+  return hkdfSha256(secretBytes, salt, info);
 }
 
 function uint32(value: number, field: string): Uint8Array {
