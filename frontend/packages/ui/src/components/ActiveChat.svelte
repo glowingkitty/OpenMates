@@ -4691,23 +4691,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         });
      });
 
-     async function loadAnonymousMessagesForChat(chatId: string): Promise<ChatMessageModel[]> {
-        anonymousHydrationDebug = `helper-start:${chatId}`;
-        try {
-            const messages = await anonymousChatStorage.getMessagesForChat(chatId);
-            anonymousHydrationDebug = `helper-facade:${chatId}:messages=${messages.length}`;
-            if (messages.length > 0) return messages;
-        } catch (error) {
-            anonymousHydrationDebug = `helper-facade-error:${chatId}:${error instanceof Error ? error.name : typeof error}`;
-            console.warn(`[ActiveChat] Anonymous storage facade failed for ${chatId}; falling back to IndexedDB window`, error);
-        }
-
-        const windowResult = await chatDB.getMessageWindowForChat(chatId, { direction: 'latest' });
-        currentMessageWindowHasMoreBefore = windowResult.hasMoreBefore;
-        anonymousHydrationDebug = `helper-window:${chatId}:messages=${windowResult.messages.length}`;
-        return windowResult.messages;
-     }
-
     async function loadCompressionCheckpointsForChat(chatId: string): Promise<ChatCompressionCheckpoint[]> {
         const checkpoints = await chatDB.getChatCompressionCheckpoints(chatId);
         const chatKey = await chatKeyManager.getKey(chatId);
@@ -8533,7 +8516,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 }
             } else if (currentChat.is_anonymous) {
                 try {
-                    newMessages = await loadAnonymousMessagesForChat(currentChat.chat_id);
+                    newMessages = await anonymousChatStorage.getMessagesForChat(currentChat.chat_id);
                     console.debug(`[ActiveChat] Loaded ${newMessages.length} messages from anonymousChatStorage for ${currentChat.chat_id}`);
                 } catch (error) {
                     console.error(`[ActiveChat] Error loading anonymous chat messages for ${currentChat.chat_id}:`, error);
