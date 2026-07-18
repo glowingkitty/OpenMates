@@ -113,14 +113,15 @@ async function loadFullscreenComponentUncached(
 		const module = await loader();
 		return module.default;
 	} catch (error) {
+		if (isChunkLoadError(error)) {
+			logChunkLoadError('embedFullscreenResolver', error);
+			forcePageReload();
+			return null;
+		}
 		console.error(
 			`[embedFullscreenResolver] Failed to load fullscreen component for key="${key}", path="${importPath}"`,
 			error
 		);
-		if (isChunkLoadError(error)) {
-			logChunkLoadError('embedFullscreenResolver', error);
-			forcePageReload();
-		}
 		return null;
 	}
 }

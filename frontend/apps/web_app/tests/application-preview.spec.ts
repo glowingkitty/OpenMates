@@ -54,6 +54,21 @@ async function skipWhenApplicationPreviewDisabled(page: any) {
 	);
 }
 
+async function dismissVisibleNotifications(page: any): Promise<void> {
+	const notifications = page.getByTestId('notification');
+	for (let index = (await notifications.count()) - 1; index >= 0; index -= 1) {
+		const notification = notifications.nth(index);
+		if (await notification.isVisible().catch(() => false)) {
+			await notification.getByTestId('notification-dismiss').dispatchEvent('click').catch(() => undefined);
+		}
+	}
+	await expect(async () => {
+		for (let index = 0; index < (await notifications.count()); index += 1) {
+			expect(await notifications.nth(index).isVisible()).toBe(false);
+		}
+	}).toPass({ timeout: 5000 });
+}
+
 test('generated application embed starts explicit isolated live preview', async ({ page }: { page: any }) => {
 	test.slow();
 	test.setTimeout(420_000);
@@ -99,6 +114,7 @@ test('generated application embed starts explicit isolated live preview', async 
 		(response: any) => response.url().includes('/v1/applications/') && response.url().includes('/preview/start'),
 		{ timeout: 90_000 }
 	);
+	await dismissVisibleNotifications(page);
 	await fullscreenOverlay.getByTestId('application-start-preview').click();
 	const startResponse = await previewStartResponse;
 	expect(startResponse.ok(), `preview start failed with ${startResponse.status()}`).toBe(true);
@@ -117,6 +133,7 @@ test('generated application embed starts explicit isolated live preview', async 
 
 	await expect(fullscreenOverlay.getByTestId('application-open-preview-window')).toBeVisible({ timeout: 10_000 });
 	const popupPromise = page.waitForEvent('popup');
+	await dismissVisibleNotifications(page);
 	await fullscreenOverlay.getByTestId('application-open-preview-window').click();
 	const previewPopup = await popupPromise;
 	attachConsoleListeners(previewPopup);

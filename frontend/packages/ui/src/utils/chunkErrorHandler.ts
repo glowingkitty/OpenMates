@@ -91,10 +91,10 @@ export const CHUNK_ERROR_NOTIFICATION_DURATION = 15000;
  * @param error - The original error
  */
 export function logChunkLoadError(context: string, error: unknown): void {
-  console.error(
+  console.warn(
     `[${context}] Chunk loading error detected - likely stale cache after deployment`,
   );
-  console.error(`[${context}] Original error:`, error);
+  console.warn(`[${context}] Original error:`, error);
   console.info(
     `[${context}] User should refresh the page to get the latest version`,
   );
