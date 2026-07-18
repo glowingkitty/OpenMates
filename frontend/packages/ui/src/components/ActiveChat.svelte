@@ -9776,6 +9776,31 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             }
         };
         window.addEventListener('localChatListChanged', handlePreprocessingChatRefresh);
+
+        const handleResumeCardPinRefresh = async (event: Event) => {
+            const detail = (event as CustomEvent).detail;
+            const targetChatId = detail?.chat_id ?? detail?.chatId;
+            if (
+                !showWelcome ||
+                currentChat ||
+                !resumeChatData ||
+                targetChatId !== resumeChatData.chat_id ||
+                typeof detail?.pinned !== 'boolean'
+            ) return;
+
+            resumeChatData = { ...resumeChatData, pinned: detail.pinned };
+            carouselInvalidationCounter++;
+
+            try {
+                const freshChat = await chatDB.getChat(targetChatId);
+                if (freshChat && resumeChatData?.chat_id === targetChatId) {
+                    resumeChatData = freshChat;
+                }
+            } catch (err) {
+                console.warn('[ActiveChat] Failed to refresh resume card pin state:', err);
+            }
+        };
+        window.addEventListener('localChatListChanged', handleResumeCardPinRefresh);
         
         // Listen for logout event to clear user chat and return to the logged-out welcome screen.
         // CRITICAL: This handler must work reliably on mobile, even if component isn't fully initialized
@@ -11009,6 +11034,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             window.removeEventListener(CHAT_METADATA_KEY_READY_EVENT, handleChatKeyReady);
             // Remove preprocessing step chat refresh listener
             window.removeEventListener('localChatListChanged', handlePreprocessingChatRefresh as EventListenerCallback);
+            window.removeEventListener('localChatListChanged', handleResumeCardPinRefresh as EventListenerCallback);
             if (handleLogoutEvent) {
                 window.removeEventListener('userLoggingOut', handleLogoutEvent as EventListenerCallback);
             }
