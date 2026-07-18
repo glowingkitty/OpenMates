@@ -4619,8 +4619,36 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
      async function readAnonymousSnapshotFromIndexedDb(chatId: string): Promise<{ chat: Chat; messages: ChatMessageModel[] } | null> {
         if (typeof indexedDB === 'undefined') return null;
         if (!hasAnonymousSessionKey()) {
-            await anonymousChatStorage.clearAll().catch((error) => {
-                console.warn('[ActiveChat] Failed to clear anonymous chats after session key removal:', error);
+            await new Promise<void>((resolve, reject) => {
+                const request = indexedDB.open('chats_db');
+                request.onerror = () => reject(request.error);
+                request.onsuccess = () => {
+                    const db = request.result;
+                    const transaction = db.transaction(['chats', 'messages'], 'readwrite');
+                    transaction.objectStore('chats').delete(chatId);
+
+                    const cursorRequest = transaction
+                        .objectStore('messages')
+                        .index('chat_id_created_at')
+                        .openCursor(IDBKeyRange.bound([chatId, -Infinity], [chatId, Infinity]));
+                    cursorRequest.onsuccess = () => {
+                        const cursor = cursorRequest.result;
+                        if (!cursor) return;
+                        cursor.delete();
+                        cursor.continue();
+                    };
+
+                    transaction.onerror = () => {
+                        db.close();
+                        reject(transaction.error);
+                    };
+                    transaction.oncomplete = () => {
+                        db.close();
+                        resolve();
+                    };
+                };
+            }).catch((error) => {
+                console.warn('[ActiveChat] Failed to clear anonymous IndexedDB snapshot after session key removal:', error);
             });
             return null;
         }
