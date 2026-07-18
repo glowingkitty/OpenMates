@@ -188,15 +188,17 @@ async function collectOpenedChatRenderState(page: any, chatIndex: number, titleT
 }
 
 async function collectOpenedChatsManifest(page: any, loadedManifest: Record<string, unknown>): Promise<Record<string, unknown>> {
-	const loadedChats = (loadedManifest.chats as Array<{ titleText: string }>).slice(0, OPENED_CHAT_LIMIT);
+	const loadedChats = (loadedManifest.chats as Array<{ index: number; titleText: string; titleState: RawChatRow['titleState'] }>)
+		.filter((row) => row.titleState === 'ready')
+		.slice(0, OPENED_CHAT_LIMIT);
 	const openedChats: Record<string, unknown>[] = [];
 	let previousFingerprint = await currentMessageFingerprint(page);
 
 	for (let index = 0; index < loadedChats.length; index += 1) {
 		await ensureSidebarOpen(page, () => undefined);
-		const chatId = await openUserChatByIndex(page, index);
+		const chatId = await openUserChatByIndex(page, loadedChats[index].index);
 		await waitForOpenedChat(page, chatId, previousFingerprint);
-		openedChats.push(await collectOpenedChatRenderState(page, index, normalizeText(loadedChats[index].titleText)));
+		openedChats.push(await collectOpenedChatRenderState(page, loadedChats[index].index, normalizeText(loadedChats[index].titleText)));
 		previousFingerprint = await currentMessageFingerprint(page);
 	}
 
