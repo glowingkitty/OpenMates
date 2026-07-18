@@ -18,6 +18,7 @@ import { notificationStore } from "../stores/notificationStore";
 import { activeChatStore } from "../stores/activeChatStore";
 import { chatDB } from "./db";
 import { chatKeyManager } from "./encryption/ChatKeyManager";
+import { dispatchEmbedFullscreen } from "./embedFullscreenController";
 import { ensureChatKeySafeForWrite } from "./chatKeyWriteGuard";
 import { encryptWithChatKey } from "./encryption/MessageEncryptor";
 import { decryptWithMasterKey } from "./encryption/MetadataEncryptor";
@@ -2554,20 +2555,17 @@ export async function handleReminderFiredImpl(
           const embedRecord = typeof embedEntry === "object" && embedEntry !== null ? embedEntry : null;
           const rawType = String(embedRecord?.type || embedRecord?.embed_type || "app-skill-use");
           const autoConvertedTypes = ["code", "code-code", "sheet", "sheets-sheet", "math-plot", "document", "docs-doc"];
-          document.dispatchEvent(new CustomEvent("embedfullscreen", {
-            detail: {
-              embedId,
-              embedData,
-              decodedContent,
-              embedType: autoConvertedTypes.includes(rawType) ? rawType : "app-skill-use",
-              attrs: {
-                type: rawType,
-                contentRef: `embed:${embedId}`,
-                status: embedData.status || "finished",
-              },
+          dispatchEmbedFullscreen({
+            embedId,
+            embedData,
+            decodedContent,
+            embedType: autoConvertedTypes.includes(rawType) ? rawType : "app-skill-use",
+            attrs: {
+              type: rawType,
+              contentRef: `embed:${embedId}`,
+              status: embedData.status || "finished",
             },
-            bubbles: true,
-          }));
+          });
         },
       });
       return;

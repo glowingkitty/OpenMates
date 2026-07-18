@@ -15,6 +15,7 @@
   import VideoEmbedPreview from './VideoEmbedPreview.svelte';
   import type { VideoMetadata } from './VideoEmbedPreview.svelte';
   import { text } from '@repo/ui';
+  import { dispatchEmbedFullscreen } from '../../../services/embedFullscreenController';
   import type { VideoTranscriptResult } from '../../../types/appSkills';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
   import { copyToClipboard } from '../../../utils/clipboardUtils';
@@ -367,37 +368,33 @@
       // IMPORTANT: ActiveChat's template reads snake_case keys from decodedContent
       // (channel_name, channel_thumbnail, thumbnail, duration_seconds, duration_formatted,
       //  view_count, like_count, published_at) — do NOT use camelCase here.
-      const event = new CustomEvent('embedfullscreen', {
-        detail: {
-          embedType: 'videos-video',
-          attrs: {
-            url: videoUrl,
-            title: metadata.title || videoTitle
-          },
-          decodedContent: {
-            url: videoUrl,
-            title: metadata.title || videoTitle,
-            video_id: metadata.videoId,
-            // snake_case keys to match ActiveChat template's decodedContent reads
-            channel_name: metadata.channelName,
-            channel_id: metadata.channelId,
-            channel_thumbnail: metadata.channelThumbnail,
-            thumbnail: metadata.thumbnailUrl,
-            // Flat duration fields — ActiveChat reads duration_seconds + duration_formatted separately
-            duration_seconds: metadata.duration?.totalSeconds,
-            duration_formatted: metadata.duration?.formatted,
-            view_count: metadata.viewCount,
-            like_count: metadata.likeCount,
-            published_at: metadata.publishedAt
-          },
-          onClose: () => {
-            console.debug('[VideoTranscriptEmbedFullscreen] Video fullscreen closed');
-          }
+      dispatchEmbedFullscreen({
+        embedType: 'videos-video',
+        attrs: {
+          url: videoUrl,
+          title: metadata.title || videoTitle
         },
-        bubbles: true
+        decodedContent: {
+          url: videoUrl,
+          title: metadata.title || videoTitle,
+          video_id: metadata.videoId,
+          // snake_case keys to match ActiveChat template's decodedContent reads
+          channel_name: metadata.channelName,
+          channel_id: metadata.channelId,
+          channel_thumbnail: metadata.channelThumbnail,
+          thumbnail: metadata.thumbnailUrl,
+          // Flat duration fields — ActiveChat reads duration_seconds + duration_formatted separately
+          duration_seconds: metadata.duration?.totalSeconds,
+          duration_formatted: metadata.duration?.formatted,
+          view_count: metadata.viewCount,
+          like_count: metadata.likeCount,
+          published_at: metadata.publishedAt
+        },
+        onClose: () => {
+          console.debug('[VideoTranscriptEmbedFullscreen] Video fullscreen closed');
+        }
       });
-      
-      document.dispatchEvent(event);
+
       console.debug('[VideoTranscriptEmbedFullscreen] Dispatched video embed fullscreen event with URL:', videoUrl);
     } catch (error) {
       console.error('[VideoTranscriptEmbedFullscreen] Error opening video embed fullscreen:', error);

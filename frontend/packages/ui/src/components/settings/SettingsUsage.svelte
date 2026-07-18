@@ -3,6 +3,7 @@ Usage Settings - View usage statistics and export usage data
 -->
 
 <script lang="ts">
+    /* eslint-disable @typescript-eslint/no-explicit-any -- existing usage export shapes are dynamic; routing change only adds fullscreen dispatch helper */
     import { onMount, createEventDispatcher } from 'svelte';
     import { text } from '@repo/ui';
     import { apiEndpoints, getApiEndpoint } from '../../config/api';
@@ -18,6 +19,7 @@ Usage Settings - View usage statistics and export usage data
     import { appsMetadata } from '../../data/appsMetadata';
     import { getAllDraftAudioChatIds } from '../../stores/draftAudioChatStore';
     import { embedStore } from '../../services/embedStore';
+    import { dispatchEmbedFullscreen } from '../../services/embedFullscreenController';
     import { messageHighlightStore } from '../../stores/messageHighlightStore';
     import { activeChatStore } from '../../stores/activeChatStore';
     import { computeSHA256 } from '../../message_parsing/utils';
@@ -1522,17 +1524,13 @@ Usage Settings - View usage statistics and export usage data
             // ActiveChat listens on document for 'embedfullscreen' and loads fresh data itself.
             // Small delay so the settings panel starts closing before the embed opens.
             setTimeout(() => {
-                document.dispatchEvent(new CustomEvent('embedfullscreen', {
-                    bubbles: true,
-                    cancelable: true,
-                    detail: {
-                        embedId,
-                        embedType,
-                        attrs: {},
-                        embedData: null,
-                        decodedContent: null,
-                    },
-                }));
+                dispatchEmbedFullscreen({
+                    embedId,
+                    embedType,
+                    attrs: {},
+                    embedData: null,
+                    decodedContent: null,
+                });
             }, 50);
         }
     }

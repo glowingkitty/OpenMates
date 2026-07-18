@@ -10,6 +10,7 @@
 
 import type { Component } from 'svelte';
 import {
+	EMBED_CHILD_TYPE_MAP,
 	EMBED_FULLSCREEN_COMPONENTS,
 	normalizeEmbedType
 } from '../data/embedRegistry.generated';
@@ -37,14 +38,21 @@ export function resolveRegistryKey(
 	decodedContent?: Record<string, unknown>
 ): string | null {
 	const normalized = normalizeEmbedType(embedType);
+	const appId = decodedContent?.app_id;
+	const skillId = decodedContent?.skill_id;
 
 	if (normalized === 'app-skill-use') {
-		const appId = decodedContent?.app_id;
-		const skillId = decodedContent?.skill_id;
 		if (typeof appId === 'string' && typeof skillId === 'string') {
 			return `app:${appId}:${skillId}`;
 		}
 		return null;
+	}
+
+	if (typeof appId === 'string' && typeof skillId === 'string') {
+		const childKey = EMBED_CHILD_TYPE_MAP[`${appId}:${skillId}`];
+		if (childKey && childKey in EMBED_FULLSCREEN_COMPONENTS) {
+			return childKey;
+		}
 	}
 	return normalized;
 }

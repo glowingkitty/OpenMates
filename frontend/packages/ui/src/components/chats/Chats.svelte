@@ -12,6 +12,7 @@
 	import { tooltip } from '../../actions/tooltip';
 	import KeyboardShortcuts from '../KeyboardShortcuts.svelte';
 	import { chatSyncService } from '../../services/chatSyncService';
+	import { dispatchEmbedFullscreen } from '../../services/embedFullscreenController';
 	import { sortChats } from './utils/chatSortUtils'; // Refactored sorting logic
 	import { groupChats, getLocalizedGroupTitle } from './utils/chatGroupUtils'; // Refactored grouping logic
 	import { locale as svelteLocaleStore } from 'svelte-i18n'; // For date formatting in getLocalizedGroupTitle and reactivity in visiblePublicChats
@@ -2525,18 +2526,13 @@ let _chatUpdatedFlushPending = false;
 		// fresh embed data from the EmbedStore, so we only need to provide the embed ID.
 		if (embedId) {
 			setTimeout(() => {
-				const event = new CustomEvent('embedfullscreen', {
-					bubbles: true,
-					cancelable: true,
-					detail: {
-						embedId,
-						embedType: embedType || '',
-						attrs: {},
-						embedData: null,    // ActiveChat will load fresh data from EmbedStore
-						decodedContent: null,
-					},
+				dispatchEmbedFullscreen({
+					embedId,
+					embedType: embedType || '',
+					attrs: {},
+					embedData: null,    // ActiveChat will load fresh data from EmbedStore
+					decodedContent: null,
 				});
-				document.dispatchEvent(event);
 				console.debug('[Chats] Dispatched embedfullscreen for search result:', { embedId, embedType });
 			}, 400); // 400 ms: enough time for the message scroll to complete before the embed opens
 		}
@@ -2844,26 +2840,22 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 
 	function openEventEmbed(event: OpenMatesEvent): void {
 		phasedSyncState.markUserMadeExplicitChoice();
-		document.dispatchEvent(new CustomEvent('embedfullscreen', {
-			bubbles: true,
-			cancelable: true,
-			detail: {
-				embedId: event.embed_id,
-				embedType: 'events-event',
-				hasChatContext: false,
-				attrs: {
-					type: 'events-event',
-					contentRef: `embed:${event.embed_id}`,
-					status: 'finished',
-				},
-				embedData: {
-					embed_id: event.embed_id,
-					type: 'events-event',
-					status: 'finished',
-				},
-				decodedContent: event,
+		dispatchEmbedFullscreen({
+			embedId: event.embed_id,
+			embedType: 'events-event',
+			hasChatContext: false,
+			attrs: {
+				type: 'events-event',
+				contentRef: `embed:${event.embed_id}`,
+				status: 'finished',
 			},
-		}));
+			embedData: {
+				embed_id: event.embed_id,
+				type: 'events-event',
+				status: 'finished',
+			},
+			decodedContent: event,
+		});
 
 		if (window.innerWidth < 730) {
 			handleClose();

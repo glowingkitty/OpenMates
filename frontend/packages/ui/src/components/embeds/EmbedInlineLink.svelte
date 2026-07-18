@@ -30,6 +30,7 @@
     dispatchEmbedFullscreen,
     resolveEmbedFullscreenTarget,
   } from '../../services/embedFullscreenController';
+  import { resolveExampleFullscreenTarget } from '../../demo_chats/exampleChatStore';
   import { resolveEmbedDisplayText } from '../../utils/embedDisplayText';
   import { resolveIconName } from '../../utils/iconNameResolver';
 
@@ -181,7 +182,9 @@
     }
 
     const { targetEmbedId, focusChildEmbedId } =
-      await resolveEmbedFullscreenTarget(resolvedEmbedId);
+      await resolveEmbedFullscreenTarget(resolvedEmbedId, {
+        exampleResolver: resolveExampleFullscreenTarget,
+      });
 
     console.debug(
       `[EmbedInlineLink] Opening fullscreen for embed_ref "${embedRef}" → ${targetEmbedId}` +

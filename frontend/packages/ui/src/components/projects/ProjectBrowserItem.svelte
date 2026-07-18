@@ -10,6 +10,7 @@
   import type { Component } from 'svelte';
   import type { ProjectItemViewModel } from '../../services/projectService';
   import { decodeToonContent, resolveEmbed } from '../../services/embedResolver';
+  import { dispatchEmbedFullscreen } from '../../services/embedFullscreenController';
   import { embedPreviewRegistry } from '../../services/embedPreviewRegistry';
 
   let { item, viewMode = 'tile' }: { item: ProjectItemViewModel; viewMode?: 'tile' | 'list' } = $props();
@@ -61,20 +62,17 @@
   }
 
   function openEmbedFullscreen(embedData: Record<string, unknown>, decodedContent: Record<string, unknown>): void {
-    document.dispatchEvent(new CustomEvent('embedfullscreen', {
-      detail: {
-        embedId: item.target_id,
-        embedData,
-        decodedContent,
-        embedType: String(decodedContent.type || item.metadata.embed_type || 'app-skill-use'),
-        attrs: {
-          type: decodedContent.type || item.metadata.embed_type,
-          contentRef: `embed:${item.target_id}`,
-          status: embedData.status || 'finished',
-        },
+    dispatchEmbedFullscreen({
+      embedId: item.target_id,
+      embedData,
+      decodedContent,
+      embedType: String(decodedContent.type || item.metadata.embed_type || 'app-skill-use'),
+      attrs: {
+        type: decodedContent.type || item.metadata.embed_type,
+        contentRef: `embed:${item.target_id}`,
+        status: embedData.status || 'finished',
       },
-      bubbles: true,
-    }));
+    });
   }
 
   // Svelte dynamic components are heterogeneous because each embed preview has a

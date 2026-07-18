@@ -50,6 +50,7 @@
   import { getCategoryGradientColors, getValidIconName, getLucideIcon } from '../utils/categoryUtils';
   import { text } from '@repo/ui';
   import { chatNavigationStore, navigatePrev, navigateNext } from '../stores/chatNavigationStore';
+  import { dispatchEmbedFullscreen } from '../services/embedFullscreenController';
   import { resolveHeaderSwipeNavigation } from './headerSwipeNavigation';
   import WorkspaceDetailHeader from './workspace/WorkspaceDetailHeader.svelte';
 
@@ -670,14 +671,12 @@
 
   function handleImageBubbleClick(e: MouseEvent, bubble: { parentEmbedId: string; childEmbedId: string }) {
     e.stopPropagation();
-    document.dispatchEvent(new CustomEvent('embedfullscreen', {
-      detail: {
-        embedId: bubble.parentEmbedId,
-        embedType: 'app-skill-use',
-        focusChildEmbedId: bubble.childEmbedId,
-        hasChatContext: true,
-      },
-    }));
+    dispatchEmbedFullscreen({
+      embedId: bubble.parentEmbedId,
+      embedType: 'app-skill-use',
+      focusChildEmbedId: bubble.childEmbedId,
+      hasChatContext: true,
+    });
   }
 
 </script>

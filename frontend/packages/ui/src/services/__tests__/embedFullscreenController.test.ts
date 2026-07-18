@@ -37,6 +37,7 @@ import {
   setChildFullscreenRouteFromParent,
   setCanonicalFullscreenRoute,
 } from "../embedFullscreenController";
+import { resolveRegistryKey } from "../embedFullscreenResolver";
 
 describe("embedFullscreenController", () => {
   beforeEach(() => {
@@ -95,5 +96,25 @@ describe("embedFullscreenController", () => {
       embedId: "parent-search-1",
       chatId: "chat-1",
     });
+  });
+});
+
+describe("embedFullscreenResolver", () => {
+  it("keeps parent app-skill embeds on their search fullscreen", () => {
+    expect(
+      resolveRegistryKey("app-skill-use", {
+        app_id: "fitness",
+        skill_id: "search_locations",
+      }),
+    ).toBe("app:fitness:search_locations");
+  });
+
+  it("routes app-backed child locations to the fitness result fullscreen", () => {
+    expect(
+      resolveRegistryKey("location", {
+        app_id: "fitness",
+        skill_id: "search_locations",
+      }),
+    ).toBe("fitness-location");
   });
 });

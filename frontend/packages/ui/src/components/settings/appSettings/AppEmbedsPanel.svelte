@@ -6,10 +6,12 @@
 -->
 
 <script lang="ts">
+    /* eslint-disable @typescript-eslint/no-explicit-any -- existing decrypted embed payloads are schemaless; routing change only centralizes fullscreen dispatch */
     import { onMount } from 'svelte';
     import { text } from '@repo/ui';
     import { embedStore } from '../../../services/embedStore';
     import { resolveEmbed, decodeToonContent } from '../../../services/embedResolver';
+    import { dispatchEmbedFullscreen } from '../../../services/embedFullscreenController';
     import { embedPreviewRegistry } from '../../../services/embedPreviewRegistry';
     import type { EmbedStoreEntry } from '../../../message_parsing/types';
     import { appSkillsStore } from '../../../stores/appSkillsStore';
@@ -237,24 +239,17 @@
             const autoConvertedTypes = ['code', 'code-code', 'sheet', 'sheets-sheet', 'math-plot', 'document', 'docs-doc'];
             const eventEmbedType = autoConvertedTypes.includes(rawType) ? rawType : 'app-skill-use';
 
-            // Dispatch the same event that embed renderers use
-            // This will be handled by the global fullscreen handler (if available)
-            const event = new CustomEvent('embedfullscreen', {
-                detail: {
-                    embedId: embedId,
-                    embedData: embedData,
-                    decodedContent: decodedContent,
-                    embedType: eventEmbedType,
-                    attrs: {
-                        type: embedEntry.type,
-                        contentRef: embedEntry.contentRef,
-                        status: embedData.status || 'finished'
-                    }
-                },
-                bubbles: true
+            dispatchEmbedFullscreen({
+                embedId: embedId,
+                embedData: embedData,
+                decodedContent: decodedContent,
+                embedType: eventEmbedType,
+                attrs: {
+                    type: embedEntry.type,
+                    contentRef: embedEntry.contentRef,
+                    status: embedData.status || 'finished'
+                }
             });
-            
-            document.dispatchEvent(event);
             console.debug('[AppEmbedsPanel] Dispatched fullscreen event for embed:', embedId);
         } catch (error) {
             console.error('[AppEmbedsPanel] Error opening fullscreen:', error);
