@@ -8515,12 +8515,17 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     newMessages = [];
                 }
             } else if (currentChat.is_anonymous) {
-                try {
-                    newMessages = await anonymousChatStorage.getMessagesForChat(currentChat.chat_id);
-                    console.debug(`[ActiveChat] Loaded ${newMessages.length} messages from anonymousChatStorage for ${currentChat.chat_id}`);
-                } catch (error) {
-                    console.error(`[ActiveChat] Error loading anonymous chat messages for ${currentChat.chat_id}:`, error);
-                    newMessages = [];
+                if (isSameActiveChat && currentMessages.length > 0) {
+                    newMessages = currentMessages;
+                    console.debug(`[ActiveChat] Preserved ${newMessages.length} in-memory anonymous messages for same-chat load ${currentChat.chat_id}`);
+                } else {
+                    try {
+                        newMessages = await anonymousChatStorage.getMessagesForChat(currentChat.chat_id);
+                        console.debug(`[ActiveChat] Loaded ${newMessages.length} messages from anonymousChatStorage for ${currentChat.chat_id}`);
+                    } catch (error) {
+                        console.error(`[ActiveChat] Error loading anonymous chat messages for ${currentChat.chat_id}:`, error);
+                        newMessages = [];
+                    }
                 }
             } else if (!$authStore.isAuthenticated) {
                 // CRITICAL: For non-authenticated users, check if this is a sessionStorage-only chat
