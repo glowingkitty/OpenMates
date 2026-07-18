@@ -1,4 +1,5 @@
 import { expect, test } from './helpers/cookie-audit';
+import type { Page } from '@playwright/test';
 /**
  * Embed App Showcase Tests
  *
@@ -80,6 +81,16 @@ const SEARCH_SKILLS: Record<string, string[]> = {
 
 const PREVIEW_AUTH_NOISE_APPS = new Set(['videos', 'images', 'audio', 'pdf']);
 
+const PREVIEW_SERVER_STATUS = {
+	is_self_hosted: false,
+	payment_enabled: true,
+	server_edition: 'development',
+	domain: 'openmates.org',
+	ai_models_configured: true,
+	free_testing_credits: null,
+	anonymous_free_usage: null
+};
+
 /** How long to wait for all sections to finish loading (ms) */
 const SECTION_LOAD_TIMEOUT = 20_000;
 
@@ -102,12 +113,26 @@ const EXPECTED_DT_HEADINGS = [
  * Wait until all `.section-loading` elements disappear from the page.
  * This means all async component imports and mock-data loads have resolved.
  */
-async function waitForAllSectionsLoaded(page: import('@playwright/test').Page) {
+async function waitForAllSectionsLoaded(page: Page) {
 	await expect(async () => {
 		const loadingCount = await page.getByTestId('section-loading').count();
 		expect(loadingCount).toBe(0);
 	}).toPass({ timeout: SECTION_LOAD_TIMEOUT });
 }
+
+async function mockPreviewServerStatus(page: Page) {
+	await page.route('**/v1/settings/server-status', async (route) => {
+		await route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify(PREVIEW_SERVER_STATUS)
+		});
+	});
+}
+
+test.beforeEach(async ({ page }) => {
+	await mockPreviewServerStatus(page);
+});
 
 // ── Per-app test suite ────────────────────────────────────────────────────────
 
