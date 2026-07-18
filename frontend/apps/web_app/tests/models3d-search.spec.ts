@@ -71,18 +71,24 @@ test.describe('App: Models3D / Skill: search', () => {
 
 		const fullscreenOverlay = await openFullscreen(page, embed);
 		const resultCards = await verifySearchGrid(fullscreenOverlay, 1, 60_000);
-		await expect(resultCards.first().getByTestId('models3d-result-card')).toBeVisible({ timeout: 30_000 });
+		const firstResultCard = resultCards.first();
+		await expect(firstResultCard.getByTestId('models3d-result-card')).toBeVisible({ timeout: 30_000 });
+		await expect(firstResultCard.locator('img')).toHaveAttribute('src', /\/(api\/v1\/image|api\/image-proxy)\?url=/, { timeout: 30_000 });
 
-		const cta = resultCards.first().getByTestId('models3d-open-provider-cta');
+		await firstResultCard.click();
+		const childFullscreenOverlay = page.getByTestId('embed-fullscreen-overlay').last();
+		await expect(childFullscreenOverlay.getByTestId('models3d-result-fullscreen')).toBeVisible({ timeout: 30_000 });
+
+		const cta = childFullscreenOverlay.getByTestId('models3d-open-provider-cta');
 		await expect(cta).toBeVisible({ timeout: 30_000 });
 		await expect(cta).toContainText(/Open on /);
 		const href = await cta.getAttribute('href');
 		expect(href || '').toMatch(/^https:\/\/(www\.)?(printables|myminifactory|thingiverse)\./);
 
-		await expect(resultCards.first().locator('img')).toHaveAttribute('src', /\/(api\/v1\/image|api\/image-proxy)\?url=/, { timeout: 30_000 });
 		expect(forbiddenModelFileRequests, 'Preview/fullscreen must not download full 3D model files').toEqual([]);
 		expect(providerScriptRequests, 'Preview/fullscreen must not execute provider JavaScript').toEqual([]);
 
+		await closeFullscreen(page, childFullscreenOverlay);
 		await closeFullscreen(page, fullscreenOverlay);
 		await deleteActiveChat(page, logCheckpoint, takeStepScreenshot, 'models3d-search');
 	});
