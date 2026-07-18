@@ -91,6 +91,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
   import { copyChatToClipboard } from '../services/chatExportService';
   import { downloadChatAsZip } from '../services/zipExportService';
   import { buildChatMessageLink } from '../services/deepLinkHandler';
+  import { dispatchEmbedFullscreen } from '../services/embedFullscreenController';
   import { LOCAL_CHAT_LIST_CHANGED_EVENT } from '../services/drafts/draftConstants';
   
   // Define types for message content parts
@@ -174,6 +175,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
     isFirstMessage = false,
     isCreditsRestored = false,
     onResend = undefined,
+    onChatNavigate = undefined,
     canAnnotate = true,
   }: {
     role?: MessageRole;
@@ -209,6 +211,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
     /** Callback to resend the original message after credits are restored.
      *  Called when the user clicks "Resend message" in the credits-restored banner. */
     onResend?: () => void;
+    onChatNavigate?: (chatId: string) => Promise<void> | void;
     /** False when the viewer is reading a shared chat they don't own. Hides
      *  the Highlight entry points (context menu + selection toolbar) so the
      *  UI mirrors the backend's owner-only enforcement. Defaults to true. */
@@ -2108,23 +2111,13 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
             fullscreenEmbedType = 'app-skill-use'; // Normalize group type to individual for fullscreen
         }
         
-        // Dispatch embedfullscreen event to trigger fullscreen (ActiveChat will handle it)
-        // This is the same event that embeds dispatch when clicked
-        // Use document.dispatchEvent (not window) to match how renderers do it
-        const embedFullscreenEvent = new CustomEvent('embedfullscreen', {
-            bubbles: true,
-            cancelable: true,
-            detail: {
-                embedId,
-                embedType: fullscreenEmbedType,
-                attrs: selectedNode.attrs,
-                embedData: null, // Will be loaded by ActiveChat if needed
-                decodedContent: null // Will be loaded by ActiveChat if needed
-            }
+        dispatchEmbedFullscreen({
+            embedId,
+            embedType: fullscreenEmbedType,
+            attrs: selectedNode.attrs,
+            embedData: null, // Will be loaded by ActiveChat if needed
+            decodedContent: null // Will be loaded by ActiveChat if needed
         });
-        
-        // Dispatch the event on document (same as renderers do)
-        document.dispatchEvent(embedFullscreenEvent);
         
         console.debug('[ChatMessage] Dispatched embedfullscreen event for view action:', {
             embedId,
@@ -3230,6 +3223,10 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
                 style={getSubChatPreviewStyle(subChatCategory)}
                 oncontextmenu={(event) => handleSubChatContextMenu(event, sc)}
                 onclick={async () => {
+                  if (onChatNavigate) {
+                    await onChatNavigate(sc.chat_id);
+                    return;
+                  }
                   const { activeChatStore } = await import('../stores/activeChatStore');
                   activeChatStore.setActiveChat(sc.chat_id);
                 }}

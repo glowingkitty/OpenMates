@@ -853,6 +853,7 @@
     quickTipSlugs = [],
     compressionCheckpoints = [],
     onSuggestionClick = undefined,
+    onChatNavigate = undefined,
     canAnnotate = true,
   }: {
     messageInputHeight?: number;
@@ -922,8 +923,17 @@
     quickTipSlugs?: string[];
     /** Callback fired when the user clicks a follow-up suggestion. */
     onSuggestionClick?: (suggestion: string) => void;
+    onChatNavigate?: (chatId: string) => Promise<void> | void;
     compressionCheckpoints?: ChatCompressionCheckpoint[];
   } = $props();
+
+  async function navigateToChat(chatId: string): Promise<void> {
+    if (onChatNavigate) {
+      await onChatNavigate(chatId);
+      return;
+    }
+    activeChatStore.setActiveChat(chatId);
+  }
 
   $effect(() => {
     const incomingMessages = sourceMessages;
@@ -2257,7 +2267,7 @@
             title={`Return to ${parentChatTitle}`}
             style="position: absolute; top: 12px; left: 12px; z-index: 10001; display: flex; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 20px; background: var(--grey10); border: 1.5px solid var(--grey30); color: var(--fontPrimary); font-size: 13px; font-weight: 500; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.1); transition: transform 0.2s, background 0.2s;"
             onclick={() => {
-                activeChatStore.setActiveChat(parentChatId);
+                void navigateToChat(parentChatId);
             }}
         >
             <span style="display: flex; align-items: center;">
@@ -2385,6 +2395,7 @@
                         isFirstMessage={(shouldVirtualizeMessages ? virtualStartIndex + msgIndex : msgIndex) === 0}
                         {isCreditsRestored}
                         {onResend}
+                        {onChatNavigate}
                         {canAnnotate}
                     />
 

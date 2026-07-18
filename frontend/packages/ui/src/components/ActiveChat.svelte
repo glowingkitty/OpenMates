@@ -9810,6 +9810,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 // This ensures UI updates right away, even on mobile
                 currentChat = null;
                 currentMessages = [];
+                chatHistoryRef?.updateMessages([]);
                 followUpSuggestions = []; // Clear follow-up suggestions to prevent showing user responses
                 showWelcome = true;
                 isAtBottom = false;
@@ -9843,6 +9844,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 // Fallback: ensure UI is cleared even if handler fails
                 currentChat = null;
                 currentMessages = [];
+                chatHistoryRef?.updateMessages([]);
                 showWelcome = true;
                 activeChatStore.clearActiveChat();
                 phasedSyncState.setCurrentActiveChatId(NEW_CHAT_SENTINEL);
@@ -11884,6 +11886,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                            backgroundFrames={(() => { const frames = activeLocaleVideo?.background_frames ?? activePublicChatMetadata?.background_frames; if (!frames) return null; const titleFrame = $locale?.startsWith('de') ? '/intro-frames/frame-00_DE.webp' : '/intro-frames/frame-00_EN.webp'; return [titleFrame, ...frames]; })()}
                           autoplayVideo={pendingAutoplayVideo}
                           onResend={handleResendAfterCreditsRestored}
+                          onChatNavigate={handleChatNavigate}
                            followUpSuggestions={showFollowUpSuggestions ? followUpSuggestions : []}
                            {quickTipSlugs}
                            compressionCheckpoints={currentCompressionCheckpoints}
