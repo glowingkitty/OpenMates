@@ -81,6 +81,19 @@ async function verifySavedMemoryEntry(
   logCheckpoint: (message: string) => void,
 ): Promise<void> {
   const settingsPath = `apps/${appId}/settings_memories/${categoryId}`;
+  const notifications = page.getByTestId('notification');
+  for (let index = await notifications.count() - 1; index >= 0; index--) {
+    const notification = notifications.nth(index);
+    if (await notification.isVisible().catch(() => false)) {
+      await notification.getByTestId('notification-dismiss').click();
+    }
+  }
+  await expect(async () => {
+    for (let index = 0; index < await notifications.count(); index++) {
+      expect(await notifications.nth(index).isVisible()).toBe(false);
+    }
+  }).toPass({ timeout: 5000 });
+
   await page.evaluate((path: string) => {
     window.dispatchEvent(new CustomEvent('openSettingsMenu', { detail: { returnTo: path } }));
   }, settingsPath);
