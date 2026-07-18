@@ -155,38 +155,39 @@ docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/cor
 
 - The **development server** runs the `dev` branch — this is where we work and push changes.
 - The **production server** runs the `main` branch — this is the live server that users interact with.
+- The repository default branch and current working branch must remain `dev`. Never change GitHub's default branch away from `dev`, and never switch the local working tree away from `dev` while operating on this dev server.
 
 ### Debugging Production Issues
 
-When debugging issues that occur on the **production server**, the code running there may differ from the `dev` branch. To inspect the production code without switching branches, use `git show`.
+When debugging issues that occur on the **production server**, the code running there may differ from the `dev` branch. Always inspect the production code on `main` first. Use the current `dev` branch only after that to check whether dev is also susceptible to the same issue, bug, or behavior, or whether dev already contains a fix.
 
-**IMPORTANT: Always update the local `main` ref from remote first** before inspecting production code. The local `main` ref can be stale since we never switch to it — run `git fetch origin main` to ensure you're viewing the actual production code:
+**IMPORTANT: Always update the remote `main` ref first** before inspecting production code. Local refs can be stale since we never switch to them — run `git fetch origin main:refs/remotes/origin/main` and inspect `origin/main` to ensure you're viewing the actual production code:
 
 ```bash
-# ✅ ALWAYS run this first to update local main ref
-git fetch origin main
+# ALWAYS run this first to update the production branch ref
+git fetch origin main:refs/remotes/origin/main
 
 # View a specific file as it exists on the main (production) branch
-git show main:backend/core/api/app/routes/settings.py
+git show origin/main:backend/core/api/app/routes/settings.py
 
 # View a specific file at a specific line range (pipe through head/tail)
-git show main:backend/core/api/app/routes/settings.py | head -200
+git show origin/main:backend/core/api/app/routes/settings.py | head -200
 
 # Compare a file between dev and main
-git diff main..dev -- backend/core/api/app/routes/settings.py
+git diff origin/main..dev -- backend/core/api/app/routes/settings.py
 
 # Check what's different between dev and main overall
-git diff main..dev --stat
+git diff origin/main..dev --stat
 
 # View the last few commits on main
-git log main --oneline -10
+git log origin/main --oneline -10
 ```
 
 **Key rules:**
 
-- Always use `git show main:<path>` to check production code — **do NOT switch branches** on the dev server
+- Always use `git show origin/main:<path>` to check production code — **do NOT switch branches** on the dev server
 - Use the Admin Debug API with the **production base URL** (`https://api.openmates.org`) to inspect production data and logs
-- When a user reports a production issue, first check if the relevant code differs between `dev` and `main`
+- When a user reports a production issue, first inspect the relevant code on `main`; only then compare with `dev` to see if dev is also susceptible or already fixed
 
 ---
 

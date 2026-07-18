@@ -55,10 +55,12 @@ docker exec api python /app/backend/scripts/debug.py trace task --id <celery-tas
 
 For each error in the trace/timeline:
 1. Identify the file and function (from stack trace or error context)
-2. `git log -5 --oneline -- <file>` — was it changed recently?
-3. Read the relevant code section (20–40 lines around the suspect line)
-4. If frontend: check for recent changes in related services/components
-5. If backend: check the route handler, service method, or task
+2. If this is a production issue, run `git fetch origin main:refs/remotes/origin/main` and inspect the production code first with `git show origin/main:<file>`
+3. Read the current `dev` version only after the `main` inspection, to check whether dev is also susceptible or already fixed
+4. `git log -5 --oneline -- <file>` — was it changed recently?
+5. Read the relevant code section (20–40 lines around the suspect line)
+6. If frontend: check for recent changes in related services/components
+7. If backend: check the route handler, service method, or task
 
 ### Step 5: Correlate browser ↔ backend
 
@@ -77,6 +79,7 @@ State **one** primary hypothesis. If the evidence supports multiple, list the to
 - **Never modify code.** Forensics only.
 - **Never mark the issue resolved.** The parent agent does that after the fix is confirmed.
 - **Respect encryption boundaries.** Decrypted fields in the debug output are for analysis only — never echo decrypted user content in your summary beyond what is strictly needed to explain the bug.
+- **Production code first.** For prod reports, never infer root cause from the current `dev` worktree until you have inspected the relevant `origin/main` code. Treat `dev` only as a comparison for whether the same issue is still present or already fixed.
 - **Cross-check with recent commits.** Most dev-server bugs are regressions from the last 24–48h of changes. Always run `git log -10 --oneline` first.
 - **Keep output under 700 tokens.** The main conversation needs budget for the fix.
 - **If the issue is a frontend console error**, the stack trace is authoritative — trust it over guesswork.

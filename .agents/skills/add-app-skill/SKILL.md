@@ -48,13 +48,14 @@ The spec or inline contract must also define the phase gate for this skill:
 
 1. Implement and test the skill through OpenMates CLI against the dev server
    first, using real prompts or CLI contract tests that exercise the backend skill
-   without browser state. After it passes on dev, move or wire the same CLI
-   coverage into GitHub Actions for daily tests. This proof must use real CLI
-   commands against the real dev API/WebSocket path; mocked OpenMates API calls,
-   mocked SDK clients, stubbed servers, direct function calls, and fixture replay
-   do not satisfy the gate.
-2. Implement and test npm SDK and pip SDK parity for the same callable behavior
-   when the skill is exposed programmatically.
+   without browser state. This proof must use real CLI commands against the real
+   dev API/WebSocket path; mocked OpenMates API calls, mocked SDK clients,
+   stubbed servers, direct function calls, and fixture replay do not satisfy the
+   gate.
+2. Implement and test npm SDK and pip SDK parity locally against the dev server
+   for the same callable behavior when the skill is exposed programmatically.
+   After local CLI and SDK evidence is green, reproduce or wire the same coverage
+   into GitHub Actions for CI/daily tests.
 3. Implement web app surfaces, embeds, and app-store examples only after CLI and
    SDK parity are green.
 4. Ask the user to confirm the deployed dev web behavior works and looks correct

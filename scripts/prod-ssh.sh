@@ -131,8 +131,8 @@ eval spawn ssh $ssh_opts
 expect {
     -nocase "assword:"            { send -- "$password\r"; exp_continue }
     -nocase "erification code:"   { send -- "$otp\r";      exp_continue }
-    -nocase "permission denied"   { puts stderr "\n[prod-ssh] ssh denied — check key window / password / OTP"; exit 2 }
-    timeout                       { puts stderr "\n[prod-ssh] ssh timed out waiting for prompt"; exit 3 }
+    -nocase "permission denied"   { puts stderr "\n\[prod-ssh\] ssh denied — check key window / password / OTP"; exit 2 }
+    timeout                       { puts stderr "\n\[prod-ssh\] ssh timed out waiting for prompt"; exit 3 }
     eof
 }
 catch wait result

@@ -9,12 +9,28 @@ argument-hint: "[--rerun] [spec-name]"
 
 You are fixing test failures from the latest daily test run. Follow this exact sequence:
 
+Directus is the canonical test state store. Use `scripts/tests.py` commands for
+status, triage, claims, history, and reruns. Do not read `test-results/*.json`
+as the source of truth; those files are import/export artifacts only.
+
+Quickstart for getting current failed tests:
+
+```bash
+python3 scripts/tests.py status --json
+python3 scripts/tests.py triage --json
+python3 scripts/tests.py next --lease --session <session-id> --json
+```
+
 ### Step 1: Use the deterministic failure queue
 
 Call the unified test control plane to classify current failures:
 
 ```bash
-python3 scripts/tests.py triage
+python3 scripts/tests.py status --json
+```
+
+```bash
+python3 scripts/tests.py triage --json
 ```
 
 Then lease one group at a time before reading source or debugging:
@@ -54,6 +70,7 @@ Check that all previously-failed tests now pass. If any still fail, go back to S
 ### Rules
 
 - **Always lease first** — use `scripts/tests.py next --lease` before debugging so parallel workers do not collide.
+- **Directus is canonical** — `test-results/*.json` may be stale; use `scripts/tests.py status --json`, `triage`, and `next --lease`.
 - **Fix console errors in app code** — never suppress them in tests
 - **NEVER run vitest/playwright locally** — always dispatch via `scripts/tests.py run`
 - **Group fixes by root cause** — one commit per root cause group, not per test

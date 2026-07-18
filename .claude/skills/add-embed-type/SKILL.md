@@ -32,12 +32,13 @@ Do not scaffold a web embed before the producing skill or feature has CLI-first
 evidence. Confirm or record in the spec/inline contract:
 
 1. The backend skill/provider emits the embed payload correctly in OpenMates CLI
-   against the dev server, and the same CLI coverage is moved or wired into
-   GitHub Actions for daily tests after it passes on dev. Mocked OpenMates API
-   calls, mocked SDK clients, stubbed servers, direct function calls, and fixture
-   replay do not satisfy this gate.
-2. npm SDK and pip SDK parity are implemented and tested when the embed-producing
-   behavior is exposed programmatically.
+   against the dev server. Mocked OpenMates API calls, mocked SDK clients,
+   stubbed servers, direct function calls, and fixture replay do not satisfy this
+   gate.
+2. npm SDK and pip SDK parity are implemented and tested locally against the dev
+   server when the embed-producing behavior is exposed programmatically. After
+   local CLI and SDK evidence is green, reproduce or wire the same coverage into
+   GitHub Actions for CI/daily tests.
 3. Web preview/fullscreen components and Playwright coverage start only after CLI
    and required SDK evidence are green.
 4. The user must confirm the deployed dev web embed works and looks correct before

@@ -11,6 +11,16 @@ Detailed CLI commands, log queries, and diagnostic procedures.
 
 ## Unified Debug CLI (Production)
 
+Production issue investigations must start from production code. Fetch and inspect `main` before using the current `dev` worktree:
+
+```bash
+git fetch origin main:refs/remotes/origin/main
+git show origin/main:<suspect-path>
+git diff origin/main..dev -- <suspect-path>
+```
+
+Use `dev` only after the `main` inspection to check whether the same issue, bug, or behavior is also present on dev, or whether dev already contains the fix.
+
 ```bash
 # Query production logs (last 30 min)
 docker exec api python /app/backend/scripts/debug.py logs --services task-worker --since 30

@@ -43,14 +43,15 @@ Each task must include:
 - Whether it is independently deployable
 
 For shared product surfaces, task dependencies must enforce this order: CLI
-implementation/testing against the dev server first, GitHub Actions daily-test
-wiring after dev CLI success, npm SDK and pip SDK parity/testing second, web
-implementation/testing third, user confirmation fourth, Apple parity/testing
-last. Do not create an SDK, web, or Apple task that can start while an earlier
-required phase is still pending, unless the spec records an explicit waiver or
-accepted external blocker. The CLI task must run real CLI commands against the
-real dev API/WebSocket path; mocked API-call tests can be supplemental unit tasks
-only and must not satisfy the CLI gate.
+implementation/testing against the dev server first, npm SDK and pip SDK
+parity/testing locally against the dev server second, GitHub Actions CI/daily-test
+reproduction only after local CLI and SDK success, web implementation/testing
+third, user confirmation fourth, Apple parity/testing last. Do not create an
+SDK, web, or Apple task that can start while an earlier required phase is still
+pending, unless the spec records an explicit waiver or accepted external blocker.
+The CLI and SDK tasks must run real commands/SDK calls against the real dev
+API/WebSocket path; mocked API-call tests can be supplemental unit tasks only and
+must not satisfy these gates.
 
 Run validation after editing:
 

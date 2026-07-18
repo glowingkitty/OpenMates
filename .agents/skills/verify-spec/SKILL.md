@@ -61,12 +61,13 @@ Pass only when:
 - Every required green/final check has passing, user-confirmed, waived, or
   accepted-blocker evidence.
 - Shared product surfaces have phase-gate evidence in order: CLI
-  implementation/testing against the dev server, GitHub Actions daily-test wiring
-  after dev CLI success, npm SDK and pip SDK parity/testing when applicable, web
+  implementation/testing against the dev server, npm SDK and pip SDK
+  parity/testing locally against the dev server when applicable, GitHub Actions
+  CI/daily-test reproduction only after local CLI and SDK success, web
   implementation/testing, user confirmation for user-visible deployed web
   behavior, then Apple parity/testing when applicable.
-- CLI phase-gate evidence shows real CLI commands against the real dev
-  API/WebSocket path with real auth/test-account state. Mocked OpenMates API
+- CLI and SDK phase-gate evidence shows real commands/SDK calls against the real
+  dev API/WebSocket path with real auth/test-account state. Mocked OpenMates API
   calls, mocked SDK clients, stubbed servers, direct function calls, fixture
   replay, and unit tests that bypass the API/WebSocket path fail the gate.
 - Schema V2 automated evidence records command, run ID, timestamp, and subject

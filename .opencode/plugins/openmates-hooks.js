@@ -10,6 +10,8 @@ const EDIT_TOOLS = new Set(["apply_patch", "edit", "write", "Edit", "Write"]);
 const BASH_TOOLS = new Set(["bash", "Bash"]);
 const PROJECT_ROOT = "/home/superdev/projects/OpenMates";
 const BRIDGE = `${PROJECT_ROOT}/.codex/hooks/claude-hook-bridge.sh`;
+const REPO_RELATIVE_PREFIXES = ["frontend/", "backend/", "scripts/", "docs/", "apple/", ".opencode/", ".claude/"];
+const SOURCE_FILE_EXTENSION = /\.(?:py|js|mjs|ts|tsx|svelte|swift|md|ya?ml|json)$/;
 const CLI_LOGIN_HINT_MARKER = "[OpenMates CLI login hint]";
 const CLI_AUTH_ERROR_PATTERNS = [
   /Authentication failed\. Run [`']openmates login[`'] to re-authenticate\./i,
@@ -42,6 +44,124 @@ function bashCommand(args) {
   return args.command || args.cmd || args.script || "";
 }
 
+function unquote(value) {
+  if (!value) return "";
+  const trimmed = value.trim().replace(/[),]+$/g, "");
+  if ((trimmed.startsWith('"') && trimmed.endsWith('"')) || (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
+    return trimmed.slice(1, -1);
+  }
+  return trimmed;
+}
+
+function tokenizeCommand(command) {
+  const tokens = [];
+  let token = "";
+  let quote = "";
+
+  for (let index = 0; index < command.length; index += 1) {
+    const char = command[index];
+    if (quote) {
+      if (char === quote) quote = "";
+      else token += char;
+      continue;
+    }
+    if (char === '"' || char === "'") {
+      quote = char;
+      continue;
+    }
+    if (/\s/.test(char)) {
+      if (token) tokens.push(token);
+      token = "";
+      continue;
+    }
+    if (";&|".includes(char)) {
+      if (token) tokens.push(token);
+      token = "";
+      tokens.push(char);
+      continue;
+    }
+    token += char;
+  }
+
+  if (token) tokens.push(token);
+  return tokens;
+}
+
+function basename(commandToken) {
+  return unquote(commandToken).split("/").pop() || "";
+}
+
+function isSeparator(token) {
+  return token === ";" || token === "&" || token === "|";
+}
+
+function isOption(token) {
+  return token.startsWith("-") && token !== "-";
+}
+
+function isRepositoryWritePath(candidate) {
+  let file = unquote(candidate);
+  if (!file || file === "-" || file.startsWith("$") || file.includes("://")) return false;
+  if (file.startsWith(`${PROJECT_ROOT}/`) || file === PROJECT_ROOT) return true;
+  if (file.startsWith("/")) return false;
+  while (file.startsWith("./")) file = file.slice(2);
+  if (file.startsWith("../")) return false;
+  return REPO_RELATIVE_PREFIXES.some((prefix) => file.startsWith(prefix)) || SOURCE_FILE_EXTENSION.test(file);
+}
+
+function collectCommandArguments(tokens, startIndex) {
+  const args = [];
+  for (let index = startIndex + 1; index < tokens.length && !isSeparator(tokens[index]); index += 1) {
+    args.push(tokens[index]);
+  }
+  return args;
+}
+
+function extractWriteTargets(command) {
+  const targets = [];
+  const redirectionPattern = /(?:^|[\s;&|])\d*(?:>>|>)(?![=>])\s*(?:"([^"]+)"|'([^']+)'|([^\s;&|]+))/g;
+  let match;
+  while ((match = redirectionPattern.exec(command)) !== null) targets.push(match[1] || match[2] || match[3]);
+
+  const pathWritePattern = /\bPath\s*\(\s*(?:"([^"]+)"|'([^']+)')\s*\)\s*\.\s*write_(?:text|bytes)\s*\(/g;
+  while ((match = pathWritePattern.exec(command)) !== null) targets.push(match[1] || match[2]);
+
+  const openWritePattern = /\bopen\s*\(\s*(?:"([^"]+)"|'([^']+)')\s*,\s*(?:"[wa+x][^"]*"|'[wa+x][^']*')/g;
+  while ((match = openWritePattern.exec(command)) !== null) targets.push(match[1] || match[2]);
+
+  const nodeWritePattern = /\b(?:writeFile(?:Sync)?|appendFile(?:Sync)?)\s*\(\s*(?:"([^"]+)"|'([^']+)')/g;
+  while ((match = nodeWritePattern.exec(command)) !== null) targets.push(match[1] || match[2]);
+
+  const tokens = tokenizeCommand(command);
+  for (let index = 0; index < tokens.length; index += 1) {
+    const commandName = basename(tokens[index]);
+    if (!commandName) continue;
+
+    if (commandName === "patch") targets.push(PROJECT_ROOT);
+    if (commandName === "dd") {
+      for (const arg of collectCommandArguments(tokens, index)) {
+        if (arg.startsWith("of=")) targets.push(arg.slice(3));
+      }
+    }
+    if (["tee", "touch", "rm", "truncate"].includes(commandName)) {
+      for (const arg of collectCommandArguments(tokens, index)) {
+        if (!isOption(arg)) targets.push(arg);
+      }
+    }
+    if (["cp", "mv", "install", "rsync"].includes(commandName)) {
+      const args = collectCommandArguments(tokens, index).filter((arg) => !isOption(arg));
+      if (args.length > 0) targets.push(args[args.length - 1]);
+    }
+    if ((commandName === "sed" || commandName === "perl") && collectCommandArguments(tokens, index).some((arg) => /^-.*i/.test(arg))) {
+      for (const arg of collectCommandArguments(tokens, index)) {
+        if (!isOption(arg)) targets.push(arg);
+      }
+    }
+  }
+
+  return targets;
+}
+
 function bindSessionStart(input, output) {
   const command = bashCommand(output?.args || input?.args);
   if (!input?.sessionID || !/python3\s+scripts\/sessions\.py\s+start\b/.test(command)) return;
@@ -51,12 +171,8 @@ function bindSessionStart(input, output) {
 
 function guardBash(command) {
   const repositoryMutation = /\bgit\s+apply\b/.test(command);
-  const directMutation = /\b(?:sed\s+-i|perl\s+-pi|tee|touch|cp|mv|rm|truncate|install|rsync|patch|dd)\b/.test(command)
-    || /(?:^|[;&|])[^;&|]*(?:>>|>)(?![=>])/.test(command)
-    || /\b(?:python3?|node)\b.*\b(?:open|write_text|write_bytes|writeFile(?:Sync)?|appendFile(?:Sync)?)\s*\(/.test(command);
-  const repositorySource = /(?:^|[\s"'(])(?:frontend|backend|scripts|docs|apple|\.opencode|\.claude)\//.test(command)
-    || /\.(?:py|js|mjs|ts|tsx|svelte|swift|md|ya?ml|json)(?:[\s"',)]|$)/.test(command);
-  if (repositoryMutation || (directMutation && repositorySource)) {
+  const writesRepositoryFile = extractWriteTargets(command).some(isRepositoryWritePath);
+  if (repositoryMutation || writesRepositoryFile) {
     throw new Error("Use apply_patch for source-file changes so edits remain reviewable.");
   }
 }

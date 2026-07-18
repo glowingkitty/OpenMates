@@ -56,6 +56,12 @@ VERCEL_PAID_BUILD_MACHINE_RE = re.compile(
 CLI_GENERIC_APP_SKILL_RUNNER_RE = re.compile(
     r"client\.runSkill\s*\(\s*\{\s*app\s*,\s*skill\b|Sugar alias:\s*openmates apps <app> <skill>"
 )
+CHAT_DIRECTUS_DIRECT_WRITE_RE = re.compile(
+    r"\b(?:create_item|update_item|update_item_if_version)\s*\(\s*['\"](?:chats|messages)['\"]"
+)
+CHAT_DIRECTUS_PLAINTEXT_FIELD_RE = re.compile(
+    r"['\"](?:assistant_category|category|content|draft|model_name|pii_mappings|sender_name|summary|thinking|thinking_content|thinking_signature|thinking_tokens|title|user_id)['\"]\s*:"
+)
 
 BLOCK_PATTERNS = {
     "hardcoded secret-like assignment": re.compile(r"(?i)(api[_-]?key|secret|token|password)\s*[:=]\s*['\"][^'\"]{8,}"),
@@ -290,6 +296,26 @@ def _audit_generic_cli_app_skill_execution(added_lines: list[tuple[str, int, str
     return issues
 
 
+def _audit_direct_chat_plaintext_writes(staged_files: list[str]) -> list[str]:
+    issues: list[str] = []
+    for path in staged_files:
+        if path.startswith("backend/tests/") or not BACKEND_PY_PATH_RE.search(path):
+            continue
+        source = _staged_file_text(path)
+        if not CHAT_DIRECTUS_DIRECT_WRITE_RE.search(source):
+            continue
+        for line_no, function_name, block in _python_function_blocks(source):
+            if not CHAT_DIRECTUS_DIRECT_WRITE_RE.search(block):
+                continue
+            if not CHAT_DIRECTUS_PLAINTEXT_FIELD_RE.search(block):
+                continue
+            issues.append(
+                f"{path}:{line_no}: {function_name} directly writes plaintext-shaped fields to Directus chats/messages; "
+                "use client-encrypted encrypted_* payloads through chat helpers"
+            )
+    return issues
+
+
 def main() -> int:
     strict = os.environ.get("CODE_QUALITY_GUARD_STRICT", "").lower() in {"1", "true", "yes"}
     blocks: list[str] = []
@@ -370,6 +396,9 @@ def main() -> int:
 
     for issue in _audit_generic_cli_app_skill_execution(added_lines_with_numbers):
         blocks.append(f"cli generic app-skill guard: {issue}")
+
+    for issue in _audit_direct_chat_plaintext_writes(staged_files):
+        blocks.append(f"chat plaintext directus guard: {issue}")
 
     added_lines = [(path, line) for path, _line_no, line in added_lines_with_numbers]
     for path, line in added_lines:

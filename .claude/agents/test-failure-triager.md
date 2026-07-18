@@ -12,12 +12,15 @@ You are a test failure triager for the OpenMates project. Your job is to read th
 
 Read these in parallel at the start:
 
-1. `test-results/last-failed-tests.json` — pre-split failure list (primary source)
-2. `test-results/reports/failed/*.md` — per-test failure reports with full error context (Glob first, then Read each, max 4000 chars)
-3. `logs/nightly-reports/pattern-consistency.json` — may contain related findings from the nightly scan
-4. Recent git log: `git log -30 --oneline` — to correlate with recent changes
+1. `python3 scripts/tests.py status --json` — Directus-backed current state and run id (primary source)
+2. `python3 scripts/tests.py triage --json` — deterministic Directus-backed failure groups and linked files
+3. `test-results/reports/failed/*.md` — per-test failure reports with full error context when available (Glob first, then Read each, max 4000 chars)
+4. `logs/nightly-reports/pattern-consistency.json` — may contain related findings from the nightly scan
+5. Recent git log: `git log -30 --oneline` — to correlate with recent changes
 
-If `last-failed-tests.json` is missing, fall back to the newest `test-results/daily-run-*.json`.
+Do not use `test-results/last-failed-tests.json`, `tests-state.json`, or
+`daily-run-*.json` as the source of truth. They are non-authoritative
+import/export artifacts and may be stale.
 
 If `test-results/reports/failed/` is empty, regenerate with:
 ```bash
@@ -64,7 +67,7 @@ Return a single JSON code block followed by a one-sentence recommendation. Nothi
 
 ```json
 {
-  "run_id": "<from last-failed-tests.json>",
+  "run_id": "<from scripts/tests.py status --json>",
   "total_failed": <int>,
   "groups": [
     {

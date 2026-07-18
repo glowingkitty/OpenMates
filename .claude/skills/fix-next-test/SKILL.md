@@ -9,6 +9,19 @@ argument-hint: "[spec-name] [--skip-session] [--rerun-only]"
 
 You are fixing failing Playwright tests one at a time, in priority order. Each invocation picks the next test, investigates, fixes, and verifies.
 
+Directus is the canonical test state and claim store. Use `scripts/tests.py`
+commands for current failures, triage, claims, and reruns. Do not use
+`test-results/*.json` as the source of truth; those files are import/export
+artifacts only.
+
+Quickstart for getting the next failed group:
+
+```bash
+python3 scripts/tests.py status --json
+python3 scripts/tests.py triage --json
+python3 scripts/tests.py next --lease --session <session-id> --json
+```
+
 ### Arguments
 
 - `<spec-name>`: Override auto-pick — fix this specific spec instead
@@ -18,6 +31,14 @@ You are fixing failing Playwright tests one at a time, in priority order. Each i
 ### Step 1: Lease the next deterministic failure group
 
 Unless `<spec-name>` was provided as an argument, call the unified deterministic test control plane:
+
+```bash
+python3 scripts/tests.py status --json
+```
+
+```bash
+python3 scripts/tests.py triage --json
+```
 
 ```bash
 python3 scripts/tests.py next --lease --session <session-id> --json
@@ -104,6 +125,7 @@ REMAINING: <count of still-failing tests>
 
 - **One root cause per invocation** — fix one group, verify, deploy, then invoke again for the next
 - **Never run vitest/playwright locally** — always dispatch via `scripts/tests.py run`
+- **Directus is canonical** — use `scripts/tests.py status --json` and leased output, not local JSON state files.
 - **2-attempt limit** per test — don't spin wheels
 - **Read before writing** — always read the failure report and source code before changing anything
 - **Console errors are real bugs** — fix them in app code, never suppress

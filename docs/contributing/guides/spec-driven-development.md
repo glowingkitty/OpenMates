@@ -157,9 +157,11 @@ shared product surfaces, this order is mandatory:
 1. **OpenMates CLI first:** implement the CLI path and prove it with a CLI
    command, CLI contract test, or real CLI chat against the dev server. The
    dev-server CLI proof must pass before SDK, web, or Apple work starts. After it
-   is green, move or wire the same coverage into GitHub Actions so it runs in the
-   daily test suite. The CLI proof exercises shared backend/API/WebSocket behavior
-   without browser or native UI state.
+   is green, keep SDK proof local against the dev server as the second gate. Only
+   after local CLI and SDK evidence is green should the same coverage be
+   reproduced or wired into GitHub Actions so it runs in the daily test suite.
+   The CLI proof exercises shared backend/API/WebSocket behavior without browser
+   or native UI state.
 
    CLI phase-gate evidence must be a real CLI command hitting the real dev API
    and WebSocket services with real auth/test-account state. Mocked `fetch`,
@@ -168,9 +170,10 @@ shared product surfaces, this order is mandatory:
    supplemental only and do not satisfy the CLI-first gate. If a third-party API
    call is expensive, run a low-cost real request or record a user-approved waiver
    before provider replay can stand in for that external call.
-2. **SDK parity second:** implement and test npm SDK and pip SDK parity for the
-   same shared behavior when it is exposed programmatically. Run
-   `python3 scripts/audit_sdk_cli_parity.py` when the CLI or SDK surface changes.
+2. **SDK parity second:** implement and test npm SDK and pip SDK parity locally
+   against the dev server for the same shared behavior when it is exposed
+   programmatically. Run `python3 scripts/audit_sdk_cli_parity.py` when the CLI
+   or SDK surface changes.
 3. **Web app third:** implement the web app only after CLI and SDK parity are
    green. Run the relevant Playwright `*.spec.ts` through
    `python3 scripts/tests.py run --spec <name>.spec.ts` after deploy.
@@ -461,8 +464,8 @@ implementation_plan:
     - python3 scripts/spec_verify.py docs/specs/teams-v1/spec.yml
   verification_order:
     - Real CLI command or backend contract against the dev server first, with no mocked OpenMates API/WebSocket calls
-    - GitHub Actions daily-test wiring after dev CLI success
-    - npm SDK and pip SDK parity second when applicable
+    - npm SDK and pip SDK parity locally against the dev server second when applicable
+    - GitHub Actions CI/daily-test reproduction only after local CLI and SDK success
     - Web Playwright third when applicable
     - User confirmation fourth for user-visible deployed web behavior
     - Apple remote test/build last when applicable

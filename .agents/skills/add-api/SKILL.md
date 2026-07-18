@@ -58,12 +58,12 @@ When the provider powers a user-facing feature, app skill, focus mode, embed, or
 memory behavior, the spec or inline contract must also define this phase gate:
 
 1. Implement and test the provider wrapper and the OpenMates CLI behavior against
-   the dev server first. After it passes on dev, move or wire the same CLI
-   coverage into GitHub Actions for daily tests. Mocked OpenMates API calls,
-   mocked SDK clients, stubbed servers, direct function calls, and fixture replay
-   do not satisfy this gate.
-2. Implement and test npm SDK and pip SDK parity for the same provider-backed
-   behavior when it is exposed programmatically.
+   the dev server first. Mocked OpenMates API calls, mocked SDK clients, stubbed
+   servers, direct function calls, and fixture replay do not satisfy this gate.
+2. Implement and test npm SDK and pip SDK parity locally against the dev server
+   for the same provider-backed behavior when it is exposed programmatically.
+   After local CLI and SDK evidence is green, reproduce or wire the same coverage
+   into GitHub Actions for CI/daily tests.
 3. Implement web UI, embeds, or Playwright coverage only after CLI and required
    SDK evidence are green.
 4. Ask the user to confirm the deployed dev web behavior works and looks correct

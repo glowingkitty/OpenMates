@@ -65,8 +65,9 @@ The plan must include:
 - Observability/logging needs if any
 - Verification strategy with exact test commands where known
 - For shared product surfaces, implementation phase order: CLI against the dev
-  server first, GitHub Actions daily-test wiring after dev CLI success, npm SDK
-  and pip SDK parity second, web third, user confirmation fourth, Apple last
+  server first, npm SDK and pip SDK parity locally against the dev server second,
+  GitHub Actions CI/daily-test reproduction only after local CLI and SDK success,
+  web third, user confirmation fourth, Apple last
 - Required assumptions that must be checked before implementation and which
   source areas or subagents should verify them
 - required assumptions must not be left unchecked when they block implementation

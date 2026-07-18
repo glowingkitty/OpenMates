@@ -12,9 +12,10 @@ This skill sets up context for working on the Apple app (`apple/OpenMates/`). Us
 For new shared features, app skills, focus modes, embeds, memory types, and
 provider-backed behavior, Apple parity is the last phase. Before changing Apple
 implementation, confirm the spec or session contract has completed evidence for
-CLI implementation/testing against the dev server, GitHub Actions daily-test
-wiring after dev CLI success, npm SDK and pip SDK parity/testing when applicable,
-web implementation/testing, and user confirmation that deployed dev web behavior
+CLI implementation/testing against the dev server, npm SDK and pip SDK
+parity/testing locally against the dev server when applicable, GitHub Actions
+CI/daily-test reproduction only after local CLI and SDK success, web
+implementation/testing, and user confirmation that deployed dev web behavior
 works and looks correct. If any earlier phase is missing, stop Apple
 implementation and record the missing gate unless the spec contains an explicit
 waiver or accepted external blocker. Mocked OpenMates API calls, mocked SDK

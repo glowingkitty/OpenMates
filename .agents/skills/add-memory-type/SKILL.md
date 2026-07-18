@@ -173,12 +173,12 @@ full spec:
 
 1. Implement and test memory behavior through OpenMates CLI against the dev
    server first when the memory is created, read, selected, or used outside static
-   metadata. After it passes on dev, move or wire the same CLI coverage into
-   GitHub Actions for daily tests. Mocked OpenMates API calls, mocked SDK
-   clients, stubbed servers, direct function calls, and fixture replay do not
-   satisfy this gate.
-2. Implement and test npm SDK and pip SDK parity when the memory behavior is
-   exposed programmatically.
+   metadata. Mocked OpenMates API calls, mocked SDK clients, stubbed servers,
+   direct function calls, and fixture replay do not satisfy this gate.
+2. Implement and test npm SDK and pip SDK parity locally against the dev server
+   when the memory behavior is exposed programmatically. After local CLI and SDK
+   evidence is green, reproduce or wire the same coverage into GitHub Actions for
+   CI/daily tests.
 3. Implement web settings, mention dropdown behavior, and Playwright coverage only
    after CLI and required SDK evidence are green.
 4. Ask the user to confirm the deployed dev web behavior works and looks correct

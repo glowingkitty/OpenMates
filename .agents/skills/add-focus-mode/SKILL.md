@@ -139,12 +139,13 @@ Before implementation, record the phase gate in the draft, inline contract, or
 full spec:
 
 1. Implement and test focus-mode behavior through real OpenMates CLI chats
-   against the dev server first. After they pass on dev, move or wire the same CLI
-   coverage into GitHub Actions for daily tests. Mocked OpenMates API calls,
-   mocked SDK clients, stubbed servers, direct function calls, and fixture replay
-   do not satisfy this gate.
-2. Implement and test npm SDK and pip SDK parity when focus-mode activation or
-   memory/settings behavior is exposed programmatically.
+   against the dev server first. Mocked OpenMates API calls, mocked SDK clients,
+   stubbed servers, direct function calls, and fixture replay do not satisfy this
+   gate.
+2. Implement and test npm SDK and pip SDK parity locally against the dev server
+   when focus-mode activation or memory/settings behavior is exposed
+   programmatically. After local CLI and SDK evidence is green, reproduce or wire
+   the same coverage into GitHub Actions for CI/daily tests.
 3. Implement web settings, examples, or Playwright coverage only after CLI and
    required SDK evidence are green.
 4. Ask the user to confirm the deployed dev web behavior works and looks correct

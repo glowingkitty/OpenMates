@@ -100,14 +100,15 @@ Every full spec must include:
   status, evidence, blockers, waivers, or user-confirmation tracking beyond a
   simple test entry
 - For shared product surfaces, explicit phase gates in this order: CLI
-  implementation/testing against the dev server, GitHub Actions daily-test wiring
-  after dev CLI success, npm SDK and pip SDK parity/testing, web
-  implementation/testing, user confirmation of deployed dev web behavior and
-  visual quality, then Apple parity/testing
-- The CLI gate must use real CLI commands against the real dev API/WebSocket path
-  with real auth/test-account state. Mocked OpenMates API calls, mocked SDK
-  clients, stubbed servers, direct function calls, and fixture replay are
-  supplemental only and do not satisfy the phase gate.
+  implementation/testing against the dev server, npm SDK and pip SDK
+  parity/testing locally against the dev server, GitHub Actions CI/daily-test
+  reproduction only after local CLI and SDK success, web implementation/testing,
+  user confirmation of deployed dev web behavior and visual quality, then Apple
+  parity/testing
+- The CLI and SDK gates must use real commands/SDK calls against the real dev
+  API/WebSocket path with real auth/test-account state. Mocked OpenMates API
+  calls, mocked SDK clients, stubbed servers, direct function calls, and fixture
+  replay are supplemental only and do not satisfy the phase gate.
 - Implementation plan and tasks placeholders or initial entries
 - `implementation_state`, `approvals`, `decisions`, `attempts`, and `handoff`
 - Risks, open questions, and privacy/security requirements
