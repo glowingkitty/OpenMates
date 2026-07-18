@@ -43,13 +43,14 @@ async def handle_store_embed_keys(
     """
     _otel_span, _otel_token = None, None
     try:
-        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span, end_ws_handler_span
+        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span
         _otel_span, _otel_token = start_ws_handler_span("store_embed_keys", user_id, payload, user_otel_attrs)
     except Exception:
         pass
     try:
         try:
             keys = payload.get("keys")
+            request_id = payload.pop("request_id", None)
             if not keys or not isinstance(keys, list):
                 logger.error(f"Invalid store_embed_keys payload from user {user_id}: missing or invalid 'keys' array")
                 return
@@ -171,6 +172,16 @@ async def handle_store_embed_keys(
                 logger.info(f"Successfully stored {created_count} embed_key wrapper(s) in Directus")
             if failed_count > 0:
                 logger.warning(f"Failed to store {failed_count} embed_key wrapper(s)")
+
+            if request_id:
+                await manager.send_personal_message(
+                    {
+                        "type": "store_embed_keys_confirmed",
+                        "payload": {"request_id": request_id, "created_count": created_count, "failed_count": failed_count},
+                    },
+                    user_id,
+                    device_fingerprint_hash,
+                )
 
             # Broadcast update to other devices (optional - key storage doesn't affect UI directly)
             # This ensures other open tabs/devices are aware of the new keys

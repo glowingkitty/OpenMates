@@ -5063,7 +5063,17 @@ export class OpenMatesClient {
           ]
         : [];
 
+      const storeRequestId = randomUUID();
+      const storeConfirmed = params.ws.waitForMessage(
+        "store_embed_confirmed",
+        (payload) => {
+          const p = payload as Record<string, unknown>;
+          return p.request_id === storeRequestId && p.embed_id === embed.embed_id;
+        },
+        30_000,
+      );
       await params.ws.sendAsync("store_embed", {
+        request_id: storeRequestId,
         embed_id: embed.embed_id,
         encrypted_type: encryptedType,
         encrypted_content: encryptedContent,
@@ -5084,9 +5094,20 @@ export class OpenMatesClient {
         created_at: createdAt,
         updated_at: updatedAt,
       });
+      await storeConfirmed;
 
       if (keys.length > 0) {
-        await params.ws.sendAsync("store_embed_keys", { keys });
+        const keysRequestId = randomUUID();
+        const keysConfirmed = params.ws.waitForMessage(
+          "store_embed_keys_confirmed",
+          (payload) => {
+            const p = payload as Record<string, unknown>;
+            return p.request_id === keysRequestId;
+          },
+          30_000,
+        );
+        await params.ws.sendAsync("store_embed_keys", { request_id: keysRequestId, keys });
+        await keysConfirmed;
         parentKeys.set(embed.embed_id, embedKey);
       }
 
