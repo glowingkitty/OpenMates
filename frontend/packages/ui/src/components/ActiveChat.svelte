@@ -4612,6 +4612,35 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
      let currentMessageWindowHasMoreBefore = $state(false);
      let olderMessageWindowLoading = $state(false);
      let lastBoundChatHistoryRef = $state<ChatHistoryRef | null>(null);
+     let anonymousShellHydratingChatId = $state<string | null>(null);
+
+     $effect(() => {
+        const chat = currentChat;
+        if (!chat?.is_anonymous || currentMessages.length > 0 || anonymousShellHydratingChatId === chat.chat_id) return;
+
+        anonymousShellHydratingChatId = chat.chat_id;
+        void (async () => {
+            for (let attempt = 0; attempt < 100; attempt += 1) {
+                const storedChat = await anonymousChatStorage.getChat(chat.chat_id).catch(() => null);
+                if (storedChat) {
+                    const storedMessages = await anonymousChatStorage.getMessagesForChat(chat.chat_id).catch(() => []);
+                    if (currentChat?.chat_id === chat.chat_id && storedMessages.length > 0) {
+                        currentChat = storedChat;
+                        currentMessages = storedMessages;
+                        chatHistoryRef?.updateMessages(storedMessages);
+                        showWelcome = false;
+                        return;
+                    }
+                }
+
+                await new Promise((resolve) => setTimeout(resolve, 100));
+            }
+
+            if (anonymousShellHydratingChatId === chat.chat_id) {
+                anonymousShellHydratingChatId = null;
+            }
+        })();
+     });
 
      $effect(() => {
         const ref = chatHistoryRef;
