@@ -17,7 +17,7 @@ scope:
     - Search all Iconify icon sets by default while filtering visible results to permissive/no-attribution licenses.
     - Hide attribution, share-alike, non-commercial, GPL, and unknown-license sets by default unless a later approved filter explicitly exposes them.
     - Store lightweight child icon metadata in embeds, not full SVG markup for every search result.
-    - Add a regular OpenMates API route for authenticated clients to fetch a sanitized Iconify SVG on demand.
+    - Add a regular OpenMates API route for clients and public examples to fetch a validated, rate-limited, sanitized Iconify SVG on demand.
     - Ensure web and Apple clients never call Iconify directly and never use the preview server for Iconify SVG loading.
     - Render parent search embeds with child `icon_result` embeds that show SVG previews.
     - Provide fullscreen actions to copy SVG, locally recolor monotone icons, and locally export PNG where the client supports it.
@@ -117,7 +117,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 3f36e1f
+  subject_commit: 0c4450b
 
 approvals:
   product_contract:
@@ -166,6 +166,11 @@ decisions:
     decision: Publish a real natural-language CLI-triggered `design.search_icons` chat as the app-skill example before completing web work.
     reason: The app settings example should demonstrate realistic assistant routing and useful output quality, not a hand-authored or direct skill-call-only fixture.
     decided_at: "2026-07-18T12:20:00Z"
+  - id: D-8
+    status: active
+    decision: Serve validated sanitized Iconify SVGs through a public OpenMates route instead of requiring session or API-key auth.
+    reason: Published logged-out example chats must render and export icon previews, while the route accepts only validated Iconify identifiers, sanitizes SVGs server-side, uses rate limiting/cache headers, and fetches only public Iconify assets.
+    decided_at: "2026-07-18T14:37:11Z"
 
 attempts:
   - id: ATTEMPT-1
@@ -187,7 +192,7 @@ handoff:
   command: python3 scripts/tests.py run --spec design-search-icons.spec.ts
   expected_outcome: Deployed web evidence is green; user confirmation is the next required gate.
   blocker: null
-  last_verified_commit: 3f36e1f
+  last_verified_commit: 0c4450b
 
 scenarios:
   - id: S-1
@@ -746,24 +751,24 @@ tests:
       evidence:
         status: failed_as_expected
         command: python3 scripts/tests.py run --spec design-search-icons.spec.ts
-        run_id: gha-29646828396
-        subject_commit: 7f0903b
-        timestamp: "2026-07-18T13:42:01Z"
-        reason: Initial deployed Playwright verification failed before completion because the test asserted inline child icon cards, while the product contract renders parent search cards inline and child cards through parent fullscreen.
-        summary: The failure screenshot showed the public example and two parent `design.search_icons` embeds rendered, then the assertion was corrected to verify child icon SVG previews inside parent fullscreen.
+        run_id: gha-29648319363
+        subject_commit: 239b3e017
+        timestamp: "2026-07-18T14:37:11Z"
+        reason: Strengthened deployed Playwright coverage failed on the logged-out public example because child SVG previews rendered as broken-image placeholders.
+        summary: The failure exposed that public example icon images and exports were using an authenticated SVG route; later red attempts also exposed async export downloads and credentialed public SVG fetches before the final native-link fix.
     green_phase:
       required: true
       expected: pass_after_deploy
       evidence:
         status: passed
         command: python3 scripts/tests.py run --spec design-search-icons.spec.ts
-        run_id: gha-29647174056
-        subject_commit: 3f36e1f
+        run_id: gha-29650656377
+        subject_commit: 0c4450b
         target: https://app.dev.openmates.org
-        deployment_reference: vercel-dpl_AzQa2qZaxcKi2GtffiPz3zRyWhu5
-        timestamp: "2026-07-18T14:01:35Z"
-        reason: The test waited for Vercel Ready on commit 3f36e1f and ran against `app.dev.openmates.org` through the GitHub Actions Playwright runner.
-        summary: Deployed Playwright passed for the Design settings example card, public example route, parent fullscreen child grid, child fullscreen metadata/export controls, OpenMates SVG-route fetches, and no browser requests to Iconify or preview-server icon routes.
+        deployment_reference: vercel-dpl_HPGix4b5LVax2GTKFF82bSypbr2a
+        timestamp: "2026-07-18T15:48:42Z"
+        reason: The test waited for Vercel Ready on commit 0c4450b and ran against `app.dev.openmates.org` through the GitHub Actions Playwright runner.
+        summary: Deployed Playwright passed for the settings-linked Design example, public logged-out example route, parent fullscreen child grid, non-broken OpenMates SVG previews, no Iconify or preview-server browser requests, no license CTA in the top header, Design child header icon, local recolor without backend refetch, and SVG/PNG native downloads.
 
   - id: T-CLI-CHAT-001
     type: manual
