@@ -2672,8 +2672,9 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 			if (cached) {
 				console.debug("[Chats] Concurrent read completed — populating from cache:", cached.length, "chats");
 				allChatsFromDB = cached;
+				return;
 			}
-			return;
+			console.debug("[Chats] Concurrent read completed without a usable cache — falling through to IDB read");
 		}
 		// Forced: fall through below to re-run the IDB read with fresh data
 		console.debug("[Chats] Concurrent read completed — re-running forced IDB read");
