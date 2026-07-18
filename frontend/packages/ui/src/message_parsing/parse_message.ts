@@ -306,8 +306,8 @@ function convertEmbedLinks(doc: any): any {
 //
 // Hoisting handles three scenarios:
 //   1. Paragraph with ONLY embed links → hoist each embed as a block node.
-//   2. Paragraph with text THEN trailing embed links → split: keep text in
-//      the paragraph, hoist embeds as separate block nodes.
+//   2. Paragraph with embed links mixed with surrounding text/punctuation →
+//      split text into paragraph chunks and hoist embeds as separate blocks.
 //   3. Embeds inside list items / blockquotes → recurse into nested content.
 //
 // After hoisting, Phase B groups consecutive embedPreviewLarge nodes into
@@ -334,8 +334,8 @@ function _isEmptyParagraph(node: any): boolean {
 /**
  * Phase A: Hoist embedPreviewLarge nodes out of paragraphs.
  *
- * For each paragraph, determine if it contains only embeds (hoist all) or
- * text followed by trailing embeds (split — keep text, hoist embeds).
+ * For each paragraph, split content around block previews so text remains in
+ * paragraph nodes while previews can be grouped as top-level carousel blocks.
  * Recurses into list items, blockquotes, and other container nodes.
  */
 function _hoistEmbeds(nodes: any[]): any[] {
@@ -358,64 +358,51 @@ function _hoistEmbeds(nodes: any[]): any[] {
       continue;
     }
 
-    // Separate meaningful children from ignorable separators.
-    const meaningful = node.content.filter(
-      (c: any) => !_isIgnorableInlineNode(c),
+    const hasBlockPreview = node.content.some((c: any) =>
+      BLOCK_EMBED_PREVIEW_TYPES.has(c.type),
     );
-
-    // Case 1: paragraph contains ONLY block-preview embeds → hoist all.
-    const allBlockPreviews =
-      meaningful.length > 0 &&
-      meaningful.every((c: any) => BLOCK_EMBED_PREVIEW_TYPES.has(c.type));
-    if (allBlockPreviews) {
-      for (const embedNode of meaningful) {
-        result.push(embedNode);
-      }
+    if (!hasBlockPreview) {
+      result.push(node);
       continue;
     }
 
-    // Case 2: paragraph has text content then TRAILING embed(s).
-    // Split at the boundary: text stays in the paragraph, embeds are hoisted.
-    // Find the index of the first embedPreviewLarge in the original content.
-    const firstEmbedIdx = node.content.findIndex(
-      (c: any) => c.type === "embedPreviewLarge",
-    );
-    if (firstEmbedIdx > 0) {
-      // Check that everything from firstEmbedIdx onward is either an embed
-      // or an ignorable separator (whitespace, breaks).
-      const tail = node.content.slice(firstEmbedIdx);
-      const tailMeaningful = tail.filter(
-        (c: any) => !_isIgnorableInlineNode(c),
-      );
-      const allTailEmbeds =
-        tailMeaningful.length > 0 &&
-        tailMeaningful.every((c: any) =>
-          BLOCK_EMBED_PREVIEW_TYPES.has(c.type),
-        );
+    const paragraphContent: any[] = [];
 
-      if (allTailEmbeds) {
-        // Keep the text portion as a paragraph (strip trailing whitespace/breaks)
-        const headContent = node.content.slice(0, firstEmbedIdx);
-        // Remove trailing whitespace-only text and breaks from the head
-        while (
-          headContent.length > 0 &&
-          _isIgnorableInlineNode(headContent[headContent.length - 1])
-        ) {
-          headContent.pop();
-        }
-        if (headContent.length > 0) {
-          result.push({ ...node, content: headContent });
-        }
-        // Hoist each embed from the tail
-        for (const embedNode of tailMeaningful) {
-          result.push(embedNode);
-        }
+    const flushParagraphContent = (): void => {
+      while (
+        paragraphContent.length > 0 &&
+        _isIgnorableInlineNode(paragraphContent[0])
+      ) {
+        paragraphContent.shift();
+      }
+      while (
+        paragraphContent.length > 0 &&
+        _isIgnorableInlineNode(paragraphContent[paragraphContent.length - 1])
+      ) {
+        paragraphContent.pop();
+      }
+      if (paragraphContent.length === 0) return;
+      result.push({ ...node, content: paragraphContent.splice(0) });
+    };
+
+    for (const child of node.content) {
+      if (BLOCK_EMBED_PREVIEW_TYPES.has(child.type)) {
+        flushParagraphContent();
+        result.push(child);
         continue;
       }
+
+      // Hard/soft breaks and whitespace around hoisted preview blocks are layout
+      // separators, not content. Drop them so consecutive previews remain a
+      // contiguous carousel run even when the model adds line breaks.
+      if (_isIgnorableInlineNode(child) && paragraphContent.length === 0) {
+        continue;
+      }
+
+      paragraphContent.push(child);
     }
 
-    // Case 3: no embeds or embeds mixed into the middle of text → keep as-is.
-    result.push(node);
+    flushParagraphContent();
   }
 
   return result;
