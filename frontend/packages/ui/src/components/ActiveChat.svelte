@@ -12297,6 +12297,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             <!-- Side-by-side mode shows embed next to chat for better large display usage -->
             <!-- Smooth transition: chat shrinks while fullscreen panel grows simultaneously -->
             {#if showEmbedFullscreen && embedFullscreenData}
+                {@const fullscreenData = embedFullscreenData}
                 <div
                     class="fullscreen-embed-container"
                     class:side-panel={showSideBySideLayout}
@@ -12310,7 +12311,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                      skill example backed by synthetic fixture data (e.g. maps,
                      health, home, events). Helps users understand the people,
                      places and prices on these cards are not real. -->
-                {#if embedFullscreenData?.decodedContent?.is_store_example}
+                {#if fullscreenData.decodedContent?.is_store_example}
                     <div class="store-example-banner" data-testid="store-example-banner">
                         {$text('settings.app_store_examples.banner.sample_data')}
                     </div>
@@ -12320,32 +12321,32 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 <!-- Without this, switching between same-type embeds would preserve stale child overlay state -->
                 <!-- Also key on focusChildEmbedId: clicking a different inline badge of the same parent embed
                      (same embedId, same type) must still re-mount the fullscreen so it opens the correct child. -->
-                {#key `${embedFullscreenData.embedId}:${embedFullscreenData.focusChildEmbedId ?? ''}:${embedFullscreenData.focusSheetRange ?? ''}:${embedFullscreenData.focusLineRange?.start ?? ''}-${embedFullscreenData.focusLineRange?.end ?? ''}`}
+                {#key `${fullscreenData.embedId}:${fullscreenData.focusChildEmbedId ?? ''}:${fullscreenData.focusSheetRange ?? ''}:${fullscreenData.focusLineRange?.start ?? ''}-${fullscreenData.focusLineRange?.end ?? ''}`}
                 <!-- Data-driven embed fullscreen routing via embedFullscreenResolver.
                      Each component receives a standardized `data` prop and extracts its own fields.
                      Architecture: docs/architecture/frontend/data-driven-embed-fullscreen-routing.md -->
                 {@const registryKey = resolveRegistryKey(
-                    registryNormalizeEmbedType(embedFullscreenData.embedType || ''),
-                    embedFullscreenData.decodedContent ?? undefined
+                    registryNormalizeEmbedType(fullscreenData.embedType || ''),
+                    fullscreenData.decodedContent ?? undefined
                 )}
                 {@const isModel3DResultFullscreen =
-                    embedFullscreenData.embedType === 'models3d-model-result' ||
-                    embedFullscreenData.embedData?.type === 'model_result' ||
-                    embedFullscreenData.decodedContent?.type === 'model_result'}
+                    fullscreenData.embedType === 'models3d-model-result' ||
+                    fullscreenData.embedData?.type === 'model_result' ||
+                    fullscreenData.decodedContent?.type === 'model_result'}
                 {#if isModel3DResultFullscreen}
                     <Model3DResultEmbedFullscreen
                         data={{
-                            decodedContent: embedFullscreenData.decodedContent ?? {},
-                            attrs: embedFullscreenData.attrs,
-                            embedData: embedFullscreenData.embedData,
-                            focusChildEmbedId: embedFullscreenData.focusChildEmbedId,
-                            restoreFromPip: embedFullscreenData.restoreFromPip,
-                            highlightQuoteText: embedFullscreenData.highlightQuoteText,
-                            focusLineRange: embedFullscreenData.focusLineRange,
-                            focusSheetRange: embedFullscreenData.focusSheetRange,
+                            decodedContent: fullscreenData.decodedContent ?? {},
+                            attrs: fullscreenData.attrs,
+                            embedData: fullscreenData.embedData,
+                            focusChildEmbedId: fullscreenData.focusChildEmbedId,
+                            restoreFromPip: fullscreenData.restoreFromPip,
+                            highlightQuoteText: fullscreenData.highlightQuoteText,
+                            focusLineRange: fullscreenData.focusLineRange,
+                            focusSheetRange: fullscreenData.focusSheetRange,
                             chatEmbedIds,
                         }}
-                        embedId={embedFullscreenData.embedId}
+                        embedId={fullscreenData.embedId}
                         onClose={handleCloseEmbedFullscreen}
                         {hasPreviousEmbed}
                         {hasNextEmbed}
@@ -12363,17 +12364,17 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         {#if FullscreenComponent}
                             <FullscreenComponent
                                 data={{
-                                    decodedContent: embedFullscreenData.decodedContent ?? {},
-                                    attrs: embedFullscreenData.attrs,
-                                    embedData: embedFullscreenData.embedData,
-                                    focusChildEmbedId: embedFullscreenData.focusChildEmbedId,
-                                    restoreFromPip: embedFullscreenData.restoreFromPip,
-                                    highlightQuoteText: embedFullscreenData.highlightQuoteText,
-                                    focusLineRange: embedFullscreenData.focusLineRange,
-                                    focusSheetRange: embedFullscreenData.focusSheetRange,
+                                    decodedContent: fullscreenData.decodedContent ?? {},
+                                    attrs: fullscreenData.attrs,
+                                    embedData: fullscreenData.embedData,
+                                    focusChildEmbedId: fullscreenData.focusChildEmbedId,
+                                    restoreFromPip: fullscreenData.restoreFromPip,
+                                    highlightQuoteText: fullscreenData.highlightQuoteText,
+                                    focusLineRange: fullscreenData.focusLineRange,
+                                    focusSheetRange: fullscreenData.focusSheetRange,
                                     chatEmbedIds,
                                 }}
-                                embedId={embedFullscreenData.embedId}
+                                embedId={fullscreenData.embedId}
                                 onClose={handleCloseEmbedFullscreen}
                                 {hasPreviousEmbed}
                                 {hasNextEmbed}
@@ -12413,7 +12414,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             <button onclick={handleCloseEmbedFullscreen}>Close</button>
                         </div>
                         <div class="fullscreen-content">
-                            <p>Fullscreen view not available for embed type: {embedFullscreenData.embedType}</p>
+                            <p>Fullscreen view not available for embed type: {fullscreenData.embedType}</p>
                         </div>
                     </div>
                 {/if}
