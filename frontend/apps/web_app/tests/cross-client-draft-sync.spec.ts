@@ -230,14 +230,15 @@ async function expectSearchFindsChat(page: any, query: string): Promise<void> {
 	await expect(searchInput).toBeVisible({ timeout: 5_000 });
 	await searchInput.fill(query);
 	const searchResults = page.getByTestId('search-results');
-	await expect(searchResults).toBeVisible({ timeout: 10_000 });
 	await expect(async () => {
+		const hasResults = await searchResults.isVisible().catch(() => false);
 		const isWarmingUp = await page.getByTestId('warming-up').isVisible().catch(() => false);
 		const resultCount = await page.getByTestId('search-chat-item').count().catch(() => 0);
-		if (isWarmingUp || resultCount === 0) {
+		if (!hasResults || isWarmingUp || resultCount === 0) {
 			await searchInput.fill('');
 			await searchInput.fill(query);
 		}
+		await expect(searchResults).toBeVisible({ timeout: 5_000 });
 		await expect(searchResults).toContainText(query);
 	}).toPass({ timeout: 60_000 });
 }
@@ -257,17 +258,18 @@ async function locateDraftInSidebarOrSearch(page: any, chatId: string, expectedT
 	await expect(searchInput).toBeVisible({ timeout: 5_000 });
 	await searchInput.fill(expectedText);
 	const searchResults = page.getByTestId('search-results');
-	await expect(searchResults).toBeVisible({ timeout: 10_000 });
 	const result = page.locator(`[data-testid="search-chat-item"][data-result-id="${chatId}"]`).first();
 	const metadataResult = searchResults.getByTestId('search-metadata-snippet').filter({ hasText: expectedText }).first();
 	await expect(async () => {
+		const hasResults = await searchResults.isVisible().catch(() => false);
 		const isWarmingUp = await page.getByTestId('warming-up').isVisible().catch(() => false);
 		const hasChatResult = await result.isVisible().catch(() => false);
 		const hasMetadataResult = await metadataResult.isVisible().catch(() => false);
-		if (isWarmingUp || (!hasChatResult && !hasMetadataResult)) {
+		if (!hasResults || isWarmingUp || (!hasChatResult && !hasMetadataResult)) {
 			await searchInput.fill('');
 			await searchInput.fill(expectedText);
 		}
+		await expect(searchResults).toBeVisible({ timeout: 5_000 });
 		await expect(result).toBeVisible();
 		await expect(searchResults).toContainText(expectedText);
 	}).toPass({ timeout: 60_000 });
