@@ -1083,16 +1083,18 @@ export async function getRawChat(
     return null;
   }
 
-  await dbInstance.init();
+  if (!dbInstance.db) {
+    await dbInstance.init();
+  }
   return new Promise((resolve, reject) => {
     const execute = async () => {
       try {
         const currentTransaction =
           transaction ||
-          (await dbInstance.getTransaction(
-            dbInstance.CHATS_STORE_NAME,
-            "readonly",
-          ));
+          dbInstance.db?.transaction(dbInstance.CHATS_STORE_NAME, "readonly");
+        if (!currentTransaction) {
+          throw new Error("Database not initialized for raw chat read");
+        }
         const store = currentTransaction.objectStore(
           dbInstance.CHATS_STORE_NAME,
         );
@@ -1149,7 +1151,9 @@ export async function upsertRawChat(
     throw new Error("Cannot write encrypted chat during forced logout");
   }
 
-  await dbInstance.init();
+  if (!dbInstance.db) {
+    await dbInstance.init();
+  }
   const chatToSave: Chat = {
     ...chat,
     draft_v: chat.draft_v ?? 0,
@@ -1168,10 +1172,10 @@ export async function upsertRawChat(
       try {
         const currentTransaction =
           transaction ||
-          (await dbInstance.getTransaction(
-            dbInstance.CHATS_STORE_NAME,
-            "readwrite",
-          ));
+          dbInstance.db?.transaction(dbInstance.CHATS_STORE_NAME, "readwrite");
+        if (!currentTransaction) {
+          throw new Error("Database not initialized for raw chat write");
+        }
         const store = currentTransaction.objectStore(
           dbInstance.CHATS_STORE_NAME,
         );
