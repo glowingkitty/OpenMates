@@ -106,6 +106,35 @@ describe("parse_message assistant large promotion", () => {
     expect(largeNodes[1].attrs.carouselTotal).toBe(2);
   });
 
+  it("hoists consecutive image preview links before trailing punctuation into one carousel", () => {
+    const markdown = [
+      "[!](embed:e95be006-767b-4db8-9124-19d7f8c66285)",
+      "[!](embed:9515ef2b-222c-4f66-af3a-6f99e76c157b)",
+      "[!](embed:064fe57f-136e-44a3-a852-419a9324d64f)",
+      "!",
+    ].join("");
+
+    const doc = parseAssistant(markdown);
+    const largeNodes = (doc.content || []).filter(
+      (node: any) => node.type === "embedPreviewLarge",
+    );
+
+    expect(largeNodes).toHaveLength(3);
+    expect(largeNodes[0].attrs.carouselTotal).toBe(3);
+    expect(largeNodes[1].attrs.carouselTotal).toBe(3);
+    expect(largeNodes[2].attrs.carouselTotal).toBe(3);
+    expect(largeNodes[0].attrs.carouselIndex).toBe(0);
+    expect(largeNodes[1].attrs.carouselIndex).toBe(1);
+    expect(largeNodes[2].attrs.carouselIndex).toBe(2);
+    expect(largeNodes[0].attrs.runRef).toBe(
+      "e95be006-767b-4db8-9124-19d7f8c66285",
+    );
+    expect(doc.content?.at(-1)).toEqual({
+      type: "paragraph",
+      content: [{ type: "text", text: "!" }],
+    });
+  });
+
   it("hoists trailing [!](embed:ref) from list items with text and groups into carousel", () => {
     // Real-world pattern: LLM writes a bullet list where each item has text
     // followed by one or more [!](embed:ref) links on separate lines.
