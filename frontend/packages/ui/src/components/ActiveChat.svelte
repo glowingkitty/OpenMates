@@ -9178,6 +9178,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     });
 
     onMount(() => {
+        if (initialAnonymousChatId) {
+            void restoreAnonymousHashChatOnMount();
+        }
+
         const initialize = async () => {
             // Initialize app but skip auth initialization since it's already done in +page.svelte
             await initializeApp({ skipAuthInitialization: true });
