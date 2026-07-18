@@ -97,20 +97,6 @@ const audioCache = new Map<
 const REVOKE_GRACE_MS = 60_000;
 
 /**
- * Increment reference count for a cached audio blob URL.
- * Call on component mount to prevent premature revocation.
- */
-function retainCachedAudio(s3Key: string): void {
-  const entry = audioCache.get(s3Key);
-  if (!entry) return;
-  entry.refCount++;
-  if (entry.revokeTimer) {
-    clearTimeout(entry.revokeTimer);
-    entry.revokeTimer = null;
-  }
-}
-
-/**
  * Decrement reference count for a cached audio blob URL.
  * Schedules revocation after a grace period when count reaches zero.
  * Call on component unmount.
@@ -128,13 +114,6 @@ export function releaseCachedAudio(s3Key: string): void {
       }
     }, REVOKE_GRACE_MS);
   }
-}
-
-/**
- * Get a cached blob URL without fetching.
- */
-function getCachedAudioUrl(s3Key: string): string | undefined {
-  return audioCache.get(s3Key)?.blobUrl;
 }
 
 /**
@@ -188,9 +167,14 @@ export async function fetchAndDecryptAudio(
     throw new AudioNetworkError(s3Key, fetchErr);
   }
 
-  // Decode base64 key and nonce
+  // Decode base64 key and nonce. Newer upload artefacts prefix the nonce to
+  // the ciphertext and store aes_nonce as an empty string, matching images/PDFs.
+  const NONCE_BYTES = 12;
   const aesKeyBytes = base64ToArrayBuffer(aesKeyBase64);
-  const nonceBytes = base64ToArrayBuffer(nonceBase64);
+  const nonceBytes = nonceBase64
+    ? base64ToArrayBuffer(nonceBase64)
+    : encryptedData.slice(0, NONCE_BYTES);
+  const ciphertext = nonceBase64 ? encryptedData : encryptedData.slice(NONCE_BYTES);
 
   // Import AES key — throws DOMException("DataError") if key bytes are invalid
   let cryptoKey: CryptoKey;
@@ -213,7 +197,7 @@ export async function fetchAndDecryptAudio(
     decryptedData = await crypto.subtle.decrypt(
       { name: "AES-GCM", iv: nonceBytes },
       cryptoKey,
-      encryptedData,
+      ciphertext,
     );
   } catch (decryptErr) {
     throw new AudioDecryptError("decrypt", decryptErr);

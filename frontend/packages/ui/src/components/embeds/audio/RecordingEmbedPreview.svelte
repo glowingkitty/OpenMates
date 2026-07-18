@@ -243,7 +243,7 @@
 
     // Not yet finished or missing required S3 data — skip
     if (status !== 'finished') return;
-    if (!audioS3Key || !s3BaseUrl || !aesKey || !aesNonce) return;
+    if (!audioS3Key || !s3BaseUrl || !aesKey || aesNonce == null) return;
 
     // Avoid re-fetching if we already resolved this key
     if (retainedS3Key === audioS3Key && resolvedAudioSrc) return;
