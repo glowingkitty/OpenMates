@@ -96,23 +96,15 @@ async function verifySavedMemoryEntry(
     }
   }
 
-  await page.evaluate((path: string) => {
-    window.dispatchEvent(new CustomEvent('openSettingsMenu', { detail: { returnTo: path } }));
-  }, settingsPath);
-  const settingsMenu = page.getByTestId('settings-menu');
-  const openedProgrammatically = await expect(settingsMenu).toBeVisible({ timeout: 5000 })
-    .then(() => true)
-    .catch(() => false);
-  if (!openedProgrammatically) {
-    await page.locator('#settings-menu-toggle').click();
-    await expect(settingsMenu).toBeVisible({ timeout: 10000 });
-  }
-  const category = page.getByTestId('app-settings-memories-category');
+  await page.goto(`/#settings/${settingsPath}`, { waitUntil: 'domcontentloaded' });
+  const settingsMenu = page.locator(`[data-testid="settings-menu"][data-active-view="${settingsPath}"]`);
+  await expect(settingsMenu).toBeVisible({ timeout: 20000 });
+  const category = settingsMenu.getByTestId('app-settings-memories-category');
   await expect(category).toBeVisible({ timeout: 20000 });
   await expect(category).toHaveAttribute('data-app-id', appId);
   await expect(category).toHaveAttribute('data-category-id', categoryId);
 
-  const entries = page.getByTestId('memory-entry');
+  const entries = settingsMenu.getByTestId('memory-entry');
   const matchingEntry = entries.filter({ hasText: title }).first();
   const hasMatchingEntry = await matchingEntry.isVisible({ timeout: 5000 }).catch(() => false);
   if (hasMatchingEntry) {
@@ -120,7 +112,7 @@ async function verifySavedMemoryEntry(
   } else {
     await expect(entries.first()).toBeVisible({ timeout: 20000 });
   }
-  const embedPreview = page.getByTestId('memory-embed-preview').first();
+  const embedPreview = settingsMenu.getByTestId('memory-embed-preview').first();
   const hasEmbedPreview = await embedPreview.isVisible({ timeout: 5000 }).catch(() => false);
   if (hasEmbedPreview) {
     await expect(embedPreview.getByTestId('saved-embed-badge').first()).toBeVisible({ timeout: 5000 });
