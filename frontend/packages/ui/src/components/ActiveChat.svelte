@@ -102,7 +102,7 @@
     import { incognitoChatService } from '../services/incognitoChatService'; // Import incognito chat service
     import { anonymousChatStorage } from '../services/anonymousChatStorage';
     import { isAnonymousChatId } from '../services/anonymousChatIds';
-    import { unwrapAnonymousChatKey } from '../services/anonymousChatKeyWrapping';
+    import { hasAnonymousSessionKey, unwrapAnonymousChatKey } from '../services/anonymousChatKeyWrapping';
     import { incognitoMode } from '../stores/incognitoModeStore'; // Import incognito mode store
     import { piiVisibilityStore } from '../stores/piiVisibilityStore'; // Import PII visibility store for hide/unhide toggle
     import { setEmbedPIIState, resetEmbedPIIState } from '../stores/embedPIIStore'; // Update embed PII state for preview/fullscreen components
@@ -4618,6 +4618,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
      async function readAnonymousSnapshotFromIndexedDb(chatId: string): Promise<{ chat: Chat; messages: ChatMessageModel[] } | null> {
         if (typeof indexedDB === 'undefined') return null;
+        if (!hasAnonymousSessionKey()) return null;
 
         return new Promise((resolve, reject) => {
             const request = indexedDB.open('chats_db');
