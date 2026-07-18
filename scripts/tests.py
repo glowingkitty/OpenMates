@@ -302,13 +302,20 @@ class DirectusTestControlStore(InMemoryTestControlStore):
         return True
 
     def _request_once(self, method: str, path: str, token: str, data: dict[str, Any] | None = None, params: dict[str, Any] | None = None) -> Any:
+        if method == "GET":
+            params = {**(params or {}), "_openmates_cache_bust": str(int(datetime.now(timezone.utc).timestamp() * 1000))}
         query = f"?{urllib.parse.urlencode(params)}" if params else ""
         body = json.dumps(data).encode("utf-8") if data is not None else None
         request = urllib.request.Request(
             f"{self.base_url}{path}{query}",
             data=body,
             method=method,
-            headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json",
+                "Cache-Control": "no-cache, no-store, max-age=0",
+                "Pragma": "no-cache",
+            },
         )
         with urllib.request.urlopen(request, timeout=30) as response:
             payload = response.read().decode("utf-8")
@@ -346,8 +353,12 @@ class DirectusTestControlStore(InMemoryTestControlStore):
         return self._request("POST", f"/items/{collection}", data=item)
 
     def load_state(self) -> dict[str, Any]:
-        rows = self._items("test_current_state", params={"limit": -1, "sort": "test_key"})
-        rows = self._fresh_current_state_rows(rows)
+        rows = self._load_current_state_rows_from_local_postgres()
+        rows_loaded_from_postgres = rows is not None
+        if rows is None:
+            rows = self._items("test_current_state", params={"limit": -1, "sort": "test_key"})
+        if not rows_loaded_from_postgres:
+            rows = self._fresh_current_state_rows(rows)
         tests = {str(row.get("test_key")): self._state_row_to_record(row) for row in rows if row.get("test_key")}
         latest_run_id = self._latest_current_state_run(rows)
         return {
@@ -357,6 +368,28 @@ class DirectusTestControlStore(InMemoryTestControlStore):
             "tests": tests,
             "recorded_event_ids": [],
         }
+
+    def _load_current_state_rows_from_local_postgres(self) -> list[dict[str, Any]] | None:
+        if os.getenv("OPENMATES_DISABLE_FAST_TEST_IMPORT") == "1":
+            return None
+        probe = subprocess.run(["docker", "exec", "cms-database", "true"], check=False, capture_output=True, text=True, timeout=10)
+        if probe.returncode != 0:
+            return None
+        sql = "SELECT COALESCE(json_agg(row_to_json(t)), '[]'::json) FROM (SELECT * FROM test_current_state ORDER BY test_key) t;"
+        result = subprocess.run(
+            ["docker", "exec", "cms-database", "sh", "-lc", f'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -t -A -c {json.dumps(sql)}'],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        if result.returncode != 0:
+            return None
+        try:
+            rows = json.loads(result.stdout.strip() or "[]")
+        except json.JSONDecodeError:
+            return None
+        return rows if isinstance(rows, list) else None
 
     def _fresh_current_state_rows(self, rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
         problem_filter = {"stable_status": {"_in": sorted(PROBLEM_STATUSES)}}
@@ -800,6 +833,64 @@ def iter_tests(run_data: dict[str, Any]):
                 yield str(suite), test
 
 
+def normalize_import_run_data(
+    run_data: dict[str, Any],
+    path: Path,
+    external_run_id: str = "",
+    workflow: str = "",
+) -> dict[str, Any]:
+    if isinstance(run_data.get("suites"), dict):
+        return run_data
+    if isinstance(run_data.get("tests"), list) and isinstance(run_data.get("summary"), dict):
+        return normalize_pytest_json_report(run_data, path, external_run_id=external_run_id, workflow=workflow)
+    return run_data
+
+
+def normalize_pytest_json_report(
+    report: dict[str, Any],
+    path: Path,
+    external_run_id: str = "",
+    workflow: str = "",
+) -> dict[str, Any]:
+    tests = []
+    for item in report.get("tests") or []:
+        if not isinstance(item, dict):
+            continue
+        outcome = str(item.get("outcome") or "")
+        status = "passed" if outcome == "passed" else "failed" if outcome == "failed" else "skipped"
+        entry = {
+            "name": item.get("nodeid") or "unknown",
+            "status": status,
+            "duration_seconds": round(float(item.get("duration") or 0), 3),
+        }
+        if status == "failed":
+            longrepr = (item.get("call") or {}).get("longrepr") or item.get("longrepr")
+            if longrepr:
+                entry["error"] = str(longrepr)[:4000]
+        tests.append(entry)
+    suite_status = "failed" if any(is_problem(str(test.get("status") or "")) for test in tests) else "passed"
+    created = report.get("created")
+    if isinstance(created, (int, float)):
+        run_id = datetime.fromtimestamp(created, timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    else:
+        run_id = str(external_run_id or path.stem or utc_now())
+    if external_run_id:
+        run_id = str(external_run_id)
+    return {
+        "run_id": run_id,
+        "summary": report.get("summary") or {},
+        "flags": {"suite": "pytest"},
+        "suites": {
+            "pytest_unit": {
+                "status": suite_status,
+                "tests": tests,
+                "full_suite": True,
+                "duration_seconds": round(float(report.get("duration") or 0), 1),
+            }
+        },
+    }
+
+
 def is_problem(status: str) -> bool:
     return status in PROBLEM_STATUSES
 
@@ -837,10 +928,12 @@ def record_run_result(run_data: dict[str, Any], source: str = "scripts_tests", e
     recorded_event_ids = set(state.get("recorded_event_ids") or [])
     tests = dict(state.get("tests") or {})
     events: list[dict[str, Any]] = []
+    observed_keys_by_suite: dict[str, set[str]] = {}
 
     for suite, test in iter_tests(run_data):
         label = test_label(suite, test)
         key = test_key(suite, test)
+        observed_keys_by_suite.setdefault(suite, set()).add(key)
         status = str(test.get("status") or "unknown")
         event = "failed" if is_problem(status) else status
         event_id = f"{run_id}:{key}:{event}"
@@ -874,6 +967,92 @@ def record_run_result(run_data: dict[str, Any], source: str = "scripts_tests", e
             events.append({**current, "timestamp": timestamp, "event_id": event_id})
             recorded_event_ids.add(event_id)
 
+    for suite, suite_data in (run_data.get("suites") or {}).items():
+        if not isinstance(suite_data, dict):
+            continue
+        suite_status = str(suite_data.get("status") or "")
+        suite_key = f"{suite}::{suite}"
+        if suite_key in tests:
+            marker_status = "passed" if not is_problem(suite_status) else "passed"
+            event_id = f"{run_id}:{suite_key}:{marker_status}"
+            tests[suite_key] = {
+                **tests[suite_key],
+                "suite": suite,
+                "test": suite,
+                "key": suite_key,
+                "status": marker_status,
+                "stable_status": marker_status,
+                "stable_run_id": run_id,
+                "active_status": None,
+                "active_run_id": None,
+                "stable_result_key": event_id,
+                "event": marker_status,
+                "run_id": run_id,
+                "git_sha": run_data.get("git_sha"),
+                "git_branch": run_data.get("git_branch"),
+                "environment": run_data.get("environment"),
+                "error": None,
+                "updated_at": timestamp,
+            }
+            if event_id not in recorded_event_ids:
+                events.append({**tests[suite_key], "timestamp": timestamp, "event_id": event_id})
+                recorded_event_ids.add(event_id)
+
+        if suite_status == "passed" and not suite_data.get("tests"):
+            for key, previous in list(tests.items()):
+                if previous.get("suite") != suite or key == suite_key:
+                    continue
+                if not is_problem(str(previous.get("status") or "")) and previous.get("active_status") != "running":
+                    continue
+                event_id = f"{run_id}:{key}:passed"
+                tests[key] = {
+                    **previous,
+                    "status": "passed",
+                    "stable_status": "passed",
+                    "stable_run_id": run_id,
+                    "active_status": None,
+                    "active_run_id": None,
+                    "stable_result_key": event_id,
+                    "event": "passed",
+                    "run_id": run_id,
+                    "git_sha": run_data.get("git_sha"),
+                    "git_branch": run_data.get("git_branch"),
+                    "environment": run_data.get("environment"),
+                    "error": None,
+                    "updated_at": timestamp,
+                }
+                if event_id not in recorded_event_ids:
+                    events.append({**tests[key], "timestamp": timestamp, "event_id": event_id})
+                    recorded_event_ids.add(event_id)
+
+        if _is_authoritative_unit_suite_run(run_data, suite, suite_data):
+            observed_keys = observed_keys_by_suite.get(suite, set())
+            for key, previous in list(tests.items()):
+                if previous.get("suite") != suite or key == suite_key or key in observed_keys:
+                    continue
+                if not is_problem(str(previous.get("status") or "")) and previous.get("active_status") != "running":
+                    continue
+                event_id = f"{run_id}:{key}:not_started"
+                tests[key] = {
+                    **previous,
+                    "status": "not_started",
+                    "stable_status": "not_started",
+                    "stable_run_id": run_id,
+                    "active_status": None,
+                    "active_run_id": None,
+                    "stable_result_key": event_id,
+                    "event": "not_started",
+                    "run_id": run_id,
+                    "git_sha": run_data.get("git_sha"),
+                    "git_branch": run_data.get("git_branch"),
+                    "environment": run_data.get("environment"),
+                    "error": None,
+                    "updated_at": timestamp,
+                }
+                if event_id not in recorded_event_ids:
+                    events.append({**tests[key], "timestamp": timestamp, "event_id": event_id})
+                    recorded_event_ids.add(event_id)
+
     normalized_state = {
         "latest_run_id": run_id,
         "latest_git_sha": run_data.get("git_sha"),
@@ -887,6 +1066,22 @@ def record_run_result(run_data: dict[str, Any], source: str = "scripts_tests", e
     }
     get_store().record_run_result(run_data, normalized_state, events, source=source, external_run_id=external_run_id, workflow=workflow)
     return normalized_state
+
+
+def _is_authoritative_unit_suite_run(run_data: dict[str, Any], suite: str, suite_data: dict[str, Any]) -> bool:
+    if suite not in {"pytest_unit", "vitest"}:
+        return False
+    if suite_data.get("full_suite") is True:
+        return True
+    flags = run_data.get("flags") if isinstance(run_data.get("flags"), dict) else {}
+    if flags.get("only_failed"):
+        return False
+    requested_tests = run_data.get("requested_tests") or []
+    if requested_tests:
+        return False
+    requested_suite = str(flags.get("suite") or "")
+    suite_alias = "pytest" if suite == "pytest_unit" else suite
+    return requested_suite in {"all", suite, suite_alias}
 
 
 def load_state() -> dict[str, Any]:
@@ -1329,6 +1524,7 @@ def ingest_github_actions_run(run_data: dict[str, Any], external_run_id: str = "
 
 def import_run_artifact(path: Path, source: str = "github_actions", external_run_id: str = "", workflow: str = "") -> dict[str, Any]:
     run_data = read_json(path, {})
+    run_data = normalize_import_run_data(run_data, path, external_run_id=external_run_id, workflow=workflow)
     if source == "github_actions":
         return ingest_github_actions_run(run_data, external_run_id=external_run_id, workflow=workflow)
     return record_run_result(run_data)

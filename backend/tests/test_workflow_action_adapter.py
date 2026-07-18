@@ -8,12 +8,15 @@
 
 from __future__ import annotations
 
+import json
+
 import pytest
 
 from backend.core.api.app.services.workflow_action_adapter import (
     WorkflowActionAdapter,
     WorkflowActionExecutionError,
 )
+from backend.core.api.app.services.workflow_chat_delivery_service import WorkflowChatDeliveryService
 
 
 class _TaskResult:
@@ -46,6 +49,30 @@ class _CacheService:
 
     async def close(self) -> None:
         self.closed = True
+
+
+class _PublishingCacheService(_CacheService):
+    def __init__(self) -> None:
+        super().__init__(None)
+        self.redis = _PublishingRedis()
+
+    @property
+    async def client(self) -> "_PublishingRedis":
+        return self.redis
+
+
+class _PublishingRedis:
+    def __init__(self) -> None:
+        self.published: list[tuple[str, str]] = []
+
+    async def publish(self, channel: str, payload: str) -> None:
+        self.published.append((channel, payload))
+
+
+class _FakeDeliveryCipher:
+    def encrypt_delivery(self, *, owner_id: str, delivery_id: str, payload: dict[str, str]) -> str:
+        del payload
+        return f"ciphertext:{owner_id}:{delivery_id}"
 
 
 class _DirectusService:
@@ -177,6 +204,37 @@ async def test_start_new_chat_requires_message_and_title_or_existing_chat_id() -
         await adapter.start_new_chat({}, {}, "alice")
 
     assert exc_info.value.code == "WORKFLOW_ACTION_INVALID_CONFIG"
+
+
+@pytest.mark.anyio
+async def test_start_new_chat_publishes_pending_delivery_to_connected_clients() -> None:
+    cache = _PublishingCacheService()
+    delivery_service = WorkflowChatDeliveryService(cipher=_FakeDeliveryCipher(), clock=lambda: 100)
+    adapter = WorkflowActionAdapter(
+        cache_service_factory=lambda: cache,
+        chat_delivery_service=delivery_service,
+    )
+
+    result = await adapter.start_new_chat(
+        {"title": "Workflow output", "message": "Rain is likely.", "expires_in_seconds": 100},
+        {},
+        "alice",
+    )
+
+    assert result["status"] == "delivery_pending"
+    assert cache.closed is True
+    assert len(cache.redis.published) == 1
+    channel, published = cache.redis.published[0]
+    assert channel == (
+        "websocket:user:"
+        "2bd806c97f0e00af1a1fc3328fa763a9269723c8db8fac4f93af71db186d6e90"
+    )
+    event = json.loads(published)
+    assert event["event_for_client"] == "workflow_chat_deliveries_available"
+    assert event["payload"]["user_id"] == "alice"
+    delivery = event["payload"]["deliveries"][0]
+    assert delivery["delivery_id"] == result["delivery_id"]
+    assert delivery["encrypted_payload"].startswith("ciphertext:alice:")
 
 
 @pytest.mark.anyio

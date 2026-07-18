@@ -3,11 +3,10 @@
 # Integration tests for the incoming webhook endpoint and the AI dispatch helper.
 #
 # Coverage:
-#   - Default path: chat is pre-created in Directus, plaintext is broadcast over
-#     the WebSocket, the AI ask-skill is dispatched, response carries the
+#   - Default path: chat is pre-created in Directus, plaintext is sent to one
+#     WebSocket device, the AI ask-skill is dispatched, response carries the
 #     processing status.
-#   - Offline path: when no device is live, an email notification is queued
-#     instead of (in addition to) the WS broadcast.
+#   - Offline path: when no device is live, an email notification is queued.
 #   - require_confirmation path: AI dispatch is skipped, response status is
 #     "pending_confirmation".
 #   - Vault encryption failure short-circuits with HTTP 500.
@@ -558,10 +557,14 @@ async def test_webhook_incoming_offline_user_queues_email_and_still_dispatches_a
 
     fake_registry = MagicMock()
     fake_registry.dispatch_skill = AsyncMock(return_value={"task_id": "ai_task_offline"})
+    _reset_cutover_admission()
 
     with patch(
         "backend.core.api.app.services.skill_registry.get_global_registry",
         return_value=fake_registry,
+    ), patch(
+        "backend.core.api.app.routers.webhooks.ChatRecoveryCutoverController",
+        _FakeCutoverController,
     ):
         response = await _webhook_incoming_handler()(
             request=request,
@@ -615,9 +618,10 @@ async def test_webhook_incoming_require_confirmation_skips_ai_dispatch():
         )
 
     assert response.status == "pending_confirmation"
-    _FAKE_WS_MANAGER.broadcast_to_user.assert_awaited_once()
-    broadcast_msg = _FAKE_WS_MANAGER.broadcast_to_user.await_args.kwargs["message"]
-    assert broadcast_msg["payload"]["status"] == "pending_confirmation"
+    _FAKE_WS_MANAGER.send_personal_message.assert_awaited_once()
+    _FAKE_WS_MANAGER.broadcast_to_user.assert_not_called()
+    sent_msg = _FAKE_WS_MANAGER.send_personal_message.await_args.kwargs["message"]
+    assert sent_msg["payload"]["status"] == "pending_confirmation"
 
     # AI must NOT be dispatched while the chat is awaiting approval
     fake_registry.dispatch_skill.assert_not_called()

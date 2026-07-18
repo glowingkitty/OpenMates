@@ -266,6 +266,108 @@ def test_mark_running_preserves_previous_stable_failure(tmp_path, monkeypatch):
     assert tests_control.load_state()["summary"]["running"] == 1
 
 
+def test_record_run_clears_suite_running_marker_after_results(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    tests_control.mark_running(
+        suite="pytest_unit",
+        tests=[],
+        command=["python3", "scripts/tests.py", "run", "--suite", "pytest"],
+    )
+
+    tests_control.record_run_result({
+        "run_id": "2026-06-19T04:30:02Z",
+        "git_sha": "def456abc",
+        "git_branch": "dev",
+        "environment": "development",
+        "summary": {"total": 1, "passed": 1, "failed": 0, "skipped": 0},
+        "suites": {"pytest_unit": {"status": "passed", "tests": [{"name": "tests/test_ok.py::test_ok", "status": "passed"}]}},
+    })
+
+    state = tests_control.load_state()
+    assert state["tests"]["pytest_unit::pytest_unit"]["status"] == "passed"
+    assert state["tests"]["pytest_unit::pytest_unit"]["active_status"] is None
+    assert state["summary"]["running"] == 0
+
+
+def test_passed_suite_without_rows_clears_stale_suite_failures(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    tests_control.record_run_result({
+        "run_id": "2026-06-19T03:00:02Z",
+        "git_sha": "abc123def",
+        "git_branch": "dev",
+        "environment": "development",
+        "summary": {"total": 1, "passed": 0, "failed": 1, "skipped": 0},
+        "suites": {"pytest_unit": {"status": "failed", "tests": [{"name": "tests/test_old.py::test_old", "status": "failed", "error": "old failure"}]}},
+    })
+
+    tests_control.record_run_result({
+        "run_id": "2026-06-19T04:00:02Z",
+        "git_sha": "def456abc",
+        "git_branch": "dev",
+        "environment": "development",
+        "summary": {"total": 0, "passed": 0, "failed": 0, "skipped": 0},
+        "suites": {"pytest_unit": {"status": "passed", "tests": []}},
+    })
+
+    state = tests_control.load_state()
+    record = state["tests"]["pytest_unit::tests/test_old.py::test_old"]
+    assert record["status"] == "passed"
+    assert record["error"] is None
+    assert state["summary"]["failed"] == 0
+
+
+def test_import_run_accepts_raw_pytest_json_report(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    report_path = tmp_path / "pytest-results.json"
+    report_path.write_text(json.dumps({
+        "created": 1784322951.0,
+        "duration": 1.25,
+        "summary": {"total": 2, "passed": 1, "failed": 1, "skipped": 0},
+        "tests": [
+            {"nodeid": "tests/test_ok.py::test_ok", "outcome": "passed", "duration": 0.1},
+            {"nodeid": "tests/test_bad.py::test_bad", "outcome": "failed", "duration": 0.2, "call": {"longrepr": "assert False"}},
+        ],
+    }), encoding="utf-8")
+
+    tests_control.import_run_artifact(report_path, source="github_actions", external_run_id="29613991033", workflow="pytest-unit.yml")
+
+    state = tests_control.load_state()
+    assert state["tests"]["pytest_unit::tests/test_ok.py::test_ok"]["status"] == "passed"
+    failed = state["tests"]["pytest_unit::tests/test_bad.py::test_bad"]
+    assert failed["status"] == "failed"
+    assert failed["error"] == "assert False"
+    assert tests_control.get_store().test_runs["29613991033"]["workflow"] == "pytest-unit.yml"
+
+
+def test_full_unit_suite_retires_absent_stale_failures(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    tests_control.record_run_result({
+        "run_id": "2026-06-19T03:00:02Z",
+        "git_sha": "abc123def",
+        "git_branch": "dev",
+        "environment": "development",
+        "summary": {"total": 1, "passed": 0, "failed": 1, "skipped": 0},
+        "suites": {"pytest_unit": {"status": "failed", "tests": [{"name": "tests/test_old.py::test_old_name", "status": "failed", "error": "old failure"}]}},
+    })
+
+    tests_control.record_run_result({
+        "run_id": "2026-06-19T04:00:02Z",
+        "git_sha": "def456abc",
+        "git_branch": "dev",
+        "environment": "development",
+        "flags": {"suite": "pytest", "only_failed": False},
+        "summary": {"total": 1, "passed": 1, "failed": 0, "skipped": 0},
+        "suites": {"pytest_unit": {"status": "passed", "tests": [{"name": "tests/test_old.py::test_new_name", "status": "passed"}]}},
+    })
+
+    state = tests_control.load_state()
+    stale = state["tests"]["pytest_unit::tests/test_old.py::test_old_name"]
+    assert stale["status"] == "not_started"
+    assert stale["error"] is None
+    assert state["tests"]["pytest_unit::tests/test_old.py::test_new_name"]["status"] == "passed"
+    assert state["summary"]["failed"] == 0
+
+
 def test_triage_supports_limit_category_and_suite_filters(tmp_path, monkeypatch):
     tests_control = load_tests_control(tmp_path, monkeypatch)
     tests_control.record_run_result(sample_run())

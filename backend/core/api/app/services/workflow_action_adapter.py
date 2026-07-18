@@ -15,7 +15,10 @@ import logging
 import time
 from typing import Any
 
-from backend.core.api.app.services.workflow_chat_delivery_service import WorkflowChatDeliveryService
+from backend.core.api.app.services.workflow_chat_delivery_service import (
+    WorkflowChatDelivery,
+    WorkflowChatDeliveryService,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -90,6 +93,9 @@ class WorkflowActionAdapter:
                 expires_at=expires_at,
                 chat_id=chat_id.strip() if isinstance(chat_id, str) else None,
             )
+        should_publish_delivery = not self._chat_delivery_service_injected or self._cache_service_factory is not None
+        if should_publish_delivery:
+            await self._publish_workflow_chat_delivery_available(user_id=user_id, delivery=delivery)
         return {
             "type": "send_chat_message",
             "status": delivery.status,
@@ -136,6 +142,45 @@ class WorkflowActionAdapter:
         finally:
             await cache_service.close()
             await directus_service.close()
+
+    async def _publish_workflow_chat_delivery_available(self, *, user_id: str, delivery: WorkflowChatDelivery) -> None:
+        cache_service = self._get_cache_service()
+        try:
+            client = await cache_service.client
+            if not client:
+                logger.warning("Workflow chat delivery event could not be published: cache client unavailable")
+                return
+            if not delivery.owner_hash:
+                logger.warning("Workflow chat delivery event could not be published: owner hash missing")
+                return
+            payload = {
+                "event": "workflow_chat_deliveries_available",
+                "type": "workflow_chat_deliveries_available",
+                "event_for_client": "workflow_chat_deliveries_available",
+                "payload": {
+                    "user_id": user_id,
+                    "deliveries": [
+                        {
+                            "delivery_id": delivery.delivery_id,
+                            "chat_id": delivery.chat_id,
+                            "message_id": delivery.message_id,
+                            "status": delivery.status,
+                            "encrypted_payload": delivery.encrypted_payload,
+                            "created_at": delivery.created_at,
+                            "expires_at": delivery.expires_at,
+                            "claim_generation": delivery.claim_generation,
+                        }
+                    ],
+                },
+            }
+            await client.publish(
+                f"websocket:user:{delivery.owner_hash}",
+                json.dumps(payload, separators=(",", ":"), sort_keys=True),
+            )
+        except Exception:
+            logger.exception("Workflow chat delivery event publish failed")
+        finally:
+            await cache_service.close()
 
     async def ask_for_user_input(self, config: dict[str, Any], context: dict[str, Any], user_id: str) -> dict[str, Any]:
         del context, user_id
