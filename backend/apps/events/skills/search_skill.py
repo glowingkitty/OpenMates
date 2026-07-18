@@ -1347,10 +1347,20 @@ class SearchSkill(BaseSkill):
         results: List[Dict[str, Any]] = []
         for event in all_events:
             result = {"type": "event_result", **event}
+            event_url = _event_result_url(result)
+            if not event_url:
+                logger.debug(
+                    "Dropping events/search result without URL: provider=%r id=%r title=%r",
+                    result.get("provider"),
+                    result.get("id"),
+                    result.get("title") or result.get("name"),
+                )
+                continue
+            result["url"] = event_url
             if not result.get("image_url"):
                 result["image_url"] = result.get("cover_url")
             result["hash"] = self._generate_result_hash(
-                event.get("url") or event.get("id") or ""
+                event_url
             )
             results.append(result)
 
@@ -1561,3 +1571,11 @@ class SearchSkill(BaseSkill):
         )
 
         return response
+
+
+def _event_result_url(event: Dict[str, Any]) -> str:
+    for key in ("url", "booking_url"):
+        value = event.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return ""

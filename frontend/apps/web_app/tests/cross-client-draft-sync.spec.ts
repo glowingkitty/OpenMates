@@ -208,7 +208,10 @@ async function clearBrowserClientState(page: any, baseUrl: string): Promise<void
 async function expectIdeaBucketDraftMarkers(page: any, chatId: string, expectedText: string): Promise<void> {
 	const item = await locateDraftInSidebarOrSearch(page, chatId, expectedText);
 	await expect(item).toContainText(expectedText);
-	await expect(item.getByTestId('ideabucket-chat-list-label')).toBeVisible({ timeout: 15_000 });
+	const sidebarItem = chatItem(page, chatId);
+	const searchItem = page.locator(`[data-testid="search-chat-item"][data-result-id="${chatId}"]`).first();
+	const markerHost = (await sidebarItem.isVisible().catch(() => false)) ? sidebarItem : searchItem;
+	await expect(markerHost.getByTestId('ideabucket-chat-list-label')).toBeVisible({ timeout: 15_000 });
 	await item.click();
 	await closeSearchIfOpen(page);
 	const editor = page.getByTestId('message-editor');
@@ -255,16 +258,20 @@ async function locateDraftInSidebarOrSearch(page: any, chatId: string, expectedT
 	await searchInput.fill(expectedText);
 	const searchResults = page.getByTestId('search-results');
 	await expect(searchResults).toBeVisible({ timeout: 10_000 });
-	const result = page.getByTestId('search-chat-item').filter({ hasText: expectedText }).first();
+	const result = page.locator(`[data-testid="search-chat-item"][data-result-id="${chatId}"]`).first();
+	const metadataResult = searchResults.getByTestId('search-metadata-snippet').filter({ hasText: expectedText }).first();
 	await expect(async () => {
 		const isWarmingUp = await page.getByTestId('warming-up').isVisible().catch(() => false);
-		if (isWarmingUp || !(await result.isVisible().catch(() => false))) {
+		const hasChatResult = await result.isVisible().catch(() => false);
+		const hasMetadataResult = await metadataResult.isVisible().catch(() => false);
+		if (isWarmingUp || (!hasChatResult && !hasMetadataResult)) {
 			await searchInput.fill('');
 			await searchInput.fill(expectedText);
 		}
 		await expect(result).toBeVisible();
+		await expect(searchResults).toContainText(expectedText);
 	}).toPass({ timeout: 60_000 });
-	return result;
+	return (await metadataResult.isVisible().catch(() => false)) ? metadataResult : result;
 }
 
 async function openDraft(page: any, chatId: string, expectedText: string): Promise<any> {

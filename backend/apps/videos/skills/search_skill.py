@@ -28,6 +28,10 @@ from backend.core.api.app.services.cache import CacheService
 
 logger = logging.getLogger(__name__)
 
+MAX_RETURNED_VIDEO_RESULTS = 20
+MIN_VIDEO_CANDIDATES = 8
+VIDEO_CANDIDATE_BUFFER = 4
+
 
 class VideoSearchRequestItem(BaseModel):
     """A single video search request."""
@@ -318,10 +322,10 @@ class SearchSkill(BaseSkill):
         # and empty-string the same as "not provided", preventing httpx from sending
         # None/empty values to the Brave API (which rejects them with 422).
         req_count = req.get("count") or 10
-        # Enforce maximum of 20 results to limit sanitization costs
-        if req_count and req_count > 20:
-            logger.warning(f"Requested count {req_count} exceeds maximum of 20 for video search '{search_query}' (id: {request_id}). Capping to 20.")
-            req_count = 20
+        # Enforce maximum result count to limit metadata and sanitization costs.
+        if req_count and req_count > MAX_RETURNED_VIDEO_RESULTS:
+            logger.warning(f"Requested count {req_count} exceeds maximum of {MAX_RETURNED_VIDEO_RESULTS} for video search '{search_query}' (id: {request_id}). Capping to {MAX_RETURNED_VIDEO_RESULTS}.")
+            req_count = MAX_RETURNED_VIDEO_RESULTS
         req_country_raw = req.get("country") or "us"
         req_lang = req.get("search_lang") or "en"
         req_freshness = req.get("freshness") or None
@@ -405,9 +409,9 @@ class SearchSkill(BaseSkill):
                     # These should bubble up to the route handler
                     raise
             
-            # Call Brave Videos Search API - always search for 50 videos to get best selection
-            # We'll filter and sort by view count, then return top 10
-            brave_search_count = 50
+            # Search a small buffer above the requested count so direct CLI/API calls stay fast
+            # while still giving YouTube metadata sorting a few extra candidates.
+            brave_search_count = _candidate_count_for_requested_count(req_count)
             search_result = await search_videos(
                 query=search_query,
                 secrets_manager=secrets_manager,
@@ -428,13 +432,16 @@ class SearchSkill(BaseSkill):
             # Get Brave Search results
             brave_results = search_result.get("results", [])
             
-            # Extract YouTube video IDs from Brave Search results
+            # Extract YouTube video IDs from Brave Search results. Limit candidates before
+            # YouTube enrichment because those client calls are synchronous under the hood.
             youtube_videos = []  # List of (video_id, brave_result) tuples
             for result in brave_results:
                 url = result.get("url", "")
                 video_id = extract_youtube_id_from_url(url)
                 if video_id:
                     youtube_videos.append((video_id, result))
+                if len(youtube_videos) >= brave_search_count:
+                    break
             
             if not youtube_videos:
                 logger.warning(f"No YouTube videos found in Brave Search results for query '{search_query}' (id: {request_id})")
@@ -915,3 +922,8 @@ class SearchSkill(BaseSkill):
         return response
     
     # _generate_result_hash is now provided by BaseSkill
+
+
+def _candidate_count_for_requested_count(requested_count: int | None) -> int:
+    result_count = max(1, min(int(requested_count or 10), MAX_RETURNED_VIDEO_RESULTS))
+    return min(MAX_RETURNED_VIDEO_RESULTS, max(MIN_VIDEO_CANDIDATES, result_count + VIDEO_CANDIDATE_BUFFER))

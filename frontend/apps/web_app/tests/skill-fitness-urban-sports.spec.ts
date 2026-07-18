@@ -90,7 +90,7 @@ test.describe('App: Fitness / Skills: Urban Sports Club search', () => {
 			[
 				'apps', 'fitness', 'search_locations',
 				'--input', JSON.stringify({
-					requests: [{ query: 'HIIT', address: 'Sorauer Str. 12, Berlin', radius_km: 2, limit: 5 }]
+					requests: [{ address: 'Sorauer Str. 12, Berlin', radius_km: 2, limit: 5 }]
 				}),
 				'--json'
 			],

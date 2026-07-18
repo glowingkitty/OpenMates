@@ -822,6 +822,7 @@
             {#each chatResult.metadataSnippets as metaSnippet}
               <button
                 class="message-snippet metadata-snippet"
+                data-testid="search-metadata-snippet"
                 onclick={() => onChatClick(chatResult.chat)}
               >
                 {#if metaSnippet.matchSource === 'tags'}

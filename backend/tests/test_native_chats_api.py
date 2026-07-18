@@ -56,6 +56,7 @@ async def test_list_chats_returns_bounded_encrypted_metadata() -> None:
     result = await list_chats(
         request=_request(chat_service, chat_key_wrapper_service),
         limit=20,
+        team_id=None,
         current_user=SimpleNamespace(id="user-1"),
     )
 
@@ -80,6 +81,7 @@ async def test_list_chats_returns_bounded_encrypted_metadata() -> None:
         offset=0,
         sort="-pinned,-last_edited_overall_timestamp",
         admin_required=True,
+        team_id=None,
     )
     chat_key_wrapper_service.get_wrappers_by_hashed_chat_ids_batch.assert_awaited_once_with(
         [hashlib.sha256("chat-owned".encode()).hexdigest()],
@@ -107,6 +109,7 @@ async def test_list_chat_messages_requires_ownership_before_encrypted_read() -> 
     result = await list_chat_messages(
         chat_id="chat-owned",
         request=_request(chat_service),
+        team_id=None,
         current_user=SimpleNamespace(id="user-1"),
     )
 
@@ -127,6 +130,7 @@ async def test_list_chat_messages_hides_cross_user_chat_existence() -> None:
         await list_chat_messages(
             chat_id="chat-other-user",
             request=_request(chat_service),
+            team_id=None,
             current_user=SimpleNamespace(id="user-1"),
         )
 
