@@ -63,6 +63,7 @@
     "access": "public"
   },
   "dependencies": {
+    "@resvg/resvg-js": "^2.6.2",
     "@toon-format/toon": "2.1.0",
     "ahocorasick": "1.0.2",
     "qrcode-terminal": "^0.12.0",
