@@ -74,6 +74,29 @@ async function selectInsideMessage(
 	);
 }
 
+async function openMessageContextMenu(
+	page: any,
+	messageSelector: string,
+	rect: { x: number; y: number; width: number; height: number }
+): Promise<void> {
+	await page.evaluate(
+		({ sel, r }: { sel: string; r: { x: number; y: number; width: number; height: number } }) => {
+			const container = document.querySelector(sel) as HTMLElement | null;
+			if (!container) throw new Error(`Message container not found for selector: ${sel}`);
+			container.dispatchEvent(
+				new MouseEvent('contextmenu', {
+					bubbles: true,
+					cancelable: true,
+					clientX: r.x + r.width / 2,
+					clientY: r.y + r.height / 2,
+					button: 2
+				})
+			);
+		},
+		{ sel: messageSelector, r: rect }
+	);
+}
+
 test('explains selected assistant text in a background new chat', async ({ page }: { page: any }) => {
 	test.slow();
 	test.setTimeout(300_000);
@@ -111,11 +134,7 @@ test('explains selected assistant text in a background new chat', async ({ page 
 	const userSelection = await selectInsideMessage(page, SELECTORS.userMessageContent, 'vector database');
 	expect(userSelection.selected).toBe(true);
 	expect(userSelection.rect).not.toBeNull();
-	await page.mouse.click(
-		userSelection.rect!.x + userSelection.rect!.width / 2,
-		userSelection.rect!.y + userSelection.rect!.height / 2,
-		{ button: 'right' }
-	);
+	await openMessageContextMenu(page, SELECTORS.userMessageContent, userSelection.rect!);
 	await expect(page.locator(SELECTORS.contextMenuExplain)).toHaveCount(0);
 	await page.mouse.click(10, 10);
 
@@ -123,11 +142,7 @@ test('explains selected assistant text in a background new chat', async ({ page 
 	const assistantSelection = await selectInsideMessage(page, SELECTORS.mateMessageContent, 'vector database');
 	expect(assistantSelection.selected).toBe(true);
 	expect(assistantSelection.rect).not.toBeNull();
-	await page.mouse.click(
-		assistantSelection.rect!.x + assistantSelection.rect!.width / 2,
-		assistantSelection.rect!.y + assistantSelection.rect!.height / 2,
-		{ button: 'right' }
-	);
+	await openMessageContextMenu(page, SELECTORS.mateMessageContent, assistantSelection.rect!);
 	const explainButton = page.locator(SELECTORS.contextMenuExplain);
 	await expect(explainButton).toBeVisible({ timeout: 5000 });
 	// The product handles this action on mousedown to preserve the selected text
