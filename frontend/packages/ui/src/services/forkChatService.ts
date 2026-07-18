@@ -352,8 +352,9 @@ async function runForkAsync(
     duration: 12000,
     dismissible: true,
     onAction: () => {
-      activeChatStore.setActiveChat(newChatId);
-      forkProgressStore.reset();
+      void openChatWhenAvailable(newChatId).finally(() => {
+        forkProgressStore.reset();
+      });
     },
     actionLabel: $text("chats.fork.complete_notification"),
   });
