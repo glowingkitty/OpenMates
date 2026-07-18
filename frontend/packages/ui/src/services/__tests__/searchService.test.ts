@@ -47,6 +47,7 @@ vi.mock("../embedResolver", () => ({
 
 describe("search", () => {
   beforeEach(() => {
+    vi.resetModules();
     vi.clearAllMocks();
     mocks.getMessagesForChat.mockResolvedValue([]);
   });
@@ -91,5 +92,59 @@ describe("search", () => {
       matchSource: "draft",
       snippet: "CLI encrypted draft searchable text",
     });
+  });
+
+  it("returns draft preview results while full-message warm-up is still running", async () => {
+    const { search, warmUpSearchIndex } = await import("../searchService");
+    let finishWarmUp: (() => void) | null = null;
+    const slowWarmUp = new Promise<[]>(resolve => {
+      finishWarmUp = () => resolve([]);
+    });
+    mocks.getMessagesForChat.mockReturnValueOnce(slowWarmUp);
+
+    const warmUp = warmUpSearchIndex(["slow-chat"]);
+    const chat = {
+      chat_id: "chat-draft-during-warmup",
+      encrypted_title: null,
+      encrypted_draft_preview: "encrypted-preview",
+      messages_v: 0,
+      title_v: 0,
+      draft_v: 1,
+      unread_count: 0,
+      created_at: 100,
+      updated_at: 100,
+      last_edited_overall_timestamp: 100,
+    } as Chat;
+    mocks.getDecryptedMetadata.mockResolvedValue({
+      chat_id: chat.chat_id,
+      title: null,
+      draftPreview: "draft preview available before message indexing",
+      icon: null,
+      category: null,
+      summary: null,
+      tags: null,
+      activeFocusId: null,
+      lastDecrypted: Date.now(),
+    });
+
+    const results = await search(
+      "before message indexing",
+      [chat],
+      (key: string) => key,
+      [],
+      true,
+    );
+
+    expect(results.isWarmingUp).toBe(true);
+    expect(results.chats).toHaveLength(1);
+    expect(results.chats[0]?.chat.chat_id).toBe(chat.chat_id);
+    expect(results.chats[0]?.metadataSnippets[0]).toMatchObject({
+      matchSource: "draft",
+      snippet: "draft preview available before message indexing",
+    });
+    expect(mocks.getMessagesForChat).toHaveBeenCalledTimes(1);
+
+    finishWarmUp?.();
+    await warmUp;
   });
 });

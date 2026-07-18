@@ -1556,8 +1556,10 @@ export async function search(
     (c) => !indexedChatIds.has(c.chat_id),
   );
 
-  if (unindexedChats.length > 0) {
-    // Index unindexed chats — this is the "cold start" path
+  if (unindexedChats.length > 0 && !warmUpInProgress) {
+    // Index unindexed chats — this is the "cold start" path. When background
+    // warm-up is already running, return title/metadata matches immediately
+    // instead of duplicating expensive message/embed indexing in the foreground.
     await Promise.all(unindexedChats.map((c) => indexChatMessages(c.chat_id)));
   }
 
