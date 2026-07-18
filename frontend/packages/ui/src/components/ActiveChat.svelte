@@ -4618,7 +4618,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
      async function readAnonymousSnapshotFromIndexedDb(chatId: string): Promise<{ chat: Chat; messages: ChatMessageModel[] } | null> {
         if (typeof indexedDB === 'undefined') return null;
-        if (!hasAnonymousSessionKey()) return null;
+        if (!hasAnonymousSessionKey()) {
+            await anonymousChatStorage.clearAll().catch((error) => {
+                console.warn('[ActiveChat] Failed to clear anonymous chats after session key removal:', error);
+            });
+            return null;
+        }
 
         return new Promise((resolve, reject) => {
             const request = indexedDB.open('chats_db');
