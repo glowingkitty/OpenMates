@@ -110,10 +110,15 @@ async function waitForEmbedFinished(
  * Returns the fullscreen overlay locator.
  */
 async function openFullscreen(page: any, embedLocator: any): Promise<any> {
+	const overlays = page.getByTestId('embed-fullscreen-overlay');
+	const overlayCountBeforeOpen = await overlays.count();
 	await embedLocator.click();
-	const fullscreenOverlay = page.getByTestId('embed-fullscreen-overlay');
+	await expect(async () => {
+		const overlayCountAfterOpen = await overlays.count();
+		expect(overlayCountAfterOpen).toBeGreaterThan(overlayCountBeforeOpen);
+	}).toPass({ timeout: 10000 });
+	const fullscreenOverlay = overlays.nth(overlayCountBeforeOpen);
 	await expect(fullscreenOverlay).toBeVisible({ timeout: 10000 });
-	await page.waitForTimeout(500); // animation
 	return fullscreenOverlay;
 }
 
@@ -143,7 +148,10 @@ async function verifySearchGrid(
  * Verifies the overlay is no longer visible.
  */
 async function closeFullscreen(page: any, fullscreenOverlay: any): Promise<void> {
-	const minimizeButton = fullscreenOverlay.getByTestId('embed-minimize');
+	const overlays = page.getByTestId('embed-fullscreen-overlay');
+	const overlayCountBeforeClose = await overlays.count();
+	const overlayToClose = fullscreenOverlay.last();
+	const minimizeButton = overlayToClose.getByTestId('embed-minimize');
 	const hasMinimize = await minimizeButton.isVisible({ timeout: 3000 }).catch(() => false);
 
 	if (hasMinimize) {
@@ -152,8 +160,10 @@ async function closeFullscreen(page: any, fullscreenOverlay: any): Promise<void>
 		await page.keyboard.press('Escape');
 	}
 
-	await page.waitForTimeout(500);
-	await expect(fullscreenOverlay).not.toBeVisible({ timeout: 5000 });
+	await expect(async () => {
+		const overlayCountAfterClose = await overlays.count();
+		expect(overlayCountAfterClose).toBeLessThan(overlayCountBeforeClose);
+	}).toPass({ timeout: 5000 });
 }
 
 module.exports = {
