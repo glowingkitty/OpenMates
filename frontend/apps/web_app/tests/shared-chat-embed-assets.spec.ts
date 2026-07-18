@@ -109,12 +109,15 @@ function readEmbedContent(embedData: any): Record<string, unknown> {
 
 function isFinishedPdfEmbedContent(content: Record<string, unknown>): boolean {
 	const screenshots = content.screenshot_s3_keys;
+	const hasScreenshots = Array.isArray(screenshots)
+		? screenshots.length > 0
+		: typeof screenshots === 'string'
+			? screenshots.length > 0
+			: screenshots !== null && typeof screenshots === 'object' && Object.keys(screenshots).length > 0;
 	return (
 		content.app_id === 'pdf' &&
-		content.skill_id === 'read' &&
 		content.status === 'finished' &&
-		Array.isArray(screenshots) &&
-		screenshots.length > 0 &&
+		hasScreenshots &&
 		typeof content.aes_key === 'string' &&
 		content.aes_key.length > 0
 	);
