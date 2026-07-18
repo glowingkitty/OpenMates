@@ -102,6 +102,10 @@ async function createTestChat(
 
 /** Ensure sidebar is open (on narrow viewports it's closed by default). */
 async function ensureSidebarOpen(page: any): Promise<void> {
+	if (await page.getByTestId('chat-item-wrapper').first().isVisible({ timeout: 1000 }).catch(() => false)) {
+		return;
+	}
+
 	const dismissButtons = page.getByTestId('notification-dismiss');
 	for (let i = 0; i < 5; i += 1) {
 		const dismissButton = dismissButtons.first();
