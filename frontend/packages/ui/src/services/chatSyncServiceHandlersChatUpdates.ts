@@ -335,8 +335,8 @@ export async function handleChatDraftUpdatedImpl(
       // chat.last_edited_overall_timestamp = payload.last_edited_overall_timestamp; // REMOVED
       chat.updated_at = Math.floor(Date.now() / 1000);
 
-      // Store synced draft updates without generating a replacement chat key.
-      await chatDB.addChat(chat, undefined, { isFromSync: true });
+      // Store synced draft updates without decrypting/generating chat keys.
+      await chatDB.upsertRawChat(chat);
       updatedChat = chat;
     } else {
       console.warn(
@@ -358,8 +358,7 @@ export async function handleChatDraftUpdatedImpl(
         created_at: payload.last_edited_overall_timestamp,
         updated_at: payload.last_edited_overall_timestamp,
       };
-      // Use a separate transaction for addChat (it will create its own internally)
-      await chatDB.addChat(newChatForDraft, undefined, { isFromSync: true });
+      await chatDB.upsertRawChat(newChatForDraft);
       updatedChat = newChatForDraft;
     }
 

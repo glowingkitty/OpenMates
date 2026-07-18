@@ -17,6 +17,7 @@ const mocks = vi.hoisted(() => ({
   chatDB: {
     getChat: vi.fn(),
     getRawChat: vi.fn(),
+    upsertRawChat: vi.fn(),
     addChat: vi.fn(),
     updateChat: vi.fn(),
     saveMessage: vi.fn(),
@@ -155,6 +156,7 @@ describe("handleChatDraftUpdatedImpl", () => {
     vi.clearAllMocks();
     mocks.chatDB.getChat.mockResolvedValue(undefined);
     mocks.chatDB.addChat.mockResolvedValue(undefined);
+    mocks.chatDB.upsertRawChat.mockResolvedValue(undefined);
     mocks.chatDB.updateChat.mockResolvedValue(undefined);
   });
 
@@ -177,14 +179,12 @@ describe("handleChatDraftUpdatedImpl", () => {
 
     expect(mocks.chatDB.getChat).not.toHaveBeenCalled();
     expect(mocks.chatDB.getRawChat).toHaveBeenCalledWith("chat-ideabucket");
-    expect(mocks.chatDB.addChat).toHaveBeenCalledWith(
+    expect(mocks.chatDB.upsertRawChat).toHaveBeenCalledWith(
       expect.objectContaining({
         chat_id: "chat-ideabucket",
         ideabucket: true,
         ideabucket_processing_window_id: "bucket-1",
       }),
-      undefined,
-      { isFromSync: true },
     );
     expect(mocks.chatListCache.upsertChat).toHaveBeenCalledWith(
       expect.objectContaining({ chat_id: "chat-ideabucket" }),
@@ -228,15 +228,13 @@ describe("handleChatDraftUpdatedImpl", () => {
     });
 
     expect(mocks.chatDB.updateChat).not.toHaveBeenCalled();
-    expect(mocks.chatDB.addChat).toHaveBeenCalledWith(
+    expect(mocks.chatDB.upsertRawChat).toHaveBeenCalledWith(
       expect.objectContaining({
         chat_id: "chat-existing-draft",
         encrypted_draft_md: "new-draft",
         encrypted_draft_preview: "new-preview",
         draft_v: 2,
       }),
-      undefined,
-      { isFromSync: true },
     );
   });
 });

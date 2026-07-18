@@ -1128,6 +1128,85 @@ export async function getRawChat(
 }
 
 /**
+ * Write already-encrypted chat metadata without chat-key recovery or generation.
+ *
+ * This is intentionally narrow: use it for sync payloads whose encrypted fields
+ * are already server-authoritative and do not require local chat-key access.
+ */
+export async function upsertRawChat(
+  dbInstance: ChatDatabaseInstance,
+  chat: Chat,
+  transaction?: IDBTransaction,
+): Promise<void> {
+  if (
+    get(forcedLogoutInProgress) &&
+    !isPublicChat(chat.chat_id ?? "") &&
+    !isAnonymousChatId(chat.chat_id)
+  ) {
+    console.error(
+      `[ChatDatabase] Refusing to upsertRawChat during forced logout - chat ${chat.chat_id}`,
+    );
+    throw new Error("Cannot write encrypted chat during forced logout");
+  }
+
+  await dbInstance.init();
+  const chatToSave: Chat = {
+    ...chat,
+    draft_v: chat.draft_v ?? 0,
+    title_v: chat.title_v ?? 0,
+    messages_v: chat.messages_v ?? 0,
+    last_edited_overall_timestamp:
+      chat.last_edited_overall_timestamp ??
+      chat.updated_at ??
+      chat.created_at ??
+      Math.floor(Date.now() / 1000),
+  };
+  delete chatToSave.messages;
+
+  return new Promise<void>((resolve, reject) => {
+    const execute = async () => {
+      try {
+        const currentTransaction =
+          transaction ||
+          (await dbInstance.getTransaction(
+            dbInstance.CHATS_STORE_NAME,
+            "readwrite",
+          ));
+        const store = currentTransaction.objectStore(
+          dbInstance.CHATS_STORE_NAME,
+        );
+        const request = store.put(chatToSave);
+
+        request.onsuccess = () => {
+          if (transaction) resolve();
+        };
+        request.onerror = () => {
+          console.error(
+            `[ChatDatabase] Error in raw chat store.put operation for ${chatToSave.chat_id}:`,
+            request.error,
+          );
+          reject(request.error);
+        };
+
+        if (!transaction) {
+          currentTransaction.oncomplete = () => resolve();
+          currentTransaction.onerror = () => reject(currentTransaction.error);
+          currentTransaction.onabort = () =>
+            reject(currentTransaction.error ?? new Error("Transaction aborted"));
+        }
+      } catch (error) {
+        console.error(
+          `[ChatDatabase] Error in upsertRawChat for chat_id ${chatToSave.chat_id}:`,
+          error,
+        );
+        reject(error);
+      }
+    };
+    execute();
+  });
+}
+
+/**
  * Delete a chat and all its messages
  * Also cleans up associated embeds (if not shared with other chats)
  */
