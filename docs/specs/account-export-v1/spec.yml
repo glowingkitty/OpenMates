@@ -133,7 +133,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: working-tree-fb726b658
+  subject_commit: 629e190d91671fd751ba5fdefb3f43d219b53f04
 
 approvals:
   product_contract:
@@ -248,7 +248,7 @@ handoff:
   expected_outcome: CLI and SDK gates now prove route reachability, archive layout/safety, default-domain completeness, filter recording, partial lifecycle, SDK chunk payload downloads, and real-dev npm/pip export completion; full Account Export V1 still requires focused web gates and user UI confirmation.
   blocker:
     summary: Focused web filter/resume/partial specs/evidence, standalone web archive secret-scan evidence, user UI confirmation, and Apple parity remain incomplete.
-  last_verified_commit: working-tree-fb726b658
+  last_verified_commit: 629e190d91671fd751ba5fdefb3f43d219b53f04
 
 scenarios:
   - id: S-1
@@ -732,7 +732,7 @@ tests:
       - archive is streamed to disk and contains expected domain files
       - export summary is complete and no forbidden secret markers are present
     red_phase: { required: true, expected: fail, evidence: { status: "", run_id: "", timestamp: "" } }
-    green_phase: { required: true, expected: pass_against_dev, evidence: { status: passed, command: "python3 scripts/verify_account_export_cli.py --env dev --scenario all", run_id: "local-2026-07-18T22:44:00Z", subject_commit: working-tree-fb726b658, timestamp: "2026-07-18T22:44:00Z" } }
+    green_phase: { required: true, expected: pass_against_dev, evidence: { status: passed, command: "python3 scripts/verify_account_export_cli.py --env dev --scenario all", run_id: "local-2026-07-18T22:44:00Z", subject_commit: 629e190d91671fd751ba5fdefb3f43d219b53f04, timestamp: "2026-07-18T22:44:00Z" } }
   - id: T-CLI-FILTERS-DEV
     type: manual
     file: scripts/verify_account_export_cli.py
@@ -742,7 +742,7 @@ tests:
       - real CLI filtered export includes only requested chat/task/project/plan/workflow/usage windows
       - required referenced embeds/uploads are still included
     red_phase: { required: true, expected: fail, evidence: { status: "", run_id: "", timestamp: "" } }
-    green_phase: { required: true, expected: pass_against_dev, evidence: { status: passed, command: "python3 scripts/verify_account_export_cli.py --env dev --scenario all", run_id: "local-2026-07-18T22:44:00Z", subject_commit: working-tree-fb726b658, timestamp: "2026-07-18T22:44:00Z" } }
+    green_phase: { required: true, expected: pass_against_dev, evidence: { status: passed, command: "python3 scripts/verify_account_export_cli.py --env dev --scenario all", run_id: "local-2026-07-18T22:44:00Z", subject_commit: 629e190d91671fd751ba5fdefb3f43d219b53f04, timestamp: "2026-07-18T22:44:00Z" } }
   - id: T-CLI-PARTIAL-DEV
     type: manual
     file: scripts/verify_account_export_cli.py
@@ -752,7 +752,7 @@ tests:
       - CLI shows retry/cancel/accept-partial choices for injected export failure
       - last_export_at is not updated before explicit acceptance
     red_phase: { required: true, expected: fail, evidence: { status: "", run_id: "", timestamp: "" } }
-    green_phase: { required: true, expected: pass_against_dev, evidence: { status: passed, command: "python3 scripts/verify_account_export_cli.py --env dev --scenario all", run_id: "local-2026-07-18T22:44:00Z", subject_commit: working-tree-fb726b658, timestamp: "2026-07-18T22:44:00Z" } }
+    green_phase: { required: true, expected: pass_against_dev, evidence: { status: passed, command: "python3 scripts/verify_account_export_cli.py --env dev --scenario all", run_id: "local-2026-07-18T22:44:00Z", subject_commit: 629e190d91671fd751ba5fdefb3f43d219b53f04, timestamp: "2026-07-18T22:44:00Z" } }
   - id: T-CLI-SECRET-SCAN
     type: lint
     file: scripts/verify_account_export_archive.py
@@ -762,7 +762,7 @@ tests:
       - archive text files do not contain forbidden secret field names or known test secret values
       - export report lists redacted secret categories
     red_phase: { required: true, expected: fail, evidence: { status: "", run_id: "", timestamp: "" } }
-    green_phase: { required: true, expected: pass, evidence: { status: passed, command: "python3 scripts/verify_account_export_archive.py --zip /tmp/opencode/account-export-cli-mqwwzu0d/complete-default-export.zip --layout-v1 --forbid-secrets", run_id: "local-2026-07-18T22:41:00Z", subject_commit: working-tree-fb726b658, timestamp: "2026-07-18T22:41:00Z" } }
+    green_phase: { required: true, expected: pass, evidence: { status: passed, command: "python3 scripts/verify_account_export_archive.py --zip /tmp/opencode/account-export-cli-mqwwzu0d/complete-default-export.zip --layout-v1 --forbid-secrets", run_id: "local-2026-07-18T22:41:00Z", subject_commit: 629e190d91671fd751ba5fdefb3f43d219b53f04, timestamp: "2026-07-18T22:41:00Z" } }
   - id: T-CLI-ARCHIVE-LAYOUT
     type: lint
     file: scripts/verify_account_export_archive.py
@@ -773,7 +773,7 @@ tests:
       - no root checksums.sha256 file exists
       - chats contain one md and one yml per chat
     red_phase: { required: true, expected: fail, evidence: { status: "", run_id: "", timestamp: "" } }
-    green_phase: { required: true, expected: pass, evidence: { status: passed, command: "python3 scripts/verify_account_export_archive.py --zip /tmp/opencode/account-export-cli-mqwwzu0d/complete-default-export.zip --layout-v1 --forbid-secrets", run_id: "local-2026-07-18T22:41:00Z", subject_commit: working-tree-fb726b658, timestamp: "2026-07-18T22:41:00Z" } }
+    green_phase: { required: true, expected: pass, evidence: { status: passed, command: "python3 scripts/verify_account_export_archive.py --zip /tmp/opencode/account-export-cli-mqwwzu0d/complete-default-export.zip --layout-v1 --forbid-secrets", run_id: "local-2026-07-18T22:41:00Z", subject_commit: 629e190d91671fd751ba5fdefb3f43d219b53f04, timestamp: "2026-07-18T22:41:00Z" } }
   - id: T-NPM-SDK-EXPORT
     type: unit
     file: frontend/packages/openmates-cli/tests/account-export-sdk.test.ts
@@ -784,7 +784,7 @@ tests:
       - SDK request defaults and filter names match CLI/web contract
       - SDK redaction semantics match backend contract
     red_phase: { required: true, expected: fail, evidence: { status: "", run_id: "", timestamp: "" } }
-    green_phase: { required: true, expected: pass, evidence: { status: passed, command: "OPENMATES_LIVE_SMOKE=1 python3 scripts/sdk_cli_parity_live_smoke.py --api-url https://api.dev.openmates.org --name account-export-sdk-smoke-20260718", run_id: "local-2026-07-18T22:51:00Z", subject_commit: working-tree-fb726b658, timestamp: "2026-07-18T22:51:00Z" } }
+    green_phase: { required: true, expected: pass, evidence: { status: passed, command: "OPENMATES_LIVE_SMOKE=1 python3 scripts/sdk_cli_parity_live_smoke.py --api-url https://api.dev.openmates.org --name account-export-sdk-smoke-20260718", run_id: "local-2026-07-18T22:51:00Z", subject_commit: 629e190d91671fd751ba5fdefb3f43d219b53f04, timestamp: "2026-07-18T22:51:00Z" } }
   - id: T-PIP-SDK-EXPORT
     type: pytest
     file: packages/openmates-python/tests/test_account_export.py
@@ -795,7 +795,7 @@ tests:
       - SDK request defaults and filter names match CLI/web contract
       - SDK redaction semantics match backend contract
     red_phase: { required: true, expected: fail, evidence: { status: "", run_id: "", timestamp: "" } }
-    green_phase: { required: true, expected: pass, evidence: { status: passed, command: "OPENMATES_LIVE_SMOKE=1 python3 scripts/sdk_cli_parity_live_smoke.py --api-url https://api.dev.openmates.org --name account-export-sdk-smoke-20260718", run_id: "local-2026-07-18T22:51:00Z", subject_commit: working-tree-fb726b658, timestamp: "2026-07-18T22:51:00Z" } }
+    green_phase: { required: true, expected: pass, evidence: { status: passed, command: "OPENMATES_LIVE_SMOKE=1 python3 scripts/sdk_cli_parity_live_smoke.py --api-url https://api.dev.openmates.org --name account-export-sdk-smoke-20260718", run_id: "local-2026-07-18T22:51:00Z", subject_commit: 629e190d91671fd751ba5fdefb3f43d219b53f04, timestamp: "2026-07-18T22:51:00Z" } }
   - id: T-PARITY-AUDIT
     type: lint
     file: scripts/audit_sdk_cli_parity.py
@@ -804,7 +804,7 @@ tests:
     assertions:
       - account export CLI, npm SDK, and pip SDK surfaces remain in parity
     red_phase: { required: false, expected: pass_or_existing_failure, evidence: { status: "", run_id: "", timestamp: "" } }
-    green_phase: { required: true, expected: pass, evidence: { status: passed, command: "python3 scripts/audit_sdk_cli_parity.py", run_id: "local-2026-07-18T22:52:00Z", subject_commit: working-tree-fb726b658, timestamp: "2026-07-18T22:52:00Z" } }
+    green_phase: { required: true, expected: pass, evidence: { status: passed, command: "python3 scripts/audit_sdk_cli_parity.py", run_id: "local-2026-07-18T22:52:00Z", subject_commit: 629e190d91671fd751ba5fdefb3f43d219b53f04, timestamp: "2026-07-18T22:52:00Z" } }
   - id: T-WEB-EXPORT
     type: playwright
     file: frontend/apps/web_app/tests/export-account-flow.spec.ts
