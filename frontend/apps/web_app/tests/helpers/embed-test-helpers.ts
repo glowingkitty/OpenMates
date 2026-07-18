@@ -112,10 +112,14 @@ async function waitForEmbedFinished(
 async function openFullscreen(page: any, embedLocator: any): Promise<any> {
 	const overlays = page.getByTestId('embed-fullscreen-overlay');
 	const overlayCountBeforeOpen = await overlays.count();
-	await embedLocator.click();
 	await expect(async () => {
-		const overlayCountAfterOpen = await overlays.count();
-		expect(overlayCountAfterOpen).toBeGreaterThan(overlayCountBeforeOpen);
+		if (await overlays.count() > overlayCountBeforeOpen) return;
+		await embedLocator.scrollIntoViewIfNeeded();
+		await embedLocator.click();
+		await expect(async () => {
+			const overlayCountAfterOpen = await overlays.count();
+			expect(overlayCountAfterOpen).toBeGreaterThan(overlayCountBeforeOpen);
+		}).toPass({ timeout: 1000 });
 	}).toPass({ timeout: 10000 });
 	const fullscreenOverlay = overlays.nth(overlayCountBeforeOpen);
 	await expect(fullscreenOverlay).toBeVisible({ timeout: 10000 });
