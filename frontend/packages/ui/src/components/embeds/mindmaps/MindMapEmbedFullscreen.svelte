@@ -23,6 +23,7 @@
 
   const MIN_ZOOM = 0.35;
   const MAX_ZOOM = 2.5;
+  const DOWNLOAD_URL_REVOKE_DELAY_MS = 60_000;
 
   interface Props {
     data: EmbedFullscreenRawData;
@@ -106,7 +107,7 @@
     document.body.appendChild(link);
     link.click();
     link.remove();
-    URL.revokeObjectURL(url);
+    window.setTimeout(() => URL.revokeObjectURL(url), DOWNLOAD_URL_REVOKE_DELAY_MS);
   }
 
   function fitToView() {
