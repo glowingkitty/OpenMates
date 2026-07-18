@@ -111,6 +111,7 @@ test.afterEach(async ({}, testInfo: any) => {
 });
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
+const PDF_QUESTION = 'What are the secret words written on each page of this PDF? List the word for page 1 and page 2.';
 
 // PDF fixture path
 const SAMPLE_PDF = path.join(__dirname, 'fixtures', 'sample.pdf');
@@ -486,10 +487,18 @@ test('pdf: upload, AI reads and answers, embeds persist through reload and relog
 	await page.keyboard.press('Escape');
 	await page.waitForTimeout(300);
 	const editor = page.getByTestId('message-editor');
-	await editor.press('End');
-	await page.keyboard.type(
-		'What are the secret words written on each page of this PDF? List the word for page 1 and page 2.'
-	);
+	await editor.evaluate((container: HTMLElement) => {
+		const editable = (container.querySelector('.ProseMirror') as HTMLElement | null) ?? container;
+		editable.focus();
+		const range = document.createRange();
+		range.selectNodeContents(editable);
+		range.collapse(false);
+		const selection = window.getSelection();
+		selection?.removeAllRanges();
+		selection?.addRange(range);
+	});
+	await page.keyboard.type(PDF_QUESTION);
+	await expect(editor).toContainText(PDF_QUESTION, { timeout: 5000 });
 
 	const sendButton = page.locator('[data-action="send-message"]');
 	await expect(sendButton).toBeVisible({ timeout: 15000 });
