@@ -73,7 +73,7 @@
   async function fetchPreparedSvg(): Promise<string> {
     if (preparedSvg) return preparedSvg;
     if (!iconSrc) throw new Error('Icon SVG path is unavailable');
-    const response = await fetch(iconSrc, { credentials: 'include' });
+    const response = await fetch(iconSrc, { credentials: 'omit' });
     if (!response.ok) {
       throw new Error(`Icon SVG request failed with status ${response.status}`);
     }
@@ -166,7 +166,7 @@
     if (!currentIconSrc) return;
 
     let isCancelled = false;
-    fetch(currentIconSrc, { credentials: 'include' })
+    fetch(currentIconSrc, { credentials: 'omit' })
       .then((response) => {
         if (!response.ok) throw new Error(`Icon SVG request failed with status ${response.status}`);
         return response.text();
