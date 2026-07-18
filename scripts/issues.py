@@ -148,7 +148,7 @@ def fetch_issue_list(env: str, *, limit: int, search: str | None, include_proces
 
 
 def fetch_issue_detail(env: str, issue_id: str, *, include_logs: bool = False) -> dict[str, Any]:
-    args = [issue_id, env_flag(env)]
+    args = [resolve_issue_identifier(env, issue_id), env_flag(env)]
     if not include_logs:
         args.append("--no-logs")
     return run_debug_json(args)
@@ -181,6 +181,27 @@ def fetch_many(env: str, *, limit: int, search: str | None, include_processed: b
         except IssueCommandError as exc:
             print(f"[{current_env}] ERROR: {exc.output.strip()[:500]}", file=sys.stderr)
     return sorted(issues, key=lambda item: issue_timestamp(item) or datetime.min.replace(tzinfo=timezone.utc), reverse=True)
+
+
+def resolve_issue_identifier(env: str, issue_id: str) -> str:
+    """Resolve a public short issue ID to the durable UUID when possible."""
+    normalized = issue_id.strip().upper()
+    if not SHORT_ISSUE_ID_RE.fullmatch(normalized):
+        return issue_id
+
+    issues = fetch_many(env, limit=1000, search=None, include_processed=True)
+    matches = [
+        issue
+        for issue in issues
+        if str(issue.get("short_issue_id") or "").strip().upper() == normalized
+    ]
+    if len(matches) > 1:
+        ids = ", ".join(str(issue.get("id") or "unknown") for issue in matches)
+        raise ValueError(f"Short issue ID {normalized} matched multiple issues: {ids}")
+    if len(matches) == 1:
+        resolved = str(matches[0].get("id") or "")
+        return resolved or issue_id
+    return issue_id
 
 
 def filter_recent(issues: list[dict[str, Any]], hours: int) -> list[dict[str, Any]]:
@@ -413,8 +434,9 @@ def command_show(args: argparse.Namespace) -> int:
 
 
 def command_timeline(args: argparse.Namespace) -> int:
+    issue_id = resolve_issue_identifier(args.env, args.issue_id)
     command_args = [
-        args.issue_id,
+        issue_id,
         env_flag(args.env),
         "--timeline",
         "--before",
