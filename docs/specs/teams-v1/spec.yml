@@ -1564,9 +1564,10 @@ tests:
       expected: pass_after_deploy
       evidence:
         status: passed
-        command: python3 scripts/verify_teams_cli_lifecycle.py --api-url http://127.0.0.1:8000 --skip-build
-        run_id: teams-cli-lifecycle-local-green-2026-07-18
-        subject_commit: 25e194a6fbf1396dc846da96ec41b077a976ebd6-plus-local-edits
+        command: python3 scripts/verify_teams_cli_lifecycle.py --api-url https://api.dev.openmates.org --skip-build
+        run_id: teams-cli-lifecycle-dev-green-2026-07-18
+        subject_commit: 74b8cf646283d093c755e7c0ded4a0352ae028ad
+        reason: Real CLI verifier passed against deployed dev API after live Caddy allowlist reload.
         timestamp: "2026-07-18"
   - id: T-CLI-TEAM-MEMBERSHIP-DEV
     type: manual
@@ -1594,9 +1595,10 @@ tests:
       expected: pass_after_deploy
       evidence:
         status: passed
-        command: python3 scripts/verify_teams_cli_membership.py --api-url http://127.0.0.1:8000 --skip-build
-        run_id: teams-cli-membership-local-green-2026-07-18
-        subject_commit: 25e194a6fbf1396dc846da96ec41b077a976ebd6-plus-local-edits
+        command: python3 scripts/verify_teams_cli_membership.py --api-url https://api.dev.openmates.org --skip-build
+        run_id: teams-cli-membership-dev-green-2026-07-18
+        subject_commit: 74b8cf646283d093c755e7c0ded4a0352ae028ad
+        reason: Real CLI verifier passed against deployed dev API after live Caddy allowlist reload.
         timestamp: "2026-07-18"
   - id: T-CLI-TEAM-CHAT-DEV
     type: manual
@@ -1622,9 +1624,10 @@ tests:
       expected: pass_after_deploy
       evidence:
         status: passed
-        command: python3 scripts/verify_teams_cli_chat.py --api-url http://127.0.0.1:8000 --skip-build
-        run_id: teams-cli-chat-local-green-2026-07-18
-        subject_commit: 25e194a6fbf1396dc846da96ec41b077a976ebd6-plus-local-edits
+        command: python3 scripts/verify_teams_cli_chat.py --api-url https://api.dev.openmates.org --skip-build
+        run_id: teams-cli-chat-dev-green-2026-07-18
+        subject_commit: 74b8cf646283d093c755e7c0ded4a0352ae028ad
+        reason: Real CLI verifier passed against deployed dev API after live Caddy allowlist reload.
         timestamp: "2026-07-18"
   - id: T-CLI-WORKSPACE-CONTEXT-DEV
     type: manual
@@ -1648,9 +1651,10 @@ tests:
       expected: pass_after_deploy
       evidence:
         status: passed
-        command: python3 scripts/verify_teams_cli_workspace_context.py --api-url http://127.0.0.1:8000 --skip-build
-        run_id: teams-cli-workspace-context-local-green-2026-07-18
-        subject_commit: 25e194a6fbf1396dc846da96ec41b077a976ebd6-plus-local-edits
+        command: python3 scripts/verify_teams_cli_workspace_context.py --api-url https://api.dev.openmates.org --skip-build
+        run_id: teams-cli-workspace-context-dev-green-2026-07-18
+        subject_commit: 74b8cf646283d093c755e7c0ded4a0352ae028ad
+        reason: Real CLI verifier passed against deployed dev API after live Caddy allowlist reload.
         timestamp: "2026-07-18"
   - id: T-CLI-TEAM-MOVE-DEV
     type: manual
@@ -1674,9 +1678,10 @@ tests:
       expected: pass_after_deploy
       evidence:
         status: passed
-        command: python3 scripts/verify_teams_cli_move.py --api-url http://127.0.0.1:8000 --skip-build
-        run_id: teams-cli-move-local-green-2026-07-18
-        subject_commit: 25e194a6fbf1396dc846da96ec41b077a976ebd6-plus-local-edits
+        command: python3 scripts/verify_teams_cli_move.py --api-url https://api.dev.openmates.org --skip-build
+        run_id: teams-cli-move-dev-green-2026-07-18
+        subject_commit: 74b8cf646283d093c755e7c0ded4a0352ae028ad
+        reason: Real CLI verifier passed against deployed dev API after live Caddy allowlist reload.
         timestamp: "2026-07-18"
   - id: T-CLI-VIEWER-PERMISSIONS
     type: unit
@@ -1726,9 +1731,10 @@ tests:
       expected: pass_after_deploy
       evidence:
         status: passed
-        command: python3 scripts/verify_teams_cli_billing.py --api-url http://127.0.0.1:8000 --skip-build
-        run_id: teams-cli-billing-local-green-2026-07-18
-        subject_commit: 25e194a6fbf1396dc846da96ec41b077a976ebd6-plus-local-edits
+        command: python3 scripts/verify_teams_cli_billing.py --api-url https://api.dev.openmates.org --skip-build
+        run_id: teams-cli-billing-dev-green-2026-07-18
+        subject_commit: 74b8cf646283d093c755e7c0ded4a0352ae028ad
+        reason: Real CLI verifier passed against deployed dev API after live Caddy allowlist reload.
         timestamp: "2026-07-18"
   - id: T-CLI-TEAM-OFFBOARDING-DEV
     type: manual
@@ -1752,9 +1758,10 @@ tests:
       expected: pass_after_deploy
       evidence:
         status: passed
-        command: python3 scripts/verify_teams_cli_offboarding.py --api-url http://127.0.0.1:8000 --skip-build
-        run_id: teams-cli-offboarding-local-green-2026-07-18
-        subject_commit: 25e194a6fbf1396dc846da96ec41b077a976ebd6-plus-local-edits
+        command: python3 scripts/verify_teams_cli_offboarding.py --api-url https://api.dev.openmates.org --skip-build
+        run_id: teams-cli-offboarding-dev-green-2026-07-18
+        subject_commit: 74b8cf646283d093c755e7c0ded4a0352ae028ad
+        reason: Real CLI verifier passed against deployed dev API after live Caddy allowlist reload.
         timestamp: "2026-07-18"
   - id: T-CLI-TEAM-MEMORY-ACCOUNTS-DEV
     type: manual
@@ -1781,9 +1788,10 @@ tests:
       expected: pass_after_deploy
       evidence:
         status: passed
-        command: python3 scripts/verify_teams_cli_memory_accounts.py --api-url http://127.0.0.1:8000 --skip-build
-        run_id: teams-cli-memory-accounts-local-green-2026-07-18
-        subject_commit: 25e194a6fbf1396dc846da96ec41b077a976ebd6-plus-local-edits
+        command: python3 scripts/verify_teams_cli_memory_accounts.py --api-url https://api.dev.openmates.org --skip-build
+        run_id: teams-cli-memory-accounts-dev-green-2026-07-18
+        subject_commit: 74b8cf646283d093c755e7c0ded4a0352ae028ad
+        reason: Real CLI verifier passed against deployed dev API after live Caddy allowlist reload.
         timestamp: "2026-07-18"
   - id: T-CLI-TEAM-DATA-PORTABILITY-DEV
     type: manual
@@ -1809,9 +1817,10 @@ tests:
       expected: pass_after_deploy
       evidence:
         status: passed
-        command: python3 scripts/verify_teams_cli_data_portability.py --api-url http://127.0.0.1:8000 --skip-build
-        run_id: teams-cli-data-portability-local-green-2026-07-18
-        subject_commit: 25e194a6fbf1396dc846da96ec41b077a976ebd6-plus-local-edits
+        command: python3 scripts/verify_teams_cli_data_portability.py --api-url https://api.dev.openmates.org --skip-build
+        run_id: teams-cli-data-portability-dev-green-2026-07-18
+        subject_commit: 74b8cf646283d093c755e7c0ded4a0352ae028ad
+        reason: Real CLI verifier passed against deployed dev API after live Caddy allowlist reload.
         timestamp: "2026-07-18"
   - id: T-NPM-SDK-TEAMS-PARITY
     type: unit
