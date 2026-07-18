@@ -616,7 +616,8 @@ function assertAccountExportTextSafe(content: string, relativePath: string): voi
     if (pattern.test(content)) throw new Error(`Account export file ${relativePath} contains forbidden secret-like content`);
   }
   ACCOUNT_EXPORT_FORBIDDEN_FIELD_NAMES.forEach((field) => {
-    if (new RegExp(`"?${field}"?\\s*:`, "i").test(content)) {
+    const escapedField = field.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    if (new RegExp(`(^|[^A-Za-z0-9_])['"]?${escapedField}['"]?\\s*:`, "i").test(content)) {
       throw new Error(`Account export file ${relativePath} contains forbidden secret field '${field}'`);
     }
   });

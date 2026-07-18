@@ -140,7 +140,7 @@ def validate_layout(entries: list[ArchiveEntry]) -> list[str]:
 def validate_secret_scan(entries: list[ArchiveEntry]) -> list[str]:
     failures: list[str] = []
     field_patterns = {
-        field: re.compile(rf'"?{re.escape(field)}"?\s*:', re.IGNORECASE)
+        field: re.compile(rf"(^|[^A-Za-z0-9_])['\"]?{re.escape(field)}['\"]?\s*:", re.IGNORECASE)
         for field in FORBIDDEN_FIELD_NAMES
     }
     for entry in entries:

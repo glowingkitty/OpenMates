@@ -158,11 +158,12 @@ function assertAccountExportTextSafe(content: string, relativePath: string): voi
   for (const pattern of ACCOUNT_EXPORT_FORBIDDEN_VALUE_PATTERNS) {
     if (pattern.test(content)) throw new Error(`Account export file ${relativePath} contains forbidden secret-like content`);
   }
-  for (const field of ACCOUNT_EXPORT_FORBIDDEN_FIELD_NAMES) {
-    if (new RegExp(`"?${field}"?\\s*:`, "i").test(content)) {
+  ACCOUNT_EXPORT_FORBIDDEN_FIELD_NAMES.forEach((field) => {
+    const escapedField = field.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    if (new RegExp(`(^|[^A-Za-z0-9_])['"]?${escapedField}['"]?\\s*:`, "i").test(content)) {
       throw new Error(`Account export file ${relativePath} contains forbidden secret field '${field}'`);
     }
-  }
+  });
 }
 
 function buildAccountExportReadme(bundle: AccountExportArchiveBundle): string {
