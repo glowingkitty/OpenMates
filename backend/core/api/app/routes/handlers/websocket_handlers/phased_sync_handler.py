@@ -360,7 +360,8 @@ async def handle_phased_sync_request(
             if (sync_phase == "phase1" or sync_phase == "all") and phase1_chat_ids:
                 await _handle_phase1b_sync(
                     manager, cache_service, directus_service, user_id, device_fingerprint_hash,
-                    phase1_chat_ids, client_chat_versions, sent_embed_ids, client_embed_ids
+                    phase1_chat_ids, client_chat_versions, sent_embed_ids, client_embed_ids,
+                    user_otel_attrs=user_otel_attrs,
                 )
 
             # Phase 2: Metadata-only for 100 chats (no messages, no embeds)
@@ -377,7 +378,8 @@ async def handle_phased_sync_request(
                 await _handle_phase3_sync(
                     manager, cache_service, directus_service, user_id, device_fingerprint_hash,
                     client_chat_versions, client_chat_ids, sent_embed_ids, client_embed_ids,
-                    phase1_chat_ids
+                    phase1_chat_ids,
+                    user_otel_attrs=user_otel_attrs,
                 )
 
             if sync_phase == "all":
@@ -860,7 +862,8 @@ async def _handle_phase1b_sync(
     phase1_chat_ids: List[str],
     client_chat_versions: Dict[str, Dict[str, int]],
     sent_embed_ids: set,
-    client_embed_ids: Optional[set] = None
+    client_embed_ids: Optional[set] = None,
+    user_otel_attrs: dict | None = None,
 ):
     """
     Phase 1b: Messages + embeds for the 11 Phase 1a chats (separate WS message).
@@ -915,6 +918,7 @@ async def _handle_phase1b_sync(
                     user_id=user_id,
                     chat_id=chat_id,
                     log_prefix="[PHASE1b]",
+                    user_otel_attrs=user_otel_attrs,
                 )
 
             checkpoint = await get_latest_chat_compression_checkpoint(
@@ -1277,7 +1281,8 @@ async def _handle_phase3_sync(
     client_chat_ids: List[str],
     sent_embed_ids: set,
     client_embed_ids: Optional[List[str]] = None,
-    phase1_chat_ids: Optional[List[str]] = None
+    phase1_chat_ids: Optional[List[str]] = None,
+    user_otel_attrs: dict | None = None,
 ):
     """
     Phase 3: Background message + embed sync — chunked batches of 10 chats.
@@ -1354,6 +1359,7 @@ async def _handle_phase3_sync(
                     user_id=user_id,
                     chat_id=chat_id,
                     log_prefix="Phase 3",
+                    user_otel_attrs=user_otel_attrs,
                 )
 
                 server_ver = batch_versions.get(chat_id)
