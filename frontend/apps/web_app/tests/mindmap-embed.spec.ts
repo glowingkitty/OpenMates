@@ -37,6 +37,21 @@ async function stopActiveResponseIfNeeded(page: any): Promise<void> {
 	}
 }
 
+async function dismissVisibleNotifications(page: any): Promise<void> {
+	const notifications = page.getByTestId('notification');
+	for (let index = (await notifications.count()) - 1; index >= 0; index -= 1) {
+		const notification = notifications.nth(index);
+		if (await notification.isVisible().catch(() => false)) {
+			await notification.getByTestId('notification-dismiss').dispatchEvent('click').catch(() => undefined);
+		}
+	}
+	await expect(async () => {
+		for (let index = 0; index < (await notifications.count()); index += 1) {
+			expect(await notifications.nth(index).isVisible()).toBe(false);
+		}
+	}).toPass({ timeout: 5000 });
+}
+
 test('native mindmap upload renders preview and fullscreen controls', async ({ page }: { page: any }) => {
 	test.slow();
 	test.setTimeout(180000);
@@ -96,6 +111,7 @@ test('native mindmap upload renders preview and fullscreen controls', async ({ p
 	await fullscreenOverlay.getByTestId('mindmap-collapse-toggle').first().click();
 	await expect.poll(async () => fullscreenOverlay.getByTestId('mindmap-node').count()).toBeLessThan(nodesBeforeCollapse);
 
+	await dismissVisibleNotifications(page);
 	const downloadPromise = page.waitForEvent('download', { timeout: 15000 });
 	await fullscreenOverlay.getByRole('button', { name: /download/i }).click();
 	const download = await downloadPromise;
