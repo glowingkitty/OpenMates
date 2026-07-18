@@ -10,6 +10,10 @@ not simulate a Revolut webhook, so no Revolut webhook secret is required.
 Run inside the API container:
     docker exec api python /app/backend/scripts/approve_bank_transfer.py \
       --reference OM-2026-ABCD1234 --received-cents 5000 --apply
+
+Show the support contact for a transfer without changing data:
+    docker exec api python /app/backend/scripts/approve_bank_transfer.py \
+      --reference OM-2026-ABCD1234 --show-contact-email
 """
 
 from __future__ import annotations
@@ -72,6 +76,7 @@ async def _fetch_order(directus: DirectusService, reference: str) -> dict[str, A
             "limit": 1,
         },
         no_cache=True,
+        admin_required=True,
     )
     if not rows:
         raise ApprovalError(f"No bank transfer order found for reference '{reference}'.")
@@ -83,7 +88,12 @@ async def _update_order(
     item_id: str,
     data: dict[str, Any],
 ) -> None:
-    updated = await directus.update_item(PENDING_BANK_TRANSFERS_COLLECTION, item_id, data)
+    updated = await directus.update_item(
+        PENDING_BANK_TRANSFERS_COLLECTION,
+        item_id,
+        data,
+        admin_required=True,
+    )
     if not updated:
         raise ApprovalError(f"Failed to update bank transfer Directus item {item_id}.")
 
@@ -129,7 +139,7 @@ async def _sender_details(secrets: SecretsManager) -> dict[str, str]:
     }
 
 
-def _print_order(order: dict[str, Any], received_cents: int) -> None:
+def _print_order(order: dict[str, Any], received_cents: int | None) -> None:
     print("\nBank transfer order")
     print(f"  Directus ID: {order.get('id')}")
     print(f"  Order ID:    {order.get('order_id')}")
@@ -138,8 +148,32 @@ def _print_order(order: dict[str, Any], received_cents: int) -> None:
     print(f"  Type:        {order.get('order_type', 'credit_purchase')}")
     print(f"  User ID:     {order.get('user_id')}")
     print(f"  Expected:    €{int(order.get('amount_expected_cents') or 0) / 100:.2f}")
-    print(f"  Received:    €{received_cents / 100:.2f}")
+    if received_cents is not None:
+        print(f"  Received:    €{received_cents / 100:.2f}")
     print(f"  Credits:     {order.get('credits_amount')}")
+
+
+async def _decrypt_contact_email(
+    directus: DirectusService,
+    encryption: EncryptionService,
+    order: dict[str, Any],
+) -> str:
+    user_id = order.get("user_id")
+    email_encryption_key = order.get("email_encryption_key")
+    if not user_id:
+        raise ApprovalError("Bank transfer order has no user_id.")
+    if not email_encryption_key:
+        raise ApprovalError("Bank transfer order has no email_encryption_key.")
+
+    user_fields = await directus.get_user_fields_direct(user_id, ["encrypted_email_address"])
+    encrypted_email = (user_fields or {}).get("encrypted_email_address")
+    if not encrypted_email:
+        raise ApprovalError(f"User {user_id} has no encrypted_email_address.")
+
+    contact_email = await encryption.decrypt_with_email_key(encrypted_email, email_encryption_key)
+    if not contact_email or "@" not in contact_email:
+        raise ApprovalError("Could not decrypt a valid contact email for this bank transfer.")
+    return contact_email
 
 
 async def approve(args: argparse.Namespace) -> int:
@@ -154,6 +188,12 @@ async def approve(args: argparse.Namespace) -> int:
     try:
         order = await _fetch_order(directus, args.reference)
         _print_order(order, args.received_cents)
+
+        if args.show_contact_email:
+            contact_email = await _decrypt_contact_email(directus, encryption, order)
+            print("\nContact email")
+            print(f"  Email:       {contact_email}")
+            return 0
 
         item_id = order.get("id")
         order_id = order.get("order_id")
@@ -180,6 +220,8 @@ async def approve(args: argparse.Namespace) -> int:
             raise ApprovalError(f"Order {order_id} has no user_id.")
         if credits_amount <= 0:
             raise ApprovalError(f"Order {order_id} has invalid credits_amount={credits_amount}.")
+        if args.received_cents is None:
+            raise ApprovalError("Received amount is required for approval.")
 
         diff = args.received_cents - expected_cents
         if abs(diff) > AMOUNT_TOLERANCE_CENTS and not args.allow_amount_mismatch:
@@ -306,13 +348,23 @@ def parse_args() -> argparse.Namespace:
         description="Manually approve a pending bank transfer credit purchase.",
     )
     parser.add_argument("--reference", required=True, help="Payment reference, e.g. OM-2026-ABCD1234")
-    parser.add_argument("--received-cents", required=True, type=int, help="Amount received in cents, e.g. 5000 for €50.00")
+    parser.add_argument("--received-cents", type=int, help="Amount received in cents, e.g. 5000 for €50.00")
     parser.add_argument("--bank-transaction-id", help="Optional bank/Revolut transaction ID for audit trail")
     parser.add_argument("--allow-amount-mismatch", action="store_true", help="Approve even when outside the ±€0.50 tolerance")
     parser.add_argument("--no-email", action="store_true", help="Do not queue the purchase confirmation email")
+    parser.add_argument(
+        "--show-contact-email",
+        action="store_true",
+        help="Print the decrypted contact email for the transfer and exit without changing data",
+    )
     parser.add_argument("--apply", action="store_true", help="Actually grant credits and complete the order")
     parser.add_argument("--verbose", action="store_true", help="Enable info logging")
-    return parser.parse_args()
+    args = parser.parse_args()
+    if args.show_contact_email and args.apply:
+        parser.error("--show-contact-email cannot be combined with --apply")
+    if not args.show_contact_email and args.received_cents is None:
+        parser.error("--received-cents is required unless --show-contact-email is used")
+    return args
 
 
 if __name__ == "__main__":
