@@ -1,7 +1,7 @@
 title:
   context: "Title of example chat: Dashboard Sidebar SVG Icons"
   en: "Dashboard Sidebar SVG Icons"
-  de: "Dashboard Sidebar SVG Icons"
+  de: "SVG-Icons fuer Dashboard-Seitenleisten"
   zh: "Dashboard Sidebar SVG Icons"
   es: "Dashboard Sidebar SVG Icons"
   fr: "Dashboard Sidebar SVG Icons"
@@ -26,7 +26,7 @@ title:
 summary:
   context: "Summary of example chat: Dashboard Sidebar SVG Icons"
   en: "A Design app example that finds clean open-source SVG home and settings icons for a dashboard sidebar."
-  de: "A Design app example that finds clean open-source SVG home and settings icons for a dashboard sidebar."
+  de: "Ein Design-App-Beispiel, das klare Open-Source-SVG-Icons fuer Startseite und Einstellungen in einer Dashboard-Seitenleiste findet."
   zh: "A Design app example that finds clean open-source SVG home and settings icons for a dashboard sidebar."
   es: "A Design app example that finds clean open-source SVG home and settings icons for a dashboard sidebar."
   fr: "A Design app example that finds clean open-source SVG home and settings icons for a dashboard sidebar."
@@ -51,7 +51,7 @@ summary:
 message_1:
   context: "user message 1 in example chat: Dashboard Sidebar SVG Icons. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: "Find open-source SVG home and settings icons from clean UI icon sets for a dashboard sidebar. Include the icon names, collections, and licenses."
-  de: "Find open-source SVG home and settings icons from clean UI icon sets for a dashboard sidebar. Include the icon names, collections, and licenses."
+  de: "Finde Open-Source-SVG-Icons fuer Home und Einstellungen aus klaren UI-Icon-Sets fuer eine Dashboard-Seitenleiste. Nenne Iconnamen, Kollektionen und Lizenzen."
   zh: "Find open-source SVG home and settings icons from clean UI icon sets for a dashboard sidebar. Include the icon names, collections, and licenses."
   es: "Find open-source SVG home and settings icons from clean UI icon sets for a dashboard sidebar. Include the icon names, collections, and licenses."
   fr: "Find open-source SVG home and settings icons from clean UI icon sets for a dashboard sidebar. Include the icon names, collections, and licenses."
@@ -84,41 +84,41 @@ message_2:
     {"type": "app_skill_use", "embed_id": "68b02c14-a329-4772-97d2-d7b168bb50bc", "app_id": "design", "skill_id": "search_icons", "query": "settings"}
     ```
     
-    For a clean dashboard sidebar, you'll want icons that have consistent stroke weights and a minimalist aesthetic. Here are several open-source SVG options from highly regarded, clean UI icon sets:
+    Fuer eine klare Dashboard-Seitenleiste eignen sich Icons mit einheitlicher Strichstaerke und minimalistischer Aesthetik. Hier sind mehrere Open-Source-SVG-Optionen aus angesehenen, sauberen UI-Icon-Sets:
     
     ### 1. Tabler Icons
-    [Tabler Icons](wiki:Tabler) is a highly customizable, stroke-based set designed on a 24x24 grid, making it perfect for modern dashboards.
-    *   **License:** [MIT](wiki:MIT_License)
+    [Tabler Icons](wiki:Tabler) ist ein stark anpassbares, strichbasiertes Set auf einem 24x24-Raster und passt dadurch sehr gut zu modernen Dashboards.
+    *   **Lizenz:** [MIT](wiki:MIT_License)
     *   **Home:** `tabler:home` [Home](embed:home-EuX)
     *   **Settings:** `tabler:settings` [Settings](embed:settings-TgF)
     
     ### 2. Remix Icon
-    Remix Icon offers a neutral, professional style with both "Line" and "Fill" versions, which is great for indicating active vs. inactive states in a sidebar.
-    *   **License:** [Apache 2.0](wiki:Apache_License)
+    Remix Icon bietet einen neutralen, professionellen Stil mit "Line"- und "Fill"-Varianten. Das ist ideal, um aktive und inaktive Zustaende in einer Seitenleiste zu unterscheiden.
+    *   **Lizenz:** [Apache 2.0](wiki:Apache_License)
     *   **Home:** `ri:home-line` [Home Line](embed:home-line-vDv)
     *   **Settings:** `ri:settings-line` [Settings Line](embed:settings-line-c3G)
     
     ### 3. Material Symbols (Light)
-    [Material Symbols](wiki:Material_Design) are the modern successor to Material Icons, offering variable font technology. The "Light" and "Outline" versions provide a very airy, sophisticated look.
-    *   **License:** [Apache 2.0](wiki:Apache_License)
+    [Material Symbols](wiki:Material_Design) sind der moderne Nachfolger von Material Icons und nutzen variable Font-Technologie. Die Varianten "Light" und "Outline" wirken besonders luftig und hochwertig.
+    *   **Lizenz:** [Apache 2.0](wiki:Apache_License)
     *   **Home:** `material-symbols-light:home-outline` [Home Outline](embed:home-outline-3t2)
     *   **Settings:** `material-symbols-light:settings-outline` [Settings Outline](embed:settings-outline-jak)
     
     ### 4. Boxicons
-    Boxicons is a high-quality web friendly set of icons that are simple and well-balanced.
-    *   **License:** [MIT](wiki:MIT_License)
+    Boxicons ist ein hochwertiges, webfreundliches Icon-Set mit einfachen und gut ausbalancierten Symbolen.
+    *   **Lizenz:** [MIT](wiki:MIT_License)
     *   **Home:** `boxicons:home` [Home](embed:home-DSR)
     *   **Settings:** `boxicons:settings` (Available in the Boxicons collection)
     
-    ### Summary Table
+    ### Zusammenfassungstabelle
     
     ```json
     {"type": "sheet", "embed_id": "955e10f2-2643-4489-a9d0-6ccdad784a58"}
     ```
     
-    **Design Tip:** When using these in a sidebar, ensure you keep the stroke width consistent across all icons. Most of these collections default to a `2px` stroke, which works well for visibility without feeling "heavy."
+    **Design-Tipp:** Wenn du diese Icons in einer Seitenleiste nutzt, halte die Strichbreite ueber alle Icons hinweg konsistent. Viele dieser Kollektionen verwenden standardmaessig `2px`, was gut sichtbar bleibt, ohne "schwer" zu wirken.
     
-    Would you like me to look for other sidebar icons like "Users," "Analytics," or "Messages" to complete your set? I can also help you with a [Svelte](/#settings/apps/code) or [React](wiki:React_(software)) sidebar component if you're building the UI now.
+    Moechtest du, dass ich weitere Sidebar-Icons wie "Benutzer", "Analytics" oder "Nachrichten" suche, um das Set zu vervollstaendigen? Ich kann dir auch mit einer [Svelte](/#settings/apps/code)- oder [React](wiki:React_(software))-Seitenleistenkomponente helfen, falls du die UI gerade baust.
   de: |
     ```json
     {"type": "app_skill_use", "embed_id": "f92d6925-690b-4350-9b6a-3a7003f8b947", "app_id": "design", "skill_id": "search_icons", "query": "home"}
@@ -1000,4 +1000,3 @@ message_2:
     
     Would you like me to look for other sidebar icons like "Users," "Analytics," or "Messages" to complete your set? I can also help you with a [Svelte](/#settings/apps/code) or [React](wiki:React_(software)) sidebar component if you're building the UI now.
   verified_by_human: []
-
