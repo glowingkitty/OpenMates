@@ -110,7 +110,7 @@ async function ensureSidebarOpen(page: any): Promise<void> {
 		return;
 	}
 
-	const dismissButtons = page.getByTestId('notification-dismiss');
+	const dismissButtons = page.getByRole('button', { name: /dismiss notification/i });
 	for (let i = 0; i < 5; i += 1) {
 		const dismissButton = dismissButtons.first();
 		if (!(await dismissButton.isVisible({ timeout: 500 }).catch(() => false))) break;
