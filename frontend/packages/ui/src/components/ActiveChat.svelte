@@ -4649,7 +4649,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
      $effect(() => {
         const chat = currentChat;
-        if (!chat?.is_anonymous || chat.messages_v !== 0 || currentMessages.length > 0 || anonymousShellHydratingChatId === chat.chat_id) return;
+        if (!chat?.is_anonymous || chat.chat_id !== initialAnonymousChatId || chat.messages_v !== 0 || currentMessages.length > 0 || anonymousShellHydratingChatId === chat.chat_id) return;
 
         anonymousShellHydratingChatId = chat.chat_id;
         anonymousHydrationDebug = `effect-load:${chat.chat_id}:messages=${currentMessages.length}:v=${chat.messages_v ?? -1}`;
