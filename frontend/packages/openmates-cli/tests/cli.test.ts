@@ -3196,6 +3196,10 @@ describe("documented CLI command reference", () => {
         writeJson(response, { export: { export_id: "export-1", status: "queued" } });
         return;
       }
+      if (request.method === "GET" && request.url === "/v1/account-exports/export-1") {
+        writeJson(response, { export: { export_id: "export-1", status: "complete" } });
+        return;
+      }
       if (request.method === "GET" && request.url === "/v1/account-exports/export-1/manifest") {
         writeJson(response, {
           manifest: {
@@ -3258,6 +3262,13 @@ describe("documented CLI command reference", () => {
       assert.ok(existsSync(join(outputDir, "chats", "chat-1.md")));
       assert.ok(requests.includes("GET /v1/account-exports/export-1/chunks/chats-0001"));
       assert.doesNotMatch(readFileSync(join(outputDir, "export-report.yml"), "utf-8"), /api_key/);
+
+      const statusStdout = await runCliAsync(["account", "export", "status", "export-1", "--json"], {
+        HOME: tempHome,
+        USERPROFILE: tempHome,
+      });
+      assert.equal((JSON.parse(statusStdout) as { export?: { status?: string } }).export?.status, "complete");
+      assert.equal(requests.filter((request) => request === "POST /v1/account-exports").length, 1);
     } finally {
       server.closeAllConnections();
       await new Promise<void>((resolve) => server.close(() => resolve()));

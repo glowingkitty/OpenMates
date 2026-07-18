@@ -8,7 +8,10 @@ See docs/architecture/sync.md for the encryption model.
 <script lang="ts">
     import { text } from '@repo/ui';
     import {
+        acceptPartialAccountExport,
+        cancelAccountExport,
         exportAllUserData,
+        AccountExportPartialError,
         type ExportProgress,
         type ExportOptions,
         DEFAULT_EXPORT_OPTIONS,
@@ -45,6 +48,10 @@ See docs/architecture/sync.md for the encryption model.
 
     /** Success message after export completes */
     let successMessage = $state<string | null>(null);
+
+    /** Pending partial export that requires explicit user action. */
+    let partialExportId = $state<string | null>(null);
+    let partialExportFailures = $state<unknown[]>([]);
 
     /** Selective export options — all checked by default */
     let exportOptions = $state<ExportOptions>({ ...DEFAULT_EXPORT_OPTIONS });
@@ -157,6 +164,8 @@ See docs/architecture/sync.md for the encryption model.
 
         errorMessage = null;
         successMessage = null;
+        partialExportId = null;
+        partialExportFailures = [];
         isExporting = true;
         exportProgress = null;
 
@@ -164,6 +173,13 @@ See docs/architecture/sync.md for the encryption model.
             await exportAllUserData(handleProgress, exportOptions);
         } catch (error) {
             console.error('[SettingsExportAccount] Export failed:', error);
+            if (error instanceof AccountExportPartialError) {
+                partialExportId = error.exportId;
+                partialExportFailures = error.failures;
+                errorMessage = error.message;
+                isExporting = false;
+                return;
+            }
             errorMessage =
                 error instanceof Error
                     ? error.message
@@ -176,8 +192,40 @@ See docs/architecture/sync.md for the encryption model.
         exportProgress = null;
         errorMessage = null;
         successMessage = null;
+        partialExportId = null;
+        partialExportFailures = [];
         // Reset options back to all-selected
         exportOptions = { ...DEFAULT_EXPORT_OPTIONS };
+    }
+
+    async function acceptPartialExport(): Promise<void> {
+        if (!partialExportId) return;
+        errorMessage = null;
+        successMessage = null;
+        isExporting = true;
+        try {
+            await acceptPartialAccountExport(partialExportId, handleProgress);
+            partialExportId = null;
+            partialExportFailures = [];
+        } catch (error) {
+            console.error('[SettingsExportAccount] Accept partial export failed:', error);
+            errorMessage = error instanceof Error ? error.message : $text('settings.account.export_failed');
+            isExporting = false;
+        }
+    }
+
+    async function cancelPartialExport(): Promise<void> {
+        if (!partialExportId) return;
+        const exportId = partialExportId;
+        partialExportId = null;
+        partialExportFailures = [];
+        errorMessage = null;
+        try {
+            await cancelAccountExport(exportId);
+        } catch (error) {
+            console.error('[SettingsExportAccount] Cancel export failed:', error);
+            errorMessage = error instanceof Error ? error.message : $text('settings.account.export_failed');
+        }
     }
 
     function selectAll(): void {
@@ -261,6 +309,25 @@ See docs/architecture/sync.md for the encryption model.
     {#if errorMessage}
         <SettingsInfoBox type="error" icon="icon_warning">
             <span>{errorMessage}</span>
+        </SettingsInfoBox>
+    {/if}
+
+    {#if partialExportId}
+        <SettingsInfoBox type="warning" icon="icon_warning">
+            <p data-testid="account-export-partial-message">
+                This export is partial and needs your approval before it updates your last export time.
+                {#if partialExportFailures.length > 0}
+                    {partialExportFailures.length} item(s) failed.
+                {/if}
+            </p>
+            <SettingsButtonGroup align="left">
+                <SettingsButton variant="secondary" onClick={acceptPartialExport} disabled={isExporting} dataTestid="account-export-accept-partial">
+                    Accept partial export
+                </SettingsButton>
+                <SettingsButton variant="ghost" onClick={cancelPartialExport} disabled={isExporting} dataTestid="account-export-cancel-partial">
+                    Cancel export
+                </SettingsButton>
+            </SettingsButtonGroup>
         </SettingsInfoBox>
     {/if}
 

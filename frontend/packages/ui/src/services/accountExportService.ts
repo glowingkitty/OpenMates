@@ -3,23 +3,9 @@
  *
  * GDPR Article 20 - Right to Data Portability
  *
- * Handles complete export of all user data:
- * - All chats with messages, including all file embeds (images, audio, PDFs, code, transcripts)
- * - Usage history (YAML + CSV)
- * - Invoice PDFs
- * - App memories (decrypted)
- * - User profile data (decrypted email)
- * - Profile image
- *
- * Processing happens entirely client-side:
- * 1. Fetch manifest (list of all data IDs)
- * 2. Sync missing chats to IndexedDB
- * 3. Load all data from IndexedDB
- * 4. Decrypt encrypted data (email, settings/memories)
- * 5. Download profile image blob
- * 6. Convert to YML/CSV format
- * 7. Create ZIP archive with JSZip
- * 8. Download to client
+ * Uses the Account Export V1 resumable job API and assembles the archive in
+ * the browser from downloaded backend chunks. Large and cold-storage complete
+ * exports remain CLI-first until backend completeness work is finished.
  *
  * See docs/architecture/sync.md for the encryption model.
  */
@@ -95,6 +81,83 @@ export interface ExportProgress {
 }
 
 export type ExportProgressCallback = (progress: ExportProgress) => void;
+
+type AccountExportJob = Record<string, unknown> & {
+  export_id?: string;
+  status?: string;
+  selected_domains?: string[];
+  filters?: Record<string, unknown>;
+};
+
+type AccountExportChunk = Record<string, unknown> & {
+  chunk_id?: string;
+  domain?: string;
+  sequence?: number;
+  status?: string;
+  payload?: unknown;
+};
+
+type AccountExportBundle = {
+  export: AccountExportJob;
+  manifest: Record<string, unknown>;
+  chunks: AccountExportChunk[];
+};
+
+type StoredAccountExportJob = {
+  exportId: string;
+  signature: string;
+  createdAt: string;
+};
+
+const ACCOUNT_EXPORT_JOB_STORAGE_KEY = "openmates.account_export.resume_job";
+const ACCOUNT_EXPORT_BROWSER_SIZE_LIMIT_MB = 250;
+
+const ACCOUNT_EXPORT_FORBIDDEN_FIELD_NAMES = new Set([
+  "access_token",
+  "api_key",
+  "backup_code_hash",
+  "chat_key",
+  "credential_secret",
+  "device_key",
+  "encrypted_master_key",
+  "lookup_hash",
+  "master_key",
+  "password_hash",
+  "private_key",
+  "raw_key",
+  "refresh_token",
+  "share_key",
+  "signing_secret",
+  "token_hash",
+  "totp_seed",
+  "webhook_secret",
+]);
+
+const ACCOUNT_EXPORT_REDACTION_CATEGORIES = [
+  "api_credentials",
+  "authentication_tokens",
+  "key_material",
+  "password_and_recovery_hashes",
+  "webhook_secrets",
+];
+
+const ACCOUNT_EXPORT_FORBIDDEN_VALUE_PATTERNS: RegExp[] = [
+  /-----BEGIN [A-Z ]*PRIVATE KEY-----/,
+  /(?:^|[^a-z0-9])sk-(?:api|proj|live|test)[-_a-z0-9]{6,}/i,
+  /#key=[A-Za-z0-9_-]{8,}/,
+];
+
+export class AccountExportPartialError extends Error {
+  exportId: string;
+  failures: unknown[];
+
+  constructor(exportId: string, failures: unknown[] = []) {
+    super(`Account export ${exportId} is partial. Review the failures and accept the partial export if you want to download it.`);
+    this.name = "AccountExportPartialError";
+    this.exportId = exportId;
+    this.failures = failures;
+  }
+}
 
 /**
  * Export manifest from server
@@ -250,137 +313,53 @@ export async function exportAllUserData(
   onProgress: ExportProgressCallback,
   options: ExportOptions = DEFAULT_EXPORT_OPTIONS,
 ): Promise<void> {
-  console.warn("[AccountExport] Starting account data export", options);
-
+  console.warn("[AccountExport] Starting Account Export V1 job", options);
+  const signature = getAccountExportSignature(options);
+  let activeExportId: string | null = null;
   try {
-    // Phase 1: Initialize
     onProgress({
       phase: "init",
       progress: 0,
-      message: "Initializing export...",
+      message: "Starting export job...",
     });
+    const started = await startOrResumeAccountExport(options, signature);
+    activeExportId = String(started.export_id ?? "");
 
-    // Phase 2: Fetch manifest
-    onProgress({
-      phase: "manifest",
-      progress: 5,
-      message: "Fetching data manifest...",
+    onProgress({ phase: "manifest", progress: 20, message: "Fetching export manifest..." });
+    const manifest = await fetchAccountExportManifest(activeExportId);
+
+    onProgress({ phase: "loading", progress: 35, message: "Downloading export chunks..." });
+    const chunks = await downloadAccountExportChunks(activeExportId, onProgress);
+
+    onProgress({ phase: "creating_zip", progress: 80, message: "Creating archive..." });
+    const zipBlob = await createAccountExportV1Zip({
+      export: { ...started, status: "complete" },
+      manifest: sanitizeAccountExportManifest(manifest),
+      chunks,
     });
-    const manifest = await fetchExportManifest();
-    console.warn(
-      `[AccountExport] Manifest: ${manifest.total_chats} chats, ` +
-        `${manifest.total_invoices} invoices`,
-    );
+    ensureBrowserArchiveSize(zipBlob);
 
-    // Phase 3: Sync & load chats
-    let chats: Chat[] = [];
-    let messagesMap = new Map<string, Message[]>();
-    if (options.includeChats) {
-      onProgress({
-        phase: "syncing",
-        progress: 10,
-        message: `Preparing ${manifest.total_chats} chats...`,
-      });
-      await syncMissingChats(manifest.all_chat_ids, onProgress);
-
-      onProgress({
-        phase: "loading",
-        progress: 40,
-        message: "Loading chat data...",
-      });
-      ({ chats, messagesMap } = await loadAllChatsAndMessages(
-        manifest.all_chat_ids,
-        onProgress,
-      ));
+    const completed = await completeAccountExportJob(activeExportId);
+    if (String(completed.status ?? "") === "partial") {
+      const report = manifest.report && typeof manifest.report === "object" && !Array.isArray(manifest.report)
+        ? manifest.report as Record<string, unknown>
+        : {};
+      throw new AccountExportPartialError(activeExportId, Array.isArray(report.failures) ? report.failures : []);
     }
 
-    // Phase 4: Fetch server data (usage, invoices, profile, settings)
-    onProgress({
-      phase: "loading",
-      progress: 50,
-      message: "Fetching account data...",
-    });
-    const exportData = await fetchExportData(options);
-
-    // Phase 5: Decrypt data
-    onProgress({
-      phase: "decrypting",
-      progress: 60,
-      message: "Decrypting data...",
-    });
-    const decryptedProfile = options.includeProfile
-      ? await decryptUserProfile(exportData.user_profile)
-      : null;
-    const decryptedSettings = options.includeSettings
-      ? await decryptAppSettings(exportData.app_settings_memories)
-      : [];
-
-    // Phase 6: Download profile image
-    let profileImageBlob: Blob | null = null;
-    if (options.includeProfile) {
-      onProgress({
-        phase: "downloading_profile_image",
-        progress: 62,
-        message: "Downloading profile image...",
-      });
-      profileImageBlob = await downloadProfileImage();
-    }
-
-    // Phase 7: Download invoice PDFs
-    let invoicePDFs = new Map<
-      string,
-      { data: ArrayBuffer; filename: string }
-    >();
-    if (options.includeInvoices) {
-      onProgress({
-        phase: "downloading_pdfs",
-        progress: 65,
-        message: `Downloading ${exportData.invoices.length} invoice PDFs...`,
-      });
-      invoicePDFs = await downloadInvoicePDFs(
-        exportData.invoice_ids_for_pdf_download,
-        onProgress,
-      );
-    }
-
-    // Phase 8: Create ZIP archive
-    onProgress({
-      phase: "creating_zip",
-      progress: 75,
-      message: "Creating ZIP archive...",
-    });
-    const zipBlob = await createExportZip(
-      {
-        chats,
-        messagesMap,
-        usageRecords: exportData.usage_records,
-        invoices: exportData.invoices,
-        invoicePDFs,
-        userProfile: decryptedProfile,
-        profileImageBlob,
-        appSettings: decryptedSettings,
-        complianceLogs: exportData.compliance_logs || [],
-        manifest,
-        options,
-      },
-      onProgress,
-    );
-
-    // Phase 9: Download ZIP
     onProgress({
       phase: "complete",
       progress: 100,
       message: "Export complete! Downloading...",
     });
     await downloadZip(zipBlob);
-
-    // Update local store so SettingsBackupReminders shows the current timestamp
-    // immediately without requiring a full profile reload. The server already persisted
-    // last_export_at when the manifest was fetched (see backend/core/api/app/routes/settings.py).
+    clearStoredAccountExportJob();
     updateProfile({ last_export_at: new Date().toISOString() });
-
     console.warn("[AccountExport] Export completed successfully");
   } catch (error) {
+    if (activeExportId && !(error instanceof AccountExportPartialError)) {
+      console.warn(`[AccountExport] Keeping job ${activeExportId} available for retry/resume`);
+    }
     console.error("[AccountExport] Export failed:", error);
     onProgress({
       phase: "error",
@@ -392,11 +371,373 @@ export async function exportAllUserData(
   }
 }
 
+export async function acceptPartialAccountExport(
+  exportId: string,
+  onProgress: ExportProgressCallback,
+): Promise<void> {
+  onProgress({ phase: "manifest", progress: 15, message: "Fetching partial export manifest..." });
+  const manifest = await fetchAccountExportManifest(exportId);
+  onProgress({ phase: "loading", progress: 35, message: "Downloading partial export chunks..." });
+  const chunks = await downloadAccountExportChunks(exportId, onProgress);
+  onProgress({ phase: "creating_zip", progress: 80, message: "Creating partial archive..." });
+  const zipBlob = await createAccountExportV1Zip({
+    export: { export_id: exportId, status: "partial_accepted" },
+    manifest: sanitizeAccountExportManifest(manifest),
+    chunks,
+  });
+  ensureBrowserArchiveSize(zipBlob);
+  await acceptPartialAccountExportJob(exportId);
+  await downloadZip(zipBlob);
+  clearStoredAccountExportJob();
+  updateProfile({ last_export_at: new Date().toISOString() });
+  onProgress({ phase: "complete", progress: 100, message: "Partial export accepted and downloaded." });
+}
+
+export async function cancelAccountExport(exportId: string): Promise<void> {
+  await accountExportRequest<{ export: AccountExportJob }>(`/v1/account-exports/${encodeURIComponent(exportId)}/cancel`, {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+  clearStoredAccountExportJob();
+}
+
+function getAccountExportSignature(options: ExportOptions): string {
+  return JSON.stringify({ domains: mapExportOptionsToDomains(options), filters: {} });
+}
+
+function mapExportOptionsToDomains(options: ExportOptions): string[] | undefined {
+  const allSelected =
+    options.includeChats &&
+    options.includeChatFiles &&
+    options.includeInvoices &&
+    options.includeUsage &&
+    options.includeSettings &&
+    options.includeProfile;
+  if (allSelected) return undefined;
+  const domains: string[] = [];
+  if (options.includeChats) domains.push("chats");
+  if (options.includeChats && options.includeChatFiles) domains.push("embeds", "referenced_uploads");
+  if (options.includeInvoices) domains.push("billing_invoices");
+  if (options.includeUsage) domains.push("usage");
+  if (options.includeSettings) domains.push("memories_app_settings");
+  if (options.includeProfile) domains.push("profile_account_settings");
+  return domains;
+}
+
+async function startOrResumeAccountExport(options: ExportOptions, signature: string): Promise<AccountExportJob> {
+  const stored = getStoredAccountExportJob(signature);
+  if (stored) {
+    try {
+      const response = await accountExportRequest<{ export: AccountExportJob }>(`/v1/account-exports/${encodeURIComponent(stored.exportId)}`);
+      const status = String(response.export.status ?? "");
+      if (!["complete", "partial_accepted", "failed", "cancelled", "expired"].includes(status)) {
+        return response.export;
+      }
+    } catch (error) {
+      console.warn("[AccountExport] Stored export job could not be resumed:", error);
+    }
+    clearStoredAccountExportJob();
+  }
+
+  const response = await accountExportRequest<{ export: AccountExportJob }>("/v1/account-exports", {
+    method: "POST",
+    body: JSON.stringify({
+      domains: mapExportOptionsToDomains(options),
+      filters: {},
+      format: "zip",
+      include_advanced_metadata: false,
+    }),
+  });
+  const exportId = String(response.export.export_id ?? "");
+  if (!exportId) throw new Error("Account export job did not return an export ID");
+  storeAccountExportJob({ exportId, signature, createdAt: new Date().toISOString() });
+  return response.export;
+}
+
+async function fetchAccountExportManifest(exportId: string): Promise<Record<string, unknown>> {
+  const response = await accountExportRequest<{ manifest: Record<string, unknown> }>(`/v1/account-exports/${encodeURIComponent(exportId)}/manifest`);
+  return response.manifest;
+}
+
+async function downloadAccountExportChunks(exportId: string, onProgress: ExportProgressCallback): Promise<AccountExportChunk[]> {
+  const response = await accountExportRequest<{ chunks: AccountExportChunk[] }>(`/v1/account-exports/${encodeURIComponent(exportId)}/chunks`);
+  const chunks: AccountExportChunk[] = [];
+  for (const [index, chunk] of response.chunks.entries()) {
+    const chunkId = String(chunk.chunk_id ?? "");
+    const downloaded = chunkId
+      ? (await accountExportRequest<{ chunk: AccountExportChunk }>(`/v1/account-exports/${encodeURIComponent(exportId)}/chunks/${encodeURIComponent(chunkId)}`)).chunk
+      : chunk;
+    try {
+      assertAccountExportPayloadSafe(downloaded);
+    } catch (error) {
+      await cancelAccountExport(exportId).catch(() => undefined);
+      throw error;
+    }
+    chunks.push(downloaded);
+    onProgress({
+      phase: "loading",
+      progress: 35 + Math.round(((index + 1) / Math.max(response.chunks.length, 1)) * 35),
+      message: `Downloading export chunks... ${index + 1}/${response.chunks.length}`,
+      currentItem: chunkId || undefined,
+    });
+  }
+  return chunks;
+}
+
+async function completeAccountExportJob(exportId: string): Promise<AccountExportJob> {
+  const response = await accountExportRequest<{ export: AccountExportJob }>(`/v1/account-exports/${encodeURIComponent(exportId)}/complete`, {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+  return response.export;
+}
+
+async function acceptPartialAccountExportJob(exportId: string): Promise<AccountExportJob> {
+  const response = await accountExportRequest<{ export: AccountExportJob }>(`/v1/account-exports/${encodeURIComponent(exportId)}/accept-partial`, {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+  return response.export;
+}
+
+async function accountExportRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const response = await fetch(getApiEndpoint(path), {
+    ...init,
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+  });
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => ({}));
+    throw new Error((errorBody as { detail?: string }).detail || `Account export request failed with HTTP ${response.status}`);
+  }
+  return await response.json() as T;
+}
+
+function getStoredAccountExportJob(signature: string): StoredAccountExportJob | null {
+  if (typeof localStorage === "undefined") return null;
+  const raw = localStorage.getItem(ACCOUNT_EXPORT_JOB_STORAGE_KEY);
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as StoredAccountExportJob;
+    return parsed.signature === signature ? parsed : null;
+  } catch {
+    clearStoredAccountExportJob();
+    return null;
+  }
+}
+
+function storeAccountExportJob(job: StoredAccountExportJob): void {
+  if (typeof localStorage !== "undefined") {
+    localStorage.setItem(ACCOUNT_EXPORT_JOB_STORAGE_KEY, JSON.stringify(job));
+  }
+}
+
+function clearStoredAccountExportJob(): void {
+  if (typeof localStorage !== "undefined") localStorage.removeItem(ACCOUNT_EXPORT_JOB_STORAGE_KEY);
+}
+
+function ensureBrowserArchiveSize(blob: Blob): void {
+  const sizeMb = blob.size / 1024 / 1024;
+  if (sizeMb > ACCOUNT_EXPORT_BROWSER_SIZE_LIMIT_MB) {
+    throw new Error(`This export is ${sizeMb.toFixed(1)} MB and is too large for browser download. Use the OpenMates CLI to download this export safely.`);
+  }
+}
+
+function assertAccountExportPayloadSafe(value: unknown, path = "$export"): void {
+  if (value === null || value === undefined) return;
+  if (typeof value === "string") {
+    for (const pattern of ACCOUNT_EXPORT_FORBIDDEN_VALUE_PATTERNS) {
+      if (pattern.test(value)) throw new Error(`Account export contains forbidden secret-like value at ${path}`);
+    }
+    return;
+  }
+  if (typeof value !== "object") return;
+  if (Array.isArray(value)) {
+    value.forEach((item, index) => assertAccountExportPayloadSafe(item, `${path}[${index}]`));
+    return;
+  }
+  for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
+    const normalizedKey = key.toLowerCase();
+    if (ACCOUNT_EXPORT_FORBIDDEN_FIELD_NAMES.has(normalizedKey)) {
+      throw new Error(`Account export contains forbidden secret field '${key}' at ${path}`);
+    }
+    assertAccountExportPayloadSafe(child, `${path}.${key}`);
+  }
+}
+
+function sanitizeAccountExportManifest(manifest: Record<string, unknown>): Record<string, unknown> {
+  const copy = JSON.parse(JSON.stringify(manifest)) as Record<string, unknown>;
+  const report = copy.report;
+  if (report && typeof report === "object" && !Array.isArray(report)) {
+    const reportObject = report as Record<string, unknown>;
+    if (Array.isArray(reportObject.redactions)) reportObject.redactions = ACCOUNT_EXPORT_REDACTION_CATEGORIES;
+  }
+  assertAccountExportPayloadSafe(copy, "$manifest");
+  return copy;
+}
+
+async function createAccountExportV1Zip(bundle: AccountExportBundle): Promise<Blob> {
+  const zip = new JSZip();
+  writeSafeZipText(zip, "README.md", buildAccountExportV1Readme(bundle));
+  writeSafeZipText(zip, "manifest.yml", serializeArchiveYaml(bundle.manifest));
+  writeSafeZipText(zip, "manifest.json", `${JSON.stringify(bundle.manifest, null, 2)}\n`);
+  writeSafeZipText(zip, "export-report.yml", serializeArchiveYaml(buildAccountExportV1Report(bundle)));
+  const domainPayloads = collectAccountExportDomainPayloads(bundle.chunks);
+  for (const [domain, payloads] of Object.entries(domainPayloads)) {
+    const domainFile = payloads.length === 1 ? payloads[0] : { chunks: payloads };
+    writeSafeZipText(zip, `domains/${safeArchiveSegment(domain)}.json`, `${JSON.stringify(domainFile, null, 2)}\n`);
+  }
+  writeAccountExportV1ChatFiles(zip, domainPayloads.chats ?? []);
+  return await zip.generateAsync({ type: "blob", compression: "DEFLATE", compressionOptions: { level: 6 } });
+}
+
+function writeSafeZipText(zip: JSZip, relativePath: string, content: string): void {
+  assertAccountExportTextSafe(content, relativePath);
+  zip.file(relativePath, content);
+}
+
+function assertAccountExportTextSafe(content: string, relativePath: string): void {
+  for (const pattern of ACCOUNT_EXPORT_FORBIDDEN_VALUE_PATTERNS) {
+    if (pattern.test(content)) throw new Error(`Account export file ${relativePath} contains forbidden secret-like content`);
+  }
+  for (const field of ACCOUNT_EXPORT_FORBIDDEN_FIELD_NAMES) {
+    if (new RegExp(`"?${field}"?\\s*:`, "i").test(content)) {
+      throw new Error(`Account export file ${relativePath} contains forbidden secret field '${field}'`);
+    }
+  }
+}
+
+function buildAccountExportV1Readme(bundle: AccountExportBundle): string {
+  const selectedDomains = Array.isArray(bundle.manifest.selected_domains) ? bundle.manifest.selected_domains.map(String) : [];
+  return [
+    "# OpenMates Account Export",
+    "",
+    `Export ID: ${String(bundle.export.export_id ?? "unknown")}`,
+    `Status: ${String(bundle.export.status ?? "unknown")}`,
+    `Schema: ${String(bundle.manifest.schema_version ?? "account-export-v1")}`,
+    `Exported at: ${new Date().toISOString()}`,
+    "",
+    "## Contents",
+    "",
+    "- `manifest.yml` records selected domains, filters, and domain status.",
+    "- `export-report.yml` summarizes completion, failures, and redacted categories.",
+    "- `domains/` contains one JSON file per exported domain.",
+    "- `chats/` contains one Markdown and one YAML file per chat when chat rows include readable content.",
+    "",
+    "## Selected Domains",
+    "",
+    ...(selectedDomains.length > 0 ? selectedDomains.map((domain) => `- ${domain}`) : ["- none"]),
+    "",
+    "Reusable credentials, token hashes, private keys, and raw secrets are intentionally excluded.",
+    "",
+  ].join("\n");
+}
+
+function buildAccountExportV1Report(bundle: AccountExportBundle): Record<string, unknown> {
+  const report = bundle.manifest.report && typeof bundle.manifest.report === "object" && !Array.isArray(bundle.manifest.report)
+    ? bundle.manifest.report as Record<string, unknown>
+    : {};
+  return {
+    export_id: bundle.export.export_id ?? null,
+    status: bundle.export.status ?? report.status ?? "unknown",
+    selected_domains: Array.isArray(bundle.manifest.selected_domains) ? bundle.manifest.selected_domains : [],
+    failures: Array.isArray(report.failures) ? report.failures : [],
+    redacted_secret_categories: ACCOUNT_EXPORT_REDACTION_CATEGORIES,
+    partial_requires_acceptance: Boolean(report.partial_requires_acceptance),
+  };
+}
+
+function collectAccountExportDomainPayloads(chunks: AccountExportChunk[]): Record<string, Array<Record<string, unknown>>> {
+  const grouped: Record<string, Array<Record<string, unknown>>> = {};
+  for (const chunk of chunks) {
+    const domain = safeArchiveSegment(String(chunk.domain ?? "unknown"));
+    const payload = chunk.payload && typeof chunk.payload === "object" && !Array.isArray(chunk.payload)
+      ? chunk.payload as Record<string, unknown>
+      : { value: chunk.payload ?? null };
+    grouped[domain] = grouped[domain] ?? [];
+    grouped[domain].push({
+      chunk_id: chunk.chunk_id ?? null,
+      sequence: chunk.sequence ?? null,
+      status: chunk.status ?? null,
+      ...payload,
+    });
+  }
+  return grouped;
+}
+
+function writeAccountExportV1ChatFiles(zip: JSZip, chatPayloads: Array<Record<string, unknown>>): void {
+  const chats: Array<Record<string, unknown>> = [];
+  for (const payload of chatPayloads) {
+    if (Array.isArray(payload.items)) {
+      chats.push(...payload.items.filter((item): item is Record<string, unknown> => item !== null && typeof item === "object" && !Array.isArray(item)));
+    }
+  }
+  for (const [index, chat] of chats.entries()) {
+    const chatId = safeArchiveSegment(String(chat.id ?? chat.chat_id ?? `chat-${index + 1}`));
+    writeSafeZipText(zip, `chats/${chatId}.yml`, serializeArchiveYaml({ chat, messages: Array.isArray(chat.messages) ? chat.messages : [] }));
+    writeSafeZipText(zip, `chats/${chatId}.md`, buildAccountExportV1ChatMarkdown(chat));
+  }
+}
+
+function buildAccountExportV1ChatMarkdown(chat: Record<string, unknown>): string {
+  const title = String(chat.title ?? chat.name ?? chat.id ?? chat.chat_id ?? "Untitled Chat");
+  const lines = [`# ${title}`, ""];
+  if (typeof chat.summary === "string" && chat.summary.trim()) lines.push("## Summary", "", chat.summary.trim(), "");
+  const messages = Array.isArray(chat.messages) ? chat.messages : [];
+  if (messages.length > 0) {
+    lines.push("## Messages", "");
+    for (const message of messages) {
+      if (!message || typeof message !== "object" || Array.isArray(message)) continue;
+      const record = message as Record<string, unknown>;
+      lines.push(`### ${String(record.role ?? record.sender ?? "message")}`, "", String(record.content ?? record.text ?? ""), "");
+    }
+  } else {
+    lines.push("No readable message records were included in this export chunk.", "");
+  }
+  return `${lines.join("\n")}\n`;
+}
+
+function serializeArchiveYaml(data: Record<string, unknown>, indent = 0): string {
+  const pad = "  ".repeat(indent);
+  let out = "";
+  for (const [key, val] of Object.entries(data)) {
+    if (val === null || val === undefined) {
+      out += `${pad}${key}: null\n`;
+    } else if (typeof val === "boolean" || typeof val === "number") {
+      out += `${pad}${key}: ${val}\n`;
+    } else if (typeof val === "string") {
+      out += val.includes("\n") ? `${pad}${key}: |\n${val.split("\n").map((line) => `${pad}  ${line}`).join("\n")}\n` : `${pad}${key}: ${quoteArchiveYamlString(val)}\n`;
+    } else if (Array.isArray(val)) {
+      out += `${pad}${key}:\n`;
+      for (const item of val) {
+        if (item && typeof item === "object" && !Array.isArray(item)) {
+          out += `${pad}- \n${serializeArchiveYaml(item as Record<string, unknown>, indent + 2)}`;
+        } else {
+          out += `${pad}- ${typeof item === "string" ? quoteArchiveYamlString(item) : String(item)}\n`;
+        }
+      }
+    } else if (typeof val === "object") {
+      out += `${pad}${key}:\n${serializeArchiveYaml(val as Record<string, unknown>, indent + 1)}`;
+    }
+  }
+  return out;
+}
+
+function quoteArchiveYamlString(value: string): string {
+  const needsQuote = value.includes(":") || value.includes("#") || value.startsWith("{") || value.startsWith("[") || value === "" || ["true", "false", "null"].includes(value);
+  return needsQuote ? `"${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"` : value;
+}
+
+function safeArchiveSegment(value: string): string {
+  const cleaned = value.trim().replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/^-+|-+$/g, "");
+  return cleaned || "unknown";
+}
+
 // ============================================================================
 // DATA FETCHING
 // ============================================================================
 
-async function fetchExportManifest(): Promise<ExportManifest> {
+async function _fetchExportManifest(): Promise<ExportManifest> {
   const response = await fetch(
     getApiEndpoint(apiEndpoints.settings.exportAccountManifest),
     {
@@ -416,7 +757,7 @@ async function fetchExportManifest(): Promise<ExportManifest> {
   return data.manifest as ExportManifest;
 }
 
-async function fetchExportData(options: ExportOptions): Promise<ExportData> {
+async function _fetchExportData(options: ExportOptions): Promise<ExportData> {
   const params = new URLSearchParams({
     include_usage: String(options.includeUsage),
     include_invoices: String(options.includeInvoices),
@@ -446,7 +787,7 @@ async function fetchExportData(options: ExportOptions): Promise<ExportData> {
 // CHAT SYNC & LOADING
 // ============================================================================
 
-async function syncMissingChats(
+async function _syncMissingChats(
   allChatIds: string[],
   onProgress: ExportProgressCallback,
 ): Promise<void> {
@@ -466,7 +807,7 @@ async function syncMissingChats(
   await new Promise((resolve) => setTimeout(resolve, 1000));
 }
 
-async function loadAllChatsAndMessages(
+async function _loadAllChatsAndMessages(
   chatIds: string[],
   onProgress: ExportProgressCallback,
 ): Promise<{ chats: Chat[]; messagesMap: Map<string, Message[]> }> {
@@ -523,7 +864,7 @@ async function loadAllChatsAndMessages(
 // DECRYPTION
 // ============================================================================
 
-async function decryptUserProfile(
+async function _decryptUserProfile(
   profile: UserProfileExport | null,
 ): Promise<DecryptedUserProfile | null> {
   if (!profile) return null;
@@ -545,7 +886,7 @@ async function decryptUserProfile(
  * Uses the same decryptWithMasterKey approach as appSettingsMemoriesStore.
  * The original item_key is stored inside the encrypted JSON as _original_item_key.
  */
-async function decryptAppSettings(
+async function _decryptAppSettings(
   entries: AppSettingMemoryEntry[],
 ): Promise<DecryptedAppSetting[]> {
   const decrypted: DecryptedAppSetting[] = [];
@@ -601,7 +942,7 @@ async function decryptAppSettings(
  * Download the user's profile image as a Blob using the authenticated proxy endpoint.
  * Returns null if no profile image is set or on any fetch error.
  */
-async function downloadProfileImage(): Promise<Blob | null> {
+async function _downloadProfileImage(): Promise<Blob | null> {
   const profile = get(userProfile);
   if (!profile?.profile_image_url) return null;
 
@@ -643,7 +984,7 @@ async function downloadProfileImage(): Promise<Blob | null> {
 // INVOICE PDF DOWNLOAD
 // ============================================================================
 
-async function downloadInvoicePDFs(
+async function _downloadInvoicePDFs(
   invoiceIds: string[],
   onProgress: ExportProgressCallback,
 ): Promise<Map<string, { data: ArrayBuffer; filename: string }>> {
@@ -715,7 +1056,7 @@ interface ZipCreationData {
   options: ExportOptions;
 }
 
-async function createExportZip(
+async function _createExportZip(
   data: ZipCreationData,
   onProgress: ExportProgressCallback,
 ): Promise<Blob> {

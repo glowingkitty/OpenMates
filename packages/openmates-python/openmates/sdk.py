@@ -55,6 +55,38 @@ DESIGN_ICON_HEX_COLOR_PATTERN = re.compile(r"^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{4}|
 DEFAULT_ICON_PNG_SIZE = 256
 MAX_ICON_PNG_SIZE = 4096
 IDEABUCKET_DEFAULT_PROCESSING_PROMPT = "These are my captured ideas for today. Please process them, group related thoughts, suggest next actions, and ask clarifying questions where needed:\n\nIf an idea requires deeper work, create or suggest sub-chats for focused research, planning, todos, docs, or implementation."
+ACCOUNT_EXPORT_FORBIDDEN_FIELD_NAMES = {
+    "access_token",
+    "api_key",
+    "backup_code_hash",
+    "chat_key",
+    "credential_secret",
+    "device_key",
+    "encrypted_master_key",
+    "lookup_hash",
+    "master_key",
+    "password_hash",
+    "private_key",
+    "raw_key",
+    "refresh_token",
+    "share_key",
+    "signing_secret",
+    "token_hash",
+    "totp_seed",
+    "webhook_secret",
+}
+ACCOUNT_EXPORT_REDACTION_CATEGORIES = [
+    "api_credentials",
+    "authentication_tokens",
+    "key_material",
+    "password_and_recovery_hashes",
+    "webhook_secrets",
+]
+ACCOUNT_EXPORT_FORBIDDEN_VALUE_PATTERNS = [
+    re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----"),
+    re.compile(r"(?:^|[^a-z0-9])sk-(?:api|proj|live|test)[-_a-z0-9]{6,}", re.IGNORECASE),
+    re.compile(r"#key=[A-Za-z0-9_-]{8,}"),
+]
 
 
 class OpenMatesConfigError(RuntimeError):
@@ -514,6 +546,35 @@ def _unwrap_api_key_master_key(api_key: str, encrypted_key_b64: str, salt_b64: s
         )
     except Exception:
         return None
+
+
+def _assert_account_export_payload_safe(value: Any, path: str = "$export") -> None:
+    if value is None:
+        return
+    if isinstance(value, str):
+        for pattern in ACCOUNT_EXPORT_FORBIDDEN_VALUE_PATTERNS:
+            if pattern.search(value):
+                raise OpenMatesConfigError(f"Account export contains forbidden secret-like value at {path}")
+        return
+    if isinstance(value, list):
+        for index, item in enumerate(value):
+            _assert_account_export_payload_safe(item, f"{path}[{index}]")
+        return
+    if not isinstance(value, dict):
+        return
+    for key, child in value.items():
+        if str(key).lower() in ACCOUNT_EXPORT_FORBIDDEN_FIELD_NAMES:
+            raise OpenMatesConfigError(f"Account export contains forbidden secret field '{key}' at {path}")
+        _assert_account_export_payload_safe(child, f"{path}.{key}")
+
+
+def _sanitize_account_export_manifest(manifest: dict[str, Any]) -> dict[str, Any]:
+    sanitized = json.loads(json.dumps(manifest))
+    report = sanitized.get("report")
+    if isinstance(report, dict) and isinstance(report.get("redactions"), list):
+        report["redactions"] = ACCOUNT_EXPORT_REDACTION_CATEGORIES
+    _assert_account_export_payload_safe(sanitized, "$manifest")
+    return sanitized
 
 
 def _split_combined_ciphertext(encrypted_b64: str) -> tuple[bytes, bytes]:
@@ -1940,9 +2001,11 @@ class OpenMatesAccount:
         return self._client._get(f"/v1/account-exports/{quote(export_id, safe='')}/chunks")
 
     def export_chunk(self, export_id: str, chunk_id: str) -> dict[str, Any]:
-        return self._client._get(
+        chunk = self._client._get(
             f"/v1/account-exports/{quote(export_id, safe='')}/chunks/{quote(chunk_id, safe='')}"
         ).get("chunk", {})
+        _assert_account_export_payload_safe(chunk)
+        return chunk
 
     def iter_export_chunks(self, export_id: str):
         listed = self.export_chunks(export_id)
@@ -1960,15 +2023,31 @@ class OpenMatesAccount:
         return self._client._post(f"/v1/account-exports/{quote(export_id, safe='')}/cancel", {})
 
     def download_export(self, **options: Any) -> dict[str, Any]:
+        accept_partial = options.pop("accept_partial", False)
         started = self.start_export(**options)
         export_id = str(started.get("export", {}).get("export_id", ""))
         manifest = self.export_job_manifest(export_id)
         chunks = self.export_chunks(export_id)
+        downloaded_chunks: list[dict[str, Any]] = []
+        try:
+            for chunk in chunks.get("chunks", []):
+                chunk_id = chunk.get("chunk_id") if isinstance(chunk, dict) else None
+                downloaded_chunks.append(self.export_chunk(export_id, str(chunk_id)) if chunk_id else chunk)
+        except Exception:
+            try:
+                self.cancel_export(export_id)
+            finally:
+                raise
         completed = self.complete_export(export_id)
+        status = str(completed.get("export", {}).get("status", ""))
+        if status == "partial":
+            if accept_partial is not True:
+                raise OpenMatesConfigError(f"Account export {export_id} is partial. Pass accept_partial=True to accept it explicitly.")
+            completed = self.accept_partial_export(export_id)
         return {
             "export": completed.get("export", {}),
-            "manifest": manifest.get("manifest", {}),
-            "chunks": chunks.get("chunks", []),
+            "manifest": _sanitize_account_export_manifest(manifest.get("manifest", {})),
+            "chunks": downloaded_chunks,
         }
 
     def export_manifest(self) -> dict[str, Any]:

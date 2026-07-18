@@ -4030,6 +4030,8 @@ const SETTINGS_EXECUTABLE_COMMANDS: SettingsInfoCommand[] = [
   { path: ["account", "export", "manifest"], description: "Show account export manifest", examples: ["openmates settings account export manifest <export-id> --json"] },
   { path: ["account", "export", "chunks"], description: "List account export chunks", examples: ["openmates settings account export chunks <export-id> --json"] },
   { path: ["account", "export", "data"], description: "Fetch account export chunks", examples: ["openmates settings account export data <export-id> --json"] },
+  { path: ["account", "export", "accept-partial"], description: "Accept a partial account export", examples: ["openmates settings account export accept-partial <export-id> --json"] },
+  { path: ["account", "export", "cancel"], description: "Cancel an account export job", examples: ["openmates settings account export cancel <export-id> --json"] },
   { path: ["account", "import-chat"], description: "Import a CLI chat export file", examples: ["openmates settings account import-chat ./chat.yml", "openmates settings account import-chat ./payload.json"] },
   { path: ["account", "username", "set"], description: "Change account username", examples: ["openmates settings account username set alice_123"] },
   { path: ["account", "profile-picture", "set"], description: "Upload a profile picture", examples: ["openmates settings account profile-picture set ./avatar.jpg"] },
@@ -5042,7 +5044,7 @@ async function handleSettings(
     return;
   }
 
-  if (matches(tokens, ["account", "export"]) || matches(tokens, ["account", "export", "start"])) {
+  if ((tokens.length === 2 && matches(tokens, ["account", "export"])) || (tokens.length === 3 && matches(tokens, ["account", "export", "start"]))) {
     printAccountExportBundle(await runAccountExport(client, flags), flags);
     return;
   }
@@ -5077,7 +5079,28 @@ async function handleSettings(
       await printSettingsResult(client.settingsGet("export-account-data"), flags);
       return;
     }
-    await printSettingsResult(client.listAccountExportChunks(exportId), flags);
+    const listed = await client.listAccountExportChunks(exportId);
+    const chunks = [];
+    for (const chunk of listed.chunks) {
+      const chunkId = String(chunk.chunk_id ?? "");
+      chunks.push(chunkId ? await client.getAccountExportChunk(exportId, chunkId) : chunk);
+    }
+    if (flags.json === true) printJson({ chunks });
+    else printGenericObject({ chunks });
+    return;
+  }
+
+  if (matches(tokens, ["account", "export", "accept-partial"])) {
+    const exportId = rest[2];
+    if (!exportId) throw new Error("Missing export ID. Example: openmates settings account export accept-partial <export-id>");
+    await printSettingsResult(client.acceptPartialAccountExport(exportId), flags);
+    return;
+  }
+
+  if (matches(tokens, ["account", "export", "cancel"])) {
+    const exportId = rest[2];
+    if (!exportId) throw new Error("Missing export ID. Example: openmates settings account export cancel <export-id>");
+    await printSettingsResult(client.cancelAccountExport(exportId), flags);
     return;
   }
 

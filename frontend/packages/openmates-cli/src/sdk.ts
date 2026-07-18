@@ -23,6 +23,10 @@ import {
   type DesignIconExportResult,
 } from "./designIcons.js";
 import {
+  assertAccountExportPayloadSafe,
+  sanitizeAccountExportManifest,
+} from "./accountExportArchive.js";
+import {
   decryptBytesWithAesGcm,
   decryptWithAesGcmCombined,
   deriveChatCompletionRecoveryKeypair,
@@ -143,6 +147,7 @@ export interface AccountExportStartOptions {
   filters?: Record<string, unknown>;
   format?: "zip" | "directory";
   includeAdvancedMetadata?: boolean;
+  acceptPartial?: boolean;
 }
 
 export interface AccountExportResponse {
@@ -1304,7 +1309,9 @@ export class OpenMatesAccount {
 
   async exportChunk(exportId: string, chunkId: string): Promise<Record<string, unknown>> {
     const result = await this.client.get<{ chunk?: Record<string, unknown> }>(`/v1/account-exports/${encodeURIComponent(exportId)}/chunks/${encodeURIComponent(chunkId)}`);
-    return result.chunk ?? {};
+    const chunk = result.chunk ?? {};
+    assertAccountExportPayloadSafe(chunk);
+    return chunk;
   }
 
   async *iterExportChunks(exportId: string): AsyncGenerator<Record<string, unknown>> {
@@ -1334,8 +1341,23 @@ export class OpenMatesAccount {
       this.exportJobManifest(exportId),
       this.exportChunks(exportId),
     ]);
-    const completed = await this.completeExport(exportId);
-    return { export: completed.export, manifest: manifest.manifest, chunks: chunks.chunks };
+    const downloadedChunks: Array<Record<string, unknown>> = [];
+    try {
+      for (const chunk of chunks.chunks) {
+        const chunkId = String(chunk.chunk_id ?? "");
+        downloadedChunks.push(chunkId ? await this.exportChunk(exportId, chunkId) : chunk);
+      }
+    } catch (error) {
+      await this.cancelExport(exportId).catch(() => undefined);
+      throw error;
+    }
+    let completed = await this.completeExport(exportId);
+    const status = String(completed.export.status ?? "");
+    if (status === "partial") {
+      if (options.acceptPartial !== true) throw new Error(`Account export ${exportId} is partial. Pass acceptPartial: true to accept it explicitly.`);
+      completed = await this.acceptPartialExport(exportId);
+    }
+    return { export: completed.export, manifest: sanitizeAccountExportManifest(manifest.manifest), chunks: downloadedChunks };
   }
 
   async exportManifest(): Promise<Record<string, unknown>> {

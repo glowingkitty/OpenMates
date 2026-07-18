@@ -42,7 +42,7 @@ describe("OpenMates account export SDK", () => {
           return;
         }
         if (request.method === "GET" && request.url === "/v1/account-exports/export-1/manifest") {
-          response.end(JSON.stringify({ manifest: { selected_domains: ["chats"] } }));
+          response.end(JSON.stringify({ manifest: { selected_domains: ["chats"], report: { redactions: ["api_key"], failures: [] } } }));
           return;
         }
         if (request.method === "GET" && request.url === "/v1/account-exports/export-1/chunks") {
@@ -50,7 +50,7 @@ describe("OpenMates account export SDK", () => {
           return;
         }
         if (request.method === "GET" && request.url === "/v1/account-exports/export-1/chunks/chats-0001") {
-          response.end(JSON.stringify({ chunk: { chunk_id: "chats-0001", payload: { items: [] } } }));
+          response.end(JSON.stringify({ chunk: { chunk_id: "chats-0001", domain: "chats", payload: { items: [{ id: "chat-1" }] } } }));
           return;
         }
         if (request.method === "POST" && request.url === "/v1/account-exports/export-1/complete") {
@@ -64,6 +64,14 @@ describe("OpenMates account export SDK", () => {
       const client = new OpenMates({ apiKey: "sk-api-test", apiUrl, deviceId: "device-1" });
       const bundle = await client.account.downloadExport({ domains: ["chats"] });
       assert.equal((bundle.export as Record<string, unknown>).status, "complete");
+      assert.deepEqual(((bundle.manifest as Record<string, unknown>).report as Record<string, unknown>).redactions, [
+        "api_credentials",
+        "authentication_tokens",
+        "key_material",
+        "password_and_recovery_hashes",
+        "webhook_secrets",
+      ]);
+      assert.deepEqual((bundle.chunks as Array<Record<string, unknown>>)[0].payload, { items: [{ id: "chat-1" }] });
       const chunks: Array<Record<string, unknown>> = [];
       for await (const chunk of client.account.iterExportChunks("export-1")) chunks.push(chunk);
       assert.equal(chunks[0].chunk_id, "chats-0001");
@@ -73,6 +81,7 @@ describe("OpenMates account export SDK", () => {
       "POST /v1/account-exports",
       "GET /v1/account-exports/export-1/manifest",
       "GET /v1/account-exports/export-1/chunks",
+      "GET /v1/account-exports/export-1/chunks/chats-0001",
       "POST /v1/account-exports/export-1/complete",
       "GET /v1/account-exports/export-1/chunks",
       "GET /v1/account-exports/export-1/chunks/chats-0001",
@@ -83,5 +92,41 @@ describe("OpenMates account export SDK", () => {
       format: "zip",
       include_advanced_metadata: false,
     });
+  });
+
+  it("cancels SDK export jobs when a downloaded chunk contains forbidden secrets", async () => {
+    const requests: string[] = [];
+    await withServer((request, response) => {
+      requests.push(`${request.method} ${request.url}`);
+      response.setHeader("content-type", "application/json");
+      if (request.method === "POST" && request.url === "/v1/account-exports") {
+        response.end(JSON.stringify({ export: { export_id: "export-1", status: "queued" } }));
+        return;
+      }
+      if (request.method === "GET" && request.url === "/v1/account-exports/export-1/manifest") {
+        response.end(JSON.stringify({ manifest: { selected_domains: ["connected_account_overview"] } }));
+        return;
+      }
+      if (request.method === "GET" && request.url === "/v1/account-exports/export-1/chunks") {
+        response.end(JSON.stringify({ chunks: [{ chunk_id: "connected-0001" }] }));
+        return;
+      }
+      if (request.method === "GET" && request.url === "/v1/account-exports/export-1/chunks/connected-0001") {
+        response.end(JSON.stringify({ chunk: { chunk_id: "connected-0001", payload: { api_key: "sk-api-secret-value" } } }));
+        return;
+      }
+      if (request.method === "POST" && request.url === "/v1/account-exports/export-1/cancel") {
+        response.end(JSON.stringify({ export: { export_id: "export-1", status: "cancelled" } }));
+        return;
+      }
+      response.statusCode = 404;
+      response.end(JSON.stringify({ detail: "not found" }));
+    }, async (apiUrl) => {
+      const client = new OpenMates({ apiKey: "sk-api-test", apiUrl, deviceId: "device-1" });
+      await assert.rejects(() => client.account.downloadExport({ domains: ["connected_account_overview"] }), /forbidden secret field 'api_key'/);
+    });
+
+    assert.ok(requests.includes("POST /v1/account-exports/export-1/cancel"));
+    assert.ok(!requests.includes("POST /v1/account-exports/export-1/complete"));
   });
 });

@@ -4,9 +4,9 @@ export {};
 /**
  * Account export E2E test for Settings > Account > Export.
  *
- * Verifies the full data-portability flow: authenticated navigation, selectable
- * export categories, browser ZIP download, expected archive structure, included
- * chat data, and exclusion of secret key material.
+ * Verifies the data-portability flow: authenticated navigation, selectable
+ * export categories, browser ZIP download, V1 archive structure, selected
+ * account export domains, and exclusion of secret key material.
  *
  * User guide: docs/user-guide/export-account.md
  */
@@ -270,44 +270,35 @@ test('exports account data ZIP from account settings', async ({ page }: { page: 
 	const names = Array.from(entries.keys());
 
 	await docAssert('export-zip-contains-account-and-chat-data', async () => {
-		for (const requiredFile of ['README.md', 'metadata.yml', 'profile/profile.yml']) {
+		for (const requiredFile of ['README.md', 'manifest.yml', 'manifest.json', 'export-report.yml']) {
 			expect(entries.has(requiredFile), `Expected ${requiredFile} in export ZIP.`).toBe(true);
 		}
-		expect(names.some((name: string) => name.startsWith('chats/') && name.endsWith('.yml'))).toBe(true);
-		expect(names.some((name: string) => name.startsWith('chats/') && name.endsWith('.md'))).toBe(true);
-		expect(names.some((name: string) => name.startsWith('chats/') && name.endsWith('code/sample.py'))).toBe(true);
-		expect(names.some((name: string) => name.startsWith('chats/') && name.endsWith('images/import-test-image.png'))).toBe(true);
+		expect(names.some((name: string) => name.startsWith('domains/') && name.endsWith('.json'))).toBe(true);
 	});
 
-	const metadata = readZipEntry(zipBuffer, requireZipEntry(entries, 'metadata.yml'));
-	expect(metadata).toContain('export_version: "2.0"');
-	expect(metadata).toContain('chats: true');
-	expect(metadata).toContain('profile: true');
-	expect(metadata).toMatch(/total_chats:\s*[1-9]/);
+	const manifest = readZipEntry(zipBuffer, requireZipEntry(entries, 'manifest.yml'));
+	expect(manifest).toContain('schema_version: account-export-v1');
+	expect(manifest).toContain('selected_domains:');
+	expect(manifest).toContain('chats');
+	expect(manifest).toContain('usage');
 
-	const profile = readZipEntry(zipBuffer, requireZipEntry(entries, 'profile/profile.yml'));
-	expect(profile).toContain('export_schema_version: "2.0"');
-	expect(profile).toContain('email_verified:');
-	expect(profile).toContain('credits:');
+	const report = readZipEntry(zipBuffer, requireZipEntry(entries, 'export-report.yml'));
+	expect(report).toContain('redacted_secret_categories:');
+	expect(report).toContain('api_credentials');
 
- const chatContents = names
-  .filter((name: string) => name.startsWith('chats/') && (name.endsWith('.yml') || name.endsWith('.md')))
-  .map((name: string) => readZipEntry(zipBuffer, requireZipEntry(entries, name)))
-  .join('\n');
-	expect(chatContents).toContain(IMPORT_CHAT_TITLE_1);
-	expect(chatContents).toContain(IMPORT_CHAT_TITLE_2);
-	expect(chatContents).toContain('import-test-code-embed');
-	expect(chatContents).toContain('import-test-image-embed');
+	const chatsDomainEntry = requireZipEntry(entries, 'domains/chats.json');
+	const chatsDomain = readZipEntry(zipBuffer, chatsDomainEntry);
+	expect(chatsDomain).toContain(IMPORT_CHAT_TITLE_1);
+	expect(chatsDomain).toContain(IMPORT_CHAT_TITLE_2);
 
-	const codeEntryName = names.find((name: string) => name.startsWith('chats/') && name.endsWith('code/sample.py'));
-	const imageEntryName = names.find((name: string) => name.startsWith('chats/') && name.endsWith('images/import-test-image.png'));
-	if (!codeEntryName || !imageEntryName) throw new Error('Expected imported code and image files in export ZIP.');
-	const exportedCode = readZipEntry(zipBuffer, requireZipEntry(entries, codeEntryName));
-	expect(exportedCode).toMatch(/def greet\(name: str\) -> str:|def factorial\(n\):/);
-	expect(requireZipEntry(entries, imageEntryName).uncompressedSize).toBeGreaterThan(0);
+	const chatContents = names
+	  .filter((name: string) => name.startsWith('chats/') && (name.endsWith('.yml') || name.endsWith('.md')))
+	  .map((name: string) => readZipEntry(zipBuffer, requireZipEntry(entries, name)))
+	  .join('\n');
+	expect(chatContents).toMatch(new RegExp(`${IMPORT_CHAT_TITLE_1}|${IMPORT_CHAT_TITLE_2}|No readable message records were included`));
 
 	const allTextEntries = names
-		.filter((name: string) => /\.(md|yml|csv|txt)$/i.test(name))
+		.filter((name: string) => /\.(json|md|yml|yaml|csv|txt)$/i.test(name))
 		.map((name: string) => readZipEntry(zipBuffer, requireZipEntry(entries, name)))
 		.join('\n')
 		.toLowerCase();

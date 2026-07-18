@@ -8,12 +8,18 @@
  * Tests: frontend/packages/openmates-cli/tests/account-export.test.ts.
  */
 
+import JSZip from "jszip";
+
 const ACCOUNT_EXPORT_FORBIDDEN_FIELD_NAMES = new Set([
   "access_token",
   "api_key",
   "backup_code_hash",
+  "chat_key",
+  "credential_secret",
+  "device_key",
   "encrypted_master_key",
   "lookup_hash",
+  "master_key",
   "password_hash",
   "private_key",
   "raw_key",
@@ -55,22 +61,24 @@ export async function writeAccountExportArchive(
   bundle: AccountExportArchiveBundle,
   flags: Record<string, string | boolean> = {},
 ): Promise<AccountExportArchiveResult> {
-  const { mkdir, mkdtemp, rm, writeFile } = await import("node:fs/promises");
-  const { tmpdir } = await import("node:os");
-  const { execFileSync } = await import("node:child_process");
+  const { mkdir, writeFile } = await import("node:fs/promises");
   const { join, dirname } = await import("node:path");
   const exportId = safeArchiveSegment(String(bundle.export.export_id ?? `export-${Date.now()}`));
   const archiveFormat = flags.format === "directory" ? "directory" : "zip";
   const outputPath = typeof flags.output === "string"
     ? flags.output
     : join(process.cwd(), archiveFormat === "zip" ? `openmates-account-export-${exportId}.zip` : `openmates-account-export-${exportId}`);
-  const stagingDir = archiveFormat === "directory"
-    ? outputPath
-    : await mkdtemp(join(tmpdir(), `openmates-account-export-${exportId}-`));
+  const zip = archiveFormat === "zip" ? new JSZip() : null;
   const writtenFiles: string[] = [];
 
   async function writeArchiveText(relativePath: string, content: string): Promise<void> {
     assertAccountExportTextSafe(content, relativePath);
+    if (zip) {
+      zip.file(relativePath, content);
+      writtenFiles.push(relativePath);
+      return;
+    }
+    const stagingDir = outputPath;
     const fullPath = join(stagingDir, relativePath);
     await mkdir(dirname(fullPath), { recursive: true });
     await writeFile(fullPath, content, "utf-8");
@@ -92,12 +100,9 @@ export async function writeAccountExportArchive(
   if (archiveFormat === "directory") return { output: outputPath, format: "directory", files: writtenFiles.length };
 
   await mkdir(dirname(outputPath), { recursive: true });
-  try {
-    execFileSync("zip", ["-r", outputPath, "."], { cwd: stagingDir, stdio: "pipe" });
-    return { output: outputPath, format: "zip", files: writtenFiles.length };
-  } finally {
-    await rm(stagingDir, { recursive: true, force: true });
-  }
+  const zipBuffer = await zip!.generateAsync({ type: "nodebuffer", compression: "DEFLATE" });
+  await writeFile(outputPath, zipBuffer);
+  return { output: outputPath, format: "zip", files: writtenFiles.length };
 }
 
 export function assertAccountExportPayloadSafe(value: unknown, path = "$export"): void {
