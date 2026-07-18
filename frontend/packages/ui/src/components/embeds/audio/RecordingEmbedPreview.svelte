@@ -377,6 +377,7 @@
 {#if hasAudioSrc && status !== 'error'}
   <audio
     bind:this={audioEl}
+    data-testid="recording-preview-audio"
     src={resolvedAudioSrc}
     onplay={handleAudioPlay}
     onpause={handleAudioPause}

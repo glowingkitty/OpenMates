@@ -431,7 +431,7 @@ test('shared chat loads uploaded PDF, image, and audio recording assets while lo
 
 		await expect(imageEmbed.locator('img').first()).toBeVisible({ timeout: 60_000 });
 		await expect(pdfEmbed.locator('img').first()).toBeVisible({ timeout: 120_000 });
-		await expect(audioEmbed.locator('audio').first()).toHaveAttribute('src', /blob:/, {
+		await expect(sharedPage.getByTestId('recording-preview-audio').first()).toHaveAttribute('src', /blob:/, {
 			timeout: 60_000
 		});
 
