@@ -94,6 +94,18 @@ MINDMAP_INTENT_PATTERN = re.compile(
     r"\b(?:mind[-\s]?map|brainstorm\s+map|topic\s+map|concept\s+map|hierarchical\s+idea\s+map)\b",
     re.IGNORECASE,
 )
+IMAGE_GENERATION_ACTION_PATTERN = re.compile(
+    r"\b(?:generate|create|make|design|draw|render|illustrate|paint|sketch|produce)\b",
+    re.IGNORECASE,
+)
+IMAGE_GENERATION_TARGET_PATTERN = re.compile(
+    r"\b(?:image|picture|photo|photograph|photo[-\s]?realistic|illustration|logo|icon|poster|banner|thumbnail|mockup|artwork|visual)\b",
+    re.IGNORECASE,
+)
+IMAGE_SEARCH_ACTION_PATTERN = re.compile(
+    r"\b(?:search|find|look\s+for|browse|image\s+search|photo\s+search)\b",
+    re.IGNORECASE,
+)
 MINDMAP_CONFLICTING_GENERATIVE_SKILLS = {"images-generate", "images-generate_draft"}
 
 SAME_TOPIC_SHIFT_VALUES = {"same_topic", "unclear"}
@@ -607,6 +619,40 @@ def _contains_mindmap_intent_in_user_history(message_history: List[AIHistoryMess
             continue
 
         if MINDMAP_INTENT_PATTERN.search(content):
+            return True
+
+    return False
+
+
+def _contains_image_generation_intent_in_user_history(message_history: List[AIHistoryMessage]) -> bool:
+    """Return True when user text asks to create a new image, not search existing ones."""
+    for message in message_history:
+        role = message.role if hasattr(message, "role") else (message.get("role") if isinstance(message, dict) else None)
+        if role != USER_ROLE:
+            continue
+
+        content = message.content if hasattr(message, "content") else (message.get("content") if isinstance(message, dict) else None)
+        if not isinstance(content, str):
+            continue
+
+        if IMAGE_GENERATION_ACTION_PATTERN.search(content) and IMAGE_GENERATION_TARGET_PATTERN.search(content):
+            return True
+
+    return False
+
+
+def _contains_image_search_intent_in_user_history(message_history: List[AIHistoryMessage]) -> bool:
+    """Return True when user text explicitly asks to search or browse existing images."""
+    for message in message_history:
+        role = message.role if hasattr(message, "role") else (message.get("role") if isinstance(message, dict) else None)
+        if role != USER_ROLE:
+            continue
+
+        content = message.content if hasattr(message, "content") else (message.get("content") if isinstance(message, dict) else None)
+        if not isinstance(content, str):
+            continue
+
+        if IMAGE_SEARCH_ACTION_PATTERN.search(content):
             return True
 
     return False
@@ -3017,6 +3063,42 @@ async def handle_preprocessing(
             else:
                 logger.debug(
                     f"{log_prefix} [RULE_BASED] 'images-view' already preselected by LLM — no override needed."
+                )
+
+        # --- images-generate ---
+        # Text-to-image requests are easy for the preprocessing LLM to confuse
+        # with images.search because both mention "image/photo". Force the
+        # generative skill for clear creation verbs so prompts like "Generate an
+        # image..." cannot be handled by image search.
+        if (
+            "images-generate" in available_skill_ids
+            and _contains_image_generation_intent_in_user_history(request_data.message_history)
+        ):
+            if "images-generate" not in validated_relevant_skills:
+                validated_relevant_skills = ["images-generate"] + validated_relevant_skills
+                logger.info(
+                    f"{log_prefix} [RULE_BASED] Forced 'images-generate' into preselected skills: "
+                    "detected text-to-image generation intent. "
+                    "(Prevents image search from handling generation requests.)"
+                )
+            else:
+                validated_relevant_skills = ["images-generate"] + [
+                    skill for skill in validated_relevant_skills if skill != "images-generate"
+                ]
+                logger.debug(
+                    f"{log_prefix} [RULE_BASED] Moved 'images-generate' to the front of preselected skills."
+                )
+
+            if (
+                "images-search" in validated_relevant_skills
+                and not _contains_image_search_intent_in_user_history(request_data.message_history)
+            ):
+                validated_relevant_skills = [
+                    skill for skill in validated_relevant_skills if skill != "images-search"
+                ]
+                logger.info(
+                    f"{log_prefix} [RULE_BASED] Removed 'images-search' from preselected skills: "
+                    "detected image generation intent without explicit image search intent."
                 )
 
         # --- pdf-read, pdf-search, pdf-view ---

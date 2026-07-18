@@ -43,14 +43,14 @@ import {
   type TeamRole,
   type WorkspaceMoveType,
 } from "./client.js";
-import { OpenMates, type ChatResponse, type EncryptedChatMetadata } from "./sdk.js";
+import { OpenMates, OpenMatesApiError, type ChatResponse, type EncryptedChatMetadata } from "./sdk.js";
 import type { PendingTaskUpdateJobFrame, StreamEvent, SubChatEvent, TaskEventFrame } from "./ws.js";
 import { createInterface } from "node:readline/promises";
 import { stdin, stdout } from "node:process";
 import { readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { basename, dirname } from "node:path";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import WebSocket from "ws";
 
 import {
@@ -1616,6 +1616,23 @@ async function handleChats(
     }
     // "last" opens the most recently modified chat
     const resolvedId = chatId.toLowerCase() === "last" ? "__last__" : chatId;
+    if (apiKey) {
+      const sdk = new OpenMates({ apiKey, apiUrl: client.apiUrl });
+      const sdkChatId = resolvedId === "__last__"
+        ? (await sdk.chats.list({ limit: 1 }))[0]?.id
+        : resolvedId;
+      if (!sdkChatId) {
+        throw new Error("No chats found for API key session.");
+      }
+      const loaded = await sdk.chats.load(sdkChatId);
+      const { chat, messages, followUpSuggestions } = normalizeApiKeyLoadedChat(loaded);
+      if (flags.json === true) {
+        printJson({ chat, messages, follow_up_suggestions: followUpSuggestions });
+      } else {
+        await printChatConversationRaw(chat, messages);
+      }
+      return;
+    }
     if (!client.hasSession()) {
       const example = resolveExampleChatForOpen(resolvedId === "__last__" ? "1" : resolvedId);
       if (!example) {
@@ -2241,7 +2258,8 @@ async function sendApiKeyChatNew(
   let response: ChatResponse;
   try {
     response = await sdk.chats.send(message, {
-      saveToAccount: false,
+      saveToAccount: true,
+      recoveryTimeoutMs: parseResponseTimeoutMs(flags),
     });
   } catch (err) {
     if (!isSdkChatScopeDenied(err)) throw err;
@@ -2285,9 +2303,14 @@ async function sendApiKeyChatNew(
 }
 
 function isSdkChatScopeDenied(err: unknown): boolean {
-  return err instanceof Error
-    && err.name === "OpenMatesApiError"
-    && (err as Error & { status?: number }).status === 403;
+  if (!(err instanceof OpenMatesApiError) || err.status !== 403) return false;
+  const data = err.data;
+  const detail = data && typeof data === "object"
+    ? (data as Record<string, unknown>).detail
+    : null;
+  if (!detail || typeof detail !== "object") return false;
+  const errorCode = (detail as Record<string, unknown>).error;
+  return errorCode === "missing_scope";
 }
 
 function extractAiAskContent(value: unknown): string {
@@ -2353,6 +2376,79 @@ function normalizeApiKeyChatResponse(response: ChatResponse): Record<string, unk
     accepted_task_proposals: [],
     raw: response,
   };
+}
+function normalizeApiKeyLoadedChat(payload: Record<string, unknown>): {
+  chat: ChatListItem;
+  messages: DecryptedMessage[];
+  followUpSuggestions: string[];
+} {
+  const rawChat = payload.chat && typeof payload.chat === "object"
+    ? payload.chat as Record<string, unknown>
+    : {};
+  const chatId = String(rawChat.id ?? rawChat.chat_id ?? "");
+  if (!chatId) throw new Error("API key chat load did not include a chat id.");
+
+  const category = typeof rawChat.category === "string" ? rawChat.category : null;
+  const chat: ChatListItem = {
+    id: chatId,
+    shortId: chatId.slice(0, 8),
+    title: typeof rawChat.title === "string" ? rawChat.title : null,
+    summary: typeof rawChat.chat_summary === "string"
+      ? rawChat.chat_summary
+      : typeof rawChat.summary === "string"
+        ? rawChat.summary
+        : null,
+    updatedAt: normalizeSdkTimestamp(rawChat.updated_at),
+    category,
+    mateName: category ? MATE_NAMES[category] ?? null : null,
+  };
+
+  const rawEmbeds = Array.isArray(payload.embeds)
+    ? payload.embeds.filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object")
+    : [];
+  const rawMessages = Array.isArray(payload.messages)
+    ? payload.messages.filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object")
+    : [];
+  const messages = rawMessages.map((message) => {
+    const messageId = String(message.client_message_id ?? message.message_id ?? message.id ?? "");
+    const directEmbedIds = Array.isArray(message.embedIds)
+      ? message.embedIds
+      : Array.isArray(message.embed_ids)
+        ? message.embed_ids
+        : [];
+    const hashedMessageId = messageId ? createHash("sha256").update(messageId).digest("hex") : null;
+    const matchedEmbedIds = hashedMessageId
+      ? rawEmbeds
+        .filter((embed) => embed.hashed_message_id === hashedMessageId && !embed.parent_embed_id)
+        .map((embed) => String(embed.embed_id ?? embed.id ?? ""))
+        .filter(Boolean)
+      : [];
+    return {
+      id: messageId,
+      chatId: String(message.chat_id ?? chatId),
+      role: String(message.role ?? "unknown"),
+      content: typeof message.content === "string" ? message.content : "",
+      senderName: typeof message.senderName === "string"
+        ? message.senderName
+        : typeof message.sender_name === "string"
+          ? message.sender_name
+          : null,
+      category: typeof message.category === "string" ? message.category : null,
+      modelName: typeof message.modelName === "string"
+        ? message.modelName
+        : typeof message.model_name === "string"
+          ? message.model_name
+          : null,
+      createdAt: normalizeSdkTimestamp(message.created_at) ?? 0,
+      embedIds: [...new Set([...directEmbedIds.map(String), ...matchedEmbedIds])],
+    };
+  });
+  messages.sort((a, b) => a.createdAt - b.createdAt);
+
+  const followUpSuggestions = Array.isArray(payload.follow_up_suggestions)
+    ? payload.follow_up_suggestions.map(String)
+    : [];
+  return { chat, messages, followUpSuggestions };
 }
 
 function resolveExampleChatForOpen(target: string): ExampleChatConversation | null {

@@ -12,6 +12,8 @@ try:
     from backend.apps.ai.processing.preprocessor import (
         _contains_onboarding_trigger_in_user_history,
         _contains_mindmap_intent_in_user_history,
+        _contains_image_generation_intent_in_user_history,
+        _contains_image_search_intent_in_user_history,
         _contains_rain_radar_intent_in_user_history,
         _contains_repo_search_intent_in_user_history,
         _normalize_topic_area,
@@ -238,6 +240,37 @@ class TestContainsMindMapIntent:
         ]
 
         assert _contains_mindmap_intent_in_user_history(history) is False
+
+
+# ===========================================================================
+# _contains_image_generation_intent_in_user_history
+# ===========================================================================
+
+class TestContainsImageGenerationIntent:
+    def test_detects_text_to_image_generation_request(self):
+        history = [_user_msg("Generate an image of a minimalist red circle on a white background")]
+
+        assert _contains_image_generation_intent_in_user_history(history) is True
+        assert _contains_image_search_intent_in_user_history(history) is False
+
+    def test_detects_design_mockup_request(self):
+        history = [_user_msg("Design a coffee cup mockup for a landing page")]
+
+        assert _contains_image_generation_intent_in_user_history(history) is True
+
+    def test_ignores_existing_image_search_request(self):
+        history = [_user_msg("Find images of cafes in Berlin Mitte")]
+
+        assert _contains_image_generation_intent_in_user_history(history) is False
+        assert _contains_image_search_intent_in_user_history(history) is True
+
+    def test_only_user_messages_checked(self):
+        history = [
+            _assistant_msg("Generate an image of a minimalist red circle."),
+            _user_msg("Thanks"),
+        ]
+
+        assert _contains_image_generation_intent_in_user_history(history) is False
 
 
 # ===========================================================================
