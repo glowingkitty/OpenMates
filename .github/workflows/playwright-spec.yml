@@ -92,6 +92,8 @@ jobs:
             needs_fresh_key=1
           elif [ "$SPEC" = "default-model-cli.spec.ts" ]; then
             needs_fresh_key=1
+          elif [ "$SPEC" = "cross-client-draft-sync.spec.ts" ]; then
+            needs_fresh_key=1
           fi
 
           if [ "$needs_fresh_key" -ne 1 ]; then
