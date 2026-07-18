@@ -77,6 +77,7 @@ from backend.core.api.app.routes import teams  # noqa: E402 # Teams V1 endpoints
 from backend.core.api.app.routes import workflows  # noqa: E402 # Server-side Workflows V1 endpoints
 from backend.core.api.app.routes import user_plans  # noqa: E402 # User-facing Plans V1 endpoints
 from backend.core.api.app.routes import user_tasks  # noqa: E402 # User-facing Tasks V1 endpoints
+from backend.core.api.app.routes import ideabucket  # noqa: E402 # IdeaBucket encrypted bucket routes
 from backend.core.api.app.routes import notifications as notifications_api  # noqa: E402 # Safe notification list + SSE stream
 from backend.core.api.app.routes import telemetry  # noqa: E402 # Import OTLP proxy for frontend browser traces
 from backend.core.api.app.routes import test_recordings  # noqa: E402 # Dev-only Playwright recording browser API
@@ -1380,6 +1381,7 @@ def create_app() -> FastAPI:
     app.include_router(teams.router, include_in_schema=True)  # Teams V1 - shared team context, membership, and billing API
     app.include_router(user_plans.router, include_in_schema=True)  # Plans V1 - user-facing plan management API
     app.include_router(user_tasks.router, include_in_schema=True)  # Tasks V1 - user-facing task management API
+    app.include_router(ideabucket.router, include_in_schema=True)  # IdeaBucket - encrypted bucket add/status/process API
     app.include_router(token_broker.router, include_in_schema=False)  # Connected-account token refs - web/CLI/Apple authenticated only
     app.include_router(connected_accounts.router, include_in_schema=False)  # Encrypted connected-account rows - client source of truth
     app.include_router(connected_account_actions.router, include_in_schema=False)  # Connected-account operation actions

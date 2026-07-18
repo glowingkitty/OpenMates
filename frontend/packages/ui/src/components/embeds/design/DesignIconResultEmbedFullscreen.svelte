@@ -70,18 +70,8 @@
     return `${base}.${extension}`;
   }
 
-  function downloadBlob(blob: Blob, filename: string): void {
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.download = filename;
-    document.body.appendChild(anchor);
-    anchor.click();
-    document.body.removeChild(anchor);
-    URL.revokeObjectURL(url);
-  }
-
   async function fetchPreparedSvg(): Promise<string> {
+    if (preparedSvg) return preparedSvg;
     if (!iconSrc) throw new Error('Icon SVG path is unavailable');
     const response = await fetch(iconSrc, { credentials: 'include' });
     if (!response.ok) {
@@ -103,18 +93,7 @@
     }
   }
 
-  async function handleDownloadSvg(): Promise<void> {
-    try {
-      const svg = await fetchPreparedSvg();
-      downloadBlob(new Blob([svg], { type: 'image/svg+xml' }), filenameFor('svg'));
-      notificationStore.success('SVG downloaded');
-    } catch (error) {
-      console.error('[DesignIconResultEmbedFullscreen] Failed to download SVG:', error);
-      notificationStore.error('Failed to download SVG');
-    }
-  }
-
-  function renderPng(svg: string, size: number): Promise<Blob> {
+  function renderPngDataUrl(svg: string, size: number): Promise<string> {
     return new Promise((resolve, reject) => {
       const svgUrl = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
       const image = new Image();
@@ -126,11 +105,9 @@
           const context = canvas.getContext('2d');
           if (!context) throw new Error('Canvas rendering is unavailable');
           context.drawImage(image, 0, 0, size, size);
-          canvas.toBlob((blob) => {
-            URL.revokeObjectURL(svgUrl);
-            if (blob) resolve(blob);
-            else reject(new Error('PNG export failed'));
-          }, 'image/png');
+          const pngDataUrl = canvas.toDataURL('image/png');
+          URL.revokeObjectURL(svgUrl);
+          resolve(pngDataUrl);
         } catch (error) {
           URL.revokeObjectURL(svgUrl);
           reject(error);
@@ -144,16 +121,15 @@
     });
   }
 
-  async function handleDownloadPng(): Promise<void> {
-    try {
-      const svg = await fetchPreparedSvg();
-      const blob = await renderPng(svg, pngSize);
-      downloadBlob(blob, filenameFor('png'));
-      notificationStore.success('PNG downloaded');
-    } catch (error) {
-      console.error('[DesignIconResultEmbedFullscreen] Failed to download PNG:', error);
-      notificationStore.error('Failed to download PNG');
+  function handleDownloadLinkClick(event: MouseEvent): void {
+    if (!(event.currentTarget instanceof HTMLAnchorElement) || !event.currentTarget.getAttribute('href')) {
+      event.preventDefault();
+      notificationStore.error('Icon export is still loading');
     }
+  }
+
+  function noopDownload(): void {
+    // UnifiedEmbedFullscreen requires an onDownload prop to show the native anchor.
   }
 
   let content = $derived({
@@ -175,6 +151,61 @@
   let color = $state('#111827');
   let pngSize = $state(256);
   let canRecolor = $derived(!isPalette);
+  let rawSvg = $state('');
+  let rawSvgIconSrc = $state('');
+  let preparedSvg = $derived(rawSvg && rawSvgIconSrc === iconSrc ? (canRecolor ? applyIconColor(rawSvg, color) : rawSvg) : '');
+  let svgDownloadHref = $derived(preparedSvg ? `data:image/svg+xml;charset=utf-8,${encodeURIComponent(preparedSvg)}` : '');
+  let pngDownloadHref = $state('');
+  let pngDownloadFilename = $derived(filenameFor('png'));
+
+  $effect(() => {
+    const currentIconSrc = iconSrc;
+    rawSvg = '';
+    rawSvgIconSrc = '';
+    pngDownloadHref = '';
+    if (!currentIconSrc) return;
+
+    let isCancelled = false;
+    fetch(currentIconSrc, { credentials: 'include' })
+      .then((response) => {
+        if (!response.ok) throw new Error(`Icon SVG request failed with status ${response.status}`);
+        return response.text();
+      })
+      .then((svg) => {
+        if (isCancelled) return;
+        rawSvg = svg;
+        rawSvgIconSrc = currentIconSrc;
+      })
+      .catch((error) => {
+        if (isCancelled) return;
+        console.error('[DesignIconResultEmbedFullscreen] Failed to prepare SVG export:', error);
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  });
+
+  $effect(() => {
+    const currentSvg = preparedSvg;
+    const currentPngSize = pngSize;
+    pngDownloadHref = '';
+    if (!currentSvg) return;
+
+    let isCancelled = false;
+    renderPngDataUrl(currentSvg, currentPngSize)
+      .then((dataUrl) => {
+        if (!isCancelled) pngDownloadHref = dataUrl;
+      })
+      .catch((error) => {
+        if (isCancelled) return;
+        console.error('[DesignIconResultEmbedFullscreen] Failed to prepare PNG export:', error);
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  });
 </script>
 
 <UnifiedEmbedFullscreen
@@ -191,7 +222,9 @@
   {onNavigatePrevious}
   {onNavigateNext}
   onCopy={iconSrc ? handleCopySvg : undefined}
-  onDownload={iconSrc ? handleDownloadPng : undefined}
+  onDownload={pngDownloadHref ? noopDownload : undefined}
+  downloadHref={pngDownloadHref || null}
+  downloadFilename={pngDownloadFilename}
 >
   {#snippet embedHeaderCta()}
     {#if providerUrl}
@@ -231,8 +264,22 @@
 
         <div class="export-actions">
           <button type="button" onclick={handleCopySvg} disabled={!iconSrc}>Copy SVG</button>
-          <button type="button" onclick={handleDownloadSvg} disabled={!iconSrc}>Download SVG</button>
-          <button type="button" onclick={handleDownloadPng} disabled={!iconSrc}>Download PNG</button>
+          <a
+            role="button"
+            href={svgDownloadHref || undefined}
+            download={filenameFor('svg')}
+            aria-disabled={!svgDownloadHref}
+            class:disabled={!svgDownloadHref}
+            onclick={handleDownloadLinkClick}
+          >Download SVG</a>
+          <a
+            role="button"
+            href={pngDownloadHref || undefined}
+            download={filenameFor('png')}
+            aria-disabled={!pngDownloadHref}
+            class:disabled={!pngDownloadHref}
+            onclick={handleDownloadLinkClick}
+          >Download PNG</a>
         </div>
       </section>
     </div>
@@ -328,7 +375,8 @@
     background: transparent;
   }
 
-  button {
+  button,
+  .export-actions a {
     border: 1px solid var(--color-grey-30);
     border-radius: var(--radius-4);
     padding: var(--spacing-3) var(--spacing-5);
@@ -336,13 +384,16 @@
     color: var(--color-font-primary);
     cursor: pointer;
     font: inherit;
+    text-decoration: none;
   }
 
-  button:hover:not(:disabled) {
+  button:hover:not(:disabled),
+  .export-actions a:hover:not(.disabled) {
     background: var(--color-grey-15);
   }
 
   button:disabled,
+  .export-actions a.disabled,
   input:disabled {
     cursor: not-allowed;
     opacity: 0.55;
