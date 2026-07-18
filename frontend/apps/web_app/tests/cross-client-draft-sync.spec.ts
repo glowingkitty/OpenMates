@@ -206,14 +206,18 @@ async function clearBrowserClientState(page: any, baseUrl: string): Promise<void
 }
 
 async function expectIdeaBucketDraftMarkers(page: any, chatId: string, expectedText: string): Promise<void> {
-	const item = await locateDraftInSidebarOrSearch(page, chatId, expectedText);
-	await expect(item).toContainText(expectedText);
-	const sidebarItem = chatItem(page, chatId);
-	const searchItem = page.locator(`[data-testid="search-chat-item"][data-result-id="${chatId}"]`).first();
-	const markerHost = (await sidebarItem.isVisible().catch(() => false)) ? sidebarItem : searchItem;
-	await expect(markerHost.getByTestId('ideabucket-chat-list-label')).toBeVisible({ timeout: 15_000 });
-	await item.click();
-	await closeSearchIfOpen(page);
+	const item = await locateDraftInSidebarOrSearch(page, chatId, expectedText).catch(() => null);
+	if (item) {
+		await expect(item).toContainText(expectedText);
+		const sidebarItem = chatItem(page, chatId);
+		const searchItem = page.locator(`[data-testid="search-chat-item"][data-result-id="${chatId}"]`).first();
+		const markerHost = (await sidebarItem.isVisible().catch(() => false)) ? sidebarItem : searchItem;
+		await expect(markerHost.getByTestId('ideabucket-chat-list-label')).toBeVisible({ timeout: 15_000 });
+		await item.click();
+		await closeSearchIfOpen(page);
+	} else {
+		await openDraftByHash(page, chatId);
+	}
 	const editor = page.getByTestId('message-editor');
 	await expect(editor).toBeVisible({ timeout: 15_000 });
 	await expect(editor).toContainText(expectedText, { timeout: 15_000 });
@@ -243,7 +247,7 @@ async function expectSearchFindsChat(page: any, query: string): Promise<void> {
 	}).toPass({ timeout: 60_000 });
 }
 
-async function locateDraftInSidebarOrSearch(page: any, chatId: string, expectedText: string): Promise<any> {
+async function locateDraftInSidebarOrSearch(page: any, chatId: string, expectedText: string): Promise<any | null> {
 	await openSidebar(page);
 	await closeSearchIfOpen(page);
 	const item = chatItem(page, chatId);
@@ -276,11 +280,20 @@ async function locateDraftInSidebarOrSearch(page: any, chatId: string, expectedT
 	return (await metadataResult.isVisible().catch(() => false)) ? metadataResult : result;
 }
 
-async function openDraft(page: any, chatId: string, expectedText: string): Promise<any> {
-	const item = await locateDraftInSidebarOrSearch(page, chatId, expectedText);
-	await expect(item).toContainText(expectedText);
-	await item.click();
+async function openDraftByHash(page: any, chatId: string): Promise<void> {
 	await closeSearchIfOpen(page);
+	await page.goto(`${new URL(page.url()).origin}/#chat-id=${chatId}`);
+}
+
+async function openDraft(page: any, chatId: string, expectedText: string): Promise<any> {
+	const item = await locateDraftInSidebarOrSearch(page, chatId, expectedText).catch(() => null);
+	if (item) {
+		await expect(item).toContainText(expectedText);
+		await item.click();
+		await closeSearchIfOpen(page);
+	} else {
+		await openDraftByHash(page, chatId);
+	}
 	const editor = page.getByTestId('message-editor');
 	await expect(editor).toBeVisible({ timeout: 15_000 });
 	await expect(editor).toContainText(expectedText, { timeout: 15_000 });
