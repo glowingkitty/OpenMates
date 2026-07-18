@@ -26,15 +26,14 @@ PaymentAuth - Component for authenticating payment with passkey or 2FA
     let tfaCode = $state('');
     let isPasskeyLoading = $state(false);
 
-    // Determine which auth method to use
-    let authMethod = $derived(hasPasskey ? 'passkey' : (has2FA ? '2fa' : null));
+    // Prefer OTP when available so payment re-auth always has a keyboard path.
+    let authMethod = $derived(has2FA ? '2fa' : (hasPasskey ? 'passkey' : null));
 
     onMount(() => {
-        // Auto-start passkey authentication if available
-        if (hasPasskey) {
-            handlePasskeyAuth();
-        } else if (has2FA) {
+        if (has2FA) {
             show2FAInput = true;
+        } else if (hasPasskey) {
+            handlePasskeyAuth();
         }
     });
 
