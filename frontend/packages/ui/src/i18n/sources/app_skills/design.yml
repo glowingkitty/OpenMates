@@ -1,0 +1,51 @@
+search_icons:
+  context: Skill name for Design icon search
+  en: Search icons
+  de: Search icons
+  zh: Search icons
+  es: Search icons
+  fr: Search icons
+  pt: Search icons
+  ru: Search icons
+  ja: Search icons
+  ko: Search icons
+  it: Search icons
+  tr: Search icons
+  vi: Search icons
+  id: Search icons
+  pl: Search icons
+  nl: Search icons
+  ar: Search icons
+  hi: Search icons
+  th: Search icons
+  cs: Search icons
+  sv: Search icons
+  he: Search icons
+  verified_by_human:
+    - en
+
+search_icons.description:
+  context: Description for Design icon search skill
+  en: Find open-source SVG icons from Iconify collections.
+  de: Find open-source SVG icons from Iconify collections.
+  zh: Find open-source SVG icons from Iconify collections.
+  es: Find open-source SVG icons from Iconify collections.
+  fr: Find open-source SVG icons from Iconify collections.
+  pt: Find open-source SVG icons from Iconify collections.
+  ru: Find open-source SVG icons from Iconify collections.
+  ja: Find open-source SVG icons from Iconify collections.
+  ko: Find open-source SVG icons from Iconify collections.
+  it: Find open-source SVG icons from Iconify collections.
+  tr: Find open-source SVG icons from Iconify collections.
+  vi: Find open-source SVG icons from Iconify collections.
+  id: Find open-source SVG icons from Iconify collections.
+  pl: Find open-source SVG icons from Iconify collections.
+  nl: Find open-source SVG icons from Iconify collections.
+  ar: Find open-source SVG icons from Iconify collections.
+  hi: Find open-source SVG icons from Iconify collections.
+  th: Find open-source SVG icons from Iconify collections.
+  cs: Find open-source SVG icons from Iconify collections.
+  sv: Find open-source SVG icons from Iconify collections.
+  he: Find open-source SVG icons from Iconify collections.
+  verified_by_human:
+    - en

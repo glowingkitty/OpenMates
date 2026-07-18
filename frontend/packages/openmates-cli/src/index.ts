@@ -87,6 +87,11 @@ export type {
   TaskPlainUpdateOptions,
   TaskRecord,
 } from "./sdk.js";
+export type {
+  DesignIconExportFormat,
+  DesignIconExportOptions,
+  DesignIconExportResult,
+} from "./designIcons.js";
 export type { DecryptedUserTask } from "./tasksCli.js";
 export type {
   OpenMatesSession,

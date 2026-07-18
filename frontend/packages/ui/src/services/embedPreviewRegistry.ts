@@ -173,6 +173,29 @@ resolvers.set(
   },
 );
 
+// ── App-skill-use: design / search_icons ─────────────────────────────────────
+
+resolvers.set(
+  "app:design:search_icons",
+  async ({ embedId, decodedContent, embedData, onFullscreen }) => {
+    const { default: component } =
+      await import("../components/embeds/design/DesignIconSearchEmbedPreview.svelte");
+    const metadata = parentPreviewProps(decodedContent, embedData);
+    return {
+      component,
+      props: {
+        id: embedId,
+        query: decodedContent.query || "Icons",
+        provider: decodedContent.provider || "Iconify",
+        result_count: metadata.resultCount,
+        status: normalizeStatus(embedData.status),
+        isMobile: false,
+        onFullscreen,
+      },
+    };
+  },
+);
+
 // ── App-skill-use: news ───────────────────────────────────────────────────────
 
 resolvers.set(
@@ -435,6 +458,37 @@ const imageGenerateResolver: PreviewResolver = async ({
 resolvers.set("app:images:generate", imageGenerateResolver);
 resolvers.set("app:images:generate_draft", imageGenerateResolver);
 
+// ── Direct / child: design icon result ───────────────────────────────────────
+
+const designIconResultResolver: PreviewResolver = async ({
+  embedId,
+  decodedContent,
+  embedData,
+  onFullscreen,
+}) => {
+  const { default: component } =
+    await import("../components/embeds/design/DesignIconResultEmbedPreview.svelte");
+  return {
+    component,
+    props: {
+      id: embedId,
+      icon_id: decodedContent.icon_id || "",
+      prefix: decodedContent.prefix || "",
+      name: decodedContent.name || "",
+      display_name: decodedContent.display_name || "",
+      collection_name: decodedContent.collection_name || "",
+      license_title: decodedContent.license_title || decodedContent.license_spdx || "",
+      svg_path: decodedContent.svg_path || "",
+      status: normalizeStatus(embedData.status) as "processing" | "finished" | "error",
+      isMobile: false,
+      onFullscreen,
+    },
+  };
+};
+resolvers.set("design-icon-result", designIconResultResolver);
+resolvers.set("icon_result", designIconResultResolver);
+resolvers.set("app:design:icon_result", designIconResultResolver);
+
 // ── Direct / auto-converted: code ─────────────────────────────────────────────
 
 const codeResolver: PreviewResolver = async ({
@@ -579,7 +633,11 @@ function deriveKey(ctx: EmbedPreviewContext): string | null {
 
   const appId = (d.app_id as string) || (e.app_id as string) || "";
   const skillId = (d.skill_id as string) || (e.skill_id as string) || "";
-  const type = (e.type as string) || "";
+  const type = (e.type as string) || (d.type as string) || "";
+
+  if ((type === "icon_result" || type === "design-icon-result") && resolvers.has(type)) {
+    return type;
+  }
 
   // 1. Specific app:skill key
   if (appId && skillId) {

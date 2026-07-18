@@ -10,6 +10,8 @@ import base64
 import hashlib
 import json as json_module
 import os
+import sys
+from types import SimpleNamespace
 
 import pytest
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
@@ -211,6 +213,67 @@ def test_native_design_search_icons_skill_method_uses_generated_namespace(monkey
     assert result == {"success": True, "data": {"result_count": 1}}
     assert requests[0]["url"] == "https://api.openmates.org/v1/apps/design/skills/search_icons"
     assert requests[0]["json"] == {"requests": [{"query": "home", "count": 12}]}
+
+
+def test_design_icon_export_fetches_openmates_svg_route(monkeypatch, tmp_path):
+    requests = []
+    svg = b'<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"><path fill="currentColor" d="M4 12h16v8H4z"/></svg>'
+
+    class FakeResponse:
+        status_code = 200
+        content = svg
+        headers = {"content-type": "image/svg+xml"}
+
+        def json(self):
+            return {}
+
+    def fake_get(url, *, headers, timeout):
+        requests.append({"url": url, "headers": headers, "timeout": timeout})
+        return FakeResponse()
+
+    monkeypatch.setattr("openmates.sdk.requests.get", fake_get)
+    output_path = tmp_path / "home.svg"
+    client = OpenMates(api_key="sk-api-test")
+    result = client.design.export_icon(prefix="lucide", name="home", color="#111827", output_path=output_path)
+
+    assert requests[0]["url"] == "https://api.openmates.org/v1/apps/design/icons/iconify/lucide/home.svg"
+    assert result["format"] == "svg"
+    assert result["content_type"] == "image/svg+xml"
+    assert b"#111827" in result["data"]
+    assert "#111827" in output_path.read_text(encoding="utf-8")
+
+
+def test_design_icon_export_png_uses_local_rasterizer(monkeypatch, tmp_path):
+    svg = b'<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"><path fill="currentColor" d="M4 12h16v8H4z"/></svg>'
+    png = b"\x89PNG\r\n\x1a\n"
+    rasterizer_calls = []
+
+    class FakeResponse:
+        status_code = 200
+        content = svg
+        headers = {"content-type": "image/svg+xml"}
+
+        def json(self):
+            return {}
+
+    def fake_get(url, *, headers, timeout):
+        return FakeResponse()
+
+    def fake_svg2png(**kwargs):
+        rasterizer_calls.append(kwargs)
+        return png
+
+    monkeypatch.setattr("openmates.sdk.requests.get", fake_get)
+    monkeypatch.setitem(sys.modules, "cairosvg", SimpleNamespace(svg2png=fake_svg2png))
+    output_path = tmp_path / "home.png"
+    client = OpenMates(api_key="sk-api-test")
+    result = client.design.export_icon(svg_path="/v1/apps/design/icons/iconify/lucide/home.svg", format="png", size=64, output_path=output_path)
+
+    assert result["format"] == "png"
+    assert result["content_type"] == "image/png"
+    assert result["data"] == png
+    assert output_path.read_bytes() == png
+    assert rasterizer_calls[0]["output_width"] == 64
 
 
 def test_application_preview_lifecycle_uses_embed_preview_namespace(monkeypatch):

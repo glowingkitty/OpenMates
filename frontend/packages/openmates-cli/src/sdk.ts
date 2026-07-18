@@ -18,6 +18,11 @@ import {
   decryptConnectedAccountCliTransferPayload,
 } from "./connectedAccountImport.js";
 import {
+  exportDesignIcon,
+  type DesignIconExportOptions,
+  type DesignIconExportResult,
+} from "./designIcons.js";
+import {
   decryptBytesWithAesGcm,
   decryptWithAesGcmCombined,
   deriveChatCompletionRecoveryKeypair,
@@ -306,6 +311,7 @@ export class OpenMates {
   readonly chats: OpenMatesChats;
   readonly connectedAccounts: OpenMatesConnectedAccounts;
   readonly docs: OpenMatesDocs;
+  readonly design: OpenMatesDesign;
   readonly drafts: OpenMatesDrafts;
   readonly embeds: OpenMatesEmbeds;
   readonly feedback: OpenMatesFeedback;
@@ -338,6 +344,7 @@ export class OpenMates {
     this.chats = new OpenMatesChats(this);
     this.connectedAccounts = new OpenMatesConnectedAccounts(this);
     this.docs = new OpenMatesDocs(this);
+    this.design = new OpenMatesDesign(this);
     this.drafts = new OpenMatesDrafts(this);
     this.embeds = new OpenMatesEmbeds(this);
     this.feedback = new OpenMatesFeedback(this);
@@ -1370,6 +1377,21 @@ export class OpenMatesBilling {
   async giftCardPurchaseStatus(orderId: string): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>(`/v1/sdk/billing/gift-cards/purchases/${encodeURIComponent(orderId)}`); }
   async listPurchasedGiftCards(): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>("/v1/sdk/billing/gift-cards/purchased"); }
   async setLowBalanceAutoTopup(input: Record<string, unknown>): Promise<Record<string, unknown>> { return this.client.request<Record<string, unknown>>("/v1/sdk/billing/auto-topup/low-balance", input); }
+}
+
+export class OpenMatesDesign {
+  private readonly client: OpenMates;
+
+  constructor(client: OpenMates) {
+    this.client = client;
+  }
+
+  async exportIcon(options: DesignIconExportOptions): Promise<DesignIconExportResult> {
+    return exportDesignIcon({
+      ...options,
+      fetchSvg: async (path) => (await this.client.getRaw(path)).data,
+    });
+  }
 }
 
 export class OpenMatesNotifications {

@@ -101,6 +101,10 @@ function normalizeUnixSeconds(value: unknown, fallback: number): number {
   return value > 10_000_000_000 ? Math.floor(value / 1000) : Math.floor(value);
 }
 
+function shouldWaitForTeamAi(message: string, teamId: string | null): boolean {
+  return !teamId || message.toLowerCase().includes("@openmates");
+}
+
 export function getClientMessagesVersionForSync(cached: CachedChat): number {
   if (cached.messages.length === 0) return 0;
   const messagesVersion =
@@ -2368,9 +2372,9 @@ export class OpenMatesClient {
     return response.data.access_requests ?? [];
   }
 
-  async approveTeamAccessRequest(teamId: string, accessRequestId: string, encryptedTeamKey: string): Promise<Record<string, unknown>> {
+  async approveTeamAccessRequest(teamId: string, accessRequestId: string, encryptedTeamKey?: string | null): Promise<Record<string, unknown>> {
     this.requireSession();
-    const response = await this.http.post<{ membership?: Record<string, unknown> }>(`/v1/teams/${encodeURIComponent(teamId)}/access-requests/${encodeURIComponent(accessRequestId)}/approve`, { encrypted_team_key: encryptedTeamKey, approved_at: Math.floor(Date.now() / 1000) }, this.getCliRequestHeaders());
+    const response = await this.http.post<{ membership?: Record<string, unknown> }>(`/v1/teams/${encodeURIComponent(teamId)}/access-requests/${encodeURIComponent(accessRequestId)}/approve`, { ...(encryptedTeamKey ? { encrypted_team_key: encryptedTeamKey } : {}), approved_at: Math.floor(Date.now() / 1000) }, this.getCliRequestHeaders());
     if (!response.ok || !response.data.membership) throw new Error(`Team access approval failed with HTTP ${response.status}`);
     return response.data.membership;
   }
@@ -4193,6 +4197,7 @@ export class OpenMatesClient {
     }>;
   }> {
     const teamId = this.resolveTeamContext({ teamId: params.teamId, personal: params.personal });
+    const shouldWaitForAi = shouldWaitForTeamAi(params.message, teamId);
     // Resolve short IDs (8-char prefix) to full UUIDs via sync cache.
     // Full UUIDs and undefined (new chat) pass through unchanged.
     let chatId: string;
@@ -4415,7 +4420,7 @@ export class OpenMatesClient {
       messagePayload.encrypted_embeds = encryptedEmbeds;
     }
 
-    let precollectedResponse = params.precollectResponse && params.incognito
+    let precollectedResponse = params.precollectResponse && params.incognito && shouldWaitForAi
       ? ws.collectAiResponse(messageId, chatId, { onStream: params.onStream, timeoutMs: params.responseTimeoutMs })
       : null;
 
@@ -4501,7 +4506,7 @@ export class OpenMatesClient {
         terminalExpectedMessagesV = ackPayload.committed_messages_v;
       }
     }
-    if (params.precollectResponse && !params.incognito) {
+    if (params.precollectResponse && !params.incognito && shouldWaitForAi) {
       precollectedResponse = ws.collectAiResponse(messageId, chatId, {
         onStream: params.onStream,
         timeoutMs: params.responseTimeoutMs,
@@ -4773,7 +4778,9 @@ export class OpenMatesClient {
       onAppSettingsMemoriesRequest: handleAppSettingsMemoriesRequest,
     };
 
-    if (params.incognito) {
+    if (!shouldWaitForAi) {
+      ws.close();
+    } else if (params.incognito) {
       try {
         const resp = await (precollectedResponse ?? ws.collectAiResponse(messageId, chatId, {
           ...streamOpts,

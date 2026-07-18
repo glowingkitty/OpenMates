@@ -64,6 +64,8 @@ import { normalizeFitnessSearchContent } from "../../../embeds/fitness/fitnessEm
 import MathCalculateEmbedPreview from "../../../embeds/math/MathCalculateEmbedPreview.svelte";
 import ImagesSearchEmbedPreview from "../../../embeds/images/ImagesSearchEmbedPreview.svelte";
 import ImageResultEmbedPreview from "../../../embeds/images/ImageResultEmbedPreview.svelte";
+import DesignIconSearchEmbedPreview from "../../../embeds/design/DesignIconSearchEmbedPreview.svelte";
+import DesignIconResultEmbedPreview from "../../../embeds/design/DesignIconResultEmbedPreview.svelte";
 import HomeSearchEmbedPreview from "../../../embeds/home/HomeSearchEmbedPreview.svelte";
 import NutritionSearchEmbedPreview from "../../../embeds/nutrition/NutritionSearchEmbedPreview.svelte";
 import NutritionRecipeEmbedPreview from "../../../embeds/nutrition/NutritionRecipeEmbedPreview.svelte";
@@ -316,6 +318,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       listing: true,
       weather_day: true,
       model_result: true,
+      icon_result: true,
       task: true,
       workflow: true,
     };
@@ -345,6 +348,15 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     ) {
       if (decodedContent.source_page_url || decodedContent.preview_image_url || decodedContent.thumbnail_url) {
         skillId = "model_result";
+      }
+    } else if (
+      appId === "design" &&
+      skillId === "search_icons" &&
+      decodedContent &&
+      !decodedContent.embed_ids
+    ) {
+      if (decodedContent.icon_id || decodedContent.svg_path) {
+        skillId = "icon_result";
       }
     }
 
@@ -639,6 +651,24 @@ export class AppSkillUseRenderer implements EmbedRenderer {
 
       if (appId === "models3d" && skillId === "model_result") {
         return this.renderModel3DResultComponent(
+          attrs,
+          embedData,
+          decodedContent,
+          content,
+        );
+      }
+
+      if (appId === "design" && skillId === "search_icons") {
+        return this.renderDesignIconSearchComponent(
+          attrs,
+          embedData,
+          decodedContent,
+          content,
+        );
+      }
+
+      if (appId === "design" && skillId === "icon_result") {
+        return this.renderDesignIconResultComponent(
           attrs,
           embedData,
           decodedContent,
@@ -2537,6 +2567,78 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     }
   }
 
+  /** Render the design.search_icons parent preview component. */
+  private renderDesignIconSearchComponent(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any,
+    content: HTMLElement,
+  ): void {
+    const query = decodedContent?.query || (attrs as any).query || "Icons";
+    const provider = decodedContent?.provider || "Iconify";
+    const status =
+      decodedContent?.status ||
+      embedData?.status ||
+      attrs.status ||
+      "processing";
+    const taskId = decodedContent?.task_id || "";
+    const skillTaskId = decodedContent?.skill_task_id || "";
+    const results = decodedContent?.results || decodedContent?.preview_results || [];
+    const rawEmbedIds = decodedContent?.embed_ids || embedData?.embed_ids || [];
+    const childEmbedIds = typeof rawEmbedIds === "string"
+      ? rawEmbedIds.split("|").filter((id: string) => id.length > 0)
+      : Array.isArray(rawEmbedIds)
+        ? rawEmbedIds
+        : [];
+    const resultCount = typeof decodedContent?.result_count === "number"
+      ? decodedContent.result_count
+      : results.length || childEmbedIds.length;
+
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn(
+          "[AppSkillUseRenderer] Error unmounting existing component:",
+          e,
+        );
+      }
+    }
+    content.innerHTML = "";
+
+    try {
+      const embedId = attrs.contentRef?.replace("embed:", "") || "";
+      const handleFullscreen = () => {
+        this.openFullscreen(attrs, embedData, decodedContent);
+      };
+      const component = mount(DesignIconSearchEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          query,
+          provider,
+          result_count: resultCount,
+          status: status as "processing" | "finished" | "error" | "cancelled",
+          taskId,
+          skillTaskId,
+          isMobile: false,
+          onFullscreen: handleFullscreen,
+        },
+      });
+      mountedComponents.set(content, component);
+      console.debug(
+        "[AppSkillUseRenderer] Mounted DesignIconSearchEmbedPreview component",
+      );
+    } catch (error) {
+      console.error(
+        "[AppSkillUseRenderer] Error mounting DesignIconSearchEmbedPreview:",
+        error,
+      );
+      this.renderGenericSkill(attrs, embedData, decodedContent, content);
+    }
+  }
+
   /**
    * Render Social Media get-posts preview component.
    */
@@ -2790,6 +2892,66 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     } catch (error) {
       console.error(
         "[AppSkillUseRenderer] Error mounting Model3DResultEmbedPreview:",
+        error,
+      );
+      this.renderGenericSkill(attrs, embedData, decodedContent, content);
+    }
+  }
+
+  /** Render a preview-only design.icon_result child card. */
+  private renderDesignIconResultComponent(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any,
+    content: HTMLElement,
+  ): void {
+    const status =
+      decodedContent?.status ||
+      embedData?.status ||
+      attrs.status ||
+      "finished";
+
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn(
+          "[AppSkillUseRenderer] Error unmounting existing component:",
+          e,
+        );
+      }
+    }
+    content.innerHTML = "";
+
+    try {
+      const embedId = attrs.contentRef?.replace("embed:", "") || "";
+      const handleFullscreen = () => {
+        this.openFullscreen(attrs, embedData, decodedContent);
+      };
+      const component = mount(DesignIconResultEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          icon_id: decodedContent?.icon_id || "",
+          prefix: decodedContent?.prefix || "",
+          name: decodedContent?.name || "",
+          display_name: decodedContent?.display_name || "",
+          collection_name: decodedContent?.collection_name || "",
+          license_title: decodedContent?.license_title || decodedContent?.license_spdx || "",
+          svg_path: decodedContent?.svg_path || "",
+          status: status as "processing" | "finished" | "error",
+          isMobile: false,
+          onFullscreen: handleFullscreen,
+        },
+      });
+      mountedComponents.set(content, component);
+      console.debug(
+        "[AppSkillUseRenderer] Mounted DesignIconResultEmbedPreview component",
+      );
+    } catch (error) {
+      console.error(
+        "[AppSkillUseRenderer] Error mounting DesignIconResultEmbedPreview:",
         error,
       );
       this.renderGenericSkill(attrs, embedData, decodedContent, content);

@@ -128,6 +128,9 @@ def _api_key_id(create_result: dict[str, Any]) -> str | None:
 def _run_npm_sdk(env: dict[str, str]) -> dict[str, Any]:
     script = f"""
       import {{ OpenMates }} from '{NPM_SDK_ENTRY}';
+      import {{ mkdtempSync, readFileSync }} from 'node:fs';
+      import {{ tmpdir }} from 'node:os';
+      import {{ join }} from 'node:path';
       const client = new OpenMates({{
         apiKey: process.env.OPENMATES_SMOKE_API_KEY,
         apiUrl: process.env.OPENMATES_API_URL,
@@ -174,6 +177,20 @@ def _run_npm_sdk(env: dict[str, str]) -> dict[str, Any]:
       }});
       const iconGroup = designIconSearch?.data?.results?.[0];
       const firstIcon = iconGroup?.results?.[0] ?? {{}};
+      let designIconExport = null;
+      if (!models3dOnly && firstIcon.svg_path) {{
+        const tempDir = mkdtempSync(join(tmpdir(), 'openmates-live-icon-npm-'));
+        const svgPath = join(tempDir, 'icon.svg');
+        const pngPath = join(tempDir, 'icon.png');
+        const svgExport = await client.design.exportIcon({{ svgPath: firstIcon.svg_path, color: '#111827', outputPath: svgPath }});
+        const pngExport = await client.design.exportIcon({{ svgPath: firstIcon.svg_path, format: 'png', size: 64, outputPath: pngPath }});
+        designIconExport = {{
+          svgBytes: svgExport.data.byteLength,
+          pngBytes: pngExport.data.byteLength,
+          svgHasColor: readFileSync(svgPath, 'utf-8').includes('#111827'),
+          pngSignature: readFileSync(pngPath).subarray(1, 4).toString('utf-8'),
+        }};
+      }}
       if (!models3dOnly) await client.settings.setDarkMode(Boolean(account.darkmode));
       const billing = models3dOnly ? null : await client.billing.overview();
       const invoices = models3dOnly ? {{ invoices: [] }} : await client.billing.listInvoices();
@@ -194,6 +211,7 @@ def _run_npm_sdk(env: dict[str, str]) -> dict[str, Any]:
             svgPath: firstIcon.svg_path,
             hasSvgMarkup: Boolean(firstIcon.svg || firstIcon.svg_markup || firstIcon.png || firstIcon.preview_server_url),
           }},
+          export: designIconExport,
         }} : null,
         billing: Boolean(billing),
         invoices: Array.isArray(invoices.invoices) ? invoices.invoices.length : null,
@@ -207,7 +225,9 @@ def _run_python_sdk(env: dict[str, str]) -> dict[str, Any]:
     script = """
 import json
 import os
+from pathlib import Path
 import sys
+import tempfile
 
 sys.path.insert(0, os.fspath(%r))
 from openmates import OpenMates
@@ -217,6 +237,11 @@ client = OpenMates(
     api_url=os.environ["OPENMATES_API_URL"],
     device_id=os.environ["OPENMATES_SMOKE_DEVICE_ID"],
 )
+try:
+    import cairosvg  # noqa: F401
+    can_export_png = True
+except ImportError:
+    can_export_png = False
 models3d_only = os.environ.get("OPENMATES_MODELS3D_ONLY") == "1"
 account = None if models3d_only else client.account.info()
 chats = [] if models3d_only else client.chats.list(limit=10)
@@ -254,11 +279,25 @@ for label, payload in [
         "hasOpenCtaLabel": "open_cta_label" in json.dumps(response),
     })
 design_icon_search = None
+design_icon_export = None
 if not models3d_only:
     design_icon_search = client.apps.design.search_icons({"requests": [{"query": "home", "count": 2, "license_policy": "permissive"}]})
     icon_data = design_icon_search.get("data", {})
     icon_group = (icon_data.get("results") or [{}])[0]
     first_icon = (icon_group.get("results") or [{}])[0]
+    if first_icon.get("svg_path"):
+        temp_dir = Path(tempfile.mkdtemp(prefix="openmates-live-icon-pip-"))
+        svg_path = temp_dir / "icon.svg"
+        png_path = temp_dir / "icon.png"
+        svg_export = client.design.export_icon(svg_path=first_icon["svg_path"], color="#111827", output_path=svg_path)
+        png_export = client.design.export_icon(svg_path=first_icon["svg_path"], format="png", size=64, output_path=png_path) if can_export_png else None
+        design_icon_export = {
+            "svgBytes": len(svg_export["data"]),
+            "pngBytes": len(png_export["data"]) if png_export else None,
+            "svgHasColor": "#111827" in svg_path.read_text(encoding="utf-8"),
+            "pngSignature": png_path.read_bytes()[1:4].decode("utf-8") if png_export else None,
+            "pngSkipped": None if png_export else "cairosvg is not installed in this source-checkout environment",
+        }
 if not models3d_only:
     client.settings.set_dark_mode(bool(account.get("darkmode")))
 billing = None if models3d_only else client.billing.overview()
@@ -280,6 +319,7 @@ print(json.dumps({
             "svgPath": first_icon.get("svg_path"),
             "hasSvgMarkup": any(first_icon.get(field) for field in ["svg", "svg_markup", "png", "preview_server_url"]),
         },
+        "export": design_icon_export,
     } if design_icon_search else None,
     "billing": bool(billing),
     "invoices": len(invoices.get("invoices", [])) if isinstance(invoices.get("invoices"), list) else None,
@@ -321,6 +361,18 @@ def _assert_design_icon_search(result: dict[str, Any], *, sdk_name: str) -> None
         raise RuntimeError(f"{sdk_name} SDK design icon search did not use OpenMates SVG path: {search!r}")
     if first_icon.get("hasSvgMarkup") is True:
         raise RuntimeError(f"{sdk_name} SDK design icon search returned forbidden SVG/PNG markup: {search!r}")
+    export = search.get("export")
+    if not isinstance(export, dict):
+        raise RuntimeError(f"{sdk_name} SDK design icon export summary missing: {search!r}")
+    if export.get("svgHasColor") is not True:
+        raise RuntimeError(f"{sdk_name} SDK design icon SVG export did not apply local color: {export!r}")
+    if export.get("pngSignature") != "PNG":
+        if sdk_name != "pip" or "cairosvg" not in str(export.get("pngSkipped")):
+            raise RuntimeError(f"{sdk_name} SDK design icon PNG export did not produce PNG bytes: {export!r}")
+    if not isinstance(export.get("svgBytes"), int) or export["svgBytes"] <= 0:
+        raise RuntimeError(f"{sdk_name} SDK design icon SVG export is empty: {export!r}")
+    if export.get("pngSkipped") is None and (not isinstance(export.get("pngBytes"), int) or export["pngBytes"] <= 0):
+        raise RuntimeError(f"{sdk_name} SDK design icon PNG export is empty: {export!r}")
 
 
 def _cli_device_identity() -> str:

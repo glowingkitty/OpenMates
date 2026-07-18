@@ -16,6 +16,7 @@ import json
 import os
 from pathlib import Path
 import math
+import re
 import secrets
 import string
 import time
@@ -47,6 +48,11 @@ API_KEY_RANDOM_LENGTH = 32
 API_KEY_CHARS = string.ascii_letters + string.digits
 TASK_PRIORITY_LEVELS = ("none", "low", "medium", "high", "urgent")
 TASK_LABEL_INDEX_INFO = b"openmates-task-label-index-v1"
+DESIGN_ICON_PATH_PATTERN = re.compile(r"^/v1/apps/design/icons/iconify/([a-z0-9][a-z0-9._-]*)/([a-z0-9][a-z0-9._-]*)\.svg$", re.IGNORECASE)
+DESIGN_ICON_SEGMENT_PATTERN = re.compile(r"^[a-z0-9][a-z0-9._-]*$", re.IGNORECASE)
+DESIGN_ICON_HEX_COLOR_PATTERN = re.compile(r"^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$")
+DEFAULT_ICON_PNG_SIZE = 256
+MAX_ICON_PNG_SIZE = 4096
 
 
 class OpenMatesConfigError(RuntimeError):
@@ -85,6 +91,7 @@ class OpenMates:
         self.billing = OpenMatesBilling(self)
         self.chats = OpenMatesChats(self)
         self.connected_accounts = OpenMatesConnectedAccounts(self)
+        self.design = OpenMatesDesign(self)
         self.docs = OpenMatesDocs(self)
         self.drafts = OpenMatesDrafts(self)
         self.embeds = OpenMatesEmbeds(self)
@@ -402,6 +409,72 @@ def _extract_filename(content_disposition: str | None) -> str | None:
         if part.startswith("filename="):
             return part.removeprefix("filename=").strip('"')
     return None
+
+
+def _resolve_design_icon_svg_path(*, svg_path: str | None = None, prefix: str | None = None, name: str | None = None) -> str:
+    if svg_path:
+        trimmed = svg_path.strip()
+        if not DESIGN_ICON_PATH_PATTERN.match(trimmed):
+            raise OpenMatesConfigError("svg_path must be an OpenMates Design Iconify SVG path")
+        return trimmed
+    if not prefix or not name:
+        raise OpenMatesConfigError("Provide either svg_path or both prefix and name")
+    prefix = prefix.strip()
+    name = name.strip()
+    if not DESIGN_ICON_SEGMENT_PATTERN.match(prefix) or not DESIGN_ICON_SEGMENT_PATTERN.match(name):
+        raise OpenMatesConfigError("Icon prefix and name may contain only letters, numbers, dots, underscores, and dashes")
+    return f"/v1/apps/design/icons/iconify/{quote(prefix, safe='')}/{quote(name, safe='')}.svg"
+
+
+def _normalize_design_icon_color(color: str | None) -> str | None:
+    if color is None:
+        return None
+    trimmed = color.strip()
+    if not DESIGN_ICON_HEX_COLOR_PATTERN.match(trimmed):
+        raise OpenMatesConfigError("Icon color must be a hex color such as #111827")
+    return trimmed
+
+
+def _apply_design_icon_color(svg: str, color: str | None) -> str:
+    if color is None:
+        return svg
+    svg = re.sub(r"\bcurrentColor\b", color, svg)
+    svg_tag = re.search(r"<svg\b([^>]*)>", svg, re.IGNORECASE)
+    if not svg_tag:
+        return svg
+    attrs = svg_tag.group(1)
+    if re.search(r"\scolor\s*=", attrs):
+        replacement = re.sub(r"\scolor\s*=\s*(['\"])[^'\"]*\1", f' color="{color}"', svg_tag.group(0), count=1, flags=re.IGNORECASE)
+    else:
+        replacement = f"<svg{attrs} color=\"{color}\">"
+    return f"{svg[:svg_tag.start()]}{replacement}{svg[svg_tag.end():]}"
+
+
+def _normalize_icon_png_size(value: int | None, label: str) -> int | None:
+    if value is None:
+        return None
+    if not isinstance(value, int) or value <= 0 or value > MAX_ICON_PNG_SIZE:
+        raise OpenMatesConfigError(f"PNG {label} must be an integer from 1 to {MAX_ICON_PNG_SIZE}")
+    return value
+
+
+def _render_design_icon_png(svg: str, *, size: int | None = None, width: int | None = None, height: int | None = None) -> bytes:
+    try:
+        import cairosvg  # type: ignore[import]
+    except ImportError as exc:
+        raise OpenMatesConfigError("cairosvg is required for PNG icon export") from exc
+
+    width = _normalize_icon_png_size(width, "width")
+    height = _normalize_icon_png_size(height, "height")
+    size = _normalize_icon_png_size(size, "size") or DEFAULT_ICON_PNG_SIZE
+    kwargs: dict[str, Any] = {}
+    if width is not None:
+        kwargs["output_width"] = width
+    elif height is not None:
+        kwargs["output_height"] = height
+    else:
+        kwargs["output_width"] = size
+    return cairosvg.svg2png(bytestring=svg.encode("utf-8"), **kwargs)
 
 
 def _normalize_history(history: Any) -> list[dict[str, Any]]:
@@ -1944,6 +2017,52 @@ class OpenMatesBilling:
     def gift_card_purchase_status(self, order_id: str) -> dict[str, Any]: return self._client._get(f"/v1/sdk/billing/gift-cards/purchases/{_quote(order_id)}")
     def list_purchased_gift_cards(self) -> dict[str, Any]: return self._client._get("/v1/sdk/billing/gift-cards/purchased")
     def set_low_balance_auto_topup(self, input_data: dict[str, Any]) -> dict[str, Any]: return self._client._post("/v1/sdk/billing/auto-topup/low-balance", input_data)
+
+
+class OpenMatesDesign:
+    """Design SDK namespace."""
+
+    def __init__(self, client: OpenMates):
+        self._client = client
+
+    def export_icon(
+        self,
+        *,
+        svg_path: str | None = None,
+        prefix: str | None = None,
+        name: str | None = None,
+        output_path: str | os.PathLike[str] | None = None,
+        format: str | None = None,
+        color: str | None = None,
+        palette: bool = False,
+        allow_palette_recolor: bool = False,
+        size: int | None = None,
+        width: int | None = None,
+        height: int | None = None,
+    ) -> dict[str, Any]:
+        resolved_svg_path = _resolve_design_icon_svg_path(svg_path=svg_path, prefix=prefix, name=name)
+        export_format = (format or ("png" if output_path and Path(output_path).suffix.lower() == ".png" else "svg")).lower()
+        if export_format not in {"svg", "png"}:
+            raise OpenMatesConfigError("format must be 'svg' or 'png'")
+        normalized_color = _normalize_design_icon_color(color)
+        if normalized_color and palette and not allow_palette_recolor:
+            raise OpenMatesConfigError("Palette icons cannot be recolored unless allow_palette_recolor=True")
+
+        raw = self._client._get_raw(resolved_svg_path)
+        svg = _apply_design_icon_color(raw["data"].decode("utf-8"), normalized_color)
+        data = svg.encode("utf-8") if export_format == "svg" else _render_design_icon_png(svg, size=size, width=width, height=height)
+        if output_path is not None:
+            path = Path(output_path)
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(data)
+        return {
+            "format": export_format,
+            "content_type": "image/svg+xml" if export_format == "svg" else "image/png",
+            "data": data,
+            "svg": svg,
+            "svg_path": resolved_svg_path,
+            "output_path": str(output_path) if output_path is not None else None,
+        }
 
 
 class OpenMatesNotifications:

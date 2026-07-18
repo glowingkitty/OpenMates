@@ -1,0 +1,1003 @@
+title:
+  context: "Title of example chat: Dashboard Sidebar SVG Icons"
+  en: "Dashboard Sidebar SVG Icons"
+  de: "Dashboard Sidebar SVG Icons"
+  zh: "Dashboard Sidebar SVG Icons"
+  es: "Dashboard Sidebar SVG Icons"
+  fr: "Dashboard Sidebar SVG Icons"
+  pt: "Dashboard Sidebar SVG Icons"
+  ru: "Dashboard Sidebar SVG Icons"
+  ja: "Dashboard Sidebar SVG Icons"
+  ko: "Dashboard Sidebar SVG Icons"
+  it: "Dashboard Sidebar SVG Icons"
+  tr: "Dashboard Sidebar SVG Icons"
+  vi: "Dashboard Sidebar SVG Icons"
+  id: "Dashboard Sidebar SVG Icons"
+  pl: "Dashboard Sidebar SVG Icons"
+  nl: "Dashboard Sidebar SVG Icons"
+  ar: "Dashboard Sidebar SVG Icons"
+  hi: "Dashboard Sidebar SVG Icons"
+  th: "Dashboard Sidebar SVG Icons"
+  cs: "Dashboard Sidebar SVG Icons"
+  sv: "Dashboard Sidebar SVG Icons"
+  he: "Dashboard Sidebar SVG Icons"
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: Dashboard Sidebar SVG Icons"
+  en: "A Design app example that finds clean open-source SVG home and settings icons for a dashboard sidebar."
+  de: "A Design app example that finds clean open-source SVG home and settings icons for a dashboard sidebar."
+  zh: "A Design app example that finds clean open-source SVG home and settings icons for a dashboard sidebar."
+  es: "A Design app example that finds clean open-source SVG home and settings icons for a dashboard sidebar."
+  fr: "A Design app example that finds clean open-source SVG home and settings icons for a dashboard sidebar."
+  pt: "A Design app example that finds clean open-source SVG home and settings icons for a dashboard sidebar."
+  ru: "A Design app example that finds clean open-source SVG home and settings icons for a dashboard sidebar."
+  ja: "A Design app example that finds clean open-source SVG home and settings icons for a dashboard sidebar."
+  ko: "A Design app example that finds clean open-source SVG home and settings icons for a dashboard sidebar."
+  it: "A Design app example that finds clean open-source SVG home and settings icons for a dashboard sidebar."
+  tr: "A Design app example that finds clean open-source SVG home and settings icons for a dashboard sidebar."
+  vi: "A Design app example that finds clean open-source SVG home and settings icons for a dashboard sidebar."
+  id: "A Design app example that finds clean open-source SVG home and settings icons for a dashboard sidebar."
+  pl: "A Design app example that finds clean open-source SVG home and settings icons for a dashboard sidebar."
+  nl: "A Design app example that finds clean open-source SVG home and settings icons for a dashboard sidebar."
+  ar: "A Design app example that finds clean open-source SVG home and settings icons for a dashboard sidebar."
+  hi: "A Design app example that finds clean open-source SVG home and settings icons for a dashboard sidebar."
+  th: "A Design app example that finds clean open-source SVG home and settings icons for a dashboard sidebar."
+  cs: "A Design app example that finds clean open-source SVG home and settings icons for a dashboard sidebar."
+  sv: "A Design app example that finds clean open-source SVG home and settings icons for a dashboard sidebar."
+  he: "A Design app example that finds clean open-source SVG home and settings icons for a dashboard sidebar."
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: Dashboard Sidebar SVG Icons. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Find open-source SVG home and settings icons from clean UI icon sets for a dashboard sidebar. Include the icon names, collections, and licenses."
+  de: "Find open-source SVG home and settings icons from clean UI icon sets for a dashboard sidebar. Include the icon names, collections, and licenses."
+  zh: "Find open-source SVG home and settings icons from clean UI icon sets for a dashboard sidebar. Include the icon names, collections, and licenses."
+  es: "Find open-source SVG home and settings icons from clean UI icon sets for a dashboard sidebar. Include the icon names, collections, and licenses."
+  fr: "Find open-source SVG home and settings icons from clean UI icon sets for a dashboard sidebar. Include the icon names, collections, and licenses."
+  pt: "Find open-source SVG home and settings icons from clean UI icon sets for a dashboard sidebar. Include the icon names, collections, and licenses."
+  ru: "Find open-source SVG home and settings icons from clean UI icon sets for a dashboard sidebar. Include the icon names, collections, and licenses."
+  ja: "Find open-source SVG home and settings icons from clean UI icon sets for a dashboard sidebar. Include the icon names, collections, and licenses."
+  ko: "Find open-source SVG home and settings icons from clean UI icon sets for a dashboard sidebar. Include the icon names, collections, and licenses."
+  it: "Find open-source SVG home and settings icons from clean UI icon sets for a dashboard sidebar. Include the icon names, collections, and licenses."
+  tr: "Find open-source SVG home and settings icons from clean UI icon sets for a dashboard sidebar. Include the icon names, collections, and licenses."
+  vi: "Find open-source SVG home and settings icons from clean UI icon sets for a dashboard sidebar. Include the icon names, collections, and licenses."
+  id: "Find open-source SVG home and settings icons from clean UI icon sets for a dashboard sidebar. Include the icon names, collections, and licenses."
+  pl: "Find open-source SVG home and settings icons from clean UI icon sets for a dashboard sidebar. Include the icon names, collections, and licenses."
+  nl: "Find open-source SVG home and settings icons from clean UI icon sets for a dashboard sidebar. Include the icon names, collections, and licenses."
+  ar: "Find open-source SVG home and settings icons from clean UI icon sets for a dashboard sidebar. Include the icon names, collections, and licenses."
+  hi: "Find open-source SVG home and settings icons from clean UI icon sets for a dashboard sidebar. Include the icon names, collections, and licenses."
+  th: "Find open-source SVG home and settings icons from clean UI icon sets for a dashboard sidebar. Include the icon names, collections, and licenses."
+  cs: "Find open-source SVG home and settings icons from clean UI icon sets for a dashboard sidebar. Include the icon names, collections, and licenses."
+  sv: "Find open-source SVG home and settings icons from clean UI icon sets for a dashboard sidebar. Include the icon names, collections, and licenses."
+  he: "Find open-source SVG home and settings icons from clean UI icon sets for a dashboard sidebar. Include the icon names, collections, and licenses."
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: Dashboard Sidebar SVG Icons. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "f92d6925-690b-4350-9b6a-3a7003f8b947", "app_id": "design", "skill_id": "search_icons", "query": "home"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "68b02c14-a329-4772-97d2-d7b168bb50bc", "app_id": "design", "skill_id": "search_icons", "query": "settings"}
+    ```
+    
+    For a clean dashboard sidebar, you'll want icons that have consistent stroke weights and a minimalist aesthetic. Here are several open-source SVG options from highly regarded, clean UI icon sets:
+    
+    ### 1. Tabler Icons
+    [Tabler Icons](wiki:Tabler) is a highly customizable, stroke-based set designed on a 24x24 grid, making it perfect for modern dashboards.
+    *   **License:** [MIT](wiki:MIT_License)
+    *   **Home:** `tabler:home` [Home](embed:home-EuX)
+    *   **Settings:** `tabler:settings` [Settings](embed:settings-TgF)
+    
+    ### 2. Remix Icon
+    Remix Icon offers a neutral, professional style with both "Line" and "Fill" versions, which is great for indicating active vs. inactive states in a sidebar.
+    *   **License:** [Apache 2.0](wiki:Apache_License)
+    *   **Home:** `ri:home-line` [Home Line](embed:home-line-vDv)
+    *   **Settings:** `ri:settings-line` [Settings Line](embed:settings-line-c3G)
+    
+    ### 3. Material Symbols (Light)
+    [Material Symbols](wiki:Material_Design) are the modern successor to Material Icons, offering variable font technology. The "Light" and "Outline" versions provide a very airy, sophisticated look.
+    *   **License:** [Apache 2.0](wiki:Apache_License)
+    *   **Home:** `material-symbols-light:home-outline` [Home Outline](embed:home-outline-3t2)
+    *   **Settings:** `material-symbols-light:settings-outline` [Settings Outline](embed:settings-outline-jak)
+    
+    ### 4. Boxicons
+    Boxicons is a high-quality web friendly set of icons that are simple and well-balanced.
+    *   **License:** [MIT](wiki:MIT_License)
+    *   **Home:** `boxicons:home` [Home](embed:home-DSR)
+    *   **Settings:** `boxicons:settings` (Available in the Boxicons collection)
+    
+    ### Summary Table
+    
+    ```json
+    {"type": "sheet", "embed_id": "955e10f2-2643-4489-a9d0-6ccdad784a58"}
+    ```
+    
+    **Design Tip:** When using these in a sidebar, ensure you keep the stroke width consistent across all icons. Most of these collections default to a `2px` stroke, which works well for visibility without feeling "heavy."
+    
+    Would you like me to look for other sidebar icons like "Users," "Analytics," or "Messages" to complete your set? I can also help you with a [Svelte](/#settings/apps/code) or [React](wiki:React_(software)) sidebar component if you're building the UI now.
+  de: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "f92d6925-690b-4350-9b6a-3a7003f8b947", "app_id": "design", "skill_id": "search_icons", "query": "home"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "68b02c14-a329-4772-97d2-d7b168bb50bc", "app_id": "design", "skill_id": "search_icons", "query": "settings"}
+    ```
+    
+    For a clean dashboard sidebar, you'll want icons that have consistent stroke weights and a minimalist aesthetic. Here are several open-source SVG options from highly regarded, clean UI icon sets:
+    
+    ### 1. Tabler Icons
+    [Tabler Icons](wiki:Tabler) is a highly customizable, stroke-based set designed on a 24x24 grid, making it perfect for modern dashboards.
+    *   **License:** [MIT](wiki:MIT_License)
+    *   **Home:** `tabler:home` [Home](embed:home-EuX)
+    *   **Settings:** `tabler:settings` [Settings](embed:settings-TgF)
+    
+    ### 2. Remix Icon
+    Remix Icon offers a neutral, professional style with both "Line" and "Fill" versions, which is great for indicating active vs. inactive states in a sidebar.
+    *   **License:** [Apache 2.0](wiki:Apache_License)
+    *   **Home:** `ri:home-line` [Home Line](embed:home-line-vDv)
+    *   **Settings:** `ri:settings-line` [Settings Line](embed:settings-line-c3G)
+    
+    ### 3. Material Symbols (Light)
+    [Material Symbols](wiki:Material_Design) are the modern successor to Material Icons, offering variable font technology. The "Light" and "Outline" versions provide a very airy, sophisticated look.
+    *   **License:** [Apache 2.0](wiki:Apache_License)
+    *   **Home:** `material-symbols-light:home-outline` [Home Outline](embed:home-outline-3t2)
+    *   **Settings:** `material-symbols-light:settings-outline` [Settings Outline](embed:settings-outline-jak)
+    
+    ### 4. Boxicons
+    Boxicons is a high-quality web friendly set of icons that are simple and well-balanced.
+    *   **License:** [MIT](wiki:MIT_License)
+    *   **Home:** `boxicons:home` [Home](embed:home-DSR)
+    *   **Settings:** `boxicons:settings` (Available in the Boxicons collection)
+    
+    ### Summary Table
+    
+    ```json
+    {"type": "sheet", "embed_id": "955e10f2-2643-4489-a9d0-6ccdad784a58"}
+    ```
+    
+    **Design Tip:** When using these in a sidebar, ensure you keep the stroke width consistent across all icons. Most of these collections default to a `2px` stroke, which works well for visibility without feeling "heavy."
+    
+    Would you like me to look for other sidebar icons like "Users," "Analytics," or "Messages" to complete your set? I can also help you with a [Svelte](/#settings/apps/code) or [React](wiki:React_(software)) sidebar component if you're building the UI now.
+  zh: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "f92d6925-690b-4350-9b6a-3a7003f8b947", "app_id": "design", "skill_id": "search_icons", "query": "home"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "68b02c14-a329-4772-97d2-d7b168bb50bc", "app_id": "design", "skill_id": "search_icons", "query": "settings"}
+    ```
+    
+    For a clean dashboard sidebar, you'll want icons that have consistent stroke weights and a minimalist aesthetic. Here are several open-source SVG options from highly regarded, clean UI icon sets:
+    
+    ### 1. Tabler Icons
+    [Tabler Icons](wiki:Tabler) is a highly customizable, stroke-based set designed on a 24x24 grid, making it perfect for modern dashboards.
+    *   **License:** [MIT](wiki:MIT_License)
+    *   **Home:** `tabler:home` [Home](embed:home-EuX)
+    *   **Settings:** `tabler:settings` [Settings](embed:settings-TgF)
+    
+    ### 2. Remix Icon
+    Remix Icon offers a neutral, professional style with both "Line" and "Fill" versions, which is great for indicating active vs. inactive states in a sidebar.
+    *   **License:** [Apache 2.0](wiki:Apache_License)
+    *   **Home:** `ri:home-line` [Home Line](embed:home-line-vDv)
+    *   **Settings:** `ri:settings-line` [Settings Line](embed:settings-line-c3G)
+    
+    ### 3. Material Symbols (Light)
+    [Material Symbols](wiki:Material_Design) are the modern successor to Material Icons, offering variable font technology. The "Light" and "Outline" versions provide a very airy, sophisticated look.
+    *   **License:** [Apache 2.0](wiki:Apache_License)
+    *   **Home:** `material-symbols-light:home-outline` [Home Outline](embed:home-outline-3t2)
+    *   **Settings:** `material-symbols-light:settings-outline` [Settings Outline](embed:settings-outline-jak)
+    
+    ### 4. Boxicons
+    Boxicons is a high-quality web friendly set of icons that are simple and well-balanced.
+    *   **License:** [MIT](wiki:MIT_License)
+    *   **Home:** `boxicons:home` [Home](embed:home-DSR)
+    *   **Settings:** `boxicons:settings` (Available in the Boxicons collection)
+    
+    ### Summary Table
+    
+    ```json
+    {"type": "sheet", "embed_id": "955e10f2-2643-4489-a9d0-6ccdad784a58"}
+    ```
+    
+    **Design Tip:** When using these in a sidebar, ensure you keep the stroke width consistent across all icons. Most of these collections default to a `2px` stroke, which works well for visibility without feeling "heavy."
+    
+    Would you like me to look for other sidebar icons like "Users," "Analytics," or "Messages" to complete your set? I can also help you with a [Svelte](/#settings/apps/code) or [React](wiki:React_(software)) sidebar component if you're building the UI now.
+  es: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "f92d6925-690b-4350-9b6a-3a7003f8b947", "app_id": "design", "skill_id": "search_icons", "query": "home"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "68b02c14-a329-4772-97d2-d7b168bb50bc", "app_id": "design", "skill_id": "search_icons", "query": "settings"}
+    ```
+    
+    For a clean dashboard sidebar, you'll want icons that have consistent stroke weights and a minimalist aesthetic. Here are several open-source SVG options from highly regarded, clean UI icon sets:
+    
+    ### 1. Tabler Icons
+    [Tabler Icons](wiki:Tabler) is a highly customizable, stroke-based set designed on a 24x24 grid, making it perfect for modern dashboards.
+    *   **License:** [MIT](wiki:MIT_License)
+    *   **Home:** `tabler:home` [Home](embed:home-EuX)
+    *   **Settings:** `tabler:settings` [Settings](embed:settings-TgF)
+    
+    ### 2. Remix Icon
+    Remix Icon offers a neutral, professional style with both "Line" and "Fill" versions, which is great for indicating active vs. inactive states in a sidebar.
+    *   **License:** [Apache 2.0](wiki:Apache_License)
+    *   **Home:** `ri:home-line` [Home Line](embed:home-line-vDv)
+    *   **Settings:** `ri:settings-line` [Settings Line](embed:settings-line-c3G)
+    
+    ### 3. Material Symbols (Light)
+    [Material Symbols](wiki:Material_Design) are the modern successor to Material Icons, offering variable font technology. The "Light" and "Outline" versions provide a very airy, sophisticated look.
+    *   **License:** [Apache 2.0](wiki:Apache_License)
+    *   **Home:** `material-symbols-light:home-outline` [Home Outline](embed:home-outline-3t2)
+    *   **Settings:** `material-symbols-light:settings-outline` [Settings Outline](embed:settings-outline-jak)
+    
+    ### 4. Boxicons
+    Boxicons is a high-quality web friendly set of icons that are simple and well-balanced.
+    *   **License:** [MIT](wiki:MIT_License)
+    *   **Home:** `boxicons:home` [Home](embed:home-DSR)
+    *   **Settings:** `boxicons:settings` (Available in the Boxicons collection)
+    
+    ### Summary Table
+    
+    ```json
+    {"type": "sheet", "embed_id": "955e10f2-2643-4489-a9d0-6ccdad784a58"}
+    ```
+    
+    **Design Tip:** When using these in a sidebar, ensure you keep the stroke width consistent across all icons. Most of these collections default to a `2px` stroke, which works well for visibility without feeling "heavy."
+    
+    Would you like me to look for other sidebar icons like "Users," "Analytics," or "Messages" to complete your set? I can also help you with a [Svelte](/#settings/apps/code) or [React](wiki:React_(software)) sidebar component if you're building the UI now.
+  fr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "f92d6925-690b-4350-9b6a-3a7003f8b947", "app_id": "design", "skill_id": "search_icons", "query": "home"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "68b02c14-a329-4772-97d2-d7b168bb50bc", "app_id": "design", "skill_id": "search_icons", "query": "settings"}
+    ```
+    
+    For a clean dashboard sidebar, you'll want icons that have consistent stroke weights and a minimalist aesthetic. Here are several open-source SVG options from highly regarded, clean UI icon sets:
+    
+    ### 1. Tabler Icons
+    [Tabler Icons](wiki:Tabler) is a highly customizable, stroke-based set designed on a 24x24 grid, making it perfect for modern dashboards.
+    *   **License:** [MIT](wiki:MIT_License)
+    *   **Home:** `tabler:home` [Home](embed:home-EuX)
+    *   **Settings:** `tabler:settings` [Settings](embed:settings-TgF)
+    
+    ### 2. Remix Icon
+    Remix Icon offers a neutral, professional style with both "Line" and "Fill" versions, which is great for indicating active vs. inactive states in a sidebar.
+    *   **License:** [Apache 2.0](wiki:Apache_License)
+    *   **Home:** `ri:home-line` [Home Line](embed:home-line-vDv)
+    *   **Settings:** `ri:settings-line` [Settings Line](embed:settings-line-c3G)
+    
+    ### 3. Material Symbols (Light)
+    [Material Symbols](wiki:Material_Design) are the modern successor to Material Icons, offering variable font technology. The "Light" and "Outline" versions provide a very airy, sophisticated look.
+    *   **License:** [Apache 2.0](wiki:Apache_License)
+    *   **Home:** `material-symbols-light:home-outline` [Home Outline](embed:home-outline-3t2)
+    *   **Settings:** `material-symbols-light:settings-outline` [Settings Outline](embed:settings-outline-jak)
+    
+    ### 4. Boxicons
+    Boxicons is a high-quality web friendly set of icons that are simple and well-balanced.
+    *   **License:** [MIT](wiki:MIT_License)
+    *   **Home:** `boxicons:home` [Home](embed:home-DSR)
+    *   **Settings:** `boxicons:settings` (Available in the Boxicons collection)
+    
+    ### Summary Table
+    
+    ```json
+    {"type": "sheet", "embed_id": "955e10f2-2643-4489-a9d0-6ccdad784a58"}
+    ```
+    
+    **Design Tip:** When using these in a sidebar, ensure you keep the stroke width consistent across all icons. Most of these collections default to a `2px` stroke, which works well for visibility without feeling "heavy."
+    
+    Would you like me to look for other sidebar icons like "Users," "Analytics," or "Messages" to complete your set? I can also help you with a [Svelte](/#settings/apps/code) or [React](wiki:React_(software)) sidebar component if you're building the UI now.
+  pt: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "f92d6925-690b-4350-9b6a-3a7003f8b947", "app_id": "design", "skill_id": "search_icons", "query": "home"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "68b02c14-a329-4772-97d2-d7b168bb50bc", "app_id": "design", "skill_id": "search_icons", "query": "settings"}
+    ```
+    
+    For a clean dashboard sidebar, you'll want icons that have consistent stroke weights and a minimalist aesthetic. Here are several open-source SVG options from highly regarded, clean UI icon sets:
+    
+    ### 1. Tabler Icons
+    [Tabler Icons](wiki:Tabler) is a highly customizable, stroke-based set designed on a 24x24 grid, making it perfect for modern dashboards.
+    *   **License:** [MIT](wiki:MIT_License)
+    *   **Home:** `tabler:home` [Home](embed:home-EuX)
+    *   **Settings:** `tabler:settings` [Settings](embed:settings-TgF)
+    
+    ### 2. Remix Icon
+    Remix Icon offers a neutral, professional style with both "Line" and "Fill" versions, which is great for indicating active vs. inactive states in a sidebar.
+    *   **License:** [Apache 2.0](wiki:Apache_License)
+    *   **Home:** `ri:home-line` [Home Line](embed:home-line-vDv)
+    *   **Settings:** `ri:settings-line` [Settings Line](embed:settings-line-c3G)
+    
+    ### 3. Material Symbols (Light)
+    [Material Symbols](wiki:Material_Design) are the modern successor to Material Icons, offering variable font technology. The "Light" and "Outline" versions provide a very airy, sophisticated look.
+    *   **License:** [Apache 2.0](wiki:Apache_License)
+    *   **Home:** `material-symbols-light:home-outline` [Home Outline](embed:home-outline-3t2)
+    *   **Settings:** `material-symbols-light:settings-outline` [Settings Outline](embed:settings-outline-jak)
+    
+    ### 4. Boxicons
+    Boxicons is a high-quality web friendly set of icons that are simple and well-balanced.
+    *   **License:** [MIT](wiki:MIT_License)
+    *   **Home:** `boxicons:home` [Home](embed:home-DSR)
+    *   **Settings:** `boxicons:settings` (Available in the Boxicons collection)
+    
+    ### Summary Table
+    
+    ```json
+    {"type": "sheet", "embed_id": "955e10f2-2643-4489-a9d0-6ccdad784a58"}
+    ```
+    
+    **Design Tip:** When using these in a sidebar, ensure you keep the stroke width consistent across all icons. Most of these collections default to a `2px` stroke, which works well for visibility without feeling "heavy."
+    
+    Would you like me to look for other sidebar icons like "Users," "Analytics," or "Messages" to complete your set? I can also help you with a [Svelte](/#settings/apps/code) or [React](wiki:React_(software)) sidebar component if you're building the UI now.
+  ru: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "f92d6925-690b-4350-9b6a-3a7003f8b947", "app_id": "design", "skill_id": "search_icons", "query": "home"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "68b02c14-a329-4772-97d2-d7b168bb50bc", "app_id": "design", "skill_id": "search_icons", "query": "settings"}
+    ```
+    
+    For a clean dashboard sidebar, you'll want icons that have consistent stroke weights and a minimalist aesthetic. Here are several open-source SVG options from highly regarded, clean UI icon sets:
+    
+    ### 1. Tabler Icons
+    [Tabler Icons](wiki:Tabler) is a highly customizable, stroke-based set designed on a 24x24 grid, making it perfect for modern dashboards.
+    *   **License:** [MIT](wiki:MIT_License)
+    *   **Home:** `tabler:home` [Home](embed:home-EuX)
+    *   **Settings:** `tabler:settings` [Settings](embed:settings-TgF)
+    
+    ### 2. Remix Icon
+    Remix Icon offers a neutral, professional style with both "Line" and "Fill" versions, which is great for indicating active vs. inactive states in a sidebar.
+    *   **License:** [Apache 2.0](wiki:Apache_License)
+    *   **Home:** `ri:home-line` [Home Line](embed:home-line-vDv)
+    *   **Settings:** `ri:settings-line` [Settings Line](embed:settings-line-c3G)
+    
+    ### 3. Material Symbols (Light)
+    [Material Symbols](wiki:Material_Design) are the modern successor to Material Icons, offering variable font technology. The "Light" and "Outline" versions provide a very airy, sophisticated look.
+    *   **License:** [Apache 2.0](wiki:Apache_License)
+    *   **Home:** `material-symbols-light:home-outline` [Home Outline](embed:home-outline-3t2)
+    *   **Settings:** `material-symbols-light:settings-outline` [Settings Outline](embed:settings-outline-jak)
+    
+    ### 4. Boxicons
+    Boxicons is a high-quality web friendly set of icons that are simple and well-balanced.
+    *   **License:** [MIT](wiki:MIT_License)
+    *   **Home:** `boxicons:home` [Home](embed:home-DSR)
+    *   **Settings:** `boxicons:settings` (Available in the Boxicons collection)
+    
+    ### Summary Table
+    
+    ```json
+    {"type": "sheet", "embed_id": "955e10f2-2643-4489-a9d0-6ccdad784a58"}
+    ```
+    
+    **Design Tip:** When using these in a sidebar, ensure you keep the stroke width consistent across all icons. Most of these collections default to a `2px` stroke, which works well for visibility without feeling "heavy."
+    
+    Would you like me to look for other sidebar icons like "Users," "Analytics," or "Messages" to complete your set? I can also help you with a [Svelte](/#settings/apps/code) or [React](wiki:React_(software)) sidebar component if you're building the UI now.
+  ja: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "f92d6925-690b-4350-9b6a-3a7003f8b947", "app_id": "design", "skill_id": "search_icons", "query": "home"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "68b02c14-a329-4772-97d2-d7b168bb50bc", "app_id": "design", "skill_id": "search_icons", "query": "settings"}
+    ```
+    
+    For a clean dashboard sidebar, you'll want icons that have consistent stroke weights and a minimalist aesthetic. Here are several open-source SVG options from highly regarded, clean UI icon sets:
+    
+    ### 1. Tabler Icons
+    [Tabler Icons](wiki:Tabler) is a highly customizable, stroke-based set designed on a 24x24 grid, making it perfect for modern dashboards.
+    *   **License:** [MIT](wiki:MIT_License)
+    *   **Home:** `tabler:home` [Home](embed:home-EuX)
+    *   **Settings:** `tabler:settings` [Settings](embed:settings-TgF)
+    
+    ### 2. Remix Icon
+    Remix Icon offers a neutral, professional style with both "Line" and "Fill" versions, which is great for indicating active vs. inactive states in a sidebar.
+    *   **License:** [Apache 2.0](wiki:Apache_License)
+    *   **Home:** `ri:home-line` [Home Line](embed:home-line-vDv)
+    *   **Settings:** `ri:settings-line` [Settings Line](embed:settings-line-c3G)
+    
+    ### 3. Material Symbols (Light)
+    [Material Symbols](wiki:Material_Design) are the modern successor to Material Icons, offering variable font technology. The "Light" and "Outline" versions provide a very airy, sophisticated look.
+    *   **License:** [Apache 2.0](wiki:Apache_License)
+    *   **Home:** `material-symbols-light:home-outline` [Home Outline](embed:home-outline-3t2)
+    *   **Settings:** `material-symbols-light:settings-outline` [Settings Outline](embed:settings-outline-jak)
+    
+    ### 4. Boxicons
+    Boxicons is a high-quality web friendly set of icons that are simple and well-balanced.
+    *   **License:** [MIT](wiki:MIT_License)
+    *   **Home:** `boxicons:home` [Home](embed:home-DSR)
+    *   **Settings:** `boxicons:settings` (Available in the Boxicons collection)
+    
+    ### Summary Table
+    
+    ```json
+    {"type": "sheet", "embed_id": "955e10f2-2643-4489-a9d0-6ccdad784a58"}
+    ```
+    
+    **Design Tip:** When using these in a sidebar, ensure you keep the stroke width consistent across all icons. Most of these collections default to a `2px` stroke, which works well for visibility without feeling "heavy."
+    
+    Would you like me to look for other sidebar icons like "Users," "Analytics," or "Messages" to complete your set? I can also help you with a [Svelte](/#settings/apps/code) or [React](wiki:React_(software)) sidebar component if you're building the UI now.
+  ko: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "f92d6925-690b-4350-9b6a-3a7003f8b947", "app_id": "design", "skill_id": "search_icons", "query": "home"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "68b02c14-a329-4772-97d2-d7b168bb50bc", "app_id": "design", "skill_id": "search_icons", "query": "settings"}
+    ```
+    
+    For a clean dashboard sidebar, you'll want icons that have consistent stroke weights and a minimalist aesthetic. Here are several open-source SVG options from highly regarded, clean UI icon sets:
+    
+    ### 1. Tabler Icons
+    [Tabler Icons](wiki:Tabler) is a highly customizable, stroke-based set designed on a 24x24 grid, making it perfect for modern dashboards.
+    *   **License:** [MIT](wiki:MIT_License)
+    *   **Home:** `tabler:home` [Home](embed:home-EuX)
+    *   **Settings:** `tabler:settings` [Settings](embed:settings-TgF)
+    
+    ### 2. Remix Icon
+    Remix Icon offers a neutral, professional style with both "Line" and "Fill" versions, which is great for indicating active vs. inactive states in a sidebar.
+    *   **License:** [Apache 2.0](wiki:Apache_License)
+    *   **Home:** `ri:home-line` [Home Line](embed:home-line-vDv)
+    *   **Settings:** `ri:settings-line` [Settings Line](embed:settings-line-c3G)
+    
+    ### 3. Material Symbols (Light)
+    [Material Symbols](wiki:Material_Design) are the modern successor to Material Icons, offering variable font technology. The "Light" and "Outline" versions provide a very airy, sophisticated look.
+    *   **License:** [Apache 2.0](wiki:Apache_License)
+    *   **Home:** `material-symbols-light:home-outline` [Home Outline](embed:home-outline-3t2)
+    *   **Settings:** `material-symbols-light:settings-outline` [Settings Outline](embed:settings-outline-jak)
+    
+    ### 4. Boxicons
+    Boxicons is a high-quality web friendly set of icons that are simple and well-balanced.
+    *   **License:** [MIT](wiki:MIT_License)
+    *   **Home:** `boxicons:home` [Home](embed:home-DSR)
+    *   **Settings:** `boxicons:settings` (Available in the Boxicons collection)
+    
+    ### Summary Table
+    
+    ```json
+    {"type": "sheet", "embed_id": "955e10f2-2643-4489-a9d0-6ccdad784a58"}
+    ```
+    
+    **Design Tip:** When using these in a sidebar, ensure you keep the stroke width consistent across all icons. Most of these collections default to a `2px` stroke, which works well for visibility without feeling "heavy."
+    
+    Would you like me to look for other sidebar icons like "Users," "Analytics," or "Messages" to complete your set? I can also help you with a [Svelte](/#settings/apps/code) or [React](wiki:React_(software)) sidebar component if you're building the UI now.
+  it: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "f92d6925-690b-4350-9b6a-3a7003f8b947", "app_id": "design", "skill_id": "search_icons", "query": "home"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "68b02c14-a329-4772-97d2-d7b168bb50bc", "app_id": "design", "skill_id": "search_icons", "query": "settings"}
+    ```
+    
+    For a clean dashboard sidebar, you'll want icons that have consistent stroke weights and a minimalist aesthetic. Here are several open-source SVG options from highly regarded, clean UI icon sets:
+    
+    ### 1. Tabler Icons
+    [Tabler Icons](wiki:Tabler) is a highly customizable, stroke-based set designed on a 24x24 grid, making it perfect for modern dashboards.
+    *   **License:** [MIT](wiki:MIT_License)
+    *   **Home:** `tabler:home` [Home](embed:home-EuX)
+    *   **Settings:** `tabler:settings` [Settings](embed:settings-TgF)
+    
+    ### 2. Remix Icon
+    Remix Icon offers a neutral, professional style with both "Line" and "Fill" versions, which is great for indicating active vs. inactive states in a sidebar.
+    *   **License:** [Apache 2.0](wiki:Apache_License)
+    *   **Home:** `ri:home-line` [Home Line](embed:home-line-vDv)
+    *   **Settings:** `ri:settings-line` [Settings Line](embed:settings-line-c3G)
+    
+    ### 3. Material Symbols (Light)
+    [Material Symbols](wiki:Material_Design) are the modern successor to Material Icons, offering variable font technology. The "Light" and "Outline" versions provide a very airy, sophisticated look.
+    *   **License:** [Apache 2.0](wiki:Apache_License)
+    *   **Home:** `material-symbols-light:home-outline` [Home Outline](embed:home-outline-3t2)
+    *   **Settings:** `material-symbols-light:settings-outline` [Settings Outline](embed:settings-outline-jak)
+    
+    ### 4. Boxicons
+    Boxicons is a high-quality web friendly set of icons that are simple and well-balanced.
+    *   **License:** [MIT](wiki:MIT_License)
+    *   **Home:** `boxicons:home` [Home](embed:home-DSR)
+    *   **Settings:** `boxicons:settings` (Available in the Boxicons collection)
+    
+    ### Summary Table
+    
+    ```json
+    {"type": "sheet", "embed_id": "955e10f2-2643-4489-a9d0-6ccdad784a58"}
+    ```
+    
+    **Design Tip:** When using these in a sidebar, ensure you keep the stroke width consistent across all icons. Most of these collections default to a `2px` stroke, which works well for visibility without feeling "heavy."
+    
+    Would you like me to look for other sidebar icons like "Users," "Analytics," or "Messages" to complete your set? I can also help you with a [Svelte](/#settings/apps/code) or [React](wiki:React_(software)) sidebar component if you're building the UI now.
+  tr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "f92d6925-690b-4350-9b6a-3a7003f8b947", "app_id": "design", "skill_id": "search_icons", "query": "home"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "68b02c14-a329-4772-97d2-d7b168bb50bc", "app_id": "design", "skill_id": "search_icons", "query": "settings"}
+    ```
+    
+    For a clean dashboard sidebar, you'll want icons that have consistent stroke weights and a minimalist aesthetic. Here are several open-source SVG options from highly regarded, clean UI icon sets:
+    
+    ### 1. Tabler Icons
+    [Tabler Icons](wiki:Tabler) is a highly customizable, stroke-based set designed on a 24x24 grid, making it perfect for modern dashboards.
+    *   **License:** [MIT](wiki:MIT_License)
+    *   **Home:** `tabler:home` [Home](embed:home-EuX)
+    *   **Settings:** `tabler:settings` [Settings](embed:settings-TgF)
+    
+    ### 2. Remix Icon
+    Remix Icon offers a neutral, professional style with both "Line" and "Fill" versions, which is great for indicating active vs. inactive states in a sidebar.
+    *   **License:** [Apache 2.0](wiki:Apache_License)
+    *   **Home:** `ri:home-line` [Home Line](embed:home-line-vDv)
+    *   **Settings:** `ri:settings-line` [Settings Line](embed:settings-line-c3G)
+    
+    ### 3. Material Symbols (Light)
+    [Material Symbols](wiki:Material_Design) are the modern successor to Material Icons, offering variable font technology. The "Light" and "Outline" versions provide a very airy, sophisticated look.
+    *   **License:** [Apache 2.0](wiki:Apache_License)
+    *   **Home:** `material-symbols-light:home-outline` [Home Outline](embed:home-outline-3t2)
+    *   **Settings:** `material-symbols-light:settings-outline` [Settings Outline](embed:settings-outline-jak)
+    
+    ### 4. Boxicons
+    Boxicons is a high-quality web friendly set of icons that are simple and well-balanced.
+    *   **License:** [MIT](wiki:MIT_License)
+    *   **Home:** `boxicons:home` [Home](embed:home-DSR)
+    *   **Settings:** `boxicons:settings` (Available in the Boxicons collection)
+    
+    ### Summary Table
+    
+    ```json
+    {"type": "sheet", "embed_id": "955e10f2-2643-4489-a9d0-6ccdad784a58"}
+    ```
+    
+    **Design Tip:** When using these in a sidebar, ensure you keep the stroke width consistent across all icons. Most of these collections default to a `2px` stroke, which works well for visibility without feeling "heavy."
+    
+    Would you like me to look for other sidebar icons like "Users," "Analytics," or "Messages" to complete your set? I can also help you with a [Svelte](/#settings/apps/code) or [React](wiki:React_(software)) sidebar component if you're building the UI now.
+  vi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "f92d6925-690b-4350-9b6a-3a7003f8b947", "app_id": "design", "skill_id": "search_icons", "query": "home"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "68b02c14-a329-4772-97d2-d7b168bb50bc", "app_id": "design", "skill_id": "search_icons", "query": "settings"}
+    ```
+    
+    For a clean dashboard sidebar, you'll want icons that have consistent stroke weights and a minimalist aesthetic. Here are several open-source SVG options from highly regarded, clean UI icon sets:
+    
+    ### 1. Tabler Icons
+    [Tabler Icons](wiki:Tabler) is a highly customizable, stroke-based set designed on a 24x24 grid, making it perfect for modern dashboards.
+    *   **License:** [MIT](wiki:MIT_License)
+    *   **Home:** `tabler:home` [Home](embed:home-EuX)
+    *   **Settings:** `tabler:settings` [Settings](embed:settings-TgF)
+    
+    ### 2. Remix Icon
+    Remix Icon offers a neutral, professional style with both "Line" and "Fill" versions, which is great for indicating active vs. inactive states in a sidebar.
+    *   **License:** [Apache 2.0](wiki:Apache_License)
+    *   **Home:** `ri:home-line` [Home Line](embed:home-line-vDv)
+    *   **Settings:** `ri:settings-line` [Settings Line](embed:settings-line-c3G)
+    
+    ### 3. Material Symbols (Light)
+    [Material Symbols](wiki:Material_Design) are the modern successor to Material Icons, offering variable font technology. The "Light" and "Outline" versions provide a very airy, sophisticated look.
+    *   **License:** [Apache 2.0](wiki:Apache_License)
+    *   **Home:** `material-symbols-light:home-outline` [Home Outline](embed:home-outline-3t2)
+    *   **Settings:** `material-symbols-light:settings-outline` [Settings Outline](embed:settings-outline-jak)
+    
+    ### 4. Boxicons
+    Boxicons is a high-quality web friendly set of icons that are simple and well-balanced.
+    *   **License:** [MIT](wiki:MIT_License)
+    *   **Home:** `boxicons:home` [Home](embed:home-DSR)
+    *   **Settings:** `boxicons:settings` (Available in the Boxicons collection)
+    
+    ### Summary Table
+    
+    ```json
+    {"type": "sheet", "embed_id": "955e10f2-2643-4489-a9d0-6ccdad784a58"}
+    ```
+    
+    **Design Tip:** When using these in a sidebar, ensure you keep the stroke width consistent across all icons. Most of these collections default to a `2px` stroke, which works well for visibility without feeling "heavy."
+    
+    Would you like me to look for other sidebar icons like "Users," "Analytics," or "Messages" to complete your set? I can also help you with a [Svelte](/#settings/apps/code) or [React](wiki:React_(software)) sidebar component if you're building the UI now.
+  id: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "f92d6925-690b-4350-9b6a-3a7003f8b947", "app_id": "design", "skill_id": "search_icons", "query": "home"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "68b02c14-a329-4772-97d2-d7b168bb50bc", "app_id": "design", "skill_id": "search_icons", "query": "settings"}
+    ```
+    
+    For a clean dashboard sidebar, you'll want icons that have consistent stroke weights and a minimalist aesthetic. Here are several open-source SVG options from highly regarded, clean UI icon sets:
+    
+    ### 1. Tabler Icons
+    [Tabler Icons](wiki:Tabler) is a highly customizable, stroke-based set designed on a 24x24 grid, making it perfect for modern dashboards.
+    *   **License:** [MIT](wiki:MIT_License)
+    *   **Home:** `tabler:home` [Home](embed:home-EuX)
+    *   **Settings:** `tabler:settings` [Settings](embed:settings-TgF)
+    
+    ### 2. Remix Icon
+    Remix Icon offers a neutral, professional style with both "Line" and "Fill" versions, which is great for indicating active vs. inactive states in a sidebar.
+    *   **License:** [Apache 2.0](wiki:Apache_License)
+    *   **Home:** `ri:home-line` [Home Line](embed:home-line-vDv)
+    *   **Settings:** `ri:settings-line` [Settings Line](embed:settings-line-c3G)
+    
+    ### 3. Material Symbols (Light)
+    [Material Symbols](wiki:Material_Design) are the modern successor to Material Icons, offering variable font technology. The "Light" and "Outline" versions provide a very airy, sophisticated look.
+    *   **License:** [Apache 2.0](wiki:Apache_License)
+    *   **Home:** `material-symbols-light:home-outline` [Home Outline](embed:home-outline-3t2)
+    *   **Settings:** `material-symbols-light:settings-outline` [Settings Outline](embed:settings-outline-jak)
+    
+    ### 4. Boxicons
+    Boxicons is a high-quality web friendly set of icons that are simple and well-balanced.
+    *   **License:** [MIT](wiki:MIT_License)
+    *   **Home:** `boxicons:home` [Home](embed:home-DSR)
+    *   **Settings:** `boxicons:settings` (Available in the Boxicons collection)
+    
+    ### Summary Table
+    
+    ```json
+    {"type": "sheet", "embed_id": "955e10f2-2643-4489-a9d0-6ccdad784a58"}
+    ```
+    
+    **Design Tip:** When using these in a sidebar, ensure you keep the stroke width consistent across all icons. Most of these collections default to a `2px` stroke, which works well for visibility without feeling "heavy."
+    
+    Would you like me to look for other sidebar icons like "Users," "Analytics," or "Messages" to complete your set? I can also help you with a [Svelte](/#settings/apps/code) or [React](wiki:React_(software)) sidebar component if you're building the UI now.
+  pl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "f92d6925-690b-4350-9b6a-3a7003f8b947", "app_id": "design", "skill_id": "search_icons", "query": "home"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "68b02c14-a329-4772-97d2-d7b168bb50bc", "app_id": "design", "skill_id": "search_icons", "query": "settings"}
+    ```
+    
+    For a clean dashboard sidebar, you'll want icons that have consistent stroke weights and a minimalist aesthetic. Here are several open-source SVG options from highly regarded, clean UI icon sets:
+    
+    ### 1. Tabler Icons
+    [Tabler Icons](wiki:Tabler) is a highly customizable, stroke-based set designed on a 24x24 grid, making it perfect for modern dashboards.
+    *   **License:** [MIT](wiki:MIT_License)
+    *   **Home:** `tabler:home` [Home](embed:home-EuX)
+    *   **Settings:** `tabler:settings` [Settings](embed:settings-TgF)
+    
+    ### 2. Remix Icon
+    Remix Icon offers a neutral, professional style with both "Line" and "Fill" versions, which is great for indicating active vs. inactive states in a sidebar.
+    *   **License:** [Apache 2.0](wiki:Apache_License)
+    *   **Home:** `ri:home-line` [Home Line](embed:home-line-vDv)
+    *   **Settings:** `ri:settings-line` [Settings Line](embed:settings-line-c3G)
+    
+    ### 3. Material Symbols (Light)
+    [Material Symbols](wiki:Material_Design) are the modern successor to Material Icons, offering variable font technology. The "Light" and "Outline" versions provide a very airy, sophisticated look.
+    *   **License:** [Apache 2.0](wiki:Apache_License)
+    *   **Home:** `material-symbols-light:home-outline` [Home Outline](embed:home-outline-3t2)
+    *   **Settings:** `material-symbols-light:settings-outline` [Settings Outline](embed:settings-outline-jak)
+    
+    ### 4. Boxicons
+    Boxicons is a high-quality web friendly set of icons that are simple and well-balanced.
+    *   **License:** [MIT](wiki:MIT_License)
+    *   **Home:** `boxicons:home` [Home](embed:home-DSR)
+    *   **Settings:** `boxicons:settings` (Available in the Boxicons collection)
+    
+    ### Summary Table
+    
+    ```json
+    {"type": "sheet", "embed_id": "955e10f2-2643-4489-a9d0-6ccdad784a58"}
+    ```
+    
+    **Design Tip:** When using these in a sidebar, ensure you keep the stroke width consistent across all icons. Most of these collections default to a `2px` stroke, which works well for visibility without feeling "heavy."
+    
+    Would you like me to look for other sidebar icons like "Users," "Analytics," or "Messages" to complete your set? I can also help you with a [Svelte](/#settings/apps/code) or [React](wiki:React_(software)) sidebar component if you're building the UI now.
+  nl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "f92d6925-690b-4350-9b6a-3a7003f8b947", "app_id": "design", "skill_id": "search_icons", "query": "home"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "68b02c14-a329-4772-97d2-d7b168bb50bc", "app_id": "design", "skill_id": "search_icons", "query": "settings"}
+    ```
+    
+    For a clean dashboard sidebar, you'll want icons that have consistent stroke weights and a minimalist aesthetic. Here are several open-source SVG options from highly regarded, clean UI icon sets:
+    
+    ### 1. Tabler Icons
+    [Tabler Icons](wiki:Tabler) is a highly customizable, stroke-based set designed on a 24x24 grid, making it perfect for modern dashboards.
+    *   **License:** [MIT](wiki:MIT_License)
+    *   **Home:** `tabler:home` [Home](embed:home-EuX)
+    *   **Settings:** `tabler:settings` [Settings](embed:settings-TgF)
+    
+    ### 2. Remix Icon
+    Remix Icon offers a neutral, professional style with both "Line" and "Fill" versions, which is great for indicating active vs. inactive states in a sidebar.
+    *   **License:** [Apache 2.0](wiki:Apache_License)
+    *   **Home:** `ri:home-line` [Home Line](embed:home-line-vDv)
+    *   **Settings:** `ri:settings-line` [Settings Line](embed:settings-line-c3G)
+    
+    ### 3. Material Symbols (Light)
+    [Material Symbols](wiki:Material_Design) are the modern successor to Material Icons, offering variable font technology. The "Light" and "Outline" versions provide a very airy, sophisticated look.
+    *   **License:** [Apache 2.0](wiki:Apache_License)
+    *   **Home:** `material-symbols-light:home-outline` [Home Outline](embed:home-outline-3t2)
+    *   **Settings:** `material-symbols-light:settings-outline` [Settings Outline](embed:settings-outline-jak)
+    
+    ### 4. Boxicons
+    Boxicons is a high-quality web friendly set of icons that are simple and well-balanced.
+    *   **License:** [MIT](wiki:MIT_License)
+    *   **Home:** `boxicons:home` [Home](embed:home-DSR)
+    *   **Settings:** `boxicons:settings` (Available in the Boxicons collection)
+    
+    ### Summary Table
+    
+    ```json
+    {"type": "sheet", "embed_id": "955e10f2-2643-4489-a9d0-6ccdad784a58"}
+    ```
+    
+    **Design Tip:** When using these in a sidebar, ensure you keep the stroke width consistent across all icons. Most of these collections default to a `2px` stroke, which works well for visibility without feeling "heavy."
+    
+    Would you like me to look for other sidebar icons like "Users," "Analytics," or "Messages" to complete your set? I can also help you with a [Svelte](/#settings/apps/code) or [React](wiki:React_(software)) sidebar component if you're building the UI now.
+  ar: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "f92d6925-690b-4350-9b6a-3a7003f8b947", "app_id": "design", "skill_id": "search_icons", "query": "home"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "68b02c14-a329-4772-97d2-d7b168bb50bc", "app_id": "design", "skill_id": "search_icons", "query": "settings"}
+    ```
+    
+    For a clean dashboard sidebar, you'll want icons that have consistent stroke weights and a minimalist aesthetic. Here are several open-source SVG options from highly regarded, clean UI icon sets:
+    
+    ### 1. Tabler Icons
+    [Tabler Icons](wiki:Tabler) is a highly customizable, stroke-based set designed on a 24x24 grid, making it perfect for modern dashboards.
+    *   **License:** [MIT](wiki:MIT_License)
+    *   **Home:** `tabler:home` [Home](embed:home-EuX)
+    *   **Settings:** `tabler:settings` [Settings](embed:settings-TgF)
+    
+    ### 2. Remix Icon
+    Remix Icon offers a neutral, professional style with both "Line" and "Fill" versions, which is great for indicating active vs. inactive states in a sidebar.
+    *   **License:** [Apache 2.0](wiki:Apache_License)
+    *   **Home:** `ri:home-line` [Home Line](embed:home-line-vDv)
+    *   **Settings:** `ri:settings-line` [Settings Line](embed:settings-line-c3G)
+    
+    ### 3. Material Symbols (Light)
+    [Material Symbols](wiki:Material_Design) are the modern successor to Material Icons, offering variable font technology. The "Light" and "Outline" versions provide a very airy, sophisticated look.
+    *   **License:** [Apache 2.0](wiki:Apache_License)
+    *   **Home:** `material-symbols-light:home-outline` [Home Outline](embed:home-outline-3t2)
+    *   **Settings:** `material-symbols-light:settings-outline` [Settings Outline](embed:settings-outline-jak)
+    
+    ### 4. Boxicons
+    Boxicons is a high-quality web friendly set of icons that are simple and well-balanced.
+    *   **License:** [MIT](wiki:MIT_License)
+    *   **Home:** `boxicons:home` [Home](embed:home-DSR)
+    *   **Settings:** `boxicons:settings` (Available in the Boxicons collection)
+    
+    ### Summary Table
+    
+    ```json
+    {"type": "sheet", "embed_id": "955e10f2-2643-4489-a9d0-6ccdad784a58"}
+    ```
+    
+    **Design Tip:** When using these in a sidebar, ensure you keep the stroke width consistent across all icons. Most of these collections default to a `2px` stroke, which works well for visibility without feeling "heavy."
+    
+    Would you like me to look for other sidebar icons like "Users," "Analytics," or "Messages" to complete your set? I can also help you with a [Svelte](/#settings/apps/code) or [React](wiki:React_(software)) sidebar component if you're building the UI now.
+  hi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "f92d6925-690b-4350-9b6a-3a7003f8b947", "app_id": "design", "skill_id": "search_icons", "query": "home"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "68b02c14-a329-4772-97d2-d7b168bb50bc", "app_id": "design", "skill_id": "search_icons", "query": "settings"}
+    ```
+    
+    For a clean dashboard sidebar, you'll want icons that have consistent stroke weights and a minimalist aesthetic. Here are several open-source SVG options from highly regarded, clean UI icon sets:
+    
+    ### 1. Tabler Icons
+    [Tabler Icons](wiki:Tabler) is a highly customizable, stroke-based set designed on a 24x24 grid, making it perfect for modern dashboards.
+    *   **License:** [MIT](wiki:MIT_License)
+    *   **Home:** `tabler:home` [Home](embed:home-EuX)
+    *   **Settings:** `tabler:settings` [Settings](embed:settings-TgF)
+    
+    ### 2. Remix Icon
+    Remix Icon offers a neutral, professional style with both "Line" and "Fill" versions, which is great for indicating active vs. inactive states in a sidebar.
+    *   **License:** [Apache 2.0](wiki:Apache_License)
+    *   **Home:** `ri:home-line` [Home Line](embed:home-line-vDv)
+    *   **Settings:** `ri:settings-line` [Settings Line](embed:settings-line-c3G)
+    
+    ### 3. Material Symbols (Light)
+    [Material Symbols](wiki:Material_Design) are the modern successor to Material Icons, offering variable font technology. The "Light" and "Outline" versions provide a very airy, sophisticated look.
+    *   **License:** [Apache 2.0](wiki:Apache_License)
+    *   **Home:** `material-symbols-light:home-outline` [Home Outline](embed:home-outline-3t2)
+    *   **Settings:** `material-symbols-light:settings-outline` [Settings Outline](embed:settings-outline-jak)
+    
+    ### 4. Boxicons
+    Boxicons is a high-quality web friendly set of icons that are simple and well-balanced.
+    *   **License:** [MIT](wiki:MIT_License)
+    *   **Home:** `boxicons:home` [Home](embed:home-DSR)
+    *   **Settings:** `boxicons:settings` (Available in the Boxicons collection)
+    
+    ### Summary Table
+    
+    ```json
+    {"type": "sheet", "embed_id": "955e10f2-2643-4489-a9d0-6ccdad784a58"}
+    ```
+    
+    **Design Tip:** When using these in a sidebar, ensure you keep the stroke width consistent across all icons. Most of these collections default to a `2px` stroke, which works well for visibility without feeling "heavy."
+    
+    Would you like me to look for other sidebar icons like "Users," "Analytics," or "Messages" to complete your set? I can also help you with a [Svelte](/#settings/apps/code) or [React](wiki:React_(software)) sidebar component if you're building the UI now.
+  th: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "f92d6925-690b-4350-9b6a-3a7003f8b947", "app_id": "design", "skill_id": "search_icons", "query": "home"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "68b02c14-a329-4772-97d2-d7b168bb50bc", "app_id": "design", "skill_id": "search_icons", "query": "settings"}
+    ```
+    
+    For a clean dashboard sidebar, you'll want icons that have consistent stroke weights and a minimalist aesthetic. Here are several open-source SVG options from highly regarded, clean UI icon sets:
+    
+    ### 1. Tabler Icons
+    [Tabler Icons](wiki:Tabler) is a highly customizable, stroke-based set designed on a 24x24 grid, making it perfect for modern dashboards.
+    *   **License:** [MIT](wiki:MIT_License)
+    *   **Home:** `tabler:home` [Home](embed:home-EuX)
+    *   **Settings:** `tabler:settings` [Settings](embed:settings-TgF)
+    
+    ### 2. Remix Icon
+    Remix Icon offers a neutral, professional style with both "Line" and "Fill" versions, which is great for indicating active vs. inactive states in a sidebar.
+    *   **License:** [Apache 2.0](wiki:Apache_License)
+    *   **Home:** `ri:home-line` [Home Line](embed:home-line-vDv)
+    *   **Settings:** `ri:settings-line` [Settings Line](embed:settings-line-c3G)
+    
+    ### 3. Material Symbols (Light)
+    [Material Symbols](wiki:Material_Design) are the modern successor to Material Icons, offering variable font technology. The "Light" and "Outline" versions provide a very airy, sophisticated look.
+    *   **License:** [Apache 2.0](wiki:Apache_License)
+    *   **Home:** `material-symbols-light:home-outline` [Home Outline](embed:home-outline-3t2)
+    *   **Settings:** `material-symbols-light:settings-outline` [Settings Outline](embed:settings-outline-jak)
+    
+    ### 4. Boxicons
+    Boxicons is a high-quality web friendly set of icons that are simple and well-balanced.
+    *   **License:** [MIT](wiki:MIT_License)
+    *   **Home:** `boxicons:home` [Home](embed:home-DSR)
+    *   **Settings:** `boxicons:settings` (Available in the Boxicons collection)
+    
+    ### Summary Table
+    
+    ```json
+    {"type": "sheet", "embed_id": "955e10f2-2643-4489-a9d0-6ccdad784a58"}
+    ```
+    
+    **Design Tip:** When using these in a sidebar, ensure you keep the stroke width consistent across all icons. Most of these collections default to a `2px` stroke, which works well for visibility without feeling "heavy."
+    
+    Would you like me to look for other sidebar icons like "Users," "Analytics," or "Messages" to complete your set? I can also help you with a [Svelte](/#settings/apps/code) or [React](wiki:React_(software)) sidebar component if you're building the UI now.
+  cs: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "f92d6925-690b-4350-9b6a-3a7003f8b947", "app_id": "design", "skill_id": "search_icons", "query": "home"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "68b02c14-a329-4772-97d2-d7b168bb50bc", "app_id": "design", "skill_id": "search_icons", "query": "settings"}
+    ```
+    
+    For a clean dashboard sidebar, you'll want icons that have consistent stroke weights and a minimalist aesthetic. Here are several open-source SVG options from highly regarded, clean UI icon sets:
+    
+    ### 1. Tabler Icons
+    [Tabler Icons](wiki:Tabler) is a highly customizable, stroke-based set designed on a 24x24 grid, making it perfect for modern dashboards.
+    *   **License:** [MIT](wiki:MIT_License)
+    *   **Home:** `tabler:home` [Home](embed:home-EuX)
+    *   **Settings:** `tabler:settings` [Settings](embed:settings-TgF)
+    
+    ### 2. Remix Icon
+    Remix Icon offers a neutral, professional style with both "Line" and "Fill" versions, which is great for indicating active vs. inactive states in a sidebar.
+    *   **License:** [Apache 2.0](wiki:Apache_License)
+    *   **Home:** `ri:home-line` [Home Line](embed:home-line-vDv)
+    *   **Settings:** `ri:settings-line` [Settings Line](embed:settings-line-c3G)
+    
+    ### 3. Material Symbols (Light)
+    [Material Symbols](wiki:Material_Design) are the modern successor to Material Icons, offering variable font technology. The "Light" and "Outline" versions provide a very airy, sophisticated look.
+    *   **License:** [Apache 2.0](wiki:Apache_License)
+    *   **Home:** `material-symbols-light:home-outline` [Home Outline](embed:home-outline-3t2)
+    *   **Settings:** `material-symbols-light:settings-outline` [Settings Outline](embed:settings-outline-jak)
+    
+    ### 4. Boxicons
+    Boxicons is a high-quality web friendly set of icons that are simple and well-balanced.
+    *   **License:** [MIT](wiki:MIT_License)
+    *   **Home:** `boxicons:home` [Home](embed:home-DSR)
+    *   **Settings:** `boxicons:settings` (Available in the Boxicons collection)
+    
+    ### Summary Table
+    
+    ```json
+    {"type": "sheet", "embed_id": "955e10f2-2643-4489-a9d0-6ccdad784a58"}
+    ```
+    
+    **Design Tip:** When using these in a sidebar, ensure you keep the stroke width consistent across all icons. Most of these collections default to a `2px` stroke, which works well for visibility without feeling "heavy."
+    
+    Would you like me to look for other sidebar icons like "Users," "Analytics," or "Messages" to complete your set? I can also help you with a [Svelte](/#settings/apps/code) or [React](wiki:React_(software)) sidebar component if you're building the UI now.
+  sv: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "f92d6925-690b-4350-9b6a-3a7003f8b947", "app_id": "design", "skill_id": "search_icons", "query": "home"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "68b02c14-a329-4772-97d2-d7b168bb50bc", "app_id": "design", "skill_id": "search_icons", "query": "settings"}
+    ```
+    
+    For a clean dashboard sidebar, you'll want icons that have consistent stroke weights and a minimalist aesthetic. Here are several open-source SVG options from highly regarded, clean UI icon sets:
+    
+    ### 1. Tabler Icons
+    [Tabler Icons](wiki:Tabler) is a highly customizable, stroke-based set designed on a 24x24 grid, making it perfect for modern dashboards.
+    *   **License:** [MIT](wiki:MIT_License)
+    *   **Home:** `tabler:home` [Home](embed:home-EuX)
+    *   **Settings:** `tabler:settings` [Settings](embed:settings-TgF)
+    
+    ### 2. Remix Icon
+    Remix Icon offers a neutral, professional style with both "Line" and "Fill" versions, which is great for indicating active vs. inactive states in a sidebar.
+    *   **License:** [Apache 2.0](wiki:Apache_License)
+    *   **Home:** `ri:home-line` [Home Line](embed:home-line-vDv)
+    *   **Settings:** `ri:settings-line` [Settings Line](embed:settings-line-c3G)
+    
+    ### 3. Material Symbols (Light)
+    [Material Symbols](wiki:Material_Design) are the modern successor to Material Icons, offering variable font technology. The "Light" and "Outline" versions provide a very airy, sophisticated look.
+    *   **License:** [Apache 2.0](wiki:Apache_License)
+    *   **Home:** `material-symbols-light:home-outline` [Home Outline](embed:home-outline-3t2)
+    *   **Settings:** `material-symbols-light:settings-outline` [Settings Outline](embed:settings-outline-jak)
+    
+    ### 4. Boxicons
+    Boxicons is a high-quality web friendly set of icons that are simple and well-balanced.
+    *   **License:** [MIT](wiki:MIT_License)
+    *   **Home:** `boxicons:home` [Home](embed:home-DSR)
+    *   **Settings:** `boxicons:settings` (Available in the Boxicons collection)
+    
+    ### Summary Table
+    
+    ```json
+    {"type": "sheet", "embed_id": "955e10f2-2643-4489-a9d0-6ccdad784a58"}
+    ```
+    
+    **Design Tip:** When using these in a sidebar, ensure you keep the stroke width consistent across all icons. Most of these collections default to a `2px` stroke, which works well for visibility without feeling "heavy."
+    
+    Would you like me to look for other sidebar icons like "Users," "Analytics," or "Messages" to complete your set? I can also help you with a [Svelte](/#settings/apps/code) or [React](wiki:React_(software)) sidebar component if you're building the UI now.
+  he: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "f92d6925-690b-4350-9b6a-3a7003f8b947", "app_id": "design", "skill_id": "search_icons", "query": "home"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "68b02c14-a329-4772-97d2-d7b168bb50bc", "app_id": "design", "skill_id": "search_icons", "query": "settings"}
+    ```
+    
+    For a clean dashboard sidebar, you'll want icons that have consistent stroke weights and a minimalist aesthetic. Here are several open-source SVG options from highly regarded, clean UI icon sets:
+    
+    ### 1. Tabler Icons
+    [Tabler Icons](wiki:Tabler) is a highly customizable, stroke-based set designed on a 24x24 grid, making it perfect for modern dashboards.
+    *   **License:** [MIT](wiki:MIT_License)
+    *   **Home:** `tabler:home` [Home](embed:home-EuX)
+    *   **Settings:** `tabler:settings` [Settings](embed:settings-TgF)
+    
+    ### 2. Remix Icon
+    Remix Icon offers a neutral, professional style with both "Line" and "Fill" versions, which is great for indicating active vs. inactive states in a sidebar.
+    *   **License:** [Apache 2.0](wiki:Apache_License)
+    *   **Home:** `ri:home-line` [Home Line](embed:home-line-vDv)
+    *   **Settings:** `ri:settings-line` [Settings Line](embed:settings-line-c3G)
+    
+    ### 3. Material Symbols (Light)
+    [Material Symbols](wiki:Material_Design) are the modern successor to Material Icons, offering variable font technology. The "Light" and "Outline" versions provide a very airy, sophisticated look.
+    *   **License:** [Apache 2.0](wiki:Apache_License)
+    *   **Home:** `material-symbols-light:home-outline` [Home Outline](embed:home-outline-3t2)
+    *   **Settings:** `material-symbols-light:settings-outline` [Settings Outline](embed:settings-outline-jak)
+    
+    ### 4. Boxicons
+    Boxicons is a high-quality web friendly set of icons that are simple and well-balanced.
+    *   **License:** [MIT](wiki:MIT_License)
+    *   **Home:** `boxicons:home` [Home](embed:home-DSR)
+    *   **Settings:** `boxicons:settings` (Available in the Boxicons collection)
+    
+    ### Summary Table
+    
+    ```json
+    {"type": "sheet", "embed_id": "955e10f2-2643-4489-a9d0-6ccdad784a58"}
+    ```
+    
+    **Design Tip:** When using these in a sidebar, ensure you keep the stroke width consistent across all icons. Most of these collections default to a `2px` stroke, which works well for visibility without feeling "heavy."
+    
+    Would you like me to look for other sidebar icons like "Users," "Analytics," or "Messages" to complete your set? I can also help you with a [Svelte](/#settings/apps/code) or [React](wiki:React_(software)) sidebar component if you're building the UI now.
+  verified_by_human: []
+

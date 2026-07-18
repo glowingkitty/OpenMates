@@ -240,6 +240,46 @@ describe("OpenMates SDK", () => {
     });
   });
 
+  it("exports design icons through the OpenMates SVG route", async () => {
+    const tempDir = mkdtempSync(join(tmpdir(), "openmates-icon-export-"));
+    const svgOutput = join(tempDir, "home.svg");
+    const pngOutput = join(tempDir, "home.png");
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="currentColor" d="M4 12h16v8H4z"/></svg>`;
+    const requests: string[] = [];
+
+    await withServer((request, response) => {
+      requests.push(String(request.url));
+      assert.equal(request.url, "/v1/apps/design/icons/iconify/lucide/home.svg");
+      response.setHeader("content-type", "image/svg+xml");
+      response.end(svg);
+    }, async (apiUrl) => {
+      const client = new OpenMates({ apiKey: "sk-api-test", apiUrl });
+      const svgResult = await client.design.exportIcon({
+        prefix: "lucide",
+        name: "home",
+        color: "#111827",
+        outputPath: svgOutput,
+      });
+      assert.equal(svgResult.format, "svg");
+      assert.equal(svgResult.contentType, "image/svg+xml");
+      assert.match(readFileSync(svgOutput, "utf-8"), /#111827/);
+
+      const pngResult = await client.design.exportIcon({
+        svgPath: "/v1/apps/design/icons/iconify/lucide/home.svg",
+        format: "png",
+        size: 32,
+        outputPath: pngOutput,
+      });
+      assert.equal(pngResult.format, "png");
+      assert.equal(pngResult.contentType, "image/png");
+      assert.equal(readFileSync(pngOutput).subarray(1, 4).toString("utf-8"), "PNG");
+    });
+    assert.deepEqual(requests, [
+      "/v1/apps/design/icons/iconify/lucide/home.svg",
+      "/v1/apps/design/icons/iconify/lucide/home.svg",
+    ]);
+  });
+
   it("defaults new chats to non-persistent mode", async () => {
     await withServer((request, response) => {
       assert.equal(request.url, "/v1/sdk/chats");

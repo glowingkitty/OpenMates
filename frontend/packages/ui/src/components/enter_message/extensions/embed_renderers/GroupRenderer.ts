@@ -64,6 +64,7 @@ import MindMapEmbedPreview from "../../../embeds/mindmaps/MindMapEmbedPreview.sv
 import { normalizeMindMapSource, toMindMapOutline } from "../../../embeds/mindmaps/mindMapContent";
 import ElectronicsSearchEmbedPreview from "../../../embeds/electronics/ElectronicsSearchEmbedPreview.svelte";
 import ElectronicsComponentEmbedPreview from "../../../embeds/electronics/ElectronicsComponentEmbedPreview.svelte";
+import DesignIconSearchEmbedPreview from "../../../embeds/design/DesignIconSearchEmbedPreview.svelte";
 import DesignIconResultEmbedPreview from "../../../embeds/design/DesignIconResultEmbedPreview.svelte";
 import NutritionSearchEmbedPreview from "../../../embeds/nutrition/NutritionSearchEmbedPreview.svelte";
 import NutritionRecipeEmbedPreview from "../../../embeds/nutrition/NutritionRecipeEmbedPreview.svelte";
@@ -1873,6 +1874,29 @@ export class GroupRenderer implements EmbedRenderer {
             resultCount: modelResultCount,
             childEmbedIds,
             taskId,
+            isMobile: false,
+            onFullscreen: handleFullscreen,
+          },
+        });
+        mountedComponents.set(target, component);
+        return;
+      }
+
+      if (appId === "design" && skillId === "search_icons") {
+        const designPreviewResults = decodedContent?.results || decodedContent?.preview_results || [];
+        const designResultCount = typeof decodedContent?.result_count === "number"
+          ? decodedContent.result_count
+          : (Array.isArray(designPreviewResults) ? designPreviewResults.length : 0) || childEmbedIds.length;
+        const component = mount(DesignIconSearchEmbedPreview, {
+          target,
+          props: {
+            id: embedId,
+            query: query || "Icons",
+            provider: provider || "Iconify",
+            result_count: designResultCount,
+            status: status as "processing" | "finished" | "error" | "cancelled",
+            taskId,
+            skillTaskId,
             isMobile: false,
             onFullscreen: handleFullscreen,
           },

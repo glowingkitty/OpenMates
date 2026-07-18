@@ -60,6 +60,12 @@
     return typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined;
   }
 
+  function normalizeEmbedIds(value: unknown): string | string[] | undefined {
+    if (typeof value === 'string') return value;
+    if (Array.isArray(value)) return value.filter((id): id is string => typeof id === 'string');
+    return undefined;
+  }
+
   function transformToIconResult(embedId: string, content: Record<string, unknown>): DesignIconResult {
     return {
       embed_id: asString(content.embed_id) || embedId,
@@ -90,7 +96,7 @@
     return transformed;
   }
 
-  let embedIds = $derived(data.decodedContent?.embed_ids ?? data.embedData?.embed_ids);
+  let embedIds = $derived(normalizeEmbedIds(data.decodedContent?.embed_ids ?? data.embedData?.embed_ids));
   let initialChildEmbedId = $derived(data.focusChildEmbedId ?? undefined);
   let localQuery = $state('Icons');
   let localProvider = $state('Iconify');
@@ -173,7 +179,7 @@
 
   {#snippet childFullscreen({ result, onClose: onChildClose, hasPrevious, hasNext, onPrevious, onNext })}
     <DesignIconResultEmbedFullscreen
-      data={{ decodedContent: result, attrs: {}, embedData: {} }}
+      data={{ decodedContent: { ...result }, attrs: {}, embedData: {} }}
       embedId={result.embed_id}
       onClose={onChildClose}
       hasPreviousEmbed={hasPrevious}

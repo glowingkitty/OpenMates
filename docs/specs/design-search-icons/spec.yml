@@ -21,6 +21,8 @@ scope:
     - Ensure web and Apple clients never call Iconify directly and never use the preview server for Iconify SVG loading.
     - Render parent search embeds with child `icon_result` embeds that show SVG previews.
     - Provide fullscreen actions to copy SVG, locally recolor monotone icons, and locally export PNG where the client supports it.
+    - Before web implementation, inspect existing parent-search and child-result embed components/services and reuse their architecture to avoid duplicate or incoherent code.
+    - Ask a real natural-language icon-search question through OpenMates CLI, require the assistant to trigger `design.search_icons` with useful output quality, and publish that real chat as the app-skill example visible from the app settings page.
     - Implement and verify in OpenMates order: CLI against dev first, GitHub Actions/daily wiring, npm SDK, pip SDK, web, user confirmation, Apple.
   out:
     - SVGL/logo search in V1; brand logos need separate trademark-oriented `search_logos` work.
@@ -53,6 +55,9 @@ context_discovery:
     - scripts/sdk_cli_parity_live_smoke.py live CLI/SDK parity smoke pattern.
     - frontend/packages/ui/src/components/embeds/images/ImagesSearchEmbedPreview.svelte parent search preview pattern.
     - frontend/packages/ui/src/components/embeds/images/ImageResultEmbedFullscreen.svelte child fullscreen pattern.
+    - frontend/packages/ui/src/services/searchService.ts search-parent preview metadata and child hydration pattern.
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts grouped app-skill-use rendering pattern.
+    - frontend/packages/ui/src/demo_chats/data/example_chats/ published example-chat data pattern.
     - apple/OpenMatesUITests/SkillApplicationParityUITests.swift native skill/rendering parity fixture pattern.
   tests:
     - scripts/api_tests/test_iconify_api.py
@@ -62,6 +67,7 @@ context_discovery:
     - frontend/packages/openmates-cli/tests/cli.test.ts
     - frontend/packages/openmates-cli/tests/sdk.test.ts
     - packages/openmates-python/tests/test_sdk.py
+    - OpenMates CLI natural-language chat run for Design icon search example.
     - frontend/apps/web_app/tests/design-search-icons.spec.ts
     - apple/OpenMatesTests/SkillApplicationParityTests.swift
   external_research:
@@ -150,6 +156,16 @@ decisions:
     decision: Clients must not call Iconify directly and must not use the preview server for Iconify SVGs.
     reason: The user clarified external API requests must go through the regular OpenMates server, not preview server or browser-direct provider calls.
     decided_at: "2026-07-18T09:30:00Z"
+  - id: D-6
+    status: active
+    decision: Web implementation must start by inspecting and reusing existing parent-search and child-result embed architecture.
+    reason: The user explicitly called out that Design icon embeds should reproduce the established parent/child architecture and avoid duplicated or incoherent frontend code.
+    decided_at: "2026-07-18T12:20:00Z"
+  - id: D-7
+    status: active
+    decision: Publish a real natural-language CLI-triggered `design.search_icons` chat as the app-skill example before completing web work.
+    reason: The app settings example should demonstrate realistic assistant routing and useful output quality, not a hand-authored or direct skill-call-only fixture.
+    decided_at: "2026-07-18T12:20:00Z"
 
 attempts:
   - id: ATTEMPT-1
@@ -167,9 +183,9 @@ attempts:
 
 handoff:
   current_task_id: TASK-4
-  next_action: Coordinate with the active web implementation session before editing Design embed files, then add deployed web rendering and fullscreen verification for design.search_icons.
-  command: python3 scripts/tests.py run --spec design-search-icons.spec.ts
-  expected_outcome: Deployed web app renders Design parent and child icon embeds with API-hosted SVG loading, local copy/recolor/export behavior, and no browser-direct Iconify requests.
+  next_action: Inspect existing parent-search/child-result embed architecture, then run a real natural-language CLI chat for the Design icon search example before implementing deployed web rendering.
+  command: openmates chats send "Find clean home and settings icons for a dashboard sidebar" --json
+  expected_outcome: Real CLI chat triggers `design.search_icons` with useful output and provides the source for a published app-skill example visible in settings.
   blocker: null
   last_verified_commit: e2762df
 
@@ -233,15 +249,17 @@ scenarios:
       - Unsupported license filters are rejected with validation errors.
 
   - id: S-6
-    title: SDKs expose the same search contract
+    title: CLI and SDKs expose the same search and export contract
     given:
-      - A developer uses npm or pip SDK with an API key.
+      - A developer uses CLI, npm SDK, or pip SDK with an API key or CLI session.
     when:
       - The developer calls the generated `design.search_icons` SDK method with the same request schema as CLI.
+      - The developer exports a selected Iconify result by prefix/name or stored OpenMates SVG path.
     then:
       - The SDK sends the request to `/v1/apps/design/skills/search_icons`.
       - The SDK receives the same normalized metadata-only response contract.
-      - SDK usage does not require a browser session and does not call Iconify directly.
+      - CLI and SDK export fetch the sanitized SVG from `/v1/apps/design/icons/iconify/{prefix}/{name}.svg`, recolor `currentColor` SVGs locally, and export SVG or PNG bytes/files locally.
+      - CLI and SDK usage does not require a browser session and does not call Iconify directly.
 
   - id: S-7
     title: Web renders parent and icon child previews after CLI and SDK gates
@@ -265,6 +283,18 @@ scenarios:
     then:
       - Native app renders Design icon search parent/child embeds with OpenMates API-hosted SVG loading only.
       - Native fullscreen offers SVG copy/share and PNG export if native rendering support is practical, or records a scoped accepted blocker for PNG only.
+
+  - id: S-9
+    title: Natural-language CLI example chat demonstrates icon search
+    given:
+      - CLI, backend, and SDK gates for `design.search_icons` are green on dev.
+      - The example-chat publishing workflow is available for app-skill examples.
+    when:
+      - Alice asks a real natural-language CLI question such as "Find clean home and settings icons for a dashboard sidebar" without directly naming the tool schema.
+    then:
+      - The assistant chooses `design.search_icons` and returns a useful set of icon results with clear license/source metadata.
+      - The chat is captured from the real CLI/API path and published as a hardcoded example chat for the Design app `search_icons` skill.
+      - The example appears in the app settings page for the Design icon search skill and renders through the same web parent/child embed components as normal chats.
 
 acceptance_criteria:
   - id: AC-1
@@ -316,9 +346,9 @@ acceptance_criteria:
       - T-PYTEST-002
   - id: AC-6
     scenario: S-6
-    text: npm SDK and pip SDK expose native `design.search_icons` methods with the same request and response contract as CLI.
+    text: CLI, npm SDK, and pip SDK expose native Design icon search and export helpers with matching OpenMates-only SVG fetch, local recolor, and local SVG/PNG output behavior.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: npm_sdk
     verification_ids:
@@ -344,6 +374,17 @@ acceptance_criteria:
     verification_scope: apple
     verification_ids:
       - T-APPLE-001
+  - id: AC-9
+    scenario: S-9
+    text: A real natural-language OpenMates CLI chat triggers `design.search_icons`, produces useful icon-search output, and is published as a Design app-skill example visible from app settings.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: manual
+    verification_ids:
+      - T-CLI-CHAT-001
+      - T-E2E-001
+      - V-WEB-USER-APPROVAL
 
 assumptions:
   - id: A-1
@@ -366,12 +407,20 @@ assumptions:
     text: Web can render fetched SVG text safely after server-side sanitization and local client-side transformation.
     category: frontend
     required_before: implementation
-    status: unchecked
+    status: confirmed
+    evidence:
+      - source: frontend/packages/ui/src/components/embeds/design/DesignIconResultEmbedFullscreen.svelte
+        summary: The web fullscreen fetches sanitized SVGs from `svg_path`, applies monotone recolor locally, and renders PNG locally from a browser canvas.
+      - source: svelte-check-design-20260718T1304Z
+        summary: Targeted Svelte component check passed for `src/components/embeds/design` after the Design icon-result fullscreen implementation.
   - id: A-4
     text: Apple has enough native SVG rendering/share support for child previews and fullscreen SVG copy; PNG export may require an additional native helper.
     category: apple
     required_before: completion
-    status: unchecked
+    status: blocked
+    evidence:
+      - source: design-search-icons-phase-gate
+        summary: Apple parity is intentionally blocked until deployed web verification and user confirmation complete, matching the required CLI -> SDK -> web -> user confirmation -> Apple order.
 
 contracts:
   api:
@@ -395,6 +444,11 @@ contracts:
     - Parent embed type `search_icons` has category `app-skill-use`, skill_id `search_icons`, has_children true, child_type `icon_result`, and parent preview metadata fields query, provider, result_count, license_policy, embed_ids, and preview_results.
     - Child embed type `icon_result` has category `direct` and stores icon_id, prefix, name, display_name, collection_name, collection_category, license_title, license_spdx, license_url, author_name, author_url, width, height, palette, svg_path, and tags.
     - Child embeds must not store SVG markup, PNG bytes, data URLs, raw Iconify responses, provider credentials, or preview-server URLs.
+  cli_sdk:
+    - CLI exposes `openmates apps design export-icon <prefix:name> --output <path> [--color <hex>] [--format svg|png] [--size <px>]` plus equivalent `--prefix/--name` and `--svg-path` inputs.
+    - npm SDK exposes `client.design.exportIcon({ prefix, name, svgPath, color, outputPath, format, size, width, height })` and returns `{ format, contentType, data, svg, svgPath, outputPath }`.
+    - pip SDK exposes `client.design.export_icon(prefix=..., name=..., svg_path=..., color=..., output_path=..., format=..., size=..., width=..., height=...)` and returns `{ format, content_type, data, svg, svg_path, output_path }`.
+    - CLI and SDK export helpers validate OpenMates SVG paths and hex colors, fetch only the regular OpenMates SVG route, recolor `currentColor` locally, and render PNG locally with client-side rasterization dependencies.
   ui_states:
     - Parent processing, success with results, success with zero results, license-filtered-empty, and provider error.
     - Child preview loading SVG, loaded SVG, SVG load failure, palette icon, monotone icon, known license, unknown/hidden license excluded state.
@@ -405,6 +459,11 @@ contracts:
     - SVG route sanitizes provider SVG before returning it to clients; unsafe script, event, external resource, and foreignObject content is rejected or removed.
     - Provider metadata and privacy policy are added for Iconify with `no_api_key: true` and verified privacy URL.
     - Logs include provider, query prefix, and icon_id context but not private user content beyond the requested search term needed for debugging.
+
+  implementation_constraints:
+    - Web work must first inspect existing parent-search and child-result embed implementations, especially Images, 3D models, grouped app-skill-use renderers, search parent metadata sync, and example-chat registration.
+    - New Design embed code should reuse existing registry, resolver, fullscreen, grouped rendering, loading/error, and example-chat patterns unless a documented mismatch requires a small targeted helper.
+    - Do not add a parallel Design-only parent/child hydration architecture when an existing shared mechanism already covers the behavior.
 
 tests:
   - id: T-API-001
@@ -546,6 +605,7 @@ tests:
     assertions:
       - generated typed CLI command accepts query, count, license policy, include prefixes, and exclude prefixes
       - parser sends a request-array skill payload to `design.search_icons`
+      - Design export command fetches the selected icon through the OpenMates SVG route and writes recolored SVG output locally
       - supplemental parser coverage does not replace the real dev CLI gate
     red_phase:
       required: true
@@ -562,11 +622,11 @@ tests:
       expected: pass
       evidence:
         status: passed
-        command: npm run build && node --test --test-name-pattern "design search-icons" tests/cli.test.ts
-        run_id: local-cli-unit-green-20260718T1031Z
+        command: npm run build && node --test --test-name-pattern "design icon" tests/cli.test.ts
+        run_id: local-cli-unit-green-20260718T1210Z
         subject_commit: e2762df
-        timestamp: "2026-07-18T10:31:59Z"
-        summary: Targeted CLI test passed for `openmates apps design search_icons --query home --count 12 --license-policy permissive --json` using generated app-skill metadata.
+        timestamp: "2026-07-18T12:10:00Z"
+        summary: Targeted CLI tests passed for generated `design.search_icons` coverage and `openmates apps design export-icon lucide:home --output home.svg --color '#111827' --json`, verifying local SVG recolor and OpenMates SVG-route fetch.
 
   - id: T-NPM-001
     type: unit
@@ -578,6 +638,7 @@ tests:
       - npm SDK exposes `client.apps.design.searchIcons`
       - SDK posts to `/v1/apps/design/skills/search_icons`
       - SDK sends the direct skill-schema request body and receives metadata-only results
+      - npm SDK exposes `client.design.exportIcon` for local SVG recolor and SVG/PNG export from the OpenMates SVG route
     red_phase:
       required: true
       expected: fail
@@ -593,11 +654,11 @@ tests:
       expected: pass
       evidence:
         status: passed
-        command: node --test --experimental-strip-types --loader ./tests/loader.mjs --test-name-pattern "design icon search" tests/sdk.test.ts
-        run_id: local-npm-sdk-green-20260718T1030Z
+        command: node --test --experimental-strip-types --loader ./tests/loader.mjs --test-name-pattern "design icon" tests/sdk.test.ts
+        run_id: local-npm-sdk-green-20260718T1210Z
         subject_commit: e2762df
-        timestamp: "2026-07-18T10:31:59Z"
-        summary: Targeted npm SDK test passed for client.apps.design.searchIcons posting to /v1/apps/design/skills/search_icons. Full sdk.test has unrelated pre-existing chat/session failures.
+        timestamp: "2026-07-18T12:10:00Z"
+        summary: Targeted npm SDK tests passed for `client.apps.design.searchIcons` and `client.design.exportIcon`, including OpenMates SVG-route fetch, local SVG recolor, and PNG bytes written through Resvg.
 
   - id: T-PIP-001
     type: pytest
@@ -609,6 +670,7 @@ tests:
       - pip SDK exposes `client.apps.design.search_icons`
       - SDK posts to `/v1/apps/design/skills/search_icons`
       - SDK sends the direct skill-schema request body and receives metadata-only results
+      - pip SDK exposes `client.design.export_icon` for local SVG recolor and SVG/PNG export from the OpenMates SVG route
     red_phase:
       required: true
       expected: fail
@@ -624,11 +686,11 @@ tests:
       expected: pass
       evidence:
         status: passed
-        command: python3 -m pytest packages/openmates-python/tests/test_sdk_generator.py packages/openmates-python/tests/test_sdk.py
-        run_id: local-pip-sdk-green-20260718T1029Z
+        command: python3 -m pytest packages/openmates-python/tests/test_sdk.py -k "design_icon_export or native_design_search_icons"
+        run_id: local-pip-sdk-green-20260718T1209Z
         subject_commit: e2762df
-        timestamp: "2026-07-18T10:31:59Z"
-        summary: Python SDK generator and SDK tests passed, 29 passed.
+        timestamp: "2026-07-18T12:09:00Z"
+        summary: Targeted Python SDK tests passed for `client.apps.design.search_icons` and `client.design.export_icon`, including OpenMates SVG-route fetch, local SVG recolor, and PNG export through a fake CairoSVG rasterizer.
 
   - id: T-PARITY-001
     type: manual
@@ -638,6 +700,7 @@ tests:
     assertions:
       - CLI, npm SDK, and pip SDK expose the same `design.search_icons` request contract
       - live npm and pip smoke calls return metadata-only Iconify results through OpenMates API
+      - CLI and SDK export helpers fetch selected SVGs only through OpenMates API routes and render local SVG/PNG output without Iconify-direct calls
     red_phase:
       required: true
       expected: fail
@@ -654,12 +717,12 @@ tests:
       expected: pass
       evidence:
         status: passed
-        command: python3 scripts/audit_sdk_cli_parity.py && OPENMATES_LIVE_SMOKE=1 python3 scripts/sdk_cli_parity_live_smoke.py --api-url https://api.dev.openmates.org --name design-search-icons-smoke
-        run_id: dev-sdk-cli-parity-green-20260718T1149Z
+        command: python3 scripts/audit_sdk_cli_parity.py && OPENMATES_LIVE_SMOKE=1 python3 scripts/sdk_cli_parity_live_smoke.py --api-url https://api.dev.openmates.org --name design-search-icons-export-smoke
+        run_id: dev-sdk-cli-parity-green-20260718T1213Z
         subject_commit: e2762df
-        timestamp: "2026-07-18T11:49:41Z"
-        reason: The static audit passed after classifying `teams`, and the live smoke used real API-key auth against dev for both npm and pip SDKs.
-        summary: The live smoke returned npm and pip `designIcons` summaries with provider Iconify, resultCount 2, first icon `material-symbols:home`, Apache-2.0 license, OpenMates SVG path, and no SVG/PNG markup in result metadata.
+        timestamp: "2026-07-18T12:13:43Z"
+        reason: The static audit passed, and the live smoke used real API-key auth against dev for npm and pip SDKs.
+        summary: Live smoke returned npm and pip Iconify search summaries with OpenMates SVG paths and no embedded markup. npm exported SVG and PNG locally from the first icon; pip exported recolored SVG locally and reported PNG skipped only because this source-checkout Python environment has not installed the new `cairosvg` dependency yet.
 
   - id: T-E2E-001
     type: playwright
@@ -675,6 +738,7 @@ tests:
       - child fullscreen shows license/collection metadata and SVG preview
       - monotone recolor updates the displayed icon and copy SVG output locally without new backend color requests
       - PNG download is created locally from the displayed SVG
+      - the published natural-language Design icon search example appears on the app settings page for the `search_icons` skill
       - browser network logs include no requests to `api.iconify.design` and no preview-server icon route
     red_phase:
       required: true
@@ -693,6 +757,36 @@ tests:
         run_id: ""
         subject_commit: ""
         timestamp: ""
+
+  - id: T-CLI-CHAT-001
+    type: manual
+    command: openmates chats send "Find clean home and settings icons for a dashboard sidebar" --json
+    covers:
+      - AC-9
+    assertions:
+      - command uses the real OpenMates CLI/API chat path, not a mocked API call or direct skill invocation
+      - assistant chooses `design.search_icons` for the natural-language request
+      - returned icon results are useful enough for an example chat and include license/source metadata
+      - captured chat is suitable for `add-example-chat` publication without leaking private user data or share URL keys
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        command: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: openmates chats send "Find open-source SVG home and settings icons from clean UI icon sets for a dashboard sidebar. Include the icon names, collections, and licenses." --json
+        run_id: cli-chat-bb3915af-d535-472a-a322-5d799f41ae6a
+        subject_commit: e2762df
+        timestamp: "2026-07-18T13:20:34Z"
+        reason: This was the required real CLI chat path against OpenMates, not a direct skill invocation or hand-authored example.
+        summary: Real natural-language CLI chat `bb3915af-d535-472a-a322-5d799f41ae6a` triggered `design.search_icons` for `home` and `settings`, returned useful Iconify results with collection/license metadata, and was converted into the `dashboard-sidebar-svg-icons` published example fixture.
 
   - id: T-APPLE-001
     type: manual
@@ -803,8 +897,10 @@ implementation_plan:
     - Provider API test script and backend contract red tests.
     - Real dev CLI command against the dev API with no mocked OpenMates API/WebSocket path.
     - GitHub Actions/daily wiring for the same CLI coverage after dev CLI success.
-    - npm SDK parity.
-    - pip SDK parity.
+    - npm SDK parity plus local SVG/PNG export helper verification.
+    - pip SDK parity plus local SVG/PNG export helper verification.
+    - Inspect existing parent-search/child-result embed and example-chat patterns before editing web files.
+    - Real natural-language CLI chat that triggers `design.search_icons`, followed by published example-chat fixture creation.
     - Web implementation and deployed Playwright verification.
     - User confirmation of deployed web behavior and visual quality.
     - Apple remote status plus build/test only after user confirmation.
@@ -824,6 +920,7 @@ tasks:
         - S-6
         - S-7
         - S-8
+        - S-9
       acceptance_criteria:
         - AC-1
         - AC-2
@@ -833,6 +930,7 @@ tasks:
         - AC-6
         - AC-7
         - AC-8
+        - AC-9
     expected_files:
       - docs/specs/design-search-icons/spec.yml
     verification_ids:
@@ -845,6 +943,7 @@ tasks:
       - T-PIP-001
       - T-PARITY-001
       - T-E2E-001
+      - T-CLI-CHAT-001
       - T-APPLE-001
       - V-WEB-USER-APPROVAL
     dependencies: []
@@ -917,7 +1016,7 @@ tasks:
       - TASK-3
 
   - id: TASK-3
-    title: Add CLI and SDK parity for Design icon search
+    title: Add CLI and SDK parity for Design icon search and export
     status: done
     phase: complete
     covers:
@@ -929,7 +1028,16 @@ tasks:
         - AC-6
     expected_files:
       - frontend/packages/openmates-cli/src/generated/appSkills.ts
+      - frontend/packages/openmates-cli/src/designIcons.ts
+      - frontend/packages/openmates-cli/src/client.ts
+      - frontend/packages/openmates-cli/src/cli.ts
+      - frontend/packages/openmates-cli/src/sdk.ts
+      - frontend/packages/openmates-cli/src/index.ts
+      - frontend/packages/openmates-cli/package.json
+      - pnpm-lock.yaml
       - packages/openmates-python/openmates/generated/app_skills.py
+      - packages/openmates-python/openmates/sdk.py
+      - packages/openmates-python/pyproject.toml
       - frontend/packages/openmates-cli/tests/cli.test.ts
       - frontend/packages/openmates-cli/tests/sdk.test.ts
       - packages/openmates-python/tests/test_sdk.py
@@ -945,7 +1053,16 @@ tasks:
     ownership:
       files:
         - frontend/packages/openmates-cli/src/generated/appSkills.ts
+        - frontend/packages/openmates-cli/src/designIcons.ts
+        - frontend/packages/openmates-cli/src/client.ts
+        - frontend/packages/openmates-cli/src/cli.ts
+        - frontend/packages/openmates-cli/src/sdk.ts
+        - frontend/packages/openmates-cli/src/index.ts
+        - frontend/packages/openmates-cli/package.json
+        - pnpm-lock.yaml
         - packages/openmates-python/openmates/generated/app_skills.py
+        - packages/openmates-python/openmates/sdk.py
+        - packages/openmates-python/pyproject.toml
         - frontend/packages/openmates-cli/tests/cli.test.ts
         - frontend/packages/openmates-cli/tests/sdk.test.ts
         - packages/openmates-python/tests/test_sdk.py
@@ -956,24 +1073,29 @@ tasks:
       - TASK-4
 
   - id: TASK-4
-    title: Add web Design icon search embeds and deployed verification
+    title: Audit embed architecture, publish example chat, and add web Design icon embeds
     status: pending
     phase: working_tasks
     covers:
       scenarios:
         - S-4
         - S-7
+        - S-9
       acceptance_criteria:
         - AC-4
         - AC-7
+        - AC-9
     expected_files:
       - frontend/packages/ui/src/components/embeds/design/
       - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
       - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
       - frontend/packages/ui/src/data/embedRegistry.generated.ts
       - frontend/packages/ui/src/i18n/sources/embeds.yml
+      - frontend/packages/ui/src/demo_chats/data/example_chats/
+      - frontend/packages/openmates-cli/src/exampleChats.ts
       - frontend/apps/web_app/tests/design-search-icons.spec.ts
     verification_ids:
+      - T-CLI-CHAT-001
       - T-E2E-001
       - V-WEB-USER-APPROVAL
     dependencies:
@@ -981,14 +1103,18 @@ tasks:
     ownership:
       files:
         - frontend/packages/ui/src/components/embeds/design/
+        - frontend/packages/ui/src/demo_chats/data/example_chats/
         - frontend/apps/web_app/tests/design-search-icons.spec.ts
       shared_files:
         - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
         - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
         - frontend/packages/ui/src/data/embedRegistry.generated.ts
         - frontend/packages/ui/src/i18n/sources/embeds.yml
+        - frontend/packages/openmates-cli/src/exampleChats.ts
     blockers:
       - Web starts only after CLI and SDK gates are green.
+      - Web component edits start only after inspecting existing parent-search/child-result and example-chat patterns for reuse opportunities.
+      - Published example chat starts only after a real natural-language CLI chat triggers `design.search_icons` with useful output quality.
       - Playwright green evidence requires deploy and Vercel Ready state.
     follow_up_tasks:
       - TASK-5
@@ -1002,9 +1128,11 @@ tasks:
       scenarios:
         - S-4
         - S-7
+        - S-9
       acceptance_criteria:
         - AC-4
         - AC-7
+        - AC-9
     expected_files:
       - docs/specs/design-search-icons/spec.yml
     verification_ids:

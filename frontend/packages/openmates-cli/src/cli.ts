@@ -73,6 +73,10 @@ import {
   buildCodeRunStreamUrl,
 } from "./codeRunInput.js";
 import {
+  exportDesignIcon,
+  type DesignIconExportFormat,
+} from "./designIcons.js";
+import {
   getExampleChatConversation,
   listExampleChatsForApp,
   listExampleChatsForSkill,
@@ -806,6 +810,7 @@ async function handleTeams(
     if (typeof flags["encrypted-recipient-hint"] === "string") input.encrypted_recipient_hint = flags["encrypted-recipient-hint"];
     if (typeof flags["expires-at"] === "string") input.expires_at = Number.parseInt(flags["expires-at"], 10);
     input.role = parseTeamInviteRole(flags.role);
+    if (typeof flags.email === "string") await client.getTeam(teamId);
     const invite = await client.createTeamInvite(teamId, input);
     if (flags.json === true) printJson({ invite });
     else printJson(invite);
@@ -813,8 +818,10 @@ async function handleTeams(
   }
 
   if (subcommand === "accept-invite") {
-    const inviteId = requiredStringFlag(flags.invite ?? rest[0], "<invite-id>");
-    const result = await client.acceptTeamInvite(inviteId);
+    const inviteInput = parseTeamInviteInput(requiredStringFlag(flags.invite ?? rest[0], "<invite-id-or-url>"));
+    const inviteSecret = typeof flags.key === "string" ? flags.key : inviteInput.inviteSecret;
+    const recipientEmail = typeof flags.email === "string" ? flags.email : undefined;
+    const result = await client.acceptTeamInvite(inviteInput.inviteId, { inviteSecret, recipientEmail });
     if (flags.json === true) printJson(result);
     else printJson(result);
     return;
@@ -840,7 +847,7 @@ async function handleTeams(
   if (subcommand === "approve-access") {
     const teamId = requireTeamId(rest, flags);
     const accessRequestId = requiredStringFlag(flags.request ?? flags["access-request"] ?? rest[1], "<access-request-id>");
-    const encryptedTeamKey = requiredStringFlag(flags["encrypted-team-key"], "--encrypted-team-key <value>");
+    const encryptedTeamKey = typeof flags["encrypted-team-key"] === "string" ? flags["encrypted-team-key"] : undefined;
     const membership = await client.approveTeamAccessRequest(teamId, accessRequestId, encryptedTeamKey);
     if (flags.json === true) printJson({ membership });
     else printJson(membership);
@@ -938,6 +945,18 @@ async function handleTeams(
   }
 
   throw new Error(`Unknown teams command '${subcommand}'. Run 'openmates teams --help'.`);
+}
+
+function parseTeamInviteInput(value: string): { inviteId: string; inviteSecret: string | null } {
+  try {
+    const url = new URL(value);
+    const inviteId = url.pathname.split("/").filter(Boolean).pop();
+    const fragment = new URLSearchParams(url.hash.replace(/^#/, ""));
+    if (inviteId) return { inviteId, inviteSecret: fragment.get("key") };
+  } catch {
+    // Plain invite IDs are still supported for the access-request fallback.
+  }
+  return { inviteId: value, inviteSecret: null };
 }
 
 function requireTeamId(rest: string[], flags: Record<string, string | boolean>): string {
@@ -3255,6 +3274,11 @@ async function handleApps(
     return;
   }
 
+  if (subcommand === "design" && rest[0] === "export-icon") {
+    await handleDesignIconExport(client, rest.slice(1), flags, apiKey);
+    return;
+  }
+
   const generatedCommand = findGeneratedAppSkillCommand(subcommand, rest[0]);
   if (generatedCommand) {
     await handleGeneratedAppSkillCommand(client, generatedCommand, rest.slice(1), flags, apiKey);
@@ -3349,6 +3373,90 @@ async function handleModels3dSearch(
     console.error(`\x1b[31m✗ 3D model search failed:\x1b[0m ${msg}`);
     process.exit(1);
   }
+}
+
+async function handleDesignIconExport(
+  client: OpenMatesClient,
+  positionals: string[],
+  flags: Record<string, string | boolean>,
+  apiKey?: string,
+): Promise<void> {
+  if (flags.help === true) {
+    printDesignIconExportHelp();
+    return;
+  }
+  const outputPath = stringFlag(flags, "output");
+  if (!outputPath) {
+    console.error(
+      "Missing --output flag.\n\n" +
+        "Usage:\n" +
+        "  openmates apps design export-icon lucide:home --output home.svg [--color '#111827']\n" +
+        "  openmates apps design export-icon --prefix lucide --name home --format png --size 64 --output home.png\n",
+    );
+    process.exit(1);
+  }
+
+  const format = parseDesignIconExportFormat(flags.format);
+  const size = parsePositiveIntegerFlag(flags.size, "--size");
+  const width = parsePositiveIntegerFlag(flags.width, "--width");
+  const height = parsePositiveIntegerFlag(flags.height, "--height");
+  const iconRef = parseDesignIconReference(positionals, flags);
+  try {
+    const result = await exportDesignIcon({
+      ...iconRef,
+      outputPath,
+      format,
+      color: stringFlag(flags, "color"),
+      palette: flags.palette === true,
+      allowPaletteRecolor: flags["allow-palette-recolor"] === true,
+      size,
+      width,
+      height,
+      fetchSvg: async (path) => (await client.getRaw(path, apiKey)).data,
+    });
+    if (flags.json === true) {
+      printJson({
+        success: true,
+        format: result.format,
+        content_type: result.contentType,
+        output_path: result.outputPath,
+        svg_path: result.svgPath,
+        bytes: result.data.byteLength,
+      });
+    } else {
+      console.log(`Exported ${result.format.toUpperCase()} icon to ${result.outputPath}`);
+    }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`\x1b[31m✗ Design icon export failed:\x1b[0m ${msg}`);
+    process.exit(1);
+  }
+}
+
+function parseDesignIconReference(
+  positionals: string[],
+  flags: Record<string, string | boolean>,
+): { svgPath?: string; prefix?: string; name?: string } {
+  const svgPath = stringFlag(flags, "svg-path");
+  if (svgPath) return { svgPath };
+  const icon = stringFlag(flags, "icon") ?? positionals[0];
+  if (icon) {
+    const [prefix, name, extra] = icon.split(":");
+    if (!prefix || !name || extra !== undefined) {
+      throw new Error("Icon reference must use prefix:name, such as lucide:home");
+    }
+    return { prefix, name };
+  }
+  return {
+    prefix: stringFlag(flags, "prefix"),
+    name: stringFlag(flags, "name"),
+  };
+}
+
+function parseDesignIconExportFormat(value: string | boolean | undefined): DesignIconExportFormat | undefined {
+  if (value === undefined) return undefined;
+  if (value === "svg" || value === "png") return value;
+  throw new Error("--format must be svg or png");
 }
 
 interface CodeRunSkillResponse {
@@ -8518,10 +8626,10 @@ function printTeamsHelp(): void {
   openmates teams update <team-id> [--name <encrypted-name>] [--description <encrypted-description>] [--slug <slug>] [--json]
   openmates teams delete <team-id> --yes [--json]
   openmates teams invite <team-id> (--email <email>|--user <user-id>) [--role admin|member|viewer] [--json]
-  openmates teams accept-invite <invite-id> [--json]
+  openmates teams accept-invite <invite-id-or-url> [--email <recipient-email>] [--key <fragment-key>] [--json]
   openmates teams decline-invite <invite-id> [--json]
   openmates teams access-requests <team-id> [--status pending_access_approval|all] [--json]
-  openmates teams approve-access <team-id> <access-request-id> --encrypted-team-key <value> [--json]
+  openmates teams approve-access <team-id> <access-request-id> [--encrypted-team-key <value>] [--json]
   openmates teams reject-access <team-id> <access-request-id> [--json]
   openmates teams role <team-id> --user <user-id> --role admin|member|viewer [--json]
   openmates teams remove-member <team-id> --user <user-id> [--json]
@@ -8564,6 +8672,7 @@ function printAppsHelp(): void {
   openmates apps code run --entry main.py --file main.py [--file requirements.txt]
   openmates apps code run --entry main.py --dir ./project [--exclude node_modules]
   openmates apps models3d search --query benchy [--count 10] [--providers Printables] [--json]
+  openmates apps design export-icon lucide:home --output home.svg [--color '#111827']
   openmates apps travel booking-link --token "<token>" [--context '<json>']
 
 Authentication:
@@ -8580,8 +8689,34 @@ Examples:
   openmates apps examples travel search_connections
   openmates apps code run --language python --filename hello.py --code 'print("Hello from CLI")'
   openmates apps models3d search --query benchy --count 2 --providers Printables --json
+  openmates apps design search_icons --query home --count 12 --json
+  openmates apps design export-icon lucide:home --format png --size 64 --output home.png
   openmates apps travel booking-link --token "<booking_token from search result>"
   openmates apps skill-info web search`);
+}
+
+function printDesignIconExportHelp(): void {
+  console.log(`Design icon export command:
+  openmates apps design export-icon <prefix:name> --output <path> [--color <hex>] [--format svg|png]
+  openmates apps design export-icon --prefix <prefix> --name <name> --output <path>
+  openmates apps design export-icon --svg-path <path> --output <path>
+
+Options:
+  --output <path>       Required local output path.
+  --format svg|png     Output format. Defaults from --output extension, otherwise svg.
+  --color <hex>        Recolor currentColor-based monotone SVGs locally.
+  --size <px>          PNG output width when --format png is used. Default: 256.
+  --width <px>         PNG output width override.
+  --height <px>        PNG output height override when width is omitted.
+  --palette            Treat the icon as a palette icon and reject recolor by default.
+  --allow-palette-recolor
+                       Override the palette recolor guard.
+  --api-key <key>      Use an API key instead of a stored CLI session.
+  --json               Print export metadata as JSON.
+
+Examples:
+  openmates apps design export-icon lucide:home --output home.svg --color '#111827'
+  openmates apps design export-icon --prefix lucide --name home --format png --size 64 --output home.png`);
 }
 
 function printWorkflowsHelp(): void {

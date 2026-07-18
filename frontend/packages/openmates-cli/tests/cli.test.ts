@@ -11,7 +11,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { execFile, execFileSync, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { chmodSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
@@ -1469,6 +1469,12 @@ async function withSkillFormattingMockApi<T>(
         });
         return;
       }
+      if (request.method === "GET" && request.url === "/v1/apps/design/icons/iconify/lucide/home.svg") {
+        requests.push({ url: request.url, body: null });
+        response.writeHead(200, { "Content-Type": "image/svg+xml" });
+        response.end(`<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="currentColor" d="M4 12h16v8H4z"/></svg>`);
+        return;
+      }
       response.writeHead(404);
       response.end();
     } catch (error) {
@@ -2212,6 +2218,32 @@ describe("apps metadata commands", () => {
       assert.equal(parsed.data?.result_count, 1);
       assert.doesNotMatch(output, /svg_markup|preview_server_url|api\.iconify\.design/);
       assert.match(output, /lucide:home/);
+    });
+  });
+
+  it("exports a design icon as a recolored SVG", async () => {
+    await withSkillFormattingMockApi(async ({ apiUrl, requests }) => {
+      const tempDir = mkdtempSync(join(tmpdir(), "openmates-cli-icon-export-"));
+      const outputPath = join(tempDir, "home.svg");
+      const output = await runCliAsync([
+        "--api-url", apiUrl,
+        "apps", "design", "export-icon",
+        "lucide:home",
+        "--color", "#111827",
+        "--output", outputPath,
+        "--json",
+      ]);
+      const parsed = JSON.parse(output) as { success?: boolean; format?: string; bytes?: number; svg_path?: string };
+
+      assert.deepEqual(requests.at(-1), {
+        url: "/v1/apps/design/icons/iconify/lucide/home.svg",
+        body: null,
+      });
+      assert.equal(parsed.success, true);
+      assert.equal(parsed.format, "svg");
+      assert.equal(parsed.svg_path, "/v1/apps/design/icons/iconify/lucide/home.svg");
+      assert.ok((parsed.bytes ?? 0) > 0);
+      assert.match(readFileSync(outputPath, "utf-8"), /#111827/);
     });
   });
 
