@@ -40,6 +40,8 @@ import {
   type UserTaskActionInput,
   type UserTaskReorderInput,
   type UserTaskStatus,
+  type TeamRole,
+  type WorkspaceMoveType,
 } from "./client.js";
 import { OpenMates, type ChatResponse, type EncryptedChatMetadata } from "./sdk.js";
 import type { PendingTaskUpdateJobFrame, StreamEvent, SubChatEvent, TaskEventFrame } from "./ws.js";
@@ -214,6 +216,10 @@ async function main(): Promise<void> {
       printTasksHelp();
       return;
     }
+    if (command === "teams") {
+      printTeamsHelp();
+      return;
+    }
     if (command === "connected-accounts") {
       printConnectedAccountsHelp();
       return;
@@ -346,6 +352,11 @@ async function main(): Promise<void> {
 
   if (command === "tasks") {
     await handleTasks(client, subcommand, rest, parsed.flags);
+    return;
+  }
+
+  if (command === "teams") {
+    await handleTeams(client, subcommand, rest, parsed.flags);
     return;
   }
 
@@ -657,7 +668,7 @@ async function handleTasks(
   throw new Error(`Unknown tasks command '${subcommand}'. Run 'openmates tasks --help'.`);
 }
 
-function taskScopeFromFlags(flags: Record<string, string | boolean>, masterKey: Uint8Array): { status?: UserTaskStatus; chatId?: string; projectId?: string; planId?: string; labelHashes?: string[]; priority?: number } {
+function taskScopeFromFlags(flags: Record<string, string | boolean>, masterKey: Uint8Array): { status?: UserTaskStatus; chatId?: string; projectId?: string; planId?: string; labelHashes?: string[]; priority?: number; teamId?: string | null; personal?: boolean } {
   return {
     status: normalizeTaskStatus(typeof flags.status === "string" ? flags.status : undefined),
     chatId: typeof flags.chat === "string" ? flags.chat : undefined,
@@ -665,15 +676,16 @@ function taskScopeFromFlags(flags: Record<string, string | boolean>, masterKey: 
     planId: typeof flags.plan === "string" ? flags.plan : undefined,
     labelHashes: buildLabelHashes(masterKey, labelFlags(flags)),
     priority: typeof flags.priority === "string" ? normalizeTaskPriority(flags.priority) : undefined,
+    ...teamContextFromFlags(flags),
   };
 }
 
 async function loadTasks(
   client: OpenMatesClient,
   masterKey: Uint8Array,
-  scope: { status?: UserTaskStatus; chatId?: string; projectId?: string; planId?: string; labelHashes?: string[]; priority?: number },
+  scope: { status?: UserTaskStatus; chatId?: string; projectId?: string; planId?: string; labelHashes?: string[]; priority?: number; teamId?: string | null; personal?: boolean },
 ): Promise<DecryptedUserTask[]> {
-  const records = await client.listUserTasks({ status: scope.status, chatId: scope.chatId, projectId: scope.projectId, labelHashes: scope.labelHashes, priority: scope.priority });
+  const records = await client.listUserTasks({ status: scope.status, chatId: scope.chatId, projectId: scope.projectId, labelHashes: scope.labelHashes, priority: scope.priority, teamId: scope.teamId, personal: scope.personal });
   const tasks = await decryptUserTasks(records, masterKey);
   return scope.planId ? tasks.filter((task) => task.planId === scope.planId) : tasks;
 }
@@ -682,7 +694,7 @@ async function resolveTask(
   client: OpenMatesClient,
   masterKey: Uint8Array,
   id: string,
-  scope: { status?: UserTaskStatus; chatId?: string; projectId?: string; planId?: string; labelHashes?: string[]; priority?: number },
+  scope: { status?: UserTaskStatus; chatId?: string; projectId?: string; planId?: string; labelHashes?: string[]; priority?: number; teamId?: string | null; personal?: boolean },
 ): Promise<DecryptedUserTask> {
   return findTask(await loadTasks(client, masterKey, { ...scope, status: undefined }), id);
 }
@@ -691,7 +703,7 @@ async function requiredResolvedTask(
   client: OpenMatesClient,
   masterKey: Uint8Array,
   id: string | undefined,
-  scope: { status?: UserTaskStatus; chatId?: string; projectId?: string; planId?: string; labelHashes?: string[]; priority?: number },
+  scope: { status?: UserTaskStatus; chatId?: string; projectId?: string; planId?: string; labelHashes?: string[]; priority?: number; teamId?: string | null; personal?: boolean },
   action: string,
 ): Promise<DecryptedUserTask> {
   if (!id) throw new Error(`Missing task ID. Usage: openmates tasks ${action} <task-id>`);
@@ -701,6 +713,292 @@ async function requiredResolvedTask(
 function printTaskOutput(task: DecryptedUserTask, flags: Record<string, string | boolean>): void {
   if (flags.json === true) printJson({ task: taskToJson(task) });
   else console.log(renderTaskDetail(task));
+}
+
+// ---------------------------------------------------------------------------
+// Teams
+// ---------------------------------------------------------------------------
+
+async function handleTeams(
+  client: OpenMatesClient,
+  subcommand: string | undefined,
+  rest: string[],
+  flags: Record<string, string | boolean>,
+): Promise<void> {
+  if (!subcommand || subcommand === "help" || flags.help === true) {
+    printTeamsHelp();
+    return;
+  }
+
+  if (subcommand === "list") {
+    const teams = await client.listTeams();
+    printTeamsOutput(teams, client.getActiveTeamId(), flags);
+    return;
+  }
+
+  if (subcommand === "switch") {
+    const teamId = requireTeamId(rest, flags);
+    client.setActiveTeamId(teamId);
+    if (flags.json === true) printJson({ active_team_id: teamId, context: "team" });
+    else console.log(`Active team: ${teamId}`);
+    return;
+  }
+
+  if (subcommand === "personal") {
+    client.setActiveTeamId(null);
+    if (flags.json === true) printJson({ active_team_id: null, context: "personal" });
+    else console.log("Active context: personal");
+    return;
+  }
+
+  if (subcommand === "show") {
+    const teamId = requireTeamId(rest, flags);
+    const team = await client.getTeam(teamId);
+    if (flags.json === true) printJson({ team, active_team_id: client.getActiveTeamId() });
+    else printTeamRecord(team, client.getActiveTeamId());
+    return;
+  }
+
+  if (subcommand === "create") {
+    const name = requiredStringFlag(flags.name, "--name <name>");
+    const team = await client.createTeam({
+      name,
+      description: typeof flags.description === "string" ? flags.description : undefined,
+      slug: typeof flags.slug === "string" ? flags.slug : undefined,
+    });
+    if (flags.switch === true || flags.activate === true) {
+      const teamId = team.team_id ?? team.id;
+      if (typeof teamId === "string") client.setActiveTeamId(teamId);
+    }
+    if (flags.json === true) printJson({ team, active_team_id: client.getActiveTeamId() });
+    else printTeamRecord(team, client.getActiveTeamId());
+    return;
+  }
+
+  if (subcommand === "update") {
+    const teamId = requireTeamId(rest, flags);
+    const patch: Record<string, unknown> = {};
+    if (typeof flags.name === "string") patch.encrypted_name = flags.name;
+    if (typeof flags.description === "string") patch.encrypted_description = flags.description;
+    if (typeof flags.slug === "string") patch.slug = flags.slug;
+    if (Object.keys(patch).length === 0) throw new Error("Nothing to update. Provide --name, --description, or --slug.");
+    const team = await client.updateTeam(teamId, patch);
+    if (flags.json === true) printJson({ team });
+    else printTeamRecord(team, client.getActiveTeamId());
+    return;
+  }
+
+  if (subcommand === "delete") {
+    const teamId = requireTeamId(rest, flags);
+    if (flags.yes !== true && flags.confirm !== true) throw new Error("Deleting a team requires --yes.");
+    const result = await client.deleteTeam(teamId);
+    if (client.getActiveTeamId() === teamId) client.setActiveTeamId(null);
+    if (flags.json === true) printJson(result);
+    else console.log(`Team deleted: ${teamId}`);
+    return;
+  }
+
+  if (subcommand === "invite") {
+    const teamId = requireTeamId(rest, flags);
+    const input: Record<string, unknown> = {};
+    if (typeof flags.email === "string") input.recipient_email = flags.email;
+    if (typeof flags.user === "string") input.invitee_user_id = flags.user;
+    if (typeof flags["encrypted-recipient-hint"] === "string") input.encrypted_recipient_hint = flags["encrypted-recipient-hint"];
+    if (typeof flags["expires-at"] === "string") input.expires_at = Number.parseInt(flags["expires-at"], 10);
+    input.role = parseTeamInviteRole(flags.role);
+    const invite = await client.createTeamInvite(teamId, input);
+    if (flags.json === true) printJson({ invite });
+    else printJson(invite);
+    return;
+  }
+
+  if (subcommand === "accept-invite") {
+    const inviteId = requiredStringFlag(flags.invite ?? rest[0], "<invite-id>");
+    const result = await client.acceptTeamInvite(inviteId);
+    if (flags.json === true) printJson(result);
+    else printJson(result);
+    return;
+  }
+
+  if (subcommand === "decline-invite") {
+    const inviteId = requiredStringFlag(flags.invite ?? rest[0], "<invite-id>");
+    const result = await client.declineTeamInvite(inviteId);
+    if (flags.json === true) printJson(result);
+    else console.log("Team invite declined.");
+    return;
+  }
+
+  if (subcommand === "access-requests") {
+    const teamId = requireTeamId(rest, flags);
+    const status = typeof flags.status === "string" ? flags.status : undefined;
+    const accessRequests = await client.listTeamAccessRequests(teamId, status);
+    if (flags.json === true) printJson({ access_requests: accessRequests });
+    else printJson(accessRequests);
+    return;
+  }
+
+  if (subcommand === "approve-access") {
+    const teamId = requireTeamId(rest, flags);
+    const accessRequestId = requiredStringFlag(flags.request ?? flags["access-request"] ?? rest[1], "<access-request-id>");
+    const encryptedTeamKey = requiredStringFlag(flags["encrypted-team-key"], "--encrypted-team-key <value>");
+    const membership = await client.approveTeamAccessRequest(teamId, accessRequestId, encryptedTeamKey);
+    if (flags.json === true) printJson({ membership });
+    else printJson(membership);
+    return;
+  }
+
+  if (subcommand === "reject-access") {
+    const teamId = requireTeamId(rest, flags);
+    const accessRequestId = requiredStringFlag(flags.request ?? flags["access-request"] ?? rest[1], "<access-request-id>");
+    const result = await client.rejectTeamAccessRequest(teamId, accessRequestId);
+    if (flags.json === true) printJson(result);
+    else console.log(`Team access request rejected: ${accessRequestId}`);
+    return;
+  }
+
+  if (subcommand === "role") {
+    const teamId = requireTeamId(rest, flags);
+    const memberUserId = requiredStringFlag(flags.user ?? rest[1], "--user <user-id>");
+    const role = parseTeamAssignableRole(flags.role);
+    const membership = await client.updateTeamMemberRole(teamId, memberUserId, role);
+    if (flags.json === true) printJson({ membership });
+    else printJson(membership);
+    return;
+  }
+
+  if (subcommand === "remove-member") {
+    const teamId = requireTeamId(rest, flags);
+    const memberUserId = requiredStringFlag(flags.user ?? rest[1], "--user <user-id>");
+    const result = await client.removeTeamMember(teamId, memberUserId);
+    if (flags.json === true) printJson(result);
+    else console.log(`Team member removed: ${memberUserId}`);
+    return;
+  }
+
+  if (subcommand === "billing") {
+    const teamId = requireTeamId(rest, flags);
+    const billing = await client.getTeamBilling(teamId);
+    if (flags.json === true) printJson({ billing });
+    else printJson(billing);
+    return;
+  }
+
+  if (subcommand === "add-credits") {
+    const teamId = requireTeamId(rest, flags);
+    const credits = requiredNumberFlag(flags.credits, "--credits <amount>");
+    const billing = await client.addTeamCredits(teamId, { credits });
+    if (flags.json === true) printJson({ billing });
+    else printJson(billing);
+    return;
+  }
+
+  if (subcommand === "usage") {
+    const teamId = requireTeamId(rest, flags);
+    const usage = await client.listTeamUsage(teamId, typeof flags.user === "string" ? flags.user : undefined);
+    if (flags.json === true) printJson({ usage });
+    else printJson(usage);
+    return;
+  }
+
+  if (subcommand === "move") {
+    const teamId = requireTeamId(rest, flags);
+    const workspaceType = parseWorkspaceMoveType(flags.type ?? rest[1]);
+    const objectId = requiredStringFlag(flags.id ?? rest[2], "--id <resource-id>");
+    if (flags.yes !== true && flags.confirm !== true) throw new Error("Moving a workspace resource requires --yes.");
+    const result = await client.moveWorkspaceToTeam(workspaceType, objectId, teamId);
+    if (flags.json === true) printJson(result);
+    else console.log(`${workspaceType} moved to team ${teamId}: ${objectId}`);
+    return;
+  }
+
+  if (subcommand === "export") {
+    const teamId = requireTeamId(rest, flags);
+    const output = requiredStringFlag(flags.output, "--output <path>");
+    const result = await client.exportTeamData(teamId);
+    const artifact = result.artifact && typeof result.artifact === "object" ? result.artifact : result;
+    writeFileSync(output, `${JSON.stringify(artifact, null, 2)}\n`, { encoding: "utf-8", mode: 0o600 });
+    if (flags.json === true) printJson({ ...result, output });
+    else console.log(`Team export written: ${output}`);
+    return;
+  }
+
+  if (subcommand === "import") {
+    const file = requiredStringFlag(flags.file ?? rest[0], "--file <path>");
+    const artifact = JSON.parse(readFileSync(file, "utf-8")) as Record<string, unknown>;
+    let teamId = typeof flags.team === "string" ? flags.team : typeof flags["destination-team"] === "string" ? flags["destination-team"] : undefined;
+    if (!teamId && typeof flags["new-team-name"] === "string") {
+      const team = await client.createTeam({ name: flags["new-team-name"] });
+      teamId = typeof team.team_id === "string" ? team.team_id : typeof team.id === "string" ? team.id : undefined;
+    }
+    if (!teamId) throw new Error("Team import requires --team <team-id> or --new-team-name <name>.");
+    const result = await client.importTeamData(teamId, artifact);
+    if (flags.json === true) printJson(result);
+    else printJson(result);
+    return;
+  }
+
+  throw new Error(`Unknown teams command '${subcommand}'. Run 'openmates teams --help'.`);
+}
+
+function requireTeamId(rest: string[], flags: Record<string, string | boolean>): string {
+  return requiredStringFlag(flags.team ?? flags["team-id"] ?? rest[0], "--team <team-id>");
+}
+
+function requiredStringFlag(value: string | boolean | undefined, label: string): string {
+  if (typeof value !== "string" || value.trim().length === 0) throw new Error(`Missing ${label}.`);
+  return value.trim();
+}
+
+function requiredNumberFlag(value: string | boolean | undefined, label: string): number {
+  const raw = requiredStringFlag(value, label);
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed <= 0) throw new Error(`Invalid ${label}: ${raw}`);
+  return parsed;
+}
+
+function parseTeamInviteRole(value: string | boolean | undefined): Exclude<TeamRole, "owner"> {
+  if (value === undefined || value === false) return "member";
+  return parseTeamAssignableRole(value);
+}
+
+function parseTeamAssignableRole(value: string | boolean | undefined): Exclude<TeamRole, "owner"> {
+  const role = requiredStringFlag(value, "--role <admin|member|viewer>");
+  if (role === "admin" || role === "member" || role === "viewer") return role;
+  throw new Error("Team role must be admin, member, or viewer.");
+}
+
+function parseWorkspaceMoveType(value: string | boolean | undefined): WorkspaceMoveType {
+  const type = requiredStringFlag(value, "--type <chat|project|task|plan|workflow>");
+  if (type === "chat" || type === "project" || type === "task" || type === "plan" || type === "workflow") return type;
+  throw new Error("Workspace type must be chat, project, task, plan, or workflow.");
+}
+
+function teamContextFromFlags(flags: Record<string, string | boolean>): { teamId?: string | null; personal?: boolean } {
+  if (flags.personal === true) return { personal: true };
+  if (typeof flags.team === "string") return { teamId: flags.team };
+  if (typeof flags["team-id"] === "string") return { teamId: flags["team-id"] };
+  return {};
+}
+
+function printTeamsOutput(teams: Array<Record<string, unknown>>, activeTeamId: string | null, flags: Record<string, string | boolean>): void {
+  if (flags.json === true) {
+    printJson({ teams, active_team_id: activeTeamId });
+    return;
+  }
+  if (teams.length === 0) {
+    console.log("No teams.");
+    return;
+  }
+  for (const team of teams) printTeamRecord(team, activeTeamId);
+}
+
+function printTeamRecord(team: Record<string, unknown>, activeTeamId: string | null): void {
+  const teamId = typeof team.team_id === "string" ? team.team_id : typeof team.id === "string" ? team.id : "unknown";
+  const activeMarker = activeTeamId === teamId ? " *" : "";
+  console.log(`${teamId}${activeMarker}`);
+  if (typeof team.slug === "string") kv("slug", team.slug);
+  if (typeof team.role === "string") kv("role", team.role);
+  if (typeof team.status === "string") kv("status", team.status);
 }
 
 function taskToJson(task: DecryptedUserTask): Record<string, unknown> {
@@ -961,6 +1259,7 @@ async function handleChats(
   }
 
   const apiKey = resolveApiKey(flags) ?? undefined;
+  const teamContext = teamContextFromFlags(flags);
 
   if (rest[0] === "tasks") {
     await handleTasks(client, rest[1], rest.slice(2), { ...flags, chat: subcommand });
@@ -974,7 +1273,7 @@ async function handleChats(
     const result = apiKey
       ? await listApiKeyChats(client, apiKey, limit, page)
       : client.hasSession()
-        ? await client.listChats(limit, page)
+        ? await client.listChats(limit, page, teamContext)
         : listExampleChats(limit, page);
     if (flags.json === true) {
       printJson(result);
@@ -993,7 +1292,7 @@ async function handleChats(
     const result = apiKey
       ? await searchApiKeyChats(client, apiKey, query)
       : client.hasSession()
-        ? await client.searchChats(query)
+        ? await client.searchChats(query, teamContext)
         : searchExampleChats(query);
     if (flags.json === true) {
       printJson(result);
@@ -1029,6 +1328,7 @@ async function handleChats(
             acceptTaskProposals: flags["accept-task-proposals"] === true,
             piiDetection: flags["no-pii-detection"] !== true,
             responseTimeoutMs: parseResponseTimeoutMs(flags),
+            ...teamContext,
             anonymousLearningMode: client.hasSession() ? undefined : parseAnonymousLearningModeFlags(flags),
           },
           redactor,
@@ -1067,7 +1367,7 @@ async function handleChats(
 
       // Resolve the full chat ID first so getChatFollowUpSuggestions can match it.
       const fullId = await client
-        .resolveFullChatId(chatId)
+        .resolveFullChatId(chatId, teamContext)
         .catch(() => undefined);
       if (!fullId) {
         console.error(
@@ -1076,7 +1376,7 @@ async function handleChats(
         process.exit(1);
       }
 
-      const suggestions = await client.getChatFollowUpSuggestions(fullId);
+      const suggestions = await client.getChatFollowUpSuggestions(fullId, teamContext);
       if (suggestions.length === 0) {
         console.error(
           `No follow-up suggestions stored for chat '${chatId}'.\n` +
@@ -1125,6 +1425,7 @@ async function handleChats(
         acceptTaskProposals: flags["accept-task-proposals"] === true,
         piiDetection: flags["no-pii-detection"] !== true,
         responseTimeoutMs: parseResponseTimeoutMs(flags),
+        ...teamContext,
       },
       redactor,
     );
@@ -1158,6 +1459,7 @@ async function handleChats(
         acceptTaskProposals: flags["accept-task-proposals"] === true,
         piiDetection: flags["no-pii-detection"] !== true,
         responseTimeoutMs: parseResponseTimeoutMs(flags),
+        ...teamContext,
       },
       redactor,
     );
@@ -1228,11 +1530,11 @@ async function handleChats(
       }
       return;
     }
-    const { chat, messages } = await client.getChatMessages(resolvedId);
+    const { chat, messages } = await client.getChatMessages(resolvedId, teamContext);
     if (flags.json === true) {
       // Fetch follow-up suggestions for JSON output too
       const followUpSuggestions = await client
-        .getChatFollowUpSuggestions(chat.id)
+        .getChatFollowUpSuggestions(chat.id, teamContext)
         .catch(() => [] as string[]);
       printJson({ chat, messages, follow_up_suggestions: followUpSuggestions });
     } else if (flags.raw === true) {
@@ -1240,7 +1542,7 @@ async function handleChats(
     } else {
       // Fetch follow-up suggestions to display at the end of the conversation
       const followUpSuggestions = await client
-        .getChatFollowUpSuggestions(chat.id)
+        .getChatFollowUpSuggestions(chat.id, teamContext)
         .catch(() => [] as string[]);
       await printChatConversation(client, chat, messages, followUpSuggestions);
     }
@@ -1260,7 +1562,7 @@ async function handleChats(
     const resolved: Array<{ input: string; title: string | null }> = [];
     for (const id of chatIds) {
       try {
-        const { chat } = await client.getChatMessages(id);
+        const { chat } = await client.getChatMessages(id, teamContext);
         resolved.push({ input: id, title: chat.title ?? null });
       } catch {
         resolved.push({ input: id, title: null });
@@ -1305,7 +1607,7 @@ async function handleChats(
             { confirmed: true },
           );
         } else {
-          await client.deleteChat(r.input);
+          await client.deleteChat(r.input, teamContext);
         }
         const label = r.title ? `"${r.title}"` : r.input;
         process.stdout.write(`  \x1b[32m\u2713\x1b[0m Deleted ${label}\n`);
@@ -1329,7 +1631,7 @@ async function handleChats(
       process.exit(1);
     }
     const resolvedId = chatId.toLowerCase() === "last" ? "__last__" : chatId;
-    const { chat, messages } = await client.getChatMessages(resolvedId);
+    const { chat, messages } = await client.getChatMessages(resolvedId, teamContext);
 
     // Determine output directory
     const outputDir =
@@ -1727,7 +2029,7 @@ async function handleChats(
     }
 
     // Fetch enough chats to reach position n (sorted most-recent-first)
-    const result = await client.listChats(n, 1);
+    const result = await client.listChats(n, 1, teamContext);
     if (result.total === 0) {
       console.error(
         "No chats found. Run 'openmates chats list' to sync.",
@@ -2001,7 +2303,7 @@ async function handleWorkflows(
   }
 
   if (subcommand === "list") {
-    const workflows = await client.listWorkflows();
+    const workflows = await client.listWorkflows(teamContextFromFlags(flags));
     if (flags.json === true) {
       printJson(workflows);
     } else {
@@ -2156,7 +2458,7 @@ async function handleWorkflows(
   if (subcommand === "show") {
     const workflowId = rest[0];
     if (!workflowId) throw new Error("Missing workflow ID. Example: openmates workflows show <id>");
-    const workflow = await client.getWorkflow(workflowId);
+    const workflow = await client.getWorkflow(workflowId, teamContextFromFlags(flags));
     if (flags.json === true) {
       printJson(workflow);
     } else {
@@ -5076,7 +5378,7 @@ async function handleMemories(
     const appId = typeof flags["app-id"] === "string" ? flags["app-id"] : null;
     const itemType =
       typeof flags["item-type"] === "string" ? flags["item-type"] : null;
-    let result = await client.listMemories();
+    let result = await client.listMemories(teamContextFromFlags(flags));
     if (appId) result = result.filter((m) => m.app_id === appId);
     if (itemType) result = result.filter((m) => m.item_type === itemType);
     if (flags.json === true) {
@@ -5132,7 +5434,7 @@ async function handleMemories(
     }
 
     const itemValue = JSON.parse(dataRaw) as Record<string, unknown>;
-    const result = await client.createMemory({ appId, itemType, itemValue });
+    const result = await client.createMemory({ appId, itemType, itemValue, ...teamContextFromFlags(flags) });
     if (flags.json === true) {
       printJson(result);
     } else {
@@ -5171,6 +5473,7 @@ async function handleMemories(
       itemType,
       itemValue,
       currentVersion,
+      ...teamContextFromFlags(flags),
     });
     if (flags.json === true) {
       printJson(result);
@@ -5190,7 +5493,7 @@ async function handleMemories(
       );
       process.exit(1);
     }
-    const result = await client.deleteMemory(entryId);
+    const result = await client.deleteMemory(entryId, teamContextFromFlags(flags));
     if (flags.json === true) {
       printJson(result);
     } else {
@@ -5445,6 +5748,8 @@ async function sendMessageStreaming(
   params: {
     message: string;
     chatId?: string;
+    teamId?: string | null;
+    personal?: boolean;
     incognito?: boolean;
     json?: boolean;
     autoApproveSubChats?: boolean;
@@ -5870,6 +6175,8 @@ async function sendMessageStreaming(
   const result = await client.sendMessage({
     message: finalMessage,
     chatId: params.chatId,
+    teamId: params.teamId,
+    personal: params.personal,
     incognito: params.incognito,
     onStream,
     onSubChatEvent,
@@ -7876,6 +8183,7 @@ Commands:
   openmates whoami [--json]                  Show account info
   openmates chats [--help]                   Chat commands (list, search, show, ...)
   openmates tasks [--help]                   Task commands (list, create, board, ...)
+  openmates teams [--help]                   Team lifecycle, membership, billing, and move commands
   openmates drafts [--help]                  Encrypted draft lifecycle commands
   openmates apps [--help]                    App skill commands (list, run, ...)
   openmates workflows [--help]               Server-side workflow commands
@@ -8198,6 +8506,36 @@ Notes:
   Task IDs accept full task_id or human short IDs such as OM-6.
   Labels organize tasks privately. --tag, --tags, --add-tag, and --remove-tag are accepted aliases.
   Normal output decrypts task title, description, and labels locally; use --json for machine-readable plaintext fields.`);
+}
+
+function printTeamsHelp(): void {
+  console.log(`Teams commands:
+  openmates teams list [--json]
+  openmates teams switch <team-id> [--json]
+  openmates teams personal [--json]
+  openmates teams show <team-id> [--json]
+  openmates teams create --name <name> [--description <description>] [--slug <slug>] [--switch] [--json]
+  openmates teams update <team-id> [--name <encrypted-name>] [--description <encrypted-description>] [--slug <slug>] [--json]
+  openmates teams delete <team-id> --yes [--json]
+  openmates teams invite <team-id> (--email <email>|--user <user-id>) [--role admin|member|viewer] [--json]
+  openmates teams accept-invite <invite-id> [--json]
+  openmates teams decline-invite <invite-id> [--json]
+  openmates teams access-requests <team-id> [--status pending_access_approval|all] [--json]
+  openmates teams approve-access <team-id> <access-request-id> --encrypted-team-key <value> [--json]
+  openmates teams reject-access <team-id> <access-request-id> [--json]
+  openmates teams role <team-id> --user <user-id> --role admin|member|viewer [--json]
+  openmates teams remove-member <team-id> --user <user-id> [--json]
+  openmates teams billing <team-id> [--json]
+  openmates teams add-credits <team-id> --credits <amount> [--json]
+  openmates teams usage <team-id> [--user <user-id>] [--json]
+  openmates teams move <team-id> --type chat|project|task|plan|workflow --id <resource-id> --yes [--json]
+  openmates teams export <team-id> --output <path> [--json]
+  openmates teams import --file <path> (--team <team-id>|--new-team-name <name>) [--json]
+
+Context:
+  openmates teams switch <team-id> persists the active team for team-aware commands.
+  openmates teams personal clears the active team and returns commands to personal context.
+  Team V1 only supports team-wide workspace visibility.`);
 }
 
 function printDraftsHelp(): void {

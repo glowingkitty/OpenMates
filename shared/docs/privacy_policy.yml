@@ -558,9 +558,10 @@ provider_groups:
   # =====================================================================
   web_and_search:
     description: >
-      These providers are only used when you invoke a web, videos, news, or
-      web-read skill. They see the content of what you search for or the URLs
-      you ask to read, but no user identifier.
+      These providers are only used when you invoke a web, videos, news,
+      web-read, or design icon search skill. They see the content of what you
+      search for, the URLs you ask to read, or the public icon identifiers you
+      ask to preview, but no user identifier.
     providers:
       brave:
         privacy_policy: https://brave.com/privacy/
@@ -582,6 +583,15 @@ provider_groups:
           - URLs of web pages requested
           - Full content of the scraped pages
           - Note: All data is shared without user identifiers
+      iconify:
+        privacy_policy: https://iconify.design/privacy/  # verified 2026-07-18
+        location: Global
+        used_for:
+          - public SVG icon search and icon SVG retrieval via the design.search_icons skill
+        data_shared:
+          - Icon search queries
+          - Icon collection prefix and icon name when fetching SVG previews
+          - Note: Shared server-side by OpenMates without user identifiers; clients do not call Iconify directly
       webshare:
         privacy_policy: https://www.webshare.io/privacy-policy
         location: US

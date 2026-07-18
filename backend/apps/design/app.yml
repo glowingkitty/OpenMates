@@ -1,0 +1,142 @@
+id: design
+name_translation_key: design
+description_translation_key: design.description
+icon_image: design.svg
+category: creative
+last_updated: "2026-07-18"
+expose_in_api: true
+embed_types:
+  - id: search_icons
+    category: app-skill-use
+    skill_id: search_icons
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: true
+    child_type: icon_result
+    child_frontend_type: design-icon-result
+    groupable: true
+    preview_component: design/DesignIconSearchEmbedPreview.svelte
+    fullscreen_component: design/DesignIconSearchEmbedFullscreen.svelte
+    child_preview_component: design/DesignIconResultEmbedPreview.svelte
+    child_fullscreen_component: design/DesignIconResultEmbedFullscreen.svelte
+    icon: search
+    gradient_var: "--color-app-design"
+    i18n_namespace: embeds.design.search_icons
+    content_fields:
+      - name: query
+        type: string
+      - name: provider
+        type: string
+      - name: result_count
+        type: number
+      - name: license_policy
+        type: string
+      - name: embed_ids
+        type: string
+      - name: preview_results
+        type: object
+  - id: icon_result
+    category: direct
+    frontend_type: design-icon-result
+    backend_type: icon_result
+    has_children: false
+    preview_component: design/DesignIconResultEmbedPreview.svelte
+    fullscreen_component: design/DesignIconResultEmbedFullscreen.svelte
+    icon: search
+    gradient_var: "--color-app-design"
+    i18n_namespace: embeds.design.search_icons.result
+    content_fields:
+      - name: icon_id
+        type: string
+        required: true
+      - name: prefix
+        type: string
+        required: true
+      - name: name
+        type: string
+        required: true
+      - name: display_name
+        type: string
+        required: true
+      - name: collection_name
+        type: string
+      - name: collection_category
+        type: string
+      - name: license_title
+        type: string
+      - name: license_spdx
+        type: string
+      - name: license_url
+        type: string
+      - name: author_name
+        type: string
+      - name: author_url
+        type: string
+      - name: width
+        type: number
+      - name: height
+        type: number
+      - name: palette
+        type: boolean
+      - name: svg_path
+        type: string
+        required: true
+      - name: tags
+        type: object
+skills:
+  - id: search_icons
+    name_translation_key: app_skills.design.search_icons
+    description_translation_key: app_skills.design.search_icons.description
+    icon_image: design.svg
+    api_config:
+      expose_get: false
+      expose_post: true
+    preprocessor_hint: >
+      Search for free SVG icons for UI, product, interface, or graphic design.
+      Use this when the user asks to find icons by name, concept, object, or
+      action. Do not use it for brand-logo search or generated icon creation.
+    class_path: backend.apps.design.skills.search_icons_skill.SearchIconsSkill
+    providers:
+      - name: Iconify
+        no_api_key: true
+    exclude_fields_for_llm:
+      - svg_path
+      - license_url
+      - author_url
+    tool_schema:
+      type: object
+      properties:
+        requests:
+          type: array
+          description: Array of icon search requests backed by Iconify.
+          items:
+            type: object
+            properties:
+              query:
+                type: string
+                description: Search query, e.g. "home", "calendar", or "settings".
+              count:
+                type: integer
+                minimum: 1
+                maximum: 50
+                default: 24
+                description: Maximum number of icon results to return.
+              license_policy:
+                type: string
+                enum: [permissive, all]
+                default: permissive
+                description: Filter to permissive/no-attribution licenses by default.
+              include_prefixes:
+                type: array
+                items:
+                  type: string
+                description: Optional Iconify collection prefixes to include.
+              exclude_prefixes:
+                type: array
+                items:
+                  type: string
+                description: Optional Iconify collection prefixes to exclude.
+            required:
+              - query
+      required:
+        - requests

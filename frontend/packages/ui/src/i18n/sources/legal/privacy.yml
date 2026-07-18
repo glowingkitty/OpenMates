@@ -7411,10 +7411,11 @@ providers.web_and_search.heading:
 providers.web_and_search.description:
   context: Description of Group F
   en: >-
-    These providers are only used when you invoke a web, videos, news, or
-    web-read skill. They see the content of what you search for or the URLs
-    you ask to read, but no user identifier — they do not know which OpenMates
-    user made each request.
+    These providers are only used when you invoke a web, videos, news, web-read,
+    or design icon search skill. They see the content of what you search for,
+    the URLs you ask to read, or the public icon identifiers you ask to preview,
+    but no user identifier — they do not know which OpenMates user made each
+    request.
   de: Diese Anbieter werden nur verwendet, wenn du einen Web-, Video-, News- oder Web-Read-Skill aufrufst. Sie sehen den Inhalt deiner Suche oder die URLs, die du lesen möchtest, aber keine Benutzerkennung – sie wissen nicht, welcher OpenMates-Nutzer die jeweilige Anfrage gestellt hat.
   zh: 这些提供商仅在您调用网页、视频、新闻或网页阅读技能时使用。他们会看到您搜索的内容或请求阅读的 URL，但不会看到用户标识符——他们不知道是哪个 OpenMates 用户发起了请求。
   es: Estos proveedores solo se utilizan cuando invocas una habilidad de web, vídeos, noticias o lectura web. Ven el contenido de lo que buscas o las URL que pides leer, pero ningún identificador de usuario; no saben qué usuario de OpenMates realizó cada solicitud.
@@ -7537,6 +7538,18 @@ providers.web_and_search.firecrawl.description:
   ar: يدعم Firecrawl مهارة قراءة الويب، حيث يقوم بمسح واستخراج المحتوى من صفحات الويب التي تسأل عنها. يرى Firecrawl عنوان URL الذي طلبته والمحتوى الكامل للصفحة الممسوحة ضوئياً.
   cs: Firecrawl pohání funkci čtení webu, kdy získává a extrahuje obsah z webových stránek, na které se ptáš. Firecrawl vidí URL, o kterou jsi požádal, a celý obsah stažené stránky.
   he: Firecrawl מפעיל את יכולת קריאת האינטרנט, סורק ומחלץ תוכן מדפי אינטרנט שאתה שואל עליהם. Firecrawl רואה את כתובת ה-URL שביקשת ואת התוכן המלא של הדף שנסרק.
+  verified_by_human: []
+providers.web_and_search.iconify.heading:
+  context: Heading for Iconify provider entry
+  en: Iconify (public SVG icon search)
+  verified_by_human: []
+providers.web_and_search.iconify.description:
+  context: Iconify description
+  en: >-
+    Iconify powers the design.search_icons skill. Iconify sees icon search
+    queries and the icon collection/name needed to fetch SVG previews, but no
+    OpenMates user identifier. OpenMates fetches Iconify data server-side and
+    clients do not call Iconify directly.
   verified_by_human: []
 providers.web_and_search.webshare.heading:
   context: Heading for Webshare provider entry

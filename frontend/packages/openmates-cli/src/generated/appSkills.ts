@@ -187,6 +187,70 @@ export const APP_SKILL_METADATA = [
     }
   },
   {
+    "app_id": "design",
+    "skill_id": "search_icons",
+    "app_namespace_ts": "design",
+    "skill_method_ts": "searchIcons",
+    "app_namespace_py": "design",
+    "skill_method_py": "search_icons",
+    "description_key": "app_skills.design.search_icons.description",
+    "description": "Search for free SVG icons for UI, product, interface, or graphic design. Use this when the user asks to find icons by name, concept, object, or action. Do not use it for brand-logo search or generated icon creation.",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "requests": {
+          "type": "array",
+          "description": "Array of icon search requests backed by Iconify.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "query": {
+                "type": "string",
+                "description": "Search query, e.g. \"home\", \"calendar\", or \"settings\"."
+              },
+              "count": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 50,
+                "default": 24,
+                "description": "Maximum number of icon results to return."
+              },
+              "license_policy": {
+                "type": "string",
+                "enum": [
+                  "permissive",
+                  "all"
+                ],
+                "default": "permissive",
+                "description": "Filter to permissive/no-attribution licenses by default."
+              },
+              "include_prefixes": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Optional Iconify collection prefixes to include."
+              },
+              "exclude_prefixes": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Optional Iconify collection prefixes to exclude."
+              }
+            },
+            "required": [
+              "query"
+            ]
+          }
+        }
+      },
+      "required": [
+        "requests"
+      ]
+    }
+  },
+  {
     "app_id": "electronics",
     "skill_id": "search_components",
     "app_namespace_ts": "electronics",
@@ -3319,6 +3383,21 @@ export class CodeAppSkills {
   }
 }
 
+export class DesignAppSkills {
+  private readonly runSkill: AppSkillRunner;
+  constructor(runSkill: AppSkillRunner) {
+    this.runSkill = runSkill;
+  }
+  /**
+   * Search for free SVG icons for UI, product, interface, or graphic design. Use this when the user asks to find icons by name, concept, object, or action. Do not use it for brand-logo search or generated icon creation.
+   * Description key: app_skills.design.search_icons.description
+   * Skill: design/search_icons
+   */
+  async searchIcons<T = unknown>(input: SkillInput): Promise<T> {
+    return this.runSkill<T>("design", "search_icons", input);
+  }
+}
+
 export class ElectronicsAppSkills {
   private readonly runSkill: AppSkillRunner;
   constructor(runSkill: AppSkillRunner) {
@@ -3836,6 +3915,7 @@ export class GeneratedAppSkills {
     this.ai = new AiAppSkills(runSkill);
     this.books = new BooksAppSkills(runSkill);
     this.code = new CodeAppSkills(runSkill);
+    this.design = new DesignAppSkills(runSkill);
     this.electronics = new ElectronicsAppSkills(runSkill);
     this.events = new EventsAppSkills(runSkill);
     this.fitness = new FitnessAppSkills(runSkill);
@@ -3864,6 +3944,7 @@ export class GeneratedAppSkills {
   readonly ai: AiAppSkills;
   readonly books: BooksAppSkills;
   readonly code: CodeAppSkills;
+  readonly design: DesignAppSkills;
   readonly electronics: ElectronicsAppSkills;
   readonly events: EventsAppSkills;
   readonly fitness: FitnessAppSkills;

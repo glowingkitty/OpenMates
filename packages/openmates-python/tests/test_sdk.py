@@ -190,6 +190,29 @@ def test_native_models3d_search_skill_method_uses_generated_namespace(monkeypatc
     assert requests[0]["json"] == {"requests": [{"query": "benchy"}]}
 
 
+def test_native_design_search_icons_skill_method_uses_generated_namespace(monkeypatch):
+    requests = []
+
+    class FakeResponse:
+        status_code = 200
+
+        def json(self):
+            return {"success": True, "data": {"result_count": 1}}
+
+    def fake_post(url, *, json, headers, timeout):
+        requests.append({"url": url, "json": json, "headers": headers, "timeout": timeout})
+        return FakeResponse()
+
+    monkeypatch.setattr("openmates.sdk.requests.post", fake_post)
+
+    client = OpenMates(api_key="sk-api-test")
+    result = client.apps.design.search_icons({"requests": [{"query": "home", "count": 12}]})
+
+    assert result == {"success": True, "data": {"result_count": 1}}
+    assert requests[0]["url"] == "https://api.openmates.org/v1/apps/design/skills/search_icons"
+    assert requests[0]["json"] == {"requests": [{"query": "home", "count": 12}]}
+
+
 def test_application_preview_lifecycle_uses_embed_preview_namespace(monkeypatch):
     requests = []
 

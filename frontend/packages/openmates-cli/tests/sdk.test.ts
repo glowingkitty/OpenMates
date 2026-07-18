@@ -219,6 +219,27 @@ describe("OpenMates SDK", () => {
     });
   });
 
+  it("exposes native design icon search skill methods", async () => {
+    await withServer((request, response) => {
+      assert.equal(request.url, "/v1/apps/design/skills/search_icons");
+      let body = "";
+      request.on("data", (chunk) => { body += chunk.toString(); });
+      request.on("end", () => {
+        assert.deepEqual(JSON.parse(body), {
+          requests: [{ query: "home", count: 12 }],
+        });
+        response.setHeader("content-type", "application/json");
+        response.end(JSON.stringify({ success: true, data: { result_count: 1 } }));
+      });
+    }, async (apiUrl) => {
+      const client = new OpenMates({ apiKey: "sk-api-test", apiUrl });
+      const result = await client.apps.design.searchIcons({
+        requests: [{ query: "home", count: 12 }],
+      });
+      assert.deepEqual(result, { success: true, data: { result_count: 1 } });
+    });
+  });
+
   it("defaults new chats to non-persistent mode", async () => {
     await withServer((request, response) => {
       assert.equal(request.url, "/v1/sdk/chats");

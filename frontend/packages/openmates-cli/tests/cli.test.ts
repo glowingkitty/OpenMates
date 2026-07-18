@@ -1434,6 +1434,41 @@ async function withSkillFormattingMockApi<T>(
         });
         return;
       }
+      if (request.method === "POST" && request.url === "/v1/apps/design/skills/search_icons") {
+        const body = await readJsonBody(request);
+        requests.push({ url: request.url, body });
+        writeJson(response, {
+          success: true,
+          data: {
+            success: true,
+            app_id: "design",
+            skill_id: "search_icons",
+            status: "finished",
+            provider: "Iconify",
+            result_count: 1,
+            results: [{
+              id: 1,
+              query: "home",
+              license_policy: "permissive",
+              result_count: 1,
+              results: [{
+                type: "icon_result",
+                icon_id: "lucide:home",
+                prefix: "lucide",
+                name: "home",
+                display_name: "Home",
+                collection_name: "Lucide",
+                license_spdx: "ISC",
+                width: 24,
+                height: 24,
+                palette: false,
+                svg_path: "/v1/apps/design/icons/iconify/lucide/home.svg",
+              }],
+            }],
+          },
+        });
+        return;
+      }
       response.writeHead(404);
       response.end();
     } catch (error) {
@@ -2148,6 +2183,35 @@ describe("apps metadata commands", () => {
       assert.equal(parsed.data?.results?.[0]?.result_count, 1);
       assert.doesNotMatch(output, /open_cta_label/);
       assert.match(output, /Creative Tools/);
+    });
+  });
+
+  it("runs the explicit design search-icons command", async () => {
+    await withSkillFormattingMockApi(async ({ apiUrl, requests }) => {
+      const output = await runCliAsync([
+        "--api-url", apiUrl,
+        "apps", "design", "search_icons",
+        "--query", "home",
+        "--count", "12",
+        "--license-policy", "permissive",
+        "--json",
+      ]);
+      const parsed = JSON.parse(output) as { data?: { result_count?: number } };
+
+      assert.equal(requests.length, 1);
+      assert.deepEqual(requests[0], {
+        url: "/v1/apps/design/skills/search_icons",
+        body: {
+          requests: [{
+            query: "home",
+            count: 12,
+            license_policy: "permissive",
+          }],
+        },
+      });
+      assert.equal(parsed.data?.result_count, 1);
+      assert.doesNotMatch(output, /svg_markup|preview_server_url|api\.iconify\.design/);
+      assert.match(output, /lucide:home/);
     });
   });
 

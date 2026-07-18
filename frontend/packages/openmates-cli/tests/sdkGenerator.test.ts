@@ -13,12 +13,15 @@ import assert from "node:assert/strict";
 const { APP_SKILL_METADATA, GeneratedAppSkills } = await import("../src/generated/appSkills.ts");
 
 describe("generated npm SDK app skills", () => {
-  it("includes native web search, images generate, models3d search, and fitness metadata", () => {
+  it("includes native web search, design icon search, images generate, models3d search, and fitness metadata", () => {
     const webSearch = APP_SKILL_METADATA.find(
       (skill) => skill.app_id === "web" && skill.skill_id === "search",
     );
     const imageGenerate = APP_SKILL_METADATA.find(
       (skill) => skill.app_id === "images" && skill.skill_id === "generate",
+    );
+    const designSearchIcons = APP_SKILL_METADATA.find(
+      (skill) => skill.app_id === "design" && skill.skill_id === "search_icons",
     );
     const models3dGenerate = APP_SKILL_METADATA.find(
       (skill) => skill.app_id === "models3d" && skill.skill_id === "generate",
@@ -42,6 +45,11 @@ describe("generated npm SDK app skills", () => {
     assert.ok(imageGenerate);
     assert.equal(imageGenerate.app_namespace_ts, "images");
     assert.equal(imageGenerate.skill_method_ts, "generate");
+
+    assert.ok(designSearchIcons);
+    assert.equal(designSearchIcons.app_namespace_ts, "design");
+    assert.equal(designSearchIcons.skill_method_ts, "searchIcons");
+    assert.ok(designSearchIcons.schema.properties.requests);
 
     assert.equal(models3dGenerate, undefined);
 
@@ -69,13 +77,16 @@ describe("generated npm SDK app skills", () => {
     });
 
     const result = await apps.web.search({ requests: [{ query: "hello" }] });
+    const iconResult = await apps.design.searchIcons({ requests: [{ query: "home" }] });
     const fitnessResult = await apps.fitness.searchClasses({ requests: [{ address: "Sorauer Str. 12" }] });
     const modelSearchResult = await apps.models3d.search({ requests: [{ query: "benchy" }] });
     assert.deepEqual(result, { ok: true });
+    assert.deepEqual(iconResult, { ok: true });
     assert.deepEqual(fitnessResult, { ok: true });
     assert.deepEqual(modelSearchResult, { ok: true });
     assert.deepEqual(calls, [
       { appId: "web", skillId: "search", input: { requests: [{ query: "hello" }] } },
+      { appId: "design", skillId: "search_icons", input: { requests: [{ query: "home" }] } },
       { appId: "fitness", skillId: "search_classes", input: { requests: [{ address: "Sorauer Str. 12" }] } },
       { appId: "models3d", skillId: "search", input: { requests: [{ query: "benchy" }] } },
     ]);

@@ -143,6 +143,68 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
   'skill_id': 'get_project_overview',
   'skill_method_py': 'get_project_overview',
   'skill_method_ts': 'getProjectOverview'},
+ {'app_id': 'design',
+  'app_namespace_py': 'design',
+  'app_namespace_ts': 'design',
+  'description': 'Search for free SVG icons for UI, product, interface, or graphic design. Use '
+                 'this when the user asks to find icons by name, concept, object, or action. Do '
+                 'not use it for brand-logo search or generated icon creation.',
+  'description_key': 'app_skills.design.search_icons.description',
+  'schema': {'properties': {'requests': {'description': 'Array of icon search requests backed by '
+                                                        'Iconify.',
+                                         'items': {'properties': {'count': {'default': 24,
+                                                                            'description': 'Maximum '
+                                                                                           'number '
+                                                                                           'of '
+                                                                                           'icon '
+                                                                                           'results '
+                                                                                           'to '
+                                                                                           'return.',
+                                                                            'maximum': 50,
+                                                                            'minimum': 1,
+                                                                            'type': 'integer'},
+                                                                  'exclude_prefixes': {'description': 'Optional '
+                                                                                                      'Iconify '
+                                                                                                      'collection '
+                                                                                                      'prefixes '
+                                                                                                      'to '
+                                                                                                      'exclude.',
+                                                                                       'items': {'type': 'string'},
+                                                                                       'type': 'array'},
+                                                                  'include_prefixes': {'description': 'Optional '
+                                                                                                      'Iconify '
+                                                                                                      'collection '
+                                                                                                      'prefixes '
+                                                                                                      'to '
+                                                                                                      'include.',
+                                                                                       'items': {'type': 'string'},
+                                                                                       'type': 'array'},
+                                                                  'license_policy': {'default': 'permissive',
+                                                                                     'description': 'Filter '
+                                                                                                    'to '
+                                                                                                    'permissive/no-attribution '
+                                                                                                    'licenses '
+                                                                                                    'by '
+                                                                                                    'default.',
+                                                                                     'enum': ['permissive',
+                                                                                              'all'],
+                                                                                     'type': 'string'},
+                                                                  'query': {'description': 'Search '
+                                                                                           'query, '
+                                                                                           'e.g. '
+                                                                                           '"home", '
+                                                                                           '"calendar", '
+                                                                                           'or '
+                                                                                           '"settings".',
+                                                                            'type': 'string'}},
+                                                   'required': ['query'],
+                                                   'type': 'object'},
+                                         'type': 'array'}},
+             'required': ['requests'],
+             'type': 'object'},
+  'skill_id': 'search_icons',
+  'skill_method_py': 'search_icons',
+  'skill_method_ts': 'searchIcons'},
  {'app_id': 'electronics',
   'app_namespace_py': 'electronics',
   'app_namespace_ts': 'electronics',
@@ -4953,6 +5015,18 @@ class CodeAppSkills:
         """
         return self._run_skill("code", "search_repos", input_data)
 
+class DesignAppSkills:
+    def __init__(self, run_skill: SkillRunner):
+        self._run_skill = run_skill
+
+    def search_icons(self, input_data: dict[str, Any]) -> dict[str, Any]:
+        """Search for free SVG icons for UI, product, interface, or graphic design. Use this when the user asks to find icons by name, concept, object, or action. Do not use it for brand-logo search or generated icon creation.
+
+        Description key: app_skills.design.search_icons.description
+        Skill: design/search_icons
+        """
+        return self._run_skill("design", "search_icons", input_data)
+
 class ElectronicsAppSkills:
     def __init__(self, run_skill: SkillRunner):
         self._run_skill = run_skill
@@ -5398,6 +5472,7 @@ class GeneratedAppSkills:
         self.ai = AiAppSkills(run_skill)
         self.books = BooksAppSkills(run_skill)
         self.code = CodeAppSkills(run_skill)
+        self.design = DesignAppSkills(run_skill)
         self.electronics = ElectronicsAppSkills(run_skill)
         self.events = EventsAppSkills(run_skill)
         self.fitness = FitnessAppSkills(run_skill)

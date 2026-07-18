@@ -1,0 +1,24 @@
+# backend/providers/iconify.yml
+#
+# Iconify public API metadata for design.search_icons.
+# Iconify does not require an API key for low-rate search and SVG retrieval.
+# Clients never call Iconify directly; OpenMates performs server-side requests
+# and serves sanitized SVGs through /v1/apps/design/icons/iconify/{prefix}/{name}.svg.
+
+provider_id: iconify
+name: Iconify
+description: Public open-source icon search and SVG delivery API.
+logo_svg: icons/iconify.svg
+region: global
+privacy_policy: https://iconify.design/privacy/ # verified 2026-07-18
+no_api_key: true
+
+api_base_url: https://api.iconify.design
+
+rate_limits:
+  public:
+    requests_per_second: null
+    requests_per_month: null
+
+pricing:
+  per_request_credits: 0
