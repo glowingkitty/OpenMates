@@ -108,11 +108,15 @@ test.describe('Design icon search example', () => {
 		await page.waitForTimeout(300);
 		expect(requests.openMatesSvg.length, 'Changing color must not call the backend again').toBe(svgRequestsBeforeRecolor);
 		await expect(resultFullscreen.getByRole('button', { name: 'Copy SVG' })).toBeEnabled();
+		const svgDownloadButton = resultFullscreen.getByRole('button', { name: 'Download SVG' });
+		const pngDownloadButton = resultFullscreen.getByRole('button', { name: 'Download PNG' });
+		await expect(svgDownloadButton).toHaveAttribute('href', /^data:image\/svg\+xml/, { timeout: 15_000 });
+		await expect(pngDownloadButton).toHaveAttribute('href', /^data:image\/png/, { timeout: 15_000 });
 		const svgDownload = page.waitForEvent('download');
-		await resultFullscreen.getByRole('button', { name: 'Download SVG' }).click();
+		await svgDownloadButton.click();
 		expect((await svgDownload).suggestedFilename()).toMatch(/\.svg$/);
 		const pngDownload = page.waitForEvent('download');
-		await resultFullscreen.getByRole('button', { name: 'Download PNG' }).click();
+		await pngDownloadButton.click();
 		expect((await pngDownload).suggestedFilename()).toMatch(/\.png$/);
 
 		expect(requests.forbidden, 'Web rendering must not call Iconify or preview-server icon routes').toEqual([]);
