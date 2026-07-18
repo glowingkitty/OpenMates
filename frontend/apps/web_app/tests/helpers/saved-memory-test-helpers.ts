@@ -84,7 +84,12 @@ async function verifySavedMemoryEntry(
   await page.evaluate((path: string) => {
     window.dispatchEvent(new CustomEvent('openSettingsMenu', { detail: { returnTo: path } }));
   }, settingsPath);
-  await expect(page.getByTestId('settings-menu')).toBeVisible({ timeout: 10000 });
+  const settingsMenu = page.getByTestId('settings-menu');
+  const settingsMenuVisible = await settingsMenu.isVisible({ timeout: 3000 }).catch(() => false);
+  if (!settingsMenuVisible) {
+    await page.getByTestId('profile-container').click();
+  }
+  await expect(settingsMenu).toBeVisible({ timeout: 10000 });
   const category = page.getByTestId('app-settings-memories-category');
   await expect(category).toBeVisible({ timeout: 20000 });
   await expect(category).toHaveAttribute('data-app-id', appId);
