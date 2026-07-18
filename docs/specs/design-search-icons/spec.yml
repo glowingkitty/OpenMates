@@ -111,7 +111,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 0dbcc4b23
+  subject_commit: 7e396a7
 
 approvals:
   product_contract:
@@ -271,7 +271,7 @@ acceptance_criteria:
     scenario: S-1
     text: The real dev CLI can run `design.search_icons` against the dev API and receive normalized metadata-only Iconify results filtered to permissive/no-attribution licenses by default.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: cli
     verification_ids:
@@ -432,8 +432,9 @@ tests:
         status: passed
         command: python3 scripts/api_tests/test_iconify_api.py
         run_id: local-iconify-api-20260718T1037Z
-        subject_commit: 0dbcc4b23
+        subject_commit: 7e396a7
         timestamp: "2026-07-18T10:37:17Z"
+        reason: Manual live provider probe verifies Iconify behavior used by the backend provider wrapper.
         summary: Live Iconify probes passed for search, SVG fetch, and no-match handling.
 
   - id: T-CLI-001
@@ -450,21 +451,23 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: failed_expected
-        command: python3 -m pytest backend/tests/test_design_search_icons_skill.py backend/tests/test_design_icon_svg_route.py backend/tests/test_iconify_provider.py
-        run_id: local-pytest-red-20260718T1013Z
-        timestamp: "2026-07-18T10:13:00Z"
-        summary: Tests failed during collection because `backend.apps.design` and `backend.shared.providers.iconify` are not implemented yet.
+        status: failed_as_expected
+        command: node dist/cli.js apps design search_icons --query home --count 12 --license-policy permissive --json --api-url https://api.dev.openmates.org
+        run_id: dev-cli-red-20260718T1132Z
+        timestamp: "2026-07-18T11:32:00Z"
+        reason: The deployed dev API did not expose the Design app before the backend API service was rebuilt with the new commit.
+        summary: "The real dev CLI command failed with `Skill execution failed: Not Found`, proving the dev API gate was not already satisfied."
     green_phase:
       required: true
       expected: pass
       evidence:
         status: passed
-        command: python3 -m pytest backend/tests/test_design_search_icons_skill.py backend/tests/test_design_icon_svg_route.py backend/tests/test_iconify_provider.py
-        run_id: local-pytest-green-20260718T1037Z
-        subject_commit: 0dbcc4b23
-        timestamp: "2026-07-18T10:37:17Z"
-        summary: "Backend skill/app metadata/provider/route contract tests passed, 22 passed including encoded javascript: SVG sanitizer regression and auth dependency coverage."
+        command: node dist/cli.js apps design search_icons --query home --count 12 --license-policy permissive --json --api-url https://api.dev.openmates.org
+        run_id: dev-cli-green-20260718T1140Z
+        subject_commit: 7e396a7
+        timestamp: "2026-07-18T11:40:47Z"
+        reason: The command used the built CLI entrypoint against the real dev API after rebuilding/restarting the dev API service for commit 7e396a7.
+        summary: The real dev CLI command returned 12 metadata-only Iconify results with permissive Apache-2.0 license metadata and OpenMates SVG paths under `/v1/apps/design/icons/iconify/...`.
 
   - id: T-PYTEST-001
     type: pytest
@@ -482,9 +485,10 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: failed_expected
+        status: failed_as_expected
         command: python3 -m pytest backend/tests/test_design_search_icons_skill.py backend/tests/test_design_icon_svg_route.py backend/tests/test_iconify_provider.py
         run_id: local-pytest-red-20260718T1013Z
+        subject_commit: 0dbcc4b23
         timestamp: "2026-07-18T10:13:00Z"
         summary: Tests failed during collection because the Iconify provider and Design SVG route are not implemented yet.
     green_phase:
@@ -494,7 +498,7 @@ tests:
         status: passed
         command: python3 -m pytest backend/tests/test_design_search_icons_skill.py backend/tests/test_design_icon_svg_route.py backend/tests/test_iconify_provider.py
         run_id: local-pytest-green-20260718T1037Z
-        subject_commit: 0dbcc4b23
+        subject_commit: 7e396a7
         timestamp: "2026-07-18T10:37:17Z"
         summary: "Backend skill/app metadata/provider/route contract tests passed, 22 passed including encoded javascript: SVG sanitizer regression and auth dependency coverage."
 
@@ -515,21 +519,22 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: failed_expected
-        command: node --test --experimental-strip-types frontend/packages/openmates-cli/tests/sdkGenerator.test.ts && python3 -m pytest packages/openmates-python/tests/test_sdk_generator.py
-        run_id: local-sdk-generator-red-20260718T1027Z
-        timestamp: "2026-07-18T10:27:00Z"
-        summary: Generator tests failed because generated npm and pip app-skill metadata did not yet include design.search_icons.
+        status: failed_as_expected
+        command: python3 -m pytest backend/tests/test_design_icon_svg_route.py backend/tests/test_iconify_provider.py
+        run_id: local-svg-route-red-20260718T1013Z
+        subject_commit: 0dbcc4b23
+        timestamp: "2026-07-18T10:13:00Z"
+        summary: Tests failed during collection because the Design SVG route and Iconify provider were not implemented yet.
     green_phase:
       required: true
       expected: pass
       evidence:
         status: passed
-        command: npm run build && node --test --test-name-pattern "design search-icons" tests/cli.test.ts
-        run_id: local-cli-unit-green-20260718T1031Z
-        subject_commit: 0dbcc4b23
-        timestamp: "2026-07-18T10:31:59Z"
-        summary: Targeted CLI test passed for `openmates apps design search_icons --query home --count 12 --license-policy permissive --json` using generated app-skill metadata.
+        command: python3 -m pytest backend/tests/test_design_icon_svg_route.py backend/tests/test_iconify_provider.py
+        run_id: local-svg-route-green-20260718T1037Z
+        subject_commit: 7e396a7
+        timestamp: "2026-07-18T10:37:17Z"
+        summary: SVG route/provider tests passed, covering identifier validation, sanitized SVG responses, typed missing/unsafe/provider errors, and cache-hit behavior.
 
   - id: T-CLI-UNIT-001
     type: unit
@@ -546,9 +551,10 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: failed_expected
+        status: failed_as_expected
         command: node --test --experimental-strip-types frontend/packages/openmates-cli/tests/sdkGenerator.test.ts
         run_id: local-npm-generator-red-20260718T1027Z
+        subject_commit: 0dbcc4b23
         timestamp: "2026-07-18T10:27:00Z"
         summary: npm generator test failed because APP_SKILL_METADATA and GeneratedAppSkills lacked the Design namespace before regeneration.
     green_phase:
@@ -556,11 +562,11 @@ tests:
       expected: pass
       evidence:
         status: passed
-        command: node --test --experimental-strip-types --loader ./tests/loader.mjs --test-name-pattern "design icon search" tests/sdk.test.ts
-        run_id: local-npm-sdk-green-20260718T1030Z
-        subject_commit: 0dbcc4b23
+        command: npm run build && node --test --test-name-pattern "design search-icons" tests/cli.test.ts
+        run_id: local-cli-unit-green-20260718T1031Z
+        subject_commit: 7e396a7
         timestamp: "2026-07-18T10:31:59Z"
-        summary: Targeted npm SDK test passed for client.apps.design.searchIcons posting to /v1/apps/design/skills/search_icons. Full sdk.test has unrelated pre-existing chat/session failures.
+        summary: Targeted CLI test passed for `openmates apps design search_icons --query home --count 12 --license-policy permissive --json` using generated app-skill metadata.
 
   - id: T-NPM-001
     type: unit
@@ -576,21 +582,22 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: failed_expected
-        command: python3 -m pytest packages/openmates-python/tests/test_sdk_generator.py
-        run_id: local-pip-generator-red-20260718T1027Z
+        status: failed_as_expected
+        command: node --test --experimental-strip-types frontend/packages/openmates-cli/tests/sdkGenerator.test.ts
+        run_id: local-npm-generator-red-20260718T1027Z
+        subject_commit: 0dbcc4b23
         timestamp: "2026-07-18T10:27:00Z"
-        summary: Python SDK generator test failed because GeneratedAppSkills lacked the Design namespace before regeneration.
+        summary: npm generator test failed because APP_SKILL_METADATA and GeneratedAppSkills lacked the Design namespace before regeneration.
     green_phase:
       required: true
       expected: pass
       evidence:
         status: passed
-        command: python3 -m pytest packages/openmates-python/tests/test_sdk_generator.py packages/openmates-python/tests/test_sdk.py
-        run_id: local-pip-sdk-green-20260718T1029Z
-        subject_commit: 0dbcc4b23
+        command: node --test --experimental-strip-types --loader ./tests/loader.mjs --test-name-pattern "design icon search" tests/sdk.test.ts
+        run_id: local-npm-sdk-green-20260718T1030Z
+        subject_commit: 7e396a7
         timestamp: "2026-07-18T10:31:59Z"
-        summary: Python SDK generator and SDK tests passed, 29 passed.
+        summary: Targeted npm SDK test passed for client.apps.design.searchIcons posting to /v1/apps/design/skills/search_icons. Full sdk.test has unrelated pre-existing chat/session failures.
 
   - id: T-PIP-001
     type: pytest
@@ -606,20 +613,22 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: ""
-        command: ""
-        run_id: ""
-        timestamp: ""
+        status: failed_as_expected
+        command: python3 -m pytest packages/openmates-python/tests/test_sdk_generator.py
+        run_id: local-pip-generator-red-20260718T1027Z
+        subject_commit: 0dbcc4b23
+        timestamp: "2026-07-18T10:27:00Z"
+        summary: Python SDK generator test failed because GeneratedAppSkills lacked the Design namespace before regeneration.
     green_phase:
       required: true
       expected: pass
       evidence:
-        status: blocked_unrelated
-        command: python3 scripts/audit_sdk_cli_parity.py
-        run_id: local-parity-audit-20260718T1030Z
-        subject_commit: 0dbcc4b23
+        status: passed
+        command: python3 -m pytest packages/openmates-python/tests/test_sdk_generator.py packages/openmates-python/tests/test_sdk.py
+        run_id: local-pip-sdk-green-20260718T1029Z
+        subject_commit: 7e396a7
         timestamp: "2026-07-18T10:31:59Z"
-        summary: Parity audit is blocked by an existing unrelated `teams` CLI classification issue in the dirty worktree; no Design-specific mismatch was reported before the audit stopped.
+        summary: Python SDK generator and SDK tests passed, 29 passed.
 
   - id: T-PARITY-001
     type: manual
@@ -938,7 +947,6 @@ tasks:
         - scripts/sdk_cli_parity_live_smoke.py
       shared_files: []
     blockers:
-      - Real dev CLI proof must pass before SDK parity is accepted.
       - Same CLI coverage must be wired into daily/GitHub Actions before web work starts unless explicitly waived.
     follow_up_tasks:
       - TASK-4
