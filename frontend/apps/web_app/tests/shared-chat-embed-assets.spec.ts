@@ -17,9 +17,10 @@ const os = require('os');
 const {
 	createSignupLogger,
 	getTestAccount,
-	assertNoMissingTranslations
+	assertNoMissingTranslations,
+	getE2EDebugUrl
 } = require('./signup-flow-helpers');
-const { submitPasswordAndHandleOtp } = require('./helpers/chat-test-helpers');
+const { openSignupInterface, submitPasswordAndHandleOtp } = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 const CLI_DIST = fs.existsSync('/workspace/cli/dist/cli.js')
@@ -226,10 +227,14 @@ async function runCli(
 }
 
 async function loginCliViaBrowser(page: any, apiUrl: string, logCheckpoint: (msg: string) => void) {
-	await page.goto('/');
-	const loginButton = page.getByTestId('header-login-signup-btn');
-	await expect(loginButton).toBeVisible({ timeout: 15000 });
-	await loginButton.click();
+	await page.goto(getE2EDebugUrl('/'));
+	await page.waitForLoadState('load');
+	await page.evaluate(() => {
+		localStorage.removeItem('emailLookupRateLimit');
+		localStorage.removeItem('loginRateLimit');
+		localStorage.removeItem('passwordTfaRateLimit');
+	});
+	await openSignupInterface(page, 30000);
 
 	const loginTab = page.getByTestId('tab-login');
 	await expect(loginTab).toBeVisible({ timeout: 10000 });
