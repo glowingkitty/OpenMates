@@ -15,6 +15,14 @@ import httpx
 import pytest
 
 
+def _unwrap_skill_response(response_json):
+    if "data" not in response_json:
+        return response_json
+    assert response_json.get("success") is True, f"Skill response was not successful: {response_json}"
+    assert response_json.get("error") is None, f"Got error response: {response_json.get('error')}"
+    return response_json["data"]
+
+
 @pytest.mark.integration
 def test_execute_skill_ask(api_client):
     """
@@ -32,7 +40,7 @@ def test_execute_skill_ask(api_client):
         assert response.status_code == 200, (
             f"Skill execution failed: {response.text}"
         )
-        data = response.json()
+        data = _unwrap_skill_response(response.json())
         assert "choices" in data, (
             "Response should have 'choices' field for OpenAI-compatible format"
         )
@@ -84,8 +92,7 @@ def test_execute_skill_ask_deepseek_v4_pro(api_client):
             f"{response.status_code}: {response.text}"
         )
 
-        data = response.json()
-        assert "error" not in data, f"Got error response: {data.get('error')}"
+        data = _unwrap_skill_response(response.json())
         assert "choices" in data, (
             f"Response missing 'choices' field. Got keys: {list(data.keys())}"
         )
@@ -192,8 +199,7 @@ def test_execute_skill_ask_deepseek_multi_turn(api_client):
             f"Multi-turn request failed: {response.text}"
         )
 
-        data = response.json()
-        assert "error" not in data, f"Got error response: {data.get('error')}"
+        data = _unwrap_skill_response(response.json())
         assert "choices" in data, (
             f"Response missing 'choices'. Keys: {list(data.keys())}"
         )
@@ -247,8 +253,7 @@ def test_execute_skill_ask_image_generation_via_ai(api_client):
             f"AI ask failed with status {response.status_code}: {response.text}"
         )
 
-        data = response.json()
-        assert "error" not in data, f"Got error response: {data.get('error')}"
+        data = _unwrap_skill_response(response.json())
         assert "choices" in data, (
             f"Response missing 'choices' field. Got keys: {list(data.keys())}"
         )

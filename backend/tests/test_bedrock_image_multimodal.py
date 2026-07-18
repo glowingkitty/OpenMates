@@ -13,9 +13,13 @@ import pytest
 from backend.shared.python_utils.image_mime import detect_image_mime_type
 
 try:
-    from backend.apps.ai.llm_providers.bedrock_shared import convert_messages_to_converse_format
+    from backend.apps.ai.llm_providers.bedrock_shared import (
+        convert_messages_to_converse_format,
+        convert_tool_choice_to_converse_format,
+    )
 except ImportError:
     convert_messages_to_converse_format = None  # type: ignore[assignment]
+    convert_tool_choice_to_converse_format = None  # type: ignore[assignment]
 
 
 def test_detect_image_mime_type_uses_jpeg_magic_bytes() -> None:
@@ -45,3 +49,12 @@ def test_bedrock_image_conversion_decodes_data_url_to_raw_bytes() -> None:
     image = messages[0]["content"][0]["toolResult"]["content"][1]["image"]
     assert image["format"] == "jpeg"
     assert image["source"]["bytes"] == image_bytes
+
+
+def test_bedrock_named_openai_tool_choice_uses_converse_tool_name() -> None:
+    if convert_tool_choice_to_converse_format is None:
+        pytest.skip("Bedrock dependencies not installed locally (botocore)")
+
+    tool_choice = {"type": "function", "function": {"name": "get_weather"}}
+
+    assert convert_tool_choice_to_converse_format(tool_choice, has_tools=True) == {"tool": {"name": "get_weather"}}

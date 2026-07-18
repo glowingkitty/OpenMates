@@ -96,6 +96,8 @@ def main() -> int:
             "json",
             "--model",
             f"openmates/{model}",
+            "--dir",
+            str(project_dir),
             "Reply with exactly: OK",
         ]
         print(f"[openai-compat-opencode] model=openmates/{model}")

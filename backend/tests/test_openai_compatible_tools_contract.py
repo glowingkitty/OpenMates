@@ -121,6 +121,7 @@ def test_function_tools_use_direct_client_tool_dispatch(monkeypatch) -> None:
     assert body["choices"][0]["finish_reason"] == "tool_calls"
     assert body["choices"][0]["message"]["tool_calls"][0]["function"]["name"] == "get_weather"
     assert captured["client_tools_request"]["tools"][0]["function"]["name"] == "get_weather"
+    assert captured["client_tools_request"]["tool_choice"] == {"type": "function", "function": {"name": "get_weather"}}
     assert "ai_ask_called" not in captured
 
 

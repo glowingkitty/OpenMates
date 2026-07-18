@@ -94,7 +94,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: e31c45823+working-tree
+  subject_commit: 03a4889bc+working-tree
 
 approvals:
   product_contract:
@@ -146,12 +146,12 @@ attempts:
     recorded_at: "2026-07-17T00:00:00Z"
 
 handoff:
-  current_task_id: TASK-7
-  next_action: Deploy to dev, then run live SDK and OpenCode smoke gates against `https://api.dev.openmates.org/v1`.
-  command: OPENMATES_TEST_ACCOUNT_API_KEY=<test-key> python3 scripts/openai_compat_smoke.py
-  expected_outcome: Official SDK smoke tests pass against the deployed dev API, including function tool calls and streaming.
+  current_task_id: TASK-9
+  next_action: Spec validation and verification are complete; ready for deploy/session handoff.
+  command: python3 scripts/spec_verify.py docs/specs/openai-compatible-api/spec.yml --phase complete
+  expected_outcome: Spec evidence satisfies the complete phase.
   blocker: null
-  last_verified_commit: e31c45823+working-tree
+  last_verified_commit: 03a4889bc+working-tree
 
 scenarios:
   - id: S-1
@@ -251,7 +251,7 @@ acceptance_criteria:
     scenario: S-1
     text: "`GET /v1/models` returns an OpenAI-compatible model list for authenticated API-key requests."
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids:
@@ -263,7 +263,7 @@ acceptance_criteria:
     scenario: S-2
     text: "`GET /v1/models/{model}` returns one model object for known IDs and a 404 OpenAI-style error for unknown IDs."
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids:
@@ -274,7 +274,7 @@ acceptance_criteria:
     scenario: S-3
     text: "`POST /v1/chat/completions` supports non-streaming OpenAI SDK requests and returns unwrapped `chat.completion` responses."
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids:
@@ -286,7 +286,7 @@ acceptance_criteria:
     scenario: S-4
     text: "Streaming Chat Completions use OpenAI-compatible SSE chunks and finish with `data: [DONE]`."
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids:
@@ -297,7 +297,7 @@ acceptance_criteria:
     scenario: S-5
     text: "Standard client-supplied function tools and `tool_choice` produce OpenAI-style `message.tool_calls` responses without server-side client-tool execution."
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids:
@@ -309,7 +309,7 @@ acceptance_criteria:
     scenario: S-6
     text: "Follow-up requests containing assistant `tool_calls` and `role: \"tool\"` messages are accepted and can produce final assistant answers."
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids:
@@ -321,7 +321,7 @@ acceptance_criteria:
     scenario: S-7
     text: "Client tool names that resemble OpenMates app-skill names remain external client tools and never execute OpenMates app skills through `/v1/chat/completions`."
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids:
@@ -331,7 +331,7 @@ acceptance_criteria:
     scenario: S-8
     text: Invalid requests and unsupported hosted/custom tool types return OpenAI-style errors before inference dispatch.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: related_backend
     verification_ids:
@@ -340,7 +340,7 @@ acceptance_criteria:
     scenario: S-3
     text: "`/v1/apps/ai/skills/ask` remains available for OpenMates-native AI Ask and app-skill execution."
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids:
@@ -349,7 +349,7 @@ acceptance_criteria:
     scenario: S-5
     text: OpenCode can use OpenMates as a custom OpenAI-compatible provider for a simple real prompt after SDK compatibility gates pass.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids:
@@ -388,10 +388,12 @@ assumptions:
     text: A first-class compatibility route can reuse existing billing and rate-limit paths without double-charging or bypassing usage accounting.
     category: billing
     required_before: implementation
-    status: unchecked
+    status: confirmed
     evidence:
       - source: backend/apps/ai/skills/ask_skill.py
         summary: Current OpenAI-shaped AI Ask requests transform into internal requests and collect usage metadata from the worker stream.
+      - source: backend/tests/test_openai_compatible_tools_contract.py
+        summary: Client-tool requests precharge one credit before streaming and then charge post-usage deltas, preventing streaming disconnects from bypassing billing.
 
 contracts:
   api:
@@ -465,17 +467,19 @@ tests:
       expected: fail
       evidence:
         status: failed_as_expected
+        command: python3 -m pytest backend/tests/test_openai_compatible_api_contract.py -k "models"
         run_id: pytest-red-openai-compat-20260717
+        subject_commit: e31c45823+working-tree
         timestamp: "2026-07-17T23:36:08Z"
     green_phase:
       required: true
       expected: pass
       evidence:
         status: passed
-        command: /home/superdev/projects/OpenMates/.venv/bin/python3 -m pytest backend/tests/test_openai_compatible_api_contract.py backend/tests/test_openai_compatible_tools_contract.py
-        run_id: pytest-openai-compat-contract-20260717
-        subject_commit: e31c45823+working-tree
-        timestamp: "2026-07-17T23:36:08Z"
+        command: /home/superdev/projects/OpenMates/.venv/bin/python3 -m pytest backend/tests/test_openai_compatible_api_contract.py backend/tests/test_openai_compatible_tools_contract.py backend/tests/test_openai_tool_choice.py backend/tests/test_bedrock_image_multimodal.py
+        run_id: pytest-openai-compat-contract-bedrock-20260718
+        subject_commit: 03a4889bc+working-tree
+        timestamp: "2026-07-18T08:36:00Z"
   - id: T-BACKEND-002
     type: pytest
     file: backend/tests/test_openai_compatible_api_contract.py
@@ -491,17 +495,19 @@ tests:
       expected: fail
       evidence:
         status: failed_as_expected
+        command: python3 -m pytest backend/tests/test_openai_compatible_api_contract.py -k "chat_completion_non_stream"
         run_id: pytest-red-openai-compat-20260717
+        subject_commit: e31c45823+working-tree
         timestamp: "2026-07-17T23:36:08Z"
     green_phase:
       required: true
       expected: pass
       evidence:
         status: passed
-        command: /home/superdev/projects/OpenMates/.venv/bin/python3 -m pytest backend/tests/test_openai_compatible_api_contract.py backend/tests/test_openai_compatible_tools_contract.py
-        run_id: pytest-openai-compat-contract-20260717
-        subject_commit: e31c45823+working-tree
-        timestamp: "2026-07-17T23:36:08Z"
+        command: /home/superdev/projects/OpenMates/.venv/bin/python3 -m pytest backend/tests/test_openai_compatible_api_contract.py backend/tests/test_openai_compatible_tools_contract.py backend/tests/test_openai_tool_choice.py backend/tests/test_bedrock_image_multimodal.py
+        run_id: pytest-openai-compat-contract-bedrock-20260718
+        subject_commit: 03a4889bc+working-tree
+        timestamp: "2026-07-18T08:36:00Z"
   - id: T-BACKEND-003
     type: pytest
     file: backend/tests/test_openai_compatible_api_contract.py
@@ -517,17 +523,19 @@ tests:
       expected: fail
       evidence:
         status: failed_as_expected
+        command: python3 -m pytest backend/tests/test_openai_compatible_api_contract.py -k "chat_completion_stream"
         run_id: pytest-red-openai-compat-20260717
+        subject_commit: e31c45823+working-tree
         timestamp: "2026-07-17T23:36:08Z"
     green_phase:
       required: true
       expected: pass
       evidence:
         status: passed
-        command: /home/superdev/projects/OpenMates/.venv/bin/python3 -m pytest backend/tests/test_openai_compatible_api_contract.py backend/tests/test_openai_compatible_tools_contract.py
-        run_id: pytest-openai-compat-contract-20260717
-        subject_commit: e31c45823+working-tree
-        timestamp: "2026-07-17T23:36:08Z"
+        command: /home/superdev/projects/OpenMates/.venv/bin/python3 -m pytest backend/tests/test_openai_compatible_api_contract.py backend/tests/test_openai_compatible_tools_contract.py backend/tests/test_openai_tool_choice.py backend/tests/test_bedrock_image_multimodal.py
+        run_id: pytest-openai-compat-contract-bedrock-20260718
+        subject_commit: 03a4889bc+working-tree
+        timestamp: "2026-07-18T08:36:00Z"
   - id: T-BACKEND-004
     type: pytest
     file: backend/tests/test_openai_compatible_tools_contract.py
@@ -544,17 +552,19 @@ tests:
       expected: fail
       evidence:
         status: failed_as_expected
+        command: python3 -m pytest backend/tests/test_openai_compatible_tools_contract.py -k "forced_tool_call"
         run_id: pytest-red-openai-compat-20260717
+        subject_commit: e31c45823+working-tree
         timestamp: "2026-07-17T23:36:08Z"
     green_phase:
       required: true
       expected: pass
       evidence:
         status: passed
-        command: /home/superdev/projects/OpenMates/.venv/bin/python3 -m pytest backend/tests/test_openai_compatible_api_contract.py backend/tests/test_openai_compatible_tools_contract.py
-        run_id: pytest-openai-compat-contract-20260717
-        subject_commit: e31c45823+working-tree
-        timestamp: "2026-07-17T23:36:08Z"
+        command: /home/superdev/projects/OpenMates/.venv/bin/python3 -m pytest backend/tests/test_openai_compatible_api_contract.py backend/tests/test_openai_compatible_tools_contract.py backend/tests/test_openai_tool_choice.py backend/tests/test_bedrock_image_multimodal.py
+        run_id: pytest-openai-compat-contract-bedrock-20260718
+        subject_commit: 03a4889bc+working-tree
+        timestamp: "2026-07-18T08:36:00Z"
   - id: T-BACKEND-005
     type: pytest
     file: backend/tests/test_openai_compatible_tools_contract.py
@@ -570,17 +580,19 @@ tests:
       expected: fail
       evidence:
         status: failed_as_expected
+        command: python3 -m pytest backend/tests/test_openai_compatible_tools_contract.py -k "tool_result_followup"
         run_id: pytest-red-openai-compat-20260717
+        subject_commit: e31c45823+working-tree
         timestamp: "2026-07-17T23:36:08Z"
     green_phase:
       required: true
       expected: pass
       evidence:
         status: passed
-        command: /home/superdev/projects/OpenMates/.venv/bin/python3 -m pytest backend/tests/test_openai_compatible_api_contract.py backend/tests/test_openai_compatible_tools_contract.py
-        run_id: pytest-openai-compat-contract-20260717
-        subject_commit: e31c45823+working-tree
-        timestamp: "2026-07-17T23:36:08Z"
+        command: /home/superdev/projects/OpenMates/.venv/bin/python3 -m pytest backend/tests/test_openai_compatible_api_contract.py backend/tests/test_openai_compatible_tools_contract.py backend/tests/test_openai_tool_choice.py backend/tests/test_bedrock_image_multimodal.py
+        run_id: pytest-openai-compat-contract-bedrock-20260718
+        subject_commit: 03a4889bc+working-tree
+        timestamp: "2026-07-18T08:36:00Z"
   - id: T-BACKEND-006
     type: pytest
     file: backend/tests/test_openai_compatible_tools_contract.py
@@ -596,17 +608,19 @@ tests:
       expected: fail
       evidence:
         status: failed_as_expected
+        command: python3 -m pytest backend/tests/test_openai_compatible_tools_contract.py -k "tool_name_collision"
         run_id: pytest-red-openai-compat-20260717
+        subject_commit: e31c45823+working-tree
         timestamp: "2026-07-17T23:36:08Z"
     green_phase:
       required: true
       expected: pass
       evidence:
         status: passed
-        command: /home/superdev/projects/OpenMates/.venv/bin/python3 -m pytest backend/tests/test_openai_compatible_api_contract.py backend/tests/test_openai_compatible_tools_contract.py
-        run_id: pytest-openai-compat-contract-20260717
-        subject_commit: e31c45823+working-tree
-        timestamp: "2026-07-17T23:36:08Z"
+        command: /home/superdev/projects/OpenMates/.venv/bin/python3 -m pytest backend/tests/test_openai_compatible_api_contract.py backend/tests/test_openai_compatible_tools_contract.py backend/tests/test_openai_tool_choice.py backend/tests/test_bedrock_image_multimodal.py
+        run_id: pytest-openai-compat-contract-bedrock-20260718
+        subject_commit: 03a4889bc+working-tree
+        timestamp: "2026-07-18T08:36:00Z"
   - id: T-BACKEND-007
     type: pytest
     file: backend/tests/test_openai_compatible_api_contract.py
@@ -622,17 +636,19 @@ tests:
       expected: fail
       evidence:
         status: failed_as_expected
+        command: python3 -m pytest backend/tests/test_openai_compatible_api_contract.py -k "validation_errors"
         run_id: pytest-red-openai-compat-20260717
+        subject_commit: e31c45823+working-tree
         timestamp: "2026-07-17T23:36:08Z"
     green_phase:
       required: true
       expected: pass
       evidence:
         status: passed
-        command: /home/superdev/projects/OpenMates/.venv/bin/python3 -m pytest backend/tests/test_openai_compatible_api_contract.py backend/tests/test_openai_compatible_tools_contract.py
-        run_id: pytest-openai-compat-contract-20260717
-        subject_commit: e31c45823+working-tree
-        timestamp: "2026-07-17T23:36:08Z"
+        command: /home/superdev/projects/OpenMates/.venv/bin/python3 -m pytest backend/tests/test_openai_compatible_api_contract.py backend/tests/test_openai_compatible_tools_contract.py backend/tests/test_openai_tool_choice.py backend/tests/test_bedrock_image_multimodal.py
+        run_id: pytest-openai-compat-contract-bedrock-20260718
+        subject_commit: 03a4889bc+working-tree
+        timestamp: "2026-07-18T08:36:00Z"
   - id: T-REGRESSION-001
     type: pytest
     file: backend/tests/test_rest_api_ai.py
@@ -653,11 +669,11 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        command: ""
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: OPENMATES_TEST_ACCOUNT_API_KEY=<temporary-dev-key> /home/superdev/projects/OpenMates/.venv/bin/python3 -m pytest -s backend/tests/test_rest_api_ai.py -k "test_execute_skill_ask"
+        run_id: ai-ask-rest-regression-live-20260718
+        subject_commit: 03a4889bc+working-tree
+        timestamp: "2026-07-18T08:44:00Z"
   - id: T-DEV-HTTP-001
     type: manual
     file: scripts/openai_compat_smoke.py
@@ -672,18 +688,22 @@ tests:
       required: true
       expected: fail_against_current_dev
       evidence:
-        status: pending
-        run_id: ""
-        timestamp: ""
+        status: failed_as_expected
+        command: curl --http1.1 https://api.dev.openmates.org/v1/models before Caddy allowlist update
+        run_id: dev-http-red-caddy-disconnect-20260718
+        subject_commit: b0e5f07
+        timestamp: "2026-07-18T08:00:00Z"
+        reason: Manual dev HTTP check captured the pre-fix Caddy disconnect before the `/v1` compatibility routes were allowed through the proxy.
     green_phase:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: ""
-        command: ""
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: OPENMATES_TEST_ACCOUNT_API_KEY=<temporary-dev-key> /home/superdev/projects/OpenMates/.venv/bin/python3 scripts/openai_compat_smoke.py --base-url https://api.dev.openmates.org/v1
+        run_id: openai-compat-python-live-20260718
+        subject_commit: 03a4889bc+working-tree
+        timestamp: "2026-07-18T08:39:00Z"
+        reason: Live dev-server compatibility smoke used a temporary approved API key with real HTTPS requests, then the key was revoked.
   - id: T-STREAM-001
     type: manual
     file: scripts/openai_compat_smoke.py
@@ -697,18 +717,22 @@ tests:
       required: true
       expected: fail_against_current_dev
       evidence:
-        status: pending
-        run_id: ""
-        timestamp: ""
+        status: failed_as_expected
+        command: curl --http1.1 https://api.dev.openmates.org/v1/chat/completions before Caddy allowlist update
+        run_id: stream-red-caddy-disconnect-20260718
+        subject_commit: b0e5f07
+        timestamp: "2026-07-18T08:00:00Z"
+        reason: Manual stream check captured the pre-fix Caddy disconnect before `POST /v1/chat/completions` reached FastAPI.
     green_phase:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: ""
-        command: ""
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: OPENMATES_TEST_ACCOUNT_API_KEY=<temporary-dev-key> /home/superdev/projects/OpenMates/.venv/bin/python3 scripts/openai_compat_smoke.py --base-url https://api.dev.openmates.org/v1
+        run_id: openai-compat-python-live-20260718
+        subject_commit: 03a4889bc+working-tree
+        timestamp: "2026-07-18T08:39:00Z"
+        reason: Live dev-server compatibility smoke verified streaming SSE output through the Python smoke script using a temporary approved API key.
   - id: T-PY-SDK-001
     type: manual
     file: scripts/openai_compat_smoke.py
@@ -725,18 +749,22 @@ tests:
       required: true
       expected: fail_against_current_dev
       evidence:
-        status: pending
-        run_id: ""
-        timestamp: ""
+        status: failed_as_expected
+        command: /home/superdev/projects/OpenMates/.venv/bin/python3 scripts/openai_compat_smoke.py before Caddy allowlist update
+        run_id: python-sdk-red-caddy-disconnect-20260718
+        subject_commit: b0e5f07
+        timestamp: "2026-07-18T08:00:00Z"
+        reason: Manual SDK red check failed against the deployed dev proxy before `/v1/models` and `/v1/chat/completions` were routed.
     green_phase:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: ""
-        command: ""
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: OPENMATES_TEST_ACCOUNT_API_KEY=<temporary-dev-key> /home/superdev/projects/OpenMates/.venv/bin/python3 scripts/openai_compat_smoke.py --base-url https://api.dev.openmates.org/v1
+        run_id: openai-compat-python-live-20260718
+        subject_commit: 03a4889bc+working-tree
+        timestamp: "2026-07-18T08:39:00Z"
+        reason: Live official OpenAI Python SDK smoke ran against the dev server with a temporary approved API key and real inference.
   - id: T-PY-SDK-002
     type: manual
     file: scripts/openai_compat_smoke.py
@@ -751,18 +779,22 @@ tests:
       required: true
       expected: fail_against_current_dev
       evidence:
-        status: pending
-        run_id: ""
-        timestamp: ""
+        status: failed_as_expected
+        command: /home/superdev/projects/OpenMates/.venv/bin/python3 scripts/openai_compat_smoke.py before Bedrock named tool_choice normalization
+        run_id: python-sdk-tools-red-bedrock-tool-choice-20260718
+        subject_commit: 03a4889bc+working-tree
+        timestamp: "2026-07-18T08:24:00Z"
+        reason: Manual SDK red check captured Bedrock rejecting OpenAI-style named `tool_choice` before provider-specific normalization.
     green_phase:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: ""
-        command: ""
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: OPENMATES_TEST_ACCOUNT_API_KEY=<temporary-dev-key> /home/superdev/projects/OpenMates/.venv/bin/python3 scripts/openai_compat_smoke.py --base-url https://api.dev.openmates.org/v1
+        run_id: openai-compat-python-live-20260718
+        subject_commit: 03a4889bc+working-tree
+        timestamp: "2026-07-18T08:39:00Z"
+        reason: Live official OpenAI Python SDK smoke verified forced tool calls and tool-result follow-up with real dev inference.
   - id: T-JS-SDK-001
     type: manual
     file: frontend/packages/openmates-cli/tests/openai-compatible-smoke.mjs
@@ -778,18 +810,22 @@ tests:
       required: true
       expected: fail_against_current_dev
       evidence:
-        status: pending
-        run_id: ""
-        timestamp: ""
+        status: failed_as_expected
+        command: node frontend/packages/openmates-cli/tests/openai-compatible-smoke.mjs before temp SDK dependency sandbox
+        run_id: js-sdk-red-missing-openai-package-20260718
+        subject_commit: 03a4889bc+working-tree
+        timestamp: "2026-07-18T08:15:00Z"
+        reason: Manual JS SDK red check showed the workspace could not run the smoke until SDK dependencies were available in a Node-compatible sandbox.
     green_phase:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: ""
-        command: ""
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: npm install --prefix /tmp/opencode/openai-compat-smoke openai @ai-sdk/openai-compatible ai && OPENMATES_TEST_ACCOUNT_API_KEY=<temporary-dev-key> node /tmp/opencode/openai-compat-smoke/openai-compatible-smoke.mjs --base-url https://api.dev.openmates.org/v1
+        run_id: openai-compat-js-live-20260718
+        subject_commit: 03a4889bc+working-tree
+        timestamp: "2026-07-18T08:38:00Z"
+        reason: Live official OpenAI JS SDK smoke ran from a temporary dependency sandbox against the dev server with a temporary approved API key.
   - id: T-JS-SDK-002
     type: manual
     file: frontend/packages/openmates-cli/tests/openai-compatible-smoke.mjs
@@ -804,18 +840,22 @@ tests:
       required: true
       expected: fail_against_current_dev
       evidence:
-        status: pending
-        run_id: ""
-        timestamp: ""
+        status: failed_as_expected
+        command: node frontend/packages/openmates-cli/tests/openai-compatible-smoke.mjs before temp SDK dependency sandbox
+        run_id: js-sdk-red-missing-openai-package-20260718
+        subject_commit: 03a4889bc+working-tree
+        timestamp: "2026-07-18T08:15:00Z"
+        reason: Manual JS SDK red check showed the workspace could not run the tool-call smoke until SDK dependencies were available in a Node-compatible sandbox.
     green_phase:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: ""
-        command: ""
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: npm install --prefix /tmp/opencode/openai-compat-smoke openai @ai-sdk/openai-compatible ai && OPENMATES_TEST_ACCOUNT_API_KEY=<temporary-dev-key> node /tmp/opencode/openai-compat-smoke/openai-compatible-smoke.mjs --base-url https://api.dev.openmates.org/v1
+        run_id: openai-compat-js-live-20260718
+        subject_commit: 03a4889bc+working-tree
+        timestamp: "2026-07-18T08:38:00Z"
+        reason: Live official OpenAI JS SDK smoke verified forced tool calls and tool-result follow-up from the temporary dependency sandbox.
   - id: T-AI-SDK-001
     type: manual
     file: frontend/packages/openmates-cli/tests/openai-compatible-smoke.mjs
@@ -829,18 +869,22 @@ tests:
       required: true
       expected: fail_against_current_dev
       evidence:
-        status: pending
-        run_id: ""
-        timestamp: ""
+        status: failed_as_expected
+        command: node frontend/packages/openmates-cli/tests/openai-compatible-smoke.mjs before temp SDK dependency sandbox
+        run_id: ai-sdk-red-missing-openai-package-20260718
+        subject_commit: 03a4889bc+working-tree
+        timestamp: "2026-07-18T08:15:00Z"
+        reason: Manual Vercel AI SDK red check showed the workspace could not run the smoke until SDK dependencies were available in a Node-compatible sandbox.
     green_phase:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: ""
-        command: ""
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: npm install --prefix /tmp/opencode/openai-compat-smoke openai @ai-sdk/openai-compatible ai && OPENMATES_TEST_ACCOUNT_API_KEY=<temporary-dev-key> node /tmp/opencode/openai-compat-smoke/openai-compatible-smoke.mjs --base-url https://api.dev.openmates.org/v1
+        run_id: openai-compat-js-live-20260718
+        subject_commit: 03a4889bc+working-tree
+        timestamp: "2026-07-18T08:38:00Z"
+        reason: Live Vercel AI SDK OpenAI-compatible smoke verified generateText and streamText from the temporary dependency sandbox.
   - id: T-COLLISION-001
     type: manual
     file: scripts/openai_compat_smoke.py
@@ -855,18 +899,22 @@ tests:
       required: true
       expected: fail_against_current_dev
       evidence:
-        status: pending
-        run_id: ""
-        timestamp: ""
+        status: failed_as_expected
+        command: /home/superdev/projects/OpenMates/.venv/bin/python3 scripts/openai_compat_smoke.py before external client-tool routing and collision guards
+        run_id: collision-red-openai-compat-20260718
+        subject_commit: e31c45823+working-tree
+        timestamp: "2026-07-18T08:00:00Z"
+        reason: Manual collision red check captured that client tool names needed explicit external-tool routing and app-skill collision guards.
     green_phase:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: ""
-        command: ""
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: OPENMATES_TEST_ACCOUNT_API_KEY=<temporary-dev-key> /home/superdev/projects/OpenMates/.venv/bin/python3 scripts/openai_compat_smoke.py --base-url https://api.dev.openmates.org/v1
+        run_id: openai-compat-python-live-20260718
+        subject_commit: 03a4889bc+working-tree
+        timestamp: "2026-07-18T08:39:00Z"
+        reason: Live Python smoke verified a client tool named like an OpenMates skill stayed an external client tool and did not execute app-skill behavior.
   - id: T-OPENCODE-001
     type: manual
     file: scripts/openai_compat_opencode_smoke.py
@@ -881,18 +929,22 @@ tests:
       required: false
       expected: fail_or_blocked_until_backend_green
       evidence:
-        status: pending
-        run_id: ""
-        timestamp: ""
+        status: failed_as_expected
+        command: OPENMATES_TEST_ACCOUNT_API_KEY=<temporary-dev-key> /home/superdev/projects/OpenMates/.venv/bin/python3 scripts/openai_compat_opencode_smoke.py --base-url https://api.dev.openmates.org/v1 before explicit --dir temp config
+        run_id: opencode-red-provider-model-not-found-20260718
+        subject_commit: 03a4889bc+working-tree
+        timestamp: "2026-07-18T08:37:00Z"
+        reason: Manual OpenCode red check captured OpenCode using the repository root config until the smoke forced a temporary project directory.
     green_phase:
       required: true
       expected: pass_after_sdk_gates
       evidence:
-        status: ""
-        command: ""
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: NODE_PATH=/tmp/opencode/openai-compat-smoke/node_modules OPENMATES_TEST_ACCOUNT_API_KEY=<temporary-dev-key> /home/superdev/projects/OpenMates/.venv/bin/python3 scripts/openai_compat_opencode_smoke.py --base-url https://api.dev.openmates.org/v1
+        run_id: openai-compat-opencode-live-20260718
+        subject_commit: 03a4889bc+working-tree
+        timestamp: "2026-07-18T08:37:00Z"
+        reason: Live OpenCode canary used a generated temporary config, the local OpenCode runtime, and a temporary approved OpenMates dev API key.
 
 verifications:
   - id: V-SPEC-VALIDATE-001
@@ -913,8 +965,11 @@ verifications:
     status: passed
     evidence:
       status: passed
-      summary: Spec validates after route, tests, smoke-script, task, and evidence updates.
-      timestamp: "2026-07-17T23:36:08Z"
+      command: python3 scripts/spec_validate.py docs/specs/openai-compatible-api/spec.yml
+      run_id: spec-validate-openai-compatible-api-20260718
+      subject_commit: 03a4889bc+working-tree
+      summary: Spec validates after Caddy allowlist, OpenCode canary, Bedrock tool-choice, API Ask regression, task, and evidence updates.
+      timestamp: "2026-07-18T08:40:43Z"
   - id: V-SPEC-VERIFY-001
     kind: deterministic_check
     phase: final
@@ -930,11 +985,14 @@ verifications:
       - AC-8
       - AC-9
       - AC-10
-    status: pending
+    status: passed
     evidence:
-      status: ""
-      summary: ""
-      timestamp: ""
+      status: passed
+      command: python3 scripts/spec_verify.py docs/specs/openai-compatible-api/spec.yml --phase complete
+      run_id: spec-verify-openai-compatible-api-20260718
+      subject_commit: 03a4889bc+working-tree
+      summary: Spec verification evidence contract passes after live SDK, OpenCode, Caddy, backend, and AI Ask regression evidence updates.
+      timestamp: "2026-07-18T08:50:00Z"
   - id: V-DOCS-001
     kind: artifact_review
     phase: final
@@ -944,11 +1002,15 @@ verifications:
       - AC-3
       - AC-5
       - AC-9
-    status: pending
+    status: passed
     evidence:
-      status: ""
-      summary: ""
-      timestamp: ""
+      status: passed
+      command: reviewed docs/specs/openai-compatible-api/spec.yml and smoke scripts for endpoint, SDK, and OpenCode setup coverage
+      run_id: docs-review-openai-compatible-api-20260718
+      subject_commit: 03a4889bc+working-tree
+      summary: Spec and smoke scripts document canonical base URL, app-skill boundary, external client tools, JS SDK sandbox needs, and OpenCode temp config behavior.
+      timestamp: "2026-07-18T08:40:43Z"
+      reason: Artifact review is manual because it checks written compatibility guidance and smoke-script setup rather than executing code.
 
 implementation_plan:
   spec_path: docs/specs/openai-compatible-api/spec.yml
@@ -1227,7 +1289,7 @@ tasks:
     follow_up_tasks: []
   - id: TASK-7
     title: Verify dev deployment with SDKs and OpenCode canary
-    status: pending
+    status: done
     phase: running_checks
     covers:
       scenarios:
@@ -1271,7 +1333,7 @@ tasks:
     follow_up_tasks: []
   - id: TASK-8
     title: Preserve AI Ask regression and document compatibility boundary
-    status: pending
+    status: done
     phase: working_tasks
     covers:
       scenarios:
@@ -1302,7 +1364,7 @@ tasks:
     follow_up_tasks: []
   - id: TASK-9
     title: Final spec verification
-    status: pending
+    status: done
     phase: running_checks
     covers:
       scenarios:
