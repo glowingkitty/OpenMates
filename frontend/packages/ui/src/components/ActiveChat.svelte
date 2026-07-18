@@ -4615,13 +4615,63 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
      let anonymousShellHydratingChatId = $state<string | null>(null);
      let anonymousHydrationDebug = $state('idle');
 
+     async function readAnonymousSnapshotFromIndexedDb(chatId: string): Promise<{ chat: Chat; messages: ChatMessageModel[] } | null> {
+        if (typeof indexedDB === 'undefined') return null;
+
+        return new Promise((resolve, reject) => {
+            const request = indexedDB.open('chats_db');
+            request.onerror = () => reject(request.error);
+            request.onsuccess = () => {
+                const db = request.result;
+                const transaction = db.transaction(['chats', 'messages'], 'readonly');
+                const chatRequest = transaction.objectStore('chats').get(chatId);
+                const messagesRequest = transaction
+                    .objectStore('messages')
+                    .index('chat_id_created_at')
+                    .getAll(IDBKeyRange.bound([chatId, -Infinity], [chatId, Infinity]));
+
+                transaction.onerror = () => {
+                    db.close();
+                    reject(transaction.error);
+                };
+                transaction.oncomplete = () => {
+                    db.close();
+                    const chat = chatRequest.result as Chat | undefined;
+                    if (!chat?.is_anonymous) {
+                        resolve(null);
+                        return;
+                    }
+                    resolve({ chat, messages: (messagesRequest.result ?? []) as ChatMessageModel[] });
+                };
+            };
+        });
+     }
+
      $effect(() => {
         const chat = currentChat;
         if (!chat?.is_anonymous || currentMessages.length > 0 || anonymousShellHydratingChatId === chat.chat_id) return;
 
         anonymousShellHydratingChatId = chat.chat_id;
         anonymousHydrationDebug = `effect-load:${chat.chat_id}:messages=${currentMessages.length}:v=${chat.messages_v ?? -1}`;
-        void loadChat(chat).finally(() => {
+        void (async () => {
+            for (let attempt = 0; attempt < 100; attempt += 1) {
+                const snapshot = await readAnonymousSnapshotFromIndexedDb(chat.chat_id);
+                anonymousHydrationDebug = `raw-snapshot:${chat.chat_id}:attempt=${attempt}:messages=${snapshot?.messages.length ?? -1}:v=${snapshot?.chat.messages_v ?? -1}`;
+                if (snapshot && snapshot.messages.length > 0 && currentChat?.chat_id === chat.chat_id) {
+                    currentChat = snapshot.chat;
+                    currentMessages = snapshot.messages;
+                    chatHistoryRef?.updateMessages(snapshot.messages);
+                    showWelcome = false;
+                    anonymousHydrationDebug = `raw-assign:${chat.chat_id}:messages=${snapshot.messages.length}:v=${snapshot.chat.messages_v ?? -1}`;
+                    return;
+                }
+
+                await new Promise((resolve) => setTimeout(resolve, 100));
+            }
+        })().catch((error) => {
+            anonymousHydrationDebug = `raw-error:${chat.chat_id}:${error instanceof Error ? error.name : typeof error}`;
+            console.warn('[ActiveChat] Failed to hydrate anonymous shell from IndexedDB snapshot:', error);
+        }).finally(() => {
             anonymousHydrationDebug = `effect-done:${chat.chat_id}:messages=${currentMessages.length}:v=${currentChat?.messages_v ?? -1}`;
             if (anonymousShellHydratingChatId === chat.chat_id) {
                 anonymousShellHydratingChatId = null;
