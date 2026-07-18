@@ -157,6 +157,7 @@
       footer: (decodedContent?.footer as string | null) || (data.footer as string | null) || undefined,
       filename: (data.filename as string | null) || null,
       language: (data.language as string | null) || null,
+      aiDetection: decodedContent?.aiDetection ?? decodedContent?.ai_detection ?? null,
       previewVariant: variant,
     } as EmbedNodeAttributes;
   }
