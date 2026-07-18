@@ -2,21 +2,18 @@
 # WebSocket handlers for client-encrypted chat compression checkpoints.
 # The server proposes summaries, but only the client may encrypt and persist
 # checkpoint content into Directus zero-knowledge storage.
+from __future__ import annotations
 
 import logging
 import json
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from backend.core.api.app.services.cache import CacheService
-from backend.core.api.app.services.directus import DirectusService
-from backend.core.api.app.tasks.persistence_tasks import _validate_client_encrypted_chat_payload
-from backend.shared.python_utils.tracing.ws_span_helper import (
-    end_ws_handler_span,
-    start_ws_handler_span,
-)
-
 logger = logging.getLogger(__name__)
+
+if TYPE_CHECKING:
+    from backend.core.api.app.services.directus import DirectusService
 
 CHECKPOINT_COLLECTION = "chat_compression_checkpoints"
 DEFAULT_OLD_MESSAGE_LIMIT = 100
@@ -55,6 +52,8 @@ async def handle_store_chat_compression_checkpoint(
     payload: Dict[str, Any],
     user_otel_attrs: dict = None,
 ) -> None:
+    from backend.shared.python_utils.tracing.ws_span_helper import end_ws_handler_span, start_ws_handler_span
+
     _otel_span, _otel_token = start_ws_handler_span(
         "store_chat_compression_checkpoint",
         user_id,
@@ -106,6 +105,8 @@ async def _handle_store_chat_compression_checkpoint(
             device_fingerprint_hash,
         )
         return
+
+    from backend.core.api.app.tasks.persistence_tasks import _validate_client_encrypted_chat_payload
 
     _validate_client_encrypted_chat_payload(checkpoint_id, encrypted_summary)
 
@@ -163,6 +164,8 @@ async def handle_get_compressed_chat_old_messages(
     payload: Dict[str, Any],
     user_otel_attrs: dict = None,
 ) -> None:
+    from backend.shared.python_utils.tracing.ws_span_helper import end_ws_handler_span, start_ws_handler_span
+
     _otel_span, _otel_token = start_ws_handler_span(
         "get_compressed_chat_old_messages",
         user_id,

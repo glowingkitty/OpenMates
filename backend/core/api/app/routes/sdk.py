@@ -35,6 +35,16 @@ from backend.core.api.app.routes.handlers.websocket_handlers.chat_turn_preflight
     canonicalize_inference_request,
     enqueue_chat_turn,
 )
+from backend.core.api.app.routes.ideabucket import (
+    IdeaBucketEncryptedAddRequest,
+    IdeaBucketProcessRequest,
+    get_ideabucket_bucket_status,
+    process_ideabucket_bucket,
+    reject_ideabucket_cleartext_payload,
+    store_ideabucket_encrypted_add,
+)
+from backend.core.api.app.services.directus.team_methods import TeamPermissionError
+from backend.core.api.app.services.team_chat_ai_service import should_trigger_team_ai
 
 from backend.core.api.app.utils.api_key_auth import (
     ApiKeyAuthService,
@@ -70,6 +80,10 @@ class SdkChatCreateRequest(BaseModel):
     encrypted_user_message: dict[str, Any] | None = Field(default=None)
     encrypted_chat_metadata: dict[str, Any] | None = Field(default=None)
     inference_request: dict[str, Any] | None = Field(default=None)
+    team_id: str | None = Field(default=None)
+    team_id_hash: str | None = Field(default=None)
+    team_workspace_type: str | None = Field(default="chat")
+    team_object_id_hash: str | None = Field(default=None)
 
 
 class SdkRecoveryClaimRequest(BaseModel):
@@ -590,10 +604,17 @@ async def _dispatch_sdk_surface(
     if surface == "memories":
         parts = [part for part in path.split("/") if part]
         hashed_user_id = hashlib.sha256(str(user.id).encode()).hexdigest()
+        team_id = request.query_params.get("team_id") or (body or {}).get("team_id")
+        if team_id:
+            try:
+                await directus_service.team.require_team_role(str(team_id), str(user.id), {"owner", "admin", "member", "viewer"})
+            except TeamPermissionError as exc:
+                raise HTTPException(status_code=403, detail="TEAM_PERMISSION_DENIED") from exc
+        memory_context_filter = {"hashed_team_id": {"_eq": hashlib.sha256(str(team_id).encode()).hexdigest()}} if team_id else {"hashed_user_id": {"_eq": hashed_user_id}, "hashed_team_id": {"_null": True}}
         if not parts and request.method == "GET":
             app_id = request.query_params.get("app_id")
             item_type = request.query_params.get("item_type")
-            filters: dict[str, Any] = {"hashed_user_id": {"_eq": hashed_user_id}}
+            filters: dict[str, Any] = dict(memory_context_filter)
             if app_id:
                 filters["app_id"] = {"_eq": app_id}
             if item_type:
@@ -610,17 +631,25 @@ async def _dispatch_sdk_surface(
             return {"apps": _jsonable(apps)}
         if not parts and request.method == "POST":
             entry = (body or {}).get("entry") or body or {}
+            team_id = team_id or entry.get("team_id")
+            if team_id:
+                try:
+                    await directus_service.team.require_team_role(str(team_id), str(user.id), {"owner", "admin", "member"})
+                except TeamPermissionError as exc:
+                    raise HTTPException(status_code=403, detail="TEAM_PERMISSION_DENIED") from exc
             entry_id = str(entry.get("id") or "")
             if not entry_id or not entry.get("app_id") or not entry.get("item_key"):
                 raise HTTPException(status_code=400, detail="Missing memory entry fields")
+            memory_context_filter = {"hashed_team_id": {"_eq": hashlib.sha256(str(team_id).encode()).hexdigest()}} if team_id else {"hashed_user_id": {"_eq": hashed_user_id}, "hashed_team_id": {"_null": True}}
             payload = {
-                **entry,
+                **{key: value for key, value in entry.items() if key != "team_id"},
                 "hashed_user_id": hashed_user_id,
+                "hashed_team_id": hashlib.sha256(str(team_id).encode()).hexdigest() if team_id else None,
                 "encrypted_app_key": entry.get("encrypted_app_key", ""),
             }
             existing = await directus_service.get_items(
                 "user_app_settings_and_memories",
-                params={"filter": {"id": {"_eq": entry_id}, "hashed_user_id": {"_eq": hashed_user_id}}, "limit": 1},
+                params={"filter": {"id": {"_eq": entry_id}, **memory_context_filter}, "limit": 1},
             )
             if existing:
                 await directus_service.update_item("user_app_settings_and_memories", entry_id, payload)
@@ -628,15 +657,31 @@ async def _dispatch_sdk_surface(
                 await directus_service.create_item("user_app_settings_and_memories", payload)
             return {"success": True, "id": entry_id}
         if len(parts) == 1 and request.method == "PATCH":
-            payload = {**(body or {}), "hashed_user_id": hashed_user_id}
+            if team_id:
+                try:
+                    await directus_service.team.require_team_role(str(team_id), str(user.id), {"owner", "admin", "member"})
+                except TeamPermissionError as exc:
+                    raise HTTPException(status_code=403, detail="TEAM_PERMISSION_DENIED") from exc
+            existing = await directus_service.get_items(
+                "user_app_settings_and_memories",
+                params={"filter": {"id": {"_eq": parts[0]}, **memory_context_filter}, "limit": 1},
+            )
+            if not existing:
+                raise HTTPException(status_code=404, detail="Memory not found")
+            payload = {**{key: value for key, value in (body or {}).items() if key != "team_id"}, "hashed_user_id": hashed_user_id, "hashed_team_id": hashlib.sha256(str(team_id).encode()).hexdigest() if team_id else None}
             updated = await directus_service.update_item("user_app_settings_and_memories", parts[0], payload)
             if not updated:
                 raise HTTPException(status_code=404, detail="Memory not found")
             return {"success": True, "id": parts[0]}
         if len(parts) == 1 and request.method == "DELETE":
+            if team_id:
+                try:
+                    await directus_service.team.require_team_role(str(team_id), str(user.id), {"owner", "admin", "member"})
+                except TeamPermissionError as exc:
+                    raise HTTPException(status_code=403, detail="TEAM_PERMISSION_DENIED") from exc
             existing = await directus_service.get_items(
                 "user_app_settings_and_memories",
-                params={"filter": {"id": {"_eq": parts[0]}, "hashed_user_id": {"_eq": hashed_user_id}}, "limit": 1},
+                params={"filter": {"id": {"_eq": parts[0]}, **memory_context_filter}, "limit": 1},
             )
             if not existing:
                 raise HTTPException(status_code=404, detail="Memory not found")
@@ -858,8 +903,13 @@ async def _dispatch_sdk_surface(
 
             row_payload = (body or {}).get("row") or body or {}
             hashed_user_id = hashlib.sha256(str(user.id).encode()).hexdigest()
-            if row_payload.get("hashed_user_id") != hashed_user_id:
+            team_id = request.query_params.get("team_id") or (body or {}).get("team_id") or row_payload.get("team_id")
+            if team_id:
+                raise HTTPException(status_code=501, detail="TEAM_CONNECTED_ACCOUNTS_DISABLED")
+            elif row_payload.get("hashed_user_id") != hashed_user_id:
                 raise HTTPException(status_code=403, detail="Connected account owner hash does not match current user")
+            elif row_payload.get("hashed_team_id"):
+                raise HTTPException(status_code=403, detail="team_id is required for team connected account rows")
             try:
                 row = ConnectedAccountRow.validate_for_storage(row_payload)
             except ValueError as exc:
@@ -1027,6 +1077,14 @@ async def create_sdk_chat(
         current_message = inference_messages[-1]
         if not isinstance(current_message, dict) or current_message.get("content") != request_body.message:
             raise HTTPException(status_code=400, detail={"error": "inference_request_mismatch"})
+        team_id = request_body.team_id or inference_request.get("team_id")
+        is_team_chat = bool(team_id)
+        if is_team_chat:
+            try:
+                await request.app.state.directus_service.team.require_team_role(str(team_id), user_id, {"owner", "admin", "member"})
+            except TeamPermissionError as exc:
+                raise HTTPException(status_code=403, detail={"error": "team_permission_denied"}) from exc
+        team_should_trigger_ai = should_trigger_team_ai(request_body.message or "", is_team_chat=is_team_chat)
         try:
             preflight = await ChatRecoveryService(request.app.state.directus_service).execute(
                 "prepare_preflight",
@@ -1051,15 +1109,25 @@ async def create_sdk_chat(
                     ),
                 },
             )
-            enqueue = await enqueue_chat_turn(
-                directus_service=request.app.state.directus_service,
-                user_id_hash=hashed_user_id,
-                device_fingerprint_hash=device_hash,
-                preflight_id=str(preflight["preflight_id"]),
-                inference_request=inference_request,
-            )
+            enqueue = None
+            if team_should_trigger_ai:
+                enqueue = await enqueue_chat_turn(
+                    directus_service=request.app.state.directus_service,
+                    user_id_hash=hashed_user_id,
+                    device_fingerprint_hash=device_hash,
+                    preflight_id=str(preflight["preflight_id"]),
+                    inference_request=inference_request,
+                )
         except ChatRecoveryProtocolError as exc:
             raise HTTPException(status_code=exc.status_code, detail={"error": exc.code}) from exc
+        if not team_should_trigger_ai:
+            return {
+                "persistent": True,
+                "chat_id": request_body.chat_id,
+                "preflight": preflight,
+                "task_id": None,
+                "ai_dispatched": False,
+            }
 
         history_messages = [message for message in inference_messages if isinstance(message, dict)]
         focus_mode = inference_request.get("focus_mode")
@@ -1084,6 +1152,10 @@ async def create_sdk_chat(
             "active_focus_id": focus_mode.get("focus_mode_id") if isinstance(focus_mode, dict) else None,
             "user_preferences": {"model": inference_request.get("model"), "apps_enabled": True},
             "memory_ids": inference_request.get("memory_ids", []),
+            "team_id": team_id,
+            "team_id_hash": request_body.team_id_hash or inference_request.get("team_id_hash") or (hashlib.sha256(str(team_id).encode()).hexdigest() if team_id else None),
+            "team_workspace_type": request_body.team_workspace_type or inference_request.get("team_workspace_type") or "chat",
+            "team_object_id_hash": request_body.team_object_id_hash or inference_request.get("team_object_id_hash"),
             "recovery_task_id": enqueue.get("inference_task_id"),
             "recovery_preflight_id": preflight.get("preflight_id"),
             "recovery_turn_id": request_body.turn_id,
@@ -1297,6 +1369,67 @@ async def get_sdk_draft(request: Request, chat_id: str) -> dict[str, Any]:
         "encrypted_draft_preview": encrypted_preview,
         "draft_v": draft_v,
     }}
+
+
+@router.post("/ideabucket/buckets/{bucket_id}/add")
+async def add_sdk_ideabucket_bucket(
+    request: Request,
+    bucket_id: str,
+    request_body: IdeaBucketEncryptedAddRequest,
+) -> dict[str, Any]:
+    api_key_info = await _authenticate_sdk_request(request)
+    _require_chat_scope(api_key_info, "chat:create_saved")
+    raw_payload = await request.json()
+    reject_ideabucket_cleartext_payload(raw_payload if isinstance(raw_payload, dict) else {})
+    if request_body.ideabucket_processing_window_id != bucket_id:
+        raise HTTPException(status_code=400, detail={"error": "bucket_id_mismatch"})
+    return await store_ideabucket_encrypted_add(
+        user_id=str(api_key_info["user_id"]),
+        body=request_body,
+        cache_service=request.app.state.cache_service,
+        directus_service=request.app.state.directus_service,
+    )
+
+
+@router.get("/ideabucket/buckets")
+async def get_default_sdk_ideabucket_bucket(request: Request) -> dict[str, Any]:
+    api_key_info = await _authenticate_sdk_request(request)
+    _require_chat_scope(api_key_info, "chat:read_existing")
+    from backend.core.api.app.routes.ideabucket import default_bucket_id
+
+    return await get_ideabucket_bucket_status(
+        user_id=str(api_key_info["user_id"]),
+        bucket_id=default_bucket_id(),
+        cache_service=request.app.state.cache_service,
+    )
+
+
+@router.get("/ideabucket/buckets/{bucket_id}")
+async def get_sdk_ideabucket_bucket(request: Request, bucket_id: str) -> dict[str, Any]:
+    api_key_info = await _authenticate_sdk_request(request)
+    _require_chat_scope(api_key_info, "chat:read_existing")
+    return await get_ideabucket_bucket_status(
+        user_id=str(api_key_info["user_id"]),
+        bucket_id=bucket_id,
+        cache_service=request.app.state.cache_service,
+    )
+
+
+@router.post("/ideabucket/buckets/{bucket_id}/process")
+async def process_sdk_ideabucket_bucket(
+    request: Request,
+    bucket_id: str,
+    request_body: IdeaBucketProcessRequest,
+) -> dict[str, Any]:
+    api_key_info = await _authenticate_sdk_request(request)
+    _require_chat_scope(api_key_info, "chat:create_saved")
+    return await process_ideabucket_bucket(
+        user_id=str(api_key_info["user_id"]),
+        bucket_id=bucket_id,
+        now=request_body.now,
+        cache_service=request.app.state.cache_service,
+        directus_service=request.app.state.directus_service,
+    )
 
 
 @router.api_route(

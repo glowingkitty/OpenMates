@@ -204,6 +204,10 @@ async function main(): Promise<void> {
       printDraftsHelp();
       return;
     }
+    if (command === "ideabucket") {
+      printIdeaBucketHelp();
+      return;
+    }
     if (command === "apps") {
       printAppsHelp();
       return;
@@ -366,6 +370,11 @@ async function main(): Promise<void> {
 
   if (command === "drafts") {
     await handleDrafts(client, subcommand, rest, parsed.flags);
+    return;
+  }
+
+  if (command === "ideabucket") {
+    await handleIdeaBucket(client, subcommand, rest, parsed.flags);
     return;
   }
 
@@ -1259,6 +1268,55 @@ async function handleDrafts(
     return;
   }
   throw new Error(`Unknown drafts subcommand '${subcommand}'.`);
+}
+
+async function handleIdeaBucket(
+  client: OpenMatesClient,
+  subcommand: string | undefined,
+  rest: string[],
+  flags: Record<string, string | boolean>,
+): Promise<void> {
+  if (!subcommand || subcommand === "help" || flags.help === true) {
+    printIdeaBucketHelp();
+    return;
+  }
+
+  if (subcommand === "add") {
+    const text = rest.join(" ").trim();
+    if (!text) throw new Error("Missing IdeaBucket text for add.");
+    const scheduledSendAt = typeof flags["scheduled-at"] === "string"
+      ? parseUnixSecondsFlag(flags["scheduled-at"], "--scheduled-at")
+      : undefined;
+    printJson(await client.addIdeaBucketText({
+      text,
+      chatId: typeof flags.chat === "string" ? flags.chat : undefined,
+      bucketId: typeof flags.bucket === "string" ? flags.bucket : undefined,
+      scheduledSendAt,
+      prompt: typeof flags.prompt === "string" ? flags.prompt : undefined,
+    }));
+    return;
+  }
+
+  if (subcommand === "status") {
+    const bucketId = rest[0] ?? (typeof flags.bucket === "string" ? flags.bucket : undefined);
+    printJson(await client.getIdeaBucketStatus(bucketId));
+    return;
+  }
+
+  if (subcommand === "process") {
+    const bucketId = rest[0] ?? (typeof flags.bucket === "string" ? flags.bucket : undefined);
+    if (!bucketId) throw new Error("Missing IdeaBucket bucket ID for process.");
+    printJson(await client.processIdeaBucketBucket(bucketId, { now: flags.now === true }));
+    return;
+  }
+
+  throw new Error(`Unknown ideabucket subcommand '${subcommand}'.`);
+}
+
+function parseUnixSecondsFlag(value: string, flagName: string): number {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) throw new Error(`Invalid ${flagName}; expected Unix seconds.`);
+  return parsed > 10_000_000_000 ? Math.floor(parsed / 1000) : Math.floor(parsed);
 }
 
 // ---------------------------------------------------------------------------
@@ -4424,6 +4482,9 @@ async function handleConnectedAccounts(
   if (!subcommand || subcommand === "help" || flags.help === true) {
     printConnectedAccountsHelp();
     return;
+  }
+  if (typeof flags.team === "string") {
+    throw new Error("Team connected accounts are not supported yet. Use personal connected accounts or retry after Teams connected-account support ships.");
   }
   if (subcommand !== "import") {
     throw new Error(`Unknown connected-accounts command '${subcommand}'. Run 'openmates connected-accounts --help'.`);
@@ -8293,6 +8354,7 @@ Commands:
   openmates tasks [--help]                   Task commands (list, create, board, ...)
   openmates teams [--help]                   Team lifecycle, membership, billing, and move commands
   openmates drafts [--help]                  Encrypted draft lifecycle commands
+  openmates ideabucket [--help]              IdeaBucket capture, draft/status, and process commands
   openmates apps [--help]                    App skill commands (list, run, ...)
   openmates workflows [--help]               Server-side workflow commands
   openmates mentions [--help]                List available @mentions
@@ -8373,6 +8435,8 @@ Imports one passcode-protected connected account generated from web settings.
 The CLI prompts for the passcode interactively, validates the provider token with
 a harmless read, then re-encrypts the account for the currently logged-in CLI
 account before storing it.
+
+Team connected accounts are not supported in Teams V1 yet.
 
 Options:
   --payload <OMCA1...>  Required encrypted import payload from web settings
@@ -8657,6 +8721,16 @@ function printDraftsHelp(): void {
 
 Draft plaintext is encrypted locally with the account master key. Only Format-D
 ciphertext and version metadata are sent to the server or written to CLI cache.`);
+}
+
+function printIdeaBucketHelp(): void {
+  console.log(`IdeaBucket commands:
+  openmates ideabucket add <text> [--chat <uuid>] [--bucket <id>] [--scheduled-at <unix>] [--prompt <text>] [--json]
+  openmates ideabucket status [bucket-id] [--json]
+  openmates ideabucket process <bucket-id> [--now] [--json]
+
+Adding text updates the encrypted OpenMates IdeaBucket draft for the processing
+bucket and sends only ciphertext plus sparse non-content metadata to the server.`);
 }
 
 function printAppsHelp(): void {

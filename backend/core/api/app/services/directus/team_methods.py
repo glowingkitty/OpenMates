@@ -126,7 +126,8 @@ class TeamMethods:
                 admin_required=True,
             )
             if isinstance(rows, list):
-                teams.extend({**row, "role": membership.get("role")} for row in rows)
+                wrapper = await self.get_team_key_wrapper_for_user_hash(str(team_hash), hash_id(user_id))
+                teams.extend({**row, "role": membership.get("role"), **wrapper} for row in rows)
         return teams
 
     async def get_team(self, team_id: str, user_id: str) -> dict[str, Any] | None:
@@ -145,8 +146,29 @@ class TeamMethods:
             admin_required=True,
         )
         if rows and isinstance(rows, list):
-            return {**rows[0], "role": membership.get("role")}
+            wrapper = await self.get_team_key_wrapper_for_user_hash(hash_id(team_id), hash_id(user_id))
+            return {**rows[0], "role": membership.get("role"), **wrapper}
         return None
+
+    async def get_team_key_wrapper_for_user_hash(self, team_hash: str, user_hash: str) -> dict[str, Any]:
+        wrappers = await self.directus_service.get_items(
+            "team_key_wrappers",
+            params={
+                "filter[hashed_team_id][_eq]": team_hash,
+                "filter[hashed_user_id][_eq]": user_hash,
+                "filter[status][_eq]": ACTIVE_STATUS,
+                "fields": "team_key_epoch,encrypted_team_key,status",
+                "limit": 1,
+            },
+            no_cache=True,
+            admin_required=True,
+        )
+        if wrappers and isinstance(wrappers, list):
+            return {
+                "team_key_epoch": wrappers[0].get("team_key_epoch"),
+                "encrypted_team_key": wrappers[0].get("encrypted_team_key"),
+            }
+        return {}
 
     async def update_team(self, team_id: str, user_id: str, patch: dict[str, Any]) -> dict[str, Any] | None:
         await self.require_team_role(team_id, user_id, {"owner", "admin"})
@@ -202,6 +224,8 @@ class TeamMethods:
             "hashed_team_id": hash_id(team_id),
             "hashed_recipient_email": payload.get("hashed_recipient_email"),
             "encrypted_recipient_hint": payload.get("encrypted_recipient_hint"),
+            "encrypted_invite_team_key": payload.get("encrypted_invite_team_key"),
+            "invite_key_kdf_context": payload.get("invite_key_kdf_context"),
             "role": role,
             "status": "pending",
             "created_by_hash": hash_id(inviter_user_id),
@@ -216,15 +240,44 @@ class TeamMethods:
         success, data = await self.directus_service.create_item("team_invites", record, admin_required=True)
         return data if success else None
 
-    async def accept_invite(self, invite_id: str, user_id: str, accepted_at: int | None = None) -> dict[str, Any] | None:
+    async def get_invite_for_recipient(self, invite_id: str, recipient_email_hash: str | None) -> dict[str, Any] | None:
+        if not recipient_email_hash:
+            return None
         invites = await self.directus_service.get_items(
             "team_invites",
             params={
                 "filter[invite_id][_eq]": invite_id,
+                "filter[hashed_recipient_email][_eq]": recipient_email_hash,
                 "filter[status][_eq]": "pending",
-                "fields": "id,invite_id,hashed_team_id,role,status",
+                "fields": "invite_id,hashed_team_id,hashed_recipient_email,role,status,encrypted_invite_team_key,invite_key_kdf_context,expires_at",
                 "limit": 1,
             },
+            no_cache=True,
+            admin_required=True,
+        )
+        if invites and isinstance(invites, list):
+            return invites[0]
+        return None
+
+    async def accept_invite(
+        self,
+        invite_id: str,
+        user_id: str,
+        accepted_at: int | None = None,
+        encrypted_team_key: str | None = None,
+        recipient_email_hash: str | None = None,
+    ) -> dict[str, Any] | None:
+        invite_filters: dict[str, Any] = {
+            "filter[invite_id][_eq]": invite_id,
+            "filter[status][_eq]": "pending",
+            "fields": "id,invite_id,hashed_team_id,hashed_recipient_email,role,status",
+            "limit": 1,
+        }
+        if encrypted_team_key and recipient_email_hash:
+            invite_filters["filter[hashed_recipient_email][_eq]"] = recipient_email_hash
+        invites = await self.directus_service.get_items(
+            "team_invites",
+            params=invite_filters,
             no_cache=True,
             admin_required=True,
         )
@@ -238,6 +291,7 @@ class TeamMethods:
             "hashed_team_id": invite["hashed_team_id"],
             "hashed_user_id": hash_id(user_id),
             "role": invite["role"],
+            "encrypted_team_key": encrypted_team_key,
             "status": PENDING_ACCESS_APPROVAL_STATUS,
             "requested_at": now,
             "approved_at": None,
@@ -254,7 +308,7 @@ class TeamMethods:
         await self.require_team_role(team_id, actor_user_id, {"owner", "admin"})
         params: dict[str, Any] = {
             "filter[hashed_team_id][_eq]": hash_id(team_id),
-            "fields": "id,access_request_id,invite_id,hashed_team_id,hashed_user_id,role,status,requested_at,approved_at,rejected_at",
+                "fields": "id,access_request_id,invite_id,hashed_team_id,hashed_user_id,role,status,encrypted_team_key,requested_at,approved_at,rejected_at",
             "limit": -1,
         }
         if status:
@@ -272,7 +326,7 @@ class TeamMethods:
         team_id: str,
         actor_user_id: str,
         access_request_id: str,
-        encrypted_team_key: str,
+        encrypted_team_key: str | None = None,
         approved_at: int | None = None,
     ) -> dict[str, Any] | None:
         await self.require_team_role(team_id, actor_user_id, {"owner", "admin"})
@@ -282,7 +336,7 @@ class TeamMethods:
                 "filter[access_request_id][_eq]": access_request_id,
                 "filter[hashed_team_id][_eq]": hash_id(team_id),
                 "filter[status][_eq]": PENDING_ACCESS_APPROVAL_STATUS,
-                "fields": "id,access_request_id,invite_id,hashed_team_id,hashed_user_id,role,status",
+                "fields": "id,access_request_id,invite_id,hashed_team_id,hashed_user_id,role,status,encrypted_team_key",
                 "limit": 1,
             },
             no_cache=True,
@@ -291,6 +345,9 @@ class TeamMethods:
         if not requests or not isinstance(requests, list):
             return None
         request = requests[0]
+        wrapper_ciphertext = encrypted_team_key or request.get("encrypted_team_key")
+        if not wrapper_ciphertext:
+            raise ValueError("encrypted_team_key is required")
         now = int(approved_at or time.time())
         membership_record = {
             "hashed_team_id": request["hashed_team_id"],
@@ -307,7 +364,7 @@ class TeamMethods:
             "hashed_team_id": request["hashed_team_id"],
             "hashed_user_id": request["hashed_user_id"],
             "team_key_epoch": TEAM_KEY_EPOCH_V1,
-            "encrypted_team_key": encrypted_team_key,
+            "encrypted_team_key": wrapper_ciphertext,
             "status": ACTIVE_STATUS,
             "created_at": now,
             "revoked_at": None,

@@ -20,7 +20,12 @@ connected_accounts:
       type: string
       length: 64
       required: true
-      note: "[Indexed] SHA256 hash of user_id for privacy-preserving owner lookups"
+      note: "[Indexed] SHA256 hash of creating user_id for privacy-preserving personal ownership and audit lookups"
+
+    hashed_team_id:
+      type: string
+      length: 64
+      note: "[Indexed optional] SHA256 team context for explicit team-owned connected accounts. Null means personal account."
 
     provider_type_hash:
       type: string

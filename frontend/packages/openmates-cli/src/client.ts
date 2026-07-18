@@ -101,6 +101,28 @@ function normalizeUnixSeconds(value: unknown, fallback: number): number {
   return value > 10_000_000_000 ? Math.floor(value / 1000) : Math.floor(value);
 }
 
+function defaultIdeaBucketProcessingWindowId(date = new Date()): string {
+  return date.toISOString().slice(0, 10);
+}
+
+function defaultIdeaBucketScheduledSendAt(nowSeconds: number): number {
+  const date = new Date(nowSeconds * 1000);
+  const sendAt = Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate() + 1, 9, 0, 0) / 1000;
+  return Math.floor(sendAt);
+}
+
+function buildIdeaBucketMarkdown(
+  prompt: string,
+  ideas: Array<{ index: number; content: string }>,
+): string {
+  const blocks = ideas.map((idea) => [
+    `----- Idea ${idea.index} -----`,
+    idea.content.trim(),
+    "-----------------",
+  ].join("\n"));
+  return [prompt.trim(), ...blocks].join("\n\n");
+}
+
 function shouldWaitForTeamAi(message: string, teamId: string | null): boolean {
   return !teamId || message.toLowerCase().includes("@openmates");
 }
@@ -1583,6 +1605,37 @@ export interface DecryptedDraft extends EncryptedDraft {
   preview: string | null;
 }
 
+export interface IdeaBucketAddResult {
+  chatId: string;
+  bucketId: string;
+  processingWindowId: string;
+  scheduledSendAt: number;
+  draftV: number;
+  processingPayloadSynced: boolean;
+  payloadHash: string;
+  markdown: string;
+  preview: string;
+}
+
+export interface IdeaBucketStatusResult {
+  processingWindowId?: string;
+  status: string;
+  buckets?: Array<Record<string, unknown>>;
+  [key: string]: unknown;
+}
+
+export interface IdeaBucketProcessResult {
+  processingWindowId: string;
+  status: string;
+  chatId?: string;
+  userMessageId?: string;
+  systemEventId?: string;
+  aiTaskId?: string | null;
+  errorCode?: string;
+}
+
+export const IDEABUCKET_DEFAULT_PROCESSING_PROMPT = `These are my captured ideas for today. Please process them, group related thoughts, suggest next actions, and ask clarifying questions where needed:\n\nIf an idea requires deeper work, create or suggest sub-chats for focused research, planning, todos, docs, or implementation.`;
+
 export interface AuthoritativeChatReconciliation {
   authoritative: boolean;
   authoritative_chat_ids?: string[];
@@ -2470,7 +2523,7 @@ export class OpenMatesClient {
       this.getCliRequestHeaders(),
     );
     if (!response.ok) throw new Error(`${workspaceType} move failed with HTTP ${response.status}`);
-    return response.data;
+    return { success: true, ...response.data };
   }
 
   async getAnonymousFreeUsageStatus(): Promise<AnonymousFreeUsageStatus> {
@@ -3407,6 +3460,7 @@ export class OpenMatesClient {
     chatId: string;
     encryptedDraftMd: string;
     encryptedDraftPreview?: string | null;
+    extraPayload?: Record<string, unknown>;
   }): Promise<EncryptedDraft> {
     const { ws } = await this.openWsClient();
     try {
@@ -3418,6 +3472,7 @@ export class OpenMatesClient {
         chat_id: params.chatId,
         encrypted_draft_md: params.encryptedDraftMd,
         encrypted_draft_preview: params.encryptedDraftPreview ?? null,
+        ...(params.extraPayload ?? {}),
       });
       const response = await receipt;
       const draftV = Number((response.payload as Record<string, unknown>).draft_v ?? 0);
@@ -3436,6 +3491,93 @@ export class OpenMatesClient {
     } finally {
       ws.close();
     }
+  }
+
+  async addIdeaBucketText(params: {
+    text: string;
+    chatId?: string;
+    bucketId?: string;
+    scheduledSendAt?: number;
+    prompt?: string;
+    version?: number;
+  }): Promise<IdeaBucketAddResult> {
+    const ideaText = params.text.trim();
+    if (!ideaText) throw new Error("IdeaBucket text capture requires non-empty text.");
+
+    const now = Math.floor(Date.now() / 1000);
+    const chatId = params.chatId ?? randomUUID();
+    const bucketId = params.bucketId ?? defaultIdeaBucketProcessingWindowId();
+    const processingWindowId = bucketId;
+    const scheduledSendAt = params.scheduledSendAt ?? defaultIdeaBucketScheduledSendAt(now);
+    const version = params.version ?? now;
+    const prompt = params.prompt ?? IDEABUCKET_DEFAULT_PROCESSING_PROMPT;
+    const markdown = buildIdeaBucketMarkdown(prompt, [{ index: 1, content: ideaText }]);
+    const preview = `IdeaBucket ${processingWindowId}: ${ideaText.slice(0, 120)}`;
+    const serverProcessablePayload = JSON.stringify({
+      prompt,
+      processing_window_id: processingWindowId,
+      ideas: [{ index: 1, type: "text", text: ideaText }],
+    });
+    const payloadHash = createHash("sha256").update(serverProcessablePayload).digest("hex");
+    const masterKey = this.getMasterKeyBytes();
+    const encryptedDraftMd = await encryptWithAesGcmCombined(markdown, masterKey);
+    const encryptedPreview = await encryptWithAesGcmCombined(preview, masterKey);
+    const encryptedFutureUserMessage = await encryptWithAesGcmCombined(markdown, masterKey);
+    const encryptedSystemEvent = await encryptWithAesGcmCombined(JSON.stringify({
+      type: "ideabucket_triggered_send",
+      processing_window_id: processingWindowId,
+      source: "openmates_cli",
+    }), masterKey);
+    const serverCacheCiphertext = await encryptWithAesGcmCombined(serverProcessablePayload, masterKey);
+
+    const encrypted = await this.saveEncryptedDraft({
+      chatId,
+      encryptedDraftMd,
+      encryptedDraftPreview: encryptedPreview,
+      extraPayload: {
+        ideabucket: true,
+        ideabucket_processing_window_id: processingWindowId,
+        ideabucket_processing_version: version,
+        scheduled_send_at: scheduledSendAt,
+        server_vault_encrypted_processing_payload: serverCacheCiphertext,
+        client_encrypted_future_user_message: encryptedFutureUserMessage,
+        client_encrypted_ideabucket_system_event: encryptedSystemEvent,
+        payload_hash: payloadHash,
+      },
+    });
+
+    return {
+      chatId,
+      bucketId,
+      processingWindowId,
+      scheduledSendAt,
+      draftV: encrypted.draftV,
+      processingPayloadSynced: true,
+      payloadHash,
+      markdown,
+      preview,
+    };
+  }
+
+  async getIdeaBucketStatus(bucketId?: string): Promise<IdeaBucketStatusResult> {
+    this.requireSession();
+    const path = bucketId
+      ? `/v1/ideabucket/buckets/${encodeURIComponent(bucketId)}`
+      : "/v1/ideabucket/buckets";
+    const response = await this.http.get<IdeaBucketStatusResult>(path, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`IdeaBucket status failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
+  async processIdeaBucketBucket(bucketId: string, options: { now?: boolean } = {}): Promise<IdeaBucketProcessResult> {
+    this.requireSession();
+    const response = await this.http.post<IdeaBucketProcessResult>(
+      `/v1/ideabucket/buckets/${encodeURIComponent(bucketId)}/process`,
+      { now: options.now === true },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) throw new Error(`IdeaBucket process failed with HTTP ${response.status}`);
+    return response.data;
   }
 
   async listDrafts(forceRefresh = false): Promise<DecryptedDraft[]> {
@@ -7523,7 +7665,7 @@ export class OpenMatesClient {
    */
   private async sdkGetMemories(teamId: string): Promise<Array<Record<string, unknown>>> {
     const response = await this.http.get<{ memories?: Array<Record<string, unknown>> }>(
-      `/v1/sdk/memories?team_id=${encodeURIComponent(teamId)}`,
+      `/v1/teams/${encodeURIComponent(teamId)}/memories`,
       this.getCliRequestHeaders(),
     );
     if (!response.ok) throw new Error(`Team memory list failed with HTTP ${response.status}`);

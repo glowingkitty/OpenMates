@@ -60,8 +60,8 @@ def _validate_client_encrypted_message_content(message_id: str, encrypted_conten
 # Define metadata fields to fetch (exclude large content fields)
 # NOTE: user_id is NOT included here to avoid permission issues on public share endpoints
 # Use hashed_user_id for ownership verification instead
-CHAT_METADATA_FIELDS = "id,hashed_user_id,encrypted_title,created_at,updated_at,messages_v,title_v,metadata_v,last_edited_overall_timestamp,unread_count,encrypted_chat_summary,encrypted_share_cta_text,encrypted_chat_tags,encrypted_follow_up_request_suggestions,encrypted_top_recommended_apps_for_chat,encrypted_quick_tip_slugs,encrypted_active_focus_id,encrypted_chat_key,encrypted_icon,encrypted_category,encrypted_shared_short_url,is_private,is_shared,share_pii,share_highlights,shared_encrypted_title,shared_encrypted_summary,shared_encrypted_share_cta_text,shared_encrypted_category,shared_encrypted_icon,shared_encrypted_image_bubbles,pinned,parent_id,is_sub_chat,budget_limit,budget_spent"
-CHAT_METADATA_FIELDS_WITHOUT_OPTIONAL_SHARE_FLAGS = "id,hashed_user_id,encrypted_title,created_at,updated_at,messages_v,title_v,metadata_v,last_edited_overall_timestamp,unread_count,encrypted_chat_summary,encrypted_share_cta_text,encrypted_chat_tags,encrypted_follow_up_request_suggestions,encrypted_top_recommended_apps_for_chat,encrypted_quick_tip_slugs,encrypted_active_focus_id,encrypted_chat_key,encrypted_icon,encrypted_category,encrypted_shared_short_url,is_private,is_shared,shared_encrypted_title,shared_encrypted_summary,shared_encrypted_share_cta_text,shared_encrypted_category,shared_encrypted_icon,shared_encrypted_image_bubbles,pinned,parent_id,is_sub_chat,budget_limit,budget_spent"
+CHAT_METADATA_FIELDS = "id,hashed_user_id,hashed_team_id,encrypted_title,created_at,updated_at,messages_v,title_v,metadata_v,last_edited_overall_timestamp,unread_count,encrypted_chat_summary,encrypted_share_cta_text,encrypted_chat_tags,encrypted_follow_up_request_suggestions,encrypted_top_recommended_apps_for_chat,encrypted_quick_tip_slugs,encrypted_active_focus_id,encrypted_chat_key,encrypted_icon,encrypted_category,encrypted_shared_short_url,is_private,is_shared,share_pii,share_highlights,shared_encrypted_title,shared_encrypted_summary,shared_encrypted_share_cta_text,shared_encrypted_category,shared_encrypted_icon,shared_encrypted_image_bubbles,pinned,parent_id,is_sub_chat,budget_limit,budget_spent"
+CHAT_METADATA_FIELDS_WITHOUT_OPTIONAL_SHARE_FLAGS = "id,hashed_user_id,hashed_team_id,encrypted_title,created_at,updated_at,messages_v,title_v,metadata_v,last_edited_overall_timestamp,unread_count,encrypted_chat_summary,encrypted_share_cta_text,encrypted_chat_tags,encrypted_follow_up_request_suggestions,encrypted_top_recommended_apps_for_chat,encrypted_quick_tip_slugs,encrypted_active_focus_id,encrypted_chat_key,encrypted_icon,encrypted_category,encrypted_shared_short_url,is_private,is_shared,shared_encrypted_title,shared_encrypted_summary,shared_encrypted_share_cta_text,shared_encrypted_category,shared_encrypted_icon,shared_encrypted_image_bubbles,pinned,parent_id,is_sub_chat,budget_limit,budget_spent"
 CHAT_METADATA_FIELDS_WITHOUT_METADATA_VERSION = ",".join(
     field for field in CHAT_METADATA_FIELDS.split(",") if field != "metadata_v"
 )
@@ -73,7 +73,7 @@ CHAT_METADATA_FIELDS_WITHOUT_METADATA_VERSION_OR_OPTIONAL_SHARE_FLAGS = ",".join
 CHAT_LIST_ITEM_FIELDS = "id,encrypted_title,messages_v,title_v,metadata_v,unread_count,encrypted_chat_summary,encrypted_share_cta_text,encrypted_chat_tags,encrypted_chat_key,encrypted_icon,encrypted_category,encrypted_shared_short_url,is_shared,is_private,share_pii,share_highlights,pinned,parent_id,is_sub_chat,budget_limit,budget_spent"
 
 # Fallback field sets for when encrypted fields are not accessible due to permissions
-CHAT_METADATA_FIELDS_FALLBACK = "id,hashed_user_id,encrypted_title,created_at,updated_at,messages_v,title_v,last_edited_overall_timestamp,unread_count,parent_id,is_sub_chat,budget_limit,budget_spent"
+CHAT_METADATA_FIELDS_FALLBACK = "id,hashed_user_id,hashed_team_id,encrypted_title,created_at,updated_at,messages_v,title_v,last_edited_overall_timestamp,unread_count,parent_id,is_sub_chat,budget_limit,budget_spent"
 CHAT_LIST_ITEM_FIELDS_FALLBACK = "id,encrypted_title,unread_count,parent_id,is_sub_chat,budget_limit,budget_spent"
 CHAT_METADATA_FIELD_SETS = (
     CHAT_METADATA_FIELDS,
@@ -210,16 +210,20 @@ class ChatMethods:
         self.directus_service = directus_service_instance
         # encryption_service and cache can be accessed via self.directus_service if needed
 
-    async def get_user_chat_count(self, user_id: str) -> int:
+    async def get_user_chat_count(self, user_id: str, team_id: str | None = None) -> int:
         """
         Returns the total number of chats for a user from Directus.
         Uses aggregate count query for efficiency (no row data transferred).
         """
         hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
         params = {
-            'filter[hashed_user_id][_eq]': hashed_user_id,
             'aggregate[count]': '*',
         }
+        if team_id:
+            params['filter[hashed_team_id][_eq]'] = hashlib.sha256(team_id.encode()).hexdigest()
+        else:
+            params['filter[hashed_user_id][_eq]'] = hashed_user_id
+            params['filter[hashed_team_id][_null]'] = True
         try:
             response = await self.directus_service.get_items('chats', params=params, no_cache=True)
             if response and isinstance(response, list) and len(response) > 0:
@@ -407,6 +411,7 @@ class ChatMethods:
         offset: int = 0,
         sort: str = "-pinned,-updated_at",
         admin_required: bool = False,
+        team_id: str | None = None,
     ) -> List[Dict[str, Any]]:
         """
         Fetches metadata for all chats belonging to a user from Directus, excluding content.
@@ -416,12 +421,16 @@ class ChatMethods:
         # Hash the user_id for privacy-preserving lookup
         hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
         params = {
-            'filter[hashed_user_id][_eq]': hashed_user_id,
             'fields': CHAT_METADATA_FIELDS,
             'limit': limit,
             'offset': offset,
             'sort': sort
         }
+        if team_id:
+            params['filter[hashed_team_id][_eq]'] = hashlib.sha256(team_id.encode()).hexdigest()
+        else:
+            params['filter[hashed_user_id][_eq]'] = hashed_user_id
+            params['filter[hashed_team_id][_null]'] = True
         try:
             response = await self.directus_service.get_items(
                 'chats',
@@ -1135,7 +1144,7 @@ class ChatMethods:
             return None
 
     async def get_core_chats_and_user_drafts_for_cache_warming(
-        self, user_id: str, limit: int = 1000, offset: int = 0
+        self, user_id: str, limit: int = 1000, offset: int = 0, team_id: str | None = None
     ) -> List[Dict[str, Any]]:
         """
         Fetches core data for multiple chats and all user drafts in a batched manner.
@@ -1143,12 +1152,16 @@ class ChatMethods:
         """
         logger.info(f"Fetching core chats and user drafts for cache warming for user_id: {user_id}, limit: {limit}, offset: {offset}")
         chat_params = {
-            'filter[hashed_user_id][_eq]': hashlib.sha256(user_id.encode()).hexdigest(),
             'fields': CORE_CHAT_FIELDS_FOR_WARMING,
             'sort': '-pinned,-last_edited_overall_timestamp',
             'limit': limit,
             'offset': offset
         }
+        if team_id:
+            chat_params['filter[hashed_team_id][_eq]'] = hashlib.sha256(team_id.encode()).hexdigest()
+        else:
+            chat_params['filter[hashed_user_id][_eq]'] = hashlib.sha256(user_id.encode()).hexdigest()
+            chat_params['filter[hashed_team_id][_null]'] = True
         results_list = []
         try:
             # 1. Fetch all core chat metadata in one request

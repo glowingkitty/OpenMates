@@ -291,6 +291,20 @@ describe("connected account import command", () => {
     const output = runCli(["connected-accounts", "--help"]);
     assert.match(output, /openmates connected-accounts import --payload <OMCA1\.\.\.>/);
     assert.match(output, /hidden prompt/);
+    assert.match(output, /Team connected accounts are not supported/);
+  });
+
+  it("rejects team connected-account imports in Teams V1", () => {
+    const result = runCliWithoutSessionResult([
+      "connected-accounts",
+      "import",
+      "--team",
+      "team-1",
+      "--payload",
+      "OMCA1.placeholder",
+    ]);
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /Team connected accounts are not supported yet/);
   });
 
   it("rejects passcodes passed as flags", () => {

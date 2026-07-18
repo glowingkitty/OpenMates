@@ -14,6 +14,11 @@ chats:
       type: string
       note: "[Hashed] Backend hashes the user's actual ID before storing/querying"
 
+    hashed_team_id:
+      type: string
+      nullable: true
+      note: "[Indexed, Nullable] SHA256(team_id) when the chat has been moved into a team workspace. Null means personal context."
+
     encrypted_title:
       type: text # Suitable for potentially longer titles
       note: "[Client-encrypted permanent storage] User-defined title of the chat, encrypted with the chat-specific key before storage in Directus"

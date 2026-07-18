@@ -7,7 +7,23 @@ When Redis is partially warm, missing encrypted header fields must be filled
 from Directus so the client has metadata to decrypt on cold boot.
 """
 
+import sys
+import types
 from types import SimpleNamespace
+
+
+if "redis.asyncio" not in sys.modules:
+    redis_module = types.ModuleType("redis")
+    redis_asyncio_module = types.ModuleType("redis.asyncio")
+
+    class FakeRedis:
+        pass
+
+    redis_asyncio_module.Redis = FakeRedis
+    redis_module.asyncio = redis_asyncio_module
+    redis_module.exceptions = SimpleNamespace(RedisError=Exception, ConnectionError=Exception, TimeoutError=Exception)
+    sys.modules["redis"] = redis_module
+    sys.modules["redis.asyncio"] = redis_asyncio_module
 
 import pytest
 
@@ -240,7 +256,7 @@ async def test_phase1b_refetches_directus_when_sync_cache_is_partial(monkeypatch
 async def test_phase1_full_content_ids_are_limited_to_recent_parent_chats(doc_assert) -> None:
     doc_assert("phase1-full-content-limited-to-recent-parent-chats")
     parent_ids = [f"parent-{idx}" for idx in range(12)]
-    recent_ids = []
+    recent_ids = ["last-sub"]
     for idx, parent_id in enumerate(parent_ids):
         recent_ids.append(parent_id)
         recent_ids.append(f"sub-{idx}")
@@ -315,6 +331,10 @@ async def test_phase1_full_content_ids_are_limited_to_recent_parent_chats(doc_as
     class FakeDirectusChat:
         async def get_new_chat_suggestions_for_user(self, hashed_user_id, limit=30):
             return []
+
+        async def get_user_chats_metadata(self, user_id, limit=100, sort=None, admin_required=True, team_id=None):
+            del user_id, sort, admin_required, team_id
+            return [metadata[chat_id] for chat_id in recent_ids[:limit] if chat_id in metadata]
 
         async def get_chats_metadata_batch(self, chat_ids):
             return {chat_id: metadata[chat_id] for chat_id in chat_ids if chat_id in metadata}

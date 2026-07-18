@@ -9,6 +9,7 @@ Tests: packages/openmates-python/tests/test_sdk.py.
 from __future__ import annotations
 
 import base64
+import calendar
 from dataclasses import dataclass
 import hashlib
 import hmac
@@ -53,6 +54,7 @@ DESIGN_ICON_SEGMENT_PATTERN = re.compile(r"^[a-z0-9][a-z0-9._-]*$", re.IGNORECAS
 DESIGN_ICON_HEX_COLOR_PATTERN = re.compile(r"^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$")
 DEFAULT_ICON_PNG_SIZE = 256
 MAX_ICON_PNG_SIZE = 4096
+IDEABUCKET_DEFAULT_PROCESSING_PROMPT = "These are my captured ideas for today. Please process them, group related thoughts, suggest next actions, and ask clarifying questions where needed:\n\nIf an idea requires deeper work, create or suggest sub-chats for focused research, planning, todos, docs, or implementation."
 
 
 class OpenMatesConfigError(RuntimeError):
@@ -96,6 +98,7 @@ class OpenMates:
         self.drafts = OpenMatesDrafts(self)
         self.embeds = OpenMatesEmbeds(self)
         self.feedback = OpenMatesFeedback(self)
+        self.ideabucket = OpenMatesIdeaBucket(self)
         self.inspirations = OpenMatesInspirations(self)
         self.api_keys = OpenMatesApiKeys(self)
         self.learning_mode = OpenMatesLearningMode(self)
@@ -107,6 +110,7 @@ class OpenMates:
         self.settings = OpenMatesSettings(self)
         self.plans = OpenMatesPlans(self)
         self.tasks = OpenMatesTasks(self)
+        self.teams = OpenMatesTeams(self)
         self.workflows = OpenMatesWorkflows(self)
 
     def _run_app_skill(self, app_id: str, skill_id: str, input_data: dict[str, Any]) -> dict[str, Any]:
@@ -918,6 +922,19 @@ def _parse_maybe_json(value: str | None) -> Any:
         return value
 
 
+def datetime_utc_date(unix_seconds: int) -> str:
+    return time.strftime("%Y-%m-%d", time.gmtime(unix_seconds))
+
+
+def default_ideabucket_scheduled_send_at(now_seconds: int) -> int:
+    date = time.gmtime(now_seconds)
+    return int(calendar.timegm((date.tm_year, date.tm_mon, date.tm_mday + 1, 9, 0, 0, 0, 0, 0)))
+
+
+def build_ideabucket_markdown(prompt: str, idea_text: str) -> str:
+    return f"{prompt.strip()}\n\n----- Idea 1 -----\n{idea_text.strip()}\n-----------------"
+
+
 class OpenMatesChats:
     """Chat SDK namespace."""
 
@@ -1232,6 +1249,67 @@ class OpenMatesChats:
 
     def incognito(self, message: str) -> ChatResponse:
         return self.send(message, save_to_account=False)
+
+
+class OpenMatesIdeaBucket:
+    """IdeaBucket SDK namespace using the existing OpenMates package."""
+
+    def __init__(self, client: OpenMates):
+        self._client = client
+
+    def add(self, payload: dict[str, Any]) -> dict[str, Any]:
+        encrypted_payload = self._build_encrypted_add_payload(payload)
+        bucket_id = str(encrypted_payload["ideabucket_processing_window_id"])
+        return self._client._post(f"/v1/sdk/ideabucket/buckets/{_quote(bucket_id)}/add", encrypted_payload)
+
+    def status(self, bucket_id: str | None = None) -> dict[str, Any]:
+        if bucket_id:
+            return self._client._get(f"/v1/sdk/ideabucket/buckets/{_quote(bucket_id)}")
+        return self._client._get("/v1/sdk/ideabucket/buckets")
+
+    def process(self, bucket_id: str, *, now: bool = False) -> dict[str, Any]:
+        return self._client._post(
+            f"/v1/sdk/ideabucket/buckets/{_quote(bucket_id)}/process",
+            {"now": now is True},
+        )
+
+    def _build_encrypted_add_payload(self, payload: dict[str, Any]) -> dict[str, Any]:
+        idea_text = str(payload.get("text") or "").strip()
+        if not idea_text:
+            raise OpenMatesConfigError("IdeaBucket add requires non-empty text")
+        now = int(time.time())
+        bucket_id = str(payload.get("bucket_id") or payload.get("bucketId") or datetime_utc_date(now))
+        scheduled_send_at = int(payload.get("scheduled_send_at") or payload.get("scheduledSendAt") or default_ideabucket_scheduled_send_at(now))
+        chat_id = str(payload.get("chat_id") or payload.get("chatId") or uuid.uuid4())
+        prompt = str(payload.get("prompt") or IDEABUCKET_DEFAULT_PROCESSING_PROMPT)
+        markdown = build_ideabucket_markdown(prompt, idea_text)
+        preview = f"IdeaBucket {bucket_id}: {idea_text[:120]}"
+        server_payload = json.dumps({
+            "prompt": prompt,
+            "bucket_id": bucket_id,
+            "processing_window_id": bucket_id,
+            "ideas": [{"index": 1, "type": "text", "text": idea_text}],
+        }, separators=(",", ":"))
+        payload_hash = hashlib.sha256(server_payload.encode("utf-8")).hexdigest()
+        master_key = self._client._get_master_key()
+        return {
+            "chat_id": chat_id,
+            "encrypted_draft_md": _encrypt_aes_gcm_text(markdown, master_key),
+            "encrypted_draft_preview": _encrypt_aes_gcm_text(preview, master_key),
+            "ideabucket": True,
+            "ideabucket_processing_window_id": bucket_id,
+            "ideabucket_processing_version": now,
+            "scheduled_send_at": scheduled_send_at,
+            "server_vault_encrypted_processing_payload": _encrypt_aes_gcm_text(server_payload, master_key),
+            "client_encrypted_future_user_message": _encrypt_aes_gcm_text(markdown, master_key),
+            "client_encrypted_ideabucket_system_event": _encrypt_aes_gcm_text(json.dumps({
+                "type": "ideabucket_triggered_send",
+                "bucket_id": bucket_id,
+                "processing_window_id": bucket_id,
+                "source": "openmates_pip_sdk",
+            }, separators=(",", ":")), master_key),
+            "payload_hash": payload_hash,
+        }
 
 
 class OpenMatesDrafts:
@@ -2153,7 +2231,9 @@ class OpenMatesEmbedPreview:
 
 class OpenMatesConnectedAccounts:
     def __init__(self, client: OpenMates): self._client = client
-    def import_account(self, *, payload: str, passcode: str) -> dict[str, Any]:
+    def import_account(self, *, payload: str, passcode: str, team_id: str | None = None) -> dict[str, Any]:
+        if team_id:
+            raise OpenMatesConfigError("Team connected accounts are not supported yet.")
         decrypted = _decrypt_connected_account_payload(payload, passcode)
         account = self._client._get("/v1/sdk/account")
         user_id = str(account.get("id") or "")
@@ -2161,6 +2241,87 @@ class OpenMatesConnectedAccounts:
             raise OpenMatesConfigError("Could not resolve current user id for connected account import")
         row = _connected_account_row(decrypted, user_id=user_id, master_key=self._client._get_master_key())
         return self._client._post("/v1/sdk/connected-accounts/import", {"row": row})
+
+
+class OpenMatesTeams:
+    def __init__(self, client: OpenMates): self._client = client
+
+    def list(self) -> list[dict[str, Any]]:
+        return list(self._client._get("/v1/teams").get("teams") or [])
+
+    def get(self, team_id: str) -> dict[str, Any]:
+        result = self._client._get(f"/v1/teams/{_quote(team_id)}")
+        return dict(result.get("team") or result)
+
+    def create(self, payload: dict[str, Any]) -> dict[str, Any]:
+        result = self._client._post("/v1/teams", payload)
+        return dict(result.get("team") or result)
+
+    def update(self, team_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        result = self._client._patch(f"/v1/teams/{_quote(team_id)}", payload)
+        return dict(result.get("team") or result)
+
+    def delete(self, team_id: str) -> dict[str, Any]:
+        return self._client._delete(f"/v1/teams/{_quote(team_id)}")
+
+    def invite(self, team_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        result = self._client._post(f"/v1/teams/{_quote(team_id)}/invites", payload)
+        return dict(result.get("invite") or result)
+
+    def accept_invite(self, invite_id: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+        return self._client._post(f"/v1/team-invites/{_quote(invite_id)}/accept", payload or {})
+
+    def decline_invite(self, invite_id: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+        return self._client._post(f"/v1/team-invites/{_quote(invite_id)}/decline", payload or {})
+
+    def access_requests(self, team_id: str, *, status: str | None = None) -> list[dict[str, Any]]:
+        result = self._client._get(_with_query(f"/v1/teams/{_quote(team_id)}/access-requests", status=status))
+        return list(result.get("access_requests") or [])
+
+    def approve_access(self, team_id: str, access_request_id: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+        result = self._client._post(f"/v1/teams/{_quote(team_id)}/access-requests/{_quote(access_request_id)}/approve", payload or {})
+        return dict(result.get("membership") or result)
+
+    def reject_access(self, team_id: str, access_request_id: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+        return self._client._post(f"/v1/teams/{_quote(team_id)}/access-requests/{_quote(access_request_id)}/reject", payload or {})
+
+    def remove_member(self, team_id: str, member_user_id: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+        return self._client._post(f"/v1/teams/{_quote(team_id)}/members/{_quote(member_user_id)}/remove", payload or {})
+
+    def billing(self, team_id: str) -> dict[str, Any]:
+        result = self._client._get(f"/v1/teams/{_quote(team_id)}/billing")
+        return dict(result.get("billing") or result)
+
+    def add_credits(self, team_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        result = self._client._post(f"/v1/teams/{_quote(team_id)}/billing/credits", payload)
+        return dict(result.get("billing") or result)
+
+    def usage(self, team_id: str, *, member_user_id: str | None = None) -> list[dict[str, Any]]:
+        result = self._client._get(_with_query(f"/v1/teams/{_quote(team_id)}/billing/usage", member_user_id=member_user_id))
+        return list(result.get("usage") or [])
+
+    def memories(self, team_id: str) -> list[dict[str, Any]]:
+        result = self._client._get(f"/v1/teams/{_quote(team_id)}/memories")
+        return list(result.get("memories") or [])
+
+    def move(self, workspace_type: str, object_id: str, team_id: str) -> dict[str, Any]:
+        routes = {
+            "chat": "chats",
+            "project": "projects",
+            "task": "user-tasks",
+            "plan": "user-plans",
+            "workflow": "workflows",
+        }
+        route = routes.get(workspace_type)
+        if not route:
+            raise OpenMatesConfigError("Unsupported team move workspace type")
+        return self._client._post(f"/v1/{route}/{_quote(object_id)}/move", {"team_id": team_id, "confirmed": True, "moved_at": int(time.time())})
+
+    def export(self, team_id: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+        return self._client._post(f"/v1/teams/{_quote(team_id)}/export", payload or {})
+
+    def import_team(self, payload: dict[str, Any]) -> dict[str, Any]:
+        return self._client._post("/v1/teams/import", payload)
 
 
 class OpenMatesLearningMode:

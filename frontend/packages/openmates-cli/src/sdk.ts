@@ -232,6 +232,22 @@ export interface DraftRecord extends EncryptedDraftRecord {
   preview: string | null;
 }
 
+export interface IdeaBucketAddInput extends Record<string, unknown> {
+  text: string;
+  chatId?: string;
+  bucketId?: string;
+  scheduledSendAt?: number;
+  prompt?: string;
+}
+
+export interface IdeaBucketProcessOptions {
+  now?: boolean;
+}
+
+export type IdeaBucketResult = Record<string, unknown>;
+
+const IDEABUCKET_DEFAULT_PROCESSING_PROMPT = `These are my captured ideas for today. Please process them, group related thoughts, suggest next actions, and ask clarifying questions where needed:\n\nIf an idea requires deeper work, create or suggest sub-chats for focused research, planning, todos, docs, or implementation.`;
+
 export type TaskListFilters = { status?: UserTaskStatus; chatId?: string; projectId?: string; labels?: string[]; tags?: string[]; priority?: TaskPriorityLevel | number | null };
 export type TaskPlainCreateOptions = TaskCreateOptions;
 export type TaskPlainUpdateOptions = TaskUpdateOptions;
@@ -316,6 +332,7 @@ export class OpenMates {
   readonly embeds: OpenMatesEmbeds;
   readonly feedback: OpenMatesFeedback;
   readonly inspirations: OpenMatesInspirations;
+  readonly ideabucket: OpenMatesIdeaBucket;
   readonly apiKeys: OpenMatesApiKeys;
   readonly learningMode: OpenMatesLearningMode;
   readonly memories: OpenMatesMemories;
@@ -326,6 +343,7 @@ export class OpenMates {
   readonly settings: OpenMatesSettings;
   readonly plans: OpenMatesPlans;
   readonly tasks: OpenMatesTasks;
+  readonly teams: OpenMatesTeams;
   readonly workflows: OpenMatesWorkflows;
   private readonly apiKey?: string;
   private readonly apiUrl: string;
@@ -349,6 +367,7 @@ export class OpenMates {
     this.embeds = new OpenMatesEmbeds(this);
     this.feedback = new OpenMatesFeedback(this);
     this.inspirations = new OpenMatesInspirations(this);
+    this.ideabucket = new OpenMatesIdeaBucket(this);
     this.apiKeys = new OpenMatesApiKeys(this);
     this.learningMode = new OpenMatesLearningMode(this);
     this.memories = new OpenMatesMemories(this);
@@ -359,6 +378,7 @@ export class OpenMates {
     this.settings = new OpenMatesSettings(this);
     this.plans = new OpenMatesPlans(this);
     this.tasks = new OpenMatesTasks(this);
+    this.teams = new OpenMatesTeams(this);
     this.workflows = new OpenMatesWorkflows(this);
   }
 
@@ -1068,6 +1088,88 @@ export class OpenMatesChats {
   async incognito(message: string): Promise<ChatResponse> {
     return this.send(message, { saveToAccount: false });
   }
+}
+
+export class OpenMatesIdeaBucket {
+  private readonly client: OpenMates;
+
+  constructor(client: OpenMates) {
+    this.client = client;
+  }
+
+  async add(input: IdeaBucketAddInput): Promise<IdeaBucketResult> {
+    const payload = await this.buildEncryptedAddPayload(input);
+    const bucketId = String(payload.ideabucket_processing_window_id);
+    return this.client.request<IdeaBucketResult>(
+      `/v1/sdk/ideabucket/buckets/${encodeURIComponent(bucketId)}/add`,
+      payload,
+    );
+  }
+
+  async status(bucketId?: string): Promise<IdeaBucketResult> {
+    const path = bucketId
+      ? `/v1/sdk/ideabucket/buckets/${encodeURIComponent(bucketId)}`
+      : "/v1/sdk/ideabucket/buckets";
+    return this.client.get<IdeaBucketResult>(path);
+  }
+
+  async process(bucketId: string, options: IdeaBucketProcessOptions = {}): Promise<IdeaBucketResult> {
+    return this.client.request<IdeaBucketResult>(
+      `/v1/sdk/ideabucket/buckets/${encodeURIComponent(bucketId)}/process`,
+      { now: options.now === true },
+    );
+  }
+
+  private async buildEncryptedAddPayload(input: IdeaBucketAddInput): Promise<Record<string, unknown>> {
+    const ideaText = input.text.trim();
+    if (!ideaText) throw new OpenMatesConfigError("IdeaBucket add requires non-empty text.");
+    const now = Math.floor(Date.now() / 1000);
+    const bucketId = input.bucketId ?? new Date(now * 1000).toISOString().slice(0, 10);
+    const scheduledSendAt = input.scheduledSendAt ?? defaultIdeaBucketScheduledSendAt(now);
+    const chatId = input.chatId ?? randomUUID();
+    const prompt = input.prompt ?? IDEABUCKET_DEFAULT_PROCESSING_PROMPT;
+    const markdown = buildIdeaBucketMarkdown(prompt, ideaText);
+    const preview = `IdeaBucket ${bucketId}: ${ideaText.slice(0, 120)}`;
+    const serverProcessablePayload = JSON.stringify({
+      prompt,
+      bucket_id: bucketId,
+      processing_window_id: bucketId,
+      ideas: [{ index: 1, type: "text", text: ideaText }],
+    });
+    const payloadHash = createHash("sha256").update(serverProcessablePayload).digest("hex");
+    const masterKey = await this.client.masterKey();
+    return {
+      chat_id: chatId,
+      encrypted_draft_md: await encryptWithAesGcmCombined(markdown, masterKey),
+      encrypted_draft_preview: await encryptWithAesGcmCombined(preview, masterKey),
+      ideabucket: true,
+      ideabucket_processing_window_id: bucketId,
+      ideabucket_processing_version: now,
+      scheduled_send_at: scheduledSendAt,
+      server_vault_encrypted_processing_payload: await encryptWithAesGcmCombined(serverProcessablePayload, masterKey),
+      client_encrypted_future_user_message: await encryptWithAesGcmCombined(markdown, masterKey),
+      client_encrypted_ideabucket_system_event: await encryptWithAesGcmCombined(JSON.stringify({
+        type: "ideabucket_triggered_send",
+        bucket_id: bucketId,
+        processing_window_id: bucketId,
+        source: "openmates_sdk",
+      }), masterKey),
+      payload_hash: payloadHash,
+    };
+  }
+}
+
+function defaultIdeaBucketScheduledSendAt(nowSeconds: number): number {
+  const date = new Date(nowSeconds * 1000);
+  return Math.floor(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate() + 1, 9, 0, 0) / 1000);
+}
+
+function buildIdeaBucketMarkdown(prompt: string, ideaText: string): string {
+  return [prompt.trim(), [
+    "----- Idea 1 -----",
+    ideaText.trim(),
+    "-----------------",
+  ].join("\n")].join("\n\n");
 }
 
 export class OpenMatesDrafts {
@@ -2053,7 +2155,10 @@ export class OpenMatesConnectedAccounts {
     this.client = client;
   }
 
-  async import(input: { payload: string; passcode: string }): Promise<Record<string, unknown>> {
+  async import(input: { payload: string; passcode: string; teamId?: string | null }): Promise<Record<string, unknown>> {
+    if (input.teamId) {
+      throw new OpenMatesConfigError("Team connected accounts are not supported yet.");
+    }
     const payload = await decryptConnectedAccountCliTransferPayload(input.payload, input.passcode);
     const account = await this.client.get<Record<string, unknown>>("/v1/sdk/account");
     const userId = typeof account.id === "string" ? account.id : "";
@@ -2066,6 +2171,115 @@ export class OpenMatesConnectedAccounts {
       masterKey: await this.client.masterKey(),
     });
     return this.client.request<Record<string, unknown>>("/v1/sdk/connected-accounts/import", { row });
+  }
+}
+
+export class OpenMatesTeams {
+  private readonly client: OpenMates;
+
+  constructor(client: OpenMates) {
+    this.client = client;
+  }
+
+  async list(): Promise<Record<string, unknown>[]> {
+    const result = await this.client.get<{ teams?: Record<string, unknown>[] }>("/v1/teams");
+    return result.teams ?? [];
+  }
+
+  async get(teamId: string): Promise<Record<string, unknown>> {
+    const result = await this.client.get<{ team?: Record<string, unknown> }>(`/v1/teams/${encodeURIComponent(teamId)}`);
+    return result.team ?? result;
+  }
+
+  async create(input: Record<string, unknown>): Promise<Record<string, unknown>> {
+    const result = await this.client.request<{ team?: Record<string, unknown> }>("/v1/teams", input);
+    return result.team ?? result;
+  }
+
+  async update(teamId: string, input: Record<string, unknown>): Promise<Record<string, unknown>> {
+    const result = await this.client.patch<{ team?: Record<string, unknown> }>(`/v1/teams/${encodeURIComponent(teamId)}`, input);
+    return result.team ?? result;
+  }
+
+  async delete(teamId: string): Promise<Record<string, unknown>> {
+    return this.client.delete<Record<string, unknown>>(`/v1/teams/${encodeURIComponent(teamId)}`);
+  }
+
+  async invite(teamId: string, input: Record<string, unknown>): Promise<Record<string, unknown>> {
+    const result = await this.client.request<{ invite?: Record<string, unknown> }>(`/v1/teams/${encodeURIComponent(teamId)}/invites`, input);
+    return result.invite ?? result;
+  }
+
+  async acceptInvite(inviteId: string, input: Record<string, unknown> = {}): Promise<Record<string, unknown>> {
+    return this.client.request<Record<string, unknown>>(`/v1/team-invites/${encodeURIComponent(inviteId)}/accept`, input);
+  }
+
+  async declineInvite(inviteId: string, input: Record<string, unknown> = {}): Promise<Record<string, unknown>> {
+    return this.client.request<Record<string, unknown>>(`/v1/team-invites/${encodeURIComponent(inviteId)}/decline`, input);
+  }
+
+  async accessRequests(teamId: string, status?: string): Promise<Record<string, unknown>[]> {
+    const query = status ? `?status=${encodeURIComponent(status)}` : "";
+    const result = await this.client.get<{ access_requests?: Record<string, unknown>[] }>(`/v1/teams/${encodeURIComponent(teamId)}/access-requests${query}`);
+    return result.access_requests ?? [];
+  }
+
+  async approveAccess(teamId: string, accessRequestId: string, input: Record<string, unknown> = {}): Promise<Record<string, unknown>> {
+    const result = await this.client.request<{ membership?: Record<string, unknown> }>(`/v1/teams/${encodeURIComponent(teamId)}/access-requests/${encodeURIComponent(accessRequestId)}/approve`, input);
+    return result.membership ?? result;
+  }
+
+  async rejectAccess(teamId: string, accessRequestId: string, input: Record<string, unknown> = {}): Promise<Record<string, unknown>> {
+    return this.client.request<Record<string, unknown>>(`/v1/teams/${encodeURIComponent(teamId)}/access-requests/${encodeURIComponent(accessRequestId)}/reject`, input);
+  }
+
+  async removeMember(teamId: string, memberUserId: string, input: Record<string, unknown> = {}): Promise<Record<string, unknown>> {
+    return this.client.request<Record<string, unknown>>(`/v1/teams/${encodeURIComponent(teamId)}/members/${encodeURIComponent(memberUserId)}/remove`, input);
+  }
+
+  async billing(teamId: string): Promise<Record<string, unknown>> {
+    const result = await this.client.get<{ billing?: Record<string, unknown> }>(`/v1/teams/${encodeURIComponent(teamId)}/billing`);
+    return result.billing ?? result;
+  }
+
+  async addCredits(teamId: string, input: Record<string, unknown>): Promise<Record<string, unknown>> {
+    const result = await this.client.request<{ billing?: Record<string, unknown> }>(`/v1/teams/${encodeURIComponent(teamId)}/billing/credits`, input);
+    return result.billing ?? result;
+  }
+
+  async usage(teamId: string, memberUserId?: string): Promise<Record<string, unknown>[]> {
+    const query = memberUserId ? `?member_user_id=${encodeURIComponent(memberUserId)}` : "";
+    const result = await this.client.get<{ usage?: Record<string, unknown>[] }>(`/v1/teams/${encodeURIComponent(teamId)}/billing/usage${query}`);
+    return result.usage ?? [];
+  }
+
+  async memories(teamId: string): Promise<Record<string, unknown>[]> {
+    const result = await this.client.get<{ memories?: Record<string, unknown>[] }>(`/v1/teams/${encodeURIComponent(teamId)}/memories`);
+    return result.memories ?? [];
+  }
+
+  async move(workspaceType: string, objectId: string, teamId: string): Promise<Record<string, unknown>> {
+    const routes: Record<string, string> = {
+      chat: "chats",
+      project: "projects",
+      task: "user-tasks",
+      plan: "user-plans",
+      workflow: "workflows",
+    };
+    const route = routes[workspaceType];
+    if (!route) throw new OpenMatesConfigError("Unsupported team move workspace type");
+    return this.client.request<Record<string, unknown>>(
+      `/v1/${route}/${encodeURIComponent(objectId)}/move`,
+      { team_id: teamId, confirmed: true, moved_at: Math.floor(Date.now() / 1000) },
+    );
+  }
+
+  async export(teamId: string, input: Record<string, unknown> = {}): Promise<Record<string, unknown>> {
+    return this.client.request<Record<string, unknown>>(`/v1/teams/${encodeURIComponent(teamId)}/export`, input);
+  }
+
+  async import(input: Record<string, unknown>): Promise<Record<string, unknown>> {
+    return this.client.request<Record<string, unknown>>("/v1/teams/import", input);
   }
 }
 
