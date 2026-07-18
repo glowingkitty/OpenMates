@@ -2480,10 +2480,35 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         return getPublicChatForNavigation(activeChatId);
     }
 
+    function createAnonymousHashShellChat(chatId: string): Chat {
+        const now = Math.floor(Date.now() / 1000);
+        return {
+            chat_id: chatId,
+            encrypted_title: null,
+            messages_v: 0,
+            title_v: 0,
+            draft_v: 0,
+            encrypted_draft_md: null,
+            encrypted_draft_preview: null,
+            last_edited_overall_timestamp: now,
+            unread_count: 0,
+            created_at: now,
+            updated_at: now,
+            processing_metadata: false,
+            waiting_for_metadata: false,
+            is_anonymous: true,
+            category: 'general_knowledge',
+            icon: 'sparkles'
+        };
+    }
+
     const initialActiveChatId = getInitialActiveChatIdFromStore();
     const initialPublicChat = getInitialPublicChatFromStore(initialActiveChatId);
     const initialAnonymousChatId = initialActiveChatId && isAnonymousChatId(initialActiveChatId)
         ? initialActiveChatId
+        : null;
+    const initialAnonymousChat = initialAnonymousChatId
+        ? createAnonymousHashShellChat(initialAnonymousChatId)
         : null;
     const initialPublicMessages = initialPublicChat
         ? getDemoMessages(initialPublicChat.chat_id, DEMO_CHATS, LEGAL_CHATS)
@@ -4581,7 +4606,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     let createButtonVisible = $derived(!showWelcome || messageInputHasContent);
     
     // Add state for current chat and messages using $state - MUST be declared before $derived that uses them
-     let currentChat = $state<Chat | null>(initialPublicChat);
+     let currentChat = $state<Chat | null>(initialPublicChat ?? initialAnonymousChat);
      let currentMessages = $state<ChatMessageModel[]>(initialPublicMessages); // Holds messages for the currentChat - MUST use $state for Svelte 5 reactivity
      let currentCompressionCheckpoints = $state<ChatCompressionCheckpoint[]>([]);
      let currentMessageWindowHasMoreBefore = $state(false);
@@ -9103,25 +9128,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         showWelcome = false;
         activeChatStore.setWithoutHashUpdate(hashChatId);
 
-        const now = Math.floor(Date.now() / 1000);
-        const fallbackChat: Chat = {
-            chat_id: hashChatId,
-            encrypted_title: null,
-            messages_v: 0,
-            title_v: 0,
-            draft_v: 0,
-            encrypted_draft_md: null,
-            encrypted_draft_preview: null,
-            last_edited_overall_timestamp: now,
-            unread_count: 0,
-            created_at: now,
-            updated_at: now,
-            processing_metadata: false,
-            waiting_for_metadata: false,
-            is_anonymous: true,
-            category: 'general_knowledge',
-            icon: 'sparkles'
-        };
+        const fallbackChat = createAnonymousHashShellChat(hashChatId);
 
         try {
             const anonymousChat = await getAnonymousHashChatWithRetry(hashChatId);
