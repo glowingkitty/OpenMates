@@ -15,8 +15,10 @@ from starlette.concurrency import run_in_threadpool
 from backend.apps.ai.processing.task_proposals import extract_review_task_proposals
 from backend.core.api.app.models.user import User
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user_or_api_key
+from backend.core.api.app.services.directus.team_methods import TeamPermissionError
 from backend.core.api.app.services.feature_availability_guards import ensure_tasks_enabled
 from backend.core.api.app.services.limiter import limiter
+from backend.core.api.app.services.team_workspace_service import move_workspace_record_to_team
 from backend.core.api.app.services.user_task_service import (
     UserTaskConflictError,
     UserTaskNotFoundError,
@@ -103,6 +105,12 @@ class UserTaskUpdateRequest(BaseModel):
     key_wrappers: list[UserTaskKeyWrapperRequest] | None = None
 
 
+class UserTaskMoveRequest(BaseModel):
+    team_id: str
+    confirmed: bool
+    moved_at: int | None = None
+
+
 class UserTaskStartAIRequest(BaseModel):
     primary_chat_id: str | None = None
     linked_project_ids: list[str] | None = None
@@ -173,6 +181,8 @@ async def _current_user(request: Request, response: Response) -> User:
 
 
 def _handle_task_error(exc: Exception) -> None:
+    if isinstance(exc, TeamPermissionError):
+        raise HTTPException(status_code=403, detail="TEAM_PERMISSION_DENIED") from exc
     if isinstance(exc, UserTaskConflictError):
         raise HTTPException(status_code=409, detail="TASK_VERSION_CONFLICT") from exc
     if isinstance(exc, UserTaskNotFoundError):
@@ -212,6 +222,7 @@ async def list_user_tasks(
     label_hashes: list[str] | None = Query(default=None),
     priority: int | None = Query(default=None, ge=0, le=4),
     due_before: int | None = None,
+    team_id: str | None = None,
     limit: int = 100,
     service: UserTaskService = Depends(get_user_task_service),
     workflow_projection_service: WorkflowTaskProjectionService = Depends(get_workflow_task_projection_service),
@@ -219,6 +230,11 @@ async def list_user_tasks(
     current_user = await _current_user(request, response)
     label_hash_values = [*_query_list_values(label_hash), *_query_list_values(label_hashes)]
     priority_value = _unwrap_query_default(priority)
+    try:
+        if team_id:
+            await request.app.state.directus_service.team.require_team_role(team_id, current_user.id, {"owner", "admin", "member", "viewer"})
+    except Exception as exc:
+        _handle_task_error(exc)
     tasks = await service.list_tasks(
         current_user.id,
         status=status,
@@ -228,6 +244,7 @@ async def list_user_tasks(
         label_hashes=label_hash_values,
         priority=priority_value,
         due_before=due_before,
+        team_id=team_id,
         limit=limit,
     )
     projections = []
@@ -295,6 +312,30 @@ async def start_user_task_ai(
     current_user = await _current_user(request, response)
     try:
         task = await service.start_ai(task_id, current_user.id, body.model_dump(exclude_unset=True))
+        return {"task": task}
+    except Exception as exc:
+        _handle_task_error(exc)
+
+
+@router.post("/{task_id}/move")
+@limiter.limit("20/minute")
+async def move_user_task_to_team(
+    request: Request,
+    response: Response,
+    task_id: str,
+    body: UserTaskMoveRequest,
+) -> dict[str, Any]:
+    current_user = await _current_user(request, response)
+    try:
+        task = await move_workspace_record_to_team(
+            directus_service=request.app.state.directus_service,
+            actor_user_id=current_user.id,
+            team_id=body.team_id,
+            workspace_type="task",
+            object_id=task_id,
+            confirmed=body.confirmed,
+            moved_at=body.moved_at,
+        )
         return {"task": task}
     except Exception as exc:
         _handle_task_error(exc)

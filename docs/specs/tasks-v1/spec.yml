@@ -20,6 +20,7 @@ scope:
     - A new product task API namespace under /v1/user-tasks, avoiding collision with /v1/tasks/{task_id} Celery polling.
     - Central /tasks Kanban page with backlog, todo, in_progress, blocked, and done columns.
     - Account-wide task-view items that include normal user tasks plus read-only workflow run projections, so the Tasks view shows currently running and recently completed automation work related to the user's account.
+    - Account export/import includes encrypted user task records, task keys/wrappers, label indexes, priority metadata, and enough link metadata to restore tasks across CLI, SDK, and web account backup flows.
     - Workflow run cards in Tasks are inspectable and cancellable while active, but are not editable task records and cannot be dragged, assigned, or mutated through task-edit controls.
     - The default Done column only shows tasks and workflow run projections completed in the last seven days; older completed items are hidden from the default board, not auto-deleted at seven days.
     - Mouse drag-and-drop and touch-friendly Kanban status changes.
@@ -37,6 +38,9 @@ scope:
     - Due-date scheduling for AI-assigned tasks that survives server restarts.
     - Retention and cleanup policies for completed/archived tasks, key wrappers, and expired execution contexts so stale task data does not grow indefinitely.
     - CLI, npm SDK, and pip SDK task-management contracts before web E2E verification.
+    - User-defined labels as the official task organization term, with tag terminology accepted as CLI/SDK aliases.
+    - Labels stored as client-encrypted task content plus master-key-derived HMAC blind indexes for private server-side equality filtering.
+    - Friendly task priority levels none, low, medium, high, and urgent mapped to server-visible numeric priority for filtering and sorting.
     - Standalone tasks that can optionally attach to one chat, one or more projects, a plan, and either OpenMates/AI or a user assignee.
     - CLI task management through both account-wide `openmates tasks ...` commands and chat-scoped `openmates chats ... tasks ...` commands.
     - Terminal Kanban rendering and a Tasks workspace inside the CLI TUI with keyboard navigation and task-detail action parity.
@@ -46,7 +50,7 @@ scope:
     - Replacing Celery /v1/tasks/{task_id} polling for long-running app skills.
     - Fully customizable Kanban columns in V1.
     - Multi-assignee tasks in V1.
-    - Server-side full-text search over private task title or description.
+    - Server-side full-text search over private task title, description, or label plaintext.
     - Public task sharing, team task boards, or cross-user collaboration beyond a single owner account.
     - Complex dependency graphs, recurring tasks, or workflow-style automation beyond one due-date trigger.
     - Editing workflow run definitions or node state from the Tasks view; workflow definitions remain managed in Workflows, and running workflow runs are immutable except for cancellation/resume-style controls explicitly owned by the workflow runner.
@@ -54,6 +58,7 @@ scope:
     - Native Apple implementation in the first web/API slice, although the spec records expected parity.
     - Remote filesystem access, code mutation, or high-stakes agentic coding permissions.
     - Complex dependency graphs between tasks in V1.
+    - Archived-task restore/list UI in the first label/priority hardening slice; archived encrypted bundles are write-only cold storage until a later retrieval surface is specified.
     - A separate skipped Kanban column; skipped tasks use backlog plus queue metadata.
 
 context_discovery:
@@ -426,7 +431,7 @@ scenarios:
       - Execution contexts are deleted on task completion, cancellation, expiry, or user/account deletion.
 
   - id: S-13
-    title: Old task data is retained or deleted according to lifecycle policy
+    title: Old task data is archived or retained according to lifecycle policy
     given:
       - Alice has completed, archived, blocked, and active tasks from several months ago.
       - Alice has configured chat auto-delete and default task retention settings.
@@ -434,9 +439,36 @@ scenarios:
       - The daily retention job runs.
     then:
       - Expired execution contexts and orphan key wrappers are deleted first.
-      - Completed or archived tasks past the retention window are deleted with their activity, key wrappers, and execution contexts.
+      - Completed tasks past the hot-storage retention window are compressed, archived to encrypted S3 cold storage, and only then removed from Directus hot task tables with their activity, key wrappers, and execution contexts.
       - Active, blocked, due, or explicitly kept tasks are not deleted.
       - Chat auto-delete either deletes chat-primary tasks with the chat or preserves them only when explicitly detached/kept by the user.
+
+  - id: S-19
+    title: Labels and priority organize many private tasks efficiently
+    given:
+      - Alice has hundreds of OpenMates tasks across Apple, marketing, SDK, billing, and release work.
+      - Several tasks have labels apple and bug, stored only as encrypted label content plus blind label indexes.
+    when:
+      - Alice runs `openmates tasks list --label apple --label bug --priority high`.
+      - Alice edits TASK-1770 with `--add-label ios --remove-label bug --priority urgent`.
+    then:
+      - The API filters by owner, status/project/chat when present, label_hashes, and priority using indexed server-visible metadata.
+      - The server never stores or logs plaintext label names.
+      - CLI and SDK output uses label terminology, while tag flags and SDK fields continue to work as aliases.
+      - Priority displays as a friendly string and persists as numeric metadata for efficient sorting.
+
+  - id: S-20
+    title: Account export and import preserve encrypted tasks
+    given:
+      - Alice has tasks with encrypted title, description, labels, linked projects, priority, queue state, and key wrappers.
+      - Alice starts an account export from the CLI, npm SDK, pip SDK, or web app account settings.
+    when:
+      - Alice imports the exported account data into a fresh account/device flow with the correct account key material.
+    then:
+      - The export manifest lists tasks as an included encrypted account data domain.
+      - The exported data contains encrypted task records, task key material/wrappers, label blind indexes, priority metadata, and safe link metadata without durable task plaintext.
+      - The import restores tasks so CLI, SDK, and web task lists decrypt the same titles, descriptions, labels, statuses, priorities, and project/chat links.
+      - The import is idempotent and does not duplicate tasks when the same export bundle is applied twice.
 
 acceptance_criteria:
   - id: AC-1
@@ -495,7 +527,7 @@ acceptance_criteria:
     text: AI-assigned tasks in active chats have short-lived Vault-encrypted execution contexts, and queue continuation uses that context rather than durable task plaintext.
   - id: AC-19
     scenario: S-13
-    text: Task retention jobs delete expired execution contexts, orphan key wrappers, and eligible completed/archived tasks without deleting active or blocked work.
+    text: Task retention jobs delete expired execution contexts and orphan key wrappers, archive eligible completed tasks to encrypted S3 cold storage, and remove archived hot rows without deleting active or blocked work.
   - id: AC-20
     scenario: S-14
     text: Shared task decryptability is granted by share-link fragment key material, not by a persistent server-readable share key grant.
@@ -526,24 +558,68 @@ acceptance_criteria:
   - id: AC-29
     scenario: S-18
     text: AI task execution state transitions are explicit tool/API actions, and the assistant cannot stop task-mode execution while eligible tasks remain unless a blocker requiring user input is recorded.
+  - id: AC-30
+    scenario: S-19
+    text: Users can create, list, edit, and filter tasks by custom labels; labels are official UX terminology, tags remain aliases, and plaintext labels are encrypted with the task key.
+  - id: AC-31
+    scenario: S-19
+    text: Label filters use master-key-derived HMAC blind indexes stored in label_hashes so the server can filter efficiently without knowing label plaintext.
+  - id: AC-32
+    scenario: S-19
+    text: Task priority is exposed as none, low, medium, high, and urgent in CLI/SDK while remaining server-visible numeric metadata for indexed sorting and filtering.
+  - id: AC-33
+    scenario: S-13
+    text: Hot Directus task tables stay bounded by real Postgres indexes and a daily archive job that moves completed tasks older than 30 days to encrypted S3 before deleting hot rows.
+  - id: AC-34
+    scenario: S-20
+    text: Account export manifest and data include encrypted user task records, wrappers, labels, label_hashes, priority, and safe metadata with no decrypted task plaintext.
+  - id: AC-35
+    scenario: S-20
+    text: Account import restores exported tasks idempotently across CLI, npm SDK, pip SDK, and web account flows so local task decryption and filtering still work after import.
 
 contracts:
   api:
     - route: GET /v1/user-tasks
       auth: session_or_api_key
-      request: "query: status?, project_id?, chat_id?, assignee?, due_before?, limit?, cursor?"
+      request: "query: status?, project_id?, chat_id?, assignee?, due_before?, label_hash?, label_hashes?, priority?, limit?, cursor?"
       response: "{ tasks: TaskSummary[], next_cursor?: string }"
       notes:
         - Does not return decrypted private content; clients decrypt encrypted fields locally.
         - Supports pagination for central /tasks and project filters.
+        - Label filters are AND semantics: every requested blind label hash must be present in label_hashes.
+    - route: GET /v1/settings/export-account-manifest
+      auth: session_or_api_key
+      request: "none"
+      response: "{ success: true, manifest: { total_tasks: number, has_tasks: boolean, ... } }"
+      notes:
+        - The tasks export domain advertises encrypted task records and key material as included account data for web account export.
+        - SDK facades expose the same data through GET /v1/sdk/account/export/manifest.
+    - route: GET /v1/settings/export-account-data
+      auth: session_or_api_key
+      request: "query: include_usage?, include_invoices?, include_settings?, include_profile?, include_tasks?"
+      response: "{ success: true, data: { user_tasks: UserTaskExportRecord[], ... } }"
+      notes:
+        - Task exports contain encrypted task fields, encrypted task keys/wrappers, label_hashes, priority, and safe metadata only.
+        - Task exports must not include decrypted title, description, labels, tags, latest instruction, or activity plaintext.
+        - SDK facades expose the same data through GET /v1/sdk/account/export/data.
+    - route: POST /v1/settings/import-chat or future account import endpoint
+      auth: session_or_api_key
+      request: "account export ZIP or structured import payload containing user_tasks"
+      response: "{ imported: { tasks: { created: number, updated: number, skipped: number } }, errors?: ImportError[] }"
+      notes:
+        - Import upserts task_id-scoped encrypted records for the authenticated owner and is safe to retry.
+        - Import preserves encrypted fields and wrappers without server-side decryption.
+        - If the current import-chat endpoint remains chat-only, task account import must be added before AC-35 is considered complete.
     - route: POST /v1/user-tasks
       auth: session_or_api_key
-      request: "{ encrypted_title, encrypted_description?, status?, assignee, primary_chat_id?, project_ids?, due_at?, priority?, encrypted_tags?, key_wrappers? }"
+      request: "{ encrypted_title, encrypted_description?, status?, assignee, primary_chat_id?, project_ids?, due_at?, priority?, encrypted_labels|encrypted_tags?, label_hashes?, key_wrappers? }"
       response: "{ task_id, status, encrypted_fields, metadata }"
       notes:
         - Defaults status to todo when no status is provided and no AI execution starts.
         - Starts AI immediately only when assignment/execution fields request AI work and due_at is absent or already due.
         - linked_project_ids is request-only raw project ID input. The backend stores linked_project_hashes for filtering and encrypted_linked_project_ids for owner-side client use.
+        - encrypted_labels is the preferred durable encrypted field; encrypted_tags remains accepted during the transition and contains the same JSON array.
+        - label_hashes contains HMAC-SHA256 blind indexes derived client-side from a master-key label index key and normalized label text.
         - key_wrappers must include a master wrapper and should include chat/project wrappers whenever primary_chat_id or linked_project_ids are present.
     - route: PATCH /v1/user-tasks/{task_id}
       auth: session_or_api_key
@@ -552,6 +628,7 @@ contracts:
       notes:
         - Rejects stale versions with a visible conflict response rather than silently overwriting user or assistant edits.
         - Project/chat relinks update linked_project_hashes, encrypted_linked_project_ids, and replacement key wrappers together so access contexts do not drift.
+        - Label edits update encrypted_labels/encrypted_tags and label_hashes together; add/remove convenience fields are client-side helpers, not durable plaintext storage.
     - route: POST /v1/user-tasks/{task_id}/start-ai
       auth: session_or_api_key
       request: "{ chat_id?, project_ids?, encrypted_instruction_context?, vault_execution_context? }"
@@ -659,6 +736,7 @@ contracts:
           - assignee_hash
           - primary_chat_id
           - linked_project_hashes
+          - label_hashes
           - parent_task_id
           - plan_id
           - plan_step_id
@@ -679,6 +757,7 @@ contracts:
           - encrypted_title
           - encrypted_task_key
           - encrypted_description
+          - encrypted_labels
           - encrypted_tags
           - encrypted_linked_project_ids
           - encrypted_activity_summary
@@ -713,6 +792,22 @@ contracts:
           - chat wrappers are wrapped with the primary chat key.
           - project wrappers are wrapped with the project key.
           - share links do not create durable server-side task share wrappers; shared payloads include task id plus the existing task key wrapped for the share URL fragment key and optional password.
+      - name: user_task_archives
+        purpose: Cold-storage index records for encrypted completed-task bundles moved out of Directus hot tables.
+        server_visible_fields:
+          - id
+          - hashed_user_id
+          - archive_s3_key
+          - task_count
+          - archived_at
+          - completed_before
+          - retention_days
+          - content_checksum
+        encrypted_fields:
+          - encrypted_manifest
+        notes:
+          - Archive bundles are gzip-compressed JSON and encrypted before S3 upload using the same user-key encryption pattern as usage archives.
+          - The first slice writes archives and deletes hot rows after upload; restore/list archived tasks is explicitly deferred.
       - name: shared_task_payload
         purpose: Ephemeral/exported task data included in shared chats or future project shares.
         fields:
@@ -753,6 +848,20 @@ contracts:
       parked_status: backlog
       ai_immediate_status: in_progress
       skipped_status: backlog
+      completed_hot_retention_days: 30
+    priorities:
+      none: 0
+      low: 1
+      medium: 2
+      high: 3
+      urgent: 4
+    labels:
+      official_name: labels
+      aliases:
+        - tags
+      normalization: trim, lowercase, collapse internal whitespace, preserve user-facing punctuation after normalization.
+      blind_index: HMAC-SHA256(HKDF(master_key, "openmates-task-label-index-v1"), normalized_label)
+      filter_semantics: AND across all requested labels.
     queue_states:
       - none
       - waiting
@@ -770,10 +879,12 @@ contracts:
   cli:
     commands:
       - openmates tasks list [--status <status>] [--project <short-id|id>] [--plan <short-id|id>] [--chat <short-id|id>] [--json]
+      - openmates tasks list [--label <label>...] [--priority none|low|medium|high|urgent] [--json]
       - openmates tasks board [--project <short-id|id>] [--plan <short-id|id>] [--chat <short-id|id>] [--page <n>] [--json]
+      - openmates tasks board [--label <label>...] [--priority none|low|medium|high|urgent] [--json]
       - openmates tasks show <task-short-id|task-id> [--json]
-      - openmates tasks create --title <text> [--description <text>] [--assign openmates|<user-id>] [--project <id>] [--plan <id>] [--chat <id>] [--due <time>]
-      - openmates tasks edit <task-short-id|task-id> [--title <text>] [--description <text>] [--status <status>] [--assign <assignee>] [--project <id>] [--plan <id>] [--chat <id>]
+      - openmates tasks create --title <text> [--description <text>] [--assign openmates|<user-id>] [--project <id>] [--plan <id>] [--chat <id>] [--due <time>] [--label <label>...] [--labels <csv>] [--priority <level>]
+      - openmates tasks edit <task-short-id|task-id> [--title <text>] [--description <text>] [--status <status>] [--assign <assignee>] [--project <id>] [--plan <id>] [--chat <id>] [--label <label>...] [--labels <csv>] [--add-label <label>...] [--remove-label <label>...] [--priority <level>]
       - openmates tasks delete <task-short-id|task-id> --confirm
       - openmates tasks start <task-short-id|task-id>
       - openmates tasks status [<task-short-id|task-id>] [--chat <id>] [--json]
@@ -785,6 +896,7 @@ contracts:
       - openmates chats <chat-short-id|chat-id> tasks list|board|show|create|edit|delete|start|status|block|unblock|skip|done|reorder
     behavior:
       - CLI output always decrypts task content locally on authenticated devices before displaying titles, descriptions, tags, instructions, and activity summaries.
+      - CLI help uses labels as official terminology and documents tags as accepted aliases for users migrating from tag-based workflows.
       - CLI must never print ciphertext as the normal human-facing output.
       - "`--json` returns structured decrypted fields plus safe metadata for local automation; sensitive output follows existing CLI redaction rules when logs are forwarded."
       - Chat-scoped commands default to the specified chat and never mutate tasks outside that chat unless the user explicitly passes another scope-changing flag.
@@ -859,6 +971,8 @@ contracts:
     - Edit conflict.
   privacy_security:
     - Never store plaintext private task title, description, tags, transcript, or instruction content in durable server storage.
+    - Never store plaintext private labels in durable server storage; label_hashes are keyed blind indexes, not raw hashes.
+    - Server-visible label_hashes may reveal equality and counts for labels under one user, but not label text without the master-key-derived index key.
     - Server-visible linked_project_hashes and primary_chat_id are acceptable metadata for filtering and execution; raw linked_project_ids are stored only inside encrypted_linked_project_ids.
     - Use hashed user identifiers for assignee identity and ownership lookups.
     - Vault-encrypted AI execution context must have bounded retention and be deleted after task completion, cancellation, or expiration.
@@ -873,8 +987,9 @@ contracts:
       - Completed items older than seven days are hidden from the default board for focus, not deleted at seven days.
       - Deletion remains governed by the task retention policy, workflow run-content retention, workflow metadata retention, and user/account deletion rules.
     execution_context_ttl_seconds: 259200 # 3 days by default; refreshed while active execution continues.
-    completed_task_default_retention_days: 180
+    completed_task_default_retention_days: 30
     archived_task_default_retention_days: 90
+    archive_storage: encrypted_s3_cold_storage
     cleanup_schedule: daily, staggered after chat auto-delete and usage archival jobs.
     delete_with_chat:
       - Chat-primary tasks are deleted when their primary chat is auto-deleted unless the user explicitly detaches or keeps them.
@@ -882,7 +997,9 @@ contracts:
     cleanup_order:
       - Expired execution contexts.
       - Orphan key wrappers whose task no longer exists.
-      - Completed or archived tasks past retention, including activity, key wrappers, and execution contexts.
+      - Completed tasks past hot retention are archived to S3 as encrypted gzip bundles that include task rows, key wrappers, and activity rows.
+      - Hot user_tasks, user_task_key_wrappers, user_task_activity, and execution-context rows are deleted only after successful archive upload and archive index write.
+      - Archived S3 objects follow the task archive bucket lifecycle and user/account deletion rules.
   naming:
     - /v1/tasks remains Celery/background task polling.
     - /v1/user-tasks is the user-facing product task API namespace.
@@ -1155,6 +1272,67 @@ tests:
         run_id: "local-pytest-2026-06-26"
         timestamp: "2026-06-26"
 
+  - id: T-TASK-LABELS-ARCHIVE
+    type: pytest
+    file: backend/tests/test_user_tasks_api.py, frontend/packages/openmates-cli/tests/sdk-tasks.test.ts, packages/openmates-python/tests/test_tasks.py, scripts/verify_sdk_tasks_live_smoke.mjs
+    command: python3 -m pytest backend/tests/test_user_tasks_api.py && cd frontend/packages/openmates-cli && node --test --experimental-strip-types --loader ./tests/loader.mjs tests/sdk-tasks.test.ts && cd ../../.. && python3 -m pytest packages/openmates-python/tests/test_tasks.py packages/openmates-python/tests/test_sdk.py -k 'task' && node --experimental-strip-types --loader ./frontend/packages/openmates-cli/tests/loader.mjs scripts/verify_sdk_tasks_live_smoke.mjs
+    target: local unit tests plus api.dev.openmates.org live smoke after deploy
+    covers:
+      - AC-19
+      - AC-30
+      - AC-31
+      - AC-32
+      - AC-33
+    assertions:
+      - CLI/npm/pip task create and edit accept labels as official fields and tags as aliases.
+      - labels are encrypted with the task key and returned as plaintext labels after local SDK/CLI decryption.
+      - label filters send only blind label hashes to the backend and match tasks with AND semantics.
+      - priority names map to server-visible numeric priority values and round-trip as friendly names in public SDK output.
+      - completed tasks older than the hot-retention cutoff archive to encrypted S3 before hot task rows, key wrappers, and activity rows are deleted.
+      - task query indexes are installed for owner/status/priority/completed/due/chat/project/label hot-path filters.
+    red_phase:
+      required: true
+      expected: fail_or_missing
+      evidence:
+        status: pending
+        run_id: "pending-label-priority-archive-red"
+        timestamp: "2026-07-17"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+        run_id: "pending-label-priority-archive-green"
+        timestamp: ""
+
+  - id: T-ACCOUNT-TASK-EXPORT-IMPORT
+    type: pytest
+    file: backend/tests/test_settings_account_export.py, frontend/packages/openmates-cli/tests/sdk-tasks.test.ts, packages/openmates-python/tests/test_tasks.py, frontend/apps/web_app/tests/export-account-flow.spec.ts
+    command: python3 -m pytest backend/tests/test_settings_account_export.py && cd frontend/packages/openmates-cli && node --test --experimental-strip-types --loader ./tests/loader.mjs tests/sdk-tasks.test.ts && cd ../../.. && python3 -m pytest packages/openmates-python/tests/test_tasks.py packages/openmates-python/tests/test_sdk.py -k 'task or export' && python3 scripts/tests.py run -- --spec export-account-flow.spec.ts
+    target: local backend/SDK contracts plus app.dev.openmates.org web export/import after deploy
+    covers:
+      - AC-34
+      - AC-35
+    assertions:
+      - export manifest reports task counts and marks tasks as included encrypted account data.
+      - export data includes encrypted task records, wrappers, encrypted_labels/encrypted_tags, label_hashes, priority, status, and safe link metadata.
+      - export data does not include plaintext task title, description, labels, tags, latest instruction, or decrypted task keys.
+      - CLI, npm SDK, pip SDK, and web account export/import flows can round-trip an exported task without duplicating it on retry.
+    red_phase:
+      required: true
+      expected: fail_or_missing
+      evidence:
+        status: pending
+        run_id: "pending-account-task-export-import-red"
+        timestamp: "2026-07-17"
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: pending
+        run_id: "pending-account-task-export-import-green"
+        timestamp: ""
+
   - id: T-PLAYWRIGHT-TASKS
     type: playwright
     file: frontend/apps/web_app/tests/tasks-flow.spec.ts
@@ -1426,7 +1604,17 @@ implementation_plan:
     - AI completion, blockage, unblock, skip, continuation, or user edits update task status/queue_state through explicit task tools and append encrypted activity entries.
   affected_files:
     - path: backend/core/directus/schemas/user_tasks.yml
-      reason: New durable task collection and activity collection.
+      reason: Durable task, activity, wrapper, label-index, and archive-index collections/fields.
+    - path: backend/core/directus/setup/migrate_user_task_indexes.sql
+      reason: Real Postgres indexes for owner/status/priority/completed/due/chat/project/label hot-path task queries.
+    - path: backend/core/api/app/tasks/user_task_archive_task.py
+      reason: Daily S3 archival and hot-row cleanup for completed tasks beyond the default retention window.
+    - path: backend/core/api/app/services/user_task_archive_service.py
+      reason: Testable task archive bundle creation, S3 upload, archive index write, and hot-row deletion logic.
+    - path: backend/core/api/app/routes/settings.py
+      reason: Account export manifest/data and import paths must include encrypted user task data.
+    - path: backend/core/api/app/routes/sdk.py
+      reason: SDK account export facade proxies task-inclusive export manifest/data.
     - path: backend/core/api/app/routes/user_tasks.py
       reason: Product task API under /v1/user-tasks.
     - path: backend/core/api/app/services/user_task_service.py
@@ -1471,6 +1659,8 @@ implementation_plan:
       reason: Replacement for existing share menu/process inside unified chat settings.
     - path: frontend/packages/ui/src/services/userTaskService.ts
       reason: Encrypted frontend task API client, local decrypt/encrypt helpers, and task-view item loading.
+    - path: frontend/packages/ui/src/services/accountExportService.ts
+      reason: Web account export ZIP assembly must include encrypted tasks and account import must restore them without plaintext leakage.
     - path: frontend/packages/ui/src/components/settings/elements
       reason: Existing canonical settings UI components must be reused for chat settings tabs.
     - path: frontend/packages/ui/src/components/projects/ProjectsPage.svelte
@@ -1483,12 +1673,18 @@ implementation_plan:
       reason: CLI/npm SDK task methods.
     - path: frontend/packages/openmates-cli/src/cli.ts
       reason: Account-wide and chat-scoped task command routing.
+    - path: frontend/packages/openmates-cli/src/sdk.ts
+      reason: npm SDK account export and task helpers must expose task-inclusive export/import behavior.
     - path: frontend/packages/openmates-cli/src/tui.ts
       reason: Tasks workspace navigation and action dispatch in the CLI TUI.
     - path: frontend/packages/openmates-cli/src/tuiRenderer.ts
       reason: Terminal Kanban and task detail rendering.
     - path: packages/openmates-python/openmates/client.py
       reason: pip SDK task methods.
+    - path: packages/openmates-python/openmates/sdk.py
+      reason: pip SDK account export and task helpers must expose task-inclusive export/import behavior.
+    - path: backend/tests/test_settings_account_export.py
+      reason: Backend account export/import task coverage.
     - path: backend/tests/test_task_view_workflow_runs.py
       reason: Backend task-view projection and seven-day Done visibility coverage.
     - path: backend/tests/test_user_task_runtime_tools.py
@@ -1497,9 +1693,13 @@ implementation_plan:
       reason: Real CLI command surface coverage for task actions against a live API and dev-server smoke proof before web release work.
     - path: frontend/packages/openmates-cli/tests/tui.test.ts
       reason: CLI TUI Tasks workspace and keyboard navigation coverage.
+    - path: frontend/apps/web_app/tests/export-account-flow.spec.ts
+      reason: Web account export/import ZIP coverage must assert encrypted tasks are included and restored.
   verification_strategy:
     - python3 scripts/spec_validate.py docs/specs/tasks-v1/spec.yml
     - python3 scripts/audit_sdk_cli_parity.py after CLI/SDK task methods are added.
+    - python3 -m pytest backend/tests/test_user_tasks_api.py for label_hash filtering, priority mapping, and archive/index regression coverage.
+    - python3 -m pytest backend/tests/test_settings_account_export.py for encrypted task export/import regression coverage.
     - Backend pytest red/green for data model, API, scheduler, and AI queue semantics.
     - CLI command, TUI, npm SDK, and pip SDK red/green before Playwright.
     - Real dev-server CLI/TUI smoke evidence before web Playwright work.
@@ -1512,6 +1712,7 @@ implementation_plan:
     - Real dev-server CLI/TUI smoke.
     - npm SDK contract.
     - pip SDK contract.
+    - Account export/import backend and SDK contracts.
     - Web Playwright after deploy.
     - Apple remote check/build when applicable.
   risks:
@@ -1530,9 +1731,11 @@ implementation_plan:
     - Letting the assistant stop after a task-mode response without committing done, blocked, skipped, or continued state.
     - Making terminal Kanban too dense for narrow terminals or large task sets.
     - Short ID collisions when projects, plans, chats, and standalone tasks are mixed in account-wide CLI output.
+    - Label blind indexes leak equality/frequency for one user's labels; they must be keyed with a master-key-derived secret and never use raw SHA256(label).
+    - S3 task archives could become write-only if restore/list is not implemented; this is accepted for the first storage-hardening slice and must be documented in UI/help if surfaced.
+    - Archiving before deleting hot rows must be idempotent so partial failures never lose completed task history.
+    - Account export/import can accidentally omit task key material or leak decrypted labels; tests must assert both round-trip decryptability and plaintext absence.
   open_questions:
-    - Should priority be server-visible metadata for sorting, or encrypted-only with client-side sorting after fetch?
-    - Should tags be encrypted-only in V1, which limits server-side tag filters, or should there be optional hashed tag filters later?
     - Should blocked_reason_code use a fixed enum in V1 or be extensible per app/permission type?
     - Should task activity history be append-only forever, or follow a retention limit per task?
     - Should AI task execution use the parent chat key for linked chat instructions or create a task-specific key for task context payloads?
@@ -1628,6 +1831,67 @@ tasks:
       - T-NPM-SDK-TASKS
       - T-PIP-SDK-TASKS
     independently_deployable: false
+
+  - id: TASK-3A
+    title: Add private task labels, priority UX, indexes, and S3 hot/cold archival
+    covers:
+      scenarios:
+        - S-13
+        - S-19
+      acceptance_criteria:
+        - AC-19
+        - AC-30
+        - AC-31
+        - AC-32
+        - AC-33
+    expected_files:
+      - backend/core/directus/schemas/user_tasks.yml
+      - backend/core/directus/setup/migrate_user_task_indexes.sql
+      - backend/core/directus/setup/setup_schemas.py
+      - backend/core/api/app/routes/user_tasks.py
+      - backend/core/api/app/services/directus/user_task_methods.py
+      - backend/core/api/app/services/user_task_archive_service.py
+      - backend/core/api/app/tasks/user_task_archive_task.py
+      - backend/core/api/app/tasks/celery_config.py
+      - backend/tests/test_user_tasks_api.py
+      - frontend/packages/openmates-cli/src/tasksCli.ts
+      - frontend/packages/openmates-cli/src/cli.ts
+      - frontend/packages/openmates-cli/src/sdk.ts
+      - frontend/packages/openmates-cli/tests/sdk-tasks.test.ts
+      - packages/openmates-python/openmates/sdk.py
+      - packages/openmates-python/tests/test_tasks.py
+      - scripts/verify_sdk_tasks_live_smoke.mjs
+    verification:
+      - T-TASK-LABELS-ARCHIVE
+      - T-CLI-DEV-TASK-SMOKE
+      - T-NPM-SDK-TASKS
+      - T-PIP-SDK-TASKS
+    independently_deployable: true
+
+  - id: TASK-3B
+    title: Add encrypted tasks to account export and import
+    covers:
+      scenarios:
+        - S-20
+      acceptance_criteria:
+        - AC-34
+        - AC-35
+    expected_files:
+      - backend/core/api/app/routes/settings.py
+      - backend/core/api/app/routes/sdk.py
+      - backend/tests/test_settings_account_export.py
+      - frontend/packages/ui/src/services/accountExportService.ts
+      - frontend/packages/openmates-cli/src/sdk.ts
+      - frontend/packages/openmates-cli/tests/sdk-tasks.test.ts
+      - packages/openmates-python/openmates/sdk.py
+      - packages/openmates-python/tests/test_tasks.py
+      - packages/openmates-python/tests/test_sdk.py
+      - frontend/apps/web_app/tests/export-account-flow.spec.ts
+    verification:
+      - T-ACCOUNT-TASK-EXPORT-IMPORT
+      - T-NPM-SDK-TASKS
+      - T-PIP-SDK-TASKS
+    independently_deployable: true
 
   - id: TASK-4
     title: Add central Tasks UI and chat/project integrations

@@ -16,7 +16,7 @@ KEY_WRAPPER_TYPES = {"master", "chat", "project", "plan", "team"}
 
 
 USER_TASK_FIELDS = (
-    "id,task_id,hashed_user_id,status,assignee_type,assignee_hash,"
+    "id,task_id,hashed_user_id,hashed_team_id,status,assignee_type,assignee_hash,"
     "primary_chat_id,hashed_primary_chat_id,linked_project_hashes,label_hashes,parent_task_id,"
     "plan_id,plan_step_id,task_type,verification_id,"
     "due_at,priority,position,version,created_at,updated_at,started_at,"
@@ -195,9 +195,13 @@ class UserTaskMethods:
         label_hashes: list[str] | None = None,
         priority: int | None = None,
         due_before: int | None = None,
+        team_id: str | None = None,
         limit: int = 100,
     ) -> list[dict[str, Any]]:
-        filter_terms: list[dict[str, Any]] = [{"hashed_user_id": {"_eq": hash_id(user_id)}}]
+        if team_id:
+            filter_terms: list[dict[str, Any]] = [{"hashed_team_id": {"_eq": hash_id(team_id)}}]
+        else:
+            filter_terms = [{"hashed_user_id": {"_eq": hash_id(user_id)}}, {"hashed_team_id": {"_null": True}}]
         valid_label_hashes = _coerce_blind_hashes(label_hashes or [])
         params: dict[str, Any] = {
             "fields": USER_TASK_FIELDS,
@@ -223,13 +227,17 @@ class UserTaskMethods:
         response = await self.directus_service.get_items("user_tasks", params=params, no_cache=True)
         return [_with_short_id(task) for task in response] if isinstance(response, list) else []
 
-    async def get_task(self, task_id: str, user_id: str) -> dict[str, Any] | None:
+    async def get_task(self, task_id: str, user_id: str, team_id: str | None = None) -> dict[str, Any] | None:
         params = {
             "filter[task_id][_eq]": task_id,
-            "filter[hashed_user_id][_eq]": hash_id(user_id),
             "fields": USER_TASK_FIELDS,
             "limit": 1,
         }
+        if team_id:
+            params["filter[hashed_team_id][_eq]"] = hash_id(team_id)
+        else:
+            params["filter[hashed_user_id][_eq]"] = hash_id(user_id)
+            params["filter[hashed_team_id][_null]"] = True
         response = await self.directus_service.get_items("user_tasks", params=params, no_cache=True)
         if response and isinstance(response, list):
             return _with_short_id(response[0])

@@ -59,6 +59,22 @@ WORKFLOW_RUNTIME_INDEXES = (
     'workflow_assistant_proposals_proposal_id_uq',
     'workflow_assistant_proposals_pending_expiry_idx',
 )
+USER_TASK_MIGRATION_PATH = os.getenv(
+    'USER_TASK_MIGRATION_PATH',
+    '/usr/src/app/migrations/migrate_user_task_indexes.sql',
+)
+USER_TASK_INDEXES = (
+    'user_tasks_owner_status_position_idx',
+    'user_tasks_owner_priority_idx',
+    'user_tasks_owner_completed_idx',
+    'user_tasks_due_ai_idx',
+    'user_tasks_owner_chat_idx',
+    'user_tasks_project_hashes_gin_idx',
+    'user_tasks_label_hashes_gin_idx',
+    'user_task_key_wrappers_task_owner_idx',
+    'user_task_activity_task_created_idx',
+    'user_task_archives_owner_archived_idx',
+)
 
 BACKEND_PERMISSION_COLLECTIONS = (
     'anonymous_free_usage_budget',
@@ -980,6 +996,39 @@ def apply_and_verify_workflow_runtime_indexes():
     print(f"Verified {len(WORKFLOW_RUNTIME_INDEXES)} workflow runtime indexes")
 
 
+def apply_and_verify_user_task_indexes():
+    """Apply user task hot-path indexes before task boards and retention run."""
+    if not os.path.isfile(USER_TASK_MIGRATION_PATH):
+        raise RuntimeError(
+            f"Required user task migration is missing: {USER_TASK_MIGRATION_PATH}"
+        )
+
+    with open(USER_TASK_MIGRATION_PATH, 'r', encoding='utf-8') as migration_file:
+        migration_sql = migration_file.read()
+
+    with connect_database() as connection:
+        connection.autocommit = True
+        with connection.cursor() as cursor:
+            cursor.execute(migration_sql)
+            cursor.execute(
+                """
+                SELECT indexname
+                FROM pg_indexes
+                WHERE schemaname = 'public' AND indexname = ANY(%s)
+                """,
+                (list(USER_TASK_INDEXES),),
+            )
+            installed_indexes = {row[0] for row in cursor.fetchall()}
+
+    missing_indexes = set(USER_TASK_INDEXES) - installed_indexes
+    if missing_indexes:
+        raise RuntimeError(
+            "User task index verification failed: "
+            + ", ".join(sorted(missing_indexes))
+        )
+    print(f"Verified {len(USER_TASK_INDEXES)} user task indexes")
+
+
 def verify_chat_recovery_endpoint():
     """Require the baked extension to answer an authenticated metadata-only read."""
     if not INTERNAL_API_SHARED_TOKEN:
@@ -1081,6 +1130,9 @@ def setup_schemas():
 
         print("\n--- Applying workflow runtime database indexes ---")
         apply_and_verify_workflow_runtime_indexes()
+
+        print("\n--- Applying user task database indexes ---")
+        apply_and_verify_user_task_indexes()
 
         # Only create the first signup invite code if the 'invite_codes'
         # collection was newly created during this run (i.e., first setup).

@@ -133,6 +133,16 @@ BUCKETS = {
         # this archive keeps older delivery records available for debugging.
         'lifecycle_policy': 365,
     },
+    'task_archives': {
+        'name': 'openmates-task-archives',
+        'dev_name': 'dev-openmates-task-archives',
+        'allowed_types': ['application/gzip', 'application/json'],
+        'max_size': 500 * 1024 * 1024,
+        'access': 'private',
+        # Completed task cold storage. Directus keeps only recent hot rows;
+        # restore/list UX is intentionally deferred to a later task archive slice.
+        'lifecycle_policy': 1095,
+    },
     # Temporary images bucket for reverse image search (Google Lens via SerpAPI).
     # Plaintext (decrypted) user images are uploaded here for a very short time so
     # SerpAPI's Google Lens fetcher can retrieve them. The bucket is PRIVATE; each

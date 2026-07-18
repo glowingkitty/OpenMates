@@ -20,6 +20,11 @@ user_tasks:
       type: string
       note: "[Indexed] SHA256(user_id) of the task owner."
 
+    hashed_team_id:
+      type: string
+      nullable: true
+      note: "[Indexed, Nullable] SHA256(team_id) when the task has been moved into a team workspace. Null means personal context."
+
     status:
       type: string
       note: "Task state: backlog, todo, in_progress, blocked, or done."

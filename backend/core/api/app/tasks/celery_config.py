@@ -169,6 +169,7 @@ TASK_CONFIG = [
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.ephemeral_log_promotion_tasks'},  # Promote ephemeral client logs on error to long-retention stream
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.workflow_tasks'},  # Workflows V1 run/event/cleanup tasks
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.user_task_scheduler'},  # Tasks V1 due AI task scheduler
+    {'name': 'persistence', 'module': 'backend.core.api.app.tasks.user_task_archive_task'},  # Tasks V1 completed-task archival
     {'name': 'email',       'module': 'backend.core.api.app.tasks.email_tasks.daily_issue_digest_task'},  # Daily top issue digest
     {'name': 'email',       'module': 'backend.core.api.app.tasks.email_tasks.newsletter_campaign_task'},  # Scheduled newsletter campaign sender
  ]
@@ -1275,6 +1276,11 @@ app.conf.beat_schedule = {
     'process-due-ai-user-tasks': {
         'task': 'user_tasks.process_due_ai_tasks',
         'schedule': timedelta(seconds=60),
+        'options': {'queue': 'persistence'},
+    },
+    'archive-completed-user-tasks-daily': {
+        'task': 'user_tasks.archive_completed_tasks',
+        'schedule': crontab(hour=4, minute=0),
         'options': {'queue': 'persistence'},
     },
     'password-security-reminders-daily': {
