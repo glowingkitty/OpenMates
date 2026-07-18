@@ -120,6 +120,22 @@ describe("ChatListCache", () => {
       expect(result).toHaveLength(1);
       expect(result![0].title).toBe("Pending");
     });
+
+    it("exposes queued pending upserts without allowing external mutation", () => {
+      chatListCache.upsertChat(makeChat("a"));
+      const pending = chatListCache.getPendingUpserts();
+      expect(pending.map((chat: any) => chat.chat_id)).toEqual(["a"]);
+
+      pending.push(makeChat("b"));
+      expect(chatListCache.getPendingUpserts().map((chat: any) => chat.chat_id)).toEqual(["a"]);
+    });
+
+    it("clears pending upserts after merging them into a full cache snapshot", () => {
+      chatListCache.upsertChat(makeChat("a"));
+      chatListCache.setCache([makeChat("b")]);
+
+      expect(chatListCache.getPendingUpserts()).toHaveLength(0);
+    });
   });
 
   // ──────────────────────────────────────────────────────────────────

@@ -159,6 +159,15 @@ class ChatListCache {
   }
 
   /**
+   * Return queued upserts that arrived before the full chat-list cache was ready.
+   * Chats.svelte uses this to make WebSocket-created draft shells searchable while
+   * a cold IndexedDB initialization/full-list read is still in flight.
+   */
+  getPendingUpserts(): Chat[] {
+    return Array.from(this.pendingUpserts.values());
+  }
+
+  /**
    * Remove a chat from the cache
    */
   removeChat(chatId: string): void {
