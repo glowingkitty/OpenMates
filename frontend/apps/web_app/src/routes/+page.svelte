@@ -94,6 +94,7 @@
 	let activeChat = $state<ActiveChat | null>(null); // Fixed: Use $state for Svelte 5
 	let isProcessingInitialHash = $state(false); // Track if we're processing initial hash load
 	let lastLoadedChatId = $state<string | null>(null);
+	let anonymousHashRecoveryChatId = $state<string | null>(null);
 	let originalHashChatId: string | null = null; // Store original hash chat ID from URL (read before anything modifies it)
 	let deepLinkProcessed = $state(false); // Track if any deep link was processed during onMount to avoid loading welcome chat
 	let pendingDeepLinkHandler: ((event: Event) => void) | null = null; // Store event handler for cleanup
@@ -969,6 +970,39 @@
 			}
 		}
 	}
+
+	$effect(() => {
+		const activeChatComponent = activeChat;
+		const activeChatId = $activeChatStore;
+		if (!activeChatComponent || !isAnonymousChatId(activeChatId) || anonymousHashRecoveryChatId === activeChatId) {
+			return;
+		}
+
+		anonymousHashRecoveryChatId = activeChatId;
+		void (async () => {
+			for (let attempt = 0; attempt < 100; attempt += 1) {
+				const anonymousChat = await anonymousChatStorage.getChat(activeChatId).catch(() => null);
+				if (anonymousChat) {
+					activeChatComponent.loadChat(anonymousChat);
+					lastLoadedChatId = anonymousChat.chat_id;
+					window.dispatchEvent(
+						new CustomEvent('globalChatSelected', {
+							detail: { chat: anonymousChat },
+							bubbles: true,
+							composed: true
+						})
+					);
+					return;
+				}
+
+				await new Promise((resolve) => setTimeout(resolve, 100));
+			}
+
+			const anonymousShellChat = createAnonymousReloadChat(activeChatId);
+			activeChatComponent.loadChat(anonymousShellChat);
+			lastLoadedChatId = anonymousShellChat.chat_id;
+		})();
+	});
 
 	/**
 	 * Handle embed deep linking from URL
