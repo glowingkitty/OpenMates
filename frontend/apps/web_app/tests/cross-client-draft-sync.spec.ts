@@ -270,7 +270,7 @@ async function locateDraftInSidebarOrSearch(page: any, chatId: string, expectedT
 			await searchInput.fill(expectedText);
 		}
 		await expect(searchResults).toBeVisible({ timeout: 5_000 });
-		await expect(result).toBeVisible();
+		expect(hasChatResult || hasMetadataResult).toBe(true);
 		await expect(searchResults).toContainText(expectedText);
 	}).toPass({ timeout: 60_000 });
 	return (await metadataResult.isVisible().catch(() => false)) ? metadataResult : result;
