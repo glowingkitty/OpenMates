@@ -96,7 +96,7 @@ async function verifySavedMemoryEntry(
     }
   }
 
-  await page.goto(`/#settings/${settingsPath}`, { waitUntil: 'domcontentloaded' });
+  await page.goto(`/?e2e-settings=${Date.now()}#settings/${settingsPath}`, { waitUntil: 'domcontentloaded' });
   const settingsMenu = page.locator(`[data-testid="settings-menu"][data-active-view="${settingsPath}"]`);
   await expect(settingsMenu).toBeVisible({ timeout: 20000 });
   const category = settingsMenu.getByTestId('app-settings-memories-category');
