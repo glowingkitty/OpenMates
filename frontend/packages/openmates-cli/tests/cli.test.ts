@@ -11,7 +11,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { execFile, execFileSync, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
@@ -3183,6 +3183,88 @@ describe("unauthenticated example chats", () => {
 });
 
 describe("documented CLI command reference", () => {
+  it("account export command writes the V1 archive layout from downloaded chunks", async () => {
+    const tempHome = join(tmpdir(), `openmates-cli-account-export-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+    const stateDir = join(tempHome, ".openmates");
+    const outputDir = join(tempHome, "export-dir");
+    const requests: string[] = [];
+    mkdirSync(stateDir, { recursive: true });
+    const server = createServer(async (request, response) => {
+      requests.push(`${request.method ?? "GET"} ${request.url ?? ""}`);
+      if (request.method === "POST" && request.url === "/v1/account-exports") {
+        await readJsonBody(request);
+        writeJson(response, { export: { export_id: "export-1", status: "queued" } });
+        return;
+      }
+      if (request.method === "GET" && request.url === "/v1/account-exports/export-1/manifest") {
+        writeJson(response, {
+          manifest: {
+            export_id: "export-1",
+            schema_version: "account-export-v1",
+            selected_domains: ["chats"],
+            filters: {},
+            report: { status: "queued", redactions: ["api_key"], failures: [] },
+          },
+        });
+        return;
+      }
+      if (request.method === "GET" && request.url === "/v1/account-exports/export-1/chunks") {
+        writeJson(response, { chunks: [{ chunk_id: "chats-0001", domain: "chats", sequence: 1, status: "ready" }] });
+        return;
+      }
+      if (request.method === "GET" && request.url === "/v1/account-exports/export-1/chunks/chats-0001") {
+        writeJson(response, {
+          chunk: {
+            chunk_id: "chats-0001",
+            domain: "chats",
+            sequence: 1,
+            status: "ready",
+            payload: { source: "chats", items: [{ id: "chat-1", title: "Exported Chat", messages: [{ role: "user", content: "Hello" }] }] },
+          },
+        });
+        return;
+      }
+      if (request.method === "POST" && request.url === "/v1/account-exports/export-1/complete") {
+        writeJson(response, { export: { export_id: "export-1", status: "complete" } });
+        return;
+      }
+      writeJsonStatus(response, 404, { detail: "not found" });
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+    writeFileSync(join(stateDir, "session.json"), `${JSON.stringify({
+      apiUrl: `http://127.0.0.1:${address.port}`,
+      sessionId: "session-1",
+      wsToken: "ws-token",
+      cookies: { auth_refresh_token: "refresh-token" },
+      masterKeyExportedB64: Buffer.alloc(32).toString("base64"),
+      hashedEmail: "hashed-email",
+      userEmailSalt: "salt",
+      createdAt: Date.now(),
+    })}\n`);
+
+    try {
+      const stdout = await runCliAsync(["account", "export", "--domains", "chats", "--format", "directory", "--output", outputDir, "--json"], {
+        HOME: tempHome,
+        USERPROFILE: tempHome,
+      });
+      const result = JSON.parse(stdout) as { archive?: { output?: string } };
+      assert.equal(result.archive?.output, outputDir);
+      assert.ok(existsSync(join(outputDir, "README.md")));
+      assert.ok(existsSync(join(outputDir, "manifest.yml")));
+      assert.ok(existsSync(join(outputDir, "export-report.yml")));
+      assert.ok(existsSync(join(outputDir, "domains", "chats.json")));
+      assert.ok(existsSync(join(outputDir, "chats", "chat-1.md")));
+      assert.ok(requests.includes("GET /v1/account-exports/export-1/chunks/chats-0001"));
+      assert.doesNotMatch(readFileSync(join(outputDir, "export-report.yml"), "utf-8"), /api_key/);
+    } finally {
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+      rmSync(tempHome, { recursive: true, force: true });
+    }
+  });
+
   it("top-level help lists the user guide command categories", () => {
     const output = runCli(["--help"]);
     const doc = readRepoText("docs/user-guide/cli/README.md");
