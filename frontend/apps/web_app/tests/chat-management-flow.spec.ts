@@ -102,6 +102,13 @@ async function createTestChat(
 
 /** Ensure sidebar is open (on narrow viewports it's closed by default). */
 async function ensureSidebarOpen(page: any): Promise<void> {
+	const dismissButtons = page.getByTestId('notification-dismiss');
+	for (let i = 0; i < 5; i += 1) {
+		const dismissButton = dismissButtons.first();
+		if (!(await dismissButton.isVisible({ timeout: 500 }).catch(() => false))) break;
+		await dismissButton.click().catch(() => undefined);
+	}
+
 	const toggle = page.locator('[data-testid="sidebar-toggle"]');
 	if (await toggle.isVisible().catch(() => false)) {
 		await toggle.click();
