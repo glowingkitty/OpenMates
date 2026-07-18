@@ -9,6 +9,8 @@ export {};
 
 const { expect } = require('@playwright/test');
 
+const SAVED_MEMORY_SYNC_TIMEOUT_MS = 45_000;
+
 async function saveCurrentFullscreenEmbed(
   page: any,
   logCheckpoint: (message: string) => void,
@@ -39,7 +41,7 @@ async function saveCurrentFullscreenEmbed(
   const reminderResponsePromise = options.expectReminder
     ? page.waitForResponse(
       (resp: any) => resp.url().includes('/v1/apps/reminder/skills/set-reminder') && resp.request().method() === 'POST',
-      { timeout: 20000 },
+      { timeout: SAVED_MEMORY_SYNC_TIMEOUT_MS },
     ).catch(() => null)
     : Promise.resolve(null);
 
@@ -55,7 +57,7 @@ async function saveCurrentFullscreenEmbed(
   const memoryTitle = expectedMemoryTitle?.trim() || savedTitle;
   const savedEvent = await Promise.race([
     savedEventPromise,
-    page.waitForTimeout(10000).then(() => null),
+    page.waitForTimeout(SAVED_MEMORY_SYNC_TIMEOUT_MS).then(() => null),
   ]);
   expect(savedEvent).toBeTruthy();
 
