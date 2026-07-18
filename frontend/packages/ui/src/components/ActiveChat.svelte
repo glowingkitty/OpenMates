@@ -6800,21 +6800,15 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }
 
         try {
-            const { generateChatKey, encryptWithChatKey } = await import('../services/cryptoService');
+            const { encryptWithChatKey } = await import('../services/cryptoService');
             const { createEmbedReferenceBlock } = await import('../components/enter_message/services/urlMetadataService');
             const { encode: toonEncode } = await import('@toon-format/toon');
             const { embedStore } = await import('../services/embedStore');
             const { generateUUID } = await import('../message_parsing/utils');
+            const { chatKeyManager } = await import('../services/encryption/ChatKeyManager');
 
             const chatId = crypto.randomUUID();
-            const chatKey = generateChatKey();
-            if (!chatKey) {
-                console.error('[ActiveChat] Failed to generate chat key for inspiration chat');
-                return;
-            }
-
-            // Store chat key so subsequent reads work
-            chatDB.setChatKey(chatId, chatKey);
+            const { chatKey, encryptedChatKey } = await chatKeyManager.createAndPersistKeyLocked(chatId);
 
             const now = Math.floor(Date.now() / 1000);
             const nowMs = Date.now();
@@ -6960,6 +6954,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 title_v: 1,
                 last_edited_overall_timestamp: now,
                 unread_count: 0,
+                encrypted_chat_key: encryptedChatKey,
                 encrypted_category: encryptedCategory,
                 category: inspiration.category,
             };
@@ -7350,9 +7345,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             // 1. Update last_opened on the server (resume card on other devices).
             // 2. Send the encrypted chat + message for cross-device broadcast.
             try {
-                const { encryptChatKeyWithMasterKey } = await import('../services/cryptoService');
-                const encryptedChatKey = await encryptChatKeyWithMasterKey(chatKey);
-
                 // Notify server of the active chat (updates last_opened in Redis + Directus)
                 chatSyncService.sendSetActiveChat(chatId);
 
