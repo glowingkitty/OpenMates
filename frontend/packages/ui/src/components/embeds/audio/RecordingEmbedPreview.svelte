@@ -241,9 +241,11 @@
       return;
     }
 
-    // Not yet finished or missing required S3 data — skip
+    // Not yet finished or missing required encrypted file data — skip.
+    // s3BaseUrl is no longer required because fetchAndDecryptAudio uses the
+    // presigned URL service by S3 key, matching PDF preview behavior.
     if (status !== 'finished') return;
-    if (!audioS3Key || !s3BaseUrl || !aesKey) return;
+    if (!audioS3Key || !aesKey) return;
 
     // Avoid re-fetching if we already resolved this key
     if (retainedS3Key === audioS3Key && resolvedAudioSrc) return;
@@ -257,7 +259,7 @@
     const filenameExt = (filename ?? '').split('.').pop()?.toLowerCase() ?? '';
     const mimeType = filenameExt === 'mp4' ? 'audio/mp4' : filenameExt === 'ogg' ? 'audio/ogg' : 'audio/webm';
 
-    fetchAndDecryptAudio(s3BaseUrl, audioS3Key, aesKey, aesNonce ?? '', mimeType)
+    fetchAndDecryptAudio(s3BaseUrl ?? '', audioS3Key, aesKey, aesNonce ?? '', mimeType)
       .then((url) => {
         resolvedAudioSrc = url;
         retainedS3Key = audioS3Key;
