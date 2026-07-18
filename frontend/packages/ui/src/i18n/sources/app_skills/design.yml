@@ -1,51 +1,51 @@
 search_icons:
   context: Skill name for Design icon search
   en: Search icons
-  de: Search icons
-  zh: Search icons
-  es: Search icons
-  fr: Search icons
-  pt: Search icons
-  ru: Search icons
-  ja: Search icons
-  ko: Search icons
-  it: Search icons
-  tr: Search icons
-  vi: Search icons
-  id: Search icons
-  pl: Search icons
-  nl: Search icons
-  ar: Search icons
-  hi: Search icons
-  th: Search icons
-  cs: Search icons
-  sv: Search icons
-  he: Search icons
+  de: Icons suchen
+  zh: 搜索图标
+  es: Buscar iconos
+  fr: Rechercher des icônes
+  pt: Pesquisar ícones
+  ru: Искать иконки
+  ja: アイコンを検索
+  ko: 아이콘 검색
+  it: Cerca icone
+  tr: Simge ara
+  vi: Tìm biểu tượng
+  id: Cari ikon
+  pl: Szukaj ikon
+  nl: Iconen zoeken
+  ar: البحث عن أيقونات
+  hi: आइकन खोजें
+  th: ค้นหาไอคอน
+  cs: Hledat ikony
+  sv: Sök ikoner
+  he: חיפוש אייקונים
   verified_by_human:
     - en
 
 search_icons.description:
   context: Description for Design icon search skill
   en: Find open-source SVG icons from Iconify collections.
-  de: Find open-source SVG icons from Iconify collections.
-  zh: Find open-source SVG icons from Iconify collections.
-  es: Find open-source SVG icons from Iconify collections.
-  fr: Find open-source SVG icons from Iconify collections.
-  pt: Find open-source SVG icons from Iconify collections.
-  ru: Find open-source SVG icons from Iconify collections.
-  ja: Find open-source SVG icons from Iconify collections.
-  ko: Find open-source SVG icons from Iconify collections.
-  it: Find open-source SVG icons from Iconify collections.
-  tr: Find open-source SVG icons from Iconify collections.
-  vi: Find open-source SVG icons from Iconify collections.
-  id: Find open-source SVG icons from Iconify collections.
-  pl: Find open-source SVG icons from Iconify collections.
-  nl: Find open-source SVG icons from Iconify collections.
-  ar: Find open-source SVG icons from Iconify collections.
-  hi: Find open-source SVG icons from Iconify collections.
-  th: Find open-source SVG icons from Iconify collections.
-  cs: Find open-source SVG icons from Iconify collections.
-  sv: Find open-source SVG icons from Iconify collections.
-  he: Find open-source SVG icons from Iconify collections.
+  de: Finde Open-Source-SVG-Icons aus Iconify-Sammlungen.
+  zh: 从 Iconify 图标库中查找开源 SVG 图标。
+  es: Encuentra iconos SVG de código abierto en colecciones de Iconify.
+  fr: Trouvez des icônes SVG open source dans les collections Iconify.
+  pt: Encontre ícones SVG de código aberto nas coleções do Iconify.
+  ru: Находите SVG-иконки с открытым исходным кодом из коллекций Iconify.
+  ja: Iconify コレクションからオープンソースの SVG アイコンを探します。
+  ko: Iconify 컬렉션에서 오픈소스 SVG 아이콘을 찾으세요.
+  it: Trova icone SVG open source dalle raccolte Iconify.
+  tr: Iconify koleksiyonlarından açık kaynak SVG simgeleri bulun.
+  vi: Tìm biểu tượng SVG mã nguồn mở từ các bộ sưu tập Iconify.
+  id: Temukan ikon SVG sumber terbuka dari koleksi Iconify.
+  pl: Znajdź ikony SVG open source z kolekcji Iconify.
+  nl: Vind open-source SVG-iconen uit Iconify-collecties.
+  ar: ابحث عن أيقونات SVG مفتوحة المصدر من مجموعات Iconify.
+  hi: Iconify संग्रहों से ओपन-सोर्स SVG आइकन खोजें।
+  th: ค้นหาไอคอน SVG แบบโอเพนซอร์สจากคอลเลกชัน Iconify
+  cs: Najděte open-source SVG ikony z kolekcí Iconify.
+  sv: Hitta SVG-ikoner med öppen källkod från Iconify-samlingar.
+  he: מצא אייקוני SVG בקוד פתוח מאוספי Iconify.
   verified_by_human:
     - en

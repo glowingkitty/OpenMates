@@ -24,6 +24,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 APPS_ROOT = REPO_ROOT / "backend" / "apps"
 PROVIDERS_ROOT = REPO_ROOT / "backend" / "providers"
 UI_STATIC_ROOT = REPO_ROOT / "frontend" / "packages" / "ui" / "static"
+I18N_SOURCES_ROOT = REPO_ROOT / "frontend" / "packages" / "ui" / "src" / "i18n" / "sources"
 PRIVACY_POLICY_PATH = REPO_ROOT / "shared" / "docs" / "privacy_policy.yml"
 TRAINING_POLICY_PATH = REPO_ROOT / "shared" / "docs" / "provider_training_policies.yml"
 LEGAL_LINKS_PATH = REPO_ROOT / "frontend" / "packages" / "ui" / "src" / "config" / "links.ts"
@@ -31,6 +32,15 @@ LEGAL_CONTENT_PATH = REPO_ROOT / "frontend" / "packages" / "ui" / "src" / "legal
 LEGAL_I18N_PATH = REPO_ROOT / "frontend" / "packages" / "ui" / "src" / "i18n" / "sources" / "legal" / "privacy.yml"
 GENERATED_TRAINING_PATH = REPO_ROOT / "frontend" / "packages" / "ui" / "src" / "legal" / "trainingPolicies.generated.ts"
 VIRTUAL_PROVIDER_IDS = {"pretalx"}
+MINIMUM_APP_SKILL_CREDITS = 1
+KNOWN_TRANSLATION_NAMESPACES = (
+    "apps.",
+    "app_skills.",
+    "app_settings_memories.",
+    "focus_modes.",
+    "mates.",
+    "mate_descriptions.",
+)
 
 
 @dataclass(frozen=True)
@@ -53,6 +63,56 @@ def _load_yaml(path: Path) -> Any:
         return yaml.safe_load(path.read_text(encoding="utf-8")) or {}
     except yaml.YAMLError as exc:
         return {"__yaml_error__": str(exc)}
+
+
+def _normalize_translation_key(key: Any, prefix: str) -> str:
+    if not isinstance(key, str):
+        return ""
+    trimmed = key.strip()
+    if not trimmed:
+        return ""
+    if trimmed.startswith(KNOWN_TRANSLATION_NAMESPACES):
+        return trimmed
+    if trimmed.startswith(prefix):
+        return trimmed
+    return f"{prefix}{trimmed}"
+
+
+def _collect_translation_keys() -> set[str]:
+    keys: set[str] = set()
+    for path in sorted(I18N_SOURCES_ROOT.rglob("*.yml")):
+        data = _load_yaml(path)
+        if not isinstance(data, dict) or "__yaml_error__" in data:
+            continue
+        try:
+            relative = path.relative_to(I18N_SOURCES_ROOT).with_suffix("")
+        except ValueError:
+            continue
+        namespace = ".".join(relative.parts)
+        for key in data:
+            if isinstance(key, str):
+                keys.add(f"{namespace}.{key}")
+    return keys
+
+
+def _numeric_pricing_values(pricing: Any) -> list[tuple[str, float]]:
+    if not isinstance(pricing, dict):
+        return []
+    values: list[tuple[str, float]] = []
+    for key in ("fixed", "per_minute", "per_second", "per_request_credits"):
+        value = pricing.get(key)
+        if isinstance(value, (int, float)):
+            values.append((key, float(value)))
+    per_unit = pricing.get("per_unit")
+    if isinstance(per_unit, dict) and isinstance(per_unit.get("credits"), (int, float)):
+        values.append(("per_unit.credits", float(per_unit["credits"])))
+    tokens = pricing.get("tokens")
+    if isinstance(tokens, dict):
+        for side in ("input", "output"):
+            token_side = tokens.get(side)
+            if isinstance(token_side, dict) and isinstance(token_side.get("per_credit_unit"), (int, float)):
+                values.append((f"tokens.{side}.per_credit_unit", float(token_side["per_credit_unit"])))
+    return values
 
 
 def _rel(path: Path) -> str:
@@ -106,6 +166,19 @@ def load_provider_names() -> dict[str, str]:
             if provider_id and name:
                 names[name] = provider_id
     return names
+
+
+def _load_provider_pricing_by_id() -> dict[str, dict[str, Any]]:
+    pricing_by_id: dict[str, dict[str, Any]] = {}
+    for path in provider_files():
+        data = _load_yaml(path)
+        if not isinstance(data, dict) or "__yaml_error__" in data:
+            continue
+        provider_id = str(data.get("provider_id") or path.stem).strip()
+        pricing = data.get("pricing")
+        if provider_id and isinstance(pricing, dict):
+            pricing_by_id[provider_id] = pricing
+    return pricing_by_id
 
 
 def audit_provider_file(path: Path) -> list[AuditIssue]:
@@ -174,6 +247,11 @@ def audit_provider_file(path: Path) -> list[AuditIssue]:
                     AuditIssue(rel, f"training disclosure is missing from {_rel(disclosure_path)}")
                 )
 
+    pricing_values = _numeric_pricing_values(data.get("pricing"))
+    for pricing_key, value in pricing_values:
+        if value < MINIMUM_APP_SKILL_CREDITS:
+            issues.append(AuditIssue(rel, f"provider pricing '{pricing_key}' must be at least {MINIMUM_APP_SKILL_CREDITS} credit"))
+
     return issues
 
 
@@ -188,7 +266,34 @@ def _iter_skill_providers(app_data: dict[str, Any]) -> list[dict[str, Any]]:
     return providers
 
 
-def audit_app_file(path: Path, known_provider_ids: set[str], known_provider_names: set[str]) -> list[AuditIssue]:
+def _provider_id_for_skill_provider(provider: Any, provider_names: dict[str, str]) -> str:
+    if isinstance(provider, dict):
+        provider_id = str(provider.get("id") or "").strip()
+        if provider_id:
+            return provider_id
+        provider_name = str(provider.get("name") or "").strip().lower()
+        return provider_names.get(provider_name, "")
+    provider_name = str(provider or "").strip().lower()
+    return provider_names.get(provider_name, provider_name.replace(" ", "_"))
+
+
+def _skill_pricing(skill: dict[str, Any], provider_names: dict[str, str], provider_pricing: dict[str, dict[str, Any]]) -> Any:
+    if isinstance(skill.get("pricing"), dict):
+        return skill["pricing"]
+    for provider in skill.get("providers") or []:
+        provider_id = _provider_id_for_skill_provider(provider, provider_names)
+        if provider_id in provider_pricing:
+            return provider_pricing[provider_id]
+    return None
+
+
+def audit_app_file(
+    path: Path,
+    known_provider_ids: set[str],
+    provider_names: dict[str, str],
+    provider_pricing: dict[str, dict[str, Any]],
+    translation_keys: set[str],
+) -> list[AuditIssue]:
     issues: list[AuditIssue] = []
     data = _load_yaml(path)
     rel = _rel(path)
@@ -196,6 +301,15 @@ def audit_app_file(path: Path, known_provider_ids: set[str], known_provider_name
         return [AuditIssue(rel, "app.yml must be a mapping")]
     if "__yaml_error__" in data:
         return [AuditIssue(rel, f"invalid app YAML: {data['__yaml_error__']}")]
+
+    app_name_key = _normalize_translation_key(data.get("name_translation_key"), "apps.")
+    if app_name_key and app_name_key not in translation_keys:
+        issues.append(AuditIssue(rel, f"missing app translation key: {app_name_key}"))
+    app_description_key = _normalize_translation_key(data.get("description_translation_key"), "apps.")
+    if app_description_key and app_description_key not in translation_keys:
+        issues.append(AuditIssue(rel, f"missing app translation key: {app_description_key}"))
+
+    known_provider_names = set(provider_names)
 
     for provider in _iter_skill_providers(data):
         provider_id = str(provider.get("id") or "").strip()
@@ -211,12 +325,32 @@ def audit_app_file(path: Path, known_provider_ids: set[str], known_provider_name
         if has_key == no_key and (has_key or no_key or bool(provider_id) or provider_name.lower() in known_provider_names):
             issues.append(AuditIssue(rel, f"provider '{provider_name}' must set exactly one of api_key_vault_path or no_api_key"))
 
+    for skill in data.get("skills") or []:
+        if not isinstance(skill, dict):
+            continue
+        skill_id = str(skill.get("id") or "<unnamed>")
+        for field in ("name_translation_key", "description_translation_key"):
+            translation_key = _normalize_translation_key(skill.get(field), "app_skills.")
+            if translation_key and translation_key not in translation_keys:
+                issues.append(AuditIssue(rel, f"skill '{skill_id}' references missing translation key: {translation_key}"))
+
+        pricing = _skill_pricing(skill, provider_names, provider_pricing)
+        pricing_values = _numeric_pricing_values(pricing)
+        if not pricing_values:
+            issues.append(AuditIssue(rel, f"skill '{skill_id}' is missing app-skill pricing"))
+            continue
+        for pricing_key, value in pricing_values:
+            if value < MINIMUM_APP_SKILL_CREDITS:
+                issues.append(AuditIssue(rel, f"skill '{skill_id}' pricing '{pricing_key}' must be at least {MINIMUM_APP_SKILL_CREDITS} credit"))
+
     return issues
 
 
 def audit_paths(paths: list[Path]) -> list[AuditIssue]:
     known_provider_ids = set(load_provider_ids())
-    known_provider_names = set(load_provider_names())
+    provider_names = load_provider_names()
+    provider_pricing = _load_provider_pricing_by_id()
+    translation_keys = _collect_translation_keys()
     relevant_apps: set[Path] = set()
     relevant_providers: set[Path] = set()
 
@@ -231,7 +365,7 @@ def audit_paths(paths: list[Path]) -> list[AuditIssue]:
     for path in sorted(relevant_providers):
         issues.extend(audit_provider_file(path))
     for path in sorted(relevant_apps):
-        issues.extend(audit_app_file(path, known_provider_ids, known_provider_names))
+        issues.extend(audit_app_file(path, known_provider_ids, provider_names, provider_pricing, translation_keys))
     return issues
 
 

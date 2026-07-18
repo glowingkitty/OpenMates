@@ -62,7 +62,7 @@
   let status = $derived(localStatus);
   let taskId = $derived(localTaskId);
   let skillTaskId = $derived(localSkillTaskId);
-  let skillName = $derived('Icon search');
+  let skillName = $derived('Search icons');
 
   function handleEmbedDataUpdated(data: { status: string; decodedContent: Record<string, unknown> }) {
     if (data.status === 'processing' || data.status === 'finished' || data.status === 'error' || data.status === 'cancelled') {

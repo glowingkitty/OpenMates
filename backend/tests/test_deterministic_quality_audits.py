@@ -128,8 +128,45 @@ def test_app_provider_audit_blocks_missing_provider_reference(tmp_path, monkeypa
 
     issues = audit_app_provider_contracts.audit_paths([app_file])
 
-    assert len(issues) == 1
-    assert "missing backend/providers/missing_provider.yml" in issues[0].message
+    assert any("missing backend/providers/missing_provider.yml" in issue.message for issue in issues)
+
+
+def test_app_provider_audit_blocks_missing_translation_and_zero_pricing(tmp_path, monkeypatch) -> None:
+    """App and skill labels must resolve and app skills must cost at least 1 credit."""
+
+    apps_root = tmp_path / "backend" / "apps"
+    providers_root = tmp_path / "backend" / "providers"
+    static_root = tmp_path / "frontend" / "packages" / "ui" / "static"
+    i18n_root = tmp_path / "frontend" / "packages" / "ui" / "src" / "i18n" / "sources"
+    app_dir = apps_root / "demo"
+    app_dir.mkdir(parents=True)
+    providers_root.mkdir(parents=True)
+    (static_root / "icons").mkdir(parents=True)
+    i18n_root.mkdir(parents=True)
+    (i18n_root / "apps.yml").write_text("demo:\n  en: Demo\n", encoding="utf-8")
+    app_file = app_dir / "app.yml"
+    app_file.write_text(
+        "name_translation_key: demo\n"
+        "description_translation_key: demo.description\n"
+        "skills:\n"
+        "  - id: search\n"
+        "    name_translation_key: app_skills.demo.search\n"
+        "    description_translation_key: app_skills.demo.search.description\n"
+        "    pricing:\n"
+        "      fixed: 0\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(audit_app_provider_contracts, "REPO_ROOT", tmp_path)
+    monkeypatch.setattr(audit_app_provider_contracts, "APPS_ROOT", apps_root)
+    monkeypatch.setattr(audit_app_provider_contracts, "PROVIDERS_ROOT", providers_root)
+    monkeypatch.setattr(audit_app_provider_contracts, "UI_STATIC_ROOT", static_root)
+    monkeypatch.setattr(audit_app_provider_contracts, "I18N_SOURCES_ROOT", i18n_root)
+
+    issues = audit_app_provider_contracts.audit_paths([app_file])
+
+    assert any("missing app translation key: apps.demo.description" in issue.message for issue in issues)
+    assert any("app_skills.demo.search" in issue.message for issue in issues)
+    assert any("pricing 'fixed' must be at least 1 credit" in issue.message for issue in issues)
 
 
 def test_app_provider_audit_validates_provider_icon_and_privacy(tmp_path, monkeypatch) -> None:

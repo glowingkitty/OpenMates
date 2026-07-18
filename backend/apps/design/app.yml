@@ -99,6 +99,8 @@ skills:
     providers:
       - name: Iconify
         no_api_key: true
+    pricing:
+      fixed: 5
     exclude_fields_for_llm:
       - svg_path
       - license_url

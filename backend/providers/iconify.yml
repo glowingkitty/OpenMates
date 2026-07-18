@@ -8,7 +8,7 @@
 provider_id: iconify
 name: Iconify
 description: Public open-source icon search and SVG delivery API.
-logo_svg: icons/iconify.svg
+logo_svg: icons/iconify.png
 region: global
 privacy_policy: https://iconify.design/privacy/ # verified 2026-07-18
 no_api_key: true
@@ -21,4 +21,4 @@ rate_limits:
     requests_per_month: null
 
 pricing:
-  per_request_credits: 0
+  per_request_credits: 5

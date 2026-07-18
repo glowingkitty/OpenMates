@@ -18,7 +18,7 @@ def test_required_missing_app_and_provider_fail(capsys) -> None:
 
 
 def test_required_existing_app_and_provider_pass() -> None:
-    assert main(["--require-app", "images", "--require-provider", "recraft"]) == 0
+    assert main(["--require-app", "design", "--require-provider", "iconify"]) == 0
 
 
 def test_hi3d_training_disclosure_surfaces_pass() -> None:

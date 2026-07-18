@@ -57,16 +57,45 @@ test.describe('Design icon search example', () => {
 
 		const requests = trackIconRequests(page);
 
+		await page.goto(getE2EDebugUrl('/#settings/apps/design'), {
+			waitUntil: 'domcontentloaded'
+		});
+		await page.waitForLoadState('networkidle');
+
+		let settingsMenu = page.locator('[data-testid="settings-menu"].visible');
+		await expect(settingsMenu).toBeVisible({ timeout: 15_000 });
+		await expect(settingsMenu).toHaveAttribute('data-active-view', 'apps/design', {
+			timeout: 15_000
+		});
+		await expect(settingsMenu.locator('.app-details-header .app-name')).toContainText('Design');
+		await expect(settingsMenu.locator('.app-details-header .app-description')).toContainText('Find icons and visual assets for product design.');
+
+		const searchIconsSkillCard = settingsMenu
+			.getByTestId('settings-skill-cards-scroll')
+			.getByTestId('app-store-card')
+			.filter({ hasText: 'Search icons' })
+			.first();
+		await expect(searchIconsSkillCard).toBeVisible({ timeout: 15_000 });
+		await expect(searchIconsSkillCard).toContainText('Find open-source SVG icons from Iconify collections.');
+		await expect(searchIconsSkillCard).not.toContainText('Icon search');
+		const skillCardProviderIcon = searchIconsSkillCard.locator('[data-testid="provider-icon"][data-provider-name="Iconify"]');
+		await expect(skillCardProviderIcon).toBeVisible({ timeout: 15_000 });
+		await expect(skillCardProviderIcon.getByTestId('provider-icon-image')).toHaveAttribute('src', /iconify/i);
+
 		await page.goto(getE2EDebugUrl('/#settings/apps/design/skill/search_icons'), {
 			waitUntil: 'domcontentloaded'
 		});
 		await page.waitForLoadState('networkidle');
 
-		const settingsMenu = page.locator('[data-testid="settings-menu"].visible');
+		settingsMenu = page.locator('[data-testid="settings-menu"].visible');
 		await expect(settingsMenu).toBeVisible({ timeout: 15_000 });
 		await expect(settingsMenu).toHaveAttribute('data-active-view', 'apps/design/skill/search_icons', {
 			timeout: 15_000
 		});
+		await expect(settingsMenu.locator('.pricing').first()).toContainText('5 credits / request');
+		const providerItem = settingsMenu.locator('[data-testid="skill-provider-item"][data-provider-name="Iconify"]');
+		await expect(providerItem).toBeVisible({ timeout: 15_000 });
+		await expect(providerItem.getByTestId('settings-provider-logo')).toHaveAttribute('src', /iconify/i);
 
 		const exampleCard = settingsMenu.locator('[data-testid="app-store-example-chat-card"][data-app-id="design"][data-skill-id="search_icons"]').first();
 		await expect(exampleCard).toBeVisible({ timeout: 15_000 });
@@ -85,6 +114,8 @@ test.describe('Design icon search example', () => {
 		const settingsParent = designEmbeds.filter({ hasText: 'settings' }).filter({ hasText: '20 icons' }).first();
 		await expect(homeParent).toBeVisible({ timeout: 15_000 });
 		await expect(settingsParent).toBeVisible({ timeout: 15_000 });
+		await expect(settingsParent).toContainText('Search icons');
+		await expect(settingsParent).not.toContainText('Icon search');
 
 		const fullscreen = await openFullscreen(page, settingsParent);
 		const resultCards = await verifySearchGrid(fullscreen, 5, 30_000);
@@ -99,13 +130,16 @@ test.describe('Design icon search example', () => {
 		const resultFullscreen = page.getByTestId('design-icon-result-fullscreen');
 		await expect(resultFullscreen).toBeVisible({ timeout: 15_000 });
 		await expect(resultFullscreen).toContainText(/Apache 2\.0|MIT|Open Font License/);
-		await expect(resultFullscreen.locator('code')).toContainText(DESIGN_ICON_ROUTE);
+		await expect(resultFullscreen).not.toContainText(DESIGN_ICON_ROUTE);
+		await expect(resultFullscreen.locator('code')).toHaveCount(0);
 		await expect(page.locator('[data-testid="design-icon-license-cta"]')).toHaveCount(0);
 		await expect(page.locator('[data-skill-icon="design"]').first()).toBeVisible({ timeout: 15_000 });
+		const renderedIconSvg = resultFullscreen.locator('.icon-stage svg');
+		await expect(renderedIconSvg).toBeVisible({ timeout: 15_000 });
 
 		const svgRequestsBeforeRecolor = requests.openMatesSvg.length;
 		await page.getByTestId('design-icon-color-input').fill('#2563eb');
-		await page.waitForTimeout(300);
+		await expect(renderedIconSvg).toHaveAttribute('color', '#2563eb', { timeout: 15_000 });
 		expect(requests.openMatesSvg.length, 'Changing color must not call the backend again').toBe(svgRequestsBeforeRecolor);
 		await expect(resultFullscreen.getByRole('button', { name: 'Copy SVG' })).toBeEnabled();
 		const svgDownloadButton = resultFullscreen.getByRole('button', { name: 'Download SVG' });

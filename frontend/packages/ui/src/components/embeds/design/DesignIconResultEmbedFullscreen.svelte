@@ -235,7 +235,12 @@
   {#snippet content()}
     <div class="icon-result-fullscreen" data-testid="design-icon-result-fullscreen">
       <div class="icon-stage">
-        {#if iconSrc}
+        {#if preparedSvg}
+          <div class="icon-svg" aria-label={title} role="img">
+            <!-- eslint-disable-next-line svelte/no-at-html-tags -- SVG is validated and sanitized by the OpenMates Design icon route. -->
+            {@html preparedSvg}
+          </div>
+        {:else if iconSrc}
           <img src={iconSrc} alt={title} />
         {:else}
           <span class="clickable-icon icon_design placeholder-icon"></span>
@@ -249,7 +254,6 @@
         {#if author}<p>{author}</p>{/if}
         {#if width && height}<p>{width} x {height}</p>{/if}
         {#if isPalette}<p>Palette icon. Recoloring is disabled to preserve the original colors.</p>{/if}
-        {#if svgPath}<code>{svgPath}</code>{/if}
 
         <div class="export-controls" aria-label="Icon export controls">
           <label>
@@ -304,10 +308,16 @@
     border: 1px solid var(--color-grey-20);
   }
 
-  .icon-stage img {
+  .icon-stage img,
+  .icon-svg :global(svg) {
     width: min(220px, 45vw);
     height: min(220px, 45vw);
     object-fit: contain;
+  }
+
+  .icon-svg {
+    display: grid;
+    place-items: center;
   }
 
   .placeholder-icon {
@@ -331,14 +341,6 @@
   p {
     margin: 0;
     color: var(--color-font-secondary);
-  }
-
-  code {
-    padding: var(--spacing-3);
-    border-radius: var(--radius-4);
-    background: var(--color-grey-8);
-    color: var(--color-font-secondary);
-    word-break: break-all;
   }
 
   .export-controls,

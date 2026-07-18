@@ -1246,6 +1246,54 @@ diagrams.description:
   sv: Skapa flöden, sekvenser, tidslinjer och mer.
   he: יצירת זרימות, רצפים, צירי זמן ועוד.
   verified_by_human: []
+design:
+  context: App name for the Design app
+  en: Design
+  de: Design
+  zh: 设计
+  es: Diseño
+  fr: Design
+  pt: Design
+  ru: Дизайн
+  ja: デザイン
+  ko: 디자인
+  it: Design
+  tr: Tasarım
+  vi: Thiết kế
+  id: Desain
+  pl: Projektowanie
+  nl: Ontwerp
+  ar: التصميم
+  hi: डिज़ाइन
+  th: ออกแบบ
+  cs: Design
+  sv: Design
+  he: עיצוב
+  verified_by_human: [en, de]
+design.description:
+  context: Description for the Design app
+  en: Find icons and visual assets for product design.
+  de: Finde Icons und visuelle Assets fürs Produktdesign.
+  zh: 查找用于产品设计的图标和视觉素材。
+  es: Encuentra iconos y recursos visuales para diseño de producto.
+  fr: Trouvez des icônes et des éléments visuels pour le design produit.
+  pt: Encontre ícones e recursos visuais para design de produto.
+  ru: Находите иконки и визуальные ресурсы для продуктового дизайна.
+  ja: プロダクトデザイン用のアイコンやビジュアル素材を探します。
+  ko: 제품 디자인용 아이콘과 시각 자료를 찾으세요.
+  it: Trova icone e risorse visive per il product design.
+  tr: Ürün tasarımı için simgeler ve görsel varlıklar bulun.
+  vi: Tìm biểu tượng và tài nguyên trực quan cho thiết kế sản phẩm.
+  id: Temukan ikon dan aset visual untuk desain produk.
+  pl: Znajduj ikony i zasoby wizualne do projektowania produktu.
+  nl: Vind iconen en visuele assets voor productontwerp.
+  ar: ابحث عن أيقونات وموارد مرئية لتصميم المنتجات.
+  hi: प्रोडक्ट डिज़ाइन के लिए आइकन और विज़ुअल एसेट खोजें।
+  th: ค้นหาไอคอนและทรัพยากรภาพสำหรับการออกแบบผลิตภัณฑ์
+  cs: Najděte ikony a vizuální podklady pro produktový design.
+  sv: Hitta ikoner och visuella resurser för produktdesign.
+  he: מצא אייקונים ונכסים חזותיים לעיצוב מוצר.
+  verified_by_human: [en, de]
 docs:
   context: App name for the Docs app
   en: Docs
