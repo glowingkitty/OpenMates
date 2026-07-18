@@ -182,4 +182,4 @@ Read [CONTRIBUTING.md](./CONTRIBUTING.md), the [frontend standards](./docs/contr
 
 ## License
 
-The OpenMates repository is licensed under the [GNU Affero General Public License v3.0](./LICENSE). If you modify OpenMates and provide the modified program to users over a network, the AGPL requires you to offer those users the corresponding source code under the same license. Refer to the license text for the complete terms.
+The OpenMates repository is licensed under the [GNU Affero General Public License v3.0](./LICENSE). If you modify OpenMates and provide the modified program to users over a network, the AGPL requires you to offer those users the corresponding source code under the same license. Official Apple app binaries built from the [`apple/`](./apple/) directory may also be distributed through Apple-operated app stores under the additional permission in [`APPLE-APP-STORE-EXCEPTION.md`](./APPLE-APP-STORE-EXCEPTION.md). Refer to the license text and exception notice for the complete terms.
