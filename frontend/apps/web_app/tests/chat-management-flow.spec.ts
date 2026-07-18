@@ -102,7 +102,11 @@ async function createTestChat(
 
 /** Ensure sidebar is open (on narrow viewports it's closed by default). */
 async function ensureSidebarOpen(page: any): Promise<void> {
-	if (await page.getByTestId('chat-item-wrapper').first().isVisible({ timeout: 1000 }).catch(() => false)) {
+	const toggle = page.locator('[data-testid="sidebar-toggle"]');
+	if (!(await toggle.isVisible().catch(() => false))) {
+		return;
+	}
+	if ((await toggle.getAttribute('aria-expanded')) === 'true') {
 		return;
 	}
 
@@ -113,11 +117,8 @@ async function ensureSidebarOpen(page: any): Promise<void> {
 		await dismissButton.click().catch(() => undefined);
 	}
 
-	const toggle = page.locator('[data-testid="sidebar-toggle"]');
-	if (await toggle.isVisible().catch(() => false)) {
-		await toggle.click();
-		await page.waitForTimeout(1000);
-	}
+	await toggle.click();
+	await expect(toggle).toHaveAttribute('aria-expanded', 'true', { timeout: 5000 });
 }
 
 // ---------------------------------------------------------------------------

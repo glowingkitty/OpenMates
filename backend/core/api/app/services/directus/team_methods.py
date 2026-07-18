@@ -9,6 +9,7 @@ keys are returned or mutated.
 import hashlib
 import logging
 import time
+from uuid import uuid4
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -17,6 +18,7 @@ TEAM_ROLES = {"owner", "admin", "member", "viewer"}
 INVITE_ROLES = {"admin", "member", "viewer"}
 ACTIVE_STATUS = "active"
 TEAM_KEY_EPOCH_V1 = 1
+PENDING_ACCESS_APPROVAL_STATUS = "pending_access_approval"
 
 
 def hash_id(value: str) -> str:
@@ -198,18 +200,23 @@ class TeamMethods:
         record = {
             "invite_id": payload["invite_id"],
             "hashed_team_id": hash_id(team_id),
+            "hashed_recipient_email": payload.get("hashed_recipient_email"),
             "encrypted_recipient_hint": payload.get("encrypted_recipient_hint"),
             "role": role,
             "status": "pending",
             "created_by_hash": hash_id(inviter_user_id),
+            "one_time_token_hash": payload.get("one_time_token_hash"),
+            "sent_at": payload.get("sent_at"),
             "expires_at": payload.get("expires_at"),
             "created_at": now,
             "accepted_at": None,
+            "declined_at": None,
+            "revoked_at": None,
         }
         success, data = await self.directus_service.create_item("team_invites", record, admin_required=True)
         return data if success else None
 
-    async def accept_invite(self, invite_id: str, user_id: str, encrypted_team_key: str, accepted_at: int | None = None) -> dict[str, Any] | None:
+    async def accept_invite(self, invite_id: str, user_id: str, accepted_at: int | None = None) -> dict[str, Any] | None:
         invites = await self.directus_service.get_items(
             "team_invites",
             params={
@@ -225,10 +232,70 @@ class TeamMethods:
             return None
         invite = invites[0]
         now = int(accepted_at or time.time())
-        membership_record = {
+        access_request = {
+            "access_request_id": str(uuid4()),
+            "invite_id": invite_id,
             "hashed_team_id": invite["hashed_team_id"],
             "hashed_user_id": hash_id(user_id),
             "role": invite["role"],
+            "status": PENDING_ACCESS_APPROVAL_STATUS,
+            "requested_at": now,
+            "approved_at": None,
+            "rejected_at": None,
+            "resolved_by_user_hash": None,
+        }
+        success, request = await self.directus_service.create_item("team_access_requests", access_request, admin_required=True)
+        if not success:
+            return None
+        await self.directus_service.update_item("team_invites", invite["id"], {"status": "access_requested", "accepted_at": now}, admin_required=True)
+        return request
+
+    async def list_access_requests(self, team_id: str, actor_user_id: str, status: str | None = PENDING_ACCESS_APPROVAL_STATUS) -> list[dict[str, Any]]:
+        await self.require_team_role(team_id, actor_user_id, {"owner", "admin"})
+        params: dict[str, Any] = {
+            "filter[hashed_team_id][_eq]": hash_id(team_id),
+            "fields": "id,access_request_id,invite_id,hashed_team_id,hashed_user_id,role,status,requested_at,approved_at,rejected_at",
+            "limit": -1,
+        }
+        if status:
+            params["filter[status][_eq]"] = status
+        requests = await self.directus_service.get_items(
+            "team_access_requests",
+            params=params,
+            no_cache=True,
+            admin_required=True,
+        )
+        return requests if isinstance(requests, list) else []
+
+    async def approve_access_request(
+        self,
+        team_id: str,
+        actor_user_id: str,
+        access_request_id: str,
+        encrypted_team_key: str,
+        approved_at: int | None = None,
+    ) -> dict[str, Any] | None:
+        await self.require_team_role(team_id, actor_user_id, {"owner", "admin"})
+        requests = await self.directus_service.get_items(
+            "team_access_requests",
+            params={
+                "filter[access_request_id][_eq]": access_request_id,
+                "filter[hashed_team_id][_eq]": hash_id(team_id),
+                "filter[status][_eq]": PENDING_ACCESS_APPROVAL_STATUS,
+                "fields": "id,access_request_id,invite_id,hashed_team_id,hashed_user_id,role,status",
+                "limit": 1,
+            },
+            no_cache=True,
+            admin_required=True,
+        )
+        if not requests or not isinstance(requests, list):
+            return None
+        request = requests[0]
+        now = int(approved_at or time.time())
+        membership_record = {
+            "hashed_team_id": request["hashed_team_id"],
+            "hashed_user_id": request["hashed_user_id"],
+            "role": request["role"],
             "status": ACTIVE_STATUS,
             "invited_by_hash": None,
             "joined_at": now,
@@ -237,8 +304,8 @@ class TeamMethods:
             "updated_at": now,
         }
         wrapper_record = {
-            "hashed_team_id": invite["hashed_team_id"],
-            "hashed_user_id": hash_id(user_id),
+            "hashed_team_id": request["hashed_team_id"],
+            "hashed_user_id": request["hashed_user_id"],
             "team_key_epoch": TEAM_KEY_EPOCH_V1,
             "encrypted_team_key": encrypted_team_key,
             "status": ACTIVE_STATUS,
@@ -251,8 +318,59 @@ class TeamMethods:
         success, _wrapper = await self.directus_service.create_item("team_key_wrappers", wrapper_record, admin_required=True)
         if not success:
             return None
-        await self.directus_service.update_item("team_invites", invite["id"], {"status": "accepted", "accepted_at": now}, admin_required=True)
+        await self.directus_service.update_item(
+            "team_access_requests",
+            request["id"],
+            {"status": "approved", "approved_at": now, "resolved_by_user_hash": hash_id(actor_user_id)},
+            admin_required=True,
+        )
+        invites = await self.directus_service.get_items(
+            "team_invites",
+            params={"filter[invite_id][_eq]": request["invite_id"], "fields": "id,status", "limit": 1},
+            no_cache=True,
+            admin_required=True,
+        )
+        if isinstance(invites, list) and invites:
+            await self.directus_service.update_item("team_invites", invites[0]["id"], {"status": "accepted", "accepted_at": now}, admin_required=True)
         return membership
+
+    async def reject_access_request(self, team_id: str, actor_user_id: str, access_request_id: str, rejected_at: int | None = None) -> bool:
+        await self.require_team_role(team_id, actor_user_id, {"owner", "admin"})
+        requests = await self.directus_service.get_items(
+            "team_access_requests",
+            params={
+                "filter[access_request_id][_eq]": access_request_id,
+                "filter[hashed_team_id][_eq]": hash_id(team_id),
+                "filter[status][_eq]": PENDING_ACCESS_APPROVAL_STATUS,
+                "fields": "id,status",
+                "limit": 1,
+            },
+            no_cache=True,
+            admin_required=True,
+        )
+        if not requests or not isinstance(requests, list):
+            return False
+        now = int(rejected_at or time.time())
+        updated = await self.directus_service.update_item(
+            "team_access_requests",
+            requests[0]["id"],
+            {"status": "rejected", "rejected_at": now, "resolved_by_user_hash": hash_id(actor_user_id)},
+            admin_required=True,
+        )
+        return bool(updated)
+
+    async def decline_invite(self, invite_id: str, declined_at: int | None = None) -> bool:
+        invites = await self.directus_service.get_items(
+            "team_invites",
+            params={"filter[invite_id][_eq]": invite_id, "filter[status][_eq]": "pending", "fields": "id,status", "limit": 1},
+            no_cache=True,
+            admin_required=True,
+        )
+        if not invites or not isinstance(invites, list):
+            return False
+        now = int(declined_at or time.time())
+        updated = await self.directus_service.update_item("team_invites", invites[0]["id"], {"status": "declined", "declined_at": now}, admin_required=True)
+        return bool(updated)
 
     async def remove_member(self, team_id: str, actor_user_id: str, target_user_id: str, removed_at: int | None = None) -> bool:
         await self.require_team_role(team_id, actor_user_id, {"owner", "admin"})
