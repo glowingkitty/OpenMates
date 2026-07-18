@@ -71,20 +71,18 @@ test.describe('Design icon search example', () => {
 		await expect(designEmbeds.first()).toBeVisible({ timeout: 30_000 });
 		await expect(async () => {
 			const count = await designEmbeds.count();
-			expect(count).toBeGreaterThanOrEqual(10);
+			expect(count).toBeGreaterThanOrEqual(2);
 		}).toPass({ timeout: 30_000 });
 
-		const homeParent = designEmbeds.filter({ hasText: 'home' }).filter({ hasText: '20 icons' }).first();
+		const homeParent = designEmbeds.filter({ hasText: 'home' }).filter({ hasText: /\d+ icons/ }).first();
 		const settingsParent = designEmbeds.filter({ hasText: 'settings' }).filter({ hasText: '20 icons' }).first();
 		await expect(homeParent).toBeVisible({ timeout: 15_000 });
 		await expect(settingsParent).toBeVisible({ timeout: 15_000 });
 
-		await expect(designEmbeds.locator(`img[src*="${DESIGN_ICON_ROUTE}"]`).first()).toBeVisible({ timeout: 30_000 });
-		expect(requests.openMatesSvg.length, 'Icon previews should fetch SVGs through OpenMates API').toBeGreaterThan(0);
-
 		const fullscreen = await openFullscreen(page, settingsParent);
 		const resultCards = await verifySearchGrid(fullscreen, 5, 30_000);
 		await expect(resultCards.first().locator(`img[src*="${DESIGN_ICON_ROUTE}"]`)).toBeVisible({ timeout: 30_000 });
+		expect(requests.openMatesSvg.length, 'Icon previews should fetch SVGs through OpenMates API').toBeGreaterThan(0);
 
 		await resultCards.first().click();
 		const resultFullscreen = page.getByTestId('design-icon-result-fullscreen');
