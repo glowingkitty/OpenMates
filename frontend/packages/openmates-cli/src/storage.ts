@@ -18,6 +18,7 @@ import {
   rmSync,
   writeFileSync,
 } from "node:fs";
+import { createHash } from "node:crypto";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
@@ -45,6 +46,7 @@ export interface OpenMatesSession {
   createdAt: number;
   authorizerDeviceName: string | null;
   autoLogoutMinutes: number | null;
+  activeTeamId?: string | null;
 }
 
 interface AnonymousStateOnDisk {
@@ -78,6 +80,7 @@ interface SessionOnDisk {
   createdAt: number;
   authorizerDeviceName: string | null;
   autoLogoutMinutes: number | null;
+  activeTeamId?: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -154,6 +157,7 @@ export function saveSession(session: OpenMatesSession): void {
     createdAt: session.createdAt,
     authorizerDeviceName: session.authorizerDeviceName,
     autoLogoutMinutes: session.autoLogoutMinutes,
+    activeTeamId: session.activeTeamId ?? null,
     masterKeyStorage: result.type,
   };
 
@@ -299,6 +303,7 @@ function buildSession(
     createdAt: onDisk.createdAt,
     authorizerDeviceName: onDisk.authorizerDeviceName,
     autoLogoutMinutes: onDisk.autoLogoutMinutes,
+    activeTeamId: onDisk.activeTeamId ?? null,
   };
 }
 
@@ -361,18 +366,47 @@ export interface SyncCache {
 
 const SYNC_CACHE_FILE = "sync_cache.json";
 
-export function saveSyncCache(cache: SyncCache): void {
-  const filePath = join(ensureStateDir(), SYNC_CACHE_FILE);
+function teamKeyStorageId(hashedEmail: string, teamId: string): string {
+  const digest = createHash("sha256").update(teamId).digest("hex").slice(0, 32);
+  return `${hashedEmail}:team:${digest}`;
+}
+
+export function saveLocalTeamKey(hashedEmail: string, teamId: string, teamKeyB64: string): void {
+  storeMasterKey(teamKeyB64, teamKeyStorageId(hashedEmail, teamId));
+}
+
+export function loadLocalTeamKey(hashedEmail: string, teamId: string): string | null {
+  const storageId = teamKeyStorageId(hashedEmail, teamId);
+  return retrieveMasterKey("keychain", storageId)
+    ?? retrieveMasterKey("encrypted", storageId)
+    ?? retrieveMasterKey("plaintext", storageId);
+}
+
+export function deleteLocalTeamKey(hashedEmail: string, teamId: string): void {
+  const storageId = teamKeyStorageId(hashedEmail, teamId);
+  deleteMasterKey("keychain", storageId);
+  deleteMasterKey("encrypted", storageId);
+  deleteMasterKey("plaintext", storageId);
+}
+
+function syncCacheFile(teamId?: string | null): string {
+  if (!teamId) return SYNC_CACHE_FILE;
+  const digest = createHash("sha256").update(teamId).digest("hex").slice(0, 32);
+  return `sync_cache.team.${digest}.json`;
+}
+
+export function saveSyncCache(cache: SyncCache, teamId?: string | null): void {
+  const filePath = join(ensureStateDir(), syncCacheFile(teamId));
   writeJsonFile(filePath, cache);
 }
 
-export function loadSyncCache(): SyncCache | null {
-  const filePath = join(ensureStateDir(), SYNC_CACHE_FILE);
+export function loadSyncCache(teamId?: string | null): SyncCache | null {
+  const filePath = join(ensureStateDir(), syncCacheFile(teamId));
   return readJsonFile<SyncCache>(filePath);
 }
 
-export function clearSyncCache(): void {
-  const filePath = join(ensureStateDir(), SYNC_CACHE_FILE);
+export function clearSyncCache(teamId?: string | null): void {
+  const filePath = join(ensureStateDir(), syncCacheFile(teamId));
   if (existsSync(filePath)) {
     rmSync(filePath);
   }
@@ -387,8 +421,8 @@ export function clearSyncCache(): void {
  * expensive full Phase 3 syncs on every invocation while still catching
  * changes within a reasonable window.
  */
-export function isSyncCacheFresh(maxAgeMs = 300_000): boolean {
-  const cache = loadSyncCache();
+export function isSyncCacheFresh(maxAgeMs = 300_000, teamId?: string | null): boolean {
+  const cache = loadSyncCache(teamId);
   if (!cache) return false;
   return Date.now() - cache.syncedAt < maxAgeMs;
 }

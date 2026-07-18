@@ -8,7 +8,7 @@
  * Tests: frontend/packages/openmates-cli/tests/
  */
 
-import { createHash, randomUUID } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { arch, platform, release } from "node:os";
 import { createInterface } from "node:readline/promises";
 import { stdin, stdout } from "node:process";
@@ -187,6 +187,43 @@ export interface ConnectedAccountImportResult {
   appId: string;
   label: string;
   validation: ConnectedAccountImportValidationResult;
+}
+
+export type TeamRole = "owner" | "admin" | "member" | "viewer";
+
+export interface TeamRecord {
+  team_id?: string;
+  slug?: string | null;
+  encrypted_name?: string;
+  encrypted_description?: string | null;
+  role?: TeamRole;
+  status?: string;
+  [key: string]: unknown;
+}
+
+export interface TeamBillingSummary {
+  balance_credits?: number;
+  encrypted_balance?: string | null;
+  [key: string]: unknown;
+}
+
+export type WorkspaceMoveType = "chat" | "project" | "task" | "plan" | "workflow";
+
+export interface TeamContextOptions {
+  teamId?: string | null;
+  personal?: boolean;
+}
+
+export interface TeamCreateInput {
+  name?: string;
+  description?: string | null;
+  slug?: string | null;
+  teamId?: string;
+  encryptedName?: string;
+  encryptedDescription?: string | null;
+  encryptedTeamKey?: string;
+  encryptedZeroBalance?: string;
+  createdAt?: number;
 }
 
 export type LearningModeAgeGroup = "under_10" | "10_12" | "13_15" | "16_18" | "adult";
@@ -785,15 +822,18 @@ export function buildTurnTokenRefsRequestPayload(params: {
   chatId: string;
   messageId: string;
   refs: ConnectedAccountTurnTokenRefInput[];
+  teamId?: string | null;
 }): {
   chat_id: string;
   message_id: string;
   refs: ConnectedAccountTurnTokenRefInput[];
+  team_id?: string;
 } {
   return {
     chat_id: params.chatId,
     message_id: params.messageId,
     refs: params.refs.map((ref) => ({ ...ref })),
+    ...(params.teamId ? { team_id: params.teamId } : {}),
   };
 }
 
@@ -2127,6 +2167,213 @@ export class OpenMatesClient {
     return this.session !== null;
   }
 
+  getActiveTeamId(): string | null {
+    return this.session?.activeTeamId ?? null;
+  }
+
+  setActiveTeamId(teamId: string | null): void {
+    const session = this.requireSession();
+    this.session = { ...session, activeTeamId: teamId };
+    saveSession(this.session);
+  }
+
+  resolveTeamContext(options: TeamContextOptions = {}): string | null {
+    if (options.personal) return null;
+    if (options.teamId !== undefined) return options.teamId;
+    return this.getActiveTeamId();
+  }
+
+  private appendTeamQuery(path: string, options: TeamContextOptions = {}): string {
+    const teamId = this.resolveTeamContext(options);
+    if (!teamId) return path;
+    const separator = path.includes("?") ? "&" : "?";
+    return `${path}${separator}team_id=${encodeURIComponent(teamId)}`;
+  }
+
+  async listTeams(): Promise<TeamRecord[]> {
+    this.requireSession();
+    const response = await this.http.get<{ teams?: TeamRecord[] }>("/v1/teams", this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Team list failed with HTTP ${response.status}`);
+    return response.data.teams ?? [];
+  }
+
+  async createTeam(input: TeamCreateInput): Promise<TeamRecord> {
+    this.requireSession();
+    const now = Math.floor(Date.now() / 1000);
+    const teamKeyBytes = randomBytes(32);
+    const payload: Record<string, unknown> = {
+      team_id: input.teamId ?? randomUUID(),
+      slug: input.slug ?? undefined,
+      encrypted_name: input.encryptedName ?? await encryptWithAesGcmCombined(input.name ?? "Untitled team", teamKeyBytes),
+      encrypted_description: input.encryptedDescription ?? (input.description ? await encryptWithAesGcmCombined(input.description, teamKeyBytes) : undefined),
+      encrypted_team_key: input.encryptedTeamKey ?? await encryptBytesWithAesGcm(teamKeyBytes, this.getMasterKeyBytes()),
+      encrypted_zero_balance: input.encryptedZeroBalance ?? await encryptWithAesGcmCombined("0", teamKeyBytes),
+      created_at: input.createdAt ?? now,
+      updated_at: input.createdAt ?? now,
+    };
+    const response = await this.http.post<{ team?: TeamRecord }>("/v1/teams", payload, this.getCliRequestHeaders());
+    if (!response.ok || !response.data.team) throw new Error(`Team create failed with HTTP ${response.status}`);
+    return response.data.team;
+  }
+
+  async getTeam(teamId: string): Promise<TeamRecord> {
+    this.requireSession();
+    const response = await this.http.get<{ team?: TeamRecord }>(`/v1/teams/${encodeURIComponent(teamId)}`, this.getCliRequestHeaders());
+    if (!response.ok || !response.data.team) throw new Error(`Team get failed with HTTP ${response.status}`);
+    return response.data.team;
+  }
+
+  async updateTeam(teamId: string, input: Record<string, unknown>): Promise<TeamRecord> {
+    this.requireSession();
+    const response = await this.http.patch<{ team?: TeamRecord }>(`/v1/teams/${encodeURIComponent(teamId)}`, {
+      updated_at: input.updated_at ?? Math.floor(Date.now() / 1000),
+      ...input,
+    }, this.getCliRequestHeaders());
+    if (!response.ok || !response.data.team) throw new Error(`Team update failed with HTTP ${response.status}`);
+    return response.data.team;
+  }
+
+  async deleteTeam(teamId: string): Promise<{ success: boolean }> {
+    this.requireSession();
+    const response = await this.http.delete<{ success?: boolean }>(`/v1/teams/${encodeURIComponent(teamId)}`, undefined, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Team delete failed with HTTP ${response.status}`);
+    return { success: response.data.success === true };
+  }
+
+  async createTeamInvite(teamId: string, input: Record<string, unknown>): Promise<Record<string, unknown>> {
+    this.requireSession();
+    const response = await this.http.post<{ invite?: Record<string, unknown> }>(`/v1/teams/${encodeURIComponent(teamId)}/invites`, {
+      invite_id: input.invite_id ?? randomUUID(),
+      created_at: input.created_at ?? Math.floor(Date.now() / 1000),
+      ...input,
+    }, this.getCliRequestHeaders());
+    if (!response.ok || !response.data.invite) throw new Error(`Team invite create failed with HTTP ${response.status}`);
+    return response.data.invite;
+  }
+
+  async acceptTeamInvite(inviteId: string): Promise<Record<string, unknown>> {
+    this.requireSession();
+    const response = await this.http.post<{ access_request?: Record<string, unknown>; status_label?: string }>(`/v1/teams/invites/${encodeURIComponent(inviteId)}/accept`, { accepted_at: Math.floor(Date.now() / 1000) }, this.getCliRequestHeaders());
+    if (!response.ok || !response.data.access_request) throw new Error(`Team invite accept failed with HTTP ${response.status}`);
+    return { access_request: response.data.access_request, status_label: response.data.status_label };
+  }
+
+  async declineTeamInvite(inviteId: string): Promise<{ success: boolean }> {
+    this.requireSession();
+    const response = await this.http.post<{ success?: boolean }>(`/v1/teams/invites/${encodeURIComponent(inviteId)}/decline`, { declined_at: Math.floor(Date.now() / 1000) }, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Team invite decline failed with HTTP ${response.status}`);
+    return { success: response.data.success === true };
+  }
+
+  async listTeamAccessRequests(teamId: string, status?: string | null): Promise<Record<string, unknown>[]> {
+    this.requireSession();
+    const query = status && status !== "all" ? `?status=${encodeURIComponent(status)}` : status === "all" ? "?status=" : "";
+    const response = await this.http.get<{ access_requests?: Record<string, unknown>[] }>(`/v1/teams/${encodeURIComponent(teamId)}/access-requests${query}`, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Team access requests failed with HTTP ${response.status}`);
+    return response.data.access_requests ?? [];
+  }
+
+  async approveTeamAccessRequest(teamId: string, accessRequestId: string, encryptedTeamKey: string): Promise<Record<string, unknown>> {
+    this.requireSession();
+    const response = await this.http.post<{ membership?: Record<string, unknown> }>(`/v1/teams/${encodeURIComponent(teamId)}/access-requests/${encodeURIComponent(accessRequestId)}/approve`, { encrypted_team_key: encryptedTeamKey, approved_at: Math.floor(Date.now() / 1000) }, this.getCliRequestHeaders());
+    if (!response.ok || !response.data.membership) throw new Error(`Team access approval failed with HTTP ${response.status}`);
+    return response.data.membership;
+  }
+
+  async rejectTeamAccessRequest(teamId: string, accessRequestId: string): Promise<{ success: boolean }> {
+    this.requireSession();
+    const response = await this.http.post<{ success?: boolean }>(`/v1/teams/${encodeURIComponent(teamId)}/access-requests/${encodeURIComponent(accessRequestId)}/reject`, { rejected_at: Math.floor(Date.now() / 1000) }, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Team access rejection failed with HTTP ${response.status}`);
+    return { success: response.data.success === true };
+  }
+
+  async exportTeamData(teamId: string, input: Record<string, unknown> = {}): Promise<Record<string, unknown>> {
+    this.requireSession();
+    const response = await this.http.post<Record<string, unknown>>(`/v1/teams/${encodeURIComponent(teamId)}/export`, {
+      export_id: input.export_id,
+      created_at: input.created_at ?? Math.floor(Date.now() / 1000),
+    }, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Team export failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
+  async getTeamExport(teamId: string, exportId: string): Promise<Record<string, unknown>> {
+    this.requireSession();
+    const response = await this.http.get<Record<string, unknown>>(`/v1/teams/${encodeURIComponent(teamId)}/export/${encodeURIComponent(exportId)}`, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Team export download failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
+  async importTeamData(destinationTeamId: string, artifact: Record<string, unknown>): Promise<Record<string, unknown>> {
+    this.requireSession();
+    const response = await this.http.post<Record<string, unknown>>("/v1/teams/import", {
+      destination_team_id: destinationTeamId,
+      artifact,
+      imported_at: Math.floor(Date.now() / 1000),
+    }, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Team import failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
+  async updateTeamMemberRole(teamId: string, memberUserId: string, role: Exclude<TeamRole, "owner">): Promise<Record<string, unknown>> {
+    this.requireSession();
+    const response = await this.http.patch<{ membership?: Record<string, unknown> }>(`/v1/teams/${encodeURIComponent(teamId)}/members/${encodeURIComponent(memberUserId)}`, { role, updated_at: Math.floor(Date.now() / 1000) }, this.getCliRequestHeaders());
+    if (!response.ok || !response.data.membership) throw new Error(`Team member update failed with HTTP ${response.status}`);
+    return response.data.membership;
+  }
+
+  async removeTeamMember(teamId: string, memberUserId: string): Promise<{ success: boolean }> {
+    this.requireSession();
+    const response = await this.http.post<{ success?: boolean }>(`/v1/teams/${encodeURIComponent(teamId)}/members/${encodeURIComponent(memberUserId)}/remove`, { removed_at: Math.floor(Date.now() / 1000) }, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Team member remove failed with HTTP ${response.status}`);
+    return { success: response.data.success === true };
+  }
+
+  async getTeamBilling(teamId: string): Promise<TeamBillingSummary> {
+    this.requireSession();
+    const response = await this.http.get<{ billing?: TeamBillingSummary }>(`/v1/teams/${encodeURIComponent(teamId)}/billing`, this.getCliRequestHeaders());
+    if (!response.ok || !response.data.billing) throw new Error(`Team billing failed with HTTP ${response.status}`);
+    return response.data.billing;
+  }
+
+  async addTeamCredits(teamId: string, input: Record<string, unknown>): Promise<TeamBillingSummary> {
+    this.requireSession();
+    const response = await this.http.post<{ billing?: TeamBillingSummary }>(`/v1/teams/${encodeURIComponent(teamId)}/billing/credits`, {
+      event_id: input.event_id ?? randomUUID(),
+      encrypted_balance: input.encrypted_balance ?? String(input.encryptedBalance ?? "0"),
+      occurred_at: input.occurred_at ?? Math.floor(Date.now() / 1000),
+      ...input,
+    }, this.getCliRequestHeaders());
+    if (!response.ok || !response.data.billing) throw new Error(`Team credit add failed with HTTP ${response.status}`);
+    return response.data.billing;
+  }
+
+  async listTeamUsage(teamId: string, memberUserId?: string): Promise<Record<string, unknown>[]> {
+    this.requireSession();
+    const query = memberUserId ? `?member_user_id=${encodeURIComponent(memberUserId)}` : "";
+    const response = await this.http.get<{ usage?: Record<string, unknown>[] }>(`/v1/teams/${encodeURIComponent(teamId)}/billing/usage${query}`, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Team usage failed with HTTP ${response.status}`);
+    return response.data.usage ?? [];
+  }
+
+  async moveWorkspaceToTeam(workspaceType: WorkspaceMoveType, objectId: string, teamId: string): Promise<Record<string, unknown>> {
+    this.requireSession();
+    const routeByType: Record<WorkspaceMoveType, string> = {
+      chat: `/v1/chats/${encodeURIComponent(objectId)}/move`,
+      project: `/v1/projects/${encodeURIComponent(objectId)}/move`,
+      task: `/v1/user-tasks/${encodeURIComponent(objectId)}/move`,
+      plan: `/v1/user-plans/${encodeURIComponent(objectId)}/move`,
+      workflow: `/v1/workflows/${encodeURIComponent(objectId)}/move`,
+    };
+    const response = await this.http.post<Record<string, unknown>>(
+      routeByType[workspaceType],
+      { team_id: teamId, confirmed: true, moved_at: Math.floor(Date.now() / 1000) },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) throw new Error(`${workspaceType} move failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
   async getAnonymousFreeUsageStatus(): Promise<AnonymousFreeUsageStatus> {
     const response = await this.http.get<{
       active?: boolean;
@@ -2257,6 +2504,7 @@ export class OpenMatesClient {
     chatId: string;
     messageId: string;
     refs: ConnectedAccountTurnTokenRefInput[];
+    teamId?: string | null;
   }): Promise<ConnectedAccountTurnTokenRef[]> {
     if (params.refs.length === 0) return [];
     const response = await this.http.post<{
@@ -3005,8 +3253,8 @@ export class OpenMatesClient {
     };
   }
 
-  async listChats(limit = 10, page = 1): Promise<ChatListPage> {
-    const cache = await this.ensureSynced();
+  async listChats(limit = 10, page = 1, options: TeamContextOptions = {}): Promise<ChatListPage> {
+    const cache = await this.ensureSynced(false, [], options);
     const masterKey = this.getMasterKeyBytes();
     const total = cache.chats.length;
     const offset = (page - 1) * limit;
@@ -3197,8 +3445,8 @@ export class OpenMatesClient {
     };
   }
 
-  async searchChats(query: string): Promise<ChatListItem[]> {
-    const cache = await this.ensureSynced();
+  async searchChats(query: string, options: TeamContextOptions = {}): Promise<ChatListItem[]> {
+    const cache = await this.ensureSynced(false, [], options);
     const masterKey = this.getMasterKeyBytes();
     const normalized = query.trim().toLowerCase();
     const results: ChatListItem[] = [];
@@ -3232,11 +3480,11 @@ export class OpenMatesClient {
    *
    * @param query Full UUID, 8-char short ID, or chat title.
    */
-  async getChatMessages(query: string): Promise<{
+  async getChatMessages(query: string, options: TeamContextOptions = {}): Promise<{
     chat: ChatListItem;
     messages: DecryptedMessage[];
   }> {
-    const cache = await this.ensureSynced(true);
+    const cache = await this.ensureSynced(true, [], options);
     const masterKey = this.getMasterKeyBytes();
     const normalized = query.trim().toLowerCase();
 
@@ -3636,11 +3884,12 @@ export class OpenMatesClient {
    * Resolve a short chat ID (first 8 chars) or partial title to a full UUID.
    * Accepts full UUIDs unchanged. Returns undefined if no match found.
    */
-  async resolveFullChatId(idOrShort: string): Promise<string | undefined> {
+  async resolveFullChatId(idOrShort: string, options: TeamContextOptions = {}): Promise<string | undefined> {
+    const teamId = this.resolveTeamContext(options);
     // Try stale cache first — chat IDs don't change, so any cached version
     // is sufficient for short-ID resolution. Only sync if the cache is empty
     // or the ID wasn't found (possibly a newly created chat).
-    const staleCache = loadSyncCache();
+    const staleCache = loadSyncCache(teamId);
     const lower = idOrShort.toLowerCase();
 
     if (staleCache) {
@@ -3652,7 +3901,7 @@ export class OpenMatesClient {
     }
 
     // Not found in stale cache (or no cache) — force a fresh sync
-    const freshCache = await this.ensureSynced(/* forceRefresh */ true);
+    const freshCache = await this.ensureSynced(/* forceRefresh */ true, [], { teamId });
     for (const chat of freshCache.chats) {
       const fullId = String(chat.details.id ?? "");
       if (fullId === idOrShort) return fullId;
@@ -3674,8 +3923,9 @@ export class OpenMatesClient {
    */
   async listNewChatSuggestions(
     limit = 10,
+    options: TeamContextOptions = {},
   ): Promise<DecryptedNewChatSuggestion[]> {
-    const cache = await this.ensureSynced();
+    const cache = await this.ensureSynced(false, [], options);
     const masterKey = this.getMasterKeyBytes();
     const rawSuggestions = cache.newChatSuggestions ?? [];
 
@@ -3715,14 +3965,15 @@ export class OpenMatesClient {
    *
    * Mirrors: chat_actions_store.ts / FollowUpSuggestions.svelte (web app)
    */
-  async getChatFollowUpSuggestions(chatId: string): Promise<string[]> {
-    const cachedMatch = loadSyncCache()?.chats.find(
+  async getChatFollowUpSuggestions(chatId: string, options: TeamContextOptions = {}): Promise<string[]> {
+    const teamId = this.resolveTeamContext(options);
+    const cachedMatch = loadSyncCache(teamId)?.chats.find(
       (c) =>
         String(c.details.id ?? "") === chatId ||
         String(c.details.id ?? "").startsWith(chatId),
     );
     const refreshChatId = String(cachedMatch?.details.id ?? chatId);
-    const cache = await this.ensureSynced(true, [refreshChatId]);
+    const cache = await this.ensureSynced(true, [refreshChatId], { teamId });
     const masterKey = this.getMasterKeyBytes();
 
     const found = cache.chats.find(
@@ -3764,6 +4015,8 @@ export class OpenMatesClient {
   async sendMessage(params: {
     message: string;
     chatId?: string;
+    teamId?: string | null;
+    personal?: boolean;
     incognito?: boolean;
     /** Streaming callback — fires for typing, chunk, and done events. */
     onStream?: (event: import("./ws.js").StreamEvent) => void;
@@ -3825,6 +4078,7 @@ export class OpenMatesClient {
       entryCount: number;
     }>;
   }> {
+    const teamId = this.resolveTeamContext({ teamId: params.teamId, personal: params.personal });
     // Resolve short IDs (8-char prefix) to full UUIDs via sync cache.
     // Full UUIDs and undefined (new chat) pass through unchanged.
     let chatId: string;
@@ -3832,7 +4086,7 @@ export class OpenMatesClient {
       chatId = randomUUID();
     } else if (params.chatId.length < 36) {
       // Short ID — resolve from sync cache
-      const resolved = await this.resolveFullChatId(params.chatId);
+      const resolved = await this.resolveFullChatId(params.chatId, { teamId });
       if (!resolved) {
         throw new Error(
           `Chat not found for '${params.chatId}'. Use a full UUID or the first 8 characters of an existing chat ID.`,
@@ -3847,7 +4101,7 @@ export class OpenMatesClient {
     let memoryMetadataKeys: string[] = [];
     if (!params.incognito) {
       try {
-        availableMemories = await this.listMemories();
+        availableMemories = await this.listMemories({ teamId });
         memoryMetadataKeys = [
           ...new Set(
             availableMemories
@@ -3877,7 +4131,7 @@ export class OpenMatesClient {
     const isNewChat = !params.chatId;
     // Mark this chat as active so the server streams incremental chunks
     // rather than sending a single background-completion event.
-    ws.send("set_active_chat", { chat_id: chatId });
+    ws.send("set_active_chat", { chat_id: chatId, ...(teamId ? { team_id: teamId } : {}) });
 
     const connectedAccountDirectory = buildConnectedAccountDirectoryPayload(
       params.connectedAccountDirectory,
@@ -3887,6 +4141,7 @@ export class OpenMatesClient {
           chatId,
           messageId,
           refs: params.connectedAccountTokenRefInputs,
+          teamId,
         })
       : [];
     assertNoConnectedAccountSecretLeak(connectedAccountTokenRefs);
@@ -3917,7 +4172,7 @@ export class OpenMatesClient {
           masterKey,
         );
       } else {
-        const cache = loadSyncCache() ?? (await this.ensureSynced());
+        const cache = loadSyncCache(teamId) ?? (await this.ensureSynced(false, [], { teamId }));
         const chat = cache.chats.find(
           (c) =>
             String(c.details.id ?? "") === chatId ||
@@ -3949,6 +4204,7 @@ export class OpenMatesClient {
 
     const messagePayload: Record<string, unknown> = {
       chat_id: chatId,
+      ...(teamId ? { team_id: teamId } : {}),
       client_capabilities: clientCapabilities,
       is_incognito: Boolean(params.incognito),
       message: {
@@ -4087,6 +4343,7 @@ export class OpenMatesClient {
       const preflightPayload: Record<string, unknown> = {
         protocol_version: protocolVersion,
         chat_id: chatId,
+        ...(teamId ? { team_id: teamId } : {}),
         turn_id: turnId,
         message_id: messageId,
         chat_key_version: chatKeyVersion,
@@ -4621,7 +4878,7 @@ export class OpenMatesClient {
           } catch (error) {
             if (error instanceof WebSocketProtocolError) {
               if (error.code === "version_conflict") {
-                const latestCache = await this.ensureSynced(true, [chatId]);
+                const latestCache = await this.ensureSynced(true, [chatId], { teamId });
                 const latestChat = latestCache.chats.find(
                   (chat) => String(chat.details.id ?? "") === chatId,
                 );
@@ -4657,6 +4914,7 @@ export class OpenMatesClient {
           await this.persistPostProcessingMetadata({
             ws,
             chatId,
+            teamId,
             chatKeyBytes,
             followUpSuggestions: resp.followUpSuggestions,
             newChatSuggestions: resp.newChatSuggestions,
@@ -4673,7 +4931,7 @@ export class OpenMatesClient {
           });
           pendingTaskUpdateJobs = pendingTaskUpdateJobs.filter((job) => !persistedTaskJobIds.has(job.job_id));
           await persistTaskEventSystemMessages(taskEvents);
-          clearSyncCache();
+          clearSyncCache(teamId);
         }
       } finally {
         ws.close();
@@ -5177,6 +5435,7 @@ export class OpenMatesClient {
   private async persistPostProcessingMetadata(params: {
     ws: OpenMatesWsClient;
     chatId: string;
+    teamId?: string | null;
     chatKeyBytes: Uint8Array;
     followUpSuggestions: string[];
     newChatSuggestions: string[];
@@ -5199,6 +5458,7 @@ export class OpenMatesClient {
 
     await params.ws.sendAsync("update_post_processing_metadata", {
       chat_id: params.chatId,
+      ...(params.teamId ? { team_id: params.teamId } : {}),
       encrypted_follow_up_suggestions: encryptedFollowUps,
       encrypted_new_chat_suggestions: encryptedNewChatSuggestions,
       encrypted_chat_key: params.encryptedChatKey ?? "",
@@ -5219,11 +5479,12 @@ export class OpenMatesClient {
    * Mirrors the web app's sendDeleteChatImpl in chatSyncServiceSenders.ts.
    * Sends a delete_chat WebSocket message and waits for the server ack.
    */
-  async deleteChat(chatIdInput: string): Promise<void> {
+  async deleteChat(chatIdInput: string, options: TeamContextOptions = {}): Promise<void> {
+    const teamId = this.resolveTeamContext(options);
     // Resolve short IDs (8-char prefix) to full UUIDs via sync cache.
     let chatId: string;
     if (chatIdInput.length < 36) {
-      const resolved = await this.resolveFullChatId(chatIdInput);
+      const resolved = await this.resolveFullChatId(chatIdInput, { teamId });
       if (!resolved) {
         throw new Error(
           `Chat not found for '${chatIdInput}'. Use a full UUID or the first 8 characters of an existing chat ID.`,
@@ -5237,7 +5498,7 @@ export class OpenMatesClient {
     const { ws } = await this.openWsClient();
 
     try {
-      ws.send("delete_chat", { chatId: chatId });
+      ws.send("delete_chat", { chatId, chat_id: chatId, ...(teamId ? { team_id: teamId } : {}) });
       // Wait for the server to acknowledge the deletion.
       // The server broadcasts a chat_deleted event to all connected devices.
       await ws.waitForMessage(
@@ -5251,6 +5512,7 @@ export class OpenMatesClient {
     } finally {
       ws.close();
     }
+    clearSyncCache(teamId);
   }
 
   // -------------------------------------------------------------------------
@@ -5659,10 +5921,10 @@ export class OpenMatesClient {
   // Workflows
   // -------------------------------------------------------------------------
 
-  async listWorkflows(): Promise<WorkflowSummary[]> {
+  async listWorkflows(options: TeamContextOptions = {}): Promise<WorkflowSummary[]> {
     this.requireSession();
     const response = await this.http.get<{ workflows?: WorkflowSummary[] }>(
-      "/v1/workflows",
+      this.appendTeamQuery("/v1/workflows", options),
       this.getCliRequestHeaders(),
     );
     if (!response.ok) {
@@ -5763,10 +6025,10 @@ export class OpenMatesClient {
     return { workflow: createLike.data.workflow, validation: createLike.data.validation };
   }
 
-  async getWorkflow(workflowId: string): Promise<WorkflowDetail> {
+  async getWorkflow(workflowId: string, options: TeamContextOptions = {}): Promise<WorkflowDetail> {
     this.requireSession();
     const response = await this.http.get<{ workflow?: WorkflowDetail }>(
-      `/v1/workflows/${encodeURIComponent(workflowId)}`,
+      this.appendTeamQuery(`/v1/workflows/${encodeURIComponent(workflowId)}`, options),
       this.getCliRequestHeaders(),
     );
     if (!response.ok || !response.data.workflow) {
@@ -6184,7 +6446,7 @@ export class OpenMatesClient {
   // User tasks
   // -------------------------------------------------------------------------
 
-  async listUserTasks(filters: { status?: UserTaskStatus; chatId?: string; projectId?: string; labelHashes?: string[]; priority?: number; limit?: number } = {}): Promise<UserTaskRecord[]> {
+  async listUserTasks(filters: { status?: UserTaskStatus; chatId?: string; projectId?: string; labelHashes?: string[]; priority?: number; limit?: number; teamId?: string | null; personal?: boolean } = {}): Promise<UserTaskRecord[]> {
     this.requireSession();
     const params = new URLSearchParams();
     if (filters.status) params.set("status", filters.status);
@@ -6194,6 +6456,8 @@ export class OpenMatesClient {
     if (filters.priority !== undefined) params.set("priority", String(filters.priority));
     const limit = filters.limit;
     if (Number.isSafeInteger(limit) && limit !== undefined && limit > 0) params.set("limit", String(limit));
+    const teamId = this.resolveTeamContext({ teamId: filters.teamId, personal: filters.personal });
+    if (teamId) params.set("team_id", teamId);
     const query = params.toString();
     const response = await this.http.get<{ tasks?: UserTaskRecord[] }>(
       `/v1/user-tasks${query ? `?${query}` : ""}`,
@@ -6325,13 +6589,15 @@ export class OpenMatesClient {
   // User plans
   // -------------------------------------------------------------------------
 
-  async listUserPlans(filters: { status?: UserPlanStatus; chatId?: string; projectId?: string; activeOnly?: boolean } = {}): Promise<UserPlanRecord[]> {
+  async listUserPlans(filters: { status?: UserPlanStatus; chatId?: string; projectId?: string; activeOnly?: boolean; teamId?: string | null; personal?: boolean } = {}): Promise<UserPlanRecord[]> {
     this.requireSession();
     const params = new URLSearchParams();
     if (filters.status) params.set("status", filters.status);
     if (filters.chatId) params.set("chat_id", filters.chatId);
     if (filters.projectId) params.set("project_id", filters.projectId);
     if (filters.activeOnly !== undefined) params.set("active_only", String(filters.activeOnly));
+    const teamId = this.resolveTeamContext({ teamId: filters.teamId, personal: filters.personal });
+    if (teamId) params.set("team_id", teamId);
     const query = params.toString();
     const response = await this.http.get<{ plans?: UserPlanRecord[] }>(
       `/v1/user-plans${query ? `?${query}` : ""}`,
@@ -7114,11 +7380,23 @@ export class OpenMatesClient {
    * List all memories for the current user, decrypted.
    * Fetches from the GDPR export endpoint and decrypts each entry with the master key.
    */
-  async listMemories(): Promise<DecryptedMemoryEntry[]> {
+  private async sdkGetMemories(teamId: string): Promise<Array<Record<string, unknown>>> {
+    const response = await this.http.get<{ memories?: Array<Record<string, unknown>> }>(
+      `/v1/sdk/memories?team_id=${encodeURIComponent(teamId)}`,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) throw new Error(`Team memory list failed with HTTP ${response.status}`);
+    return response.data.memories ?? [];
+  }
+
+  async listMemories(options: TeamContextOptions = {}): Promise<DecryptedMemoryEntry[]> {
     const masterKey = this.getMasterKeyBytes();
-    const data = (await this.settingsGet(
-      "/v1/settings/export-account-data?include_usage=false&include_invoices=false",
-    )) as { data?: { app_settings_memories?: Array<Record<string, unknown>> } };
+    const teamId = this.resolveTeamContext(options);
+    const data = teamId
+      ? ({ data: { app_settings_memories: (await this.sdkGetMemories(teamId)) } } as { data?: { app_settings_memories?: Array<Record<string, unknown>> } })
+      : (await this.settingsGet(
+          "/v1/settings/export-account-data?include_usage=false&include_invoices=false",
+        )) as { data?: { app_settings_memories?: Array<Record<string, unknown>> } };
     const rawEntries = data.data?.app_settings_memories ?? [];
     const results: DecryptedMemoryEntry[] = [];
 
@@ -7172,6 +7450,8 @@ export class OpenMatesClient {
     appId: string;
     itemType: string;
     itemValue: Record<string, unknown>;
+    teamId?: string | null;
+    personal?: boolean;
   }): Promise<{ success: boolean; id: string }> {
     return this.upsertMemory({ ...params, entryId: undefined, itemVersion: 1 });
   }
@@ -7193,6 +7473,8 @@ export class OpenMatesClient {
     itemType: string;
     itemValue: Record<string, unknown>;
     currentVersion: number;
+    teamId?: string | null;
+    personal?: boolean;
   }): Promise<{ success: boolean; id: string }> {
     return this.upsertMemory({
       appId: params.appId,
@@ -7200,6 +7482,8 @@ export class OpenMatesClient {
       itemValue: params.itemValue,
       entryId: params.entryId,
       itemVersion: params.currentVersion + 1,
+      teamId: params.teamId,
+      personal: params.personal,
     });
   }
 
@@ -7207,11 +7491,12 @@ export class OpenMatesClient {
    * Delete a memory entry. Sends `delete_app_settings_memories_entry` over
    * WebSocket. The server deletes from Directus and broadcasts to all devices.
    */
-  async deleteMemory(entryId: string): Promise<{ success: boolean }> {
+  async deleteMemory(entryId: string, options: TeamContextOptions = {}): Promise<{ success: boolean }> {
     const { ws } = await this.openWsClient();
 
     try {
-      ws.send("delete_app_settings_memories_entry", { entry_id: entryId });
+      const teamId = this.resolveTeamContext(options);
+      ws.send("delete_app_settings_memories_entry", { entry_id: entryId, ...(teamId ? { team_id: teamId } : {}) });
       await ws.waitForMessage(
         "app_settings_memories_entry_deleted",
         (payload) => {
@@ -7240,6 +7525,8 @@ export class OpenMatesClient {
     itemValue: Record<string, unknown>;
     entryId?: string;
     itemVersion: number;
+    teamId?: string | null;
+    personal?: boolean;
   }): Promise<{ success: boolean; id: string }> {
     const masterKey = this.getMasterKeyBytes();
     const registryKey = `${params.appId}/${params.itemType}`;
@@ -7281,6 +7568,7 @@ export class OpenMatesClient {
 
     const entryId = params.entryId ?? randomUUID();
     const now = Math.floor(Date.now() / 1000);
+    const teamId = this.resolveTeamContext({ teamId: params.teamId, personal: params.personal });
 
     // Build the hashed item_key (privacy: server never sees the plaintext key)
     const hashedKey = hashItemKey(params.appId, params.itemType);
@@ -7302,6 +7590,7 @@ export class OpenMatesClient {
     const { ws } = await this.openWsClient();
     try {
       ws.send("store_app_settings_memories_entry", {
+        ...(teamId ? { team_id: teamId } : {}),
         entry: {
           id: entryId,
           app_id: params.appId,
@@ -7312,6 +7601,7 @@ export class OpenMatesClient {
           created_at: now,
           updated_at: now,
           item_version: params.itemVersion,
+          ...(teamId ? { team_id: teamId } : {}),
         },
       });
 
@@ -8016,17 +8306,19 @@ export class OpenMatesClient {
   async ensureSynced(
     forceRefresh = false,
     refreshChatIds: string[] = [],
+    options: TeamContextOptions = {},
   ): Promise<SyncCache> {
+    const teamId = this.resolveTeamContext(options);
     const refreshChatIdSet = new Set(refreshChatIds.filter(Boolean));
-    if (!forceRefresh && refreshChatIdSet.size === 0 && isSyncCacheFresh()) {
-      const cache = loadSyncCache();
+    if (!forceRefresh && refreshChatIdSet.size === 0 && isSyncCacheFresh(300_000, teamId)) {
+      const cache = loadSyncCache(teamId);
       if (cache) return cache;
     }
 
     // Delta sync: load existing cache (even if stale) to extract version data.
     // Mirrors chatSyncService.ts:startPhasedSync — sends client_chat_versions
     // so the server skips unchanged chats instead of re-sending everything.
-    const existingCache = loadSyncCache();
+    const existingCache = loadSyncCache(teamId);
 
     // Build delta sync payload from cached data
     const clientChatVersions: Record<
@@ -8078,6 +8370,7 @@ export class OpenMatesClient {
       // connection and terminates with phased_sync_complete.
       ws.send("phased_sync_request", {
         phase: "all",
+        ...(teamId ? { team_id: teamId } : {}),
         client_chat_versions: clientChatVersions,
         client_chat_ids: clientChatIds,
         client_embed_ids: clientEmbedIds,
@@ -8284,7 +8577,7 @@ export class OpenMatesClient {
 
     let persistedTaskJobIds = new Set<string>();
     try {
-      await this.persistPendingAIResponsesFromSync(ws, chats, pendingAIResponses);
+      await this.persistPendingAIResponsesFromSync(ws, chats, pendingAIResponses, teamId);
       persistedTaskJobIds = await this.persistPendingTaskUpdateJobs({
         ws,
         jobs: pendingTaskUpdateJobs,
@@ -8300,8 +8593,8 @@ export class OpenMatesClient {
     }
 
     if (persistedTaskJobIds.size > 0) {
-      clearSyncCache();
-      return this.ensureSynced(true, refreshChatIds);
+      clearSyncCache(teamId);
+      return this.ensureSynced(true, refreshChatIds, { teamId });
     }
 
     const cache: SyncCache = {
@@ -8315,7 +8608,7 @@ export class OpenMatesClient {
       newChatSuggestions,
     };
 
-    saveSyncCache(cache);
+    saveSyncCache(cache, teamId);
     return cache;
   }
 
@@ -8323,6 +8616,7 @@ export class OpenMatesClient {
     ws: OpenMatesWsClient,
     chats: CachedChat[],
     pendingResponses: PendingAIResponseFrame[],
+    teamId?: string | null,
   ): Promise<void> {
     if (pendingResponses.length === 0) return;
 
@@ -8355,7 +8649,7 @@ export class OpenMatesClient {
         }
       }
 
-      const chatKeyBytes = await this.resolveChatKey(loadSyncCache(), chat, masterKey);
+      const chatKeyBytes = await this.resolveChatKey(loadSyncCache(teamId), chat, masterKey);
       if (!chatKeyBytes) continue;
 
       const completedAt = normalizeUnixSeconds(
