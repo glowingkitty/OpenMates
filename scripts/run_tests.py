@@ -178,6 +178,9 @@ class SpecResult:
     video_paths: list[str] = field(default_factory=list)
     video_artifact_name: Optional[str] = None
     github_run_url: Optional[str] = None
+    debug_artifacts: list[str] = field(default_factory=list)
+    debug_output_summary: Optional[str] = None
+    environment_blocker: Optional[str] = None
 
 
 @dataclass
@@ -1381,6 +1384,9 @@ class BatchRunner:
             pw_steps: list[dict] = []
             screenshot_paths: list[str] = []
             video_paths: list[str] = []
+            debug_artifacts: list[str] = []
+            debug_output_summary: Optional[str] = None
+            environment_blocker: Optional[str] = None
             account_email: Optional[str] = None
             retries = 0
             flaky = False
@@ -1418,6 +1424,12 @@ class BatchRunner:
                             error = extracted_err or f"Playwright JSON reported non-passing result(s): {status_summary}"
                     if extracted_err and status == "failed":
                         error = extracted_err
+                    debug_summary = self._persist_playwright_debug_outputs(spec, pw_json)
+                    debug_artifacts = list(debug_summary.get("artifact_paths") or [])
+                    debug_output_summary = str(debug_summary.get("summary") or "") or None
+                    environment_blocker = self._environment_blocker_from_text(
+                        "\n".join(part for part in [error or "", debug_output_summary or ""] if part)
+                    )
 
                 # Persist artifacts (screenshots, traces, playwright.json)
                 self._persist_failure_artifacts(spec, art_path)
@@ -1460,6 +1472,9 @@ class BatchRunner:
                 video_paths=video_paths,
                 video_artifact_name=art_name if video_paths else None,
                 github_run_url=f"https://github.com/{GH_REPO}/actions/runs/{rid}" if rid else None,
+                debug_artifacts=debug_artifacts,
+                debug_output_summary=debug_output_summary,
+                environment_blocker=environment_blocker,
             ))
 
         # Cleanup artifact dir
@@ -1642,6 +1657,80 @@ class BatchRunner:
         except Exception as e:
             _log(f"Failed to extract preflight account email: {e}", "WARN")
         return None
+
+    @staticmethod
+    def _environment_blocker_from_text(text: str) -> Optional[str]:
+        normalized = " ".join((text or "").lower().split())
+        markers = (
+            "approved_device_required",
+            "new device detected",
+            "device not approved",
+            "a new device attempted to use your api key",
+            "please review and approve it in developer settings",
+        )
+        if any(marker in normalized for marker in markers):
+            return "api_key_device_approval_required"
+        return None
+
+    @staticmethod
+    def _persist_playwright_debug_outputs(spec: str, pw_json: Path) -> dict[str, object]:
+        """Persist full per-attempt stdout/stderr and compact summaries."""
+        spec_name = spec.replace(".spec.ts", "")
+        dest = RESULTS_DIR / "debug" / "current" / spec_name
+        if dest.exists():
+            shutil.rmtree(dest, ignore_errors=True)
+        dest.mkdir(parents=True, exist_ok=True)
+        artifact_paths: list[str] = []
+        summary_parts: list[str] = []
+
+        def write_artifact(name: str, content: str) -> None:
+            path = dest / name
+            path.write_text(content, encoding="utf-8", errors="replace")
+            artifact_paths.append(str(path.relative_to(RESULTS_DIR)))
+
+        def entry_text(entries: object) -> str:
+            if not isinstance(entries, list):
+                return ""
+            chunks: list[str] = []
+            for entry in entries:
+                if isinstance(entry, dict):
+                    chunks.append(str(entry.get("text") or ""))
+                else:
+                    chunks.append(str(entry))
+            return "".join(chunks)
+
+        def process_suite(suite: dict) -> None:
+            for spec_entry in suite.get("specs", []):
+                for test_index, test in enumerate(spec_entry.get("tests", []), start=1):
+                    for result_index, result in enumerate(test.get("results", []), start=1):
+                        retry = result.get("retry", result_index - 1)
+                        prefix = f"attempt-{test_index}-{retry}"
+                        stdout_text = entry_text(result.get("stdout"))
+                        stderr_text = entry_text(result.get("stderr"))
+                        if stdout_text:
+                            write_artifact(f"{prefix}-stdout.txt", stdout_text)
+                            summary_parts.append(stdout_text[-4000:])
+                        if stderr_text:
+                            write_artifact(f"{prefix}-stderr.txt", stderr_text)
+                            summary_parts.append(stderr_text[-4000:])
+                        write_artifact(
+                            f"{prefix}-result.json",
+                            json.dumps(result, indent=2, sort_keys=True),
+                        )
+            for child_suite in suite.get("suites", []):
+                process_suite(child_suite)
+
+        try:
+            data = json.loads(pw_json.read_text(encoding="utf-8"))
+            for suite in data.get("suites", []):
+                process_suite(suite)
+        except (json.JSONDecodeError, OSError) as exc:
+            _log(f"Failed to persist Playwright debug outputs: {exc}", "WARN")
+
+        return {
+            "artifact_paths": artifact_paths,
+            "summary": "\n".join(summary_parts)[-MAX_ERROR_SNIPPET * 4:],
+        }
 
     @staticmethod
     def _persist_failure_artifacts(spec: str, art_path: Path) -> None:
@@ -1837,6 +1926,12 @@ class BatchRunner:
             d["video_artifact_name"] = r.video_artifact_name
         if r.github_run_url:
             d["github_run_url"] = r.github_run_url
+        if r.debug_artifacts:
+            d["debug_artifacts"] = r.debug_artifacts
+        if r.debug_output_summary:
+            d["debug_output_summary"] = r.debug_output_summary
+        if r.environment_blocker:
+            d["environment_blocker"] = r.environment_blocker
         return d
 
 

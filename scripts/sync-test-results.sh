@@ -3,8 +3,8 @@
 # OpenMates Test Results Sync
 #
 # Downloads the latest playwright-spec.yml workflow results from GitHub Actions
-# and writes them to test-results/ so the /status page and sessions.py
-# can read fresh data.
+# and imports them into the Directus-backed test control plane so the /status
+# page and sessions.py can read shared canonical state.
 #
 # NOTE: Per-spec failure screenshots are archived by run_tests.py during batch
 # execution (to test-results/screenshots/{date}/{spec-name}/). This script only
@@ -124,10 +124,16 @@ s = d.get('summary', {})
 print(f\"{s.get('total',0)} tests: {s.get('passed',0)} passed, {s.get('failed',0)} failed, {s.get('skipped',0)} skipped\")
 " 2>/dev/null || echo "unknown")
 
-    # Install results
+    python3 "$PROJECT_ROOT/scripts/tests.py" import-run "$src" \
+        --source github_actions \
+        --external-run-id "$run_id" \
+        --workflow "$WORKFLOW" >/dev/null
+    log "Imported run $run_id into Directus test control plane ($summary)"
+
+    # Keep a non-authoritative local export for artifact inspection only.
     mkdir -p "$RESULTS_DIR"
     cp "$src" "$RESULTS_DIR/last-run.json"
-    log "Updated last-run.json ($summary)"
+    log "Updated local last-run.json export ($summary)"
 
     # Create daily archive
     local today

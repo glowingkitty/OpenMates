@@ -12,6 +12,7 @@ Architecture: docs/specs/e2e-credential-isolation/spec.yml
 from __future__ import annotations
 
 import importlib.util
+import json
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -603,6 +604,46 @@ def test_playwright_retry_pass_is_a_passing_flake(tmp_path):
     assert summary["attempt_statuses"] == ["failed", "passed"]
     assert summary["retries"] == 1
     assert summary["flaky"] is True
+
+
+def test_playwright_debug_outputs_are_persisted(tmp_path, monkeypatch):
+    run_tests = load_run_tests_module()
+    monkeypatch.setattr(run_tests, "RESULTS_DIR", tmp_path / "test-results")
+    report = tmp_path / "playwright.json"
+    report.write_text(
+        json.dumps({
+            "suites": [{
+                "specs": [{
+                    "tests": [{
+                        "results": [{
+                            "retry": 0,
+                            "status": "failed",
+                            "stdout": [{"text": "[debug] full stdout\n"}],
+                            "stderr": [{"text": "[debug] full stderr\n"}],
+                        }]
+                    }]
+                }]
+            }]
+        }),
+        encoding="utf-8",
+    )
+
+    summary = run_tests.BatchRunner._persist_playwright_debug_outputs("cli-skills-pdf.spec.ts", report)
+
+    artifacts = summary["artifact_paths"]
+    assert "debug/current/cli-skills-pdf/attempt-1-0-stdout.txt" in artifacts
+    assert "debug/current/cli-skills-pdf/attempt-1-0-stderr.txt" in artifacts
+    assert "[debug] full stdout" in summary["summary"]
+    assert (run_tests.RESULTS_DIR / "debug" / "current" / "cli-skills-pdf" / "attempt-1-0-result.json").is_file()
+
+
+def test_api_key_device_approval_blocker_is_detected():
+    run_tests = load_run_tests_module()
+
+    assert run_tests.BatchRunner._environment_blocker_from_text(
+        "A new device attempted to use your API key. Please review and approve it in Developer Settings."
+    ) == "api_key_device_approval_required"
+    assert run_tests.BatchRunner._environment_blocker_from_text("ordinary locator failure") is None
 
 
 def test_passing_flake_is_not_counted_as_a_final_failure():

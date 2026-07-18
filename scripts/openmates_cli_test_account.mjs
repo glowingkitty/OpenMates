@@ -11,13 +11,15 @@
 import { spawnSync } from "node:child_process";
 import { createHash, createHmac, randomUUID, webcrypto } from "node:crypto";
 import { existsSync, readFileSync, writeFileSync, mkdirSync, chmodSync } from "node:fs";
-import { homedir } from "node:os";
+import { arch, homedir, platform, release } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const DEFAULT_API_URL = "https://api.dev.openmates.org";
 const DEFAULT_WEB_ORIGIN = "https://app.dev.openmates.org";
+const CLI_USER_AGENT = `OpenMates CLI/0.1 (${platform()} ${release()})`;
+const CLI_DEVICE_IDENTITY = `cli:${platform()}:${arch()}`;
 const PBKDF2_ITERATIONS = 100_000;
 const AES_GCM_IV_LENGTH = 12;
 
@@ -279,6 +281,9 @@ async function apiPost(apiUrl, webOrigin, path, body, cookies = {}) {
       "Accept": "application/json",
       "Content-Type": "application/json",
       "Origin": webOrigin,
+      "User-Agent": CLI_USER_AGENT,
+      "X-OpenMates-SDK": "cli",
+      "X-OpenMates-Device-Identity": CLI_DEVICE_IDENTITY,
       ...(cookieHeader ? { Cookie: cookieHeader } : {}),
     },
     body: JSON.stringify(body),

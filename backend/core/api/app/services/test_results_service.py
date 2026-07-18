@@ -9,6 +9,9 @@ import json
 import logging
 import os
 import time
+import urllib.error
+import urllib.parse
+import urllib.request
 from datetime import date, timedelta
 from glob import glob
 from pathlib import Path
@@ -26,6 +29,8 @@ CACHE_TTL_SECONDS = 60
 NO_RUN_STATUS = "not_run"
 NOT_RUN_TONE_WEIGHT = 0.5
 PLAYWRIGHT_SUITE_NAME = "playwright"
+CMS_URL = os.getenv("CMS_URL", "http://cms:8055").rstrip("/")
+DIRECTUS_TOKEN = os.getenv("DIRECTUS_TOKEN")
 
 
 def _get_cached(key: str) -> Optional[Any]:
@@ -110,6 +115,126 @@ def _read_json_file(path: str) -> Optional[Dict[str, Any]]:
         return None
 
 
+def _load_directus_current_state() -> Optional[Dict[str, Any]]:
+    """Load canonical current test state from Directus when configured."""
+    if not DIRECTUS_TOKEN:
+        return None
+    params = urllib.parse.urlencode({"limit": -1, "sort": "test_key"})
+    request = urllib.request.Request(
+        f"{CMS_URL}/items/test_current_state?{params}",
+        headers={"Authorization": f"Bearer {DIRECTUS_TOKEN}"},
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=10) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as exc:
+        logger.error("[TEST_RESULTS] Failed to load Directus test_current_state: %s", exc)
+        raise RuntimeError("Directus test_current_state is unavailable") from exc
+
+    rows = payload.get("data") if isinstance(payload, dict) else None
+    if not isinstance(rows, list):
+        return None
+    tests: Dict[str, Dict[str, Any]] = {}
+    latest_run_id = ""
+    for row in rows:
+        if not isinstance(row, dict) or not row.get("test_key"):
+            continue
+        metadata = row.get("metadata") if isinstance(row.get("metadata"), dict) else {}
+        status = row.get("stable_status") or row.get("active_status") or "unknown"
+        test = {
+            **metadata,
+            "suite": row.get("suite"),
+            "test": row.get("test_name"),
+            "file": metadata.get("test") or row.get("test_name"),
+            "status": status,
+            "active_status": row.get("active_status"),
+            "run_id": row.get("stable_run_key") or row.get("active_run_key"),
+            "error": row.get("error_summary"),
+            "duration_seconds": metadata.get("duration_seconds", 0),
+        }
+        latest_run_id = str(test.get("run_id") or latest_run_id)
+        tests[str(row["test_key"])] = test
+    return {
+        "latest_run_id": latest_run_id,
+        "latest_git_sha": "",
+        "summary": _summarize_directus_tests(tests),
+        "tests": tests,
+    }
+
+
+def _summarize_directus_tests(tests: Dict[str, Dict[str, Any]]) -> Dict[str, int]:
+    summary = {"total": 0, "passed": 0, "failed": 0, "skipped": 0, "running": 0}
+    for test in tests.values():
+        summary["total"] += 1
+        status = str(test.get("status") or "unknown")
+        if status == "passed":
+            summary["passed"] += 1
+        elif status == "failed":
+            summary["failed"] += 1
+        elif status == "running" or test.get("active_status") == "running":
+            summary["running"] += 1
+        else:
+            summary["skipped"] += 1
+    return summary
+
+
+def _directus_summary_response(state: Dict[str, Any]) -> Dict[str, Any]:
+    suites: Dict[str, Dict[str, Any]] = {}
+    for test in (state.get("tests") or {}).values():
+        suite_name = str(test.get("suite") or "unknown")
+        suite = suites.setdefault(suite_name, {"name": suite_name, "total": 0, "passed": 0, "failed": 0, "skipped": 0, "flaky": 0})
+        suite["total"] += 1
+        status = str(test.get("status") or "unknown")
+        if status == "passed":
+            suite["passed"] += 1
+        elif status == "failed":
+            suite["failed"] += 1
+        else:
+            suite["skipped"] += 1
+    for suite in suites.values():
+        suite["status"] = "failing" if suite["failed"] else "passing"
+    summary = state.get("summary") or {}
+    return {
+        "overall_status": "failing" if summary.get("failed", 0) > 0 else "passing",
+        "latest_run": {
+            "run_id": state.get("latest_run_id", ""),
+            "git_sha": state.get("latest_git_sha", ""),
+            "git_branch": state.get("latest_git_branch", ""),
+            "timestamp": state.get("updated_at") or state.get("latest_run_id", ""),
+            "duration_seconds": 0,
+            "summary": summary,
+        },
+        "suites": list(suites.values()),
+    }
+
+
+def _directus_detail_response(state: Dict[str, Any], suite_name: Optional[str] = None) -> Dict[str, Any]:
+    suites: Dict[str, Dict[str, Any]] = {}
+    for test in (state.get("tests") or {}).values():
+        current_suite = str(test.get("suite") or "unknown")
+        if suite_name and current_suite != suite_name:
+            continue
+        suite = suites.setdefault(current_suite, {"status": "passing", "tests": []})
+        status = str(test.get("status") or "unknown")
+        if status == "failed":
+            suite["status"] = "failed"
+        suite["tests"].append({
+            "name": test.get("test", ""),
+            "file": test.get("file") or test.get("test", ""),
+            "status": status,
+            "duration_seconds": test.get("duration_seconds", 0),
+            "error": test.get("error"),
+            "run_id": test.get("run_id"),
+        })
+    return {
+        "run_id": state.get("latest_run_id", ""),
+        "git_sha": state.get("latest_git_sha", ""),
+        "timestamp": state.get("updated_at") or state.get("latest_run_id", ""),
+        "summary": state.get("summary", {}),
+        "suites": suites,
+    }
+
+
 def get_latest_run_summary() -> Optional[Dict[str, Any]]:
     """
     Read last-run.json and return summary-level data only.
@@ -118,6 +243,12 @@ def get_latest_run_summary() -> Optional[Dict[str, Any]]:
     cached = _get_cached("latest_run_summary")
     if cached is not None:
         return cached
+
+    directus_state = _load_directus_current_state()
+    if directus_state:
+        result = _directus_summary_response(directus_state)
+        _set_cached("latest_run_summary", result)
+        return result
 
     data = _read_json_file(os.path.join(TEST_RESULTS_DIR, "last-run.json"))
     if not data:
@@ -173,6 +304,12 @@ def get_latest_run_detail(suite_name: Optional[str] = None) -> Optional[Dict[str
     cached = _get_cached(cache_key)
     if cached is not None:
         return cached
+
+    directus_state = _load_directus_current_state()
+    if directus_state:
+        result = _directus_detail_response(directus_state, suite_name=suite_name)
+        _set_cached(cache_key, result)
+        return result
 
     data = _read_json_file(os.path.join(TEST_RESULTS_DIR, "last-run.json"))
     if not data:

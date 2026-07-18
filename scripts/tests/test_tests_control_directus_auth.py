@@ -86,6 +86,7 @@ def test_command_run_invokes_runner_without_env_directus_token(monkeypatch, tmp_
     tests_control = load_tests_control()
     monkeypatch.delenv("DIRECTUS_TOKEN", raising=False)
     monkeypatch.delenv("CMS_URL", raising=False)
+    monkeypatch.setenv("OPENMATES_DISABLE_FAST_TEST_IMPORT", "1")
     monkeypatch.setattr(tests_control, "PROJECT_ROOT", tmp_path)
     monkeypatch.setattr(tests_control, "RESULTS_DIR", tmp_path / "test-results")
     monkeypatch.setattr(tests_control, "STATE_FILE", tmp_path / "test-results" / "tests-state.json")
@@ -150,6 +151,7 @@ def test_bulk_import_records_started_events_as_running_runs(monkeypatch):
 
 def test_directus_load_state_repairs_stale_problem_rows(monkeypatch):
     tests_control = load_tests_control()
+    monkeypatch.setenv("OPENMATES_DISABLE_FAST_TEST_IMPORT", "1")
     monkeypatch.setattr(tests_control.DirectusTestControlStore, "_mint_local_dev_token", lambda self: "token")
     store = tests_control.DirectusTestControlStore()
 
