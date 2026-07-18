@@ -9122,7 +9122,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     async function restoreAnonymousHashChatOnMount(): Promise<void> {
         const hashChatId = activeChatStore.getChatIdFromHash();
-        if ($authStore.isAuthenticated || !isAnonymousChatId(hashChatId)) return;
+        if (!isAnonymousChatId(hashChatId)) return;
         if (currentChat?.chat_id === hashChatId && currentMessages.length > 0) return;
 
         showWelcome = false;
@@ -9155,7 +9155,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             emptyRestoreAttempts < ANONYMOUS_HASH_EMPTY_RESTORE_ATTEMPTS;
         const hashChatNotLoaded = !currentChat?.chat_id || currentChat.chat_id !== hashChatId;
         const shouldRestoreAnonymousHash =
-            !$authStore.isAuthenticated &&
             (hashChatNotLoaded || sameHashChatMissingMessages) &&
             isAnonymousChatId(hashChatId) &&
             !restoringAnonymousHashChat;
@@ -9264,7 +9263,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 (!!activeChatIdAtStartup && isAnonymousChatId(activeChatIdAtStartup)) ||
                 (!!hashChatIdAtStartup && isAnonymousChatId(hashChatIdAtStartup));
 
-            if (!$authStore.isAuthenticated && !currentChat?.chat_id && hashChatIdAtStartup && isAnonymousChatId(hashChatIdAtStartup)) {
+            if (!currentChat?.chat_id && hashChatIdAtStartup && isAnonymousChatId(hashChatIdAtStartup)) {
                 await restoreAnonymousHashChatOnMount();
             }
 
