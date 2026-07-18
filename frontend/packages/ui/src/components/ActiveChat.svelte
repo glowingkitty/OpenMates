@@ -4613,13 +4613,16 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
      let olderMessageWindowLoading = $state(false);
      let lastBoundChatHistoryRef = $state<ChatHistoryRef | null>(null);
      let anonymousShellHydratingChatId = $state<string | null>(null);
+     let anonymousHydrationDebug = $state('idle');
 
      $effect(() => {
         const chat = currentChat;
         if (!chat?.is_anonymous || currentMessages.length > 0 || anonymousShellHydratingChatId === chat.chat_id) return;
 
         anonymousShellHydratingChatId = chat.chat_id;
+        anonymousHydrationDebug = `effect-load:${chat.chat_id}:messages=${currentMessages.length}:v=${chat.messages_v ?? -1}`;
         void loadChat(chat).finally(() => {
+            anonymousHydrationDebug = `effect-done:${chat.chat_id}:messages=${currentMessages.length}:v=${currentChat?.messages_v ?? -1}`;
             if (anonymousShellHydratingChatId === chat.chat_id) {
                 anonymousShellHydratingChatId = null;
             }
@@ -4639,15 +4642,19 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
      });
 
      async function loadAnonymousMessagesForChat(chatId: string): Promise<ChatMessageModel[]> {
+        anonymousHydrationDebug = `helper-start:${chatId}`;
         try {
             const messages = await anonymousChatStorage.getMessagesForChat(chatId);
+            anonymousHydrationDebug = `helper-facade:${chatId}:messages=${messages.length}`;
             if (messages.length > 0) return messages;
         } catch (error) {
+            anonymousHydrationDebug = `helper-facade-error:${chatId}:${error instanceof Error ? error.name : typeof error}`;
             console.warn(`[ActiveChat] Anonymous storage facade failed for ${chatId}; falling back to IndexedDB window`, error);
         }
 
         const windowResult = await chatDB.getMessageWindowForChat(chatId, { direction: 'latest' });
         currentMessageWindowHasMoreBefore = windowResult.hasMoreBefore;
+        anonymousHydrationDebug = `helper-window:${chatId}:messages=${windowResult.messages.length}`;
         return windowResult.messages;
      }
 
@@ -8716,6 +8723,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }
 
         currentMessages = newMessages;
+        if (currentChat?.is_anonymous) {
+            anonymousHydrationDebug = `loadChat-assign:${currentChat.chat_id}:messages=${newMessages.length}:v=${currentChat.messages_v ?? -1}`;
+        }
 
         // Hide welcome screen when we have messages to display
         // This ensures public chats (demo + legal, like welcome chat) show their content immediately
@@ -10990,6 +11000,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     data-authenticated={$authStore.isAuthenticated ? 'true' : 'false'}
     data-current-chat-id={currentChat?.chat_id ?? ''}
     data-current-chat-is-anonymous={currentChat?.is_anonymous ? 'true' : 'false'}
+    data-anonymous-hydration-debug={anonymousHydrationDebug}
     data-current-chat-messages-version={currentChat?.messages_v ?? -1}
     data-current-message-count={currentMessages.length}
     class:ai-typing={isAssistantTyping}
