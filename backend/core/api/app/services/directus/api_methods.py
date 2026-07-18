@@ -9,6 +9,64 @@ logger = logging.getLogger(__name__)
 # These get exponential backoff with more retries than token refresh errors.
 _CONNECTION_ERRORS = (httpx.ConnectError, httpx.ConnectTimeout, OSError)
 
+_PLAINTEXT_PRIVATE_FIELDS_BY_COLLECTION = {
+    "chats": frozenset({
+        "active_focus_id",
+        "category",
+        "chat_summary",
+        "chat_tags",
+        "draft",
+        "follow_up_request_suggestions",
+        "icon",
+        "settings_memories_suggestions",
+        "share_cta_text",
+        "summary",
+        "title",
+        "top_recommended_apps_for_chat",
+        "user_id",
+    }),
+    "messages": frozenset({
+        "assistant_category",
+        "category",
+        "content",
+        "model_name",
+        "pii_mappings",
+        "sender_name",
+        "thinking",
+        "thinking_content",
+        "thinking_signature",
+        "thinking_tokens",
+        "user_id",
+    }),
+}
+
+
+def _plaintext_private_field_violation(collection: str, payload: dict) -> dict | None:
+    """Return a fail-closed Directus write violation for private plaintext fields."""
+    if not isinstance(payload, dict):
+        return None
+
+    private_fields = _PLAINTEXT_PRIVATE_FIELDS_BY_COLLECTION.get(collection)
+    if not private_fields:
+        return None
+
+    rejected_fields = sorted(
+        field for field in private_fields
+        if field in payload and payload.get(field) is not None
+    )
+    if not rejected_fields:
+        return None
+
+    return {
+        "error": "plaintext_private_fields_forbidden",
+        "collection": collection,
+        "fields": rejected_fields,
+        "message": (
+            f"Refusing Directus {collection} write with plaintext private fields: "
+            f"{', '.join(rejected_fields)}. Use client-encrypted encrypted_* fields."
+        ),
+    }
+
 async def _make_api_request(self, method, url, headers=None, **kwargs):
     """Make an API request with token refresh and connection retry capability.
 
@@ -88,6 +146,11 @@ async def create_item(self, collection: str, payload: dict, admin_required: bool
         A tuple (bool, dict): (True, created_item_data) on success,
                                (False, error_details) on failure.
     """
+    violation = _plaintext_private_field_violation(collection, payload)
+    if violation:
+        logger.error(violation["message"])
+        return False, violation
+
     url = f"{self.base_url}/items/{collection}"
     logger.info(f"Attempting to create item in collection '{collection}'")
 

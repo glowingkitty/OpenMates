@@ -15,6 +15,11 @@ from unittest.mock import AsyncMock
 import pytest
 
 
+@pytest.fixture
+def anyio_backend():
+    return "asyncio"
+
+
 def _load_chat_methods_class():
     module_path = Path(__file__).resolve().parents[1] / "core" / "api" / "app" / "services" / "directus" / "chat_methods.py"
     spec = importlib.util.spec_from_file_location("chat_methods_under_test", module_path)
@@ -24,12 +29,97 @@ def _load_chat_methods_class():
     return module.ChatMethods
 
 
+def _load_api_methods_module():
+    module_path = Path(__file__).resolve().parents[1] / "core" / "api" / "app" / "services" / "directus" / "api_methods.py"
+    spec = importlib.util.spec_from_file_location("directus_api_methods_under_test", module_path)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 def _client_ciphertext() -> str:
     raw = b"OM" + bytes.fromhex("1a5b3b7c") + (b"0" * 12) + b"ciphertext-ok"
     return base64.b64encode(raw).decode("ascii")
 
 
-@pytest.mark.asyncio
+def test_legacy_import_chat_source_fails_closed_without_direct_plaintext_writes() -> None:
+    settings_path = Path(__file__).resolve().parents[1] / "core" / "api" / "app" / "routes" / "settings.py"
+    source = settings_path.read_text()
+    start = source.index("async def import_chat(")
+    end = source.index("# ---------------------------------------------------------------------------\n# Issue-Report", start)
+    import_chat_source = source[start:end]
+
+    assert "status_code=503" in import_chat_source
+    assert "client-encrypted import flow" in import_chat_source
+    assert 'create_item("chats"' not in import_chat_source
+    assert "create_item('chats'" not in import_chat_source
+    assert 'create_item("messages"' not in import_chat_source
+    assert "create_item('messages'" not in import_chat_source
+
+
+@pytest.mark.anyio
+async def test_low_level_create_item_rejects_plaintext_chat_fields_before_directus_write() -> None:
+    api_methods = _load_api_methods_module()
+    directus = SimpleNamespace(base_url="http://cms:8055", _make_api_request=AsyncMock())
+
+    success, result = await api_methods.create_item(directus, "chats", {
+        "id": "chat-1",
+        "hashed_user_id": "hashed-user",
+        "title": "Plaintext title",
+        "summary": "Plaintext summary",
+    })
+
+    assert success is False
+    assert result["error"] == "plaintext_private_fields_forbidden"
+    assert result["fields"] == ["summary", "title"]
+    directus._make_api_request.assert_not_awaited()
+
+
+@pytest.mark.anyio
+async def test_low_level_create_item_rejects_plaintext_message_fields_before_directus_write() -> None:
+    api_methods = _load_api_methods_module()
+    directus = SimpleNamespace(base_url="http://cms:8055", _make_api_request=AsyncMock())
+
+    success, result = await api_methods.create_item(directus, "messages", {
+        "id": "message-1",
+        "chat_id": "chat-1",
+        "role": "user",
+        "content": "Plaintext message",
+        "thinking": "Plaintext thinking",
+    })
+
+    assert success is False
+    assert result["error"] == "plaintext_private_fields_forbidden"
+    assert result["fields"] == ["content", "thinking"]
+    directus._make_api_request.assert_not_awaited()
+
+
+@pytest.mark.anyio
+async def test_low_level_create_item_accepts_client_encrypted_message_fields() -> None:
+    api_methods = _load_api_methods_module()
+    response = SimpleNamespace(
+        status_code=200,
+        json=lambda: {"data": {"id": "message-1", "encrypted_content": _client_ciphertext()}},
+    )
+    directus = SimpleNamespace(
+        base_url="http://cms:8055",
+        _make_api_request=AsyncMock(return_value=response),
+    )
+
+    success, result = await api_methods.create_item(directus, "messages", {
+        "id": "message-1",
+        "chat_id": "chat-1",
+        "role": "user",
+        "encrypted_content": _client_ciphertext(),
+    })
+
+    assert success is True
+    assert result["id"] == "message-1"
+    directus._make_api_request.assert_awaited_once()
+
+
+@pytest.mark.anyio
 async def test_create_chat_rejects_vault_encrypted_metadata_before_directus_write() -> None:
     ChatMethods = _load_chat_methods_class()
     directus = SimpleNamespace(create_item=AsyncMock())
@@ -41,7 +131,7 @@ async def test_create_chat_rejects_vault_encrypted_metadata_before_directus_writ
     directus.create_item.assert_not_awaited()
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_create_chat_treats_directus_unique_field_error_as_duplicate_race() -> None:
     ChatMethods = _load_chat_methods_class()
     cache = SimpleNamespace(delete=AsyncMock(), increment_stat=AsyncMock())
@@ -73,7 +163,7 @@ async def test_create_chat_treats_directus_unique_field_error_as_duplicate_race(
     )
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_update_chat_fields_rejects_vault_encrypted_metadata_before_directus_write() -> None:
     ChatMethods = _load_chat_methods_class()
     directus = SimpleNamespace(update_item=AsyncMock())
@@ -85,7 +175,7 @@ async def test_update_chat_fields_rejects_vault_encrypted_metadata_before_direct
     directus.update_item.assert_not_awaited()
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_create_message_rejects_vault_encrypted_content_before_directus_write() -> None:
     ChatMethods = _load_chat_methods_class()
     directus = SimpleNamespace(create_item=AsyncMock())
@@ -102,7 +192,7 @@ async def test_create_message_rejects_vault_encrypted_content_before_directus_wr
     directus.create_item.assert_not_awaited()
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_create_message_accepts_client_encrypted_content() -> None:
     ChatMethods = _load_chat_methods_class()
     cache = SimpleNamespace(delete=AsyncMock(), increment_stat=AsyncMock())

@@ -29,6 +29,18 @@ def _force_stub_leaf_module(dotted_name: str, **attrs) -> None:
     setattr(parent, leaf, stub)
 
 
+def _fake_settings_request(path: str) -> Request:
+    return Request(
+        {
+            "type": "http",
+            "method": "POST",
+            "path": path,
+            "headers": [],
+            "client": ("127.0.0.1", 12345),
+        }
+    )
+
+
 _force_stub_leaf_module(
     "backend.core.api.app.routes.websockets",
     manager=_FAKE_WS_MANAGER,
@@ -154,6 +166,48 @@ async def test_confirm_email_change_rejects_without_recent_reauth(monkeypatch):
 
     assert exc_info.value.status_code == 401
     directus_service.update_user.assert_not_called()
+
+
+@pytest.mark.anyio
+async def test_legacy_import_chat_endpoint_fails_closed_before_scans_or_writes(monkeypatch):
+    from backend.core.api.app.routes import settings
+    from backend.core.api.app.models.user import User
+
+    scan_stub = AsyncMock(return_value="sanitized")
+    content_sanitization_module = types.ModuleType("backend.apps.ai.processing.content_sanitization")
+    content_sanitization_module.sanitize_message_for_import = scan_stub
+    monkeypatch.setitem(
+        sys.modules,
+        "backend.apps.ai.processing.content_sanitization",
+        content_sanitization_module,
+    )
+
+    directus_service = AsyncMock()
+    directus_service.create_item = AsyncMock(return_value=(True, {"id": "created"}))
+    cache_service = AsyncMock()
+    encryption_service = AsyncMock()
+    body = settings.ImportChatRequest(chats=[
+        settings.ImportChatModel(
+            title="Plaintext title",
+            messages=[settings.ImportMessageModel(role="user", content="Plaintext message")],
+        )
+    ])
+    import_chat_route = getattr(settings.import_chat, "__wrapped__", settings.import_chat)
+
+    with pytest.raises(HTTPException) as exc_info:
+        await import_chat_route(
+            request=_fake_settings_request("/v1/settings/import-chat"),
+            body=body,
+            current_user=User(id="user-1", username="testuser", vault_key_id="vault-key"),
+            cache_service=cache_service,
+            directus_service=directus_service,
+            encryption_service=encryption_service,
+        )
+
+    assert exc_info.value.status_code == 503
+    assert "client-encrypted import flow" in exc_info.value.detail
+    scan_stub.assert_not_awaited()
+    directus_service.create_item.assert_not_awaited()
 
 
 @pytest.mark.anyio
