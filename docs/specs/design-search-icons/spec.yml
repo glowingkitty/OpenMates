@@ -111,7 +111,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 7e396a7
+  subject_commit: e2762df
 
 approvals:
   product_contract:
@@ -166,12 +166,12 @@ attempts:
     reason: SVGL direct API calls returned Cloudflare 403 challenge pages from this environment, and logos require a separate trademark-aware scope.
 
 handoff:
-  current_task_id: TASK-3
-  next_action: Regenerate app-skill SDK metadata, add CLI/SDK parity tests for design.search_icons, and prepare the real dev CLI proof gate.
-  command: python3 scripts/generate_sdk_app_skills.py
-  expected_outcome: CLI, npm SDK, and pip SDK expose design.search_icons from the Design app metadata.
+  current_task_id: TASK-4
+  next_action: Coordinate with the active web implementation session before editing Design embed files, then add deployed web rendering and fullscreen verification for design.search_icons.
+  command: python3 scripts/tests.py run --spec design-search-icons.spec.ts
+  expected_outcome: Deployed web app renders Design parent and child icon embeds with API-hosted SVG loading, local copy/recolor/export behavior, and no browser-direct Iconify requests.
   blocker: null
-  last_verified_commit: 0dbcc4b23
+  last_verified_commit: e2762df
 
 scenarios:
   - id: S-1
@@ -280,7 +280,7 @@ acceptance_criteria:
     scenario: S-2
     text: The backend creates a Design app, `search_icons` skill metadata, parent search embed metadata, and child `icon_result` embeds without storing full SVG or PNG payloads in embed content.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: related_backend
     verification_ids:
@@ -432,7 +432,7 @@ tests:
         status: passed
         command: python3 scripts/api_tests/test_iconify_api.py
         run_id: local-iconify-api-20260718T1037Z
-        subject_commit: 7e396a7
+        subject_commit: e2762df
         timestamp: "2026-07-18T10:37:17Z"
         reason: Manual live provider probe verifies Iconify behavior used by the backend provider wrapper.
         summary: Live Iconify probes passed for search, SVG fetch, and no-match handling.
@@ -464,7 +464,7 @@ tests:
         status: passed
         command: node dist/cli.js apps design search_icons --query home --count 12 --license-policy permissive --json --api-url https://api.dev.openmates.org
         run_id: dev-cli-green-20260718T1140Z
-        subject_commit: 7e396a7
+        subject_commit: e2762df
         timestamp: "2026-07-18T11:40:47Z"
         reason: The command used the built CLI entrypoint against the real dev API after rebuilding/restarting the dev API service for commit 7e396a7.
         summary: The real dev CLI command returned 12 metadata-only Iconify results with permissive Apache-2.0 license metadata and OpenMates SVG paths under `/v1/apps/design/icons/iconify/...`.
@@ -498,7 +498,7 @@ tests:
         status: passed
         command: python3 -m pytest backend/tests/test_design_search_icons_skill.py backend/tests/test_design_icon_svg_route.py backend/tests/test_iconify_provider.py
         run_id: local-pytest-green-20260718T1037Z
-        subject_commit: 7e396a7
+        subject_commit: e2762df
         timestamp: "2026-07-18T10:37:17Z"
         summary: "Backend skill/app metadata/provider/route contract tests passed, 22 passed including encoded javascript: SVG sanitizer regression and auth dependency coverage."
 
@@ -532,7 +532,7 @@ tests:
         status: passed
         command: python3 -m pytest backend/tests/test_design_icon_svg_route.py backend/tests/test_iconify_provider.py
         run_id: local-svg-route-green-20260718T1037Z
-        subject_commit: 7e396a7
+        subject_commit: e2762df
         timestamp: "2026-07-18T10:37:17Z"
         summary: SVG route/provider tests passed, covering identifier validation, sanitized SVG responses, typed missing/unsafe/provider errors, and cache-hit behavior.
 
@@ -564,7 +564,7 @@ tests:
         status: passed
         command: npm run build && node --test --test-name-pattern "design search-icons" tests/cli.test.ts
         run_id: local-cli-unit-green-20260718T1031Z
-        subject_commit: 7e396a7
+        subject_commit: e2762df
         timestamp: "2026-07-18T10:31:59Z"
         summary: Targeted CLI test passed for `openmates apps design search_icons --query home --count 12 --license-policy permissive --json` using generated app-skill metadata.
 
@@ -595,7 +595,7 @@ tests:
         status: passed
         command: node --test --experimental-strip-types --loader ./tests/loader.mjs --test-name-pattern "design icon search" tests/sdk.test.ts
         run_id: local-npm-sdk-green-20260718T1030Z
-        subject_commit: 7e396a7
+        subject_commit: e2762df
         timestamp: "2026-07-18T10:31:59Z"
         summary: Targeted npm SDK test passed for client.apps.design.searchIcons posting to /v1/apps/design/skills/search_icons. Full sdk.test has unrelated pre-existing chat/session failures.
 
@@ -626,7 +626,7 @@ tests:
         status: passed
         command: python3 -m pytest packages/openmates-python/tests/test_sdk_generator.py packages/openmates-python/tests/test_sdk.py
         run_id: local-pip-sdk-green-20260718T1029Z
-        subject_commit: 7e396a7
+        subject_commit: e2762df
         timestamp: "2026-07-18T10:31:59Z"
         summary: Python SDK generator and SDK tests passed, 29 passed.
 
@@ -642,19 +642,24 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: ""
-        command: ""
-        run_id: ""
-        timestamp: ""
+        status: failed_as_expected
+        command: python3 scripts/audit_sdk_cli_parity.py
+        run_id: local-parity-audit-red-20260718T1146Z
+        subject_commit: ce89f2e
+        timestamp: "2026-07-18T11:46:00Z"
+        reason: The static parity audit still rejected the newly added top-level `teams` CLI command before its classification was added.
+        summary: "The audit failed with `sdk-cli-parity: Unclassified CLI command(s): teams`, blocking the full parity gate before web work."
     green_phase:
       required: true
       expected: pass
       evidence:
-        status: ""
-        command: ""
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: python3 scripts/audit_sdk_cli_parity.py && OPENMATES_LIVE_SMOKE=1 python3 scripts/sdk_cli_parity_live_smoke.py --api-url https://api.dev.openmates.org --name design-search-icons-smoke
+        run_id: dev-sdk-cli-parity-green-20260718T1149Z
+        subject_commit: e2762df
+        timestamp: "2026-07-18T11:49:41Z"
+        reason: The static audit passed after classifying `teams`, and the live smoke used real API-key auth against dev for both npm and pip SDKs.
+        summary: The live smoke returned npm and pip `designIcons` summaries with provider Iconify, resultCount 2, first icon `material-symbols:home`, Apache-2.0 license, OpenMates SVG path, and no SVG/PNG markup in result metadata.
 
   - id: T-E2E-001
     type: playwright
@@ -913,8 +918,8 @@ tasks:
 
   - id: TASK-3
     title: Add CLI and SDK parity for Design icon search
-    status: in_progress
-    phase: working_tasks
+    status: done
+    phase: complete
     covers:
       scenarios:
         - S-1
@@ -946,8 +951,7 @@ tasks:
         - packages/openmates-python/tests/test_sdk.py
         - scripts/sdk_cli_parity_live_smoke.py
       shared_files: []
-    blockers:
-      - Same CLI coverage must be wired into daily/GitHub Actions before web work starts unless explicitly waived.
+    blockers: []
     follow_up_tasks:
       - TASK-4
 
