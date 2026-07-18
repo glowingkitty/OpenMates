@@ -973,7 +973,9 @@
 
 	$effect(() => {
 		const activeChatComponent = activeChat;
-		const activeChatId = $activeChatStore;
+		const storeChatId = $activeChatStore;
+		const hashChatId = activeChatStore.getChatIdFromHash();
+		const activeChatId = isAnonymousChatId(storeChatId) ? storeChatId : hashChatId;
 		if (!activeChatComponent || !isAnonymousChatId(activeChatId) || anonymousHashRecoveryChatId === activeChatId) {
 			return;
 		}
