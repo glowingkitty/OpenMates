@@ -80,7 +80,26 @@ async function verifySavedMemoryEntry(
   title: string,
   logCheckpoint: (message: string) => void,
 ): Promise<void> {
-  await page.goto(`/#settings/apps/${appId}/settings_memories/${categoryId}`);
+  const settingsPath = `apps/${appId}/settings_memories/${categoryId}`;
+  await page.evaluate((path: string) => {
+    const rawHash = window.location.hash.replace(/^#/, '');
+    const params = new URLSearchParams(rawHash);
+    let targetHash: string;
+
+    if (params.has('chat-id')) {
+      params.set('settings', path);
+      targetHash = `#${params.toString()}`;
+    } else {
+      targetHash = `#settings/${path}`;
+    }
+
+    if (window.location.hash === targetHash) {
+      window.dispatchEvent(new HashChangeEvent('hashchange'));
+    } else {
+      window.location.hash = targetHash;
+    }
+  }, settingsPath);
+  await expect(page.getByTestId('settings-menu')).toBeVisible({ timeout: 10000 });
   const category = page.getByTestId('app-settings-memories-category');
   await expect(category).toBeVisible({ timeout: 20000 });
   await expect(category).toHaveAttribute('data-app-id', appId);
