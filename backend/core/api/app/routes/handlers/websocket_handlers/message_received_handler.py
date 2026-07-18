@@ -26,6 +26,8 @@ from backend.core.api.app.routes.handlers.websocket_handlers.chat_turn_preflight
 from backend.core.api.app.routes.handlers.websocket_handlers.chat_turn_preflight_handler import server_client_capabilities
 from backend.core.api.app.services.chat_recovery_service import ChatRecoveryProtocolError, ChatRecoveryService
 from backend.core.api.app.services.chat_recovery_cutover import ChatRecoveryCutoverController
+from backend.core.api.app.services.team_chat_ai_service import should_trigger_team_ai
+from backend.core.api.app.services.directus.team_methods import TeamPermissionError, hash_id
 
 # Import comprehensive ASCII smuggling sanitization
 # This module protects against invisible Unicode characters used to embed hidden instructions
@@ -58,6 +60,8 @@ CONNECTED_ACCOUNT_FORBIDDEN_FIELDS = {
     "oauth_scopes",
     "scopes",
 }
+
+TEAM_CHAT_WRITE_ROLES = {"owner", "admin", "member"}
 
 BENCHMARK_METADATA_STRING_FIELDS = {
     "benchmark_run_id",
@@ -125,6 +129,21 @@ def _sanitize_connected_account_directory(value: Any) -> list[dict[str, Any]] | 
         _reject_connected_account_secret_fields(item)
         sanitized.append(dict(item))
     return sanitized
+
+
+def _extract_team_ai_context(payload: Dict[str, Any], message_payload: Dict[str, Any]) -> dict[str, str | None]:
+    team_id = payload.get("team_id") or message_payload.get("team_id")
+    if not isinstance(team_id, str) or not team_id:
+        return {"team_id": None, "team_id_hash": None, "team_workspace_type": None, "team_object_id_hash": None}
+    team_id_hash = payload.get("team_id_hash") or hash_id(team_id)
+    workspace_type = payload.get("team_workspace_type") or message_payload.get("team_workspace_type") or "chat"
+    object_id_hash = payload.get("team_object_id_hash") or message_payload.get("team_object_id_hash")
+    return {
+        "team_id": team_id,
+        "team_id_hash": team_id_hash if isinstance(team_id_hash, str) else hash_id(team_id),
+        "team_workspace_type": workspace_type if isinstance(workspace_type, str) else "chat",
+        "team_object_id_hash": object_id_hash if isinstance(object_id_hash, str) else None,
+    }
 
 
 def _sanitize_connected_account_token_refs(value: Any) -> list[dict[str, Any]] | None:
@@ -218,6 +237,34 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             )
             return
 
+        team_ai_context = _extract_team_ai_context(payload, message_payload_from_client)
+        team_id = team_ai_context.get("team_id")
+        is_team_chat = bool(team_id)
+        raw_team_message_content = message_payload_from_client.get("content")
+        team_should_trigger_ai = should_trigger_team_ai(
+            raw_team_message_content if isinstance(raw_team_message_content, str) else "",
+            is_team_chat=is_team_chat,
+        )
+        if is_team_chat:
+            try:
+                await directus_service.team.require_team_role(str(team_id), user_id, TEAM_CHAT_WRITE_ROLES)
+            except TeamPermissionError:
+                logger.warning("User %s attempted to send team chat message without write role", user_id)
+                await manager.send_personal_message(
+                    {
+                        "type": "error",
+                        "payload": {
+                            "code": "team_permission_denied",
+                            "message": "You do not have permission to send messages in this team.",
+                            "chat_id": chat_id,
+                            "message_id": message_payload_from_client.get("message_id"),
+                        },
+                    },
+                    user_id,
+                    device_fingerprint_hash,
+                )
+                return
+
         recovery_enqueue_result: dict[str, Any] | None = None
         protocol_epoch = 0
         if not is_incognito:
@@ -277,27 +324,30 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 user_id,
                 device_fingerprint_hash,
             )
-            try:
-                recovery_enqueue_result = await enqueue_chat_turn(
-                    directus_service=directus_service,
-                    user_id_hash=hashlib.sha256(user_id.encode()).hexdigest(),
-                    device_fingerprint_hash=device_fingerprint_hash,
-                    preflight_id=payload["preflight_id"],
-                    inference_request=inference_request,
-                )
-            except ChatRecoveryProtocolError as exc:
-                await manager.send_personal_message(
-                    {
-                        "type": "error",
-                        "payload": {
-                            "code": exc.code,
-                            "message": "Durable encrypted preflight did not authorize this request.",
+            if team_should_trigger_ai:
+                try:
+                    recovery_enqueue_result = await enqueue_chat_turn(
+                        directus_service=directus_service,
+                        user_id_hash=hashlib.sha256(user_id.encode()).hexdigest(),
+                        device_fingerprint_hash=device_fingerprint_hash,
+                        preflight_id=payload["preflight_id"],
+                        inference_request=inference_request,
+                    )
+                except ChatRecoveryProtocolError as exc:
+                    await manager.send_personal_message(
+                        {
+                            "type": "error",
+                            "payload": {
+                                "code": exc.code,
+                                "message": "Durable encrypted preflight did not authorize this request.",
+                            },
                         },
-                    },
-                    user_id,
-                    device_fingerprint_hash,
-                )
-                return
+                        user_id,
+                        device_fingerprint_hash,
+                    )
+                    return
+            else:
+                logger.info("Team chat message %s stored without AI dispatch because @openmates was not mentioned", message_payload_from_client.get("message_id"))
 
         # CRITICAL: For incognito chats, skip Directus operations (no persistence, no ownership checks)
         # Incognito chats are not stored in Directus and should not be synced to other devices
@@ -309,7 +359,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             # For now, shared chats are read-only for non-owners (group chat support will be added later)
             try:
                 chat_metadata_from_db = await directus_service.chat.get_chat_metadata(chat_id)
-                if chat_metadata_from_db:
+                if chat_metadata_from_db and not is_team_chat:
                     # Check if user owns this chat
                     is_owner = await directus_service.chat.check_chat_ownership(chat_id, user_id)
                     if not is_owner:
@@ -330,9 +380,11 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                             device_fingerprint_hash
                         )
                         return
-                else:
+                elif not chat_metadata_from_db:
                     # Chat doesn't exist - this might be a new chat creation, which is allowed
                     logger.debug(f"Chat {chat_id} not found in database - treating as new chat creation")
+                else:
+                    logger.debug("Team chat %s write authorized by team role for team %s", chat_id, team_id)
             except Exception as e_ownership:
                 logger.error(f"Error checking chat ownership for chat {chat_id}, user {user_id}: {e_ownership}", exc_info=True)
                 # On error, reject the message for security (fail closed)
@@ -920,6 +972,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                                             "vault_wrapped_aes_key": content["vault_wrapped_aes_key"],
                                             "aes_nonce": content["aes_nonce"],
                                             "filename": content.get("filename") or embed_text_preview or "document.pdf",
+                                            "embed_ref": content.get("embed_ref") or "",
                                             "page_count": page_count if isinstance(page_count, int) else 0,
                                             "credits_charged": 0,
                                             "user_id_hash": hashed_user_id,
@@ -1149,6 +1202,12 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             logger.debug(f"Broadcasted new_chat_message for {message_id} to other devices of user {user_id} (encrypted_chat_key included: {bool(encrypted_chat_key_for_broadcast)})")
         else:
             logger.debug(f"Skipping broadcast for incognito chat {chat_id} - incognito chats are not synced to other devices")
+
+        if is_team_chat and not team_should_trigger_ai:
+            logger.info("Team chat message %s completed storage path without AI dispatch", message_id)
+            handler_total_time = time.time() - handler_start_time
+            logger.info(f"[PERF] Message handler completed in {handler_total_time:.3f}s for team chat storage-only message")
+            return
 
         # --- BEGIN AI SKILL INVOCATION ---
         logger.debug(f"Preparing to invoke AI for chat {chat_id} after user message {message_id}")
@@ -1778,6 +1837,10 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             benchmark_metadata=benchmark_metadata,
             client_type="cli" if payload.get("client_type") == "cli" else None,
             client_capabilities=client_capabilities,
+            team_id=team_ai_context.get("team_id"),
+            team_id_hash=team_ai_context.get("team_id_hash"),
+            team_workspace_type=team_ai_context.get("team_workspace_type"),
+            team_object_id_hash=team_ai_context.get("team_object_id_hash"),
             embed_file_path_index=_embed_file_path_index if _embed_file_path_index else None,  # Maps embed_ref (filename) → embed_id UUID for skill resolution
             parent_id=db_parent_id,
             is_sub_chat=db_is_sub_chat,

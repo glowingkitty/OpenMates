@@ -434,6 +434,7 @@ async def _async_process_pdf(task: BaseServiceTask, arguments: Dict[str, Any]) -
         embed_content = {
             "type": "pdf",
             "filename": filename,
+            "embed_ref": arguments.get("embed_ref") or filename,
             "page_count": page_count,
             "total_tokens_estimated": total_tokens,
             "per_page_tokens": per_page_tokens,
@@ -540,21 +541,29 @@ async def _async_process_pdf(task: BaseServiceTask, arguments: Dict[str, Any]) -
                 exc_info=True,
             )
 
-        await embed_service.send_embed_data_to_client(
-            embed_id=embed_id,
-            embed_type="pdf",
-            content_toon=content_toon,
-            chat_id=arguments.get("chat_id"),
-            message_id=arguments.get("message_id"),
-            user_id=user_id,
-            user_id_hash=user_id_hash,
-            status="finished",
-            encryption_mode="client",
-            created_at=now_ts,
-            updated_at=now_ts,
-            log_prefix=log_prefix,
-            check_cache_status=False,
-        )
+        chat_id = arguments.get("chat_id")
+        message_id = arguments.get("message_id")
+        if chat_id and message_id:
+            await embed_service.send_embed_data_to_client(
+                embed_id=embed_id,
+                embed_type="pdf",
+                content_toon=content_toon,
+                chat_id=chat_id,
+                message_id=message_id,
+                user_id=user_id,
+                user_id_hash=user_id_hash,
+                status="finished",
+                encryption_mode="client",
+                created_at=now_ts,
+                updated_at=now_ts,
+                log_prefix=log_prefix,
+                check_cache_status=False,
+            )
+        else:
+            logger.info(
+                f"{log_prefix} PDF processed without chat/message context; "
+                "skipping client persistence event until contextual processing runs"
+            )
 
         logger.info(
             f"{log_prefix} PDF processing complete. "

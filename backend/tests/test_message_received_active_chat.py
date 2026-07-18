@@ -7,6 +7,7 @@
 # are routed back to the sending browser deterministically.
 
 import asyncio
+import json
 import sys
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
@@ -250,3 +251,114 @@ def test_incognito_send_skips_durable_cutover_lookup(monkeypatch):
     assert controller_calls == []
     assert ("dispatch_skill", "ai", "ask", "incognito-chat-123") in manager.calls
     directus_service.chat.get_chat_metadata.assert_not_awaited()
+
+
+def test_contextual_pdf_processing_preserves_embed_ref(monkeypatch):
+    from backend.core.api.app.routes.handlers.websocket_handlers import message_received_handler
+
+    manager = FakeManager()
+    captured_tasks = []
+    cutover = SimpleNamespace(
+        get_epoch=AsyncMock(return_value=0),
+        admit_legacy_inference=AsyncMock(return_value={"admitted": True}),
+        release_legacy_inference=AsyncMock(return_value={"released": True}),
+    )
+    cache_service = SimpleNamespace(
+        get_user_vault_key_id=AsyncMock(return_value="vault-key-123"),
+        save_chat_message_and_update_versions=AsyncMock(
+            return_value={"messages_v": 1, "last_edited_overall_timestamp": 1_700_000_000}
+        ),
+        delete_user_draft_from_cache=AsyncMock(return_value=False),
+        delete_user_draft_version_from_chat_versions=AsyncMock(return_value=False),
+        get_ai_messages_history=AsyncMock(return_value=[]),
+        get_user_by_id=AsyncMock(return_value={"language": "en"}),
+        get_chat_list_item_data=AsyncMock(return_value={}),
+        get_active_ai_task=AsyncMock(return_value=None),
+        set_active_ai_task=AsyncMock(),
+        update_user=AsyncMock(),
+        set_embed_in_cache=AsyncMock(),
+        add_embed_id_to_chat_index=AsyncMock(),
+    )
+    directus_service = SimpleNamespace(
+        chat=SimpleNamespace(
+            get_chat_metadata=AsyncMock(return_value=None),
+            check_chat_ownership=AsyncMock(return_value=True),
+        ),
+        get_user_profile=AsyncMock(),
+        get_user_fields_direct=AsyncMock(return_value={}),
+    )
+    encryption_service = SimpleNamespace(encrypt_with_user_key=AsyncMock(return_value=("encrypted", 1)))
+
+    def fake_send_task_validated(**kwargs):
+        captured_tasks.append(kwargs)
+        return SimpleNamespace(id="task-123")
+
+    monkeypatch.setitem(
+        sys.modules,
+        "backend.core.api.app.services.embed_service",
+        SimpleNamespace(EmbedService=FakeEmbedService),
+    )
+    monkeypatch.setitem(
+        sys.modules,
+        "backend.core.api.app.services.skill_registry",
+        SimpleNamespace(get_global_registry=lambda: FakeSkillRegistry(manager)),
+    )
+    monkeypatch.setitem(
+        sys.modules,
+        "backend.core.api.app.tasks.celery_config",
+        SimpleNamespace(send_task_validated=fake_send_task_validated),
+    )
+    monkeypatch.setattr(
+        message_received_handler,
+        "ChatRecoveryCutoverController",
+        lambda cache, directus: cutover,
+    )
+
+    asyncio.run(
+        message_received_handler.handle_message_received(
+            websocket=SimpleNamespace(),
+            manager=manager,
+            cache_service=cache_service,
+            directus_service=directus_service,
+            encryption_service=encryption_service,
+            user_id="user-123",
+            device_fingerprint_hash="device-123",
+            payload={
+                "chat_id": "chat-123",
+                "message": {
+                    "message_id": "msg-123",
+                    "role": "user",
+                    "content": "Read [Document](embed:pdf_document_embed_ref)",
+                    "created_at": 1_700_000_000,
+                    "chat_has_title": False,
+                },
+                "embeds": [
+                    {
+                        "embed_id": "pdf-embed-123",
+                        "type": "pdf",
+                        "status": "processing",
+                        "text_preview": "document.pdf",
+                        "content": json.dumps(
+                            {
+                                "type": "pdf",
+                                "filename": "document.pdf",
+                                "embed_ref": "pdf_document_embed_ref",
+                                "status": "processing",
+                                "files": {"original": {"s3_key": "uploads/user/document.pdf"}},
+                                "vault_wrapped_aes_key": "wrapped-key",
+                                "aes_nonce": "nonce",
+                                "s3_base_url": "s3://bucket",
+                                "page_count": 3,
+                            }
+                        ),
+                    }
+                ],
+            },
+        )
+    )
+
+    assert captured_tasks
+    arguments = captured_tasks[0]["kwargs"]["arguments"]
+    assert arguments["embed_ref"] == "pdf_document_embed_ref"
+    assert arguments["chat_id"] == "chat-123"
+    assert arguments["message_id"] == "msg-123"
