@@ -50,6 +50,19 @@ function buildRecoveryMessagePreview(content: string): string {
   return plainText.length > 120 ? `${plainText.substring(0, 120)}...` : plainText;
 }
 
+function getVisibleHashChatId(): string | null {
+  const hash = window.location.hash.startsWith("#")
+    ? window.location.hash.slice(1)
+    : window.location.hash;
+  if (!hash) return null;
+  const params = new URLSearchParams(hash);
+  return params.get("chat-id") ?? params.get("chat_id");
+}
+
+function isChatVisiblyActive(chatId: string): boolean {
+  return activeChatStore.get() === chatId && getVisibleHashChatId() === chatId;
+}
+
 class RecoveryEventTimeoutError extends Error {}
 
 class RecoveryProtocolError extends Error {
@@ -361,8 +374,7 @@ export async function handleRecoveryJobsAvailableImpl(
         updated_at: now,
       };
       await chatDB.updateChat(updatedChat);
-      const activeChatId = activeChatStore.get();
-      if (activeChatId !== job.chat_id && !updatedChat.is_sub_chat && !updatedChat.parent_id) {
+      if (!isChatVisiblyActive(job.chat_id) && !updatedChat.is_sub_chat && !updatedChat.parent_id) {
         unreadMessagesStore.incrementUnread(job.chat_id);
         notificationStore.chatMessage(
           job.chat_id,

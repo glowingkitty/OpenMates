@@ -241,10 +241,12 @@ describe("handlePendingAIResponseImpl", () => {
 describe("handleRecoveryJobsAvailableImpl", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    window.history.replaceState(null, "", "/");
   });
 
   it("persists an available recovery job even when the assistant row is locally synced", async () => {
-    mocks.activeChatStore.get.mockReturnValue("chat-2");
+    mocks.activeChatStore.get.mockReturnValue("chat-1");
+    window.location.hash = "#chat-id=chat-2";
     const handlers = new Map<string, (payload: unknown) => void>();
     let claimRequestId: string | undefined;
     let persistRequestId: string | undefined;
