@@ -51,6 +51,7 @@ const {
 	assertNoMissingTranslations,
 	getTestAccount,
 	fillStripeCardDetails,
+	setToggleChecked,
 } = require('./signup-flow-helpers');
 
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
@@ -187,6 +188,13 @@ test('purchases credits with saved payment method, then verifies invoice is down
 		// No saved payment methods yet — do a fresh Stripe payment first to seed one.
 		log('No saved payment methods found — doing a fresh Stripe payment to seed the saved method.');
 		await screenshot(page, 'no-saved-methods-fresh-form');
+
+		const consentToggle = page.locator('#limited-refund-consent-toggle');
+		if (await consentToggle.isVisible({ timeout: 3000 }).catch(() => false)) {
+			await setToggleChecked(consentToggle, true);
+			log('Accepted limited refund consent.');
+			await page.waitForTimeout(1000);
+		}
 
 		// Wait for any iframe (Stripe EU or Stripe Managed Payments) to confirm the payment component loaded.
 		await page.waitForSelector('iframe', { state: 'visible', timeout: 20000 });
