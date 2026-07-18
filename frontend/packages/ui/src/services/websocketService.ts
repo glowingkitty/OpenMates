@@ -1374,6 +1374,51 @@ class WebSocketService extends EventTarget {
     });
   }
 
+  /**
+   * Force-close a socket that still reports OPEN but stopped acknowledging
+   * request/response messages, then immediately create a fresh connection.
+   */
+  public forceReconnect(reason: string): void {
+    if (!get(authStore).isAuthenticated) {
+      console.warn(
+        "[WebSocketService] forceReconnect: user not authenticated.",
+      );
+      return;
+    }
+
+    console.warn(`[WebSocketService] Force reconnect requested: ${reason}`);
+    this.stopPing();
+    this.stopPeriodicRetry();
+    this.reconnectAttempts = 0;
+
+    const staleSocket = this.ws;
+    if (staleSocket) {
+      staleSocket.onopen = null;
+      staleSocket.onmessage = null;
+      staleSocket.onerror = null;
+      staleSocket.onclose = null;
+      this.ws = null;
+      try {
+        staleSocket.close(1000, reason.slice(0, 120));
+      } catch (error) {
+        console.warn("[WebSocketService] forceReconnect: close failed:", error);
+      }
+    }
+
+    if (this.rejectConnectionPromise && this.connectionPromise) {
+      this.rejectConnectionPromise(new Error(reason));
+      this.connectionPromise = null;
+    }
+
+    websocketStatus.setStatus("reconnecting");
+    this.connect().catch((error) => {
+      console.warn(
+        "[WebSocketService] forceReconnect: connection attempt failed:",
+        error,
+      );
+    });
+  }
+
   public isConnected(): boolean {
     return this.ws !== null && this.ws.readyState === WebSocket.OPEN;
   }

@@ -7,6 +7,7 @@
 
 import { describe, expect, it } from "vitest";
 import {
+  isPreflightAcknowledgementTimeout,
   preflightExpectedMessagesVersion,
   shouldIncludePreflightChatMetadata,
   shouldSkipClientCodeBlockExtraction,
@@ -36,5 +37,15 @@ describe("sendersChatMessages protocol fences", () => {
     expect(shouldIncludePreflightChatMetadata(1)).toBe(true);
     expect(shouldIncludePreflightChatMetadata(2)).toBe(false);
     expect(shouldIncludePreflightChatMetadata(7)).toBe(false);
+  });
+
+  it("only treats preflight acknowledgement timeouts as retryable", () => {
+    expect(
+      isPreflightAcknowledgementTimeout(
+        new Error("Encrypted chat preflight acknowledgement timed out."),
+      ),
+    ).toBe(true);
+    expect(isPreflightAcknowledgementTimeout(new Error("preflight_mismatch"))).toBe(false);
+    expect(isPreflightAcknowledgementTimeout("Encrypted chat preflight acknowledgement timed out.")).toBe(false);
   });
 });

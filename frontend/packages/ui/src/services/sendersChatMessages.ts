@@ -42,6 +42,7 @@ import { generateUUID } from "../message_parsing/utils";
 const CHAT_RECOVERY_PROTOCOL_VERSION = 1;
 const CHAT_RECOVERY_KEY_VERSION = 1;
 const CHAT_PREFLIGHT_TIMEOUT_MS = 20_000;
+const CHAT_PREFLIGHT_TIMEOUT_MESSAGE = "Encrypted chat preflight acknowledgement timed out.";
 const SEND_EMBED_LOAD_RETRY_ATTEMPTS = 12;
 const SEND_EMBED_LOAD_RETRY_DELAY_MS = 500;
 const PREFLIGHT_ERROR_CODES = new Set([
@@ -84,7 +85,7 @@ function waitForPreflightAcknowledgement(turnId: string): Promise<{ preflight_id
 	return new Promise((resolve, reject) => {
 		const timeout = window.setTimeout(() => {
 			cleanup();
-			reject(new Error("Encrypted chat preflight acknowledgement timed out."));
+			reject(new Error(CHAT_PREFLIGHT_TIMEOUT_MESSAGE));
 		}, CHAT_PREFLIGHT_TIMEOUT_MS);
 		const handleAck = (payload: unknown) => {
 			const ack = payload as { turn_id?: string; preflight_id?: string };
@@ -150,6 +151,23 @@ export function preflightExpectedMessagesVersion(localMessagesVersion: number | 
 
 export function shouldIncludePreflightChatMetadata(localMessagesVersion: number | undefined): boolean {
 	return (localMessagesVersion ?? 1) <= 1;
+}
+
+export function isPreflightAcknowledgementTimeout(error: unknown): boolean {
+	return error instanceof Error && error.message === CHAT_PREFLIGHT_TIMEOUT_MESSAGE;
+}
+
+async function updateMessageStatusForSendRetry(
+	serviceInstance: ChatSynchronizationService,
+	message: Message,
+	status: Message["status"]
+): Promise<void> {
+	await chatDB.updateMessageStatus(message.message_id, status);
+	serviceInstance.dispatchEvent(
+		new CustomEvent("messageStatusChanged", {
+			detail: { chatId: message.chat_id, messageId: message.message_id, status }
+		})
+	);
 }
 
 export async function sendNewMessageImpl(
@@ -1337,12 +1355,12 @@ export async function sendNewMessageImpl(
 			payload.protocol_version = CHAT_RECOVERY_PROTOCOL_VERSION;
 			payload.preflight_id = preflight_id;
 		} catch (error) {
-			await chatDB.updateMessageStatus(message.message_id, "failed");
-			serviceInstance.dispatchEvent(
-				new CustomEvent("messageStatusChanged", {
-					detail: { chatId: message.chat_id, messageId: message.message_id, status: "failed" }
-				})
-			);
+			if (isPreflightAcknowledgementTimeout(error)) {
+				await updateMessageStatusForSendRetry(serviceInstance, message, "waiting_for_internet");
+				webSocketService.forceReconnect("chat preflight acknowledgement timed out");
+			} else {
+				await updateMessageStatusForSendRetry(serviceInstance, message, "failed");
+			}
 			throw error;
 		}
 	}
