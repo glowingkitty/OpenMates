@@ -97,6 +97,53 @@ def test_native_app_skill_method_uses_generated_namespace(monkeypatch):
     assert requests[0]["json"] == {"requests": [{"query": "hello"}]}
 
 
+def test_ideabucket_sdk_uses_existing_package_rest_methods(monkeypatch):
+    requests = []
+    api_key = "sk-api-test"
+    master_key = b"\x00" * 32
+    wrapper = _wrap_master_key(api_key, master_key)
+
+    class FakeResponse:
+        status_code = 200
+
+        def __init__(self, payload):
+            self._payload = payload
+
+        def json(self):
+            return self._payload
+
+    def fake_post(url, *, json, headers, timeout):
+        requests.append(("POST", url, json, headers))
+        if url.endswith("/v1/sdk/session"):
+            return FakeResponse({"key_wrapper": wrapper})
+        if url.endswith("/v1/sdk/ideabucket/buckets/2026-07-18/add"):
+            return FakeResponse({"processing_window_id": "2026-07-18", "status": "draft_synced"})
+        return FakeResponse({"processing_window_id": "2026-07-18", "status": "sent"})
+
+    def fake_get(url, *, headers, timeout):
+        requests.append(("GET", url, None, headers))
+        return FakeResponse({"processing_window_id": "2026-07-18", "status": "pending"})
+
+    monkeypatch.setattr("openmates.sdk.requests.post", fake_post)
+    monkeypatch.setattr("openmates.sdk.requests.get", fake_get)
+
+    client = OpenMates(api_key=api_key)
+    assert client.ideabucket.add({"text": "ship", "bucket_id": "2026-07-18"})["status"] == "draft_synced"
+    assert client.ideabucket.status("2026-07-18")["status"] == "pending"
+    assert client.ideabucket.process("2026-07-18", now=True)["status"] == "sent"
+
+    assert [(method, url) for method, url, _body, _headers in requests] == [
+        ("POST", "https://api.openmates.org/v1/sdk/session"),
+        ("POST", "https://api.openmates.org/v1/sdk/ideabucket/buckets/2026-07-18/add"),
+        ("GET", "https://api.openmates.org/v1/sdk/ideabucket/buckets/2026-07-18"),
+        ("POST", "https://api.openmates.org/v1/sdk/ideabucket/buckets/2026-07-18/process"),
+    ]
+    assert "ship" not in json_module.dumps(requests[1][2])
+    assert requests[1][2]["ideabucket_processing_window_id"] == "2026-07-18"
+    assert isinstance(requests[1][2]["encrypted_draft_md"], str)
+    assert requests[3][2] == {"now": True}
+
+
 def test_api_keys_list_decrypts_labels_and_never_used(monkeypatch):
     api_key = "sk-api-python-list"
     master_key = os.urandom(32)

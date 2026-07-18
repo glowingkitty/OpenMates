@@ -416,6 +416,10 @@ class ChatCacheMixin:
         """Returns the cache key for a user's specific draft in a chat."""
         return f"user:{user_id}:chat:{chat_id}:draft"
 
+    def _get_ideabucket_processing_window_key(self, user_id: str, processing_window_id: str) -> str:
+        """Returns the cache-only key for an IdeaBucket processing window."""
+        return f"user:{user_id}:ideabucket:window:{processing_window_id}"
+
     async def increment_user_draft_version(self, user_id: str, chat_id: str, increment_by: int = 1) -> Optional[int]:
         """
         Increments the draft version for a specific user in a specific chat.
@@ -553,6 +557,309 @@ class ChatCacheMixin:
         except Exception as e:
             logger.error(f"Error getting draft for user {user_id}, chat {chat_id} from {key}: {e}")
             return None
+
+    async def update_user_draft_metadata_in_cache(
+        self,
+        user_id: str,
+        chat_id: str,
+        *,
+        ideabucket: Optional[bool] = None,
+        ideabucket_processing_window_id: Optional[str] = None,
+    ) -> bool:
+        """Stores sparse non-content metadata for a user's draft."""
+        client = await self.client
+        if not client:
+            return False
+        key = self._get_user_chat_draft_key(user_id, chat_id)
+        try:
+            cache_payload: Dict[str, Any] = {}
+            if ideabucket is not None:
+                cache_payload["ideabucket"] = "1" if ideabucket else "0"
+            if ideabucket_processing_window_id is not None:
+                cache_payload["ideabucket_processing_window_id"] = ideabucket_processing_window_id
+
+            if not cache_payload:
+                return True
+
+            await client.hmset(key, cache_payload)
+            await client.expire(key, self.USER_DRAFT_TTL)
+            logger.debug(f"Updated draft metadata for user {user_id}, chat {chat_id}: {sorted(cache_payload.keys())}")
+            return True
+        except Exception as e:
+            logger.error(f"Error updating draft metadata for user {user_id}, chat {chat_id}: {e}")
+            return False
+
+    async def get_user_draft_metadata_from_cache(self, user_id: str, chat_id: str) -> Dict[str, Any]:
+        """Gets sparse non-content draft metadata without changing draft tuple semantics."""
+        client = await self.client
+        if not client:
+            return {}
+        key = self._get_user_chat_draft_key(user_id, chat_id)
+        try:
+            draft_data_bytes = await client.hgetall(key)
+            if not draft_data_bytes:
+                return {}
+
+            draft_data = {k.decode('utf-8'): v.decode('utf-8') for k, v in draft_data_bytes.items()}
+            metadata: Dict[str, Any] = {}
+            if draft_data.get("ideabucket") in {"1", "true", "True"}:
+                metadata["ideabucket"] = True
+            processing_window_id = draft_data.get("ideabucket_processing_window_id")
+            if processing_window_id:
+                metadata["ideabucket_processing_window_id"] = processing_window_id
+            return metadata
+        except Exception as e:
+            logger.error(f"Error getting draft metadata for user {user_id}, chat {chat_id} from {key}: {e}")
+            return {}
+
+    async def replace_ideabucket_processing_window_in_cache(
+        self,
+        user_id: str,
+        processing_window_id: str,
+        *,
+        version: int,
+        chat_id: str,
+        scheduled_send_at: int,
+        server_vault_encrypted_processing_payload: str,
+        client_encrypted_future_user_message: str,
+        client_encrypted_ideabucket_system_event: str,
+        payload_hash: str,
+        status: str = "active",
+        ttl: Optional[int] = None,
+    ) -> bool:
+        """Atomically replaces the cache-only IdeaBucket processing draft if newer."""
+        client = await self.client
+        if not client or version <= 0:
+            return False
+
+        key = self._get_ideabucket_processing_window_key(user_id, processing_window_id)
+        final_ttl = ttl if ttl is not None else self.USER_DRAFT_TTL
+        replace_if_newer_lua = """
+        local current = redis.call('HGET', KEYS[1], 'version')
+        local incoming = tonumber(ARGV[1])
+        if current and tonumber(current) and incoming <= tonumber(current) then
+            return 0
+        end
+        redis.call('HMSET', KEYS[1], unpack(ARGV, 2, #ARGV - 1))
+        redis.call('EXPIRE', KEYS[1], ARGV[#ARGV])
+        return 1
+        """
+
+        try:
+            replaced = await client.eval(
+                replace_if_newer_lua,
+                1,
+                key,
+                str(version),
+                "processing_window_id", processing_window_id,
+                "chat_id", chat_id,
+                "version", str(version),
+                "scheduled_send_at", str(scheduled_send_at),
+                "status", status,
+                "server_vault_encrypted_processing_payload", server_vault_encrypted_processing_payload,
+                "client_encrypted_future_user_message", client_encrypted_future_user_message,
+                "client_encrypted_ideabucket_system_event", client_encrypted_ideabucket_system_event,
+                "payload_hash", payload_hash,
+                str(final_ttl),
+            )
+            return replaced == 1
+        except Exception as e:
+            logger.error(f"Error replacing IdeaBucket processing window {processing_window_id} for user {user_id}: {e}")
+            return False
+
+    async def get_ideabucket_processing_window_from_cache(
+        self, user_id: str, processing_window_id: str
+    ) -> Optional[Dict[str, Any]]:
+        """Gets the latest cache-only IdeaBucket processing draft for a window."""
+        client = await self.client
+        if not client:
+            return None
+
+        key = self._get_ideabucket_processing_window_key(user_id, processing_window_id)
+        try:
+            data_bytes = await client.hgetall(key)
+            if not data_bytes:
+                return None
+
+            data = {k.decode('utf-8'): v.decode('utf-8') for k, v in data_bytes.items()}
+            for integer_field in ("version", "scheduled_send_at"):
+                if integer_field in data:
+                    data[integer_field] = int(data[integer_field])
+            return data
+        except Exception as e:
+            logger.error(f"Error getting IdeaBucket processing window {processing_window_id} for user {user_id}: {e}")
+            return None
+
+    async def lock_due_ideabucket_processing_window_in_cache(
+        self,
+        user_id: str,
+        processing_window_id: str,
+        *,
+        now: int,
+        lock_token: str,
+        ttl: Optional[int] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """Locks a due cache-only IdeaBucket processing window for one sender."""
+        client = await self.client
+        if not client:
+            return None
+
+        key = self._get_ideabucket_processing_window_key(user_id, processing_window_id)
+        final_ttl = ttl if ttl is not None else self.USER_DRAFT_TTL
+        lock_if_due_lua = """
+        local status = redis.call('HGET', KEYS[1], 'status')
+        if not status then
+            return {}
+        end
+        if status == 'sent' then
+            return redis.call('HGETALL', KEYS[1])
+        end
+        if status ~= 'active' and status ~= 'failed' then
+            return {}
+        end
+        local scheduled = tonumber(redis.call('HGET', KEYS[1], 'scheduled_send_at') or '')
+        if not scheduled or scheduled > tonumber(ARGV[1]) then
+            return {}
+        end
+        redis.call('HSET', KEYS[1], 'status', 'processing', 'processing_started_at', ARGV[1], 'lock_token', ARGV[2])
+        redis.call('EXPIRE', KEYS[1], ARGV[3])
+        return redis.call('HGETALL', KEYS[1])
+        """
+
+        try:
+            data = await client.eval(lock_if_due_lua, 1, key, str(now), lock_token, str(final_ttl))
+            return self._decode_ideabucket_processing_window_hash(data)
+        except Exception as e:
+            logger.error(f"Error locking IdeaBucket processing window {processing_window_id} for user {user_id}: {e}")
+            return None
+
+    async def mark_ideabucket_processing_window_sent_in_cache(
+        self,
+        user_id: str,
+        processing_window_id: str,
+        *,
+        lock_token: str,
+        user_message_id: str,
+        system_event_id: str,
+        sent_at: int,
+        ttl: Optional[int] = None,
+    ) -> bool:
+        """Tombstones a locked IdeaBucket processing window after successful send."""
+        client = await self.client
+        if not client:
+            return False
+
+        key = self._get_ideabucket_processing_window_key(user_id, processing_window_id)
+        final_ttl = ttl if ttl is not None else self.USER_DRAFT_TTL
+        mark_sent_lua = """
+        local status = redis.call('HGET', KEYS[1], 'status')
+        if status == 'sent' then
+            return 1
+        end
+        if status ~= 'processing' or redis.call('HGET', KEYS[1], 'lock_token') ~= ARGV[1] then
+            return 0
+        end
+        redis.call(
+            'HSET', KEYS[1],
+            'status', 'sent',
+            'user_message_id', ARGV[2],
+            'system_event_id', ARGV[3],
+            'sent_at', ARGV[4]
+        )
+        redis.call('HDEL', KEYS[1], 'lock_token')
+        redis.call('EXPIRE', KEYS[1], ARGV[5])
+        return 1
+        """
+
+        try:
+            marked = await client.eval(
+                mark_sent_lua,
+                1,
+                key,
+                lock_token,
+                user_message_id,
+                system_event_id,
+                str(sent_at),
+                str(final_ttl),
+            )
+            return marked == 1
+        except Exception as e:
+            logger.error(f"Error marking IdeaBucket processing window {processing_window_id} sent for user {user_id}: {e}")
+            return False
+
+    async def mark_ideabucket_processing_window_failed_in_cache(
+        self,
+        user_id: str,
+        processing_window_id: str,
+        *,
+        lock_token: str,
+        failed_at: int,
+        error_code: str,
+        ttl: Optional[int] = None,
+    ) -> bool:
+        """Marks a locked IdeaBucket processing window retryable after failure."""
+        client = await self.client
+        if not client:
+            return False
+
+        key = self._get_ideabucket_processing_window_key(user_id, processing_window_id)
+        final_ttl = ttl if ttl is not None else self.USER_DRAFT_TTL
+        mark_failed_lua = """
+        if redis.call('HGET', KEYS[1], 'status') ~= 'processing' or redis.call('HGET', KEYS[1], 'lock_token') ~= ARGV[1] then
+            return 0
+        end
+        redis.call(
+            'HSET', KEYS[1],
+            'status', 'failed',
+            'failed_at', ARGV[2],
+            'error_code', ARGV[3]
+        )
+        redis.call('HDEL', KEYS[1], 'lock_token')
+        redis.call('EXPIRE', KEYS[1], ARGV[4])
+        return 1
+        """
+
+        try:
+            marked = await client.eval(
+                mark_failed_lua,
+                1,
+                key,
+                lock_token,
+                str(failed_at),
+                error_code,
+                str(final_ttl),
+            )
+            return marked == 1
+        except Exception as e:
+            logger.error(f"Error marking IdeaBucket processing window {processing_window_id} failed for user {user_id}: {e}")
+            return False
+
+    def _decode_ideabucket_processing_window_hash(self, raw_data: Any) -> Optional[Dict[str, Any]]:
+        """Decodes Redis HGETALL data for IdeaBucket processing-window helpers."""
+        if not raw_data:
+            return None
+
+        if isinstance(raw_data, dict):
+            data = {
+                (key.decode('utf-8') if isinstance(key, bytes) else str(key)): (
+                    value.decode('utf-8') if isinstance(value, bytes) else str(value)
+                )
+                for key, value in raw_data.items()
+            }
+        else:
+            items = list(raw_data)
+            data = {}
+            for index in range(0, len(items), 2):
+                key = items[index]
+                value = items[index + 1]
+                data[key.decode('utf-8') if isinstance(key, bytes) else str(key)] = (
+                    value.decode('utf-8') if isinstance(value, bytes) else str(value)
+                )
+
+        for integer_field in ("version", "scheduled_send_at", "processing_started_at", "sent_at", "failed_at"):
+            if integer_field in data:
+                data[integer_field] = int(data[integer_field])
+        return data
 
     async def delete_user_draft_from_cache(self, user_id: str, chat_id: str) -> bool:
         """

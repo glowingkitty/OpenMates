@@ -90,6 +90,109 @@ describe("IdeaBucket CLI client", () => {
       rmSync(home, { recursive: true, force: true });
     }
   });
+
+  it("stores audio embeds before syncing the encrypted bucket draft", async () => {
+    const originalHome = process.env.HOME;
+    const home = mkdtempSync(join(tmpdir(), "openmates-ideabucket-audio-"));
+    const state = join(home, ".openmates");
+    mkdirSync(state, { recursive: true });
+    process.env.HOME = home;
+    const seen: Array<{ type: string; payload: Record<string, unknown> }> = [];
+    const server = createServer((request, response) => {
+      if (request.url === "/v1/auth/session") {
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ success: true, ws_token: "fresh-token", user: { id: "user-1" } }));
+        return;
+      }
+      response.writeHead(404).end();
+    });
+    const wss = new WebSocketServer({ server });
+    wss.on("connection", (socket: WebSocket) => {
+      socket.on("message", (raw: Buffer) => {
+        const frame = JSON.parse(raw.toString());
+        seen.push(frame);
+        if (frame.type === "store_embed") {
+          socket.send(JSON.stringify({
+            type: "store_embed_confirmed",
+            payload: { request_id: frame.payload.request_id, embed_id: frame.payload.embed_id },
+          }));
+        }
+        if (frame.type === "store_embed_keys") {
+          socket.send(JSON.stringify({
+            type: "store_embed_keys_confirmed",
+            payload: { request_id: frame.payload.request_id, created_count: frame.payload.keys.length, failed_count: 0 },
+          }));
+        }
+        if (frame.type === "update_draft") {
+          socket.send(JSON.stringify({
+            type: "draft_update_receipt",
+            payload: { chat_id: frame.payload.chat_id, draft_v: 8, success: true },
+          }));
+        }
+      });
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+    const apiUrl = `http://127.0.0.1:${address.port}`;
+    writeFileSync(join(state, "session.json"), JSON.stringify({
+      apiUrl,
+      sessionId: "session-1",
+      wsToken: "token",
+      cookies: { auth_refresh_token: "refresh" },
+      masterKeyExportedB64: Buffer.alloc(32).toString("base64"),
+      hashedEmail: "hashed-email",
+      userEmailSalt: "salt",
+      createdAt: Date.now(),
+      authorizerDeviceName: "test",
+      autoLogoutMinutes: null,
+    }));
+
+    try {
+      const { OpenMatesClient } = await import(`../src/client.ts?ideabucket-audio=${Date.now()}`);
+      const client = OpenMatesClient.load({ apiUrl });
+      const result = await client["addIdeaBucketPreparedIdeas"]({
+        chatId: "11111111-1111-4111-8111-111111111111",
+        bucketId: "2026-07-18-audio",
+        scheduledSendAt: 1_784_332_860,
+        preparedEmbeds: [{
+          embedId: "22222222-2222-4222-8222-222222222222",
+          embedRef: "voice-note-ref",
+          type: "audio-recording",
+          content: "type: audio-recording\nstatus: finished\nfilename: note.m4a",
+          textPreview: "note.m4a",
+          status: "finished",
+          contentHash: "audio-hash",
+        }],
+        ideas: [{
+          content: "Audio: note.m4a\n[!](embed:voice-note-ref)\nTranscript: ship audio capture",
+          preview: "ship audio capture",
+          payload: { type: "audio", filename: "note.m4a", embed_ref: "voice-note-ref", transcript: "ship audio capture" },
+        }],
+      });
+
+      assert.equal(result.draftV, 8);
+      assert.match(result.markdown, /\[!\]\(embed:voice-note-ref\)/);
+      const storeEmbed = seen.find((frame) => frame.type === "store_embed");
+      const storeKeys = seen.find((frame) => frame.type === "store_embed_keys");
+      const updateDraft = seen.find((frame) => frame.type === "update_draft");
+      assert.ok(storeEmbed);
+      assert.ok(storeKeys);
+      assert.ok(updateDraft);
+      assert.equal(storeEmbed.payload.embed_id, "22222222-2222-4222-8222-222222222222");
+      assert.equal(storeEmbed.payload.status, "finished");
+      assert.equal(JSON.stringify(storeEmbed.payload).includes("ship audio capture"), false);
+      assert.equal(JSON.stringify(updateDraft.payload).includes("ship audio capture"), false);
+      assert.equal(updateDraft.payload.ideabucket_processing_window_id, "2026-07-18-audio");
+      assert.equal(Array.isArray(storeKeys.payload.keys), true);
+      assert.equal((storeKeys.payload.keys as unknown[]).length, 1);
+    } finally {
+      process.env.HOME = originalHome;
+      wss.close();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
 });
 
 describe("IdeaBucket npm SDK", () => {

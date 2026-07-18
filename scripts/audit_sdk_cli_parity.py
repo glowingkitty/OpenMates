@@ -160,8 +160,7 @@ PARITY_ENTRIES = [
     ParityEntry('openmates embeds show', "embeds.show", "embeds.show"),
     ParityEntry('openmates embeds share', "embeds.share", "embeds.share"),
     ParityEntry('openmates embeds versions list', "embeds.versions", "embeds.versions"),
-    ParityEntry('openmates ideabucket capture', "ideabucket.capture", "ideabucket.capture"),
-    ParityEntry('openmates ideabucket draft', "ideabucket.draft", "ideabucket.draft"),
+    ParityEntry('openmates ideabucket add', "ideabucket.add", "ideabucket.add"),
     ParityEntry('openmates ideabucket status', "ideabucket.status", "ideabucket.status"),
     ParityEntry('openmates ideabucket process', "ideabucket.process", "ideabucket.process"),
 ]

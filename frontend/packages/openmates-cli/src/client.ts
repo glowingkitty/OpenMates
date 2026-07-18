@@ -70,7 +70,15 @@ import {
 import type { MentionContext, AppInfo, MemoryEntryInfo } from "./mentions.js";
 import { CHAT_MODELS } from "./mentions.js";
 import type { EncryptedEmbed, EmbedKeyWrapper, PreparedEmbed } from "./embedCreator.js";
-import { computeSHA256, encryptEmbed } from "./embedCreator.js";
+import {
+  computeSHA256,
+  createEmbedReferenceBlock,
+  createEmbedRef,
+  encryptEmbed,
+  toonEncodeContent,
+} from "./embedCreator.js";
+import { processFiles } from "./fileEmbed.js";
+import { transcribeUploadedAudio, uploadFile } from "./uploadService.js";
 import {
   generateChatShareBlob,
   generateEmbedShareBlob,
@@ -121,6 +129,12 @@ function buildIdeaBucketMarkdown(
     "-----------------",
   ].join("\n"));
   return [prompt.trim(), ...blocks].join("\n\n");
+}
+
+interface IdeaBucketPreparedIdea {
+  content: string;
+  preview: string;
+  payload: Record<string, unknown>;
 }
 
 function shouldWaitForTeamAi(message: string, teamId: string | null): boolean {
@@ -3504,6 +3518,118 @@ export class OpenMatesClient {
     const ideaText = params.text.trim();
     if (!ideaText) throw new Error("IdeaBucket text capture requires non-empty text.");
 
+    return await this.addIdeaBucketPreparedIdeas({
+      ...params,
+      ideas: [{
+        content: ideaText,
+        preview: ideaText,
+        payload: { type: "text", text: ideaText },
+      }],
+    });
+  }
+
+  async addIdeaBucketAudio(params: {
+    filePath: string;
+    chatId?: string;
+    bucketId?: string;
+    scheduledSendAt?: number;
+    prompt?: string;
+    version?: number;
+  }): Promise<IdeaBucketAddResult> {
+    const now = Math.floor(Date.now() / 1000);
+    const chatId = params.chatId ?? randomUUID();
+    const fileResult = processFiles([params.filePath], null);
+    if (fileResult.blocked.length > 0) {
+      throw new Error(fileResult.blocked.map((entry) => `${entry.path}: ${entry.error}`).join("; "));
+    }
+    if (fileResult.errors.length > 0) {
+      throw new Error(fileResult.errors.map((entry) => `${entry.path}: ${entry.error}`).join("; "));
+    }
+    const audioEmbed = fileResult.embeds[0];
+    if (!audioEmbed || audioEmbed.embed.type !== "audio-recording" || !audioEmbed.requiresUpload || !audioEmbed.localPath) {
+      throw new Error("IdeaBucket audio requires one supported local audio file.");
+    }
+
+    const session = this.getSession();
+    const uploadResult = await uploadFile(audioEmbed.localPath, session);
+    const embedRef = audioEmbed.embed.embedRef ?? createEmbedRef("audio-recording", `${audioEmbed.displayName}:${audioEmbed.embed.embedId}`);
+    audioEmbed.embed.embedRef = embedRef;
+    const transcription = await transcribeUploadedAudio(
+      uploadResult,
+      audioEmbed.displayName,
+      session,
+      { chatId, requestId: audioEmbed.embed.embedId },
+    );
+    const transcript = transcription.transcript_corrected
+      ?? transcription.transcript
+      ?? transcription.transcript_original
+      ?? "";
+    audioEmbed.embed.content = toonEncodeContent({
+      app_id: "audio",
+      skill_id: "transcribe",
+      type: "audio-recording",
+      status: "finished",
+      filename: audioEmbed.displayName,
+      embed_ref: embedRef,
+      mime_type: uploadResult.content_type,
+      transcript: transcription.transcript ?? null,
+      transcript_original: transcription.transcript_original ?? null,
+      transcript_corrected: transcription.transcript_corrected ?? null,
+      use_corrected: transcription.use_corrected ?? null,
+      correction_model: transcription.correction_model ?? null,
+      model: transcription.model ?? null,
+      s3_base_url: uploadResult.s3_base_url,
+      files: uploadResult.files,
+      aes_key: uploadResult.aes_key,
+      aes_nonce: uploadResult.aes_nonce,
+      vault_wrapped_aes_key: uploadResult.vault_wrapped_aes_key,
+    });
+    audioEmbed.embed.status = "finished";
+    audioEmbed.embed.contentHash = uploadResult.content_hash;
+
+    const referenceBlock = createEmbedReferenceBlock(embedRef);
+    const audioMarkdown = [
+      `Audio: ${audioEmbed.displayName}`,
+      referenceBlock,
+      transcript ? `Transcript: ${transcript}` : null,
+    ].filter((line): line is string => Boolean(line)).join("\n");
+
+    return await this.addIdeaBucketPreparedIdeas({
+      chatId,
+      bucketId: params.bucketId,
+      scheduledSendAt: params.scheduledSendAt,
+      prompt: params.prompt,
+      version: params.version ?? now,
+      preparedEmbeds: [audioEmbed.embed],
+      ideas: [{
+        content: audioMarkdown,
+        preview: transcript || audioEmbed.displayName,
+        payload: {
+          type: "audio",
+          filename: audioEmbed.displayName,
+          embed_ref: embedRef,
+          transcript,
+          transcript_original: transcription.transcript_original,
+          transcript_corrected: transcription.transcript_corrected,
+          use_corrected: transcription.use_corrected,
+          correction_model: transcription.correction_model,
+          model: transcription.model,
+        },
+      }],
+    });
+  }
+
+  private async addIdeaBucketPreparedIdeas(params: {
+    ideas: IdeaBucketPreparedIdea[];
+    chatId?: string;
+    bucketId?: string;
+    scheduledSendAt?: number;
+    prompt?: string;
+    version?: number;
+    preparedEmbeds?: PreparedEmbed[];
+  }): Promise<IdeaBucketAddResult> {
+    if (params.ideas.length === 0) throw new Error("IdeaBucket add requires at least one idea.");
+
     const now = Math.floor(Date.now() / 1000);
     const chatId = params.chatId ?? randomUUID();
     const bucketId = params.bucketId ?? defaultIdeaBucketProcessingWindowId();
@@ -3511,12 +3637,16 @@ export class OpenMatesClient {
     const scheduledSendAt = params.scheduledSendAt ?? defaultIdeaBucketScheduledSendAt(now);
     const version = params.version ?? now;
     const prompt = params.prompt ?? IDEABUCKET_DEFAULT_PROCESSING_PROMPT;
-    const markdown = buildIdeaBucketMarkdown(prompt, [{ index: 1, content: ideaText }]);
-    const preview = `IdeaBucket ${processingWindowId}: ${ideaText.slice(0, 120)}`;
+    const markdown = buildIdeaBucketMarkdown(
+      prompt,
+      params.ideas.map((idea, index) => ({ index: index + 1, content: idea.content })),
+    );
+    const previewText = params.ideas.map((idea) => idea.preview).join(" ").trim();
+    const preview = `IdeaBucket ${processingWindowId}: ${previewText.slice(0, 120)}`;
     const serverProcessablePayload = JSON.stringify({
       prompt,
       processing_window_id: processingWindowId,
-      ideas: [{ index: 1, type: "text", text: ideaText }],
+      ideas: params.ideas.map((idea, index) => ({ index: index + 1, ...idea.payload })),
     });
     const payloadHash = createHash("sha256").update(serverProcessablePayload).digest("hex");
     const masterKey = this.getMasterKeyBytes();
@@ -3529,6 +3659,10 @@ export class OpenMatesClient {
       source: "openmates_cli",
     }), masterKey);
     const serverCacheCiphertext = await encryptWithAesGcmCombined(serverProcessablePayload, masterKey);
+
+    if (params.preparedEmbeds && params.preparedEmbeds.length > 0) {
+      await this.storeDraftEmbeds({ chatId, preparedEmbeds: params.preparedEmbeds });
+    }
 
     const encrypted = await this.saveEncryptedDraft({
       chatId,
@@ -3557,6 +3691,71 @@ export class OpenMatesClient {
       markdown,
       preview,
     };
+  }
+
+  private async storeDraftEmbeds(params: {
+    chatId: string;
+    preparedEmbeds: PreparedEmbed[];
+  }): Promise<void> {
+    const { ws, ownerId } = await this.openWsClient();
+    try {
+      if (!ownerId) throw new Error("Authenticated user identity is required to store IdeaBucket embeds.");
+      const masterKey = this.getMasterKeyBytes();
+      const messageId = randomUUID();
+      for (const embed of params.preparedEmbeds) {
+        const encrypted = await encryptEmbed(
+          embed,
+          masterKey,
+          null,
+          params.chatId,
+          messageId,
+          ownerId,
+        );
+        if (!encrypted) continue;
+
+        const storeRequestId = randomUUID();
+        const stored = ws.waitForMessage(
+          "store_embed_confirmed",
+          (payload) => {
+            const p = payload as Record<string, unknown>;
+            return p.request_id === storeRequestId && p.embed_id === encrypted.embed_id;
+          },
+          30_000,
+        );
+        await ws.sendAsync("store_embed", {
+          request_id: storeRequestId,
+          embed_id: encrypted.embed_id,
+          encrypted_type: encrypted.encrypted_type,
+          encrypted_content: encrypted.encrypted_content,
+          encrypted_text_preview: encrypted.encrypted_text_preview,
+          status: encrypted.status,
+          hashed_chat_id: encrypted.hashed_chat_id,
+          hashed_message_id: encrypted.hashed_message_id,
+          hashed_user_id: encrypted.hashed_user_id,
+          embed_ids: encrypted.embed_ids,
+          file_path: encrypted.file_path,
+          content_hash: encrypted.content_hash,
+          text_length_chars: encrypted.text_length_chars,
+          created_at: encrypted.created_at,
+          updated_at: encrypted.updated_at,
+        });
+        await stored;
+
+        const keysRequestId = randomUUID();
+        const keysStored = ws.waitForMessage(
+          "store_embed_keys_confirmed",
+          (payload) => (payload as Record<string, unknown>).request_id === keysRequestId,
+          30_000,
+        );
+        await ws.sendAsync("store_embed_keys", {
+          request_id: keysRequestId,
+          keys: encrypted.embed_keys,
+        });
+        await keysStored;
+      }
+    } finally {
+      ws.close();
+    }
   }
 
   async getIdeaBucketStatus(bucketId?: string): Promise<IdeaBucketStatusResult> {

@@ -61,6 +61,9 @@ async def test_update_draft_acknowledges_sender_and_broadcasts_only_ciphertext()
             assert encrypted_draft_preview == "cipher-preview"
             return True
 
+        async def update_user_draft_metadata_in_cache(self, *args, **kwargs):
+            return True
+
         async def check_chat_exists_for_user(self, user_id, chat_id):
             return False
 
@@ -106,6 +109,139 @@ async def test_update_draft_acknowledges_sender_and_broadcasts_only_ciphertext()
         "encrypted_draft_preview": "cipher-preview",
     }
     assert "plaintext" not in str(websocket.sent + manager.broadcasts).lower()
+
+
+@pytest.mark.anyio
+async def test_update_draft_broadcasts_ideabucket_metadata_without_plaintext() -> None:
+    manager = _Manager()
+    websocket = _WebSocket()
+    captured_metadata = []
+
+    class Cache:
+        async def increment_user_draft_version(self, user_id, chat_id):
+            return 5
+
+        async def update_user_draft_in_cache(self, user_id, chat_id, encrypted_md, draft_v, *, encrypted_draft_preview):
+            return True
+
+        async def update_user_draft_metadata_in_cache(self, user_id, chat_id, **metadata):
+            captured_metadata.append(metadata)
+            return True
+
+        async def check_chat_exists_for_user(self, user_id, chat_id):
+            return True
+
+        async def get_chat_last_edited_overall_timestamp(self, user_id, chat_id):
+            return 1234
+
+    directus = SimpleNamespace(
+        chat=SimpleNamespace(
+            check_chat_ownership=lambda chat_id, user_id: _async(True),
+            get_chat_metadata=lambda chat_id: _async({"id": chat_id}),
+        )
+    )
+
+    await handle_update_draft(
+        websocket=websocket,
+        manager=manager,
+        cache_service=Cache(),
+        directus_service=directus,
+        encryption_service=None,
+        user_id="user-1",
+        device_fingerprint_hash="device-1",
+        payload={
+            "chat_id": "11111111-1111-4111-8111-111111111111",
+            "encrypted_draft_md": "cipher-md",
+            "encrypted_draft_preview": "cipher-preview",
+            "ideabucket": True,
+            "ideabucket_processing_window_id": "2026-07-18T09:00:00Z",
+        },
+    )
+
+    assert captured_metadata == [{
+        "ideabucket": True,
+        "ideabucket_processing_window_id": "2026-07-18T09:00:00Z",
+    }]
+    assert manager.broadcasts[0]["data"] == {
+        "encrypted_draft_md": "cipher-md",
+        "encrypted_draft_preview": "cipher-preview",
+        "ideabucket": True,
+        "ideabucket_processing_window_id": "2026-07-18T09:00:00Z",
+    }
+    assert websocket.sent[0]["payload"]["ideabucket"] is True
+    assert "captured ideas" not in str(websocket.sent + manager.broadcasts).lower()
+
+
+@pytest.mark.anyio
+async def test_update_draft_replaces_ideabucket_processing_window_payload() -> None:
+    manager = _Manager()
+    websocket = _WebSocket()
+    captured_windows = []
+
+    class Cache:
+        async def increment_user_draft_version(self, user_id, chat_id):
+            return 6
+
+        async def update_user_draft_in_cache(self, user_id, chat_id, encrypted_md, draft_v, *, encrypted_draft_preview):
+            return True
+
+        async def update_user_draft_metadata_in_cache(self, user_id, chat_id, **metadata):
+            return True
+
+        async def replace_ideabucket_processing_window_in_cache(self, user_id, processing_window_id, **payload):
+            captured_windows.append((user_id, processing_window_id, payload))
+            return True
+
+        async def check_chat_exists_for_user(self, user_id, chat_id):
+            return True
+
+        async def get_chat_last_edited_overall_timestamp(self, user_id, chat_id):
+            return 1234
+
+    directus = SimpleNamespace(
+        chat=SimpleNamespace(
+            check_chat_ownership=lambda chat_id, user_id: _async(True),
+            get_chat_metadata=lambda chat_id: _async({"id": chat_id}),
+        )
+    )
+
+    await handle_update_draft(
+        websocket=websocket,
+        manager=manager,
+        cache_service=Cache(),
+        directus_service=directus,
+        encryption_service=None,
+        user_id="user-1",
+        device_fingerprint_hash="device-1",
+        payload={
+            "chat_id": "11111111-1111-4111-8111-111111111111",
+            "encrypted_draft_md": "cipher-md",
+            "encrypted_draft_preview": "cipher-preview",
+            "ideabucket": True,
+            "ideabucket_processing_window_id": "2026-07-18T09:00:00Z",
+            "ideabucket_processing_version": 7,
+            "scheduled_send_at": 123456,
+            "server_vault_encrypted_processing_payload": "server-cipher-v7",
+            "client_encrypted_future_user_message": "client-cipher-v7",
+            "client_encrypted_ideabucket_system_event": "system-cipher-v7",
+            "payload_hash": "hash-v7",
+        },
+    )
+
+    assert captured_windows == [(
+        "user-1",
+        "2026-07-18T09:00:00Z",
+        {
+            "version": 7,
+            "chat_id": "11111111-1111-4111-8111-111111111111",
+            "scheduled_send_at": 123456,
+            "server_vault_encrypted_processing_payload": "server-cipher-v7",
+            "client_encrypted_future_user_message": "client-cipher-v7",
+            "client_encrypted_ideabucket_system_event": "system-cipher-v7",
+            "payload_hash": "hash-v7",
+        },
+    )]
+    assert websocket.sent[0]["payload"]["processing_payload_synced"] is True
 
 
 @pytest.mark.anyio
@@ -303,6 +439,9 @@ async def test_phase2_synthesizes_encrypted_draft_only_chat_metadata() -> None:
         async def get_user_draft_from_cache(self, user_id, chat_id):
             return "cipher-md", 5, "cipher-preview"
 
+        async def get_user_draft_metadata_from_cache(self, user_id, chat_id):
+            return {}
+
     wrapper = await _build_draft_only_phase2_wrapper(Cache(), "user-1", "chat-1")
 
     assert wrapper["chat_details"]["id"] == "chat-1"
@@ -310,6 +449,25 @@ async def test_phase2_synthesizes_encrypted_draft_only_chat_metadata() -> None:
     assert wrapper["chat_details"]["encrypted_draft_md"] == "cipher-md"
     assert wrapper["chat_details"]["encrypted_draft_preview"] == "cipher-preview"
     assert "plaintext" not in str(wrapper).lower()
+
+
+@pytest.mark.anyio
+async def test_phase2_synthesizes_ideabucket_draft_only_metadata() -> None:
+    class Cache:
+        async def get_user_draft_from_cache(self, user_id, chat_id):
+            return "cipher-md", 6, "cipher-preview"
+
+        async def get_user_draft_metadata_from_cache(self, user_id, chat_id):
+            return {
+                "ideabucket": True,
+                "ideabucket_processing_window_id": "2026-07-18T09:00:00Z",
+            }
+
+    wrapper = await _build_draft_only_phase2_wrapper(Cache(), "user-1", "chat-1")
+
+    assert wrapper["chat_details"]["ideabucket"] is True
+    assert wrapper["chat_details"]["ideabucket_processing_window_id"] == "2026-07-18T09:00:00Z"
+    assert "captured ideas" not in str(wrapper).lower()
 
 
 async def _async(value):

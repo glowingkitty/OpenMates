@@ -8,6 +8,7 @@ from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus.directus import DirectusService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.routes.connection_manager import ConnectionManager
+from backend.core.api.app.routes.ideabucket import FORBIDDEN_IDEABUCKET_CLEARTEXT_KEYS
 
 logger = logging.getLogger(__name__)
 
@@ -164,6 +165,85 @@ async def handle_update_draft(
             logger.error(f"Failed to update user draft in cache for user {user_id}, chat {chat_id}.")
             # Log error but continue, version was incremented.
 
+        draft_metadata: Dict[str, Any] = {}
+        if "ideabucket" in payload or "ideabucket_processing_window_id" in payload:
+            forbidden_cleartext = sorted(FORBIDDEN_IDEABUCKET_CLEARTEXT_KEYS.intersection(payload.keys()))
+            if forbidden_cleartext:
+                await manager.send_personal_message(
+                    message={"type": "error", "payload": {"message": "IdeaBucket plaintext fields are not accepted.", "fields": forbidden_cleartext, "chat_id": chat_id}},
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                )
+                return
+
+            draft_metadata = {
+                "ideabucket": bool(payload.get("ideabucket")),
+            }
+            processing_window_id = payload.get("ideabucket_processing_window_id")
+            if isinstance(processing_window_id, str) and processing_window_id.strip():
+                draft_metadata["ideabucket_processing_window_id"] = processing_window_id.strip()
+
+            metadata_update_success = await cache_service.update_user_draft_metadata_in_cache(
+                user_id,
+                chat_id,
+                **draft_metadata,
+            )
+            if not metadata_update_success:
+                logger.error(f"Failed to update user draft metadata in cache for user {user_id}, chat {chat_id}.")
+
+        processing_payload_synced = False
+        processing_payload_fields = (
+            "ideabucket_processing_version",
+            "scheduled_send_at",
+            "server_vault_encrypted_processing_payload",
+            "client_encrypted_future_user_message",
+            "client_encrypted_ideabucket_system_event",
+            "payload_hash",
+        )
+        if any(field in payload for field in processing_payload_fields):
+            processing_window_id = draft_metadata.get("ideabucket_processing_window_id") or payload.get("ideabucket_processing_window_id")
+            try:
+                processing_version = int(payload.get("ideabucket_processing_version"))
+                scheduled_send_at = int(payload.get("scheduled_send_at"))
+            except (TypeError, ValueError):
+                await manager.send_personal_message(
+                    message={"type": "error", "payload": {"message": "Invalid IdeaBucket processing payload version or schedule.", "chat_id": chat_id}},
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                )
+                return
+
+            server_payload = payload.get("server_vault_encrypted_processing_payload")
+            future_user_message = payload.get("client_encrypted_future_user_message")
+            system_event = payload.get("client_encrypted_ideabucket_system_event")
+            payload_hash = payload.get("payload_hash")
+            if not all(isinstance(value, str) and value.strip() for value in (processing_window_id, server_payload, future_user_message, system_event, payload_hash)):
+                await manager.send_personal_message(
+                    message={"type": "error", "payload": {"message": "Missing IdeaBucket processing payload fields.", "chat_id": chat_id}},
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                )
+                return
+
+            processing_payload_synced = await cache_service.replace_ideabucket_processing_window_in_cache(
+                user_id,
+                processing_window_id,
+                version=processing_version,
+                chat_id=chat_id,
+                scheduled_send_at=scheduled_send_at,
+                server_vault_encrypted_processing_payload=server_payload,
+                client_encrypted_future_user_message=future_user_message,
+                client_encrypted_ideabucket_system_event=system_event,
+                payload_hash=payload_hash,
+            )
+            if not processing_payload_synced:
+                await manager.send_personal_message(
+                    message={"type": "error", "payload": {"message": "Stale or failed IdeaBucket processing payload update.", "chat_id": chat_id}},
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                )
+                return
+
         # --- Draft-only chat discoverability for cross-device sync ---
         # For draft-only NEW chats (not yet in the sorted set), we add them so that
         # initial_sync and reconnect can discover them on other devices.
@@ -196,6 +276,7 @@ async def handle_update_draft(
             "data": {
                 "encrypted_draft_md": encrypted_draft_str,
                 "encrypted_draft_preview": draft_preview_from_payload,
+                **draft_metadata,
             },
             "versions": {"draft_v": new_user_draft_v},
             "last_edited_overall_timestamp": chat_timestamp,
@@ -213,6 +294,8 @@ async def handle_update_draft(
                     "chat_id": chat_id,
                     "draft_v": new_user_draft_v,
                     "success": True,
+                    **draft_metadata,
+                    **({"processing_payload_synced": True} if processing_payload_synced else {}),
                 },
             }
         )

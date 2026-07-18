@@ -1297,6 +1297,22 @@ async function handleIdeaBucket(
     return;
   }
 
+  if (subcommand === "audio") {
+    const filePath = rest[0];
+    if (!filePath) throw new Error("Missing audio file path for IdeaBucket audio.");
+    const scheduledSendAt = typeof flags["scheduled-at"] === "string"
+      ? parseUnixSecondsFlag(flags["scheduled-at"], "--scheduled-at")
+      : undefined;
+    printJson(await client.addIdeaBucketAudio({
+      filePath,
+      chatId: typeof flags.chat === "string" ? flags.chat : undefined,
+      bucketId: typeof flags.bucket === "string" ? flags.bucket : undefined,
+      scheduledSendAt,
+      prompt: typeof flags.prompt === "string" ? flags.prompt : undefined,
+    }));
+    return;
+  }
+
   if (subcommand === "status") {
     const bucketId = rest[0] ?? (typeof flags.bucket === "string" ? flags.bucket : undefined);
     printJson(await client.getIdeaBucketStatus(bucketId));
@@ -8354,7 +8370,7 @@ Commands:
   openmates tasks [--help]                   Task commands (list, create, board, ...)
   openmates teams [--help]                   Team lifecycle, membership, billing, and move commands
   openmates drafts [--help]                  Encrypted draft lifecycle commands
-  openmates ideabucket [--help]              IdeaBucket capture, draft/status, and process commands
+  openmates ideabucket [--help]              IdeaBucket add, audio, status, and process commands
   openmates apps [--help]                    App skill commands (list, run, ...)
   openmates workflows [--help]               Server-side workflow commands
   openmates mentions [--help]                List available @mentions
@@ -8726,11 +8742,14 @@ ciphertext and version metadata are sent to the server or written to CLI cache.`
 function printIdeaBucketHelp(): void {
   console.log(`IdeaBucket commands:
   openmates ideabucket add <text> [--chat <uuid>] [--bucket <id>] [--scheduled-at <unix>] [--prompt <text>] [--json]
+  openmates ideabucket audio <file> [--chat <uuid>] [--bucket <id>] [--scheduled-at <unix>] [--prompt <text>] [--json]
   openmates ideabucket status [bucket-id] [--json]
   openmates ideabucket process <bucket-id> [--now] [--json]
 
-Adding text updates the encrypted OpenMates IdeaBucket draft for the processing
-bucket and sends only ciphertext plus sparse non-content metadata to the server.`);
+Adding text or audio updates the encrypted OpenMates IdeaBucket draft for the
+processing bucket and sends only ciphertext plus sparse non-content metadata to
+the server. Audio reuses OpenMates upload and audio.transcribe before encrypting
+the bucket draft.`);
 }
 
 function printAppsHelp(): void {
