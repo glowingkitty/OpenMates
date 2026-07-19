@@ -131,6 +131,7 @@ export interface OpenMatesOptions {
   apiUrl?: string;
   deviceId?: string;
   deviceIdPath?: string;
+  sdkName?: "cli" | "npm" | "pip";
 }
 
 export interface ChatCreateOptions {
@@ -391,6 +392,7 @@ export class OpenMates {
   private readonly apiKey?: string;
   private readonly apiUrl: string;
   private readonly deviceId: string;
+  private readonly sdkName: "cli" | "npm" | "pip";
   private sdkSessionPromise?: Promise<SdkSessionResponse>;
   private masterKeyPromise?: Promise<Uint8Array>;
 
@@ -398,6 +400,7 @@ export class OpenMates {
     this.apiKey = options.apiKey ?? process.env.OPENMATES_API_KEY;
     this.apiUrl = (options.apiUrl ?? DEFAULT_API_URL).replace(/\/$/, "");
     this.deviceId = options.deviceId ?? loadOrCreateDeviceId(options.deviceIdPath);
+    this.sdkName = options.sdkName ?? "npm";
     this.apps = new GeneratedAppSkills(this.runAppSkill.bind(this));
     this.account = new OpenMatesAccount(this);
     this.benchmark = new OpenMatesBenchmark(this);
@@ -691,7 +694,7 @@ export class OpenMates {
 
   private getSdkSession(): Promise<SdkSessionResponse> {
     this.sdkSessionPromise ??= this.request<SdkSessionResponse>("/v1/sdk/session", {
-      sdk_name: "npm",
+      sdk_name: this.sdkName,
       device_identity: this.deviceId,
     });
     return this.sdkSessionPromise;
@@ -701,7 +704,7 @@ export class OpenMates {
     const headers: Record<string, string> = {
       Accept: "application/json",
       Authorization: `Bearer ${this.apiKey}`,
-      "X-OpenMates-SDK": "npm",
+      "X-OpenMates-SDK": this.sdkName,
       "X-OpenMates-Device-Identity": this.deviceId,
     };
     if (hasBody) {
@@ -713,7 +716,7 @@ export class OpenMates {
   private publicHeaders(): Record<string, string> {
     return {
       Accept: "application/json",
-      "X-OpenMates-SDK": "npm",
+      "X-OpenMates-SDK": this.sdkName,
       "X-OpenMates-Device-Identity": this.deviceId,
     };
   }

@@ -44,10 +44,26 @@ async function withServer(
 describe("OpenMates SDK", () => {
   it("uses an injected opaque device id without deriving it from the platform", async () => {
     await withServer((request, response) => {
+      assert.equal(request.headers["x-openmates-sdk"], "npm");
       assert.equal(request.headers["x-openmates-device-identity"], "managed-device-id");
       response.end(JSON.stringify({ success: true }));
     }, async (apiUrl) => {
       await new OpenMates({ apiKey: "sk-api-test", apiUrl, deviceId: "managed-device-id" }).account.info();
+    });
+  });
+
+  it("allows CLI callers to use the approved CLI API-key device identity", async () => {
+    await withServer((request, response) => {
+      assert.equal(request.headers["x-openmates-sdk"], "cli");
+      assert.equal(request.headers["x-openmates-device-identity"], "cli:linux:x64");
+      response.end(JSON.stringify({ success: true }));
+    }, async (apiUrl) => {
+      await new OpenMates({
+        apiKey: "sk-api-test",
+        apiUrl,
+        sdkName: "cli",
+        deviceId: "cli:linux:x64",
+      }).account.info();
     });
   });
 

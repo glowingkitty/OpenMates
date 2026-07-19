@@ -51,6 +51,7 @@ import { readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { basename, dirname } from "node:path";
 import { createHash, randomUUID } from "node:crypto";
+import { arch, platform } from "node:os";
 import WebSocket from "ws";
 
 import {
@@ -1617,7 +1618,7 @@ async function handleChats(
     // "last" opens the most recently modified chat
     const resolvedId = chatId.toLowerCase() === "last" ? "__last__" : chatId;
     if (apiKey) {
-      const sdk = new OpenMates({ apiKey, apiUrl: client.apiUrl });
+      const sdk = createCliOpenMates(client, apiKey);
       const sdkChatId = resolvedId === "__last__"
         ? (await sdk.chats.list({ limit: 1 }))[0]?.id
         : resolvedId;
@@ -1726,7 +1727,7 @@ async function handleChats(
     for (const r of resolved) {
       try {
         if (apiKey) {
-          await new OpenMates({ apiKey, apiUrl: client.apiUrl }).chats.delete(
+          await createCliOpenMates(client, apiKey).chats.delete(
             r.input,
             { confirmed: true },
           );
@@ -2199,7 +2200,7 @@ async function listApiKeyChats(
 ): Promise<ChatListPage> {
   const safeLimit = Number.isFinite(limit) && limit > 0 ? limit : 10;
   const safePage = Number.isFinite(page) && page > 0 ? page : 1;
-  const sdk = new OpenMates({ apiKey, apiUrl: client.apiUrl });
+  const sdk = createCliOpenMates(client, apiKey);
   const chats = await sdk.chats.list({ limit: safeLimit, offset: (safePage - 1) * safeLimit });
   return sdkChatsToChatListPage(chats, safeLimit, safePage);
 }
@@ -2209,7 +2210,7 @@ async function searchApiKeyChats(
   apiKey: string,
   query: string,
 ): Promise<ChatListItem[]> {
-  const sdk = new OpenMates({ apiKey, apiUrl: client.apiUrl });
+  const sdk = createCliOpenMates(client, apiKey);
   const chats = await sdk.chats.search(query, { limit: 0 });
   return sdkChatsToChatListPage(chats, chats.length || 1, 1).chats;
 }
@@ -2254,7 +2255,7 @@ async function sendApiKeyChatNew(
   message: string,
   flags: Record<string, string | boolean>,
 ): Promise<Record<string, unknown>> {
-  const sdk = new OpenMates({ apiKey, apiUrl: client.apiUrl });
+  const sdk = createCliOpenMates(client, apiKey);
   let response: ChatResponse;
   try {
     response = await sdk.chats.send(message, {
@@ -2311,6 +2312,19 @@ function isSdkChatScopeDenied(err: unknown): boolean {
   if (!detail || typeof detail !== "object") return false;
   const errorCode = (detail as Record<string, unknown>).error;
   return errorCode === "missing_scope";
+}
+
+function createCliOpenMates(client: OpenMatesClient, apiKey: string): OpenMates {
+  return new OpenMates({
+    apiKey,
+    apiUrl: client.apiUrl,
+    sdkName: "cli",
+    deviceId: getCliApiKeyDeviceIdentity(),
+  });
+}
+
+function getCliApiKeyDeviceIdentity(): string {
+  return "cli:" + platform() + ":" + arch();
 }
 
 function extractAiAskContent(value: unknown): string {
