@@ -751,18 +751,21 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: fail
+        status: failed
         command: python3 scripts/tests.py run --spec business-company-financials-example.spec.ts
         run_id: "2026-07-19T21:47:37Z"
+        subject_commit: 2540b83de
         timestamp: "2026-07-19T21:55:13Z"
     green_phase:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: pass
+        status: passed
         command: python3 scripts/tests.py run --spec business-company-financials-example.spec.ts
         run_id: "2026-07-19T21:58:35Z"
         subject_commit: c521126ba
+        target: https://app.dev.openmates.org/example/vital-farms-sec-financials
+        deployment_reference: dpl_9Yh32vqsPHXSs8nJzU5jM9xnVoMZ
         timestamp: "2026-07-19T22:06:10Z"
 
   - id: T-PYTEST-FOCUS-MODE
