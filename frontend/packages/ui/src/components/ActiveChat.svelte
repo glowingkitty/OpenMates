@@ -231,7 +231,7 @@
         setCurrentChatContext?: (chatId: string | null, content: TiptapJSON | null, version: number) => void;
         focus: () => void;
         revealDraftActions?: () => void;
-        flushCurrentDraft?: () => void;
+        flushCurrentDraft?: () => Promise<void> | void;
         sendCurrentMessage: () => void;
         getTextContent: () => string;
         clearMessageField: (shouldSaveDraft: boolean, preserveContext?: boolean) => Promise<void>;
@@ -12358,8 +12358,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             <button
                                 class="input-dismiss-button"
                                 data-testid="input-dismiss-button"
-                                onclick={() => {
-                                    messageInputFieldRef?.flushCurrentDraft?.();
+                                onclick={async () => {
+                                    await messageInputFieldRef?.flushCurrentDraft?.();
                                     const active = document.activeElement;
                                     if (active instanceof HTMLElement) active.blur();
                                 }}

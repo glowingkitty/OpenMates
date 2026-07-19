@@ -645,7 +645,7 @@ test.describe('Cross-client encrypted draft sync', () => {
 			await expect(editor).toContainText(updatedText, { timeout: 10_000 });
 			await page.getByTestId('input-dismiss-button').click();
 			await expectLocalDraftMarkdown(page, draftChatId, updatedText, 'CROSS_CLIENT_DRAFT_SYNC');
-			await waitForDraftUpdateReceipt(wsFrames, draftChatId, 'CROSS_CLIENT_DRAFT_SYNC', draftUpdateFrameStart, Number(created.draftV) + 1);
+			expect(await waitForDraftUpdateReceipt(wsFrames, draftChatId, 'CROSS_CLIENT_DRAFT_SYNC', draftUpdateFrameStart, Number(created.draftV) + 1)).toBe(true);
 			try {
 				await expect
 					.poll(async () => {
@@ -783,7 +783,7 @@ test.describe('Cross-client encrypted draft sync', () => {
 			await expect(editor).toContainText(editedDraftText, { timeout: 10_000 });
 			await page.getByTestId('input-dismiss-button').click();
 			const localDraft = await expectLocalDraftMarkdown(page, draftChatId, editedDraftText, 'IDEABUCKET_WEB_MARKERS');
-			await waitForDraftUpdateReceipt(wsFrames, draftChatId, 'IDEABUCKET_WEB_MARKERS', draftUpdateFrameStart, localDraft.draftV ?? 2);
+			expect(await waitForDraftUpdateReceipt(wsFrames, draftChatId, 'IDEABUCKET_WEB_MARKERS', draftUpdateFrameStart, localDraft.draftV ?? 2)).toBe(true);
 			try {
 				await expect
 					.poll(async () => {

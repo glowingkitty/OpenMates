@@ -3525,10 +3525,10 @@
             console.debug('[MessageInput] Updated recording embed attrs for:', embedId, attrs);
         }
     }
-    function flushCurrentEditorDraft(chatId: string | undefined | null) {
+    function flushCurrentEditorDraft(chatId: string | undefined | null): Promise<void> | undefined {
         if (!editor || editor.isDestroyed) return;
         syncTextOnlyDomToEditorBeforeDraftSave(editor);
-        flushSaveDraft(editor, chatId);
+        return flushSaveDraft(editor, chatId);
     }
 
     function handleSaveDraftBeforeSwitch() { flushCurrentEditorDraft(currentChatId); }
@@ -4666,8 +4666,8 @@
         forceDraftActionsVisible = true;
         focus();
     }
-    export function flushCurrentDraft() {
-        flushCurrentEditorDraft(currentChatId);
+    export function flushCurrentDraft(): Promise<void> | undefined {
+        return flushCurrentEditorDraft(currentChatId);
     }
     export function sendCurrentMessage() { handleSendMessage(); }
     export function setSuggestionText(text: string) {

@@ -1329,10 +1329,10 @@ export function triggerSaveDraft(
 export function flushSaveDraft(
   editorOverride?: Editor,
   chatIdFromMessageInput?: string,
-) {
+): Promise<void> | undefined {
   const editor = editorOverride ?? getEditorInstance();
   if (!editor) return;
   console.info("[DraftService] Flushing draft operation.");
   saveDraftDebounced(chatIdFromMessageInput, editor);
-  saveDraftDebounced.flush();
+  return saveDraftDebounced.flush();
 }
