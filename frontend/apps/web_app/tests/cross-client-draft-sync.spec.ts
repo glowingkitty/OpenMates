@@ -180,22 +180,11 @@ function messageEditorEditable(page: any, chatId?: string): any {
 async function replaceMessageEditorText(page: any, chatId: string, text: string): Promise<any> {
 	const editor = messageEditorEditable(page, chatId);
 	await expect(editor).toBeVisible({ timeout: 15_000 });
-	await page.evaluate(
-		({ targetChatId, nextText }: { targetChatId: string; nextText: string }) => {
-			const editable = document.querySelector(
-				`[data-action="message-input"][data-current-chat-id="${targetChatId}"] [data-testid="message-editor"] [contenteditable="true"]`
-			);
-			if (!(editable instanceof HTMLElement)) throw new Error(`contenteditable editor not found for ${targetChatId}`);
-			editable.focus();
-			const range = document.createRange();
-			range.selectNodeContents(editable);
-			const selection = window.getSelection();
-			selection?.removeAllRanges();
-			selection?.addRange(range);
-			document.execCommand('insertText', false, nextText);
-		},
-		{ targetChatId: chatId, nextText: text }
-	);
+	await editor.click();
+	await page.keyboard.press('ControlOrMeta+A');
+	await page.keyboard.press('Backspace');
+	await expect(editor).toHaveText('', { timeout: 5_000 });
+	if (text.length > 0) await page.keyboard.insertText(text);
 	return editor;
 }
 
