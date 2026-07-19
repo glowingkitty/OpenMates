@@ -1,0 +1,96 @@
+skills.create:
+  context: Skill name for creating tasks
+  en: Create Task
+  de: Aufgabe erstellen
+  zh: 创建任务
+  es: Crear tarea
+  fr: Créer une tâche
+  pt: Criar tarefa
+  ru: Создать задачу
+  ja: タスクを作成
+  ko: 작업 만들기
+  it: Crea attività
+  tr: Görev oluştur
+  vi: Tạo nhiệm vụ
+  id: Buat tugas
+  pl: Utwórz zadanie
+  nl: Taak maken
+  ar: إنشاء مهمة
+  hi: कार्य बनाएं
+  th: สร้างงาน
+  cs: Vytvořit úkol
+  sv: Skapa uppgift
+  he: יצירת משימה
+  verified_by_human: []
+skills.create.description:
+  context: Description for the create task skill
+  en: Create tasks with titles, descriptions, and assignees.
+  de: Erstelle Aufgaben mit Titeln, Beschreibungen und Zuständigen.
+  zh: 创建包含标题、描述和负责人的任务。
+  es: Crea tareas con títulos, descripciones y responsables.
+  fr: Créez des tâches avec des titres, des descriptions et des responsables.
+  pt: Crie tarefas com títulos, descrições e responsáveis.
+  ru: Создавайте задачи с названиями, описаниями и исполнителями.
+  ja: タイトル、説明、担当者付きのタスクを作成します。
+  ko: 제목, 설명, 담당자가 포함된 작업을 만듭니다.
+  it: Crea attività con titoli, descrizioni e assegnatari.
+  tr: Başlıklar, açıklamalar ve sorumlularla görevler oluşturun.
+  vi: Tạo nhiệm vụ với tiêu đề, mô tả và người phụ trách.
+  id: Buat tugas dengan judul, deskripsi, dan penanggung jawab.
+  pl: Twórz zadania z tytułami, opisami i osobami odpowiedzialnymi.
+  nl: Maak taken met titels, beschrijvingen en verantwoordelijken.
+  ar: أنشئ مهامًا بعناوين وأوصاف ومكلفين.
+  hi: शीर्षक, विवरण और असाइनी के साथ कार्य बनाएं।
+  th: สร้างงานพร้อมชื่อ คำอธิบาย และผู้รับผิดชอบ
+  cs: Vytvářejte úkoly s názvy, popisy a odpovědnými osobami.
+  sv: Skapa uppgifter med titlar, beskrivningar och ansvariga.
+  he: צרו משימות עם כותרות, תיאורים ואחראים.
+  verified_by_human: []
+skills.search:
+  context: Skill name for searching tasks
+  en: Search Tasks
+  de: Aufgaben suchen
+  zh: 搜索任务
+  es: Buscar tareas
+  fr: Rechercher des tâches
+  pt: Pesquisar tarefas
+  ru: Поиск задач
+  ja: タスクを検索
+  ko: 작업 검색
+  it: Cerca attività
+  tr: Görev ara
+  vi: Tìm nhiệm vụ
+  id: Cari tugas
+  pl: Szukaj zadań
+  nl: Taken zoeken
+  ar: البحث في المهام
+  hi: कार्य खोजें
+  th: ค้นหางาน
+  cs: Hledat úkoly
+  sv: Sök uppgifter
+  he: חיפוש משימות
+  verified_by_human: []
+skills.search.description:
+  context: Description for the search tasks skill
+  en: Find tasks by title, description, assignee, or status.
+  de: Finde Aufgaben nach Titel, Beschreibung, zuständiger Person oder Status.
+  zh: 按标题、描述、负责人或状态查找任务。
+  es: Encuentra tareas por título, descripción, responsable o estado.
+  fr: Trouvez des tâches par titre, description, responsable ou statut.
+  pt: Encontre tarefas por título, descrição, responsável ou status.
+  ru: Находите задачи по названию, описанию, исполнителю или статусу.
+  ja: タイトル、説明、担当者、ステータスでタスクを検索します。
+  ko: 제목, 설명, 담당자 또는 상태로 작업을 찾습니다.
+  it: Trova attività per titolo, descrizione, assegnatario o stato.
+  tr: Görevleri başlığa, açıklamaya, sorumluya veya duruma göre bulun.
+  vi: Tìm nhiệm vụ theo tiêu đề, mô tả, người phụ trách hoặc trạng thái.
+  id: Temukan tugas berdasarkan judul, deskripsi, penanggung jawab, atau status.
+  pl: Znajduj zadania według tytułu, opisu, osoby odpowiedzialnej lub statusu.
+  nl: Vind taken op titel, beschrijving, verantwoordelijke of status.
+  ar: ابحث عن المهام حسب العنوان أو الوصف أو المكلف أو الحالة.
+  hi: शीर्षक, विवरण, असाइनी या स्थिति से कार्य खोजें।
+  th: ค้นหางานตามชื่อ คำอธิบาย ผู้รับผิดชอบ หรือสถานะ
+  cs: Najděte úkoly podle názvu, popisu, odpovědné osoby nebo stavu.
+  sv: Hitta uppgifter efter titel, beskrivning, ansvarig eller status.
+  he: מצאו משימות לפי כותרת, תיאור, אחראי או סטטוס.
+  verified_by_human: []
