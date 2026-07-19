@@ -406,15 +406,24 @@ async function replaceMessageEditorText(page: any, chatId: string, text: string)
 	let lastError: unknown = null;
 	for (let attempt = 0; attempt < 3; attempt += 1) {
 		try {
-			const editor = await activeMessageEditorEditable(page, chatId);
-			await editor.click();
-			await page.keyboard.press('Control+A');
-			await page.keyboard.press('Backspace');
-			if (text.length > 0) {
-				await editor.pressSequentially(text, { delay: 1 });
-				await page.keyboard.type(' ');
-				await page.keyboard.press('Backspace');
-			}
+			await activeMessageEditorEditable(page, chatId);
+			await page.evaluate(({ targetChatId, replacement }: { targetChatId: string; replacement: string }) => {
+				const root = document.querySelector(`[data-action="message-input"][data-current-chat-id="${targetChatId}"]`);
+				const editor = root?.querySelector('[data-testid="message-editor"] [contenteditable="true"]');
+				if (!(editor instanceof HTMLElement)) throw new Error(`Editor not found for ${targetChatId}`);
+				editor.focus();
+				const selection = window.getSelection();
+				const range = document.createRange();
+				range.selectNodeContents(editor);
+				selection?.removeAllRanges();
+				selection?.addRange(range);
+				document.execCommand(replacement.length > 0 ? 'insertText' : 'delete', false, replacement);
+				editor.dispatchEvent(new InputEvent('input', {
+					bubbles: true,
+					inputType: replacement.length > 0 ? 'insertText' : 'deleteContentBackward',
+					data: replacement.length > 0 ? replacement : null,
+				}));
+			}, { targetChatId: chatId, replacement: text });
 			lastError = null;
 			break;
 		} catch (error) {
