@@ -64,7 +64,7 @@ describe("CLI draft reconciliation", () => {
         response.end(JSON.stringify({ success: true, ws_token: "fresh-token" }));
         return;
       }
-      if (request.url === `/v1/sdk/drafts/${storedDraft?.chatId}`) {
+      if (request.url === `/v1/drafts/${storedDraft?.chatId}`) {
         response.writeHead(200, { "content-type": "application/json" });
         response.end(JSON.stringify({
           draft: {
@@ -145,7 +145,7 @@ describe("CLI draft reconciliation", () => {
         "delete_draft",
       ]);
       assert.equal(
-        seenHttp.some((request) => request.method === "GET" && request.url === `/v1/sdk/drafts/${created.chatId}`),
+        seenHttp.some((request) => request.method === "GET" && request.url === `/v1/drafts/${created.chatId}`),
         true,
       );
     } finally {

@@ -130,6 +130,31 @@ async def list_chat_messages(
     return [_watch_message_payload(record) for record in records if record is not None]
 
 
+@router.get("/drafts/{chat_id}")
+async def get_draft(
+    chat_id: str,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+) -> dict[str, Any]:
+    from backend.core.api.app.routes.handlers.websocket_handlers.get_draft_versions_handler import get_authoritative_user_draft
+
+    draft = await get_authoritative_user_draft(
+        request.app.state.cache_service,
+        request.app.state.directus_service,
+        current_user.id,
+        chat_id,
+    )
+    if not draft:
+        return {"draft": None}
+    encrypted_md, draft_v, encrypted_preview = draft
+    return {"draft": {
+        "chat_id": chat_id,
+        "encrypted_draft_md": encrypted_md,
+        "encrypted_draft_preview": encrypted_preview,
+        "draft_v": draft_v,
+    }}
+
+
 @router.post("/chats/{chat_id}/move")
 async def move_chat_to_team(
     chat_id: str,

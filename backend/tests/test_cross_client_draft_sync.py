@@ -25,6 +25,7 @@ from backend.core.api.app.routes.handlers.websocket_handlers.phased_sync_handler
     _build_draft_only_phase2_wrapper,
     _phase2_metadata_is_current,
 )
+from backend.core.api.app.routes.chats import get_draft
 
 
 class _Manager:
@@ -366,6 +367,36 @@ async def test_draft_cache_miss_falls_back_to_encrypted_directus_row() -> None:
 
     assert draft == ("persisted-cipher", 7, None)
     assert warmed[0][0][2:] == ("persisted-cipher", 7)
+
+
+@pytest.mark.anyio
+async def test_session_draft_route_returns_authoritative_ciphertext() -> None:
+    class Cache:
+        async def get_user_draft_from_cache(self, user_id, chat_id):
+            assert user_id == "user-1"
+            assert chat_id == "chat-1"
+            return "cipher-md", 2, "cipher-preview"
+
+    request = SimpleNamespace(
+        app=SimpleNamespace(
+            state=SimpleNamespace(
+                cache_service=Cache(),
+                directus_service=SimpleNamespace(),
+            )
+        )
+    )
+
+    response = await get_draft("chat-1", request, SimpleNamespace(id="user-1"))
+
+    assert response == {
+        "draft": {
+            "chat_id": "chat-1",
+            "encrypted_draft_md": "cipher-md",
+            "encrypted_draft_preview": "cipher-preview",
+            "draft_v": 2,
+        }
+    }
+    assert "plaintext" not in str(response).lower()
 
 
 def test_authoritative_reconciliation_requires_a_complete_server_set() -> None:

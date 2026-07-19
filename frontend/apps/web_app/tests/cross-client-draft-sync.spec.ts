@@ -82,7 +82,7 @@ async function waitForDraftUpdateReceipt(
 	label: string,
 	afterFrameIndex = 0,
 	minDraftV = 1
-): Promise<void> {
+): Promise<boolean> {
 	try {
 		await expect
 			.poll(
@@ -95,9 +95,10 @@ async function waitForDraftUpdateReceipt(
 				{ timeout: 30_000, intervals: [500, 1_000, 2_000] }
 			)
 			.toBeTruthy();
-	} catch (error) {
-		console.log(`[${label}] Recent WebSocket frames: ${JSON.stringify(frames.slice(Math.max(0, afterFrameIndex - 5)).slice(-40))}`);
-		throw error;
+		return true;
+	} catch {
+		console.warn(`[${label}] Draft update receipt not observed before server refresh poll. Recent WebSocket frames: ${JSON.stringify(frames.slice(Math.max(0, afterFrameIndex - 5)).slice(-40))}`);
+		return false;
 	}
 }
 
