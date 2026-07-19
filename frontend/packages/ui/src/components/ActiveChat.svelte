@@ -9287,7 +9287,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                         fallbackLength: plainTextFallback.length,
                                     });
                                     ref.setSuggestionText(plainTextFallback);
-                                    ref.setOriginalMarkdown?.(decryptedMarkdown);
+                                    ref.setOriginalMarkdown?.(plainTextFallback);
                                 }
                             });
                         } else {
