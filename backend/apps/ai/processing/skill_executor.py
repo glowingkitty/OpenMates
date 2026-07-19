@@ -57,6 +57,12 @@ from backend.apps.ai.processing.rate_limiting import (  # noqa: E402
 from backend.apps.ai.processing.celery_helpers import execute_skill_via_celery, get_celery_task_status  # noqa: E402
 from backend.apps.ai.processing.content_sanitization import sanitize_external_content  # noqa: E402
 from backend.apps.ai.processing.task_tool_executor import should_keep_tasks_create_payload_as_single_request  # noqa: E402
+from backend.shared.python_utils.app_skill_output_safety import (  # noqa: E402
+    AppSkillOutputSafetyContext,
+    APP_SKILL_SURFACE_ASSISTANT,
+    is_external_data_skill,
+    sanitize_app_skill_output,
+)
 
 # Re-export helper functions and exceptions for backward compatibility
 # TODO(audit-2026-03-19): Move check_rate_limit, wait_for_rate_limit, sanitize_external_content, execute_skill_via_celery
@@ -310,7 +316,18 @@ async def execute_skill(
                 logger.info(f"[SkillRetry] Skill '{app_id}.{skill_id}' succeeded on retry attempt {attempt + 1}/{total_attempts}")
             else:
                 logger.debug(f"Skill '{app_id}.{skill_id}' executed successfully")
-            return result
+            return await sanitize_app_skill_output(
+                result,
+                AppSkillOutputSafetyContext(
+                    app_id=app_id,
+                    skill_id=skill_id,
+                    surface=APP_SKILL_SURFACE_ASSISTANT,
+                    request_body=arguments,
+                    external_data=is_external_data_skill(registry.get_metadata(app_id), app_id, skill_id),
+                    cache_service=cache_service,
+                    log_prefix=f"[SkillExecutor {app_id}.{skill_id}] ",
+                ),
+            )
 
         except SkillCancelledException:
             raise

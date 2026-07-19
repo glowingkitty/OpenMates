@@ -37,15 +37,24 @@ class AppSkillWorkflowConfig(BaseModel):
     """Workflow automation contract for a skill declared in app.yml."""
 
     available: bool
-    execution_mode: Literal["sync", "workflow_ai"]
-    effect: Literal["read", "notify", "chat_write"]
-    unattended: bool
-    approval: Literal["never", "side_effect_confirmation", "always"]
+    execution_mode: Optional[Literal["sync", "workflow_ai", "async_job", "sandbox"]] = None
+    effect: Optional[Literal["read", "notify", "chat_write", "generate", "compute", "code_execution"]] = None
+    unattended: Optional[bool] = None
+    approval: Optional[Literal["never", "side_effect_confirmation", "always"]] = None
     binding_requirements: List[Literal["none", "location", "provider_account", "notification_preferences", "chat_owner"]] = Field(default_factory=list)
-    output_schema: Dict[str, Any]
-    test_allowed: bool
+    output_schema: Optional[Dict[str, Any]] = None
+    test_allowed: Optional[bool] = None
     test_example_input: Optional[Dict[str, Any]] = None
     unavailable_reason: Optional[str] = None
+
+
+class AppSkillOutputSafetyConfig(BaseModel):
+    """Output safety policy for model-visible app skill results."""
+
+    external_data: Optional[bool] = Field(default=None, description="Whether the skill can return untrusted external text.")
+    prompt_injection: Optional[Literal["default_on", "required", "not_applicable"]] = Field(default=None, description="Semantic prompt-injection scanning policy for external output text.")
+    prompt_injection_fields: Optional[List[str]] = Field(default=None, description="Field names or paths that should be prioritized for semantic scanning.")
+    skip_fields: Optional[List[str]] = Field(default=None, description="Field names or paths that must be preserved as binary, encrypted, hash, or media data.")
 
 
 class ProviderRef(BaseModel):
@@ -120,6 +129,8 @@ class AppSkillDefinition(BaseModel):
     # REST API configuration — controls how the skill is exposed in the public API docs
     api_config: Optional[AppSkillApiConfig] = Field(default=None, description="REST API configuration for this skill. Controls GET/POST endpoint exposure in /docs.")
     workflow: Optional[AppSkillWorkflowConfig] = Field(default=None, description="Workflow automation contract for this skill.")
+    external_data: Optional[bool] = Field(default=None, description="Whether this skill can return untrusted external text that requires default-on semantic prompt-injection scanning.")
+    output_safety: Optional[AppSkillOutputSafetyConfig] = Field(default=None, description="Optional output safety policy for app-skill result sanitization.")
     # Internal skills are used by the AI backend only and must NOT be shown to users
     # in Apps or settings UI. Set internal: true for skills that are invoked
     # automatically (e.g., images.view for uploaded images, audio.transcribe for

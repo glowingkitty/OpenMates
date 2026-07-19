@@ -71,12 +71,12 @@ describe("generated npm SDK app skills", () => {
 
   it("delegates native methods to the app-skill runner", async () => {
     const calls: unknown[] = [];
-    const apps = new GeneratedAppSkills(async (appId, skillId, input) => {
-      calls.push({ appId, skillId, input });
+    const apps = new GeneratedAppSkills(async (appId, skillId, input, options) => {
+      calls.push({ appId, skillId, input, options });
       return { ok: true };
     });
 
-    const result = await apps.web.search({ requests: [{ query: "hello" }] });
+    const result = await apps.web.search({ requests: [{ query: "hello" }] }, { promptInjectionProtection: false });
     const iconResult = await apps.design.searchIcons({ requests: [{ query: "home" }] });
     const fitnessResult = await apps.fitness.searchClasses({ requests: [{ address: "Sorauer Str. 12" }] });
     const modelSearchResult = await apps.models3d.search({ requests: [{ query: "benchy" }] });
@@ -85,10 +85,10 @@ describe("generated npm SDK app skills", () => {
     assert.deepEqual(fitnessResult, { ok: true });
     assert.deepEqual(modelSearchResult, { ok: true });
     assert.deepEqual(calls, [
-      { appId: "web", skillId: "search", input: { requests: [{ query: "hello" }] } },
-      { appId: "design", skillId: "search_icons", input: { requests: [{ query: "home" }] } },
-      { appId: "fitness", skillId: "search_classes", input: { requests: [{ address: "Sorauer Str. 12" }] } },
-      { appId: "models3d", skillId: "search", input: { requests: [{ query: "benchy" }] } },
+      { appId: "web", skillId: "search", input: { requests: [{ query: "hello" }] }, options: { promptInjectionProtection: false } },
+      { appId: "design", skillId: "search_icons", input: { requests: [{ query: "home" }] }, options: undefined },
+      { appId: "fitness", skillId: "search_classes", input: { requests: [{ address: "Sorauer Str. 12" }] }, options: undefined },
+      { appId: "models3d", skillId: "search", input: { requests: [{ query: "benchy" }] }, options: undefined },
     ]);
   });
 });

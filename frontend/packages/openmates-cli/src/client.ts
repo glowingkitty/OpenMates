@@ -103,6 +103,26 @@ import {
   type DecryptedUserTask,
 } from "./tasksCli.js";
 
+const PROMPT_INJECTION_DISABLED = "disabled";
+
+function withAppSkillPromptInjectionOption(
+  inputData: Record<string, unknown>,
+  promptInjectionProtection?: boolean,
+): Record<string, unknown> {
+  if (promptInjectionProtection !== false) return inputData;
+  const currentSecurity = inputData.security;
+  const security = currentSecurity && typeof currentSecurity === "object" && !Array.isArray(currentSecurity)
+    ? { ...(currentSecurity as Record<string, unknown>) }
+    : {};
+  return {
+    ...inputData,
+    security: {
+      ...security,
+      prompt_injection_protection: PROMPT_INJECTION_DISABLED,
+    },
+  };
+}
+
 function normalizeUnixSeconds(value: unknown, fallback: number): number {
   if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
     return fallback;
@@ -6664,6 +6684,7 @@ export class OpenMatesClient {
     skill: string;
     inputData: Record<string, unknown>;
     apiKey?: string;
+    promptInjectionProtection?: boolean;
   }): Promise<unknown> {
     const headers: Record<string, string> = {
       ...this.getCliRequestHeaders(),
@@ -6673,7 +6694,7 @@ export class OpenMatesClient {
     // as the request body (e.g. {"requests": [...]}), not wrapped in input_data.
     const response = await this.http.post(
       `/v1/apps/${params.app}/skills/${params.skill}`,
-      params.inputData,
+      withAppSkillPromptInjectionOption(params.inputData, params.promptInjectionProtection),
       headers,
     );
     if (!response.ok) {

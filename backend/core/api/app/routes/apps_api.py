@@ -27,6 +27,13 @@ from backend.core.api.app.utils.config_manager import ConfigManager
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.shared.python_schemas.app_metadata_schemas import AppYAML, AppSkillDefinition
 from backend.shared.python_utils.billing_utils import calculate_total_credits
+from backend.shared.python_utils.app_skill_output_safety import (
+    AppSkillOutputSafetyContext,
+    APP_SKILL_SURFACE_REST,
+    is_external_data_skill,
+    sanitize_app_skill_output,
+    strip_request_security_controls,
+)
 from backend.shared.python_utils.provider_health import map_provider_name_to_id
 from backend.core.api.app.services.rest_skill_execution_policy import assert_rest_skill_execution_allowed
 from backend.core.api.app.services.api_key_authorization import (
@@ -42,10 +49,7 @@ from backend.core.api.app.routes.auth_routes.auth_dependencies import get_curren
 
 # Import comprehensive ASCII smuggling sanitization
 # This module protects against invisible Unicode characters used to embed hidden instructions
-from backend.core.api.app.utils.text_sanitization import (
-    sanitize_text_payload_for_ascii_smuggling,
-    sanitize_text_simple,
-)
+from backend.core.api.app.utils.text_sanitization import sanitize_text_simple
 
 # Import AI models for documentation purposes
 # Use absolute imports to avoid circular dependencies
@@ -800,10 +804,11 @@ async def call_app_skill(
     user_id_short = user_info['user_id'][:8] if user_info.get('user_id') else 'unknown'
     log_prefix = f"[API {app_id}/{skill_id}][User {user_id_short}...] "
     sanitized_input_data = _sanitize_dict_recursively(input_data, log_prefix=log_prefix)
+    skill_input_data = strip_request_security_controls(sanitized_input_data)
 
     # Build the request body the same way the old HTTP path did: tool_schema
     # structure (e.g. {"requests": [...]}) plus underscore-prefixed metadata.
-    request_payload = sanitized_input_data.copy() if isinstance(sanitized_input_data, dict) else {}
+    request_payload = skill_input_data.copy() if isinstance(skill_input_data, dict) else {}
     if not isinstance(request_payload, dict):
         request_payload = {}
     request_payload['_user_id'] = user_info['user_id']
@@ -816,17 +821,17 @@ async def call_app_skill(
 
     try:
         result = await registry.dispatch_skill(app_id, skill_id, request_payload)
-        sanitized_result, ascii_stats = sanitize_text_payload_for_ascii_smuggling(
+        return await sanitize_app_skill_output(
             result,
-            log_prefix=log_prefix,
+            AppSkillOutputSafetyContext(
+                app_id=app_id,
+                skill_id=skill_id,
+                surface=APP_SKILL_SURFACE_REST,
+                request_body=input_data if isinstance(input_data, dict) else {},
+                external_data=is_external_data_skill(registry.get_metadata(app_id), app_id, skill_id),
+                log_prefix=log_prefix,
+            ),
         )
-        if ascii_stats.get("removed_count", 0) > 0:
-            logger.warning(
-                f"{log_prefix}Removed {ascii_stats['removed_count']} ASCII-smuggling "
-                f"characters from REST skill output across "
-                f"{ascii_stats.get('fields_sanitized', 0)} field(s)"
-            )
-        return sanitized_result
     except HTTPException:
         # 4xx/5xx from inside the skill (validation, billing, missing skill, ...) —
         # propagate as-is so the REST handler returns the original status/detail.

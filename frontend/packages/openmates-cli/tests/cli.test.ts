@@ -2183,6 +2183,7 @@ describe("apps metadata commands", () => {
         "--providers", "Printables",
         "--sort", "newest",
         "--free-only",
+        "--disable-prompt-injection-protection",
         "--json",
       ]);
       const parsed = JSON.parse(output) as { data?: { results?: Array<Record<string, unknown>> } };
@@ -2198,6 +2199,7 @@ describe("apps metadata commands", () => {
             sort: "newest",
             free_only: true,
           }],
+          security: { prompt_injection_protection: "disabled" },
         },
       });
       assert.equal(parsed.data?.results?.[0]?.result_count, 1);

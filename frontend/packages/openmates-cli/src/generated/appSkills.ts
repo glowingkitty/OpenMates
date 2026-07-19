@@ -4,7 +4,8 @@
  * Regenerate with: python3 scripts/generate_sdk_app_skills.py
  */
 
-export type AppSkillRunner = <T = unknown>(appId: string, skillId: string, input: unknown) => Promise<T>;
+export type AppSkillRunOptions = { promptInjectionProtection?: boolean };
+export type AppSkillRunner = <T = unknown>(appId: string, skillId: string, input: unknown, options?: AppSkillRunOptions) => Promise<T>;
 export type SkillInput = Record<string, unknown>;
 
 export const APP_SKILL_METADATA = [
@@ -3300,8 +3301,8 @@ export class AiAppSkills {
    * Description key: ai.ask.description
    * Skill: ai/ask
    */
-  async ask<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("ai", "ask", input);
+  async ask<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("ai", "ask", input, options);
   }
 }
 
@@ -3315,8 +3316,8 @@ export class BooksAppSkills {
    * Description key: books.translate.description
    * Skill: books/translate
    */
-  async translate<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("books", "translate", input);
+  async translate<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("books", "translate", input, options);
   }
 }
 
@@ -3330,56 +3331,56 @@ export class CodeAppSkills {
    * Description key: code.add_issue.description
    * Skill: code/add_issue
    */
-  async addIssue<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("code", "add_issue", input);
+  async addIssue<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("code", "add_issue", input, options);
   }
   /**
    * Run this OpenMates app skill.
    * Description key: code.clean_repo.description
    * Skill: code/clean_repo
    */
-  async cleanRepo<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("code", "clean_repo", input);
+  async cleanRepo<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("code", "clean_repo", input, options);
   }
   /**
    * Get latest documentation for programming libraries, frameworks, APIs, SDKs. Use for ANY programming-related query about a specific library or framework.
    * Description key: code.get_docs.description
    * Skill: code/get_docs
    */
-  async getDocs<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("code", "get_docs", input);
+  async getDocs<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("code", "get_docs", input, options);
   }
   /**
    * Run this OpenMates app skill.
    * Description key: code.get_issues.description
    * Skill: code/get_issues
    */
-  async getIssues<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("code", "get_issues", input);
+  async getIssues<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("code", "get_issues", input, options);
   }
   /**
    * Run this OpenMates app skill.
    * Description key: code.get_project_overview.description
    * Skill: code/get_project_overview
    */
-  async getProjectOverview<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("code", "get_project_overview", input);
+  async getProjectOverview<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("code", "get_project_overview", input, options);
   }
   /**
    * Run this OpenMates app skill.
    * Description key: code.remove_secrets.description
    * Skill: code/remove_secrets
    */
-  async removeSecrets<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("code", "remove_secrets", input);
+  async removeSecrets<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("code", "remove_secrets", input, options);
   }
   /**
    * Search GitHub repositories. Use this instead of web.search whenever the user asks to find GitHub repos, repositories, open-source libraries, starred repos, or repo examples by topic, language, framework, or project need. Returns licensed repository embeds. Costs 10 credits per search.
    * Description key: code.search_repos.description
    * Skill: code/search_repos
    */
-  async searchRepos<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("code", "search_repos", input);
+  async searchRepos<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("code", "search_repos", input, options);
   }
 }
 
@@ -3393,8 +3394,8 @@ export class DesignAppSkills {
    * Description key: app_skills.design.search_icons.description
    * Skill: design/search_icons
    */
-  async searchIcons<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("design", "search_icons", input);
+  async searchIcons<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("design", "search_icons", input, options);
   }
 }
 
@@ -3408,8 +3409,8 @@ export class ElectronicsAppSkills {
    * Description key: electronics.search_components.description
    * Skill: electronics/search_components
    */
-  async searchComponents<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("electronics", "search_components", input);
+  async searchComponents<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("electronics", "search_components", input, options);
   }
 }
 
@@ -3423,8 +3424,8 @@ export class EventsAppSkills {
    * Description key: events.search.description
    * Skill: events/search
    */
-  async search<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("events", "search", input);
+  async search<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("events", "search", input, options);
   }
 }
 
@@ -3438,16 +3439,16 @@ export class FitnessAppSkills {
    * Description key: fitness.search_classes.description
    * Skill: fitness/search_classes
    */
-  async searchClasses<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("fitness", "search_classes", input);
+  async searchClasses<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("fitness", "search_classes", input, options);
   }
   /**
    * Search Urban Sports Club public fitness locations. Use this when the user asks for gyms, studios, pools, or Urban Sports locations near a city, address, or radius. Do not use it for class availability; use fitness.search_classes for dated class searches.
    * Description key: fitness.search_locations.description
    * Skill: fitness/search_locations
    */
-  async searchLocations<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("fitness", "search_locations", input);
+  async searchLocations<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("fitness", "search_locations", input, options);
   }
 }
 
@@ -3461,16 +3462,16 @@ export class HealthAppSkills {
    * Description key: health.create_report.description
    * Skill: health/create_report
    */
-  async createReport<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("health", "create_report", input);
+  async createReport<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("health", "create_report", input, options);
   }
   /**
    * Search available medical appointments at German doctors/specialists by speciality and city. Covers any medical booking — general practitioners, specialists (e.g. dentist, dermatologist, gynecologist), scans and imaging (e.g. MRT/MRI, CT, Röntgen, Ultraschall), vaccinations, check-ups, blood tests, and other examinations. Note: "Termin" in a medical context means appointment, not event — route here instead of events-search. Sources: Doctolib, Jameda (Germany only).
    * Description key: app_skills.health.search_appointments.description
    * Skill: health/search_appointments
    */
-  async searchAppointments<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("health", "search_appointments", input);
+  async searchAppointments<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("health", "search_appointments", input, options);
   }
 }
 
@@ -3484,8 +3485,8 @@ export class HomeAppSkills {
    * Description key: app_skills.home.search.description
    * Skill: home/search
    */
-  async search<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("home", "search", input);
+  async search<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("home", "search", input, options);
   }
 }
 
@@ -3499,16 +3500,16 @@ export class ImagesAppSkills {
    * Description key: images.generate.description
    * Skill: images/generate
    */
-  async generate<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("images", "generate", input);
+  async generate<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("images", "generate", input, options);
   }
   /**
    * Quickly generate a draft/preview image from a text prompt and/or reference images (image-to-image). Also use for: quick mockups, rough design concepts, draft illustrations, sketches, quick visual previews, or any request for a fast/rough image. When the user provides uploaded images as references (embed_refs), pass them via reference_images. Do not use this for scam, spam, fake-document, fake-endorsement, public-figure impersonation, or watermark/detection-evasion requests.
    * Description key: images.generate_draft.description
    * Skill: images/generate_draft
    */
-  async generateDraft<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("images", "generate_draft", input);
+  async generateDraft<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("images", "generate_draft", input, options);
   }
 }
 
@@ -3522,8 +3523,8 @@ export class MailAppSkills {
    * Description key: app_skills.mail.search.description
    * Skill: mail/search
    */
-  async search<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("mail", "search", input);
+  async search<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("mail", "search", input, options);
   }
 }
 
@@ -3537,8 +3538,8 @@ export class MapsAppSkills {
    * Description key: maps.search.description
    * Skill: maps/search
    */
-  async search<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("maps", "search", input);
+  async search<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("maps", "search", input, options);
   }
 }
 
@@ -3552,8 +3553,8 @@ export class MathAppSkills {
    * Description key: math.calculate.description
    * Skill: math/calculate
    */
-  async calculate<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("math", "calculate", input);
+  async calculate<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("math", "calculate", input, options);
   }
 }
 
@@ -3567,8 +3568,8 @@ export class Models3dAppSkills {
    * Description key: app_skills.models3d.search.description
    * Skill: models3d/search
    */
-  async search<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("models3d", "search", input);
+  async search<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("models3d", "search", input, options);
   }
 }
 
@@ -3582,8 +3583,8 @@ export class MusicAppSkills {
    * Description key: app_skills.music.generate.description
    * Skill: music/generate
    */
-  async generate<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("music", "generate", input);
+  async generate<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("music", "generate", input, options);
   }
 }
 
@@ -3597,8 +3598,8 @@ export class NewsAppSkills {
    * Description key: news.search.description
    * Skill: news/search
    */
-  async search<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("news", "search", input);
+  async search<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("news", "search", input, options);
   }
 }
 
@@ -3612,8 +3613,8 @@ export class NutritionAppSkills {
    * Description key: app_skills.nutrition.search_recipes.description
    * Skill: nutrition/search_recipes
    */
-  async searchRecipes<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("nutrition", "search_recipes", input);
+  async searchRecipes<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("nutrition", "search_recipes", input, options);
   }
 }
 
@@ -3627,24 +3628,24 @@ export class OpenmatesAppSkills {
    * Description key: openmates_app.get_docs.description
    * Skill: openmates/get-docs
    */
-  async getDocs<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("openmates", "get-docs", input);
+  async getDocs<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("openmates", "get-docs", input, options);
   }
   /**
    * Use when the user asks about OpenMates features, setup, architecture, or documentation. Searches across all OpenMates documentation to find relevant pages.
    * Description key: openmates_app.search_docs.description
    * Skill: openmates/search-docs
    */
-  async searchDocs<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("openmates", "search-docs", input);
+  async searchDocs<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("openmates", "search-docs", input, options);
   }
   /**
    * Use when the user has explicitly agreed to anonymously share a summary of their intended use cases with the OpenMates team to help improve the product. NEVER call this without clear user consent.
    * Description key: openmates_app.share_usecase.description
    * Skill: openmates/share-usecase
    */
-  async shareUsecase<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("openmates", "share-usecase", input);
+  async shareUsecase<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("openmates", "share-usecase", input, options);
   }
 }
 
@@ -3658,24 +3659,24 @@ export class PdfAppSkills {
    * Description key: pdf.read.description
    * Skill: pdf/read
    */
-  async read<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("pdf", "read", input);
+  async read<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("pdf", "read", input, options);
   }
   /**
    * Search for specific text, keywords, or phrases across all pages of an uploaded PDF. Returns matching text blocks with surrounding context and page numbers. Use when the user asks to find where something is mentioned in the document, or when a targeted keyword search is faster than reading entire sections. No LLM call required — pure text search over the OCR data. Pass the exact embed_ref (original filename) from the toon block as file_path.
    * Description key: pdf.search.description
    * Skill: pdf/search
    */
-  async search<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("pdf", "search", input);
+  async search<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("pdf", "search", input, options);
   }
   /**
    * View one or more page screenshots from an uploaded PDF and return them as multimodal image blocks so the main inference model can see the pages directly. Use when the user asks about the visual layout, diagrams, charts, figures, or images on specific pages. Also useful when text OCR may have been imperfect (e.g. complex tables, mathematical notation, handwriting). Up to 5 pages can be viewed per call. Pass the exact embed_ref (original filename) from the toon block as file_path — the server reso
    * Description key: pdf.view.skill_description
    * Skill: pdf/view
    */
-  async view<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("pdf", "view", input);
+  async view<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("pdf", "view", input, options);
   }
 }
 
@@ -3689,24 +3690,24 @@ export class ReminderAppSkills {
    * Description key: reminder.cancel_reminder.description
    * Skill: reminder/cancel-reminder
    */
-  async cancelReminder<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("reminder", "cancel-reminder", input);
+  async cancelReminder<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("reminder", "cancel-reminder", input, options);
   }
   /**
    * Show the user's existing scheduled reminders.
    * Description key: reminder.list_reminders.description
    * Skill: reminder/list-reminders
    */
-  async listReminders<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("reminder", "list-reminders", input);
+  async listReminders<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("reminder", "list-reminders", input, options);
   }
   /**
    * Schedule, create, or set up reminders for the user. Handles one-time and recurring reminders (e.g., "every morning", "daily at 9am", "weekly", "monthly"). Use when user wants to be reminded, notified, or alerted about something at a specific time or on a recurring schedule. Also use for automating tasks like "get news every day" or "summarize updates weekly".
    * Description key: reminder.set_reminder.description
    * Skill: reminder/set-reminder
    */
-  async setReminder<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("reminder", "set-reminder", input);
+  async setReminder<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("reminder", "set-reminder", input, options);
   }
 }
 
@@ -3720,8 +3721,8 @@ export class ShoppingAppSkills {
    * Description key: app_skills.shopping.search_products.description
    * Skill: shopping/search_products
    */
-  async searchProducts<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("shopping", "search_products", input);
+  async searchProducts<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("shopping", "search_products", input, options);
   }
 }
 
@@ -3735,16 +3736,16 @@ export class SocialMediaAppSkills {
    * Description key: app_skills.social_media.get_posts.description
    * Skill: social_media/get-posts
    */
-  async getPosts<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("social_media", "get-posts", input);
+  async getPosts<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("social_media", "get-posts", input, options);
   }
   /**
    * Search supported social platforms for recent public posts around a topic. Use this for topic monitoring and broad discovery across pages/profiles, not for monitoring a known profile; use Get posts for profile/page posts. Omit platform to search every supported social platform. Costs 10 credits per request.
    * Description key: app_skills.social_media.search.description
    * Skill: social_media/search
    */
-  async search<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("social_media", "search", input);
+  async search<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("social_media", "search", input, options);
   }
 }
 
@@ -3758,16 +3759,16 @@ export class TasksAppSkills {
    * Description key: tasks.skills.create.description
    * Skill: tasks/create
    */
-  async create<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("tasks", "create", input);
+  async create<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("tasks", "create", input, options);
   }
   /**
    * Search the user's encrypted tasks through a connected capable client. Do not use server-visible metadata as a private task-content search fallback.
    * Description key: tasks.skills.search.description
    * Skill: tasks/search
    */
-  async search<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("tasks", "search", input);
+  async search<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("tasks", "search", input, options);
   }
 }
 
@@ -3781,24 +3782,24 @@ export class TravelAppSkills {
    * Description key: app_skills.travel.get_flight.description
    * Skill: travel/get_flight
    */
-  async getFlight<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("travel", "get_flight", input);
+  async getFlight<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("travel", "get_flight", input, options);
   }
   /**
    * Search for flight or train connections for a particular date with details (airlines/operators, times, stops, durations, prices). Use when user asks about flights, train connections, or travel between cities on a specific date. Set transport_methods to ["airplane"] for flights or ["train"] for trains. If the user names a provider, set providers to one or more of: google_flights, deutsche_bahn, flix. If no provider is specified, all providers for the selected transport method are searched. Add cou
    * Description key: app_skills.travel.search_connections.description
    * Skill: travel/search_connections
    */
-  async searchConnections<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("travel", "search_connections", input);
+  async searchConnections<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("travel", "search_connections", input, options);
   }
   /**
    * Run this OpenMates app skill.
    * Description key: app_skills.travel.search_stays.description
    * Skill: travel/search_stays
    */
-  async searchStays<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("travel", "search_stays", input);
+  async searchStays<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("travel", "search_stays", input, options);
   }
 }
 
@@ -3812,32 +3813,32 @@ export class VideosAppSkills {
    * Description key: app_skills.videos.create.description
    * Skill: videos/create
    */
-  async create<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("videos", "create", input);
+  async create<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("videos", "create", input, options);
   }
   /**
    * Generate short photorealistic or generative footage from text prompts using Google Veo. Use this when the user asks for cinematic footage, realistic scenes, camera movement, stylized animation, or non-deterministic video generation. Do not use this for exact text slides, product announcements, diagrams, charts, UI-like motion graphics, or branded videos where exact text and layout matter; those requests should use videos.create with an explicit ```remotion:Name.tsx fence instead. Do not use this
    * Description key: app_skills.videos.generate.description
    * Skill: videos/generate
    */
-  async generate<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("videos", "generate", input);
+  async generate<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("videos", "generate", input, options);
   }
   /**
    * Get the transcript/content of a specific YouTube video URL.
    * Description key: videos.get_transcript.description
    * Skill: videos/get_transcript
    */
-  async getTranscript<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("videos", "get_transcript", input);
+  async getTranscript<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("videos", "get_transcript", input, options);
   }
   /**
    * Search for videos, documentaries, tutorials, clips on the web.
    * Description key: videos.search.description
    * Skill: videos/search
    */
-  async search<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("videos", "search", input);
+  async search<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("videos", "search", input, options);
   }
 }
 
@@ -3851,16 +3852,16 @@ export class WeatherAppSkills {
    * Description key: apps.weather.forecast.description
    * Skill: weather/forecast
    */
-  async forecast<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("weather", "forecast", input);
+  async forecast<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("weather", "forecast", input, options);
   }
   /**
    * Get nearby German rain radar with a timeline, including whether rain is visible now, whether rain is expected around the selected location in about 10 minutes, and compact frame-by-frame rain intensity metadata. Use this for rain radar, precipitation radar, and hyperlocal "will it rain here soon" questions in Germany.
    * Description key: apps.weather.rain_radar.description
    * Skill: weather/rain_radar
    */
-  async rainRadar<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("weather", "rain_radar", input);
+  async rainRadar<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("weather", "rain_radar", input, options);
   }
 }
 
@@ -3874,16 +3875,16 @@ export class WebAppSkills {
    * Description key: web.read.description
    * Skill: web/read
    */
-  async read<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("web", "read", input);
+  async read<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("web", "read", input, options);
   }
   /**
    * General web search for current information, prices, weather, facts, stocks, sports scores, etc. Use as a fallback when no specialized skill applies.
    * Description key: app_skills.web.search.description
    * Skill: web/search
    */
-  async search<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("web", "search", input);
+  async search<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("web", "search", input, options);
   }
 }
 
@@ -3897,16 +3898,16 @@ export class WorkflowsAppSkills {
    * Description key: workflows.skills.create_or_modify.description
    * Skill: workflows/create-or-modify
    */
-  async createOrModify<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("workflows", "create-or-modify", input);
+  async createOrModify<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("workflows", "create-or-modify", input, options);
   }
   /**
    * Search the user's existing persisted workflows before proposing a new automation. Include temporary workflows only when the user explicitly asks about recent chat-created workflows.
    * Description key: workflows.skills.search.description
    * Skill: workflows/search
    */
-  async search<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("workflows", "search", input);
+  async search<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("workflows", "search", input, options);
   }
 }
 

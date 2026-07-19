@@ -38,6 +38,7 @@ DEFAULT_API_URL = "https://api.openmates.org"
 DEFAULT_TIMEOUT_SECONDS = 60
 DEFAULT_RECOVERY_POLL_INTERVAL_SECONDS = 0.5
 DEFAULT_RECOVERY_TIMEOUT_SECONDS = 60.0
+PROMPT_INJECTION_DISABLED = "disabled"
 SDK_KDF_ITERATIONS = 100_000
 AES_GCM_IV_LENGTH = 12
 CIPHERTEXT_HEADER_LENGTH = 6
@@ -110,6 +111,23 @@ class ChatResponse:
     raw: dict[str, Any] | None = None
 
 
+def _with_app_skill_prompt_injection_option(
+    input_data: dict[str, Any],
+    prompt_injection_protection: bool | None,
+) -> dict[str, Any]:
+    if prompt_injection_protection is not False:
+        return input_data
+    current_security = input_data.get("security")
+    security = dict(current_security) if isinstance(current_security, dict) else {}
+    return {
+        **input_data,
+        "security": {
+            **security,
+            "prompt_injection_protection": PROMPT_INJECTION_DISABLED,
+        },
+    }
+
+
 class OpenMates:
     """Lazy API-key SDK client."""
 
@@ -145,10 +163,17 @@ class OpenMates:
         self.teams = OpenMatesTeams(self)
         self.workflows = OpenMatesWorkflows(self)
 
-    def _run_app_skill(self, app_id: str, skill_id: str, input_data: dict[str, Any]) -> dict[str, Any]:
+    def _run_app_skill(
+        self,
+        app_id: str,
+        skill_id: str,
+        input_data: dict[str, Any],
+        *,
+        prompt_injection_protection: bool | None = None,
+    ) -> dict[str, Any]:
         return self._post(
             f"/v1/apps/{app_id}/skills/{skill_id}",
-            input_data,
+            _with_app_skill_prompt_injection_option(input_data, prompt_injection_protection),
         )
 
     def _post(

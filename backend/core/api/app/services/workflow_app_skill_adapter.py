@@ -11,6 +11,14 @@ from __future__ import annotations
 
 from typing import Any
 
+from backend.shared.python_utils.app_skill_output_safety import (
+    AppSkillOutputSafetyContext,
+    APP_SKILL_SURFACE_WORKFLOW,
+    is_external_data_skill,
+    sanitize_app_skill_output,
+    strip_request_security_controls,
+)
+
 
 AI_APP_ID = "ai"
 AI_ASK_SKILL_ID = "ask"
@@ -40,12 +48,25 @@ class WorkflowAppSkillAdapter:
             from backend.core.api.app.services.skill_registry import get_global_registry
 
             registry = get_global_registry()
-        skill_request = _prepare_workflow_skill_request(app_id, skill_id, request, user_id)
+        request_without_security = strip_request_security_controls(request)
+        skill_request = _prepare_workflow_skill_request(app_id, skill_id, request_without_security, user_id)
         raw_output = await registry.dispatch_skill(app_id, skill_id, skill_request)
         if hasattr(raw_output, "model_dump"):
             raw_output = raw_output.model_dump(mode="json")
         if not isinstance(raw_output, dict):
             raw_output = {"result": raw_output}
+        metadata = registry.get_metadata(app_id) if hasattr(registry, "get_metadata") else None
+        raw_output = await sanitize_app_skill_output(
+            raw_output,
+            AppSkillOutputSafetyContext(
+                app_id=app_id,
+                skill_id=skill_id,
+                surface=APP_SKILL_SURFACE_WORKFLOW,
+                request_body=request if isinstance(request, dict) else {},
+                external_data=is_external_data_skill(metadata, app_id, skill_id),
+                log_prefix=f"[WorkflowAppSkill {app_id}.{skill_id}] ",
+            ),
+        )
         return _normalize_skill_output(app_id, skill_id, skill_request, raw_output)
 
 
@@ -118,6 +139,8 @@ def _normalize_skill_output(
         return output
 
     results = raw_output.get("results")
+    artifact_ids = _collect_artifact_ids(raw_output)
+    task_ids = _collect_string_values(raw_output, ("task_id", "task_ids", "job_id", "job_ids"))
     output.update(
         {
             "summary": raw_output.get("summary") or f"{app_id}:{skill_id} completed",
@@ -125,6 +148,10 @@ def _normalize_skill_output(
             "provider": raw_output.get("provider"),
         }
     )
+    if artifact_ids:
+        output["artifact_ids"] = artifact_ids
+    if task_ids:
+        output["task_ids"] = task_ids
     return output
 
 
@@ -133,3 +160,30 @@ def _first_result(raw_output: dict[str, Any]) -> dict[str, Any]:
     if isinstance(results, list) and results and isinstance(results[0], dict):
         return results[0]
     return {}
+
+
+def _collect_artifact_ids(raw_output: dict[str, Any]) -> list[str]:
+    return _collect_string_values(
+        raw_output,
+        (
+            "artifact_id",
+            "artifact_ids",
+            "embed_id",
+            "embed_ids",
+            "file_id",
+            "file_ids",
+            "video_id",
+            "video_ids",
+        ),
+    )
+
+
+def _collect_string_values(raw_output: dict[str, Any], keys: tuple[str, ...]) -> list[str]:
+    values: list[str] = []
+    for key in keys:
+        value = raw_output.get(key)
+        if isinstance(value, str) and value:
+            values.append(value)
+        elif isinstance(value, list):
+            values.extend(item for item in value if isinstance(item, str) and item)
+    return values

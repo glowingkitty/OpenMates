@@ -7,7 +7,7 @@
  * Tests: frontend/packages/openmates-cli/tests/sdk.test.ts
  */
 
-import { GeneratedAppSkills } from "./generated/appSkills.js";
+import { GeneratedAppSkills, type AppSkillRunOptions } from "./generated/appSkills.js";
 import { decode as toonDecode } from "@toon-format/toon";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -106,6 +106,25 @@ export type { ProjectSourceCreateInput, ProjectSourceRecord } from "./client.js"
 const DEFAULT_API_URL = "https://api.openmates.org";
 const DEFAULT_RECOVERY_POLL_INTERVAL_MS = 500;
 const DEFAULT_RECOVERY_TIMEOUT_MS = 60_000;
+const PROMPT_INJECTION_DISABLED = "disabled";
+
+function withAppSkillRunOptions(input: unknown, options?: AppSkillRunOptions): unknown {
+  if (options?.promptInjectionProtection !== false) return input;
+  if (!input || typeof input !== "object" || Array.isArray(input)) {
+    throw new OpenMatesConfigError("App-skill prompt-injection opt-out requires object input.");
+  }
+  const currentSecurity = (input as Record<string, unknown>).security;
+  const security = currentSecurity && typeof currentSecurity === "object" && !Array.isArray(currentSecurity)
+    ? { ...(currentSecurity as Record<string, unknown>) }
+    : {};
+  return {
+    ...(input as Record<string, unknown>),
+    security: {
+      ...security,
+      prompt_injection_protection: PROMPT_INJECTION_DISABLED,
+    },
+  };
+}
 
 export interface OpenMatesOptions {
   apiKey?: string;
@@ -406,8 +425,8 @@ export class OpenMates {
     this.workflows = new OpenMatesWorkflows(this);
   }
 
-  async runAppSkill<T = unknown>(appId: string, skillId: string, input: unknown): Promise<T> {
-    return this.request<T>(`/v1/apps/${appId}/skills/${skillId}`, input);
+  async runAppSkill<T = unknown>(appId: string, skillId: string, input: unknown, options?: AppSkillRunOptions): Promise<T> {
+    return this.request<T>(`/v1/apps/${appId}/skills/${skillId}`, withAppSkillRunOptions(input, options));
   }
 
   async request<T>(path: string, body?: unknown, timeoutMs?: number, extraHeaders?: Record<string, string>): Promise<T> {

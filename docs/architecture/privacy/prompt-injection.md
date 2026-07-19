@@ -1,10 +1,14 @@
 ---
 status: active
-last_verified: 2026-05-10
+last_verified: 2026-07-19
 key_files:
 - backend/core/api/app/utils/text_sanitization.py
 - backend/apps/ai/processing/content_sanitization.py
+- backend/shared/python_utils/app_skill_output_safety.py
 - backend/apps/ai/processing/preprocessor.py
+- backend/apps/ai/processing/skill_executor.py
+- backend/core/api/app/routes/apps_api.py
+- backend/core/api/app/services/workflow_app_skill_adapter.py
 - backend/apps/ai/tasks/stream_consumer.py
 - backend/apps/ai/prompt_injection_detection.yml
 - backend/shared/python_utils/url_normalizer.py
@@ -49,6 +53,19 @@ claims:
   anchors:
   - type: file_exists
     path: backend/apps/ai/processing/preprocessor.py
+- id: arch-privacy-app-skill-output-safety
+  type: unit
+  claim: App-skill outputs use central ASCII-smuggling removal and default-on semantic scanning for external-data skills.
+  source:
+  - backend/shared/python_utils/app_skill_output_safety.py
+  - backend/core/api/app/routes/apps_api.py
+  - backend/apps/ai/processing/skill_executor.py
+  - backend/core/api/app/services/workflow_app_skill_adapter.py
+  test:
+    file: scripts/audit_app_skill_output_safety.py
+    command: python3 scripts/audit_app_skill_output_safety.py
+    assertion: app-skill-output-safety
+  verified: '2026-07-19'
 ---
 
 # Prompt Injection Protection
@@ -74,9 +91,11 @@ External content processed by app skills (websites, emails, code, PDFs, video tr
 | ASCII Control | 0x00-0x1F, 0x7F (except tab/newline/return) | Low |
 
 **Entry points protected:**
+
 1. WebSocket handler -- all user messages from web app
 2. REST API endpoints -- all programmatic requests
 3. AI preprocessor -- final safety check before LLM
+4. App-skill output dispatch surfaces -- REST/CLI/SDK, assistant tool execution, and Workflow app-skill nodes
 
 **Process:** Detect and decode hidden ASCII content (logged as security alert), remove all invisible characters, normalize Unicode to NFC form.
 
@@ -102,6 +121,33 @@ External content processed by app skills (websites, emails, code, PDFs, video tr
 **Text chunking**: Long text outputs are split into 50,000-token chunks, processed separately, then combined. [`content_sanitization.py`](../../backend/apps/ai/processing/content_sanitization.py) implements word-boundary-aware splitting via `_split_text_into_chunks()`.
 
 **Execution order**: ASCII smuggling runs FIRST on external content, then LLM detection runs as the LAST step before app skill endpoints return data to main processing.
+
+### App-Skill Output Dispatch Boundary
+
+[`app_skill_output_safety.py`](../../backend/shared/python_utils/app_skill_output_safety.py) is the central protection layer for app-skill outputs across assistant, Workflow, REST API, CLI, npm SDK, and pip SDK calls.
+
+**Mandatory behavior:**
+
+- ASCII-smuggling removal always runs on app-skill outputs and cannot be disabled on any surface.
+- External-data skill outputs run semantic GPT-OSS prompt-injection scanning by default.
+- Semantic scanner failures fail closed while protection is enabled; unscanned external text is not returned as a fallback.
+- Binary/media fields, encrypted blobs, hashes, keys, and base64 payloads are excluded from semantic scanning by the existing external-result sanitizer rules.
+
+**Opt-out contract:**
+
+Direct programmatic callers may disable semantic scanning only for REST/CLI/SDK app-skill calls by sending this request-body metadata:
+
+```json
+{
+  "security": {
+    "prompt_injection_protection": "disabled"
+  }
+}
+```
+
+The CLI maps `--disable-prompt-injection-protection` to this field. The npm SDK maps `{ promptInjectionProtection: false }`; the pip SDK maps `prompt_injection_protection=False`.
+
+Assistant-triggered app-skill calls and Workflow app-skill nodes cannot disable semantic scanning. Their dispatch adapters strip or ignore `security.prompt_injection_protection` before skill validation and never treat it as an authorized programmatic opt-out.
 
 ### Preview Server Sanitization
 
@@ -148,11 +194,11 @@ Assistant responses can turn prompt-injected source text into malicious links, f
 
 ### Programmatic API Override
 
-For REST API, npm package, pip package, and CLI access, users can optionally disable prompt injection scanning at their own risk. Scanning is ON by default. The web interface always enforces protection.
+For direct REST API, npm package, pip package, and CLI app-skill access, users can optionally disable semantic prompt-injection scanning at their own risk through `security.prompt_injection_protection: disabled`. Scanning is ON by default. The web interface, assistant tool calls, and Workflows always enforce protection. ASCII-smuggling removal is never disabled.
 
 ## Edge Cases
 
-- **Groq API outage**: Content is returned with character-level sanitization only (ASCII smuggling protection has no external dependency).
+- **Safeguard API outage**: App-skill external-data outputs fail closed while semantic protection is enabled. ASCII smuggling protection has no external dependency and still runs before failure.
 - **False positives**: Content discussing AI systems or prompt engineering may trigger moderate scores (5.0-6.9). The review threshold allows these through with targeted string replacement rather than full blocking.
 - **Cached preview metadata**: Sanitization happens at fetch time. Cached metadata is already sanitized.
 

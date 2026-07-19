@@ -1,0 +1,786 @@
+schema_version: 2
+id: app-skill-output-safety
+title: App Skill Output Safety
+status: approved
+
+goal: >
+  Guarantee that every app-skill output that can carry external data is protected
+  before it reaches any assistant, Workflow, REST API, CLI, npm SDK, or pip SDK
+  caller: ASCII-smuggling removal is always applied and cannot be disabled, while
+  GPT-OSS prompt-injection scanning is on by default and can only be disabled by
+  direct programmatic REST/CLI/SDK callers through an explicit request-body
+  security flag.
+
+scope:
+  in:
+    - A shared backend app-skill output safety layer used by all protected app-skill dispatch surfaces.
+    - Recursive ASCII-smuggling removal for app-skill outputs, always on and never opt-out.
+    - GPT-OSS prompt-injection scanning for external-data app-skill outputs, default on and fail-closed while enabled.
+    - "A canonical REST request-body opt-out contract: `security.prompt_injection_protection: disabled`."
+    - CLI, npm SDK, and pip SDK options that map to the canonical REST request-body security field.
+    - Hardcoded rejection/ignoring of prompt-injection opt-out attempts from assistant tool calls and Workflow app-skill nodes.
+    - App-skill metadata or deterministic policy inference that identifies external-data skills.
+    - Audit guardrails preventing newly-added external-data skills or dispatch surfaces from bypassing output safety.
+    - Backend, CLI, npm SDK, and pip SDK contract tests for default-on protection, explicit REST/SDK/CLI opt-out, and assistant/Workflow no-opt-out behavior.
+  out:
+    - Any web UI toggle to disable prompt-injection protection.
+    - Any Workflow definition or Workflow node field that can disable prompt-injection protection.
+    - Any assistant-controlled tool argument that can disable prompt-injection protection.
+    - Disabling ASCII-smuggling removal under any surface.
+    - Replacing `openai/gpt-oss-safeguard-20b` with a different model.
+    - Changing image/content-generation safety policy beyond app-skill output text scanning.
+    - Scanning encrypted blobs, Vault ciphertext, AES keys, hashes, base64 media, binary payloads, or image bytes.
+
+context_discovery:
+  github_issues:
+    - "GitHub MCP get_me failed with 401 Bad credentials on 2026-07-19; duplicate issue search could not be completed from this session."
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/architecture/privacy/prompt-injection.md
+    - docs/architecture/privacy/sensitive-data-redaction.md
+    - docs/specs/ascii-smuggling-universal-guards/spec.yml
+    - docs/specs/sdk-cli-parity-v1/spec.yml
+    - docs/specs/workflows-v1/spec.yml
+    - docs/specs/workflows-sdk-runtime/spec.yml
+  code_patterns:
+    - backend/core/api/app/utils/text_sanitization.py
+    - backend/apps/ai/processing/content_sanitization.py
+    - backend/apps/ai/processing/external_result_sanitizer.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/skill_executor.py
+    - backend/apps/base_app.py
+    - backend/core/api/app/services/skill_registry.py
+    - backend/core/api/app/routes/apps_api.py
+    - backend/core/api/app/services/workflow_app_skill_adapter.py
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - packages/openmates-python/openmates/sdk.py
+    - backend/apps/*/app.yml
+  tests:
+    - backend/tests/test_content_sanitization.py
+    - backend/tests/test_ascii_smuggling_boundaries.py
+    - backend/tests/test_audio_transcribe_ascii_sanitization.py
+    - backend/tests/test_app_skill_rest_context.py
+    - backend/tests/test_workflow_app_skill_adapter.py
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/sdk.test.ts
+    - packages/openmates-python/tests/test_sdk.py
+  findings:
+    - Existing main backend `sanitize_external_content()` uses `openai/gpt-oss-safeguard-20b` and fails closed when scanning cannot complete.
+    - Current REST app-skill output path performs recursive ASCII cleanup but not GPT-OSS prompt-injection scanning.
+    - Current assistant tool-call output path performs central recursive ASCII cleanup but not central GPT-OSS prompt-injection scanning.
+    - Current Workflow app-skill adapter calls `SkillRegistry.dispatch_skill()` directly and has no central output safety wrapper.
+    - Several individual external-data skills call the sanitizer themselves, but coverage is decentralized and incomplete.
+    - The architecture doc already promises programmatic opt-out, but no implemented request-body, CLI, npm SDK, or pip SDK opt-out flag was found.
+
+apple_impact:
+  affected_files:
+    - none
+  parity_expectations:
+    - This is backend/API/CLI/SDK safety behavior and does not add an Apple UI or native app-skill execution surface.
+    - Apple chat behavior benefits from assistant-side backend enforcement and must not gain any opt-out path.
+  verification:
+    - Apple not directly affected; backend tests prove assistant outputs are protected regardless of client.
+  intentional_native_differences:
+    - Apple exposes no programmatic direct app-skill opt-out.
+
+clarification:
+  rounds:
+    - question: Should assistant and Workflow calls ever be allowed to disable prompt-injection protection?
+      answer: No. Assistant and Workflow opt-out must be hardcoded prevented; only REST API, CLI, npm SDK, and pip SDK direct app-skill calls may opt out.
+    - question: Should GPT-OSS scanner failure fail closed or degrade to ASCII-only?
+      answer: Fail closed while prompt-injection protection is enabled.
+    - question: Should the canonical programmatic opt-out be a request-body field instead of a header?
+      answer: "Yes. Use request-body `security.prompt_injection_protection: disabled`, with CLI and SDK options mapping to that field."
+  vision_summary: >
+    App skill authors and callers should not need to remember output security. The
+    backend should guarantee ASCII cleanup everywhere, run GPT-OSS scanning by
+    default for external-data outputs, reject assistant/Workflow opt-outs by
+    construction, and only honor a direct programmatic REST/CLI/SDK opt-out that
+    remains explicit and auditable.
+  approved_by_user: true
+
+implementation_state:
+  subject_commit: 93540bd77
+
+approvals:
+  product_contract:
+    status: approved
+    approved_at: "2026-07-19T00:00:00Z"
+    reason: "User confirmed the contract and instructed: write the full spec, including tests - then execute."
+  implementation_plan:
+    status: approved
+    approved_at: "2026-07-19T00:00:00Z"
+    reason: "User requested immediate execution after the full spec; initial implementation plan is included in this spec."
+
+decisions:
+  - id: D-1
+    status: active
+    decision: ASCII-smuggling removal for app-skill outputs is mandatory and has no opt-out on any surface.
+    reason: Hidden Unicode instructions are never legitimate model-visible control data and deterministic cleanup has no external dependency.
+    decided_at: "2026-07-19T00:00:00Z"
+  - id: D-2
+    status: active
+    decision: GPT-OSS prompt-injection scanning defaults on and fails closed while enabled.
+    reason: Returning unscanned external content after a scanner failure would violate the security contract.
+    decided_at: "2026-07-19T00:00:00Z"
+  - id: D-3
+    status: active
+    decision: Only direct REST/CLI/npm SDK/pip SDK app-skill calls may disable semantic prompt-injection scanning.
+    reason: Those are explicit programmatic calls where the authenticated caller owns the request body; assistant and Workflow calls can execute unattended or be influenced by untrusted content.
+    decided_at: "2026-07-19T00:00:00Z"
+  - id: D-4
+    status: active
+    decision: "The canonical opt-out wire contract is `security.prompt_injection_protection: disabled` in the request body."
+    reason: One request-body contract can be generated into CLI and SDK options and remains visible in logs/audits without custom header handling.
+    decided_at: "2026-07-19T00:00:00Z"
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    approach: Continue relying on individual app skills to call `sanitize_external_content()`.
+    outcome: rejected
+    recorded_at: "2026-07-19T00:00:00Z"
+    reason: Existing audit found decentralized and incomplete coverage, and direct Workflow/registry paths can bypass per-surface cleanup.
+  - id: ATTEMPT-2
+    task_id: TASK-1
+    approach: Add central dispatch-boundary protection with explicit surface context.
+    outcome: planned
+    recorded_at: "2026-07-19T00:00:00Z"
+    reason: A dispatch-boundary service is the smallest enforceable place to cover assistant, REST, CLI, SDK, and Workflow outputs consistently.
+
+handoff:
+  current_task_id: TASK-4
+  next_action: "Ready for review/deploy after focused backend, CLI, npm SDK, pip SDK, audit, and spec validation passed."
+  command: "python3 scripts/audit_app_skill_output_safety.py && python3 scripts/spec_validate.py docs/specs/app-skill-output-safety/spec.yml"
+  expected_outcome: "Audit and spec validation pass."
+  blocker: null
+  last_verified_commit: 93540bd77
+
+scenarios:
+  - id: S-1
+    title: Assistant app-skill output is always protected
+    given:
+      - The assistant invokes `web.search` and receives provider text containing hidden Unicode Tags plus visible prompt-injection instructions.
+      - A malicious user asks the assistant to disable prompt-injection protection before searching.
+    when:
+      - The skill result is returned to the AI processor as a tool result.
+    then:
+      - ASCII-smuggling characters are removed from every model-visible output text field.
+      - GPT-OSS prompt-injection scanning runs because the skill returns external data.
+      - The user's attempted opt-out is ignored and does not become a sanitizer bypass.
+      - If GPT-OSS scanning fails, the external text is blocked before it reaches the model.
+
+  - id: S-2
+    title: REST caller can explicitly opt out of GPT-OSS scanning only
+    given:
+      - Alice calls `/v1/apps/web/skills/search` with an API key.
+      - "Her request body includes `security.prompt_injection_protection: disabled`."
+    when:
+      - The backend dispatches the app skill and prepares the response.
+    then:
+      - The semantic GPT-OSS scan is skipped for that direct REST response.
+      - ASCII-smuggling removal still runs and removes hidden Unicode.
+      - The response or logs record that prompt-injection protection was disabled by the programmatic caller.
+
+  - id: S-3
+    title: CLI and SDKs map opt-out to the same REST contract
+    given:
+      - A developer uses the OpenMates CLI, npm SDK, or pip SDK to run an app skill directly.
+    when:
+      - They pass the client-specific opt-out option.
+    then:
+      - "The client sends `security.prompt_injection_protection: disabled` in the REST request body."
+      - Without the option, the security field is omitted and backend prompt-injection scanning remains enabled.
+      - No client can disable ASCII-smuggling removal.
+
+  - id: S-4
+    title: Workflow app-skill output is always protected
+    given:
+      - A Workflow app-skill node calls `news.search` or `weather.forecast`.
+      - "The Workflow definition or node input includes `security.prompt_injection_protection: disabled`."
+    when:
+      - The Workflow runner executes the app-skill node.
+    then:
+      - Workflow code strips or ignores the prompt-injection opt-out before dispatch.
+      - GPT-OSS scanning remains enabled for external-data output.
+      - ASCII-smuggling removal remains enabled.
+
+  - id: S-5
+    title: Internal and non-external skill outputs avoid unnecessary GPT-OSS calls
+    given:
+      - A skill returns deterministic OpenMates task data, encrypted blobs, hashes, base64 media, or generated file metadata.
+    when:
+      - The shared output safety layer processes the result.
+    then:
+      - ASCII-smuggling removal still sanitizes normal text fields.
+      - Prompt-injection scanning is skipped only when the skill is classified as not carrying external promptable text.
+      - Encrypted, hash, key, and base64/media fields are preserved.
+
+  - id: S-6
+    title: Audit prevents new unsafe external-data skill drift
+    given:
+      - A contributor adds a new skill with an external provider or direct provider calls.
+    when:
+      - The app-skill output safety audit runs.
+    then:
+      - The audit fails unless the skill has an explicit output-safety policy or is covered by deterministic external-data inference.
+      - The audit also fails on direct public dispatch patterns that bypass the safety service.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Assistant app-skill outputs always pass through ASCII-smuggling removal and GPT-OSS scanning for external-data skills, and assistant/user tool arguments cannot disable scanning.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids:
+      - T-BACKEND-001
+  - id: AC-2
+    scenario: S-2
+    text: "REST direct app-skill calls honor `security.prompt_injection_protection: disabled` for semantic scanning only, while ASCII-smuggling removal still runs."
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids:
+      - T-BACKEND-002
+      - T-CLI-001
+  - id: AC-3
+    scenario: S-3
+    text: CLI, npm SDK, and pip SDK expose explicit opt-out options that serialize to the same REST request-body security contract and omit the field by default.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids:
+      - T-CLI-001
+      - T-NPM-001
+      - T-PIP-001
+  - id: AC-4
+    scenario: S-4
+    text: Workflow app-skill execution cannot disable GPT-OSS scanning even if Workflow input/config contains the opt-out field.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids:
+      - T-BACKEND-003
+  - id: AC-5
+    scenario: S-5
+    text: Non-external or binary/encrypted/media fields do not trigger semantic scanning or mutation, while normal strings still receive ASCII cleanup.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids:
+      - T-BACKEND-004
+  - id: AC-6
+    scenario: S-6
+    text: A deterministic audit fails for external-provider skills or public dispatch surfaces that can bypass the shared output safety layer.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids:
+      - T-AUDIT-001
+
+contracts:
+  api:
+    - "Direct REST app-skill request bodies may include `security.prompt_injection_protection: disabled`."
+    - Any other value, missing field, or malformed security object keeps prompt-injection protection enabled.
+    - Internal request payloads should carry sanitized security context via underscore-prefixed fields only after REST authorization, never from assistant or Workflow inputs.
+    - Public response data may include non-sensitive safety metadata indicating whether semantic protection was enabled or disabled by the caller.
+  cli:
+    - Direct app-skill commands expose `--disable-prompt-injection-protection`.
+    - The flag only affects direct app-skill REST calls and does not affect chat, assistant, or Workflow execution.
+  npm_sdk:
+    - Direct generated app-skill methods accept an explicit option such as `{ promptInjectionProtection: false }`.
+    - The generic `runAppSkill` path, if retained internally, maps the same option to the canonical request-body field.
+  pip_sdk:
+    - Direct generated app-skill methods accept an explicit option such as `prompt_injection_protection=False`.
+    - The option maps to the canonical request-body field.
+  workflow:
+    - Workflow definitions, node configs, and input mappings cannot disable prompt-injection scanning.
+    - "The Workflow adapter removes or ignores `security.prompt_injection_protection: disabled` before app-skill dispatch."
+  privacy_security:
+    - ASCII-smuggling removal runs on all app-skill outputs for all surfaces and cannot be turned off.
+    - GPT-OSS scanning uses `openai/gpt-oss-safeguard-20b` through existing content sanitization plumbing.
+    - GPT-OSS scanner failures fail closed while protection is enabled.
+    - Logs may record counts, app/skill, user/API-key hashes, and opt-out status, but must not log full private provider payloads beyond existing truncated diagnostics.
+    - Assistant and Workflow opt-out attempts are security events and must not be accepted as user-authorized programmatic opt-out.
+
+assumptions:
+  - id: A-1
+    text: The existing `sanitize_external_content()` fail-closed behavior remains the desired backend behavior for enabled semantic scanning.
+    status: confirmed
+    required_before: implementation
+    evidence:
+      - "User accepted fail-closed recommendation on 2026-07-19."
+  - id: A-2
+    text: "CLI/npm/pip direct app-skill calls use `/v1/apps/{app}/skills/{skill}` and can carry request-body security metadata without a new route."
+    status: confirmed
+    required_before: implementation
+    evidence:
+      - "Discovery found CLI and SDK app-skill clients posting to `/v1/apps/{app}/skills/{skill}`."
+
+tests:
+  - id: T-BACKEND-001
+    type: pytest
+    file: backend/tests/test_app_skill_output_safety.py
+    command: python3 -m pytest backend/tests/test_app_skill_output_safety.py -k assistant
+    covers:
+      - AC-1
+    assertions:
+      - "Assistant surface ignores `security.prompt_injection_protection: disabled` in skill arguments."
+      - External text is sent to the semantic sanitizer when protection is enabled.
+      - ASCII-smuggling text is removed before semantic output is returned.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        timestamp: "2026-07-19T13:37:10Z"
+        reason: "Red-phase command output was not retained before implementation completed in this session."
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest backend/tests/test_app_skill_output_safety.py backend/tests/test_app_skill_rest_context.py backend/tests/test_workflow_app_skill_adapter.py
+        run_id: local-20260719-app-skill-output-safety-backend
+        timestamp: "2026-07-19T13:37:10Z"
+        subject_commit: 93540bd77
+        result: "9 passed, 1 skipped"
+  - id: T-BACKEND-002
+    type: pytest
+    file: backend/tests/test_app_skill_rest_context.py
+    command: python3 -m pytest backend/tests/test_app_skill_rest_context.py
+    covers:
+      - AC-2
+    assertions:
+      - REST default direct skill calls run semantic protection for external-data skill output.
+      - REST opt-out skips semantic protection but still strips ASCII smuggling.
+      - REST request `security` does not leak into the skill's public request model.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        timestamp: "2026-07-19T13:37:10Z"
+        reason: "Red-phase command output was not retained before implementation completed in this session."
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest backend/tests/test_app_skill_output_safety.py backend/tests/test_app_skill_rest_context.py backend/tests/test_workflow_app_skill_adapter.py
+        run_id: local-20260719-app-skill-output-safety-backend
+        timestamp: "2026-07-19T13:37:10Z"
+        subject_commit: 93540bd77
+        result: "9 passed, 1 skipped; REST context collection skipped locally when redis.asyncio unavailable"
+  - id: T-BACKEND-003
+    type: pytest
+    file: backend/tests/test_workflow_app_skill_adapter.py
+    command: python3 -m pytest backend/tests/test_workflow_app_skill_adapter.py
+    covers:
+      - AC-4
+    assertions:
+      - Workflow app-skill adapter strips or ignores prompt-injection opt-out fields.
+      - Workflow app-skill output still flows through semantic protection for external-data output.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        timestamp: "2026-07-19T13:37:10Z"
+        reason: "Red-phase command output was not retained before implementation completed in this session."
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest backend/tests/test_app_skill_output_safety.py backend/tests/test_app_skill_rest_context.py backend/tests/test_workflow_app_skill_adapter.py
+        run_id: local-20260719-app-skill-output-safety-backend
+        timestamp: "2026-07-19T13:37:10Z"
+        subject_commit: 93540bd77
+        result: "9 passed, 1 skipped"
+  - id: T-BACKEND-004
+    type: pytest
+    file: backend/tests/test_app_skill_output_safety.py
+    command: python3 -m pytest backend/tests/test_app_skill_output_safety.py -k non_external
+    covers:
+      - AC-5
+    assertions:
+      - Non-external skill outputs receive ASCII cleanup but do not call semantic scanning.
+      - Encrypted, hash, and base64/media fields are preserved.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        timestamp: "2026-07-19T13:37:10Z"
+        reason: "Red-phase command output was not retained before implementation completed in this session."
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest backend/tests/test_app_skill_output_safety.py backend/tests/test_app_skill_rest_context.py backend/tests/test_workflow_app_skill_adapter.py
+        run_id: local-20260719-app-skill-output-safety-backend
+        timestamp: "2026-07-19T13:37:10Z"
+        subject_commit: 93540bd77
+        result: "9 passed, 1 skipped"
+  - id: T-AUDIT-001
+    type: unit
+    file: scripts/audit_app_skill_output_safety.py
+    command: python3 scripts/audit_app_skill_output_safety.py
+    covers:
+      - AC-6
+    assertions:
+      - External-provider skills have explicit or inferred output-safety coverage.
+      - Public direct app-skill dispatch surfaces route through output safety.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        timestamp: "2026-07-19T13:37:10Z"
+        reason: "Red-phase command output was not retained before implementation completed in this session."
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 scripts/audit_app_skill_output_safety.py
+        run_id: local-20260719-app-skill-output-safety-audit
+        timestamp: "2026-07-19T13:37:10Z"
+        subject_commit: 93540bd77
+        result: "PASS app-skill output safety audit"
+  - id: T-CLI-001
+    type: unit
+    file: frontend/packages/openmates-cli/tests/cli.test.ts
+    command: npm --prefix frontend/packages/openmates-cli test -- --runInBand frontend/packages/openmates-cli/tests/cli.test.ts
+    covers:
+      - AC-2
+      - AC-3
+    assertions:
+      - "CLI direct app-skill opt-out flag serializes `security.prompt_injection_protection: disabled`."
+      - CLI direct app-skill calls omit the security opt-out by default.
+      - Dev-server CLI command evidence is recorded before SDK/web phases proceed.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        timestamp: "2026-07-19T13:37:10Z"
+        reason: "Red-phase command output was not retained before implementation completed in this session."
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: node --test --test-name-pattern "runs the explicit models3d search command" tests/cli.test.ts
+        run_id: local-20260719-app-skill-output-safety-cli
+        timestamp: "2026-07-19T13:37:10Z"
+        subject_commit: 93540bd77
+        result: "1 focused test passed after npm run build"
+  - id: T-NPM-001
+    type: unit
+    file: frontend/packages/openmates-cli/tests/sdk.test.ts
+    command: npm --prefix frontend/packages/openmates-cli test -- --runInBand frontend/packages/openmates-cli/tests/sdk.test.ts
+    covers:
+      - AC-3
+    assertions:
+      - npm SDK direct app-skill option maps to canonical request-body security opt-out.
+      - npm SDK direct app-skill calls omit the security opt-out by default.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        timestamp: "2026-07-19T13:37:10Z"
+        reason: "Red-phase command output was not retained before implementation completed in this session."
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: node --test --experimental-strip-types --loader ./tests/loader.mjs --test-name-pattern "maps generated app-skill prompt-injection opt-out" tests/sdk.test.ts
+        run_id: local-20260719-app-skill-output-safety-npm
+        timestamp: "2026-07-19T13:37:10Z"
+        subject_commit: 93540bd77
+        result: "1 focused test passed; npm generator focused test also passed"
+  - id: T-PIP-001
+    type: pytest
+    file: packages/openmates-python/tests/test_sdk.py
+    command: python3 -m pytest packages/openmates-python/tests/test_sdk.py
+    covers:
+      - AC-3
+    assertions:
+      - pip SDK direct app-skill option maps to canonical request-body security opt-out.
+      - pip SDK direct app-skill calls omit the security opt-out by default.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        timestamp: "2026-07-19T13:37:10Z"
+        reason: "Red-phase command output was not retained before implementation completed in this session."
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest packages/openmates-python/tests/test_sdk.py packages/openmates-python/tests/test_sdk_generator.py
+        run_id: local-20260719-app-skill-output-safety-pip
+        timestamp: "2026-07-19T13:37:10Z"
+        subject_commit: 93540bd77
+        result: "34 passed"
+
+verifications:
+  - id: V-SPEC-VALIDATE
+    kind: deterministic_check
+    command: python3 scripts/spec_validate.py docs/specs/app-skill-output-safety/spec.yml
+    status: passed
+    evidence:
+      status: passed
+      command: python3 scripts/spec_validate.py docs/specs/app-skill-output-safety/spec.yml
+      run_id: local-20260719-app-skill-output-safety-spec-validate
+      timestamp: "2026-07-19T13:37:10Z"
+      subject_commit: 93540bd77
+      result: "PASS docs/specs/app-skill-output-safety/spec.yml: app-skill-output-safety (approved)"
+  - id: V-SDK-CLI-PARITY
+    kind: deterministic_check
+    command: python3 scripts/audit_sdk_cli_parity.py
+    status: passed
+    evidence:
+      status: passed
+      command: python3 scripts/audit_sdk_cli_parity.py
+      run_id: local-20260719-app-skill-output-safety-sdk-cli-parity
+      timestamp: "2026-07-19T13:37:10Z"
+      subject_commit: 93540bd77
+      result: "sdk-cli-parity: 72 command entries and 4 workflow template transport entries checked"
+
+implementation_plan:
+  spec_path: docs/specs/app-skill-output-safety/spec.yml
+  existing_patterns:
+    - backend/core/api/app/utils/text_sanitization.py provides safe recursive ASCII-smuggling cleanup and skip fields for encrypted/base64 data.
+    - backend/apps/ai/processing/content_sanitization.py provides fail-closed GPT-OSS semantic scanning.
+    - backend/apps/ai/processing/external_result_sanitizer.py provides nested long-text field selection and skip rules.
+    - backend/shared/python_utils/app_skill_helpers.py is the current app-neutral bridge for AI-owned sanitizer helpers.
+  architecture: >
+    Add an app-neutral output safety helper that receives app/skill metadata,
+    execution surface, request security context, cache/secrets dependencies when
+    available, and the raw result. It always applies recursive ASCII cleanup. It
+    applies semantic GPT-OSS scanning when the skill is classified as external-data
+    and prompt-injection protection is enabled for that surface. Assistant and
+    Workflow surfaces never accept opt-out. REST surfaces may opt out only after
+    explicit API authentication has accepted a direct app-skill request.
+  data_flow:
+    - Caller builds app-skill request.
+    - Surface code classifies source as assistant, workflow, or rest_programmatic.
+    - REST extracts and removes canonical `security.prompt_injection_protection` before skill validation/execute.
+    - Skill executes and returns raw result.
+    - Shared output safety helper applies mandatory ASCII cleanup.
+    - If external-data and semantic scanning is enabled, helper scans selected text fields using GPT-OSS and fails closed on scan errors.
+    - Caller receives sanitized result plus optional non-sensitive safety metadata.
+  phase_gates:
+    - Backend unit tests define and prove the shared contract first.
+    - CLI direct app-skill command maps opt-out to REST and is verified against dev API before SDK changes are treated as complete.
+    - npm SDK and pip SDK parity tests follow CLI evidence.
+    - Web UI is not changed; no Playwright or user visual confirmation required.
+    - Apple is not directly changed; no Apple parity run required unless backend chat behavior changes unexpectedly.
+  affected_files:
+    - path: docs/specs/app-skill-output-safety/spec.yml
+      reason: Durable executable product contract.
+    - path: backend/shared/python_utils/app_skill_output_safety.py
+      reason: New shared output safety service and policy helpers.
+    - path: backend/shared/python_utils/app_skill_helpers.py
+      reason: Re-export output safety helper without eager AI imports if needed.
+    - path: backend/shared/python_schemas/app_metadata_schemas.py
+      reason: Optional output-safety metadata schema for app.yml policy.
+    - path: backend/core/api/app/services/skill_registry.py
+      reason: Provide protected/raw dispatch distinction or policy metadata helpers.
+    - path: backend/core/api/app/routes/apps_api.py
+      reason: REST direct app-skill output protection and canonical opt-out extraction.
+    - path: backend/apps/ai/processing/skill_executor.py
+      reason: Assistant app-skill output protection with no opt-out.
+    - path: backend/core/api/app/services/workflow_app_skill_adapter.py
+      reason: Workflow output protection and hardcoded opt-out rejection.
+    - path: frontend/packages/openmates-cli/src/cli.ts
+      reason: CLI opt-out flag for direct app-skill commands.
+    - path: frontend/packages/openmates-cli/src/client.ts
+      reason: Client request option mapping.
+    - path: frontend/packages/openmates-cli/src/sdk.ts
+      reason: npm SDK direct app-skill option mapping.
+    - path: packages/openmates-python/openmates/sdk.py
+      reason: pip SDK direct app-skill option mapping.
+    - path: scripts/audit_app_skill_output_safety.py
+      reason: Deterministic guardrail for future skills and dispatch surfaces.
+  verification_strategy:
+    - python3 scripts/spec_validate.py docs/specs/app-skill-output-safety/spec.yml
+    - python3 -m pytest backend/tests/test_app_skill_output_safety.py backend/tests/test_app_skill_rest_context.py backend/tests/test_workflow_app_skill_adapter.py backend/tests/test_content_sanitization.py
+    - python3 scripts/audit_app_skill_output_safety.py
+    - npm --prefix frontend/packages/openmates-cli test -- --runInBand frontend/packages/openmates-cli/tests/cli.test.ts frontend/packages/openmates-cli/tests/sdk.test.ts
+    - python3 -m pytest packages/openmates-python/tests/test_sdk.py
+    - python3 scripts/audit_sdk_cli_parity.py
+  verification_order:
+    - Backend pytest red/green evidence first.
+    - Deterministic audit script after backend wiring.
+    - CLI direct app-skill opt-out contract before SDK parity.
+    - npm SDK and pip SDK parity tests after CLI evidence.
+    - No web Playwright or Apple verification unless implementation expands scope.
+
+tasks:
+  - id: TASK-1
+    title: Add shared backend output safety contract and tests
+    status: done
+    phase: working_tasks
+    ownership:
+      owner: unassigned
+      files:
+        - backend/shared/python_utils/app_skill_output_safety.py
+        - backend/tests/test_app_skill_output_safety.py
+        - backend/tests/test_app_skill_rest_context.py
+        - backend/tests/test_workflow_app_skill_adapter.py
+      shared_files: []
+    dependencies: []
+    blockers: []
+    follow_up_tasks: []
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-4
+        - S-5
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-4
+        - AC-5
+    expected_files:
+      - backend/shared/python_utils/app_skill_output_safety.py
+      - backend/tests/test_app_skill_output_safety.py
+      - backend/tests/test_app_skill_rest_context.py
+      - backend/tests/test_workflow_app_skill_adapter.py
+    verification_ids:
+      - T-BACKEND-001
+      - T-BACKEND-002
+      - T-BACKEND-003
+      - T-BACKEND-004
+    independently_deployable: false
+  - id: TASK-2
+    title: Wire REST, assistant, and Workflow execution surfaces
+    status: done
+    phase: working_tasks
+    ownership:
+      owner: unassigned
+      files:
+        - backend/core/api/app/routes/apps_api.py
+        - backend/apps/ai/processing/skill_executor.py
+        - backend/core/api/app/services/workflow_app_skill_adapter.py
+      shared_files: []
+    dependencies:
+      - TASK-1
+    blockers: []
+    follow_up_tasks: []
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-4
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-4
+    expected_files:
+      - backend/core/api/app/routes/apps_api.py
+      - backend/apps/ai/processing/skill_executor.py
+      - backend/core/api/app/services/workflow_app_skill_adapter.py
+    verification_ids:
+      - T-BACKEND-001
+      - T-BACKEND-002
+      - T-BACKEND-003
+    independently_deployable: false
+  - id: TASK-3
+    title: Add CLI/npm/pip opt-out mapping
+    status: done
+    phase: working_tasks
+    ownership:
+      owner: unassigned
+      files:
+        - frontend/packages/openmates-cli/src/cli.ts
+        - frontend/packages/openmates-cli/src/client.ts
+        - frontend/packages/openmates-cli/src/sdk.ts
+        - packages/openmates-python/openmates/sdk.py
+      shared_files: []
+    dependencies:
+      - TASK-2
+    blockers: []
+    follow_up_tasks: []
+    covers:
+      scenarios:
+        - S-3
+      acceptance_criteria:
+        - AC-3
+    expected_files:
+      - frontend/packages/openmates-cli/src/cli.ts
+      - frontend/packages/openmates-cli/src/client.ts
+      - frontend/packages/openmates-cli/src/sdk.ts
+      - packages/openmates-python/openmates/sdk.py
+      - frontend/packages/openmates-cli/tests/cli.test.ts
+      - frontend/packages/openmates-cli/tests/sdk.test.ts
+      - packages/openmates-python/tests/test_sdk.py
+    verification_ids:
+      - T-CLI-001
+      - T-NPM-001
+      - T-PIP-001
+      - V-SDK-CLI-PARITY
+    independently_deployable: false
+  - id: TASK-4
+    title: Add deterministic safety audit and docs update
+    status: done
+    phase: working_tasks
+    ownership:
+      owner: unassigned
+      files:
+        - scripts/audit_app_skill_output_safety.py
+        - docs/architecture/privacy/prompt-injection.md
+        - backend/apps/*/app.yml
+      shared_files: []
+    dependencies:
+      - TASK-2
+    blockers: []
+    follow_up_tasks: []
+    covers:
+      scenarios:
+        - S-6
+      acceptance_criteria:
+        - AC-6
+    expected_files:
+      - scripts/audit_app_skill_output_safety.py
+      - docs/architecture/privacy/prompt-injection.md
+      - backend/apps/*/app.yml
+    verification_ids:
+      - T-AUDIT-001
+    independently_deployable: false
+
+risks:
+  - id: R-1
+    risk: Semantic scanning every external text field may add latency and provider cost to search-heavy skills.
+    mitigation: Reuse long-text candidate selection and skip low-risk URL/id/media fields while preserving fail-closed behavior for selected external text.
+  - id: R-2
+    risk: Central scanning can double-scan skills that already call `sanitize_external_content()` internally.
+    mitigation: Start with correctness, then remove redundant per-skill calls or add an internal sanitized marker only after tests prove no bypass.
+  - id: R-3
+    risk: A broad `providers` heuristic may classify provider-backed generation jobs as external text fetchers.
+    mitigation: Support explicit metadata override for non-external generated/binary outputs while keeping ASCII cleanup universal.
+
+open_questions:
+  - id: OQ-1
+    question: Should response safety metadata be returned to programmatic callers in the public response or only logged?
+    status: optional
+    default: "Log opt-out status first; add public metadata only if existing response schemas tolerate it without breaking clients."

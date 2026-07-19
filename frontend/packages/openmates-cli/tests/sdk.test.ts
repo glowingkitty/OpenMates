@@ -82,6 +82,28 @@ describe("OpenMates SDK", () => {
     });
   });
 
+  it("maps generated app-skill prompt-injection opt-out to request metadata", async () => {
+    await withServer((request, response) => {
+      assert.equal(request.url, "/v1/apps/web/skills/search");
+      let body = "";
+      request.on("data", (chunk) => { body += chunk.toString(); });
+      request.on("end", () => {
+        assert.deepEqual(JSON.parse(body), {
+          requests: [{ query: "hello" }],
+          security: { prompt_injection_protection: "disabled" },
+        });
+        response.setHeader("content-type", "application/json");
+        response.end(JSON.stringify({ success: true }));
+      });
+    }, async (apiUrl) => {
+      const client = new OpenMates({ apiKey: "sk-api-test", apiUrl });
+      await client.apps.web.search(
+        { requests: [{ query: "hello" }] },
+        { promptInjectionProtection: false },
+      );
+    });
+  });
+
   it("lists API keys with decrypted labels and Never used metadata", async () => {
     const masterKey = generateSalt(32);
     const material = await createApiKeyCryptoMaterial("SDK Listed Key", bytesToBase64(masterKey));

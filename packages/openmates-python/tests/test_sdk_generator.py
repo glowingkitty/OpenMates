@@ -67,12 +67,12 @@ def test_generated_metadata_includes_web_search_images_generate_and_fitness():
 def test_generated_native_methods_delegate_to_runner():
     calls = []
 
-    def run_skill(app_id, skill_id, input_data):
-        calls.append({"app_id": app_id, "skill_id": skill_id, "input_data": input_data})
+    def run_skill(app_id, skill_id, input_data, **options):
+        calls.append({"app_id": app_id, "skill_id": skill_id, "input_data": input_data, "options": options})
         return {"ok": True}
 
     apps = GeneratedAppSkills(run_skill)
-    result = apps.web.search({"requests": [{"query": "hello"}]})
+    result = apps.web.search({"requests": [{"query": "hello"}]}, prompt_injection_protection=False)
     icon_result = apps.design.search_icons({"requests": [{"query": "home"}]})
     fitness_result = apps.fitness.search_classes({"requests": [{"address": "Sorauer Str. 12"}]})
     models3d_result = apps.models3d.search({"requests": [{"query": "benchy"}]})
@@ -82,12 +82,13 @@ def test_generated_native_methods_delegate_to_runner():
     assert fitness_result == {"ok": True}
     assert models3d_result == {"ok": True}
     assert calls == [
-        {"app_id": "web", "skill_id": "search", "input_data": {"requests": [{"query": "hello"}]}},
-        {"app_id": "design", "skill_id": "search_icons", "input_data": {"requests": [{"query": "home"}]}},
+        {"app_id": "web", "skill_id": "search", "input_data": {"requests": [{"query": "hello"}]}, "options": {"prompt_injection_protection": False}},
+        {"app_id": "design", "skill_id": "search_icons", "input_data": {"requests": [{"query": "home"}]}, "options": {"prompt_injection_protection": None}},
         {
             "app_id": "fitness",
             "skill_id": "search_classes",
             "input_data": {"requests": [{"address": "Sorauer Str. 12"}]},
+            "options": {"prompt_injection_protection": None},
         },
-        {"app_id": "models3d", "skill_id": "search", "input_data": {"requests": [{"query": "benchy"}]}},
+        {"app_id": "models3d", "skill_id": "search", "input_data": {"requests": [{"query": "benchy"}]}, "options": {"prompt_injection_protection": None}},
     ]

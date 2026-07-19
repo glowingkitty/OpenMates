@@ -97,6 +97,35 @@ def test_native_app_skill_method_uses_generated_namespace(monkeypatch):
     assert requests[0]["json"] == {"requests": [{"query": "hello"}]}
 
 
+def test_native_app_skill_method_maps_prompt_injection_opt_out(monkeypatch):
+    requests = []
+
+    class FakeResponse:
+        status_code = 200
+
+        def json(self):
+            return {"success": True}
+
+    def fake_post(url, *, json, headers, timeout):
+        requests.append({"url": url, "json": json, "headers": headers, "timeout": timeout})
+        return FakeResponse()
+
+    monkeypatch.setattr("openmates.sdk.requests.post", fake_post)
+
+    client = OpenMates(api_key="sk-api-test")
+    result = client.apps.web.search(
+        {"requests": [{"query": "hello"}]},
+        prompt_injection_protection=False,
+    )
+
+    assert result == {"success": True}
+    assert requests[0]["url"] == "https://api.openmates.org/v1/apps/web/skills/search"
+    assert requests[0]["json"] == {
+        "requests": [{"query": "hello"}],
+        "security": {"prompt_injection_protection": "disabled"},
+    }
+
+
 def test_ideabucket_sdk_uses_existing_package_rest_methods(monkeypatch):
     requests = []
     api_key = "sk-api-test"

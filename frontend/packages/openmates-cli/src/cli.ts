@@ -3035,6 +3035,7 @@ async function handleGeneratedAppSkillCommand(
       skill: command.skill_id,
       inputData,
       apiKey,
+      promptInjectionProtection: flags["disable-prompt-injection-protection"] === true ? false : undefined,
     });
     if (flags.json === true) {
       printJson(result);
@@ -3222,6 +3223,7 @@ function printGeneratedAppSkillCommandHelp(command: GeneratedAppSkillCommand): v
     console.log("  --transport <mode>   Optional transport mode, e.g. train or plane.");
   }
   console.log("  --api-key <key>      Use an API key instead of a stored CLI session.");
+  console.log("  --disable-prompt-injection-protection  Skip GPT-OSS prompt-injection scanning for this direct call.");
   console.log("  --json               Print the raw response envelope as JSON.");
   console.log("\nExamples:");
   const key = `${command.app_id}/${command.skill_id}`;
@@ -3546,6 +3548,7 @@ async function handleModels3dSearch(
       skill: "search",
       inputData: { requests: [request] },
       apiKey,
+      promptInjectionProtection: flags["disable-prompt-injection-protection"] === true ? false : undefined,
     });
     if (flags.json === true) {
       printJson(result);
@@ -3691,6 +3694,7 @@ async function handleCodeRun(
     skill: "run",
     inputData: { requests: requests as unknown as Array<Record<string, unknown>> },
     apiKey,
+    promptInjectionProtection: flags["disable-prompt-injection-protection"] === true ? false : undefined,
   }) as CodeRunSkillResponse;
   const result = response.data?.results?.[0];
   if (!result?.execution_id || !result.status_path) {
@@ -9019,6 +9023,9 @@ function printAppsHelp(): void {
 Authentication:
   Uses your logged-in session (run 'openmates login' first).
   Optionally: --api-key <key> or set OPENMATES_API_KEY.
+
+Advanced direct-call safety:
+  --disable-prompt-injection-protection skips semantic GPT-OSS scanning for direct app-skill calls only.
 
 Examples:
   openmates apps list

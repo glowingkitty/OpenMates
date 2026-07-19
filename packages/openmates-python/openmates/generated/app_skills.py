@@ -4929,543 +4929,543 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
   'skill_method_py': 'search',
   'skill_method_ts': 'search'}]
 
-SkillRunner = Callable[[str, str, dict[str, Any]], dict[str, Any]]
+SkillRunner = Callable[..., dict[str, Any]]
 
 class AiAppSkills:
     def __init__(self, run_skill: SkillRunner):
         self._run_skill = run_skill
 
-    def ask(self, input_data: dict[str, Any]) -> dict[str, Any]:
+    def ask(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
         """Run this OpenMates app skill.
 
         Description key: ai.ask.description
         Skill: ai/ask
         """
-        return self._run_skill("ai", "ask", input_data)
+        return self._run_skill("ai", "ask", input_data, prompt_injection_protection=prompt_injection_protection)
 
 class BooksAppSkills:
     def __init__(self, run_skill: SkillRunner):
         self._run_skill = run_skill
 
-    def translate(self, input_data: dict[str, Any]) -> dict[str, Any]:
+    def translate(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
         """Run this OpenMates app skill.
 
         Description key: books.translate.description
         Skill: books/translate
         """
-        return self._run_skill("books", "translate", input_data)
+        return self._run_skill("books", "translate", input_data, prompt_injection_protection=prompt_injection_protection)
 
 class CodeAppSkills:
     def __init__(self, run_skill: SkillRunner):
         self._run_skill = run_skill
 
-    def add_issue(self, input_data: dict[str, Any]) -> dict[str, Any]:
+    def add_issue(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
         """Run this OpenMates app skill.
 
         Description key: code.add_issue.description
         Skill: code/add_issue
         """
-        return self._run_skill("code", "add_issue", input_data)
+        return self._run_skill("code", "add_issue", input_data, prompt_injection_protection=prompt_injection_protection)
 
-    def clean_repo(self, input_data: dict[str, Any]) -> dict[str, Any]:
+    def clean_repo(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
         """Run this OpenMates app skill.
 
         Description key: code.clean_repo.description
         Skill: code/clean_repo
         """
-        return self._run_skill("code", "clean_repo", input_data)
+        return self._run_skill("code", "clean_repo", input_data, prompt_injection_protection=prompt_injection_protection)
 
-    def get_docs(self, input_data: dict[str, Any]) -> dict[str, Any]:
+    def get_docs(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
         """Get latest documentation for programming libraries, frameworks, APIs, SDKs. Use for ANY programming-related query about a specific library or framework.
 
         Description key: code.get_docs.description
         Skill: code/get_docs
         """
-        return self._run_skill("code", "get_docs", input_data)
+        return self._run_skill("code", "get_docs", input_data, prompt_injection_protection=prompt_injection_protection)
 
-    def get_issues(self, input_data: dict[str, Any]) -> dict[str, Any]:
+    def get_issues(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
         """Run this OpenMates app skill.
 
         Description key: code.get_issues.description
         Skill: code/get_issues
         """
-        return self._run_skill("code", "get_issues", input_data)
+        return self._run_skill("code", "get_issues", input_data, prompt_injection_protection=prompt_injection_protection)
 
-    def get_project_overview(self, input_data: dict[str, Any]) -> dict[str, Any]:
+    def get_project_overview(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
         """Run this OpenMates app skill.
 
         Description key: code.get_project_overview.description
         Skill: code/get_project_overview
         """
-        return self._run_skill("code", "get_project_overview", input_data)
+        return self._run_skill("code", "get_project_overview", input_data, prompt_injection_protection=prompt_injection_protection)
 
-    def remove_secrets(self, input_data: dict[str, Any]) -> dict[str, Any]:
+    def remove_secrets(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
         """Run this OpenMates app skill.
 
         Description key: code.remove_secrets.description
         Skill: code/remove_secrets
         """
-        return self._run_skill("code", "remove_secrets", input_data)
+        return self._run_skill("code", "remove_secrets", input_data, prompt_injection_protection=prompt_injection_protection)
 
-    def search_repos(self, input_data: dict[str, Any]) -> dict[str, Any]:
+    def search_repos(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
         """Search GitHub repositories. Use this instead of web.search whenever the user asks to find GitHub repos, repositories, open-source libraries, starred repos, or repo examples by topic, language, framework, or project need. Returns licensed repository embeds. Costs 10 credits per search.
 
         Description key: code.search_repos.description
         Skill: code/search_repos
         """
-        return self._run_skill("code", "search_repos", input_data)
+        return self._run_skill("code", "search_repos", input_data, prompt_injection_protection=prompt_injection_protection)
 
 class DesignAppSkills:
     def __init__(self, run_skill: SkillRunner):
         self._run_skill = run_skill
 
-    def search_icons(self, input_data: dict[str, Any]) -> dict[str, Any]:
+    def search_icons(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
         """Search for free SVG icons for UI, product, interface, or graphic design. Use this when the user asks to find icons by name, concept, object, or action. Do not use it for brand-logo search or generated icon creation.
 
         Description key: app_skills.design.search_icons.description
         Skill: design/search_icons
         """
-        return self._run_skill("design", "search_icons", input_data)
+        return self._run_skill("design", "search_icons", input_data, prompt_injection_protection=prompt_injection_protection)
 
 class ElectronicsAppSkills:
     def __init__(self, run_skill: SkillRunner):
         self._run_skill = run_skill
 
-    def search_components(self, input_data: dict[str, Any]) -> dict[str, Any]:
+    def search_components(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
         """Use this skill when the user asks to find electronic components, especially power converters or voltage regulators matching input voltage, output voltage, output current, efficiency, BOM cost, footprint, or topology requirements. Currently supports category power_converters via Texas Instruments WEBENCH Power Designer.
 
         Description key: electronics.search_components.description
         Skill: electronics/search_components
         """
-        return self._run_skill("electronics", "search_components", input_data)
+        return self._run_skill("electronics", "search_components", input_data, prompt_injection_protection=prompt_injection_protection)
 
 class EventsAppSkills:
     def __init__(self, run_skill: SkillRunner):
         self._run_skill = run_skill
 
-    def search(self, input_data: dict[str, Any]) -> dict[str, Any]:
+    def search(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
         """Search for local or online events, meetups, hackathons, conferences, workshops, networking events, parties, concerts, or any community gathering. Use ONLY this skill for event searches — do NOT additionally call web.search or any other search skill for the same query. Sources: Meetup, Luma, Eventbrite, Google Events, Resident Advisor (electronic music/clubs), Siegessäule (Berlin LGBTQ+ events), Berlin Philharmonic (classical concerts in Berlin), and official event schedules for GPN24, 39C3, 38C3
 
         Description key: events.search.description
         Skill: events/search
         """
-        return self._run_skill("events", "search", input_data)
+        return self._run_skill("events", "search", input_data, prompt_injection_protection=prompt_injection_protection)
 
 class FitnessAppSkills:
     def __init__(self, run_skill: SkillRunner):
         self._run_skill = run_skill
 
-    def search_classes(self, input_data: dict[str, Any]) -> dict[str, Any]:
+    def search_classes(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
         """Search available Urban Sports Club public fitness classes. Use this when the user asks for dated fitness classes, course availability, free spots, on-site classes, online classes, or plan-filtered Urban Sports classes. Omit plan unless the user explicitly asks for Essential, Classic, Premium, or Max.
 
         Description key: fitness.search_classes.description
         Skill: fitness/search_classes
         """
-        return self._run_skill("fitness", "search_classes", input_data)
+        return self._run_skill("fitness", "search_classes", input_data, prompt_injection_protection=prompt_injection_protection)
 
-    def search_locations(self, input_data: dict[str, Any]) -> dict[str, Any]:
+    def search_locations(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
         """Search Urban Sports Club public fitness locations. Use this when the user asks for gyms, studios, pools, or Urban Sports locations near a city, address, or radius. Do not use it for class availability; use fitness.search_classes for dated class searches.
 
         Description key: fitness.search_locations.description
         Skill: fitness/search_locations
         """
-        return self._run_skill("fitness", "search_locations", input_data)
+        return self._run_skill("fitness", "search_locations", input_data, prompt_injection_protection=prompt_injection_protection)
 
 class HealthAppSkills:
     def __init__(self, run_skill: SkillRunner):
         self._run_skill = run_skill
 
-    def create_report(self, input_data: dict[str, Any]) -> dict[str, Any]:
+    def create_report(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
         """Run this OpenMates app skill.
 
         Description key: health.create_report.description
         Skill: health/create_report
         """
-        return self._run_skill("health", "create_report", input_data)
+        return self._run_skill("health", "create_report", input_data, prompt_injection_protection=prompt_injection_protection)
 
-    def search_appointments(self, input_data: dict[str, Any]) -> dict[str, Any]:
+    def search_appointments(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
         """Search available medical appointments at German doctors/specialists by speciality and city. Covers any medical booking — general practitioners, specialists (e.g. dentist, dermatologist, gynecologist), scans and imaging (e.g. MRT/MRI, CT, Röntgen, Ultraschall), vaccinations, check-ups, blood tests, and other examinations. Note: "Termin" in a medical context means appointment, not event — route here instead of events-search. Sources: Doctolib, Jameda (Germany only).
 
         Description key: app_skills.health.search_appointments.description
         Skill: health/search_appointments
         """
-        return self._run_skill("health", "search_appointments", input_data)
+        return self._run_skill("health", "search_appointments", input_data, prompt_injection_protection=prompt_injection_protection)
 
 class HomeAppSkills:
     def __init__(self, run_skill: SkillRunner):
         self._run_skill = run_skill
 
-    def search(self, input_data: dict[str, Any]) -> dict[str, Any]:
+    def search(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
         """Search for apartments, houses, and WG rooms in German cities. Searches ImmoScout24, Kleinanzeigen, and WG-Gesucht simultaneously. Returns listings with prices, sizes, rooms, addresses, and direct links. Costs 10 credits per search. Use when user asks about finding housing in Germany.
 
         Description key: app_skills.home.search.description
         Skill: home/search
         """
-        return self._run_skill("home", "search", input_data)
+        return self._run_skill("home", "search", input_data, prompt_injection_protection=prompt_injection_protection)
 
 class ImagesAppSkills:
     def __init__(self, run_skill: SkillRunner):
         self._run_skill = run_skill
 
-    def generate(self, input_data: dict[str, Any]) -> dict[str, Any]:
+    def generate(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
         """Generate high-quality images from text prompts and/or reference images (image-to-image editing). Also use for: mockups, design concepts, visual mockup creation, logo mockups, product mockups, illustration requests, visual design, concept art, posters, banners, thumbnails, or any request that implies creating a visual output. Use output_filetype="svg" for logos, icons, illustrations, and any other vector graphics that need to be scalable or editable. When the user provides uploaded images as refe
 
         Description key: images.generate.description
         Skill: images/generate
         """
-        return self._run_skill("images", "generate", input_data)
+        return self._run_skill("images", "generate", input_data, prompt_injection_protection=prompt_injection_protection)
 
-    def generate_draft(self, input_data: dict[str, Any]) -> dict[str, Any]:
+    def generate_draft(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
         """Quickly generate a draft/preview image from a text prompt and/or reference images (image-to-image). Also use for: quick mockups, rough design concepts, draft illustrations, sketches, quick visual previews, or any request for a fast/rough image. When the user provides uploaded images as references (embed_refs), pass them via reference_images. Do not use this for scam, spam, fake-document, fake-endorsement, public-figure impersonation, or watermark/detection-evasion requests.
 
         Description key: images.generate_draft.description
         Skill: images/generate_draft
         """
-        return self._run_skill("images", "generate_draft", input_data)
+        return self._run_skill("images", "generate_draft", input_data, prompt_injection_protection=prompt_injection_protection)
 
 class MailAppSkills:
     def __init__(self, run_skill: SkillRunner):
         self._run_skill = run_skill
 
-    def search(self, input_data: dict[str, Any]) -> dict[str, Any]:
+    def search(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
         """Run this OpenMates app skill.
 
         Description key: app_skills.mail.search.description
         Skill: mail/search
         """
-        return self._run_skill("mail", "search", input_data)
+        return self._run_skill("mail", "search", input_data, prompt_injection_protection=prompt_injection_protection)
 
 class MapsAppSkills:
     def __init__(self, run_skill: SkillRunner):
         self._run_skill = run_skill
 
-    def search(self, input_data: dict[str, Any]) -> dict[str, Any]:
+    def search(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
         """Search for places, businesses, restaurants, directions, locations.
 
         Description key: maps.search.description
         Skill: maps/search
         """
-        return self._run_skill("maps", "search", input_data)
+        return self._run_skill("maps", "search", input_data, prompt_injection_protection=prompt_injection_protection)
 
 class MathAppSkills:
     def __init__(self, run_skill: SkillRunner):
         self._run_skill = run_skill
 
-    def calculate(self, input_data: dict[str, Any]) -> dict[str, Any]:
+    def calculate(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
         """MANDATORY: Use this skill for ALL mathematical calculations without exception. This includes simple arithmetic such as addition, subtraction, multiplication (written as *, x, or ×), division, and parenthesised expressions like (4x22x7)/2 or (100+50)*3/2. Also use for algebra, trigonometry, calculus, unit conversions, symbolic simplification, equation solving, derivatives, and integrals. NEVER attempt to compute a numeric result yourself — always call this skill so results are guaranteed to be ex
 
         Description key: math.calculate.description
         Skill: math/calculate
         """
-        return self._run_skill("math", "calculate", input_data)
+        return self._run_skill("math", "calculate", input_data, prompt_injection_protection=prompt_injection_protection)
 
 class Models3dAppSkills:
     def __init__(self, run_skill: SkillRunner):
         self._run_skill = run_skill
 
-    def search(self, input_data: dict[str, Any]) -> dict[str, Any]:
+    def search(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
         """Search public 3D model catalogs for existing models. Use this when the user wants to find, browse, compare, or link to existing 3D-printable or downloadable 3D models. Do not use it to generate new models.
 
         Description key: app_skills.models3d.search.description
         Skill: models3d/search
         """
-        return self._run_skill("models3d", "search", input_data)
+        return self._run_skill("models3d", "search", input_data, prompt_injection_protection=prompt_injection_protection)
 
 class MusicAppSkills:
     def __init__(self, run_skill: SkillRunner):
         self._run_skill = run_skill
 
-    def generate(self, input_data: dict[str, Any]) -> dict[str, Any]:
+    def generate(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
         """Generate music from a text prompt, including full songs, instrumental tracks, background music, loops, jingles, lyric-based songs, and soundtrack cues. Use this when the user asks to create music or background music. Do not use this to imitate the voice, vocals, cadence, or persona of a real public figure, living artist, famous educator, or recognizable person. Use original voices and styles only, and reject scams, spam, or detection evasion.
 
         Description key: app_skills.music.generate.description
         Skill: music/generate
         """
-        return self._run_skill("music", "generate", input_data)
+        return self._run_skill("music", "generate", input_data, prompt_injection_protection=prompt_injection_protection)
 
 class NewsAppSkills:
     def __init__(self, run_skill: SkillRunner):
         self._run_skill = run_skill
 
-    def search(self, input_data: dict[str, Any]) -> dict[str, Any]:
+    def search(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
         """Search for news articles, current events, headlines, announcements.
 
         Description key: news.search.description
         Skill: news/search
         """
-        return self._run_skill("news", "search", input_data)
+        return self._run_skill("news", "search", input_data, prompt_injection_protection=prompt_injection_protection)
 
 class NutritionAppSkills:
     def __init__(self, run_skill: SkillRunner):
         self._run_skill = run_skill
 
-    def search_recipes(self, input_data: dict[str, Any]) -> dict[str, Any]:
+    def search_recipes(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
         """Search Edamam for recipes by natural-language query and nutrition filters. Returns recipe details with ingredients, step-by-step instructions, images, source links, and nutrition metadata. Recipes without instructions are filtered out. Best for: recipe recommendations, meal planning, dietary filtering, and cooking guidance.
 
         Description key: app_skills.nutrition.search_recipes.description
         Skill: nutrition/search_recipes
         """
-        return self._run_skill("nutrition", "search_recipes", input_data)
+        return self._run_skill("nutrition", "search_recipes", input_data, prompt_injection_protection=prompt_injection_protection)
 
 class OpenmatesAppSkills:
     def __init__(self, run_skill: SkillRunner):
         self._run_skill = run_skill
 
-    def get_docs(self, input_data: dict[str, Any]) -> dict[str, Any]:
+    def get_docs(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
         """Use when the user shares an openmates.org/docs URL, or asks to read a specific OpenMates documentation page. Automatically triggered when an openmates docs URL is detected in the conversation.
 
         Description key: openmates_app.get_docs.description
         Skill: openmates/get-docs
         """
-        return self._run_skill("openmates", "get-docs", input_data)
+        return self._run_skill("openmates", "get-docs", input_data, prompt_injection_protection=prompt_injection_protection)
 
-    def search_docs(self, input_data: dict[str, Any]) -> dict[str, Any]:
+    def search_docs(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
         """Use when the user asks about OpenMates features, setup, architecture, or documentation. Searches across all OpenMates documentation to find relevant pages.
 
         Description key: openmates_app.search_docs.description
         Skill: openmates/search-docs
         """
-        return self._run_skill("openmates", "search-docs", input_data)
+        return self._run_skill("openmates", "search-docs", input_data, prompt_injection_protection=prompt_injection_protection)
 
-    def share_usecase(self, input_data: dict[str, Any]) -> dict[str, Any]:
+    def share_usecase(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
         """Use when the user has explicitly agreed to anonymously share a summary of their intended use cases with the OpenMates team to help improve the product. NEVER call this without clear user consent.
 
         Description key: openmates_app.share_usecase.description
         Skill: openmates/share-usecase
         """
-        return self._run_skill("openmates", "share-usecase", input_data)
+        return self._run_skill("openmates", "share-usecase", input_data, prompt_injection_protection=prompt_injection_protection)
 
 class PdfAppSkills:
     def __init__(self, run_skill: SkillRunner):
         self._run_skill = run_skill
 
-    def read(self, input_data: dict[str, Any]) -> dict[str, Any]:
+    def read(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
         """Load and read the raw text content (markdown) of specific pages from an uploaded PDF document. Use when the user asks what a PDF says, wants you to summarise sections, or requests information that is likely textual (paragraphs, tables, headings). The embed TOON content includes a TOC and per-page token estimates — use them to select the most relevant pages. Limits output to 50 000 tokens; call again for remaining pages if needed. Pass the exact embed_ref (original filename) from the toon block —
 
         Description key: pdf.read.description
         Skill: pdf/read
         """
-        return self._run_skill("pdf", "read", input_data)
+        return self._run_skill("pdf", "read", input_data, prompt_injection_protection=prompt_injection_protection)
 
-    def search(self, input_data: dict[str, Any]) -> dict[str, Any]:
+    def search(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
         """Search for specific text, keywords, or phrases across all pages of an uploaded PDF. Returns matching text blocks with surrounding context and page numbers. Use when the user asks to find where something is mentioned in the document, or when a targeted keyword search is faster than reading entire sections. No LLM call required — pure text search over the OCR data. Pass the exact embed_ref (original filename) from the toon block as file_path.
 
         Description key: pdf.search.description
         Skill: pdf/search
         """
-        return self._run_skill("pdf", "search", input_data)
+        return self._run_skill("pdf", "search", input_data, prompt_injection_protection=prompt_injection_protection)
 
-    def view(self, input_data: dict[str, Any]) -> dict[str, Any]:
+    def view(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
         """View one or more page screenshots from an uploaded PDF and return them as multimodal image blocks so the main inference model can see the pages directly. Use when the user asks about the visual layout, diagrams, charts, figures, or images on specific pages. Also useful when text OCR may have been imperfect (e.g. complex tables, mathematical notation, handwriting). Up to 5 pages can be viewed per call. Pass the exact embed_ref (original filename) from the toon block as file_path — the server reso
 
         Description key: pdf.view.skill_description
         Skill: pdf/view
         """
-        return self._run_skill("pdf", "view", input_data)
+        return self._run_skill("pdf", "view", input_data, prompt_injection_protection=prompt_injection_protection)
 
 class ReminderAppSkills:
     def __init__(self, run_skill: SkillRunner):
         self._run_skill = run_skill
 
-    def cancel_reminder(self, input_data: dict[str, Any]) -> dict[str, Any]:
+    def cancel_reminder(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
         """Cancel or delete an existing reminder.
 
         Description key: reminder.cancel_reminder.description
         Skill: reminder/cancel-reminder
         """
-        return self._run_skill("reminder", "cancel-reminder", input_data)
+        return self._run_skill("reminder", "cancel-reminder", input_data, prompt_injection_protection=prompt_injection_protection)
 
-    def list_reminders(self, input_data: dict[str, Any]) -> dict[str, Any]:
+    def list_reminders(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
         """Show the user's existing scheduled reminders.
 
         Description key: reminder.list_reminders.description
         Skill: reminder/list-reminders
         """
-        return self._run_skill("reminder", "list-reminders", input_data)
+        return self._run_skill("reminder", "list-reminders", input_data, prompt_injection_protection=prompt_injection_protection)
 
-    def set_reminder(self, input_data: dict[str, Any]) -> dict[str, Any]:
+    def set_reminder(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
         """Schedule, create, or set up reminders for the user. Handles one-time and recurring reminders (e.g., "every morning", "daily at 9am", "weekly", "monthly"). Use when user wants to be reminded, notified, or alerted about something at a specific time or on a recurring schedule. Also use for automating tasks like "get news every day" or "summarize updates weekly".
 
         Description key: reminder.set_reminder.description
         Skill: reminder/set-reminder
         """
-        return self._run_skill("reminder", "set-reminder", input_data)
+        return self._run_skill("reminder", "set-reminder", input_data, prompt_injection_protection=prompt_injection_protection)
 
 class ShoppingAppSkills:
     def __init__(self, run_skill: SkillRunner):
         self._run_skill = run_skill
 
-    def search_products(self, input_data: dict[str, Any]) -> dict[str, Any]:
+    def search_products(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
         """Search products on REWE, Amazon, or Stoffe.de with real-time prices. Use category to route groceries, marketplace products, fabrics, sewing supplies, and patterns to compatible providers. Invalid provider/category combinations are rejected.
 
         Description key: app_skills.shopping.search_products.description
         Skill: shopping/search_products
         """
-        return self._run_skill("shopping", "search_products", input_data)
+        return self._run_skill("shopping", "search_products", input_data, prompt_injection_protection=prompt_injection_protection)
 
 class SocialMediaAppSkills:
     def __init__(self, run_skill: SkillRunner):
         self._run_skill = run_skill
 
-    def get_posts(self, input_data: dict[str, Any]) -> dict[str, Any]:
+    def get_posts(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
         """Fetch recent social media posts from one or more specific platform pages or profiles. Supports Reddit subreddits, Bluesky profile feeds, and Mastodon public profiles. Use for profile monitoring, community research, and finding conversations to review manually. Costs 10 credits per request.
 
         Description key: app_skills.social_media.get_posts.description
         Skill: social_media/get-posts
         """
-        return self._run_skill("social_media", "get-posts", input_data)
+        return self._run_skill("social_media", "get-posts", input_data, prompt_injection_protection=prompt_injection_protection)
 
-    def search(self, input_data: dict[str, Any]) -> dict[str, Any]:
+    def search(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
         """Search supported social platforms for recent public posts around a topic. Use this for topic monitoring and broad discovery across pages/profiles, not for monitoring a known profile; use Get posts for profile/page posts. Omit platform to search every supported social platform. Costs 10 credits per request.
 
         Description key: app_skills.social_media.search.description
         Skill: social_media/search
         """
-        return self._run_skill("social_media", "search", input_data)
+        return self._run_skill("social_media", "search", input_data, prompt_injection_protection=prompt_injection_protection)
 
 class TasksAppSkills:
     def __init__(self, run_skill: SkillRunner):
         self._run_skill = run_skill
 
-    def create(self, input_data: dict[str, Any]) -> dict[str, Any]:
+    def create(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
         """Create one or more user-visible tasks. Use this for planning, task capture, or breaking a request into trackable work. Default unclear assignees to the user.
 
         Description key: tasks.skills.create.description
         Skill: tasks/create
         """
-        return self._run_skill("tasks", "create", input_data)
+        return self._run_skill("tasks", "create", input_data, prompt_injection_protection=prompt_injection_protection)
 
-    def search(self, input_data: dict[str, Any]) -> dict[str, Any]:
+    def search(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
         """Search the user's encrypted tasks through a connected capable client. Do not use server-visible metadata as a private task-content search fallback.
 
         Description key: tasks.skills.search.description
         Skill: tasks/search
         """
-        return self._run_skill("tasks", "search", input_data)
+        return self._run_skill("tasks", "search", input_data, prompt_injection_protection=prompt_injection_protection)
 
 class TravelAppSkills:
     def __init__(self, run_skill: SkillRunner):
         self._run_skill = run_skill
 
-    def get_flight(self, input_data: dict[str, Any]) -> dict[str, Any]:
+    def get_flight(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
         """Fetch the real GPS flight track and actual departure/landing times for a specific completed/past flight. Use when the user asks to see how a flight actually went, the real flight path on a map, or actual timing and runway info. Requires the IATA flight number (e.g. 'LH2472') and the departure date. Costs 7 credits per lookup.
 
         Description key: app_skills.travel.get_flight.description
         Skill: travel/get_flight
         """
-        return self._run_skill("travel", "get_flight", input_data)
+        return self._run_skill("travel", "get_flight", input_data, prompt_injection_protection=prompt_injection_protection)
 
-    def search_connections(self, input_data: dict[str, Any]) -> dict[str, Any]:
+    def search_connections(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
         """Search for flight or train connections for a particular date with details (airlines/operators, times, stops, durations, prices). Use when user asks about flights, train connections, or travel between cities on a specific date. Set transport_methods to ["airplane"] for flights or ["train"] for trains. If the user names a provider, set providers to one or more of: google_flights, deutsche_bahn, flix. If no provider is specified, all providers for the selected transport method are searched. Add cou
 
         Description key: app_skills.travel.search_connections.description
         Skill: travel/search_connections
         """
-        return self._run_skill("travel", "search_connections", input_data)
+        return self._run_skill("travel", "search_connections", input_data, prompt_injection_protection=prompt_injection_protection)
 
-    def search_stays(self, input_data: dict[str, Any]) -> dict[str, Any]:
+    def search_stays(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
         """Run this OpenMates app skill.
 
         Description key: app_skills.travel.search_stays.description
         Skill: travel/search_stays
         """
-        return self._run_skill("travel", "search_stays", input_data)
+        return self._run_skill("travel", "search_stays", input_data, prompt_injection_protection=prompt_injection_protection)
 
 class VideosAppSkills:
     def __init__(self, run_skill: SkillRunner):
         self._run_skill = run_skill
 
-    def create(self, input_data: dict[str, Any]) -> dict[str, Any]:
+    def create(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
         """Create deterministic code-backed videos with Remotion. Use this for text slides, product announcements, diagrams, charts, UI-like motion graphics, or branded videos where exact text and layout matter. The assistant must write an explicit ```remotion:Name.tsx fence; do not use this for photorealistic footage or generic TSX components.
 
         Description key: app_skills.videos.create.description
         Skill: videos/create
         """
-        return self._run_skill("videos", "create", input_data)
+        return self._run_skill("videos", "create", input_data, prompt_injection_protection=prompt_injection_protection)
 
-    def generate(self, input_data: dict[str, Any]) -> dict[str, Any]:
+    def generate(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
         """Generate short photorealistic or generative footage from text prompts using Google Veo. Use this when the user asks for cinematic footage, realistic scenes, camera movement, stylized animation, or non-deterministic video generation. Do not use this for exact text slides, product announcements, diagrams, charts, UI-like motion graphics, or branded videos where exact text and layout matter; those requests should use videos.create with an explicit ```remotion:Name.tsx fence instead. Do not use this
 
         Description key: app_skills.videos.generate.description
         Skill: videos/generate
         """
-        return self._run_skill("videos", "generate", input_data)
+        return self._run_skill("videos", "generate", input_data, prompt_injection_protection=prompt_injection_protection)
 
-    def get_transcript(self, input_data: dict[str, Any]) -> dict[str, Any]:
+    def get_transcript(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
         """Get the transcript/content of a specific YouTube video URL.
 
         Description key: videos.get_transcript.description
         Skill: videos/get_transcript
         """
-        return self._run_skill("videos", "get_transcript", input_data)
+        return self._run_skill("videos", "get_transcript", input_data, prompt_injection_protection=prompt_injection_protection)
 
-    def search(self, input_data: dict[str, Any]) -> dict[str, Any]:
+    def search(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
         """Search for videos, documentaries, tutorials, clips on the web.
 
         Description key: videos.search.description
         Skill: videos/search
         """
-        return self._run_skill("videos", "search", input_data)
+        return self._run_skill("videos", "search", input_data, prompt_injection_protection=prompt_injection_protection)
 
 class WeatherAppSkills:
     def __init__(self, run_skill: SkillRunner):
         self._run_skill = run_skill
 
-    def forecast(self, input_data: dict[str, Any]) -> dict[str, Any]:
+    def forecast(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
         """Get current and upcoming weather forecasts for a place, including daily weather, temperatures, rain likelihood, and hourly details stored in day embeds. Use this for weather questions, forecast requests, and trip/day planning involving weather.
 
         Description key: apps.weather.forecast.description
         Skill: weather/forecast
         """
-        return self._run_skill("weather", "forecast", input_data)
+        return self._run_skill("weather", "forecast", input_data, prompt_injection_protection=prompt_injection_protection)
 
-    def rain_radar(self, input_data: dict[str, Any]) -> dict[str, Any]:
+    def rain_radar(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
         """Get nearby German rain radar with a timeline, including whether rain is visible now, whether rain is expected around the selected location in about 10 minutes, and compact frame-by-frame rain intensity metadata. Use this for rain radar, precipitation radar, and hyperlocal "will it rain here soon" questions in Germany.
 
         Description key: apps.weather.rain_radar.description
         Skill: weather/rain_radar
         """
-        return self._run_skill("weather", "rain_radar", input_data)
+        return self._run_skill("weather", "rain_radar", input_data, prompt_injection_protection=prompt_injection_protection)
 
 class WebAppSkills:
     def __init__(self, run_skill: SkillRunner):
         self._run_skill = run_skill
 
-    def read(self, input_data: dict[str, Any]) -> dict[str, Any]:
+    def read(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
         """Read and extract content from a specific URL or webpage the user provided.
 
         Description key: web.read.description
         Skill: web/read
         """
-        return self._run_skill("web", "read", input_data)
+        return self._run_skill("web", "read", input_data, prompt_injection_protection=prompt_injection_protection)
 
-    def search(self, input_data: dict[str, Any]) -> dict[str, Any]:
+    def search(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
         """General web search for current information, prices, weather, facts, stocks, sports scores, etc. Use as a fallback when no specialized skill applies.
 
         Description key: app_skills.web.search.description
         Skill: web/search
         """
-        return self._run_skill("web", "search", input_data)
+        return self._run_skill("web", "search", input_data, prompt_injection_protection=prompt_injection_protection)
 
 class WorkflowsAppSkills:
     def __init__(self, run_skill: SkillRunner):
         self._run_skill = run_skill
 
-    def create_or_modify(self, input_data: dict[str, Any]) -> dict[str, Any]:
+    def create_or_modify(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
         """Create or modify exactly one workflow from chat. Do not batch multiple workflows into one skill call.
 
         Description key: workflows.skills.create_or_modify.description
         Skill: workflows/create-or-modify
         """
-        return self._run_skill("workflows", "create-or-modify", input_data)
+        return self._run_skill("workflows", "create-or-modify", input_data, prompt_injection_protection=prompt_injection_protection)
 
-    def search(self, input_data: dict[str, Any]) -> dict[str, Any]:
+    def search(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
         """Search the user's existing persisted workflows before proposing a new automation. Include temporary workflows only when the user explicitly asks about recent chat-created workflows.
 
         Description key: workflows.skills.search.description
         Skill: workflows/search
         """
-        return self._run_skill("workflows", "search", input_data)
+        return self._run_skill("workflows", "search", input_data, prompt_injection_protection=prompt_injection_protection)
 
 class GeneratedAppSkills:
     def __init__(self, run_skill: SkillRunner):
