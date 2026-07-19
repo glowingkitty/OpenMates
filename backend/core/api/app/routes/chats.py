@@ -137,6 +137,7 @@ async def get_draft(
     current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
     hashed_user_id = hashlib.sha256(current_user.id.encode()).hexdigest()
+    candidates: list[dict[str, Any]] = []
     rows = await request.app.state.directus_service.get_items(
         "drafts",
         params={
@@ -152,12 +153,12 @@ async def get_draft(
         encrypted_md = row.get("encrypted_content")
         draft_v = int(row.get("version") or 0)
         if encrypted_md and draft_v > 0:
-            return {"draft": {
+            candidates.append({
                 "chat_id": chat_id,
                 "encrypted_draft_md": encrypted_md,
                 "encrypted_draft_preview": None,
                 "draft_v": draft_v,
-            }}
+            })
 
     draft = await request.app.state.cache_service.get_user_draft_from_cache(
         user_id=current_user.id,
@@ -166,15 +167,18 @@ async def get_draft(
     if draft:
         encrypted_md, draft_v, encrypted_preview = draft
         if encrypted_md and int(draft_v or 0) > 0:
-            return {"draft": {
+            candidates.append({
                 "chat_id": chat_id,
                 "encrypted_draft_md": encrypted_md,
                 "encrypted_draft_preview": encrypted_preview,
                 "draft_v": int(draft_v),
-            }}
+            })
 
-    # A stale empty cache entry must not hide a persisted draft. Directus was
-    # checked first above, so no active draft exists for this user/chat.
+    if candidates:
+        # WebSocket ACK follows the Redis write, while Directus persistence is async.
+        # Return the newest valid ciphertext across both stores.
+        return {"draft": max(candidates, key=lambda item: int(item["draft_v"]))}
+
     return {"draft": None}
 
 

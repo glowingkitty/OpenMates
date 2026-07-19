@@ -571,10 +571,12 @@ async def test_session_draft_route_returns_authoritative_ciphertext() -> None:
 
 
 @pytest.mark.anyio
-async def test_session_draft_route_prefers_persisted_directus_draft() -> None:
+async def test_session_draft_route_prefers_newer_persisted_directus_draft() -> None:
     class Cache:
         async def get_user_draft_from_cache(self, user_id, chat_id):
-            raise AssertionError("Directus draft should be returned before cache fallback")
+            assert user_id == "user-1"
+            assert chat_id == "chat-1"
+            return "stale-cache-cipher", 2, "stale-cache-preview"
 
     calls = []
 
@@ -611,6 +613,43 @@ async def test_session_draft_route_prefers_persisted_directus_draft() -> None:
         },
         True,
     )]
+    assert "plaintext" not in str(response).lower()
+
+
+@pytest.mark.anyio
+async def test_session_draft_route_prefers_newer_cache_draft_before_persistence() -> None:
+    class Cache:
+        async def get_user_draft_from_cache(self, user_id, chat_id):
+            assert user_id == "user-1"
+            assert chat_id == "chat-1"
+            return "fresh-cache-cipher", 4, "fresh-cache-preview"
+
+    async def get_items(collection, *, params, admin_required=False):
+        assert collection == "drafts"
+        assert params["filter[hashed_user_id][_eq]"] == hashlib.sha256("user-1".encode()).hexdigest()
+        assert params["filter[chat_id][_eq]"] == "chat-1"
+        assert admin_required is True
+        return [{"encrypted_content": "persisted-cipher", "version": 3}]
+
+    request = SimpleNamespace(
+        app=SimpleNamespace(
+            state=SimpleNamespace(
+                cache_service=Cache(),
+                directus_service=SimpleNamespace(get_items=get_items),
+            )
+        )
+    )
+
+    response = await get_draft("chat-1", request, SimpleNamespace(id="user-1"))
+
+    assert response == {
+        "draft": {
+            "chat_id": "chat-1",
+            "encrypted_draft_md": "fresh-cache-cipher",
+            "encrypted_draft_preview": "fresh-cache-preview",
+            "draft_v": 4,
+        }
+    }
     assert "plaintext" not in str(response).lower()
 
 
