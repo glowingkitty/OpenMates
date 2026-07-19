@@ -592,8 +592,9 @@ export function processSettingsDeepLink(
 
     handlers.setSettingsDeepLink(path);
 
-    // Clear the hash after processing
-    if (typeof window !== "undefined" && window.location) {
+    // OAuth handoff returns need the settings hash until Settings.svelte has
+    // routed away from its default main view; clearing it here races hash sync.
+    if (typeof window !== "undefined" && window.location && !hasOAuthHandoffQueryParam()) {
       replaceState(window.location.pathname + window.location.search, {});
     }
   } else if (settingsPath === "") {
@@ -612,6 +613,11 @@ export function processSettingsDeepLink(
       replaceState(window.location.pathname + window.location.search, {});
     }
   }
+}
+
+function hasOAuthHandoffQueryParam(): boolean {
+  if (typeof window === "undefined" || !window.location) return false;
+  return new URLSearchParams(window.location.search).has("oauth_handoff_id");
 }
 
 function stripE2EDebugHashParams(path: string): string {

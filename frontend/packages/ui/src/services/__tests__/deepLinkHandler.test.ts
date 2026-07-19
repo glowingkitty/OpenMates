@@ -4,6 +4,7 @@ vi.mock("$app/navigation", () => ({
   replaceState: vi.fn(),
 }));
 
+import { replaceState } from "$app/navigation";
 import { buildChatMessageLink, parseDeepLink, processDeepLink, processSettingsDeepLink } from "../deepLinkHandler";
 import {
   clearSettingsPathFromHash,
@@ -185,6 +186,35 @@ describe("processSettingsDeepLink", () => {
     expect(setSettingsDeepLink).toHaveBeenCalledWith(
       "privacy/hide-personal-data",
     );
+  });
+
+  it("keeps the settings hash during OAuth handoff returns", () => {
+    const setSettingsDeepLink = vi.fn();
+    const originalLocation = window.location;
+    vi.mocked(replaceState).mockClear();
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: {
+        hash: "#settings/apps/calendar",
+        pathname: "/",
+        search: "?oauth_handoff_id=handoff-test-1",
+      },
+    });
+
+    try {
+      processSettingsDeepLink(window.location.hash, {
+        openSettings: vi.fn(),
+        setSettingsDeepLink,
+      });
+    } finally {
+      Object.defineProperty(window, "location", {
+        configurable: true,
+        value: originalLocation,
+      });
+    }
+
+    expect(setSettingsDeepLink).toHaveBeenCalledWith("apps/calendar");
+    expect(replaceState).not.toHaveBeenCalled();
   });
 });
 
