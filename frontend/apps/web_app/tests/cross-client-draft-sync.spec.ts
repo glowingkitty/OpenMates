@@ -136,6 +136,34 @@ function cleanupIsolatedCliHome(cliHome: string | null): void {
 	fs.rmSync(cliHome, { recursive: true, force: true });
 }
 
+function logCliCacheDiagnostics(cliHome: string | null, chatId: string, label: string): void {
+	if (!cliHome) return;
+	const cachePath = path.join(cliHome, '.openmates', 'sync_cache.json');
+	try {
+		const cache = JSON.parse(fs.readFileSync(cachePath, 'utf8'));
+		const chat = Array.isArray(cache?.chats)
+			? cache.chats.find((entry: any) => String(entry?.details?.id ?? '') === chatId)
+			: null;
+		const details = chat?.details ?? null;
+		console.log(`[${label}] CLI cache diagnostics: ${JSON.stringify({
+			cacheExists: true,
+			syncedAt: typeof cache?.syncedAt === 'number' ? cache.syncedAt : null,
+			chatCount: Array.isArray(cache?.chats) ? cache.chats.length : null,
+			hasChat: !!chat,
+			draftV: typeof details?.draft_v === 'number' ? details.draft_v : null,
+			hasEncryptedDraftMd: typeof details?.encrypted_draft_md === 'string' && details.encrypted_draft_md.length > 0,
+			encryptedDraftMdLength: typeof details?.encrypted_draft_md === 'string' ? details.encrypted_draft_md.length : 0,
+			hasEncryptedDraftPreview: typeof details?.encrypted_draft_preview === 'string' && details.encrypted_draft_preview.length > 0,
+			encryptedDraftPreviewLength: typeof details?.encrypted_draft_preview === 'string' ? details.encrypted_draft_preview.length : 0,
+		})}`);
+	} catch (error) {
+		console.log(`[${label}] CLI cache diagnostics: ${JSON.stringify({
+			cacheExists: fs.existsSync(cachePath),
+			error: error instanceof Error ? error.message : String(error),
+		})}`);
+	}
+}
+
 async function runCli(
 	apiUrl: string,
 	args: string[],
@@ -413,6 +441,71 @@ async function logDraftOpenDiagnostics(page: any, chatId: string, label: string,
 		};
 	}, { targetChatId: chatId, expected: expectedText });
 	console.log(`[${label}] Draft open diagnostics: ${JSON.stringify(diagnostics)}`);
+}
+
+async function logServerDraftDiagnostics(page: any, apiUrl: string, chatId: string, label: string, expectedText?: string): Promise<void> {
+	const diagnostics = await page.evaluate(async ({ apiEndpoint, targetChatId, expected }: { apiEndpoint: string; targetChatId: string; expected?: string }) => {
+		async function readIdbValue<T>(dbName: string, storeName: string, key: IDBValidKey): Promise<T | null> {
+			return new Promise((resolve) => {
+				const request = indexedDB.open(dbName);
+				request.onerror = () => resolve(null);
+				request.onsuccess = () => {
+					const db = request.result;
+					try {
+						const transaction = db.transaction(storeName, 'readonly');
+						const store = transaction.objectStore(storeName);
+						const getRequest = store.get(key);
+						getRequest.onerror = () => resolve(null);
+						getRequest.onsuccess = () => resolve((getRequest.result as T | undefined) ?? null);
+					} catch {
+						resolve(null);
+					} finally {
+						db.close();
+					}
+				};
+			});
+		}
+
+		async function decryptWithMasterKey(encrypted: unknown): Promise<{ length: number; containsExpected: boolean; ok: boolean } | null> {
+			if (typeof encrypted !== 'string' || encrypted.length === 0) return null;
+			const masterKey = await readIdbValue<CryptoKey>('openmates_crypto', 'keys', 'master_key');
+			if (!masterKey) return { length: 0, containsExpected: false, ok: false };
+			try {
+				const binary = atob(encrypted);
+				const combined = new Uint8Array(binary.length);
+				for (let index = 0; index < binary.length; index += 1) combined[index] = binary.charCodeAt(index);
+				const decrypted = await crypto.subtle.decrypt(
+					{ name: 'AES-GCM', iv: combined.slice(0, 12) },
+					masterKey,
+					combined.slice(12)
+				);
+				const text = new TextDecoder().decode(decrypted);
+				return { length: text.length, containsExpected: expected ? text.includes(expected) : false, ok: true };
+			} catch {
+				return { length: 0, containsExpected: false, ok: false };
+			}
+		}
+
+		const response = await fetch(`${apiEndpoint}/v1/drafts/${encodeURIComponent(targetChatId)}`, {
+			method: 'GET',
+			credentials: 'include'
+		});
+		const data = await response.json().catch(() => null);
+		const draft = data && typeof data === 'object' ? (data as { draft?: Record<string, unknown> | null }).draft : null;
+		return {
+			status: response.status,
+			ok: response.ok,
+			hasDraft: !!draft,
+			draftV: typeof draft?.draft_v === 'number' ? draft.draft_v : null,
+			hasEncryptedDraftMd: typeof draft?.encrypted_draft_md === 'string' && draft.encrypted_draft_md.length > 0,
+			encryptedDraftMdLength: typeof draft?.encrypted_draft_md === 'string' ? draft.encrypted_draft_md.length : 0,
+			encryptedDraftMdDecrypt: await decryptWithMasterKey(draft?.encrypted_draft_md),
+			hasEncryptedDraftPreview: typeof draft?.encrypted_draft_preview === 'string' && draft.encrypted_draft_preview.length > 0,
+			encryptedDraftPreviewLength: typeof draft?.encrypted_draft_preview === 'string' ? draft.encrypted_draft_preview.length : 0,
+			encryptedDraftPreviewDecrypt: await decryptWithMasterKey(draft?.encrypted_draft_preview),
+		};
+	}, { apiEndpoint: apiUrl, targetChatId: chatId, expected: expectedText });
+	console.log(`[${label}] Server draft diagnostics: ${JSON.stringify(diagnostics)}`);
 }
 
 async function readLocalDraftMarkdown(page: any, chatId: string): Promise<{ markdown: string | null; draftV: number | null }> {
@@ -703,7 +796,9 @@ test.describe('Cross-client encrypted draft sync', () => {
 					})
 					.toBe(`${Number(created.draftV) + 1}:${updatedText}`);
 			} catch (error) {
+				await logServerDraftDiagnostics(page, apiUrl, draftChatId, 'CROSS_CLIENT_DRAFT_SYNC_SERVER_ROUTE_AFTER_EDIT', updatedText);
 				await logDraftOpenDiagnostics(page, draftChatId, 'CROSS_CLIENT_DRAFT_SYNC_SERVER_AFTER_EDIT', updatedText);
+				logCliCacheDiagnostics(cliHome, draftChatId, 'CROSS_CLIENT_DRAFT_SYNC_CLI_AFTER_EDIT');
 				throw error;
 			}
 			log('Web draft edit reconciled to CLI.');
@@ -846,7 +941,9 @@ test.describe('Cross-client encrypted draft sync', () => {
 					})
 					.toBe(editedDraftText);
 			} catch (error) {
+				await logServerDraftDiagnostics(page, apiUrl, draftChatId, 'IDEABUCKET_WEB_MARKERS_SERVER_ROUTE_AFTER_EDIT', editedDraftText);
 				await logDraftOpenDiagnostics(page, draftChatId, 'IDEABUCKET_WEB_MARKERS_SERVER_AFTER_EDIT', editedDraftText);
+				logCliCacheDiagnostics(cliHome, draftChatId, 'IDEABUCKET_WEB_MARKERS_CLI_AFTER_EDIT');
 				throw error;
 			}
 			log('IdeaBucket text draft remained editable in web.');
