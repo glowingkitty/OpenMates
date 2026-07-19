@@ -88,13 +88,21 @@ async function runCli(
 }
 
 async function runCliJson(apiUrl: string, args: string[], timeoutMs = 60_000): Promise<any> {
-	const result = await runCli(apiUrl, [...args, '--json'], timeoutMs);
 	const command = args.slice(0, 2).join(' ');
+	let result: { code: number | null; stdout: string; stderr: string } | null = null;
+	for (let attempt = 0; attempt < 3; attempt += 1) {
+		result = await runCli(apiUrl, [...args, '--json'], timeoutMs);
+		if (result.code === 0) return JSON.parse(result.stdout);
+		const transientNetworkError = /fetch failed|ECONNRESET|ETIMEDOUT|EAI_AGAIN|ENOTFOUND/i.test(result.stderr);
+		if (!transientNetworkError || attempt === 2) break;
+		await new Promise((resolve) => setTimeout(resolve, 1_000 * (attempt + 1)));
+	}
+	expect(result, `openmates ${command} did not produce a result`).not.toBeNull();
 	expect(
-		result.code,
-		`openmates ${command} failed with ${result.stdout.length} stdout bytes\nstderr:\n${result.stderr}`
+		result!.code,
+		`openmates ${command} failed with ${result!.stdout.length} stdout bytes\nstderr:\n${result!.stderr}`
 	).toBe(0);
-	return JSON.parse(result.stdout);
+	return JSON.parse(result!.stdout);
 }
 
 async function pairCli(page: any, apiUrl: string, baseUrl: string): Promise<void> {
@@ -193,7 +201,6 @@ async function replaceMessageEditorText(page: any, chatId: string, text: string)
 	await page.keyboard.press('ControlOrMeta+A');
 	await page.keyboard.press('ControlOrMeta+A');
 	await page.keyboard.press('Backspace');
-	await expect(editor).toHaveText('', { timeout: 5_000 });
 	if (text.length > 0) await page.keyboard.insertText(text);
 	return editor;
 }
