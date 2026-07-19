@@ -606,6 +606,7 @@ async function openDraft(page: any, chatId: string, expectedText: string): Promi
 }
 
 test.describe('Cross-client encrypted draft sync', () => {
+	test.describe.configure({ mode: 'serial' });
 	test.setTimeout(300_000);
 
 	test('CLI and web reconcile draft lifecycle and missed chat deletion', async ({ page }: { page: any }) => {
