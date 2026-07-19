@@ -95,17 +95,17 @@ async function runCliJson(
 ): Promise<any> {
 	const command = args.slice(0, 2).join(' ');
 	let result: { code: number | null; stdout: string; stderr: string } | null = null;
-	let lastTransientNetworkError = false;
+	let sawTransientNetworkError = false;
 	const maxAttempts = options.allowTransientFailure ? 2 : 6;
 	for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
 		result = await runCli(apiUrl, [...args, '--json'], timeoutMs);
 		if (result.code === 0) return JSON.parse(result.stdout);
 		const transientNetworkError = /fetch failed|ECONNRESET|ETIMEDOUT|EAI_AGAIN|ENOTFOUND/i.test(result.stderr);
-		lastTransientNetworkError = transientNetworkError;
+		sawTransientNetworkError ||= transientNetworkError;
 		if (!transientNetworkError || attempt === maxAttempts - 1) break;
 		await new Promise((resolve) => setTimeout(resolve, 1_500 * (attempt + 1)));
 	}
-	if (options.allowTransientFailure && lastTransientNetworkError) return null;
+	if (options.allowTransientFailure && sawTransientNetworkError) return null;
 	expect(result, `openmates ${command} did not produce a result`).not.toBeNull();
 	expect(
 		result!.code,
@@ -220,7 +220,13 @@ async function replaceMessageEditorText(page: any, chatId: string, text: string)
 	const editor = messageEditorEditable(page, chatId);
 	await expect(host).toBeVisible({ timeout: 15_000 });
 	await expect(editor).toBeVisible({ timeout: 15_000 });
-	await editor.fill(text);
+	await editor.click();
+	await page.keyboard.press('Control+A');
+	await page.keyboard.press('Backspace');
+	await expect(editor).toHaveText('', { timeout: 10_000 });
+	if (text.length > 0) {
+		await page.keyboard.insertText(text);
+	}
 	const activeEditor = messageEditorEditable(page, chatId);
 	if (text.length > 0) {
 		await activeEditor.click();
