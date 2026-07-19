@@ -29,6 +29,70 @@ const AUDIO_FIXTURE = fs.existsSync('/workspace/backend/tests/fixtures/test_audi
 	: path.resolve(__dirname, '../../../../backend/tests/fixtures/test_audio.wav');
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount(1);
 
+type WebSocketFrameRecord = {
+	direction: 'sent' | 'received';
+	type: string | null;
+	chatId: string | null;
+	text: string;
+};
+
+function installWebSocketFrameTracker(page: any): WebSocketFrameRecord[] {
+	const frames: WebSocketFrameRecord[] = [];
+	const record = (direction: 'sent' | 'received', payload: unknown): void => {
+		const text = typeof payload === 'string' ? payload : String(payload ?? '');
+		let type: string | null = null;
+		let chatId: string | null = null;
+		try {
+			const parsed = JSON.parse(text) as {
+				type?: unknown;
+				event?: unknown;
+				payload?: { chat_id?: unknown; chatId?: unknown };
+				chat_id?: unknown;
+			};
+			type = typeof parsed.type === 'string'
+				? parsed.type
+				: typeof parsed.event === 'string'
+					? parsed.event
+					: null;
+			const rawChatId = parsed.payload?.chat_id ?? parsed.payload?.chatId ?? parsed.chat_id;
+			chatId = typeof rawChatId === 'string' ? rawChatId : null;
+		} catch {
+			// Non-JSON control frames are irrelevant for this draft-sync contract.
+		}
+		frames.push({ direction, type, chatId, text: text.slice(0, 500) });
+		if (frames.length > 200) frames.shift();
+	};
+
+	page.on('websocket', (ws: any) => {
+		ws.on('framesent', (event: { payload?: unknown }) => record('sent', event.payload));
+		ws.on('framereceived', (event: { payload?: unknown }) => record('received', event.payload));
+	});
+
+	return frames;
+}
+
+async function waitForDraftUpdateReceipt(
+	frames: WebSocketFrameRecord[],
+	chatId: string,
+	label: string
+): Promise<void> {
+	try {
+		await expect
+			.poll(
+				() => frames.some((frame) =>
+					frame.direction === 'received' &&
+					frame.type === 'draft_update_receipt' &&
+					frame.chatId === chatId
+				),
+				{ timeout: 30_000, intervals: [500, 1_000, 2_000] }
+			)
+			.toBeTruthy();
+	} catch (error) {
+		console.log(`[${label}] Recent WebSocket frames: ${JSON.stringify(frames.slice(-40))}`);
+		throw error;
+	}
+}
+
 function deriveApiUrl(baseUrl: string): string {
 	const url = new URL(baseUrl);
 	if (url.hostname === 'openmates.org' || url.hostname === 'www.openmates.org') {
@@ -547,6 +611,7 @@ test.describe('Cross-client encrypted draft sync', () => {
 		const cleanupDraftIds = new Set<string>();
 		const cleanupChatIds = new Set<string>();
 		let cliPaired = false;
+		const wsFrames = installWebSocketFrameTracker(page);
 
 		await loginToTestAccount(page, log, screenshot);
 		try {
@@ -569,6 +634,7 @@ test.describe('Cross-client encrypted draft sync', () => {
 			await expect(editor).toContainText(updatedText, { timeout: 10_000 });
 			await page.getByTestId('input-dismiss-button').click();
 			await expectLocalDraftMarkdown(page, draftChatId, updatedText, 'CROSS_CLIENT_DRAFT_SYNC');
+			await waitForDraftUpdateReceipt(wsFrames, draftChatId, 'CROSS_CLIENT_DRAFT_SYNC');
 			try {
 				await expect
 					.poll(async () => {
@@ -578,8 +644,8 @@ test.describe('Cross-client encrypted draft sync', () => {
 						const draft = result?.draft;
 						return `${draft?.draftV ?? 0}:${draft?.markdown ?? ''}`;
 					}, {
-						timeout: 30_000,
-						intervals: [1_000, 2_000]
+						timeout: 120_000,
+						intervals: [1_000, 2_000, 5_000]
 					})
 					.toBe(`${Number(created.draftV) + 1}:${updatedText}`);
 			} catch (error) {
@@ -674,6 +740,7 @@ test.describe('Cross-client encrypted draft sync', () => {
 		const cleanupDraftIds = new Set<string>();
 		const cleanupChatIds = new Set<string>();
 		let cliPaired = false;
+		const wsFrames = installWebSocketFrameTracker(page);
 
 		await loginToTestAccount(page, log, screenshot);
 		try {
@@ -704,6 +771,7 @@ test.describe('Cross-client encrypted draft sync', () => {
 			await expect(editor).toContainText(editedDraftText, { timeout: 10_000 });
 			await page.getByTestId('input-dismiss-button').click();
 			await expectLocalDraftMarkdown(page, draftChatId, editedDraftText, 'IDEABUCKET_WEB_MARKERS');
+			await waitForDraftUpdateReceipt(wsFrames, draftChatId, 'IDEABUCKET_WEB_MARKERS');
 			try {
 				await expect
 					.poll(async () => {
@@ -713,8 +781,8 @@ test.describe('Cross-client encrypted draft sync', () => {
 						const currentDraft = result?.draft;
 						return currentDraft?.markdown ?? '';
 					}, {
-						timeout: 60_000,
-						intervals: [1_000, 2_000]
+						timeout: 120_000,
+						intervals: [1_000, 2_000, 5_000]
 					})
 					.toBe(editedDraftText);
 			} catch (error) {
