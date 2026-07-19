@@ -21,6 +21,12 @@ import {
 	logChunkLoadError
 } from '../utils/chunkErrorHandler';
 
+function extractToonScalar(content: unknown, key: string): string | undefined {
+	if (typeof content !== 'string') return undefined;
+	const match = content.match(new RegExp(`(?:^|\\n)${key}:\\s*"?([^\\n"]+)"?`));
+	return match?.[1]?.trim();
+}
+
 /**
  * Resolve an embed type + decoded content to a registry key.
  *
@@ -38,8 +44,8 @@ export function resolveRegistryKey(
 	decodedContent?: Record<string, unknown>
 ): string | null {
 	const normalized = normalizeEmbedType(embedType);
-	const appId = decodedContent?.app_id;
-	const skillId = decodedContent?.skill_id;
+	const appId = decodedContent?.app_id ?? extractToonScalar(decodedContent?.content, 'app_id');
+	const skillId = decodedContent?.skill_id ?? extractToonScalar(decodedContent?.content, 'skill_id');
 
 	if (normalized === 'app-skill-use') {
 		if (typeof appId === 'string' && typeof skillId === 'string') {
