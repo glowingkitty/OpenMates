@@ -2502,6 +2502,28 @@ let _chatUpsertsDuringDbRead = new Map<string, ChatType>();
 		searchTextHighlightStore.set(null);
 	}
 
+	async function hydrateSearchChatDraftFields(chat: ChatType): Promise<ChatType> {
+		if (!$authStore.isAuthenticated || isPublicChat(chat.chat_id)) return chat;
+		if (chat.encrypted_draft_md || chat.encrypted_draft_preview) return chat;
+
+		try {
+			const rawChat = await chatDB.getRawChat(chat.chat_id);
+			if (!rawChat?.encrypted_draft_md && !rawChat?.encrypted_draft_preview) return chat;
+
+			return {
+				...chat,
+				encrypted_draft_md: rawChat.encrypted_draft_md ?? chat.encrypted_draft_md,
+				encrypted_draft_preview: rawChat.encrypted_draft_preview ?? chat.encrypted_draft_preview,
+				draft_v: rawChat.draft_v ?? chat.draft_v,
+				ideabucket: rawChat.ideabucket ?? chat.ideabucket,
+				ideabucket_processing_window_id: rawChat.ideabucket_processing_window_id ?? chat.ideabucket_processing_window_id,
+			};
+		} catch (error) {
+			console.warn('[Chats] Failed to hydrate draft fields for search result chat:', chat.chat_id, error);
+			return chat;
+		}
+	}
+
 	/**
 	 * Handle clicking a chat TITLE result from search.
 	 * Keeps search OPEN so the user can continue browsing results.
@@ -2509,17 +2531,18 @@ let _chatUpsertsDuringDbRead = new Map<string, ChatType>();
 	 * Search state is preserved (not cleared) so it is still active when the panel reopens.
 	 * @param chat - The matched chat
 	 */
-	function handleSearchChatClick(chat: ChatType): void {
+	async function handleSearchChatClick(chat: ChatType): Promise<void> {
+		const chatToOpen = await hydrateSearchChatDraftFields(chat);
 		// On mobile: close the panel so user can see the chat, but keep search state intact.
 		// On desktop: just open the chat in place — search panel stays visible.
 		const isMobile = window.innerWidth < 730;
 		if (isMobile) {
 			// Open the chat and close the panel, but DON'T clear search state.
 			// We pass closePanelOnMobile=true so handleChatClick closes the panel.
-			handleChatClick(chat, true, true);
+			await handleChatClick(chatToOpen, true, true);
 		} else {
 			// Desktop: open chat without closing search panel
-			handleChatClick(chat, true, false);
+			await handleChatClick(chatToOpen, true, false);
 		}
 	}
 
