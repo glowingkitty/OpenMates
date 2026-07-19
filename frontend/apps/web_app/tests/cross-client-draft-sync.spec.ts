@@ -857,6 +857,7 @@ test.describe('Cross-client encrypted draft sync', () => {
 			}
 			log('Web draft edit reconciled to CLI.');
 
+			await openDraft(page, draftChatId, updatedText);
 			await replaceMessageEditorText(page, draftChatId, '');
 			log('Web draft emptied; waiting for CLI reconciliation.');
 			await expect
