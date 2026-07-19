@@ -211,17 +211,10 @@ async function replaceMessageEditorText(page: any, chatId: string, text: string)
 	const editor = messageEditorEditable(page, chatId);
 	await expect(host).toBeVisible({ timeout: 15_000 });
 	await expect(editor).toBeVisible({ timeout: 15_000 });
-	await editor.click();
-	await page.keyboard.press('ControlOrMeta+A');
-	await page.keyboard.press('ControlOrMeta+A');
-	await page.keyboard.press('Backspace');
-	if (text.length > 0) {
-		await page.keyboard.type(text, { delay: 5 });
-		const activeEditor = messageEditorEditable(page);
-		await expect(activeEditor).toContainText(text, { timeout: 10_000 });
-		return activeEditor;
-	}
-	return editor;
+	await editor.fill(text);
+	const activeEditor = messageEditorEditable(page, chatId);
+	await expect(activeEditor).toHaveText(text, { timeout: 10_000 });
+	return activeEditor;
 }
 
 async function logDraftOpenDiagnostics(page: any, chatId: string, label: string, expectedText?: string): Promise<void> {
