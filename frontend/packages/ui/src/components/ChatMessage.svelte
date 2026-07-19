@@ -2114,7 +2114,11 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
         dispatchEmbedFullscreen({
             embedId,
             embedType: fullscreenEmbedType,
-            attrs: selectedNode.attrs,
+            attrs: {
+              ...(selectedNode.attrs ?? {}),
+              app_id: selectedAppId || selectedNode.attrs?.app_id,
+              skill_id: selectedSkillId || selectedNode.attrs?.skill_id,
+            },
             embedData: null, // Will be loaded by ActiveChat if needed
             decodedContent: null // Will be loaded by ActiveChat if needed
         });
