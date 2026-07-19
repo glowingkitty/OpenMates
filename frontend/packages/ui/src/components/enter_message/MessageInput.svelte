@@ -4652,6 +4652,7 @@
             hasContent = true;
             lastEditorUpdateText = editor.getText(); // Sync text-change guard after external content set
             updateOriginalMarkdown(editor);
+            triggerSaveDraft(currentChatId);
             editor.commands.focus('end');
             console.debug('[MessageInput] Suggestion text inserted at cursor successfully');
         } else {
