@@ -59,8 +59,9 @@ test.describe('Account Import V1 web flow', () => {
 		await loginAndOpenImportSettings(page, { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY });
 		await uploadOpenMatesZip(page);
 
-		await expect(page.getByText(/projects/i)).toBeVisible({ timeout: 15000 });
-		await expect(page.getByText(/OPE-588/i)).toBeVisible();
+		const summary = page.getByTestId('import-preview-summary');
+		await expect(summary).toContainText(/projects/i, { timeout: 15000 });
+		await expect(summary).toContainText(/OPE-588/i);
 		await page.getByTestId('account-import-start').click();
 		await expect(page.getByTestId('import-results-container')).toContainText('1', { timeout: 30000 });
 
