@@ -188,6 +188,16 @@
     // all entry points inaccessible until this is intentionally re-enabled.
     const CHAT_DETAILS_SETTINGS_ENABLED = false;
 
+    function extractPlainIdeaBucketText(markdown: string, chat: Chat | null | undefined): string | null {
+        if (chat?.ideabucket !== true) return null;
+        const matches = [...markdown.matchAll(/----- Idea \d+ -----\n([\s\S]*?)\n-----------------/g)];
+        if (matches.length !== 1) return null;
+
+        const ideaText = matches[0]?.[1]?.trim() ?? '';
+        if (!ideaText || ideaText.includes('[!](embed:') || ideaText.startsWith('Audio:')) return null;
+        return ideaText;
+    }
+
     function loadWikipediaFullscreenComponent() {
         return import('./embeds/wiki/WikipediaFullscreen.svelte').catch((error) => {
             console.error('[ActiveChat] Failed to load Wikipedia fullscreen component', error);
@@ -9259,10 +9269,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         const decryptedMarkdown = await decryptDraftWithRetry(encryptedDraftMd, 'encrypted_draft_md');
                         if (decryptedMarkdown) {
                             if (!isCurrentDraftRestoreTarget()) return;
+                            const editableDraftMarkdown = extractPlainIdeaBucketText(decryptedMarkdown, draftRestoreChat) ?? decryptedMarkdown;
                             // Parse markdown to TipTap JSON for the editor
-                            const draftContentJSON = parse_message(decryptedMarkdown, 'write', { unifiedParsingEnabled: true });
+                            const draftContentJSON = parse_message(editableDraftMarkdown, 'write', { unifiedParsingEnabled: true });
                             appendDraftRestoreDiagnostic('parsed-md', {
                                 decryptedLength: decryptedMarkdown.length,
+                                editableLength: editableDraftMarkdown.length,
+                                restoredPlainIdeaBucketText: editableDraftMarkdown !== decryptedMarkdown,
                                 hasMeaningfulContent: hasMeaningfulTiptapContent(draftContentJSON),
                             });
                             console.debug(`[ActiveChat] Successfully decrypted and parsed draft content for chat ${draftRestoreChatId}`);
@@ -9271,7 +9284,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 return;
                             }
 
-                            let plainTextFallback = decryptedMarkdown.trim();
+                            let plainTextFallback = editableDraftMarkdown.trim();
                             if (encryptedDraftPreview) {
                                 const decryptedPreview = await decryptDraftWithRetry(encryptedDraftPreview, 'encrypted_draft_preview');
                                 const previewText = decryptedPreview?.trim();
