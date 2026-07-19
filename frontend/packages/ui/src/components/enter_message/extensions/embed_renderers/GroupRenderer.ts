@@ -86,6 +86,8 @@ import HealthAppointmentEmbedPreview from "../../../embeds/health/HealthAppointm
 import WeatherForecastEmbedPreview from "../../../embeds/weather/WeatherForecastEmbedPreview.svelte";
 import WeatherRainRadarEmbedPreview from "../../../embeds/weather/WeatherRainRadarEmbedPreview.svelte";
 import WeatherDayEmbedPreview from "../../../embeds/weather/WeatherDayEmbedPreview.svelte";
+import BusinessCompanyFinancialsEmbedPreview from "../../../embeds/business/BusinessCompanyFinancialsEmbedPreview.svelte";
+import BusinessCompanyFinancialResultEmbedPreview from "../../../embeds/business/BusinessCompanyFinancialResultEmbedPreview.svelte";
 import PdfReadEmbedPreview from "../../../embeds/pdf/PdfReadEmbedPreview.svelte";
 import PdfViewEmbedPreview from "../../../embeds/pdf/PdfViewEmbedPreview.svelte";
 import PdfSearchEmbedPreview from "../../../embeds/pdf/PdfSearchEmbedPreview.svelte";
@@ -375,6 +377,16 @@ export class GroupRenderer implements EmbedRenderer {
         "models3d-model-result",
         (item, embedData, decodedContent, content) =>
           this.renderModel3DResultComponent(
+            item,
+            embedData,
+            decodedContent,
+            content,
+          ),
+      ],
+      [
+        "business-company-financial-result",
+        (item, embedData, decodedContent, content) =>
+          this.renderBusinessCompanyFinancialResultComponent(
             item,
             embedData,
             decodedContent,
@@ -786,6 +798,8 @@ export class GroupRenderer implements EmbedRenderer {
         return this.renderImageResultItem(item, embedData, decodedContent);
       case "models3d-model-result":
         return this.renderModel3DResultItem(item, embedData, decodedContent);
+      case "business-company-financial-result":
+        return this.renderBusinessCompanyFinancialResultItem(item, embedData, decodedContent);
       case "health-appointment":
         return this.renderHealthAppointmentItem(item, embedData, decodedContent);
       case "home-listing":
@@ -1872,6 +1886,32 @@ export class GroupRenderer implements EmbedRenderer {
             results: modelPreviewResults,
             previewResultsJson: decodedContent?.preview_results_json || "",
             resultCount: modelResultCount,
+            childEmbedIds,
+            taskId,
+            isMobile: false,
+            onFullscreen: handleFullscreen,
+          },
+        });
+        mountedComponents.set(target, component);
+        return;
+      }
+
+      if (appId === "business" && skillId === "company_financials") {
+        const financialResults = decodedContent?.results || decodedContent?.preview_results || [];
+        const financialResultCount = typeof decodedContent?.result_count === "number"
+          ? decodedContent.result_count
+          : (Array.isArray(financialResults) ? financialResults.length : 0) || childEmbedIds.length;
+        const component = mount(BusinessCompanyFinancialsEmbedPreview, {
+          target,
+          props: {
+            id: embedId,
+            query: query || "",
+            provider: provider || "SEC EDGAR",
+            period: decodedContent?.period || "latest_annual",
+            metricGroup: decodedContent?.metric_group || "summary",
+            status: status as "processing" | "finished" | "error" | "cancelled",
+            resultCount: financialResultCount,
+            results: financialResults,
             childEmbedIds,
             taskId,
             isMobile: false,
@@ -5291,6 +5331,110 @@ export class GroupRenderer implements EmbedRenderer {
     `;
   }
 
+  /** Render a single business-company-financial-result embed using the Svelte preview. */
+  private async renderBusinessCompanyFinancialResultComponent(
+    item: EmbedNodeAttributes,
+    embedData: EmbedData | null = null,
+    decodedContent: DecodedEmbedContent | null = null,
+    content: HTMLElement,
+  ): Promise<void> {
+    const embedId = item.contentRef?.replace("embed:", "") || item.id || "";
+    const status = (decodedContent?.status ||
+      embedData?.status ||
+      item.status ||
+      "finished") as "processing" | "finished" | "error" | "cancelled";
+
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn("[GroupRenderer] Error unmounting existing component:", e);
+      }
+    }
+    content.innerHTML = "";
+
+    if (!content.isConnected) {
+      console.warn(
+        "[GroupRenderer] Skipping BusinessCompanyFinancialResultEmbedPreview mount — target detached from DOM",
+      );
+      return;
+    }
+
+    try {
+      const component = mount(BusinessCompanyFinancialResultEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          company: (decodedContent?.company as string | undefined) || "",
+          ticker: (decodedContent?.ticker as string | undefined) || "",
+          fiscalYear: (decodedContent?.fiscal_year as number | null | undefined) ?? null,
+          fiscalQuarter: (decodedContent?.fiscal_quarter as string | null | undefined) ?? null,
+          periodType: (decodedContent?.period_type as string | undefined) || "annual",
+          currency: (decodedContent?.currency as string | undefined) || "USD",
+          revenue: (decodedContent?.revenue as number | null | undefined) ?? null,
+          netIncome: (decodedContent?.net_income as number | null | undefined) ?? null,
+          filed: (decodedContent?.filed as string | undefined) || "",
+          form: (decodedContent?.form as string | undefined) || "",
+          status,
+          isMobile: false,
+          onFullscreen: () =>
+            this.openFullscreen(item, embedData, decodedContent),
+        },
+      });
+
+      mountedComponents.set(content, component);
+      console.debug(
+        "[GroupRenderer] Mounted BusinessCompanyFinancialResultEmbedPreview component:",
+        {
+          embedId,
+          company: decodedContent?.company,
+          status,
+        },
+      );
+    } catch (error) {
+      const err = error as Error;
+      console.error(
+        "[GroupRenderer] Error mounting BusinessCompanyFinancialResultEmbedPreview:",
+        err?.name,
+        err?.message,
+        err?.stack,
+      );
+      if (content.isConnected) {
+        content.innerHTML = await this.renderBusinessCompanyFinancialResultItem(
+          item,
+          embedData,
+          decodedContent,
+        );
+      }
+    }
+  }
+
+  /** HTML fallback for business-company-financial-result embeds. */
+  private async renderBusinessCompanyFinancialResultItem(
+    _item: EmbedNodeAttributes,
+    _embedData?: EmbedData | null,
+    decodedContent: DecodedEmbedContent | null = null,
+  ): Promise<string> {
+    const company = (decodedContent?.company as string | undefined) ||
+      (decodedContent?.ticker as string | undefined) ||
+      "Company financial result";
+    const ticker = (decodedContent?.ticker as string | undefined) || "";
+    const revenue = typeof decodedContent?.revenue === "number" ? decodedContent.revenue : null;
+    const currency = (decodedContent?.currency as string | undefined) || "USD";
+
+    return `
+      <div class="embed-app-icon business">
+        <span class="icon icon_business"></span>
+      </div>
+      <div class="embed-text-content">
+        <div class="embed-text-line">${escapeHtml(company)}</div>
+        ${ticker ? `<div class="embed-text-subline">${escapeHtml(ticker)}</div>` : ""}
+        ${revenue !== null ? `<div class="embed-text-subline">${escapeHtml(currency)} ${revenue.toLocaleString()}</div>` : ""}
+      </div>
+    `;
+  }
+
   private getGroupDisplayName(baseType: string, count: number): string {
     // App skill use groups use a distinct label format: "{count} app skills used:"
     if (baseType === "app-skill-use") {
@@ -5311,6 +5455,7 @@ export class GroupRenderer implements EmbedRenderer {
       "maps-place": "place",
       "images-image-result": "image",
       "models3d-model-result": "3D model",
+      "business-company-financial-result": "company financial result",
       "home-listing": "listing",
       "shopping-product": "product",
       "electronics-component": "component",

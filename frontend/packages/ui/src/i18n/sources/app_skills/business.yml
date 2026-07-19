@@ -1,0 +1,49 @@
+company_financials:
+  context: Skill name for looking up public-company financial facts
+  en: Get company financials
+  de: Unternehmenszahlen abrufen
+  zh: Get company financials
+  es: Get company financials
+  fr: Get company financials
+  pt: Get company financials
+  ru: Get company financials
+  ja: Get company financials
+  ko: Get company financials
+  it: Get company financials
+  tr: Get company financials
+  vi: Get company financials
+  id: Get company financials
+  pl: Get company financials
+  nl: Get company financials
+  ar: Get company financials
+  hi: Get company financials
+  th: Get company financials
+  cs: Get company financials
+  sv: Get company financials
+  he: Get company financials
+  verified_by_human: [en, de]
+
+company_financials.description:
+  context: Description for the Business company financials skill
+  en: Look up revenue, profit, balance-sheet data, and filing sources from SEC EDGAR.
+  de: Ruft Umsatz, Gewinn, Bilanzdaten und Quellen aus SEC EDGAR ab.
+  zh: Look up revenue, profit, balance-sheet data, and filing sources from SEC EDGAR.
+  es: Look up revenue, profit, balance-sheet data, and filing sources from SEC EDGAR.
+  fr: Look up revenue, profit, balance-sheet data, and filing sources from SEC EDGAR.
+  pt: Look up revenue, profit, balance-sheet data, and filing sources from SEC EDGAR.
+  ru: Look up revenue, profit, balance-sheet data, and filing sources from SEC EDGAR.
+  ja: Look up revenue, profit, balance-sheet data, and filing sources from SEC EDGAR.
+  ko: Look up revenue, profit, balance-sheet data, and filing sources from SEC EDGAR.
+  it: Look up revenue, profit, balance-sheet data, and filing sources from SEC EDGAR.
+  tr: Look up revenue, profit, balance-sheet data, and filing sources from SEC EDGAR.
+  vi: Look up revenue, profit, balance-sheet data, and filing sources from SEC EDGAR.
+  id: Look up revenue, profit, balance-sheet data, and filing sources from SEC EDGAR.
+  pl: Look up revenue, profit, balance-sheet data, and filing sources from SEC EDGAR.
+  nl: Look up revenue, profit, balance-sheet data, and filing sources from SEC EDGAR.
+  ar: Look up revenue, profit, balance-sheet data, and filing sources from SEC EDGAR.
+  hi: Look up revenue, profit, balance-sheet data, and filing sources from SEC EDGAR.
+  th: Look up revenue, profit, balance-sheet data, and filing sources from SEC EDGAR.
+  cs: Look up revenue, profit, balance-sheet data, and filing sources from SEC EDGAR.
+  sv: Look up revenue, profit, balance-sheet data, and filing sources from SEC EDGAR.
+  he: Look up revenue, profit, balance-sheet data, and filing sources from SEC EDGAR.
+  verified_by_human: [en, de]

@@ -74,6 +74,7 @@ import { renderNewsSearch } from '../components/embeds/news/newsEmbedText';
 import { renderDoc } from '../components/embeds/docs/docsEmbedText';
 import { renderSocialMediaGetPosts, renderSocialMediaPost, renderSocialMediaSearch } from '../components/embeds/social_media/socialMediaEmbedText';
 import { renderWeatherDay, renderWeatherForecast, renderWeatherRainRadar } from '../components/embeds/weather/weatherEmbedText';
+import { renderCompanyFinancialResult, renderCompanyFinancials } from '../components/embeds/business/businessEmbedText';
 import { renderMindMapText } from '../components/embeds/mindmaps/mindMapContent';
 
 // ── Renderer type ────────────────────────────────────────────────────────
@@ -235,6 +236,7 @@ export const EMBED_TEXT_RENDERERS: Record<string, EmbedTextRenderer> = {
 	'app:social_media:search': renderSocialMediaSearch,
 	'app:weather:forecast': renderWeatherForecast,
 	'app:weather:rain_radar': renderWeatherRainRadar,
+	'app:business:company_financials': renderCompanyFinancials,
 	'app:tasks:create': renderTasksParent,
 	'app:tasks:search': renderTasksParent,
 	'app:workflows:create-or-modify': renderWorkflowsParent,
@@ -272,6 +274,7 @@ export const EMBED_TEXT_RENDERERS: Record<string, EmbedTextRenderer> = {
 	'design-icon-result': renderDesignIconResult,
 	'nutrition-recipe': renderNutritionRecipe,
 	'weather-day': renderWeatherDay,
+	'business-company-financial-result': renderCompanyFinancialResult,
 	'social-media-post': renderSocialMediaPost,
 	'tasks-task': renderTask,
 	'workflows-workflow': renderWorkflow,

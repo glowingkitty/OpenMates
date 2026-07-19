@@ -94,6 +94,54 @@ ai.skills.ask.description:
   sv: Fråga med text, bilder och annat media.
   he: שאל באמצעות טקסט, תמונות ומדיה נוספת.
   verified_by_human: [en, de]
+business:
+  context: App name for the Business app
+  en: Business
+  de: Business
+  zh: Business
+  es: Business
+  fr: Business
+  pt: Business
+  ru: Business
+  ja: Business
+  ko: Business
+  it: Business
+  tr: Business
+  vi: Business
+  id: Business
+  pl: Business
+  nl: Business
+  ar: Business
+  hi: Business
+  th: Business
+  cs: Business
+  sv: Business
+  he: Business
+  verified_by_human: [en, de]
+business.description:
+  context: Description for the Business app
+  en: Research companies and public business data.
+  de: Recherchiere Unternehmen und öffentliche Geschäftsdaten.
+  zh: Research companies and public business data.
+  es: Research companies and public business data.
+  fr: Research companies and public business data.
+  pt: Research companies and public business data.
+  ru: Research companies and public business data.
+  ja: Research companies and public business data.
+  ko: Research companies and public business data.
+  it: Research companies and public business data.
+  tr: Research companies and public business data.
+  vi: Research companies and public business data.
+  id: Research companies and public business data.
+  pl: Research companies and public business data.
+  nl: Research companies and public business data.
+  ar: Research companies and public business data.
+  hi: Research companies and public business data.
+  th: Research companies and public business data.
+  cs: Research companies and public business data.
+  sv: Research companies and public business data.
+  he: Research companies and public business data.
+  verified_by_human: [en, de]
 calendar:
   context: App name for the Calendar app
   en: Calendar

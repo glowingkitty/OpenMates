@@ -7229,6 +7229,220 @@ models3d.search.files_count:
   he: "{count} files"
   verified_by_human: [en, de]
 
+business.company_financials.results_count:
+  context: Subtitle shown after Business company financial lookup finishes; {count} is number of companies found
+  en: "{count} companies found"
+  de: "{count} Unternehmen gefunden"
+  zh: "{count} companies found"
+  es: "{count} companies found"
+  fr: "{count} companies found"
+  pt: "{count} companies found"
+  ru: "{count} companies found"
+  ja: "{count} companies found"
+  ko: "{count} companies found"
+  it: "{count} companies found"
+  tr: "{count} companies found"
+  vi: "{count} companies found"
+  id: "{count} companies found"
+  pl: "{count} companies found"
+  nl: "{count} companies found"
+  ar: "{count} companies found"
+  hi: "{count} companies found"
+  th: "{count} companies found"
+  cs: "{count} companies found"
+  sv: "{count} companies found"
+  he: "{count} companies found"
+  verified_by_human: [en, de]
+
+business.company_financials.no_results:
+  context: Empty state shown when no Business company financial results were found
+  en: No company financials found
+  de: Keine Unternehmenszahlen gefunden
+  zh: No company financials found
+  es: No company financials found
+  fr: No company financials found
+  pt: No company financials found
+  ru: No company financials found
+  ja: No company financials found
+  ko: No company financials found
+  it: No company financials found
+  tr: No company financials found
+  vi: No company financials found
+  id: No company financials found
+  pl: No company financials found
+  nl: No company financials found
+  ar: No company financials found
+  hi: No company financials found
+  th: No company financials found
+  cs: No company financials found
+  sv: No company financials found
+  he: No company financials found
+  verified_by_human: [en, de]
+
+business.company_financials.open_to_view:
+  context: Hint shown when Business child result embeds are available only in fullscreen
+  en: Open to view company financials
+  de: Öffnen, um Unternehmenszahlen anzusehen
+  zh: Open to view company financials
+  es: Open to view company financials
+  fr: Open to view company financials
+  pt: Open to view company financials
+  ru: Open to view company financials
+  ja: Open to view company financials
+  ko: Open to view company financials
+  it: Open to view company financials
+  tr: Open to view company financials
+  vi: Open to view company financials
+  id: Open to view company financials
+  pl: Open to view company financials
+  nl: Open to view company financials
+  ar: Open to view company financials
+  hi: Open to view company financials
+  th: Open to view company financials
+  cs: Open to view company financials
+  sv: Open to view company financials
+  he: Open to view company financials
+  verified_by_human: [en, de]
+
+business.company_financials.result_title:
+  context: Fallback title for a Business company financial result card
+  en: Company financial result
+  de: Unternehmenszahlen
+  zh: Company financial result
+  es: Company financial result
+  fr: Company financial result
+  pt: Company financial result
+  ru: Company financial result
+  ja: Company financial result
+  ko: Company financial result
+  it: Company financial result
+  tr: Company financial result
+  vi: Company financial result
+  id: Company financial result
+  pl: Company financial result
+  nl: Company financial result
+  ar: Company financial result
+  hi: Company financial result
+  th: Company financial result
+  cs: Company financial result
+  sv: Company financial result
+  he: Company financial result
+  verified_by_human: [en, de]
+
+business.company_financials.revenue:
+  context: Label for company revenue metric
+  en: Revenue
+  de: Umsatz
+  verified_by_human: [en, de]
+
+business.company_financials.gross_profit:
+  context: Label for company gross profit metric
+  en: Gross profit
+  de: Bruttogewinn
+  verified_by_human: [en, de]
+
+business.company_financials.operating_income:
+  context: Label for company operating income metric
+  en: Operating income
+  de: Operatives Ergebnis
+  verified_by_human: [en, de]
+
+business.company_financials.net_income:
+  context: Label for company net income metric
+  en: Net income
+  de: Nettogewinn
+  verified_by_human: [en, de]
+
+business.company_financials.operating_cash_flow:
+  context: Label for operating cash flow metric
+  en: Operating cash flow
+  de: Operativer Cashflow
+  verified_by_human: [en, de]
+
+business.company_financials.assets:
+  context: Label for company assets metric
+  en: Assets
+  de: Vermögenswerte
+  verified_by_human: [en, de]
+
+business.company_financials.liabilities:
+  context: Label for company liabilities metric
+  en: Liabilities
+  de: Verbindlichkeiten
+  verified_by_human: [en, de]
+
+business.company_financials.equity:
+  context: Label for company equity metric
+  en: Equity
+  de: Eigenkapital
+  verified_by_human: [en, de]
+
+business.company_financials.filed:
+  context: Label prefix for SEC filing date
+  en: Filed
+  de: Eingereicht
+  verified_by_human: [en, de]
+
+business.company_financials.annual:
+  context: Label for annual financial periods
+  en: Annual
+  de: Jährlich
+  verified_by_human: [en, de]
+
+business.company_financials.quarterly:
+  context: Label for quarterly financial periods
+  en: Quarterly
+  de: Quartalsweise
+  verified_by_human: [en, de]
+
+business.company_financials.period:
+  context: Generic label for a financial period
+  en: Period
+  de: Zeitraum
+  verified_by_human: [en, de]
+
+business.company_financials.metrics:
+  context: Section heading for company financial metrics
+  en: Metrics
+  de: Kennzahlen
+  verified_by_human: [en, de]
+
+business.company_financials.no_metrics:
+  context: Empty state when no standardized financial metrics are available
+  en: No standardized metrics were available in SEC facts.
+  de: In den SEC-Daten waren keine standardisierten Kennzahlen verfügbar.
+  verified_by_human: [en, de]
+
+business.company_financials.source:
+  context: Section heading for source filing metadata
+  en: Source filing
+  de: Quelldokument
+  verified_by_human: [en, de]
+
+business.company_financials.sec_filing:
+  context: Kicker label identifying data as SEC filing data
+  en: SEC filing data
+  de: SEC-Filing-Daten
+  verified_by_human: [en, de]
+
+business.company_financials.open_filing:
+  context: CTA label to open an SEC filing source
+  en: Open SEC filing
+  de: SEC-Filing öffnen
+  verified_by_human: [en, de]
+
+business.company_financials.notes:
+  context: Section heading for notes about missing standardized metrics
+  en: Notes
+  de: Hinweise
+  verified_by_human: [en, de]
+
+business.company_financials.not_available:
+  context: Fallback value when a financial metric is unavailable
+  en: N/A
+  de: N/V
+  verified_by_human: [en, de]
+
 image_search.view_source:
   context: Link label to view the source page of an image result
   en: View source

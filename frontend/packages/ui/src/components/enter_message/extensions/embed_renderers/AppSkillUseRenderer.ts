@@ -74,6 +74,8 @@ import SocialMediaSearchEmbedPreview from "../../../embeds/social_media/SocialMe
 import WeatherForecastEmbedPreview from "../../../embeds/weather/WeatherForecastEmbedPreview.svelte";
 import WeatherRainRadarEmbedPreview from "../../../embeds/weather/WeatherRainRadarEmbedPreview.svelte";
 import WeatherDayEmbedPreview from "../../../embeds/weather/WeatherDayEmbedPreview.svelte";
+import BusinessCompanyFinancialsEmbedPreview from "../../../embeds/business/BusinessCompanyFinancialsEmbedPreview.svelte";
+import BusinessCompanyFinancialResultEmbedPreview from "../../../embeds/business/BusinessCompanyFinancialResultEmbedPreview.svelte";
 import CalendarActionEmbedPreview from "../../../embeds/calendar/CalendarActionEmbedPreview.svelte";
 import { proxyImage } from "../../../../utils/imageProxy";
 import { resolveImageSourceDomain } from "../../../../utils/embedSourceDomain";
@@ -318,6 +320,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       listing: true,
       weather_day: true,
       model_result: true,
+      company_financial_result: true,
       icon_result: true,
       task: true,
       workflow: true,
@@ -348,6 +351,15 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     ) {
       if (decodedContent.source_page_url || decodedContent.preview_image_url || decodedContent.thumbnail_url) {
         skillId = "model_result";
+      }
+    } else if (
+      appId === "business" &&
+      skillId === "company_financials" &&
+      decodedContent &&
+      !decodedContent.embed_ids
+    ) {
+      if (decodedContent.company || decodedContent.cik || decodedContent.revenue || decodedContent.net_income) {
+        skillId = "company_financial_result";
       }
     } else if (
       appId === "design" &&
@@ -651,6 +663,24 @@ export class AppSkillUseRenderer implements EmbedRenderer {
 
       if (appId === "models3d" && skillId === "model_result") {
         return this.renderModel3DResultComponent(
+          attrs,
+          embedData,
+          decodedContent,
+          content,
+        );
+      }
+
+      if (appId === "business" && skillId === "company_financials") {
+        return this.renderBusinessCompanyFinancialsComponent(
+          attrs,
+          embedData,
+          decodedContent,
+          content,
+        );
+      }
+
+      if (appId === "business" && skillId === "company_financial_result") {
+        return this.renderBusinessCompanyFinancialResultComponent(
           attrs,
           embedData,
           decodedContent,
@@ -2892,6 +2922,139 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     } catch (error) {
       console.error(
         "[AppSkillUseRenderer] Error mounting Model3DResultEmbedPreview:",
+        error,
+      );
+      this.renderGenericSkill(attrs, embedData, decodedContent, content);
+    }
+  }
+
+  /** Render the business.company_financials parent preview component. */
+  private renderBusinessCompanyFinancialsComponent(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any,
+    content: HTMLElement,
+  ): void {
+    const query = decodedContent?.query || (attrs as any).query || "";
+    const provider = decodedContent?.provider || "SEC EDGAR";
+    const period = decodedContent?.period || "latest_annual";
+    const metricGroup = decodedContent?.metric_group || "summary";
+    const status =
+      decodedContent?.status ||
+      embedData?.status ||
+      attrs.status ||
+      "processing";
+    const taskId = decodedContent?.task_id || "";
+    const results = decodedContent?.results || decodedContent?.preview_results || [];
+    const rawEmbedIds = decodedContent?.embed_ids || embedData?.embed_ids || [];
+    const childEmbedIds = typeof rawEmbedIds === "string"
+      ? rawEmbedIds.split("|").filter((id: string) => id.length > 0)
+      : Array.isArray(rawEmbedIds)
+        ? rawEmbedIds
+        : [];
+    const resultCount = typeof decodedContent?.result_count === "number"
+      ? decodedContent.result_count
+      : results.length || childEmbedIds.length;
+
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn(
+          "[AppSkillUseRenderer] Error unmounting existing component:",
+          e,
+        );
+      }
+    }
+    content.innerHTML = "";
+
+    try {
+      const embedId = attrs.contentRef?.replace("embed:", "") || "";
+      const component = mount(BusinessCompanyFinancialsEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          query,
+          provider,
+          period,
+          metricGroup,
+          status: status as "processing" | "finished" | "error" | "cancelled",
+          resultCount,
+          results,
+          childEmbedIds,
+          taskId,
+          isMobile: false,
+          onFullscreen: () => this.openFullscreen(attrs, embedData, decodedContent),
+        },
+      });
+      mountedComponents.set(content, component);
+      console.debug(
+        "[AppSkillUseRenderer] Mounted BusinessCompanyFinancialsEmbedPreview component",
+      );
+    } catch (error) {
+      console.error(
+        "[AppSkillUseRenderer] Error mounting BusinessCompanyFinancialsEmbedPreview:",
+        error,
+      );
+      this.renderGenericSkill(attrs, embedData, decodedContent, content);
+    }
+  }
+
+  /** Render a preview-only business.company_financial_result child card. */
+  private renderBusinessCompanyFinancialResultComponent(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any,
+    content: HTMLElement,
+  ): void {
+    const status =
+      decodedContent?.status ||
+      embedData?.status ||
+      attrs.status ||
+      "finished";
+
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn(
+          "[AppSkillUseRenderer] Error unmounting existing component:",
+          e,
+        );
+      }
+    }
+    content.innerHTML = "";
+
+    try {
+      const embedId = attrs.contentRef?.replace("embed:", "") || "";
+      const component = mount(BusinessCompanyFinancialResultEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          company: decodedContent?.company || "",
+          ticker: decodedContent?.ticker || "",
+          fiscalYear: decodedContent?.fiscal_year ?? null,
+          fiscalQuarter: decodedContent?.fiscal_quarter ?? null,
+          periodType: decodedContent?.period_type || "annual",
+          currency: decodedContent?.currency || "USD",
+          revenue: decodedContent?.revenue ?? null,
+          netIncome: decodedContent?.net_income ?? null,
+          filed: decodedContent?.filed || "",
+          form: decodedContent?.form || "",
+          status: status as "processing" | "finished" | "error" | "cancelled",
+          isMobile: false,
+          onFullscreen: () => this.openFullscreen(attrs, embedData, decodedContent),
+        },
+      });
+      mountedComponents.set(content, component);
+      console.debug(
+        "[AppSkillUseRenderer] Mounted BusinessCompanyFinancialResultEmbedPreview component",
+      );
+    } catch (error) {
+      console.error(
+        "[AppSkillUseRenderer] Error mounting BusinessCompanyFinancialResultEmbedPreview:",
         error,
       );
       this.renderGenericSkill(attrs, embedData, decodedContent, content);
@@ -5421,6 +5584,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     const childSkillTypes: Record<string, boolean> = {
       image_result: true,
       model_result: true,
+      company_financial_result: true,
       weather_day: true,
       listing: true,
       event: true,
@@ -5444,6 +5608,16 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       (decodedContent.source_page_url || decodedContent.preview_image_url || decodedContent.thumbnail_url)
     ) {
       return "model_result";
+    }
+
+    if (
+      appId === "business" &&
+      skillId === "company_financials" &&
+      decodedContent &&
+      !decodedContent.embed_ids &&
+      (decodedContent.company || decodedContent.cik || decodedContent.revenue || decodedContent.net_income)
+    ) {
+      return "company_financial_result";
     }
 
     if (
