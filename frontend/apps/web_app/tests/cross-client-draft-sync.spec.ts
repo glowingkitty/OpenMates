@@ -407,9 +407,11 @@ async function replaceMessageEditorText(page: any, chatId: string, text: string)
 	for (let attempt = 0; attempt < 3; attempt += 1) {
 		try {
 			const editor = await activeMessageEditorEditable(page, chatId);
-			await editor.fill(text, { timeout: 5_000 });
+			await editor.click();
+			await page.keyboard.press('Control+A');
+			await page.keyboard.press('Backspace');
 			if (text.length > 0) {
-				await editor.click();
+				await editor.pressSequentially(text, { delay: 1 });
 				await page.keyboard.type(' ');
 				await page.keyboard.press('Backspace');
 			}
