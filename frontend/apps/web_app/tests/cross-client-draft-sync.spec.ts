@@ -215,11 +215,10 @@ async function replaceMessageEditorText(page: any, chatId: string, text: string)
 	await page.keyboard.press('ControlOrMeta+A');
 	await page.keyboard.press('ControlOrMeta+A');
 	await page.keyboard.press('Backspace');
+	await expect(editor).toHaveText('', { timeout: 5_000 });
 	if (text.length > 0) {
-		await page.keyboard.insertText(text);
-		const activeEditor = messageEditorEditable(page);
-		await expect(activeEditor).toContainText(text, { timeout: 10_000 });
-		return activeEditor;
+		await page.keyboard.type(text, { delay: 5 });
+		await expect(editor).toContainText(text, { timeout: 10_000 });
 	}
 	return editor;
 }
