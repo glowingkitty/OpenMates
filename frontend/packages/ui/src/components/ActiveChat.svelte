@@ -9051,11 +9051,31 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             const draftRestoreChatId = draftRestoreChat.chat_id;
             const isCurrentDraftRestoreTarget = () =>
                 thisLoadGeneration === loadChatGeneration && currentChat?.chat_id === draftRestoreChatId;
+            const appendDraftRestoreDiagnostic = (event: string, data: Record<string, unknown> = {}) => {
+                const diagnosticsWindow = window as typeof window & { __openmatesDraftRestoreDiagnostics?: Array<Record<string, unknown>> };
+                diagnosticsWindow.__openmatesDraftRestoreDiagnostics = [
+                    ...(diagnosticsWindow.__openmatesDraftRestoreDiagnostics ?? []),
+                    {
+                        event,
+                        chatId: draftRestoreChatId,
+                        currentChatId: currentChat?.chat_id ?? null,
+                        generation: thisLoadGeneration,
+                        activeGeneration: loadChatGeneration,
+                        ...data,
+                    },
+                ].slice(-20);
+            };
             const runCurrentDraftRestoreSoon = (callback: (ref: MessageInputFieldRef) => void) => {
                 setTimeout(() => {
                     const ref = messageInputFieldRef;
                     if (!ref || !isCurrentDraftRestoreTarget()) return;
+                    appendDraftRestoreDiagnostic('apply-before', {
+                        textLength: ref.getTextContent().length,
+                    });
                     callback(ref);
+                    appendDraftRestoreDiagnostic('apply-after', {
+                        textLength: ref.getTextContent().length,
+                    });
                 }, DRAFT_RESTORE_APPLY_DELAY_MS);
             };
 
@@ -9097,16 +9117,24 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 let encryptedDraftMd = draftRestoreChat.encrypted_draft_md;
                 let encryptedDraftPreview = draftRestoreChat.encrypted_draft_preview;
                 let draftVersion = draftRestoreChat.draft_v;
+                let rawDraftHydrated = false;
                 if (!encryptedDraftMd && !encryptedDraftPreview) {
                     try {
                         const rawDraftChat = await chatDB.getRawChat(draftRestoreChatId);
                         encryptedDraftMd = rawDraftChat?.encrypted_draft_md ?? encryptedDraftMd;
                         encryptedDraftPreview = rawDraftChat?.encrypted_draft_preview ?? encryptedDraftPreview;
                         draftVersion = rawDraftChat?.draft_v ?? draftVersion;
+                        rawDraftHydrated = !!rawDraftChat;
                     } catch (error) {
                         console.debug(`[ActiveChat] Could not hydrate raw draft fields during restore for ${draftRestoreChatId}:`, error);
                     }
                 }
+                appendDraftRestoreDiagnostic('fields', {
+                    hasEncryptedDraftMd: !!encryptedDraftMd,
+                    hasEncryptedDraftPreview: !!encryptedDraftPreview,
+                    draftVersion: draftVersion ?? null,
+                    rawDraftHydrated,
+                });
                 const decryptDraftWithRetry = async (encryptedValue: string, fieldName: string): Promise<string | null> => {
                     for (let attempt = 0; attempt < 20; attempt += 1) {
                         if (!isCurrentDraftRestoreTarget()) return null;
@@ -9232,6 +9260,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             if (!isCurrentDraftRestoreTarget()) return;
                             // Parse markdown to TipTap JSON for the editor
                             const draftContentJSON = parse_message(decryptedMarkdown, 'write', { unifiedParsingEnabled: true });
+                            appendDraftRestoreDiagnostic('parsed-md', {
+                                decryptedLength: decryptedMarkdown.length,
+                                hasMeaningfulContent: hasMeaningfulTiptapContent(draftContentJSON),
+                            });
                             console.debug(`[ActiveChat] Successfully decrypted and parsed draft content for chat ${draftRestoreChatId}`);
                             if (!hasMeaningfulTiptapContent(draftContentJSON) && shouldPreserveLiveEmbedOnlyDraft(draftRestoreChatId)) {
                                 console.debug(`[ActiveChat] Preserving live draft for ${draftRestoreChatId}; decrypted draft parsed empty while upload is still finalizing`);

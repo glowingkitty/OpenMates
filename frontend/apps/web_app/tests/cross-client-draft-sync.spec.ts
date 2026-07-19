@@ -230,6 +230,8 @@ async function logDraftOpenDiagnostics(page: any, chatId: string, label: string,
 			editorTextLength: editor?.textContent?.length ?? 0,
 			editorHtmlLength: editor?.innerHTML?.length ?? 0,
 			editorChildCount: editor?.childElementCount ?? 0,
+			draftRestoreDiagnostics: (window as typeof window & { __openmatesDraftRestoreDiagnostics?: unknown[] }).__openmatesDraftRestoreDiagnostics ?? [],
+			messageInputDraftDiagnostics: (window as typeof window & { __openmatesMessageInputDraftDiagnostics?: unknown[] }).__openmatesMessageInputDraftDiagnostics ?? [],
 			searchOpen: !!document.querySelector('[data-testid="search-bar"]'),
 			matchingRows,
 			chatRecord: record

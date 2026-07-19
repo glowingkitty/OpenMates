@@ -4720,6 +4720,17 @@
         return '';
     }
     export function setDraftContent(chatId: string | null, draftContent: Content | null, version: number, shouldFocus: boolean = false) {
+        const diagnosticsWindow = window as typeof window & { __openmatesMessageInputDraftDiagnostics?: Array<Record<string, unknown>> };
+        const appendMessageInputDiagnostic = (event: string, data: Record<string, unknown> = {}) => {
+            diagnosticsWindow.__openmatesMessageInputDraftDiagnostics = [
+                ...(diagnosticsWindow.__openmatesMessageInputDraftDiagnostics ?? []),
+                { event, chatId, hasEditor: !!editor && !editor.isDestroyed, version, hasDraftContent: draftContent !== null, ...data },
+            ].slice(-20);
+        };
+
+        appendMessageInputDiagnostic('setDraftContent-before', {
+            textLength: editor && !editor.isDestroyed ? editor.getText().length : 0,
+        });
         // CRITICAL: setCurrentChatContext already sets the editor content (to draftContent or initial content)
         // So we don't need to clear it again if draftContent is null - that would trigger unnecessary update events
         // The setCurrentChatContext function handles setting the editor content with emitUpdate: false to prevent triggering saves
@@ -4731,6 +4742,9 @@
         if (editor && !editor.isDestroyed && draftContent !== null) {
             editor.commands.setContent(draftContent, { emitUpdate: false });
         }
+        appendMessageInputDiagnostic('setDraftContent-after-local-apply', {
+            textLength: editor && !editor.isDestroyed ? editor.getText().length : 0,
+        });
         
         // Reset text-change guard so next editor update processes fully after content swap
         lastEditorUpdateText = editor ? editor.getText() : '';
