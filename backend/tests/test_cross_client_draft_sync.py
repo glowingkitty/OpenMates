@@ -6,6 +6,7 @@ opaque ciphertext; no server-side test or implementation decrypts them.
 """
 
 from types import SimpleNamespace
+import hashlib
 
 import pytest
 
@@ -49,9 +50,19 @@ class _WebSocket:
 
 
 @pytest.mark.anyio
-async def test_update_draft_acknowledges_sender_and_broadcasts_only_ciphertext() -> None:
+async def test_update_draft_acknowledges_sender_and_broadcasts_only_ciphertext(monkeypatch) -> None:
     manager = _Manager()
     websocket = _WebSocket()
+    sent_tasks = []
+
+    class CeleryApp:
+        def send_task(self, **kwargs):
+            sent_tasks.append(kwargs)
+
+    monkeypatch.setattr(
+        "backend.core.api.app.routes.handlers.websocket_handlers.draft_update_handler.celery_app_instance",
+        CeleryApp(),
+    )
 
     class Cache:
         async def increment_user_draft_version(self, user_id, chat_id):
@@ -109,14 +120,29 @@ async def test_update_draft_acknowledges_sender_and_broadcasts_only_ciphertext()
         "encrypted_draft_md": "cipher-md",
         "encrypted_draft_preview": "cipher-preview",
     }
+    assert sent_tasks == [{
+        "name": "app.tasks.persistence_tasks.persist_user_draft",
+        "kwargs": {
+            "hashed_user_id": hashlib.sha256("user-1".encode()).hexdigest(),
+            "chat_id": "11111111-1111-4111-8111-111111111111",
+            "encrypted_draft_content": "cipher-md",
+            "draft_version": 4,
+        },
+        "queue": "persistence",
+    }]
     assert "plaintext" not in str(websocket.sent + manager.broadcasts).lower()
 
 
 @pytest.mark.anyio
-async def test_update_draft_broadcasts_ideabucket_metadata_without_plaintext() -> None:
+async def test_update_draft_broadcasts_ideabucket_metadata_without_plaintext(monkeypatch) -> None:
     manager = _Manager()
     websocket = _WebSocket()
     captured_metadata = []
+
+    monkeypatch.setattr(
+        "backend.core.api.app.routes.handlers.websocket_handlers.draft_update_handler.celery_app_instance",
+        SimpleNamespace(send_task=lambda **_kwargs: None),
+    )
 
     class Cache:
         async def increment_user_draft_version(self, user_id, chat_id):
@@ -174,10 +200,15 @@ async def test_update_draft_broadcasts_ideabucket_metadata_without_plaintext() -
 
 
 @pytest.mark.anyio
-async def test_update_draft_replaces_ideabucket_processing_window_payload() -> None:
+async def test_update_draft_replaces_ideabucket_processing_window_payload(monkeypatch) -> None:
     manager = _Manager()
     websocket = _WebSocket()
     captured_windows = []
+
+    monkeypatch.setattr(
+        "backend.core.api.app.routes.handlers.websocket_handlers.draft_update_handler.celery_app_instance",
+        SimpleNamespace(send_task=lambda **_kwargs: None),
+    )
 
     class Cache:
         async def increment_user_draft_version(self, user_id, chat_id):

@@ -1,5 +1,6 @@
 import logging
 import time
+import hashlib
 from typing import Dict, Any, Optional
 
 from fastapi import WebSocket
@@ -9,6 +10,7 @@ from backend.core.api.app.services.directus.directus import DirectusService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.routes.connection_manager import ConnectionManager
 from backend.core.api.app.routes.ideabucket import FORBIDDEN_IDEABUCKET_CLEARTEXT_KEYS
+from backend.core.api.app.tasks.celery_config import app as celery_app_instance
 
 logger = logging.getLogger(__name__)
 
@@ -164,6 +166,17 @@ async def handle_update_draft(
         if not update_success:
             logger.error(f"Failed to update user draft in cache for user {user_id}, chat {chat_id}.")
             # Log error but continue, version was incremented.
+        else:
+            celery_app_instance.send_task(
+                name="app.tasks.persistence_tasks.persist_user_draft",
+                kwargs={
+                    "hashed_user_id": hashlib.sha256(user_id.encode()).hexdigest(),
+                    "chat_id": chat_id,
+                    "encrypted_draft_content": encrypted_draft_str,
+                    "draft_version": new_user_draft_v,
+                },
+                queue="persistence",
+            )
 
         draft_metadata: Dict[str, Any] = {}
         if "ideabucket" in payload or "ideabucket_processing_window_id" in payload:
