@@ -44,11 +44,10 @@ const handleDraftUpdated = async (
 
   // Update the user's draft directly within the Chat object in IndexedDB
   try {
-    const chat = await chatDB.getChat(chat_id);
+    const chat = await chatDB.getRawChat(chat_id);
     if (chat) {
       chat.encrypted_draft_md = encrypted_draft_md; // from payload.data
-      // Note: encrypted_draft_preview is not included in ServerChatDraftUpdatedEventPayload
-      // It will be generated/updated separately if needed
+      chat.encrypted_draft_preview = data.encrypted_draft_preview || null;
       chat.draft_v = newUserDraftVersion; // from payload.versions (corrected)
       // CRITICAL: Don't update last_edited_overall_timestamp from draft updates
       // Only messages should update this timestamp for proper sorting
@@ -56,7 +55,7 @@ const handleDraftUpdated = async (
       // chat.last_edited_overall_timestamp = last_edited_overall_timestamp; // REMOVED
       chat.updated_at = last_edited_overall_timestamp; // Keep updated_at for internal tracking
 
-      await chatDB.updateChat(chat);
+      await chatDB.upsertRawChat(chat);
       console.info(
         `[DraftService] Updated chat ${chat_id} with new draft in DB. Version: ${newUserDraftVersion}`,
       );
@@ -64,11 +63,24 @@ const handleDraftUpdated = async (
       chatMetadataCache.invalidateChat(chat_id);
       dbOperationSuccess = true;
     } else {
-      console.warn(
-        `[DraftService] Chat ${chat_id} not found in DB to update draft from WebSocket.`,
+      const timestamp = last_edited_overall_timestamp || Math.floor(Date.now() / 1000);
+      await chatDB.upsertRawChat({
+        chat_id,
+        encrypted_title: null,
+        encrypted_draft_md,
+        encrypted_draft_preview: data.encrypted_draft_preview || null,
+        draft_v: newUserDraftVersion,
+        title_v: 0,
+        messages_v: 0,
+        last_edited_overall_timestamp: timestamp,
+        created_at: timestamp,
+        updated_at: timestamp,
+        unread_count: 0,
+      });
+      console.info(
+        `[DraftService] Created draft-only chat ${chat_id} from WebSocket draft update. Version: ${newUserDraftVersion}`,
       );
-      // If the chat doesn't exist, we cannot update its draft.
-      // This might indicate a race condition or an issue where a draft update arrives for a deleted/non-existent chat.
+      dbOperationSuccess = true;
     }
   } catch (dbError) {
     console.error(

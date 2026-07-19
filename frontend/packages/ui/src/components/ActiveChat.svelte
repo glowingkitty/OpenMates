@@ -8335,6 +8335,23 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             }
         }
          currentChat = freshChat || chat; // currentChat is now just metadata
+         if (currentChat?.chat_id && $authStore.isAuthenticated && !isPublicChat(currentChat.chat_id)) {
+             try {
+                 const rawChat = await chatDB.getRawChat(currentChat.chat_id);
+                 if (rawChat) {
+                     currentChat = {
+                         ...currentChat,
+                         encrypted_draft_md: rawChat.encrypted_draft_md ?? chat.encrypted_draft_md ?? currentChat.encrypted_draft_md,
+                         encrypted_draft_preview: rawChat.encrypted_draft_preview ?? chat.encrypted_draft_preview ?? currentChat.encrypted_draft_preview,
+                         draft_v: rawChat.draft_v ?? chat.draft_v ?? currentChat.draft_v,
+                         ideabucket: rawChat.ideabucket ?? chat.ideabucket ?? currentChat.ideabucket,
+                         ideabucket_processing_window_id: rawChat.ideabucket_processing_window_id ?? chat.ideabucket_processing_window_id ?? currentChat.ideabucket_processing_window_id,
+                     };
+                 }
+             } catch (error) {
+                 console.debug(`[ActiveChat] Could not merge raw draft fields for ${currentChat.chat_id}:`, error);
+             }
+         }
 
          // ─── Chat Header: restore title/category/icon for all chat types ────────────────
          // Universal header restoration: handles public/demo, incognito, and regular chats.
