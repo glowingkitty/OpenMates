@@ -87,16 +87,25 @@ async function runCli(
 	});
 }
 
-async function runCliJson(apiUrl: string, args: string[], timeoutMs = 60_000): Promise<any> {
+async function runCliJson(
+	apiUrl: string,
+	args: string[],
+	timeoutMs = 60_000,
+	options: { allowTransientFailure?: boolean } = {}
+): Promise<any> {
 	const command = args.slice(0, 2).join(' ');
 	let result: { code: number | null; stdout: string; stderr: string } | null = null;
-	for (let attempt = 0; attempt < 6; attempt += 1) {
+	let lastTransientNetworkError = false;
+	const maxAttempts = options.allowTransientFailure ? 2 : 6;
+	for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
 		result = await runCli(apiUrl, [...args, '--json'], timeoutMs);
 		if (result.code === 0) return JSON.parse(result.stdout);
 		const transientNetworkError = /fetch failed|ECONNRESET|ETIMEDOUT|EAI_AGAIN|ENOTFOUND/i.test(result.stderr);
-		if (!transientNetworkError || attempt === 5) break;
+		lastTransientNetworkError = transientNetworkError;
+		if (!transientNetworkError || attempt === maxAttempts - 1) break;
 		await new Promise((resolve) => setTimeout(resolve, 1_500 * (attempt + 1)));
 	}
+	if (options.allowTransientFailure && lastTransientNetworkError) return null;
 	expect(result, `openmates ${command} did not produce a result`).not.toBeNull();
 	expect(
 		result!.code,
@@ -213,6 +222,12 @@ async function replaceMessageEditorText(page: any, chatId: string, text: string)
 	await expect(editor).toBeVisible({ timeout: 15_000 });
 	await editor.fill(text);
 	const activeEditor = messageEditorEditable(page, chatId);
+	if (text.length > 0) {
+		await activeEditor.click();
+		await page.keyboard.press('End');
+		await page.keyboard.type(' ');
+		await page.keyboard.press('Backspace');
+	}
 	await expect(activeEditor).toHaveText(text, { timeout: 10_000 });
 	return activeEditor;
 }
@@ -550,7 +565,10 @@ test.describe('Cross-client encrypted draft sync', () => {
 			try {
 				await expect
 					.poll(async () => {
-						const draft = (await runCliJson(apiUrl, ['drafts', 'get', draftChatId, '--refresh'])).draft;
+						const result = await runCliJson(apiUrl, ['drafts', 'get', draftChatId, '--refresh'], 15_000, {
+							allowTransientFailure: true,
+						});
+						const draft = result?.draft;
 						return `${draft?.draftV ?? 0}:${draft?.markdown ?? ''}`;
 					}, {
 						timeout: 30_000,
@@ -566,7 +584,12 @@ test.describe('Cross-client encrypted draft sync', () => {
 			await replaceMessageEditorText(page, draftChatId, '');
 			log('Web draft emptied; waiting for CLI reconciliation.');
 			await expect
-				.poll(async () => (await runCliJson(apiUrl, ['drafts', 'get', draftChatId, '--refresh'])).draft, {
+				.poll(async () => {
+					const result = await runCliJson(apiUrl, ['drafts', 'get', draftChatId, '--refresh'], 15_000, {
+						allowTransientFailure: true,
+					});
+					return result?.draft ?? 'transient-cli-fetch-failed';
+				}, {
 					timeout: 60_000,
 					intervals: [1_000, 2_000]
 				})
@@ -581,13 +604,18 @@ test.describe('Cross-client encrypted draft sync', () => {
 			await page.reload();
 			await waitForChatReady(page, log);
 			await openDraft(page, sentChatId, sentText);
-			await editor.click();
+			await messageEditorEditable(page, sentChatId).click();
 			const sendButton = page.locator('[data-action="send-message"]');
 			await expect(sendButton).toBeVisible({ timeout: 15_000 });
 			await sendButton.click();
 			await expect(page.getByTestId('message-user').last()).toContainText(sentText, { timeout: 30_000 });
 			await expect
-				.poll(async () => (await runCliJson(apiUrl, ['drafts', 'get', sentChatId, '--refresh'])).draft, {
+				.poll(async () => {
+					const result = await runCliJson(apiUrl, ['drafts', 'get', sentChatId, '--refresh'], 15_000, {
+						allowTransientFailure: true,
+					});
+					return result?.draft ?? 'transient-cli-fetch-failed';
+				}, {
 					timeout: 30_000,
 					intervals: [1_000, 2_000]
 				})
@@ -672,7 +700,10 @@ test.describe('Cross-client encrypted draft sync', () => {
 			try {
 				await expect
 					.poll(async () => {
-						const currentDraft = (await runCliJson(apiUrl, ['drafts', 'get', draftChatId, '--refresh'])).draft;
+						const result = await runCliJson(apiUrl, ['drafts', 'get', draftChatId, '--refresh'], 15_000, {
+							allowTransientFailure: true,
+						});
+						const currentDraft = result?.draft;
 						return currentDraft?.markdown ?? '';
 					}, {
 						timeout: 60_000,
