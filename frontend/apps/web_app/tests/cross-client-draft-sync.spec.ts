@@ -186,7 +186,18 @@ async function replaceMessageEditorText(page: any, chatId: string, text: string)
 	await page.keyboard.press('Backspace');
 	await expect(editor).toHaveText('', { timeout: 5_000 });
 	if (text.length > 0) {
-		await page.keyboard.type(text, { delay: 5 });
+		await page.evaluate(
+			({ targetChatId, pastedText }: { targetChatId: string; pastedText: string }) => {
+				const editable = document.querySelector(
+					`[data-action="message-input"][data-current-chat-id="${targetChatId}"] [data-testid="message-editor"] [contenteditable="true"]`
+				);
+				if (!editable) throw new Error(`contenteditable editor not found for ${targetChatId}`);
+				const clipboardData = new DataTransfer();
+				clipboardData.setData('text/plain', pastedText);
+				editable.dispatchEvent(new ClipboardEvent('paste', { clipboardData, bubbles: true, cancelable: true }));
+			},
+			{ targetChatId: chatId, pastedText: text }
+		);
 	}
 	return editor;
 }
