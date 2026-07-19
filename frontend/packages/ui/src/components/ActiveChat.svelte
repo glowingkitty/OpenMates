@@ -9254,9 +9254,57 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     const ANONYMOUS_HASH_RESTORE_ATTEMPTS = 30;
     const ANONYMOUS_HASH_RESTORE_RETRY_MS = 100;
     const ANONYMOUS_HASH_EMPTY_RESTORE_ATTEMPTS = 5;
+    const AUTH_DRAFT_HASH_RESTORE_ATTEMPTS = 30;
+    const AUTH_DRAFT_HASH_RESTORE_RETRY_MS = 100;
 
     let restoringAnonymousHashChat = $state(false);
+    let restoringAuthenticatedDraftHashChat = $state<string | null>(null);
     let anonymousHashEmptyRestoreAttempts = $state<Record<string, number>>({});
+
+    async function getAuthenticatedRawDraftChatWithRetry(chatId: string): Promise<Chat | null> {
+        for (let attempt = 0; attempt < AUTH_DRAFT_HASH_RESTORE_ATTEMPTS; attempt += 1) {
+            await chatDB.init();
+            const rawChat = await chatDB.getRawChat(chatId);
+            if (rawChat?.encrypted_draft_md || rawChat?.encrypted_draft_preview) return rawChat;
+            if (attempt < AUTH_DRAFT_HASH_RESTORE_ATTEMPTS - 1) {
+                await new Promise((resolve) => setTimeout(resolve, AUTH_DRAFT_HASH_RESTORE_RETRY_MS));
+            }
+        }
+        return null;
+    }
+
+    $effect(() => {
+        const activeChatId = $activeChatStore;
+        if (
+            !$authStore.isAuthenticated ||
+            !activeChatId ||
+            currentChat?.chat_id === activeChatId ||
+            isPublicChat(activeChatId) ||
+            isAnonymousChatId(activeChatId) ||
+            restoringAuthenticatedDraftHashChat === activeChatId
+        ) {
+            return;
+        }
+
+        restoringAuthenticatedDraftHashChat = activeChatId;
+        void (async () => {
+            try {
+                const rawDraftChat = await getAuthenticatedRawDraftChatWithRetry(activeChatId);
+                if (!rawDraftChat || activeChatStore.get() !== activeChatId || currentChat?.chat_id === activeChatId) {
+                    return;
+                }
+
+                console.debug('[ActiveChat] Restoring authenticated draft-only hash chat:', activeChatId);
+                await loadChat(rawDraftChat);
+            } catch (error) {
+                console.warn('[ActiveChat] Failed to restore authenticated draft-only hash chat:', activeChatId, error);
+            } finally {
+                if (restoringAuthenticatedDraftHashChat === activeChatId) {
+                    restoringAuthenticatedDraftHashChat = null;
+                }
+            }
+        })();
+    });
 
     async function getAnonymousHashChatWithRetry(chatId: string): Promise<Chat | null> {
         for (let attempt = 0; attempt < ANONYMOUS_HASH_RESTORE_ATTEMPTS; attempt += 1) {
