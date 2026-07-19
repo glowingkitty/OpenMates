@@ -9266,10 +9266,18 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             await chatDB.init();
             const rawChat = await chatDB.getRawChat(chatId);
             if (rawChat?.encrypted_draft_md || rawChat?.encrypted_draft_preview) return rawChat;
+
+            const cachedChat = chatListCache.getPendingOrCachedChat(chatId);
+            if (cachedChat?.encrypted_draft_md || cachedChat?.encrypted_draft_preview) {
+                console.debug('[ActiveChat] Found authenticated draft-only hash chat in chatListCache:', chatId);
+                return cachedChat;
+            }
+
             if (attempt < AUTH_DRAFT_HASH_RESTORE_ATTEMPTS - 1) {
                 await new Promise((resolve) => setTimeout(resolve, AUTH_DRAFT_HASH_RESTORE_RETRY_MS));
             }
         }
+        console.debug('[ActiveChat] No authenticated draft-only hash chat found after retry:', chatId);
         return null;
     }
 

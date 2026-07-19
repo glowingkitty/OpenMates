@@ -271,6 +271,18 @@ class ChatListCache {
   }
 
   /**
+   * Return one chat from pending or cached data without requiring a full sidebar refresh.
+   * Used by explicit chat-id recovery paths where a WebSocket upsert may have arrived
+   * before IndexedDB has the raw row available.
+   */
+  getPendingOrCachedChat(chatId: string): Chat | null {
+    const pendingChat = this.getPendingUpsertsMap().get(chatId);
+    if (pendingChat) return pendingChat;
+
+    return this.cachedChats.find((chat) => chat.chat_id === chatId) ?? null;
+  }
+
+  /**
    * Remove a chat from the cache
    */
   removeChat(chatId: string): void {
