@@ -570,6 +570,50 @@ async def test_session_draft_route_returns_authoritative_ciphertext() -> None:
     assert "plaintext" not in str(response).lower()
 
 
+@pytest.mark.anyio
+async def test_session_draft_route_prefers_persisted_directus_draft() -> None:
+    class Cache:
+        async def get_user_draft_from_cache(self, user_id, chat_id):
+            raise AssertionError("Directus draft should be returned before cache fallback")
+
+    calls = []
+
+    async def get_items(collection, *, params, admin_required=False):
+        calls.append((collection, params, admin_required))
+        return [{"encrypted_content": "persisted-cipher", "version": 3}]
+
+    request = SimpleNamespace(
+        app=SimpleNamespace(
+            state=SimpleNamespace(
+                cache_service=Cache(),
+                directus_service=SimpleNamespace(get_items=get_items),
+            )
+        )
+    )
+
+    response = await get_draft("chat-1", request, SimpleNamespace(id="user-1"))
+
+    assert response == {
+        "draft": {
+            "chat_id": "chat-1",
+            "encrypted_draft_md": "persisted-cipher",
+            "encrypted_draft_preview": None,
+            "draft_v": 3,
+        }
+    }
+    assert calls == [(
+        "drafts",
+        {
+            "filter[hashed_user_id][_eq]": hashlib.sha256("user-1".encode()).hexdigest(),
+            "filter[chat_id][_eq]": "chat-1",
+            "fields": "encrypted_content,version",
+            "limit": 1,
+        },
+        True,
+    )]
+    assert "plaintext" not in str(response).lower()
+
+
 def test_authoritative_reconciliation_requires_a_complete_server_set() -> None:
     partial = _authoritative_chat_reconciliation(
         client_chat_ids=["kept", "deleted"],

@@ -136,23 +136,46 @@ async def get_draft(
     request: Request,
     current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
-    from backend.core.api.app.routes.handlers.websocket_handlers.get_draft_versions_handler import get_authoritative_user_draft
-
-    draft = await get_authoritative_user_draft(
-        request.app.state.cache_service,
-        request.app.state.directus_service,
-        current_user.id,
-        chat_id,
+    hashed_user_id = hashlib.sha256(current_user.id.encode()).hexdigest()
+    rows = await request.app.state.directus_service.get_items(
+        "drafts",
+        params={
+            "filter[hashed_user_id][_eq]": hashed_user_id,
+            "filter[chat_id][_eq]": chat_id,
+            "fields": "encrypted_content,version",
+            "limit": 1,
+        },
+        admin_required=True,
     )
-    if not draft:
-        return {"draft": None}
-    encrypted_md, draft_v, encrypted_preview = draft
-    return {"draft": {
-        "chat_id": chat_id,
-        "encrypted_draft_md": encrypted_md,
-        "encrypted_draft_preview": encrypted_preview,
-        "draft_v": draft_v,
-    }}
+    if rows:
+        row = rows[0]
+        encrypted_md = row.get("encrypted_content")
+        draft_v = int(row.get("version") or 0)
+        if encrypted_md and draft_v > 0:
+            return {"draft": {
+                "chat_id": chat_id,
+                "encrypted_draft_md": encrypted_md,
+                "encrypted_draft_preview": None,
+                "draft_v": draft_v,
+            }}
+
+    draft = await request.app.state.cache_service.get_user_draft_from_cache(
+        user_id=current_user.id,
+        chat_id=chat_id,
+    )
+    if draft:
+        encrypted_md, draft_v, encrypted_preview = draft
+        if encrypted_md and int(draft_v or 0) > 0:
+            return {"draft": {
+                "chat_id": chat_id,
+                "encrypted_draft_md": encrypted_md,
+                "encrypted_draft_preview": encrypted_preview,
+                "draft_v": int(draft_v),
+            }}
+
+    # A stale empty cache entry must not hide a persisted draft. Directus was
+    # checked first above, so no active draft exists for this user/chat.
+    return {"draft": None}
 
 
 @router.post("/chats/{chat_id}/move")
