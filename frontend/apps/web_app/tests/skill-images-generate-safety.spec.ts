@@ -357,7 +357,9 @@ test.describe('Image safety pipeline (images-generate)', () => {
 			const advBlocked =
 				advText.includes("couldn't be generated") ||
 				advText.includes('cannot') ||
-				advText.includes("can't");
+				advText.includes("can't") ||
+				advText.includes('unable to assist') ||
+				advText.includes('harmful or illegal');
 			expect(advBlocked, `Case 4 expected block, got: ${advText}`).toBeTruthy();
 			logCheckpoint('Case 4: blocked as expected');
 		} finally {
