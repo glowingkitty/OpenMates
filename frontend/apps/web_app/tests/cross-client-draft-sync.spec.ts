@@ -74,12 +74,13 @@ function installWebSocketFrameTracker(page: any): WebSocketFrameRecord[] {
 async function waitForDraftUpdateReceipt(
 	frames: WebSocketFrameRecord[],
 	chatId: string,
-	label: string
+	label: string,
+	afterFrameIndex = 0
 ): Promise<void> {
 	try {
 		await expect
 			.poll(
-				() => frames.some((frame) =>
+				() => frames.slice(afterFrameIndex).some((frame) =>
 					frame.direction === 'received' &&
 					frame.type === 'draft_update_receipt' &&
 					frame.chatId === chatId
@@ -88,7 +89,7 @@ async function waitForDraftUpdateReceipt(
 			)
 			.toBeTruthy();
 	} catch (error) {
-		console.log(`[${label}] Recent WebSocket frames: ${JSON.stringify(frames.slice(-40))}`);
+		console.log(`[${label}] Recent WebSocket frames: ${JSON.stringify(frames.slice(Math.max(0, afterFrameIndex - 5)).slice(-40))}`);
 		throw error;
 	}
 }
@@ -632,9 +633,10 @@ test.describe('Cross-client encrypted draft sync', () => {
 
 			const editor = await replaceMessageEditorText(page, draftChatId, updatedText);
 			await expect(editor).toContainText(updatedText, { timeout: 10_000 });
+			const draftUpdateFrameStart = wsFrames.length;
 			await page.getByTestId('input-dismiss-button').click();
 			await expectLocalDraftMarkdown(page, draftChatId, updatedText, 'CROSS_CLIENT_DRAFT_SYNC');
-			await waitForDraftUpdateReceipt(wsFrames, draftChatId, 'CROSS_CLIENT_DRAFT_SYNC');
+			await waitForDraftUpdateReceipt(wsFrames, draftChatId, 'CROSS_CLIENT_DRAFT_SYNC', draftUpdateFrameStart);
 			try {
 				await expect
 					.poll(async () => {
@@ -769,9 +771,10 @@ test.describe('Cross-client encrypted draft sync', () => {
 
 			const editor = await replaceMessageEditorText(page, draftChatId, editedDraftText);
 			await expect(editor).toContainText(editedDraftText, { timeout: 10_000 });
+			const draftUpdateFrameStart = wsFrames.length;
 			await page.getByTestId('input-dismiss-button').click();
 			await expectLocalDraftMarkdown(page, draftChatId, editedDraftText, 'IDEABUCKET_WEB_MARKERS');
-			await waitForDraftUpdateReceipt(wsFrames, draftChatId, 'IDEABUCKET_WEB_MARKERS');
+			await waitForDraftUpdateReceipt(wsFrames, draftChatId, 'IDEABUCKET_WEB_MARKERS', draftUpdateFrameStart);
 			try {
 				await expect
 					.poll(async () => {
