@@ -129,6 +129,8 @@ struct DeviceRow: View {
                 Text(device.machineIdentifier ?? L("settings.sessions.unknown_device"))
                     .font(.omP.weight(.semibold))
             }
+            Text(apiKeyDeviceAccessTypeLabel(device.accessType))
+                .font(.omXs).foregroundStyle(Color.fontSecondary)
             Text(device.anonymizedIp).font(.omXs).foregroundStyle(Color.fontTertiary)
             if let city = device.city, let country = device.countryCode {
                 Text("\(city), \(country)").font(.omXs).foregroundStyle(Color.fontSecondary)
@@ -144,6 +146,16 @@ struct DeviceRow: View {
 }
 
 private struct EmptySettingsRequest: Encodable {}
+
+@MainActor
+func apiKeyDeviceAccessTypeLabel(_ accessType: String) -> String {
+    switch accessType.lowercased() {
+    case "cli": return AppStrings.developerDeviceAccessTypeCli
+    case "npm", "pip": return AppStrings.developerDeviceAccessTypeSdk
+    case "rest_api": return AppStrings.developerDeviceAccessTypeRestApi
+    default: return accessType
+    }
+}
 
 @MainActor
 private func L(_ key: String) -> String { LocalizationManager.shared.text(key) }

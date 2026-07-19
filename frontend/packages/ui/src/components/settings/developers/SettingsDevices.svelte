@@ -4,6 +4,9 @@
     Uses only canonical settings elements: list rows for devices and a detail
     panel for approve/reject/revoke/rename actions. Device metadata stays
     zero-knowledge; custom names are encrypted before saving.
+
+    Native Swift counterparts:
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsDevicesView.swift
 -->
 
 <script lang="ts">

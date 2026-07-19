@@ -13,6 +13,13 @@ import AppKit
 
 @MainActor
 final class SettingsFullParityTests: XCTestCase {
+    func testApiKeyDeviceAccessTypeLabelsMatchWebContract() {
+        XCTAssertEqual(apiKeyDeviceAccessTypeLabel("cli"), "CLI")
+        XCTAssertEqual(apiKeyDeviceAccessTypeLabel("npm"), "SDK")
+        XCTAssertEqual(apiKeyDeviceAccessTypeLabel("pip"), "SDK")
+        XCTAssertEqual(apiKeyDeviceAccessTypeLabel("rest_api"), "REST API")
+    }
+
     func testNativeSettingsRouteInventoryCoversWebBaseRoutes() {
         let missing = SettingsRouteInventory.webBaseRoutes.subtracting(SettingsRouteInventory.coveredWebBaseRoutes)
         XCTAssertTrue(missing.isEmpty, "Missing native settings route coverage: \(missing.sorted())")

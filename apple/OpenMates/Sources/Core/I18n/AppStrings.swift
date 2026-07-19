@@ -629,6 +629,9 @@ enum AppStrings {
     static var apiKeys: String { L("settings.api_keys") }
     static var devices: String { L("settings.devices") }
     static var webhooks: String { L("settings.developers_webhooks") }
+    static var developerDeviceAccessTypeRestApi: String { L("settings.developers_devices_access_type_rest_api") }
+    static var developerDeviceAccessTypeCli: String { L("settings.developers_devices_access_type_cli") }
+    static var developerDeviceAccessTypeSdk: String { L("settings.developers_devices_access_type_sdk") }
 
     // MARK: - Settings - About
     static var privacyPolicy: String { L("legal.privacy.title") }
