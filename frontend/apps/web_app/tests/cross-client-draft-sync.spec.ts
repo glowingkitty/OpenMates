@@ -177,18 +177,10 @@ function messageEditorEditable(page: any): any {
 async function replaceMessageEditorText(page: any, text: string): Promise<any> {
 	const editor = messageEditorEditable(page);
 	await expect(editor).toBeVisible({ timeout: 15_000 });
-	await editor.focus();
-	await editor.evaluate((element: HTMLElement) => {
-		const selection = window.getSelection();
-		const range = document.createRange();
-		range.selectNodeContents(element);
-		selection?.removeAllRanges();
-		selection?.addRange(range);
-	});
+	await editor.press('Control+A');
+	await editor.press('Backspace');
 	if (text.length > 0) {
-		await page.keyboard.insertText(text);
-	} else {
-		await page.keyboard.press('Backspace');
+		await editor.pressSequentially(text, { delay: 5 });
 	}
 	return editor;
 }
