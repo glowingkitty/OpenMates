@@ -2552,13 +2552,31 @@ async def _generate_fake_stream_for_harmful_content(
         logger.error(f"{log_prefix} Error charging credits for harmful content: {e}", exc_info=True)
         # Continue with response even if billing fails
     
+    category = "general_knowledge"  # Default category for harmful content responses
+    recovery_job = None
+    if request_data.recovery_task_id:
+        if directus_service is None:
+            raise RuntimeError("Epoch-1 harmful-content response is missing Directus recovery service")
+        recovery_job = await _persist_sealed_recovery_job(
+            directus_service=directus_service,
+            request_data=request_data,
+            task_id=task_id,
+            content=predefined_response,
+            category=category,
+            model_name=model_name,
+        )
+
     # Publish final marker
     final_payload = _create_redis_payload(
         task_id, request_data, predefined_response, 2, is_final=True, model_name=model_name,
         prompt_tokens=billing_info.get("prompt_tokens"),
         completion_tokens=billing_info.get("completion_tokens"),
-        total_credits=billing_info.get("total_credits")
+        total_credits=billing_info.get("total_credits"),
+        category=category,
     )
+    if recovery_job:
+        final_payload["recovery_job_id"] = recovery_job["job_id"]
+        final_payload["recovery_protocol_version"] = 1
     await _publish_to_redis(
         cache_service, redis_channel, final_payload, log_prefix,
         f"Published final marker to '{redis_channel}'"
@@ -2569,7 +2587,6 @@ async def _generate_fake_stream_for_harmful_content(
     # CRITICAL: This is non-blocking - if metadata update fails, the error message should still reach the user
     # EXTERNAL REQUESTS skip this.
     if not request_data.is_external and directus_service and cache_service and predefined_response:
-        category = "general_knowledge"  # Default category for harmful content responses
         timestamp = int(time.time())
         content_tiptap = predefined_response  # Send as markdown
 
