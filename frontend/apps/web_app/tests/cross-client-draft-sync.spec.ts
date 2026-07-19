@@ -33,6 +33,7 @@ type WebSocketFrameRecord = {
 	direction: 'sent' | 'received';
 	type: string | null;
 	chatId: string | null;
+	draftV: number | null;
 	text: string;
 };
 
@@ -42,12 +43,14 @@ function installWebSocketFrameTracker(page: any): WebSocketFrameRecord[] {
 		const text = typeof payload === 'string' ? payload : String(payload ?? '');
 		let type: string | null = null;
 		let chatId: string | null = null;
+		let draftV: number | null = null;
 		try {
 			const parsed = JSON.parse(text) as {
 				type?: unknown;
 				event?: unknown;
-				payload?: { chat_id?: unknown; chatId?: unknown };
+				payload?: { chat_id?: unknown; chatId?: unknown; draft_v?: unknown };
 				chat_id?: unknown;
+				versions?: { draft_v?: unknown };
 			};
 			type = typeof parsed.type === 'string'
 				? parsed.type
@@ -56,10 +59,12 @@ function installWebSocketFrameTracker(page: any): WebSocketFrameRecord[] {
 					: null;
 			const rawChatId = parsed.payload?.chat_id ?? parsed.payload?.chatId ?? parsed.chat_id;
 			chatId = typeof rawChatId === 'string' ? rawChatId : null;
+			const rawDraftV = parsed.payload?.draft_v ?? parsed.versions?.draft_v;
+			draftV = typeof rawDraftV === 'number' ? rawDraftV : null;
 		} catch {
 			// Non-JSON control frames are irrelevant for this draft-sync contract.
 		}
-		frames.push({ direction, type, chatId, text: text.slice(0, 500) });
+		frames.push({ direction, type, chatId, draftV, text: text.slice(0, 500) });
 		if (frames.length > 200) frames.shift();
 	};
 
@@ -75,7 +80,8 @@ async function waitForDraftUpdateReceipt(
 	frames: WebSocketFrameRecord[],
 	chatId: string,
 	label: string,
-	afterFrameIndex = 0
+	afterFrameIndex = 0,
+	minDraftV = 1
 ): Promise<void> {
 	try {
 		await expect
@@ -83,7 +89,8 @@ async function waitForDraftUpdateReceipt(
 				() => frames.slice(afterFrameIndex).some((frame) =>
 					frame.direction === 'received' &&
 					frame.type === 'draft_update_receipt' &&
-					frame.chatId === chatId
+					frame.chatId === chatId &&
+					(frame.draftV ?? 0) >= minDraftV
 				),
 				{ timeout: 30_000, intervals: [500, 1_000, 2_000] }
 			)
@@ -440,7 +447,7 @@ async function readLocalDraftMarkdown(page: any, chatId: string): Promise<{ mark
 	}, chatId);
 }
 
-async function expectLocalDraftMarkdown(page: any, chatId: string, expectedText: string, label: string): Promise<void> {
+async function expectLocalDraftMarkdown(page: any, chatId: string, expectedText: string, label: string): Promise<{ markdown: string | null; draftV: number | null }> {
 	try {
 		await expect
 			.poll(async () => (await readLocalDraftMarkdown(page, chatId)).markdown ?? '', {
@@ -452,6 +459,7 @@ async function expectLocalDraftMarkdown(page: any, chatId: string, expectedText:
 		await logDraftOpenDiagnostics(page, chatId, `${label}_LOCAL_DRAFT_AFTER_EDIT`, expectedText);
 		throw error;
 	}
+	return readLocalDraftMarkdown(page, chatId);
 }
 
 function resultChatId(result: any): string {
@@ -631,12 +639,12 @@ test.describe('Cross-client encrypted draft sync', () => {
 			await openDraft(page, draftChatId, initialText);
 			log('CLI-created draft opened in web client.');
 
+			const draftUpdateFrameStart = wsFrames.length;
 			const editor = await replaceMessageEditorText(page, draftChatId, updatedText);
 			await expect(editor).toContainText(updatedText, { timeout: 10_000 });
-			const draftUpdateFrameStart = wsFrames.length;
 			await page.getByTestId('input-dismiss-button').click();
 			await expectLocalDraftMarkdown(page, draftChatId, updatedText, 'CROSS_CLIENT_DRAFT_SYNC');
-			await waitForDraftUpdateReceipt(wsFrames, draftChatId, 'CROSS_CLIENT_DRAFT_SYNC', draftUpdateFrameStart);
+			await waitForDraftUpdateReceipt(wsFrames, draftChatId, 'CROSS_CLIENT_DRAFT_SYNC', draftUpdateFrameStart, Number(created.draftV) + 1);
 			try {
 				await expect
 					.poll(async () => {
@@ -769,12 +777,12 @@ test.describe('Cross-client encrypted draft sync', () => {
 			await expectIdeaBucketDraftMarkers(page, draftChatId, draftText);
 			await screenshot(page, 'text-draft-markers');
 
+			const draftUpdateFrameStart = wsFrames.length;
 			const editor = await replaceMessageEditorText(page, draftChatId, editedDraftText);
 			await expect(editor).toContainText(editedDraftText, { timeout: 10_000 });
-			const draftUpdateFrameStart = wsFrames.length;
 			await page.getByTestId('input-dismiss-button').click();
-			await expectLocalDraftMarkdown(page, draftChatId, editedDraftText, 'IDEABUCKET_WEB_MARKERS');
-			await waitForDraftUpdateReceipt(wsFrames, draftChatId, 'IDEABUCKET_WEB_MARKERS', draftUpdateFrameStart);
+			const localDraft = await expectLocalDraftMarkdown(page, draftChatId, editedDraftText, 'IDEABUCKET_WEB_MARKERS');
+			await waitForDraftUpdateReceipt(wsFrames, draftChatId, 'IDEABUCKET_WEB_MARKERS', draftUpdateFrameStart, localDraft.draftV ?? 2);
 			try {
 				await expect
 					.poll(async () => {
