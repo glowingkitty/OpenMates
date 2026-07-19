@@ -11,6 +11,7 @@ from __future__ import annotations
 import re
 import uuid
 import json
+import logging
 from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -36,6 +37,7 @@ except ModuleNotFoundError:  # pragma: no cover - unit env without slowapi
 
 
 router = APIRouter(prefix="/v1/anonymous", tags=["Anonymous"])
+logger = logging.getLogger(__name__)
 
 EMBED_REFERENCE_PATTERN = re.compile(
     r'```(?:json|json_embed)\s*\n\s*\{[^`]*("embed_id"|"type"\s*:\s*"(?:image|audio|pdf|document|file)")',
@@ -228,7 +230,12 @@ async def anonymous_chat_stream(
             )
             usage = result.get("usage") if isinstance(result, dict) else None
             actual_credits = _safe_positive_int((usage or {}).get("total_credits"), fallback=reservation.reserved_credits)
-            await service.finalize_reservation(reservation.request_id, actual_credits=actual_credits)
+            await _finalize_anonymous_reservation(
+                service,
+                reservation.request_id,
+                actual_credits=actual_credits,
+                path="json",
+            )
         except HTTPException:
             await service.release_reservation(reservation.request_id, reason="ai_http_error")
             raise
@@ -380,7 +387,12 @@ async def anonymous_chat_stream(
                     "is_final_chunk": True,
                     "model_name": model_name,
                 })
-            await service.finalize_reservation(reservation.request_id, actual_credits=actual_credits)
+            await _finalize_anonymous_reservation(
+                service,
+                reservation.request_id,
+                actual_credits=actual_credits,
+                path="sse",
+            )
             finalized = True
             yield _anonymous_sse_event({
                 "type": "ai_task_ended",
@@ -444,6 +456,27 @@ def _anonymous_post_processing_event(
         "harmful_response": 0,
         "quick_tip_slugs": [],
     }
+
+
+async def _finalize_anonymous_reservation(
+    service: AnonymousFreeUsageService,
+    reservation_id: str,
+    *,
+    actual_credits: int,
+    path: str,
+) -> None:
+    try:
+        await service.finalize_reservation(reservation_id, actual_credits=actual_credits)
+    except Exception:
+        logger.error(
+            "Anonymous free usage reservation finalization failed",
+            extra={
+                "anonymous_reservation_id": reservation_id,
+                "anonymous_actual_credits": actual_credits,
+                "anonymous_response_path": path,
+            },
+            exc_info=True,
+        )
 
 
 def _anonymous_summary_from_turn(*, user_message: str, assistant: str) -> str:
