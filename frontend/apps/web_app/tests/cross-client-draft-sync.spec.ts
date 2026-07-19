@@ -104,6 +104,30 @@ async function waitForDraftUpdateReceipt(
 	}
 }
 
+async function waitForDraftDeleteReceipt(
+	frames: WebSocketFrameRecord[],
+	chatId: string,
+	label: string,
+	afterFrameIndex = 0
+): Promise<boolean> {
+	try {
+		await expect
+			.poll(
+				() => frames.slice(afterFrameIndex).some((frame) =>
+					frame.direction === 'received' &&
+					frame.type === 'draft_delete_receipt' &&
+					frame.chatId === chatId
+				),
+				{ timeout: 30_000, intervals: [500, 1_000, 2_000] }
+			)
+			.toBeTruthy();
+		return true;
+	} catch {
+		console.warn(`[${label}] Draft delete receipt not observed before server refresh poll. Recent WebSocket frames: ${JSON.stringify(frames.slice(Math.max(0, afterFrameIndex - 5)).slice(-40))}`);
+		return false;
+	}
+}
+
 function deriveApiUrl(baseUrl: string): string {
 	const url = new URL(baseUrl);
 	if (url.hostname === 'openmates.org' || url.hostname === 'www.openmates.org') {
@@ -864,8 +888,14 @@ test.describe('Cross-client encrypted draft sync', () => {
 			log('Web draft edit reconciled to CLI.');
 
 			await openDraft(page, draftChatId, updatedText);
+			const draftDeleteFrameStart = wsFrames.length;
 			await replaceMessageEditorText(page, draftChatId, '');
+			const dismissButton = page.getByTestId('input-dismiss-button');
+			if (await dismissButton.isVisible({ timeout: 5_000 }).catch(() => false)) {
+				await dismissButton.click();
+			}
 			log('Web draft emptied; waiting for CLI reconciliation.');
+			expect(await waitForDraftDeleteReceipt(wsFrames, draftChatId, 'CROSS_CLIENT_DRAFT_SYNC', draftDeleteFrameStart)).toBe(true);
 			await expect
 				.poll(async () => {
 					const result = await runCliJson(apiUrl, ['drafts', 'get', draftChatId, '--refresh'], 15_000, {
