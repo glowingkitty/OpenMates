@@ -8,7 +8,7 @@
 export {};
 
 const { test, expect } = require('./helpers/cookie-audit');
-const { openFullscreen, verifySearchGrid } = require('./helpers/embed-test-helpers');
+const { closeFullscreen, openFullscreen, verifySearchGrid } = require('./helpers/embed-test-helpers');
 
 async function openPublicExample(page: any) {
 	const response = await page.goto('/example/vital-farms-sec-financials', {
@@ -35,6 +35,11 @@ test.describe('Business company financials public example chat', () => {
 		await expect(parent).toBeVisible({ timeout: 30_000 });
 		await expect(parent.getByTestId('business-financials-preview')).toBeVisible({ timeout: 15_000 });
 		await expect(parent).toContainText(/VITL|SEC EDGAR|result/i);
+
+		const existingFullscreen = page.getByTestId('embed-fullscreen-overlay').first();
+		if (await existingFullscreen.isVisible({ timeout: 1000 }).catch(() => false)) {
+			await closeFullscreen(page, existingFullscreen);
+		}
 
 		const fullscreen = await openFullscreen(page, parent);
 		const resultCards = await verifySearchGrid(fullscreen, 1, 30_000);
