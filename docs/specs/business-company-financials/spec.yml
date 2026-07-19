@@ -751,19 +751,19 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: pending
+        status: fail
         command: python3 scripts/tests.py run --spec business-company-financials-example.spec.ts
-        run_id: ""
-        timestamp: ""
+        run_id: "2026-07-19T21:47:37Z"
+        timestamp: "2026-07-19T21:55:13Z"
     green_phase:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: ""
-        command: ""
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: pass
+        command: python3 scripts/tests.py run --spec business-company-financials-example.spec.ts
+        run_id: "2026-07-19T21:58:35Z"
+        subject_commit: c521126ba
+        timestamp: "2026-07-19T22:06:10Z"
 
   - id: T-PYTEST-FOCUS-MODE
     type: pytest
