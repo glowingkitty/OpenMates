@@ -2739,6 +2739,10 @@ export class OpenMatesClient {
     return response.data.billing;
   }
 
+  async addTeamCredits(_teamId: string, _input: { credits: number }): Promise<TeamBillingSummary> {
+    throw new Error("Direct team credit grants are disabled. Use a team bank-transfer order instead.");
+  }
+
   async listTeamUsage(teamId: string, memberUserId?: string): Promise<Record<string, unknown>[]> {
     this.requireSession();
     const query = memberUserId ? `?member_user_id=${encodeURIComponent(memberUserId)}` : "";
