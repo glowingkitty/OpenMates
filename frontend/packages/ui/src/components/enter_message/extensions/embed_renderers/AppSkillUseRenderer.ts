@@ -5531,14 +5531,28 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     decodedContent: any,
   ): Promise<void> {
     const rawEmbedId = attrs.contentRef?.replace("embed:", "");
-    const inferredEmbedType = this.inferFullscreenEmbedType(attrs, embedData, decodedContent);
+    const attrsData = attrs as any;
+    const fullscreenDecodedContent: Record<string, any> =
+      decodedContent && typeof decodedContent === "object" && !Array.isArray(decodedContent)
+        ? { ...decodedContent }
+        : {};
+    fullscreenDecodedContent.app_id ||= embedData?.app_id || attrsData.app_id;
+    fullscreenDecodedContent.skill_id ||= embedData?.skill_id || attrsData.skill_id;
+    fullscreenDecodedContent.query ||= embedData?.query || attrsData.query;
+    fullscreenDecodedContent.provider ||= embedData?.provider;
+
+    const inferredEmbedType = this.inferFullscreenEmbedType(
+      attrs,
+      embedData,
+      fullscreenDecodedContent,
+    );
     let targetEmbedId = rawEmbedId;
     let focusChildEmbedId: string | undefined;
 
     if (rawEmbedId) {
       const resolvedTarget = await resolveEmbedFullscreenTarget(rawEmbedId, {
         embedType: inferredEmbedType,
-        decodedContent,
+        decodedContent: fullscreenDecodedContent,
         exampleResolver: resolveExampleFullscreenTarget,
       });
       targetEmbedId = resolvedTarget.targetEmbedId;
@@ -5552,7 +5566,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     const detail = {
       embedId: targetEmbedId,
       embedData,
-      decodedContent,
+      decodedContent: fullscreenDecodedContent,
       embedType: inferredEmbedType,
       attrs,
       focusChildEmbedId,

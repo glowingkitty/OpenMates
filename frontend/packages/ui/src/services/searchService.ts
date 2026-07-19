@@ -640,15 +640,14 @@ async function resolveEmbedText(
     });
 
     // --- Example chat embed path (unauthenticated users) ---
-    // Example chat embeds live in exampleChatStore (cleartext, separate from embedStore).
-    // They are not encrypted, so we parse the JSON content directly without TOON decoding.
+    // Example chat embeds live in exampleChatStore (cleartext, separate from embedStore),
+    // but their content is still TOON-encoded like regular embed rows.
     const demoEmbed = getExampleChatEmbed(embedId);
     if (demoEmbed) {
       try {
-        const decoded = JSON.parse(demoEmbed.content) as Record<
-          string,
-          unknown
-        >;
+        const { decodeToonContent } = await import("./embedResolver");
+        const decoded = await decodeToonContent(demoEmbed.content) as Record<string, unknown> | null;
+        if (!decoded || typeof decoded !== "object" || Array.isArray(decoded)) return null;
         const text = extractTextFromEmbed(normalizedType, decoded);
         if (!text) return null;
         const sourceLabel = EMBED_TYPE_LABELS[normalizedType] || "Embed";
