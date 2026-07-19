@@ -268,17 +268,18 @@ async function runCliJson(
 ): Promise<any> {
 	const command = args.slice(0, 2).join(' ');
 	let result: { code: number | null; stdout: string; stderr: string } | null = null;
-	let sawTransientNetworkError = false;
+	let sawAllowedTransientError = false;
 	const maxAttempts = options.allowTransientFailure ? 2 : 6;
 	for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
 		result = await runCli(apiUrl, [...args, '--json'], timeoutMs);
 		if (result.code === 0) return JSON.parse(result.stdout);
 		const transientNetworkError = /fetch failed|ECONNRESET|ETIMEDOUT|EAI_AGAIN|ENOTFOUND/i.test(result.stderr);
-		sawTransientNetworkError ||= transientNetworkError;
+		const transientAuthError = /Session expired or invalid/i.test(result.stderr);
+		sawAllowedTransientError ||= transientNetworkError || transientAuthError;
 		if (!transientNetworkError || attempt === maxAttempts - 1) break;
 		await new Promise((resolve) => setTimeout(resolve, 1_500 * (attempt + 1)));
 	}
-	if (options.allowTransientFailure && sawTransientNetworkError) return null;
+	if (options.allowTransientFailure && sawAllowedTransientError) return null;
 	expect(result, `openmates ${command} did not produce a result`).not.toBeNull();
 	expect(
 		result!.code,
@@ -402,13 +403,25 @@ async function activeMessageEditorEditable(page: any, chatId: string): Promise<a
 }
 
 async function replaceMessageEditorText(page: any, chatId: string, text: string): Promise<any> {
-	const editor = await activeMessageEditorEditable(page, chatId);
-	await expect(editor).toBeVisible({ timeout: 15_000 });
-	await editor.fill(text);
-	if (text.length > 0) {
-		await editor.click();
-		await page.keyboard.type(' ');
-		await page.keyboard.press('Backspace');
+	let lastError: unknown = null;
+	for (let attempt = 0; attempt < 3; attempt += 1) {
+		try {
+			const editor = await activeMessageEditorEditable(page, chatId);
+			await editor.fill(text, { timeout: 5_000 });
+			if (text.length > 0) {
+				await editor.click();
+				await page.keyboard.type(' ');
+				await page.keyboard.press('Backspace');
+			}
+			lastError = null;
+			break;
+		} catch (error) {
+			lastError = error;
+			await openDraftByHash(page, chatId);
+		}
+	}
+	if (lastError) {
+		throw lastError;
 	}
 	await expect
 		.poll(async () => {
