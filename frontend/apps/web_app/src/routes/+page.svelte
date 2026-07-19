@@ -33,6 +33,7 @@
 		type Chat,
 		// services
 		chatDB,
+		chatListCache,
 		chatSyncService,
 		webSocketService, // Import WebSocket service to listen for auth errors
 		mostUsedAppsStore, // Import most used apps store to fetch on app load
@@ -135,6 +136,23 @@
 			is_anonymous: true,
 			category: ANONYMOUS_RELOAD_CATEGORY,
 			icon: ANONYMOUS_RELOAD_ICON
+		};
+	}
+
+	function mergeCachedDraftFields(chat: Chat | null, chatId: string): Chat | null {
+		const cachedChat = chatListCache.getPendingOrCachedChat(chatId);
+		if (!cachedChat?.encrypted_draft_md && !cachedChat?.encrypted_draft_preview) return chat;
+		if (!chat) return cachedChat;
+		if (chat.encrypted_draft_md || chat.encrypted_draft_preview) return chat;
+
+		return {
+			...chat,
+			encrypted_draft_md: cachedChat.encrypted_draft_md ?? chat.encrypted_draft_md,
+			encrypted_draft_preview: cachedChat.encrypted_draft_preview ?? chat.encrypted_draft_preview,
+			draft_v: cachedChat.draft_v ?? chat.draft_v,
+			ideabucket: cachedChat.ideabucket ?? chat.ideabucket,
+			ideabucket_processing_window_id:
+				cachedChat.ideabucket_processing_window_id ?? chat.ideabucket_processing_window_id
 		};
 	}
 
@@ -791,9 +809,12 @@
 		const loadChatFromIndexedDB = async (retries = 20): Promise<void> => {
 			try {
 				await chatDB.init(); // Ensure DB is initialized
-				const chat = $authStore.isAuthenticated
+				let chat = $authStore.isAuthenticated
 					? await chatDB.getRawChat(chatId).catch(() => null)
 					: await chatDB.getChat(chatId);
+				if ($authStore.isAuthenticated) {
+					chat = mergeCachedDraftFields(chat, chatId);
+				}
 
 				if (chat) {
 					console.debug(`[+page.svelte] Found deep-linked chat in IndexedDB:`, chat.chat_id);
@@ -950,7 +971,9 @@
 							}
 
 							await chatDB.init();
-							const localChat = await chatDB.getChat(chatId);
+							const localChat =
+								mergeCachedDraftFields(await chatDB.getRawChat(chatId).catch(() => null), chatId) ??
+								(await chatDB.getChat(chatId));
 							if (!localChat) {
 								console.debug(
 									`[+page.svelte] Auth deep-link fallback found no local chat for: ${chatId}`
@@ -1030,9 +1053,11 @@
 		void (async () => {
 			try {
 				await chatDB.init();
-				let chat = await chatDB.getChat(activeChatId).catch(() => null);
+				const rawChat = await chatDB.getRawChat(activeChatId).catch(() => null);
+				let chat = mergeCachedDraftFields(rawChat, activeChatId);
 				if (!chat) {
-					chat = await chatDB.getRawChat(activeChatId).catch(() => null);
+					chat = await chatDB.getChat(activeChatId).catch(() => null);
+					chat = mergeCachedDraftFields(chat, activeChatId);
 				}
 
 				if (!chat || lastLoadedChatId === activeChatId) return;

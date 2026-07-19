@@ -117,6 +117,7 @@ export * from "./src/demo_chats"; // Export demo chat data and helpers
 
 // Services
 export { chatDB, cryptoReady } from "./src/services/db"; // Export chat database + crypto init promise
+export { chatListCache } from "./src/services/chatListCache"; // Export chat list cache for route-level draft recovery
 export { anonymousChatStorage } from "./src/services/anonymousChatStorage"; // Export anonymous chat storage for route-level deep-link restore
 export { isAnonymousChatId } from "./src/services/anonymousChatIds"; // Export anonymous chat ID helper for route guards
 export { userDB } from "./src/services/userDB"; // Export user database
