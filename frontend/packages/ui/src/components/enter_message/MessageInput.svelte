@@ -4724,6 +4724,13 @@
         // So we don't need to clear it again if draftContent is null - that would trigger unnecessary update events
         // The setCurrentChatContext function handles setting the editor content with emitUpdate: false to prevent triggering saves
         setDraftServiceCurrentChatContext(chatId, draftContent, version);
+
+        // Cold-boot chat restore can run while the draft service still points at a
+        // stale editor instance. Apply non-empty restored content to this bound
+        // MessageInput immediately so the visible editor reflects the active chat.
+        if (editor && !editor.isDestroyed && draftContent !== null) {
+            editor.commands.setContent(draftContent, { emitUpdate: false });
+        }
         
         // Reset text-change guard so next editor update processes fully after content swap
         lastEditorUpdateText = editor ? editor.getText() : '';
