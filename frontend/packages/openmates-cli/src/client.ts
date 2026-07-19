@@ -4089,14 +4089,14 @@ export class OpenMatesClient {
 
       const draft = response.data.draft;
       if (!draft || typeof draft.encrypted_draft_md !== "string") {
+        const syncedCache = await this.ensureSynced(true, [chatId]);
+        const syncedChat = syncedCache.chats.find((entry) => String(entry.details.id ?? "") === chatId);
+        const syncedDraft = syncedChat ? await this.decryptCachedDraft(syncedChat) : null;
+        if (syncedDraft) return syncedDraft;
+
         const cache = loadSyncCache();
         const cachedChat = cache?.chats.find((entry) => String(entry.details.id ?? "") === chatId);
         if (cache && cachedChat) {
-          const syncedCache = await this.ensureSynced(true, [chatId]);
-          const syncedChat = syncedCache.chats.find((entry) => String(entry.details.id ?? "") === chatId);
-          const syncedDraft = syncedChat ? await this.decryptCachedDraft(syncedChat) : null;
-          if (syncedDraft) return syncedDraft;
-
           const versions = await this.reconcileDraftVersions();
           if (versions[chatId] !== 0) {
             return await this.decryptCachedDraft(cachedChat);
