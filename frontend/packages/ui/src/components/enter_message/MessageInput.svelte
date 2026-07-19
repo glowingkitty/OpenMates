@@ -393,6 +393,23 @@
         return editor.getText().trim().length > 0 && !isContentEmptyExceptMention(editor);
     }
 
+    function syncTextOnlyDomToEditorBeforeDraftSave(editor: Editor): void {
+        if (editor.isDestroyed || editorHasEmbedContent(editor)) return;
+        const dom = editor.view.dom;
+        const domText = ((dom instanceof HTMLElement ? dom.innerText : dom.textContent) ?? '').replace(/\u00a0/g, ' ');
+        const editorText = editor.getText().replace(/\u00a0/g, ' ');
+        if (domText.trim() === editorText.trim() || domText.trim().length === 0) return;
+
+        const parsedDoc = parse_message(domText, 'write', { unifiedParsingEnabled: true });
+        if (!parsedDoc?.content) return;
+
+        editor.commands.setContent(parsedDoc, { emitUpdate: false });
+        originalMarkdown = domText;
+        hasContent = !isContentEmptyExceptMention(editor);
+        hasEmbedContent = false;
+        lastEditorUpdateText = editor.getText();
+    }
+
     // Draft preview mode: text-only field has content but is not focused — show truncated text, hide buttons.
     // File/PDF/image embeds keep non-send actions visible, but Send still requires text.
     let isDraftPreview = $derived(hasContent && !hasEmbedContent && !isMessageFieldFocused && !isFullscreen && !forceDraftActionsVisible);
@@ -2188,6 +2205,7 @@
                 showMentionDropdown = false;
                 mentionQuery = '';
                 
+                syncTextOnlyDomToEditorBeforeDraftSave(editor);
                 flushSaveDraft(editor, currentChatId);
                 // Only reset to initial content if the editor is TRULY empty (no content at all)
                 // Do NOT reset if it contains mentions - those are valid draft content
@@ -3498,9 +3516,15 @@
             console.debug('[MessageInput] Updated recording embed attrs for:', embedId, attrs);
         }
     }
-    function handleSaveDraftBeforeSwitch() { if (editor && !editor.isDestroyed) flushSaveDraft(editor, currentChatId); }
-    function handleBeforeUnload() { if (hasContent && editor && !editor.isDestroyed) flushSaveDraft(editor, currentChatId); }
-    function handleVisibilityChange() { if (document.visibilityState === 'hidden' && hasContent && editor && !editor.isDestroyed) flushSaveDraft(editor, currentChatId); }
+    function flushCurrentEditorDraft(chatId: string | undefined | null) {
+        if (!editor || editor.isDestroyed) return;
+        syncTextOnlyDomToEditorBeforeDraftSave(editor);
+        flushSaveDraft(editor, chatId);
+    }
+
+    function handleSaveDraftBeforeSwitch() { flushCurrentEditorDraft(currentChatId); }
+    function handleBeforeUnload() { if (hasContent) flushCurrentEditorDraft(currentChatId); }
+    function handleVisibilityChange() { if (document.visibilityState === 'hidden' && hasContent) flushCurrentEditorDraft(currentChatId); }
     function handleResize() { checkScrollable(); updateHeight(); }
     
     /**
@@ -4634,7 +4658,7 @@
         focus();
     }
     export function flushCurrentDraft() {
-        if (editor && !editor.isDestroyed) flushSaveDraft(editor, currentChatId);
+        flushCurrentEditorDraft(currentChatId);
     }
     export function sendCurrentMessage() { handleSendMessage(); }
     export function setSuggestionText(text: string) {
@@ -4905,7 +4929,7 @@
             // CRITICAL: Flush draft for the PREVIOUS chat before switching
             // Use the previous chat ID explicitly to ensure we save the right draft
             // The draft service will use the current state's chatId, so we need to ensure it's still set
-            if (editor && !editor.isDestroyed) flushSaveDraft(editor, previousChatId); // Save draft for the previous chat before switching
+            flushCurrentEditorDraft(previousChatId); // Save draft for the previous chat before switching
             // Small delay to ensure the save completes before context switch
             setTimeout(() => {
                 console.debug(`[MessageInput] Draft flush completed for previous chat ${previousChatId}`);
