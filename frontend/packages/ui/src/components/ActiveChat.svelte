@@ -9269,10 +9269,26 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 console.debug(`[ActiveChat] Preserving live draft for ${draftRestoreChatId}; decrypted draft parsed empty while upload is still finalizing`);
                                 return;
                             }
-                              
+
+                            let plainTextFallback = decryptedMarkdown.trim();
+                            if (encryptedDraftPreview) {
+                                const decryptedPreview = await decryptDraftWithRetry(encryptedDraftPreview, 'encrypted_draft_preview');
+                                const previewText = decryptedPreview?.trim();
+                                if (previewText && !/^\[[^\]]+\]$/.test(previewText)) {
+                                    plainTextFallback = previewText;
+                                }
+                            }
+                               
                             runCurrentDraftRestoreSoon((ref) => {
                                 // Pass the decrypted and parsed TipTap JSON content
                                 ref.setDraftContent(draftRestoreChatId, draftContentJSON, draftVersion, false);
+                                if (plainTextFallback && ref.getTextContent().trim().length === 0) {
+                                    appendDraftRestoreDiagnostic('plain-text-fallback', {
+                                        fallbackLength: plainTextFallback.length,
+                                    });
+                                    ref.setSuggestionText(plainTextFallback);
+                                    ref.setOriginalMarkdown?.(decryptedMarkdown);
+                                }
                             });
                         } else {
                             console.error(`[ActiveChat] Failed to decrypt draft for chat ${draftRestoreChatId} - master key not available`);
