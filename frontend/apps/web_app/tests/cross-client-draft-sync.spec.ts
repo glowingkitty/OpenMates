@@ -180,7 +180,14 @@ function messageEditorEditable(page: any, chatId?: string): any {
 async function replaceMessageEditorText(page: any, chatId: string, text: string): Promise<any> {
 	const editor = messageEditorEditable(page, chatId);
 	await expect(editor).toBeVisible({ timeout: 15_000 });
-	await editor.fill(text);
+	await editor.click();
+	await page.keyboard.press('ControlOrMeta+A');
+	await page.keyboard.press('ControlOrMeta+A');
+	await page.keyboard.press('Backspace');
+	await expect(editor).toHaveText('', { timeout: 5_000 });
+	if (text.length > 0) {
+		await page.keyboard.type(text, { delay: 5 });
+	}
 	return editor;
 }
 

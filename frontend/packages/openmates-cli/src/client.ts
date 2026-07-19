@@ -94,6 +94,7 @@ import {
   type ConnectedAccountCliTransferPayload,
   type EncryptedConnectedAccountImportRow,
 } from "./connectedAccountImport.js";
+import type { ParsedImportChat } from "./accountImport.js";
 import { containsCredentialLikeField, type ProtonLocalConnectorRegistration } from "./protonBridgeConnector.js";
 import {
   buildCreateUserTaskInput,
@@ -277,6 +278,54 @@ export interface AccountExportManifestResponse {
 
 export interface AccountExportChunksResponse {
   chunks: Array<Record<string, unknown>>;
+}
+
+export interface AccountImportPreviewRequest {
+  source: "claude" | "openmates";
+  chatCount: number;
+  sourceFingerprints: string[];
+  estimatedTokens?: number;
+  estimatedBytes?: number;
+}
+
+export interface AccountImportPreviewResponse extends Record<string, unknown> {
+  free_remaining?: number;
+  chat_limit?: number;
+  default_selection_count?: number;
+  max_batch_count?: number;
+  duplicate_fingerprints?: string[];
+  estimated_credits?: number;
+  can_import?: boolean;
+  reason?: string;
+}
+
+export interface AccountImportScanResponse extends Record<string, unknown> {
+  chats?: Array<Record<string, unknown>>;
+  credits_reserved?: number;
+  messages_blocked?: Array<Record<string, unknown>>;
+  failures?: Array<Record<string, unknown>>;
+}
+
+export interface AccountImportCompleteRequest {
+  importedChatIds: string[];
+  sourceFingerprints: string[];
+  encryptedRecordCounts: Record<string, number>;
+  clientFailures?: Array<Record<string, unknown>>;
+}
+
+export interface AccountImportCompleteResponse extends Record<string, unknown> {
+  status?: "complete" | "partial" | "failed";
+  credits_charged?: number;
+  credits_released?: number;
+  imported_count?: number;
+  failures?: Array<Record<string, unknown>>;
+}
+
+export interface AccountImportEncryptedPersistResponse extends Record<string, unknown> {
+  status?: "complete" | "partial" | "failed";
+  imported_chat_ids?: string[];
+  failures?: Array<Record<string, unknown>>;
+  encrypted_record_counts?: Record<string, number>;
 }
 
 export interface TeamCreateInput {
@@ -1639,6 +1688,15 @@ export interface DecryptedDraft extends EncryptedDraft {
   preview: string | null;
 }
 
+interface SdkDraftResponse {
+  draft?: {
+    chat_id?: string;
+    encrypted_draft_md?: string | null;
+    encrypted_draft_preview?: string | null;
+    draft_v?: number | null;
+  } | null;
+}
+
 export interface IdeaBucketAddResult {
   chatId: string;
   bucketId: string;
@@ -2352,6 +2410,83 @@ export class OpenMatesClient {
     return response.data;
   }
 
+  async previewAccountImport(request: AccountImportPreviewRequest): Promise<AccountImportPreviewResponse> {
+    this.requireSession();
+    const response = await this.http.post<AccountImportPreviewResponse>("/v1/account-imports/preview", {
+      source: request.source,
+      chat_count: request.chatCount,
+      source_fingerprints: request.sourceFingerprints,
+      estimated_tokens: request.estimatedTokens ?? 0,
+      estimated_bytes: request.estimatedBytes ?? 0,
+    }, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Account import preview failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
+  async scanAccountImport(importId: string, chats: Array<Record<string, unknown>>): Promise<AccountImportScanResponse> {
+    this.requireSession();
+    const response = await this.http.post<AccountImportScanResponse>(`/v1/account-imports/${encodeURIComponent(importId)}/scan`, {
+      chats,
+    }, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Account import scan failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
+  async completeAccountImport(importId: string, request: AccountImportCompleteRequest): Promise<AccountImportCompleteResponse> {
+    this.requireSession();
+    const response = await this.http.post<AccountImportCompleteResponse>(`/v1/account-imports/${encodeURIComponent(importId)}/complete`, {
+      imported_chat_ids: request.importedChatIds,
+      source_fingerprints: request.sourceFingerprints,
+      encrypted_record_counts: request.encryptedRecordCounts,
+      client_failures: request.clientFailures ?? [],
+    }, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Account import complete failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
+  async persistEncryptedAccountImport(importId: string, chats: ParsedImportChat[]): Promise<AccountImportEncryptedPersistResponse> {
+    this.requireSession();
+    const masterKey = this.getMasterKeyBytes();
+    const wrappingKey = await this.getChatWrappingKey(null, masterKey);
+    const encryptedChats = [];
+    for (const chat of chats) {
+      const chatId = randomUUID();
+      const chatKey = new Uint8Array(randomBytes(32));
+      const encryptedChatKey = await encryptBytesWithAesGcm(chatKey, wrappingKey);
+      const createdAt = Math.floor((chat.created_at ? Date.parse(chat.created_at) : Date.now()) / 1000);
+      const updatedAt = Math.floor((chat.updated_at ? Date.parse(chat.updated_at) : Date.now()) / 1000);
+      const messages = [];
+      let previousUserMessageId: string | null = null;
+      for (const message of chat.messages) {
+        const messageId = randomUUID();
+        messages.push({
+          message_id: messageId,
+          role: message.role,
+          encrypted_content: await encryptWithAesGcmCombined(message.content, chatKey),
+          encrypted_sender_name: await encryptWithAesGcmCombined(message.role === "assistant" ? "Assistant" : message.role === "system" ? "System" : "User", chatKey),
+          created_at: Math.floor((message.created_at ? Date.parse(message.created_at) : Date.now()) / 1000),
+          updated_at: Math.floor(Date.now() / 1000),
+          ...(message.role === "assistant" && previousUserMessageId ? { user_message_id: previousUserMessageId } : {}),
+        });
+        if (message.role === "user") previousUserMessageId = messageId;
+      }
+      encryptedChats.push({
+        chat_id: chatId,
+        encrypted_title: await encryptWithAesGcmCombined(chat.title || "Imported chat", chatKey),
+        encrypted_chat_key: encryptedChatKey,
+        created_at: Number.isFinite(createdAt) ? createdAt : Math.floor(Date.now() / 1000),
+        updated_at: Number.isFinite(updatedAt) ? updatedAt : Math.floor(Date.now() / 1000),
+        source_fingerprint: chat.source_fingerprint,
+        messages,
+      });
+    }
+    const response = await this.http.post<AccountImportEncryptedPersistResponse>(`/v1/account-imports/${encodeURIComponent(importId)}/persist-encrypted`, {
+      chats: encryptedChats,
+    }, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Account import encrypted persistence failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
   private appendTeamQuery(path: string, options: TeamContextOptions = {}): string {
     const teamId = this.resolveTeamContext(options);
     if (!teamId) return path;
@@ -2415,9 +2550,25 @@ export class OpenMatesClient {
 
   async updateTeam(teamId: string, input: Record<string, unknown>): Promise<TeamRecord> {
     this.requireSession();
-    const response = await this.http.patch<{ team?: TeamRecord }>(`/v1/teams/${encodeURIComponent(teamId)}`, {
+    const payload: Record<string, unknown> = {
       updated_at: input.updated_at ?? Math.floor(Date.now() / 1000),
       ...input,
+    };
+    const teamKey = typeof input.name === "string" || typeof input.description === "string"
+      ? await this.loadTeamKeyBytes(teamId)
+      : null;
+    if (typeof input.name === "string") {
+      if (!teamKey) throw new Error("Unable to load local team key for encrypted team update.");
+      payload.encrypted_name = await encryptWithAesGcmCombined(input.name, teamKey);
+      delete payload.name;
+    }
+    if (typeof input.description === "string") {
+      if (!teamKey) throw new Error("Unable to load local team key for encrypted team update.");
+      payload.encrypted_description = await encryptWithAesGcmCombined(input.description, teamKey);
+      delete payload.description;
+    }
+    const response = await this.http.patch<{ team?: TeamRecord }>(`/v1/teams/${encodeURIComponent(teamId)}`, {
+      ...payload,
     }, this.getCliRequestHeaders());
     if (!response.ok || !response.data.team) throw new Error(`Team update failed with HTTP ${response.status}`);
     return response.data.team;
@@ -2588,24 +2739,48 @@ export class OpenMatesClient {
     return response.data.billing;
   }
 
-  async addTeamCredits(teamId: string, input: Record<string, unknown>): Promise<TeamBillingSummary> {
-    this.requireSession();
-    const response = await this.http.post<{ billing?: TeamBillingSummary }>(`/v1/teams/${encodeURIComponent(teamId)}/billing/credits`, {
-      event_id: input.event_id ?? randomUUID(),
-      encrypted_balance: input.encrypted_balance ?? String(input.encryptedBalance ?? "0"),
-      occurred_at: input.occurred_at ?? Math.floor(Date.now() / 1000),
-      ...input,
-    }, this.getCliRequestHeaders());
-    if (!response.ok || !response.data.billing) throw new Error(`Team credit add failed with HTTP ${response.status}`);
-    return response.data.billing;
-  }
-
   async listTeamUsage(teamId: string, memberUserId?: string): Promise<Record<string, unknown>[]> {
     this.requireSession();
     const query = memberUserId ? `?member_user_id=${encodeURIComponent(memberUserId)}` : "";
     const response = await this.http.get<{ usage?: Record<string, unknown>[] }>(`/v1/teams/${encodeURIComponent(teamId)}/billing/usage${query}`, this.getCliRequestHeaders());
     if (!response.ok) throw new Error(`Team usage failed with HTTP ${response.status}`);
     return response.data.usage ?? [];
+  }
+
+  async createTeamBankTransferOrder(teamId: string, creditsAmount: number): Promise<BankTransferOrderDetails> {
+    const session = this.requireSession();
+    const emailEncryptionKey = await this.ensureEmailEncryptionKey(session);
+    const response = await this.http.post<BankTransferOrderDetails>(
+      `/v1/teams/${encodeURIComponent(teamId)}/billing/bank-transfer-orders`,
+      {
+        credits_amount: creditsAmount,
+        currency: "eur",
+        email_encryption_key: emailEncryptionKey,
+      },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) throw new Error(`Team bank transfer order failed (HTTP ${response.status})`);
+    return response.data;
+  }
+
+  async getTeamBankTransferStatus(teamId: string, orderId: string): Promise<BankTransferStatus> {
+    this.requireSession();
+    const response = await this.http.get<BankTransferStatus>(
+      `/v1/teams/${encodeURIComponent(teamId)}/billing/bank-transfer-orders/${encodeURIComponent(orderId)}`,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) throw new Error(`Failed to fetch team bank transfer status (HTTP ${response.status})`);
+    return response.data;
+  }
+
+  async listTeamBankTransferOrders(teamId: string): Promise<BankTransferStatus[]> {
+    this.requireSession();
+    const response = await this.http.get<{ orders?: BankTransferStatus[] }>(
+      `/v1/teams/${encodeURIComponent(teamId)}/billing/bank-transfer-orders`,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) throw new Error(`Failed to fetch team bank transfer orders (HTTP ${response.status})`);
+    return response.data.orders ?? [];
   }
 
   async moveWorkspaceToTeam(workspaceType: WorkspaceMoveType, objectId: string, teamId: string): Promise<Record<string, unknown>> {
@@ -3360,6 +3535,19 @@ export class OpenMatesClient {
     return response.data;
   }
 
+  async verifyTotpForCurrentSession(code: string): Promise<unknown> {
+    this.requireSession();
+    const response = await this.http.post(
+      "/v1/auth/2fa/verify/device",
+      { tfa_code: code },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || (response.data as { success?: boolean }).success === false) {
+      throw new Error((response.data as { message?: string }).message ?? `2FA verification failed (HTTP ${response.status})`);
+    }
+    return response.data;
+  }
+
   async setTotpProvider(provider: string): Promise<unknown> {
     this.requireSession();
     const response = await this.http.post(
@@ -3877,7 +4065,45 @@ export class OpenMatesClient {
   }
 
   async getDraft(chatId: string, forceRefresh = false): Promise<DecryptedDraft | null> {
-    if (forceRefresh) await this.reconcileDraftVersions();
+    if (forceRefresh) {
+      const response = await this.http.get<SdkDraftResponse>(
+        `/v1/drafts/${encodeURIComponent(chatId)}`,
+        this.getCliRequestHeaders(),
+      );
+      if (!response.ok) throw new Error(`Draft refresh failed with HTTP ${response.status}`);
+
+      const draft = response.data.draft;
+      if (!draft || typeof draft.encrypted_draft_md !== "string") {
+        const cache = loadSyncCache();
+        const cachedChat = cache?.chats.find((entry) => String(entry.details.id ?? "") === chatId);
+        if (cache && cachedChat) {
+          delete cachedChat.details.encrypted_draft_md;
+          delete cachedChat.details.encrypted_draft_preview;
+          cachedChat.details.draft_v = 0;
+          saveSyncCache(cache);
+        }
+        return null;
+      }
+
+      const encryptedDraft: EncryptedDraft = {
+        chatId: String(draft.chat_id ?? chatId),
+        encryptedDraftMd: draft.encrypted_draft_md,
+        encryptedDraftPreview: typeof draft.encrypted_draft_preview === "string"
+          ? draft.encrypted_draft_preview
+          : null,
+        draftV: Number(draft.draft_v ?? 0),
+      };
+      this.storeEncryptedDraft(encryptedDraft);
+      return this.decryptCachedDraft({
+        details: {
+          id: encryptedDraft.chatId,
+          encrypted_draft_md: encryptedDraft.encryptedDraftMd,
+          encrypted_draft_preview: encryptedDraft.encryptedDraftPreview,
+          draft_v: encryptedDraft.draftV,
+        },
+        messages: [],
+      });
+    }
     const cache = await this.ensureSynced(forceRefresh);
     const chat = cache.chats.find((entry) => String(entry.details.id ?? "") === chatId);
     return chat ? this.decryptCachedDraft(chat) : null;
@@ -5311,6 +5537,34 @@ export class OpenMatesClient {
             && Number.isSafeInteger(claim.chat_key_version)
             ? claim.chat_key_version
             : null;
+          const claimMatchesExpectedTerminal = assistantId
+            && keyVersion === 1
+            && claim.chat_id === chatId
+            && claim.turn_id === savedTurnId;
+          if (claim.state === "TERMINAL" && claimMatchesExpectedTerminal) {
+            assistant = resp.content;
+            category = resp.category;
+            modelName = resp.modelName;
+            assistantMessageId = assistantId;
+            clearSyncCache(teamId);
+            const mateName = category ? (MATE_NAMES[category] ?? null) : null;
+            return {
+              status: "completed",
+              chatId,
+              messageId: assistantMessageId,
+              assistant,
+              category,
+              modelName,
+              mateName,
+              followUpSuggestions,
+              taskProposals,
+              taskUpdateProposals,
+              taskEvents,
+              pendingTaskUpdateJobs,
+              subChatEvents,
+              appSettingsMemoryRequests,
+            };
+          }
           if (
             claim.state !== "LEASED"
             || !leaseToken
@@ -7602,31 +7856,39 @@ export class OpenMatesClient {
     return response.data;
   }
 
-  async requestDeleteAccountEmailCode(): Promise<unknown> {
+  async requestActionEmailCode(action: "delete_account" | "delete_team"): Promise<unknown> {
     const session = this.requireSession();
     const emailEncryptionKey = await this.ensureEmailEncryptionKey(session);
     const response = await this.http.post(
       "/v1/settings/request-action-verification",
-      { action: "delete_account", email_encryption_key: emailEncryptionKey },
+      { action, email_encryption_key: emailEncryptionKey },
       this.getCliRequestHeaders(),
     );
     if (!response.ok) {
-      throw new Error(`Failed to request account deletion email code (HTTP ${response.status})`);
+      throw new Error(`Failed to request ${action} email code (HTTP ${response.status})`);
+    }
+    return response.data;
+  }
+
+  async requestDeleteAccountEmailCode(): Promise<unknown> {
+    return this.requestActionEmailCode("delete_account");
+  }
+
+  async verifyActionEmailCode(action: "delete_account" | "delete_team", code: string): Promise<unknown> {
+    this.requireSession();
+    const response = await this.http.post(
+      "/v1/settings/verify-action-code",
+      { action, code },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`${action} email code verification failed (HTTP ${response.status})`);
     }
     return response.data;
   }
 
   async verifyDeleteAccountEmailCode(code: string): Promise<unknown> {
-    this.requireSession();
-    const response = await this.http.post(
-      "/v1/settings/verify-action-code",
-      { action: "delete_account", code },
-      this.getCliRequestHeaders(),
-    );
-    if (!response.ok) {
-      throw new Error(`Account deletion email code verification failed (HTTP ${response.status})`);
-    }
-    return response.data;
+    return this.verifyActionEmailCode("delete_account", code);
   }
 
   async deleteAccountWithCliVerification(totpCode?: string): Promise<unknown> {
