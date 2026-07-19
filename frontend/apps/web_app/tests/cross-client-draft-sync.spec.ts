@@ -417,11 +417,11 @@ async function replaceMessageEditorText(page: any, chatId: string, text: string)
 				await openDraftByHash(page, chatId);
 				return null;
 			}
-			return page.evaluate((targetChatId: string) => {
+			return page.evaluate(({ targetChatId, expectedEmpty }: { targetChatId: string; expectedEmpty: boolean }) => {
 				const root = document.querySelector(`[data-action="message-input"][data-current-chat-id="${targetChatId}"]`);
 				const currentEditor = root?.querySelector('[data-testid="message-editor"] [contenteditable="true"]');
-				return currentEditor?.textContent ?? null;
-			}, chatId);
+				return currentEditor?.textContent ?? (expectedEmpty ? '' : null);
+			}, { targetChatId: chatId, expectedEmpty: text.length === 0 });
 		}, {
 			timeout: 15_000,
 			intervals: [250, 500, 1_000]
