@@ -462,6 +462,35 @@ async def test_empty_cached_draft_does_not_hide_persisted_ciphertext() -> None:
 
 
 @pytest.mark.anyio
+async def test_newer_persisted_draft_overrides_stale_cached_ciphertext() -> None:
+    warmed = []
+
+    class Cache:
+        async def get_user_draft_from_cache(self, user_id, chat_id):
+            return "cached-cipher-v1", 1, "cached-preview-v1"
+
+        async def update_user_draft_in_cache(self, *args, **kwargs):
+            warmed.append((args, kwargs))
+            return True
+
+    class Directus:
+        async def get_items(self, collection, params, **kwargs):
+            assert collection == "drafts"
+            assert kwargs == {"admin_required": True}
+            return [{"encrypted_content": "persisted-cipher-v2", "version": 2}]
+
+    draft = await get_authoritative_user_draft(
+        Cache(),
+        Directus(),
+        "user-1",
+        "chat-1",
+    )
+
+    assert draft == ("persisted-cipher-v2", 2, None)
+    assert warmed[0][0][2:] == ("persisted-cipher-v2", 2)
+
+
+@pytest.mark.anyio
 async def test_stale_draft_cache_write_does_not_replace_newer_ciphertext() -> None:
     class Redis:
         def __init__(self) -> None:
@@ -523,7 +552,7 @@ async def test_session_draft_route_returns_authoritative_ciphertext() -> None:
         app=SimpleNamespace(
             state=SimpleNamespace(
                 cache_service=Cache(),
-                directus_service=SimpleNamespace(),
+                directus_service=SimpleNamespace(get_items=lambda *args, **kwargs: _async([])),
             )
         )
     )
