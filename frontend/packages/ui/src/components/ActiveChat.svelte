@@ -8923,7 +8923,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }
 
         let quickTipCiphertext = currentChat.encrypted_quick_tip_slugs;
-        if (!isPublicChat(currentChat.chat_id) && !quickTipCiphertext) {
+        if (!isPublicChat(currentChat.chat_id) && !isProvidedDraftOnlyChat && !quickTipCiphertext) {
             const freshChat = await chatDB.getChat(currentChat.chat_id).catch(() => null);
             quickTipCiphertext = freshChat?.encrypted_quick_tip_slugs ?? null;
         }
