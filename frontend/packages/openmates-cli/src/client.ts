@@ -94,7 +94,6 @@ import {
   type ConnectedAccountCliTransferPayload,
   type EncryptedConnectedAccountImportRow,
 } from "./connectedAccountImport.js";
-import type { ParsedImportChat } from "./accountImport.js";
 import { containsCredentialLikeField, type ProtonLocalConnectorRegistration } from "./protonBridgeConnector.js";
 import {
   buildCreateUserTaskInput,
@@ -326,6 +325,18 @@ export interface AccountImportEncryptedPersistResponse extends Record<string, un
   imported_chat_ids?: string[];
   failures?: Array<Record<string, unknown>>;
   encrypted_record_counts?: Record<string, number>;
+}
+
+interface ParsedImportChat {
+  title?: string;
+  created_at?: string;
+  updated_at?: string;
+  source_fingerprint?: string;
+  messages: Array<{
+    role: "user" | "assistant" | "system";
+    content: string;
+    created_at?: string;
+  }>;
 }
 
 export interface TeamCreateInput {
