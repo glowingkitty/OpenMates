@@ -1554,6 +1554,22 @@
             }
         }
         
+        const fullscreenAttrs = attrs && typeof attrs === 'object'
+            ? attrs as Record<string, unknown>
+            : null;
+        if (!finalDecodedContent && fullscreenAttrs) {
+            finalDecodedContent = { ...fullscreenAttrs } as EmbedDecodedContent;
+        }
+        if (finalDecodedContent) {
+            if (!finalDecodedContent.app_id && typeof fullscreenAttrs?.app_id === 'string') finalDecodedContent.app_id = fullscreenAttrs.app_id;
+            if (!finalDecodedContent.skill_id && typeof fullscreenAttrs?.skill_id === 'string') finalDecodedContent.skill_id = fullscreenAttrs.skill_id;
+            if (!finalDecodedContent.query && typeof fullscreenAttrs?.query === 'string') finalDecodedContent.query = fullscreenAttrs.query;
+            if (!finalDecodedContent.provider && typeof fullscreenAttrs?.provider === 'string') finalDecodedContent.provider = fullscreenAttrs.provider;
+            if (!finalDecodedContent.app_id && finalEmbedData?.app_id) finalDecodedContent.app_id = finalEmbedData.app_id;
+            if (!finalDecodedContent.skill_id && finalEmbedData?.skill_id) finalDecodedContent.skill_id = finalEmbedData.skill_id;
+            if (!finalDecodedContent.embed_ids && finalEmbedData?.embed_ids) finalDecodedContent.embed_ids = finalEmbedData.embed_ids;
+        }
+
         // Normalize embed types from different sources:
         // - Renderers use UI types (e.g. "code-code", "app-skill-use")
         // - Some synced/stored embeds can expose server types (e.g. "code", "app_skill_use")
