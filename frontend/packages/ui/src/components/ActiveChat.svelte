@@ -276,11 +276,18 @@
     }
 
     function getFullscreenRegistryContent(fullscreenData: EmbedFullscreenState): EmbedDecodedContent {
-        return {
+        const content = {
             ...(fullscreenData.attrs ?? {}),
             ...(fullscreenData.embedData ?? {}),
             ...(fullscreenData.decodedContent ?? {})
         } as EmbedDecodedContent;
+
+        if ((!content.app_id || !content.skill_id) && fullscreenData.embedId) {
+            const exampleEmbed = getExampleChatEmbed(fullscreenData.embedId);
+            return mergeAppSkillToonMetadata(content, exampleEmbed?.content) ?? content;
+        }
+
+        return content;
     }
 
     function extractToonScalar(content: string, key: string): string | undefined {
