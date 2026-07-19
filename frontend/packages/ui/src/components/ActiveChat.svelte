@@ -188,9 +188,8 @@
     // all entry points inaccessible until this is intentionally re-enabled.
     const CHAT_DETAILS_SETTINGS_ENABLED = false;
 
-    function extractPlainIdeaBucketText(markdown: string, chat: Chat | null | undefined): string | null {
-        if (chat?.ideabucket !== true) return null;
-        const matches = [...markdown.matchAll(/----- Idea \d+ -----\n([\s\S]*?)\n-----------------/g)];
+    function extractPlainIdeaBucketText(markdown: string): string | null {
+        const matches = [...markdown.matchAll(/----- Idea \d+ -----\r?\n([\s\S]*?)\r?\n-----------------/g)];
         if (matches.length !== 1) return null;
 
         const ideaText = matches[0]?.[1]?.trim() ?? '';
@@ -9269,7 +9268,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         const decryptedMarkdown = await decryptDraftWithRetry(encryptedDraftMd, 'encrypted_draft_md');
                         if (decryptedMarkdown) {
                             if (!isCurrentDraftRestoreTarget()) return;
-                            const editableDraftMarkdown = extractPlainIdeaBucketText(decryptedMarkdown, draftRestoreChat) ?? decryptedMarkdown;
+                            const editableDraftMarkdown = extractPlainIdeaBucketText(decryptedMarkdown) ?? decryptedMarkdown;
                             // Parse markdown to TipTap JSON for the editor
                             const draftContentJSON = parse_message(editableDraftMarkdown, 'write', { unifiedParsingEnabled: true });
                             appendDraftRestoreDiagnostic('parsed-md', {
