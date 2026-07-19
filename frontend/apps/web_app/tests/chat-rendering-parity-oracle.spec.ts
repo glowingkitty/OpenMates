@@ -41,6 +41,10 @@ type RawChatRow = {
 	rect: { x: number; y: number; width: number; height: number };
 };
 
+type LoadedChatsManifest = Record<string, unknown> & {
+	__rawChatRows?: RawChatRow[];
+};
+
 function hashStableId(value: string | null): string | null {
 	if (!value) return null;
 	return crypto.createHash('sha256').update(value).digest('hex').slice(0, 16);
@@ -77,6 +81,17 @@ async function openUserChatByIndex(page: any, index: number): Promise<string | n
 		row.click();
 		return chatId;
 	}, { targetIndex: index, staticGroupKeys: STATIC_GROUP_KEYS });
+}
+
+async function openUserChatById(page: any, chatId: string): Promise<string | null> {
+	return page.evaluate((targetChatId: string) => {
+		const row = Array.from(document.querySelectorAll('[data-testid="chat-item-wrapper"]')).find((candidate) => {
+			return candidate.getAttribute('data-chat-id') === targetChatId;
+		}) as HTMLElement | undefined;
+		if (!row) throw new Error(`Missing user chat row for stable chat id ${targetChatId}`);
+		row.click();
+		return row.getAttribute('data-chat-id');
+	}, chatId);
 }
 
 async function currentMessageFingerprint(page: any): Promise<string> {
@@ -188,18 +203,26 @@ async function collectOpenedChatRenderState(page: any, chatIndex: number, titleT
 }
 
 async function collectOpenedChatsManifest(page: any, loadedManifest: Record<string, unknown>): Promise<Record<string, unknown>> {
-	const loadedChats = (loadedManifest.chats as Array<{ index: number; titleText: string; titleState: RawChatRow['titleState'] }>)
+	const rawLoadedChats = (loadedManifest as LoadedChatsManifest).__rawChatRows ?? [];
+	const loadedChats = (rawLoadedChats.length
+		? rawLoadedChats
+		: (loadedManifest.chats as Array<{ index: number; titleText: string; titleState: RawChatRow['titleState']; chatId?: string | null }>))
 		.filter((row) => row.titleState === 'ready')
 		.slice(0, OPENED_CHAT_LIMIT);
 	const openedChats: Record<string, unknown>[] = [];
-	let previousFingerprint = await currentMessageFingerprint(page);
+	let previousFingerprint = '';
+	let previousChatId: string | null = null;
 
 	for (let index = 0; index < loadedChats.length; index += 1) {
+		const row = loadedChats[index];
 		await ensureSidebarOpen(page, () => undefined);
-		const chatId = await openUserChatByIndex(page, loadedChats[index].index);
-		await waitForOpenedChat(page, chatId, previousFingerprint);
-		openedChats.push(await collectOpenedChatRenderState(page, loadedChats[index].index, normalizeText(loadedChats[index].titleText)));
+		const chatId = row.chatId
+			? await openUserChatById(page, row.chatId)
+			: await openUserChatByIndex(page, row.index);
+		await waitForOpenedChat(page, chatId, chatId && chatId === previousChatId ? '' : previousFingerprint);
+		openedChats.push(await collectOpenedChatRenderState(page, row.index, normalizeText(row.titleText)));
 		previousFingerprint = await currentMessageFingerprint(page);
+		previousChatId = chatId;
 	}
 
 	return {
@@ -306,7 +329,7 @@ async function collectLoadedChatsManifest(page: any): Promise<Record<string, unk
 	const syncingVisible = await page.getByTestId('syncing-indicator').isVisible().catch(() => false);
 	const noChatsVisible = await page.getByTestId('no-chats-indicator').isVisible().catch(() => false);
 
-	return {
+	const manifest: LoadedChatsManifest = {
 		schema_version: 1,
 		surface: 'loaded-user-chats',
 		client: 'web',
@@ -340,6 +363,11 @@ async function collectLoadedChatsManifest(page: any): Promise<Record<string, unk
 			chat_id_hash: hashStableId(chatId)
 		}))
 	};
+	Object.defineProperty(manifest, '__rawChatRows', {
+		value: rawRows,
+		enumerable: false
+	});
+	return manifest;
 }
 
 test('exports loaded user chats web oracle for Apple parity', async ({ page }: { page: any }) => {
