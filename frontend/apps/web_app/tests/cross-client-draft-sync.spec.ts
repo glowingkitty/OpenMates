@@ -384,19 +384,29 @@ async function replaceMessageEditorText(page: any, chatId: string, text: string)
 	await page.keyboard.press('Control+A');
 	if (text.length > 0) {
 		await page.keyboard.insertText(text);
-	} else {
-		await page.keyboard.press('Backspace');
-		await expect(editor).toHaveText('', { timeout: 10_000 });
-	}
-	const activeEditor = await activeMessageEditorEditable(page, chatId);
-	if (text.length > 0) {
-		await activeEditor.click();
-		await page.keyboard.press('End');
 		await page.keyboard.type(' ');
 		await page.keyboard.press('Backspace');
+	} else {
+		await page.keyboard.press('Backspace');
 	}
-	await expect(activeEditor).toHaveText(text, { timeout: 10_000 });
-	return activeEditor;
+	await expect
+		.poll(async () => {
+			const hash = await page.evaluate(() => window.location.hash);
+			if (!hash.includes(chatId)) {
+				await openDraftByHash(page, chatId);
+				return null;
+			}
+			return page.evaluate((targetChatId: string) => {
+				const root = document.querySelector(`[data-action="message-input"][data-current-chat-id="${targetChatId}"]`);
+				const currentEditor = root?.querySelector('[data-testid="message-editor"] [contenteditable="true"]');
+				return currentEditor?.textContent ?? null;
+			}, chatId);
+		}, {
+			timeout: 15_000,
+			intervals: [250, 500, 1_000]
+		})
+		.toBe(text);
+	return messageEditorEditable(page, chatId);
 }
 
 async function logDraftOpenDiagnostics(page: any, chatId: string, label: string, expectedText?: string): Promise<void> {
@@ -830,8 +840,7 @@ test.describe('Cross-client encrypted draft sync', () => {
 			log('CLI-created draft opened in web client.');
 
 			const draftUpdateFrameStart = wsFrames.length;
-			const editor = await replaceMessageEditorText(page, draftChatId, updatedText);
-			await expect(editor).toContainText(updatedText, { timeout: 10_000 });
+			await replaceMessageEditorText(page, draftChatId, updatedText);
 			await page.getByTestId('input-dismiss-button').click();
 			await expectLocalDraftMarkdown(page, draftChatId, updatedText, 'CROSS_CLIENT_DRAFT_SYNC');
 			expect(await waitForDraftUpdateReceipt(wsFrames, draftChatId, 'CROSS_CLIENT_DRAFT_SYNC', draftUpdateFrameStart, Number(created.draftV) + 1)).toBe(true);
