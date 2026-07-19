@@ -4660,6 +4660,41 @@
         }
     }
 
+    export function replaceDraftWithPlainText(chatId: string | null, text: string, version: number) {
+        if (!editor || editor.isDestroyed) {
+            console.warn('[MessageInput] replaceDraftWithPlainText: editor not available or destroyed');
+            return;
+        }
+
+        const content = text.trim().length > 0
+            ? {
+                type: 'doc',
+                content: [
+                    {
+                        type: 'paragraph',
+                        content: [{ type: 'text', text }],
+                    },
+                ],
+            }
+            : getInitialContent();
+
+        editor.commands.setContent(content, { emitUpdate: false });
+        originalMarkdown = text;
+        hasContent = !isContentEmptyExceptMention(editor);
+        lastEditorUpdateText = editor.getText();
+        detectedPII = [];
+        currentPIIDecorations = [];
+        lastPIIText = '';
+        rebuildDecorationSet(editor);
+        draftEditorUIState.update((state) => ({
+            ...state,
+            currentChatId: chatId,
+            currentUserDraftVersion: version,
+            hasUnsavedChanges: false,
+            lastSavedContentMarkdown: text,
+        }));
+    }
+
     /**
      * Append suggestion text to the editor, adding a newline separator if the
      * editor already has content. Used by NewChatSuggestions for multi-select:

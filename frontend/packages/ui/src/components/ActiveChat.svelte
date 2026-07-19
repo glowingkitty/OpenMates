@@ -217,6 +217,7 @@
     type MessageInputFieldRef = {
         setDraftContent: (chatId: string | null, content: Content | null, version: number, isRemote: boolean) => void;
         setSuggestionText: (text: string) => void;
+        replaceDraftWithPlainText?: (chatId: string | null, text: string, version: number) => void;
         setOriginalMarkdown?: (markdown: string) => void;
         setCurrentChatContext?: (chatId: string | null, content: TiptapJSON | null, version: number) => void;
         focus: () => void;
@@ -9286,8 +9287,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                     appendDraftRestoreDiagnostic('plain-text-fallback', {
                                         fallbackLength: plainTextFallback.length,
                                     });
-                                    ref.setSuggestionText(plainTextFallback);
-                                    ref.setOriginalMarkdown?.(plainTextFallback);
+                                    if (ref.replaceDraftWithPlainText) {
+                                        ref.replaceDraftWithPlainText(draftRestoreChatId, plainTextFallback, draftVersion || 1);
+                                    } else {
+                                        ref.setSuggestionText(plainTextFallback);
+                                        ref.setOriginalMarkdown?.(plainTextFallback);
+                                    }
                                 }
                             });
                         } else {
