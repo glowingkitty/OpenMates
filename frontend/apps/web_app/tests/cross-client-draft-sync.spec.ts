@@ -170,6 +170,66 @@ function chatItem(page: any, chatId: string): any {
 	return page.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${chatId}"]`);
 }
 
+async function logDraftOpenDiagnostics(page: any, chatId: string, label: string): Promise<void> {
+	const diagnostics = await page.evaluate(async (targetChatId: string) => {
+		async function readChatRecord(): Promise<Record<string, unknown> | null> {
+			return new Promise((resolve) => {
+				const request = indexedDB.open('chats_db');
+				request.onerror = () => resolve(null);
+				request.onsuccess = () => {
+					const db = request.result;
+					try {
+						const transaction = db.transaction('chats', 'readonly');
+						const store = transaction.objectStore('chats');
+						const getRequest = store.get(targetChatId);
+						getRequest.onerror = () => resolve(null);
+						getRequest.onsuccess = () => {
+							const record = getRequest.result as Record<string, unknown> | undefined;
+							if (!record) {
+								resolve(null);
+								return;
+							}
+							resolve({
+								chat_id: record.chat_id,
+								draft_v: record.draft_v,
+								title_v: record.title_v,
+								messages_v: record.messages_v,
+								has_encrypted_draft_md: typeof record.encrypted_draft_md === 'string' && record.encrypted_draft_md.length > 0,
+								encrypted_draft_md_length: typeof record.encrypted_draft_md === 'string' ? record.encrypted_draft_md.length : 0,
+								has_encrypted_draft_preview: typeof record.encrypted_draft_preview === 'string' && record.encrypted_draft_preview.length > 0,
+								encrypted_draft_preview_length: typeof record.encrypted_draft_preview === 'string' ? record.encrypted_draft_preview.length : 0,
+								ideabucket: record.ideabucket,
+							});
+						};
+					} catch {
+						resolve(null);
+					} finally {
+						db.close();
+					}
+				};
+			});
+		}
+
+		const matchingRows = Array.from(document.querySelectorAll('[data-testid="chat-item-wrapper"]'))
+			.filter((element) => element.getAttribute('data-chat-id') === targetChatId)
+			.map((element) => ({
+				textLength: element.textContent?.length ?? 0,
+				active: element.classList.contains('active'),
+				visible: !!(element as HTMLElement).offsetParent,
+			}));
+
+		return {
+			url: window.location.href,
+			hash: window.location.hash,
+			editorTextLength: document.querySelector('[data-testid="message-editor"]')?.textContent?.length ?? 0,
+			searchOpen: !!document.querySelector('[data-testid="search-bar"]'),
+			matchingRows,
+			chatRecord: await readChatRecord(),
+		};
+	}, chatId);
+	console.log(`[${label}] Draft open diagnostics: ${JSON.stringify(diagnostics)}`);
+}
+
 function resultChatId(result: any): string {
 	const chatId = String(result.chatId ?? result.chat_id ?? '');
 	expect(chatId).toMatch(/^[0-9a-f-]{36}$/i);
@@ -220,7 +280,12 @@ async function expectIdeaBucketDraftMarkers(page: any, chatId: string, expectedT
 	}
 	const editor = page.getByTestId('message-editor');
 	await expect(editor).toBeVisible({ timeout: 15_000 });
-	await expect(editor).toContainText(expectedText, { timeout: 15_000 });
+	try {
+		await expect(editor).toContainText(expectedText, { timeout: 15_000 });
+	} catch (error) {
+		await logDraftOpenDiagnostics(page, chatId, 'IDEABUCKET_WEB_MARKERS');
+		throw error;
+	}
 	await expect(page.getByTestId('ideabucket-input-pill')).toBeVisible({ timeout: 15_000 });
 }
 
@@ -296,7 +361,12 @@ async function openDraft(page: any, chatId: string, expectedText: string): Promi
 	}
 	const editor = page.getByTestId('message-editor');
 	await expect(editor).toBeVisible({ timeout: 15_000 });
-	await expect(editor).toContainText(expectedText, { timeout: 15_000 });
+	try {
+		await expect(editor).toContainText(expectedText, { timeout: 15_000 });
+	} catch (error) {
+		await logDraftOpenDiagnostics(page, chatId, 'CROSS_CLIENT_DRAFT_SYNC');
+		throw error;
+	}
 	return item;
 }
 
