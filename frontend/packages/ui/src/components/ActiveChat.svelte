@@ -12418,6 +12418,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
             {#if showWikiFullscreen && wikiFullscreenData}
                 <div
+                    data-testid="embed-fullscreen-container"
                     class="fullscreen-embed-container"
                     class:side-panel={showSideBySideLayout}
                     class:overlay-mode={!showSideBySideLayout}

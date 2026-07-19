@@ -43,7 +43,7 @@ test.describe('Business company financials public example chat', () => {
 
 		await parent.click();
 		await expect(page.locator('body')).not.toContainText('Fullscreen view not available for embed type: app-skill-use', { timeout: 15_000 });
-		const fullscreen = page.locator('.fullscreen-embed-container').filter({ has: page.getByTestId('search-template-grid') }).first();
+		const fullscreen = page.getByTestId('embed-fullscreen-container').filter({ has: page.getByTestId('search-template-grid') }).first();
 		await expect(fullscreen).toBeVisible({ timeout: 15_000 });
 		const resultCards = await verifySearchGrid(fullscreen, 1, 30_000);
 		const resultCard = resultCards.first();
