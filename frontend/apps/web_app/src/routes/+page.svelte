@@ -95,6 +95,7 @@
 	let isProcessingInitialHash = $state(false); // Track if we're processing initial hash load
 	let lastLoadedChatId = $state<string | null>(null);
 	let anonymousHashRecoveryChatId = $state<string | null>(null);
+	let authenticatedHashRecoveryChatId = $state<string | null>(null);
 	let originalHashChatId: string | null = null; // Store original hash chat ID from URL (read before anything modifies it)
 	let deepLinkProcessed = $state(false); // Track if any deep link was processed during onMount to avoid loading welcome chat
 	let pendingDeepLinkHandler: ((event: Event) => void) | null = null; // Store event handler for cleanup
@@ -1005,6 +1006,44 @@
 			const anonymousShellChat = createAnonymousReloadChat(activeChatId);
 			activeChatComponent.loadChat(anonymousShellChat);
 			lastLoadedChatId = anonymousShellChat.chat_id;
+		})();
+	});
+
+	$effect(() => {
+		const activeChatComponent = activeChat;
+		const storeChatId = $activeChatStore;
+		const hashChatId = activeChatStore.getChatIdFromHash();
+		const activeChatId = storeChatId || hashChatId;
+		if (
+			!activeChatComponent ||
+			!$authStore.isAuthenticated ||
+			!activeChatId ||
+			isPublicChat(activeChatId) ||
+			isAnonymousChatId(activeChatId) ||
+			lastLoadedChatId === activeChatId ||
+			authenticatedHashRecoveryChatId === activeChatId
+		) {
+			return;
+		}
+
+		authenticatedHashRecoveryChatId = activeChatId;
+		void (async () => {
+			try {
+				await chatDB.init();
+				let chat = await chatDB.getChat(activeChatId).catch(() => null);
+				if (!chat) {
+					chat = await chatDB.getRawChat(activeChatId).catch(() => null);
+				}
+
+				if (!chat || lastLoadedChatId === activeChatId) return;
+				console.debug(`[+page.svelte] Recovering authenticated active chat from hash/store: ${activeChatId}`);
+				activeChatComponent.loadChat(chat);
+				lastLoadedChatId = activeChatId;
+			} catch (error) {
+				console.warn(`[+page.svelte] Authenticated hash/store chat recovery failed for ${activeChatId}:`, error);
+			} finally {
+				authenticatedHashRecoveryChatId = null;
+			}
 		})();
 	});
 
