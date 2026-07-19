@@ -7,6 +7,7 @@ import { getInitialContent } from "../../components/enter_message/utils"; // Adj
 import { draftEditorUIState } from "./draftState"; // Renamed store
 import { decryptWithMasterKey } from "../cryptoService"; // Import decryption
 import { parse_message } from "../../message_parsing/parse_message"; // Import parser
+import { tipTapToCanonicalMarkdown } from "../../message_parsing/serializers";
 import type {
   DraftEditorState, // Renamed type
   ServerChatDraftUpdatedEventPayload, // Updated payload type
@@ -46,6 +47,14 @@ const handleDraftUpdated = async (
   try {
     const chat = await chatDB.getRawChat(chat_id);
     if (chat) {
+      const localDraftVersion = chat.draft_v ?? 0;
+      if (localDraftVersion > newUserDraftVersion) {
+        console.info(
+          `[DraftService] Ignoring stale chat_draft_updated for chat ${chat_id}. Local draft_v=${localDraftVersion}, incoming draft_v=${newUserDraftVersion}`,
+        );
+        return;
+      }
+
       chat.encrypted_draft_md = encrypted_draft_md; // from payload.data
       chat.encrypted_draft_preview = data.encrypted_draft_preview || null;
       chat.draft_v = newUserDraftVersion; // from payload.versions (corrected)
@@ -146,6 +155,21 @@ const handleDraftUpdated = async (
 
       // Check if editor content needs updating (e.g., if this update came from another device)
       const currentEditorContent = editorInstance.getJSON();
+      const currentEditorMarkdown = tipTapToCanonicalMarkdown(
+        currentEditorContent as TiptapJSON,
+      );
+      const incomingMarkdown = encrypted_draft_md
+        ? await decryptWithMasterKey(encrypted_draft_md)
+        : "";
+      if (
+        newUserDraftVersion <= currentEditorState.currentUserDraftVersion &&
+        currentEditorMarkdown !== incomingMarkdown
+      ) {
+        console.info(
+          `[DraftService] Preserving active local draft for chat ${chat_id}; incoming draft_v=${newUserDraftVersion} is not newer than active draft_v=${currentEditorState.currentUserDraftVersion}`,
+        );
+        return;
+      }
       if (
         JSON.stringify(currentEditorContent) !==
         JSON.stringify(decryptedDraftContent)

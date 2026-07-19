@@ -310,6 +310,12 @@ export async function handleChatDraftUpdatedImpl(
       console.debug(
         `[ChatSyncService:ChatUpdates] Existing chat ${payload.chat_id} found for draft update. Local draft_v: ${chat.draft_v}, Incoming draft_v: ${payload.versions.draft_v}.`,
       );
+      if ((chat.draft_v ?? 0) > payload.versions.draft_v) {
+        console.info(
+          `[ChatSyncService:ChatUpdates] Ignoring stale chat_draft_updated for chat ${payload.chat_id}. Local draft_v=${chat.draft_v ?? 0}, incoming draft_v=${payload.versions.draft_v}.`,
+        );
+        return;
+      }
 
       // Check if this is a draft deletion (encrypted_draft_md is null)
       if (payload.data.encrypted_draft_md === null) {

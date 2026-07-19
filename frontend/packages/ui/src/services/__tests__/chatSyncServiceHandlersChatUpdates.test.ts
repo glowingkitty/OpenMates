@@ -237,6 +237,39 @@ describe("handleChatDraftUpdatedImpl", () => {
       }),
     );
   });
+
+  it("ignores stale draft broadcasts when local draft version is newer", async () => {
+    const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+    mocks.chatDB.getRawChat.mockResolvedValue({
+      chat_id: "chat-existing-draft",
+      encrypted_title: null,
+      encrypted_draft_md: "newer-local-draft",
+      encrypted_draft_preview: "newer-local-preview",
+      messages_v: 0,
+      title_v: 0,
+      draft_v: 3,
+      unread_count: 0,
+      created_at: 90,
+      updated_at: 90,
+      last_edited_overall_timestamp: 90,
+    });
+
+    await handleChatDraftUpdatedImpl(service, {
+      event: "chat_draft_updated",
+      chat_id: "chat-existing-draft",
+      data: {
+        encrypted_draft_md: "stale-remote-draft",
+        encrypted_draft_preview: "stale-remote-preview",
+      },
+      versions: { draft_v: 2 },
+      last_edited_overall_timestamp: 100,
+    });
+
+    expect(mocks.chatDB.upsertRawChat).not.toHaveBeenCalled();
+    expect(mocks.chatMetadataCache.invalidateChat).not.toHaveBeenCalled();
+    expect(mocks.chatListCache.upsertChat).not.toHaveBeenCalled();
+    expect(service.dispatchEvent).not.toHaveBeenCalled();
+  });
 });
 
 describe("handleChatMessageReceivedImpl", () => {
