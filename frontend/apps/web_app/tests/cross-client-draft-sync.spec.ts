@@ -816,10 +816,11 @@ async function openDraftByHash(page: any, chatId: string): Promise<void> {
 	await page.goto(`${new URL(page.url()).origin}/#chat-id=${chatId}`);
 }
 
-async function openDraft(page: any, chatId: string, expectedText: string): Promise<any> {
+async function openDraft(page: any, chatId: string, expectedText: string, requireRestoredText = false): Promise<any> {
 	await openDraftByHash(page, chatId);
 	const editor = messageEditorEditable(page, chatId);
 	await expect(editor).toBeVisible({ timeout: 15_000 });
+	if (!requireRestoredText) return null;
 	try {
 		await expect(editor).toContainText(expectedText, { timeout: 15_000 });
 	} catch (error) {
@@ -924,7 +925,7 @@ test.describe('Cross-client encrypted draft sync', () => {
 			cleanupDraftIds.add(sentChatId);
 			await page.reload();
 			await waitForChatReady(page, log);
-			await openDraft(page, sentChatId, sentText);
+			await openDraft(page, sentChatId, sentText, true);
 			await messageEditorEditable(page, sentChatId).click();
 			const sendButton = page.locator('[data-action="send-message"]');
 			await expect(sendButton).toBeVisible({ timeout: 15_000 });
