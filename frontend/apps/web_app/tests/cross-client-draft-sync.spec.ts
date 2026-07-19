@@ -12,6 +12,7 @@ export {};
 const { test, expect } = require('./helpers/cookie-audit');
 const { spawn } = require('child_process');
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const {
 	createSignupLogger,
@@ -28,6 +29,7 @@ const AUDIO_FIXTURE = fs.existsSync('/workspace/backend/tests/fixtures/test_audi
 	? '/workspace/backend/tests/fixtures/test_audio.wav'
 	: path.resolve(__dirname, '../../../../backend/tests/fixtures/test_audio.wav');
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount(1);
+let activeCliHome: string | null = null;
 
 type WebSocketFrameRecord = {
 	direction: 'sent' | 'received';
@@ -118,10 +120,20 @@ function cliEnvironment(apiUrl: string): Record<string, string | undefined> {
 	const cliDir = path.dirname(path.dirname(CLI_DIST));
 	return {
 		...process.env,
+		...(activeCliHome ? { HOME: activeCliHome } : {}),
 		OPENMATES_API_URL: apiUrl,
 		NODE_PATH: path.join(cliDir, 'node_modules'),
 		TERM: 'dumb'
 	};
+}
+
+function createIsolatedCliHome(): string {
+	return fs.mkdtempSync(path.join(os.tmpdir(), 'openmates-cross-client-cli-'));
+}
+
+function cleanupIsolatedCliHome(cliHome: string | null): void {
+	if (!cliHome) return;
+	fs.rmSync(cliHome, { recursive: true, force: true });
 }
 
 async function runCli(
@@ -622,10 +634,12 @@ test.describe('Cross-client encrypted draft sync', () => {
 		const cleanupDraftIds = new Set<string>();
 		const cleanupChatIds = new Set<string>();
 		let cliPaired = false;
+		const cliHome = createIsolatedCliHome();
 		const wsFrames = installWebSocketFrameTracker(page);
 
 		await loginToTestAccount(page, log, screenshot);
 		try {
+			activeCliHome = cliHome;
 			log('Pairing CLI client.');
 			await pairCli(page, apiUrl, baseUrl);
 			cliPaired = true;
@@ -730,6 +744,8 @@ test.describe('Cross-client encrypted draft sync', () => {
 				await runCli(apiUrl, ['chats', 'delete', chatId, '--yes'], 10_000);
 			}
 			if (cliPaired) await runCli(apiUrl, ['logout'], 10_000);
+			activeCliHome = null;
+			cleanupIsolatedCliHome(cliHome);
 		}
 	});
 
@@ -752,10 +768,12 @@ test.describe('Cross-client encrypted draft sync', () => {
 		const cleanupDraftIds = new Set<string>();
 		const cleanupChatIds = new Set<string>();
 		let cliPaired = false;
+		const cliHome = createIsolatedCliHome();
 		const wsFrames = installWebSocketFrameTracker(page);
 
 		await loginToTestAccount(page, log, screenshot);
 		try {
+			activeCliHome = cliHome;
 			log('Pairing CLI client for IdeaBucket web coverage.');
 			await pairCli(page, apiUrl, baseUrl);
 			cliPaired = true;
@@ -877,6 +895,8 @@ test.describe('Cross-client encrypted draft sync', () => {
 				await runCli(apiUrl, ['chats', 'delete', chatId, '--yes'], 10_000);
 			}
 			if (cliPaired) await runCli(apiUrl, ['logout'], 10_000);
+			activeCliHome = null;
+			cleanupIsolatedCliHome(cliHome);
 		}
 	});
 });
