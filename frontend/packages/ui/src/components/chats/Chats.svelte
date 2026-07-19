@@ -2370,20 +2370,21 @@ let _chatUpsertsDuringDbRead = new Map<string, ChatType>();
 		// Update last selected for potential range selection (even when not in select mode)
 		lastSelectedChatId = chat.chat_id;
 
-		// CRITICAL: Always save last_opened to IndexedDB when switching chats (before updating UI stores)
-		// This ensures tab reload opens the correct chat even if the component unmounts during the update
+		// Persist last_opened in the background so search/sidebar clicks load the chat immediately.
+		// This still keeps tab reload state current without blocking the UI selection dispatch.
 		// IndexedDB update happens for all users (authenticated and non-authenticated) for tab reload persistence
 		// Server sync (via WebSocket) only happens for authenticated users (handled by sendSetActiveChatImpl)
 		// SECURITY: Don't store hidden chats as last_opened - they require password after page reload
 		if (!chat.is_hidden) {
-			try {
-				const { chatSyncService } = await import('../../services/chatSyncService');
-				await chatSyncService.sendSetActiveChat(chat.chat_id);
-				console.debug('[Chats] ✅ Updated last_opened in IndexedDB for chat:', chat.chat_id);
-			} catch (error) {
-				console.error('[Chats] Error updating last_opened in IndexedDB:', error);
-				// Don't fail the whole operation if IndexedDB update fails, continue to update UI
-			}
+			void (async () => {
+				try {
+					const { chatSyncService } = await import('../../services/chatSyncService');
+					await chatSyncService.sendSetActiveChat(chat.chat_id);
+					console.debug('[Chats] ✅ Updated last_opened in IndexedDB for chat:', chat.chat_id);
+				} catch (error) {
+					console.error('[Chats] Error updating last_opened in IndexedDB:', error);
+				}
+			})();
 		} else {
 			console.debug('[Chats] Skipped storing hidden chat as last_opened:', chat.chat_id);
 		}
