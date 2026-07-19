@@ -6717,6 +6717,17 @@ export class GroupRenderer implements EmbedRenderer {
       );
     }
 
+    const fullscreenDecodedContent: DecodedEmbedContent = {
+      ...(finalDecodedContent ?? {}),
+    };
+    const attrsRecord = attrs as unknown as Record<string, unknown>;
+    fullscreenDecodedContent.app_id ||= embedData?.app_id || attrsRecord.app_id;
+    fullscreenDecodedContent.skill_id ||= embedData?.skill_id || attrsRecord.skill_id;
+    fullscreenDecodedContent.query ||= embedData?.query || attrsRecord.query;
+    fullscreenDecodedContent.provider ||= embedData?.provider || attrsRecord.provider;
+    fullscreenDecodedContent.embed_ids ||= embedData?.embed_ids || attrsRecord.embed_ids;
+    finalDecodedContent = fullscreenDecodedContent;
+
     const rawEmbedId = attrs.contentRef?.startsWith("embed:")
       ? attrs.contentRef.replace("embed:", "")
       : attrs.id;
