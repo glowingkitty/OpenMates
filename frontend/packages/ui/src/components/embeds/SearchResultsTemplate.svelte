@@ -167,7 +167,7 @@
   let selectedIndex = $state(-1);
   /** All loaded results for sibling navigation */
   let allResults = $state<T[]>([]);
-  let selectedResult = $state<T | null>(null);
+  let selectedResult = $derived(selectedIndex >= 0 ? allResults[selectedIndex] ?? null : null);
 
   let initialChildLookupComplete = $state(false);
   let isOpeningInitialChild = $derived(
@@ -182,17 +182,14 @@
     const index = results.findIndex((result) => result.embed_id === initialChildEmbedId);
     if (index < 0) return false;
 
+    allResults = results;
     selectedIndex = index;
-    selectedResult = results[index] ?? null;
     initialChildLookupComplete = true;
     return true;
   }
 
   function updateLoadedResults(results: T[]): void {
     allResults = results;
-    if (selectedIndex >= 0) {
-      selectedResult = results[selectedIndex] ?? null;
-    }
     onResultsLoaded?.(results);
 
     if (initialChildEmbedId && !selectInitialChildFromResults(results)) {
@@ -205,7 +202,6 @@
 
     if (activeEmbedId === currentEmbedId && selectedIndex >= 0) {
       selectedIndex = -1;
-      selectedResult = null;
       return;
     }
 
@@ -214,7 +210,6 @@
       : -1;
     if (childIndex >= 0 && childIndex !== selectedIndex) {
       selectedIndex = childIndex;
-      selectedResult = allResults[childIndex] ?? null;
       initialChildLookupComplete = true;
     }
   });
@@ -253,7 +248,6 @@
     allResults = resultsForClick;
     selectedIndex = index;
     const result = resultsForClick[index];
-    selectedResult = result ?? null;
 
     // Real child embeds are shareable deep links. Legacy fallback results use
     // synthetic IDs that are only valid inside this mounted fullscreen; publishing
@@ -274,7 +268,6 @@
       onClose();
     } else {
       selectedIndex = -1;
-      selectedResult = null;
       restorePreviousFullscreenRoute(currentEmbedId ?? null);
     }
   }
@@ -282,7 +275,6 @@
   function handleMainClose() {
     if (selectedIndex >= 0 && !initialChildEmbedId) {
       selectedIndex = -1;
-      selectedResult = null;
     } else {
       onClose();
     }
@@ -292,7 +284,6 @@
     if (selectedIndex > 0) {
       selectedIndex -= 1;
       const result = allResults[selectedIndex];
-      selectedResult = result ?? null;
       if (result?.embed_id && !isSyntheticLegacyEmbedId(result.embed_id)) {
         if (currentEmbedId) setChildFullscreenRouteFromParent(result.embed_id, currentEmbedId);
         else setCanonicalFullscreenRoute(result.embed_id);
@@ -304,7 +295,6 @@
     if (selectedIndex < allResults.length - 1) {
       selectedIndex += 1;
       const result = allResults[selectedIndex];
-      selectedResult = result ?? null;
       if (result?.embed_id && !isSyntheticLegacyEmbedId(result.embed_id)) {
         if (currentEmbedId) setChildFullscreenRouteFromParent(result.embed_id, currentEmbedId);
         else setCanonicalFullscreenRoute(result.embed_id);
@@ -368,7 +358,6 @@
   onAutoOpenChild={(index, children) => {
     updateLoadedResults(children as T[]);
     selectedIndex = index;
-    selectedResult = (children as T[])[index] ?? null;
     initialChildLookupComplete = true;
   }}
   {onEmbedDataUpdated}
