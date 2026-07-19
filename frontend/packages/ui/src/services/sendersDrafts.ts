@@ -18,10 +18,16 @@ import { chatMetadataCache } from "./chatMetadataCache";
 import type { OfflineChange, UpdateDraftPayload, DeleteDraftPayload } from "../types/chat";
 
 const DRAFT_UPDATE_RECEIPT_TIMEOUT_MS = 10_000;
+const DRAFT_DELETE_RECEIPT_TIMEOUT_MS = 10_000;
 
 type DraftUpdateReceiptPayload = {
 	chat_id?: string;
 	draft_v?: number;
+	success?: boolean;
+};
+
+type DraftDeleteReceiptPayload = {
+	chat_id?: string;
 	success?: boolean;
 };
 
@@ -45,6 +51,28 @@ function waitForDraftUpdateReceiptAtVersion(chatId: string, minimumDraftVersion:
 		};
 
 		webSocketService.on("draft_update_receipt", handleReceipt);
+	});
+}
+
+function waitForDraftDeleteReceipt(chatId: string): Promise<void> {
+	return new Promise((resolve, reject) => {
+		const timeout = window.setTimeout(() => {
+			webSocketService.off("draft_delete_receipt", handleReceipt);
+			reject(new Error(`Timed out waiting for draft delete receipt for chat ${chatId}`));
+		}, DRAFT_DELETE_RECEIPT_TIMEOUT_MS);
+
+		const handleReceipt = (payload: DraftDeleteReceiptPayload): void => {
+			if (payload.chat_id !== chatId) return;
+			window.clearTimeout(timeout);
+			webSocketService.off("draft_delete_receipt", handleReceipt);
+			if (payload.success === false) {
+				reject(new Error(`Draft delete receipt reported failure for chat ${chatId}`));
+				return;
+			}
+			resolve();
+		};
+
+		webSocketService.on("draft_delete_receipt", handleReceipt);
 	});
 }
 
@@ -105,7 +133,14 @@ export async function sendDeleteDraftImpl(
 			);
 		}
 		if (get(websocketStatus).status === "connected") {
-			await webSocketService.sendMessage("delete_draft", payload);
+			const receipt = waitForDraftDeleteReceipt(chat_id);
+			try {
+				await webSocketService.sendMessage("delete_draft", payload);
+				await receipt;
+			} catch (error) {
+				receipt.catch(() => undefined);
+				throw error;
+			}
 		} else {
 			const offlineChange: Omit<OfflineChange, "change_id"> = {
 				chat_id: chat_id,
