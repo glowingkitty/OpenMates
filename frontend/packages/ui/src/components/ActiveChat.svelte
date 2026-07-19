@@ -9075,9 +9075,19 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 // Access the encrypted draft directly from the currentChat object.
                 // The currentChat object should have been populated with encrypted_draft_md and draft_v
                 // by the time it's passed to this function or fetched by chatDB.getChat().
-                const encryptedDraftMd = draftRestoreChat.encrypted_draft_md;
-                const encryptedDraftPreview = draftRestoreChat.encrypted_draft_preview;
-                const draftVersion = draftRestoreChat.draft_v;
+                let encryptedDraftMd = draftRestoreChat.encrypted_draft_md;
+                let encryptedDraftPreview = draftRestoreChat.encrypted_draft_preview;
+                let draftVersion = draftRestoreChat.draft_v;
+                if (!encryptedDraftMd && !encryptedDraftPreview) {
+                    try {
+                        const rawDraftChat = await chatDB.getRawChat(draftRestoreChatId);
+                        encryptedDraftMd = rawDraftChat?.encrypted_draft_md ?? encryptedDraftMd;
+                        encryptedDraftPreview = rawDraftChat?.encrypted_draft_preview ?? encryptedDraftPreview;
+                        draftVersion = rawDraftChat?.draft_v ?? draftVersion;
+                    } catch (error) {
+                        console.debug(`[ActiveChat] Could not hydrate raw draft fields during restore for ${draftRestoreChatId}:`, error);
+                    }
+                }
                 const decryptDraftWithRetry = async (encryptedValue: string, fieldName: string): Promise<string | null> => {
                     for (let attempt = 0; attempt < 20; attempt += 1) {
                         if (!isCurrentDraftRestoreTarget()) return null;
