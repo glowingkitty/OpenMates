@@ -170,37 +170,20 @@ function chatItem(page: any, chatId: string): any {
 	return page.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${chatId}"]`);
 }
 
-async function logDraftOpenDiagnostics(page: any, chatId: string, label: string): Promise<void> {
-	const diagnostics = await page.evaluate(async (targetChatId: string) => {
-		async function readChatRecord(): Promise<Record<string, unknown> | null> {
+async function logDraftOpenDiagnostics(page: any, chatId: string, label: string, expectedText?: string): Promise<void> {
+	const diagnostics = await page.evaluate(async ({ targetChatId, expected }: { targetChatId: string; expected?: string }) => {
+		async function readIdbValue<T>(dbName: string, storeName: string, key: IDBValidKey): Promise<T | null> {
 			return new Promise((resolve) => {
-				const request = indexedDB.open('chats_db');
+				const request = indexedDB.open(dbName);
 				request.onerror = () => resolve(null);
 				request.onsuccess = () => {
 					const db = request.result;
 					try {
-						const transaction = db.transaction('chats', 'readonly');
-						const store = transaction.objectStore('chats');
-						const getRequest = store.get(targetChatId);
+						const transaction = db.transaction(storeName, 'readonly');
+						const store = transaction.objectStore(storeName);
+						const getRequest = store.get(key);
 						getRequest.onerror = () => resolve(null);
-						getRequest.onsuccess = () => {
-							const record = getRequest.result as Record<string, unknown> | undefined;
-							if (!record) {
-								resolve(null);
-								return;
-							}
-							resolve({
-								chat_id: record.chat_id,
-								draft_v: record.draft_v,
-								title_v: record.title_v,
-								messages_v: record.messages_v,
-								has_encrypted_draft_md: typeof record.encrypted_draft_md === 'string' && record.encrypted_draft_md.length > 0,
-								encrypted_draft_md_length: typeof record.encrypted_draft_md === 'string' ? record.encrypted_draft_md.length : 0,
-								has_encrypted_draft_preview: typeof record.encrypted_draft_preview === 'string' && record.encrypted_draft_preview.length > 0,
-								encrypted_draft_preview_length: typeof record.encrypted_draft_preview === 'string' ? record.encrypted_draft_preview.length : 0,
-								ideabucket: record.ideabucket,
-							});
-						};
+						getRequest.onsuccess = () => resolve((getRequest.result as T | undefined) ?? null);
 					} catch {
 						resolve(null);
 					} finally {
@@ -209,6 +192,29 @@ async function logDraftOpenDiagnostics(page: any, chatId: string, label: string)
 				};
 			});
 		}
+
+		async function decryptWithMasterKey(encrypted: unknown): Promise<{ length: number; containsExpected: boolean; ok: boolean } | null> {
+			if (typeof encrypted !== 'string' || encrypted.length === 0) return null;
+			const masterKey = await readIdbValue<CryptoKey>('openmates_crypto', 'keys', 'master_key');
+			if (!masterKey) return { length: 0, containsExpected: false, ok: false };
+			try {
+				const binary = atob(encrypted);
+				const combined = new Uint8Array(binary.length);
+				for (let index = 0; index < binary.length; index += 1) combined[index] = binary.charCodeAt(index);
+				const decrypted = await crypto.subtle.decrypt(
+					{ name: 'AES-GCM', iv: combined.slice(0, 12) },
+					masterKey,
+					combined.slice(12)
+				);
+				const text = new TextDecoder().decode(decrypted);
+				return { length: text.length, containsExpected: expected ? text.includes(expected) : false, ok: true };
+			} catch {
+				return { length: 0, containsExpected: false, ok: false };
+			}
+		}
+
+		const record = await readIdbValue<Record<string, unknown>>('chats_db', 'chats', targetChatId);
+		const editor = document.querySelector('[data-testid="message-editor"]');
 
 		const matchingRows = Array.from(document.querySelectorAll('[data-testid="chat-item-wrapper"]'))
 			.filter((element) => element.getAttribute('data-chat-id') === targetChatId)
@@ -221,12 +227,28 @@ async function logDraftOpenDiagnostics(page: any, chatId: string, label: string)
 		return {
 			url: window.location.href,
 			hash: window.location.hash,
-			editorTextLength: document.querySelector('[data-testid="message-editor"]')?.textContent?.length ?? 0,
+			editorTextLength: editor?.textContent?.length ?? 0,
+			editorHtmlLength: editor?.innerHTML?.length ?? 0,
+			editorChildCount: editor?.childElementCount ?? 0,
 			searchOpen: !!document.querySelector('[data-testid="search-bar"]'),
 			matchingRows,
-			chatRecord: await readChatRecord(),
+			chatRecord: record
+				? {
+						chat_id: record.chat_id,
+						draft_v: record.draft_v,
+						title_v: record.title_v,
+						messages_v: record.messages_v,
+						has_encrypted_draft_md: typeof record.encrypted_draft_md === 'string' && record.encrypted_draft_md.length > 0,
+						encrypted_draft_md_length: typeof record.encrypted_draft_md === 'string' ? record.encrypted_draft_md.length : 0,
+						encrypted_draft_md_decrypt: await decryptWithMasterKey(record.encrypted_draft_md),
+						has_encrypted_draft_preview: typeof record.encrypted_draft_preview === 'string' && record.encrypted_draft_preview.length > 0,
+						encrypted_draft_preview_length: typeof record.encrypted_draft_preview === 'string' ? record.encrypted_draft_preview.length : 0,
+						encrypted_draft_preview_decrypt: await decryptWithMasterKey(record.encrypted_draft_preview),
+						ideabucket: record.ideabucket,
+					}
+				: null,
 		};
-	}, chatId);
+	}, { targetChatId: chatId, expected: expectedText });
 	console.log(`[${label}] Draft open diagnostics: ${JSON.stringify(diagnostics)}`);
 }
 
@@ -283,7 +305,7 @@ async function expectIdeaBucketDraftMarkers(page: any, chatId: string, expectedT
 	try {
 		await expect(editor).toContainText(expectedText, { timeout: 15_000 });
 	} catch (error) {
-		await logDraftOpenDiagnostics(page, chatId, 'IDEABUCKET_WEB_MARKERS');
+		await logDraftOpenDiagnostics(page, chatId, 'IDEABUCKET_WEB_MARKERS', expectedText);
 		throw error;
 	}
 	await expect(page.getByTestId('ideabucket-input-pill')).toBeVisible({ timeout: 15_000 });
@@ -364,7 +386,7 @@ async function openDraft(page: any, chatId: string, expectedText: string): Promi
 	try {
 		await expect(editor).toContainText(expectedText, { timeout: 15_000 });
 	} catch (error) {
-		await logDraftOpenDiagnostics(page, chatId, 'CROSS_CLIENT_DRAFT_SYNC');
+		await logDraftOpenDiagnostics(page, chatId, 'CROSS_CLIENT_DRAFT_SYNC', expectedText);
 		throw error;
 	}
 	return item;
