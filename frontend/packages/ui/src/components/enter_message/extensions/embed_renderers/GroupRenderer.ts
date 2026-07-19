@@ -1388,7 +1388,14 @@ export class GroupRenderer implements EmbedRenderer {
     target.innerHTML = "";
 
     const handleFullscreen = () => {
-      this.openFullscreen(item, embedData, decodedContent);
+      this.openFullscreen(item, embedData, {
+        ...(decodedContent ?? {}),
+        app_id: appId,
+        skill_id: skillId,
+        query,
+        provider,
+        embed_ids: childEmbedIds,
+      });
     };
 
     try {
