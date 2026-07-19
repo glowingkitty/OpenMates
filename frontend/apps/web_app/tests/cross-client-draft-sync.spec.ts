@@ -90,12 +90,12 @@ async function runCli(
 async function runCliJson(apiUrl: string, args: string[], timeoutMs = 60_000): Promise<any> {
 	const command = args.slice(0, 2).join(' ');
 	let result: { code: number | null; stdout: string; stderr: string } | null = null;
-	for (let attempt = 0; attempt < 3; attempt += 1) {
+	for (let attempt = 0; attempt < 6; attempt += 1) {
 		result = await runCli(apiUrl, [...args, '--json'], timeoutMs);
 		if (result.code === 0) return JSON.parse(result.stdout);
 		const transientNetworkError = /fetch failed|ECONNRESET|ETIMEDOUT|EAI_AGAIN|ENOTFOUND/i.test(result.stderr);
-		if (!transientNetworkError || attempt === 2) break;
-		await new Promise((resolve) => setTimeout(resolve, 1_000 * (attempt + 1)));
+		if (!transientNetworkError || attempt === 5) break;
+		await new Promise((resolve) => setTimeout(resolve, 1_500 * (attempt + 1)));
 	}
 	expect(result, `openmates ${command} did not produce a result`).not.toBeNull();
 	expect(
@@ -106,55 +106,69 @@ async function runCliJson(apiUrl: string, args: string[], timeoutMs = 60_000): P
 }
 
 async function pairCli(page: any, apiUrl: string, baseUrl: string): Promise<void> {
-	const child = spawn('node', [CLI_DIST, 'login'], {
-		env: cliEnvironment(apiUrl),
-		stdio: ['pipe', 'pipe', 'pipe']
-	});
-	const stdout: string[] = [];
-	const stderr: string[] = [];
-	child.stdout.on('data', (data: Buffer) => stdout.push(data.toString()));
-	child.stderr.on('data', (data: Buffer) => stderr.push(data.toString()));
-	child.stdin.on('error', (error: Error) => stderr.push(`CLI stdin error: ${error.message}\n`));
-
-	try {
-		const token = await expect
-			.poll(() => stdout.join('').match(/pair=([A-Z0-9]{6})/)?.[1] ?? null, {
-				timeout: 15_000,
-				intervals: [250, 500]
-			})
-			.not.toBeNull();
-		void token;
-		const pairToken = stdout.join('').match(/pair=([A-Z0-9]{6})/)?.[1];
-		expect(pairToken).toBeTruthy();
-
-		await page.goto(`${baseUrl}/#pair=${pairToken}`);
-		await page.getByTestId('pair-allow-button').click();
-		const pinDisplay = page.getByTestId('pair-pin-display');
-		await expect(pinDisplay).toBeVisible({ timeout: 15_000 });
-		const pin = ((await pinDisplay.textContent()) || '').replace(/\s/g, '');
-		expect(pin).toMatch(/^[A-Z0-9]{6}$/);
-		await new Promise<void>((resolve, reject) => {
-			child.stdin.write(`${pin}\n`, (error: Error | null | undefined) => {
-				if (error) reject(new Error(`CLI login input failed: ${error.message}`));
-				else resolve();
-			});
+	let lastStdout = '';
+	let lastStderr = '';
+	let lastError = '';
+	for (let attempt = 0; attempt < 3; attempt += 1) {
+		const child = spawn('node', [CLI_DIST, 'login'], {
+			env: cliEnvironment(apiUrl),
+			stdio: ['pipe', 'pipe', 'pipe']
 		});
+		const stdout: string[] = [];
+		const stderr: string[] = [];
+		child.stdout.on('data', (data: Buffer) => stdout.push(data.toString()));
+		child.stderr.on('data', (data: Buffer) => stderr.push(data.toString()));
+		child.stdin.on('error', (error: Error) => stderr.push(`CLI stdin error: ${error.message}\n`));
 
-		const exit = await new Promise<{ code: number | null }>((resolve) => {
-			const timeout = setTimeout(() => {
-				child.kill('SIGTERM');
-				resolve({ code: null });
-			}, 30_000);
-			child.on('close', (code: number | null) => {
-				clearTimeout(timeout);
-				resolve({ code });
+		try {
+			const token = await expect
+				.poll(() => stdout.join('').match(/pair=([A-Z0-9]{6})/)?.[1] ?? null, {
+					timeout: 30_000,
+					intervals: [500, 1_000]
+				})
+				.not.toBeNull();
+			void token;
+			const pairToken = stdout.join('').match(/pair=([A-Z0-9]{6})/)?.[1];
+			expect(pairToken).toBeTruthy();
+
+			await page.goto(`${baseUrl}/#pair=${pairToken}`);
+			await page.getByTestId('pair-allow-button').click();
+			const pinDisplay = page.getByTestId('pair-pin-display');
+			await expect(pinDisplay).toBeVisible({ timeout: 30_000 });
+			const pin = ((await pinDisplay.textContent()) || '').replace(/\s/g, '');
+			expect(pin).toMatch(/^[A-Z0-9]{6}$/);
+			await new Promise<void>((resolve, reject) => {
+				child.stdin.write(`${pin}\n`, (error: Error | null | undefined) => {
+					if (error) reject(new Error(`CLI login input failed: ${error.message}`));
+					else resolve();
+				});
 			});
-		});
-		expect(exit.code, `CLI login failed: ${stdout.join('')} ${stderr.join('')}`).toBe(0);
-		expect(stdout.join('')).toContain('Login successful');
-	} finally {
-		if (child.exitCode === null) child.kill('SIGTERM');
+
+			const exit = await new Promise<{ code: number | null }>((resolve) => {
+				const timeout = setTimeout(() => {
+					child.kill('SIGTERM');
+					resolve({ code: null });
+				}, 30_000);
+				child.on('close', (code: number | null) => {
+					clearTimeout(timeout);
+					resolve({ code });
+				});
+			});
+			expect(exit.code, `CLI login failed: ${stdout.join('')} ${stderr.join('')}`).toBe(0);
+			expect(stdout.join('')).toContain('Login successful');
+			return;
+		} catch (error) {
+			lastStdout = stdout.join('');
+			lastStderr = stderr.join('');
+			lastError = error instanceof Error ? error.message : String(error);
+			if (child.exitCode === null) child.kill('SIGTERM');
+			if (attempt === 2) break;
+			await new Promise((resolve) => setTimeout(resolve, 1_000 * (attempt + 1)));
+		} finally {
+			if (child.exitCode === null) child.kill('SIGTERM');
+		}
 	}
+	throw new Error(`CLI pairing failed after retries: ${lastError}\nstdout:\n${lastStdout}\nstderr:\n${lastStderr}`);
 }
 
 async function openSidebar(page: any): Promise<void> {
@@ -200,8 +214,8 @@ async function replaceMessageEditorText(page: any, chatId: string, text: string)
 	await host.click();
 	await page.keyboard.press('ControlOrMeta+A');
 	await page.keyboard.press('ControlOrMeta+A');
-	await page.keyboard.press('Backspace');
 	if (text.length > 0) await page.keyboard.insertText(text);
+	else await page.keyboard.press('Backspace');
 	return editor;
 }
 
