@@ -211,7 +211,7 @@ async function replaceMessageEditorText(page: any, chatId: string, text: string)
 	const editor = messageEditorEditable(page, chatId);
 	await expect(host).toBeVisible({ timeout: 15_000 });
 	await expect(editor).toBeVisible({ timeout: 15_000 });
-	await host.click();
+	await editor.click();
 	await page.keyboard.press('ControlOrMeta+A');
 	await page.keyboard.press('ControlOrMeta+A');
 	await page.keyboard.press('Backspace');
