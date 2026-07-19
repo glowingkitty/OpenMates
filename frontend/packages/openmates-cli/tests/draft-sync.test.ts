@@ -156,7 +156,7 @@ describe("CLI draft reconciliation", () => {
     }
   });
 
-  it("recovers refreshed drafts from targeted sync when REST returns a transient null", async () => {
+  it("clears cached drafts when REST returns null", async () => {
     const originalHome = process.env.HOME;
     const home = mkdtempSync(join(tmpdir(), "openmates-drafts-rest-null-"));
     const state = join(home, ".openmates");
@@ -246,9 +246,9 @@ describe("CLI draft reconciliation", () => {
       const { OpenMatesClient } = await import(`../src/client.ts?draft-rest-null-test=${Date.now()}`);
       const client = OpenMatesClient.load({ apiUrl });
       const created = await client.saveDraft({ markdown: "private draft", preview: "private preview" });
-      assert.equal((await client.getDraft(created.chatId, true))?.markdown, "private draft");
-      assert.deepEqual(seen.map((frame) => frame.type), ["update_draft", "phased_sync_request"]);
-      assert.deepEqual(seen[1]?.payload.refresh_chat_ids, [created.chatId]);
+      assert.equal(await client.getDraft(created.chatId, true), null);
+      assert.equal(await client.getDraft(created.chatId), null);
+      assert.deepEqual(seen.map((frame) => frame.type), ["update_draft"]);
     } finally {
       process.env.HOME = originalHome;
       wss.close();
@@ -257,7 +257,7 @@ describe("CLI draft reconciliation", () => {
     }
   });
 
-  it("replaces a stale cached draft from targeted sync when REST returns null", async () => {
+  it("does not resurrect stale cached drafts when REST returns null", async () => {
     const originalHome = process.env.HOME;
     const home = mkdtempSync(join(tmpdir(), "openmates-drafts-stale-cache-"));
     const state = join(home, ".openmates");
@@ -350,10 +350,9 @@ describe("CLI draft reconciliation", () => {
 
       const refreshed = await client.getDraft(created.chatId, true);
 
-      assert.equal(refreshed?.markdown, "new draft");
-      assert.equal(refreshed?.draftV, 2);
-      assert.deepEqual(seen.map((frame) => frame.type), ["update_draft", "phased_sync_request"]);
-      assert.deepEqual(seen[1]?.payload.refresh_chat_ids, [created.chatId]);
+      assert.equal(refreshed, null);
+      assert.equal(await client.getDraft(created.chatId), null);
+      assert.deepEqual(seen.map((frame) => frame.type), ["update_draft"]);
     } finally {
       process.env.HOME = originalHome;
       wss.close();

@@ -4114,7 +4114,15 @@ export class OpenMatesClient {
 
       const draft = response.data.draft;
       if (!draft || typeof draft.encrypted_draft_md !== "string") {
-        return await this.refreshDraftFromTargetedSync(chatId);
+        const cache = loadSyncCache();
+        const cachedChat = cache?.chats.find((entry) => String(entry.details.id ?? "") === chatId);
+        if (cache && cachedChat) {
+          delete cachedChat.details.encrypted_draft_md;
+          delete cachedChat.details.encrypted_draft_preview;
+          cachedChat.details.draft_v = 0;
+          saveSyncCache(cache);
+        }
+        return null;
       }
 
       const encryptedDraft: EncryptedDraft = {
