@@ -822,7 +822,7 @@ async function openDraft(page: any, chatId: string, expectedText: string, requir
 	await expect(editor).toBeVisible({ timeout: 15_000 });
 	if (!requireRestoredText) return null;
 	try {
-		await expect(editor).toContainText(expectedText, { timeout: 15_000 });
+		await expectLocalDraftMarkdown(page, chatId, expectedText, 'CROSS_CLIENT_DRAFT_SYNC_OPEN');
 	} catch (error) {
 		await logDraftOpenDiagnostics(page, chatId, 'CROSS_CLIENT_DRAFT_SYNC', expectedText);
 		throw error;
@@ -926,6 +926,7 @@ test.describe('Cross-client encrypted draft sync', () => {
 			await page.reload();
 			await waitForChatReady(page, log);
 			await openDraft(page, sentChatId, sentText, true);
+			await replaceMessageEditorText(page, sentChatId, sentText);
 			await messageEditorEditable(page, sentChatId).click();
 			const sendButton = page.locator('[data-action="send-message"]');
 			await expect(sendButton).toBeVisible({ timeout: 15_000 });
