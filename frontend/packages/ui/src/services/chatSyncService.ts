@@ -1706,12 +1706,14 @@ export class ChatSynchronizationService extends EventTarget {
     chat_id: string,
     draft_content: string | null,
     draft_preview?: string | null,
+    expectedDraftVersion = 0,
   ) {
     await senders.sendUpdateDraftImpl(
       this,
       chat_id,
       draft_content,
       draft_preview,
+      expectedDraftVersion,
     );
   }
   public async sendUpdateEncryptedChatKey(

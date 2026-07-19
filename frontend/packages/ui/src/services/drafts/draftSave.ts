@@ -1247,6 +1247,7 @@ export const saveDraftDebounced = debounce(
           currentChatIdForOperation,
           encryptedMarkdown,
           encryptedPreview,
+          userDraft.draft_v,
         );
         console.info(
           `[DraftService] Successfully sent encrypted draft to server for chat ${currentChatIdForOperation}.`,

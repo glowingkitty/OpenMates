@@ -25,15 +25,16 @@ type DraftUpdateReceiptPayload = {
 	success?: boolean;
 };
 
-function waitForDraftUpdateReceipt(chatId: string): Promise<void> {
+function waitForDraftUpdateReceiptAtVersion(chatId: string, minimumDraftVersion: number): Promise<void> {
 	return new Promise((resolve, reject) => {
 		const timeout = window.setTimeout(() => {
 			webSocketService.off("draft_update_receipt", handleReceipt);
-			reject(new Error(`Timed out waiting for draft update receipt for chat ${chatId}`));
+			reject(new Error(`Timed out waiting for draft update receipt for chat ${chatId} at draft_v >= ${minimumDraftVersion}`));
 		}, DRAFT_UPDATE_RECEIPT_TIMEOUT_MS);
 
 		const handleReceipt = (payload: DraftUpdateReceiptPayload): void => {
 			if (payload.chat_id !== chatId) return;
+			if ((payload.draft_v ?? 0) < minimumDraftVersion) return;
 			window.clearTimeout(timeout);
 			webSocketService.off("draft_update_receipt", handleReceipt);
 			if (payload.success === false) {
@@ -51,18 +52,20 @@ export async function sendUpdateDraftImpl(
 	serviceInstance: ChatSynchronizationService,
 	chat_id: string,
 	draft_content: string | null,
-	draft_preview?: string | null
+	draft_preview?: string | null,
+	expectedDraftVersion = 0
 ): Promise<void> {
 	// NOTE: draft_content and draft_preview here are ENCRYPTED for secure server transmission
 	// Local database saving with encrypted content should have already occurred in draftSave.ts
 	const payload: UpdateDraftPayload = {
 		chat_id,
 		encrypted_draft_md: draft_content,
-		encrypted_draft_preview: draft_preview
+		encrypted_draft_preview: draft_preview,
+		draft_v: expectedDraftVersion > 0 ? expectedDraftVersion : undefined
 	};
 
 	// Send encrypted draft to server for synchronization
-	const receipt = waitForDraftUpdateReceipt(chat_id);
+	const receipt = waitForDraftUpdateReceiptAtVersion(chat_id, expectedDraftVersion);
 	try {
 		await webSocketService.sendMessage("update_draft", payload);
 		await receipt;

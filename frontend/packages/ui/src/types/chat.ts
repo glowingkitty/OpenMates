@@ -472,6 +472,7 @@ export interface UpdateDraftPayload {
   chat_id: string;
   encrypted_draft_md: string | null;
   encrypted_draft_preview?: string | null;
+  draft_v?: number;
 }
 
 export interface SyncOfflineChangesPayload {
