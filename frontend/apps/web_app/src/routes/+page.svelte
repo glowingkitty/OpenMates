@@ -790,7 +790,10 @@
 		const loadChatFromIndexedDB = async (retries = 20): Promise<void> => {
 			try {
 				await chatDB.init(); // Ensure DB is initialized
-				const chat = await chatDB.getChat(chatId);
+				let chat = await chatDB.getChat(chatId);
+				if (!chat && $authStore.isAuthenticated) {
+					chat = await chatDB.getRawChat(chatId).catch(() => null);
+				}
 
 				if (chat) {
 					console.debug(`[+page.svelte] Found deep-linked chat in IndexedDB:`, chat.chat_id);
