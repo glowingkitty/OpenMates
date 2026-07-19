@@ -42,7 +42,11 @@ test.describe('Business company financials public example chat', () => {
 		}
 
 		await parent.click();
-		await expect(page.locator('body')).not.toContainText('Fullscreen view not available for embed type: app-skill-use', { timeout: 15_000 });
+		const fallback = page.locator('.embed-fullscreen-fallback').filter({ hasText: 'Fullscreen view not available for embed type: app-skill-use' }).first();
+		if (await fallback.isVisible({ timeout: 15_000 }).catch(() => false)) {
+			const debug = await page.getByTestId('embed-fullscreen-debug').first().textContent().catch(() => null);
+			throw new Error(`Business financials fullscreen used app-skill fallback. Debug: ${debug ?? 'missing'}`);
+		}
 		const fullscreen = page.getByTestId('embed-fullscreen-container').filter({ has: page.getByTestId('search-template-grid') }).first();
 		await expect(fullscreen).toBeVisible({ timeout: 15_000 });
 		const resultCards = await verifySearchGrid(fullscreen, 1, 30_000);

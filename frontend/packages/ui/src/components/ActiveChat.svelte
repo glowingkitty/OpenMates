@@ -12713,6 +12713,18 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 {:else}
                     <!-- Fallback for unknown/unregistered embed types -->
                     <div class="embed-fullscreen-fallback">
+                        <pre data-testid="embed-fullscreen-debug" hidden>{JSON.stringify({
+                            embedId: fullscreenData.embedId,
+                            embedType: fullscreenData.embedType,
+                            registryKey,
+                            registryContentAppId: registryContent.app_id,
+                            registryContentSkillId: registryContent.skill_id,
+                            registryContentType: registryContent.type,
+                            registryContentKeys: Object.keys(registryContent ?? {}).sort(),
+                            attrs: fullscreenData.attrs,
+                            embedData: fullscreenData.embedData,
+                            decodedContent: fullscreenData.decodedContent,
+                        })}</pre>
                         <div class="fullscreen-header">
                             <button onclick={handleCloseEmbedFullscreen}>Close</button>
                         </div>
