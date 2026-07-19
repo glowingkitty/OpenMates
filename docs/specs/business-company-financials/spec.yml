@@ -722,19 +722,19 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: pending
+        status: fail
         command: python3 scripts/tests.py run --spec business-company-financials.spec.ts
-        run_id: ""
-        timestamp: ""
+        run_id: "2026-07-19T14:42:27Z"
+        timestamp: "2026-07-19T14:49:47Z"
     green_phase:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: ""
-        command: ""
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: pass
+        command: python3 scripts/tests.py run --spec business-company-financials.spec.ts
+        run_id: "2026-07-19T15:40:36Z"
+        subject_commit: 8594e945c
+        timestamp: "2026-07-19T15:47:55Z"
 
   - id: T-PLAYWRIGHT-EXAMPLE
     type: playwright
