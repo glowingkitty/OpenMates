@@ -4101,32 +4101,20 @@ export class OpenMatesClient {
 
   async getDraft(chatId: string, forceRefresh = false): Promise<DecryptedDraft | null> {
     if (forceRefresh) {
-      const response = await this.http.get<SdkDraftResponse>(
-        `/v1/drafts/${encodeURIComponent(chatId)}`,
-        this.getCliRequestHeaders(),
-      );
+      let response;
+      try {
+        response = await this.http.get<SdkDraftResponse>(
+          `/v1/drafts/${encodeURIComponent(chatId)}`,
+          this.getCliRequestHeaders(),
+        );
+      } catch {
+        return await this.refreshDraftFromTargetedSync(chatId);
+      }
       if (!response.ok) throw new Error(`Draft refresh failed with HTTP ${response.status}`);
 
       const draft = response.data.draft;
       if (!draft || typeof draft.encrypted_draft_md !== "string") {
-        const syncedCache = await this.ensureSynced(true, [chatId]);
-        const syncedChat = syncedCache.chats.find((entry) => String(entry.details.id ?? "") === chatId);
-        const syncedDraft = syncedChat ? await this.decryptCachedDraft(syncedChat) : null;
-        if (syncedDraft) return syncedDraft;
-
-        const cache = loadSyncCache();
-        const cachedChat = cache?.chats.find((entry) => String(entry.details.id ?? "") === chatId);
-        if (cache && cachedChat) {
-          const versions = await this.reconcileDraftVersions();
-          if (versions[chatId] !== 0) {
-            return await this.decryptCachedDraft(cachedChat);
-          }
-          delete cachedChat.details.encrypted_draft_md;
-          delete cachedChat.details.encrypted_draft_preview;
-          cachedChat.details.draft_v = 0;
-          saveSyncCache(cache);
-        }
-        return null;
+        return await this.refreshDraftFromTargetedSync(chatId);
       }
 
       const encryptedDraft: EncryptedDraft = {
@@ -4151,6 +4139,27 @@ export class OpenMatesClient {
     const cache = await this.ensureSynced(forceRefresh);
     const chat = cache.chats.find((entry) => String(entry.details.id ?? "") === chatId);
     return chat ? this.decryptCachedDraft(chat) : null;
+  }
+
+  private async refreshDraftFromTargetedSync(chatId: string): Promise<DecryptedDraft | null> {
+    const syncedCache = await this.ensureSynced(true, [chatId]);
+    const syncedChat = syncedCache.chats.find((entry) => String(entry.details.id ?? "") === chatId);
+    const syncedDraft = syncedChat ? await this.decryptCachedDraft(syncedChat) : null;
+    if (syncedDraft) return syncedDraft;
+
+    const cache = loadSyncCache();
+    const cachedChat = cache?.chats.find((entry) => String(entry.details.id ?? "") === chatId);
+    if (cache && cachedChat) {
+      const versions = await this.reconcileDraftVersions();
+      if (versions[chatId] !== 0) {
+        return await this.decryptCachedDraft(cachedChat);
+      }
+      delete cachedChat.details.encrypted_draft_md;
+      delete cachedChat.details.encrypted_draft_preview;
+      cachedChat.details.draft_v = 0;
+      saveSyncCache(cache);
+    }
+    return null;
   }
 
   async clearDraft(chatId: string): Promise<void> {
