@@ -180,7 +180,12 @@ def validate_media_generation_request(
     has_imitation_context = bool(_FAMOUS_PERSON_CONTEXT_RE.search(text))
     has_named_person_media_use = bool(_NAMED_PERSON_MEDIA_USE_RE.search(text))
     has_mononym_voice_or_persona = bool(_MONONYM_VOICE_OR_PERSONA_RE.search(text))
-    if has_named_person_media_use or has_mononym_voice_or_persona or (has_named_person and has_voice_or_persona):
+    if (
+        has_named_person_media_use
+        or has_mononym_voice_or_persona
+        or (has_named_person and has_voice_or_persona)
+        or (normalized_media_type == "image" and has_named_person and has_public_role)
+    ):
         return MediaGenerationDecision(
             allowed=False,
             category="G3_public_figure_voice_or_persona",

@@ -79,6 +79,16 @@ def test_blocks_named_person_prefix_action_video():
     assert decision.category == "G3_public_figure_voice_or_persona"
 
 
+def test_blocks_image_public_role_named_person_without_image_word():
+    decision = validate_media_generation_request(
+        media_type="image",
+        prompt="President Example Politician shaking hands with a dog",
+    )
+
+    assert not decision.allowed
+    assert decision.category == "G3_public_figure_voice_or_persona"
+
+
 def test_blocks_named_person_clip_video():
     decision = validate_media_generation_request(
         media_type="video",
