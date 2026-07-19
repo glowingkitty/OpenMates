@@ -55,10 +55,25 @@ describe("CLI draft reconciliation", () => {
     mkdirSync(state, { recursive: true });
     process.env.HOME = home;
     const seen: Array<{ type: string; payload: Record<string, unknown> }> = [];
+    const seenHttp: Array<{ method?: string; url?: string }> = [];
+    let storedDraft: { chatId: string; encryptedDraftMd: string; encryptedDraftPreview: string | null; draftV: number } | null = null;
     const server = createServer((request, response) => {
+      seenHttp.push({ method: request.method, url: request.url });
       if (request.url === "/v1/auth/session") {
         response.writeHead(200, { "content-type": "application/json" });
         response.end(JSON.stringify({ success: true, ws_token: "fresh-token" }));
+        return;
+      }
+      if (request.url === `/v1/sdk/drafts/${storedDraft?.chatId}`) {
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({
+          draft: {
+            chat_id: storedDraft.chatId,
+            encrypted_draft_md: storedDraft.encryptedDraftMd,
+            encrypted_draft_preview: storedDraft.encryptedDraftPreview,
+            draft_v: storedDraft.draftV,
+          },
+        }));
         return;
       }
       response.writeHead(404).end();
@@ -69,6 +84,14 @@ describe("CLI draft reconciliation", () => {
         const frame = JSON.parse(raw.toString());
         seen.push(frame);
         if (frame.type === "update_draft") {
+          storedDraft = {
+            chatId: String(frame.payload.chat_id),
+            encryptedDraftMd: String(frame.payload.encrypted_draft_md),
+            encryptedDraftPreview: typeof frame.payload.encrypted_draft_preview === "string"
+              ? String(frame.payload.encrypted_draft_preview)
+              : null,
+            draftV: 1,
+          };
           socket.send(JSON.stringify({
             type: "draft_update_receipt",
             payload: { chat_id: frame.payload.chat_id, draft_v: 1, success: true },
@@ -109,6 +132,7 @@ describe("CLI draft reconciliation", () => {
       const created = await client.saveDraft({ markdown: "private draft", preview: "private preview" });
       assert.equal((await client.listDrafts()).length, 1);
       assert.equal((await client.getDraft(created.chatId))?.markdown, "private draft");
+      assert.equal((await client.getDraft(created.chatId, true))?.markdown, "private draft");
       assert.deepEqual(await client.reconcileDraftVersions(), { [created.chatId]: 1 });
       await client.clearDraft(created.chatId);
 
@@ -120,6 +144,10 @@ describe("CLI draft reconciliation", () => {
         "get_draft_versions",
         "delete_draft",
       ]);
+      assert.equal(
+        seenHttp.some((request) => request.method === "GET" && request.url === `/v1/sdk/drafts/${created.chatId}`),
+        true,
+      );
     } finally {
       process.env.HOME = originalHome;
       wss.close();

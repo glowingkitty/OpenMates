@@ -65,7 +65,7 @@ function installWebSocketFrameTracker(page: any): WebSocketFrameRecord[] {
 			// Non-JSON control frames are irrelevant for this draft-sync contract.
 		}
 		frames.push({ direction, type, chatId, draftV, text: text.slice(0, 500) });
-		if (frames.length > 200) frames.shift();
+		if (frames.length > 5_000) frames.shift();
 	};
 
 	page.on('websocket', (ws: any) => {

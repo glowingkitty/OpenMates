@@ -4082,7 +4082,7 @@ export class OpenMatesClient {
   async getDraft(chatId: string, forceRefresh = false): Promise<DecryptedDraft | null> {
     if (forceRefresh) {
       const response = await this.http.get<SdkDraftResponse>(
-        `/v1/drafts/${encodeURIComponent(chatId)}`,
+        `/v1/sdk/drafts/${encodeURIComponent(chatId)}`,
         this.getCliRequestHeaders(),
       );
       if (!response.ok) throw new Error(`Draft refresh failed with HTTP ${response.status}`);
