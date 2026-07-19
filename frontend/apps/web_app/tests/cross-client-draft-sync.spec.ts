@@ -554,7 +554,10 @@ test.describe('Cross-client encrypted draft sync', () => {
 
 			const editor = messageEditorEditable(page);
 			await expect(editor).toBeVisible({ timeout: 15_000 });
-			await editor.fill(editedDraftText);
+			await editor.click();
+			await page.keyboard.press('ControlOrMeta+A');
+			await page.keyboard.press('Backspace');
+			await page.keyboard.insertText(editedDraftText);
 			await expect(editor).toContainText(editedDraftText, { timeout: 10_000 });
 			await page.getByTestId('input-dismiss-button').click();
 			await expect
