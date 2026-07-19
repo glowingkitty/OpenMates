@@ -4666,19 +4666,12 @@
             return;
         }
 
-        const content = text.trim().length > 0
-            ? {
-                type: 'doc',
-                content: [
-                    {
-                        type: 'paragraph',
-                        content: [{ type: 'text', text }],
-                    },
-                ],
-            }
-            : getInitialContent();
-
-        editor.commands.setContent(content, { emitUpdate: false });
+        editor.commands.clearContent(false);
+        if (text.trim().length > 0) {
+            editor.commands.insertContent(text);
+        } else {
+            editor.commands.setContent(getInitialContent(), { emitUpdate: false });
+        }
         originalMarkdown = text;
         hasContent = !isContentEmptyExceptMention(editor);
         lastEditorUpdateText = editor.getText();
