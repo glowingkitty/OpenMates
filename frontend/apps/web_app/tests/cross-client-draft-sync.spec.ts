@@ -456,9 +456,9 @@ async function expectLocalDraftMarkdown(page: any, chatId: string, expectedText:
 				intervals: [500, 1_000]
 			})
 			.toBe(expectedText);
-	} catch (error) {
+	} catch (_error) {
 		await logDraftOpenDiagnostics(page, chatId, `${label}_LOCAL_DRAFT_AFTER_EDIT`, expectedText);
-		throw error;
+		throw _error;
 	}
 	return readLocalDraftMarkdown(page, chatId);
 }

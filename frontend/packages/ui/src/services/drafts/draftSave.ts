@@ -578,6 +578,21 @@ export async function clearCurrentDraft() {
 // latest content is never persisted.
 let resaveNeeded = false;
 
+const OFFLINE_DRAFT_FLUSH_RETRY_DELAYS_MS = [250, 1_000, 3_000] as const;
+
+function scheduleOfflineDraftFlush(): void {
+  for (const delayMs of OFFLINE_DRAFT_FLUSH_RETRY_DELAYS_MS) {
+    window.setTimeout(() => {
+      chatSyncService.sendOfflineChanges().catch((error) => {
+        console.warn(
+          "[DraftService] Deferred offline draft flush did not complete:",
+          error,
+        );
+      });
+    }, delayMs);
+  }
+}
+
 /**
  * Saves the current editor content as a draft.
  * If content is empty, it triggers the modified clearCurrentDraft (which now deletes).
@@ -1248,6 +1263,7 @@ export const saveDraftDebounced = debounce(
           version_before_edit: versionBeforeSave,
         };
         await chatSyncService.queueOfflineChange(offlineChange);
+        scheduleOfflineDraftFlush();
         draftEditorUIState.update((s) => ({
           ...s,
           hasUnsavedChanges: true,
