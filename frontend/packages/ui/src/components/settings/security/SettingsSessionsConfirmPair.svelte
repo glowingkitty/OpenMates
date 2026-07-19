@@ -287,9 +287,8 @@ key derived from PIN + token-as-salt (PBKDF2 / 100k iterations).
      *                         bypassing the need for the user's password. This works
      *                         because the authorizing device has already proven identity.
      *
-     * Primary source: sessionStorage values stored during login (lookup_hash, user_email_salt).
+     * Primary source: authenticated GET /v1/auth/pair/credentials for the current session.
      * Master key: always exported fresh from in-memory CryptoKey (avoids needing password).
-     * Fallback for identifiers: authenticated GET /v1/auth/pair/credentials.
      * Bundle is never sent to the server in plaintext — only as AES-GCM ciphertext.
      *
      * Security note: the raw master key is only included in the AES-GCM encrypted bundle
@@ -315,27 +314,24 @@ key derived from PIN + token-as-salt (PBKDF2 / 100k iterations).
         // Step 2: get lookup_hash, hashed_email, and user_email_salt
         // hashed_email = SHA256(email) — needed by /auth/login to find the user
         // user_email_salt = salt for client-side key derivation (NOT the same as hashed_email)
-        let lookup_hash = sessionStorage.getItem('openmates_pair_lookup_hash');
-        let user_email_salt = sessionStorage.getItem('openmates_email_salt')
-            || localStorage.getItem('openmates_email_salt');
-        let hashed_email: string | null = null;
-
-        // Always call /pair/credentials to get hashed_email (not stored in sessionStorage),
-        // and fill in any missing lookup_hash / user_email_salt as before
         const response = await fetch(getApiEndpoint('/v1/auth/pair/credentials'), {
             method: 'GET',
             credentials: 'include',
         });
 
-        if (response.ok) {
-            const data: PairCredentialsApiResponse = await response.json();
-            lookup_hash = lookup_hash || data.lookup_hash || null;
-            user_email_salt = user_email_salt || data.user_email_salt || null;
-            hashed_email = data.hashed_email || null;
-
-            if (lookup_hash) sessionStorage.setItem('openmates_pair_lookup_hash', lookup_hash);
-            if (user_email_salt) sessionStorage.setItem('openmates_email_salt', user_email_salt);
+        if (!response.ok) {
+            throw new Error(
+                'Pair login credentials not available. Please log out and log back in, then try again.'
+            );
         }
+
+        const data: PairCredentialsApiResponse = await response.json();
+        const lookup_hash = data.lookup_hash || null;
+        const user_email_salt = data.user_email_salt || null;
+        const hashed_email = data.hashed_email || null;
+
+        if (lookup_hash) sessionStorage.setItem('openmates_pair_lookup_hash', lookup_hash);
+        if (user_email_salt) sessionStorage.setItem('openmates_email_salt', user_email_salt);
 
         if (!lookup_hash || !user_email_salt || !hashed_email) {
             throw new Error(

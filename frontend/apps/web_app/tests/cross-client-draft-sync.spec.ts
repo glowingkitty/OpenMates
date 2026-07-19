@@ -481,6 +481,29 @@ function resultChatId(result: any): string {
 	return chatId;
 }
 
+async function expectCliPairedToBrowserAccount(page: any, apiUrl: string): Promise<void> {
+	const browserUserId = await page.evaluate(async (apiEndpoint: string) => {
+		const response = await fetch(`${apiEndpoint}/v1/auth/session`, {
+			method: 'POST',
+			credentials: 'include',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({})
+		});
+		const data = await response.json().catch(() => ({}));
+		if (!response.ok || data?.success !== true || !data?.user?.id) {
+			throw new Error(
+				`Browser session check failed: ${response.status} ${JSON.stringify(data).slice(0, 300)}`
+			);
+		}
+		return String(data.user.id);
+	}, apiUrl);
+	const cliUser = await runCliJson(apiUrl, ['whoami'], 20_000);
+	expect(
+		String(cliUser.id ?? ''),
+		'CLI pair login must authorize the currently logged-in browser account'
+	).toBe(browserUserId);
+}
+
 async function clearBrowserClientState(page: any, baseUrl: string): Promise<void> {
 	const resetUrl = `${new URL(baseUrl).origin}/e2e-ideabucket-cold-boot`;
 	await page.route(resetUrl, (route: any) =>
@@ -643,6 +666,7 @@ test.describe('Cross-client encrypted draft sync', () => {
 			log('Pairing CLI client.');
 			await pairCli(page, apiUrl, baseUrl);
 			cliPaired = true;
+			await expectCliPairedToBrowserAccount(page, apiUrl);
 			log('CLI client paired.');
 			await page.goto(baseUrl);
 			await waitForChatReady(page, log);
@@ -777,6 +801,7 @@ test.describe('Cross-client encrypted draft sync', () => {
 			log('Pairing CLI client for IdeaBucket web coverage.');
 			await pairCli(page, apiUrl, baseUrl);
 			cliPaired = true;
+			await expectCliPairedToBrowserAccount(page, apiUrl);
 			await page.goto(baseUrl);
 			await waitForChatReady(page, log);
 
