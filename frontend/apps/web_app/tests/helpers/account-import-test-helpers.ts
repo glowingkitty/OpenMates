@@ -198,7 +198,7 @@ async function installAccountImportMock(page: any, config: ImportMockConfig = {}
 			return;
 		}
 
-		if (request.method() === 'POST' && url.pathname === `/v1/account-imports/${importId}/scan`) {
+		if (request.method() === 'POST' && /^\/v1\/account-imports\/[^/]+\/scan$/.test(url.pathname)) {
 			await route.fulfill({
 				status: 200,
 				contentType: 'application/json',
@@ -212,7 +212,7 @@ async function installAccountImportMock(page: any, config: ImportMockConfig = {}
 			return;
 		}
 
-		if (request.method() === 'POST' && url.pathname === `/v1/account-imports/${importId}/persist-encrypted`) {
+		if (request.method() === 'POST' && /^\/v1\/account-imports\/[^/]+\/persist-encrypted$/.test(url.pathname)) {
 			const chats = Array.isArray(body?.chats) ? body.chats as Array<Record<string, unknown>> : [];
 			await route.fulfill({
 				status: 200,
@@ -230,7 +230,7 @@ async function installAccountImportMock(page: any, config: ImportMockConfig = {}
 			return;
 		}
 
-		if (request.method() === 'POST' && url.pathname === `/v1/account-imports/${importId}/complete`) {
+		if (request.method() === 'POST' && /^\/v1\/account-imports\/[^/]+\/complete$/.test(url.pathname)) {
 			await route.fulfill({
 				status: 200,
 				contentType: 'application/json',
