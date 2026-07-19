@@ -167,6 +167,9 @@ async def handle_update_draft(
             logger.error(f"Failed to update user draft in cache for user {user_id}, chat {chat_id}.")
             # Log error but continue, version was incremented.
         else:
+            # Keep this persistence dispatch with the WebSocket cache write: CLI/SDK
+            # refreshes read /v1/drafts from a separate request path and must not
+            # depend on the sender's Redis connection still holding the ciphertext.
             celery_app_instance.send_task(
                 name="app.tasks.persistence_tasks.persist_user_draft",
                 kwargs={
