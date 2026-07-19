@@ -1067,10 +1067,12 @@ export const saveDraftDebounced = debounce(
           // Not an incognito chat or error - continue to check IndexedDB
         }
 
-        // If not found in incognito service, check IndexedDB
+        // If not found in incognito service, check IndexedDB without decrypting
+        // metadata. Synced CLI/IdeaBucket draft-only shells may not have a usable
+        // local chat key yet, but their encrypted draft fields are safe to update.
         if (!existingChat) {
           try {
-            existingChat = await chatDB.getChat(currentChatIdForOperation);
+            existingChat = await chatDB.getRawChat(currentChatIdForOperation);
           } catch (error) {
             console.error(
               `[DraftService] Error during database lookup for chat ${currentChatIdForOperation}:`,
@@ -1155,16 +1157,24 @@ export const saveDraftDebounced = debounce(
             return;
           }
 
-          // Update regular chat draft in IndexedDB
+          // Update regular chat draft in IndexedDB using the raw row so draft-only
+          // sync shells do not depend on chat-key metadata decryption before the
+          // local draft write is durable.
           console.info(
             `[DraftService] Updating existing draft for chat ${currentChatIdForOperation}`,
           );
           versionBeforeSave = existingChat.draft_v || 0;
-          userDraft = await chatDB.saveCurrentUserChatDraft(
-            currentChatIdForOperation,
-            encryptedMarkdown,
-            encryptedPreview,
-          );
+          userDraft = {
+            ...existingChat,
+            encrypted_draft_md: encryptedMarkdown,
+            encrypted_draft_preview: encryptedPreview,
+            draft_v:
+              existingChat.encrypted_draft_md !== encryptedMarkdown
+                ? versionBeforeSave + 1
+                : versionBeforeSave,
+            updated_at: Math.floor(Date.now() / 1000),
+          };
+          await chatDB.upsertRawChat(userDraft);
           if (userDraft) {
             // currentChatId in state should already be currentChatIdForOperation due to earlier update or initial state
             draftEditorUIState.update((s) => ({
