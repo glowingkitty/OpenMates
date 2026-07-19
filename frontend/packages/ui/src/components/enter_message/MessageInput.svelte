@@ -4633,6 +4633,9 @@
         forceDraftActionsVisible = true;
         focus();
     }
+    export function flushCurrentDraft() {
+        if (editor && !editor.isDestroyed) flushSaveDraft(editor, currentChatId);
+    }
     export function sendCurrentMessage() { handleSendMessage(); }
     export function setSuggestionText(text: string) {
         console.debug('[MessageInput] setSuggestionText called with:', text);
