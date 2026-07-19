@@ -284,7 +284,10 @@
 
         if ((!content.app_id || !content.skill_id) && fullscreenData.embedId) {
             const exampleEmbed = getExampleChatEmbed(fullscreenData.embedId);
-            return mergeAppSkillToonMetadata(content, exampleEmbed?.content) ?? content;
+            const rawContent = typeof content.content === 'string'
+                ? content.content
+                : exampleEmbed?.content;
+            return mergeAppSkillToonMetadata(content, rawContent) ?? content;
         }
 
         return content;
