@@ -808,6 +808,36 @@
 		// For authenticated users, wait for sync to complete (chat might not be in IndexedDB yet)
 		const loadChatFromIndexedDB = async (retries = 20): Promise<void> => {
 			try {
+				const cachedDraftChat = $authStore.isAuthenticated
+					? chatListCache.getPendingOrCachedChat(chatId)
+					: null;
+				if (cachedDraftChat?.encrypted_draft_md || cachedDraftChat?.encrypted_draft_preview) {
+					console.debug(`[+page.svelte] Loading cached encrypted draft chat directly: ${chatId}`);
+					if (activeChat) {
+						activeChat.loadChat(cachedDraftChat, { scrollToLatestResponse, messageId });
+						lastLoadedChatId = cachedDraftChat.chat_id;
+
+						window.dispatchEvent(
+							new CustomEvent('globalChatSelected', {
+								detail: { chat: cachedDraftChat },
+								bubbles: true,
+								composed: true
+							})
+						);
+
+						if (embedId) {
+							await handleEmbedDeepLink(embedId, true);
+						}
+						return;
+					}
+
+					if (retries > 0) {
+						const delay = retries > 10 ? 50 : 100;
+						await new Promise((resolve) => setTimeout(resolve, delay));
+						return loadChatFromIndexedDB(retries - 1);
+					}
+				}
+
 				await chatDB.init(); // Ensure DB is initialized
 				let chat = $authStore.isAuthenticated
 					? await chatDB.getRawChat(chatId).catch(() => null)
