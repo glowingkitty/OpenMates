@@ -31,17 +31,17 @@
     onNavigateNext,
   }: Props = $props();
 
-  let content = $derived({
+  let financialContent = $derived({
     ...(data.embedData ?? {}),
     ...(data.attrs ?? {}),
     ...(data.decodedContent ?? {}),
   } as Record<string, unknown>);
-  let company = $derived(asString(content.company) || asString(content.ticker) || $text('embeds.business.company_financials.result_title'));
-  let ticker = $derived(asString(content.ticker));
-  let providerSubtitle = $derived([ticker, asString(content.form), asString(content.filed)].filter(Boolean).join(' · '));
-  let sourceUrl = $derived(asString(content.source_url));
-  let currency = $derived(asString(content.currency) || 'USD');
-  let notes = $derived(Array.isArray(content.notes) ? content.notes.filter((note): note is string => typeof note === 'string') : []);
+  let company = $derived(asString(financialContent.company) || asString(financialContent.ticker) || $text('embeds.business.company_financials.result_title'));
+  let ticker = $derived(asString(financialContent.ticker));
+  let providerSubtitle = $derived([ticker, asString(financialContent.form), asString(financialContent.filed)].filter(Boolean).join(' · '));
+  let sourceUrl = $derived(asString(financialContent.source_url));
+  let currency = $derived(asString(financialContent.currency) || 'USD');
+  let notes = $derived(Array.isArray(financialContent.notes) ? financialContent.notes.filter((note): note is string => typeof note === 'string') : []);
   let rows = $derived([
     ['revenue', $text('embeds.business.company_financials.revenue')],
     ['gross_profit', $text('embeds.business.company_financials.gross_profit')],
@@ -51,7 +51,7 @@
     ['assets', $text('embeds.business.company_financials.assets')],
     ['liabilities', $text('embeds.business.company_financials.liabilities')],
     ['equity', $text('embeds.business.company_financials.equity')],
-  ].filter(([key]) => typeof content[key] === 'number'));
+  ].filter(([key]) => typeof financialContent[key] === 'number'));
 
   function asString(value: unknown): string {
     return typeof value === 'string' ? value : '';
@@ -73,11 +73,11 @@
   }
 
   function formatPeriod(): string {
-    const year = asNumber(content.fiscal_year);
-    const quarter = asString(content.fiscal_quarter);
-    if (asString(content.period_type) === 'quarter' && quarter && year) return `${quarter} ${year}`;
+    const year = asNumber(financialContent.fiscal_year);
+    const quarter = asString(financialContent.fiscal_quarter);
+    if (asString(financialContent.period_type) === 'quarter' && quarter && year) return `${quarter} ${year}`;
     if (year) return `FY ${year}`;
-    return asString(content.period_end) || $text('embeds.business.company_financials.period');
+    return asString(financialContent.period_end) || $text('embeds.business.company_financials.period');
   }
 </script>
 
@@ -106,15 +106,15 @@
       <section class="hero-card">
         <p class="kicker">{$text('embeds.business.company_financials.sec_filing')}</p>
         <h2>{company}</h2>
-        <p>{formatPeriod()} · {[asString(content.period_start), asString(content.period_end)].filter(Boolean).join(' - ')}</p>
+        <p>{formatPeriod()} · {[asString(financialContent.period_start), asString(financialContent.period_end)].filter(Boolean).join(' - ')}</p>
         <div class="hero-metrics">
           <div>
             <span>{$text('embeds.business.company_financials.revenue')}</span>
-            <strong>{formatMoney(content.revenue)}</strong>
+            <strong>{formatMoney(financialContent.revenue)}</strong>
           </div>
           <div>
             <span>{$text('embeds.business.company_financials.net_income')}</span>
-            <strong>{formatMoney(content.net_income)}</strong>
+            <strong>{formatMoney(financialContent.net_income)}</strong>
           </div>
         </div>
       </section>
@@ -125,7 +125,7 @@
           {#each rows as [key, label]}
             <div class="metric-row">
               <span>{label}</span>
-              <strong>{formatMoney(content[key])}</strong>
+              <strong>{formatMoney(financialContent[key])}</strong>
             </div>
           {/each}
         {:else}
@@ -135,7 +135,7 @@
 
       <section class="source-card" aria-label="Source filing">
         <h3>{$text('embeds.business.company_financials.source')}</h3>
-        <p>{[asString(content.form), asString(content.accession_number), asString(content.filed)].filter(Boolean).join(' · ')}</p>
+        <p>{[asString(financialContent.form), asString(financialContent.accession_number), asString(financialContent.filed)].filter(Boolean).join(' · ')}</p>
         {#if sourceUrl}
           <a href={sourceUrl} target="_blank" rel="noopener noreferrer" data-testid="business-open-sec-filing-inline">{$text('embeds.business.company_financials.open_filing')}</a>
         {/if}
