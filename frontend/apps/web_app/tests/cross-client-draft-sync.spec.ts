@@ -483,11 +483,15 @@ function resultChatId(result: any): string {
 
 async function expectCliPairedToBrowserAccount(page: any, apiUrl: string): Promise<void> {
 	const browserUserId = await page.evaluate(async (apiEndpoint: string) => {
+		const sessionId = sessionStorage.getItem('session_id') ?? sessionStorage.getItem('openmates_session_id');
+		if (!sessionId) {
+			throw new Error('Browser session check failed: client session_id is missing');
+		}
 		const response = await fetch(`${apiEndpoint}/v1/auth/session`, {
 			method: 'POST',
 			credentials: 'include',
 			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({})
+			body: JSON.stringify({ session_id: sessionId })
 		});
 		const data = await response.json().catch(() => ({}));
 		if (!response.ok || data?.success !== true || !data?.user?.id) {
