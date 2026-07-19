@@ -143,7 +143,9 @@ const handleDraftUpdated = async (
         );
         editorInstance
           .chain()
-          .setContent(decryptedDraftContent || getInitialContent(), false)
+          .setContent(decryptedDraftContent || getInitialContent(), {
+            emitUpdate: false,
+          })
           .run();
       }
     }
@@ -269,7 +271,10 @@ const handleChatDetails = async (payload: ChatDetailsServerResponse) => {
             "[DraftService] Setting editor content from chat_details:",
             decryptedDraftContent,
           );
-          editorInstance.chain().setContent(decryptedDraftContent, false).run();
+          editorInstance
+            .chain()
+            .setContent(decryptedDraftContent, { emitUpdate: false })
+            .run();
           // Do NOT auto-focus the editor - user must manually click to focus
           // This prevents unwanted focus when receiving draft updates from websocket
           console.debug(
@@ -389,6 +394,7 @@ export function registerWebSocketHandlers() {
 
   handlersRegistered = true;
   console.info("[DraftService] Registering WebSocket handlers.");
+  webSocketService.on("chat_draft_updated", handleDraftUpdated);
   webSocketService.on("draft_updated", handleDraftUpdated);
   webSocketService.on("draft_conflict", handleDraftConflict);
   webSocketService.on("chat_details", handleChatDetails);
@@ -468,6 +474,7 @@ export function unregisterWebSocketHandlers() {
 
   handlersRegistered = false;
   console.info("[DraftService] Unregistering WebSocket handlers.");
+  webSocketService.off("chat_draft_updated", handleDraftUpdated);
   webSocketService.off("draft_updated", handleDraftUpdated);
   webSocketService.off("draft_conflict", handleDraftConflict);
   webSocketService.off("chat_details", handleChatDetails);
