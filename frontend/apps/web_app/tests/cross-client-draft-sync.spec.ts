@@ -372,9 +372,9 @@ async function activeMessageEditorEditable(page: any, chatId: string): Promise<a
 	const currentHash = await page.evaluate(() => window.location.hash);
 	expect(currentHash, 'Fallback to generic editor is only safe on the target chat URL').toContain(chatId);
 	await expect(messageEditorHost(page, chatId)).toBeVisible({ timeout: 15_000 });
-	const genericEditor = messageEditorEditable(page);
-	await expect(genericEditor).toBeVisible({ timeout: 10_000 });
-	return genericEditor;
+	const scopedEditor = messageEditorEditable(page, chatId);
+	await expect(scopedEditor).toBeVisible({ timeout: 10_000 });
+	return scopedEditor;
 }
 
 async function replaceMessageEditorText(page: any, chatId: string, text: string): Promise<any> {
