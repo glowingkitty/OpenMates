@@ -283,6 +283,29 @@
         } as EmbedDecodedContent;
     }
 
+    function extractToonScalar(content: string, key: string): string | undefined {
+        const match = content.match(new RegExp(`(?:^|\\n)${key}:\\s*"?([^\\n"]+)"?`));
+        return match?.[1]?.trim();
+    }
+
+    function mergeAppSkillToonMetadata(
+        decodedContent: EmbedDecodedContent | null | undefined,
+        content: string | null | undefined
+    ): EmbedDecodedContent | null | undefined {
+        if (!content) return decodedContent;
+        const appId = extractToonScalar(content, 'app_id');
+        const skillId = extractToonScalar(content, 'skill_id');
+        if (!appId && !skillId) return decodedContent;
+
+        const merged = { ...(decodedContent ?? {}) } as EmbedDecodedContent;
+        if (!merged.app_id && appId) merged.app_id = appId;
+        if (!merged.skill_id && skillId) merged.skill_id = skillId;
+        if (!merged.query) merged.query = extractToonScalar(content, 'query');
+        if (!merged.provider) merged.provider = extractToonScalar(content, 'provider');
+        if (!merged.embed_ids) merged.embed_ids = extractToonScalar(content, 'embed_ids');
+        return merged;
+    }
+
     function shouldAutoStartCreatedApplicationPreview(chat: Chat | null): boolean {
         if (!$authStore.isAuthenticated || !chat?.chat_id || chat.is_incognito || chat.is_anonymous) return false;
         if (isPublicChat(chat.chat_id) || isDemoChat(chat.chat_id) || isExampleChat(chat.chat_id) || isLegalChat(chat.chat_id) || isNewsletterChat(chat.chat_id)) return false;
@@ -1499,6 +1522,10 @@
                             finalDecodedContent,
                             freshDecodedContent,
                             freshEmbedData
+                        );
+                        finalDecodedContent = mergeAppSkillToonMetadata(
+                            finalDecodedContent,
+                            freshEmbedData.content
                         );
                     }
                     
