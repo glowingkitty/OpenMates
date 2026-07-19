@@ -170,6 +170,10 @@ function chatItem(page: any, chatId: string): any {
 	return page.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${chatId}"]`);
 }
 
+function messageEditorEditable(page: any): any {
+	return page.locator('[data-testid="message-editor"] [contenteditable="true"]').first();
+}
+
 async function logDraftOpenDiagnostics(page: any, chatId: string, label: string, expectedText?: string): Promise<void> {
 	const diagnostics = await page.evaluate(async ({ targetChatId, expected }: { targetChatId: string; expected?: string }) => {
 		async function readIdbValue<T>(dbName: string, storeName: string, key: IDBValidKey): Promise<T | null> {
@@ -428,7 +432,8 @@ test.describe('Cross-client encrypted draft sync', () => {
 			await openDraft(page, draftChatId, initialText);
 			log('CLI-created draft opened in web client.');
 
-			const editor = page.getByTestId('message-editor');
+			const editor = messageEditorEditable(page);
+			await expect(editor).toBeVisible({ timeout: 15_000 });
 			await editor.click();
 			await page.keyboard.press('ControlOrMeta+A');
 			await page.keyboard.insertText(updatedText);
@@ -548,7 +553,8 @@ test.describe('Cross-client encrypted draft sync', () => {
 			await expectIdeaBucketDraftMarkers(page, draftChatId, draftText);
 			await screenshot(page, 'text-draft-markers');
 
-			const editor = page.getByTestId('message-editor');
+			const editor = messageEditorEditable(page);
+			await expect(editor).toBeVisible({ timeout: 15_000 });
 			await editor.click();
 			await page.keyboard.press('ControlOrMeta+A');
 			await page.keyboard.insertText(editedDraftText);
