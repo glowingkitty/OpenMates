@@ -177,10 +177,20 @@ function messageEditorEditable(page: any, chatId?: string): any {
 	return root.locator('[data-testid="message-editor"] [contenteditable="true"]').first();
 }
 
+function messageEditorHost(page: any, chatId: string): any {
+	return page
+		.locator(`[data-action="message-input"][data-current-chat-id="${chatId}"]`)
+		.getByTestId('message-editor')
+		.first();
+}
+
 async function replaceMessageEditorText(page: any, chatId: string, text: string): Promise<any> {
+	const host = messageEditorHost(page, chatId);
 	const editor = messageEditorEditable(page, chatId);
+	await expect(host).toBeVisible({ timeout: 15_000 });
 	await expect(editor).toBeVisible({ timeout: 15_000 });
-	await editor.click();
+	await host.click();
+	await page.keyboard.press('ControlOrMeta+A');
 	await page.keyboard.press('ControlOrMeta+A');
 	await page.keyboard.press('Backspace');
 	await expect(editor).toHaveText('', { timeout: 5_000 });
