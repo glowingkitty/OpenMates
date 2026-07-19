@@ -1,5 +1,6 @@
 import { debounce } from "lodash-es"; // Import isEqual
 import { get } from "svelte/store";
+import type { Editor } from "@tiptap/core";
 import { chatDB } from "../db";
 import {
   websocketStatus,
@@ -586,8 +587,8 @@ let resaveNeeded = false;
  * Handles local DB update and server communication (online/offline).
  */
 export const saveDraftDebounced = debounce(
-  async (chatIdFromMessageInput?: string) => {
-    const editor = getEditorInstance();
+  async (chatIdFromMessageInput?: string, editorOverride?: Editor) => {
+    const editor = editorOverride ?? getEditorInstance();
     if (!editor) {
       console.error(
         "[DraftService] Cannot save draft, editor instance not available.",
@@ -1274,9 +1275,9 @@ export const saveDraftDebounced = debounce(
         // Using setTimeout instead of calling saveDraftDebounced directly to avoid
         // re-entering while the finally block is still executing.
         setTimeout(() => {
-          const followUpEditor = getEditorInstance();
+          const followUpEditor = editorOverride ?? getEditorInstance();
           if (followUpEditor && !followUpEditor.isDestroyed) {
-            saveDraftDebounced(chatIdFromMessageInput);
+            saveDraftDebounced(chatIdFromMessageInput, followUpEditor);
           }
         }, 100);
       }
@@ -1290,8 +1291,11 @@ export const saveDraftDebounced = debounce(
  * CRITICAL: For non-authenticated users, prefer using draft state's currentChatId
  * to avoid race conditions when switching chats quickly.
  */
-export function triggerSaveDraft(chatIdFromMessageInput?: string) {
-  const editor = getEditorInstance();
+export function triggerSaveDraft(
+  chatIdFromMessageInput?: string,
+  editorOverride?: Editor,
+) {
+  const editor = editorOverride ?? getEditorInstance();
   if (!editor) return;
 
   // CRITICAL: For non-authenticated users, check if we're switching context
@@ -1304,15 +1308,15 @@ export function triggerSaveDraft(chatIdFromMessageInput?: string) {
     return;
   }
 
-  saveDraftDebounced(chatIdFromMessageInput);
+  saveDraftDebounced(chatIdFromMessageInput, editor);
 }
 
 /**
  * Immediately flushes any pending debounced save/clear operations.
  * Called on blur, visibilitychange, beforeunload.
  */
-export function flushSaveDraft() {
-  const editor = getEditorInstance();
+export function flushSaveDraft(editorOverride?: Editor) {
+  const editor = editorOverride ?? getEditorInstance();
   if (!editor) return;
   console.info("[DraftService] Flushing draft operation.");
   saveDraftDebounced.flush();

@@ -742,7 +742,7 @@
         hasContent = !isContentEmptyExceptMention(editor);
         updateOriginalMarkdown(editor);
         lastEditorUpdateText = editor.getText();
-        triggerSaveDraft(currentChatId);
+        triggerSaveDraft(currentChatId, editor);
     }
 
     function appendPasteEmbedReference(embedReference: string, embedId: string, originalText: string) {
@@ -2188,7 +2188,7 @@
                 showMentionDropdown = false;
                 mentionQuery = '';
                 
-                flushSaveDraft();
+                flushSaveDraft(editor);
                 // Only reset to initial content if the editor is TRULY empty (no content at all)
                 // Do NOT reset if it contains mentions - those are valid draft content
                 // that should be preserved even though they can't be sent alone
@@ -2692,7 +2692,7 @@
         }
         
         // Always trigger save/delete operation - the draft service handles both scenarios
-        triggerSaveDraft(currentChatId);
+        triggerSaveDraft(currentChatId, editor);
 
         // Performance: Stagger PII detection and heavy parsing on delimiter keystrokes.
         // Both are expensive — running them simultaneously on every space/comma causes
@@ -2791,7 +2791,7 @@
         // we can update the draft and originalMarkdown even when getText() is
         // unchanged (e.g. the editor contained only the uploading image with no text).
         editorElement?.addEventListener('embed-upload-cancelled', handleEmbedUploadCancelled as EventListener);
-        window.addEventListener('saveDraftBeforeSwitch', flushSaveDraft);
+        window.addEventListener('saveDraftBeforeSwitch', handleSaveDraftBeforeSwitch);
         window.addEventListener('beforeunload', handleBeforeUnload);
         window.addEventListener('focusInput', handleFocusInput as EventListener);
         window.addEventListener('recordingShortcut', handleRecordingShortcut as EventListener);
@@ -2942,7 +2942,7 @@
         document.removeEventListener('updaterecordingattrs', handleUpdateRecordingAttrs as EventListener);
         // PII click handling is via editorProps.handleClick, no cleanup needed
         editorElement?.removeEventListener('embed-upload-cancelled', handleEmbedUploadCancelled as EventListener);
-        window.removeEventListener('saveDraftBeforeSwitch', flushSaveDraft);
+        window.removeEventListener('saveDraftBeforeSwitch', handleSaveDraftBeforeSwitch);
         window.removeEventListener('beforeunload', handleBeforeUnload);
         window.removeEventListener('focusInput', handleFocusInput as EventListener);
         window.removeEventListener('recordingShortcut', handleRecordingShortcut as EventListener);
@@ -3498,8 +3498,9 @@
             console.debug('[MessageInput] Updated recording embed attrs for:', embedId, attrs);
         }
     }
-    function handleBeforeUnload() { if (hasContent) flushSaveDraft(); }
-    function handleVisibilityChange() { if (document.visibilityState === 'hidden' && hasContent) flushSaveDraft(); }
+    function handleSaveDraftBeforeSwitch() { if (editor && !editor.isDestroyed) flushSaveDraft(editor); }
+    function handleBeforeUnload() { if (hasContent && editor && !editor.isDestroyed) flushSaveDraft(editor); }
+    function handleVisibilityChange() { if (document.visibilityState === 'hidden' && hasContent && editor && !editor.isDestroyed) flushSaveDraft(editor); }
     function handleResize() { checkScrollable(); updateHeight(); }
     
     /**
@@ -3550,7 +3551,7 @@
 
         // Force a draft save (or deletion) even though getText() may not have changed.
         // triggerSaveDraft is debounced — it will read the editor state at fire time.
-        triggerSaveDraft(currentChatId);
+        triggerSaveDraft(currentChatId, editor);
     }
 
     function findProjectMentionById(mentionId: string): { node: ProseMirrorNode; pos: number } | null {
@@ -3596,7 +3597,7 @@
         updateOriginalMarkdown(editor);
         hasContent = !isContentEmptyExceptMention(editor);
         lastEditorUpdateText = editor.getText();
-        triggerSaveDraft(currentChatId);
+        triggerSaveDraft(currentChatId, editor);
         editor.commands.focus('end');
     }
 
@@ -3951,7 +3952,7 @@
         await insertRecording(editor, blob, mimeType, formattedDuration, $authStore.isAuthenticated, chatIdForRecording);
         hasContent = editorHasSendableText(editor);
         lastEditorUpdateText = editor.getText();
-        triggerSaveDraft(chatIdForRecording || currentChatId);
+        triggerSaveDraft(chatIdForRecording || currentChatId, editor);
         handleStopRecordingCleanup(); // Called here after recording is inserted
     }
     function handleLocationClick() { showMaps = true; }
@@ -4181,7 +4182,7 @@
             // Rebuild originalMarkdown so the draft reflects the text replacement
             updateOriginalMarkdown(editor);
             lastEditorUpdateText = editor.getText();
-            triggerSaveDraft(currentChatId);
+            triggerSaveDraft(currentChatId, editor);
 
             console.debug('[MessageInput] Paste as text: embed replaced with text successfully');
         } catch (err) {
@@ -4211,7 +4212,7 @@
             // the embed is removed via the context menu.
             updateOriginalMarkdown(editor);
             lastEditorUpdateText = editor.getText();
-            triggerSaveDraft(currentChatId);
+            triggerSaveDraft(currentChatId, editor);
         }
     }
     function handleFileSelect() {
@@ -4565,7 +4566,7 @@
             hasContent = !isContentEmptyExceptMention(editor);
             updateOriginalMarkdown(editor);
             lastEditorUpdateText = editor.getText();
-            triggerSaveDraft(currentChatId);
+            triggerSaveDraft(currentChatId, editor);
         } catch (error) {
             console.error('[MessageInput] Failed to insert code run output follow-up embed:', error);
         }
@@ -4652,7 +4653,7 @@
             hasContent = true;
             lastEditorUpdateText = editor.getText(); // Sync text-change guard after external content set
             updateOriginalMarkdown(editor);
-            triggerSaveDraft(currentChatId);
+            triggerSaveDraft(currentChatId, editor);
             editor.commands.focus('end');
             console.debug('[MessageInput] Suggestion text inserted at cursor successfully');
         } else {
@@ -4901,7 +4902,7 @@
             // CRITICAL: Flush draft for the PREVIOUS chat before switching
             // Use the previous chat ID explicitly to ensure we save the right draft
             // The draft service will use the current state's chatId, so we need to ensure it's still set
-            flushSaveDraft(); // Save draft for the previous chat before switching
+            if (editor && !editor.isDestroyed) flushSaveDraft(editor); // Save draft for the previous chat before switching
             // Small delay to ensure the save completes before context switch
             setTimeout(() => {
                 console.debug(`[MessageInput] Draft flush completed for previous chat ${previousChatId}`);
