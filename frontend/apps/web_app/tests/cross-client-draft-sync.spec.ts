@@ -177,10 +177,15 @@ function messageEditorEditable(page: any): any {
 async function replaceMessageEditorText(page: any, text: string): Promise<any> {
 	const editor = messageEditorEditable(page);
 	await expect(editor).toBeVisible({ timeout: 15_000 });
-	await editor.press('Control+A');
-	await editor.press('Backspace');
+	await editor.click();
+	// ProseMirror selects the current text block on the first Mod+A and the
+	// whole document on the second. Drafts can contain multiple paragraphs.
+	await page.keyboard.press('ControlOrMeta+A');
+	await page.keyboard.press('ControlOrMeta+A');
+	await page.keyboard.press('Backspace');
+	await expect(editor).toHaveText('', { timeout: 5_000 });
 	if (text.length > 0) {
-		await editor.pressSequentially(text, { delay: 5 });
+		await page.keyboard.insertText(text);
 	}
 	return editor;
 }
