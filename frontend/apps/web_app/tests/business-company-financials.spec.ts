@@ -42,6 +42,7 @@ test.describe('Business company financials web embeds', () => {
 		const singleCompanyCard = singleCompanyCards.first();
 		await expect(singleCompanyCard.getByTestId('business-financial-result-preview')).toBeVisible({ timeout: 15_000 });
 		await expect(singleCompanyCard).toContainText(/VITL|Q1 2026|Revenue|Net income/i);
+		await expect(singleCompanyCard).toHaveAttribute('data-status', 'finished', { timeout: 15_000 });
 
 		await singleCompanyCard.click();
 		await expect(page.getByTestId('business-financial-result-fullscreen')).toBeVisible({ timeout: 15_000 });
