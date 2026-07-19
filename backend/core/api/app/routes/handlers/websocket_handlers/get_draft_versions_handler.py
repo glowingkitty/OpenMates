@@ -71,8 +71,24 @@ async def get_authoritative_user_draft(
 ):
     """Read a draft cache-first, falling back to its encrypted Directus row."""
     cached = await cache_service.get_user_draft_from_cache(user_id=user_id, chat_id=chat_id)
+    cached_version_int = 0
     if cached is not None:
-        return cached
+        cached_md, cached_version, cached_preview = cached
+        try:
+            cached_version_int = int(cached_version or 0)
+        except (TypeError, ValueError):
+            cached_version_int = 0
+        if cached_md is not None and cached_md != "null" and cached_version_int > 0:
+            return cached
+        logger.info(
+            "Ignoring empty cached draft for user %s, chat %s until Directus fallback is checked.",
+            user_id,
+            chat_id,
+        )
+    else:
+        cached_md = None
+        cached_version = 0
+
     rows = await directus_service.get_items(
         "drafts",
         params={
@@ -81,11 +97,16 @@ async def get_authoritative_user_draft(
             "fields": "encrypted_content,version",
             "limit": 1,
         },
+        admin_required=True,
     )
     if not rows:
         return None
     row = rows[0]
-    draft = (row.get("encrypted_content"), int(row.get("version") or 0), None)
+    draft_version = int(row.get("version") or 0)
+    encrypted_content = row.get("encrypted_content")
+    if not encrypted_content or draft_version <= 0 or draft_version < cached_version_int:
+        return None
+    draft = (encrypted_content, draft_version, None)
     await cache_service.update_user_draft_in_cache(
         user_id,
         chat_id,

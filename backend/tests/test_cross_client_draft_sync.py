@@ -27,6 +27,7 @@ from backend.core.api.app.routes.handlers.websocket_handlers.phased_sync_handler
     _phase2_metadata_is_current,
 )
 from backend.core.api.app.routes.chats import get_draft
+from backend.core.api.app.services.cache_chat_mixin import ChatCacheMixin
 
 
 class _Manager:
@@ -346,7 +347,7 @@ async def test_get_draft_versions_does_not_turn_cache_errors_into_deletions() ->
             return True
 
     class Directus:
-        async def get_items(self, collection, params):
+        async def get_items(self, collection, params, **_kwargs):
             return []
 
     await handle_get_draft_versions(
@@ -386,7 +387,8 @@ async def test_draft_cache_miss_falls_back_to_encrypted_directus_row() -> None:
             return True
 
     class Directus:
-        async def get_items(self, collection, params):
+        async def get_items(self, collection, params, **kwargs):
+            assert kwargs == {"admin_required": True}
             return [{"encrypted_content": "persisted-cipher", "version": 7}]
 
     draft = await get_authoritative_user_draft(
@@ -398,6 +400,115 @@ async def test_draft_cache_miss_falls_back_to_encrypted_directus_row() -> None:
 
     assert draft == ("persisted-cipher", 7, None)
     assert warmed[0][0][2:] == ("persisted-cipher", 7)
+
+
+@pytest.mark.anyio
+async def test_version_only_draft_cache_falls_back_to_encrypted_directus_row() -> None:
+    warmed = []
+
+    class Cache:
+        async def get_user_draft_from_cache(self, user_id, chat_id):
+            return None, 8, None
+
+        async def update_user_draft_in_cache(self, *args, **kwargs):
+            warmed.append((args, kwargs))
+            return True
+
+    class Directus:
+        async def get_items(self, collection, params, **kwargs):
+            assert collection == "drafts"
+            assert kwargs == {"admin_required": True}
+            return [{"encrypted_content": "persisted-cipher-v8", "version": 8}]
+
+    draft = await get_authoritative_user_draft(
+        Cache(),
+        Directus(),
+        "user-1",
+        "chat-1",
+    )
+
+    assert draft == ("persisted-cipher-v8", 8, None)
+    assert warmed[0][0][2:] == ("persisted-cipher-v8", 8)
+
+
+@pytest.mark.anyio
+async def test_empty_cached_draft_does_not_hide_persisted_ciphertext() -> None:
+    warmed = []
+
+    class Cache:
+        async def get_user_draft_from_cache(self, user_id, chat_id):
+            return None, 2, None
+
+        async def update_user_draft_in_cache(self, *args, **kwargs):
+            warmed.append((args, kwargs))
+            return True
+
+    class Directus:
+        async def get_items(self, collection, params, **kwargs):
+            assert kwargs == {"admin_required": True}
+            assert params["filter[hashed_user_id][_eq]"] == hashlib.sha256("user-1".encode()).hexdigest()
+            assert params["filter[chat_id][_eq]"] == "chat-1"
+            return [{"encrypted_content": "persisted-cipher", "version": 2}]
+
+    draft = await get_authoritative_user_draft(
+        Cache(),
+        Directus(),
+        "user-1",
+        "chat-1",
+    )
+
+    assert draft == ("persisted-cipher", 2, None)
+    assert warmed[0][0][2:] == ("persisted-cipher", 2)
+
+
+@pytest.mark.anyio
+async def test_stale_draft_cache_write_does_not_replace_newer_ciphertext() -> None:
+    class Redis:
+        def __init__(self) -> None:
+            self.data = {
+                "user:user-1:chat:chat-1:draft": {
+                    "draft_v": "2",
+                    "encrypted_draft_md": "newer-cipher",
+                    "encrypted_draft_preview": "newer-preview",
+                }
+            }
+
+        async def hget(self, key, field):
+            value = self.data.get(key, {}).get(field)
+            return value.encode("utf-8") if isinstance(value, str) else value
+
+        async def hmset(self, key, mapping):
+            self.data.setdefault(key, {}).update({k: str(v) for k, v in mapping.items()})
+
+        async def expire(self, key, ttl):
+            return True
+
+    class Cache(ChatCacheMixin):
+        USER_DRAFT_TTL = 60
+
+        def __init__(self) -> None:
+            self.redis = Redis()
+
+        @property
+        async def client(self):
+            return self.redis
+
+    cache = Cache()
+
+    updated = await cache.update_user_draft_in_cache(
+        "user-1",
+        "chat-1",
+        "stale-cipher",
+        1,
+        encrypted_draft_preview="stale-preview",
+    )
+
+    assert updated is True
+    assert cache.redis.data["user:user-1:chat:chat-1:draft"] == {
+        "draft_v": "2",
+        "encrypted_draft_md": "newer-cipher",
+        "encrypted_draft_preview": "newer-preview",
+    }
 
 
 @pytest.mark.anyio
