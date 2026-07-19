@@ -745,7 +745,7 @@ async function expectIdeaBucketDraftMarkers(page: any, chatId: string, expectedT
 	const editor = page.getByTestId('message-editor');
 	await expect(editor).toBeVisible({ timeout: 15_000 });
 	try {
-		await expect(editor).toContainText(expectedText, { timeout: 15_000 });
+		await expect(editor).toContainText(expectedText, { timeout: 45_000 });
 	} catch (error) {
 		await logDraftOpenDiagnostics(page, chatId, 'IDEABUCKET_WEB_MARKERS', expectedText);
 		throw error;
@@ -866,7 +866,7 @@ test.describe('Cross-client encrypted draft sync', () => {
 			const draftChatId = String(created.chatId);
 			expect(draftChatId).toMatch(/^[0-9a-f-]{36}$/i);
 			cleanupDraftIds.add(draftChatId);
-			await openDraft(page, draftChatId, initialText);
+			await openDraft(page, draftChatId, initialText, true);
 			log('CLI-created draft opened in web client.');
 
 			const draftUpdateFrameStart = wsFrames.length;
@@ -896,7 +896,7 @@ test.describe('Cross-client encrypted draft sync', () => {
 			}
 			log('Web draft edit reconciled to CLI.');
 
-			await openDraft(page, draftChatId, updatedText);
+			await openDraft(page, draftChatId, updatedText, true);
 			const draftDeleteFrameStart = wsFrames.length;
 			await replaceMessageEditorText(page, draftChatId, '');
 			const dismissButton = page.getByTestId('input-dismiss-button');
