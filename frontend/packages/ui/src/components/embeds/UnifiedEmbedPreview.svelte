@@ -135,6 +135,7 @@
 
   // Use local status as the source of truth (allows updates from embed events)
   let status = $derived(localStatus ?? statusProp ?? 'processing');
+  let isInteractive = $derived(status === 'finished' || status === 'error');
 
   let isDirectContentEmbed = $derived.by(() => (
     appId === skillId
@@ -858,7 +859,7 @@
   class:desktop={!useMobileLayout}
   class:processing={status === 'processing'}
   class:finished={status === 'finished'}
-  class:clickable={status === 'finished' || status === 'error'}
+  class:clickable={isInteractive}
   class:hovering={isHovering && status === 'finished'}
   class:scroll-tilting={isScrollTilting}
   class:error={status === 'error'}
@@ -870,14 +871,11 @@
     tiltTransform ? `transform: ${tiltTransform};` : '',
     (!useMobileLayout && customHeight) ? `height: ${customHeight}px; min-height: ${customHeight}px; max-height: ${customHeight}px;` : ''
   ].filter(Boolean).join(' ')}
-  {...((status === 'finished' || status === 'error') ? {
-    role: 'button',
-    tabindex: 0,
-    onclick: handleClick,
-    onkeydown: handleKeydown
-  } : {
-    role: 'presentation'
-  })}
+  role="button"
+  aria-disabled={!isInteractive}
+  tabindex={isInteractive ? 0 : -1}
+  onclick={handleClick}
+  onkeydown={handleKeydown}
   onpointerdown={handlePointerDown}
   onmousedown={handleMouseDown}
   onmouseenter={handleMouseEnter}
