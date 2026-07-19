@@ -398,7 +398,16 @@
         const dom = editor.view.dom;
         const domText = ((dom instanceof HTMLElement ? dom.innerText : dom.textContent) ?? '').replace(/\u00a0/g, ' ');
         const editorText = editor.getText().replace(/\u00a0/g, ' ');
-        if (domText.trim() === editorText.trim() || domText.trim().length === 0) return;
+        if (domText.trim() === editorText.trim()) return;
+
+        if (domText.trim().length === 0) {
+            editor.commands.setContent(getInitialContent(), { emitUpdate: false });
+            originalMarkdown = '';
+            hasContent = false;
+            hasEmbedContent = false;
+            lastEditorUpdateText = editor.getText();
+            return;
+        }
 
         const parsedDoc = parse_message(domText, 'write', { unifiedParsingEnabled: true });
         if (!parsedDoc?.content) return;
