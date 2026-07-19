@@ -17,6 +17,36 @@ import { websocketStatus } from "../stores/websocketStatusStore";
 import { chatMetadataCache } from "./chatMetadataCache";
 import type { OfflineChange, UpdateDraftPayload, DeleteDraftPayload } from "../types/chat";
 
+const DRAFT_UPDATE_RECEIPT_TIMEOUT_MS = 10_000;
+
+type DraftUpdateReceiptPayload = {
+	chat_id?: string;
+	draft_v?: number;
+	success?: boolean;
+};
+
+function waitForDraftUpdateReceipt(chatId: string): Promise<void> {
+	return new Promise((resolve, reject) => {
+		const timeout = window.setTimeout(() => {
+			webSocketService.off("draft_update_receipt", handleReceipt);
+			reject(new Error(`Timed out waiting for draft update receipt for chat ${chatId}`));
+		}, DRAFT_UPDATE_RECEIPT_TIMEOUT_MS);
+
+		const handleReceipt = (payload: DraftUpdateReceiptPayload): void => {
+			if (payload.chat_id !== chatId) return;
+			window.clearTimeout(timeout);
+			webSocketService.off("draft_update_receipt", handleReceipt);
+			if (payload.success === false) {
+				reject(new Error(`Draft update receipt reported failure for chat ${chatId}`));
+				return;
+			}
+			resolve();
+		};
+
+		webSocketService.on("draft_update_receipt", handleReceipt);
+	});
+}
+
 export async function sendUpdateDraftImpl(
 	serviceInstance: ChatSynchronizationService,
 	chat_id: string,
@@ -32,7 +62,14 @@ export async function sendUpdateDraftImpl(
 	};
 
 	// Send encrypted draft to server for synchronization
-	await webSocketService.sendMessage("update_draft", payload);
+	const receipt = waitForDraftUpdateReceipt(chat_id);
+	try {
+		await webSocketService.sendMessage("update_draft", payload);
+		await receipt;
+	} catch (error) {
+		receipt.catch(() => undefined);
+		throw error;
+	}
 
 	console.debug(
 		`[ChatSyncService:Senders] Sent encrypted draft update to server for chat ${chat_id}`,
