@@ -180,6 +180,9 @@
     const GUEST_DEFAULT_INTRO_INSPIRATION_ID = 'openmates-intro';
     const CANCELLED_NEW_CHAT_DRAFT_RESTORE_ATTEMPTS = 5;
     const CANCELLED_NEW_CHAT_DRAFT_RESTORE_DELAY_MS = 50;
+    const DRAFT_RESTORE_REF_RETRY_ATTEMPTS = 80;
+    const DRAFT_RESTORE_REF_RETRY_DELAY_MS = 50;
+    const DRAFT_RESTORE_APPLY_DELAY_MS = 50;
     // Temporary rollout gate: the current chat details/settings panel does not
     // match product requirements. Keep code in place for the redesign, but make
     // all entry points inaccessible until this is intentionally re-enabled.
@@ -9011,11 +9014,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // For authenticated users, load encrypted drafts from IndexedDB
         // CRITICAL: messageInputFieldRef may not be bound yet during initial page load (component not fully mounted).
         // Retry with increasing delays to ensure draft restoration isn't silently skipped.
-        const restoreDraftWithRetry = async (retriesLeft = 10): Promise<void> => {
+        const restoreDraftWithRetry = async (retriesLeft = DRAFT_RESTORE_REF_RETRY_ATTEMPTS): Promise<void> => {
+            if (thisLoadGeneration !== loadChatGeneration) return;
             if (!messageInputFieldRef) {
                 if (retriesLeft > 0) {
                     console.debug(`[ActiveChat] messageInputFieldRef not ready for draft restore, retrying (${retriesLeft} retries left)`);
-                    await new Promise(resolve => setTimeout(resolve, 50));
+                    await new Promise(resolve => setTimeout(resolve, DRAFT_RESTORE_REF_RETRY_DELAY_MS));
                     return restoreDraftWithRetry(retriesLeft - 1);
                 } else {
                     console.warn(`[ActiveChat] messageInputFieldRef still not available after retries - draft restoration skipped for chat ${currentChat?.chat_id}`);
@@ -9033,7 +9037,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     const ref = messageInputFieldRef;
                     if (!ref || !isCurrentDraftRestoreTarget()) return;
                     callback(ref);
-                }, 50);
+                }, DRAFT_RESTORE_APPLY_DELAY_MS);
             };
 
             if (!$authStore.isAuthenticated) {
@@ -9074,12 +9078,22 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 const encryptedDraftMd = draftRestoreChat.encrypted_draft_md;
                 const encryptedDraftPreview = draftRestoreChat.encrypted_draft_preview;
                 const draftVersion = draftRestoreChat.draft_v;
+                const decryptDraftWithRetry = async (encryptedValue: string, fieldName: string): Promise<string | null> => {
+                    for (let attempt = 0; attempt < 20; attempt += 1) {
+                        if (!isCurrentDraftRestoreTarget()) return null;
+                        const decrypted = await decryptWithMasterKey(encryptedValue);
+                        if (decrypted !== null) return decrypted;
+                        await new Promise((resolve) => setTimeout(resolve, 250));
+                    }
+                    console.warn(`[ActiveChat] Failed to decrypt ${fieldName} for ${draftRestoreChatId} after retry`);
+                    return null;
+                };
                 const restoreTextDraftFromPreview = async (): Promise<boolean> => {
                     const ref = messageInputFieldRef;
                     if (!encryptedDraftPreview || !ref || !isCurrentDraftRestoreTarget()) return false;
 
                     try {
-                        const decryptedPreview = await decryptWithMasterKey(encryptedDraftPreview);
+                        const decryptedPreview = await decryptDraftWithRetry(encryptedDraftPreview, 'encrypted_draft_preview');
                         const previewText = decryptedPreview?.trim();
                         if (!previewText || /^\[[^\]]+\]$/.test(previewText)) return false;
                         if (!isCurrentDraftRestoreTarget()) return false;
@@ -9184,7 +9198,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     
                     // Decrypt the draft content and convert to TipTap JSON
                     try {
-                        const decryptedMarkdown = await decryptWithMasterKey(encryptedDraftMd);
+                        const decryptedMarkdown = await decryptDraftWithRetry(encryptedDraftMd, 'encrypted_draft_md');
                         if (decryptedMarkdown) {
                             if (!isCurrentDraftRestoreTarget()) return;
                             // Parse markdown to TipTap JSON for the editor
