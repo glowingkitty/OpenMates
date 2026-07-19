@@ -1,0 +1,52 @@
+# Durable account import usage and dedupe records.
+# No field in this collection may contain plaintext chat titles, messages,
+# embed private payloads, raw provider IDs, or user file names.
+account_imports:
+  type: collection
+  note: "Internal Account Import V1 usage, dedupe, billing, and completion records"
+  fields:
+    id:
+      type: uuid
+      primary: true
+    user_id:
+      type: uuid
+      required: true
+    import_id:
+      type: string
+      length: 128
+      required: true
+    status:
+      type: string
+      length: 32
+      required: true
+    imported_chat_ids:
+      type: json
+      required: true
+      note: "New OpenMates chat IDs created by encrypted client persistence"
+    source_fingerprints:
+      type: json
+      required: true
+      note: "One-way source fingerprints for dedupe warnings; never raw provider IDs"
+    encrypted_record_counts:
+      type: json
+      required: true
+    failures:
+      type: json
+      nullable: true
+    credits_reserved:
+      type: integer
+      nullable: true
+    credits_charged:
+      type: integer
+      nullable: true
+    credits_released:
+      type: integer
+      nullable: true
+    created_at:
+      type: datetime
+      special:
+        - date-created
+    updated_at:
+      type: datetime
+      special:
+        - date-updated

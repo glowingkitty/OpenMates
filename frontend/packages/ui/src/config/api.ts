@@ -232,10 +232,19 @@ export const apiEndpoints = {
     exportAccountData: "/v1/settings/export-account-data", // Get export data (usage, invoices, profile)
     updatePassword: "/v1/settings/update-password", // Add or change user password
     issueLogs: "/v1/settings/issue-logs", // Push console logs to OpenObserve when any auth user submits an issue report
-    importChat: "/v1/settings/import-chat", // Import chats from YAML export file (safety-scanned server-side)
+    importChat: "/v1/settings/import-chat", // Legacy plaintext import endpoint; server keeps it disabled/fail-closed
     debugSession: "/v1/settings/debug-session", // Create/get/delete user debug log sharing session
     debugLogs: "/v1/settings/debug-logs", // Push console logs during active debug session (tagged with debugging_id)
     clientLogsEphemeral: "/v1/client-logs", // Ephemeral anonymized console log forwarding for all authenticated users (48h retention)
+  },
+  accountImports: {
+    preview: "/v1/account-imports/preview", // Account Import V1 preview/limits/cost estimate
+    scan: (importId: string) =>
+      `/v1/account-imports/${encodeURIComponent(importId)}/scan`, // Transient plaintext safety scan
+    persistEncrypted: (importId: string) =>
+      `/v1/account-imports/${encodeURIComponent(importId)}/persist-encrypted`, // Persist client-encrypted imported records
+    complete: (importId: string) =>
+      `/v1/account-imports/${encodeURIComponent(importId)}/complete`, // Finalize import audit/billing state
   },
   referrals: {
     status: "/v1/referrals/status", // Current user's referral code and campaign availability
