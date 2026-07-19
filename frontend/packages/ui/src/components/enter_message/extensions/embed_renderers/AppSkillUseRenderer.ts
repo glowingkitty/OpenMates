@@ -2985,7 +2985,18 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           childEmbedIds,
           taskId,
           isMobile: false,
-          onFullscreen: () => this.openFullscreen(attrs, embedData, decodedContent),
+          onFullscreen: () =>
+            this.openFullscreen(attrs, embedData, {
+              ...(decodedContent ?? {}),
+              app_id: "business",
+              skill_id: "company_financials",
+              query,
+              provider,
+              period,
+              metric_group: metricGroup,
+              result_count: resultCount,
+              embed_ids: childEmbedIds,
+            }),
         },
       });
       mountedComponents.set(content, component);

@@ -12600,6 +12600,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             {#if showEmbedFullscreen && embedFullscreenData}
                 {@const fullscreenData = embedFullscreenData}
                 <div
+                    data-testid="embed-fullscreen-container"
                     class="fullscreen-embed-container"
                     class:side-panel={showSideBySideLayout}
                     class:overlay-mode={!showSideBySideLayout}
