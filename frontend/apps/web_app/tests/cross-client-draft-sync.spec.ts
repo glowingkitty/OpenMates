@@ -380,13 +380,10 @@ async function activeMessageEditorEditable(page: any, chatId: string): Promise<a
 async function replaceMessageEditorText(page: any, chatId: string, text: string): Promise<any> {
 	const editor = await activeMessageEditorEditable(page, chatId);
 	await expect(editor).toBeVisible({ timeout: 15_000 });
-	await editor.click();
-	await page.keyboard.press('Control+A');
+	await editor.fill(text);
 	if (text.length > 0) {
-		await page.keyboard.insertText(text);
+		await editor.click();
 		await page.keyboard.type(' ');
-		await page.keyboard.press('Backspace');
-	} else {
 		await page.keyboard.press('Backspace');
 	}
 	await expect
