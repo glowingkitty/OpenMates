@@ -9063,6 +9063,23 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 const encryptedDraftMd = currentChat?.encrypted_draft_md;
                 const encryptedDraftPreview = currentChat?.encrypted_draft_preview;
                 const draftVersion = currentChat?.draft_v;
+                const restoreTextDraftFromPreview = async (): Promise<boolean> => {
+                    if (!encryptedDraftPreview || !currentChat?.chat_id || !messageInputFieldRef) return false;
+
+                    try {
+                        const decryptedPreview = await decryptWithMasterKey(encryptedDraftPreview);
+                        const previewText = decryptedPreview?.trim();
+                        if (!previewText || /^\[[^\]]+\]$/.test(previewText)) return false;
+
+                        const draftContentJSON = parse_message(previewText, 'write', { unifiedParsingEnabled: true });
+                        console.debug(`[ActiveChat] Restoring preview-only text draft for chat ${currentChat.chat_id}`);
+                        messageInputFieldRef.setDraftContent(currentChat.chat_id, draftContentJSON, draftVersion || 1, false);
+                        return true;
+                    } catch (error) {
+                        console.error(`[ActiveChat] Error decrypting preview-only draft for chat ${currentChat.chat_id}:`, error);
+                        return false;
+                    }
+                };
 
                 // Check if we have draft content via preview even if markdown is empty.
                 // This happens when draft has only embeds (like images) that serialized to empty markdown
@@ -9115,7 +9132,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 }
                             } else {
                                 // No embeds found in store, just set context
-                                if (shouldPreserveLiveEmbedOnlyDraft(currentChat.chat_id)) {
+                                if (await restoreTextDraftFromPreview()) {
+                                    console.debug(`[ActiveChat] Restored preview-only text draft for ${currentChat.chat_id}; EmbedStore had no embeds`);
+                                } else if (shouldPreserveLiveEmbedOnlyDraft(currentChat.chat_id)) {
                                     console.debug(`[ActiveChat] Preserving live embed-only draft for ${currentChat.chat_id}; EmbedStore has not caught up yet`);
                                 } else if (messageInputFieldRef) {
                                     setTimeout(() => {
@@ -9127,7 +9146,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         } else {
                             // No embeds in store, just set context
                             console.debug(`[ActiveChat] No embeds found in EmbedStore for chat ${currentChat.chat_id}, setting context only`);
-                            if (shouldPreserveLiveEmbedOnlyDraft(currentChat.chat_id)) {
+                            if (await restoreTextDraftFromPreview()) {
+                                console.debug(`[ActiveChat] Restored preview-only text draft for ${currentChat.chat_id}; no embeds were found`);
+                            } else if (shouldPreserveLiveEmbedOnlyDraft(currentChat.chat_id)) {
                                 console.debug(`[ActiveChat] Preserving live embed-only draft for ${currentChat.chat_id}; draft restore would otherwise clear the active composer`);
                             } else if (messageInputFieldRef) {
                                 setTimeout(() => {
