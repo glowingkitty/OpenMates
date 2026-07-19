@@ -90,7 +90,7 @@
     import { chatDebugStore } from '../stores/chatDebugStore';
     import { videoIframeStore } from '../stores/videoIframeStore'; // For standalone VideoIframe component with CSS-based PiP
     import { updateHashParams } from '../utils/settingsHashUtils';
-    import { DEMO_CHATS, LEGAL_CHATS, getDemoMessages, isPublicChat, isNewsletterChat, isLegalChat, isDemoChat, translateDemoChat, getAllExampleChats, isExampleChat } from '../demo_chats';
+    import { DEMO_CHATS, LEGAL_CHATS, getDemoMessages, isPublicChat, isNewsletterChat, isLegalChat, isDemoChat, translateDemoChat, getAllExampleChats, isExampleChat, getExampleChatEmbed } from '../demo_chats';
     import { getVideoForLocale } from '../demo_chats/data/videos';
     import { ALL_NEWSLETTER_CHATS } from '../demo_chats/newsletterChatStore';
     import ChatContextMenu from './chats/ChatContextMenu.svelte'; // Context menu for resume chat cards
@@ -1526,6 +1526,24 @@
                         decodedContentKeys: finalDecodedContent ? Object.keys(finalDecodedContent) : []
                     });
                 } else if (!finalEmbedData && !finalDecodedContent) {
+                    const exampleEmbedData = getExampleChatEmbed(embedId);
+                    if (exampleEmbedData) {
+                        finalEmbedData = {
+                            embed_id: exampleEmbedData.embed_id,
+                            type: exampleEmbedData.type,
+                            status: 'finished',
+                            content: exampleEmbedData.content,
+                            embed_ids: exampleEmbedData.embed_ids ?? undefined,
+                            createdAt: Date.now(),
+                            updatedAt: Date.now(),
+                        };
+                        finalDecodedContent = exampleEmbedData.content
+                            ? await decodeToonContent(exampleEmbedData.content)
+                            : null;
+                    }
+                }
+
+                if (!finalEmbedData && !finalDecodedContent) {
                     const attrsRecord = attrs && typeof attrs === 'object'
                         ? attrs as Record<string, unknown>
                         : null;
