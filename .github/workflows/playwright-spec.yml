@@ -101,9 +101,21 @@ jobs:
             exit 0
           fi
 
-          node scripts/openmates_cli_test_account.mjs login \
-            --slot "${{ github.event.inputs.account }}" \
-            --api-url "$API_URL"
+          login_status=0
+          for attempt in 1 2 3; do
+            if node scripts/openmates_cli_test_account.mjs login \
+              --slot "${{ github.event.inputs.account }}" \
+              --api-url "$API_URL"; then
+              login_status=0
+              break
+            fi
+            login_status=$?
+            if [ "$attempt" -eq 3 ]; then
+              exit "$login_status"
+            fi
+            echo "Test account login attempt $attempt failed; retrying..."
+            sleep $((attempt * 5))
+          done
 
           existing_keys_json=$(node frontend/packages/openmates-cli/dist/cli.js \
             --api-url "$API_URL" \
@@ -133,21 +145,38 @@ jobs:
           }
           trap cleanup_probe_home EXIT
 
-          set +e
-          HOME="$probe_home" OPENMATES_API_KEY="$api_key" node frontend/packages/openmates-cli/dist/cli.js \
-            --api-url "$API_URL" apps math calculate "1+1" --json \
-            > frontend/apps/web_app/artifacts/api_key_probe.out \
-            2> frontend/apps/web_app/artifacts/api_key_probe.err
-          probe_status=$?
-          set -e
-
-          if [ "$probe_status" -ne 0 ] && grep -Eq "New device detected|Device not approved" frontend/apps/web_app/artifacts/api_key_probe.err; then
-            node scripts/approve_test_api_key_device.mjs --api-url "$API_URL"
+          run_api_key_probe() {
             HOME="$probe_home" OPENMATES_API_KEY="$api_key" node frontend/packages/openmates-cli/dist/cli.js \
               --api-url "$API_URL" apps math calculate "1+1" --json \
               > frontend/apps/web_app/artifacts/api_key_probe.out \
               2> frontend/apps/web_app/artifacts/api_key_probe.err
-          elif [ "$probe_status" -ne 0 ]; then
+          }
+
+          set +e
+          run_api_key_probe
+          probe_status=$?
+
+          if [ "$probe_status" -ne 0 ] && grep -Eq "New device detected|Device not approved" frontend/apps/web_app/artifacts/api_key_probe.err; then
+            for attempt in 1 2 3; do
+              node scripts/approve_test_api_key_device.mjs --api-url "$API_URL"
+              approve_status=$?
+              if [ "$approve_status" -ne 0 ]; then
+                echo "Device approval attempt $attempt failed with status $approve_status; retrying probe anyway."
+              fi
+              sleep $((attempt * 2))
+              run_api_key_probe
+              probe_status=$?
+              if [ "$probe_status" -eq 0 ]; then
+                break
+              fi
+              if ! grep -Eq "New device detected|Device not approved" frontend/apps/web_app/artifacts/api_key_probe.err; then
+                break
+              fi
+            done
+          fi
+          set -e
+
+          if [ "$probe_status" -ne 0 ]; then
             cat frontend/apps/web_app/artifacts/api_key_probe.err >&2
             exit "$probe_status"
           fi
