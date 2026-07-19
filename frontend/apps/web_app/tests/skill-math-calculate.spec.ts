@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 /**
  * Unified 4-phase E2E test for math/calculate skill.
@@ -70,11 +69,11 @@ test.describe('App: Math / Skill: calculate', () => {
 		const parsed = parseCliJson(result);
 		expect(parsed.success).toBe(true);
 
-		const skillData = parsed.data;
-		const results = skillData.results || [];
-		expect(results.length).toBeGreaterThan(0);
-
-		const item = (results[0].results || [])[0];
+		const skillData = parsed.data || parsed;
+		const groupedResults = skillData.results || [];
+		const item = skillData.result !== undefined
+			? skillData
+			: (groupedResults[0]?.results || [])[0];
 		expect(item).toBeTruthy();
 
 		// sqrt(144) = 12 exactly
