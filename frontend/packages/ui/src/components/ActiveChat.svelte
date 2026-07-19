@@ -9024,61 +9024,72 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             }
             
             if (!currentChat?.chat_id) return;
-            
+            const draftRestoreChat = currentChat;
+            const draftRestoreChatId = draftRestoreChat.chat_id;
+            const isCurrentDraftRestoreTarget = () =>
+                thisLoadGeneration === loadChatGeneration && currentChat?.chat_id === draftRestoreChatId;
+            const runCurrentDraftRestoreSoon = (callback: (ref: MessageInputFieldRef) => void) => {
+                setTimeout(() => {
+                    const ref = messageInputFieldRef;
+                    if (!ref || !isCurrentDraftRestoreTarget()) return;
+                    callback(ref);
+                }, 50);
+            };
+
             if (!$authStore.isAuthenticated) {
                 // Non-authenticated user: check sessionStorage for draft
-                const sessionDraft = loadSessionStorageDraft(currentChat.chat_id);
-                const sessionDraftMarkdown = getSessionStorageDraftMarkdown(currentChat.chat_id);
+                const sessionDraft = loadSessionStorageDraft(draftRestoreChatId);
+                const sessionDraftMarkdown = getSessionStorageDraftMarkdown(draftRestoreChatId);
                 if (sessionDraft) {
-                    console.debug(`[ActiveChat] Loading sessionStorage draft for demo chat ${currentChat.chat_id}`);
-                    setTimeout(() => {
-                        if (!messageInputFieldRef) return;
-                        messageInputFieldRef.setDraftContent(currentChat.chat_id, sessionDraft, 0, false);
+                    console.debug(`[ActiveChat] Loading sessionStorage draft for demo chat ${draftRestoreChatId}`);
+                    runCurrentDraftRestoreSoon((ref) => {
+                        ref.setDraftContent(draftRestoreChatId, sessionDraft, 0, false);
                         // CRITICAL: Restore the original markdown from the stored draft to preserve user input
                         // This ensures URLs and other content are preserved exactly as the user typed them
-                        if (sessionDraftMarkdown && messageInputFieldRef.setOriginalMarkdown) {
-                            messageInputFieldRef.setOriginalMarkdown(sessionDraftMarkdown);
+                        if (sessionDraftMarkdown && ref.setOriginalMarkdown) {
+                            ref.setOriginalMarkdown(sessionDraftMarkdown);
                         }
-                    }, 50);
+                    });
                 } else {
-                    console.debug(`[ActiveChat] No sessionStorage draft found for demo chat ${currentChat.chat_id}. Setting context and clearing editor.`);
+                    console.debug(`[ActiveChat] No sessionStorage draft found for demo chat ${draftRestoreChatId}. Setting context and clearing editor.`);
                     // CRITICAL: Even when there's no draft, we must update the draft service's context to the new demo chat ID
                     // This ensures that when the user types in this demo chat, the draft is saved to the correct chat ID
                     // Without this, the draft service might still use the previous chat's ID, causing drafts to overwrite each other
-                    setTimeout(() => {
-                        if (!messageInputFieldRef) return;
-                        if (messageInputFieldRef.getTextContent().trim().length > 0) {
-                            console.debug(`[ActiveChat] Skipping no-draft clear for ${currentChat.chat_id}; composer has live input`);
+                    runCurrentDraftRestoreSoon((ref) => {
+                        if (ref.getTextContent().trim().length > 0) {
+                            console.debug(`[ActiveChat] Skipping no-draft clear for ${draftRestoreChatId}; composer has live input`);
                             return;
                         }
                         // Set the draft context to the new demo chat ID, even though there's no draft content
                         // This ensures the draft service knows which chat ID to use when saving drafts
-                        messageInputFieldRef.setDraftContent(currentChat.chat_id, null, 0, false);
-                        console.debug(`[ActiveChat] Updated draft context to demo chat ${currentChat.chat_id} (no draft content)`);
-                    }, 50);
+                        ref.setDraftContent(draftRestoreChatId, null, 0, false);
+                        console.debug(`[ActiveChat] Updated draft context to demo chat ${draftRestoreChatId} (no draft content)`);
+                    });
                 }
             } else {
                 // Authenticated user: load encrypted draft from IndexedDB
                 // Access the encrypted draft directly from the currentChat object.
                 // The currentChat object should have been populated with encrypted_draft_md and draft_v
                 // by the time it's passed to this function or fetched by chatDB.getChat().
-                const encryptedDraftMd = currentChat?.encrypted_draft_md;
-                const encryptedDraftPreview = currentChat?.encrypted_draft_preview;
-                const draftVersion = currentChat?.draft_v;
+                const encryptedDraftMd = draftRestoreChat.encrypted_draft_md;
+                const encryptedDraftPreview = draftRestoreChat.encrypted_draft_preview;
+                const draftVersion = draftRestoreChat.draft_v;
                 const restoreTextDraftFromPreview = async (): Promise<boolean> => {
-                    if (!encryptedDraftPreview || !currentChat?.chat_id || !messageInputFieldRef) return false;
+                    const ref = messageInputFieldRef;
+                    if (!encryptedDraftPreview || !ref || !isCurrentDraftRestoreTarget()) return false;
 
                     try {
                         const decryptedPreview = await decryptWithMasterKey(encryptedDraftPreview);
                         const previewText = decryptedPreview?.trim();
                         if (!previewText || /^\[[^\]]+\]$/.test(previewText)) return false;
+                        if (!isCurrentDraftRestoreTarget()) return false;
 
                         const draftContentJSON = parse_message(previewText, 'write', { unifiedParsingEnabled: true });
-                        console.debug(`[ActiveChat] Restoring preview-only text draft for chat ${currentChat.chat_id}`);
-                        messageInputFieldRef.setDraftContent(currentChat.chat_id, draftContentJSON, draftVersion || 1, false);
+                        console.debug(`[ActiveChat] Restoring preview-only text draft for chat ${draftRestoreChatId}`);
+                        ref.setDraftContent(draftRestoreChatId, draftContentJSON, draftVersion || 1, false);
                         return true;
                     } catch (error) {
-                        console.error(`[ActiveChat] Error decrypting preview-only draft for chat ${currentChat.chat_id}:`, error);
+                        console.error(`[ActiveChat] Error decrypting preview-only draft for chat ${draftRestoreChatId}:`, error);
                         return false;
                     }
                 };
@@ -9093,15 +9104,16 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     // Draft has content (shown as "[Image]" in preview) but markdown is empty
                     // due to serialization returning "" for embeds without contentRef at save time.
                     // Load embeds from EmbedStore and reconstruct the TipTap JSON.
-                    console.debug(`[ActiveChat] Draft has empty markdown but preview exists ("${encryptedDraftPreview}") - reconstructing from EmbedStore for chat ${currentChat.chat_id}`);
+                    console.debug(`[ActiveChat] Draft has empty markdown but preview exists ("${encryptedDraftPreview}") - reconstructing from EmbedStore for chat ${draftRestoreChatId}`);
                     
                     try {
                         // Import EmbedStore and computeSHA256
                         const { embedStore } = await import('../services/embedStore');
                         const { computeSHA256 } = await import('../message_parsing/utils');
                         
-                        const hashedChatId = await computeSHA256(currentChat.chat_id);
+                        const hashedChatId = await computeSHA256(draftRestoreChatId);
                         const chatEmbeds = await embedStore.getEmbedsByHashedChatId(hashedChatId);
+                        if (!isCurrentDraftRestoreTarget()) return;
                         
                         if (chatEmbeds && chatEmbeds.length > 0) {
                             // Reconstruct TipTap JSON with embed nodes
@@ -9124,91 +9136,87 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                     content: embedNodes,
                                 };
                                 
-                                console.debug(`[ActiveChat] Reconstructed ${embedNodes.length} embed nodes from EmbedStore for chat ${currentChat.chat_id}`);
+                                console.debug(`[ActiveChat] Reconstructed ${embedNodes.length} embed nodes from EmbedStore for chat ${draftRestoreChatId}`);
                                 
                                 if (messageInputFieldRef) {
-                                    setTimeout(() => {
-                                        if (!messageInputFieldRef) return;
-                                        messageInputFieldRef.setDraftContent(currentChat.chat_id, draftContentJSON, draftVersion || 1, false);
-                                    }, 50);
+                                    runCurrentDraftRestoreSoon((ref) => {
+                                        ref.setDraftContent(draftRestoreChatId, draftContentJSON, draftVersion || 1, false);
+                                    });
                                 }
                             } else {
                                 // No embeds found in store, just set context
                                 if (await restoreTextDraftFromPreview()) {
-                                    console.debug(`[ActiveChat] Restored preview-only text draft for ${currentChat.chat_id}; EmbedStore had no embeds`);
-                                } else if (shouldPreserveLiveEmbedOnlyDraft(currentChat.chat_id)) {
-                                    console.debug(`[ActiveChat] Preserving live embed-only draft for ${currentChat.chat_id}; EmbedStore has not caught up yet`);
+                                    console.debug(`[ActiveChat] Restored preview-only text draft for ${draftRestoreChatId}; EmbedStore had no embeds`);
+                                } else if (shouldPreserveLiveEmbedOnlyDraft(draftRestoreChatId)) {
+                                    console.debug(`[ActiveChat] Preserving live embed-only draft for ${draftRestoreChatId}; EmbedStore has not caught up yet`);
                                 } else if (messageInputFieldRef) {
-                                    setTimeout(() => {
-                                        if (!messageInputFieldRef) return;
-                                        messageInputFieldRef.setCurrentChatContext(currentChat.chat_id, null, draftVersion || 0);
-                                    }, 50);
+                                    runCurrentDraftRestoreSoon((ref) => {
+                                        ref.setCurrentChatContext?.(draftRestoreChatId, null, draftVersion || 0);
+                                    });
                                 }
                             }
                         } else {
                             // No embeds in store, just set context
-                            console.debug(`[ActiveChat] No embeds found in EmbedStore for chat ${currentChat.chat_id}, setting context only`);
+                            console.debug(`[ActiveChat] No embeds found in EmbedStore for chat ${draftRestoreChatId}, setting context only`);
                             if (await restoreTextDraftFromPreview()) {
-                                console.debug(`[ActiveChat] Restored preview-only text draft for ${currentChat.chat_id}; no embeds were found`);
-                            } else if (shouldPreserveLiveEmbedOnlyDraft(currentChat.chat_id)) {
-                                console.debug(`[ActiveChat] Preserving live embed-only draft for ${currentChat.chat_id}; draft restore would otherwise clear the active composer`);
+                                console.debug(`[ActiveChat] Restored preview-only text draft for ${draftRestoreChatId}; no embeds were found`);
+                            } else if (shouldPreserveLiveEmbedOnlyDraft(draftRestoreChatId)) {
+                                console.debug(`[ActiveChat] Preserving live embed-only draft for ${draftRestoreChatId}; draft restore would otherwise clear the active composer`);
                             } else if (messageInputFieldRef) {
-                                setTimeout(() => {
-                                    if (!messageInputFieldRef) return;
-                                    messageInputFieldRef.setCurrentChatContext(currentChat.chat_id, null, draftVersion || 0);
-                                }, 50);
+                                runCurrentDraftRestoreSoon((ref) => {
+                                    ref.setCurrentChatContext?.(draftRestoreChatId, null, draftVersion || 0);
+                                });
                             }
                         }
                     } catch (error) {
                         console.error(`[ActiveChat] Error reconstructing draft from EmbedStore:`, error);
                         // Fallback: just set context
-                        if (shouldPreserveLiveEmbedOnlyDraft(currentChat.chat_id)) {
-                            console.debug(`[ActiveChat] Preserving live embed-only draft for ${currentChat.chat_id} after reconstruction error`);
+                        if (shouldPreserveLiveEmbedOnlyDraft(draftRestoreChatId)) {
+                            console.debug(`[ActiveChat] Preserving live embed-only draft for ${draftRestoreChatId} after reconstruction error`);
                         } else if (messageInputFieldRef) {
-                            setTimeout(() => {
-                                if (!messageInputFieldRef) return;
-                                messageInputFieldRef.setCurrentChatContext(currentChat.chat_id, null, draftVersion || 0);
-                            }, 50);
+                            runCurrentDraftRestoreSoon((ref) => {
+                                ref.setCurrentChatContext?.(draftRestoreChatId, null, draftVersion || 0);
+                            });
                         }
                     }
                 } else if (encryptedDraftMd) {
-                    console.debug(`[ActiveChat] Loading current user's encrypted draft for chat ${currentChat.chat_id}, version: ${draftVersion}`);
+                    console.debug(`[ActiveChat] Loading current user's encrypted draft for chat ${draftRestoreChatId}, version: ${draftVersion}`);
                     
                     // Decrypt the draft content and convert to TipTap JSON
                     try {
                         const decryptedMarkdown = await decryptWithMasterKey(encryptedDraftMd);
                         if (decryptedMarkdown) {
+                            if (!isCurrentDraftRestoreTarget()) return;
                             // Parse markdown to TipTap JSON for the editor
                             const draftContentJSON = parse_message(decryptedMarkdown, 'write', { unifiedParsingEnabled: true });
-                            console.debug(`[ActiveChat] Successfully decrypted and parsed draft content for chat ${currentChat.chat_id}`);
-                            if (!hasMeaningfulTiptapContent(draftContentJSON) && shouldPreserveLiveEmbedOnlyDraft(currentChat.chat_id)) {
-                                console.debug(`[ActiveChat] Preserving live draft for ${currentChat.chat_id}; decrypted draft parsed empty while upload is still finalizing`);
+                            console.debug(`[ActiveChat] Successfully decrypted and parsed draft content for chat ${draftRestoreChatId}`);
+                            if (!hasMeaningfulTiptapContent(draftContentJSON) && shouldPreserveLiveEmbedOnlyDraft(draftRestoreChatId)) {
+                                console.debug(`[ActiveChat] Preserving live draft for ${draftRestoreChatId}; decrypted draft parsed empty while upload is still finalizing`);
                                 return;
                             }
-                             
-                            setTimeout(() => {
-                                if (!messageInputFieldRef) return;
+                              
+                            runCurrentDraftRestoreSoon((ref) => {
                                 // Pass the decrypted and parsed TipTap JSON content
-                                messageInputFieldRef.setDraftContent(currentChat.chat_id, draftContentJSON, draftVersion, false);
-                            }, 50);
+                                ref.setDraftContent(draftRestoreChatId, draftContentJSON, draftVersion, false);
+                            });
                         } else {
-                            console.error(`[ActiveChat] Failed to decrypt draft for chat ${currentChat.chat_id} - master key not available`);
+                            console.error(`[ActiveChat] Failed to decrypt draft for chat ${draftRestoreChatId} - master key not available`);
                             // CRITICAL: Preserve context when clearing - we're just switching to a chat with no draft
-                            await messageInputFieldRef.clearMessageField(false, true);
+                            if (isCurrentDraftRestoreTarget()) await messageInputFieldRef?.clearMessageField(false, true);
                         }
                     } catch (error) {
-                        console.error(`[ActiveChat] Error decrypting/parsing draft for chat ${currentChat.chat_id}:`, error);
+                        console.error(`[ActiveChat] Error decrypting/parsing draft for chat ${draftRestoreChatId}:`, error);
                         // CRITICAL: Preserve context when clearing - we're just switching to a chat with no draft
-                        await messageInputFieldRef.clearMessageField(false, true);
+                        if (isCurrentDraftRestoreTarget()) await messageInputFieldRef?.clearMessageField(false, true);
                     }
                 } else {
-                    console.debug(`[ActiveChat] No draft found for current user in chat ${currentChat.chat_id}. Clearing editor.`);
+                    console.debug(`[ActiveChat] No draft found for current user in chat ${draftRestoreChatId}. Clearing editor.`);
                     if (messageInputFieldRef.getTextContent().trim().length > 0) {
-                        console.debug(`[ActiveChat] Skipping no-draft clear for ${currentChat.chat_id}; composer has live input`);
+                        console.debug(`[ActiveChat] Skipping no-draft clear for ${draftRestoreChatId}; composer has live input`);
                         return;
                     }
                     // CRITICAL: Preserve context when clearing - we're just switching to a chat with no draft
-                    await messageInputFieldRef.clearMessageField(false, true);
+                    if (isCurrentDraftRestoreTarget()) await messageInputFieldRef?.clearMessageField(false, true);
                 }
             }
         };
