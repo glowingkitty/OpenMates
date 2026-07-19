@@ -180,25 +180,22 @@ function messageEditorEditable(page: any, chatId?: string): any {
 async function replaceMessageEditorText(page: any, chatId: string, text: string): Promise<any> {
 	const editor = messageEditorEditable(page, chatId);
 	await expect(editor).toBeVisible({ timeout: 15_000 });
-	await editor.click();
-	await page.keyboard.press('ControlOrMeta+A');
-	await page.keyboard.press('ControlOrMeta+A');
-	await page.keyboard.press('Backspace');
-	await expect(editor).toHaveText('', { timeout: 5_000 });
-	if (text.length > 0) {
-		await page.evaluate(
-			({ targetChatId, pastedText }: { targetChatId: string; pastedText: string }) => {
-				const editable = document.querySelector(
-					`[data-action="message-input"][data-current-chat-id="${targetChatId}"] [data-testid="message-editor"] [contenteditable="true"]`
-				);
-				if (!editable) throw new Error(`contenteditable editor not found for ${targetChatId}`);
-				const clipboardData = new DataTransfer();
-				clipboardData.setData('text/plain', pastedText);
-				editable.dispatchEvent(new ClipboardEvent('paste', { clipboardData, bubbles: true, cancelable: true }));
-			},
-			{ targetChatId: chatId, pastedText: text }
-		);
-	}
+	await page.evaluate(
+		({ targetChatId, nextText }: { targetChatId: string; nextText: string }) => {
+			const editable = document.querySelector(
+				`[data-action="message-input"][data-current-chat-id="${targetChatId}"] [data-testid="message-editor"] [contenteditable="true"]`
+			);
+			if (!(editable instanceof HTMLElement)) throw new Error(`contenteditable editor not found for ${targetChatId}`);
+			editable.focus();
+			const range = document.createRange();
+			range.selectNodeContents(editable);
+			const selection = window.getSelection();
+			selection?.removeAllRanges();
+			selection?.addRange(range);
+			document.execCommand('insertText', false, nextText);
+		},
+		{ targetChatId: chatId, nextText: text }
+	);
 	return editor;
 }
 
