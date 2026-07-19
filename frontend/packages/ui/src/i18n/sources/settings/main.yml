@@ -2491,6 +2491,31 @@ developers_devices_access_type_cli:
   he: CLI
   verified_by_human: []
 
+developers_devices_access_type_sdk:
+  context: API key device access type for npm and pip SDK package clients
+  en: SDK
+  de: SDK
+  zh: SDK
+  es: SDK
+  fr: SDK
+  pt: SDK
+  ru: SDK
+  ja: SDK
+  ko: SDK
+  it: SDK
+  tr: SDK
+  vi: SDK
+  id: SDK
+  pl: SDK
+  nl: SDK
+  ar: SDK
+  hi: SDK
+  th: SDK
+  cs: SDK
+  sv: SDK
+  he: SDK
+  verified_by_human: []
+
 developers_devices_access_type_pip:
   context: pip access type
   en: pip Package

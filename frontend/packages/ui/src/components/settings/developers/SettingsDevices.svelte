@@ -176,13 +176,13 @@
     }
 
     function getAccessTypeLabel(accessType: string): string {
+        const normalizedAccessType = accessType === 'npm' || accessType === 'pip' ? 'sdk' : accessType;
         const labels: Record<string, string> = {
             'rest_api': $text('settings.developers_devices_access_type_rest_api'),
             'cli': $text('settings.developers_devices_access_type_cli'),
-            'pip': $text('settings.developers_devices_access_type_pip'),
-            'npm': $text('settings.developers_devices_access_type_npm')
+            'sdk': $text('settings.developers_devices_access_type_sdk')
         };
-        return labels[accessType] || accessType;
+        return labels[normalizedAccessType] || accessType;
     }
 
     function getDeviceTitle(device: ApiKeyDevice): string {

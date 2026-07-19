@@ -652,7 +652,7 @@ test('creates API key, verifies device approval flow, and saves working key', as
 	log('Opened Devices from Developers menu.');
 	await screenshot(page, 'devices-page');
 
-	const pendingRow = page.getByTestId('device-row').filter({ hasText: /Pending/i }).first();
+	const pendingRow = page.getByTestId('device-row').filter({ hasText: /REST API/ }).filter({ hasText: /Pending/i }).first();
 	await expect(pendingRow).toBeVisible({ timeout: 30000 });
 	await pendingRow.click();
 	log('Opened pending device detail.');
@@ -685,6 +685,32 @@ test('creates API key, verifies device approval flow, and saves working key', as
 	expect(approvedData).toHaveProperty('chats');
 	log('Confirmed: REST API call succeeded immediately after device approval.');
 
+	// ── Phase 5a: Register npm and pip SDK devices — both should be labeled SDK ─
+	const sdkDeviceTypes = ['npm', 'pip'] as const;
+	for (const sdkDeviceType of sdkDeviceTypes) {
+		const sdkDeviceHeaders = {
+			Authorization: `Bearer ${rawApiKey}`,
+			'X-OpenMates-SDK': sdkDeviceType,
+			'X-OpenMates-Device-Identity': `${sdkDeviceType}:e2e:${Date.now()}`
+		};
+		const sdkBlockedResponse = await request.get(sdkChatsUrl, { headers: sdkDeviceHeaders });
+		const sdkBlockedBody = await sdkBlockedResponse.text();
+		log(`${sdkDeviceType} SDK API response (before device approval): ${sdkBlockedResponse.status()}`);
+		expect(
+			sdkBlockedResponse.status() === 403,
+			`Expected 403 for ${sdkDeviceType} SDK device before approval, got ${sdkBlockedResponse.status()}: ${sdkBlockedBody}`
+		).toBe(true);
+	}
+
+	await page.reload({ waitUntil: 'domcontentloaded' });
+	log('Reloaded app before checking SDK device labels.');
+	await navigateToDevices(page, log);
+	const sdkPendingRows = page.getByTestId('device-row').filter({ hasText: /SDK/ }).filter({ hasText: /Pending/i });
+	await expect(sdkPendingRows.first()).toBeVisible({ timeout: 30000 });
+	await expect.poll(async () => sdkPendingRows.count(), { timeout: 30000 }).toBeGreaterThanOrEqual(2);
+	await expect(page.getByTestId('device-row').filter({ hasText: /npm Package|pip Package/i })).toHaveCount(0);
+	log('Confirmed: npm and pip package devices are labeled SDK in Devices.');
+
 	// ── Phase 5b: Register and approve the stable CLI API-key device ───────────
 	const cliDeviceIdentity = `cli:${os.platform()}:${os.arch()}:${Date.now()}`;
 	const cliDeviceHeaders = {
@@ -705,7 +731,7 @@ test('creates API key, verifies device approval flow, and saves working key', as
 	await page.reload({ waitUntil: 'domcontentloaded' });
 	log('Reloaded app before reopening Devices for CLI device approval.');
 	await navigateToDevices(page, log);
-	const cliPendingCard = page.getByTestId('device-row').filter({ hasText: /Pending/i }).first();
+	const cliPendingCard = page.getByTestId('device-row').filter({ hasText: /CLI/ }).filter({ hasText: /Pending/i }).first();
 	await expect(cliPendingCard).toBeVisible({ timeout: 30000 });
 	await cliPendingCard.click();
 	await screenshot(page, 'cli-pending-device');
