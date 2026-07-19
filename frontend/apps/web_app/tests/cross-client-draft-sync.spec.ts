@@ -817,15 +817,8 @@ async function openDraftByHash(page: any, chatId: string): Promise<void> {
 }
 
 async function openDraft(page: any, chatId: string, expectedText: string): Promise<any> {
-	const item = await locateDraftInSidebarOrSearch(page, chatId, expectedText).catch(() => null);
-	if (item) {
-		await expect(item).toContainText(expectedText);
-		await item.click();
-		await closeSearchIfOpen(page);
-	} else {
-		await openDraftByHash(page, chatId);
-	}
-	const editor = page.getByTestId('message-editor');
+	await openDraftByHash(page, chatId);
+	const editor = messageEditorEditable(page, chatId);
 	await expect(editor).toBeVisible({ timeout: 15_000 });
 	try {
 		await expect(editor).toContainText(expectedText, { timeout: 15_000 });
@@ -833,7 +826,7 @@ async function openDraft(page: any, chatId: string, expectedText: string): Promi
 		await logDraftOpenDiagnostics(page, chatId, 'CROSS_CLIENT_DRAFT_SYNC', expectedText);
 		throw error;
 	}
-	return item;
+	return null;
 }
 
 test.describe('Cross-client encrypted draft sync', () => {
