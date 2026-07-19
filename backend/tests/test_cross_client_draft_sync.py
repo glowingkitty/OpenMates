@@ -574,12 +574,20 @@ async def test_session_draft_route_returns_authoritative_ciphertext() -> None:
 @pytest.mark.anyio
 async def test_session_draft_route_prefers_newer_persisted_directus_draft() -> None:
     class Cache:
+        def __init__(self):
+            self.updated = []
+
         async def get_user_draft_from_cache(self, user_id, chat_id):
             assert user_id == "user-1"
             assert chat_id == "chat-1"
             return "stale-cache-cipher", 2, "stale-cache-preview"
 
+        async def update_user_draft_in_cache(self, user_id, chat_id, encrypted_md, draft_v, encrypted_draft_preview=None):
+            self.updated.append((user_id, chat_id, encrypted_md, draft_v, encrypted_draft_preview))
+            return True
+
     calls = []
+    cache = Cache()
 
     async def get_items(collection, *, params, admin_required=False):
         calls.append((collection, params, admin_required))
@@ -588,7 +596,7 @@ async def test_session_draft_route_prefers_newer_persisted_directus_draft() -> N
     request = SimpleNamespace(
         app=SimpleNamespace(
             state=SimpleNamespace(
-                cache_service=Cache(),
+                cache_service=cache,
                 directus_service=SimpleNamespace(get_items=get_items),
             )
         )
@@ -614,6 +622,7 @@ async def test_session_draft_route_prefers_newer_persisted_directus_draft() -> N
         },
         True,
     )]
+    assert cache.updated == [("user-1", "chat-1", "persisted-cipher", 3, None)]
     assert "plaintext" not in str(response).lower()
 
 

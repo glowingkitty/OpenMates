@@ -15,6 +15,7 @@ from pydantic import BaseModel
 
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user
 from backend.core.api.app.models.user import User
+from backend.core.api.app.routes.handlers.websocket_handlers.get_draft_versions_handler import get_authoritative_user_draft
 from backend.core.api.app.services.directus.team_methods import TeamPermissionError, hash_id
 from backend.core.api.app.services.team_workspace_service import TeamWorkspaceMoveError, move_workspace_record_to_team
 
@@ -136,50 +137,21 @@ async def get_draft(
     request: Request,
     current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
-    hashed_user_id = hashlib.sha256(current_user.id.encode()).hexdigest()
-    candidates: list[dict[str, Any]] = []
-    rows = await request.app.state.directus_service.get_items(
-        "drafts",
-        params={
-            "filter[hashed_user_id][_eq]": hashed_user_id,
-            "filter[chat_id][_eq]": chat_id,
-            "fields": "encrypted_content,version",
-            "limit": 1,
-        },
-        admin_required=True,
+    draft = await get_authoritative_user_draft(
+        request.app.state.cache_service,
+        request.app.state.directus_service,
+        current_user.id,
+        chat_id,
     )
-    if rows:
-        row = rows[0]
-        encrypted_md = row.get("encrypted_content")
-        draft_v = int(row.get("version") or 0)
-        if encrypted_md and draft_v > 0:
-            candidates.append({
-                "chat_id": chat_id,
-                "encrypted_draft_md": encrypted_md,
-                "encrypted_draft_preview": None,
-                "draft_v": draft_v,
-            })
-
-    draft = await request.app.state.cache_service.get_user_draft_from_cache(
-        user_id=current_user.id,
-        chat_id=chat_id,
-    )
-    if draft:
-        encrypted_md, draft_v, encrypted_preview = draft
-        if encrypted_md and int(draft_v or 0) > 0:
-            candidates.append({
-                "chat_id": chat_id,
-                "encrypted_draft_md": encrypted_md,
-                "encrypted_draft_preview": encrypted_preview,
-                "draft_v": int(draft_v),
-            })
-
-    if candidates:
-        # WebSocket ACK follows the Redis write, while Directus persistence is async.
-        # Return the newest valid ciphertext across both stores.
-        return {"draft": max(candidates, key=lambda item: int(item["draft_v"]))}
-
-    return {"draft": None}
+    if not draft:
+        return {"draft": None}
+    encrypted_md, draft_v, encrypted_preview = draft
+    return {"draft": {
+        "chat_id": chat_id,
+        "encrypted_draft_md": encrypted_md,
+        "encrypted_draft_preview": encrypted_preview,
+        "draft_v": int(draft_v),
+    }}
 
 
 @router.post("/chats/{chat_id}/move")
