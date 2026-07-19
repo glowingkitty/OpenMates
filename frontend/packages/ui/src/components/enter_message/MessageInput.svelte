@@ -2959,7 +2959,7 @@
             chatSyncService.removeEventListener('embedUpdated', embedUpdatedFromServerHandler);
             embedUpdatedFromServerHandler = null;
         }
-        cleanupDraftService();
+        cleanupDraftService(editor ?? undefined);
         if (editor && !editor.isDestroyed) editor.destroy();
         handleStopRecordingCleanup();
     }

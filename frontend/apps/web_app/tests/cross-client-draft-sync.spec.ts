@@ -345,7 +345,9 @@ async function locateDraftInSidebarOrSearch(page: any, chatId: string, expectedT
 	await closeSearchIfOpen(page);
 	const item = chatItem(page, chatId);
 	if (await item.isVisible({ timeout: 5_000 }).catch(() => false)) {
-		return item;
+		if (await item.getByText(expectedText, { exact: false }).isVisible({ timeout: 5_000 }).catch(() => false)) {
+			return item;
+		}
 	}
 
 	const searchIcon = page.getByTestId('search-button');
@@ -434,9 +436,8 @@ test.describe('Cross-client encrypted draft sync', () => {
 
 			const editor = messageEditorEditable(page);
 			await expect(editor).toBeVisible({ timeout: 15_000 });
-			await editor.click();
-			await page.keyboard.press('ControlOrMeta+A');
-			await page.keyboard.insertText(updatedText);
+			await editor.fill(updatedText);
+			await expect(editor).toContainText(updatedText, { timeout: 10_000 });
 			await page.getByTestId('input-dismiss-button').click();
 			await expect
 				.poll(async () => {
@@ -449,9 +450,7 @@ test.describe('Cross-client encrypted draft sync', () => {
 				.toBe(`${Number(created.draftV) + 1}:${updatedText}`);
 			log('Web draft edit reconciled to CLI.');
 
-			await editor.click();
-			await page.keyboard.press('ControlOrMeta+A');
-			await page.keyboard.press('Backspace');
+			await editor.fill('');
 			log('Web draft emptied; waiting for CLI reconciliation.');
 			await expect
 				.poll(async () => (await runCliJson(apiUrl, ['drafts', 'get', draftChatId, '--refresh'])).draft, {
@@ -555,9 +554,7 @@ test.describe('Cross-client encrypted draft sync', () => {
 
 			const editor = messageEditorEditable(page);
 			await expect(editor).toBeVisible({ timeout: 15_000 });
-			await editor.click();
-			await page.keyboard.press('ControlOrMeta+A');
-			await page.keyboard.insertText(editedDraftText);
+			await editor.fill(editedDraftText);
 			await expect(editor).toContainText(editedDraftText, { timeout: 10_000 });
 			await page.getByTestId('input-dismiss-button').click();
 			await expect

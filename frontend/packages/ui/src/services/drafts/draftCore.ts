@@ -29,10 +29,14 @@ export function initializeDraftService(editor: Editor) {
  * Cleans up the draft service (e.g., removes listeners).
  * MUST be called by MessageInput onDestroy.
  */
-export function cleanupDraftService() {
+export function cleanupDraftService(editor?: Editor) {
 	if (!editorInstance) {
 		// console.warn("[DraftService] cleanupDraftService called but no editor instance exists.");
 		return; // Avoid errors if called multiple times or without init
+	}
+	if (editor && editorInstance !== editor) {
+		console.debug('[DraftService] Ignoring cleanup for stale editor instance.');
+		return;
 	}
 	console.info('[DraftService] Cleaning up draft service.');
 	editorInstance = null;
