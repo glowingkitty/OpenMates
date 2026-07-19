@@ -14,6 +14,7 @@ import {
 	EMBED_FULLSCREEN_COMPONENTS,
 	normalizeEmbedType
 } from '../data/embedRegistry.generated';
+import BusinessCompanyFinancialsEmbedFullscreen from '../components/embeds/business/BusinessCompanyFinancialsEmbedFullscreen.svelte';
 import Model3DResultEmbedFullscreen from '../components/embeds/models3d/Model3DResultEmbedFullscreen.svelte';
 import {
 	forcePageReload,
@@ -67,7 +68,7 @@ export function resolveRegistryKey(
  * Check if the registry has a fullscreen component for a given key.
  */
 export function hasFullscreenComponent(key: string): boolean {
-	return key in EMBED_FULLSCREEN_COMPONENTS;
+	return key in STATIC_FULLSCREEN_COMPONENTS || key in EMBED_FULLSCREEN_COMPONENTS;
 }
 
 /**
@@ -81,6 +82,7 @@ const modules = import.meta.glob<{ default: Component }>(
 const fullscreenComponentPromises = new Map<string, Promise<Component | null>>();
 
 const STATIC_FULLSCREEN_COMPONENTS: Record<string, Component> = {
+	'app:business:company_financials': BusinessCompanyFinancialsEmbedFullscreen,
 	// Avoid a blank/pending shell for the public Models3D example's direct child route.
 	'models3d-model-result': Model3DResultEmbedFullscreen,
 };
