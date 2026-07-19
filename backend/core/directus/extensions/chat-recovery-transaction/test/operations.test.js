@@ -696,6 +696,43 @@ test('outbox dispatch and worker failure transitions are idempotent and sanitize
   );
 });
 
+test('worker failure after sealed job is treated as stale and idempotent', async () => {
+  const database = fakeDatabase({
+    chat_turn_preflights: [{
+      id: PREFLIGHT_ID,
+      inference_task_id: TASK_ID,
+      state: 'RUNNING',
+      outbox_id: OUTBOX_ID,
+    }],
+    chat_inference_outbox: [{
+      id: OUTBOX_ID,
+      inference_task_id: TASK_ID,
+      state: 'DISPATCHED',
+      attempts: 1,
+    }],
+    chat_completion_recovery_jobs: [{
+      id: JOB_ID,
+      inference_task_id: TASK_ID,
+      state: 'AVAILABLE',
+    }],
+  });
+
+  const result = await executeOperation(database, 'mark_inference_failed', {
+    protocol_version: 1,
+    inference_task_id: TASK_ID,
+    failure_category: 'runtime_error',
+  });
+
+  assert.deepEqual(result, {
+    inference_task_id: TASK_ID,
+    failed: false,
+    state: 'RUNNING',
+    sealed_job_id: JOB_ID,
+  });
+  assert.equal(database.rows.chat_turn_preflights[0].state, 'RUNNING');
+  assert.equal(database.rows.chat_inference_outbox[0].state, 'DISPATCHED');
+});
+
 test('prepare_preflight atomically writes chat, user message, and preflight', async () => {
   const database = fakeDatabase({ chats: [], messages: [], chat_turn_preflights: [] });
   const result = await executeOperation(database, 'prepare_preflight', prepareBody(), new Date('2029-01-01T00:00:00Z'));

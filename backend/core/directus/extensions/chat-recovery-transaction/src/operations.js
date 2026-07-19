@@ -709,7 +709,14 @@ async function markInferenceFailed(database, raw, now) {
     const row = await trx(PREFLIGHTS).where({ inference_task_id: taskId }).forUpdate().first();
     if (!row || row.deletion_invalidated_at) fail(404, 'inference_task_not_found');
     const sealedJob = await trx(JOBS).where({ inference_task_id: taskId }).first();
-    if (sealedJob) fail(409, 'sealed_job_exists');
+    if (sealedJob) {
+      return {
+        inference_task_id: taskId,
+        failed: false,
+        state: row.state,
+        sealed_job_id: sealedJob.id,
+      };
+    }
     if (row.state === 'FAILED') {
       if (row.failure_category !== category) fail(409, 'failure_category_mismatch');
       return { inference_task_id: taskId, failed: false, state: 'FAILED' };
