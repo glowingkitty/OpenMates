@@ -364,9 +364,19 @@ function messageEditorHost(page: any, chatId: string): any {
 		.first();
 }
 
+async function activeMessageEditorEditable(page: any, chatId: string): Promise<any> {
+	const scopedEditor = messageEditorEditable(page, chatId);
+	if (await scopedEditor.isVisible({ timeout: 1_000 }).catch(() => false)) return scopedEditor;
+	const hash = await page.evaluate(() => window.location.hash);
+	expect(hash, 'Fallback to generic editor is only safe on the target chat URL').toContain(chatId);
+	const genericEditor = messageEditorEditable(page);
+	await expect(genericEditor).toBeVisible({ timeout: 10_000 });
+	return genericEditor;
+}
+
 async function replaceMessageEditorText(page: any, chatId: string, text: string): Promise<any> {
 	const host = messageEditorHost(page, chatId);
-	const editor = messageEditorEditable(page, chatId);
+	const editor = await activeMessageEditorEditable(page, chatId);
 	await expect(host).toBeVisible({ timeout: 15_000 });
 	await expect(editor).toBeVisible({ timeout: 15_000 });
 	await editor.click();
@@ -377,7 +387,7 @@ async function replaceMessageEditorText(page: any, chatId: string, text: string)
 		await page.keyboard.press('Backspace');
 		await expect(editor).toHaveText('', { timeout: 10_000 });
 	}
-	const activeEditor = messageEditorEditable(page, chatId);
+	const activeEditor = await activeMessageEditorEditable(page, chatId);
 	if (text.length > 0) {
 		await activeEditor.click();
 		await page.keyboard.press('End');
