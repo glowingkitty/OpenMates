@@ -174,6 +174,25 @@ function messageEditorEditable(page: any): any {
 	return page.locator('[data-testid="message-editor"] [contenteditable="true"]').first();
 }
 
+async function replaceMessageEditorText(page: any, text: string): Promise<any> {
+	const editor = messageEditorEditable(page);
+	await expect(editor).toBeVisible({ timeout: 15_000 });
+	await editor.focus();
+	await editor.evaluate((element: HTMLElement) => {
+		const selection = window.getSelection();
+		const range = document.createRange();
+		range.selectNodeContents(element);
+		selection?.removeAllRanges();
+		selection?.addRange(range);
+	});
+	if (text.length > 0) {
+		await page.keyboard.insertText(text);
+	} else {
+		await page.keyboard.press('Backspace');
+	}
+	return editor;
+}
+
 async function logDraftOpenDiagnostics(page: any, chatId: string, label: string, expectedText?: string): Promise<void> {
 	const diagnostics = await page.evaluate(async ({ targetChatId, expected }: { targetChatId: string; expected?: string }) => {
 		async function readIdbValue<T>(dbName: string, storeName: string, key: IDBValidKey): Promise<T | null> {
@@ -434,9 +453,7 @@ test.describe('Cross-client encrypted draft sync', () => {
 			await openDraft(page, draftChatId, initialText);
 			log('CLI-created draft opened in web client.');
 
-			const editor = messageEditorEditable(page);
-			await expect(editor).toBeVisible({ timeout: 15_000 });
-			await editor.fill(updatedText);
+			const editor = await replaceMessageEditorText(page, updatedText);
 			await expect(editor).toContainText(updatedText, { timeout: 10_000 });
 			await page.getByTestId('input-dismiss-button').click();
 			await expect
@@ -450,7 +467,7 @@ test.describe('Cross-client encrypted draft sync', () => {
 				.toBe(`${Number(created.draftV) + 1}:${updatedText}`);
 			log('Web draft edit reconciled to CLI.');
 
-			await editor.fill('');
+			await replaceMessageEditorText(page, '');
 			log('Web draft emptied; waiting for CLI reconciliation.');
 			await expect
 				.poll(async () => (await runCliJson(apiUrl, ['drafts', 'get', draftChatId, '--refresh'])).draft, {
@@ -552,12 +569,7 @@ test.describe('Cross-client encrypted draft sync', () => {
 			await expectIdeaBucketDraftMarkers(page, draftChatId, draftText);
 			await screenshot(page, 'text-draft-markers');
 
-			const editor = messageEditorEditable(page);
-			await expect(editor).toBeVisible({ timeout: 15_000 });
-			await editor.click();
-			await page.keyboard.press('ControlOrMeta+A');
-			await page.keyboard.press('Backspace');
-			await page.keyboard.insertText(editedDraftText);
+			const editor = await replaceMessageEditorText(page, editedDraftText);
 			await expect(editor).toContainText(editedDraftText, { timeout: 10_000 });
 			await page.getByTestId('input-dismiss-button').click();
 			await expect
