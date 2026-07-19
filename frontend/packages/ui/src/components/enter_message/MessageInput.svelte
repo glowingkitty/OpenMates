@@ -2188,7 +2188,7 @@
                 showMentionDropdown = false;
                 mentionQuery = '';
                 
-                flushSaveDraft(editor);
+                flushSaveDraft(editor, currentChatId);
                 // Only reset to initial content if the editor is TRULY empty (no content at all)
                 // Do NOT reset if it contains mentions - those are valid draft content
                 // that should be preserved even though they can't be sent alone
@@ -3498,9 +3498,9 @@
             console.debug('[MessageInput] Updated recording embed attrs for:', embedId, attrs);
         }
     }
-    function handleSaveDraftBeforeSwitch() { if (editor && !editor.isDestroyed) flushSaveDraft(editor); }
-    function handleBeforeUnload() { if (hasContent && editor && !editor.isDestroyed) flushSaveDraft(editor); }
-    function handleVisibilityChange() { if (document.visibilityState === 'hidden' && hasContent && editor && !editor.isDestroyed) flushSaveDraft(editor); }
+    function handleSaveDraftBeforeSwitch() { if (editor && !editor.isDestroyed) flushSaveDraft(editor, currentChatId); }
+    function handleBeforeUnload() { if (hasContent && editor && !editor.isDestroyed) flushSaveDraft(editor, currentChatId); }
+    function handleVisibilityChange() { if (document.visibilityState === 'hidden' && hasContent && editor && !editor.isDestroyed) flushSaveDraft(editor, currentChatId); }
     function handleResize() { checkScrollable(); updateHeight(); }
     
     /**
@@ -4902,7 +4902,7 @@
             // CRITICAL: Flush draft for the PREVIOUS chat before switching
             // Use the previous chat ID explicitly to ensure we save the right draft
             // The draft service will use the current state's chatId, so we need to ensure it's still set
-            if (editor && !editor.isDestroyed) flushSaveDraft(editor); // Save draft for the previous chat before switching
+            if (editor && !editor.isDestroyed) flushSaveDraft(editor, previousChatId); // Save draft for the previous chat before switching
             // Small delay to ensure the save completes before context switch
             setTimeout(() => {
                 console.debug(`[MessageInput] Draft flush completed for previous chat ${previousChatId}`);

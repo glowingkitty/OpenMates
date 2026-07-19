@@ -1315,9 +1315,13 @@ export function triggerSaveDraft(
  * Immediately flushes any pending debounced save/clear operations.
  * Called on blur, visibilitychange, beforeunload.
  */
-export function flushSaveDraft(editorOverride?: Editor) {
+export function flushSaveDraft(
+  editorOverride?: Editor,
+  chatIdFromMessageInput?: string,
+) {
   const editor = editorOverride ?? getEditorInstance();
   if (!editor) return;
   console.info("[DraftService] Flushing draft operation.");
+  saveDraftDebounced(chatIdFromMessageInput, editor);
   saveDraftDebounced.flush();
 }
