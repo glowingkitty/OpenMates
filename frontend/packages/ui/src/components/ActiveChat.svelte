@@ -282,6 +282,18 @@
         return messageInputHasContent && draftState.currentChatId === chatId;
     }
 
+    function isEncryptedDraftOnlyChat(chat: Chat | null | undefined): boolean {
+        return !!chat?.chat_id
+            && !isPublicChat(chat.chat_id)
+            && !chat.is_incognito
+            && !chat.is_anonymous
+            && !!(chat.encrypted_draft_md || chat.encrypted_draft_preview)
+            && (chat.messages_v ?? 0) === 0
+            && (chat.title_v ?? 0) === 0
+            && !chat.encrypted_title
+            && !chat.title;
+    }
+
     function hasMeaningfulTiptapContent(node: unknown): boolean {
         if (!node || typeof node !== 'object') return false;
         const record = node as Record<string, unknown>;
@@ -8284,6 +8296,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // For public chats (demo/legal) and incognito chats, skip database access - use the chat object directly
         // This is critical during logout when database is being deleted
         let freshChat: Chat | null = null;
+        const isProvidedDraftOnlyChat = isEncryptedDraftOnlyChat(chat);
         if (isPublicChat(chat.chat_id)) {
             // Public chats don't need database access - use the provided chat object
             freshChat = chat;
@@ -8308,6 +8321,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 console.debug(`[ActiveChat] Error loading anonymous chat ${chat.chat_id}, using provided chat object:`, error);
                 freshChat = chat;
             }
+        } else if ($authStore.isAuthenticated && isProvidedDraftOnlyChat) {
+            freshChat = chat;
+            console.debug(`[ActiveChat] Loading authenticated draft-only chat ${chat.chat_id} from provided encrypted draft shell`);
         } else if (!$authStore.isAuthenticated) {
             // CRITICAL: For non-authenticated users, check if this is a sessionStorage-only chat
             // (new chat with draft that doesn't exist in database yet)
@@ -8609,6 +8625,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         newMessages = [];
                     }
                 }
+            } else if (isProvidedDraftOnlyChat) {
+                newMessages = [];
+                console.debug(`[ActiveChat] Authenticated draft-only chat ${currentChat.chat_id} - no messages to load from IndexedDB`);
             } else {
                 // For authenticated users, load messages from IndexedDB
                 // Handle case where database might be unavailable (e.g., during logout/deletion)
