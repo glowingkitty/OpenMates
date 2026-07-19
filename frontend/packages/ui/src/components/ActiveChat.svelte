@@ -8826,8 +8826,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             showWelcome = false;
             console.debug(`[ActiveChat] Public/anonymous chat loaded: forcing showWelcome=false for ${currentChat.chat_id}`);
         } else {
-            // For real chats, show welcome only if there are no messages
-            showWelcome = currentMessages.length === 0;
+            // Draft-only chats have no messages yet, but they still need the active
+            // chat surface so the persisted encrypted draft restores into the editor.
+            const hasPersistedDraft = !!(currentChat?.encrypted_draft_md || currentChat?.encrypted_draft_preview);
+            showWelcome = currentMessages.length === 0 && !hasPersistedDraft;
         }
         console.debug(`[ActiveChat] loadChat: showWelcome=${showWelcome}, messageCount=${currentMessages.length}, chatId=${currentChat?.chat_id}`);
 
