@@ -1203,6 +1203,7 @@ async def _handle_phase2_sync(
 
         # Delta sync: skip chats where client already has up-to-date metadata
         client_chat_ids_set = set(client_chat_ids)
+        refresh_chat_ids_set = set(refresh_chat_ids or [])
         chats_to_send = []
         chats_skipped = 0
 
@@ -1211,6 +1212,10 @@ async def _handle_phase2_sync(
 
         for chat_wrapper in all_recent_chats:
             chat_id = chat_wrapper["chat_details"]["id"]
+
+            if chat_id in refresh_chat_ids_set:
+                chats_to_send.append(chat_wrapper)
+                continue
 
             if chat_id in client_chat_ids_set:
                 cached_server_versions = batch_server_versions.get(chat_id)

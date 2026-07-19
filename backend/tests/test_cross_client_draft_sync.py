@@ -24,6 +24,7 @@ from backend.core.api.app.routes.handlers.websocket_handlers.phased_sync_handler
     _apply_authoritative_draft_metadata,
     _authoritative_chat_reconciliation,
     _build_draft_only_phase2_wrapper,
+    _handle_phase2_sync,
     _phase2_metadata_is_current,
 )
 from backend.core.api.app.routes.chats import get_draft
@@ -706,6 +707,67 @@ def test_phase2_delta_sync_resends_authoritative_draft_deletion() -> None:
         server_versions,
         chat_details,
     )
+
+
+@pytest.mark.anyio
+async def test_phase2_targeted_refresh_bypasses_delta_skip() -> None:
+    manager = _Manager()
+
+    class Cache:
+        async def get_all_user_draft_chat_ids(self, user_id):
+            return []
+
+        async def get_user_draft_from_cache(self, user_id, chat_id):
+            return "cipher-md", 2, "cipher-preview"
+
+        async def get_batch_chat_versions(self, user_id, chat_ids):
+            return {
+                "chat-1": SimpleNamespace(
+                    messages_v=0,
+                    title_v=0,
+                    metadata_v=0,
+                )
+            }
+
+    class Directus:
+        def __init__(self) -> None:
+            self.chat = SimpleNamespace(
+                get_user_chat_count=lambda user_id, team_id=None: _async(1),
+                get_core_chats_and_user_drafts_for_cache_warming=lambda user_id, limit, team_id=None: _async([
+                    {
+                        "chat_details": {
+                            "id": "chat-1",
+                            "messages_v": 0,
+                            "title_v": 0,
+                            "metadata_v": 0,
+                            "draft_v": 2,
+                        }
+                    }
+                ]),
+            )
+            self.chat_key_wrapper = SimpleNamespace(
+                get_wrappers_by_hashed_chat_ids_batch=lambda hashed_chat_ids, hashed_user_id: _async([]),
+            )
+
+        async def get_items(self, collection, params, **kwargs):
+            return []
+
+    await _handle_phase2_sync(
+        manager=manager,
+        cache_service=Cache(),
+        directus_service=Directus(),
+        user_id="user-1",
+        device_fingerprint_hash="device-1",
+        client_chat_versions={"chat-1": {"messages_v": 0, "title_v": 0, "metadata_v": 0, "draft_v": 2}},
+        client_chat_ids=["chat-1"],
+        sent_embed_ids=set(),
+        refresh_chat_ids=["chat-1"],
+    )
+
+    payload = manager.sent[0]["payload"]
+    assert payload["chat_count"] == 1
+    assert payload["chats"][0]["chat_details"]["id"] == "chat-1"
+    assert payload["chats"][0]["chat_details"]["encrypted_draft_md"] == "cipher-md"
 
 
 def test_phase2_emits_explicit_authoritative_draft_deletion_fields() -> None:
