@@ -164,6 +164,42 @@ function logCliCacheDiagnostics(cliHome: string | null, chatId: string, label: s
 	}
 }
 
+async function logCliRestDraftDiagnostics(apiUrl: string, cliHome: string | null, chatId: string, label: string): Promise<void> {
+	if (!cliHome) return;
+	const sessionPath = path.join(cliHome, '.openmates', 'session.json');
+	try {
+		const session = JSON.parse(fs.readFileSync(sessionPath, 'utf8'));
+		const cookies = session?.cookies && typeof session.cookies === 'object'
+			? Object.entries(session.cookies)
+				.map(([name, value]) => `${name}=${value}`)
+				.join('; ')
+			: '';
+		const response = await fetch(`${apiUrl}/v1/drafts/${encodeURIComponent(chatId)}`, {
+			method: 'GET',
+			headers: cookies ? { Cookie: cookies } : undefined,
+		});
+		const data = await response.json().catch(() => null);
+		const draft = data && typeof data === 'object' ? (data as { draft?: Record<string, unknown> | null }).draft : null;
+		console.log(`[${label}] CLI REST draft diagnostics: ${JSON.stringify({
+			status: response.status,
+			ok: response.ok,
+			hasSessionFile: true,
+			hasCookieHeader: cookies.length > 0,
+			hasDraft: !!draft,
+			draftV: typeof draft?.draft_v === 'number' ? draft.draft_v : null,
+			hasEncryptedDraftMd: typeof draft?.encrypted_draft_md === 'string' && draft.encrypted_draft_md.length > 0,
+			encryptedDraftMdLength: typeof draft?.encrypted_draft_md === 'string' ? draft.encrypted_draft_md.length : 0,
+			hasEncryptedDraftPreview: typeof draft?.encrypted_draft_preview === 'string' && draft.encrypted_draft_preview.length > 0,
+			encryptedDraftPreviewLength: typeof draft?.encrypted_draft_preview === 'string' ? draft.encrypted_draft_preview.length : 0,
+		})}`);
+	} catch (error) {
+		console.log(`[${label}] CLI REST draft diagnostics: ${JSON.stringify({
+			hasSessionFile: fs.existsSync(sessionPath),
+			error: error instanceof Error ? error.message : String(error),
+		})}`);
+	}
+}
+
 async function runCli(
 	apiUrl: string,
 	args: string[],
@@ -444,7 +480,8 @@ async function logDraftOpenDiagnostics(page: any, chatId: string, label: string,
 }
 
 async function logServerDraftDiagnostics(page: any, apiUrl: string, chatId: string, label: string, expectedText?: string): Promise<void> {
-	const diagnostics = await page.evaluate(async ({ apiEndpoint, targetChatId, expected }: { apiEndpoint: string; targetChatId: string; expected?: string }) => {
+	try {
+		const diagnostics = await page.evaluate(async ({ apiEndpoint, targetChatId, expected }: { apiEndpoint: string; targetChatId: string; expected?: string }) => {
 		async function readIdbValue<T>(dbName: string, storeName: string, key: IDBValidKey): Promise<T | null> {
 			return new Promise((resolve) => {
 				const request = indexedDB.open(dbName);
@@ -504,8 +541,13 @@ async function logServerDraftDiagnostics(page: any, apiUrl: string, chatId: stri
 			encryptedDraftPreviewLength: typeof draft?.encrypted_draft_preview === 'string' ? draft.encrypted_draft_preview.length : 0,
 			encryptedDraftPreviewDecrypt: await decryptWithMasterKey(draft?.encrypted_draft_preview),
 		};
-	}, { apiEndpoint: apiUrl, targetChatId: chatId, expected: expectedText });
-	console.log(`[${label}] Server draft diagnostics: ${JSON.stringify(diagnostics)}`);
+		}, { apiEndpoint: apiUrl, targetChatId: chatId, expected: expectedText });
+		console.log(`[${label}] Server draft diagnostics: ${JSON.stringify(diagnostics)}`);
+	} catch (error) {
+		console.log(`[${label}] Server draft diagnostics: ${JSON.stringify({
+			error: error instanceof Error ? error.message : String(error),
+		})}`);
+	}
 }
 
 async function readLocalDraftMarkdown(page: any, chatId: string): Promise<{ markdown: string | null; draftV: number | null }> {
@@ -796,6 +838,7 @@ test.describe('Cross-client encrypted draft sync', () => {
 					})
 					.toBe(`${Number(created.draftV) + 1}:${updatedText}`);
 			} catch (error) {
+				await logCliRestDraftDiagnostics(apiUrl, cliHome, draftChatId, 'CROSS_CLIENT_DRAFT_SYNC_CLI_REST_AFTER_EDIT');
 				await logServerDraftDiagnostics(page, apiUrl, draftChatId, 'CROSS_CLIENT_DRAFT_SYNC_SERVER_ROUTE_AFTER_EDIT', updatedText);
 				await logDraftOpenDiagnostics(page, draftChatId, 'CROSS_CLIENT_DRAFT_SYNC_SERVER_AFTER_EDIT', updatedText);
 				logCliCacheDiagnostics(cliHome, draftChatId, 'CROSS_CLIENT_DRAFT_SYNC_CLI_AFTER_EDIT');
@@ -941,6 +984,7 @@ test.describe('Cross-client encrypted draft sync', () => {
 					})
 					.toBe(editedDraftText);
 			} catch (error) {
+				await logCliRestDraftDiagnostics(apiUrl, cliHome, draftChatId, 'IDEABUCKET_WEB_MARKERS_CLI_REST_AFTER_EDIT');
 				await logServerDraftDiagnostics(page, apiUrl, draftChatId, 'IDEABUCKET_WEB_MARKERS_SERVER_ROUTE_AFTER_EDIT', editedDraftText);
 				await logDraftOpenDiagnostics(page, draftChatId, 'IDEABUCKET_WEB_MARKERS_SERVER_AFTER_EDIT', editedDraftText);
 				logCliCacheDiagnostics(cliHome, draftChatId, 'IDEABUCKET_WEB_MARKERS_CLI_AFTER_EDIT');
