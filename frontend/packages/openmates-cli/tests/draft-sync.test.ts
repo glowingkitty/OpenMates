@@ -162,7 +162,7 @@ describe("CLI draft reconciliation", () => {
     const state = join(home, ".openmates");
     mkdirSync(state, { recursive: true });
     process.env.HOME = home;
-    const seen: string[] = [];
+    const seen: Array<{ type: string; payload: Record<string, unknown> }> = [];
     let storedDraft: { chatId: string; encryptedDraftMd: string; encryptedDraftPreview: string | null; draftV: number } | null = null;
     const server = createServer((request, response) => {
       if (request.url === "/v1/auth/session") {
@@ -181,7 +181,7 @@ describe("CLI draft reconciliation", () => {
     wss.on("connection", (socket: WebSocket) => {
       socket.on("message", (raw: Buffer) => {
         const frame = JSON.parse(raw.toString());
-        seen.push(frame.type);
+        seen.push(frame);
         if (frame.type === "update_draft") {
           storedDraft = {
             chatId: String(frame.payload.chat_id),
@@ -247,7 +247,8 @@ describe("CLI draft reconciliation", () => {
       const client = OpenMatesClient.load({ apiUrl });
       const created = await client.saveDraft({ markdown: "private draft", preview: "private preview" });
       assert.equal((await client.getDraft(created.chatId, true))?.markdown, "private draft");
-      assert.deepEqual(seen, ["update_draft", "phased_sync_request"]);
+      assert.deepEqual(seen.map((frame) => frame.type), ["update_draft", "phased_sync_request"]);
+      assert.deepEqual(seen[1]?.payload.refresh_chat_ids, [created.chatId]);
     } finally {
       process.env.HOME = originalHome;
       wss.close();

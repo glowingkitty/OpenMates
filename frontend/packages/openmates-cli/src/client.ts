@@ -9249,6 +9249,7 @@ export class OpenMatesClient {
         ...(teamId ? { team_id: teamId } : {}),
         client_chat_versions: clientChatVersions,
         client_chat_ids: clientChatIds,
+        ...(refreshChatIdSet.size > 0 ? { refresh_chat_ids: Array.from(refreshChatIdSet) } : {}),
         client_embed_ids: clientEmbedIds,
       });
 

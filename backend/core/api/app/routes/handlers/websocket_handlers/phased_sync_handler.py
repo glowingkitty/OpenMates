@@ -73,10 +73,20 @@ def _apply_authoritative_draft_metadata(
 
 async def _build_draft_only_phase2_wrapper(
     cache_service: CacheService,
+    directus_service: DirectusService,
     user_id: str,
     chat_id: str,
 ) -> Optional[Dict[str, Any]]:
-    draft = await cache_service.get_user_draft_from_cache(user_id, chat_id)
+    from backend.core.api.app.routes.handlers.websocket_handlers.get_draft_versions_handler import (
+        get_authoritative_user_draft,
+    )
+
+    draft = await get_authoritative_user_draft(
+        cache_service,
+        directus_service,
+        user_id,
+        chat_id,
+    )
     if not draft:
         return None
     encrypted_md, draft_v, encrypted_preview = draft
@@ -337,6 +347,11 @@ async def handle_phased_sync_request(
             # Extract client version data for delta checking
             client_chat_versions = payload.get("client_chat_versions", {})
             client_chat_ids = payload.get("client_chat_ids", [])
+            refresh_chat_ids = [
+                chat_id
+                for chat_id in payload.get("refresh_chat_ids", [])
+                if isinstance(chat_id, str) and chat_id
+            ][:50]
             client_suggestions_count = payload.get("client_suggestions_count", 0)
             # Client sends the embed IDs it already has stored in IndexedDB so the server
             # can skip re-sending those embeds (cross-session deduplication).
@@ -383,7 +398,8 @@ async def handle_phased_sync_request(
             if sync_phase == "phase2" or sync_phase == "all":
                 await _handle_phase2_sync(
                     manager, cache_service, directus_service, user_id, device_fingerprint_hash,
-                    client_chat_versions, client_chat_ids, sent_embed_ids, client_embed_ids, team_id
+                    client_chat_versions, client_chat_ids, sent_embed_ids, client_embed_ids, team_id,
+                    refresh_chat_ids
                 )
 
             # Phase 3: explicit/offline prefetch only. Do not run it during the
@@ -1060,6 +1076,7 @@ async def _handle_phase2_sync(
     sent_embed_ids: set,
     client_embed_ids: Optional[List[str]] = None,
     team_id: Optional[str] = None,
+    refresh_chat_ids: Optional[List[str]] = None,
 ):
     """
     Phase 2: Metadata-only for 100 chats (no messages, no embeds).
@@ -1096,11 +1113,13 @@ async def _handle_phase2_sync(
                 if wrapper.get("chat_details", {}).get("id")
             }
             draft_chat_ids = [] if team_id else await cache_service.get_all_user_draft_chat_ids(user_id)
+            draft_chat_ids = list(dict.fromkeys([*draft_chat_ids, *(refresh_chat_ids or [])]))
             for draft_chat_id in draft_chat_ids:
                 if draft_chat_id in existing_chat_ids:
                     continue
                 draft_wrapper = await _build_draft_only_phase2_wrapper(
                     cache_service,
+                    directus_service,
                     user_id,
                     draft_chat_id,
                 )

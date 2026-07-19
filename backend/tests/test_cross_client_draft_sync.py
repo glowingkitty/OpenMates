@@ -688,7 +688,11 @@ async def test_phase2_synthesizes_encrypted_draft_only_chat_metadata() -> None:
         async def get_user_draft_metadata_from_cache(self, user_id, chat_id):
             return {}
 
-    wrapper = await _build_draft_only_phase2_wrapper(Cache(), "user-1", "chat-1")
+    class Directus:
+        async def get_items(self, collection, params, **kwargs):
+            return []
+
+    wrapper = await _build_draft_only_phase2_wrapper(Cache(), Directus(), "user-1", "chat-1")
 
     assert wrapper["chat_details"]["id"] == "chat-1"
     assert wrapper["chat_details"]["draft_v"] == 5
@@ -709,11 +713,45 @@ async def test_phase2_synthesizes_ideabucket_draft_only_metadata() -> None:
                 "ideabucket_processing_window_id": "2026-07-18T09:00:00Z",
             }
 
-    wrapper = await _build_draft_only_phase2_wrapper(Cache(), "user-1", "chat-1")
+    class Directus:
+        async def get_items(self, collection, params, **kwargs):
+            return []
+
+    wrapper = await _build_draft_only_phase2_wrapper(Cache(), Directus(), "user-1", "chat-1")
 
     assert wrapper["chat_details"]["ideabucket"] is True
     assert wrapper["chat_details"]["ideabucket_processing_window_id"] == "2026-07-18T09:00:00Z"
     assert "captured ideas" not in str(wrapper).lower()
+
+
+@pytest.mark.anyio
+async def test_phase2_synthesizes_persisted_draft_only_metadata_after_cache_miss() -> None:
+    warmed = []
+
+    class Cache:
+        async def get_user_draft_from_cache(self, user_id, chat_id):
+            return None
+
+        async def update_user_draft_in_cache(self, *args, **kwargs):
+            warmed.append((args, kwargs))
+            return True
+
+        async def get_user_draft_metadata_from_cache(self, user_id, chat_id):
+            return {}
+
+    class Directus:
+        async def get_items(self, collection, params, **kwargs):
+            assert collection == "drafts"
+            assert kwargs == {"admin_required": True}
+            assert params["filter[chat_id][_eq]"] == "chat-1"
+            return [{"encrypted_content": "persisted-cipher", "version": 2}]
+
+    wrapper = await _build_draft_only_phase2_wrapper(Cache(), Directus(), "user-1", "chat-1")
+
+    assert wrapper["chat_details"]["id"] == "chat-1"
+    assert wrapper["chat_details"]["draft_v"] == 2
+    assert wrapper["chat_details"]["encrypted_draft_md"] == "persisted-cipher"
+    assert warmed[0][0][2:] == ("persisted-cipher", 2)
 
 
 async def _async(value):
