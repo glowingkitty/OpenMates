@@ -2,9 +2,6 @@ import { debounce } from "lodash-es"; // Import isEqual
 import { get } from "svelte/store";
 import type { Editor } from "@tiptap/core";
 import { chatDB } from "../db";
-import {
-  websocketStatus,
-} from "../../stores/websocketStatusStore";
 import type { Chat, TiptapJSON, OfflineChange } from "../../types/chat";
 import { draftEditorUIState, initialDraftEditorState } from "./draftState"; // Renamed import
 import { LOCAL_CHAT_LIST_CHANGED_EVENT } from "./draftConstants";
@@ -1226,40 +1223,28 @@ export const saveDraftDebounced = debounce(
         }),
       );
 
-      // Send to server or queue if offline (send encrypted markdown to server)
+      // Send to server or queue if the encrypted WebSocket send fails.
       // NOTE: Local storage with encrypted content has already been completed above
-      const wsStatus = get(websocketStatus);
-      if (wsStatus.status === "connected") {
-        try {
-          // Send encrypted markdown and preview to server for synchronization
-          // The sendUpdateDraft function will NOT save to local database - that's already done above with encryption
-          await chatSyncService.sendUpdateDraft(
-            currentChatIdForOperation,
-            encryptedMarkdown,
-            encryptedPreview,
-          );
-          console.info(
-            `[DraftService] Successfully sent encrypted draft to server for chat ${currentChatIdForOperation}.`,
-          );
-        } catch (wsError) {
-          console.error(
-            `[DraftService] Error sending draft update via WS for chat ${currentChatIdForOperation}:`,
-            wsError,
-          );
-          draftEditorUIState.update((s) => ({
-            ...s,
-            hasUnsavedChanges: true,
-            isSaveInProgress: false,
-          }));
-        }
-      } else {
+      try {
+        // Send encrypted markdown and preview to server for synchronization.
+        // The sendUpdateDraft function will NOT save to local database - that's already done above with encryption.
+        await chatSyncService.sendUpdateDraft(
+          currentChatIdForOperation,
+          encryptedMarkdown,
+          encryptedPreview,
+        );
         console.info(
-          `[DraftService] WebSocket status is '${wsStatus.status}', not 'connected'. Queuing draft update for chat ${currentChatIdForOperation}.`,
+          `[DraftService] Successfully sent encrypted draft to server for chat ${currentChatIdForOperation}.`,
+        );
+      } catch (wsError) {
+        console.error(
+          `[DraftService] Error sending encrypted draft update via WS for chat ${currentChatIdForOperation}. Queuing encrypted draft update:`,
+          wsError,
         );
         const offlineChange: Omit<OfflineChange, "change_id"> = {
           chat_id: currentChatIdForOperation,
           type: "draft",
-          value: contentMarkdown, // Send cleartext markdown to server when online
+          value: encryptedMarkdown,
           version_before_edit: versionBeforeSave,
         };
         await chatSyncService.queueOfflineChange(offlineChange);
