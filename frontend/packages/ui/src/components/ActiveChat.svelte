@@ -275,6 +275,14 @@
         return merged;
     }
 
+    function getFullscreenRegistryContent(fullscreenData: EmbedFullscreenState): EmbedDecodedContent {
+        return {
+            ...(fullscreenData.attrs ?? {}),
+            ...(fullscreenData.embedData ?? {}),
+            ...(fullscreenData.decodedContent ?? {})
+        } as EmbedDecodedContent;
+    }
+
     function shouldAutoStartCreatedApplicationPreview(chat: Chat | null): boolean {
         if (!$authStore.isAuthenticated || !chat?.chat_id || chat.is_incognito || chat.is_anonymous) return false;
         if (isPublicChat(chat.chat_id) || isDemoChat(chat.chat_id) || isExampleChat(chat.chat_id) || isLegalChat(chat.chat_id) || isNewsletterChat(chat.chat_id)) return false;
@@ -12562,9 +12570,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 <!-- Data-driven embed fullscreen routing via embedFullscreenResolver.
                      Each component receives a standardized `data` prop and extracts its own fields.
                      Architecture: docs/architecture/frontend/data-driven-embed-fullscreen-routing.md -->
+                {@const registryContent = getFullscreenRegistryContent(fullscreenData)}
                 {@const registryKey = resolveRegistryKey(
                     registryNormalizeEmbedType(fullscreenData.embedType || ''),
-                    fullscreenData.decodedContent ?? undefined
+                    registryContent
                 )}
                 {@const isModel3DResultFullscreen =
                     fullscreenData.embedType === 'models3d-model-result' ||
@@ -12573,7 +12582,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 {#if isModel3DResultFullscreen}
                     <Model3DResultEmbedFullscreen
                         data={{
-                            decodedContent: fullscreenData.decodedContent ?? {},
+                            decodedContent: registryContent,
                             attrs: fullscreenData.attrs,
                             embedData: fullscreenData.embedData,
                             focusChildEmbedId: fullscreenData.focusChildEmbedId,
@@ -12601,7 +12610,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         {#if FullscreenComponent}
                             <FullscreenComponent
                                 data={{
-                                    decodedContent: fullscreenData.decodedContent ?? {},
+                                    decodedContent: registryContent,
                                     attrs: fullscreenData.attrs,
                                     embedData: fullscreenData.embedData,
                                     focusChildEmbedId: fullscreenData.focusChildEmbedId,
