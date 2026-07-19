@@ -237,7 +237,13 @@ async function logDraftOpenDiagnostics(page: any, chatId: string, label: string,
 		}
 
 		const record = await readIdbValue<Record<string, unknown>>('chats_db', 'chats', targetChatId);
-		const editor = document.querySelector('[data-testid="message-editor"]');
+		const activeEditorWrapper = document.querySelector(`[data-action="message-input"][data-current-chat-id="${targetChatId}"]`);
+		const editor = activeEditorWrapper?.querySelector('[data-testid="message-editor"]') ?? document.querySelector('[data-testid="message-editor"]');
+		const messageInputs = Array.from(document.querySelectorAll('[data-action="message-input"]')).map((element) => ({
+			chatId: element.getAttribute('data-current-chat-id'),
+			visible: !!(element as HTMLElement).offsetParent,
+			editorTextLength: element.querySelector('[data-testid="message-editor"]')?.textContent?.length ?? 0,
+		}));
 
 		const matchingRows = Array.from(document.querySelectorAll('[data-testid="chat-item-wrapper"]'))
 			.filter((element) => element.getAttribute('data-chat-id') === targetChatId)
@@ -256,6 +262,7 @@ async function logDraftOpenDiagnostics(page: any, chatId: string, label: string,
 			draftRestoreDiagnostics: (window as typeof window & { __openmatesDraftRestoreDiagnostics?: unknown[] }).__openmatesDraftRestoreDiagnostics ?? [],
 			messageInputDraftDiagnostics: (window as typeof window & { __openmatesMessageInputDraftDiagnostics?: unknown[] }).__openmatesMessageInputDraftDiagnostics ?? [],
 			searchOpen: !!document.querySelector('[data-testid="search-bar"]'),
+			messageInputs,
 			matchingRows,
 			chatRecord: record
 				? {
@@ -275,6 +282,65 @@ async function logDraftOpenDiagnostics(page: any, chatId: string, label: string,
 		};
 	}, { targetChatId: chatId, expected: expectedText });
 	console.log(`[${label}] Draft open diagnostics: ${JSON.stringify(diagnostics)}`);
+}
+
+async function readLocalDraftMarkdown(page: any, chatId: string): Promise<{ markdown: string | null; draftV: number | null }> {
+	return page.evaluate(async (targetChatId: string) => {
+		async function readIdbValue<T>(dbName: string, storeName: string, key: IDBValidKey): Promise<T | null> {
+			return new Promise((resolve) => {
+				const request = indexedDB.open(dbName);
+				request.onerror = () => resolve(null);
+				request.onsuccess = () => {
+					const db = request.result;
+					try {
+						const transaction = db.transaction(storeName, 'readonly');
+						const store = transaction.objectStore(storeName);
+						const getRequest = store.get(key);
+						getRequest.onerror = () => resolve(null);
+						getRequest.onsuccess = () => resolve((getRequest.result as T | undefined) ?? null);
+					} catch {
+						resolve(null);
+					} finally {
+						db.close();
+					}
+				};
+			});
+		}
+
+		const record = await readIdbValue<Record<string, unknown>>('chats_db', 'chats', targetChatId);
+		const encrypted = record?.encrypted_draft_md;
+		if (typeof encrypted !== 'string' || encrypted.length === 0) {
+			return { markdown: null, draftV: typeof record?.draft_v === 'number' ? record.draft_v : null };
+		}
+		const masterKey = await readIdbValue<CryptoKey>('openmates_crypto', 'keys', 'master_key');
+		if (!masterKey) return { markdown: null, draftV: typeof record?.draft_v === 'number' ? record.draft_v : null };
+		const binary = atob(encrypted);
+		const combined = new Uint8Array(binary.length);
+		for (let index = 0; index < binary.length; index += 1) combined[index] = binary.charCodeAt(index);
+		const decrypted = await crypto.subtle.decrypt(
+			{ name: 'AES-GCM', iv: combined.slice(0, 12) },
+			masterKey,
+			combined.slice(12)
+		);
+		return {
+			markdown: new TextDecoder().decode(decrypted),
+			draftV: typeof record?.draft_v === 'number' ? record.draft_v : null,
+		};
+	}, chatId);
+}
+
+async function expectLocalDraftMarkdown(page: any, chatId: string, expectedText: string, label: string): Promise<void> {
+	try {
+		await expect
+			.poll(async () => (await readLocalDraftMarkdown(page, chatId)).markdown ?? '', {
+				timeout: 15_000,
+				intervals: [500, 1_000]
+			})
+			.toBe(expectedText);
+	} catch (error) {
+		await logDraftOpenDiagnostics(page, chatId, `${label}_LOCAL_DRAFT_AFTER_EDIT`, expectedText);
+		throw error;
+	}
 }
 
 function resultChatId(result: any): string {
@@ -456,15 +522,21 @@ test.describe('Cross-client encrypted draft sync', () => {
 			const editor = await replaceMessageEditorText(page, draftChatId, updatedText);
 			await expect(editor).toContainText(updatedText, { timeout: 10_000 });
 			await page.getByTestId('input-dismiss-button').click();
-			await expect
-				.poll(async () => {
-					const draft = (await runCliJson(apiUrl, ['drafts', 'get', draftChatId, '--refresh'])).draft;
-					return `${draft?.draftV ?? 0}:${draft?.markdown ?? ''}`;
-				}, {
-					timeout: 30_000,
-					intervals: [1_000, 2_000]
-				})
-				.toBe(`${Number(created.draftV) + 1}:${updatedText}`);
+			await expectLocalDraftMarkdown(page, draftChatId, updatedText, 'CROSS_CLIENT_DRAFT_SYNC');
+			try {
+				await expect
+					.poll(async () => {
+						const draft = (await runCliJson(apiUrl, ['drafts', 'get', draftChatId, '--refresh'])).draft;
+						return `${draft?.draftV ?? 0}:${draft?.markdown ?? ''}`;
+					}, {
+						timeout: 30_000,
+						intervals: [1_000, 2_000]
+					})
+					.toBe(`${Number(created.draftV) + 1}:${updatedText}`);
+			} catch (error) {
+				await logDraftOpenDiagnostics(page, draftChatId, 'CROSS_CLIENT_DRAFT_SYNC_SERVER_AFTER_EDIT', updatedText);
+				throw error;
+			}
 			log('Web draft edit reconciled to CLI.');
 
 			await replaceMessageEditorText(page, draftChatId, '');
@@ -572,15 +644,21 @@ test.describe('Cross-client encrypted draft sync', () => {
 			const editor = await replaceMessageEditorText(page, draftChatId, editedDraftText);
 			await expect(editor).toContainText(editedDraftText, { timeout: 10_000 });
 			await page.getByTestId('input-dismiss-button').click();
-			await expect
-				.poll(async () => {
-					const currentDraft = (await runCliJson(apiUrl, ['drafts', 'get', draftChatId, '--refresh'])).draft;
-					return currentDraft?.markdown ?? '';
-				}, {
-					timeout: 60_000,
-					intervals: [1_000, 2_000]
-				})
-				.toBe(editedDraftText);
+			await expectLocalDraftMarkdown(page, draftChatId, editedDraftText, 'IDEABUCKET_WEB_MARKERS');
+			try {
+				await expect
+					.poll(async () => {
+						const currentDraft = (await runCliJson(apiUrl, ['drafts', 'get', draftChatId, '--refresh'])).draft;
+						return currentDraft?.markdown ?? '';
+					}, {
+						timeout: 60_000,
+						intervals: [1_000, 2_000]
+					})
+					.toBe(editedDraftText);
+			} catch (error) {
+				await logDraftOpenDiagnostics(page, draftChatId, 'IDEABUCKET_WEB_MARKERS_SERVER_AFTER_EDIT', editedDraftText);
+				throw error;
+			}
 			log('IdeaBucket text draft remained editable in web.');
 
 			const status = await runCli(apiUrl, ['ideabucket', 'status', draftBucketId, '--json']);
