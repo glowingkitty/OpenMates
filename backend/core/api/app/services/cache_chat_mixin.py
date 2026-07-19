@@ -497,11 +497,25 @@ class ChatCacheMixin:
             return False
         key = self._get_user_chat_draft_key(user_id, chat_id)
         try:
+            existing_version_bytes = await client.hget(key, "draft_v")
+            if existing_version_bytes:
+                try:
+                    existing_version = int(existing_version_bytes.decode('utf-8'))
+                    if existing_version > draft_version:
+                        logger.info(
+                            f"Skipping stale draft cache write for user {user_id}, chat {chat_id}: "
+                            f"incoming version {draft_version}, cached version {existing_version}"
+                        )
+                        return True
+                except ValueError:
+                    logger.warning(f"Could not parse existing draft version for user {user_id}, chat {chat_id}. Overwriting cache entry.")
+
             cache_payload: Dict[str, Any] = {"draft_v": draft_version}
             if encrypted_draft_md is None:
                 cache_payload["encrypted_draft_md"] = "null"  # Store null as a string "null"
             else:
                 cache_payload["encrypted_draft_md"] = encrypted_draft_md
+                cache_payload["deleted"] = "false"
 
             # Store preview for cross-device sync (chat list display on other devices)
             if encrypted_draft_preview is None:
@@ -515,6 +529,44 @@ class ChatCacheMixin:
             return True
         except Exception as e:
             logger.error(f"Error updating draft for user {user_id}, chat {chat_id}: {e}")
+            return False
+
+    async def tombstone_user_draft_in_cache(self, user_id: str, chat_id: str, draft_version: int) -> bool:
+        """Stores a versioned deletion marker for a user's draft."""
+        client = await self.client
+        if not client:
+            return False
+        key = self._get_user_chat_draft_key(user_id, chat_id)
+        versions_key = self._get_chat_versions_key(user_id, chat_id)
+        user_specific_draft_version_field = f"user_draft_v:{user_id}"
+        try:
+            await client.hmset(key, {
+                "draft_v": draft_version,
+                "encrypted_draft_md": "null",
+                "encrypted_draft_preview": "null",
+                "deleted": "true",
+            })
+            await client.expire(key, self.USER_DRAFT_TTL)
+            await client.hset(versions_key, user_specific_draft_version_field, draft_version)
+            await client.expire(versions_key, self.CHAT_VERSIONS_TTL)
+            return True
+        except Exception as e:
+            logger.error(f"Error tombstoning draft for user {user_id}, chat {chat_id}: {e}", exc_info=True)
+            return False
+
+    async def is_user_draft_tombstoned(self, user_id: str, chat_id: str) -> bool:
+        """Returns True when the user's draft cache key is an explicit deletion marker."""
+        client = await self.client
+        if not client:
+            return False
+        key = self._get_user_chat_draft_key(user_id, chat_id)
+        try:
+            deleted = await client.hget(key, "deleted")
+            if isinstance(deleted, bytes):
+                deleted = deleted.decode("utf-8")
+            return deleted == "true"
+        except Exception as e:
+            logger.error(f"Error reading draft tombstone for user {user_id}, chat {chat_id}: {e}", exc_info=True)
             return False
 
     async def get_user_draft_from_cache(

@@ -282,12 +282,14 @@ async def test_update_draft_replaces_ideabucket_processing_window_payload(monkey
 async def test_delete_draft_accepts_canonical_chat_id_and_tombstones_draft_only_chat() -> None:
     manager = _Manager()
     removed = []
+    tombstones = []
 
     class Cache:
-        async def delete_user_draft_from_cache(self, user_id, chat_id):
-            return True
+        async def increment_user_draft_version(self, user_id, chat_id):
+            return 3
 
-        async def delete_user_draft_version_from_chat_versions(self, user_id, chat_id):
+        async def tombstone_user_draft_in_cache(self, *, user_id, chat_id, draft_version):
+            tombstones.append((user_id, chat_id, draft_version))
             return True
 
         async def remove_chat_from_ids_versions(self, user_id, chat_id):
@@ -318,6 +320,7 @@ async def test_delete_draft_accepts_canonical_chat_id_and_tombstones_draft_only_
     )
 
     assert removed == ["11111111-1111-4111-8111-111111111111"]
+    assert tombstones == [("user-1", "11111111-1111-4111-8111-111111111111", 3)]
     assert manager.sent[-1] == {
         "type": "draft_delete_receipt",
         "payload": {
@@ -460,6 +463,29 @@ async def test_empty_cached_draft_does_not_hide_persisted_ciphertext() -> None:
 
     assert draft == ("persisted-cipher", 2, None)
     assert warmed[0][0][2:] == ("persisted-cipher", 2)
+
+
+@pytest.mark.anyio
+async def test_tombstoned_cached_draft_hides_stale_persisted_ciphertext() -> None:
+    class Cache:
+        async def get_user_draft_from_cache(self, user_id, chat_id):
+            return None, 3, None
+
+        async def is_user_draft_tombstoned(self, user_id, chat_id):
+            return True
+
+    class Directus:
+        async def get_items(self, collection, params, **kwargs):
+            raise AssertionError("tombstoned drafts must not fall back to Directus")
+
+    draft = await get_authoritative_user_draft(
+        Cache(),
+        Directus(),
+        "user-1",
+        "chat-1",
+    )
+
+    assert draft is None
 
 
 @pytest.mark.anyio

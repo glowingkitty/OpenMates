@@ -74,6 +74,9 @@ async def get_authoritative_user_draft(
     cached_draft = None
     cached_version_int = 0
     if cached is not None:
+        is_tombstoned = getattr(cache_service, "is_user_draft_tombstoned", None)
+        if is_tombstoned and await is_tombstoned(user_id, chat_id):
+            return None
         cached_md, cached_version, cached_preview = cached
         try:
             cached_version_int = int(cached_version or 0)
