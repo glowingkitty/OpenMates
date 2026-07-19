@@ -12,6 +12,7 @@
     import {
         SettingsButton,
         SettingsCard,
+        SettingsConsentToggle,
         SettingsDetailRow,
         SettingsInfoBox,
         SettingsInput,
@@ -47,6 +48,7 @@
     let saveError = $state('');
     let budget = $state<BudgetStatus | null>(null);
 
+    let anonymousFreeUsageEnabled = $state(false);
     let monthlyBudgetCredits = $state('0');
     let dailyHardCapPercent = $state('5');
     let weeklyCapPercent = $state('25');
@@ -58,14 +60,14 @@
     let perIdentityDailyCap = $derived(parseCredits(perIdentityDailyCapCredits));
     let derivedDailyCapCredits = $derived(Math.floor(monthlyCredits * dailyPercent / 100));
     let derivedWeeklyCapCredits = $derived(Math.floor(monthlyCredits * weeklyPercent / 100));
+    let activationInputsValid = $derived(derivedDailyCapCredits >= 1 && derivedWeeklyCapCredits >= 1 && perIdentityDailyCap >= 1);
     let isFormValid = $derived(
         monthlyCredits >= 0 &&
         dailyPercent >= 0 && dailyPercent <= 100 &&
         weeklyPercent >= 0 && weeklyPercent <= 100 &&
         perIdentityDailyCap >= 0 &&
-        (monthlyCredits === 0 || perIdentityDailyCap >= 1)
+        (!anonymousFreeUsageEnabled || activationInputsValid)
     );
-    let activatesOnSave = $derived(monthlyCredits > 0 && dailyPercent > 0 && weeklyPercent > 0 && perIdentityDailyCap >= 1);
 
     onMount(() => {
         fetchBudget();
@@ -91,6 +93,7 @@
 
     function applyBudget(status: BudgetStatus) {
         budget = status;
+        anonymousFreeUsageEnabled = status.enabled;
         monthlyBudgetCredits = String(status.monthly_budget_credits);
         dailyHardCapPercent = String(status.daily_hard_cap_percent);
         weeklyCapPercent = String(status.weekly_cap_percent);
@@ -128,7 +131,7 @@
                 credentials: 'include',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    enabled: activatesOnSave,
+                    enabled: anonymousFreeUsageEnabled,
                     monthly_budget_credits: monthlyCredits,
                     daily_hard_cap_percent: dailyPercent,
                     weekly_cap_percent: weeklyPercent,
@@ -192,6 +195,13 @@
             <SettingsDetailRow label={$text('settings.server.anonymous_free_usage_budget.updated_at')} value={formatDate(budget?.updated_at ?? null)} muted />
         </SettingsCard>
 
+        <SettingsConsentToggle
+            bind:checked={anonymousFreeUsageEnabled}
+            consentText={$text('settings.server.anonymous_free_usage_budget.enabled')}
+            ariaLabel={$text('settings.server.anonymous_free_usage_budget.enabled')}
+            dataTestid="anonymous-free-usage-enabled-toggle"
+        />
+
         <SettingsSectionHeading title={$text('settings.server.anonymous_free_usage_budget.monthly_budget')} icon="gift_cards" />
         <SettingsInput
             bind:value={monthlyBudgetCredits}
@@ -246,7 +256,7 @@
             </SettingsInfoBox>
         {/if}
 
-        {#if monthlyCredits > 0 && perIdentityDailyCap < 1}
+        {#if anonymousFreeUsageEnabled && !activationInputsValid && dailyPercent >= 0 && dailyPercent <= 100 && weeklyPercent >= 0 && weeklyPercent <= 100}
             <SettingsInfoBox type="error">
                 <p>{$text('settings.server.anonymous_free_usage_budget.validation_per_identity_cap')}</p>
             </SettingsInfoBox>

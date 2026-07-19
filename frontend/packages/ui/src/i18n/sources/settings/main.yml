@@ -5058,8 +5058,8 @@ server.anonymous_free_usage_budget.validation_percent:
   he: ערכי אחוזים חייבים להיות בין 0 ל-100.
   verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server.anonymous_free_usage_budget.validation_per_identity_cap:
-  context: Validation message when anonymous free usage has a positive monthly budget but no per-identity daily credits
-  en: Per-identity daily cap must be at least 1 credit when the monthly budget is above 0.
+  context: Validation message when enabled anonymous free usage is missing one of the required activation fields
+  en: To enable anonymous free usage, derived daily cap, derived weekly cap, and per-identity daily cap must all be at least 1 credit.
   de: Das Tageslimit pro Identität muss mindestens 1 Credit betragen, wenn das Monatsbudget über 0 liegt.
   zh: 当每月预算大于 0 时，每个身份的每日上限必须至少为 1 个额度。
   es: El límite diario por identidad debe ser de al menos 1 crédito cuando el presupuesto mensual es mayor que 0.

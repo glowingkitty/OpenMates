@@ -29,6 +29,7 @@
         pattern = undefined as string | undefined,
         inputmode = undefined as InputMode | undefined,
         min = undefined as string | undefined,
+        max = undefined as string | undefined,
         hasError = false,
         dataTestid = '',
         onInput = undefined,
@@ -47,6 +48,7 @@
         spellcheck?: boolean | undefined;
         maxlength?: number | undefined;
         min?: string | undefined;
+        max?: string | undefined;
         pattern?: string | undefined;
         inputmode?: InputMode | undefined;
         hasError?: boolean;
@@ -82,6 +84,7 @@
         spellcheck={spellcheck}
         maxlength={maxlength}
         min={min}
+        max={max}
         pattern={pattern}
         inputmode={inputmode}
         aria-label={ariaLabel || placeholder}

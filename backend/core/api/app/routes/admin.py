@@ -436,6 +436,17 @@ async def update_anonymous_free_usage_budget(
     except RuntimeError as exc:
         logger.error("Failed to save anonymous free usage budget: %s", exc, exc_info=True)
         raise HTTPException(status_code=502, detail="Failed to save anonymous free usage budget") from exc
+    logger.info(
+        "Anonymous free usage budget saved: admin_user_id=%s enabled=%s active=%s reason=%s monthly_budget_credits=%s daily_cap_credits=%s weekly_cap_credits=%s per_identity_daily_cap_credits=%s",
+        admin_user.id,
+        status.enabled,
+        status.active,
+        status.reason,
+        status.monthly_budget_credits,
+        status.daily_hard_cap_credits,
+        status.weekly_cap_credits,
+        status.per_identity_daily_cap_credits,
+    )
     return _anonymous_free_usage_budget_response(status)
 
 
