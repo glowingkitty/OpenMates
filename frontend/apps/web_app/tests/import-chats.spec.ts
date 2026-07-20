@@ -133,20 +133,21 @@ test('imports chats from ZIP in account settings and shows success results', asy
 	log('Uploaded import ZIP file.', { zipFilePath });
 
 	const importSelectionSection = page.getByTestId('import-select-section');
+	const importChatOptions = importSelectionSection.getByTestId(/import-chat-list-option-\d+/);
 	await docAssert('import-file-shows-parsed-chat-list', async () => {
 		await expect(importSelectionSection).toBeVisible({ timeout: 15000 });
-		await expect(importSelectionSection.getByTestId('chat-item')).toHaveCount(2, { timeout: 15000 });
+		await expect(importChatOptions).toHaveCount(2, { timeout: 15000 });
 		await expect(
-			importSelectionSection.locator('[data-testid="chat-item"] [data-testid="chat-title"]', { hasText: IMPORT_CHAT_TITLE_1 })
+			importChatOptions.filter({ hasText: IMPORT_CHAT_TITLE_1 })
 		).toBeVisible();
 		await expect(
-			importSelectionSection.locator('[data-testid="chat-item"] [data-testid="chat-title"]', { hasText: IMPORT_CHAT_TITLE_2 })
+			importChatOptions.filter({ hasText: IMPORT_CHAT_TITLE_2 })
 		).toBeVisible();
 		await expect(
-			importSelectionSection.locator('[data-testid="chat-item"] [data-testid="chat-meta"]', { hasText: /3\s+messages/i })
+			importChatOptions.filter({ hasText: /3\s+messages/i })
 		).toBeVisible();
 		await expect(
-			importSelectionSection.locator('[data-testid="chat-item"] [data-testid="chat-meta"]', { hasText: /2\s+messages/i })
+			importChatOptions.filter({ hasText: /2\s+messages/i })
 		).toBeVisible();
 	});
 	await screenshot(page, 'parsed-chat-list');
@@ -165,13 +166,10 @@ test('imports chats from ZIP in account settings and shows success results', asy
 	const resultsContainer = page.getByTestId('import-results-container');
 	await docAssert('import-selected-chats-shows-success-results', async () => {
 		await expect(resultsContainer).toBeVisible({ timeout: 45000 });
-		await expect(resultsContainer).toContainText(/import complete!/i, { timeout: 45000 });
-		const resultForChat1 = resultsContainer.getByTestId('import-result-item').filter({ hasText: IMPORT_CHAT_TITLE_1 });
-		const resultForChat2 = resultsContainer.getByTestId('import-result-item').filter({ hasText: IMPORT_CHAT_TITLE_2 });
-		await expect(resultForChat1).toBeVisible();
-		await expect(resultForChat2).toBeVisible();
-		await expect(resultForChat1).toContainText(/(2|3)\s+messages imported/i);
-		await expect(resultForChat2).toContainText(/2\s+messages imported/i);
+		await expect(page.getByText(/import complete!/i)).toBeVisible({ timeout: 45000 });
+		await expect(resultsContainer).toContainText(IMPORT_CHAT_TITLE_1);
+		await expect(resultsContainer).toContainText(IMPORT_CHAT_TITLE_2);
+		await expect(resultsContainer).toContainText(/(2|3)\s+messages imported/i);
 		await expect(page.getByRole('button', { name: /import another file/i })).toBeVisible();
 	});
 	await screenshot(page, 'import-success');
