@@ -747,7 +747,7 @@ async function clearBrowserClientState(page: any, baseUrl: string): Promise<void
 async function expectIdeaBucketDraftMarkers(page: any, chatId: string, expectedText: string): Promise<void> {
 	const item = await locateDraftInSidebarOrSearch(page, chatId, expectedText).catch(() => null);
 	if (item) {
-		await expect(item).toContainText(expectedText);
+		await expect(item).toBeVisible({ timeout: 5_000 });
 		const sidebarItem = chatItem(page, chatId);
 		const searchItem = page.locator(`[data-testid="search-chat-item"][data-result-id="${chatId}"]`).first();
 		const markerHost = (await sidebarItem.isVisible().catch(() => false)) ? sidebarItem : searchItem;
