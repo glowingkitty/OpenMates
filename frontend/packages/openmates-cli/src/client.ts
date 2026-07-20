@@ -4191,8 +4191,11 @@ export class OpenMatesClient {
   }
 
   private async refreshDraftFromTargetedSync(chatId: string): Promise<DecryptedDraft | null> {
+    let versions = await this.reconcileDraftVersions();
+    if (versions[chatId] === 0) return null;
+
     await this.ensureSynced(true, [chatId]);
-    const versions = await this.reconcileDraftVersions();
+    versions = await this.reconcileDraftVersions();
     if (versions[chatId] === 0) return null;
 
     const syncedCache = loadSyncCache();

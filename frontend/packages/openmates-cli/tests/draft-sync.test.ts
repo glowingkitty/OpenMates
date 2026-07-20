@@ -471,8 +471,8 @@ describe("CLI draft reconciliation", () => {
 
       assert.equal(refreshed?.markdown, "new draft");
       assert.equal(refreshed?.draftV, 2);
-      assert.deepEqual(seen.map((frame) => frame.type), ["update_draft", "phased_sync_request", "get_draft_versions"]);
-      assert.deepEqual(seen[1]?.payload.refresh_chat_ids, [created.chatId]);
+      assert.deepEqual(seen.map((frame) => frame.type), ["update_draft", "get_draft_versions", "phased_sync_request", "get_draft_versions"]);
+      assert.deepEqual(seen[2]?.payload.refresh_chat_ids, [created.chatId]);
     } finally {
       process.env.HOME = originalHome;
       wss.close();
@@ -576,8 +576,7 @@ describe("CLI draft reconciliation", () => {
 
       assert.equal(refreshed, null);
       assert.equal(await client.getDraft(created.chatId), null);
-      assert.deepEqual(seen.map((frame) => frame.type), ["update_draft", "phased_sync_request", "get_draft_versions"]);
-      assert.deepEqual(seen[1]?.payload.refresh_chat_ids, [created.chatId]);
+      assert.deepEqual(seen.map((frame) => frame.type), ["update_draft", "get_draft_versions"]);
     } finally {
       process.env.HOME = originalHome;
       wss.close();
