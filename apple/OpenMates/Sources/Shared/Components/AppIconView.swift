@@ -53,6 +53,9 @@ struct AppIconView: View {
         case "design": return .appDesign
         case "docs": return .appDocs
         case "mindmaps": return .appDiagrams
+        case "models3d": return .app3dmodels
+        case "tasks": return .appTasks
+        case "workflows": return .appWorkflows
         default: return .primary
         }
     }
@@ -80,6 +83,9 @@ struct AppIconView: View {
         case "images": return "image"
         case "social_media": return "socialmedia"
         case "electronics": return "pcbdesign"
+        case "models3d": return "3dmodels"
+        case "tasks": return "task"
+        case "workflows": return "workflow"
         default: return appId
         }
     }

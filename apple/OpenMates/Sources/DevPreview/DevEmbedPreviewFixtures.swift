@@ -17,8 +17,10 @@ import Foundation
 
 enum DevEmbedPreviewApp: String, CaseIterable, Identifiable {
     case audio
+    case business
     case calendar
     case code
+    case design
     case diagrams
     case docs
     case electronics
@@ -31,6 +33,7 @@ enum DevEmbedPreviewApp: String, CaseIterable, Identifiable {
     case maps
     case math
     case mindmaps
+    case models3d
     case music
     case news
     case nutrition
@@ -39,18 +42,22 @@ enum DevEmbedPreviewApp: String, CaseIterable, Identifiable {
     case sheets
     case shopping
     case socialMedia = "social_media"
+    case tasks
     case travel
     case videos
     case weather
     case events
+    case workflows
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
         case .audio: return "Audio"
+        case .business: return "Business"
         case .calendar: return "Calendar"
         case .code: return "Code"
+        case .design: return "Design"
         case .diagrams: return "Diagrams"
         case .docs: return "Docs"
         case .electronics: return "Electronics"
@@ -63,6 +70,7 @@ enum DevEmbedPreviewApp: String, CaseIterable, Identifiable {
         case .maps: return "Maps"
         case .math: return "Math"
         case .mindmaps: return "Mind Maps"
+        case .models3d: return "3D Models"
         case .music: return "Music"
         case .news: return "News"
         case .nutrition: return "Nutrition"
@@ -71,10 +79,12 @@ enum DevEmbedPreviewApp: String, CaseIterable, Identifiable {
         case .sheets: return "Sheets"
         case .shopping: return "Shopping"
         case .socialMedia: return "Social"
+        case .tasks: return "Tasks"
         case .travel: return "Travel"
         case .videos: return "Videos"
         case .weather: return "Weather"
         case .events: return "Events"
+        case .workflows: return "Workflows"
         }
     }
 }
@@ -92,10 +102,14 @@ enum DevEmbedPreviewFixtures {
         switch app {
         case .audio:
             return [recording]
+        case .business:
+            return [businessCompanyFinancials, businessFinancialResult]
         case .calendar:
             return [calendarGetEvents, calendarCreateEvent, calendarUpdateEvent, calendarDeleteEvent]
         case .code:
             return [codeEmbed, codeRepoSearch, codeRepo, codeApplication, codeGetDocs]
+        case .design:
+            return [designSearchIcons, designIconResult]
         case .diagrams:
             return [diagramsMermaid]
         case .docs:
@@ -120,6 +134,8 @@ enum DevEmbedPreviewFixtures {
             return [mathCalculate, mathPlot]
         case .mindmaps:
             return [mindmapsMindmap]
+        case .models3d:
+            return [models3dSearch, models3dModelResult, models3dGenerate]
         case .music:
             return [musicGenerate]
         case .news:
@@ -136,6 +152,8 @@ enum DevEmbedPreviewFixtures {
             return [shoppingSearch, shoppingProduct]
         case .socialMedia:
             return [socialMediaGetPosts, socialMediaSearch, socialMediaPost]
+        case .tasks:
+            return [tasksCreate, tasksSearch, tasksTask]
         case .travel:
             return [travelSearch, travelConnection, travelPriceCalendar, travelFlight, travelStay, travelStays]
         case .videos:
@@ -144,6 +162,8 @@ enum DevEmbedPreviewFixtures {
             return [weatherForecast, weatherDay, weatherRainRadar]
         case .events:
             return [eventsSearch, event]
+        case .workflows:
+            return [workflowsCreate, workflowsSearch, workflowsWorkflow]
         }
     }
 
@@ -572,6 +592,77 @@ enum DevEmbedPreviewFixtures {
         return skill(id: "code-application", label: "Application", primary: embed)
     }
 
+    private static var businessCompanyFinancials: DevEmbedPreviewSkill {
+        let child = businessFinancialResult.primaryEmbed
+        let parent = appSkill(
+            id: "preview-business-financials-1",
+            type: EmbedType.businessCompanyFinancials.rawValue,
+            appId: "business",
+            skillId: "company_financials",
+            data: [
+                "query": "OpenMates GmbH revenue",
+                "provider": "SEC EDGAR",
+                "period": "latest_annual",
+                "metric_group": "summary",
+                "result_count": 1
+            ],
+            embedIds: child.id
+        )
+        let childWithParent = record(
+            id: child.id,
+            type: child.type,
+            appId: child.appId,
+            skillId: child.skillId,
+            data: child.rawData?.mapValues { $0.value } ?? [:],
+            parentEmbedId: parent.id
+        )
+        return skill(id: "business-company-financials", label: "Company Financials", primary: parent, children: [childWithParent])
+    }
+
+    private static var businessFinancialResult: DevEmbedPreviewSkill {
+        let embed = record(
+            id: "preview-business-financial-result-1",
+            type: EmbedType.businessCompanyFinancialResult.rawValue,
+            appId: "business",
+            skillId: "company_financials",
+            data: [
+                "company": "OpenMates GmbH",
+                "ticker": "OMT",
+                "cik": "0000000000",
+                "period_type": "annual",
+                "fiscal_year": 2026,
+                "form": "10-K",
+                "currency": "USD",
+                "revenue": 1250000,
+                "net_income": 180000,
+                "source_url": "https://www.sec.gov/Archives/edgar/data/0000000000/sample.htm"
+            ]
+        )
+        return skill(id: "business-financial-result", label: "Financial Result", primary: embed)
+    }
+
+    private static var designSearchIcons: DevEmbedPreviewSkill {
+        let child = record(
+            id: "preview-design-icon-result-1",
+            type: EmbedType.designIconResult.rawValue,
+            appId: "design",
+            data: [
+                "display_name": "Calendar Check",
+                "collection_name": "Lucide",
+                "license_title": "ISC",
+                "svg_path": "M8 2v4M16 2v4M3 10h18"
+            ],
+            parentEmbedId: "preview-design-search-icons-1"
+        )
+        let parent = appSkill(id: "preview-design-search-icons-1", type: EmbedType.designSearchIcons.rawValue, appId: "design", skillId: "search_icons", data: ["query": "calendar check icon", "provider": "Iconify", "result_count": 1], embedIds: child.id)
+        return skill(id: "design-search-icons", label: "Search Icons", primary: parent, children: [child])
+    }
+
+    private static var designIconResult: DevEmbedPreviewSkill {
+        let embed = record(id: "preview-design-icon-result-direct-1", type: EmbedType.designIconResult.rawValue, appId: "design", data: ["display_name": "Calendar Check", "collection_name": "Lucide", "license_title": "ISC", "svg_path": "M8 2v4M16 2v4M3 10h18"])
+        return skill(id: "design-icon-result", label: "Icon Result", primary: embed)
+    }
+
     private static var diagramsMermaid: DevEmbedPreviewSkill {
         let embed = record(
             id: "preview-diagrams-mermaid-1",
@@ -715,6 +806,28 @@ enum DevEmbedPreviewFixtures {
         return skill(id: "mindmaps-mindmap", label: "Mind Map", primary: embed)
     }
 
+    private static var models3dSearch: DevEmbedPreviewSkill {
+        let child = record(
+            id: "preview-models3d-result-1",
+            type: EmbedType.models3dModelResult.rawValue,
+            appId: "models3d",
+            data: ["title": "Low-poly planter", "model_format": "glb", "source_url": "https://example.com/models/planter"],
+            parentEmbedId: "preview-models3d-search-1"
+        )
+        let parent = appSkill(id: "preview-models3d-search-1", type: EmbedType.models3dSearch.rawValue, appId: "models3d", skillId: "search", data: ["query": "low poly planter", "provider": "Sketchfab", "result_count": 1], embedIds: child.id)
+        return skill(id: "models3d-search", label: "Search", primary: parent, children: [child])
+    }
+
+    private static var models3dModelResult: DevEmbedPreviewSkill {
+        let embed = record(id: "preview-models3d-result-direct-1", type: EmbedType.models3dModelResult.rawValue, appId: "models3d", data: ["title": "Low-poly planter", "model_format": "glb", "source_url": "https://example.com/models/planter"])
+        return skill(id: "models3d-model-result", label: "Model Result", primary: embed)
+    }
+
+    private static var models3dGenerate: DevEmbedPreviewSkill {
+        let embed = appSkill(id: "preview-models3d-generate-1", type: EmbedType.models3dGenerate.rawValue, appId: "models3d", skillId: "generate", data: ["title": "Generated planter", "prompt": "Low-poly balcony herb planter", "status": "finished"])
+        return skill(id: "models3d-generate", label: "Generate", primary: embed)
+    }
+
     private static var newsSearch: DevEmbedPreviewSkill {
         let parent = appSkill(id: "preview-news-search-1", type: EmbedType.newsSearch.rawValue, appId: "news", skillId: "search", data: ["query": "Latest technology news", "provider": "Brave News"], embedIds: website.primaryEmbed.id)
         return skill(id: "news-search", label: "Search", primary: parent, children: [website.primaryEmbed])
@@ -792,6 +905,23 @@ enum DevEmbedPreviewFixtures {
         return skill(id: "social-media-search", label: "Search", primary: parent, children: [child])
     }
 
+    private static var tasksTask: DevEmbedPreviewSkill {
+        let embed = record(id: "preview-tasks-task-1", type: EmbedType.tasksTask.rawValue, appId: "tasks", data: ["title": "Buy starter soil", "status": "open", "assignee": "Alex"])
+        return skill(id: "tasks-task", label: "Task", primary: embed)
+    }
+
+    private static var tasksCreate: DevEmbedPreviewSkill {
+        let child = record(id: "preview-tasks-created-task-1", type: EmbedType.tasksTask.rawValue, appId: "tasks", data: ["title": "Clear planter boxes", "status": "open", "assignee": "Alex"], parentEmbedId: "preview-tasks-create-1")
+        let parent = appSkill(id: "preview-tasks-create-1", type: EmbedType.tasksCreate.rawValue, appId: "tasks", skillId: "create", data: ["query": "Balcony herb garden checklist", "provider": "OpenMates", "result_count": 1], embedIds: child.id)
+        return skill(id: "tasks-create", label: "Create", primary: parent, children: [child])
+    }
+
+    private static var tasksSearch: DevEmbedPreviewSkill {
+        let child = tasksTask.primaryEmbed
+        let parent = appSkill(id: "preview-tasks-search-1", type: EmbedType.tasksSearch.rawValue, appId: "tasks", skillId: "search", data: ["query": "Packing list tasks", "provider": "OpenMates", "result_count": 1], embedIds: child.id)
+        return skill(id: "tasks-search", label: "Search", primary: parent, children: [child])
+    }
+
     private static var video: DevEmbedPreviewSkill {
         let embed = record(id: "preview-videos-video-1", type: EmbedType.videosVideo.rawValue, appId: "videos", data: ["title": "Understanding Svelte 5 Runes", "channel": "Sample Channel", "duration_seconds": 620])
         return skill(id: "videos-video", label: "Video", primary: embed)
@@ -832,6 +962,23 @@ enum DevEmbedPreviewFixtures {
     private static var weatherRainRadar: DevEmbedPreviewSkill {
         let embed = appSkill(id: "preview-weather-radar-1", type: EmbedType.weatherRainRadar.rawValue, appId: "weather", skillId: "rain_radar", data: ["location_name": "Rostock", "summary": "Heavy rain moving east", "status": "finished"])
         return skill(id: "weather-rain-radar", label: "Rain Radar", primary: embed)
+    }
+
+    private static var workflowsWorkflow: DevEmbedPreviewSkill {
+        let embed = record(id: "preview-workflows-workflow-1", type: EmbedType.workflowsWorkflow.rawValue, appId: "workflows", data: ["title": "Weekly garden check-in", "trigger": "manual", "status": "enabled"])
+        return skill(id: "workflows-workflow", label: "Workflow", primary: embed)
+    }
+
+    private static var workflowsCreate: DevEmbedPreviewSkill {
+        let child = record(id: "preview-workflows-created-workflow-1", type: EmbedType.workflowsWorkflow.rawValue, appId: "workflows", data: ["title": "Weekly garden check-in", "trigger": "manual", "status": "enabled"], parentEmbedId: "preview-workflows-create-1")
+        let parent = appSkill(id: "preview-workflows-create-1", type: EmbedType.workflowsCreateOrModify.rawValue, appId: "workflows", skillId: "create-or-modify", data: ["query": "Weekly garden check-in workflow", "provider": "OpenMates", "result_count": 1], embedIds: child.id)
+        return skill(id: "workflows-create", label: "Create or Modify", primary: parent, children: [child])
+    }
+
+    private static var workflowsSearch: DevEmbedPreviewSkill {
+        let child = workflowsWorkflow.primaryEmbed
+        let parent = appSkill(id: "preview-workflows-search-1", type: EmbedType.workflowsSearch.rawValue, appId: "workflows", skillId: "search", data: ["query": "Travel packing workflows", "provider": "OpenMates", "result_count": 1], embedIds: child.id)
+        return skill(id: "workflows-search", label: "Search", primary: parent, children: [child])
     }
 
     // MARK: - Builders
