@@ -4938,15 +4938,25 @@
     // This prevents draft loss when quickly switching between chats
     $effect(() => {
         if (currentChatId !== previousChatId && previousChatId !== undefined) {
-            console.debug(`[MessageInput] Chat ID changed from ${previousChatId} to ${currentChatId}, flushing draft for previous chat`);
-            // CRITICAL: Flush draft for the PREVIOUS chat before switching
-            // Use the previous chat ID explicitly to ensure we save the right draft
-            // The draft service will use the current state's chatId, so we need to ensure it's still set
-            flushCurrentEditorDraft(previousChatId); // Save draft for the previous chat before switching
-            // Small delay to ensure the save completes before context switch
-            setTimeout(() => {
-                console.debug(`[MessageInput] Draft flush completed for previous chat ${previousChatId}`);
-            }, 100);
+            const draftState = get(draftEditorUIState);
+            if (draftState.currentChatId === previousChatId && !draftState.isSwitchingContext) {
+                console.debug(`[MessageInput] Chat ID changed from ${previousChatId} to ${currentChatId}, flushing draft for previous chat`);
+                // CRITICAL: Flush draft for the PREVIOUS chat before switching
+                // Use the previous chat ID explicitly to ensure we save the right draft
+                // The draft service will use the current state's chatId, so we need to ensure it's still set
+                flushCurrentEditorDraft(previousChatId); // Save draft for the previous chat before switching
+                // Small delay to ensure the save completes before context switch
+                setTimeout(() => {
+                    console.debug(`[MessageInput] Draft flush completed for previous chat ${previousChatId}`);
+                }, 100);
+            } else {
+                console.debug('[MessageInput] Skipping stale previous-chat draft flush', {
+                    previousChatId,
+                    currentChatId,
+                    draftStateChatId: draftState.currentChatId,
+                    isSwitchingContext: draftState.isSwitchingContext
+                });
+            }
             
             // Reset PII detection state for the new chat.
             // Without this, stale PII matches from the previous chat persist
