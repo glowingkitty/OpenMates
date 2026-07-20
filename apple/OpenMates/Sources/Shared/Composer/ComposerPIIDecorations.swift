@@ -23,6 +23,11 @@ struct ComposerDocumentPIIRedactionResult: Equatable, Sendable {
     let mappings: [PIIMapping]
 }
 
+struct ComposerDocumentPIIRewriteResult: Equatable, Sendable {
+    let document: ComposerDocumentV1
+    let appliedMappings: [PIIMapping]
+}
+
 struct ComposerPIIDecorations {
     private static let emailPattern = #"[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}"#
 
@@ -99,6 +104,37 @@ struct ComposerPIIDecorations {
         return ComposerDocumentPIIRedactionResult(
             document: ComposerDocumentV1(version: document.version, nodes: nodes),
             mappings: mappings
+        )
+    }
+
+    static func rewriteKnownPIIPlaceholders(
+        document: ComposerDocumentV1,
+        mappings: [PIIMapping],
+        excludedOriginals: Set<String> = [],
+        excludedPlaceholders: Set<String> = []
+    ) -> ComposerDocumentPIIRewriteResult {
+        guard !mappings.isEmpty else {
+            return ComposerDocumentPIIRewriteResult(document: document, appliedMappings: [])
+        }
+
+        var nodes = document.nodes
+        var appliedMappings: [PIIMapping] = []
+        for (index, node) in nodes.enumerated() {
+            guard node.kind == "text", let source = node.source else { continue }
+            let rewrite = PIIDetector.rewriteKnownPIIPlaceholders(
+                in: source,
+                mappings: mappings,
+                excludedOriginals: excludedOriginals,
+                excludedPlaceholders: excludedPlaceholders
+            )
+            guard rewrite.text != source else { continue }
+            nodes[index] = .text(id: node.id, source: rewrite.text)
+            appliedMappings.append(contentsOf: rewrite.appliedMappings)
+        }
+
+        return ComposerDocumentPIIRewriteResult(
+            document: ComposerDocumentV1(version: document.version, nodes: nodes),
+            appliedMappings: PIIDetector.mergePIIMappings(appliedMappings)
         )
     }
 

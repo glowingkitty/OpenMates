@@ -2336,16 +2336,25 @@ struct ChatView: View {
         }
         let snapshotNodeIDs = deferredComposerSendNodeIDs[snapshot.requestId] ?? []
         let embeds = snapshotNodeIDs.compactMap { resolvedComposerEmbeds[$0] }
-        let redaction = ComposerPIIDecorations.redactedDocument(
+        let excludedOriginals = excludedPIIOriginals(in: snapshot.document, excludedIds: context.excludedPIIIds)
+        let rewriteMappings = PIIDetector.mergePIIMappings(cumulativePIIMappings + embeds.flatMap(\.piiMappings))
+        let rewrite = ComposerPIIDecorations.rewriteKnownPIIPlaceholders(
             document: snapshot.document,
+            mappings: rewriteMappings,
+            excludedOriginals: excludedOriginals
+        )
+        let redaction = ComposerPIIDecorations.redactedDocument(
+            document: rewrite.document,
             excludedIds: context.excludedPIIIds,
             options: piiPrivacySettingsStore.detectionOptions()
         )
         let markdown = try ComposerMarkdownAdapter.serialize(redaction.document)
+        let piiMappings = PIIDetector.mergePIIMappings(rewrite.appliedMappings + redaction.mappings)
         viewModel.error = nil
         await viewModel.sendMessage(
             markdown,
-            piiMappings: redaction.mappings,
+            piiMappings: piiMappings,
+            excludedPIIOriginals: excludedOriginals,
             broadcastToSiblings: context.broadcastToSiblings,
             composerEmbeds: embeds
         )
@@ -2676,14 +2685,25 @@ struct ChatView: View {
         let redaction: ComposerDocumentPIIRedactionResult
         let originalText: String
         let text: String
+        let excludedOriginals = excludedPIIOriginals(in: document, excludedIds: piiExclusions)
+        let documentNodeIDs = document.nodes.filter { $0.kind == "embed" }.map(\.id)
+        let composerEmbeds = documentNodeIDs.compactMap { resolvedComposerEmbeds[$0] }
+        let rewriteMappings = PIIDetector.mergePIIMappings(cumulativePIIMappings + composerEmbeds.flatMap(\.piiMappings))
+        let piiMappings: [PIIMapping]
         do {
             originalText = try ComposerMarkdownAdapter.serialize(document)
-            redaction = ComposerPIIDecorations.redactedDocument(
+            let rewrite = ComposerPIIDecorations.rewriteKnownPIIPlaceholders(
                 document: document,
+                mappings: rewriteMappings,
+                excludedOriginals: excludedOriginals
+            )
+            redaction = ComposerPIIDecorations.redactedDocument(
+                document: rewrite.document,
                 excludedIds: piiExclusions,
                 options: piiPrivacySettingsStore.detectionOptions()
             )
             text = try ComposerMarkdownAdapter.serialize(redaction.document)
+            piiMappings = PIIDetector.mergePIIMappings(rewrite.appliedMappings + redaction.mappings)
         } catch {
             NativeDiagnostics.error(
                 "Composer send serialization failed: \(type(of: error))",
@@ -2692,9 +2712,6 @@ struct ChatView: View {
             viewModel.error = AppStrings.error
             return
         }
-        let piiMappings = redaction.mappings
-        let documentNodeIDs = document.nodes.filter { $0.kind == "embed" }.map(\.id)
-        let composerEmbeds = documentNodeIDs.compactMap { resolvedComposerEmbeds[$0] }
         messageText = ""
         viewModel.error = nil
         detectedPIIMatches = []
@@ -2705,6 +2722,7 @@ struct ChatView: View {
             await viewModel.sendMessage(
                 text,
                 piiMappings: piiMappings,
+                excludedPIIOriginals: excludedOriginals,
                 broadcastToSiblings: broadcastToSiblingSubChats,
                 composerEmbeds: composerEmbeds.isEmpty ? nil : composerEmbeds
             )
@@ -2843,6 +2861,20 @@ struct ChatView: View {
             let currentIds = Set(result.matches.map(\.id))
             piiExclusions = piiExclusions.intersection(currentIds)
         }
+    }
+
+    private func excludedPIIOriginals(in document: ComposerDocumentV1, excludedIds: Set<String>) -> Set<String> {
+        guard !excludedIds.isEmpty else { return [] }
+        let options = piiPrivacySettingsStore.detectionOptions()
+        let matches = PIIDetector.detect(
+            in: ComposerPIIDecorations.visibleText(document: document),
+            options: PIIDetectionOptions(
+                excludedIds: [],
+                disabledCategories: options.disabledCategories,
+                personalDataEntries: options.personalDataEntries
+            )
+        )
+        return Set(matches.filter { excludedIds.contains($0.id) }.map(\.value))
     }
 
     private var enhancedDetector: EnhancedPIIDetector {

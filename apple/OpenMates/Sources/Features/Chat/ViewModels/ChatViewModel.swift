@@ -696,6 +696,8 @@ final class ChatViewModel: ObservableObject {
     func sendMessage(
         _ content: String,
         piiMappings: [PIIMapping] = [],
+        excludedPIIOriginals: Set<String> = [],
+        excludedPIIPlaceholders: Set<String> = [],
         broadcastToSiblings: Bool = false,
         composerEmbeds explicitComposerEmbeds: [ComposerPendingEmbed]? = nil
     ) async {
@@ -722,12 +724,17 @@ final class ChatViewModel: ObservableObject {
                 chatStore: chatStore,
                 composerEmbeds: composerEmbeds,
                 piiMappings: mergedPIIMappings,
+                excludedPIIOriginals: excludedPIIOriginals,
+                excludedPIIPlaceholders: excludedPIIPlaceholders,
                 broadcastToSiblings: broadcastToSiblings
             )
             chat = result.chat
             appendOrReplaceLocalMessage(result.message)
             if broadcastToSiblings {
-                await broadcastMessageToSiblingSubChats(content, piiMappings: mergedPIIMappings)
+                await broadcastMessageToSiblingSubChats(
+                    result.message.content ?? content,
+                    piiMappings: result.message.piiMappings ?? mergedPIIMappings
+                )
             }
             if let explicitComposerEmbeds {
                 let sentIDs = Set(explicitComposerEmbeds.map(\.id))
@@ -3195,7 +3202,34 @@ final class ChatSendPipeline {
         textMappings: [PIIMapping],
         composerEmbeds: [ComposerPendingEmbed]
     ) -> [PIIMapping] {
-        textMappings + composerEmbeds.flatMap(\.piiMappings)
+        PIIDetector.mergePIIMappings(textMappings + composerEmbeds.flatMap(\.piiMappings))
+    }
+
+    func contentAndMappingsForSend(
+        content: String,
+        existingMessages: [Message],
+        piiMappings: [PIIMapping] = [],
+        excludedPIIOriginals: Set<String> = [],
+        excludedPIIPlaceholders: Set<String> = []
+    ) -> (content: String, piiMappings: [PIIMapping]) {
+        let rewrite = PIIDetector.rewriteKnownPIIPlaceholders(
+            in: content,
+            mappings: knownPIIMappings(in: existingMessages),
+            excludedOriginals: excludedPIIOriginals,
+            excludedPlaceholders: excludedPIIPlaceholders
+        )
+        return (
+            rewrite.text,
+            PIIDetector.mergePIIMappings(rewrite.appliedMappings + piiMappings)
+        )
+    }
+
+    private func knownPIIMappings(in messages: [Message]) -> [PIIMapping] {
+        PIIDetector.mergePIIMappings(
+            messages
+                .filter { $0.role == .user }
+                .flatMap { $0.piiMappings ?? [] }
+        )
     }
 
     private func incognitoMessageHistoryPayload(_ messages: [Message], fallbackChatId: String) -> [[String: Any]] {
@@ -3223,6 +3257,8 @@ final class ChatSendPipeline {
         waitForRemoteSend: Bool = true,
         composerEmbeds: [ComposerPendingEmbed] = [],
         piiMappings: [PIIMapping] = [],
+        excludedPIIOriginals: Set<String> = [],
+        excludedPIIPlaceholders: Set<String> = [],
         broadcastToSiblings: Bool = false
     ) async throws -> SendResult {
         guard let wsManager else { throw ChatSendError.webSocketUnavailable }
@@ -3231,8 +3267,17 @@ final class ChatSendPipeline {
         let createdAtUnix = Int(now.timeIntervalSince1970)
         let messageId = "\(chat.id.suffix(10))-\(UUID().uuidString)"
         let keyMaterial = try await ensureChatKey(chatId: chat.id, encryptedChatKey: chat.encryptedChatKey)
-        let encryptedContent = try await crypto.encryptContent(content, key: keyMaterial.key)
-        let encryptedPIIMappings = try await encryptPIIMappings(piiMappings, key: keyMaterial.key)
+        let sendPreparation = contentAndMappingsForSend(
+            content: content,
+            existingMessages: existingMessages,
+            piiMappings: piiMappings,
+            excludedPIIOriginals: excludedPIIOriginals,
+            excludedPIIPlaceholders: excludedPIIPlaceholders
+        )
+        let contentForSend = sendPreparation.content
+        let mappingsForSend = sendPreparation.piiMappings
+        let encryptedContent = try await crypto.encryptContent(contentForSend, key: keyMaterial.key)
+        let encryptedPIIMappings = try await encryptPIIMappings(mappingsForSend, key: keyMaterial.key)
         let encryptedEmbedPayloads = try await encryptedEmbeds(
             composerEmbeds,
             chatId: chat.id,
@@ -3251,7 +3296,7 @@ final class ChatSendPipeline {
             id: messageId,
             chatId: chat.id,
             role: .user,
-            content: content,
+            content: contentForSend,
             encryptedContent: encryptedContent,
             createdAt: createdAt,
             updatedAt: nil,
@@ -3260,7 +3305,7 @@ final class ChatSendPipeline {
             embedRefs: composerEmbeds.isEmpty ? nil : composerEmbeds.map { embed in
                 EmbedRef(id: embed.id, type: embed.type, status: embed.status, data: nil)
             },
-            piiMappings: piiMappings.isEmpty ? nil : piiMappings,
+            piiMappings: mappingsForSend.isEmpty ? nil : mappingsForSend,
             encryptedPIIMappings: encryptedPIIMappings
         )
 
@@ -3270,7 +3315,7 @@ final class ChatSendPipeline {
         var messagePayload: [String: Any] = [
             "message_id": messageId,
             "role": "user",
-            "content": content,
+            "content": contentForSend,
             "created_at": createdAtUnix,
             "sender_name": "user",
             "chat_has_title": (updatedChat.titleV ?? 0) > 0
