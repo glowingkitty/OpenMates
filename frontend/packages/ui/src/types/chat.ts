@@ -1031,6 +1031,9 @@ export interface Phase2RecentChatsPayload {
   chat_count: number;
   total_chat_count?: number; // Total chats on server (moved from Phase 3)
   phase?: "phase2";
+  authoritative?: boolean;
+  authoritative_chat_ids?: string[];
+  deleted_chat_ids?: string[];
 }
 
 /**

@@ -130,6 +130,36 @@ function yieldToMainThread(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, 0));
 }
 
+async function applyAuthoritativeDeletedChats(
+  serviceInstance: ChatSynchronizationService,
+  deletedChatIds: string[] | undefined,
+): Promise<void> {
+  const uniqueDeletedChatIds = Array.from(new Set(deletedChatIds ?? [])).filter(
+    Boolean,
+  );
+  if (uniqueDeletedChatIds.length === 0) return;
+
+  for (const chatId of uniqueDeletedChatIds) {
+    try {
+      chatListCache.removeChat(chatId);
+      await chatDB.deleteChat(chatId);
+      serviceInstance.dispatchEvent(
+        new CustomEvent("chatDeleted", {
+          detail: { chat_id: chatId },
+        }),
+      );
+      console.info(
+        `[ChatSyncService] Removed locally stale chat ${chatId} from Phase 2 authoritative deletion list`,
+      );
+    } catch (error) {
+      console.error(
+        `[ChatSyncService] Failed to apply Phase 2 authoritative deletion for chat ${chatId}:`,
+        error,
+      );
+    }
+  }
+}
+
 /**
  * Handle Phase 2 completion (recent chats ready)
  *
@@ -151,7 +181,8 @@ export async function handlePhase2RecentChatsImpl(
   );
 
   try {
-    const { chats, chat_count, total_chat_count } = payload;
+    const { chats, chat_count, total_chat_count, deleted_chat_ids } = payload;
+    await applyAuthoritativeDeletedChats(serviceInstance, deleted_chat_ids);
 
     // Cache warming notification (no actual chats) — ignore
     if (!chats || !Array.isArray(chats)) {
