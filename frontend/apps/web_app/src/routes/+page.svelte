@@ -1481,6 +1481,8 @@
 
 	onMount(async () => {
 		console.debug('[+page.svelte] onMount started');
+		window.addEventListener('hashchange', handleHashChange);
+		document.documentElement.setAttribute('data-hash-router-ready', 'true');
 
 		// ?lang= has absolute priority over stored preferredLanguage.
 		// Apply it here — at the very top of onMount, before any chat loading
@@ -2850,9 +2852,6 @@
 			isInitialLoad = false;
 		}, 100);
 
-		// Listen for hash changes (e.g., user pastes a new URL with different chat_id)
-		window.addEventListener('hashchange', handleHashChange);
-
 		// Listen for demo chat selection from embed preview cards (ExampleChatsGroup)
 		// These cards are nested deep in message content and can't use Svelte events
 		window.addEventListener('demoChatSelected', handleDemoChatSelected);
@@ -2946,6 +2945,8 @@
 
 	// Cleanup function for onDestroy
 	onDestroy(() => {
+		window.removeEventListener('hashchange', handleHashChange);
+		document.documentElement.removeAttribute('data-hash-router-ready');
 		if (handleWebSocketAuthError) {
 			webSocketService.removeEventListener('authError', handleWebSocketAuthError);
 		}

@@ -1059,13 +1059,14 @@ async function waitForChatReady(
 
 	await expect(page.locator('[data-authenticated="true"]')).toBeVisible({ timeout: budget() });
 	await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: budget() });
+	await expect(page.locator('[data-hash-router-ready="true"]')).toBeVisible({ timeout: budget() });
 
 	// Small post-mount settle: the MessageInput mounts before chatSyncService finishes
 	// its initial WS handshake. 1.5s matches the pattern in chat-flow.spec.ts which
 	// passes reliably on nightly.
 	await page.waitForTimeout(1500);
 
-	logCheckpoint('Chat UI ready: authenticated + editor mounted.');
+	logCheckpoint('Chat UI ready: authenticated + editor + hash router mounted.');
 }
 
 /**
