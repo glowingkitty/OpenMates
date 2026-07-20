@@ -1,0 +1,212 @@
+id: business
+name_translation_key: business
+description_translation_key: business.description
+icon_image: business.svg
+category: work
+last_updated: "2026-07-19"
+settings_and_memories: []
+embed_types:
+  - id: company_financials
+    category: app-skill-use
+    skill_id: company_financials
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: true
+    child_type: company_financial_result
+    child_frontend_type: business-company-financial-result
+    groupable: true
+    preview_component: business/BusinessCompanyFinancialsEmbedPreview.svelte
+    fullscreen_component: business/BusinessCompanyFinancialsEmbedFullscreen.svelte
+    child_preview_component: business/BusinessCompanyFinancialResultEmbedPreview.svelte
+    child_fullscreen_component: business/BusinessCompanyFinancialResultEmbedFullscreen.svelte
+    icon: business
+    gradient_var: "--color-app-business"
+    i18n_namespace: embeds.business.company_financials
+    content_fields:
+      - name: query
+        type: string
+      - name: period
+        type: string
+      - name: metric_group
+        type: string
+      - name: provider
+        type: string
+      - name: result_count
+        type: number
+      - name: warnings
+        type: object
+      - name: errors
+        type: object
+      - name: embed_ids
+        type: string
+  - id: company_financial_result
+    category: direct
+    frontend_type: business-company-financial-result
+    backend_type: company_financial_result
+    has_children: false
+    preview_component: business/BusinessCompanyFinancialResultEmbedPreview.svelte
+    fullscreen_component: business/BusinessCompanyFinancialResultEmbedFullscreen.svelte
+    icon: business
+    gradient_var: "--color-app-business"
+    i18n_namespace: embeds.business.company_financials.result
+    content_fields:
+      - name: company
+        type: string
+        required: true
+      - name: ticker
+        type: string
+      - name: cik
+        type: string
+        required: true
+      - name: country
+        type: string
+      - name: exchange
+        type: string
+      - name: period_type
+        type: string
+        required: true
+      - name: fiscal_year
+        type: number
+      - name: fiscal_quarter
+        type: string
+      - name: period_start
+        type: string
+      - name: period_end
+        type: string
+      - name: filed
+        type: string
+      - name: form
+        type: string
+      - name: currency
+        type: string
+      - name: revenue
+        type: number
+      - name: net_income
+        type: number
+      - name: gross_profit
+        type: number
+      - name: operating_income
+        type: number
+      - name: operating_cash_flow
+        type: number
+      - name: assets
+        type: number
+      - name: liabilities
+        type: number
+      - name: equity
+        type: number
+      - name: source_url
+        type: string
+      - name: accession_number
+        type: string
+      - name: confidence
+        type: string
+      - name: notes
+        type: object
+skills:
+  - id: company_financials
+    name_translation_key: app_skills.business.company_financials
+    description_translation_key: app_skills.business.company_financials.description
+    icon_image: business.svg
+    api_config:
+      expose_get: true
+      expose_post: true
+    preprocessor_hint: >
+      Get official SEC EDGAR financial filing facts for explicit public company
+      tickers, CIKs, or exact company names, including revenue, profit, cash flow,
+      and balance sheet data. Use for company performance research and comparisons;
+      do not use for private companies, investment advice, stock-price forecasts,
+      portfolio decisions, or discovering companies by broad category.
+    class_path: backend.apps.business.skills.company_financials.CompanyFinancialsSkill
+    providers:
+      - name: SEC EDGAR
+        no_api_key: true
+    suggestions_follow_up_requests:
+      - "Compare with another public company"
+      - "Show annual history"
+      - "Open the source filing"
+    exclude_fields_for_llm:
+      - source_url
+      - accession_number
+      - history.source_url
+      - history.accession_number
+    tool_schema:
+      type: object
+      properties:
+        companies:
+          type: array
+          description: Explicit public companies to look up by ticker, CIK, or exact company name. Do not pass broad categories such as "egg producers".
+          minItems: 1
+          maxItems: 10
+          items:
+            type: object
+            properties:
+              query:
+                type: string
+                description: Ticker, CIK, or exact public company name, e.g. CALM, 0000016160, or Cal-Maine Foods Inc.
+              identifier_type:
+                type: string
+                enum: [auto, ticker, cik, company_name]
+                default: auto
+              display_name:
+                type: string
+                description: Optional user-facing label from the original request.
+            required:
+              - query
+        period:
+          type: string
+          enum: [latest_annual, latest_quarter, annual_history, quarterly_history]
+          default: latest_annual
+        metric_group:
+          type: string
+          enum: [summary, income, balance_sheet, cash_flow, all]
+          default: summary
+        years:
+          type: integer
+          minimum: 1
+          maximum: 10
+          default: 3
+        include_sources:
+          type: boolean
+          default: true
+      required:
+        - companies
+    workflow:
+      available: true
+      execution_mode: sync
+      effect: read
+      unattended: true
+      approval: never
+      binding_requirements: [none]
+      test_allowed: true
+      test_example_input:
+        companies:
+          - query: CALM
+        period: latest_annual
+        metric_group: summary
+        years: 1
+        include_sources: true
+      output_schema:
+        type: object
+        properties:
+          summary:
+            type: string
+          result_count:
+            type: integer
+          provider:
+            type: string
+          results:
+            type: array
+
+marketing_discovery:
+  skills:
+    company_financials:
+      enabled: true
+      keywords:
+        - company financials from SEC filings
+        - public company revenue and profit lookup
+        - EDGAR financial statement assistant
+      pain_points:
+        - official filings are hard to normalize quickly
+      demo_angles:
+        - compare revenue and profit for public companies with filing sources

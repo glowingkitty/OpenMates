@@ -257,6 +257,29 @@ describe("OpenMates SDK", () => {
     });
   });
 
+  it("exposes native business company financials skill methods", async () => {
+    await withServer((request, response) => {
+      assert.equal(request.url, "/v1/apps/business/skills/company_financials");
+      let body = "";
+      request.on("data", (chunk) => { body += chunk.toString(); });
+      request.on("end", () => {
+        assert.deepEqual(JSON.parse(body), {
+          companies: [{ query: "CALM" }],
+          period: "latest_annual",
+        });
+        response.setHeader("content-type", "application/json");
+        response.end(JSON.stringify({ success: true, data: { result_count: 1 } }));
+      });
+    }, async (apiUrl) => {
+      const client = new OpenMates({ apiKey: "sk-api-test", apiUrl });
+      const result = await client.apps.business.companyFinancials({
+        companies: [{ query: "CALM" }],
+        period: "latest_annual",
+      });
+      assert.deepEqual(result, { success: true, data: { result_count: 1 } });
+    });
+  });
+
   it("exposes native design icon search skill methods", async () => {
     await withServer((request, response) => {
       assert.equal(request.url, "/v1/apps/design/skills/search_icons");

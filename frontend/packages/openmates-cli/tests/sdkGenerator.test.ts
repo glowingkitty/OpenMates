@@ -13,7 +13,7 @@ import assert from "node:assert/strict";
 const { APP_SKILL_METADATA, GeneratedAppSkills } = await import("../src/generated/appSkills.ts");
 
 describe("generated npm SDK app skills", () => {
-  it("includes native web search, design icon search, images generate, models3d search, and fitness metadata", () => {
+  it("includes native web search, design icon search, images generate, models3d search, business financials, and fitness metadata", () => {
     const webSearch = APP_SKILL_METADATA.find(
       (skill) => skill.app_id === "web" && skill.skill_id === "search",
     );
@@ -28,6 +28,9 @@ describe("generated npm SDK app skills", () => {
     );
     const models3dSearch = APP_SKILL_METADATA.find(
       (skill) => skill.app_id === "models3d" && skill.skill_id === "search",
+    );
+    const businessFinancials = APP_SKILL_METADATA.find(
+      (skill) => skill.app_id === "business" && skill.skill_id === "company_financials",
     );
     const fitnessLocations = APP_SKILL_METADATA.find(
       (skill) => skill.app_id === "fitness" && skill.skill_id === "search_locations",
@@ -58,6 +61,11 @@ describe("generated npm SDK app skills", () => {
     assert.equal(models3dSearch.skill_method_ts, "search");
     assert.ok(models3dSearch.schema.properties.requests);
 
+    assert.ok(businessFinancials);
+    assert.equal(businessFinancials.app_namespace_ts, "business");
+    assert.equal(businessFinancials.skill_method_ts, "companyFinancials");
+    assert.ok(businessFinancials.schema.properties.companies);
+
     assert.ok(fitnessLocations);
     assert.equal(fitnessLocations.app_namespace_ts, "fitness");
     assert.equal(fitnessLocations.skill_method_ts, "searchLocations");
@@ -76,19 +84,30 @@ describe("generated npm SDK app skills", () => {
       return { ok: true };
     });
 
-    const result = await apps.web.search({ requests: [{ query: "hello" }] }, { promptInjectionProtection: false });
+    const result = await apps.web.search({ requests: [{ query: "hello" }] });
     const iconResult = await apps.design.searchIcons({ requests: [{ query: "home" }] });
     const fitnessResult = await apps.fitness.searchClasses({ requests: [{ address: "Sorauer Str. 12" }] });
     const modelSearchResult = await apps.models3d.search({ requests: [{ query: "benchy" }] });
+    const businessResult = await apps.business.companyFinancials(
+      { companies: [{ query: "CALM" }] },
+      { promptInjectionProtection: false },
+    );
     assert.deepEqual(result, { ok: true });
     assert.deepEqual(iconResult, { ok: true });
     assert.deepEqual(fitnessResult, { ok: true });
     assert.deepEqual(modelSearchResult, { ok: true });
+    assert.deepEqual(businessResult, { ok: true });
     assert.deepEqual(calls, [
-      { appId: "web", skillId: "search", input: { requests: [{ query: "hello" }] }, options: { promptInjectionProtection: false } },
+      { appId: "web", skillId: "search", input: { requests: [{ query: "hello" }] }, options: undefined },
       { appId: "design", skillId: "search_icons", input: { requests: [{ query: "home" }] }, options: undefined },
       { appId: "fitness", skillId: "search_classes", input: { requests: [{ address: "Sorauer Str. 12" }] }, options: undefined },
       { appId: "models3d", skillId: "search", input: { requests: [{ query: "benchy" }] }, options: undefined },
+      {
+        appId: "business",
+        skillId: "company_financials",
+        input: { companies: [{ query: "CALM" }] },
+        options: { promptInjectionProtection: false },
+      },
     ]);
   });
 });

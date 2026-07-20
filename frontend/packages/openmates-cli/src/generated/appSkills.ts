@@ -50,6 +50,87 @@ export const APP_SKILL_METADATA = [
     }
   },
   {
+    "app_id": "business",
+    "skill_id": "company_financials",
+    "app_namespace_ts": "business",
+    "skill_method_ts": "companyFinancials",
+    "app_namespace_py": "business",
+    "skill_method_py": "company_financials",
+    "description_key": "app_skills.business.company_financials.description",
+    "description": "Get official SEC EDGAR financial filing facts for explicit public company tickers, CIKs, or exact company names, including revenue, profit, cash flow, and balance sheet data. Use for company performance research and comparisons; do not use for private companies, investment advice, stock-price forecasts, portfolio decisions, or discovering companies by broad category.",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "companies": {
+          "type": "array",
+          "description": "Explicit public companies to look up by ticker, CIK, or exact company name. Do not pass broad categories such as \"egg producers\".",
+          "minItems": 1,
+          "maxItems": 10,
+          "items": {
+            "type": "object",
+            "properties": {
+              "query": {
+                "type": "string",
+                "description": "Ticker, CIK, or exact public company name, e.g. CALM, 0000016160, or Cal-Maine Foods Inc."
+              },
+              "identifier_type": {
+                "type": "string",
+                "enum": [
+                  "auto",
+                  "ticker",
+                  "cik",
+                  "company_name"
+                ],
+                "default": "auto"
+              },
+              "display_name": {
+                "type": "string",
+                "description": "Optional user-facing label from the original request."
+              }
+            },
+            "required": [
+              "query"
+            ]
+          }
+        },
+        "period": {
+          "type": "string",
+          "enum": [
+            "latest_annual",
+            "latest_quarter",
+            "annual_history",
+            "quarterly_history"
+          ],
+          "default": "latest_annual"
+        },
+        "metric_group": {
+          "type": "string",
+          "enum": [
+            "summary",
+            "income",
+            "balance_sheet",
+            "cash_flow",
+            "all"
+          ],
+          "default": "summary"
+        },
+        "years": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10,
+          "default": 3
+        },
+        "include_sources": {
+          "type": "boolean",
+          "default": true
+        }
+      },
+      "required": [
+        "companies"
+      ]
+    }
+  },
+  {
     "app_id": "code",
     "skill_id": "search_repos",
     "app_namespace_ts": "code",
@@ -3321,6 +3402,21 @@ export class BooksAppSkills {
   }
 }
 
+export class BusinessAppSkills {
+  private readonly runSkill: AppSkillRunner;
+  constructor(runSkill: AppSkillRunner) {
+    this.runSkill = runSkill;
+  }
+  /**
+   * Get official SEC EDGAR financial filing facts for explicit public company tickers, CIKs, or exact company names, including revenue, profit, cash flow, and balance sheet data. Use for company performance research and comparisons; do not use for private companies, investment advice, stock-price forecasts, portfolio decisions, or discovering companies by broad category.
+   * Description key: app_skills.business.company_financials.description
+   * Skill: business/company_financials
+   */
+  async companyFinancials<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("business", "company_financials", input, options);
+  }
+}
+
 export class CodeAppSkills {
   private readonly runSkill: AppSkillRunner;
   constructor(runSkill: AppSkillRunner) {
@@ -3915,6 +4011,7 @@ export class GeneratedAppSkills {
   constructor(runSkill: AppSkillRunner) {
     this.ai = new AiAppSkills(runSkill);
     this.books = new BooksAppSkills(runSkill);
+    this.business = new BusinessAppSkills(runSkill);
     this.code = new CodeAppSkills(runSkill);
     this.design = new DesignAppSkills(runSkill);
     this.electronics = new ElectronicsAppSkills(runSkill);
@@ -3944,6 +4041,7 @@ export class GeneratedAppSkills {
   }
   readonly ai: AiAppSkills;
   readonly books: BooksAppSkills;
+  readonly business: BusinessAppSkills;
   readonly code: CodeAppSkills;
   readonly design: DesignAppSkills;
   readonly electronics: ElectronicsAppSkills;

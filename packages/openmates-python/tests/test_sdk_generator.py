@@ -9,7 +9,7 @@ Run: python3 -m pytest packages/openmates-python/tests/test_sdk_generator.py
 from openmates.generated.app_skills import APP_SKILL_METADATA, GeneratedAppSkills
 
 
-def test_generated_metadata_includes_web_search_images_generate_and_fitness():
+def test_generated_metadata_includes_web_search_images_generate_business_and_fitness():
     web_search = next(
         skill for skill in APP_SKILL_METADATA if skill["app_id"] == "web" and skill["skill_id"] == "search"
     )
@@ -27,6 +27,11 @@ def test_generated_metadata_includes_web_search_images_generate_and_fitness():
         skill
         for skill in APP_SKILL_METADATA
         if skill["app_id"] == "models3d" and skill["skill_id"] == "search"
+    )
+    business_financials = next(
+        skill
+        for skill in APP_SKILL_METADATA
+        if skill["app_id"] == "business" and skill["skill_id"] == "company_financials"
     )
     fitness_locations = next(
         skill
@@ -55,6 +60,10 @@ def test_generated_metadata_includes_web_search_images_generate_and_fitness():
     assert models3d_search["skill_method_py"] == "search"
     assert "requests" in models3d_search["schema"]["properties"]
 
+    assert business_financials["app_namespace_py"] == "business"
+    assert business_financials["skill_method_py"] == "company_financials"
+    assert "companies" in business_financials["schema"]["properties"]
+
     assert fitness_locations["app_namespace_py"] == "fitness"
     assert fitness_locations["skill_method_py"] == "search_locations"
     assert "requests" in fitness_locations["schema"]["properties"]
@@ -72,17 +81,22 @@ def test_generated_native_methods_delegate_to_runner():
         return {"ok": True}
 
     apps = GeneratedAppSkills(run_skill)
-    result = apps.web.search({"requests": [{"query": "hello"}]}, prompt_injection_protection=False)
+    result = apps.web.search({"requests": [{"query": "hello"}]})
     icon_result = apps.design.search_icons({"requests": [{"query": "home"}]})
     fitness_result = apps.fitness.search_classes({"requests": [{"address": "Sorauer Str. 12"}]})
     models3d_result = apps.models3d.search({"requests": [{"query": "benchy"}]})
+    business_result = apps.business.company_financials(
+        {"companies": [{"query": "CALM"}]},
+        prompt_injection_protection=False,
+    )
 
     assert result == {"ok": True}
     assert icon_result == {"ok": True}
     assert fitness_result == {"ok": True}
     assert models3d_result == {"ok": True}
+    assert business_result == {"ok": True}
     assert calls == [
-        {"app_id": "web", "skill_id": "search", "input_data": {"requests": [{"query": "hello"}]}, "options": {"prompt_injection_protection": False}},
+        {"app_id": "web", "skill_id": "search", "input_data": {"requests": [{"query": "hello"}]}, "options": {"prompt_injection_protection": None}},
         {"app_id": "design", "skill_id": "search_icons", "input_data": {"requests": [{"query": "home"}]}, "options": {"prompt_injection_protection": None}},
         {
             "app_id": "fitness",
@@ -91,4 +105,5 @@ def test_generated_native_methods_delegate_to_runner():
             "options": {"prompt_injection_protection": None},
         },
         {"app_id": "models3d", "skill_id": "search", "input_data": {"requests": [{"query": "benchy"}]}, "options": {"prompt_injection_protection": None}},
+        {"app_id": "business", "skill_id": "company_financials", "input_data": {"companies": [{"query": "CALM"}]}, "options": {"prompt_injection_protection": False}},
     ]

@@ -34,6 +34,76 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
   'skill_id': 'translate',
   'skill_method_py': 'translate',
   'skill_method_ts': 'translate'},
+ {'app_id': 'business',
+  'app_namespace_py': 'business',
+  'app_namespace_ts': 'business',
+  'description': 'Get official SEC EDGAR financial filing facts for explicit public company '
+                 'tickers, CIKs, or exact company names, including revenue, profit, cash flow, and '
+                 'balance sheet data. Use for company performance research and comparisons; do not '
+                 'use for private companies, investment advice, stock-price forecasts, portfolio '
+                 'decisions, or discovering companies by broad category.',
+  'description_key': 'app_skills.business.company_financials.description',
+  'schema': {'properties': {'companies': {'description': 'Explicit public companies to look up by '
+                                                         'ticker, CIK, or exact company name. Do '
+                                                         'not pass broad categories such as "egg '
+                                                         'producers".',
+                                          'items': {'properties': {'display_name': {'description': 'Optional '
+                                                                                                   'user-facing '
+                                                                                                   'label '
+                                                                                                   'from '
+                                                                                                   'the '
+                                                                                                   'original '
+                                                                                                   'request.',
+                                                                                    'type': 'string'},
+                                                                   'identifier_type': {'default': 'auto',
+                                                                                       'enum': ['auto',
+                                                                                                'ticker',
+                                                                                                'cik',
+                                                                                                'company_name'],
+                                                                                       'type': 'string'},
+                                                                   'query': {'description': 'Ticker, '
+                                                                                            'CIK, '
+                                                                                            'or '
+                                                                                            'exact '
+                                                                                            'public '
+                                                                                            'company '
+                                                                                            'name, '
+                                                                                            'e.g. '
+                                                                                            'CALM, '
+                                                                                            '0000016160, '
+                                                                                            'or '
+                                                                                            'Cal-Maine '
+                                                                                            'Foods '
+                                                                                            'Inc.',
+                                                                             'type': 'string'}},
+                                                    'required': ['query'],
+                                                    'type': 'object'},
+                                          'maxItems': 10,
+                                          'minItems': 1,
+                                          'type': 'array'},
+                            'include_sources': {'default': True, 'type': 'boolean'},
+                            'metric_group': {'default': 'summary',
+                                             'enum': ['summary',
+                                                      'income',
+                                                      'balance_sheet',
+                                                      'cash_flow',
+                                                      'all'],
+                                             'type': 'string'},
+                            'period': {'default': 'latest_annual',
+                                       'enum': ['latest_annual',
+                                                'latest_quarter',
+                                                'annual_history',
+                                                'quarterly_history'],
+                                       'type': 'string'},
+                            'years': {'default': 3,
+                                      'maximum': 10,
+                                      'minimum': 1,
+                                      'type': 'integer'}},
+             'required': ['companies'],
+             'type': 'object'},
+  'skill_id': 'company_financials',
+  'skill_method_py': 'company_financials',
+  'skill_method_ts': 'companyFinancials'},
  {'app_id': 'code',
   'app_namespace_py': 'code',
   'app_namespace_ts': 'code',
@@ -4955,6 +5025,18 @@ class BooksAppSkills:
         """
         return self._run_skill("books", "translate", input_data, prompt_injection_protection=prompt_injection_protection)
 
+class BusinessAppSkills:
+    def __init__(self, run_skill: SkillRunner):
+        self._run_skill = run_skill
+
+    def company_financials(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
+        """Get official SEC EDGAR financial filing facts for explicit public company tickers, CIKs, or exact company names, including revenue, profit, cash flow, and balance sheet data. Use for company performance research and comparisons; do not use for private companies, investment advice, stock-price forecasts, portfolio decisions, or discovering companies by broad category.
+
+        Description key: app_skills.business.company_financials.description
+        Skill: business/company_financials
+        """
+        return self._run_skill("business", "company_financials", input_data, prompt_injection_protection=prompt_injection_protection)
+
 class CodeAppSkills:
     def __init__(self, run_skill: SkillRunner):
         self._run_skill = run_skill
@@ -5471,6 +5553,7 @@ class GeneratedAppSkills:
     def __init__(self, run_skill: SkillRunner):
         self.ai = AiAppSkills(run_skill)
         self.books = BooksAppSkills(run_skill)
+        self.business = BusinessAppSkills(run_skill)
         self.code = CodeAppSkills(run_skill)
         self.design = DesignAppSkills(run_skill)
         self.electronics = ElectronicsAppSkills(run_skill)

@@ -268,6 +268,31 @@ def test_native_models3d_search_skill_method_uses_generated_namespace(monkeypatc
     assert requests[0]["json"] == {"requests": [{"query": "benchy"}]}
 
 
+def test_native_business_company_financials_skill_method_uses_generated_namespace(monkeypatch):
+    requests = []
+
+    class FakeResponse:
+        status_code = 200
+
+        def json(self):
+            return {"success": True, "data": {"result_count": 1}}
+
+    def fake_post(url, *, json, headers, timeout):
+        requests.append({"url": url, "json": json, "headers": headers, "timeout": timeout})
+        return FakeResponse()
+
+    monkeypatch.setattr("openmates.sdk.requests.post", fake_post)
+
+    client = OpenMates(api_key="sk-api-test")
+    result = client.apps.business.company_financials(
+        {"companies": [{"query": "CALM"}], "period": "latest_annual"}
+    )
+
+    assert result == {"success": True, "data": {"result_count": 1}}
+    assert requests[0]["url"] == "https://api.openmates.org/v1/apps/business/skills/company_financials"
+    assert requests[0]["json"] == {"companies": [{"query": "CALM"}], "period": "latest_annual"}
+
+
 def test_native_design_search_icons_skill_method_uses_generated_namespace(monkeypatch):
     requests = []
 
