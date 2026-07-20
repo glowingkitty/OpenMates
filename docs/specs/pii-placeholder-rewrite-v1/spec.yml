@@ -29,6 +29,8 @@ scope:
       opt-out/exclusion behavior, and secret-scanner/CLI parity where applicable.
     - Deployed web coverage proving a follow-up prompt is sent with placeholders
       while the local UI can still render/restores originals.
+    - Real CLI and deployed web chat coverage for PII inside uploaded code,
+      CSV, DOCX, and XLSX files before those uploads reach chat history or AI context.
   out:
     - Fully redesigning the PII detector or all supported PII categories.
     - Server-side restoration or server-side access to original PII values.
@@ -45,7 +47,7 @@ sequencing_gates:
   - gate: WEB_BEFORE_APPLE
     required_before: apple_implementation
     rule: Web send-path behavior and user confirmation are required before Apple parity begins.
-    evidence: [T-WEB-PII-REWRITE, V-USER-CONFIRMATION]
+    evidence: [T-WEB-PII-REWRITE, T-WEB-FILE-UPLOAD-PII, V-USER-CONFIRMATION]
 
 context_discovery:
   github_issues:
@@ -69,6 +71,9 @@ context_discovery:
     - frontend/packages/secret-scanner/tests/redact-restore.test.ts
     - frontend/packages/secret-scanner/tests/registry.test.ts
     - frontend/apps/web_app/tests/pii-detection-flow.spec.ts
+    - frontend/packages/openmates-cli/tests/fileEmbed.test.ts
+    - frontend/apps/web_app/tests/cli-file-upload.spec.ts
+    - frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
   external_research:
     - "No external API research required; this spec changes first-party client-side privacy behavior."
 
@@ -105,7 +110,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: e6f046a86
+  subject_commit: b8da97ded
 
 approvals:
   product_contract:
@@ -171,7 +176,7 @@ handoff:
     reason: The WEB_BEFORE_APPLE gate requires user confirmation after deployed web verification before Apple parity starts.
     question: Does the deployed web behavior satisfy the PII placeholder rewrite expectation so Apple parity can begin?
     next_action: Record user confirmation or waiver, then start Apple parity work if requested.
-  last_verified_commit: e6f046a86
+  last_verified_commit: b8da97ded
 
 scenarios:
   - id: S-1
@@ -224,6 +229,16 @@ scenarios:
       - The non-owner sees placeholders and category labels only.
       - Owner-only message/embed mappings are not included in the shared payload.
 
+  - id: S-6
+    title: Uploaded code, docs, and sheets are redacted before real chat send
+    given:
+      - Alice attaches code, CSV, DOCX, and XLSX files containing emails and API keys.
+    when:
+      - Alice sends the files through CLI or the deployed web composer.
+    then:
+      - The real chat send path acknowledges placeholder redaction for every local text/doc/sheet upload.
+      - The sent web chat message and fullscreen embeds do not expose the raw uploaded PII.
+
 acceptance_criteria:
   - id: AC-1
     scenario: S-1
@@ -272,7 +287,15 @@ acceptance_criteria:
     status: pending
     coverage_status: covered
     verification_scope: cli
-    verification_ids: [T-UNIT-SECRET-SCANNER]
+    verification_ids: [T-UNIT-SECRET-SCANNER, T-CLI-FILE-UPLOAD-PII]
+  - id: AC-7
+    scenario: S-6
+    text: PII inside uploaded code, CSV, DOCX, and XLSX files is replaced with placeholders before real CLI and web chat sends expose the content.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-UNIT-CLI-FILE-EMBED, T-CLI-FILE-UPLOAD-PII, T-WEB-FILE-UPLOAD-PII]
 
 assumptions:
   - id: A-1
@@ -341,10 +364,10 @@ tests:
       evidence:
         status: passed
         command: python3 scripts/tests.py run --suite vitest
-        run_id: "2026-07-20T13:28:21Z / GitHub Actions 29746389543 (593/594 passed; unrelated ChatListCache failure)"
-        subject_commit: e6f046a86
-        timestamp: "2026-07-20T13:29:21Z"
-        reason: The committed run included the new placeholderRewriteService tests; the suite's only failure was the unrelated pre-existing ChatListCache pending-upsert assertion.
+        run_id: "2026-07-20T16:07:42Z / GitHub Actions 29758238779 (594/595 passed; unrelated ChatListCache failure)"
+        subject_commit: b8da97ded
+        timestamp: "2026-07-20T16:08:38Z"
+        reason: The committed run included the placeholderRewriteService tests; the suite's only failure was the unrelated pre-existing ChatListCache pending-upsert assertion.
 
   - id: T-UNIT-EMBED-MAPPINGS
     type: unit
@@ -371,10 +394,10 @@ tests:
       evidence:
         status: passed
         command: python3 scripts/tests.py run --suite vitest
-        run_id: "2026-07-20T13:28:21Z / GitHub Actions 29746389543 (593/594 passed; unrelated ChatListCache failure)"
-        subject_commit: e6f046a86
-        timestamp: "2026-07-20T13:29:21Z"
-        reason: The committed run included the new embedPIIStore rewrite tests; the suite's only failure was the unrelated pre-existing ChatListCache pending-upsert assertion.
+        run_id: "2026-07-20T16:07:42Z / GitHub Actions 29758238779 (594/595 passed; unrelated ChatListCache failure)"
+        subject_commit: b8da97ded
+        timestamp: "2026-07-20T16:08:38Z"
+        reason: The committed run included the embedPIIStore rewrite tests; the suite's only failure was the unrelated pre-existing ChatListCache pending-upsert assertion.
 
   - id: T-UNIT-SECRET-SCANNER
     type: unit
@@ -400,9 +423,9 @@ tests:
       evidence:
         status: passed
         command: cd frontend/packages/secret-scanner && npm test
-        run_id: local-node-test-e6f046a86
-        subject_commit: e6f046a86
-        timestamp: "2026-07-20T13:38:00Z"
+        run_id: local-node-test-b8da97ded
+        subject_commit: b8da97ded
+        timestamp: "2026-07-20T15:58:42Z"
 
   - id: T-WEB-PII-REWRITE
     type: playwright
@@ -431,11 +454,104 @@ tests:
       evidence:
         status: passed_after_deploy
         command: python3 scripts/tests.py run --spec pii-placeholder-rewrite.spec.ts
-        run_id: "2026-07-20T13:31:47Z / GitHub Actions 29746835321"
-        subject_commit: e6f046a86
-        timestamp: "2026-07-20T13:37:06Z"
+        run_id: "2026-07-20T15:58:42Z / GitHub Actions 29757699826"
+        subject_commit: b8da97ded
+        timestamp: "2026-07-20T16:02:45Z"
         target: app.dev.openmates.org
-        deployment_reference: Vercel dpl_ETeN2feWeoAP8rx7nZp3j1q7MvSR READY for e6f046a86
+        deployment_reference: Vercel dpl_2JXuLAhkKp5HfET6xjoLfPr1pda2 READY for b8da97ded
+
+  - id: T-UNIT-CLI-FILE-EMBED
+    type: unit
+    file: frontend/packages/openmates-cli/tests/fileEmbed.test.ts
+    command: cd frontend/packages/openmates-cli && node --test --experimental-strip-types --loader ./tests/loader.mjs tests/fileEmbed.test.ts
+    covers: [AC-7]
+    assertions:
+      - CSV uploads are converted into sheets-sheet embeds with PII placeholders
+      - DOCX uploads are converted into docs-doc embeds with PII placeholders
+      - XLSX uploads are converted into sheets-sheet embeds with PII placeholders
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        command: cd frontend/packages/openmates-cli && node --test --experimental-strip-types --loader ./tests/loader.mjs tests/fileEmbed.test.ts
+        run_id: not-recorded-before-upload-redaction-implementation
+        subject_commit: c00e49883
+        timestamp: "2026-07-20T15:10:00Z"
+        reason: CLI upload redaction coverage was added after the core rewrite implementation was already underway; no separate pre-fix red run was recorded for the new upload parser assertions.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: cd frontend/packages/openmates-cli && node --test --experimental-strip-types --loader ./tests/loader.mjs tests/fileEmbed.test.ts
+        run_id: local-node-test-b8da97ded
+        subject_commit: b8da97ded
+        timestamp: "2026-07-20T15:57:00Z"
+
+  - id: T-CLI-FILE-UPLOAD-PII
+    type: playwright
+    file: frontend/apps/web_app/tests/cli-file-upload.spec.ts
+    command: python3 scripts/tests.py run --spec cli-file-upload.spec.ts
+    target: app.dev.openmates.org
+    covers: [AC-6, AC-7]
+    assertions:
+      - real CLI chat sends code, CSV, DOCX, and XLSX uploads through the dev API
+      - CLI output acknowledges placeholder redaction for local text/doc/sheet uploads
+      - raw uploaded emails and API keys are absent from CLI output
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        command: python3 scripts/tests.py run --spec cli-file-upload.spec.ts
+        run_id: not-recorded-before-upload-redaction-implementation
+        subject_commit: c00e49883
+        timestamp: "2026-07-20T15:10:00Z"
+        reason: The existing deployed CLI upload spec was extended for PII upload assertions after implementation; no deployed red run existed before those assertions were committed.
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: passed_after_deploy
+        command: python3 scripts/tests.py run --spec cli-file-upload.spec.ts
+        run_id: "2026-07-20T15:58:42Z / GitHub Actions 29757725182"
+        subject_commit: b8da97ded
+        timestamp: "2026-07-20T16:07:28Z"
+        target: app.dev.openmates.org
+        deployment_reference: Vercel dpl_2JXuLAhkKp5HfET6xjoLfPr1pda2 READY for b8da97ded
+
+  - id: T-WEB-FILE-UPLOAD-PII
+    type: playwright
+    file: frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
+    command: python3 scripts/tests.py run --spec file-attachment-code-flow.spec.ts
+    target: app.dev.openmates.org
+    covers: [AC-7]
+    assertions:
+      - deployed web chat sends code, CSV, EML, DOCX, and XLSX attachments containing PII
+      - sent message embeds expose placeholders instead of raw emails and API keys
+      - fullscreen code/docs/sheets viewers keep uploaded PII redacted after persistence
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        command: python3 scripts/tests.py run --spec file-attachment-code-flow.spec.ts
+        run_id: not-recorded-before-upload-redaction-implementation
+        subject_commit: c00e49883
+        timestamp: "2026-07-20T15:10:00Z"
+        reason: The existing deployed web upload spec was extended for PII upload assertions after implementation; no deployed red run existed before those assertions were committed.
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: passed_after_deploy
+        command: python3 scripts/tests.py run --spec file-attachment-code-flow.spec.ts
+        run_id: "2026-07-20T15:49:51Z / GitHub Actions 29756932174"
+        subject_commit: b8da97ded
+        timestamp: "2026-07-20T15:54:45Z"
+        target: app.dev.openmates.org
+        deployment_reference: Vercel dpl_2JXuLAhkKp5HfET6xjoLfPr1pda2 READY for b8da97ded
 
 verifications:
   - id: V-USER-CONFIRMATION
@@ -447,8 +563,8 @@ verifications:
     evidence:
       status: blocked
       actor: openai/gpt-5.5
-      summary: Deployed web Playwright evidence passed; explicit user confirmation is still required before Apple parity starts.
-      timestamp: "2026-07-20T13:37:06Z"
+      summary: Deployed web and CLI upload Playwright evidence passed; explicit user confirmation is still required before Apple parity starts.
+      timestamp: "2026-07-20T16:08:38Z"
       reason: WEB_BEFORE_APPLE requires product/user confirmation after deployed web verification.
       next_action: Ask the user to confirm the deployed web behavior, or record a waiver if Apple parity is intentionally deferred.
 
