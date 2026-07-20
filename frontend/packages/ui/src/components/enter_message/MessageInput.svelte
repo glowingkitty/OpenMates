@@ -4725,7 +4725,7 @@
         }));
 
         if (shouldPersist) {
-            await flushSaveDraft(editor, chatId);
+            triggerSaveDraft(chatId ?? currentChatId, editor);
         }
     }
 
