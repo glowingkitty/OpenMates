@@ -425,6 +425,8 @@ focuses:
     systemprompt_translation_key: focus_modes.web_research.systemprompt
     preprocessor_hint: >
       Select when the user asks about complex political, economic, market, geopolitical, policy, or news topics where surface explanations may be incomplete and incentives, competing narratives, or hidden causes matter.
+      For filing-derived financial facts about explicit public companies, tickers, or CIKs, route revenue, net income, cash flow, balance sheet, filing, and SEC EDGAR requests to business.company_financials.
+      Use business.company_financials only for explicit public company inputs; do not use it for private companies, company discovery, category discovery, investment advice, stock-price forecasts, or buy/sell recommendations.
       Do not select for quick facts, simple current-info lookups, or single-page summaries where normal web search or web read is enough.
 
 marketing_discovery:

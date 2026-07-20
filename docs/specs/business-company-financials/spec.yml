@@ -536,7 +536,7 @@ acceptance_criteria:
     scenario: S-7
     text: A real deployed example chat based on live skill output is created, audited, deployed, and approved by the user before focus-mode changes.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: user_confirmation
     verification_ids: [T-PLAYWRIGHT-EXAMPLE, V-USER-EXAMPLE]
@@ -781,10 +781,11 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: pending
+        status: failed
         command: python3 -m pytest backend/tests/test_web_research_business_financials_routing.py
-        run_id: ""
-        timestamp: ""
+        run_id: local-pytest-web-research-business-financials-red-2026-07-20T00:32:35Z
+        subject_commit: 942a72a93
+        timestamp: "2026-07-20T00:32:35Z"
     green_phase:
       required: true
       expected: pass
@@ -850,11 +851,11 @@ verifications:
     phase: final
     required_for_done: true
     covers: [AC-12]
-    status: pending
+    status: passed
     evidence:
-      status: ""
-      summary: "User confirms the deployed public example chat is acceptable before Web Research focus-mode routing changes."
-      timestamp: ""
+      status: user_confirmed
+      summary: "User confirmed the deployed public Vital Farms SEC financials example chat looks fine before Web Research focus-mode routing changes."
+      timestamp: "2026-07-20T00:30:03Z"
   - id: V-APPLE-PARITY
     kind: manual_check
     phase: final
@@ -1106,7 +1107,7 @@ tasks:
 
   - id: TASK-7
     title: Create and approve real example chat
-    status: pending
+    status: done
     phase: working_tasks
     covers:
       scenarios: [S-7]
