@@ -897,6 +897,70 @@ struct FocusModeRenderer: View {
     }
 }
 
+struct ProductSummaryEmbedRenderer: View {
+    let data: [String: AnyCodable]?
+    let mode: EmbedDisplayMode
+    let type: EmbedType?
+    let appId: String
+
+    private var title: String {
+        firstString(["title", "name", "display_name", "query", "filename"])
+            ?? type?.displayName
+            ?? appId
+    }
+
+    private var subtitle: String? {
+        firstString(["description", "summary", "status", "provider", "framework", "runtime"])
+    }
+
+    private var secondaryDetail: String? {
+        firstString(["url", "source_url", "license_title", "assignee", "trigger", "model_format"])
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: .spacing4) {
+            HStack(alignment: .center, spacing: .spacing4) {
+                AppIconView(appId: appId, size: mode == .preview ? 36 : 48)
+
+                VStack(alignment: .leading, spacing: .spacing1) {
+                    Text(title)
+                        .font(mode == .preview ? .omSmall : .omH4)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(Color.fontPrimary)
+                        .lineLimit(mode == .preview ? 2 : 3)
+
+                    if let subtitle {
+                        Text(subtitle)
+                            .font(.omXs)
+                            .foregroundStyle(Color.fontSecondary)
+                            .lineLimit(mode == .preview ? 1 : 3)
+                    }
+                }
+            }
+
+            if mode == .fullscreen, let secondaryDetail {
+                Text(secondaryDetail)
+                    .font(.omSmall)
+                    .foregroundStyle(Color.fontSecondary)
+                    .lineLimit(4)
+            }
+        }
+        .padding(.spacing4)
+        .frame(maxWidth: .infinity, maxHeight: mode == .preview ? .infinity : nil, alignment: .topLeading)
+        .accessibilityIdentifier("product-summary-embed")
+    }
+
+    private func firstString(_ keys: [String]) -> String? {
+        guard let data else { return nil }
+        for key in keys {
+            if let value = data[key]?.value as? String, !value.isEmpty {
+                return value
+            }
+        }
+        return nil
+    }
+}
+
 struct GenericEmbedRenderer: View {
     let data: [String: AnyCodable]?
     let mode: EmbedDisplayMode
