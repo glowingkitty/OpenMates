@@ -161,6 +161,12 @@
           {% endfor %}
           {% endif %}
 
+          {% if all_tests_omitted_count > 0 %}
+          <mj-text font-size="13px" padding-bottom="20px" color="{% if darkmode %}#bdbdbd{% else %}#4b5563{% endif %}">
+            Full per-test list omitted from this email because {{ all_tests_omitted_count }} tests exceed the {{ all_tests_limit }}-test email render limit. Failed tests and suite totals are shown above.
+          </mj-text>
+          {% endif %}
+
           <!-- Footer note -->
           <mj-text font-size="13px" padding-bottom="30px" font-style="italic" color="{% if darkmode %}#888{% else %}#999{% endif %}">
             {{ summary_copy.footer_note }}

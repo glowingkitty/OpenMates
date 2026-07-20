@@ -29,6 +29,7 @@ logger.addFilter(sensitive_filter)
 
 # Maximum error snippet length per failed test to keep email readable
 MAX_ERROR_SNIPPET_LENGTH = 400
+MAX_ALL_TESTS_IN_EMAIL = 500
 
 
 @app.task(
@@ -252,10 +253,11 @@ async def _async_send_test_run_summary(
                 "error": escape(error_raw) if error_raw else None,
             })
 
-        # Build all_tests grouped by suite for the full test list in the email.
-        # Each entry gets a status icon and sanitized name.
+        # Build all_tests grouped by suite for small runs only. Rendering every
+        # passed test from a full nightly run can make MJML conversion fail.
         sanitized_all_tests_by_suite: Dict[str, List[Dict[str, Any]]] = {}
-        for t in all_tests:
+        include_all_tests = len(all_tests) <= MAX_ALL_TESTS_IN_EMAIL
+        for t in all_tests if include_all_tests else []:
             suite_name = escape(str(t.get("suite", "unknown")))
             status_raw = str(t.get("status", "unknown"))
             test_name = escape(str(t.get("name", "")))
@@ -284,6 +286,8 @@ async def _async_send_test_run_summary(
                 sanitized_all_tests_by_suite[suite_name] = []
             sanitized_all_tests_by_suite[suite_name].append(entry)
 
+        all_tests_omitted_count = 0 if include_all_tests else len(all_tests)
+
         # Sanitize the opencode chat URL — only allow https://opencode.ai/s/... links
         sanitized_chat_url = None
         if opencode_chat_url and opencode_chat_url.startswith("https://opencode.ai/s/"):
@@ -306,7 +310,9 @@ async def _async_send_test_run_summary(
             "suites": sanitized_suites,
             "failed_tests": sanitized_failed,
             "all_tests_by_suite": sanitized_all_tests_by_suite,
-            "has_all_tests": len(all_tests) > 0,
+            "has_all_tests": len(sanitized_all_tests_by_suite) > 0,
+            "all_tests_omitted_count": all_tests_omitted_count,
+            "all_tests_limit": MAX_ALL_TESTS_IN_EMAIL,
             "opencode_chat_url": sanitized_chat_url,  # AI analysis session link (None if no failures or analysis unavailable)
             "summary_copy": sanitized_summary_copy,
         }

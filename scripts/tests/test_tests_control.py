@@ -186,6 +186,40 @@ def test_run_args_consume_expected_commit_before_forwarding(tmp_path, monkeypatc
     assert expected == "abc123"
 
 
+def test_run_options_consume_gate_and_lease_flags(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+
+    options = tests_control.parse_control_run_options([
+        "--spec",
+        "chat-flow.spec.ts",
+        "--gate-deploy",
+        "--lease-required",
+        "--lease-id",
+        "lease-chat-123",
+        "--expected-commit=abc123",
+    ])
+
+    assert options.forwarded_args == ["--spec", "chat-flow.spec.ts"]
+    assert options.gate_deploy is True
+    assert options.lease_required is True
+    assert options.lease_id == "lease-chat-123"
+    assert options.expected_commit == "abc123"
+
+
+def test_main_strips_run_passthrough_sentinel(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    seen_args = []
+
+    def fake_command_run(args):
+        seen_args.append(args)
+        return 0
+
+    monkeypatch.setattr(tests_control, "command_run", fake_command_run)
+
+    assert tests_control.main(["run", "--", "--suite", "vitest"]) == 0
+    assert seen_args == [["--suite", "vitest"]]
+
+
 def test_commit_prefix_matching_accepts_short_or_long_sha(tmp_path, monkeypatch):
     tests_control = load_tests_control(tmp_path, monkeypatch)
 
@@ -379,6 +413,55 @@ def test_triage_supports_limit_category_and_suite_filters(tmp_path, monkeypatch)
     assert triage["entries"][0]["suite"] == "playwright"
 
     assert tests_control.build_triage(suite_filter="pytest")["entries"] == []
+
+
+def test_require_active_lease_blocks_when_failures_exist(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    tests_control.record_run_result(sample_run())
+
+    with pytest.raises(RuntimeError, match="No active failed-test lease"):
+        tests_control.require_active_lease(session_id="s1")
+
+    lease = tests_control.claim_next(session_id="s1")
+
+    assert tests_control.require_active_lease(session_id="s1") is None
+    assert tests_control.active_lease_for_session(lease_id=lease["lease_id"])["lease_id"] == lease["lease_id"]
+
+
+def test_e2e_deploy_gate_checks_playwright_targets(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    options = tests_control.ControlRunOptions(forwarded_args=["--spec", "chat-flow.spec.ts"], gate_deploy=True)
+
+    monkeypatch.setattr(tests_control, "current_git_sha", lambda: "abcdef123456")
+    monkeypatch.setattr(tests_control, "check_vercel_ready_for_commit", lambda commit: [])
+    monkeypatch.setattr(tests_control, "check_dev_health_urls", lambda: [])
+
+    tests_control.run_e2e_deploy_gate(options)
+
+
+def test_e2e_deploy_gate_blocks_stale_vercel_commit(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    options = tests_control.ControlRunOptions(
+        forwarded_args=["--spec", "chat-flow.spec.ts"],
+        expected_commit="abcdef1",
+        gate_deploy=True,
+    )
+
+    monkeypatch.setattr(tests_control, "current_git_sha", lambda: "abcdef123456")
+    monkeypatch.setattr(tests_control, "check_vercel_ready_for_commit", lambda commit: ["not deployed"])
+    monkeypatch.setattr(tests_control, "check_dev_health_urls", lambda: [])
+
+    with pytest.raises(RuntimeError, match="not deployed"):
+        tests_control.run_e2e_deploy_gate(options)
+
+
+def test_e2e_deploy_gate_skips_non_playwright_targets(tmp_path, monkeypatch, capsys):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    options = tests_control.ControlRunOptions(forwarded_args=["--suite", "pytest"], gate_deploy=True)
+
+    tests_control.run_e2e_deploy_gate(options)
+
+    assert "SKIPPED" in capsys.readouterr().out
 
 
 def test_complete_lease_require_passing_blocks_active_failure_group(tmp_path, monkeypatch):

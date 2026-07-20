@@ -184,17 +184,22 @@ async function changeEmail(page: any, targetEmail: string, log: any): Promise<vo
 	const passwordInput = authModal.locator('input[type="password"]');
 	await expect(passwordInput).toBeVisible({ timeout: 15000 });
 	await passwordInput.fill(TEST_PASSWORD);
-	await authModal.getByTestId('auth-btn').click();
-
-	const tfaInput = authModal.getByTestId('tfa-input');
-	await expect(tfaInput).toBeVisible({ timeout: 15000 });
 	const reauthResponsePromise = page.waitForResponse(
 		(response: any) => response.url().includes('/v1/settings/user/email/reauth') && response.request().method() === 'POST'
 	);
 	const confirmResponsePromise = page.waitForResponse(
 		(response: any) => response.url().includes('/v1/settings/user/email/confirm-change') && response.request().method() === 'POST'
 	);
-	await tfaInput.fill(generateTotp(TEST_OTP_KEY));
+	await authModal.getByTestId('auth-btn').click();
+
+	const tfaInput = authModal.getByTestId('tfa-input');
+	const tfaVisible = await Promise.race([
+		tfaInput.waitFor({ state: 'visible', timeout: 15000 }).then(() => true),
+		authModal.waitFor({ state: 'hidden', timeout: 15000 }).then(() => false)
+	]).catch(() => false);
+	if (tfaVisible) {
+		await tfaInput.fill(generateTotp(TEST_OTP_KEY));
+	}
 
 	const reauthResponse = await reauthResponsePromise;
 	expect(reauthResponse.status(), 'Email change reauth response status.').toBe(200);

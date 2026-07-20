@@ -8,6 +8,11 @@ records an append-only timeline, deterministically triages failures, and leases
 the next failure group so parallel debugging sessions do not collide.
 
 Architecture: docs/architecture/test-orchestration.md
+
+Common gates:
+    python3 scripts/tests.py next --lease --session ${OPENCODE_SESSION_ID:-manual}
+    python3 scripts/tests.py run --spec chat-flow.spec.ts --gate-deploy --expected-commit <sha>
+    python3 scripts/tests.py run --spec chat-flow.spec.ts --lease-required --lease-id <lease>
 """
 
 from __future__ import annotations
@@ -15,6 +20,7 @@ from __future__ import annotations
 import argparse
 import fcntl
 import hashlib
+import importlib.util
 import json
 import os
 import re
@@ -25,6 +31,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 import uuid
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
@@ -42,6 +49,10 @@ LEASE_LOCK_FILE = Path("/tmp/openmates-failed-test-leases.lock")
 SPEC_DIR = PROJECT_ROOT / "frontend" / "apps" / "web_app" / "tests"
 RUN_TESTS_SCRIPT = PROJECT_ROOT / "scripts" / "run_tests.py"
 TEST_STORE = None
+DEV_HEALTH_URLS = (
+    "https://api.dev.openmates.org/health",
+    "https://app.dev.openmates.org/",
+)
 
 PROBLEM_STATUSES = {"failed", "dispatch_error", "timeout", "result_unknown"}
 LEASE_TTL_HOURS = 8
@@ -361,10 +372,12 @@ class DirectusTestControlStore(InMemoryTestControlStore):
             rows = self._fresh_current_state_rows(rows)
         tests = {str(row.get("test_key")): self._state_row_to_record(row) for row in rows if row.get("test_key")}
         latest_run_id = self._latest_current_state_run(rows)
+        latest_run_summary = self._run_summary_for_key(latest_run_id)
         return {
             "latest_run_id": latest_run_id,
             "updated_at": utc_now(),
-            "summary": summarize_current_tests(tests),
+            "summary": latest_run_summary or summarize_current_tests(tests),
+            "latest_run_summary": latest_run_summary or {},
             "tests": tests,
             "recorded_event_ids": [],
         }
@@ -436,6 +449,28 @@ class DirectusTestControlStore(InMemoryTestControlStore):
         if not counts:
             return ""
         return sorted(counts.items(), key=lambda item: (-item[1], item[0]))[0][0]
+
+    def _run_summary_for_key(self, run_key: str) -> dict[str, Any]:
+        if not run_key:
+            return {}
+        sql_run_key = run_key.replace("'", "''")
+        sql = f"SELECT COALESCE(summary, '{{}}'::json) FROM test_runs WHERE run_key = '{sql_run_key}' LIMIT 1;"
+        result = subprocess.run(
+            ["docker", "exec", "cms-database", "sh", "-lc", f'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -t -A -c {json.dumps(sql)}'],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        if result.returncode == 0:
+            try:
+                summary = json.loads(result.stdout.strip() or "{}")
+                return summary if isinstance(summary, dict) else {}
+            except json.JSONDecodeError:
+                pass
+        rows = self._items("test_runs", params={"filter": json.dumps({"run_key": {"_eq": run_key}}), "limit": 1})
+        summary = rows[0].get("summary") if rows else {}
+        return summary if isinstance(summary, dict) else {}
 
     def _state_row_to_record(self, row: dict[str, Any]) -> dict[str, Any]:
         metadata = row.get("metadata") if isinstance(row.get("metadata"), dict) else {}
@@ -585,6 +620,7 @@ class DirectusTestControlStore(InMemoryTestControlStore):
             "catalog": catalog,
             "current_state": current_state,
             "results": result_rows,
+            "replace_current_state": bool(state.get("replace_current_state")),
         }
         host_file = None
         container_file = f"/tmp/openmates-test-import-{uuid.uuid4().hex}.json"
@@ -661,6 +697,14 @@ class DirectusTestControlStore(InMemoryTestControlStore):
 CREATE TEMP TABLE test_control_import_payload(data jsonb);
 COPY test_control_import_payload(data) FROM '{escaped}' WITH (FORMAT csv, DELIMITER E'\x02', QUOTE E'\x01', ESCAPE E'\x01');
 
+DELETE FROM test_current_state
+WHERE COALESCE((SELECT (data->>'replace_current_state')::boolean FROM test_control_import_payload), false)
+  AND NOT EXISTS (
+    SELECT 1
+    FROM jsonb_to_recordset((SELECT data->'current_state' FROM test_control_import_payload)) AS x(test_key text)
+    WHERE x.test_key = test_current_state.test_key
+  );
+
 INSERT INTO test_runs (id, run_key, source, external_run_id, workflow, status, git_sha, git_branch, environment, requested_tests, summary, record_json, updated_at, updated_at_unix)
 SELECT gen_random_uuid(), run_key, source, external_run_id, workflow, status, git_sha, git_branch, environment, requested_tests::json, summary::json, record_json::json, updated_at, updated_at_unix
 FROM jsonb_to_recordset((SELECT data->'runs' FROM test_control_import_payload)) AS x(run_key text, source text, external_run_id text, workflow text, status text, git_sha text, git_branch text, environment text, requested_tests jsonb, summary jsonb, record_json jsonb, updated_at text, updated_at_unix integer)
@@ -726,10 +770,22 @@ def _matches_commit_prefix(actual_sha: str, expected_sha: str) -> bool:
     return bool(expected) and (actual.startswith(expected) or expected.startswith(actual))
 
 
-def parse_control_run_args(args: list[str]) -> tuple[list[str], str]:
+@dataclass(frozen=True)
+class ControlRunOptions:
+    forwarded_args: list[str]
+    expected_commit: str = ""
+    gate_deploy: bool = False
+    lease_required: bool = False
+    lease_id: str = ""
+
+
+def parse_control_run_options(args: list[str]) -> ControlRunOptions:
     """Remove tests.py-only run flags before delegating to run_tests.py."""
     forwarded: list[str] = []
     expected_commit = ""
+    gate_deploy = False
+    lease_required = False
+    lease_id = ""
     index = 0
     while index < len(args):
         arg = args[index]
@@ -747,9 +803,40 @@ def parse_control_run_args(args: list[str]) -> tuple[list[str], str]:
             expected_commit = arg.split("=", 1)[1]
             index += 1
             continue
+        if arg == "--gate-deploy":
+            gate_deploy = True
+            index += 1
+            continue
+        if arg in {"--lease-required", "--require-lease"}:
+            lease_required = True
+            index += 1
+            continue
+        if arg == "--lease-id":
+            if index + 1 >= len(args):
+                raise RuntimeError("--lease-id requires a failed-test lease id")
+            lease_id = args[index + 1]
+            lease_required = True
+            index += 2
+            continue
+        if arg.startswith("--lease-id="):
+            lease_id = arg.split("=", 1)[1]
+            lease_required = True
+            index += 1
+            continue
         forwarded.append(arg)
         index += 1
-    return forwarded, expected_commit
+    return ControlRunOptions(
+        forwarded_args=forwarded,
+        expected_commit=expected_commit,
+        gate_deploy=gate_deploy,
+        lease_required=lease_required,
+        lease_id=lease_id,
+    )
+
+
+def parse_control_run_args(args: list[str]) -> tuple[list[str], str]:
+    options = parse_control_run_options(args)
+    return options.forwarded_args, options.expected_commit
 
 
 def preflight_test_control_plane() -> None:
@@ -926,7 +1013,8 @@ def record_run_result(run_data: dict[str, Any], source: str = "scripts_tests", e
     timestamp = utc_now()
     state = get_store().load_state()
     recorded_event_ids = set(state.get("recorded_event_ids") or [])
-    tests = dict(state.get("tests") or {})
+    is_authoritative_daily = source == "daily_runner" and workflow == "daily"
+    tests = {} if is_authoritative_daily else dict(state.get("tests") or {})
     events: list[dict[str, Any]] = []
     observed_keys_by_suite: dict[str, set[str]] = {}
 
@@ -1064,6 +1152,8 @@ def record_run_result(run_data: dict[str, Any], source: str = "scripts_tests", e
         "tests": tests,
         "recorded_event_ids": sorted(recorded_event_ids)[-10000:],
     }
+    if is_authoritative_daily:
+        normalized_state["replace_current_state"] = True
     get_store().record_run_result(run_data, normalized_state, events, source=source, external_run_id=external_run_id, workflow=workflow)
     return normalized_state
 
@@ -1431,6 +1521,36 @@ def active_group_ids(leases: list[dict[str, Any]]) -> set[str]:
     return active
 
 
+def active_lease_for_session(session_id: str = "", lease_id: str = "") -> dict[str, Any] | None:
+    """Return an active, unexpired failed-test lease for a session or explicit id."""
+    now = datetime.now(timezone.utc)
+    for lease in load_leases().get("leases") or []:
+        if lease.get("status") != "active":
+            continue
+        expires_at = parse_utc(str(lease.get("expires_at") or ""))
+        if expires_at is not None and expires_at <= now:
+            continue
+        if lease_id and lease_id in {lease.get("lease_id"), lease.get("claim_key")}:
+            return lease
+        if session_id and lease.get("session_id") == session_id:
+            return lease
+    return None
+
+
+def require_active_lease(session_id: str = "", lease_id: str = "") -> dict[str, Any] | None:
+    """Require a failed-test lease only when there are current triage entries."""
+    if active_lease_for_session(session_id=session_id, lease_id=lease_id):
+        return None
+    triage = build_triage(limit=1)
+    if not triage.get("entries"):
+        return None
+    hint = "python3 scripts/tests.py next --lease --session ${OPENCODE_SESSION_ID:-manual}"
+    target = f" lease {lease_id}" if lease_id else f" session {session_id or 'manual'}"
+    raise RuntimeError(
+        f"No active failed-test lease for{target}. Claim the next failure group first: {hint}"
+    )
+
+
 def with_lease_lock(callback):
     LEASE_LOCK_FILE.parent.mkdir(parents=True, exist_ok=True)
     with LEASE_LOCK_FILE.open("w", encoding="utf-8") as lock_handle:
@@ -1527,7 +1647,7 @@ def import_run_artifact(path: Path, source: str = "github_actions", external_run
     run_data = normalize_import_run_data(run_data, path, external_run_id=external_run_id, workflow=workflow)
     if source == "github_actions":
         return ingest_github_actions_run(run_data, external_run_id=external_run_id, workflow=workflow)
-    return record_run_result(run_data)
+    return record_run_result(run_data, source=source, external_run_id=external_run_id, workflow=workflow)
 
 
 def import_state_snapshot(path: Path) -> dict[str, Any]:
@@ -1615,6 +1735,58 @@ def infer_run_suite_and_tests(args: list[str]) -> tuple[str, list[str]]:
     return suite, tests
 
 
+def run_targets_playwright(args: list[str]) -> bool:
+    suite, tests = infer_run_suite_and_tests(args)
+    return suite in {"playwright", "hourly-dev"} or any(test.endswith(".spec.ts") for test in tests)
+
+
+def check_dev_health_urls(urls: tuple[str, ...] = DEV_HEALTH_URLS, timeout: int = 10) -> list[str]:
+    failures: list[str] = []
+    for url in urls:
+        request = urllib.request.Request(url, method="GET")
+        try:
+            with urllib.request.urlopen(request, timeout=timeout) as response:
+                status = getattr(response, "status", response.getcode())
+                if int(status) >= 500:
+                    failures.append(f"{url} returned HTTP {status}")
+        except (urllib.error.URLError, TimeoutError, OSError) as exc:
+            failures.append(f"{url} failed: {exc}")
+    return failures
+
+
+def check_vercel_ready_for_commit(git_sha: str) -> list[str]:
+    """Use the canonical run_tests.py Vercel wait so the gate is tied to a commit."""
+    spec = importlib.util.spec_from_file_location("openmates_run_tests_gate", RUN_TESTS_SCRIPT)
+    if spec is None or spec.loader is None:
+        return [f"Could not load {RUN_TESTS_SCRIPT}"]
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    ok, reason = module._wait_for_vercel_deployment(git_sha, module._read_env_file())
+    return [] if ok else [reason or f"Vercel deployment is not Ready for {git_sha}"]
+
+
+def run_e2e_deploy_gate(options: ControlRunOptions) -> None:
+    """Preflight E2E dispatch so agents do not test a stale or unreachable dev app."""
+    if not run_targets_playwright(options.forwarded_args):
+        print("E2E deploy gate: SKIPPED (run does not target Playwright)")
+        return
+    expected_commit = options.expected_commit or current_git_sha()
+    actual_commit = current_git_sha()
+    if not _matches_commit_prefix(actual_commit, expected_commit):
+        raise RuntimeError(
+            "E2E deploy gate refused a moving target: "
+            f"expected {expected_commit}, current HEAD is {actual_commit[:9]}"
+        )
+    if os.environ.get("OPENMATES_SKIP_E2E_DEPLOY_GATE", "").lower() == "true":
+        print("E2E deploy gate: SKIPPED (OPENMATES_SKIP_E2E_DEPLOY_GATE=true)")
+        return
+    failures = [*check_vercel_ready_for_commit(expected_commit), *check_dev_health_urls()]
+    if failures:
+        raise RuntimeError("E2E deploy gate failed: " + "; ".join(failures))
+    print(f"E2E deploy gate: PASSED ({actual_commit[:9]}, dev endpoints reachable)")
+
+
 def latest_timestamped_run_artifact(since_mtime: float = 0.0) -> Path | None:
     artifacts = sorted(
         (path for path in RESULTS_DIR.glob("run-*.json") if path.stat().st_mtime >= since_mtime),
@@ -1667,15 +1839,34 @@ def record_latest_run_artifact(expected_commit: str = "", since_mtime: float = 0
 
 
 def command_run(runner_args: list[str]) -> int:
-    forwarded_args, expected_commit = parse_control_run_args(runner_args)
-    if expected_commit:
+    try:
+        options = parse_control_run_options(runner_args)
+    except RuntimeError as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
+    if options.expected_commit:
         actual_commit = current_git_sha()
-        if not _matches_commit_prefix(actual_commit, expected_commit):
+        if not _matches_commit_prefix(actual_commit, options.expected_commit):
             print(
                 "Refusing to dispatch tests for a moving target: "
-                f"expected commit {expected_commit}, current HEAD is {actual_commit[:9]}",
+                f"expected commit {options.expected_commit}, current HEAD is {actual_commit[:9]}",
                 file=sys.stderr,
             )
+            return 2
+    if options.lease_required:
+        try:
+            require_active_lease(
+                session_id=os.environ.get("OPENCODE_SESSION_ID", "manual"),
+                lease_id=options.lease_id,
+            )
+        except RuntimeError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+    if options.gate_deploy:
+        try:
+            run_e2e_deploy_gate(options)
+        except RuntimeError as exc:
+            print(str(exc), file=sys.stderr)
             return 2
     try:
         preflight_test_control_plane()
@@ -1687,20 +1878,23 @@ def command_run(runner_args: list[str]) -> int:
         )
         return 2
 
-    command = [sys.executable, str(RUN_TESTS_SCRIPT), *forwarded_args]
-    suite, tests = infer_run_suite_and_tests(forwarded_args)
+    command = [sys.executable, str(RUN_TESTS_SCRIPT), *options.forwarded_args]
+    suite, tests = infer_run_suite_and_tests(options.forwarded_args)
     mark_running(suite=suite, tests=tests, command=["python3", "scripts/tests.py", "run", *runner_args])
     artifact_start_mtime = datetime.now(timezone.utc).timestamp() - 1
     result = subprocess.run(command, cwd=PROJECT_ROOT)
-    if not record_latest_run_artifact(expected_commit=expected_commit, since_mtime=artifact_start_mtime):
-        return 2 if expected_commit else result.returncode
+    if not record_latest_run_artifact(expected_commit=options.expected_commit, since_mtime=artifact_start_mtime):
+        return 2 if options.expected_commit else result.returncode
     return result.returncode
 
 
 def main(argv: list[str] | None = None) -> int:
     raw_argv = list(sys.argv[1:] if argv is None else argv)
     if raw_argv and raw_argv[0] == "run":
-        return command_run(raw_argv[1:])
+        runner_args = raw_argv[1:]
+        if runner_args and runner_args[0] == "--":
+            runner_args = runner_args[1:]
+        return command_run(runner_args)
 
     parser = argparse.ArgumentParser(description="OpenMates unified test control plane")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -1726,6 +1920,11 @@ def main(argv: list[str] | None = None) -> int:
     next_parser.add_argument("--worker", default="")
     next_parser.add_argument("--days", type=int, default=7)
     next_parser.add_argument("--json", action="store_true")
+
+    lease_required_parser = sub.add_parser("lease-required", help="Fail when current failed-test work has no active lease")
+    lease_required_parser.add_argument("--session", default=os.environ.get("OPENCODE_SESSION_ID", "manual"))
+    lease_required_parser.add_argument("--lease-id", default="")
+    lease_required_parser.add_argument("--json", action="store_true")
 
     complete_parser = sub.add_parser("complete", help="Mark a failure lease completed")
     complete_parser.add_argument("--lease", required=True)
@@ -1793,6 +1992,20 @@ def main(argv: list[str] | None = None) -> int:
         entry = (triage.get("entries") or [None])[0]
         print(json.dumps(entry, indent=2, sort_keys=True) if args.json else (entry or "No failed tests."))
         return 0 if entry else 1
+    if args.command == "lease-required":
+        try:
+            require_active_lease(session_id=args.session, lease_id=args.lease_id)
+        except RuntimeError as exc:
+            if args.json:
+                print(json.dumps({"ok": False, "reason": str(exc)}, indent=2, sort_keys=True))
+            else:
+                print(str(exc), file=sys.stderr)
+            return 2
+        if args.json:
+            print(json.dumps({"ok": True}, indent=2, sort_keys=True))
+        else:
+            print("Failed-test lease gate: PASSED")
+        return 0
     if args.command == "complete":
         try:
             completed = complete_lease(args.lease, commit=args.commit, require_passing=args.require_passing)
