@@ -4697,7 +4697,7 @@
         }
     }
 
-    export async function replaceDraftWithPlainText(chatId: string | null, text: string, version: number): Promise<void> {
+    export async function replaceDraftWithPlainText(chatId: string | null, text: string, version: number, shouldPersist = false): Promise<void> {
         if (!editor || editor.isDestroyed) {
             console.warn('[MessageInput] replaceDraftWithPlainText: editor not available or destroyed');
             return;
@@ -4720,11 +4720,13 @@
             ...state,
             currentChatId: chatId,
             currentUserDraftVersion: version,
-            hasUnsavedChanges: false,
-            lastSavedContentMarkdown: text,
+            hasUnsavedChanges: shouldPersist,
+            lastSavedContentMarkdown: shouldPersist ? null : text,
         }));
 
-        await flushSaveDraft(editor, chatId);
+        if (shouldPersist) {
+            await flushSaveDraft(editor, chatId);
+        }
     }
 
     /**

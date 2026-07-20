@@ -226,7 +226,7 @@
     type MessageInputFieldRef = {
         setDraftContent: (chatId: string | null, content: Content | null, version: number, isRemote: boolean) => void;
         setSuggestionText: (text: string) => void;
-        replaceDraftWithPlainText?: (chatId: string | null, text: string, version: number) => Promise<void>;
+        replaceDraftWithPlainText?: (chatId: string | null, text: string, version: number, shouldPersist?: boolean) => Promise<void>;
         setOriginalMarkdown?: (markdown: string) => void;
         setCurrentChatContext?: (chatId: string | null, content: TiptapJSON | null, version: number) => void;
         focus: () => void;
@@ -2576,8 +2576,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             if (!inputRef?.replaceDraftWithPlainText) {
                 throw new Error('Message input draft replacement helper is unavailable');
             }
-            await inputRef.replaceDraftWithPlainText(chatId, text, version);
-            await inputRef.flushCurrentDraft?.();
+            await inputRef.replaceDraftWithPlainText(chatId, text, version, true);
             return { text: inputRef.getTextContent() };
         };
 
