@@ -14,6 +14,10 @@
 //          frontend/packages/ui/src/components/embeds/fitness/FitnessResultEmbedFullscreen.svelte
 //          frontend/packages/ui/src/components/embeds/weather/WeatherRainRadarEmbedPreview.svelte
 //          frontend/packages/ui/src/components/embeds/weather/WeatherRainRadarEmbedFullscreen.svelte
+//          frontend/packages/ui/src/components/embeds/business/BusinessCompanyFinancialsEmbedPreview.svelte
+//          frontend/packages/ui/src/components/embeds/business/BusinessCompanyFinancialsEmbedFullscreen.svelte
+//          frontend/packages/ui/src/components/embeds/business/BusinessCompanyFinancialResultEmbedPreview.svelte
+//          frontend/packages/ui/src/components/embeds/business/BusinessCompanyFinancialResultEmbedFullscreen.svelte
 // CSS:     frontend/packages/ui/src/components/embeds/UnifiedEmbedPreview.svelte
 //          frontend/packages/ui/src/components/embeds/BasicInfosBar.svelte
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift
@@ -143,6 +147,7 @@ struct AppSkillUseRenderer: View {
         switch appId {
         case "images", "photos": return EmbedType.imagesImageResult.rawValue
         case "videos": return EmbedType.videosVideo.rawValue
+        case "business": return EmbedType.businessCompanyFinancialResult.rawValue
         default: return EmbedType.webWebsite.rawValue
         }
     }
@@ -186,6 +191,8 @@ struct AppSkillUseRenderer: View {
             return AnyView(TravelStaysEmbedRenderer(embed: embed, data: data, mode: .preview, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed))
         } else if appId == "travel", skillId == "price_calendar" {
             return AnyView(TravelPriceCalendarEmbedRenderer(data: data, mode: .preview))
+        } else if appId == "business", skillId == "company_financials" {
+            return AnyView(BusinessCompanyFinancialsEmbedRenderer(embed: embed, mode: .preview, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed))
         } else if appId == "images", !childEmbeds.isEmpty {
             return AnyView(imagesSearchPreview)
         } else {
@@ -285,6 +292,8 @@ struct AppSkillUseRenderer: View {
             TravelStaysEmbedRenderer(embed: embed, data: data, mode: .fullscreen, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed)
         } else if appId == "travel", skillId == "price_calendar" {
             TravelPriceCalendarEmbedRenderer(data: data, mode: .fullscreen)
+        } else if appId == "business", skillId == "company_financials" {
+            BusinessCompanyFinancialsEmbedRenderer(embed: embed, mode: .fullscreen, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed)
         } else {
             VStack(alignment: .leading, spacing: .spacing6) {
                 if !childEmbeds.isEmpty {
@@ -649,6 +658,358 @@ private struct ImageResultFullscreenCard: View {
     private func host(from value: String?) -> String? {
         guard let value, let url = URL(string: value), let host = url.host else { return nil }
         return host.replacingOccurrences(of: "www.", with: "")
+    }
+}
+
+private struct BusinessCompanyFinancialsEmbedRenderer: View {
+    let embed: EmbedRecord
+    let mode: EmbedDisplayMode
+    let allEmbedRecords: [String: EmbedRecord]
+    let onOpenEmbed: (EmbedRecord) -> Void
+
+    private var model: BusinessCompanyFinancialsModel {
+        BusinessCompanyFinancialsModel(embed: embed, allEmbedRecords: allEmbedRecords)
+    }
+
+    var body: some View {
+        switch mode {
+        case .preview:
+            BusinessCompanyFinancialsPreview(model: model)
+        case .fullscreen:
+            BusinessCompanyFinancialsFullscreen(model: model, onOpenEmbed: onOpenEmbed)
+        }
+    }
+}
+
+private struct BusinessCompanyFinancialsPreview: View {
+    let model: BusinessCompanyFinancialsModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: .spacing2) {
+            Text(model.query)
+                .font(.omSmall)
+                .fontWeight(.semibold)
+                .foregroundStyle(Color.fontPrimary)
+                .lineLimit(1)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            Text(model.resultSummary)
+                .font(.omXs)
+                .foregroundStyle(Color.fontSecondary)
+                .lineLimit(2)
+
+            HStack(spacing: .spacing2) {
+                BusinessFinancialChip(label: model.periodLabel)
+                BusinessFinancialChip(label: model.metricGroupLabel)
+            }
+            .padding(.top, .spacing1)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+        .accessibilityIdentifier("business-financials-preview")
+    }
+}
+
+private struct BusinessCompanyFinancialsFullscreen: View {
+    let model: BusinessCompanyFinancialsModel
+    let onOpenEmbed: (EmbedRecord) -> Void
+
+    private let columns = [GridItem(.adaptive(minimum: 260, maximum: 320), spacing: .spacing6, alignment: .top)]
+
+    var body: some View {
+        let results = model.financialResults
+        Group {
+            if model.status == .error {
+                Text(AppStrings.genericProcessingError)
+                    .font(.omP)
+                    .foregroundStyle(Color.error)
+                    .frame(maxWidth: .infinity, minHeight: 200)
+            } else if results.isEmpty {
+                Text(model.resultSummary)
+                    .font(.omP)
+                    .fontWeight(.medium)
+                    .foregroundStyle(Color.fontSecondary)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity, minHeight: 200)
+            } else {
+                LazyVGrid(columns: columns, alignment: .center, spacing: .spacing6) {
+                    ForEach(results) { result in
+                        BusinessCompanyFinancialResultCard(model: result) {
+                            onOpenEmbed(result.embed)
+                        }
+                        .frame(maxWidth: 320)
+                    }
+                }
+                .frame(maxWidth: 1040)
+                .padding(.horizontal, .spacing5)
+                .padding(.vertical, .spacing8)
+                .padding(.bottom, 120)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .center)
+        .accessibilityIdentifier("business-financials-fullscreen")
+    }
+}
+
+struct BusinessCompanyFinancialResultEmbedRenderer: View {
+    let embed: EmbedRecord
+    let mode: EmbedDisplayMode
+
+    private var model: BusinessCompanyFinancialResultModel {
+        BusinessCompanyFinancialResultModel(embed: embed)
+    }
+
+    var body: some View {
+        switch mode {
+        case .preview:
+            BusinessCompanyFinancialResultCard(model: model) {}
+        case .fullscreen:
+            BusinessCompanyFinancialResultFullscreen(model: model)
+        }
+    }
+}
+
+private struct BusinessCompanyFinancialResultCard: View {
+    let model: BusinessCompanyFinancialResultModel
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            VStack(alignment: .leading, spacing: .spacing4) {
+                VStack(alignment: .leading, spacing: .spacing1) {
+                    Text(model.company)
+                        .font(.omSmall)
+                        .fontWeight(.bold)
+                        .foregroundStyle(Color.fontPrimary)
+                        .lineLimit(1)
+                    Text(model.subtitle ?? model.periodLabel)
+                        .font(.omXs)
+                        .foregroundStyle(Color.fontSecondary)
+                        .lineLimit(1)
+                }
+
+                HStack(spacing: .spacing3) {
+                    BusinessFinancialMetricTile(label: AppStrings.businessFinancialRevenue, value: model.revenue)
+                    BusinessFinancialMetricTile(label: AppStrings.businessFinancialNetIncome, value: model.netIncome)
+                }
+
+                if let filed = model.filed {
+                    Text("\(AppStrings.businessFinancialFiled) \(filed)")
+                        .font(.omXs)
+                        .foregroundStyle(Color.fontSecondary)
+                        .lineLimit(1)
+                }
+            }
+            .padding(.spacing4)
+            .frame(maxWidth: .infinity, minHeight: 148, alignment: .topLeading)
+            .background(
+                RoundedRectangle(cornerRadius: 22)
+                    .fill(Color.grey0)
+                    .overlay(alignment: .topTrailing) {
+                        AppGradientBackground(appId: "business")
+                            .frame(width: 92, height: 92)
+                            .opacity(0.16)
+                            .clipShape(RoundedRectangle(cornerRadius: 22))
+                    }
+            )
+            .overlay {
+                RoundedRectangle(cornerRadius: 22)
+                    .stroke(Color.grey20, lineWidth: 1)
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("business-financial-result-preview")
+    }
+}
+
+private struct BusinessCompanyFinancialResultFullscreen: View {
+    let model: BusinessCompanyFinancialResultModel
+
+    var body: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .top, spacing: .spacing6) {
+                heroCard.frame(maxWidth: 560)
+                sideColumn.frame(maxWidth: 420)
+            }
+            VStack(alignment: .leading, spacing: .spacing6) {
+                heroCard
+                sideColumn
+            }
+        }
+        .frame(maxWidth: 1040)
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, .spacing4)
+        .padding(.vertical, .spacing6)
+        .padding(.bottom, 120)
+        .accessibilityIdentifier("business-financial-result-fullscreen")
+    }
+
+    private var heroCard: some View {
+        VStack(alignment: .leading, spacing: .spacing8) {
+            VStack(alignment: .leading, spacing: .spacing3) {
+                Text(AppStrings.businessFinancialSecFiling)
+                    .font(.omXs)
+                    .fontWeight(.bold)
+                    .foregroundStyle(Color.fontSecondary)
+                    .textCase(.uppercase)
+                Text(model.company)
+                    .font(.omH1)
+                    .foregroundStyle(Color.fontPrimary)
+                    .lineLimit(3)
+                Text([model.periodLabel, model.periodRange].compactMap { $0 }.joined(separator: " · "))
+                    .font(.omSmall)
+                    .foregroundStyle(Color.fontSecondary)
+            }
+
+            HStack(spacing: .spacing4) {
+                BusinessFinancialMetricTile(label: AppStrings.businessFinancialRevenue, value: model.revenue, prominent: true)
+                BusinessFinancialMetricTile(label: AppStrings.businessFinancialNetIncome, value: model.netIncome, prominent: true)
+            }
+        }
+        .padding(.spacing8)
+        .frame(maxWidth: .infinity, minHeight: 300, alignment: .topLeading)
+        .background(
+            RoundedRectangle(cornerRadius: 28)
+                .fill(Color.grey0)
+                .overlay(alignment: .topTrailing) {
+                    AppGradientBackground(appId: "business")
+                        .frame(width: 190, height: 190)
+                        .opacity(0.18)
+                        .clipShape(RoundedRectangle(cornerRadius: 28))
+                }
+        )
+        .overlay { RoundedRectangle(cornerRadius: 28).stroke(Color.grey20, lineWidth: 1) }
+    }
+
+    private var sideColumn: some View {
+        VStack(alignment: .leading, spacing: .spacing4) {
+            metricsCard
+            sourceCard
+            if !model.notes.isEmpty { notesCard }
+        }
+    }
+
+    private var metricsCard: some View {
+        BusinessFinancialPanel(title: AppStrings.businessFinancialMetrics) {
+            if model.metricRows.isEmpty {
+                Text(AppStrings.businessFinancialNoMetrics)
+                    .font(.omSmall)
+                    .foregroundStyle(Color.fontSecondary)
+            } else {
+                VStack(spacing: 0) {
+                    ForEach(Array(model.metricRows.enumerated()), id: \.offset) { _, row in
+                        HStack(alignment: .firstTextBaseline, spacing: .spacing4) {
+                            Text(row.label)
+                                .font(.omSmall)
+                                .foregroundStyle(Color.fontSecondary)
+                            Spacer(minLength: .spacing4)
+                            Text(row.value)
+                                .font(.omSmall)
+                                .fontWeight(.semibold)
+                                .foregroundStyle(Color.fontPrimary)
+                                .lineLimit(1)
+                        }
+                        .padding(.vertical, .spacing3)
+                        .overlay(alignment: .top) { Divider().opacity(0.4) }
+                    }
+                }
+            }
+        }
+    }
+
+    private var sourceCard: some View {
+        BusinessFinancialPanel(title: AppStrings.businessFinancialSource) {
+            if let sourceMetadata = model.sourceMetadata {
+                Text(sourceMetadata)
+                    .font(.omSmall)
+                    .foregroundStyle(Color.fontSecondary)
+            }
+            if model.sourceURL != nil {
+                Text(AppStrings.businessFinancialOpenFiling)
+                    .font(.omSmall)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(Color.buttonPrimary)
+            }
+        }
+    }
+
+    private var notesCard: some View {
+        BusinessFinancialPanel(title: AppStrings.businessFinancialNotes) {
+            VStack(alignment: .leading, spacing: .spacing2) {
+                ForEach(Array(model.notes.enumerated()), id: \.offset) { _, note in
+                    Text(note)
+                        .font(.omSmall)
+                        .foregroundStyle(Color.fontSecondary)
+                }
+            }
+        }
+    }
+}
+
+private struct BusinessFinancialPanel<Content: View>: View {
+    let title: String
+    let content: Content
+
+    init(title: String, @ViewBuilder content: () -> Content) {
+        self.title = title
+        self.content = content()
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: .spacing4) {
+            Text(title)
+                .font(.omP)
+                .fontWeight(.bold)
+                .foregroundStyle(Color.fontPrimary)
+            content
+        }
+        .padding(.spacing5)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.grey0)
+        .clipShape(RoundedRectangle(cornerRadius: 24))
+        .overlay { RoundedRectangle(cornerRadius: 24).stroke(Color.grey20, lineWidth: 1) }
+    }
+}
+
+private struct BusinessFinancialMetricTile: View {
+    let label: String
+    let value: String
+    var prominent = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: .spacing1) {
+            Text(label)
+                .font(.omXs)
+                .foregroundStyle(Color.fontSecondary)
+                .lineLimit(1)
+            Text(value)
+                .font(prominent ? .omH3 : .omSmall)
+                .fontWeight(.bold)
+                .foregroundStyle(Color.fontPrimary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+        }
+        .padding(prominent ? .spacing5 : .spacing3)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.grey10.opacity(0.82))
+        .clipShape(RoundedRectangle(cornerRadius: prominent ? 20 : 16))
+        .overlay {
+            RoundedRectangle(cornerRadius: prominent ? 20 : 16)
+                .stroke(Color.grey20, lineWidth: 1)
+        }
+    }
+}
+
+private struct BusinessFinancialChip: View {
+    let label: String
+
+    var body: some View {
+        Text(label.capitalized)
+            .font(.omXxs)
+            .foregroundStyle(Color.fontSecondary)
+            .padding(.horizontal, .spacing2)
+            .padding(.vertical, .spacing1)
+            .background(Color.grey10)
+            .clipShape(Capsule())
     }
 }
 

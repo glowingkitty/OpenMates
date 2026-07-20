@@ -202,7 +202,7 @@ struct EmbedFullscreenContainer: View {
             }
         }
 
-        guard let type = EmbedType(rawValue: embed.type),
+        guard let type = EmbedType.normalized(rawValue: embed.type),
               let data = rawData(for: embed) else {
             return nil
         }
@@ -262,6 +262,12 @@ struct EmbedFullscreenContainer: View {
         case .travelStay:
             guard let url = firstString(["link", "url", "booking_url"], in: data) else { return nil }
             return EmbedHeaderCTA(title: AppStrings.viewOnGoogleHotels) {
+                openExternalURL(url)
+            }
+
+        case .businessCompanyFinancialResult:
+            guard let url = firstString(["source_url"], in: data) else { return nil }
+            return EmbedHeaderCTA(title: AppStrings.businessFinancialOpenFiling, accessibilityIdentifier: "business-open-sec-filing") {
                 openExternalURL(url)
             }
 

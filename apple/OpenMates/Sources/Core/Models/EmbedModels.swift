@@ -279,7 +279,11 @@ struct EmbedRecord: Identifiable, Decodable, @unchecked Sendable {
 
         if let decodedData = try container.decodeIfPresent(EmbedData.self, forKey: .data) {
             data = decodedData
-            type = decodedType ?? decodedData.rawType ?? Self.inferredType(appId: decodedAppId, skillId: decodedSkillId)
+            type = Self.normalizedType(
+                decodedType ?? decodedData.rawType ?? Self.inferredType(appId: decodedAppId, skillId: decodedSkillId),
+                appId: decodedAppId,
+                skillId: decodedSkillId
+            )
             if decodedEmbedIds == nil, case .raw(let raw) = decodedData {
                 decodedEmbedIds = Self.embedIdsString(from: raw["embed_ids"]?.value)
                     ?? Self.embedIdsString(from: raw["embedIds"]?.value)
@@ -287,7 +291,11 @@ struct EmbedRecord: Identifiable, Decodable, @unchecked Sendable {
         } else if let content = try container.decodeIfPresent(String.self, forKey: .content) {
             var raw = Self.parseToonContent(content)
             let contentType = raw["type"] as? String
-            type = decodedType ?? contentType ?? Self.inferredType(appId: decodedAppId, skillId: decodedSkillId)
+            type = Self.normalizedType(
+                decodedType ?? contentType ?? Self.inferredType(appId: decodedAppId, skillId: decodedSkillId),
+                appId: decodedAppId ?? raw["app_id"] as? String,
+                skillId: decodedSkillId ?? raw["skill_id"] as? String
+            )
             decodedEmbedIds = decodedEmbedIds
                 ?? Self.embedIdsString(from: raw["embed_ids"])
                 ?? Self.embedIdsString(from: raw["embedIds"])
@@ -409,6 +417,8 @@ struct EmbedRecord: Identifiable, Decodable, @unchecked Sendable {
         switch rawType {
         case "image_result":
             return EmbedType.imagesImageResult.rawValue
+        case "company_financial_result":
+            return EmbedType.businessCompanyFinancialResult.rawValue
         case "website", "web_result", "search_result":
             return EmbedType.webWebsite.rawValue
         default:
@@ -420,6 +430,9 @@ struct EmbedRecord: Identifiable, Decodable, @unchecked Sendable {
         }
         if (appId == "web" || appId == "news"), skillId == "website" || skillId == "web_result" {
             return EmbedType.webWebsite.rawValue
+        }
+        if appId == "business", skillId == "company_financial_result" {
+            return EmbedType.businessCompanyFinancialResult.rawValue
         }
         return rawType
     }
@@ -623,6 +636,7 @@ enum EmbedType: String, CaseIterable {
     case focusModeActivation = "focus-mode-activation"
     case socialMediaPost = "social-media-post"
     case weatherDay = "weather-day"
+    case businessCompanyFinancialResult = "business-company-financial-result"
 
     // Composite search embeds
     case codeRepoSearch = "app:code:search_repos"
@@ -664,6 +678,7 @@ enum EmbedType: String, CaseIterable {
     case webSearch = "app:web:search"
     case webWebsite = "web-website"
     case webRead = "app:web:read"
+    case businessCompanyFinancials = "app:business:company_financials"
     case wiki
     case weatherForecast = "app:weather:forecast"
     case weatherRainRadar = "app:weather:rain_radar"
@@ -683,6 +698,7 @@ enum EmbedType: String, CaseIterable {
         switch rawValue {
         case "audio-recording": return .recording
         case "images-image": return .image
+        case "company_financial_result": return .businessCompanyFinancialResult
         default: return EmbedType(rawValue: rawValue)
         }
     }
@@ -690,7 +706,7 @@ enum EmbedType: String, CaseIterable {
     var isComposite: Bool {
         switch self {
         case .codeRepoSearch, .electronicsSearch,
-             .eventsSearch, .healthSearch, .homeSearch, .imagesSearch,
+             .businessCompanyFinancials, .eventsSearch, .healthSearch, .homeSearch, .imagesSearch,
              .fitnessSearchLocations, .fitnessSearchClasses,
              .mailSearch, .mapsSearch, .newsSearch, .nutritionSearch,
              .shoppingSearch, .socialMediaGetPosts, .socialMediaSearch,
@@ -705,6 +721,7 @@ enum EmbedType: String, CaseIterable {
     var childType: EmbedType? {
         switch self {
         case .codeRepoSearch: return .codeRepo
+        case .businessCompanyFinancials: return .businessCompanyFinancialResult
         case .electronicsSearch: return .electronicsComponent
         case .eventsSearch: return .eventsEvent
         case .fitnessSearchLocations: return .fitnessLocation
@@ -744,6 +761,7 @@ enum EmbedType: String, CaseIterable {
             case .pdf: return "pdf"
             case .sheetsSheet: return "sheets"
             case .webWebsite: return "web"
+            case .businessCompanyFinancialResult: return "business"
             case .wiki: return "study"
             case .videosVideo: return "videos"
             case .eventsEvent: return "events"
@@ -764,6 +782,8 @@ enum EmbedType: String, CaseIterable {
     var displayName: String {
         switch self {
         case .webSearch, .newsSearch: return "Search"
+        case .businessCompanyFinancials: return "Get company financials"
+        case .businessCompanyFinancialResult: return "Company financial result"
         case .webRead: return "Read"
         case .webWebsite: return "Website"
         case .wiki: return "Wikipedia"

@@ -812,6 +812,36 @@ enum AppStrings {
     static var reportBadAnswer: String { L("chat.report_bad_answer.button_text") }
     static var fitnessSearchLocations: String { L("app_skills.fitness.search_locations") }
     static var fitnessSearchClasses: String { L("app_skills.fitness.search_classes") }
+    static var businessCompanyFinancials: String { L("app_skills.business.company_financials") }
+    static var businessFinancialsNoResults: String { L("embeds.business.company_financials.no_results") }
+    static var businessFinancialsOpenToView: String { L("embeds.business.company_financials.open_to_view") }
+    static var businessFinancialResultTitle: String { L("embeds.business.company_financials.result_title") }
+    static var businessFinancialRevenue: String { L("embeds.business.company_financials.revenue") }
+    static var businessFinancialGrossProfit: String { L("embeds.business.company_financials.gross_profit") }
+    static var businessFinancialOperatingIncome: String { L("embeds.business.company_financials.operating_income") }
+    static var businessFinancialNetIncome: String { L("embeds.business.company_financials.net_income") }
+    static var businessFinancialOperatingCashFlow: String { L("embeds.business.company_financials.operating_cash_flow") }
+    static var businessFinancialAssets: String { L("embeds.business.company_financials.assets") }
+    static var businessFinancialLiabilities: String { L("embeds.business.company_financials.liabilities") }
+    static var businessFinancialEquity: String { L("embeds.business.company_financials.equity") }
+    static var businessFinancialFiled: String { L("embeds.business.company_financials.filed") }
+    static var businessFinancialAnnual: String { L("embeds.business.company_financials.annual") }
+    static var businessFinancialQuarterly: String { L("embeds.business.company_financials.quarterly") }
+    static var businessFinancialPeriod: String { L("embeds.business.company_financials.period") }
+    static var businessFinancialMetrics: String { L("embeds.business.company_financials.metrics") }
+    static var businessFinancialNoMetrics: String { L("embeds.business.company_financials.no_metrics") }
+    static var businessFinancialSource: String { L("embeds.business.company_financials.source") }
+    static var businessFinancialSecFiling: String { L("embeds.business.company_financials.sec_filing") }
+    static var businessFinancialOpenFiling: String { L("embeds.business.company_financials.open_filing") }
+    static var businessFinancialNotes: String { L("embeds.business.company_financials.notes") }
+    static var businessFinancialNotAvailable: String { L("embeds.business.company_financials.not_available") }
+
+    static func businessFinancialsResultsCount(_ count: Int) -> String {
+        LocalizationManager.shared.text(
+            "embeds.business.company_financials.results_count",
+            replacements: ["count": "\(count)"]
+        )
+    }
 
     static func openOnProvider(_ provider: String) -> String {
         LocalizationManager.shared.text("embeds.open_on_provider", replacements: ["provider": provider])

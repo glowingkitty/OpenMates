@@ -77,6 +77,8 @@ struct EmbedContentView: View {
                 WebsiteEmbedRenderer(data: rawData, mode: mode)
             case .webRead:
                 WebReadEmbedRenderer(data: rawData, mode: mode)
+            case .businessCompanyFinancialResult:
+                BusinessCompanyFinancialResultEmbedRenderer(embed: embed, mode: mode)
             case .wiki:
                 WikiRenderer(data: rawData, mode: mode)
 

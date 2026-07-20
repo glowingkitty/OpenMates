@@ -8,6 +8,9 @@
 //          frontend/packages/ui/src/components/embeds/images/ImagesSearchEmbedPreview.svelte
 //          frontend/packages/ui/src/components/embeds/images/ImagesSearchEmbedFullscreen.svelte
 //          frontend/packages/ui/src/components/embeds/SearchResultsTemplate.svelte
+//          frontend/packages/ui/src/components/embeds/business/BusinessCompanyFinancialsEmbedPreview.svelte
+//          frontend/packages/ui/src/components/embeds/business/BusinessCompanyFinancialResultEmbedPreview.svelte
+//          frontend/packages/ui/src/components/embeds/business/BusinessCompanyFinancialResultEmbedFullscreen.svelte
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
 
@@ -194,6 +197,192 @@ struct ImageSearchResultModel: Identifiable {
     }
 }
 
+struct BusinessCompanyFinancialsModel {
+    let embed: EmbedRecord
+    let query: String
+    let provider: String
+    let periodLabel: String
+    let metricGroupLabel: String
+    let status: EmbedStatus
+    let resultCount: Int
+    let childEmbeds: [EmbedRecord]
+
+    var resultSummary: String {
+        if resultCount <= 0, status == .finished {
+            return AppStrings.businessFinancialsNoResults
+        }
+        if childEmbeds.isEmpty, resultCount > 0 {
+            return AppStrings.businessFinancialsOpenToView
+        }
+        return "\(AppStrings.businessFinancialsResultsCount(resultCount)) · \(AppStrings.via) \(provider)"
+    }
+
+    var financialResults: [BusinessCompanyFinancialResultModel] {
+        childEmbeds.enumerated().map { index, embed in
+            BusinessCompanyFinancialResultModel(embed: embed, fallbackIndex: index)
+        }
+    }
+
+    init(embed: EmbedRecord, allEmbedRecords: [String: EmbedRecord]) {
+        let raw = embed.rawData ?? [:]
+        self.embed = embed
+        query = EmbedFieldReader.string(raw, keys: ["query", "title"]) ?? AppStrings.businessCompanyFinancials
+        provider = EmbedFieldReader.string(raw, keys: ["provider"]) ?? "SEC EDGAR"
+        periodLabel = Self.displayLabel(
+            EmbedFieldReader.string(raw, keys: ["period"]) ?? "latest_annual"
+        )
+        metricGroupLabel = Self.displayLabel(
+            EmbedFieldReader.string(raw, keys: ["metric_group"]) ?? "summary"
+        )
+        status = embed.status
+        childEmbeds = Self.resolveChildren(for: embed, allEmbedRecords: allEmbedRecords)
+        resultCount = EmbedFieldReader.int(raw, keys: ["result_count"]) ?? childEmbeds.count
+    }
+
+    private static func resolveChildren(for embed: EmbedRecord, allEmbedRecords: [String: EmbedRecord]) -> [EmbedRecord] {
+        let explicit = embed.childEmbedIds.compactMap { allEmbedRecords[$0] }
+        if !explicit.isEmpty { return deduplicated(explicit) }
+
+        let parented = allEmbedRecords.values
+            .filter { $0.parentEmbedId == embed.id }
+            .sorted { ($0.createdAt ?? $0.id) < ($1.createdAt ?? $1.id) }
+        if !parented.isEmpty { return deduplicated(parented) }
+
+        let raw = embed.rawData ?? [:]
+        let inlineResults = EmbedFieldReader.dictionaryArray(raw, key: "results")
+        let previewResults = inlineResults.isEmpty ? EmbedFieldReader.dictionaryArray(raw, key: "preview_results") : inlineResults
+        return previewResults.enumerated().map { index, result in
+            var recordData = result.mapValues { AnyCodable($0) }
+            recordData["app_id"] = recordData["app_id"] ?? AnyCodable("business")
+            recordData["skill_id"] = recordData["skill_id"] ?? AnyCodable("company_financials")
+            return EmbedRecord(
+                id: EmbedFieldReader.string(recordData, keys: ["embed_id", "id"]) ?? "\(embed.id)-financial-\(index)",
+                type: EmbedType.businessCompanyFinancialResult.rawValue,
+                status: .finished,
+                data: .raw(recordData),
+                parentEmbedId: embed.id,
+                appId: "business",
+                skillId: "company_financials",
+                embedIds: nil,
+                createdAt: embed.createdAt
+            )
+        }
+    }
+
+    private static func deduplicated(_ embeds: [EmbedRecord]) -> [EmbedRecord] {
+        var seen = Set<String>()
+        return embeds.filter { seen.insert($0.id).inserted }
+    }
+
+    private static func displayLabel(_ value: String) -> String {
+        value.replacingOccurrences(of: "_", with: " ")
+    }
+}
+
+struct BusinessCompanyFinancialResultModel: Identifiable {
+    let id: String
+    let embed: EmbedRecord
+    let company: String
+    let ticker: String?
+    let form: String?
+    let filed: String?
+    let sourceURL: String?
+    let sourceMetadata: String?
+    let periodLabel: String
+    let periodRange: String?
+    let subtitle: String?
+    let revenue: String
+    let netIncome: String
+    let metricRows: [(label: String, value: String)]
+    let notes: [String]
+
+    init(embed: EmbedRecord, fallbackIndex: Int = 0) {
+        let raw = embed.rawData ?? [:]
+        self.embed = embed
+        id = embed.id
+        company = EmbedFieldReader.string(raw, keys: ["company", "name"])
+            ?? EmbedFieldReader.string(raw, keys: ["ticker"])
+            ?? AppStrings.businessFinancialResultTitle
+        ticker = EmbedFieldReader.string(raw, keys: ["ticker"])
+        form = EmbedFieldReader.string(raw, keys: ["form"])
+        filed = EmbedFieldReader.string(raw, keys: ["filed"])
+        sourceURL = EmbedFieldReader.string(raw, keys: ["source_url"])
+        periodLabel = Self.periodLabel(raw)
+        let periodStart = EmbedFieldReader.string(raw, keys: ["period_start"])
+        let periodEnd = EmbedFieldReader.string(raw, keys: ["period_end"])
+        periodRange = Self.nonEmpty([periodStart, periodEnd].compactMap { $0 }.joined(separator: " - "))
+        subtitle = Self.nonEmpty([ticker, periodLabel, form].compactMap { $0 }.joined(separator: " · "))
+        sourceMetadata = Self.nonEmpty(
+            [form, EmbedFieldReader.string(raw, keys: ["accession_number"]), filed]
+                .compactMap { $0 }
+                .joined(separator: " · ")
+        )
+        let currency = EmbedFieldReader.string(raw, keys: ["currency"]) ?? "USD"
+        revenue = Self.formatMoney(EmbedFieldReader.double(raw, keys: ["revenue"]), currency: currency)
+        netIncome = Self.formatMoney(EmbedFieldReader.double(raw, keys: ["net_income"]), currency: currency)
+        metricRows = Self.metricRows(from: raw, currency: currency)
+        notes = EmbedFieldReader.stringArray(raw, keys: ["notes"])
+    }
+
+    private static func metricRows(from raw: [String: AnyCodable], currency: String) -> [(label: String, value: String)] {
+        [
+            ("revenue", AppStrings.businessFinancialRevenue),
+            ("gross_profit", AppStrings.businessFinancialGrossProfit),
+            ("operating_income", AppStrings.businessFinancialOperatingIncome),
+            ("net_income", AppStrings.businessFinancialNetIncome),
+            ("operating_cash_flow", AppStrings.businessFinancialOperatingCashFlow),
+            ("assets", AppStrings.businessFinancialAssets),
+            ("liabilities", AppStrings.businessFinancialLiabilities),
+            ("equity", AppStrings.businessFinancialEquity)
+        ].compactMap { row in
+            let (key, label) = row
+            guard let value = EmbedFieldReader.double(raw, keys: [key]) else { return nil }
+            return (label: label, value: formatMoney(value, currency: currency))
+        }
+    }
+
+    private static func nonEmpty(_ value: String) -> String? {
+        value.isEmpty ? nil : value
+    }
+
+    private static func periodLabel(_ raw: [String: AnyCodable]) -> String {
+        let periodType = EmbedFieldReader.string(raw, keys: ["period_type"])
+        let fiscalYear = EmbedFieldReader.int(raw, keys: ["fiscal_year"])
+        let fiscalQuarter = EmbedFieldReader.string(raw, keys: ["fiscal_quarter"])
+        if periodType == "quarter", let fiscalQuarter, let fiscalYear {
+            return "\(fiscalQuarter) \(fiscalYear)"
+        }
+        if let fiscalYear {
+            return "FY \(fiscalYear)"
+        }
+        return EmbedFieldReader.string(raw, keys: ["period_end"]) ?? AppStrings.businessFinancialPeriod
+    }
+
+    private static func formatMoney(_ amount: Double?, currency: String) -> String {
+        guard let amount else { return AppStrings.businessFinancialNotAvailable }
+        let absAmount = abs(amount)
+        let divisor: Double
+        let suffix: String
+        if absAmount >= 1_000_000_000 {
+            divisor = 1_000_000_000
+            suffix = "B"
+        } else if absAmount >= 1_000_000 {
+            divisor = 1_000_000
+            suffix = "M"
+        } else {
+            divisor = 1
+            suffix = ""
+        }
+
+        let formatter = NumberFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.numberStyle = .decimal
+        formatter.maximumFractionDigits = divisor == 1 ? 0 : 1
+        let formatted = formatter.string(from: NSNumber(value: amount / divisor)) ?? "\(amount / divisor)"
+        return "\(currency) \(formatted)\(suffix)"
+    }
+}
+
 enum EmbedFieldReader {
     static func string(_ raw: [String: AnyCodable], keys: [String]) -> String? {
         for key in keys {
@@ -225,6 +414,36 @@ enum EmbedFieldReader {
             }
         }
         return nil
+    }
+
+    static func double(_ raw: [String: AnyCodable], keys: [String]) -> Double? {
+        for key in keys {
+            if let value = raw[key]?.value as? Double {
+                return value
+            }
+            if let value = raw[key]?.value as? Int {
+                return Double(value)
+            }
+            if let value = raw[key]?.value as? String, let doubleValue = Double(value) {
+                return doubleValue
+            }
+        }
+        return nil
+    }
+
+    static func stringArray(_ raw: [String: AnyCodable], keys: [String]) -> [String] {
+        for key in keys {
+            if let values = raw[key]?.value as? [String] {
+                return values.filter { !$0.isEmpty }
+            }
+            if let values = raw[key]?.value as? [Any] {
+                return values.compactMap { $0 as? String }.filter { !$0.isEmpty }
+            }
+            if let value = raw[key]?.value as? String, !value.isEmpty {
+                return value.split(separator: "|").map(String.init).filter { !$0.isEmpty }
+            }
+        }
+        return []
     }
 
     static func dictionaryArray(_ raw: [String: AnyCodable], key: String) -> [[String: Any]] {

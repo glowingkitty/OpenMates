@@ -199,6 +199,91 @@ final class SkillApplicationParityTests: XCTestCase {
         XCTAssertTrue(model.websiteResults.first?.faviconURL?.contains("example.com") == true)
     }
 
+    func testBusinessCompanyFinancialsModelPreservesSecFilingMetadata() throws {
+        let parent = EmbedRecord(
+            id: "business-financials-parent",
+            type: EmbedType.businessCompanyFinancials.rawValue,
+            status: .finished,
+            data: .raw([
+                "type": AnyCodable("app_skill_use"),
+                "app_id": AnyCodable("business"),
+                "skill_id": AnyCodable("company_financials"),
+                "query": AnyCodable("VITL"),
+                "provider": AnyCodable("SEC EDGAR"),
+                "period": AnyCodable("latest_annual"),
+                "metric_group": AnyCodable("summary"),
+                "result_count": AnyCodable(1),
+                "embed_ids": AnyCodable(["business-financials-child"]),
+            ]),
+            parentEmbedId: nil,
+            appId: "business",
+            skillId: "company_financials",
+            embedIds: "business-financials-child",
+            createdAt: "2026-07-20T00:00:00Z"
+        )
+        let child = EmbedRecord(
+            id: "business-financials-child",
+            type: EmbedType.businessCompanyFinancialResult.rawValue,
+            status: .finished,
+            data: .raw(Self.businessFinancialResultData),
+            parentEmbedId: parent.id,
+            appId: "business",
+            skillId: "company_financials",
+            embedIds: nil,
+            createdAt: "2026-07-20T00:00:01Z"
+        )
+
+        let model = BusinessCompanyFinancialsModel(
+            embed: parent,
+            allEmbedRecords: [parent.id: parent, child.id: child]
+        )
+        let result = try XCTUnwrap(model.financialResults.first)
+
+        XCTAssertEqual(EmbedType.businessCompanyFinancials.childType, .businessCompanyFinancialResult)
+        XCTAssertTrue(EmbedType.businessCompanyFinancials.isComposite)
+        XCTAssertEqual(EmbedType.businessCompanyFinancialResult.appId, "business")
+        XCTAssertEqual(model.query, "VITL")
+        XCTAssertEqual(model.provider, "SEC EDGAR")
+        XCTAssertEqual(model.resultCount, 1)
+        XCTAssertTrue(model.resultSummary.contains("SEC EDGAR"))
+        XCTAssertEqual(result.company, "Vital Farms, Inc.")
+        XCTAssertEqual(result.periodLabel, "FY 2025")
+        XCTAssertEqual(result.revenue, "USD 759.4M")
+        XCTAssertEqual(result.netIncome, "USD 66.3M")
+        XCTAssertEqual(result.sourceMetadata, "10-K · 0001193125-26-073423 · 2026-02-26")
+        XCTAssertEqual(result.sourceURL, "https://www.sec.gov/Archives/edgar/data/000119312526073423/")
+        XCTAssertFalse(model.resultSummary.localizedCaseInsensitiveContains("buy"))
+        XCTAssertFalse(model.resultSummary.localizedCaseInsensitiveContains("sell"))
+        XCTAssertFalse(result.metricRows.map(\.label).joined(separator: " ").localizedCaseInsensitiveContains("advice"))
+    }
+
+    func testBusinessCompanyFinancialsModelUsesInlineLegacyResults() throws {
+        let parent = EmbedRecord(
+            id: "business-financials-inline-parent",
+            type: EmbedType.businessCompanyFinancials.rawValue,
+            status: .finished,
+            data: .raw([
+                "type": AnyCodable("app_skill_use"),
+                "app_id": AnyCodable("business"),
+                "skill_id": AnyCodable("company_financials"),
+                "query": AnyCodable("VITL"),
+                "provider": AnyCodable("SEC EDGAR"),
+                "results": AnyCodable([Self.businessFinancialResultData.mapValues(\.value)]),
+            ]),
+            parentEmbedId: nil,
+            appId: "business",
+            skillId: "company_financials",
+            embedIds: nil,
+            createdAt: "2026-07-20T00:00:00Z"
+        )
+
+        let model = BusinessCompanyFinancialsModel(embed: parent, allEmbedRecords: [parent.id: parent])
+
+        XCTAssertEqual(model.financialResults.count, 1)
+        XCTAssertEqual(model.financialResults.first?.ticker, "VITL")
+        XCTAssertEqual(model.financialResults.first?.form, "10-K")
+    }
+
     func testFileMediaFixturesUseSyntheticPublicPayloads() throws {
         let imageUpload = try XCTUnwrap(
             DevEmbedPreviewFixtures.skills(for: .images).first { $0.id == "images-upload" }?.primaryEmbed
@@ -235,5 +320,31 @@ final class SkillApplicationParityTests: XCTestCase {
         XCTAssertEqual(mermaid.rawData?["title"]?.value as? String, "Signup Flow")
         XCTAssertEqual(mermaid.rawData?["diagram_kind"]?.value as? String, "sequenceDiagram")
         XCTAssertTrue((mermaid.rawData?["diagram_code"]?.value as? String ?? "").contains("User->>App"))
+    }
+
+    private static var businessFinancialResultData: [String: AnyCodable] {
+        [
+            "type": AnyCodable("company_financial_result"),
+            "app_id": AnyCodable("business"),
+            "skill_id": AnyCodable("company_financials"),
+            "company": AnyCodable("Vital Farms, Inc."),
+            "ticker": AnyCodable("VITL"),
+            "period_type": AnyCodable("annual"),
+            "fiscal_year": AnyCodable(2025),
+            "fiscal_quarter": AnyCodable("FY"),
+            "period_start": AnyCodable("2024-12-30"),
+            "period_end": AnyCodable("2025-12-28"),
+            "filed": AnyCodable("2026-02-26"),
+            "form": AnyCodable("10-K"),
+            "currency": AnyCodable("USD"),
+            "revenue": AnyCodable(759_444_000),
+            "gross_profit": AnyCodable(285_682_000),
+            "operating_income": AnyCodable(88_373_000),
+            "net_income": AnyCodable(66_282_000),
+            "operating_cash_flow": AnyCodable(33_715_000),
+            "source_url": AnyCodable("https://www.sec.gov/Archives/edgar/data/000119312526073423/"),
+            "accession_number": AnyCodable("0001193125-26-073423"),
+            "notes": AnyCodable(["assets was not available in standardized SEC facts"]),
+        ]
     }
 }
