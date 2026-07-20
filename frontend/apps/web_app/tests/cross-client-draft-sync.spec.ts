@@ -31,6 +31,7 @@ const AUDIO_FIXTURE = fs.existsSync('/workspace/backend/tests/fixtures/test_audi
 const CLI_DRAFT_REFRESH_TIMEOUT_MS = 30_000;
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount(1);
 let activeCliHome: string | null = null;
+let lastTransientCliFailure = '';
 
 type WebSocketFrameRecord = {
 	direction: 'sent' | 'received';
@@ -282,7 +283,7 @@ async function runCliJson(
 		await new Promise((resolve) => setTimeout(resolve, 1_500 * (attempt + 1)));
 	}
 	if (options.allowTransientFailure && sawAllowedTransientError) {
-		console.warn(`openmates ${command} transient failure after ${maxAttempts} attempt(s)\nstdout:\n${result?.stdout ?? ''}\nstderr:\n${result?.stderr ?? ''}`);
+		lastTransientCliFailure = `transient-cli-fetch-failed: openmates ${command} after ${maxAttempts} attempt(s); stdout=${JSON.stringify((result?.stdout ?? '').slice(0, 500))}; stderr=${JSON.stringify((result?.stderr ?? '').slice(0, 1_000))}`;
 		return null;
 	}
 	expect(result, `openmates ${command} did not produce a result`).not.toBeNull();
@@ -930,7 +931,7 @@ test.describe('Cross-client encrypted draft sync', () => {
 					const result = await runCliJson(apiUrl, ['drafts', 'get', draftChatId, '--refresh'], CLI_DRAFT_REFRESH_TIMEOUT_MS, {
 						allowTransientFailure: true,
 					});
-					return result?.draft ?? 'transient-cli-fetch-failed';
+					return result?.draft ?? (lastTransientCliFailure || 'transient-cli-fetch-failed');
 				}, {
 					timeout: 60_000,
 					intervals: [1_000, 2_000]
@@ -957,7 +958,7 @@ test.describe('Cross-client encrypted draft sync', () => {
 					const result = await runCliJson(apiUrl, ['drafts', 'get', sentChatId, '--refresh'], CLI_DRAFT_REFRESH_TIMEOUT_MS, {
 						allowTransientFailure: true,
 					});
-					return result?.draft ?? 'transient-cli-fetch-failed';
+					return result?.draft ?? (lastTransientCliFailure || 'transient-cli-fetch-failed');
 				}, {
 					timeout: 30_000,
 					intervals: [1_000, 2_000]
