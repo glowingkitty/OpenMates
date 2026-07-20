@@ -744,8 +744,10 @@ async function clearBrowserClientState(page: any, baseUrl: string): Promise<void
 	await page.context().clearCookies();
 }
 
-async function expectIdeaBucketDraftMarkers(page: any, chatId: string, expectedText: string): Promise<void> {
-	const item = await locateDraftInSidebarOrSearch(page, chatId, expectedText).catch(() => null);
+async function expectIdeaBucketDraftMarkers(page: any, chatId: string, expectedText: string | null): Promise<void> {
+	const item = expectedText
+		? await locateDraftInSidebarOrSearch(page, chatId, expectedText).catch(() => null)
+		: null;
 	if (item) {
 		await expect(item).toBeVisible({ timeout: 5_000 });
 		const sidebarItem = chatItem(page, chatId);
@@ -758,11 +760,13 @@ async function expectIdeaBucketDraftMarkers(page: any, chatId: string, expectedT
 		await openDraftByHash(page, chatId);
 	}
 	const editor = await activeMessageEditorEditable(page, chatId);
-	try {
-		await expect(editor).toContainText(expectedText, { timeout: 45_000 });
-	} catch (error) {
-		await logDraftOpenDiagnostics(page, chatId, 'IDEABUCKET_WEB_MARKERS', expectedText);
-		throw error;
+	if (expectedText) {
+		try {
+			await expect(editor).toContainText(expectedText, { timeout: 45_000 });
+		} catch (error) {
+			await logDraftOpenDiagnostics(page, chatId, 'IDEABUCKET_WEB_MARKERS', expectedText);
+			throw error;
+		}
 	}
 	await expect(page.getByTestId('ideabucket-input-pill')).toBeVisible({ timeout: 15_000 });
 }
@@ -1102,7 +1106,14 @@ test.describe('Cross-client encrypted draft sync', () => {
 			cleanupDraftIds.add(audioChatId);
 			await page.reload();
 			await waitForChatReady(page, log);
-			await expectIdeaBucketDraftMarkers(page, audioChatId, path.basename(AUDIO_FIXTURE));
+			const audioFixtureName = path.basename(AUDIO_FIXTURE);
+			await expectIdeaBucketDraftMarkers(page, audioChatId, null);
+			await expect
+				.poll(async () => (await readLocalDraftMarkdown(page, audioChatId)).markdown ?? '', {
+					timeout: 15_000,
+					intervals: [500, 1_000]
+				})
+				.toContain(audioFixtureName);
 			await expect(page.getByTestId('recording-preview-audio').first()).toBeAttached({ timeout: 30_000 });
 			await screenshot(page, 'audio-draft-embed-preview');
 
