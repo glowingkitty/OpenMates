@@ -1813,16 +1813,16 @@ tests:
       required: true
       expected: fail_or_missing
       evidence:
-        status: pending
-        run_id: ""
-        timestamp: ""
+        status: failed_as_expected
+        run_id: "github:29735306068:python3 scripts/tests.py run --spec plan-assumptions-flow.spec.ts"
+        timestamp: "2026-07-20T10:33:35Z"
     green_phase:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: pending
-        run_id: ""
-        timestamp: ""
+        status: passed_after_deploy
+        run_id: "github:29736290895:python3 scripts/tests.py run --spec plan-assumptions-flow.spec.ts"
+        timestamp: "2026-07-20T10:49:50Z"
 
   - id: T-E2E-PLAN-AC-CHECKS
     type: playwright
@@ -1847,16 +1847,17 @@ tests:
       required: true
       expected: fail_or_missing
       evidence:
-        status: pending
-        run_id: ""
-        timestamp: ""
+        status: skipped_with_reason
+        reason: "Spec was deploy-gated after backend and web behavior existed; no meaningful pre-implementation red run remained. Backend unit red/green coverage exists for acceptance criteria and verification records."
+        run_id: "not_applicable:deploy-gated-spec-added-after-implementation"
+        timestamp: "2026-07-20T10:57:14Z"
     green_phase:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: pending
-        run_id: ""
-        timestamp: ""
+        status: passed_after_deploy
+        run_id: "github:29736723310:python3 scripts/tests.py run --spec plan-acceptance-checks-flow.spec.ts"
+        timestamp: "2026-07-20T10:57:14Z"
 
 implementation_plan:
   existing_patterns:
