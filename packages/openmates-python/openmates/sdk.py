@@ -150,6 +150,7 @@ class OpenMates:
         self.drafts = OpenMatesDrafts(self)
         self.embeds = OpenMatesEmbeds(self)
         self.feedback = OpenMatesFeedback(self)
+        self.finance = OpenMatesFinance(self)
         self.ideabucket = OpenMatesIdeaBucket(self)
         self.inspirations = OpenMatesInspirations(self)
         self.api_keys = OpenMatesApiKeys(self)
@@ -176,6 +177,26 @@ class OpenMates:
         return self._post(
             f"/v1/apps/{app_id}/skills/{skill_id}",
             _with_app_skill_prompt_injection_option(input_data, prompt_injection_protection),
+        )
+
+    def run_connected_account_skill(
+        self,
+        app_id: str,
+        skill_id: str,
+        input_data: dict[str, Any],
+        *,
+        connected_account_token_ref_inputs: list[dict[str, Any]] | None = None,
+        chat_id: str | None = None,
+        message_id: str | None = None,
+    ) -> dict[str, Any]:
+        return self._post(
+            f"/v1/sdk/connected-account-skills/{_quote(app_id)}/{_quote(skill_id)}",
+            {
+                "input": input_data,
+                "connected_account_token_ref_inputs": connected_account_token_ref_inputs or [],
+                "chat_id": chat_id,
+                "message_id": message_id,
+            },
         )
 
     def _post(
@@ -620,6 +641,19 @@ def _account_import_fingerprint(provider: str, source_chat_id: str, messages: li
     return hashlib.sha256(json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")).hexdigest()
 
 
+def _read_import_zip_text(raw: bytes, required_name: str) -> str:
+    with zipfile.ZipFile(io.BytesIO(raw)) as archive:
+        names = [
+            name
+            for name in archive.namelist()
+            if not name.startswith("__MACOSX/") and "/._" not in name and not name.startswith("._")
+        ]
+        resolved = required_name if required_name in names else next((name for name in names if Path(name).name == required_name), None)
+        if resolved is None:
+            raise OpenMatesConfigError(f"Import archive is missing {required_name}")
+        return archive.read(resolved).decode("utf-8")
+
+
 def _parse_openmates_manifest_domains(manifest_text: str) -> list[str]:
     domains: list[str] = []
     in_domains = False
@@ -649,6 +683,47 @@ def _claude_message_content(message: dict[str, Any]) -> tuple[str, list[str]]:
         if block_type == "tool_result" and isinstance(raw_block.get("content"), str):
             text_parts.append(raw_block["content"])
     return "\n".join(text_parts) if text_parts else str(message.get("text") or ""), block_types
+
+
+def _chatgpt_timestamp(value: Any) -> str | None:
+    if not isinstance(value, (int, float)) or not math.isfinite(value) or value <= 0:
+        return None
+    return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(float(value)))
+
+
+def _chatgpt_message_content(content: dict[str, Any]) -> tuple[str, dict[str, Any]]:
+    parts = content.get("parts") if isinstance(content.get("parts"), list) else []
+    text_parts: list[str] = []
+    asset_count = 0
+    for part in parts:
+        if isinstance(part, str) and part.strip():
+            text_parts.append(part)
+        elif isinstance(part, dict) and part.get("asset_pointer"):
+            asset_count += 1
+    if not parts and isinstance(content.get("content"), str):
+        text_parts.append(str(content["content"]))
+    return "\n".join(text_parts), {"content_type": str(content.get("content_type") or "unknown"), "asset_count": asset_count}
+
+
+def _chatgpt_active_nodes(conversation: dict[str, Any]) -> list[dict[str, Any]]:
+    mapping = conversation.get("mapping")
+    if not isinstance(mapping, dict):
+        raise OpenMatesConfigError("ChatGPT conversation is missing mapping")
+    current_node = str(conversation.get("current_node") or "")
+    if current_node in mapping:
+        ordered: list[dict[str, Any]] = []
+        seen: set[str] = set()
+        node_id = current_node
+        while node_id and node_id in mapping and node_id not in seen:
+            seen.add(node_id)
+            node = mapping[node_id]
+            if not isinstance(node, dict):
+                break
+            ordered.append(node)
+            node_id = str(node.get("parent") or "")
+        return list(reversed(ordered))
+    nodes = [node for node in mapping.values() if isinstance(node, dict)]
+    return sorted(nodes, key=lambda node: ((node.get("message") or {}).get("create_time") if isinstance(node.get("message"), dict) else 0) or 0)
 
 
 def _parse_import_timestamp(value: Any) -> int:
@@ -1120,6 +1195,8 @@ class OpenMatesChats:
         model: str | None = None,
         chat_id: str | None = None,
         title: str | None = None,
+        connected_account_directory: list[dict[str, Any]] | None = None,
+        connected_account_token_ref_inputs: list[dict[str, Any]] | None = None,
         recovery_poll_interval_seconds: float = DEFAULT_RECOVERY_POLL_INTERVAL_SECONDS,
         recovery_timeout_seconds: float = DEFAULT_RECOVERY_TIMEOUT_SECONDS,
     ) -> ChatResponse:
@@ -1132,6 +1209,8 @@ class OpenMatesChats:
                 model=model,
                 chat_id=chat_id,
                 title=title,
+                connected_account_directory=connected_account_directory,
+                connected_account_token_ref_inputs=connected_account_token_ref_inputs,
                 recovery_poll_interval_seconds=recovery_poll_interval_seconds,
                 recovery_timeout_seconds=recovery_timeout_seconds,
             )
@@ -1144,6 +1223,8 @@ class OpenMatesChats:
                 "focus_mode": focus_mode,
                 "memory_ids": memory_ids or [],
                 "model": model,
+                "connected_account_directory": connected_account_directory or [],
+                "connected_account_token_ref_inputs": connected_account_token_ref_inputs or [],
             },
         )
         response = data.get("response") or {}
@@ -1159,6 +1240,8 @@ class OpenMatesChats:
         model: str | None,
         chat_id: str | None,
         title: str | None,
+        connected_account_directory: list[dict[str, Any]] | None,
+        connected_account_token_ref_inputs: list[dict[str, Any]] | None,
         recovery_poll_interval_seconds: float,
         recovery_timeout_seconds: float,
     ) -> ChatResponse:
@@ -1233,6 +1316,8 @@ class OpenMatesChats:
             },
             "encrypted_chat_metadata": encrypted_chat_metadata,
             "inference_request": inference_request,
+            "connected_account_directory": connected_account_directory or [],
+            "connected_account_token_ref_inputs": connected_account_token_ref_inputs or [],
         }
         data = self._client._post("/v1/sdk/chats", payload)
         task_id = data.get("task_id")
@@ -2178,8 +2263,7 @@ class OpenMatesAccount:
         raw = payload.encode("utf-8") if isinstance(payload, str) else payload
         try:
             if raw[:2] == b"PK":
-                with zipfile.ZipFile(io.BytesIO(raw)) as archive:  # type: ignore[name-defined]
-                    conversations = json.loads(archive.read("conversations.json").decode("utf-8"))
+                conversations = json.loads(_read_import_zip_text(raw, "conversations.json"))
             else:
                 conversations = json.loads(raw.decode("utf-8"))
         except Exception as exc:
@@ -2222,6 +2306,65 @@ class OpenMatesAccount:
                 "source_metadata": {"source_name": source_name, "message_count": len(messages)},
             })
         return {"source": "claude", "chats": chats, "skipped_domains": []}
+
+    def parse_chatgpt_import(self, payload: bytes | str, source_name: str = "chatgpt-export") -> dict[str, Any]:
+        raw = payload.encode("utf-8") if isinstance(payload, str) else payload
+        try:
+            if raw[:2] == b"PK":
+                conversations = json.loads(_read_import_zip_text(raw, "conversations.json"))
+            else:
+                conversations = json.loads(raw.decode("utf-8"))
+        except OpenMatesConfigError:
+            raise
+        except Exception as exc:
+            raise OpenMatesConfigError(f"ChatGPT export could not be parsed: {exc}") from exc
+        if isinstance(conversations, dict) and isinstance(conversations.get("conversations"), list):
+            conversations = conversations["conversations"]
+        if not isinstance(conversations, list):
+            raise OpenMatesConfigError("ChatGPT export conversations must be an array")
+        chats: list[dict[str, Any]] = []
+        for conversation in conversations:
+            if not isinstance(conversation, dict):
+                continue
+            source_chat_id = str(conversation.get("conversation_id") or conversation.get("id") or "")
+            if not source_chat_id:
+                raise OpenMatesConfigError("ChatGPT conversation is missing id")
+            messages: list[dict[str, Any]] = []
+            for node in _chatgpt_active_nodes(conversation):
+                raw_message = node.get("message")
+                if not isinstance(raw_message, dict):
+                    continue
+                author = raw_message.get("author") if isinstance(raw_message.get("author"), dict) else {}
+                role = str(author.get("role") or "")
+                if role not in {"user", "assistant", "system"}:
+                    continue
+                content = raw_message.get("content")
+                if not isinstance(content, dict):
+                    continue
+                text, metadata = _chatgpt_message_content(content)
+                if not text.strip():
+                    continue
+                messages.append({
+                    "role": role,
+                    "content": text,
+                    "created_at": _chatgpt_timestamp(raw_message.get("create_time")),
+                    "source_message_id": raw_message.get("id") if isinstance(raw_message.get("id"), str) else None,
+                    "provider_metadata": metadata,
+                })
+            chats.append({
+                "provider": "chatgpt",
+                "source_chat_id": source_chat_id,
+                "source_fingerprint": _account_import_fingerprint("chatgpt", source_chat_id, messages),
+                "title": conversation.get("title") if isinstance(conversation.get("title"), str) else None,
+                "created_at": _chatgpt_timestamp(conversation.get("create_time")),
+                "updated_at": _chatgpt_timestamp(conversation.get("update_time")),
+                "messages": messages,
+                "embeds": [],
+                "uploads": [],
+                "provider_labels": ["chatgpt"],
+                "source_metadata": {"source_name": source_name, "message_count": len(messages)},
+            })
+        return {"source": "chatgpt", "chats": chats, "skipped_domains": []}
 
     def parse_openmates_import(self, payload: bytes | str, source_name: str = "openmates-export.zip") -> dict[str, Any]:
         raw = payload.encode("utf-8") if isinstance(payload, str) else payload

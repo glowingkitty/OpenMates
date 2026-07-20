@@ -1,7 +1,7 @@
 // frontend/packages/ui/src/services/chatImportService.ts
 //
 // Account Import V1 browser service for Settings -> Account -> Import.
-// Parses Claude official exports and OpenMates Export V1 archives locally,
+// Parses Claude/ChatGPT official exports and OpenMates Export V1 archives locally,
 // then uses the preview -> scan -> client-encrypt -> persist-encrypted ->
 // complete control-plane contract. Permanent server persistence must receive
 // only client-encrypted private chat/message fields.
@@ -19,8 +19,8 @@ import type { Chat, Message } from "../types/chat";
 const DEFAULT_TITLE = "Imported chat";
 const CHARS_PER_TOKEN = 4;
 
-export type AccountImportSource = "claude" | "openmates";
-export type ImportFileType = "claude-json" | "claude-zip" | "openmates-zip";
+export type AccountImportSource = "claude" | "chatgpt" | "openmates";
+export type ImportFileType = "claude-json" | "claude-zip" | "chatgpt-json" | "chatgpt-zip" | "openmates-zip";
 
 export interface ParsedImportMessage {
   role: "user" | "assistant" | "system";
@@ -182,12 +182,12 @@ export async function parseImportFile(
 
   if (lowerName.endsWith(".json")) {
     const raw = await file.text();
-    return parseClaudeConversations(JSON.parse(raw), "claude-json", file.name);
+    return parseProviderConversations(JSON.parse(raw), "json", file.name);
   }
 
   if (!lowerName.endsWith(".zip")) {
     throw new Error(
-      "Unsupported import file. Choose a Claude export .zip/.json file or an OpenMates Export V1 .zip archive.",
+      "Unsupported import file. Choose a Claude/ChatGPT export .zip/.json file or an OpenMates Export V1 .zip archive.",
     );
   }
 
@@ -201,9 +201,10 @@ export async function parseImportFile(
     );
   }
 
-  if (zip.file("conversations.json")) {
-    const raw = await zip.file("conversations.json")!.async("string");
-    return parseClaudeConversations(JSON.parse(raw), "claude-zip", file.name);
+  const conversationsFile = findZipFileByBasename(zip, "conversations.json");
+  if (conversationsFile) {
+    const raw = await conversationsFile.async("string");
+    return parseProviderConversations(JSON.parse(raw), "zip", file.name);
   }
 
   if (zip.file("manifest.yml")) {
@@ -211,7 +212,7 @@ export async function parseImportFile(
   }
 
   throw new Error(
-    "Unsupported ZIP archive. Expected Claude conversations.json or OpenMates Export V1 manifest.yml.",
+    "Unsupported ZIP archive. Expected Claude/ChatGPT conversations.json or OpenMates Export V1 manifest.yml.",
   );
 }
 
@@ -445,6 +446,29 @@ function claudeUploads(message: Record<string, unknown>): ParsedImportUpload[] {
     });
 }
 
+function providerConversationSource(raw: unknown): "claude" | "chatgpt" | null {
+  const conversations = Array.isArray(raw)
+    ? raw
+    : raw && typeof raw === "object" && Array.isArray((raw as Record<string, unknown>).conversations)
+      ? ((raw as Record<string, unknown>).conversations as unknown[])
+      : [];
+  const first = conversations.find((item): item is Record<string, unknown> => Boolean(item && typeof item === "object"));
+  if (!first) return null;
+  if ("mapping" in first || "conversation_id" in first || "current_node" in first) return "chatgpt";
+  if ("chat_messages" in first || "uuid" in first) return "claude";
+  return null;
+}
+
+async function parseProviderConversations(
+  raw: unknown,
+  container: "json" | "zip",
+  sourceName: string,
+): Promise<ParsedAccountImport> {
+  const source = providerConversationSource(raw);
+  if (source === "chatgpt") return parseChatGPTConversations(raw, container === "zip" ? "chatgpt-zip" : "chatgpt-json", sourceName);
+  return parseClaudeConversations(raw, container === "zip" ? "claude-zip" : "claude-json", sourceName);
+}
+
 async function parseClaudeConversations(
   raw: unknown,
   fileType: Extract<ImportFileType, "claude-json" | "claude-zip">,
@@ -499,6 +523,111 @@ async function parseClaudeConversations(
   }
 
   return { source: "claude", fileType, chats: newestFirst(chats), skippedDomains: [] };
+}
+
+function chatGPTTimestamp(value: unknown): string | null {
+  return typeof value === "number" && Number.isFinite(value) && value > 0
+    ? new Date(value * 1000).toISOString()
+    : null;
+}
+
+function chatGPTContentText(content: Record<string, unknown>): {
+  content: string;
+  metadata: Record<string, unknown>;
+} {
+  const parts = Array.isArray(content.parts) ? content.parts : [];
+  const textParts: string[] = [];
+  let assetCount = 0;
+  for (const part of parts) {
+    if (typeof part === "string" && part.trim()) textParts.push(part);
+    else if (part && typeof part === "object" && "asset_pointer" in part) assetCount++;
+  }
+  if (parts.length === 0 && typeof content.content === "string") textParts.push(content.content);
+  return {
+    content: textParts.join("\n"),
+    metadata: { content_type: String(content.content_type ?? "unknown"), asset_count: assetCount },
+  };
+}
+
+function chatGPTActiveNodes(conversation: Record<string, unknown>): Record<string, unknown>[] {
+  const mapping = conversation.mapping;
+  if (!mapping || typeof mapping !== "object" || Array.isArray(mapping)) {
+    throw new Error("ChatGPT export conversation is missing mapping.");
+  }
+  const nodesById = mapping as Record<string, Record<string, unknown>>;
+  const currentNode = String(conversation.current_node ?? "");
+  if (currentNode && nodesById[currentNode]) {
+    const ordered: Record<string, unknown>[] = [];
+    const seen = new Set<string>();
+    let nodeId = currentNode;
+    while (nodeId && nodesById[nodeId] && !seen.has(nodeId)) {
+      seen.add(nodeId);
+      const node = nodesById[nodeId];
+      ordered.push(node);
+      nodeId = String(node.parent ?? "");
+    }
+    return ordered.reverse();
+  }
+  return Object.values(nodesById).sort((left, right) => {
+    const leftMessage = left.message && typeof left.message === "object" ? left.message as Record<string, unknown> : {};
+    const rightMessage = right.message && typeof right.message === "object" ? right.message as Record<string, unknown> : {};
+    return Number(leftMessage.create_time ?? 0) - Number(rightMessage.create_time ?? 0);
+  });
+}
+
+async function parseChatGPTConversations(
+  raw: unknown,
+  fileType: Extract<ImportFileType, "chatgpt-json" | "chatgpt-zip">,
+  sourceName: string,
+): Promise<ParsedAccountImport> {
+  const conversations = Array.isArray(raw)
+    ? raw
+    : raw && typeof raw === "object" && Array.isArray((raw as Record<string, unknown>).conversations)
+      ? ((raw as Record<string, unknown>).conversations as unknown[])
+      : null;
+  if (!conversations) throw new Error("ChatGPT export conversations must be an array.");
+
+  const chats: ParsedImportChat[] = [];
+  for (const item of conversations) {
+    if (!item || typeof item !== "object") continue;
+    const conversation = item as Record<string, unknown>;
+    const sourceChatId = String(conversation.conversation_id ?? conversation.id ?? "");
+    if (!sourceChatId) throw new Error("ChatGPT conversation is missing id.");
+    const messages: ParsedImportMessage[] = [];
+    for (const node of chatGPTActiveNodes(conversation)) {
+      const rawMessage = node.message && typeof node.message === "object" ? node.message as Record<string, unknown> : null;
+      if (!rawMessage) continue;
+      const author = rawMessage.author && typeof rawMessage.author === "object" ? rawMessage.author as Record<string, unknown> : {};
+      const role = String(author.role ?? "");
+      if (role !== "user" && role !== "assistant" && role !== "system") continue;
+      const rawContent = rawMessage.content && typeof rawMessage.content === "object" ? rawMessage.content as Record<string, unknown> : null;
+      if (!rawContent) continue;
+      const { content, metadata } = chatGPTContentText(rawContent);
+      if (!content.trim()) continue;
+      messages.push({
+        role,
+        content,
+        created_at: chatGPTTimestamp(rawMessage.create_time),
+        source_message_id: typeof rawMessage.id === "string" ? rawMessage.id : null,
+        provider_metadata: metadata,
+      });
+    }
+    chats.push({
+      provider: "chatgpt",
+      source_chat_id: sourceChatId,
+      source_fingerprint: await stableFingerprint("chatgpt", sourceChatId, messages),
+      title: typeof conversation.title === "string" ? conversation.title : null,
+      created_at: chatGPTTimestamp(conversation.create_time),
+      updated_at: chatGPTTimestamp(conversation.update_time),
+      messages,
+      embeds: [],
+      uploads: [],
+      provider_labels: ["chatgpt"],
+      source_metadata: { source_name: sourceName, message_count: messages.length },
+    });
+  }
+
+  return { source: "chatgpt", fileType, chats: newestFirst(chats), skippedDomains: [] };
 }
 
 async function parseOpenMatesArchive(
@@ -591,6 +720,15 @@ async function readYamlRecordsById(
     if (id) records.set(id, parsed);
   }
   return records;
+}
+
+function findZipFileByBasename(zip: JSZip, basename: string): JSZip.JSZipObject | null {
+  const match = Object.values(zip.files).find((entry) => {
+    if (entry.dir) return false;
+    if (entry.name.startsWith("__MACOSX/") || entry.name.includes("/._") || entry.name.startsWith("._")) return false;
+    return entry.name.split("/").pop() === basename;
+  });
+  return match ?? null;
 }
 
 async function stableFingerprint(

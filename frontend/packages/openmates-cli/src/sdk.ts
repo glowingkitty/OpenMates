@@ -28,6 +28,7 @@ import {
 } from "./accountExportArchive.js";
 import {
   parseClaudeImportBuffer,
+  parseChatGPTImportBuffer,
   parseOpenMatesImportBuffer,
   type AccountImportSource,
   type ParsedAccountImport,
@@ -1418,6 +1419,11 @@ export class OpenMatesAccount {
   async parseClaudeImport(payload: Buffer | Uint8Array | string, sourceName = "claude-export"): Promise<ParsedAccountImport> {
     const buffer = typeof payload === "string" ? Buffer.from(payload) : Buffer.from(payload);
     return parseClaudeImportBuffer(buffer, sourceName);
+  }
+
+  async parseChatGPTImport(payload: Buffer | Uint8Array | string, sourceName = "chatgpt-export"): Promise<ParsedAccountImport> {
+    const buffer = typeof payload === "string" ? Buffer.from(payload) : Buffer.from(payload);
+    return parseChatGPTImportBuffer(buffer, sourceName);
   }
 
   async parseOpenMatesImport(payload: Buffer | Uint8Array | string, sourceName = "openmates-export.zip"): Promise<ParsedAccountImport> {

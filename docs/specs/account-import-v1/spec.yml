@@ -5,8 +5,8 @@ status: approved
 
 goal: >
   Implement a safe, encrypted, unified personal chat import system across CLI,
-  npm SDK, pip SDK, web, and later Apple parity. V1 imports Claude official
-  exports and OpenMates Export V1 archives into new OpenMates chats while
+  npm SDK, pip SDK, web, and later Apple parity. V1 imports Claude and ChatGPT
+  official exports plus OpenMates Export V1 archives into new OpenMates chats while
   preserving referenced embeds/uploads, scanning external plaintext before
   storage, and ensuring permanent Directus records contain only client-encrypted
   private chat/message/embed data.
@@ -15,6 +15,7 @@ scope:
   in:
     - Personal import only.
     - Claude official export import for chats.
+    - ChatGPT official export import for chats from `conversations.json` text and multimodal text parts.
     - OpenMates Export V1 archive import for chats, referenced embeds, and uploaded files required by those embeds.
     - Unified normalized import model shared by CLI, npm SDK, pip SDK, web, and future source adapters.
     - Client-side encryption before permanent persistence for all private imported chat/message/embed content.
@@ -24,11 +25,11 @@ scope:
     - Web app import UI using the same contract after CLI and SDK gates are green.
     - Dedupe warnings for likely already-imported chats without merge, overwrite, or destructive updates.
     - Import limits, cost estimate, credit pre-check/reservation, rate limits, and audit records.
-    - Documentation for Claude export import and OpenMates archive import.
+    - Documentation for Claude export import, ChatGPT export import, and OpenMates archive import.
   out:
     - Browser extension implementation.
     - Recommending third-party browser extensions as trusted import sources.
-    - ChatGPT and Gemini official export/provider parsers until reliable samples or paths exist.
+    - Gemini official export/provider parsers until reliable samples or paths exist.
     - Developer-console scripts as a user-facing import method.
     - Projects, tasks, plans, workflows/runs, memories/app settings, and full account restore; tracked separately in Linear OPE-588.
     - Team import or team-scoped rows.
@@ -87,6 +88,10 @@ context_discovery:
     - "Each chat_message object has keys: attachments, content, created_at, files, parent_message_uuid, sender, text, updated_at, uuid."
     - "Observed sender values: human and assistant. Observed content block types: text, tool_use, tool_result, token_budget."
     - "Observed message attachments include txt, pdf, application/x-yaml, and blank file_type values; observed files include png, pdf, txt, svelte, yaml, heic, and file entries without extensions."
+    - "ChatGPT raw export ZIP inspected locally at /tmp/opencode/openmates-import-samples/chatgpt-export-raw.zip without printing message text, titles, or user-identifying fields."
+    - "ChatGPT export has a top-level export directory with conversations.json plus user/settings/shared/library/asset metadata files; __MACOSX entries must be ignored."
+    - "ChatGPT conversations.json is a list of 53 conversation objects with mapping/current_node active-path structure and message author/content metadata."
+    - "Observed ChatGPT content types include text, multimodal_text, reasoning_recap, and thoughts; V1 imports visible text/multimodal text parts and does not import binary asset contents."
 
 apple_impact:
   affected_files:
@@ -117,8 +122,8 @@ clarification:
     - question: Should the free import allowance apply only to external providers?
       answer: No. Because the system cannot reliably distinguish external and OpenMates chats for billing/abuse purposes, allow 3 imported chats per rolling 30 days for free regardless of source.
   vision_summary: >
-    Import V1 should provide a unified, privacy-safe import path for Claude
-    official exports and OpenMates Export V1 archives, restoring only chats plus
+    Import V1 should provide a unified, privacy-safe import path for Claude and
+    ChatGPT official exports plus OpenMates Export V1 archives, restoring only chats plus
     referenced embeds/uploads and always creating new encrypted OpenMates chats.
     Import limits are source-agnostic: 3 free imported chats per rolling 30 days,
     and up to 30 chats per batch when the account has sufficient credits.
@@ -140,8 +145,8 @@ approvals:
 decisions:
   - id: D-1
     status: active
-    decision: V1 supports Claude official export and OpenMates Export V1 archive sources only.
-    reason: Claude export currently works decently; OpenMates Export V1 is the canonical OpenMates portability format. ChatGPT and Gemini official exports are unreliable or delayed at discovery time.
+    decision: V1 supports Claude official export, ChatGPT official export, and OpenMates Export V1 archive sources.
+    reason: Claude and ChatGPT official exports now have reliable local samples for synthetic parser contracts; OpenMates Export V1 is the canonical OpenMates portability format. Gemini remains delayed because Takeout returned empty content despite test chats.
     decided_at: "2026-07-18"
   - id: D-2
     status: active
@@ -191,7 +196,13 @@ attempts:
     approach: Use official provider exports only for ChatGPT, Claude, and Gemini.
     outcome: rejected
     recorded_at: "2026-07-18"
-    notes: Claude official export is usable. ChatGPT export may take days, and Gemini Takeout returned empty content despite test chats, so ChatGPT/Gemini parsers are deferred.
+    notes: Claude official export is usable. ChatGPT export was initially delayed and Gemini Takeout returned empty content despite test chats, so ChatGPT/Gemini parsers were deferred at initial approval time.
+  - id: ATTEMPT-16
+    task_id: TASK-10
+    approach: Add official ChatGPT export parser after receiving and safely inspecting a raw sample outside git.
+    outcome: succeeded
+    recorded_at: "2026-07-20"
+    notes: ChatGPT support uses synthetic fixtures derived from schema shape only; raw sample content remains outside git and binary assets are not imported in V1. Focused backend, CLI, npm SDK, pip SDK, web service, spec validation, artifact guard checks, and real dev CLI import of exactly 3 synthetic ChatGPT chats passed. The raw ChatGPT sample ZIP was deleted from /tmp/opencode/openmates-import-samples and is not in git.
   - id: ATTEMPT-3
     task_id: TASK-1
     approach: Recommend existing third-party browser export extensions.
@@ -254,10 +265,10 @@ attempts:
     notes: "Vercel READY for deployed app commit c16997acf. Initial deployed Account Import Playwright runs exposed test-only issues: an ambiguous skipped-domain text selector, a hardcoded mock import id across repeated uploads, and an assertion reading the first mock call list after reinstalling the mock. Test-only fixes were deployed in commits a456fbbd8, 0a9e74a7a, 16285045c, and 8beb545b2. Final deployed-web evidence passed for import-account-v1, import-account-limits, import-account-dedupe, and Account Import artifact scans. Later reruns used OPENMATES_SKIP_VERCEL_WAIT=true because Vercel correctly had no new Account Import app build after test-only/unrelated commits; app.dev.openmates.org remained on READY Account Import runtime commit c16997acf."
 
 handoff:
-  current_task_id: TASK-8
-  next_action: Ask the user to confirm deployed dev web Account Import V1 behavior, copy, visual quality, and imported-chat usability before Apple parity starts.
-  command: ask user to confirm https://app.dev.openmates.org Settings > Account > Import behavior before Apple parity
-  expected_outcome: User confirms the deployed web import UI is acceptable, or reports UX/content issues to fix before Apple parity.
+  current_task_id: TASK-10
+  next_action: Finish and verify official ChatGPT export support, then ask the user to confirm deployed dev web Account Import V1 behavior before Apple parity starts.
+  command: run focused ChatGPT parser/facade tests, then deploy and ask user to confirm https://app.dev.openmates.org Settings > Account > Import behavior before Apple parity
+  expected_outcome: ChatGPT parser/facade coverage passes; user then confirms the deployed web import UI is acceptable, or reports UX/content issues to fix before Apple parity.
   blocker: null
   last_verified_commit: app.dev.openmates.org@c16997acf with Playwright runner evidence through 58f5c6a14
 
@@ -288,11 +299,24 @@ scenarios:
       - Projects, tasks, workflows, plans, and memories are skipped with an explicit explanation and a link/reference to OPE-588.
       - Existing chats are not merged, overwritten, or modified.
 
+  - id: S-10
+    title: CLI, SDK, and web parse ChatGPT official export chats
+    given:
+      - Alice has a ChatGPT official export ZIP or JSON containing conversations.json.
+      - The export may place conversations.json inside a top-level export directory and may include binary asset files.
+    when:
+      - Alice imports the export through CLI, SDK, or Settings > Account > Import.
+    then:
+      - OpenMates parses conversations from the active current_node path and ignores unselected branches.
+      - V1 imports visible text and multimodal text message parts into new encrypted OpenMates chats.
+      - Binary asset contents and ChatGPT asset file names are not imported in V1.
+      - Permanent persistence still uses only client-encrypted chat/message fields.
+
   - id: S-3
     title: Free allowance applies regardless of source
     given:
       - Alice has zero credits and has not imported any chats in the last 30 days.
-      - Alice uploads either a Claude export or OpenMates archive with 40 chats.
+      - Alice uploads a Claude export, ChatGPT export, or OpenMates archive with 40 chats.
     when:
       - Alice previews import options.
     then:
@@ -342,7 +366,7 @@ scenarios:
     given:
       - A developer uses the npm SDK or pip SDK with an authenticated account.
     when:
-      - They parse, preview, estimate, scan, and import Claude or OpenMates V1 chat data.
+      - They parse, preview, estimate, scan, and import Claude, ChatGPT, or OpenMates V1 chat data.
     then:
       - SDK methods use the same limits, cost semantics, normalized schema, encryption requirements, and no-merge behavior as CLI and web.
       - SDKs do not offer raw plaintext persistence shortcuts.
@@ -353,7 +377,7 @@ scenarios:
       - CLI and SDK gates are complete.
       - Alice opens Settings > Account > Import or signup import onboarding in the web app.
     when:
-      - Alice uploads a Claude official export or OpenMates V1 archive.
+      - Alice uploads a Claude official export, ChatGPT official export, or OpenMates V1 archive.
     then:
       - The browser parses locally where feasible, shows provider instructions, previews selected chats, shows dedupe warnings and cost estimate, and imports via the shared scan/encrypt/persist flow.
       - The UI clearly explains free allowance, paid batch limit, and skipped non-chat OpenMates domains.
@@ -387,6 +411,14 @@ acceptance_criteria:
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-PARSER-OPENMATES, T-CLI-OPENMATES-DEV, T-WEB-IMPORT]
+  - id: AC-10
+    scenario: S-10
+    text: ChatGPT official export import parses nested conversations.json, follows the active current_node path, imports text/multimodal text messages only, and preserves encrypted-only permanent persistence.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-PARSER-CHATGPT, T-CLI-PARSER-CHATGPT, T-CLI-CHATGPT-DEV, T-NPM-SDK-IMPORT, T-PIP-SDK-IMPORT, T-WEB-SERVICE-IMPORT]
   - id: AC-3
     scenario: S-3
     text: Accounts without credits can import at most 3 chats per rolling 30 days across all import sources and cannot go into negative credits/debt.
@@ -491,7 +523,7 @@ assumptions:
 contracts:
   normalized_import_model:
     ParsedProviderChat:
-      provider: claude|openmates
+      provider: claude|chatgpt|openmates
       source_chat_id: string
       source_fingerprint: string
       title: string|null
@@ -522,7 +554,7 @@ contracts:
   api:
     - route: POST /v1/account-imports/preview
       auth: session_or_api_key
-      request: "{ source: claude|openmates, chat_count, source_fingerprints: string[], estimated_tokens, estimated_bytes }"
+      request: "{ source: claude|chatgpt|openmates, chat_count, source_fingerprints: string[], estimated_tokens, estimated_bytes }"
       response: "{ import_id, free_remaining, chat_limit, default_selection_count, max_batch_count, duplicate_fingerprints, estimated_credits, can_import, reason? }"
       notes:
         - Does not accept raw message plaintext.
@@ -549,17 +581,21 @@ contracts:
         - Parses local Claude export.
         - Defaults to newest 20 when credits are available, newest 3 when only free allowance is available.
         - Must hit real dev API/WebSocket paths for green CLI evidence.
+    - command: openmates account import chatgpt <export.json|export.zip> [--select newest:20|all|ids:<csv>] [--dry-run] [--yes] [--json]
+      notes:
+        - Parses local ChatGPT official export conversations.json from the active current_node path.
+        - Imports text and multimodal text parts only; binary assets are not imported in V1.
     - command: openmates account import openmates <export.zip|directory> [--domain chats] [--select newest:20|all|ids:<csv>] [--dry-run] [--yes] [--json]
       notes:
         - Imports only chats plus referenced embeds/uploads in V1.
         - Refuses unsupported OpenMates archive layouts unless explicitly marked compatible by Export V1 manifest.
   sdk:
-    - npm: accountImports.parseClaude(file), parseOpenMates(pathOrBlob), preview(chats), scan(importId, chats), persistEncrypted(importId, sanitizedChats), importClaude(options), importOpenMates(options)
-    - pip: client.account_imports.parse_claude(path), parse_openmates(path), preview(chats), scan(import_id, chats), persist_encrypted(import_id, sanitized_chats), import_claude(options), import_openmates(options)
+    - npm: accountImports.parseClaude(file), parseChatGPT(file), parseOpenMates(pathOrBlob), preview(chats), scan(importId, chats), persistEncrypted(importId, sanitizedChats), importClaude(options), importChatGPT(options), importOpenMates(options)
+    - pip: client.account_imports.parse_claude(path), parse_chatgpt(path), parse_openmates(path), preview(chats), scan(import_id, chats), persist_encrypted(import_id, sanitized_chats), import_claude(options), import_chatgpt(options), import_openmates(options)
   web:
-    - Settings > Account > Import uses provider cards for OpenMates and Claude.
+    - Settings > Account > Import supports Claude, ChatGPT, and OpenMates uploads through one local parser/upload control.
     - Signup/onboarding import can reuse the same component only after account/session/key prerequisites are met.
-    - Provider instruction copy for Claude references official Claude data export and explains that OpenMates parses locally and imports selected chats only.
+    - Provider instruction copy for Claude/ChatGPT references official data exports and explains that OpenMates parses locally and imports selected chats only.
   privacy_security:
     - Raw exports supplied by users for development inspection stay outside git and are not committed.
     - Redacted synthetic fixtures must be derived before tests are committed.
@@ -579,6 +615,19 @@ tests:
       - source fingerprints are stable and content-derived without including raw plaintext in logs
     red_phase: { required: true, expected: fail, evidence: { status: failed_as_expected, command: "python3 -m pytest backend/tests/test_account_import_claude_parser.py backend/tests/test_account_import_openmates_parser.py backend/tests/test_account_import_limits.py backend/tests/test_account_import_dedupe.py backend/tests/test_account_import_scan_endpoint.py backend/tests/test_account_import_fail_closed.py", run_id: "local-2026-07-18T21:15:21Z", timestamp: "2026-07-18T21:15:21Z", reason: "ModuleNotFoundError for account_import_service before implementation." } }
     green_phase: { required: true, expected: pass, evidence: { status: passed, command: "python3 -m pytest backend/tests/test_account_import_claude_parser.py backend/tests/test_account_import_openmates_parser.py backend/tests/test_account_import_limits.py backend/tests/test_account_import_dedupe.py backend/tests/test_account_import_scan_endpoint.py backend/tests/test_account_import_fail_closed.py backend/tests/test_chat_directus_encryption_guards.py", run_id: "local-2026-07-18T21:24:03Z", subject_commit: "working-tree@65c88cbe5c4f7d530fff5d4e1a808b725ca57a26", timestamp: "2026-07-18T21:24:03Z" } }
+  - id: T-PARSER-CHATGPT
+    type: pytest
+    file: backend/tests/test_account_import_chatgpt_parser.py
+    command: python3 -m pytest backend/tests/test_account_import_chatgpt_parser.py
+    covers: [AC-1, AC-6]
+    assertions:
+      - redacted ChatGPT official export fixture parses nested conversations.json into normalized chats/messages
+      - parser follows the active current_node path and does not import unselected branches
+      - text and multimodal text parts import while binary asset contents are not imported in V1
+      - malformed ChatGPT export fails before scan or billing
+      - source fingerprints are stable and content-derived without including raw plaintext in logs
+    red_phase: { required: true, expected: fail, evidence: { status: not_run, run_id: "", timestamp: "", reason: "ChatGPT scope was added after initial Account Import V1 approval and after a safe raw sample inspection; red phase is represented by the newly added parser tests before green evidence is recorded." } }
+    green_phase: { required: true, expected: pass, evidence: { status: passed, command: "python3 -m pytest backend/tests/test_account_import_chatgpt_parser.py", run_id: "local-2026-07-20T13:51:14Z", subject_commit: "working-tree@2026-07-20-chatgpt-import", timestamp: "2026-07-20T13:51:14Z" } }
   - id: T-PARSER-OPENMATES
     type: pytest
     file: backend/tests/test_account_import_openmates_parser.py
@@ -687,7 +736,30 @@ tests:
       - import logs/evidence do not contain raw message content or secret markers
       - Directus writes in captured evidence use encrypted private fields only
     red_phase: { required: true, expected: fail, evidence: { status: not_run, run_id: "", timestamp: "", reason: "Guard was added during TASK-4 after implementation to prevent recurrence; no separate red fixture was created." } }
-    green_phase: { required: true, expected: pass, evidence: { status: passed, command: "python3 scripts/verify_account_import_archive.py --forbid-plaintext-directus-fields", run_id: "local-2026-07-18T22:26:10Z", subject_commit: "working-tree@90e7ac9bd321e5aa1d13dd7bd06c039d5865426f", timestamp: "2026-07-18T22:26:10Z" } }
+    green_phase: { required: true, expected: pass, evidence: { status: passed, command: "python3 scripts/verify_account_import_archive.py --forbid-plaintext-directus-fields", run_id: "local-2026-07-20T13:51:14Z", subject_commit: "working-tree@2026-07-20-chatgpt-import", timestamp: "2026-07-20T13:51:14Z" } }
+  - id: T-CLI-PARSER-CHATGPT
+    type: unit
+    file: frontend/packages/openmates-cli/tests/account-import.test.ts
+    command: cd frontend/packages/openmates-cli && node --test --experimental-strip-types --loader ./tests/loader.mjs tests/account-import.test.ts
+    covers: [AC-10]
+    assertions:
+      - CLI parser exposes ChatGPT normalized import records
+      - nested ChatGPT conversations.json ZIP entries are discovered by basename
+      - active current_node path is used and source fingerprints do not contain plaintext
+    red_phase: { required: true, expected: fail, evidence: { status: not_run, run_id: "", timestamp: "", reason: "ChatGPT scope was added after initial Account Import V1 approval; no separate failing CLI parser run was captured before adding the synthetic fixture." } }
+    green_phase: { required: true, expected: pass, evidence: { status: passed, command: "cd frontend/packages/openmates-cli && node --test --experimental-strip-types --loader ./tests/loader.mjs tests/account-import.test.ts", run_id: "local-2026-07-20T13:51:14Z", subject_commit: "working-tree@2026-07-20-chatgpt-import", timestamp: "2026-07-20T13:51:14Z" } }
+  - id: T-CLI-CHATGPT-DEV
+    type: manual
+    file: scripts/verify_account_import_cli.py
+    command: python3 scripts/verify_account_import_cli.py --env dev --scenario chatgpt-import
+    target: api.dev.openmates.org
+    covers: [AC-10]
+    assertions:
+      - real CLI imports exactly 3 synthetic ChatGPT chats against api.dev.openmates.org
+      - imported chats complete encrypted persistence and import completion
+      - generated synthetic ZIP fixtures are written under /tmp/opencode and deleted after verification
+    red_phase: { required: true, expected: fail, evidence: { status: failed_as_expected, command: "python3 scripts/verify_account_import_cli.py --env dev --scenario chatgpt-import", run_id: "local-2026-07-20T13:54Z", timestamp: "2026-07-20T13:54:00Z", reason: "Initial verifier build failed because AccountImportPreviewRequest.source still excluded chatgpt from the CLI client type." } }
+    green_phase: { required: true, expected: pass_against_dev, evidence: { status: passed, command: "python3 scripts/verify_account_import_cli.py --env dev --scenario chatgpt-import", run_id: "local-2026-07-20T14:00:34Z", subject_commit: "working-tree@2026-07-20-chatgpt-import", target: api.dev.openmates.org, timestamp: "2026-07-20T14:00:34Z", notes: "Verifier output reported status passed, api_url https://api.dev.openmates.org, scenario chatgpt-import passed, and selected/imported exactly 3 synthetic chats. Temporary ZIP workdir account-import-cli-5m6fu__m was deleted after the run; script now auto-cleans temp workdirs by default." } }
   - id: T-DAILY-IMPORT-WIRING
     type: lint
     file: scripts/run_tests.py
@@ -703,22 +775,22 @@ tests:
     command: cd frontend/packages/openmates-cli && node --test --experimental-strip-types --loader ./tests/loader.mjs tests/account-import-sdk.test.ts
     covers: [AC-7]
     assertions:
-      - npm SDK exposes parse/preview/scan/persist/import helpers
+      - npm SDK exposes parse/preview/scan/persist/import helpers, including ChatGPT parsing
       - npm SDK defaults and limits match CLI/web contract
       - npm SDK does not expose plaintext persistence shortcuts
     red_phase: { required: true, expected: fail, evidence: { status: failed_as_expected, command: "cd frontend/packages/openmates-cli && node --test --experimental-strip-types --loader ./tests/loader.mjs tests/account-import-sdk.test.ts", run_id: "local-2026-07-18T22:29:11Z", timestamp: "2026-07-18T22:29:11Z", reason: "OpenMatesAccount did not expose parseClaudeImport/importChats before TASK-5 implementation." } }
-    green_phase: { required: true, expected: pass, evidence: { status: passed, command: "cd frontend/packages/openmates-cli && node --test --experimental-strip-types --loader ./tests/loader.mjs tests/account-import-sdk.test.ts", run_id: "local-2026-07-18T22:33:23Z", subject_commit: "working-tree@90e7ac9bd321e5aa1d13dd7bd06c039d5865426f", timestamp: "2026-07-18T22:33:23Z" } }
+    green_phase: { required: true, expected: pass, evidence: { status: passed, command: "cd frontend/packages/openmates-cli && node --test --experimental-strip-types --loader ./tests/loader.mjs tests/account-import-sdk.test.ts", run_id: "local-2026-07-20T13:51:14Z", subject_commit: "working-tree@2026-07-20-chatgpt-import", timestamp: "2026-07-20T13:51:14Z" } }
   - id: T-PIP-SDK-IMPORT
     type: pytest
     file: packages/openmates-python/tests/test_account_import.py
     command: python3 -m pytest packages/openmates-python/tests/test_account_import.py
     covers: [AC-7]
     assertions:
-      - pip SDK exposes parse/preview/scan/persist/import helpers
+      - pip SDK exposes parse/preview/scan/persist/import helpers, including ChatGPT parsing
       - pip SDK defaults and limits match CLI/web contract
       - pip SDK does not expose plaintext persistence shortcuts
     red_phase: { required: true, expected: fail, evidence: { status: failed_as_expected, command: "python3 -m pytest packages/openmates-python/tests/test_account_import.py", run_id: "local-2026-07-18T22:29:11Z", timestamp: "2026-07-18T22:29:11Z", reason: "OpenMatesAccount did not expose parse_openmates_import/parse_claude_import before TASK-5 implementation." } }
-    green_phase: { required: true, expected: pass, evidence: { status: passed, command: "python3 -m pytest packages/openmates-python/tests/test_account_import.py packages/openmates-python/tests/test_account_export.py", run_id: "local-2026-07-18T22:34:31Z", subject_commit: "working-tree@90e7ac9bd321e5aa1d13dd7bd06c039d5865426f", timestamp: "2026-07-18T22:34:31Z" } }
+    green_phase: { required: true, expected: pass, evidence: { status: passed, command: "python3 -m pytest packages/openmates-python/tests/test_account_import.py", run_id: "local-2026-07-20T13:51:14Z", subject_commit: "working-tree@2026-07-20-chatgpt-import", timestamp: "2026-07-20T13:51:14Z" } }
   - id: T-PARITY-AUDIT
     type: lint
     file: scripts/audit_sdk_cli_parity.py
@@ -734,7 +806,7 @@ tests:
     command: cd frontend/packages/ui && npm run test:run -- src/services/__tests__/chatImportService.test.ts
     covers: [AC-2, AC-6, AC-8]
     assertions:
-      - browser parser supports Claude JSON and OpenMates Export V1 ZIP fixtures
+      - browser parser supports Claude JSON, ChatGPT official export, and OpenMates Export V1 ZIP fixtures
       - web service calls Account Import V1 preview, scan, persist-encrypted, and complete endpoints in order
       - encrypted persistence payload does not include plaintext title or message content fields
       - web service does not call the disabled legacy /v1/settings/import-chat endpoint
@@ -744,7 +816,7 @@ tests:
       - local cache excludes chats with chat-level encrypted persistence failures
       - complete request does not record source fingerprints for partially failed encrypted persistence
     red_phase: { required: true, expected: fail, evidence: { status: failed_as_expected, command: "cd frontend/packages/ui && npm run test:run -- src/services/__tests__/chatImportService.test.ts", run_id: "local-2026-07-18T23:10:05Z", timestamp: "2026-07-18T23:10:05Z", reason: "Initial focused test failed before implementation/test-environment fixes because File.arrayBuffer/window.location support was missing in the package test harness." } }
-    green_phase: { required: true, expected: pass, evidence: { status: passed, command: "python3 scripts/tests.py run --suite vitest --environment development", run_id: "2026-07-18T23:52:43Z / gha-29665987603", subject_commit: "working-tree@4f380ca3931b2aed51b8f41c1da58bd1ef20adef", timestamp: "2026-07-18T23:53:41Z" } }
+    green_phase: { required: true, expected: pass, evidence: { status: passed, command: "cd frontend/packages/ui && npm run test:run -- src/services/__tests__/chatImportService.test.ts", run_id: "local-2026-07-20T13:51:14Z", subject_commit: "working-tree@2026-07-20-chatgpt-import", timestamp: "2026-07-20T13:51:14Z" } }
   - id: T-WEB-IMPORT
     type: playwright
     file: frontend/apps/web_app/tests/import-account-v1.spec.ts
@@ -1126,8 +1198,53 @@ tasks:
         - frontend/apps/web_app/tests/import-account-dedupe.spec.ts
       shared_files: []
     blockers: []
-    follow_up_tasks: [TASK-8]
+    follow_up_tasks: [TASK-10]
     independently_deployable: false
+  - id: TASK-10
+    title: Add official ChatGPT export support
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios: [S-10, S-8]
+      acceptance_criteria: [AC-10, AC-6, AC-7, AC-8]
+    expected_files:
+      - backend/core/api/app/services/account_import_service.py
+      - backend/tests/test_account_import_chatgpt_parser.py
+      - frontend/packages/ui/src/services/chatImportService.ts
+      - frontend/packages/ui/src/services/__tests__/chatImportService.test.ts
+      - frontend/packages/ui/src/components/settings/account/SettingsImportAccount.svelte
+      - frontend/packages/openmates-cli/src/accountImport.ts
+      - frontend/packages/openmates-cli/src/cli.ts
+      - frontend/packages/openmates-cli/src/client.ts
+      - frontend/packages/openmates-cli/src/sdk.ts
+      - frontend/packages/openmates-cli/tests/account-import.test.ts
+      - frontend/packages/openmates-cli/tests/account-import-sdk.test.ts
+      - packages/openmates-python/openmates/sdk.py
+      - packages/openmates-python/tests/test_account_import.py
+      - scripts/verify_account_import_cli.py
+    verification: [T-PARSER-CHATGPT, T-CLI-PARSER-CHATGPT, T-CLI-CHATGPT-DEV, T-NPM-SDK-IMPORT, T-PIP-SDK-IMPORT, T-WEB-SERVICE-IMPORT]
+    verification_ids: [T-PARSER-CHATGPT, T-CLI-PARSER-CHATGPT, T-CLI-CHATGPT-DEV, T-NPM-SDK-IMPORT, T-PIP-SDK-IMPORT, T-WEB-SERVICE-IMPORT]
+    dependencies: [TASK-7]
+    ownership:
+      files:
+        - backend/core/api/app/services/account_import_service.py
+        - backend/tests/test_account_import_chatgpt_parser.py
+        - frontend/packages/ui/src/services/chatImportService.ts
+        - frontend/packages/ui/src/services/__tests__/chatImportService.test.ts
+        - frontend/packages/ui/src/components/settings/account/SettingsImportAccount.svelte
+        - frontend/packages/openmates-cli/src/accountImport.ts
+        - frontend/packages/openmates-cli/src/cli.ts
+        - frontend/packages/openmates-cli/src/client.ts
+        - frontend/packages/openmates-cli/src/sdk.ts
+        - frontend/packages/openmates-cli/tests/account-import.test.ts
+        - frontend/packages/openmates-cli/tests/account-import-sdk.test.ts
+        - packages/openmates-python/openmates/sdk.py
+        - packages/openmates-python/tests/test_account_import.py
+        - scripts/verify_account_import_cli.py
+      shared_files: []
+    blockers: []
+    follow_up_tasks: [TASK-8]
+    independently_deployable: true
   - id: TASK-8
     title: Update docs and get user confirmation
     status: pending

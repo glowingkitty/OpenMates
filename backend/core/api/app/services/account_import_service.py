@@ -12,6 +12,7 @@ import hashlib
 import json
 import uuid
 import zipfile
+from datetime import UTC, datetime
 from io import BytesIO
 from typing import Any, Awaitable, Callable
 
@@ -64,9 +65,13 @@ def _read_zip_text(payload: bytes, required_name: str, source_label: str) -> str
                 for name in archive.namelist()
                 if not name.startswith("__MACOSX/") and not name.endswith(".DS_Store") and "/._" not in name and not name.startswith("._")
             }
-            if required_name not in names:
+            resolved_name = required_name if required_name in names else next(
+                (name for name in names if name.rsplit("/", 1)[-1] == required_name),
+                None,
+            )
+            if resolved_name is None:
                 raise ImportParseError(f"{source_label} is missing {required_name}")
-            return archive.read(required_name).decode("utf-8")
+            return archive.read(resolved_name).decode("utf-8")
     except ImportParseError:
         raise
     except zipfile.BadZipFile as exc:
@@ -161,6 +166,116 @@ def parse_claude_export_bytes(payload: bytes, *, source_name: str) -> list[dict[
             "embeds": [],
             "uploads": uploads,
             "provider_labels": ["claude"],
+            "source_metadata": {"source_name": source_name, "message_count": len(messages)},
+        })
+    return normalized
+
+
+def _chatgpt_timestamp(value: Any) -> str | None:
+    if not isinstance(value, int | float) or value <= 0:
+        return None
+    return datetime.fromtimestamp(float(value), UTC).isoformat().replace("+00:00", "Z")
+
+
+def _chatgpt_content_text(content: dict[str, Any]) -> tuple[str, dict[str, Any]]:
+    content_type = str(content.get("content_type") or "unknown")
+    text_parts: list[str] = []
+    asset_count = 0
+    raw_parts = content.get("parts")
+    if isinstance(raw_parts, list):
+        for part in raw_parts:
+            if isinstance(part, str) and part.strip():
+                text_parts.append(part)
+            elif isinstance(part, dict) and part.get("asset_pointer"):
+                asset_count += 1
+    elif isinstance(content.get("content"), str):
+        text_parts.append(str(content["content"]))
+    return "\n".join(text_parts), {"content_type": content_type, "asset_count": asset_count}
+
+
+def _chatgpt_active_nodes(conversation: dict[str, Any]) -> list[dict[str, Any]]:
+    mapping = conversation.get("mapping")
+    if not isinstance(mapping, dict):
+        raise ImportParseError("ChatGPT export conversation is missing mapping")
+    current_node = str(conversation.get("current_node") or "")
+    if current_node in mapping:
+        ordered: list[dict[str, Any]] = []
+        seen: set[str] = set()
+        node_id = current_node
+        while node_id and node_id in mapping and node_id not in seen:
+            seen.add(node_id)
+            node = mapping[node_id]
+            if isinstance(node, dict):
+                ordered.append(node)
+                node_id = str(node.get("parent") or "")
+            else:
+                break
+        return list(reversed(ordered))
+    return sorted(
+        [node for node in mapping.values() if isinstance(node, dict)],
+        key=lambda node: ((node.get("message") or {}).get("create_time") if isinstance(node.get("message"), dict) else 0) or 0,
+    )
+
+
+def parse_chatgpt_export_bytes(payload: bytes, *, source_name: str) -> list[dict[str, Any]]:
+    """Parse ChatGPT official export JSON or ZIP bytes into normalized chats."""
+
+    try:
+        if zipfile.is_zipfile(BytesIO(payload)):
+            raw = _read_zip_text(payload, "conversations.json", "ChatGPT export")
+            conversations = json.loads(raw)
+        else:
+            conversations = json.loads(payload.decode("utf-8"))
+    except (json.JSONDecodeError, UnicodeDecodeError, zipfile.BadZipFile) as exc:
+        raise ImportParseError(f"ChatGPT export {source_name} could not be parsed") from exc
+
+    if isinstance(conversations, dict):
+        conversations = conversations.get("conversations")
+    if not isinstance(conversations, list):
+        raise ImportParseError("ChatGPT export conversations must be a list")
+
+    normalized: list[dict[str, Any]] = []
+    for conversation in conversations:
+        if not isinstance(conversation, dict):
+            continue
+        source_chat_id = str(conversation.get("conversation_id") or conversation.get("id") or "")
+        if not source_chat_id:
+            raise ImportParseError("ChatGPT export conversation is missing id")
+
+        messages: list[dict[str, Any]] = []
+        for node in _chatgpt_active_nodes(conversation):
+            raw_message = node.get("message")
+            if not isinstance(raw_message, dict):
+                continue
+            author = raw_message.get("author")
+            role = str(author.get("role") if isinstance(author, dict) else "")
+            if role not in {"user", "assistant", "system"}:
+                continue
+            content = raw_message.get("content")
+            if not isinstance(content, dict):
+                continue
+            text, metadata = _chatgpt_content_text(content)
+            if not text.strip():
+                continue
+            messages.append({
+                "role": role,
+                "content": text,
+                "created_at": _chatgpt_timestamp(raw_message.get("create_time")),
+                "source_message_id": raw_message.get("id"),
+                "provider_metadata": metadata,
+            })
+
+        normalized.append({
+            "provider": "chatgpt",
+            "source_chat_id": source_chat_id,
+            "source_fingerprint": _stable_fingerprint("chatgpt", source_chat_id, messages),
+            "title": conversation.get("title"),
+            "created_at": _chatgpt_timestamp(conversation.get("create_time")),
+            "updated_at": _chatgpt_timestamp(conversation.get("update_time")),
+            "messages": messages,
+            "embeds": [],
+            "uploads": [],
+            "provider_labels": ["chatgpt"],
             "source_metadata": {"source_name": source_name, "message_count": len(messages)},
         })
     return normalized

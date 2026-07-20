@@ -1,6 +1,6 @@
 <!--
     Import Account Settings - Account Import V1
-    Allows users to import Claude official exports and OpenMates Export V1
+    Allows users to import Claude/ChatGPT official exports and OpenMates Export V1
     archives. The browser parses locally, the server transiently scans selected
     plaintext, and this client encrypts chats/messages before permanent
     persistence. Legacy plaintext import endpoints remain disabled.
@@ -64,7 +64,7 @@
                 id: String(index),
                 label: duplicate ? `${title} (possible duplicate)` : title,
                 description: `${messageCount} ${$text('settings.account.import_messages_count')}`,
-                icon: chat.provider === 'claude' ? 'icon_ai' : 'icon_chat',
+                icon: chat.provider === 'claude' || chat.provider === 'chatgpt' ? 'icon_ai' : 'icon_chat',
                 checked: selectedIndices.has(index),
             };
         }) ?? []
@@ -226,7 +226,7 @@
             <SettingsSectionHeading title={$text('settings.account.import_title')} icon="download" />
             <SettingsFileUpload
                 accept=".zip,.json"
-                label={selectedFile ? selectedFile.name : 'Select Claude export or OpenMates ZIP'}
+                label={selectedFile ? selectedFile.name : 'Select Claude, ChatGPT, or OpenMates ZIP'}
                 disabled={!$authStore.isAuthenticated}
                 ariaLabel={$text('settings.account.import_choose_file')}
                 dataTestid="account-import-file-upload"

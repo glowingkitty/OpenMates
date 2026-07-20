@@ -86,6 +86,7 @@ import {
 } from "./accountExportArchive.js";
 import {
   parseClaudeImportBuffer,
+  parseChatGPTImportBuffer,
   parseOpenMatesImportBuffer,
   type ParsedAccountImport,
 } from "./accountImport.js";
@@ -4505,6 +4506,7 @@ const SETTINGS_EXECUTABLE_COMMANDS: SettingsInfoCommand[] = [
   { path: ["account", "export", "accept-partial"], description: "Accept a partial account export", examples: ["openmates settings account export accept-partial <export-id> --json"] },
   { path: ["account", "export", "cancel"], description: "Cancel an account export job", examples: ["openmates settings account export cancel <export-id> --json"] },
   { path: ["account", "import", "claude"], description: "Preview a Claude official export import", examples: ["openmates account import claude ./claude-export.zip --dry-run --json"] },
+  { path: ["account", "import", "chatgpt"], description: "Preview a ChatGPT official export import", examples: ["openmates account import chatgpt ./chatgpt-export.zip --dry-run --json"] },
   { path: ["account", "import", "openmates"], description: "Preview an OpenMates Export V1 import", examples: ["openmates account import openmates ./openmates-export.zip --domain chats --dry-run --json"] },
   { path: ["account", "import-chat"], description: "Import a CLI chat export file", examples: ["openmates settings account import-chat ./chat.yml", "openmates settings account import-chat ./payload.json"] },
   { path: ["account", "username", "set"], description: "Change account username", examples: ["openmates settings account username set alice_123"] },
@@ -4676,17 +4678,19 @@ function printAccountExportBundle(
   if (typeof archive.output === "string") process.stdout.write(`Wrote ${archive.output}\n`);
 }
 
-async function parseAccountImportFile(source: "claude" | "openmates", file: string): Promise<ParsedAccountImport> {
+type AccountImportCliSource = "claude" | "chatgpt" | "openmates";
+
+async function parseAccountImportFile(source: AccountImportCliSource, file: string): Promise<ParsedAccountImport> {
   const { readFile } = await import("node:fs/promises");
   const payload = await readFile(file);
-  return source === "claude"
-    ? parseClaudeImportBuffer(payload, basename(file))
-    : parseOpenMatesImportBuffer(payload, basename(file));
+  if (source === "claude") return parseClaudeImportBuffer(payload, basename(file));
+  if (source === "chatgpt") return parseChatGPTImportBuffer(payload, basename(file));
+  return parseOpenMatesImportBuffer(payload, basename(file));
 }
 
 async function runAccountImport(
   client: OpenMatesClient,
-  source: "claude" | "openmates",
+  source: AccountImportCliSource,
   file: string,
   flags: Record<string, string | boolean>,
 ): Promise<Record<string, unknown>> {
@@ -5660,8 +5664,8 @@ async function handleSettings(
     return;
   }
 
-  if (matches(tokens, ["account", "import", "claude"]) || matches(tokens, ["account", "import", "openmates"])) {
-    const source = tokens[2] as "claude" | "openmates";
+  if (matches(tokens, ["account", "import", "claude"]) || matches(tokens, ["account", "import", "chatgpt"]) || matches(tokens, ["account", "import", "openmates"])) {
+    const source = tokens[2] as AccountImportCliSource;
     const file = rest[2];
     if (!file) throw new Error(`Missing import file. Example: openmates account import ${source} ./export.zip --dry-run`);
     printAccountImportPreview(await runAccountImport(client, source, file, flags), flags);

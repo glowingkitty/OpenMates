@@ -521,4 +521,74 @@ describe("chatImportService Account Import V1", () => {
     expect(parsed.chats[0].title).toBe("Exported OpenMates chat");
     expect(parsed.chats[0].messages[0].content).toBe("hello from export");
   });
+
+  it("parses nested ChatGPT official export ZIPs from the active message path", async () => {
+    const service = await import("../chatImportService");
+    const zip = new JSZip();
+    zip.file("ChatGPT Export/conversations.json", JSON.stringify([{
+      id: "chatgpt-chat-1",
+      conversation_id: "chatgpt-conversation-1",
+      title: "Synthetic ChatGPT chat",
+      create_time: 1785000000,
+      update_time: 1785000010,
+      current_node: "assistant-1",
+      mapping: {
+        root: { id: "root", message: null, parent: null },
+        "user-1": {
+          id: "user-1",
+          parent: "root",
+          message: {
+            id: "message-user-1",
+            author: { role: "user" },
+            create_time: 1785000001,
+            content: {
+              content_type: "multimodal_text",
+              parts: [
+                "Synthetic ChatGPT user text.",
+                { asset_pointer: "file-service://redacted", content_type: "image_asset_pointer" },
+              ],
+            },
+          },
+        },
+        "assistant-1": {
+          id: "assistant-1",
+          parent: "user-1",
+          message: {
+            id: "message-assistant-1",
+            author: { role: "assistant" },
+            create_time: 1785000002,
+            content: { content_type: "text", parts: ["Synthetic ChatGPT assistant text."] },
+          },
+        },
+        branch: {
+          id: "branch",
+          parent: "user-1",
+          message: {
+            id: "message-branch",
+            author: { role: "assistant" },
+            content: { content_type: "text", parts: ["This branch must not import."] },
+          },
+        },
+      },
+    }]));
+    const bytes = await zip.generateAsync({ type: "uint8array" });
+    const file = {
+      name: "chatgpt-export.zip",
+      arrayBuffer: async () => bytes.buffer.slice(
+        bytes.byteOffset,
+        bytes.byteOffset + bytes.byteLength,
+      ),
+    } as File;
+
+    const parsed = await service.parseImportFile(file);
+
+    expect(parsed.source).toBe("chatgpt");
+    expect(parsed.fileType).toBe("chatgpt-zip");
+    expect(parsed.chats[0].provider).toBe("chatgpt");
+    expect(parsed.chats[0].messages.map((message) => message.role)).toEqual(["user", "assistant"]);
+    expect(parsed.chats[0].messages[0].content).toBe("Synthetic ChatGPT user text.");
+    expect(parsed.chats[0].messages[0].provider_metadata).toEqual({ content_type: "multimodal_text", asset_count: 1 });
+    expect(JSON.stringify(parsed)).not.toContain("This branch must not import");
+    expect(parsed.chats[0].uploads).toEqual([]);
+  });
 });

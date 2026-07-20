@@ -300,7 +300,7 @@ export interface AccountExportChunksResponse {
 }
 
 export interface AccountImportPreviewRequest {
-  source: "claude" | "openmates";
+  source: "claude" | "chatgpt" | "openmates";
   chatCount: number;
   sourceFingerprints: string[];
   estimatedTokens?: number;
