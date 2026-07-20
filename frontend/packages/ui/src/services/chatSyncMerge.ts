@@ -155,16 +155,20 @@ export async function mergeServerChatWithLocal(
       serverChat.created_at ??
       localChat.created_at ??
       nowTimestamp,
-    encrypted_draft_md: serverHasDraftMarkdown
-      ? serverChat.encrypted_draft_md ?? undefined
-      : keyMismatch
-        ? undefined
-        : localChat.encrypted_draft_md,
-    encrypted_draft_preview: serverHasDraftPreview
-      ? serverChat.encrypted_draft_preview ?? undefined
-      : keyMismatch
-        ? undefined
-        : localChat.encrypted_draft_preview,
+    encrypted_draft_md: serverExplicitlyDeletesDraft
+      ? undefined
+      : serverHasDraftMarkdown
+        ? serverChat.encrypted_draft_md ?? undefined
+        : keyMismatch
+          ? undefined
+          : localChat.encrypted_draft_md,
+    encrypted_draft_preview: serverExplicitlyDeletesDraft
+      ? undefined
+      : serverHasDraftPreview
+        ? serverChat.encrypted_draft_preview ?? undefined
+        : keyMismatch
+          ? undefined
+          : localChat.encrypted_draft_preview,
     ideabucket: serverChat.ideabucket ?? localChat.ideabucket,
     ideabucket_processing_window_id:
       serverChat.ideabucket_processing_window_id ??
