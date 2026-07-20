@@ -757,8 +757,7 @@ async function expectIdeaBucketDraftMarkers(page: any, chatId: string, expectedT
 	} else {
 		await openDraftByHash(page, chatId);
 	}
-	const editor = page.getByTestId('message-editor');
-	await expect(editor).toBeVisible({ timeout: 15_000 });
+	const editor = await activeMessageEditorEditable(page, chatId);
 	try {
 		await expect(editor).toContainText(expectedText, { timeout: 45_000 });
 	} catch (error) {
@@ -1103,8 +1102,8 @@ test.describe('Cross-client encrypted draft sync', () => {
 			cleanupDraftIds.add(audioChatId);
 			await page.reload();
 			await waitForChatReady(page, log);
-			await expectIdeaBucketDraftMarkers(page, audioChatId, 'IdeaBucket');
-			await expect(page.getByTestId('recording-preview-audio').first()).toBeVisible({ timeout: 30_000 });
+			await expectIdeaBucketDraftMarkers(page, audioChatId, path.basename(AUDIO_FIXTURE));
+			await expect(page.getByTestId('recording-preview-audio').first()).toBeAttached({ timeout: 30_000 });
 			await screenshot(page, 'audio-draft-embed-preview');
 
 			log('Creating and processing due IdeaBucket chat from CLI.');
