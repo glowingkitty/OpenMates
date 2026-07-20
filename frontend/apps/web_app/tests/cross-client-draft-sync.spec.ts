@@ -28,6 +28,7 @@ const CLI_DIST = fs.existsSync('/workspace/cli/dist/cli.js')
 const AUDIO_FIXTURE = fs.existsSync('/workspace/backend/tests/fixtures/test_audio.wav')
 	? '/workspace/backend/tests/fixtures/test_audio.wav'
 	: path.resolve(__dirname, '../../../../backend/tests/fixtures/test_audio.wav');
+const CLI_DRAFT_REFRESH_TIMEOUT_MS = 30_000;
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount(1);
 let activeCliHome: string | null = null;
 
@@ -238,6 +239,7 @@ async function runCli(
 		const stderr: string[] = [];
 		let settled = false;
 		const timeout = setTimeout(() => {
+			stderr.push(`CLI timed out after ${timeoutMs}ms.\n`);
 			child.kill('SIGTERM');
 			setTimeout(() => {
 				if (child.exitCode === null) child.kill('SIGKILL');
@@ -892,7 +894,7 @@ test.describe('Cross-client encrypted draft sync', () => {
 			try {
 				await expect
 					.poll(async () => {
-						const result = await runCliJson(apiUrl, ['drafts', 'get', draftChatId, '--refresh'], 15_000, {
+						const result = await runCliJson(apiUrl, ['drafts', 'get', draftChatId, '--refresh'], CLI_DRAFT_REFRESH_TIMEOUT_MS, {
 							allowTransientFailure: true,
 						});
 						const draft = result?.draft;
@@ -922,7 +924,7 @@ test.describe('Cross-client encrypted draft sync', () => {
 			expect(await waitForDraftDeleteReceipt(wsFrames, draftChatId, 'CROSS_CLIENT_DRAFT_SYNC', draftDeleteFrameStart)).toBe(true);
 			await expect
 				.poll(async () => {
-					const result = await runCliJson(apiUrl, ['drafts', 'get', draftChatId, '--refresh'], 15_000, {
+					const result = await runCliJson(apiUrl, ['drafts', 'get', draftChatId, '--refresh'], CLI_DRAFT_REFRESH_TIMEOUT_MS, {
 						allowTransientFailure: true,
 					});
 					return result?.draft ?? 'transient-cli-fetch-failed';
@@ -949,7 +951,7 @@ test.describe('Cross-client encrypted draft sync', () => {
 			await expect(page.getByTestId('message-user').last()).toContainText(sentText, { timeout: 30_000 });
 			await expect
 				.poll(async () => {
-					const result = await runCliJson(apiUrl, ['drafts', 'get', sentChatId, '--refresh'], 15_000, {
+					const result = await runCliJson(apiUrl, ['drafts', 'get', sentChatId, '--refresh'], CLI_DRAFT_REFRESH_TIMEOUT_MS, {
 						allowTransientFailure: true,
 					});
 					return result?.draft ?? 'transient-cli-fetch-failed';
@@ -1046,7 +1048,7 @@ test.describe('Cross-client encrypted draft sync', () => {
 			try {
 				await expect
 					.poll(async () => {
-						const result = await runCliJson(apiUrl, ['drafts', 'get', draftChatId, '--refresh'], 15_000, {
+						const result = await runCliJson(apiUrl, ['drafts', 'get', draftChatId, '--refresh'], CLI_DRAFT_REFRESH_TIMEOUT_MS, {
 							allowTransientFailure: true,
 						});
 						const currentDraft = result?.draft;
