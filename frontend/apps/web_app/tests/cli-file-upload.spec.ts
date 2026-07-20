@@ -70,6 +70,12 @@ function extractEmbedRefs(content: string): string[] {
 	return Array.from(content.matchAll(/\[!\]\(embed:([^)]+)\)/g)).map((match) => match[1]);
 }
 
+function extractMessages(showData: any): any[] {
+	if (Array.isArray(showData?.messages)) return showData.messages;
+	if (Array.isArray(showData?.chat?.messages)) return showData.chat.messages;
+	return [];
+}
+
 async function createDocxBuffer(textLines: string[]): Promise<Buffer> {
 	const zip = new JSZip();
 	zip.file('word/document.xml', [
@@ -100,7 +106,8 @@ async function waitForChatShow(apiUrl: string, chatId: string, timeoutMs = 60_00
 	while (Date.now() - startedAt < timeoutMs) {
 		lastResult = await runCli(apiUrl, ['chats', 'show', chatId, '--json'], 30_000);
 		if (lastResult.code === 0 && lastResult.stdout.trim()) {
-			return JSON.parse(lastResult.stdout);
+			const showData = JSON.parse(lastResult.stdout);
+			if (extractMessages(showData).length > 0) return showData;
 		}
 
 		const listResult = await runCli(apiUrl, ['chats', 'list', '--json', '--limit', '20'], 30_000);
@@ -111,7 +118,8 @@ async function waitForChatShow(apiUrl: string, chatId: string, timeoutMs = 60_00
 			if (fullChatId) {
 				lastResult = await runCli(apiUrl, ['chats', 'show', fullChatId, '--json'], 30_000);
 				if (lastResult.code === 0 && lastResult.stdout.trim()) {
-					return JSON.parse(lastResult.stdout);
+					const showData = JSON.parse(lastResult.stdout);
+					if (extractMessages(showData).length > 0) return showData;
 				}
 			}
 		}
@@ -413,7 +421,7 @@ test('CLI file upload - text/code/docs/sheets files with PII + image file', asyn
 		const showData = await waitForChatShow(apiUrl, chatId);
 		const fullChatId: string = showData.chat?.id;
 		expect(fullChatId).toMatch(/^[a-f0-9-]{36}$/);
-		const messages: any[] = showData.messages ?? [];
+		const messages: any[] = extractMessages(showData);
 		const userMessages = messages.filter((m: any) => m.role === 'user');
 		expect(userMessages.length).toBeGreaterThan(0);
 
@@ -469,7 +477,7 @@ test('CLI file upload - text/code/docs/sheets files with PII + image file', asyn
 		expect(piiFilesSendResult.code).toBe(0);
 
 		const showAfterPiiFiles = await waitForChatShow(apiUrl, fullChatId);
-		const piiUserMessages = (showAfterPiiFiles.messages ?? []).filter((m: any) => m.role === 'user');
+		const piiUserMessages = extractMessages(showAfterPiiFiles).filter((m: any) => m.role === 'user');
 		const piiFilesUserMsg = piiUserMessages[piiUserMessages.length - 1];
 		const piiFilesContent: string = piiFilesUserMsg.content ?? '';
 		const piiEmbedRefs = extractEmbedRefs(piiFilesContent);
