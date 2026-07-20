@@ -879,10 +879,16 @@ test.describe('Cross-client encrypted draft sync', () => {
 			log('CLI-created draft opened in web client.');
 
 			const draftUpdateFrameStart = wsFrames.length;
+			log('Replacing CLI draft from web client.');
 			await replaceMessageEditorText(page, draftChatId, updatedText);
-			await page.getByTestId('input-dismiss-button').click();
+			const firstDismissButton = page.getByTestId('input-dismiss-button');
+			if (await firstDismissButton.isVisible({ timeout: 5_000 }).catch(() => false)) {
+				await firstDismissButton.click();
+			}
 			await expectLocalDraftMarkdown(page, draftChatId, updatedText, 'CROSS_CLIENT_DRAFT_SYNC');
+			log('Local web draft edit persisted; waiting for draft update receipt.');
 			expect(await waitForDraftUpdateReceipt(wsFrames, draftChatId, 'CROSS_CLIENT_DRAFT_SYNC', draftUpdateFrameStart, Number(created.draftV) + 1)).toBe(true);
+			log('Draft update receipt observed; polling CLI refresh.');
 			try {
 				await expect
 					.poll(async () => {
