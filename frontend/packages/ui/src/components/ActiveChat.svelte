@@ -197,6 +197,32 @@
         return ideaText;
     }
 
+    async function restoreEmbedPreviewLinksForWriteMode(markdown: string): Promise<string> {
+        const refs = [...markdown.matchAll(/\[!\]\(embed:([^)]+)\)/g)].map((match) => match[1]).filter(Boolean);
+        if (refs.length === 0) return markdown;
+
+        try {
+            const { embedStore } = await import('../services/embedStore');
+            let restored = markdown;
+            for (const ref of Array.from(new Set(refs))) {
+                const embedId = await embedStore.resolveByRefDeep(ref);
+                if (!embedId) continue;
+                const storedEmbed = await embedStore.get(`embed:${embedId}`);
+                const embedRecord = storedEmbed && typeof storedEmbed === 'object'
+                    ? storedEmbed as Record<string, unknown>
+                    : null;
+                const rawType = embedRecord?.type ?? embedRecord?.embed_type;
+                const type = typeof rawType === 'string' && rawType.length > 0 ? rawType : 'audio-recording';
+                const jsonReference = `\`\`\`json\n${JSON.stringify({ type, embed_id: embedId })}\n\`\`\``;
+                restored = restored.split(`[!](embed:${ref})`).join(jsonReference);
+            }
+            return restored;
+        } catch (error) {
+            console.debug('[ActiveChat] Could not restore embed preview links in draft markdown:', error);
+            return markdown;
+        }
+    }
+
     function loadWikipediaFullscreenComponent() {
         return import('./embeds/wiki/WikipediaFullscreen.svelte').catch((error) => {
             console.error('[ActiveChat] Failed to load Wikipedia fullscreen component', error);
@@ -9377,7 +9403,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         const decryptedMarkdown = await decryptDraftWithRetry(encryptedDraftMd, 'encrypted_draft_md');
                         if (decryptedMarkdown) {
                             if (!isCurrentDraftRestoreTarget()) return;
-                            const editableDraftMarkdown = extractPlainIdeaBucketText(decryptedMarkdown) ?? decryptedMarkdown;
+                            const editableDraftMarkdown = extractPlainIdeaBucketText(decryptedMarkdown) ?? await restoreEmbedPreviewLinksForWriteMode(decryptedMarkdown);
                             // Parse markdown to TipTap JSON for the editor
                             const draftContentJSON = parse_message(editableDraftMarkdown, 'write', { unifiedParsingEnabled: true });
                             appendDraftRestoreDiagnostic('parsed-md', {
