@@ -18,6 +18,20 @@
 //          frontend/packages/ui/src/components/embeds/business/BusinessCompanyFinancialsEmbedFullscreen.svelte
 //          frontend/packages/ui/src/components/embeds/business/BusinessCompanyFinancialResultEmbedPreview.svelte
 //          frontend/packages/ui/src/components/embeds/business/BusinessCompanyFinancialResultEmbedFullscreen.svelte
+//          frontend/packages/ui/src/components/embeds/models3d/Model3DSearchEmbedPreview.svelte
+//          frontend/packages/ui/src/components/embeds/models3d/Model3DSearchEmbedFullscreen.svelte
+//          frontend/packages/ui/src/components/embeds/models3d/Model3DResultEmbedPreview.svelte
+//          frontend/packages/ui/src/components/embeds/models3d/Model3DResultEmbedFullscreen.svelte
+//          frontend/packages/ui/src/components/embeds/models3d/Model3DGenerateEmbedPreview.svelte
+//          frontend/packages/ui/src/components/embeds/models3d/Model3DGenerateEmbedFullscreen.svelte
+//          frontend/packages/ui/src/components/embeds/tasks/TaskCreateEmbedPreview.svelte
+//          frontend/packages/ui/src/components/embeds/tasks/TaskSearchEmbedPreview.svelte
+//          frontend/packages/ui/src/components/embeds/tasks/TaskEmbedPreview.svelte
+//          frontend/packages/ui/src/components/embeds/tasks/TaskEmbedFullscreen.svelte
+//          frontend/packages/ui/src/components/embeds/workflows/WorkflowCreateEmbedPreview.svelte
+//          frontend/packages/ui/src/components/embeds/workflows/WorkflowSearchEmbedPreview.svelte
+//          frontend/packages/ui/src/components/embeds/workflows/WorkflowEmbedPreview.svelte
+//          frontend/packages/ui/src/components/embeds/workflows/WorkflowEmbedFullscreen.svelte
 // CSS:     frontend/packages/ui/src/components/embeds/UnifiedEmbedPreview.svelte
 //          frontend/packages/ui/src/components/embeds/BasicInfosBar.svelte
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift
@@ -123,7 +137,10 @@ struct AppSkillUseRenderer: View {
     }
 
     private var previewChildEmbeds: [EmbedRecord] {
-        let previewResults = EmbedFieldReader.dictionaryArray(data, key: "preview_results")
+        let previewResults = ["preview_results", "results", "preview_thumbnails"]
+            .lazy
+            .map { EmbedFieldReader.dictionaryArray(data, key: $0) }
+            .first { !$0.isEmpty } ?? []
         guard !previewResults.isEmpty else { return [] }
 
         return previewResults.enumerated().map { index, result in
@@ -144,12 +161,18 @@ struct AppSkillUseRenderer: View {
     }
 
     private var previewChildType: String {
-        switch appId {
-        case "images", "photos": return EmbedType.imagesImageResult.rawValue
-        case "videos": return EmbedType.videosVideo.rawValue
-        case "business": return EmbedType.businessCompanyFinancialResult.rawValue
-        default: return EmbedType.webWebsite.rawValue
-        }
+        EmbedType.normalized(rawValue: embed.type)?.childType?.rawValue
+            ?? {
+                switch appId {
+                case "images", "photos": return EmbedType.imagesImageResult.rawValue
+                case "videos": return EmbedType.videosVideo.rawValue
+                case "business": return EmbedType.businessCompanyFinancialResult.rawValue
+                case "models3d": return EmbedType.models3dModelResult.rawValue
+                case "tasks": return EmbedType.tasksTask.rawValue
+                case "workflows": return EmbedType.workflowsWorkflow.rawValue
+                default: return EmbedType.webWebsite.rawValue
+                }
+            }()
     }
 
     var body: some View {
@@ -193,6 +216,14 @@ struct AppSkillUseRenderer: View {
             return AnyView(TravelPriceCalendarEmbedRenderer(data: data, mode: .preview))
         } else if appId == "business", skillId == "company_financials" {
             return AnyView(BusinessCompanyFinancialsEmbedRenderer(embed: embed, mode: .preview, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed))
+        } else if appId == "models3d", skillId == "search" {
+            return AnyView(Models3DSearchParentRenderer(embed: embed, mode: .preview, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed))
+        } else if appId == "models3d", skillId == "generate" {
+            return AnyView(Models3DGenerateEmbedRenderer(embed: embed, mode: .preview))
+        } else if appId == "tasks", skillId == "create" || skillId == "search" {
+            return AnyView(TaskWorkflowParentRenderer(embed: embed, kind: .task, mode: .preview, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed))
+        } else if appId == "workflows", skillId == "create-or-modify" || skillId == "search" {
+            return AnyView(TaskWorkflowParentRenderer(embed: embed, kind: .workflow, mode: .preview, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed))
         } else if appId == "images", !childEmbeds.isEmpty {
             return AnyView(imagesSearchPreview)
         } else {
@@ -294,6 +325,14 @@ struct AppSkillUseRenderer: View {
             TravelPriceCalendarEmbedRenderer(data: data, mode: .fullscreen)
         } else if appId == "business", skillId == "company_financials" {
             BusinessCompanyFinancialsEmbedRenderer(embed: embed, mode: .fullscreen, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed)
+        } else if appId == "models3d", skillId == "search" {
+            Models3DSearchParentRenderer(embed: embed, mode: .fullscreen, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed)
+        } else if appId == "models3d", skillId == "generate" {
+            Models3DGenerateEmbedRenderer(embed: embed, mode: .fullscreen)
+        } else if appId == "tasks", skillId == "create" || skillId == "search" {
+            TaskWorkflowParentRenderer(embed: embed, kind: .task, mode: .fullscreen, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed)
+        } else if appId == "workflows", skillId == "create-or-modify" || skillId == "search" {
+            TaskWorkflowParentRenderer(embed: embed, kind: .workflow, mode: .fullscreen, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed)
         } else {
             VStack(alignment: .leading, spacing: .spacing6) {
                 if !childEmbeds.isEmpty {
@@ -466,6 +505,689 @@ struct AppSkillUseRenderer: View {
             maxWidth: 64
         ) ?? EmbedFieldReader.proxiedFaviconURL(pageURL: firstString(in: data, keys: ["source_page_url", "url"]))
     }
+}
+
+enum TaskWorkflowEmbedKind {
+    case task
+    case workflow
+
+    var appId: String {
+        switch self {
+        case .task: return "tasks"
+        case .workflow: return "workflows"
+        }
+    }
+
+    var iconName: String {
+        switch self {
+        case .task: return "task"
+        case .workflow: return "workflow"
+        }
+    }
+
+    var singularTitle: String {
+        switch self {
+        case .task: return AppStrings.tasks
+        case .workflow: return AppStrings.workflows
+        }
+    }
+
+    var cardIdentifier: String {
+        switch self {
+        case .task: return "task-embed-card"
+        case .workflow: return "workflow-embed-card"
+        }
+    }
+
+    var fullscreenIdentifier: String {
+        switch self {
+        case .task: return "task-embed-fullscreen"
+        case .workflow: return "workflow-embed-fullscreen"
+        }
+    }
+
+    var fullscreenContentIdentifier: String {
+        switch self {
+        case .task: return "task-embed-fullscreen-content"
+        case .workflow: return "workflow-embed-fullscreen-content"
+        }
+    }
+
+    func title(from raw: [String: AnyCodable]) -> String {
+        EmbedFieldReader.string(raw, keys: ["title", "name"]) ?? singularTitle
+    }
+
+    func subtitle(from raw: [String: AnyCodable]) -> String? {
+        switch self {
+        case .task:
+            return EmbedFieldReader.string(raw, keys: ["short_id", "task_id"])
+                ?? statusLabel(from: raw)
+        case .workflow:
+            return EmbedFieldReader.string(raw, keys: ["trigger_summary", "workflow_id"])
+                ?? statusLabel(from: raw)
+        }
+    }
+
+    func description(from raw: [String: AnyCodable]) -> String? {
+        EmbedFieldReader.string(raw, keys: ["description", "summary"])
+    }
+
+    func statusLabel(from raw: [String: AnyCodable]) -> String {
+        let rawStatus = EmbedFieldReader.string(raw, keys: ["status"]) ?? ""
+        let normalized = rawStatus.replacingOccurrences(of: "_", with: " ").replacingOccurrences(of: "-", with: " ")
+        let status = normalized.isEmpty ? singularTitle : normalized.capitalized
+        guard self == .workflow, let enabled = raw["enabled"]?.value as? Bool else { return status }
+        return enabled ? status : AppStrings.disabled
+    }
+
+    func secondaryPill(from raw: [String: AnyCodable]) -> String? {
+        switch self {
+        case .task:
+            return EmbedFieldReader.string(raw, keys: ["assignee", "assignee_type"])
+        case .workflow:
+            return nil
+        }
+    }
+}
+
+private struct TaskWorkflowParentRenderer: View {
+    let embed: EmbedRecord
+    let kind: TaskWorkflowEmbedKind
+    let mode: EmbedDisplayMode
+    let allEmbedRecords: [String: EmbedRecord]
+    let onOpenEmbed: (EmbedRecord) -> Void
+
+    private var data: [String: AnyCodable] { embed.rawData ?? [:] }
+    private var children: [EmbedRecord] {
+        let explicit = embed.childEmbedIds.compactMap { allEmbedRecords[$0] }
+        if !explicit.isEmpty { return explicit }
+
+        let parented = allEmbedRecords.values
+            .filter { $0.parentEmbedId == embed.id || $0.appId == kind.appId }
+            .filter { $0.id != embed.id }
+            .sorted { $0.id < $1.id }
+        if !parented.isEmpty { return parented }
+
+        return previewChildren
+    }
+
+    private var previewChildren: [EmbedRecord] {
+        let previewResults = ["preview_results", "results"]
+            .lazy
+            .map { EmbedFieldReader.dictionaryArray(data, key: $0) }
+            .first { !$0.isEmpty } ?? []
+        return previewResults.enumerated().map { index, result in
+            var recordData = result.mapValues { AnyCodable($0) }
+            recordData["app_id"] = recordData["app_id"] ?? AnyCodable(kind.appId)
+            return EmbedRecord(
+                id: "\(embed.id)-\(kind.appId)-preview-\(index)",
+                type: kind == .task ? EmbedType.tasksTask.rawValue : EmbedType.workflowsWorkflow.rawValue,
+                status: .finished,
+                data: .raw(recordData),
+                parentEmbedId: embed.id,
+                appId: kind.appId,
+                skillId: nil,
+                embedIds: nil,
+                createdAt: embed.createdAt
+            )
+        }
+    }
+
+    private var displayTitle: String {
+        EmbedFieldReader.string(data, keys: ["instruction", "query", "title"])
+            ?? EmbedType.normalized(rawValue: embed.type)?.displayName
+            ?? kind.singularTitle
+    }
+
+    private var resultCount: Int {
+        EmbedFieldReader.int(data, keys: ["result_count"]) ?? children.count
+    }
+
+    var body: some View {
+        switch mode {
+        case .preview:
+            parentPreview
+        case .fullscreen:
+            parentFullscreen
+        }
+    }
+
+    private var parentPreview: some View {
+        VStack(alignment: .leading, spacing: .spacing3) {
+            Text(displayTitle)
+                .font(.omSmall)
+                .fontWeight(.bold)
+                .foregroundStyle(Color.fontPrimary)
+                .lineLimit(1)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            Text(summary)
+                .font(.omXs)
+                .foregroundStyle(Color.fontSecondary)
+                .lineLimit(2)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+        .accessibilityIdentifier(parentPreviewIdentifier)
+    }
+
+    private var parentFullscreen: some View {
+        Group {
+            if children.isEmpty {
+                Text(summary)
+                    .font(.omP)
+                    .foregroundStyle(Color.fontSecondary)
+                    .frame(maxWidth: .infinity, minHeight: 200)
+            } else {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 260, maximum: 320), spacing: .spacing6, alignment: .top)], spacing: .spacing6) {
+                    ForEach(children) { child in
+                        TaskWorkflowEmbedRenderer(embed: child, kind: kind, mode: .preview) {
+                            onOpenEmbed(child)
+                        }
+                    }
+                }
+                .frame(maxWidth: 1040)
+                .padding(.horizontal, .spacing5)
+                .padding(.vertical, .spacing8)
+                .padding(.bottom, 120)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .center)
+        .accessibilityIdentifier(kind == .task ? "task-parent-fullscreen" : "workflow-parent-fullscreen")
+    }
+
+    private var parentPreviewIdentifier: String {
+        switch (kind, embed.skillId) {
+        case (.task, "create"):
+            return "task-create-embed-preview"
+        case (.task, "search"):
+            return "task-search-embed-preview"
+        case (.workflow, "create-or-modify"):
+            return "workflow-create-embed-preview"
+        case (.workflow, "search"):
+            return "workflow-search-embed-preview"
+        default:
+            return kind == .task ? "task-parent-preview" : "workflow-parent-preview"
+        }
+    }
+
+    private var summary: String {
+        if embed.status != .finished { return AppStrings.loading }
+        guard resultCount > 0 else { return AppStrings.searchNoResults }
+        return "\(resultCount) \(kind.singularTitle)"
+    }
+}
+
+struct TaskWorkflowEmbedRenderer: View {
+    let embed: EmbedRecord
+    let kind: TaskWorkflowEmbedKind
+    let mode: EmbedDisplayMode
+    var onTap: () -> Void = {}
+
+    private var raw: [String: AnyCodable] { embed.rawData ?? [:] }
+
+    var body: some View {
+        switch mode {
+        case .preview:
+            Button(action: onTap) { previewCard }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier(kind.cardIdentifier)
+        case .fullscreen:
+            fullscreen
+        }
+    }
+
+    private var previewCard: some View {
+        HStack(alignment: .center, spacing: .spacing5) {
+            iconShell
+                .frame(width: 56)
+
+            VStack(alignment: .leading, spacing: .spacing3) {
+                if let subtitle = kind.subtitle(from: raw) {
+                    Text(subtitle)
+                        .font(.omXs)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(Color.fontSecondary)
+                        .lineLimit(1)
+                }
+
+                Text(kind.title(from: raw))
+                    .font(.omSmall)
+                    .fontWeight(.bold)
+                    .foregroundStyle(Color.fontPrimary)
+                    .lineLimit(2)
+
+                if let description = kind.description(from: raw) {
+                    Text(description)
+                        .font(.omXs)
+                        .foregroundStyle(Color.fontSecondary)
+                        .lineLimit(2)
+                }
+
+                HStack(spacing: 6) {
+                    pill(kind.statusLabel(from: raw))
+                    if let assignee = kind.secondaryPill(from: raw), !assignee.isEmpty {
+                        pill(assignee)
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(.spacing6)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+    }
+
+    private var fullscreen: some View {
+        VStack(alignment: .leading, spacing: .spacing8) {
+            HStack(alignment: .top, spacing: .spacing6) {
+                iconShell.frame(width: 72, height: 72)
+                VStack(alignment: .leading, spacing: .spacing3) {
+                    if let subtitle = kind.subtitle(from: raw) {
+                        Text(subtitle)
+                            .font(.omSmall)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(Color.fontSecondary)
+                    }
+                    Text(kind.title(from: raw))
+                        .font(.omH1)
+                        .foregroundStyle(Color.fontPrimary)
+                        .lineLimit(3)
+                    if let description = kind.description(from: raw) {
+                        Text(description)
+                            .font(.omP)
+                            .foregroundStyle(Color.fontSecondary)
+                    }
+                }
+            }
+
+            HStack(spacing: .spacing3) {
+                pill(kind.statusLabel(from: raw))
+                if let assignee = kind.secondaryPill(from: raw), !assignee.isEmpty { pill(assignee) }
+            }
+        }
+        .padding(.spacing8)
+        .frame(maxWidth: 860, alignment: .leading)
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, .spacing12)
+        .padding(.bottom, 120)
+        .accessibilityIdentifier(kind.fullscreenIdentifier)
+    }
+
+    private var iconShell: some View {
+        ZStack {
+            AppGradientBackground(appId: kind.appId)
+            Icon(kind.iconName, size: 28)
+                .foregroundStyle(Color.grey0)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 18))
+    }
+
+    private func pill(_ label: String) -> some View {
+        Text(label)
+            .font(.omXs)
+            .fontWeight(.semibold)
+            .foregroundStyle(Color.fontSecondary)
+            .padding(.horizontal, 7)
+            .padding(.vertical, 2)
+            .background(Color.grey10)
+            .clipShape(Capsule())
+    }
+}
+
+private struct Models3DSearchParentRenderer: View {
+    let embed: EmbedRecord
+    let mode: EmbedDisplayMode
+    let allEmbedRecords: [String: EmbedRecord]
+    let onOpenEmbed: (EmbedRecord) -> Void
+
+    private var data: [String: AnyCodable] { embed.rawData ?? [:] }
+    private var children: [EmbedRecord] {
+        let explicit = embed.childEmbedIds.compactMap { allEmbedRecords[$0] }
+        if !explicit.isEmpty { return explicit }
+        let parented = allEmbedRecords.values
+            .filter { ($0.parentEmbedId == embed.id || $0.appId == "models3d") && $0.id != embed.id }
+            .sorted { $0.id < $1.id }
+        if !parented.isEmpty { return parented }
+        return previewChildren
+    }
+
+    private var previewChildren: [EmbedRecord] {
+        let previewResults = ["preview_results", "results", "preview_thumbnails"]
+            .lazy
+            .map { EmbedFieldReader.dictionaryArray(data, key: $0) }
+            .first { !$0.isEmpty } ?? []
+        return previewResults.enumerated().map { index, result in
+            var recordData = result.mapValues { AnyCodable($0) }
+            recordData["app_id"] = recordData["app_id"] ?? AnyCodable("models3d")
+            return EmbedRecord(
+                id: "\(embed.id)-models3d-preview-\(index)",
+                type: EmbedType.models3dModelResult.rawValue,
+                status: .finished,
+                data: .raw(recordData),
+                parentEmbedId: embed.id,
+                appId: "models3d",
+                skillId: nil,
+                embedIds: nil,
+                createdAt: embed.createdAt
+            )
+        }
+    }
+
+    private var query: String {
+        EmbedFieldReader.string(data, keys: ["query", "title"]) ?? AppStrings.models3d
+    }
+
+    private var provider: String {
+        EmbedFieldReader.string(data, keys: ["provider"]) ?? "Printables"
+    }
+
+    var body: some View {
+        switch mode {
+        case .preview:
+            preview
+        case .fullscreen:
+            fullscreen
+        }
+    }
+
+    private var preview: some View {
+        VStack(alignment: .leading, spacing: .spacing4) {
+            let imageChildren = childrenWithImages.prefix(5)
+            if !imageChildren.isEmpty {
+                HStack(spacing: 4) {
+                    ForEach(Array(imageChildren)) { child in
+                        modelThumbnail(child)
+                    }
+                }
+                .frame(height: 74)
+                .clipShape(RoundedRectangle(cornerRadius: 18))
+                .background(Color.grey10)
+            }
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(query)
+                    .font(.omSmall)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(Color.fontPrimary)
+                    .lineLimit(1)
+                Text(metaText)
+                    .font(.omXs)
+                    .foregroundStyle(Color.fontSecondary)
+                    .lineLimit(1)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+        .accessibilityIdentifier("models3d-search-preview")
+    }
+
+    private var fullscreen: some View {
+        Group {
+            if children.isEmpty {
+                Text(AppStrings.models3dNoResults)
+                    .font(.omP)
+                    .foregroundStyle(Color.fontSecondary)
+                    .frame(maxWidth: .infinity, minHeight: 200)
+            } else {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 260, maximum: 320), spacing: .spacing6, alignment: .top)], spacing: .spacing6) {
+                    ForEach(children) { child in
+                        Models3DResultEmbedRenderer(embed: child, mode: .preview) {
+                            onOpenEmbed(child)
+                        }
+                    }
+                }
+                .frame(maxWidth: 1040)
+                .padding(.horizontal, .spacing5)
+                .padding(.vertical, .spacing8)
+                .padding(.bottom, 120)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .center)
+        .accessibilityIdentifier("models3d-search-fullscreen")
+    }
+
+    private var metaText: String {
+        if children.isEmpty { return AppStrings.models3dOpenToView }
+        return "\(AppStrings.models3dResultsCount(children.count)) · \(AppStrings.via) \(provider)"
+    }
+
+    private var childrenWithImages: [EmbedRecord] {
+        children.filter { modelImageURL(for: $0.rawData ?? [:], maxWidth: 260) != nil }
+    }
+
+    private func modelThumbnail(_ child: EmbedRecord) -> some View {
+        ZStack {
+            if let imageURL = modelImageURL(for: child.rawData ?? [:], maxWidth: 260), let url = URL(string: imageURL) {
+                CachedRemoteImage(url: url) { image in
+                    image.resizable().aspectRatio(contentMode: .fill)
+                } placeholder: { Color.grey10 }
+            } else {
+                Color.grey10.overlay(Icon("3dmodels", size: 32).foregroundStyle(Color.grey40))
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .clipped()
+    }
+}
+
+struct Models3DResultEmbedRenderer: View {
+    let embed: EmbedRecord
+    let mode: EmbedDisplayMode
+    var onTap: () -> Void = {}
+
+    private var raw: [String: AnyCodable] { embed.rawData ?? [:] }
+    private var title: String { EmbedFieldReader.string(raw, keys: ["title", "name"]) ?? AppStrings.models3dResultTitle }
+    private var provider: String? { EmbedFieldReader.string(raw, keys: ["provider"]) }
+    private var creator: String? { EmbedFieldReader.string(raw, keys: ["creator_name", "creatorName"]) }
+    private var license: String? { EmbedFieldReader.string(raw, keys: ["license"]) }
+    private var filesCount: Int? { EmbedFieldReader.int(raw, keys: ["files_count", "filesCount"]) }
+    private var sourceURL: String? { EmbedFieldReader.string(raw, keys: ["source_page_url", "sourcePageUrl", "source_url", "url"]) }
+    private var imageURL: String? { modelImageURL(for: raw, maxWidth: mode == .preview ? 520 : 960) }
+
+    var body: some View {
+        switch mode {
+        case .preview:
+            Button(action: onTap) { previewCard }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("models3d-result-card")
+        case .fullscreen:
+            fullscreen
+        }
+    }
+
+    private var previewCard: some View {
+        HStack(alignment: .center, spacing: .spacing4) {
+            VStack(alignment: .leading, spacing: .spacing3) {
+                Text(title)
+                    .font(.omSmall)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(Color.fontPrimary)
+                    .lineLimit(2)
+                metaLine
+                pills
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            imageShell
+                .frame(width: 112)
+        }
+        .padding(.spacing6)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+    }
+
+    private var fullscreen: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .top, spacing: .spacing12) {
+                largeImageShell.frame(maxWidth: .infinity, minHeight: 360)
+                metadata.frame(width: 300, alignment: .leading)
+            }
+            VStack(alignment: .leading, spacing: .spacing8) {
+                largeImageShell.frame(minHeight: 320)
+                metadata
+            }
+        }
+        .padding(.spacing12)
+        .frame(maxWidth: 1120)
+        .frame(maxWidth: .infinity)
+        .padding(.bottom, 120)
+        .accessibilityIdentifier("models3d-result-fullscreen")
+    }
+
+    private var imageShell: some View {
+        ZStack {
+            if let imageURL, let url = URL(string: imageURL) {
+                CachedRemoteImage(url: url) { image in
+                    image.resizable().aspectRatio(contentMode: .fill)
+                } placeholder: { modelPlaceholder }
+            } else {
+                modelPlaceholder
+            }
+        }
+        .aspectRatio(4 / 3, contentMode: .fit)
+        .background(Color.grey10)
+        .clipShape(RoundedRectangle(cornerRadius: 18))
+        .accessibilityIdentifier("models3d-result-card-image")
+    }
+
+    private var largeImageShell: some View {
+        ZStack {
+            if let imageURL, let url = URL(string: imageURL) {
+                CachedRemoteImage(url: url) { image in
+                    image.resizable().aspectRatio(contentMode: .fit)
+                } placeholder: { modelPlaceholder }
+            } else {
+                modelPlaceholder
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: 560)
+        .background(Color.grey10)
+        .clipShape(RoundedRectangle(cornerRadius: 24))
+    }
+
+    private var modelPlaceholder: some View {
+        Color.grey10.overlay(Icon("3dmodels", size: mode == .preview ? 32 : 44).foregroundStyle(Color.grey40))
+    }
+
+    private var metadata: some View {
+        VStack(alignment: .leading, spacing: .spacing5) {
+            Text(title)
+                .font(.omH2)
+                .foregroundStyle(Color.fontPrimary)
+            if let creator { Text(creator).font(.omP).foregroundStyle(Color.fontSecondary) }
+            if let license { Text(license).font(.omP).foregroundStyle(Color.fontSecondary) }
+            if let filesCount { Text(AppStrings.models3dFilesCount(filesCount)).font(.omP).foregroundStyle(Color.fontSecondary) }
+            if let sourceURL, let host = EmbedFieldReader.host(from: sourceURL) {
+                Text(AppStrings.models3dOpenOnProvider(provider ?? host))
+                    .font(.omSmall)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(Color.fontButton)
+                    .padding(.horizontal, 13)
+                    .padding(.vertical, 9)
+                    .background(Color.buttonPrimary)
+                    .clipShape(RoundedRectangle(cornerRadius: .radius8))
+            }
+        }
+        .foregroundStyle(Color.fontPrimary)
+    }
+
+    private var metaLine: some View {
+        HStack(spacing: 6) {
+            if let creator { Text(creator) }
+            if let provider { Text(provider) }
+        }
+        .font(.omXs)
+        .foregroundStyle(Color.fontSecondary)
+        .lineLimit(1)
+    }
+
+    private var pills: some View {
+        HStack(spacing: 6) {
+            if raw["is_free"]?.value as? Bool == true || raw["isFree"]?.value as? Bool == true { pill(AppStrings.models3dFree) }
+            if let filesCount { pill(AppStrings.models3dFilesCount(filesCount)) }
+            if let license { pill(license) }
+        }
+    }
+
+    private func pill(_ label: String) -> some View {
+        Text(label)
+            .font(.omXs)
+            .foregroundStyle(Color.fontSecondary)
+            .padding(.horizontal, 7)
+            .padding(.vertical, 2)
+            .background(Color.grey10)
+            .clipShape(Capsule())
+    }
+}
+
+struct Models3DGenerateEmbedRenderer: View {
+    let embed: EmbedRecord
+    let mode: EmbedDisplayMode
+
+    private var raw: [String: AnyCodable] { embed.rawData ?? [:] }
+    private var prompt: String { EmbedFieldReader.string(raw, keys: ["prompt", "title"]) ?? AppStrings.models3d }
+    private var providerModel: String? { EmbedFieldReader.string(raw, keys: ["provider_model", "providerModel", "provider"]) }
+    private var posterURL: String? { modelImageURL(for: raw, maxWidth: mode == .preview ? 520 : 960) }
+
+    var body: some View {
+        switch mode {
+        case .preview:
+            preview
+        case .fullscreen:
+            fullscreen
+        }
+    }
+
+    private var preview: some View {
+        ZStack {
+            if let posterURL, let url = URL(string: posterURL) {
+                CachedRemoteImage(url: url) { image in
+                    image.resizable().aspectRatio(contentMode: .fit)
+                } placeholder: { modelFallbackText }
+            } else {
+                modelFallbackText
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .accessibilityIdentifier("models3d-generate-preview")
+    }
+
+    private var fullscreen: some View {
+        VStack(spacing: .spacing6) {
+            if let posterURL, let url = URL(string: posterURL) {
+                CachedRemoteImage(url: url) { image in
+                    image.resizable().aspectRatio(contentMode: .fit)
+                } placeholder: { modelFallbackText }
+                .frame(maxWidth: .infinity, maxHeight: 560)
+                .clipShape(RoundedRectangle(cornerRadius: 16))
+            } else {
+                modelFallbackText
+                    .frame(minHeight: 320)
+            }
+            if let providerModel {
+                Text(providerModel)
+                    .font(.omSmall)
+                    .foregroundStyle(Color.fontSecondary)
+            }
+        }
+        .padding(24)
+        .frame(maxWidth: .infinity)
+        .padding(.bottom, 120)
+        .accessibilityIdentifier("models3d-generate-fullscreen")
+    }
+
+    private var modelFallbackText: some View {
+        Text(prompt)
+            .font(.omP)
+            .foregroundStyle(Color.fontPrimary)
+            .multilineTextAlignment(.center)
+            .lineLimit(mode == .preview ? 4 : nil)
+    }
+}
+
+private func modelImageURL(for raw: [String: AnyCodable], maxWidth: Int) -> String? {
+    EmbedFieldReader.proxiedImageURL(
+        EmbedFieldReader.string(raw, keys: ["preview_image_url", "previewImageUrl", "thumbnail_url", "thumbnailUrl", "poster_url", "posterUrl", "image_url", "image"]),
+        maxWidth: maxWidth
+    )
 }
 
 private struct SearchResultFullscreenRow: View {

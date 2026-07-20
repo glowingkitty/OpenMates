@@ -88,7 +88,7 @@ struct EmbedContentView: View {
             case .codeRepo:
                 CodeRepoEmbedRenderer(data: rawData, mode: mode)
             case .codeApplication:
-                GenericEmbedRenderer(data: rawData, mode: mode, type: embed.type)
+                ProductSummaryEmbedRenderer(data: rawData, mode: mode, type: embedType, appId: "code")
             case .codeCode:
                 CodeEmbedRenderer(
                     data: rawData,
@@ -101,6 +101,12 @@ struct EmbedContentView: View {
                 )
             case .codeGetDocs:
                 CodeGetDocsEmbedRenderer(data: rawData, mode: mode)
+
+            // Design
+            case .designSearchIcons:
+                SearchResultsRenderer(data: rawData, mode: mode, resultLabel: "icons")
+            case .designIconResult:
+                ProductSummaryEmbedRenderer(data: rawData, mode: mode, type: embedType, appId: "design")
 
             // Documents
             case .docsDoc:
@@ -115,6 +121,14 @@ struct EmbedContentView: View {
             // Mind Maps
             case .mindmapsMindmap:
                 MindMapEmbedRenderer(data: rawData, mode: mode)
+
+            // 3D Models
+            case .models3dSearch:
+                SearchResultsRenderer(data: rawData, mode: mode, resultLabel: "models")
+            case .models3dGenerate:
+                Models3DGenerateEmbedRenderer(embed: embed, mode: mode)
+            case .models3dModelResult:
+                Models3DResultEmbedRenderer(embed: embed, mode: mode)
 
             // Electronics
             case .electronicsSearch:
@@ -236,11 +250,23 @@ struct EmbedContentView: View {
             case .socialMediaPost:
                 SocialMediaPostEmbedRenderer(data: rawData, mode: mode)
 
+            // Tasks
+            case .tasksCreate, .tasksSearch:
+                SearchResultsRenderer(data: rawData, mode: mode, resultLabel: "tasks")
+            case .tasksTask:
+                TaskWorkflowEmbedRenderer(embed: embed, kind: .task, mode: mode)
+
             // Weather
             case .weatherForecast:
                 SearchResultsRenderer(data: rawData, mode: mode, resultLabel: "days")
             case .weatherDay:
                 WeatherDayEmbedRenderer(data: rawData, mode: mode)
+
+            // Workflows
+            case .workflowsCreateOrModify, .workflowsSearch:
+                SearchResultsRenderer(data: rawData, mode: mode, resultLabel: "workflows")
+            case .workflowsWorkflow:
+                TaskWorkflowEmbedRenderer(embed: embed, kind: .workflow, mode: mode)
 
             // Audio
             case .recording:

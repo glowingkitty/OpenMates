@@ -10,16 +10,23 @@ import XCTest
 final class EmbedRenderingParityUITests: XCTestCase {
     private let appSlugs = [
         "audio",
+        "business",
+        "calendar",
         "code",
+        "design",
+        "diagrams",
         "docs",
         "electronics",
         "events",
+        "fitness",
         "health",
         "home",
         "images",
         "mail",
         "maps",
         "math",
+        "mindmaps",
+        "models3d",
         "music",
         "news",
         "nutrition",
@@ -28,10 +35,12 @@ final class EmbedRenderingParityUITests: XCTestCase {
         "sheets",
         "shopping",
         "social_media",
+        "tasks",
         "travel",
         "videos",
         "weather",
-        "web"
+        "web",
+        "workflows"
     ]
 
     override func setUpWithError() throws {
@@ -117,6 +126,47 @@ final class EmbedRenderingParityUITests: XCTestCase {
         )
         XCTAssertFalse(app.tables.firstMatch.exists, "Sheets embed must not render default List/table chrome")
         attachScreenshot(name: "Sheets fullscreen")
+    }
+
+    func testTaskWorkflowAndModelEmbedsUseSpecificNativeChrome() throws {
+        let cases: [(appSlug: String, previewIdentifiers: [String], childFullscreenIdentifier: String)] = [
+            ("tasks", ["task-create-embed-preview", "task-search-embed-preview", "task-embed-card"], "task-embed-fullscreen"),
+            ("workflows", ["workflow-create-embed-preview", "workflow-search-embed-preview", "workflow-embed-card"], "workflow-embed-fullscreen"),
+            ("models3d", ["models3d-search-preview", "models3d-result-card", "models3d-generate-preview"], "models3d-result-fullscreen")
+        ]
+
+        for testCase in cases {
+            let app = XCUIApplication()
+            app.launchArguments = ["--dev-preview", "embeds", "--dev-preview-app", testCase.appSlug]
+            app.launchEnvironment["DEV_PREVIEW"] = "embeds"
+            app.launchEnvironment["DEV_PREVIEW_APP"] = testCase.appSlug
+            app.launch()
+
+            let gallery = app.descendants(matching: .any)["dev-embed-preview-gallery"]
+            XCTAssertTrue(gallery.waitForExistence(timeout: 8), "\(testCase.appSlug) gallery did not load")
+
+            for identifier in testCase.previewIdentifiers {
+                let element = app.descendants(matching: .any)[identifier]
+                scrollUntilVisible(app: app, element: element)
+                XCTAssertTrue(element.exists, "\(testCase.appSlug) missing specific preview chrome: \(identifier)")
+            }
+
+            let routeHarness = app.descendants(matching: .any)["dev-embed-fullscreen-route-harness"]
+            scrollUntilHittable(app: app, element: routeHarness)
+            XCTAssertTrue(routeHarness.isHittable, "\(testCase.appSlug) fullscreen route harness did not become visible")
+
+            let firstChildButton = app.buttons["dev-embed-route-open-first-child"]
+            XCTAssertTrue(firstChildButton.waitForExistence(timeout: 3), "\(testCase.appSlug) has no parent-to-child fullscreen route")
+            firstChildButton.tap()
+
+            XCTAssertTrue(
+                app.descendants(matching: .any)[testCase.childFullscreenIdentifier].waitForExistence(timeout: 5),
+                "\(testCase.appSlug) child fullscreen did not render specific native chrome: \(testCase.childFullscreenIdentifier)"
+            )
+            XCTAssertFalse(app.tables.firstMatch.exists, "\(testCase.appSlug) embed product UI must not render default List/table chrome")
+            attachScreenshot(name: "Embed specific chrome \(testCase.appSlug)")
+            app.terminate()
+        }
     }
 
     func testFullscreenParentChildRouteStackReturnsToParentBeforeClosing() throws {

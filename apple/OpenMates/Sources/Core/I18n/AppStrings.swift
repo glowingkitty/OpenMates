@@ -53,6 +53,7 @@ enum AppStrings {
     static var plans: String { L("navigation.plans") }
     static var workflows: String { L("navigation.workflows") }
     static var tasks: String { L("navigation.tasks") }
+    static var models3d: String { L("apps.models3d") }
     static var workspacePreviewEyebrow: String { L("navigation.workspace_preview.eyebrow") }
     static var workspacePreviewReturnToChats: String { L("navigation.workspace_preview.return_to_chats") }
 
@@ -813,6 +814,22 @@ enum AppStrings {
     static var fitnessSearchLocations: String { L("app_skills.fitness.search_locations") }
     static var fitnessSearchClasses: String { L("app_skills.fitness.search_classes") }
     static var businessCompanyFinancials: String { L("app_skills.business.company_financials") }
+    static var models3dResultTitle: String { L("embeds.models3d.search.result_title") }
+    static var models3dFree: String { L("embeds.models3d.search.free") }
+    static var models3dNoResults: String { L("embeds.models3d.search.no_results") }
+    static var models3dOpenToView: String { L("embeds.models3d.search.open_to_view") }
+
+    static func models3dResultsCount(_ count: Int) -> String {
+        LocalizationManager.shared.text("embeds.models3d.search.results_count", replacements: ["count": "\(count)"])
+    }
+
+    static func models3dFilesCount(_ count: Int) -> String {
+        LocalizationManager.shared.text("embeds.models3d.search.files_count", replacements: ["count": "\(count)"])
+    }
+
+    static func models3dOpenOnProvider(_ provider: String) -> String {
+        LocalizationManager.shared.text("embeds.models3d.search.open_on_provider", replacements: ["provider": provider])
+    }
     static var businessFinancialsNoResults: String { L("embeds.business.company_financials.no_results") }
     static var businessFinancialsOpenToView: String { L("embeds.business.company_financials.open_to_view") }
     static var businessFinancialResultTitle: String { L("embeds.business.company_financials.result_title") }

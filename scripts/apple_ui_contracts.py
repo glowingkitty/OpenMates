@@ -95,10 +95,30 @@ REQUIRED_EMBED_SHOWCASE_APPS = {
     "sheets",
     "shopping",
     "social_media",
+    "tasks",
     "travel",
     "videos",
     "weather",
     "web",
+    "workflows",
+}
+REQUIRED_APP_SPECIFIC_EMBED_IDENTIFIERS = {
+    "models3d-generate-fullscreen",
+    "models3d-generate-preview",
+    "models3d-result-card",
+    "models3d-result-fullscreen",
+    "models3d-search-fullscreen",
+    "models3d-search-preview",
+    "task-create-embed-preview",
+    "task-embed-card",
+    "task-embed-fullscreen",
+    "task-parent-fullscreen",
+    "task-search-embed-preview",
+    "workflow-create-embed-preview",
+    "workflow-embed-card",
+    "workflow-embed-fullscreen",
+    "workflow-parent-fullscreen",
+    "workflow-search-embed-preview",
 }
 EMBED_REGISTRY_FIXTURE_ALIASES = {
     "app:calendar:get-events": {"calendar-get-events"},
@@ -116,6 +136,12 @@ EMBED_REGISTRY_FIXTURE_ALIASES = {
     "image": {"images-upload"},
     "images-image-result": {"images-result", "images-search"},
     "maps-place": {"maps-search"},
+    "app:workflows:create-or-modify": {"workflows-create"},
+    "business-company-financial-result": {"business-financial-result", "business-company-financials"},
+    "design-icon-result": {"design-icon-result", "design-search-icons"},
+    "models3d-model-result": {"models3d-model-result", "models3d-search"},
+    "tasks-task": {"tasks-task", "tasks-create", "tasks-search"},
+    "workflows-workflow": {"workflows-workflow", "workflows-create", "workflows-search"},
 }
 EMBED_REGISTRY_RENDERER_ONLY_KEYS = {
     # Focus-mode activation is a direct message embed, not an app showcase route.
@@ -172,11 +198,16 @@ def validate_contract(path: Path, *, surface: str | None = None) -> list[str]:
         errors.append("surface must be a string")
     if surface and contract.get("surface") != surface:
         errors.append(f"surface must be {surface!r}")
-    if not isinstance(contract.get("generatedAt"), str):
+    if not isinstance(contract.get("generatedAt"), str) and contract.get("surface") != "embeds":
         errors.append("generatedAt must be a string")
     viewport = contract.get("viewport")
-    if not isinstance(viewport, dict) or not isinstance(viewport.get("width"), int) or not isinstance(viewport.get("height"), int):
+    if contract.get("surface") != "embeds" and (
+        not isinstance(viewport, dict) or not isinstance(viewport.get("width"), int) or not isinstance(viewport.get("height"), int)
+    ):
         errors.append("viewport.width and viewport.height must be integers")
+
+    if contract.get("surface") == "embeds":
+        return errors + validate_embeds_contract(contract)
 
     states = contract.get("states")
     if not isinstance(states, list) or not states:
@@ -237,6 +268,62 @@ def validate_contract(path: Path, *, surface: str | None = None) -> list[str]:
         for pattern in PRIVATE_VALUE_PATTERNS:
             if pattern.search(text):
                 errors.append(f"contract contains private or volatile value matching {pattern.pattern!r}")
+
+    return errors
+
+
+def validate_embeds_contract(contract: dict[str, Any]) -> list[str]:
+    errors: list[str] = []
+    dimension = contract.get("dimension")
+    if not isinstance(dimension, dict) or not isinstance(dimension.get("id"), str):
+        errors.append("embeds contract requires dimension.id")
+
+    apps = contract.get("apps")
+    if not isinstance(apps, list) or not apps:
+        errors.append("embeds contract requires a non-empty apps array")
+        apps = []
+    app_ids = {app.get("appId") for app in apps if isinstance(app, dict) and isinstance(app.get("appId"), str)}
+    missing_apps = REQUIRED_EMBED_SHOWCASE_APPS - app_ids
+    if missing_apps:
+        errors.append(f"embeds contract missing apps: {', '.join(sorted(missing_apps))}")
+
+    surfaces = contract.get("surfaces")
+    if not isinstance(surfaces, list) or not surfaces:
+        errors.append("embeds contract requires a non-empty surfaces array")
+        surfaces = []
+    for surface_entry in surfaces:
+        if not isinstance(surface_entry, dict):
+            errors.append("embeds contract surface entries must be objects")
+            continue
+        key = surface_entry.get("key")
+        if not isinstance(key, str) or not key:
+            errors.append("embeds contract surface entry missing key")
+        if surface_entry.get("appId") not in app_ids:
+            errors.append(f"embeds contract surface {key or '<unknown>'} references unknown appId")
+        sources = surface_entry.get("sources")
+        if not isinstance(sources, dict) or sources.get("preview") is not True or sources.get("fullscreen") is not True:
+            errors.append(f"embeds contract surface {key or '<unknown>'} must include preview and fullscreen sources")
+        previews = surface_entry.get("previews")
+        if not isinstance(previews, list) or not previews:
+            errors.append(f"embeds contract surface {key or '<unknown>'} must include preview captures")
+        fullscreen = surface_entry.get("fullscreen")
+        if not isinstance(fullscreen, dict):
+            errors.append(f"embeds contract surface {key or '<unknown>'} must include fullscreen capture")
+        artifacts = surface_entry.get("artifacts")
+        if not isinstance(artifacts, dict) or not isinstance(artifacts.get("section"), str) or not isinstance(artifacts.get("fullscreen"), str):
+            errors.append(f"embeds contract surface {key or '<unknown>'} must include section and fullscreen artifacts")
+
+    registry_surfaces = contract.get("registrySurfaces")
+    if not isinstance(registry_surfaces, list):
+        errors.append("embeds contract requires registrySurfaces array")
+        registry_surfaces = []
+    missing_registry = [
+        entry.get("registryKey")
+        for entry in registry_surfaces
+        if isinstance(entry, dict) and entry.get("exists") is not True
+    ]
+    if missing_registry:
+        errors.append("embeds contract has missing registry surfaces: " + ", ".join(sorted(str(key) for key in missing_registry)))
 
     return errors
 
@@ -450,6 +537,15 @@ def audit_embeds() -> tuple[list[str], list[str]]:
         if forbidden in embed_source:
             errors.append(f"forbidden native product control in embed source: {forbidden}")
 
+    missing_specific_identifiers = sorted(
+        identifier for identifier in REQUIRED_APP_SPECIFIC_EMBED_IDENTIFIERS if f'"{identifier}"' not in embed_source
+    )
+    if missing_specific_identifiers:
+        errors.append(
+            "Apple embed source missing app-specific preview/fullscreen identifiers: "
+            + ", ".join(missing_specific_identifiers)
+        )
+
     warnings.append("visual/style contract checks are agent-reviewed for embeds until specific surfaces are promoted")
     return errors, warnings
 
@@ -461,10 +557,18 @@ def _swift_case_name_for_app(app_id: str) -> str:
     return head + "".join(part[:1].upper() + part[1:] for part in tail)
 
 
-def promote_contract(source: Path, destination: Path) -> None:
+def promote_contract(source: Path, destination: Path | None) -> None:
     errors = validate_contract(source)
     if errors:
         raise ContractError("cannot promote invalid contract:\n" + "\n".join(f"- {error}" for error in errors))
+    if destination is None:
+        surface = load_contract(source).get("surface")
+        if surface == "embeds":
+            destination = EMBEDS_FIXTURE
+        elif surface == "settings":
+            destination = SETTINGS_FIXTURE
+        else:
+            destination = MESSAGE_INPUT_FIXTURE
     destination.parent.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(source, destination)
 
@@ -523,7 +627,7 @@ def main() -> int:
 
     promote_parser = subparsers.add_parser("promote")
     promote_parser.add_argument("source", type=Path)
-    promote_parser.add_argument("--destination", type=Path, default=MESSAGE_INPUT_FIXTURE)
+    promote_parser.add_argument("--destination", type=Path)
 
     audit_parser = subparsers.add_parser("audit")
     audit_parser.add_argument("--surface", required=True, choices=["message-input", "embeds", "settings"])
