@@ -1191,11 +1191,19 @@ async def _handle_phase2_sync(
             cache_service,
             all_recent_chats,
         )
+        client_tombstoned_chat_ids = await _get_tombstoned_chat_ids(cache_service, client_chat_ids)
+        all_tombstoned_chat_ids = tombstoned_chat_ids | client_tombstoned_chat_ids
         if tombstoned_chat_ids:
             total_chat_count = max(0, total_chat_count - len(tombstoned_chat_ids))
             logger.info(
                 "Phase 2: Suppressed %d tombstoned chats from stale Directus metadata",
                 len(tombstoned_chat_ids),
+            )
+        explicit_client_tombstones = client_tombstoned_chat_ids - tombstoned_chat_ids
+        if explicit_client_tombstones:
+            logger.info(
+                "Phase 2: Emitting %d explicit client tombstone deletions",
+                len(explicit_client_tombstones),
             )
 
         if not all_recent_chats:
@@ -1205,6 +1213,11 @@ async def _handle_phase2_sync(
                 [],
                 total_chat_count,
             )
+            if all_tombstoned_chat_ids:
+                reconciliation["deleted_chat_ids"] = list(dict.fromkeys([
+                    *reconciliation.get("deleted_chat_ids", []),
+                    *all_tombstoned_chat_ids,
+                ]))
             await manager.send_personal_message(
                 {
                     "type": "phase_2_last_20_chats_ready",
@@ -1231,6 +1244,11 @@ async def _handle_phase2_sync(
             server_chat_ids,
             total_chat_count,
         )
+        if all_tombstoned_chat_ids:
+            reconciliation["deleted_chat_ids"] = list(dict.fromkeys([
+                *reconciliation.get("deleted_chat_ids", []),
+                *all_tombstoned_chat_ids,
+            ]))
 
         # Draft ciphertext is part of chat metadata but remains opaque to the server.
         from backend.core.api.app.routes.handlers.websocket_handlers.get_draft_versions_handler import (

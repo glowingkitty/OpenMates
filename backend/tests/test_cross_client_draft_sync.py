@@ -957,6 +957,65 @@ async def test_phase2_tombstone_suppresses_stale_directus_chat_row() -> None:
     assert payload["deleted_chat_ids"] == ["chat-1"]
 
 
+@pytest.mark.anyio
+async def test_phase2_emits_client_tombstone_when_deleted_chat_is_outside_result_window() -> None:
+    manager = _Manager()
+
+    class Cache:
+        async def get_all_user_draft_chat_ids(self, user_id):
+            return []
+
+        async def get(self, key):
+            if key == "chat:stale-deleted:metadata":
+                return {"id": "stale-deleted", "deleted": True}
+            return None
+
+        async def get_user_draft_from_cache(self, user_id, chat_id):
+            return None
+
+        async def get_batch_chat_versions(self, user_id, chat_ids):
+            return {}
+
+    class Directus:
+        def __init__(self) -> None:
+            self.chat = SimpleNamespace(
+                get_user_chat_count=lambda user_id, team_id=None: _async(2),
+                get_core_chats_and_user_drafts_for_cache_warming=lambda user_id, limit, team_id=None: _async([
+                    {
+                        "chat_details": {
+                            "id": "kept-chat",
+                            "messages_v": 1,
+                            "title_v": 1,
+                            "metadata_v": 1,
+                            "draft_v": 0,
+                        }
+                    }
+                ]),
+            )
+            self.chat_key_wrapper = SimpleNamespace(
+                get_wrappers_by_hashed_chat_ids_batch=lambda hashed_chat_ids, hashed_user_id: _async([]),
+            )
+
+        async def get_items(self, collection, params, **kwargs):
+            return []
+
+    await _handle_phase2_sync(
+        manager=manager,
+        cache_service=Cache(),
+        directus_service=Directus(),
+        user_id="user-1",
+        device_fingerprint_hash="device-1",
+        client_chat_versions={},
+        client_chat_ids=["kept-chat", "stale-deleted"],
+        sent_embed_ids=set(),
+    )
+
+    payload = manager.sent[0]["payload"]
+    assert payload["authoritative"] is False
+    assert payload["deleted_chat_ids"] == ["stale-deleted"]
+    assert [chat["chat_details"]["id"] for chat in payload["chats"]] == ["kept-chat"]
+
+
 def test_phase2_emits_explicit_authoritative_draft_deletion_fields() -> None:
     chat_details = {"id": "chat-1", "draft_v": 4, "encrypted_draft_md": "stale"}
 
