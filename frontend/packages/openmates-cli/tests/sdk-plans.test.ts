@@ -58,6 +58,8 @@ describe("OpenMates SDK user plans", () => {
       (request, body) => {
         if (request.method === "GET") return { plans: [plan] };
         if (request.url?.includes("/criteria")) return { criterion: body };
+        if (request.url?.includes("/assumptions")) return { assumption: body };
+        if (request.url?.includes("/reference-patterns")) return { reference_pattern: body };
         if (request.url?.includes("/verification") && request.url?.includes("/evidence")) return { verification: body };
         if (request.url?.includes("/verification")) return { verification: body };
         return { plan: { ...plan, ...(body as Record<string, unknown>) } };
@@ -70,7 +72,14 @@ describe("OpenMates SDK user plans", () => {
         assert.equal((await client.plans.activate("plan-1", { chat_id: "chat-1", version: 2 })).primary_chat_id, "chat-1");
         assert.equal((await client.plans.complete("plan-1", { version: 3 })).plan_id, "plan-1");
         assert.equal((await client.plans.createCriterion("plan-1", { criterion_id: "AC-1", encrypted_text: "cipher-ac", created_at: 100 })).criterion_id, "AC-1");
+        assert.equal((await client.plans.listCriteria("plan-1")).length, 0);
         assert.equal((await client.plans.createVerification("plan-1", { verification_id: "V-1", kind: "manual_check", created_at: 100 })).verification_id, "V-1");
+        assert.equal((await client.plans.listVerifications("plan-1")).length, 0);
+        assert.equal((await client.plans.createAssumption("plan-1", { assumption_id: "A-1", encrypted_text: "cipher-assumption", created_at: 100 })).assumption_id, "A-1");
+        assert.equal((await client.plans.listAssumptions("plan-1")).length, 0);
+        assert.equal((await client.plans.updateAssumption("plan-1", "A-1", { status: "confirmed" })).status, "confirmed");
+        assert.equal((await client.plans.createReferencePattern("plan-1", { pattern_id: "RP-1", encrypted_title: "cipher-pattern", created_at: 100 })).pattern_id, "RP-1");
+        assert.equal((await client.plans.listReferencePatterns("plan-1")).length, 0);
         assert.equal((await client.plans.addVerificationEvidence("plan-1", "V-1", { status: "passed" })).status, "passed");
 
         assert.deepEqual(seen.map((request) => [request.method, request.url]), [
@@ -80,7 +89,14 @@ describe("OpenMates SDK user plans", () => {
           ["POST", "/v1/user-plans/plan-1/activate"],
           ["POST", "/v1/user-plans/plan-1/complete"],
           ["POST", "/v1/user-plans/plan-1/criteria"],
+          ["GET", "/v1/user-plans/plan-1/criteria"],
           ["POST", "/v1/user-plans/plan-1/verification"],
+          ["GET", "/v1/user-plans/plan-1/verification"],
+          ["POST", "/v1/user-plans/plan-1/assumptions"],
+          ["GET", "/v1/user-plans/plan-1/assumptions"],
+          ["PATCH", "/v1/user-plans/plan-1/assumptions/A-1"],
+          ["POST", "/v1/user-plans/plan-1/reference-patterns"],
+          ["GET", "/v1/user-plans/plan-1/reference-patterns"],
           ["POST", "/v1/user-plans/plan-1/verification/V-1/evidence"],
         ]);
       },

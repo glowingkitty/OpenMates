@@ -22,6 +22,7 @@ from backend.core.api.app.services import cache_config
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user, get_current_user_or_api_key
 from backend.core.api.app.models.user import User
+from backend.core.api.app.services.user_plan_share_bundle import get_shared_chat_plans
 from backend.core.api.app.services.user_task_share_bundle import get_shared_chat_tasks
 
 logger = logging.getLogger(__name__)
@@ -217,11 +218,14 @@ async def get_shared_chat_auxiliary_payload(
         admin_required=True,
     ) or []
     sub_chats = await get_shared_sub_chats(chat_id, directus_service)
+    shared_plans = await get_shared_chat_plans(chat_id, hashed_chat_id, directus_service)
     shared_tasks = await get_shared_chat_tasks(chat_id, hashed_chat_id, directus_service)
     return {
         "embeds": embeds or [],
         "embed_keys": embed_keys or [],
         "sub_chats": sub_chats,
+        "plans": shared_plans["plans"],
+        "plan_key_wrappers": shared_plans["plan_key_wrappers"],
         "tasks": shared_tasks["tasks"],
         "task_key_wrappers": shared_tasks["task_key_wrappers"],
         "code_run_outputs": code_run_outputs,

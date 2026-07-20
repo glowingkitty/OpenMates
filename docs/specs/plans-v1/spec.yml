@@ -14,29 +14,34 @@ scope:
   in:
     - A separate durable Directus plan model, distinct from user-facing tasks and chat messages.
     - Client-encrypted durable plan content, including title, goal, scope, optional user flows, assumptions, open questions, decisions, risks, phases, steps, acceptance criteria, verification instructions, and evaluation rubrics.
+    - First-class encrypted reference patterns that identify existing docs, design guidelines, source files, components, tests, naming conventions, visual patterns, and anti-patterns the assistant must inspect and follow before implementation.
     - One unique client-generated symmetric plan key per plan, with owner/master, primary chat, and linked-project access following the same client-side envelope-encryption model as chats, embeds, projects, and tasks.
     - Short-lived Vault-encrypted active-plan execution context for plans attached to active chats so assistant planning/execution context survives compression without durable plaintext.
     - Minimal server-visible metadata for ownership, chat/project linking, ordering, status, versioning, active-step routing, and safe assistant orchestration.
     - A new product API namespace under /v1/user-plans.
-    - Plan creation from explicit @plan and natural-language auto-detection.
+    - Plan creation from explicit @plan, generic /goal and CLI --goal aliases, explicit CLI plan commands, and natural-language auto-detection.
     - Planner focus-mode routing with app-specific planner focus modes where applicable and a generic OpenMates plan focus mode as fallback.
     - Clarifying-question flow where planner focus modes ask one high-value question at a time and wait for the user's answer before asking the next.
-    - Durable plan activation and deactivation that exits plan focus mode after the plan is created or approved.
-    - Plan injection into assistant context as protected active-plan context that is not lost when chat history is compressed.
+    - Durable plan activation and deactivation where plan focus mode exits only after user approval, required pre-implementation assumptions are confirmed/corrected/waived, corrected assumptions are applied, and required checks are normalized.
+    - No automatic plan execution by default; execution starts only after explicit user approval, except CLI/autonomous flows that pass an explicit --autoconfirm-style flag and still satisfy safety, assumption, and check gates.
+    - Every executable or active plan has a primary chat that acts as the plan command center; standalone manually created plans may remain draft-only until attached to a chat.
+    - Plan injection into assistant context as protected active-plan context for every active plan turn, not only after chat compression, so the assistant always sees the current plan regardless of compressed chat history.
     - Chat header state that shows the active plan title before execution and the current task title during execution, with previous/next task navigation.
     - Chat details/settings Tasks tab showing a Plan section above linked tasks and verification tasks.
     - Project plan management surfaces similar to project chat management, including plan cards, status, progress, linked chat, linked tasks, and open-plan actions.
     - Shared chat exports include active/chat-primary plans by default as read-only shared plan context; plan decrypt authority is carried in the share URL fragment payload, matching the existing chat/embed share-link pattern.
-    - Acceptance criteria as structured machine-processable plan records.
+    - Acceptance criteria as structured machine-processable plan records with user-facing natural-language descriptions.
+    - Reference-pattern enforcement so implementation plans can require matching existing UI, API, CLI, SDK, test, or documentation structure instead of relying on generic LLM style.
     - Acceptance criteria verification policy requiring every required criterion to map to explicit checks, user confirmation, waiver, or blocker before completion.
     - Architecture and product assumptions as structured machine-processable plan records that must be checked, corrected, waived, or explicitly blocked before implementation starts when required.
     - Parallel assumption verification through dedicated sub-chats or verification tasks, with each result linked back to source evidence such as files, line anchors, embeds, prior chats, or web sources.
-    - Verification records for automated tests, deterministic checks, AI evaluation, user confirmation, manual checks, and artifact reviews.
-    - AI validation checks that link to an existing evaluator sub-chat instead of pretending to be deterministic test runs.
+    - Verification records for automated tests, deterministic checks, AI evaluator sub-chats, user confirmation, manual checks, and artifact reviews.
+    - Each check includes a user-facing natural-language description of what it verifies before a test/script/evaluator is created.
+    - AI validation checks that link to an existing evaluator sub-chat with explicit evaluator instructions instead of pretending to be deterministic test runs.
     - Runnable test-file checks that execute in isolated sandbox runners and expose structured run details with source, output, screenshots, video, traces, logs, steps, and environment metadata when produced by the runner.
     - Verification tasks that appear in the regular Tasks view, can be assigned to AI or user, and link back to acceptance criteria.
     - Multi-phase plan processing: draft, check assumptions, await approval, work tasks, run checks, loop back to tasks when checks fail, and complete only when required evidence is satisfied or waived.
-    - Flexible red-phase evidence for coding work: recommended and recorded, but not a hard completion blocker when tests pass unexpectedly or are not applicable.
+    - Test-first enforcement for coding checks: planned deterministic test/check files are created and red-run before implementation when feasible; passed_unexpectedly, skipped_with_reason, or not_applicable must be explicitly recorded with rationale.
     - Required green/final verification evidence before a plan or task can be marked done.
     - Anti-drift detection that steers the assistant back to the active plan/task or stops to ask the user when the assistant drifts too far from the original objective.
     - Anti-drift correction messages sent to the LLM as user-role messages while rendered in the UI as system/status messages.
@@ -152,12 +157,58 @@ clarification:
         far away from the active plan/task. Correcting messages should be sent to
         the LLM as user-role messages for steering strength, while rendered in the
         UI as system messages.
+    - question: Should /goal be coding-specific or a generic shortcut?
+      answer: >
+        /goal is generic, not coding-specific. It is a low-friction alias for
+        creating a valid minimal Plan with goal, primary chat, current focus,
+        success criteria or checks when available, and continuation policy. It
+        uses the same durable encrypted Plans model and can be expanded into a
+        richer Plan later.
+    - question: When should planning mode exit and execution begin?
+      answer: >
+        A draft plan is presented for user approval before assumption checking
+        starts, so the user can reject or manually edit the plan before spending
+        more tokens. After approval, required pre-implementation assumptions are
+        checked through sub-chats or verification tasks, corrected assumptions are
+        applied to the plan, required checks are normalized, and only then does
+        planning mode exit into execution. Plans never auto-execute by default;
+        CLI/autonomous flows need an explicit autoconfirm flag and still obey
+        safety, assumption, and check gates.
+    - question: What are the core user-visible plan sections?
+      answer: >
+        The user-visible plan sections are Goal, Current focus, Tasks, Success
+        Criteria, User Flows, Checks, Scope in, Scope out, Assumptions, Open
+        questions, Constraints, Decisions, Risks, Reference Patterns, Context,
+        and Activity. Tasks are actual user_tasks records linked to the plan so
+        users can see all tasks across chats and plans. Check evidence is not a
+        separate top-level UI section; it is displayed inside each Check.
+        Reference Patterns are first-class because the assistant must know which
+        existing files, docs, components, tests, visual systems, or examples to
+        match before implementation starts.
+    - question: Can newly discovered checks or reference patterns become blocking during execution?
+      answer: >
+        Newly discovered checks and reference patterns default to proposed, not
+        blocking, so the user is not surprised by contract changes. They may
+        auto-block without additional approval only for privacy, security, legal,
+        destructive-action, repo-rule, approved-spec-rule, failed-required-check,
+        missing-required-input, or contradicted-assumption cases. Otherwise the
+        user must approve making them required.
+    - question: What does CLI --autoconfirm approve?
+      answer: >
+        --autoconfirm may approve the generated plan, assumption/check workflow,
+        and implementation/code changes by default for local/dev-safe coding work
+        when required checks and permissions are satisfied. It must not allow
+        production changes, payments, destructive deletes, credential changes,
+        external account mutations, or other high-risk actions without a separate
+        explicit permission flag or future permission spec.
   vision_summary: >
     Plans V1 is the durable coordination layer above chats and tasks. Plan focus
     modes create structured plans through one-question-at-a-time clarification,
-    plans stay visible in chat/project UI, tasks and verification items execute
-    against structured acceptance criteria, and anti-drift guardrails keep the
-    assistant aligned with the user's original goal.
+    users approve or edit drafts before assumption checking, plans stay visible in
+    their primary chat and project UI, tasks and verification items execute against
+    structured acceptance criteria, and anti-drift plus deterministic continuation
+    guardrails keep the assistant aligned with the user's original goal until the
+    plan is complete or honestly blocked.
   approved_by_user: true
 
 scenarios:
@@ -173,7 +224,8 @@ scenarios:
       - "@plan is removed from the user-visible prompt text after parsing."
       - The generic OpenMates Plan focus mode activates for this planning request.
       - The assistant asks one clarifying question, waits for Alice's answer, and does not ask a batch of unrelated questions at once.
-      - A durable draft plan is created after enough context exists.
+      - A durable draft plan is created after enough context exists and is attached to the current primary chat.
+      - Alice can edit or reject the draft plan before any assumption sub-chat, verification task, or implementation work starts.
       - The plan appears at the top of the chat Tasks tab and the chat header shows the plan title before any task starts.
 
   - id: S-2
@@ -187,7 +239,8 @@ scenarios:
       - The request routes to the Code Project Planner focus mode.
       - The assistant explains that it will plan first because the request is multi-step and user-facing.
       - The plan contains coding-specific user flows when useful, acceptance criteria, verification tests, risks, and implementation tasks.
-      - The plan exits planner focus mode after Alice approves the plan.
+      - Alice approves or edits the draft plan before assumption checking starts.
+      - The plan exits planner focus mode only after required pre-implementation assumptions are resolved, corrections are applied, and required checks are normalized.
 
   - id: S-3
     title: Durable plan survives chat compression
@@ -219,9 +272,12 @@ scenarios:
       - Alice approves a plan for a new user-facing coding feature.
       - The plan includes a backend pytest and a Playwright spec.
     when:
+      - The assistant proposes a natural-language description for each deterministic check before creating test code.
+      - Alice confirms or edits the check descriptions.
       - The assistant creates or runs the tests before implementation.
       - One red-phase test unexpectedly passes because adjacent behavior already exists.
     then:
+      - The test/check file content hash, command, and red-phase run are recorded before implementation tasks are allowed to start.
       - The red-phase evidence records passed_unexpectedly with a reason.
       - The assistant either adjusts the test if coverage is inadequate or proceeds if the test still validates the missing behavior.
       - The plan is not blocked solely because red phase did not fail.
@@ -326,7 +382,7 @@ scenarios:
       - The plan includes assumptions about chat sharing, encryption, sync, project linking, and Apple parity.
       - The assumptions are marked required before implementation.
     when:
-      - Alice approves checking assumptions before work begins.
+      - Alice approves the draft plan after reviewing or editing it.
       - OpenMates starts the assumption-checking phase.
     then:
       - OpenMates creates one verification task or sub-chat per assumption or coherent assumption cluster.
@@ -361,6 +417,45 @@ scenarios:
       - The assistant asks Alice to choose the scope when it cannot infer the correct scope from the plan and touched surfaces.
       - The plan cannot be marked complete while any required acceptance criterion lacks explicit verification coverage.
       - Once scoped checks are defined, OpenMates keeps running the required check/fix/check loop until each check passes, is completed by its assigned user, is explicitly waived, or is blocked by user/external input.
+
+  - id: S-19
+    title: Generic /goal creates a minimal Plan without hiding the full Plans model
+    given:
+      - Alice is in the CLI and wants lightweight agentic work without a full visible spec-style plan.
+    when:
+      - Alice runs `openmates chat --goal "Improve the onboarding email and verify it reads clearly"`.
+    then:
+      - OpenMates creates a valid durable Plan, not a separate goal object.
+      - The plan uses the same encrypted storage, primary chat, status, current focus, checks, and continuation policy as richer plans.
+      - Only minimal fields are initially populated unless the planner needs assumptions, tasks, or additional checks to make the goal executable.
+      - The plan can later be expanded manually or by plan deltas into the full rich model.
+
+  - id: S-20
+    title: Approved plan keeps working until checks pass or a blocker is explicit
+    given:
+      - Alice has approved a plan and required assumptions are resolved.
+      - One required deterministic check still has no passing green/final evidence.
+    when:
+      - The assistant stops after reporting partial progress without recording a blocker.
+    then:
+      - OpenMates schedules or sends a deterministic continuation event for the primary chat.
+      - The UI renders the event as system/status content, not as Alice-authored text.
+      - The LLM receives a steering message that points to the current focus and next required check.
+      - The plan remains executing or blocked, never completed, until required checks pass, are user-confirmed, are waived, or hit an explicit external blocker.
+
+  - id: S-21
+    title: Plan enforces reference patterns before implementation and completion
+    given:
+      - Alice approves a UI or API plan that should follow existing OpenMates conventions.
+      - The plan lists required reference patterns such as design guidelines, neighboring component files, route/service examples, tests, or SDK command structure.
+    when:
+      - The assistant starts implementation without inspecting the required patterns.
+      - Or the final implementation drifts from required patterns.
+    then:
+      - Implementation is blocked until required_before implementation patterns are inspected or waived.
+      - Completion is blocked until required_before completion patterns are matched, waived, or explicitly blocked with a user-visible reason.
+      - Pattern drift is shown in the plan and can create follow-up tasks or checks.
+      - The active-plan context includes required pattern rules near the current focus so continuation turns keep matching the source-of-truth examples.
 
   - id: S-18
     title: Check cards open either sub-chat validation or structured test run details
@@ -416,19 +511,19 @@ acceptance_criteria:
     text: Natural-language planning intent can select an app-specific planner focus mode when the domain clearly matches an enabled app.
   - id: AC-4
     scenario: S-2
-    text: Planner focus mode exits after a durable plan is created or approved, so execution can proceed under normal or task-specific assistant behavior.
+    text: Planner focus mode exits only after the user approves the draft plan, required pre-implementation assumptions are confirmed/corrected/waived, corrections are applied, and required checks are normalized; execution never starts automatically by default.
   - id: AC-5
     scenario: S-3
-    text: Active plans are stored separately from chat messages and injected into assistant context after compression without depending on compressed chat history text.
+    text: Active plans are stored separately from chat messages and injected into assistant context on every active-plan turn, including after compression, without depending on compressed chat history text.
   - id: AC-6
     scenario: S-4
-    text: Plans can contain structured phases, steps, optional user flows, linked tasks, acceptance criteria, and verification items with stable IDs and traceability between them.
+    text: Plans can contain structured phases, optional grouping steps, optional user flows, linked user_tasks, acceptance criteria, and verification items with stable IDs and traceability between them; user-facing plan Tasks are actual task records, not embedded-only steps.
   - id: AC-7
     scenario: S-4
     text: Verification items can be represented as user-facing tasks with type verification, assignment, status, and links back to plan acceptance criteria.
   - id: AC-8
     scenario: S-5
-    text: Coding plans support red-phase evidence but do not fail the plan solely because a red-phase test passes unexpectedly when the result is recorded and handled explicitly.
+    text: Coding plans create or identify deterministic test/check files before implementation when feasible, record the check description, command, source hash, and red-phase evidence, and do not fail solely because a red-phase test passes unexpectedly when the result is recorded and handled explicitly.
   - id: AC-9
     scenario: S-5
     text: Required green/final verification evidence blocks plan and task completion until all required checks pass, are completed by the assigned user, or are explicitly waived.
@@ -494,12 +589,99 @@ acceptance_criteria:
     text: Required failed checks keep the assistant working through a check/fix/check loop until all required acceptance criteria are satisfied, user-confirmed, waived, or blocked by user/external input.
   - id: AC-30
     scenario: S-18
-    text: AI validation checks open the linked evaluator sub-chat and expose the verdict, prompt/version, confidence, evidence summary, and transcript instead of rendering as deterministic test runs.
+    text: AI validation checks define explicit evaluator instructions, open the linked evaluator sub-chat, and expose the verdict, prompt/version, confidence, evidence summary, and transcript instead of rendering as deterministic test runs.
   - id: AC-31
     scenario: S-18
     text: Runnable test-file checks open structured run details with source code, command, status, output, step timeline, environment metadata, and produced artifacts such as screenshots, videos, traces, HTML reports, or JSON reports.
+  - id: AC-32
+    scenario: S-19
+    text: /goal and --goal are generic aliases that create minimal encrypted Plans using the same durable Plans model, not separate goal records, and can later be expanded into rich plans.
+  - id: AC-33
+    scenario: S-19
+    text: Minimal Plans expose only simple user-facing fields by default while preserving the full model contract for goal, primary chat, current focus, checks, status, and continuation policy.
+  - id: AC-34
+    scenario: S-20
+    text: Active executable plans require a primary_chat_id and the primary chat is the command center where plan progress, assumption sub-chats, tasks, checks, and continuation events remain visible.
+  - id: AC-35
+    scenario: S-20
+    text: The assistant cannot mark a plan complete while required checks lack passing, user-confirmed, waived, or explicitly blocked evidence; if it stops early without a blocker, the deterministic continuation controller resumes the current focus.
+  - id: AC-36
+    scenario: S-5
+    text: Every check has a user-facing natural-language description explaining what it verifies before executable test code, commands, or evaluator sub-chat instructions are created.
+  - id: AC-37
+    scenario: S-1
+    text: Users can manually edit a draft plan before approval; edited client-side plan deltas are encrypted by the client and persisted without server-side plaintext.
+  - id: AC-38
+    scenario: S-21
+    text: Required reference patterns are first-class plan records whose inspection/match status gates implementation or completion, preventing agents from ignoring existing design guidelines, source examples, and structural conventions.
 
 contracts:
+  product_model:
+    minimal_plan:
+      purpose: Lightweight /goal-compatible plan shape for users who want a persistent objective without a full visible spec-style plan.
+      required_user_visible_sections:
+        - goal
+        - current_focus
+        - checks_or_success_criteria_when_needed
+      required_system_fields:
+        - plan_id
+        - status
+        - primary_chat_id before activation or execution
+        - continuation_policy
+        - version
+      behavior:
+        - /goal and --goal create this shape as a normal encrypted Plan.
+        - Minimal plans can be expanded into rich plans through user edits or client-applied plan deltas.
+        - Minimal mode changes the default UI density, not the storage/enforcement model.
+    rich_plan_sections:
+      - section: Goal
+        purpose: Defines the desired outcome.
+        enforcement: Used by active-plan context, anti-drift, and completion review.
+      - section: Current focus
+        purpose: Names the current task, check, question, assumption, or blocker.
+        enforcement: Continuation and anti-drift target this field before choosing the next action.
+      - section: Tasks
+        purpose: User-visible work and verification items.
+        enforcement: Must be actual user_tasks linked by plan_id, not embedded-only plan text, so Tasks views can show all work across plans and chats.
+      - section: Success Criteria
+        purpose: Acceptance criteria that define what done means.
+        enforcement: Required criteria must have covered, waived, or explicitly blocked verification before completion.
+      - section: User Flows
+        purpose: Optional end-to-end user journeys that clarify product or process behavior.
+        enforcement: Inform tasks/checks and anti-drift but do not block completion by themselves.
+      - section: Checks
+        purpose: Deterministic commands, runnable checks, AI evaluator sub-chats, user confirmations, manual checks, or artifact reviews that prove criteria.
+        enforcement: Required checks block completion until evidence inside the check is passing, user-confirmed, waived, or explicitly blocked.
+      - section: Scope in
+        purpose: Defines included work.
+        enforcement: Anti-drift and plan updates compare new work against scope-in boundaries.
+      - section: Scope out
+        purpose: Defines non-goals.
+        enforcement: Assistant must ask before doing scope-out work.
+      - section: Assumptions
+        purpose: Inferred facts that plan execution depends on.
+        enforcement: Assumptions required before implementation or task execution block those phases until confirmed, corrected and applied, waived, or user-resolved.
+      - section: Open questions
+        purpose: Missing user or external input.
+        enforcement: Required open questions block assumption checking, execution, or completion according to their required_before setting.
+      - section: Constraints
+        purpose: Hard boundaries for tools, files, budget, privacy, permissions, data, and allowed actions.
+        enforcement: Tool use, check execution, and continuation must obey constraints.
+      - section: Decisions
+        purpose: Accepted choices and rationale.
+        enforcement: Later plan changes must preserve or explicitly supersede decisions.
+      - section: Risks
+        purpose: Known risks and mitigations.
+        enforcement: High-risk items can require checks, user confirmation, or blockers before completion.
+      - section: Reference Patterns
+        purpose: Existing files, docs, design guidelines, source components, API/CLI/SDK examples, tests, naming conventions, visual systems, and anti-patterns that the plan must follow.
+        enforcement: Required reference patterns block implementation until inspected or explicitly waived; completion checks compare changed work against required patterns so agents do not invent inconsistent structure or visual style.
+      - section: Context
+        purpose: Compact plan context and artifact references needed after chat compression.
+        enforcement: Injected into active-plan turns through protected active-plan context, never by server-side durable decryption.
+      - section: Activity
+        purpose: Append-only history of plan edits, assumption results, check evidence, task transitions, continuations, waivers, and blockers.
+        enforcement: Provides auditability for completion, waivers, and plan deltas.
   api:
     - route: GET /v1/user-plans
       auth: session_or_api_key
@@ -514,6 +696,8 @@ contracts:
       response: "{ plan: PlanRecord }"
       notes:
         - Creates draft or active durable plans from @plan, natural-language planning, or explicit user actions.
+        - /goal and --goal create normal user_plans records with a minimal encrypted field set and can later expand into rich plans.
+        - Draft plans may be created without primary_chat_id for manual planning, but activation or execution requires a primary chat.
         - linked_project_ids is request-only raw project ID input. The backend stores linked_project_hashes for filtering and encrypted_linked_project_ids for owner-side client use.
         - key_wrappers must include a master wrapper and should include chat/project wrappers whenever primary_chat_id or linked_project_ids are present.
     - route: PATCH /v1/user-plans/{plan_id}
@@ -529,6 +713,8 @@ contracts:
       response: "{ plan: PlanRecord }"
       notes:
         - Sets the active plan for a chat or project context.
+        - Rejects activation/execution when primary_chat_id is missing.
+        - Does not imply execution approval unless the plan is already approved or the request carries an explicit autoconfirm flag allowed by policy.
     - route: POST /v1/user-plans/{plan_id}/complete
       auth: session_or_api_key
       request: "{ version, completion_note?, waive_incomplete?: Waiver[] }"
@@ -549,7 +735,8 @@ contracts:
       response: "{ verification: VerificationRecord, task?: UserTaskRecord }"
       notes:
         - May create a linked user task when the verification item needs AI or user action.
-        - AI validation checks should store linked_sub_chat_id and open that chat for evidence.
+        - The encrypted expected result or description must explain in natural language what the check verifies before executable source or evaluator instructions are created.
+        - AI validation checks should store linked_sub_chat_id and explicit encrypted evaluator instructions, and open that chat for evidence.
         - Test-file checks should store source_embed_id or encrypted source metadata plus runner_kind for structured run details.
     - route: POST /v1/user-plans/{plan_id}/verification/{verification_id}/evidence
       auth: session_or_api_key
@@ -604,13 +791,15 @@ contracts:
           - id
           - plan_id
           - hashed_user_id
-          - status: draft|awaiting_confirmation|active|executing|blocked|completed|archived
+          - status: draft|checking_assumptions|awaiting_confirmation|active|executing|running_checks|blocked|completed|archived
           - primary_chat_id
           - hashed_primary_chat_id
           - linked_project_hashes
           - current_phase_id
           - current_step_id
           - current_task_id
+          - continuation_state: idle|scheduled|paused|blocked|budget_limited
+          - approval_state: draft|approved|rejected|autoconfirmed
           - planner_focus_id
           - version
           - created_at
@@ -624,12 +813,21 @@ contracts:
           - encrypted_scope_in
           - encrypted_scope_out
           - encrypted_user_flows
+          - encrypted_current_focus
           - encrypted_linked_project_ids
           - encrypted_assumptions
           - encrypted_open_questions
           - encrypted_constraints
           - encrypted_decisions
           - encrypted_risks
+          - encrypted_reference_patterns
+          - encrypted_context
+          - encrypted_continuation_policy
+        notes:
+          - primary_chat_id is optional only for draft/manual plans. Activation, assumption sub-chats, execution, continuation, and completion workflows require a primary chat.
+          - current_focus is encrypted user-facing text; server-visible current_phase_id/current_step_id/current_task_id are routing pointers only.
+          - continuation_state is server-visible so workers can safely continue or pause active work without decrypting plan content.
+          - approval_state prevents accidental execution of unapproved plans; autoconfirmed is valid only for explicit CLI/autonomous requests that pass safety gates.
       - name: user_plan_key_wrappers
         purpose: Per-plan key grants for owner, chat, and project access.
         encrypted_fields:
@@ -705,8 +903,36 @@ contracts:
           - Sources are encrypted JSON records that may include source kind, file path, stable anchor, line range when available, embed id, chat/message id, URL, title, and quote or summary.
           - Required assumptions with status unchecked, checking, contradicted, or blocked prevent implementation or completion depending on required_before unless explicitly waived.
           - Corrected assumptions must update the parent plan summary, scope, tasks, checks, or criteria before implementation starts.
+      - name: user_plan_reference_patterns
+        purpose: Machine-processable references to source-of-truth examples and guidelines the plan must follow.
+        server_visible_fields:
+          - id
+          - plan_id
+          - pattern_id
+          - category: ui|design_system|api|backend|cli|sdk|test|docs|i18n|privacy|security|apple|workflow|other
+          - status: proposed|required|inspected|matched|drift_detected|waived|blocked
+          - required_before: implementation|task_execution|completion|never
+          - source_count
+          - linked_task_ids
+          - linked_check_ids
+          - version
+          - created_at
+          - updated_at
+        encrypted_fields:
+          - encrypted_title
+          - encrypted_description
+          - encrypted_sources
+          - encrypted_match_rules
+          - encrypted_anti_patterns
+          - encrypted_evidence_summary
+          - encrypted_waiver_reason
+        notes:
+          - Sources are encrypted JSON records that may include file paths, docs, design guide paths, Figma node refs, component/test names, line ranges, URLs, or chat/embed/message references.
+          - Match rules describe what must be preserved, such as component hierarchy, data-testid conventions, tokens, route shape, API error style, SDK method naming, or test fixture structure.
+          - Required reference patterns with status proposed, required, drift_detected, or blocked prevent the relevant phase until inspected/matched, waived, or user-resolved.
+          - This section is intentionally generic: it covers UI design patterns and also backend, CLI, SDK, test, docs, privacy, and Apple parity patterns.
       - name: user_plan_steps
-        purpose: Ordered phases and steps inside a plan.
+        purpose: Optional ordered phases/grouping steps inside a plan. User-facing work items remain linked user_tasks.
         server_visible_fields:
           - id
           - plan_id
@@ -722,6 +948,8 @@ contracts:
           - encrypted_title
           - encrypted_description
           - encrypted_notes
+        notes:
+          - Steps are grouping/navigation structure only. They must not replace linked user_tasks for executable work.
       - name: plan_user_flows_payload
         purpose: Optional encrypted JSON array stored in encrypted_user_flows that describes user-facing flows the completed plan must support.
         encrypted_shape:
@@ -767,10 +995,12 @@ contracts:
           - plan_id
           - verification_id
           - kind: automated_test|deterministic_check|manual_check|ai_evaluation|user_confirmation|artifact_review
-          - phase: red|green|final|not_applicable
+          - phase: proposed|created_before_implementation|red|implementation_allowed|green|final|not_applicable
           - status: pending|passed|failed|passed_unexpectedly|skipped|waived
+          - lifecycle_status: proposed|description_approved|source_created|red_recorded|ready_for_implementation|green_recorded|complete|blocked|waived
           - required_for_done
           - covers
+          - source_hash
           - threshold
           - score
           - confidence
@@ -782,14 +1012,21 @@ contracts:
           - created_at
           - updated_at
         encrypted_fields:
+          - encrypted_description
           - encrypted_command
           - encrypted_evaluation_prompt
+          - encrypted_evaluator_instructions
           - encrypted_expected_result
           - encrypted_result_summary
           - encrypted_required_fixes
           - encrypted_source_path
+          - encrypted_red_phase_reason
         notes:
+          - encrypted_description is the user-facing natural-language explanation of what the check verifies. It must exist before check source or evaluator instructions are created.
+          - source_hash records the created test/check file content hash before implementation starts when the check has source content.
+          - Coding checks move to implementation_allowed only after source_created and red_recorded, unless not_applicable or skipped_with_reason is explicitly recorded.
           - ai_evaluation records use linked_sub_chat_id when the evidence is an evaluator sub-chat.
+          - AI evaluator checks must include encrypted_evaluator_instructions and are useful for marketing, business, writing, research, and other qualitative plans where deterministic checks cannot fully judge quality.
           - automated_test and deterministic_check records use runner_kind and source_embed_id or encrypted_source_path when they can be executed and reopened as structured test runs.
           - GitHub Actions or repository CI is represented only as connected_ci when the user explicitly connects that integration; it is not the default plan-check runner.
       - name: user_plan_verification_runs
@@ -894,6 +1131,14 @@ contracts:
         - contradicted
         - blocked
         - waived
+      reference_pattern:
+        - proposed
+        - required
+        - inspected
+        - matched
+        - drift_detected
+        - blocked
+        - waived
       criterion:
         - pending
         - satisfied
@@ -906,11 +1151,24 @@ contracts:
         - blocked
         - waived
       verification:
+        - proposed
         - pending
         - passed
         - failed
         - passed_unexpectedly
         - skipped
+        - skipped_with_reason
+        - not_applicable
+        - waived
+      verification_lifecycle:
+        - proposed
+        - description_approved
+        - source_created
+        - red_recorded
+        - ready_for_implementation
+        - green_recorded
+        - complete
+        - blocked
         - waived
       verification_run:
         - queued
@@ -963,7 +1221,8 @@ contracts:
   ui_states:
     - Empty chat with @plan typed in the composer.
     - Planner focus mode asking one clarifying question.
-    - Draft plan awaiting confirmation.
+    - Draft plan awaiting user review, manual edits, rejection, or approval.
+    - Approved draft entering checking assumptions before execution.
     - Approved active plan before any task starts.
     - Chat header showing active plan title.
     - Plan card/header showing the current phase such as Checking assumptions, Working on tasks, or Run checks.
@@ -971,6 +1230,8 @@ contracts:
     - Chat details/settings Tasks tab with Plan section above task list.
     - Plan section showing goal, current focus, optional user flows, assumptions, tasks, success criteria, checks, and compact context chips by default.
     - Assumptions section showing progress by confirmed/corrected/checking/unchecked state, compact source summaries, corrected text diff, and open-sub-chat actions.
+    - Reference Patterns section showing required examples/guidelines to match, inspection status, source links, anti-pattern notes, and any drift warnings.
+    - Check proposal state showing a natural-language description before test code, command source, or evaluator sub-chat instructions are created.
     - Advanced plan details collapsed by default, including scope, assumptions, open questions, constraints, decisions, risks, artifacts/context, detailed verification rubrics, and activity.
     - Project page Plans section showing plan cards similar to linked chat cards.
     - Project task board filtered by plan.
@@ -981,6 +1242,7 @@ contracts:
     - Failed check state that creates or suggests linked follow-up tasks and returns the plan to working_tasks.
     - Drift warning shown as system/status message while not appearing as user-authored text.
     - Red-phase passed unexpectedly state with recorded reason.
+    - Red-phase not applicable or skipped state with explicit user-visible rationale.
     - Completion blocked by missing verification evidence.
     - Check card action labels distinguish Open chat for AI validation sub-chats from Open test run for runnable checks.
     - Test run fullscreen showing Overview, Source, Output, Artifacts, and Environment sections using existing code embed, code-output, image, video, and embed fullscreen primitives.
@@ -996,11 +1258,15 @@ contracts:
     - Anti-drift correction messages must carry metadata distinguishing display role from LLM role to avoid falsifying user-authored chat content.
     - Active-plan context injection must be bounded and must not leak plans from another user, project, or chat.
     - Plan completion must never silently waive failed or missing required verification.
+    - Plan execution must never start from an unapproved draft unless an explicit CLI/autonomous autoconfirm flag is present and allowed by policy.
+    - Active/executable plans must have primary_chat_id so progress, assumption sub-chats, tasks, checks, and continuation events remain visible in the plan command-center chat.
+    - Required reference patterns must be inspected before implementation and matched before completion unless explicitly waived; the assistant must not silently ignore existing design guidelines, examples, or source-of-truth structures.
     - Durable plan keys must never be stored raw; only wrapped plan keys are stored.
     - Shared chats include only existing plan keys wrapped for the shared plan subset, protected by the share URL fragment key and optional password, not owner/master wrappers.
     - Active-plan assistant context must come from short-lived Vault-encrypted execution context or a fresh client submission, never from server-side durable decryption.
     - Active-plan context may contain compact text summaries and artifact references, but uploaded-file references must use embed IDs because uploaded files are embeds.
     - Runnable plan checks must execute in isolated sandbox runners by default; user-authored or AI-authored test files must not run on the primary OpenMates app host.
+    - Coding checks must record natural-language check intent, source hash when source exists, and red-phase result before implementation starts whenever feasible, so tests are not written after implementation merely to fit the code.
     - Test-run source, command text, stdout/stderr, environment, artifact labels, and private artifact URLs are encrypted or represented by existing encrypted embeds; server-visible fields remain limited to routing/status metadata.
   retention:
     execution_context_ttl_seconds: 259200 # 3 days by default; refreshed while active execution continues.
@@ -1021,6 +1287,13 @@ contracts:
         - Always force planning mode.
         - Choose an app-specific planner when a clear enabled app domain matches.
         - Fall back to openmates.plan for generic or ambiguous complex workflows.
+    goal_alias:
+      syntax: "/goal in chat or openmates chat --goal"
+      behavior:
+        - Generic alias for creating a minimal Plan, not a separate Goal database object.
+        - Uses normal plan focus routing and the same encrypted user_plans storage.
+        - Defaults to minimal UI density but keeps full plan enforcement available.
+        - May be combined with an explicit autoconfirm flag only when the user wants autonomous execution and policy gates allow it.
     app_specific_examples:
       - code.project_planner for software projects, features, migrations, debugging plans, specs, tests, and implementation work.
       - docs.document_planner for documents, policies, guides, reports, and structured writing.
@@ -1033,7 +1306,8 @@ contracts:
       - Ask one question at a time.
       - Prefer high-value blocking questions.
       - Stop asking when enough context exists to draft a useful plan.
-      - Present the plan for confirmation before execution unless the user explicitly asks for a quick plan only.
+      - Present the plan for confirmation before assumption checking and execution unless the user passed an explicit autoconfirm flag.
+      - Allow manual plan edits before approval; client-side edits and assistant plan deltas are encrypted by the client before persistence.
   anti_drift:
     levels:
       - range: "0-39"
@@ -1062,6 +1336,8 @@ contracts:
       - Waivers must preserve encrypted waiver reason, actor, and timestamp; the UI must distinguish waived from passed.
     done_rule:
       - Required assumptions whose required_before is implementation must be confirmed, corrected and applied to the plan, waived, or explicitly resolved from blocker before implementation tasks start.
+      - Required reference patterns whose required_before is implementation must be inspected or waived before implementation tasks start.
+      - Required reference patterns whose required_before is completion must be matched, waived, or explicitly blocked with a user-visible reason before completion.
       - All required acceptance criteria must be satisfied or explicitly waived.
       - All required acceptance criteria must have coverage_status covered, waived, or blocked with an accepted blocker before completion.
       - All required verification items must have passing, completed, waived, or user-confirmed evidence.
@@ -1083,6 +1359,12 @@ contracts:
       - Combine assumptions into one sub-chat only when they share the same source area and cannot be checked independently.
       - Each sub-chat must return a status, evidence summary, sources, and correction when applicable.
       - Corrected assumptions should trigger plan revision before implementation starts.
+    reference_pattern_policy:
+      - Planner focus modes should identify relevant source-of-truth patterns during drafting, especially for UI/design, existing API conventions, CLI command style, SDK facade shape, tests, docs, privacy, settings, and Apple parity.
+      - For UI work, reference patterns should include applicable design docs, Figma refs when available, existing components to reuse, data-testid conventions, token rules, and examples to match.
+      - For backend/CLI/SDK work, reference patterns should include neighboring route/service/client/test files and naming/error-handling conventions.
+      - Pattern checks may be deterministic scripts, static audits, manual review, or AI evaluator sub-chats, but required pattern drift must block completion until resolved or waived.
+      - The active-plan context must surface required reference patterns near the current focus so continuation turns do not drift into generic LLM style.
     ai_evaluation:
       output_schema: "{ score, threshold, passed, confidence, criteria_results[], required_fixes[] }"
       threshold_behavior:
@@ -1174,16 +1456,16 @@ tests:
       required: true
       expected: fail_or_missing
       evidence:
-        status: pending
-        run_id: ""
-        timestamp: ""
+        status: failed_as_expected
+        run_id: "local:2026-07-20:spec file missing before implementation"
+        timestamp: "2026-07-20T01:47:21Z"
     green_phase:
       required: true
       expected: pass
       evidence:
-        status: pending
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: "local:2026-07-20:python3 -m pytest backend/tests/test_user_plans_api.py backend/tests/test_plan_focus_routing.py backend/tests/test_plan_anti_drift.py backend/tests/test_user_plans_share_bundle.py backend/tests/test_user_plan_execution_contexts.py backend/tests/test_plan_assumption_workflow.py backend/tests/test_plan_acceptance_criteria_coverage.py backend/tests/test_plan_reference_patterns.py"
+        timestamp: "2026-07-20T09:35:48Z"
 
   - id: T-PYTEST-PLAN-EXECUTION-CONTEXT-CLEANUP
     type: pytest
@@ -1200,16 +1482,16 @@ tests:
       required: true
       expected: fail_or_missing
       evidence:
-        status: pending
-        run_id: ""
-        timestamp: ""
+        status: failed_as_expected
+        run_id: "local:2026-07-20:spec file missing before implementation"
+        timestamp: "2026-07-20T01:47:21Z"
     green_phase:
       required: true
       expected: pass
       evidence:
-        status: pending
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: "local:2026-07-20:python3 -m pytest backend/tests/test_user_plans_api.py backend/tests/test_plan_focus_routing.py backend/tests/test_plan_anti_drift.py backend/tests/test_user_plans_share_bundle.py backend/tests/test_user_plan_execution_contexts.py backend/tests/test_plan_assumption_workflow.py backend/tests/test_plan_acceptance_criteria_coverage.py backend/tests/test_plan_reference_patterns.py"
+        timestamp: "2026-07-20T09:35:48Z"
 
   - id: T-PYTEST-PLAN-ROUTING
     type: pytest
@@ -1248,6 +1530,8 @@ tests:
       - AC-11
       - AC-12
       - AC-13
+      - AC-34
+      - AC-35
     assertions:
       - drift scores map to continue, steer_back, ask_user, and stop actions
       - correction messages carry display_role system and llm_role user metadata
@@ -1286,16 +1570,16 @@ tests:
       required: true
       expected: fail_or_missing
       evidence:
-        status: pending
-        run_id: ""
-        timestamp: ""
+        status: failed_as_expected
+        run_id: "local:2026-07-20:spec file missing before implementation"
+        timestamp: "2026-07-20T09:35:48Z"
     green_phase:
       required: true
       expected: pass
       evidence:
-        status: pending
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: "local:2026-07-20:python3 -m pytest backend/tests/test_user_plans_api.py backend/tests/test_plan_focus_routing.py backend/tests/test_plan_anti_drift.py backend/tests/test_user_plans_share_bundle.py backend/tests/test_user_plan_execution_contexts.py backend/tests/test_plan_assumption_workflow.py backend/tests/test_plan_acceptance_criteria_coverage.py backend/tests/test_plan_reference_patterns.py"
+        timestamp: "2026-07-20T09:35:48Z"
 
   - id: T-PYTEST-PLAN-AC-COVERAGE
     type: pytest
@@ -1307,6 +1591,7 @@ tests:
       - AC-29
       - AC-30
       - AC-31
+      - AC-36
     assertions:
       - required acceptance criteria without verification_ids, user confirmation, waiver, or blocker are marked uncovered and block completion.
       - broad phrases such as all tests pass or no regressions are marked ambiguous until expanded into concrete scoped checks.
@@ -1319,16 +1604,42 @@ tests:
       required: true
       expected: fail_or_missing
       evidence:
-        status: pending
-        run_id: ""
-        timestamp: ""
+        status: failed_as_expected
+        run_id: "local:2026-07-20:spec file missing before implementation"
+        timestamp: "2026-07-20T09:35:48Z"
     green_phase:
       required: true
       expected: pass
       evidence:
-        status: pending
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: "local:2026-07-20:python3 -m pytest backend/tests/test_user_plans_api.py backend/tests/test_plan_focus_routing.py backend/tests/test_plan_anti_drift.py backend/tests/test_user_plans_share_bundle.py backend/tests/test_user_plan_execution_contexts.py backend/tests/test_plan_assumption_workflow.py backend/tests/test_plan_acceptance_criteria_coverage.py backend/tests/test_plan_reference_patterns.py"
+        timestamp: "2026-07-20T09:35:48Z"
+
+  - id: T-PYTEST-PLAN-REFERENCE-PATTERNS
+    type: pytest
+    file: backend/tests/test_plan_reference_patterns.py
+    command: python3 -m pytest backend/tests/test_plan_reference_patterns.py
+    covers:
+      - AC-38
+    assertions:
+      - required reference patterns can be stored with source refs, match rules, anti-patterns, status, and required_before phase.
+      - implementation is blocked while implementation-required patterns are proposed, required, drift_detected, or blocked.
+      - completion is blocked while completion-required patterns are not matched, waived, or explicitly blocked with a user-visible reason.
+      - pattern drift creates or suggests follow-up tasks/checks and keeps the plan active.
+    red_phase:
+      required: true
+      expected: fail_or_missing
+      evidence:
+        status: failed_as_expected
+        run_id: "local:2026-07-20:spec file missing before implementation"
+        timestamp: "2026-07-20T09:35:48Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "local:2026-07-20:python3 -m pytest backend/tests/test_user_plans_api.py backend/tests/test_plan_focus_routing.py backend/tests/test_plan_anti_drift.py backend/tests/test_user_plans_share_bundle.py backend/tests/test_user_plan_execution_contexts.py backend/tests/test_plan_assumption_workflow.py backend/tests/test_plan_acceptance_criteria_coverage.py backend/tests/test_plan_reference_patterns.py"
+        timestamp: "2026-07-20T09:35:48Z"
 
   - id: T-CLI-PLANS
     type: unit
@@ -1339,6 +1650,8 @@ tests:
       - AC-7
       - AC-9
       - AC-18
+      - AC-32
+      - AC-33
     assertions:
       - CLI can list, create, update, activate, and complete plans through /v1/user-plans
       - CLI can add acceptance criteria and verification evidence
@@ -1356,8 +1669,8 @@ tests:
       expected: pass
       evidence:
         status: passed
-        run_id: "local:f00b:node --test --experimental-strip-types --loader ./tests/loader.mjs tests/plans.test.ts tests/sdk-plans.test.ts"
-        timestamp: "2026-06-30T12:07:33Z"
+        run_id: "local:2026-07-20:node --test --experimental-strip-types --loader ./tests/loader.mjs tests/plans.test.ts tests/sdk-plans.test.ts"
+        timestamp: "2026-07-20T09:35:48Z"
 
   - id: T-NPM-SDK-PLANS
     type: unit
@@ -1383,8 +1696,8 @@ tests:
       expected: pass
       evidence:
         status: passed
-        run_id: "local:f00b:node --test --experimental-strip-types --loader ./tests/loader.mjs tests/plans.test.ts tests/sdk-plans.test.ts"
-        timestamp: "2026-06-30T12:07:33Z"
+        run_id: "local:2026-07-20:node --test --experimental-strip-types --loader ./tests/loader.mjs tests/plans.test.ts tests/sdk-plans.test.ts"
+        timestamp: "2026-07-20T09:35:48Z"
 
   - id: T-PIP-SDK-PLANS
     type: pytest
@@ -1410,8 +1723,8 @@ tests:
       expected: pass
       evidence:
         status: passed
-        run_id: "local:f00b:python3 -m pytest packages/openmates-python/tests/test_plans.py"
-        timestamp: "2026-06-30T12:07:33Z"
+        run_id: "local:2026-07-20:python3 -m pytest packages/openmates-python/tests/test_plans.py"
+        timestamp: "2026-07-20T09:35:48Z"
 
   - id: T-E2E-PLANS-CHAT
     type: playwright
@@ -1428,6 +1741,9 @@ tests:
       - AC-13
       - AC-14
       - AC-16
+      - AC-34
+      - AC-35
+      - AC-37
     assertions:
       - "@plan starts a planner flow and asks one clarifying question"
       - approved plan appears in chat Tasks tab

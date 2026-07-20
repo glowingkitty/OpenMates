@@ -23,7 +23,7 @@ user_plans:
       note: "[Indexed, Nullable] SHA256(team_id) when the plan has been moved into a team workspace. Null means personal context."
     status:
       type: string
-      note: "Plan state: draft, awaiting_confirmation, active, executing, blocked, completed, or archived."
+      note: "Plan state: draft, checking_assumptions, awaiting_confirmation, active, executing, running_checks, blocked, completed, or archived."
     primary_chat_id:
       type: uuid
       nullable: true
@@ -45,6 +45,14 @@ user_plans:
     current_task_id:
       type: string
       nullable: true
+    continuation_state:
+      type: string
+      nullable: true
+      note: "Safe continuation state: idle, scheduled, paused, blocked, or budget_limited."
+    approval_state:
+      type: string
+      nullable: true
+      note: "Safe approval state: draft, approved, rejected, or autoconfirmed."
     planner_focus_id:
       type: string
       nullable: true
@@ -79,6 +87,12 @@ user_plans:
     encrypted_scope_out:
       type: text
       nullable: true
+    encrypted_user_flows:
+      type: text
+      nullable: true
+    encrypted_current_focus:
+      type: text
+      nullable: true
     encrypted_linked_project_ids:
       type: text
       nullable: true
@@ -96,6 +110,15 @@ user_plans:
       type: text
       nullable: true
     encrypted_risks:
+      type: text
+      nullable: true
+    encrypted_reference_patterns:
+      type: text
+      nullable: true
+    encrypted_context:
+      type: text
+      nullable: true
+    encrypted_continuation_policy:
       type: text
       nullable: true
 
@@ -209,6 +232,13 @@ user_plan_acceptance_criteria:
     verification_ids:
       type: json
       nullable: true
+    coverage_status:
+      type: string
+      default: uncovered
+      note: "Criterion verification coverage: uncovered, covered, ambiguous, blocked, or waived."
+    verification_scope:
+      type: string
+      nullable: true
     version:
       type: integer
       default: 1
@@ -219,6 +249,9 @@ user_plan_acceptance_criteria:
     encrypted_text:
       type: text
     encrypted_evidence:
+      type: text
+      nullable: true
+    encrypted_coverage_note:
       type: text
       nullable: true
     encrypted_waiver_reason:
@@ -242,12 +275,19 @@ user_plan_verifications:
       note: "red, green, final, or not_applicable."
     status:
       type: string
-      note: "pending, passed, failed, passed_unexpectedly, skipped, or waived."
+      note: "proposed, pending, passed, failed, passed_unexpectedly, skipped, skipped_with_reason, not_applicable, or waived."
+    lifecycle_status:
+      type: string
+      nullable: true
+      note: "Check lifecycle: proposed, description_approved, source_created, red_recorded, ready_for_implementation, green_recorded, complete, blocked, or waived."
     required_for_done:
       type: boolean
       default: true
     covers:
       type: json
+      nullable: true
+    source_hash:
+      type: string
       nullable: true
     threshold:
       type: integer
@@ -261,6 +301,15 @@ user_plan_verifications:
     linked_task_id:
       type: string
       nullable: true
+    linked_sub_chat_id:
+      type: string
+      nullable: true
+    source_embed_id:
+      type: string
+      nullable: true
+    runner_kind:
+      type: string
+      nullable: true
     run_id:
       type: string
       nullable: true
@@ -268,10 +317,16 @@ user_plan_verifications:
       type: integer
     updated_at:
       type: integer
+    encrypted_description:
+      type: text
+      nullable: true
     encrypted_command:
       type: text
       nullable: true
     encrypted_evaluation_prompt:
+      type: text
+      nullable: true
+    encrypted_evaluator_instructions:
       type: text
       nullable: true
     encrypted_expected_result:
@@ -281,6 +336,235 @@ user_plan_verifications:
       type: text
       nullable: true
     encrypted_required_fixes:
+      type: text
+      nullable: true
+    encrypted_source_path:
+      type: text
+      nullable: true
+    encrypted_red_phase_reason:
+      type: text
+      nullable: true
+
+user_plan_execution_contexts:
+  type: collection
+  fields:
+    id:
+      type: uuid
+    plan_id:
+      type: string
+    hashed_user_id:
+      type: string
+    hashed_primary_chat_id:
+      type: string
+    context_version:
+      type: integer
+      default: 1
+    created_at:
+      type: integer
+    expires_at:
+      type: integer
+    consumed_at:
+      type: integer
+      nullable: true
+    vault_encrypted_context:
+      type: text
+      note: "Vault-encrypted short-lived active plan context. Never durable plaintext."
+
+user_plan_assumptions:
+  type: collection
+  fields:
+    id:
+      type: uuid
+    plan_id:
+      type: string
+    assumption_id:
+      type: string
+    category:
+      type: string
+    status:
+      type: string
+      note: "unchecked, checking, confirmed, corrected, contradicted, blocked, or waived."
+    required_before:
+      type: string
+      note: "implementation, task_execution, completion, or never."
+    linked_sub_chat_id:
+      type: string
+      nullable: true
+    linked_task_id:
+      type: string
+      nullable: true
+    linked_step_ids:
+      type: json
+      nullable: true
+    linked_criterion_ids:
+      type: json
+      nullable: true
+    source_count:
+      type: integer
+      default: 0
+    version:
+      type: integer
+      default: 1
+    created_at:
+      type: integer
+    updated_at:
+      type: integer
+    encrypted_text:
+      type: text
+    encrypted_corrected_text:
+      type: text
+      nullable: true
+    encrypted_evidence_summary:
+      type: text
+      nullable: true
+    encrypted_blocker_reason:
+      type: text
+      nullable: true
+    encrypted_waiver_reason:
+      type: text
+      nullable: true
+    encrypted_sources:
+      type: text
+      nullable: true
+
+user_plan_reference_patterns:
+  type: collection
+  fields:
+    id:
+      type: uuid
+    plan_id:
+      type: string
+    pattern_id:
+      type: string
+    category:
+      type: string
+    status:
+      type: string
+      note: "proposed, required, inspected, matched, drift_detected, waived, or blocked."
+    required_before:
+      type: string
+      note: "implementation, task_execution, completion, or never."
+    source_count:
+      type: integer
+      default: 0
+    linked_task_ids:
+      type: json
+      nullable: true
+    linked_check_ids:
+      type: json
+      nullable: true
+    version:
+      type: integer
+      default: 1
+    created_at:
+      type: integer
+    updated_at:
+      type: integer
+    encrypted_title:
+      type: text
+    encrypted_description:
+      type: text
+      nullable: true
+    encrypted_sources:
+      type: text
+      nullable: true
+    encrypted_match_rules:
+      type: text
+      nullable: true
+    encrypted_anti_patterns:
+      type: text
+      nullable: true
+    encrypted_evidence_summary:
+      type: text
+      nullable: true
+    encrypted_waiver_reason:
+      type: text
+      nullable: true
+
+user_plan_verification_runs:
+  type: collection
+  fields:
+    id:
+      type: uuid
+    plan_id:
+      type: string
+    verification_id:
+      type: string
+    run_id:
+      type: string
+    runner_kind:
+      type: string
+    status:
+      type: string
+    exit_code:
+      type: integer
+      nullable: true
+    source_embed_id:
+      type: string
+      nullable: true
+    started_at:
+      type: integer
+      nullable: true
+    finished_at:
+      type: integer
+      nullable: true
+    duration_ms:
+      type: integer
+      nullable: true
+    artifact_count:
+      type: integer
+      default: 0
+    created_at:
+      type: integer
+    encrypted_command:
+      type: text
+      nullable: true
+    encrypted_summary:
+      type: text
+      nullable: true
+    encrypted_step_timeline:
+      type: text
+      nullable: true
+    encrypted_stdout:
+      type: text
+      nullable: true
+    encrypted_stderr:
+      type: text
+      nullable: true
+    encrypted_environment:
+      type: text
+      nullable: true
+
+user_plan_verification_artifacts:
+  type: collection
+  fields:
+    id:
+      type: uuid
+    plan_id:
+      type: string
+    verification_id:
+      type: string
+    run_id:
+      type: string
+    artifact_id:
+      type: string
+    artifact_kind:
+      type: string
+    mime_type:
+      type: string
+      nullable: true
+    byte_size:
+      type: integer
+      nullable: true
+    created_at:
+      type: integer
+    encrypted_label:
+      type: text
+      nullable: true
+    encrypted_url_or_embed_ref:
+      type: text
+      nullable: true
+    encrypted_private_metadata:
       type: text
       nullable: true
 

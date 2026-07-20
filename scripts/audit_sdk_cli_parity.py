@@ -60,6 +60,7 @@ TOP_LEVEL_CLASSIFICATION = {
     "benchmark": "benchmark.*",
     "workflows": "workflows.*",
     "tasks": "tasks.*",
+    "plans": "plans.*",
     "teams": "teams.*",
     "ideabucket": "ideabucket.*",
     "remote-access": "local-remote-access",
@@ -219,6 +220,7 @@ def main() -> int:
     failures: list[str] = []
 
     top_level_commands = set(re.findall(r'(?<![A-Za-z_])command === "([a-z0-9-]+)"', cli))
+    top_level_commands.discard("string")  # Ignore object literals that compare flag values to the string type.
     unclassified = top_level_commands - TOP_LEVEL_CLASSIFICATION.keys()
     if unclassified:
         failures.append(f"Unclassified CLI command(s): {', '.join(sorted(unclassified))}")

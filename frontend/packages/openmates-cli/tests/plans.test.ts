@@ -13,6 +13,15 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 
 import { OpenMatesClient, type UserPlanCreateInput } from "../src/client.ts";
 import type { OpenMatesSession } from "../src/storage.ts";
+import {
+  buildCreatePlanCriterionInput,
+  buildCreatePlanVerificationInput,
+  buildCreateUserPlanInput,
+  buildPlanVerificationEvidenceInput,
+  buildUpdateUserPlanInput,
+  decryptUserPlan,
+  renderPlanDetail,
+} from "../src/plansCli.ts";
 
 type SeenRequest = { method: string | undefined; url: string | undefined; body: unknown };
 
@@ -72,12 +81,63 @@ async function withServer(
 }
 
 describe("OpenMatesClient user plans", () => {
+  it("encrypts, decrypts, and renders local plan payloads", async () => {
+    const client = new OpenMatesClient({ apiUrl: "http://127.0.0.1", session: testSession() });
+    const masterKey = client.getMasterKeyBytes();
+    const encrypted = await buildCreateUserPlanInput(masterKey, {
+      title: "Launch website",
+      summary: "Coordinate launch work",
+      goal: "Ship the public site",
+      primaryChatId: "chat-1",
+      linkedProjectIds: ["project-1"],
+      status: "awaiting_confirmation",
+    });
+
+    assert.equal(encrypted.status, "awaiting_confirmation");
+    assert.equal(encrypted.primary_chat_id, "chat-1");
+    assert.deepEqual(encrypted.linked_project_ids, ["project-1"]);
+    assert.notEqual(encrypted.encrypted_title, "Launch website");
+
+    const plan = await decryptUserPlan(encrypted, masterKey);
+    assert.equal(plan.title, "Launch website");
+    assert.equal(plan.goal, "Ship the public site");
+    assert.deepEqual(plan.linkedProjectIds, ["project-1"]);
+    assert.match(renderPlanDetail(plan), /Launch website/);
+
+    const patch = await buildUpdateUserPlanInput(plan, masterKey, { goal: "Ship a faster public site", status: "active" });
+    assert.equal(patch.status, "active");
+    assert.equal(patch.version, 1);
+    assert.notEqual(patch.encrypted_goal, "Ship a faster public site");
+
+    const criterion = await buildCreatePlanCriterionInput(plan, masterKey, { text: "Homepage renders", required: true });
+    assert.notEqual(criterion.encrypted_text, "Homepage renders");
+    assert.equal(criterion.required, true);
+
+    const verification = await buildCreatePlanVerificationInput(plan, masterKey, {
+      kind: "command",
+      command: "npm test",
+      expectedResult: "tests pass",
+      requiredForDone: true,
+    });
+    assert.equal(verification.kind, "command");
+    assert.notEqual(verification.encrypted_command, "npm test");
+
+    const evidence = await buildPlanVerificationEvidenceInput(plan, masterKey, {
+      status: "passed",
+      resultSummary: "All checks passed",
+    });
+    assert.equal(evidence.status, "passed");
+    assert.notEqual(evidence.encrypted_result_summary, "All checks passed");
+  });
+
   it("manages encrypted user plans and verification evidence", async () => {
     const plan = encryptedPlanInput();
     await withServer(
       (request, body) => {
         if (request.method === "GET") return { plans: [plan] };
         if (request.url?.includes("/criteria")) return { criterion: body };
+        if (request.url?.includes("/assumptions")) return { assumption: body };
+        if (request.url?.includes("/reference-patterns")) return { reference_pattern: body };
         if (request.url?.includes("/verification") && request.url?.includes("/evidence")) return { verification: body };
         if (request.url?.includes("/verification")) return { verification: body };
         return { plan: { ...plan, ...(body as Record<string, unknown>) } };
@@ -90,7 +150,14 @@ describe("OpenMatesClient user plans", () => {
         assert.equal((await client.activateUserPlan("plan-1", { chat_id: "chat-1", version: 2 })).primary_chat_id, "chat-1");
         assert.equal((await client.completeUserPlan("plan-1", { version: 3 })).plan_id, "plan-1");
         assert.equal((await client.createPlanCriterion("plan-1", { criterion_id: "AC-1", encrypted_text: "cipher-ac", created_at: 100 })).criterion_id, "AC-1");
+        assert.equal((await client.listPlanCriteria("plan-1")).length, 0);
         assert.equal((await client.createPlanVerification("plan-1", { verification_id: "V-1", kind: "manual_check", created_at: 100 })).verification_id, "V-1");
+        assert.equal((await client.listPlanVerifications("plan-1")).length, 0);
+        assert.equal((await client.createPlanAssumption("plan-1", { assumption_id: "A-1", encrypted_text: "cipher-assumption", created_at: 100 })).assumption_id, "A-1");
+        assert.equal((await client.listPlanAssumptions("plan-1")).length, 0);
+        assert.equal((await client.updatePlanAssumption("plan-1", "A-1", { status: "confirmed" })).status, "confirmed");
+        assert.equal((await client.createPlanReferencePattern("plan-1", { pattern_id: "RP-1", encrypted_title: "cipher-pattern", created_at: 100 })).pattern_id, "RP-1");
+        assert.equal((await client.listPlanReferencePatterns("plan-1")).length, 0);
         assert.equal((await client.addPlanVerificationEvidence("plan-1", "V-1", { status: "passed" })).status, "passed");
 
         assert.deepEqual(seen.map((request) => [request.method, request.url]), [
@@ -100,7 +167,14 @@ describe("OpenMatesClient user plans", () => {
           ["POST", "/v1/user-plans/plan-1/activate"],
           ["POST", "/v1/user-plans/plan-1/complete"],
           ["POST", "/v1/user-plans/plan-1/criteria"],
+          ["GET", "/v1/user-plans/plan-1/criteria"],
           ["POST", "/v1/user-plans/plan-1/verification"],
+          ["GET", "/v1/user-plans/plan-1/verification"],
+          ["POST", "/v1/user-plans/plan-1/assumptions"],
+          ["GET", "/v1/user-plans/plan-1/assumptions"],
+          ["PATCH", "/v1/user-plans/plan-1/assumptions/A-1"],
+          ["POST", "/v1/user-plans/plan-1/reference-patterns"],
+          ["GET", "/v1/user-plans/plan-1/reference-patterns"],
           ["POST", "/v1/user-plans/plan-1/verification/V-1/evidence"],
         ]);
       },

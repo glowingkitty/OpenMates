@@ -27,6 +27,13 @@ import {
   sanitizeAccountExportManifest,
 } from "./accountExportArchive.js";
 import {
+  parseClaudeImportBuffer,
+  parseOpenMatesImportBuffer,
+  type AccountImportSource,
+  type ParsedAccountImport,
+  type ParsedImportChat,
+} from "./accountImport.js";
+import {
   decryptBytesWithAesGcm,
   decryptWithAesGcmCombined,
   deriveChatCompletionRecoveryKeypair,
@@ -87,8 +94,10 @@ import type {
   ProjectSourceCreateInput,
   ProjectSourceRecord,
   UserPlanCreateInput,
+  UserPlanAssumptionRecord,
   UserPlanCriterionRecord,
   UserPlanRecord,
+  UserPlanReferencePatternRecord,
   UserPlanStatus,
   UserPlanUpdateInput,
   UserPlanVerificationRecord,
@@ -158,6 +167,10 @@ export interface ConfirmedMutationOptions {
   confirmed?: boolean;
 }
 
+export interface BankTransferOrderOptions {
+  emailEncryptionKey?: string;
+}
+
 export interface RequestOptions {
   query?: Record<string, string | number | boolean | undefined | null>;
 }
@@ -180,6 +193,26 @@ export interface AccountExportManifestResponse {
 
 export interface AccountExportChunksResponse {
   chunks: Array<Record<string, unknown>>;
+}
+
+export interface AccountImportPreviewOptions {
+  source: AccountImportSource;
+  chats?: ParsedImportChat[];
+  chatCount?: number;
+  sourceFingerprints?: string[];
+  estimatedTokens?: number;
+  estimatedBytes?: number;
+}
+
+export interface AccountImportCompleteOptions {
+  importedChatIds: string[];
+  sourceFingerprints: string[];
+  encryptedRecordCounts: Record<string, number>;
+  clientFailures?: Array<Record<string, unknown>>;
+}
+
+export interface AccountImportRunOptions {
+  select?: "default" | "all";
 }
 
 export interface ApiKeyCreateOptions {
@@ -1382,6 +1415,103 @@ export class OpenMatesAccount {
     return { export: completed.export, manifest: sanitizeAccountExportManifest(manifest.manifest), chunks: downloadedChunks };
   }
 
+  async parseClaudeImport(payload: Buffer | Uint8Array | string, sourceName = "claude-export"): Promise<ParsedAccountImport> {
+    const buffer = typeof payload === "string" ? Buffer.from(payload) : Buffer.from(payload);
+    return parseClaudeImportBuffer(buffer, sourceName);
+  }
+
+  async parseOpenMatesImport(payload: Buffer | Uint8Array | string, sourceName = "openmates-export.zip"): Promise<ParsedAccountImport> {
+    const buffer = typeof payload === "string" ? Buffer.from(payload) : Buffer.from(payload);
+    return parseOpenMatesImportBuffer(buffer, sourceName);
+  }
+
+  async previewImport(options: AccountImportPreviewOptions): Promise<Record<string, unknown>> {
+    const chats = options.chats ?? [];
+    return this.client.request<Record<string, unknown>>("/v1/account-imports/preview", {
+      source: options.source,
+      chat_count: options.chatCount ?? chats.length,
+      source_fingerprints: options.sourceFingerprints ?? chats.map((chat) => chat.source_fingerprint),
+      estimated_tokens: options.estimatedTokens ?? 0,
+      estimated_bytes: options.estimatedBytes ?? 0,
+    });
+  }
+
+  async scanImport(importId: string, chats: ParsedImportChat[]): Promise<Record<string, unknown>> {
+    return this.client.request<Record<string, unknown>>(`/v1/account-imports/${encodeURIComponent(importId)}/scan`, { chats });
+  }
+
+  async persistEncryptedImport(importId: string, chats: ParsedImportChat[]): Promise<Record<string, unknown>> {
+    const masterKey = await this.client.masterKey();
+    const encryptedChats = [];
+    for (const chat of chats) {
+      const chatId = randomUUID();
+      const chatKey = new Uint8Array(randomBytes(32));
+      const createdAt = Math.floor((chat.created_at ? Date.parse(chat.created_at) : Date.now()) / 1000);
+      const updatedAt = Math.floor((chat.updated_at ? Date.parse(chat.updated_at) : Date.now()) / 1000);
+      const messages = [];
+      let previousUserMessageId: string | null = null;
+      for (const message of chat.messages) {
+        const messageId = randomUUID();
+        messages.push({
+          message_id: messageId,
+          role: message.role,
+          encrypted_content: await encryptWithAesGcmCombined(message.content, chatKey),
+          encrypted_sender_name: await encryptWithAesGcmCombined(message.role === "assistant" ? "Assistant" : message.role === "system" ? "System" : "User", chatKey),
+          created_at: Math.floor((message.created_at ? Date.parse(message.created_at) : Date.now()) / 1000),
+          updated_at: Math.floor(Date.now() / 1000),
+          ...(message.role === "assistant" && previousUserMessageId ? { user_message_id: previousUserMessageId } : {}),
+        });
+        if (message.role === "user") previousUserMessageId = messageId;
+      }
+      encryptedChats.push({
+        chat_id: chatId,
+        encrypted_title: await encryptWithAesGcmCombined(chat.title || "Imported chat", chatKey),
+        encrypted_chat_key: await encryptBytesWithAesGcm(chatKey, masterKey),
+        created_at: Number.isFinite(createdAt) ? createdAt : Math.floor(Date.now() / 1000),
+        updated_at: Number.isFinite(updatedAt) ? updatedAt : Math.floor(Date.now() / 1000),
+        source_fingerprint: chat.source_fingerprint,
+        messages,
+      });
+    }
+    return this.client.request<Record<string, unknown>>(`/v1/account-imports/${encodeURIComponent(importId)}/persist-encrypted`, { chats: encryptedChats });
+  }
+
+  async completeImport(importId: string, options: AccountImportCompleteOptions): Promise<Record<string, unknown>> {
+    return this.client.request<Record<string, unknown>>(`/v1/account-imports/${encodeURIComponent(importId)}/complete`, {
+      imported_chat_ids: options.importedChatIds,
+      source_fingerprints: options.sourceFingerprints,
+      encrypted_record_counts: options.encryptedRecordCounts,
+      client_failures: options.clientFailures ?? [],
+    });
+  }
+
+  async importChats(parsed: ParsedAccountImport, options: AccountImportRunOptions = {}): Promise<Record<string, unknown>> {
+    const preview = await this.previewImport({ source: parsed.source, chats: parsed.chats });
+    if (preview.can_import === false) throw new OpenMatesConfigError(`Account import blocked: ${String(preview.reason ?? "unknown")}`);
+    const defaultSelectionCount = typeof preview.default_selection_count === "number" ? preview.default_selection_count : 0;
+    const maxBatchCount = typeof preview.max_batch_count === "number" ? preview.max_batch_count : defaultSelectionCount;
+    const selectedCount = options.select === "all"
+      ? Math.min(parsed.chats.length, maxBatchCount)
+      : Math.min(defaultSelectionCount, parsed.chats.length, maxBatchCount);
+    if (selectedCount <= 0) throw new OpenMatesConfigError("No chats are selected for import.");
+    const importId = typeof preview.import_id === "string" ? preview.import_id : randomUUID();
+    const selectedChats = parsed.chats.slice(0, selectedCount);
+    const scan = await this.scanImport(importId, selectedChats);
+    const sanitizedChats = Array.isArray(scan.chats) && scan.chats.length > 0
+      ? scan.chats as ParsedImportChat[]
+      : selectedChats;
+    const persistence = await this.persistEncryptedImport(importId, sanitizedChats);
+    const complete = await this.completeImport(importId, {
+      importedChatIds: Array.isArray(persistence.imported_chat_ids) ? persistence.imported_chat_ids as string[] : [],
+      sourceFingerprints: sanitizedChats.map((chat) => chat.source_fingerprint),
+      encryptedRecordCounts: typeof persistence.encrypted_record_counts === "object" && persistence.encrypted_record_counts !== null
+        ? persistence.encrypted_record_counts as Record<string, number>
+        : { chats: 0, messages: 0 },
+      clientFailures: Array.isArray(persistence.failures) ? persistence.failures as Array<Record<string, unknown>> : [],
+    });
+    return { source: parsed.source, parsed, preview, import_id: importId, scan, persistence, complete };
+  }
+
   async exportManifest(): Promise<Record<string, unknown>> {
     return this.client.get<Record<string, unknown>>("/v1/sdk/account/export/manifest");
   }
@@ -1586,7 +1716,7 @@ export class OpenMatesBilling {
   async usageSummaries(): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>("/v1/sdk/billing/usage/summaries"); }
   async usageDaily(): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>("/v1/sdk/billing/usage/daily"); }
   async usageExport(options: { months?: number } = {}): Promise<{ contentType: string; filename?: string; data: ArrayBuffer }> { return this.client.getRaw(withQuery("/v1/sdk/billing/usage/export", { months: options.months })); }
-  async createBankTransferOrder(credits: number): Promise<Record<string, unknown>> { return this.client.request<Record<string, unknown>>("/v1/sdk/billing/bank-transfer-orders", { credits_amount: credits, currency: "eur" }); }
+  async createBankTransferOrder(credits: number, options: BankTransferOrderOptions = {}): Promise<Record<string, unknown>> { return this.client.request<Record<string, unknown>>("/v1/sdk/billing/bank-transfer-orders", { credits_amount: credits, currency: "eur", email_encryption_key: options.emailEncryptionKey }); }
   async bankTransferStatus(orderId: string): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>(`/v1/sdk/billing/bank-transfer-orders/${encodeURIComponent(orderId)}`); }
   async listBankTransferOrders(): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>("/v1/sdk/billing/bank-transfer-orders"); }
   async listInvoices(): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>("/v1/sdk/billing/invoices"); }
@@ -1595,7 +1725,7 @@ export class OpenMatesBilling {
   async requestRefund(invoiceId: string, options: ConfirmedMutationOptions & { emailEncryptionKey?: string }): Promise<Record<string, unknown>> { requireConfirmed(options, "Requesting an invoice refund"); return this.client.request<Record<string, unknown>>("/v1/sdk/billing/refund", { invoice_id: invoiceId, email_encryption_key: options.emailEncryptionKey }); }
   async redeemGiftCard(code: string): Promise<Record<string, unknown>> { return this.client.request<Record<string, unknown>>("/v1/sdk/billing/gift-cards/redeem", { code }); }
   async listRedeemedGiftCards(): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>("/v1/sdk/billing/gift-cards/redeemed"); }
-  async createGiftCardBankTransferOrder(credits: number): Promise<Record<string, unknown>> { return this.client.request<Record<string, unknown>>("/v1/sdk/billing/gift-cards/bank-transfer-orders", { credits_amount: credits, currency: "eur" }); }
+  async createGiftCardBankTransferOrder(credits: number, options: BankTransferOrderOptions = {}): Promise<Record<string, unknown>> { return this.client.request<Record<string, unknown>>("/v1/sdk/billing/gift-cards/bank-transfer-orders", { credits_amount: credits, currency: "eur", email_encryption_key: options.emailEncryptionKey }); }
   async giftCardPurchaseStatus(orderId: string): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>(`/v1/sdk/billing/gift-cards/purchases/${encodeURIComponent(orderId)}`); }
   async listPurchasedGiftCards(): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>("/v1/sdk/billing/gift-cards/purchased"); }
   async setLowBalanceAutoTopup(input: Record<string, unknown>): Promise<Record<string, unknown>> { return this.client.request<Record<string, unknown>>("/v1/sdk/billing/auto-topup/low-balance", input); }
@@ -1907,10 +2037,48 @@ export class OpenMatesPlans {
     return response.criterion;
   }
 
+  async listCriteria(planId: string): Promise<UserPlanCriterionRecord[]> {
+    const response = await this.client.get<{ criteria?: UserPlanCriterionRecord[] }>(`/v1/user-plans/${encodeURIComponent(planId)}/criteria`);
+    return response.criteria ?? [];
+  }
+
   async createVerification(planId: string, input: UserPlanVerificationRecord & Record<string, unknown>): Promise<UserPlanVerificationRecord> {
     const response = await this.client.request<{ verification?: UserPlanVerificationRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}/verification`, input);
     if (!response.verification) throw new OpenMatesApiError(500, { detail: "User plan verification response missing verification" });
     return response.verification;
+  }
+
+  async listVerifications(planId: string): Promise<UserPlanVerificationRecord[]> {
+    const response = await this.client.get<{ verifications?: UserPlanVerificationRecord[] }>(`/v1/user-plans/${encodeURIComponent(planId)}/verification`);
+    return response.verifications ?? [];
+  }
+
+  async createAssumption(planId: string, input: UserPlanAssumptionRecord): Promise<UserPlanAssumptionRecord> {
+    const response = await this.client.request<{ assumption?: UserPlanAssumptionRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}/assumptions`, input);
+    if (!response.assumption) throw new OpenMatesApiError(500, { detail: "User plan assumption response missing assumption" });
+    return response.assumption;
+  }
+
+  async listAssumptions(planId: string): Promise<UserPlanAssumptionRecord[]> {
+    const response = await this.client.get<{ assumptions?: UserPlanAssumptionRecord[] }>(`/v1/user-plans/${encodeURIComponent(planId)}/assumptions`);
+    return response.assumptions ?? [];
+  }
+
+  async updateAssumption(planId: string, assumptionId: string, input: Partial<UserPlanAssumptionRecord>): Promise<UserPlanAssumptionRecord> {
+    const response = await this.client.patch<{ assumption?: UserPlanAssumptionRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}/assumptions/${encodeURIComponent(assumptionId)}`, input);
+    if (!response.assumption) throw new OpenMatesApiError(500, { detail: "User plan assumption response missing assumption" });
+    return response.assumption;
+  }
+
+  async createReferencePattern(planId: string, input: UserPlanReferencePatternRecord): Promise<UserPlanReferencePatternRecord> {
+    const response = await this.client.request<{ reference_pattern?: UserPlanReferencePatternRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}/reference-patterns`, input);
+    if (!response.reference_pattern) throw new OpenMatesApiError(500, { detail: "User plan reference pattern response missing reference_pattern" });
+    return response.reference_pattern;
+  }
+
+  async listReferencePatterns(planId: string): Promise<UserPlanReferencePatternRecord[]> {
+    const response = await this.client.get<{ reference_patterns?: UserPlanReferencePatternRecord[] }>(`/v1/user-plans/${encodeURIComponent(planId)}/reference-patterns`);
+    return response.reference_patterns ?? [];
   }
 
   async addVerificationEvidence(planId: string, verificationId: string, input: Partial<UserPlanVerificationRecord>): Promise<UserPlanVerificationRecord> {
@@ -2095,6 +2263,19 @@ export class OpenMatesWorkflows {
 
   async runDetail(workflowId: string, runId: string): Promise<WorkflowRunDetail> {
     const response = await this.client.get<{ run?: WorkflowRunDetail }>(`/v1/workflows/${encodeURIComponent(workflowId)}/runs/${encodeURIComponent(runId)}`);
+    if (!response.run) throw new OpenMatesApiError(500, { detail: "Workflow response missing run" });
+    return response.run;
+  }
+
+  async stepTest(
+    workflowId: string,
+    stepId: string,
+    params: { input?: Record<string, unknown>; confirmed?: boolean } = {},
+  ): Promise<WorkflowRunDetail> {
+    const response = await this.client.request<{ run?: WorkflowRunDetail }>(
+      `/v1/workflows/${encodeURIComponent(workflowId)}/steps/${encodeURIComponent(stepId)}/test`,
+      { input: params.input ?? {}, confirmed: params.confirmed === true },
+    );
     if (!response.run) throw new OpenMatesApiError(500, { detail: "Workflow response missing run" });
     return response.run;
   }
@@ -2321,10 +2502,6 @@ export class OpenMatesTeams {
     return result.team ?? result;
   }
 
-  async delete(teamId: string): Promise<Record<string, unknown>> {
-    return this.client.delete<Record<string, unknown>>(`/v1/teams/${encodeURIComponent(teamId)}`);
-  }
-
   async invite(teamId: string, input: Record<string, unknown>): Promise<Record<string, unknown>> {
     const result = await this.client.request<{ invite?: Record<string, unknown> }>(`/v1/teams/${encodeURIComponent(teamId)}/invites`, input);
     return result.invite ?? result;
@@ -2362,36 +2539,30 @@ export class OpenMatesTeams {
     return result.billing ?? result;
   }
 
-  async addCredits(teamId: string, input: Record<string, unknown>): Promise<Record<string, unknown>> {
-    const result = await this.client.request<{ billing?: Record<string, unknown> }>(`/v1/teams/${encodeURIComponent(teamId)}/billing/credits`, input);
-    return result.billing ?? result;
-  }
-
   async usage(teamId: string, memberUserId?: string): Promise<Record<string, unknown>[]> {
     const query = memberUserId ? `?member_user_id=${encodeURIComponent(memberUserId)}` : "";
     const result = await this.client.get<{ usage?: Record<string, unknown>[] }>(`/v1/teams/${encodeURIComponent(teamId)}/billing/usage${query}`);
     return result.usage ?? [];
   }
 
+  async createBankTransferOrder(teamId: string, credits: number, options: BankTransferOrderOptions = {}): Promise<Record<string, unknown>> {
+    return this.client.request<Record<string, unknown>>(
+      `/v1/teams/${encodeURIComponent(teamId)}/billing/bank-transfer-orders`,
+      { credits_amount: credits, currency: "eur", email_encryption_key: options.emailEncryptionKey },
+    );
+  }
+
+  async bankTransferStatus(teamId: string, orderId: string): Promise<Record<string, unknown>> {
+    return this.client.get<Record<string, unknown>>(`/v1/teams/${encodeURIComponent(teamId)}/billing/bank-transfer-orders/${encodeURIComponent(orderId)}`);
+  }
+
+  async listBankTransferOrders(teamId: string): Promise<Record<string, unknown>> {
+    return this.client.get<Record<string, unknown>>(`/v1/teams/${encodeURIComponent(teamId)}/billing/bank-transfer-orders`);
+  }
+
   async memories(teamId: string): Promise<Record<string, unknown>[]> {
     const result = await this.client.get<{ memories?: Record<string, unknown>[] }>(`/v1/teams/${encodeURIComponent(teamId)}/memories`);
     return result.memories ?? [];
-  }
-
-  async move(workspaceType: string, objectId: string, teamId: string): Promise<Record<string, unknown>> {
-    const routes: Record<string, string> = {
-      chat: "chats",
-      project: "projects",
-      task: "user-tasks",
-      plan: "user-plans",
-      workflow: "workflows",
-    };
-    const route = routes[workspaceType];
-    if (!route) throw new OpenMatesConfigError("Unsupported team move workspace type");
-    return this.client.request<Record<string, unknown>>(
-      `/v1/${route}/${encodeURIComponent(objectId)}/move`,
-      { team_id: teamId, confirmed: true, moved_at: Math.floor(Date.now() / 1000) },
-    );
   }
 
   async export(teamId: string, input: Record<string, unknown> = {}): Promise<Record<string, unknown>> {

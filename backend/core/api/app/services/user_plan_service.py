@@ -11,6 +11,11 @@ from backend.core.api.app.services.directus.user_plan_methods import UserPlanMet
 
 COMPLETION_PASSING_STATUSES = {"passed", "passed_unexpectedly", "waived"}
 CRITERION_PASSING_STATUSES = {"satisfied", "waived"}
+CRITERION_COVERED_STATUSES = {"covered", "waived"}
+ASSUMPTION_RESOLVED_STATUSES = {"confirmed", "corrected", "waived"}
+REFERENCE_IMPLEMENTATION_READY_STATUSES = {"inspected", "matched", "waived"}
+REFERENCE_COMPLETION_READY_STATUSES = {"matched", "waived"}
+ACTIVE_PLAN_STATUSES = {"active", "executing", "running_checks", "blocked"}
 
 
 class UserPlanConflictError(ValueError):
@@ -42,6 +47,11 @@ class UserPlanService:
         if not existing:
             raise UserPlanNotFoundError("Plan not found")
         update = dict(patch)
+        expected_version = update.pop("version", None)
+        if expected_version is not None and int(expected_version) != int(existing.get("version") or 1):
+            raise UserPlanConflictError("Plan was modified by another client")
+        if update.get("status") in ACTIVE_PLAN_STATUSES and not (update.get("primary_chat_id") or existing.get("primary_chat_id")):
+            raise ValueError("Active or executable plans require primary_chat_id")
         update["version"] = int(existing.get("version") or 1) + 1
         updated = await self.plan_methods.update_plan(plan_id, user_id, update)
         if not updated:
@@ -52,6 +62,10 @@ class UserPlanService:
         update = {"status": "active"}
         if patch:
             update.update(patch)
+        if not update.get("primary_chat_id"):
+            existing = await self.plan_methods.get_plan(plan_id, user_id)
+            if not existing or not existing.get("primary_chat_id"):
+                raise ValueError("Active plans require primary_chat_id")
         return await self.update_plan(plan_id, user_id, update)
 
     async def complete_plan(self, plan_id: str, user_id: str, patch: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -76,10 +90,15 @@ class UserPlanService:
     async def completion_blockers(self, plan_id: str) -> list[dict[str, Any]]:
         criteria = await self.plan_methods.list_criteria(plan_id)
         verifications = await self.plan_methods.list_verifications(plan_id)
+        assumptions = await self.plan_methods.list_assumptions(plan_id) if hasattr(self.plan_methods, "list_assumptions") else []
+        reference_patterns = await self.plan_methods.list_reference_patterns(plan_id) if hasattr(self.plan_methods, "list_reference_patterns") else []
         blockers: list[dict[str, Any]] = []
         for criterion in criteria:
             if criterion.get("required") is False:
                 continue
+            coverage_status = criterion.get("coverage_status") or ("covered" if criterion.get("verification_ids") else "uncovered")
+            if coverage_status not in CRITERION_COVERED_STATUSES:
+                blockers.append({"kind": "criterion_coverage", "id": criterion.get("criterion_id"), "status": coverage_status})
             if criterion.get("status") not in CRITERION_PASSING_STATUSES:
                 blockers.append({"kind": "criterion", "id": criterion.get("criterion_id"), "status": criterion.get("status")})
         for verification in verifications:
@@ -87,6 +106,30 @@ class UserPlanService:
                 continue
             if verification.get("status") not in COMPLETION_PASSING_STATUSES:
                 blockers.append({"kind": "verification", "id": verification.get("verification_id"), "status": verification.get("status")})
+        for assumption in assumptions:
+            if assumption.get("required_before") not in {"implementation", "task_execution", "completion"}:
+                continue
+            if assumption.get("status") not in ASSUMPTION_RESOLVED_STATUSES:
+                blockers.append({"kind": "assumption", "id": assumption.get("assumption_id"), "status": assumption.get("status")})
+        for pattern in reference_patterns:
+            if pattern.get("required_before") not in {"completion", "implementation", "task_execution"}:
+                continue
+            if pattern.get("required_before") == "completion" and pattern.get("status") not in REFERENCE_COMPLETION_READY_STATUSES:
+                blockers.append({"kind": "reference_pattern", "id": pattern.get("pattern_id"), "status": pattern.get("status")})
+            elif pattern.get("required_before") in {"implementation", "task_execution"} and pattern.get("status") not in REFERENCE_IMPLEMENTATION_READY_STATUSES:
+                blockers.append({"kind": "reference_pattern", "id": pattern.get("pattern_id"), "status": pattern.get("status")})
+        return blockers
+
+    async def implementation_blockers(self, plan_id: str) -> list[dict[str, Any]]:
+        assumptions = await self.plan_methods.list_assumptions(plan_id) if hasattr(self.plan_methods, "list_assumptions") else []
+        patterns = await self.plan_methods.list_reference_patterns(plan_id) if hasattr(self.plan_methods, "list_reference_patterns") else []
+        blockers: list[dict[str, Any]] = []
+        for assumption in assumptions:
+            if assumption.get("required_before") in {"implementation", "task_execution"} and assumption.get("status") not in ASSUMPTION_RESOLVED_STATUSES:
+                blockers.append({"kind": "assumption", "id": assumption.get("assumption_id"), "status": assumption.get("status")})
+        for pattern in patterns:
+            if pattern.get("required_before") in {"implementation", "task_execution"} and pattern.get("status") not in REFERENCE_IMPLEMENTATION_READY_STATUSES:
+                blockers.append({"kind": "reference_pattern", "id": pattern.get("pattern_id"), "status": pattern.get("status")})
         return blockers
 
     async def ensure_plan_owner(self, plan_id: str, user_id: str) -> None:
@@ -107,6 +150,34 @@ class UserPlanService:
             raise UserPlanNotFoundError("Plan criterion not found")
         return updated
 
+    async def create_assumption(self, plan_id: str, user_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        await self.ensure_plan_owner(plan_id, user_id)
+        created = await self.plan_methods.create_assumption(plan_id, payload)
+        if not created:
+            raise ValueError("Failed to create plan assumption")
+        return created
+
+    async def update_assumption(self, plan_id: str, user_id: str, assumption_id: str, patch: dict[str, Any]) -> dict[str, Any]:
+        await self.ensure_plan_owner(plan_id, user_id)
+        updated = await self.plan_methods.update_assumption(plan_id, assumption_id, patch)
+        if not updated:
+            raise UserPlanNotFoundError("Plan assumption not found")
+        return updated
+
+    async def create_reference_pattern(self, plan_id: str, user_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        await self.ensure_plan_owner(plan_id, user_id)
+        created = await self.plan_methods.create_reference_pattern(plan_id, payload)
+        if not created:
+            raise ValueError("Failed to create plan reference pattern")
+        return created
+
+    async def update_reference_pattern(self, plan_id: str, user_id: str, pattern_id: str, patch: dict[str, Any]) -> dict[str, Any]:
+        await self.ensure_plan_owner(plan_id, user_id)
+        updated = await self.plan_methods.update_reference_pattern(plan_id, pattern_id, patch)
+        if not updated:
+            raise UserPlanNotFoundError("Plan reference pattern not found")
+        return updated
+
     async def create_verification(self, plan_id: str, user_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         await self.ensure_plan_owner(plan_id, user_id)
         payload = dict(payload)
@@ -116,6 +187,7 @@ class UserPlanService:
                 raise ValueError("Task service is required to create verification tasks")
             task_payload = {
                 "task_id": payload.get("task_id"),
+                "version": 1,
                 "encrypted_task_key": payload.get("encrypted_task_key"),
                 "key_wrappers": payload.get("task_key_wrappers", []),
                 "encrypted_title": payload.get("encrypted_title"),
@@ -157,7 +229,47 @@ class UserPlanService:
         updated = await self.plan_methods.update_verification(plan_id, verification_id, payload)
         if not updated:
             raise UserPlanNotFoundError("Plan verification not found")
+        if updated.get("required_for_done") is not False and updated.get("status") == "failed":
+            await self.plan_methods.update_plan(plan_id, user_id, {"status": "blocked", "continuation_state": "blocked"})
         return updated
+
+    async def create_verification_run(self, plan_id: str, user_id: str, verification_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        await self.ensure_plan_owner(plan_id, user_id)
+        created = await self.plan_methods.create_verification_run(plan_id, verification_id, payload)
+        if not created:
+            raise ValueError("Failed to create plan verification run")
+        return created
+
+    async def get_verification_run(self, plan_id: str, user_id: str, verification_id: str, run_id: str) -> dict[str, Any]:
+        await self.ensure_plan_owner(plan_id, user_id)
+        run = await self.plan_methods.get_verification_run(plan_id, verification_id, run_id)
+        if not run:
+            raise UserPlanNotFoundError("Plan verification run not found")
+        artifacts = await self.plan_methods.list_verification_artifacts(plan_id, verification_id, run_id)
+        return {"run": run, "artifacts": artifacts}
+
+    async def save_execution_context(self, plan_id: str, user_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        plan = await self.plan_methods.get_plan(plan_id, user_id)
+        if not plan:
+            raise UserPlanNotFoundError("Plan not found")
+        if not plan.get("primary_chat_id"):
+            raise ValueError("Active plan execution context requires primary_chat_id")
+        created = await self.plan_methods.create_execution_context(user_id, plan, payload)
+        if not created:
+            raise ValueError("Failed to create plan execution context")
+        return {"plan_id": plan_id, "expires_at": created.get("expires_at")}
+
+    async def active_context(self, user_id: str, chat_id: str, now: int) -> dict[str, Any]:
+        context = await self.plan_methods.get_active_execution_context(user_id, chat_id, now)
+        if not context:
+            return {"active_plan": None, "blockers": [{"kind": "execution_context", "status": "missing_or_expired"}]}
+        blockers = await self.completion_blockers(str(context.get("plan_id")))
+        return {"active_plan": context, "blockers": blockers}
+
+    async def cleanup_expired_plan_data(self, now: int) -> dict[str, int]:
+        expired_contexts = await self.plan_methods.delete_expired_execution_contexts(now)
+        orphan_key_wrappers = await self.plan_methods.delete_orphan_key_wrappers()
+        return {"expired_execution_contexts": expired_contexts, "orphan_key_wrappers": orphan_key_wrappers}
 
     def drift_decision(self, drift_score: int) -> dict[str, Any]:
         score = max(0, min(int(drift_score), 100))

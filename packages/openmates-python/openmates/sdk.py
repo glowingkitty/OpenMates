@@ -13,6 +13,7 @@ import calendar
 from dataclasses import dataclass
 import hashlib
 import hmac
+import io
 import json
 import os
 from pathlib import Path
@@ -24,6 +25,7 @@ import time
 from typing import Any
 from urllib.parse import quote, urlencode, urlparse, urlunparse
 import uuid
+import zipfile
 
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives import hashes
@@ -600,6 +602,65 @@ def _sanitize_account_export_manifest(manifest: dict[str, Any]) -> dict[str, Any
         report["redactions"] = ACCOUNT_EXPORT_REDACTION_CATEGORIES
     _assert_account_export_payload_safe(sanitized, "$manifest")
     return sanitized
+
+
+def _account_import_fingerprint(provider: str, source_chat_id: str, messages: list[dict[str, Any]]) -> str:
+    payload = {
+        "provider": provider,
+        "source_chat_id": source_chat_id,
+        "messages": [
+            {
+                "role": message.get("role"),
+                "source_message_id": message.get("source_message_id"),
+                "content": message.get("content"),
+            }
+            for message in messages
+        ],
+    }
+    return hashlib.sha256(json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")).hexdigest()
+
+
+def _parse_openmates_manifest_domains(manifest_text: str) -> list[str]:
+    domains: list[str] = []
+    in_domains = False
+    for line in manifest_text.splitlines():
+        if re.match(r"^domains:\s*$", line):
+            in_domains = True
+            continue
+        if in_domains and re.match(r"^\S", line):
+            break
+        match = re.match(r"^\s{2}([a-zA-Z0-9_-]+):", line) if in_domains else None
+        if match:
+            domains.append(match.group(1))
+    return domains
+
+
+def _claude_message_content(message: dict[str, Any]) -> tuple[str, list[str]]:
+    content = message.get("content") if isinstance(message.get("content"), list) else []
+    block_types: list[str] = []
+    text_parts: list[str] = []
+    for raw_block in content:
+        if not isinstance(raw_block, dict):
+            continue
+        block_type = str(raw_block.get("type") or "unknown")
+        block_types.append(block_type)
+        if block_type == "text" and isinstance(raw_block.get("text"), str):
+            text_parts.append(raw_block["text"])
+        if block_type == "tool_result" and isinstance(raw_block.get("content"), str):
+            text_parts.append(raw_block["content"])
+    return "\n".join(text_parts) if text_parts else str(message.get("text") or ""), block_types
+
+
+def _parse_import_timestamp(value: Any) -> int:
+    if isinstance(value, (int, float)) and math.isfinite(value) and value > 0:
+        return int(value / 1000) if value > 10_000_000_000 else int(value)
+    if isinstance(value, str) and value:
+        try:
+            parsed = calendar.timegm(time.strptime(value.replace("Z", "+0000"), "%Y-%m-%dT%H:%M:%S%z"))
+            return int(parsed)
+        except ValueError:
+            pass
+    return int(time.time())
 
 
 def _split_combined_ciphertext(encrypted_b64: str) -> tuple[bytes, bytes]:
@@ -1480,8 +1541,29 @@ class OpenMatesPlans:
     def create_criterion(self, plan_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         return self._client._post(f"/v1/user-plans/{_quote(plan_id)}/criteria", payload).get("criterion", {})
 
+    def list_criteria(self, plan_id: str) -> list[dict[str, Any]]:
+        return self._client._get(f"/v1/user-plans/{_quote(plan_id)}/criteria").get("criteria", [])
+
     def create_verification(self, plan_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         return self._client._post(f"/v1/user-plans/{_quote(plan_id)}/verification", payload).get("verification", {})
+
+    def list_verifications(self, plan_id: str) -> list[dict[str, Any]]:
+        return self._client._get(f"/v1/user-plans/{_quote(plan_id)}/verification").get("verifications", [])
+
+    def create_assumption(self, plan_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        return self._client._post(f"/v1/user-plans/{_quote(plan_id)}/assumptions", payload).get("assumption", {})
+
+    def list_assumptions(self, plan_id: str) -> list[dict[str, Any]]:
+        return self._client._get(f"/v1/user-plans/{_quote(plan_id)}/assumptions").get("assumptions", [])
+
+    def update_assumption(self, plan_id: str, assumption_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        return self._client._patch(f"/v1/user-plans/{_quote(plan_id)}/assumptions/{_quote(assumption_id)}", payload).get("assumption", {})
+
+    def create_reference_pattern(self, plan_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        return self._client._post(f"/v1/user-plans/{_quote(plan_id)}/reference-patterns", payload).get("reference_pattern", {})
+
+    def list_reference_patterns(self, plan_id: str) -> list[dict[str, Any]]:
+        return self._client._get(f"/v1/user-plans/{_quote(plan_id)}/reference-patterns").get("reference_patterns", [])
 
     def add_verification_evidence(self, plan_id: str, verification_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         return self._client._post(
@@ -1869,6 +1951,23 @@ class OpenMatesWorkflows:
     def run_detail(self, workflow_id: str, run_id: str) -> dict[str, Any]:
         return self._client._get(f"/v1/workflows/{_quote(workflow_id)}/runs/{_quote(run_id)}").get("run", {})
 
+    def step_test(
+        self,
+        workflow_id: str,
+        step_id: str,
+        *,
+        input_data: dict[str, Any] | None = None,
+        confirmed: bool = False,
+    ) -> dict[str, Any]:
+        response = self._client._post(
+            f"/v1/workflows/{_quote(workflow_id)}/steps/{_quote(step_id)}/test",
+            {"input": input_data or {}, "confirmed": confirmed},
+        )
+        run = response.get("run")
+        if not isinstance(run, dict):
+            raise OpenMatesApiError(500, {"detail": "Workflow response missing run"})
+        return run
+
     def cancel_run(self, workflow_id: str, run_id: str) -> dict[str, Any]:
         result = self._client._post(f"/v1/workflows/{_quote(workflow_id)}/runs/{_quote(run_id)}/cancel", {})
         if result.get("status") not in {"cancellation_requested", "cancelled"}:
@@ -2075,6 +2174,172 @@ class OpenMatesAccount:
             "chunks": downloaded_chunks,
         }
 
+    def parse_claude_import(self, payload: bytes | str, source_name: str = "claude-export") -> dict[str, Any]:
+        raw = payload.encode("utf-8") if isinstance(payload, str) else payload
+        try:
+            if raw[:2] == b"PK":
+                with zipfile.ZipFile(io.BytesIO(raw)) as archive:  # type: ignore[name-defined]
+                    conversations = json.loads(archive.read("conversations.json").decode("utf-8"))
+            else:
+                conversations = json.loads(raw.decode("utf-8"))
+        except Exception as exc:
+            raise OpenMatesConfigError(f"Claude export could not be parsed: {exc}") from exc
+        if isinstance(conversations, dict) and isinstance(conversations.get("conversations"), list):
+            conversations = conversations["conversations"]
+        if not isinstance(conversations, list):
+            raise OpenMatesConfigError("Claude export conversations must be an array")
+        chats: list[dict[str, Any]] = []
+        for conversation in conversations:
+            if not isinstance(conversation, dict):
+                continue
+            source_chat_id = str(conversation.get("uuid") or "")
+            if not source_chat_id:
+                raise OpenMatesConfigError("Claude conversation is missing uuid")
+            messages: list[dict[str, Any]] = []
+            for raw_message in conversation.get("chat_messages") if isinstance(conversation.get("chat_messages"), list) else []:
+                if not isinstance(raw_message, dict):
+                    continue
+                content, block_types = _claude_message_content(raw_message)
+                sender = str(raw_message.get("sender") or "")
+                messages.append({
+                    "role": "user" if sender == "human" else "assistant" if sender == "assistant" else "system",
+                    "content": content,
+                    "created_at": raw_message.get("created_at") if isinstance(raw_message.get("created_at"), str) else None,
+                    "source_message_id": raw_message.get("uuid") if isinstance(raw_message.get("uuid"), str) else None,
+                    "provider_metadata": {"content_block_types": block_types},
+                })
+            chats.append({
+                "provider": "claude",
+                "source_chat_id": source_chat_id,
+                "source_fingerprint": _account_import_fingerprint("claude", source_chat_id, messages),
+                "title": conversation.get("name") if isinstance(conversation.get("name"), str) else None,
+                "created_at": conversation.get("created_at") if isinstance(conversation.get("created_at"), str) else None,
+                "updated_at": conversation.get("updated_at") if isinstance(conversation.get("updated_at"), str) else None,
+                "messages": messages,
+                "embeds": [],
+                "uploads": [],
+                "provider_labels": ["claude"],
+                "source_metadata": {"source_name": source_name, "message_count": len(messages)},
+            })
+        return {"source": "claude", "chats": chats, "skipped_domains": []}
+
+    def parse_openmates_import(self, payload: bytes | str, source_name: str = "openmates-export.zip") -> dict[str, Any]:
+        raw = payload.encode("utf-8") if isinstance(payload, str) else payload
+        try:
+            with zipfile.ZipFile(io.BytesIO(raw)) as archive:  # type: ignore[name-defined]
+                manifest = archive.read("manifest.yml").decode("utf-8")
+                if not re.search(r"format:\s*openmates-account-export", manifest) or not re.search(r"version:\s*[\"']?1[\"']?", manifest):
+                    raise OpenMatesConfigError("Unsupported OpenMates Export V1 archive format or version")
+                domains = _parse_openmates_manifest_domains(manifest)
+                chat_files = [name for name in archive.namelist() if name.startswith("chats/") and re.search(r"\.ya?ml$", name)]
+        except OpenMatesConfigError:
+            raise
+        except Exception as exc:
+            raise OpenMatesConfigError(f"OpenMates import archive could not be parsed: {exc}") from exc
+        chats = []
+        for name in chat_files:
+            source_chat_id = Path(name).name.removesuffix(".yaml").removesuffix(".yml")
+            messages: list[dict[str, Any]] = []
+            chats.append({
+                "provider": "openmates",
+                "source_chat_id": source_chat_id,
+                "source_fingerprint": _account_import_fingerprint("openmates", source_chat_id, messages),
+                "title": source_chat_id,
+                "created_at": None,
+                "updated_at": None,
+                "messages": messages,
+                "embeds": [],
+                "uploads": [],
+                "provider_labels": ["openmates"],
+                "source_metadata": {"source_name": source_name, "archive_path": name},
+            })
+        if not chats:
+            raise OpenMatesConfigError("OpenMates Export V1 archive contains no chat YAML files")
+        skipped = sorted(domain for domain in domains if domain not in {"chats", "embeds", "uploads", "referenced_uploads"})
+        return {"source": "openmates", "chats": chats, "skipped_domains": skipped}
+
+    def preview_import(self, *, source: str, chats: list[dict[str, Any]] | None = None, chat_count: int | None = None, source_fingerprints: list[str] | None = None, estimated_tokens: int = 0, estimated_bytes: int = 0) -> dict[str, Any]:
+        selected_chats = chats or []
+        return self._client._post("/v1/account-imports/preview", {
+            "source": source,
+            "chat_count": chat_count if chat_count is not None else len(selected_chats),
+            "source_fingerprints": source_fingerprints if source_fingerprints is not None else [str(chat.get("source_fingerprint") or "") for chat in selected_chats],
+            "estimated_tokens": estimated_tokens,
+            "estimated_bytes": estimated_bytes,
+        })
+
+    def scan_import(self, import_id: str, chats: list[dict[str, Any]]) -> dict[str, Any]:
+        return self._client._post(f"/v1/account-imports/{quote(import_id, safe='')}/scan", {"chats": chats})
+
+    def persist_encrypted_import(self, import_id: str, chats: list[dict[str, Any]]) -> dict[str, Any]:
+        master_key = self._client._get_master_key()
+        encrypted_chats = []
+        for chat in chats:
+            chat_id = str(uuid.uuid4())
+            chat_key = os.urandom(32)
+            messages = []
+            previous_user_message_id: str | None = None
+            for message in chat.get("messages", []) if isinstance(chat.get("messages"), list) else []:
+                if not isinstance(message, dict):
+                    continue
+                message_id = str(uuid.uuid4())
+                role = str(message.get("role") or "user")
+                row = {
+                    "message_id": message_id,
+                    "role": role,
+                    "encrypted_content": _encrypt_aes_gcm_text(str(message.get("content") or ""), chat_key),
+                    "encrypted_sender_name": _encrypt_aes_gcm_text("Assistant" if role == "assistant" else "System" if role == "system" else "User", chat_key),
+                    "created_at": _parse_import_timestamp(message.get("created_at")),
+                    "updated_at": int(time.time()),
+                }
+                if role == "assistant" and previous_user_message_id:
+                    row["user_message_id"] = previous_user_message_id
+                if role == "user":
+                    previous_user_message_id = message_id
+                messages.append(row)
+            encrypted_chats.append({
+                "chat_id": chat_id,
+                "encrypted_title": _encrypt_aes_gcm_text(str(chat.get("title") or "Imported chat"), chat_key),
+                "encrypted_chat_key": _encrypt_aes_gcm_bytes(chat_key, master_key),
+                "created_at": _parse_import_timestamp(chat.get("created_at")),
+                "updated_at": _parse_import_timestamp(chat.get("updated_at")),
+                "source_fingerprint": str(chat.get("source_fingerprint") or ""),
+                "messages": messages,
+            })
+        return self._client._post(f"/v1/account-imports/{quote(import_id, safe='')}/persist-encrypted", {"chats": encrypted_chats})
+
+    def complete_import(self, import_id: str, *, imported_chat_ids: list[str], source_fingerprints: list[str], encrypted_record_counts: dict[str, int], client_failures: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+        return self._client._post(f"/v1/account-imports/{quote(import_id, safe='')}/complete", {
+            "imported_chat_ids": imported_chat_ids,
+            "source_fingerprints": source_fingerprints,
+            "encrypted_record_counts": encrypted_record_counts,
+            "client_failures": client_failures or [],
+        })
+
+    def import_chats(self, parsed: dict[str, Any], *, select: str = "default") -> dict[str, Any]:
+        chats = parsed.get("chats") if isinstance(parsed.get("chats"), list) else []
+        preview = self.preview_import(source=str(parsed.get("source") or ""), chats=chats)
+        if preview.get("can_import") is False:
+            raise OpenMatesConfigError(f"Account import blocked: {preview.get('reason') or 'unknown'}")
+        default_count = int(preview.get("default_selection_count") or 0)
+        max_count = int(preview.get("max_batch_count") or default_count)
+        selected_count = min(len(chats), max_count) if select == "all" else min(default_count, len(chats), max_count)
+        if selected_count <= 0:
+            raise OpenMatesConfigError("No chats are selected for import.")
+        import_id = str(preview.get("import_id") or uuid.uuid4())
+        selected_chats = chats[:selected_count]
+        scan = self.scan_import(import_id, selected_chats)
+        sanitized_chats = scan.get("chats") if isinstance(scan.get("chats"), list) and scan.get("chats") else selected_chats
+        persistence = self.persist_encrypted_import(import_id, sanitized_chats)
+        complete = self.complete_import(
+            import_id,
+            imported_chat_ids=[str(item) for item in persistence.get("imported_chat_ids", [])] if isinstance(persistence.get("imported_chat_ids"), list) else [],
+            source_fingerprints=[str(chat.get("source_fingerprint") or "") for chat in sanitized_chats],
+            encrypted_record_counts=persistence.get("encrypted_record_counts") if isinstance(persistence.get("encrypted_record_counts"), dict) else {"chats": 0, "messages": 0},
+            client_failures=persistence.get("failures") if isinstance(persistence.get("failures"), list) else [],
+        )
+        return {"source": parsed.get("source"), "parsed": parsed, "preview": preview, "import_id": import_id, "scan": scan, "persistence": persistence, "complete": complete}
+
     def export_manifest(self) -> dict[str, Any]:
         return self._client._get("/v1/sdk/account/export/manifest")
 
@@ -2243,7 +2508,7 @@ class OpenMatesBilling:
     def usage_summaries(self) -> dict[str, Any]: return self._client._get("/v1/sdk/billing/usage/summaries")
     def usage_daily(self) -> dict[str, Any]: return self._client._get("/v1/sdk/billing/usage/daily")
     def usage_export(self, *, months: int | None = None) -> dict[str, Any]: return self._client._get_raw(_with_query("/v1/sdk/billing/usage/export", months=months))
-    def create_bank_transfer_order(self, credits: int) -> dict[str, Any]: return self._client._post("/v1/sdk/billing/bank-transfer-orders", {"credits_amount": credits, "currency": "eur"})
+    def create_bank_transfer_order(self, credits: int, *, email_encryption_key: str | None = None) -> dict[str, Any]: return self._client._post("/v1/sdk/billing/bank-transfer-orders", {"credits_amount": credits, "currency": "eur", "email_encryption_key": email_encryption_key})
     def bank_transfer_status(self, order_id: str) -> dict[str, Any]: return self._client._get(f"/v1/sdk/billing/bank-transfer-orders/{_quote(order_id)}")
     def list_bank_transfer_orders(self) -> dict[str, Any]: return self._client._get("/v1/sdk/billing/bank-transfer-orders")
     def list_invoices(self) -> dict[str, Any]: return self._client._get("/v1/sdk/billing/invoices")
@@ -2254,7 +2519,7 @@ class OpenMatesBilling:
         return self._client._post("/v1/sdk/billing/refund", {"invoice_id": invoice_id})
     def redeem_gift_card(self, code: str) -> dict[str, Any]: return self._client._post("/v1/sdk/billing/gift-cards/redeem", {"code": code})
     def list_redeemed_gift_cards(self) -> dict[str, Any]: return self._client._get("/v1/sdk/billing/gift-cards/redeemed")
-    def create_gift_card_bank_transfer_order(self, credits: int) -> dict[str, Any]: return self._client._post("/v1/sdk/billing/gift-cards/bank-transfer-orders", {"credits_amount": credits, "currency": "eur"})
+    def create_gift_card_bank_transfer_order(self, credits: int, *, email_encryption_key: str | None = None) -> dict[str, Any]: return self._client._post("/v1/sdk/billing/gift-cards/bank-transfer-orders", {"credits_amount": credits, "currency": "eur", "email_encryption_key": email_encryption_key})
     def gift_card_purchase_status(self, order_id: str) -> dict[str, Any]: return self._client._get(f"/v1/sdk/billing/gift-cards/purchases/{_quote(order_id)}")
     def list_purchased_gift_cards(self) -> dict[str, Any]: return self._client._get("/v1/sdk/billing/gift-cards/purchased")
     def set_low_balance_auto_topup(self, input_data: dict[str, Any]) -> dict[str, Any]: return self._client._post("/v1/sdk/billing/auto-topup/low-balance", input_data)
@@ -2424,9 +2689,6 @@ class OpenMatesTeams:
         result = self._client._patch(f"/v1/teams/{_quote(team_id)}", payload)
         return dict(result.get("team") or result)
 
-    def delete(self, team_id: str) -> dict[str, Any]:
-        return self._client._delete(f"/v1/teams/{_quote(team_id)}")
-
     def invite(self, team_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         result = self._client._post(f"/v1/teams/{_quote(team_id)}/invites", payload)
         return dict(result.get("invite") or result)
@@ -2455,30 +2717,22 @@ class OpenMatesTeams:
         result = self._client._get(f"/v1/teams/{_quote(team_id)}/billing")
         return dict(result.get("billing") or result)
 
-    def add_credits(self, team_id: str, payload: dict[str, Any]) -> dict[str, Any]:
-        result = self._client._post(f"/v1/teams/{_quote(team_id)}/billing/credits", payload)
-        return dict(result.get("billing") or result)
-
     def usage(self, team_id: str, *, member_user_id: str | None = None) -> list[dict[str, Any]]:
         result = self._client._get(_with_query(f"/v1/teams/{_quote(team_id)}/billing/usage", member_user_id=member_user_id))
         return list(result.get("usage") or [])
 
+    def create_bank_transfer_order(self, team_id: str, credits: int, *, email_encryption_key: str | None = None) -> dict[str, Any]:
+        return self._client._post(f"/v1/teams/{_quote(team_id)}/billing/bank-transfer-orders", {"credits_amount": credits, "currency": "eur", "email_encryption_key": email_encryption_key})
+
+    def bank_transfer_status(self, team_id: str, order_id: str) -> dict[str, Any]:
+        return self._client._get(f"/v1/teams/{_quote(team_id)}/billing/bank-transfer-orders/{_quote(order_id)}")
+
+    def list_bank_transfer_orders(self, team_id: str) -> dict[str, Any]:
+        return self._client._get(f"/v1/teams/{_quote(team_id)}/billing/bank-transfer-orders")
+
     def memories(self, team_id: str) -> list[dict[str, Any]]:
         result = self._client._get(f"/v1/teams/{_quote(team_id)}/memories")
         return list(result.get("memories") or [])
-
-    def move(self, workspace_type: str, object_id: str, team_id: str) -> dict[str, Any]:
-        routes = {
-            "chat": "chats",
-            "project": "projects",
-            "task": "user-tasks",
-            "plan": "user-plans",
-            "workflow": "workflows",
-        }
-        route = routes.get(workspace_type)
-        if not route:
-            raise OpenMatesConfigError("Unsupported team move workspace type")
-        return self._client._post(f"/v1/{route}/{_quote(object_id)}/move", {"team_id": team_id, "confirmed": True, "moved_at": int(time.time())})
 
     def export(self, team_id: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
         return self._client._post(f"/v1/teams/{_quote(team_id)}/export", payload or {})

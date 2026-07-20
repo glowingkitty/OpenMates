@@ -17,10 +17,12 @@ KEY_WRAPPER_TYPES = {"master", "chat", "project", "plan", "team"}
 USER_PLAN_FIELDS = (
     "id,plan_id,hashed_user_id,hashed_team_id,status,primary_chat_id,hashed_primary_chat_id,"
     "linked_project_hashes,current_phase_id,current_step_id,current_task_id,"
-    "planner_focus_id,version,created_at,updated_at,completed_at,"
+    "continuation_state,approval_state,planner_focus_id,version,created_at,updated_at,completed_at,"
     "encrypted_plan_key,encrypted_title,encrypted_summary,encrypted_goal,"
     "encrypted_scope_in,encrypted_scope_out,encrypted_linked_project_ids,encrypted_assumptions,"
-    "encrypted_open_questions,encrypted_constraints,encrypted_decisions,encrypted_risks"
+    "encrypted_open_questions,encrypted_constraints,encrypted_decisions,encrypted_risks,"
+    "encrypted_user_flows,encrypted_current_focus,encrypted_reference_patterns,"
+    "encrypted_context,encrypted_continuation_policy"
 )
 
 USER_PLAN_KEY_WRAPPER_FIELDS = (
@@ -30,15 +32,47 @@ USER_PLAN_KEY_WRAPPER_FIELDS = (
 
 CRITERION_FIELDS = (
     "id,plan_id,criterion_id,type,status,required,linked_step_ids,linked_task_ids,"
-    "verification_ids,version,created_at,updated_at,encrypted_text,encrypted_evidence,"
-    "encrypted_waiver_reason"
+    "verification_ids,coverage_status,verification_scope,version,created_at,updated_at,"
+    "encrypted_text,encrypted_evidence,encrypted_coverage_note,encrypted_waiver_reason"
 )
 
 VERIFICATION_FIELDS = (
     "id,plan_id,verification_id,kind,phase,status,required_for_done,covers,"
-    "threshold,score,confidence,linked_task_id,run_id,created_at,updated_at,"
-    "encrypted_command,encrypted_evaluation_prompt,encrypted_expected_result,"
-    "encrypted_result_summary,encrypted_required_fixes"
+    "lifecycle_status,source_hash,threshold,score,confidence,linked_task_id,"
+    "linked_sub_chat_id,source_embed_id,runner_kind,run_id,created_at,updated_at,"
+    "encrypted_description,encrypted_command,encrypted_evaluation_prompt,"
+    "encrypted_evaluator_instructions,encrypted_expected_result,encrypted_result_summary,"
+    "encrypted_required_fixes,encrypted_source_path,encrypted_red_phase_reason"
+)
+
+ASSUMPTION_FIELDS = (
+    "id,plan_id,assumption_id,category,status,required_before,linked_sub_chat_id,"
+    "linked_task_id,linked_step_ids,linked_criterion_ids,source_count,version,"
+    "created_at,updated_at,encrypted_text,encrypted_corrected_text,"
+    "encrypted_evidence_summary,encrypted_blocker_reason,encrypted_waiver_reason,encrypted_sources"
+)
+
+REFERENCE_PATTERN_FIELDS = (
+    "id,plan_id,pattern_id,category,status,required_before,source_count,linked_task_ids,"
+    "linked_check_ids,version,created_at,updated_at,encrypted_title,encrypted_description,"
+    "encrypted_sources,encrypted_match_rules,encrypted_anti_patterns,encrypted_evidence_summary,"
+    "encrypted_waiver_reason"
+)
+
+VERIFICATION_RUN_FIELDS = (
+    "id,plan_id,verification_id,run_id,runner_kind,status,exit_code,source_embed_id,"
+    "started_at,finished_at,duration_ms,artifact_count,created_at,encrypted_command,"
+    "encrypted_summary,encrypted_step_timeline,encrypted_stdout,encrypted_stderr,encrypted_environment"
+)
+
+VERIFICATION_ARTIFACT_FIELDS = (
+    "id,plan_id,verification_id,run_id,artifact_id,artifact_kind,mime_type,byte_size,"
+    "created_at,encrypted_label,encrypted_url_or_embed_ref,encrypted_private_metadata"
+)
+
+EXECUTION_CONTEXT_FIELDS = (
+    "id,plan_id,hashed_user_id,hashed_primary_chat_id,context_version,created_at,"
+    "expires_at,consumed_at,vault_encrypted_context"
 )
 
 
@@ -359,7 +393,7 @@ class UserPlanMethods:
                     await self._delete_key_wrappers(created_wrappers)
                     return None
                 created_wrappers.append(created_wrapper)
-        update["version"] = int(existing.get("version") or 1) + 1
+        update["version"] = int(update.get("version") or existing.get("version") or 1)
         updated = await self.directus_service.update_item("user_plans", existing["id"], update)
         if not updated:
             await self._delete_key_wrappers(created_wrappers)
@@ -380,7 +414,13 @@ class UserPlanMethods:
         return all_deleted
 
     async def create_criterion(self, plan_id: str, payload: dict[str, Any]) -> dict[str, Any] | None:
-        record = {**payload, "plan_id": plan_id, "status": payload.get("status") or "pending", "version": payload.get("version", 1)}
+        record = {
+            **payload,
+            "plan_id": plan_id,
+            "status": payload.get("status") or "pending",
+            "coverage_status": payload.get("coverage_status") or "uncovered",
+            "version": payload.get("version", 1),
+        }
         success, data = await self.directus_service.create_item("user_plan_acceptance_criteria", record)
         if not success:
             logger.error("Failed to create plan criterion: %s", data)
@@ -408,7 +448,12 @@ class UserPlanMethods:
         return await self.directus_service.update_item("user_plan_acceptance_criteria", existing["id"], update)
 
     async def create_verification(self, plan_id: str, payload: dict[str, Any]) -> dict[str, Any] | None:
-        record = {**payload, "plan_id": plan_id, "status": payload.get("status") or "pending"}
+        record = {
+            **payload,
+            "plan_id": plan_id,
+            "status": payload.get("status") or "pending",
+            "lifecycle_status": payload.get("lifecycle_status") or "proposed",
+        }
         success, data = await self.directus_service.create_item("user_plan_verifications", record)
         if not success:
             logger.error("Failed to create plan verification: %s", data)
@@ -431,3 +476,145 @@ class UserPlanMethods:
         if not existing_rows:
             return None
         return await self.directus_service.update_item("user_plan_verifications", existing_rows[0]["id"], patch)
+
+    async def create_assumption(self, plan_id: str, payload: dict[str, Any]) -> dict[str, Any] | None:
+        record = {**payload, "plan_id": plan_id, "status": payload.get("status") or "unchecked", "version": payload.get("version", 1)}
+        success, data = await self.directus_service.create_item("user_plan_assumptions", record)
+        if not success:
+            logger.error("Failed to create plan assumption: %s", data)
+            return None
+        return data
+
+    async def list_assumptions(self, plan_id: str) -> list[dict[str, Any]]:
+        params = {"filter[plan_id][_eq]": plan_id, "fields": ASSUMPTION_FIELDS, "sort": "created_at"}
+        response = await self.directus_service.get_items("user_plan_assumptions", params=params, no_cache=True)
+        return response if isinstance(response, list) else []
+
+    async def update_assumption(self, plan_id: str, assumption_id: str, patch: dict[str, Any]) -> dict[str, Any] | None:
+        params = {
+            "filter[plan_id][_eq]": plan_id,
+            "filter[assumption_id][_eq]": assumption_id,
+            "fields": ASSUMPTION_FIELDS,
+            "limit": 1,
+        }
+        existing_rows = await self.directus_service.get_items("user_plan_assumptions", params=params, no_cache=True)
+        if not existing_rows:
+            return None
+        existing = existing_rows[0]
+        update = dict(patch)
+        update["version"] = int(existing.get("version") or 1) + 1
+        return await self.directus_service.update_item("user_plan_assumptions", existing["id"], update)
+
+    async def create_reference_pattern(self, plan_id: str, payload: dict[str, Any]) -> dict[str, Any] | None:
+        record = {**payload, "plan_id": plan_id, "status": payload.get("status") or "proposed", "version": payload.get("version", 1)}
+        success, data = await self.directus_service.create_item("user_plan_reference_patterns", record)
+        if not success:
+            logger.error("Failed to create plan reference pattern: %s", data)
+            return None
+        return data
+
+    async def list_reference_patterns(self, plan_id: str) -> list[dict[str, Any]]:
+        params = {"filter[plan_id][_eq]": plan_id, "fields": REFERENCE_PATTERN_FIELDS, "sort": "created_at"}
+        response = await self.directus_service.get_items("user_plan_reference_patterns", params=params, no_cache=True)
+        return response if isinstance(response, list) else []
+
+    async def update_reference_pattern(self, plan_id: str, pattern_id: str, patch: dict[str, Any]) -> dict[str, Any] | None:
+        params = {
+            "filter[plan_id][_eq]": plan_id,
+            "filter[pattern_id][_eq]": pattern_id,
+            "fields": REFERENCE_PATTERN_FIELDS,
+            "limit": 1,
+        }
+        existing_rows = await self.directus_service.get_items("user_plan_reference_patterns", params=params, no_cache=True)
+        if not existing_rows:
+            return None
+        existing = existing_rows[0]
+        update = dict(patch)
+        update["version"] = int(existing.get("version") or 1) + 1
+        return await self.directus_service.update_item("user_plan_reference_patterns", existing["id"], update)
+
+    async def create_verification_run(self, plan_id: str, verification_id: str, payload: dict[str, Any]) -> dict[str, Any] | None:
+        record = {**payload, "plan_id": plan_id, "verification_id": verification_id}
+        success, data = await self.directus_service.create_item("user_plan_verification_runs", record)
+        if not success:
+            logger.error("Failed to create plan verification run: %s", data)
+            return None
+        return data
+
+    async def get_verification_run(self, plan_id: str, verification_id: str, run_id: str) -> dict[str, Any] | None:
+        params = {
+            "filter[plan_id][_eq]": plan_id,
+            "filter[verification_id][_eq]": verification_id,
+            "filter[run_id][_eq]": run_id,
+            "fields": VERIFICATION_RUN_FIELDS,
+            "limit": 1,
+        }
+        rows = await self.directus_service.get_items("user_plan_verification_runs", params=params, no_cache=True)
+        return rows[0] if rows and isinstance(rows, list) else None
+
+    async def list_verification_artifacts(self, plan_id: str, verification_id: str, run_id: str) -> list[dict[str, Any]]:
+        params = {
+            "filter[plan_id][_eq]": plan_id,
+            "filter[verification_id][_eq]": verification_id,
+            "filter[run_id][_eq]": run_id,
+            "fields": VERIFICATION_ARTIFACT_FIELDS,
+            "sort": "created_at",
+        }
+        rows = await self.directus_service.get_items("user_plan_verification_artifacts", params=params, no_cache=True)
+        return rows if isinstance(rows, list) else []
+
+    async def create_execution_context(self, user_id: str, plan: dict[str, Any], payload: dict[str, Any]) -> dict[str, Any] | None:
+        primary_chat_id = plan.get("primary_chat_id")
+        if not primary_chat_id:
+            return None
+        record = {
+            "plan_id": plan.get("plan_id"),
+            "hashed_user_id": hash_id(user_id),
+            "hashed_primary_chat_id": hash_id(primary_chat_id),
+            "context_version": payload.get("context_version", 1),
+            "vault_encrypted_context": payload.get("vault_encrypted_context"),
+            "created_at": payload.get("created_at"),
+            "expires_at": payload.get("expires_at"),
+            "consumed_at": payload.get("consumed_at"),
+        }
+        success, data = await self.directus_service.create_item("user_plan_execution_contexts", record)
+        if not success:
+            logger.error("Failed to create plan execution context: %s", data)
+            return None
+        return data
+
+    async def get_active_execution_context(self, user_id: str, chat_id: str, now: int) -> dict[str, Any] | None:
+        params = {
+            "filter[hashed_user_id][_eq]": hash_id(user_id),
+            "filter[hashed_primary_chat_id][_eq]": hash_id(chat_id),
+            "filter[expires_at][_gt]": now,
+            "filter[consumed_at][_null]": True,
+            "fields": EXECUTION_CONTEXT_FIELDS,
+            "sort": "-created_at",
+            "limit": 1,
+        }
+        rows = await self.directus_service.get_items("user_plan_execution_contexts", params=params, no_cache=True)
+        return rows[0] if rows and isinstance(rows, list) else None
+
+    async def delete_expired_execution_contexts(self, now: int) -> int:
+        rows = await self.directus_service.get_items(
+            "user_plan_execution_contexts",
+            params={"filter[expires_at][_lte]": now, "fields": "id", "limit": -1},
+            no_cache=True,
+        )
+        deleted = 0
+        for row in rows if isinstance(rows, list) else []:
+            if row.get("id") and await self.directus_service.delete_item("user_plan_execution_contexts", row["id"]):
+                deleted += 1
+        return deleted
+
+    async def delete_orphan_key_wrappers(self) -> int:
+        wrappers = await self.directus_service.get_items("user_plan_key_wrappers", params={"fields": "id,hashed_plan_id", "limit": -1}, no_cache=True)
+        plans = await self.directus_service.get_items("user_plans", params={"fields": "plan_id", "limit": -1}, no_cache=True)
+        existing_plan_hashes = {hash_id(plan["plan_id"]) for plan in plans if isinstance(plan, dict) and plan.get("plan_id")} if isinstance(plans, list) else set()
+        deleted = 0
+        for wrapper in wrappers if isinstance(wrappers, list) else []:
+            if wrapper.get("hashed_plan_id") not in existing_plan_hashes and wrapper.get("id"):
+                if await self.directus_service.delete_item("user_plan_key_wrappers", wrapper["id"]):
+                    deleted += 1
+        return deleted

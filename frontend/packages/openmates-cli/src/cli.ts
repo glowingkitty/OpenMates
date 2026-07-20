@@ -40,6 +40,8 @@ import {
   type UserTaskActionInput,
   type UserTaskReorderInput,
   type UserTaskStatus,
+  type UserPlanStatus,
+  type UserPlanVerificationStatus,
   type TeamRole,
   type WorkspaceMoveType,
 } from "./client.js";
@@ -82,6 +84,11 @@ import {
   sanitizeAccountExportManifest,
   writeAccountExportArchive,
 } from "./accountExportArchive.js";
+import {
+  parseClaudeImportBuffer,
+  parseOpenMatesImportBuffer,
+  type ParsedAccountImport,
+} from "./accountImport.js";
 import {
   getExampleChatConversation,
   listExampleChatsForApp,
@@ -130,6 +137,20 @@ import {
   splitCsvFlag,
   type DecryptedUserTask,
 } from "./tasksCli.js";
+import {
+  buildCreatePlanCriterionInput,
+  buildCreatePlanVerificationInput,
+  buildCreateUserPlanInput,
+  buildPlanVerificationEvidenceInput,
+  buildUpdateUserPlanInput,
+  decryptUserPlan,
+  decryptUserPlans,
+  findPlan,
+  normalizePlanStatus,
+  renderPlanDetail,
+  renderPlanList,
+  type DecryptedUserPlan,
+} from "./plansCli.js";
 
 type SignupRequiredResult = {
   status: "signup_required";
@@ -232,6 +253,10 @@ async function main(): Promise<void> {
     }
     if (command === "tasks") {
       printTasksHelp();
+      return;
+    }
+    if (command === "plans") {
+      printPlansHelp();
       return;
     }
     if (command === "teams") {
@@ -370,6 +395,11 @@ async function main(): Promise<void> {
 
   if (command === "tasks") {
     await handleTasks(client, subcommand, rest, parsed.flags);
+    return;
+  }
+
+  if (command === "plans") {
+    await handlePlans(client, subcommand, rest, parsed.flags);
     return;
   }
 
@@ -744,6 +774,234 @@ function printTaskOutput(task: DecryptedUserTask, flags: Record<string, string |
 }
 
 // ---------------------------------------------------------------------------
+// User plans
+// ---------------------------------------------------------------------------
+
+async function handlePlans(
+  client: OpenMatesClient,
+  subcommand: string | undefined,
+  rest: string[],
+  flags: Record<string, string | boolean>,
+): Promise<void> {
+  if (!subcommand || subcommand === "help" || flags.help === true) {
+    printPlansHelp();
+    return;
+  }
+
+  const masterKey = client.getMasterKeyBytes();
+  const scope = planScopeFromFlags(flags);
+
+  if (subcommand === "list" || subcommand === "status") {
+    if (subcommand === "status" && rest[0]) {
+      const plan = await resolvePlan(client, masterKey, rest[0], scope);
+      printPlanOutput(plan, flags);
+      return;
+    }
+    const plans = await loadPlans(client, masterKey, scope);
+    if (flags.json === true) printJson({ plans: plans.map(planToJson) });
+    else console.log(renderPlanList(plans));
+    return;
+  }
+
+  if (subcommand === "show") {
+    const id = rest[0];
+    if (!id) throw new Error("Missing plan ID. Usage: openmates plans show <plan-id|short-id>");
+    const plan = await resolvePlan(client, masterKey, id, scope);
+    printPlanOutput(plan, flags);
+    return;
+  }
+
+  if (subcommand === "create") {
+    const title = planTitleFromFlagsOrRest(flags, rest);
+    const input = await buildCreateUserPlanInput(masterKey, {
+      title,
+      summary: typeof flags.summary === "string" ? flags.summary : typeof flags.description === "string" ? flags.description : "",
+      goal: typeof flags.goal === "string" ? flags.goal : "",
+      scopeIn: typeof flags["scope-in"] === "string" ? flags["scope-in"] : "",
+      scopeOut: typeof flags["scope-out"] === "string" ? flags["scope-out"] : "",
+      assumptions: typeof flags.assumptions === "string" ? flags.assumptions : "",
+      openQuestions: typeof flags["open-questions"] === "string" ? flags["open-questions"] : "",
+      constraints: typeof flags.constraints === "string" ? flags.constraints : "",
+      decisions: typeof flags.decisions === "string" ? flags.decisions : "",
+      risks: typeof flags.risks === "string" ? flags.risks : "",
+      status: normalizePlanStatus(typeof flags.status === "string" ? flags.status : undefined),
+      primaryChatId: typeof flags.chat === "string" ? flags.chat : null,
+      linkedProjectIds: splitCsvFlag(flags.project ?? flags.projects),
+      currentPhaseId: typeof flags.phase === "string" ? flags.phase : null,
+      currentStepId: typeof flags.step === "string" ? flags.step : null,
+      currentTaskId: typeof flags.task === "string" ? flags.task : null,
+      plannerFocusId: typeof flags.focus === "string" ? flags.focus : null,
+    });
+    const created = await client.createUserPlan(input);
+    printPlanOutput(await decryptUserPlan(created, masterKey), flags);
+    return;
+  }
+
+  if (subcommand === "edit") {
+    const id = rest[0];
+    if (!id) throw new Error("Missing plan ID. Usage: openmates plans edit <plan-id|short-id> [--title ...]");
+    const plan = await resolvePlan(client, masterKey, id, scope);
+    const patch = await buildUpdateUserPlanInput(plan, masterKey, {
+      title: typeof flags.title === "string" ? flags.title : undefined,
+      summary: typeof flags.summary === "string" ? flags.summary : typeof flags.description === "string" ? flags.description : undefined,
+      goal: typeof flags.goal === "string" ? flags.goal : undefined,
+      scopeIn: typeof flags["scope-in"] === "string" ? flags["scope-in"] : undefined,
+      scopeOut: typeof flags["scope-out"] === "string" ? flags["scope-out"] : undefined,
+      assumptions: typeof flags.assumptions === "string" ? flags.assumptions : undefined,
+      openQuestions: typeof flags["open-questions"] === "string" ? flags["open-questions"] : undefined,
+      constraints: typeof flags.constraints === "string" ? flags.constraints : undefined,
+      decisions: typeof flags.decisions === "string" ? flags.decisions : undefined,
+      risks: typeof flags.risks === "string" ? flags.risks : undefined,
+      status: normalizePlanStatus(typeof flags.status === "string" ? flags.status : undefined),
+      primaryChatId: flags.chat === true ? null : typeof flags.chat === "string" ? flags.chat : undefined,
+      linkedProjectIds: flags.project || flags.projects ? splitCsvFlag(flags.project ?? flags.projects) : undefined,
+      currentPhaseId: flags.phase === true ? null : typeof flags.phase === "string" ? flags.phase : undefined,
+      currentStepId: flags.step === true ? null : typeof flags.step === "string" ? flags.step : undefined,
+      currentTaskId: flags.task === true ? null : typeof flags.task === "string" ? flags.task : undefined,
+      plannerFocusId: flags.focus === true ? null : typeof flags.focus === "string" ? flags.focus : undefined,
+    });
+    const updated = await client.updateUserPlan(plan.planId, patch);
+    printPlanOutput(await decryptUserPlan(updated, masterKey), flags);
+    return;
+  }
+
+  if (subcommand === "approve" || subcommand === "activate") {
+    const plan = await requiredResolvedPlan(client, masterKey, rest[0], scope, subcommand);
+    const chatId = typeof flags.chat === "string" ? flags.chat : plan.primaryChatId;
+    if (!chatId) throw new Error("Activating a plan requires a primary chat. Pass --chat <chat-id>.");
+    const activated = await client.activateUserPlan(plan.planId, { version: plan.version, chat_id: chatId });
+    printPlanOutput(await decryptUserPlan(activated, masterKey), flags);
+    return;
+  }
+
+  if (subcommand === "pause" || subcommand === "resume" || subcommand === "archive") {
+    const plan = await requiredResolvedPlan(client, masterKey, rest[0], scope, subcommand);
+    const status: UserPlanStatus = subcommand === "resume" ? "active" : subcommand === "archive" ? "archived" : "awaiting_confirmation";
+    const updated = await client.updateUserPlan(plan.planId, { version: plan.version, status, updated_at: Math.floor(Date.now() / 1000) });
+    printPlanOutput(await decryptUserPlan(updated, masterKey), flags);
+    return;
+  }
+
+  if (subcommand === "complete" || subcommand === "done") {
+    const plan = await requiredResolvedPlan(client, masterKey, rest[0], scope, subcommand);
+    const completed = await client.completeUserPlan(plan.planId, { version: plan.version });
+    printPlanOutput(await decryptUserPlan(completed, masterKey), flags);
+    return;
+  }
+
+  if (subcommand === "criterion" || subcommand === "criteria") {
+    const action = rest[0];
+    if (action !== "add" && action !== "create") throw new Error("Usage: openmates plans criteria add <plan-id> --text <criterion>");
+    const plan = await requiredResolvedPlan(client, masterKey, rest[1], scope, "criteria add");
+    const text = requiredStringFlag(flags.text ?? rest.slice(2).join(" "), "--text <criterion>");
+    const criterion = await buildCreatePlanCriterionInput(plan, masterKey, {
+      criterionId: typeof flags.id === "string" ? flags.id : undefined,
+      text,
+      type: typeof flags.type === "string" ? flags.type : undefined,
+      status: typeof flags.status === "string" ? flags.status : undefined,
+      required: flags.required === true ? true : flags.optional === true ? false : undefined,
+      linkedStepIds: splitCsvFlag(flags.step ?? flags.steps),
+      linkedTaskIds: splitCsvFlag(flags.task ?? flags.tasks),
+      verificationIds: splitCsvFlag(flags.verification ?? flags.verifications),
+    });
+    const created = await client.createPlanCriterion(plan.planId, criterion);
+    if (flags.json === true) printJson({ criterion: created });
+    else console.log(`Plan criterion added: ${created.criterion_id}`);
+    return;
+  }
+
+  if (subcommand === "check" || subcommand === "checks" || subcommand === "verification") {
+    const action = rest[0];
+    if (action === "add" || action === "create") {
+      const plan = await requiredResolvedPlan(client, masterKey, rest[1], scope, "checks add");
+      const kind = requiredStringFlag(flags.kind ?? flags.type, "--kind <manual_check|command|ai_evaluator>");
+      const verification = await buildCreatePlanVerificationInput(plan, masterKey, {
+        verificationId: typeof flags.id === "string" ? flags.id : undefined,
+        kind,
+        phase: typeof flags.phase === "string" ? flags.phase : undefined,
+        status: parsePlanVerificationStatus(flags.status, "pending"),
+        requiredForDone: flags.required === true ? true : flags.optional === true ? false : undefined,
+        covers: splitCsvFlag(flags.cover ?? flags.covers),
+        threshold: parseOptionalNumberFlag(flags.threshold, "--threshold"),
+        linkedTaskId: typeof flags.task === "string" ? flags.task : null,
+        runId: typeof flags.run === "string" ? flags.run : null,
+        command: typeof flags.command === "string" ? flags.command : undefined,
+        evaluationPrompt: typeof flags.prompt === "string" ? flags.prompt : typeof flags["evaluation-prompt"] === "string" ? flags["evaluation-prompt"] : undefined,
+        expectedResult: typeof flags.expected === "string" ? flags.expected : typeof flags["expected-result"] === "string" ? flags["expected-result"] : undefined,
+      });
+      const created = await client.createPlanVerification(plan.planId, verification);
+      if (flags.json === true) printJson({ verification: created });
+      else console.log(`Plan check added: ${created.verification_id}`);
+      return;
+    }
+    if (action === "evidence" || action === "record") {
+      const plan = await requiredResolvedPlan(client, masterKey, rest[1], scope, "checks evidence");
+      const verificationId = requiredStringFlag(flags.verification ?? flags.check ?? rest[2], "--verification <verification-id>");
+      const evidence = await buildPlanVerificationEvidenceInput(plan, masterKey, {
+        status: parsePlanVerificationStatus(flags.status, undefined, true),
+        score: parseOptionalNumberFlag(flags.score, "--score"),
+        threshold: parseOptionalNumberFlag(flags.threshold, "--threshold"),
+        confidence: typeof flags.confidence === "string" ? flags.confidence : null,
+        runId: typeof flags.run === "string" ? flags.run : null,
+        resultSummary: typeof flags.summary === "string" ? flags.summary : undefined,
+        requiredFixes: typeof flags["required-fixes"] === "string" ? flags["required-fixes"] : undefined,
+      });
+      const updated = await client.addPlanVerificationEvidence(plan.planId, verificationId, evidence);
+      if (flags.json === true) printJson({ verification: updated });
+      else console.log(`Plan check evidence recorded: ${updated.verification_id}`);
+      return;
+    }
+    throw new Error("Usage: openmates plans checks add <plan-id> --kind <kind> or openmates plans checks evidence <plan-id> --verification <id> --status <status>");
+  }
+
+  throw new Error(`Unknown plans command '${subcommand}'. Run 'openmates plans --help'.`);
+}
+
+function planScopeFromFlags(flags: Record<string, string | boolean>): { status?: UserPlanStatus; chatId?: string; projectId?: string; activeOnly?: boolean; teamId?: string | null; personal?: boolean } {
+  return {
+    status: normalizePlanStatus(typeof flags.status === "string" ? flags.status : undefined),
+    chatId: typeof flags.chat === "string" ? flags.chat : undefined,
+    projectId: typeof flags.project === "string" ? flags.project : undefined,
+    activeOnly: flags.active === true ? true : undefined,
+    ...teamContextFromFlags(flags),
+  };
+}
+
+async function loadPlans(
+  client: OpenMatesClient,
+  masterKey: Uint8Array,
+  scope: { status?: UserPlanStatus; chatId?: string; projectId?: string; activeOnly?: boolean; teamId?: string | null; personal?: boolean },
+): Promise<DecryptedUserPlan[]> {
+  const records = await client.listUserPlans(scope);
+  return decryptUserPlans(records, masterKey);
+}
+
+async function resolvePlan(
+  client: OpenMatesClient,
+  masterKey: Uint8Array,
+  id: string,
+  scope: { status?: UserPlanStatus; chatId?: string; projectId?: string; activeOnly?: boolean; teamId?: string | null; personal?: boolean },
+): Promise<DecryptedUserPlan> {
+  return findPlan(await loadPlans(client, masterKey, { ...scope, status: undefined }), id);
+}
+
+async function requiredResolvedPlan(
+  client: OpenMatesClient,
+  masterKey: Uint8Array,
+  id: string | undefined,
+  scope: { status?: UserPlanStatus; chatId?: string; projectId?: string; activeOnly?: boolean; teamId?: string | null; personal?: boolean },
+  action: string,
+): Promise<DecryptedUserPlan> {
+  if (!id) throw new Error(`Missing plan ID. Usage: openmates plans ${action} <plan-id|short-id>`);
+  return resolvePlan(client, masterKey, id, scope);
+}
+
+function printPlanOutput(plan: DecryptedUserPlan, flags: Record<string, string | boolean>): void {
+  if (flags.json === true) printJson({ plan: planToJson(plan) });
+  else console.log(renderPlanDetail(plan));
+}
+
+// ---------------------------------------------------------------------------
 // Teams
 // ---------------------------------------------------------------------------
 
@@ -806,8 +1064,8 @@ async function handleTeams(
   if (subcommand === "update") {
     const teamId = requireTeamId(rest, flags);
     const patch: Record<string, unknown> = {};
-    if (typeof flags.name === "string") patch.encrypted_name = flags.name;
-    if (typeof flags.description === "string") patch.encrypted_description = flags.description;
+    if (typeof flags.name === "string") patch.name = flags.name;
+    if (typeof flags.description === "string") patch.description = flags.description;
     if (typeof flags.slug === "string") patch.slug = flags.slug;
     if (Object.keys(patch).length === 0) throw new Error("Nothing to update. Provide --name, --description, or --slug.");
     const team = await client.updateTeam(teamId, patch);
@@ -818,7 +1076,19 @@ async function handleTeams(
 
   if (subcommand === "delete") {
     const teamId = requireTeamId(rest, flags);
+    if (flags["email-code"] !== undefined || flags["totp-code"] !== undefined) {
+      throw new Error("Team deletion verification codes must be entered through interactive prompts, not command-line flags.");
+    }
     if (flags.yes !== true && flags.confirm !== true) throw new Error("Deleting a team requires --yes.");
+    const authMethods = await client.getAuthMethodsStatus();
+    if (authMethods.has_2fa) {
+      const totpCode = await promptLine("Enter 2FA code to delete this team: ");
+      await client.verifyTotpForCurrentSession(totpCode);
+    } else {
+      await client.requestActionEmailCode("delete_team");
+      const emailCode = await promptLine("Enter email verification code to delete this team: ");
+      await client.verifyActionEmailCode("delete_team", emailCode);
+    }
     const result = await client.deleteTeam(teamId);
     if (client.getActiveTeamId() === teamId) client.setActiveTeamId(null);
     if (flags.json === true) printJson(result);
@@ -907,6 +1177,33 @@ async function handleTeams(
   }
 
   if (subcommand === "billing") {
+    if (rest[0] === "bank-transfer") {
+      const action = rest[1];
+      if (action === "create") {
+        const teamId = requireTeamId(rest.slice(2), flags);
+        const credits = requiredNumberFlag(flags.credits, "--credits <amount>");
+        const order = await client.createTeamBankTransferOrder(teamId, credits);
+        if (flags.json === true) printJson(order);
+        else printBankTransferOrder(order, false);
+        return;
+      }
+      if (action === "status") {
+        const teamId = requireTeamId(rest.slice(2), flags);
+        const orderId = requiredStringFlag(flags.order ?? rest[3], "<order-id>");
+        const status = await client.getTeamBankTransferStatus(teamId, orderId);
+        if (flags.json === true) printJson(status);
+        else printBankTransferStatus(status, false);
+        return;
+      }
+      if (action === "list") {
+        const teamId = requireTeamId(rest.slice(2), flags);
+        const orders = await client.listTeamBankTransferOrders(teamId);
+        if (flags.json === true) printJson({ orders });
+        else printJson(orders);
+        return;
+      }
+      throw new Error("Unknown team billing bank-transfer command. Use create, status, or list.");
+    }
     const teamId = requireTeamId(rest, flags);
     const billing = await client.getTeamBilling(teamId);
     if (flags.json === true) printJson({ billing });
@@ -915,12 +1212,7 @@ async function handleTeams(
   }
 
   if (subcommand === "add-credits") {
-    const teamId = requireTeamId(rest, flags);
-    const credits = requiredNumberFlag(flags.credits, "--credits <amount>");
-    const billing = await client.addTeamCredits(teamId, { credits });
-    if (flags.json === true) printJson({ billing });
-    else printJson(billing);
-    return;
+    throw new Error("Direct team credit grants are disabled. Use 'openmates teams billing bank-transfer create <team-id> --credits <amount>'.");
   }
 
   if (subcommand === "usage") {
@@ -1070,10 +1362,70 @@ function taskToJson(task: DecryptedUserTask): Record<string, unknown> {
   };
 }
 
+function planToJson(plan: DecryptedUserPlan): Record<string, unknown> {
+  return {
+    plan_id: plan.planId,
+    short_id: plan.shortId,
+    title: plan.title,
+    summary: plan.summary,
+    goal: plan.goal,
+    scope_in: plan.scopeIn,
+    scope_out: plan.scopeOut,
+    assumptions: plan.assumptions,
+    open_questions: plan.openQuestions,
+    constraints: plan.constraints,
+    decisions: plan.decisions,
+    risks: plan.risks,
+    status: plan.status,
+    primary_chat_id: plan.primaryChatId,
+    linked_project_ids: plan.linkedProjectIds,
+    current_phase_id: plan.currentPhaseId,
+    current_step_id: plan.currentStepId,
+    current_task_id: plan.currentTaskId,
+    planner_focus_id: plan.plannerFocusId,
+    version: plan.version,
+    created_at: plan.createdAt,
+    updated_at: plan.updatedAt,
+    completed_at: plan.completedAt,
+  };
+}
+
 function taskTitleFromFlagsOrRest(flags: Record<string, string | boolean>, rest: string[]): string {
   const title = typeof flags.title === "string" ? flags.title : rest.join(" ").trim();
   if (!title) throw new Error("Missing task title. Usage: openmates tasks create --title <title>");
   return title;
+}
+
+function planTitleFromFlagsOrRest(flags: Record<string, string | boolean>, rest: string[]): string {
+  const explicitTitle = typeof flags.title === "string" ? flags.title : rest.join(" ").trim();
+  const goal = typeof flags.goal === "string" ? flags.goal.trim() : "";
+  const title = explicitTitle || goal.slice(0, 80);
+  if (!title) throw new Error("Missing plan title or goal. Usage: openmates plans create --title <title> or --goal <goal>");
+  return title;
+}
+
+function parseOptionalNumberFlag(value: string | boolean | undefined, flagName: string): number | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === true || value === false) throw new Error(`${flagName} requires a numeric value.`);
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) throw new Error(`Invalid ${flagName}: ${value}`);
+  return parsed;
+}
+
+function parsePlanVerificationStatus(
+  value: string | boolean | undefined,
+  defaultStatus?: UserPlanVerificationStatus,
+  required = false,
+): UserPlanVerificationStatus {
+  if (value === undefined || value === false) {
+    if (defaultStatus) return defaultStatus;
+    if (required) throw new Error("Missing --status <pending|passed|failed|passed_unexpectedly|skipped|waived>.");
+    return "pending";
+  }
+  if (value === true) throw new Error("--status requires a value.");
+  const allowed: UserPlanVerificationStatus[] = ["pending", "passed", "failed", "passed_unexpectedly", "skipped", "waived"];
+  if (allowed.includes(value as UserPlanVerificationStatus)) return value as UserPlanVerificationStatus;
+  throw new Error(`Unknown plan check status '${value}'. Expected one of: ${allowed.join(", ")}`);
 }
 
 function taskAssignFlag(flags: Record<string, string | boolean>): string | undefined {
@@ -1374,6 +1726,11 @@ async function handleChats(
     return;
   }
 
+  if (rest[0] === "plans") {
+    await handlePlans(client, rest[1], rest.slice(2), { ...flags, chat: subcommand });
+    return;
+  }
+
   if (subcommand === "list") {
     const limit =
       typeof flags.limit === "string" ? parseInt(flags.limit, 10) : 10;
@@ -1608,35 +1965,35 @@ async function handleChats(
     return;
   }
 
-  if (subcommand === "show") {
-    const chatId = rest[0];
-    if (!chatId) {
-      console.error("Missing chat ID.\n");
-      printChatsHelp();
-      process.exit(1);
-    }
-    // "last" opens the most recently modified chat
-    const resolvedId = chatId.toLowerCase() === "last" ? "__last__" : chatId;
-    if (apiKey) {
-      const sdk = createCliOpenMates(client, apiKey);
-      const sdkChatId = resolvedId === "__last__"
-        ? (await sdk.chats.list({ limit: 1 }))[0]?.id
-        : resolvedId;
-      if (!sdkChatId) {
-        throw new Error("No chats found for API key session.");
-      }
-      const loaded = await sdk.chats.load(sdkChatId);
-      const { chat, messages, followUpSuggestions } = normalizeApiKeyLoadedChat(loaded);
-      if (flags.json === true) {
-        printJson({ chat, messages, follow_up_suggestions: followUpSuggestions });
-      } else {
-        await printChatConversationRaw(chat, messages);
-      }
-      return;
-    }
-    if (!client.hasSession()) {
-      const example = resolveExampleChatForOpen(resolvedId === "__last__" ? "1" : resolvedId);
-      if (!example) {
+	if (subcommand === "show") {
+		const chatId = rest[0];
+		if (!chatId) {
+			console.error("Missing chat ID.\n");
+			printChatsHelp();
+			process.exit(1);
+		}
+		// "last" opens the most recently modified chat
+		const resolvedId = chatId.toLowerCase() === "last" ? "__last__" : chatId;
+		if (apiKey) {
+			const sdk = createCliOpenMates(client, apiKey);
+			const sdkChatId = resolvedId === "__last__"
+				? (await sdk.chats.list({ limit: 1 }))[0]?.id
+				: resolvedId;
+			if (!sdkChatId) {
+				throw new Error("No chats found for API key session.");
+			}
+			const loaded = await sdk.chats.load(sdkChatId);
+			const { chat, messages, followUpSuggestions } = normalizeApiKeyLoadedChat(loaded);
+			if (flags.json === true) {
+				printJson({ chat, messages, follow_up_suggestions: followUpSuggestions });
+			} else {
+				await printChatConversationRaw(chat, messages);
+			}
+			return;
+		}
+		if (!client.hasSession()) {
+			const example = resolveExampleChatForOpen(resolvedId === "__last__" ? "1" : resolvedId);
+			if (!example) {
         console.error(
           `Example chat '${chatId}' not found. Run 'openmates chats list' to see available examples.`,
         );
@@ -2257,12 +2614,12 @@ async function sendApiKeyChatNew(
 ): Promise<Record<string, unknown>> {
   const sdk = createCliOpenMates(client, apiKey);
   let response: ChatResponse;
-  try {
-    response = await sdk.chats.send(message, {
-      saveToAccount: true,
-      recoveryTimeoutMs: parseResponseTimeoutMs(flags),
-    });
-  } catch (err) {
+	try {
+		response = await sdk.chats.send(message, {
+			saveToAccount: true,
+			recoveryTimeoutMs: parseResponseTimeoutMs(flags),
+		});
+	} catch (err) {
     if (!isSdkChatScopeDenied(err)) throw err;
     const aiAskResult = await client.runSkill({
       app: "ai",
@@ -2304,14 +2661,14 @@ async function sendApiKeyChatNew(
 }
 
 function isSdkChatScopeDenied(err: unknown): boolean {
-  if (!(err instanceof OpenMatesApiError) || err.status !== 403) return false;
-  const data = err.data;
-  const detail = data && typeof data === "object"
-    ? (data as Record<string, unknown>).detail
-    : null;
-  if (!detail || typeof detail !== "object") return false;
-  const errorCode = (detail as Record<string, unknown>).error;
-  return errorCode === "missing_scope";
+	if (!(err instanceof OpenMatesApiError) || err.status !== 403) return false;
+	const data = err.data;
+	const detail = data && typeof data === "object"
+		? (data as Record<string, unknown>).detail
+		: null;
+	if (!detail || typeof detail !== "object") return false;
+	const errorCode = (detail as Record<string, unknown>).error;
+	return errorCode === "missing_scope";
 }
 
 function createCliOpenMates(client: OpenMatesClient, apiKey: string): OpenMates {
@@ -2324,7 +2681,7 @@ function createCliOpenMates(client: OpenMatesClient, apiKey: string): OpenMates 
 }
 
 function getCliApiKeyDeviceIdentity(): string {
-  return "cli:" + platform() + ":" + arch();
+	return "cli:" + platform() + ":" + arch();
 }
 
 function extractAiAskContent(value: unknown): string {
@@ -2358,8 +2715,8 @@ function extractApiKeyChatModelName(value: unknown, depth = 0): string | null {
 }
 
 function normalizeApiKeyChatResponse(response: ChatResponse): Record<string, unknown> {
-  const chatId = typeof response.chat_id === "string" ? response.chat_id : null;
-  const category = typeof response.category === "string" ? response.category : null;
+	const chatId = typeof response.chat_id === "string" ? response.chat_id : null;
+	const category = typeof response.category === "string" ? response.category : null;
   const modelName = typeof response.model_name === "string"
     ? response.model_name
     : typeof response.modelName === "string"
@@ -2389,80 +2746,81 @@ function normalizeApiKeyChatResponse(response: ChatResponse): Record<string, unk
     acceptedTaskProposals: [],
     accepted_task_proposals: [],
     raw: response,
-  };
+	};
 }
+
 function normalizeApiKeyLoadedChat(payload: Record<string, unknown>): {
-  chat: ChatListItem;
-  messages: DecryptedMessage[];
-  followUpSuggestions: string[];
+	chat: ChatListItem;
+	messages: DecryptedMessage[];
+	followUpSuggestions: string[];
 } {
-  const rawChat = payload.chat && typeof payload.chat === "object"
-    ? payload.chat as Record<string, unknown>
-    : {};
-  const chatId = String(rawChat.id ?? rawChat.chat_id ?? "");
-  if (!chatId) throw new Error("API key chat load did not include a chat id.");
+	const rawChat = payload.chat && typeof payload.chat === "object"
+		? payload.chat as Record<string, unknown>
+		: {};
+	const chatId = String(rawChat.id ?? rawChat.chat_id ?? "");
+	if (!chatId) throw new Error("API key chat load did not include a chat id.");
 
-  const category = typeof rawChat.category === "string" ? rawChat.category : null;
-  const chat: ChatListItem = {
-    id: chatId,
-    shortId: chatId.slice(0, 8),
-    title: typeof rawChat.title === "string" ? rawChat.title : null,
-    summary: typeof rawChat.chat_summary === "string"
-      ? rawChat.chat_summary
-      : typeof rawChat.summary === "string"
-        ? rawChat.summary
-        : null,
-    updatedAt: normalizeSdkTimestamp(rawChat.updated_at),
-    category,
-    mateName: category ? MATE_NAMES[category] ?? null : null,
-  };
+	const category = typeof rawChat.category === "string" ? rawChat.category : null;
+	const chat: ChatListItem = {
+		id: chatId,
+		shortId: chatId.slice(0, 8),
+		title: typeof rawChat.title === "string" ? rawChat.title : null,
+		summary: typeof rawChat.chat_summary === "string"
+			? rawChat.chat_summary
+			: typeof rawChat.summary === "string"
+				? rawChat.summary
+				: null,
+		updatedAt: normalizeSdkTimestamp(rawChat.updated_at),
+		category,
+		mateName: category ? MATE_NAMES[category] ?? null : null,
+	};
 
-  const rawEmbeds = Array.isArray(payload.embeds)
-    ? payload.embeds.filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object")
-    : [];
-  const rawMessages = Array.isArray(payload.messages)
-    ? payload.messages.filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object")
-    : [];
-  const messages = rawMessages.map((message) => {
-    const messageId = String(message.client_message_id ?? message.message_id ?? message.id ?? "");
-    const directEmbedIds = Array.isArray(message.embedIds)
-      ? message.embedIds
-      : Array.isArray(message.embed_ids)
-        ? message.embed_ids
-        : [];
-    const hashedMessageId = messageId ? createHash("sha256").update(messageId).digest("hex") : null;
-    const matchedEmbedIds = hashedMessageId
-      ? rawEmbeds
-        .filter((embed) => embed.hashed_message_id === hashedMessageId && !embed.parent_embed_id)
-        .map((embed) => String(embed.embed_id ?? embed.id ?? ""))
-        .filter(Boolean)
-      : [];
-    return {
-      id: messageId,
-      chatId: String(message.chat_id ?? chatId),
-      role: String(message.role ?? "unknown"),
-      content: typeof message.content === "string" ? message.content : "",
-      senderName: typeof message.senderName === "string"
-        ? message.senderName
-        : typeof message.sender_name === "string"
-          ? message.sender_name
-          : null,
-      category: typeof message.category === "string" ? message.category : null,
-      modelName: typeof message.modelName === "string"
-        ? message.modelName
-        : typeof message.model_name === "string"
-          ? message.model_name
-          : null,
-      createdAt: normalizeSdkTimestamp(message.created_at) ?? 0,
-      embedIds: [...new Set([...directEmbedIds.map(String), ...matchedEmbedIds])],
-    };
-  });
-  messages.sort((a, b) => a.createdAt - b.createdAt);
+	const rawEmbeds = Array.isArray(payload.embeds)
+		? payload.embeds.filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object")
+		: [];
+	const rawMessages = Array.isArray(payload.messages)
+		? payload.messages.filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object")
+		: [];
+	const messages = rawMessages.map((message) => {
+		const messageId = String(message.client_message_id ?? message.message_id ?? message.id ?? "");
+		const directEmbedIds = Array.isArray(message.embedIds)
+			? message.embedIds
+			: Array.isArray(message.embed_ids)
+				? message.embed_ids
+				: [];
+		const hashedMessageId = messageId ? createHash("sha256").update(messageId).digest("hex") : null;
+		const matchedEmbedIds = hashedMessageId
+			? rawEmbeds
+				.filter((embed) => embed.hashed_message_id === hashedMessageId && !embed.parent_embed_id)
+				.map((embed) => String(embed.embed_id ?? embed.id ?? ""))
+				.filter(Boolean)
+			: [];
+		return {
+			id: messageId,
+			chatId: String(message.chat_id ?? chatId),
+			role: String(message.role ?? "unknown"),
+			content: typeof message.content === "string" ? message.content : "",
+			senderName: typeof message.senderName === "string"
+				? message.senderName
+				: typeof message.sender_name === "string"
+					? message.sender_name
+					: null,
+			category: typeof message.category === "string" ? message.category : null,
+			modelName: typeof message.modelName === "string"
+				? message.modelName
+				: typeof message.model_name === "string"
+					? message.model_name
+					: null,
+			createdAt: normalizeSdkTimestamp(message.created_at) ?? 0,
+			embedIds: [...new Set([...directEmbedIds.map(String), ...matchedEmbedIds])],
+		};
+	});
+	messages.sort((a, b) => a.createdAt - b.createdAt);
 
-  const followUpSuggestions = Array.isArray(payload.follow_up_suggestions)
-    ? payload.follow_up_suggestions.map(String)
-    : [];
-  return { chat, messages, followUpSuggestions };
+	const followUpSuggestions = Array.isArray(payload.follow_up_suggestions)
+		? payload.follow_up_suggestions.map(String)
+		: [];
+	return { chat, messages, followUpSuggestions };
 }
 
 function resolveExampleChatForOpen(target: string): ExampleChatConversation | null {
@@ -4146,6 +4504,8 @@ const SETTINGS_EXECUTABLE_COMMANDS: SettingsInfoCommand[] = [
   { path: ["account", "export", "data"], description: "Fetch account export chunks", examples: ["openmates settings account export data <export-id> --json"] },
   { path: ["account", "export", "accept-partial"], description: "Accept a partial account export", examples: ["openmates settings account export accept-partial <export-id> --json"] },
   { path: ["account", "export", "cancel"], description: "Cancel an account export job", examples: ["openmates settings account export cancel <export-id> --json"] },
+  { path: ["account", "import", "claude"], description: "Preview a Claude official export import", examples: ["openmates account import claude ./claude-export.zip --dry-run --json"] },
+  { path: ["account", "import", "openmates"], description: "Preview an OpenMates Export V1 import", examples: ["openmates account import openmates ./openmates-export.zip --domain chats --dry-run --json"] },
   { path: ["account", "import-chat"], description: "Import a CLI chat export file", examples: ["openmates settings account import-chat ./chat.yml", "openmates settings account import-chat ./payload.json"] },
   { path: ["account", "username", "set"], description: "Change account username", examples: ["openmates settings account username set alice_123"] },
   { path: ["account", "profile-picture", "set"], description: "Upload a profile picture", examples: ["openmates settings account profile-picture set ./avatar.jpg"] },
@@ -4314,6 +4674,88 @@ function printAccountExportBundle(
   const archive = bundle.archive && typeof bundle.archive === "object" ? bundle.archive as Record<string, unknown> : {};
   process.stdout.write(`Account export ${String(exportRecord.export_id ?? "")} ${String(exportRecord.status ?? "unknown")}\n`);
   if (typeof archive.output === "string") process.stdout.write(`Wrote ${archive.output}\n`);
+}
+
+async function parseAccountImportFile(source: "claude" | "openmates", file: string): Promise<ParsedAccountImport> {
+  const { readFile } = await import("node:fs/promises");
+  const payload = await readFile(file);
+  return source === "claude"
+    ? parseClaudeImportBuffer(payload, basename(file))
+    : parseOpenMatesImportBuffer(payload, basename(file));
+}
+
+async function runAccountImport(
+  client: OpenMatesClient,
+  source: "claude" | "openmates",
+  file: string,
+  flags: Record<string, string | boolean>,
+): Promise<Record<string, unknown>> {
+  const parsed = await parseAccountImportFile(source, file);
+  if (source === "openmates" && flags.domain !== undefined && flags.domain !== "chats") {
+    throw new Error("Account Import V1 only supports --domain chats for OpenMates archives.");
+  }
+  const preview = await client.previewAccountImport({
+    source,
+    chatCount: parsed.chats.length,
+    sourceFingerprints: parsed.chats.map((chat) => chat.source_fingerprint),
+  });
+  const defaultSelectionCount = typeof preview.default_selection_count === "number" ? preview.default_selection_count : 0;
+  const maxBatchCount = typeof preview.max_batch_count === "number" ? preview.max_batch_count : defaultSelectionCount;
+  const selectedCount = flags.select === "all"
+    ? Math.min(parsed.chats.length, maxBatchCount)
+    : Math.min(defaultSelectionCount, parsed.chats.length, maxBatchCount);
+  const result = {
+    source,
+    parsed: {
+      chat_count: parsed.chats.length,
+      selected_count: selectedCount,
+      skipped_domains: parsed.skippedDomains,
+      source_fingerprints: parsed.chats.map((chat) => chat.source_fingerprint),
+    },
+    preview,
+  };
+  if (flags["dry-run"] === true) return result;
+  if (preview.can_import === false) {
+    throw new Error(`Account import blocked: ${String(preview.reason ?? "unknown")}`);
+  }
+  if (selectedCount <= 0) {
+    throw new Error("No chats are selected for import.");
+  }
+  if (flags.yes !== true) {
+    await confirmOrExit(`Import ${selectedCount} chat(s) into new encrypted OpenMates chats? [y/N] `);
+  }
+  const importId = typeof preview.import_id === "string" ? preview.import_id : randomUUID();
+  const selectedChats = parsed.chats.slice(0, selectedCount);
+  const scanned = await client.scanAccountImport(importId, selectedChats as unknown as Array<Record<string, unknown>>);
+  const sanitizedChats = Array.isArray(scanned.chats) && scanned.chats.length > 0
+    ? scanned.chats as unknown as typeof selectedChats
+    : selectedChats;
+  const persisted = await client.persistEncryptedAccountImport(importId, sanitizedChats);
+  const complete = await client.completeAccountImport(importId, {
+    importedChatIds: Array.isArray(persisted.imported_chat_ids) ? persisted.imported_chat_ids : [],
+    sourceFingerprints: sanitizedChats.map((chat) => chat.source_fingerprint),
+    encryptedRecordCounts: persisted.encrypted_record_counts ?? { chats: 0, messages: 0 },
+    clientFailures: persisted.failures ?? [],
+  });
+  return { ...result, import_id: importId, scan: scanned, persistence: persisted, complete };
+}
+
+function printAccountImportPreview(result: Record<string, unknown>, flags: Record<string, string | boolean>): void {
+  if (flags.json === true) {
+    printJson(result);
+    return;
+  }
+  const parsed = result.parsed && typeof result.parsed === "object" ? result.parsed as Record<string, unknown> : {};
+  const preview = result.preview && typeof result.preview === "object" ? result.preview as Record<string, unknown> : {};
+  process.stdout.write(`Account import preview (${String(result.source)}): ${String(parsed.chat_count ?? 0)} chat(s) parsed\n`);
+  process.stdout.write(`Default selection: ${String(preview.default_selection_count ?? 0)} / max ${String(preview.max_batch_count ?? 0)}\n`);
+  if (Array.isArray(parsed.skipped_domains) && parsed.skipped_domains.length > 0) {
+    process.stdout.write(`Skipped unsupported domains: ${parsed.skipped_domains.join(", ")}\n`);
+  }
+  if (Array.isArray(preview.duplicate_fingerprints) && preview.duplicate_fingerprints.length > 0) {
+    process.stdout.write(`Duplicate warnings: ${preview.duplicate_fingerprints.length}\n`);
+  }
+  if (preview.can_import === false) process.stdout.write(`Import blocked: ${String(preview.reason ?? "unknown")}\n`);
 }
 
 function printApiKeyList(
@@ -5215,6 +5657,14 @@ async function handleSettings(
     const exportId = rest[2];
     if (!exportId) throw new Error("Missing export ID. Example: openmates settings account export cancel <export-id>");
     await printSettingsResult(client.cancelAccountExport(exportId), flags);
+    return;
+  }
+
+  if (matches(tokens, ["account", "import", "claude"]) || matches(tokens, ["account", "import", "openmates"])) {
+    const source = tokens[2] as "claude" | "openmates";
+    const file = rest[2];
+    if (!file) throw new Error(`Missing import file. Example: openmates account import ${source} ./export.zip --dry-run`);
+    printAccountImportPreview(await runAccountImport(client, source, file, flags), flags);
     return;
   }
 
@@ -8634,6 +9084,7 @@ Commands:
   openmates whoami [--json]                  Show account info
   openmates chats [--help]                   Chat commands (list, search, show, ...)
   openmates tasks [--help]                   Task commands (list, create, board, ...)
+  openmates plans [--help]                   Plan commands (list, create, approve, checks, ...)
   openmates teams [--help]                   Team lifecycle, membership, billing, and move commands
   openmates drafts [--help]                  Encrypted draft lifecycle commands
   openmates ideabucket [--help]              IdeaBucket add, audio, status, and process commands
@@ -8962,6 +9413,42 @@ Notes:
   Normal output decrypts task title, description, and labels locally; use --json for machine-readable plaintext fields.`);
 }
 
+function printPlansHelp(): void {
+  console.log(`Plans commands:
+  openmates plans list [--status <status>] [--active] [--chat <id>] [--project <id>] [--json]
+  openmates plans show <plan-id|short-id> [--json]
+  openmates plans create --title <title> [--goal <goal>] [--summary <text>] [--chat <id>] [--project <id>] [--status <status>] [--json]
+  openmates plans create --goal <goal> [--chat <id>] [--json]
+  openmates plans edit <plan-id|short-id> [--title <title>] [--goal <goal>] [--summary <text>] [--status <status>] [--json]
+  openmates plans approve <plan-id|short-id> --chat <id> [--json]
+  openmates plans activate <plan-id|short-id> --chat <id> [--json]
+  openmates plans pause <plan-id|short-id> [--json]
+  openmates plans resume <plan-id|short-id> [--json]
+  openmates plans archive <plan-id|short-id> [--json]
+  openmates plans complete <plan-id|short-id> [--json]
+  openmates plans criteria add <plan-id|short-id> --text <criterion> [--type <type>] [--required] [--json]
+  openmates plans checks add <plan-id|short-id> --kind <manual_check|command|ai_evaluator> [--command <cmd>] [--prompt <text>] [--expected <text>] [--required] [--json]
+  openmates plans checks evidence <plan-id|short-id> --verification <id> --status <status> [--summary <text>] [--score <n>] [--json]
+
+Chat-scoped aliases:
+  openmates chats <chat-id> plans list
+  openmates chats <chat-id> plans create --goal <goal>
+  openmates chats <chat-id> plans approve <plan-id|short-id>
+
+Statuses:
+  draft, awaiting_confirmation, active, executing, blocked, completed, archived
+
+Check statuses:
+  pending, passed, failed, passed_unexpectedly, skipped, waived
+
+Notes:
+  Plan IDs accept full plan_id or human short IDs such as PLAN-A1B2C3.
+  create --goal is the minimal goal capture path; it still creates an encrypted Plan record.
+  approve/activate require a primary chat because active plans use the chat as the command center.
+  pause currently moves a plan back to awaiting_confirmation; resume sets it active.
+  Normal output decrypts plan fields locally; use --json for machine-readable plaintext fields.`);
+}
+
 function printTeamsHelp(): void {
   console.log(`Teams commands:
   openmates teams list [--json]
@@ -8969,7 +9456,7 @@ function printTeamsHelp(): void {
   openmates teams personal [--json]
   openmates teams show <team-id> [--json]
   openmates teams create --name <name> [--description <description>] [--slug <slug>] [--switch] [--json]
-  openmates teams update <team-id> [--name <encrypted-name>] [--description <encrypted-description>] [--slug <slug>] [--json]
+  openmates teams update <team-id> [--name <name>] [--description <description>] [--slug <slug>] [--json]
   openmates teams delete <team-id> --yes [--json]
   openmates teams invite <team-id> (--email <email>|--user <user-id>) [--role admin|member|viewer] [--json]
   openmates teams accept-invite <invite-id-or-url> [--email <recipient-email>] [--key <fragment-key>] [--json]
@@ -8980,7 +9467,9 @@ function printTeamsHelp(): void {
   openmates teams role <team-id> --user <user-id> --role admin|member|viewer [--json]
   openmates teams remove-member <team-id> --user <user-id> [--json]
   openmates teams billing <team-id> [--json]
-  openmates teams add-credits <team-id> --credits <amount> [--json]
+  openmates teams billing bank-transfer create <team-id> --credits <amount> [--json]
+  openmates teams billing bank-transfer status <team-id> <order-id> [--json]
+  openmates teams billing bank-transfer list <team-id> [--json]
   openmates teams usage <team-id> [--user <user-id>] [--json]
   openmates teams move <team-id> --type chat|project|task|plan|workflow --id <resource-id> --yes [--json]
   openmates teams export <team-id> --output <path> [--json]
@@ -8989,6 +9478,7 @@ function printTeamsHelp(): void {
 Context:
   openmates teams switch <team-id> persists the active team for team-aware commands.
   openmates teams personal clears the active team and returns commands to personal context.
+  Team deletion always prompts for interactive 2FA or email verification; codes cannot be passed as flags.
   Team V1 only supports team-wide workspace visibility.`);
 }
 

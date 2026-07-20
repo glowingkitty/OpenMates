@@ -10,7 +10,7 @@ from unittest.mock import AsyncMock
 import pytest
 
 from backend.core.api.app.services.directus.user_plan_methods import UserPlanMethods, hash_id
-from backend.core.api.app.services.user_plan_service import UserPlanService
+from backend.core.api.app.services.user_plan_service import UserPlanConflictError, UserPlanService
 
 
 def plan_payload(**overrides):
@@ -200,17 +200,17 @@ async def test_replace_plan_key_wrappers_creates_new_set_then_deletes_old_wrappe
 
 
 @pytest.mark.asyncio
-async def test_update_accepts_stale_plan_version_and_uses_server_version() -> None:
+async def test_update_rejects_stale_plan_version() -> None:
     directus = SimpleNamespace()
     directus.get_items = AsyncMock(return_value=[{"id": "row-1", "version": 3, "plan_id": "plan-1"}])
     directus.update_item = AsyncMock(return_value={"id": "row-1", "version": 4, "plan_id": "plan-1"})
 
     service = UserPlanService(UserPlanMethods(directus))
 
-    updated = await service.update_plan("plan-1", "user-1", {"status": "active", "version": 2})
+    with pytest.raises(UserPlanConflictError):
+        await service.update_plan("plan-1", "user-1", {"status": "active", "version": 2})
 
-    assert updated["version"] == 4
-    assert directus.update_item.await_args.args[2]["version"] == 4
+    directus.update_item.assert_not_awaited()
 
 
 @pytest.mark.asyncio
@@ -325,6 +325,8 @@ async def test_completion_blocks_missing_required_verification() -> None:
         [{"id": "row-1", "version": 1, **plan_payload(status="active")}],
         [criterion_payload(status="satisfied")],
         [verification_payload(status="pending")],
+        [],
+        [],
     ])
     directus.update_item = AsyncMock()
 
@@ -343,6 +345,8 @@ async def test_red_phase_passed_unexpectedly_does_not_block_completion() -> None
         [{"id": "row-1", "version": 1, **plan_payload(status="active")}],
         [criterion_payload(status="satisfied")],
         [verification_payload(phase="red", status="passed_unexpectedly", required_for_done=False)],
+        [],
+        [],
         [{"id": "row-1", "version": 1, **plan_payload(status="active")}],
     ])
     directus.update_item = AsyncMock(return_value={"id": "row-1", "status": "completed"})
@@ -381,6 +385,7 @@ async def test_create_verification_can_create_linked_verification_task() -> None
     assert result["verification"]["linked_task_id"] == "task-1"
     task_service.create_task.assert_awaited_once()
     task_payload = task_service.create_task.await_args.args[1]
+    assert task_payload["version"] == 1
     assert task_payload["plan_id"] == "plan-1"
     assert task_payload["task_type"] == "verification"
     assert task_payload["verification_id"] == "V-1"

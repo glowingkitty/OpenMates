@@ -348,14 +348,14 @@ export interface AccountImportEncryptedPersistResponse extends Record<string, un
 }
 
 interface ParsedImportChat {
-  title?: string;
-  created_at?: string;
-  updated_at?: string;
+  title?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
   source_fingerprint?: string;
   messages: Array<{
     role: "user" | "assistant" | "system";
     content: string;
-    created_at?: string;
+    created_at?: string | null;
   }>;
 }
 
@@ -596,9 +596,11 @@ export interface UserPlanRecord {
   encrypted_constraints?: string | null;
   encrypted_decisions?: string | null;
   encrypted_risks?: string | null;
+  encrypted_linked_project_ids?: string | null;
   status: UserPlanStatus;
   primary_chat_id?: string | null;
   linked_project_ids?: string[] | null;
+  key_wrappers?: Array<Record<string, unknown>> | null;
   current_phase_id?: string | null;
   current_step_id?: string | null;
   current_task_id?: string | null;
@@ -621,6 +623,45 @@ export interface UserPlanCriterionRecord {
   linked_step_ids?: string[];
   linked_task_ids?: string[];
   verification_ids?: string[];
+  created_at?: number;
+  updated_at?: number;
+}
+
+export interface UserPlanAssumptionRecord {
+  assumption_id: string;
+  encrypted_text: string;
+  category?: string;
+  status?: string;
+  required_before?: string;
+  linked_sub_chat_id?: string | null;
+  linked_task_id?: string | null;
+  linked_step_ids?: string[];
+  linked_criterion_ids?: string[];
+  source_count?: number;
+  encrypted_corrected_text?: string | null;
+  encrypted_evidence_summary?: string | null;
+  encrypted_blocker_reason?: string | null;
+  encrypted_waiver_reason?: string | null;
+  encrypted_sources?: string | null;
+  created_at?: number;
+  updated_at?: number;
+}
+
+export interface UserPlanReferencePatternRecord {
+  pattern_id: string;
+  encrypted_title: string;
+  encrypted_description?: string | null;
+  category?: string;
+  status?: string;
+  required_before?: string;
+  source_count?: number;
+  linked_task_ids?: string[];
+  linked_check_ids?: string[];
+  encrypted_sources?: string | null;
+  encrypted_match_rules?: string | null;
+  encrypted_anti_patterns?: string | null;
+  encrypted_evidence_summary?: string | null;
+  encrypted_waiver_reason?: string | null;
   created_at?: number;
   updated_at?: number;
 }
@@ -7560,6 +7601,15 @@ export class OpenMatesClient {
     return response.data.criterion;
   }
 
+  async listPlanCriteria(planId: string): Promise<UserPlanCriterionRecord[]> {
+    this.requireSession();
+    const response = await this.http.get<{ criteria?: UserPlanCriterionRecord[] }>(`/v1/user-plans/${encodeURIComponent(planId)}/criteria`, this.getCliRequestHeaders());
+    if (!response.ok) {
+      throw new Error(`User plan criteria list failed with HTTP ${response.status}`);
+    }
+    return response.data.criteria ?? [];
+  }
+
   async createPlanVerification(planId: string, input: UserPlanVerificationRecord & Record<string, unknown>): Promise<UserPlanVerificationRecord> {
     this.requireSession();
     const response = await this.http.post<{ verification?: UserPlanVerificationRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}/verification`, input, this.getCliRequestHeaders());
@@ -7567,6 +7617,60 @@ export class OpenMatesClient {
       throw new Error(`User plan verification create failed with HTTP ${response.status}`);
     }
     return response.data.verification;
+  }
+
+  async listPlanVerifications(planId: string): Promise<UserPlanVerificationRecord[]> {
+    this.requireSession();
+    const response = await this.http.get<{ verifications?: UserPlanVerificationRecord[] }>(`/v1/user-plans/${encodeURIComponent(planId)}/verification`, this.getCliRequestHeaders());
+    if (!response.ok) {
+      throw new Error(`User plan verifications list failed with HTTP ${response.status}`);
+    }
+    return response.data.verifications ?? [];
+  }
+
+  async createPlanAssumption(planId: string, input: UserPlanAssumptionRecord): Promise<UserPlanAssumptionRecord> {
+    this.requireSession();
+    const response = await this.http.post<{ assumption?: UserPlanAssumptionRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}/assumptions`, input, this.getCliRequestHeaders());
+    if (!response.ok || !response.data.assumption) {
+      throw new Error(`User plan assumption create failed with HTTP ${response.status}`);
+    }
+    return response.data.assumption;
+  }
+
+  async listPlanAssumptions(planId: string): Promise<UserPlanAssumptionRecord[]> {
+    this.requireSession();
+    const response = await this.http.get<{ assumptions?: UserPlanAssumptionRecord[] }>(`/v1/user-plans/${encodeURIComponent(planId)}/assumptions`, this.getCliRequestHeaders());
+    if (!response.ok) {
+      throw new Error(`User plan assumptions list failed with HTTP ${response.status}`);
+    }
+    return response.data.assumptions ?? [];
+  }
+
+  async updatePlanAssumption(planId: string, assumptionId: string, input: Partial<UserPlanAssumptionRecord>): Promise<UserPlanAssumptionRecord> {
+    this.requireSession();
+    const response = await this.http.patch<{ assumption?: UserPlanAssumptionRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}/assumptions/${encodeURIComponent(assumptionId)}`, input, this.getCliRequestHeaders());
+    if (!response.ok || !response.data.assumption) {
+      throw new Error(`User plan assumption update failed with HTTP ${response.status}`);
+    }
+    return response.data.assumption;
+  }
+
+  async createPlanReferencePattern(planId: string, input: UserPlanReferencePatternRecord): Promise<UserPlanReferencePatternRecord> {
+    this.requireSession();
+    const response = await this.http.post<{ reference_pattern?: UserPlanReferencePatternRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}/reference-patterns`, input, this.getCliRequestHeaders());
+    if (!response.ok || !response.data.reference_pattern) {
+      throw new Error(`User plan reference pattern create failed with HTTP ${response.status}`);
+    }
+    return response.data.reference_pattern;
+  }
+
+  async listPlanReferencePatterns(planId: string): Promise<UserPlanReferencePatternRecord[]> {
+    this.requireSession();
+    const response = await this.http.get<{ reference_patterns?: UserPlanReferencePatternRecord[] }>(`/v1/user-plans/${encodeURIComponent(planId)}/reference-patterns`, this.getCliRequestHeaders());
+    if (!response.ok) {
+      throw new Error(`User plan reference patterns list failed with HTTP ${response.status}`);
+    }
+    return response.data.reference_patterns ?? [];
   }
 
   async addPlanVerificationEvidence(planId: string, verificationId: string, input: Partial<UserPlanVerificationRecord>): Promise<UserPlanVerificationRecord> {
