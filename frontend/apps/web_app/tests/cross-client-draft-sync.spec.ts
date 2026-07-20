@@ -931,7 +931,7 @@ test.describe('Cross-client encrypted draft sync', () => {
 					const result = await runCliJson(apiUrl, ['drafts', 'get', draftChatId, '--refresh'], CLI_DRAFT_REFRESH_TIMEOUT_MS, {
 						allowTransientFailure: true,
 					});
-					return result?.draft ?? (lastTransientCliFailure || 'transient-cli-fetch-failed');
+					return result ? result.draft : lastTransientCliFailure || 'transient-cli-fetch-failed';
 				}, {
 					timeout: 60_000,
 					intervals: [1_000, 2_000]
@@ -958,7 +958,7 @@ test.describe('Cross-client encrypted draft sync', () => {
 					const result = await runCliJson(apiUrl, ['drafts', 'get', sentChatId, '--refresh'], CLI_DRAFT_REFRESH_TIMEOUT_MS, {
 						allowTransientFailure: true,
 					});
-					return result?.draft ?? (lastTransientCliFailure || 'transient-cli-fetch-failed');
+					return result ? result.draft : lastTransientCliFailure || 'transient-cli-fetch-failed';
 				}, {
 					timeout: 30_000,
 					intervals: [1_000, 2_000]
