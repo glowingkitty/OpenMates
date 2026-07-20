@@ -199,6 +199,7 @@ final class SkillApplicationParityTests: XCTestCase {
         XCTAssertTrue(model.websiteResults.first?.faviconURL?.contains("example.com") == true)
     }
 
+    @MainActor
     func testBusinessCompanyFinancialsModelPreservesSecFilingMetadata() throws {
         let parent = EmbedRecord(
             id: "business-financials-parent",
@@ -257,6 +258,7 @@ final class SkillApplicationParityTests: XCTestCase {
         XCTAssertFalse(result.metricRows.map(\.label).joined(separator: " ").localizedCaseInsensitiveContains("advice"))
     }
 
+    @MainActor
     func testBusinessCompanyFinancialsModelUsesInlineLegacyResults() throws {
         let parent = EmbedRecord(
             id: "business-financials-inline-parent",

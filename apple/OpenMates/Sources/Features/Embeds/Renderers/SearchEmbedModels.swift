@@ -197,6 +197,7 @@ struct ImageSearchResultModel: Identifiable {
     }
 }
 
+@MainActor
 struct BusinessCompanyFinancialsModel {
     let embed: EmbedRecord
     let query: String
@@ -279,6 +280,7 @@ struct BusinessCompanyFinancialsModel {
     }
 }
 
+@MainActor
 struct BusinessCompanyFinancialResultModel: Identifiable {
     let id: String
     let embed: EmbedRecord
