@@ -573,10 +573,12 @@ describe("CLI draft reconciliation", () => {
       const created = await client.saveDraft({ markdown: "old draft", preview: "old draft" });
 
       const refreshed = await client.getDraft(created.chatId, true);
+      const refreshedAgain = await client.getDraft(created.chatId, true);
 
       assert.equal(refreshed, null);
+      assert.equal(refreshedAgain, null);
       assert.equal(await client.getDraft(created.chatId), null);
-      assert.deepEqual(seen.map((frame) => frame.type), ["update_draft", "get_draft_versions"]);
+      assert.deepEqual(seen.map((frame) => frame.type), ["update_draft", "get_draft_versions", "get_draft_versions"]);
     } finally {
       process.env.HOME = originalHome;
       wss.close();

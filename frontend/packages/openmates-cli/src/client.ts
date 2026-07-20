@@ -4191,11 +4191,11 @@ export class OpenMatesClient {
   }
 
   private async refreshDraftFromTargetedSync(chatId: string): Promise<DecryptedDraft | null> {
-    let versions = await this.reconcileDraftVersions();
+    let versions = await this.reconcileDraftVersions([chatId]);
     if (versions[chatId] === 0) return null;
 
     await this.ensureSynced(true, [chatId]);
-    versions = await this.reconcileDraftVersions();
+    versions = await this.reconcileDraftVersions([chatId]);
     if (versions[chatId] === 0) return null;
 
     const syncedCache = loadSyncCache();
@@ -4243,24 +4243,33 @@ export class OpenMatesClient {
     }
   }
 
-  async reconcileDraftVersions(): Promise<Record<string, number>> {
+  async reconcileDraftVersions(chatIds: string[] = []): Promise<Record<string, number>> {
     const cache = loadSyncCache();
     const drafts = (cache?.chats ?? []).filter(
       (chat) => typeof chat.details.encrypted_draft_md === "string",
     );
-    if (drafts.length === 0) return {};
+    const requestedDrafts = new Map<string, number>();
+    for (const chat of drafts) {
+      requestedDrafts.set(String(chat.details.id), Number(chat.details.draft_v ?? 0));
+    }
+    for (const chatId of chatIds) {
+      if (requestedDrafts.has(chatId)) continue;
+      const cachedChat = cache?.chats.find((chat) => String(chat.details.id ?? "") === chatId);
+      requestedDrafts.set(chatId, Number(cachedChat?.details.draft_v ?? 0));
+    }
+    if (requestedDrafts.size === 0) return {};
     const { ws } = await this.openWsClient();
     try {
       const response = ws.waitForMessage("draft_versions_response");
       await ws.sendAsync("get_draft_versions", {
-        chats: drafts.map((chat) => ({
-          chat_id: String(chat.details.id),
-          client_draft_v: Number(chat.details.draft_v ?? 0),
+        chats: Array.from(requestedDrafts.entries()).map(([chat_id, client_draft_v]) => ({
+          chat_id,
+          client_draft_v,
         })),
       });
       const frame = await response;
       const versions = (frame.payload as { versions?: Record<string, number> }).versions ?? {};
-      for (const chat of drafts) {
+      for (const chat of cache?.chats ?? []) {
         const chatId = String(chat.details.id);
         if (versions[chatId] === 0) {
           delete chat.details.encrypted_draft_md;
