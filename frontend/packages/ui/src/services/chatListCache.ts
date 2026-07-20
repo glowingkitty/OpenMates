@@ -4,6 +4,15 @@
 
 import type { Chat, Message } from "../types/chat";
 
+const PENDING_UPSERTS_GLOBAL_KEY = "__openmates_pending_chat_upserts__";
+
+function getGlobalPendingUpserts(): Map<string, Chat> {
+  const globalScope = globalThis as typeof globalThis &
+    Record<string, Map<string, Chat> | undefined>;
+  globalScope[PENDING_UPSERTS_GLOBAL_KEY] ??= new Map<string, Chat>();
+  return globalScope[PENDING_UPSERTS_GLOBAL_KEY];
+}
+
 /**
  * Global cache for the full chat list and last messages.
  * This persists across component instances, so when the Chats component
@@ -15,7 +24,7 @@ class ChatListCache {
   private cacheReady = false;
   private cacheDirty = false;
   private updateInProgress = false;
-  private pendingUpserts = new Map<string, Chat>();
+  private pendingUpserts = getGlobalPendingUpserts();
   private readonly CACHE_STALE_MS = 5 * 60 * 1000; // 5 minutes
   private readonly PENDING_UPSERTS_STORAGE_KEY = "openmates_pending_chat_upserts";
   private readonly PENDING_UPSERTS_STORAGE_TTL_MS = 10 * 60 * 1000;
