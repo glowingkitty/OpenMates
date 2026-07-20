@@ -264,7 +264,7 @@ def test_complete_and_release_update_lease_status(tmp_path, monkeypatch):
     assert by_id[second["lease_id"]]["release_reason"] == "blocked infra"
 
 
-def test_released_lease_blocks_same_failure_until_new_run(tmp_path, monkeypatch):
+def test_released_lease_blocks_same_test_until_expiry(tmp_path, monkeypatch):
     tests_control = load_tests_control(tmp_path, monkeypatch)
     run = sample_run()
     run["summary"] = {"total": 1, "passed": 0, "failed": 1, "skipped": 0}
@@ -283,9 +283,7 @@ def test_released_lease_blocks_same_failure_until_new_run(tmp_path, monkeypatch)
     rerun["suites"]["playwright"]["tests"] = [rerun["suites"]["playwright"]["tests"][1]]
     tests_control.record_run_result(rerun)
 
-    next_run_claim = tests_control.claim_next(session_id="s3")
-    assert next_run_claim is not None
-    assert next_run_claim["group_id"] == first["group_id"]
+    assert tests_control.claim_next(session_id="s3") is None
 
 
 def test_mark_running_adds_started_history_event(tmp_path, monkeypatch):

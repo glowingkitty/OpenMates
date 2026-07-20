@@ -1538,10 +1538,7 @@ def lease_blocks_entry(lease: dict[str, Any], entry: dict[str, Any], now: dateti
 
     leased_entry = lease.get("entry") if isinstance(lease.get("entry"), dict) else lease.get("entry_json")
     leased_entry = leased_entry if isinstance(leased_entry, dict) else {}
-    return (
-        str(leased_entry.get("key") or "") == str(entry.get("key") or "")
-        and str(leased_entry.get("run_id") or "") == str(entry.get("run_id") or "")
-    )
+    return str(leased_entry.get("key") or "") == str(entry.get("key") or "")
 
 
 def active_lease_for_session(session_id: str = "", lease_id: str = "") -> dict[str, Any] | None:
