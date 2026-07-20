@@ -166,6 +166,58 @@ function buildOpenMatesExportZip(): Buffer {
 	});
 }
 
+function buildChatGPTExportZip(): Buffer {
+	return buildZip({
+		'ChatGPT Export/conversations.json': JSON.stringify([{
+			id: 'chatgpt-web-chat-1',
+			conversation_id: 'chatgpt-web-conversation-1',
+			title: 'Synthetic ChatGPT web import chat',
+			create_time: 1_785_000_000,
+			update_time: 1_785_000_030,
+			current_node: 'assistant-1',
+			mapping: {
+				root: { id: 'root', message: null, parent: null },
+				'user-1': {
+					id: 'user-1',
+					parent: 'root',
+					message: {
+						id: 'chatgpt-web-message-user-1',
+						author: { role: 'user' },
+						create_time: 1_785_000_001,
+						content: {
+							content_type: 'multimodal_text',
+							parts: [
+								'Synthetic ChatGPT web import user message',
+								{ asset_pointer: 'file-service://redacted', content_type: 'image_asset_pointer' },
+							],
+						},
+					},
+				},
+				'assistant-1': {
+					id: 'assistant-1',
+					parent: 'user-1',
+					message: {
+						id: 'chatgpt-web-message-assistant-1',
+						author: { role: 'assistant' },
+						create_time: 1_785_000_030,
+						content: { content_type: 'text', parts: ['Synthetic ChatGPT web import assistant message'] },
+					},
+				},
+				branch: {
+					id: 'branch',
+					parent: 'user-1',
+					message: {
+						id: 'chatgpt-web-message-branch',
+						author: { role: 'assistant' },
+						content: { content_type: 'text', parts: ['This ChatGPT branch must not import'] },
+					},
+				},
+			},
+		}]),
+		'ChatGPT Export/conversation_asset_file_names.json': JSON.stringify({}),
+	});
+}
+
 async function installAccountImportMock(page: any, config: ImportMockConfig = {}): Promise<ImportMockCall[]> {
 	const calls: ImportMockCall[] = [];
 	const importId = config.importId ?? 'web-import-1';
@@ -284,6 +336,14 @@ async function uploadOpenMatesZip(page: any): Promise<void> {
 	});
 }
 
+async function uploadChatGPTZip(page: any): Promise<void> {
+	await page.getByTestId('account-import-file-upload-input').setInputFiles({
+		name: 'chatgpt-export.zip',
+		mimeType: 'application/zip',
+		buffer: buildChatGPTExportZip(),
+	});
+}
+
 function persistPayloads(calls: ImportMockCall[]): Array<Record<string, unknown>> {
 	return calls
 		.filter((call) => call.path.endsWith('/persist-encrypted'))
@@ -298,10 +358,12 @@ function writePersistArtifacts(testInfo: any, calls: ImportMockCall[], filename:
 
 module.exports = {
 	buildClaudeExportJson,
+	buildChatGPTExportZip,
 	installAccountImportMock,
 	loginAndOpenImportSettings,
 	openImportSettings,
 	persistPayloads,
+	uploadChatGPTZip,
 	uploadClaudeJson,
 	uploadOpenMatesZip,
 	writePersistArtifacts,

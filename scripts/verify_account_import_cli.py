@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-"""Verify Account Import V1 through the real OpenMates CLI.
+"""Verify Account Import V1 through real OpenMates clients.
 
-Purpose: exercise CLI-first account import gates against dev/prod API targets.
+Purpose: exercise CLI-first and SDK account import gates against dev/prod API
+targets.
 Architecture: docs/specs/account-import-v1/spec.yml.
 Security: uses synthetic fixtures only and never prints tokens, cookies, or
 private import content.
@@ -22,6 +23,8 @@ import tempfile
 import time
 import zipfile
 
+from sdk_cli_parity_live_smoke import _approve_pending_key_devices, _is_device_approval_error
+
 
 ROOT = Path(__file__).resolve().parents[1]
 CLI_DIR = ROOT / "frontend/packages/openmates-cli"
@@ -31,11 +34,11 @@ DEFAULT_PROD_API_URL = "https://api.openmates.org"
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Run Account Import V1 CLI verification scenarios.")
+    parser = argparse.ArgumentParser(description="Run Account Import V1 client verification scenarios.")
     parser.add_argument("--env", choices=["dev", "prod"], default="dev")
     parser.add_argument(
         "--scenario",
-        choices=["claude-import", "chatgpt-import", "openmates-v1-import", "limits-and-costs", "all"],
+        choices=["claude-import", "chatgpt-import", "npm-sdk-chatgpt-import", "pip-sdk-chatgpt-import", "openmates-v1-import", "limits-and-costs", "all"],
         default="claude-import",
     )
     parser.add_argument("--api-url", help="Override API URL.")
@@ -49,20 +52,32 @@ def main() -> int:
 
     run(["npm", "run", "build"], cwd=CLI_DIR)
 
-    scenarios = [args.scenario] if args.scenario != "all" else ["claude-import", "chatgpt-import", "openmates-v1-import", "limits-and-costs"]
+    scenarios = [args.scenario] if args.scenario != "all" else ["claude-import", "chatgpt-import", "npm-sdk-chatgpt-import", "pip-sdk-chatgpt-import", "openmates-v1-import", "limits-and-costs"]
     results: dict[str, str] = {}
+    api_key_id = ""
     try:
+        sdk_key = ""
         for scenario in scenarios:
             if scenario == "claude-import":
                 run_claude_import(api_url, work_dir)
             elif scenario == "chatgpt-import":
                 run_chatgpt_import(api_url, work_dir)
+            elif scenario == "npm-sdk-chatgpt-import":
+                if not sdk_key:
+                    api_key_id, sdk_key = create_api_key(api_url)
+                run_npm_sdk_chatgpt_import(api_url, sdk_key, api_key_id, work_dir)
+            elif scenario == "pip-sdk-chatgpt-import":
+                if not sdk_key:
+                    api_key_id, sdk_key = create_api_key(api_url)
+                run_pip_sdk_chatgpt_import(api_url, sdk_key, api_key_id, work_dir)
             elif scenario == "openmates-v1-import":
                 run_openmates_import_preview(api_url, work_dir)
             elif scenario == "limits-and-costs":
                 run_limits_preview(api_url, work_dir)
             results[scenario] = "passed"
     finally:
+        if api_key_id:
+            revoke_api_key(api_url, api_key_id)
         if should_cleanup_work_dir:
             shutil.rmtree(work_dir, ignore_errors=True)
 
@@ -94,11 +109,7 @@ def run_claude_import(api_url: str, work_dir: Path) -> None:
 
 
 def run_chatgpt_import(api_url: str, work_dir: Path) -> None:
-    fixture = work_dir / "chatgpt-import-synthetic.zip"
-    conversations = [chatgpt_conversation(index) for index in range(1, 4)]
-    with zipfile.ZipFile(fixture, "w") as archive:
-        archive.writestr("ChatGPT Export/conversations.json", json.dumps(conversations))
-        archive.writestr("ChatGPT Export/conversation_asset_file_names.json", json.dumps({}))
+    fixture = create_chatgpt_fixture(work_dir, "chatgpt-import-synthetic.zip")
 
     result = run_cli_json(["account", "import", "chatgpt", str(fixture), "--select", "all", "--yes", "--json"], api_url)
     parsed = result.get("parsed") if isinstance(result.get("parsed"), dict) else {}
@@ -110,6 +121,107 @@ def run_chatgpt_import(api_url: str, work_dir: Path) -> None:
         raise RuntimeError(f"ChatGPT import did not complete three chats: {redacted(result)}")
     if persistence.get("status") != "complete":
         raise RuntimeError(f"ChatGPT import encrypted persistence did not complete: {redacted(result)}")
+
+
+def create_chatgpt_fixture(work_dir: Path, filename: str) -> Path:
+    fixture = work_dir / filename
+    conversations = [chatgpt_conversation(index) for index in range(1, 4)]
+    with zipfile.ZipFile(fixture, "w") as archive:
+        archive.writestr("ChatGPT Export/conversations.json", json.dumps(conversations))
+        archive.writestr("ChatGPT Export/conversation_asset_file_names.json", json.dumps({}))
+    return fixture
+
+
+def create_api_key(api_url: str) -> tuple[str, str]:
+    result = run_cli_json(["settings", "developers", "api-keys", "create", "account-import-sdk-verifier", "--yes", "--json"], api_url)
+    key = result.get("key") if isinstance(result.get("key"), dict) else {}
+    key_id = str(result.get("id") or result.get("key_id") or key.get("id") or "")
+    api_key = str(result.get("api_key") or result.get("key") or "")
+    if not key_id:
+        raise RuntimeError(f"API key create response did not include key id: {redacted(result)}")
+    if not api_key.startswith("sk-api-"):
+        raise RuntimeError("API key create response did not include a usable API key")
+    return key_id, api_key
+
+
+def revoke_api_key(api_url: str, api_key_id: str) -> None:
+    subprocess.run(
+        ["node", str(CLI_DIST), "settings", "developers", "api-keys", "revoke", api_key_id, "--yes", "--json", "--api-url", api_url],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+        check=False,
+        timeout=120,
+    )
+
+
+def run_npm_sdk_chatgpt_import(api_url: str, api_key: str, api_key_id: str, work_dir: Path) -> None:
+    fixture = create_chatgpt_fixture(work_dir, "chatgpt-import-npm-sdk-synthetic.zip")
+    sdk_entry = (CLI_DIR / "dist/index.js").as_uri()
+    code = f"""
+import {{ OpenMates }} from {json.dumps(sdk_entry)};
+import {{ readFileSync }} from 'node:fs';
+
+const client = new OpenMates({{ apiKey: process.env.OPENMATES_API_KEY, apiUrl: process.env.OPENMATES_API_URL, deviceId: 'account-import-sdk-npm' }});
+const parsed = await client.account.parseChatGPTImport(readFileSync(process.env.OPENMATES_IMPORT_FIXTURE), 'chatgpt-sdk-live.zip');
+if (parsed.source !== 'chatgpt') throw new Error(`npm SDK parsed unexpected source ${{parsed.source}}`);
+if (parsed.chats.length !== 3) throw new Error(`npm SDK parsed ${{parsed.chats.length}} chats instead of 3`);
+const result = await client.account.importChats(parsed, {{ select: 'all' }});
+if (result?.complete?.status !== 'complete' || result?.complete?.imported_count !== 3) throw new Error(`npm SDK import did not complete exactly 3 chats: ${{JSON.stringify({{ status: result?.complete?.status, imported: result?.complete?.imported_count }})}}`);
+if (result?.persistence?.status !== 'complete') throw new Error(`npm SDK encrypted persistence status was ${{result?.persistence?.status}}`);
+console.log(JSON.stringify({{ source: result.source, parsed_chats: parsed.chats.length, imported_count: result.complete.imported_count, persistence_status: result.persistence.status }}));
+"""
+    env = {**os.environ, "OPENMATES_API_KEY": api_key, "OPENMATES_API_URL": api_url, "OPENMATES_IMPORT_FIXTURE": str(fixture)}
+    try:
+        run(["node", "--input-type=module", "-e", code], cwd=ROOT, capture=True, env=env)
+    except RuntimeError as error:
+        if not _is_device_approval_error(error):
+            raise
+        approved = _approve_pending_key_devices(api_url, api_key_id, {"npm"})
+        if not approved:
+            raise RuntimeError("No pending npm SDK device was available to approve") from error
+        run(["node", "--input-type=module", "-e", code], cwd=ROOT, capture=True, env=env)
+
+
+def run_pip_sdk_chatgpt_import(api_url: str, api_key: str, api_key_id: str, work_dir: Path) -> None:
+    fixture = create_chatgpt_fixture(work_dir, "chatgpt-import-pip-sdk-synthetic.zip")
+    code = """
+from pathlib import Path
+from openmates import OpenMates
+import json
+import os
+
+client = OpenMates(api_key=os.environ["OPENMATES_API_KEY"], api_url=os.environ["OPENMATES_API_URL"], device_id="account-import-sdk-pip")
+parsed = client.account.parse_chatgpt_import(Path(os.environ["OPENMATES_IMPORT_FIXTURE"]).read_bytes(), "chatgpt-sdk-live.zip")
+if parsed.get("source") != "chatgpt":
+    raise SystemExit(f"pip SDK parsed unexpected source {parsed.get('source')}")
+if len(parsed.get("chats") or []) != 3:
+    raise SystemExit(f"pip SDK parsed {len(parsed.get('chats') or [])} chats instead of 3")
+result = client.account.import_chats(parsed, select="all")
+complete = result.get("complete") or {}
+persistence = result.get("persistence") or {}
+if complete.get("status") != "complete" or complete.get("imported_count") != 3:
+    raise SystemExit(f"pip SDK import did not complete exactly 3 chats: {json.dumps({'status': complete.get('status'), 'imported': complete.get('imported_count')})}")
+if persistence.get("status") != "complete":
+    raise SystemExit(f"pip SDK encrypted persistence status was {persistence.get('status')}")
+print(json.dumps({"source": result.get("source"), "parsed_chats": len(parsed.get("chats") or []), "imported_count": complete.get("imported_count"), "persistence_status": persistence.get("status")}))
+"""
+    env = {
+        **os.environ,
+        "OPENMATES_API_KEY": api_key,
+        "OPENMATES_API_URL": api_url,
+        "OPENMATES_IMPORT_FIXTURE": str(fixture),
+        "PYTHONPATH": str(ROOT / "packages/openmates-python"),
+    }
+    try:
+        run(["python3", "-c", code], cwd=ROOT, capture=True, env=env)
+    except RuntimeError as error:
+        if not _is_device_approval_error(error):
+            raise
+        approved = _approve_pending_key_devices(api_url, api_key_id, {"pip"})
+        if not approved:
+            raise RuntimeError("No pending pip SDK device was available to approve") from error
+        run(["python3", "-c", code], cwd=ROOT, capture=True, env=env)
 
 
 def chatgpt_conversation(index: int) -> dict:
@@ -184,7 +296,11 @@ def run_limits_preview(api_url: str, work_dir: Path) -> None:
 def run_cli_json(args: list[str], api_url: str) -> dict:
     completed = run(["node", str(CLI_DIST), *args, "--api-url", api_url], cwd=ROOT, capture=True)
     try:
-        return json.loads(completed.stdout)
+        output = completed.stdout.strip()
+        starts = [index for index in (output.find("{"), output.find("[")) if index >= 0]
+        if not starts:
+            raise json.JSONDecodeError("missing JSON payload", output, 0)
+        return json.loads(output[min(starts) :])
     except json.JSONDecodeError as exc:
         raise RuntimeError(f"CLI did not return JSON for {' '.join(args)}") from exc
 
@@ -194,8 +310,8 @@ def redacted(value: object) -> str:
     return text[:1200]
 
 
-def run(command: list[str], *, cwd: Path, capture: bool = False) -> subprocess.CompletedProcess[str]:
-    completed = subprocess.run(command, cwd=cwd, text=True, capture_output=capture, check=False, timeout=180)
+def run(command: list[str], *, cwd: Path, capture: bool = False, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
+    completed = subprocess.run(command, cwd=cwd, env=env or os.environ.copy(), text=True, capture_output=capture, check=False, timeout=180)
     if completed.returncode != 0:
         stderr = completed.stderr.strip() if completed.stderr else ""
         stdout = completed.stdout.strip() if completed.stdout else ""
