@@ -809,7 +809,7 @@ async function locateDraftInSidebarOrSearch(page: any, chatId: string, expectedT
 	await searchInput.fill(expectedText);
 	const searchResults = page.getByTestId('search-results');
 	const result = page.locator(`[data-testid="search-chat-item"][data-result-id="${chatId}"]`).first();
-	const metadataResult = searchResults.getByTestId('search-metadata-snippet').filter({ hasText: expectedText }).first();
+	const metadataResult = result.getByTestId('search-metadata-snippet').filter({ hasText: expectedText }).first();
 	await expect(async () => {
 		const hasResults = await searchResults.isVisible().catch(() => false);
 		const isWarmingUp = await page.getByTestId('warming-up').isVisible().catch(() => false);
