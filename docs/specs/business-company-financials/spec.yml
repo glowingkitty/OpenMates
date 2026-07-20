@@ -862,14 +862,14 @@ verifications:
     phase: final
     required_for_done: true
     covers: [AC-14]
-    status: pending
+    status: passed
     evidence:
-      status: ""
-      command: "python3 scripts/apple_remote.py status && python3 scripts/apple_remote.py build-ios"
-      summary: ""
-      run_id: ""
-      subject_commit: ""
-      timestamp: ""
+      status: passed
+      command: "python3 scripts/apple_remote.py sync-repo --branch dev && python3 scripts/apple_remote.py test-ios --simulator \"iPhone 17\" --only-testing \"OpenMatesTests/SkillApplicationParityTests\" && python3 scripts/apple_remote.py build-ios --simulator \"iPhone 17\""
+      summary: "Remote Apple checkout synced to the Business financials Apple parity commits. Focused SkillApplicationParityTests passed, then OpenMates_iOS built successfully for an iPhone simulator. Verified native Business parent/child model normalization, SEC filing metadata preservation, source filing CTA wiring, and no investment-advice text in the focused model output."
+      run_id: "apple-remote-business-financials-a0b7445-2026-07-20T03-21Z"
+      subject_commit: "a0b7445"
+      timestamp: "2026-07-20T03:21:24Z"
 
 implementation_plan:
   spec_path: docs/specs/business-company-financials/spec.yml
