@@ -500,7 +500,20 @@ class ChatCacheMixin:
             existing_version_bytes = await client.hget(key, "draft_v")
             if existing_version_bytes:
                 try:
-                    existing_version = int(existing_version_bytes.decode('utf-8'))
+                    if isinstance(existing_version_bytes, bytes):
+                        existing_version_value = existing_version_bytes.decode('utf-8')
+                    else:
+                        existing_version_value = str(existing_version_bytes)
+                    existing_version = int(existing_version_value)
+                    existing_deleted = await client.hget(key, "deleted")
+                    if isinstance(existing_deleted, bytes):
+                        existing_deleted = existing_deleted.decode("utf-8")
+                    if existing_deleted == "true" and existing_version >= draft_version:
+                        logger.info(
+                            f"Skipping stale draft cache write over tombstone for user {user_id}, chat {chat_id}: "
+                            f"incoming version {draft_version}, tombstone version {existing_version}"
+                        )
+                        return True
                     if existing_version > draft_version:
                         logger.info(
                             f"Skipping stale draft cache write for user {user_id}, chat {chat_id}: "

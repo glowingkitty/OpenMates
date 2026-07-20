@@ -568,6 +568,110 @@ async def test_stale_draft_cache_write_does_not_replace_newer_ciphertext() -> No
 
 
 @pytest.mark.anyio
+async def test_stale_draft_cache_write_does_not_replace_equal_version_tombstone() -> None:
+    class Redis:
+        def __init__(self) -> None:
+            self.data = {
+                "user:user-1:chat:chat-1:draft": {
+                    "draft_v": "2",
+                    "encrypted_draft_md": "null",
+                    "encrypted_draft_preview": "null",
+                    "deleted": "true",
+                }
+            }
+
+        async def hget(self, key, field):
+            value = self.data.get(key, {}).get(field)
+            return value.encode("utf-8") if isinstance(value, str) else value
+
+        async def hmset(self, key, mapping):
+            self.data.setdefault(key, {}).update({k: str(v) for k, v in mapping.items()})
+
+        async def expire(self, key, ttl):
+            return True
+
+    class Cache(ChatCacheMixin):
+        USER_DRAFT_TTL = 60
+
+        def __init__(self) -> None:
+            self.redis = Redis()
+
+        @property
+        async def client(self):
+            return self.redis
+
+    cache = Cache()
+
+    updated = await cache.update_user_draft_in_cache(
+        "user-1",
+        "chat-1",
+        "stale-directus-cipher",
+        2,
+        encrypted_draft_preview="stale-directus-preview",
+    )
+
+    assert updated is True
+    assert cache.redis.data["user:user-1:chat:chat-1:draft"] == {
+        "draft_v": "2",
+        "encrypted_draft_md": "null",
+        "encrypted_draft_preview": "null",
+        "deleted": "true",
+    }
+
+
+@pytest.mark.anyio
+async def test_newer_draft_cache_write_replaces_older_tombstone() -> None:
+    class Redis:
+        def __init__(self) -> None:
+            self.data = {
+                "user:user-1:chat:chat-1:draft": {
+                    "draft_v": "2",
+                    "encrypted_draft_md": "null",
+                    "encrypted_draft_preview": "null",
+                    "deleted": "true",
+                }
+            }
+
+        async def hget(self, key, field):
+            value = self.data.get(key, {}).get(field)
+            return value.encode("utf-8") if isinstance(value, str) else value
+
+        async def hmset(self, key, mapping):
+            self.data.setdefault(key, {}).update({k: str(v) for k, v in mapping.items()})
+
+        async def expire(self, key, ttl):
+            return True
+
+    class Cache(ChatCacheMixin):
+        USER_DRAFT_TTL = 60
+
+        def __init__(self) -> None:
+            self.redis = Redis()
+
+        @property
+        async def client(self):
+            return self.redis
+
+    cache = Cache()
+
+    updated = await cache.update_user_draft_in_cache(
+        "user-1",
+        "chat-1",
+        "new-cipher",
+        3,
+        encrypted_draft_preview="new-preview",
+    )
+
+    assert updated is True
+    assert cache.redis.data["user:user-1:chat:chat-1:draft"] == {
+        "draft_v": "3",
+        "encrypted_draft_md": "new-cipher",
+        "encrypted_draft_preview": "new-preview",
+        "deleted": "false",
+    }
+
+
+@pytest.mark.anyio
 async def test_session_draft_route_returns_authoritative_ciphertext() -> None:
     class Cache:
         async def get_user_draft_from_cache(self, user_id, chat_id):
