@@ -23,6 +23,9 @@ class FakeRegistry:
     def is_skill_available(self, app_id: str, skill_id: str) -> bool:
         return app_id == "weather" and skill_id == "rain_radar" and self.skill_available
 
+    def get_metadata(self, app_id: str):
+        return None
+
     async def dispatch_skill(self, app_id: str, skill_id: str, request_body: dict) -> dict:
         self.dispatch_calls.append((app_id, skill_id, request_body))
         return {"status": "ok", "app_id": app_id, "skill_id": skill_id}
