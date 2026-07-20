@@ -161,12 +161,20 @@ const handleDraftUpdated = async (
       const incomingMarkdown = encrypted_draft_md
         ? await decryptWithMasterKey(encrypted_draft_md)
         : "";
+      const latestEditorState = get(draftEditorUIState);
+      const currentContentChangedSinceLastSave = currentEditorMarkdown !== incomingMarkdown && (
+        latestEditorState.hasUnsavedChanges ||
+        latestEditorState.isSaveInProgress ||
+        (latestEditorState.lastSavedContentMarkdown !== null &&
+          currentEditorMarkdown !== latestEditorState.lastSavedContentMarkdown)
+      );
       if (
-        newUserDraftVersion <= currentEditorState.currentUserDraftVersion &&
-        currentEditorMarkdown !== incomingMarkdown
+        currentContentChangedSinceLastSave ||
+        (newUserDraftVersion <= latestEditorState.currentUserDraftVersion &&
+          currentEditorMarkdown !== incomingMarkdown)
       ) {
         console.info(
-          `[DraftService] Preserving active local draft for chat ${chat_id}; incoming draft_v=${newUserDraftVersion} is not newer than active draft_v=${currentEditorState.currentUserDraftVersion}`,
+          `[DraftService] Preserving active local draft for chat ${chat_id}; incoming draft_v=${newUserDraftVersion}, active draft_v=${latestEditorState.currentUserDraftVersion}`,
         );
         return;
       }
@@ -277,12 +285,14 @@ const handleChatDetails = async (payload: ChatDetailsServerResponse) => {
     // 2. Update draftEditorUIState and editor if this is the currently active chat
     // Decrypt draft content before the update callback (since callbacks can't be async)
     let decryptedDraftContent: TiptapJSON = getInitialContent();
+    let incomingDraftMarkdown = "";
     if (payload.encrypted_draft_md) {
       try {
         const decryptedMarkdown = await decryptWithMasterKey(
           payload.encrypted_draft_md,
         );
         if (decryptedMarkdown) {
+          incomingDraftMarkdown = decryptedMarkdown;
           // Parse markdown back to TipTap JSON
           decryptedDraftContent = parse_message(decryptedMarkdown, "write", {
             unifiedParsingEnabled: true,
@@ -303,6 +313,23 @@ const handleChatDetails = async (payload: ChatDetailsServerResponse) => {
         );
         const editorInstance = getEditorInstance();
         if (editorInstance) {
+          const currentEditorContent = editorInstance.getJSON();
+          const currentEditorMarkdown = tipTapToCanonicalMarkdown(
+            currentEditorContent as TiptapJSON,
+          );
+          const currentContentChangedSinceLastSave = currentEditorMarkdown !== incomingDraftMarkdown && (
+            currentState.hasUnsavedChanges ||
+            currentState.isSaveInProgress ||
+            (currentState.lastSavedContentMarkdown !== null &&
+              currentEditorMarkdown !== currentState.lastSavedContentMarkdown)
+          );
+          if (currentContentChangedSinceLastSave) {
+            console.info(
+              `[DraftService] Preserving active local draft for chat ${payload.chat_id}; chat_details content is older than local editor content`,
+            );
+            return currentState;
+          }
+
           console.debug(
             "[DraftService] Setting editor content from chat_details:",
             decryptedDraftContent,
