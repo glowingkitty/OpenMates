@@ -8,6 +8,7 @@
 
 import pytest
 
+from backend.apps.ai.processing import skill_executor
 from backend.apps.ai.processing.skill_executor import execute_skill
 from backend.core.api.app.services import skill_registry as skill_registry_module
 
@@ -42,9 +43,13 @@ async def test_execute_skill_refreshes_stale_registry_before_missing_skill_404(m
         build_calls.append({"server_environment": server_environment})
         return refreshed_registry, {"weather": object()}
 
+    async def fake_sanitize_app_skill_output(result, _context):
+        return result
+
     monkeypatch.setattr(skill_registry_module, "get_global_registry", lambda: stale_registry)
     monkeypatch.setattr(skill_registry_module, "build_skill_registry", fake_build_skill_registry)
     monkeypatch.setattr(skill_registry_module, "set_global_registry", lambda registry: registered.append(registry))
+    monkeypatch.setattr(skill_executor, "sanitize_app_skill_output", fake_sanitize_app_skill_output)
     monkeypatch.setenv("SERVER_ENVIRONMENT", "development")
 
     result = await execute_skill("weather", "rain_radar", {"location": "Berlin"}, max_retries=0)
