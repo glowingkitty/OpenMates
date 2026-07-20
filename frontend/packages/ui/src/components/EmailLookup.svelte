@@ -52,6 +52,7 @@
     
     // Add rate limiting state
     const RATE_LIMIT_DURATION = 120000; // 120 seconds in milliseconds
+    const EMAIL_LOOKUP_TIMEOUT_MS = 10000;
     let isRateLimited = $state(false);
     let rateLimitTimer: ReturnType<typeof setTimeout>;
     let lastAuthMethod = $state<LastAuthMethod | null>(null);
@@ -158,6 +159,8 @@
         isLoading = true;
         loginFailedWarning = false;
         $sessionExpiredWarning = false;
+        const lookupController = new AbortController();
+        const lookupTimeout = setTimeout(() => lookupController.abort(), EMAIL_LOOKUP_TIMEOUT_MS);
 
         try {
             // Update the email value with the current input value
@@ -178,7 +181,8 @@
                     hashed_email,
                     stay_logged_in: stayLoggedIn
                 }),
-                credentials: 'include'
+                credentials: 'include',
+                signal: lookupController.signal
             });
             
             // Check for rate limiting first
@@ -272,6 +276,7 @@
             // Clear only the input field value after lookup
             emailInputValue = '';
         } finally {
+            clearTimeout(lookupTimeout);
             isLoading = false;
         }
     }
