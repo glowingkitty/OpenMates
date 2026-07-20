@@ -12,6 +12,11 @@ import pytest
 from backend.core.api.app.routes.handlers.websocket_handlers import delete_chat_handler
 
 
+@pytest.fixture
+def anyio_backend():
+    return "asyncio"
+
+
 class _Pipeline:
     async def __aenter__(self):
         return self
@@ -32,9 +37,11 @@ class _RedisClient:
 
 
 class _CacheService:
-    remove_chat_from_ids_versions = AsyncMock(return_value=True)
-    delete_chat_app_settings_memories = AsyncMock(return_value=0)
-    delete_chat_embed_cache = AsyncMock(return_value=0)
+    def __init__(self) -> None:
+        self.mark_chat_deleted = AsyncMock(return_value=True)
+        self.remove_chat_from_ids_versions = AsyncMock(return_value=True)
+        self.delete_chat_app_settings_memories = AsyncMock(return_value=0)
+        self.delete_chat_embed_cache = AsyncMock(return_value=0)
 
     @property
     def client(self):
@@ -53,7 +60,7 @@ class _CacheService:
         return f"messages:{user_id}:{chat_id}"
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_delete_chat_handler_forwards_remove_project_embeds(monkeypatch) -> None:
     queue_delete_chat_task = Mock()
     monkeypatch.setattr(delete_chat_handler, "_queue_delete_chat_task", queue_delete_chat_task)
@@ -74,10 +81,12 @@ async def test_delete_chat_handler_forwards_remove_project_embeds(monkeypatch) -
         broadcast_to_user=AsyncMock(),
     )
 
+    cache_service = _CacheService()
+
     await delete_chat_handler.handle_delete_chat(
         websocket=SimpleNamespace(),
         manager=manager,
-        cache_service=_CacheService(),
+        cache_service=cache_service,
         directus_service=directus_service,
         encryption_service=SimpleNamespace(),
         user_id="user-1",
@@ -86,3 +95,4 @@ async def test_delete_chat_handler_forwards_remove_project_embeds(monkeypatch) -
     )
 
     queue_delete_chat_task.assert_called_once_with("user-1", "chat-1", True)
+    cache_service.mark_chat_deleted.assert_awaited_once_with("chat-1")
