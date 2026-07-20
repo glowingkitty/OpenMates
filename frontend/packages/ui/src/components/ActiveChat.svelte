@@ -401,6 +401,46 @@
         return Array.isArray(children) && children.some(hasMeaningfulTiptapContent);
     }
 
+    function hasEditorUnsupportedDraftNode(node: unknown): boolean {
+        if (!node || typeof node !== 'object') return false;
+        const record = node as Record<string, unknown>;
+        if (
+            record.type === 'codeBlock'
+            || record.type === 'table'
+            || record.type === 'horizontalRule'
+            || record.type === 'heading'
+            || record.type === 'blockquote'
+            || record.type === 'bulletList'
+            || record.type === 'orderedList'
+            || record.type === 'listItem'
+        ) return true;
+        const children = record.content;
+        return Array.isArray(children) && children.some(hasEditorUnsupportedDraftNode);
+    }
+
+    function buildEmbedOnlyDraftContent(markdown: string): TiptapJSON | null {
+        const embedReferences = extractEmbedReferences(markdown);
+        if (embedReferences.length === 0) return null;
+
+        return {
+            type: 'doc',
+            content: [
+                {
+                    type: 'paragraph',
+                    content: embedReferences.map((reference) => ({
+                        type: 'embed',
+                        attrs: {
+                            id: reference.embed_id,
+                            type: registryNormalizeEmbedType(reference.type),
+                            status: 'finished',
+                            contentRef: `embed:${reference.embed_id}`,
+                        },
+                    })),
+                },
+            ],
+        };
+    }
+
     type EmbedDecodedContent = Record<string, unknown> & {
         app_id?: string;
         skill_id?: string;
@@ -9421,12 +9461,19 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             if (!isCurrentDraftRestoreTarget()) return;
                             const editableDraftMarkdown = extractPlainIdeaBucketText(decryptedMarkdown) ?? await restoreEmbedPreviewLinksForWriteMode(decryptedMarkdown, draftRestoreChatId);
                             // Parse markdown to TipTap JSON for the editor
-                            const draftContentJSON = parse_message(editableDraftMarkdown, 'write', { unifiedParsingEnabled: true });
+                            let draftContentJSON = parse_message(editableDraftMarkdown, 'write', { unifiedParsingEnabled: true });
+                            const embedOnlyDraftContent = hasEditorUnsupportedDraftNode(draftContentJSON)
+                                ? buildEmbedOnlyDraftContent(editableDraftMarkdown)
+                                : null;
+                            if (embedOnlyDraftContent) {
+                                draftContentJSON = embedOnlyDraftContent;
+                            }
                             const hasMeaningfulDraftContent = hasMeaningfulTiptapContent(draftContentJSON);
                             appendDraftRestoreDiagnostic('parsed-md', {
                                 decryptedLength: decryptedMarkdown.length,
                                 editableLength: editableDraftMarkdown.length,
                                 restoredPlainIdeaBucketText: editableDraftMarkdown !== decryptedMarkdown,
+                                usedEmbedOnlyDraftContent: !!embedOnlyDraftContent,
                                 hasMeaningfulContent: hasMeaningfulDraftContent,
                             });
                             console.debug(`[ActiveChat] Successfully decrypted and parsed draft content for chat ${draftRestoreChatId}`);
