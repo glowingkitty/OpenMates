@@ -281,7 +281,10 @@ async function runCliJson(
 		if (!transientNetworkError || attempt === maxAttempts - 1) break;
 		await new Promise((resolve) => setTimeout(resolve, 1_500 * (attempt + 1)));
 	}
-	if (options.allowTransientFailure && sawAllowedTransientError) return null;
+	if (options.allowTransientFailure && sawAllowedTransientError) {
+		console.warn(`openmates ${command} transient failure after ${maxAttempts} attempt(s)\nstdout:\n${result?.stdout ?? ''}\nstderr:\n${result?.stderr ?? ''}`);
+		return null;
+	}
 	expect(result, `openmates ${command} did not produce a result`).not.toBeNull();
 	expect(
 		result!.code,
