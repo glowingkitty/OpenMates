@@ -544,7 +544,7 @@ acceptance_criteria:
     scenario: S-8
     text: Web Research focus mode is updated only after the example-chat approval gate and routes relevant company-financial research to this skill only for explicit public companies.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: related_backend
     verification_ids: [T-PYTEST-FOCUS-MODE]
@@ -790,11 +790,11 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        command: ""
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: python3 -m pytest backend/tests/test_web_research_business_financials_routing.py
+        run_id: local-pytest-web-research-business-financials-green-2026-07-20T00:40:02Z
+        subject_commit: 248325b
+        timestamp: "2026-07-20T00:40:02Z"
 
 verifications:
   - id: V-CLI-DEV
@@ -855,6 +855,7 @@ verifications:
     evidence:
       status: user_confirmed
       summary: "User confirmed the deployed public Vital Farms SEC financials example chat looks fine before Web Research focus-mode routing changes."
+      reason: User reviewed https://app.dev.openmates.org/example/vital-farms-sec-financials and explicitly said the chat looks fine.
       timestamp: "2026-07-20T00:30:03Z"
   - id: V-APPLE-PARITY
     kind: manual_check
@@ -1128,7 +1129,7 @@ tasks:
 
   - id: TASK-8
     title: Update Web Research routing after example approval
-    status: pending
+    status: done
     phase: working_tasks
     covers:
       scenarios: [S-8]
