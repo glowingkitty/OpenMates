@@ -128,7 +128,12 @@ export async function mergeServerChatWithLocal(
   );
   const serverExplicitlyDeletesDraft =
     serverChat.encrypted_draft_md === null ||
-    serverChat.encrypted_draft_preview === null;
+    serverChat.encrypted_draft_preview === null ||
+    (
+      serverChat.ideabucket_triggered_at != null &&
+      (serverChat.messages_v ?? 0) > 0 &&
+      (serverChat.draft_v ?? 0) === 0
+    );
   const merged: Chat = {
     chat_id: serverChat.id,
     user_id: localChat.user_id ?? currentUserId,

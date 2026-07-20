@@ -183,6 +183,35 @@ describe("chat sync merge", () => {
     expect(merged.draft_v).toBe(0);
   });
 
+  it("clears stale local draft when an IdeaBucket draft becomes a processed chat", async () => {
+    const localChat = makeChat({
+      ideabucket: true,
+      ideabucket_processing_window_id: "window-1",
+      messages_v: 0,
+      draft_v: 3,
+      encrypted_draft_md: "stale-ideabucket-draft",
+      encrypted_draft_preview: "stale-ideabucket-preview",
+    });
+    const serverChat = {
+      id: "chat-1",
+      encrypted_chat_key: "local-key-k1",
+      ideabucket: true,
+      ideabucket_processing_window_id: "window-1",
+      ideabucket_triggered_at: 1234,
+      messages_v: 2,
+      title_v: 10,
+      draft_v: 0,
+    };
+
+    const merged = await mergeServerChatWithLocal(serverChat, localChat, "user-1");
+
+    expect(merged.messages_v).toBe(2);
+    expect(merged.encrypted_draft_md).toBeUndefined();
+    expect(merged.encrypted_draft_preview).toBeUndefined();
+    expect(merged.draft_v).toBe(0);
+    expect(merged.ideabucket_triggered_at).toBe(1234);
+  });
+
   it("preserves local encrypted header metadata when Phase 1a sends partial cache data", async () => {
     const localChat = makeChat({
       encrypted_title: "local-title-from-idb",
