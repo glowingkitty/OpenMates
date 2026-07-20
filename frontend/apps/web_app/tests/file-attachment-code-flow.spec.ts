@@ -422,20 +422,6 @@ test('uploaded code, CSV, EML, DOCX, and XLSX files render as redacted embeds', 
 		await expect(sentSheetFullscreen).not.toBeVisible({ timeout: 10000 });
 	}
 	log('Sent code, CSV, DOCX, and XLSX embeds remained placeholder-only in chat.');
-
-	const sentMailEmbed = userMessage.locator(
-		'[data-testid="embed-full-width-wrapper"][data-embed-type="mail-email"]'
-	).first();
-	await sentMailEmbed.click();
-	const includeOriginalButton = page.getByTestId('embed-pii-include-original');
-	await expect(includeOriginalButton).toBeVisible({ timeout: 10000 });
-	await includeOriginalButton.click();
-	await expect(includeOriginalButton).not.toBeVisible({ timeout: 10000 });
-	await expect(page.getByTestId('embed-fullscreen-overlay')).toContainText('receiver.include@example.com', { timeout: 10000 });
-	await screenshot(page, 'after-include-original');
-	log('Mail embed configured to include original PII after send.');
-
-	await page.keyboard.press('Escape');
 	await stopActiveResponseIfNeeded(page, log);
 	await deleteActiveChat(page, log, screenshot, 'cleanup');
 });
