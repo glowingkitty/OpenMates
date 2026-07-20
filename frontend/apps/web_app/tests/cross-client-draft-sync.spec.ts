@@ -428,20 +428,28 @@ async function logDraftOpenDiagnostics(page: any, chatId: string, label: string,
 	const diagnostics = await page.evaluate(async ({ targetChatId, expected }: { targetChatId: string; expected?: string }) => {
 		async function readIdbValue<T>(dbName: string, storeName: string, key: IDBValidKey): Promise<T | null> {
 			return new Promise((resolve) => {
+				let settled = false;
+				let db: IDBDatabase | null = null;
+				const finish = (value: T | null) => {
+					if (settled) return;
+					settled = true;
+					window.clearTimeout(timeout);
+					db?.close();
+					resolve(value);
+				};
+				const timeout = window.setTimeout(() => finish(null), 2_000);
 				const request = indexedDB.open(dbName);
-				request.onerror = () => resolve(null);
+				request.onerror = () => finish(null);
 				request.onsuccess = () => {
-					const db = request.result;
+					db = request.result;
 					try {
 						const transaction = db.transaction(storeName, 'readonly');
 						const store = transaction.objectStore(storeName);
 						const getRequest = store.get(key);
-						getRequest.onerror = () => resolve(null);
-						getRequest.onsuccess = () => resolve((getRequest.result as T | undefined) ?? null);
+						getRequest.onerror = () => finish(null);
+						getRequest.onsuccess = () => finish((getRequest.result as T | undefined) ?? null);
 					} catch {
-						resolve(null);
-					} finally {
-						db.close();
+						finish(null);
 					}
 				};
 			});
@@ -520,20 +528,28 @@ async function logServerDraftDiagnostics(page: any, apiUrl: string, chatId: stri
 		const diagnostics = await page.evaluate(async ({ apiEndpoint, targetChatId, expected }: { apiEndpoint: string; targetChatId: string; expected?: string }) => {
 		async function readIdbValue<T>(dbName: string, storeName: string, key: IDBValidKey): Promise<T | null> {
 			return new Promise((resolve) => {
+				let settled = false;
+				let db: IDBDatabase | null = null;
+				const finish = (value: T | null) => {
+					if (settled) return;
+					settled = true;
+					window.clearTimeout(timeout);
+					db?.close();
+					resolve(value);
+				};
+				const timeout = window.setTimeout(() => finish(null), 2_000);
 				const request = indexedDB.open(dbName);
-				request.onerror = () => resolve(null);
+				request.onerror = () => finish(null);
 				request.onsuccess = () => {
-					const db = request.result;
+					db = request.result;
 					try {
 						const transaction = db.transaction(storeName, 'readonly');
 						const store = transaction.objectStore(storeName);
 						const getRequest = store.get(key);
-						getRequest.onerror = () => resolve(null);
-						getRequest.onsuccess = () => resolve((getRequest.result as T | undefined) ?? null);
+						getRequest.onerror = () => finish(null);
+						getRequest.onsuccess = () => finish((getRequest.result as T | undefined) ?? null);
 					} catch {
-						resolve(null);
-					} finally {
-						db.close();
+						finish(null);
 					}
 				};
 			});
@@ -590,20 +606,28 @@ async function readLocalDraftMarkdown(page: any, chatId: string): Promise<{ mark
 	return page.evaluate(async (targetChatId: string) => {
 		async function readIdbValue<T>(dbName: string, storeName: string, key: IDBValidKey): Promise<T | null> {
 			return new Promise((resolve) => {
+				let settled = false;
+				let db: IDBDatabase | null = null;
+				const finish = (value: T | null) => {
+					if (settled) return;
+					settled = true;
+					window.clearTimeout(timeout);
+					db?.close();
+					resolve(value);
+				};
+				const timeout = window.setTimeout(() => finish(null), 2_000);
 				const request = indexedDB.open(dbName);
-				request.onerror = () => resolve(null);
+				request.onerror = () => finish(null);
 				request.onsuccess = () => {
-					const db = request.result;
+					db = request.result;
 					try {
 						const transaction = db.transaction(storeName, 'readonly');
 						const store = transaction.objectStore(storeName);
 						const getRequest = store.get(key);
-						getRequest.onerror = () => resolve(null);
-						getRequest.onsuccess = () => resolve((getRequest.result as T | undefined) ?? null);
+						getRequest.onerror = () => finish(null);
+						getRequest.onsuccess = () => finish((getRequest.result as T | undefined) ?? null);
 					} catch {
-						resolve(null);
-					} finally {
-						db.close();
+						finish(null);
 					}
 				};
 			});
