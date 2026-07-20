@@ -105,7 +105,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: c00e49883
+  subject_commit: e6f046a86
 
 approvals:
   product_contract:
@@ -153,16 +153,25 @@ attempts:
     outcome: blocked
     recorded_at: "2026-07-20T12:39:47Z"
     reason: Repository testing rules forbid local Vitest; the repo dispatcher has no per-test filter argument and GitHub Actions runs committed branch state, not the uncommitted working tree.
+  - id: ATTEMPT-4
+    task_id: TASK-3
+    approach: Run committed repo-dispatched Vitest after deploying the PII placeholder rewrite slice.
+    outcome: blocked
+    recorded_at: "2026-07-20T13:29:21Z"
+    reason: The committed suite ran on e6f046a86 and reported 593/594 passed; the only failure was the pre-existing unrelated ChatListCache pending-upsert test, matching the earlier baseline failure.
 
 handoff:
   current_task_id: TASK-3
-  next_action: Commit/deploy the working-tree implementation, then rerun repo-dispatched Vitest and add deployed Playwright/user-confirmation evidence before Apple parity.
+  next_action: User confirms deployed web behavior, then Apple parity may start under WEB_BEFORE_APPLE if still desired.
   command: python3 scripts/spec_validate.py docs/specs/pii-placeholder-rewrite-v1/spec.yml
   expected_outcome: Spec validates structurally after implementation evidence updates.
   blocker:
-    reason: UI Vitest cannot verify uncommitted working-tree tests through the repo dispatcher; local Vitest is forbidden by repo rules.
-    next_step: Commit or deploy the working-tree implementation, then rerun python3 scripts/tests.py run --suite vitest.
-  last_verified_commit: c00e49883
+    task_id: TASK-3
+    requires_user_input: true
+    reason: The WEB_BEFORE_APPLE gate requires user confirmation after deployed web verification before Apple parity starts.
+    question: Does the deployed web behavior satisfy the PII placeholder rewrite expectation so Apple parity can begin?
+    next_action: Record user confirmation or waiver, then start Apple parity work if requested.
+  last_verified_commit: e6f046a86
 
 scenarios:
   - id: S-1
@@ -320,20 +329,22 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: not_run_local_vitest_forbidden
+        status: skipped_with_reason
         command: python3 scripts/tests.py run --suite vitest
         run_id: not-dispatched-for-uncommitted-working-tree
         subject_commit: working-tree@c00e49883
         timestamp: "2026-07-20T12:39:47Z"
+        reason: Repository rules forbid local Vitest, and the dispatcher runs committed branch state; red evidence for uncommitted UI tests could not be collected without first deploying the implementation.
     green_phase:
       required: true
       expected: pass
       evidence:
-        status: pending_commit_for_repo_dispatched_vitest
+        status: passed
         command: python3 scripts/tests.py run --suite vitest
-        run_id: "2026-07-20T12:37:21Z / GitHub Actions 29742917961 (baseline committed dev only; new working-tree tests not included)"
-        subject_commit: working-tree@c00e49883
-        timestamp: "2026-07-20T12:39:47Z"
+        run_id: "2026-07-20T13:28:21Z / GitHub Actions 29746389543 (593/594 passed; unrelated ChatListCache failure)"
+        subject_commit: e6f046a86
+        timestamp: "2026-07-20T13:29:21Z"
+        reason: The committed run included the new placeholderRewriteService tests; the suite's only failure was the unrelated pre-existing ChatListCache pending-upsert assertion.
 
   - id: T-UNIT-EMBED-MAPPINGS
     type: unit
@@ -348,20 +359,22 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: not_run_local_vitest_forbidden
+        status: skipped_with_reason
         command: python3 scripts/tests.py run --suite vitest
         run_id: not-dispatched-for-uncommitted-working-tree
         subject_commit: working-tree@c00e49883
         timestamp: "2026-07-20T12:39:47Z"
+        reason: Repository rules forbid local Vitest, and the dispatcher runs committed branch state; red evidence for uncommitted UI tests could not be collected without first deploying the implementation.
     green_phase:
       required: true
       expected: pass
       evidence:
-        status: pending_commit_for_repo_dispatched_vitest
+        status: passed
         command: python3 scripts/tests.py run --suite vitest
-        run_id: "2026-07-20T12:37:21Z / GitHub Actions 29742917961 (baseline committed dev only; new working-tree tests not included)"
-        subject_commit: working-tree@c00e49883
-        timestamp: "2026-07-20T12:39:47Z"
+        run_id: "2026-07-20T13:28:21Z / GitHub Actions 29746389543 (593/594 passed; unrelated ChatListCache failure)"
+        subject_commit: e6f046a86
+        timestamp: "2026-07-20T13:29:21Z"
+        reason: The committed run included the new embedPIIStore rewrite tests; the suite's only failure was the unrelated pre-existing ChatListCache pending-upsert assertion.
 
   - id: T-UNIT-SECRET-SCANNER
     type: unit
@@ -387,9 +400,9 @@ tests:
       evidence:
         status: passed
         command: cd frontend/packages/secret-scanner && npm test
-        run_id: local-node-test-working-tree
-        subject_commit: c00e49883
-        timestamp: "2026-07-20T12:37:00Z"
+        run_id: local-node-test-e6f046a86
+        subject_commit: e6f046a86
+        timestamp: "2026-07-20T13:38:00Z"
 
   - id: T-WEB-PII-REWRITE
     type: playwright
@@ -405,11 +418,24 @@ tests:
     red_phase:
       required: true
       expected: fail
-      evidence: { status: "", run_id: "", timestamp: "" }
+      evidence:
+        status: skipped_with_reason
+        command: python3 scripts/tests.py run --spec pii-placeholder-rewrite.spec.ts
+        run_id: not-dispatched-before-test-file-existed
+        subject_commit: c00e49883
+        timestamp: "2026-07-20T13:23:00Z"
+        reason: The Playwright regression file was added with the implementation after the deploy-gated web test could be written; no deployed red run existed before the committed test artifact.
     green_phase:
       required: true
       expected: pass_after_deploy
-      evidence: { status: "", command: "", run_id: "", subject_commit: "", timestamp: "" }
+      evidence:
+        status: passed_after_deploy
+        command: python3 scripts/tests.py run --spec pii-placeholder-rewrite.spec.ts
+        run_id: "2026-07-20T13:31:47Z / GitHub Actions 29746835321"
+        subject_commit: e6f046a86
+        timestamp: "2026-07-20T13:37:06Z"
+        target: app.dev.openmates.org
+        deployment_reference: Vercel dpl_ETeN2feWeoAP8rx7nZp3j1q7MvSR READY for e6f046a86
 
 verifications:
   - id: V-USER-CONFIRMATION
@@ -417,8 +443,14 @@ verifications:
     phase: final
     required_for_done: true
     covers: [AC-1, AC-2]
-    status: pending
-    evidence: { status: "", summary: "", timestamp: "" }
+    status: blocked
+    evidence:
+      status: blocked
+      actor: openai/gpt-5.5
+      summary: Deployed web Playwright evidence passed; explicit user confirmation is still required before Apple parity starts.
+      timestamp: "2026-07-20T13:37:06Z"
+      reason: WEB_BEFORE_APPLE requires product/user confirmation after deployed web verification.
+      next_action: Ask the user to confirm the deployed web behavior, or record a waiver if Apple parity is intentionally deferred.
 
 implementation_plan:
   spec_path: docs/specs/pii-placeholder-rewrite-v1/spec.yml
@@ -505,7 +537,7 @@ tasks:
     independently_deployable: true
   - id: TASK-3
     title: Add secret-scanner parity and deployed web proof
-    status: pending
+    status: blocked
     phase: running_checks
     covers:
       scenarios: [S-2, S-5]
@@ -521,7 +553,8 @@ tasks:
         - frontend/packages/secret-scanner/tests/redact-restore.test.ts
         - frontend/apps/web_app/tests/pii-placeholder-rewrite.spec.ts
       shared_files: []
-    blockers: []
+    blockers:
+      - V-USER-CONFIRMATION remains required before Apple parity starts.
     follow_up_tasks: []
     independently_deployable: true
 
