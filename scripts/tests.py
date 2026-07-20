@@ -1521,6 +1521,29 @@ def active_group_ids(leases: list[dict[str, Any]]) -> set[str]:
     return active
 
 
+def lease_blocks_entry(lease: dict[str, Any], entry: dict[str, Any], now: datetime | None = None) -> bool:
+    """Return whether an unexpired claim makes this failure unavailable to lease."""
+    status = str(lease.get("status") or "")
+    if status not in {"active", "released"}:
+        return False
+
+    expires_at = parse_utc(str(lease.get("expires_at") or ""))
+    if expires_at is not None and expires_at <= (now or datetime.now(timezone.utc)):
+        return False
+
+    if str(lease.get("group_id") or "") != str(entry.get("group_id") or ""):
+        return False
+    if status == "active":
+        return True
+
+    leased_entry = lease.get("entry") if isinstance(lease.get("entry"), dict) else lease.get("entry_json")
+    leased_entry = leased_entry if isinstance(leased_entry, dict) else {}
+    return (
+        str(leased_entry.get("key") or "") == str(entry.get("key") or "")
+        and str(leased_entry.get("run_id") or "") == str(entry.get("run_id") or "")
+    )
+
+
 def active_lease_for_session(session_id: str = "", lease_id: str = "") -> dict[str, Any] | None:
     """Return an active, unexpired failed-test lease for a session or explicit id."""
     now = datetime.now(timezone.utc)
@@ -1567,9 +1590,9 @@ def claim_next(session_id: str, worker_id: str = "", days: int = 7) -> dict[str,
         triage = build_triage(days=days)
         leases_data = load_leases()
         leases = list(leases_data.get("leases") or [])
-        active = active_group_ids(leases)
+        now = datetime.now(timezone.utc)
         for entry in triage.get("entries") or []:
-            if entry["group_id"] in active:
+            if any(lease_blocks_entry(lease, entry, now=now) for lease in leases):
                 continue
             digest = hashlib.sha1(f"{entry['group_id']}:{session_id}:{utc_now()}".encode("utf-8")).hexdigest()[:8]
             lease_id = f"lease-{entry['group_id']}-{digest}"
