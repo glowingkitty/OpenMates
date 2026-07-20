@@ -590,7 +590,7 @@ enum TaskWorkflowEmbedKind {
     }
 }
 
-private struct TaskWorkflowParentRenderer: View {
+struct TaskWorkflowParentRenderer: View {
     let embed: EmbedRecord
     let kind: TaskWorkflowEmbedKind
     let mode: EmbedDisplayMode
@@ -833,7 +833,7 @@ struct TaskWorkflowEmbedRenderer: View {
     }
 }
 
-private struct Models3DSearchParentRenderer: View {
+struct Models3DSearchParentRenderer: View {
     let embed: EmbedRecord
     let mode: EmbedDisplayMode
     let allEmbedRecords: [String: EmbedRecord]

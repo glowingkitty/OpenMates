@@ -124,7 +124,7 @@ struct EmbedContentView: View {
 
             // 3D Models
             case .models3dSearch:
-                SearchResultsRenderer(data: rawData, mode: mode, resultLabel: "models")
+                Models3DSearchParentRenderer(embed: embed, mode: mode, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed)
             case .models3dGenerate:
                 Models3DGenerateEmbedRenderer(embed: embed, mode: mode)
             case .models3dModelResult:
@@ -252,7 +252,7 @@ struct EmbedContentView: View {
 
             // Tasks
             case .tasksCreate, .tasksSearch:
-                SearchResultsRenderer(data: rawData, mode: mode, resultLabel: "tasks")
+                TaskWorkflowParentRenderer(embed: embed, kind: .task, mode: mode, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed)
             case .tasksTask:
                 TaskWorkflowEmbedRenderer(embed: embed, kind: .task, mode: mode)
 
@@ -264,7 +264,7 @@ struct EmbedContentView: View {
 
             // Workflows
             case .workflowsCreateOrModify, .workflowsSearch:
-                SearchResultsRenderer(data: rawData, mode: mode, resultLabel: "workflows")
+                TaskWorkflowParentRenderer(embed: embed, kind: .workflow, mode: mode, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed)
             case .workflowsWorkflow:
                 TaskWorkflowEmbedRenderer(embed: embed, kind: .workflow, mode: mode)
 
