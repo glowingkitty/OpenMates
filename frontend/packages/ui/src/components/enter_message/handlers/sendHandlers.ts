@@ -7,7 +7,7 @@ import { Extension } from "@tiptap/core";
 import { chatDB } from "../../../services/db";
 import { chatKeyManager } from "../../../services/encryption/ChatKeyManager";
 import { chatSyncService } from "../../../services/chatSyncService"; // Import chatSyncService
-import type { Chat, Message } from "../../../types/chat"; // Import Message type
+import type { Chat, Message, PIIMapping } from "../../../types/chat"; // Import Message type
 import { draftEditorUIState } from "../../../services/drafts/draftState";
 import {
   clearCurrentDraft,
@@ -30,10 +30,11 @@ import {
   detectPII,
   replacePIIWithPlaceholders,
   createPIIMappingsForStorage,
-  type PIIMappingForStorage,
   type PIIDetectionOptions,
   type PersonalDataForDetection,
 } from "../services/piiDetectionService"; // PII anonymization
+import { rewriteKnownPIIPlaceholders } from "../services/placeholderRewriteService";
+import { getActivePIIMappingsForRewrite } from "../../../stores/embedPIIStore";
 import {
   personalDataStore,
   type PersonalDataEntry,
@@ -206,13 +207,15 @@ async function processUrlsBeforeSend(markdown: string): Promise<string> {
   // Process URLs in parallel for better performance
   const embedPromises = urls.map(async (urlInfo) => {
     try {
-      console.debug("[sendHandlers] Creating embed for URL:", urlInfo.url);
+      console.debug("[sendHandlers] Creating embed for URL", {
+        urlLength: urlInfo.url.length,
+      });
       const embedResult = await createEmbedFromUrl(urlInfo.url);
       return { urlInfo, embedResult };
     } catch (error) {
       console.error(
         "[sendHandlers] Error creating embed for URL:",
-        urlInfo.url,
+        { urlLength: urlInfo.url.length },
         error,
       );
       return { urlInfo, embedResult: null };
@@ -231,13 +234,13 @@ async function processUrlsBeforeSend(markdown: string): Promise<string> {
     if (!embedResult) {
       console.warn(
         "[sendHandlers] Skipping URL - embed creation failed:",
-        urlInfo.url,
+        { urlLength: urlInfo.url.length },
       );
       continue;
     }
 
     console.info("[sendHandlers] Replacing URL with embed reference:", {
-      url: urlInfo.url,
+      urlLength: urlInfo.url.length,
       embed_id: embedResult.embed_id,
       type: embedResult.type,
     });
@@ -287,7 +290,7 @@ async function processUrlsBeforeSend(markdown: string): Promise<string> {
 function createMessagePayload(
   markdown: string,
   chatId: string,
-  piiMappings?: PIIMappingForStorage[],
+  piiMappings?: PIIMapping[],
 ): Message {
   // Validate markdown content
   if (!markdown || typeof markdown !== "string") {
@@ -376,6 +379,42 @@ let sendInProgress = false;
 
 const DRAFT_SAVE_IDLE_TIMEOUT_MS = 5000;
 
+function getExcludedOriginalsForCurrentSend(
+  markdown: string,
+  detectionOptions: PIIDetectionOptions,
+): Set<string> {
+  const excludedIds = detectionOptions.excludedIds;
+  if (!excludedIds || excludedIds.size === 0) return new Set<string>();
+
+  const matchesWithoutExclusions = detectPII(markdown, {
+    ...detectionOptions,
+    excludedIds: new Set<string>(),
+  });
+
+  return new Set(
+    matchesWithoutExclusions
+      .filter((match) => excludedIds.has(match.id))
+      .map((match) => match.match),
+  );
+}
+
+function mergePIIMappingsForStorage(
+  appliedMappings: PIIMapping[],
+  detectedMappings: PIIMapping[],
+): PIIMapping[] {
+  const merged: PIIMapping[] = [];
+  const seen = new Set<string>();
+
+  for (const mapping of [...appliedMappings, ...detectedMappings]) {
+    const key = `${mapping.placeholder}\u0000${mapping.original}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    merged.push(mapping);
+  }
+
+  return merged;
+}
+
 function recordSendDebugStep(
   step: string,
   details: Record<string, unknown> = {},
@@ -441,21 +480,20 @@ export async function handleSend(
   activePIIExclusions: Set<string> = new Set(),
   broadcastToSiblings: boolean = false,
 ) {
-  const editorTextPreview = editor && !editor.isDestroyed ? editor.getText().slice(0, 120) : "";
+  const editorTextLength = editor && !editor.isDestroyed ? editor.getText().length : 0;
   console.info("[handleSend] Send invoked", {
     currentChatId,
     hasEditor: !!editor,
     editorDestroyed: editor?.isDestroyed ?? null,
     editorIsEmpty: editor?.isEmpty ?? null,
-    textLength: editorTextPreview.length,
-    textPreview: editorTextPreview,
+    textLength: editorTextLength,
   });
   recordSendDebugStep("send_invoked", {
     currentChatId,
     hasEditor: !!editor,
     editorDestroyed: editor?.isDestroyed ?? null,
     editorIsEmpty: editor?.isEmpty ?? null,
-    textLength: editorTextPreview.length,
+    textLength: editorTextLength,
   });
 
   if (!editor || !hasActualContent(editor)) {
@@ -464,8 +502,7 @@ export async function handleSend(
       hasEditor: !!editor,
       editorDestroyed: editor?.isDestroyed ?? null,
       editorIsEmpty: editor?.isEmpty ?? null,
-      textLength: editorTextPreview.length,
-      textPreview: editorTextPreview,
+      textLength: editorTextLength,
     });
     vibrateMessageField();
     return;
@@ -479,7 +516,7 @@ export async function handleSend(
   if (sendInProgress) {
     console.warn(
       "[handleSend] Send already in progress, ignoring duplicate call",
-      { currentChatId, textPreview: editorTextPreview },
+      { currentChatId, textLength: editorTextLength },
     );
     return;
   }
@@ -718,6 +755,7 @@ export async function handleSend(
       embedProgress: embedProgressMap,
       createdAt: Date.now(),
       piiExclusions: new Set(activePIIExclusions),
+      piiRewriteMappings: getActivePIIMappingsForRewrite(),
       partialMarkdown: "",
     });
 
@@ -1001,7 +1039,7 @@ export async function handleSend(
   ) {
     console.warn("[handleSend] No editor content available", {
       currentChatId,
-      textPreview: editorTextPreview,
+      textLength: editorTextLength,
       editorContent,
     });
     vibrateMessageField();
@@ -1017,7 +1055,6 @@ export async function handleSend(
   console.info("[handleSend] Editor content converted to markdown", {
     currentChatId,
     markdownLength: markdown.length,
-    markdownPreview: markdown.slice(0, 160),
   });
 
   // Strip leading empty lines that were auto-prepended to allow cursor placement
@@ -1068,7 +1105,7 @@ export async function handleSend(
   // - If masterEnabled is false, skip ALL PII detection
   // - Disabled categories are skipped (user can toggle individual PII types)
   // - User-defined personal data entries (names, addresses, etc.) are also detected
-  let piiMappingsForStorage: PIIMappingForStorage[] = [];
+  let piiMappingsForStorage: PIIMapping[] = [];
   recordSendDebugStep("pii_detection_started", { currentChatId });
   try {
     // Read current privacy settings from the store
@@ -1121,8 +1158,16 @@ export async function handleSend(
       // be blocked with "missing embeds". We swap them out for opaque tokens, run PII on
       // the rest of the markdown, then restore the original blocks afterwards.
       const { safeMarkdown, restore } = protectEmbedRefsFromPII(markdown);
+      const rewriteResult = rewriteKnownPIIPlaceholders(safeMarkdown, {
+        mappings: getActivePIIMappingsForRewrite(),
+        excludedOriginals: getExcludedOriginalsForCurrentSend(
+          safeMarkdown,
+          detectionOptions,
+        ),
+      });
+      const rewrittenSafeMarkdown = rewriteResult.markdown;
 
-      const piiMatches = detectPII(safeMarkdown, detectionOptions);
+      const piiMatches = detectPII(rewrittenSafeMarkdown, detectionOptions);
       if (piiMatches.length > 0) {
         console.debug(
           "[handleSend] Detected PII to anonymize:",
@@ -1136,10 +1181,13 @@ export async function handleSend(
 
         // Create PII mappings for storage - these will be encrypted with the message
         // and used to restore original values when rendering messages
-        piiMappingsForStorage = createPIIMappingsForStorage(piiMatches);
+        piiMappingsForStorage = mergePIIMappingsForStorage(
+          rewriteResult.appliedMappings,
+          createPIIMappingsForStorage(piiMatches),
+        );
 
         markdown = restore(
-          replacePIIWithPlaceholders(safeMarkdown, piiMatches),
+          replacePIIWithPlaceholders(rewrittenSafeMarkdown, piiMatches),
         );
         console.debug(
           "[handleSend] PII anonymization complete, replaced",
@@ -1149,7 +1197,11 @@ export async function handleSend(
       } else {
         // No PII found, but still restore embed blocks (restore is a no-op if none
         // were protected, so this is always safe).
-        markdown = restore(safeMarkdown);
+        piiMappingsForStorage = mergePIIMappingsForStorage(
+          rewriteResult.appliedMappings,
+          [],
+        );
+        markdown = restore(rewrittenSafeMarkdown);
       }
     } else {
       console.debug(
@@ -1810,8 +1862,12 @@ export async function handleSend(
     );
     console.debug(
       "[handleSend] Message sent to chatSyncService:",
-      messagePayload,
-      encryptedSuggestionToDelete ? "(with suggestion to delete)" : "",
+      {
+        chatId: messagePayload.chat_id,
+        messageId: messagePayload.message_id,
+        contentLength: messagePayload.content?.length ?? 0,
+        hasSuggestionToDelete: !!encryptedSuggestionToDelete,
+      },
     );
 
     wsSpan.end();
@@ -1995,7 +2051,7 @@ export async function executeDeferredSend(
   // -------------------------------------------------------------------------
   // 5. PII anonymization
   // -------------------------------------------------------------------------
-  let piiMappingsForStorage: PIIMappingForStorage[] = [];
+  let piiMappingsForStorage: PIIMapping[] = [];
   try {
     const piiSettings: PIIDetectionSettings = get(personalDataStore.settings);
     if (piiSettings.masterEnabled) {
@@ -2038,16 +2094,33 @@ export async function executeDeferredSend(
       // handleSend: UUID segments can match phone/other PII patterns).
       const { safeMarkdown: safeMd, restore: restoreMd } =
         protectEmbedRefsFromPII(markdown);
+      const rewriteResult = rewriteKnownPIIPlaceholders(safeMd, {
+        mappings: readyCtx.piiRewriteMappings ?? [],
+        excludedOriginals: getExcludedOriginalsForCurrentSend(
+          safeMd,
+          detectionOptions,
+        ),
+      });
+      const rewrittenSafeMd = rewriteResult.markdown;
 
-      const piiMatches = detectPII(safeMd, detectionOptions);
+      const piiMatches = detectPII(rewrittenSafeMd, detectionOptions);
       if (piiMatches.length > 0) {
-        piiMappingsForStorage = createPIIMappingsForStorage(piiMatches);
-        markdown = restoreMd(replacePIIWithPlaceholders(safeMd, piiMatches));
+        piiMappingsForStorage = mergePIIMappingsForStorage(
+          rewriteResult.appliedMappings,
+          createPIIMappingsForStorage(piiMatches),
+        );
+        markdown = restoreMd(
+          replacePIIWithPlaceholders(rewrittenSafeMd, piiMatches),
+        );
         console.debug(
           `[executeDeferredSend] PII anonymization: replaced ${piiMatches.length} items`,
         );
       } else {
-        markdown = restoreMd(safeMd);
+        piiMappingsForStorage = mergePIIMappingsForStorage(
+          rewriteResult.appliedMappings,
+          [],
+        );
+        markdown = restoreMd(rewrittenSafeMd);
       }
     }
   } catch (error) {

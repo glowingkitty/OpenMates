@@ -39,6 +39,7 @@ export type {
   SecretType,
   SecretRegistryEntry,
   SecretMapping,
+  KnownSecretMapping,
   RedactResult,
   ScannerOptions,
   PersonalDataEntry,

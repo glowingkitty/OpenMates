@@ -90,6 +90,21 @@ export interface SecretMapping {
 }
 
 /**
+ * Explicit known-value mapping, used when another owner-local layer already
+ * generated the placeholder token and the scanner must preserve that contract.
+ */
+export interface KnownSecretMapping {
+  /** Original value to redact when seen in text */
+  original: string;
+  /** Existing placeholder token to reuse */
+  placeholder: string;
+  /** Secret type for categorization and styling */
+  type: SecretType;
+  /** Where the original mapping was discovered */
+  source?: SecretSource;
+}
+
+/**
  * Result of a redaction operation.
  */
 export interface RedactResult {

@@ -1,0 +1,543 @@
+schema_version: 2
+id: pii-placeholder-rewrite-v1
+title: PII Placeholder Rewrite V1
+status: implementing
+
+goal: >
+  Extend OpenMates' client-side PII placeholder system so outbound user messages
+  are rewritten against previously encrypted message and embed mappings before
+  they reach the server or LLM. A user should be able to ask a natural follow-up
+  using an original private value, while OpenMates sends only the corresponding
+  placeholder token and keeps restoration local to the owning client.
+
+scope:
+  in:
+    - Client-side rewrite of outbound user message text using cumulative decrypted
+      placeholder mappings from earlier user messages and current-chat embeds.
+    - Reuse of the existing message-level and embed-level PII mapping architecture
+      so mappings remain encrypted at rest and owner-only.
+    - Finance-first support for category-aware placeholders such as
+      `[MERCHANT_STREAMING_001]`, while keeping the rewrite service reusable for
+      non-finance PII mappings.
+    - Exact-value matching that replaces all occurrences of the same original
+      value with the same placeholder inside the outbound message.
+    - >
+      Respect for existing user exclusions/manual placeholder removal semantics:
+      if the user excluded or removed a value from redaction in the current send,
+      the rewrite layer must not silently re-redact that same value.
+    - Unit coverage for message mappings, embed mappings, collision handling,
+      opt-out/exclusion behavior, and secret-scanner/CLI parity where applicable.
+    - Deployed web coverage proving a follow-up prompt is sent with placeholders
+      while the local UI can still render/restores originals.
+  out:
+    - Fully redesigning the PII detector or all supported PII categories.
+    - Server-side restoration or server-side access to original PII values.
+    - Persisting raw finance merchant/payee names outside encrypted owner-only
+      mapping blobs.
+    - Global merchant allowlists or default plaintext merchant-name disclosure.
+    - Apple native implementation before web behavior is verified and user-approved.
+
+sequencing_gates:
+  - gate: CLIENT_REWRITE_CORE_FIRST
+    required_before: finance_skill_implementation
+    rule: The reusable rewrite service and unit tests must exist before Finance depends on merchant/payee rewrite behavior.
+    evidence: [T-UNIT-REWRITE, T-UNIT-EMBED-MAPPINGS, T-UNIT-SECRET-SCANNER]
+  - gate: WEB_BEFORE_APPLE
+    required_before: apple_implementation
+    rule: Web send-path behavior and user confirmation are required before Apple parity begins.
+    evidence: [T-WEB-PII-REWRITE, V-USER-CONFIRMATION]
+
+context_discovery:
+  github_issues:
+    - "GitHub MCP get_me failed with 401 Bad credentials. Fallback `gh issue list --repo glowingkitty/OpenMates --search \"PII placeholder rewrite privacy redaction merchant placeholders\" --state all --limit 20 --json number,title,state,labels,url` returned no matches."
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/architecture/privacy/pii-protection.md
+    - docs/architecture/privacy/sensitive-data-redaction.md
+    - docs/specs/apple-pii-detection-web-parity/spec.yml
+    - docs/specs/text-file-pii-redaction-parity/spec.yml
+  code_patterns:
+    - frontend/packages/ui/src/components/enter_message/services/piiDetectionService.ts detects and replaces outbound message PII.
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts runs final PII detection/replacement before send and protects embed refs from PII corruption.
+    - frontend/packages/ui/src/types/chat.ts defines PIIMapping with placeholder, original, and type.
+    - frontend/packages/ui/src/stores/embedPIIStore.ts merges message-level and embed-level owner-only mappings for the active chat.
+    - frontend/packages/secret-scanner/src/scanner.ts provides registry-based CLI/web-compatible redaction and restoration.
+    - frontend/packages/secret-scanner/src/registry.ts already supports known-value lookup and placeholder generation.
+  tests:
+    - frontend/packages/ui/src/stores/__tests__/embedPIIStore.test.ts
+    - frontend/packages/ui/src/stores/__tests__/piiVisibilityStore.test.ts
+    - frontend/packages/secret-scanner/tests/redact-restore.test.ts
+    - frontend/packages/secret-scanner/tests/registry.test.ts
+    - frontend/apps/web_app/tests/pii-detection-flow.spec.ts
+  external_research:
+    - "No external API research required; this spec changes first-party client-side privacy behavior."
+
+apple_impact:
+  affected_files:
+    - apple/OpenMates/Sources/**/Chat*
+    - apple/OpenMates/Sources/**/Composer*
+    - apple/OpenMates/Sources/**/PII*
+  parity_expectations:
+    - Apple must eventually rewrite outbound prompts using the same encrypted mapping contract before sending private original values.
+    - Apple starts only after web and user confirmation, or a spec-recorded waiver.
+  verification:
+    - python3 scripts/apple_remote.py status
+    - python3 scripts/apple_remote.py build-ios or targeted PII composer tests after web/user confirmation.
+  intentional_native_differences:
+    - Native UI may present reveal/exclusion controls differently, but outbound rewrite and privacy guarantees must match web.
+
+clarification:
+  rounds:
+    - question: Should finance merchant names use strict placeholders, allow common merchant names, or a local searchable alias mapping?
+      answer: Use the local searchable alias mapping idea, because it preserves queries like "how much did I spend on Spotify" without sending Spotify to the LLM/server when a prior mapping exists.
+    - question: Should this be finance-only or a reusable PII layer?
+      answer: Make it finance-first but reusable for other PII mappings later.
+    - question: Should placeholders carry category context for finance?
+      answer: Yes. Use category-aware placeholders so the LLM can reason about spending categories without exact merchant names.
+    - question: Should this be split from the Finance app skill spec?
+      answer: Yes. Create one independent PII spec and one Finance Check accounts spec so separate sessions can work in parallel.
+  vision_summary: >
+    The user wants a reusable client-side rewrite layer that detects original
+    private values already known from encrypted message/embed mappings and sends
+    placeholders instead. Finance is the first important consumer: merchant and
+    payee names remain private, while category-aware placeholders keep spending
+    analysis useful.
+  approved_by_user: true
+
+implementation_state:
+  subject_commit: c00e49883
+
+approvals:
+  product_contract:
+    status: approved
+    approved_at: "2026-07-20T12:39:47Z"
+    reason: User explicitly requested implementation of this spec in the current session.
+  implementation_plan:
+    status: approved
+    approved_at: "2026-07-20T12:39:47Z"
+    reason: Existing implementation_plan and tasks already covered the requested rewrite, embed mapping, and secret-scanner slices.
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Implement a client-side rewrite pass before outbound send using prior encrypted mappings.
+    reason: It lets users refer to original private values naturally while preserving the existing server/LLM placeholder boundary.
+    decided_at: "2026-07-20"
+  - id: D-2
+    status: active
+    decision: Keep finance merchant/payee placeholders category-aware.
+    reason: Category context preserves analytic usefulness without exposing exact counterparties.
+    decided_at: "2026-07-20"
+  - id: D-3
+    status: active
+    decision: Respect manual exclusion/removal controls over automatic rewrite.
+    reason: Users must remain in control when they intentionally reveal or exclude an exact value.
+    decided_at: "2026-07-20"
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    approach: Store merchant names as plaintext because names like Spotify are useful for finance questions.
+    outcome: rejected
+    recorded_at: "2026-07-20"
+    reason: Even common merchant names can reveal sensitive habits, health, political, religious, location, or subscription data.
+  - id: ATTEMPT-2
+    task_id: TASK-1
+    approach: Use strict opaque placeholders only, with no local searchable alias mapping.
+    outcome: rejected
+    recorded_at: "2026-07-20"
+    reason: It breaks natural questions that mention a specific original value, such as a merchant name.
+  - id: ATTEMPT-3
+    task_id: TASK-1
+    approach: Run UI Vitest red/green evidence locally with the spec-listed `npm run test -- placeholderRewriteService` command.
+    outcome: blocked
+    recorded_at: "2026-07-20T12:39:47Z"
+    reason: Repository testing rules forbid local Vitest; the repo dispatcher has no per-test filter argument and GitHub Actions runs committed branch state, not the uncommitted working tree.
+
+handoff:
+  current_task_id: TASK-3
+  next_action: Commit/deploy the working-tree implementation, then rerun repo-dispatched Vitest and add deployed Playwright/user-confirmation evidence before Apple parity.
+  command: python3 scripts/spec_validate.py docs/specs/pii-placeholder-rewrite-v1/spec.yml
+  expected_outcome: Spec validates structurally after implementation evidence updates.
+  blocker:
+    reason: UI Vitest cannot verify uncommitted working-tree tests through the repo dispatcher; local Vitest is forbidden by repo rules.
+    next_step: Commit or deploy the working-tree implementation, then rerun python3 scripts/tests.py run --suite vitest.
+  last_verified_commit: c00e49883
+
+scenarios:
+  - id: S-1
+    title: Follow-up rewrites original value from prior message mapping
+    given:
+      - Alice previously sent a message where `alice@example.com` was replaced with `[EMAIL_1_com]` and stored in encrypted PII mappings.
+    when:
+      - Alice later types `Use alice@example.com for the signup form` in the same chat.
+    then:
+      - The outbound payload sent to OpenMates contains `[EMAIL_1_com]` instead of `alice@example.com`.
+      - The local composer/chat UI can still restore and show the original value when Alice reveals PII.
+
+  - id: S-2
+    title: Follow-up rewrites original merchant value from finance embed mapping
+    given:
+      - A Finance embed registered owner-only mapping `Spotify` to `[MERCHANT_STREAMING_001]`.
+    when:
+      - Alice asks `How much did I spend on Spotify this year?`.
+    then:
+      - The outbound prompt contains `[MERCHANT_STREAMING_001]`.
+      - The LLM can reason that the merchant belongs to the streaming category without seeing `Spotify`.
+
+  - id: S-3
+    title: Manual exclusion suppresses automatic rewrite for exact value
+    given:
+      - Alice has a prior mapping for `ACME GmbH` to `[MERCHANT_SOFTWARE_003]`.
+    when:
+      - Alice explicitly removes/excludes the placeholder for `ACME GmbH` in the current message before sending.
+    then:
+      - The rewrite pass does not reapply `[MERCHANT_SOFTWARE_003]` behind Alice's back.
+      - The send path records the user's chosen visibility behavior consistently with existing PII exclusion semantics.
+
+  - id: S-4
+    title: Unmapped original values are not guessed by the rewrite layer
+    given:
+      - Alice has no prior mapping for `New Merchant Ltd`.
+    when:
+      - Alice asks about `New Merchant Ltd`.
+    then:
+      - The rewrite layer does not invent a placeholder.
+      - Existing PII pattern detection may still redact the value only if it matches a configured detector or user personal-data entry.
+
+  - id: S-5
+    title: Shared chat viewers cannot recover owner-only originals
+    given:
+      - A shared or public chat includes finance placeholders in an embed.
+    when:
+      - A non-owner views the shared chat.
+    then:
+      - The non-owner sees placeholders and category labels only.
+      - Owner-only message/embed mappings are not included in the shared payload.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Outbound user messages are rewritten with existing message-level PII placeholders before server/LLM send.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_frontend
+    verification_ids: [T-UNIT-REWRITE, T-WEB-PII-REWRITE]
+  - id: AC-2
+    scenario: S-2
+    text: Outbound user messages are rewritten with existing embed-level placeholders, including category-aware finance placeholders.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_frontend
+    verification_ids: [T-UNIT-EMBED-MAPPINGS, T-WEB-PII-REWRITE]
+  - id: AC-3
+    scenario: S-3
+    text: Manual exclusion/removal of an exact value in the current send suppresses automatic rewrite for that value.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_frontend
+    verification_ids: [T-UNIT-REWRITE]
+  - id: AC-4
+    scenario: S-4
+    text: The rewrite layer only uses known encrypted mappings and never guesses placeholders for unmapped originals.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_frontend
+    verification_ids: [T-UNIT-REWRITE]
+  - id: AC-5
+    scenario: S-5
+    text: Shared/public viewers cannot access owner-only original values from message or embed PII mappings.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_frontend
+    verification_ids: [T-UNIT-EMBED-MAPPINGS, T-WEB-PII-REWRITE]
+  - id: AC-6
+    scenario: S-1
+    text: CLI/secret-scanner known-value redaction remains compatible with the new mapping/rewrite contract.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids: [T-UNIT-SECRET-SCANNER]
+
+assumptions:
+  - id: A-1
+    text: Active-chat clients can access decrypted owner mappings before send because they already use them for local PII restoration.
+    category: privacy
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: frontend/packages/ui/src/stores/embedPIIStore.ts
+        summary: Active chat state merges decrypted message-level and embed-level mappings for local restoration/reveal behavior.
+  - id: A-2
+    text: The rewrite pass can run after URL/embed protection and before final encrypted message persistence without exposing original values to the server.
+    category: architecture
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+        summary: Normal and deferred send paths run placeholder rewrite inside the protected PII anonymization block before message payload creation, IndexedDB persistence, encryption, and chatSyncService.sendNewMessage.
+
+contracts:
+  client_rewrite:
+    input: "message markdown, active chat message PIIMapping[], active chat embed PIIMapping[], current-send exclusion set"
+    output: "rewritten markdown plus any new mappings created by normal PII detection"
+    matching_rules:
+      - Match exact original values from known mappings.
+      - Prefer longest originals first to avoid partial replacements.
+      - Replace all occurrences for the exact original value unless excluded for this send.
+      - Do not match inside protected embed reference JSON blocks.
+      - Do not invent placeholders for unknown originals.
+    finance_placeholder_format:
+      - "[MERCHANT_<CATEGORY>_<NNN>]"
+      - "[PAYEE_<CATEGORY>_<NNN>]"
+      - "[PAYER_<CATEGORY>_<NNN>]"
+      - "[TRANSFER_INTERNAL_<NNN>]"
+  privacy_security:
+    - Originals stay in encrypted message/embed mapping blobs only.
+    - The server, LLM providers, logs, traces, and app-skill payloads receive placeholders, not matched originals.
+    - Shared/public consumers do not receive owner-only mappings.
+    - Mapping originals are never used for telemetry labels or analytics dimensions.
+
+tests:
+  - id: T-UNIT-REWRITE
+    type: unit
+    file: frontend/packages/ui/src/components/enter_message/services/__tests__/placeholderRewriteService.test.ts
+    command: cd frontend/packages/ui && npm run test -- placeholderRewriteService
+    covers: [AC-1, AC-3, AC-4]
+    assertions:
+      - message-level original values rewrite to existing placeholders
+      - longest match wins when two originals overlap
+      - all exact occurrences are replaced
+      - current-send exclusions suppress rewrite
+      - unknown values are left unchanged
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: not_run_local_vitest_forbidden
+        command: python3 scripts/tests.py run --suite vitest
+        run_id: not-dispatched-for-uncommitted-working-tree
+        subject_commit: working-tree@c00e49883
+        timestamp: "2026-07-20T12:39:47Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending_commit_for_repo_dispatched_vitest
+        command: python3 scripts/tests.py run --suite vitest
+        run_id: "2026-07-20T12:37:21Z / GitHub Actions 29742917961 (baseline committed dev only; new working-tree tests not included)"
+        subject_commit: working-tree@c00e49883
+        timestamp: "2026-07-20T12:39:47Z"
+
+  - id: T-UNIT-EMBED-MAPPINGS
+    type: unit
+    file: frontend/packages/ui/src/stores/__tests__/embedPIIStore.test.ts
+    command: cd frontend/packages/ui && npm run test -- embedPIIStore
+    covers: [AC-2, AC-5]
+    assertions:
+      - embed-level mappings are available to the rewrite service for the active chat
+      - finance category-aware placeholders are preserved as opaque tokens
+      - mappings reset on chat switch and are not available cross-chat
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: not_run_local_vitest_forbidden
+        command: python3 scripts/tests.py run --suite vitest
+        run_id: not-dispatched-for-uncommitted-working-tree
+        subject_commit: working-tree@c00e49883
+        timestamp: "2026-07-20T12:39:47Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending_commit_for_repo_dispatched_vitest
+        command: python3 scripts/tests.py run --suite vitest
+        run_id: "2026-07-20T12:37:21Z / GitHub Actions 29742917961 (baseline committed dev only; new working-tree tests not included)"
+        subject_commit: working-tree@c00e49883
+        timestamp: "2026-07-20T12:39:47Z"
+
+  - id: T-UNIT-SECRET-SCANNER
+    type: unit
+    file: frontend/packages/secret-scanner/tests/redact-restore.test.ts
+    command: cd frontend/packages/secret-scanner && npm test
+    covers: [AC-6]
+    assertions:
+      - registry known-value redaction remains deterministic
+      - restore roundtrip still works for existing mappings
+      - category-style placeholders are not treated as raw secrets
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed
+        command: cd frontend/packages/secret-scanner && npm test
+        run_id: local-node-test-working-tree
+        subject_commit: c00e49883
+        timestamp: "2026-07-20T12:36:00Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: cd frontend/packages/secret-scanner && npm test
+        run_id: local-node-test-working-tree
+        subject_commit: c00e49883
+        timestamp: "2026-07-20T12:37:00Z"
+
+  - id: T-WEB-PII-REWRITE
+    type: playwright
+    file: frontend/apps/web_app/tests/pii-placeholder-rewrite.spec.ts
+    command: python3 scripts/tests.py run --spec pii-placeholder-rewrite.spec.ts
+    target: app.dev.openmates.org
+    covers: [AC-1, AC-2, AC-5]
+    assertions:
+      - first message or embed creates an owner-only mapping
+      - follow-up typed with the original value is sent with the placeholder token
+      - local reveal restores the original for the owner
+      - shared/public view does not reveal owner-only originals
+    red_phase:
+      required: true
+      expected: fail
+      evidence: { status: "", run_id: "", timestamp: "" }
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence: { status: "", command: "", run_id: "", subject_commit: "", timestamp: "" }
+
+verifications:
+  - id: V-USER-CONFIRMATION
+    kind: user_confirmation
+    phase: final
+    required_for_done: true
+    covers: [AC-1, AC-2]
+    status: pending
+    evidence: { status: "", summary: "", timestamp: "" }
+
+implementation_plan:
+  spec_path: docs/specs/pii-placeholder-rewrite-v1/spec.yml
+  existing_patterns:
+    - frontend/packages/ui/src/components/enter_message/services/piiDetectionService.ts
+    - frontend/packages/ui/src/stores/embedPIIStore.ts
+    - frontend/packages/secret-scanner/src/scanner.ts
+  architecture: >
+    Add a small client-side rewrite service that consumes known PIIMapping entries
+    and runs before outbound message submission, then wire it into the existing
+    send path and secret-scanner parity tests without changing server storage.
+  data_flow:
+    - Active chat decrypts message/embed PII mappings for owner-local restoration.
+    - User sends a new message.
+    - Rewrite service replaces known original values with existing placeholders.
+    - Existing PII detection handles newly detected values and stores encrypted mappings.
+    - Server receives only the rewritten/encrypted message content and encrypted mappings.
+  affected_files:
+    - path: frontend/packages/ui/src/components/enter_message/services/piiDetectionService.ts
+      reason: Existing PII replacement and mapping helpers may need exported utilities or shared types.
+    - path: frontend/packages/ui/src/components/enter_message/services/placeholderRewriteService.ts
+      reason: New reusable rewrite service.
+    - path: frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+      reason: Wire rewrite before final send.
+    - path: frontend/packages/ui/src/stores/embedPIIStore.ts
+      reason: Make active mappings available without leaking cross-chat state.
+    - path: frontend/packages/secret-scanner/src/scanner.ts
+      reason: CLI-compatible known-value behavior and test parity.
+  verification_strategy:
+    - python3 scripts/spec_validate.py docs/specs/pii-placeholder-rewrite-v1/spec.yml
+    - python3 scripts/spec_verify.py docs/specs/pii-placeholder-rewrite-v1/spec.yml --phase red
+    - python3 scripts/spec_verify.py docs/specs/pii-placeholder-rewrite-v1/spec.yml --phase green
+  verification_order:
+    - Frontend unit and secret-scanner unit red evidence first.
+    - Implement rewrite service and send path.
+    - Frontend unit and secret-scanner unit green evidence.
+    - Deploy to dev before Playwright green evidence.
+    - Deployed web Playwright green evidence.
+    - User confirmation.
+    - Apple parity after confirmation or waiver.
+
+tasks:
+  - id: TASK-1
+    title: Add placeholder rewrite unit contract
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios: [S-1, S-3, S-4]
+      acceptance_criteria: [AC-1, AC-3, AC-4]
+    expected_files:
+      - frontend/packages/ui/src/components/enter_message/services/__tests__/placeholderRewriteService.test.ts
+    verification: [T-UNIT-REWRITE]
+    verification_ids: [T-UNIT-REWRITE]
+    dependencies: []
+    ownership:
+      files:
+        - frontend/packages/ui/src/components/enter_message/services/__tests__/placeholderRewriteService.test.ts
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+  - id: TASK-2
+    title: Implement client-side placeholder rewrite service
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios: [S-1, S-2, S-3, S-4]
+      acceptance_criteria: [AC-1, AC-2, AC-3, AC-4]
+    expected_files:
+      - frontend/packages/ui/src/components/enter_message/services/placeholderRewriteService.ts
+      - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+      - frontend/packages/ui/src/stores/embedPIIStore.ts
+    verification: [T-UNIT-REWRITE, T-UNIT-EMBED-MAPPINGS]
+    verification_ids: [T-UNIT-REWRITE, T-UNIT-EMBED-MAPPINGS]
+    dependencies: [TASK-1]
+    ownership:
+      files:
+        - frontend/packages/ui/src/components/enter_message/services/placeholderRewriteService.ts
+        - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+      shared_files:
+        - frontend/packages/ui/src/stores/embedPIIStore.ts
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: true
+  - id: TASK-3
+    title: Add secret-scanner parity and deployed web proof
+    status: pending
+    phase: running_checks
+    covers:
+      scenarios: [S-2, S-5]
+      acceptance_criteria: [AC-2, AC-5, AC-6]
+    expected_files:
+      - frontend/packages/secret-scanner/tests/redact-restore.test.ts
+      - frontend/apps/web_app/tests/pii-placeholder-rewrite.spec.ts
+    verification: [T-UNIT-SECRET-SCANNER, T-WEB-PII-REWRITE, V-USER-CONFIRMATION]
+    verification_ids: [T-UNIT-SECRET-SCANNER, T-WEB-PII-REWRITE, V-USER-CONFIRMATION]
+    dependencies: [TASK-2]
+    ownership:
+      files:
+        - frontend/packages/secret-scanner/tests/redact-restore.test.ts
+        - frontend/apps/web_app/tests/pii-placeholder-rewrite.spec.ts
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: true
+
+risks:
+  - id: R-1
+    risk: Over-eager rewrite may replace user-intended plaintext values after the user manually excluded them.
+    mitigation: Track current-send exclusions and test that exclusions suppress rewrite.
+  - id: R-2
+    risk: Short or common merchant/person names could cause false-positive replacements.
+    mitigation: Use exact known mappings, longest-match ordering, minimum-length/provider-specific rules where needed, and no guessing.
+  - id: R-3
+    risk: Share/public views could accidentally hydrate owner-only originals.
+    mitigation: Keep mappings owner-only and verify shared/public views expose placeholders only.
+
+open_questions:
+  - id: OQ-1
+    question: Should V1 expose a visible composer hint when a known original value was rewritten before send?
+    status: unresolved
+    owner: product

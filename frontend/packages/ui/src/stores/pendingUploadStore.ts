@@ -26,6 +26,7 @@
  */
 
 import { writable, get } from "svelte/store";
+import type { PIIMapping } from "../types/chat";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -123,6 +124,8 @@ export interface PendingSendContext {
   createdAt: number;
   /** PII exclusions captured at send time (passed through to the actual send) */
   piiExclusions: Set<string>;
+  /** Owner-local mappings captured at send time for deferred placeholder rewrite */
+  piiRewriteMappings: PIIMapping[];
   /** Original PII-anonymized markdown text (partial — may be updated when embeds finish) */
   partialMarkdown: string;
 }
@@ -189,7 +192,7 @@ export function removePendingSend(chatId: string, pendingId: string): void {
  * Get the head (first/oldest) pending send for a chat, or undefined if none.
  * The head is the first to be dispatched.
  */
-function getHeadPendingSend(
+function _getHeadPendingSend(
   chatId: string,
 ): PendingSendContext | undefined {
   const state = get(_store);
@@ -200,7 +203,7 @@ function getHeadPendingSend(
 /**
  * Get ALL pending sends for a chat (in send order).
  */
-function getAllPendingSends(chatId: string): PendingSendContext[] {
+function _getAllPendingSends(chatId: string): PendingSendContext[] {
   const state = get(_store);
   return state.get(chatId) ?? [];
 }
@@ -325,7 +328,7 @@ export function getReadyPendingSend(
  * send so the message won't be dispatched. The upload may still complete in
  * the background (the embed node attrs will be updated regardless).
  */
-function cancelAllPendingSends(chatId: string): void {
+function _cancelAllPendingSends(chatId: string): void {
   _store.update((state) => {
     if (state.has(chatId)) {
       state.delete(chatId);
@@ -350,7 +353,7 @@ export function hasPendingSends(chatId: string): boolean {
  * Get a flat list of all embed IDs that are currently blocking any pending send
  * across ALL chats. Used by embed update handlers to know which embeds to watch.
  */
-function getAllBlockingEmbedIds(): Set<string> {
+function _getAllBlockingEmbedIds(): Set<string> {
   const state = get(_store);
   const result = new Set<string>();
   Array.from(state.values()).forEach((queue) => {

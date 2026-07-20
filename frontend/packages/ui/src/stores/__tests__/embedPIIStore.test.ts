@@ -12,8 +12,10 @@ import {
   addEmbedPIIMappings,
   removeEmbedPIIMappings,
   getEmbedPIIState,
+  getActivePIIMappingsForRewrite,
   resetEmbedPIIState,
 } from "../embedPIIStore";
+import { rewriteKnownPIIPlaceholders } from "../../components/enter_message/services/placeholderRewriteService";
 import type { PIIMapping } from "../../types/chat";
 
 const emailMapping: PIIMapping = {
@@ -32,6 +34,12 @@ const addressMapping: PIIMapping = {
   placeholder: "[ADDRESS_1]",
   original: "123 Main St",
   type: "address",
+};
+
+const financeMerchantMapping: PIIMapping = {
+  placeholder: "[MERCHANT_STREAMING_001]",
+  original: "Spotify",
+  type: "merchant",
 };
 
 describe("embedPIIStore", () => {
@@ -163,6 +171,40 @@ describe("embedPIIStore", () => {
       const state = getEmbedPIIState();
       expect(state.mappings).toEqual([emailMapping, phoneMapping]);
       expect(state.revealed).toBe(true);
+    });
+  });
+
+  describe("getActivePIIMappingsForRewrite", () => {
+    it("returns active message and embed mappings for the rewrite service", () => {
+      setEmbedPIIState([emailMapping], false);
+      addEmbedPIIMappings("finance-embed", [financeMerchantMapping]);
+
+      const result = rewriteKnownPIIPlaceholders(
+        "Email user@example.com about Spotify spend",
+        { mappings: getActivePIIMappingsForRewrite() },
+      );
+
+      expect(result.markdown).toBe(
+        "Email [EMAIL_1_com] about [MERCHANT_STREAMING_001] spend",
+      );
+    });
+
+    it("preserves finance category-aware placeholders as opaque tokens", () => {
+      addEmbedPIIMappings("finance-embed", [financeMerchantMapping]);
+
+      expect(getActivePIIMappingsForRewrite()).toEqual([financeMerchantMapping]);
+      expect(getActivePIIMappingsForRewrite()[0].placeholder).toBe(
+        "[MERCHANT_STREAMING_001]",
+      );
+    });
+
+    it("does not expose mappings across chat switches", () => {
+      addEmbedPIIMappings("finance-embed", [financeMerchantMapping]);
+      expect(getActivePIIMappingsForRewrite()).toHaveLength(1);
+
+      setEmbedPIIState([], false);
+
+      expect(getActivePIIMappingsForRewrite()).toEqual([]);
     });
   });
 

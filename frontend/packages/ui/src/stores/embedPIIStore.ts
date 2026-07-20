@@ -132,7 +132,7 @@ export function setEmbedPIIState(
  *
  * @param revealed - Whether PII originals should be shown
  */
-function setEmbedPIIRevealed(revealed: boolean): void {
+export function setEmbedPIIRevealed(revealed: boolean): void {
   _internalStore.update((s) => ({ ...s, revealed }));
 }
 
@@ -170,7 +170,6 @@ export function addEmbedPIIMappings(
  */
 export function removeEmbedPIIMappings(embedId: string): void {
   _internalStore.update((s) => {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { [embedId]: _removed, ...rest } = s.embedMappingsByEmbedId;
     return { ...s, embedMappingsByEmbedId: rest };
   });
@@ -183,6 +182,15 @@ export function removeEmbedPIIMappings(embedId: string): void {
  */
 export function getEmbedPIIState(): EmbedPIIState {
   return get(embedPIIStore);
+}
+
+/**
+ * Get active owner-local mappings for outbound placeholder rewrite.
+ * This intentionally reads only the current in-memory active-chat state; shared
+ * and public viewers do not get owner-only decrypted mappings in this store.
+ */
+export function getActivePIIMappingsForRewrite(): PIIMapping[] {
+  return [...get(embedPIIStore).mappings];
 }
 
 /**

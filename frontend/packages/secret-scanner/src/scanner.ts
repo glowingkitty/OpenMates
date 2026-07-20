@@ -23,6 +23,7 @@ import type {
   RedactResult,
   ScannerOptions,
   PersonalDataEntry,
+  KnownSecretMapping,
 } from "./types.ts";
 
 /**
@@ -95,6 +96,14 @@ export class SecretScanner {
     for (const entry of entries) {
       this.registry.addPersonalData(entry);
     }
+  }
+
+  /**
+   * Add an explicit known original → placeholder mapping.
+   * Used for category-aware placeholders that should stay opaque and stable.
+   */
+  addKnownMapping(mapping: KnownSecretMapping): void {
+    this.registry.addKnownMapping(mapping);
   }
 
   /**
