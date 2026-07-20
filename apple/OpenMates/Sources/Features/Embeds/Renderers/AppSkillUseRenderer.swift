@@ -525,7 +525,7 @@ enum TaskWorkflowEmbedKind {
         }
     }
 
-    var singularTitle: String {
+    @MainActor var singularTitle: String {
         switch self {
         case .task: return AppStrings.tasks
         case .workflow: return AppStrings.workflows
@@ -553,11 +553,11 @@ enum TaskWorkflowEmbedKind {
         }
     }
 
-    func title(from raw: [String: AnyCodable]) -> String {
+    @MainActor func title(from raw: [String: AnyCodable]) -> String {
         EmbedFieldReader.string(raw, keys: ["title", "name"]) ?? singularTitle
     }
 
-    func subtitle(from raw: [String: AnyCodable]) -> String? {
+    @MainActor func subtitle(from raw: [String: AnyCodable]) -> String? {
         switch self {
         case .task:
             return EmbedFieldReader.string(raw, keys: ["short_id", "task_id"])
@@ -572,7 +572,7 @@ enum TaskWorkflowEmbedKind {
         EmbedFieldReader.string(raw, keys: ["description", "summary"])
     }
 
-    func statusLabel(from raw: [String: AnyCodable]) -> String {
+    @MainActor func statusLabel(from raw: [String: AnyCodable]) -> String {
         let rawStatus = EmbedFieldReader.string(raw, keys: ["status"]) ?? ""
         let normalized = rawStatus.replacingOccurrences(of: "_", with: " ").replacingOccurrences(of: "-", with: " ")
         let status = normalized.isEmpty ? singularTitle : normalized.capitalized
