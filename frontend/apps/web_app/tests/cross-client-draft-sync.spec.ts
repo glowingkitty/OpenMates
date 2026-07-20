@@ -1114,7 +1114,7 @@ test.describe('Cross-client encrypted draft sync', () => {
 					intervals: [500, 1_000]
 				})
 				.toContain(audioFixtureName);
-			await expect(page.getByTestId('recording-preview-audio').first()).toBeAttached({ timeout: 30_000 });
+			await expect(page.getByTestId('recording-preview').first()).toBeAttached({ timeout: 30_000 });
 			await screenshot(page, 'audio-draft-embed-preview');
 
 			log('Creating and processing due IdeaBucket chat from CLI.');
