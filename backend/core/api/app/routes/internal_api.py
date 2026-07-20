@@ -1160,6 +1160,28 @@ class UploadCheckDuplicateResponse(BaseModel):
     record: Optional[Dict[str, Any]] = Field(None, description="Existing upload record if duplicate")
 
 
+def _upload_record_s3_keys_are_embed_scoped(record: Dict[str, Any], embed_id: str) -> bool:
+    """Return true when every stored S3 object key is namespaced by embed_id."""
+    files_metadata = record.get("files_metadata")
+    if not isinstance(files_metadata, dict) or not files_metadata:
+        return False
+
+    s3_keys: List[str] = []
+    for metadata in files_metadata.values():
+        if not isinstance(metadata, dict):
+            return False
+        s3_key = metadata.get("s3_key")
+        if not isinstance(s3_key, str) or not s3_key:
+            return False
+        s3_keys.append(s3_key)
+
+    # New upload keys are <user-hash>/<content-hash>/<embed-id>/<timestamp>_<variant>.bin.
+    # Legacy records without this segment can point at encrypted bytes overwritten by
+    # another same-hash upload, so they are not safe for dedup reuse.
+    embed_segment = f"/{embed_id}/"
+    return bool(s3_keys) and all(embed_segment in s3_key for s3_key in s3_keys)
+
+
 @router.post("/uploads/check-duplicate", response_model=UploadCheckDuplicateResponse)
 async def check_upload_duplicate(
     payload: UploadCheckDuplicateRequest,
@@ -1177,11 +1199,12 @@ async def check_upload_duplicate(
     returned to the uploading client.
 
     Validation: For any upload that has an embed_id, we verify that the corresponding
-    embed record exists in Directus with status='finished'. If the embed is missing or
-    not finished (e.g. a previous upload failed mid-way after storing the upload_files
-    record but before OCR/processing completed), we discard the stale record and return
-    duplicate=False so the uploads service falls through to a fresh upload + processing run.
-    This prevents the UI from hanging forever on 'Processing…' with no WS event arriving.
+    embed record exists in Directus with status='finished' and that stored S3 keys are
+    scoped under that same embed ID. If the embed is missing, not finished, or points to
+    legacy shared S3 keys, we discard the stale record and return duplicate=False so the
+    uploads service falls through to a fresh upload + processing run. This prevents the
+    UI from hanging forever on 'Processing…' with no WS event arriving and prevents stale
+    encrypted bytes from being reused after same-hash key collisions.
     """
     log_prefix = f"[UploadDedup] [user:{payload.user_id[:8]}...]"
     logger.debug(f"{log_prefix} Checking duplicate for hash {payload.content_hash[:16]}...")
@@ -1231,6 +1254,19 @@ async def check_upload_duplicate(
                         f"Discarding stale record — fresh upload will be performed."
                     )
                     # Clean up the stale upload_files record so it won't block future uploads.
+                    try:
+                        await directus_service.delete_item("upload_files", record["id"])
+                        logger.info(f"{log_prefix} Deleted stale upload_files record id={record['id']}")
+                    except Exception as del_err:
+                        logger.warning(f"{log_prefix} Could not delete stale record: {del_err}")
+                    return UploadCheckDuplicateResponse(duplicate=False, record=None)
+
+                if not _upload_record_s3_keys_are_embed_scoped(record, embed_id):
+                    logger.warning(
+                        f"{log_prefix} Stale dedup record detected: upload_files has embed_id={embed_id} "
+                        "but its S3 keys are not scoped by embed_id. Discarding stale record — "
+                        "fresh upload will be performed."
+                    )
                     try:
                         await directus_service.delete_item("upload_files", record["id"])
                         logger.info(f"{log_prefix} Deleted stale upload_files record id={record['id']}")
