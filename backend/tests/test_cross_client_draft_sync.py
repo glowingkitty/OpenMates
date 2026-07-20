@@ -909,6 +909,54 @@ async def test_phase2_targeted_refresh_bypasses_delta_skip() -> None:
     assert payload["chats"][0]["chat_details"]["encrypted_draft_md"] == "cipher-md"
 
 
+@pytest.mark.anyio
+async def test_phase2_tombstone_suppresses_stale_directus_chat_row() -> None:
+    manager = _Manager()
+
+    class Cache:
+        async def get_all_user_draft_chat_ids(self, user_id):
+            return []
+
+        async def get(self, key):
+            assert key == "chat:chat-1:metadata"
+            return {"id": "chat-1", "deleted": True}
+
+    class Directus:
+        def __init__(self) -> None:
+            self.chat = SimpleNamespace(
+                get_user_chat_count=lambda user_id, team_id=None: _async(1),
+                get_core_chats_and_user_drafts_for_cache_warming=lambda user_id, limit, team_id=None: _async([
+                    {
+                        "chat_details": {
+                            "id": "chat-1",
+                            "messages_v": 2,
+                            "title_v": 2,
+                            "metadata_v": 2,
+                            "draft_v": 0,
+                        }
+                    }
+                ]),
+            )
+
+    await _handle_phase2_sync(
+        manager=manager,
+        cache_service=Cache(),
+        directus_service=Directus(),
+        user_id="user-1",
+        device_fingerprint_hash="device-1",
+        client_chat_versions={"chat-1": {"messages_v": 2, "title_v": 2, "metadata_v": 2, "draft_v": 0}},
+        client_chat_ids=["chat-1"],
+        sent_embed_ids=set(),
+    )
+
+    payload = manager.sent[0]["payload"]
+    assert payload["chats"] == []
+    assert payload["chat_count"] == 0
+    assert payload["total_chat_count"] == 0
+    assert payload["authoritative"] is True
+    assert payload["deleted_chat_ids"] == ["chat-1"]
+
+
 def test_phase2_emits_explicit_authoritative_draft_deletion_fields() -> None:
     chat_details = {"id": "chat-1", "draft_v": 4, "encrypted_draft_md": "stale"}
 

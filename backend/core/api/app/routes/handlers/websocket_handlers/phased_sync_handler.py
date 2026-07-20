@@ -311,6 +311,52 @@ def _authoritative_chat_reconciliation(
     }
 
 
+def _is_deleted_chat_tombstone(metadata: Any) -> bool:
+    if not isinstance(metadata, dict):
+        return False
+    deleted = metadata.get("deleted")
+    return deleted is True or str(deleted).lower() in {"1", "true", "yes"}
+
+
+async def _get_tombstoned_chat_ids(
+    cache_service: CacheService,
+    chat_ids: List[str],
+) -> set[str]:
+    cache_get = getattr(cache_service, "get", None)
+    if not cache_get:
+        return set()
+
+    tombstoned_chat_ids: set[str] = set()
+    for chat_id in dict.fromkeys(chat_ids):
+        try:
+            metadata = await cache_get(f"chat:{chat_id}:metadata")
+        except Exception as exc:
+            logger.warning("Phase 2: Failed to read chat tombstone for %s: %s", chat_id, exc, exc_info=True)
+            continue
+        if _is_deleted_chat_tombstone(metadata):
+            tombstoned_chat_ids.add(chat_id)
+    return tombstoned_chat_ids
+
+
+async def _filter_tombstoned_chat_wrappers(
+    cache_service: CacheService,
+    chat_wrappers: List[Dict[str, Any]],
+) -> tuple[List[Dict[str, Any]], set[str]]:
+    chat_ids = [
+        str(wrapper.get("chat_details", {}).get("id"))
+        for wrapper in chat_wrappers
+        if wrapper.get("chat_details", {}).get("id")
+    ]
+    tombstoned_chat_ids = await _get_tombstoned_chat_ids(cache_service, chat_ids)
+    if not tombstoned_chat_ids:
+        return chat_wrappers, set()
+    return [
+        wrapper
+        for wrapper in chat_wrappers
+        if str(wrapper.get("chat_details", {}).get("id")) not in tombstoned_chat_ids
+    ], tombstoned_chat_ids
+
+
 async def handle_phased_sync_request(
     websocket: WebSocket,
     manager: ConnectionManager,
@@ -1141,6 +1187,17 @@ async def _handle_phase2_sync(
             )
         logger.info("Phase 2: Added %d draft-only metadata entries", draft_only_added)
 
+        all_recent_chats, tombstoned_chat_ids = await _filter_tombstoned_chat_wrappers(
+            cache_service,
+            all_recent_chats,
+        )
+        if tombstoned_chat_ids:
+            total_chat_count = max(0, total_chat_count - len(tombstoned_chat_ids))
+            logger.info(
+                "Phase 2: Suppressed %d tombstoned chats from stale Directus metadata",
+                len(tombstoned_chat_ids),
+            )
+
         if not all_recent_chats:
             logger.info(f"Phase 2: No chats found for user {user_id}")
             reconciliation = _authoritative_chat_reconciliation(
@@ -1314,6 +1371,15 @@ async def _handle_phase3_sync(
             limit=100,
             team_id=team_id,
         )
+        scoped_chat_wrappers, tombstoned_chat_ids = await _filter_tombstoned_chat_wrappers(
+            cache_service,
+            scoped_chat_wrappers,
+        )
+        if tombstoned_chat_ids:
+            logger.info(
+                "Phase 3: Suppressed %d tombstoned chats from stale Directus metadata",
+                len(tombstoned_chat_ids),
+            )
         scoped_chat_metadata_by_id = {
             str(cw.get("chat_details", {}).get("id")): cw.get("chat_details", {})
             for cw in (scoped_chat_wrappers or [])
