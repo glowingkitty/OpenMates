@@ -1,7 +1,7 @@
 /*
  * Account Import V1 CLI parsing helpers.
  *
- * Purpose: normalize user-provided Claude/ChatGPT/OpenMates export archives before the
+ * Purpose: normalize user-provided Claude/OpenMates export archives before the
  * CLI calls the backend preview and transient scan endpoints.
  * Architecture: docs/specs/account-import-v1/spec.yml.
  * Security: source fingerprints are one-way hashes; raw provider exports stay
@@ -11,7 +11,7 @@
 import { createHash } from "node:crypto";
 import JSZip from "jszip";
 
-export type AccountImportSource = "claude" | "chatgpt" | "openmates";
+export type AccountImportSource = "claude" | "openmates";
 
 export interface ParsedImportMessage {
   role: "user" | "assistant" | "system";
@@ -63,11 +63,7 @@ function fingerprint(provider: AccountImportSource, sourceChatId: string, messag
 
 async function readZipText(payload: Buffer, requiredName: string): Promise<string> {
   const zip = await JSZip.loadAsync(payload);
-  const entry = zip.file(requiredName) ?? Object.values(zip.files).find((candidate) => {
-    if (candidate.dir) return false;
-    if (candidate.name.startsWith("__MACOSX/") || candidate.name.includes("/._") || candidate.name.startsWith("._")) return false;
-    return candidate.name.split("/").pop() === requiredName;
-  });
+  const entry = zip.file(requiredName);
   if (!entry) throw new Error(`Import archive is missing ${requiredName}`);
   return entry.async("string");
 }
@@ -153,103 +149,6 @@ export async function parseClaudeImportBuffer(payload: Buffer, sourceName = "cla
     } satisfies ParsedImportChat;
   });
   return { source: "claude", chats, skippedDomains: [] };
-}
-
-function chatGPTTimestamp(value: unknown): string | null {
-  return typeof value === "number" && Number.isFinite(value) && value > 0
-    ? new Date(value * 1000).toISOString()
-    : null;
-}
-
-function chatGPTContentText(content: Record<string, unknown>): { content: string; metadata: Record<string, unknown> } {
-  const parts = Array.isArray(content.parts) ? content.parts : [];
-  const textParts: string[] = [];
-  let assetCount = 0;
-  for (const part of parts) {
-    if (typeof part === "string" && part.trim()) textParts.push(part);
-    else if (part && typeof part === "object" && "asset_pointer" in part) assetCount++;
-  }
-  if (parts.length === 0 && typeof content.content === "string") textParts.push(content.content);
-  return { content: textParts.join("\n"), metadata: { content_type: String(content.content_type ?? "unknown"), asset_count: assetCount } };
-}
-
-function chatGPTActiveNodes(conversation: Record<string, unknown>): Record<string, unknown>[] {
-  const mapping = conversation.mapping;
-  if (!mapping || typeof mapping !== "object" || Array.isArray(mapping)) throw new Error("ChatGPT conversation is missing mapping");
-  const nodesById = mapping as Record<string, Record<string, unknown>>;
-  const currentNode = String(conversation.current_node ?? "");
-  if (currentNode && nodesById[currentNode]) {
-    const ordered: Record<string, unknown>[] = [];
-    const seen = new Set<string>();
-    let nodeId = currentNode;
-    while (nodeId && nodesById[nodeId] && !seen.has(nodeId)) {
-      seen.add(nodeId);
-      const node = nodesById[nodeId];
-      ordered.push(node);
-      nodeId = String(node.parent ?? "");
-    }
-    return ordered.reverse();
-  }
-  return Object.values(nodesById).sort((left, right) => {
-    const leftMessage = left.message && typeof left.message === "object" ? left.message as Record<string, unknown> : {};
-    const rightMessage = right.message && typeof right.message === "object" ? right.message as Record<string, unknown> : {};
-    return Number(leftMessage.create_time ?? 0) - Number(rightMessage.create_time ?? 0);
-  });
-}
-
-export async function parseChatGPTImportBuffer(payload: Buffer, sourceName = "chatgpt-export"): Promise<ParsedAccountImport> {
-  let conversations: unknown;
-  try {
-    conversations = payload.subarray(0, 2).toString("binary") === "PK"
-      ? JSON.parse(await readZipText(payload, "conversations.json"))
-      : JSON.parse(payload.toString("utf-8"));
-  } catch (error) {
-    throw new Error(`ChatGPT export could not be parsed: ${error instanceof Error ? error.message : String(error)}`);
-  }
-  const rawConversations = Array.isArray(conversations)
-    ? conversations
-    : conversations && typeof conversations === "object" && Array.isArray((conversations as Record<string, unknown>).conversations)
-      ? (conversations as Record<string, unknown>).conversations as unknown[]
-      : null;
-  if (!rawConversations) throw new Error("ChatGPT export conversations must be an array");
-
-  const chats = rawConversations.filter((item): item is Record<string, unknown> => Boolean(item && typeof item === "object")).map((conversation) => {
-    const sourceChatId = String(conversation.conversation_id ?? conversation.id ?? "");
-    if (!sourceChatId) throw new Error("ChatGPT conversation is missing id");
-    const messages: ParsedImportMessage[] = [];
-    for (const node of chatGPTActiveNodes(conversation)) {
-      const rawMessage = node.message && typeof node.message === "object" ? node.message as Record<string, unknown> : null;
-      if (!rawMessage) continue;
-      const author = rawMessage.author && typeof rawMessage.author === "object" ? rawMessage.author as Record<string, unknown> : {};
-      const role = String(author.role ?? "");
-      if (role !== "user" && role !== "assistant" && role !== "system") continue;
-      const rawContent = rawMessage.content && typeof rawMessage.content === "object" ? rawMessage.content as Record<string, unknown> : null;
-      if (!rawContent) continue;
-      const { content, metadata } = chatGPTContentText(rawContent);
-      if (!content.trim()) continue;
-      messages.push({
-        role,
-        content,
-        created_at: chatGPTTimestamp(rawMessage.create_time),
-        source_message_id: typeof rawMessage.id === "string" ? rawMessage.id : null,
-        provider_metadata: metadata,
-      });
-    }
-    return {
-      provider: "chatgpt",
-      source_chat_id: sourceChatId,
-      source_fingerprint: fingerprint("chatgpt", sourceChatId, messages),
-      title: typeof conversation.title === "string" ? conversation.title : null,
-      created_at: chatGPTTimestamp(conversation.create_time),
-      updated_at: chatGPTTimestamp(conversation.update_time),
-      messages,
-      embeds: [],
-      uploads: [],
-      provider_labels: ["chatgpt"],
-      source_metadata: { source_name: sourceName, message_count: messages.length },
-    } satisfies ParsedImportChat;
-  });
-  return { source: "chatgpt", chats, skippedDomains: [] };
 }
 
 function parseOpenMatesManifestDomains(manifestText: string): string[] {
