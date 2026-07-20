@@ -81,6 +81,8 @@ import httpx
 from fastapi import APIRouter, Cookie, Depends, File, HTTPException, Request, UploadFile
 from pydantic import BaseModel, Field
 
+from backend.upload.s3_keys import upload_s3_prefix
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/v1/upload", tags=["Upload"])
@@ -971,7 +973,7 @@ async def upload_file(
     # --- 11. S3 upload — three variants (original, full, preview) ---
     embed_id = str(uuid.uuid4())
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-    s3_prefix = f"{user_id}/{content_hash}"
+    s3_prefix = upload_s3_prefix(user_id, content_hash, embed_id)
 
     s3_service = request.app.state.s3
     original_s3_key = f"{s3_prefix}/{timestamp}_original.bin"
@@ -1465,7 +1467,7 @@ async def _handle_pdf_upload(
     # --- PDF 5. Upload to S3 ---
     embed_id = str(uuid.uuid4())
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-    s3_prefix = f"{user_id}/{content_hash}"
+    s3_prefix = upload_s3_prefix(user_id, content_hash, embed_id)
     s3_service = request.app.state.s3
     pdf_s3_key = f"{s3_prefix}/{timestamp}_original.bin"
 
@@ -1677,7 +1679,7 @@ async def _handle_audio_upload(
     # --- Audio 3. Upload encrypted audio to S3 ---
     embed_id = str(uuid.uuid4())
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-    s3_prefix = f"{user_id}/{content_hash}"
+    s3_prefix = upload_s3_prefix(user_id, content_hash, embed_id)
     s3_service = request.app.state.s3
     audio_s3_key = f"{s3_prefix}/{timestamp}_original.bin"
 
