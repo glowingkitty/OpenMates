@@ -11,6 +11,7 @@ export {};
  */
 
 const path = require('path');
+const fs = require('fs');
 const { test, expect } = require('./helpers/cookie-audit');
 const {
 	createSignupLogger,
@@ -148,7 +149,14 @@ function scoreResponse(text: string) {
 async function attachImage(page: any, log: (message: string, metadata?: Record<string, unknown>) => void) {
 	const fileInput = page.locator('input[type="file"][multiple]');
 	await expect(fileInput).toBeAttached({ timeout: 10000 });
-	await fileInput.setInputFiles(IMAGE_FIXTURE);
+	// Avoid reusing stale duplicate upload rows for this shared fixture hash.
+	const uniqueSuffix = `\nopenmates-e2e-${Date.now()}-${Math.random()}`;
+	const imageBuffer = Buffer.concat([fs.readFileSync(IMAGE_FIXTURE), Buffer.from(uniqueSuffix)]);
+	await fileInput.setInputFiles({
+		name: 'large_message_e2e.jpg',
+		mimeType: 'image/jpeg',
+		buffer: imageBuffer
+	});
 	log('Attached image fixture.', { image: IMAGE_FIXTURE });
 
 	const editorEmbed = page.getByTestId('message-editor').locator('[data-testid="embed-full-width-wrapper"]');
