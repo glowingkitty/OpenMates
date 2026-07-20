@@ -226,7 +226,7 @@
     type MessageInputFieldRef = {
         setDraftContent: (chatId: string | null, content: Content | null, version: number, isRemote: boolean) => void;
         setSuggestionText: (text: string) => void;
-        replaceDraftWithPlainText?: (chatId: string | null, text: string, version: number) => void;
+        replaceDraftWithPlainText?: (chatId: string | null, text: string, version: number) => Promise<void>;
         setOriginalMarkdown?: (markdown: string) => void;
         setCurrentChatContext?: (chatId: string | null, content: TiptapJSON | null, version: number) => void;
         focus: () => void;
@@ -249,6 +249,10 @@
         file_path?: string;
         createdAt: number;
         updatedAt: number;
+    };
+
+    type ActiveChatE2EWindow = Window & {
+        __openmatesE2EReplaceDraft?: (input: { chatId: string; text: string; version?: number }) => Promise<{ text: string }>;
     };
 
     type EmbedDataRecord = EmbedStoreEntry | EmbedResolverData | Partial<EmbedResolverData>;
@@ -2558,6 +2562,32 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     let chatHistoryRef = $state<ChatHistoryRef | null>(null);
     // Create a reference for the MessageInput component using $state
     let messageInputFieldRef = $state<MessageInputFieldRef | null>(null);
+
+    $effect(() => {
+        if (typeof window === 'undefined' || !messageInputFieldRef) return;
+        const isDevHost = window.location.hostname === 'localhost'
+            || window.location.hostname === '127.0.0.1'
+            || window.location.hostname.endsWith('.dev.openmates.org');
+        if (!isDevHost) return;
+
+        const activeChatWindow = window as ActiveChatE2EWindow;
+        const helper = async ({ chatId, text, version = 0 }: { chatId: string; text: string; version?: number }) => {
+            const inputRef = messageInputFieldRef;
+            if (!inputRef?.replaceDraftWithPlainText) {
+                throw new Error('Message input draft replacement helper is unavailable');
+            }
+            await inputRef.replaceDraftWithPlainText(chatId, text, version);
+            await inputRef.flushCurrentDraft?.();
+            return { text: inputRef.getTextContent() };
+        };
+
+        activeChatWindow.__openmatesE2EReplaceDraft = helper;
+        return () => {
+            if (activeChatWindow.__openmatesE2EReplaceDraft === helper) {
+                delete activeChatWindow.__openmatesE2EReplaceDraft;
+            }
+        };
+    });
 
     let isFullscreen = $state(false);
     // $: messages = chatHistoryRef?.messages || []; // Removed, messages will be managed in currentMessages

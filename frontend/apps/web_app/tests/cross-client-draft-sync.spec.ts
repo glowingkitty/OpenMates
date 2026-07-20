@@ -403,52 +403,22 @@ async function activeMessageEditorEditable(page: any, chatId: string): Promise<a
 }
 
 async function replaceMessageEditorText(page: any, chatId: string, text: string): Promise<any> {
-	let lastError: unknown = null;
-	for (let attempt = 0; attempt < 3; attempt += 1) {
-		try {
-			await activeMessageEditorEditable(page, chatId);
-			await page.evaluate(({ targetChatId, replacement }: { targetChatId: string; replacement: string }) => {
-				const root = document.querySelector(`[data-action="message-input"][data-current-chat-id="${targetChatId}"]`);
-				const editor = root?.querySelector('[data-testid="message-editor"] [contenteditable="true"]');
-				if (!(editor instanceof HTMLElement)) throw new Error(`Editor not found for ${targetChatId}`);
-				editor.focus();
-				const selection = window.getSelection();
-				const range = document.createRange();
-				range.selectNodeContents(editor);
-				selection?.removeAllRanges();
-				selection?.addRange(range);
-				document.execCommand(replacement.length > 0 ? 'insertText' : 'delete', false, replacement);
-				editor.dispatchEvent(new InputEvent('input', {
-					bubbles: true,
-					inputType: replacement.length > 0 ? 'insertText' : 'deleteContentBackward',
-					data: replacement.length > 0 ? replacement : null,
-				}));
-			}, { targetChatId: chatId, replacement: text });
-			lastError = null;
-			break;
-		} catch (error) {
-			lastError = error;
-			await openDraftByHash(page, chatId);
-		}
-	}
-	if (lastError) {
-		throw lastError;
-	}
+	await activeMessageEditorEditable(page, chatId);
 	await expect
-		.poll(async () => {
-			const hash = await page.evaluate(() => window.location.hash);
-			if (!hash.includes(chatId)) {
-				await openDraftByHash(page, chatId);
-				return null;
-			}
-			return page.evaluate(({ targetChatId, expectedEmpty }: { targetChatId: string; expectedEmpty: boolean }) => {
-				const root = document.querySelector(`[data-action="message-input"][data-current-chat-id="${targetChatId}"]`);
-				const currentEditor = root?.querySelector('[data-testid="message-editor"] [contenteditable="true"]');
-				return currentEditor?.textContent ?? (expectedEmpty ? '' : null);
-			}, { targetChatId: chatId, expectedEmpty: text.length === 0 });
-		}, {
+		.poll(() => page.evaluate(() => typeof (window as any).__openmatesE2EReplaceDraft === 'function'), {
 			timeout: 15_000,
 			intervals: [250, 500, 1_000]
+		})
+		.toBe(true);
+	await page.evaluate(async ({ targetChatId, replacement }: { targetChatId: string; replacement: string }) => {
+		const helper = (window as any).__openmatesE2EReplaceDraft;
+		if (typeof helper !== 'function') throw new Error('E2E draft replacement helper is unavailable');
+		await helper({ chatId: targetChatId, text: replacement });
+	}, { targetChatId: chatId, replacement: text });
+	await expect
+		.poll(async () => (await readLocalDraftMarkdown(page, chatId)).markdown ?? '', {
+			timeout: 15_000,
+			intervals: [500, 1_000]
 		})
 		.toBe(text);
 	return messageEditorEditable(page, chatId);

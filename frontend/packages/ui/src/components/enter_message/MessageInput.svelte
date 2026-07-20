@@ -4697,7 +4697,7 @@
         }
     }
 
-    export function replaceDraftWithPlainText(chatId: string | null, text: string, version: number) {
+    export async function replaceDraftWithPlainText(chatId: string | null, text: string, version: number): Promise<void> {
         if (!editor || editor.isDestroyed) {
             console.warn('[MessageInput] replaceDraftWithPlainText: editor not available or destroyed');
             return;
@@ -4723,6 +4723,8 @@
             hasUnsavedChanges: false,
             lastSavedContentMarkdown: text,
         }));
+
+        await flushSaveDraft(editor, chatId);
     }
 
     /**
