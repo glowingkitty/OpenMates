@@ -206,7 +206,7 @@ async function waitForImageViewAndResponse(page: any, log: (message: string, met
 	return { generatedByText, responseText };
 }
 
-test.describe.configure({ mode: 'parallel' });
+test.describe.configure({ mode: 'serial' });
 
 for (const model of activeModels) {
 	for (const trial of activeTrials) {
