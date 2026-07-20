@@ -10,6 +10,7 @@ import hashlib
 import importlib
 import inspect
 import json
+import logging
 import time
 import uuid
 from typing import Any, TYPE_CHECKING
@@ -58,6 +59,55 @@ if TYPE_CHECKING:
 
 
 router = APIRouter(prefix="/v1/sdk", tags=["SDK"])
+logger = logging.getLogger(__name__)
+
+
+async def _tombstone_sdk_deleted_chat(
+    request: Request,
+    cache_service: Any,
+    user_id: str,
+    chat_id: str,
+) -> None:
+    """Mirror websocket chat-delete cache invalidation for API-key deletes."""
+    try:
+        remove_from_versions = getattr(cache_service, "remove_chat_from_ids_versions", None)
+        if remove_from_versions:
+            await remove_from_versions(user_id, chat_id)
+
+        client_attr = getattr(cache_service, "client", None)
+        client = await client_attr if client_attr is not None else None
+        if client:
+            async with client.pipeline(transaction=False) as pipe:
+                pipe.delete(cache_service._get_chat_versions_key(user_id, chat_id))
+                pipe.delete(cache_service._get_chat_list_item_data_key(user_id, chat_id))
+                pipe.delete(cache_service._get_chat_messages_key(user_id, chat_id))
+                await pipe.execute()
+
+        delete_app_data = getattr(cache_service, "delete_chat_app_settings_memories", None)
+        if delete_app_data:
+            await delete_app_data(user_id, chat_id)
+
+        delete_embed_cache = getattr(cache_service, "delete_chat_embed_cache", None)
+        if delete_embed_cache:
+            await delete_embed_cache(chat_id)
+
+        connection_manager = getattr(request.app.state, "connection_manager", None)
+        if connection_manager:
+            await connection_manager.broadcast_to_user(
+                {
+                    "type": "chat_deleted",
+                    "payload": {"chat_id": chat_id, "tombstone": True},
+                },
+                user_id,
+                exclude_device_hash=None,
+            )
+    except Exception as exc:
+        logger.warning(
+            "SDK chat deletion succeeded, but cache/broadcast cleanup failed for chat %s: %s",
+            chat_id,
+            exc,
+            exc_info=True,
+        )
 
 
 class SdkChatCreateRequest(BaseModel):
@@ -417,6 +467,7 @@ async def _dispatch_sdk_surface(
             chat_ok = await directus_service.chat.persist_delete_chat(chat_id)
             if not (messages_ok and drafts_ok and chat_ok):
                 raise HTTPException(status_code=502, detail="Failed to delete chat")
+            await _tombstone_sdk_deleted_chat(request, cache_service, api_key_info["user_id"], chat_id)
             return {"success": True, "chat_id": chat_id}
         if len(parts) == 2 and parts[1] == "export" and request.method == "POST":
             payload = (body or {}).get("payload") or {}

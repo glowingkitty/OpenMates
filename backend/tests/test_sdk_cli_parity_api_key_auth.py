@@ -142,6 +142,13 @@ class _FakeCacheService:
     def __init__(self):
         self.suggestions = None
         self.cached_suggestions = None
+        self.removed_chat_ids = []
+        self.deleted_app_data = []
+        self.deleted_embed_cache = []
+
+    @property
+    async def client(self):
+        return None
 
     async def get_new_chat_suggestions(self, hashed_user_id):
         return self.suggestions
@@ -150,11 +157,32 @@ class _FakeCacheService:
         self.cached_suggestions = (hashed_user_id, suggestions, ttl)
         return True
 
+    async def remove_chat_from_ids_versions(self, user_id, chat_id):
+        self.removed_chat_ids.append((user_id, chat_id))
+        return True
+
+    async def delete_chat_app_settings_memories(self, user_id, chat_id):
+        self.deleted_app_data.append((user_id, chat_id))
+        return 1
+
+    async def delete_chat_embed_cache(self, chat_id):
+        self.deleted_embed_cache.append(chat_id)
+        return 1
+
+
+class _FakeConnectionManager:
+    def __init__(self):
+        self.broadcasts = []
+
+    async def broadcast_to_user(self, message, user_id, exclude_device_hash=None):
+        self.broadcasts.append((message, user_id, exclude_device_hash))
+
 
 class _FakeRequest:
     def __init__(self, method="GET", query_params=None):
         directus_service = _FakeDirectusService()
         cache_service = _FakeCacheService()
+        connection_manager = _FakeConnectionManager()
         self.method = method
         self.query_params = query_params or {}
         self.app = SimpleNamespace(
@@ -162,6 +190,7 @@ class _FakeRequest:
                 directus_service=directus_service,
                 cache_service=cache_service,
                 encryption_service=SimpleNamespace(),
+                connection_manager=connection_manager,
             )
         )
 
@@ -574,7 +603,7 @@ async def test_sdk_dispatch_billing_invoices_reuses_billing_overview(monkeypatch
     assert result == {"invoices": [{"id": "invoice-1", "amount": "10.00"}]}
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_sdk_dispatch_chat_delete_requires_ownership_and_deletes_chat():
     request = _FakeRequest(method="DELETE")
 
@@ -588,6 +617,16 @@ async def test_sdk_dispatch_chat_delete_requires_ownership_and_deletes_chat():
 
     assert result == {"success": True, "chat_id": "chat-1"}
     assert request.app.state.directus_service.deleted_chat_id == "chat-1"
+    assert request.app.state.cache_service.removed_chat_ids == [("user-1", "chat-1")]
+    assert request.app.state.cache_service.deleted_app_data == [("user-1", "chat-1")]
+    assert request.app.state.cache_service.deleted_embed_cache == ["chat-1"]
+    assert request.app.state.connection_manager.broadcasts == [
+        (
+            {"type": "chat_deleted", "payload": {"chat_id": "chat-1", "tombstone": True}},
+            "user-1",
+            None,
+        )
+    ]
 
 
 @pytest.mark.asyncio
