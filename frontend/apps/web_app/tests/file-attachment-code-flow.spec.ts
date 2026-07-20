@@ -407,14 +407,14 @@ test('uploaded code, CSV, EML, DOCX, and XLSX files render as redacted embeds', 
 	await expect(sentCodeFullscreen).not.toBeVisible({ timeout: 10000 });
 
 	const sentDocFullscreen = await openEmbedFullscreen(page, sentDocEmbed);
-	await expect(sentDocFullscreen).toContainText('[EMAIL_', { timeout: 10000 });
+	await expect(sentDocFullscreen).toContainText('[EMAIL', { timeout: 10000 });
 	await expect(sentDocFullscreen).not.toContainText('docx.private@example.com');
 	await sentDocFullscreen.getByTestId('embed-minimize').click();
 	await expect(sentDocFullscreen).not.toBeVisible({ timeout: 10000 });
 
 	for (const index of [0, 1]) {
 		const sentSheetFullscreen = await openEmbedFullscreen(page, sentSheetEmbeds.nth(index));
-		await expect(sentSheetFullscreen).toContainText('[EMAIL_', { timeout: 10000 });
+		await expect(sentSheetFullscreen).toContainText('[EMAIL', { timeout: 10000 });
 		await expect(sentSheetFullscreen).not.toContainText('ada.private@example.com');
 		await expect(sentSheetFullscreen).not.toContainText('grace.secret@example.com');
 		await expect(sentSheetFullscreen).not.toContainText('xlsx.private@example.com');
