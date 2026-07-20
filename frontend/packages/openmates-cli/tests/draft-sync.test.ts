@@ -11,6 +11,7 @@ import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { createRequire } from "node:module";
+import type { Socket } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { WebSocket } from "ws";
@@ -475,6 +476,128 @@ describe("CLI draft reconciliation", () => {
       assert.deepEqual(seen[2]?.payload.refresh_chat_ids, [created.chatId]);
     } finally {
       process.env.HOME = originalHome;
+      wss.close();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
+
+  it("uses targeted sync when REST refresh stalls", async () => {
+    const originalHome = process.env.HOME;
+    const originalTimeout = process.env.OPENMATES_CLI_HTTP_TIMEOUT_MS;
+    const home = mkdtempSync(join(tmpdir(), "openmates-drafts-rest-stalled-"));
+    const state = join(home, ".openmates");
+    mkdirSync(state, { recursive: true });
+    process.env.HOME = home;
+    process.env.OPENMATES_CLI_HTTP_TIMEOUT_MS = "25";
+    const stalledSockets = new Set<Socket>();
+    const seen: Array<{ type: string; payload: Record<string, unknown> }> = [];
+    let storedDraft: { chatId: string; encryptedDraftMd: string; encryptedDraftPreview: string | null; draftV: number } | null = null;
+    const server = createServer((request, response) => {
+      if (request.url === "/v1/auth/session") {
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ success: true, ws_token: "fresh-token" }));
+        return;
+      }
+      if (request.url === `/v1/drafts/${storedDraft?.chatId}`) {
+        stalledSockets.add(request.socket);
+        response.writeHead(200, { "content-type": "application/json" });
+        response.write(" ");
+        return;
+      }
+      response.writeHead(404).end();
+    });
+    const wss = new WebSocketServer({ server });
+    wss.on("connection", (socket: WebSocket) => {
+      socket.on("message", (raw: Buffer) => {
+        const frame = JSON.parse(raw.toString());
+        seen.push(frame);
+        if (frame.type === "update_draft") {
+          storedDraft = {
+            chatId: String(frame.payload.chat_id),
+            encryptedDraftMd: String(frame.payload.encrypted_draft_md),
+            encryptedDraftPreview: typeof frame.payload.encrypted_draft_preview === "string"
+              ? String(frame.payload.encrypted_draft_preview)
+              : null,
+            draftV: 1,
+          };
+          socket.send(JSON.stringify({
+            type: "draft_update_receipt",
+            payload: { chat_id: frame.payload.chat_id, draft_v: 1, success: true },
+          }));
+          return;
+        }
+        if (frame.type === "phased_sync_request") {
+          socket.send(JSON.stringify({
+            type: "phase_2_last_20_chats_ready",
+            payload: {
+              chats: storedDraft ? [{
+                chat_details: {
+                  id: storedDraft.chatId,
+                  encrypted_draft_md: storedDraft.encryptedDraftMd,
+                  encrypted_draft_preview: storedDraft.encryptedDraftPreview,
+                  draft_v: storedDraft.draftV,
+                  messages_v: 0,
+                  title_v: 0,
+                },
+              }] : [],
+              total_chat_count: storedDraft ? 1 : 0,
+            },
+          }));
+          socket.send(JSON.stringify({ type: "phased_sync_complete", payload: {} }));
+          return;
+        }
+        if (frame.type === "get_draft_versions") {
+          const chatId = frame.payload.chats?.[0]?.chat_id ?? storedDraft?.chatId;
+          socket.send(JSON.stringify({
+            type: "draft_versions_response",
+            payload: { versions: chatId ? { [chatId]: 2 } : {} },
+          }));
+        }
+      });
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+    const apiUrl = `http://127.0.0.1:${address.port}`;
+    writeFileSync(join(state, "session.json"), JSON.stringify({
+      apiUrl,
+      sessionId: "session-1",
+      wsToken: "token",
+      cookies: { auth_refresh_token: "refresh" },
+      masterKeyExportedB64: Buffer.alloc(32).toString("base64"),
+      hashedEmail: "hashed-email",
+      userEmailSalt: "salt",
+      createdAt: Date.now(),
+      authorizerDeviceName: "test",
+      autoLogoutMinutes: null,
+    }));
+
+    try {
+      const { OpenMatesClient } = await import(`../src/client.ts?draft-rest-stalled-test=${Date.now()}`);
+      const client = OpenMatesClient.load({ apiUrl });
+      const created = await client.saveDraft({ markdown: "old draft", preview: "old draft" });
+      const masterKey = Buffer.alloc(32);
+      storedDraft = {
+        chatId: created.chatId,
+        encryptedDraftMd: await (await import("../src/crypto.ts")).encryptWithAesGcmCombined("new draft", masterKey),
+        encryptedDraftPreview: await (await import("../src/crypto.ts")).encryptWithAesGcmCombined("new draft", masterKey),
+        draftV: 2,
+      };
+
+      const refreshed = await client.getDraft(created.chatId, true);
+
+      assert.equal(refreshed?.markdown, "new draft");
+      assert.equal(refreshed?.draftV, 2);
+      assert.deepEqual(seen.map((frame) => frame.type), ["update_draft", "get_draft_versions", "phased_sync_request", "get_draft_versions"]);
+    } finally {
+      process.env.HOME = originalHome;
+      if (originalTimeout === undefined) {
+        delete process.env.OPENMATES_CLI_HTTP_TIMEOUT_MS;
+      } else {
+        process.env.OPENMATES_CLI_HTTP_TIMEOUT_MS = originalTimeout;
+      }
+      for (const socket of stalledSockets) socket.destroy();
       wss.close();
       await new Promise<void>((resolve) => server.close(() => resolve()));
       rmSync(home, { recursive: true, force: true });

@@ -32,6 +32,9 @@ export interface SseMessage {
   data: string;
 }
 
+const DEFAULT_JSON_REQUEST_TIMEOUT_MS = 15_000;
+const JSON_REQUEST_TIMEOUT_ENV = "OPENMATES_CLI_HTTP_TIMEOUT_MS";
+
 export class OpenMatesHttpClient {
   private readonly apiUrl: string;
   private readonly cookies: Map<string, string>;
@@ -170,25 +173,34 @@ export class OpenMatesHttpClient {
       requestHeaders["Content-Type"] = "application/json";
     }
 
-    const response = await fetch(url, {
-      method,
-      headers: requestHeaders,
-      body: body !== undefined ? JSON.stringify(body) : undefined,
-    });
-    this.captureCookies(response);
-
-    let data: unknown = {};
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), getJsonRequestTimeoutMs());
+    let response: Response;
     try {
-      data = await response.json();
-    } catch {
-      data = {};
-    }
+      response = await fetch(url, {
+        method,
+        headers: requestHeaders,
+        body: body !== undefined ? JSON.stringify(body) : undefined,
+        signal: controller.signal,
+      });
+      this.captureCookies(response);
 
-    return {
-      ok: response.ok,
-      status: response.status,
-      data: data as T,
-    };
+      let data: unknown = {};
+      try {
+        data = await response.json();
+      } catch {
+        if (controller.signal.aborted) throw new Error(`HTTP ${method} ${path} timed out`);
+        data = {};
+      }
+
+      return {
+        ok: response.ok,
+        status: response.status,
+        data: data as T,
+      };
+    } finally {
+      clearTimeout(timeout);
+    }
   }
 
   private formatCookieHeader(): string {
@@ -232,6 +244,15 @@ export class OpenMatesHttpClient {
     const single = response.headers.get("set-cookie");
     return single ? [single] : [];
   }
+}
+
+function getJsonRequestTimeoutMs(): number {
+  const rawTimeoutMs = process.env[JSON_REQUEST_TIMEOUT_ENV];
+  if (!rawTimeoutMs) return DEFAULT_JSON_REQUEST_TIMEOUT_MS;
+  const parsedTimeoutMs = Number(rawTimeoutMs);
+  return Number.isFinite(parsedTimeoutMs) && parsedTimeoutMs > 0
+    ? parsedTimeoutMs
+    : DEFAULT_JSON_REQUEST_TIMEOUT_MS;
 }
 
 function parseSseMessage(rawEvent: string): SseMessage | null {
