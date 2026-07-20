@@ -368,12 +368,74 @@ test('uploaded code, CSV, EML, DOCX, and XLSX files render as redacted embeds', 
 	await expect(codeFullscreen).not.toBeVisible({ timeout: 10000 });
 	log('Code, CSV, EML, DOCX, and XLSX embeds rendered with PII placeholders in the editor.');
 
-	await mailEmbed.click();
+	const sendButton = page.locator('[data-action="send-message"]');
+	await expect(sendButton).toBeVisible({ timeout: 15000 });
+	await expect(sendButton).toBeEnabled({ timeout: 5000 });
+	await sendButton.click();
+	log('Message with code, CSV, EML, DOCX, and XLSX files sent.');
+
+	await expect(page).toHaveURL(/chat-id=[a-zA-Z0-9-]+/, { timeout: 15000 });
+	const userMessage = page.getByTestId('message-user').last();
+	await expect(userMessage).toBeVisible({ timeout: 20000 });
+	await expect(userMessage).not.toContainText('sk-proj-abcdefghijklmnopqrstuvwxyz123456');
+	await expect(userMessage).not.toContainText('developer.private@example.com');
+	await expect(userMessage).not.toContainText('ada.private@example.com');
+	await expect(userMessage).not.toContainText('grace.secret@example.com');
+	await expect(userMessage).not.toContainText('docx.private@example.com');
+	await expect(userMessage).not.toContainText('xlsx.private@example.com');
+	await screenshot(page, 'after-text-file-send');
+
+	const sentCodeEmbed = userMessage.locator(
+		'[data-testid="embed-full-width-wrapper"][data-embed-type="code-code"]'
+	).first();
+	const sentDocEmbed = userMessage.locator(
+		'[data-testid="embed-full-width-wrapper"][data-embed-type="docs-doc"]'
+	).first();
+	const sentSheetEmbeds = userMessage.locator(
+		'[data-testid="embed-full-width-wrapper"][data-embed-type="sheets-sheet"]'
+	);
+	await expect(sentCodeEmbed).toBeVisible({ timeout: 20000 });
+	await expect(sentDocEmbed).toBeVisible({ timeout: 20000 });
+	await expect(sentSheetEmbeds).toHaveCount(2, { timeout: 20000 });
+
+	const sentCodeFullscreen = await openEmbedFullscreen(page, sentCodeEmbed);
+	await expect(sentCodeFullscreen.getByTestId('code-source-panel')).toContainText('[OPENAI_KEY_', { timeout: 10000 });
+	await expect(sentCodeFullscreen.getByTestId('code-source-panel')).toContainText('[EMAIL_', { timeout: 10000 });
+	await expect(sentCodeFullscreen.getByTestId('code-source-panel')).not.toContainText('sk-proj-abcdefghijklmnopqrstuvwxyz123456');
+	await expect(sentCodeFullscreen.getByTestId('code-source-panel')).not.toContainText('developer.private@example.com');
+	await sentCodeFullscreen.getByTestId('embed-minimize').click();
+	await expect(sentCodeFullscreen).not.toBeVisible({ timeout: 10000 });
+
+	const sentDocFullscreen = await openEmbedFullscreen(page, sentDocEmbed);
+	await expect(sentDocFullscreen).toContainText('[EMAIL_', { timeout: 10000 });
+	await expect(sentDocFullscreen).not.toContainText('docx.private@example.com');
+	await sentDocFullscreen.getByTestId('embed-minimize').click();
+	await expect(sentDocFullscreen).not.toBeVisible({ timeout: 10000 });
+
+	for (const index of [0, 1]) {
+		const sentSheetFullscreen = await openEmbedFullscreen(page, sentSheetEmbeds.nth(index));
+		await expect(sentSheetFullscreen).toContainText('[EMAIL_', { timeout: 10000 });
+		await expect(sentSheetFullscreen).not.toContainText('ada.private@example.com');
+		await expect(sentSheetFullscreen).not.toContainText('grace.secret@example.com');
+		await expect(sentSheetFullscreen).not.toContainText('xlsx.private@example.com');
+		await sentSheetFullscreen.getByTestId('embed-minimize').click();
+		await expect(sentSheetFullscreen).not.toBeVisible({ timeout: 10000 });
+	}
+	log('Sent code, CSV, DOCX, and XLSX embeds remained placeholder-only in chat.');
+
+	const sentMailEmbed = userMessage.locator(
+		'[data-testid="embed-full-width-wrapper"][data-embed-type="mail-email"]'
+	).first();
+	await sentMailEmbed.click();
 	const includeOriginalButton = page.getByTestId('embed-pii-include-original');
 	await expect(includeOriginalButton).toBeVisible({ timeout: 10000 });
 	await includeOriginalButton.click();
 	await expect(includeOriginalButton).not.toBeVisible({ timeout: 10000 });
-	await expect(page.locator('.fullscreen-embed-container')).toContainText('receiver.include@example.com', { timeout: 10000 });
+	await expect(page.getByTestId('embed-fullscreen-overlay')).toContainText('receiver.include@example.com', { timeout: 10000 });
 	await screenshot(page, 'after-include-original');
-	log('Mail draft embed configured to include original PII before send.');
+	log('Mail embed configured to include original PII after send.');
+
+	await page.keyboard.press('Escape');
+	await stopActiveResponseIfNeeded(page, log);
+	await deleteActiveChat(page, log, screenshot, 'cleanup');
 });

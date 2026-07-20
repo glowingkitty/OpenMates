@@ -44,6 +44,7 @@ const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
+const JSZip = require('jszip');
 const {
 	createSignupLogger,
 	getTestAccount
@@ -63,6 +64,33 @@ const consoleLogs: string[] = [];
 function parseChatIdFromSendOutput(output: string): string | undefined {
 	const match = output.match(/openmates chats send --chat ([a-f0-9]{8})\b/i);
 	return match?.[1];
+}
+
+function extractEmbedRefs(content: string): string[] {
+	return Array.from(content.matchAll(/\[!\]\(embed:([^)]+)\)/g)).map((match) => match[1]);
+}
+
+async function createDocxBuffer(textLines: string[]): Promise<Buffer> {
+	const zip = new JSZip();
+	zip.file('word/document.xml', [
+		'<?xml version="1.0" encoding="UTF-8"?>',
+		'<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>',
+		...textLines.map((line) => `<w:p><w:r><w:t>${line}</w:t></w:r></w:p>`),
+		'</w:body></w:document>'
+	].join(''));
+	return Buffer.from(await zip.generateAsync({ type: 'uint8array' }));
+}
+
+async function createXlsxBuffer(rows: string[][]): Promise<Buffer> {
+	const strings = Array.from(new Set(rows.flat()));
+	const stringIndex = new Map(strings.map((value, index) => [value, index]));
+	const zip = new JSZip();
+	zip.file('xl/workbook.xml', '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Sheet1" sheetId="1" r:id="rId1"/></sheets></workbook>');
+	zip.file('xl/_rels/workbook.xml.rels', '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/></Relationships>');
+	zip.file('xl/sharedStrings.xml', `<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">${strings.map((value) => `<si><t>${value}</t></si>`).join('')}</sst>`);
+	const rowXml = rows.map((row, rowIndex) => `<row r="${rowIndex + 1}">${row.map((cell, colIndex) => `<c r="${String.fromCharCode(65 + colIndex)}${rowIndex + 1}" t="s"><v>${stringIndex.get(cell)}</v></c>`).join('')}</row>`).join('');
+	zip.file('xl/worksheets/sheet1.xml', `<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>${rowXml}</sheetData></worksheet>`);
+	return Buffer.from(await zip.generateAsync({ type: 'uint8array' }));
 }
 
 async function waitForChatShow(apiUrl: string, chatId: string, timeoutMs = 60_000): Promise<any> {
@@ -296,7 +324,7 @@ const SAMPLE_PNG = path.join(__dirname, 'fixtures', 'sample.png');
 
 // ── Main test ───────────────────────────────────────────────────────────────
 
-test('CLI file upload — text file with secret + image file', async ({ page }: any) => {
+test('CLI file upload - text/code/docs/sheets files with PII + image file', async ({ page }: any) => {
 	test.setTimeout(600_000);
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
@@ -320,6 +348,23 @@ test('CLI file upload — text file with secret + image file', async ({ page }: 
 			`// Test config\nexport const OPENAI_API_KEY = "${FAKE_KEY}";\nexport const DEBUG = true;\n`
 		);
 		logCheckpoint(`Created text file: ${textFilePath}`);
+
+		const CSV_EMAIL = 'cli.csv.private@example.com';
+		const DOCX_EMAIL = 'cli.docx.private@example.com';
+		const XLSX_EMAIL = 'cli.xlsx.private@example.com';
+		const csvFilePath = path.join(tmpDir, 'contacts.csv');
+		const docxFilePath = path.join(tmpDir, 'brief.docx');
+		const xlsxFilePath = path.join(tmpDir, 'contacts.xlsx');
+		fs.writeFileSync(csvFilePath, `Name,Email\nCLI CSV,${CSV_EMAIL}`);
+		fs.writeFileSync(docxFilePath, await createDocxBuffer([
+			'Private CLI DOCX launch note',
+			`Reach the owner at ${DOCX_EMAIL} before launch.`
+		]));
+		fs.writeFileSync(xlsxFilePath, await createXlsxBuffer([
+			['Name', 'Email'],
+			['CLI XLSX', XLSX_EMAIL]
+		]));
+		logCheckpoint('Created CSV, DOCX, and XLSX files with private emails.');
 
 		const imagePath = SAMPLE_PNG;
 		logCheckpoint(`Using image fixture: ${imagePath}`);
@@ -395,6 +440,70 @@ test('CLI file upload — text file with secret + image file', async ({ page }: 
 				logCheckpoint('Embed content verified: secret redacted, placeholder present');
 			}
 		}
+
+		// ── Text/docs/sheets PII upload ────────────────────────────────────
+
+		logCheckpoint('Sending message with @code/@csv/@docx/@xlsx references...');
+		const piiFilesSendResult = await runCli(
+			apiUrl,
+			[
+				'chats',
+				'send',
+				'--chat',
+				fullChatId,
+				`Review these sensitive files @${textFilePath} @${csvFilePath} @${docxFilePath} @${xlsxFilePath} and summarize the placeholder types only.`
+			],
+			240_000
+		);
+
+		logCheckpoint(`PII files send exit code: ${piiFilesSendResult.code}`);
+		consoleLogs.push(`PII files send stdout: ${piiFilesSendResult.stdout.slice(0, 2000)}`);
+		consoleLogs.push(`PII files send stderr: ${piiFilesSendResult.stderr.slice(0, 2000)}`);
+
+		const combinedPiiFilesOutput = piiFilesSendResult.stdout + piiFilesSendResult.stderr;
+		expect(combinedPiiFilesOutput).toMatch(/secrets redacted/i);
+		expect(combinedPiiFilesOutput).not.toContain(FAKE_KEY);
+		expect(combinedPiiFilesOutput).not.toContain(CSV_EMAIL);
+		expect(combinedPiiFilesOutput).not.toContain(DOCX_EMAIL);
+		expect(combinedPiiFilesOutput).not.toContain(XLSX_EMAIL);
+		expect(piiFilesSendResult.code).toBe(0);
+
+		const showAfterPiiFiles = await waitForChatShow(apiUrl, fullChatId);
+		const piiUserMessages = (showAfterPiiFiles.messages ?? []).filter((m: any) => m.role === 'user');
+		const piiFilesUserMsg = piiUserMessages[piiUserMessages.length - 1];
+		const piiFilesContent: string = piiFilesUserMsg.content ?? '';
+		const piiEmbedRefs = extractEmbedRefs(piiFilesContent);
+		expect(piiEmbedRefs.length).toBeGreaterThanOrEqual(4);
+
+		let sawCodeEmbed = false;
+		let sawDocEmbed = false;
+		let sawSheetEmbed = false;
+		for (const embedRef of piiEmbedRefs) {
+			const embedResult = await runCli(apiUrl, ['embeds', 'show', embedRef, '--json'], 20_000);
+			expect(embedResult.code).toBe(0);
+			const embedContent = embedResult.stdout;
+			expect(embedContent).not.toContain(FAKE_KEY);
+			expect(embedContent).not.toContain(CSV_EMAIL);
+			expect(embedContent).not.toContain(DOCX_EMAIL);
+			expect(embedContent).not.toContain(XLSX_EMAIL);
+
+			if (embedContent.includes('code-code')) {
+				sawCodeEmbed = true;
+				expect(embedContent).toMatch(/\[OPENAI_KEY_/);
+			}
+			if (embedContent.includes('docs-doc')) {
+				sawDocEmbed = true;
+				expect(embedContent).toMatch(/\[EMAIL_/);
+			}
+			if (embedContent.includes('sheets-sheet')) {
+				sawSheetEmbed = true;
+				expect(embedContent).toMatch(/\[EMAIL_/);
+			}
+		}
+		expect(sawCodeEmbed).toBe(true);
+		expect(sawDocEmbed).toBe(true);
+		expect(sawSheetEmbed).toBe(true);
+		logCheckpoint('CLI code/docs/sheets persisted embeds verified with placeholders only.');
 
 		// ── Image file upload ─────────────────────────────────────────────
 

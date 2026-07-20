@@ -63,7 +63,7 @@ import {
 } from "./mentions.js";
 import { APP_SKILL_METADATA } from "./generated/appSkills.js";
 import { OutputRedactor } from "./outputRedactor.js";
-import { processFiles, formatEmbedsForMessage } from "./fileEmbed.js";
+import { processFilesAsync, formatEmbedsForMessage } from "./fileEmbed.js";
 import type { PreparedEmbed } from "./embedCreator.js";
 import type { ShareDuration } from "./shareEncryption.js";
 import { transcribeUploadedAudio, uploadFile } from "./uploadService.js";
@@ -6861,7 +6861,7 @@ async function sendMessageStreaming(
           return result;
         }
 
-        const fileResult = processFiles(parsed.filePaths, redactor ?? null);
+        const fileResult = await processFilesAsync(parsed.filePaths, redactor ?? null);
 
         // Report blocked files
         for (const b of fileResult.blocked) {
@@ -7027,9 +7027,12 @@ async function sendMessageStreaming(
         }
       }
 
-    } catch {
-      // If mention resolution fails (e.g., network error), send as-is
-      // The backend will receive the raw @tokens and ignore unknown ones
+    } catch (error) {
+      clearTyping();
+      process.stderr.write(
+        `\x1b[31mError:\x1b[0m Failed to process mentions or file attachments - ${error instanceof Error ? error.message : String(error)}\n`,
+      );
+      process.exit(1);
     }
   }
 

@@ -10,10 +10,40 @@ import assert from "node:assert/strict";
 import { writeFileSync, mkdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { processFiles, formatEmbedsForMessage } from "../src/fileEmbed.ts";
+import JSZip from "jszip";
+import { processFiles, processFilesAsync, formatEmbedsForMessage } from "../src/fileEmbed.ts";
 import { OutputRedactor } from "../src/outputRedactor.ts";
 
 const testDir = join(tmpdir(), `openmates-test-${Date.now()}`);
+
+function createInitializedRedactor(): OutputRedactor {
+  const redactor = new OutputRedactor();
+  redactor.initializeFromMemories([]);
+  return redactor;
+}
+
+async function createDocxBuffer(textLines: string[]): Promise<Buffer> {
+  const zip = new JSZip();
+  zip.file("word/document.xml", [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>',
+    ...textLines.map((line) => `<w:p><w:r><w:t>${line}</w:t></w:r></w:p>`),
+    "</w:body></w:document>",
+  ].join(""));
+  return Buffer.from(await zip.generateAsync({ type: "uint8array" }));
+}
+
+async function createXlsxBuffer(rows: string[][]): Promise<Buffer> {
+  const strings = Array.from(new Set(rows.flat()));
+  const stringIndex = new Map(strings.map((value, index) => [value, index]));
+  const zip = new JSZip();
+  zip.file("xl/workbook.xml", '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Sheet1" sheetId="1" r:id="rId1"/></sheets></workbook>');
+  zip.file("xl/_rels/workbook.xml.rels", '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/></Relationships>');
+  zip.file("xl/sharedStrings.xml", `<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">${strings.map((value) => `<si><t>${value}</t></si>`).join("")}</sst>`);
+  const rowXml = rows.map((row, rowIndex) => `<row r="${rowIndex + 1}">${row.map((cell, colIndex) => `<c r="${String.fromCharCode(65 + colIndex)}${rowIndex + 1}" t="s"><v>${stringIndex.get(cell)}</v></c>`).join("")}</row>`).join("");
+  zip.file("xl/worksheets/sheet1.xml", `<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>${rowXml}</sheetData></worksheet>`);
+  return Buffer.from(await zip.generateAsync({ type: "uint8array" }));
+}
 
 describe("fileEmbed", () => {
   beforeEach(() => {
@@ -97,6 +127,53 @@ describe("fileEmbed", () => {
       assert.equal(result.embeds[0].secretsRedacted, true);
       assert.ok(!result.embeds[0].embed.content.includes("John Smith"));
       assert.ok(result.embeds[0].embed.content.includes("[MY_NAME]"));
+    });
+  });
+
+  describe("processFilesAsync — docs and sheets", () => {
+    it("creates a redacted sheets-sheet embed for CSV files", async () => {
+      const filePath = join(testDir, "contacts.csv");
+      writeFileSync(filePath, "Name,Email\nAda,ada.private@example.com");
+
+      const result = await processFilesAsync([filePath], createInitializedRedactor());
+
+      assert.equal(result.errors.length, 0);
+      assert.equal(result.embeds.length, 1);
+      assert.equal(result.embeds[0].embed.type, "sheets-sheet");
+      assert.ok(result.embeds[0].secretsRedacted);
+      assert.ok(result.embeds[0].embed.content.includes("[EMAIL_"));
+      assert.ok(!result.embeds[0].embed.content.includes("ada.private@example.com"));
+    });
+
+    it("creates a redacted docs-doc embed for DOCX files", async () => {
+      const filePath = join(testDir, "brief.docx");
+      writeFileSync(filePath, await createDocxBuffer(["Contact docx.private@example.com today."]));
+
+      const result = await processFilesAsync([filePath], createInitializedRedactor());
+
+      assert.equal(result.errors.length, 0);
+      assert.equal(result.embeds.length, 1);
+      assert.equal(result.embeds[0].embed.type, "docs-doc");
+      assert.ok(result.embeds[0].secretsRedacted);
+      assert.ok(result.embeds[0].embed.content.includes("[EMAIL_"));
+      assert.ok(!result.embeds[0].embed.content.includes("docx.private@example.com"));
+    });
+
+    it("creates a redacted sheets-sheet embed for XLSX files", async () => {
+      const filePath = join(testDir, "contacts.xlsx");
+      writeFileSync(filePath, await createXlsxBuffer([
+        ["Name", "Email"],
+        ["Xlsx Ada", "xlsx.private@example.com"],
+      ]));
+
+      const result = await processFilesAsync([filePath], createInitializedRedactor());
+
+      assert.equal(result.errors.length, 0);
+      assert.equal(result.embeds.length, 1);
+      assert.equal(result.embeds[0].embed.type, "sheets-sheet");
+      assert.ok(result.embeds[0].secretsRedacted);
+      assert.ok(result.embeds[0].embed.content.includes("[EMAIL_"));
+      assert.ok(!result.embeds[0].embed.content.includes("xlsx.private@example.com"));
     });
   });
 
