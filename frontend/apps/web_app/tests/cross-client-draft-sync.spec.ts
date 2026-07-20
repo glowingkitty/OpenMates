@@ -19,7 +19,7 @@ const {
 	createStepScreenshotter,
 	getTestAccount
 } = require('./signup-flow-helpers');
-const { loginToTestAccount, waitForChatReady } = require('./helpers/chat-test-helpers');
+const { loginToTestAccount, waitForAssistantMessage, waitForChatReady } = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 const CLI_DIST = fs.existsSync('/workspace/cli/dist/cli.js')
@@ -953,6 +953,8 @@ test.describe('Cross-client encrypted draft sync', () => {
 			await expect(sendButton).toBeVisible({ timeout: 15_000 });
 			await sendButton.click();
 			await expect(page.getByTestId('message-user').last()).toContainText(sentText, { timeout: 30_000 });
+			await waitForAssistantMessage(page, { which: 'last', timeout: 120_000, logCheckpoint: log });
+			await expect(page.getByTestId('typing-indicator')).not.toBeVisible({ timeout: 120_000 });
 			await expect
 				.poll(async () => {
 					const result = await runCliJson(apiUrl, ['drafts', 'get', sentChatId, '--refresh'], CLI_DRAFT_REFRESH_TIMEOUT_MS, {
