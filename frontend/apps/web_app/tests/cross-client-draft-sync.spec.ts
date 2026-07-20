@@ -410,17 +410,23 @@ async function replaceMessageEditorText(page: any, chatId: string, text: string)
 			intervals: [250, 500, 1_000]
 		})
 		.toBe(true);
+	console.log(`[CROSS_CLIENT_DRAFT_SYNC] Replacing draft text via browser helper for ${chatId}.`);
 	await page.evaluate(async ({ targetChatId, replacement }: { targetChatId: string; replacement: string }) => {
 		const helper = (window as any).__openmatesE2EReplaceDraft;
 		if (typeof helper !== 'function') throw new Error('E2E draft replacement helper is unavailable');
-		await helper({ chatId: targetChatId, text: replacement });
+		await Promise.race([
+			helper({ chatId: targetChatId, text: replacement }),
+			new Promise((_, reject) => window.setTimeout(() => reject(new Error('E2E draft replacement helper timed out')), 10_000)),
+		]);
 	}, { targetChatId: chatId, replacement: text });
+	console.log(`[CROSS_CLIENT_DRAFT_SYNC] Browser helper returned for ${chatId}; waiting for local encrypted draft.`);
 	await expect
 		.poll(async () => (await readLocalDraftMarkdown(page, chatId)).markdown ?? '', {
 			timeout: 15_000,
 			intervals: [500, 1_000]
 		})
 		.toBe(text);
+	console.log(`[CROSS_CLIENT_DRAFT_SYNC] Local encrypted draft matched replacement for ${chatId}.`);
 	return messageEditorEditable(page, chatId);
 }
 
