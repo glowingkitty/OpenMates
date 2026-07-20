@@ -29,6 +29,7 @@ const IMPORT_CHAT_TITLE_1 = 'Playwright Import Test Chat 1';
 const IMPORT_CHAT_TITLE_2 = 'Playwright Import Test Chat 2';
 const IMPORT_CHAT_TITLES = [IMPORT_CHAT_TITLE_1, IMPORT_CHAT_TITLE_2];
 const IMPORT_GUIDE_PATH = 'docs/user-guide/import-account.md';
+const IMPORT_FILE_INPUT_TEST_ID = 'account-import-file-upload-input';
 
 const consoleLogs: string[] = [];
 const networkActivities: string[] = [];
@@ -59,7 +60,7 @@ async function openImportSettings(page: any): Promise<void> {
 	await page.getByRole('menuitem', { name: /account/i }).click();
 	await page.getByRole('menuitem', { name: /import/i }).click();
 
-	await expect(page.locator('#import-file-input')).toBeAttached({ timeout: 15000 });
+	await expect(page.getByTestId(IMPORT_FILE_INPUT_TEST_ID)).toBeAttached({ timeout: 15000 });
 }
 
 async function deleteChatByTitle(page: any, title: string): Promise<void> {
@@ -128,7 +129,7 @@ test('imports chats from ZIP in account settings and shows success results', asy
 	});
 
 	const zipFilePath = path.resolve(__dirname, 'fixtures', 'import-chats-test.zip');
-	await page.setInputFiles('#import-file-input', zipFilePath);
+	await page.getByTestId(IMPORT_FILE_INPUT_TEST_ID).setInputFiles(zipFilePath);
 	log('Uploaded import ZIP file.', { zipFilePath });
 
 	const importSelectionSection = page.getByTestId('import-select-section');
