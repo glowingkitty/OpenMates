@@ -183,6 +183,9 @@
     const DRAFT_RESTORE_REF_RETRY_ATTEMPTS = 80;
     const DRAFT_RESTORE_REF_RETRY_DELAY_MS = 50;
     const DRAFT_RESTORE_APPLY_DELAY_MS = 50;
+    const DRAFT_EMBED_HYDRATION_ATTEMPTS = 20;
+    const DRAFT_EMBED_HYDRATION_DELAY_MS = 250;
+    const EMBED_ID_IN_REF_RE = /[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/i;
     // Temporary rollout gate: the current chat details/settings panel does not
     // match product requirements. Keep code in place for the redesign, but make
     // all entry points inaccessible until this is intentionally re-enabled.
@@ -203,14 +206,24 @@
 
         try {
             const { embedStore } = await import('../services/embedStore');
+            const { resolveEmbed } = await import('../services/embedResolver');
             const { computeSHA256 } = await import('../message_parsing/utils');
             const chatEmbeds = await embedStore.getEmbedsByHashedChatId(await computeSHA256(chatId));
             let restored = markdown;
             for (const ref of Array.from(new Set(refs))) {
                 const embedId = await embedStore.resolveByRefDeep(ref)
+                    ?? ref.match(EMBED_ID_IN_REF_RE)?.[0]
                     ?? (refs.length === 1 && chatEmbeds.length === 1 ? chatEmbeds[0]?.embed_id ?? null : null);
                 if (!embedId) continue;
-                const storedEmbed = await embedStore.get(`embed:${embedId}`).catch(() => chatEmbeds.find((embed) => embed.embed_id === embedId));
+                let storedEmbed = await embedStore.get(`embed:${embedId}`).catch(() => chatEmbeds.find((embed) => embed.embed_id === embedId));
+                if (!storedEmbed) {
+                    await resolveEmbed(embedId);
+                    for (let attempt = 0; attempt < DRAFT_EMBED_HYDRATION_ATTEMPTS; attempt += 1) {
+                        storedEmbed = await embedStore.get(`embed:${embedId}`).catch(() => undefined);
+                        if (storedEmbed) break;
+                        await new Promise((resolve) => setTimeout(resolve, DRAFT_EMBED_HYDRATION_DELAY_MS));
+                    }
+                }
                 const embedRecord = storedEmbed && typeof storedEmbed === 'object'
                     ? storedEmbed as Record<string, unknown>
                     : null;

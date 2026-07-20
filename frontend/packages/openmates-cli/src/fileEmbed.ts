@@ -936,7 +936,7 @@ function processAudioFile(
 ): ProcessedFileEmbed | null {
   try {
     const embedId = generateEmbedId();
-    const embedRef = createEmbedRef("audio-recording", `${filename}:${embedId}`);
+    const embedRef = `${createEmbedRef("audio-recording", filename)}-${embedId}`;
 
     const embedContent = toonEncodeContent({
       app_id: "audio",
