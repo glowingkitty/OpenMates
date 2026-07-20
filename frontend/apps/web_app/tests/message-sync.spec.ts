@@ -315,6 +315,7 @@ test('message sync: verifies all messages are synced after sending multiple mess
 	logCheckpoint('Waiting for first AI response...');
 	const assistantResponse = page.getByTestId('message-assistant');
 	await expect(assistantResponse.last()).toContainText('4', { timeout: 45000 });
+	await waitForSyncedAssistantMessages(page, chatId, 1, 60000);
 	await takeStepScreenshot(page, '08-first-response-received');
 	logCheckpoint('Received first AI response containing "4".');
 
