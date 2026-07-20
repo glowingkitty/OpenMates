@@ -1,7 +1,7 @@
 schema_version: 2
 id: pii-placeholder-rewrite-v1
 title: PII Placeholder Rewrite V1
-status: implementing
+status: verified
 
 goal: >
   Extend OpenMates' client-side PII placeholder system so outbound user messages
@@ -74,6 +74,7 @@ context_discovery:
     - frontend/packages/openmates-cli/tests/fileEmbed.test.ts
     - frontend/apps/web_app/tests/cli-file-upload.spec.ts
     - frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
+    - apple/OpenMatesTests/ChatSendPipelineParityTests.swift
   external_research:
     - "No external API research required; this spec changes first-party client-side privacy behavior."
 
@@ -111,6 +112,7 @@ clarification:
 
 implementation_state:
   subject_commit: b8da97ded
+  apple_subject_commit: 54c8772d2
 
 approvals:
   product_contract:
@@ -166,16 +168,16 @@ attempts:
     reason: The committed suite ran on e6f046a86 and reported 593/594 passed; the only failure was the pre-existing unrelated ChatListCache pending-upsert test, matching the earlier baseline failure.
 
 handoff:
-  current_task_id: TASK-3
-  next_action: User confirms deployed web behavior, then Apple parity may start under WEB_BEFORE_APPLE if still desired.
+  current_task_id: TASK-4
+  next_action: PII placeholder rewrite V1 is verified across web, CLI, and Apple parity gates.
   command: python3 scripts/spec_validate.py docs/specs/pii-placeholder-rewrite-v1/spec.yml
   expected_outcome: Spec validates structurally after implementation evidence updates.
   blocker:
-    task_id: TASK-3
-    requires_user_input: true
-    reason: The WEB_BEFORE_APPLE gate requires user confirmation after deployed web verification before Apple parity starts.
-    question: Does the deployed web behavior satisfy the PII placeholder rewrite expectation so Apple parity can begin?
-    next_action: Record user confirmation or waiver, then start Apple parity work if requested.
+    task_id: TASK-4
+    requires_user_input: false
+    reason: User confirmed Apple parity may proceed; remote Apple verification passed.
+    question: none
+    next_action: none
   last_verified_commit: b8da97ded
 
 scenarios:
@@ -559,14 +561,28 @@ verifications:
     phase: final
     required_for_done: true
     covers: [AC-1, AC-2]
-    status: blocked
+    status: passed
     evidence:
-      status: blocked
+      status: user_confirmed
+      actor: user
+      summary: User confirmed Apple parity may proceed after deployed web and CLI upload evidence passed.
+      timestamp: "2026-07-20T16:23:00Z"
+      reason: User said "Go ahead with Apple parity".
+  - id: V-APPLE-PARITY
+    kind: manual_check
+    phase: final
+    required_for_done: true
+    covers: [AC-1, AC-2, AC-3, AC-7]
+    status: passed
+    evidence:
+      status: passed
       actor: openai/gpt-5.5
-      summary: Deployed web and CLI upload Playwright evidence passed; explicit user confirmation is still required before Apple parity starts.
-      timestamp: "2026-07-20T16:08:38Z"
-      reason: WEB_BEFORE_APPLE requires product/user confirmation after deployed web verification.
-      next_action: Ask the user to confirm the deployed web behavior, or record a waiver if Apple parity is intentionally deferred.
+      summary: Apple foreground chat now rewrites known prior and current attachment PII mappings before outbound send, preserves current-send exclusions, protects embed JSON references, and stores applied mappings for local reveal.
+      timestamp: "2026-07-20T16:43:48Z"
+      command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesTests/ChatSendPipelineParityTests"; python3 scripts/apple_remote.py build-ios --simulator "iPhone 17"
+      run_id: remote-mac-chat-send-pipeline-54c8772d2
+      subject_commit: 54c8772d2
+      reason: Remote Mac targeted unit tests and generic iOS build completed with exit_code=0; Linux-safe apple_evidence_bundle.py --surface chat also passed for the Apple code commit.
 
 implementation_plan:
   spec_path: docs/specs/pii-placeholder-rewrite-v1/spec.yml
@@ -653,8 +669,8 @@ tasks:
     independently_deployable: true
   - id: TASK-3
     title: Add secret-scanner parity and deployed web proof
-    status: blocked
-    phase: running_checks
+    status: done
+    phase: complete
     covers:
       scenarios: [S-2, S-5]
       acceptance_criteria: [AC-2, AC-5, AC-6]
@@ -670,7 +686,34 @@ tasks:
         - frontend/apps/web_app/tests/pii-placeholder-rewrite.spec.ts
       shared_files: []
     blockers:
-      - V-USER-CONFIRMATION remains required before Apple parity starts.
+      - none
+    follow_up_tasks: []
+    independently_deployable: true
+  - id: TASK-4
+    title: Add Apple foreground placeholder rewrite parity
+    status: done
+    phase: complete
+    covers:
+      scenarios: [S-1, S-2, S-3, S-6]
+      acceptance_criteria: [AC-1, AC-2, AC-3, AC-7]
+    expected_files:
+      - apple/OpenMates/Sources/Features/Chat/Views/PIIDetectionView.swift
+      - apple/OpenMates/Sources/Shared/Composer/ComposerPIIDecorations.swift
+      - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+      - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+      - apple/OpenMatesTests/ChatSendPipelineParityTests.swift
+    verification: [V-APPLE-PARITY]
+    verification_ids: [V-APPLE-PARITY]
+    dependencies: [TASK-3]
+    ownership:
+      files:
+        - apple/OpenMates/Sources/Features/Chat/Views/PIIDetectionView.swift
+        - apple/OpenMates/Sources/Shared/Composer/ComposerPIIDecorations.swift
+        - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+        - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+        - apple/OpenMatesTests/ChatSendPipelineParityTests.swift
+      shared_files: []
+    blockers: []
     follow_up_tasks: []
     independently_deployable: true
 
