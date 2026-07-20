@@ -64,7 +64,7 @@ test.describe('Account Import V1 web flow', () => {
 		await expect(page.getByTestId('import-preview-summary')).toContainText('Chats found');
 		await expect(page.getByTestId('import-preview-summary')).toContainText('1');
 		await page.getByTestId('account-import-start').click();
-		await expect(page.getByTestId('import-results-container')).toContainText('1', { timeout: 30000 });
+		await expect(page.getByTestId('import-results-container')).toContainText('2 messages imported', { timeout: 30000 });
 
 		const paths = calls.map((call: { path: string }) => call.path);
 		expect(paths).toContain('/v1/account-imports/preview');
