@@ -432,21 +432,21 @@ test('CLI file upload - text/code/docs/sheets files with PII + image file', asyn
 		logCheckpoint('Text file embed reference found in message content');
 
 		// Verify the embed content does NOT contain the raw secret
-		const embedIdMatch = userContent.match(/\[!\]\(embed:([^)]+)\)/);
-		if (embedIdMatch) {
-			const embedId = embedIdMatch[1];
+		const initialEmbedIds = Array.isArray(lastUserMsg.embedIds) ? lastUserMsg.embedIds : [];
+		expect(initialEmbedIds.length).toBeGreaterThan(0);
+		{
+			const embedId = String(initialEmbedIds[0]);
 			const embedResult = await runCli(apiUrl, ['embeds', 'show', embedId, '--json'], 20_000);
-			if (embedResult.code === 0 && embedResult.stdout.trim()) {
-				const embedData = JSON.parse(embedResult.stdout);
-				const embedContent = JSON.stringify(embedData);
-				expect(
-					embedContent,
-					'Raw secret must not appear in embed content'
-				).not.toContain(FAKE_KEY);
-				// Should contain a placeholder like [OPENAI_KEY_...]
-				expect(embedContent).toMatch(/\[OPENAI_KEY_/);
-				logCheckpoint('Embed content verified: secret redacted, placeholder present');
-			}
+			expect(embedResult.code, embedResult.stderr).toBe(0);
+			const embedData = JSON.parse(embedResult.stdout);
+			const embedContent = JSON.stringify(embedData);
+			expect(
+				embedContent,
+				'Raw secret must not appear in embed content'
+			).not.toContain(FAKE_KEY);
+			// Should contain a placeholder like [OPENAI_KEY_...]
+			expect(embedContent).toMatch(/\[OPENAI_KEY_/);
+			logCheckpoint('Embed content verified: secret redacted, placeholder present');
 		}
 
 		// ── Text/docs/sheets PII upload ────────────────────────────────────
@@ -479,16 +479,17 @@ test('CLI file upload - text/code/docs/sheets files with PII + image file', asyn
 		const showAfterPiiFiles = await waitForChatShow(apiUrl, fullChatId);
 		const piiUserMessages = extractMessages(showAfterPiiFiles).filter((m: any) => m.role === 'user');
 		const piiFilesUserMsg = piiUserMessages[piiUserMessages.length - 1];
-		const piiFilesContent: string = piiFilesUserMsg.content ?? '';
-		const piiEmbedRefs = extractEmbedRefs(piiFilesContent);
-		expect(piiEmbedRefs.length).toBeGreaterThanOrEqual(4);
+		const piiEmbedIds = Array.isArray(piiFilesUserMsg.embedIds)
+			? piiFilesUserMsg.embedIds.map(String)
+			: extractEmbedRefs(piiFilesUserMsg.content ?? '');
+		expect(piiEmbedIds.length).toBeGreaterThanOrEqual(4);
 
 		let sawCodeEmbed = false;
 		let sawDocEmbed = false;
 		let sawSheetEmbed = false;
-		for (const embedRef of piiEmbedRefs) {
-			const embedResult = await runCli(apiUrl, ['embeds', 'show', embedRef, '--json'], 20_000);
-			expect(embedResult.code).toBe(0);
+		for (const embedId of piiEmbedIds) {
+			const embedResult = await runCli(apiUrl, ['embeds', 'show', embedId, '--json'], 20_000);
+			expect(embedResult.code, embedResult.stderr).toBe(0);
 			const embedContent = embedResult.stdout;
 			expect(embedContent).not.toContain(FAKE_KEY);
 			expect(embedContent).not.toContain(CSV_EMAIL);
