@@ -197,17 +197,20 @@
         return ideaText;
     }
 
-    async function restoreEmbedPreviewLinksForWriteMode(markdown: string): Promise<string> {
+    async function restoreEmbedPreviewLinksForWriteMode(markdown: string, chatId: string): Promise<string> {
         const refs = [...markdown.matchAll(/\[!\]\(embed:([^)]+)\)/g)].map((match) => match[1]).filter(Boolean);
         if (refs.length === 0) return markdown;
 
         try {
             const { embedStore } = await import('../services/embedStore');
+            const { computeSHA256 } = await import('../message_parsing/utils');
+            const chatEmbeds = await embedStore.getEmbedsByHashedChatId(await computeSHA256(chatId));
             let restored = markdown;
             for (const ref of Array.from(new Set(refs))) {
-                const embedId = await embedStore.resolveByRefDeep(ref);
+                const embedId = await embedStore.resolveByRefDeep(ref)
+                    ?? (refs.length === 1 && chatEmbeds.length === 1 ? chatEmbeds[0]?.embed_id ?? null : null);
                 if (!embedId) continue;
-                const storedEmbed = await embedStore.get(`embed:${embedId}`);
+                const storedEmbed = await embedStore.get(`embed:${embedId}`).catch(() => chatEmbeds.find((embed) => embed.embed_id === embedId));
                 const embedRecord = storedEmbed && typeof storedEmbed === 'object'
                     ? storedEmbed as Record<string, unknown>
                     : null;
@@ -9403,17 +9406,18 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         const decryptedMarkdown = await decryptDraftWithRetry(encryptedDraftMd, 'encrypted_draft_md');
                         if (decryptedMarkdown) {
                             if (!isCurrentDraftRestoreTarget()) return;
-                            const editableDraftMarkdown = extractPlainIdeaBucketText(decryptedMarkdown) ?? await restoreEmbedPreviewLinksForWriteMode(decryptedMarkdown);
+                            const editableDraftMarkdown = extractPlainIdeaBucketText(decryptedMarkdown) ?? await restoreEmbedPreviewLinksForWriteMode(decryptedMarkdown, draftRestoreChatId);
                             // Parse markdown to TipTap JSON for the editor
                             const draftContentJSON = parse_message(editableDraftMarkdown, 'write', { unifiedParsingEnabled: true });
+                            const hasMeaningfulDraftContent = hasMeaningfulTiptapContent(draftContentJSON);
                             appendDraftRestoreDiagnostic('parsed-md', {
                                 decryptedLength: decryptedMarkdown.length,
                                 editableLength: editableDraftMarkdown.length,
                                 restoredPlainIdeaBucketText: editableDraftMarkdown !== decryptedMarkdown,
-                                hasMeaningfulContent: hasMeaningfulTiptapContent(draftContentJSON),
+                                hasMeaningfulContent: hasMeaningfulDraftContent,
                             });
                             console.debug(`[ActiveChat] Successfully decrypted and parsed draft content for chat ${draftRestoreChatId}`);
-                            if (!hasMeaningfulTiptapContent(draftContentJSON) && shouldPreserveLiveEmbedOnlyDraft(draftRestoreChatId)) {
+                            if (!hasMeaningfulDraftContent && shouldPreserveLiveEmbedOnlyDraft(draftRestoreChatId)) {
                                 console.debug(`[ActiveChat] Preserving live draft for ${draftRestoreChatId}; decrypted draft parsed empty while upload is still finalizing`);
                                 return;
                             }
@@ -9430,7 +9434,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             runCurrentDraftRestoreSoon((ref) => {
                                 // Pass the decrypted and parsed TipTap JSON content
                                 ref.setDraftContent(draftRestoreChatId, draftContentJSON, draftVersion, false);
-                                if (plainTextFallback && ref.getTextContent().trim().length === 0) {
+                                if (!hasMeaningfulDraftContent && plainTextFallback && ref.getTextContent().trim().length === 0) {
                                     appendDraftRestoreDiagnostic('plain-text-fallback', {
                                         fallbackLength: plainTextFallback.length,
                                     });

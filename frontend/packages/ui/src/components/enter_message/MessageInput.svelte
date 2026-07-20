@@ -4703,9 +4703,14 @@
             return;
         }
 
-        editor.commands.clearContent(false);
         if (text.trim().length > 0) {
-            editor.commands.insertContent(text);
+            editor.commands.setContent({
+                type: 'doc',
+                content: text.split(/\r?\n/).map((line) => ({
+                    type: 'paragraph',
+                    content: line.length > 0 ? [{ type: 'text', text: line }] : [],
+                })),
+            }, { emitUpdate: false });
         } else {
             editor.commands.setContent(getInitialContent(), { emitUpdate: false });
         }
