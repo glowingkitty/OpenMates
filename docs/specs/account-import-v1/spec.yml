@@ -418,7 +418,7 @@ acceptance_criteria:
     status: pending
     coverage_status: covered
     verification_scope: custom
-    verification_ids: [T-PARSER-CHATGPT, T-CLI-PARSER-CHATGPT, T-CLI-CHATGPT-DEV, T-NPM-SDK-IMPORT, T-PIP-SDK-IMPORT, T-WEB-SERVICE-IMPORT]
+    verification_ids: [T-PARSER-CHATGPT, T-CLI-PARSER-CHATGPT, T-CLI-CHATGPT-DEV, T-CLIENT-CHATGPT-PARITY-DEV, T-NPM-SDK-IMPORT, T-PIP-SDK-IMPORT, T-WEB-SERVICE-IMPORT, T-WEB-IMPORT]
   - id: AC-3
     scenario: S-3
     text: Accounts without credits can import at most 3 chats per rolling 30 days across all import sources and cannot go into negative credits/debt.
@@ -760,6 +760,19 @@ tests:
       - generated synthetic ZIP fixtures are written under /tmp/opencode and deleted after verification
     red_phase: { required: true, expected: fail, evidence: { status: failed_as_expected, command: "python3 scripts/verify_account_import_cli.py --env dev --scenario chatgpt-import", run_id: "local-2026-07-20T13:54Z", timestamp: "2026-07-20T13:54:00Z", reason: "Initial verifier build failed because AccountImportPreviewRequest.source still excluded chatgpt from the CLI client type." } }
     green_phase: { required: true, expected: pass_against_dev, evidence: { status: passed, command: "python3 scripts/verify_account_import_cli.py --env dev --scenario chatgpt-import", run_id: "local-2026-07-20T14:00:34Z", subject_commit: "working-tree@2026-07-20-chatgpt-import", target: api.dev.openmates.org, timestamp: "2026-07-20T14:00:34Z", notes: "Verifier output reported status passed, api_url https://api.dev.openmates.org, scenario chatgpt-import passed, and selected/imported exactly 3 synthetic chats. Temporary ZIP workdir account-import-cli-5m6fu__m was deleted after the run; script now auto-cleans temp workdirs by default." } }
+  - id: T-CLIENT-CHATGPT-PARITY-DEV
+    type: manual
+    file: scripts/verify_account_import_cli.py
+    command: python3 scripts/verify_account_import_cli.py --env dev --scenario all
+    target: api.dev.openmates.org
+    covers: [AC-7, AC-10]
+    assertions:
+      - real CLI imports exactly 3 synthetic ChatGPT chats against api.dev.openmates.org
+      - npm SDK imports exactly 3 synthetic ChatGPT chats through the same Account Import V1 endpoint sequence
+      - pip SDK imports exactly 3 synthetic ChatGPT chats through the same Account Import V1 endpoint sequence
+      - all three clients complete encrypted persistence and import completion without retaining generated ZIP fixtures
+    red_phase: { required: false, expected: fail_or_not_run, evidence: { status: failed_as_expected, command: "python3 scripts/verify_account_import_cli.py --env dev --scenario all", run_id: "local-2026-07-20T14:32Z", timestamp: "2026-07-20T14:32:00Z", reason: "Initial SDK parity verifier attempt failed before npm/pip execution because API-key creation output was invoked without --json; a transient verifier API key was revoked before rerun." } }
+    green_phase: { required: true, expected: pass_against_dev, evidence: { status: passed, command: "python3 scripts/verify_account_import_cli.py --env dev --scenario all", run_id: "local-2026-07-20T14:37Z", subject_commit: "working-tree@c658e4ed", target: api.dev.openmates.org, timestamp: "2026-07-20T14:37:00Z", notes: "Output reported status passed for claude-import, chatgpt-import, npm-sdk-chatgpt-import, pip-sdk-chatgpt-import, openmates-v1-import, and limits-and-costs. The generated work dir /tmp/opencode/account-import-cli-klbl2z3b was deleted and the disposable verifier API key was revoked." } }
   - id: T-DAILY-IMPORT-WIRING
     type: lint
     file: scripts/run_tests.py
@@ -824,11 +837,11 @@ tests:
     target: app.dev.openmates.org
     covers: [AC-2, AC-8, AC-9]
     assertions:
-      - web imports Claude and OpenMates V1 fixtures through shared flow
+      - web imports Claude, ChatGPT, and OpenMates V1 fixtures through shared flow
       - UI reports skipped unsupported OpenMates domains
       - imported chat opens and displays decrypted content after sync
     red_phase: { required: false, expected: fail_or_not_run, evidence: { status: not_run, run_id: "", timestamp: "", reason: "Web Playwright red phase was superseded by earlier CLI/SDK and service-test gates; deployed web evidence was collected after implementation reached app.dev.openmates.org." } }
-    green_phase: { required: true, expected: pass_after_deploy, evidence: { status: passed, command: "OPENMATES_SKIP_VERCEL_WAIT=true python3 scripts/tests.py run --spec import-account-v1.spec.ts", run_id: "2026-07-19T00:53:13Z / gha-29667735277", subject_commit: "app.dev.openmates.org@c16997acf; test runner 8beb545b2", target: app.dev.openmates.org, deployment_reference: "Vercel dpl_7buC3Dp6aotviKu1LUTZW3ZLErh7 READY for c16997acf", timestamp: "2026-07-19T00:56:55Z", notes: "Vercel was already READY for Account Import app commit c16997acf; skip wait used because later commits were test-only and did not create a new app deployment." } }
+    green_phase: { required: true, expected: pass_after_deploy, evidence: { status: passed, command: "OPENMATES_SKIP_VERCEL_WAIT=true python3 scripts/tests.py run --spec import-account-v1.spec.ts", run_id: "2026-07-20T14:53:05Z / gha-29752801309", subject_commit: "app.dev.openmates.org@c658e4ed; test runner 0d1bb216c", target: app.dev.openmates.org, deployment_reference: "Vercel dpl_8G4XLV9jXDTg8YZ1RXixgb3A5FdJ READY for c658e4ed", timestamp: "2026-07-20T14:57:38Z", notes: "Spec now includes the ChatGPT ZIP web import case. An earlier run at 2026-07-20T14:45:55Z failed only because the new assertion expected chat count text while the UI reported the correct '2 messages imported' result; after deploying 0d1bb216c the rerun passed." } }
   - id: T-WEB-LIMITS
     type: playwright
     file: frontend/apps/web_app/tests/import-account-limits.spec.ts
@@ -1222,8 +1235,8 @@ tasks:
       - packages/openmates-python/openmates/sdk.py
       - packages/openmates-python/tests/test_account_import.py
       - scripts/verify_account_import_cli.py
-    verification: [T-PARSER-CHATGPT, T-CLI-PARSER-CHATGPT, T-CLI-CHATGPT-DEV, T-NPM-SDK-IMPORT, T-PIP-SDK-IMPORT, T-WEB-SERVICE-IMPORT]
-    verification_ids: [T-PARSER-CHATGPT, T-CLI-PARSER-CHATGPT, T-CLI-CHATGPT-DEV, T-NPM-SDK-IMPORT, T-PIP-SDK-IMPORT, T-WEB-SERVICE-IMPORT]
+    verification: [T-PARSER-CHATGPT, T-CLI-PARSER-CHATGPT, T-CLI-CHATGPT-DEV, T-CLIENT-CHATGPT-PARITY-DEV, T-NPM-SDK-IMPORT, T-PIP-SDK-IMPORT, T-WEB-SERVICE-IMPORT, T-WEB-IMPORT]
+    verification_ids: [T-PARSER-CHATGPT, T-CLI-PARSER-CHATGPT, T-CLI-CHATGPT-DEV, T-CLIENT-CHATGPT-PARITY-DEV, T-NPM-SDK-IMPORT, T-PIP-SDK-IMPORT, T-WEB-SERVICE-IMPORT, T-WEB-IMPORT]
     dependencies: [TASK-7]
     ownership:
       files:
