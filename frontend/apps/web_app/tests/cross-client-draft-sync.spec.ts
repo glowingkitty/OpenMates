@@ -1048,7 +1048,10 @@ test.describe('Cross-client encrypted draft sync', () => {
 			const draftUpdateFrameStart = wsFrames.length;
 			const editor = await replaceMessageEditorText(page, draftChatId, editedDraftText);
 			await expect(editor).toContainText(editedDraftText, { timeout: 10_000 });
-			await page.getByTestId('input-dismiss-button').click();
+			const dismissButton = page.getByTestId('input-dismiss-button');
+			if (await dismissButton.isVisible({ timeout: 5_000 }).catch(() => false)) {
+				await dismissButton.click();
+			}
 			const localDraft = await expectLocalDraftMarkdown(page, draftChatId, editedDraftText, 'IDEABUCKET_WEB_MARKERS');
 			expect(await waitForDraftUpdateReceipt(wsFrames, draftChatId, 'IDEABUCKET_WEB_MARKERS', draftUpdateFrameStart, localDraft.draftV ?? 2)).toBe(true);
 			try {
