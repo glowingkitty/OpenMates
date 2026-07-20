@@ -25,6 +25,7 @@ SKIP_FIELD_NAMES = {
     "favicon",
     "hash",
     "id",
+    "s3_key",
     "place_id",
     "practice_url",
     "booking_url",

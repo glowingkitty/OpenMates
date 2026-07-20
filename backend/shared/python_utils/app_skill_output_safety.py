@@ -188,7 +188,7 @@ async def sanitize_app_skill_output(
             task_id=f"app_skill_output_{context.app_id}_{context.skill_id}",
             secrets_manager=context.secrets_manager,
             cache_service=context.cache_service,
-            min_chars=1,
+            min_chars=120,
             max_parallel=4,
             always_sanitize_field_names=ALWAYS_SEMANTIC_FIELD_NAMES,
         )

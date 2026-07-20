@@ -58,7 +58,7 @@ class TestKeyNameForPath:
 class TestShouldSanitizeField:
     def test_skip_url_fields(self):
         """Fields in SKIP_FIELD_NAMES should never be sanitized."""
-        for field in ["url", "image_url", "thumbnail", "favicon", "hash", "id",
+        for field in ["url", "image_url", "thumbnail", "favicon", "hash", "id", "s3_key",
                        "place_id", "phone_number", "datetime"]:
             assert _should_sanitize_field(field, "x" * 200, min_chars=120) is False
 
@@ -183,6 +183,28 @@ class TestCollectStringFields:
         )
 
         assert collected == [("title", "Short title"), ("comments[0].body", "short but hostile")]
+
+    def test_overrides_skip_audio_metadata_but_collect_transcript(self):
+        payload = {
+            "results": [
+                {
+                    "type": "transcription_result",
+                    "s3_key": "user/hash/20260720_155114_original.bin",
+                    "model": "voxtral-mini-2602",
+                    "transcript": "short user speech",
+                }
+            ]
+        }
+        collected = []
+        _collect_string_fields_with_overrides(
+            payload,
+            "",
+            min_chars=120,
+            collected=collected,
+            always_sanitize_field_names={"transcript"},
+        )
+
+        assert collected == [("results[0].transcript", "short user speech")]
 
 
 # ===========================================================================

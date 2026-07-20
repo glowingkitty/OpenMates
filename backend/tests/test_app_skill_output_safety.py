@@ -119,6 +119,34 @@ async def test_workflow_surface_ignores_prompt_injection_opt_out(monkeypatch: py
 
 
 @pytest.mark.anyio
+async def test_external_output_scans_semantic_fields_without_forcing_all_metadata(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[dict[str, Any]] = []
+
+    async def fake_semantic_sanitizer(**kwargs: Any) -> Any:
+        calls.append(kwargs)
+        return kwargs["payload"]
+
+    monkeypatch.setattr(app_skill_output_safety, "sanitize_long_text_fields_in_payload", fake_semantic_sanitizer)
+
+    await sanitize_app_skill_output(
+        {"results": [{"type": "transcription_result", "transcript": "short user speech"}]},
+        AppSkillOutputSafetyContext(
+            app_id="audio",
+            skill_id="transcribe",
+            surface=APP_SKILL_SURFACE_REST,
+            external_data=True,
+            request_body={},
+        ),
+    )
+
+    assert calls
+    assert calls[0]["min_chars"] == 120
+    assert "transcript" in calls[0]["always_sanitize_field_names"]
+
+
+@pytest.mark.anyio
 async def test_non_external_output_skips_semantic_scan_and_preserves_binary_fields(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
