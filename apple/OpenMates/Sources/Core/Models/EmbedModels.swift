@@ -620,6 +620,7 @@ enum EmbedType: String, CaseIterable {
     case codeRepo = "code-repo"
     case codeCode = "code-code"
     case codeApplication = "code-application"
+    case designIconResult = "design-icon-result"
     case docsDoc = "docs-doc"
     case diagramsMermaid = "diagrams-mermaid"
     case mindmapsMindmap = "mindmaps-mindmap"
@@ -632,10 +633,13 @@ enum EmbedType: String, CaseIterable {
     case maps
     case mathPlot = "math-plot"
     case pdf
+    case models3dModelResult = "models3d-model-result"
     case sheetsSheet = "sheets-sheet"
     case focusModeActivation = "focus-mode-activation"
     case socialMediaPost = "social-media-post"
+    case tasksTask = "tasks-task"
     case weatherDay = "weather-day"
+    case workflowsWorkflow = "workflows-workflow"
     case businessCompanyFinancialResult = "business-company-financial-result"
 
     // Composite search embeds
@@ -644,6 +648,7 @@ enum EmbedType: String, CaseIterable {
     case calendarCreateEvent = "app:calendar:create-event"
     case calendarUpdateEvent = "app:calendar:update-event"
     case calendarDeleteEvent = "app:calendar:delete-event"
+    case designSearchIcons = "app:design:search_icons"
     case electronicsSearch = "app:electronics:search_components"
     case eventsSearch = "app:events:search"
     case eventsEvent = "events-event"
@@ -659,6 +664,8 @@ enum EmbedType: String, CaseIterable {
     case mapsSearch = "app:maps:search"
     case mapsPlace = "maps-place"
     case musicGenerate = "app:music:generate"
+    case models3dSearch = "app:models3d:search"
+    case models3dGenerate = "app:models3d:generate"
     case newsSearch = "app:news:search"
     case nutritionSearch = "app:nutrition:search_recipes"
     case nutritionRecipe = "nutrition-recipe"
@@ -693,6 +700,10 @@ enum EmbedType: String, CaseIterable {
     case reminderCancel = "app:reminder:cancel-reminder"
     case socialMediaGetPosts = "app:social_media:get-posts"
     case socialMediaSearch = "app:social_media:search"
+    case tasksCreate = "app:tasks:create"
+    case tasksSearch = "app:tasks:search"
+    case workflowsCreateOrModify = "app:workflows:create-or-modify"
+    case workflowsSearch = "app:workflows:search"
 
     static func normalized(rawValue: String) -> EmbedType? {
         switch rawValue {
@@ -705,13 +716,15 @@ enum EmbedType: String, CaseIterable {
 
     var isComposite: Bool {
         switch self {
-        case .codeRepoSearch, .electronicsSearch,
-             .businessCompanyFinancials, .eventsSearch, .healthSearch, .homeSearch, .imagesSearch,
-             .fitnessSearchLocations, .fitnessSearchClasses,
-             .mailSearch, .mapsSearch, .newsSearch, .nutritionSearch,
-             .shoppingSearch, .socialMediaGetPosts, .socialMediaSearch,
-             .travelConnections, .travelStays, .videosSearch, .weatherForecast,
-             .webSearch:
+        case .codeRepoSearch, .designSearchIcons, .electronicsSearch,
+              .businessCompanyFinancials, .eventsSearch, .healthSearch, .homeSearch, .imagesSearch,
+              .fitnessSearchLocations, .fitnessSearchClasses,
+              .models3dSearch,
+              .mailSearch, .mapsSearch, .newsSearch, .nutritionSearch,
+              .shoppingSearch, .socialMediaGetPosts, .socialMediaSearch,
+              .tasksCreate, .tasksSearch,
+              .travelConnections, .travelStays, .videosSearch, .weatherForecast,
+              .webSearch, .workflowsCreateOrModify, .workflowsSearch:
             return true
         default:
             return false
@@ -722,6 +735,7 @@ enum EmbedType: String, CaseIterable {
         switch self {
         case .codeRepoSearch: return .codeRepo
         case .businessCompanyFinancials: return .businessCompanyFinancialResult
+        case .designSearchIcons: return .designIconResult
         case .electronicsSearch: return .electronicsComponent
         case .eventsSearch: return .eventsEvent
         case .fitnessSearchLocations: return .fitnessLocation
@@ -730,15 +744,18 @@ enum EmbedType: String, CaseIterable {
         case .homeSearch: return .homeListing
         case .imagesSearch: return .imagesImageResult
         case .mapsSearch: return .mapsPlace
+        case .models3dSearch: return .models3dModelResult
         case .newsSearch: return .webWebsite
         case .nutritionSearch: return .nutritionRecipe
         case .shoppingSearch: return .shoppingProduct
         case .socialMediaGetPosts, .socialMediaSearch: return .socialMediaPost
+        case .tasksCreate, .tasksSearch: return .tasksTask
         case .travelConnections: return .travelConnection
         case .travelStays: return .travelStay
         case .videosSearch: return .videosVideo
         case .weatherForecast: return .weatherDay
         case .webSearch: return .webWebsite
+        case .workflowsCreateOrModify, .workflowsSearch: return .workflowsWorkflow
         default: return nil
         }
     }
@@ -748,6 +765,7 @@ enum EmbedType: String, CaseIterable {
         guard raw.hasPrefix("app:") else {
             switch self {
             case .codeRepo, .codeCode, .codeApplication: return "code"
+            case .designIconResult: return "design"
             case .docsDoc: return "docs"
             case .diagramsMermaid: return "diagrams"
             case .mindmapsMindmap: return "mindmaps"
@@ -758,6 +776,7 @@ enum EmbedType: String, CaseIterable {
             case .maps, .mapsPlace: return "maps"
             case .mailEmail: return "mail"
             case .mathPlot: return "math"
+            case .models3dModelResult: return "models3d"
             case .pdf: return "pdf"
             case .sheetsSheet: return "sheets"
             case .webWebsite: return "web"
@@ -770,8 +789,10 @@ enum EmbedType: String, CaseIterable {
             case .nutritionRecipe: return "nutrition"
             case .shoppingProduct: return "shopping"
             case .socialMediaPost: return "social_media"
+            case .tasksTask: return "tasks"
             case .travelConnection, .travelStay: return "travel"
             case .weatherDay: return "weather"
+            case .workflowsWorkflow: return "workflows"
             default: return nil
             }
         }
@@ -792,6 +813,8 @@ enum EmbedType: String, CaseIterable {
         case .codeCode: return "Code"
         case .codeApplication: return "Application"
         case .codeGetDocs: return "Docs"
+        case .designSearchIcons: return "Icon Search"
+        case .designIconResult: return "Icon"
         case .docsDoc: return "Document"
         case .diagramsMermaid: return "Diagram"
         case .mindmapsMindmap: return "Mind Map"
@@ -812,6 +835,9 @@ enum EmbedType: String, CaseIterable {
         case .mailEmail, .mailSearch: return "Email"
         case .mathPlot: return "Plot"
         case .mathCalculate: return "Calculate"
+        case .models3dSearch: return "3D Model Search"
+        case .models3dGenerate: return "Generated 3D Model"
+        case .models3dModelResult: return "3D Model"
         case .musicGenerate: return "Music"
         case .pdf: return "PDF"
         case .sheetsSheet: return "Sheet"
@@ -834,6 +860,9 @@ enum EmbedType: String, CaseIterable {
         case .socialMediaGetPosts: return "Posts"
         case .socialMediaSearch: return "Social Search"
         case .socialMediaPost: return "Post"
+        case .tasksCreate: return "Created Tasks"
+        case .tasksSearch: return "Task Search"
+        case .tasksTask: return "Task"
         case .travelConnections: return "Connections"
         case .travelConnection: return "Connection"
         case .travelStays: return "Stays"
@@ -845,6 +874,9 @@ enum EmbedType: String, CaseIterable {
         case .weatherForecast: return "Forecast"
         case .weatherRainRadar: return "Rain Radar"
         case .weatherDay: return "Weather"
+        case .workflowsCreateOrModify: return "Created Workflow"
+        case .workflowsSearch: return "Workflow Search"
+        case .workflowsWorkflow: return "Workflow"
         }
     }
 }
