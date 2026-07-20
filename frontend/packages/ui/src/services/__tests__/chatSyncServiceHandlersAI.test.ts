@@ -10,6 +10,7 @@ import {
   handleAIBackgroundResponseCompletedImpl,
   handleAITypingStartedImpl,
   handleEmbedUpdateImpl,
+  handleSendEmbedDataImpl,
 } from "../chatSyncServiceHandlersAI";
 
 const mockChatDB = vi.hoisted(() => ({
@@ -22,6 +23,8 @@ const mockChatDB = vi.hoisted(() => ({
 const mockEmbedStore = vi.hoisted(() => ({
   get: vi.fn(),
   put: vi.fn(),
+  putEncrypted: vi.fn(),
+  storeEmbedKeys: vi.fn(),
   removeFromMemoryCache: vi.fn(),
 }));
 
@@ -380,6 +383,78 @@ describe("handleEmbedUpdateImpl", () => {
           embed_id: "embed-1",
           status: "finished",
           isWaitingForContent: true,
+        }),
+      }),
+    );
+  });
+});
+
+describe("handleSendEmbedDataImpl", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("stores already-encrypted Directus fallback embeds without waiting for raw chat keys", async () => {
+    const hashedChatId = "a".repeat(64);
+    const hashedMessageId = "b".repeat(64);
+    const service = {
+      dispatchEvent: vi.fn(),
+    } as unknown as ChatSynchronizationService;
+
+    await handleSendEmbedDataImpl(service, {
+      type: "send_embed_data",
+      event_for_client: "send_embed_data",
+      payload: {
+        embed_id: "embed-directus-fallback",
+        type: "encrypted-recording-type",
+        content: "encrypted-recording-content",
+        text_preview: "encrypted-preview",
+        status: "finished",
+        chat_id: hashedChatId,
+        message_id: hashedMessageId,
+        user_id: "user-1",
+        createdAt: 123,
+        updatedAt: 124,
+        already_encrypted: true,
+        embed_keys: [
+          {
+            hashed_embed_id: "hashed-embed",
+            key_type: "chat",
+            hashed_chat_id: hashedChatId,
+            encrypted_embed_key: "wrapped-key",
+            hashed_user_id: "hashed-user",
+            created_at: 123,
+          },
+        ],
+      },
+    } as unknown as Parameters<typeof handleSendEmbedDataImpl>[1]);
+
+    expect(mockChatDB.getChat).not.toHaveBeenCalled();
+    expect(mockChatKeyManager.getKeySync).not.toHaveBeenCalled();
+    expect(mockEmbedStore.storeEmbedKeys).toHaveBeenCalledWith([
+      expect.objectContaining({
+        hashed_embed_id: "hashed-embed",
+        hashed_chat_id: hashedChatId,
+        encrypted_embed_key: "wrapped-key",
+      }),
+    ]);
+    expect(mockEmbedStore.putEncrypted).toHaveBeenCalledWith(
+      "embed:embed-directus-fallback",
+      expect.objectContaining({
+        embed_id: "embed-directus-fallback",
+        encrypted_content: "encrypted-recording-content",
+        hashed_chat_id: hashedChatId,
+        hashed_message_id: hashedMessageId,
+      }),
+      "encrypted-recording-type",
+    );
+    expect(service.dispatchEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "embedUpdated",
+        detail: expect.objectContaining({
+          embed_id: "embed-directus-fallback",
+          status: "finished",
+          isProcessing: false,
         }),
       }),
     );

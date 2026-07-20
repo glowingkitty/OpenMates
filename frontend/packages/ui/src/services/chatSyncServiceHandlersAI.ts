@@ -149,6 +149,7 @@ const pendingFinalizedEmbedFlushTimersByChat = new Map<
 >();
 const PENDING_FINALIZED_EMBED_RETRY_MS = 2000;
 const PENDING_FINALIZED_EMBED_TTL_MS = 120000;
+const SHA256_HEX_RE = /^[a-f0-9]{64}$/i;
 
 function queuePendingFinalizedEmbed(
   serviceInstance: ChatSynchronizationService,
@@ -3633,7 +3634,10 @@ export async function handleSendEmbedDataImpl(
       // Background WebSocket events can arrive before this tab has created the
       // chat shell or before key delivery has warmed ChatKeyManager. Queue the
       // plaintext payload until it can be safely encrypted with the real chat key.
-      if (embedData.chat_id) {
+      const alreadyEncrypted =
+        (embedData as unknown as Record<string, unknown>).already_encrypted ===
+        true;
+      if (!alreadyEncrypted && embedData.chat_id) {
         if (!(await chatDB.getChat(embedData.chat_id))) {
           if (
             queuePendingFinalizedEmbed(
@@ -3724,9 +3728,6 @@ export async function handleSendEmbedDataImpl(
       // is sending back client-encrypted data from Directus (e.g., when the cache had stale
       // "processing" status but Directus had the finished embed). In this case, store directly
       // in IndexedDB without re-encryption and do NOT send back to server (it's already there).
-      const alreadyEncrypted =
-        (embedData as unknown as Record<string, unknown>).already_encrypted ===
-        true;
       if (alreadyEncrypted) {
         console.info(
           `[ChatSyncService:AI] Embed ${embedData.embed_id} arrived with already_encrypted=true - storing directly without re-encryption`,
@@ -3735,7 +3736,18 @@ export async function handleSendEmbedDataImpl(
         const { embedStore } = await import("./embedStore");
         const { computeSHA256 } = await import("../message_parsing/utils");
         const embedRef = `embed:${embedData.embed_id}`;
-        const hashedChatId = await computeSHA256(embedData.chat_id || "");
+        const rawChatId = embedData.chat_id || "";
+        const rawMessageId = embedData.message_id || "";
+        const hashedChatId = rawChatId
+          ? SHA256_HEX_RE.test(rawChatId)
+            ? rawChatId.toLowerCase()
+            : await computeSHA256(rawChatId)
+          : undefined;
+        const hashedMessageId = rawMessageId
+          ? SHA256_HEX_RE.test(rawMessageId)
+            ? rawMessageId.toLowerCase()
+            : await computeSHA256(rawMessageId)
+          : undefined;
 
         // Safety net: If the server included embed_keys (from request_embed handler),
         // store them in IndexedDB so the client can later unwrap the embed key
@@ -3781,6 +3793,7 @@ export async function handleSendEmbedDataImpl(
           encrypted_text_preview: embedData.text_preview,
           status: embedData.status,
           hashed_chat_id: hashedChatId,
+          hashed_message_id: hashedMessageId,
           embed_ids: embedData.embed_ids,
           parent_embed_id: embedData.parent_embed_id,
           version_number: embedData.version_number,
