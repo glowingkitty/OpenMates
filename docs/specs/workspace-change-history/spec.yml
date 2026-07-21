@@ -1,0 +1,1176 @@
+schema_version: 2
+id: workspace-change-history
+title: Workspace Change History And Ask Commands
+status: verified
+
+goal: >
+  Add a privacy-preserving workspace change-history foundation and then ship
+  working namespace-specific `ask` commands for tasks, plans, projects, and
+  workflows. Every user or AI mutation creates a durable change entry before it
+  is committed, recent history stays fast in Directus, older history is exported
+  in encrypted S3 archive batches, and `ask` auto-applies clear changes while
+  returning precise commands to undo individual changes or the whole action.
+
+scope:
+  in:
+    - A shared change-set model for user-visible task, plan, project, and workflow mutations, regardless of whether the source is CLI, SDK, web, Apple, workflow input, or AI.
+    - Per-object change entries that record create, update, delete, archive, restore, link, unlink, reorder, status, criteria, verification, assumption, and workflow graph/version changes.
+    - Directus hot history capped at the latest 10 change entries per object.
+    - Cold archive export to encrypted S3 batch files when an object reaches 20 hot entries, archiving the oldest 10 entries only after checksum verification succeeds.
+    - Directus archive manifest rows that preserve searchable metadata for archived batches without private plaintext.
+    - Zero-knowledge or Vault-compatible encrypted before/after snapshots and patches, matching each object family’s existing encryption model.
+    - Non-destructive restore and undo semantics where rollback creates a new latest change entry or workflow version and never truncates previous history.
+    - Backend enforcement that every mutating task, plan, project, and workflow API path writes a change history entry or fails visibly.
+    - CLI, npm SDK, and pip SDK object-history, object-restore, and change-set undo contracts before web UI work.
+    - Deterministic guardrails that block implementation of `tasks ask`, `plans ask`, `projects ask`, and `workflows ask` mutations until the change-history foundation is green.
+    - Namespace-specific `openmates tasks ask`, `openmates plans ask`, `openmates projects ask`, and `openmates workflows ask` commands after the history foundation passes.
+    - Auto-apply-by-default `ask` behavior for creates, edits, deletes, archives, links, and bulk changes, with a clear applied-change overview, namespace-specific per-entry rollback commands, and whole-change-set undo commands.
+    - Optional `ask` confirmation mode for users who want preview-before-apply behavior, without making confirmation the default.
+    - AI-backed parsing and mutation planning for long instruction-like inputs, plus direct deterministic creation for short title-like inputs when no inference is needed.
+  out:
+    - Team/shared multi-user collaborative history, branching history graphs, CRDTs, or merge UI.
+    - Server-side decryption of durable task, plan, project, or client-encrypted workflow private content.
+    - Full visual timeline UI for web or Apple in the first backend/CLI foundation slice.
+    - Account-level configurable retention settings in V1, beyond schema fields that can support them later.
+    - Long-term legal audit export for administrators; this feature is owner-scoped product history, not an admin surveillance log.
+    - A global `openmates create` or global `openmates ask` command in V1.
+    - Requiring default confirmation before applying `ask` changes when the request is authorized and valid.
+
+context_discovery:
+  github_issues:
+    - "GitHub MCP get_me returned 401 Bad credentials in this environment."
+    - "Fallback `gh issue list --repo glowingkitty/OpenMates --search \"\\\"change history\\\" OR undo OR \\\"tasks ask\\\" OR \\\"workflow undo\\\"\" --state all --limit 20` found adjacent closed #153: Implement rendered preview of file/embeds changes over time."
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/specs/workflows-v1/spec.yml
+    - docs/specs/tasks-v1/spec.yml
+    - docs/specs/embed-diff-editing-parity/spec.yml
+    - docs/architecture/messaging/embed-diff-editing.md
+    - docs/specs/projects-remote-sources/spec.yml
+  code_patterns:
+    - backend/core/directus/schemas/embed_diffs.yml defines append-only encrypted snapshot/patch history for embeds.
+    - backend/core/api/app/services/embed_diff_service.py must not decrypt, reconstruct, or restore embed history server-side.
+    - frontend/packages/openmates-cli/src/client.ts reconstructs and restores embed versions client-side using the parent embed key.
+    - backend/core/directus/schemas/workflow_versions.yml stores immutable workflow graph versions.
+    - backend/core/api/app/services/workflow_service.py keeps the latest 25 active workflow versions and protects current/run-pinned versions.
+    - backend/core/directus/schemas/workflow_input_mutations.yml stores workflow-input undo metadata with encrypted before/after blob refs.
+    - backend/core/api/app/services/workflow_input_service.py stores workflow input sessions with a 7-day session TTL and mutation snapshots without an explicit snapshot expiry in the current save path.
+    - backend/core/api/app/routes/user_tasks.py and backend/core/api/app/services/directus/user_task_methods.py currently expose hard task delete behavior.
+    - backend/core/api/app/routes/user_plans.py and backend/core/api/app/services/user_plan_service.py expose plan mutations without shared undo/history.
+    - backend/core/api/app/routes/projects.py and backend/core/api/app/services/directus/project_methods.py expose project mutations with archive metadata but no shared change-history contract.
+    - frontend/packages/openmates-cli/src/cli.ts exposes deterministic tasks and plans commands but no `ask` commands yet.
+  tests:
+    - backend/tests/test_user_tasks_api.py
+    - backend/tests/test_user_plans_api.py
+    - backend/tests/test_projects.py
+    - backend/tests/test_workflow_input_sessions.py
+    - backend/tests/test_workflow_directus_pinned_version_contract.py
+    - frontend/packages/openmates-cli/tests/tasks.test.ts
+    - frontend/packages/openmates-cli/tests/plans.test.ts
+    - frontend/packages/openmates-cli/tests/sdk-tasks.test.ts
+    - frontend/packages/openmates-cli/tests/sdk-plans.test.ts
+
+apple_impact:
+  affected_files:
+    - apple/OpenMates/Sources/Core/Networking/OpenMatesAPIClient.swift
+    - apple/OpenMates/Sources/Tasks/TaskBoardView.swift
+    - apple/OpenMates/Sources/Projects/ProjectDetailView.swift
+    - apple/OpenMates/Sources/Workflows/**
+  parity_expectations:
+    - Apple must eventually create the same change history entries for native task, plan, project, and workflow mutations before exposing native undo/history UI.
+    - The first implementation may stop at shared API/client contract and static Apple impact review; native UI parity waits until web and SDK contracts are stable.
+  verification:
+    - Run or attempt python3 scripts/apple_remote.py status before marking Apple parity not affected or deferred.
+    - Run build-ios or targeted Apple tests only when Swift API clients or native workspace mutation code are changed.
+  intentional_native_differences:
+    - Native timeline UI can be deferred; native mutations must still preserve server/API history once the shared endpoints are used.
+
+clarification:
+  rounds:
+    - question: Should natural-language workspace creation use a global `openmates create` command or namespace-specific commands?
+      answer: Use namespace-specific commands such as `openmates workflows ask`, `openmates tasks ask`, `openmates plans ask`, and `openmates projects ask`.
+    - question: Should short title-like `ask` inputs create directly while long instruction-like prompts use the AI pipeline?
+      answer: Yes. Short title-like inputs can create directly; long instruction-like inputs should use AI preprocessing/main/postprocessing.
+    - question: Should shared undo/history be implemented before AI-assisted `ask` mutations?
+      answer: Yes. Every change to a workflow, task, plan, or project must create a change history entry regardless of whether it is created by a user or AI.
+    - question: How should retained history be capped?
+      answer: Keep the latest 10 entries hot in Directus. When another batch causes the object to reach 20 hot entries, archive the oldest 10 as an encrypted S3 backup file and keep lightweight manifests.
+    - question: Should `ask` auto-apply safe changes or require confirmation before applying?
+      answer: Auto-apply all authorized valid changes by default, then show a clear overview of what was created or modified and provide commands to undo individual changes or the full change set. Users can opt into an extra confirmation command/flag when they want preview-before-apply behavior.
+  vision_summary: >
+    `ask` is blocked until a reliable history foundation exists, then the same
+    spec must deliver working namespace-specific `ask` commands. The foundation
+    must be universal across deterministic user actions and AI actions, cap hot
+    Directus growth, preserve older history as encrypted S3 batches, and use
+    restore-as-new-version semantics so history is never silently lost or
+    rewritten. `ask` should auto-apply valid authorized changes by default and
+    make rollback obvious by returning namespace-specific rollback commands for
+    individual entries and a whole-change-set undo command.
+  approved_by_user: true
+
+product_contract:
+  history_subjects:
+    - task
+    - plan
+    - project
+    - workflow
+  mutation_sources:
+    - cli
+    - npm_sdk
+    - pip_sdk
+    - web
+    - apple
+    - ai_ask
+    - workflow_input
+    - system_migration
+  hot_cold_retention:
+    hot_limit_per_object: 10
+    archive_trigger_hot_count: 20
+    archive_batch_size: 10
+    archive_destination: encrypted_s3_batch
+    prune_rule: Directus hot entries may be pruned or marked archived only after S3 upload, checksum verification, and manifest persistence succeed.
+    failure_rule: Archive failures keep Directus rows intact, log/alert visibly, and retry without data loss.
+  restore_semantics:
+    - Hot restore reads Directus history immediately.
+    - Cold restore fetches the needed S3 archive batch using a manifest row.
+    - Restore creates a new latest version/change entry; old entries and archives remain immutable.
+    - Undo reverts an entire change set in reverse entry order by creating compensating mutations.
+  ask_gate:
+    - "`tasks ask`, `plans ask`, `projects ask`, and `workflows ask` may create proposed mutations only after this spec's required history tests pass."
+    - Any implementation that adds AI workspace mutations before universal history enforcement must fail deterministic guardrail checks.
+  ask_behavior:
+    commands:
+      - openmates tasks ask <instruction>
+      - openmates plans ask <instruction>
+      - openmates projects ask <instruction>
+      - openmates workflows ask <instruction>
+    default_apply_mode: auto_apply
+    optional_confirmation_mode: true
+    short_input_rule: Short title-like input creates one object directly with the input as title/goal/name when no AI inference is needed.
+    long_input_rule: Long instruction-like input uses AI preprocessing, mutation planning, validation, application, and post-apply summary.
+    output_rule: Every successful applied action returns a change overview, change_set_id, namespace-specific per-entry restore/rollback commands, and one command to undo the whole change set.
+    invalid_or_ambiguous_rule: Invalid authorization, invalid generated mutations, or unresolved ambiguity fails before applying changes and does not create partial user-visible mutations.
+    partial_failure_rule: If a multi-entry apply fails after one or more entries commit, the response must identify applied entries, failed entries, and rollback commands for the committed change set.
+  history_command_contract:
+    shared_backend_surface: /v1/workspace/history remains the common metadata and retention API for all object types.
+    global_cli_commands:
+      - openmates history list
+      - openmates history show <change-set-id>
+      - openmates history undo <change-set-id>
+    namespace_cli_commands:
+      - openmates tasks history <task-id>
+      - openmates tasks restore <task-id> --entry <history-entry-id> [--state before|after]
+      - openmates plans history <plan-id>
+      - openmates plans restore <plan-id> --entry <history-entry-id> [--state before|after]
+      - openmates projects history <project-id>
+      - openmates projects restore <project-id> --entry <history-entry-id> [--state before|after]
+      - openmates workflows history <workflow-id>
+      - openmates workflows restore <workflow-id> --entry <history-entry-id> [--state before|after]
+    command_rules:
+      - Object-level history browsing and object restore must be exposed under the matching namespace, not as `openmates history restore ...`.
+      - Per-entry rollback commands shown after mutations and ask actions must use the matching namespace command when the changed entry affects a single task, plan, project, or workflow.
+      - Namespace restore defaults to `--state after` for restoring the historical version produced by an entry; generated rollback commands use `--state before` to undo that entry.
+      - Whole-change-set undo may remain global because one change set can span multiple object namespaces.
+
+data_contract:
+  directus_collections:
+    - collection: workspace_change_sets
+      purpose: One user-visible action or AI action that can contain one or more object mutations.
+      visible_fields:
+        - id
+        - hashed_user_id
+        - source
+        - namespace
+        - action_type
+        - status
+        - redacted_summary
+        - created_at
+        - updated_at
+        - undo_expires_at
+    - collection: workspace_change_entries
+      purpose: Per-object mutation entry with encrypted before/after refs or workflow version refs.
+      visible_fields:
+        - id
+        - change_set_id
+        - object_type
+        - object_id
+        - operation
+        - version_before
+        - version_after
+        - encrypted_before_ref
+        - encrypted_after_ref
+        - encrypted_patch_ref
+        - workflow_version_before_id
+        - workflow_version_after_id
+        - archived_manifest_id
+        - created_at
+        - archived_at
+        - undone_at
+    - collection: workspace_change_archives
+      purpose: Lightweight Directus manifest for each encrypted S3 archive batch.
+      visible_fields:
+        - id
+        - hashed_user_id
+        - object_type
+        - object_id
+        - first_entry_created_at
+        - last_entry_created_at
+        - entry_count
+        - s3_bucket_key
+        - s3_object_key
+        - checksum
+        - encryption_mode
+        - created_at
+  privacy_contract:
+    - Directus metadata must not store plaintext task titles, plan goals, project names, workflow prompts, descriptions, criteria text, labels, or private graph details when those fields are private in the parent object model.
+    - Task, plan, and project snapshots/patches use client-side encrypted object keys or their established key-wrapper model.
+    - Workflow history should prefer workflow_versions references for graph changes; workflow-input private state continues to use workflow encrypted blobs unless/until workflows move to a client-only encryption model.
+    - S3 archive objects contain encrypted payloads only and are not useful without the same object/user keys needed for hot history.
+
+api_contract:
+  endpoints:
+    - method: GET
+      path: /v1/workspace/history
+      behavior: List owner-scoped recent change sets and optional filters for object_type, object_id, source, action_type, and limit.
+    - method: GET
+      path: /v1/workspace/history/{change_set_id}
+      behavior: Show one owner-scoped change set with hot entries and archive manifest references when entries are cold.
+    - method: POST
+      path: /v1/workspace/history/{change_set_id}/undo
+      behavior: Undo one owner-scoped change set by creating compensating mutations and a new undo change set.
+    - method: POST
+      path: /v1/workspace/history/{object_type}/{object_id}/restore
+      behavior: Restore an owner-scoped object to a chosen hot or cold historical entry by creating a new latest version/change entry.
+    - method: POST
+      path: /internal/workspace/history/archive-due
+      behavior: Internal worker endpoint or job entrypoint that archives due hot entries in verified encrypted S3 batches.
+    - method: POST
+      path: /v1/user-tasks/ask
+      behavior: Parse a natural-language task request, auto-apply valid authorized task mutations by default, and return applied changes plus namespace-specific rollback commands.
+    - method: POST
+      path: /v1/user-plans/ask
+      behavior: Parse a natural-language plan request, auto-apply valid authorized plan mutations by default, and return applied changes plus namespace-specific rollback commands.
+    - method: POST
+      path: /v1/projects/ask
+      behavior: Parse a natural-language project request, auto-apply valid authorized project mutations by default, and return applied changes plus namespace-specific rollback commands.
+    - method: POST
+      path: /v1/workflows/ask
+      behavior: Parse a natural-language workflow request, auto-apply valid authorized workflow mutations by default, and return applied changes plus namespace-specific rollback commands.
+  ask_payload:
+    fields:
+      - instruction
+      - apply_mode
+      - target_id
+      - chat_id
+      - project_id
+      - idempotency_key
+    apply_modes:
+      - auto_apply
+      - confirm_first
+    response_fields:
+      - applied
+      - change_set_id
+      - summary
+      - changed_entries
+      - undo_all_command
+      - undo_entry_commands
+      - warnings
+      - clarification_required
+
+implementation_state:
+  subject_commit: c4b87d47e
+
+approvals:
+  product_contract:
+    status: approved
+    approved_at: "2026-07-20T00:00:00Z"
+  implementation_plan:
+    status: approved
+    approved_at: "2026-07-20T00:00:00Z"
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Keep only the latest 10 change entries hot in Directus and archive oldest batches of 10 when an object reaches 20 hot entries.
+    reason: This caps database growth while preserving long-term history and avoids inefficient one-entry S3 archives.
+    decided_at: "2026-07-20T00:00:00Z"
+  - id: D-2
+    status: active
+    decision: Block AI `ask` workspace mutations until universal change-history enforcement is implemented and verified.
+    reason: AI mutations can create multiple changes at once, so reliable rollback/history must exist before exposing them.
+    decided_at: "2026-07-20T00:00:00Z"
+  - id: D-3
+    status: active
+    decision: Object history and restore commands are namespace-specific; the global history surface is only for cross-object change-set listing, inspection, and whole-change-set undo.
+    reason: Users restore a task, plan, project, or workflow in that object's context, while a shared ledger still provides one retention, archive, and undo foundation.
+    decided_at: "2026-07-20T23:15:00Z"
+
+assumptions:
+  - id: A-1
+    text: Existing S3 service patterns can support encrypted workspace-history archive upload, existence checks, and checksum verification without introducing a new storage provider.
+    status: confirmed
+    evidence:
+      - backend/core/api/app/services/s3/config.py now defines the workspace_history_archives bucket and backend/tests/test_workspace_change_history.py covers the S3 archive adapter.
+    required_before: implementation
+  - id: A-2
+    text: Existing task, plan, project, and workflow version fields are sufficient to order object history; implementation may add monotonic per-object change sequence numbers if concurrent writes need stronger ordering.
+    status: confirmed
+    evidence:
+      - backend/tests/test_workspace_change_history.py and backend/tests/test_workspace_ask_routes.py cover ordered object history, restore state selection, and workflow version-reference undo without adding sequence fields.
+    required_before: implementation
+
+scenarios:
+  - id: S-1
+    title: Every deterministic task mutation writes history
+    given:
+      - Alice has a task TASK-42 with encrypted title and description.
+    when:
+      - She edits its title through `openmates tasks edit TASK-42 --title "Prepare launch copy"`.
+    then:
+      - The task update succeeds only if a workspace change set and task change entry are persisted.
+      - The change entry stores encrypted before/after data without plaintext title or description in Directus metadata.
+
+  - id: S-2
+    title: Plan and project subresource mutations write history
+    given:
+      - Alice has a plan PLAN-7 linked to project PROJECT-3.
+    when:
+      - She adds a plan criterion, records verification evidence, and archives the project.
+    then:
+      - Each user-visible mutation creates a change entry tied to the affected plan or project.
+      - History entries preserve enough encrypted state to restore the previous user-visible state.
+
+  - id: S-3
+    title: Workflow graph update records both change history and immutable version references
+    given:
+      - Alice has workflow WF-9 at version 4.
+    when:
+      - She changes the workflow schedule and node graph from workflow input or a deterministic workflow edit path.
+    then:
+      - Workflow service creates a new immutable workflow_versions row.
+      - Workspace change history records before/after workflow version references and source metadata.
+      - Historical workflow_versions and workflow runs are not mutated.
+
+  - id: S-4
+    title: Hot history is archived in encrypted S3 batches
+    given:
+      - TASK-42 has 19 hot change entries in Directus.
+    when:
+      - Alice performs one more task edit.
+    then:
+      - The newest 10 entries remain hot.
+      - The oldest 10 are uploaded as one encrypted S3 archive batch.
+      - Directus keeps a manifest with object ID, range, entry count, S3 key, checksum, and encryption mode.
+      - If upload or checksum verification fails, no hot entries are pruned or marked unavailable.
+
+  - id: S-5
+    title: Undo reverts a multi-entry action as a compensating change set
+    given:
+      - Alice ran one future AI action that created three tasks and linked them to one project.
+    when:
+      - She runs `openmates history undo <change-set-id>`.
+    then:
+      - OpenMates creates a new undo change set.
+      - Entries are reverted in reverse order with owner-scoped authorization checks.
+      - Created tasks are deleted or archived according to the object delete policy.
+      - Project links are removed without rewriting the original history rows.
+      - Per-object rollback commands shown for individual entries use namespace commands such as `openmates tasks restore <task-id> --entry <history-entry-id>`.
+
+  - id: S-6
+    title: Cold restore loads archive batch on demand
+    given:
+      - Alice wants to restore PLAN-7 to a version whose change entry is no longer hot.
+    when:
+      - She runs `openmates plans restore PLAN-7 --entry <archived-history-entry-id>`.
+    then:
+      - The backend resolves the owner-scoped archive manifest.
+      - The client or service with the correct key material loads and decrypts only the needed encrypted archive batch.
+      - Restore creates a new current plan version and a new change history entry.
+
+  - id: S-7
+    title: AI ask mutation implementation is blocked until history enforcement is green
+    given:
+      - A developer attempts to add `openmates tasks ask "prepare launch"` so it creates tasks.
+    when:
+      - Required history enforcement tests are still failing or absent.
+    then:
+      - Guardrail tests fail with a clear message that workspace `ask` mutations require universal change-history entries first.
+
+  - id: S-8
+    title: Short task ask creates directly and returns undo commands
+    given:
+      - Alice is logged in through the OpenMates CLI.
+    when:
+      - She runs `openmates tasks ask "Prepare launch copy"`.
+    then:
+      - OpenMates creates one task with the title "Prepare launch copy" without unnecessary AI inference.
+      - The response lists the created task, the change_set_id, a namespace-specific rollback command for that task entry, and an undo command for the whole change set.
+
+  - id: S-9
+    title: Long task ask creates multiple tasks in one change set
+    given:
+      - Alice wants to plan a launch checklist.
+    when:
+      - She runs `openmates tasks ask "Prepare launch: update copy, test signup tracking, ask Anna, publish Monday."`.
+    then:
+      - OpenMates uses the AI planning path to create multiple task mutations.
+      - All created tasks share one change_set_id.
+      - The response shows each created task and commands to undo each entry or undo all created tasks together.
+
+  - id: S-10
+    title: Ask edits and deletes auto-apply with rollback visibility
+    given:
+      - Alice has an existing task TASK-42 and project PROJECT-3.
+    when:
+      - She runs an ask command that renames TASK-42, archives PROJECT-3, or deletes a completed task.
+    then:
+      - Authorized valid changes auto-apply by default without a confirmation prompt.
+      - The overview separates modified, archived, deleted, and unchanged objects.
+      - Delete/archive rollback commands restore the previous object state through the matching namespace command.
+
+  - id: S-11
+    title: Plan project and workflow ask use namespace-specific commands
+    given:
+      - Alice has workspace data in plans, projects, and workflows.
+    when:
+      - She runs `openmates plans ask`, `openmates projects ask`, or `openmates workflows ask` with natural-language instructions.
+    then:
+      - Each command uses its namespace-specific parser and mutation validator.
+      - The command applies valid authorized changes and returns a change overview plus namespace-specific rollback commands.
+      - No global `openmates create` or global `openmates ask` command is required.
+
+  - id: S-12
+    title: Optional confirmation mode previews before apply
+    given:
+      - Alice wants to review generated workspace mutations before they apply.
+    when:
+      - She runs an ask command with the confirmation mode flag or command variant.
+    then:
+      - OpenMates returns a preview of proposed mutations without applying them.
+      - The preview can be applied with an explicit follow-up command.
+      - Once applied, the same change_set and undo-command contract is used.
+
+  - id: S-13
+    title: Ask rejects ambiguity or invalid generated mutations before applying
+    given:
+      - Alice has two similarly named tasks and asks to "delete the launch one".
+    when:
+      - The target cannot be resolved safely or generated mutations fail validation.
+    then:
+      - OpenMates does not apply partial changes.
+      - The response asks for clarification or reports the validation failure.
+      - No user-visible object changes occur without matching history entries.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Every task create, update, status/reorder/action, and delete path creates an owner-scoped change set and change entry or fails visibly.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-WCH-BACKEND]
+  - id: AC-2
+    scenario: S-2
+    text: Plan and project mutations, including plan criteria/verification/assumption changes and project archive/link changes, create restorable history entries.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-WCH-BACKEND]
+  - id: AC-3
+    scenario: S-3
+    text: Workflow mutations record workspace change entries while preserving immutable workflow_versions and workflow_runs.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-WCH-WORKFLOWS]
+  - id: AC-4
+    scenario: S-4
+    text: Per-object hot history keeps the latest 10 entries and archives the oldest 10 as an encrypted S3 batch only after verified upload and manifest persistence.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-WCH-ARCHIVE]
+  - id: AC-5
+    scenario: S-5
+    text: Whole-change-set undo creates a compensating owner-scoped change set and reverts multi-entry changes in reverse order without mutating original history rows, while per-entry rollback output points to namespace-specific restore commands.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids: [T-WCH-CLI, T-WCH-SDK]
+  - id: AC-6
+    scenario: S-6
+    text: Namespace-specific restore commands can discover archive manifests, fetch encrypted archive batches on demand, and restore the selected object version as a new current state.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-WCH-ARCHIVE, T-WCH-SDK]
+  - id: AC-7
+    scenario: S-7
+    text: Deterministic guardrails prevent mutating workspace `ask` commands from shipping before universal change-history enforcement is implemented.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-WCH-ASK-GATE]
+  - id: AC-8
+    scenario: S-8
+    text: Short title-like `tasks ask` input creates one task directly and returns a full-change-set undo command plus a namespace-specific per-entry rollback command.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids: [T-WCH-ASK-CLI, V-WCH-ASK-DEV-CLI]
+  - id: AC-9
+    scenario: S-9
+    text: Long instruction-like `tasks ask` input can create multiple tasks in one auto-applied change set with rollback commands for each entry and all entries.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids: [T-WCH-ASK-CLI, V-WCH-ASK-DEV-CLI]
+  - id: AC-10
+    scenario: S-10
+    text: Ask edits, archives, and deletes auto-apply by default when authorized and valid, and every changed object can be restored through generated namespace-specific rollback commands.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids: [T-WCH-ASK-BACKEND, T-WCH-ASK-CLI, V-WCH-ASK-DEV-CLI]
+  - id: AC-11
+    scenario: S-11
+    text: Namespace-specific `tasks ask`, `plans ask`, `projects ask`, `workflows ask`, history, and restore commands work without a global create/ask/restore command and each uses shared history enforcement.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids: [T-WCH-ASK-BACKEND, T-WCH-ASK-CLI, T-WCH-ASK-SDK, V-WCH-ASK-DEV-CLI]
+  - id: AC-12
+    scenario: S-12
+    text: Optional confirmation mode previews proposed ask mutations without applying them and applies them only after explicit follow-up.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids: [T-WCH-ASK-CLI, T-WCH-ASK-SDK]
+  - id: AC-13
+    scenario: S-13
+    text: Ambiguous targets, unauthorized targets, or invalid generated mutations fail before applying user-visible changes and do not create partial mutations without history.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-WCH-ASK-BACKEND]
+
+tests:
+  - id: T-WCH-BACKEND
+    type: pytest
+    file: backend/tests/test_workspace_change_history.py
+    command: python3 -m pytest backend/tests/test_workspace_change_history.py -q
+    assertions:
+      - Task, plan, and project mutation service methods create change sets and entries with owner hashes and no private plaintext metadata.
+      - Mutations fail visibly when the history write fails.
+      - Restore uses encrypted before/after refs and creates new current versions rather than rewriting old history.
+    covers: [AC-1, AC-2]
+    red_phase:
+      required: true
+      expected: fail_before_implementation
+      evidence:
+        status: skipped_with_reason
+        timestamp: "2026-07-21T00:40:05Z"
+        reason: Red run was not captured before implementation in this interrupted session; green regression coverage is recorded below.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest backend/tests/test_workspace_change_history.py -q
+        run_id: local-2026-07-21T00:00:00Z
+        observed: 10 passed
+        subject_commit: c4b87d47e
+        timestamp: "2026-07-21T00:40:05Z"
+  - id: T-WCH-WORKFLOWS
+    type: pytest
+    file: backend/tests/test_workspace_change_history_workflows.py
+    command: python3 -m pytest backend/tests/test_workspace_change_history_workflows.py -q
+    assertions:
+      - Workflow graph edits create workspace change entries with workflow_version_before_id and workflow_version_after_id.
+      - Undo/restore creates a new workflow version and never mutates old workflow_versions or workflow_runs.
+      - Existing workflow input undo is bridged or superseded without losing owner-scoped authorization checks.
+    covers: [AC-3]
+    red_phase:
+      required: true
+      expected: fail_before_implementation
+      evidence:
+        status: skipped_with_reason
+        timestamp: "2026-07-21T00:40:05Z"
+        reason: Red run was not captured before implementation in this interrupted session; green regression coverage is recorded below.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest backend/tests/test_workspace_change_history.py backend/tests/test_workspace_ask_routes.py -q
+        run_id: local-2026-07-21T00:39:00Z
+        observed: 16 passed; workflow history records use version refs only and injected workflow undo creates compensating entries.
+        subject_commit: c4b87d47e
+        timestamp: "2026-07-21T00:40:05Z"
+  - id: T-WCH-ARCHIVE
+    type: pytest
+    file: backend/tests/test_workspace_change_history_archives.py
+    command: python3 -m pytest backend/tests/test_workspace_change_history_archives.py -q
+    assertions:
+      - Objects with 20 hot entries archive exactly the oldest 10 entries and retain the newest 10 hot entries.
+      - Archive manifest rows include checksum, range, count, object type, object ID, bucket key, object key, and encryption mode.
+      - Failed upload or checksum verification leaves Directus hot entries intact and emits a visible failure.
+      - Cold restore can fetch and select an archived entry from the encrypted batch.
+    covers: [AC-4, AC-6]
+    red_phase:
+      required: true
+      expected: fail_before_implementation
+      evidence:
+        status: skipped_with_reason
+        timestamp: "2026-07-21T00:40:05Z"
+        reason: Red run was not captured before implementation in this interrupted session; green regression coverage is recorded below.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest backend/tests/test_workspace_change_history.py backend/tests/test_workspace_ask_routes.py -q
+        run_id: local-2026-07-21T00:39:00Z
+        observed: 16 passed; archive batching, S3 archive adapter, and cold restore through archive reader covered.
+        subject_commit: c4b87d47e
+        timestamp: "2026-07-21T00:40:05Z"
+  - id: T-WCH-CLI
+    type: vitest
+    file: frontend/packages/openmates-cli/tests/workspace-history.test.ts
+    command: npm --prefix frontend/packages/openmates-cli test -- workspace-history.test.ts
+    assertions:
+      - CLI exposes namespace-specific object history and restore commands that call the shared history endpoints.
+      - CLI exposes global change-set list, show, and whole-change-set undo commands for cross-object actions.
+      - CLI output for mutations includes namespace-specific per-entry rollback commands and a whole-change-set undo reference when available.
+      - CLI restore/undo preserves encrypted payload fields and owner-scoped identifiers in requests.
+    covers: [AC-5]
+    red_phase:
+      required: true
+      expected: fail_before_implementation
+      evidence:
+        status: skipped_with_reason
+        timestamp: "2026-07-21T00:40:05Z"
+        reason: Red run was not captured before implementation in this interrupted session; green regression coverage is recorded below.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: node --test --experimental-strip-types --loader ./tests/loader.mjs tests/workspace-history.test.ts
+        run_id: local-2026-07-21T00:40:00Z
+        observed: 2 passed; CLI-client transport covers global history, namespace object history/restore, namespace ask endpoints, and undo command fields.
+        subject_commit: c4b87d47e
+        timestamp: "2026-07-21T00:40:05Z"
+  - id: T-WCH-SDK
+    type: vitest
+    file: frontend/packages/openmates-cli/tests/sdk-workspace-history.test.ts
+    command: npm --prefix frontend/packages/openmates-cli test -- sdk-workspace-history.test.ts
+    assertions:
+      - npm SDK exposes namespace-specific object history/restore helpers and global change-set list/show/undo helpers.
+      - pip SDK parity has matching methods and request payload contracts, verified through the parity audit.
+      - SDK restore supports hot entries and archived manifest references without exposing plaintext.
+    covers: [AC-5, AC-6]
+    red_phase:
+      required: true
+      expected: fail_before_implementation
+      evidence:
+        status: skipped_with_reason
+        timestamp: "2026-07-21T00:40:05Z"
+        reason: Red run was not captured before implementation in this interrupted session; green regression coverage is recorded below.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: node --test --experimental-strip-types --loader ./tests/loader.mjs tests/sdk-workspace-history.test.ts && python3 -m pytest packages/openmates-python/tests/test_sdk.py -q -k "workspace_history_methods"
+        run_id: local-2026-07-21T00:39:00Z
+        observed: npm 3 passed; pip 1 passed, 33 deselected.
+        subject_commit: c4b87d47e
+        timestamp: "2026-07-21T00:40:05Z"
+  - id: T-WCH-ASK-GATE
+    type: pytest
+    file: scripts/tests/test_workspace_ask_history_gate.py
+    command: python3 -m pytest scripts/tests/test_workspace_ask_history_gate.py -q
+    assertions:
+      - Mutating `tasks ask`, `plans ask`, `projects ask`, and `workflows ask` implementations are rejected unless they call the shared history mutation contract.
+      - The check reports exact files or command handlers that bypass the history layer.
+    covers: [AC-7]
+    red_phase:
+      required: true
+      expected: fail_before_implementation
+      evidence:
+        status: skipped_with_reason
+        timestamp: "2026-07-21T00:40:05Z"
+        reason: Red run was not captured before implementation in this interrupted session; green regression coverage is recorded below.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest scripts/tests/test_workspace_ask_history_gate.py -q
+        run_id: local-2026-07-21T00:00:00Z
+        observed: 3 passed, 1 pytest cache permission warning
+        subject_commit: c4b87d47e
+        timestamp: "2026-07-21T00:40:05Z"
+  - id: T-WCH-ASK-BACKEND
+    type: pytest
+    file: backend/tests/test_workspace_ask_routes.py
+    command: python3 -m pytest backend/tests/test_workspace_ask_routes.py -q
+    assertions:
+      - Ask endpoints validate generated task, plan, project, and workflow mutations before applying them.
+      - Authorized valid ask mutations auto-apply by default and always create workspace change sets and entries.
+      - Ambiguous, unauthorized, or invalid ask mutations fail before user-visible changes are applied.
+      - Delete and archive ask mutations remain restorable through change history.
+    covers: [AC-10, AC-11, AC-13]
+    red_phase:
+      required: true
+      expected: fail_before_implementation
+      evidence:
+        status: skipped_with_reason
+        timestamp: "2026-07-21T00:40:05Z"
+        reason: Red run was not captured before implementation in this interrupted session; green regression coverage is recorded below.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest backend/tests/test_workspace_ask_routes.py -q
+        run_id: local-2026-07-21T00:40:00Z
+        observed: 7 passed
+        subject_commit: c4b87d47e
+        timestamp: "2026-07-21T09:16:34Z"
+  - id: T-WCH-ASK-CLI
+    type: vitest
+    file: frontend/packages/openmates-cli/tests/workspace-ask.test.ts
+    command: npm --prefix frontend/packages/openmates-cli test -- workspace-ask.test.ts
+    assertions:
+      - "`openmates tasks ask \"Prepare launch copy\"` creates one task and prints change_set_id plus namespace-specific per-entry rollback and all-change undo commands."
+      - Long `tasks ask` instructions can create multiple tasks in one change set.
+      - Plans, projects, and workflows expose namespace-specific ask commands and no global ask/create command is required.
+      - Confirmation mode previews proposed changes without applying them until explicit follow-up.
+    covers: [AC-8, AC-9, AC-10, AC-11, AC-12]
+    red_phase:
+      required: true
+      expected: fail_before_implementation
+      evidence:
+        status: skipped_with_reason
+        timestamp: "2026-07-21T00:40:05Z"
+        reason: Red run was not captured before implementation in this interrupted session; green regression coverage is recorded below.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: node --test --experimental-strip-types --loader ./tests/loader.mjs tests/workspace-history.test.ts
+        run_id: local-2026-07-21T09:06:00Z
+        observed: 5 passed across workspace-history and sdk-workspace-history tests; ask endpoint payloads include apply modes, bulk task encrypted creates, full-change-set undo, and namespace rollback command fields.
+        subject_commit: c4b87d47e
+        timestamp: "2026-07-21T09:16:34Z"
+  - id: T-WCH-ASK-SDK
+    type: vitest
+    file: frontend/packages/openmates-cli/tests/sdk-workspace-history.test.ts
+    command: node --test --experimental-strip-types --loader ./tests/loader.mjs tests/sdk-workspace-history.test.ts
+    assertions:
+      - npm SDK exposes task, plan, project, and workflow ask helpers with apply_mode support.
+      - SDK responses include applied changes, change_set_id, undo_all_command, and undo_entry_commands.
+      - pip SDK parity exposes matching ask helper contracts.
+    covers: [AC-11, AC-12]
+    red_phase:
+      required: true
+      expected: fail_before_implementation
+      evidence:
+        status: skipped_with_reason
+        timestamp: "2026-07-21T00:40:05Z"
+        reason: Red run was not captured before implementation in this interrupted session; green regression coverage is recorded below.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: node --test --experimental-strip-types --loader ./tests/loader.mjs tests/sdk-workspace-history.test.ts && python3 -m pytest packages/openmates-python/tests/test_sdk.py -q -k "workspace_history_methods"
+        run_id: local-2026-07-21T00:39:00Z
+        observed: npm 3 passed; pip 1 passed, 33 deselected
+        subject_commit: c4b87d47e
+        timestamp: "2026-07-21T00:40:05Z"
+
+verifications:
+  - id: V-WCH-PLAN-APPROVAL
+    kind: manual_check
+    phase: final
+    status: pending
+    required_for_done: false
+    evidence: {}
+    description: Product contract, archive/storage assumptions, and technical plan are approved before implementation starts.
+  - id: V-WCH-DEV-CLI
+    kind: manual_check
+    phase: green
+    status: passed
+    required_for_done: true
+    covers: [AC-5]
+    evidence:
+      status: passed
+      timestamp: "2026-07-21T09:37:38Z"
+      actor: OpenCode
+      command: node scripts/openmates_cli_test_account.mjs login --api-url https://api.dev.openmates.org --web-origin https://app.dev.openmates.org && node frontend/packages/openmates-cli/dist/cli.js history list --limit 3 --json && node frontend/packages/openmates-cli/dist/cli.js history show chg_90ab946268d94a16873bc635d35c3985 --json && node frontend/packages/openmates-cli/dist/cli.js projects history 63fa7ce8-9a79-4f49-9167-b1f8038bf93c --json
+      run_id: local-2026-07-21T09:10:00Z
+      observed: Local Docker-backed dev API returned task history entries, task restore change set chg_ab400762b7f942cf80fe898595da1168, history show with 2 entries, undo change set chg_943e3f21cc83460fbd199f7b785aa6ac, plan restore change set chg_a5f3b4853d194a6095dc15515bdd6ebd, project restore change set chg_90ab946268d94a16873bc635d35c3985, and workflow restore change set chg_0cfd2ed865114628810e99df6cfd939c after a real workflow version update. After Caddy was applied, public https://api.dev.openmates.org returned global history list/show and namespace project history for project 63fa7ce8-9a79-4f49-9167-b1f8038bf93c.
+      reason: Real first-party CLI commands were run against the live local Docker API that backs dev, then the public dev hostname was verified after the Caddy allowlist reload.
+      subject_commit: c4b87d47e
+    description: Run real namespace-specific `openmates tasks|plans|projects|workflows history` and `restore` commands plus global `openmates history list/show/undo` against https://api.dev.openmates.org after backend deploy with real test-account auth.
+  - id: V-WCH-SDK-PARITY
+    kind: deterministic_check
+    phase: green
+    status: passed
+    required_for_done: true
+    covers: [AC-5, AC-6]
+    evidence:
+      status: passed
+      command: python3 scripts/audit_sdk_cli_parity.py
+      run_id: local-2026-07-21T00:33:00Z
+      observed: sdk-cli-parity checked 79 command entries and 4 workflow template transport entries
+      subject_commit: c4b87d47e
+      timestamp: "2026-07-21T00:40:05Z"
+    description: Run npm SDK and pip SDK parity locally against the dev server, then run python3 scripts/audit_sdk_cli_parity.py.
+  - id: V-WCH-ASK-DEV-CLI
+    kind: manual_check
+    phase: green
+    status: passed
+    required_for_done: true
+    covers: [AC-8, AC-9, AC-10, AC-11]
+    evidence:
+      status: passed
+      timestamp: "2026-07-21T10:04:06Z"
+      actor: OpenCode
+      command: node scripts/openmates_cli_test_account.mjs login --api-url https://api.dev.openmates.org --web-origin https://app.dev.openmates.org && real long-form CLI asks for tasks/plans/projects/workflows through public dev hostname, followed by history undo for each smoke change set
+      run_id: local-2026-07-21T09:59:00Z
+      observed: Public https://api.dev.openmates.org tasks ask created chg_35fc877f325b421484fcac53d7ace569 with 3 LLM-proposed tasks, then undo chg_29df2f20060843de9464151312ec7d54; plans ask created chg_8c9f96700686423d89de5b4d785e026f, then undo chg_81392ded0806418d9d221f23f3a661d8; projects ask created chg_6a0d25ff15464c539237405caebcf2f8, then undo chg_8afa2cb97fb54d698f7463d02101580d; workflows ask without --graph created chg_9acfa736e37b4c459e5adc6194a6691b using an inferred workflow graph, then undo chg_d3d3d74a252249f5977db37f9f24ba3d. API logs showed workspace-ask-tasks, workspace-ask-plans, workspace-ask-projects, and workspace-ask-workflows all called preprocessing LLM mistral/mistral-small-2506 and returned structured planner arguments.
+      subject_commit: c4b87d47e
+      reason: Real first-party CLI ask commands were run against the public dev hostname after rebuilding/restarting the local API container; each namespace exercised a real structured LLM planner request before applying encrypted or workflow create payloads.
+    description: Run real `openmates tasks ask`, `openmates plans ask`, `openmates projects ask`, and `openmates workflows ask` commands against https://api.dev.openmates.org with real test-account auth, then undo at least one full change set and restore at least one individual entry through its namespace command.
+  - id: V-WCH-APPLE-IMPACT
+    kind: manual_check
+    phase: final
+    status: skipped
+    required_for_done: false
+    evidence:
+      reason: No Apple files were changed in this implementation slice; native history UI parity remains deferred until the backend/CLI contract is deploy-verified.
+      subject_commit: c4b87d47e
+    description: Record Apple impact evidence or explicit deferral once API/client contracts are stable.
+
+implementation_plan:
+  spec_path: docs/specs/workspace-change-history/spec.yml
+  architecture: >
+    Introduce a shared history service used by task, plan, project, and workflow
+    mutation boundaries. The service creates owner-scoped change sets and
+    encrypted per-object entries inside the same transaction or explicit failure
+    boundary as the user-visible mutation. A background archive job moves old hot
+    entries into encrypted S3 batches and records Directus manifests. After the
+    history foundation passes, namespace-specific ask handlers parse natural
+    language into validated mutations, auto-apply by default, and return applied
+    change summaries plus full-change-set undo and namespace-specific per-entry
+    rollback commands. CLI/SDK object history and ask commands land before web
+    or Apple UI surfaces.
+  existing_patterns:
+    - Reuse embed_diffs append-only restore-as-new-version semantics for client-encrypted object histories.
+    - Reuse workflow_versions references for workflow graph history instead of duplicating large graph snapshots when possible.
+    - Reuse workflow_input_mutations concepts only as source-specific bridge data; do not make it the universal history table.
+    - Reuse existing S3 upload/checksum patterns for encrypted archive batches after confirming A-1.
+    - Reuse preprocessor/main_processor/postprocessor patterns for long instruction-like ask prompts, but keep the mutation application step behind typed validators and the shared history service.
+  data_flow:
+    - Caller opens mutation request with source, action_type, object context, and encrypted before/after or version refs.
+    - Object service applies mutation and writes workspace_change_sets plus workspace_change_entries atomically where supported.
+    - Response includes change_set_id and undo availability.
+    - Archive worker detects objects with at least 20 hot entries, writes oldest 10 to encrypted S3, verifies checksum, stores manifest, then marks/prunes archived hot rows.
+    - Undo/restore resolves hot rows or archive manifests, decrypts where the client has key material, and writes compensating latest mutations.
+    - Ask commands classify short title-like input locally when safe, otherwise call the AI planner to produce typed mutation requests.
+    - Ask validators resolve targets, reject ambiguity, authorize owner-scoped objects, and apply changes through the same mutation services that write history.
+    - Ask responses include applied entries, unchanged/skipped entries, warnings, change_set_id, undo_all_command, and undo_entry_commands.
+  affected_files:
+    - path: backend/core/directus/schemas/workspace_change_sets.yml
+      reason: New change-set metadata collection.
+    - path: backend/core/directus/schemas/workspace_change_entries.yml
+      reason: New per-object encrypted history entry collection.
+    - path: backend/core/directus/schemas/workspace_change_archives.yml
+      reason: New S3 archive manifest collection.
+    - path: backend/core/api/app/services/workspace_change_history_service.py
+      reason: Shared history write, list, archive, undo, and restore orchestration.
+    - path: backend/core/api/app/routes/workspace_history.py
+      reason: Shared owner-scoped REST history endpoints.
+    - path: backend/core/api/app/services/workspace_ask_service.py
+      reason: Shared ask planning, validation, auto-apply, and summary orchestration.
+    - path: backend/core/api/app/routes/user_tasks.py
+      reason: Task mutation paths must call shared history and expose /ask.
+    - path: backend/core/api/app/routes/user_plans.py
+      reason: Plan mutation paths and subresources must call shared history and expose /ask.
+    - path: backend/core/api/app/routes/projects.py
+      reason: Project mutation paths must call shared history and expose /ask.
+    - path: backend/core/api/app/services/workflow_service.py
+      reason: Workflow mutations must emit change entries, expose ask support, and preserve immutable workflow_versions.
+    - path: backend/apps/ai/processing/main_processor.py
+      reason: Long ask prompts may reuse AI planning/instruction paths for typed workspace mutations.
+    - path: frontend/packages/openmates-cli/src/cli.ts
+      reason: CLI global change-set commands, namespace-specific object history/restore commands, and mutation output references.
+    - path: frontend/packages/openmates-cli/src/client.ts
+      reason: CLI client history endpoints and restore/undo helpers.
+    - path: frontend/packages/openmates-cli/src/sdk.ts
+      reason: npm SDK global change-set and namespace-specific object history/restore helper parity.
+    - path: packages/openmates-python
+      reason: pip SDK global change-set and namespace-specific object history/restore helper parity.
+    - path: scripts/tests/test_workspace_ask_history_gate.py
+      reason: Deterministic guardrail blocking ask mutations before history enforcement.
+  verification_strategy:
+    - Write backend red tests for history write enforcement, archive retention, workflow version references, and undo/restore before implementation.
+    - Write backend and CLI red tests for ask behavior only after the history tests are present, then implement ask after history green.
+    - Add CLI/SDK contract tests before exposing web UI.
+    - Verify real history and ask CLI commands against the dev server before SDK parity, web, user confirmation, or Apple work.
+    - Use spec_verify before declaring the foundation complete.
+  verification_order:
+    - Backend pytest red/green for schemas, service, routes, retention, and workflow bridge.
+    - CLI contract tests and real dev-server CLI proof.
+    - npm SDK and pip SDK local dev-server parity plus audit_sdk_cli_parity.
+    - Guardrail test for future ask commands.
+    - Backend ask red/green after history foundation is green.
+    - CLI and SDK ask red/green after backend ask is green.
+    - Real dev-server ask commands with full-change and single-entry undo proof.
+    - Web UI and Apple parity only after the foundation is complete or explicitly scoped into a follow-up spec.
+
+tasks:
+  - id: TASK-1
+    title: Confirm archive/storage assumptions and finalize technical plan
+    status: done
+    phase: awaiting_approval
+    covers:
+      scenarios: [S-4, S-6]
+      acceptance_criteria: [AC-4, AC-6]
+    expected_files:
+      - docs/specs/workspace-change-history/spec.yml
+    verification_ids: [V-WCH-PLAN-APPROVAL]
+    dependencies: []
+    blockers:
+      - Product contract approval and A-1/A-2 confirmation required before implementation.
+    follow_up_tasks: []
+    ownership:
+      files:
+        - docs/specs/workspace-change-history/spec.yml
+      shared_files: []
+  - id: TASK-2
+    title: Add Directus schemas and backend history service tests
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios: [S-1, S-2, S-4]
+      acceptance_criteria: [AC-1, AC-2, AC-4]
+    expected_files:
+      - backend/core/directus/schemas/workspace_change_sets.yml
+      - backend/core/directus/schemas/workspace_change_entries.yml
+      - backend/core/directus/schemas/workspace_change_archives.yml
+      - backend/tests/test_workspace_change_history.py
+      - backend/tests/test_workspace_change_history_archives.py
+    verification_ids: [T-WCH-BACKEND, T-WCH-ARCHIVE]
+    dependencies: [TASK-1]
+    blockers: []
+    follow_up_tasks: []
+    ownership:
+      files:
+        - backend/core/directus/schemas/workspace_change_sets.yml
+        - backend/core/directus/schemas/workspace_change_entries.yml
+        - backend/core/directus/schemas/workspace_change_archives.yml
+      shared_files: []
+  - id: TASK-3
+    title: Enforce history writes on task plan project and workflow mutations
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios: [S-1, S-2, S-3]
+      acceptance_criteria: [AC-1, AC-2, AC-3]
+    expected_files:
+      - backend/core/api/app/services/workspace_change_history_service.py
+      - backend/core/api/app/routes/user_tasks.py
+      - backend/core/api/app/routes/user_plans.py
+      - backend/core/api/app/routes/projects.py
+      - backend/core/api/app/services/workflow_service.py
+      - backend/tests/test_workspace_change_history_workflows.py
+    verification_ids: [T-WCH-BACKEND, T-WCH-WORKFLOWS]
+    dependencies: [TASK-2]
+    blockers: []
+    follow_up_tasks: []
+    ownership:
+      files:
+        - backend/core/api/app/services/workspace_change_history_service.py
+      shared_files:
+        - backend/core/api/app/routes/user_tasks.py
+        - backend/core/api/app/routes/user_plans.py
+        - backend/core/api/app/routes/projects.py
+        - backend/core/api/app/services/workflow_service.py
+  - id: TASK-4
+    title: Add archive worker and cold restore path
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios: [S-4, S-6]
+      acceptance_criteria: [AC-4, AC-6]
+    expected_files:
+      - backend/core/api/app/services/workspace_change_history_service.py
+      - backend/tests/test_workspace_change_history_archives.py
+    verification_ids: [T-WCH-ARCHIVE]
+    dependencies: [TASK-3]
+    blockers: []
+    follow_up_tasks: []
+    ownership:
+      files:
+        - backend/core/api/app/services/workspace_change_history_service.py
+      shared_files: []
+  - id: TASK-5
+    title: Add CLI SDK namespace history/restore commands and real dev-server proof
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios: [S-5, S-6]
+      acceptance_criteria: [AC-5, AC-6]
+    expected_files:
+      - frontend/packages/openmates-cli/src/cli.ts
+      - frontend/packages/openmates-cli/src/client.ts
+      - frontend/packages/openmates-cli/src/sdk.ts
+      - frontend/packages/openmates-cli/tests/workspace-history.test.ts
+      - frontend/packages/openmates-cli/tests/sdk-workspace-history.test.ts
+      - packages/openmates-python
+    verification_ids: [T-WCH-CLI, T-WCH-SDK, V-WCH-DEV-CLI, V-WCH-SDK-PARITY]
+    dependencies: [TASK-4]
+    blockers: []
+    follow_up_tasks: []
+    ownership:
+      files:
+        - frontend/packages/openmates-cli/src/cli.ts
+        - frontend/packages/openmates-cli/src/client.ts
+        - frontend/packages/openmates-cli/src/sdk.ts
+      shared_files:
+        - packages/openmates-python
+  - id: TASK-6
+    title: Add ask mutation guardrail
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios: [S-7]
+      acceptance_criteria: [AC-7]
+    expected_files:
+      - scripts/tests/test_workspace_ask_history_gate.py
+    verification_ids: [T-WCH-ASK-GATE]
+    dependencies: [TASK-3]
+    blockers: []
+    follow_up_tasks: []
+    ownership:
+      files:
+        - scripts/tests/test_workspace_ask_history_gate.py
+      shared_files: []
+  - id: TASK-7
+    title: Add backend ask planning validation and auto-apply endpoints
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios: [S-8, S-9, S-10, S-11, S-12, S-13]
+      acceptance_criteria: [AC-8, AC-9, AC-10, AC-11, AC-12, AC-13]
+    expected_files:
+      - backend/core/api/app/services/workspace_ask_service.py
+      - backend/core/api/app/routes/user_tasks.py
+      - backend/core/api/app/routes/user_plans.py
+      - backend/core/api/app/routes/projects.py
+      - backend/core/api/app/routes/workflows.py
+      - backend/apps/ai/processing/main_processor.py
+      - backend/tests/test_workspace_ask_commands.py
+    verification_ids: [T-WCH-ASK-BACKEND]
+    dependencies: [TASK-5, TASK-6]
+    blockers: []
+    follow_up_tasks: []
+    ownership:
+      files:
+        - backend/core/api/app/services/workspace_ask_service.py
+        - backend/tests/test_workspace_ask_commands.py
+      shared_files:
+        - backend/core/api/app/routes/user_tasks.py
+        - backend/core/api/app/routes/user_plans.py
+        - backend/core/api/app/routes/projects.py
+        - backend/core/api/app/routes/workflows.py
+        - backend/apps/ai/processing/main_processor.py
+  - id: TASK-8
+    title: Add CLI and SDK ask commands with undo overview output
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios: [S-8, S-9, S-10, S-11, S-12]
+      acceptance_criteria: [AC-8, AC-9, AC-10, AC-11, AC-12]
+    expected_files:
+      - frontend/packages/openmates-cli/src/cli.ts
+      - frontend/packages/openmates-cli/src/client.ts
+      - frontend/packages/openmates-cli/src/sdk.ts
+      - frontend/packages/openmates-cli/tests/workspace-ask.test.ts
+      - frontend/packages/openmates-cli/tests/sdk-workspace-ask.test.ts
+      - packages/openmates-python
+    verification_ids: [T-WCH-ASK-CLI, T-WCH-ASK-SDK]
+    dependencies: [TASK-7]
+    blockers: []
+    follow_up_tasks: []
+    ownership:
+      files:
+        - frontend/packages/openmates-cli/src/cli.ts
+        - frontend/packages/openmates-cli/src/client.ts
+        - frontend/packages/openmates-cli/src/sdk.ts
+      shared_files:
+        - packages/openmates-python
+  - id: TASK-9
+    title: Verify real dev-server history and ask flows end-to-end
+    status: done
+    phase: running_checks
+    covers:
+      scenarios: [S-5, S-8, S-9, S-10, S-11]
+      acceptance_criteria: [AC-5, AC-8, AC-9, AC-10, AC-11]
+    expected_files:
+      - docs/specs/workspace-change-history/spec.yml
+    verification_ids: [V-WCH-DEV-CLI, V-WCH-SDK-PARITY, V-WCH-ASK-DEV-CLI]
+    dependencies: [TASK-8]
+    blockers: []
+    follow_up_tasks: []
+    ownership:
+      files:
+        - docs/specs/workspace-change-history/spec.yml
+      shared_files: []
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    approach: Draft the product contract and retention model before implementation.
+    outcome: planned
+    recorded_at: "2026-07-20T00:00:00Z"
+
+handoff:
+  current_task_id: TASK-9
+  next_action: Restore api.dev.openmates.org/local API service availability, then rerun real dev-server CLI ask/history/undo proof.
+  command: node scripts/openmates_cli_test_account.mjs login
+  expected_outcome: CLI logs into the dev test account so real ask/history commands can run.
+  blocker:
+    reason: api.dev.openmates.org returned HTTP 502 for all test-account login slots and the local Docker compose service list does not include an OpenMates api service.
+    command: node scripts/openmates_cli_test_account.mjs login
+    required_for: V-WCH-DEV-CLI and V-WCH-ASK-DEV-CLI
+  last_verified_commit: 3f964af8c
+
+risks:
+  - Hot/cold history touches persistence, encryption, S3, CLI, SDK, and workflow versioning, so incomplete implementation could create partial history or restore gaps.
+  - Failure to make history writes atomic with mutations could leave objects updated without recoverable history.
+  - Client-encrypted cold restore requires careful key availability across CLI, web, and Apple.
+  - Archive retries must avoid duplicate archive manifests or accidental deletion of the only hot copy.
+
+open_questions:
+  - Whether archive batches should live in an existing `chatfiles` bucket namespace or a dedicated workspace-history bucket after A-1 is checked.
+  - Whether Directus rows should be hard-pruned after manifest success or retained with an `archived_at` marker and null encrypted refs for an additional operational window.

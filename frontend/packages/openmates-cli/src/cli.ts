@@ -842,23 +842,33 @@ function requiredAskInstruction(flags: Record<string, string | boolean>, rest: s
   return instruction;
 }
 
+function extractRecord(container: Record<string, unknown>, key: string): Record<string, unknown> {
+  const value = container[key];
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error(`Workspace ask planning returned invalid ${key}.`);
+  return value as Record<string, unknown>;
+}
+
+function requiredString(record: Record<string, unknown>, key: string, fallback: string): string {
+  const value = record[key];
+  if (typeof value === "string" && value.trim()) return value.trim();
+  return fallback;
+}
+
+function optionalString(record: Record<string, unknown>, key: string): string | undefined {
+  const value = record[key];
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
 async function proposeTasksForAsk(client: OpenMatesClient, instruction: string, flags: Record<string, string | boolean>): Promise<Array<{ title: string; description?: string | null; status?: UserTaskStatus; assignee_type?: string | null }>> {
   const shortTitleLike = instruction.length <= 80 && !/[,:;\n]/.test(instruction);
   if (shortTitleLike) return [{ title: instruction }];
+  const proposals = await client.planUserTaskAsk({
+    instruction,
+    contextChatId: typeof flags.chat === "string" ? flags.chat : null,
+    projectIds: splitCsvFlag(flags.project ?? flags.projects),
+  });
+  if (proposals.length > 0) return proposals;
   const splitProposals = splitTaskAskInstruction(instruction);
-  if (splitProposals.length > 1) return splitProposals;
-  try {
-    const proposals = await client.extractUserTaskProposals({
-      correctedText: instruction,
-      mode: "create",
-      contextChatId: typeof flags.chat === "string" ? flags.chat : null,
-      projectIds: splitCsvFlag(flags.project ?? flags.projects),
-    });
-    if (proposals.length > 0) return proposals;
-  } catch {
-    // Fall back to deterministic splitting so ask remains usable if AI proposal
-    // extraction is unavailable in a CLI-only environment.
-  }
   return splitProposals.length > 0 ? splitProposals : [{ title: instruction }];
 }
 
@@ -997,14 +1007,17 @@ async function handlePlans(
   if (subcommand === "ask") {
     const instruction = requiredAskInstruction(flags, rest, "openmates plans ask \"Prepare launch plan\"");
     if (flags.confirm === true || flags["confirm-first"] === true) {
-      if (flags.json === true) printJson({ applied: false, proposed_plans: [{ title: instruction }] });
-      else printAskPreview("plans", [instruction]);
+      const proposal = extractRecord(await client.planUserPlanAsk({ instruction }), "proposed_plan");
+      if (flags.json === true) printJson({ applied: false, proposed_plan: proposal });
+      else printAskPreview("plans", [requiredString(proposal, "title", instruction)]);
       return;
     }
+    const proposal = extractRecord(await client.planUserPlanAsk({ instruction }), "proposed_plan");
+    const title = requiredString(proposal, "title", instruction);
     const input = await buildCreateUserPlanInput(masterKey, {
-      title: instruction,
-      summary: typeof flags.summary === "string" ? flags.summary : "",
-      goal: typeof flags.goal === "string" ? flags.goal : instruction,
+      title,
+      summary: typeof flags.summary === "string" ? flags.summary : optionalString(proposal, "summary") ?? "",
+      goal: typeof flags.goal === "string" ? flags.goal : optionalString(proposal, "goal") ?? title,
       status: normalizePlanStatus(typeof flags.status === "string" ? flags.status : undefined),
       primaryChatId: typeof flags.chat === "string" ? flags.chat : null,
       linkedProjectIds: splitCsvFlag(flags.project ?? flags.projects),
@@ -1245,21 +1258,24 @@ async function handleProjects(
   if (subcommand === "ask") {
     const instruction = requiredAskInstruction(flags, rest, "openmates projects ask \"Launch workspace\"");
     if (flags.confirm === true || flags["confirm-first"] === true) {
-      if (flags.json === true) printJson({ applied: false, proposed_projects: [{ name: instruction }] });
-      else printAskPreview("projects", [instruction]);
+      const proposal = extractRecord(await client.planProjectAsk({ instruction }), "proposed_project");
+      if (flags.json === true) printJson({ applied: false, proposed_project: proposal });
+      else printAskPreview("projects", [requiredString(proposal, "name", instruction)]);
       return;
     }
+    const proposal = extractRecord(await client.planProjectAsk({ instruction }), "proposed_project");
     const masterKey = client.getMasterKeyBytes();
     const projectKey = randomBytes(32);
     const timestamp = Math.floor(Date.now() / 1000);
     const projectId = randomUUID();
+    const name = requiredString(proposal, "name", instruction);
     const encryptedCreate = {
       project_id: projectId,
       encrypted_project_key: await encryptBytesWithAesGcm(projectKey, masterKey),
-      encrypted_name: await encryptWithAesGcmCombined(instruction, projectKey),
-      encrypted_description: await encryptWithAesGcmCombined(typeof flags.description === "string" ? flags.description : "", projectKey),
-      encrypted_icon: await encryptWithAesGcmCombined("folder", projectKey),
-      encrypted_color: await encryptWithAesGcmCombined("default", projectKey),
+      encrypted_name: await encryptWithAesGcmCombined(name, projectKey),
+      encrypted_description: await encryptWithAesGcmCombined(typeof flags.description === "string" ? flags.description : optionalString(proposal, "description") ?? "", projectKey),
+      encrypted_icon: await encryptWithAesGcmCombined(optionalString(proposal, "icon") ?? "folder", projectKey),
+      encrypted_color: await encryptWithAesGcmCombined(optionalString(proposal, "color") ?? "default", projectKey),
       pinned: flags.pinned === true,
       created_at: timestamp,
       updated_at: timestamp,
@@ -3298,18 +3314,18 @@ async function handleWorkflows(
       return;
     }
     const retention = parseWorkflowRunContentRetention(flags["run-content-retention"]);
-    const result = await client.askWorkflow({
-      instruction,
-      create: {
-        title: instruction.slice(0, 200),
-        description: typeof flags.description === "string" ? flags.description : null,
-        graph: workflowAskGraphFromFlags(flags),
-        enabled: flags.enabled === true,
-        ...(retention ? { run_content_retention: retention } : {}),
-        source: "cli_ask",
-        created_by_assistant: true,
-      },
-    });
+    const explicitCreate = typeof flags.graph === "string" || typeof flags.description === "string" || flags.enabled === true || Boolean(retention)
+      ? {
+          title: instruction.slice(0, 200),
+          description: typeof flags.description === "string" ? flags.description : null,
+          graph: workflowAskGraphFromFlags(flags),
+          enabled: flags.enabled === true,
+          ...(retention ? { run_content_retention: retention } : {}),
+          source: "cli_ask",
+          created_by_assistant: true,
+        }
+      : undefined;
+    const result = await client.askWorkflow({ instruction, ...(explicitCreate ? { create: explicitCreate } : {}) });
     printAskApplyResult("workflow", result, flags);
     return;
   }

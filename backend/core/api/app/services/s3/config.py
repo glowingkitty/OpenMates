@@ -143,6 +143,16 @@ BUCKETS = {
         # restore/list UX is intentionally deferred to a later task archive slice.
         'lifecycle_policy': 1095,
     },
+    'workspace_history_archives': {
+        'name': 'openmates-workspace-history-archives',
+        'dev_name': 'dev-openmates-workspace-history-archives',
+        'allowed_types': ['application/json'],
+        'max_size': 500 * 1024 * 1024,
+        'access': 'private',
+        # Owner-scoped undo/history archive batches. Product history retention is
+        # longer than hot Directus history but still bounded for privacy.
+        'lifecycle_policy': 1095,
+    },
     # Temporary images bucket for reverse image search (Google Lens via SerpAPI).
     # Plaintext (decrypted) user images are uploaded here for a very short time so
     # SerpAPI's Google Lens fetcher can retrieve them. The bucket is PRIVATE; each

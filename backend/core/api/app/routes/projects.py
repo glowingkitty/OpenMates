@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 from starlette.concurrency import run_in_threadpool
 
+from backend.apps.ai.processing.workspace_ask_planner import WorkspaceAskPlanningError, plan_project_ask
 from backend.core.api.app.models.user import User
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user
 from backend.core.api.app.services.feature_availability_guards import ensure_projects_enabled
@@ -19,6 +20,7 @@ from backend.core.api.app.services.directus.team_methods import TeamPermissionEr
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.services.team_workspace_service import TeamWorkspaceMoveError, move_workspace_record_to_team
 from backend.core.api.app.services.workflow_service import DirectusWorkflowRepository, WorkflowNotFoundError, WorkflowService
+from backend.core.api.app.services.workspace_change_history_service import WorkspaceChangeHistoryService, build_history_commands, s3_workspace_history_archive_io
 
 logger = logging.getLogger(__name__)
 
@@ -37,8 +39,36 @@ def get_directus_service(request: Request) -> DirectusService:
     return request.app.state.directus_service
 
 
+def get_workspace_history_service(request: Request) -> WorkspaceChangeHistoryService:
+    s3_service = getattr(request.app.state, "s3_service", None)
+    if s3_service is not None:
+        archive_writer, archive_reader = s3_workspace_history_archive_io(s3_service)
+        return WorkspaceChangeHistoryService(request.app.state.directus_service, archive_writer=archive_writer, archive_reader=archive_reader)
+    return WorkspaceChangeHistoryService(request.app.state.directus_service)
+
+
 def hash_id(value: str) -> str:
     return hashlib.sha256(value.encode()).hexdigest()
+
+
+async def _record_project_history(
+    history_service: WorkspaceChangeHistoryService,
+    user_id: str,
+    *,
+    source: str = "web",
+    action_type: str,
+    entries: list[dict[str, Any]],
+    redacted_summary: str,
+) -> dict[str, Any]:
+    history = await history_service.record_change_set(
+        user_id=user_id,
+        source=source,
+        namespace="projects",
+        action_type=action_type,
+        entries=entries,
+        redacted_summary=redacted_summary,
+    )
+    return {**history, **build_history_commands(history["change_set"]["change_set_id"], history["entries"])}
 
 
 class ProjectCreateRequest(BaseModel):
@@ -64,6 +94,21 @@ class ProjectUpdateRequest(BaseModel):
     updated_at: Optional[int] = None
     last_opened_at: Optional[int] = None
     version: Optional[int] = None
+
+
+class ProjectRestoreRequest(BaseModel):
+    entry_id: str = Field(min_length=1)
+    state: Literal["before", "after"] = "after"
+
+
+class ProjectAskRequest(BaseModel):
+    instruction: str = Field(min_length=1, max_length=20_000)
+    apply_mode: Literal["auto_apply", "confirm_first"] = "auto_apply"
+    encrypted_create: ProjectCreateRequest | None = None
+
+
+class ProjectAskPlanRequest(BaseModel):
+    instruction: str = Field(min_length=1, max_length=20_000)
 
 
 class ProjectMoveRequest(BaseModel):
@@ -186,11 +231,85 @@ async def create_project(
     body: ProjectCreateRequest,
     current_user: User = Depends(get_current_user),
     directus_service: DirectusService = Depends(get_directus_service),
+    history_service: WorkspaceChangeHistoryService = Depends(get_workspace_history_service),
 ) -> Dict[str, Any]:
     created = await directus_service.project.create_project(current_user.id, body.model_dump())
     if not created:
         raise HTTPException(status_code=500, detail="Failed to create project")
-    return {"project": created}
+    history = await _record_project_history(
+        history_service,
+        current_user.id,
+        action_type="create",
+        entries=[{"object_type": "project", "object_id": created["project_id"], "operation": "create", "after": created}],
+        redacted_summary="Created 1 project",
+    )
+    return {"project": created, "history": history}
+
+
+@router.post("/ask/plan")
+@limiter.limit("20/minute")
+async def plan_project_ask_route(
+    request: Request,
+    body: ProjectAskPlanRequest,
+    current_user: User = Depends(get_current_user),
+) -> Dict[str, Any]:
+    del current_user
+    secrets_manager = getattr(request.app.state, "secrets_manager", None)
+    if secrets_manager is None:
+        raise HTTPException(status_code=503, detail="Workspace ask inference is not configured")
+    try:
+        proposal = await plan_project_ask(body.instruction, secrets_manager)
+        return {"proposed_project": proposal.model_dump(), "inference_used": True}
+    except WorkspaceAskPlanningError as exc:
+        raise HTTPException(status_code=502, detail=f"Workspace ask inference failed: {exc}") from exc
+
+
+@router.post("/ask")
+@limiter.limit("20/minute")
+async def ask_projects(
+    request: Request,
+    body: ProjectAskRequest,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+    history_service: WorkspaceChangeHistoryService = Depends(get_workspace_history_service),
+) -> Dict[str, Any]:
+    del request
+    if body.apply_mode == "confirm_first":
+        return {
+            "applied": False,
+            "change_set_id": None,
+            "summary": "Preview requires a client-encrypted project payload before apply.",
+            "changed_entries": [],
+            "undo_all_command": None,
+            "undo_entry_commands": [],
+            "warnings": [],
+            "clarification_required": False,
+        }
+    if body.encrypted_create is None:
+        raise HTTPException(status_code=400, detail="encrypted_create is required for project ask auto-apply")
+    created = await directus_service.project.create_project(current_user.id, body.encrypted_create.model_dump())
+    if not created:
+        raise HTTPException(status_code=500, detail="Failed to create project")
+    history = await _record_project_history(
+        history_service,
+        current_user.id,
+        source="ai_ask",
+        action_type="ask_create",
+        entries=[{"object_type": "project", "object_id": created["project_id"], "operation": "create", "after": created}],
+        redacted_summary="Created 1 project from ask",
+    )
+    return {
+        "applied": True,
+        "change_set_id": history["change_set"]["change_set_id"],
+        "summary": "Created 1 project.",
+        "changed_entries": history["entries"],
+        "undo_all_command": history["undo_all_command"],
+        "undo_entry_commands": history["undo_entry_commands"],
+        "warnings": [],
+        "clarification_required": False,
+        "project": created,
+        "history": history,
+    }
 
 
 @router.get("/{project_id}")
@@ -240,6 +359,44 @@ async def move_project_to_team(
     return {"project": project}
 
 
+@router.get("/{project_id}/history")
+@limiter.limit("60/minute")
+async def list_project_history(
+    request: Request,
+    project_id: str,
+    limit: int = 50,
+    current_user: User = Depends(get_current_user),
+    history_service: WorkspaceChangeHistoryService = Depends(get_workspace_history_service),
+) -> Dict[str, Any]:
+    del request
+    entries = await history_service.list_object_history(current_user.id, object_type="project", object_id=project_id, limit=limit)
+    return {"entries": entries}
+
+
+@router.post("/{project_id}/restore")
+@limiter.limit("20/minute")
+async def restore_project_from_history(
+    request: Request,
+    project_id: str,
+    body: ProjectRestoreRequest,
+    current_user: User = Depends(get_current_user),
+    history_service: WorkspaceChangeHistoryService = Depends(get_workspace_history_service),
+) -> Dict[str, Any]:
+    del request
+    try:
+        result = await history_service.restore_object_to_entry(
+            user_id=current_user.id,
+            object_type="project",
+            object_id=project_id,
+            entry_id=body.entry_id,
+            state=body.state,
+            source="cli",
+        )
+        return {"project": result.get("object"), "history": result}
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
 @router.patch("/{project_id}")
 @limiter.limit("30/minute")
 async def update_project(
@@ -248,12 +405,21 @@ async def update_project(
     body: ProjectUpdateRequest,
     current_user: User = Depends(get_current_user),
     directus_service: DirectusService = Depends(get_directus_service),
+    history_service: WorkspaceChangeHistoryService = Depends(get_workspace_history_service),
 ) -> Dict[str, Any]:
     patch = body.model_dump(exclude_unset=True)
+    before = await directus_service.project.get_project(project_id, current_user.id)
     updated = await directus_service.project.update_project(project_id, current_user.id, patch)
     if not updated:
         raise HTTPException(status_code=404, detail="Project not found")
-    return {"project": updated}
+    history = await _record_project_history(
+        history_service,
+        current_user.id,
+        action_type="update",
+        entries=[{"object_type": "project", "object_id": project_id, "operation": "update", "before": before, "after": updated}],
+        redacted_summary="Updated 1 project",
+    )
+    return {"project": updated, "history": history}
 
 
 @router.get("/{project_id}/sources")
@@ -339,11 +505,20 @@ async def delete_project(
     project_id: str,
     current_user: User = Depends(get_current_user),
     directus_service: DirectusService = Depends(get_directus_service),
+    history_service: WorkspaceChangeHistoryService = Depends(get_workspace_history_service),
 ) -> Dict[str, Any]:
+    before = await directus_service.project.get_project(project_id, current_user.id)
     deleted = await directus_service.project.delete_project(project_id, current_user.id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Project not found")
-    return {"deleted": True}
+    history = await _record_project_history(
+        history_service,
+        current_user.id,
+        action_type="delete",
+        entries=[{"object_type": "project", "object_id": project_id, "operation": "delete", "before": before}],
+        redacted_summary="Deleted 1 project",
+    )
+    return {"deleted": True, "history": history}
 
 
 @router.post("/{project_id}/folders")

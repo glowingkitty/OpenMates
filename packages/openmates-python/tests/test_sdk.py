@@ -97,6 +97,7 @@ def test_native_app_skill_method_uses_generated_namespace(monkeypatch):
     assert requests[0]["json"] == {"requests": [{"query": "hello"}]}
 
 
+
 def test_native_app_skill_method_maps_prompt_injection_opt_out(monkeypatch):
     requests = []
 
@@ -634,6 +635,72 @@ def test_task_workspace_methods_match_npm_sdk_contract(monkeypatch):
         ("POST", f"{created_path}/start-ai"),
     ]
     assert isinstance(requests[1]["json"].get("encrypted_title"), str)
+
+
+def test_workspace_history_methods_match_npm_sdk_contract(monkeypatch):
+    requests = []
+
+    class FakeResponse:
+        status_code = 200
+
+        def __init__(self, payload):
+            self._payload = payload
+
+        def json(self):
+            return self._payload
+
+    def fake_get(url, *, headers, timeout):
+        requests.append({"method": "GET", "url": url, "json": None, "headers": headers})
+        assert headers["Authorization"] == "Bearer sk-api-test"
+        assert headers["X-OpenMates-SDK"] == "pip"
+        if url.endswith("/v1/workspace/history?object_type=task&object_id=task-1&limit=5"):
+            return FakeResponse({"change_sets": [{"change_set_id": "cs-1"}]})
+        if url.endswith("/v1/workspace/history/cs-1"):
+            return FakeResponse({"change_set": {"change_set_id": "cs-1"}, "entries": []})
+        if url.endswith("/v1/projects/project-1/history?limit=3"):
+            return FakeResponse({"entries": [{"entry_id": "che-project"}]})
+        raise AssertionError(f"Unexpected GET request: {url}")
+
+    def fake_post(url, *, json, headers, timeout):
+        requests.append({"method": "POST", "url": url, "json": json, "headers": headers})
+        assert headers["Authorization"] == "Bearer sk-api-test"
+        assert headers["X-OpenMates-SDK"] == "pip"
+        if url.endswith("/v1/workspace/history/cs-1/undo"):
+            return FakeResponse({"undone": True, "change_set_id": "undo-1"})
+        if url.endswith("/v1/workflows/wf-1/restore"):
+            return FakeResponse({"workflow": {"id": "wf-1"}, "history": {"change_set": {"change_set_id": "cs-restore"}}})
+        if url.endswith("/v1/user-tasks/ask") or url.endswith("/v1/projects/ask") or url.endswith("/v1/workflows/ask"):
+            return FakeResponse({"applied": True, "change_set_id": "chg-ask", "changed_entries": []})
+        raise AssertionError(f"Unexpected POST request: {url}")
+
+    monkeypatch.setattr("openmates.sdk.requests.get", fake_get)
+    monkeypatch.setattr("openmates.sdk.requests.post", fake_post)
+
+    client = OpenMates(api_key="sk-api-test")
+    assert client.history.list(object_type="task", object_id="task-1", limit=5) == [{"change_set_id": "cs-1"}]
+    assert client.history.show("cs-1") == {"change_set": {"change_set_id": "cs-1"}, "entries": []}
+    assert client.history.undo("cs-1") == {"undone": True, "change_set_id": "undo-1"}
+    assert client.projects.history("project-1", limit=3) == [{"entry_id": "che-project"}]
+    assert client.workflows.restore("wf-1", entry_id="che-workflow", state="before") == {"workflow": {"id": "wf-1"}, "history": {"change_set": {"change_set_id": "cs-restore"}}}
+    assert client.tasks.ask("Prepare launch", encrypted_create={"task_id": "task-1"}) == {"applied": True, "change_set_id": "chg-ask", "changed_entries": []}
+    assert client.projects.ask("Launch", encrypted_create={"project_id": "project-1"}) == {"applied": True, "change_set_id": "chg-ask", "changed_entries": []}
+    assert client.workflows.ask("Rain alert", create={"title": "Rain alert"}) == {"applied": True, "change_set_id": "chg-ask", "changed_entries": []}
+
+    assert [(request["method"], request["url"].replace("https://api.openmates.org", "")) for request in requests] == [
+        ("GET", "/v1/workspace/history?object_type=task&object_id=task-1&limit=5"),
+        ("GET", "/v1/workspace/history/cs-1"),
+        ("POST", "/v1/workspace/history/cs-1/undo"),
+        ("GET", "/v1/projects/project-1/history?limit=3"),
+        ("POST", "/v1/workflows/wf-1/restore"),
+        ("POST", "/v1/user-tasks/ask"),
+        ("POST", "/v1/projects/ask"),
+        ("POST", "/v1/workflows/ask"),
+    ]
+    assert requests[2]["json"] == {}
+    assert requests[4]["json"] == {"entry_id": "che-workflow", "state": "before"}
+    assert requests[5]["json"] == {"instruction": "Prepare launch", "apply_mode": "auto_apply", "encrypted_create": {"task_id": "task-1"}}
+    assert requests[6]["json"] == {"instruction": "Launch", "apply_mode": "auto_apply", "encrypted_create": {"project_id": "project-1"}}
+    assert requests[7]["json"] == {"instruction": "Rain alert", "apply_mode": "auto_apply", "create": {"title": "Rain alert"}}
 
 
 def test_workflow_workspace_methods_match_npm_sdk_contract(monkeypatch):

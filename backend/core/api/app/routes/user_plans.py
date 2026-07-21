@@ -10,6 +10,7 @@ from typing import Any, Literal
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, Field
 
+from backend.apps.ai.processing.workspace_ask_planner import WorkspaceAskPlanningError, plan_plan_ask
 from backend.core.api.app.models.user import User
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user_or_api_key
 from backend.core.api.app.services.directus.team_methods import TeamPermissionError
@@ -22,6 +23,7 @@ from backend.core.api.app.services.user_plan_service import (
     UserPlanService,
 )
 from backend.core.api.app.services.user_task_service import UserTaskService
+from backend.core.api.app.services.workspace_change_history_service import WorkspaceChangeHistoryService, build_history_commands, s3_workspace_history_archive_io
 
 
 router = APIRouter(prefix="/v1/user-plans", tags=["User Plans"], dependencies=[Depends(ensure_plans_enabled)])
@@ -314,9 +316,32 @@ class PlanVerificationRunRequest(BaseModel):
     encrypted_environment: str | None = None
 
 
+class UserPlanRestoreRequest(BaseModel):
+    entry_id: str = Field(min_length=1)
+    state: Literal["before", "after"] = "after"
+
+
+class UserPlanAskRequest(BaseModel):
+    instruction: str = Field(min_length=1, max_length=20_000)
+    apply_mode: Literal["auto_apply", "confirm_first"] = "auto_apply"
+    encrypted_create: UserPlanCreateRequest | None = None
+
+
+class UserPlanAskPlanRequest(BaseModel):
+    instruction: str = Field(min_length=1, max_length=20_000)
+
+
 def get_user_plan_service(request: Request) -> UserPlanService:
     task_service = UserTaskService(request.app.state.directus_service.user_task, cache_service=request.app.state.cache_service)
     return UserPlanService(request.app.state.directus_service.user_plan, task_service=task_service)
+
+
+def get_workspace_history_service(request: Request) -> WorkspaceChangeHistoryService:
+    s3_service = getattr(request.app.state, "s3_service", None)
+    if s3_service is not None:
+        archive_writer, archive_reader = s3_workspace_history_archive_io(s3_service)
+        return WorkspaceChangeHistoryService(request.app.state.directus_service, archive_writer=archive_writer, archive_reader=archive_reader)
+    return WorkspaceChangeHistoryService(request.app.state.directus_service)
 
 
 async def _current_user(request: Request, response: Response) -> User:
@@ -339,6 +364,26 @@ def _handle_plan_error(exc: Exception) -> None:
     if isinstance(exc, ValueError):
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     raise exc
+
+
+async def _record_plan_history(
+    history_service: WorkspaceChangeHistoryService,
+    user_id: str,
+    *,
+    source: str = "cli",
+    action_type: str,
+    entries: list[dict[str, Any]],
+    redacted_summary: str,
+) -> dict[str, Any]:
+    history = await history_service.record_change_set(
+        user_id=user_id,
+        source=source,
+        namespace="plans",
+        action_type=action_type,
+        entries=entries,
+        redacted_summary=redacted_summary,
+    )
+    return {**history, **build_history_commands(history["change_set"]["change_set_id"], history["entries"])}
 
 
 @router.get("")
@@ -371,13 +416,126 @@ async def create_user_plan(
     response: Response,
     body: UserPlanCreateRequest,
     service: UserPlanService = Depends(get_user_plan_service),
+    history_service: WorkspaceChangeHistoryService = Depends(get_workspace_history_service),
 ) -> dict[str, Any]:
     current_user = await _current_user(request, response)
     try:
         plan = await service.create_plan(current_user.id, body.model_dump())
-        return {"plan": plan}
+        history = await _record_plan_history(
+            history_service,
+            current_user.id,
+            action_type="create",
+            entries=[{"object_type": "plan", "object_id": plan["plan_id"], "operation": "create", "after": plan}],
+            redacted_summary="Created 1 plan",
+        )
+        return {"plan": plan, "history": history}
     except Exception as exc:
         _handle_plan_error(exc)
+
+
+@router.post("/ask/plan")
+@limiter.limit("20/minute")
+async def plan_user_plan_ask(
+    request: Request,
+    response: Response,
+    body: UserPlanAskPlanRequest,
+) -> dict[str, Any]:
+    await _current_user(request, response)
+    secrets_manager = getattr(request.app.state, "secrets_manager", None)
+    if secrets_manager is None:
+        raise HTTPException(status_code=503, detail="Workspace ask inference is not configured")
+    try:
+        proposal = await plan_plan_ask(body.instruction, secrets_manager)
+        return {"proposed_plan": proposal.model_dump(), "inference_used": True}
+    except WorkspaceAskPlanningError as exc:
+        raise HTTPException(status_code=502, detail=f"Workspace ask inference failed: {exc}") from exc
+
+
+@router.post("/ask")
+@limiter.limit("20/minute")
+async def ask_user_plans(
+    request: Request,
+    response: Response,
+    body: UserPlanAskRequest,
+    service: UserPlanService = Depends(get_user_plan_service),
+    history_service: WorkspaceChangeHistoryService = Depends(get_workspace_history_service),
+) -> dict[str, Any]:
+    current_user = await _current_user(request, response)
+    if body.apply_mode == "confirm_first":
+        return {
+            "applied": False,
+            "change_set_id": None,
+            "summary": "Preview requires a client-encrypted plan payload before apply.",
+            "changed_entries": [],
+            "undo_all_command": None,
+            "undo_entry_commands": [],
+            "warnings": [],
+            "clarification_required": False,
+        }
+    if body.encrypted_create is None:
+        raise HTTPException(status_code=400, detail="encrypted_create is required for plan ask auto-apply")
+    try:
+        plan = await service.create_plan(current_user.id, body.encrypted_create.model_dump())
+        history = await _record_plan_history(
+            history_service,
+            current_user.id,
+            source="ai_ask",
+            action_type="ask_create",
+            entries=[{"object_type": "plan", "object_id": plan["plan_id"], "operation": "create", "after": plan}],
+            redacted_summary="Created 1 plan from ask",
+        )
+        return {
+            "applied": True,
+            "change_set_id": history["change_set"]["change_set_id"],
+            "summary": "Created 1 plan.",
+            "changed_entries": history["entries"],
+            "undo_all_command": history["undo_all_command"],
+            "undo_entry_commands": history["undo_entry_commands"],
+            "warnings": [],
+            "clarification_required": False,
+            "plan": plan,
+            "history": history,
+        }
+    except Exception as exc:
+        _handle_plan_error(exc)
+
+
+@router.get("/{plan_id}/history")
+@limiter.limit("60/minute")
+async def list_user_plan_history(
+    request: Request,
+    response: Response,
+    plan_id: str,
+    limit: int = 50,
+    history_service: WorkspaceChangeHistoryService = Depends(get_workspace_history_service),
+) -> dict[str, Any]:
+    current_user = await _current_user(request, response)
+    entries = await history_service.list_object_history(current_user.id, object_type="plan", object_id=plan_id, limit=limit)
+    return {"entries": entries}
+
+
+@router.post("/{plan_id}/restore")
+@limiter.limit("20/minute")
+async def restore_user_plan_from_history(
+    request: Request,
+    response: Response,
+    plan_id: str,
+    body: UserPlanRestoreRequest,
+    history_service: WorkspaceChangeHistoryService = Depends(get_workspace_history_service),
+) -> dict[str, Any]:
+    current_user = await _current_user(request, response)
+    try:
+        result = await history_service.restore_object_to_entry(
+            user_id=current_user.id,
+            object_type="plan",
+            object_id=plan_id,
+            entry_id=body.entry_id,
+            state=body.state,
+            source="cli",
+        )
+        return {"plan": result.get("object"), "history": result}
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 @router.patch("/{plan_id}")
@@ -388,11 +546,20 @@ async def update_user_plan(
     plan_id: str,
     body: UserPlanUpdateRequest,
     service: UserPlanService = Depends(get_user_plan_service),
+    history_service: WorkspaceChangeHistoryService = Depends(get_workspace_history_service),
 ) -> dict[str, Any]:
     current_user = await _current_user(request, response)
     try:
+        before = await service.plan_methods.get_plan(plan_id, current_user.id)
         plan = await service.update_plan(plan_id, current_user.id, body.model_dump(exclude_unset=True))
-        return {"plan": plan}
+        history = await _record_plan_history(
+            history_service,
+            current_user.id,
+            action_type="update",
+            entries=[{"object_type": "plan", "object_id": plan_id, "operation": "update", "before": before, "after": plan}],
+            redacted_summary="Updated 1 plan",
+        )
+        return {"plan": plan, "history": history}
     except Exception as exc:
         _handle_plan_error(exc)
 
@@ -467,6 +634,7 @@ async def activate_user_plan(
     plan_id: str,
     body: PlanActivationRequest,
     service: UserPlanService = Depends(get_user_plan_service),
+    history_service: WorkspaceChangeHistoryService = Depends(get_workspace_history_service),
 ) -> dict[str, Any]:
     current_user = await _current_user(request, response)
     patch = body.model_dump(exclude_unset=True)
@@ -474,8 +642,16 @@ async def activate_user_plan(
         patch["primary_chat_id"] = body.chat_id
         patch.pop("chat_id", None)
     try:
+        before = await service.plan_methods.get_plan(plan_id, current_user.id)
         plan = await service.activate_plan(plan_id, current_user.id, patch)
-        return {"plan": plan}
+        history = await _record_plan_history(
+            history_service,
+            current_user.id,
+            action_type="activate",
+            entries=[{"object_type": "plan", "object_id": plan_id, "operation": "status", "before": before, "after": plan}],
+            redacted_summary="Activated 1 plan",
+        )
+        return {"plan": plan, "history": history}
     except Exception as exc:
         _handle_plan_error(exc)
 
@@ -506,10 +682,22 @@ async def complete_user_plan(
     plan_id: str,
     body: PlanCompletionRequest,
     service: UserPlanService = Depends(get_user_plan_service),
+    history_service: WorkspaceChangeHistoryService = Depends(get_workspace_history_service),
 ) -> dict[str, Any]:
     current_user = await _current_user(request, response)
     try:
-        return await service.complete_plan(plan_id, current_user.id, body.model_dump(exclude_unset=True))
+        before = await service.plan_methods.get_plan(plan_id, current_user.id)
+        result = await service.complete_plan(plan_id, current_user.id, body.model_dump(exclude_unset=True))
+        plan = result.get("plan")
+        if plan:
+            result["history"] = await _record_plan_history(
+                history_service,
+                current_user.id,
+                action_type="complete",
+                entries=[{"object_type": "plan", "object_id": plan_id, "operation": "status", "before": before, "after": plan}],
+                redacted_summary="Completed 1 plan",
+            )
+        return result
     except Exception as exc:
         _handle_plan_error(exc)
 
@@ -522,11 +710,19 @@ async def create_plan_criterion(
     plan_id: str,
     body: PlanCriterionRequest,
     service: UserPlanService = Depends(get_user_plan_service),
+    history_service: WorkspaceChangeHistoryService = Depends(get_workspace_history_service),
 ) -> dict[str, Any]:
     current_user = await _current_user(request, response)
     try:
         criterion = await service.create_criterion(plan_id, current_user.id, body.model_dump())
-        return {"criterion": criterion}
+        history = await _record_plan_history(
+            history_service,
+            current_user.id,
+            action_type="create_criterion",
+            entries=[{"object_type": "plan", "object_id": plan_id, "operation": "update", "after": {"criterion": criterion}}],
+            redacted_summary="Added 1 plan criterion",
+        )
+        return {"criterion": criterion, "history": history}
     except Exception as exc:
         _handle_plan_error(exc)
 
@@ -708,11 +904,19 @@ async def add_plan_verification_evidence(
     verification_id: str,
     body: PlanVerificationEvidenceRequest,
     service: UserPlanService = Depends(get_user_plan_service),
+    history_service: WorkspaceChangeHistoryService = Depends(get_workspace_history_service),
 ) -> dict[str, Any]:
     current_user = await _current_user(request, response)
     try:
         verification = await service.add_verification_evidence(plan_id, current_user.id, verification_id, body.model_dump(exclude_unset=True))
-        return {"verification": verification}
+        history = await _record_plan_history(
+            history_service,
+            current_user.id,
+            action_type="verification_evidence",
+            entries=[{"object_type": "plan", "object_id": plan_id, "operation": "update", "after": {"verification": verification}}],
+            redacted_summary="Recorded plan verification evidence",
+        )
+        return {"verification": verification, "history": history}
     except Exception as exc:
         _handle_plan_error(exc)
 

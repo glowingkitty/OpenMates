@@ -158,7 +158,6 @@ export interface ChatSendOptions extends ChatCreateOptions {
   recoveryPollIntervalMs?: number;
   recoveryTimeoutMs?: number;
 }
-
 export interface ChatListOptions {
   limit?: number;
   offset?: number;
@@ -417,6 +416,7 @@ export class OpenMates {
   readonly newChatSuggestions: OpenMatesNewChatSuggestions;
   readonly notifications: OpenMatesNotifications;
   readonly reminders: OpenMatesReminders;
+  readonly history: OpenMatesHistory;
   readonly projects: OpenMatesProjects;
   readonly settings: OpenMatesSettings;
   readonly plans: OpenMatesPlans;
@@ -454,6 +454,7 @@ export class OpenMates {
     this.newChatSuggestions = new OpenMatesNewChatSuggestions(this);
     this.notifications = new OpenMatesNotifications(this);
     this.reminders = new OpenMatesReminders(this);
+    this.history = new OpenMatesHistory(this);
     this.projects = new OpenMatesProjects(this);
     this.settings = new OpenMatesSettings(this);
     this.plans = new OpenMatesPlans(this);
@@ -1778,6 +1779,32 @@ export class OpenMatesReminders {
   async delete(id: string, options: ConfirmedMutationOptions): Promise<Record<string, unknown>> { requireConfirmed(options, "Deleting a reminder"); return this.client.delete<Record<string, unknown>>(`/v1/sdk/reminders/${encodeURIComponent(id)}`); }
 }
 
+export class OpenMatesHistory {
+  private readonly client: OpenMates;
+
+  constructor(client: OpenMates) {
+    this.client = client;
+  }
+
+  async list(filters: { objectType?: string; objectId?: string; limit?: number } = {}): Promise<Record<string, unknown>[]> {
+    const params = new URLSearchParams();
+    if (filters.objectType) params.set("object_type", filters.objectType);
+    if (filters.objectId) params.set("object_id", filters.objectId);
+    if (filters.limit) params.set("limit", String(filters.limit));
+    const query = params.toString();
+    const response = await this.client.get<{ change_sets?: Record<string, unknown>[] }>(`/v1/workspace/history${query ? `?${query}` : ""}`);
+    return response.change_sets ?? [];
+  }
+
+  async show(changeSetId: string): Promise<Record<string, unknown>> {
+    return await this.client.get<Record<string, unknown>>(`/v1/workspace/history/${encodeURIComponent(changeSetId)}`);
+  }
+
+  async undo(changeSetId: string): Promise<Record<string, unknown>> {
+    return await this.client.request<Record<string, unknown>>(`/v1/workspace/history/${encodeURIComponent(changeSetId)}/undo`, {});
+  }
+}
+
 export class OpenMatesProjects {
   private readonly client: OpenMates;
 
@@ -1794,6 +1821,27 @@ export class OpenMatesProjects {
     const response = await this.client.request<{ source?: ProjectSourceRecord }>(`/v1/projects/${encodeURIComponent(projectId)}/sources`, input);
     if (!response.source) throw new OpenMatesApiError(500, { detail: "Project source response missing source" });
     return response.source;
+  }
+
+  async history(projectId: string, options: { limit?: number } = {}): Promise<Record<string, unknown>[]> {
+    const query = options.limit ? `?limit=${encodeURIComponent(String(options.limit))}` : "";
+    const response = await this.client.get<{ entries?: Record<string, unknown>[] }>(`/v1/projects/${encodeURIComponent(projectId)}/history${query}`);
+    return response.entries ?? [];
+  }
+
+  async restore(projectId: string, options: { entryId: string; state?: "before" | "after" }): Promise<Record<string, unknown>> {
+    return await this.client.request<Record<string, unknown>>(`/v1/projects/${encodeURIComponent(projectId)}/restore`, {
+      entry_id: options.entryId,
+      state: options.state ?? "after",
+    });
+  }
+
+  async ask(input: { instruction: string; applyMode?: "auto_apply" | "confirm_first"; encryptedCreate?: Record<string, unknown> }): Promise<Record<string, unknown>> {
+    return await this.client.request<Record<string, unknown>>("/v1/projects/ask", {
+      instruction: input.instruction,
+      apply_mode: input.applyMode ?? "auto_apply",
+      ...(input.encryptedCreate ? { encrypted_create: input.encryptedCreate } : {}),
+    });
   }
 }
 
@@ -1814,6 +1862,30 @@ export class OpenMatesTasks {
 
   async show(id: string, filters: TaskListFilters = {}): Promise<TaskRecord> {
     return toPublicTask(await this.resolve(id, filters));
+  }
+
+  async history(id: string, filters: TaskListFilters & { limit?: number } = {}): Promise<Record<string, unknown>[]> {
+    const task = await this.resolve(id, filters);
+    const query = filters.limit ? `?limit=${encodeURIComponent(String(filters.limit))}` : "";
+    const response = await this.client.get<{ entries?: Record<string, unknown>[] }>(`/v1/user-tasks/${encodeURIComponent(task.taskId)}/history${query}`);
+    return response.entries ?? [];
+  }
+
+  async restore(id: string, options: { entryId: string; state?: "before" | "after"; filters?: TaskListFilters }): Promise<Record<string, unknown>> {
+    const task = await this.resolve(id, options.filters ?? {});
+    return await this.client.request<Record<string, unknown>>(`/v1/user-tasks/${encodeURIComponent(task.taskId)}/restore`, {
+      entry_id: options.entryId,
+      state: options.state ?? "after",
+    });
+  }
+
+  async ask(input: { instruction: string; applyMode?: "auto_apply" | "confirm_first"; encryptedCreate?: UserTaskCreateInput; encryptedCreates?: UserTaskCreateInput[] }): Promise<Record<string, unknown>> {
+    return await this.client.request<Record<string, unknown>>("/v1/user-tasks/ask", {
+      instruction: input.instruction,
+      apply_mode: input.applyMode ?? "auto_apply",
+      ...(input.encryptedCreate ? { encrypted_create: input.encryptedCreate } : {}),
+      ...(input.encryptedCreates ? { encrypted_creates: input.encryptedCreates } : {}),
+    });
   }
 
   async create(input: TaskPlainCreateOptions): Promise<TaskRecord> {
@@ -2026,6 +2098,27 @@ export class OpenMatesPlans {
     return response.plan;
   }
 
+  async history(planId: string, options: { limit?: number } = {}): Promise<Record<string, unknown>[]> {
+    const query = options.limit ? `?limit=${encodeURIComponent(String(options.limit))}` : "";
+    const response = await this.client.get<{ entries?: Record<string, unknown>[] }>(`/v1/user-plans/${encodeURIComponent(planId)}/history${query}`);
+    return response.entries ?? [];
+  }
+
+  async restore(planId: string, options: { entryId: string; state?: "before" | "after" }): Promise<Record<string, unknown>> {
+    return await this.client.request<Record<string, unknown>>(`/v1/user-plans/${encodeURIComponent(planId)}/restore`, {
+      entry_id: options.entryId,
+      state: options.state ?? "after",
+    });
+  }
+
+  async ask(input: { instruction: string; applyMode?: "auto_apply" | "confirm_first"; encryptedCreate?: UserPlanCreateInput }): Promise<Record<string, unknown>> {
+    return await this.client.request<Record<string, unknown>>("/v1/user-plans/ask", {
+      instruction: input.instruction,
+      apply_mode: input.applyMode ?? "auto_apply",
+      ...(input.encryptedCreate ? { encrypted_create: input.encryptedCreate } : {}),
+    });
+  }
+
   async activate(planId: string, input: Record<string, unknown> = {}): Promise<UserPlanRecord> {
     const response = await this.client.request<{ plan?: UserPlanRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}/activate`, input);
     if (!response.plan) throw new OpenMatesApiError(500, { detail: "User plan response missing plan" });
@@ -2137,6 +2230,27 @@ export class OpenMatesWorkflows {
     if (!response.workflow) throw new OpenMatesApiError(500, { detail: "Workflow YAML response missing workflow" });
     if (!response.validation) throw new OpenMatesApiError(500, { detail: "Workflow YAML response missing validation" });
     return { workflow: response.workflow, validation: response.validation };
+  }
+
+  async history(workflowId: string, options: { limit?: number } = {}): Promise<Record<string, unknown>[]> {
+    const query = options.limit ? `?limit=${encodeURIComponent(String(options.limit))}` : "";
+    const response = await this.client.get<{ entries?: Record<string, unknown>[] }>(`/v1/workflows/${encodeURIComponent(workflowId)}/history${query}`);
+    return response.entries ?? [];
+  }
+
+  async restore(workflowId: string, options: { entryId: string; state?: "before" | "after" }): Promise<Record<string, unknown>> {
+    return await this.client.request<Record<string, unknown>>(`/v1/workflows/${encodeURIComponent(workflowId)}/restore`, {
+      entry_id: options.entryId,
+      state: options.state ?? "after",
+    });
+  }
+
+  async ask(input: { instruction: string; applyMode?: "auto_apply" | "confirm_first"; create?: Record<string, unknown> }): Promise<Record<string, unknown>> {
+    return await this.client.request<Record<string, unknown>>("/v1/workflows/ask", {
+      instruction: input.instruction,
+      apply_mode: input.applyMode ?? "auto_apply",
+      ...(input.create ? { create: input.create } : {}),
+    });
   }
 
   async startInput(params: WorkflowInputStartParams): Promise<WorkflowInputSessionResult> {

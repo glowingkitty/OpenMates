@@ -6980,6 +6980,17 @@ export class OpenMatesClient {
     return response.data;
   }
 
+  async planWorkflowAsk(input: { instruction: string }): Promise<Record<string, unknown>> {
+    this.requireSession();
+    const response = await this.http.post<Record<string, unknown>>(
+      "/v1/workflows/ask/plan",
+      { instruction: input.instruction },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) throw new Error(`Workflow ask planning failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
   async validateWorkflowYaml(source: string): Promise<{
     draft_valid: boolean;
     enable_ready: boolean;
@@ -7441,6 +7452,17 @@ export class OpenMatesClient {
     return response.data;
   }
 
+  async planProjectAsk(input: { instruction: string }): Promise<Record<string, unknown>> {
+    this.requireSession();
+    const response = await this.http.post<Record<string, unknown>>(
+      "/v1/projects/ask/plan",
+      { instruction: input.instruction },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) throw new Error(`Project ask planning failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
   async listProjectSources(projectId: string): Promise<ProjectSourceRecord[]> {
     this.requireSession();
     const response = await this.http.get<{ sources?: ProjectSourceRecord[] }>(
@@ -7570,6 +7592,23 @@ export class OpenMatesClient {
     );
     if (!response.ok) throw new Error(`User task ask failed with HTTP ${response.status}`);
     return response.data;
+  }
+
+  async planUserTaskAsk(input: { instruction: string; contextChatId?: string | null; projectIds?: string[] }): Promise<UserTaskProposalRecord[]> {
+    this.requireSession();
+    const response = await this.http.post<{ proposed_tasks?: UserTaskProposalRecord[] }>(
+      "/v1/user-tasks/ask/plan",
+      {
+        instruction: input.instruction,
+        context_chat_id: input.contextChatId ?? null,
+        project_ids: input.projectIds ?? [],
+      },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !Array.isArray(response.data.proposed_tasks)) {
+      throw new Error(`User task ask planning failed with HTTP ${response.status}`);
+    }
+    return response.data.proposed_tasks;
   }
 
   async extractUserTaskProposals(input: {
@@ -7722,6 +7761,17 @@ export class OpenMatesClient {
       this.getCliRequestHeaders(),
     );
     if (!response.ok) throw new Error(`User plan ask failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
+  async planUserPlanAsk(input: { instruction: string }): Promise<Record<string, unknown>> {
+    this.requireSession();
+    const response = await this.http.post<Record<string, unknown>>(
+      "/v1/user-plans/ask/plan",
+      { instruction: input.instruction },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) throw new Error(`User plan ask planning failed with HTTP ${response.status}`);
     return response.data;
   }
 

@@ -159,6 +159,7 @@ class OpenMates:
         self.new_chat_suggestions = OpenMatesNewChatSuggestions(self)
         self.notifications = OpenMatesNotifications(self)
         self.reminders = OpenMatesReminders(self)
+        self.history = OpenMatesHistory(self)
         self.projects = OpenMatesProjects(self)
         self.settings = OpenMatesSettings(self)
         self.plans = OpenMatesPlans(self)
@@ -1613,6 +1614,22 @@ class OpenMatesPlans:
     def update(self, plan_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         return self._client._patch(f"/v1/user-plans/{_quote(plan_id)}", payload).get("plan", {})
 
+    def history(self, plan_id: str, *, limit: int | None = None) -> list[dict[str, Any]]:
+        query = f"?limit={limit}" if limit is not None else ""
+        return self._client._get(f"/v1/user-plans/{_quote(plan_id)}/history{query}").get("entries", [])
+
+    def restore(self, plan_id: str, *, entry_id: str, state: str = "after") -> dict[str, Any]:
+        return self._client._post(
+            f"/v1/user-plans/{_quote(plan_id)}/restore",
+            {"entry_id": entry_id, "state": state},
+        )
+
+    def ask(self, instruction: str, *, apply_mode: str = "auto_apply", encrypted_create: dict[str, Any] | None = None) -> dict[str, Any]:
+        payload: dict[str, Any] = {"instruction": instruction, "apply_mode": apply_mode}
+        if encrypted_create is not None:
+            payload["encrypted_create"] = encrypted_create
+        return self._client._post("/v1/user-plans/ask", payload)
+
     def activate(self, plan_id: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
         request_payload = payload or {}
         plan = self._client._post(f"/v1/user-plans/{_quote(plan_id)}/activate", request_payload).get("plan", {})
@@ -1715,6 +1732,33 @@ class OpenMatesTasks:
 
     def show(self, task_id: str, **filters: Any) -> dict[str, Any]:
         return _public_task(self._resolve(task_id, filters))
+
+    def history(self, task_id: str, *, limit: int | None = None, **filters: Any) -> list[dict[str, Any]]:
+        task = self._resolve(task_id, filters)
+        query = f"?limit={limit}" if limit is not None else ""
+        return self._client._get(f"/v1/user-tasks/{_quote(str(task['task_id']))}/history{query}").get("entries", [])
+
+    def restore(self, task_id: str, *, entry_id: str, state: str = "after", **filters: Any) -> dict[str, Any]:
+        task = self._resolve(task_id, filters)
+        return self._client._post(
+            f"/v1/user-tasks/{_quote(str(task['task_id']))}/restore",
+            {"entry_id": entry_id, "state": state},
+        )
+
+    def ask(
+        self,
+        instruction: str,
+        *,
+        apply_mode: str = "auto_apply",
+        encrypted_create: dict[str, Any] | None = None,
+        encrypted_creates: list[dict[str, Any]] | None = None,
+    ) -> dict[str, Any]:
+        payload: dict[str, Any] = {"instruction": instruction, "apply_mode": apply_mode}
+        if encrypted_create is not None:
+            payload["encrypted_create"] = encrypted_create
+        if encrypted_creates is not None:
+            payload["encrypted_creates"] = encrypted_creates
+        return self._client._post("/v1/user-tasks/ask", payload)
 
     def create(self, payload: dict[str, Any]) -> dict[str, Any]:
         master_key = self._client._get_master_key()
@@ -1846,6 +1890,30 @@ class OpenMatesTasks:
         return _find_task(self._list_internal(**filters), task_id)
 
 
+class OpenMatesHistory:
+    """Workspace change history SDK namespace."""
+
+    def __init__(self, client: OpenMates):
+        self._client = client
+
+    def list(self, *, object_type: str | None = None, object_id: str | None = None, limit: int | None = None) -> list[dict[str, Any]]:
+        params: dict[str, str] = {}
+        if object_type:
+            params["object_type"] = object_type
+        if object_id:
+            params["object_id"] = object_id
+        if limit is not None:
+            params["limit"] = str(limit)
+        query = f"?{urlencode(params)}" if params else ""
+        return self._client._get(f"/v1/workspace/history{query}").get("change_sets", [])
+
+    def show(self, change_set_id: str) -> dict[str, Any]:
+        return self._client._get(f"/v1/workspace/history/{_quote(change_set_id)}")
+
+    def undo(self, change_set_id: str) -> dict[str, Any]:
+        return self._client._post(f"/v1/workspace/history/{_quote(change_set_id)}/undo", {})
+
+
 class OpenMatesProjects:
     """Encrypted Project source SDK namespace."""
 
@@ -1857,6 +1925,22 @@ class OpenMatesProjects:
 
     def create_source(self, project_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         return self._client._post(f"/v1/projects/{_quote(project_id)}/sources", payload).get("source", {})
+
+    def history(self, project_id: str, *, limit: int | None = None) -> list[dict[str, Any]]:
+        query = f"?limit={limit}" if limit is not None else ""
+        return self._client._get(f"/v1/projects/{_quote(project_id)}/history{query}").get("entries", [])
+
+    def restore(self, project_id: str, *, entry_id: str, state: str = "after") -> dict[str, Any]:
+        return self._client._post(
+            f"/v1/projects/{_quote(project_id)}/restore",
+            {"entry_id": entry_id, "state": state},
+        )
+
+    def ask(self, instruction: str, *, apply_mode: str = "auto_apply", encrypted_create: dict[str, Any] | None = None) -> dict[str, Any]:
+        payload: dict[str, Any] = {"instruction": instruction, "apply_mode": apply_mode}
+        if encrypted_create is not None:
+            payload["encrypted_create"] = encrypted_create
+        return self._client._post("/v1/projects/ask", payload)
 
 
 class OpenMatesWorkflows:
@@ -1895,6 +1979,22 @@ class OpenMatesWorkflows:
         if not isinstance(response.get("validation"), dict):
             raise OpenMatesApiError(500, {"detail": "Workflow YAML response missing validation"})
         return response
+
+    def history(self, workflow_id: str, *, limit: int | None = None) -> list[dict[str, Any]]:
+        query = f"?limit={limit}" if limit is not None else ""
+        return self._client._get(f"/v1/workflows/{_quote(workflow_id)}/history{query}").get("entries", [])
+
+    def restore(self, workflow_id: str, *, entry_id: str, state: str = "after") -> dict[str, Any]:
+        return self._client._post(
+            f"/v1/workflows/{_quote(workflow_id)}/restore",
+            {"entry_id": entry_id, "state": state},
+        )
+
+    def ask(self, instruction: str, *, apply_mode: str = "auto_apply", create: dict[str, Any] | None = None) -> dict[str, Any]:
+        payload: dict[str, Any] = {"instruction": instruction, "apply_mode": apply_mode}
+        if create is not None:
+            payload["create"] = create
+        return self._client._post("/v1/workflows/ask", payload)
 
     def start_input(
         self,
@@ -2812,6 +2912,30 @@ class OpenMatesConnectedAccounts:
             raise OpenMatesConfigError("Could not resolve current user id for connected account import")
         row = _connected_account_row(decrypted, user_id=user_id, master_key=self._client._get_master_key())
         return self._client._post("/v1/sdk/connected-accounts/import", {"row": row})
+
+
+class OpenMatesFinance:
+    """Finance SDK namespace for connected-account-only Finance skills."""
+
+    def __init__(self, client: OpenMates):
+        self._client = client
+
+    def check_accounts(
+        self,
+        input_data: dict[str, Any],
+        *,
+        connected_account_token_ref_inputs: list[dict[str, Any]] | None = None,
+        chat_id: str | None = None,
+        message_id: str | None = None,
+    ) -> dict[str, Any]:
+        return self._client.run_connected_account_skill(
+            "finance",
+            "check_accounts",
+            input_data,
+            connected_account_token_ref_inputs=connected_account_token_ref_inputs,
+            chat_id=chat_id,
+            message_id=message_id,
+        )
 
 
 class OpenMatesTeams:

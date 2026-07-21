@@ -15,6 +15,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from backend.apps.ai.processing.workspace_ask_planner import WorkspaceAskPlanningError, plan_workflow_ask
 from backend.core.api.app.models.user import User
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user_or_api_key
 from backend.core.api.app.services.directus.team_methods import TeamPermissionError
@@ -190,6 +191,10 @@ class WorkflowAskRequest(BaseModel):
     instruction: str = Field(min_length=1, max_length=20_000)
     apply_mode: str = Field(default="auto_apply", pattern="^(auto_apply|confirm_first)$")
     create: WorkflowCreateRequest | None = None
+
+
+class WorkflowAskPlanRequest(BaseModel):
+    instruction: str = Field(min_length=1, max_length=20_000)
 
 
 def get_workflow_service(request: Request) -> WorkflowService:
@@ -400,6 +405,24 @@ async def create_workflow(
         _handle_workflow_error(exc)
 
 
+@router.post("/ask/plan")
+@limiter.limit("20/minute")
+async def plan_workflow_ask_route(
+    request: Request,
+    body: WorkflowAskPlanRequest,
+    current_user: User = Depends(get_current_user_or_api_key),
+) -> dict[str, Any]:
+    del current_user
+    secrets_manager = getattr(request.app.state, "secrets_manager", None)
+    if secrets_manager is None:
+        raise HTTPException(status_code=503, detail="Workspace ask inference is not configured")
+    try:
+        proposal = await plan_workflow_ask(body.instruction, secrets_manager)
+        return {"proposed_workflow": proposal, "inference_used": True}
+    except WorkspaceAskPlanningError as exc:
+        raise HTTPException(status_code=502, detail=f"Workspace ask inference failed: {exc}") from exc
+
+
 @router.post("/ask")
 @limiter.limit("20/minute")
 async def ask_workflows(
@@ -420,23 +443,38 @@ async def ask_workflows(
             "warnings": [],
             "clarification_required": False,
         }
-    if body.create is None:
-        raise HTTPException(status_code=400, detail="create is required for workflow ask auto-apply")
+    create = body.create
+    if create is None:
+        secrets_manager = getattr(request.app.state, "secrets_manager", None)
+        if secrets_manager is None:
+            raise HTTPException(status_code=503, detail="Workspace ask inference is not configured")
+        try:
+            proposal = await plan_workflow_ask(body.instruction, secrets_manager)
+            create = WorkflowCreateRequest(
+                title=proposal["title"],
+                description=proposal.get("description"),
+                graph=proposal["graph"],
+                enabled=bool(proposal.get("enabled", False)),
+                source="cli_ask",
+                created_by_assistant=True,
+            )
+        except WorkspaceAskPlanningError as exc:
+            raise HTTPException(status_code=502, detail=f"Workspace ask inference failed: {exc}") from exc
     try:
         workflow = await run_in_threadpool(
             service.create_workflow,
             current_user.id,
-            body.create.title,
-            body.create.graph,
-            body.create.enabled,
-            body.create.run_content_retention,
-            body.create.lifecycle,
-            body.create.source,
-            body.create.source_chat_id,
-            body.create.created_by_assistant,
-            body.create.auto_delete_at,
+            create.title,
+            create.graph,
+            create.enabled,
+            create.run_content_retention,
+            create.lifecycle,
+            create.source,
+            create.source_chat_id,
+            create.created_by_assistant,
+            create.auto_delete_at,
             current_user.vault_key_id,
-            body.create.description,
+            create.description,
         )
         after = workflow.model_dump(mode="json", by_alias=True)
         history = await _record_workflow_history(
