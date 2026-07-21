@@ -961,9 +961,9 @@ tests:
     file: backend/tests/test_workspace_ask_routes.py
     command: python3 -m pytest backend/tests/test_workspace_ask_routes.py -q
     assertions:
-      - Ask endpoints return `outcome: applied` for encrypted exact creates, updates, archives, deletes, and workflow enable/disable actions.
+      - "Ask endpoints return `outcome: applied` for encrypted exact creates, updates, archives, deletes, and workflow enable/disable actions."
       - Authorized valid ask mutations auto-apply by default and always create workspace change sets and entries.
-      - Ambiguous, unauthorized, invalid, unsupported, or under-contextualized ask mutations return `fallback_to_chat` before user-visible changes are applied.
+      - "Ambiguous, unauthorized, invalid, unsupported, or under-contextualized ask mutations return `fallback_to_chat` before user-visible changes are applied."
       - Delete and archive ask mutations remain restorable through change history.
       - Task, plan, and project ask endpoints accept only client-resolved exact IDs, current versions, and encrypted payloads for rich mutations.
     covers: [AC-10, AC-11, AC-12, AC-13, AC-18]
@@ -1127,19 +1127,19 @@ verifications:
   - id: V-WCH-ASK-PIPELINE-DEV
     kind: manual_check
     phase: green
-    status: passed
+    status: pending
     required_for_done: true
-    covers: [AC-14, AC-15, AC-16, AC-17]
+    covers: [AC-14, AC-15, AC-16, AC-17, AC-18]
     evidence:
-      status: passed
-      timestamp: "2026-07-21T11:59:50Z"
+      status: superseded
+      timestamp: "2026-07-21T18:00:00Z"
       actor: OpenCode
       command: docker restart api && node scripts/openmates_cli_test_account.mjs login --api-url https://api.dev.openmates.org --web-origin https://app.dev.openmates.org && direct first-party POST /v1/user-tasks/ask/plan, /v1/user-plans/ask/plan, /v1/projects/ask/plan, /v1/workflows/ask/plan, /v1/workflows/ask; node frontend/packages/openmates-cli/dist/cli.js history undo <change_set_id> --json
       run_id: local-2026-07-21T11:59:50Z
       observed: Public dev API returned pipeline processing metadata for task, plan, project, workflow, ambiguous destructive, and long-input asks. Task short ask produced title Remind to Verify Rollback Commands with preprocessor complexity simple and description_model_id mistral/mistral-small-2506. Plan ask produced Workspace History Launch Validation Plan with main model google/gemini-3-flash-preview. Project ask produced Workspace History Launch with main model google/gemini-3-flash-preview. Workflow plan initially exposed empty-graph main-output repair need, then after fix returned Manual Release-Check Workflow with manual_trigger/send_notification/end, selected main model google/gemini-3-flash-preview, filtered_unknown_capability_ids empty, and description_model_id mistral/mistral-small-2506. Ambiguous destructive task ask returned 502 clarification required and no change set. Long task ask returned 3 tasks and selected google/gemini-3.1-pro-preview. Real task auto-apply created chg_c0e1c5950f4e43ebbf4081807232160a and was undone by chg_01eda59f5dd348bcb7f1587194cd8352. Real workflow auto-apply created chg_6135ba69c8724a8982ce19c4babbcc5d with processing metadata and was undone by chg_f8d03c4fdf8747f0b87124f0eac63dd8.
       subject_commit: 3eb32d5ae922337b5e34161d92202d906b9af6d0+working-tree
-      reason: Real first-party dev-server requests exercised the corrected preprocessor, selected main model, deterministic repair/postprocessing, description model metadata, ambiguity block, apply, and undo paths after restarting the Docker-backed API.
-    description: Run real `openmates tasks|plans|projects|workflows ask` examples against https://api.dev.openmates.org after deploy with short/simple, medium, complex workflow, ambiguous destructive, and long-input prompts; record preprocessor usage, selected main model and usage, description-generation usage, repair status, outputs, change sets, and undo results.
+      reason: Superseded by the finalized ask contract requiring `fallback_to_chat`, exact encrypted mutation payloads, and 20 real examples.
+    description: Run 20 real `openmates tasks|plans|projects|workflows ask` examples against https://api.dev.openmates.org after deploy with short deterministic, medium AI-create, safe exact edit/delete/status, complex workflow, ambiguous destructive, and unsupported broad workflow prompts; record preprocessor usage, selected main model and usage, description-generation usage, repair status, outputs, change sets, fallback outcomes, and undo results.
   - id: V-WCH-APPLE-IMPACT
     kind: manual_check
     phase: final
@@ -1464,6 +1464,48 @@ tasks:
         - backend/core/api/app/routes/user_plans.py
         - backend/core/api/app/routes/projects.py
         - backend/core/api/app/routes/workflows.py
+  - id: TASK-11
+    title: Finalize workspace ask fallback and exact mutation contract
+    status: in_progress
+    phase: running_checks
+    covers:
+      scenarios: [S-12, S-13, S-17, S-18]
+      acceptance_criteria: [AC-12, AC-13, AC-17, AC-18]
+    expected_files:
+      - docs/specs/workspace-change-history/spec.yml
+      - backend/core/api/app/routes/user_tasks.py
+      - backend/core/api/app/routes/user_plans.py
+      - backend/core/api/app/routes/projects.py
+      - backend/core/api/app/routes/workflows.py
+      - backend/tests/test_workspace_ask_routes.py
+      - frontend/packages/openmates-cli/src/cli.ts
+      - frontend/packages/openmates-cli/src/client.ts
+      - frontend/packages/openmates-cli/src/sdk.ts
+      - frontend/packages/openmates-cli/tests/workspace-history.test.ts
+      - frontend/packages/openmates-cli/tests/sdk-workspace-history.test.ts
+      - packages/openmates-python/openmates/sdk.py
+      - packages/openmates-python/tests/test_sdk.py
+    verification_ids: [T-WCH-ASK-BACKEND, T-WCH-ASK-CLI, T-WCH-ASK-SDK, T-WCH-ASK-PIPELINE, V-WCH-ASK-PIPELINE-DEV]
+    dependencies: [TASK-10]
+    blockers:
+      - V-WCH-ASK-PIPELINE-DEV needs a new 20-example real dev-server run against the finalized `fallback_to_chat` and exact mutation contract.
+    follow_up_tasks: []
+    ownership:
+      files:
+        - docs/specs/workspace-change-history/spec.yml
+      shared_files:
+        - backend/core/api/app/routes/user_tasks.py
+        - backend/core/api/app/routes/user_plans.py
+        - backend/core/api/app/routes/projects.py
+        - backend/core/api/app/routes/workflows.py
+        - backend/tests/test_workspace_ask_routes.py
+        - frontend/packages/openmates-cli/src/cli.ts
+        - frontend/packages/openmates-cli/src/client.ts
+        - frontend/packages/openmates-cli/src/sdk.ts
+        - frontend/packages/openmates-cli/tests/workspace-history.test.ts
+        - frontend/packages/openmates-cli/tests/sdk-workspace-history.test.ts
+        - packages/openmates-python/openmates/sdk.py
+        - packages/openmates-python/tests/test_sdk.py
 
 attempts:
   - id: ATTEMPT-1
@@ -1473,12 +1515,12 @@ attempts:
     recorded_at: "2026-07-20T00:00:00Z"
 
 handoff:
-  current_task_id: TASK-10
-  next_action: Run final spec verification and deploy if requested.
+  current_task_id: TASK-11
+  next_action: Restart the dev API, run the 20 real ask examples, update V-WCH-ASK-PIPELINE-DEV evidence, then run final spec verification.
   command: python3 scripts/spec_verify.py docs/specs/workspace-change-history/spec.yml --json
-  expected_outcome: Spec verification reports remaining non-TASK-10 gates or confirms the workspace-change-history spec is complete.
+  expected_outcome: Spec verification reports the workspace-change-history spec complete after 20-example evidence is recorded.
   blocker: null
-  last_verified_commit: cd5a884
+  last_verified_commit: 44f5b9cf4+working-tree
 
 risks:
   - Hot/cold history touches persistence, encryption, S3, CLI, SDK, and workflow versioning, so incomplete implementation could create partial history or restore gaps.
