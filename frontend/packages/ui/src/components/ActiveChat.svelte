@@ -4894,6 +4894,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
      let olderMessageWindowLoading = $state(false);
      let lastBoundChatHistoryRef = $state<ChatHistoryRef | null>(null);
      let anonymousShellHydratingChatId = $state<string | null>(null);
+     let hasActivePrivateChatSurface = $derived(Boolean(
+        currentChat?.chat_id &&
+        !isPublicChat(currentChat.chat_id) &&
+        (!showWelcome || currentMessages.length > 0)
+     ));
 
      async function readAnonymousSnapshotFromIndexedDb(chatId: string): Promise<{ chat: Chat; messages: ChatMessageModel[] } | null> {
         if (typeof indexedDB === 'undefined') return null;
@@ -11732,7 +11737,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     >
                         <!-- Left side buttons -->
                         <div class="left-buttons">
-                            {#if !showWelcome && !(currentChat?.chat_id && isPublicChat(currentChat.chat_id))}
+                            {#if hasActivePrivateChatSurface}
                                 <!-- Share button - opens settings menu with share submenu -->
                                 <!-- Hidden for intro, example, and legal chats (public/static chats the user doesn't own) -->
                                 <div class="new-chat-button-wrapper">
@@ -11790,7 +11795,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
                         <!-- Right side buttons -->
                         <div class="right-buttons">
-                            {#if !showWelcome && $authStore.isAuthenticated && currentChat?.chat_id && !isPublicChat(currentChat.chat_id)}
+                            {#if hasActivePrivateChatSurface && $authStore.isAuthenticated && currentChat?.chat_id}
                                 {#if CHAT_DETAILS_SETTINGS_ENABLED}
                                     <div class="new-chat-button-wrapper">
                                         <button
