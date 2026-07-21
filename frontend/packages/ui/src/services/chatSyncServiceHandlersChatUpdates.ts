@@ -1688,6 +1688,7 @@ export async function handleEncryptedChatMetadataImpl(
     encrypted_chat_summary?: string;
     encrypted_icon?: string;
     encrypted_category?: string;
+    encrypted_chat_category?: string;
     versions?: {
       messages_v?: number;
       title_v?: number;
@@ -1714,16 +1715,49 @@ export async function handleEncryptedChatMetadataImpl(
   // Instead, use separate transactions for each operation.
   try {
     // First, get the chat without passing a transaction (getChat will create its own)
-    const chat = await chatDB.getChat(payload.chat_id);
+    let chat = await chatDB.getChat(payload.chat_id);
+    let createdMetadataShell = false;
+    const encryptedCategory =
+      payload.encrypted_category ?? payload.encrypted_chat_category;
 
     if (!chat) {
-      console.warn(
-        `[ChatSyncService:ChatUpdates] Chat ${payload.chat_id} not found for encrypted_chat_metadata update broadcast`,
+      console.info(
+        `[ChatSyncService:ChatUpdates] Creating metadata-only chat shell ${payload.chat_id} from encrypted_chat_metadata broadcast`,
       );
-      return;
+      const now = Math.floor(Date.now() / 1000);
+      const userProfile = await userDB.getUserProfile();
+      chat = {
+        chat_id: payload.chat_id,
+        user_id: userProfile?.user_id ?? undefined,
+        encrypted_title: null,
+        title: null,
+        messages_v: 0,
+        title_v: 0,
+        draft_v: 0,
+        encrypted_draft_md: null,
+        encrypted_draft_preview: null,
+        last_edited_overall_timestamp: now,
+        unread_count: 0,
+        created_at: now,
+        updated_at: now,
+        processing_metadata: false,
+        waiting_for_metadata: false,
+        encrypted_chat_key: null,
+        anonymous_encrypted_chat_key: null,
+        encrypted_chat_summary: null,
+        encrypted_icon: null,
+        encrypted_category: null,
+        pinned: false,
+        is_shared: false,
+        is_private: false,
+        share_pii: false,
+        share_highlights: true,
+        is_metadata_only: true,
+      } as Chat;
+      createdMetadataShell = true;
     }
 
-    let changed = false;
+    let changed = createdMetadataShell;
 
     // Update encrypted_chat_key if provided.
     // IMPORTANT: AES-GCM uses a random IV, so the same raw key re-encrypted twice
@@ -1839,7 +1873,7 @@ export async function handleEncryptedChatMetadataImpl(
     const incomingMetadataV = payload.versions?.metadata_v;
     const localMetadataV = chat.metadata_v || chat.title_v || 0;
     const acceptsMetadataRevision =
-      incomingMetadataV === undefined || incomingMetadataV > localMetadataV;
+      incomingMetadataV === undefined || incomingMetadataV >= localMetadataV;
 
     for (const field of [
       "encrypted_title",
@@ -1847,7 +1881,8 @@ export async function handleEncryptedChatMetadataImpl(
       "encrypted_icon",
       "encrypted_category",
     ] as const) {
-      const incoming = payload[field];
+      const incoming =
+        field === "encrypted_category" ? encryptedCategory : payload[field];
       if (
         (field === "encrypted_title" || field === "encrypted_chat_summary") &&
         !acceptsMetadataRevision
@@ -1933,8 +1968,12 @@ export async function handleEncryptedChatMetadataImpl(
 
     if (changed) {
       chat.updated_at = Math.floor(Date.now() / 1000);
-      // Use a separate transaction for updateChat (it will create its own internally)
-      await chatDB.updateChat(chat);
+      if (createdMetadataShell) {
+        await chatDB.addChat(chat, undefined, { isFromSync: true });
+      } else {
+        // Use a separate transaction for updateChat (it will create its own internally)
+        await chatDB.updateChat(chat);
+      }
       console.info(
         `[ChatSyncService:ChatUpdates] Successfully updated metadata for chat ${payload.chat_id} from broadcast`,
       );

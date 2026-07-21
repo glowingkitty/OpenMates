@@ -9,6 +9,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ChatSynchronizationService } from "../chatSyncService";
 import {
   handleChatDraftUpdatedImpl,
+  handleEncryptedChatMetadataImpl,
   handleChatMessageReceivedImpl,
   handleNewChatMessageImpl,
 } from "../chatSyncServiceHandlersChatUpdates";
@@ -155,6 +156,121 @@ describe("handleNewChatMessageImpl", () => {
     expect(mocks.chatDB.addChat.mock.invocationCallOrder[0]).toBeLessThan(
       mocks.flushPendingSystemMessagesForChat.mock.invocationCallOrder[0],
     );
+  });
+});
+
+describe("handleEncryptedChatMetadataImpl", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.chatDB.getChat.mockResolvedValue(null);
+    mocks.chatDB.addChat.mockResolvedValue(undefined);
+    mocks.chatDB.updateChat.mockResolvedValue(undefined);
+    mocks.userDB.getUserProfile.mockResolvedValue({ user_id: "user-1" });
+    mocks.chatKeyManager.getKeySync.mockReturnValue(null);
+    mocks.chatKeyManager.receiveKeyFromServer.mockResolvedValue(
+      new Uint8Array([1, 2, 3]),
+    );
+    mocks.chatKeyManager.withKey.mockImplementation(
+      async (
+        _chatId: string,
+        _reason: string,
+        callback: (key: Uint8Array) => Promise<void>,
+      ) => {
+        await callback(new Uint8Array([1, 2, 3]));
+      },
+    );
+  });
+
+  it("creates a synced metadata-only shell when metadata arrives before the chat row", async () => {
+    const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+
+    await handleEncryptedChatMetadataImpl(service, {
+      chat_id: "chat-metadata-only",
+      encrypted_chat_key: "encrypted-chat-key",
+      encrypted_title: "encrypted-title",
+      encrypted_chat_summary: "encrypted-summary",
+      encrypted_chat_category: "encrypted-category",
+      encrypted_icon: "encrypted-icon",
+      versions: {
+        messages_v: 1,
+        title_v: 2,
+        metadata_v: 3,
+        draft_v: 0,
+      },
+    });
+
+    expect(mocks.chatKeyManager.receiveKeyFromServer).toHaveBeenCalledWith(
+      "chat-metadata-only",
+      "encrypted-chat-key",
+    );
+    expect(mocks.chatDB.addChat).toHaveBeenCalledWith(
+      expect.objectContaining({
+        chat_id: "chat-metadata-only",
+        user_id: "user-1",
+        encrypted_chat_key: "encrypted-chat-key",
+        encrypted_title: "encrypted-title",
+        encrypted_chat_summary: "encrypted-summary",
+        encrypted_category: "encrypted-category",
+        encrypted_icon: "encrypted-icon",
+        messages_v: 1,
+        title_v: 2,
+        metadata_v: 3,
+        is_metadata_only: true,
+      }),
+      undefined,
+      { isFromSync: true },
+    );
+    expect(mocks.chatDB.updateChat).not.toHaveBeenCalled();
+    expect(mocks.chatListCache.markDirty).toHaveBeenCalled();
+    expect(mocks.chatMetadataCache.invalidateChat).toHaveBeenCalledWith("chat-metadata-only");
+    expect(service.dispatchEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        detail: expect.objectContaining({
+          chat_id: "chat-metadata-only",
+          type: "metadata_updated",
+        }),
+      }),
+    );
+  });
+
+  it("merges summary broadcasts at the current metadata revision", async () => {
+    const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+    mocks.chatDB.getChat.mockResolvedValue({
+      chat_id: "chat-existing",
+      encrypted_title: "encrypted-title",
+      encrypted_chat_summary: "old-summary",
+      encrypted_chat_key: "encrypted-chat-key",
+      messages_v: 1,
+      title_v: 2,
+      metadata_v: 3,
+      draft_v: 0,
+      last_edited_overall_timestamp: 100,
+      unread_count: 0,
+      created_at: 100,
+      updated_at: 100,
+    });
+    mocks.chatKeyManager.getKeySync.mockReturnValue(new Uint8Array([1, 2, 3]));
+    mocks.decryptWithChatKey.mockResolvedValue("decrypts");
+
+    await handleEncryptedChatMetadataImpl(service, {
+      chat_id: "chat-existing",
+      encrypted_chat_summary: "new-summary",
+      versions: {
+        messages_v: 1,
+        title_v: 2,
+        metadata_v: 3,
+        draft_v: 0,
+      },
+    });
+
+    expect(mocks.chatDB.updateChat).toHaveBeenCalledWith(
+      expect.objectContaining({
+        chat_id: "chat-existing",
+        encrypted_chat_summary: "new-summary",
+        metadata_v: 3,
+      }),
+    );
+    expect(mocks.chatDB.addChat).not.toHaveBeenCalled();
   });
 });
 
