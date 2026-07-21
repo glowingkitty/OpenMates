@@ -2,20 +2,20 @@
 export {};
 
 /**
- * Reminder E2E — Scenario: Repeating reminder + cancel (combined)
+ * Reminder E2E — Scenario: Daily repeating reminder + cancel (combined)
  *
  * These two scenarios MUST run in the same test to guarantee the repeating
  * reminder is cancelled before the test ends. A repeating reminder that is
- * not cancelled will keep firing every minute and consuming credits.
+ * not cancelled will keep firing over time and consuming credits.
  *
  * Flow:
- *   S4 — Set a repeating reminder (every 1 min). Wait for 3 occurrences
- *        (3 system messages), each with its own 3-min window.
+ *   S4 — Set a daily repeating reminder starting 1 min from now. Wait for
+ *        the first occurrence.
  *   S5 — Cancel the reminder via the embed UI cancel button, or fall back
  *        to sending a cancellation chat message. Wait 2 minutes and assert
- *        no 4th system message appears. Delete the chat.
+ *        no duplicate immediate system message appears. Delete the chat.
  *
- * Runtime: ~15 minutes (worst case).
+ * Runtime: ~10 minutes (worst case).
  *
  * REQUIRED ENV VARS:
  *   OPENMATES_TEST_ACCOUNT_EMAIL
@@ -130,13 +130,13 @@ async function waitForSystemMessages(
 // Test
 // ---------------------------------------------------------------------------
 
-test('reminder — repeating (3 occurrences) + cancel (no 4th firing)', async ({
+test('reminder — daily repeating first occurrence + cancel', async ({
 	page
 }: {
 	page: any;
 }) => {
 	test.slow();
-	test.setTimeout(1800000); // 30 min (3 occurrences × 3 min + 2 min cancel wait + overhead)
+	test.setTimeout(900000); // 15 min (first occurrence + 2 min cancel wait + overhead)
 
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
@@ -158,7 +158,7 @@ test('reminder — repeating (3 occurrences) + cancel (no 4th firing)', async ({
 	await expect(editor).toBeVisible();
 	await editor.click();
 	await page.keyboard.type(
-		'Set a repeating reminder in this chat that repeats every 1 minute with the message "repeating test". Just set it, no need to ask questions.'
+		'Set a daily repeating reminder in this chat starting 1 minute from now with the message "repeating test". Just set it, no need to ask questions.'
 	);
 	await screenshot(page, 'message-typed');
 
@@ -174,24 +174,18 @@ test('reminder — repeating (3 occurrences) + cancel (no 4th firing)', async ({
 	await screenshot(page, 'ai-confirmation');
 
 	// =========================================================================
-	// S4: Wait for 3 occurrences
+	// S4: Wait for the first occurrence. The product supports daily/weekly/monthly
+	// repeats, not minute-level repeats, so the next occurrence is intentionally
+	// not awaited in this spec.
 	// =========================================================================
 	log('=== S4: Waiting for occurrence 1 ===');
 	await waitForSystemMessages(page, 1, 180000, 'occ-1', log);
 	await screenshot(page, 's4-occurrence-1');
 
-	log('=== S4: Waiting for occurrence 2 ===');
-	await waitForSystemMessages(page, 2, 180000, 'occ-2', log);
-	await screenshot(page, 's4-occurrence-2');
-
-	log('=== S4: Waiting for occurrence 3 ===');
-	await waitForSystemMessages(page, 3, 180000, 'occ-3', log);
-	await screenshot(page, 's4-occurrence-3');
-
 	const firstSysText = await page.getByTestId('message-system').first().textContent();
 	log(`First system message: "${firstSysText?.substring(0, 150)}"`);
 	expect(firstSysText).toContain('Reminder');
-	log('S4 PASSED — repeating reminder fired 3 times.');
+	log('S4 PASSED — daily repeating reminder fired once.');
 
 	// =========================================================================
 	// S5: Cancel the repeating reminder
@@ -213,9 +207,7 @@ test('reminder — repeating (3 occurrences) + cancel (no 4th firing)', async ({
 	} else {
 		// Strategy 2: look for an expand button
 		log('Embed preview not found — looking for expand button.');
-		const expandBtn = page
-			.locator('[data-testid="embed-expand-button"], [data-testid="embed-open-button"], [class*="expand"]')
-			.first();
+		const expandBtn = page.locator('[data-testid="embed-expand-button"], [data-testid="embed-open-button"]').first();
 		if (await expandBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
 			await expandBtn.click();
 			await page.waitForTimeout(1000);
@@ -223,7 +215,7 @@ test('reminder — repeating (3 occurrences) + cancel (no 4th firing)', async ({
 	}
 
 	// Try the Cancel button in fullscreen embed
-	const cancelBtn = page.locator('[data-testid="cancel-btn"], [class*="cancel-btn"]').first();
+	const cancelBtn = page.getByTestId('cancel-btn').first();
 	if (await cancelBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
 		log('Found Cancel button — clicking.');
 		await cancelBtn.click();
@@ -252,22 +244,20 @@ test('reminder — repeating (3 occurrences) + cancel (no 4th firing)', async ({
 
 		// Wait for AI to confirm cancellation
 		await expect(async () => {
-			// Should have at least 4 assistant messages (1 initial + 3 per occurrence + 1 cancel confirm)
-			// but tolerate 3 if responses are still in-flight
 			const count = await assistantMsgs.count();
-			expect(count).toBeGreaterThanOrEqual(3);
+			expect(count).toBeGreaterThanOrEqual(2);
 		}).toPass({ timeout: 60000, intervals: [3000] });
 		log('Cancellation confirmed via chat message.');
 		await screenshot(page, 's5-cancelled-via-chat');
 	}
 
 	// =========================================================================
-	// S5: Verify no 4th firing for 2 minutes
+	// S5: Verify no duplicate immediate firing for 2 minutes
 	// =========================================================================
 	const systemMsgs = page.getByTestId('message-system');
 	const countBeforeWait = await systemMsgs.count();
 	log(
-		`System message count before 2-min wait: ${countBeforeWait}. Waiting to confirm no more firings...`
+		`System message count before 2-min wait: ${countBeforeWait}. Waiting to confirm no duplicate immediate firing...`
 	);
 
 	await page.waitForTimeout(120000); // 2 minutes
@@ -277,10 +267,10 @@ test('reminder — repeating (3 occurrences) + cancel (no 4th firing)', async ({
 
 	expect(
 		countAfterWait,
-		`No new system messages should appear after cancellation (was ${countBeforeWait}, now ${countAfterWait})`
+		`No duplicate system messages should appear after cancellation (was ${countBeforeWait}, now ${countAfterWait})`
 	).toBe(countBeforeWait);
 
-	log('S5 PASSED — no additional firings after cancellation.');
+	log('S5 PASSED — no duplicate firings after cancellation.');
 	await screenshot(page, 's5-no-new-firings');
 
 	// Clean up

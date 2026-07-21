@@ -272,8 +272,9 @@
           <!-- Action buttons -->
           <div class="action-buttons">
             {#if isReminderActive}
-              <button 
-                class="action-btn cancel-btn" 
+              <button
+                class="action-btn cancel-btn"
+                data-testid="cancel-btn"
                 onclick={handleCancelReminder}
                 disabled={isCancelling}
               >
@@ -368,8 +369,8 @@
   
   /* Reminder card */
   .reminder-card {
-    background: var(--color-grey-5, #fafafa);
-    border: 1px solid var(--color-grey-15, #f0f0f0);
+    background: var(--color-grey-10, #fafafa);
+    border: 1px solid var(--color-grey-20, #f0f0f0);
     border-radius: var(--radius-5);
     padding: var(--spacing-10);
     display: flex;
@@ -383,7 +384,7 @@
     align-items: center;
     gap: var(--spacing-6);
     padding-bottom: var(--spacing-8);
-    border-bottom: 1px solid var(--color-grey-15, #f0f0f0);
+    border-bottom: 1px solid var(--color-grey-20, #f0f0f0);
   }
   
   .trigger-icon {
@@ -649,7 +650,7 @@
   }
   
   :global(.dark) .inactive-notice {
-    background: var(--color-grey-85, #252525);
+    background: var(--color-grey-80, #252525);
     color: var(--color-grey-50, #888);
   }
   
