@@ -66,6 +66,7 @@
   import { introBannerVisible } from '../stores/uiStateStore';
   import { decodeToonContent, loadEmbedsWithRetry, resolveEmbed } from '../services/embedResolver';
   import { MAX_WIDTH_PREVIEW_THUMBNAIL, proxyImage } from '../utils/imageProxy';
+  import { extractSearchResultsFromContent } from './embeds/embedPreviewHydration';
   import { chatDB } from '../services/db';
   import { webSocketService } from '../services/websocketService';
   import { activeChatStore } from '../stores/activeChatStore';
@@ -287,7 +288,13 @@
   let headerImageBubbles = $state<HeaderImageBubble[] | null>(null);
   let headerImageBubbleRequestId = 0;
   let headerImageBubbleCandidateKey = '';
+  let headerImageBubbleRetryTick = $state(0);
+  let headerImageBubbleRetryTimer: ReturnType<typeof setTimeout> | null = null;
+  let headerImageBubbleRetryBaseKey = '';
+  let headerImageBubbleRetryCount = 0;
   const HEADER_IMAGE_BUBBLE_LIMIT = 8;
+  const HEADER_IMAGE_BUBBLE_RETRY_LIMIT = 10;
+  const HEADER_IMAGE_BUBBLE_RETRY_DELAY_MS = 1000;
   const VIRTUALIZATION_THRESHOLD = 160;
   const VIRTUALIZATION_OVERSCAN = 24;
   const VIRTUALIZATION_ESTIMATED_MESSAGE_HEIGHT = 132;
@@ -303,6 +310,71 @@
       return embedIds.filter((id): id is string => typeof id === 'string' && id.length > 0);
     }
     return [];
+  }
+
+  function clearHeaderImageBubbleRetry() {
+    if (!headerImageBubbleRetryTimer) return;
+    clearTimeout(headerImageBubbleRetryTimer);
+    headerImageBubbleRetryTimer = null;
+  }
+
+  function scheduleHeaderImageBubbleRetry(baseKey: string): boolean {
+    if (headerImageBubbleRetryTimer || headerImageBubbleRetryCount >= HEADER_IMAGE_BUBBLE_RETRY_LIMIT) return false;
+
+    headerImageBubbleRetryCount += 1;
+    headerImageBubbleRetryTimer = setTimeout(() => {
+      headerImageBubbleRetryTimer = null;
+      if (headerImageBubbleRetryBaseKey === baseKey) {
+        headerImageBubbleRetryTick += 1;
+      }
+    }, HEADER_IMAGE_BUBBLE_RETRY_DELAY_MS);
+    return true;
+  }
+
+  function parseImagePreviewResultsJson(value: unknown): ImageResultContent[] {
+    if (typeof value !== 'string' || !value.trim()) return [];
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed.filter(isImageResultContent) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function isImageResultContent(value: unknown): value is ImageResultContent {
+    return !!value && typeof value === 'object';
+  }
+
+  function getParentPreviewImageResults(decodedParent: Record<string, unknown> | null): ImageResultContent[] {
+    if (!decodedParent) return [];
+
+    const previewResults = extractSearchResultsFromContent(
+      decodedParent,
+      ['preview_results', 'preview_thumbnails', 'results'],
+    ).filter(isImageResultContent);
+    if (previewResults.length > 0) return previewResults;
+
+    return parseImagePreviewResultsJson(decodedParent.preview_results_json);
+  }
+
+  function appendHeaderImageBubble(
+    result: ImageResultContent,
+    bubbles: HeaderImageBubble[],
+    seen: Set<string>,
+    parentEmbedId: string,
+    childEmbedId: string,
+  ): boolean {
+    const rawUrl = result.thumbnail_url || result.image_url;
+    if (!rawUrl || seen.has(rawUrl)) return false;
+
+    seen.add(rawUrl);
+    bubbles.push({
+      imageUrl: proxyImage(rawUrl, MAX_WIDTH_PREVIEW_THUMBNAIL),
+      parentEmbedId,
+      childEmbedId,
+      title: result.title,
+    });
+    return bubbles.length >= HEADER_IMAGE_BUBBLE_LIMIT;
   }
 
   function collectImageSearchCandidates(node: TiptapNode | undefined, candidates: ImageSearchCandidate[]) {
@@ -337,9 +409,24 @@
 
     for (const candidate of candidates) {
       let childEmbedIds = candidate.childEmbedIds;
+      let decodedParent: Record<string, unknown> | null = null;
       if (childEmbedIds.length === 0) {
         const parentEmbed = await resolveEmbed(candidate.parentEmbedId);
-        const decodedParent = parentEmbed?.content ? await decodeToonContent(parentEmbed.content) : null;
+        decodedParent = parentEmbed?.content ? await decodeToonContent(parentEmbed.content) : null;
+
+        const parentPreviewResults = getParentPreviewImageResults(decodedParent);
+        for (let index = 0; index < parentPreviewResults.length; index += 1) {
+          if (appendHeaderImageBubble(
+            parentPreviewResults[index],
+            bubbles,
+            seen,
+            candidate.parentEmbedId,
+            `${candidate.parentEmbedId}:preview:${index}`,
+          )) {
+            return bubbles;
+          }
+        }
+
         childEmbedIds = normalizeEmbedIds(decodedParent?.embed_ids ?? parentEmbed?.embed_ids);
       }
       if (childEmbedIds.length === 0) continue;
@@ -348,17 +435,7 @@
       const childEmbeds = await loadEmbedsWithRetry(childEmbedIds.slice(0, remainingCount), 3, 250);
       for (const childEmbed of childEmbeds) {
         const decodedChild = childEmbed.content ? await decodeToonContent(childEmbed.content) as ImageResultContent | null : null;
-        const rawUrl = decodedChild?.thumbnail_url || decodedChild?.image_url;
-        if (!rawUrl || seen.has(rawUrl)) continue;
-
-        seen.add(rawUrl);
-        bubbles.push({
-          imageUrl: proxyImage(rawUrl, MAX_WIDTH_PREVIEW_THUMBNAIL),
-          parentEmbedId: candidate.parentEmbedId,
-          childEmbedId: childEmbed.embed_id,
-          title: decodedChild?.title,
-        });
-        if (bubbles.length >= HEADER_IMAGE_BUBBLE_LIMIT) return bubbles;
+        if (decodedChild && appendHeaderImageBubble(decodedChild, bubbles, seen, candidate.parentEmbedId, childEmbed.embed_id)) return bubbles;
       }
     }
 
@@ -1253,9 +1330,13 @@
 
   $effect(() => {
     const requestId = ++headerImageBubbleRequestId;
+    const retryTick = headerImageBubbleRetryTick;
 
     if (!showChatHeader || isIncognito || isNewChatGeneratingTitle || isNewChatCreditsError) {
       headerImageBubbleCandidateKey = '';
+      headerImageBubbleRetryBaseKey = '';
+      headerImageBubbleRetryCount = 0;
+      clearHeaderImageBubbleRetry();
       headerImageBubbles = null;
       void persistResumeCardImageBubbles(null);
       return;
@@ -1268,6 +1349,9 @@
 
     if (candidates.length === 0) {
       headerImageBubbleCandidateKey = '';
+      headerImageBubbleRetryBaseKey = '';
+      headerImageBubbleRetryCount = 0;
+      clearHeaderImageBubbleRetry();
       headerImageBubbles = null;
       void persistResumeCardImageBubbles(null);
       return;
@@ -1276,9 +1360,16 @@
     const embedUpdateKey = messages
       .map(message => message._embedUpdateTimestamp ?? '')
       .join('|');
-    const candidateKey = `${candidates
+    const baseCandidateKey = `${candidates
       .map(candidate => `${candidate.parentEmbedId}:${candidate.childEmbedIds.join('|')}`)
       .join(';')}#${embedUpdateKey}`;
+    if (baseCandidateKey !== headerImageBubbleRetryBaseKey) {
+      headerImageBubbleRetryBaseKey = baseCandidateKey;
+      headerImageBubbleRetryCount = 0;
+      clearHeaderImageBubbleRetry();
+    }
+
+    const candidateKey = `${baseCandidateKey}#retry:${retryTick}`;
     if (candidateKey === headerImageBubbleCandidateKey) return;
     headerImageBubbleCandidateKey = candidateKey;
 
@@ -1286,15 +1377,24 @@
       .then((bubbles) => {
         if (requestId !== headerImageBubbleRequestId) return;
         headerImageBubbles = bubbles.length > 0 ? bubbles : null;
-        void persistResumeCardImageBubbles(
-          bubbles.length > 0 ? bubbles.map(({ imageUrl, title }) => ({ imageUrl, title })).slice(0, 2) : null,
-        );
+        if (bubbles.length > 0) {
+          headerImageBubbleRetryCount = 0;
+          clearHeaderImageBubbleRetry();
+          void persistResumeCardImageBubbles(bubbles.map(({ imageUrl, title }) => ({ imageUrl, title })).slice(0, 2));
+          return;
+        }
+
+        if (!scheduleHeaderImageBubbleRetry(baseCandidateKey)) {
+          void persistResumeCardImageBubbles(null);
+        }
       })
       .catch((error) => {
         if (requestId !== headerImageBubbleRequestId) return;
         console.warn('[ChatHistory] Failed to resolve image-search header bubbles:', error);
         headerImageBubbles = null;
-        void persistResumeCardImageBubbles(null);
+        if (!scheduleHeaderImageBubbleRetry(baseCandidateKey)) {
+          void persistResumeCardImageBubbles(null);
+        }
       });
   });
 
@@ -2221,6 +2321,7 @@
     if (scrollFrame) cancelAnimationFrame(scrollFrame);
     // Clear spacer safety timeout
     if (spacerSafetyTimeout) clearTimeout(spacerSafetyTimeout);
+    clearHeaderImageBubbleRetry();
     // Unsubscribe from PII visibility store
     unsubPiiVisibility();
   });
