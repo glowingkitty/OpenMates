@@ -89,8 +89,11 @@ test.describe('InteractiveQuestions Component Previews (All 5 Types)', () => {
 
 	test('keeps selected choice text readable in dark mode', async ({ page }) => {
 		await page.evaluate(() => {
-			document.documentElement.setAttribute('data-theme', 'dark');
+			localStorage.setItem('theme_mode', 'dark');
+			localStorage.setItem('theme', 'dark');
 		});
+		await page.reload({ waitUntil: 'networkidle' });
+		await expect.poll(() => page.evaluate(() => document.documentElement.getAttribute('data-theme'))).toBe('dark');
 
 		const option = page.getByTestId('interactive-question-option-opt_reverse');
 		await option.click();
@@ -110,7 +113,10 @@ test.describe('InteractiveQuestions Component Previews (All 5 Types)', () => {
 			};
 		});
 
-		expect(contrastRatio(colors.foreground, colors.background)).toBeGreaterThanOrEqual(
+		expect(
+			contrastRatio(colors.foreground, colors.background),
+			`selected option contrast failed for ${JSON.stringify(colors)}`
+		).toBeGreaterThanOrEqual(
 			MIN_WCAG_AA_NORMAL_TEXT_CONTRAST
 		);
 	});
