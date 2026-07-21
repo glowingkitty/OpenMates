@@ -17,8 +17,10 @@
 # default_enabled: false. `disabled` can disable default-on features.
 feature_overrides:
   enabled:
-    - "platform:workflows"
+    - "platform:projects"
+    - "platform:plans"
     - "platform:tasks"
+    - "platform:workflows"
   disabled:
     # Placeholder app folders without implemented runtime behavior yet
     - "app:life_coaching"

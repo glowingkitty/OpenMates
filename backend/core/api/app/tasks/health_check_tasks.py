@@ -1149,7 +1149,14 @@ def _get_app_worker_queue_names(app_id: str) -> set[str]:
     return queues or {f"app_{app_id}"}
 
 
-async def _check_app_worker_health(app_id: str) -> tuple[bool, Optional[str]]:
+def _inspect_active_worker_queues() -> Optional[Dict[str, Any]]:
+    from backend.core.api.app.tasks.celery_config import app as celery_app
+
+    inspect = celery_app.control.inspect()
+    return inspect.active_queues()
+
+
+async def _check_app_worker_health(app_id: str, active_workers: Optional[Dict[str, Any]] = None) -> tuple[bool, Optional[str]]:
     """
     Check app worker health via Celery worker inspection.
     
@@ -1160,15 +1167,10 @@ async def _check_app_worker_health(app_id: str) -> tuple[bool, Optional[str]]:
         Tuple of (is_healthy, error_message)
     """
     try:
-        from backend.core.api.app.tasks.celery_config import app as celery_app
-        
         expected_queue_names = _get_app_worker_queue_names(app_id)
-        
-        # Inspect active workers
-        inspect = celery_app.control.inspect()
-        
-        # Get active workers (workers that are currently processing tasks)
-        active_workers = inspect.active_queues()
+
+        if active_workers is None:
+            active_workers = await asyncio.to_thread(_inspect_active_worker_queues)
         
         if not active_workers:
             return False, "No active Celery workers found"
@@ -1219,7 +1221,7 @@ def _app_has_workers(app_id: str) -> bool:
     return len(actual_task_files) > 0
 
 
-async def _check_app_health(app_id: str, port: int = 8000) -> Dict[str, Any]:
+async def _check_app_health(app_id: str, port: int = 8000, active_workers: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """
     Check health of a single app (API and optionally worker) with double-attempt logic.
     
@@ -1265,7 +1267,7 @@ async def _check_app_health(app_id: str, port: int = 8000) -> Dict[str, Any]:
     
     if has_workers:
         # Check worker health (first attempt)
-        worker_attempt1_success, worker_attempt1_error = await _check_app_worker_health(app_id)
+        worker_attempt1_success, worker_attempt1_error = await _check_app_worker_health(app_id, active_workers=active_workers)
         
         # If first attempt failed, retry once
         if not worker_attempt1_success:
@@ -1278,7 +1280,7 @@ async def _check_app_health(app_id: str, port: int = 8000) -> Dict[str, Any]:
             else:
                 logger.warning(first_attempt_message)
             await asyncio.sleep(1)
-            worker_attempt2_success, worker_attempt2_error = await _check_app_worker_health(app_id)
+            worker_attempt2_success, worker_attempt2_error = await _check_app_worker_health(app_id, active_workers=active_workers)
             worker_healthy = worker_attempt2_success
             worker_error = worker_attempt2_error or worker_attempt1_error
         else:
@@ -2237,9 +2239,10 @@ def check_all_apps_health(self):
             
             # Run async health checks
             async def run_checks():
+                active_workers = await asyncio.to_thread(_inspect_active_worker_queues)
                 tasks = []
                 for app_id in app_ids:
-                    task = _check_app_health(app_id)
+                    task = _check_app_health(app_id, active_workers=active_workers)
                     tasks.append(task)
                 
                 # Run all checks concurrently

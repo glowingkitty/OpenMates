@@ -12,7 +12,6 @@ Bug history this test suite guards against:
     _get_latest_traces only returns first_event metadata (SHA: pending)
 """
 
-import json
 import os
 import sys
 from unittest.mock import MagicMock, patch
@@ -26,7 +25,8 @@ _SCRIPTS_DIR = os.path.join(
 if _SCRIPTS_DIR not in sys.path:
     sys.path.insert(0, _SCRIPTS_DIR)
 
-from debug_trace import (
+from debug_trace import (  # noqa: E402
+    _build_error_trace_sql,
     _get_full_trace_spans,
     format_trace_timeline,
     parse_args,
@@ -177,10 +177,10 @@ class TestFormatTraceTimeline:
             },
         ]
         output = format_trace_timeline(spans)
-        lines = [l for l in output.split("\n") if l.strip()]
+        lines = [line for line in output.split("\n") if line.strip()]
         # Child span should be indented more than root span
-        root_line = [l for l in lines if "handle_request" in l][0]
-        child_line = [l for l in lines if "db_query" in l][0]
+        root_line = [line for line in lines if "handle_request" in line][0]
+        child_line = [line for line in lines if "db_query" in line][0]
         root_indent = len(root_line) - len(root_line.lstrip())
         child_indent = len(child_line) - len(child_line.lstrip())
         assert child_indent > root_indent
@@ -288,7 +288,7 @@ class TestFormatTraceTimeline:
         ]
         output = format_trace_timeline(spans)
         # Child span line must contain service name, operation, duration in ms, and status
-        child_lines = [l for l in output.split("\n") if "directus" in l]
+        child_lines = [line for line in output.split("\n") if "directus" in line]
         assert len(child_lines) == 1, f"Expected 1 directus line, got {len(child_lines)}"
         line = child_lines[0]
         assert "directus" in line
@@ -317,6 +317,27 @@ class TestFormatTraceTimeline:
         assert "GET /v1/chats" in header  # root operation name
         assert "234ms" in header  # duration
         assert "OK" in header  # status
+
+    def test_http_error_status_marks_trace_as_error(self):
+        """HTTP 4xx/5xx spans are errors even when span_status is UNSET."""
+        spans = [
+            {
+                "trace_id": "http_error_trace",
+                "span_id": "root",
+                "parent_span_id": "",
+                "start_time": 1000000,
+                "end_time": 1200000,
+                "service_name": "api",
+                "operation_name": "GET /missing",
+                "span_status": "UNSET",
+                "http_status_code": "404",
+                "duration": 200000,
+            },
+        ]
+        output = format_trace_timeline(spans)
+        header = output.split("\n")[0]
+        assert "ERROR" in header
+        assert "HTTP 404" in output
 
     def test_correct_nesting_via_parent_span_id(self):
         """Child spans nest under their parent using span_id/parent_span_id."""
@@ -356,10 +377,10 @@ class TestFormatTraceTimeline:
             },
         ]
         output = format_trace_timeline(spans)
-        lines = [l for l in output.split("\n") if l.strip()]
+        lines = [line for line in output.split("\n") if line.strip()]
         # Find the lines for each span
-        httpx_line = [l for l in lines if "httpx" in l][0]
-        celery_line = [l for l in lines if "celery" in l][0]
+        httpx_line = [line for line in lines if "httpx" in line][0]
+        celery_line = [line for line in lines if "celery" in line][0]
         # Grandchild must be indented deeper than child
         httpx_indent = len(httpx_line) - len(httpx_line.lstrip())
         celery_indent = len(celery_line) - len(celery_line.lstrip())
@@ -405,7 +426,6 @@ class TestGetFullTraceSpans:
 
     def test_calls_search_api_not_traces_latest(self):
         """_get_full_trace_spans must POST to _search endpoint with SQL query."""
-        import importlib
         import httpx as real_httpx
 
         mock_response = MagicMock()
@@ -439,3 +459,14 @@ class TestGetFullTraceSpans:
 
             assert len(result) == 1
             assert result[0]["trace_id"] == "abc123"
+
+
+class TestBuildErrorTraceSql:
+    """Error trace discovery SQL should find distinct trace IDs."""
+
+    def test_error_trace_sql_deduplicates_trace_ids(self):
+        sql = _build_error_trace_sql(route="/v1/ws")
+
+        assert "SELECT DISTINCT trace_id" in sql
+        assert "http_status_code >= 400" in sql
+        assert "operation_name LIKE '%/v1/ws%'" in sql

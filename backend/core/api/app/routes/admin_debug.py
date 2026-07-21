@@ -740,9 +740,10 @@ async def get_issue_timeline(
 
     Anchors the time window to the issue's created_at timestamp and runs three parallel
     OpenObserve SQL queries:
-      1. Browser console snapshot: job=client-issue-report AND issue_id=<id>
-      2. Backend container logs: container-logs mentioning issue_id or user_id
-      3. API application logs: api-logs mentioning issue_id or user_id
+      1. Browser issue-report snapshot: client_issue_report tagged with issue_id
+      2. Browser console logs: client_console mentioning issue_id or user_id
+      3. Raw container stdout: default stream with empty job mentioning issue_id or user_id
+      4. Structured API logs: default stream job=api-logs mentioning issue_id or user_id
 
     Returns all events merged and sorted chronologically so the CLI can render a
     unified timeline without needing to decrypt the S3 YAML.
@@ -797,7 +798,7 @@ async def get_issue_timeline(
         search_terms.append(_sql_esc(user_id))
 
     like_clauses = " OR ".join(
-        f"log LIKE '%{t}%' OR message LIKE '%{t}%'" for t in search_terms
+        f"message LIKE '%{t}%'" for t in search_terms
     )
 
     async def _query(sql: str) -> List[Dict[str, Any]]:
@@ -809,67 +810,75 @@ async def get_issue_timeline(
         email    = os.getenv("OPENOBSERVE_ROOT_EMAIL", "")
         password = os.getenv("OPENOBSERVE_ROOT_PASSWORD", "")
         import aiohttp
-        url = "http://openobserve:5080/api/default/_search"
+        urls = (
+            "http://openobserve:5080/api/default/_search",
+            "http://openobserve:5080/api/default/default/_search",
+        )
         auth = aiohttp.BasicAuth(email, password)
         timeout = aiohttp.ClientTimeout(total=30)
         try:
             async with aiohttp.ClientSession(timeout=timeout) as session:
-                async with session.post(url, json=body, auth=auth) as resp:
-                    if resp.status == 200:
-                        data = await resp.json()
-                        return data.get("hits", [])
-                    logger.warning(
-                        f"OpenObserve timeline query failed ({resp.status}): "
-                        f"{(await resp.text())[:200]}"
-                    )
-                    return []
+                for url in urls:
+                    async with session.post(url, json=body, auth=auth) as resp:
+                        if resp.status == 200:
+                            data = await resp.json()
+                            return data.get("hits", [])
+                        if resp.status == 404:
+                            continue
+                        logger.warning(
+                            f"OpenObserve timeline query failed ({resp.status}): "
+                            f"{(await resp.text())[:200]}"
+                        )
+                        return []
+                return []
         except Exception as exc:
             logger.warning(f"OpenObserve timeline query error: {exc}")
             return []
 
-    browser_sql = (
+    issue_report_sql = (
         f"SELECT _timestamp, message, level "
-        f'FROM "default" '
-        f"WHERE job = 'client-issue-report' AND issue_id = '{issue_id_esc}' "
+        f'FROM "client_issue_report" '
+        f"WHERE issue_id = '{issue_id_esc}' OR message LIKE '%{issue_id_esc}%' "
         f"ORDER BY _timestamp ASC"
     )
-    container_sql = (
-        f"SELECT _timestamp, container, service, log, message, level "
+    browser_console_sql = (
+        f"SELECT _timestamp, message, level "
+        f'FROM "client_console" '
+        f"WHERE {like_clauses} "
+        f"ORDER BY _timestamp ASC"
+    )
+    raw_container_sql = (
+        f"SELECT _timestamp, container, service, message, level "
         f'FROM "default" '
-        f"WHERE job = 'container-logs' AND ({like_clauses}) "
+        f"WHERE (job = '' OR job IS NULL) AND ({like_clauses}) "
         f"ORDER BY _timestamp ASC"
     )
     api_sql = (
-        f"SELECT _timestamp, container, service, log, message, level "
+        f"SELECT _timestamp, container, service, message, level "
         f'FROM "default" '
         f"WHERE job = 'api-logs' AND ({like_clauses}) "
         f"ORDER BY _timestamp ASC"
     )
 
-    browser_hits, container_hits, api_hits = await asyncio.gather(
-        _query(browser_sql),
-        _query(container_sql),
-        _query(api_sql),
-    )
+    timeline_queries = [
+        (issue_report_sql, "browser"),
+        (browser_console_sql, "browser"),
+        (raw_container_sql, None),
+        (api_sql, "api"),
+    ]
+    query_results = await asyncio.gather(*[_query(sql) for sql, _ in timeline_queries])
 
     # 4. Normalise hits into IssueTimelineEvent objects
     raw_events: List[Dict[str, Any]] = []
 
-    for hit in browser_hits:
-        raw_events.append({
-            "ts_us":   int(hit.get("_timestamp", 0)),
-            "level":   (hit.get("level") or "info").lower(),
-            "source":  "browser",
-            "message": (hit.get("message") or "").strip()[:200],
-        })
-
-    for hit in container_hits + api_hits:
-        raw_events.append({
-            "ts_us":   int(hit.get("_timestamp", 0)),
-            "level":   (hit.get("level") or "info").lower(),
-            "source":  (hit.get("container") or hit.get("service") or "unknown"),
-            "message": (hit.get("message") or hit.get("log") or "").strip()[:200],
-        })
+    for (_, source_override), hits in zip(timeline_queries, query_results):
+        for hit in hits:
+            raw_events.append({
+                "ts_us":   int(hit.get("_timestamp", 0)),
+                "level":   (hit.get("level") or "info").lower(),
+                "source":  source_override or hit.get("container") or hit.get("service") or "unknown",
+                "message": (hit.get("message") or "").strip()[:200],
+            })
 
     # Deduplicate and sort
     seen: set = set()

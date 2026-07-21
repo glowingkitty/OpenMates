@@ -17,7 +17,7 @@ Architecture: run-tests-daily.sh → dispatches this task via celery_dispatch_ta
 import logging
 import asyncio
 import re
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 from backend.core.api.app.tasks.celery_config import app
 from backend.core.api.app.tasks.base_task import BaseServiceTask
@@ -30,6 +30,49 @@ logger.addFilter(sensitive_filter)
 # Maximum error snippet length per failed test to keep email readable
 MAX_ERROR_SNIPPET_LENGTH = 400
 MAX_ALL_TESTS_IN_EMAIL = 500
+ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-9;]*[mKHJABCDsuGfFnRh]")
+MJML_UNSAFE_CONTROL_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0d\x0e-\x1f\x7f]")
+FAILED_TEST_GROUP_ORDER = ("pytest", "*.spec.ts", "Apple Remote", "CLI", "Vitest", "Other")
+
+
+def _sanitize_email_text(value: Any, *, default: str = "", limit: Optional[int] = None) -> str:
+    text = str(value) if value not in (None, "") else default
+    text = ANSI_ESCAPE_RE.sub("", text)
+    text = MJML_UNSAFE_CONTROL_RE.sub("", text)
+    if limit is not None and len(text) > limit:
+        text = text[:limit] + "... [truncated]"
+    return text
+
+
+def _failed_test_group_label(test_entry: Dict[str, Any]) -> str:
+    suite = str(test_entry.get("suite", "")).lower()
+    name = str(test_entry.get("name", "")).lower()
+    file_name = str(test_entry.get("file", "")).lower()
+    searchable = f"{suite} {name} {file_name}"
+
+    if "apple" in suite or "apple_remote" in searchable or file_name.startswith("apple/"):
+        return "Apple Remote"
+    if "pytest" in suite or ".py::" in searchable or file_name.endswith(".py"):
+        return "pytest"
+    if "playwright" in suite or ".spec.ts" in searchable:
+        return "*.spec.ts"
+    if "cli" in suite:
+        return "CLI"
+    if "vitest" in suite or file_name.endswith((".test.ts", ".test.tsx", ".spec.tsx")):
+        return "Vitest"
+    return "Other"
+
+
+def _group_failed_tests_by_type(failed_tests: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    grouped: Dict[str, List[Dict[str, Any]]] = {label: [] for label in FAILED_TEST_GROUP_ORDER}
+    for test_entry in failed_tests:
+        grouped.setdefault(_failed_test_group_label(test_entry), []).append(test_entry)
+
+    return [
+        {"label": label, "count": len(tests), "tests": tests}
+        for label, tests in grouped.items()
+        if tests
+    ]
 
 
 @app.task(
@@ -193,9 +236,9 @@ async def _async_send_test_run_summary(
         duration_remainder_seconds = duration_seconds % 60
 
         # Sanitize git fields
-        sanitized_git_sha = escape(git_sha) if git_sha else "unknown"
-        sanitized_git_branch = escape(git_branch) if git_branch else "unknown"
-        sanitized_run_id = escape(run_id) if run_id else "unknown"
+        sanitized_git_sha = escape(_sanitize_email_text(git_sha, default="unknown"))
+        sanitized_git_branch = escape(_sanitize_email_text(git_branch, default="unknown"))
+        sanitized_run_id = escape(_sanitize_email_text(run_id, default="unknown"))
 
         copy_defaults = {
             "header_success": "All Tests Passed",
@@ -221,18 +264,18 @@ async def _async_send_test_run_summary(
         }
         raw_summary_copy = {**copy_defaults, **(summary_copy or {})}
         sanitized_summary_copy = {
-            key: escape(str(value)) for key, value in raw_summary_copy.items()
+            key: escape(_sanitize_email_text(value)) for key, value in raw_summary_copy.items()
         }
 
         # Sanitize suite summaries
         sanitized_suites = []
         for suite in suites:
             sanitized_suites.append({
-                "name": escape(str(suite.get("name", ""))),
+                "name": escape(_sanitize_email_text(suite.get("name", ""))),
                 "total": int(suite.get("total", 0)),
                 "passed": int(suite.get("passed", 0)),
                 "failed": int(suite.get("failed", 0)),
-                "status": escape(str(suite.get("status", "unknown"))),
+                "status": escape(_sanitize_email_text(suite.get("status", "unknown"))),
             })
 
         # Sanitize failed test entries and truncate error snippets.
@@ -240,27 +283,28 @@ async def _async_send_test_run_summary(
         # contains terminal color codes (e.g. \x1b[31m). These control chars
         # cause mjml2html() to fail with a misleading "unable to load included
         # template" error, even after html.escape() has been applied.
-        _ansi_re = re.compile(r"\x1b\[[0-9;]*[mKHJABCDsuGfFnRh]")
         sanitized_failed = []
         for ft in failed_tests:
-            error_raw = ft.get("error", "") or ""
-            error_raw = _ansi_re.sub("", error_raw)  # strip ANSI before HTML-escaping
-            if len(error_raw) > MAX_ERROR_SNIPPET_LENGTH:
-                error_raw = error_raw[:MAX_ERROR_SNIPPET_LENGTH] + "... [truncated]"
+            error_raw = _sanitize_email_text(
+                ft.get("error", "") or "",
+                limit=MAX_ERROR_SNIPPET_LENGTH,
+            )
             sanitized_failed.append({
-                "suite": escape(str(ft.get("suite", ""))),
-                "name": escape(str(ft.get("name", ""))),
+                "suite": escape(_sanitize_email_text(ft.get("suite", ""))),
+                "name": escape(_sanitize_email_text(ft.get("name", ""))),
+                "file": escape(_sanitize_email_text(ft.get("file", ""))),
                 "error": escape(error_raw) if error_raw else None,
             })
+        failed_test_groups = _group_failed_tests_by_type(sanitized_failed)
 
         # Build all_tests grouped by suite for small runs only. Rendering every
         # passed test from a full nightly run can make MJML conversion fail.
         sanitized_all_tests_by_suite: Dict[str, List[Dict[str, Any]]] = {}
         include_all_tests = len(all_tests) <= MAX_ALL_TESTS_IN_EMAIL
         for t in all_tests if include_all_tests else []:
-            suite_name = escape(str(t.get("suite", "unknown")))
-            status_raw = str(t.get("status", "unknown"))
-            test_name = escape(str(t.get("name", "")))
+            suite_name = escape(_sanitize_email_text(t.get("suite", "unknown")))
+            status_raw = _sanitize_email_text(t.get("status", "unknown"))
+            test_name = escape(_sanitize_email_text(t.get("name", "")))
             duration_s = t.get("duration_seconds", 0)
 
             # Choose status icon
@@ -309,6 +353,7 @@ async def _async_send_test_run_summary(
             "not_started": not_started,
             "suites": sanitized_suites,
             "failed_tests": sanitized_failed,
+            "failed_test_groups": failed_test_groups,
             "all_tests_by_suite": sanitized_all_tests_by_suite,
             "has_all_tests": len(sanitized_all_tests_by_suite) > 0,
             "all_tests_omitted_count": all_tests_omitted_count,

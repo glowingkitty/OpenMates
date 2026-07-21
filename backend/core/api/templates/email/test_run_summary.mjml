@@ -124,7 +124,13 @@
             {{ summary_copy.failed_tests_label }}
           </mj-text>
 
-          {% for test in failed_tests %}
+          {% for group in failed_test_groups %}
+          <mj-text font-size="14px" padding-bottom="6px">
+            <div style="font-family: monospace; font-size: 14px; font-weight: bold; text-align: left; color: #F44336; padding-top: 4px;">
+              {{ group.label }} ({{ group.count }})
+            </div>
+          </mj-text>
+          {% for test in group.tests %}
           <mj-text font-size="14px" padding-bottom="12px">
             <div style="background-color: {% if darkmode %}#2d1a1a{% else %}#fff5f5{% endif %}; border-left: 4px solid #F44336; padding: 10px 14px; border-radius: 0 4px 4px 0; text-align: left;">
               <div style="font-family: monospace; font-size: 13px; font-weight: bold; margin-bottom: 4px; color: #F44336;">
@@ -135,6 +141,7 @@
               {% endif %}
             </div>
           </mj-text>
+          {% endfor %}
           {% endfor %}
           {% endif %}
 
