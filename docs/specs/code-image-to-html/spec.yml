@@ -1,0 +1,1248 @@
+schema_version: 2
+id: code-image-to-html
+title: Code Image To HTML Skill
+status: implementing
+
+goal: >
+  Add a Code app skill that turns an uploaded screenshot or existing image embed
+  into a standalone HTML code embed with inline CSS and optional inline JS, using
+  Gemini Pro for generation and isolated E2B browser rendering for visual feedback
+  so OpenMates can match or exceed the useful quality observed from
+  abi/screenshot-to-code without executing untrusted generated code on OpenMates
+  hosts.
+
+scope:
+  in:
+    - New Code app skill `image_to_html` exposed through chat, REST, CLI, npm SDK, and pip SDK app-skill surfaces.
+    - Input from uploaded image bytes (`image_base64`, `mime_type`, optional `filename`) and chat-bound existing image embed references.
+    - No arbitrary remote `image_url` input in v1.
+    - Gemini Pro quality generation using an upstream-like agent loop with file creation/edit tools and E2B-rendered screenshot feedback.
+    - User-configurable `max_correction_passes` with default 2, minimum 0, maximum 5.
+    - Strict final output as one complete `index.html` with inline CSS and optional inline JS only.
+    - Deterministic validation that forbids external URLs, `local-assets`, remote fonts/icons/scripts/images, unsafe HTML, and broken asset references.
+    - One deterministic repair attempt when validation fails; validation repair does not count as a visual correction pass.
+    - E2B isolated Chromium/Playwright render helper for generated HTML screenshots and visual feedback.
+    - Actual-cost metered billing with an upfront max credit reservation, Gemini token usage, E2B render duration, margin/minimum, and itemized usage metadata.
+    - Chat-bound runs create a durable `code-code` embed containing generated HTML plus latest E2B render screenshot metadata.
+    - Direct REST/CLI/SDK calls without `chat_id` return long-running task metadata first; the worker result contains generated HTML, screenshot artifact metadata when stored, and usage metadata without silently creating a chat.
+    - Store the latest successful E2B render screenshot as a lightweight encrypted generated asset linked to the code embed for chat-bound runs.
+    - Regression evals using the prior simple card, complex dashboard, and Figma OpenMates tasks screenshots, with input/output images sent to Discord for user confirmation.
+  out:
+    - Pixel-perfect design conversion guarantees.
+    - Multi-file `code.application` output in v1.
+    - Tailwind, React, Vue, Bootstrap, Ionic, or external CDN dependencies in v1 output.
+    - Arbitrary `image_url` fetching or backend SSRF-protected remote image import in v1.
+    - Upstream asset extraction or image-generation tools that create `local-assets` references.
+    - Running generated HTML/JS in local Playwright on OpenMates API or worker hosts.
+    - Storing full rendered DOM snapshots.
+    - Public deploy/hosting of generated HTML.
+    - Apple-specific native generation UI in the first implementation slice.
+
+context_discovery:
+  github_issues:
+    - "GitHub MCP `get_me` returned 401 Bad credentials; `gh issue list --repo glowingkitty/OpenMates --search \"image to code screenshot html\" --state all --limit 10` returned no matching issues."
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/specs/code-run-cli-app-skill/spec.yml
+    - docs/specs/application-embeds/spec.yml
+    - docs/specs/app-skill-output-safety/spec.yml
+    - docs/specs/app-skill-content-embed-apple-parity/spec.yml
+    - docs/architecture/messaging/embeds.md
+  code_patterns:
+    - backend/apps/code/app.yml declares `code-code` and `code-application` embed contracts plus Code Run metadata.
+    - backend/apps/code/skills/run_code_skill.py shows Code app skill catalog-only pattern.
+    - backend/core/api/app/routes/apps_api.py dispatches dynamic app-skill REST calls and applies output safety.
+    - backend/apps/code/tasks/run_code_task.py charges E2B Code Run per started minute through `/internal/billing/charge`.
+    - backend/shared/providers/e2b_code_runner.py resolves E2B credentials and isolates untrusted code execution.
+    - backend/shared/providers/e2b_application_preview.py starts E2B browser/application previews and captures screenshot bytes.
+    - backend/apps/code/tasks/run_application_preview_task.py encrypts and stores preview thumbnails as generated assets.
+    - backend/apps/images/skills/generate_skill.py resolves chat image embed refs into decrypted reference image bytes.
+    - frontend/packages/openmates-cli/src/client.ts and packages/openmates-python/openmates/sdk.py expose generic app-skill calls.
+    - frontend/packages/openmates-cli/src/generated/appSkills.ts and packages/openmates-python/openmates/generated/app_skills.py are generated SDK app-skill facades.
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/CodeRenderers.swift renders `code-code` embeds on Apple clients.
+  tests:
+    - backend/tests/test_e2b_code_runner.py
+    - backend/tests/test_apps_api.py
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - frontend/packages/openmates-cli/tests/sdk.test.ts
+    - frontend/packages/openmates-cli/tests/sdkGenerator.test.ts
+    - packages/openmates-python/tests/test_sdk.py
+    - packages/openmates-python/tests/test_sdk_generator.py
+    - frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
+    - apple/OpenMatesTests/SkillApplicationParityTests.swift
+    - apple/OpenMatesUITests/SkillApplicationParityUITests.swift
+  upstream_eval_evidence:
+    - "Cloned abi/screenshot-to-code into /tmp/opencode/screenshot-to-code; upstream license is MIT."
+    - "Upstream targeted tests passed: `poetry run pytest tests/test_model_selection.py tests/test_agent_tool_runtime.py tests/test_asset_extraction.py` -> 22 passed."
+    - "Gemini Flash simple card: 70.63s, estimated provider cost $0.0573, text correct but CTA clipped."
+    - "Gemini Flash complex dashboard: 88.87s, estimated provider cost $0.0758, recognizable but wrong proportions, extra chart bar, broken local asset."
+    - "Gemini Pro simple card: 79.82s, estimated provider cost $0.1832, usable and close, but emitted Google Fonts URLs."
+    - "Gemini Pro complex dashboard: 122.90s, estimated provider cost $0.2745, cleaner and avoided broken local assets, still not pixel-perfect."
+    - "Gemini Pro Figma OpenMates tasks screenshot: 220.23s, estimated provider cost $0.4692, recognizable broad layout but broken image assets and weaker fidelity."
+    - "Discord upload succeeded for the simple/complex input-output sets and the Figma input-output pair via DISCORD_WEBHOOK_DEV_NIGHTLY."
+
+apple_impact:
+  affected_files:
+    - apple/OpenMates/Sources/Core/Models/EmbedModels.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/CodeRenderers.swift
+    - apple/OpenMatesTests/SkillApplicationParityTests.swift
+    - apple/OpenMatesUITests/SkillApplicationParityUITests.swift
+  parity_expectations:
+    - Apple must continue rendering generated `code-code` embeds even when optional `latest_screenshot_url`, `latest_screenshot`, and `image_to_html_metadata` fields are present.
+    - Showing the screenshot thumbnail in native code embed preview may be deferred if web uses it first, but Apple must not crash or drop the code content.
+    - Apple must not execute generated HTML locally as part of this skill.
+  verification:
+    - Run `python3 scripts/apple_remote.py status` and then targeted Apple build or `SkillApplicationParityTests` after REST, CLI, SDK, web, and user confirmation gates complete.
+  intentional_native_differences:
+    - Apple v1 may show only the code embed without the generated screenshot thumbnail if no native thumbnail renderer exists yet.
+
+clarification:
+  rounds:
+    - question: Should the first MVP create only standalone HTML with inline CSS/JS, or also runnable multi-file applications?
+      answer: Focus first on creating an HTML embed with inline CSS and JS.
+    - question: Should E2B be used for Playwright/browser rendering instead of running Playwright on OpenMates hosts?
+      answer: Yes. Use E2B for Playwright execution/evaluation, and include E2B usage in billing.
+    - question: Should the rendered screenshot be stored with the generated code embed?
+      answer: Yes. Store the latest successful E2B-rendered screenshot as encrypted generated-asset metadata linked to the chat-bound code embed, similar to application embed screenshots.
+    - question: How should direct CLI/SDK calls behave when there is no chat/embed context?
+      answer: "Follow the existing long-running app-skill pattern. Return `task_id`, `embed_id`, and `status: processing` immediately; expose the final HTML, screenshot artifact metadata, and usage metadata through the worker task result. Do not silently create a chat."
+    - question: Should v1 accept `image_url`?
+      answer: No. Keep v1 to base64/file upload and existing image embed refs because image URL fetching adds SSRF and fetch-abuse risks.
+    - question: How many correction passes should the quality loop support?
+      answer: Match the upstream repo's quality/correction-loop spirit and allow users to define a custom correction pass count while keeping a default.
+  vision_summary: >
+    The feature should be a production OpenMates Code app skill that creates a
+    useful starter HTML code embed from a screenshot, not a pixel-perfect design
+    converter. It should recreate the useful upstream agentic flow in OpenMates
+    architecture, with Gemini Pro generation, E2B-isolated browser rendering,
+    actual-cost credit billing, inline-only output validation, screenshot artifact
+    storage for chat-bound embeds, and REST/CLI/npm/pip readiness before web and
+    Apple parity work.
+  approved_by_user: true
+
+implementation_state:
+  subject_commit: 8d4ab05cb
+
+approvals:
+  product_contract:
+    status: approved
+    approved_at: "2026-07-21T00:00:00Z"
+    reason: "User confirmed the clarified behavior and instructed: build a spec, then implement."
+  implementation_plan:
+    status: approved
+    approved_at: "2026-07-21T00:00:00Z"
+    reason: "User requested immediate implementation after the full spec; plan and tasks are included in this spec."
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Build an OpenMates-native implementation instead of vendoring the upstream app wholesale.
+    reason: Upstream is MIT and legally reusable, but its WebSocket/frontend flow, external asset defaults, and local Playwright assumptions do not match OpenMates architecture.
+    decided_at: "2026-07-21T00:00:00Z"
+  - id: D-2
+    status: active
+    decision: Use E2B for all generated HTML browser rendering and screenshot feedback.
+    reason: Generated HTML/JS is untrusted code and must not execute on OpenMates API or worker hosts.
+    decided_at: "2026-07-21T00:00:00Z"
+  - id: D-3
+    status: active
+    decision: Default `max_correction_passes` is 2 with bounds 0 through 5.
+    reason: This preserves upstream-like iterative quality while capping cost and latency.
+    decided_at: "2026-07-21T00:00:00Z"
+  - id: D-4
+    status: active
+    decision: V1 supports only image bytes and existing image embed refs, not remote image URLs.
+    reason: Avoids SSRF, redirect, large-response, and internal-network fetch risk in the MVP.
+    decided_at: "2026-07-21T00:00:00Z"
+  - id: D-5
+    status: active
+    decision: Use actual-cost metered billing with a max reservation and itemized usage metadata.
+    reason: Gemini token cost and E2B render duration vary materially by image complexity and correction-pass count.
+    decided_at: "2026-07-21T00:00:00Z"
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    approach: Run upstream Gemini Flash and Pro evals against simple, complex, and Figma screenshots before spec design.
+    outcome: succeeded
+    recorded_at: "2026-07-21T00:00:00Z"
+    reason: Pro output was useful enough for an MVP on simple/medium screenshots, but validation and E2B feedback are needed for OpenMates quality/security.
+  - id: ATTEMPT-2
+    task_id: TASK-2
+    approach: Use arbitrary image URLs as skill input.
+    outcome: rejected
+    recorded_at: "2026-07-21T00:00:00Z"
+    reason: Remote image fetching increases SSRF/fetch-abuse risk and is not required for the CLI/web upload MVP.
+
+handoff:
+  current_task_id: TASK-7
+  next_action: Run the real dev-server REST, CLI, npm SDK, and pip SDK image_to_html proofs with `OPENMATES_API_KEY` against `https://api.dev.openmates.org`, after ensuring the local API/worker services are restarted with the async worker changes.
+  command: OPENMATES_API_KEY=<dev-api-key> python3 scripts/test_code_image_to_html_dev.py --api-url https://api.dev.openmates.org --fixture /tmp/opencode/screenshot-to-code/backend/evals_data/inputs/simple-card.png
+  expected_outcome: "The live dev app-skill returns task metadata, task polling resolves final HTML and itemized usage, and no durable chat is created for direct calls."
+  blocker:
+    reason: Requires real OPENMATES_API_KEY plus running dev API/app_code worker with Gemini and E2B credentials.
+    owner: operator
+  last_verified_commit: pending-dev-server-proof
+
+scenarios:
+  - id: S-1
+    title: Chat user generates standalone HTML from an uploaded screenshot
+    given:
+      - Alice is authenticated in a normal OpenMates chat.
+      - Alice uploads `pricing-card.png` and asks Code to turn it into HTML.
+      - Alice has enough credits for the maximum reserved budget.
+    when:
+      - The assistant invokes `code.image_to_html` with the uploaded image reference and default correction settings.
+    then:
+      - OpenMates resolves and decrypts the referenced image bytes server-side for the skill.
+      - Gemini Pro creates a complete `index.html` using inline CSS and optional inline JS only.
+      - E2B renders the generated HTML and returns a screenshot for model feedback.
+      - The model may edit the HTML through the correction loop, up to the default correction-pass budget.
+      - Final validation rejects external URLs, `local-assets`, remote fonts/icons/scripts/images, and unsafe HTML before embed creation.
+      - "The chat receives one finished `code-code` embed with `language: html`, `filename: index.html`, the generated HTML, usage metadata, and latest screenshot metadata."
+      - The latest screenshot is an encrypted generated asset linked to the code embed.
+
+  - id: S-2
+    title: Direct CLI generation starts worker task without creating a chat
+    given:
+      - Alice is logged in through the OpenMates CLI.
+      - Alice has a local file `dashboard.png` and enough credits.
+    when:
+      - Alice runs `openmates apps code image_to_html --file dashboard.png --max-correction-passes 2 --json`.
+    then:
+      - The CLI reads the local file, validates basic size/type limits, base64-encodes the bytes, and posts to `/v1/apps/code/skills/image_to_html`.
+      - "The backend validates input and credit reservation, dispatches the Code worker, and returns `task_id`, `embed_id`, and `status: processing`."
+      - The worker performs generation, E2B render feedback, validation, actual-cost billing, and exposes final HTML plus usage metadata through task status.
+      - No chat or message is silently created.
+
+  - id: S-3
+    title: API and SDK callers get itemized actual-cost usage
+    given:
+      - A developer calls the npm SDK or pip SDK with `image_base64`, `mime_type`, and `max_correction_passes`.
+    when:
+      - The request is accepted and the worker completes successfully.
+    then:
+      - "The initial response includes `task_id`, `embed_id`, `status: processing`, and reserved credits."
+      - The final worker result includes Gemini model, input tokens, output tokens, cache read/write tokens when available, E2B render seconds, correction passes used, reserved credits, final credits charged, and any refunded/unused reservation amount.
+      - The usage entry records app_id `code`, skill_id `image_to_html`, provider/model, token usage, E2B seconds, and whether the run was chat-bound or direct.
+
+  - id: S-4
+    title: Validation failure triggers one repair then fails visibly if still unsafe
+    given:
+      - Gemini emits HTML containing Google Fonts, Font Awesome, `local-assets`, or remote image references.
+    when:
+      - The backend validates the generated HTML.
+    then:
+      - The backend sends deterministic validation errors to the model for one repair attempt.
+      - If the repaired HTML is valid, generation continues normally and validation repair is recorded without consuming a visual correction pass.
+      - If repaired HTML still violates policy, the skill returns a visible structured failure and does not create a chat embed.
+      - Any billable Gemini/E2B usage that already occurred is charged and itemized.
+
+  - id: S-5
+    title: Unsafe or unsupported image input is rejected before provider calls
+    given:
+      - Alice sends missing image data, malformed base64, an unsupported MIME type, an oversized image, an image with too many pixels, or an `image_url` field.
+    when:
+      - The app-skill endpoint validates the request.
+    then:
+      - The request fails with a 400-class structured error before Gemini or E2B is called.
+      - No provider usage or credits are charged.
+      - Logs do not include image bytes or sensitive local filenames.
+
+  - id: S-6
+    title: Quality regression evals match or exceed upstream Pro baseline
+    given:
+      - The implementation includes deterministic eval fixtures for simple card, complex dashboard, and Figma OpenMates tasks screenshots.
+    when:
+      - The eval script runs with the configured Gemini and E2B provider credentials.
+    then:
+      - Each eval produces generated HTML and a rendered screenshot.
+      - Results are not obviously worse than the prior upstream Gemini Pro outputs for the same input.
+      - Input and output screenshots are sent to Discord for user confirmation.
+      - The spec records the eval command, run id, timestamp, subject commit, token usage, E2B duration, and Discord delivery status.
+
+  - id: S-7
+    title: Generated HTML is never rendered on OpenMates hosts
+    given:
+      - Generated HTML includes JavaScript that attempts to access browser APIs or exfiltrate data.
+    when:
+      - The backend needs a render screenshot for feedback or storage.
+    then:
+      - Rendering happens only inside an E2B sandbox without OpenMates auth cookies, Vault keys, API tokens, user localStorage, or OpenMates IndexedDB.
+      - The sandbox receives only the generated HTML and no user secrets.
+      - The sandbox is stopped after the bounded render operation.
+
+  - id: S-8
+    title: Existing code embed renderers tolerate screenshot metadata
+    given:
+      - A chat contains a `code-code` embed generated by `image_to_html`.
+    when:
+      - Web, CLI, SDK, and Apple clients load the embed.
+    then:
+      - All clients can still access/copy/download the HTML code content.
+      - Clients that understand `latest_screenshot_url` may show the generated render screenshot.
+      - Clients that do not yet show the screenshot ignore the optional fields without crashing.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Chat-bound `code.image_to_html` creates exactly one finished `code-code` embed with standalone inline HTML and linked latest screenshot metadata.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids:
+      - T-PYTEST-001
+      - T-REST-001
+      - T-WEB-001
+  - id: AC-2
+    scenario: S-2
+    text: "Direct REST/CLI/SDK calls without `chat_id` return `task_id`, `embed_id`, `status: processing`, and reserved credits immediately; final task status exposes HTML and usage metadata without creating a durable chat."
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids:
+      - T-PYTEST-001
+      - T-CLI-001
+      - T-NPM-001
+      - T-PIP-001
+  - id: AC-3
+    scenario: S-3
+    text: Billing reserves a maximum budget and then charges actual Gemini token cost plus E2B render duration plus configured margin/minimum, with itemized usage metadata.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids:
+      - T-PYTEST-002
+      - T-REST-001
+  - id: AC-4
+    scenario: S-4
+    text: Final HTML validation forbids external URLs, `local-assets`, remote fonts/icons/scripts/images, and unsafe HTML; one validation repair is attempted before visible failure.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids:
+      - T-PYTEST-001
+      - T-PYTEST-003
+  - id: AC-5
+    scenario: S-5
+    text: Unsupported image input, malformed base64, oversized images, over-limit dimensions, and `image_url` input are rejected before Gemini/E2B calls and before credits are charged.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids:
+      - T-PYTEST-001
+      - T-REST-001
+  - id: AC-6
+    scenario: S-6
+    text: Eval evidence proves OpenMates output is not worse than the upstream Gemini Pro baseline on the agreed screenshots and sends input/output artifacts to Discord for user confirmation.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: user_confirmation
+    verification_ids:
+      - T-EVAL-001
+      - V-USER-001
+  - id: AC-7
+    scenario: S-7
+    text: Generated HTML/JS is rendered only inside E2B, never by local Playwright/Chromium on OpenMates API or worker hosts.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids:
+      - T-PYTEST-004
+      - T-REST-001
+  - id: AC-8
+    scenario: S-8
+    text: Existing web, CLI, SDK, and Apple code embed renderers tolerate optional image-to-HTML screenshot metadata without losing code content.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids:
+      - T-NPM-001
+      - T-PIP-001
+      - T-WEB-001
+      - T-APPLE-001
+
+assumptions:
+  - id: A-1
+    text: E2B sandbox images used by OpenMates can run Chromium or install/use Playwright in a bounded helper command.
+    category: provider
+    required_before: task_execution
+    status: unchecked
+    evidence: []
+  - id: A-2
+    text: Existing generated-asset storage can index a screenshot against a `code-code` embed, not only `code-application` embeds.
+    category: storage
+    required_before: implementation
+    status: unchecked
+    evidence:
+      - source: backend/apps/code/tasks/run_application_preview_task.py
+        summary: Application preview thumbnail storage uses `index_generated_asset` with `embed_id`; implementation must confirm media type and embed type are accepted for code embeds.
+  - id: A-3
+    text: The configured Gemini provider exposes token usage metadata needed for actual-cost billing.
+    category: billing
+    required_before: implementation
+    status: unchecked
+    evidence:
+      - source: /tmp/opencode/screenshot-to-code upstream eval logs
+        summary: Upstream Gemini provider reported input, output, cache read/write tokens and estimated costs during local evals.
+
+contracts:
+  api:
+    - route: POST /v1/apps/code/skills/image_to_html
+      access_model: first-party session and developer API-key REST app-skill endpoint
+      auth: session cookie or Bearer API key, matching existing app-skill routes
+      rate_limits: per-user app-skill limits plus provider concurrency limits for Gemini and E2B render jobs
+      credit_budget: requires max reservation before task dispatch and repeats headroom preflight before provider calls; fails with 402 when the authenticated user cannot cover reservation
+      encryption_boundary: accepts decrypted image bytes in request body for direct calls or resolves encrypted image embeds only for authorized chat-bound users; returns decrypted generated HTML only through the authorized task result or encrypted code embed
+      request: >
+        { requests: [{ image_base64?: string, mime_type?: "image/png"|"image/jpeg"|"image/webp", filename?: string,
+        source_image_ref?: string, source_image_embed_id?: string, prompt?: string, chat_id?: string,
+        message_id?: string, max_correction_passes?: integer, quality?: "standard" }] }
+      response: >
+        { success: true, data: { task_id: string, embed_id: string, status: "processing",
+        results: [{ task_id: string, embed_id: string, status: "processing", reserved_credits: integer }] },
+        credits_charged: 0 }
+      final_task_result: >
+        { status: "finished", embed_id: string, html: string, latest_screenshot?: object,
+        usage: { model: string, input_tokens?: integer, output_tokens?: integer,
+        cache_read_tokens?: integer, cache_write_tokens?: integer, e2b_render_seconds: number,
+        reserved_credits: integer, credits_charged: integer } }
+      errors:
+        - 400 for missing image, malformed base64, unsupported MIME type, over-limit image bytes/pixels, forbidden `image_url`, invalid correction pass bounds, or final validation failure.
+        - 401 for unauthenticated calls.
+        - 402 for insufficient credits to reserve the maximum configured budget.
+        - 403 for unauthorized `source_image_embed_id` or chat access.
+        - 429 for per-user, Gemini, or E2B concurrency/rate limits.
+        - 502 for provider failures after visible structured error handling.
+  cli:
+    - command: openmates apps code image_to_html --file pricing-card.png
+      behavior: Reads local image bytes, base64-encodes them, sends one request, prints task metadata, and follows the existing app-skill task-status flow for final HTML.
+    - command: openmates apps code image_to_html --file dashboard.png --max-correction-passes 4 --json
+      behavior: Emits structured JSON including task metadata first and final task-result HTML, screenshot metadata when present, correction passes, and usage metadata after completion.
+    - command: openmates apps code image_to_html --input '{...}'
+      behavior: Advanced users can call the generic app-skill payload with the same schema and bounds.
+  npm_sdk:
+    - method: client.apps.code.imageToHtml(input, options)
+      behavior: Generated facade posts the canonical app-skill payload and the npm SDK base client polls `/v1/tasks/{task_id}` to return the final task-result HTML and usage metadata in the original response envelope.
+  pip_sdk:
+    - method: client.apps.code.image_to_html(input, prompt_injection_protection=None)
+      behavior: Generated facade posts the canonical app-skill payload and the Python SDK base client polls `/v1/tasks/{task_id}` to return the final task-result HTML and usage metadata in the original response envelope.
+  data:
+    - "Chat-bound output is a `code-code` embed with `language: html`, `filename: index.html`, `line_count`, generated HTML, `latest_screenshot_url`, `latest_screenshot`, `latest_screenshot_captured_at`, and `image_to_html_metadata`."
+    - Direct output without chat context does not create chat records; final HTML is returned through task status, and any stored screenshot artifact is explicitly tied to the requesting user/embed identifier.
+    - Screenshot assets are encrypted at rest using generated-asset storage, include width/height/mime metadata, and use short-lived signed download URLs.
+    - Usage records include app_id, skill_id, provider/model, token counts, E2B render seconds, correction passes used, validation repair count, chat/embed IDs when present, and final credits charged.
+  privacy_security:
+    - The backend never logs raw image bytes, full generated HTML, API keys, Vault keys, raw screenshot S3 keys with tokens, or user local file paths beyond sanitized basenames.
+    - E2B render sandboxes receive generated HTML and no OpenMates auth cookies, user credentials, Vault keys, chat keys, or provider secrets except the E2B credential used by OpenMates to create the sandbox.
+    - E2B render helper disables or tightly controls outbound network where feasible; output validation must still forbid external refs because generated HTML must be portable and inline-only.
+    - Prompt-injection output safety remains active for app-skill responses; generated HTML is user-requested code and must be visibly returned as code, not model instructions.
+    - Image bytes are bounded by max size and max pixel count before provider calls.
+
+tests:
+  - id: T-PYTEST-001
+    type: pytest
+    file: backend/tests/test_code_image_to_html_skill.py
+    command: python3 -m pytest backend/tests/test_code_image_to_html_skill.py
+    covers:
+      - AC-1
+      - AC-2
+      - AC-4
+      - AC-5
+    assertions:
+      - Valid base64 PNG requests dispatch to the generator service.
+      - "`image_url` input is rejected before provider calls."
+      - Invalid base64, unsupported MIME type, over-limit bytes, and over-limit dimensions fail before provider calls.
+      - Chat-bound success finalizes a `code-code` embed with latest screenshot metadata.
+      - Direct success returns task metadata first and final HTML/usage through task status without creating a chat.
+      - Final HTML validation rejects external links, scripts, images, CSS URLs, and `local-assets` references.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: passed
+        command: python3 -m pytest backend/tests/test_code_html_validation.py backend/tests/test_e2b_image_to_html_renderer.py backend/tests/test_code_image_to_html_billing.py backend/tests/test_code_image_to_html_skill.py backend/tests/test_code_image_to_html_task.py
+        run_id: local-pytest-red-code-image-to-html-contracts-20260721
+        subject_commit: a6c5550ba
+        timestamp: "2026-07-21T12:09:12Z"
+        summary: Expected collection failure before implementation; missing `code_html_validation`, `e2b_html_renderer`, and `image_to_html_skill` modules.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest backend/tests/test_code_html_validation.py backend/tests/test_e2b_image_to_html_renderer.py backend/tests/test_code_image_to_html_billing.py backend/tests/test_code_image_to_html_skill.py backend/tests/test_code_image_to_html_task.py backend/tests/test_image_to_html_generator.py backend/tests/test_apps_api.py backend/tests/test_app_metadata_no_stage.py
+        run_id: local-pytest-green-code-image-to-html-async-worker-20260721
+        subject_commit: 1eceafbdf
+        timestamp: "2026-07-21T13:05:03Z"
+        summary: 34 passed; skill dispatches app_code worker, worker calculates actual usage/credits with injected provider result, REST helper defers async response billing to worker, and validator/E2B/generator tests remain green.
+
+  - id: T-PYTEST-002
+    type: pytest
+    file: backend/tests/test_code_image_to_html_billing.py
+    command: python3 -m pytest backend/tests/test_code_image_to_html_billing.py
+    covers:
+      - AC-3
+    assertions:
+      - Reservation amount is computed before provider calls.
+      - Final charge uses token usage plus E2B render seconds plus configured margin/minimum.
+      - Usage details include token counts, E2B seconds, correction passes, model, and chat/embed IDs when present.
+      - Failed validation after provider usage charges only actual used provider/E2B cost and returns visible failure metadata.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: passed
+        command: python3 -m pytest backend/tests/test_code_html_validation.py backend/tests/test_e2b_image_to_html_renderer.py backend/tests/test_code_image_to_html_billing.py backend/tests/test_code_image_to_html_skill.py
+        run_id: local-pytest-red-code-image-to-html-contracts-20260721
+        subject_commit: a6c5550ba
+        timestamp: "2026-07-21T12:09:12Z"
+        summary: Expected collection failure before implementation; missing `image_to_html_skill` billing types and helper.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest backend/tests/test_code_html_validation.py backend/tests/test_e2b_image_to_html_renderer.py backend/tests/test_code_image_to_html_billing.py backend/tests/test_code_image_to_html_skill.py backend/tests/test_code_image_to_html_task.py backend/tests/test_image_to_html_generator.py backend/tests/test_apps_api.py backend/tests/test_app_metadata_no_stage.py
+        run_id: local-pytest-green-code-image-to-html-async-worker-20260721
+        subject_commit: 1eceafbdf
+        timestamp: "2026-07-21T13:05:03Z"
+        summary: 34 passed; billing helper charges Gemini token cost plus each started E2B minute with minimum credits, worker charges actual credits through the injected billing seam, and REST app-skill helpers reserve upfront but defer processing-response billing to the worker.
+
+  - id: T-PYTEST-003
+    type: pytest
+    file: backend/tests/test_code_html_validation.py
+    command: python3 -m pytest backend/tests/test_code_html_validation.py
+    covers:
+      - AC-4
+    assertions:
+      - Inline-only HTML with inline style/script passes.
+      - Google Fonts, Font Awesome, CDN scripts, remote images, CSS `url(http...)`, protocol-relative URLs, and `local-assets` fail.
+      - Error messages are deterministic and safe to return to the model repair prompt.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: passed
+        command: python3 -m pytest backend/tests/test_code_html_validation.py backend/tests/test_e2b_image_to_html_renderer.py backend/tests/test_code_image_to_html_billing.py backend/tests/test_code_image_to_html_skill.py
+        run_id: local-pytest-red-code-image-to-html-contracts-20260721
+        subject_commit: a6c5550ba
+        timestamp: "2026-07-21T12:09:12Z"
+        summary: Expected collection failure before implementation; `backend.shared.python_utils.code_html_validation` did not exist.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest backend/tests/test_code_html_validation.py backend/tests/test_e2b_image_to_html_renderer.py backend/tests/test_code_image_to_html_billing.py backend/tests/test_code_image_to_html_skill.py
+        run_id: local-pytest-green-code-image-to-html-contracts-20260721
+        subject_commit: a6c5550ba
+        timestamp: "2026-07-21T12:09:12Z"
+        summary: 32 passed; inline style/script passes while external URLs, external scripts/images, CSS URLs, and `local-assets` fail deterministically.
+
+  - id: T-PYTEST-004
+    type: pytest
+    file: backend/tests/test_e2b_image_to_html_renderer.py
+    command: python3 -m pytest backend/tests/test_e2b_image_to_html_renderer.py
+    covers:
+      - AC-7
+    assertions:
+      - Render planning writes only `index.html` into E2B and never starts local Playwright.
+      - E2B credentials are resolved through the existing E2B secret path.
+      - Render helper returns screenshot bytes, dimensions, duration, and sandbox ID metadata.
+      - Sandbox cleanup is attempted on success and failure.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: passed
+        command: python3 -m pytest backend/tests/test_code_html_validation.py backend/tests/test_e2b_image_to_html_renderer.py backend/tests/test_code_image_to_html_billing.py backend/tests/test_code_image_to_html_skill.py
+        run_id: local-pytest-red-code-image-to-html-contracts-20260721
+        subject_commit: a6c5550ba
+        timestamp: "2026-07-21T12:09:12Z"
+        summary: Expected collection failure before implementation; `backend.shared.providers.e2b_html_renderer` did not exist.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest backend/tests/test_code_html_validation.py backend/tests/test_e2b_image_to_html_renderer.py backend/tests/test_code_image_to_html_billing.py backend/tests/test_code_image_to_html_skill.py
+        run_id: local-pytest-green-code-image-to-html-contracts-20260721
+        subject_commit: a6c5550ba
+        timestamp: "2026-07-21T12:09:12Z"
+        summary: 32 passed; renderer writes only `index.html`, runs a Chromium/Playwright command inside the injected sandbox, returns PNG bytes/duration, and cleans up.
+
+  - id: T-REST-001
+    type: manual
+    file: scripts/test_code_image_to_html_dev.py
+    command: python3 scripts/test_code_image_to_html_dev.py --api-url https://api.dev.openmates.org --fixture simple-card.png
+    covers:
+      - AC-1
+      - AC-2
+      - AC-3
+      - AC-5
+      - AC-7
+    assertions:
+      - Direct dev-server API request with real auth/test-account state succeeds.
+      - Unauthorized request fails with 401.
+      - Over-budget request fails with 402 or budget error before provider calls.
+      - Forbidden `image_url` request fails before provider calls.
+      - Response includes HTML, screenshot artifact metadata, usage metadata, and no chat/embed for direct mode.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+        command: python3 scripts/test_code_image_to_html_dev.py --api-url https://api.dev.openmates.org --fixture simple-card.png
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+        command: python3 scripts/test_code_image_to_html_dev.py --api-url https://api.dev.openmates.org --fixture simple-card.png
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+
+  - id: T-CLI-001
+    type: manual
+    file: frontend/packages/openmates-cli/tests/cli.test.ts
+    command: openmates apps code image_to_html --file /tmp/opencode/screenshot-to-code/backend/evals_data/inputs/simple-card.png --json
+    covers:
+      - AC-2
+    assertions:
+      - Real CLI command hits `https://api.dev.openmates.org` with real auth/test-account state.
+      - CLI sends base64 image bytes and correction-pass option.
+      - CLI JSON includes HTML, screenshot metadata, and usage metadata.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+        command: openmates apps code image_to_html --file /tmp/opencode/screenshot-to-code/backend/evals_data/inputs/simple-card.png --json
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+        local_unit_evidence:
+          status: passed
+          command: node --test --test-name-pattern "image_to_html|generated app-skill commands|models3d search" tests/cli.test.ts
+          run_id: local-node-cli-image-to-html-file-task-resolution-20260721
+          subject_commit: pending-dev-server-proof
+          timestamp: "2026-07-21T00:00:00Z"
+          summary: 3 passed; CLI `--file` base64-encodes PNG input, sends `max_correction_passes`, and follows mocked `/v1/tasks/{task_id}` to final HTML/usage output.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+        command: openmates apps code image_to_html --file /tmp/opencode/screenshot-to-code/backend/evals_data/inputs/simple-card.png --json
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+
+  - id: T-NPM-001
+    type: manual
+    file: frontend/packages/openmates-cli/tests/sdk.test.ts
+    command: node scripts/test_code_image_to_html_npm_dev.mjs
+    covers:
+      - AC-2
+      - AC-8
+    assertions:
+      - npm SDK generated facade calls `apps.code.image_to_html` against the dev server.
+      - Response includes generated HTML and usage metadata.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+        command: node scripts/test_code_image_to_html_npm_dev.mjs
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+        local_unit_evidence:
+          status: passed
+          command: node --test --experimental-strip-types --loader ./tests/loader.mjs --test-name-pattern "async generated app-skill task|native app skill" tests/sdk.test.ts
+          run_id: local-node-sdk-image-to-html-task-resolution-20260721
+          subject_commit: pending-dev-server-proof
+          timestamp: "2026-07-21T00:00:00Z"
+          summary: 2 passed; generated npm facade `apps.code.imageToHtml` posts to the app-skill endpoint and SDK base client polls `/v1/tasks/task-image-html` to return final HTML/usage in the response envelope.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+        command: node scripts/test_code_image_to_html_npm_dev.mjs
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+
+  - id: T-PIP-001
+    type: manual
+    file: packages/openmates-python/tests/test_sdk.py
+    command: python3 scripts/test_code_image_to_html_pip_dev.py
+    covers:
+      - AC-2
+      - AC-8
+    assertions:
+      - pip SDK generated facade calls `apps.code.image_to_html` against the dev server.
+      - Response includes generated HTML and usage metadata.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+        command: python3 scripts/test_code_image_to_html_pip_dev.py
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+        local_unit_evidence:
+          status: passed
+          command: python3 -m pytest packages/openmates-python/tests/test_sdk.py -k "native_app_skill"
+          run_id: local-pytest-pip-sdk-image-to-html-task-resolution-20260721
+          subject_commit: pending-dev-server-proof
+          timestamp: "2026-07-21T00:00:00Z"
+          summary: 3 passed; generated pip facade `apps.code.image_to_html` posts to the app-skill endpoint and SDK base client polls `/v1/tasks/task-image-html` to return final HTML/usage in the response envelope.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+        command: python3 scripts/test_code_image_to_html_pip_dev.py
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+
+  - id: T-WEB-001
+    type: playwright
+    file: frontend/apps/web_app/tests/code-image-to-html.spec.ts
+    command: python3 scripts/tests.py run --spec code-image-to-html.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-1
+      - AC-8
+    assertions:
+      - User uploads a screenshot and requests Code image-to-HTML in chat.
+      - Chat renders a code embed with generated HTML.
+      - Code embed shows latest generated screenshot thumbnail when web support is implemented.
+      - Existing code embed copy/download remains available.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+        command: python3 scripts/tests.py run --spec code-image-to-html.spec.ts
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: pending
+        command: python3 scripts/tests.py run --spec code-image-to-html.spec.ts
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+
+  - id: T-EVAL-001
+    type: manual
+    file: scripts/eval_code_image_to_html.py
+    command: python3 scripts/eval_code_image_to_html.py --api-url https://api.dev.openmates.org --fixtures simple-card.png complex-dashboard.png figma-openmates-tasks-5371-46143.png --discord
+    covers:
+      - AC-6
+    assertions:
+      - Eval runs the implemented dev-server skill on all three agreed screenshots.
+      - Each output is rendered through E2B and saved as an image artifact.
+      - Input/output screenshot pairs are sent to Discord.
+      - The result is manually judged by the user as same or better than the upstream Pro baseline, or the spec records required follow-up fixes.
+    red_phase:
+      required: false
+      expected: fail
+      evidence:
+        status: not_required
+        reason: Eval requires implemented provider flow and real credentials; backend contract tests cover red phase.
+    green_phase:
+      required: true
+      expected: pass_with_user_confirmation
+      evidence:
+        status: pending
+        command: python3 scripts/eval_code_image_to_html.py --api-url https://api.dev.openmates.org --fixtures simple-card.png complex-dashboard.png figma-openmates-tasks-5371-46143.png --discord
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+
+  - id: T-APPLE-001
+    type: manual
+    file: apple/OpenMatesTests/SkillApplicationParityTests.swift
+    command: python3 scripts/apple_remote.py status && python3 scripts/apple_remote.py test-ios --filter SkillApplicationParityTests
+    covers:
+      - AC-8
+    assertions:
+      - Apple code embed parsing tolerates optional screenshot metadata.
+      - Apple code embed rendering still exposes code content.
+    red_phase:
+      required: false
+      expected: pass
+      evidence:
+        status: not_required
+        reason: Apple verification is a final parity gate after web and user confirmation.
+    green_phase:
+      required: true
+      expected: pass_or_sanitized_failure
+      evidence:
+        status: pending
+        command: python3 scripts/apple_remote.py status && python3 scripts/apple_remote.py test-ios --filter SkillApplicationParityTests
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+
+verifications:
+  - id: V-USER-001
+    kind: user_confirmation
+    phase: final
+    required_for_done: true
+    covers:
+      - AC-6
+    status: pending
+    description: User confirms Discord-posted eval screenshots are same or better quality than upstream Gemini Pro baseline.
+    evidence:
+      status: ""
+      summary: ""
+      timestamp: ""
+      prompt: User confirms Discord-posted eval screenshots are same or better quality than upstream Gemini Pro baseline.
+
+implementation_plan:
+  spec_path: docs/specs/code-image-to-html/spec.yml
+  architecture: >
+    Implement `code.image_to_html` as an OpenMates-native long-running app skill:
+    the Code skill validates and dispatches Celery, shared provider/services own
+    image validation, HTML validation, Gemini/E2B orchestration, and the Code
+    worker owns embed/screenshot persistence plus billing. The dynamic app-skill
+    endpoint remains the single REST contract for chat, CLI, npm SDK, and pip SDK
+    callers.
+  existing_patterns:
+    - Reuse dynamic app-skill endpoint `/v1/apps/code/skills/image_to_html` for REST, CLI, npm SDK, and pip SDK parity.
+    - Reuse E2B credential resolution from `backend/shared/providers/e2b_code_runner.py`.
+    - Reuse generated-asset thumbnail storage pattern from application preview, generalized for `code-code` embeds.
+    - Reuse generic app-skill SDK generation instead of hand-writing SDK methods when possible.
+  data_flow:
+    - Caller sends base64 image bytes or a chat-bound image embed reference to `/v1/apps/code/skills/image_to_html`.
+    - Skill validates image MIME, bytes, correction-pass bounds, auth context, and credit reservation, then dispatches `apps.code.tasks.skill_image_to_html` to `app_code`.
+    - Worker repeats credit headroom preflight, calls Gemini Pro, renders generated HTML screenshots in E2B, and returns image bytes for feedback.
+    - Worker validates final inline-only HTML and performs one validation repair if needed.
+    - Chat-bound success finalizes a `code-code` embed and stores encrypted latest render screenshot metadata; direct success exposes HTML and usage through task status.
+    - Worker billing records actual Gemini token usage, E2B render seconds, correction passes, reservation, and final credits charged.
+  affected_files:
+    - path: backend/apps/code/app.yml
+      reason: Register the new app skill, pricing metadata, tool schema, and optional code embed screenshot metadata fields.
+    - path: backend/apps/code/skills/image_to_html_skill.py
+      reason: Implement the Code app skill request validation and Celery dispatch contract.
+    - path: backend/apps/code/tasks/image_to_html_task.py
+      reason: Run Gemini/E2B generation, actual-cost billing, encrypted screenshot indexing, and final embed delivery in the app_code worker.
+    - path: backend/apps/base_app.py
+      reason: Pass in-process service metadata such as SecretsManager through app-skill dispatch for provider-backed skills.
+    - path: backend/core/api/app/routes/apps_api.py
+      reason: Apply image_to_html preflight budget reservation and result-declared variable billing in the dynamic REST skill route.
+    - path: backend/shared/providers/image_to_html_generator.py
+      reason: Encapsulate Gemini agentic generation and correction loop.
+    - path: backend/shared/providers/e2b_html_renderer.py
+      reason: Render untrusted HTML inside E2B and return screenshot bytes/metadata.
+    - path: backend/shared/python_utils/code_html_validation.py
+      reason: Provide deterministic inline-only HTML validation and safe repair error messages.
+    - path: backend/tests/test_code_image_to_html_skill.py
+      reason: Cover skill input validation and async dispatch behavior.
+    - path: backend/tests/test_code_image_to_html_task.py
+      reason: Cover worker generation, billing metadata, task result, and embed/screenshot persistence seams with injected fakes.
+    - path: backend/tests/test_code_image_to_html_billing.py
+      reason: Cover reservation, actual-cost charging, and usage metadata.
+    - path: backend/tests/test_code_html_validation.py
+      reason: Cover inline-only validation edge cases.
+    - path: backend/tests/test_e2b_image_to_html_renderer.py
+      reason: Cover E2B render planning and no-local-Playwright boundary.
+    - path: backend/tests/test_image_to_html_generator.py
+      reason: Cover Gemini orchestration, validation repair, and E2B render screenshot feedback with injected fakes.
+    - path: backend/tests/test_apps_api.py
+      reason: Cover result-declared variable billing and preflight reservation helpers for image_to_html REST calls.
+    - path: frontend/packages/openmates-cli/src/cli.ts
+      reason: Add direct CLI convenience command for local image files if generic app-skill CLI cannot satisfy file upload UX.
+    - path: frontend/packages/openmates-cli/src/generated/appSkills.ts
+      reason: Regenerate npm SDK app-skill facade.
+    - path: packages/openmates-python/openmates/generated/app_skills.py
+      reason: Regenerate pip SDK app-skill facade.
+    - path: frontend/packages/ui/src/components/embeds/code/CodeEmbedPreview.svelte
+      reason: Optionally display generated screenshot thumbnails on code embeds.
+    - path: apple/OpenMates/Sources/Features/Embeds/Renderers/CodeRenderers.swift
+      reason: Confirm or adjust native code embed tolerance for optional screenshot metadata.
+  verification_strategy:
+    - Add backend tests first and record red evidence before implementation.
+    - Verify REST directly against `https://api.dev.openmates.org` after deploying/restarting the API service.
+    - Verify real CLI command against the dev server before SDK checks.
+    - Verify npm and pip SDK calls locally against the dev server, then run `python3 scripts/audit_sdk_cli_parity.py`.
+    - Verify web through Playwright only after deploy.
+    - Send eval screenshots to Discord and wait for user visual confirmation before Apple parity.
+  verification_order:
+    - T-PYTEST-001
+    - T-PYTEST-003
+    - T-PYTEST-004
+    - T-PYTEST-002
+    - T-REST-001
+    - T-CLI-001
+    - T-NPM-001
+    - T-PIP-001
+    - T-WEB-001
+    - T-EVAL-001
+    - V-USER-001
+    - T-APPLE-001
+  slices:
+    - id: PLAN-1
+      title: Backend validation and provider scaffolding
+      tasks:
+        - TASK-1
+        - TASK-2
+      verification:
+        - T-PYTEST-001
+        - T-PYTEST-003
+        - T-PYTEST-004
+    - id: PLAN-2
+      title: Skill execution, billing, and embed/screenshot persistence
+      tasks:
+        - TASK-3
+        - TASK-4
+        - TASK-5
+      verification:
+        - T-PYTEST-001
+        - T-PYTEST-002
+    - id: PLAN-3
+      title: REST, CLI, SDK parity against dev server
+      tasks:
+        - TASK-6
+        - TASK-7
+      verification:
+        - T-REST-001
+        - T-CLI-001
+        - T-NPM-001
+        - T-PIP-001
+    - id: PLAN-4
+      title: Web rendering, evals, confirmation, Apple parity
+      tasks:
+        - TASK-8
+        - TASK-9
+        - TASK-10
+      verification:
+        - T-WEB-001
+        - T-EVAL-001
+        - V-USER-001
+        - T-APPLE-001
+
+tasks:
+  - id: TASK-1
+    title: Add image-to-HTML request validation and inline HTML policy tests
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios: [S-1, S-4, S-5]
+      acceptance_criteria: [AC-1, AC-4, AC-5]
+    ownership:
+      owner: opencode
+      claimed_at: "2026-07-21T00:00:00Z"
+      files:
+        - backend/apps/code/skills/image_to_html_skill.py
+        - backend/shared/python_utils/code_html_validation.py
+        - backend/tests/test_code_image_to_html_skill.py
+        - backend/tests/test_code_html_validation.py
+      shared_files: []
+    dependencies: []
+    expected_files:
+      - backend/apps/code/skills/image_to_html_skill.py
+      - backend/shared/python_utils/code_html_validation.py
+      - backend/tests/test_code_image_to_html_skill.py
+      - backend/tests/test_code_html_validation.py
+    verification_ids:
+      - T-PYTEST-001
+      - T-PYTEST-003
+    blockers:
+      - Current BaseApp skill dispatch does not pass cache/Directus/S3 services into app skills, so encrypted generated-asset screenshot indexing cannot be called from `ImageToHtmlSkill` without extending that execution contract.
+    follow_up_tasks:
+      - Wire a service-injected generated-asset persistence helper for chat-bound app-skill results, or move image_to_html execution into a worker task that already owns those services.
+  - id: TASK-2
+    title: Add E2B isolated HTML render provider
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios: [S-7]
+      acceptance_criteria: [AC-7]
+    ownership:
+      owner: opencode
+      claimed_at: "2026-07-21T00:00:00Z"
+      files:
+        - backend/shared/providers/e2b_html_renderer.py
+        - backend/tests/test_e2b_image_to_html_renderer.py
+      shared_files:
+        - backend/shared/providers/e2b_code_runner.py
+    dependencies:
+      - TASK-1
+    expected_files:
+      - backend/shared/providers/e2b_html_renderer.py
+      - backend/tests/test_e2b_image_to_html_renderer.py
+    verification_ids:
+      - T-PYTEST-004
+    blockers: []
+    follow_up_tasks: []
+  - id: TASK-3
+    title: Implement Gemini agentic generation loop and validation repair
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios: [S-1, S-4, S-6]
+      acceptance_criteria: [AC-1, AC-4, AC-6]
+    ownership:
+      owner: opencode
+      claimed_at: "2026-07-21T00:00:00Z"
+      files:
+        - backend/shared/providers/image_to_html_generator.py
+        - backend/apps/code/skills/image_to_html_skill.py
+        - backend/tests/test_code_image_to_html_skill.py
+        - backend/tests/test_image_to_html_generator.py
+      shared_files:
+        - backend/shared/python_utils/code_html_validation.py
+        - backend/shared/providers/e2b_html_renderer.py
+    dependencies:
+      - TASK-1
+      - TASK-2
+    expected_files:
+      - backend/shared/providers/image_to_html_generator.py
+      - backend/apps/code/skills/image_to_html_skill.py
+      - backend/tests/test_code_image_to_html_skill.py
+      - backend/tests/test_image_to_html_generator.py
+    verification_ids:
+      - T-PYTEST-001
+      - T-PYTEST-003
+      - T-PYTEST-004
+    blockers: []
+    follow_up_tasks: []
+  - id: TASK-4
+    title: Implement actual-cost billing reservation and usage entries
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios: [S-3]
+      acceptance_criteria: [AC-3]
+    ownership:
+      owner: opencode
+      claimed_at: "2026-07-21T00:00:00Z"
+      files:
+        - backend/apps/code/skills/image_to_html_skill.py
+        - backend/tests/test_code_image_to_html_billing.py
+      shared_files:
+        - backend/core/api/app/routes/apps_api.py
+    dependencies:
+      - TASK-3
+    expected_files:
+      - backend/apps/code/skills/image_to_html_skill.py
+      - backend/tests/test_code_image_to_html_billing.py
+    verification_ids:
+      - T-PYTEST-002
+    blockers: []
+    follow_up_tasks: []
+  - id: TASK-5
+    title: Persist chat-bound code embed and encrypted render screenshot metadata
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios: [S-1, S-8]
+      acceptance_criteria: [AC-1, AC-8]
+    ownership:
+      owner: opencode
+      claimed_at: "2026-07-21T00:00:00Z"
+      files:
+        - backend/apps/code/skills/image_to_html_skill.py
+        - backend/apps/code/tasks/image_to_html_task.py
+        - backend/apps/code/app.yml
+        - backend/tests/test_code_image_to_html_skill.py
+        - backend/tests/test_code_image_to_html_task.py
+      shared_files:
+        - backend/apps/code/tasks/__init__.py
+        - backend/shared/python_utils/generated_assets/service.py
+    dependencies:
+      - TASK-3
+      - TASK-4
+    expected_files:
+      - backend/apps/code/skills/image_to_html_skill.py
+      - backend/apps/code/tasks/image_to_html_task.py
+      - backend/apps/code/app.yml
+      - backend/apps/code/tasks/__init__.py
+      - backend/shared/python_utils/generated_assets/service.py
+      - backend/tests/test_code_image_to_html_skill.py
+      - backend/tests/test_code_image_to_html_task.py
+    verification_ids:
+      - T-PYTEST-001
+      - T-PYTEST-002
+    blockers: []
+    follow_up_tasks: []
+  - id: TASK-6
+    title: Add REST/dev-server proof script and run backend phase gate
+    status: in_progress
+    phase: working_tasks
+    covers:
+      scenarios: [S-2, S-3, S-5, S-7]
+      acceptance_criteria: [AC-2, AC-3, AC-5, AC-7]
+    ownership:
+      owner: opencode
+      claimed_at: "2026-07-21T00:00:00Z"
+      files:
+        - scripts/test_code_image_to_html_dev.py
+      shared_files: []
+    dependencies:
+      - TASK-5
+    expected_files:
+      - scripts/test_code_image_to_html_dev.py
+    verification_ids:
+      - T-REST-001
+    blockers: []
+    follow_up_tasks:
+      - Run `scripts/test_code_image_to_html_dev.py` against `https://api.dev.openmates.org` with real `OPENMATES_API_KEY` after restarting the local dev API/app_code worker services.
+  - id: TASK-7
+    title: Add CLI and generated SDK parity
+    status: in_progress
+    phase: working_tasks
+    covers:
+      scenarios: [S-2, S-3]
+      acceptance_criteria: [AC-2, AC-8]
+    ownership:
+      owner: opencode
+      claimed_at: "2026-07-21T00:00:00Z"
+      files:
+        - frontend/packages/openmates-cli/src/cli.ts
+        - frontend/packages/openmates-cli/src/sdk.ts
+        - frontend/packages/openmates-cli/src/generated/appSkills.ts
+        - frontend/packages/openmates-cli/tests/cli.test.ts
+        - frontend/packages/openmates-cli/tests/sdk.test.ts
+        - packages/openmates-python/openmates/sdk.py
+        - packages/openmates-python/openmates/generated/app_skills.py
+        - packages/openmates-python/tests/test_sdk.py
+      shared_files:
+        - backend/apps/code/app.yml
+    dependencies:
+      - TASK-6
+    expected_files:
+      - backend/apps/code/app.yml
+      - frontend/packages/openmates-cli/src/cli.ts
+      - frontend/packages/openmates-cli/src/sdk.ts
+      - frontend/packages/openmates-cli/src/generated/appSkills.ts
+      - frontend/packages/openmates-cli/tests/cli.test.ts
+      - frontend/packages/openmates-cli/tests/sdk.test.ts
+      - packages/openmates-python/openmates/sdk.py
+      - packages/openmates-python/openmates/generated/app_skills.py
+      - packages/openmates-python/tests/test_sdk.py
+      - scripts/test_code_image_to_html_npm_dev.mjs
+      - scripts/test_code_image_to_html_pip_dev.py
+    verification_ids:
+      - T-CLI-001
+      - T-NPM-001
+      - T-PIP-001
+    blockers: []
+    follow_up_tasks:
+      - Add/run live npm and pip SDK dev proof scripts or equivalent real SDK calls against `https://api.dev.openmates.org` with `OPENMATES_API_KEY`.
+  - id: TASK-8
+    title: Add web code embed screenshot rendering and Playwright coverage
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-1, S-8]
+      acceptance_criteria: [AC-1, AC-8]
+    ownership:
+      owner: opencode
+      claimed_at: "2026-07-21T00:00:00Z"
+      files:
+        - frontend/packages/ui/src/components/embeds/code/CodeEmbedPreview.svelte
+        - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+        - frontend/apps/web_app/tests/code-image-to-html.spec.ts
+      shared_files: []
+    dependencies:
+      - TASK-7
+    expected_files:
+      - frontend/packages/ui/src/components/embeds/code/CodeEmbedPreview.svelte
+      - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+      - frontend/apps/web_app/tests/code-image-to-html.spec.ts
+    verification_ids:
+      - T-WEB-001
+    blockers: []
+    follow_up_tasks: []
+  - id: TASK-9
+    title: Run implementation evals and Discord confirmation
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-6]
+      acceptance_criteria: [AC-6]
+    ownership:
+      owner: opencode
+      claimed_at: "2026-07-21T00:00:00Z"
+      files:
+        - scripts/eval_code_image_to_html.py
+      shared_files: []
+    dependencies:
+      - TASK-8
+    expected_files:
+      - scripts/eval_code_image_to_html.py
+    verification_ids:
+      - T-EVAL-001
+      - V-USER-001
+    blockers: []
+    follow_up_tasks: []
+  - id: TASK-10
+    title: Apple code embed metadata tolerance verification
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-8]
+      acceptance_criteria: [AC-8]
+    ownership:
+      owner: opencode
+      claimed_at: "2026-07-21T00:00:00Z"
+      files:
+        - apple/OpenMatesTests/SkillApplicationParityTests.swift
+        - apple/OpenMatesUITests/SkillApplicationParityUITests.swift
+      shared_files:
+        - apple/OpenMates/Sources/Features/Embeds/Renderers/CodeRenderers.swift
+    dependencies:
+      - TASK-9
+    expected_files:
+      - apple/OpenMatesTests/SkillApplicationParityTests.swift
+      - apple/OpenMatesUITests/SkillApplicationParityUITests.swift
+    verification_ids:
+      - T-APPLE-001
+    blockers: []
+    follow_up_tasks: []
+
+risks:
+  - id: R-1
+    risk: Provider token cost can exceed expectations for very large screenshots or high correction-pass counts.
+    mitigation: Enforce max reservation, image size/pixel limits, correction-pass cap, and visible itemized billing.
+  - id: R-2
+    risk: E2B sandbox render setup may be slower or more expensive than expected.
+    mitigation: Use one short-lived render helper, timeouts, cleanup, and record E2B seconds separately from LLM tokens.
+  - id: R-3
+    risk: Inline-only validation may reduce visual fidelity by banning remote fonts/icons/assets.
+    mitigation: Prefer CSS-drawn approximations, validation repair, and clear product positioning as starter HTML rather than pixel-perfect output.
+  - id: R-4
+    risk: Chat-bound screenshot asset storage may require generated-asset service generalization.
+    mitigation: Add focused tests proving `code-code` embed screenshot indexing and fallback direct artifact behavior.
+
+open_questions:
+  - id: OQ-1
+    question: What exact credit conversion and margin constants should production use for Gemini token dollars and E2B render seconds?
+    status: implementation_default_needed
+    plan: Start with configurable environment defaults and record final chosen values in app.yml/provider config during TASK-4.

@@ -365,6 +365,14 @@ embed_types:
       - name: line_count
         type: number
         required: true
+      - name: latest_screenshot_url
+        type: string
+      - name: latest_screenshot
+        type: object
+      - name: latest_screenshot_mime_type
+        type: string
+      - name: image_to_html_metadata
+        type: object
   # Generated application project — parent embed that references child code-code files.
   - id: application
     category: direct
@@ -514,6 +522,50 @@ skills:
       required:
         - chat_id
         - target_embed_id
+  - id: image_to_html
+    name_translation_key: app_skills.code.image_to_html
+    description_translation_key: app_skills.code.image_to_html.description
+    icon_image: coding.svg
+    preprocessor_hint: >
+      Turn an uploaded screenshot into one standalone index.html code embed with
+      inline CSS and optional inline JavaScript. Use this when the user asks to
+      convert a screenshot, mockup, UI image, or app screen into HTML. Do not use
+      remote image URLs; reference an uploaded image or pass image_base64.
+    class_path: backend.apps.code.skills.image_to_html_skill.ImageToHtmlSkill
+    full_model_reference: google/gemini-3.1-pro-preview
+    providers:
+      - name: google_ai_studio
+      - name: e2b
+    tool_schema:
+      type: object
+      properties:
+        requests:
+          type: array
+          description: Array of screenshot-to-HTML requests.
+          items:
+            type: object
+            properties:
+              image_base64:
+                type: string
+                description: Base64-encoded PNG, JPEG, or WEBP image bytes.
+              mime_type:
+                type: string
+                enum: [image/png, image/jpeg, image/webp]
+                description: MIME type for image_base64.
+              filename:
+                type: string
+                description: Optional source filename for caller-side correlation.
+              max_correction_passes:
+                type: integer
+                minimum: 0
+                maximum: 5
+                default: 2
+                description: Maximum E2B render-feedback correction passes.
+            required:
+              - image_base64
+              - mime_type
+      required:
+        - requests
   - id: clean_repo
     name_translation_key: code.clean_repo
     description_translation_key: code.clean_repo.description
