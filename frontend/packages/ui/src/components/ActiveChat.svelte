@@ -396,6 +396,46 @@
             && !chat.title;
     }
 
+    async function hydrateAuthenticatedDraftOnlyChatMessages(chatId: string, loadGeneration: number): Promise<void> {
+        try {
+            await chatSyncService.requestChatContentBatch_FOR_HANDLERS_ONLY([chatId]);
+            for (let attempt = 0; attempt < ON_DEMAND_MESSAGE_LOAD_POLL_ATTEMPTS; attempt += 1) {
+                if (loadGeneration !== loadChatGeneration || currentChat?.chat_id !== chatId) return;
+                await new Promise((resolve) => setTimeout(resolve, ON_DEMAND_MESSAGE_LOAD_POLL_DELAY_MS));
+                const hydratedWindow = await chatDB.getMessageWindowForChat(chatId, { direction: 'latest' });
+                if (hydratedWindow.messages.length === 0) continue;
+                if (loadGeneration !== loadChatGeneration || currentChat?.chat_id !== chatId) return;
+
+                const freshChat = await chatDB.getChat(chatId).catch(() => null);
+                const hydratedMessagesV = Math.max(
+                    Number(currentChat?.messages_v ?? 0),
+                    Number(freshChat?.messages_v ?? 0),
+                    hydratedWindow.messages.length,
+                );
+                if (currentChat) {
+                    currentChat = {
+                        ...currentChat,
+                        ...(freshChat ?? {}),
+                        messages_v: hydratedMessagesV,
+                        encrypted_draft_md: null,
+                        encrypted_draft_preview: null,
+                        draft_v: 0,
+                    };
+                }
+                currentMessages = hydratedWindow.messages;
+                currentMessageWindowHasMoreBefore = hydratedWindow.hasMoreBefore;
+                if (chatHistoryRef) {
+                    chatHistoryRef.updateMessages(currentMessages);
+                }
+                showWelcome = false;
+                console.info(`[ActiveChat] Hydrated ${currentMessages.length} message(s) for draft-looking chat ${chatId} after on-demand sync`);
+                return;
+            }
+        } catch (error) {
+            console.error(`[ActiveChat] Failed to hydrate draft-looking chat ${chatId} from server:`, error);
+        }
+    }
+
     function hasMeaningfulTiptapContent(node: unknown): boolean {
         if (!node || typeof node !== 'object') return false;
         const record = node as Record<string, unknown>;
@@ -4799,11 +4839,17 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // This is used for container-based responsive behavior instead of viewport-based
     let isEffectivelyNarrow = $derived(isNarrow || showSideBySideLayout);
 
+    // Guest interest tags are an overlay on desktop welcome screens, so composer
+    // height changes from embeds must not fade or move them out of the way.
+    let keepGuestInterestOverlayVisible = $derived(
+        !$authStore.isAuthenticated && showWelcome && guestInterestSelectorVisible && !isTouchEnvironment && !isEffectivelyNarrow
+    );
+
     // Fade out and disable pointer-events on the welcome content (banner + resume cards)
     // whenever the message input is focused on the welcome screen (all devices), or when
     // the keyboard opens on mobile / narrow viewports, or when suggestions would overlap.
     let hideWelcomeForKeyboard = $derived(
-        messageInputFocused && (showWelcome || isTouchEnvironment || isEffectivelyNarrow || suggestionsWouldOverlapWelcome)
+        messageInputFocused && !keepGuestInterestOverlayVisible && (showWelcome || isTouchEnvironment || isEffectivelyNarrow || suggestionsWouldOverlapWelcome)
     );
 
     // Effective chat width: The actual width of the chat area
@@ -8861,8 +8907,28 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     }
                 }
             } else if (isCurrentDraftOnlyChat) {
-                newMessages = [];
-                console.debug(`[ActiveChat] Authenticated draft-only chat ${currentChat.chat_id} - no messages to load from IndexedDB`);
+                try {
+                    const draftOnlyWindow = await chatDB.getMessageWindowForChat(currentChat.chat_id, { direction: 'latest' });
+                    newMessages = draftOnlyWindow.messages;
+                    currentMessageWindowHasMoreBefore = draftOnlyWindow.hasMoreBefore;
+                    if (newMessages.length > 0) {
+                        currentChat = {
+                            ...currentChat,
+                            messages_v: Math.max(Number(currentChat.messages_v ?? 0), newMessages.length),
+                            encrypted_draft_md: null,
+                            encrypted_draft_preview: null,
+                            draft_v: 0,
+                        };
+                        console.info(`[ActiveChat] Loaded ${newMessages.length} message(s) for draft-looking authenticated chat ${currentChat.chat_id}`);
+                    } else {
+                        void hydrateAuthenticatedDraftOnlyChatMessages(currentChat.chat_id, thisLoadGeneration);
+                        console.debug(`[ActiveChat] Authenticated draft-only chat ${currentChat.chat_id} - no local messages yet; requested on-demand hydration`);
+                    }
+                } catch (error) {
+                    newMessages = [];
+                    void hydrateAuthenticatedDraftOnlyChatMessages(currentChat.chat_id, thisLoadGeneration);
+                    console.error(`[ActiveChat] Error loading draft-looking chat messages for ${currentChat.chat_id}:`, error);
+                }
             } else {
                 // For authenticated users, load messages from IndexedDB
                 // Handle case where database might be unavailable (e.g., during logout/deletion)
@@ -13323,7 +13389,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         padding: 6px 14px;
         border-radius: 999px;
         background: rgba(0, 0, 0, 0.55);
-        color: #fff;
+        color: var(--color-font-button);
         font-size: 0.78rem;
         font-weight: 500;
         line-height: 1.3;
@@ -13335,7 +13401,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         pointer-events: none;
         backdrop-filter: blur(8px);
         -webkit-backdrop-filter: blur(8px);
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        box-shadow: var(--shadow-md);
     }
     
     /* Overlay mode (default): Absolute positioning over everything */
@@ -13795,13 +13861,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     /* Draft-only card: matches sidebar draft-only-layout (label + preview, no gradient) */
     .resume-chat-draft-card {
-        background: var(--color-grey-4);
+        background: var(--color-grey-10);
         border-color: var(--color-grey-10);
     }
 
     .resume-chat-draft-card:hover {
-        background: var(--color-grey-6);
-        border-color: var(--color-grey-15);
+        background: var(--color-grey-20);
+        border-color: var(--color-grey-25);
     }
 
     .resume-chat-draft-content {
@@ -13893,7 +13959,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         width: fit-content;
         margin-bottom: 2px;
         padding: 3px 7px;
-        font-size: 10px;
+        font-size: var(--font-size-tiny);
     }
 
     .continue-priority-content {
@@ -14446,7 +14512,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     .incognito-mode-applies-banner {
         width: 100%;
         min-height: 40px;
-        background-color: var(--color-grey-15);
+        background-color: var(--color-grey-20);
         border: 1px solid var(--color-grey-30);
         border-radius: var(--radius-3);
         display: flex;
@@ -14481,7 +14547,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         max-width: 629px;
         min-height: 48px;
         box-sizing: border-box;
-        background-color: var(--color-grey-15);
+        background-color: var(--color-grey-20);
         border: 1px solid var(--color-grey-30);
         border-radius: var(--radius-6);
         display: flex;
@@ -14784,7 +14850,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         background-color: var(--color-grey-10);
         border-radius: 40px;
         padding: var(--spacing-4);
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        box-shadow: var(--shadow-md);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -14794,12 +14860,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     .new-chat-button-wrapper:hover {
         transform: scale(1.08);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        box-shadow: var(--shadow-lg);
     }
 
     .new-chat-button-wrapper:active {
         transform: scale(0.95);
-        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+        box-shadow: var(--shadow-xs);
     }
 
     /* New chat CTA: no extra wrapper background so the pill button stands out.
@@ -14843,7 +14909,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             width 0.25s ease-in-out,
             padding 0.25s ease-in-out,
             gap 0.25s ease-in-out;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        box-shadow: var(--shadow-md);
         margin-right: 0;
     }
 

@@ -506,7 +506,7 @@
           class="waveform-strip"
           data-testid="recording-preview-waveform"
           data-progress={Math.round(waveformProgressPercent)}
-          style={`--waveform-progress: ${waveformProgressPercent}%`}
+          style={`--waveform-progress: ${waveformProgressPercent}%; --waveform-sample-count: ${displayWaveform.samples.length};`}
           aria-hidden="true"
         >
           <div class="waveform-bars">
@@ -651,16 +651,16 @@
   .waveform-bars {
     width: 100%;
     height: 100%;
-    display: flex;
+    display: grid;
+    grid-template-columns: repeat(var(--waveform-sample-count, 1), minmax(0, 1fr));
     align-items: center;
-    gap: 2px;
+    gap: 1px;
     opacity: 0.78;
   }
 
   .waveform-bar {
-    flex: 1 1 1px;
-    min-width: 1px;
-    max-width: 4px;
+    width: 100%;
+    min-width: 0;
     background: currentColor;
     border-radius: var(--radius-full, 9999px);
   }
@@ -706,7 +706,7 @@
     background: var(--color-grey-10, #f5f5f5);
     border: 1px solid var(--color-grey-20, #e8e8e8);
     color: var(--color-grey-60, #666);
-    font-size: 10px;
+    font-size: var(--font-size-tiny);
     font-weight: 600;
     cursor: pointer;
     transition: all 0.15s ease-in-out;
@@ -714,7 +714,7 @@
   }
 
   .ai-correction-badge:hover {
-    background: var(--color-grey-15, #f0f0f0);
+    background: var(--color-grey-20, #f0f0f0);
     border-color: var(--color-grey-30, #ccc);
   }
 
@@ -755,7 +755,7 @@
   }
 
   :global(.dark) .ai-correction-badge:hover {
-    background: var(--color-grey-75, #3a3a3a);
+    background: var(--color-grey-70, #3a3a3a);
     border-color: var(--color-grey-60, #555);
   }
 
@@ -856,9 +856,9 @@
     height: 10px;
     background: linear-gradient(
       90deg,
-      var(--color-grey-15, #f0f0f0) 25%,
+      var(--color-grey-20, #f0f0f0) 25%,
       var(--color-grey-10, #f8f8f8) 50%,
-      var(--color-grey-15, #f0f0f0) 75%
+      var(--color-grey-20, #f0f0f0) 75%
     );
     background-size: 200% 100%;
     border-radius: var(--radius-1);
@@ -999,7 +999,7 @@
     background: linear-gradient(
       90deg,
       var(--color-grey-80, #333) 25%,
-      var(--color-grey-75, #3a3a3a) 50%,
+      var(--color-grey-70, #3a3a3a) 50%,
       var(--color-grey-80, #333) 75%
     );
     background-size: 200% 100%;

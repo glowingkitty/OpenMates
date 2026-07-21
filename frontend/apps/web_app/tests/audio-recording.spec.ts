@@ -58,6 +58,10 @@ test.afterEach(async ({}, testInfo) => {
  * message field editor so action buttons appear. Returns the message field locator.
  */
 async function setupAndFocusMessageField(page: any) {
+	await page.addInitScript(() => {
+		sessionStorage.removeItem('openmates.guest_interest_tags.v1');
+	});
+
 	await page.goto(getE2EDebugUrl('/'));
 
 	// Wait for the page to fully load. Logged-out users now land on the guest
@@ -204,6 +208,32 @@ async function expectWaveformContained(overlay: any, waveform: any) {
 			);
 		})
 		.toBe(true);
+}
+
+async function expectPreviewWaveformFitsStrip(waveform: any) {
+	await expect
+		.poll(async () => {
+			return waveform.evaluate((stripElement: HTMLElement) => {
+				const barsElement = stripElement.firstElementChild as HTMLElement | null;
+				const barElements = barsElement ? Array.from(barsElement.children) as HTMLElement[] : [];
+				const firstBar = barElements[0];
+				const lastBar = barElements[barElements.length - 1];
+				if (!barsElement || !firstBar || !lastBar) return 'missing-bars';
+
+				const stripRect = stripElement.getBoundingClientRect();
+				const firstBarRect = firstBar.getBoundingClientRect();
+				const lastBarRect = lastBar.getBoundingClientRect();
+				if (barElements.length < 64) return `too-few-bars:${barElements.length}`;
+				if (barsElement.scrollWidth > barsElement.clientWidth + 1) {
+					return `scroll-overflow:${barsElement.scrollWidth}:${barsElement.clientWidth}`;
+				}
+				if (firstBarRect.left < stripRect.left - 1 || lastBarRect.right > stripRect.right + 1) {
+					return `visual-overflow:${firstBarRect.left}:${stripRect.left}:${lastBarRect.right}:${stripRect.right}`;
+				}
+				return 'ok';
+			});
+		})
+		.toBe('ok');
 }
 
 async function holdAndReleaseMicButton(page: any, micButton: any, holdMs = 1500) {
@@ -462,6 +492,10 @@ test('press hold and release creates audio embed', async ({ page }) => {
 
 	await setupAndFocusMessageField(page);
 	const micButton = await waitForMicButton(page);
+	const guestInterestRail = page.getByTestId('guest-interest-rail');
+	await expect(guestInterestRail).toBeVisible({ timeout: 10000 });
+	const guestInterestRailTopBefore = (await guestInterestRail.boundingBox())?.y;
+	expect(guestInterestRailTopBefore).toBeDefined();
 
 	// Count existing recording embeds before
 	const embedCountBefore = await page.getByTestId('recording-preview').count();
@@ -482,7 +516,16 @@ test('press hold and release creates audio embed', async ({ page }) => {
 	});
 	const previewWaveform = page.getByTestId('recording-preview-waveform').last();
 	await expect(previewWaveform).toBeVisible({ timeout: 10000 });
+	await expectPreviewWaveformFitsStrip(previewWaveform);
 	await expect(previewWaveform).toHaveAttribute('data-progress', '0');
+	await expect(guestInterestRail).toBeVisible();
+	await expect
+		.poll(async () => {
+			const box = await guestInterestRail.boundingBox();
+			if (!box || guestInterestRailTopBefore === undefined) return Number.POSITIVE_INFINITY;
+			return Math.abs(box.y - guestInterestRailTopBefore);
+		})
+		.toBeLessThanOrEqual(2);
 	await page.getByTestId('recording-preview-play-button').last().click();
 	await expect
 		.poll(async () => Number((await previewWaveform.getAttribute('data-progress')) ?? '0'), {
