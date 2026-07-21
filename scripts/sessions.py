@@ -72,6 +72,7 @@ CODE_MAPPING_FILE = PROJECT_ROOT / "docs" / "architecture" / "code-mapping.yml"
 STALE_SESSION_HOURS = 24
 STALE_EMPTY_SESSION_HOURS = 6  # Sessions with zero tracked files expire faster
 STALE_LOCK_MINUTES = 5
+VERCEL_DEPLOY_LOCK_MINUTES = 90
 STALE_DOC_HOURS = 24
 RECENT_COMMITS_COUNT = 5  # Number of recent git commits to show at session start
 CONTRIBUTING_GUIDES_DIR = PROJECT_ROOT / "docs" / "contributing" / "guides"
@@ -491,10 +492,104 @@ def _prune_stale_locks(data: dict) -> list[str]:
         lock = data.get("locks", {}).get(lock_type, {})
         if lock.get("status") == "IN_PROGRESS":
             last_updated = lock.get("last_updated", "")
-            if last_updated and _minutes_since(last_updated) > STALE_LOCK_MINUTES:
+            stale_minutes = _lock_stale_minutes(lock_type)
+            if last_updated and _minutes_since(last_updated) > stale_minutes:
                 data["locks"][lock_type] = {"status": "NONE"}
                 cleared.append(lock_type)
     return cleared
+
+
+def _lock_stale_minutes(lock_type: str) -> int:
+    """Return lock-specific stale timeout in minutes."""
+    if lock_type == "vercel_deploy":
+        return VERCEL_DEPLOY_LOCK_MINUTES
+    return STALE_LOCK_MINUTES
+
+
+def _is_lock_active(lock: dict, lock_type: str) -> bool:
+    if lock.get("status") != "IN_PROGRESS":
+        return False
+    last_updated = lock.get("last_updated", "")
+    return bool(last_updated and _minutes_since(last_updated) < _lock_stale_minutes(lock_type))
+
+
+def _format_lock_block_message(lock_type: str, lock: dict) -> str:
+    commit = str(lock.get("commit_sha") or "")
+    commit_text = f", commit {commit[:9]}" if commit else ""
+    return (
+        f"BLOCKED: {lock_type} lock held by {lock.get('claimed_by', '?')}"
+        f"{commit_text} (since {lock.get('since', '?')}, updated {lock.get('last_updated', '?')}). "
+        "Wait for the deployment/test verification to finish, or run "
+        f"`python3 scripts/sessions.py unlock --session <id> --type {_lock_type_short_name(lock_type)}` "
+        "if you have confirmed the deploy is no longer active."
+    )
+
+
+def _lock_type_short_name(lock_type: str) -> str:
+    if lock_type == "vercel_deploy":
+        return "vercel"
+    if lock_type == "docker_rebuild":
+        return "docker"
+    return lock_type
+
+
+def _acquire_session_lock(lock_type: str, session_id: str, *, commit_sha: str = "", phase: str = "") -> bool:
+    """Atomically acquire a shared session lock, or raise RuntimeError if active."""
+    now = _now_iso()
+
+    def mutate(data: dict) -> bool:
+        locks = data.setdefault("locks", {})
+        lock = locks.get(lock_type, {})
+        if _is_lock_active(lock, lock_type):
+            same_owner = lock.get("claimed_by") == session_id
+            same_commit = not commit_sha or not lock.get("commit_sha") or lock.get("commit_sha") == commit_sha
+            if same_owner and same_commit:
+                lock["last_updated"] = now
+                if commit_sha:
+                    lock["commit_sha"] = commit_sha
+                if phase:
+                    lock["phase"] = phase
+                locks[lock_type] = lock
+                return False
+            raise RuntimeError(_format_lock_block_message(lock_type, lock))
+        if lock.get("status") == "IN_PROGRESS":
+            print(
+                f"Warning: Taking over stale {lock_type} lock from {lock.get('claimed_by', '?')}.",
+                file=sys.stderr,
+            )
+        locks[lock_type] = {
+            "status": "IN_PROGRESS",
+            "claimed_by": session_id,
+            "since": now,
+            "last_updated": now,
+        }
+        if commit_sha:
+            locks[lock_type]["commit_sha"] = commit_sha
+        if phase:
+            locks[lock_type]["phase"] = phase
+        return True
+
+    return _mutate_sessions(mutate)
+
+
+def _release_session_lock(lock_type: str, *, commit_sha: str = "", released_by: str = "") -> bool:
+    """Release a shared lock when the optional commit matches."""
+    def mutate(data: dict) -> bool:
+        lock = data.setdefault("locks", {}).get(lock_type, {})
+        if lock.get("status") != "IN_PROGRESS":
+            return False
+        if commit_sha and lock.get("commit_sha") and lock.get("commit_sha") != commit_sha:
+            return False
+        data["locks"][lock_type] = {
+            "status": "NONE",
+            "last_released": _now_iso(),
+            "released_by": released_by or "sessions.py",
+        }
+        if commit_sha:
+            data["locks"][lock_type]["released_commit_sha"] = commit_sha
+        return True
+
+    return _mutate_sessions(mutate)
 
 
 def _check_stale_docs() -> list[dict]:
@@ -3364,7 +3459,6 @@ def _normalize_lock_type(raw: str) -> str:
 
 def cmd_lock(args: argparse.Namespace) -> None:
     """Acquire a lock (docker_rebuild or vercel_deploy)."""
-    data = _load_sessions()
     sid = args.session
     lock_type = _normalize_lock_type(args.type)
 
@@ -3376,40 +3470,16 @@ def cmd_lock(args: argparse.Namespace) -> None:
         )
         sys.exit(1)
 
-    lock_key = lock_type
-    lock = data.get("locks", {}).get(lock_key, {})
-
-    if lock.get("status") == "IN_PROGRESS":
-        last_updated = lock.get("last_updated", "")
-        if last_updated and _minutes_since(last_updated) < STALE_LOCK_MINUTES:
-            print(
-                f"BLOCKED: {lock_type} lock held by "
-                f"{lock.get('claimed_by', '?')} "
-                f"(since {lock.get('since', '?')}, "
-                f"updated {lock.get('last_updated', '?')}). "
-                f"Wait and retry.",
-                file=sys.stderr,
-            )
-            sys.exit(1)
-        else:
-            print(
-                f"Warning: Taking over stale {lock_type} lock from "
-                f"{lock.get('claimed_by', '?')}."
-            )
-
-    data["locks"][lock_key] = {
-        "status": "IN_PROGRESS",
-        "claimed_by": sid,
-        "since": _now_iso(),
-        "last_updated": _now_iso(),
-    }
-    _save_sessions(data)
+    try:
+        _acquire_session_lock(lock_type, sid, phase="manual")
+    except RuntimeError as exc:
+        print(str(exc), file=sys.stderr)
+        sys.exit(1)
     print(f"Lock '{lock_type}' acquired by session {sid}.")
 
 
 def cmd_unlock(args: argparse.Namespace) -> None:
     """Release a lock."""
-    data = _load_sessions()
     lock_type = _normalize_lock_type(args.type)
 
     if lock_type not in ("docker_rebuild", "vercel_deploy"):
@@ -3419,8 +3489,7 @@ def cmd_unlock(args: argparse.Namespace) -> None:
         )
         sys.exit(1)
 
-    data["locks"][lock_type] = {"status": "NONE"}
-    _save_sessions(data)
+    _release_session_lock(lock_type, released_by=args.session)
     print(f"Lock '{lock_type}' released.")
 
 
@@ -3464,6 +3533,48 @@ def _run_lint(files: list[str]) -> tuple[int, str, str]:
 def _has_frontend_files(files: list) -> bool:
     """Return True if any of the given file paths touch the frontend package."""
     return any(f.startswith("frontend/") for f in files)
+
+
+def _should_validate_embed_registry(files: list[str]) -> bool:
+    """Return True when changed files can affect generated embed contracts."""
+    return any(
+        f.startswith("frontend/packages/ui/src/components/embeds/")
+        or f.startswith("frontend/packages/ui/src/data/embed")
+        or (f.startswith("backend/apps/") and f.endswith("/app.yml"))
+        for f in files
+    )
+
+
+def _get_unpushed_files() -> list[str]:
+    """Return files changed by local commits that have not reached origin/dev."""
+    rc, stdout, _ = _run_cmd(["git", "diff", "--name-only", "origin/dev..HEAD"])
+    if rc != 0 or not stdout:
+        return []
+    return [line.strip() for line in stdout.splitlines() if line.strip()]
+
+
+def _run_embed_registry_validation() -> tuple[int, str, str]:
+    """Run the generated embed registry check used by the Vercel build."""
+    return _run_cmd(
+        ["npm", "run", "generate-embed-registry"],
+        cwd=str(PROJECT_ROOT / "frontend" / "packages" / "ui"),
+        timeout=180,
+    )
+
+
+def _enforce_embed_registry_validation(files: list[str]) -> None:
+    if not _should_validate_embed_registry(files):
+        return
+    print("Running embed registry validation (generate-embed-registry)...")
+    rc, stdout, stderr = _run_embed_registry_validation()
+    if rc != 0:
+        print("EMBED REGISTRY VALIDATION FAILED — aborting deploy:", file=sys.stderr)
+        if stdout:
+            print(stdout, file=sys.stderr)
+        if stderr:
+            print(stderr, file=sys.stderr)
+        sys.exit(1)
+    print("Embed registry: PASSED")
 
 
 def _run_translation_validation() -> tuple[int, str, str]:
@@ -3679,10 +3790,28 @@ def cmd_deploy(args: argparse.Namespace) -> None:
             commit_hash_full = (commit_hash_full or "").strip() if rc == 0 else ""
             commit_hash = commit_hash_full[:7] if commit_hash_full else "unknown"
 
+            _enforce_embed_registry_validation(_get_unpushed_files())
+
+            deploy_lock_acquired = False
+            try:
+                _acquire_session_lock(
+                    "vercel_deploy",
+                    sid,
+                    commit_sha=commit_hash_full,
+                    phase="awaiting_vercel_or_e2e",
+                )
+                deploy_lock_acquired = True
+            except RuntimeError as exc:
+                print(str(exc), file=sys.stderr)
+                sys.exit(1)
+            print(f"Vercel deploy lock acquired for commit {commit_hash}.")
+
             print("Checking Vercel web app build machine...")
             try:
                 _enforce_vercel_standard_build_machine()
             except RuntimeError as exc:
+                if deploy_lock_acquired:
+                    _release_session_lock("vercel_deploy", commit_sha=commit_hash_full, released_by=sid)
                 print(f"VERCEL BUILD MACHINE GATE FAILED — {exc}", file=sys.stderr)
                 sys.exit(1)
             print("Vercel build machine: standard/fixed")
@@ -3690,6 +3819,8 @@ def cmd_deploy(args: argparse.Namespace) -> None:
             print(f"No files to commit; pushing {git_summary['unpushed']} existing commit(s) to origin dev...")
             rc, stdout, stderr = _run_cmd(["git", "push", "origin", "dev"])
             if rc != 0:
+                if deploy_lock_acquired:
+                    _release_session_lock("vercel_deploy", commit_sha=commit_hash_full, released_by=sid)
                 print(f"git push failed: {stderr}", file=sys.stderr)
                 print("Existing local commit(s) were not pushed.")
                 sys.exit(1)
@@ -3704,9 +3835,14 @@ def cmd_deploy(args: argparse.Namespace) -> None:
             print("Branch: dev")
 
             if getattr(args, "end_session", False):
-                _linear_complete_session(sid, session, commit_sha=commit_hash)
-                del data["sessions"][sid]
-                _save_sessions(data)
+                latest_data = _load_sessions()
+                latest_session = latest_data.get("sessions", {}).get(sid, session)
+                _linear_complete_session(sid, latest_session, commit_sha=commit_hash)
+
+                def remove_session(session_data: dict) -> None:
+                    session_data.setdefault("sessions", {}).pop(sid, None)
+
+                _mutate_sessions(remove_session)
                 print(f"Session {sid} ended.")
             sys.exit(0)
 
@@ -3796,6 +3932,8 @@ def cmd_deploy(args: argparse.Namespace) -> None:
 
     # 1d. Pytest gate — hard-block on failing related pytest unit tests
     _run_pytest_gate(to_commit, skip_reason=skip_tests_reason, no_verify=no_verify)
+
+    _enforce_embed_registry_validation(to_commit)
 
     print("Checking Vercel web app build machine...")
     try:
@@ -3892,10 +4030,27 @@ def cmd_deploy(args: argparse.Namespace) -> None:
     commit_hash = commit_hash_full[:7] if commit_hash_full else "unknown"
 
     # 4. Git push
+    deploy_lock_acquired = False
+    try:
+        _acquire_session_lock(
+            "vercel_deploy",
+            sid,
+            commit_sha=commit_hash_full,
+            phase="awaiting_vercel_or_e2e",
+        )
+        deploy_lock_acquired = True
+    except RuntimeError as exc:
+        print(str(exc), file=sys.stderr)
+        print("Commit was created locally but not pushed.", file=sys.stderr)
+        sys.exit(1)
+    print(f"Vercel deploy lock acquired for commit {commit_hash}.")
+
     print("Rechecking Vercel web app build machine before push...")
     try:
         _enforce_vercel_standard_build_machine()
     except RuntimeError as exc:
+        if deploy_lock_acquired:
+            _release_session_lock("vercel_deploy", commit_sha=commit_hash_full, released_by=sid)
         print(f"VERCEL BUILD MACHINE GATE FAILED — {exc}", file=sys.stderr)
         print("Commit was created locally but not pushed.", file=sys.stderr)
         sys.exit(1)
@@ -3904,6 +4059,8 @@ def cmd_deploy(args: argparse.Namespace) -> None:
     print("Pushing to origin dev...")
     rc, stdout, stderr = _run_cmd(["git", "push", "origin", "dev"])
     if rc != 0:
+        if deploy_lock_acquired:
+            _release_session_lock("vercel_deploy", commit_sha=commit_hash_full, released_by=sid)
         print(f"git push failed: {stderr}", file=sys.stderr)
         print("Commit was created locally but not pushed.")
         sys.exit(1)
@@ -3930,9 +4087,14 @@ def cmd_deploy(args: argparse.Namespace) -> None:
 
     # Auto-end session if --end flag is set
     if getattr(args, "end_session", False):
-        _linear_complete_session(sid, session, commit_sha=commit_hash)
-        del data["sessions"][sid]
-        _save_sessions(data)
+        latest_data = _load_sessions()
+        latest_session = latest_data.get("sessions", {}).get(sid, session)
+        _linear_complete_session(sid, latest_session, commit_sha=commit_hash)
+
+        def remove_session(session_data: dict) -> None:
+            session_data.setdefault("sessions", {}).pop(sid, None)
+
+        _mutate_sessions(remove_session)
         print(f"\nSession {sid} ended.")
 
 

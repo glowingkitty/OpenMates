@@ -44,6 +44,7 @@ HISTORY_FILE = RESULTS_DIR / "tests-history.jsonl"
 LEASES_FILE = RESULTS_DIR / "failed-test-leases.json"
 TRIAGE_FILE = RESULTS_DIR / "test-failure-triage.json"
 TEST_FILE_INDEX_FILE = RESULTS_DIR / "test-file-index.json"
+SESSIONS_FILE = PROJECT_ROOT / ".claude" / "sessions.json"
 RUNS_DIR = RESULTS_DIR / "runs"
 LEASE_LOCK_FILE = Path("/tmp/openmates-failed-test-leases.lock")
 SPEC_DIR = PROJECT_ROOT / "frontend" / "apps" / "web_app" / "tests"
@@ -768,6 +769,40 @@ def _matches_commit_prefix(actual_sha: str, expected_sha: str) -> bool:
     actual = actual_sha.strip().lower()
     expected = expected_sha.strip().lower()
     return bool(expected) and (actual.startswith(expected) or expected.startswith(actual))
+
+
+def release_vercel_deploy_lock_for_commit(commit_sha: str) -> bool:
+    """Release the sessions.py Vercel deploy lock when this test verified it."""
+    commit_sha = commit_sha.strip()
+    if not commit_sha:
+        return False
+
+    SESSIONS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    lock_path = SESSIONS_FILE.with_suffix(".lock")
+    with lock_path.open("a+", encoding="utf-8") as lock_handle:
+        fcntl.flock(lock_handle, fcntl.LOCK_EX)
+        try:
+            try:
+                data = json.loads(SESSIONS_FILE.read_text(encoding="utf-8")) if SESSIONS_FILE.exists() else {}
+            except (json.JSONDecodeError, OSError):
+                return False
+            locks = data.setdefault("locks", {})
+            deploy_lock = locks.get("vercel_deploy", {})
+            locked_commit = str(deploy_lock.get("commit_sha") or "")
+            if deploy_lock.get("status") != "IN_PROGRESS" or not _matches_commit_prefix(locked_commit, commit_sha):
+                return False
+            locks["vercel_deploy"] = {
+                "status": "NONE",
+                "last_released": utc_now(),
+                "released_by": "scripts/tests.py",
+                "released_commit_sha": locked_commit or commit_sha,
+            }
+            tmp = SESSIONS_FILE.with_suffix(".tmp")
+            tmp.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+            tmp.replace(SESSIONS_FILE)
+            return True
+        finally:
+            fcntl.flock(lock_handle, fcntl.LOCK_UN)
 
 
 @dataclass(frozen=True)
@@ -1832,30 +1867,31 @@ def reset_store() -> None:
     TEST_STORE = None
 
 
-def record_latest_run_artifact(expected_commit: str = "", since_mtime: float = 0.0) -> bool:
+def record_latest_run_artifact(expected_commit: str = "", since_mtime: float = 0.0) -> str:
     artifacts = run_recording_artifacts(since_mtime=since_mtime)
     if not artifacts:
-        return False
+        return ""
     for index, artifact in enumerate(artifacts):
         if index > 0:
             reset_store()
         try:
             run_data = read_json(artifact, {})
-            if expected_commit and not _matches_commit_prefix(str(run_data.get("git_sha") or ""), expected_commit):
+            run_git_sha = str(run_data.get("git_sha") or "")
+            if expected_commit and not _matches_commit_prefix(run_git_sha, expected_commit):
                 print(
                     "Test run completed for a different commit than requested: "
                     f"expected {expected_commit}, got {run_data.get('git_sha')}",
                     file=sys.stderr,
                 )
-                return False
+                return ""
             record_run_result(run_data)
             if index > 0:
                 print(f"Imported fallback run artifact: {display_path(artifact)}", file=sys.stderr)
-            return True
+            return run_git_sha or expected_commit
         except Exception as exc:
             print(f"Could not record run artifact {display_path(artifact)}: {exc}", file=sys.stderr)
     print("Run finished, but Directus recording failed for all generated artifacts.", file=sys.stderr)
-    return False
+    return ""
 
 
 def command_run(runner_args: list[str]) -> int:
@@ -1903,8 +1939,11 @@ def command_run(runner_args: list[str]) -> int:
     mark_running(suite=suite, tests=tests, command=["python3", "scripts/tests.py", "run", *runner_args])
     artifact_start_mtime = datetime.now(timezone.utc).timestamp() - 1
     result = subprocess.run(command, cwd=PROJECT_ROOT)
-    if not record_latest_run_artifact(expected_commit=options.expected_commit, since_mtime=artifact_start_mtime):
+    recorded_commit = record_latest_run_artifact(expected_commit=options.expected_commit, since_mtime=artifact_start_mtime)
+    if not recorded_commit:
         return 2 if options.expected_commit else result.returncode
+    if release_vercel_deploy_lock_for_commit(recorded_commit):
+        print(f"Released Vercel deploy lock for verified commit {recorded_commit[:9]}.")
     return result.returncode
 
 

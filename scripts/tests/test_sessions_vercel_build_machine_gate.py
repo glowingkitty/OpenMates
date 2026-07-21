@@ -124,3 +124,72 @@ def test_debug_vercel_starts_bug_session_with_complete_args(monkeypatch):
         sys.executable,
         str(sessions.PROJECT_ROOT / "backend" / "scripts" / "debug_vercel.py"),
     ]
+
+
+def test_vercel_deploy_lock_blocks_active_other_session(monkeypatch, tmp_path):
+    sessions = load_sessions_module()
+    sessions_file = tmp_path / "sessions.json"
+    sessions_file.write_text(
+        """
+{
+  "locks": {
+    "docker_rebuild": {"status": "NONE"},
+    "vercel_deploy": {
+      "status": "IN_PROGRESS",
+      "claimed_by": "other",
+      "commit_sha": "abcdef123456",
+      "since": "2026-07-21T10:00:00Z",
+      "last_updated": "2026-07-21T10:00:00Z"
+    }
+  },
+  "sessions": {}
+}
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(sessions, "SESSIONS_FILE", sessions_file)
+    monkeypatch.setattr(sessions, "_minutes_since", lambda _value: 10)
+
+    with pytest.raises(RuntimeError, match="vercel_deploy lock held by other"):
+        sessions._acquire_session_lock(
+            "vercel_deploy",
+            "current",
+            commit_sha="123456abcdef",
+            phase="awaiting_vercel_or_e2e",
+        )
+
+
+def test_vercel_deploy_lock_allows_same_session_same_commit_refresh(monkeypatch, tmp_path):
+    sessions = load_sessions_module()
+    sessions_file = tmp_path / "sessions.json"
+    sessions_file.write_text(
+        """
+{
+  "locks": {
+    "docker_rebuild": {"status": "NONE"},
+    "vercel_deploy": {
+      "status": "IN_PROGRESS",
+      "claimed_by": "current",
+      "commit_sha": "abcdef123456",
+      "since": "2026-07-21T10:00:00Z",
+      "last_updated": "2026-07-21T10:00:00Z"
+    }
+  },
+  "sessions": {}
+}
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(sessions, "SESSIONS_FILE", sessions_file)
+    monkeypatch.setattr(sessions, "_minutes_since", lambda _value: 10)
+
+    acquired = sessions._acquire_session_lock(
+        "vercel_deploy",
+        "current",
+        commit_sha="abcdef123456",
+        phase="awaiting_vercel_or_e2e",
+    )
+
+    assert acquired is False
