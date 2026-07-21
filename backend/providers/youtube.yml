@@ -10,6 +10,14 @@ logo_svg: "logos/youtube.svg" # Path for UI, relative to a common logos director
 region: "US" # YouTube/Google HQ is in the US
 privacy_policy: "https://www.youtube.com/howyoutubeworks/privacy/"
 
+required_keys:
+  - env_key: "SECRET__YOUTUBE__API_KEY"
+    vault_path: "kv/data/providers/youtube"
+    vault_key: "api_key"
+    description: "YouTube Data API key for video metadata and transcript lookup."
+    setup_url: "https://console.cloud.google.com/apis/credentials"
+    docs_url: "https://developers.google.com/youtube/v3/getting-started"
+
 # API endpoint configuration
 # Note: YouTube transcript extraction uses a proxy service
 # The actual API endpoint is handled by the backend service

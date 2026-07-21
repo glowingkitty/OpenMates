@@ -8,3 +8,4 @@ description: "Germany's national meteorological service and source for official 
 logo_svg: "logos/deutscher_wetterdienst.svg"
 region: "EU"
 privacy_policy: "https://cdc.dwd.de/EN/dataprotection.xhtml"
+no_api_key: true

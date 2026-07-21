@@ -1,0 +1,67 @@
+name: Advance dev version after main merge
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - closed
+
+permissions:
+  contents: write
+
+concurrency:
+  group: advance-dev-version
+  cancel-in-progress: false
+
+jobs:
+  advance:
+    name: Advance dev to next alpha line
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          path: main
+
+      - name: Resolve next dev minor
+        id: version
+        working-directory: main
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          from pathlib import Path
+
+          config = json.loads(Path("shared/config/product_version.json").read_text(encoding="utf-8"))
+          stable_base = config["cli"]["stableBase"]
+          major, minor, patch = (int(part) for part in stable_base.split("."))
+          if major != 0 or patch != 0:
+              raise SystemExit(f"Expected stableBase 0.MINOR.0, got {stable_base}")
+          print(f"minor={minor + 1}")
+          PY
+
+      - name: Checkout dev
+        uses: actions/checkout@v4
+        with:
+          ref: dev
+          path: dev
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Advance dev version line
+        working-directory: dev
+        run: python3 scripts/bump_alpha_version_line.py --minor "${{ steps.version.outputs.minor }}"
+
+      - name: Commit dev version bump
+        working-directory: dev
+        run: |
+          if git diff --quiet; then
+            echo "dev is already on v0.${{ steps.version.outputs.minor }}; no commit needed."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .
+          git commit -m "chore: advance dev to v0.${{ steps.version.outputs.minor }}"
+          git push origin HEAD:dev

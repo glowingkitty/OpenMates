@@ -18,6 +18,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable
 
+from provider_requirements_manifest import build_manifest, missing_provider_metadata
+
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
@@ -480,11 +482,33 @@ def audit_export_import_contract() -> list[Finding]:
     return findings
 
 
+def audit_provider_requirements_contract() -> list[Finding]:
+    """Ensure provider YAML auth metadata can feed update preflight manifests."""
+
+    findings: list[Finding] = []
+    manifest = build_manifest()
+    for provider_id in missing_provider_metadata(manifest):
+        provider = next(item for item in manifest["providers"] if item["provider_id"] == provider_id)
+        _add(
+            findings,
+            audit="provider-requirements-contract",
+            rule_id="PROVIDER-AUTH-METADATA-MISSING",
+            severity="high",
+            file=provider["source"],
+            line=1,
+            title="Provider YAML lacks explicit auth requirement metadata",
+            evidence=provider_id,
+            recommendation="Add required_keys, optional_keys, or no_api_key: true so update preflight can diff provider requirements.",
+        )
+    return findings
+
+
 AUDITS = {
     "architecture-boundaries": audit_architecture_boundaries,
     "encryption-key-paths": audit_encryption_key_paths,
     "settings-ui-contract": audit_settings_ui_contract,
     "app-skill-contracts": audit_app_skill_contracts,
+    "provider-requirements-contract": audit_provider_requirements_contract,
     "export-import-contract": audit_export_import_contract,
 }
 

@@ -55,7 +55,18 @@ OpenMates can start without AI provider keys. The app and backend will run, but 
 - 20 GB or more free disk space.
 - Internet access to download npm packages and Docker images.
 
-Provider API keys are optional for installation. Add them later when you want AI chat, model processing, or provider-backed skills.
+Provider API keys are optional for installation. Add them later when you want AI chat, model processing, or provider-backed skills. Provider-backed features that require a missing API key are hidden or disabled by default until the key is configured.
+
+The runtime uses one canonical `.env` file. To avoid editing a large file by hand, use the CLI env commands:
+
+```
+openmates server env list providers
+openmates server env set SECRET__OPENAI__API_KEY
+openmates server env check
+openmates server env doctor
+```
+
+Copy selected keys into `.env` manually, or prefer `openmates server env set <KEY>` so the CLI backs up `.env`, writes restricted permissions, and redacts secret values in output. Provider setup guidance should come from provider metadata rather than extra env files.
 
 ## Quick Start
 

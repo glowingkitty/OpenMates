@@ -10,7 +10,11 @@ logo_svg: "icons/flightradar24.svg"
 region: "EU"
 privacy_policy: "https://www.flightradar24.com/privacy-policy"
 
-no_api_key: true
+required_keys:
+  - env_key: "SECRET__FLIGHTRADAR24__API_KEY"
+    vault_path: "kv/data/providers/flightradar24"
+    vault_key: "api_key"
+    description: "Flightradar24 bearer token used by the Travel flight tracking provider."
 
 pricing:
   per_request_credits: 5

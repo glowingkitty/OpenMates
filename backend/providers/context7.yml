@@ -10,6 +10,14 @@ logo_svg: "logos/context7.svg" # Path for UI, relative to a common logos directo
 region: "US" # Context7 is a US-based service
 privacy_policy: "https://upstash.com/trust/privacy.pdf" # Context7 is an Upstash project; verified 2026-05-24
 
+optional_keys:
+  - env_key: "SECRET__CONTEXT7__API_KEY"
+    vault_path: "kv/data/providers/context7"
+    vault_key: "api_key"
+    description: "Optional Context7 API key for higher authenticated documentation API limits."
+    setup_url: "https://context7.com/docs"
+    docs_url: "https://context7.com/docs"
+
 # API endpoint configuration
 api_base_url: "https://context7.com/api/v2"
 

@@ -1,0 +1,3486 @@
+schema_version: 1
+cadence: daily
+date: '2026-07-16'
+generated_at: '2026-07-21T10:46:06+00:00'
+range:
+  since: '2026-07-16T00:00:00+00:00'
+  until: '2026-07-17T00:00:00+00:00'
+  from_ref: null
+  to_ref: HEAD
+  assume_released: false
+summary:
+  total_commits: 71
+  section_counts:
+    features: 3
+    bug_fixes: 35
+    improvements: 0
+    docs: 5
+    tests: 19
+    infrastructure: 7
+    internal: 1
+    other: 1
+  newsletter_ready_items: 0
+  user_facing_items: 35
+  dev_only_items: 71
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:teams
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: skill:models3d:generate
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:models3d
+    source: backend/apps/models3d/app.yml
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: add Apple UI parity program gates'
+    section: features
+    commits:
+    - 119a18103
+    authored_at: '2026-07-16T23:56:14+00:00'
+    changed_paths:
+    - .agents/skills/ios/SKILL.md
+    - .claude/skills/ios/SKILL.md
+    - .codex/hooks/bash-guard.sh
+    - .codex/hooks/pre-edit-guard.sh
+    - .codex/hooks/session-gate.sh
+    - apple/AGENTS.md
+    - docs/architecture/apple/parity-matrix.md
+    - docs/specs/apple-ui-parity-program/spec.yml
+    - frontend/apps/web_app/tests/apple-chat-ui-contracts.spec.ts
+    - scripts/apple_chat_parity_audit.py
+    - scripts/apple_parity_audit.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: render task and workflow app embeds'
+    section: features
+    commits:
+    - 6d84564c7
+    authored_at: '2026-07-16T15:07:58+00:00'
+    changed_paths:
+    - backend/apps/tasks/app.yml
+    - backend/apps/workflows/app.yml
+    - frontend/apps/web_app/src/routes/dev/preview/embeds/[app]/+page.svelte
+    - frontend/apps/web_app/tests/task-workflow-app-skill-embeds.spec.ts
+    - frontend/packages/ui/src/components/embeds/embedDataUtils.ts
+    - frontend/packages/ui/src/components/embeds/tasks/TaskCreateEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/tasks/TaskCreateEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/tasks/TaskCreateEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/tasks/TaskEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/tasks/TaskEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/tasks/TaskEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/tasks/TaskSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/tasks/TaskSearchEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/tasks/TaskSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/tasks/taskEmbedData.ts
+    - frontend/packages/ui/src/components/embeds/workflows/WorkflowCreateEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/workflows/WorkflowCreateEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/workflows/WorkflowCreateEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/workflows/WorkflowEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/workflows/WorkflowEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/workflows/WorkflowEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/workflows/WorkflowSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/workflows/WorkflowSearchEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/workflows/WorkflowSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/workflows/workflowEmbedData.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/data/embedTextRenderers.ts
+    - frontend/packages/ui/src/services/websocketService.ts
+    - frontend/packages/ui/src/stores/panelStateStore.ts
+    - frontend/packages/ui/src/tokens/sources/gradients.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:workflows
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/workflows/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:workflows, platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: add SDK API key management parity'
+    section: features
+    commits:
+    - ef1f64028
+    authored_at: '2026-07-16T14:19:13+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/sdk.py
+    - backend/scripts/debug_utils.py
+    - backend/tests/test_sdk_cli_parity_api_key_auth.py
+    - docs/architecture/platforms/cli-feature-parity.md
+    - docs/specs/sdk-packages-v1/spec.yml
+    - frontend/packages/openmates-cli/src/index.ts
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - frontend/packages/openmates-cli/tests/sdk.test.ts
+    - frontend/packages/ui/src/components/settings/developers/SettingsApiKeys.svelte
+    - frontend/packages/ui/src/components/settings/developers/SettingsDevices.svelte
+    - frontend/packages/ui/src/i18n/sources/settings/main.yml
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/tests/test_sdk.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  bug_fixes:
+  - title: 'fix: honor explicit tasks app-skill chats'
+    section: bug_fixes
+    commits:
+    - 1676503ee
+    authored_at: '2026-07-16T23:56:50+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/task_tool_executor.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - backend/tests/test_task_main_processor_tools.py
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/example-chat-publishing-workflow.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatData.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/example_chat_publishing_workflow.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: refresh stale API-key user cache for AI smoke'
+    section: bug_fixes
+    commits:
+    - 7206f4981
+    authored_at: '2026-07-16T19:47:18+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - scripts/openmates_cli_test_account.mjs
+    - scripts/verify_prod_cli_smoke.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: allow disabling OTP 2FA'
+    section: bug_fixes
+    commits:
+    - 818338f13
+    authored_at: '2026-07-16T19:16:55+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/settings.py
+    - frontend/apps/web_app/tests/backup-code-login-flow.spec.ts
+    - frontend/packages/ui/src/components/settings/security/SettingsTwoFactorAuth.svelte
+    - frontend/packages/ui/src/config/api.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: parse skill overrides from current chat turn'
+    section: bug_fixes
+    commits:
+    - 588faefba
+    authored_at: '2026-07-16T19:09:17+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/tests/test_model_selection.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: honor parsed tasks app-skill overrides'
+    section: bug_fixes
+    commits:
+    - fe9012b2e
+    authored_at: '2026-07-16T18:52:40+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/task_tool_executor.py
+    - backend/tests/test_task_main_processor_tools.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: force raw tasks app-skill mentions'
+    section: bug_fixes
+    commits:
+    - 221ca951d
+    authored_at: '2026-07-16T18:48:21+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/task_tool_executor.py
+    - backend/tests/test_task_main_processor_tools.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: parse flattened prod smoke artifacts'
+    section: bug_fixes
+    commits:
+    - 02281a695
+    authored_at: '2026-07-16T18:44:25+00:00'
+    changed_paths:
+    - docs/architecture/infrastructure/cronjobs.md
+    - scripts/run_tests.py
+    - scripts/tests/test_run_tests_account_policy.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: prefer explicit tasks app-skill mentions'
+    section: bug_fixes
+    commits:
+    - 5caf604c4
+    authored_at: '2026-07-16T18:31:07+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/task_tool_executor.py
+    - backend/tests/test_task_main_processor_tools.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: route tasks app-skill chats through embed flow'
+    section: bug_fixes
+    commits:
+    - 2523aa8f2
+    authored_at: '2026-07-16T18:20:12+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/task_tool_executor.py
+    - backend/tests/test_task_main_processor_tools.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: unify Apple embed fullscreen routing'
+    section: bug_fixes
+    commits:
+    - 715306af7
+    authored_at: '2026-07-16T17:24:53+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedFullscreenContainer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedFullscreenView.swift
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: shorten Models3D search skill label'
+    section: bug_fixes
+    commits:
+    - 5953f143d
+    authored_at: '2026-07-16T17:20:42+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/i18n/sources/app_skills/models3d.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: read nested SDK chat model'
+    section: bug_fixes
+    commits:
+    - 6be9a9569
+    authored_at: '2026-07-16T16:09:36+00:00'
+    changed_paths:
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: recover SDK raw chat model in CLI'
+    section: bug_fixes
+    commits:
+    - e7416abde
+    authored_at: '2026-07-16T15:39:15+00:00'
+    changed_paths:
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: include OpenAI SDK chat model'
+    section: bug_fixes
+    commits:
+    - a94a9a2d3
+    authored_at: '2026-07-16T15:28:54+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/sdk.py
+    - backend/tests/test_sdk_cli_parity_api_key_auth.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: return SDK chat model name'
+    section: bug_fixes
+    commits:
+    - aff5a1f13
+    authored_at: '2026-07-16T15:20:05+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/sdk.py
+    - backend/tests/test_sdk_cli_parity_api_key_auth.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve API key chat model name'
+    section: bug_fixes
+    commits:
+    - 6e5c402b0
+    authored_at: '2026-07-16T15:05:20+00:00'
+    changed_paths:
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: allow legal privacy routes on Vercel'
+    section: bug_fixes
+    commits:
+    - e6e070452
+    authored_at: '2026-07-16T14:05:06+00:00'
+    changed_paths:
+    - frontend/apps/web_app/vercel.json
+    - scripts/tests/test_vercel_ignore_build.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: protect valuable stale accounts from cleanup'
+    section: bug_fixes
+    commits:
+    - 052b7b311
+    authored_at: '2026-07-16T13:46:03+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/auth_routes/auth_invite.py
+    - backend/core/api/app/schemas/auth.py
+    - backend/core/api/app/tasks/email_tasks/incomplete_signup_deletion_task.py
+    - backend/scripts/process_incomplete_signup_deletions.py
+    - backend/tests/test_security_regressions.py
+    - docs/specs/stale-account-cleanup-policy/spec.yml
+    - frontend/apps/web_app/tests/signup-skip-2fa-flow.spec.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Fix grouped child fullscreen routing
+    section: bug_fixes
+    commits:
+    - beec181f4
+    authored_at: '2026-07-16T13:28:42+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Fix app skill child fullscreen routing
+    section: bug_fixes
+    commits:
+    - 0b2e74136
+    authored_at: '2026-07-16T13:08:28+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Fix app skill child fullscreen routing
+    section: bug_fixes
+    commits:
+    - 8517ec0e5
+    authored_at: '2026-07-16T12:55:30+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: route privacy pii through endpoint redirect'
+    section: bug_fixes
+    commits:
+    - eceb78098
+    authored_at: '2026-07-16T12:54:03+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/privacy/pii/+page.server.ts
+    - frontend/apps/web_app/src/routes/privacy/pii/+page.svelte
+    - frontend/apps/web_app/src/routes/privacy/pii/+server.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: replay pending settings links after auth restore'
+    section: bug_fixes
+    commits:
+    - 4d5fcafee
+    authored_at: '2026-07-16T12:43:45+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: require recent passkey proof for account deletion'
+    section: bug_fixes
+    commits:
+    - 06fe77776
+    authored_at: '2026-07-16T12:43:33+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/auth_routes/auth_passkey.py
+    - backend/core/api/app/routes/settings.py
+    - backend/core/api/app/services/directus/api_key_device_methods.py
+    - backend/tests/test_api_key_scopes.py
+    - backend/tests/test_auth_endpoints.py
+    - backend/tests/test_cli_account_delete.py
+    - frontend/apps/web_app/tests/api-keys-flow.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-passkey.spec.ts
+    - frontend/packages/ui/src/components/settings/security/SecurityAuth.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: refresh recovery sync cache after terminal persist'
+    section: bug_fixes
+    commits:
+    - fabc1f80c
+    authored_at: '2026-07-16T12:40:47+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/chat_recovery_job_handlers.py
+    - backend/tests/test_chat_recovery_websocket_handlers.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: server-redirect privacy pii settings link'
+    section: bug_fixes
+    commits:
+    - 1383ecb32
+    authored_at: '2026-07-16T12:29:20+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/privacy/pii/+page.server.ts
+    - frontend/apps/web_app/src/routes/privacy/pii/+page.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: restore recovery message uuid rows'
+    section: bug_fixes
+    commits:
+    - 815029dd8
+    authored_at: '2026-07-16T12:05:10+00:00'
+    changed_paths:
+    - backend/core/directus/extensions/chat-recovery-transaction/src/operations.js
+    - backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve settings deep links in hash urls'
+    section: bug_fixes
+    commits:
+    - ce34b116b
+    authored_at: '2026-07-16T11:59:58+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/privacy/pii/+page.svelte
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/services/__tests__/deepLinkHandler.test.ts
+    - frontend/packages/ui/src/services/deepLinkHandler.ts
+    - frontend/packages/ui/src/stores/activeChatStore.ts
+    - frontend/packages/ui/src/stores/activeEmbedStore.ts
+    - frontend/packages/ui/src/utils/settingsHashUtils.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: open privacy policy short url'
+    section: bug_fixes
+    commits:
+    - d44d8f7a0
+    authored_at: '2026-07-16T11:35:20+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/src/routes/privacy/+server.ts
+    - frontend/apps/web_app/tests/not-found-404-flow.spec.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: persist recovered messages with stable ids'
+    section: bug_fixes
+    commits:
+    - 53f2745f2
+    authored_at: '2026-07-16T11:21:21+00:00'
+    changed_paths:
+    - backend/core/directus/extensions/chat-recovery-transaction/src/operations.js
+    - backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: send chat fallback as ai ask messages'
+    section: bug_fixes
+    commits:
+    - e25a42508
+    authored_at: '2026-07-16T10:58:24+00:00'
+    changed_paths:
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: fallback api-key chat cli to ai ask'
+    section: bug_fixes
+    commits:
+    - d818a185e
+    authored_at: '2026-07-16T10:49:00+00:00'
+    changed_paths:
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: use sdk chat for api-key cli sends'
+    section: bug_fixes
+    commits:
+    - 3ec843df0
+    authored_at: '2026-07-16T10:37:19+00:00'
+    changed_paths:
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: route api-key chat cli through sdk'
+    section: bug_fixes
+    commits:
+    - b173d37a5
+    authored_at: '2026-07-16T10:25:51+00:00'
+    changed_paths:
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: add typed app skill CLI commands'
+    section: bug_fixes
+    commits:
+    - 54219826c
+    authored_at: '2026-07-16T10:04:38+00:00'
+    changed_paths:
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  improvements: []
+  docs:
+  - title: Record Apple fullscreen TestFlight evidence
+    section: docs
+    commits:
+    - dfd8be88d
+    authored_at: '2026-07-16T18:27:38+00:00'
+    changed_paths:
+    - docs/specs/unified-embed-fullscreen-routing/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record Apple fullscreen routing evidence'
+    section: docs
+    commits:
+    - 9608b434b
+    authored_at: '2026-07-16T17:34:41+00:00'
+    changed_paths:
+    - docs/specs/unified-embed-fullscreen-routing/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: streamline self-hosting setup guide'
+    section: docs
+    commits:
+    - db8ce8254
+    authored_at: '2026-07-16T15:01:02+00:00'
+    changed_paths:
+    - docs/self-hosting/setup.md
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: clarify privacy FAQ protection model'
+    section: docs
+    commits:
+    - 5d7ebd037
+    authored_at: '2026-07-16T14:31:42+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - shared/docs/privacy_policy.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: add privacy policy quick answers'
+    section: docs
+    commits:
+    - 53a22ec14
+    authored_at: '2026-07-16T13:48:15+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - frontend/packages/ui/src/legal/__tests__/privacyPromises.test.ts
+    - frontend/packages/ui/src/legal/buildLegalContent.ts
+    - frontend/packages/ui/src/legal/documents/privacy-policy.ts
+    - shared/docs/privacy_policy.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  tests:
+  - title: 'test: cover Apple fullscreen embed route stack'
+    section: tests
+    commits:
+    - f9eb41db8
+    authored_at: '2026-07-16T17:48:23+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewGalleryView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/WebSearchEmbedRenderer.swift
+    - apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stabilize opened chat parity oracle'
+    section: tests
+    commits:
+    - 5e71aac74
+    authored_at: '2026-07-16T16:11:39+00:00'
+    changed_paths:
+    - backend/tests/test_compare_chat_render_parity.py
+    - frontend/apps/web_app/tests/chat-rendering-parity-oracle.spec.ts
+    - scripts/compare_chat_render_parity.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: throw default model CLI output'
+    section: tests
+    commits:
+    - f557585e8
+    authored_at: '2026-07-16T15:56:36+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/default-model-cli.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: tolerate restored API key devices view'
+    section: tests
+    commits:
+    - af6626c06
+    authored_at: '2026-07-16T15:53:18+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/api-keys-flow.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stabilize Apple opened chat parity harness'
+    section: tests
+    commits:
+    - 8d1de6383
+    authored_at: '2026-07-16T15:52:39+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: show default model CLI output'
+    section: tests
+    commits:
+    - bd88fa5c2
+    authored_at: '2026-07-16T15:48:24+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/default-model-cli.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: compare opened chat rendering parity'
+    section: tests
+    commits:
+    - 700945fd2
+    authored_at: '2026-07-16T15:36:33+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    - docs/architecture/apple/chat-rendering-parity.md
+    - frontend/apps/web_app/tests/chat-rendering-parity-oracle.spec.ts
+    - scripts/apple_chat_parity_audit.py
+    - scripts/compare_chat_render_parity.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: avoid hanging API key settings menu click'
+    section: tests
+    commits:
+    - eaa9571ca
+    authored_at: '2026-07-16T15:31:36+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/api-keys-flow.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: handle open settings menu after API key reload'
+    section: tests
+    commits:
+    - 9c7b8e017
+    authored_at: '2026-07-16T15:05:23+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/api-keys-flow.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: refresh API key CLI device approval flow'
+    section: tests
+    commits:
+    - 613a50dc4
+    authored_at: '2026-07-16T14:41:57+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/api-keys-flow.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: refresh API key devices list'
+    section: tests
+    commits:
+    - a31d0f673
+    authored_at: '2026-07-16T14:34:49+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/api-keys-flow.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: refresh stale app before API key settings navigation'
+    section: tests
+    commits:
+    - 123ff30fb
+    authored_at: '2026-07-16T14:21:52+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/api-keys-flow.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: align API key device approval spec'
+    section: tests
+    commits:
+    - 30ff61e2f
+    authored_at: '2026-07-16T14:05:19+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/api-keys-flow.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: recognize loaded API key settings view'
+    section: tests
+    commits:
+    - aa113fe8e
+    authored_at: '2026-07-16T13:43:47+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/api-keys-flow.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stabilize API key settings navigation'
+    section: tests
+    commits:
+    - 04dedbca2
+    authored_at: '2026-07-16T13:15:27+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/api-keys-flow.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: verify privacy pii redirect separately'
+    section: tests
+    commits:
+    - bd46c39f7
+    authored_at: '2026-07-16T13:07:16+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-privacy-pii-deep-link.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: align API key row assertions'
+    section: tests
+    commits:
+    - c39c3fb10
+    authored_at: '2026-07-16T12:54:21+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/api-keys-flow.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: cover privacy pii settings deep links'
+    section: tests
+    commits:
+    - e37518627
+    authored_at: '2026-07-16T12:14:25+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-privacy-pii-deep-link.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: pin chat parity account slots'
+    section: tests
+    commits:
+    - ebb08b2a5
+    authored_at: '2026-07-16T09:46:14+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    - apple/OpenMatesUITests/RealAccountUITestSupport.swift
+    - docs/architecture/apple/chat-rendering-parity.md
+    - frontend/apps/web_app/tests/chat-rendering-parity-oracle.spec.ts
+    - scripts/apple_chat_parity_audit.py
+    - scripts/compare_chat_render_parity.py
+    - scripts/run_tests.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  infrastructure:
+  - title: 'ci: split production smoke suites'
+    section: infrastructure
+    commits:
+    - 92a275561
+    authored_at: '2026-07-16T18:35:34+00:00'
+    changed_paths:
+    - .github/workflows/prod-smoke.yml
+    - docs/architecture/infrastructure/cronjobs.md
+    - docs/contributing/guides/testing.md
+    - scripts/run_tests.py
+    - scripts/tests.py
+    - scripts/tests/test_run_tests_account_policy.py
+    - scripts/verify_prod_cli_smoke.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'ci: approve CLI API key device from isolated home'
+    section: infrastructure
+    commits:
+    - a86388b35
+    authored_at: '2026-07-16T14:41:22+00:00'
+    changed_paths:
+    - .github/workflows/playwright-spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'ci: free API key slot for CLI specs'
+    section: infrastructure
+    commits:
+    - ce0e561ba
+    authored_at: '2026-07-16T14:19:02+00:00'
+    changed_paths:
+    - .github/workflows/playwright-spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'ci: prune stale CLI test API keys'
+    section: infrastructure
+    commits:
+    - 5b4ded106
+    authored_at: '2026-07-16T14:08:52+00:00'
+    changed_paths:
+    - .github/workflows/playwright-spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'ci: pass test account credentials to CLI key setup'
+    section: infrastructure
+    commits:
+    - 97507a4b0
+    authored_at: '2026-07-16T14:00:57+00:00'
+    changed_paths:
+    - .github/workflows/playwright-spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'ci: refresh CLI API keys for skill specs'
+    section: infrastructure
+    commits:
+    - ad5ebf164
+    authored_at: '2026-07-16T13:51:06+00:00'
+    changed_paths:
+    - .github/workflows/playwright-spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'chore: harden startup policy checks'
+    section: infrastructure
+    commits:
+    - a0573172d
+    authored_at: '2026-07-16T09:46:07+00:00'
+    changed_paths:
+    - backend/core/api/app/services/domain_security.py
+    - backend/core/api/app/services/domain_security_allowed.encrypted
+    - backend/core/api/app/services/domain_security_patterns.encrypted
+    - backend/core/api/app/services/domain_security_restricted.encrypted
+    - backend/core/api/app/services/test_domain_security.py
+    - scripts/audit_domain_security.py
+    - scripts/code_quality_guard.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  internal:
+  - title: Unify embed fullscreen routing
+    section: internal
+    commits:
+    - da9149999
+    authored_at: '2026-07-16T12:12:10+00:00'
+    changed_paths:
+    - docs/specs/example-chat-public-quality/spec.yml
+    - docs/specs/unified-embed-fullscreen-routing/spec.yml
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/src/routes/share/embed/[embedId]/+page.svelte
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    - frontend/apps/web_app/tests/skill-health-appointments.spec.ts
+    - frontend/apps/web_app/tests/skill-home-search.spec.ts
+    - frontend/apps/web_app/tests/skill-travel-stays.spec.ts
+    - frontend/apps/web_app/tests/skill-weather-forecast.spec.ts
+    - frontend/apps/web_app/tests/source-quote-verification.spec.ts
+    - frontend/packages/ui/index.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedInlineLink.svelte
+    - frontend/packages/ui/src/components/embeds/SearchResultsTemplate.svelte
+    - frontend/packages/ui/src/components/embeds/SourceQuoteBlock.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatStore.ts
+    - frontend/packages/ui/src/services/__tests__/embedFullscreenController.test.ts
+    - frontend/packages/ui/src/services/embedFullscreenController.ts
+    - frontend/packages/ui/src/services/embedStore.ts
+    - scripts/audit_embed_fullscreen_routing.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as internal work from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  other:
+  - title: Stabilize Apple fullscreen route stack test
+    section: other
+    commits:
+    - 9f9b42f43
+    authored_at: '2026-07-16T17:54:23+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewGalleryView.swift
+    - apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+unreleased_progress:
+  dev_only:
+  - title: 'fix: honor explicit tasks app-skill chats'
+    commits:
+    - 1676503ee
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'feat: add Apple UI parity program gates'
+    commits:
+    - 119a18103
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: refresh stale API-key user cache for AI smoke'
+    commits:
+    - 7206f4981
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: allow disabling OTP 2FA'
+    commits:
+    - 818338f13
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: parse skill overrides from current chat turn'
+    commits:
+    - 588faefba
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: honor parsed tasks app-skill overrides'
+    commits:
+    - fe9012b2e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: force raw tasks app-skill mentions'
+    commits:
+    - 221ca951d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: parse flattened prod smoke artifacts'
+    commits:
+    - 02281a695
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'ci: split production smoke suites'
+    commits:
+    - 92a275561
+    section: infrastructure
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: prefer explicit tasks app-skill mentions'
+    commits:
+    - 5caf604c4
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: Record Apple fullscreen TestFlight evidence
+    commits:
+    - dfd8be88d
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: route tasks app-skill chats through embed flow'
+    commits:
+    - 2523aa8f2
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: Stabilize Apple fullscreen route stack test
+    commits:
+    - 9f9b42f43
+    section: other
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'test: cover Apple fullscreen embed route stack'
+    commits:
+    - f9eb41db8
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'docs: record Apple fullscreen routing evidence'
+    commits:
+    - 9608b434b
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: unify Apple embed fullscreen routing'
+    commits:
+    - 715306af7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: shorten Models3D search skill label'
+    commits:
+    - 5953f143d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: stabilize opened chat parity oracle'
+    commits:
+    - 5e71aac74
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: read nested SDK chat model'
+    commits:
+    - 6be9a9569
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: throw default model CLI output'
+    commits:
+    - f557585e8
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: tolerate restored API key devices view'
+    commits:
+    - af6626c06
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: stabilize Apple opened chat parity harness'
+    commits:
+    - 8d1de6383
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'test: show default model CLI output'
+    commits:
+    - bd88fa5c2
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: recover SDK raw chat model in CLI'
+    commits:
+    - e7416abde
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: compare opened chat rendering parity'
+    commits:
+    - 700945fd2
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'test: avoid hanging API key settings menu click'
+    commits:
+    - eaa9571ca
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: include OpenAI SDK chat model'
+    commits:
+    - a94a9a2d3
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: return SDK chat model name'
+    commits:
+    - aff5a1f13
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'feat: render task and workflow app embeds'
+    commits:
+    - 6d84564c7
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:workflows
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/workflows/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'test: handle open settings menu after API key reload'
+    commits:
+    - 9c7b8e017
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: preserve API key chat model name'
+    commits:
+    - 6e5c402b0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'docs: streamline self-hosting setup guide'
+    commits:
+    - db8ce8254
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: refresh API key CLI device approval flow'
+    commits:
+    - 613a50dc4
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'ci: approve CLI API key device from isolated home'
+    commits:
+    - a86388b35
+    section: infrastructure
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: refresh API key devices list'
+    commits:
+    - a31d0f673
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: clarify privacy FAQ protection model'
+    commits:
+    - 5d7ebd037
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: refresh stale app before API key settings navigation'
+    commits:
+    - 123ff30fb
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: add SDK API key management parity'
+    commits:
+    - ef1f64028
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'ci: free API key slot for CLI specs'
+    commits:
+    - ce0e561ba
+    section: infrastructure
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'ci: prune stale CLI test API keys'
+    commits:
+    - 5b4ded106
+    section: infrastructure
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: align API key device approval spec'
+    commits:
+    - 30ff61e2f
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: allow legal privacy routes on Vercel'
+    commits:
+    - e6e070452
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'ci: pass test account credentials to CLI key setup'
+    commits:
+    - 97507a4b0
+    section: infrastructure
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'ci: refresh CLI API keys for skill specs'
+    commits:
+    - ad5ebf164
+    section: infrastructure
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: add privacy policy quick answers'
+    commits:
+    - 53a22ec14
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: protect valuable stale accounts from cleanup'
+    commits:
+    - 052b7b311
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: recognize loaded API key settings view'
+    commits:
+    - aa113fe8e
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Fix grouped child fullscreen routing
+    commits:
+    - beec181f4
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: stabilize API key settings navigation'
+    commits:
+    - 04dedbca2
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Fix app skill child fullscreen routing
+    commits:
+    - 0b2e74136
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: verify privacy pii redirect separately'
+    commits:
+    - bd46c39f7
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Fix app skill child fullscreen routing
+    commits:
+    - 8517ec0e5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: align API key row assertions'
+    commits:
+    - c39c3fb10
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: route privacy pii through endpoint redirect'
+    commits:
+    - eceb78098
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: replay pending settings links after auth restore'
+    commits:
+    - 4d5fcafee
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: require recent passkey proof for account deletion'
+    commits:
+    - 06fe77776
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: refresh recovery sync cache after terminal persist'
+    commits:
+    - fabc1f80c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: server-redirect privacy pii settings link'
+    commits:
+    - 1383ecb32
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: cover privacy pii settings deep links'
+    commits:
+    - e37518627
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Unify embed fullscreen routing
+    commits:
+    - da9149999
+    section: internal
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: restore recovery message uuid rows'
+    commits:
+    - 815029dd8
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: preserve settings deep links in hash urls'
+    commits:
+    - ce34b116b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: open privacy policy short url'
+    commits:
+    - d44d8f7a0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: persist recovered messages with stable ids'
+    commits:
+    - 53f2745f2
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: send chat fallback as ai ask messages'
+    commits:
+    - e25a42508
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: fallback api-key chat cli to ai ask'
+    commits:
+    - d818a185e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: use sdk chat for api-key cli sends'
+    commits:
+    - 3ec843df0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: route api-key chat cli through sdk'
+    commits:
+    - b173d37a5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: add typed app skill CLI commands'
+    commits:
+    - 54219826c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: pin chat parity account slots'
+    commits:
+    - ebb08b2a5
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'chore: harden startup policy checks'
+    commits:
+    - a0573172d
+    section: infrastructure
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'feat: render task and workflow app embeds'
+    commits:
+    - 6d84564c7
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:workflows
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/workflows/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+marketing_candidates:
+  newsletter: []
+  social_or_video:
+  - title: 'fix: honor explicit tasks app-skill chats'
+    commits:
+    - 1676503ee
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: add Apple UI parity program gates'
+    commits:
+    - 119a18103
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: refresh stale API-key user cache for AI smoke'
+    commits:
+    - 7206f4981
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: allow disabling OTP 2FA'
+    commits:
+    - 818338f13
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: parse skill overrides from current chat turn'
+    commits:
+    - 588faefba
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: honor parsed tasks app-skill overrides'
+    commits:
+    - fe9012b2e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: force raw tasks app-skill mentions'
+    commits:
+    - 221ca951d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: prefer explicit tasks app-skill mentions'
+    commits:
+    - 5caf604c4
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: route tasks app-skill chats through embed flow'
+    commits:
+    - 2523aa8f2
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: Stabilize Apple fullscreen route stack test
+    commits:
+    - 9f9b42f43
+    section: other
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: unify Apple embed fullscreen routing'
+    commits:
+    - 715306af7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: read nested SDK chat model'
+    commits:
+    - 6be9a9569
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: recover SDK raw chat model in CLI'
+    commits:
+    - e7416abde
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: include OpenAI SDK chat model'
+    commits:
+    - a94a9a2d3
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: return SDK chat model name'
+    commits:
+    - aff5a1f13
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: render task and workflow app embeds'
+    commits:
+    - 6d84564c7
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:workflows
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/workflows/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: preserve API key chat model name'
+    commits:
+    - 6e5c402b0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: add SDK API key management parity'
+    commits:
+    - ef1f64028
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: allow legal privacy routes on Vercel'
+    commits:
+    - e6e070452
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: protect valuable stale accounts from cleanup'
+    commits:
+    - 052b7b311
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: Fix grouped child fullscreen routing
+    commits:
+    - beec181f4
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: Fix app skill child fullscreen routing
+    commits:
+    - 0b2e74136
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: Fix app skill child fullscreen routing
+    commits:
+    - 8517ec0e5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: route privacy pii through endpoint redirect'
+    commits:
+    - eceb78098
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: replay pending settings links after auth restore'
+    commits:
+    - 4d5fcafee
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: require recent passkey proof for account deletion'
+    commits:
+    - 06fe77776
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: refresh recovery sync cache after terminal persist'
+    commits:
+    - fabc1f80c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: server-redirect privacy pii settings link'
+    commits:
+    - 1383ecb32
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: preserve settings deep links in hash urls'
+    commits:
+    - ce34b116b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: open privacy policy short url'
+    commits:
+    - d44d8f7a0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: send chat fallback as ai ask messages'
+    commits:
+    - e25a42508
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: fallback api-key chat cli to ai ask'
+    commits:
+    - d818a185e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: use sdk chat for api-key cli sends'
+    commits:
+    - 3ec843df0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: route api-key chat cli through sdk'
+    commits:
+    - b173d37a5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: add typed app skill CLI commands'
+    commits:
+    - 54219826c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 1676503eec796170eff1bd19b1057e617b8cb6bb
+    short_sha: 1676503ee
+    authored_at: '2026-07-16T23:56:50+00:00'
+    subject: 'fix: honor explicit tasks app-skill chats'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/task_tool_executor.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - backend/tests/test_task_main_processor_tools.py
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/example-chat-publishing-workflow.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatData.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/example_chat_publishing_workflow.yml
+    related_feature_ids: []
+  - sha: 119a181039d494e17e516a530accf32b5471b40f
+    short_sha: 119a18103
+    authored_at: '2026-07-16T23:56:14+00:00'
+    subject: 'feat: add Apple UI parity program gates'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .agents/skills/ios/SKILL.md
+    - .claude/skills/ios/SKILL.md
+    - .codex/hooks/bash-guard.sh
+    - .codex/hooks/pre-edit-guard.sh
+    - .codex/hooks/session-gate.sh
+    - apple/AGENTS.md
+    - docs/architecture/apple/parity-matrix.md
+    - docs/specs/apple-ui-parity-program/spec.yml
+    - frontend/apps/web_app/tests/apple-chat-ui-contracts.spec.ts
+    - scripts/apple_chat_parity_audit.py
+    - scripts/apple_parity_audit.py
+    related_feature_ids: []
+  - sha: 7206f49814b328fe99481b3e206923f9da97c554
+    short_sha: 7206f4981
+    authored_at: '2026-07-16T19:47:18+00:00'
+    subject: 'fix: refresh stale API-key user cache for AI smoke'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - scripts/openmates_cli_test_account.mjs
+    - scripts/verify_prod_cli_smoke.py
+    related_feature_ids: []
+  - sha: 818338f13c02bafdcdcc3b9d14a1b50ff15d7059
+    short_sha: 818338f13
+    authored_at: '2026-07-16T19:16:55+00:00'
+    subject: 'fix: allow disabling OTP 2FA'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/settings.py
+    - frontend/apps/web_app/tests/backup-code-login-flow.spec.ts
+    - frontend/packages/ui/src/components/settings/security/SettingsTwoFactorAuth.svelte
+    - frontend/packages/ui/src/config/api.ts
+    related_feature_ids: []
+  - sha: 588faefba2c369e9570c5bc8e548ea8f0d272377
+    short_sha: 588faefba
+    authored_at: '2026-07-16T19:09:17+00:00'
+    subject: 'fix: parse skill overrides from current chat turn'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/tests/test_model_selection.py
+    related_feature_ids: []
+  - sha: fe9012b2e929e0a0b969541df2cf915bdd4ad124
+    short_sha: fe9012b2e
+    authored_at: '2026-07-16T18:52:40+00:00'
+    subject: 'fix: honor parsed tasks app-skill overrides'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/task_tool_executor.py
+    - backend/tests/test_task_main_processor_tools.py
+    related_feature_ids: []
+  - sha: 221ca951d6264b27d51fb94019dd6c43e17b25e5
+    short_sha: 221ca951d
+    authored_at: '2026-07-16T18:48:21+00:00'
+    subject: 'fix: force raw tasks app-skill mentions'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/task_tool_executor.py
+    - backend/tests/test_task_main_processor_tools.py
+    related_feature_ids: []
+  - sha: 02281a6953f6fc101d3955fa40fe86ab00c08d8d
+    short_sha: 02281a695
+    authored_at: '2026-07-16T18:44:25+00:00'
+    subject: 'fix: parse flattened prod smoke artifacts'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/architecture/infrastructure/cronjobs.md
+    - scripts/run_tests.py
+    - scripts/tests/test_run_tests_account_policy.py
+    related_feature_ids: []
+  - sha: 92a27556165e79f280d9a8604f3d96e70a1fb455
+    short_sha: 92a275561
+    authored_at: '2026-07-16T18:35:34+00:00'
+    subject: 'ci: split production smoke suites'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .github/workflows/prod-smoke.yml
+    - docs/architecture/infrastructure/cronjobs.md
+    - docs/contributing/guides/testing.md
+    - scripts/run_tests.py
+    - scripts/tests.py
+    - scripts/tests/test_run_tests_account_policy.py
+    - scripts/verify_prod_cli_smoke.py
+    related_feature_ids: []
+  - sha: 5caf604c49071eee56ecf3e284861ec4bc51afea
+    short_sha: 5caf604c4
+    authored_at: '2026-07-16T18:31:07+00:00'
+    subject: 'fix: prefer explicit tasks app-skill mentions'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/task_tool_executor.py
+    - backend/tests/test_task_main_processor_tools.py
+    related_feature_ids: []
+  - sha: dfd8be88dc62efad9944d098af5a8e4679108a1b
+    short_sha: dfd8be88d
+    authored_at: '2026-07-16T18:27:38+00:00'
+    subject: Record Apple fullscreen TestFlight evidence
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/unified-embed-fullscreen-routing/spec.yml
+    related_feature_ids: []
+  - sha: 2523aa8f27bbde8f5bbec324258c76d33484cf35
+    short_sha: 2523aa8f2
+    authored_at: '2026-07-16T18:20:12+00:00'
+    subject: 'fix: route tasks app-skill chats through embed flow'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/task_tool_executor.py
+    - backend/tests/test_task_main_processor_tools.py
+    related_feature_ids: []
+  - sha: 9f9b42f439f61ced3fbfcf3fc709049ff303e976
+    short_sha: 9f9b42f43
+    authored_at: '2026-07-16T17:54:23+00:00'
+    subject: Stabilize Apple fullscreen route stack test
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewGalleryView.swift
+    - apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: f9eb41db8a3fef8ed21155ff8c9aa903ebc792dc
+    short_sha: f9eb41db8
+    authored_at: '2026-07-16T17:48:23+00:00'
+    subject: 'test: cover Apple fullscreen embed route stack'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewGalleryView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/WebSearchEmbedRenderer.swift
+    - apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 9608b434b103257fa14d42d5a9d922bb4bd95acb
+    short_sha: 9608b434b
+    authored_at: '2026-07-16T17:34:41+00:00'
+    subject: 'docs: record Apple fullscreen routing evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/unified-embed-fullscreen-routing/spec.yml
+    related_feature_ids: []
+  - sha: 715306af78f482362ed37d33d3f38795a61c5d3f
+    short_sha: 715306af7
+    authored_at: '2026-07-16T17:24:53+00:00'
+    subject: 'fix: unify Apple embed fullscreen routing'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedFullscreenContainer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedFullscreenView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 5953f143df9100f358ffd93c6730034ce305e3a2
+    short_sha: 5953f143d
+    authored_at: '2026-07-16T17:20:42+00:00'
+    subject: 'fix: shorten Models3D search skill label'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/i18n/sources/app_skills/models3d.yml
+    related_feature_ids: []
+  - sha: 5e71aac74af916d6d3d70e80afcb7e42ce5b6442
+    short_sha: 5e71aac74
+    authored_at: '2026-07-16T16:11:39+00:00'
+    subject: 'test: stabilize opened chat parity oracle'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_compare_chat_render_parity.py
+    - frontend/apps/web_app/tests/chat-rendering-parity-oracle.spec.ts
+    - scripts/compare_chat_render_parity.py
+    related_feature_ids: []
+  - sha: 6be9a95695b9563e1d6a56d5f3558fcf3ce9e124
+    short_sha: 6be9a9569
+    authored_at: '2026-07-16T16:09:36+00:00'
+    subject: 'fix: read nested SDK chat model'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    related_feature_ids: []
+  - sha: f557585e822680dd0c29a860ca50e95a9d27669f
+    short_sha: f557585e8
+    authored_at: '2026-07-16T15:56:36+00:00'
+    subject: 'test: throw default model CLI output'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/default-model-cli.spec.ts
+    related_feature_ids: []
+  - sha: af6626c069a33cd8846a63265bbe7edf56777dc9
+    short_sha: af6626c06
+    authored_at: '2026-07-16T15:53:18+00:00'
+    subject: 'test: tolerate restored API key devices view'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/api-keys-flow.spec.ts
+    related_feature_ids: []
+  - sha: 8d1de63832f975bcfca2aff0a52b47f8fff193f9
+    short_sha: 8d1de6383
+    authored_at: '2026-07-16T15:52:39+00:00'
+    subject: 'test: stabilize Apple opened chat parity harness'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: bd88fa5c22a054ce9ae4b844913597cf81e32371
+    short_sha: bd88fa5c2
+    authored_at: '2026-07-16T15:48:24+00:00'
+    subject: 'test: show default model CLI output'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/default-model-cli.spec.ts
+    related_feature_ids: []
+  - sha: e7416abde7d5be058093dc8c691dc8162d7e1b30
+    short_sha: e7416abde
+    authored_at: '2026-07-16T15:39:15+00:00'
+    subject: 'fix: recover SDK raw chat model in CLI'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    related_feature_ids: []
+  - sha: 700945fd2c64868863d36fd1b8123f657d002724
+    short_sha: 700945fd2
+    authored_at: '2026-07-16T15:36:33+00:00'
+    subject: 'test: compare opened chat rendering parity'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    - docs/architecture/apple/chat-rendering-parity.md
+    - frontend/apps/web_app/tests/chat-rendering-parity-oracle.spec.ts
+    - scripts/apple_chat_parity_audit.py
+    - scripts/compare_chat_render_parity.py
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: eaa9571cad9d6b8248371f06467b2a4163e1fe8d
+    short_sha: eaa9571ca
+    authored_at: '2026-07-16T15:31:36+00:00'
+    subject: 'test: avoid hanging API key settings menu click'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/api-keys-flow.spec.ts
+    related_feature_ids: []
+  - sha: a94a9a2d35d8f018f6367706f1273ce4c5d211d5
+    short_sha: a94a9a2d3
+    authored_at: '2026-07-16T15:28:54+00:00'
+    subject: 'fix: include OpenAI SDK chat model'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/sdk.py
+    - backend/tests/test_sdk_cli_parity_api_key_auth.py
+    related_feature_ids: []
+  - sha: aff5a1f13de1b36665e5d70ab6207d1df8aa3144
+    short_sha: aff5a1f13
+    authored_at: '2026-07-16T15:20:05+00:00'
+    subject: 'fix: return SDK chat model name'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/sdk.py
+    - backend/tests/test_sdk_cli_parity_api_key_auth.py
+    related_feature_ids: []
+  - sha: 6d84564c7a8cc25f60966512e86defbe05c0f30c
+    short_sha: 6d84564c7
+    authored_at: '2026-07-16T15:07:58+00:00'
+    subject: 'feat: render task and workflow app embeds'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/tasks/app.yml
+    - backend/apps/workflows/app.yml
+    - frontend/apps/web_app/src/routes/dev/preview/embeds/[app]/+page.svelte
+    - frontend/apps/web_app/tests/task-workflow-app-skill-embeds.spec.ts
+    - frontend/packages/ui/src/components/embeds/embedDataUtils.ts
+    - frontend/packages/ui/src/components/embeds/tasks/TaskCreateEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/tasks/TaskCreateEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/tasks/TaskCreateEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/tasks/TaskEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/tasks/TaskEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/tasks/TaskEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/tasks/TaskSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/tasks/TaskSearchEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/tasks/TaskSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/tasks/taskEmbedData.ts
+    - frontend/packages/ui/src/components/embeds/workflows/WorkflowCreateEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/workflows/WorkflowCreateEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/workflows/WorkflowCreateEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/workflows/WorkflowEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/workflows/WorkflowEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/workflows/WorkflowEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/workflows/WorkflowSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/workflows/WorkflowSearchEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/workflows/WorkflowSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/workflows/workflowEmbedData.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/data/embedTextRenderers.ts
+    - frontend/packages/ui/src/services/websocketService.ts
+    - frontend/packages/ui/src/stores/panelStateStore.ts
+    - frontend/packages/ui/src/tokens/sources/gradients.yml
+    related_feature_ids:
+    - app:workflows
+    - platform:workflows
+  - sha: 9c7b8e01757204cfeef17b1adb61327341feae85
+    short_sha: 9c7b8e017
+    authored_at: '2026-07-16T15:05:23+00:00'
+    subject: 'test: handle open settings menu after API key reload'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/api-keys-flow.spec.ts
+    related_feature_ids: []
+  - sha: 6e5c402b056b5ac73ced6967acb4ded537569ab2
+    short_sha: 6e5c402b0
+    authored_at: '2026-07-16T15:05:20+00:00'
+    subject: 'fix: preserve API key chat model name'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    related_feature_ids: []
+  - sha: db8ce8254ba1739d2f765d7203856dfce3dcb971
+    short_sha: db8ce8254
+    authored_at: '2026-07-16T15:01:02+00:00'
+    subject: 'docs: streamline self-hosting setup guide'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/self-hosting/setup.md
+    related_feature_ids: []
+  - sha: 613a50dc4b357bf4e5ae3f9f8d72596834bb4d9c
+    short_sha: 613a50dc4
+    authored_at: '2026-07-16T14:41:57+00:00'
+    subject: 'test: refresh API key CLI device approval flow'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/api-keys-flow.spec.ts
+    related_feature_ids: []
+  - sha: a86388b3554e1a864b27374def6b4d0cf986ec8d
+    short_sha: a86388b35
+    authored_at: '2026-07-16T14:41:22+00:00'
+    subject: 'ci: approve CLI API key device from isolated home'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .github/workflows/playwright-spec.yml
+    related_feature_ids: []
+  - sha: a31d0f673a6b751640948a51e3887a150e4c6b16
+    short_sha: a31d0f673
+    authored_at: '2026-07-16T14:34:49+00:00'
+    subject: 'test: refresh API key devices list'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/api-keys-flow.spec.ts
+    related_feature_ids: []
+  - sha: 5d7ebd0376197c6c56f81d448755992c0d5facfc
+    short_sha: 5d7ebd037
+    authored_at: '2026-07-16T14:31:42+00:00'
+    subject: 'docs: clarify privacy FAQ protection model'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - shared/docs/privacy_policy.yml
+    related_feature_ids: []
+  - sha: 123ff30fb32da3cf670e9144f62b7bea62e6b1da
+    short_sha: 123ff30fb
+    authored_at: '2026-07-16T14:21:52+00:00'
+    subject: 'test: refresh stale app before API key settings navigation'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/api-keys-flow.spec.ts
+    related_feature_ids: []
+  - sha: ef1f6402889a466d124887f1189b1982a36f6d35
+    short_sha: ef1f64028
+    authored_at: '2026-07-16T14:19:13+00:00'
+    subject: 'feat: add SDK API key management parity'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/sdk.py
+    - backend/scripts/debug_utils.py
+    - backend/tests/test_sdk_cli_parity_api_key_auth.py
+    - docs/architecture/platforms/cli-feature-parity.md
+    - docs/specs/sdk-packages-v1/spec.yml
+    - frontend/packages/openmates-cli/src/index.ts
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - frontend/packages/openmates-cli/tests/sdk.test.ts
+    - frontend/packages/ui/src/components/settings/developers/SettingsApiKeys.svelte
+    - frontend/packages/ui/src/components/settings/developers/SettingsDevices.svelte
+    - frontend/packages/ui/src/i18n/sources/settings/main.yml
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/tests/test_sdk.py
+    related_feature_ids: []
+  - sha: ce0e561baae0380ef0f7ba14ff382c7a5edc4e30
+    short_sha: ce0e561ba
+    authored_at: '2026-07-16T14:19:02+00:00'
+    subject: 'ci: free API key slot for CLI specs'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .github/workflows/playwright-spec.yml
+    related_feature_ids: []
+  - sha: 5b4ded106add149b184ce1a224db25f3af132d32
+    short_sha: 5b4ded106
+    authored_at: '2026-07-16T14:08:52+00:00'
+    subject: 'ci: prune stale CLI test API keys'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .github/workflows/playwright-spec.yml
+    related_feature_ids: []
+  - sha: 30ff61e2faaadb8c76eb545fd4a8d49a1ec7113a
+    short_sha: 30ff61e2f
+    authored_at: '2026-07-16T14:05:19+00:00'
+    subject: 'test: align API key device approval spec'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/api-keys-flow.spec.ts
+    related_feature_ids: []
+  - sha: e6e070452eab911fb6dad509dfb58fc54a79c8f0
+    short_sha: e6e070452
+    authored_at: '2026-07-16T14:05:06+00:00'
+    subject: 'fix: allow legal privacy routes on Vercel'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/vercel.json
+    - scripts/tests/test_vercel_ignore_build.py
+    related_feature_ids: []
+  - sha: 97507a4b078814a53af621b6d05b8f376f740f9e
+    short_sha: 97507a4b0
+    authored_at: '2026-07-16T14:00:57+00:00'
+    subject: 'ci: pass test account credentials to CLI key setup'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .github/workflows/playwright-spec.yml
+    related_feature_ids: []
+  - sha: ad5ebf1640f92d7d43b573ac0b4e64d2f7a8ee9c
+    short_sha: ad5ebf164
+    authored_at: '2026-07-16T13:51:06+00:00'
+    subject: 'ci: refresh CLI API keys for skill specs'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .github/workflows/playwright-spec.yml
+    related_feature_ids: []
+  - sha: 53a22ec14008c173082af986cdfa4aaa660041a7
+    short_sha: 53a22ec14
+    authored_at: '2026-07-16T13:48:15+00:00'
+    subject: 'docs: add privacy policy quick answers'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - frontend/packages/ui/src/legal/__tests__/privacyPromises.test.ts
+    - frontend/packages/ui/src/legal/buildLegalContent.ts
+    - frontend/packages/ui/src/legal/documents/privacy-policy.ts
+    - shared/docs/privacy_policy.yml
+    related_feature_ids: []
+  - sha: 052b7b311e1263c00373545c39f09b1a19e28a91
+    short_sha: 052b7b311
+    authored_at: '2026-07-16T13:46:03+00:00'
+    subject: 'fix: protect valuable stale accounts from cleanup'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/auth_routes/auth_invite.py
+    - backend/core/api/app/schemas/auth.py
+    - backend/core/api/app/tasks/email_tasks/incomplete_signup_deletion_task.py
+    - backend/scripts/process_incomplete_signup_deletions.py
+    - backend/tests/test_security_regressions.py
+    - docs/specs/stale-account-cleanup-policy/spec.yml
+    - frontend/apps/web_app/tests/signup-skip-2fa-flow.spec.ts
+    related_feature_ids: []
+  - sha: aa113fe8e8ef77f3f69af766a04bb125b0fed1ae
+    short_sha: aa113fe8e
+    authored_at: '2026-07-16T13:43:47+00:00'
+    subject: 'test: recognize loaded API key settings view'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/api-keys-flow.spec.ts
+    related_feature_ids: []
+  - sha: beec181f42d90795e985079b817099f4877789f8
+    short_sha: beec181f4
+    authored_at: '2026-07-16T13:28:42+00:00'
+    subject: Fix grouped child fullscreen routing
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    related_feature_ids: []
+  - sha: 04dedbca285fe051863721628ed6ba959daac6dd
+    short_sha: 04dedbca2
+    authored_at: '2026-07-16T13:15:27+00:00'
+    subject: 'test: stabilize API key settings navigation'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/api-keys-flow.spec.ts
+    related_feature_ids: []
+  - sha: 0b2e741362a41c54caa758f6950c9a2c73358342
+    short_sha: 0b2e74136
+    authored_at: '2026-07-16T13:08:28+00:00'
+    subject: Fix app skill child fullscreen routing
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    related_feature_ids: []
+  - sha: bd46c39f71005fa5b6b2fb6a4204cddce2ddc7b1
+    short_sha: bd46c39f7
+    authored_at: '2026-07-16T13:07:16+00:00'
+    subject: 'test: verify privacy pii redirect separately'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-privacy-pii-deep-link.spec.ts
+    related_feature_ids: []
+  - sha: 8517ec0e5b4c802d8264634ff6e511cf3eba5586
+    short_sha: 8517ec0e5
+    authored_at: '2026-07-16T12:55:30+00:00'
+    subject: Fix app skill child fullscreen routing
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    related_feature_ids: []
+  - sha: c39c3fb10dd86b1b580b4e6ab3e3202f618ddec0
+    short_sha: c39c3fb10
+    authored_at: '2026-07-16T12:54:21+00:00'
+    subject: 'test: align API key row assertions'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/api-keys-flow.spec.ts
+    related_feature_ids: []
+  - sha: eceb78098718adbe760f1c2abf0762e110a7160f
+    short_sha: eceb78098
+    authored_at: '2026-07-16T12:54:03+00:00'
+    subject: 'fix: route privacy pii through endpoint redirect'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/privacy/pii/+page.server.ts
+    - frontend/apps/web_app/src/routes/privacy/pii/+page.svelte
+    - frontend/apps/web_app/src/routes/privacy/pii/+server.ts
+    related_feature_ids: []
+  - sha: 4d5fcafee6e8f8a212bd1968584dbc3c020ea650
+    short_sha: 4d5fcafee
+    authored_at: '2026-07-16T12:43:45+00:00'
+    subject: 'fix: replay pending settings links after auth restore'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    related_feature_ids: []
+  - sha: 06fe7777642dc2f0c71d28a485e907096f9aaba3
+    short_sha: 06fe77776
+    authored_at: '2026-07-16T12:43:33+00:00'
+    subject: 'fix: require recent passkey proof for account deletion'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/auth_routes/auth_passkey.py
+    - backend/core/api/app/routes/settings.py
+    - backend/core/api/app/services/directus/api_key_device_methods.py
+    - backend/tests/test_api_key_scopes.py
+    - backend/tests/test_auth_endpoints.py
+    - backend/tests/test_cli_account_delete.py
+    - frontend/apps/web_app/tests/api-keys-flow.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-passkey.spec.ts
+    - frontend/packages/ui/src/components/settings/security/SecurityAuth.svelte
+    related_feature_ids: []
+  - sha: fabc1f80ca2b3211a0661fc2343a277ddeeca666
+    short_sha: fabc1f80c
+    authored_at: '2026-07-16T12:40:47+00:00'
+    subject: 'fix: refresh recovery sync cache after terminal persist'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/chat_recovery_job_handlers.py
+    - backend/tests/test_chat_recovery_websocket_handlers.py
+    related_feature_ids: []
+  - sha: 1383ecb32574c37fb7e394980c6521fa9ed62d8c
+    short_sha: 1383ecb32
+    authored_at: '2026-07-16T12:29:20+00:00'
+    subject: 'fix: server-redirect privacy pii settings link'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/privacy/pii/+page.server.ts
+    - frontend/apps/web_app/src/routes/privacy/pii/+page.svelte
+    related_feature_ids: []
+  - sha: e3751862720c3e667235586e629f562f76b3f65c
+    short_sha: e37518627
+    authored_at: '2026-07-16T12:14:25+00:00'
+    subject: 'test: cover privacy pii settings deep links'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-privacy-pii-deep-link.spec.ts
+    related_feature_ids: []
+  - sha: da91499991ad50b89728fb025d05eb754ad1ca06
+    short_sha: da9149999
+    authored_at: '2026-07-16T12:12:10+00:00'
+    subject: Unify embed fullscreen routing
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/example-chat-public-quality/spec.yml
+    - docs/specs/unified-embed-fullscreen-routing/spec.yml
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/src/routes/share/embed/[embedId]/+page.svelte
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    - frontend/apps/web_app/tests/skill-health-appointments.spec.ts
+    - frontend/apps/web_app/tests/skill-home-search.spec.ts
+    - frontend/apps/web_app/tests/skill-travel-stays.spec.ts
+    - frontend/apps/web_app/tests/skill-weather-forecast.spec.ts
+    - frontend/apps/web_app/tests/source-quote-verification.spec.ts
+    - frontend/packages/ui/index.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedInlineLink.svelte
+    - frontend/packages/ui/src/components/embeds/SearchResultsTemplate.svelte
+    - frontend/packages/ui/src/components/embeds/SourceQuoteBlock.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatStore.ts
+    - frontend/packages/ui/src/services/__tests__/embedFullscreenController.test.ts
+    - frontend/packages/ui/src/services/embedFullscreenController.ts
+    - frontend/packages/ui/src/services/embedStore.ts
+    - scripts/audit_embed_fullscreen_routing.py
+    related_feature_ids: []
+  - sha: 815029dd8740bed1488f15d327004e4200b6b645
+    short_sha: 815029dd8
+    authored_at: '2026-07-16T12:05:10+00:00'
+    subject: 'fix: restore recovery message uuid rows'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/directus/extensions/chat-recovery-transaction/src/operations.js
+    - backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
+    related_feature_ids: []
+  - sha: ce34b116bb172e5a6671be5bf6b3dfe04a5ada09
+    short_sha: ce34b116b
+    authored_at: '2026-07-16T11:59:58+00:00'
+    subject: 'fix: preserve settings deep links in hash urls'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/privacy/pii/+page.svelte
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/services/__tests__/deepLinkHandler.test.ts
+    - frontend/packages/ui/src/services/deepLinkHandler.ts
+    - frontend/packages/ui/src/stores/activeChatStore.ts
+    - frontend/packages/ui/src/stores/activeEmbedStore.ts
+    - frontend/packages/ui/src/utils/settingsHashUtils.ts
+    related_feature_ids: []
+  - sha: d44d8f7a0db1781bf290654602082a67591f35eb
+    short_sha: d44d8f7a0
+    authored_at: '2026-07-16T11:35:20+00:00'
+    subject: 'fix: open privacy policy short url'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/src/routes/privacy/+server.ts
+    - frontend/apps/web_app/tests/not-found-404-flow.spec.ts
+    related_feature_ids: []
+  - sha: 53f2745f24a34c141ba8066799d277cb93b66aed
+    short_sha: 53f2745f2
+    authored_at: '2026-07-16T11:21:21+00:00'
+    subject: 'fix: persist recovered messages with stable ids'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/directus/extensions/chat-recovery-transaction/src/operations.js
+    - backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
+    related_feature_ids: []
+  - sha: e25a425081df88190d8913f6148e527bf3dd5173
+    short_sha: e25a42508
+    authored_at: '2026-07-16T10:58:24+00:00'
+    subject: 'fix: send chat fallback as ai ask messages'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    related_feature_ids: []
+  - sha: d818a185e48bf40b6c4b652a19fddbe88779daf3
+    short_sha: d818a185e
+    authored_at: '2026-07-16T10:49:00+00:00'
+    subject: 'fix: fallback api-key chat cli to ai ask'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    related_feature_ids: []
+  - sha: 3ec843df06d787df20db28abdda89d6aad4edcda
+    short_sha: 3ec843df0
+    authored_at: '2026-07-16T10:37:19+00:00'
+    subject: 'fix: use sdk chat for api-key cli sends'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    related_feature_ids: []
+  - sha: b173d37a577a0622274feb10fcb5c0360378e6da
+    short_sha: b173d37a5
+    authored_at: '2026-07-16T10:25:51+00:00'
+    subject: 'fix: route api-key chat cli through sdk'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    related_feature_ids: []
+  - sha: 54219826c905f470f3b3537388b08bd824bba633
+    short_sha: 54219826c
+    authored_at: '2026-07-16T10:04:38+00:00'
+    subject: 'fix: add typed app skill CLI commands'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    related_feature_ids: []
+  - sha: ebb08b2a53c84b9c1094168f62fbf10519ae654a
+    short_sha: ebb08b2a5
+    authored_at: '2026-07-16T09:46:14+00:00'
+    subject: 'test: pin chat parity account slots'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    - apple/OpenMatesUITests/RealAccountUITestSupport.swift
+    - docs/architecture/apple/chat-rendering-parity.md
+    - frontend/apps/web_app/tests/chat-rendering-parity-oracle.spec.ts
+    - scripts/apple_chat_parity_audit.py
+    - scripts/compare_chat_render_parity.py
+    - scripts/run_tests.py
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: a0573172dd878b91ddcb071a3949c73df45a2ca7
+    short_sha: a0573172d
+    authored_at: '2026-07-16T09:46:07+00:00'
+    subject: 'chore: harden startup policy checks'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/domain_security.py
+    - backend/core/api/app/services/domain_security_allowed.encrypted
+    - backend/core/api/app/services/domain_security_patterns.encrypted
+    - backend/core/api/app/services/domain_security_restricted.encrypted
+    - backend/core/api/app/services/test_domain_security.py
+    - scripts/audit_domain_security.py
+    - scripts/code_quality_guard.py
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates focused on achieving feature parity for the SDK and CLI, refining privacy-related routing and deep links,
+    and establishing foundational gates for the Apple UI parity program. Significant work was also completed to unify embed
+    fullscreen navigation and stabilize AI task processing.
+  released_changes: []
+  bug_fixes:
+  - text: The OpenMates CLI and SDK received multiple fixes for chat model handling, including support for nested model names,
+      OpenAI SDK compatibility, and improved routing for API-key authenticated sessions.
+    evidence:
+      commits:
+      - 6be9a9569
+      - e7416abde
+      - a94a9a2d3
+      - aff5a1f13
+      - 6e5c402b0
+      - e25a42508
+      - d818a185e
+      - 3ec843df0
+      - b173d37a5
+      - 54219826c
+    release_status: dev_only
+  - text: Privacy and legal routing was refined to ensure PII settings deep links are preserved in hash URLs and that short
+      URLs for the privacy policy redirect correctly, including on Vercel deployments.
+    evidence:
+      commits:
+      - eceb78098
+      - 1383ecb32
+      - ce34b116b
+      - d44d8f7a0
+      - e6e070452
+    release_status: dev_only
+  - text: Security updates now allow for disabling OTP 2FA, require recent passkey verification for account deletion, and
+      protect active accounts from stale-signup cleanup tasks.
+    evidence:
+      commits:
+      - 818338f13
+      - 06fe77776
+      - 052b7b311
+    release_status: dev_only
+  - text: AI processing for task-related skills was improved to better honor explicit mentions, skill overrides, and embed-based
+      chat flows.
+    evidence:
+      commits:
+      - 1676503ee
+      - fe9012b2e
+      - 221ca951d
+      - 5caf604c4
+      - 2523aa8f2
+    release_status: dev_only
+  - text: Chat recovery mechanisms were stabilized with fixes for sync caching and the persistence of recovered messages using
+      stable identifiers.
+    evidence:
+      commits:
+      - fabc1f80c
+      - 815029dd8
+      - 53f2745f2
+    release_status: dev_only
+  - text: Fullscreen routing for app-skill embeds was unified across platforms to ensure consistent navigation for grouped
+      and child components.
+    evidence:
+      commits:
+      - 715306af7
+      - beec181f4
+      - 0b2e74136
+      - 8517ec0e5
+    release_status: dev_only
+  unreleased_progress:
+  - text: OpenMates added initial gates and audit scripts for the Apple UI parity program to track consistency across iOS
+      and macOS.
+    evidence:
+      commits:
+      - 119a18103
+    release_status: dev_only
+  - text: Support for rendering task and workflow app embeds was introduced, enabling richer interactive previews within chats.
+    evidence:
+      commits:
+      - 6d84564c7
+    release_status: dev_only
+  - text: The SDK now supports API key management parity, allowing developers to manage keys and devices directly via the
+      CLI.
+    evidence:
+      commits:
+      - ef1f64028
+    release_status: dev_only
+  - text: Documentation was expanded to include privacy policy quick answers and a streamlined self-hosting setup guide.
+    evidence:
+      commits:
+      - 53a22ec14
+      - 5d7ebd037
+      - db8ce8254
+    release_status: dev_only
+  internal_progress:
+  - text: The production smoke test suite was split into specialized suites with improved API-key user cache handling.
+    evidence:
+      commits:
+      - 92a275561
+      - 7206f4981
+      - 02281a695
+    release_status: dev_only
+  - text: Domain security policy checks were hardened during application startup.
+    evidence:
+      commits:
+      - a0573172d
+    release_status: dev_only
+  - text: Automated parity oracles and UI test harnesses were stabilized to better compare chat rendering across web and Apple
+      platforms.
+    evidence:
+      commits:
+      - 5e71aac74
+      - 8d1de6383
+      - 700945fd2
+      - ebb08b2a5
+    release_status: dev_only
+  newsletter_recommendation:
+    include: []
+    exclude:
+    - text: Apple UI parity program gates
+      evidence:
+        commits:
+        - 119a18103
+      reason: This feature is part of the Apple UI parity program and is currently dev-only.
+    - text: Task and workflow app embed rendering
+      evidence:
+        commits:
+        - 6d84564c7
+      reason: Workflows and Tasks platforms are currently disabled features.
+    - text: SDK API key management parity
+      evidence:
+        commits:
+        - ef1f64028
+      reason: SDK API key management is currently in dev-only status.
+    rationale: All user-facing changes from this period are currently in dev_only status or related to disabled features (Workflows,
+      Tasks, iOS, macOS), making them unsuitable for public communication at this time.
+  social_video_recommendations:
+  - idea: Demonstrate the new interactive task and workflow embeds within the chat interface.
+    priority: medium
+    reason: The visual nature of app-skill embeds provides a strong product story for how OpenMates handles complex workflows.
+    evidence:
+      commits:
+      - 6d84564c7
+  quality_notes:
+  - Extensive testing was added for API key management and chat rendering parity.
+  - Infrastructure hardening included stricter domain security checks and split smoke test suites.
+  validation_warnings: []

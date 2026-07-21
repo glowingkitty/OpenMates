@@ -8,3 +8,4 @@ description: "Open-source weather API combining global and national weather mode
 logo_svg: "logos/open_meteo.svg"
 region: "EU"
 privacy_policy: "https://open-meteo.com/en/terms"
+no_api_key: true

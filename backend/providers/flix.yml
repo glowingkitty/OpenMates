@@ -8,3 +8,4 @@ description: "FlixBus and FlixTrain intercity bus and rail connections across Eu
 logo_svg: "logos/flix.svg"
 region: "EU"
 privacy_policy: "https://www.flixbus.com/privacy-policy"
+no_api_key: true

@@ -8,6 +8,14 @@ description: "AI models and services from Anthropic, including Claude family mod
 logo_svg: "logos/anthropic.svg" # Path for UI, relative to a common logos directory
 privacy_policy: "https://www.anthropic.com/legal/privacy"
 
+required_keys:
+  - env_key: "SECRET__ANTHROPIC__API_KEY"
+    vault_path: "kv/data/providers/anthropic"
+    vault_key: "api_key"
+    description: "Anthropic API key for Claude-family model access."
+    setup_url: "https://console.anthropic.com/settings/keys"
+    docs_url: "https://docs.anthropic.com/en/api/getting-started"
+
 models:
   - id: "claude-haiku-4-5-20251001" # Official model ID
     name: "Claude Haiku 4.5"

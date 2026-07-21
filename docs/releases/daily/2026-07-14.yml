@@ -1,0 +1,3213 @@
+schema_version: 1
+cadence: daily
+date: '2026-07-14'
+generated_at: '2026-07-21T10:45:01+00:00'
+range:
+  since: '2026-07-14T00:00:00+00:00'
+  until: '2026-07-15T00:00:00+00:00'
+  from_ref: null
+  to_ref: HEAD
+  assume_released: false
+summary:
+  total_commits: 67
+  section_counts:
+    features: 3
+    bug_fixes: 43
+    improvements: 0
+    docs: 3
+    tests: 17
+    infrastructure: 1
+    internal: 0
+    other: 0
+  newsletter_ready_items: 0
+  user_facing_items: 37
+  dev_only_items: 67
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:teams
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: skill:models3d:generate
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:models3d
+    source: backend/apps/models3d/app.yml
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: add task main-processor tools'
+    section: features
+    commits:
+    - d62ae8800
+    authored_at: '2026-07-14T15:52:42+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/task_runtime_tools.py
+    - backend/apps/ai/processing/task_tool_context.py
+    - backend/apps/ai/processing/task_tool_executor.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/core/api/app/routes/connection_manager.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/system_message_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/task_update_job_handlers.py
+    - backend/core/api/app/routes/user_tasks.py
+    - backend/core/api/app/schemas/ai_skill_schemas.py
+    - backend/core/api/app/services/directus/directus.py
+    - backend/core/api/app/services/directus/user_task_methods.py
+    - backend/core/api/app/services/user_task_queue_service.py
+    - backend/core/api/app/services/user_task_scheduler_service.py
+    - backend/core/api/app/services/user_task_service.py
+    - backend/core/api/app/services/user_task_update_job_service.py
+    - backend/core/api/app/services/user_task_working_copy_service.py
+    - backend/tests/test_task_main_processor_tools.py
+    - backend/tests/test_task_mentions_and_chat_ownership.py
+    - backend/tests/test_task_update_jobs.py
+    - backend/tests/test_task_working_copy_privacy.py
+    - backend/tests/test_user_task_runtime_tools.py
+    - backend/tests/test_user_tasks_api.py
+    - backend/tests/test_user_tasks_scheduler.py
+    - docs/specs/tasks-main-processor-tools/spec.yml
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/src/tasksCli.ts
+    - frontend/packages/openmates-cli/src/tui.ts
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - frontend/packages/openmates-cli/tests/tasks.test.ts
+    - frontend/packages/openmates-cli/tests/ws.test.ts
+    - frontend/packages/ui/src/services/userTaskService.ts
+    - scripts/verify_tasks_main_processor_cli_smoke.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:tasks'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: complete Tasks V1 CLI runtime contracts'
+    section: features
+    commits:
+    - b80bce5e1
+    authored_at: '2026-07-14T07:37:21+00:00'
+    changed_paths:
+    - backend/config/backend_config.yml
+    - backend/core/api/app/routes/share.py
+    - backend/core/api/app/routes/user_tasks.py
+    - backend/core/api/app/services/directus/user_task_methods.py
+    - backend/core/api/app/services/user_task_queue_service.py
+    - backend/core/api/app/services/user_task_share_bundle.py
+    - backend/core/api/app/services/workflow_task_projection_service.py
+    - backend/core/directus/schemas/user_tasks.yml
+    - backend/tests/test_task_view_workflow_runs.py
+    - backend/tests/test_user_task_runtime_tools.py
+    - backend/tests/test_user_tasks_api.py
+    - backend/tests/test_user_tasks_share_bundle.py
+    - docs/architecture/platforms/tasks-v1.md
+    - docs/specs/tasks-v1/spec.yml
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/tasksCli.ts
+    - frontend/packages/openmates-cli/src/tui.ts
+    - frontend/packages/openmates-cli/src/tuiRenderer.ts
+    - frontend/packages/openmates-cli/tests/tui.test.ts
+    - scripts/verify_tasks_cli_smoke.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:tasks, platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: add workflow SDK runtime parity'
+    section: features
+    commits:
+    - eedd200f2
+    authored_at: '2026-07-14T07:25:29+00:00'
+    changed_paths:
+    - docs/specs/workflows-sdk-runtime/spec.yml
+    - docs/user-guide/developers/sdk.md
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/tests/sdk-workflows.test.ts
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/tests/test_workflows.py
+    - scripts/audit_sdk_cli_parity.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  bug_fixes:
+  - title: 'fix: refresh active header from synced metadata'
+    section: bug_fixes
+    commits:
+    - ba3cd1d1f
+    authored_at: '2026-07-14T23:33:27+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: persist reserved metadata versions'
+    section: bug_fixes
+    commits:
+    - 18286cf53
+    authored_at: '2026-07-14T23:18:03+00:00'
+    changed_paths:
+    - backend/core/api/app/tasks/persistence_tasks.py
+    - backend/tests/test_unified_detail_metadata.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: guard metadata persistence with cache versions'
+    section: bug_fixes
+    commits:
+    - b23cda15a
+    authored_at: '2026-07-14T22:20:22+00:00'
+    changed_paths:
+    - backend/core/api/app/tasks/persistence_tasks.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: use admin access for task wrappers'
+    section: bug_fixes
+    commits:
+    - ddc5b6ca2
+    authored_at: '2026-07-14T22:17:44+00:00'
+    changed_paths:
+    - backend/core/api/app/services/directus/api_methods.py
+    - backend/core/api/app/services/directus/user_task_methods.py
+    - backend/tests/test_user_tasks_api.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: refresh duplicate upload ai metadata'
+    section: bug_fixes
+    commits:
+    - f75526aff
+    authored_at: '2026-07-14T22:13:21+00:00'
+    changed_paths:
+    - backend/upload/routes/upload_route.py
+    - scripts/tests/test_upload_image_contracts.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: ignore stale active chat metadata'
+    section: bug_fixes
+    commits:
+    - 3401bdc7d
+    authored_at: '2026-07-14T22:06:32+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: stabilize task move job lookup'
+    section: bug_fixes
+    commits:
+    - 3b41ad682
+    authored_at: '2026-07-14T22:03:54+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/task_tool_executor.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/task_update_job_handlers.py
+    - backend/tests/test_task_main_processor_tools.py
+    - backend/tests/test_user_tasks_api.py
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/mentions.ts
+    - frontend/packages/openmates-cli/tests/mentions.test.ts
+    - frontend/packages/openmates-cli/tests/tasks.test.ts
+    - scripts/verify_tasks_main_processor_cli_smoke.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: refresh active metadata from peer sync'
+    section: bug_fixes
+    commits:
+    - 5f572bfa7
+    authored_at: '2026-07-14T21:52:12+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: restore upload SightEngine scanning'
+    section: bug_fixes
+    commits:
+    - 216edbc3f
+    authored_at: '2026-07-14T21:42:40+00:00'
+    changed_paths:
+    - backend/tests/test_sightengine_service.py
+    - backend/upload/Dockerfile
+    - backend/upload/routes/upload_route.py
+    - backend/upload/services/sightengine_service.py
+    - frontend/packages/ui/src/components/embeds/images/ImageAuthenticityBadge.svelte
+    - scripts/tests/test_upload_image_contracts.py
+    - scripts/upload-ssh.sh
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: resolve uploaded models3d inputs'
+    section: bug_fixes
+    commits:
+    - 3ca3c9dd6
+    authored_at: '2026-07-14T21:39:16+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/apps_api.py
+    - backend/shared/python_utils/encrypted_embed_images.py
+    - backend/tests/test_apps_api.py
+    - backend/tests/test_encrypted_embed_images.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: refresh peer chat title metadata'
+    section: bug_fixes
+    commits:
+    - 5a523a4aa
+    authored_at: '2026-07-14T21:36:44+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts
+    - frontend/packages/ui/src/types/chat.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: broadcast chat title updates'
+    section: bug_fixes
+    commits:
+    - 7218f0af9
+    authored_at: '2026-07-14T20:42:30+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/title_update_handler.py
+    - backend/tests/test_unified_detail_metadata.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: recover completed task retry events'
+    section: bug_fixes
+    commits:
+    - 931eb1d27
+    authored_at: '2026-07-14T20:33:34+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/task_tool_executor.py
+    - backend/tests/test_task_main_processor_tools.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: restore live chat title sync'
+    section: bug_fixes
+    commits:
+    - 10ecaf439
+    authored_at: '2026-07-14T20:25:37+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/unified-detail-metadata-sync.spec.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: tolerate repeated task retry versions'
+    section: bug_fixes
+    commits:
+    - b594be9b7
+    authored_at: '2026-07-14T19:58:23+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/task_tool_executor.py
+    - backend/tests/test_task_main_processor_tools.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: stabilize task tool retry events'
+    section: bug_fixes
+    commits:
+    - 0fadde3c0
+    authored_at: '2026-07-14T19:49:46+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/task_tool_executor.py
+    - backend/tests/test_task_main_processor_tools.py
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/openmates-cli/tests/ws.test.ts
+    - scripts/verify_tasks_main_processor_cli_smoke.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: complete task smoke recovery races'
+    section: bug_fixes
+    commits:
+    - a0a199a47
+    authored_at: '2026-07-14T19:31:57+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/task_update_job_handlers.py
+    - backend/tests/test_task_update_jobs.py
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/openmates-cli/tests/ws.test.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: ignore unrelated ws turn errors'
+    section: bug_fixes
+    commits:
+    - 50bc3cb11
+    authored_at: '2026-07-14T18:47:28+00:00'
+    changed_paths:
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/openmates-cli/tests/ws.test.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: expose task job rejection reasons'
+    section: bug_fixes
+    commits:
+    - d7dd37d41
+    authored_at: '2026-07-14T18:40:58+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/task_update_job_handlers.py
+    - backend/tests/test_task_update_jobs.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: resolve bare task ids in task tools'
+    section: bug_fixes
+    commits:
+    - '504086629'
+    authored_at: '2026-07-14T18:32:33+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/task_tool_context.py
+    - backend/tests/test_task_main_processor_tools.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: tolerate formatted task tool args'
+    section: bug_fixes
+    commits:
+    - 6b815ad3e
+    authored_at: '2026-07-14T18:23:24+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/task_tool_executor.py
+    - backend/tests/test_task_main_processor_tools.py
+    - scripts/verify_tasks_main_processor_cli_smoke.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: treat matching task retries as noops'
+    section: bug_fixes
+    commits:
+    - f0d416b6e
+    authored_at: '2026-07-14T18:16:40+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/task_tool_executor.py
+    - backend/tests/test_task_main_processor_tools.py
+    - scripts/verify_tasks_main_processor_cli_smoke.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: ignore repeated task tool retries'
+    section: bug_fixes
+    commits:
+    - bb007713d
+    authored_at: '2026-07-14T17:57:47+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/task_tool_executor.py
+    - backend/tests/test_task_main_processor_tools.py
+    - scripts/verify_tasks_main_processor_cli_smoke.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: allow encrypted task retry ciphertext drift'
+    section: bug_fixes
+    commits:
+    - ab635fcf8
+    authored_at: '2026-07-14T17:42:57+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/task_update_job_handlers.py
+    - backend/tests/test_task_update_jobs.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: recover task job persistence retries'
+    section: bug_fixes
+    commits:
+    - 017f3feb6
+    authored_at: '2026-07-14T17:39:14+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/task_update_job_handlers.py
+    - backend/tests/test_task_update_jobs.py
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/openmates-cli/tests/ws.test.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: ignore unmatched task update jobs'
+    section: bug_fixes
+    commits:
+    - 6054ff08d
+    authored_at: '2026-07-14T17:18:48+00:00'
+    changed_paths:
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: prevent false chat sync readiness'
+    section: bug_fixes
+    commits:
+    - 3e9b293e8
+    authored_at: '2026-07-14T16:57:55+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersCoreSync.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: sequence task update jobs'
+    section: bug_fixes
+    commits:
+    - 960c15b56
+    authored_at: '2026-07-14T16:57:26+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/task_tool_context.py
+    - backend/apps/ai/processing/task_tool_executor.py
+    - backend/tests/test_task_main_processor_tools.py
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: complete task job recovery flow'
+    section: bug_fixes
+    commits:
+    - c9f192106
+    authored_at: '2026-07-14T16:41:01+00:00'
+    changed_paths:
+    - backend/apps/ai/llm_providers/google_client.py
+    - backend/shared/python_utils/thought_signature.py
+    - backend/tests/test_task_main_processor_tools.py
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: sanitize task tool schemas'
+    section: bug_fixes
+    commits:
+    - bd20d084c
+    authored_at: '2026-07-14T16:31:18+00:00'
+    changed_paths:
+    - backend/apps/ai/llm_providers/openai_shared.py
+    - backend/tests/test_task_main_processor_tools.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve task tool names'
+    section: bug_fixes
+    commits:
+    - c5f19ed8a
+    authored_at: '2026-07-14T16:26:51+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/task_tool_executor.py
+    - backend/tests/test_task_main_processor_tools.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve task capability in ai ask schema'
+    section: bug_fixes
+    commits:
+    - f8b8093d5
+    authored_at: '2026-07-14T16:20:14+00:00'
+    changed_paths:
+    - backend/apps/ai/skills/ask_skill.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve task capability through saved-chat preflight'
+    section: bug_fixes
+    commits:
+    - 15bceb1e7
+    authored_at: '2026-07-14T16:13:03+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/chat_turn_preflight_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/tests/test_chat_turn_preflight_handler.py
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - scripts/verify_tasks_main_processor_cli_smoke.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: trust sealed CLI recovery payload'
+    section: bug_fixes
+    commits:
+    - c510b8443
+    authored_at: '2026-07-14T16:00:45+00:00'
+    changed_paths:
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: guard network status listeners in tests'
+    section: bug_fixes
+    commits:
+    - 95d6143af
+    authored_at: '2026-07-14T13:50:43+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/task_update_job_handlers.py
+    - frontend/packages/ui/src/stores/networkStatusStore.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: add models3d translations'
+    section: bug_fixes
+    commits:
+    - 4cbc373b4
+    authored_at: '2026-07-14T13:23:19+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/i18n/sources/app_skills/models3d.yml
+    - frontend/packages/ui/src/i18n/sources/apps.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: instrument task update websocket handlers'
+    section: bug_fixes
+    commits:
+    - e2351a91f
+    authored_at: '2026-07-14T13:20:22+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/task_update_job_handlers.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: enforce EU Stripe threshold only in production'
+    section: bug_fixes
+    commits:
+    - b54f75d4d
+    authored_at: '2026-07-14T13:08:21+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/payments.py
+    - backend/core/api/app/utils/payment_environment.py
+    - backend/tests/test_payment_eu_threshold_guard.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: stabilize chat recovery e2e specs'
+    section: bug_fixes
+    commits:
+    - 1e0ca3217
+    authored_at: '2026-07-14T08:57:08+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/websockets.py
+    - backend/tests/test_chat_recovery_lifecycle_wiring.py
+    - frontend/apps/web_app/tests/multi-session-encryption.spec.ts
+    - frontend/apps/web_app/tests/startup-sync-contract.spec.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: advertise only pending workflow chat deliveries'
+    section: bug_fixes
+    commits:
+    - 164a5138c
+    authored_at: '2026-07-14T08:36:26+00:00'
+    changed_paths:
+    - backend/core/api/app/services/workflow_chat_delivery_service.py
+    - backend/tests/test_workflow_chat_delivery.py
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAppSettings.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - 'matches feature availability gates: platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve chat key wrappers during AI metadata updates'
+    section: bug_fixes
+    commits:
+    - 96c7a0776
+    authored_at: '2026-07-14T08:01:29+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/chat_recovery_job_handlers.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/chat_turn_preflight_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/workflow_chat_delivery_handlers.py
+    - backend/core/api/app/routes/websockets.py
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - frontend/packages/ui/src/types/chat.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: retain owner on synced chat shells'
+    section: bug_fixes
+    commits:
+    - 2b6099152
+    authored_at: '2026-07-14T00:53:58+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersChatUpdates.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: target final recovery job discovery'
+    section: bug_fixes
+    commits:
+    - ce3d0538f
+    authored_at: '2026-07-14T00:10:56+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/testing/mock_replay.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/tests/test_chat_recovery_lifecycle_wiring.py
+    - backend/tests/test_mock_replay.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  improvements: []
+  docs:
+  - title: 'docs: record task CLI smoke CI evidence'
+    section: docs
+    commits:
+    - d5a089857
+    authored_at: '2026-07-14T20:56:33+00:00'
+    changed_paths:
+    - docs/specs/tasks-main-processor-tools/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record workflow SDK parity evidence'
+    section: docs
+    commits:
+    - 06a4dc546
+    authored_at: '2026-07-14T07:27:13+00:00'
+    changed_paths:
+    - docs/specs/workflows-sdk-runtime/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record web recovery green evidence'
+    section: docs
+    commits:
+    - bb87b6bd3
+    authored_at: '2026-07-14T01:10:00+00:00'
+    changed_paths:
+    - docs/specs/cross-device-chat-completion-recovery/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  tests:
+  - title: 'test: hydrate chat before cold boot version check'
+    section: tests
+    commits:
+    - f7f64ef60
+    authored_at: '2026-07-14T23:01:52+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/unified-detail-metadata-sync.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: rely on visible title convergence'
+    section: tests
+    commits:
+    - c1f57382d
+    authored_at: '2026-07-14T22:48:51+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/unified-detail-metadata-sync.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: avoid raw title frame race'
+    section: tests
+    commits:
+    - 4884fc9db
+    authored_at: '2026-07-14T22:33:32+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/unified-detail-metadata-sync.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stabilize metadata sync version observation'
+    section: tests
+    commits:
+    - f3958ad10
+    authored_at: '2026-07-14T21:22:50+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/unified-detail-metadata-sync.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: add task CLI smoke workflow'
+    section: tests
+    commits:
+    - 0a60388da
+    authored_at: '2026-07-14T20:52:22+00:00'
+    changed_paths:
+    - .github/workflows/tasks-main-processor-cli-smoke.yml
+    - docs/specs/tasks-main-processor-tools/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: refresh task smoke chat state'
+    section: tests
+    commits:
+    - d9c1b63c5
+    authored_at: '2026-07-14T20:29:43+00:00'
+    changed_paths:
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - scripts/verify_tasks_main_processor_cli_smoke.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: support password-only account provisioning'
+    section: tests
+    commits:
+    - 9f6c7b359
+    authored_at: '2026-07-14T14:22:09+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/create-test-account.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: update account provisioning secrets'
+    section: tests
+    commits:
+    - 3ef7dfa79
+    authored_at: '2026-07-14T14:03:58+00:00'
+    changed_paths:
+    - .github/workflows/playwright-spec.yml
+    - backend/core/api/app/routes/websockets.py
+    - frontend/apps/web_app/tests/create-test-account.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: include workflow trigger owner fixture'
+    section: tests
+    commits:
+    - a24408c38
+    authored_at: '2026-07-14T13:18:59+00:00'
+    changed_paths:
+    - backend/tests/test_workflow_trigger_persistence.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: narrow dev signup cleanup candidates'
+    section: tests
+    commits:
+    - 9bc0706aa
+    authored_at: '2026-07-14T12:51:36+00:00'
+    changed_paths:
+    - scripts/cleanup_dev_signup_accounts.py
+    - scripts/tests/test_cleanup_dev_signup_accounts.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: authenticate failed signup cleanup with e2e secret'
+    section: tests
+    commits:
+    - beb2736fa
+    authored_at: '2026-07-14T12:36:26+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/auth_routes/auth_invite.py
+    - backend/tests/test_auth_endpoints.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: satisfy playwright hook fixture syntax'
+    section: tests
+    commits:
+    - 3b419958a
+    authored_at: '2026-07-14T12:31:55+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/referral-signup-purchase.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: clean failed signup e2e accounts'
+    section: tests
+    commits:
+    - d3a485da1
+    authored_at: '2026-07-14T12:22:39+00:00'
+    changed_paths:
+    - .github/workflows/playwright-spec.yml
+    - backend/core/api/app/routes/auth_routes/auth_invite.py
+    - backend/core/api/app/schemas/auth.py
+    - backend/tests/test_auth_endpoints.py
+    - frontend/apps/web_app/tests/referral-signup-purchase.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-helpers.ts
+    - frontend/apps/web_app/tests/signup-flow-passkey.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-stripe-eu.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-stripe-managed.spec.ts
+    - frontend/apps/web_app/tests/signup-skip-2fa-flow.spec.ts
+    - scripts/cleanup_dev_signup_accounts.py
+    - scripts/tests/test_cleanup_dev_signup_accounts.py
+    - scripts/tests/test_playwright_workflow_timeout.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: restore signup invite preflight'
+    section: tests
+    commits:
+    - a0ec7f387
+    authored_at: '2026-07-14T11:05:26+00:00'
+    changed_paths:
+    - .github/workflows/playwright-spec.yml
+    - backend/core/api/app/routes/auth_routes/auth_invite.py
+    - backend/core/api/app/schemas/auth.py
+    - backend/core/api/app/services/directus/invite_methods.py
+    - backend/core/api/app/utils/invite_code.py
+    - backend/tests/test_auth_endpoints.py
+    - scripts/tests/test_playwright_workflow_timeout.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: restore signup invite e2e flows'
+    section: tests
+    commits:
+    - 8c48387f4
+    authored_at: '2026-07-14T10:39:20+00:00'
+    changed_paths:
+    - .github/workflows/playwright-spec.yml
+    - frontend/apps/web_app/tests/referral-signup-purchase.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-helpers.ts
+    - frontend/apps/web_app/tests/signup-flow-passkey.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-stripe-eu.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-stripe-managed.spec.ts
+    - frontend/apps/web_app/tests/signup-free-testing-credits.spec.ts
+    - frontend/apps/web_app/tests/signup-skip-2fa-flow.spec.ts
+    - scripts/tests/test_playwright_workflow_timeout.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: add CLI AI task-flow smoke coverage'
+    section: tests
+    commits:
+    - d990a6072
+    authored_at: '2026-07-14T08:55:07+00:00'
+    changed_paths:
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/openmates-cli/tests/ws.test.ts
+    - scripts/verify_tasks_ai_chat_cli_smoke.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: fix npm publish e2e provisioning gate'
+    section: tests
+    commits:
+    - 29a42c328
+    authored_at: '2026-07-14T07:43:57+00:00'
+    changed_paths:
+    - frontend/packages/openmates-cli/tests/e2e-provisioning.test.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  infrastructure:
+  - title: 'chore: log task job rejection reason'
+    section: infrastructure
+    commits:
+    - 561d49ebf
+    authored_at: '2026-07-14T18:36:44+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/task_update_job_handlers.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only:
+  - title: 'fix: refresh active header from synced metadata'
+    commits:
+    - ba3cd1d1f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: persist reserved metadata versions'
+    commits:
+    - 18286cf53
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: hydrate chat before cold boot version check'
+    commits:
+    - f7f64ef60
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: rely on visible title convergence'
+    commits:
+    - c1f57382d
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: avoid raw title frame race'
+    commits:
+    - 4884fc9db
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: guard metadata persistence with cache versions'
+    commits:
+    - b23cda15a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: use admin access for task wrappers'
+    commits:
+    - ddc5b6ca2
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: refresh duplicate upload ai metadata'
+    commits:
+    - f75526aff
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: ignore stale active chat metadata'
+    commits:
+    - 3401bdc7d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: stabilize task move job lookup'
+    commits:
+    - 3b41ad682
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: refresh active metadata from peer sync'
+    commits:
+    - 5f572bfa7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: restore upload SightEngine scanning'
+    commits:
+    - 216edbc3f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: resolve uploaded models3d inputs'
+    commits:
+    - 3ca3c9dd6
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: refresh peer chat title metadata'
+    commits:
+    - 5a523a4aa
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: stabilize metadata sync version observation'
+    commits:
+    - f3958ad10
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: record task CLI smoke CI evidence'
+    commits:
+    - d5a089857
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: add task CLI smoke workflow'
+    commits:
+    - 0a60388da
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: broadcast chat title updates'
+    commits:
+    - 7218f0af9
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: recover completed task retry events'
+    commits:
+    - 931eb1d27
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: refresh task smoke chat state'
+    commits:
+    - d9c1b63c5
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: restore live chat title sync'
+    commits:
+    - 10ecaf439
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: tolerate repeated task retry versions'
+    commits:
+    - b594be9b7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: stabilize task tool retry events'
+    commits:
+    - 0fadde3c0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: complete task smoke recovery races'
+    commits:
+    - a0a199a47
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: ignore unrelated ws turn errors'
+    commits:
+    - 50bc3cb11
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: expose task job rejection reasons'
+    commits:
+    - d7dd37d41
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'chore: log task job rejection reason'
+    commits:
+    - 561d49ebf
+    section: infrastructure
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: resolve bare task ids in task tools'
+    commits:
+    - '504086629'
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: tolerate formatted task tool args'
+    commits:
+    - 6b815ad3e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: treat matching task retries as noops'
+    commits:
+    - f0d416b6e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: ignore repeated task tool retries'
+    commits:
+    - bb007713d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: allow encrypted task retry ciphertext drift'
+    commits:
+    - ab635fcf8
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: recover task job persistence retries'
+    commits:
+    - 017f3feb6
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: ignore unmatched task update jobs'
+    commits:
+    - 6054ff08d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: prevent false chat sync readiness'
+    commits:
+    - 3e9b293e8
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: sequence task update jobs'
+    commits:
+    - 960c15b56
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: complete task job recovery flow'
+    commits:
+    - c9f192106
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: sanitize task tool schemas'
+    commits:
+    - bd20d084c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: preserve task tool names'
+    commits:
+    - c5f19ed8a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: preserve task capability in ai ask schema'
+    commits:
+    - f8b8093d5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: preserve task capability through saved-chat preflight'
+    commits:
+    - 15bceb1e7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: trust sealed CLI recovery payload'
+    commits:
+    - c510b8443
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'feat: add task main-processor tools'
+    commits:
+    - d62ae8800
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'test: support password-only account provisioning'
+    commits:
+    - 9f6c7b359
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: update account provisioning secrets'
+    commits:
+    - 3ef7dfa79
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: guard network status listeners in tests'
+    commits:
+    - 95d6143af
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: add models3d translations'
+    commits:
+    - 4cbc373b4
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: instrument task update websocket handlers'
+    commits:
+    - e2351a91f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: include workflow trigger owner fixture'
+    commits:
+    - a24408c38
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: enforce EU Stripe threshold only in production'
+    commits:
+    - b54f75d4d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: narrow dev signup cleanup candidates'
+    commits:
+    - 9bc0706aa
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: authenticate failed signup cleanup with e2e secret'
+    commits:
+    - beb2736fa
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: satisfy playwright hook fixture syntax'
+    commits:
+    - 3b419958a
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: clean failed signup e2e accounts'
+    commits:
+    - d3a485da1
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: restore signup invite preflight'
+    commits:
+    - a0ec7f387
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: restore signup invite e2e flows'
+    commits:
+    - 8c48387f4
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: stabilize chat recovery e2e specs'
+    commits:
+    - 1e0ca3217
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: add CLI AI task-flow smoke coverage'
+    commits:
+    - d990a6072
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: advertise only pending workflow chat deliveries'
+    commits:
+    - 164a5138c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: preserve chat key wrappers during AI metadata updates'
+    commits:
+    - 96c7a0776
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: fix npm publish e2e provisioning gate'
+    commits:
+    - 29a42c328
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: complete Tasks V1 CLI runtime contracts'
+    commits:
+    - b80bce5e1
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'docs: record workflow SDK parity evidence'
+    commits:
+    - 06a4dc546
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: add workflow SDK runtime parity'
+    commits:
+    - eedd200f2
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'docs: record web recovery green evidence'
+    commits:
+    - bb87b6bd3
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: retain owner on synced chat shells'
+    commits:
+    - 2b6099152
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: target final recovery job discovery'
+    commits:
+    - ce3d0538f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'fix: persist reserved metadata versions'
+    commits:
+    - 18286cf53
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: hydrate chat before cold boot version check'
+    commits:
+    - f7f64ef60
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: rely on visible title convergence'
+    commits:
+    - c1f57382d
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: avoid raw title frame race'
+    commits:
+    - 4884fc9db
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: stabilize metadata sync version observation'
+    commits:
+    - f3958ad10
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: broadcast chat title updates'
+    commits:
+    - 7218f0af9
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: restore live chat title sync'
+    commits:
+    - 10ecaf439
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: add models3d translations'
+    commits:
+    - 4cbc373b4
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+marketing_candidates:
+  newsletter: []
+  social_or_video:
+  - title: 'fix: refresh active header from synced metadata'
+    commits:
+    - ba3cd1d1f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: ignore stale active chat metadata'
+    commits:
+    - 3401bdc7d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: stabilize task move job lookup'
+    commits:
+    - 3b41ad682
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: refresh active metadata from peer sync'
+    commits:
+    - 5f572bfa7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: restore upload SightEngine scanning'
+    commits:
+    - 216edbc3f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: resolve uploaded models3d inputs'
+    commits:
+    - 3ca3c9dd6
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: broadcast chat title updates'
+    commits:
+    - 7218f0af9
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: recover completed task retry events'
+    commits:
+    - 931eb1d27
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: restore live chat title sync'
+    commits:
+    - 10ecaf439
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: tolerate repeated task retry versions'
+    commits:
+    - b594be9b7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: stabilize task tool retry events'
+    commits:
+    - 0fadde3c0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: complete task smoke recovery races'
+    commits:
+    - a0a199a47
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: ignore unrelated ws turn errors'
+    commits:
+    - 50bc3cb11
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: expose task job rejection reasons'
+    commits:
+    - d7dd37d41
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: resolve bare task ids in task tools'
+    commits:
+    - '504086629'
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: tolerate formatted task tool args'
+    commits:
+    - 6b815ad3e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: treat matching task retries as noops'
+    commits:
+    - f0d416b6e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: ignore repeated task tool retries'
+    commits:
+    - bb007713d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: allow encrypted task retry ciphertext drift'
+    commits:
+    - ab635fcf8
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: recover task job persistence retries'
+    commits:
+    - 017f3feb6
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: ignore unmatched task update jobs'
+    commits:
+    - 6054ff08d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: sequence task update jobs'
+    commits:
+    - 960c15b56
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: complete task job recovery flow'
+    commits:
+    - c9f192106
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: sanitize task tool schemas'
+    commits:
+    - bd20d084c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: preserve task tool names'
+    commits:
+    - c5f19ed8a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: preserve task capability in ai ask schema'
+    commits:
+    - f8b8093d5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: preserve task capability through saved-chat preflight'
+    commits:
+    - 15bceb1e7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: trust sealed CLI recovery payload'
+    commits:
+    - c510b8443
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: add task main-processor tools'
+    commits:
+    - d62ae8800
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: guard network status listeners in tests'
+    commits:
+    - 95d6143af
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: instrument task update websocket handlers'
+    commits:
+    - e2351a91f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: enforce EU Stripe threshold only in production'
+    commits:
+    - b54f75d4d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: stabilize chat recovery e2e specs'
+    commits:
+    - 1e0ca3217
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: preserve chat key wrappers during AI metadata updates'
+    commits:
+    - 96c7a0776
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: complete Tasks V1 CLI runtime contracts'
+    commits:
+    - b80bce5e1
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat: add workflow SDK runtime parity'
+    commits:
+    - eedd200f2
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: target final recovery job discovery'
+    commits:
+    - ce3d0538f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: ba3cd1d1f8d63e58a181de36552e00b544be2b44
+    short_sha: ba3cd1d1f
+    authored_at: '2026-07-14T23:33:27+00:00'
+    subject: 'fix: refresh active header from synced metadata'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: 18286cf53ff1146af926dfef6af6a3f0bf301582
+    short_sha: 18286cf53
+    authored_at: '2026-07-14T23:18:03+00:00'
+    subject: 'fix: persist reserved metadata versions'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/tasks/persistence_tasks.py
+    - backend/tests/test_unified_detail_metadata.py
+    related_feature_ids: []
+  - sha: f7f64ef60183e6ee3cd696ea94b7f92923341ea9
+    short_sha: f7f64ef60
+    authored_at: '2026-07-14T23:01:52+00:00'
+    subject: 'test: hydrate chat before cold boot version check'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/unified-detail-metadata-sync.spec.ts
+    related_feature_ids: []
+  - sha: c1f57382d5d87862bd5e069298e2041affe6b4fd
+    short_sha: c1f57382d
+    authored_at: '2026-07-14T22:48:51+00:00'
+    subject: 'test: rely on visible title convergence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/unified-detail-metadata-sync.spec.ts
+    related_feature_ids: []
+  - sha: 4884fc9db3e1b682ee60d2ce8fd1fae649c0a3db
+    short_sha: 4884fc9db
+    authored_at: '2026-07-14T22:33:32+00:00'
+    subject: 'test: avoid raw title frame race'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/unified-detail-metadata-sync.spec.ts
+    related_feature_ids: []
+  - sha: b23cda15a4bc107c9b217fb36f7007340903c455
+    short_sha: b23cda15a
+    authored_at: '2026-07-14T22:20:22+00:00'
+    subject: 'fix: guard metadata persistence with cache versions'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/tasks/persistence_tasks.py
+    related_feature_ids: []
+  - sha: ddc5b6ca2d070a375c5a9c0cd4fc590aaf01afdc
+    short_sha: ddc5b6ca2
+    authored_at: '2026-07-14T22:17:44+00:00'
+    subject: 'fix: use admin access for task wrappers'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/directus/api_methods.py
+    - backend/core/api/app/services/directus/user_task_methods.py
+    - backend/tests/test_user_tasks_api.py
+    related_feature_ids: []
+  - sha: f75526affbdc6f3588b560c88d6219f3502c6355
+    short_sha: f75526aff
+    authored_at: '2026-07-14T22:13:21+00:00'
+    subject: 'fix: refresh duplicate upload ai metadata'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/upload/routes/upload_route.py
+    - scripts/tests/test_upload_image_contracts.py
+    related_feature_ids: []
+  - sha: 3401bdc7d7f1e6c9b0cd185b820cc77868ea1ca8
+    short_sha: 3401bdc7d
+    authored_at: '2026-07-14T22:06:32+00:00'
+    subject: 'fix: ignore stale active chat metadata'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: 3b41ad682dadb21b043fd5d1d83f7423218b6d91
+    short_sha: 3b41ad682
+    authored_at: '2026-07-14T22:03:54+00:00'
+    subject: 'fix: stabilize task move job lookup'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/task_tool_executor.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/task_update_job_handlers.py
+    - backend/tests/test_task_main_processor_tools.py
+    - backend/tests/test_user_tasks_api.py
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/mentions.ts
+    - frontend/packages/openmates-cli/tests/mentions.test.ts
+    - frontend/packages/openmates-cli/tests/tasks.test.ts
+    - scripts/verify_tasks_main_processor_cli_smoke.py
+    related_feature_ids: []
+  - sha: 5f572bfa71493d2c0ea2050604f84ee0adc94305
+    short_sha: 5f572bfa7
+    authored_at: '2026-07-14T21:52:12+00:00'
+    subject: 'fix: refresh active metadata from peer sync'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts
+    related_feature_ids: []
+  - sha: 216edbc3fcca12375da18ebdda1bf070b274e20b
+    short_sha: 216edbc3f
+    authored_at: '2026-07-14T21:42:40+00:00'
+    subject: 'fix: restore upload SightEngine scanning'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_sightengine_service.py
+    - backend/upload/Dockerfile
+    - backend/upload/routes/upload_route.py
+    - backend/upload/services/sightengine_service.py
+    - frontend/packages/ui/src/components/embeds/images/ImageAuthenticityBadge.svelte
+    - scripts/tests/test_upload_image_contracts.py
+    - scripts/upload-ssh.sh
+    related_feature_ids: []
+  - sha: 3ca3c9dd6f1358fa3342a1249340523c642ed505
+    short_sha: 3ca3c9dd6
+    authored_at: '2026-07-14T21:39:16+00:00'
+    subject: 'fix: resolve uploaded models3d inputs'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/apps_api.py
+    - backend/shared/python_utils/encrypted_embed_images.py
+    - backend/tests/test_apps_api.py
+    - backend/tests/test_encrypted_embed_images.py
+    related_feature_ids: []
+  - sha: 5a523a4aab43fbbd99f24ae2fbd3828a6cdd75b2
+    short_sha: 5a523a4aa
+    authored_at: '2026-07-14T21:36:44+00:00'
+    subject: 'fix: refresh peer chat title metadata'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts
+    - frontend/packages/ui/src/types/chat.ts
+    related_feature_ids: []
+  - sha: f3958ad10f4d4d5362b3e9e971779796aa9f7fa1
+    short_sha: f3958ad10
+    authored_at: '2026-07-14T21:22:50+00:00'
+    subject: 'test: stabilize metadata sync version observation'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/unified-detail-metadata-sync.spec.ts
+    related_feature_ids: []
+  - sha: d5a089857ee68b5f50a1090adb889ed6ab51c322
+    short_sha: d5a089857
+    authored_at: '2026-07-14T20:56:33+00:00'
+    subject: 'docs: record task CLI smoke CI evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/tasks-main-processor-tools/spec.yml
+    related_feature_ids: []
+  - sha: 0a60388dae88a623d4a6197d6e32aefe274ab098
+    short_sha: 0a60388da
+    authored_at: '2026-07-14T20:52:22+00:00'
+    subject: 'test: add task CLI smoke workflow'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .github/workflows/tasks-main-processor-cli-smoke.yml
+    - docs/specs/tasks-main-processor-tools/spec.yml
+    related_feature_ids: []
+  - sha: 7218f0af927e99d731e3f22076cb1523199e3181
+    short_sha: 7218f0af9
+    authored_at: '2026-07-14T20:42:30+00:00'
+    subject: 'fix: broadcast chat title updates'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/title_update_handler.py
+    - backend/tests/test_unified_detail_metadata.py
+    related_feature_ids: []
+  - sha: 931eb1d27526619aecccca7ab7de26b206640298
+    short_sha: 931eb1d27
+    authored_at: '2026-07-14T20:33:34+00:00'
+    subject: 'fix: recover completed task retry events'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/task_tool_executor.py
+    - backend/tests/test_task_main_processor_tools.py
+    related_feature_ids: []
+  - sha: d9c1b63c5d6ffeb38aeefd2e3bf6e705319541ad
+    short_sha: d9c1b63c5
+    authored_at: '2026-07-14T20:29:43+00:00'
+    subject: 'test: refresh task smoke chat state'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - scripts/verify_tasks_main_processor_cli_smoke.py
+    related_feature_ids: []
+  - sha: 10ecaf4395e93ca3ee09907660fa09c3eb630421
+    short_sha: 10ecaf439
+    authored_at: '2026-07-14T20:25:37+00:00'
+    subject: 'fix: restore live chat title sync'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/unified-detail-metadata-sync.spec.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    related_feature_ids: []
+  - sha: b594be9b72e4120f9b9d35e2041d8961c9863759
+    short_sha: b594be9b7
+    authored_at: '2026-07-14T19:58:23+00:00'
+    subject: 'fix: tolerate repeated task retry versions'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/task_tool_executor.py
+    - backend/tests/test_task_main_processor_tools.py
+    related_feature_ids: []
+  - sha: 0fadde3c096c342cb0d806e35d68e41530707aee
+    short_sha: 0fadde3c0
+    authored_at: '2026-07-14T19:49:46+00:00'
+    subject: 'fix: stabilize task tool retry events'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/task_tool_executor.py
+    - backend/tests/test_task_main_processor_tools.py
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/openmates-cli/tests/ws.test.ts
+    - scripts/verify_tasks_main_processor_cli_smoke.py
+    related_feature_ids: []
+  - sha: a0a199a47eaf614a9ffe21947ed76e5a0a22defc
+    short_sha: a0a199a47
+    authored_at: '2026-07-14T19:31:57+00:00'
+    subject: 'fix: complete task smoke recovery races'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/task_update_job_handlers.py
+    - backend/tests/test_task_update_jobs.py
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/openmates-cli/tests/ws.test.ts
+    related_feature_ids: []
+  - sha: 50bc3cb113f82906e11fd50831f6b093d0e12525
+    short_sha: 50bc3cb11
+    authored_at: '2026-07-14T18:47:28+00:00'
+    subject: 'fix: ignore unrelated ws turn errors'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/openmates-cli/tests/ws.test.ts
+    related_feature_ids: []
+  - sha: d7dd37d418e49692b919330066a5d08609ae049c
+    short_sha: d7dd37d41
+    authored_at: '2026-07-14T18:40:58+00:00'
+    subject: 'fix: expose task job rejection reasons'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/task_update_job_handlers.py
+    - backend/tests/test_task_update_jobs.py
+    related_feature_ids: []
+  - sha: 561d49ebfd115199bdfe4d2aa7f52fa25ab8a99f
+    short_sha: 561d49ebf
+    authored_at: '2026-07-14T18:36:44+00:00'
+    subject: 'chore: log task job rejection reason'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/task_update_job_handlers.py
+    related_feature_ids: []
+  - sha: 50408662942caf8d0c2819838b2bb685a66ea0f4
+    short_sha: '504086629'
+    authored_at: '2026-07-14T18:32:33+00:00'
+    subject: 'fix: resolve bare task ids in task tools'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/task_tool_context.py
+    - backend/tests/test_task_main_processor_tools.py
+    related_feature_ids: []
+  - sha: 6b815ad3e20188114ae7590f1c93acccfc9b2d89
+    short_sha: 6b815ad3e
+    authored_at: '2026-07-14T18:23:24+00:00'
+    subject: 'fix: tolerate formatted task tool args'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/task_tool_executor.py
+    - backend/tests/test_task_main_processor_tools.py
+    - scripts/verify_tasks_main_processor_cli_smoke.py
+    related_feature_ids: []
+  - sha: f0d416b6eef36d8b506f71aa8670763bd4127537
+    short_sha: f0d416b6e
+    authored_at: '2026-07-14T18:16:40+00:00'
+    subject: 'fix: treat matching task retries as noops'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/task_tool_executor.py
+    - backend/tests/test_task_main_processor_tools.py
+    - scripts/verify_tasks_main_processor_cli_smoke.py
+    related_feature_ids: []
+  - sha: bb007713d6af8e681a2786a7863fc71b89627183
+    short_sha: bb007713d
+    authored_at: '2026-07-14T17:57:47+00:00'
+    subject: 'fix: ignore repeated task tool retries'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/task_tool_executor.py
+    - backend/tests/test_task_main_processor_tools.py
+    - scripts/verify_tasks_main_processor_cli_smoke.py
+    related_feature_ids: []
+  - sha: ab635fcf8efdaf0dc17fbe51117abee0eec88b3b
+    short_sha: ab635fcf8
+    authored_at: '2026-07-14T17:42:57+00:00'
+    subject: 'fix: allow encrypted task retry ciphertext drift'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/task_update_job_handlers.py
+    - backend/tests/test_task_update_jobs.py
+    related_feature_ids: []
+  - sha: 017f3feb65a5c8c4cfa0e9021de3a0fe08661f97
+    short_sha: 017f3feb6
+    authored_at: '2026-07-14T17:39:14+00:00'
+    subject: 'fix: recover task job persistence retries'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/task_update_job_handlers.py
+    - backend/tests/test_task_update_jobs.py
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/openmates-cli/tests/ws.test.ts
+    related_feature_ids: []
+  - sha: 6054ff08d6c8adea80097191086c402d8ac600c8
+    short_sha: 6054ff08d
+    authored_at: '2026-07-14T17:18:48+00:00'
+    subject: 'fix: ignore unmatched task update jobs'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    related_feature_ids: []
+  - sha: 3e9b293e8aeec02098114e5f61bbb2c2350c91af
+    short_sha: 3e9b293e8
+    authored_at: '2026-07-14T16:57:55+00:00'
+    subject: 'fix: prevent false chat sync readiness'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersCoreSync.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    related_feature_ids: []
+  - sha: 960c15b5687649bcd6915ba2494f701b309c120e
+    short_sha: 960c15b56
+    authored_at: '2026-07-14T16:57:26+00:00'
+    subject: 'fix: sequence task update jobs'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/task_tool_context.py
+    - backend/apps/ai/processing/task_tool_executor.py
+    - backend/tests/test_task_main_processor_tools.py
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    related_feature_ids: []
+  - sha: c9f19210678d7ed586dc7b6422e3f9e3df705f61
+    short_sha: c9f192106
+    authored_at: '2026-07-14T16:41:01+00:00'
+    subject: 'fix: complete task job recovery flow'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/llm_providers/google_client.py
+    - backend/shared/python_utils/thought_signature.py
+    - backend/tests/test_task_main_processor_tools.py
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    related_feature_ids: []
+  - sha: bd20d084caf2224d2b62565858dca8372f63ff42
+    short_sha: bd20d084c
+    authored_at: '2026-07-14T16:31:18+00:00'
+    subject: 'fix: sanitize task tool schemas'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/llm_providers/openai_shared.py
+    - backend/tests/test_task_main_processor_tools.py
+    related_feature_ids: []
+  - sha: c5f19ed8a795ecbeb551a8f75e608d1ce970784d
+    short_sha: c5f19ed8a
+    authored_at: '2026-07-14T16:26:51+00:00'
+    subject: 'fix: preserve task tool names'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/task_tool_executor.py
+    - backend/tests/test_task_main_processor_tools.py
+    related_feature_ids: []
+  - sha: f8b8093d54fae68c597be0e601f8bf47fbfa21c7
+    short_sha: f8b8093d5
+    authored_at: '2026-07-14T16:20:14+00:00'
+    subject: 'fix: preserve task capability in ai ask schema'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/skills/ask_skill.py
+    related_feature_ids: []
+  - sha: 15bceb1e76655fa78962d6551178bb8922ac3b8b
+    short_sha: 15bceb1e7
+    authored_at: '2026-07-14T16:13:03+00:00'
+    subject: 'fix: preserve task capability through saved-chat preflight'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/chat_turn_preflight_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/tests/test_chat_turn_preflight_handler.py
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - scripts/verify_tasks_main_processor_cli_smoke.py
+    related_feature_ids: []
+  - sha: c510b8443f356f2f02d05b2c3e39f4974b05e335
+    short_sha: c510b8443
+    authored_at: '2026-07-14T16:00:45+00:00'
+    subject: 'fix: trust sealed CLI recovery payload'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    related_feature_ids: []
+  - sha: d62ae8800cd8a2a3d86e5deac78d121e95578457
+    short_sha: d62ae8800
+    authored_at: '2026-07-14T15:52:42+00:00'
+    subject: 'feat: add task main-processor tools'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/task_runtime_tools.py
+    - backend/apps/ai/processing/task_tool_context.py
+    - backend/apps/ai/processing/task_tool_executor.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/core/api/app/routes/connection_manager.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/system_message_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/task_update_job_handlers.py
+    - backend/core/api/app/routes/user_tasks.py
+    - backend/core/api/app/schemas/ai_skill_schemas.py
+    - backend/core/api/app/services/directus/directus.py
+    - backend/core/api/app/services/directus/user_task_methods.py
+    - backend/core/api/app/services/user_task_queue_service.py
+    - backend/core/api/app/services/user_task_scheduler_service.py
+    - backend/core/api/app/services/user_task_service.py
+    - backend/core/api/app/services/user_task_update_job_service.py
+    - backend/core/api/app/services/user_task_working_copy_service.py
+    - backend/tests/test_task_main_processor_tools.py
+    - backend/tests/test_task_mentions_and_chat_ownership.py
+    - backend/tests/test_task_update_jobs.py
+    - backend/tests/test_task_working_copy_privacy.py
+    - backend/tests/test_user_task_runtime_tools.py
+    - backend/tests/test_user_tasks_api.py
+    - backend/tests/test_user_tasks_scheduler.py
+    - docs/specs/tasks-main-processor-tools/spec.yml
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/src/tasksCli.ts
+    - frontend/packages/openmates-cli/src/tui.ts
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - frontend/packages/openmates-cli/tests/tasks.test.ts
+    - frontend/packages/openmates-cli/tests/ws.test.ts
+    - frontend/packages/ui/src/services/userTaskService.ts
+    - scripts/verify_tasks_main_processor_cli_smoke.py
+    related_feature_ids:
+    - platform:tasks
+  - sha: 9f6c7b35980b61446458aca13c12bb877e296385
+    short_sha: 9f6c7b359
+    authored_at: '2026-07-14T14:22:09+00:00'
+    subject: 'test: support password-only account provisioning'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/create-test-account.spec.ts
+    related_feature_ids: []
+  - sha: 3ef7dfa79038782f68a5374d6f924c101e7f3c4e
+    short_sha: 3ef7dfa79
+    authored_at: '2026-07-14T14:03:58+00:00'
+    subject: 'test: update account provisioning secrets'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .github/workflows/playwright-spec.yml
+    - backend/core/api/app/routes/websockets.py
+    - frontend/apps/web_app/tests/create-test-account.spec.ts
+    related_feature_ids: []
+  - sha: 95d6143af0d034f00343b371b7d0d8695c61188c
+    short_sha: 95d6143af
+    authored_at: '2026-07-14T13:50:43+00:00'
+    subject: 'fix: guard network status listeners in tests'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/task_update_job_handlers.py
+    - frontend/packages/ui/src/stores/networkStatusStore.ts
+    related_feature_ids: []
+  - sha: 4cbc373b49007f36e424b750dd95518615b70280
+    short_sha: 4cbc373b4
+    authored_at: '2026-07-14T13:23:19+00:00'
+    subject: 'fix: add models3d translations'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/i18n/sources/app_skills/models3d.yml
+    - frontend/packages/ui/src/i18n/sources/apps.yml
+    related_feature_ids: []
+  - sha: e2351a91f4a3290a98694f1e36ca5c4a0b68b9af
+    short_sha: e2351a91f
+    authored_at: '2026-07-14T13:20:22+00:00'
+    subject: 'fix: instrument task update websocket handlers'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/task_update_job_handlers.py
+    related_feature_ids: []
+  - sha: a24408c3855ad16b0ac7d9863118b6ef48e3be25
+    short_sha: a24408c38
+    authored_at: '2026-07-14T13:18:59+00:00'
+    subject: 'test: include workflow trigger owner fixture'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_workflow_trigger_persistence.py
+    related_feature_ids: []
+  - sha: b54f75d4d8338bf00c8f51845b6d59dfe2c09e7d
+    short_sha: b54f75d4d
+    authored_at: '2026-07-14T13:08:21+00:00'
+    subject: 'fix: enforce EU Stripe threshold only in production'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/payments.py
+    - backend/core/api/app/utils/payment_environment.py
+    - backend/tests/test_payment_eu_threshold_guard.py
+    related_feature_ids: []
+  - sha: 9bc0706aa3f796704b13fbc2a3065feabbe3f8b9
+    short_sha: 9bc0706aa
+    authored_at: '2026-07-14T12:51:36+00:00'
+    subject: 'test: narrow dev signup cleanup candidates'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/cleanup_dev_signup_accounts.py
+    - scripts/tests/test_cleanup_dev_signup_accounts.py
+    related_feature_ids: []
+  - sha: beb2736fa3a36f0107a18bde4a207b917579cc01
+    short_sha: beb2736fa
+    authored_at: '2026-07-14T12:36:26+00:00'
+    subject: 'test: authenticate failed signup cleanup with e2e secret'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/auth_routes/auth_invite.py
+    - backend/tests/test_auth_endpoints.py
+    related_feature_ids: []
+  - sha: 3b419958af2fc45adb5a1a57a7ae6ea5c8e42529
+    short_sha: 3b419958a
+    authored_at: '2026-07-14T12:31:55+00:00'
+    subject: 'test: satisfy playwright hook fixture syntax'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/referral-signup-purchase.spec.ts
+    related_feature_ids: []
+  - sha: d3a485da166aea8ae56b61b144488dd976b8632e
+    short_sha: d3a485da1
+    authored_at: '2026-07-14T12:22:39+00:00'
+    subject: 'test: clean failed signup e2e accounts'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .github/workflows/playwright-spec.yml
+    - backend/core/api/app/routes/auth_routes/auth_invite.py
+    - backend/core/api/app/schemas/auth.py
+    - backend/tests/test_auth_endpoints.py
+    - frontend/apps/web_app/tests/referral-signup-purchase.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-helpers.ts
+    - frontend/apps/web_app/tests/signup-flow-passkey.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-stripe-eu.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-stripe-managed.spec.ts
+    - frontend/apps/web_app/tests/signup-skip-2fa-flow.spec.ts
+    - scripts/cleanup_dev_signup_accounts.py
+    - scripts/tests/test_cleanup_dev_signup_accounts.py
+    - scripts/tests/test_playwright_workflow_timeout.py
+    related_feature_ids: []
+  - sha: a0ec7f387b8152116983c623047474b532111d45
+    short_sha: a0ec7f387
+    authored_at: '2026-07-14T11:05:26+00:00'
+    subject: 'test: restore signup invite preflight'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .github/workflows/playwright-spec.yml
+    - backend/core/api/app/routes/auth_routes/auth_invite.py
+    - backend/core/api/app/schemas/auth.py
+    - backend/core/api/app/services/directus/invite_methods.py
+    - backend/core/api/app/utils/invite_code.py
+    - backend/tests/test_auth_endpoints.py
+    - scripts/tests/test_playwright_workflow_timeout.py
+    related_feature_ids: []
+  - sha: 8c48387f45384610fc7fe7e10ce4ceec84f54d17
+    short_sha: 8c48387f4
+    authored_at: '2026-07-14T10:39:20+00:00'
+    subject: 'test: restore signup invite e2e flows'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .github/workflows/playwright-spec.yml
+    - frontend/apps/web_app/tests/referral-signup-purchase.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-helpers.ts
+    - frontend/apps/web_app/tests/signup-flow-passkey.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-stripe-eu.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-stripe-managed.spec.ts
+    - frontend/apps/web_app/tests/signup-free-testing-credits.spec.ts
+    - frontend/apps/web_app/tests/signup-skip-2fa-flow.spec.ts
+    - scripts/tests/test_playwright_workflow_timeout.py
+    related_feature_ids: []
+  - sha: 1e0ca3217d5c6ab9e73d8c42b375dfdd29109a43
+    short_sha: 1e0ca3217
+    authored_at: '2026-07-14T08:57:08+00:00'
+    subject: 'fix: stabilize chat recovery e2e specs'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/websockets.py
+    - backend/tests/test_chat_recovery_lifecycle_wiring.py
+    - frontend/apps/web_app/tests/multi-session-encryption.spec.ts
+    - frontend/apps/web_app/tests/startup-sync-contract.spec.ts
+    related_feature_ids: []
+  - sha: d990a60728917cc1b5c2055eedbdc7ca796f8f6a
+    short_sha: d990a6072
+    authored_at: '2026-07-14T08:55:07+00:00'
+    subject: 'test: add CLI AI task-flow smoke coverage'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/openmates-cli/tests/ws.test.ts
+    - scripts/verify_tasks_ai_chat_cli_smoke.py
+    related_feature_ids: []
+  - sha: 164a5138ca9db9264dcbc84e595844d8f0fa2ffb
+    short_sha: 164a5138c
+    authored_at: '2026-07-14T08:36:26+00:00'
+    subject: 'fix: advertise only pending workflow chat deliveries'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/workflow_chat_delivery_service.py
+    - backend/tests/test_workflow_chat_delivery.py
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAppSettings.ts
+    related_feature_ids:
+    - platform:workflows
+  - sha: 96c7a0776e0cfc5cce977bfdce281f51b604eb4b
+    short_sha: 96c7a0776
+    authored_at: '2026-07-14T08:01:29+00:00'
+    subject: 'fix: preserve chat key wrappers during AI metadata updates'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/chat_recovery_job_handlers.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/chat_turn_preflight_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/workflow_chat_delivery_handlers.py
+    - backend/core/api/app/routes/websockets.py
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - frontend/packages/ui/src/types/chat.ts
+    related_feature_ids: []
+  - sha: 29a42c328d0925eae908340ae932ae4db143b408
+    short_sha: 29a42c328
+    authored_at: '2026-07-14T07:43:57+00:00'
+    subject: 'test: fix npm publish e2e provisioning gate'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/openmates-cli/tests/e2e-provisioning.test.ts
+    related_feature_ids: []
+  - sha: b80bce5e17ca69c3b5238ecc5e01d24c12a9c449
+    short_sha: b80bce5e1
+    authored_at: '2026-07-14T07:37:21+00:00'
+    subject: 'feat: complete Tasks V1 CLI runtime contracts'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/config/backend_config.yml
+    - backend/core/api/app/routes/share.py
+    - backend/core/api/app/routes/user_tasks.py
+    - backend/core/api/app/services/directus/user_task_methods.py
+    - backend/core/api/app/services/user_task_queue_service.py
+    - backend/core/api/app/services/user_task_share_bundle.py
+    - backend/core/api/app/services/workflow_task_projection_service.py
+    - backend/core/directus/schemas/user_tasks.yml
+    - backend/tests/test_task_view_workflow_runs.py
+    - backend/tests/test_user_task_runtime_tools.py
+    - backend/tests/test_user_tasks_api.py
+    - backend/tests/test_user_tasks_share_bundle.py
+    - docs/architecture/platforms/tasks-v1.md
+    - docs/specs/tasks-v1/spec.yml
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/tasksCli.ts
+    - frontend/packages/openmates-cli/src/tui.ts
+    - frontend/packages/openmates-cli/src/tuiRenderer.ts
+    - frontend/packages/openmates-cli/tests/tui.test.ts
+    - scripts/verify_tasks_cli_smoke.py
+    related_feature_ids:
+    - platform:tasks
+    - platform:workflows
+  - sha: 06a4dc5464e9575273fb437ef863db5074f34e66
+    short_sha: 06a4dc546
+    authored_at: '2026-07-14T07:27:13+00:00'
+    subject: 'docs: record workflow SDK parity evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/workflows-sdk-runtime/spec.yml
+    related_feature_ids: []
+  - sha: eedd200f26e2bffcd2c793ba0b5c725fd47e4f9d
+    short_sha: eedd200f2
+    authored_at: '2026-07-14T07:25:29+00:00'
+    subject: 'feat: add workflow SDK runtime parity'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/workflows-sdk-runtime/spec.yml
+    - docs/user-guide/developers/sdk.md
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/tests/sdk-workflows.test.ts
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/tests/test_workflows.py
+    - scripts/audit_sdk_cli_parity.py
+    related_feature_ids: []
+  - sha: bb87b6bd37e2e2327ca40e5eadb0f4e4af590a44
+    short_sha: bb87b6bd3
+    authored_at: '2026-07-14T01:10:00+00:00'
+    subject: 'docs: record web recovery green evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/cross-device-chat-completion-recovery/spec.yml
+    related_feature_ids: []
+  - sha: 2b609915261bc5f2caa2318dbf02c460b12b30a4
+    short_sha: 2b6099152
+    authored_at: '2026-07-14T00:53:58+00:00'
+    subject: 'fix: retain owner on synced chat shells'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersChatUpdates.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts
+    related_feature_ids: []
+  - sha: ce3d0538f4b09812567d6aa0271155782730d8bf
+    short_sha: ce3d0538f
+    authored_at: '2026-07-14T00:10:56+00:00'
+    subject: 'fix: target final recovery job discovery'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/testing/mock_replay.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/tests/test_chat_recovery_lifecycle_wiring.py
+    - backend/tests/test_mock_replay.py
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates focused on stabilizing chat metadata synchronization and expanding the infrastructure for the Task CLI.
+    Significant work was also completed on media upload scanning, 3D model skill inputs, and refining payment environment
+    logic.
+  released_changes: []
+  bug_fixes:
+  - text: Chat interface stability improved with more reliable header and title synchronization from peer metadata.
+    evidence:
+      commits:
+      - ba3cd1d1f
+      - 5f572bfa7
+      - 7218f0af9
+      - 10ecaf439
+    release_status: dev_only
+  - text: Media upload processing restored SightEngine scanning and introduced authenticity badges for images.
+    evidence:
+      commits:
+      - 216edbc3f
+    release_status: dev_only
+  - text: The 3D models skill resolved issues with uploaded inputs and added missing localized translations.
+    evidence:
+      commits:
+      - 3ca3c9dd6
+      - 4cbc373b4
+    release_status: dev_only
+  - text: Payment logic updated to ensure EU Stripe thresholds are only enforced in production environments.
+    evidence:
+      commits:
+      - b54f75d4d
+    release_status: dev_only
+  unreleased_progress:
+  - text: Tasks V1 CLI received new main-processor tools and runtime contracts to support advanced task management.
+    evidence:
+      commits:
+      - d62ae8800
+      - b80bce5e1
+    release_status: dev_only
+  - text: Workflow SDK achieved runtime parity across platforms to ensure consistent developer experiences.
+    evidence:
+      commits:
+      - eedd200f2
+    release_status: dev_only
+  - text: Task processing logic enhanced with improved retry event handling and job persistence recovery.
+    evidence:
+      commits:
+      - 931eb1d27
+      - 0fadde3c0
+      - 017f3feb6
+    release_status: dev_only
+  internal_progress:
+  - text: Expanded E2E test coverage for account provisioning, signup flows, and chat recovery lifecycles.
+    evidence:
+      commits:
+      - 9f6c7b359
+      - d3a485da1
+      - 1e0ca3217
+    release_status: dev_only
+  - text: Added automated smoke tests for Task CLI operations and AI-driven task flows.
+    evidence:
+      commits:
+      - 0a60388da
+      - d990a6072
+    release_status: dev_only
+  newsletter_recommendation:
+    include: []
+    exclude:
+    - text: Tasks V1 CLI infrastructure and runtime contracts.
+      evidence:
+        commits:
+        - d62ae8800
+        - b80bce5e1
+      reason: Task management features are currently disabled and in development.
+    - text: Workflow SDK runtime parity.
+      evidence:
+        commits:
+        - eedd200f2
+      reason: Workflow SDK parity is currently dev-only.
+    rationale: No items from this period have been released to the main branch or marked as ready for public communication.
+  social_video_recommendations:
+  - idea: Demonstrate the improved 3D model upload and processing flow.
+    priority: medium
+    reason: Visual updates to 3D model handling provide a clear product story for developers and early testers.
+    evidence:
+      commits:
+      - 3ca3c9dd6
+  quality_notes:
+  - Extensive bug fixes for task processing retries and job recovery indicate a focus on backend reliability.
+  - Chat synchronization fixes address potential race conditions in multi-device metadata updates.
+  validation_warnings: []

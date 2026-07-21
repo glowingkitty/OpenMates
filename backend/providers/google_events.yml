@@ -11,6 +11,13 @@ region: "US"
 privacy_policy: "https://policies.google.com/privacy"
 
 no_api_key: false
+required_keys:
+  - env_key: "SECRET__SERPAPI__API_KEY"
+    vault_path: "kv/data/providers/serpapi"
+    vault_key: "api_key"
+    description: "SerpAPI key used for Google Events result retrieval."
+    setup_url: "https://serpapi.com/manage-api-key"
+    docs_url: "https://serpapi.com/google-events-api"
 
 pricing:
   per_request_credits: 5

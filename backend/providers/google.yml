@@ -8,6 +8,23 @@ description: "AI models and services from Google."
 logo_svg: "logos/google.svg" # Path for UI, relative to a common logos directory
 privacy_policy: "https://privacy.google.com/"
 
+required_keys:
+  - env_key: "SECRET__GOOGLE_AI_STUDIO__API_KEY"
+    vault_path: "kv/data/providers/google_ai_studio"
+    vault_key: "api_key"
+    description: "Google AI Studio API key for Gemini image, video, and model APIs."
+    setup_url: "https://ai.google.dev/gemini-api/docs/api-key"
+    docs_url: "https://ai.google.dev/gemini-api/docs/api-key"
+optional_keys:
+  - env_key: "GOOGLE_VERTEX_PROJECT_ID"
+    vault_path: "kv/data/providers/google"
+    vault_key: "project_id"
+    description: "Optional Google Vertex AI project ID for Vertex-hosted models."
+  - env_key: "GOOGLE_VERTEX_SERVICE_ACCOUNT_JSON"
+    vault_path: "kv/data/providers/google"
+    vault_key: "service_account_json"
+    description: "Optional Google Vertex AI service-account JSON for Vertex-hosted models."
+
 models:
   - id: "gemma-4-31b"
     name: "Gemma 4 31B"

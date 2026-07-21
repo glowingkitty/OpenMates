@@ -245,7 +245,7 @@ def test_daily_llm_source_includes_disabled_feature_context() -> None:
     source = build_daily_llm_source(artifact)
     disabled_ids = {feature["id"] for feature in source["feature_availability"]["disabled_features"]}
 
-    assert {"platform:workflows", "platform:projects", "platform:tasks", "platform:plans"} <= disabled_ids
+    assert {"platform:workflows", "platform:projects", "platform:tasks", "platform:plans", "platform:teams"} <= disabled_ids
     assert {"platform:ios", "platform:macos", "platform:apple-watch"} <= disabled_ids
 
 
@@ -254,7 +254,7 @@ def test_llm_prompt_requires_neutral_authorship_and_disabled_feature_exclusions(
 
     assert 'Do not write "the team", "we", "our team"' in prompt
     assert "feature_availability.disabled_features" in prompt
-    assert "Workflows, projects, tasks, plans, iOS, macOS, and Apple Watch are unreleased" in prompt
+    assert "Workflows, projects, tasks, plans, teams, iOS, macOS, and Apple Watch are unreleased" in prompt
     assert "For weekly summaries, be more extensive" in prompt
 
 

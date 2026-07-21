@@ -116,7 +116,19 @@ Starts all Docker containers for the backend and web app. The web app is availab
 
 The `--with-overrides` flag includes admin UIs such as Directus CMS and Grafana defined in `docker-compose.override.yml`.
 
-If the `.env` file has no real LLM provider API key, startup continues with a warning. Empty, commented, non-model provider, or `IMPORTED_TO_VAULT` values do not count as configured AI model keys. Add a real key and run `openmates server restart` to enable AI chat/model processing.
+If the `.env` file has no real LLM provider API key, startup continues with a warning. Empty, commented, non-model provider, or `IMPORTED_TO_VAULT` values do not count as configured AI model keys. Add a real key and run `openmates server restart` to enable AI chat/model processing. Provider-backed features that require a missing API key are hidden or disabled by default until the key is configured.
+
+Manage the canonical runtime `.env` through the CLI instead of editing the full file by hand:
+
+```
+openmates server env list providers
+openmates server env set SECRET__BRAVE__API_KEY
+openmates server env unset SECRET__BRAVE__API_KEY --yes
+openmates server env check
+openmates server env doctor
+```
+
+The CLI redacts secret values in output, writes `.env` with restricted permissions, and creates a backup before changes. Docker and the CLI use one runtime `.env`; provider setup guidance should come from provider metadata rather than extra env files.
 
 Alternatively, self-hosted servers can add a local Ollama, LM Studio, or custom OpenAI-compatible model:
 

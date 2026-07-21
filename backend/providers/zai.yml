@@ -8,6 +8,16 @@ description: "Z.ai - GLM large language models"
 logo_svg: "logos/zai.svg"
 privacy_policy: "https://docs.z.ai/legal-agreement/privacy-policy"
 
+optional_keys:
+  - env_key: "SECRET__CEREBRAS__API_KEY"
+    vault_path: "kv/data/providers/cerebras"
+    vault_key: "api_key"
+    description: "Optional Cerebras gateway key for GLM model hosting."
+  - env_key: "SECRET__OPENROUTER__API_KEY"
+    vault_path: "kv/data/providers/openrouter"
+    vault_key: "api_key"
+    description: "Optional OpenRouter fallback key for GLM model hosting."
+
 models:
   - id: "zai-glm-5.2"
     name: "GLM 5.2"

@@ -9,6 +9,15 @@ name: Hi3D
 description: AI image-to-3D generation with textured GLB output.
 logo_svg: icons/hi3d.svg
 privacy_policy: https://docs.hi3d.ai/en/api/resources/privacy-policy # verified 2026-07-11
+required_keys:
+  - env_key: "SECRET__HI3D__ACCESS_KEY"
+    vault_path: "kv/data/providers/hi3d"
+    vault_key: "access_key"
+    description: "Hi3D access key for image-to-3D generation."
+  - env_key: "SECRET__HI3D__SECRET_KEY"
+    vault_path: "kv/data/providers/hi3d"
+    vault_key: "secret_key"
+    description: "Hi3D secret key for image-to-3D generation."
 requires_training_disclosure: true
 
 models:

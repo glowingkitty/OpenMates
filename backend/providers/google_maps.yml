@@ -10,6 +10,14 @@ logo_svg: "logos/google.svg" # Path for UI, relative to a common logos directory
 region: "US" # Google Maps Platform HQ is in the US
 privacy_policy: "https://privacy.google.com/"
 
+required_keys:
+  - env_key: "SECRET__GOOGLE_MAPS__API_KEY"
+    vault_path: "kv/data/providers/google_maps"
+    vault_key: "api_key"
+    description: "Google Maps Platform API key for Places and Static Maps."
+    setup_url: "https://console.cloud.google.com/apis/credentials"
+    docs_url: "https://developers.google.com/maps/documentation/places/web-service/get-api-key"
+
 # API endpoint configuration
 api_base_url: "https://places.googleapis.com/v1"
 

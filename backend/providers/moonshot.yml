@@ -8,6 +8,16 @@ description: "Moonshot AI - Kimi multimodal thinking and agent models"
 logo_svg: "logos/moonshot.svg"
 privacy_policy: "https://platform.kimi.ai/docs/agreement/userprivacy"
 
+optional_keys:
+  - env_key: "SECRET__TOGETHER__API_KEY"
+    vault_path: "kv/data/providers/together"
+    vault_key: "api_key"
+    description: "Optional Together AI gateway key for Kimi model hosting."
+  - env_key: "SECRET__OPENROUTER__API_KEY"
+    vault_path: "kv/data/providers/openrouter"
+    vault_key: "api_key"
+    description: "Optional OpenRouter fallback key for Kimi model hosting."
+
 models:
   - id: "kimi-k2.6"
     name: "Kimi K2.6"

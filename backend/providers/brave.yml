@@ -10,6 +10,20 @@ logo_svg: "logos/brave.svg" # Path for UI, relative to a common logos directory
 region: "US" # Brave Search HQ is in San Francisco, US
 privacy_policy: "https://brave.com/privacy/browser/"
 
+required_keys:
+  - env_key: "SECRET__BRAVE__API_KEY"
+    vault_path: "kv/data/providers/brave"
+    vault_key: "api_key"
+    description: "Brave Search API key for web, news, image, and video search."
+    setup_url: "https://api-dashboard.search.brave.com/app/keys"
+    docs_url: "https://api-dashboard.search.brave.com/app/documentation/web-search/get-started"
+optional_keys:
+  - env_key: "SECRET__BRAVE__PRO_API_KEY"
+    vault_path: "kv/data/providers/brave"
+    vault_key: "pro_api_key"
+    description: "Paid fallback Brave Search API key used after free/default quota exhaustion."
+    setup_url: "https://api-dashboard.search.brave.com/app/keys"
+
 # API endpoint configuration
 api_base_url: "https://api.search.brave.com/res/v1"
 

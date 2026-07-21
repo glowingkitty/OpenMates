@@ -149,6 +149,11 @@ FEATURE_PATH_MAP = {
         "frontend/packages/ui/src/components/tasks/",
         "frontend/packages/ui/src/services/userTaskService.ts",
     ),
+    "platform:teams": (
+        "backend/core/api/app/routes/teams.py",
+        "backend/core/api/app/services/team_",
+        "backend/core/directus/schemas/teams.yml",
+    ),
     "platform:workflows": (
         "backend/apps/workflows/",
         "backend/core/api/app/routes/workflows.py",
@@ -164,6 +169,7 @@ FEATURE_SUBJECT_HINTS = {
     "platform:plans": ("user plan", "user plans", "planning workspace"),
     "platform:projects": ("project workspace", "projects workspace", "project browser", "remote source"),
     "platform:tasks": ("task workspace", "tasks workspace", "task board", "user task", "user tasks"),
+    "platform:teams": ("team workspace", "teams workspace", "team invite", "team member", "team billing"),
     "platform:workflows": ("(workflows)", "workflow input", "workflows input", "workflow workspace", "workflows workspace"),
 }
 
@@ -517,6 +523,19 @@ def load_backend_config() -> dict[str, Any]:
     return payload
 
 
+def release_availability_config() -> dict[str, Any]:
+    """Return feature config for public release communication.
+
+    Release summaries must fail closed: local dev opt-ins for default-disabled
+    features should not make work-in-progress surfaces newsletter-ready.
+    Explicit disabled overrides still matter because they can turn off default-on
+    product areas.
+    """
+
+    overrides = (load_backend_config().get("feature_overrides") or {})
+    return {"feature_overrides": {"disabled": overrides.get("disabled") or []}}
+
+
 def load_feature_availability_service() -> FeatureAvailabilityService:
     definitions = list(PLATFORM_FEATURES)
     apps_dir = REPO_ROOT / "backend" / "apps"
@@ -527,7 +546,7 @@ def load_feature_availability_service() -> FeatureAvailabilityService:
                 continue
             app_id = app_yml_path.parent.name
             definitions.extend(collect_feature_definitions_from_app_config(app_id, raw_config, source=str(app_yml_path.relative_to(REPO_ROOT))))
-    return FeatureAvailabilityService(definitions, load_backend_config())
+    return FeatureAvailabilityService(definitions, release_availability_config())
 
 
 def related_feature_ids_for_paths(paths: list[str]) -> list[str]:
@@ -575,6 +594,7 @@ def disabled_feature_context(service: FeatureAvailabilityService) -> list[dict[s
                 "id": explanation.id,
                 "kind": explanation.kind,
                 "default_enabled": explanation.default_enabled,
+                "effective_enabled": explanation.effective_enabled,
                 "override": explanation.override,
                 "parent_id": explanation.parent_id,
                 "source": explanation.source,
@@ -793,7 +813,7 @@ Rules:
 - Newsletter include items must have communication_status ready_for_public_communication only.
 - Disabled or unreleased features may appear only under unreleased_progress or newsletter exclusions.
 - Treat every feature listed in feature_availability.disabled_features as unreleased unless an input item explicitly has communication_status ready_for_public_communication.
-- Workflows, projects, tasks, plans, iOS, macOS, and Apple Watch are unreleased if listed in disabled_features.
+- Workflows, projects, tasks, plans, teams, iOS, macOS, and Apple Watch are unreleased if listed in disabled_features.
 - Dev-only work may appear only under unreleased_progress or newsletter exclusions.
 - Keep internal/testing/CI details concise unless they affect users.
 - Suggest social/video ideas only when there is a concrete product story to show.

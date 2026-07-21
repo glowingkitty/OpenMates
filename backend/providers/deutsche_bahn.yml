@@ -8,3 +8,4 @@ description: "German railway provider for train schedules, fares, and connection
 logo_svg: "logos/deutsche_bahn.svg"
 region: "EU"
 privacy_policy: "https://int.bahn.de/en/privacy"
+no_api_key: true

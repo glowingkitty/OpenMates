@@ -8,6 +8,14 @@ description: "AI models and services from Mistral AI."
 logo_svg: "logos/mistral.svg" # Path for UI, relative to logos directory
 privacy_policy: "https://legal.mistral.ai/terms/privacy-policy" # verified 2026-05-24
 
+required_keys:
+  - env_key: "SECRET__MISTRAL_AI__API_KEY"
+    vault_path: "kv/data/providers/mistral_ai"
+    vault_key: "api_key"
+    description: "Mistral AI API key for Mistral-hosted models."
+    setup_url: "https://console.mistral.ai/api-keys/"
+    docs_url: "https://docs.mistral.ai/getting-started/quickstart/"
+
 models:
   - id: "mistral-small-2506" # Official model ID — Mistral Small 3.2 (June 2025 pinned version)
     name: "Mistral Small 3.2"

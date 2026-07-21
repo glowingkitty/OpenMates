@@ -10,6 +10,20 @@ logo_svg: "icons/edamam.png"
 region: "US"
 privacy_policy: "https://www.edamam.com/privacy/"
 
+required_keys:
+  - env_key: "SECRET__EDAMAM__APP_ID"
+    vault_path: "kv/data/providers/edamam"
+    vault_key: "app_id"
+    description: "Edamam application ID for recipe and nutrition APIs."
+    setup_url: "https://developer.edamam.com/"
+    docs_url: "https://developer.edamam.com/edamam-docs-recipe-api"
+  - env_key: "SECRET__EDAMAM__APP_KEY"
+    vault_path: "kv/data/providers/edamam"
+    vault_key: "app_key"
+    description: "Edamam application key for recipe and nutrition APIs."
+    setup_url: "https://developer.edamam.com/"
+    docs_url: "https://developer.edamam.com/edamam-docs-recipe-api"
+
 
 # API access
 # Recipe Search v2 credentials are stored in Vault under providers/edamam.
