@@ -258,6 +258,19 @@ export interface ConnectedAccountImportResult {
   validation: ConnectedAccountImportValidationResult;
 }
 
+export interface RevolutBusinessSetupExchangeResult {
+  provider_id: "revolut_business";
+  app_id: "finance";
+  environment: "sandbox" | "production";
+  refresh_token_bundle: Record<string, unknown>;
+  account_hint: {
+    label?: string;
+    account_ref?: string;
+    account_count?: number;
+    [key: string]: unknown;
+  };
+}
+
 export type TeamRole = "owner" | "admin" | "member" | "viewer";
 
 export interface TeamRecord {
@@ -3067,7 +3080,22 @@ export class OpenMatesClient {
   }): Promise<ConnectedAccountImportResult> {
     this.requireSession();
     const payload = await decryptConnectedAccountCliTransferPayload(params.encryptedPayload, params.passcode);
-    const validation = await this.validateConnectedAccountImportPayload(payload);
+    return this.importConnectedAccountPayload(payload);
+  }
+
+  async importConnectedAccountPayload(
+    payload: ConnectedAccountCliTransferPayload,
+    options: { skipValidation?: boolean } = {},
+  ): Promise<ConnectedAccountImportResult> {
+    this.requireSession();
+    const validation = options.skipValidation
+      ? {
+          valid: true,
+          provider_id: payload.provider_id,
+          app_id: payload.app_id,
+          checked_at: Math.floor(Date.now() / 1000),
+        }
+      : await this.validateConnectedAccountImportPayload(payload);
     const user = await this.whoAmI();
     const userId = typeof user.id === "string"
       ? user.id
@@ -3090,6 +3118,31 @@ export class OpenMatesClient {
       label: payload.label,
       validation,
     };
+  }
+
+  async exchangeRevolutBusinessSetupCode(params: {
+    clientId: string;
+    code: string;
+    privateKeyPem: string;
+    environment: "sandbox" | "production";
+    redirectUri?: string;
+  }): Promise<RevolutBusinessSetupExchangeResult> {
+    this.requireSession();
+    const response = await this.http.post<RevolutBusinessSetupExchangeResult>(
+      "/v1/connected-accounts/setup/revolut-business/exchange-code",
+      {
+        client_id: params.clientId,
+        code: params.code,
+        private_key_pem: params.privateKeyPem,
+        environment: params.environment,
+        redirect_uri: params.redirectUri,
+      },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || response.data.provider_id !== "revolut_business") {
+      throw new Error(`Revolut Business setup exchange failed (HTTP ${response.status})`);
+    }
+    return response.data;
   }
 
   async validateConnectedAccountImportPayload(

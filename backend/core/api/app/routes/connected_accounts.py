@@ -25,6 +25,12 @@ from backend.core.api.app.services.connected_accounts_service import (
 from backend.core.api.app.models.user import User
 from backend.shared.providers.google_calendar.client import GoogleCalendarClient
 from backend.shared.providers.google_calendar.oauth import exchange_google_refresh_token
+from backend.shared.providers.revolut_business.client import (
+    REVOLUT_BUSINESS_API_BASE_URL,
+    REVOLUT_BUSINESS_SANDBOX_API_BASE_URL,
+    RevolutBusinessClient,
+)
+from backend.shared.providers.revolut_business.oauth import exchange_revolut_business_refresh_token
 
 if TYPE_CHECKING:
     from backend.core.api.app.services.directus.directus import DirectusService
@@ -221,6 +227,8 @@ async def validate_connected_account_import(
 ) -> ConnectedAccountImportValidationResponse:
     """Validate an imported refresh-token envelope without persisting it."""
 
+    if body.provider_id == "revolut_business" and body.app_id == "finance":
+        return await _validate_revolut_business_import(body, current_user)
     if body.provider_id != "google_calendar" or body.app_id not in {"calendar", "google_calendar"}:
         raise HTTPException(status_code=400, detail="Unsupported connected account import provider")
     refresh_token = body.refresh_token_envelope.get("refresh_token")
@@ -256,6 +264,47 @@ async def validate_connected_account_import(
         valid=True,
         provider_id="google_calendar",
         app_id="calendar",
+        checked_at=_sync_version(),
+    )
+
+
+async def _validate_revolut_business_import(
+    body: ConnectedAccountImportValidationRequest,
+    current_user: User,
+) -> ConnectedAccountImportValidationResponse:
+    refresh_token = body.refresh_token_envelope.get("refresh_token")
+    if not isinstance(refresh_token, str) or not refresh_token:
+        raise HTTPException(status_code=400, detail="Token envelope is malformed")
+    environment = "sandbox" if str(body.refresh_token_envelope.get("environment") or "").lower() == "sandbox" else "production"
+
+    try:
+        token_response = await exchange_revolut_business_refresh_token(
+            refresh_token,
+            {
+                "refresh_token_envelope": body.refresh_token_envelope,
+                "connected_account_import_validation": True,
+                "app_id": "finance",
+                "user_id": current_user.id,
+                "capabilities": body.capabilities,
+            },
+        )
+        access_token = token_response.get("access_token")
+        if not access_token:
+            raise RuntimeError("provider token exchange did not return access_token")
+        client = RevolutBusinessClient(
+            access_token=str(access_token),
+            base_url=REVOLUT_BUSINESS_SANDBOX_API_BASE_URL if environment == "sandbox" else REVOLUT_BUSINESS_API_BASE_URL,
+        )
+        await client.list_accounts()
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail="Connected account import validation failed") from exc
+
+    return ConnectedAccountImportValidationResponse(
+        valid=True,
+        provider_id="revolut_business",
+        app_id="finance",
         checked_at=_sync_version(),
     )
 

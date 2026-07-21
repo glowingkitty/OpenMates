@@ -30,15 +30,15 @@ Register the OAuth redirect URI on the app host, not the API host:
 | Sandbox/dev | `https://app.dev.openmates.org/oauth/revolut-business/callback` |
 | Production | `https://openmates.org/oauth/revolut-business/callback` |
 
-After registering the redirect URI and certificate in the Revolut Business Developer Portal, generate the consent URL with:
+The normal setup path is one interactive command:
 
 ```bash
-openmates connect-account revolut-business consent-url --client-id <client-id>
+openmates connect-account revolut-business
 ```
 
-The callback page shows a copyable `openmates connect-account revolut-business exchange-code ...` command for completing the local sandbox token exchange. Use the matching `privatecert.pem` path printed by `openmates connect-account revolut-business`; this is required when the certificate was generated with `--output`.
+After registering the redirect URI, public certificate, and server IP in Revolut, click Revolut's Enable button. The OpenMates callback page shows only the short authorization code; paste that code back into the running OpenMates connection flow. `consent-url` and `exchange-code` remain developer fallbacks, not the normal account-connection path.
 
-Revolut Business also requires the API certificate's `Production IP whitelist` to contain the public egress IP of the OpenMates server that calls Revolut. For OpenMates cloud, use the IP shown by the web setup flow or by:
+Revolut Business also requires the API certificate's `Production IP whitelist` to contain the public egress IP of the OpenMates server that calls Revolut. For OpenMates cloud, use the IP shown by:
 
 ```bash
 openmates connect-account revolut-business

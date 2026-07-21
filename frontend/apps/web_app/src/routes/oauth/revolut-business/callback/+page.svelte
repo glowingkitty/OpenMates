@@ -3,65 +3,24 @@
 
   Purpose: give users a non-broken landing page after Revolut Business consent.
   Architecture: app-domain callback UI for Finance connected-account setup.
-  Security: displays only setup metadata and the short-lived authorization code;
-  account reads are performed by the OpenMates server after setup completes.
+  Security: displays only the short-lived authorization code returned by Revolut;
+  account connection setup continues in the initiating OpenMates client.
   Spec: docs/specs/finance-check-accounts-v1/spec.yml
 -->
 <script lang="ts">
   import { page } from '$app/state';
-  import { onMount } from 'svelte';
-  import { getApiEndpoint } from '@repo/ui';
-
-  const DEFAULT_CLIENT_ID = '';
-  const DEFAULT_PRIVATE_KEY_PATH = '~/.openmates/revolut-business/sandbox/privatecert.pem';
-  const SERVER_EGRESS_IP_PATH = '/v1/connected-accounts/setup/revolut-business/server-egress-ip';
 
   let copied = $state(false);
-  let copiedIp = $state(false);
   let code = $derived(page.url.searchParams.get('code') ?? '');
   let error = $derived(page.url.searchParams.get('error') ?? '');
   let errorDescription = $derived(page.url.searchParams.get('error_description') ?? '');
-  let clientId = $state(DEFAULT_CLIENT_ID);
-  let privateKeyPath = $state(DEFAULT_PRIVATE_KEY_PATH);
-  let serverIps = $state<string[]>([]);
-  let serverIpError = $state('');
-  let exchangeCommand = $derived(
-    clientId.trim()
-      ? `openmates connect-account revolut-business exchange-code --client-id "${clientId.trim()}" --private-key "${privateKeyPath.trim() || DEFAULT_PRIVATE_KEY_PATH}" --code "${page.url.href}"`
-      : 'openmates connect-account revolut-business exchange-code --client-id "<ClientID>" --private-key "' + (privateKeyPath.trim() || DEFAULT_PRIVATE_KEY_PATH) + '" --code "' + page.url.href + '"'
-  );
-  let serverIpText = $derived(serverIps.length > 0 ? serverIps.join(', ') : 'Loading server IP...');
 
-  onMount(async () => {
-    try {
-      const response = await fetch(getApiEndpoint(SERVER_EGRESS_IP_PATH), {
-        headers: { Accept: 'application/json' }
-      });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const payload = await response.json();
-      serverIps = Array.isArray(payload.ip_addresses)
-        ? payload.ip_addresses.filter((value: unknown): value is string => typeof value === 'string' && value.length > 0)
-        : [];
-      if (serverIps.length === 0) serverIpError = 'OpenMates could not detect the server IP automatically.';
-    } catch {
-      serverIpError = 'OpenMates could not detect the server IP automatically.';
-    }
-  });
-
-  async function copyCommand() {
-    await navigator.clipboard.writeText(exchangeCommand);
+  async function copyCode() {
+    if (!code) return;
+    await navigator.clipboard.writeText(code);
     copied = true;
     setTimeout(() => {
       copied = false;
-    }, 2200);
-  }
-
-  async function copyServerIps() {
-    if (serverIps.length === 0) return;
-    await navigator.clipboard.writeText(serverIps.join(', '));
-    copiedIp = true;
-    setTimeout(() => {
-      copiedIp = false;
     }, 2200);
   }
 </script>
@@ -87,64 +46,24 @@
     {:else if code}
       <h1>Revolut Business access approved</h1>
       <p class="lead">
-        Your authorization code is ready. Finish setup in OpenMates after the OpenMates server IP is whitelisted in Revolut.
+        Copy this code, return to OpenMates, and paste it into the connection flow.
       </p>
 
-      <div class="setup-step" data-testid="revolut-server-ip-step">
-        <div>
-          <span class="step-label">Required in Revolut</span>
-          <strong>Production IP whitelist</strong>
-        </div>
-        <div class="ip-row">
-          <code>{serverIpText}</code>
-          <button class="secondary" type="button" onclick={copyServerIps} disabled={serverIps.length === 0} data-testid="copy-revolut-server-ip">
-            {copiedIp ? 'Copied' : 'Copy IP'}
-          </button>
-        </div>
-        <p class="hint">
-          Revolut rejects account reads with HTTP 403 until this OpenMates server IP is added to the certificate whitelist.
-        </p>
-        {#if serverIpError}<p class="warning">{serverIpError}</p>{/if}
+      <div class="code-box" data-testid="revolut-authorization-code">
+        <code>{code}</code>
       </div>
-
-      <label for="client-id">ClientID from Revolut</label>
-      <input
-        id="client-id"
-        bind:value={clientId}
-        placeholder="Paste ClientID"
-        autocomplete="off"
-        spellcheck="false"
-        data-testid="revolut-client-id-input"
-      />
-
-      <label for="private-key-path">Private key path from the OpenMates CLI</label>
-      <input
-        id="private-key-path"
-        bind:value={privateKeyPath}
-        placeholder={DEFAULT_PRIVATE_KEY_PATH}
-        autocomplete="off"
-        spellcheck="false"
-        data-testid="revolut-private-key-path-input"
-      />
-      <p class="hint compact">
-        Use the path printed by the certificate generation command. If you did not pass <code>--output</code>, the default path above is correct.
-      </p>
-
-      <div class="command" data-testid="revolut-exchange-command">
-        <code>{exchangeCommand}</code>
-      </div>
-      <button class="primary" type="button" onclick={copyCommand} data-testid="copy-revolut-command">
-        {copied ? 'Copied' : 'Copy command'}
+      <button class="primary" type="button" onclick={copyCode} data-testid="copy-revolut-code">
+        {copied ? 'Copied' : 'Copy code'}
       </button>
       <p class="hint">
-        This code expires quickly. If it expires, reopen the Revolut consent link from OpenMates and approve access again.
+        This code expires quickly. If it expires, restart the Revolut Business connection flow in OpenMates.
       </p>
     {:else}
       <h1>Missing Revolut authorization code</h1>
       <p class="lead">
         This callback page did not receive a Revolut code. Start the Revolut Business setup again from OpenMates.
       </p>
-      <div class="command"><code>openmates connect-account revolut-business</code></div>
+      <div class="code-box"><code>openmates connect-account revolut-business</code></div>
     {/if}
   </section>
 </main>
@@ -202,61 +121,7 @@
     line-height: 1.6;
   }
 
-  .setup-step {
-    display: grid;
-    gap: 0.8rem;
-    margin: 1.5rem 0;
-    padding: 1rem;
-    border: 1px solid var(--color-grey-30);
-    border-radius: 20px;
-    background: var(--color-grey-10);
-  }
-
-  .setup-step strong {
-    display: block;
-    margin-top: 0.15rem;
-    font-size: 1.1rem;
-  }
-
-  .step-label {
-    color: var(--color-font-secondary);
-    font-size: 0.8rem;
-    font-weight: 800;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-  }
-
-  .ip-row {
-    display: flex;
-    gap: 0.75rem;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0.85rem;
-    border: 1px solid var(--color-grey-30);
-    border-radius: 16px;
-    background: var(--color-grey-0);
-  }
-
-  label {
-    display: block;
-    margin: 0 0 0.4rem;
-    color: var(--color-font-secondary);
-    font-size: 0.85rem;
-    font-weight: 700;
-  }
-
-  input {
-    width: 100%;
-    box-sizing: border-box;
-    border: 1px solid var(--color-grey-30);
-    border-radius: 14px;
-    padding: 0.9rem 1rem;
-    background: var(--color-grey-10);
-    color: var(--color-font-primary);
-    font: inherit;
-  }
-
-  .command {
+  .code-box {
     margin: 1rem 0;
     padding: 1rem;
     border-radius: 16px;
@@ -289,37 +154,9 @@
     cursor: pointer;
   }
 
-  .secondary {
-    min-height: 2.4rem;
-    border: 1px solid var(--color-grey-30);
-    border-radius: 999px;
-    padding: 0 1rem;
-    background: var(--color-grey-20);
-    color: var(--color-font-primary);
-    font: inherit;
-    font-weight: 800;
-    cursor: pointer;
-    white-space: nowrap;
-  }
-
-  .secondary:disabled {
-    cursor: not-allowed;
-    opacity: 0.5;
-  }
-
   .hint {
     margin: 1rem 0 0;
     color: var(--color-font-secondary);
-    font-size: 0.9rem;
-  }
-
-  .setup-step .hint {
-    margin: 0;
-  }
-
-  .warning {
-    margin: 0;
-    color: var(--color-warning, #b87500);
     font-size: 0.9rem;
   }
 
@@ -336,10 +173,4 @@
     color: var(--color-error);
   }
 
-  @media (max-width: 640px) {
-    .ip-row {
-      align-items: stretch;
-      flex-direction: column;
-    }
-  }
 </style>

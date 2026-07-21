@@ -154,6 +154,12 @@ import {
   type DecryptedUserPlan,
 } from "./plansCli.js";
 import { encryptBytesWithAesGcm, encryptWithAesGcmCombined } from "./crypto.js";
+import {
+  buildRevolutBusinessConsentUrl,
+  exchangeRevolutBusinessAuthorizationCode,
+  generateRevolutBusinessCertificate,
+  type RevolutBusinessCertificateEnvironment,
+} from "./revolutBusinessCertificate.js";
 
 type SignupRequiredResult = {
   status: "signup_required";
@@ -5582,6 +5588,10 @@ async function handleConnectAccount(
     printConnectAccountHelp();
     return;
   }
+  if (subcommand === "revolut-business" || subcommand === "revolut") {
+    await handleRevolutBusinessConnect(client, _rest, flags);
+    return;
+  }
   if (subcommand !== "proton") {
     throw new Error(`Unknown connect-account provider '${subcommand}'. Run 'openmates connect-account --help'.`);
   }
@@ -5609,6 +5619,222 @@ async function handleConnectAccount(
   }
   console.log("Proton Mail connector is online.");
   console.log(`Connected account: ${result.connectedAccountId}`);
+}
+
+async function handleRevolutBusinessConnect(
+  client: OpenMatesClient,
+  rest: string[],
+  flags: Record<string, string | boolean>,
+): Promise<void> {
+  const action = rest[0];
+  const environment: RevolutBusinessCertificateEnvironment = flags.production === true ? "production" : "sandbox";
+  if (action === "consent-url") {
+    const clientId = requireStringFlag(flags, "client-id", "Missing --client-id <ClientID>.");
+    const consentUrl = buildRevolutBusinessConsentUrl({
+      environment,
+      clientId,
+      redirectUri: typeof flags["redirect-uri"] === "string" ? flags["redirect-uri"] : undefined,
+      scope: typeof flags.scope === "string" ? flags.scope : undefined,
+    });
+    if (flags.json === true) {
+      printJson({
+        provider_id: "revolut_business",
+        environment,
+        client_id: clientId,
+        consent_url: consentUrl,
+      });
+      return;
+    }
+    console.log("Open this Revolut Business consent URL:");
+    console.log(consentUrl);
+    return;
+  }
+  if (action === "exchange-code") {
+    const clientId = requireStringFlag(flags, "client-id", "Missing --client-id <ClientID>.");
+    const codeOrRedirectUrl = typeof flags.code === "string" ? flags.code : rest.slice(1).join(" ").trim();
+    if (!codeOrRedirectUrl) {
+      throw new Error("Missing --code <authorization-code-or-redirect-url>.");
+    }
+    const privateKeyPath = typeof flags["private-key"] === "string" ? flags["private-key"] : `~/.openmates/revolut-business/${environment}/privatecert.pem`;
+    if (flags["dry-run"] === true) {
+      if (flags.json === true) {
+        printJson({
+          provider_id: "revolut_business",
+          environment,
+          client_id: clientId,
+          code_present: true,
+          token_url: environment === "sandbox"
+            ? "https://sandbox-b2b.revolut.com/api/1.0/auth/token"
+            : "https://b2b.revolut.com/api/1.0/auth/token",
+          private_key_path: privateKeyPath,
+        });
+        return;
+      }
+      console.log("Revolut Business authorization-code exchange dry run is valid.");
+      console.log(`ClientID: ${clientId}`);
+      console.log(`Private key: ${privateKeyPath}`);
+      return;
+    }
+    const token = await exchangeRevolutBusinessAuthorizationCode({
+      environment,
+      clientId,
+      codeOrRedirectUrl,
+      redirectUri: typeof flags["redirect-uri"] === "string" ? flags["redirect-uri"] : undefined,
+      privateKeyPath: typeof flags["private-key"] === "string" ? flags["private-key"] : undefined,
+    });
+    if (flags.json === true) {
+      printJson({
+        provider_id: "revolut_business",
+        environment,
+        client_id: clientId,
+        private_key_path: privateKeyPath,
+        token,
+      });
+      return;
+    }
+    console.log("Revolut Business Sandbox authorization code exchanged.");
+    console.log("Store these values in .env or Vault for the sandbox test:");
+    console.log(`REVOLUT_BUSINESS_SANDBOX_CLIENT_ID=${clientId}`);
+    if (typeof token.refresh_token === "string") {
+      console.log(`REVOLUT_BUSINESS_SANDBOX_REFRESH_TOKEN=${token.refresh_token}`);
+    }
+    console.log(`REVOLUT_BUSINESS_SANDBOX_PRIVATE_KEY_FILE=${privateKeyPath}`);
+    console.log("Do not share the refresh token or private key.");
+    return;
+  }
+  const result = generateRevolutBusinessCertificate({
+    environment,
+    outputDir: typeof flags.output === "string" ? flags.output : undefined,
+    title: typeof flags.title === "string" ? flags.title : undefined,
+    redirectUri: typeof flags["redirect-uri"] === "string" ? flags["redirect-uri"] : undefined,
+    overwrite: flags.overwrite === true,
+  });
+  const serverEgressIp = await resolveRevolutBusinessServerEgressIp(client.apiUrl);
+  if (flags.json === true) {
+    printJson({
+      provider_id: "revolut_business",
+      environment: result.environment,
+      certificate_title: result.title,
+      oauth_redirect_uri: result.redirectUri,
+      server_egress_ip_addresses: serverEgressIp.ipAddresses,
+      server_egress_ip_source: serverEgressIp.source,
+      public_certificate_pem: result.publicCertificatePem,
+      public_certificate_path: result.publicCertificatePath,
+      private_key_path: result.privateKeyPath,
+      docs_url: result.docsUrl,
+    });
+    return;
+  }
+  console.log("Revolut Business certificate generated.");
+  console.log("");
+  console.log("Paste these values into Revolut Business API certificate setup:");
+  console.log(`Certificate title: ${result.title}`);
+  console.log(`OAuth redirect URI: ${result.redirectUri}`);
+  console.log(
+    serverEgressIp.ipAddresses.length > 0
+      ? `Production IP whitelist: ${serverEgressIp.ipAddresses.join(", ")}`
+      : "Production IP whitelist: unavailable - open the OpenMates web setup or check the API server egress IP.",
+  );
+  console.log("X509 public key:");
+  console.log(result.publicCertificatePem);
+  console.log("");
+  console.log(`Private key saved locally: ${result.privateKeyPath}`);
+  console.log("Do not upload or share the private key outside OpenMates. It will be encrypted before storage.");
+  console.log("Revolut rejects account reads with HTTP 403 until the OpenMates server IP is whitelisted.");
+  console.log(`Manual setup docs: ${result.docsUrl}`);
+
+  const providedClientId = typeof flags["client-id"] === "string" ? flags["client-id"].trim() : "";
+  const providedCode = typeof flags.code === "string" ? flags.code.trim() : "";
+  if (Boolean(flags.json) || (!stdin.isTTY && (!providedClientId || !providedCode))) {
+    console.log("Run this command in an interactive terminal after saving the certificate in Revolut to finish setup.");
+    return;
+  }
+  if (!client.hasSession()) {
+    throw new Error("Not logged in. Run `openmates login` before connecting Revolut Business.");
+  }
+
+  console.log("");
+  console.log("In Revolut, save the certificate and click Enable. The browser will return to OpenMates with a short code.");
+  const clientId = providedClientId || await promptPlainText("ClientID from Revolut certificate details: ");
+  if (!clientId.trim()) throw new Error("ClientID is required to connect Revolut Business.");
+  const code = providedCode || await promptPlainText("Code from OpenMates callback page: ");
+  if (!code.trim()) throw new Error("Authorization code is required to connect Revolut Business.");
+
+  const privateKeyPem = readFileSync(result.privateKeyPath, "utf8");
+  const setup = await client.exchangeRevolutBusinessSetupCode({
+    clientId: clientId.trim(),
+    code: code.trim(),
+    privateKeyPem,
+    environment,
+    redirectUri: result.redirectUri,
+  });
+  const label = typeof setup.account_hint.label === "string" && setup.account_hint.label.trim()
+    ? setup.account_hint.label.trim()
+    : "Revolut Business";
+  const accountRef = typeof setup.account_hint.account_ref === "string" && setup.account_hint.account_ref.trim()
+    ? setup.account_hint.account_ref.trim()
+    : "revolut_business";
+  const connectedAccount = await client.importConnectedAccountPayload({
+    version: 1,
+    provider_id: "revolut_business",
+    app_id: "finance",
+    label,
+    account_ref: accountRef,
+    capabilities: ["read"],
+    runtime_modes: { read: "server" },
+    refresh_token_bundle: setup.refresh_token_bundle,
+    created_at: new Date().toISOString(),
+  }, { skipValidation: true });
+
+  console.log("");
+  console.log("Revolut Business connected.");
+  console.log(`Connected account: ${connectedAccount.id}`);
+  console.log(`Provider: ${connectedAccount.providerId}`);
+  console.log(`App: ${connectedAccount.appId}`);
+  console.log(`Account: ${connectedAccount.label}`);
+}
+
+type RevolutBusinessServerEgressIp = {
+  ipAddresses: string[];
+  source: string;
+};
+
+async function resolveRevolutBusinessServerEgressIp(apiUrl: string): Promise<RevolutBusinessServerEgressIp> {
+  const configuredIps = parseConfiguredIpList(process.env.REVOLUT_BUSINESS_SERVER_EGRESS_IPS ?? "");
+  if (configuredIps.length > 0) {
+    return { ipAddresses: configuredIps, source: "configured" };
+  }
+
+  try {
+    const response = await fetch(`${apiUrl.replace(/\/+$/, "")}/v1/connected-accounts/setup/revolut-business/server-egress-ip`, {
+      headers: { Accept: "application/json" },
+    });
+    if (!response.ok) return { ipAddresses: [], source: "unavailable" };
+    const payload = await response.json() as { ip_addresses?: unknown; source?: unknown };
+    const ipAddresses = Array.isArray(payload.ip_addresses)
+      ? payload.ip_addresses.filter((value): value is string => typeof value === "string" && value.trim().length > 0)
+      : [];
+    return {
+      ipAddresses,
+      source: typeof payload.source === "string" ? payload.source : "api",
+    };
+  } catch {
+    return { ipAddresses: [], source: "unavailable" };
+  }
+}
+
+function parseConfiguredIpList(rawValue: string): string[] {
+  return Array.from(new Set(rawValue.replace(/;/g, ",").split(",").map((value) => value.trim()).filter(Boolean))).sort();
+}
+
+function requireStringFlag(
+  flags: Record<string, string | boolean>,
+  name: string,
+  message: string,
+): string {
+  const value = flags[name];
+  if (typeof value !== "string" || !value.trim()) throw new Error(message);
+  return value.trim();
 }
 
 async function promptPlainText(question: string): Promise<string> {
@@ -9588,6 +9814,9 @@ Security:
 function printConnectAccountHelp(): void {
   console.log(`Connect account commands:
   openmates connect-account proton [--write] [--json]
+  openmates connect-account revolut-business [--production] [--output <dir>] [--overwrite] [--json]
+  openmates connect-account revolut-business consent-url --client-id <ClientID> [--json]
+  openmates connect-account revolut-business exchange-code --client-id <ClientID> --code <url-or-code>
 
 Starts a local Proton Mail Bridge connector for OpenMates Mail. Proton Bridge
 owns Proton login. OpenMates never asks for your Proton account password.
@@ -9602,9 +9831,28 @@ Proton connector behavior:
   Use screen, tmux, or zellij for long-lived terminal sessions.
   Bridge IMAP/SMTP credentials stay local to this process and are not stored in OpenMates cloud.
 
+Revolut Business behavior:
+  One-command setup for the server-mediated OpenMates connected-account flow.
+  Generates a local private key plus public X.509 certificate for the Business API.
+  Paste the printed public certificate into Revolut's X509 public key field.
+  Paste the printed OpenMates server IP into Revolut's Production IP whitelist.
+  Save the certificate in Revolut, click Enable, then paste the returned code back here.
+  OpenMates exchanges the code on the server, validates a read-only account call,
+  then stores the token/private-key bundle as a client-side encrypted connected account.
+  consent-url and exchange-code are developer fallbacks only.
+
 Options:
-  --write  Enable Proton Mail send capability after confirmation. Sends are delayed 30 seconds for undo.
-  --json   Output a redacted JSON summary`);
+  --write              Enable Proton Mail send capability after confirmation. Sends are delayed 30 seconds for undo.
+  --production         Generate Revolut certificate paths/redirect URI for production instead of sandbox.
+  --title <title>      Revolut certificate title (default: OpenMates FinanceApp)
+  --redirect-uri <url> OAuth redirect URI to register in Revolut
+  --client-id <id>     Revolut ClientID from the API certificate details
+  --code <url-or-code> Authorization code or full failed callback URL
+  --scope <scope>      Revolut consent scope for consent-url (default: READ)
+  --private-key <path> Private key path for exchange-code
+  --output <dir>       Directory for Revolut private/public certificate files
+  --overwrite          Replace existing Revolut certificate files in the output directory
+  --json               Output a redacted JSON summary`);
 }
 
 function printFeedbackHelp(): void {
