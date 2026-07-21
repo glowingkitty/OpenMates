@@ -6,13 +6,38 @@ import json
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from backend.apps.audio.skills.transcribe_skill import TranscribeSkill
+from backend.apps.audio.skills.transcribe_skill import GEMINI_CORRECTION_MODEL, TranscribeSkill
 
 class DummyApp:
     def __init__(self):
         # Mock credits methods
         self.get_user_credits = AsyncMock(return_value=100)
         self.charge_user_credits = AsyncMock()
+
+
+def test_build_waveform_from_pcm_u8_returns_compact_envelope():
+    """Waveform metadata should be compact, numeric, and independent of the audio file."""
+    app = DummyApp()
+    skill = TranscribeSkill(
+        app=app,
+        app_id="audio",
+        skill_id="transcribe",
+        skill_name="Transcribe",
+        skill_description="Transcribe voice recording.",
+    )
+
+    waveform = skill._build_waveform_from_pcm_u8(
+        bytes([128, 128, 255, 0, 180, 76, 128, 128]),
+        duration_seconds=2.5,
+        sample_count=4,
+    )
+
+    assert waveform is not None
+    assert waveform["version"] == 1
+    assert waveform["kind"] == "rms-envelope"
+    assert waveform["duration_seconds"] == 2.5
+    assert len(waveform["samples"]) == 4
+    assert all(isinstance(sample, int) and 0 <= sample <= 100 for sample in waveform["samples"])
 
 
 @pytest.mark.anyio
@@ -50,11 +75,18 @@ async def test_correct_transcript_with_gemini_success():
         # Verify the payload contains our raw transcript and responseMimeType config
         _, kwargs = mock_post.call_args
         assert kwargs["json"]["generationConfig"]["responseMimeType"] == "application/json"
+        assert kwargs["json"]["generationConfig"]["responseSchema"] == {
+            "type": "OBJECT",
+            "required": ["corrected_transcript"],
+            "properties": {
+                "corrected_transcript": {"type": "STRING"},
+            },
+        }
 
 
 @pytest.mark.anyio
-async def test_correct_transcript_with_gemini_api_failure_fallback():
-    """Test that _correct_transcript_with_gemini falls back to the original transcript on API error."""
+async def test_correct_transcript_with_gemini_api_failure_raises():
+    """Test that correction failures are visible and not labeled as corrected."""
     app = DummyApp()
     skill = TranscribeSkill(
         app=app,
@@ -72,14 +104,13 @@ async def test_correct_transcript_with_gemini_api_failure_fallback():
         mock_post.return_value = mock_response
 
         raw = "umm search for yellow actually no let's search for green boxes"
-        corrected = await skill._correct_transcript_with_gemini(raw, "fake-api-key")
-
-        assert corrected == raw
+        with pytest.raises(RuntimeError, match="Gemini correction API failed"):
+            await skill._correct_transcript_with_gemini(raw, "fake-api-key")
 
 
 @pytest.mark.anyio
-async def test_correct_transcript_with_gemini_invalid_json_fallback():
-    """Test that _correct_transcript_with_gemini falls back to the original transcript on invalid json."""
+async def test_correct_transcript_with_gemini_invalid_json_raises():
+    """Test that invalid correction JSON is not treated as corrected transcript."""
     app = DummyApp()
     skill = TranscribeSkill(
         app=app,
@@ -105,9 +136,8 @@ async def test_correct_transcript_with_gemini_invalid_json_fallback():
         mock_post.return_value = mock_response
 
         raw = "umm search for yellow actually no let's search for green boxes"
-        corrected = await skill._correct_transcript_with_gemini(raw, "fake-api-key")
-
-        assert corrected == raw
+        with pytest.raises(RuntimeError, match="Failed to parse Gemini correction JSON"):
+            await skill._correct_transcript_with_gemini(raw, "fake-api-key")
 
 
 @pytest.mark.anyio
@@ -133,6 +163,12 @@ async def test_full_execute_flow_with_gemini_correction():
         "duration": 5.2,
     }
     skill._transcribe_with_mistral = AsyncMock(return_value=mock_mistral_result)
+    skill._extract_waveform = AsyncMock(return_value={
+        "version": 1,
+        "kind": "rms-envelope",
+        "samples": [0, 25, 50, 25],
+        "duration_seconds": 5.2,
+    })
 
     # Mock SecretsManager
     mock_secrets_manager = AsyncMock()
@@ -177,8 +213,14 @@ async def test_full_execute_flow_with_gemini_correction():
     assert result_entry["transcript_original"] == "umm yeah so search for yellow actually no let's search for green boxes"
     assert result_entry["transcript_corrected"] == "Search for green boxes."
     assert result_entry["use_corrected"] is True
-    assert result_entry["correction_model"] == "gemini-3.5-flash"
+    assert result_entry["correction_model"] == GEMINI_CORRECTION_MODEL
     assert result_entry["duration_seconds"] == 5.2
+    assert result_entry["waveform"] == {
+        "version": 1,
+        "kind": "rms-envelope",
+        "samples": [0, 25, 50, 25],
+        "duration_seconds": 5.2,
+    }
 
     # Verify user was charged (1 billed minute minimum = 3 credits)
     app.charge_user_credits.assert_called_once()

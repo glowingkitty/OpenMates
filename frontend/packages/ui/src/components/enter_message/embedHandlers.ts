@@ -1549,6 +1549,7 @@ export async function retryTranscription(
   let transcriptCorrected: string | undefined;
   let useCorrected: boolean | undefined;
   let correctionModel: string | undefined;
+  let responseWaveform: AudioWaveformData | undefined;
   try {
     const responseData = await transcribeResponse.json();
     const group = responseData?.data?.results?.find(
@@ -1561,6 +1562,7 @@ export async function retryTranscription(
     transcriptCorrected = resultObj?.transcript_corrected ?? undefined;
     useCorrected = resultObj?.use_corrected ?? undefined;
     correctionModel = resultObj?.correction_model ?? undefined;
+    responseWaveform = resultObj?.waveform ?? undefined;
   } catch (parseError) {
     console.error(
       "[EmbedHandlers] retryTranscription: failed to parse response:",
@@ -1576,6 +1578,7 @@ export async function retryTranscription(
     useCorrected: useCorrected ?? null,
     correctionModel: correctionModel ?? null,
     model: modelFromResponse ?? null,
+    waveform: responseWaveform ?? null,
     uploadError: null,
   });
 
@@ -1787,6 +1790,7 @@ async function _performRecordingUpload(
     let transcriptCorrected: string | undefined;
     let useCorrected: boolean | undefined;
     let correctionModel: string | undefined;
+    let responseWaveform: AudioWaveformData | undefined;
     try {
       const responseData = await transcribeResponse.json();
       // Response shape: SkillResponse wrapper from apps_api.py:
@@ -1803,6 +1807,7 @@ async function _performRecordingUpload(
       transcriptCorrected = resultObj?.transcript_corrected ?? undefined;
       useCorrected = resultObj?.use_corrected ?? undefined;
       correctionModel = resultObj?.correction_model ?? undefined;
+      responseWaveform = resultObj?.waveform ?? undefined;
     } catch (parseError) {
       console.error(
         "[EmbedHandlers] Failed to parse transcription response:",
@@ -1822,7 +1827,7 @@ async function _performRecordingUpload(
       useCorrected: useCorrected ?? null,
       correctionModel: correctionModel ?? null,
       model: modelFromResponse ?? null,
-      waveform: waveform ?? null,
+      waveform: waveform ?? responseWaveform ?? null,
       uploadError: null,
     });
 
@@ -1841,7 +1846,7 @@ async function _performRecordingUpload(
         status: "finished",
         filename: file.name || null,
         duration: duration || null,
-        waveform: waveform ?? null,
+        waveform: waveform ?? responseWaveform ?? null,
         mime_type: mimeType || null,
         transcript: transcriptText ?? null,
         transcript_original: transcriptOriginal ?? null,

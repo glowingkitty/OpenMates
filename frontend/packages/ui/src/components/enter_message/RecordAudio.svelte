@@ -38,9 +38,10 @@
     import { createEventDispatcher, onMount, onDestroy } from 'svelte';
     import { fade } from 'svelte/transition';
     import { text } from '@repo/ui';
+    import { buildWaveformFromLevels, type AudioWaveformData } from '../../utils/audioWaveform';
 
     const dispatch = createEventDispatcher<{
-        audiorecorded: { blob: Blob; duration: number; mimeType: string };
+        audiorecorded: { blob: Blob; duration: number; mimeType: string; waveform?: AudioWaveformData };
         close: void;
         cancel: void;
         recordingStateChange: { active: boolean };
@@ -92,6 +93,7 @@
     const WAVEFORM_MIN_VISIBLE_LEVEL = 0.04;
 
     let waveformSamples = $state<number[]>(createEmptyWaveform());
+    let recordedWaveformLevels: number[] = [];
     let waveformContext: AudioContext | null = null;
     let waveformSource: MediaStreamAudioSourceNode | null = null;
     let waveformAnalyser: AnalyserNode | null = null;
@@ -142,6 +144,7 @@
         isCancelled = false;
         stopAlreadyCalled = false;
         recordedChunks = [];
+        recordedWaveformLevels = [];
 
         try {
             let streamToUse: MediaStream;
@@ -189,12 +192,14 @@
                     const finalMimeType = mediaRecorder?.mimeType || mimeType;
                     const blob = new Blob(recordedChunks, { type: finalMimeType });
                     const finalDuration = recordingTime;
+                    const waveform = buildWaveformFromLevels(recordedWaveformLevels, finalDuration);
                     logger.info('Recording finished:', {
                         blobSize: `${(blob.size / 1024).toFixed(2)} KB`,
                         duration:  `${finalDuration}s`,
                         mimeType:  blob.type,
+                        waveformSamples: waveform?.samples.length ?? 0,
                     });
-                    dispatch('audiorecorded', { blob, duration: finalDuration, mimeType: finalMimeType });
+                    dispatch('audiorecorded', { blob, duration: finalDuration, mimeType: finalMimeType, waveform });
                 } else {
                     logger.info(isCancelled ? 'Recording cancelled.' : 'Recording stopped with no data.');
                     dispatch('cancel');
@@ -202,6 +207,7 @@
 
                 isRecording = false;
                 recordedChunks = [];
+                recordedWaveformLevels = [];
                 recordingTime = 0;
                 stopRecordingTimer();
                 dispatch('close');
@@ -340,7 +346,9 @@
 
                 if (timestamp - lastWaveformSampleAt >= WAVEFORM_SAMPLE_INTERVAL_MS) {
                     waveformAnalyser.getByteTimeDomainData(timeDomainData);
-                    waveformSamples = [...waveformSamples.slice(1), normalizeWaveformLevel(timeDomainData)];
+                    const level = normalizeWaveformLevel(timeDomainData);
+                    recordedWaveformLevels.push(level);
+                    waveformSamples = [...waveformSamples.slice(1), level];
                     lastWaveformSampleAt = timestamp;
                 }
 

@@ -32,6 +32,7 @@
     import PdfReadEmbedFullscreen from './embeds/pdf/PdfReadEmbedFullscreen.svelte';
     import PdfSearchEmbedFullscreen from './embeds/pdf/PdfSearchEmbedFullscreen.svelte';
     import RecordingEmbedFullscreen from './embeds/audio/RecordingEmbedFullscreen.svelte';
+    import type { AudioWaveformData } from '../utils/audioWaveform';
     import Model3DResultEmbedFullscreen from './embeds/models3d/Model3DResultEmbedFullscreen.svelte';
     import { resolveRegistryKey, hasFullscreenComponent, loadFullscreenComponent } from '../services/embedFullscreenResolver';
     import { forcePageReload, isChunkLoadError, logChunkLoadError } from '../utils/chunkErrorHandler';
@@ -778,9 +779,14 @@
     let showRecordingFullscreen = $state(false);
     let recordingFullscreenData = $state<{
         transcript?: string;
+        transcriptOriginal?: string;
+        transcriptCorrected?: string;
+        useCorrected?: boolean;
+        correctionModel?: string;
         blobUrl?: string;
         filename?: string;
         duration?: string;
+        waveform?: AudioWaveformData;
         s3Files?: Record<string, { s3_key: string; size_bytes: number }>;
         s3BaseUrl?: string;
         aesKey?: string;
@@ -1241,6 +1247,7 @@
             blobUrl: event.detail.blobUrl,
             filename: event.detail.filename,
             duration: event.detail.duration,
+            waveform: event.detail.waveform,
             s3Files: event.detail.s3Files,
             s3BaseUrl: event.detail.s3BaseUrl,
             aesKey: event.detail.aesKey,
@@ -12730,6 +12737,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             blob_url: recordingFullscreenData.blobUrl,
                             filename: recordingFullscreenData.filename,
                             duration: recordingFullscreenData.duration,
+                            waveform: recordingFullscreenData.waveform,
                             s3_files: recordingFullscreenData.s3Files,
                             s3_base_url: recordingFullscreenData.s3BaseUrl,
                             aes_key: recordingFullscreenData.aesKey,

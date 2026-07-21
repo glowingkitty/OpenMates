@@ -952,6 +952,7 @@ export async function handleSend(
         status: "finished",
         filename: attrs.filename || null,
         duration: attrs.duration || null,
+        waveform: attrs.waveform || null,
         mime_type: attrs.mimeType || null,
         transcript: attrs.transcript || null,
         transcript_original: attrs.transcriptOriginal || null,

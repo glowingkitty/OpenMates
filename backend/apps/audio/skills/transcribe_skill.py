@@ -29,6 +29,9 @@ import io
 import os
 import math
 import hashlib
+import re
+import asyncio
+import shutil
 import httpx
 from typing import Dict, Any, List, Optional, Tuple
 from pydantic import BaseModel, Field
@@ -50,8 +53,22 @@ MISTRAL_TRANSCRIPTION_URL = "https://api.mistral.ai/v1/audio/transcriptions"
 # Model to use — voxtral-mini-2602 at $0.003/min is optimal for short recordings
 VOXTRAL_MODEL = "voxtral-mini-2602"
 
+# Model used to clean up raw speech-to-text output after transcription.
+GEMINI_CORRECTION_MODEL = "gemini-3.5-flash"
+
 # Timeout for Mistral API calls (seconds)
 MISTRAL_API_TIMEOUT = 120
+
+# Compact waveform metadata for audio recording previews. The ffmpeg output is
+# intentionally low-rate mono PCM so the generated buffer remains small even for
+# long uploaded tracks.
+WAVEFORM_VERSION = 1
+WAVEFORM_KIND = "rms-envelope"
+WAVEFORM_SAMPLE_COUNT = 128
+WAVEFORM_PCM_SAMPLE_RATE = 800
+WAVEFORM_MAX_VALUE = 100
+WAVEFORM_MIN_TIMEOUT_SECONDS = 5.0
+WAVEFORM_MAX_TIMEOUT_SECONDS = 45.0
 
 
 def _sanitize_transcription_result_text(
@@ -127,6 +144,7 @@ class TranscribeResult(BaseModel):
     transcript: Optional[str] = None
     language: Optional[str] = None
     duration_seconds: Optional[float] = None
+    waveform: Optional[Dict[str, Any]] = None
     # Model ID included so the frontend can resolve a human-readable name via
     # getModelDisplayName() without hardcoding the model ID in the frontend.
     model: Optional[str] = None
@@ -226,6 +244,106 @@ class TranscribeSkill(BaseSkill):
             "ogg": "audio/ogg",
         }
         return mime_map.get(ext, default)
+
+    def _build_waveform_from_pcm_u8(
+        self,
+        pcm_bytes: bytes,
+        duration_seconds: Optional[float] = None,
+        sample_count: int = WAVEFORM_SAMPLE_COUNT,
+    ) -> Optional[Dict[str, Any]]:
+        """Build a compact 0-100 RMS waveform envelope from unsigned 8-bit PCM."""
+        if not pcm_bytes or sample_count <= 0:
+            return None
+
+        pcm_length = len(pcm_bytes)
+        samples: List[int] = []
+        for bucket_index in range(sample_count):
+            start = min(pcm_length - 1, (bucket_index * pcm_length) // sample_count)
+            end = min(
+                pcm_length,
+                max(start + 1, ((bucket_index + 1) * pcm_length) // sample_count),
+            )
+            sum_of_squares = 0.0
+            for sample in pcm_bytes[start:end]:
+                centered = (sample - 128) / 128
+                sum_of_squares += centered * centered
+            rms = math.sqrt(sum_of_squares / max(1, end - start))
+            samples.append(max(0, min(WAVEFORM_MAX_VALUE, round(rms * WAVEFORM_MAX_VALUE))))
+
+        waveform: Dict[str, Any] = {
+            "version": WAVEFORM_VERSION,
+            "kind": WAVEFORM_KIND,
+            "samples": samples,
+        }
+        if duration_seconds and duration_seconds > 0:
+            waveform["duration_seconds"] = duration_seconds
+        return waveform
+
+    async def _extract_waveform(
+        self,
+        audio_bytes: bytes,
+        duration_seconds: Optional[float] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """Best-effort waveform extraction using ffmpeg when available."""
+        ffmpeg_path = shutil.which("ffmpeg")
+        if not ffmpeg_path:
+            logger.debug("[TranscribeSkill] ffmpeg unavailable; skipping audio waveform extraction")
+            return None
+
+        timeout_seconds = WAVEFORM_MIN_TIMEOUT_SECONDS
+        if duration_seconds and duration_seconds > 0:
+            timeout_seconds = min(
+                WAVEFORM_MAX_TIMEOUT_SECONDS,
+                max(WAVEFORM_MIN_TIMEOUT_SECONDS, duration_seconds * 0.1),
+            )
+
+        process: Optional[asyncio.subprocess.Process] = None
+        try:
+            process = await asyncio.create_subprocess_exec(
+                ffmpeg_path,
+                "-nostdin",
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-i",
+                "pipe:0",
+                "-map",
+                "a:0",
+                "-vn",
+                "-ac",
+                "1",
+                "-ar",
+                str(WAVEFORM_PCM_SAMPLE_RATE),
+                "-f",
+                "u8",
+                "pipe:1",
+                stdin=asyncio.subprocess.PIPE,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            stdout, stderr = await asyncio.wait_for(
+                process.communicate(input=audio_bytes),
+                timeout=timeout_seconds,
+            )
+        except asyncio.TimeoutError:
+            if process and process.returncode is None:
+                process.kill()
+                await process.wait()
+            logger.warning("[TranscribeSkill] ffmpeg waveform extraction timed out after %.1fs", timeout_seconds)
+            return None
+        except Exception as exc:
+            logger.warning("[TranscribeSkill] ffmpeg waveform extraction failed: %s", exc)
+            return None
+
+        if process.returncode != 0:
+            logger.warning(
+                "[TranscribeSkill] ffmpeg waveform extraction exited with %s: %s",
+                process.returncode,
+                stderr.decode("utf-8", errors="replace")[:300],
+            )
+            return None
+
+        return self._build_waveform_from_pcm_u8(stdout, duration_seconds)
 
     VAULT_TOKEN_PATH: str = "/vault-data/api.token"
 
@@ -452,24 +570,33 @@ class TranscribeSkill(BaseSkill):
         self,
         raw_transcript: str,
         google_api_key: str,
+        detected_language: Optional[str] = None,
     ) -> str:
         """
         Use Gemini to auto-correct a raw, potentially incoherent audio transcript.
 
         Removes filler words, verbal self-corrections, and formatting issues.
-        Returns the clean transcript, falling back to the raw transcript on any error.
+        Returns the clean transcript. Raises when correction fails so callers do
+        not label the raw transcript as corrected.
         """
         if not raw_transcript.strip():
-            return raw_transcript
+            raise ValueError("Cannot correct an empty transcript")
 
-        # Using gemini-3.5-flash as the default model
-        model = "gemini-3.5-flash"
+        model = GEMINI_CORRECTION_MODEL
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+        language_context = (
+            f"Detected or requested transcript language: {detected_language}.\n"
+            if detected_language
+            else "No language hint was provided; infer the language from the transcript.\n"
+        )
 
         prompt = (
             "You are correcting a raw speech-to-text transcript from an audio recording.\n"
             "Your goal is to output a clean, coherent written instruction or message while "
-            "preserving the speaker's original intent, meaning, and informal tone.\n\n"
+            "preserving the speaker's original intent, meaning, and informal tone.\n"
+            f"{language_context}"
+            "Keep the output in the same language as the input. Do not translate. "
+            "This includes German, English, mixed-language messages, and dialectal phrasing.\n\n"
             "Rules:\n"
             "1. Remove speech disfluencies and fillers (e.g., 'umm', 'uhh', 'ahh', 'like', 'ehh').\n"
             "2. Resolve verbal self-corrections and rambling where the speaker changed their mind "
@@ -477,7 +604,9 @@ class TranscribeSkill(BaseSkill):
             "3. Correct obvious phonetic mistranscriptions or spelling of technical terms.\n"
             "4. Add capitalization and natural punctuation (periods, commas, question marks).\n"
             "5. DO NOT rewrite into flowery marketing copy or invent claims. Keep it close to original meaning.\n"
-            "6. If the input is already clean, keep it as-is (with punctuation/formatting adjustments).\n\n"
+            "6. For long or confusing recordings, keep all concrete user requirements, remove abandoned starts, "
+            "and organize the final request into short coherent sentences or bullets when that improves readability.\n"
+            "7. If the input is already clean, keep it as-is (with punctuation/formatting adjustments).\n\n"
             "Return JSON with a single key 'corrected_transcript' containing the corrected text."
         )
 
@@ -494,6 +623,13 @@ class TranscribeSkill(BaseSkill):
             "generationConfig": {
                 "temperature": 0.1,
                 "responseMimeType": "application/json",
+                "responseSchema": {
+                    "type": "OBJECT",
+                    "required": ["corrected_transcript"],
+                    "properties": {
+                        "corrected_transcript": {"type": "STRING"},
+                    },
+                },
             }
         }
 
@@ -505,8 +641,9 @@ class TranscribeSkill(BaseSkill):
                     json=body,
                 )
                 if response.status_code != 200:
-                    logger.warning(f"[TranscribeSkill] Gemini correction API failed: {response.status_code} {response.text}")
-                    return raw_transcript
+                    raise RuntimeError(
+                        f"Gemini correction API failed: {response.status_code} {response.text[:500]}"
+                    )
 
                 res = response.json()
                 text_content = "".join(
@@ -519,13 +656,26 @@ class TranscribeSkill(BaseSkill):
                     corrected = parsed.get("corrected_transcript", "").strip()
                     if corrected:
                         return corrected
+                    raise RuntimeError("Gemini correction response did not contain corrected_transcript")
                 except Exception as parse_err:
-                    logger.warning(f"[TranscribeSkill] Failed to parse Gemini JSON: {parse_err}. Response text: {text_content}")
+                    match = re.search(
+                        r'"corrected_transcript"\s*:\s*"((?:\\.|[^"\\])*)"',
+                        text_content,
+                        re.DOTALL,
+                    )
+                    if match:
+                        corrected = json.loads(f'"{match.group(1)}"').strip()
+                        if corrected:
+                            logger.warning(
+                                "[TranscribeSkill] Recovered corrected transcript from malformed Gemini JSON"
+                            )
+                            return corrected
+                    raise RuntimeError(
+                        f"Failed to parse Gemini correction JSON: {parse_err}. Response text: {text_content[:500]}"
+                    ) from parse_err
 
         except Exception as e:
-            logger.error(f"[TranscribeSkill] Failed to run Gemini correction: {e}", exc_info=True)
-
-        return raw_transcript
+            raise RuntimeError(f"Failed to run Gemini correction: {e}") from e
 
     async def _process_single_transcribe_request(
         self,
@@ -602,9 +752,11 @@ class TranscribeSkill(BaseSkill):
             )
             detected_language = mistral_result.get("language")
             duration_seconds = mistral_result.get("duration")
+            waveform = await self._extract_waveform(audio_bytes, duration_seconds)
 
-            transcript_corrected = transcript_text
-            use_corrected = True
+            transcript_corrected: Optional[str] = None
+            correction_model: Optional[str] = None
+            use_corrected = False
             try:
                 # Get Gemini API key from Vault
                 google_api_key = await secrets_manager.get_secret(
@@ -615,29 +767,36 @@ class TranscribeSkill(BaseSkill):
                     transcript_corrected = await self._correct_transcript_with_gemini(
                         raw_transcript=transcript_text,
                         google_api_key=google_api_key,
+                        detected_language=detected_language or language,
                     )
                     transcript_corrected = sanitize_text_simple(
                         transcript_corrected,
                         log_prefix="[TranscribeSkill][Gemini correction] ",
                     )
+                    if transcript_corrected.strip():
+                        use_corrected = True
+                        correction_model = GEMINI_CORRECTION_MODEL
+                    else:
+                        transcript_corrected = None
+                        logger.warning("[TranscribeSkill] Gemini correction returned an empty transcript")
                 else:
                     logger.warning("[TranscribeSkill] Google AI Studio API key not found in Vault, skipping correction")
-                    use_corrected = False
             except Exception as correction_err:
                 logger.error(f"[TranscribeSkill] Gemini correction failed: {correction_err}", exc_info=True)
-                use_corrected = False
+                transcript_corrected = None
 
             result_entry = {
                 "type": "transcription_result",
                 "s3_key": s3_key,
-                "transcript": transcript_corrected if use_corrected else transcript_text, # Default is corrected transcript
+                "transcript": transcript_corrected if use_corrected and transcript_corrected else transcript_text,
                 "transcript_original": transcript_text,
-                "transcript_corrected": transcript_corrected,
+                "transcript_corrected": transcript_corrected if use_corrected else None,
                 "use_corrected": use_corrected,
                 "language": detected_language or language,
                 "duration_seconds": duration_seconds,
+                "waveform": waveform,
                 "model": VOXTRAL_MODEL,
-                "correction_model": "gemini-3.5-flash" if use_corrected else None,
+                "correction_model": correction_model,
             }
             result_entry = _sanitize_transcription_result_text(result_entry)
 

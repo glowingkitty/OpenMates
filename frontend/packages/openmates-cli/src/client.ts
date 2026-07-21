@@ -217,6 +217,7 @@ export interface SubChatApprovalRequest {
 export interface ConnectedAccountDirectoryEntry {
   connected_account_id: string;
   app_id: string;
+  provider_id?: string;
   account_ref: string;
   label: string;
   capabilities: string[];
@@ -226,6 +227,7 @@ export interface ConnectedAccountDirectoryEntry {
 export interface ConnectedAccountTurnTokenRefInput {
   connected_account_id: string;
   app_id: string;
+  provider_id?: string;
   allowed_actions: string[];
   refresh_token_envelope: Record<string, unknown>;
   action_scope?: Record<string, unknown>;
@@ -234,6 +236,7 @@ export interface ConnectedAccountTurnTokenRefInput {
 export interface ConnectedAccountTurnTokenRef {
   connected_account_id: string;
   app_id: string;
+  provider_id?: string;
   turn_token_ref: string;
   allowed_actions: string[];
   action_scope?: Record<string, unknown>;
@@ -547,6 +550,14 @@ export interface UserTaskRecord {
   completed_at?: number | null;
   blocked_reason_code?: string | null;
   ai_execution_state?: string | null;
+  history?: WorkspaceHistoryResult | null;
+}
+
+export interface WorkspaceHistoryResult {
+  change_set?: Record<string, unknown>;
+  entries?: Array<Record<string, unknown>>;
+  undo_all_command?: string;
+  undo_entry_commands?: string[];
 }
 
 export interface UserTaskProposalRecord {
@@ -609,6 +620,7 @@ export interface UserPlanRecord {
   created_at?: number;
   updated_at?: number;
   completed_at?: number | null;
+  history?: WorkspaceHistoryResult | null;
 }
 
 export type UserPlanCreateInput = Omit<UserPlanRecord, "version" | "completed_at"> & { version?: number };
@@ -2047,6 +2059,13 @@ export interface InvoiceListItem {
   document_status?: string | null;
 }
 
+export interface UsageOverviewOptions {
+  granularity?: "daily" | "weekly" | "monthly";
+  days?: number;
+  weeks?: number;
+  months?: number;
+}
+
 export interface DownloadedDocument {
   filename: string;
   data: Uint8Array;
@@ -3014,6 +3033,7 @@ export class OpenMatesClient {
       refs?: Array<{
         connected_account_id: string;
         app_id: string;
+        provider_id?: string;
         turn_token_ref: string;
         expires_at: number;
       }>;
@@ -3032,6 +3052,7 @@ export class OpenMatesClient {
       return {
         connected_account_id: ref.connected_account_id,
         app_id: ref.app_id,
+        provider_id: ref.provider_id ?? input?.provider_id,
         turn_token_ref: ref.turn_token_ref,
         expires_at: ref.expires_at,
         allowed_actions: input?.allowed_actions ?? [],
@@ -3928,6 +3949,7 @@ export class OpenMatesClient {
       use_corrected: transcription.use_corrected ?? null,
       correction_model: transcription.correction_model ?? null,
       model: transcription.model ?? null,
+      waveform: transcription.waveform ?? null,
       s3_base_url: uploadResult.s3_base_url,
       files: uploadResult.files,
       aes_key: uploadResult.aes_key,
@@ -3967,6 +3989,7 @@ export class OpenMatesClient {
           use_corrected: transcription.use_corrected,
           correction_model: transcription.correction_model,
           model: transcription.model,
+          waveform: transcription.waveform,
         },
       }],
     });
@@ -6946,6 +6969,17 @@ export class OpenMatesClient {
     return response.data.workflow;
   }
 
+  async askWorkflow(input: { instruction: string; applyMode?: "auto_apply" | "confirm_first"; create?: Record<string, unknown> }): Promise<Record<string, unknown>> {
+    this.requireSession();
+    const response = await this.http.post<Record<string, unknown>>(
+      "/v1/workflows/ask",
+      { instruction: input.instruction, apply_mode: input.applyMode ?? "auto_apply", ...(input.create ? { create: input.create } : {}) },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) throw new Error(`Workflow ask failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
   async validateWorkflowYaml(source: string): Promise<{
     draft_valid: boolean;
     enable_ready: boolean;
@@ -7385,6 +7419,28 @@ export class OpenMatesClient {
   // Project sources
   // -------------------------------------------------------------------------
 
+  async createProject(input: Record<string, unknown>): Promise<Record<string, unknown>> {
+    this.requireSession();
+    const response = await this.http.post<Record<string, unknown>>(
+      "/v1/projects",
+      input,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) throw new Error(`Project create failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
+  async askProject(input: { instruction: string; applyMode?: "auto_apply" | "confirm_first"; encryptedCreate?: Record<string, unknown> }): Promise<Record<string, unknown>> {
+    this.requireSession();
+    const response = await this.http.post<Record<string, unknown>>(
+      "/v1/projects/ask",
+      { instruction: input.instruction, apply_mode: input.applyMode ?? "auto_apply", ...(input.encryptedCreate ? { encrypted_create: input.encryptedCreate } : {}) },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) throw new Error(`Project ask failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
   async listProjectSources(projectId: string): Promise<ProjectSourceRecord[]> {
     this.requireSession();
     const response = await this.http.get<{ sources?: ProjectSourceRecord[] }>(
@@ -7408,6 +7464,55 @@ export class OpenMatesClient {
       throw new Error(`Project source create failed with HTTP ${response.status}`);
     }
     return response.data.source;
+  }
+
+  async listWorkspaceHistory(filters: { objectType?: string; objectId?: string; limit?: number } = {}): Promise<Record<string, unknown>[]> {
+    this.requireSession();
+    const params = new URLSearchParams();
+    if (filters.objectType) params.set("object_type", filters.objectType);
+    if (filters.objectId) params.set("object_id", filters.objectId);
+    if (filters.limit) params.set("limit", String(filters.limit));
+    const query = params.toString();
+    const response = await this.http.get<{ change_sets?: Record<string, unknown>[] }>(`/v1/workspace/history${query ? `?${query}` : ""}`, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Workspace history list failed with HTTP ${response.status}`);
+    return response.data.change_sets ?? [];
+  }
+
+  async getWorkspaceHistory(changeSetId: string): Promise<Record<string, unknown>> {
+    this.requireSession();
+    const response = await this.http.get<Record<string, unknown>>(`/v1/workspace/history/${encodeURIComponent(changeSetId)}`, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Workspace history show failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
+  async undoWorkspaceHistory(changeSetId: string): Promise<Record<string, unknown>> {
+    this.requireSession();
+    const response = await this.http.post<Record<string, unknown>>(`/v1/workspace/history/${encodeURIComponent(changeSetId)}/undo`, {}, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Workspace history undo failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
+  async listObjectHistory(objectType: "task" | "plan" | "project" | "workflow", objectId: string, limit = 50): Promise<Record<string, unknown>[]> {
+    this.requireSession();
+    const namespace = objectType === "task" ? "user-tasks" : objectType === "plan" ? "user-plans" : `${objectType}s`;
+    const response = await this.http.get<{ entries?: Record<string, unknown>[] }>(
+      `/v1/${namespace}/${encodeURIComponent(objectId)}/history?limit=${encodeURIComponent(String(limit))}`,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) throw new Error(`${objectType} history failed with HTTP ${response.status}`);
+    return response.data.entries ?? [];
+  }
+
+  async restoreObjectHistory(objectType: "task" | "plan" | "project" | "workflow", objectId: string, entryId: string, state: "before" | "after" = "after"): Promise<Record<string, unknown>> {
+    this.requireSession();
+    const namespace = objectType === "task" ? "user-tasks" : objectType === "plan" ? "user-plans" : `${objectType}s`;
+    const response = await this.http.post<Record<string, unknown>>(
+      `/v1/${namespace}/${encodeURIComponent(objectId)}/restore`,
+      { entry_id: entryId, state },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) throw new Error(`${objectType} restore failed with HTTP ${response.status}`);
+    return response.data;
   }
 
   // -------------------------------------------------------------------------
@@ -7439,7 +7544,7 @@ export class OpenMatesClient {
 
   async createUserTask(input: UserTaskCreateInput): Promise<UserTaskRecord> {
     this.requireSession();
-    const response = await this.http.post<{ task?: UserTaskRecord }>(
+    const response = await this.http.post<{ task?: UserTaskRecord; history?: WorkspaceHistoryResult }>(
       "/v1/user-tasks",
       input,
       this.getCliRequestHeaders(),
@@ -7447,7 +7552,24 @@ export class OpenMatesClient {
     if (!response.ok || !response.data.task) {
       throw new Error(`User task create failed with HTTP ${response.status}`);
     }
+    response.data.task.history = response.data.history ?? null;
     return response.data.task;
+  }
+
+  async askUserTasks(input: { instruction: string; applyMode?: "auto_apply" | "confirm_first"; encryptedCreate?: UserTaskCreateInput; encryptedCreates?: UserTaskCreateInput[] }): Promise<Record<string, unknown>> {
+    this.requireSession();
+    const response = await this.http.post<Record<string, unknown>>(
+      "/v1/user-tasks/ask",
+      {
+        instruction: input.instruction,
+        apply_mode: input.applyMode ?? "auto_apply",
+        ...(input.encryptedCreate ? { encrypted_create: input.encryptedCreate } : {}),
+        ...(input.encryptedCreates ? { encrypted_creates: input.encryptedCreates } : {}),
+      },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) throw new Error(`User task ask failed with HTTP ${response.status}`);
+    return response.data;
   }
 
   async extractUserTaskProposals(input: {
@@ -7474,7 +7596,7 @@ export class OpenMatesClient {
 
   async updateUserTask(taskId: string, input: UserTaskUpdateInput): Promise<UserTaskRecord> {
     this.requireSession();
-    const response = await this.http.patch<{ task?: UserTaskRecord }>(
+    const response = await this.http.patch<{ task?: UserTaskRecord; history?: WorkspaceHistoryResult }>(
       `/v1/user-tasks/${encodeURIComponent(taskId)}`,
       input,
       this.getCliRequestHeaders(),
@@ -7482,12 +7604,13 @@ export class OpenMatesClient {
     if (!response.ok || !response.data.task) {
       throw new Error(`User task update failed with HTTP ${response.status}`);
     }
+    response.data.task.history = response.data.history ?? null;
     return response.data.task;
   }
 
   async startUserTaskWithAI(taskId: string, input: UserTaskStartAIInput): Promise<UserTaskRecord> {
     this.requireSession();
-    const response = await this.http.post<{ task?: UserTaskRecord }>(
+    const response = await this.http.post<{ task?: UserTaskRecord; history?: WorkspaceHistoryResult }>(
       `/v1/user-tasks/${encodeURIComponent(taskId)}/start-ai`,
       input,
       this.getCliRequestHeaders(),
@@ -7495,12 +7618,13 @@ export class OpenMatesClient {
     if (!response.ok || !response.data.task) {
       throw new Error(`User task AI start failed with HTTP ${response.status}`);
     }
+    response.data.task.history = response.data.history ?? null;
     return response.data.task;
   }
 
-  async deleteUserTask(taskId: string, version: number): Promise<{ deleted?: boolean; task_id?: string }> {
+  async deleteUserTask(taskId: string, version: number): Promise<{ deleted?: boolean; task_id?: string; history?: WorkspaceHistoryResult }> {
     this.requireSession();
-    const response = await this.http.delete<{ deleted?: boolean; task_id?: string }>(
+    const response = await this.http.delete<{ deleted?: boolean; task_id?: string; history?: WorkspaceHistoryResult }>(
       `/v1/user-tasks/${encodeURIComponent(taskId)}?version=${encodeURIComponent(String(version))}`,
       undefined,
       this.getCliRequestHeaders(),
@@ -7529,7 +7653,7 @@ export class OpenMatesClient {
 
   async reorderUserTasks(input: UserTaskReorderInput): Promise<UserTaskRecord[]> {
     this.requireSession();
-    const response = await this.http.post<{ tasks?: UserTaskRecord[] }>(
+    const response = await this.http.post<{ tasks?: UserTaskRecord[]; history?: WorkspaceHistoryResult }>(
       "/v1/user-tasks/reorder",
       input,
       this.getCliRequestHeaders(),
@@ -7537,12 +7661,14 @@ export class OpenMatesClient {
     if (!response.ok) {
       throw new Error(`User task reorder failed with HTTP ${response.status}`);
     }
-    return response.data.tasks ?? [];
+    const tasks = response.data.tasks ?? [];
+    for (const task of tasks) task.history = response.data.history ?? null;
+    return tasks;
   }
 
   async postUserTaskAction(taskId: string, action: string, input: UserTaskActionInput): Promise<UserTaskRecord> {
     this.requireSession();
-    const response = await this.http.post<{ task?: UserTaskRecord }>(
+    const response = await this.http.post<{ task?: UserTaskRecord; history?: WorkspaceHistoryResult }>(
       `/v1/user-tasks/${encodeURIComponent(taskId)}/${encodeURIComponent(action)}`,
       input,
       this.getCliRequestHeaders(),
@@ -7550,6 +7676,7 @@ export class OpenMatesClient {
     if (!response.ok || !response.data.task) {
       throw new Error(`User task ${action} failed with HTTP ${response.status}`);
     }
+    response.data.task.history = response.data.history ?? null;
     return response.data.task;
   }
 
@@ -7579,37 +7706,52 @@ export class OpenMatesClient {
 
   async createUserPlan(input: UserPlanCreateInput): Promise<UserPlanRecord> {
     this.requireSession();
-    const response = await this.http.post<{ plan?: UserPlanRecord }>("/v1/user-plans", input, this.getCliRequestHeaders());
+    const response = await this.http.post<{ plan?: UserPlanRecord; history?: WorkspaceHistoryResult }>("/v1/user-plans", input, this.getCliRequestHeaders());
     if (!response.ok || !response.data.plan) {
       throw new Error(`User plan create failed with HTTP ${response.status}`);
     }
+    response.data.plan.history = response.data.history ?? null;
     return response.data.plan;
+  }
+
+  async askUserPlans(input: { instruction: string; applyMode?: "auto_apply" | "confirm_first"; encryptedCreate?: UserPlanCreateInput }): Promise<Record<string, unknown>> {
+    this.requireSession();
+    const response = await this.http.post<Record<string, unknown>>(
+      "/v1/user-plans/ask",
+      { instruction: input.instruction, apply_mode: input.applyMode ?? "auto_apply", ...(input.encryptedCreate ? { encrypted_create: input.encryptedCreate } : {}) },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) throw new Error(`User plan ask failed with HTTP ${response.status}`);
+    return response.data;
   }
 
   async updateUserPlan(planId: string, input: UserPlanUpdateInput): Promise<UserPlanRecord> {
     this.requireSession();
-    const response = await this.http.patch<{ plan?: UserPlanRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}`, input, this.getCliRequestHeaders());
+    const response = await this.http.patch<{ plan?: UserPlanRecord; history?: WorkspaceHistoryResult }>(`/v1/user-plans/${encodeURIComponent(planId)}`, input, this.getCliRequestHeaders());
     if (!response.ok || !response.data.plan) {
       throw new Error(`User plan update failed with HTTP ${response.status}`);
     }
+    response.data.plan.history = response.data.history ?? null;
     return response.data.plan;
   }
 
   async activateUserPlan(planId: string, input: Record<string, unknown> = {}): Promise<UserPlanRecord> {
     this.requireSession();
-    const response = await this.http.post<{ plan?: UserPlanRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}/activate`, input, this.getCliRequestHeaders());
+    const response = await this.http.post<{ plan?: UserPlanRecord; history?: WorkspaceHistoryResult }>(`/v1/user-plans/${encodeURIComponent(planId)}/activate`, input, this.getCliRequestHeaders());
     if (!response.ok || !response.data.plan) {
       throw new Error(`User plan activate failed with HTTP ${response.status}`);
     }
+    response.data.plan.history = response.data.history ?? null;
     return response.data.plan;
   }
 
   async completeUserPlan(planId: string, input: Record<string, unknown> = {}): Promise<UserPlanRecord> {
     this.requireSession();
-    const response = await this.http.post<{ plan?: UserPlanRecord; blocked_by?: unknown[] }>(`/v1/user-plans/${encodeURIComponent(planId)}/complete`, input, this.getCliRequestHeaders());
+    const response = await this.http.post<{ plan?: UserPlanRecord; blocked_by?: unknown[]; history?: WorkspaceHistoryResult }>(`/v1/user-plans/${encodeURIComponent(planId)}/complete`, input, this.getCliRequestHeaders());
     if (!response.ok || !response.data.plan) {
       throw new Error(`User plan complete failed with HTTP ${response.status}`);
     }
+    response.data.plan.history = response.data.history ?? null;
     return response.data.plan;
   }
 
@@ -7727,6 +7869,16 @@ export class OpenMatesClient {
       throw new Error(`Settings GET failed with HTTP ${response.status}`);
     }
     return response.data;
+  }
+
+  async getUsageOverview(options: UsageOverviewOptions = {}): Promise<unknown> {
+    const params = new URLSearchParams();
+    if (options.granularity) params.set("granularity", options.granularity);
+    if (options.days !== undefined) params.set("days", String(options.days));
+    if (options.weeks !== undefined) params.set("weeks", String(options.weeks));
+    if (options.months !== undefined) params.set("months", String(options.months));
+    const query = params.toString();
+    return this.settingsGet(`usage/overview${query ? `?${query}` : ""}`);
   }
 
   async createApiKey(options: ApiKeyCreateOptions): Promise<CreatedApiKeyResult> {

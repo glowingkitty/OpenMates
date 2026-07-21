@@ -434,6 +434,9 @@ test('shared chat loads uploaded PDF, image, and audio recording assets while lo
 		await expect(sharedPage.getByTestId('recording-preview-audio').first()).toHaveAttribute('src', /blob:/, {
 			timeout: 60_000
 		});
+		await expect(sharedPage.getByTestId('recording-preview-waveform').first()).toBeVisible({
+			timeout: 60_000
+		});
 
 		await expect
 			.poll(() => presignedStatuses.length, { timeout: 60_000 })

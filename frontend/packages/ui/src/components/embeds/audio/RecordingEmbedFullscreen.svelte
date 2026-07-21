@@ -33,6 +33,7 @@
   import { fetchAndDecryptAudio, releaseCachedAudio, AudioFetchError, AudioNetworkError, AudioDecryptError } from './audioEmbedCrypto';
   import { getModelDisplayName } from '../../../utils/modelDisplayName';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
+  import { normalizeWaveformData } from '../../../utils/audioWaveform';
 
   /** Max chars for filename display in the info bar */
   const MAX_FILENAME_LENGTH = 40;
@@ -100,6 +101,7 @@
   let blobUrl = $derived(typeof dc.blob_url === 'string' ? dc.blob_url : undefined);
   let filename = $derived(typeof dc.filename === 'string' ? dc.filename : 'voice_note.webm');
   let duration = $derived(typeof dc.duration === 'string' ? dc.duration : undefined);
+  let waveform = $derived(normalizeWaveformData(dc.waveform));
   let s3Files = $derived(
     (typeof dc.s3_files === 'object' && dc.s3_files !== null)
       ? dc.s3_files as Record<string, { s3_key: string; size_bytes: number }>
@@ -234,6 +236,7 @@
   let progressPercent = $derived(
     totalDuration > 0 ? Math.round((currentTime / totalDuration) * 100) : 0,
   );
+  let progressRatio = $derived(progressPercent / 100);
 
   // -------------------------------------------------------------------------
   // Lazy audio fetch from S3 (read-only context)
@@ -375,18 +378,40 @@
 
             <!-- Seek bar + time -->
             <div class="progress-area">
-              <button
-                class="progress-bar"
-                type="button"
-                role="slider"
-                aria-label="Seek audio"
-                aria-valuenow={progressPercent}
-                aria-valuemin={0}
-                aria-valuemax={100}
-                onclick={handleProgressClick}
-              >
-                <div class="progress-fill" style="width: {progressPercent}%"></div>
-              </button>
+              {#if waveform}
+                <button
+                  class="waveform-seek"
+                  type="button"
+                  role="slider"
+                  aria-label="Seek audio"
+                  aria-valuenow={progressPercent}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  onclick={handleProgressClick}
+                  data-testid="recording-fullscreen-waveform"
+                >
+                  {#each waveform.samples as sample, index (index)}
+                    <span
+                      class="waveform-bar"
+                      class:played={waveform.samples.length <= 1 || index / (waveform.samples.length - 1) <= progressRatio}
+                      style:height={`${Math.max(6, sample)}%`}
+                    ></span>
+                  {/each}
+                </button>
+              {:else}
+                <button
+                  class="progress-bar"
+                  type="button"
+                  role="slider"
+                  aria-label="Seek audio"
+                  aria-valuenow={progressPercent}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  onclick={handleProgressClick}
+                >
+                  <div class="progress-fill" style="width: {progressPercent}%"></div>
+                </button>
+              {/if}
               <span class="time-label">
                 {formatSeconds(currentTime)} / {formatSeconds(totalDuration || 0)}
               </span>
@@ -559,6 +584,36 @@
     transition: height 0.1s;
   }
 
+  .waveform-seek {
+    height: 48px;
+    width: 100%;
+    padding: 0;
+    min-width: 0;
+    border: none;
+    border-radius: 0;
+    filter: none;
+    background: transparent;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    color: var(--color-grey-25, #d8d8d8);
+    overflow: hidden;
+  }
+
+  .waveform-bar {
+    flex: 1 1 1px;
+    min-width: 1px;
+    max-width: 5px;
+    background: currentColor;
+    border-radius: var(--radius-full, 9999px);
+    transition: background-color 0.1s linear;
+  }
+
+  .waveform-bar.played {
+    background: var(--color-app-audio, #e05555);
+  }
+
   .progress-bar:hover {
     height: 8px;
   }
@@ -723,6 +778,10 @@
 
   :global(.dark) .progress-bar {
     background: var(--color-grey-70, #444);
+  }
+
+  :global(.dark) .waveform-seek {
+    color: var(--color-grey-70, #444);
   }
 
   :global(.dark) .skeleton-circle,

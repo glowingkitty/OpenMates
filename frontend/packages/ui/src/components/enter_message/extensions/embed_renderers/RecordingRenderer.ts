@@ -50,6 +50,7 @@ import RecordingEmbedPreview from "../../../embeds/audio/RecordingEmbedPreview.s
 import { authStore } from "../../../../stores/authStore";
 import { embedStore } from "../../../../services/embedStore";
 import { resolveEmbed } from "../../../../services/embedResolver";
+import type { AudioWaveformData } from "../../../../utils/audioWaveform";
 
 // Track mounted Svelte components for cleanup (keyed by the DOM element)
 const mountedComponents = new WeakMap<HTMLElement, ReturnType<typeof mount>>();
@@ -73,6 +74,8 @@ interface RecordingEmbedAttrs extends Omit<EmbedNodeAttributes, "status"> {
   correctionModel?: string;
   /** Formatted duration (e.g. "0:42") */
   duration?: string;
+  /** Compact full-track RMS envelope for rendering without fetching audio */
+  waveform?: AudioWaveformData;
   /** Server-assigned embed_id (populated after upload) */
   uploadEmbedId?: string;
   /** S3 file metadata from upload server */
@@ -181,6 +184,7 @@ export class RecordingRenderer implements EmbedRenderer {
           const useCorrected = parsed.use_corrected as boolean | undefined;
           const correctionModel = parsed.correction_model as string | undefined;
           const duration = (parsed.duration as string) || attrs.duration;
+          const waveform = (parsed.waveform as AudioWaveformData | undefined) || attrs.waveform;
           const filename = (parsed.filename as string) || attrs.filename;
           const mimeType = (parsed.mime_type as string) || attrs.mimeType;
           const model = (parsed.model as string) || undefined;
@@ -197,6 +201,7 @@ export class RecordingRenderer implements EmbedRenderer {
             useCorrected,
             correctionModel,
             duration,
+            waveform,
             filename,
             mimeType,
             model,
@@ -282,6 +287,7 @@ export class RecordingRenderer implements EmbedRenderer {
               blobUrl: attrs.blobUrl,
               filename: attrs.filename,
               duration: attrs.duration,
+              waveform: attrs.waveform,
               s3Files: attrs.s3Files,
               s3BaseUrl: attrs.s3BaseUrl,
               aesKey: attrs.aesKey,
@@ -360,6 +366,7 @@ export class RecordingRenderer implements EmbedRenderer {
           useCorrected: attrs.useCorrected,
           correctionModel: attrs.correctionModel,
           duration: attrs.duration,
+          waveform: attrs.waveform,
           s3Files: attrs.s3Files,
           s3BaseUrl: attrs.s3BaseUrl,
           aesKey: attrs.aesKey,
@@ -385,6 +392,7 @@ export class RecordingRenderer implements EmbedRenderer {
         hasBlobUrl: !!attrs.blobUrl,
         hasTranscript: !!attrs.transcript,
         hasDuration: !!attrs.duration,
+        hasWaveform: !!attrs.waveform,
         isEditable,
         model: attrs.model,
       });

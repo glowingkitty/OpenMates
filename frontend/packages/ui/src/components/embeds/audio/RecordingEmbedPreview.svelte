@@ -50,6 +50,7 @@
   import { fetchAndDecryptAudio, releaseCachedAudio, AudioFetchError, AudioNetworkError, AudioDecryptError } from './audioEmbedCrypto';
   import { getModelDisplayName, getModelByNameOrId } from '../../../utils/modelDisplayName';
   import { getProviderIconUrl } from '../../../data/providerIcons';
+  import { normalizeWaveformData, type AudioWaveformData } from '../../../utils/audioWaveform';
 
   /** Max chars of transcript to show in the preview card before truncating */
   const MAX_TRANSCRIPT_PREVIEW = 120;
@@ -80,6 +81,8 @@
     correctionModel?: string;
     /** Formatted duration string (e.g. "0:42") */
     duration?: string;
+    /** Compact full-track RMS envelope for rendering without fetching the audio file */
+    waveform?: AudioWaveformData;
     /** S3 file metadata — set after successful upload */
     s3Files?: Record<string, { s3_key: string; size_bytes: number }>;
     /** S3 base URL */
@@ -123,6 +126,7 @@
     useCorrected = true,
     correctionModel: _correctionModel,
     duration,
+    waveform,
     s3Files,
     s3BaseUrl,
     aesKey,
@@ -330,6 +334,8 @@
     return transcript ?? transcriptCorrected ?? transcriptOriginal;
   });
 
+  let displayWaveform = $derived(normalizeWaveformData(waveform));
+
   /**
    * Truncated transcript for the preview area.
    * Shows the first MAX_TRANSCRIPT_PREVIEW chars with ellipsis if needed.
@@ -431,6 +437,17 @@
 
   {#snippet details({ isMobile: isMobileSnippet })}
     <div class="recording-preview" data-testid="recording-preview" class:mobile={isMobileSnippet}>
+
+      {#if displayWaveform && status !== 'error'}
+        <div class="waveform-strip" data-testid="recording-preview-waveform" aria-hidden="true">
+          {#each displayWaveform.samples as sample, index (index)}
+            <span
+              class="waveform-bar"
+              style:height={`${Math.max(6, sample)}%`}
+            ></span>
+          {/each}
+        </div>
+      {/if}
 
       {#if !isAuthenticated && status === 'finished'}
         <!--
@@ -548,6 +565,26 @@
   .recording-preview.mobile {
     padding: var(--spacing-5) var(--spacing-6);
     gap: var(--spacing-3);
+  }
+
+  .waveform-strip {
+    width: 100%;
+    height: 30px;
+    min-height: 30px;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    color: var(--color-app-audio, #e05555);
+    opacity: 0.78;
+    overflow: hidden;
+  }
+
+  .waveform-bar {
+    flex: 1 1 1px;
+    min-width: 1px;
+    max-width: 4px;
+    background: currentColor;
+    border-radius: var(--radius-full, 9999px);
   }
 
   /* ---- Signup prompt for unauthenticated users ---- */
@@ -884,5 +921,9 @@
 
   :global(.dark) .no-transcript {
     color: var(--color-grey-40, #aaa);
+  }
+
+  :global(.dark) .waveform-strip {
+    opacity: 0.9;
   }
 </style>

@@ -474,6 +474,7 @@ test('press hold and release creates audio embed', async ({ page }) => {
 		targetTestId: 'recording-preview',
 		screenshot: true
 	});
+	await expect(page.getByTestId('recording-preview-waveform').last()).toBeVisible({ timeout: 10000 });
 
 	console.log('[TEST] Press hold release: audio embed inserted');
 });
@@ -519,6 +520,7 @@ test('authenticated press hold release uploads and transcribes audio embed', asy
 		.last();
 	await expect(audioEmbed).toHaveAttribute('data-status', 'finished', { timeout: 60000 });
 	await expect(page.getByTestId('recording-preview').last()).toBeVisible({ timeout: 10000 });
+	await expect(page.getByTestId('recording-preview-waveform').last()).toBeVisible({ timeout: 10000 });
 
 	console.log('[TEST] Authenticated recording: upload + transcription completed');
 });

@@ -19,6 +19,7 @@ RUN apt-get clean && \
             libpq-dev \
             gcc \
             curl \
+            ffmpeg \
             git \
             gosu \
             libcairo2 \

@@ -42,6 +42,7 @@ import {
   type UserTaskStatus,
   type UserPlanStatus,
   type UserPlanVerificationStatus,
+  type WorkspaceHistoryResult,
   type TeamRole,
   type WorkspaceMoveType,
 } from "./client.js";
@@ -52,7 +53,7 @@ import { stdin, stdout } from "node:process";
 import { readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { basename, dirname } from "node:path";
-import { createHash, randomUUID } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { arch, platform } from "node:os";
 import WebSocket from "ws";
 
@@ -152,6 +153,7 @@ import {
   renderPlanList,
   type DecryptedUserPlan,
 } from "./plansCli.js";
+import { encryptBytesWithAesGcm, encryptWithAesGcmCombined } from "./crypto.js";
 
 type SignupRequiredResult = {
   status: "signup_required";
@@ -404,6 +406,16 @@ async function main(): Promise<void> {
     return;
   }
 
+  if (command === "projects") {
+    await handleProjects(client, subcommand, rest, parsed.flags);
+    return;
+  }
+
+  if (command === "history") {
+    await handleHistory(client, subcommand, rest, parsed.flags);
+    return;
+  }
+
   if (command === "teams") {
     await handleTeams(client, subcommand, rest, parsed.flags);
     return;
@@ -628,6 +640,53 @@ async function handleTasks(
     return;
   }
 
+  if (subcommand === "history") {
+    const task = await requiredResolvedTask(client, masterKey, rest[0], scope, "history");
+    printObjectHistory(await client.listObjectHistory("task", task.taskId, typeof flags.limit === "string" ? Number(flags.limit) : 50), flags);
+    return;
+  }
+
+  if (subcommand === "restore") {
+    const task = await requiredResolvedTask(client, masterKey, rest[0], scope, "restore");
+    const entryId = historyEntryIdFromFlagsOrRest(flags, rest, "openmates tasks restore <task-id> --entry <history-entry-id>");
+    const result = await client.restoreObjectHistory("task", task.taskId, entryId, parseHistoryRestoreState(flags.state));
+    if (flags.json === true) printJson(result);
+    else {
+      console.log(`Task restored: ${task.shortId}`);
+      printHistoryCommands(result.history as WorkspaceHistoryResult | null | undefined);
+    }
+    return;
+  }
+
+  if (subcommand === "ask") {
+    const instruction = requiredAskInstruction(flags, rest, "openmates tasks ask \"Prepare launch copy\"");
+    if (flags.confirm === true || flags["confirm-first"] === true) {
+      const proposals = await proposeTasksForAsk(client, instruction, flags);
+      if (flags.json === true) printJson({ applied: false, proposed_tasks: proposals });
+      else printAskPreview("tasks", proposals.map((proposal) => proposal.title));
+      return;
+    }
+    const proposals = await proposeTasksForAsk(client, instruction, flags);
+    const encryptedCreates = [];
+    for (const proposal of proposals) {
+      encryptedCreates.push(await buildCreateUserTaskInput(masterKey, {
+        title: proposal.title,
+        description: proposal.description ?? "",
+        labels: labelFlags(flags),
+        status: normalizeTaskStatus(proposal.status ?? (typeof flags.status === "string" ? flags.status : undefined)),
+        assign: proposal.assignee_type ?? taskAssignFlag(flags),
+        chatId: typeof flags.chat === "string" ? flags.chat : null,
+        projectIds: splitCsvFlag(flags.project ?? flags.projects),
+        planId: typeof flags.plan === "string" ? flags.plan : null,
+        dueAt: parseDueAt(flags.due),
+        priority: typeof flags.priority === "string" ? normalizeTaskPriority(flags.priority) : undefined,
+      }));
+    }
+    const result = await client.askUserTasks({ instruction, encryptedCreates });
+    printAskApplyResult("task", result, flags);
+    return;
+  }
+
   if (subcommand === "create") {
     const title = taskTitleFromFlagsOrRest(flags, rest);
     const input = await buildCreateUserTaskInput(masterKey, {
@@ -771,7 +830,112 @@ async function requiredResolvedTask(
 
 function printTaskOutput(task: DecryptedUserTask, flags: Record<string, string | boolean>): void {
   if (flags.json === true) printJson({ task: taskToJson(task) });
-  else console.log(renderTaskDetail(task));
+  else {
+    console.log(renderTaskDetail(task));
+    printHistoryCommands(task.encrypted.history ?? null);
+  }
+}
+
+function requiredAskInstruction(flags: Record<string, string | boolean>, rest: string[], usage: string): string {
+  const instruction = typeof flags.text === "string" ? flags.text.trim() : rest.join(" ").trim();
+  if (!instruction) throw new Error(`Missing ask instruction. Example: ${usage}`);
+  return instruction;
+}
+
+async function proposeTasksForAsk(client: OpenMatesClient, instruction: string, flags: Record<string, string | boolean>): Promise<Array<{ title: string; description?: string | null; status?: UserTaskStatus; assignee_type?: string | null }>> {
+  const shortTitleLike = instruction.length <= 80 && !/[,:;\n]/.test(instruction);
+  if (shortTitleLike) return [{ title: instruction }];
+  const splitProposals = splitTaskAskInstruction(instruction);
+  if (splitProposals.length > 1) return splitProposals;
+  try {
+    const proposals = await client.extractUserTaskProposals({
+      correctedText: instruction,
+      mode: "create",
+      contextChatId: typeof flags.chat === "string" ? flags.chat : null,
+      projectIds: splitCsvFlag(flags.project ?? flags.projects),
+    });
+    if (proposals.length > 0) return proposals;
+  } catch {
+    // Fall back to deterministic splitting so ask remains usable if AI proposal
+    // extraction is unavailable in a CLI-only environment.
+  }
+  return splitProposals.length > 0 ? splitProposals : [{ title: instruction }];
+}
+
+function splitTaskAskInstruction(instruction: string): Array<{ title: string }> {
+  const suffix = instruction.includes(":") ? instruction.split(":").slice(1).join(":") : instruction;
+  return suffix.split(/[,;]\s*/).map((title) => title.trim()).filter(Boolean).map((title) => ({ title }));
+}
+
+function printAskPreview(namespace: string, titles: string[]): void {
+  console.log(`Preview ${namespace} ask changes:`);
+  for (const title of titles) console.log(`  - ${title}`);
+  console.log("No changes applied. Re-run without --confirm-first to apply.");
+}
+
+function printHistoryCommands(history: WorkspaceHistoryResult | null | undefined): void {
+  if (!history) return;
+  const changeSetId = typeof history.change_set?.change_set_id === "string" ? history.change_set.change_set_id : undefined;
+  const undoAll = history.undo_all_command || (changeSetId ? `openmates history undo ${changeSetId}` : undefined);
+  if (!undoAll) return;
+  console.log(`\nUndo all: ${undoAll}`);
+  for (const command of history.undo_entry_commands ?? []) console.log(`Undo part: ${command}`);
+}
+
+function printAskApplyResult(namespace: string, result: Record<string, unknown>, flags: Record<string, string | boolean>): void {
+  if (flags.json === true) {
+    printJson(result);
+    return;
+  }
+  const summary = typeof result.summary === "string" && result.summary.trim() ? result.summary : `Applied ${namespace} ask changes.`;
+  console.log(summary);
+  const changeSetId = typeof result.change_set_id === "string" ? result.change_set_id : undefined;
+  if (changeSetId) console.log(`Change set: ${changeSetId}`);
+  const history = result.history as WorkspaceHistoryResult | null | undefined;
+  printHistoryCommands(history ?? {
+    change_set: changeSetId ? { change_set_id: changeSetId } : undefined,
+    undo_all_command: typeof result.undo_all_command === "string" ? result.undo_all_command : undefined,
+    undo_entry_commands: Array.isArray(result.undo_entry_commands) ? result.undo_entry_commands.filter((command): command is string => typeof command === "string") : [],
+  });
+}
+
+function workflowAskGraphFromFlags(flags: Record<string, string | boolean>): WorkflowGraph {
+  if (typeof flags.graph === "string") return parseJsonFlag<WorkflowGraph>(flags.graph, "--graph");
+  return {
+    version: 1,
+    trigger_node_id: "manual-trigger",
+    nodes: [
+      { id: "manual-trigger", type: "manual_trigger", title: "Manual trigger" },
+      { id: "end", type: "end", title: "End" },
+    ],
+    edges: [{ from: "manual-trigger", to: "end" }],
+  };
+}
+
+function parseHistoryRestoreState(value: string | boolean | undefined): "before" | "after" {
+  if (value === undefined || value === false) return "after";
+  if (value === "before" || value === "after") return value;
+  throw new Error("--state must be before or after");
+}
+
+function historyEntryIdFromFlagsOrRest(flags: Record<string, string | boolean>, rest: string[], usage: string): string {
+  const entryId = typeof flags.entry === "string" ? flags.entry : typeof flags["entry-id"] === "string" ? flags["entry-id"] : rest[1];
+  if (!entryId) throw new Error(`Missing history entry ID. Usage: ${usage}`);
+  return entryId;
+}
+
+function printObjectHistory(entries: Record<string, unknown>[], flags: Record<string, string | boolean>): void {
+  if (flags.json === true) {
+    printJson({ entries });
+    return;
+  }
+  if (entries.length === 0) {
+    console.log("No history entries found.");
+    return;
+  }
+  for (const entry of entries) {
+    console.log(`${String(entry.entry_id ?? "-")}  ${String(entry.object_type ?? "-")}  ${String(entry.operation ?? "-")}  v${String(entry.version_before ?? "-")} -> v${String(entry.version_after ?? "-")}`);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -809,6 +973,44 @@ async function handlePlans(
     if (!id) throw new Error("Missing plan ID. Usage: openmates plans show <plan-id|short-id>");
     const plan = await resolvePlan(client, masterKey, id, scope);
     printPlanOutput(plan, flags);
+    return;
+  }
+
+  if (subcommand === "history") {
+    const plan = await requiredResolvedPlan(client, masterKey, rest[0], scope, "history");
+    printObjectHistory(await client.listObjectHistory("plan", plan.planId, typeof flags.limit === "string" ? Number(flags.limit) : 50), flags);
+    return;
+  }
+
+  if (subcommand === "restore") {
+    const plan = await requiredResolvedPlan(client, masterKey, rest[0], scope, "restore");
+    const entryId = historyEntryIdFromFlagsOrRest(flags, rest, "openmates plans restore <plan-id|short-id> --entry <history-entry-id>");
+    const result = await client.restoreObjectHistory("plan", plan.planId, entryId, parseHistoryRestoreState(flags.state));
+    if (flags.json === true) printJson(result);
+    else {
+      console.log(`Plan restored: ${plan.shortId}`);
+      printHistoryCommands(result.history as WorkspaceHistoryResult | null | undefined);
+    }
+    return;
+  }
+
+  if (subcommand === "ask") {
+    const instruction = requiredAskInstruction(flags, rest, "openmates plans ask \"Prepare launch plan\"");
+    if (flags.confirm === true || flags["confirm-first"] === true) {
+      if (flags.json === true) printJson({ applied: false, proposed_plans: [{ title: instruction }] });
+      else printAskPreview("plans", [instruction]);
+      return;
+    }
+    const input = await buildCreateUserPlanInput(masterKey, {
+      title: instruction,
+      summary: typeof flags.summary === "string" ? flags.summary : "",
+      goal: typeof flags.goal === "string" ? flags.goal : instruction,
+      status: normalizePlanStatus(typeof flags.status === "string" ? flags.status : undefined),
+      primaryChatId: typeof flags.chat === "string" ? flags.chat : null,
+      linkedProjectIds: splitCsvFlag(flags.project ?? flags.projects),
+    });
+    const result = await client.askUserPlans({ instruction, encryptedCreate: input });
+    printAskApplyResult("plan", result, flags);
     return;
   }
 
@@ -999,7 +1201,115 @@ async function requiredResolvedPlan(
 
 function printPlanOutput(plan: DecryptedUserPlan, flags: Record<string, string | boolean>): void {
   if (flags.json === true) printJson({ plan: planToJson(plan) });
-  else console.log(renderPlanDetail(plan));
+  else {
+    console.log(renderPlanDetail(plan));
+    printHistoryCommands(plan.encrypted.history ?? null);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Projects
+// ---------------------------------------------------------------------------
+
+async function handleProjects(
+  client: OpenMatesClient,
+  subcommand: string | undefined,
+  rest: string[],
+  flags: Record<string, string | boolean>,
+): Promise<void> {
+  if (!subcommand || subcommand === "help" || flags.help === true) {
+    printProjectsHelp();
+    return;
+  }
+
+  if (subcommand === "history") {
+    const projectId = rest[0];
+    if (!projectId) throw new Error("Missing project ID. Usage: openmates projects history <project-id>");
+    printObjectHistory(await client.listObjectHistory("project", projectId, typeof flags.limit === "string" ? Number(flags.limit) : 50), flags);
+    return;
+  }
+
+  if (subcommand === "restore") {
+    const projectId = rest[0];
+    if (!projectId) throw new Error("Missing project ID. Usage: openmates projects restore <project-id> --entry <history-entry-id>");
+    const entryId = historyEntryIdFromFlagsOrRest(flags, rest, "openmates projects restore <project-id> --entry <history-entry-id>");
+    const result = await client.restoreObjectHistory("project", projectId, entryId, parseHistoryRestoreState(flags.state));
+    if (flags.json === true) printJson(result);
+    else {
+      console.log(`Project restored: ${projectId}`);
+      printHistoryCommands(result.history as WorkspaceHistoryResult | null | undefined);
+    }
+    return;
+  }
+
+  if (subcommand === "ask") {
+    const instruction = requiredAskInstruction(flags, rest, "openmates projects ask \"Launch workspace\"");
+    if (flags.confirm === true || flags["confirm-first"] === true) {
+      if (flags.json === true) printJson({ applied: false, proposed_projects: [{ name: instruction }] });
+      else printAskPreview("projects", [instruction]);
+      return;
+    }
+    const masterKey = client.getMasterKeyBytes();
+    const projectKey = randomBytes(32);
+    const timestamp = Math.floor(Date.now() / 1000);
+    const projectId = randomUUID();
+    const encryptedCreate = {
+      project_id: projectId,
+      encrypted_project_key: await encryptBytesWithAesGcm(projectKey, masterKey),
+      encrypted_name: await encryptWithAesGcmCombined(instruction, projectKey),
+      encrypted_description: await encryptWithAesGcmCombined(typeof flags.description === "string" ? flags.description : "", projectKey),
+      encrypted_icon: await encryptWithAesGcmCombined("folder", projectKey),
+      encrypted_color: await encryptWithAesGcmCombined("default", projectKey),
+      pinned: flags.pinned === true,
+      created_at: timestamp,
+      updated_at: timestamp,
+      last_opened_at: timestamp,
+    };
+    const result = await client.askProject({ instruction, encryptedCreate });
+    printAskApplyResult("project", result, flags);
+    return;
+  }
+
+  throw new Error(`Unknown projects command '${subcommand}'. Run 'openmates projects --help'.`);
+}
+
+async function handleHistory(
+  client: OpenMatesClient,
+  subcommand: string | undefined,
+  rest: string[],
+  flags: Record<string, string | boolean>,
+): Promise<void> {
+  if (!subcommand || subcommand === "list") {
+    const changeSets = await client.listWorkspaceHistory({
+      objectType: typeof flags.type === "string" ? flags.type : undefined,
+      objectId: typeof flags.id === "string" ? flags.id : undefined,
+      limit: typeof flags.limit === "string" ? Number(flags.limit) : undefined,
+    });
+    if (flags.json === true) printJson({ change_sets: changeSets });
+    else {
+      for (const item of changeSets) {
+        console.log(`${String(item.change_set_id ?? "-")}  ${String(item.namespace ?? "-")}  ${String(item.action_type ?? "-")}  ${String(item.status ?? "-")}`);
+      }
+    }
+    return;
+  }
+  if (subcommand === "show") {
+    const changeSetId = rest[0];
+    if (!changeSetId) throw new Error("Missing change set ID. Usage: openmates history show <change-set-id>");
+    printJson(await client.getWorkspaceHistory(changeSetId));
+    return;
+  }
+  if (subcommand === "undo") {
+    const changeSetId = rest[0];
+    if (!changeSetId) throw new Error("Missing change set ID. Usage: openmates history undo <change-set-id>");
+    const result = await client.undoWorkspaceHistory(changeSetId);
+    if (flags.json === true) printJson(result);
+    else {
+      console.log(`Undo change set created: ${String((result.change_set as Record<string, unknown> | undefined)?.change_set_id ?? "unknown")}`);
+    }
+    return;
+  }
+  throw new Error(`Unknown history command '${subcommand}'. Run 'openmates history --help'.`);
 }
 
 // ---------------------------------------------------------------------------
@@ -2960,9 +3270,53 @@ async function handleWorkflows(
     return;
   }
 
+  if (subcommand === "history") {
+    const workflowId = rest[0];
+    if (!workflowId) throw new Error("Missing workflow ID. Usage: openmates workflows history <workflow-id>");
+    printObjectHistory(await client.listObjectHistory("workflow", workflowId, typeof flags.limit === "string" ? Number(flags.limit) : 50), flags);
+    return;
+  }
+
+  if (subcommand === "restore") {
+    const workflowId = rest[0];
+    if (!workflowId) throw new Error("Missing workflow ID. Usage: openmates workflows restore <workflow-id> --entry <history-entry-id>");
+    const entryId = historyEntryIdFromFlagsOrRest(flags, rest, "openmates workflows restore <workflow-id> --entry <history-entry-id>");
+    const result = await client.restoreObjectHistory("workflow", workflowId, entryId, parseHistoryRestoreState(flags.state));
+    if (flags.json === true) printJson(result);
+    else {
+      console.log(`Workflow restored: ${workflowId}`);
+      printHistoryCommands(result.history as WorkspaceHistoryResult | null | undefined);
+    }
+    return;
+  }
+
+  if (subcommand === "ask") {
+    const instruction = requiredAskInstruction(flags, rest, "openmates workflows ask \"alert me if it rains\"");
+    if (flags.confirm === true || flags["confirm-first"] === true) {
+      if (flags.json === true) printJson({ applied: false, proposed_workflows: [{ title: instruction }] });
+      else printAskPreview("workflows", [instruction]);
+      return;
+    }
+    const retention = parseWorkflowRunContentRetention(flags["run-content-retention"]);
+    const result = await client.askWorkflow({
+      instruction,
+      create: {
+        title: instruction.slice(0, 200),
+        description: typeof flags.description === "string" ? flags.description : null,
+        graph: workflowAskGraphFromFlags(flags),
+        enabled: flags.enabled === true,
+        ...(retention ? { run_content_retention: retention } : {}),
+        source: "cli_ask",
+        created_by_assistant: true,
+      },
+    });
+    printAskApplyResult("workflow", result, flags);
+    return;
+  }
+
   if (subcommand === "input") {
     const text = typeof flags.text === "string" ? flags.text : rest.join(" ").trim();
-    if (!text) throw new Error("Missing workflow input text. Example: openmates workflows input \"alert me if it rains\"");
+    if (!text) throw new Error("Missing workflow input text. Example: openmates workflows ask \"alert me if it rains\"");
     const session = await client.startWorkflowInput({
       text,
       selectedWorkflowId: typeof flags["workflow-id"] === "string" ? flags["workflow-id"] : undefined,
@@ -4530,6 +4884,7 @@ const SETTINGS_EXECUTABLE_COMMANDS: SettingsInfoCommand[] = [
   { path: ["privacy", "debug-logs", "share"], description: "Create a debug log sharing session", examples: ["openmates settings privacy debug-logs share --duration 1h --confirm"] },
   { path: ["billing", "overview"], description: "Show billing overview", examples: ["openmates settings billing overview"] },
   { path: ["billing", "usage"], description: "Show usage history", examples: ["openmates settings billing usage --json"] },
+  { path: ["billing", "usage", "overview"], description: "Show fast usage overview rollups", examples: ["openmates settings billing usage overview --granularity weekly --json"] },
   { path: ["billing", "usage", "summaries"], description: "Show usage summaries", examples: ["openmates settings billing usage summaries"] },
   { path: ["billing", "usage", "daily"], description: "Show daily usage overview", examples: ["openmates settings billing usage daily"] },
   { path: ["billing", "usage", "export"], description: "Export usage data", examples: ["openmates settings billing usage export --json"] },
@@ -4902,6 +5257,17 @@ function parseRequiredNumber(value: string | boolean | undefined, flag: string):
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) throw new Error(`Invalid ${flag}: ${value}`);
   return parsed;
+}
+
+function parseOptionalQueryNumber(value: string | boolean | undefined, flag: string): number | undefined {
+  if (value === undefined) return undefined;
+  return parseRequiredNumber(value, flag);
+}
+
+function parseUsageOverviewGranularity(value: string | boolean | undefined): "daily" | "weekly" | "monthly" {
+  if (value === undefined) return "daily";
+  if (value === "daily" || value === "weekly" || value === "monthly") return value;
+  throw new Error("Invalid --granularity. Use daily, weekly, or monthly.");
 }
 
 function parseOptionalNumber(value: string | boolean | undefined, fallback: number, flag: string): number {
@@ -5827,6 +6193,17 @@ async function handleSettings(
 
   if (matches(tokens, ["billing", "usage", "daily"])) {
     await printSettingsResult(client.settingsGet("usage/daily-overview"), flags);
+    return;
+  }
+
+  if (matches(tokens, ["billing", "usage", "overview"])) {
+    const granularity = parseUsageOverviewGranularity(flags.granularity);
+    await printSettingsResult(client.getUsageOverview({
+      granularity,
+      days: parseOptionalQueryNumber(flags.days, "--days"),
+      weeks: parseOptionalQueryNumber(flags.weeks, "--weeks"),
+      months: parseOptionalQueryNumber(flags.months, "--months"),
+    }), flags);
     return;
   }
 
@@ -6946,6 +7323,7 @@ async function sendMessageStreaming(
                       use_corrected: audioTranscription?.use_corrected ?? null,
                       correction_model: audioTranscription?.correction_model ?? null,
                       model: audioTranscription?.model ?? null,
+                      waveform: audioTranscription?.waveform ?? null,
                       s3_base_url: uploadResult.s3_base_url,
                       files: uploadResult.files,
                       aes_key: uploadResult.aes_key,
@@ -9397,6 +9775,8 @@ function printTasksHelp(): void {
   openmates tasks list [--status <status>] [--chat <id>] [--project <id>] [--label <label>] [--priority <level>] [--json]
   openmates tasks board [--chat <id>] [--project <id>] [--label <label>] [--priority <level>] [--json]
   openmates tasks show <task-id|short-id> [--json]
+  openmates tasks history <task-id|short-id> [--limit <n>] [--json]
+  openmates tasks restore <task-id|short-id> --entry <history-entry-id> [--state before|after] [--json]
   openmates tasks create --title <title> [--description <text>] [--assign user|ai] [--chat <id>] [--project <id>] [--label <label>] [--priority <level>] [--status <status>] [--due <date>] [--json]
   openmates tasks edit <task-id|short-id> [--title <title>] [--description <text>] [--label <label>] [--add-label <label>] [--remove-label <label>] [--priority <level>] [--assign user|ai] [--status <status>] [--json]
   openmates tasks delete <task-id|short-id> --confirm [--json]
@@ -9429,6 +9809,8 @@ function printPlansHelp(): void {
   console.log(`Plans commands:
   openmates plans list [--status <status>] [--active] [--chat <id>] [--project <id>] [--json]
   openmates plans show <plan-id|short-id> [--json]
+  openmates plans history <plan-id|short-id> [--limit <n>] [--json]
+  openmates plans restore <plan-id|short-id> --entry <history-entry-id> [--state before|after] [--json]
   openmates plans create --title <title> [--goal <goal>] [--summary <text>] [--chat <id>] [--project <id>] [--status <status>] [--json]
   openmates plans create --goal <goal> [--chat <id>] [--json]
   openmates plans edit <plan-id|short-id> [--title <title>] [--goal <goal>] [--summary <text>] [--status <status>] [--json]
@@ -9459,6 +9841,17 @@ Notes:
   approve/activate require a primary chat because active plans use the chat as the command center.
   pause currently moves a plan back to awaiting_confirmation; resume sets it active.
   Normal output decrypts plan fields locally; use --json for machine-readable plaintext fields.`);
+}
+
+function printProjectsHelp(): void {
+  console.log(`Projects commands:
+  openmates projects ask <name> [--description <text>] [--confirm-first] [--json]
+  openmates projects history <project-id> [--limit <n>] [--json]
+  openmates projects restore <project-id> --entry <history-entry-id> [--state before|after] [--json]
+
+Notes:
+  Project metadata is encrypted by clients. History and restore operate on opaque encrypted snapshots.
+  Whole-change-set undo remains available through openmates history undo <change-set-id>.`);
 }
 
 function printTeamsHelp(): void {
@@ -9590,6 +9983,8 @@ function printWorkflowsHelp(): void {
   openmates workflows validate --file workflow.yml [--json]
   openmates workflows create --file workflow.yml [--json]
   openmates workflows update <workflow-id> --file workflow.yml [--json]
+  openmates workflows history <workflow-id> [--limit <n>] [--json]
+  openmates workflows restore <workflow-id> --entry <history-entry-id> [--state before|after] [--json]
   openmates workflows create --title <title> --graph '<json>' [--enabled] [--run-content-retention last_5|none] [--json]
   openmates workflows input <text> [--workflow-id <id>] [--project-id <id>] [--json]
   openmates workflows input-show <session-id> [--json]
