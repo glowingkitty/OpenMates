@@ -385,6 +385,7 @@
             && !isPublicChat(chat.chat_id)
             && !chat.is_incognito
             && !chat.is_anonymous
+            && !chat.ideabucket_triggered_at
             && !!(chat.encrypted_draft_md || chat.encrypted_draft_preview)
             && (chat.messages_v ?? 0) === 0
             && (chat.title_v ?? 0) === 0
@@ -8570,15 +8571,26 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
              try {
                  const rawChat = await chatDB.getRawChat(currentChat.chat_id);
                  if (rawChat) {
-                     currentChat = {
-                         ...currentChat,
-                         encrypted_draft_md: rawChat.encrypted_draft_md ?? chat.encrypted_draft_md ?? currentChat.encrypted_draft_md,
-                         encrypted_draft_preview: rawChat.encrypted_draft_preview ?? chat.encrypted_draft_preview ?? currentChat.encrypted_draft_preview,
-                         draft_v: rawChat.draft_v ?? chat.draft_v ?? currentChat.draft_v,
-                         ideabucket: rawChat.ideabucket ?? chat.ideabucket ?? currentChat.ideabucket,
-                         ideabucket_processing_window_id: rawChat.ideabucket_processing_window_id ?? chat.ideabucket_processing_window_id ?? currentChat.ideabucket_processing_window_id,
-                     };
-                 }
+                      const mergedMessagesV = Math.max(
+                          Number(currentChat.messages_v ?? 0),
+                          Number(rawChat.messages_v ?? 0),
+                          Number(chat.messages_v ?? 0),
+                      );
+                      const shouldDropStaleDraftShell =
+                          mergedMessagesV > 0 &&
+                          (currentChat.messages_v ?? 0) === 0 &&
+                          !!(currentChat.encrypted_draft_md || currentChat.encrypted_draft_preview);
+                      currentChat = {
+                          ...currentChat,
+                          messages_v: mergedMessagesV,
+                          encrypted_draft_md: shouldDropStaleDraftShell ? null : rawChat.encrypted_draft_md ?? chat.encrypted_draft_md ?? currentChat.encrypted_draft_md,
+                          encrypted_draft_preview: shouldDropStaleDraftShell ? null : rawChat.encrypted_draft_preview ?? chat.encrypted_draft_preview ?? currentChat.encrypted_draft_preview,
+                          draft_v: shouldDropStaleDraftShell ? 0 : rawChat.draft_v ?? chat.draft_v ?? currentChat.draft_v,
+                          ideabucket: rawChat.ideabucket ?? chat.ideabucket ?? currentChat.ideabucket,
+                          ideabucket_processing_window_id: rawChat.ideabucket_processing_window_id ?? chat.ideabucket_processing_window_id ?? currentChat.ideabucket_processing_window_id,
+                          ideabucket_triggered_at: rawChat.ideabucket_triggered_at ?? chat.ideabucket_triggered_at ?? currentChat.ideabucket_triggered_at,
+                      };
+                  }
              } catch (error) {
                  console.debug(`[ActiveChat] Could not merge raw draft fields for ${currentChat.chat_id}:`, error);
              }
