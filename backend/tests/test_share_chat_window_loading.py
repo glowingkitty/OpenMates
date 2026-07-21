@@ -73,12 +73,23 @@ get_shared_sub_chats = share_routes.get_shared_sub_chats
 
 
 class FakeEmbedMethods:
+    def __init__(self) -> None:
+        self.chat_embeds = [{"embed_id": "parent-1", "hashed_chat_id": ""}]
+        self.key_embeds = []
+        self.embed_keys = []
+
     async def get_embeds_by_hashed_chat_id(self, hashed_chat_id: str):
-        return [{"embed_id": "parent-1", "hashed_chat_id": hashed_chat_id}]
+        return [dict(embed, hashed_chat_id=embed.get("hashed_chat_id") or hashed_chat_id) for embed in self.chat_embeds]
 
     async def get_embed_keys_by_hashed_chat_id(self, hashed_chat_id: str, include_master_keys: bool = False):
         assert include_master_keys is False
-        return [{"hashed_chat_id": hashed_chat_id, "key_type": "chat"}]
+        if self.embed_keys:
+            return self.embed_keys
+        return [{"hashed_chat_id": hashed_chat_id, "key_type": "chat", "hashed_embed_id": "parent-hash"}]
+
+    async def get_embeds_by_hashed_embed_ids(self, hashed_embed_ids: list[str]):
+        requested = set(hashed_embed_ids)
+        return [embed for embed in self.key_embeds if embed.get("hashed_embed_id") in requested]
 
 
 class FakeChatMethods:
@@ -186,6 +197,28 @@ async def test_shared_chat_manifest_omits_full_messages():
     assert payload["embeds"]
     assert payload["embed_keys"]
     assert payload["message_highlights"]
+
+
+@pytest.mark.asyncio
+async def test_shared_chat_manifest_includes_key_addressable_embeds():
+    directus = FakeDirectusService()
+    directus.embed.chat_embeds = [{"embed_id": "image-embed", "hashed_embed_id": "image-hash"}]
+    directus.embed.key_embeds = [
+        {"embed_id": "image-embed", "hashed_embed_id": "image-hash"},
+        {"embed_id": "pdf-embed", "hashed_embed_id": "pdf-hash", "encrypted_content": "cipher-pdf"},
+    ]
+    directus.embed.embed_keys = [
+        {"hashed_chat_id": "hashed-chat", "key_type": "chat", "hashed_embed_id": "image-hash"},
+        {"hashed_chat_id": "hashed-chat", "key_type": "chat", "hashed_embed_id": "pdf-hash"},
+    ]
+
+    payload = await get_shared_chat_manifest(
+        request=None,
+        chat_id="chat-shared",
+        directus_service=directus,
+    )
+
+    assert [embed["embed_id"] for embed in payload["embeds"]] == ["image-embed", "pdf-embed"]
 
 
 @pytest.mark.asyncio

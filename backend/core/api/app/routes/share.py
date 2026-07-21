@@ -160,6 +160,43 @@ async def get_shared_sub_chats(
     )
     return []
 
+
+def dedupe_shared_embeds(embeds: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    seen_embed_ids: set[str] = set()
+    deduped: List[Dict[str, Any]] = []
+    for embed in embeds:
+        embed_id = embed.get("embed_id")
+        if isinstance(embed_id, str) and embed_id:
+            if embed_id in seen_embed_ids:
+                continue
+            seen_embed_ids.add(embed_id)
+        deduped.append(embed)
+    return deduped
+
+
+async def get_shared_chat_embeds_and_keys(
+    hashed_chat_id: str,
+    directus_service: DirectusService,
+) -> tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    """Return encrypted embeds reachable by the shared chat's key wrappers.
+
+    Access model: unauthenticated public share endpoint. The route still returns
+    only client-encrypted embed records and chat-scoped key wrappers for the
+    already-shared chat hash; no plaintext or fragment key is exposed.
+    """
+    embeds = await directus_service.embed.get_embeds_by_hashed_chat_id(hashed_chat_id)
+    embed_keys = await directus_service.embed.get_embed_keys_by_hashed_chat_id(
+        hashed_chat_id,
+        include_master_keys=False,
+    )
+    hashed_embed_ids = [
+        key.get("hashed_embed_id")
+        for key in embed_keys or []
+        if isinstance(key.get("hashed_embed_id"), str)
+    ]
+    key_addressable_embeds = await directus_service.embed.get_embeds_by_hashed_embed_ids(hashed_embed_ids)
+    return dedupe_shared_embeds([*(embeds or []), *key_addressable_embeds]), embed_keys or []
+
 def sanitize_shared_pii(messages: List[Any], share_pii: bool) -> List[Any]:
     if share_pii or not messages:
         return messages
@@ -193,8 +230,7 @@ async def get_shared_chat_auxiliary_payload(
     if share_highlights is None:
         share_highlights = True
 
-    embeds = await directus_service.embed.get_embeds_by_hashed_chat_id(hashed_chat_id)
-    embed_keys = await directus_service.embed.get_embed_keys_by_hashed_chat_id(hashed_chat_id, include_master_keys=False)
+    embeds, embed_keys = await get_shared_chat_embeds_and_keys(hashed_chat_id, directus_service)
     message_highlights = []
     if share_highlights:
         message_highlights = await directus_service.get_items(
@@ -222,7 +258,7 @@ async def get_shared_chat_auxiliary_payload(
     shared_tasks = await get_shared_chat_tasks(chat_id, hashed_chat_id, directus_service)
     return {
         "embeds": embeds or [],
-        "embed_keys": embed_keys or [],
+        "embed_keys": embed_keys,
         "sub_chats": sub_chats,
         "plans": shared_plans["plans"],
         "plan_key_wrappers": shared_plans["plan_key_wrappers"],
@@ -325,17 +361,9 @@ async def get_shared_chat(
                 sanitized_messages.append(sanitized)
             messages = sanitized_messages
         
-        # Get embeds for the chat (encrypted, as stored in database)
         import hashlib
         hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
-        embeds = await directus_service.embed.get_embeds_by_hashed_chat_id(hashed_chat_id)
-        
-        # Get embed_keys for this chat (wrapped key architecture)
-        # These contain AES(embed_key, chat_key) entries that allow shared chat recipients
-        # to unwrap embed_keys using the chat_encryption_key from the share link
-        # NOTE: For share links, we only need chat key entries (not master keys) since
-        # share recipients don't have access to the owner's master key
-        embed_keys = await directus_service.embed.get_embed_keys_by_hashed_chat_id(hashed_chat_id, include_master_keys=False)
+        embeds, embed_keys = await get_shared_chat_embeds_and_keys(hashed_chat_id, directus_service)
 
         message_highlights = []
         if share_highlights:
@@ -372,7 +400,7 @@ async def get_shared_chat(
             "encrypted_category": chat.get("encrypted_category"),  # Category name encrypted with chat key
             "messages": messages or [],
             "embeds": embeds or [],
-            "embed_keys": embed_keys or [],
+            "embed_keys": embed_keys,
             "sub_chats": sub_chats,
             "code_run_outputs": code_run_outputs,
             "message_highlights": message_highlights,

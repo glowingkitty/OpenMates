@@ -225,6 +225,40 @@ class EmbedMethods:
 
         logger.debug(f"Found {len(all_embeds)} embed(s) total for {len(hashed_chat_ids)} chats")
         return all_embeds
+
+    async def get_embeds_by_hashed_embed_ids(self, hashed_embed_ids: List[str]) -> List[Dict[str, Any]]:
+        """
+        Fetch embeds by hashed_embed_id values from chat-scoped key wrappers.
+
+        Shared-chat payloads primarily query embeds by hashed_chat_id, but upload
+        finalization can leave a file embed discoverable through its chat key
+        wrapper before the embed row's chat hash is queryable. The key wrapper is
+        still scoped to the shared chat, so this lookup returns only encrypted
+        embed rows addressable by those wrappers.
+        """
+        unique_hashes = [hashed for hashed in dict.fromkeys(hashed_embed_ids) if hashed]
+        if not unique_hashes:
+            return []
+
+        all_embeds: List[Dict[str, Any]] = []
+        batch_size = self._EMBED_KEYS_BATCH_SIZE
+        for i in range(0, len(unique_hashes), batch_size):
+            chunk = unique_hashes[i:i + batch_size]
+            params = {
+                'filter[hashed_embed_id][_in]': ','.join(chunk),
+                'fields': EMBED_ALL_FIELDS,
+                'limit': -1,
+            }
+            try:
+                response = await self.directus_service.get_items('embeds', params=params, no_cache=True)
+            except Exception as e:
+                logger.error(f"Error fetching embeds by hashed_embed_ids: {e}", exc_info=True)
+                continue
+            if response and isinstance(response, list):
+                all_embeds.extend(response)
+
+        logger.debug(f"Found {len(all_embeds)} embed(s) for {len(unique_hashes)} hashed_embed_ids")
+        return all_embeds
     
     async def create_embed(self, embed_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """
