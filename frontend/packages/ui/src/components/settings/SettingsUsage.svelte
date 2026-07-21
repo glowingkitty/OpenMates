@@ -872,6 +872,10 @@ Usage Settings - View usage statistics and export usage data
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
                 const errorDetail = errorData.detail || errorData.message || '';
+                if (response.status === 404 && String(errorDetail).toLowerCase().includes('no usage entries')) {
+                    notificationStore.info($text('settings.usage.no_usage_title'));
+                    return;
+                }
                 throw new Error(`Failed to export usage data: ${response.status} ${response.statusText}${errorDetail ? ` - ${errorDetail}` : ''}`);
             }
             
@@ -2539,7 +2543,7 @@ Usage Settings - View usage statistics and export usage data
     .tab-content-panel {
         margin: 8px 10px 0;
         padding: 4px 0;
-        background: var(--color-grey-5, var(--color-grey-10));
+        background: var(--color-grey-10);
         border-radius: var(--radius-5);
         border: 1px solid var(--color-grey-20);
     }
@@ -2567,12 +2571,12 @@ Usage Settings - View usage statistics and export usage data
     }
 
     .error-message {
-        background: rgba(223, 27, 65, 0.1);
-        color: #df1b41;
+        background: var(--color-error-light);
+        color: var(--color-error);
         padding: var(--spacing-6);
         border-radius: var(--radius-3);
         font-size: var(--font-size-xs);
-        border: 1px solid rgba(223, 27, 65, 0.3);
+        border: 1px solid color-mix(in srgb, var(--color-error) 30%, transparent);
         margin: var(--spacing-8) var(--spacing-5);
     }
 
@@ -2747,7 +2751,7 @@ Usage Settings - View usage statistics and export usage data
     }
 
     .detail-entry.clickable .entry-content:hover {
-        background: var(--color-grey-15);
+        background: var(--color-grey-20);
         border-color: var(--color-grey-30);
     }
 
@@ -2828,7 +2832,7 @@ Usage Settings - View usage statistics and export usage data
     }
 
     .pagination-button:hover:not(:disabled) {
-        background: var(--color-grey-15);
+        background: var(--color-grey-20);
         border-color: var(--color-grey-40);
     }
 
@@ -2867,7 +2871,7 @@ Usage Settings - View usage statistics and export usage data
     }
 
     .show-more-button:hover {
-        background: var(--color-grey-15);
+        background: var(--color-grey-20);
         border-color: var(--color-grey-40);
     }
 
@@ -2894,7 +2898,7 @@ Usage Settings - View usage statistics and export usage data
         justify-content: space-between;
         align-items: center;
         padding: 14px 0;
-        border-bottom: 1px solid var(--color-grey-15);
+        border-bottom: 1px solid var(--color-grey-20);
     }
 
     .entry-detail-row:last-child {

@@ -867,6 +867,7 @@
   data-app-id={appId}
   data-skill-id={skillId}
   data-status={status}
+  data-embed-status={status}
   style={[
     tiltTransform ? `transform: ${tiltTransform};` : '',
     (!useMobileLayout && customHeight) ? `height: ${customHeight}px; min-height: ${customHeight}px; max-height: ${customHeight}px;` : ''

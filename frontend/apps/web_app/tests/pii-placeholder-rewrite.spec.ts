@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
-// @privacy-promise: pii-placeholder-rewrite
+// @privacy-promise: pii-placeholder-substitution
 /**
  * Web regression for client-side PII placeholder rewrite.
  *
