@@ -76,6 +76,8 @@ import WeatherRainRadarEmbedPreview from "../../../embeds/weather/WeatherRainRad
 import WeatherDayEmbedPreview from "../../../embeds/weather/WeatherDayEmbedPreview.svelte";
 import BusinessCompanyFinancialsEmbedPreview from "../../../embeds/business/BusinessCompanyFinancialsEmbedPreview.svelte";
 import BusinessCompanyFinancialResultEmbedPreview from "../../../embeds/business/BusinessCompanyFinancialResultEmbedPreview.svelte";
+import FinanceCheckAccountsEmbedPreview from "../../../embeds/finance/FinanceCheckAccountsEmbedPreview.svelte";
+import { normalizeFinanceOverview } from "../../../embeds/finance/financeCheckAccountsContent";
 import CalendarActionEmbedPreview from "../../../embeds/calendar/CalendarActionEmbedPreview.svelte";
 import { proxyImage } from "../../../../utils/imageProxy";
 import { resolveImageSourceDomain } from "../../../../utils/embedSourceDomain";
@@ -681,6 +683,15 @@ export class AppSkillUseRenderer implements EmbedRenderer {
 
       if (appId === "business" && skillId === "company_financial_result") {
         return this.renderBusinessCompanyFinancialResultComponent(
+          attrs,
+          embedData,
+          decodedContent,
+          content,
+        );
+      }
+
+      if (appId === "finance" && skillId === "check_accounts") {
+        return this.renderFinanceCheckAccountsComponent(
           attrs,
           embedData,
           decodedContent,
@@ -3066,6 +3077,86 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     } catch (error) {
       console.error(
         "[AppSkillUseRenderer] Error mounting BusinessCompanyFinancialResultEmbedPreview:",
+        error,
+      );
+      this.renderGenericSkill(attrs, embedData, decodedContent, content);
+    }
+  }
+
+  /** Render the finance.check_accounts parent preview component. */
+  private renderFinanceCheckAccountsComponent(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any,
+    content: HTMLElement,
+  ): void {
+    const status =
+      decodedContent?.status ||
+      embedData?.status ||
+      attrs.status ||
+      "processing";
+    const period = decodedContent?.period || "monthly";
+    const overview = normalizeFinanceOverview(decodedContent) || null;
+    const accountCount = typeof decodedContent?.account_count === "number"
+      ? decodedContent.account_count
+      : Array.isArray(overview?.accounts)
+        ? overview.accounts.length
+        : 0;
+    const transactionCount = typeof decodedContent?.transaction_count === "number"
+      ? decodedContent.transaction_count
+      : Array.isArray(overview?.transactions)
+        ? overview.transactions.length
+        : 0;
+    const summary = decodedContent?.summary || "";
+
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn(
+          "[AppSkillUseRenderer] Error unmounting existing component:",
+          e,
+        );
+      }
+    }
+    content.innerHTML = "";
+
+    try {
+      const embedId = attrs.contentRef?.replace("embed:", "") || "";
+      const component = mount(FinanceCheckAccountsEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          period,
+          accountCount,
+          transactionCount,
+          overview,
+          results: Array.isArray(decodedContent?.results) ? decodedContent.results : [],
+          summary,
+          status: status as "processing" | "finished" | "error" | "cancelled",
+          taskId: decodedContent?.task_id || "",
+          isMobile: false,
+          onFullscreen: () =>
+            this.openFullscreen(attrs, embedData, {
+              ...(decodedContent ?? {}),
+              app_id: "finance",
+              skill_id: "check_accounts",
+              period,
+              account_count: accountCount,
+              transaction_count: transactionCount,
+              overview,
+              summary,
+            }),
+        },
+      });
+      mountedComponents.set(content, component);
+      console.debug(
+        "[AppSkillUseRenderer] Mounted FinanceCheckAccountsEmbedPreview component",
+      );
+    } catch (error) {
+      console.error(
+        "[AppSkillUseRenderer] Error mounting FinanceCheckAccountsEmbedPreview:",
         error,
       );
       this.renderGenericSkill(attrs, embedData, decodedContent, content);

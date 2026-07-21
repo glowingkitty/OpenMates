@@ -138,10 +138,14 @@ async def cleanup_connected_account_token_artifacts(
 ) -> None:
     if not token_artifacts or not cache_service or not encryption_service:
         return
+
+    async def _unused_exchange_refresh_token(_refresh_token: str, _scope_context: dict[str, Any]) -> dict[str, Any]:
+        raise RuntimeError("Cleanup must not exchange connected-account refresh tokens")
+
     broker = TokenBrokerService(
         cache_service=cache_service,
         encryption_service=encryption_service,
-        exchange_refresh_token=exchange_refresh_token_for_provider(None),
+        exchange_refresh_token=_unused_exchange_refresh_token,
     )
     for artifact in token_artifacts:
         await broker.delete_turn_artifacts(

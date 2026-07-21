@@ -75,6 +75,7 @@ import { renderDoc } from '../components/embeds/docs/docsEmbedText';
 import { renderSocialMediaGetPosts, renderSocialMediaPost, renderSocialMediaSearch } from '../components/embeds/social_media/socialMediaEmbedText';
 import { renderWeatherDay, renderWeatherForecast, renderWeatherRainRadar } from '../components/embeds/weather/weatherEmbedText';
 import { renderCompanyFinancialResult, renderCompanyFinancials } from '../components/embeds/business/businessEmbedText';
+import { normalizeFinanceOverview } from '../components/embeds/finance/financeCheckAccountsContent';
 import { renderMindMapText } from '../components/embeds/mindmaps/mindMapContent';
 
 // ── Renderer type ────────────────────────────────────────────────────────
@@ -154,8 +155,9 @@ function renderWorkflowsParent(content: Record<string, unknown>): string {
 }
 
 function renderFinanceCheckAccounts(content: Record<string, unknown>): string {
-	const accountCount = content.account_count ?? resolveResultCount(content);
-	const transactionCount = content.transaction_count;
+  const overview = normalizeFinanceOverview(content);
+  const accountCount = content.account_count ?? overview?.accounts?.length ?? resolveResultCount(content);
+  const transactionCount = content.transaction_count ?? overview?.transactions?.length;
 	const period = str(content.period);
 	const lines = ['**Finance | Check accounts**'];
 	if (period) lines.push(`period: ${period}`);

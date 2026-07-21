@@ -65,6 +65,7 @@ TOP_LEVEL_CLASSIFICATION = {
     "history": "history.*",
     "teams": "teams.*",
     "ideabucket": "ideabucket.*",
+    "finance": "finance.checkAccounts / finance.check_accounts",
     "remote-access": "local-remote-access",
     "support": "project-support-info",
     "update": "cli-self-update",
@@ -174,6 +175,7 @@ PARITY_ENTRIES = [
     ParityEntry('openmates ideabucket add', "ideabucket.add", "ideabucket.add"),
     ParityEntry('openmates ideabucket status', "ideabucket.status", "ideabucket.status"),
     ParityEntry('openmates ideabucket process', "ideabucket.process", "ideabucket.process"),
+    ParityEntry('command === "finance"', "finance.checkAccounts", "finance.check_accounts"),
 ]
 
 

@@ -1597,7 +1597,6 @@ async def process_sdk_ideabucket_bucket(
         user_id=str(api_key_info["user_id"]),
         bucket_id=bucket_id,
         now=request_body.now,
-        confirmation_token=request_body.confirmation_token,
         cache_service=request.app.state.cache_service,
         directus_service=request.app.state.directus_service,
     )

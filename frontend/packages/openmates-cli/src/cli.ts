@@ -409,17 +409,17 @@ async function main(): Promise<void> {
   }
 
   if (command === "tasks") {
-    await handleTasks(client, subcommand, rest, parsed.flags);
+    await handleTasks(client, subcommand, rest, parsed.flags, redactor);
     return;
   }
 
   if (command === "plans") {
-    await handlePlans(client, subcommand, rest, parsed.flags);
+    await handlePlans(client, subcommand, rest, parsed.flags, redactor);
     return;
   }
 
   if (command === "projects") {
-    await handleProjects(client, subcommand, rest, parsed.flags);
+    await handleProjects(client, subcommand, rest, parsed.flags, redactor);
     return;
   }
 
@@ -469,7 +469,7 @@ async function main(): Promise<void> {
   }
 
   if (command === "workflows") {
-    await handleWorkflows(client, subcommand, rest, parsed.flags);
+    await handleWorkflows(client, subcommand, rest, parsed.flags, redactor);
     return;
   }
 
@@ -621,6 +621,7 @@ async function handleTasks(
   subcommand: string | undefined,
   rest: string[],
   flags: Record<string, string | boolean>,
+  redactor?: OutputRedactor,
 ): Promise<void> {
   if (!subcommand || subcommand === "help" || flags.help === true) {
     printTasksHelp();
@@ -680,6 +681,7 @@ async function handleTasks(
     const exactAsk = await buildExactTaskAsk(client, masterKey, instruction, scope);
     if (exactAsk) {
       const result = await client.askUserTasks({ instruction, ...exactAsk });
+      if (await handleWorkspaceAskFallbackChat(client, "task", instruction, result, flags, redactor)) return;
       printAskApplyResult("task", result, flags);
       return;
     }
@@ -700,6 +702,7 @@ async function handleTasks(
       }));
     }
     const result = await client.askUserTasks({ instruction, encryptedCreates });
+    if (await handleWorkspaceAskFallbackChat(client, "task", instruction, result, flags, redactor)) return;
     printAskApplyResult("task", result, flags);
     return;
   }
@@ -924,6 +927,53 @@ function printAskApplyResult(namespace: string, result: Record<string, unknown>,
     undo_all_command: typeof result.undo_all_command === "string" ? result.undo_all_command : undefined,
     undo_entry_commands: Array.isArray(result.undo_entry_commands) ? result.undo_entry_commands.filter((command): command is string => typeof command === "string") : [],
   });
+}
+
+async function handleWorkspaceAskFallbackChat(
+  client: OpenMatesClient,
+  namespace: "task" | "plan" | "project" | "workflow",
+  instruction: string,
+  result: Record<string, unknown>,
+  flags: Record<string, string | boolean>,
+  redactor?: OutputRedactor,
+): Promise<boolean> {
+  if (result.fallback_to_chat !== true && result.outcome !== "fallback_to_chat") return false;
+  const fallbackMessage = typeof result.fallback_message === "string"
+    ? result.fallback_message
+    : typeof result.summary === "string"
+      ? result.summary
+      : "Workspace ask needs more context.";
+  if (flags.json !== true) {
+    process.stderr.write(`Workspace ask needs chat context: ${fallbackMessage}\nStarting a new chat...\n`);
+  }
+  const chat = await sendMessageStreaming(
+    client,
+    {
+      message: instruction,
+      chatId: undefined,
+      incognito: false,
+      json: flags.json === true,
+      autoApproveSubChats: flags["auto-approve"] === true,
+      autoApproveMemories: flags["auto-approve-memories"] === true,
+      acceptTaskProposals: flags["accept-task-proposals"] === true,
+      piiDetection: flags["no-pii-detection"] !== true,
+      taskUpdateJobs: false,
+      responseTimeoutMs: parseResponseTimeoutMs(flags),
+      ...teamContextFromFlags(flags),
+    },
+    redactor,
+  );
+  if (flags.json === true) {
+    printJson({
+      ...chat,
+      workspace_ask_fallback: {
+        outcome: "fallback_to_chat",
+        fallback_message: fallbackMessage,
+        namespace,
+      },
+    });
+  }
+  return true;
 }
 
 type ExactTaskAskInput = {
@@ -1254,6 +1304,7 @@ async function handlePlans(
   subcommand: string | undefined,
   rest: string[],
   flags: Record<string, string | boolean>,
+  redactor?: OutputRedactor,
 ): Promise<void> {
   if (!subcommand || subcommand === "help" || flags.help === true) {
     printPlansHelp();
@@ -1306,6 +1357,7 @@ async function handlePlans(
     const exactAsk = await buildExactPlanAsk(client, masterKey, instruction, scope);
     if (exactAsk) {
       const result = await client.askUserPlans({ instruction, ...exactAsk });
+      if (await handleWorkspaceAskFallbackChat(client, "plan", instruction, result, flags, redactor)) return;
       printAskApplyResult("plan", result, flags);
       return;
     }
@@ -1322,6 +1374,7 @@ async function handlePlans(
       linkedProjectIds: splitCsvFlag(flags.project ?? flags.projects),
     });
     const result = await client.askUserPlans({ instruction, encryptedCreate: input });
+    if (await handleWorkspaceAskFallbackChat(client, "plan", instruction, result, flags, redactor)) return;
     printAskApplyResult("plan", result, flags);
     return;
   }
@@ -1528,6 +1581,7 @@ async function handleProjects(
   subcommand: string | undefined,
   rest: string[],
   flags: Record<string, string | boolean>,
+  redactor?: OutputRedactor,
 ): Promise<void> {
   if (!subcommand || subcommand === "help" || flags.help === true) {
     printProjectsHelp();
@@ -1560,6 +1614,7 @@ async function handleProjects(
     const exactAsk = await buildExactProjectAsk(client, masterKey, instruction, flags);
     if (exactAsk) {
       const result = await client.askProject({ instruction, ...exactAsk });
+      if (await handleWorkspaceAskFallbackChat(client, "project", instruction, result, flags, redactor)) return;
       printAskApplyResult("project", result, flags);
       return;
     }
@@ -1583,6 +1638,7 @@ async function handleProjects(
       last_opened_at: timestamp,
     };
     const result = await client.askProject({ instruction, encryptedCreate });
+    if (await handleWorkspaceAskFallbackChat(client, "project", instruction, result, flags, redactor)) return;
     printAskApplyResult("project", result, flags);
     return;
   }
@@ -2321,15 +2377,9 @@ async function handleIdeaBucket(
       return;
     }
     if (action === "set") {
-      const hasRequireConfirmation = flags["require-confirmation"] === true;
-      const hasNoRequireConfirmation = flags["no-require-confirmation"] === true;
-      if (hasRequireConfirmation && hasNoRequireConfirmation) {
-        throw new Error("Use only one of --require-confirmation or --no-require-confirmation.");
-      }
       printJson(await client.saveIdeaBucketSettings({
         processingPrompt: typeof flags.prompt === "string" ? flags.prompt : undefined,
         processingTimes: typeof flags.times === "string" ? flags.times : undefined,
-        requireConfirmation: hasRequireConfirmation ? true : hasNoRequireConfirmation ? false : undefined,
       }));
       return;
     }
@@ -2372,12 +2422,12 @@ async function handleChats(
   const teamContext = teamContextFromFlags(flags);
 
   if (rest[0] === "tasks") {
-    await handleTasks(client, rest[1], rest.slice(2), { ...flags, chat: subcommand });
+    await handleTasks(client, rest[1], rest.slice(2), { ...flags, chat: subcommand }, redactor);
     return;
   }
 
   if (rest[0] === "plans") {
-    await handlePlans(client, rest[1], rest.slice(2), { ...flags, chat: subcommand });
+    await handlePlans(client, rest[1], rest.slice(2), { ...flags, chat: subcommand }, redactor);
     return;
   }
 
@@ -3516,6 +3566,7 @@ async function handleWorkflows(
   subcommand: string | undefined,
   rest: string[],
   flags: Record<string, string | boolean>,
+  redactor?: OutputRedactor,
 ): Promise<void> {
   if (!subcommand || subcommand === "help" || flags.help === true) {
     printWorkflowsHelp();
@@ -3634,6 +3685,7 @@ async function handleWorkflows(
     const exactAsk = await buildExactWorkflowAsk(client, instruction, flags);
     if (exactAsk) {
       const result = await client.askWorkflow({ instruction, ...exactAsk });
+      if (await handleWorkspaceAskFallbackChat(client, "workflow", instruction, result, flags, redactor)) return;
       printAskApplyResult("workflow", result, flags);
       return;
     }
@@ -3650,6 +3702,7 @@ async function handleWorkflows(
         }
       : undefined;
     const result = await client.askWorkflow({ instruction, ...(explicitCreate ? { create: explicitCreate } : {}) });
+    if (await handleWorkspaceAskFallbackChat(client, "workflow", instruction, result, flags, redactor)) return;
     printAskApplyResult("workflow", result, flags);
     return;
   }
@@ -5991,6 +6044,7 @@ async function handleFinance(
     chatId: `cli-finance-${randomUUID()}`,
     messageId: `cli-finance-message-${randomUUID()}`,
     apiKey: resolveApiKey(flags) ?? undefined,
+    promptInjectionProtection: false,
   });
 
   if (flags.json === true) {
@@ -6027,9 +6081,11 @@ function buildFinanceCheckAccountsInput(
   if (direction) input.direction_filter = direction;
   if (csvStatements.length > 0) input.csv_statements = csvStatements;
   if (connectedAccount) {
+    const environment = connectedAccount.refreshTokenBundle.environment === "sandbox" ? "sandbox" : "production";
     input.connected_account_requests = [
       {
         source_ref: `revolut_business:${connectedAccount.accountRef || connectedAccount.id}`,
+        environment,
       },
     ];
   }
@@ -7774,6 +7830,7 @@ async function sendMessageStreaming(
     autoApproveMemories?: boolean;
     acceptTaskProposals?: boolean;
     piiDetection?: boolean;
+    taskUpdateJobs?: boolean;
     anonymousLearningMode?: LearningModeContext;
     responseTimeoutMs?: number;
   },
@@ -8217,6 +8274,7 @@ async function sendMessageStreaming(
     onSubChatApprovalRequest,
     autoApproveSubChats: params.autoApproveSubChats,
     autoApproveMemories: params.autoApproveMemories,
+    taskUpdateJobs: params.taskUpdateJobs,
     responseTimeoutMs: params.responseTimeoutMs,
     preparedEmbeds: preparedEmbeds.length > 0 ? preparedEmbeds : undefined,
     piiMappings: piiResult.mappings.map((mapping) => ({
@@ -10699,7 +10757,7 @@ function printIdeaBucketHelp(): void {
   openmates ideabucket audio <file> [--chat <uuid>] [--bucket <id>] [--scheduled-at <unix>] [--prompt <text>] [--json]
   openmates ideabucket status [bucket-id] [--json]
   openmates ideabucket settings get [--json]
-  openmates ideabucket settings set [--prompt <text>] [--times <HH:MM[,HH:MM]>] [--require-confirmation|--no-require-confirmation] [--json]
+  openmates ideabucket settings set [--prompt <text>] [--times <HH:MM[,HH:MM]>] [--json]
   openmates ideabucket process <bucket-id> [--now] [--json]
 
 Adding text or audio updates the encrypted OpenMates IdeaBucket draft for the

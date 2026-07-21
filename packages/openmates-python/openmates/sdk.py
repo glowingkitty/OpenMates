@@ -204,11 +204,12 @@ class OpenMates:
         connected_account_token_ref_inputs: list[dict[str, Any]] | None = None,
         chat_id: str | None = None,
         message_id: str | None = None,
+        prompt_injection_protection: bool | None = None,
     ) -> dict[str, Any]:
         return self._post(
             f"/v1/sdk/connected-account-skills/{_quote(app_id)}/{_quote(skill_id)}",
             {
-                "input": input_data,
+                "input": _with_app_skill_prompt_injection_option(input_data, prompt_injection_protection),
                 "connected_account_token_ref_inputs": connected_account_token_ref_inputs or [],
                 "chat_id": chat_id,
                 "message_id": message_id,
@@ -1624,7 +1625,6 @@ class OpenMatesIdeaBucket:
             {
                 "processing_prompt": input_data.get("processingPrompt") or input_data.get("processing_prompt") or current["processingPrompt"],
                 "processing_times": input_data.get("processingTimes") or input_data.get("processing_times") or current["processingTimes"],
-                "require_confirmation": input_data.get("requireConfirmation") if "requireConfirmation" in input_data else input_data.get("require_confirmation", current["requireConfirmation"]),
             },
             current.get("entryId"),
             current.get("itemVersion"),
@@ -1661,7 +1661,6 @@ class OpenMatesIdeaBucket:
         return {
             "processingPrompt": processing_prompt,
             "processingTimes": _normalize_ideabucket_processing_times(data.get("processing_times") if isinstance(data, dict) else None),
-            "requireConfirmation": bool(data.get("require_confirmation")) if isinstance(data, dict) else False,
             "entryId": entry_id,
             "itemVersion": item_version,
             "source": "account" if entry_id else "default",
@@ -1671,7 +1670,6 @@ class OpenMatesIdeaBucket:
         return {
             "processing_prompt": settings["processingPrompt"],
             "processing_times": ",".join(settings["processingTimes"]),
-            "require_confirmation": bool(settings["requireConfirmation"]),
         }
 
     def _build_encrypted_add_payload(self, payload: dict[str, Any]) -> dict[str, Any]:
@@ -1714,7 +1712,6 @@ class OpenMatesIdeaBucket:
                 "source": "openmates_pip_sdk",
             }, separators=(",", ":")), chat_key),
             "payload_hash": payload_hash,
-            "require_confirmation": bool(settings and settings.get("requireConfirmation") is True),
         }
 
 
@@ -3154,6 +3151,7 @@ class OpenMatesFinance:
         connected_account_token_ref_inputs: list[dict[str, Any]] | None = None,
         chat_id: str | None = None,
         message_id: str | None = None,
+        prompt_injection_protection: bool | None = False,
     ) -> dict[str, Any]:
         return self._client.run_connected_account_skill(
             "finance",
@@ -3162,6 +3160,7 @@ class OpenMatesFinance:
             connected_account_token_ref_inputs=connected_account_token_ref_inputs,
             chat_id=chat_id,
             message_id=message_id,
+            prompt_injection_protection=prompt_injection_protection,
         )
 
 

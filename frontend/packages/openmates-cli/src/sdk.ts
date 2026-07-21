@@ -194,6 +194,7 @@ export interface ConnectedAccountSkillRunOptions {
   connectedAccountTokenRefInputs?: ConnectedAccountTurnTokenRefInput[];
   chatId?: string;
   messageId?: string;
+  promptInjectionProtection?: boolean;
 }
 
 export interface FinanceCheckAccountsInput extends Record<string, unknown> {
@@ -367,13 +368,11 @@ export interface IdeaBucketAddInput extends Record<string, unknown> {
 export interface IdeaBucketSettingsInput {
   processingPrompt?: string;
   processingTimes?: string[] | string;
-  requireConfirmation?: boolean;
 }
 
 export interface IdeaBucketSettings {
   processingPrompt: string;
   processingTimes: string[];
-  requireConfirmation: boolean;
   entryId?: string;
   itemVersion?: number;
   source: "account" | "default";
@@ -543,7 +542,7 @@ export class OpenMates {
     options: ConnectedAccountSkillRunOptions = {},
   ): Promise<T> {
     return this.request<T>(`/v1/sdk/connected-account-skills/${encodeURIComponent(appId)}/${encodeURIComponent(skillId)}`, {
-      input,
+      input: withAppSkillRunOptions(input, options),
       connected_account_token_ref_inputs: options.connectedAccountTokenRefInputs ?? [],
       chat_id: options.chatId,
       message_id: options.messageId,
@@ -1381,7 +1380,6 @@ export class OpenMatesIdeaBucket {
     const settings = this.normalizeSettings({
       processing_prompt: input.processingPrompt ?? current.processingPrompt,
       processing_times: input.processingTimes ?? current.processingTimes,
-      require_confirmation: input.requireConfirmation ?? current.requireConfirmation,
     }, current.entryId, current.itemVersion);
     const data = this.settingsToMemoryValue(settings);
     const result = await this.client.memories.create({
@@ -1428,7 +1426,6 @@ export class OpenMatesIdeaBucket {
     return {
       processingPrompt,
       processingTimes: normalizeIdeaBucketProcessingTimes(data?.processing_times),
-      requireConfirmation: data?.require_confirmation === true,
       entryId,
       itemVersion,
       source: entryId ? "account" : "default",
@@ -1439,7 +1436,6 @@ export class OpenMatesIdeaBucket {
     return {
       processing_prompt: settings.processingPrompt,
       processing_times: settings.processingTimes.join(","),
-      require_confirmation: settings.requireConfirmation,
     };
   }
 
@@ -1487,7 +1483,6 @@ export class OpenMatesIdeaBucket {
         source: "openmates_sdk",
       }), chatKey),
       payload_hash: payloadHash,
-      require_confirmation: settings?.requireConfirmation === true,
     };
   }
 }

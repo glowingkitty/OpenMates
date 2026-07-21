@@ -1567,7 +1567,6 @@ export const MEMORY_TYPE_REGISTRY: Record<string, MemoryTypeDef> = {
     properties: {
       processing_prompt: { type: "string" },
       processing_times: { type: "string" },
-      require_confirmation: { type: "boolean" },
     },
   },
   "events/saved_events": {
@@ -1907,13 +1906,11 @@ export interface IdeaBucketAddResult {
 export interface IdeaBucketSettingsInput {
   processingPrompt?: string;
   processingTimes?: string[] | string;
-  requireConfirmation?: boolean;
 }
 
 export interface IdeaBucketSettings {
   processingPrompt: string;
   processingTimes: string[];
-  requireConfirmation: boolean;
   entryId?: string;
   itemVersion?: number;
   source: "account" | "default";
@@ -3259,13 +3256,14 @@ export class OpenMatesClient {
     chatId?: string;
     messageId?: string;
     apiKey?: string;
+    promptInjectionProtection?: boolean;
   }): Promise<Record<string, unknown>> {
     const headers = this.getCliRequestHeaders();
     if (params.apiKey) headers.Authorization = `Bearer ${params.apiKey}`;
     const response = await this.http.post<Record<string, unknown>>(
       `/v1/sdk/connected-account-skills/${encodeURIComponent(params.appId)}/${encodeURIComponent(params.skillId)}`,
       {
-        input: params.input,
+        input: withAppSkillPromptInjectionOption(params.input, params.promptInjectionProtection),
         connected_account_token_ref_inputs: params.connectedAccountTokenRefInputs,
         chat_id: params.chatId,
         message_id: params.messageId,
@@ -4158,7 +4156,6 @@ export class OpenMatesClient {
     const settings = this.normalizeIdeaBucketSettings({
       processing_prompt: input.processingPrompt ?? current.processingPrompt,
       processing_times: input.processingTimes ?? current.processingTimes,
-      require_confirmation: input.requireConfirmation ?? current.requireConfirmation,
     }, current.entryId, current.itemVersion);
     const itemValue = this.ideaBucketSettingsToMemoryValue(settings);
     if (settings.entryId && settings.itemVersion) {
@@ -4193,7 +4190,6 @@ export class OpenMatesClient {
     return {
       processingPrompt,
       processingTimes: normalizeIdeaBucketProcessingTimes(data?.processing_times),
-      requireConfirmation: data?.require_confirmation === true,
       entryId,
       itemVersion,
       source: entryId ? "account" : "default",
@@ -4204,7 +4200,6 @@ export class OpenMatesClient {
     return {
       processing_prompt: settings.processingPrompt,
       processing_times: settings.processingTimes.join(","),
-      require_confirmation: settings.requireConfirmation,
     };
   }
 
@@ -4392,7 +4387,6 @@ export class OpenMatesClient {
         client_encrypted_future_user_message: encryptedFutureUserMessage,
         client_encrypted_ideabucket_system_event: encryptedSystemEvent,
         payload_hash: payloadHash,
-        require_confirmation: settings?.requireConfirmation === true,
       },
     });
 
@@ -5302,6 +5296,8 @@ export class OpenMatesClient {
     learningMode?: LearningModeContext;
     /** Start collecting before send for latency-sensitive benchmark turns. */
     precollectResponse?: boolean;
+    /** Disable chat-side encrypted task update jobs for flows that must only clarify. */
+    taskUpdateJobs?: boolean;
     /** Override the WebSocket AI response collection timeout for long-running turns. */
     responseTimeoutMs?: number;
   }): Promise<{
@@ -5373,8 +5369,9 @@ export class OpenMatesClient {
     }
 
     const explicitTasksAppSkill = messageExplicitlyRequestsTasksAppSkill(params.message);
+    const taskUpdateJobsEnabled = params.taskUpdateJobs !== false && !explicitTasksAppSkill;
     const { ws, ownerId } = await this.openWsClient({
-      taskUpdateJobs: !explicitTasksAppSkill,
+      taskUpdateJobs: taskUpdateJobsEnabled,
     });
     if (!params.incognito && !ownerId) {
       ws.close();
@@ -5456,7 +5453,7 @@ export class OpenMatesClient {
 
     // ── Inference request ──
     // Mirrors: chatSyncServiceSenders.ts sendMessageToServer()
-    const clientCapabilities = explicitTasksAppSkill ? [] : ["task_update_jobs"];
+    const clientCapabilities = taskUpdateJobsEnabled ? ["task_update_jobs"] : [];
 
     const messagePayload: Record<string, unknown> = {
       chat_id: chatId,
@@ -5932,7 +5929,7 @@ export class OpenMatesClient {
         category = resp.category;
         modelName = resp.modelName;
         taskEvents = resp.taskEvents;
-        pendingTaskUpdateJobs = resp.pendingTaskUpdateJobs;
+        pendingTaskUpdateJobs = taskUpdateJobsEnabled ? resp.pendingTaskUpdateJobs : [];
         subChatEvents = resp.subChatEvents;
         // Incognito chats are not post-processed — follow-up suggestions are not stored.
         if (resp.status === "waiting_for_user") {
@@ -5971,7 +5968,7 @@ export class OpenMatesClient {
         taskProposals = resp.taskProposals;
         taskUpdateProposals = resp.taskUpdateProposals;
         taskEvents = resp.taskEvents;
-        pendingTaskUpdateJobs = resp.pendingTaskUpdateJobs;
+        pendingTaskUpdateJobs = taskUpdateJobsEnabled ? resp.pendingTaskUpdateJobs : [];
         subChatEvents = resp.subChatEvents;
 
         if (resp.status === "waiting_for_user") {
@@ -6213,17 +6210,19 @@ export class OpenMatesClient {
             updatedChatTitle: resp.updatedChatTitle,
             encryptedChatKey,
           });
-          const persistedTaskJobIds = await this.persistPendingTaskUpdateJobs({
-            ws,
-            jobs: pendingTaskUpdateJobs,
-            events: taskEvents,
-            teamId,
-            activeChatId: chatId,
-            activeChatKeyBytes: chatKeyBytes,
-            fallbackUserMessageId: messageId,
-            requireActiveTurnEvent: true,
-          });
-          pendingTaskUpdateJobs = pendingTaskUpdateJobs.filter((job) => !persistedTaskJobIds.has(job.job_id));
+          if (taskUpdateJobsEnabled) {
+            const persistedTaskJobIds = await this.persistPendingTaskUpdateJobs({
+              ws,
+              jobs: pendingTaskUpdateJobs,
+              events: taskEvents,
+              teamId,
+              activeChatId: chatId,
+              activeChatKeyBytes: chatKeyBytes,
+              fallbackUserMessageId: messageId,
+              requireActiveTurnEvent: true,
+            });
+            pendingTaskUpdateJobs = pendingTaskUpdateJobs.filter((job) => !persistedTaskJobIds.has(job.job_id));
+          }
           await persistTaskEventSystemMessages(taskEvents);
           clearSyncCache(teamId);
         }

@@ -203,6 +203,7 @@ def test_finance_connected_account_skill_uses_sdk_only_endpoint(monkeypatch):
     assert result == {"account_count": 1, "transaction_count": 2}
     assert requests[0]["url"] == "https://api.openmates.org/v1/sdk/connected-account-skills/finance/check_accounts"
     assert requests[0]["json"]["input"]["period"] == "monthly"
+    assert requests[0]["json"]["input"]["security"]["prompt_injection_protection"] == "disabled"
     refs = requests[0]["json"]["connected_account_token_ref_inputs"]
     assert refs[0]["provider_id"] == "revolut_business"
     assert "access_token" not in json_module.dumps(requests[0]["json"])
@@ -247,7 +248,6 @@ def test_ideabucket_sdk_uses_existing_package_rest_methods(monkeypatch):
             {
                 "processing_prompt": "Python account prompt",
                 "processing_times": "09:00,17:00",
-                "require_confirmation": False,
             }
         ).encode("utf-8"),
         master_key,
@@ -305,7 +305,6 @@ def test_ideabucket_sdk_uses_existing_package_rest_methods(monkeypatch):
     server_payload = json_module.loads(_decrypt_combined(add_payload["server_vault_encrypted_processing_payload"], master_key))
     assert server_payload["prompt"] == "Python account prompt"
     assert add_payload["ideabucket_processing_window_id"] == "2026-07-18"
-    assert add_payload["require_confirmation"] is False
     assert isinstance(add_payload["encrypted_draft_md"], str)
     chat_key = _decrypt_combined_bytes(add_payload["encrypted_chat_key"], master_key)
     assert len(chat_key) == 32

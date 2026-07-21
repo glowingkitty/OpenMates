@@ -88,6 +88,8 @@ import WeatherRainRadarEmbedPreview from "../../../embeds/weather/WeatherRainRad
 import WeatherDayEmbedPreview from "../../../embeds/weather/WeatherDayEmbedPreview.svelte";
 import BusinessCompanyFinancialsEmbedPreview from "../../../embeds/business/BusinessCompanyFinancialsEmbedPreview.svelte";
 import BusinessCompanyFinancialResultEmbedPreview from "../../../embeds/business/BusinessCompanyFinancialResultEmbedPreview.svelte";
+import FinanceCheckAccountsEmbedPreview from "../../../embeds/finance/FinanceCheckAccountsEmbedPreview.svelte";
+import { normalizeFinanceOverview } from "../../../embeds/finance/financeCheckAccountsContent";
 import PdfReadEmbedPreview from "../../../embeds/pdf/PdfReadEmbedPreview.svelte";
 import PdfViewEmbedPreview from "../../../embeds/pdf/PdfViewEmbedPreview.svelte";
 import PdfSearchEmbedPreview from "../../../embeds/pdf/PdfSearchEmbedPreview.svelte";
@@ -1920,6 +1922,38 @@ export class GroupRenderer implements EmbedRenderer {
             resultCount: financialResultCount,
             results: financialResults,
             childEmbedIds,
+            taskId,
+            isMobile: false,
+            onFullscreen: handleFullscreen,
+          },
+        });
+        mountedComponents.set(target, component);
+        return;
+      }
+
+      if (appId === "finance" && skillId === "check_accounts") {
+        const overview = normalizeFinanceOverview(decodedContent) || null;
+        const accountCount = typeof decodedContent?.account_count === "number"
+          ? decodedContent.account_count
+          : Array.isArray(overview?.accounts)
+            ? overview.accounts.length
+            : 0;
+        const transactionCount = typeof decodedContent?.transaction_count === "number"
+          ? decodedContent.transaction_count
+          : Array.isArray(overview?.transactions)
+            ? overview.transactions.length
+            : 0;
+        const component = mount(FinanceCheckAccountsEmbedPreview, {
+          target,
+          props: {
+            id: embedId,
+            period: decodedContent?.period || "monthly",
+            accountCount,
+            transactionCount,
+            overview,
+            results: Array.isArray(decodedContent?.results) ? decodedContent.results : [],
+            summary: decodedContent?.summary || "",
+            status: status as "processing" | "finished" | "error" | "cancelled",
             taskId,
             isMobile: false,
             onFullscreen: handleFullscreen,

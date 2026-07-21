@@ -104,6 +104,7 @@ import { exampleChatTaskPlanningChecklistChat } from "./data/example_chats/examp
 import { libraryBookReturnWorkflowChat } from "./data/example_chats/library-book-return-workflow";
 import { dashboardSidebarSvgIconsChat } from "./data/example_chats/dashboard-sidebar-svg-icons";
 import { vitalFarmsSecFinancialsChat } from "./data/example_chats/vital-farms-sec-financials";
+import { financeCashFlowOverviewChat } from "./data/example_chats/finance-cash-flow-overview";
 
 export const ALL_EXAMPLE_CHATS: ExampleChat[] = [
   giganticAirplanesChat,
@@ -202,6 +203,7 @@ export const ALL_EXAMPLE_CHATS: ExampleChat[] = [
   libraryBookReturnWorkflowChat,
   dashboardSidebarSvgIconsChat,
   vitalFarmsSecFinancialsChat,
+  financeCashFlowOverviewChat,
 ].sort((a, b) => a.metadata.order - b.metadata.order);
 
 // Internal deterministic fixtures used by tests and direct hash navigation only.

@@ -330,6 +330,7 @@ async def test_sdk_connected_account_skill_endpoint_brokers_refs_before_dispatch
                 "period": "monthly",
                 "connected_account_requests": [{"source_ref": "revolut:sandbox"}],
                 "csv_statements": [{"filename": "cash.csv", "content": "date,description,amount,currency\n2026-07-01,Cafe,-4.5,EUR"}],
+                "security": {"prompt_injection_protection": "disabled"},
             },
             connected_account_token_ref_inputs=[
                 {
@@ -350,6 +351,7 @@ async def test_sdk_connected_account_skill_endpoint_brokers_refs_before_dispatch
     assert dispatched["app_id"] == "finance"
     assert dispatched["skill_id"] == "check_accounts"
     assert dispatched["enforce_rest_exposure_policy"] is False
+    assert dispatched["input_data"]["security"] == {"prompt_injection_protection": "disabled"}
 
 
 @pytest.mark.asyncio
@@ -393,6 +395,23 @@ async def test_sdk_connected_account_skill_maps_provider_token_exchange_failure(
         "error": "provider_token_exchange_failed",
         "provider_id": "revolut_business",
     }
+
+
+@pytest.mark.asyncio
+async def test_connected_account_cleanup_does_not_require_provider_exchange() -> None:
+    from backend.apps.ai.processing.connected_account_execution import cleanup_connected_account_token_artifacts
+
+    await cleanup_connected_account_token_artifacts(
+        token_artifacts=[
+            {
+                "turn_token_ref": "turn-ref-1",
+                "access_token_handle": "access-handle-1",
+                "provider_id": "revolut_business",
+            }
+        ],
+        cache_service=FakeCache(),
+        encryption_service=FakeEncryption(),
+    )
 
 
 @pytest.mark.asyncio

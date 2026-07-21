@@ -17,6 +17,10 @@ from pydantic import BaseModel, Field
 
 from backend.apps.base_skill import BaseSkill
 from backend.shared.providers.revolut_business import RevolutBusinessClient
+from backend.shared.providers.revolut_business.client import (
+    REVOLUT_BUSINESS_API_BASE_URL,
+    REVOLUT_BUSINESS_SANDBOX_API_BASE_URL,
+)
 from backend.shared.python_utils.finance_accounts import (
     FinanceCSVTemplateError,
     FinanceOverview,
@@ -182,7 +186,10 @@ class CheckAccountsSkill(BaseSkill):
 
         source_ref = str(request.get("source_ref") or "revolut_business")
         client_factory = revolut_client_factory or RevolutBusinessClient
-        client: RevolutReadClient = client_factory(access_token=connected_account_access_tokens[access_token_handle])
+        client: RevolutReadClient = client_factory(
+            access_token=connected_account_access_tokens[access_token_handle],
+            base_url=_revolut_base_url_for_request(request),
+        )
         provider_accounts = await client.list_accounts()
         provider_transactions = await client.list_transactions(from_date=start_date, to_date=end_date)
         accounts = [_normalize_revolut_account(item, source_ref=source_ref) for item in provider_accounts]
@@ -204,6 +211,13 @@ class CheckAccountsSkill(BaseSkill):
 class _ProviderNormalizationResult(BaseModel):
     accounts: list[NormalizedAccount]
     transactions: list[NormalizedTransaction]
+
+
+def _revolut_base_url_for_request(request: dict[str, Any]) -> str:
+    environment = str(request.get("environment") or "").strip().lower()
+    if environment == "sandbox":
+        return REVOLUT_BUSINESS_SANDBOX_API_BASE_URL
+    return REVOLUT_BUSINESS_API_BASE_URL
 
 
 def _normalize_revolut_account(item: Any, *, source_ref: str) -> NormalizedAccount:

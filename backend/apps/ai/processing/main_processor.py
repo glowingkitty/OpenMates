@@ -1259,6 +1259,19 @@ async def _resolve_skill_preview_metadata(
         return {}
 
 
+def _sanitize_tool_call_input_for_storage(arguments: Any) -> Any:
+    """Keep persisted tool metadata useful without storing raw private inputs."""
+    if not isinstance(arguments, dict):
+        return {"raw_arguments_redacted": True}
+    try:
+        from backend.core.api.app.services.embed_service import EmbedService
+
+        return EmbedService._sanitize_request_metadata(arguments)
+    except Exception:
+        logger.warning("Failed to sanitize tool call input for storage", exc_info=True)
+        return {"raw_arguments_redacted": True}
+
+
 def _apply_benchmark_usage_details(request_data: AskSkillRequest, usage_details: Dict[str, Any]) -> None:
     benchmark_metadata = getattr(request_data, "benchmark_metadata", None)
     if not isinstance(benchmark_metadata, dict) or benchmark_metadata.get("source") != "benchmark":
@@ -6403,7 +6416,7 @@ async def handle_main_processing(
                 tool_call_info = {
                     "app_id": app_id,
                     "skill_id": skill_id,
-                    "input": parsed_args,  # Tool input arguments
+                    "input": _sanitize_tool_call_input_for_storage(parsed_args),
                     "preview_data": preview_data,  # Metadata + results_toon (contains full TOON-encoded results)
                     "ignore_fields_for_inference": ignore_fields_for_inference,  # Fields excluded from LLM inference
                     "embed_reference": embed_references[0] if embed_references else None,  # First embed reference (for backward compatibility)
@@ -6448,7 +6461,7 @@ async def handle_main_processing(
                     tool_call_info = {
                         "app_id": app_id,
                         "skill_id": skill_id,
-                        "input": tool_arguments_str,  # Raw string since parsing failed
+                        "input": _sanitize_tool_call_input_for_storage(tool_arguments_str),
                         "preview_data": {"results_toon": tool_result_content_str},  # Store error as TOON string
                         "error": "Invalid JSON in function arguments"
                     }
@@ -6517,7 +6530,7 @@ async def handle_main_processing(
                     tool_call_info = {
                         "app_id": "unknown",
                         "skill_id": "unknown",
-                        "input": tool_arguments_str,
+                        "input": _sanitize_tool_call_input_for_storage(tool_arguments_str),
                         "preview_data": {"results_toon": tool_result_content_str},  # Store error as TOON string
                         "error": f"Invalid tool name format: {str(e)}"
                     }
@@ -6597,7 +6610,7 @@ async def handle_main_processing(
                     tool_call_info = {
                         "app_id": app_id,
                         "skill_id": skill_id,
-                        "input": parsed_args if 'parsed_args' in locals() else tool_arguments_str,
+                        "input": _sanitize_tool_call_input_for_storage(parsed_args if 'parsed_args' in locals() else tool_arguments_str),
                         "preview_data": {"results_toon": tool_result_content_str},  # Store error as TOON string
                         "error": str(e)
                     }

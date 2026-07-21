@@ -35,8 +35,9 @@ csv-2,cash,Cash account,2026-01-04,Acme Payroll,1000.00,EUR,income,1450.00,payro
 
 
 class FakeRevolutClient:
-    def __init__(self, *, access_token: str) -> None:
+    def __init__(self, *, access_token: str, base_url: str | None = None) -> None:
         self.access_token = access_token
+        self.base_url = base_url
 
     async def list_accounts(self) -> list[RevolutAccount]:
         return [
@@ -107,6 +108,26 @@ async def test_check_accounts_combines_revolut_and_csv_into_filterable_embed() -
         assert raw_name not in serialized
     assert "[MERCHANT_STREAMING_001]" in serialized
     assert "[MERCHANT_GROCERIES_001]" in serialized
+
+
+@pytest.mark.asyncio
+async def test_check_accounts_uses_sandbox_revolut_resource_host() -> None:
+    created_clients: list[FakeRevolutClient] = []
+
+    def client_factory(**kwargs: Any) -> FakeRevolutClient:
+        client = FakeRevolutClient(**kwargs)
+        created_clients.append(client)
+        return client
+
+    response = await _skill().execute(
+        period="monthly",
+        connected_account_requests=[{"access_token_handle": "ath_1", "environment": "sandbox"}],
+        connected_account_access_tokens={"ath_1": "access-secret"},
+        revolut_client_factory=client_factory,
+    )
+
+    assert response.success is True
+    assert created_clients[0].base_url == "https://sandbox-b2b.revolut.com/api/1.0/"
 
 
 @pytest.mark.asyncio

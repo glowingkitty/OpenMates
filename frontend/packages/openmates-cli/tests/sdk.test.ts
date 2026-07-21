@@ -167,6 +167,7 @@ describe("OpenMates SDK", () => {
           csv_statements: [{ filename: "cash.csv", content: "date,description,amount,currency\n2026-07-01,Cafe,-4.5,EUR" }],
         },
         {
+          promptInjectionProtection: false,
           connectedAccountTokenRefInputs: [
             {
               connected_account_id: "acct-1",
@@ -182,6 +183,9 @@ describe("OpenMates SDK", () => {
 
       assert.deepEqual(result, { account_count: 1, transaction_count: 2 });
       assert.equal((requestBody?.input as Record<string, unknown>).period, "monthly");
+      assert.deepEqual((requestBody?.input as Record<string, unknown>).security, {
+        prompt_injection_protection: "disabled",
+      });
       const refs = requestBody?.connected_account_token_ref_inputs as Array<Record<string, unknown>>;
       assert.equal(refs[0].provider_id, "revolut_business");
       assert.equal(JSON.stringify(requestBody).includes("access_token"), false);

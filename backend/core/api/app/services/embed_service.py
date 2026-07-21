@@ -53,13 +53,27 @@ APPLICATION_ARTIFACT_SOURCE_EXTENSIONS = (
 )
 
 EMBED_REQUEST_METADATA_EXCLUDE_FIELDS = {
+    "_api_key_hash",
+    "_api_key_name",
+    "_connected_account_access_tokens",
+    "_device_hash",
+    "_external_request",
+    "_placeholder_embed_ids",
+    "_user_id",
+    "_user_vault_key_id",
     "app_id",
+    "embed_id",
     "skill_id",
     "type",
     "status",
     "task_id",
     "skill_task_id",
     "request_id",
+    "user_id",
+    "user_vault_key_id",
+    "vault_key_id",
+    "external_request",
+    "placeholder_embed_ids",
     "embed_ids",
     "parent_embed_id",
     "embed_ref",
@@ -68,6 +82,10 @@ EMBED_REQUEST_METADATA_EXCLUDE_FIELDS = {
     "preview_results",
     "preview_thumbnails",
     "encrypted_content",
+    "csv_statements",
+    "connected_account_requests",
+    "connected_account_access_tokens",
+    "revolut_client_factory",
     "text_length_chars",
     "created_at",
     "updated_at",
@@ -82,6 +100,46 @@ EMBED_REQUEST_METADATA_EXCLUDE_FIELDS = {
     "is_shared",
     "encryption_mode",
 }
+
+EMBED_REQUEST_METADATA_EXCLUDE_PREFIXES = (
+    "csv_statements",
+    "connected_account_access_tokens",
+    "_connected_account_access_tokens",
+)
+
+FINANCE_CHECK_ACCOUNTS_CONTENT_EXCLUDE_FIELDS = {
+    "_api_key_hash",
+    "_api_key_name",
+    "_connected_account_access_tokens",
+    "_device_hash",
+    "_external_request",
+    "_placeholder_embed_ids",
+    "_user_id",
+    "_user_vault_key_id",
+    "chat_id",
+    "connected_account_access_tokens",
+    "connected_account_requests",
+    "embed_id",
+    "encrypted_content",
+    "external_request",
+    "hashed_chat_id",
+    "hashed_message_id",
+    "hashed_skill_task_id",
+    "hashed_task_id",
+    "hashed_user_id",
+    "message_id",
+    "placeholder_embed_ids",
+    "revolut_client_factory",
+    "user_id",
+    "user_vault_key_id",
+    "vault_key_id",
+}
+
+FINANCE_CHECK_ACCOUNTS_CONTENT_EXCLUDE_PREFIXES = (
+    "csv_statements",
+    "connected_account_access_tokens",
+    "_connected_account_access_tokens",
+)
 
 
 def _flatten_for_toon_tabular(obj: Any, prefix: str = "") -> Any:
@@ -146,6 +204,38 @@ class EmbedService:
         self.encryption_service = encryption_service
 
     @staticmethod
+    def _sanitize_request_metadata(metadata: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+        """Strip raw request payloads before embedding metadata is cached, sent, or shared."""
+        if not metadata:
+            return {}
+        sanitized: Dict[str, Any] = {}
+        for key, value in metadata.items():
+            if (
+                key in EMBED_REQUEST_METADATA_EXCLUDE_FIELDS
+                or any(key.startswith(prefix) for prefix in EMBED_REQUEST_METADATA_EXCLUDE_PREFIXES)
+                or value is None
+            ):
+                continue
+            if isinstance(value, dict):
+                nested = EmbedService._sanitize_request_metadata(value)
+                if nested:
+                    sanitized[key] = nested
+            elif isinstance(value, list):
+                nested_items = []
+                for item in value:
+                    if isinstance(item, dict):
+                        nested_item = EmbedService._sanitize_request_metadata(item)
+                        if nested_item:
+                            nested_items.append(nested_item)
+                    elif item is not None:
+                        nested_items.append(item)
+                if nested_items:
+                    sanitized[key] = nested_items
+            else:
+                sanitized[key] = value
+        return sanitized
+
+    @staticmethod
     def _merge_request_metadata(
         original_content: Optional[Dict[str, Any]],
         request_metadata: Optional[Dict[str, Any]],
@@ -154,14 +244,90 @@ class EmbedService:
         merged: Dict[str, Any] = {}
 
         for source in (original_content, request_metadata):
-            if not source:
-                continue
-            for key, value in source.items():
-                if key in EMBED_REQUEST_METADATA_EXCLUDE_FIELDS or value is None:
-                    continue
+            for key, value in EmbedService._sanitize_request_metadata(source).items():
                 merged[key] = value
 
         return merged
+
+    @staticmethod
+    def _sanitize_final_app_skill_content(
+        app_id: str,
+        skill_id: str,
+        content: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """Strip private execution fields from final app-skill embed content."""
+        if app_id != "finance" or skill_id != "check_accounts":
+            return content
+        return EmbedService._strip_fields_recursive(
+            content,
+            FINANCE_CHECK_ACCOUNTS_CONTENT_EXCLUDE_FIELDS,
+            FINANCE_CHECK_ACCOUNTS_CONTENT_EXCLUDE_PREFIXES,
+        )
+
+    @staticmethod
+    def _strip_fields_recursive(
+        value: Any,
+        excluded_fields: set[str],
+        excluded_prefixes: Tuple[str, ...],
+    ) -> Any:
+        if isinstance(value, dict):
+            stripped: Dict[str, Any] = {}
+            for key, child in value.items():
+                if key in excluded_fields or any(key.startswith(prefix) for prefix in excluded_prefixes):
+                    continue
+                stripped[key] = EmbedService._strip_fields_recursive(
+                    child,
+                    excluded_fields,
+                    excluded_prefixes,
+                )
+            return stripped
+        if isinstance(value, list):
+            return [
+                EmbedService._strip_fields_recursive(item, excluded_fields, excluded_prefixes)
+                for item in value
+            ]
+        return value
+
+    @staticmethod
+    def _sanitize_finance_check_accounts_toon(content_toon: str) -> str:
+        """Remove private top-level Finance request metadata from outbound TOON."""
+        if "app_id: finance" not in content_toon or "skill_id: check_accounts" not in content_toon:
+            return content_toon
+
+        private_prefixes = (
+            "_connected_account_access_tokens",
+            "_external_request",
+            "_placeholder_embed_ids",
+            "_user_id",
+            "_user_vault_key_id",
+            "chat_id",
+            "connected_account_access_tokens",
+            "connected_account_requests",
+            "csv_statements",
+            "embed_id",
+            "external_request",
+            "message_id",
+            "placeholder_embed_ids",
+            "revolut_client_factory",
+            "user_id",
+            "user_vault_key_id",
+            "vault_key_id",
+        )
+        lines = content_toon.splitlines()
+        kept: List[str] = []
+        skipping_block = False
+        for line in lines:
+            is_indented = line.startswith((" ", "\t"))
+            if skipping_block and is_indented:
+                continue
+            skipping_block = False
+
+            stripped = line.lstrip()
+            if not is_indented and any(stripped.startswith(prefix) for prefix in private_prefixes):
+                skipping_block = line.rstrip().endswith(":")
+                continue
+            kept.append(line)
+        return "\n".join(kept)
 
     @staticmethod
     def _build_parent_preview_metadata(
@@ -397,6 +563,8 @@ class EmbedService:
             # Generate embed_id for placeholder
             embed_id = str(uuid.uuid4())
 
+            sanitized_metadata = EmbedService._sanitize_request_metadata(metadata)
+
             # Create minimal placeholder content with metadata
             # CRITICAL: Include all metadata (query, provider, etc.) in placeholder
             # This ensures the frontend can display the query immediately while skill executes
@@ -409,18 +577,18 @@ class EmbedService:
                 "status": "processing",
                 **({"task_id": task_id} if task_id else {}),
                 "skill_task_id": skill_task_id,  # For individual skill cancellation
-                **(metadata or {})
+                **sanitized_metadata
             }
             
             # Log metadata for debugging (especially query for web search)
-            if metadata:
+            if sanitized_metadata:
                 logger.debug(
                     f"{log_prefix} Creating placeholder with metadata: "
-                    f"keys={list(metadata.keys())}, "
-                    f"key_count={len(metadata.keys())}, "
-                    f"query_present={'query' in metadata}, "
-                    f"provider_present={'provider' in metadata}, "
-                    f"providers_present={'providers' in metadata}"
+                    f"keys={list(sanitized_metadata.keys())}, "
+                    f"key_count={len(sanitized_metadata.keys())}, "
+                    f"query_present={'query' in sanitized_metadata}, "
+                    f"provider_present={'provider' in sanitized_metadata}, "
+                    f"providers_present={'providers' in sanitized_metadata}"
                 )
 
             # Convert to TOON format
@@ -493,10 +661,10 @@ class EmbedService:
             }
             # Include user-visible request metadata so previews can render useful
             # context immediately, before the embed data arrives via WebSocket.
-            if metadata:
+            if sanitized_metadata:
                 for key in ["query", "provider", "providers", "start_date", "end_date", "time_range", "location"]:
-                    if metadata.get(key):
-                        embed_reference_payload[key] = metadata[key]
+                    if sanitized_metadata.get(key):
+                        embed_reference_payload[key] = sanitized_metadata[key]
             embed_reference = json.dumps(embed_reference_payload)
 
             return {
@@ -4466,6 +4634,7 @@ class EmbedService:
                     **original_metadata,  # Preserve query, provider, url, etc. from placeholder
                     **EmbedService._build_parent_preview_metadata(app_id, skill_id, results),
                 }
+                parent_content = EmbedService._sanitize_final_app_skill_content(app_id, skill_id, parent_content)
                 
                 # Log final parent content to verify query is included
                 logger.info(
@@ -4478,7 +4647,7 @@ class EmbedService:
 
                 # Convert to TOON (PLAINTEXT)
                 flattened_parent = _flatten_for_toon_tabular(parent_content)
-                parent_content_toon = encode(flattened_parent)
+                parent_content_toon = EmbedService._sanitize_finance_check_accounts_toon(encode(flattened_parent))
 
                 # Calculate text length for parent embed
                 parent_text_length_chars = len(parent_content_toon)
@@ -4589,6 +4758,7 @@ class EmbedService:
                     "embed_ref": single_embed_ref,
                     **original_metadata  # Preserve query, url, provider, languages, etc. from placeholder
                 }
+                content_with_metadata = EmbedService._sanitize_final_app_skill_content(app_id, skill_id, content_with_metadata)
                 
                 # Log final content to verify metadata is included
                 logger.info(
@@ -4599,7 +4769,7 @@ class EmbedService:
                     f"result_count={content_with_metadata.get('result_count')}"
                 )
                 
-                content_toon = encode(_flatten_for_toon_tabular(content_with_metadata))
+                content_toon = EmbedService._sanitize_finance_check_accounts_toon(encode(_flatten_for_toon_tabular(content_with_metadata)))
 
                 # Calculate text length
                 single_text_length_chars = len(content_toon)
@@ -4954,6 +5124,9 @@ class EmbedService:
             True if event was published successfully, False otherwise
         """
         try:
+            if embed_type == "app_skill_use":
+                content_toon = EmbedService._sanitize_finance_check_accounts_toon(content_toon)
+
             # STATE MACHINE: Validate transition before sending to client.
             # Uses the embed state machine (backend/shared/python_schemas/embed_status.py)
             # to enforce valid transitions and prevent duplicate finalization events.
@@ -5136,7 +5309,9 @@ class EmbedService:
         if not results or len(results) == 0:
             logger.warning(f"{log_prefix} No results to create embeds from")
             return None
-        
+
+        safe_request_metadata = EmbedService._sanitize_request_metadata(request_metadata)
+
         try:
             # Hash sensitive IDs for privacy protection
             hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
@@ -5265,7 +5440,7 @@ class EmbedService:
                 # whole result set (e.g. "web-search-k8D") as well as individual items.
                 parent_embed_ref = self._generate_embed_ref_slug(
                     f"{app_id}-{skill_id}",
-                    request_metadata or {},
+                    safe_request_metadata,
                 )
 
                 # Parent embed content: metadata about the skill execution
@@ -5281,21 +5456,22 @@ class EmbedService:
                 }
                 
                 # Add request metadata (query, provider, etc.) if available
-                if request_metadata:
-                    if "query" in request_metadata:
-                        parent_content["query"] = request_metadata["query"]
-                    if "provider" in request_metadata:
-                        parent_content["provider"] = request_metadata["provider"]
-                    if "providers" in request_metadata:
-                        parent_content["providers"] = request_metadata["providers"]
+                if safe_request_metadata:
+                    if "query" in safe_request_metadata:
+                        parent_content["query"] = safe_request_metadata["query"]
+                    if "provider" in safe_request_metadata:
+                        parent_content["provider"] = safe_request_metadata["provider"]
+                    if "providers" in safe_request_metadata:
+                        parent_content["providers"] = safe_request_metadata["providers"]
                     # Add other user-visible request metadata needed to distinguish searches.
                     for key in ["country", "search_lang", "safesearch", "start_date", "end_date", "time_range", "location"]:
-                        if key in request_metadata:
-                            parent_content[key] = request_metadata[key]
+                        if key in safe_request_metadata:
+                            parent_content[key] = safe_request_metadata[key]
+                parent_content = EmbedService._sanitize_final_app_skill_content(app_id, skill_id, parent_content)
                 
                 # Convert to TOON
                 flattened_parent = _flatten_for_toon_tabular(parent_content)
-                parent_content_toon = encode(flattened_parent)
+                parent_content_toon = EmbedService._sanitize_finance_check_accounts_toon(encode(flattened_parent))
                 
                 # Calculate text length for parent embed
                 parent_text_length_chars = len(parent_content_toon)
@@ -5370,10 +5546,10 @@ class EmbedService:
                 }
                 # Include query and provider from request_metadata if available
                 # This enables the frontend to display the query text immediately in grouped embeds
-                if request_metadata:
+                if safe_request_metadata:
                     for key in ["query", "provider", "providers", "start_date", "end_date", "time_range", "location"]:
-                        if request_metadata.get(key):
-                            embed_reference_payload[key] = request_metadata[key]
+                        if safe_request_metadata.get(key):
+                            embed_reference_payload[key] = safe_request_metadata[key]
                 embed_reference = json.dumps(embed_reference_payload)
                 
                 return {
@@ -5410,12 +5586,13 @@ class EmbedService:
                 }
                 
                 # Add request metadata if available
-                if request_metadata:
+                if safe_request_metadata:
                     for key in ["query", "expression", "provider", "providers", "url", "languages", "country", "search_lang", "safesearch", "start_date", "end_date", "time_range", "location"]:
-                        if key in request_metadata:
-                            content_with_metadata[key] = request_metadata[key]
+                        if key in safe_request_metadata:
+                            content_with_metadata[key] = safe_request_metadata[key]
+                content_with_metadata = EmbedService._sanitize_final_app_skill_content(app_id, skill_id, content_with_metadata)
                 
-                content_toon = encode(_flatten_for_toon_tabular(content_with_metadata))
+                content_toon = EmbedService._sanitize_finance_check_accounts_toon(encode(_flatten_for_toon_tabular(content_with_metadata)))
                 
                 # Calculate text length for embed
                 single_text_length_chars = len(content_toon)
@@ -5483,10 +5660,10 @@ class EmbedService:
                     "app_id": app_id,
                     "skill_id": skill_id
                 }
-                if request_metadata:
+                if safe_request_metadata:
                     for key in ["query", "provider", "providers", "start_date", "end_date", "time_range", "location"]:
-                        if request_metadata.get(key):
-                            embed_reference_payload[key] = request_metadata[key]
+                        if safe_request_metadata.get(key):
+                            embed_reference_payload[key] = safe_request_metadata[key]
                 embed_reference = json.dumps(embed_reference_payload)
                 
                 return {
@@ -5540,10 +5717,11 @@ class EmbedService:
             "status": "finished",
             **original_metadata,
         }
+        finished_content = EmbedService._sanitize_final_app_skill_content(app_id, skill_id, finished_content)
 
         # Convert to TOON and encrypt
         flattened = _flatten_for_toon_tabular(finished_content)
-        content_toon = encode(flattened)
+        content_toon = EmbedService._sanitize_finance_check_accounts_toon(encode(flattened))
         text_length_chars = len(content_toon)
 
         encrypted_content, _ = await self.encryption_service.encrypt_with_user_key(

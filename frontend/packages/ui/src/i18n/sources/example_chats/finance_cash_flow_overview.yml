@@ -1,0 +1,796 @@
+title:
+  context: "Title of example chat: Analyze cash flow from a finance statement"
+  en: "Analyze cash flow from a finance statement"
+  de: "Analyze cash flow from a finance statement"
+  zh: "Analyze cash flow from a finance statement"
+  es: "Analyze cash flow from a finance statement"
+  fr: "Analyze cash flow from a finance statement"
+  pt: "Analyze cash flow from a finance statement"
+  ru: "Analyze cash flow from a finance statement"
+  ja: "Analyze cash flow from a finance statement"
+  ko: "Analyze cash flow from a finance statement"
+  it: "Analyze cash flow from a finance statement"
+  tr: "Analyze cash flow from a finance statement"
+  vi: "Analyze cash flow from a finance statement"
+  id: "Analyze cash flow from a finance statement"
+  pl: "Analyze cash flow from a finance statement"
+  nl: "Analyze cash flow from a finance statement"
+  ar: "Analyze cash flow from a finance statement"
+  hi: "Analyze cash flow from a finance statement"
+  th: "Analyze cash flow from a finance statement"
+  cs: "Analyze cash flow from a finance statement"
+  sv: "Analyze cash flow from a finance statement"
+  he: "Analyze cash flow from a finance statement"
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: Analyze cash flow from a finance statement"
+  en: "Review placeholder account activity, income, expenses, net cash flow, and spending categories with the Finance app."
+  de: "Review placeholder account activity, income, expenses, net cash flow, and spending categories with the Finance app."
+  zh: "Review placeholder account activity, income, expenses, net cash flow, and spending categories with the Finance app."
+  es: "Review placeholder account activity, income, expenses, net cash flow, and spending categories with the Finance app."
+  fr: "Review placeholder account activity, income, expenses, net cash flow, and spending categories with the Finance app."
+  pt: "Review placeholder account activity, income, expenses, net cash flow, and spending categories with the Finance app."
+  ru: "Review placeholder account activity, income, expenses, net cash flow, and spending categories with the Finance app."
+  ja: "Review placeholder account activity, income, expenses, net cash flow, and spending categories with the Finance app."
+  ko: "Review placeholder account activity, income, expenses, net cash flow, and spending categories with the Finance app."
+  it: "Review placeholder account activity, income, expenses, net cash flow, and spending categories with the Finance app."
+  tr: "Review placeholder account activity, income, expenses, net cash flow, and spending categories with the Finance app."
+  vi: "Review placeholder account activity, income, expenses, net cash flow, and spending categories with the Finance app."
+  id: "Review placeholder account activity, income, expenses, net cash flow, and spending categories with the Finance app."
+  pl: "Review placeholder account activity, income, expenses, net cash flow, and spending categories with the Finance app."
+  nl: "Review placeholder account activity, income, expenses, net cash flow, and spending categories with the Finance app."
+  ar: "Review placeholder account activity, income, expenses, net cash flow, and spending categories with the Finance app."
+  hi: "Review placeholder account activity, income, expenses, net cash flow, and spending categories with the Finance app."
+  th: "Review placeholder account activity, income, expenses, net cash flow, and spending categories with the Finance app."
+  cs: "Review placeholder account activity, income, expenses, net cash flow, and spending categories with the Finance app."
+  sv: "Review placeholder account activity, income, expenses, net cash flow, and spending categories with the Finance app."
+  he: "Review placeholder account activity, income, expenses, net cash flow, and spending categories with the Finance app."
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: Analyze cash flow from a finance statement. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Use the Finance check_accounts skill to analyze this placeholder CSV statement and summarize total value, income, expenses, net cash flow, and the spending categories. CSV statement: transaction_id,account_id,account_label,posted_at,description,amount,currency,direction,balance_after,category_hint,counterparty_type,source_name sample-1,main,Main,2026-07-01,[PAYER_PAYROLL_001],2500,EUR,income,2500,payroll,payer,csv import sample-2,main,Main,2026-07-02,[MERCHANT_MEALS_001],-4.5,EUR,expense,2495.5,meals,merchant,csv import sample-3,main,Main,2026-07-03,[MERCHANT_OFFICE_001],-89.99,EUR,expense,2405.51,office,merchant,csv import"
+  de: "Use the Finance check_accounts skill to analyze this placeholder CSV statement and summarize total value, income, expenses, net cash flow, and the spending categories. CSV statement: transaction_id,account_id,account_label,posted_at,description,amount,currency,direction,balance_after,category_hint,counterparty_type,source_name sample-1,main,Main,2026-07-01,[PAYER_PAYROLL_001],2500,EUR,income,2500,payroll,payer,csv import sample-2,main,Main,2026-07-02,[MERCHANT_MEALS_001],-4.5,EUR,expense,2495.5,meals,merchant,csv import sample-3,main,Main,2026-07-03,[MERCHANT_OFFICE_001],-89.99,EUR,expense,2405.51,office,merchant,csv import"
+  zh: "Use the Finance check_accounts skill to analyze this placeholder CSV statement and summarize total value, income, expenses, net cash flow, and the spending categories. CSV statement: transaction_id,account_id,account_label,posted_at,description,amount,currency,direction,balance_after,category_hint,counterparty_type,source_name sample-1,main,Main,2026-07-01,[PAYER_PAYROLL_001],2500,EUR,income,2500,payroll,payer,csv import sample-2,main,Main,2026-07-02,[MERCHANT_MEALS_001],-4.5,EUR,expense,2495.5,meals,merchant,csv import sample-3,main,Main,2026-07-03,[MERCHANT_OFFICE_001],-89.99,EUR,expense,2405.51,office,merchant,csv import"
+  es: "Use the Finance check_accounts skill to analyze this placeholder CSV statement and summarize total value, income, expenses, net cash flow, and the spending categories. CSV statement: transaction_id,account_id,account_label,posted_at,description,amount,currency,direction,balance_after,category_hint,counterparty_type,source_name sample-1,main,Main,2026-07-01,[PAYER_PAYROLL_001],2500,EUR,income,2500,payroll,payer,csv import sample-2,main,Main,2026-07-02,[MERCHANT_MEALS_001],-4.5,EUR,expense,2495.5,meals,merchant,csv import sample-3,main,Main,2026-07-03,[MERCHANT_OFFICE_001],-89.99,EUR,expense,2405.51,office,merchant,csv import"
+  fr: "Use the Finance check_accounts skill to analyze this placeholder CSV statement and summarize total value, income, expenses, net cash flow, and the spending categories. CSV statement: transaction_id,account_id,account_label,posted_at,description,amount,currency,direction,balance_after,category_hint,counterparty_type,source_name sample-1,main,Main,2026-07-01,[PAYER_PAYROLL_001],2500,EUR,income,2500,payroll,payer,csv import sample-2,main,Main,2026-07-02,[MERCHANT_MEALS_001],-4.5,EUR,expense,2495.5,meals,merchant,csv import sample-3,main,Main,2026-07-03,[MERCHANT_OFFICE_001],-89.99,EUR,expense,2405.51,office,merchant,csv import"
+  pt: "Use the Finance check_accounts skill to analyze this placeholder CSV statement and summarize total value, income, expenses, net cash flow, and the spending categories. CSV statement: transaction_id,account_id,account_label,posted_at,description,amount,currency,direction,balance_after,category_hint,counterparty_type,source_name sample-1,main,Main,2026-07-01,[PAYER_PAYROLL_001],2500,EUR,income,2500,payroll,payer,csv import sample-2,main,Main,2026-07-02,[MERCHANT_MEALS_001],-4.5,EUR,expense,2495.5,meals,merchant,csv import sample-3,main,Main,2026-07-03,[MERCHANT_OFFICE_001],-89.99,EUR,expense,2405.51,office,merchant,csv import"
+  ru: "Use the Finance check_accounts skill to analyze this placeholder CSV statement and summarize total value, income, expenses, net cash flow, and the spending categories. CSV statement: transaction_id,account_id,account_label,posted_at,description,amount,currency,direction,balance_after,category_hint,counterparty_type,source_name sample-1,main,Main,2026-07-01,[PAYER_PAYROLL_001],2500,EUR,income,2500,payroll,payer,csv import sample-2,main,Main,2026-07-02,[MERCHANT_MEALS_001],-4.5,EUR,expense,2495.5,meals,merchant,csv import sample-3,main,Main,2026-07-03,[MERCHANT_OFFICE_001],-89.99,EUR,expense,2405.51,office,merchant,csv import"
+  ja: "Use the Finance check_accounts skill to analyze this placeholder CSV statement and summarize total value, income, expenses, net cash flow, and the spending categories. CSV statement: transaction_id,account_id,account_label,posted_at,description,amount,currency,direction,balance_after,category_hint,counterparty_type,source_name sample-1,main,Main,2026-07-01,[PAYER_PAYROLL_001],2500,EUR,income,2500,payroll,payer,csv import sample-2,main,Main,2026-07-02,[MERCHANT_MEALS_001],-4.5,EUR,expense,2495.5,meals,merchant,csv import sample-3,main,Main,2026-07-03,[MERCHANT_OFFICE_001],-89.99,EUR,expense,2405.51,office,merchant,csv import"
+  ko: "Use the Finance check_accounts skill to analyze this placeholder CSV statement and summarize total value, income, expenses, net cash flow, and the spending categories. CSV statement: transaction_id,account_id,account_label,posted_at,description,amount,currency,direction,balance_after,category_hint,counterparty_type,source_name sample-1,main,Main,2026-07-01,[PAYER_PAYROLL_001],2500,EUR,income,2500,payroll,payer,csv import sample-2,main,Main,2026-07-02,[MERCHANT_MEALS_001],-4.5,EUR,expense,2495.5,meals,merchant,csv import sample-3,main,Main,2026-07-03,[MERCHANT_OFFICE_001],-89.99,EUR,expense,2405.51,office,merchant,csv import"
+  it: "Use the Finance check_accounts skill to analyze this placeholder CSV statement and summarize total value, income, expenses, net cash flow, and the spending categories. CSV statement: transaction_id,account_id,account_label,posted_at,description,amount,currency,direction,balance_after,category_hint,counterparty_type,source_name sample-1,main,Main,2026-07-01,[PAYER_PAYROLL_001],2500,EUR,income,2500,payroll,payer,csv import sample-2,main,Main,2026-07-02,[MERCHANT_MEALS_001],-4.5,EUR,expense,2495.5,meals,merchant,csv import sample-3,main,Main,2026-07-03,[MERCHANT_OFFICE_001],-89.99,EUR,expense,2405.51,office,merchant,csv import"
+  tr: "Use the Finance check_accounts skill to analyze this placeholder CSV statement and summarize total value, income, expenses, net cash flow, and the spending categories. CSV statement: transaction_id,account_id,account_label,posted_at,description,amount,currency,direction,balance_after,category_hint,counterparty_type,source_name sample-1,main,Main,2026-07-01,[PAYER_PAYROLL_001],2500,EUR,income,2500,payroll,payer,csv import sample-2,main,Main,2026-07-02,[MERCHANT_MEALS_001],-4.5,EUR,expense,2495.5,meals,merchant,csv import sample-3,main,Main,2026-07-03,[MERCHANT_OFFICE_001],-89.99,EUR,expense,2405.51,office,merchant,csv import"
+  vi: "Use the Finance check_accounts skill to analyze this placeholder CSV statement and summarize total value, income, expenses, net cash flow, and the spending categories. CSV statement: transaction_id,account_id,account_label,posted_at,description,amount,currency,direction,balance_after,category_hint,counterparty_type,source_name sample-1,main,Main,2026-07-01,[PAYER_PAYROLL_001],2500,EUR,income,2500,payroll,payer,csv import sample-2,main,Main,2026-07-02,[MERCHANT_MEALS_001],-4.5,EUR,expense,2495.5,meals,merchant,csv import sample-3,main,Main,2026-07-03,[MERCHANT_OFFICE_001],-89.99,EUR,expense,2405.51,office,merchant,csv import"
+  id: "Use the Finance check_accounts skill to analyze this placeholder CSV statement and summarize total value, income, expenses, net cash flow, and the spending categories. CSV statement: transaction_id,account_id,account_label,posted_at,description,amount,currency,direction,balance_after,category_hint,counterparty_type,source_name sample-1,main,Main,2026-07-01,[PAYER_PAYROLL_001],2500,EUR,income,2500,payroll,payer,csv import sample-2,main,Main,2026-07-02,[MERCHANT_MEALS_001],-4.5,EUR,expense,2495.5,meals,merchant,csv import sample-3,main,Main,2026-07-03,[MERCHANT_OFFICE_001],-89.99,EUR,expense,2405.51,office,merchant,csv import"
+  pl: "Use the Finance check_accounts skill to analyze this placeholder CSV statement and summarize total value, income, expenses, net cash flow, and the spending categories. CSV statement: transaction_id,account_id,account_label,posted_at,description,amount,currency,direction,balance_after,category_hint,counterparty_type,source_name sample-1,main,Main,2026-07-01,[PAYER_PAYROLL_001],2500,EUR,income,2500,payroll,payer,csv import sample-2,main,Main,2026-07-02,[MERCHANT_MEALS_001],-4.5,EUR,expense,2495.5,meals,merchant,csv import sample-3,main,Main,2026-07-03,[MERCHANT_OFFICE_001],-89.99,EUR,expense,2405.51,office,merchant,csv import"
+  nl: "Use the Finance check_accounts skill to analyze this placeholder CSV statement and summarize total value, income, expenses, net cash flow, and the spending categories. CSV statement: transaction_id,account_id,account_label,posted_at,description,amount,currency,direction,balance_after,category_hint,counterparty_type,source_name sample-1,main,Main,2026-07-01,[PAYER_PAYROLL_001],2500,EUR,income,2500,payroll,payer,csv import sample-2,main,Main,2026-07-02,[MERCHANT_MEALS_001],-4.5,EUR,expense,2495.5,meals,merchant,csv import sample-3,main,Main,2026-07-03,[MERCHANT_OFFICE_001],-89.99,EUR,expense,2405.51,office,merchant,csv import"
+  ar: "Use the Finance check_accounts skill to analyze this placeholder CSV statement and summarize total value, income, expenses, net cash flow, and the spending categories. CSV statement: transaction_id,account_id,account_label,posted_at,description,amount,currency,direction,balance_after,category_hint,counterparty_type,source_name sample-1,main,Main,2026-07-01,[PAYER_PAYROLL_001],2500,EUR,income,2500,payroll,payer,csv import sample-2,main,Main,2026-07-02,[MERCHANT_MEALS_001],-4.5,EUR,expense,2495.5,meals,merchant,csv import sample-3,main,Main,2026-07-03,[MERCHANT_OFFICE_001],-89.99,EUR,expense,2405.51,office,merchant,csv import"
+  hi: "Use the Finance check_accounts skill to analyze this placeholder CSV statement and summarize total value, income, expenses, net cash flow, and the spending categories. CSV statement: transaction_id,account_id,account_label,posted_at,description,amount,currency,direction,balance_after,category_hint,counterparty_type,source_name sample-1,main,Main,2026-07-01,[PAYER_PAYROLL_001],2500,EUR,income,2500,payroll,payer,csv import sample-2,main,Main,2026-07-02,[MERCHANT_MEALS_001],-4.5,EUR,expense,2495.5,meals,merchant,csv import sample-3,main,Main,2026-07-03,[MERCHANT_OFFICE_001],-89.99,EUR,expense,2405.51,office,merchant,csv import"
+  th: "Use the Finance check_accounts skill to analyze this placeholder CSV statement and summarize total value, income, expenses, net cash flow, and the spending categories. CSV statement: transaction_id,account_id,account_label,posted_at,description,amount,currency,direction,balance_after,category_hint,counterparty_type,source_name sample-1,main,Main,2026-07-01,[PAYER_PAYROLL_001],2500,EUR,income,2500,payroll,payer,csv import sample-2,main,Main,2026-07-02,[MERCHANT_MEALS_001],-4.5,EUR,expense,2495.5,meals,merchant,csv import sample-3,main,Main,2026-07-03,[MERCHANT_OFFICE_001],-89.99,EUR,expense,2405.51,office,merchant,csv import"
+  cs: "Use the Finance check_accounts skill to analyze this placeholder CSV statement and summarize total value, income, expenses, net cash flow, and the spending categories. CSV statement: transaction_id,account_id,account_label,posted_at,description,amount,currency,direction,balance_after,category_hint,counterparty_type,source_name sample-1,main,Main,2026-07-01,[PAYER_PAYROLL_001],2500,EUR,income,2500,payroll,payer,csv import sample-2,main,Main,2026-07-02,[MERCHANT_MEALS_001],-4.5,EUR,expense,2495.5,meals,merchant,csv import sample-3,main,Main,2026-07-03,[MERCHANT_OFFICE_001],-89.99,EUR,expense,2405.51,office,merchant,csv import"
+  sv: "Use the Finance check_accounts skill to analyze this placeholder CSV statement and summarize total value, income, expenses, net cash flow, and the spending categories. CSV statement: transaction_id,account_id,account_label,posted_at,description,amount,currency,direction,balance_after,category_hint,counterparty_type,source_name sample-1,main,Main,2026-07-01,[PAYER_PAYROLL_001],2500,EUR,income,2500,payroll,payer,csv import sample-2,main,Main,2026-07-02,[MERCHANT_MEALS_001],-4.5,EUR,expense,2495.5,meals,merchant,csv import sample-3,main,Main,2026-07-03,[MERCHANT_OFFICE_001],-89.99,EUR,expense,2405.51,office,merchant,csv import"
+  he: "Use the Finance check_accounts skill to analyze this placeholder CSV statement and summarize total value, income, expenses, net cash flow, and the spending categories. CSV statement: transaction_id,account_id,account_label,posted_at,description,amount,currency,direction,balance_after,category_hint,counterparty_type,source_name sample-1,main,Main,2026-07-01,[PAYER_PAYROLL_001],2500,EUR,income,2500,payroll,payer,csv import sample-2,main,Main,2026-07-02,[MERCHANT_MEALS_001],-4.5,EUR,expense,2495.5,meals,merchant,csv import sample-3,main,Main,2026-07-03,[MERCHANT_OFFICE_001],-89.99,EUR,expense,2405.51,office,merchant,csv import"
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: Analyze cash flow from a finance statement. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "cdffac4e-8176-40f0-a286-e0b98fff36f6", "app_id": "finance", "skill_id": "check_accounts", "provider": "Revolut Business", "start_date": "2026-07-01", "end_date": "2026-07-31"}
+    ```
+    
+    Based on the analysis of your CSV statement for July 2026, here is a summary of your financial activity:
+    
+    ### **Financial Summary**
+    *   **Total Value (Current Balance):** 2,405.51 EUR
+    *   **Total Income:** 2,500.00 EUR
+    *   **Total Expenses:** 94.49 EUR
+    *   **Net [Cash Flow](wiki:Cash_flow):** +2,405.51 EUR
+    
+    ### **Spending by Category**
+    *   **Payroll (Income):** 2,500.00 EUR
+    *   **Office (Expense):** 89.99 EUR
+    *   **Meals (Expense):** 4.50 EUR
+    
+    Your net cash flow is strongly positive for this period, primarily due to your payroll income significantly exceeding your office and meal expenses. 
+    
+    Would you like to see a projection for your spending for the rest of the month, or perhaps set up a budget for these categories?
+    
+    **Next Steps:**
+    - [Explore budgeting strategies](/#settings/apps/finance)
+    - [Add another account to your overview](/#settings/apps/finance)
+    ---
+    *⚠️ This is educational information only and not financial advice. Consult a qualified financial professional or tax advisor for financial decisions.*
+  de: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "cdffac4e-8176-40f0-a286-e0b98fff36f6", "app_id": "finance", "skill_id": "check_accounts", "provider": "Revolut Business", "start_date": "2026-07-01", "end_date": "2026-07-31"}
+    ```
+    
+    Based on the analysis of your CSV statement for July 2026, here is a summary of your financial activity:
+    
+    ### **Financial Summary**
+    *   **Total Value (Current Balance):** 2,405.51 EUR
+    *   **Total Income:** 2,500.00 EUR
+    *   **Total Expenses:** 94.49 EUR
+    *   **Net [Cash Flow](wiki:Cash_flow):** +2,405.51 EUR
+    
+    ### **Spending by Category**
+    *   **Payroll (Income):** 2,500.00 EUR
+    *   **Office (Expense):** 89.99 EUR
+    *   **Meals (Expense):** 4.50 EUR
+    
+    Your net cash flow is strongly positive for this period, primarily due to your payroll income significantly exceeding your office and meal expenses. 
+    
+    Would you like to see a projection for your spending for the rest of the month, or perhaps set up a budget for these categories?
+    
+    **Next Steps:**
+    - [Explore budgeting strategies](/#settings/apps/finance)
+    - [Add another account to your overview](/#settings/apps/finance)
+    ---
+    *⚠️ This is educational information only and not financial advice. Consult a qualified financial professional or tax advisor for financial decisions.*
+  zh: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "cdffac4e-8176-40f0-a286-e0b98fff36f6", "app_id": "finance", "skill_id": "check_accounts", "provider": "Revolut Business", "start_date": "2026-07-01", "end_date": "2026-07-31"}
+    ```
+    
+    Based on the analysis of your CSV statement for July 2026, here is a summary of your financial activity:
+    
+    ### **Financial Summary**
+    *   **Total Value (Current Balance):** 2,405.51 EUR
+    *   **Total Income:** 2,500.00 EUR
+    *   **Total Expenses:** 94.49 EUR
+    *   **Net [Cash Flow](wiki:Cash_flow):** +2,405.51 EUR
+    
+    ### **Spending by Category**
+    *   **Payroll (Income):** 2,500.00 EUR
+    *   **Office (Expense):** 89.99 EUR
+    *   **Meals (Expense):** 4.50 EUR
+    
+    Your net cash flow is strongly positive for this period, primarily due to your payroll income significantly exceeding your office and meal expenses. 
+    
+    Would you like to see a projection for your spending for the rest of the month, or perhaps set up a budget for these categories?
+    
+    **Next Steps:**
+    - [Explore budgeting strategies](/#settings/apps/finance)
+    - [Add another account to your overview](/#settings/apps/finance)
+    ---
+    *⚠️ This is educational information only and not financial advice. Consult a qualified financial professional or tax advisor for financial decisions.*
+  es: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "cdffac4e-8176-40f0-a286-e0b98fff36f6", "app_id": "finance", "skill_id": "check_accounts", "provider": "Revolut Business", "start_date": "2026-07-01", "end_date": "2026-07-31"}
+    ```
+    
+    Based on the analysis of your CSV statement for July 2026, here is a summary of your financial activity:
+    
+    ### **Financial Summary**
+    *   **Total Value (Current Balance):** 2,405.51 EUR
+    *   **Total Income:** 2,500.00 EUR
+    *   **Total Expenses:** 94.49 EUR
+    *   **Net [Cash Flow](wiki:Cash_flow):** +2,405.51 EUR
+    
+    ### **Spending by Category**
+    *   **Payroll (Income):** 2,500.00 EUR
+    *   **Office (Expense):** 89.99 EUR
+    *   **Meals (Expense):** 4.50 EUR
+    
+    Your net cash flow is strongly positive for this period, primarily due to your payroll income significantly exceeding your office and meal expenses. 
+    
+    Would you like to see a projection for your spending for the rest of the month, or perhaps set up a budget for these categories?
+    
+    **Next Steps:**
+    - [Explore budgeting strategies](/#settings/apps/finance)
+    - [Add another account to your overview](/#settings/apps/finance)
+    ---
+    *⚠️ This is educational information only and not financial advice. Consult a qualified financial professional or tax advisor for financial decisions.*
+  fr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "cdffac4e-8176-40f0-a286-e0b98fff36f6", "app_id": "finance", "skill_id": "check_accounts", "provider": "Revolut Business", "start_date": "2026-07-01", "end_date": "2026-07-31"}
+    ```
+    
+    Based on the analysis of your CSV statement for July 2026, here is a summary of your financial activity:
+    
+    ### **Financial Summary**
+    *   **Total Value (Current Balance):** 2,405.51 EUR
+    *   **Total Income:** 2,500.00 EUR
+    *   **Total Expenses:** 94.49 EUR
+    *   **Net [Cash Flow](wiki:Cash_flow):** +2,405.51 EUR
+    
+    ### **Spending by Category**
+    *   **Payroll (Income):** 2,500.00 EUR
+    *   **Office (Expense):** 89.99 EUR
+    *   **Meals (Expense):** 4.50 EUR
+    
+    Your net cash flow is strongly positive for this period, primarily due to your payroll income significantly exceeding your office and meal expenses. 
+    
+    Would you like to see a projection for your spending for the rest of the month, or perhaps set up a budget for these categories?
+    
+    **Next Steps:**
+    - [Explore budgeting strategies](/#settings/apps/finance)
+    - [Add another account to your overview](/#settings/apps/finance)
+    ---
+    *⚠️ This is educational information only and not financial advice. Consult a qualified financial professional or tax advisor for financial decisions.*
+  pt: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "cdffac4e-8176-40f0-a286-e0b98fff36f6", "app_id": "finance", "skill_id": "check_accounts", "provider": "Revolut Business", "start_date": "2026-07-01", "end_date": "2026-07-31"}
+    ```
+    
+    Based on the analysis of your CSV statement for July 2026, here is a summary of your financial activity:
+    
+    ### **Financial Summary**
+    *   **Total Value (Current Balance):** 2,405.51 EUR
+    *   **Total Income:** 2,500.00 EUR
+    *   **Total Expenses:** 94.49 EUR
+    *   **Net [Cash Flow](wiki:Cash_flow):** +2,405.51 EUR
+    
+    ### **Spending by Category**
+    *   **Payroll (Income):** 2,500.00 EUR
+    *   **Office (Expense):** 89.99 EUR
+    *   **Meals (Expense):** 4.50 EUR
+    
+    Your net cash flow is strongly positive for this period, primarily due to your payroll income significantly exceeding your office and meal expenses. 
+    
+    Would you like to see a projection for your spending for the rest of the month, or perhaps set up a budget for these categories?
+    
+    **Next Steps:**
+    - [Explore budgeting strategies](/#settings/apps/finance)
+    - [Add another account to your overview](/#settings/apps/finance)
+    ---
+    *⚠️ This is educational information only and not financial advice. Consult a qualified financial professional or tax advisor for financial decisions.*
+  ru: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "cdffac4e-8176-40f0-a286-e0b98fff36f6", "app_id": "finance", "skill_id": "check_accounts", "provider": "Revolut Business", "start_date": "2026-07-01", "end_date": "2026-07-31"}
+    ```
+    
+    Based on the analysis of your CSV statement for July 2026, here is a summary of your financial activity:
+    
+    ### **Financial Summary**
+    *   **Total Value (Current Balance):** 2,405.51 EUR
+    *   **Total Income:** 2,500.00 EUR
+    *   **Total Expenses:** 94.49 EUR
+    *   **Net [Cash Flow](wiki:Cash_flow):** +2,405.51 EUR
+    
+    ### **Spending by Category**
+    *   **Payroll (Income):** 2,500.00 EUR
+    *   **Office (Expense):** 89.99 EUR
+    *   **Meals (Expense):** 4.50 EUR
+    
+    Your net cash flow is strongly positive for this period, primarily due to your payroll income significantly exceeding your office and meal expenses. 
+    
+    Would you like to see a projection for your spending for the rest of the month, or perhaps set up a budget for these categories?
+    
+    **Next Steps:**
+    - [Explore budgeting strategies](/#settings/apps/finance)
+    - [Add another account to your overview](/#settings/apps/finance)
+    ---
+    *⚠️ This is educational information only and not financial advice. Consult a qualified financial professional or tax advisor for financial decisions.*
+  ja: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "cdffac4e-8176-40f0-a286-e0b98fff36f6", "app_id": "finance", "skill_id": "check_accounts", "provider": "Revolut Business", "start_date": "2026-07-01", "end_date": "2026-07-31"}
+    ```
+    
+    Based on the analysis of your CSV statement for July 2026, here is a summary of your financial activity:
+    
+    ### **Financial Summary**
+    *   **Total Value (Current Balance):** 2,405.51 EUR
+    *   **Total Income:** 2,500.00 EUR
+    *   **Total Expenses:** 94.49 EUR
+    *   **Net [Cash Flow](wiki:Cash_flow):** +2,405.51 EUR
+    
+    ### **Spending by Category**
+    *   **Payroll (Income):** 2,500.00 EUR
+    *   **Office (Expense):** 89.99 EUR
+    *   **Meals (Expense):** 4.50 EUR
+    
+    Your net cash flow is strongly positive for this period, primarily due to your payroll income significantly exceeding your office and meal expenses. 
+    
+    Would you like to see a projection for your spending for the rest of the month, or perhaps set up a budget for these categories?
+    
+    **Next Steps:**
+    - [Explore budgeting strategies](/#settings/apps/finance)
+    - [Add another account to your overview](/#settings/apps/finance)
+    ---
+    *⚠️ This is educational information only and not financial advice. Consult a qualified financial professional or tax advisor for financial decisions.*
+  ko: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "cdffac4e-8176-40f0-a286-e0b98fff36f6", "app_id": "finance", "skill_id": "check_accounts", "provider": "Revolut Business", "start_date": "2026-07-01", "end_date": "2026-07-31"}
+    ```
+    
+    Based on the analysis of your CSV statement for July 2026, here is a summary of your financial activity:
+    
+    ### **Financial Summary**
+    *   **Total Value (Current Balance):** 2,405.51 EUR
+    *   **Total Income:** 2,500.00 EUR
+    *   **Total Expenses:** 94.49 EUR
+    *   **Net [Cash Flow](wiki:Cash_flow):** +2,405.51 EUR
+    
+    ### **Spending by Category**
+    *   **Payroll (Income):** 2,500.00 EUR
+    *   **Office (Expense):** 89.99 EUR
+    *   **Meals (Expense):** 4.50 EUR
+    
+    Your net cash flow is strongly positive for this period, primarily due to your payroll income significantly exceeding your office and meal expenses. 
+    
+    Would you like to see a projection for your spending for the rest of the month, or perhaps set up a budget for these categories?
+    
+    **Next Steps:**
+    - [Explore budgeting strategies](/#settings/apps/finance)
+    - [Add another account to your overview](/#settings/apps/finance)
+    ---
+    *⚠️ This is educational information only and not financial advice. Consult a qualified financial professional or tax advisor for financial decisions.*
+  it: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "cdffac4e-8176-40f0-a286-e0b98fff36f6", "app_id": "finance", "skill_id": "check_accounts", "provider": "Revolut Business", "start_date": "2026-07-01", "end_date": "2026-07-31"}
+    ```
+    
+    Based on the analysis of your CSV statement for July 2026, here is a summary of your financial activity:
+    
+    ### **Financial Summary**
+    *   **Total Value (Current Balance):** 2,405.51 EUR
+    *   **Total Income:** 2,500.00 EUR
+    *   **Total Expenses:** 94.49 EUR
+    *   **Net [Cash Flow](wiki:Cash_flow):** +2,405.51 EUR
+    
+    ### **Spending by Category**
+    *   **Payroll (Income):** 2,500.00 EUR
+    *   **Office (Expense):** 89.99 EUR
+    *   **Meals (Expense):** 4.50 EUR
+    
+    Your net cash flow is strongly positive for this period, primarily due to your payroll income significantly exceeding your office and meal expenses. 
+    
+    Would you like to see a projection for your spending for the rest of the month, or perhaps set up a budget for these categories?
+    
+    **Next Steps:**
+    - [Explore budgeting strategies](/#settings/apps/finance)
+    - [Add another account to your overview](/#settings/apps/finance)
+    ---
+    *⚠️ This is educational information only and not financial advice. Consult a qualified financial professional or tax advisor for financial decisions.*
+  tr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "cdffac4e-8176-40f0-a286-e0b98fff36f6", "app_id": "finance", "skill_id": "check_accounts", "provider": "Revolut Business", "start_date": "2026-07-01", "end_date": "2026-07-31"}
+    ```
+    
+    Based on the analysis of your CSV statement for July 2026, here is a summary of your financial activity:
+    
+    ### **Financial Summary**
+    *   **Total Value (Current Balance):** 2,405.51 EUR
+    *   **Total Income:** 2,500.00 EUR
+    *   **Total Expenses:** 94.49 EUR
+    *   **Net [Cash Flow](wiki:Cash_flow):** +2,405.51 EUR
+    
+    ### **Spending by Category**
+    *   **Payroll (Income):** 2,500.00 EUR
+    *   **Office (Expense):** 89.99 EUR
+    *   **Meals (Expense):** 4.50 EUR
+    
+    Your net cash flow is strongly positive for this period, primarily due to your payroll income significantly exceeding your office and meal expenses. 
+    
+    Would you like to see a projection for your spending for the rest of the month, or perhaps set up a budget for these categories?
+    
+    **Next Steps:**
+    - [Explore budgeting strategies](/#settings/apps/finance)
+    - [Add another account to your overview](/#settings/apps/finance)
+    ---
+    *⚠️ This is educational information only and not financial advice. Consult a qualified financial professional or tax advisor for financial decisions.*
+  vi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "cdffac4e-8176-40f0-a286-e0b98fff36f6", "app_id": "finance", "skill_id": "check_accounts", "provider": "Revolut Business", "start_date": "2026-07-01", "end_date": "2026-07-31"}
+    ```
+    
+    Based on the analysis of your CSV statement for July 2026, here is a summary of your financial activity:
+    
+    ### **Financial Summary**
+    *   **Total Value (Current Balance):** 2,405.51 EUR
+    *   **Total Income:** 2,500.00 EUR
+    *   **Total Expenses:** 94.49 EUR
+    *   **Net [Cash Flow](wiki:Cash_flow):** +2,405.51 EUR
+    
+    ### **Spending by Category**
+    *   **Payroll (Income):** 2,500.00 EUR
+    *   **Office (Expense):** 89.99 EUR
+    *   **Meals (Expense):** 4.50 EUR
+    
+    Your net cash flow is strongly positive for this period, primarily due to your payroll income significantly exceeding your office and meal expenses. 
+    
+    Would you like to see a projection for your spending for the rest of the month, or perhaps set up a budget for these categories?
+    
+    **Next Steps:**
+    - [Explore budgeting strategies](/#settings/apps/finance)
+    - [Add another account to your overview](/#settings/apps/finance)
+    ---
+    *⚠️ This is educational information only and not financial advice. Consult a qualified financial professional or tax advisor for financial decisions.*
+  id: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "cdffac4e-8176-40f0-a286-e0b98fff36f6", "app_id": "finance", "skill_id": "check_accounts", "provider": "Revolut Business", "start_date": "2026-07-01", "end_date": "2026-07-31"}
+    ```
+    
+    Based on the analysis of your CSV statement for July 2026, here is a summary of your financial activity:
+    
+    ### **Financial Summary**
+    *   **Total Value (Current Balance):** 2,405.51 EUR
+    *   **Total Income:** 2,500.00 EUR
+    *   **Total Expenses:** 94.49 EUR
+    *   **Net [Cash Flow](wiki:Cash_flow):** +2,405.51 EUR
+    
+    ### **Spending by Category**
+    *   **Payroll (Income):** 2,500.00 EUR
+    *   **Office (Expense):** 89.99 EUR
+    *   **Meals (Expense):** 4.50 EUR
+    
+    Your net cash flow is strongly positive for this period, primarily due to your payroll income significantly exceeding your office and meal expenses. 
+    
+    Would you like to see a projection for your spending for the rest of the month, or perhaps set up a budget for these categories?
+    
+    **Next Steps:**
+    - [Explore budgeting strategies](/#settings/apps/finance)
+    - [Add another account to your overview](/#settings/apps/finance)
+    ---
+    *⚠️ This is educational information only and not financial advice. Consult a qualified financial professional or tax advisor for financial decisions.*
+  pl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "cdffac4e-8176-40f0-a286-e0b98fff36f6", "app_id": "finance", "skill_id": "check_accounts", "provider": "Revolut Business", "start_date": "2026-07-01", "end_date": "2026-07-31"}
+    ```
+    
+    Based on the analysis of your CSV statement for July 2026, here is a summary of your financial activity:
+    
+    ### **Financial Summary**
+    *   **Total Value (Current Balance):** 2,405.51 EUR
+    *   **Total Income:** 2,500.00 EUR
+    *   **Total Expenses:** 94.49 EUR
+    *   **Net [Cash Flow](wiki:Cash_flow):** +2,405.51 EUR
+    
+    ### **Spending by Category**
+    *   **Payroll (Income):** 2,500.00 EUR
+    *   **Office (Expense):** 89.99 EUR
+    *   **Meals (Expense):** 4.50 EUR
+    
+    Your net cash flow is strongly positive for this period, primarily due to your payroll income significantly exceeding your office and meal expenses. 
+    
+    Would you like to see a projection for your spending for the rest of the month, or perhaps set up a budget for these categories?
+    
+    **Next Steps:**
+    - [Explore budgeting strategies](/#settings/apps/finance)
+    - [Add another account to your overview](/#settings/apps/finance)
+    ---
+    *⚠️ This is educational information only and not financial advice. Consult a qualified financial professional or tax advisor for financial decisions.*
+  nl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "cdffac4e-8176-40f0-a286-e0b98fff36f6", "app_id": "finance", "skill_id": "check_accounts", "provider": "Revolut Business", "start_date": "2026-07-01", "end_date": "2026-07-31"}
+    ```
+    
+    Based on the analysis of your CSV statement for July 2026, here is a summary of your financial activity:
+    
+    ### **Financial Summary**
+    *   **Total Value (Current Balance):** 2,405.51 EUR
+    *   **Total Income:** 2,500.00 EUR
+    *   **Total Expenses:** 94.49 EUR
+    *   **Net [Cash Flow](wiki:Cash_flow):** +2,405.51 EUR
+    
+    ### **Spending by Category**
+    *   **Payroll (Income):** 2,500.00 EUR
+    *   **Office (Expense):** 89.99 EUR
+    *   **Meals (Expense):** 4.50 EUR
+    
+    Your net cash flow is strongly positive for this period, primarily due to your payroll income significantly exceeding your office and meal expenses. 
+    
+    Would you like to see a projection for your spending for the rest of the month, or perhaps set up a budget for these categories?
+    
+    **Next Steps:**
+    - [Explore budgeting strategies](/#settings/apps/finance)
+    - [Add another account to your overview](/#settings/apps/finance)
+    ---
+    *⚠️ This is educational information only and not financial advice. Consult a qualified financial professional or tax advisor for financial decisions.*
+  ar: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "cdffac4e-8176-40f0-a286-e0b98fff36f6", "app_id": "finance", "skill_id": "check_accounts", "provider": "Revolut Business", "start_date": "2026-07-01", "end_date": "2026-07-31"}
+    ```
+    
+    Based on the analysis of your CSV statement for July 2026, here is a summary of your financial activity:
+    
+    ### **Financial Summary**
+    *   **Total Value (Current Balance):** 2,405.51 EUR
+    *   **Total Income:** 2,500.00 EUR
+    *   **Total Expenses:** 94.49 EUR
+    *   **Net [Cash Flow](wiki:Cash_flow):** +2,405.51 EUR
+    
+    ### **Spending by Category**
+    *   **Payroll (Income):** 2,500.00 EUR
+    *   **Office (Expense):** 89.99 EUR
+    *   **Meals (Expense):** 4.50 EUR
+    
+    Your net cash flow is strongly positive for this period, primarily due to your payroll income significantly exceeding your office and meal expenses. 
+    
+    Would you like to see a projection for your spending for the rest of the month, or perhaps set up a budget for these categories?
+    
+    **Next Steps:**
+    - [Explore budgeting strategies](/#settings/apps/finance)
+    - [Add another account to your overview](/#settings/apps/finance)
+    ---
+    *⚠️ This is educational information only and not financial advice. Consult a qualified financial professional or tax advisor for financial decisions.*
+  hi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "cdffac4e-8176-40f0-a286-e0b98fff36f6", "app_id": "finance", "skill_id": "check_accounts", "provider": "Revolut Business", "start_date": "2026-07-01", "end_date": "2026-07-31"}
+    ```
+    
+    Based on the analysis of your CSV statement for July 2026, here is a summary of your financial activity:
+    
+    ### **Financial Summary**
+    *   **Total Value (Current Balance):** 2,405.51 EUR
+    *   **Total Income:** 2,500.00 EUR
+    *   **Total Expenses:** 94.49 EUR
+    *   **Net [Cash Flow](wiki:Cash_flow):** +2,405.51 EUR
+    
+    ### **Spending by Category**
+    *   **Payroll (Income):** 2,500.00 EUR
+    *   **Office (Expense):** 89.99 EUR
+    *   **Meals (Expense):** 4.50 EUR
+    
+    Your net cash flow is strongly positive for this period, primarily due to your payroll income significantly exceeding your office and meal expenses. 
+    
+    Would you like to see a projection for your spending for the rest of the month, or perhaps set up a budget for these categories?
+    
+    **Next Steps:**
+    - [Explore budgeting strategies](/#settings/apps/finance)
+    - [Add another account to your overview](/#settings/apps/finance)
+    ---
+    *⚠️ This is educational information only and not financial advice. Consult a qualified financial professional or tax advisor for financial decisions.*
+  th: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "cdffac4e-8176-40f0-a286-e0b98fff36f6", "app_id": "finance", "skill_id": "check_accounts", "provider": "Revolut Business", "start_date": "2026-07-01", "end_date": "2026-07-31"}
+    ```
+    
+    Based on the analysis of your CSV statement for July 2026, here is a summary of your financial activity:
+    
+    ### **Financial Summary**
+    *   **Total Value (Current Balance):** 2,405.51 EUR
+    *   **Total Income:** 2,500.00 EUR
+    *   **Total Expenses:** 94.49 EUR
+    *   **Net [Cash Flow](wiki:Cash_flow):** +2,405.51 EUR
+    
+    ### **Spending by Category**
+    *   **Payroll (Income):** 2,500.00 EUR
+    *   **Office (Expense):** 89.99 EUR
+    *   **Meals (Expense):** 4.50 EUR
+    
+    Your net cash flow is strongly positive for this period, primarily due to your payroll income significantly exceeding your office and meal expenses. 
+    
+    Would you like to see a projection for your spending for the rest of the month, or perhaps set up a budget for these categories?
+    
+    **Next Steps:**
+    - [Explore budgeting strategies](/#settings/apps/finance)
+    - [Add another account to your overview](/#settings/apps/finance)
+    ---
+    *⚠️ This is educational information only and not financial advice. Consult a qualified financial professional or tax advisor for financial decisions.*
+  cs: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "cdffac4e-8176-40f0-a286-e0b98fff36f6", "app_id": "finance", "skill_id": "check_accounts", "provider": "Revolut Business", "start_date": "2026-07-01", "end_date": "2026-07-31"}
+    ```
+    
+    Based on the analysis of your CSV statement for July 2026, here is a summary of your financial activity:
+    
+    ### **Financial Summary**
+    *   **Total Value (Current Balance):** 2,405.51 EUR
+    *   **Total Income:** 2,500.00 EUR
+    *   **Total Expenses:** 94.49 EUR
+    *   **Net [Cash Flow](wiki:Cash_flow):** +2,405.51 EUR
+    
+    ### **Spending by Category**
+    *   **Payroll (Income):** 2,500.00 EUR
+    *   **Office (Expense):** 89.99 EUR
+    *   **Meals (Expense):** 4.50 EUR
+    
+    Your net cash flow is strongly positive for this period, primarily due to your payroll income significantly exceeding your office and meal expenses. 
+    
+    Would you like to see a projection for your spending for the rest of the month, or perhaps set up a budget for these categories?
+    
+    **Next Steps:**
+    - [Explore budgeting strategies](/#settings/apps/finance)
+    - [Add another account to your overview](/#settings/apps/finance)
+    ---
+    *⚠️ This is educational information only and not financial advice. Consult a qualified financial professional or tax advisor for financial decisions.*
+  sv: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "cdffac4e-8176-40f0-a286-e0b98fff36f6", "app_id": "finance", "skill_id": "check_accounts", "provider": "Revolut Business", "start_date": "2026-07-01", "end_date": "2026-07-31"}
+    ```
+    
+    Based on the analysis of your CSV statement for July 2026, here is a summary of your financial activity:
+    
+    ### **Financial Summary**
+    *   **Total Value (Current Balance):** 2,405.51 EUR
+    *   **Total Income:** 2,500.00 EUR
+    *   **Total Expenses:** 94.49 EUR
+    *   **Net [Cash Flow](wiki:Cash_flow):** +2,405.51 EUR
+    
+    ### **Spending by Category**
+    *   **Payroll (Income):** 2,500.00 EUR
+    *   **Office (Expense):** 89.99 EUR
+    *   **Meals (Expense):** 4.50 EUR
+    
+    Your net cash flow is strongly positive for this period, primarily due to your payroll income significantly exceeding your office and meal expenses. 
+    
+    Would you like to see a projection for your spending for the rest of the month, or perhaps set up a budget for these categories?
+    
+    **Next Steps:**
+    - [Explore budgeting strategies](/#settings/apps/finance)
+    - [Add another account to your overview](/#settings/apps/finance)
+    ---
+    *⚠️ This is educational information only and not financial advice. Consult a qualified financial professional or tax advisor for financial decisions.*
+  he: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "cdffac4e-8176-40f0-a286-e0b98fff36f6", "app_id": "finance", "skill_id": "check_accounts", "provider": "Revolut Business", "start_date": "2026-07-01", "end_date": "2026-07-31"}
+    ```
+    
+    Based on the analysis of your CSV statement for July 2026, here is a summary of your financial activity:
+    
+    ### **Financial Summary**
+    *   **Total Value (Current Balance):** 2,405.51 EUR
+    *   **Total Income:** 2,500.00 EUR
+    *   **Total Expenses:** 94.49 EUR
+    *   **Net [Cash Flow](wiki:Cash_flow):** +2,405.51 EUR
+    
+    ### **Spending by Category**
+    *   **Payroll (Income):** 2,500.00 EUR
+    *   **Office (Expense):** 89.99 EUR
+    *   **Meals (Expense):** 4.50 EUR
+    
+    Your net cash flow is strongly positive for this period, primarily due to your payroll income significantly exceeding your office and meal expenses. 
+    
+    Would you like to see a projection for your spending for the rest of the month, or perhaps set up a budget for these categories?
+    
+    **Next Steps:**
+    - [Explore budgeting strategies](/#settings/apps/finance)
+    - [Add another account to your overview](/#settings/apps/finance)
+    ---
+    *⚠️ This is educational information only and not financial advice. Consult a qualified financial professional or tax advisor for financial decisions.*
+  verified_by_human: []
+
+follow_up_1:
+  context: "Follow-up suggestion 1"
+  en: "Search for budgeting strategies for small businesses"
+  de: "Search for budgeting strategies for small businesses"
+  zh: "Search for budgeting strategies for small businesses"
+  es: "Search for budgeting strategies for small businesses"
+  fr: "Search for budgeting strategies for small businesses"
+  pt: "Search for budgeting strategies for small businesses"
+  ru: "Search for budgeting strategies for small businesses"
+  ja: "Search for budgeting strategies for small businesses"
+  ko: "Search for budgeting strategies for small businesses"
+  it: "Search for budgeting strategies for small businesses"
+  tr: "Search for budgeting strategies for small businesses"
+  vi: "Search for budgeting strategies for small businesses"
+  id: "Search for budgeting strategies for small businesses"
+  pl: "Search for budgeting strategies for small businesses"
+  nl: "Search for budgeting strategies for small businesses"
+  ar: "Search for budgeting strategies for small businesses"
+  hi: "Search for budgeting strategies for small businesses"
+  th: "Search for budgeting strategies for small businesses"
+  cs: "Search for budgeting strategies for small businesses"
+  sv: "Search for budgeting strategies for small businesses"
+  he: "Search for budgeting strategies for small businesses"
+  verified_by_human: []
+
+follow_up_2:
+  context: "Follow-up suggestion 2"
+  en: "Explain how to project future expenses based on current trends"
+  de: "Explain how to project future expenses based on current trends"
+  zh: "Explain how to project future expenses based on current trends"
+  es: "Explain how to project future expenses based on current trends"
+  fr: "Explain how to project future expenses based on current trends"
+  pt: "Explain how to project future expenses based on current trends"
+  ru: "Explain how to project future expenses based on current trends"
+  ja: "Explain how to project future expenses based on current trends"
+  ko: "Explain how to project future expenses based on current trends"
+  it: "Explain how to project future expenses based on current trends"
+  tr: "Explain how to project future expenses based on current trends"
+  vi: "Explain how to project future expenses based on current trends"
+  id: "Explain how to project future expenses based on current trends"
+  pl: "Explain how to project future expenses based on current trends"
+  nl: "Explain how to project future expenses based on current trends"
+  ar: "Explain how to project future expenses based on current trends"
+  hi: "Explain how to project future expenses based on current trends"
+  th: "Explain how to project future expenses based on current trends"
+  cs: "Explain how to project future expenses based on current trends"
+  sv: "Explain how to project future expenses based on current trends"
+  he: "Explain how to project future expenses based on current trends"
+  verified_by_human: []
+
+follow_up_3:
+  context: "Follow-up suggestion 3"
+  en: "Find articles on optimizing office expenses"
+  de: "Find articles on optimizing office expenses"
+  zh: "Find articles on optimizing office expenses"
+  es: "Find articles on optimizing office expenses"
+  fr: "Find articles on optimizing office expenses"
+  pt: "Find articles on optimizing office expenses"
+  ru: "Find articles on optimizing office expenses"
+  ja: "Find articles on optimizing office expenses"
+  ko: "Find articles on optimizing office expenses"
+  it: "Find articles on optimizing office expenses"
+  tr: "Find articles on optimizing office expenses"
+  vi: "Find articles on optimizing office expenses"
+  id: "Find articles on optimizing office expenses"
+  pl: "Find articles on optimizing office expenses"
+  nl: "Find articles on optimizing office expenses"
+  ar: "Find articles on optimizing office expenses"
+  hi: "Find articles on optimizing office expenses"
+  th: "Find articles on optimizing office expenses"
+  cs: "Find articles on optimizing office expenses"
+  sv: "Find articles on optimizing office expenses"
+  he: "Find articles on optimizing office expenses"
+  verified_by_human: []
+
+follow_up_4:
+  context: "Follow-up suggestion 4"
+  en: "List common financial mistakes freelancers make"
+  de: "List common financial mistakes freelancers make"
+  zh: "List common financial mistakes freelancers make"
+  es: "List common financial mistakes freelancers make"
+  fr: "List common financial mistakes freelancers make"
+  pt: "List common financial mistakes freelancers make"
+  ru: "List common financial mistakes freelancers make"
+  ja: "List common financial mistakes freelancers make"
+  ko: "List common financial mistakes freelancers make"
+  it: "List common financial mistakes freelancers make"
+  tr: "List common financial mistakes freelancers make"
+  vi: "List common financial mistakes freelancers make"
+  id: "List common financial mistakes freelancers make"
+  pl: "List common financial mistakes freelancers make"
+  nl: "List common financial mistakes freelancers make"
+  ar: "List common financial mistakes freelancers make"
+  hi: "List common financial mistakes freelancers make"
+  th: "List common financial mistakes freelancers make"
+  cs: "List common financial mistakes freelancers make"
+  sv: "List common financial mistakes freelancers make"
+  he: "List common financial mistakes freelancers make"
+  verified_by_human: []
+
+follow_up_5:
+  context: "Follow-up suggestion 5"
+  en: "Compare financial management apps for freelancers"
+  de: "Compare financial management apps for freelancers"
+  zh: "Compare financial management apps for freelancers"
+  es: "Compare financial management apps for freelancers"
+  fr: "Compare financial management apps for freelancers"
+  pt: "Compare financial management apps for freelancers"
+  ru: "Compare financial management apps for freelancers"
+  ja: "Compare financial management apps for freelancers"
+  ko: "Compare financial management apps for freelancers"
+  it: "Compare financial management apps for freelancers"
+  tr: "Compare financial management apps for freelancers"
+  vi: "Compare financial management apps for freelancers"
+  id: "Compare financial management apps for freelancers"
+  pl: "Compare financial management apps for freelancers"
+  nl: "Compare financial management apps for freelancers"
+  ar: "Compare financial management apps for freelancers"
+  hi: "Compare financial management apps for freelancers"
+  th: "Compare financial management apps for freelancers"
+  cs: "Compare financial management apps for freelancers"
+  sv: "Compare financial management apps for freelancers"
+  he: "Compare financial management apps for freelancers"
+  verified_by_human: []
+
+follow_up_6:
+  context: "Follow-up suggestion 6"
+  en: "Help me understand tax implications of my income"
+  de: "Help me understand tax implications of my income"
+  zh: "Help me understand tax implications of my income"
+  es: "Help me understand tax implications of my income"
+  fr: "Help me understand tax implications of my income"
+  pt: "Help me understand tax implications of my income"
+  ru: "Help me understand tax implications of my income"
+  ja: "Help me understand tax implications of my income"
+  ko: "Help me understand tax implications of my income"
+  it: "Help me understand tax implications of my income"
+  tr: "Help me understand tax implications of my income"
+  vi: "Help me understand tax implications of my income"
+  id: "Help me understand tax implications of my income"
+  pl: "Help me understand tax implications of my income"
+  nl: "Help me understand tax implications of my income"
+  ar: "Help me understand tax implications of my income"
+  hi: "Help me understand tax implications of my income"
+  th: "Help me understand tax implications of my income"
+  cs: "Help me understand tax implications of my income"
+  sv: "Help me understand tax implications of my income"
+  he: "Help me understand tax implications of my income"
+  verified_by_human: []
+

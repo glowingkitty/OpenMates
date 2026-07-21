@@ -71,6 +71,9 @@ skills:
                 type: string
               access_token_handle:
                 type: string
+              environment:
+                type: string
+                enum: [sandbox, production]
         csv_statements:
           type: array
           items:
