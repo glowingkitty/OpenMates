@@ -39,6 +39,7 @@ const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = get
 
 const consoleLogs: string[] = [];
 const warnErrorLogs: Array<{ timestamp: string; type: string; text: string }> = [];
+const UUID_CHAT_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 test.beforeEach(async () => {
 	consoleLogs.length = 0;
@@ -83,12 +84,17 @@ async function performLogin(
 function isPublicChatId(chatId: string): boolean {
 	return (
 		chatId.startsWith('demo-') ||
+		chatId.startsWith('example-') ||
 		chatId.startsWith('legal-') ||
 		chatId.startsWith('announcements-') ||
 		chatId.startsWith('tips-') ||
 		chatId === 'example-for-everyone' ||
 		chatId === 'example-for-developers'
 	);
+}
+
+function isUserOwnedChatId(chatId: string): boolean {
+	return UUID_CHAT_ID_PATTERN.test(chatId) && !isPublicChatId(chatId);
 }
 
 /**
@@ -119,7 +125,7 @@ async function getSidebarChats(
 	for (let i = 0; i < Math.min(wrapperCount, count * 3); i++) {
 		if (chats.length >= count) break;
 		const chatId = await chatWrappers.nth(i).getAttribute('data-chat-id');
-		if (!chatId || isPublicChatId(chatId)) continue;
+		if (!chatId || !isUserOwnedChatId(chatId)) continue;
 		const titleEl = chatWrappers.nth(i).getByTestId('chat-title');
 		const text = (await titleEl.textContent())?.trim() || '';
 		if (
@@ -387,7 +393,11 @@ test('resume card updates to last opened chat on each new-chat transition', asyn
 	logStep('PASS: No duplicate cards found.');
 
 	const chatB = allCards1.find(
-		(card) => card.chatId && card.chatId !== chatA.chatId && card.title !== 'Untitled chat'
+		(card) =>
+			card.chatId &&
+			isUserOwnedChatId(card.chatId) &&
+			card.chatId !== chatA.chatId &&
+			card.title !== 'Untitled chat'
 	);
 	expect(chatB, 'Expected a second recent chat card to open for phase 3').toBeTruthy();
 	logStep(`Chat B from recent cards: "${chatB?.title}" (${chatB?.chatId})`);
