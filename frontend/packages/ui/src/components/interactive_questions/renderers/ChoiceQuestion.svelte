@@ -220,6 +220,11 @@
     box-shadow: 0 0 0 1px var(--color-primary, #4dabf7);
   }
 
+  :global([data-theme="dark"]) .option-item.selected,
+  :global(.dark) .option-item.selected {
+    background: var(--color-grey-20, #252525);
+  }
+
   .indicator-wrapper {
     display: flex;
     align-items: center;
