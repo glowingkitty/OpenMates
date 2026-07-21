@@ -18,13 +18,29 @@ from typing import Any
 
 
 RENDER_TIMEOUT_SECONDS = 45
+INSTALL_TIMEOUT_SECONDS = 300
+PLAYWRIGHT_INSTALL_COMMAND = """
+if ! node -e "require.resolve('playwright')" >/dev/null 2>&1; then
+  npm init -y >/dev/null 2>&1
+  npm install --no-audit --no-fund playwright
+fi
+npx playwright install chromium
+""".strip()
 SCREENSHOT_COMMAND = """
 node - <<'NODE'
 const { chromium } = require('playwright');
 (async () => {
   const browser = await chromium.launch({ headless: true });
-  const page = await browser.newPage({ viewport: { width: 1440, height: 1200 }, deviceScaleFactor: 1 });
-  await page.goto('file://' + process.cwd() + '/index.html', { waitUntil: 'networkidle' });
+  const context = await browser.newContext({ viewport: { width: 1440, height: 1200 }, deviceScaleFactor: 1 });
+  await context.setOffline(true);
+  const page = await context.newPage();
+  await page.route('**/*', async (route) => {
+    const url = route.request().url();
+    if (url.startsWith('file://')) return route.continue();
+    return route.abort();
+  });
+  await page.goto('file://' + process.cwd() + '/index.html', { waitUntil: 'load' });
+  await page.waitForTimeout(500);
   const screenshot = await page.screenshot({ type: 'png', fullPage: true });
   await browser.close();
   process.stdout.write(screenshot.toString('base64'));
@@ -66,6 +82,7 @@ def render_html_in_e2b(
     sandbox_id = str(getattr(sandbox, "sandbox_id", "") or getattr(sandbox, "id", "") or "") or None
 
     try:
+        sandbox.commands.run(f"bash -lc {shlex.quote(PLAYWRIGHT_INSTALL_COMMAND)}", timeout=INSTALL_TIMEOUT_SECONDS)
         sandbox.files.write_files([{"path": "index.html", "data": html}])
         command = f"bash -lc {shlex.quote(SCREENSHOT_COMMAND)}"
         result = sandbox.commands.run(command, timeout=RENDER_TIMEOUT_SECONDS)
@@ -84,7 +101,7 @@ def _create_sandbox(sandbox_cls: Any, api_key: str) -> Any:
     kwargs = {
         "api_key": api_key,
         "secure": True,
-        "allow_internet_access": False,
+        "allow_internet_access": True,
         "network": {"allow_public_traffic": False},
     }
     create = getattr(sandbox_cls, "create", None)

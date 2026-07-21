@@ -8,6 +8,8 @@ import tempfile
 import uuid
 import atexit
 import base64
+import binascii
+import re
 from typing import Dict, Any, List, Optional, Union, AsyncIterator
 import tiktoken
 
@@ -240,7 +242,51 @@ def _map_tools_to_google_format(tools: List[Dict[str, Any]]) -> Optional[List[ty
     return [types.Tool(function_declarations=function_declarations)] if function_declarations else None
 
 
-def _prepare_messages_and_system_prompt(messages: List[Dict[str, str]]) -> (Optional[str], List[types.Content]):
+DATA_URL_RE = re.compile(r"^data:(?P<mime>[-\w.+/]+);base64,(?P<data>.+)$", re.DOTALL)
+
+
+def _parts_from_message_content(content: Any) -> List[types.Part]:
+    if not content:
+        return []
+    if isinstance(content, str):
+        return [types.Part.from_text(text=content)]
+    if not isinstance(content, list):
+        return [types.Part.from_text(text=str(content))]
+
+    parts: List[types.Part] = []
+    for block in content:
+        if not isinstance(block, dict):
+            parts.append(types.Part.from_text(text=str(block)))
+            continue
+        block_type = block.get("type")
+        if block_type == "text":
+            text = block.get("text")
+            if text:
+                parts.append(types.Part.from_text(text=str(text)))
+            continue
+        if block_type == "image_url":
+            image_url = block.get("image_url")
+            url = image_url.get("url") if isinstance(image_url, dict) else image_url
+            if not isinstance(url, str):
+                continue
+            match = DATA_URL_RE.match(url.strip())
+            if not match:
+                raise ValueError("Google Gemini multimodal messages only support data: image URLs")
+            try:
+                parts.append(types.Part.from_bytes(
+                    data=base64.b64decode(match.group("data"), validate=True),
+                    mime_type=match.group("mime"),
+                ))
+            except (binascii.Error, ValueError) as exc:
+                raise ValueError("Invalid base64 image data in Gemini multimodal message") from exc
+            continue
+        text = block.get("text") or block.get("content")
+        if text:
+            parts.append(types.Part.from_text(text=str(text)))
+    return parts
+
+
+def _prepare_messages_and_system_prompt(messages: List[Dict[str, Any]]) -> (Optional[str], List[types.Content]):
     """
     Convert OpenAI-compatible message format to Google Gemini format.
     
@@ -275,9 +321,10 @@ def _prepare_messages_and_system_prompt(messages: List[Dict[str, str]]) -> (Opti
         content = msg.get("content", "")
         
         if role == "user":
-            # User message: Simple text content
-            if content:
-                history.append(types.Content(role="user", parts=[types.Part.from_text(text=content)]))
+            # User message: text or OpenAI-compatible multimodal content blocks.
+            parts = _parts_from_message_content(content)
+            if parts:
+                history.append(types.Content(role="user", parts=parts))
             i += 1
         
         elif role == "assistant":
@@ -320,7 +367,7 @@ def _prepare_messages_and_system_prompt(messages: List[Dict[str, str]]) -> (Opti
             
             # Add text content if present (assistant may have both text and function calls)
             if content:
-                parts.append(types.Part.from_text(text=content))
+                parts.extend(_parts_from_message_content(content))
             
             if parts:
                 history.append(types.Content(role="model", parts=parts))
@@ -452,7 +499,7 @@ def _normalize_google_model_id(model_id: str) -> str:
 async def invoke_google_ai_studio_chat_completions(
     task_id: str,
     model_id: str,
-    messages: List[Dict[str, str]],
+    messages: List[Dict[str, Any]],
     secrets_manager: Optional[SecretsManager] = None,
     temperature: float = 0.7,
     max_tokens: Optional[int] = None,
@@ -831,7 +878,7 @@ async def invoke_google_ai_studio_chat_completions(
 async def invoke_google_chat_completions(
     task_id: str,
     model_id: str,
-    messages: List[Dict[str, str]],
+    messages: List[Dict[str, Any]],
     secrets_manager: Optional[SecretsManager] = None,
     temperature: float = 0.7,
     max_tokens: Optional[int] = None,

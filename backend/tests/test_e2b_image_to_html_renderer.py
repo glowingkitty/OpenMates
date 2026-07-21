@@ -63,7 +63,7 @@ def test_render_html_in_e2b_writes_only_index_html_and_cleans_up() -> None:
     assert FakeSandbox.create_kwargs == {
         "api_key": "test-e2b-key",
         "secure": True,
-        "allow_internet_access": False,
+        "allow_internet_access": True,
         "network": {"allow_public_traffic": False},
     }
     assert FakeSandbox.killed_ids == ["sandbox-render-1:test-e2b-key"]
@@ -79,7 +79,12 @@ def test_render_command_uses_browser_inside_sandbox() -> None:
     )
 
     assert sandbox.files.writes == [{"path": "index.html", "data": "<html><body>Hello</body></html>"}]
-    assert sandbox.commands.commands
-    command, kwargs = sandbox.commands.commands[0]
+    assert len(sandbox.commands.commands) == 2
+    install_command, install_kwargs = sandbox.commands.commands[0]
+    assert "npm install" in install_command
+    assert install_kwargs.get("timeout")
+    command, kwargs = sandbox.commands.commands[1]
     assert "playwright" in command.lower() or "chromium" in command.lower()
+    assert "setOffline" in command
+    assert "route.abort" in command
     assert kwargs.get("timeout")

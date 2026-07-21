@@ -12,6 +12,7 @@
 #
 # Run: python -m pytest backend/tests/test_image_safety_pipeline.py -v
 
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -26,6 +27,7 @@ try:
         _derive_flags,
     )
     from backend.shared.providers.groq.safeguard import (
+        GroqSafeguardClient,
         SafeguardVerdict,
         _parse_verdict,
     )
@@ -292,6 +294,57 @@ class TestSafeguardParsing:
             '{"decision":"block","category":"x","severity":"nuclear"}'
         )
         assert v.severity == "severe"
+
+    @pytest.mark.asyncio
+    async def test_reason_uses_forced_tool_call_for_verdict(self):
+        captured_kwargs = {}
+
+        class FakeCompletions:
+            async def create(self, **kwargs):
+                captured_kwargs.update(kwargs)
+                return SimpleNamespace(
+                    choices=[
+                        SimpleNamespace(
+                            message=SimpleNamespace(
+                                content=None,
+                                tool_calls=[
+                                    SimpleNamespace(
+                                        function=SimpleNamespace(
+                                            arguments=(
+                                                '{"decision":"allow","category":"ALLOW_GENERAL",'
+                                                '"severity":"moderate","reasoning":"No concerning signals",'
+                                                '"discrepancies":""}'
+                                            )
+                                        )
+                                    )
+                                ],
+                            )
+                        )
+                    ]
+                )
+
+        client = GroqSafeguardClient()
+        client._client = SimpleNamespace(
+            chat=SimpleNamespace(completions=FakeCompletions())
+        )
+
+        verdict = await client.reason(
+            policy_markdown="Policy text",
+            stage="input",
+            user_prompt="Generate a landscape",
+            sightengine_json={},
+            vlm_json={},
+        )
+
+        assert verdict.decision == "allow"
+        assert verdict.category == "ALLOW_GENERAL"
+        assert captured_kwargs["tool_choice"] == {
+            "type": "function",
+            "function": {"name": "report_safeguard_verdict"},
+        }
+        [tool] = captured_kwargs["tools"]
+        assert tool["function"]["name"] == "report_safeguard_verdict"
+        assert tool["function"]["parameters"]["additionalProperties"] is False
 
 
 # ---------------------------------------------------------------------------
