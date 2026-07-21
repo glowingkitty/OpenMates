@@ -212,6 +212,31 @@ describe("chat sync merge", () => {
     expect(merged.ideabucket_triggered_at).toBe(1234);
   });
 
+  it("clears stale local IdeaBucket draft when durable chat metadata has messages", async () => {
+    const localChat = makeChat({
+      ideabucket: true,
+      ideabucket_processing_window_id: "window-1",
+      messages_v: 0,
+      draft_v: 3,
+      encrypted_draft_md: "stale-ideabucket-draft",
+      encrypted_draft_preview: "stale-ideabucket-preview",
+    });
+    const serverChat = {
+      id: "chat-1",
+      messages_v: 2,
+      title_v: 0,
+      draft_v: 0,
+    };
+
+    const merged = await mergeServerChatWithLocal(serverChat, localChat, "user-1");
+
+    expect(merged.messages_v).toBe(2);
+    expect(merged.encrypted_draft_md).toBeUndefined();
+    expect(merged.encrypted_draft_preview).toBeUndefined();
+    expect(merged.draft_v).toBe(0);
+    expect(merged.ideabucket).toBe(true);
+  });
+
   it("preserves local encrypted header metadata when Phase 1a sends partial cache data", async () => {
     const localChat = makeChat({
       encrypted_title: "local-title-from-idb",
