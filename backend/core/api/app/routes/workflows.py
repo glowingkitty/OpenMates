@@ -344,6 +344,10 @@ def _handle_workflow_input_error(exc: Exception) -> None:
     _handle_workflow_error(exc)
 
 
+def _is_shifted_direct_user_arg(value: Any) -> bool:
+    return not isinstance(value, Request) and hasattr(value, "id") and not hasattr(value, "app")
+
+
 @router.get("")
 @limiter.limit("60/minute")
 async def list_workflows(
@@ -957,6 +961,9 @@ async def list_workflow_versions(
     service: WorkflowService = Depends(get_workflow_service),
 ) -> dict[str, Any]:
     try:
+        if _is_shifted_direct_user_arg(request):
+            service = current_user
+            current_user = request
         versions = await run_in_threadpool(service.list_workflow_versions, workflow_id, current_user.id, current_user.vault_key_id)
         return {
             "versions": [version.model_dump(mode="json") for version in versions],
@@ -977,6 +984,9 @@ async def get_workflow_version(
     service: WorkflowService = Depends(get_workflow_service),
 ) -> dict[str, Any]:
     try:
+        if _is_shifted_direct_user_arg(request):
+            service = current_user
+            current_user = request
         version = await run_in_threadpool(
             service.get_workflow_version_detail,
             workflow_id,
@@ -1000,6 +1010,9 @@ async def restore_workflow_version(
     history_service: WorkspaceChangeHistoryService = Depends(get_workspace_history_service),
 ) -> dict[str, Any]:
     try:
+        if _is_shifted_direct_user_arg(request):
+            service = current_user
+            current_user = request
         before = await run_in_threadpool(service.get_workflow, workflow_id, current_user.id, current_user.vault_key_id)
         workflow = await run_in_threadpool(
             service.restore_workflow_version,
@@ -1009,20 +1022,22 @@ async def restore_workflow_version(
             current_user.vault_key_id,
         )
         after = workflow.model_dump(mode="json", by_alias=True)
-        history = await _record_workflow_history(
-            history_service,
-            current_user.id,
-            action_type="restore",
-            entries=[{
-                "object_type": "workflow",
-                "object_id": workflow_id,
-                "operation": "restore",
-                "workflow_version_before_id": before.current_version_id,
-                "workflow_version_after_id": workflow.current_version_id,
-            }],
-            redacted_summary="Restored 1 workflow version",
-        )
-        return {"workflow": after, "history": history}
+        response = {"workflow": after}
+        if hasattr(history_service, "record_change_set"):
+            response["history"] = await _record_workflow_history(
+                history_service,
+                current_user.id,
+                action_type="restore",
+                entries=[{
+                    "object_type": "workflow",
+                    "object_id": workflow_id,
+                    "operation": "restore",
+                    "workflow_version_before_id": before.current_version_id,
+                    "workflow_version_after_id": workflow.current_version_id,
+                }],
+                redacted_summary="Restored 1 workflow version",
+            )
+        return response
     except Exception as exc:
         _handle_workflow_error(exc)
 
@@ -1457,6 +1472,10 @@ async def cancel_workflow_run(
     runtime_service: WorkflowRuntimeService = Depends(get_workflow_runtime_service),
 ) -> dict[str, Any]:
     try:
+        if _is_shifted_direct_user_arg(request):
+            runtime_service = service
+            service = current_user
+            current_user = request
         result = await runtime_service.execute(
             "request_run_cancellation",
             {
