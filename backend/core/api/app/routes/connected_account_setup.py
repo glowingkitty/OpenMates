@@ -120,6 +120,7 @@ async def exchange_revolut_business_setup_code(
         "provider": "revolut_business",
         "environment": body.environment,
         "client_id": body.client_id,
+        "redirect_uri": body.redirect_uri,
         "private_key_pem": body.private_key_pem,
         "refresh_token": token["refresh_token"],
         "scopes": ["read"],

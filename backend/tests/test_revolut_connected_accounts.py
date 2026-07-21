@@ -178,7 +178,6 @@ async def test_revolut_refresh_exchange_generates_sandbox_client_assertion(monke
             "data": {
                 "grant_type": "refresh_token",
                 "refresh_token": "refresh-secret",
-                "client_id": "client-1",
                 "client_assertion_type": oauth.REVOLUT_CLIENT_ASSERTION_TYPE,
                 "client_assertion": "signed-assertion",
             },
@@ -186,7 +185,7 @@ async def test_revolut_refresh_exchange_generates_sandbox_client_assertion(monke
     ]
     assert signed_payloads[0]["algorithm"] == "RS256"
     assert signed_payloads[0]["private_key"] == "test-private-key"
-    assert signed_payloads[0]["payload"]["iss"] == "api.dev.openmates.org"
+    assert signed_payloads[0]["payload"]["iss"] == "app.dev.openmates.org"
     assert signed_payloads[0]["payload"]["sub"] == "client-1"
     assert signed_payloads[0]["payload"]["aud"] == oauth.REVOLUT_AUDIENCE
 

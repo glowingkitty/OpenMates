@@ -31,9 +31,9 @@ TOKEN_EXCHANGE_TIMEOUT_SECONDS = 15.0
 REVOLUT_AUDIENCE = "https://revolut.com"
 REVOLUT_CLIENT_ASSERTION_TTL_SECONDS = 60 * 60
 REVOLUT_CLIENT_ASSERTION_TYPE = "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"
-REVOLUT_ISSUERS = {
-    "sandbox": "api.dev.openmates.org",
-    "production": "api.openmates.org",
+REVOLUT_DEFAULT_REDIRECT_URIS = {
+    "sandbox": "https://app.dev.openmates.org/oauth/revolut-business/callback",
+    "production": "https://openmates.org/oauth/revolut-business/callback",
 }
 
 logger = logging.getLogger(__name__)
@@ -70,7 +70,6 @@ async def exchange_revolut_business_refresh_token(
             data={
                 "grant_type": "refresh_token",
                 "refresh_token": refresh_token,
-                "client_id": client_id,
                 "client_assertion_type": REVOLUT_CLIENT_ASSERTION_TYPE,
                 "client_assertion": client_assertion,
             },
@@ -145,7 +144,7 @@ def generate_revolut_business_client_assertion(
     normalized_environment = _normalize_environment(environment)
     now = int(time.time())
     payload = {
-        "iss": issuer or REVOLUT_ISSUERS[normalized_environment],
+        "iss": issuer or _issuer_from_redirect_uri(REVOLUT_DEFAULT_REDIRECT_URIS[normalized_environment]),
         "sub": client_id,
         "aud": REVOLUT_AUDIENCE,
         "exp": now + REVOLUT_CLIENT_ASSERTION_TTL_SECONDS,
@@ -194,10 +193,14 @@ def _client_assertion_for_envelope(
     private_key = str(envelope.get("private_key_pem") or envelope.get("private_key") or "").strip()
     if not client_id or not private_key:
         return ""
+    issuer = _issuer_from_redirect_uri(
+        str(envelope.get("redirect_uri") or envelope.get("oauth_redirect_uri") or "").strip()
+    )
     return generate_revolut_business_client_assertion(
         client_id=client_id,
         private_key_pem=private_key,
         environment=environment,
+        issuer=issuer,
     )
 
 
