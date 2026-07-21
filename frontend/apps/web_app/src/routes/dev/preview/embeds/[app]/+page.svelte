@@ -569,6 +569,17 @@
 				isAppSkill: true
 			}
 		],
+		finance: [
+			{
+				skillLabel: 'Check accounts',
+				appId: 'finance',
+				previewPath: 'embeds/finance/FinanceCheckAccountsEmbedPreview',
+				fullscreenPath: 'embeds/finance/FinanceCheckAccountsEmbedFullscreen',
+				inlineLinkText: 'Cash flow overview',
+				quoteText: 'Checked 2 accounts and 5 transactions: income 8000 EUR, expenses 2291.25 EUR.',
+				isAppSkill: true
+			}
+		],
 		workflows: [
 			{
 				skillLabel: 'Create or Modify',
@@ -618,6 +629,7 @@
 		social_media: 'socialmedia',
 		weather: 'weather',
 		tasks: 'task',
+		finance: 'finance',
 		workflows: 'workflow'
 	};
 
@@ -647,6 +659,7 @@
 		'social_media',
 		'weather',
 		'tasks',
+		'finance',
 		'workflows'
 	];
 
