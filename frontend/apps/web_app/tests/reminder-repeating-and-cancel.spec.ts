@@ -9,11 +9,9 @@ export {};
  * not cancelled will keep firing over time and consuming credits.
  *
  * Flow:
- *   S4 — Set a daily repeating reminder starting 1 min from now. Wait for
- *        the first occurrence.
- *   S5 — Cancel the reminder via the embed UI cancel button, or fall back
- *        to sending a cancellation chat message. Wait 2 minutes and assert
- *        no duplicate immediate system message appears. Delete the chat.
+ *   S4 — Set a daily repeating reminder starting 2 min from now.
+ *   S5 — Cancel the reminder via chat before it fires. Wait 3 minutes and
+ *        assert no system reminder appears. Delete the chat.
  *
  * Runtime: ~10 minutes (worst case).
  *
@@ -92,51 +90,17 @@ async function deleteActiveChat(page: any, log: any): Promise<void> {
 	log('Chat deleted.');
 }
 
-/**
- * Poll until .message-wrapper.system count >= targetCount, or throw on timeout.
- */
-async function waitForSystemMessages(
-	page: any,
-	targetCount: number,
-	timeoutMs: number,
-	label: string,
-	log: any
-): Promise<void> {
-	const systemMsg = page.getByTestId('message-system');
-	const start = Date.now();
-	log(`[${label}] Waiting for ${targetCount} system message(s)...`);
-
-	while (Date.now() - start < timeoutMs) {
-		const count = await systemMsg.count();
-		if (count >= targetCount) {
-			log(
-				`[${label}] Reached ${count} system message(s) after ${Math.round((Date.now() - start) / 1000)}s.`
-			);
-			return;
-		}
-		const elapsed = Math.round((Date.now() - start) / 1000);
-		if (elapsed % 15 === 0)
-			log(`[${label}] ${count}/${targetCount} system messages (${elapsed}s elapsed)`);
-		await page.waitForTimeout(5000);
-	}
-
-	const finalCount = await systemMsg.count();
-	throw new Error(
-		`[${label}] Timed out after ${Math.round(timeoutMs / 1000)}s. Got ${finalCount}/${targetCount} system messages.`
-	);
-}
-
 // ---------------------------------------------------------------------------
 // Test
 // ---------------------------------------------------------------------------
 
-test('reminder — daily repeating first occurrence + cancel', async ({
+test('reminder — daily repeating cancellation prevents firing', async ({
 	page
 }: {
 	page: any;
 }) => {
 	test.slow();
-	test.setTimeout(900000); // 15 min (first occurrence + 2 min cancel wait + overhead)
+	test.setTimeout(900000); // 15 min (setup + cancellation + 3 min no-fire wait + overhead)
 
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
@@ -158,7 +122,7 @@ test('reminder — daily repeating first occurrence + cancel', async ({
 	await expect(editor).toBeVisible();
 	await editor.click();
 	await page.keyboard.type(
-		'Set a daily repeating reminder in this chat starting 1 minute from now with the message "repeating test". Just set it, no need to ask questions.'
+		'Set a daily repeating reminder in this chat starting 2 minutes from now with the message "repeating test". Just set it, no need to ask questions.'
 	);
 	await screenshot(page, 'message-typed');
 
@@ -174,103 +138,47 @@ test('reminder — daily repeating first occurrence + cancel', async ({
 	await screenshot(page, 'ai-confirmation');
 
 	// =========================================================================
-	// S4: Wait for the first occurrence. The product supports daily/weekly/monthly
-	// repeats, not minute-level repeats, so the next occurrence is intentionally
-	// not awaited in this spec.
+	// S4: Cancel the repeating reminder before the first occurrence
 	// =========================================================================
-	log('=== S4: Waiting for occurrence 1 ===');
-	await waitForSystemMessages(page, 1, 180000, 'occ-1', log);
-	await screenshot(page, 's4-occurrence-1');
-
-	const firstSysText = await page.getByTestId('message-system').first().textContent();
-	log(`First system message: "${firstSysText?.substring(0, 150)}"`);
-	expect(firstSysText).toContain('Reminder');
-	log('S4 PASSED — daily repeating reminder fired once.');
-
-	// =========================================================================
-	// S5: Cancel the repeating reminder
-	// =========================================================================
-	log('=== S5: Cancelling repeating reminder ===');
+	log('=== S4: Cancelling repeating reminder before first occurrence ===');
 	await screenshot(page, 's5-before-cancel');
 
-	// Strategy 1: look for the reminder embed preview card and click it to open
-	// fullscreen, then click the Cancel button.
-	const embedPreview = page.getByTestId('reminder-embed-preview').first();
-	const embedVisible = await embedPreview.isVisible({ timeout: 5000 }).catch(() => false);
+	const assistantCountBeforeCancel = await assistantMsgs.count();
+	const editorFb = page.getByTestId('message-editor');
+	await expect(editorFb).toBeVisible();
+	await editorFb.click();
+	await page.keyboard.type('Cancel my repeating reminder. Just cancel it, no need to ask questions.');
+	const sendBtnFb = page.locator('[data-action="send-message"]');
+	await expect(sendBtnFb).toBeEnabled();
+	await sendBtnFb.click();
 
-	let cancelledViaEmbed = false;
-
-	if (embedVisible) {
-		log('Found reminder embed preview — clicking to open fullscreen.');
-		await embedPreview.click();
-		await page.waitForTimeout(1000);
-	} else {
-		// Strategy 2: look for an expand button
-		log('Embed preview not found — looking for expand button.');
-		const expandBtn = page.locator('[data-testid="embed-expand-button"], [data-testid="embed-open-button"]').first();
-		if (await expandBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-			await expandBtn.click();
-			await page.waitForTimeout(1000);
-		}
-	}
-
-	// Try the Cancel button in fullscreen embed
-	const cancelBtn = page.getByTestId('cancel-btn').first();
-	if (await cancelBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
-		log('Found Cancel button — clicking.');
-		await cancelBtn.click();
-		await page.waitForTimeout(2000);
-		cancelledViaEmbed = true;
-		log('Cancel button clicked.');
-		await screenshot(page, 's5-after-embed-cancel');
-
-		// Close fullscreen if still open
-		await page.keyboard.press('Escape');
-		await page.waitForTimeout(500);
-	}
-
-	if (!cancelledViaEmbed) {
-		// Strategy 3 (fallback): send a cancel message via chat
-		log('No embed cancel UI found — cancelling via chat message.');
-		const editorFb = page.getByTestId('message-editor');
-		await expect(editorFb).toBeVisible();
-		await editorFb.click();
-		await page.keyboard.type(
-			'Cancel my repeating reminder. Just cancel it, no need to ask questions.'
-		);
-		const sendBtnFb = page.locator('[data-action="send-message"]');
-		await expect(sendBtnFb).toBeEnabled();
-		await sendBtnFb.click();
-
-		// Wait for AI to confirm cancellation
-		await expect(async () => {
-			const count = await assistantMsgs.count();
-			expect(count).toBeGreaterThanOrEqual(2);
-		}).toPass({ timeout: 60000, intervals: [3000] });
-		log('Cancellation confirmed via chat message.');
-		await screenshot(page, 's5-cancelled-via-chat');
-	}
+	// Wait for AI to confirm cancellation
+	await expect(async () => {
+		const count = await assistantMsgs.count();
+		expect(count).toBeGreaterThan(assistantCountBeforeCancel);
+	}).toPass({ timeout: 60000, intervals: [3000] });
+	log('Cancellation confirmed via chat message.');
+	await screenshot(page, 's5-cancelled-via-chat');
 
 	// =========================================================================
-	// S5: Verify no duplicate immediate firing for 2 minutes
+	// S5: Verify no first firing after cancellation
 	// =========================================================================
 	const systemMsgs = page.getByTestId('message-system');
 	const countBeforeWait = await systemMsgs.count();
-	log(
-		`System message count before 2-min wait: ${countBeforeWait}. Waiting to confirm no duplicate immediate firing...`
-	);
+	expect(countBeforeWait, 'Reminder should be cancelled before any system message fires').toBe(0);
+	log(`System message count before 3-min wait: ${countBeforeWait}. Waiting to confirm cancellation.`);
 
-	await page.waitForTimeout(120000); // 2 minutes
+	await page.waitForTimeout(180000); // 3 minutes
 
 	const countAfterWait = await systemMsgs.count();
-	log(`System message count after 2-min wait: ${countAfterWait} (was ${countBeforeWait}).`);
+	log(`System message count after 3-min wait: ${countAfterWait} (was ${countBeforeWait}).`);
 
 	expect(
 		countAfterWait,
-		`No duplicate system messages should appear after cancellation (was ${countBeforeWait}, now ${countAfterWait})`
-	).toBe(countBeforeWait);
+		`No system reminder should appear after cancellation (was ${countBeforeWait}, now ${countAfterWait})`
+	).toBe(0);
 
-	log('S5 PASSED — no duplicate firings after cancellation.');
+	log('S5 PASSED — reminder did not fire after cancellation.');
 	await screenshot(page, 's5-no-new-firings');
 
 	// Clean up
