@@ -8523,8 +8523,18 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 freshChat = chat;
             }
         } else if ($authStore.isAuthenticated && isProvidedDraftOnlyChat) {
-            freshChat = chat;
-            console.debug(`[ActiveChat] Loading authenticated draft-only chat ${chat.chat_id} from provided encrypted draft shell`);
+            try {
+                freshChat = await chatDB.getChat(chat.chat_id);
+                if (freshChat) {
+                    console.debug(`[ActiveChat] Loading authenticated draft-looking chat ${chat.chat_id} from fresh IndexedDB state`);
+                } else {
+                    freshChat = chat;
+                    console.debug(`[ActiveChat] Loading authenticated draft-only chat ${chat.chat_id} from provided encrypted draft shell`);
+                }
+            } catch (error) {
+                freshChat = chat;
+                console.debug(`[ActiveChat] Database unavailable for draft-only chat ${chat.chat_id}, using provided encrypted draft shell:`, error);
+            }
         } else if (!$authStore.isAuthenticated) {
             // CRITICAL: For non-authenticated users, check if this is a sessionStorage-only chat
             // (new chat with draft that doesn't exist in database yet)
@@ -8572,6 +8582,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                  console.debug(`[ActiveChat] Could not merge raw draft fields for ${currentChat.chat_id}:`, error);
              }
          }
+
+          const isCurrentDraftOnlyChat = isEncryptedDraftOnlyChat(currentChat);
 
          // ─── Chat Header: restore title/category/icon for all chat types ────────────────
          // Universal header restoration: handles public/demo, incognito, and regular chats.
@@ -8826,7 +8838,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         newMessages = [];
                     }
                 }
-            } else if (isProvidedDraftOnlyChat) {
+            } else if (isCurrentDraftOnlyChat) {
                 newMessages = [];
                 console.debug(`[ActiveChat] Authenticated draft-only chat ${currentChat.chat_id} - no messages to load from IndexedDB`);
             } else {
