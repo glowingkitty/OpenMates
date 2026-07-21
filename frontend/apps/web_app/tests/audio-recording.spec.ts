@@ -308,6 +308,12 @@ test('spacebar hold shows ESC cancel hint and escape cancels without inserting s
 	await expect(overlay.getByTestId('cancel-hint')).toContainText('Press ESC to cancel');
 	await expect(overlay.getByTestId('cancel-hint')).not.toContainText('Slide left to cancel');
 
+	await page.mouse.move(20, 20);
+	await page.waitForTimeout(500);
+	await expect(overlay).toBeVisible();
+	expect(await getEditorPlainText(page)).toBe('');
+	expect(await page.getByTestId('recording-preview').count()).toBe(embedCountBefore);
+
 	await page.waitForTimeout(500);
 	await page.keyboard.press('Escape');
 	await expect(overlay).not.toBeVisible({ timeout: 5000 });
