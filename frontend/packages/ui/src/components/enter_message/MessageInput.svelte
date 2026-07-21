@@ -4360,8 +4360,15 @@
      * different chat. The deferred send fires regardless of which chat is active.
      */
     async function handleEmbedUploadFinished(event: CustomEvent) {
-        const { embedId, status } = event.detail as { embedId: string; status: string };
+        const { embedId, uploadEmbedId, status } = event.detail as {
+            embedId: string;
+            uploadEmbedId?: string;
+            status: string;
+        };
         if (!embedId) return;
+        if (status === 'processing' && uploadEmbedId) {
+            currentDraftPdfUploadEmbedIds.add(uploadEmbedId);
+        }
         if (editor && !editor.isDestroyed) {
             editor.state.doc.descendants((node) => {
                 if (node.type.name !== 'embed' || node.attrs.id !== embedId) return true;

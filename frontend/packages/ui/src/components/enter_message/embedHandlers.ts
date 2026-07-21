@@ -1,4 +1,5 @@
 import type { Editor } from "@tiptap/core";
+import type { AudioWaveformData } from "../../utils/audioWaveform";
 import { getLanguageFromFilename } from "./utils"; // Assuming utils are accessible
 import { extractEpubCover, getEpubMetadata } from "./utils";
 import { resizeImage, resizeForUpload } from "./utils";
@@ -727,7 +728,12 @@ async function _performPdfUpload(
     if (typeof window !== "undefined") {
       window.dispatchEvent(
         new CustomEvent("embedUploadFinished", {
-          detail: { embedId: localEmbedId, status: uploadedStatus },
+          detail: {
+            embedId: localEmbedId,
+            uploadEmbedId,
+            filename: file.name,
+            status: uploadedStatus,
+          },
         }),
       );
     }
@@ -989,7 +995,7 @@ export async function insertMindMapFile(
   }
 
   const classification = classifyMindMapUploadSource(file.name, fileContent, file.size);
-  if (!classification.accepted) {
+  if (classification.accepted === false) {
     console.warn("[EmbedHandlers] Rejected mind map upload:", {
       filename: file.name,
       reason: classification.reason,
@@ -1257,6 +1263,7 @@ export async function insertRecording(
   duration: string,
   isAuthenticated: boolean = true,
   chatId?: string,
+  waveform?: AudioWaveformData,
 ): Promise<void> {
   const timestamp = Date.now();
   // Derive a sensible filename from the MIME type (e.g. audio/webm → .webm)
@@ -1288,6 +1295,7 @@ export async function insertRecording(
           blobUrl,
           filename,
           duration,
+          waveform: waveform ?? null,
           mimeType,
           uploadEmbedId: null,
           transcript: null,
@@ -1320,6 +1328,7 @@ export async function insertRecording(
         blobUrl,
         filename,
         duration,
+        waveform: waveform ?? null,
         mimeType,
         // Populated after server response:
         uploadEmbedId: null,
@@ -1345,8 +1354,10 @@ export async function insertRecording(
     embedId,
     file,
     mimeType,
+    duration,
     controller.signal,
     chatId,
+    waveform,
   ).catch((err) => {
     console.error(
       "[EmbedHandlers] Unhandled error in _performRecordingUpload:",
@@ -1576,8 +1587,10 @@ async function _performRecordingUpload(
   localEmbedId: string,
   file: File,
   mimeType: string,
+  duration: string,
   signal?: AbortSignal,
   chatId?: string,
+  waveform?: AudioWaveformData,
 ): Promise<void> {
   // Helper: update embed node attrs via a ProseMirror transaction.
   function updateEmbedNode(updates: Record<string, unknown>): void {
@@ -1795,6 +1808,7 @@ async function _performRecordingUpload(
       useCorrected: useCorrected ?? null,
       correctionModel: correctionModel ?? null,
       model: modelFromResponse ?? null,
+      waveform: waveform ?? null,
       uploadError: null,
     });
 
@@ -1812,7 +1826,8 @@ async function _performRecordingUpload(
         type: "audio-recording",
         status: "finished",
         filename: file.name || null,
-        duration: null, // Duration is tracked on the TipTap node, not available here
+        duration: duration || null,
+        waveform: waveform ?? null,
         mime_type: mimeType || null,
         transcript: transcriptText ?? null,
         transcript_original: transcriptOriginal ?? null,
