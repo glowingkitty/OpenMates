@@ -615,9 +615,6 @@ export async function handleNewChatMessageImpl(
             payload.encrypted_chat_key,
           );
           if (chatKey) {
-            // Flush any regular messages and system messages queued before this key was available
-            await flushPendingMessagesForChat(payload.chat_id);
-            await flushPendingSystemMessagesForChat(payload.chat_id);
             // Decrypt title for immediate display
             if (payload.encrypted_title) {
               try {
@@ -672,9 +669,6 @@ export async function handleNewChatMessageImpl(
             payload.encrypted_chat_key,
           );
           if (chatKey) {
-            // Flush any regular messages and system messages queued before this key was set
-            await flushPendingMessagesForChat(payload.chat_id);
-            await flushPendingSystemMessagesForChat(payload.chat_id);
             console.info(
               `[ChatSyncService:ChatUpdates] Decrypted and cached chat key for new chat ${payload.chat_id}`,
             );
@@ -700,6 +694,11 @@ export async function handleNewChatMessageImpl(
       console.info(
         `[ChatSyncService:ChatUpdates] Created new chat shell ${payload.chat_id} successfully`,
       );
+
+      if (chatKeyManager.getKeySync(payload.chat_id)) {
+        await flushPendingMessagesForChat(payload.chat_id);
+        await flushPendingSystemMessagesForChat(payload.chat_id);
+      }
 
       // OPE-360: If an `ai_typing_started` event arrived before this
       // `new_chat_message` (race on secondary devices — typing event goes via

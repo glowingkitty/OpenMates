@@ -1228,7 +1228,7 @@ class WebSocketService extends EventTarget {
               this.pongTimeoutId = null;
               return;
             }
-            console.error(
+            console.warn(
               "[WebSocketService] Pong not received within timeout after ping. Connection is likely stale. Attempting to close and trigger reconnect.",
             );
             if (this.ws) {

@@ -24,6 +24,7 @@
     import Placeholder from '@tiptap/extension-placeholder';
     import { chatDB } from '../services/db';
     import { chatSyncService } from '../services/chatSyncService';
+    import { isPreflightAcknowledgementTimeout } from '../services/sendersChatMessages';
     import { websocketStatus } from '../stores/websocketStatusStore';
     import { authStore } from '../stores/authStore';
     import { get } from 'svelte/store';
@@ -184,18 +185,25 @@
             // 6. Send message to backend via chatSyncService
             // CRITICAL: Do NOT call sendSetActiveChat — we don't want to switch chats
             await chatSyncService.sendNewMessage(messagePayload);
+
+            const updatedChat = await chatDB.getChat(chatId);
             
             // 7. Dispatch chatUpdated event so sidebar/chat list reflects the new message
             window.dispatchEvent(new CustomEvent('chatUpdated', {
-                detail: { chat_id: chatId, chat: existingChat },
+                detail: { chat_id: chatId, chat: updatedChat || existingChat },
                 bubbles: true,
                 composed: true,
             }));
             
             console.info(`[ChatMessageNotification] Reply sent to chat ${chatId} without switching active chat`);
         } catch (error) {
-            console.error('[ChatMessageNotification] Error sending reply:', error);
-            notificationStore.error('Failed to send reply. Please try again.');
+            if (isPreflightAcknowledgementTimeout(error)) {
+                console.warn('[ChatMessageNotification] Reply send timed out waiting for preflight ack; retrying after reconnect:', error);
+                notificationStore.warning('Connection lost. Your reply will be sent when you are back online.');
+            } else {
+                console.error('[ChatMessageNotification] Error sending reply:', error);
+                notificationStore.error('Failed to send reply. Please try again.');
+            }
         }
     }
     

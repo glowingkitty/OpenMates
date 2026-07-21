@@ -42,6 +42,7 @@ import {
 } from "../../../stores/personalDataStore"; // Privacy settings store
 import { demoMode } from "../../../stores/demoModeStore";
 import { shouldDispatchDraftChatAsNewChat } from "./sendClassification";
+import { isPreflightAcknowledgementTimeout } from "../../../services/sendersChatMessages";
 
 const ANONYMOUS_DAILY_CREDITS_EXHAUSTED_KEY = "chat.anonymous_free_usage.daily_credits_exhausted";
 const ANONYMOUS_DAILY_CREDITS_EXHAUSTED_DEDUPE_KEY = "anonymous-daily-credits-exhausted";
@@ -1909,7 +1910,11 @@ export async function handleSend(
       vibrateMessageField();
       return;
     }
-    console.error("Failed to handle message send:", error);
+    if (isPreflightAcknowledgementTimeout(error)) {
+      console.warn("Failed to handle message send; retrying after reconnect:", error);
+    } else {
+      console.error("Failed to handle message send:", error);
+    }
     vibrateMessageField();
   } finally {
     // CRITICAL: Always release the send guard, even on error,

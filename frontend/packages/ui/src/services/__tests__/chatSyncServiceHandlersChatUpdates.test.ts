@@ -126,6 +126,8 @@ describe("handleNewChatMessageImpl", () => {
 
   it("stores the current user id on new chat shells created from sync broadcasts", async () => {
     const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+    mocks.chatKeyManager.receiveKeyFromServer.mockResolvedValue(new Uint8Array([1, 2, 3]));
+    mocks.decryptWithChatKey.mockResolvedValue("Synced chat");
 
     await handleNewChatMessageImpl(service, {
       chat_id: "chat-1",
@@ -136,6 +138,7 @@ describe("handleNewChatMessageImpl", () => {
       created_at: 100,
       last_edited_overall_timestamp: 100,
       encrypted_chat_key: "encrypted-chat-key",
+      encrypted_title: "encrypted-title",
     });
 
     expect(mocks.chatDB.addChat).toHaveBeenCalledWith(
@@ -148,6 +151,9 @@ describe("handleNewChatMessageImpl", () => {
     );
     expect(mocks.chatDB.saveMessage).toHaveBeenCalledWith(
       expect.objectContaining({ message_id: "message-1", chat_id: "chat-1" }),
+    );
+    expect(mocks.chatDB.addChat.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.flushPendingSystemMessagesForChat.mock.invocationCallOrder[0],
     );
   });
 });

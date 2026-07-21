@@ -172,13 +172,7 @@
     return isRawChatErrorMessage(content) ? $text('chat.an_error_occured') : content;
   }
 
-  /**
-   * Merge short-delay assistant continuations for display.
-   * Backend may store two messages when async skills finish after the first turn
-   * (processing embeds first, continuation text later). We show one bubble.
-   */
-  const ASSISTANT_CONTINUATION_MERGE_WINDOW_MS = 60_000;
-
+  /** Merge only explicit focus-mode assistant continuations for display. */
   function mergeAssistantContinuationsForDisplay(incoming: GlobalMessage[]): GlobalMessage[] {
     const result: GlobalMessage[] = [];
     for (let i = 0; i < incoming.length; i++) {
@@ -188,10 +182,7 @@
         prev?.role === 'assistant' &&
         curr.role === 'assistant' &&
         !isRawChatErrorMessage(curr.content) &&
-        (
-          hasFocusModeActivationEmbed(prev.content) ||
-          messagesWithinMergeWindow(prev.created_at, curr.created_at)
-        )
+        hasFocusModeActivationEmbed(prev.content)
       );
       if (
         isAssistantContinuation
@@ -208,15 +199,6 @@
       }
     }
     return result;
-  }
-
-  function messagesWithinMergeWindow(previousCreatedAt: number | undefined, currentCreatedAt: number | undefined): boolean {
-    if (typeof previousCreatedAt !== 'number' || typeof currentCreatedAt !== 'number') return false;
-    return Math.abs(toMilliseconds(currentCreatedAt) - toMilliseconds(previousCreatedAt)) <= ASSISTANT_CONTINUATION_MERGE_WINDOW_MS;
-  }
-
-  function toMilliseconds(timestamp: number): number {
-    return timestamp < 1e12 ? timestamp * 1000 : timestamp;
   }
 
   /**
@@ -2762,7 +2744,7 @@
     all: unset;
     cursor: pointer;
     color: var(--color-grey-40);
-    font-size: 15px;
+    font-size: var(--font-size-small);
     line-height: 1;
     transition: color var(--duration-fast) var(--easing-default), transform var(--duration-fast) var(--easing-default);
   }
@@ -2788,7 +2770,7 @@
     all: unset;
     cursor: pointer;
     color: var(--color-grey-100);
-    background: var(--color-grey-15);
+    background: var(--color-grey-10);
     border: 1px solid var(--color-grey-30);
     border-radius: var(--radius-6);
     padding: 4px 10px;
@@ -2909,7 +2891,7 @@
     font-size: var(--font-size-xxs);
     font-weight: 500;
     color: var(--color-grey-60, #888);
-    background: var(--color-grey-15, rgba(255, 255, 255, 0.05));
+    background: var(--color-grey-10, rgba(255, 255, 255, 0.05));
     border: 1px solid var(--color-grey-20, rgba(255, 255, 255, 0.08));
     border-radius: var(--radius-8);
     cursor: pointer;
