@@ -2887,6 +2887,7 @@
             const detail = (event as CustomEvent).detail as {
                 embed_id: string;
                 chat_id: string | null;
+                type?: string;
                 status: string;
                 isWaitingForContent?: boolean;
             };
@@ -2901,20 +2902,38 @@
             // Use descendants() instead of forEach() — forEach only walks top-level nodes,
             // but embed nodes can be nested inside paragraphs or other container nodes.
             let targetPos: number | null = null;
+            let fallbackProcessingPdfPos: number | null = null;
+            let fallbackProcessingPdfCount = 0;
             editor.state.doc.descendants((node, pos) => {
                 if (targetPos !== null) return false; // stop traversal once found
-                if (
-                    node.type.name === 'embed' &&
-                    (
+                if (node.type.name === 'embed') {
+                    if (
                         node.attrs.uploadEmbedId === embed_id ||
                         node.attrs.contentRef === `embed:${embed_id}` ||
                         node.attrs.id === embed_id
-                    )
-                ) {
-                    targetPos = pos;
-                    return false; // stop traversal
+                    ) {
+                        targetPos = pos;
+                        return false; // stop traversal
+                    }
+                    if (node.attrs.type === 'pdf' && node.attrs.status === 'processing') {
+                        fallbackProcessingPdfPos = pos;
+                        fallbackProcessingPdfCount += 1;
+                    }
                 }
+                return true;
             });
+
+            if (
+                targetPos === null &&
+                (detail.chat_id === null || detail.chat_id === '') &&
+                detail.type === 'pdf' &&
+                fallbackProcessingPdfCount === 1
+            ) {
+                targetPos = fallbackProcessingPdfPos;
+                console.info(
+                    `[MessageInput] PDF embed ${embed_id} matched the only processing draft PDF after exact attrs were unavailable`
+                );
+            }
 
             if (targetPos === null) return; // No matching draft embed — nothing to do.
 

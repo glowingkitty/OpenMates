@@ -3925,6 +3925,7 @@ export async function handleSendEmbedDataImpl(
           new CustomEvent("embedUpdated", {
             detail: {
               embed_id: embedData.embed_id,
+              type: embedData.type,
               chat_id: null,
               message_id: null,
               status: embedData.status,
