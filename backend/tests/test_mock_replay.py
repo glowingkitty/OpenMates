@@ -88,7 +88,9 @@ def test_replay_fixture_recovery_final_chunk_includes_sealed_job_metadata(monkey
         message_id="55555555-5555-4555-8555-555555555555",
         user_id="11111111-1111-4111-8111-111111111111",
         user_id_hash="owner-hash",
-        message_history=[AIHistoryMessage(role="user", content="hello", created_at=1)],
+        message_history=[
+            AIHistoryMessage(role="user", content="hello", created_at=1),
+        ],
         recovery_task_id=task_id,
         recovery_preflight_id="77777777-7777-4777-8777-777777777777",
         recovery_turn_id="33333333-3333-4333-8333-333333333333",
@@ -129,3 +131,63 @@ def test_replay_fixture_recovery_final_chunk_includes_sealed_job_metadata(monkey
     assert final_chunk["chat_key_version"] == 7
     assert final_chunk["recovery_protocol_version"] == 1
     assert final_chunk["recovery_job_id"] == directus_service.requests[0]["data"]["job_id"]
+
+
+def test_replay_fixture_publishes_fixture_postprocessing_metadata(monkeypatch) -> None:
+    fixture = {
+        "response": "Berlin weather response",
+        "initial_delay_ms": 0,
+        "preprocessing": {
+            "category": "general_knowledge",
+            "title": "Search for Berlin weather",
+            "icon_names": ["globe", "sun"],
+            "chat_summary": "User requested Berlin weather information.",
+            "chat_tags": ["weather", "Berlin"],
+        },
+    }
+    request_data = AskSkillRequest(
+        chat_id="22222222-2222-4222-8222-222222222222",
+        message_id="55555555-5555-4555-8555-555555555555",
+        user_id="11111111-1111-4111-8111-111111111111",
+        user_id_hash="owner-hash",
+        message_history=[AIHistoryMessage(role="user", content="hello", created_at=1)],
+    )
+    cache_service = _StubCacheService()
+
+    monkeypatch.setattr(mock_replay, "load_fixture", lambda _fixture_id: fixture)
+
+    asyncio.run(
+        replay_fixture(
+            fixture_id="share_embed_flow",
+            task_id="66666666-6666-4666-8666-666666666666",
+            request_data=request_data,
+            cache_service=cache_service,
+        )
+    )
+
+    postprocessing_events = [
+        payload
+        for channel, payload in cache_service.events
+        if channel == "ai_typing_indicator_events::owner-hash"
+        and payload.get("type") == "post_processing_completed"
+    ]
+    assert postprocessing_events == [
+        {
+            "type": "post_processing_completed",
+            "event_for_client": "post_processing_completed",
+            "task_id": "66666666-6666-4666-8666-666666666666",
+            "chat_id": "22222222-2222-4222-8222-222222222222",
+            "user_id_uuid": "11111111-1111-4111-8111-111111111111",
+            "user_id_hash": "owner-hash",
+            "follow_up_request_suggestions": [],
+            "new_chat_request_suggestions": [],
+            "chat_summary": "User requested Berlin weather information.",
+            "share_cta_text": "User requested Berlin weather information.",
+            "chat_tags": ["weather", "Berlin"],
+            "harmful_response": 1,
+            "top_recommended_apps_for_user": [],
+            "quick_tip_slugs": [],
+            "task_proposals": [],
+            "task_update_proposals": [],
+        }
+    ]

@@ -469,6 +469,14 @@ async def replay_fixture(
         thinking_channel = f"chat_stream_thinking::{request_data.chat_id}"
         await cache_service.publish_event(thinking_channel, thinking_payload)
 
+    await _publish_fixture_postprocessing_metadata(
+        fixture_data=fixture_data,
+        task_id=task_id,
+        request_data=request_data,
+        cache_service=cache_service,
+        preprocessing_result=preprocessing_result,
+    )
+
     logger.info(
         f"[MOCK] Fixture '{fixture_id}' replay complete. "
         f"Response length: {len(full_response)} chars, "
@@ -520,6 +528,57 @@ async def _persist_mock_replay_recovery_job(
         model_name=model_name,
     )
     return await ChatRecoveryService(directus_service).execute("create_sealed_job", data)
+
+
+async def _publish_fixture_postprocessing_metadata(
+    *,
+    fixture_data: Dict[str, Any],
+    task_id: str,
+    request_data: AskSkillRequest,
+    cache_service: CacheService,
+    preprocessing_result: PreprocessingResult,
+) -> None:
+    """Publish deterministic post-processing metadata for TEST_MOCK fixtures."""
+    if request_data.is_external:
+        return
+
+    preprocessing = fixture_data.get("preprocessing", {})
+    postprocessing = fixture_data.get("postprocessing", {})
+    chat_summary = (
+        postprocessing.get("chat_summary")
+        or preprocessing.get("chat_summary")
+        or preprocessing_result.chat_summary
+    )
+    if not chat_summary:
+        return
+
+    payload = {
+        "type": "post_processing_completed",
+        "event_for_client": "post_processing_completed",
+        "task_id": task_id,
+        "chat_id": request_data.chat_id,
+        "user_id_uuid": request_data.user_id,
+        "user_id_hash": request_data.user_id_hash,
+        "follow_up_request_suggestions": postprocessing.get(
+            "follow_up_request_suggestions", []
+        ),
+        "new_chat_request_suggestions": postprocessing.get(
+            "new_chat_request_suggestions", []
+        ),
+        "chat_summary": chat_summary,
+        "share_cta_text": postprocessing.get("share_cta_text") or chat_summary,
+        "chat_tags": preprocessing.get("chat_tags", []),
+        "harmful_response": postprocessing.get("harmful_response", 1),
+        "top_recommended_apps_for_user": postprocessing.get(
+            "top_recommended_apps_for_user", []
+        ),
+        "quick_tip_slugs": postprocessing.get("quick_tip_slugs", []),
+        "task_proposals": postprocessing.get("task_proposals", []),
+        "task_update_proposals": postprocessing.get("task_update_proposals", []),
+    }
+    channel = f"ai_typing_indicator_events::{request_data.user_id_hash}"
+    await cache_service.publish_event(channel, payload)
+    logger.debug(f"[MOCK] Published fixture post-processing metadata for task {task_id}")
 
 
 # --- Embed recreation for fixtures ---
