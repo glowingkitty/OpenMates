@@ -102,6 +102,21 @@ const initialUserSkillsState: UserAvailableSkillsState = {
     loading: false,
 };
 
+function normalizeProviderNames(providers: unknown): string[] | undefined {
+    if (!Array.isArray(providers)) return undefined;
+
+    return providers
+        .map(provider => {
+            if (typeof provider === 'string') return provider;
+            if (!provider || typeof provider !== 'object') return '';
+
+            const metadata = provider as { display_name?: unknown; name?: unknown; id?: unknown };
+            const name = metadata.display_name || metadata.name || metadata.id;
+            return typeof name === 'string' ? name : '';
+        })
+        .filter(Boolean);
+}
+
 export const userAvailableSkillsStore = writable<UserAvailableSkillsState>(initialUserSkillsState);
 
 /**
@@ -284,7 +299,7 @@ class AppSkillsStore {
                         if (!runtimeSkill) return skill;
                         return {
                             ...skill,
-                            providers: runtimeSkill.providers ?? skill.providers,
+                            providers: normalizeProviderNames(runtimeSkill.providers) ?? skill.providers,
                             provider_details: runtimeSkill.provider_details,
                             models: runtimeSkill.models,
                         } as typeof skill;
@@ -308,7 +323,7 @@ class AppSkillsStore {
                 userFilteredApps[appId] = {
                     ...appMetadata,
                     skills: filteredSkills,
-                    providers: (runtimeApp?.providers as string[] | undefined) ?? Array.from(providerSet).filter(Boolean),
+                    providers: normalizeProviderNames(runtimeApp?.providers) ?? Array.from(providerSet).filter(Boolean),
                 };
             }
             return { apps: userFilteredApps };
