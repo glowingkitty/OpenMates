@@ -3376,8 +3376,11 @@ export async function handleSendEmbedDataImpl(
   // Uses the embed state machine to prevent invalid transitions and duplicate events.
   // See: frontend/packages/ui/src/services/embedStateMachine.ts
   try {
-    const { validateEmbedTransition, normalizeEmbedStatus: normalizeStatus } =
-      await import("./embedStateMachine");
+    const {
+      EmbedStatus,
+      validateEmbedTransition,
+      normalizeEmbedStatus: normalizeStatus,
+    } = await import("./embedStateMachine");
     const { embedStore: stateCheckStore } = await import("./embedStore");
     const stateCheckRef = `embed:${embedData.embed_id}`;
     const existingEntry = await stateCheckStore.get(stateCheckRef);
@@ -3399,8 +3402,11 @@ export async function handleSendEmbedDataImpl(
       const isNewerEmbedVersion =
         typeof embedData.version_number === "number" &&
         embedData.version_number > (existingVersion ?? 0);
+      const isFinalizedContentRefresh =
+        currentStatus === incomingStatus && incomingStatus === EmbedStatus.FINISHED;
       if (
         !isNewerEmbedVersion &&
+        !isFinalizedContentRefresh &&
         !validateEmbedTransition(
           currentStatus,
           incomingStatus,

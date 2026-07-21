@@ -506,6 +506,81 @@ describe("handleSendEmbedDataImpl", () => {
     );
   });
 
+  it("accepts finalized send_embed_data refreshes for existing finished embeds", async () => {
+    const chatKey = new Uint8Array([1, 2, 3]);
+    const embedKey = new Uint8Array([4, 5, 6]);
+    mockEmbedStore.get.mockResolvedValue({
+      embed_id: "embed-1",
+      status: "finished",
+      version_number: 1,
+      content: "status: finished\nfilename: stale.pdf",
+    });
+    mockChatDB.getChat.mockResolvedValue({
+      chat_id: "chat-1",
+      encrypted_chat_key: "encrypted-chat-key",
+    });
+    mockChatKeyManager.getKeySync.mockReturnValue(chatKey);
+    mockChatKeyManager.getKey.mockResolvedValue(chatKey);
+    mockDeriveEmbedKeyFromChatKey.mockResolvedValue(embedKey);
+    mockEncryptWithEmbedKey.mockImplementation(async (value: string) =>
+      `encrypted:${value}`,
+    );
+    mockWrapEmbedKeyWithMasterKey.mockResolvedValue("wrapped-master-key");
+    mockWrapEmbedKeyWithChatKey.mockResolvedValue("wrapped-chat-key");
+    mockSendStoreEmbed.mockResolvedValue(undefined);
+    mockSendStoreEmbedKeys.mockResolvedValue(undefined);
+    const service = {
+      dispatchEvent: vi.fn(),
+    } as unknown as ChatSynchronizationService;
+
+    await handleSendEmbedDataImpl(service, {
+      type: "send_embed_data",
+      event_for_client: "send_embed_data",
+      payload: {
+        embed_id: "embed-1",
+        type: "pdf",
+        content: "app_id: pdf\nskill_id: read\nstatus: finished\nfilename: refreshed.pdf\nscreenshot_url: https://example.invalid/page.png",
+        text_preview: "Refreshed PDF",
+        status: "finished",
+        chat_id: "chat-1",
+        message_id: "message-1",
+        user_id: "user-1",
+        version_number: 1,
+        createdAt: 123,
+        updatedAt: 124,
+      },
+    });
+
+    expect(mockEmbedStore.putEncrypted).toHaveBeenCalledWith(
+      "embed:embed-1",
+      expect.objectContaining({
+        embed_id: "embed-1",
+        encrypted_content: expect.stringContaining("refreshed.pdf"),
+        status: "finished",
+      }),
+      "pdf",
+      expect.stringContaining("refreshed.pdf"),
+      expect.objectContaining({ app_id: "pdf", skill_id: "read" }),
+    );
+    expect(mockSendStoreEmbed).toHaveBeenCalledWith(
+      service,
+      expect.objectContaining({
+        embed_id: "embed-1",
+        status: "finished",
+      }),
+    );
+    expect(service.dispatchEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "embedUpdated",
+        detail: expect.objectContaining({
+          embed_id: "embed-1",
+          status: "finished",
+          isProcessing: false,
+        }),
+      }),
+    );
+  });
+
   it("flushes queued finalized embeds that arrived with hashed chat IDs", async () => {
     vi.useFakeTimers();
     try {
