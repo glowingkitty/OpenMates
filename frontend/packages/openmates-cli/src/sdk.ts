@@ -116,7 +116,17 @@ export type { ProjectSourceCreateInput, ProjectSourceRecord } from "./client.js"
 const DEFAULT_API_URL = "https://api.openmates.org";
 const DEFAULT_RECOVERY_POLL_INTERVAL_MS = 500;
 const DEFAULT_RECOVERY_TIMEOUT_MS = 60_000;
+const SKILL_TASK_POLL_INTERVAL_MS = 2_000;
+const SKILL_TASK_POLL_TIMEOUT_MS = 1_200_000;
+const SKILL_TASK_POLL_TRANSIENT_ERROR_STATUS = 500;
 const PROMPT_INJECTION_DISABLED = "disabled";
+
+interface TaskStatusResponse {
+  task_id: string;
+  status: "pending" | "processing" | "completed" | "failed" | string;
+  result?: unknown;
+  error?: string | null;
+}
 
 function withAppSkillRunOptions(input: unknown, options?: AppSkillRunOptions): unknown {
   if (options?.promptInjectionProtection !== false) return input;
@@ -157,7 +167,44 @@ export interface ChatSendOptions extends ChatCreateOptions {
   model?: string;
   recoveryPollIntervalMs?: number;
   recoveryTimeoutMs?: number;
+  connectedAccountDirectory?: ConnectedAccountDirectoryEntry[];
+  connectedAccountTokenRefInputs?: ConnectedAccountTurnTokenRefInput[];
 }
+
+export interface ConnectedAccountDirectoryEntry {
+  connected_account_id: string;
+  app_id: string;
+  provider_id?: string;
+  account_ref: string;
+  label: string;
+  capabilities: string[];
+  runtime_modes?: Record<string, string>;
+}
+
+export interface ConnectedAccountTurnTokenRefInput {
+  connected_account_id: string;
+  app_id: string;
+  provider_id?: string;
+  allowed_actions: string[];
+  refresh_token_envelope: Record<string, unknown>;
+  action_scope?: Record<string, unknown>;
+}
+
+export interface ConnectedAccountSkillRunOptions {
+  connectedAccountTokenRefInputs?: ConnectedAccountTurnTokenRefInput[];
+  chatId?: string;
+  messageId?: string;
+}
+
+export interface FinanceCheckAccountsInput extends Record<string, unknown> {
+  period?: "monthly" | "quarterly" | "yearly" | "custom";
+  start_date?: string;
+  end_date?: string;
+  projection_horizon?: "monthly" | "quarterly" | "yearly";
+  connected_account_requests?: Array<Record<string, unknown>>;
+  csv_statements?: Array<{ filename: string; content: string }>;
+}
+
 export interface ChatListOptions {
   limit?: number;
   offset?: number;
@@ -317,6 +364,21 @@ export interface IdeaBucketAddInput extends Record<string, unknown> {
   prompt?: string;
 }
 
+export interface IdeaBucketSettingsInput {
+  processingPrompt?: string;
+  processingTimes?: string[] | string;
+  requireConfirmation?: boolean;
+}
+
+export interface IdeaBucketSettings {
+  processingPrompt: string;
+  processingTimes: string[];
+  requireConfirmation: boolean;
+  entryId?: string;
+  itemVersion?: number;
+  source: "account" | "default";
+}
+
 export interface IdeaBucketProcessOptions {
   now?: boolean;
 }
@@ -324,6 +386,10 @@ export interface IdeaBucketProcessOptions {
 export type IdeaBucketResult = Record<string, unknown>;
 
 const IDEABUCKET_DEFAULT_PROCESSING_PROMPT = `These are my captured ideas for today. Please process them, group related thoughts, suggest next actions, and ask clarifying questions where needed:\n\nIf an idea requires deeper work, create or suggest sub-chats for focused research, planning, todos, docs, or implementation.`;
+const IDEABUCKET_APP_ID = "ideabucket";
+const IDEABUCKET_SETTINGS_ITEM_TYPE = "processing_settings";
+const IDEABUCKET_DEFAULT_PROCESSING_TIMES = ["09:00"];
+const IDEABUCKET_PROCESSING_TIME_PATTERN = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
 export type TaskListFilters = { status?: UserTaskStatus; chatId?: string; projectId?: string; labels?: string[]; tags?: string[]; priority?: TaskPriorityLevel | number | null };
 export type TaskPlainCreateOptions = TaskCreateOptions;
@@ -408,6 +474,7 @@ export class OpenMates {
   readonly drafts: OpenMatesDrafts;
   readonly embeds: OpenMatesEmbeds;
   readonly feedback: OpenMatesFeedback;
+  readonly finance: OpenMatesFinance;
   readonly inspirations: OpenMatesInspirations;
   readonly ideabucket: OpenMatesIdeaBucket;
   readonly apiKeys: OpenMatesApiKeys;
@@ -446,6 +513,7 @@ export class OpenMates {
     this.drafts = new OpenMatesDrafts(this);
     this.embeds = new OpenMatesEmbeds(this);
     this.feedback = new OpenMatesFeedback(this);
+    this.finance = new OpenMatesFinance(this);
     this.inspirations = new OpenMatesInspirations(this);
     this.ideabucket = new OpenMatesIdeaBucket(this);
     this.apiKeys = new OpenMatesApiKeys(this);
@@ -464,7 +532,22 @@ export class OpenMates {
   }
 
   async runAppSkill<T = unknown>(appId: string, skillId: string, input: unknown, options?: AppSkillRunOptions): Promise<T> {
-    return this.request<T>(`/v1/apps/${appId}/skills/${skillId}`, withAppSkillRunOptions(input, options));
+    const response = await this.request<unknown>(`/v1/apps/${appId}/skills/${skillId}`, withAppSkillRunOptions(input, options));
+    return this.resolveAsyncSkillResponse(response) as Promise<T>;
+  }
+
+  async runConnectedAccountSkill<T = unknown>(
+    appId: string,
+    skillId: string,
+    input: Record<string, unknown>,
+    options: ConnectedAccountSkillRunOptions = {},
+  ): Promise<T> {
+    return this.request<T>(`/v1/sdk/connected-account-skills/${encodeURIComponent(appId)}/${encodeURIComponent(skillId)}`, {
+      input,
+      connected_account_token_ref_inputs: options.connectedAccountTokenRefInputs ?? [],
+      chat_id: options.chatId,
+      message_id: options.messageId,
+    });
   }
 
   async request<T>(path: string, body?: unknown, timeoutMs?: number, extraHeaders?: Record<string, string>): Promise<T> {
@@ -613,7 +696,6 @@ export class OpenMates {
     chat: EncryptedChatMetadata,
     chatKeyWrappers?: ChatKeyWrapperRecord[],
   ): Promise<Uint8Array | null> {
-    const masterKey = await this.getMasterKey();
     const hashedChatId = createHash("sha256").update(chat.id).digest("hex");
     const wrapper = (chatKeyWrappers ?? []).find(
       (entry) =>
@@ -626,6 +708,10 @@ export class OpenMates {
       : typeof chat.encrypted_chat_key === "string"
         ? chat.encrypted_chat_key
         : null;
+    if (!encryptedChatKey) {
+      return null;
+    }
+    const masterKey = await this.getMasterKey();
     return encryptedChatKey ? decryptBytesWithAesGcm(encryptedChatKey, masterKey) : null;
   }
 
@@ -770,6 +856,95 @@ export class OpenMates {
 
     return data as T;
   }
+
+  private async resolveAsyncSkillResponse(responseData: unknown): Promise<unknown> {
+    const envelope = responseData as Record<string, unknown>;
+    const data = (envelope?.data ?? envelope) as Record<string, unknown>;
+    const taskId = typeof data?.task_id === "string" ? data.task_id : null;
+    const taskIds = Array.isArray(data?.task_ids)
+      ? (data.task_ids as unknown[]).filter((id): id is string => typeof id === "string")
+      : [];
+
+    if (taskId) {
+      const result = await this.pollTaskUntilComplete(taskId);
+      return this.wrapResolvedSkillResult(responseData, result.result);
+    }
+
+    if (taskIds.length > 0) {
+      const taskResults = await Promise.all(taskIds.map((id) => this.pollTaskUntilComplete(id)));
+      return this.wrapResolvedSkillResult(
+        responseData,
+        this.mergeTaskResults(taskResults.map((task) => task.result)),
+      );
+    }
+
+    return responseData;
+  }
+
+  private async pollTaskUntilComplete(taskId: string): Promise<TaskStatusResponse> {
+    const started = Date.now();
+    let lastTransientError: string | null = null;
+    while (Date.now() - started < SKILL_TASK_POLL_TIMEOUT_MS) {
+      let response: Response;
+      try {
+        response = await fetch(`${this.apiUrl}/v1/tasks/${encodeURIComponent(taskId)}`, {
+          method: "GET",
+          headers: this.headers(false),
+        });
+      } catch (error) {
+        lastTransientError = error instanceof Error ? error.message : String(error);
+        await new Promise((resolve) => setTimeout(resolve, SKILL_TASK_POLL_INTERVAL_MS));
+        continue;
+      }
+
+      if (!response.ok) {
+        if (response.status >= SKILL_TASK_POLL_TRANSIENT_ERROR_STATUS) {
+          lastTransientError = `HTTP ${response.status}`;
+          await new Promise((resolve) => setTimeout(resolve, SKILL_TASK_POLL_INTERVAL_MS));
+          continue;
+        }
+        throw new OpenMatesApiError(response.status, await this.safeJson(response));
+      }
+
+      lastTransientError = null;
+      const task = await this.parseResponse<TaskStatusResponse>(response);
+      if (task.status === "completed") return task;
+      if (task.status === "failed") throw new Error(task.error ?? "Task failed");
+      await new Promise((resolve) => setTimeout(resolve, SKILL_TASK_POLL_INTERVAL_MS));
+    }
+    if (lastTransientError) {
+      throw new Error(`Task ${taskId} did not complete within ${SKILL_TASK_POLL_TIMEOUT_MS / 1000}s; last polling error: ${lastTransientError}`);
+    }
+    throw new Error(`Task ${taskId} did not complete within ${SKILL_TASK_POLL_TIMEOUT_MS / 1000}s`);
+  }
+
+  private async safeJson(response: Response): Promise<unknown> {
+    try {
+      return await response.json();
+    } catch {
+      return {};
+    }
+  }
+
+  private wrapResolvedSkillResult(original: unknown, result: unknown): unknown {
+    const envelope = original as Record<string, unknown>;
+    if (envelope && typeof envelope === "object" && "success" in envelope) {
+      return { ...envelope, data: result };
+    }
+    return result;
+  }
+
+  private mergeTaskResults(results: unknown[]): unknown {
+    const resultObjects = results.filter(
+      (result): result is Record<string, unknown> => result !== null && typeof result === "object",
+    );
+    const groupedResults = resultObjects.flatMap((result) =>
+      Array.isArray(result.results) ? (result.results as unknown[]) : [],
+    );
+    if (groupedResults.length === 0) return { results };
+    const first = resultObjects[0] ?? {};
+    return { ...first, results: groupedResults };
+  }
 }
 
 function loadOrCreateDeviceId(customPath?: string): string {
@@ -883,6 +1058,8 @@ export class OpenMatesChats {
       focus_mode: options.focusMode
         ? { app_id: options.focusMode.appId, focus_mode_id: options.focusMode.focusModeId }
         : undefined,
+      connected_account_directory: options.connectedAccountDirectory ?? [],
+      connected_account_token_ref_inputs: options.connectedAccountTokenRefInputs ?? [],
     });
     return result.response ?? result;
   }
@@ -972,6 +1149,8 @@ export class OpenMatesChats {
       },
       encrypted_chat_metadata: encryptedChatMetadata,
       inference_request: inferenceRequest,
+      connected_account_directory: options.connectedAccountDirectory ?? [],
+      connected_account_token_ref_inputs: options.connectedAccountTokenRefInputs ?? [],
     });
     if (!result.task_id) {
       throw new OpenMatesConfigError("Saved chat dispatch did not return a stable inference task id");
@@ -1178,6 +1357,43 @@ export class OpenMatesIdeaBucket {
     this.client = client;
   }
 
+  async settings(): Promise<IdeaBucketSettings> {
+    const response = await this.client.memories.list({
+      query: { app_id: IDEABUCKET_APP_ID, item_type: IDEABUCKET_SETTINGS_ITEM_TYPE },
+    });
+    const memories = Array.isArray(response.memories) ? response.memories as Array<Record<string, unknown>> : [];
+    const entry = memories[0];
+    if (!entry) {
+      return this.normalizeSettings(null, undefined, undefined);
+    }
+    const data = entry.data && typeof entry.data === "object" && !Array.isArray(entry.data)
+      ? entry.data as Record<string, unknown>
+      : null;
+    return this.normalizeSettings(
+      data,
+      typeof entry.id === "string" ? entry.id : undefined,
+      typeof entry.item_version === "number" ? entry.item_version : undefined,
+    );
+  }
+
+  async saveSettings(input: IdeaBucketSettingsInput): Promise<IdeaBucketSettings> {
+    const current = await this.settings();
+    const settings = this.normalizeSettings({
+      processing_prompt: input.processingPrompt ?? current.processingPrompt,
+      processing_times: input.processingTimes ?? current.processingTimes,
+      require_confirmation: input.requireConfirmation ?? current.requireConfirmation,
+    }, current.entryId, current.itemVersion);
+    const data = this.settingsToMemoryValue(settings);
+    const result = await this.client.memories.create({
+      id: settings.entryId,
+      appId: IDEABUCKET_APP_ID,
+      itemType: IDEABUCKET_SETTINGS_ITEM_TYPE,
+      itemVersion: settings.itemVersion ? settings.itemVersion + 1 : 1,
+      data,
+    });
+    return { ...settings, entryId: String(result.id ?? settings.entryId ?? ""), itemVersion: settings.itemVersion ? settings.itemVersion + 1 : 1, source: "account" };
+  }
+
   async add(input: IdeaBucketAddInput): Promise<IdeaBucketResult> {
     const payload = await this.buildEncryptedAddPayload(input);
     const bucketId = String(payload.ideabucket_processing_window_id);
@@ -1201,14 +1417,46 @@ export class OpenMatesIdeaBucket {
     );
   }
 
+  private normalizeSettings(
+    data: Record<string, unknown> | null,
+    entryId?: string,
+    itemVersion?: number,
+  ): IdeaBucketSettings {
+    const processingPrompt = typeof data?.processing_prompt === "string" && data.processing_prompt.trim()
+      ? data.processing_prompt.trim()
+      : IDEABUCKET_DEFAULT_PROCESSING_PROMPT;
+    return {
+      processingPrompt,
+      processingTimes: normalizeIdeaBucketProcessingTimes(data?.processing_times),
+      requireConfirmation: data?.require_confirmation === true,
+      entryId,
+      itemVersion,
+      source: entryId ? "account" : "default",
+    };
+  }
+
+  private settingsToMemoryValue(settings: IdeaBucketSettings): Record<string, unknown> {
+    return {
+      processing_prompt: settings.processingPrompt,
+      processing_times: settings.processingTimes.join(","),
+      require_confirmation: settings.requireConfirmation,
+    };
+  }
+
   private async buildEncryptedAddPayload(input: IdeaBucketAddInput): Promise<Record<string, unknown>> {
     const ideaText = input.text.trim();
     if (!ideaText) throw new OpenMatesConfigError("IdeaBucket add requires non-empty text.");
     const now = Math.floor(Date.now() / 1000);
     const bucketId = input.bucketId ?? new Date(now * 1000).toISOString().slice(0, 10);
-    const scheduledSendAt = input.scheduledSendAt ?? defaultIdeaBucketScheduledSendAt(now);
+    const settings = input.prompt === undefined || input.scheduledSendAt === undefined
+      ? await this.settings()
+      : null;
+    const scheduledSendAt = input.scheduledSendAt
+      ?? (settings?.source === "account"
+        ? nextIdeaBucketScheduledSendAt(now, settings.processingTimes)
+        : defaultIdeaBucketScheduledSendAt(now));
     const chatId = input.chatId ?? randomUUID();
-    const prompt = input.prompt ?? IDEABUCKET_DEFAULT_PROCESSING_PROMPT;
+    const prompt = input.prompt ?? settings?.processingPrompt ?? IDEABUCKET_DEFAULT_PROCESSING_PROMPT;
     const markdown = buildIdeaBucketMarkdown(prompt, ideaText);
     const preview = `IdeaBucket ${bucketId}: ${ideaText.slice(0, 120)}`;
     const serverProcessablePayload = JSON.stringify({
@@ -1239,6 +1487,7 @@ export class OpenMatesIdeaBucket {
         source: "openmates_sdk",
       }), chatKey),
       payload_hash: payloadHash,
+      require_confirmation: settings?.requireConfirmation === true,
     };
   }
 }
@@ -1246,6 +1495,45 @@ export class OpenMatesIdeaBucket {
 function defaultIdeaBucketScheduledSendAt(nowSeconds: number): number {
   const date = new Date(nowSeconds * 1000);
   return Math.floor(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate() + 1, 9, 0, 0) / 1000);
+}
+
+function normalizeIdeaBucketProcessingTimes(value: unknown): string[] {
+  const rawTimes = Array.isArray(value)
+    ? value
+    : typeof value === "string"
+      ? value.split(",")
+      : IDEABUCKET_DEFAULT_PROCESSING_TIMES;
+  const times = rawTimes.map((time) => String(time).trim()).filter(Boolean);
+  const uniqueSortedTimes = [...new Set(times)].sort((a, b) => ideaBucketTimeToMinutes(a) - ideaBucketTimeToMinutes(b));
+  if (uniqueSortedTimes.length < 1 || uniqueSortedTimes.length > 3) {
+    throw new OpenMatesConfigError("IdeaBucket processing_times must include one to three HH:MM values.");
+  }
+  for (const time of uniqueSortedTimes) {
+    if (!IDEABUCKET_PROCESSING_TIME_PATTERN.test(time)) {
+      throw new OpenMatesConfigError(`Invalid IdeaBucket processing time '${time}'. Expected HH:MM in 24-hour format.`);
+    }
+  }
+  return uniqueSortedTimes;
+}
+
+function ideaBucketTimeToMinutes(value: string): number {
+  const match = IDEABUCKET_PROCESSING_TIME_PATTERN.exec(value);
+  if (!match) return Number.POSITIVE_INFINITY;
+  return Number(match[1]) * 60 + Number(match[2]);
+}
+
+function nextIdeaBucketScheduledSendAt(nowSeconds: number, processingTimes: string[]): number {
+  const now = new Date(nowSeconds * 1000);
+  const candidates = processingTimes.map((time) => {
+    const [hour, minute] = time.split(":").map((part) => Number(part));
+    const candidate = new Date(now);
+    candidate.setHours(hour, minute, 0, 0);
+    if (Math.floor(candidate.getTime() / 1000) <= nowSeconds) {
+      candidate.setDate(candidate.getDate() + 1);
+    }
+    return Math.floor(candidate.getTime() / 1000);
+  });
+  return Math.min(...candidates);
 }
 
 function buildIdeaBucketMarkdown(prompt: string, ideaText: string): string {
@@ -1723,6 +2011,7 @@ export class OpenMatesBilling {
 
   async overview(): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>("/v1/sdk/billing"); }
   async usage(options: RequestOptions = {}): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>(withQuery("/v1/sdk/billing/usage", options.query)); }
+  async usageOverview(options: RequestOptions = {}): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>(withQuery("/v1/sdk/billing/usage/overview", options.query)); }
   async usageSummaries(): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>("/v1/sdk/billing/usage/summaries"); }
   async usageDaily(): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>("/v1/sdk/billing/usage/daily"); }
   async usageExport(options: { months?: number } = {}): Promise<{ contentType: string; filename?: string; data: ArrayBuffer }> { return this.client.getRaw(withQuery("/v1/sdk/billing/usage/export", { months: options.months })); }
@@ -1836,11 +2125,21 @@ export class OpenMatesProjects {
     });
   }
 
-  async ask(input: { instruction: string; applyMode?: "auto_apply" | "confirm_first"; encryptedCreate?: Record<string, unknown> }): Promise<Record<string, unknown>> {
+  async ask(input: {
+    instruction: string;
+    encryptedCreate?: Record<string, unknown>;
+    encryptedUpdate?: Record<string, unknown>;
+    encryptedUpdates?: Record<string, unknown>[];
+    exactDelete?: Record<string, unknown>;
+    exactDeletes?: Record<string, unknown>[];
+  }): Promise<Record<string, unknown>> {
     return await this.client.request<Record<string, unknown>>("/v1/projects/ask", {
       instruction: input.instruction,
-      apply_mode: input.applyMode ?? "auto_apply",
       ...(input.encryptedCreate ? { encrypted_create: input.encryptedCreate } : {}),
+      ...(input.encryptedUpdate ? { encrypted_update: input.encryptedUpdate } : {}),
+      ...(input.encryptedUpdates ? { encrypted_updates: input.encryptedUpdates } : {}),
+      ...(input.exactDelete ? { exact_delete: input.exactDelete } : {}),
+      ...(input.exactDeletes ? { exact_deletes: input.exactDeletes } : {}),
     });
   }
 }
@@ -1879,12 +2178,23 @@ export class OpenMatesTasks {
     });
   }
 
-  async ask(input: { instruction: string; applyMode?: "auto_apply" | "confirm_first"; encryptedCreate?: UserTaskCreateInput; encryptedCreates?: UserTaskCreateInput[] }): Promise<Record<string, unknown>> {
+  async ask(input: {
+    instruction: string;
+    encryptedCreate?: UserTaskCreateInput;
+    encryptedCreates?: UserTaskCreateInput[];
+    encryptedUpdate?: Record<string, unknown>;
+    encryptedUpdates?: Record<string, unknown>[];
+    exactDelete?: Record<string, unknown>;
+    exactDeletes?: Record<string, unknown>[];
+  }): Promise<Record<string, unknown>> {
     return await this.client.request<Record<string, unknown>>("/v1/user-tasks/ask", {
       instruction: input.instruction,
-      apply_mode: input.applyMode ?? "auto_apply",
       ...(input.encryptedCreate ? { encrypted_create: input.encryptedCreate } : {}),
       ...(input.encryptedCreates ? { encrypted_creates: input.encryptedCreates } : {}),
+      ...(input.encryptedUpdate ? { encrypted_update: input.encryptedUpdate } : {}),
+      ...(input.encryptedUpdates ? { encrypted_updates: input.encryptedUpdates } : {}),
+      ...(input.exactDelete ? { exact_delete: input.exactDelete } : {}),
+      ...(input.exactDeletes ? { exact_deletes: input.exactDeletes } : {}),
     });
   }
 
@@ -2111,11 +2421,17 @@ export class OpenMatesPlans {
     });
   }
 
-  async ask(input: { instruction: string; applyMode?: "auto_apply" | "confirm_first"; encryptedCreate?: UserPlanCreateInput }): Promise<Record<string, unknown>> {
+  async ask(input: {
+    instruction: string;
+    encryptedCreate?: UserPlanCreateInput;
+    encryptedUpdate?: Record<string, unknown>;
+    encryptedUpdates?: Record<string, unknown>[];
+  }): Promise<Record<string, unknown>> {
     return await this.client.request<Record<string, unknown>>("/v1/user-plans/ask", {
       instruction: input.instruction,
-      apply_mode: input.applyMode ?? "auto_apply",
       ...(input.encryptedCreate ? { encrypted_create: input.encryptedCreate } : {}),
+      ...(input.encryptedUpdate ? { encrypted_update: input.encryptedUpdate } : {}),
+      ...(input.encryptedUpdates ? { encrypted_updates: input.encryptedUpdates } : {}),
     });
   }
 
@@ -2245,11 +2561,19 @@ export class OpenMatesWorkflows {
     });
   }
 
-  async ask(input: { instruction: string; applyMode?: "auto_apply" | "confirm_first"; create?: Record<string, unknown> }): Promise<Record<string, unknown>> {
+  async ask(input: {
+    instruction: string;
+    create?: Record<string, unknown>;
+    exactUpdate?: Record<string, unknown>;
+    exactAction?: Record<string, unknown>;
+    selectedObjectId?: string | null;
+  }): Promise<Record<string, unknown>> {
     return await this.client.request<Record<string, unknown>>("/v1/workflows/ask", {
       instruction: input.instruction,
-      apply_mode: input.applyMode ?? "auto_apply",
       ...(input.create ? { create: input.create } : {}),
+      ...(input.exactUpdate ? { exact_update: input.exactUpdate } : {}),
+      ...(input.exactAction ? { exact_action: input.exactAction } : {}),
+      ...(input.selectedObjectId !== undefined ? { selected_object_id: input.selectedObjectId } : {}),
     });
   }
 
@@ -2730,6 +3054,26 @@ export class OpenMatesNewChatSuggestions {
 
   async list(options: { limit?: number } = {}): Promise<Record<string, unknown>> {
     return this.client.get<Record<string, unknown>>(withQuery("/v1/sdk/new-chat-suggestions", { limit: options.limit ?? 10 }));
+  }
+}
+
+export class OpenMatesFinance {
+  private readonly client: OpenMates;
+
+  constructor(client: OpenMates) {
+    this.client = client;
+  }
+
+  async checkAccounts(
+    input: FinanceCheckAccountsInput,
+    options: ConnectedAccountSkillRunOptions = {},
+  ): Promise<Record<string, unknown>> {
+    return this.client.runConnectedAccountSkill<Record<string, unknown>>(
+      "finance",
+      "check_accounts",
+      input,
+      options,
+    );
   }
 }
 

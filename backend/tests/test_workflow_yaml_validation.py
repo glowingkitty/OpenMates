@@ -14,6 +14,15 @@ from backend.core.api.app.services.workflow_yaml_compiler import (
     parse_workflow_yaml,
     validate_workflow_yaml,
 )
+from backend.core.api.app.services.workflow_models import WorkflowCapability
+
+
+class FakeCapabilityRegistry:
+    def __init__(self, capabilities: dict[str, WorkflowCapability]) -> None:
+        self.capabilities = capabilities
+
+    def get_capability(self, capability_id: str) -> WorkflowCapability:
+        return self.capabilities[capability_id]
 
 
 VALID_WORKFLOW_YAML = """
@@ -55,13 +64,56 @@ def test_safe_yaml_parser_rejects_duplicate_keys_and_aliases() -> None:
 
 
 def test_structurally_valid_draft_reports_missing_runtime_input_without_rejecting_draft() -> None:
-    result = validate_workflow_yaml(VALID_WORKFLOW_YAML.replace("location: Berlin", "location: \"\""))
+    registry = FakeCapabilityRegistry(
+        {
+            "weather.forecast": WorkflowCapability(
+                type="app_skill",
+                id="weather.forecast",
+                title="weather.forecast",
+                metadata={
+                    "input_schema": {
+                        "type": "object",
+                        "properties": {"location": {"type": "string"}},
+                        "required": ["location"],
+                    }
+                },
+            )
+        }
+    )
+
+    result = validate_workflow_yaml(
+        VALID_WORKFLOW_YAML.replace("location: Berlin", "location: \"\""),
+        capability_registry=registry,
+    )
 
     assert result.draft_valid is True
     assert result.enable_ready is False
     assert result.graph is not None
     assert [(diagnostic.code, diagnostic.path) for diagnostic in result.diagnostics] == [
         ("REQUIRED_RUNTIME_INPUT", "steps[0].input.location")
+    ]
+    assert result.diagnostics[0].help_command == "openmates workflows help-app weather.forecast"
+
+
+def test_yaml_readiness_rejects_unavailable_app_skill_capability() -> None:
+    registry = FakeCapabilityRegistry(
+        {
+            "weather.forecast": WorkflowCapability(
+                type="app_skill",
+                id="weather.forecast",
+                title="weather.forecast",
+                enabled=False,
+                reason="WORKFLOW_CONNECTED_ACCOUNT_REQUIRED",
+            )
+        }
+    )
+
+    result = validate_workflow_yaml(VALID_WORKFLOW_YAML, capability_registry=registry)
+
+    assert result.draft_valid is True
+    assert result.enable_ready is False
+    assert [(diagnostic.code, diagnostic.path) for diagnostic in result.diagnostics] == [
+        ("WORKFLOW_CAPABILITY_UNAVAILABLE", "steps[0].use_app_skill")
     ]
 
 

@@ -37,11 +37,15 @@ import {
   planRestore,
   planServerRuntime,
   planUpdate as planServerUpdate,
+  parseEnvEntries,
   parseSecretEnvKey,
+  redactEnvValue,
   resolveServiceSelection,
   shouldCheckWebHealth,
   summarizeSecretPreflight,
   type SecretPreflightSummary,
+  unsetEnvValue,
+  upsertEnvValue,
   type VaultSecretPresence,
 } from "./serverPlanning.js";
 
@@ -818,6 +822,23 @@ function writeUpdateStatus(installPath: string, role: ServerRole, status: Record
   writeFileSync(filePath, `${JSON.stringify({ role, updated_at: new Date().toISOString(), ...status }, null, 2)}\n`, { mode: 0o600 });
 }
 
+function targetSourceLinks(imageTag: string, templateRef: string): Record<string, string | null> {
+  if (imageTag.startsWith("v")) {
+    return {
+      releaseUrl: `${REPO_URL.replace(/\.git$/, "")}/releases/tag/${imageTag}`,
+      sourceUrl: `${REPO_URL.replace(/\.git$/, "")}/tree/${imageTag}`,
+      commitUrl: null,
+      pullRequestUrl: null,
+    };
+  }
+  return {
+    releaseUrl: null,
+    sourceUrl: `${REPO_URL.replace(/\.git$/, "")}/tree/${templateRef}`,
+    commitUrl: null,
+    pullRequestUrl: null,
+  };
+}
+
 function copyIfExists(source: string, destination: string): void {
   if (!existsSync(source)) return;
   mkdirSync(dirname(destination), { recursive: true });
@@ -836,6 +857,81 @@ function readEnvMap(installPath: string): Record<string, string> {
     values[trimmed.slice(0, eqIdx)] = trimmed.slice(eqIdx + 1).replace(/^"|"$/g, "");
   }
   return values;
+}
+
+function envPathForInstall(installPath: string): string {
+  return join(installPath, ".env");
+}
+
+function readEnvContent(installPath: string): string {
+  const envPath = envPathForInstall(installPath);
+  return existsSync(envPath) ? readFileSync(envPath, "utf-8") : "";
+}
+
+function backupEnvFile(installPath: string): string | null {
+  const envPath = envPathForInstall(installPath);
+  if (!existsSync(envPath)) return null;
+  const backupPath = join(installPath, `.env.openmates-backup-${nowStamp()}`);
+  copyFileSync(envPath, backupPath);
+  chmodSync(backupPath, 0o600);
+  return backupPath;
+}
+
+function writeEnvContent(installPath: string, content: string): void {
+  const envPath = envPathForInstall(installPath);
+  mkdirSync(dirname(envPath), { recursive: true });
+  writeFileSync(envPath, content, { mode: 0o600 });
+  chmodSync(envPath, 0o600);
+}
+
+function assertEnvKey(key: string | undefined): string {
+  if (!key || !/^[A-Z][A-Z0-9_]*$/.test(key)) {
+    throw new Error("Provide an env key such as SECRET__BRAVE__API_KEY.");
+  }
+  return key;
+}
+
+async function promptHiddenValue(prompt: string): Promise<string> {
+  if (!process.stdin.isTTY || typeof process.stdin.setRawMode !== "function") {
+    const rl = createPromptInterface({ input: process.stdin, output: process.stderr });
+    try {
+      return await rl.question(prompt);
+    } finally {
+      rl.close();
+    }
+  }
+
+  process.stderr.write(prompt);
+  return await new Promise<string>((resolveValue, reject) => {
+    let value = "";
+    const onData = (buffer: Buffer) => {
+      const char = buffer.toString("utf-8");
+      if (char === "\u0003") {
+        cleanup();
+        reject(new Error("Input cancelled."));
+        return;
+      }
+      if (char === "\r" || char === "\n") {
+        cleanup();
+        process.stderr.write("\n");
+        resolveValue(value);
+        return;
+      }
+      if (char === "\u007f" || char === "\b") {
+        value = value.slice(0, -1);
+        return;
+      }
+      value += char;
+    };
+    const cleanup = () => {
+      process.stdin.off("data", onData);
+      process.stdin.setRawMode(false);
+      process.stdin.pause();
+    };
+    process.stdin.setRawMode(true);
+    process.stdin.resume();
+    process.stdin.on("data", onData);
+  });
 }
 
 function requiredRuntimeEnvKeys(role: ServerRole): string[] {
@@ -1678,6 +1774,7 @@ async function serverUpdate(rest: string[], flags: Record<string, string | boole
     const currentTag = getImageTagFromEnv(installPath, config);
     const target = resolveTargetImageTag(flags, currentTag, getPackageVersion());
     const templateRef = templateRefForImageTag(target.tag, getPackageVersion());
+    const sourceLinks = targetSourceLinks(target.tag, templateRef);
     const safetyPlan = planServerUpdate({ role, selectedServices, dryRun, skipBackup: flags["skip-backup"] === true, continuous: false, missingRequiredSecrets: missingOrUnverifiedSecrets });
     const plan = {
       command: "update",
@@ -1693,6 +1790,8 @@ async function serverUpdate(rest: string[], flags: Record<string, string | boole
       backupName: safetyPlan.backupName,
       missingRequiredEnvKeys: missingEnvKeys,
       secretPreflight,
+      providerKeyReminders: secretPreflight.emptySecretEnvKeys,
+      sourceLinks,
       blocked: safetyPlan.blocked,
       blockReason: safetyPlan.blockReason,
       dryRun,
@@ -1707,12 +1806,16 @@ async function serverUpdate(rest: string[], flags: Record<string, string | boole
         console.log(`  Current tag:   ${currentTag || "unknown"}`);
         console.log(`  Target tag:    ${target.tag}`);
         console.log(`  Template ref:  ${templateRef}`);
+        console.log(`  Source:        ${sourceLinks.releaseUrl ?? sourceLinks.sourceUrl}`);
         console.log(`  Role:          ${role}`);
         console.log(`  Services:      ${filterRequested ? selectedServices.join(", ") : "all"}`);
         console.log(`  Backup:        ${safetyPlan.backupName ?? "none"}`);
         console.log(`  Steps:         ${safetyPlan.steps.join(" -> ")}`);
         console.log(`  Env preflight: ${missingEnvKeys.length ? `missing ${missingEnvKeys.join(", ")}` : "ok"}`);
         console.log(`  Vault secrets: ${formatSecretPreflight(secretPreflight)}`);
+        if (secretPreflight.emptySecretEnvKeys.length) {
+          console.log(`  Provider keys: add ${secretPreflight.emptySecretEnvKeys.join(", ")} to activate those providers`);
+        }
         console.log("  Commands:      refresh compose, docker compose pull, docker compose up -d, health checks");
       }
       return;
@@ -1722,14 +1825,18 @@ async function serverUpdate(rest: string[], flags: Record<string, string | boole
     if (missingOrUnverifiedSecrets.length && flags.yes !== true) {
       throw new Error(
         `Required runtime secret checks failed: ${missingOrUnverifiedSecrets.join(", ")}. ` +
-        "Add missing non-SECRET values to .env, ensure IMPORTED_TO_VAULT markers exist in Vault, or rerun with --yes after reviewing.",
+        "Add missing values with 'openmates server env set <KEY>', ensure IMPORTED_TO_VAULT markers exist in Vault, or rerun with --yes after reviewing.",
       );
     }
 
     console.error(`Mode: image`);
     console.error(`Current image tag: ${currentTag || "unknown"}`);
     console.error(`Target image tag: ${target.tag}`);
-    writeUpdateStatus(installPath, role, { status: "in_progress", targetImageTag: target.tag, step: "backup" });
+    console.error(`Source: ${sourceLinks.releaseUrl ?? sourceLinks.sourceUrl}`);
+    if (secretPreflight.emptySecretEnvKeys.length) {
+      console.error(`Provider key reminders: add ${secretPreflight.emptySecretEnvKeys.join(", ")} to activate those providers.`);
+    }
+    writeUpdateStatus(installPath, role, { status: "in_progress", targetImageTag: target.tag, sourceLinks, providerKeyReminders: secretPreflight.emptySecretEnvKeys, step: "backup" });
     if (safetyPlan.backupName) {
       console.error(`Creating rotating pre-update backup: ${safetyPlan.backupName}`);
       createServerBackup(installPath, role, { preUpdate: true });
@@ -1746,7 +1853,7 @@ async function serverUpdate(rest: string[], flags: Record<string, string | boole
     );
     let code = 0;
     if (shouldPullImages()) {
-      writeUpdateStatus(installPath, role, { status: "in_progress", targetImageTag: target.tag, step: "pull" });
+      writeUpdateStatus(installPath, role, { status: "in_progress", targetImageTag: target.tag, sourceLinks, providerKeyReminders: secretPreflight.emptySecretEnvKeys, step: "pull" });
       console.error("Pulling prebuilt images...");
       code = await runInteractive("docker", pullArgs, installPath);
       if (code !== 0) process.exit(code);
@@ -1754,7 +1861,7 @@ async function serverUpdate(rest: string[], flags: Record<string, string | boole
       console.error("Skipping image pull because OPENMATES_SKIP_IMAGE_PULL=1.");
     }
 
-    writeUpdateStatus(installPath, role, { status: "in_progress", targetImageTag: target.tag, step: "up" });
+    writeUpdateStatus(installPath, role, { status: "in_progress", targetImageTag: target.tag, sourceLinks, providerKeyReminders: secretPreflight.emptySecretEnvKeys, step: "up" });
     const upArgs = appendSelectedServices(
       [...composeArgs(installPath, withOverrides, installMode, role), "up", "-d"],
       selectedServices,
@@ -1765,7 +1872,7 @@ async function serverUpdate(rest: string[], flags: Record<string, string | boole
 
     console.error("Waiting for role health checks...");
     try {
-      writeUpdateStatus(installPath, role, { status: "in_progress", targetImageTag: target.tag, step: "health-check" });
+      writeUpdateStatus(installPath, role, { status: "in_progress", targetImageTag: target.tag, sourceLinks, providerKeyReminders: secretPreflight.emptySecretEnvKeys, step: "health-check" });
       await waitForServerHealth(installPath, role, {
         checkWebApp: shouldCheckWebHealth({ role, selectedServices, filterRequested }),
       });
@@ -1777,7 +1884,7 @@ async function serverUpdate(rest: string[], flags: Record<string, string | boole
     if (config) {
       saveServerConfig({ ...config, imageTag: target.tag, imageChannel: target.channel });
     }
-    writeUpdateStatus(installPath, role, { status: "success", targetImageTag: target.tag, step: "complete" });
+    writeUpdateStatus(installPath, role, { status: "success", targetImageTag: target.tag, sourceLinks, providerKeyReminders: secretPreflight.emptySecretEnvKeys, step: "complete" });
 
     if (flags.json === true) {
       printJson({ ...plan, status: "success", dryRun: false });
@@ -2520,6 +2627,111 @@ async function serverCaddy(rest: string[], flags: Record<string, string | boolea
   console.log(`  Steps:         ${payload.steps.join(" -> ")}`);
 }
 
+async function serverEnv(rest: string[], flags: Record<string, string | boolean>): Promise<void> {
+  const action = rest[0] ?? "list";
+  const installPath = resolveServerPath(flags);
+  const content = readEnvContent(installPath);
+  const entries = parseEnvEntries(content);
+
+  if (action === "list") {
+    const category = typeof flags.category === "string" ? flags.category : rest[1];
+    const filtered = category ? entries.filter((entry) => entry.category === category) : entries;
+    if (flags.json === true) {
+      printJson({ command: "env list", path: envPathForInstall(installPath), entries: filtered });
+      return;
+    }
+    let lastCategory = "";
+    for (const entry of filtered) {
+      if (entry.category !== lastCategory) {
+        lastCategory = entry.category;
+        console.log(`\n${entry.category}:`);
+      }
+      console.log(`  ${entry.key}=${entry.redactedValue}`);
+    }
+    if (!filtered.length) console.log("No env entries found.");
+    return;
+  }
+
+  if (action === "get") {
+    const key = assertEnvKey(rest[1]);
+    const entry = entries.find((item) => item.key === key);
+    if (flags.json === true) {
+      printJson({ command: "env get", key, value: entry ? redactEnvValue(key, entry.value) : null });
+      return;
+    }
+    console.log(`${key}=${entry ? redactEnvValue(key, entry.value) : ""}`);
+    return;
+  }
+
+  if (action === "set") {
+    const key = assertEnvKey(rest[1]);
+    const value = typeof flags.value === "string" ? flags.value : await promptHiddenValue(`Value for ${key}: `);
+    const backupPath = backupEnvFile(installPath);
+    writeEnvContent(installPath, upsertEnvValue(content, key, value));
+    if (flags.json === true) {
+      printJson({ command: "env set", status: "success", key, backupPath });
+      return;
+    }
+    console.log(`Updated ${key} in ${envPathForInstall(installPath)}.${backupPath ? ` Backup: ${backupPath}` : ""}`);
+    return;
+  }
+
+  if (action === "unset") {
+    const key = assertEnvKey(rest[1]);
+    if (flags.yes !== true) {
+      const confirmed = await confirmDestructive(`UNSET ${key}`);
+      if (!confirmed) {
+        console.error("Env unset cancelled.");
+        return;
+      }
+    }
+    const backupPath = backupEnvFile(installPath);
+    writeEnvContent(installPath, unsetEnvValue(content, key));
+    if (flags.json === true) {
+      printJson({ command: "env unset", status: "success", key, backupPath });
+      return;
+    }
+    console.log(`Removed ${key} from ${envPathForInstall(installPath)}.${backupPath ? ` Backup: ${backupPath}` : ""}`);
+    return;
+  }
+
+  if (action === "check" || action === "doctor") {
+    const config = loadConfigForInstallPath(installPath);
+    const role = getServerRole(flags, config);
+    const missingRuntime = missingRequiredEnvKeys(installPath, role);
+    const secretPreflight = runtimeSecretPreflight(installPath, role);
+    const missingSecrets = [...secretPreflight.emptySecretEnvKeys, ...secretPreflight.importedVaultMissing, ...secretPreflight.importedVaultUnavailable];
+    if (flags.json === true) {
+      printJson({ command: `env ${action}`, role, missingRuntime, secretPreflight, ok: missingRuntime.length === 0 && missingSecrets.length === 0 });
+      return;
+    }
+    console.log(`Env file: ${envPathForInstall(installPath)}`);
+    console.log(`Runtime required keys: ${missingRuntime.length ? `missing ${missingRuntime.join(", ")}` : "ok"}`);
+    console.log(`Provider/Vault secrets: ${formatSecretPreflight(secretPreflight)}`);
+    if (action === "doctor" && missingSecrets.length) {
+      console.log("\nAdd missing provider secrets with:");
+      for (const key of missingSecrets) console.log(`  openmates server env set ${key}`);
+    }
+    return;
+  }
+
+  if (action === "edit") {
+    const category = rest[1];
+    if (category) {
+      const keys = entries.filter((entry) => entry.category === category).map((entry) => entry.key);
+      console.error(keys.length ? `Focused ${category} keys: ${keys.join(", ")}` : `No existing ${category} keys found; opening canonical .env.`);
+    }
+    const backupPath = backupEnvFile(installPath);
+    if (backupPath) console.error(`Backup: ${backupPath}`);
+    const editor = process.env.EDITOR || "nano";
+    const code = await runInteractive(editor, [envPathForInstall(installPath)], installPath);
+    if (code !== 0) process.exit(code);
+    return;
+  }
+
+  throw new Error("Usage: openmates server env list|get|set|unset|check|doctor|edit [key|category]");
+}
+
 // ---------------------------------------------------------------------------
 // Help
 // ---------------------------------------------------------------------------
@@ -2539,6 +2751,7 @@ Commands:
   logs            Display server logs
   update          Update to latest version (pull images, or git pull + rebuild for source installs)
   preflight       Show role/update/Caddy preflight plan
+  env             Safely list, set, unset, check, doctor, or edit the runtime .env
   caddy           Plan host-level Caddyfile check/status/diff/apply operations
   backup          Create or list backups
   restore         Restore a backup archive
@@ -2590,6 +2803,15 @@ Command Options:
     --interval <min>    Foreground continuous update interval (default: 30)
     install-service --continuous --channel <name> --window <window>
     --force             Source mode: stash local changes before pulling
+
+  env:
+    openmates server env list [providers|integrations|observability|advanced|runtime]
+    openmates server env get <KEY>
+    openmates server env set <KEY> [--value <value>]
+    openmates server env unset <KEY> [--yes]
+    openmates server env check
+    openmates server env doctor
+    openmates server env edit [category]
 
   backup:
     openmates server backup [--role core|upload|preview] [--output <file>] [--include-observability]
@@ -2668,6 +2890,7 @@ export async function handleServer(
     case "install":    return serverInstall(flags);
     case "update":     return serverUpdate(rest, flags);
     case "preflight":  return serverPreflight(flags);
+    case "env":        return serverEnv(rest, flags);
     case "caddy":      return serverCaddy(rest, flags);
     case "backup":     return serverBackup(rest, flags);
     case "restore":    return serverRestore(flags);

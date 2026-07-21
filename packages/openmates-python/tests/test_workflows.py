@@ -92,6 +92,9 @@ def test_pip_sdk_workflow_methods_use_shared_workflows_api(monkeypatch):
         if url.endswith("/run"):
             assert headers["Idempotency-Key"] == "stable-run-1"
             return FakeResponse({"run": {"id": "run-1", "status": "completed"}})
+        if url.endswith("/v1/workflows/wf-1/steps/math/test"):
+            assert json == {"input": {"expression": "2 + 2"}, "confirmed": True}
+            return FakeResponse({"run": {"id": "run-step-1", "trigger_type": "step_test", "status": "completed", "node_runs": [{"id": "node-run-step-1", "node_id": "math", "status": "completed", "output_summary": {"result": "4"}}]}})
         if url.endswith("/runs/run-1/cancel"):
             return FakeResponse({"run_id": "run-1", "status": "cancellation_requested"})
         if url.endswith("/runs/run-1/respond"):
@@ -150,6 +153,7 @@ def test_pip_sdk_workflow_methods_use_shared_workflows_api(monkeypatch):
     assert client.workflows.run("wf-1", idempotency_key="stable-run-1", mode="test", input_data={"dry": True})["id"] == "run-1"
     assert client.workflows.runs("wf-1")[0]["id"] == "run-1"
     assert client.workflows.run_detail("wf-1", "run-1")["node_runs"][0]["output_summary"]["forecast"] == "rain"
+    assert client.workflows.step_test("wf-1", "math", input_data={"expression": "2 + 2"}, confirmed=True)["trigger_type"] == "step_test"
     assert client.workflows.cancel_run("wf-1", "run-1")["status"] == "cancellation_requested"
     assert client.workflows.respond("wf-1", "run-1", "ask", {"answer": "Berlin"})["status"] == "completed"
     assert client.workflows.upsert_template_projection(
@@ -193,6 +197,7 @@ def test_pip_sdk_workflow_methods_use_shared_workflows_api(monkeypatch):
         {"method": "POST", "url": "https://api.openmates.org/v1/workflows/wf-1/run", "json": {"mode": "test", "input": {"dry": True}}},
         {"method": "GET", "url": "https://api.openmates.org/v1/workflows/wf-1/runs"},
         {"method": "GET", "url": "https://api.openmates.org/v1/workflows/wf-1/runs/run-1"},
+        {"method": "POST", "url": "https://api.openmates.org/v1/workflows/wf-1/steps/math/test", "json": {"input": {"expression": "2 + 2"}, "confirmed": True}},
         {"method": "POST", "url": "https://api.openmates.org/v1/workflows/wf-1/runs/run-1/cancel", "json": {}},
         {"method": "POST", "url": "https://api.openmates.org/v1/workflows/wf-1/runs/run-1/respond", "json": {"step_id": "ask", "input": {"answer": "Berlin"}}},
         {"method": "PUT", "url": "https://api.openmates.org/v1/workflows/wf-1/template-projection", "json": {"template_id": "tpl-1", "source_version": 2, "ciphertext": "opaque-ciphertext", "ciphertext_checksum": "sha256:abc", "owner_wrapped_key": "wrapped-key", "projection_schema_version": 1}},

@@ -9,13 +9,13 @@
 from __future__ import annotations
 
 import time
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from backend.apps.ai.processing.workspace_ask_planner import WorkspaceAskPlanningError, plan_workflow_ask
+from backend.apps.ai.processing.workspace_ask_planner import WorkspaceAskPlanningError, run_workflow_ask_pipeline
 from backend.core.api.app.models.user import User
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user_or_api_key
 from backend.core.api.app.services.directus.team_methods import TeamPermissionError
@@ -187,14 +187,26 @@ class WorkflowHistoryRestoreRequest(BaseModel):
     state: str = Field(default="after", pattern="^(before|after)$")
 
 
-class WorkflowAskRequest(BaseModel):
-    instruction: str = Field(min_length=1, max_length=20_000)
-    apply_mode: str = Field(default="auto_apply", pattern="^(auto_apply|confirm_first)$")
-    create: WorkflowCreateRequest | None = None
-
-
 class WorkflowAskPlanRequest(BaseModel):
     instruction: str = Field(min_length=1, max_length=20_000)
+
+
+class WorkflowAskUpdateRequest(BaseModel):
+    workflow_id: str = Field(min_length=1)
+    patch: WorkflowUpdateRequest
+
+
+class WorkflowAskActionRequest(BaseModel):
+    workflow_id: str = Field(min_length=1)
+    action: Literal["enable", "disable", "delete"]
+
+
+class WorkflowAskRequest(BaseModel):
+    instruction: str = Field(min_length=1, max_length=20_000)
+    create: WorkflowCreateRequest | None = None
+    exact_update: WorkflowAskUpdateRequest | None = None
+    exact_action: WorkflowAskActionRequest | None = None
+    selected_object_id: str | None = Field(default=None, min_length=1)
 
 
 def get_workflow_service(request: Request) -> WorkflowService:
@@ -237,6 +249,73 @@ async def _record_workflow_history(
         redacted_summary=redacted_summary,
     )
     return {**history, **build_history_commands(history["change_set"]["change_set_id"], history["entries"])}
+
+
+def _workflow_ask_fallback(message: str, *, processing: dict[str, Any] | None = None) -> dict[str, Any]:
+    response = {
+        "outcome": "fallback_to_chat",
+        "applied": False,
+        "fallback_to_chat": True,
+        "fallback_message": message,
+        "change_set_id": None,
+        "summary": message,
+        "changed_entries": [],
+        "undo_all_command": None,
+        "undo_entry_commands": [],
+        "warnings": [],
+    }
+    if processing is not None:
+        response["processing"] = processing
+    return response
+
+
+def _workflow_ask_applied_response(*, summary: str, history: dict[str, Any], extra: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "outcome": "applied",
+        "applied": True,
+        "fallback_to_chat": False,
+        "fallback_message": None,
+        "change_set_id": history["change_set"]["change_set_id"],
+        "summary": summary,
+        "changed_entries": history["entries"],
+        "undo_all_command": history["undo_all_command"],
+        "undo_entry_commands": history["undo_entry_commands"],
+        "warnings": [],
+        "history": history,
+        **extra,
+    }
+
+
+def _is_short_title_like_ask(instruction: str) -> bool:
+    stripped = instruction.strip()
+    if not stripped or "\n" in stripped:
+        return False
+    if any(token in stripped for token in ("- ", "* ", "1.")):
+        return False
+    return len(stripped.split()) <= 8
+
+
+def _deterministic_workflow_create(instruction: str) -> WorkflowCreateRequest:
+    graph = {
+        "version": 1,
+        "trigger_node_id": "manual-trigger",
+        "nodes": [
+            {"id": "manual-trigger", "type": "manual_trigger", "title": "Manual trigger"},
+            {"id": "end", "type": "end", "title": "End"},
+        ],
+        "edges": [{"from": "manual-trigger", "to": "end"}],
+    }
+    return WorkflowCreateRequest(title=instruction.strip(), graph=graph, enabled=False, source="cli_ask", created_by_assistant=True)
+
+
+def _workflow_ask_update_operation(patch: WorkflowUpdateRequest) -> str:
+    if patch.graph is not None:
+        return "workflow_version"
+    if patch.enabled is not None and all(
+        value is None for value in (patch.title, patch.description, patch.run_content_retention)
+    ):
+        return "status"
+    return "update"
 
 
 def get_workflow_input_service(request: Request) -> WorkflowInputService:
@@ -421,8 +500,8 @@ async def plan_workflow_ask_route(
     if secrets_manager is None:
         raise HTTPException(status_code=503, detail="Workspace ask inference is not configured")
     try:
-        proposal = await plan_workflow_ask(body.instruction, secrets_manager)
-        return {"proposed_workflow": proposal, "inference_used": True}
+        result = await run_workflow_ask_pipeline(body.instruction, secrets_manager)
+        return {"proposed_workflow": result.proposal, "inference_used": True, "processing": result.processing}
     except WorkspaceAskPlanningError as exc:
         raise HTTPException(status_code=502, detail=f"Workspace ask inference failed: {exc}") from exc
 
@@ -436,34 +515,122 @@ async def ask_workflows(
     service: WorkflowService = Depends(get_workflow_service),
     history_service: WorkspaceChangeHistoryService = Depends(get_workspace_history_service),
 ) -> dict[str, Any]:
-    if body.apply_mode == "confirm_first":
-        return {
-            "applied": False,
-            "change_set_id": None,
-            "summary": "Preview requires an explicit workflow create payload before apply.",
-            "changed_entries": [],
-            "undo_all_command": None,
-            "undo_entry_commands": [],
-            "warnings": [],
-            "clarification_required": False,
-        }
-    create = body.create
-    if create is None:
-        secrets_manager = getattr(request.app.state, "secrets_manager", None)
-        if secrets_manager is None:
-            raise HTTPException(status_code=503, detail="Workspace ask inference is not configured")
+    if sum(bool(value) for value in (body.create, body.exact_update, body.exact_action)) > 1:
+        return _workflow_ask_fallback("Use one exact workflow ask action at a time.")
+    if body.exact_action is not None:
         try:
-            proposal = await plan_workflow_ask(body.instruction, secrets_manager)
-            create = WorkflowCreateRequest(
-                title=proposal["title"],
-                description=proposal.get("description"),
-                graph=proposal["graph"],
-                enabled=bool(proposal.get("enabled", False)),
-                source="cli_ask",
-                created_by_assistant=True,
+            before = await run_in_threadpool(service.get_workflow, body.exact_action.workflow_id, current_user.id, current_user.vault_key_id)
+            if body.exact_action.action == "delete":
+                await run_in_threadpool(service.delete_workflow, body.exact_action.workflow_id, current_user.id)
+                history = await _record_workflow_history(
+                    history_service,
+                    current_user.id,
+                    source="ai_ask",
+                    action_type="ask_delete",
+                    entries=[{
+                        "object_type": "workflow",
+                        "object_id": body.exact_action.workflow_id,
+                        "operation": "delete",
+                        "workflow_version_before_id": before.current_version_id,
+                    }],
+                    redacted_summary="Deleted 1 workflow from ask",
+                )
+                return _workflow_ask_applied_response(
+                    summary="Deleted 1 workflow.",
+                    history=history,
+                    extra={"deleted_workflow_id": body.exact_action.workflow_id},
+                )
+            enabled = body.exact_action.action == "enable"
+            workflow = await run_in_threadpool(
+                service.update_workflow,
+                body.exact_action.workflow_id,
+                current_user.id,
+                enabled=enabled,
+                vault_key_id=current_user.vault_key_id,
             )
-        except WorkspaceAskPlanningError as exc:
-            raise HTTPException(status_code=502, detail=f"Workspace ask inference failed: {exc}") from exc
+            after = workflow.model_dump(mode="json", by_alias=True)
+            summary_verb = "Enabled" if enabled else "Disabled"
+            history = await _record_workflow_history(
+                history_service,
+                current_user.id,
+                source="ai_ask",
+                action_type=f"ask_{body.exact_action.action}",
+                entries=[{
+                    "object_type": "workflow",
+                    "object_id": body.exact_action.workflow_id,
+                    "operation": "status",
+                    "workflow_version_before_id": before.current_version_id,
+                    "workflow_version_after_id": workflow.current_version_id,
+                }],
+                redacted_summary=f"{summary_verb} 1 workflow from ask",
+            )
+            return _workflow_ask_applied_response(summary=f"{summary_verb} 1 workflow.", history=history, extra={"workflow": after})
+        except Exception as exc:
+            _handle_workflow_error(exc)
+    if body.exact_update is not None:
+        try:
+            before = await run_in_threadpool(service.get_workflow, body.exact_update.workflow_id, current_user.id, current_user.vault_key_id)
+            patch = body.exact_update.patch
+            workflow = await run_in_threadpool(
+                service.update_workflow,
+                body.exact_update.workflow_id,
+                current_user.id,
+                title=patch.title,
+                graph=patch.graph,
+                enabled=patch.enabled,
+                run_content_retention=patch.run_content_retention,
+                vault_key_id=current_user.vault_key_id,
+                description=patch.description,
+            )
+            after = workflow.model_dump(mode="json", by_alias=True)
+            history = await _record_workflow_history(
+                history_service,
+                current_user.id,
+                source="ai_ask",
+                action_type="ask_update",
+                entries=[{
+                    "object_type": "workflow",
+                    "object_id": body.exact_update.workflow_id,
+                    "operation": _workflow_ask_update_operation(patch),
+                    "workflow_version_before_id": before.current_version_id,
+                    "workflow_version_after_id": workflow.current_version_id,
+                }],
+                redacted_summary="Updated 1 workflow from ask",
+            )
+            return _workflow_ask_applied_response(summary="Updated 1 workflow.", history=history, extra={"workflow": after})
+        except Exception as exc:
+            _handle_workflow_error(exc)
+    create = body.create
+    processing: dict[str, Any] | None = None
+    if create is None:
+        if body.selected_object_id is not None:
+            return _workflow_ask_fallback("Open a specific workflow to instruct more complex changes.")
+        if _is_short_title_like_ask(body.instruction):
+            create = _deterministic_workflow_create(body.instruction)
+            processing = {"inference_used": False, "deterministic_short_create": True}
+        else:
+            secrets_manager = getattr(request.app.state, "secrets_manager", None)
+            if secrets_manager is None:
+                return _workflow_ask_fallback("Workspace ask inference is not configured.")
+            try:
+                result = await run_workflow_ask_pipeline(body.instruction, secrets_manager)
+                processing = result.processing
+                intent_frame = processing.get("intent_frame") or {}
+                if intent_frame.get("operation") not in (None, "create") or intent_frame.get("target_resolution_strategy") not in (None, "none"):
+                    return _workflow_ask_fallback("Open a specific workflow to instruct more complex changes.", processing=processing)
+                proposal = result.proposal
+                create = WorkflowCreateRequest(
+                    title=proposal["title"],
+                    description=proposal.get("description"),
+                    graph=proposal["graph"],
+                    enabled=bool(proposal.get("enabled", False)),
+                    source="cli_ask",
+                    created_by_assistant=True,
+                )
+            except WorkspaceAskPlanningError as exc:
+                return _workflow_ask_fallback(str(exc))
+    if create is None:
+        return _workflow_ask_fallback("Open a specific workflow to instruct more complex changes.")
     try:
         workflow = await run_in_threadpool(
             service.create_workflow,
@@ -494,18 +661,11 @@ async def ask_workflows(
             }],
             redacted_summary="Created 1 workflow from ask",
         )
-        return {
-            "applied": True,
-            "change_set_id": history["change_set"]["change_set_id"],
-            "summary": "Created 1 workflow.",
-            "changed_entries": history["entries"],
-            "undo_all_command": history["undo_all_command"],
-            "undo_entry_commands": history["undo_entry_commands"],
-            "warnings": [],
-            "clarification_required": False,
-            "workflow": after,
-            "history": history,
-        }
+        return _workflow_ask_applied_response(
+            summary="Created 1 workflow.",
+            history=history,
+            extra={"workflow": after, "processing": processing},
+        )
     except Exception as exc:
         _handle_workflow_error(exc)
 

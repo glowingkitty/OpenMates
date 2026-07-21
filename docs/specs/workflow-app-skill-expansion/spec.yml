@@ -1,0 +1,1043 @@
+schema_version: 2
+id: workflow-app-skill-expansion
+title: Workflow App Skill Expansion
+status: approved
+
+goal: >
+  Expand Workflows from the initial five app-skill actions to every implemented
+  public app skill that can safely run server-side without connected-account
+  credentials, client-side encrypted user data, or uploaded/embed input files.
+  Prove the expanded surface with real step tests first, then twenty realistic
+  enabled workflows that run through near-future schedule triggers, and add real
+  npm and pip SDK tests against the dev server.
+
+scope:
+  in:
+    - Explicit workflow eligibility classification for every public non-internal app skill.
+    - Workflow availability for implemented app skills that do not require connected accounts, client-side encrypted data, uploaded files, or existing embed/file inputs.
+    - High-cost, async, generation, and sandboxed execution skills when they can run from plain workflow input, with test count and cost bounded to one or two real executions per paid skill.
+    - Capability metadata including effect, execution mode, unattended eligibility, approval policy, binding requirements, output schema, and test example input.
+    - YAML validation and capability help that fail closed for unclassified, connected-account, client-encrypted, file/embed-input, or unsupported async skills.
+    - Step-test verification before full scheduled workflow verification.
+    - Twenty realistic workflows using near-future schedule triggers, real dev-server execution, retained run output inspection, and cleanup.
+    - Real npm SDK and pip SDK workflow tests against https://api.dev.openmates.org after CLI evidence is green.
+  out:
+    - Connected-account skills, including calendar and mail skills.
+    - Skills that read or mutate client-side encrypted user data, including tasks.create, tasks.search, reminders, private memories, private projects, and private chat/history search.
+    - File or existing embed input skills, including PDF read/search/view, audio transcription from uploaded audio, and image vectorization from an existing source image.
+    - Offline/private encrypted task search design and server-side task creation encryption changes.
+    - New web editor UI beyond showing metadata already returned by existing capability/help APIs.
+    - Apple workflow parity for this expansion slice.
+    - Public workflow marketplace changes.
+
+context_discovery:
+  github_issues:
+    - "GitHub MCP get_me failed with 401 Bad credentials, so issue discovery could not be completed through MCP. Existing workflow specs record the same credential failure."
+  docs:
+    - docs/specs/workflows-v1/spec.yml
+    - docs/specs/workflows-cli-runtime/spec.yml
+    - docs/specs/workflows-sdk-runtime/spec.yml
+    - docs/specs/anonymous-free-usage-budget/spec.yml
+    - docs/specs/tasks-main-processor-tools/spec.yml
+    - docs/architecture/apps/app-skills.md
+    - docs/architecture/apps/function-calling.md
+    - docs/architecture/core/security.md
+    - docs/architecture/core/client-side-encryption.md
+    - docs/contributing/guides/spec-driven-development.md
+  code_patterns:
+    - backend/core/api/app/services/workflow_capability_registry.py derives workflow capabilities from app.yml metadata and currently accepts execution_mode sync or workflow_ai plus effects read, notify, and chat_write.
+    - backend/core/api/app/services/workflow_app_skill_adapter.py dispatches workflow app-skill nodes through SkillRegistry and normalizes weather/news/web-like outputs.
+    - backend/core/api/app/services/workflow_yaml_compiler.py supports generic use_app_skill steps but currently hardcodes enable-readiness checks only for weather.forecast and news.search.
+    - backend/apps/calendar/skills/*.py require connected_account_access_tokens and must remain unavailable for this scope.
+    - backend/apps/mail/skills/search_skill.py uses connected-account/local connector execution and must remain unavailable for this scope.
+    - backend/apps/tasks/skills/search_skill.py explicitly waits for a capable client because task content is client-side encrypted; tasks are deferred.
+    - backend/apps/tasks/skills/create_skill.py currently stages client-encrypted durable persistence; task creation is deferred until a workflow-safe encrypted persistence contract exists.
+    - backend/apps/reminder/skills/*.py read/write private reminder data and are deferred with the broader client-side encrypted/private-data action design.
+    - frontend/packages/openmates-cli/src/cli.ts exposes workflow validate/create/update/run/step-test/runs/run-show/capabilities/help-app commands.
+    - frontend/packages/openmates-cli/src/sdk.ts and packages/openmates-python/openmates/sdk.py expose workflow SDK facades over the same API routes.
+  tests:
+    - backend/tests/test_workflow_capability_metadata.py
+    - backend/tests/test_workflow_app_skill_adapter.py
+    - backend/tests/test_workflow_runner.py
+    - backend/tests/test_workflow_step_test.py
+    - backend/tests/test_workflow_yaml_validation.py
+    - frontend/apps/web_app/tests/cli-workflows-step-test-real.spec.ts
+    - frontend/apps/web_app/tests/cli-workflows-rain-real.spec.ts
+    - frontend/apps/web_app/tests/cli-workflows-schedule-real.spec.ts
+    - frontend/packages/openmates-cli/tests/sdk-workflows.test.ts
+    - packages/openmates-python/tests/test_workflows.py
+
+apple_impact:
+  affected_files:
+    - none
+  parity_expectations:
+    - This expansion changes backend workflow metadata/runtime, CLI verification, and SDK verification only.
+    - Apple may consume the expanded capability list later, but no native UI or native workflow authoring work is part of this slice.
+  verification:
+    - Apple verification is not required for this spec.
+  intentional_native_differences:
+    - Apple remains behind CLI and SDK workflow capability expansion until a later parity spec.
+
+clarification:
+  rounds:
+    - question: Should all other app skills include high-cost/async generation and sandboxed execution skills?
+      answer: Yes, include those too, but limit tests for each paid skill to one or two real executions.
+    - question: Should file/embed-input skills such as PDF read/search/view and image vectorization from existing source images be included now?
+      answer: Exclude those for now.
+    - question: Should verification use only step tests, or full workflow runs too?
+      answer: First test steps, then run twenty real-life workflows with scheduled time triggers close enough that results are visible quickly.
+  vision_summary: >
+    Workflows should support every app skill that can run safely from plain
+    server-side workflow input. Skills needing connected accounts, client-side
+    encrypted data, or uploaded/embed inputs are explicitly deferred, including
+    task create/search for now, while the implemented expansion proves real CLI
+    and SDK behavior against dev with bounded paid-skill usage.
+  approved_by_user: true
+
+implementation_state:
+  subject_commit: working-tree@40fd74deb
+
+approvals:
+  product_contract:
+    status: approved
+    approved_at: "2026-07-19T00:00:00Z"
+    reason: User confirmed the scope and instructed to build the spec and execute it.
+  implementation_plan:
+    status: approved
+    approved_at: "2026-07-19T00:00:00Z"
+    reason: User explicitly requested execution immediately after the spec is built.
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Every public app skill must declare an explicit workflow classification after this spec.
+    reason: Missing metadata must fail deterministic audits instead of relying on provider-name inference.
+    decided_at: "2026-07-19T00:00:00Z"
+  - id: D-2
+    status: active
+    decision: Connected-account and client-side encrypted data skills remain unavailable in this slice.
+    reason: They need separate binding, permission, encryption, and connected-client contracts before unattended workflows can use them safely.
+    decided_at: "2026-07-19T00:00:00Z"
+  - id: D-3
+    status: active
+    decision: Async and paid skills are in scope but receive bounded real verification.
+    reason: The product goal is broad workflow support, while verification must avoid runaway cost and runtime.
+    decided_at: "2026-07-19T00:00:00Z"
+  - id: D-4
+    status: active
+    decision: Step tests must pass before twenty full scheduled workflows are executed.
+    reason: Step tests isolate app-skill failures and keep the full workflow matrix easier to diagnose.
+    decided_at: "2026-07-19T00:00:00Z"
+  - id: D-5
+    status: active
+    decision: Real SDK evidence is required against https://api.dev.openmates.org.
+    reason: Mocked SDK transport tests prove method shapes only; this expansion needs real SDK workflow execution proof.
+    decided_at: "2026-07-19T00:00:00Z"
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    approach: Build a follow-up spec focused only on tasks and reminders.
+    outcome: rejected
+    recorded_at: "2026-07-19T00:00:00Z"
+    reason: User clarified that task/client-encrypted data support should be discussed later, and this slice should first enable all other app skills.
+  - id: ATTEMPT-2
+    task_id: TASK-1
+    approach: Include only sync read/search skills and defer async/generation skills.
+    outcome: rejected
+    recorded_at: "2026-07-19T00:00:00Z"
+    reason: User explicitly asked to include paid async/generation skills with bounded tests.
+
+handoff:
+  current_task_id: TASK-1
+  next_action: Validate this spec, then implement deterministic app-skill workflow classification audits before capability metadata changes.
+  command: python3 scripts/spec_validate.py docs/specs/workflow-app-skill-expansion/spec.yml
+  expected_outcome: Spec validates and implementation can start with the metadata audit red phase.
+  blocker: null
+  last_verified_commit: 4d37b8c73
+
+scenarios:
+  - id: S-1
+    title: All public skills have explicit workflow classification
+    given:
+      - The repository contains app metadata under backend/apps/*/app.yml.
+    when:
+      - The workflow capability metadata audit runs.
+    then:
+      - Every public non-internal skill has a workflow block or a stable workflow unavailable reason.
+      - Missing classification fails the audit.
+      - Connected-account, client-encrypted, file/embed-input, unsupported async, and unimplemented skills fail closed with explicit reasons.
+
+  - id: S-2
+    title: Non-connected plain-input app skills appear as workflow capabilities
+    given:
+      - Alice is paired with the CLI on the dev server.
+      - platform:workflows is enabled for the test account.
+    when:
+      - Alice runs openmates workflows capabilities --json.
+    then:
+      - Initial capabilities still include ai.ask, events.search, news.search, weather.forecast, and web.search.
+      - Newly eligible skills such as math.calculate, web.read, videos.search, videos.get_transcript, travel.search_connections, travel.search_stays, maps.search, shopping.search_products, nutrition.search_recipes, images.generate, music.generate, models3d.generate, videos.generate, videos.create, code.get_docs, code.search_repos, and code.run are listed when their metadata and runtime adapters are complete.
+      - Excluded skills are visible only as disabled capability records or deterministic audit rows with stable reasons.
+
+  - id: S-3
+    title: Workflow YAML can author expanded app-skill steps
+    given:
+      - Alice writes a workflow YAML using math.calculate, travel.search_connections, and send_chat_message.
+    when:
+      - Alice validates and creates the workflow from YAML.
+    then:
+      - The server accepts the generic use_app_skill steps based on capability metadata.
+      - Enable readiness validates required fields from each skill schema rather than from a hardcoded weather/news list.
+      - Help diagnostics point to openmates workflows help-app <app.skill> for missing required inputs.
+
+  - id: S-4
+    title: Step tests prove every enabled capability before full workflows
+    given:
+      - Alice has a disabled workflow containing one step for each newly enabled workflow capability.
+    when:
+      - Alice runs openmates workflows step-test for every step.
+    then:
+      - Each real app skill executes through the workflow app-skill adapter.
+      - Paid skills run no more than one or two real step tests each.
+      - Each step-test run is retained with node id, status, output summary, provider when available, credits when charged, and a clear error if the provider fails.
+
+  - id: S-5
+    title: Twenty realistic scheduled workflows execute on the dev server
+    given:
+      - Alice has twenty enabled workflows with near-future schedule triggers.
+      - Each workflow combines one or more eligible app skills with decisions, wait/control steps, chat delivery, or notifications where useful.
+    when:
+      - The scheduler claims due triggers on https://api.dev.openmates.org.
+    then:
+      - Every workflow creates exactly one version-pinned accepted run for the scheduled occurrence.
+      - Each run reaches completed, waiting, or a documented provider-failure status within the test timeout.
+      - Run output contains inspectable node summaries for every executed app-skill step.
+      - Workflows and temporary artifacts are cleaned up after the test run.
+
+  - id: S-6
+    title: Real npm SDK workflow execution works against dev
+    given:
+      - Alice has an approved SDK API key for the dev server.
+    when:
+      - The npm SDK real workflow test creates, enables, step-tests, runs, polls, inspects, and deletes workflows on https://api.dev.openmates.org.
+    then:
+      - The SDK uses the public workflow API, not mocked transport.
+      - At least one expanded non-initial capability executes through the npm SDK path.
+      - Run detail exposes retained node output.
+
+  - id: S-7
+    title: Real pip SDK workflow execution works against dev
+    given:
+      - Alice has an approved SDK API key for the dev server.
+    when:
+      - The pip SDK real workflow test creates, enables, step-tests, runs, polls, inspects, and deletes workflows on https://api.dev.openmates.org.
+    then:
+      - The SDK uses the public workflow API, not monkeypatched requests.
+      - At least one expanded non-initial capability executes through the pip SDK path.
+      - Run detail exposes retained node output.
+
+  - id: S-8
+    title: Deferred private-data skills fail closed
+    given:
+      - Alice asks for workflow capabilities for tasks, reminders, calendar, mail, PDF, audio transcription from uploaded audio, or image vectorization from an existing source image.
+    when:
+      - The CLI validates a workflow using one of those deferred skills.
+    then:
+      - Validation fails before enablement or execution with a stable unavailable reason.
+      - No connected-account token, client-side encrypted task/reminder/chat content, or uploaded file content is read by the workflow runtime.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: A deterministic audit fails unless every public non-internal app skill has explicit workflow availability metadata or a stable unavailable reason.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-PYTEST-001, T-AUDIT-001]
+  - id: AC-2
+    scenario: S-2
+    text: All implemented non-connected, non-client-encrypted, non-file/embed-input app skills with plain workflow input appear as enabled workflow capabilities with schemas, output contracts, examples, cost metadata, and help text.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids: [T-PYTEST-001, T-PYTEST-002, T-CLI-REAL-001]
+  - id: AC-3
+    scenario: S-3
+    text: YAML validation uses workflow capability metadata and skill input schemas for required-input readiness instead of hardcoded weather/news checks.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-PYTEST-003, T-CLI-REAL-001]
+  - id: AC-4
+    scenario: S-4
+    text: Real step tests execute every newly enabled workflow capability through the dev server before any twenty-workflow full-run verification starts.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids: [T-CLI-REAL-002]
+  - id: AC-5
+    scenario: S-5
+    text: Twenty realistic enabled workflows with near-future schedule triggers execute on the dev server and expose correct retained run output or documented provider failures.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids: [T-CLI-REAL-003]
+  - id: AC-6
+    scenario: S-6
+    text: The npm SDK has a real dev-server workflow test that creates, enables, step-tests, runs, polls, inspects output, and cleans up at least one workflow using an expanded capability.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-NPM-REAL-001]
+  - id: AC-7
+    scenario: S-7
+    text: The pip SDK has a real dev-server workflow test that creates, enables, step-tests, runs, polls, inspects output, and cleans up at least one workflow using an expanded capability.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-PIP-REAL-001]
+  - id: AC-8
+    scenario: S-8
+    text: Connected-account, client-side encrypted data, and file/embed-input skills are blocked from workflow enablement and execution with stable reasons and no private data access.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-PYTEST-001, T-PYTEST-004, T-CLI-REAL-001]
+  - id: AC-9
+    scenario: S-4
+    text: Paid and async skills are tested with bounded one-or-two real executions per skill and include cleanup or artifact links sufficient for review without leaking secrets.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids: [T-CLI-REAL-002, T-CLI-REAL-003]
+
+assumptions:
+  - id: A-1
+    text: SkillRegistry dispatch remains the single workflow app-skill execution boundary.
+    category: architecture
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: backend/core/api/app/services/workflow_app_skill_adapter.py
+        summary: WorkflowAppSkillAdapter resolves the global SkillRegistry and calls dispatch_skill for app_skill_action nodes.
+  - id: A-2
+    text: App metadata is the right source for workflow eligibility, but current metadata is incomplete for most skills.
+    category: metadata
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: backend/core/api/app/services/workflow_capability_registry.py
+        summary: Capabilities already derive from app.yml workflow blocks and fail closed when workflow metadata is missing.
+  - id: A-3
+    text: Tasks and task search are client-side encrypted/private-data flows and are intentionally deferred.
+    category: privacy
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: backend/apps/tasks/skills/search_skill.py
+        summary: Task search creates a pending client search request and explicitly has no server metadata fallback.
+      - source: backend/apps/tasks/skills/create_skill.py
+        summary: Task creation stages client-encrypted durable persistence and marks pending_client_persistence.
+  - id: A-4
+    text: Calendar and mail require connected-account execution and are intentionally deferred.
+    category: connected_accounts
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: backend/apps/calendar/skills/get_events_skill.py
+        summary: Calendar skills require connected_account_access_tokens.
+      - source: backend/apps/mail/skills/search_skill.py
+        summary: Mail search uses connected account and local connector execution paths.
+  - id: A-5
+    text: Real dev-server SDK tests need an approved dev SDK API key in the local environment.
+    category: verification
+    required_before: task_execution
+    status: confirmed
+    evidence:
+      - source: scripts/sdk_cli_parity_live_smoke.py
+        summary: Reused the existing settings-session pending-device approval pattern for temporary npm and pip SDK devices, then revoked the temporary API key after verification.
+
+contracts:
+  capability_metadata:
+    availability_values:
+      - available_true_for_plain_server_side_skill
+      - unavailable_connected_account_required
+      - unavailable_client_encrypted_data_required
+      - unavailable_file_or_embed_input_required
+      - unavailable_async_runtime_not_ready
+      - unavailable_unimplemented_or_metadata_invalid
+    required_enabled_fields:
+      - available
+      - execution_mode
+      - effect
+      - unattended
+      - approval
+      - binding_requirements
+      - test_allowed
+      - test_example_input
+      - output_schema
+    allowed_execution_modes:
+      - sync
+      - workflow_ai
+      - async_job
+      - sandbox
+    allowed_effects:
+      - read
+      - notify
+      - chat_write
+      - generate
+      - compute
+      - code_execution
+    blocked_reasons:
+      connected_account_required: Skill needs OAuth, provider account tokens, local connector credentials, or connected-account permission continuation.
+      client_encrypted_data_required: Skill needs private encrypted user data or writes durable client-encrypted user data.
+      file_or_embed_input_required: Skill needs uploaded bytes, local file paths, or existing embed/file references.
+      workflow_runtime_unsupported: Skill needs async/job behavior that has not yet been implemented safely.
+      workflow_metadata_invalid: Skill metadata is incomplete or inconsistent.
+  yaml:
+    - use_app_skill remains the authoring form for expanded app skills.
+    - Enable readiness validates required fields from the selected capability input schema.
+    - Test example inputs are allowed only for step-test execution and never satisfy production readiness.
+    - Unavailable capability diagnostics include app id, skill id, reason code, and help command.
+  cli:
+    - command: openmates workflows capabilities --json
+      behavior: Lists enabled and unavailable app-skill capabilities with stable metadata and reasons.
+    - command: openmates workflows help-app <app.skill> --json
+      behavior: Shows input schema, output schema, cost metadata, execution mode, effect, example input, and unavailable reason.
+    - command: openmates workflows step-test <workflow-id> <step-id> --yes --json
+      behavior: Executes one real selected app-skill action through the dev server and records an inspectable step_test run.
+    - command: openmates workflows run <workflow-id> --idempotency-key <key> --json
+      behavior: Accepts and executes enabled workflows only; scheduled proof primarily comes through due-trigger scanning.
+  sdk:
+    - npm and pip real tests use API-key auth against https://api.dev.openmates.org.
+    - SDK tests create uniquely named workflows, run bounded step/full tests, poll run detail, inspect node output, and delete created workflows.
+    - Mocked SDK transport tests remain supplemental and do not satisfy this spec.
+  privacy_security:
+    - Workflow runtime must not request connected-account access tokens for excluded skills.
+    - Workflow runtime must not read client-side encrypted tasks, reminders, chats, memories, or uploaded file content for excluded skills.
+    - Test output records must redact secrets, private account identifiers, raw provider tokens, and private user data.
+    - Paid skill tests must be bounded in count and input size.
+
+skill_inventory:
+  currently_enabled:
+    - ai.ask
+    - events.search
+    - news.search
+    - weather.forecast
+    - web.search
+  explicitly_deferred:
+    connected_accounts:
+      - calendar.get-events
+      - calendar.create-event
+      - calendar.update-event
+      - calendar.delete-event
+      - mail.search
+    client_side_encrypted_or_private_data:
+      - tasks.create
+      - tasks.search
+      - reminder.set-reminder
+      - reminder.list-reminders
+      - reminder.cancel-reminder
+    file_or_embed_input:
+      - audio.transcribe
+      - pdf.read
+      - pdf.search
+      - pdf.view
+      - images.vectorize
+  candidate_enabled_after_audit:
+    - code.search_repos
+    - code.get_docs
+    - code.run
+    - design.search_icons
+    - electronics.search_components
+    - fitness.search_locations
+    - fitness.search_classes
+    - health.search_appointments
+    - home.search
+    - images.search
+    - images.generate
+    - images.generate_draft
+    - maps.search
+    - math.calculate
+    - models3d.search
+    - models3d.generate
+    - music.generate
+    - nutrition.search_recipes
+    - openmates.share-usecase
+    - openmates.get-docs
+    - openmates.search-docs
+    - shopping.search_products
+    - social_media.get-posts
+    - social_media.search
+    - travel.search_connections
+    - travel.search_stays
+    - travel.get_flight
+    - videos.generate
+    - videos.create
+    - videos.get_transcript
+    - videos.search
+    - weather.rain_radar
+    - web.read
+
+tests:
+  - id: T-PYTEST-001
+    type: pytest
+    file: backend/tests/test_workflow_capability_metadata.py
+    command: python3 -m pytest backend/tests/test_workflow_capability_metadata.py
+    covers: [AC-1, AC-2, AC-8]
+    assertions:
+      - every public skill has workflow metadata or a stable unavailable reason
+      - connected-account and client-encrypted skills are unavailable
+      - enabled skills include valid input schema, output schema, execution metadata, cost metadata, and test example input when test_allowed is true
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        command: npm run build
+        run_id: local-2026-07-19T10:07:58Z
+        subject_commit: working-tree@40fd74deb
+        timestamp: "2026-07-19T10:07:58Z"
+        reason: Red phase could not be captured until the unrelated CLI DTS type mismatch was fixed.
+        summary: CLI dist was not available; build failed before the real script could run due an existing ParsedImportChat.title DTS error in frontend/packages/openmates-cli/src/cli.ts.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest backend/tests/test_workflow_capability_metadata.py backend/tests/test_workflow_yaml_validation.py backend/tests/test_workflow_app_skill_adapter.py backend/tests/test_workflow_deferred_contracts.py packages/openmates-python/tests/test_workflows.py packages/openmates-python/tests/test_workflows_real_dev.py
+        run_id: local-2026-07-19T10:07:58Z
+        subject_commit: working-tree@40fd74deb
+        timestamp: "2026-07-19T10:07:58Z"
+  - id: T-PYTEST-002
+    type: pytest
+    file: backend/tests/test_workflow_app_skill_adapter.py
+    command: python3 -m pytest backend/tests/test_workflow_app_skill_adapter.py
+    covers: [AC-2]
+    assertions:
+      - expanded app-skill outputs normalize summary, result_count, provider, artifact ids, and raw output safely
+      - async/sandbox/generation outputs are visible without leaking secrets
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        command: npm run build
+        run_id: local-2026-07-19T10:07:58Z
+        subject_commit: working-tree@40fd74deb
+        timestamp: "2026-07-19T10:07:58Z"
+        reason: Red phase could not be captured until the unrelated CLI DTS type mismatch was fixed.
+        summary: CLI dist was not available; build failed before the real script could run due an existing ParsedImportChat.title DTS error in frontend/packages/openmates-cli/src/cli.ts.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest backend/tests/test_workflow_capability_metadata.py backend/tests/test_workflow_yaml_validation.py backend/tests/test_workflow_app_skill_adapter.py backend/tests/test_workflow_deferred_contracts.py packages/openmates-python/tests/test_workflows.py packages/openmates-python/tests/test_workflows_real_dev.py
+        run_id: local-2026-07-19T10:07:58Z
+        subject_commit: working-tree@40fd74deb
+        timestamp: "2026-07-19T10:07:58Z"
+  - id: T-PYTEST-003
+    type: pytest
+    file: backend/tests/test_workflow_yaml_validation.py
+    command: python3 -m pytest backend/tests/test_workflow_yaml_validation.py
+    covers: [AC-3]
+    assertions:
+      - YAML readiness is schema-driven for expanded capabilities
+      - required-field diagnostics are stable and include help commands
+      - unavailable capabilities cannot be enabled or executed
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        command: npm run build
+        run_id: local-2026-07-19T10:07:58Z
+        subject_commit: working-tree@40fd74deb
+        timestamp: "2026-07-19T10:07:58Z"
+        reason: Red phase could not be captured until the unrelated CLI DTS type mismatch was fixed.
+        summary: CLI dist was not available; build failed before the real script could run due an existing ParsedImportChat.title DTS error in frontend/packages/openmates-cli/src/cli.ts.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest backend/tests/test_workflow_capability_metadata.py backend/tests/test_workflow_yaml_validation.py backend/tests/test_workflow_app_skill_adapter.py backend/tests/test_workflow_deferred_contracts.py packages/openmates-python/tests/test_workflows.py packages/openmates-python/tests/test_workflows_real_dev.py
+        run_id: local-2026-07-19T10:07:58Z
+        subject_commit: working-tree@40fd74deb
+        timestamp: "2026-07-19T10:07:58Z"
+  - id: T-PYTEST-004
+    type: pytest
+    file: backend/tests/test_workflow_deferred_contracts.py
+    command: python3 -m pytest backend/tests/test_workflow_deferred_contracts.py
+    covers: [AC-8]
+    assertions:
+      - task, reminder, calendar, mail, PDF, audio upload, and image vectorization skills are rejected with stable workflow reasons
+      - workflow runtime does not attempt connected-account token resolution for deferred skills
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        command: OPENMATES_API_URL=https://api.dev.openmates.org node --test --experimental-strip-types --loader ./tests/loader.mjs tests/workflows-real-sdk-dev.test.ts
+        run_id: local-2026-07-19T10:07:58Z
+        subject_commit: working-tree@40fd74deb
+        timestamp: "2026-07-19T10:07:58Z"
+        reason: Initial run intentionally skipped because no SDK API key was present in the environment.
+        summary: Test file was executed and skipped because OPENMATES_REAL_DEV_API_KEY/OPENMATES_API_KEY was not present.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest backend/tests/test_workflow_capability_metadata.py backend/tests/test_workflow_yaml_validation.py backend/tests/test_workflow_app_skill_adapter.py backend/tests/test_workflow_deferred_contracts.py packages/openmates-python/tests/test_workflows.py packages/openmates-python/tests/test_workflows_real_dev.py
+        run_id: local-2026-07-19T10:07:58Z
+        subject_commit: working-tree@40fd74deb
+        timestamp: "2026-07-19T10:07:58Z"
+  - id: T-AUDIT-001
+    type: lint
+    file: scripts/audit_workflow_capabilities.py
+    command: python3 scripts/audit_workflow_capabilities.py
+    covers: [AC-1]
+    assertions:
+      - every public app skill has a workflow classification
+      - classification reason codes match the allowed contract
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        command: OPENMATES_API_URL=https://api.dev.openmates.org python3 -m pytest packages/openmates-python/tests/test_workflows_real_dev.py
+        run_id: local-2026-07-19T10:07:58Z
+        subject_commit: working-tree@40fd74deb
+        timestamp: "2026-07-19T10:07:58Z"
+        reason: Initial run intentionally skipped because no SDK API key was present in the environment.
+        summary: Test file was executed and skipped because OPENMATES_REAL_DEV_API_KEY/OPENMATES_API_KEY was not present.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 scripts/audit_workflow_capabilities.py
+        run_id: local-2026-07-19T09:57:35Z
+        subject_commit: working-tree@40fd74deb
+        timestamp: "2026-07-19T10:07:58Z"
+  - id: T-CLI-REAL-001
+    type: manual
+    file: scripts/workflow_capability_real_test.py
+    command: python3 scripts/workflow_capability_real_test.py --api-url https://api.dev.openmates.org
+    covers: [AC-2, AC-3, AC-8]
+    assertions:
+      - capabilities and help-app expose expanded enabled skills
+      - excluded skills return stable unavailable reasons
+      - representative YAML validation succeeds or fails according to capability metadata
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed
+        command: python3 scripts/workflow_capability_real_test.py
+        run_id: local-2026-07-19T10:13:00Z
+        subject_commit: working-tree@40fd74deb
+        timestamp: "2026-07-19T10:13:00Z"
+        reason: Real-dev API was still serving the previous process before the api container restart.
+        summary: Initial real-dev validation showed tasks.search as enable-ready because api.dev.openmates.org was still serving the old local API process. Restarting api fixed the mismatch.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 scripts/workflow_capability_real_test.py
+        run_id: local-2026-07-19T10:16:30Z
+        subject_commit: working-tree@40fd74deb
+        timestamp: "2026-07-19T10:16:30Z"
+        reason: Manual real-dev CLI smoke test passed against the restarted api service.
+        summary: Passed after rebuilding CLI package and restarting the local api service behind https://api.dev.openmates.org.
+  - id: T-CLI-REAL-002
+    type: manual
+    file: scripts/workflow_app_skill_step_tests_real.py
+    command: python3 scripts/workflow_app_skill_step_tests_real.py --api-url https://api.dev.openmates.org --max-paid-runs-per-skill 2
+    covers: [AC-4, AC-9]
+    assertions:
+      - every enabled workflow capability passes a real step test or records a provider failure classified in the report
+      - paid skills are bounded to one or two real executions
+      - step-test run detail exposes retained node output
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed
+        command: python3 scripts/workflow_app_skill_step_tests_real.py
+        run_id: local-2026-07-19T10:12:00Z
+        subject_commit: working-tree@40fd74deb
+        timestamp: "2026-07-19T10:12:00Z"
+        reason: The outer shell timeout was shorter than the real-provider step-test matrix budget.
+        summary: Initial run used a 120s outer shell timeout, shorter than the script's real-provider budget.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 scripts/workflow_app_skill_step_tests_real.py
+        run_id: local-2026-07-19T10:18:00Z
+        subject_commit: working-tree@40fd74deb
+        timestamp: "2026-07-19T10:18:00Z"
+        reason: Manual real-dev step-test matrix completed for all enabled testable capabilities.
+        summary: Passed 36 enabled testable capabilities with completed workflow and node statuses.
+  - id: T-CLI-REAL-003
+    type: manual
+    file: scripts/workflow_twenty_real_workflows_test.py
+    command: python3 scripts/workflow_twenty_real_workflows_test.py --api-url https://api.dev.openmates.org --schedule-delay-seconds 90 --workflow-count 20
+    covers: [AC-5, AC-9]
+    assertions:
+      - creates twenty realistic workflows with near-future schedules
+      - observes scheduled accepted runs and terminal or documented waiting/provider-failure states
+      - run-show returns expected node output summaries
+      - cleanup removes created workflows
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed
+        command: python3 scripts/workflow_twenty_real_workflows_test.py
+        run_id: local-2026-07-19T10:12:00Z
+        subject_commit: working-tree@40fd74deb
+        timestamp: "2026-07-19T10:12:00Z"
+        reason: The outer shell timeout was shorter than the scheduled workflow polling window.
+        summary: Initial run used a 120s outer shell timeout, shorter than the scheduled workflow polling window.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 scripts/workflow_twenty_real_workflows_test.py
+        run_id: local-2026-07-19T10:43:00Z
+        subject_commit: working-tree@40fd74deb
+        timestamp: "2026-07-19T10:43:00Z"
+        reason: Manual real-dev scheduled-workflow proof passed after refreshing the worker process.
+        summary: Passed after restarting task-worker; workflow_count 20 and all scheduled runs reached completed status with inspected app-skill node output.
+  - id: T-CLI-REAL-004
+    type: manual
+    file: scripts/workflow_chained_real_test.py
+    command: python3 scripts/workflow_chained_real_test.py --api-url https://api.dev.openmates.org
+    covers: [AC-3, AC-4, AC-5]
+    assertions:
+      - manual and scheduled triggers execute multi-node workflow graphs, not only isolated app-skill steps
+      - one app-skill output is templated into a downstream app-skill input
+      - downstream chat delivery and notification actions consume the prior skill result
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed
+        command: ad hoc chained YAML with {{ steps.first_math.result_numeric }}
+        run_id: local-2026-07-19T10:55:00Z
+        subject_commit: working-tree@40fd74deb
+        timestamp: "2026-07-19T10:55:00Z"
+        reason: Initial chained workflow used the wrong template path for normalized app-skill output.
+        summary: first_math completed with raw.result_numeric 4, but second_math received None + 3 because app-skill-specific outputs live under raw.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 scripts/workflow_chained_real_test.py
+        run_id: local-2026-07-19T11:02:00Z
+        subject_commit: working-tree@40fd74deb
+        timestamp: "2026-07-19T11:02:00Z"
+        reason: Manual real-dev chained workflow proof passed for both manual and scheduled trigger paths.
+        summary: Both runs completed; first_math 2+2 produced 4, second_math consumed steps.first_math.raw.result_numeric as 4.0 + 3 and produced 7, chat_delivery created delivery_pending records, and push_delivery skipped with push_notifications_not_enabled.
+  - id: T-NPM-REAL-001
+    type: manual
+    file: frontend/packages/openmates-cli/tests/workflows-real-sdk-dev.test.ts
+    command: OPENMATES_API_URL=https://api.dev.openmates.org node --test --experimental-strip-types --loader ./tests/loader.mjs tests/workflows-real-sdk-dev.test.ts
+    covers: [AC-6]
+    assertions:
+      - npm SDK creates, validates, enables, step-tests, runs, polls, inspects, and deletes a workflow on dev
+      - npm SDK uses at least one expanded capability beyond the original five
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed
+        command: temporary API key + OPENMATES_API_URL=https://api.dev.openmates.org node --test --experimental-strip-types --loader ./frontend/packages/openmates-cli/tests/loader.mjs frontend/packages/openmates-cli/tests/workflows-real-sdk-dev.test.ts
+        run_id: local-2026-07-19T10:27:00Z
+        subject_commit: working-tree@40fd74deb
+        timestamp: "2026-07-19T10:27:00Z"
+        reason: The first npm SDK attempt correctly failed closed because the temporary API key's SDK device was pending approval.
+        summary: Valid temporary API key was rejected by API-key device approval policy with HTTP 403 New device detected.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: temporary API key + OPENMATES_API_URL=https://api.dev.openmates.org node --test --experimental-strip-types --loader ./frontend/packages/openmates-cli/tests/loader.mjs frontend/packages/openmates-cli/tests/workflows-real-sdk-dev.test.ts
+        run_id: local-2026-07-19T10:39:00Z
+        subject_commit: working-tree@40fd74deb
+        timestamp: "2026-07-19T10:39:00Z"
+        reason: Manual real-dev npm SDK workflow test passed after approving the temporary npm SDK device.
+        summary: Passed after creating a temporary API key, triggering the npm SDK device registration, approving the pending npm device through the authenticated settings session, and revoking the key after the test.
+  - id: T-PIP-REAL-001
+    type: manual
+    file: packages/openmates-python/tests/test_workflows_real_dev.py
+    command: OPENMATES_API_URL=https://api.dev.openmates.org python3 -m pytest packages/openmates-python/tests/test_workflows_real_dev.py
+    covers: [AC-7]
+    assertions:
+      - pip SDK creates, validates, enables, step-tests, runs, polls, inspects, and deletes a workflow on dev
+      - pip SDK uses at least one expanded capability beyond the original five
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed
+        command: temporary API key + OPENMATES_API_URL=https://api.dev.openmates.org python3 -m pytest packages/openmates-python/tests/test_workflows_real_dev.py
+        run_id: local-2026-07-19T10:27:00Z
+        subject_commit: working-tree@40fd74deb
+        timestamp: "2026-07-19T10:27:00Z"
+        reason: The first chained SDK command stopped at npm pending-device approval before pip could complete.
+        summary: The shared temporary key hit API-key device approval before the pip test could run in the first chained command.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: temporary API key + OPENMATES_API_URL=https://api.dev.openmates.org python3 -m pytest packages/openmates-python/tests/test_workflows_real_dev.py
+        run_id: local-2026-07-19T10:40:00Z
+        subject_commit: working-tree@40fd74deb
+        timestamp: "2026-07-19T10:40:00Z"
+        reason: Manual real-dev pip SDK workflow test passed after approving the temporary pip SDK device.
+        summary: Passed after creating a temporary API key, triggering the pip SDK device registration, approving the pending pip device through the authenticated settings session, and revoking the key after the test.
+
+verifications:
+  - id: V-COST-001
+    kind: manual_check
+    phase: green
+    required_for_done: true
+    covers: [AC-9]
+    status: passed
+    evidence:
+      status: passed
+      reason: Manual review of real run matrices confirmed paid/generation executions stayed within the cap.
+      summary: "Confirmed paid/generation workflow tests stayed within the bounded one-or-two execution rule per paid skill: the step-test matrix executed each enabled testable skill once, and the scheduled workflow matrix used one execution per selected workflow."
+      timestamp: "2026-07-19T10:30:00Z"
+
+implementation_plan:
+  spec_path: docs/specs/workflow-app-skill-expansion/spec.yml
+  existing_patterns:
+    - backend/core/api/app/services/workflow_capability_registry.py metadata-derived capability discovery
+    - backend/core/api/app/services/workflow_app_skill_adapter.py generic SkillRegistry dispatch
+    - backend/core/api/app/services/workflow_yaml_compiler.py YAML compilation and readiness diagnostics
+    - frontend/packages/openmates-cli/src/cli.ts workflow CLI command surface
+    - frontend/packages/openmates-cli/src/sdk.ts npm SDK workflow facade
+    - packages/openmates-python/openmates/sdk.py pip SDK workflow facade
+  architecture: >
+    Keep the workflow runtime generic and expand skill support through explicit
+    app metadata plus deterministic audits. Add only minimal adapter behavior for
+    output normalization and async/sandbox result visibility; do not create
+    app-specific branches in the runner for each skill.
+  data_flow:
+    - App metadata declares workflow eligibility and examples.
+    - Capability registry validates metadata and exposes enabled or unavailable records.
+    - YAML compiler validates use_app_skill steps against capability metadata.
+    - Runner dispatches app_skill_action through WorkflowAppSkillAdapter and SkillRegistry.
+    - Run content is retained through existing workflow encrypted run-content storage.
+    - CLI and SDK tests call the real dev API and inspect run detail.
+  affected_files:
+    - path: backend/apps/*/app.yml
+      reason: Add workflow availability or unavailable reason metadata.
+    - path: backend/core/api/app/services/workflow_capability_registry.py
+      reason: Support expanded execution modes/effects and unavailable reason validation.
+    - path: backend/core/api/app/services/workflow_yaml_compiler.py
+      reason: Schema-driven readiness and unavailable capability diagnostics.
+    - path: backend/core/api/app/services/workflow_app_skill_adapter.py
+      reason: Generic output normalization for expanded skills.
+    - path: backend/tests/test_workflow_capability_metadata.py
+      reason: Metadata audit contracts.
+    - path: backend/tests/test_workflow_app_skill_adapter.py
+      reason: Adapter output contracts.
+    - path: backend/tests/test_workflow_yaml_validation.py
+      reason: YAML readiness contracts.
+    - path: backend/tests/test_workflow_deferred_contracts.py
+      reason: Deferred-skill fail-closed contracts.
+    - path: scripts/audit_workflow_capabilities.py
+      reason: Deterministic all-skill workflow classification audit.
+    - path: scripts/workflow_capability_real_test.py
+      reason: Real dev capability CLI proof.
+    - path: scripts/workflow_app_skill_step_tests_real.py
+      reason: Real dev step-test proof for every capability.
+    - path: scripts/workflow_twenty_real_workflows_test.py
+      reason: Real dev twenty scheduled workflow proof.
+    - path: scripts/workflow_chained_real_test.py
+      reason: Real dev trigger-to-skill-to-skill-to-chat/notification proof.
+    - path: frontend/packages/openmates-cli/tests/workflows-real-sdk-dev.test.ts
+      reason: Real npm SDK dev-server proof.
+    - path: packages/openmates-python/tests/test_workflows_real_dev.py
+      reason: Real pip SDK dev-server proof.
+  verification_strategy:
+    - python3 scripts/spec_validate.py docs/specs/workflow-app-skill-expansion/spec.yml
+    - Run red backend audit/tests before implementation.
+    - Run green backend audit/tests after implementation.
+    - Restart affected local Docker services before real dev-server tests.
+    - Run real CLI capability test, then real CLI step tests, chained workflow proof, then twenty scheduled workflow runs.
+    - Run real npm SDK and pip SDK tests against https://api.dev.openmates.org.
+    - Run python3 scripts/audit_sdk_cli_parity.py if SDK/CLI method surfaces change.
+    - python3 scripts/spec_verify.py docs/specs/workflow-app-skill-expansion/spec.yml
+  verification_order:
+    - Backend metadata/unit contracts first.
+    - Real CLI capability and step-test proof against dev server second.
+    - Twenty real scheduled workflows against dev server third.
+    - Real npm and pip SDK proof against dev server fourth.
+    - GitHub Actions or daily-test wiring only after local real dev evidence is green.
+    - Web and Apple are out of scope for this spec.
+
+tasks:
+  - id: TASK-1
+    title: Add workflow capability classification audit
+    status: done
+    phase: complete
+    covers:
+      scenarios: [S-1, S-8]
+      acceptance_criteria: [AC-1, AC-8]
+    expected_files:
+      - scripts/audit_workflow_capabilities.py
+      - backend/tests/test_workflow_capability_metadata.py
+      - backend/tests/test_workflow_deferred_contracts.py
+    verification: [T-AUDIT-001, T-PYTEST-001, T-PYTEST-004]
+    verification_ids: [T-AUDIT-001, T-PYTEST-001, T-PYTEST-004]
+    dependencies: []
+    ownership:
+      files:
+        - scripts/audit_workflow_capabilities.py
+        - backend/tests/test_workflow_capability_metadata.py
+        - backend/tests/test_workflow_deferred_contracts.py
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+  - id: TASK-2
+    title: Add workflow metadata for eligible and deferred app skills
+    status: done
+    phase: complete
+    covers:
+      scenarios: [S-1, S-2, S-8]
+      acceptance_criteria: [AC-1, AC-2, AC-8]
+    expected_files:
+      - backend/core/api/app/services/workflow_capabilities.yml
+      - backend/core/api/app/services/workflow_capability_registry.py
+    verification: [T-AUDIT-001, T-PYTEST-001, T-PYTEST-004]
+    verification_ids: [T-AUDIT-001, T-PYTEST-001, T-PYTEST-004]
+    dependencies: [TASK-1]
+    ownership:
+      files:
+        - backend/core/api/app/services/workflow_capabilities.yml
+        - backend/core/api/app/services/workflow_capability_registry.py
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+  - id: TASK-3
+    title: Make YAML readiness metadata-driven
+    status: done
+    phase: complete
+    covers:
+      scenarios: [S-3]
+      acceptance_criteria: [AC-3]
+    expected_files:
+      - backend/core/api/app/services/workflow_yaml_compiler.py
+      - backend/tests/test_workflow_yaml_validation.py
+    verification: [T-PYTEST-003]
+    verification_ids: [T-PYTEST-003]
+    dependencies: [TASK-2]
+    ownership:
+      files:
+        - backend/core/api/app/services/workflow_yaml_compiler.py
+        - backend/tests/test_workflow_yaml_validation.py
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+  - id: TASK-4
+    title: Normalize expanded app-skill outputs
+    status: done
+    phase: complete
+    covers:
+      scenarios: [S-2, S-4]
+      acceptance_criteria: [AC-2, AC-4]
+    expected_files:
+      - backend/core/api/app/services/workflow_app_skill_adapter.py
+      - backend/tests/test_workflow_app_skill_adapter.py
+    verification: [T-PYTEST-002]
+    verification_ids: [T-PYTEST-002]
+    dependencies: [TASK-2]
+    ownership:
+      files:
+        - backend/core/api/app/services/workflow_app_skill_adapter.py
+        - backend/tests/test_workflow_app_skill_adapter.py
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+  - id: TASK-5
+    title: Add real CLI verification scripts
+    status: done
+    phase: complete
+    covers:
+      scenarios: [S-2, S-3, S-4, S-5, S-8]
+      acceptance_criteria: [AC-2, AC-3, AC-4, AC-5, AC-8, AC-9]
+    expected_files:
+      - scripts/workflow_real_test_helpers.py
+      - scripts/workflow_capability_real_test.py
+      - scripts/workflow_app_skill_step_tests_real.py
+      - scripts/workflow_twenty_real_workflows_test.py
+      - scripts/workflow_chained_real_test.py
+    verification: [T-CLI-REAL-001, T-CLI-REAL-002, T-CLI-REAL-003, T-CLI-REAL-004]
+    verification_ids: [T-CLI-REAL-001, T-CLI-REAL-002, T-CLI-REAL-003, T-CLI-REAL-004]
+    dependencies: [TASK-2, TASK-3, TASK-4]
+    ownership:
+      files:
+        - scripts/workflow_real_test_helpers.py
+        - scripts/workflow_capability_real_test.py
+        - scripts/workflow_app_skill_step_tests_real.py
+        - scripts/workflow_twenty_real_workflows_test.py
+        - scripts/workflow_chained_real_test.py
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+  - id: TASK-6
+    title: Add real npm and pip SDK dev-server tests
+    status: done
+    phase: complete
+    covers:
+      scenarios: [S-6, S-7]
+      acceptance_criteria: [AC-6, AC-7]
+    expected_files:
+      - frontend/packages/openmates-cli/src/client.ts
+      - frontend/packages/openmates-cli/src/sdk.ts
+      - frontend/packages/openmates-cli/tests/workflows-real-sdk-dev.test.ts
+      - packages/openmates-python/openmates/sdk.py
+      - packages/openmates-python/tests/test_workflows_real_dev.py
+    verification: [T-NPM-REAL-001, T-PIP-REAL-001]
+    verification_ids: [T-NPM-REAL-001, T-PIP-REAL-001]
+    dependencies: [TASK-5]
+    ownership:
+      files:
+        - frontend/packages/openmates-cli/src/client.ts
+        - frontend/packages/openmates-cli/src/sdk.ts
+        - frontend/packages/openmates-cli/tests/workflows-real-sdk-dev.test.ts
+        - packages/openmates-python/openmates/sdk.py
+        - packages/openmates-python/tests/test_workflows_real_dev.py
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false

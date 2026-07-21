@@ -11,9 +11,13 @@ from types import SimpleNamespace
 
 from backend.core.api.app.services.workflow_capability_registry import (
     WORKFLOW_CLASSIFICATION_REQUIRED,
+    WORKFLOW_CLIENT_ENCRYPTED_DATA_REQUIRED,
+    WORKFLOW_CONNECTED_ACCOUNT_REQUIRED,
+    WORKFLOW_RUNTIME_UNSUPPORTED,
     WORKFLOW_TEST_EXAMPLE_REQUIRED,
     WorkflowCapabilityRegistry,
 )
+from scripts.audit_workflow_capabilities import audit_workflow_capabilities
 
 
 class FakeSkillRegistry:
@@ -112,3 +116,51 @@ def test_test_allowed_capability_requires_a_schema_valid_example_input() -> None
 
     assert capability.enabled is False
     assert capability.reason == WORKFLOW_TEST_EXAMPLE_REQUIRED
+
+
+def test_unavailable_capability_accepts_stable_deferred_reason() -> None:
+    registry = WorkflowCapabilityRegistry(
+        FakeSkillRegistry(
+            {
+                "tasks": SimpleNamespace(
+                    skills=[
+                        _skill(
+                            "search",
+                            {
+                                "available": False,
+                                "unavailable_reason": WORKFLOW_CLIENT_ENCRYPTED_DATA_REQUIRED,
+                            },
+                        )
+                    ]
+                )
+            }
+        )
+    )
+
+    capability = registry.get_capability("tasks.search")
+
+    assert capability.enabled is False
+    assert capability.reason == WORKFLOW_CLIENT_ENCRYPTED_DATA_REQUIRED
+
+
+def test_repository_public_skills_have_workflow_classification() -> None:
+    issues = audit_workflow_capabilities()
+
+    assert [issue.as_dict() for issue in issues] == []
+
+
+def test_repository_expanded_capabilities_and_deferred_reasons_are_discoverable() -> None:
+    registry = WorkflowCapabilityRegistry()
+
+    by_id = {capability.id: capability for capability in registry.list_capabilities()}
+
+    assert by_id["math.calculate"].enabled is True
+    assert by_id["math.calculate"].metadata["workflow"]["effect"] == "compute"
+    assert by_id["web.read"].enabled is True
+    assert by_id["web.read"].metadata["workflow_source"] == "workflow_capabilities.yml"
+    assert by_id["tasks.search"].enabled is False
+    assert by_id["tasks.search"].reason == WORKFLOW_CLIENT_ENCRYPTED_DATA_REQUIRED
+    assert by_id["calendar.get-events"].enabled is False
+    assert by_id["calendar.get-events"].reason == WORKFLOW_CONNECTED_ACCOUNT_REQUIRED
+    assert by_id["code.run"].enabled is False
+    assert by_id["code.run"].reason == WORKFLOW_RUNTIME_UNSUPPORTED

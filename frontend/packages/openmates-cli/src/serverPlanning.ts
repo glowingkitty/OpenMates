@@ -88,6 +88,16 @@ export type SecretPreflightSummary = {
   importedVaultUnavailable: string[];
 };
 
+export type EnvEntry = {
+  key: string;
+  value: string;
+  category: EnvCategory;
+  secret: boolean;
+  redactedValue: string;
+};
+
+export type EnvCategory = "runtime" | "providers" | "integrations" | "observability" | "advanced";
+
 export type CaddyPlan = {
   role: ServerRole;
   action: CaddyAction;
@@ -149,6 +159,119 @@ const ROLE_DEFINITIONS: Record<ServerRole, RoleDefinition> = {
     composeFile: "backend/preview/docker-compose.preview.yml",
   },
 };
+
+const OBSERVABILITY_ENV_PREFIXES = ["OPENOBSERVE_", "DISCORD_WEBHOOK_"];
+const ADVANCED_ENV_KEYS = new Set([
+  "GIT_WORK_DIR",
+  "DOCKER_GID",
+  "TUNNEL_TRIGGER_SECRET",
+  "CELERY_AUTOSCALE_MAX",
+  "CELERY_AUTOSCALE_MIN",
+  "TASK_WORKER_CONCURRENCY",
+  "APP_AI_WORKER_CONCURRENCY",
+  "APP_IMAGES_WORKER_CONCURRENCY",
+  "APP_MUSIC_WORKER_CONCURRENCY",
+  "TASK_WORKER_MEMORY_LIMIT",
+  "APP_AI_WORKER_MEMORY_LIMIT",
+  "APP_IMAGES_WORKER_MEMORY_LIMIT",
+  "APP_MUSIC_WORKER_MEMORY_LIMIT",
+  "APP_VIDEOS_WORKER_MEMORY_LIMIT",
+  "APP_PDF_WORKER_MEMORY_LIMIT",
+  "APP_DOCS_WORKER_MEMORY_LIMIT",
+  "APP_CODE_WORKER_MEMORY_LIMIT",
+  "APP_SOCIAL_MEDIA_WORKER_MEMORY_LIMIT",
+  "AI_FIRST_CHUNK_TIMEOUT_SECONDS",
+  "AI_REASONING_FIRST_CHUNK_TIMEOUT_SECONDS",
+]);
+const INTEGRATION_SECRET_PREFIXES = [
+  "SECRET__GOOGLE__OAUTH_",
+  "SECRET__PROTONMAIL__",
+  "SECRET__ADMIN_DEBUG_CLI__",
+  "SECRET__UPLOAD_SERVER__",
+  "SECRET__PREVIEW_SERVER__",
+  "SECRET__STRIPE__",
+  "SECRET__REVOLUT_BUSINESS__",
+  "SECRET__INVOICE_",
+];
+const INTEGRATION_ENV_KEYS = new Set([
+  "GOOGLE_CALENDAR_OAUTH_REDIRECT_URI",
+  "PROD_CORE_API_URL",
+  "PROD_INTERNAL_API_SHARED_TOKEN",
+  "DEV_CORE_API_URL",
+  "DEV_INTERNAL_API_SHARED_TOKEN",
+  "PREVIEW_CORS_ORIGINS",
+  "PREVIEW_ALLOWED_REFERERS",
+  "REPORT_ISSUE_EMAIL",
+  "ADMIN_NOTIFY_EMAIL",
+  "DAILY_MEETING_NOTIFY_EMAIL",
+  "OPENCODE_WEB_BASE_URL",
+]);
+
+export function envKeyCategory(key: string): EnvCategory {
+  if (OBSERVABILITY_ENV_PREFIXES.some((prefix) => key.startsWith(prefix))) return "observability";
+  if (ADVANCED_ENV_KEYS.has(key)) return "advanced";
+  if (INTEGRATION_ENV_KEYS.has(key) || INTEGRATION_SECRET_PREFIXES.some((prefix) => key.startsWith(prefix))) return "integrations";
+  if (key.startsWith("SECRET__")) return "providers";
+  return "runtime";
+}
+
+export function isSecretEnvKey(key: string): boolean {
+  return key.startsWith("SECRET__") || key.includes("PASSWORD") || key.includes("TOKEN") || key.includes("SECRET") || key.includes("API_KEY");
+}
+
+export function redactEnvValue(key: string, value: string): string {
+  if (!value) return "";
+  if (!isSecretEnvKey(key)) return value;
+  return value === "IMPORTED_TO_VAULT" ? value : "<redacted>";
+}
+
+export function parseEnvEntries(content: string): EnvEntry[] {
+  const entries: EnvEntry[] = [];
+  for (const line of content.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const eqIdx = trimmed.indexOf("=");
+    if (eqIdx === -1) continue;
+    const key = trimmed.slice(0, eqIdx).trim();
+    if (!key) continue;
+    const value = trimmed.slice(eqIdx + 1).replace(/^"|"$/g, "");
+    entries.push({
+      key,
+      value,
+      category: envKeyCategory(key),
+      secret: isSecretEnvKey(key),
+      redactedValue: redactEnvValue(key, value),
+    });
+  }
+  return entries.sort((a, b) => a.category.localeCompare(b.category) || a.key.localeCompare(b.key));
+}
+
+export function upsertEnvValue(content: string, key: string, value: string): string {
+  const lines = content.split("\n");
+  let updated = false;
+  const next = lines.map((line) => {
+    const trimmed = line.trimStart();
+    if (trimmed.startsWith("#") || !trimmed.startsWith(`${key}=`)) return line;
+    updated = true;
+    return `${key}=${value}`;
+  });
+  if (!updated) {
+    if (next.length && next[next.length - 1] !== "") next.push("");
+    next.push(`${key}=${value}`);
+  }
+  return `${next.join("\n").replace(/\n*$/, "")}\n`;
+}
+
+export function unsetEnvValue(content: string, key: string): string {
+  return `${content
+    .split("\n")
+    .filter((line) => {
+      const trimmed = line.trimStart();
+      return trimmed.startsWith("#") || !trimmed.startsWith(`${key}=`);
+    })
+    .join("\n")
+    .replace(/\n*$/, "")}\n`;
+}
 
 function unique(items: string[]): string[] {
   return [...new Set(items.map((item) => item.trim()).filter(Boolean))];

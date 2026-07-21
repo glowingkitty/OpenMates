@@ -16,6 +16,7 @@ import yaml
 from pydantic import ValidationError
 from yaml.events import AliasEvent
 
+from backend.core.api.app.services.workflow_capability_registry import WorkflowCapabilityRegistry
 from backend.core.api.app.services.workflow_models import (
     WorkflowEdge,
     WorkflowGraph,
@@ -58,10 +59,6 @@ SUPPORTED_STEP_FORMS = {
     "if",
 }
 APP_SKILL_IDENTIFIER_PATTERN = re.compile(r"^[a-z][a-z0-9_-]*\.[a-z][a-z0-9_-]*$")
-REQUIRED_RUNTIME_INPUTS = {
-    ("weather", "forecast"): ("location",),
-    ("news", "search"): ("requests",),
-}
 
 
 class WorkflowYamlParseError(ValueError):
@@ -151,7 +148,7 @@ def parse_workflow_yaml(source: str) -> dict[str, Any]:
     return document
 
 
-def validate_workflow_yaml(source: str) -> WorkflowYamlValidationResult:
+def validate_workflow_yaml(source: str, capability_registry: Any | None = None) -> WorkflowYamlValidationResult:
     """Validate draft structure and readiness without persisting or executing a workflow."""
     try:
         document = parse_workflow_yaml(source)
@@ -181,7 +178,7 @@ def validate_workflow_yaml(source: str) -> WorkflowYamlValidationResult:
             ],
         )
 
-    readiness_diagnostics = _validate_enable_readiness(document)
+    readiness_diagnostics = _validate_enable_readiness(document, capability_registry)
     return WorkflowYamlValidationResult(
         draft_valid=True,
         enable_ready=not readiness_diagnostics,
@@ -190,10 +187,10 @@ def validate_workflow_yaml(source: str) -> WorkflowYamlValidationResult:
     )
 
 
-def compile_workflow_yaml(source: str) -> WorkflowYamlCompilation:
+def compile_workflow_yaml(source: str, capability_registry: Any | None = None) -> WorkflowYamlCompilation:
     """Compile a structurally valid YAML draft into the immutable runtime graph shape."""
     document = parse_workflow_yaml(source)
-    validation = validate_workflow_yaml(source)
+    validation = validate_workflow_yaml(source, capability_registry)
     if not validation.draft_valid or validation.graph is None:
         raise WorkflowYamlCompilationError(validation.diagnostics)
 
@@ -417,15 +414,30 @@ def _validate_repeat_step(step: dict[str, Any], path: str, step_id: Any, step_id
     return diagnostics
 
 
-def _validate_enable_readiness(document: dict[str, Any]) -> list[WorkflowYamlDiagnostic]:
+def _validate_enable_readiness(document: dict[str, Any], capability_registry: Any | None = None) -> list[WorkflowYamlDiagnostic]:
     diagnostics: list[WorkflowYamlDiagnostic] = []
+    registry = capability_registry or WorkflowCapabilityRegistry()
     for step, path in _walk_steps(document["steps"], "steps"):
         identifier = step.get("use_app_skill")
         if not isinstance(identifier, str) or "." not in identifier:
             continue
-        app_id, skill_id = identifier.split(".", 1)
+        capability = registry.get_capability(identifier)
+        if not capability.enabled:
+            diagnostics.append(
+                WorkflowYamlDiagnostic(
+                    "WORKFLOW_CAPABILITY_UNAVAILABLE",
+                    f"{path}.use_app_skill",
+                    f"{identifier} is not available for workflows: {capability.reason}",
+                    step_id=step["id"],
+                    help_command=f"openmates workflows help-app {identifier}",
+                )
+            )
+            continue
         input_value = step.get("input", {})
-        for field_name in REQUIRED_RUNTIME_INPUTS.get((app_id, skill_id), ()):
+        input_schema = capability.metadata.get("input_schema")
+        if not isinstance(input_schema, dict):
+            continue
+        for field_name in _required_schema_fields(input_schema):
             if input_value.get(field_name) in (None, ""):
                 diagnostics.append(
                     WorkflowYamlDiagnostic(
@@ -434,11 +446,29 @@ def _validate_enable_readiness(document: dict[str, Any]) -> list[WorkflowYamlDia
                         f"{identifier} requires {field_name} before enablement",
                         step_id=step["id"],
                         field=field_name,
-                        expected_type="string",
-                        help_command=f"openmates workflows help app {identifier}",
+                        expected_type=_schema_field_type(input_schema, field_name),
+                        help_command=f"openmates workflows help-app {identifier}",
                     )
                 )
     return diagnostics
+
+
+def _required_schema_fields(schema: dict[str, Any]) -> tuple[str, ...]:
+    required = schema.get("required")
+    if not isinstance(required, list):
+        return ()
+    return tuple(field_name for field_name in required if isinstance(field_name, str))
+
+
+def _schema_field_type(schema: dict[str, Any], field_name: str) -> str | None:
+    properties = schema.get("properties")
+    if not isinstance(properties, dict):
+        return None
+    field_schema = properties.get(field_name)
+    if not isinstance(field_schema, dict):
+        return None
+    schema_type = field_schema.get("type")
+    return schema_type if isinstance(schema_type, str) else None
 
 
 def _walk_steps(steps: list[dict[str, Any]], path: str):

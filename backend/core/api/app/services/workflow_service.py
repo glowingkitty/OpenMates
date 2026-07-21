@@ -235,6 +235,16 @@ class InMemoryWorkflowRepository:
             return None
         return deepcopy(record)
 
+    def get_workflow_including_deleted(self, workflow_id: str, user_id: str, team_id: str | None = None) -> dict[str, Any] | None:
+        record = self.workflows.get(workflow_id)
+        if not record:
+            return None
+        if team_id is not None:
+            return deepcopy(record) if record.get("hashed_team_id") == _hash_team_id(team_id) else None
+        if record["owner_hash"] != _hash_owner_id(user_id) or record.get("hashed_team_id"):
+            return None
+        return deepcopy(record)
+
     def save_run(self, record: dict[str, Any]) -> dict[str, Any]:
         self.runs[record["id"]] = deepcopy(record)
         return deepcopy(record)
@@ -488,6 +498,16 @@ class DirectusWorkflowRepository:
         if record.get("status") == WorkflowStatus.DELETED.value:
             return None
         return deepcopy(record)
+
+    def get_workflow_including_deleted(self, workflow_id: str, user_id: str, team_id: str | None = None) -> dict[str, Any] | None:
+        context_filter = {"hashed_team_id": {"_eq": _hash_team_id(team_id)}} if team_id is not None else {"hashed_user_id": {"_eq": _hash_owner_id(user_id)}, "hashed_team_id": {"_null": True}}
+        item = self._find_one(
+            self.WORKFLOWS,
+            {"_and": [{"id": {"_eq": workflow_id}}, context_filter]},
+        )
+        if not item or not isinstance(item.get("record_json"), dict):
+            return None
+        return deepcopy(item["record_json"])
 
     def save_run(self, record: dict[str, Any]) -> dict[str, Any]:
         payload = {
@@ -1054,6 +1074,25 @@ class WorkflowService:
             vault_key_id=vault_key_id,
             restored_from_version_id=version_id,
         )
+
+    def restore_workflow_version_from_history(
+        self,
+        workflow_id: str,
+        user_id: str,
+        version_id: str,
+        vault_key_id: str | None = None,
+    ) -> WorkflowDetail:
+        self.ensure_enabled()
+        record_loader = getattr(self.repository, "get_workflow_including_deleted", None)
+        record = record_loader(workflow_id, user_id) if callable(record_loader) else self.repository.get_workflow(workflow_id, user_id)
+        if not record:
+            raise WorkflowNotFoundError(workflow_id)
+        if record.get("status") == WorkflowStatus.DELETED.value:
+            record["status"] = WorkflowStatus.DISABLED.value
+            record["enabled"] = False
+            record["updated_at"] = int(time.time())
+            self.repository.save_workflow(record)
+        return self.restore_workflow_version(workflow_id, user_id, version_id, vault_key_id)
 
     def decrypt_schedule_config(
         self,

@@ -31,9 +31,13 @@ WORKFLOW_METADATA_INVALID = "WORKFLOW_METADATA_INVALID"
 WORKFLOW_EXECUTION_MODE_UNSUPPORTED = "WORKFLOW_EXECUTION_MODE_UNSUPPORTED"
 WORKFLOW_EFFECT_UNSUPPORTED = "WORKFLOW_EFFECT_UNSUPPORTED"
 WORKFLOW_TEST_EXAMPLE_REQUIRED = "WORKFLOW_TEST_EXAMPLE_REQUIRED"
+WORKFLOW_CONNECTED_ACCOUNT_REQUIRED = "WORKFLOW_CONNECTED_ACCOUNT_REQUIRED"
+WORKFLOW_CLIENT_ENCRYPTED_DATA_REQUIRED = "WORKFLOW_CLIENT_ENCRYPTED_DATA_REQUIRED"
+WORKFLOW_FILE_OR_EMBED_INPUT_REQUIRED = "WORKFLOW_FILE_OR_EMBED_INPUT_REQUIRED"
+WORKFLOW_RUNTIME_UNSUPPORTED = "WORKFLOW_RUNTIME_UNSUPPORTED"
 
-_EXECUTION_MODES = {"sync", "workflow_ai"}
-_EFFECTS = {"read", "notify", "chat_write"}
+_EXECUTION_MODES = {"sync", "workflow_ai", "async_job", "sandbox"}
+_EFFECTS = {"read", "notify", "chat_write", "generate", "compute", "code_execution"}
 _APPROVALS = {"never", "side_effect_confirmation", "always"}
 _BINDING_REQUIREMENTS = {
     "none",
@@ -42,6 +46,22 @@ _BINDING_REQUIREMENTS = {
     "notification_preferences",
     "chat_owner",
 }
+_UNAVAILABLE_REASONS = {
+    WORKFLOW_CLASSIFICATION_REQUIRED,
+    WORKFLOW_INTERNAL_SKILL,
+    WORKFLOW_SKILL_NOT_IMPLEMENTED,
+    WORKFLOW_SKILL_NOT_REGISTERED,
+    WORKFLOW_APP_NOT_REGISTERED,
+    WORKFLOW_METADATA_INVALID,
+    WORKFLOW_EXECUTION_MODE_UNSUPPORTED,
+    WORKFLOW_EFFECT_UNSUPPORTED,
+    WORKFLOW_TEST_EXAMPLE_REQUIRED,
+    WORKFLOW_CONNECTED_ACCOUNT_REQUIRED,
+    WORKFLOW_CLIENT_ENCRYPTED_DATA_REQUIRED,
+    WORKFLOW_FILE_OR_EMBED_INPUT_REQUIRED,
+    WORKFLOW_RUNTIME_UNSUPPORTED,
+}
+WORKFLOW_CLASSIFICATION_FILE = Path(__file__).resolve().parent / "workflow_capabilities.yml"
 
 
 class WorkflowCapabilityRegistry:
@@ -49,6 +69,7 @@ class WorkflowCapabilityRegistry:
 
     def __init__(self, skill_registry: "SkillRegistry | None" = None) -> None:
         self.skill_registry = skill_registry
+        self._workflow_classifications = _load_workflow_classifications()
 
     def list_capabilities(self, user_id: str | None = None) -> list[WorkflowCapability]:
         """Return every discoverable app skill with explicit Workflow availability."""
@@ -137,6 +158,8 @@ class WorkflowCapabilityRegistry:
 
         workflow = _as_mapping(_value(skill, "workflow"))
         if workflow is None:
+            workflow = _as_mapping(self._workflow_classifications.get(capability_id))
+        if workflow is None:
             return _unavailable_capability(
                 capability_id,
                 capability_id,
@@ -145,6 +168,7 @@ class WorkflowCapabilityRegistry:
             )
 
         metadata["workflow"] = dict(workflow)
+        metadata["workflow_source"] = "app.yml" if _value(skill, "workflow") is not None else "workflow_capabilities.yml"
         metadata["output_schema"] = workflow.get("output_schema")
         reason = _workflow_metadata_reason(workflow, metadata["input_schema"])
         if reason is not None:
@@ -170,6 +194,9 @@ def _workflow_metadata_reason(workflow: Mapping[str, Any], input_schema: Any) ->
     if not isinstance(available, bool):
         return WORKFLOW_METADATA_INVALID
     if available is False:
+        reason = workflow.get("unavailable_reason")
+        if reason not in _UNAVAILABLE_REASONS:
+            return WORKFLOW_METADATA_INVALID
         return None
     if not isinstance(input_schema, Mapping):
         return WORKFLOW_METADATA_INVALID
@@ -275,6 +302,17 @@ def _dump_value(value: Any) -> Any:
     if hasattr(value, "model_dump"):
         return value.model_dump(mode="json")
     return value
+
+
+def _load_workflow_classifications() -> dict[str, Any]:
+    if not WORKFLOW_CLASSIFICATION_FILE.exists():
+        return {}
+    with WORKFLOW_CLASSIFICATION_FILE.open("r", encoding="utf-8") as handle:
+        payload = yaml.safe_load(handle) or {}
+    if not isinstance(payload, Mapping):
+        return {}
+    capabilities = payload.get("capabilities") or {}
+    return dict(capabilities) if isinstance(capabilities, Mapping) else {}
 
 
 class _FilesystemWorkflowMetadataRegistry:

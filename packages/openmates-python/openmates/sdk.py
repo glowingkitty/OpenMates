@@ -40,6 +40,9 @@ DEFAULT_API_URL = "https://api.openmates.org"
 DEFAULT_TIMEOUT_SECONDS = 60
 DEFAULT_RECOVERY_POLL_INTERVAL_SECONDS = 0.5
 DEFAULT_RECOVERY_TIMEOUT_SECONDS = 60.0
+SKILL_TASK_POLL_INTERVAL_SECONDS = 2.0
+SKILL_TASK_POLL_TIMEOUT_SECONDS = 1200.0
+SKILL_TASK_POLL_TRANSIENT_ERROR_STATUS = 500
 PROMPT_INJECTION_DISABLED = "disabled"
 SDK_KDF_ITERATIONS = 100_000
 AES_GCM_IV_LENGTH = 12
@@ -58,6 +61,10 @@ DESIGN_ICON_HEX_COLOR_PATTERN = re.compile(r"^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{4}|
 DEFAULT_ICON_PNG_SIZE = 256
 MAX_ICON_PNG_SIZE = 4096
 IDEABUCKET_DEFAULT_PROCESSING_PROMPT = "These are my captured ideas for today. Please process them, group related thoughts, suggest next actions, and ask clarifying questions where needed:\n\nIf an idea requires deeper work, create or suggest sub-chats for focused research, planning, todos, docs, or implementation."
+IDEABUCKET_APP_ID = "ideabucket"
+IDEABUCKET_SETTINGS_ITEM_TYPE = "processing_settings"
+IDEABUCKET_DEFAULT_PROCESSING_TIMES = ("09:00",)
+IDEABUCKET_PROCESSING_TIME_PATTERN = re.compile(r"^([01]\d|2[0-3]):([0-5]\d)$")
 ACCOUNT_EXPORT_FORBIDDEN_FIELD_NAMES = {
     "access_token",
     "api_key",
@@ -130,6 +137,13 @@ def _with_app_skill_prompt_injection_option(
     }
 
 
+def _safe_response_json(response: requests.Response) -> Any:
+    try:
+        return response.json()
+    except ValueError:
+        return {}
+
+
 class OpenMates:
     """Lazy API-key SDK client."""
 
@@ -175,10 +189,11 @@ class OpenMates:
         *,
         prompt_injection_protection: bool | None = None,
     ) -> dict[str, Any]:
-        return self._post(
+        response = self._post(
             f"/v1/apps/{app_id}/skills/{skill_id}",
             _with_app_skill_prompt_injection_option(input_data, prompt_injection_protection),
         )
+        return self._resolve_async_skill_response(response)
 
     def run_connected_account_skill(
         self,
@@ -266,6 +281,70 @@ class OpenMates:
             timeout=DEFAULT_TIMEOUT_SECONDS,
         )
         return self._parse_response(response)
+
+    def _resolve_async_skill_response(self, response_data: dict[str, Any]) -> dict[str, Any]:
+        data = response_data.get("data") if isinstance(response_data.get("data"), dict) else response_data
+        task_id = data.get("task_id") if isinstance(data, dict) else None
+        task_ids_raw = data.get("task_ids") if isinstance(data, dict) else None
+        task_ids = [task_id for task_id in task_ids_raw or [] if isinstance(task_id, str)] if isinstance(task_ids_raw, list) else []
+
+        if isinstance(task_id, str) and task_id:
+            task = self._poll_task_until_complete(task_id)
+            return self._wrap_resolved_skill_result(response_data, task.get("result"))
+        if task_ids:
+            tasks = [self._poll_task_until_complete(task_id) for task_id in task_ids]
+            return self._wrap_resolved_skill_result(response_data, self._merge_task_results([task.get("result") for task in tasks]))
+        return response_data
+
+    def _poll_task_until_complete(self, task_id: str) -> dict[str, Any]:
+        started = time.monotonic()
+        last_transient_error: str | None = None
+        while time.monotonic() - started < SKILL_TASK_POLL_TIMEOUT_SECONDS:
+            try:
+                response = requests.get(
+                    f"{self._api_url}/v1/tasks/{_quote(task_id)}",
+                    headers=self._headers(has_body=False),
+                    timeout=DEFAULT_TIMEOUT_SECONDS,
+                )
+            except requests.RequestException as exc:
+                last_transient_error = str(exc)
+                time.sleep(SKILL_TASK_POLL_INTERVAL_SECONDS)
+                continue
+
+            if not response.ok:
+                if response.status_code >= SKILL_TASK_POLL_TRANSIENT_ERROR_STATUS:
+                    last_transient_error = f"HTTP {response.status_code}"
+                    time.sleep(SKILL_TASK_POLL_INTERVAL_SECONDS)
+                    continue
+                raise OpenMatesApiError(response.status_code, _safe_response_json(response))
+
+            last_transient_error = None
+            task = self._parse_response(response)
+            status = task.get("status")
+            if status == "completed":
+                return task
+            if status == "failed":
+                raise RuntimeError(str(task.get("error") or "Task failed"))
+            time.sleep(SKILL_TASK_POLL_INTERVAL_SECONDS)
+
+        if last_transient_error:
+            raise RuntimeError(
+                f"Task {task_id} did not complete within {SKILL_TASK_POLL_TIMEOUT_SECONDS:.0f}s; last polling error: {last_transient_error}"
+            )
+        raise RuntimeError(f"Task {task_id} did not complete within {SKILL_TASK_POLL_TIMEOUT_SECONDS:.0f}s")
+
+    def _wrap_resolved_skill_result(self, original: dict[str, Any], result: Any) -> dict[str, Any]:
+        if "success" in original:
+            return {**original, "data": result}
+        return result if isinstance(result, dict) else {"result": result}
+
+    def _merge_task_results(self, results: list[Any]) -> dict[str, Any]:
+        result_objects = [result for result in results if isinstance(result, dict)]
+        grouped_results = [item for result in result_objects for item in result.get("results", []) if isinstance(result.get("results"), list)]
+        if not grouped_results:
+            return {"results": results}
+        first = result_objects[0] if result_objects else {}
+        return {**first, "results": grouped_results}
 
     def _get_raw(self, path: str) -> dict[str, Any]:
         if not self._api_key:
@@ -1154,6 +1233,42 @@ def default_ideabucket_scheduled_send_at(now_seconds: int) -> int:
     return int(calendar.timegm((date.tm_year, date.tm_mon, date.tm_mday + 1, 9, 0, 0, 0, 0, 0)))
 
 
+def _normalize_ideabucket_processing_times(value: Any) -> list[str]:
+    if isinstance(value, list):
+        raw_times = value
+    elif isinstance(value, str):
+        raw_times = value.split(",")
+    else:
+        raw_times = list(IDEABUCKET_DEFAULT_PROCESSING_TIMES)
+    times = sorted({str(item).strip() for item in raw_times if str(item).strip()}, key=_ideabucket_time_to_minutes)
+    if len(times) < 1 or len(times) > 3:
+        raise OpenMatesConfigError("IdeaBucket processing_times must include one to three HH:MM values")
+    for processing_time in times:
+        if not IDEABUCKET_PROCESSING_TIME_PATTERN.match(processing_time):
+            raise OpenMatesConfigError(f"Invalid IdeaBucket processing time '{processing_time}'. Expected HH:MM in 24-hour format")
+    return times
+
+
+def _ideabucket_time_to_minutes(value: str) -> int:
+    match = IDEABUCKET_PROCESSING_TIME_PATTERN.match(value)
+    if not match:
+        return 24 * 60
+    return int(match.group(1)) * 60 + int(match.group(2))
+
+
+def _next_ideabucket_scheduled_send_at(now_seconds: int, processing_times: list[str]) -> int:
+    now = time.localtime(now_seconds)
+    candidates = []
+    for processing_time in processing_times:
+        hour, minute = [int(part) for part in processing_time.split(":")]
+        candidate = int(time.mktime((now.tm_year, now.tm_mon, now.tm_mday, hour, minute, 0, -1, -1, -1)))
+        if candidate <= now_seconds:
+            tomorrow = time.localtime(now_seconds + 24 * 60 * 60)
+            candidate = int(time.mktime((tomorrow.tm_year, tomorrow.tm_mon, tomorrow.tm_mday, hour, minute, 0, -1, -1, -1)))
+        candidates.append(candidate)
+    return min(candidates)
+
+
 def build_ideabucket_markdown(prompt: str, idea_text: str) -> str:
     return f"{prompt.strip()}\n\n----- Idea 1 -----\n{idea_text.strip()}\n-----------------"
 
@@ -1490,6 +1605,40 @@ class OpenMatesIdeaBucket:
     def __init__(self, client: OpenMates):
         self._client = client
 
+    def settings(self) -> dict[str, Any]:
+        data = self._client.memories.list(app_id=IDEABUCKET_APP_ID, item_type=IDEABUCKET_SETTINGS_ITEM_TYPE)
+        memories = data.get("memories") if isinstance(data.get("memories"), list) else []
+        entry = memories[0] if memories else None
+        if not isinstance(entry, dict):
+            return self._normalize_settings(None, None, None)
+        item_data = entry.get("data") if isinstance(entry.get("data"), dict) else None
+        return self._normalize_settings(
+            item_data,
+            str(entry.get("id")) if entry.get("id") else None,
+            int(entry.get("item_version")) if isinstance(entry.get("item_version"), int) else None,
+        )
+
+    def save_settings(self, input_data: dict[str, Any]) -> dict[str, Any]:
+        current = self.settings()
+        settings = self._normalize_settings(
+            {
+                "processing_prompt": input_data.get("processingPrompt") or input_data.get("processing_prompt") or current["processingPrompt"],
+                "processing_times": input_data.get("processingTimes") or input_data.get("processing_times") or current["processingTimes"],
+                "require_confirmation": input_data.get("requireConfirmation") if "requireConfirmation" in input_data else input_data.get("require_confirmation", current["requireConfirmation"]),
+            },
+            current.get("entryId"),
+            current.get("itemVersion"),
+        )
+        item_version = int(settings.get("itemVersion") or 0) + 1 if settings.get("entryId") else 1
+        result = self._client.memories.create({
+            "id": settings.get("entryId"),
+            "appId": IDEABUCKET_APP_ID,
+            "itemType": IDEABUCKET_SETTINGS_ITEM_TYPE,
+            "itemVersion": item_version,
+            "data": self._settings_to_memory_value(settings),
+        })
+        return {**settings, "entryId": str(result.get("id") or settings.get("entryId") or ""), "itemVersion": item_version, "source": "account"}
+
     def add(self, payload: dict[str, Any]) -> dict[str, Any]:
         encrypted_payload = self._build_encrypted_add_payload(payload)
         bucket_id = str(encrypted_payload["ideabucket_processing_window_id"])
@@ -1506,15 +1655,35 @@ class OpenMatesIdeaBucket:
             {"now": now is True},
         )
 
+    def _normalize_settings(self, data: dict[str, Any] | None, entry_id: str | None, item_version: int | None) -> dict[str, Any]:
+        raw_prompt = data.get("processing_prompt") if isinstance(data, dict) else None
+        processing_prompt = raw_prompt.strip() if isinstance(raw_prompt, str) and raw_prompt.strip() else IDEABUCKET_DEFAULT_PROCESSING_PROMPT
+        return {
+            "processingPrompt": processing_prompt,
+            "processingTimes": _normalize_ideabucket_processing_times(data.get("processing_times") if isinstance(data, dict) else None),
+            "requireConfirmation": bool(data.get("require_confirmation")) if isinstance(data, dict) else False,
+            "entryId": entry_id,
+            "itemVersion": item_version,
+            "source": "account" if entry_id else "default",
+        }
+
+    def _settings_to_memory_value(self, settings: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "processing_prompt": settings["processingPrompt"],
+            "processing_times": ",".join(settings["processingTimes"]),
+            "require_confirmation": bool(settings["requireConfirmation"]),
+        }
+
     def _build_encrypted_add_payload(self, payload: dict[str, Any]) -> dict[str, Any]:
         idea_text = str(payload.get("text") or "").strip()
         if not idea_text:
             raise OpenMatesConfigError("IdeaBucket add requires non-empty text")
         now = int(time.time())
         bucket_id = str(payload.get("bucket_id") or payload.get("bucketId") or datetime_utc_date(now))
-        scheduled_send_at = int(payload.get("scheduled_send_at") or payload.get("scheduledSendAt") or default_ideabucket_scheduled_send_at(now))
+        settings = self.settings() if payload.get("prompt") is None or (payload.get("scheduled_send_at") is None and payload.get("scheduledSendAt") is None) else None
+        scheduled_send_at = int(payload.get("scheduled_send_at") or payload.get("scheduledSendAt") or (_next_ideabucket_scheduled_send_at(now, settings["processingTimes"]) if settings and settings.get("source") == "account" else default_ideabucket_scheduled_send_at(now)))
         chat_id = str(payload.get("chat_id") or payload.get("chatId") or uuid.uuid4())
-        prompt = str(payload.get("prompt") or IDEABUCKET_DEFAULT_PROCESSING_PROMPT)
+        prompt = str(payload.get("prompt") or (settings["processingPrompt"] if settings else IDEABUCKET_DEFAULT_PROCESSING_PROMPT))
         markdown = build_ideabucket_markdown(prompt, idea_text)
         preview = f"IdeaBucket {bucket_id}: {idea_text[:120]}"
         server_payload = json.dumps({
@@ -1542,6 +1711,7 @@ class OpenMatesIdeaBucket:
                 "source": "openmates_pip_sdk",
             }, separators=(",", ":")), master_key),
             "payload_hash": payload_hash,
+            "require_confirmation": bool(settings and settings.get("requireConfirmation") is True),
         }
 
 
@@ -1624,10 +1794,21 @@ class OpenMatesPlans:
             {"entry_id": entry_id, "state": state},
         )
 
-    def ask(self, instruction: str, *, apply_mode: str = "auto_apply", encrypted_create: dict[str, Any] | None = None) -> dict[str, Any]:
-        payload: dict[str, Any] = {"instruction": instruction, "apply_mode": apply_mode}
+    def ask(
+        self,
+        instruction: str,
+        *,
+        encrypted_create: dict[str, Any] | None = None,
+        encrypted_update: dict[str, Any] | None = None,
+        encrypted_updates: list[dict[str, Any]] | None = None,
+    ) -> dict[str, Any]:
+        payload: dict[str, Any] = {"instruction": instruction}
         if encrypted_create is not None:
             payload["encrypted_create"] = encrypted_create
+        if encrypted_update is not None:
+            payload["encrypted_update"] = encrypted_update
+        if encrypted_updates is not None:
+            payload["encrypted_updates"] = encrypted_updates
         return self._client._post("/v1/user-plans/ask", payload)
 
     def activate(self, plan_id: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -1749,15 +1930,26 @@ class OpenMatesTasks:
         self,
         instruction: str,
         *,
-        apply_mode: str = "auto_apply",
         encrypted_create: dict[str, Any] | None = None,
         encrypted_creates: list[dict[str, Any]] | None = None,
+        encrypted_update: dict[str, Any] | None = None,
+        encrypted_updates: list[dict[str, Any]] | None = None,
+        exact_delete: dict[str, Any] | None = None,
+        exact_deletes: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
-        payload: dict[str, Any] = {"instruction": instruction, "apply_mode": apply_mode}
+        payload: dict[str, Any] = {"instruction": instruction}
         if encrypted_create is not None:
             payload["encrypted_create"] = encrypted_create
         if encrypted_creates is not None:
             payload["encrypted_creates"] = encrypted_creates
+        if encrypted_update is not None:
+            payload["encrypted_update"] = encrypted_update
+        if encrypted_updates is not None:
+            payload["encrypted_updates"] = encrypted_updates
+        if exact_delete is not None:
+            payload["exact_delete"] = exact_delete
+        if exact_deletes is not None:
+            payload["exact_deletes"] = exact_deletes
         return self._client._post("/v1/user-tasks/ask", payload)
 
     def create(self, payload: dict[str, Any]) -> dict[str, Any]:
@@ -1936,10 +2128,27 @@ class OpenMatesProjects:
             {"entry_id": entry_id, "state": state},
         )
 
-    def ask(self, instruction: str, *, apply_mode: str = "auto_apply", encrypted_create: dict[str, Any] | None = None) -> dict[str, Any]:
-        payload: dict[str, Any] = {"instruction": instruction, "apply_mode": apply_mode}
+    def ask(
+        self,
+        instruction: str,
+        *,
+        encrypted_create: dict[str, Any] | None = None,
+        encrypted_update: dict[str, Any] | None = None,
+        encrypted_updates: list[dict[str, Any]] | None = None,
+        exact_delete: dict[str, Any] | None = None,
+        exact_deletes: list[dict[str, Any]] | None = None,
+    ) -> dict[str, Any]:
+        payload: dict[str, Any] = {"instruction": instruction}
         if encrypted_create is not None:
             payload["encrypted_create"] = encrypted_create
+        if encrypted_update is not None:
+            payload["encrypted_update"] = encrypted_update
+        if encrypted_updates is not None:
+            payload["encrypted_updates"] = encrypted_updates
+        if exact_delete is not None:
+            payload["exact_delete"] = exact_delete
+        if exact_deletes is not None:
+            payload["exact_deletes"] = exact_deletes
         return self._client._post("/v1/projects/ask", payload)
 
 
@@ -1990,10 +2199,24 @@ class OpenMatesWorkflows:
             {"entry_id": entry_id, "state": state},
         )
 
-    def ask(self, instruction: str, *, apply_mode: str = "auto_apply", create: dict[str, Any] | None = None) -> dict[str, Any]:
-        payload: dict[str, Any] = {"instruction": instruction, "apply_mode": apply_mode}
+    def ask(
+        self,
+        instruction: str,
+        *,
+        create: dict[str, Any] | None = None,
+        exact_update: dict[str, Any] | None = None,
+        exact_action: dict[str, Any] | None = None,
+        selected_object_id: str | None = None,
+    ) -> dict[str, Any]:
+        payload: dict[str, Any] = {"instruction": instruction}
         if create is not None:
             payload["create"] = create
+        if exact_update is not None:
+            payload["exact_update"] = exact_update
+        if exact_action is not None:
+            payload["exact_action"] = exact_action
+        if selected_object_id is not None:
+            payload["selected_object_id"] = selected_object_id
         return self._client._post("/v1/workflows/ask", payload)
 
     def start_input(
@@ -2748,6 +2971,7 @@ class OpenMatesBilling:
 
     def overview(self) -> dict[str, Any]: return self._client._get("/v1/sdk/billing")
     def usage(self, **query: Any) -> dict[str, Any]: return self._client._get(_with_query("/v1/sdk/billing/usage", **query))
+    def usage_overview(self, **query: Any) -> dict[str, Any]: return self._client._get(_with_query("/v1/sdk/billing/usage/overview", **query))
     def usage_summaries(self) -> dict[str, Any]: return self._client._get("/v1/sdk/billing/usage/summaries")
     def usage_daily(self) -> dict[str, Any]: return self._client._get("/v1/sdk/billing/usage/daily")
     def usage_export(self, *, months: int | None = None) -> dict[str, Any]: return self._client._get_raw(_with_query("/v1/sdk/billing/usage/export", months=months))

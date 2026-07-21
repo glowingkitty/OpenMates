@@ -103,6 +103,10 @@ describe("OpenMates SDK workflows", () => {
         if (request.url === "/v1/workflows/wf-1/runs/run-1") {
           return { run: { id: "run-1", workflow_id: "wf-1", version_id: "v1", trigger_type: "manual", status: "completed", content_retention_mode: "last_5", content_available: true, content_storage: "durable", node_runs: [{ id: "node-run-1", node_id: "weather", node_type: "app_skill_action", status: "completed", output_summary: { forecast: "rain" }, credits_charged: 2 }] } };
         }
+        if (request.url === "/v1/workflows/wf-1/steps/math/test") {
+          assert.deepEqual(body, { input: { expression: "2 + 2" }, confirmed: true });
+          return { run: { id: "run-step-1", workflow_id: "wf-1", version_id: "v1", trigger_type: "step_test", status: "completed", content_retention_mode: "last_5", content_available: true, content_storage: "durable", node_runs: [{ id: "node-run-step-1", node_id: "math", node_type: "app_skill_action", status: "completed", output_summary: { result: "4" } }] } };
+        }
         if (request.url === "/v1/workflows/wf-1/runs/run-1/cancel") {
           return { run_id: "run-1", status: "cancellation_requested" };
         }
@@ -166,6 +170,7 @@ describe("OpenMates SDK workflows", () => {
         assert.equal((await client.workflows.run("wf-1", { idempotencyKey: "stable-run-1", mode: "test", input: { dry: true } })).content_storage, "ephemeral");
         assert.equal((await client.workflows.runs("wf-1"))[0]?.content_storage, "durable");
         assert.equal((await client.workflows.runDetail("wf-1", "run-1")).node_runs?.[0]?.output_summary?.forecast, "rain");
+        assert.equal((await client.workflows.stepTest("wf-1", "math", { input: { expression: "2 + 2" }, confirmed: true })).trigger_type, "step_test");
         assert.equal((await client.workflows.cancelRun("wf-1", "run-1")).status, "cancellation_requested");
         assert.equal((await client.workflows.respond("wf-1", "run-1", "ask", { answer: "Berlin" })).status, "completed");
         assert.equal((await client.workflows.upsertTemplateProjection("wf-1", { templateId: "tpl-1", sourceVersion: 2, ciphertext: "opaque-ciphertext", ciphertextChecksum: "sha256:abc", ownerWrappedKey: "wrapped-key", projectionSchemaVersion: 1 })).updated_at, 123);
@@ -190,6 +195,7 @@ describe("OpenMates SDK workflows", () => {
           ["POST", "/v1/workflows/wf-1/run"],
           ["GET", "/v1/workflows/wf-1/runs"],
           ["GET", "/v1/workflows/wf-1/runs/run-1"],
+          ["POST", "/v1/workflows/wf-1/steps/math/test"],
           ["POST", "/v1/workflows/wf-1/runs/run-1/cancel"],
           ["POST", "/v1/workflows/wf-1/runs/run-1/respond"],
           ["PUT", "/v1/workflows/wf-1/template-projection"],
