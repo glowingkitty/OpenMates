@@ -898,6 +898,43 @@ run_svelte_check() {
   done
 }
 
+run_ui_token_check() {
+  local token_validator="${repo_root}/frontend/packages/ui/scripts/validate-token-usage.js"
+  if [[ ! -f "${token_validator}" ]]; then
+    return 0
+  fi
+
+  local token_files=()
+  local file
+  for file in "${svelte_files[@]}" "${css_files[@]}"; do
+    case "${file}" in
+      frontend/packages/ui/src/components/*.svelte|frontend/packages/ui/src/components/**/*.svelte|frontend/packages/ui/src/styles/*.css)
+        token_files+=("${file}")
+        ;;
+    esac
+  done
+
+  if (( ${#token_files[@]} == 0 )); then
+    return 0
+  fi
+
+  local failed=false
+  for file in "${token_files[@]}"; do
+    if node "${token_validator}" --file "${repo_root}/${file}" >/tmp/lint_changed_token_usage.out 2>/tmp/lint_changed_token_usage.err; then
+      echo "Design tokens: ok ${file}"
+    else
+      echo "Design tokens: errors in ${file}" >&2
+      cat /tmp/lint_changed_token_usage.out >&2
+      cat /tmp/lint_changed_token_usage.err >&2
+      failed=true
+    fi
+  done
+
+  if ${failed}; then
+    overall_status=1
+  fi
+}
+
 run_js_lint() {
   if (( ${#js_files[@]} == 0 )); then
     return 0
@@ -949,6 +986,7 @@ run_swift_lint
 # Run TypeScript and Svelte type checks first (these catch type errors that ESLint might miss)
 run_tsc_check
 run_svelte_check
+run_ui_token_check
 
 # Then run ESLint for linting rules
 run_js_lint
