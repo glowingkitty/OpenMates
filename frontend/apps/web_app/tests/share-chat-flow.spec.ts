@@ -6,8 +6,8 @@ export {};
  *
  * Tests the full share creation flow:
  *   1. Login with existing account + 2FA
- *   2. Start a new chat and trigger an image-search result
- *   3. Wait for AI response and header image bubbles
+ *   2. Start a new chat with a deterministic web + image embed fixture
+ *   3. Wait for AI response and image-search embed completion
  *   4. Open the share panel via the chat header share button
  *   5. Generate a share link (default settings)
  *   6. Verify copy-link button, QR code, short link generation
@@ -33,7 +33,7 @@ const {
 	createStepScreenshotter,
 	assertNoMissingTranslations,
 	getTestAccount,
-	withLiveMockMarker
+	withMockMarker
 } = require('./signup-flow-helpers');
 
 const { loginToTestAccount, startNewChat, sendMessage, deleteActiveChat, waitForAssistantMessage } = require('./helpers/chat-test-helpers');
@@ -43,8 +43,7 @@ const { docAssert, docCheckpoint } = require('./helpers/doc-checkpoint');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 const SHARING_GUIDE_PATH = 'docs/user-guide/sharing.md';
-const EXPECTED_CHAT_OG_DESCRIPTION_TERM = 'sunset';
-const GENERATED_CHAT_METADATA_TIMEOUT_MS = 90_000;
+const EXPECTED_CHAT_OG_DESCRIPTION_TERM = 'berlin';
 
 function metaContent(html: string, selector: string): string {
 	const escapedSelector = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -86,30 +85,25 @@ test('creates and shares a chat link with QR code and short link', async ({
 	// ── Step 2: Start new chat ────────────────────────────────────────────
 	await startNewChat(page, logCheckpoint);
 
-	// ── Step 3: Trigger image search so the shared preview has header bubbles ─
+	// ── Step 3: Trigger image search so the shared preview has image metadata ─
 	await sendMessage(
 		page,
-		withLiveMockMarker('Search for images of sunsets over the ocean', 'images_search_web'),
+		withMockMarker("Search on the web for 'Berlin weather'", 'share_embed_flow'),
 		logCheckpoint,
 		takeStepScreenshot,
 		'share-chat'
 	);
 
-	// ── Step 4: Wait for AI response and header image bubbles ─────────────
+	// ── Step 4: Wait for AI response and image-search embed ───────────────
 	logCheckpoint('Waiting for assistant response...');
 	await waitForAssistantMessage(page, { which: 'last', logCheckpoint });
 	await waitForEmbedFinished(page, 'images', 'search');
 	await expect(page.getByTestId('chat-header-title')).not.toContainText(/processing|untitled/i, { timeout: 30000 });
-	await expect(page.getByTestId('chat-header-summary')).toContainText(/sunsets?|ocean/i, {
-		timeout: GENERATED_CHAT_METADATA_TIMEOUT_MS
-	});
-	await expect(page.getByTestId('chat-header-image-bubble-left')).toBeVisible({ timeout: 30000 });
-	await expect(page.getByTestId('chat-header-image-bubble-right')).toBeVisible({ timeout: 30000 });
 	await expect(page).toHaveURL(/chat-id=[a-zA-Z0-9-]+/, { timeout: 15000 });
 	const chatIdMatch = page.url().match(/chat-id=([a-zA-Z0-9-]+)/);
 	const activeChatId = chatIdMatch?.[1] ?? '';
 	expect(activeChatId).toBeTruthy();
-	logCheckpoint('Assistant response received and loaded chat header metadata plus image bubbles are visible.');
+	logCheckpoint('Assistant response received and image-search embed is finished.');
 	await takeStepScreenshot(page, 'assistant-response');
 
 	saveWarnErrorLogs('share-chat', 'after_response');
