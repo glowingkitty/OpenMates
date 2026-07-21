@@ -245,7 +245,12 @@
   onEmbedDataUpdated={handleEmbedDataUpdated}
 >
   {#snippet details({ isMobile: isMobileSnippet })}
-    <div class="reminder-preview" data-testid="reminder-embed-preview" class:mobile={isMobileSnippet}>
+    <div
+      class="reminder-preview"
+      data-testid="reminder-embed-preview"
+      data-reminder-id={reminderId ?? ''}
+      class:mobile={isMobileSnippet}
+    >
       {#if status === 'processing'}
         <!-- Processing state: show skeleton -->
         <div class="skeleton-content">
@@ -346,7 +351,7 @@
   
   .skeleton-line {
     height: 14px;
-    background: var(--color-grey-15, #f0f0f0);
+    background: var(--color-grey-20, #f0f0f0);
     border-radius: var(--radius-1);
     animation: pulse 1.5s ease-in-out infinite;
   }
@@ -428,7 +433,7 @@
   }
   
   .target-badge {
-    background: var(--color-grey-15, #f0f0f0);
+    background: var(--color-grey-20, #f0f0f0);
     color: var(--color-grey-70, #555);
   }
   
@@ -525,7 +530,7 @@
   }
   
   :global(.dark) .target-badge {
-    background: var(--color-grey-85, #252525);
+    background: var(--color-grey-80, #252525);
     color: var(--color-grey-40, #aaa);
   }
   

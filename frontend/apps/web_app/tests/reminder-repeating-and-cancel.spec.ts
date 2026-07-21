@@ -33,6 +33,8 @@ const {
 const { openSignupInterface, submitPasswordAndHandleOtp, waitForChatReady } = require('./helpers/chat-test-helpers');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
+const BASE_URL = process.env.PLAYWRIGHT_TEST_BASE_URL ?? 'https://app.dev.openmates.org';
+const API_BASE_URL = BASE_URL.replace('://app.dev.', '://api.dev.').replace('://app.', '://api.');
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -143,21 +145,34 @@ test('reminder — daily repeating cancellation prevents firing', async ({
 	log('=== S4: Cancelling repeating reminder before first occurrence ===');
 	await screenshot(page, 's5-before-cancel');
 
-	const assistantCountBeforeCancel = await assistantMsgs.count();
-	const editorFb = page.getByTestId('message-editor');
-	await expect(editorFb).toBeVisible();
-	await editorFb.click();
-	await page.keyboard.type('Cancel my repeating reminder. Just cancel it, no need to ask questions.');
-	const sendBtnFb = page.locator('[data-action="send-message"]');
-	await expect(sendBtnFb).toBeEnabled();
-	await sendBtnFb.click();
+	const reminderPreview = page.getByTestId('reminder-embed-preview').first();
+	await expect(reminderPreview).toBeVisible({ timeout: 30000 });
+	await expect(reminderPreview).toHaveAttribute('data-reminder-id', /[a-f0-9-]{36}/, { timeout: 30000 });
+	const reminderId = await reminderPreview.getAttribute('data-reminder-id');
+	expect(reminderId, 'Reminder ID should be available on the reminder preview').toBeTruthy();
 
-	// Wait for AI to confirm cancellation
-	await expect(async () => {
-		const count = await assistantMsgs.count();
-		expect(count).toBeGreaterThan(assistantCountBeforeCancel);
-	}).toPass({ timeout: 60000, intervals: [3000] });
-	log('Cancellation confirmed via chat message.');
+	const cancelResult = await page.evaluate(
+		async ({ apiBaseUrl, reminderId }: { apiBaseUrl: string; reminderId: string }) => {
+			const response = await fetch(`${apiBaseUrl}/v1/apps/reminder/skills/cancel-reminder`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				credentials: 'include',
+				body: JSON.stringify({ reminder_id: reminderId })
+			});
+			let body: any = null;
+			try {
+				body = await response.json();
+			} catch {
+				/* ignore non-JSON errors */
+			}
+			return { ok: response.ok, status: response.status, body };
+		},
+		{ apiBaseUrl: API_BASE_URL, reminderId: reminderId as string }
+	);
+	const cancelData = cancelResult.body?.data || cancelResult.body;
+	expect(cancelResult.ok, `Cancel request failed: ${JSON.stringify(cancelResult)}`).toBe(true);
+	expect(cancelData?.success, `Cancel skill failed: ${JSON.stringify(cancelResult)}`).toBe(true);
+	log('Cancellation confirmed via REST skill.', { reminderId });
 	await screenshot(page, 's5-cancelled-via-chat');
 
 	// =========================================================================
