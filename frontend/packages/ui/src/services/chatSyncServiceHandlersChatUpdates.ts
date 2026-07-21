@@ -99,6 +99,23 @@ function isChatVisiblyActive(chatId: string): boolean {
   return activeChatStore.get() === chatId && getVisibleHashChatId() === chatId;
 }
 
+function clearDraftOnlyShellForMessages(chat: Chat, messagesV: number): Chat {
+  if (
+    messagesV <= 0 ||
+    (chat.messages_v || 0) !== 0 ||
+    !(chat.encrypted_draft_md || chat.encrypted_draft_preview)
+  ) {
+    return chat;
+  }
+
+  return {
+    ...chat,
+    encrypted_draft_md: null,
+    encrypted_draft_preview: null,
+    draft_v: 0,
+  };
+}
+
 async function notifyBackgroundAssistantBroadcast(
   chatId: string,
   message: Message,
@@ -1098,14 +1115,22 @@ export async function handleChatMessageReceivedImpl(
         // saves the messages, messages_v stays at 0 and the health check flags
         // the chat as having issues.
         if (payload.versions?.messages_v !== undefined) {
+          const chatWithDraftTombstone = clearDraftOnlyShellForMessages(
+            chat,
+            payload.versions.messages_v,
+          );
           const chatUpdate: Chat = {
-            ...chat,
+            ...chatWithDraftTombstone,
             messages_v: payload.versions.messages_v,
             last_edited_overall_timestamp:
               payload.last_edited_overall_timestamp,
             updated_at: Math.floor(Date.now() / 1000),
           };
           await chatDB.updateChat(chatUpdate);
+          if (chatWithDraftTombstone !== chat) {
+            chatMetadataCache.invalidateChat(payload.chat_id);
+            chatListCache.markDirty();
+          }
           console.info(
             `[ChatSyncService:ChatUpdates] Updated messages_v to ${payload.versions.messages_v} for chat ${payload.chat_id} despite missing key (message queued)`,
           );
@@ -1122,8 +1147,12 @@ export async function handleChatMessageReceivedImpl(
 
       // CRITICAL: Only update specific fields, preserve all encrypted metadata
       // Create a minimal update object that only touches what we need to change
+      const chatWithDraftTombstone = clearDraftOnlyShellForMessages(
+        chat,
+        payload.versions.messages_v,
+      );
       const chatUpdate: Chat = {
-        ...chat, // Preserve ALL existing fields including encrypted_title, encrypted_icon, encrypted_category
+        ...chatWithDraftTombstone, // Preserve ALL existing fields including encrypted_title, encrypted_icon, encrypted_category
         messages_v: payload.versions.messages_v,
         last_edited_overall_timestamp: payload.last_edited_overall_timestamp,
         updated_at: Math.floor(Date.now() / 1000),
@@ -1140,6 +1169,10 @@ export async function handleChatMessageReceivedImpl(
 
       // Use a new transaction for updateChat
       await chatDB.updateChat(chatUpdate);
+      if (chatWithDraftTombstone !== chat) {
+        chatMetadataCache.invalidateChat(payload.chat_id);
+        chatListCache.markDirty();
+      }
 
       // Dispatch with the full chat object from DB to ensure consistency
       const finalChatState = await chatDB.getChat(payload.chat_id);

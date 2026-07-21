@@ -30,6 +30,7 @@ const mocks = vi.hoisted(() => ({
   },
   chatListCache: {
     upsertChat: vi.fn(),
+    markDirty: vi.fn(),
   },
   chatKeyManager: {
     getKeySync: vi.fn(),
@@ -326,5 +327,55 @@ describe("handleChatMessageReceivedImpl", () => {
       undefined,
       "science",
     );
+  });
+
+  it("clears draft-only shell fields when a synced message arrives", async () => {
+    const chat = {
+      chat_id: "chat-ideabucket-processed",
+      encrypted_title: null,
+      encrypted_draft_md: "stale-draft",
+      encrypted_draft_preview: "stale-preview",
+      messages_v: 0,
+      title_v: 0,
+      draft_v: 1,
+      last_edited_overall_timestamp: 100,
+      updated_at: 100,
+    };
+    mocks.chatDB.getChat.mockResolvedValue(chat);
+    mocks.activeChatStore.get.mockReturnValue(null);
+    const service = {
+      activeAITasks: new Map(),
+      dispatchEvent: vi.fn(),
+    } as unknown as ChatSynchronizationService;
+
+    await handleChatMessageReceivedImpl(service, {
+      event: "chat_message_added",
+      chat_id: "chat-ideabucket-processed",
+      message: {
+        message_id: "message-1",
+        chat_id: "chat-ideabucket-processed",
+        role: "user",
+        content: "Processed IdeaBucket text",
+        status: "synced",
+        created_at: 100,
+        encrypted_content: "",
+      },
+      versions: { messages_v: 1 },
+      last_edited_overall_timestamp: 101,
+    });
+
+    expect(mocks.chatDB.updateChat).toHaveBeenCalledWith(
+      expect.objectContaining({
+        chat_id: "chat-ideabucket-processed",
+        encrypted_draft_md: null,
+        encrypted_draft_preview: null,
+        draft_v: 0,
+        messages_v: 1,
+      }),
+    );
+    expect(mocks.chatMetadataCache.invalidateChat).toHaveBeenCalledWith(
+      "chat-ideabucket-processed",
+    );
+    expect(mocks.chatListCache.markDirty).toHaveBeenCalled();
   });
 });

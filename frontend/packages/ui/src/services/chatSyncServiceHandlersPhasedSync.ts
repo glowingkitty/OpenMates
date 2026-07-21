@@ -21,6 +21,7 @@ import type { EmbedType } from "../message_parsing/types";
 import { chatDB } from "./db";
 import { userDB } from "./userDB";
 import { chatListCache } from "./chatListCache";
+import { chatMetadataCache } from "./chatMetadataCache";
 import { updateTotalChatCount } from "../stores/userProfile";
 import { activeChatStore } from "../stores/activeChatStore";
 import { unreadMessagesStore } from "../stores/unreadMessagesStore";
@@ -458,12 +459,33 @@ export async function handleBackgroundMessageSyncImpl(
           existingChat.messages_v || 0,
           chatData.messages_v || chatData.server_message_count || 0,
         );
-        if (newV > (existingChat.messages_v || 0)) {
+        const shouldClearDraftOnlyShell =
+          !!(existingChat.encrypted_draft_md || existingChat.encrypted_draft_preview) &&
+          (existingChat.messages_v || 0) === 0 &&
+          newV > 0;
+        if (newV > (existingChat.messages_v || 0) || shouldClearDraftOnlyShell) {
           await chatDB.addChat(
-            { ...existingChat, messages_v: newV },
+            {
+              ...existingChat,
+              messages_v: newV,
+              ...(shouldClearDraftOnlyShell
+                ? {
+                    encrypted_draft_md: null,
+                    encrypted_draft_preview: null,
+                    draft_v: 0,
+                  }
+                : {}),
+            },
             undefined,
             { isFromSync: true },
           );
+          if (shouldClearDraftOnlyShell) {
+            chatMetadataCache.invalidateChat(chatData.chat_id);
+            chatListCache.markDirty();
+            console.info(
+              `[ChatSyncService] Cleared stale draft-only shell for message-bearing chat ${chatData.chat_id}`,
+            );
+          }
         }
       }
     }
