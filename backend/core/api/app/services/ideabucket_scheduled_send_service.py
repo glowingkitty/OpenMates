@@ -137,6 +137,7 @@ class IdeaBucketScheduledSendService:
                 "messages_v": final_messages_v,
                 "title_v": 0,
                 "metadata_v": 0,
+                "encrypted_chat_key": window["encrypted_chat_key"],
                 "last_edited_overall_timestamp": created_at,
                 "unread_count": 0,
                 "created_at": created_at,
@@ -240,6 +241,7 @@ class IdeaBucketScheduledSendService:
             "server_vault_encrypted_processing_payload",
             "client_encrypted_future_user_message",
             "client_encrypted_ideabucket_system_event",
+            "encrypted_chat_key",
             "payload_hash",
         )
         missing = [field for field in required_fields if not window.get(field)]

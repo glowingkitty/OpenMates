@@ -25,6 +25,7 @@ def _valid_encrypted_add_payload() -> dict[str, object]:
         "ideabucket": True,
         "ideabucket_processing_window_id": "2026-07-18",
         "ideabucket_processing_version": 1,
+        "encrypted_chat_key": "cipher-chat-key",
         "scheduled_send_at": 1,
         "server_vault_encrypted_processing_payload": "cipher-processing",
         "client_encrypted_future_user_message": "cipher-user-message",
@@ -53,4 +54,5 @@ def test_ideabucket_encrypted_add_schema_accepts_ciphertext_only_payload():
     request = IdeaBucketEncryptedAddRequest(**_valid_encrypted_add_payload())
 
     assert request.chat_id == "chat-1"
+    assert request.encrypted_chat_key == "cipher-chat-key"
     assert request.ideabucket_processing_window_id == "2026-07-18"

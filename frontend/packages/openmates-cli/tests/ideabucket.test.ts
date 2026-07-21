@@ -11,7 +11,12 @@ import type { WebSocket } from "ws";
 
 const require = createRequire(import.meta.url);
 const { WebSocketServer } = require("ws");
-const { bytesToBase64, createApiKeyCryptoMaterial } = await import("../src/crypto.ts");
+const {
+  bytesToBase64,
+  createApiKeyCryptoMaterial,
+  decryptBytesWithAesGcm,
+  decryptWithAesGcmCombined,
+} = await import("../src/crypto.ts");
 
 describe("IdeaBucket CLI client", () => {
   it("captures text as encrypted draft plus cache-only processing metadata", async () => {
@@ -79,10 +84,17 @@ describe("IdeaBucket CLI client", () => {
       assert.equal(update.payload.ideabucket, true);
       assert.equal(update.payload.ideabucket_processing_window_id, "2026-07-18");
       assert.equal(update.payload.scheduled_send_at, 1_784_332_800);
+      assert.equal(typeof update.payload.encrypted_chat_key, "string");
       assert.equal(typeof update.payload.server_vault_encrypted_processing_payload, "string");
       assert.equal(typeof update.payload.client_encrypted_future_user_message, "string");
       assert.equal(typeof update.payload.client_encrypted_ideabucket_system_event, "string");
       assert.equal(JSON.stringify(update.payload).includes("ship the menu bar MVP"), false);
+      const chatKey = await decryptBytesWithAesGcm(String(update.payload.encrypted_chat_key), Buffer.alloc(32));
+      assert.ok(chatKey);
+      assert.match(
+        String(await decryptWithAesGcmCombined(String(update.payload.client_encrypted_future_user_message), chatKey)),
+        /ship the menu bar MVP/,
+      );
     } finally {
       process.env.HOME = originalHome;
       wss.close();
@@ -184,6 +196,7 @@ describe("IdeaBucket CLI client", () => {
       assert.equal(JSON.stringify(storeEmbed.payload).includes("ship audio capture"), false);
       assert.equal(JSON.stringify(updateDraft.payload).includes("ship audio capture"), false);
       assert.equal(updateDraft.payload.ideabucket_processing_window_id, "2026-07-18-audio");
+      assert.equal(typeof updateDraft.payload.encrypted_chat_key, "string");
       assert.equal(Array.isArray(storeKeys.payload.keys), true);
       assert.equal((storeKeys.payload.keys as unknown[]).length, 1);
     } finally {
@@ -240,8 +253,16 @@ describe("IdeaBucket npm SDK", () => {
       { method: "POST", url: "/v1/sdk/ideabucket/buckets/2026-07-18/process" },
     ]);
     assert.equal(requests[1].body.includes("ship"), false);
-    assert.equal(JSON.parse(requests[1].body).ideabucket_processing_window_id, "2026-07-18");
-    assert.equal(typeof JSON.parse(requests[1].body).encrypted_draft_md, "string");
+    const addPayload = JSON.parse(requests[1].body);
+    assert.equal(addPayload.ideabucket_processing_window_id, "2026-07-18");
+    assert.equal(typeof addPayload.encrypted_draft_md, "string");
+    assert.equal(typeof addPayload.encrypted_chat_key, "string");
+    const chatKey = await decryptBytesWithAesGcm(addPayload.encrypted_chat_key, Buffer.alloc(32));
+    assert.ok(chatKey);
+    assert.match(
+      String(await decryptWithAesGcmCombined(addPayload.client_encrypted_future_user_message, chatKey)),
+      /ship/,
+    );
     assert.deepEqual(JSON.parse(requests[3].body), { now: true });
   });
 });

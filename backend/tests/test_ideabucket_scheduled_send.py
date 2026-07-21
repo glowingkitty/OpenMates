@@ -109,6 +109,7 @@ def _window(**overrides) -> dict:
         "server_vault_encrypted_processing_payload": "server-cache-only-cipher",
         "client_encrypted_future_user_message": _client_cipher("future-user-message"),
         "client_encrypted_ideabucket_system_event": _client_cipher("system-event"),
+        "encrypted_chat_key": "wrapped-chat-key",
         "payload_hash": "hash-v2",
     }
     payload.update(overrides)
@@ -166,6 +167,7 @@ async def test_scheduled_send_persists_only_client_encrypted_payloads_and_dispat
         "messages_v": 9,
         "title_v": 0,
         "metadata_v": 0,
+        "encrypted_chat_key": "wrapped-chat-key",
         "last_edited_overall_timestamp": 101,
         "unread_count": 0,
         "created_at": 101,

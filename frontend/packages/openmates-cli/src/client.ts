@@ -4003,14 +4003,16 @@ export class OpenMatesClient {
     });
     const payloadHash = createHash("sha256").update(serverProcessablePayload).digest("hex");
     const masterKey = this.getMasterKeyBytes();
+    const chatKey = new Uint8Array(randomBytes(32));
+    const encryptedChatKey = await encryptBytesWithAesGcm(chatKey, masterKey);
     const encryptedDraftMd = await encryptWithAesGcmCombined(markdown, masterKey);
     const encryptedPreview = await encryptWithAesGcmCombined(preview, masterKey);
-    const encryptedFutureUserMessage = await encryptWithAesGcmCombined(markdown, masterKey);
+    const encryptedFutureUserMessage = await encryptWithAesGcmCombined(markdown, chatKey);
     const encryptedSystemEvent = await encryptWithAesGcmCombined(JSON.stringify({
       type: "ideabucket_triggered_send",
       processing_window_id: processingWindowId,
       source: "openmates_cli",
-    }), masterKey);
+    }), chatKey);
     const serverCacheCiphertext = await encryptWithAesGcmCombined(serverProcessablePayload, masterKey);
 
     if (params.preparedEmbeds && params.preparedEmbeds.length > 0) {
@@ -4025,6 +4027,7 @@ export class OpenMatesClient {
         ideabucket: true,
         ideabucket_processing_window_id: processingWindowId,
         ideabucket_processing_version: version,
+        encrypted_chat_key: encryptedChatKey,
         scheduled_send_at: scheduledSendAt,
         server_vault_encrypted_processing_payload: serverCacheCiphertext,
         client_encrypted_future_user_message: encryptedFutureUserMessage,

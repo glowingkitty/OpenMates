@@ -196,6 +196,7 @@ async def handle_update_draft(
         processing_payload_synced = False
         processing_payload_fields = (
             "ideabucket_processing_version",
+            "encrypted_chat_key",
             "scheduled_send_at",
             "server_vault_encrypted_processing_payload",
             "client_encrypted_future_user_message",
@@ -218,8 +219,9 @@ async def handle_update_draft(
             server_payload = payload.get("server_vault_encrypted_processing_payload")
             future_user_message = payload.get("client_encrypted_future_user_message")
             system_event = payload.get("client_encrypted_ideabucket_system_event")
+            encrypted_chat_key = payload.get("encrypted_chat_key")
             payload_hash = payload.get("payload_hash")
-            if not all(isinstance(value, str) and value.strip() for value in (processing_window_id, server_payload, future_user_message, system_event, payload_hash)):
+            if not all(isinstance(value, str) and value.strip() for value in (processing_window_id, encrypted_chat_key, server_payload, future_user_message, system_event, payload_hash)):
                 await manager.send_personal_message(
                     message={"type": "error", "payload": {"message": "Missing IdeaBucket processing payload fields.", "chat_id": chat_id}},
                     user_id=user_id,
@@ -233,6 +235,7 @@ async def handle_update_draft(
                 version=processing_version,
                 chat_id=chat_id,
                 scheduled_send_at=scheduled_send_at,
+                encrypted_chat_key=encrypted_chat_key,
                 server_vault_encrypted_processing_payload=server_payload,
                 client_encrypted_future_user_message=future_user_message,
                 client_encrypted_ideabucket_system_event=system_event,

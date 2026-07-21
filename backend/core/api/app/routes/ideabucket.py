@@ -50,6 +50,7 @@ class IdeaBucketEncryptedAddRequest(BaseModel):
     ideabucket: bool = True
     ideabucket_processing_window_id: str = Field(min_length=1)
     ideabucket_processing_version: int = Field(gt=0)
+    encrypted_chat_key: str = Field(min_length=1)
     scheduled_send_at: int = Field(gt=0)
     server_vault_encrypted_processing_payload: str = Field(min_length=1)
     client_encrypted_future_user_message: str = Field(min_length=1)
@@ -124,6 +125,7 @@ async def store_ideabucket_encrypted_add(
         version=body.ideabucket_processing_version,
         chat_id=chat_id,
         scheduled_send_at=body.scheduled_send_at,
+        encrypted_chat_key=body.encrypted_chat_key,
         server_vault_encrypted_processing_payload=body.server_vault_encrypted_processing_payload,
         client_encrypted_future_user_message=body.client_encrypted_future_user_message,
         client_encrypted_ideabucket_system_event=body.client_encrypted_ideabucket_system_event,
