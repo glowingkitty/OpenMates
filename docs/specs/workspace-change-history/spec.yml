@@ -98,7 +98,7 @@ clarification:
     - question: How should retained history be capped?
       answer: Keep the latest 10 entries hot in Directus. When another batch causes the object to reach 20 hot entries, archive the oldest 10 as an encrypted S3 backup file and keep lightweight manifests.
     - question: Should `ask` auto-apply safe changes or require confirmation before applying?
-      answer: Auto-apply all authorized valid changes by default, then show a clear overview of what was created or modified and provide commands to undo individual changes or the full change set. Users can opt into an extra confirmation command/flag when they want preview-before-apply behavior.
+      answer: Auto-apply authorized valid deterministic creates and exact safe mutations by default, then show a clear overview of what was changed and provide commands to undo individual changes or the full change set. Preview and clarification-required are not primary ask outcomes; unsafe or under-contextualized requests fall back to chat.
     - question: What is the finalized ask outcome model for tasks, plans, projects, and workflows?
       answer: Short inputs of 8 words or fewer with no newlines, bullets, or list structure create deterministically. Long or structured inputs use the AI path. Safe exact mutations may auto-apply, while unsafe, ambiguous, unsupported, or under-contextualized requests return `fallback_to_chat` instead of preview or clarification-required ask outcomes.
   vision_summary: >
@@ -157,8 +157,8 @@ product_contract:
     preview_mode: not_a_primary_outcome
     short_input_rule: Inputs with 8 words or fewer and no newline, bullet, or list structure create one object deterministically with the input as title, goal, or name for the selected namespace.
     long_input_rule: Inputs over 8 words or with newline, bullet, or list structure use AI preprocessing, mutation planning, validation, application, and post-apply summary when safe.
-    output_rule: Every successful applied action returns `outcome: applied`, a change overview, change_set_id, namespace-specific per-entry restore/rollback commands, and one command to undo the whole change set.
-    fallback_rule: Unsafe, ambiguous, unsupported, unauthorized, unavailable-capability, or under-contextualized requests return `outcome: fallback_to_chat`, `fallback_to_chat: true`, a human-readable fallback message, and no change_set_id or user-visible mutations.
+    output_rule: "Every successful applied action returns `outcome: applied`, a change overview, change_set_id, namespace-specific per-entry restore/rollback commands, and one command to undo the whole change set."
+    fallback_rule: "Unsafe, ambiguous, unsupported, unauthorized, unavailable-capability, or under-contextualized requests return `outcome: fallback_to_chat`, `fallback_to_chat: true`, a human-readable fallback message, and no change_set_id or user-visible mutations."
     invalid_or_ambiguous_rule: Invalid authorization, invalid generated mutations, or unresolved ambiguity falls back before applying changes and does not create partial user-visible mutations.
     partial_failure_rule: If a multi-entry apply fails after one or more entries commit, the response must identify applied entries, failed entries, and rollback commands for the committed change set.
     global_safe_mutations:
@@ -546,7 +546,7 @@ scenarios:
     given:
       - Alice wants to plan a launch checklist.
     when:
-      - She runs `openmates tasks ask "Prepare launch: update copy, test signup tracking, ask Anna, publish Monday."`.
+      - "She runs `openmates tasks ask \"Prepare launch: update copy, test signup tracking, ask Anna, publish Monday.\"`."
     then:
       - OpenMates uses the AI planning path to create multiple task mutations.
       - All created tasks share one change_set_id.
@@ -581,7 +581,7 @@ scenarios:
     when:
       - She asks `add a Discord notification to all my workflows once they are done` from the global workflows list.
     then:
-      - OpenMates returns `outcome: fallback_to_chat` and `fallback_to_chat: true`.
+      - "OpenMates returns `outcome: fallback_to_chat` and `fallback_to_chat: true`."
       - No workflow is changed and no change set is created.
       - The fallback message explains that a specific workflow must be opened or mentioned for complex graph edits.
 
@@ -593,7 +593,7 @@ scenarios:
       - The target cannot be resolved safely or generated mutations fail validation.
     then:
       - OpenMates does not apply partial changes.
-      - The response returns `outcome: fallback_to_chat` with the ambiguous target reason.
+      - "The response returns `outcome: fallback_to_chat` with the ambiguous target reason."
       - No user-visible object changes occur without matching history entries.
 
   - id: S-14
@@ -646,7 +646,7 @@ scenarios:
     given:
       - Alice has encrypted tasks, plans, and projects visible in the CLI or web client.
     when:
-      - She asks `mark my 3d printing tasks done` or `archive @project:launch` and the client resolves exact matching IDs locally.
+      - "She asks `mark my 3d printing tasks done` or `archive @project:launch` and the client resolves exact matching IDs locally."
     then:
       - The backend receives only exact IDs, current versions, and encrypted patches or exact actions.
       - Matching ambiguous or zero targets returns `fallback_to_chat` before mutation.
@@ -743,15 +743,15 @@ acceptance_criteria:
     verification_ids: [T-WCH-ASK-BACKEND, T-WCH-ASK-CLI, T-WCH-ASK-SDK, V-WCH-ASK-DEV-CLI]
   - id: AC-12
     scenario: S-12
-    text: Optional confirmation mode previews proposed ask mutations without applying them and applies them only after explicit follow-up.
+    text: "Unsupported, broad, or under-contextualized ask requests return `outcome: fallback_to_chat`, create no change set, and explain the missing exact context."
     required: true
     status: pending
     coverage_status: covered
     verification_scope: cli
-    verification_ids: [T-WCH-ASK-CLI, T-WCH-ASK-SDK]
+    verification_ids: [T-WCH-ASK-BACKEND, T-WCH-ASK-CLI, T-WCH-ASK-SDK]
   - id: AC-13
     scenario: S-13
-    text: Ambiguous targets, unauthorized targets, or invalid generated mutations fail before applying user-visible changes and do not create partial mutations without history.
+    text: Ambiguous targets, unauthorized targets, or invalid generated mutations return `fallback_to_chat` before applying user-visible changes and do not create partial mutations without history.
     required: true
     status: pending
     coverage_status: covered
@@ -783,12 +783,20 @@ acceptance_criteria:
     verification_ids: [T-WCH-ASK-PIPELINE, V-WCH-ASK-PIPELINE-DEV]
   - id: AC-17
     scenario: S-17
-    text: Real dev-server inference evidence covers short/simple, medium, complex workflow, ambiguous destructive, and long-input ask examples with usage for preprocessor, main processor, and description generation.
+    text: Real dev-server inference evidence covers 20 short deterministic, medium AI-create, safe exact edit/delete/status, complex workflow, ambiguous destructive, and unsupported broad workflow ask examples with usage for preprocessor, main processor, and description generation where inference is used.
     required: true
-    status: satisfied
+    status: pending
     coverage_status: covered
     verification_scope: custom
     verification_ids: [V-WCH-ASK-PIPELINE-DEV]
+  - id: AC-18
+    scenario: S-18
+    text: First-party clients resolve encrypted task, plan, and project targets locally and send only exact IDs, current versions, and encrypted create/update/delete payloads to ask endpoints.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids: [T-WCH-ASK-BACKEND, T-WCH-ASK-CLI, T-WCH-ASK-SDK, V-WCH-ASK-PIPELINE-DEV]
 
 tests:
   - id: T-WCH-BACKEND
@@ -953,11 +961,12 @@ tests:
     file: backend/tests/test_workspace_ask_routes.py
     command: python3 -m pytest backend/tests/test_workspace_ask_routes.py -q
     assertions:
-      - Ask endpoints validate generated task, plan, project, and workflow mutations before applying them.
+      - Ask endpoints return `outcome: applied` for encrypted exact creates, updates, archives, deletes, and workflow enable/disable actions.
       - Authorized valid ask mutations auto-apply by default and always create workspace change sets and entries.
-      - Ambiguous, unauthorized, or invalid ask mutations fail before user-visible changes are applied.
+      - Ambiguous, unauthorized, invalid, unsupported, or under-contextualized ask mutations return `fallback_to_chat` before user-visible changes are applied.
       - Delete and archive ask mutations remain restorable through change history.
-    covers: [AC-10, AC-11, AC-13]
+      - Task, plan, and project ask endpoints accept only client-resolved exact IDs, current versions, and encrypted payloads for rich mutations.
+    covers: [AC-10, AC-11, AC-12, AC-13, AC-18]
     red_phase:
       required: true
       expected: fail_before_implementation
@@ -971,10 +980,10 @@ tests:
       evidence:
         status: passed
         command: python3 -m pytest backend/tests/test_workspace_ask_routes.py -q
-        run_id: local-2026-07-21T00:40:00Z
-        observed: 7 passed
-        subject_commit: c4b87d47e
-        timestamp: "2026-07-21T09:16:34Z"
+        run_id: local-2026-07-21T18:00:00Z
+        observed: 18 passed; route tests cover applied/fallback outcomes, exact encrypted task and plan status updates, exact project archive, exact workflow disable, deterministic workflow short create, and history entries for safe ask mutations.
+        subject_commit: 44f5b9cf4+working-tree
+        timestamp: "2026-07-21T18:00:00Z"
   - id: T-WCH-ASK-CLI
     type: vitest
     file: frontend/packages/openmates-cli/tests/workspace-ask.test.ts
