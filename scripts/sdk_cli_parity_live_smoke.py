@@ -229,6 +229,46 @@ def _run_npm_sdk(env: dict[str, str]) -> dict[str, Any]:
     return json.loads(result.stdout.strip())
 
 
+def _run_npm_ideabucket_sdk(env: dict[str, str]) -> dict[str, Any]:
+    script = f"""
+      import {{ OpenMates }} from '{NPM_SDK_ENTRY}';
+      const client = new OpenMates({{
+        apiKey: process.env.OPENMATES_SMOKE_API_KEY,
+        apiUrl: process.env.OPENMATES_API_URL,
+        deviceId: process.env.OPENMATES_SMOKE_DEVICE_ID,
+      }});
+      const bucketId = `sdk-live-smoke-npm-${{Date.now()}}`;
+      const settings = await client.ideabucket.settings();
+      const add = await client.ideabucket.add({{
+        text: 'SDK live smoke idea',
+        bucketId,
+        scheduledSendAt: Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60,
+      }});
+      const status = await client.ideabucket.status(bucketId);
+      console.log(JSON.stringify({{
+        settings: {{
+          hasPrompt: typeof settings.processingPrompt === 'string' && settings.processingPrompt.length > 0,
+          processingTimes: settings.processingTimes,
+          requireConfirmationType: typeof settings.requireConfirmation,
+        }},
+        add: {{
+          success: add.success === true,
+          bucketMatches: add.bucket_id === bucketId || add.processing_window_id === bucketId,
+          chatPresent: typeof add.chat_id === 'string' && add.chat_id.length > 0,
+          processingPayloadSynced: add.processing_payload_synced === true,
+        }},
+        status: {{
+          bucketMatches: status.bucket_id === bucketId || status.processing_window_id === bucketId,
+          active: status.status === 'active',
+          chatPresent: typeof status.chat_id === 'string' && status.chat_id.length > 0,
+          requireConfirmationType: typeof status.require_confirmation,
+        }},
+      }}));
+    """
+    result = _run(["node", "--input-type=module", "-e", script], env=env, description="npm IdeaBucket SDK smoke")
+    return json.loads(result.stdout.strip())
+
+
 def _run_python_sdk(env: dict[str, str]) -> dict[str, Any]:
     script = """
 import json
@@ -345,6 +385,73 @@ print(json.dumps({
     return json.loads(result.stdout.strip())
 
 
+def _run_python_ideabucket_sdk(env: dict[str, str]) -> dict[str, Any]:
+    script = """
+import json
+import os
+import sys
+import time
+
+sys.path.insert(0, os.fspath(%r))
+from openmates import OpenMates
+
+client = OpenMates(
+    api_key=os.environ["OPENMATES_SMOKE_API_KEY"],
+    api_url=os.environ["OPENMATES_API_URL"],
+    device_id=os.environ["OPENMATES_SMOKE_DEVICE_ID"],
+)
+bucket_id = f"sdk-live-smoke-pip-{int(time.time() * 1000)}"
+settings = client.ideabucket.settings()
+add = client.ideabucket.add({
+    "text": "SDK live smoke idea",
+    "bucketId": bucket_id,
+    "scheduledSendAt": int(time.time()) + 30 * 24 * 60 * 60,
+})
+status = client.ideabucket.status(bucket_id)
+print(json.dumps({
+    "settings": {
+        "hasPrompt": isinstance(settings.get("processingPrompt"), str) and len(settings.get("processingPrompt", "")) > 0,
+        "processingTimes": settings.get("processingTimes"),
+        "requireConfirmationType": type(settings.get("requireConfirmation")).__name__,
+    },
+    "add": {
+        "success": add.get("success") is True,
+        "bucketMatches": add.get("bucket_id") == bucket_id or add.get("processing_window_id") == bucket_id,
+        "chatPresent": isinstance(add.get("chat_id"), str) and len(add.get("chat_id", "")) > 0,
+        "processingPayloadSynced": add.get("processing_payload_synced") is True,
+    },
+    "status": {
+        "bucketMatches": status.get("bucket_id") == bucket_id or status.get("processing_window_id") == bucket_id,
+        "active": status.get("status") == "active",
+        "chatPresent": isinstance(status.get("chat_id"), str) and len(status.get("chat_id", "")) > 0,
+        "requireConfirmationType": type(status.get("require_confirmation")).__name__,
+    },
+}))
+""" % os.fspath(PYTHON_SDK_PATH)
+    result = _run(["python3", "-c", script], env=env, description="Python IdeaBucket SDK smoke")
+    return json.loads(result.stdout.strip())
+
+
+def _assert_ideabucket_live(result: dict[str, Any], *, sdk_name: str) -> None:
+    settings = result.get("settings")
+    if not isinstance(settings, dict) or settings.get("hasPrompt") is not True:
+        raise RuntimeError(f"{sdk_name} IdeaBucket settings did not return a prompt summary: {settings!r}")
+    if not isinstance(settings.get("processingTimes"), list) or not settings["processingTimes"]:
+        raise RuntimeError(f"{sdk_name} IdeaBucket settings did not return processing times: {settings!r}")
+
+    add = result.get("add")
+    if not isinstance(add, dict) or add.get("success") is not True or add.get("bucketMatches") is not True:
+        raise RuntimeError(f"{sdk_name} IdeaBucket add did not return a successful bucket match: {add!r}")
+    if add.get("chatPresent") is not True or add.get("processingPayloadSynced") is not True:
+        raise RuntimeError(f"{sdk_name} IdeaBucket add did not sync a processing payload: {add!r}")
+
+    status = result.get("status")
+    if not isinstance(status, dict) or status.get("bucketMatches") is not True or status.get("active") is not True:
+        raise RuntimeError(f"{sdk_name} IdeaBucket status did not return an active matching bucket: {status!r}")
+    if status.get("chatPresent") is not True or status.get("requireConfirmationType") != "boolean" and status.get("requireConfirmationType") != "bool":
+        raise RuntimeError(f"{sdk_name} IdeaBucket status summary was incomplete: {status!r}")
+
+
 def _assert_models3d_details(result: dict[str, Any], *, sdk_name: str) -> None:
     searches = result.get("models3d")
     if not isinstance(searches, list):
@@ -418,6 +525,7 @@ def main() -> int:
     parser.add_argument("--skip-python", action="store_true")
     parser.add_argument("--skip-revoke", action="store_true")
     parser.add_argument("--models3d-only", action="store_true", help="Run only the real models3d.search npm/pip SDK calls.")
+    parser.add_argument("--ideabucket-only", action="store_true", help="Run only live IdeaBucket settings/add/status npm/pip SDK calls.")
     args = parser.parse_args()
 
     if os.getenv("OPENMATES_LIVE_SMOKE") != "1":
@@ -449,6 +557,30 @@ def main() -> int:
         env["OPENMATES_SMOKE_API_KEY"] = api_key
 
         approved_devices: dict[str, list[str]] = {"npm": [], "pip": []}
+        if args.ideabucket_only:
+            try:
+                npm_result = _run_npm_ideabucket_sdk(env)
+            except RuntimeError as exc:
+                if not key_id or not _is_device_approval_error(exc):
+                    raise
+                approved_devices["npm"] = _approve_pending_key_devices(args.api_url, key_id, {"npm"})
+                npm_result = _run_npm_ideabucket_sdk(env)
+            _assert_ideabucket_live(npm_result, sdk_name="npm")
+
+            python_result = None
+            if not args.skip_python:
+                try:
+                    python_result = _run_python_ideabucket_sdk(env)
+                except RuntimeError as exc:
+                    if not key_id or not _is_device_approval_error(exc):
+                        raise
+                    approved_devices["pip"] = _approve_pending_key_devices(args.api_url, key_id, {"pip"})
+                    python_result = _run_python_ideabucket_sdk(env)
+                _assert_ideabucket_live(python_result, sdk_name="pip")
+
+            print(json.dumps({"apiUrl": args.api_url, "keyId": key_id, "approvedDevices": approved_devices, "npm": npm_result, "python": python_result}, indent=2))
+            return 0
+
         try:
             npm_result = _run_npm_sdk(env)
         except RuntimeError as exc:

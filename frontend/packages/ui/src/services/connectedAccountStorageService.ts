@@ -27,7 +27,9 @@ const STORAGE_FORBIDDEN_FIELDS = [
 	'scopes',
 	'refresh_token',
 	'access_token',
-	'provider_account_id'
+	'provider_account_id',
+	'client_id',
+	'private_key'
 ];
 
 export interface EncryptedConnectedAccountRow {
@@ -41,14 +43,14 @@ export interface EncryptedConnectedAccountRow {
 	encrypted_app_permissions: string;
 	provider_account_id_hash?: string | null;
 	encrypted_provider_account_display?: string | null;
- encrypted_account_directory_hint?: string | null;
- server_access_enabled?: boolean;
- encrypted_server_access_ref?: string | null;
- execution_mode?: 'oauth' | 'local_connector' | string | null;
-  connector_provider_id?: string | null;
-  connector_status?: 'online' | 'offline' | 'setup_required' | 'revoked' | string | null;
-  connector_public_metadata?: Record<string, unknown> | null;
-  updated_at?: number;
+	encrypted_account_directory_hint?: string | null;
+	server_access_enabled?: boolean;
+	encrypted_server_access_ref?: string | null;
+	execution_mode?: 'oauth' | 'local_connector' | string | null;
+	connector_provider_id?: string | null;
+	connector_status?: 'online' | 'offline' | 'setup_required' | 'revoked' | string | null;
+	connector_public_metadata?: Record<string, unknown> | null;
+	updated_at?: number;
 }
 
 export type EncryptedConnectedAccountCreateInput = Omit<
@@ -80,6 +82,14 @@ interface ConnectedAccountPermissionsEnvelope {
 	app_id?: string;
 	allowed_actions?: string[];
 	action_scope?: Record<string, unknown>;
+	runtime_modes?: Record<string, string>;
+	apps?: Record<string, ConnectedAccountAppPermissionEnvelope>;
+}
+
+interface ConnectedAccountAppPermissionEnvelope {
+	allowed_actions?: string[];
+	action_scope?: Record<string, unknown>;
+	runtime_modes?: Record<string, string>;
 }
 
 export interface ConnectedAccountSummary {
@@ -88,12 +98,12 @@ export interface ConnectedAccountSummary {
 	app_id: string;
 	account_ref: string;
 	label: string;
- capabilities: string[];
- runtime_modes: Record<string, string>;
- execution_mode?: string | null;
- connector_provider_id?: string | null;
- connector_status?: string | null;
- updated_at?: number;
+	capabilities: string[];
+	runtime_modes: Record<string, string>;
+	execution_mode?: string | null;
+	connector_provider_id?: string | null;
+	connector_status?: string | null;
+	updated_at?: number;
 }
 
 export async function computeConnectedAccountUserHash(userId: string): Promise<string> {
@@ -191,34 +201,37 @@ export async function buildConnectedAccountSendContext(params: {
 
 		const capabilityList = normalizeCapabilityList(capabilities);
 		const requestedAppId = normalizeConnectedAccountAppId(params.appId);
-		const appId = normalizeConnectedAccountAppId(permissions.app_id ?? appIdForProvider(providerId));
-		if (appId !== requestedAppId) continue;
+		const permission = permissionForApp(permissions, requestedAppId, providerId);
+		if (!permission) continue;
+		const appId = permission.appId;
+		const providerRef = normalizeConnectedAccountProviderId(providerId);
 		const defaultCapabilityActions = appId === 'calendar' && isLegacyMissingCapabilityList(capabilities)
 			? params.defaultAllowedActions ?? []
 			: [];
 		const fallbackCapabilities = capabilitiesForActions(
-			permissions.allowed_actions ?? defaultCapabilityActions
+			permission.allowed_actions ?? defaultCapabilityActions
 		);
 		const directoryCapabilities = normalizeCapabilityList(directoryHint?.capabilities);
 		const allowedActions = params.allowedActionsOverride
 			?? preauthorizedActions(
-				permissions.allowed_actions ?? [],
-				directoryHint?.runtime_modes
+				permission.allowed_actions ?? [],
+				directoryHint?.runtime_modes ?? permission.runtime_modes
 			);
 		const actionScopes = params.actionScopesOverride?.length
 			? params.actionScopesOverride
-			: [permissions.action_scope].filter((scope): scope is Record<string, unknown> => Boolean(scope));
+			: [permission.action_scope].filter((scope): scope is Record<string, unknown> => Boolean(scope));
 		directory.push({
 			connected_account_id: row.id,
 			app_id: appId,
+			provider_id: providerRef,
 			account_ref: directoryHint?.account_ref ?? row.id,
 			label: directoryHint?.label ?? label,
 			capabilities: directoryCapabilities.length
 				? directoryCapabilities
 				: capabilityList.length
 					? capabilityList
-					: fallbackCapabilities,
-			runtime_modes: directoryHint?.runtime_modes
+				: fallbackCapabilities,
+			runtime_modes: directoryHint?.runtime_modes ?? permission.runtime_modes
 		});
 		if (allowedActions.length > 0) {
 			if (row.execution_mode === 'local_connector') {
@@ -233,6 +246,7 @@ export async function buildConnectedAccountSendContext(params: {
 				tokenRefInputs.push({
 					connected_account_id: row.id,
 					app_id: appId,
+					provider_id: providerRef,
 					allowed_actions: allowedActions,
 					refresh_token_envelope: refreshTokenEnvelope,
 					...(actionScope ? { action_scope: actionScope } : {})
@@ -271,12 +285,13 @@ export async function summarizeConnectedAccountRows(
 					: Promise.resolve(undefined)
 			]);
 			const capabilityList = normalizeCapabilityList(capabilities);
+			const primaryAppId = primaryAppIdForPermissions(permissions, providerId);
 			const fallbackCapabilities = capabilitiesForActions(permissions.allowed_actions ?? []);
 			const directoryCapabilities = normalizeCapabilityList(directoryHint?.capabilities);
 			summaries.push({
 				id: row.id,
 				provider_id: providerId,
-				app_id: normalizeConnectedAccountAppId(permissions.app_id ?? appIdForProvider(providerId)),
+				app_id: primaryAppId,
 				account_ref: directoryHint?.account_ref ?? row.id,
 				label: directoryHint?.label ?? label,
 				capabilities: directoryCapabilities.length
@@ -323,6 +338,38 @@ function buildLocalConnectorSummary(row: EncryptedConnectedAccountRow): Connecte
 
 function appIdForProvider(providerId: string): string {
 	if (providerId === 'google_calendar') return 'calendar';
+	if (providerId === 'revolut_business') return 'finance';
+	return providerId;
+}
+
+function primaryAppIdForPermissions(permissions: ConnectedAccountPermissionsEnvelope, providerId: string): string {
+	if (permissions.apps && typeof permissions.apps === 'object') {
+		const firstApp = Object.keys(permissions.apps).map(normalizeConnectedAccountAppId).sort()[0];
+		if (firstApp) return firstApp;
+	}
+	return normalizeConnectedAccountAppId(permissions.app_id ?? appIdForProvider(providerId));
+}
+
+function permissionForApp(
+	permissions: ConnectedAccountPermissionsEnvelope,
+	requestedAppId: string,
+	providerId: string
+): (ConnectedAccountAppPermissionEnvelope & { appId: string }) | null {
+	const appPermissions = permissions.apps?.[requestedAppId]
+		?? permissions.apps?.[normalizeConnectedAccountAppId(requestedAppId)];
+	if (appPermissions) return { appId: requestedAppId, ...appPermissions };
+	const legacyAppId = normalizeConnectedAccountAppId(permissions.app_id ?? appIdForProvider(providerId));
+	if (legacyAppId !== requestedAppId) return null;
+	return {
+		appId: legacyAppId,
+		allowed_actions: permissions.allowed_actions,
+		action_scope: permissions.action_scope,
+		runtime_modes: permissions.runtime_modes
+	};
+}
+
+function normalizeConnectedAccountProviderId(providerId: string): string {
+	if (providerId === 'google_calendar') return 'google';
 	return providerId;
 }
 

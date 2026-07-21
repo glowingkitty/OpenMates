@@ -250,12 +250,12 @@ attempts:
     reason: Merchant/payee names are sensitive; follow-up usability should come from encrypted mappings and placeholder rewrite.
 
 handoff:
-  current_task_id: TASK-5
-  next_action: Deploy the server-egress IP setup endpoint and callback/CLI guidance, then recreate the Revolut Sandbox certificate with the OpenMates server IP in the Revolut Production IP whitelist.
-  command: NODE_OPTIONS=--max-old-space-size=8192 npm run build && /home/superdev/projects/OpenMates/.venv/bin/python3 scripts/spec_validate.py docs/specs/finance-check-accounts-v1/spec.yml
-  expected_outcome: Web build, spec validation, and live callback URL check pass before the sandbox setup flow is retried.
+  current_task_id: TASK-4
+  next_action: Implement the CLI-first Finance check-accounts execution path against the connected Revolut Sandbox account, including filters and redacted list output.
+  command: openmates finance check-accounts --connected-account e4b888e0-617a-4c33-87f8-3170dafc505f --direction expense --json
+  expected_outcome: CLI prints redacted filtered Finance JSON from live dev Revolut Sandbox data and no secret fields appear in output.
   blocker: null
-  last_verified_commit: a754b9ac6
+  last_verified_commit: 0a22b55b3
 
 scenarios:
   - id: S-1
@@ -324,6 +324,17 @@ scenarios:
       - The fullscreen view shows filtered totals, transaction rows, and projections from the saved normalized embed data.
       - Filtering does not require re-fetching raw Revolut data or re-uploading CSV files.
 
+  - id: S-7
+    title: CLI filters financial data and prints a list view
+    given:
+      - Alice has a connected Revolut Business Sandbox account stored as an encrypted OpenMates connected account.
+    when:
+      - Alice runs `openmates finance check-accounts --from 2026-01-01 --to 2026-01-31 --direction expense --category groceries`.
+    then:
+      - The CLI creates scoped connected-account token refs, runs the Finance skill against `https://api.dev.openmates.org`, and prints only matching totals and transactions.
+      - The same response includes time-series buckets for future income/expense graph rendering and normalized transaction rows for a list view.
+      - The output remains redacted and does not include refresh tokens, access tokens, private keys, raw counterparties, or raw merchant names.
+
 acceptance_criteria:
   - id: AC-1
     scenario: S-1
@@ -389,16 +400,26 @@ acceptance_criteria:
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-CLI-FINANCE-DEV, T-NPM-SDK-FINANCE, T-PIP-SDK-FINANCE, T-PARITY-AUDIT]
+  - id: AC-9
+    scenario: S-7
+    text: The CLI Check accounts command can select an encrypted Revolut connected account, apply date/account/source/category/direction/state/placeholder filters, and print summary totals, time-series buckets, and a redacted transaction list.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids: [T-BACKEND-FINANCE-ANALYSIS, T-CLI-FINANCE-DEV]
 
 assumptions:
   - id: A-1
     text: Revolut Business Sandbox signup and API certificate setup are accessible without upgrading a real Revolut Business account.
     category: provider
     required_before: implementation
-    status: unchecked
+    status: confirmed
     evidence:
       - source: https://developer.revolut.com/docs/guides/manage-accounts/get-started/prepare-sandbox-environment
         summary: Docs describe an independent Sandbox environment with mock data and separate credentials.
+      - source: local-dev-2026-07-21
+        summary: A Revolut Business Sandbox account was connected to OpenMates dev as encrypted connected account e4b888e0-617a-4c33-87f8-3170dafc505f and validated against read-only account data.
   - id: A-2
     text: Sandbox simulations can create enough test transactions for deterministic account analysis tests.
     category: provider
@@ -411,8 +432,10 @@ assumptions:
     text: The connected-account token broker can be generalized from Google Calendar to provider-specific token exchange without weakening existing Calendar behavior.
     category: architecture
     required_before: implementation
-    status: unchecked
-    evidence: []
+    status: confirmed
+    evidence:
+      - source: commit 0a22b55b3
+        summary: Revolut Business provider-specific refresh-token exchange was added to the connected-account registry and backend contract tests passed without changing Google Calendar semantics.
 
 contracts:
   provider:
@@ -484,6 +507,21 @@ contracts:
         account_filters:
           type: array
           items: { type: string }
+        source_filters:
+          type: array
+          items: { type: string }
+        category_filters:
+          type: array
+          items: { type: string }
+        direction_filter:
+          type: string
+          enum: [income, expense]
+        state_filters:
+          type: array
+          items: { type: string }
+        placeholder_filters:
+          type: array
+          items: { type: string }
       required: [period]
     normalized_output:
       accounts:
@@ -491,7 +529,7 @@ contracts:
       transactions:
         fields: [transaction_ref, account_ref, source_ref, posted_at, amount, currency, direction, category, counterparty_placeholder, state]
       summaries:
-        fields: [income_total, expense_total, net_total, by_category, recurring_items, projection, confidence]
+        fields: [income_total, expense_total, net_total, by_category, time_series, recurring_items, projection, confidence, filters_applied]
       privacy:
         fields: [placeholder_mappings_ref, raw_names_persisted_false]
   csv:
@@ -535,7 +573,7 @@ tests:
     type: lint
     file: docs/specs/finance-check-accounts-v1/spec.yml
     command: python3 scripts/spec_validate.py docs/specs/finance-check-accounts-v1/spec.yml
-    covers: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8]
+    covers: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8, AC-9]
     assertions:
       - spec structure validates before implementation planning
       - all required acceptance criteria have verification coverage
@@ -624,11 +662,12 @@ tests:
     type: pytest
     file: backend/tests/test_finance_check_accounts_skill.py
     command: python3 -m pytest backend/tests/test_finance_check_accounts_skill.py
-    covers: [AC-6, AC-7]
+    covers: [AC-6, AC-7, AC-9]
     assertions:
       - combines normalized provider and CSV transactions
       - computes monthly, quarterly, and yearly projection deterministically
       - emits account/source/category/filterable embed data
+      - emits graph-ready income/expense time-series buckets and honors CLI filters
       - returns coverage/confidence notes for short or volatile histories
     red_phase:
       required: true
@@ -661,11 +700,12 @@ tests:
     type: manual
     file: scripts/verify_finance_check_accounts_cli.py
     command: python3 scripts/verify_finance_check_accounts_cli.py --env dev --scenario revolut-sandbox-and-csv
-    covers: [AC-2, AC-3, AC-4, AC-6, AC-8]
+    covers: [AC-2, AC-3, AC-4, AC-6, AC-8, AC-9]
     assertions:
       - real CLI command hits https://api.dev.openmates.org with real auth/test-account state
       - connected Revolut Sandbox and CSV fixture combine into one skill result
       - output is redacted and contains no raw merchant names
+      - filtered output includes summary totals, time-series buckets, and list rows
     red_phase:
       required: true
       expected: fail
@@ -733,7 +773,9 @@ tests:
     covers: [AC-4, AC-5, AC-7]
     assertions:
       - web can run Check accounts with CSV fixture and connected-account sandbox stub/state after CLI/SDK gates
-      - result embed renders unified account summary and filter controls
+      - preview renders unified account summary and a compact income/expense graph
+      - fullscreen renders an interactive income/expense graph over time plus a filtered list view underneath
+      - fullscreen filter controls support account, source, date range, category, direction, state, and placeholder filters from saved normalized data
       - raw merchant names are not visible unless restored locally for the owner
     red_phase:
       required: true
@@ -816,8 +858,8 @@ tasks:
     status: pending
     phase: awaiting_approval
     covers:
-      scenarios: [S-1, S-2, S-3, S-4, S-5, S-6]
-      acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8]
+      scenarios: [S-1, S-2, S-3, S-4, S-5, S-6, S-7]
+      acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8, AC-9]
     expected_files:
       - docs/specs/finance-check-accounts-v1/spec.yml
     verification: [T-SPEC-VALIDATE]
@@ -863,8 +905,8 @@ tasks:
     status: pending
     phase: working_tasks
     covers:
-      scenarios: [S-3, S-4]
-      acceptance_criteria: [AC-3, AC-4, AC-6, AC-7]
+      scenarios: [S-3, S-4, S-7]
+      acceptance_criteria: [AC-3, AC-4, AC-6, AC-7, AC-9]
     expected_files:
       - backend/apps/finance/app.yml
       - backend/apps/finance/skills/check_accounts_skill.py
@@ -885,15 +927,17 @@ tasks:
     follow_up_tasks: []
     independently_deployable: false
   - id: TASK-4
-    title: Prove CLI and SDK phase gates against dev server
+    title: Implement and prove CLI filtered Check accounts against dev server
     status: pending
     phase: working_tasks
     covers:
-      scenarios: [S-2, S-3, S-4]
-      acceptance_criteria: [AC-2, AC-3, AC-4, AC-6, AC-8]
+      scenarios: [S-2, S-3, S-4, S-7]
+      acceptance_criteria: [AC-2, AC-3, AC-4, AC-6, AC-8, AC-9]
     expected_files:
       - scripts/verify_finance_check_accounts_cli.py
       - frontend/packages/openmates-cli/src/cli.ts
+      - frontend/packages/openmates-cli/src/client.ts
+      - backend/core/api/app/routes/sdk.py
       - frontend/packages/openmates-cli/tests/financeCheckAccounts.sdk.test.ts
       - packages/openmates-python/tests/test_finance_check_accounts.py
     verification: [T-CLI-FINANCE-DEV, T-NPM-SDK-FINANCE, T-PIP-SDK-FINANCE, T-PARITY-AUDIT]
@@ -903,15 +947,18 @@ tasks:
       files:
         - scripts/verify_finance_check_accounts_cli.py
         - frontend/packages/openmates-cli/src/cli.ts
+        - frontend/packages/openmates-cli/src/client.ts
         - frontend/packages/openmates-cli/tests/financeCheckAccounts.sdk.test.ts
+        - backend/core/api/app/routes/sdk.py
         - packages/openmates-python/tests/test_finance_check_accounts.py
       shared_files:
         - packages/openmates-python/openmates/sdk.py
     blockers: []
-    follow_up_tasks: []
+    follow_up_tasks:
+      - Add npm SDK and pip SDK parity after the CLI path is green against dev.
     independently_deployable: true
   - id: TASK-5
-    title: Implement web embed preview/fullscreen after CLI and SDK gates
+    title: Implement web embed preview/fullscreen with graph and filtered list after CLI and SDK gates
     status: pending
     phase: working_tasks
     covers:

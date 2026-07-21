@@ -128,6 +128,7 @@ describe('connectedAccountStorageService', () => {
 			{
 				connected_account_id: 'acct-1',
 				app_id: 'calendar',
+				provider_id: 'google',
 				account_ref: 'calendar-work',
 				label: 'Work',
 				capabilities: ['read'],
@@ -138,6 +139,7 @@ describe('connectedAccountStorageService', () => {
 		expect(context?.tokenRefInputs?.[0]).toMatchObject({
 			connected_account_id: 'acct-1',
 			app_id: 'calendar',
+			provider_id: 'google',
 			allowed_actions: ['read'],
 			refresh_token_envelope: { refresh_token: 'secret-refresh', provider: 'google' },
 			action_scope: { calendar_id: 'primary' }
@@ -191,6 +193,7 @@ describe('connectedAccountStorageService', () => {
 			{
 				connected_account_id: 'acct-1',
 				app_id: 'calendar',
+				provider_id: 'google',
 				account_ref: 'acct-1',
 				label: 'Work calendar',
 				capabilities: ['read', 'write'],
@@ -198,6 +201,51 @@ describe('connectedAccountStorageService', () => {
 			}
 		]);
 		expect(context?.tokenRefInputs).toEqual([]);
+	});
+
+	it('uses one provider account for multiple app-specific permission envelopes', async () => {
+		const row = {
+			...encryptedRow,
+			hashed_user_id: 'hash:user-1',
+			encrypted_provider_type: 'enc:google',
+			provider_type_hash: 'hash:google',
+			encrypted_account_label: 'enc:"Google account"',
+			encrypted_capabilities: 'enc:["calendar.read","mail.read"]',
+			encrypted_app_permissions:
+				'enc:{"apps":{"calendar":{"allowed_actions":["read"],"action_scope":{"calendar_id":"primary"},"runtime_modes":{"read":"allow_automatically"}},"mail":{"allowed_actions":["read"],"runtime_modes":{"read":"allow_automatically"}}}}',
+			encrypted_refresh_token_bundle: 'enc:{"refresh_token":"secret-refresh","provider":"google"}',
+			encrypted_account_directory_hint:
+				'enc:{"account_ref":"google-work","label":"Work Google","capabilities":["calendar.read","mail.read"]}'
+		};
+
+		const calendarContext = await buildConnectedAccountSendContext({ appId: 'calendar', rows: [row] });
+		const mailContext = await buildConnectedAccountSendContext({ appId: 'mail', rows: [row] });
+
+		expect(calendarContext?.directory?.[0]).toMatchObject({
+			connected_account_id: 'acct-1',
+			app_id: 'calendar',
+			provider_id: 'google',
+			account_ref: 'google-work'
+		});
+		expect(calendarContext?.tokenRefInputs?.[0]).toMatchObject({
+			connected_account_id: 'acct-1',
+			app_id: 'calendar',
+			provider_id: 'google',
+			allowed_actions: ['read'],
+			action_scope: { calendar_id: 'primary' }
+		});
+		expect(mailContext?.directory?.[0]).toMatchObject({
+			connected_account_id: 'acct-1',
+			app_id: 'mail',
+			provider_id: 'google',
+			account_ref: 'google-work'
+		});
+		expect(mailContext?.tokenRefInputs?.[0]).toMatchObject({
+			connected_account_id: 'acct-1',
+			app_id: 'mail',
+			provider_id: 'google',
+			allowed_actions: ['read']
+		});
 	});
 
 	it('does not broaden update-only action fallback into write capability', async () => {
