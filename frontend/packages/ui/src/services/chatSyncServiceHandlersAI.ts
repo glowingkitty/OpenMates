@@ -151,6 +151,22 @@ const PENDING_FINALIZED_EMBED_RETRY_MS = 2000;
 const PENDING_FINALIZED_EMBED_TTL_MS = 120000;
 const SHA256_HEX_RE = /^[a-f0-9]{64}$/i;
 
+async function resolveRawChatIdForFinalizedEmbed(
+  chatId: string,
+): Promise<string | null> {
+  if (await chatDB.getChat(chatId)) return chatId;
+  if (!SHA256_HEX_RE.test(chatId)) return null;
+
+  const { computeSHA256 } = await import("../message_parsing/utils");
+  const allChats = chatListCache.getCache() ?? (await chatDB.getAllChats());
+  for (const chat of allChats) {
+    if ((await computeSHA256(chat.chat_id)) === chatId.toLowerCase()) {
+      return chat.chat_id;
+    }
+  }
+  return null;
+}
+
 function queuePendingFinalizedEmbed(
   serviceInstance: ChatSynchronizationService,
   embedData: EmbedDataPayload,
@@ -224,6 +240,9 @@ export async function flushPendingFinalizedEmbedsForChat(
   const pendingForChat = pendingFinalizedEmbedsByChat.get(chatId);
   if (!pendingForChat) return;
 
+  const rawChatId = await resolveRawChatIdForFinalizedEmbed(chatId);
+  if (!rawChatId) return;
+
   console.info(
     `[ChatSyncService:AI] Flushing ${pendingForChat.size} finalized embed(s) queued for chat ${chatId}`,
   );
@@ -232,9 +251,13 @@ export async function flushPendingFinalizedEmbedsForChat(
     processedThisPass = false;
     for (const [embedId, embedData] of Array.from(pendingForChat)) {
       try {
+        const payloadForRawChat: EmbedDataPayload = {
+          ...embedData,
+          chat_id: rawChatId,
+        };
         await handleSendEmbedDataImpl(
           serviceInstance,
-          embedData as unknown as SendEmbedDataPayload,
+          payloadForRawChat as unknown as SendEmbedDataPayload,
         );
         if (isEmbedAlreadyProcessed(embedId, embedData.version_number)) {
           pendingForChat.delete(embedId);
@@ -266,7 +289,8 @@ function schedulePendingFinalizedEmbedsFlush(
       const pendingForChat = pendingFinalizedEmbedsByChat.get(chatId);
       if (!pendingForChat) return;
 
-      if (await chatDB.getChat(chatId) && chatKeyManager.getKeySync(chatId)) {
+      const rawChatId = await resolveRawChatIdForFinalizedEmbed(chatId);
+      if (rawChatId && chatKeyManager.getKeySync(rawChatId)) {
         await flushPendingFinalizedEmbedsForChat(serviceInstance, chatId);
       }
 

@@ -7,14 +7,23 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { ChatSynchronizationService } from "../chatSyncService";
 import {
+  clearProcessedEmbedsTracking,
+  flushPendingFinalizedEmbedsForChat,
   handleAIBackgroundResponseCompletedImpl,
   handleAITypingStartedImpl,
   handleEmbedUpdateImpl,
   handleSendEmbedDataImpl,
 } from "../chatSyncServiceHandlersAI";
 
+const HASHED_CHAT_ID = "a".repeat(64);
+const HASHED_MESSAGE_ID = "b".repeat(64);
+const HASHED_USER_ID = "c".repeat(64);
+const HASHED_EMBED_ID = "d".repeat(64);
+
 const mockChatDB = vi.hoisted(() => ({
   getChat: vi.fn(),
+  getAllChats: vi.fn(),
+  getEncryptedChatKey: vi.fn(),
   updateChat: vi.fn(),
   getMessage: vi.fn(),
   getMessagesForChat: vi.fn(),
@@ -24,6 +33,10 @@ const mockEmbedStore = vi.hoisted(() => ({
   get: vi.fn(),
   put: vi.fn(),
   putEncrypted: vi.fn(),
+  getEmbedKey: vi.fn(),
+  setEmbedKeyInCache: vi.fn(),
+  setInMemoryOnly: vi.fn(),
+  registerEmbedRef: vi.fn(),
   storeEmbedKeys: vi.fn(),
   removeFromMemoryCache: vi.fn(),
 }));
@@ -42,13 +55,23 @@ const mockChatKeyManager = vi.hoisted(() => ({
 
 const mockEncryptWithChatKey = vi.hoisted(() => vi.fn());
 const mockEncryptChatKeyWithMasterKey = vi.hoisted(() => vi.fn());
+const mockDeriveEmbedKeyFromChatKey = vi.hoisted(() => vi.fn());
+const mockEncryptWithEmbedKey = vi.hoisted(() => vi.fn());
+const mockWrapEmbedKeyWithMasterKey = vi.hoisted(() => vi.fn());
+const mockWrapEmbedKeyWithChatKey = vi.hoisted(() => vi.fn());
 const mockEncryptedChatKeyMatchesRawKey = vi.hoisted(() => vi.fn());
+const mockEnsureChatKeySafeForWrite = vi.hoisted(() => vi.fn());
 const mockAddCandidateKey = vi.hoisted(() => vi.fn());
 const mockSendEncryptedStoragePackage = vi.hoisted(() => vi.fn());
+const mockSendStoreEmbed = vi.hoisted(() => vi.fn());
+const mockSendStoreEmbedKeys = vi.hoisted(() => vi.fn());
+const mockSendStoreEmbedDiff = vi.hoisted(() => vi.fn());
+const mockComputeSHA256 = vi.hoisted(() => vi.fn());
 const mockChatMetadataCache = vi.hoisted(() => ({
   invalidateChat: vi.fn(),
 }));
 const mockChatListCache = vi.hoisted(() => ({
+  getCache: vi.fn(),
   invalidateLastMessage: vi.fn(),
   upsertChat: vi.fn(),
 }));
@@ -70,6 +93,14 @@ vi.mock("../db/chatCrudOperations", () => ({
   addCandidateKey: mockAddCandidateKey,
 }));
 
+vi.mock("../chatKeyWriteGuard", () => ({
+  ensureChatKeySafeForWrite: mockEnsureChatKeySafeForWrite,
+}));
+
+vi.mock("../../message_parsing/utils", () => ({
+  computeSHA256: mockComputeSHA256,
+}));
+
 vi.mock("../encryption/MessageEncryptor", () => ({
   encryptWithChatKey: mockEncryptWithChatKey,
   decryptWithChatKey: vi.fn(),
@@ -82,10 +113,10 @@ vi.mock("../encryption/MetadataEncryptor", () => ({
   decryptChatKeyWithMasterKey: vi.fn(),
   encryptWithMasterKey: vi.fn(),
   generateEmbedKey: vi.fn(),
-  deriveEmbedKeyFromChatKey: vi.fn(),
-  encryptWithEmbedKey: vi.fn(),
-  wrapEmbedKeyWithMasterKey: vi.fn(),
-  wrapEmbedKeyWithChatKey: vi.fn(),
+  deriveEmbedKeyFromChatKey: mockDeriveEmbedKeyFromChatKey,
+  encryptWithEmbedKey: mockEncryptWithEmbedKey,
+  wrapEmbedKeyWithMasterKey: mockWrapEmbedKeyWithMasterKey,
+  wrapEmbedKeyWithChatKey: mockWrapEmbedKeyWithChatKey,
 }));
 
 vi.mock("../chatSyncServiceHandlersChatUpdates", () => ({
@@ -98,6 +129,9 @@ vi.mock("../chatSyncServiceHandlersAppSettings", () => ({
 
 vi.mock("../chatSyncServiceSenders", () => ({
   sendEncryptedStoragePackage: mockSendEncryptedStoragePackage,
+  sendStoreEmbedImpl: mockSendStoreEmbed,
+  sendStoreEmbedKeysImpl: mockSendStoreEmbedKeys,
+  sendStoreEmbedDiffImpl: mockSendStoreEmbedDiff,
 }));
 
 vi.mock("../incognitoChatService", () => ({
@@ -392,6 +426,18 @@ describe("handleEmbedUpdateImpl", () => {
 describe("handleSendEmbedDataImpl", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    clearProcessedEmbedsTracking();
+    mockEmbedStore.get.mockResolvedValue(null);
+    mockEmbedStore.getEmbedKey.mockResolvedValue(null);
+    mockChatListCache.getCache.mockReturnValue(null);
+    mockEnsureChatKeySafeForWrite.mockResolvedValue(true);
+    mockComputeSHA256.mockImplementation(async (value: string) => {
+      if (value === "chat-1") return HASHED_CHAT_ID;
+      if (value === "message-1") return HASHED_MESSAGE_ID;
+      if (value === "user-1") return HASHED_USER_ID;
+      if (value === "embed-1") return HASHED_EMBED_ID;
+      return `hashed:${value}`;
+    });
   });
 
   it("stores already-encrypted Directus fallback embeds without waiting for raw chat keys", async () => {
@@ -458,5 +504,86 @@ describe("handleSendEmbedDataImpl", () => {
         }),
       }),
     );
+  });
+
+  it("flushes queued finalized embeds that arrived with hashed chat IDs", async () => {
+    vi.useFakeTimers();
+    try {
+      const chatKey = new Uint8Array([1, 2, 3]);
+      const embedKey = new Uint8Array([4, 5, 6]);
+      const localChat = {
+        chat_id: "chat-1",
+        encrypted_chat_key: "encrypted-chat-key",
+      };
+      mockChatDB.getChat.mockImplementation(async (chatId: string) =>
+        chatId === "chat-1" ? localChat : null,
+      );
+      mockChatDB.getAllChats.mockResolvedValue([localChat]);
+      mockChatListCache.getCache.mockReturnValue([localChat]);
+      mockChatKeyManager.getKeySync.mockImplementation((chatId: string) =>
+        chatId === "chat-1" ? chatKey : null,
+      );
+      mockChatKeyManager.getKey.mockImplementation(async (chatId: string) =>
+        chatId === "chat-1" ? chatKey : null,
+      );
+      mockDeriveEmbedKeyFromChatKey.mockResolvedValue(embedKey);
+      mockEncryptWithEmbedKey.mockImplementation(async (value: string) =>
+        `encrypted:${value}`,
+      );
+      mockWrapEmbedKeyWithMasterKey.mockResolvedValue("wrapped-master-key");
+      mockWrapEmbedKeyWithChatKey.mockResolvedValue("wrapped-chat-key");
+      mockSendStoreEmbed.mockResolvedValue(undefined);
+      mockSendStoreEmbedKeys.mockResolvedValue(undefined);
+      const service = {
+        dispatchEvent: vi.fn(),
+      } as unknown as ChatSynchronizationService;
+
+      await handleSendEmbedDataImpl(service, {
+        type: "send_embed_data",
+        event_for_client: "send_embed_data",
+        payload: {
+          embed_id: "embed-1",
+          type: "pdf",
+          content: JSON.stringify({ app_id: "pdf", skill_id: "read" }),
+          text_preview: "Test PDF",
+          status: "finished",
+          chat_id: HASHED_CHAT_ID,
+          message_id: "message-1",
+          user_id: "user-1",
+          createdAt: 123,
+          updatedAt: 124,
+        },
+      });
+
+      expect(mockEmbedStore.putEncrypted).not.toHaveBeenCalled();
+
+      await flushPendingFinalizedEmbedsForChat(service, HASHED_CHAT_ID);
+
+      expect(mockChatKeyManager.getKey).toHaveBeenCalledWith("chat-1");
+      expect(mockEmbedStore.putEncrypted).toHaveBeenCalledWith(
+        "embed:embed-1",
+        expect.objectContaining({
+          embed_id: "embed-1",
+          encrypted_content: "encrypted:{\"app_id\":\"pdf\",\"skill_id\":\"read\"}",
+          hashed_chat_id: HASHED_CHAT_ID,
+          hashed_message_id: HASHED_MESSAGE_ID,
+          status: "finished",
+        }),
+        "pdf",
+        JSON.stringify({ app_id: "pdf", skill_id: "read" }),
+        expect.objectContaining({ app_id: "pdf", skill_id: "read" }),
+      );
+      expect(mockSendStoreEmbed).toHaveBeenCalledWith(
+        service,
+        expect.objectContaining({
+          embed_id: "embed-1",
+          hashed_chat_id: HASHED_CHAT_ID,
+          hashed_message_id: HASHED_MESSAGE_ID,
+          hashed_user_id: HASHED_USER_ID,
+        }),
+      );
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
