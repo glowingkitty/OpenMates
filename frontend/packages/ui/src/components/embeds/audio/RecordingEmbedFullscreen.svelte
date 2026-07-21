@@ -186,11 +186,14 @@
   let isPlaying = $state(false);
   let currentTime = $state(0);
   let totalDuration = $state(0);
+  let playbackAnimationFrame: number | null = null;
 
   /** Retained S3 key for cache release on unmount */
   let retainedS3Key: string | undefined = undefined;
+  let lastResolvedAudioSrc: string | undefined = undefined;
 
   onDestroy(() => {
+    stopPlaybackProgressLoop();
     if (audioEl) audioEl.pause();
     if (retainedS3Key) {
       releaseCachedAudio(retainedS3Key);
@@ -237,6 +240,14 @@
     const durationSeconds = totalDuration || waveform?.duration_seconds || 0;
     if (durationSeconds <= 0) return 0;
     return Math.round(Math.max(0, Math.min(100, (currentTime / durationSeconds) * 100)));
+  });
+
+  $effect(() => {
+    if (resolvedAudioSrc === lastResolvedAudioSrc) return;
+    lastResolvedAudioSrc = resolvedAudioSrc;
+    stopPlaybackProgressLoop();
+    currentTime = 0;
+    totalDuration = waveform?.duration_seconds ?? 0;
   });
 
   // -------------------------------------------------------------------------
@@ -302,15 +313,53 @@
     }
   }
 
-  function handleAudioPlay() { isPlaying = true; }
-  function handleAudioPause() { isPlaying = false; }
-  function handleAudioEnded() { isPlaying = false; currentTime = 0; }
-  function handleAudioTimeUpdate() { if (audioEl) currentTime = audioEl.currentTime; }
+  function handleAudioPlay() {
+    isPlaying = true;
+    startPlaybackProgressLoop();
+  }
+
+  function handleAudioPause() {
+    isPlaying = false;
+    updatePlaybackProgressFromAudio();
+    stopPlaybackProgressLoop();
+  }
+
+  function handleAudioEnded() {
+    isPlaying = false;
+    currentTime = 0;
+    stopPlaybackProgressLoop();
+  }
+
+  function handleAudioTimeUpdate() { updatePlaybackProgressFromAudio(); }
+
   function handleAudioLoadedMetadata() {
+    updatePlaybackProgressFromAudio();
+  }
+
+  function updatePlaybackProgressFromAudio() {
     if (!audioEl) return;
+    currentTime = audioEl.currentTime;
     totalDuration = Number.isFinite(audioEl.duration) && audioEl.duration > 0
       ? audioEl.duration
-      : (waveform?.duration_seconds ?? 0);
+      : (totalDuration || waveform?.duration_seconds || 0);
+  }
+
+  function startPlaybackProgressLoop() {
+    stopPlaybackProgressLoop();
+    const tick = () => {
+      updatePlaybackProgressFromAudio();
+      if (audioEl && !audioEl.paused && !audioEl.ended) {
+        playbackAnimationFrame = requestAnimationFrame(tick);
+      }
+    };
+    playbackAnimationFrame = requestAnimationFrame(tick);
+  }
+
+  function stopPlaybackProgressLoop() {
+    if (playbackAnimationFrame !== null) {
+      cancelAnimationFrame(playbackAnimationFrame);
+      playbackAnimationFrame = null;
+    }
   }
 
   function handleProgressClick(e: MouseEvent) {

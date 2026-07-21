@@ -176,12 +176,15 @@
   let isPlaying = $state(false);
   let currentTime = $state(0);
   let totalDuration = $state(0);
+  let playbackAnimationFrame: number | null = null;
 
   // Track retained S3 cache key for cleanup on unmount
   let retainedS3Key: string | undefined = undefined;
+  let lastResolvedAudioSrc: string | undefined = undefined;
 
   // Cleanup on unmount
   onDestroy(() => {
+    stopPlaybackProgressLoop();
     if (audioEl) audioEl.pause();
     if (retainedS3Key) {
       releaseCachedAudio(retainedS3Key);
@@ -344,6 +347,14 @@
     return Math.max(0, Math.min(100, (currentTime / durationSeconds) * 100));
   });
 
+  $effect(() => {
+    if (resolvedAudioSrc === lastResolvedAudioSrc) return;
+    lastResolvedAudioSrc = resolvedAudioSrc;
+    stopPlaybackProgressLoop();
+    currentTime = 0;
+    totalDuration = waveformDurationSeconds;
+  });
+
   /**
    * Truncated transcript for the preview area.
    * Shows the first MAX_TRANSCRIPT_PREVIEW chars with ellipsis if needed.
@@ -371,31 +382,55 @@
 
   function handleAudioPlay() {
     isPlaying = true;
+    startPlaybackProgressLoop();
   }
 
   function handleAudioPause() {
     isPlaying = false;
+    updatePlaybackProgressFromAudio();
+    stopPlaybackProgressLoop();
   }
 
   function handleAudioEnded() {
     isPlaying = false;
     currentTime = 0;
+    stopPlaybackProgressLoop();
   }
 
   function handleAudioTimeUpdate() {
-    if (!audioEl) return;
-    currentTime = audioEl.currentTime;
-    if (!totalDuration && Number.isFinite(audioEl.duration) && audioEl.duration > 0) {
-      totalDuration = audioEl.duration;
-    }
+    updatePlaybackProgressFromAudio();
   }
 
   function handleAudioLoadedMetadata() {
+    updatePlaybackProgressFromAudio();
+  }
+
+  function updatePlaybackProgressFromAudio() {
     if (!audioEl) return;
     currentTime = audioEl.currentTime;
-    totalDuration = Number.isFinite(audioEl.duration) && audioEl.duration > 0
-      ? audioEl.duration
-      : waveformDurationSeconds;
+    if (Number.isFinite(audioEl.duration) && audioEl.duration > 0) {
+      totalDuration = audioEl.duration;
+    } else if (!totalDuration) {
+      totalDuration = waveformDurationSeconds;
+    }
+  }
+
+  function startPlaybackProgressLoop() {
+    stopPlaybackProgressLoop();
+    const tick = () => {
+      updatePlaybackProgressFromAudio();
+      if (audioEl && !audioEl.paused && !audioEl.ended) {
+        playbackAnimationFrame = requestAnimationFrame(tick);
+      }
+    };
+    playbackAnimationFrame = requestAnimationFrame(tick);
+  }
+
+  function stopPlaybackProgressLoop() {
+    if (playbackAnimationFrame !== null) {
+      cancelAnimationFrame(playbackAnimationFrame);
+      playbackAnimationFrame = null;
+    }
   }
 </script>
 

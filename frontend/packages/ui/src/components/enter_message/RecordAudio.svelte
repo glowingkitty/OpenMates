@@ -405,14 +405,16 @@
     // --- Document-level pointer release → complete recording ---
 
     /**
-     * mouseup anywhere on the document completes the recording.
+     * mouseup anywhere on the document completes pointer-started recordings.
      * This fires even though the overlay covers the original mic button.
+     * Keyboard-started recordings are owned by Space keyup / Escape instead.
      *
      * Ignored until readyForRelease is true — prevents a queued/bubbled mouseup
      * from the original press interaction from stopping the recording before the
      * MediaRecorder has had time to initialise (getUserMedia is async).
      */
     function handleDocumentMouseUp(_event: MouseEvent) {
+        if (startedFromKeyboard) return;
         if (!readyForRelease) {
             logger.debug('Document mouseup — deferred (not ready for release yet).');
             pendingReleaseCancel = false; // queue: complete when ready
@@ -423,10 +425,11 @@
     }
 
     /**
-     * touchend anywhere on the document completes the recording on mobile.
+     * touchend anywhere on the document completes pointer-started recordings on mobile.
      * Same readyForRelease guard as mouseup.
      */
     function handleDocumentTouchEnd(_event: TouchEvent) {
+        if (startedFromKeyboard) return;
         if (!readyForRelease) {
             logger.debug('Document touchend — deferred (not ready for release yet).');
             pendingReleaseCancel = false; // queue: complete when ready
@@ -452,12 +455,14 @@
 
     // --- Drag / Cancel Logic ---
     function handleMouseMove(event: MouseEvent) {
+        if (startedFromKeyboard) return;
         if (!isRecording || !readyForRelease) return;
         currentPosition = { x: event.clientX, y: event.clientY };
         updateDragState();
     }
 
     function handleTouchMove(event: TouchEvent) {
+        if (startedFromKeyboard) return;
         if (!isRecording || !readyForRelease) return;
         event.preventDefault();
         if (event.touches.length > 0) {
