@@ -13598,6 +13598,15 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         align-self: stretch;
     }
 
+    @media (min-width: 731px) {
+        .center-content.guest-welcome-content .guest-interest-tags-wrapper {
+            position: absolute;
+            top: calc(100% + 10px);
+            left: 0;
+            right: 0;
+        }
+    }
+
     .guest-interest-select-link {
         border: none;
         background: transparent;
