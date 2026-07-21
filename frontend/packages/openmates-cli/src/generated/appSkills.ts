@@ -200,6 +200,61 @@ export const APP_SKILL_METADATA = [
   },
   {
     "app_id": "code",
+    "skill_id": "image_to_html",
+    "app_namespace_ts": "code",
+    "skill_method_ts": "imageToHtml",
+    "app_namespace_py": "code",
+    "skill_method_py": "image_to_html",
+    "description_key": "app_skills.code.image_to_html.description",
+    "description": "Turn an uploaded screenshot into one standalone index.html code embed with inline CSS and optional inline JavaScript. Use this when the user asks to convert a screenshot, mockup, UI image, or app screen into HTML. Do not use remote image URLs; reference an uploaded image or pass image_base64.",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "requests": {
+          "type": "array",
+          "description": "Array of screenshot-to-HTML requests.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "image_base64": {
+                "type": "string",
+                "description": "Base64-encoded PNG, JPEG, or WEBP image bytes."
+              },
+              "mime_type": {
+                "type": "string",
+                "enum": [
+                  "image/png",
+                  "image/jpeg",
+                  "image/webp"
+                ],
+                "description": "MIME type for image_base64."
+              },
+              "filename": {
+                "type": "string",
+                "description": "Optional source filename for caller-side correlation."
+              },
+              "max_correction_passes": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 5,
+                "default": 2,
+                "description": "Maximum E2B render-feedback correction passes."
+              }
+            },
+            "required": [
+              "image_base64",
+              "mime_type"
+            ]
+          }
+        }
+      },
+      "required": [
+        "requests"
+      ]
+    }
+  },
+  {
+    "app_id": "code",
     "skill_id": "clean_repo",
     "app_namespace_ts": "code",
     "skill_method_ts": "cleanRepo",
@@ -1011,6 +1066,14 @@ export const APP_SKILL_METADATA = [
               "mailbox": {
                 "type": "string",
                 "description": "Optional mailbox name (defaults to INBOX)"
+              },
+              "start_date": {
+                "type": "string",
+                "description": "Optional inclusive start date for the search range (YYYY-MM-DD)"
+              },
+              "end_date": {
+                "type": "string",
+                "description": "Optional inclusive end date for the search range (YYYY-MM-DD)"
               },
               "limit": {
                 "type": "integer",
@@ -3461,6 +3524,14 @@ export class CodeAppSkills {
    */
   async getProjectOverview<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
     return this.runSkill<T>("code", "get_project_overview", input, options);
+  }
+  /**
+   * Turn an uploaded screenshot into one standalone index.html code embed with inline CSS and optional inline JavaScript. Use this when the user asks to convert a screenshot, mockup, UI image, or app screen into HTML. Do not use remote image URLs; reference an uploaded image or pass image_base64.
+   * Description key: app_skills.code.image_to_html.description
+   * Skill: code/image_to_html
+   */
+  async imageToHtml<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("code", "image_to_html", input, options);
   }
   /**
    * Run this OpenMates app skill.

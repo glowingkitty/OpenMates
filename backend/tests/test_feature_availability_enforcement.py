@@ -17,6 +17,7 @@ from backend.core.api.app.services.feature_availability_guards import (
     ensure_plans_enabled,
     ensure_projects_enabled,
     ensure_tasks_enabled,
+    ensure_teams_enabled,
     ensure_workflows_enabled,
 )
 
@@ -72,6 +73,7 @@ def test_projects_route_allows_admin_enabled_platform_feature() -> None:
     [
         (ensure_projects_enabled, "platform:projects"),
         (ensure_plans_enabled, "platform:plans"),
+        (ensure_teams_enabled, "platform:teams"),
         (ensure_workflows_enabled, "platform:workflows"),
         (ensure_tasks_enabled, "platform:tasks"),
     ],

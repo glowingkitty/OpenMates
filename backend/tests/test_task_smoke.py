@@ -10,6 +10,7 @@ These tests run in CI where backend dependencies are installed.
 They do NOT start a Celery broker — they only verify module-level setup.
 """
 
+import asyncio
 import importlib
 import pytest
 
@@ -216,3 +217,21 @@ class TestAppHealthChecks:
         assert _get_app_worker_queue_names("social_media") == {"app_social_media"}
         assert _get_app_worker_queue_names("videos") == {"app_videos"}
         assert _get_app_worker_queue_names("unknown_app") == {"app_unknown_app"}
+
+    def test_worker_health_uses_shared_active_queue_snapshot(self, monkeypatch):
+        from backend.core.api.app.tasks import health_check_tasks
+
+        def fail_if_broadcasting():
+            raise AssertionError("health checks should reuse the run-level worker queue snapshot")
+
+        monkeypatch.setattr(health_check_tasks, "_inspect_active_worker_queues", fail_if_broadcasting)
+
+        healthy, error = asyncio.run(
+            health_check_tasks._check_app_worker_health(
+                "videos",
+                active_workers={"celery@worker": [{"name": "app_videos"}]},
+            )
+        )
+
+        assert healthy is True
+        assert error is None

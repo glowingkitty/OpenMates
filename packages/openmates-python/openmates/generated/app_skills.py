@@ -171,6 +171,55 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
  {'app_id': 'code',
   'app_namespace_py': 'code',
   'app_namespace_ts': 'code',
+  'description': 'Turn an uploaded screenshot into one standalone index.html code embed with '
+                 'inline CSS and optional inline JavaScript. Use this when the user asks to '
+                 'convert a screenshot, mockup, UI image, or app screen into HTML. Do not use '
+                 'remote image URLs; reference an uploaded image or pass image_base64.',
+  'description_key': 'app_skills.code.image_to_html.description',
+  'schema': {'properties': {'requests': {'description': 'Array of screenshot-to-HTML requests.',
+                                         'items': {'properties': {'filename': {'description': 'Optional '
+                                                                                              'source '
+                                                                                              'filename '
+                                                                                              'for '
+                                                                                              'caller-side '
+                                                                                              'correlation.',
+                                                                               'type': 'string'},
+                                                                  'image_base64': {'description': 'Base64-encoded '
+                                                                                                  'PNG, '
+                                                                                                  'JPEG, '
+                                                                                                  'or '
+                                                                                                  'WEBP '
+                                                                                                  'image '
+                                                                                                  'bytes.',
+                                                                                   'type': 'string'},
+                                                                  'max_correction_passes': {'default': 2,
+                                                                                            'description': 'Maximum '
+                                                                                                           'E2B '
+                                                                                                           'render-feedback '
+                                                                                                           'correction '
+                                                                                                           'passes.',
+                                                                                            'maximum': 5,
+                                                                                            'minimum': 0,
+                                                                                            'type': 'integer'},
+                                                                  'mime_type': {'description': 'MIME '
+                                                                                               'type '
+                                                                                               'for '
+                                                                                               'image_base64.',
+                                                                                'enum': ['image/png',
+                                                                                         'image/jpeg',
+                                                                                         'image/webp'],
+                                                                                'type': 'string'}},
+                                                   'required': ['image_base64', 'mime_type'],
+                                                   'type': 'object'},
+                                         'type': 'array'}},
+             'required': ['requests'],
+             'type': 'object'},
+  'skill_id': 'image_to_html',
+  'skill_method_py': 'image_to_html',
+  'skill_method_ts': 'imageToHtml'},
+ {'app_id': 'code',
+  'app_namespace_py': 'code',
+  'app_namespace_ts': 'code',
   'description': 'Run this OpenMates app skill.',
   'description_key': 'code.clean_repo.description',
   'schema': {'properties': {}, 'type': 'object'},
@@ -1685,7 +1734,17 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                         '"invoice", "limit": 10}]}\n'
                                                         'Example recent-first: {"requests": '
                                                         '[{"limit": 10}]}\n',
-                                         'items': {'properties': {'id': {'description': 'Optional '
+                                         'items': {'properties': {'end_date': {'description': 'Optional '
+                                                                                              'inclusive '
+                                                                                              'end '
+                                                                                              'date '
+                                                                                              'for '
+                                                                                              'the '
+                                                                                              'search '
+                                                                                              'range '
+                                                                                              '(YYYY-MM-DD)',
+                                                                               'type': 'string'},
+                                                                  'id': {'description': 'Optional '
                                                                                         'request '
                                                                                         'id echoed '
                                                                                         'in '
@@ -1718,7 +1777,17 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                            'means '
                                                                                            'recent-first '
                                                                                            'listing.',
-                                                                            'type': 'string'}},
+                                                                            'type': 'string'},
+                                                                  'start_date': {'description': 'Optional '
+                                                                                                'inclusive '
+                                                                                                'start '
+                                                                                                'date '
+                                                                                                'for '
+                                                                                                'the '
+                                                                                                'search '
+                                                                                                'range '
+                                                                                                '(YYYY-MM-DD)',
+                                                                                 'type': 'string'}},
                                                    'type': 'object'},
                                          'minItems': 1,
                                          'type': 'array'}},
@@ -5080,6 +5149,14 @@ class CodeAppSkills:
         Skill: code/get_project_overview
         """
         return self._run_skill("code", "get_project_overview", input_data, prompt_injection_protection=prompt_injection_protection)
+
+    def image_to_html(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
+        """Turn an uploaded screenshot into one standalone index.html code embed with inline CSS and optional inline JavaScript. Use this when the user asks to convert a screenshot, mockup, UI image, or app screen into HTML. Do not use remote image URLs; reference an uploaded image or pass image_base64.
+
+        Description key: app_skills.code.image_to_html.description
+        Skill: code/image_to_html
+        """
+        return self._run_skill("code", "image_to_html", input_data, prompt_injection_protection=prompt_injection_protection)
 
     def remove_secrets(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
         """Run this OpenMates app skill.

@@ -174,6 +174,16 @@ def _b64(value: str) -> str:
     return base64.b64encode(value.encode("utf-8")).decode("ascii")
 
 
+def test_image_to_html_processing_response_defers_billing_to_worker() -> None:
+    credits = apps_api.get_variable_result_credits(
+        "code",
+        "image_to_html",
+        {"results": [{"task_id": "task-1", "embed_id": "embed-1", "status": "processing"}]},
+    )
+
+    assert credits == 0
+
+
 @pytest.mark.asyncio
 async def test_session_or_api_key_auth_preserves_device_approval_errors(monkeypatch) -> None:
     api_key_auth_module = importlib.import_module("backend.core.api.app.utils.api_key_auth")
@@ -364,6 +374,36 @@ def test_code_run_app_skill_route_starts_direct_run(monkeypatch) -> None:
     assert captured["target_embed_id"] is None
     assert captured["target_path"] == "main.py"
     assert captured["enable_internet"] is True
+
+
+def test_apps_api_uses_image_to_html_result_declared_credits() -> None:
+    result = {
+        "results": [
+            {"usage": {"model": "gemini", "credits_charged": 31, "e2b_render_seconds": 12.5}},
+            {"usage": {"model": "gemini", "credits_charged": 42, "e2b_render_seconds": 61.0}},
+        ]
+    }
+
+    assert apps_api.get_variable_result_credits("code", "image_to_html", result) == 73
+    assert apps_api.get_variable_result_credits("code", "run", result) is None
+    assert apps_api.get_variable_result_usage_details("code", "image_to_html", result, 1) == {
+        "image_to_html_model": "gemini",
+        "image_to_html_credits_charged": 42,
+        "image_to_html_e2b_render_seconds": 61.0,
+    }
+
+
+def test_apps_api_calculates_image_to_html_preflight_reservation() -> None:
+    assert apps_api.get_variable_preflight_reserved_credits(
+        "code",
+        "image_to_html",
+        {"requests": [{"max_correction_passes": 0}, {"max_correction_passes": 2}]},
+    ) == 2_000
+    assert apps_api.get_variable_preflight_reserved_credits(
+        "code",
+        "run",
+        {"requests": [{"max_correction_passes": 2}]},
+    ) == 0
 
 
 def test_models3d_custom_route_resolves_only_the_callers_uploaded_image(monkeypatch) -> None:

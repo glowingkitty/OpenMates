@@ -41,7 +41,7 @@ class AppSkillWorkflowConfig(BaseModel):
     effect: Optional[Literal["read", "notify", "chat_write", "generate", "compute", "code_execution"]] = None
     unattended: Optional[bool] = None
     approval: Optional[Literal["never", "side_effect_confirmation", "always"]] = None
-    binding_requirements: List[Literal["none", "location", "provider_account", "notification_preferences", "chat_owner"]] = Field(default_factory=list)
+    binding_requirements: List[Literal["none", "location", "provider_account", "connected_account_or_csv", "notification_preferences", "chat_owner"]] = Field(default_factory=list)
     output_schema: Optional[Dict[str, Any]] = None
     test_allowed: Optional[bool] = None
     test_example_input: Optional[Dict[str, Any]] = None

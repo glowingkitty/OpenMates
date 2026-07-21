@@ -1,3 +1,101 @@
+finance:
+  context: App name for the Finance app
+  en: Finance
+  de: Finanzen
+  zh: Finance
+  es: Finance
+  fr: Finance
+  pt: Finance
+  ru: Finance
+  ja: Finance
+  ko: Finance
+  it: Finance
+  tr: Finance
+  vi: Finance
+  id: Finance
+  pl: Finance
+  nl: Finance
+  ar: Finance
+  hi: Finance
+  th: Finance
+  cs: Finance
+  sv: Finance
+  he: Finance
+  verified_by_human: [en, de]
+finance.description:
+  context: Description for the Finance app
+  en: Check accounts, statements, spending, and projections.
+  de: Konten, Auszüge, Ausgaben und Prognosen prüfen.
+  zh: Check accounts, statements, spending, and projections.
+  es: Check accounts, statements, spending, and projections.
+  fr: Check accounts, statements, spending, and projections.
+  pt: Check accounts, statements, spending, and projections.
+  ru: Check accounts, statements, spending, and projections.
+  ja: Check accounts, statements, spending, and projections.
+  ko: Check accounts, statements, spending, and projections.
+  it: Check accounts, statements, spending, and projections.
+  tr: Check accounts, statements, spending, and projections.
+  vi: Check accounts, statements, spending, and projections.
+  id: Check accounts, statements, spending, and projections.
+  pl: Check accounts, statements, spending, and projections.
+  nl: Check accounts, statements, spending, and projections.
+  ar: Check accounts, statements, spending, and projections.
+  hi: Check accounts, statements, spending, and projections.
+  th: Check accounts, statements, spending, and projections.
+  cs: Check accounts, statements, spending, and projections.
+  sv: Check accounts, statements, spending, and projections.
+  he: Check accounts, statements, spending, and projections.
+  verified_by_human: [en, de]
+
+ideabucket:
+  context: App name for the IdeaBucket app
+  en: IdeaBucket
+  de: IdeaBucket
+  zh: IdeaBucket
+  es: IdeaBucket
+  fr: IdeaBucket
+  pt: IdeaBucket
+  ru: IdeaBucket
+  ja: IdeaBucket
+  ko: IdeaBucket
+  it: IdeaBucket
+  tr: IdeaBucket
+  vi: IdeaBucket
+  id: IdeaBucket
+  pl: IdeaBucket
+  nl: IdeaBucket
+  ar: IdeaBucket
+  hi: IdeaBucket
+  th: IdeaBucket
+  cs: IdeaBucket
+  sv: IdeaBucket
+  he: IdeaBucket
+  verified_by_human: [en, de]
+ideabucket.description:
+  context: Description for the IdeaBucket app
+  en: Capture ideas quickly and process them later with OpenMates.
+  de: Ideen schnell erfassen und später mit OpenMates verarbeiten.
+  zh: Capture ideas quickly and process them later with OpenMates.
+  es: Capture ideas quickly and process them later with OpenMates.
+  fr: Capture ideas quickly and process them later with OpenMates.
+  pt: Capture ideas quickly and process them later with OpenMates.
+  ru: Capture ideas quickly and process them later with OpenMates.
+  ja: Capture ideas quickly and process them later with OpenMates.
+  ko: Capture ideas quickly and process them later with OpenMates.
+  it: Capture ideas quickly and process them later with OpenMates.
+  tr: Capture ideas quickly and process them later with OpenMates.
+  vi: Capture ideas quickly and process them later with OpenMates.
+  id: Capture ideas quickly and process them later with OpenMates.
+  pl: Capture ideas quickly and process them later with OpenMates.
+  nl: Capture ideas quickly and process them later with OpenMates.
+  ar: Capture ideas quickly and process them later with OpenMates.
+  hi: Capture ideas quickly and process them later with OpenMates.
+  th: Capture ideas quickly and process them later with OpenMates.
+  cs: Capture ideas quickly and process them later with OpenMates.
+  sv: Capture ideas quickly and process them later with OpenMates.
+  he: Capture ideas quickly and process them later with OpenMates.
+  verified_by_human: [en, de]
+
 ai:
   context: App name for the AI app
   en: AI

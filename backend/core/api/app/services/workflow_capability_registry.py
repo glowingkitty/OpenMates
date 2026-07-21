@@ -43,6 +43,7 @@ _BINDING_REQUIREMENTS = {
     "none",
     "location",
     "provider_account",
+    "connected_account_or_csv",
     "notification_preferences",
     "chat_owner",
 }

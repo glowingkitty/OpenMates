@@ -90,6 +90,7 @@ def test_unfinished_platform_features_are_default_disabled() -> None:
         "platform:macos",
         "platform:projects",
         "platform:plans",
+        "platform:teams",
         "platform:workflows",
         "platform:tasks",
     }

@@ -89,12 +89,15 @@ export function isFeatureEnabled(featureId: string, defaultEnabled: boolean = tr
 interface UserAvailableSkillsState {
     /** Map of app_id -> available skill IDs for the current user. null = not yet fetched. */
     skillsByApp: Record<string, string[]> | null;
+    /** Runtime app metadata filtered by backend provider/user availability. */
+    appsById: Record<string, AppMetadata> | null;
     initialized: boolean;
     loading: boolean;
 }
 
 const initialUserSkillsState: UserAvailableSkillsState = {
     skillsByApp: null,
+    appsById: null,
     initialized: false,
     loading: false,
 };
@@ -121,22 +124,23 @@ export async function initializeUserAvailableSkills(force: boolean = false): Pro
 
         if (!response.ok) {
             console.warn(`[AppSkillsStore] /v1/apps/metadata returned ${response.status}, skipping user skill filtering`);
-            userAvailableSkillsStore.set({ skillsByApp: null, initialized: true, loading: false });
+            userAvailableSkillsStore.set({ skillsByApp: null, appsById: null, initialized: true, loading: false });
             return;
         }
 
         const data = await response.json();
         const skillsByApp: Record<string, string[]> = {};
+        const appsById = (data.apps || {}) as Record<string, AppMetadata>;
         for (const [appId, appData] of Object.entries(data.apps || {})) {
             skillsByApp[appId] = ((appData as { skills?: { id: string }[] }).skills ?? []).map(s => s.id);
         }
 
         console.debug('[AppSkillsStore] User-available skills fetched:', skillsByApp);
-        userAvailableSkillsStore.set({ skillsByApp, initialized: true, loading: false });
+        userAvailableSkillsStore.set({ skillsByApp, appsById, initialized: true, loading: false });
     } catch (e) {
         // Fail open: don't filter if the request fails
         console.warn('[AppSkillsStore] Failed to fetch user-available skills, skipping filtering:', e);
-        userAvailableSkillsStore.set({ skillsByApp: null, initialized: true, loading: false });
+        userAvailableSkillsStore.set({ skillsByApp: null, appsById: null, initialized: true, loading: false });
     }
 }
 
@@ -255,6 +259,7 @@ class AppSkillsStore {
             const userFilteredApps: Record<string, AppMetadata> = {};
             for (const [appId, appMetadata] of Object.entries(annotatedApps)) {
                 const availableSkillIds = userSkillsState.skillsByApp[appId];
+                const runtimeApp = userSkillsState.appsById?.[appId];
                 if (availableSkillIds === undefined) {
                     const hasNoSkills = (appMetadata.skills?.length ?? 0) === 0;
                     const hasNonSkillComponents =
@@ -272,7 +277,18 @@ class AppSkillsStore {
                 }
 
                 const availableSet = new Set(availableSkillIds);
-                const filteredSkills = appMetadata.skills.filter(s => availableSet.has(s.id));
+                const filteredSkills = appMetadata.skills
+                    .filter(s => availableSet.has(s.id))
+                    .map(skill => {
+                        const runtimeSkill = runtimeApp?.skills?.find(s => s.id === skill.id) as unknown as Record<string, unknown> | undefined;
+                        if (!runtimeSkill) return skill;
+                        return {
+                            ...skill,
+                            providers: runtimeSkill.providers ?? skill.providers,
+                            provider_details: runtimeSkill.provider_details,
+                            models: runtimeSkill.models,
+                        } as typeof skill;
+                    });
 
                 // Recompute providers from the filtered skills so that provider icons for
                 // restricted skills (e.g. ProtonMail for mail/search) are not shown to
@@ -280,13 +296,19 @@ class AppSkillsStore {
                 // because they may include providers from skills the user can't access.
                 const providerSet = new Set<string>();
                 for (const skill of filteredSkills) {
-                    skill.providers?.forEach(p => providerSet.add(p));
+                    (skill.providers ?? []).forEach(p => {
+                        if (typeof p === 'string') providerSet.add(p);
+                        else if (p && typeof p === 'object') {
+                            const provider = p as { display_name?: string; name?: string };
+                            if (provider.display_name || provider.name) providerSet.add(provider.display_name ?? provider.name ?? '');
+                        }
+                    });
                 }
 
                 userFilteredApps[appId] = {
                     ...appMetadata,
                     skills: filteredSkills,
-                    providers: Array.from(providerSet),
+                    providers: (runtimeApp?.providers as string[] | undefined) ?? Array.from(providerSet).filter(Boolean),
                 };
             }
             return { apps: userFilteredApps };

@@ -10,8 +10,8 @@ from __future__ import annotations
 
 import pytest
 
-from backend.core.api.app.routes.apps import SkillMetadataItem, check_provider_api_key_available
-from backend.shared.python_schemas.app_metadata_schemas import ProviderRef
+from backend.core.api.app.routes.apps import SkillMetadataItem, _skill_models, build_app_metadata_item, check_provider_api_key_available
+from backend.shared.python_schemas.app_metadata_schemas import AppSkillDefinition, AppYAML, ProviderRef
 
 
 class FakeSecretsManager:
@@ -44,3 +44,62 @@ def test_skill_metadata_response_preserves_providers() -> None:
     payload = item.model_dump()
 
     assert payload["providers"] == [{"name": "Google", "display_name": None, "no_api_key": True}]
+
+
+def test_skill_models_filter_missing_provider_keys() -> None:
+    provider_configs = {
+        "openai": {
+            "name": "OpenAI",
+            "models": [{"id": "gpt-4o-mini", "name": "GPT-4o Mini", "for_app_skill": "ai.ask"}],
+        },
+        "anthropic": {
+            "name": "Anthropic",
+            "models": [{"id": "claude-haiku", "name": "Claude Haiku", "for_app_skill": "ai.ask"}],
+        },
+    }
+
+    models = _skill_models(
+        app_id="ai",
+        skill_id="ask",
+        provider_configs=provider_configs,
+        available_provider_ids={"openai"},
+    )
+
+    assert [model.provider_id for model in models] == ["openai"]
+
+
+def test_app_metadata_filters_unavailable_provider_details_and_models() -> None:
+    app = AppYAML(
+        id="web",
+        name_translation_key="apps.web.name",
+        description_translation_key="apps.web.description",
+        category="work",
+        skills=[
+            AppSkillDefinition(
+                id="search",
+                name_translation_key="skills.web.search.name",
+                description_translation_key="skills.web.search.description",
+                providers=[ProviderRef(name="Brave")],
+            ),
+            AppSkillDefinition(
+                id="ask",
+                name_translation_key="skills.web.ask.name",
+                description_translation_key="skills.web.ask.description",
+            ),
+        ],
+    )
+    provider_configs = {
+        "brave": {"name": "Brave", "description": "Search"},
+        "openai": {"name": "OpenAI", "models": [{"id": "gpt-4o-mini", "for_app_skill": "web.ask"}]},
+    }
+
+    item = build_app_metadata_item(
+        app_id="web",
+        app_metadata=app,
+        translation_service=None,
+        provider_configs=provider_configs,
+        available_provider_ids={"openai"},
+    )
+
+    assert [provider.id for provider in item.skills[0].provider_details] == []
+    assert [model.provider_id for model in item.skills[1].models] == ["openai"]

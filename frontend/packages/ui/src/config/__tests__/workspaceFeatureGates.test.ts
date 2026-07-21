@@ -2,7 +2,7 @@
 // Regression coverage for workspace release gates.
 // Optional top-level workspaces must stay hidden until the web build releases
 // them, even if an older backend availability response omits their disabled IDs.
-// Plans, workflows, and tasks are currently released; projects are not.
+// Optional workspace surfaces stay hidden until they are explicitly released.
 
 import { describe, expect, it } from "vitest";
 
@@ -17,10 +17,10 @@ describe("isWorkspaceFeatureAvailable", () => {
     expect(isWorkspaceFeatureAvailable("platform:projects", {})).toBe(false);
   });
 
-  it("shows released optional workspaces when backend omits disabled IDs", () => {
-    expect(isWorkspaceFeatureAvailable("platform:plans", {})).toBe(true);
-    expect(isWorkspaceFeatureAvailable("platform:tasks", {})).toBe(true);
-    expect(isWorkspaceFeatureAvailable("platform:workflows", {})).toBe(true);
+  it("hides under-development optional workspaces when backend omits disabled IDs", () => {
+    expect(isWorkspaceFeatureAvailable("platform:plans", {})).toBe(false);
+    expect(isWorkspaceFeatureAvailable("platform:tasks", {})).toBe(false);
+    expect(isWorkspaceFeatureAvailable("platform:workflows", {})).toBe(false);
   });
 
   it("keeps disabled chats hidden if backend explicitly disables them", () => {

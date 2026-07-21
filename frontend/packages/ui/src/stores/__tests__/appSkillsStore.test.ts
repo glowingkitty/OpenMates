@@ -24,6 +24,7 @@ describe("appSkillsStore", () => {
     userAvailableSkillsStore.set({
       initialized: true,
       loading: false,
+      appsById: null,
       skillsByApp: {
         code: ["code"],
       },
@@ -69,5 +70,38 @@ describe("appSkillsStore", () => {
     const ai = appSkillsStore.getState().apps.ai;
 
     expect(ai.settings_and_memories.some((memory) => memory.id === "communication_style")).toBe(false);
+  });
+
+  it("overlays runtime provider and model availability from app metadata", () => {
+    userAvailableSkillsStore.set({
+      initialized: true,
+      loading: false,
+      skillsByApp: {
+        ai: ["ask"],
+      },
+      appsById: {
+        ai: {
+          id: "ai",
+          skills: [
+            {
+              id: "ask",
+              name_translation_key: "app_translations.ai.skills.ask.name",
+              description_translation_key: "app_translations.ai.skills.ask.description",
+              providers: ["OpenAI"],
+              models: [{ id: "gpt-4o-mini", provider_id: "openai" }],
+            } as any,
+          ],
+          focus_modes: [],
+          settings_and_memories: [],
+          providers: ["OpenAI"],
+        },
+      },
+    });
+
+    const ai = appSkillsStore.getState().apps.ai;
+    const ask = ai.skills.find((skill) => skill.id === "ask") as any;
+
+    expect(ai.providers).toEqual(["OpenAI"]);
+    expect(ask.models).toEqual([{ id: "gpt-4o-mini", provider_id: "openai" }]);
   });
 });

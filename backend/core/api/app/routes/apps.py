@@ -58,6 +58,10 @@ def get_provider_api_key_env_vars(provider_id: str) -> List[str]:
     # Format: SECRET__{PROVIDER}__API_KEY
     provider_key_map = {
         "brave": ["SECRET__BRAVE__API_KEY", "SECRET__BRAVE_SEARCH__API_KEY"],
+        "mistral": ["SECRET__MISTRAL_AI__API_KEY", "SECRET__MISTRAL__API_KEY"],
+        "mistral_ai": ["SECRET__MISTRAL_AI__API_KEY"],
+        "google_ai_studio": ["SECRET__GOOGLE_AI_STUDIO__API_KEY"],
+        "google_vertex": ["GOOGLE_VERTEX_PROJECT_ID", "GOOGLE_VERTEX_SERVICE_ACCOUNT_JSON"],
         "firecrawl": ["SECRET__FIRECRAWL__API_KEY", "FIRECRAWL_API_KEY"],
         "youtube": ["SECRET__YOUTUBE__API_KEY", "SECRET__YOUTUBE__API_KEY"],
         "google_maps": ["SECRET__GOOGLE_MAPS__API_KEY"],
@@ -73,6 +77,43 @@ def get_provider_api_key_env_vars(provider_id: str) -> List[str]:
     # Convert provider_id to uppercase and replace underscores with double underscores
     default_key = f"SECRET__{provider_id.upper().replace('_', '__')}__API_KEY"
     return [default_key]
+
+
+def _provider_requires_no_key(provider_id: str, provider_configs: Dict[str, Dict[str, Any]]) -> bool:
+    config = provider_configs.get(provider_id) or {}
+    return config.get("no_api_key") is True
+
+
+def _model_server_ids(provider_id: str, model: Dict[str, Any]) -> set[str]:
+    server_ids = {provider_id}
+    default_server = model.get("default_server")
+    if isinstance(default_server, str) and default_server.strip():
+        server_ids.add(default_server.strip())
+    for server in model.get("servers") or []:
+        if isinstance(server, dict) and isinstance(server.get("id"), str) and server["id"].strip():
+            server_ids.add(server["id"].strip())
+    return server_ids
+
+
+async def _available_provider_ids(
+    *,
+    provider_configs: Dict[str, Dict[str, Any]],
+    secrets_manager: SecretsManager,
+) -> set[str]:
+    available: set[str] = set()
+    candidate_ids = set(provider_configs.keys())
+    for provider_id, provider in provider_configs.items():
+        for model in provider.get("models", []):
+            if isinstance(model, dict):
+                candidate_ids.update(_model_server_ids(provider_id, model))
+
+    for provider_id in sorted(candidate_ids):
+        if _provider_requires_no_key(provider_id, provider_configs):
+            available.add(provider_id)
+            continue
+        if await check_provider_api_key_available(provider_id, secrets_manager):
+            available.add(provider_id)
+    return available
 
 
 async def check_provider_api_key_available(provider_id: str, secrets_manager: SecretsManager) -> bool:
@@ -488,6 +529,7 @@ def _skill_models(
     app_id: str,
     skill_id: str,
     provider_configs: Dict[str, Dict[str, Any]],
+    available_provider_ids: Optional[set[str]] = None,
 ) -> List[ModelMetadataItem]:
     skill_key = f"{app_id}.{skill_id}"
     models: List[ModelMetadataItem] = []
@@ -497,6 +539,8 @@ def _skill_models(
                 continue
             model_id = model.get("id")
             if not model_id:
+                continue
+            if available_provider_ids is not None and _model_server_ids(provider_id, model).isdisjoint(available_provider_ids):
                 continue
             models.append(ModelMetadataItem(
                 id=model_id,
@@ -555,6 +599,7 @@ def build_app_metadata_item(
     app_metadata: AppYAML,
     translation_service: Any,
     provider_configs: Dict[str, Dict[str, Any]],
+    available_provider_ids: Optional[set[str]] = None,
 ) -> AppMetadataItem:
     """Build the shared rich metadata contract consumed by web-adjacent clients."""
     resolved_name = resolve_translation(
@@ -568,6 +613,13 @@ def build_app_metadata_item(
     app_provider_names: List[str] = []
     for skill in app_metadata.skills:
         provider_refs = skill.providers or []
+        available_provider_refs = [
+            provider
+            for provider in provider_refs
+            if available_provider_ids is None
+            or provider.no_api_key
+            or map_provider_name_to_id(provider.name, app_id) in available_provider_ids
+        ]
         provider_details = [
             _provider_metadata(
                 provider_name=provider.name,
@@ -575,7 +627,7 @@ def build_app_metadata_item(
                 app_id=app_id,
                 provider_configs=provider_configs,
             )
-            for provider in provider_refs
+            for provider in available_provider_refs
         ]
         app_provider_names.extend(provider.name for provider in provider_details)
         skills.append(SkillMetadataItem(
@@ -592,12 +644,13 @@ def build_app_metadata_item(
                 app_id=app_id,
                 provider_configs=provider_configs,
             ),
-            providers=skill.providers,
+            providers=available_provider_refs,
             provider_details=provider_details,
             models=_skill_models(
                 app_id=app_id,
                 skill_id=skill.id,
                 provider_configs=provider_configs,
+                available_provider_ids=available_provider_ids,
             ),
             how_to_use=_translated_examples(
                 translation_service=translation_service,
@@ -795,6 +848,19 @@ async def get_apps_metadata(
         encryption_service=encryption_service,
         secrets_manager=secrets_manager,
     )
+
+    config_manager = getattr(request.app.state, "config_manager", None)
+    provider_configs = (
+        config_manager.get_provider_configs()
+        if isinstance(config_manager, ConfigManager)
+        else {}
+    )
+    if config_manager is None:
+        logger.warning("ConfigManager not found in app.state - provider and model details will be empty")
+    available_provider_ids = None if include_unavailable else await _available_provider_ids(
+        provider_configs=provider_configs,
+        secrets_manager=secrets_manager,
+    )
     
     # Convert AppYAML to API response format
     # Transform the discovered AppYAML objects to the API response format with resolved translations
@@ -822,6 +888,19 @@ async def get_apps_metadata(
                     logger.debug(f"Skipping skill '{skill.id}' from app '{app_id}' - no API keys configured for providers")
                     continue
 
+                if not skill.providers and _skill_models(
+                    app_id=app_id,
+                    skill_id=skill.id,
+                    provider_configs=provider_configs,
+                ) and not _skill_models(
+                    app_id=app_id,
+                    skill_id=skill.id,
+                    provider_configs=provider_configs,
+                    available_provider_ids=available_provider_ids,
+                ):
+                    logger.debug(f"Skipping skill '{skill.id}' from app '{app_id}' - no configured model providers")
+                    continue
+
                 # Proton Mail Bridge is intentionally single-account: only the explicitly
                 # configured OpenMates user should see and execute the mail.search skill.
                 if app_id == "mail" and skill.id == "search" and not protonmail_user_allowed:
@@ -830,19 +909,12 @@ async def get_apps_metadata(
             
             available_skill_ids.add(skill.id)
 
-        config_manager = getattr(request.app.state, "config_manager", None)
-        provider_configs = (
-            config_manager.get_provider_configs()
-            if isinstance(config_manager, ConfigManager)
-            else {}
-        )
-        if config_manager is None:
-            logger.warning("ConfigManager not found in app.state - provider and model details will be empty")
         item = build_app_metadata_item(
             app_id=app_id,
             app_metadata=app_metadata,
             translation_service=translation_service,
             provider_configs=provider_configs,
+            available_provider_ids=available_provider_ids,
         )
         item.skills = [skill for skill in item.skills if skill.id in available_skill_ids]
 
@@ -892,102 +964,35 @@ async def get_app_metadata(app_id: str, request: Request, include_unavailable: b
     secrets_manager = SecretsManager(cache_service=cache_service)
     await secrets_manager.initialize()
     
-    # Resolve app name and description translations
-    resolved_name = resolve_translation(
-        translation_service,
-        app_metadata.name_translation_key,
-        namespace="apps",
-        fallback=app_id
+    config_manager = getattr(request.app.state, "config_manager", None)
+    provider_configs = (
+        config_manager.get_provider_configs()
+        if isinstance(config_manager, ConfigManager)
+        else {}
     )
-    
-    resolved_description = resolve_translation(
-        translation_service,
-        app_metadata.description_translation_key,
-        namespace="apps",
-        fallback=""
+    available_provider_ids = None if include_unavailable else await _available_provider_ids(
+        provider_configs=provider_configs,
+        secrets_manager=secrets_manager,
     )
-    
-    # Convert skills - filter by API key availability and resolve all translations
-    skills = []
+
+    available_skill_ids: set[str] = set()
     for skill in app_metadata.skills:
-        # When include_unavailable=True (CLI), skip provider availability checks
         if not include_unavailable:
             skill_available = await is_skill_available(skill, app_id, secrets_manager)
             if not skill_available:
                 logger.debug(f"Skipping skill '{skill.id}' from app '{app_id}' - no API keys configured for providers")
                 continue
-        
-        skill_name = resolve_translation(
-            translation_service,
-            skill.name_translation_key,
-            namespace="app_skills",
-            fallback=skill.id
-        )
-        skill_description = resolve_translation(
-            translation_service,
-            skill.description_translation_key,
-            namespace="app_skills",
-            fallback=""
-        )
-        skills.append(SkillMetadataItem(
-            id=skill.id,
-            name=skill_name,
-            description=skill_description,
-            providers=skill.providers,
-        ))
-    
-    # Convert focus modes and resolve all translations
-    focus_modes = []
-    for focus in app_metadata.focuses:
-        focus_name = resolve_translation(
-            translation_service,
-            focus.name_translation_key,
-            namespace="app_focus_modes",
-            fallback=focus.id
-        )
-        focus_description = resolve_translation(
-            translation_service,
-            focus.description_translation_key,
-            namespace="app_focus_modes",
-            fallback=""
-        )
-        focus_modes.append(FocusModeMetadataItem(
-            id=focus.id,
-            name=focus_name,
-            description=focus_description
-        ))
-    
-    # Convert settings_and_memories and resolve all translations
-    settings_and_memories = []
-    if app_metadata.memory_fields:
-        for field in app_metadata.memory_fields:
-            field_name = resolve_translation(
-                translation_service,
-                field.name_translation_key,
-                namespace="app_settings_memories",
-                fallback=field.id
-            )
-            field_description = resolve_translation(
-                translation_service,
-                field.description_translation_key,
-                namespace="app_settings_memories",
-                fallback=""
-            )
-            settings_and_memories.append({
-                "id": field.id,
-                "name": field_name,
-                "description": field_description
-            })
-    
-    return AppMetadataItem(
-        id=app_id,
-        name=resolved_name,
-        description=resolved_description,
-        category=app_metadata.category,
-        skills=skills,
-        focus_modes=focus_modes,
-        settings_and_memories=settings_and_memories
+        available_skill_ids.add(skill.id)
+
+    item = build_app_metadata_item(
+        app_id=app_id,
+        app_metadata=app_metadata,
+        translation_service=translation_service,
+        provider_configs=provider_configs,
+        available_provider_ids=available_provider_ids,
     )
+    item.skills = [skill for skill in item.skills if skill.id in available_skill_ids]
+    return item
 
 
 @router.get("/most-used", response_model=MostUsedAppsResponse)

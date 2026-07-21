@@ -71,6 +71,7 @@ DEFAULT_APP_INTERNAL_PORT = 8000
 INTERNAL_API_BASE_URL = os.getenv("INTERNAL_API_BASE_URL", "http://api:8000")
 INTERNAL_API_SHARED_TOKEN = os.getenv("INTERNAL_API_SHARED_TOKEN")
 APPLE_DEVICE_CLIENTS = {"ios", "macos", "apple"}
+VARIABLE_RESULT_BILLING_SKILLS = {("code", "image_to_html")}
 
 
 def _apple_session_device_hash(request: Request, user_id: str) -> Optional[str]:
@@ -409,6 +410,9 @@ def get_provider_api_key_env_vars(provider_id: str) -> List[str]:
     # Format: SECRET__{PROVIDER}__API_KEY
     provider_key_map = {
         "brave": ["SECRET__BRAVE__API_KEY", "SECRET__BRAVE_SEARCH__API_KEY"],
+        "mistral": ["SECRET__MISTRAL_AI__API_KEY", "SECRET__MISTRAL__API_KEY"],
+        "mistral_ai": ["SECRET__MISTRAL_AI__API_KEY"],
+        "google_ai_studio": ["SECRET__GOOGLE_AI_STUDIO__API_KEY"],
         "firecrawl": ["SECRET__FIRECRAWL__API_KEY", "FIRECRAWL_API_KEY"],
         "youtube": ["SECRET__YOUTUBE__API_KEY", "SECRET__YOUTUBE__API_KEY"],
         "google_maps": ["SECRET__GOOGLE_MAPS__API_KEY"],
@@ -763,6 +767,7 @@ async def call_app_skill(
     input_data: Dict[str, Any],
     parameters: Dict[str, Any],
     user_info: Dict[str, Any],
+    secrets_manager: SecretsManager | None = None,
     enforce_rest_exposure_policy: bool = True,
 ) -> Dict[str, Any]:
     """
@@ -818,6 +823,8 @@ async def call_app_skill(
     request_payload['_external_request'] = True
     if user_info.get('vault_key_id'):
         request_payload['_user_vault_key_id'] = user_info['vault_key_id']
+    if secrets_manager is not None:
+        request_payload['_secrets_manager'] = secrets_manager
 
     try:
         result = await registry.dispatch_skill(app_id, skill_id, request_payload)
@@ -935,6 +942,17 @@ async def calculate_skill_credits(
     Returns:
         Number of credits to charge
     """
+    declared_result_credits = get_variable_result_credits(
+        getattr(app_metadata, "id", ""),
+        skill_id,
+        result_data,
+    )
+    if declared_result_credits is not None:
+        logger.info(
+            f"Using result-declared variable credits for skill '{app_metadata.id}.{skill_id}': {declared_result_credits}"
+        )
+        return declared_result_credits
+
     # Find the skill definition
     skill_def: Optional[AppSkillDefinition] = None
     for skill in app_metadata.skills or []:
@@ -1059,6 +1077,94 @@ async def calculate_skill_credits(
     
     logger.info(f"Calculated {credits_charged} credits for skill '{app_metadata.id}.{skill_id}' (units_processed={units_processed})")
     return credits_charged
+
+
+def get_variable_result_credits(
+    app_id: str,
+    skill_id: str,
+    result_data: Optional[Dict[str, Any]],
+) -> Optional[int]:
+    if (app_id, skill_id) not in VARIABLE_RESULT_BILLING_SKILLS:
+        return None
+    data = _as_dict(result_data)
+    results = data.get("results")
+    if not isinstance(results, list):
+        return None
+
+    total = 0
+    found = False
+    for item in results:
+        item_data = _as_dict(item)
+        if item_data.get("status") == "processing" and item_data.get("task_id"):
+            found = True
+            continue
+        usage = item_data.get("usage")
+        if not isinstance(usage, dict):
+            continue
+        credits = usage.get("credits_charged")
+        if credits is None:
+            continue
+        total += int(credits)
+        found = True
+    return total if found else None
+
+
+def get_variable_preflight_reserved_credits(
+    app_id: str,
+    skill_id: str,
+    input_data: Dict[str, Any],
+) -> int:
+    if (app_id, skill_id) not in VARIABLE_RESULT_BILLING_SKILLS:
+        return 0
+    if app_id == "code" and skill_id == "image_to_html":
+        from backend.apps.code.skills.image_to_html_skill import (
+            DEFAULT_MAX_CORRECTION_PASSES,
+            DEFAULT_RESERVED_CREDITS_PER_REQUEST,
+            MAX_CORRECTION_PASSES,
+            MIN_CORRECTION_PASSES,
+        )
+
+        requests = input_data.get("requests")
+        items = requests if isinstance(requests, list) else [input_data]
+        reserved = 0
+        for item in items:
+            item_data = _as_dict(item)
+            raw_passes = item_data.get("max_correction_passes", DEFAULT_MAX_CORRECTION_PASSES)
+            try:
+                passes = int(raw_passes)
+            except (TypeError, ValueError):
+                passes = DEFAULT_MAX_CORRECTION_PASSES
+            passes = max(MIN_CORRECTION_PASSES, min(MAX_CORRECTION_PASSES, passes))
+            reserved += DEFAULT_RESERVED_CREDITS_PER_REQUEST * max(1, passes + 1)
+        return reserved
+    return 0
+
+
+def get_variable_result_usage_details(
+    app_id: str,
+    skill_id: str,
+    result_data: Optional[Dict[str, Any]],
+    request_index: int,
+) -> Dict[str, Any]:
+    if (app_id, skill_id) not in VARIABLE_RESULT_BILLING_SKILLS:
+        return {}
+    data = _as_dict(result_data)
+    results = data.get("results")
+    if not isinstance(results, list) or request_index >= len(results):
+        return {}
+    usage = _as_dict(_as_dict(results[request_index]).get("usage"))
+    if not usage:
+        return {}
+    return {f"image_to_html_{key}": value for key, value in usage.items()}
+
+
+def _as_dict(value: Any) -> Dict[str, Any]:
+    if isinstance(value, dict):
+        return value
+    if hasattr(value, "model_dump"):
+        dumped = value.model_dump()
+        return dumped if isinstance(dumped, dict) else {}
+    return {}
 
 
 def resolve_skill_provider_info(
@@ -2659,14 +2765,27 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                             
                             # Convert Pydantic model to dict for skill execution
                             request_dict = request_body.model_dump() if hasattr(request_body, 'model_dump') else dict(request_body)
-                            
+
+                            preflight_reserved_credits = get_variable_preflight_reserved_credits(
+                                captured_app_id,
+                                captured_skill.id,
+                                request_dict,
+                            )
+                            if preflight_reserved_credits > 0:
+                                await require_api_key_budget_for_charge(
+                                    directus_service,
+                                    user_info=user_info,
+                                    requested_credits=preflight_reserved_credits,
+                                )
+                             
                             # Execute the skill - pass request_dict directly (it matches tool_schema)
                             result = await call_app_skill(
                                 app_id=captured_app_id,
                                 skill_id=captured_skill.id,
                                 input_data=request_dict,  # Pass tool_schema structure directly
                                 parameters={},  # No separate parameters for skills with tool_schema
-                                user_info=user_info
+                                user_info=user_info,
+                                secrets_manager=getattr(request.app.state, "secrets_manager", None) if request is not None else None,
                             )
                             
                             # Check if skill execution was successful before charging credits
@@ -2726,6 +2845,12 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                             "server_provider": provider_info["server_provider"],
                                             "server_region": provider_info["server_region"],
                                         }
+                                        usage_details.update(get_variable_result_usage_details(
+                                            captured_app_id,
+                                            captured_skill.id,
+                                            result,
+                                            i,
+                                        ))
                                         
                                         await charge_credits_via_internal_api(
                                             user_id=user_info['user_id'],

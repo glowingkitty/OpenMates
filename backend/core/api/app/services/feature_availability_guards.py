@@ -57,6 +57,15 @@ def ensure_workflows_enabled(request: Request) -> None:
         raise HTTPException(status_code=404, detail="FEATURE_DISABLED")
 
 
+def ensure_teams_enabled(request: Request) -> None:
+    availability = FeatureAvailabilityService(
+        definitions=[FeatureDefinition(id="platform:teams", kind="platform", default_enabled=False)],
+        config=_backend_config_from_request(request),
+    )
+    if not availability.is_enabled("platform:teams"):
+        raise HTTPException(status_code=404, detail="FEATURE_DISABLED")
+
+
 def ensure_tasks_enabled(request: Request) -> None:
     availability = FeatureAvailabilityService(
         definitions=[FeatureDefinition(id="platform:tasks", kind="platform", default_enabled=False)],
