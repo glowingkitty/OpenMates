@@ -21,6 +21,32 @@ const {
 const { loginToTestAccount, waitForAssistantMessage } = require('./helpers/chat-test-helpers');
 const { getTestAccount } = require('./signup-flow-helpers');
 
+const MIN_WCAG_AA_NORMAL_TEXT_CONTRAST = 4.5;
+
+function parseRgbColor(color: string): [number, number, number] {
+	const match = color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+	if (!match) {
+		throw new Error(`Unsupported color format: ${color}`);
+	}
+	return [Number(match[1]), Number(match[2]), Number(match[3])];
+}
+
+function relativeLuminance([red, green, blue]: [number, number, number]) {
+	const [r, g, b] = [red, green, blue].map((value) => {
+		const channel = value / 255;
+		return channel <= 0.03928 ? channel / 12.92 : Math.pow((channel + 0.055) / 1.055, 2.4);
+	});
+	return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+function contrastRatio(foreground: string, background: string) {
+	const foregroundLuminance = relativeLuminance(parseRgbColor(foreground));
+	const backgroundLuminance = relativeLuminance(parseRgbColor(background));
+	const lighter = Math.max(foregroundLuminance, backgroundLuminance);
+	const darker = Math.min(foregroundLuminance, backgroundLuminance);
+	return (lighter + 0.05) / (darker + 0.05);
+}
+
 test.describe('InteractiveQuestions Component Previews (All 5 Types)', () => {
 	test.beforeEach(async ({ page }) => {
 		// Navigate directly to the component's unauthenticated dev preview route
@@ -59,6 +85,34 @@ test.describe('InteractiveQuestions Component Previews (All 5 Types)', () => {
 
 		await expect(options.nth(1)).toHaveClass(/selected/);
 		await expect(sendBtn).not.toHaveClass(/disabled/);
+	});
+
+	test('keeps selected choice text readable in dark mode', async ({ page }) => {
+		await page.evaluate(() => {
+			document.documentElement.setAttribute('data-theme', 'dark');
+		});
+
+		const option = page.getByTestId('interactive-question-option-opt_reverse');
+		await option.click();
+
+		const colors = await option.evaluate((element) => {
+			const textElement = Array.from(element.querySelectorAll<HTMLElement>('*')).find((child) =>
+				child.textContent?.includes('Reverses the direction of slicing')
+			);
+			if (!textElement) {
+				throw new Error('Selected option text element was not found');
+			}
+			const optionStyles = window.getComputedStyle(element);
+			const textStyles = window.getComputedStyle(textElement);
+			return {
+				background: optionStyles.backgroundColor,
+				foreground: textStyles.color
+			};
+		});
+
+		expect(contrastRatio(colors.foreground, colors.background)).toBeGreaterThanOrEqual(
+			MIN_WCAG_AA_NORMAL_TEXT_CONTRAST
+		);
 	});
 
 	// --- 2. Choice Multi-Select ---

@@ -215,7 +215,7 @@
   }
 
   .option-item.selected {
-    background: var(--color-grey-5, #ffffff);
+    background: var(--color-grey-0, #ffffff);
     border-color: var(--color-primary, #4dabf7);
     box-shadow: 0 0 0 1px var(--color-primary, #4dabf7);
   }
@@ -290,6 +290,7 @@
     padding: var(--spacing-10, 10px) var(--spacing-12, 12px);
     font-size: var(--font-size-p, 15px);
     background: var(--color-grey-0, #ffffff);
+    color: var(--color-font-primary, #212529);
     border: 1px solid var(--color-grey-30, #ced4da);
     border-radius: var(--radius-8, 20px);
     transition: all 0.2s ease;
