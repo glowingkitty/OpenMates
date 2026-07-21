@@ -123,4 +123,106 @@ describe("handlePhase1LastChatImpl", () => {
       true,
     );
   });
+
+  it("does not persist Phase 1a metadata without encrypted_chat_key", async () => {
+    const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+    mocks.chatDB.getChat.mockResolvedValue(null);
+
+    await handlePhase1LastChatImpl(service, {
+      chat_id: "keyless-chat",
+      chat_details: {
+        encrypted_title: "server-title",
+        encrypted_icon: "server-icon",
+        encrypted_category: "server-category",
+        messages_v: 2,
+        title_v: 1,
+      },
+      messages: null,
+      recent_chat_metadata: [
+        {
+          id: "keyless-recent",
+          encrypted_title: "recent-title",
+          encrypted_icon: "recent-icon",
+          encrypted_category: "recent-category",
+          messages_v: 1,
+          title_v: 1,
+        },
+      ],
+      phase: "phase1",
+    });
+
+    expect(mocks.chatDB.addChat).not.toHaveBeenCalled();
+    expect(mocks.chatListCache.upsertChat).not.toHaveBeenCalled();
+    expect(mocks.phasedSyncState.setRecentChats).toHaveBeenCalledWith([]);
+  });
+
+  it("preserves Phase 1a metadata without server key when a local key exists", async () => {
+    const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+    mocks.chatDB.getChat.mockResolvedValue({
+      ...mocks.existingChat,
+      chat_id: "local-keyed-chat",
+      encrypted_chat_key: "local-key",
+    });
+
+    await handlePhase1LastChatImpl(service, {
+      chat_id: "local-keyed-chat",
+      chat_details: {
+        encrypted_title: "server-title",
+        encrypted_icon: "server-icon",
+        encrypted_category: "server-category",
+        messages_v: 2,
+        title_v: 1,
+      },
+      messages: null,
+      recent_chat_metadata: [],
+      phase: "phase1",
+    });
+
+    expect(mocks.chatDB.addChat).toHaveBeenCalledWith(
+      expect.objectContaining({
+        chat_id: "local-keyed-chat",
+        encrypted_chat_key: "local-key",
+      }),
+      undefined,
+      { isFromSync: true, forceIncomingEncryptedChatKey: false },
+    );
+    expect(mocks.phasedSyncState.setResumeChatData).toHaveBeenCalled();
+  });
+
+  it("does not promote a recent chat to resume data when last chat is keyless", async () => {
+    const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+    mocks.chatDB.getChat.mockResolvedValue(null);
+
+    await handlePhase1LastChatImpl(service, {
+      chat_id: "keyless-last",
+      chat_details: {
+        encrypted_title: "last-title",
+        encrypted_icon: "last-icon",
+        encrypted_category: "last-category",
+        messages_v: 2,
+        title_v: 1,
+      },
+      messages: null,
+      recent_chat_metadata: [
+        {
+          id: "valid-recent",
+          encrypted_title: "recent-title",
+          encrypted_chat_key: "recent-key",
+          encrypted_icon: "recent-icon",
+          encrypted_category: "recent-category",
+          messages_v: 1,
+          title_v: 1,
+        },
+      ],
+      phase: "phase1",
+    });
+
+    expect(mocks.chatDB.addChat).toHaveBeenCalledTimes(1);
+    expect(mocks.chatDB.addChat).toHaveBeenCalledWith(
+      expect.objectContaining({ chat_id: "valid-recent" }),
+      undefined,
+      { isFromSync: true, forceIncomingEncryptedChatKey: false },
+    );
+    expect(mocks.phasedSyncState.setResumeChatData).not.toHaveBeenCalled();
+  });
 });

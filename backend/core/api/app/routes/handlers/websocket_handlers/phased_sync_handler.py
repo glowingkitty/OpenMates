@@ -861,7 +861,6 @@ async def _handle_phase1_sync(
                     bool(cached_ver),
                     bool(directus_details),
                 )
-
             valid_phase1_ids.append(cid)
             if cid == last_opened_id:
                 last_chat_details = chat_details
@@ -884,11 +883,19 @@ async def _handle_phase1_sync(
 
             for child_id in direct_sub_chat_ids:
                 if child_id in sub_chat_metadata_map:
-                    candidate_metadata.append(
-                        _build_chat_details_from_directus_metadata(
-                            sub_chat_metadata_map[child_id], child_id
-                        )
+                    sub_chat_details = _build_chat_details_from_directus_metadata(
+                        sub_chat_metadata_map[child_id], child_id
                     )
+                    missing_fields = _phase1_metadata_invariant_violations(sub_chat_details)
+                    if missing_fields:
+                        invariant_violation_count += 1
+                        logger.warning(
+                            "[PHASE1_METADATA_INVARIANT] Sub-chat %s missing %s "
+                            "after directus fetch",
+                            child_id,
+                            ",".join(missing_fields),
+                        )
+                    candidate_metadata.append(sub_chat_details)
             logger.info(
                 "Phase 1a: Included %d direct sub-chat metadata row(s) for parent preview reloads",
                 len(sub_chat_metadata_map),

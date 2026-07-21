@@ -836,6 +836,9 @@ export interface InitialSyncResponsePayload {
     is_private?: boolean; // Whether this chat is private (not shared)
     share_pii?: boolean;
     share_highlights?: boolean;
+    ideabucket?: boolean | null;
+    ideabucket_processing_window_id?: string | null;
+    ideabucket_triggered_at?: number | null;
     user_id?: string; // Owner/creator of the chat
   }>;
   server_chat_order: string[];

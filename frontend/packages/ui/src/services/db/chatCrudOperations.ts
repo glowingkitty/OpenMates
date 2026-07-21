@@ -1658,18 +1658,37 @@ export async function batchSaveMetadataChats(
   const prepared: Chat[] = [];
   for (const chat of chats) {
     try {
-      const chatToSave = await encryptChatForStorage(dbInstance, {
-        ...chat,
-        is_metadata_only: true,
-        draft_v: chat.draft_v ?? 0,
-        title_v: chat.title_v ?? 0,
-        messages_v: chat.messages_v ?? 0,
-        last_edited_overall_timestamp:
-          chat.last_edited_overall_timestamp ??
-          chat.updated_at ??
-          chat.created_at ??
-          Math.floor(Date.now() / 1000),
-      });
+      const isPublicChat =
+        chat.chat_id?.startsWith("demo-") || chat.chat_id?.startsWith("legal-");
+      const existingChat = chat.chat_id ? await dbInstance.getChat(chat.chat_id) : null;
+      if (
+        !chat.encrypted_chat_key &&
+        !existingChat?.encrypted_chat_key &&
+        !chat.is_anonymous &&
+        !chat.anonymous_encrypted_chat_key &&
+        !isPublicChat
+      ) {
+        console.warn(
+          `[ChatDatabase] Skipping metadata-only synced chat ${chat.chat_id}: missing encrypted_chat_key`,
+        );
+        continue;
+      }
+      const chatToSave = await encryptChatForStorage(
+        dbInstance,
+        {
+          ...chat,
+          is_metadata_only: true,
+          draft_v: chat.draft_v ?? 0,
+          title_v: chat.title_v ?? 0,
+          messages_v: chat.messages_v ?? 0,
+          last_edited_overall_timestamp:
+            chat.last_edited_overall_timestamp ??
+            chat.updated_at ??
+            chat.created_at ??
+            Math.floor(Date.now() / 1000),
+        },
+        { isFromSync: true, forceIncomingEncryptedChatKey: false },
+      );
       delete chatToSave.messages;
       prepared.push(chatToSave);
     } catch (error) {

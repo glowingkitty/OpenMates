@@ -306,6 +306,24 @@ describe("chat sync merge", () => {
     expect(merged.title_v).toBe(1);
   });
 
+  it("preserves anonymous key fields while merging anonymous sync metadata", async () => {
+    const serverChat = {
+      id: "anonymous-chat-1",
+      encrypted_title: "anonymous-title",
+      anonymous_encrypted_chat_key: "anonymous-key",
+      is_anonymous: true,
+      messages_v: 1,
+      title_v: 1,
+    };
+
+    const merged = await mergeServerChatWithLocal(serverChat, null, undefined);
+
+    expect(merged.chat_id).toBe("anonymous-chat-1");
+    expect(merged.encrypted_chat_key).toBeUndefined();
+    expect(merged.anonymous_encrypted_chat_key).toBe("anonymous-key");
+    expect(merged.is_anonymous).toBe(true);
+  });
+
   it("merges encrypted shared short URL from server for owner share UI restore", async () => {
     const localChat = makeChat({
       encrypted_chat_key: "same-key",

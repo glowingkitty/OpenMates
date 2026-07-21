@@ -43,6 +43,89 @@ import {
  */
 let phase2ProcessedChatIds: Set<string> | null = null;
 
+function isKeyOptionalSyncedChat(
+  chatId: string,
+  chat: Partial<Chat>,
+): boolean {
+  return !!(
+    chatId.startsWith("demo-") ||
+    chatId.startsWith("legal-") ||
+    chat.is_anonymous ||
+    chat.anonymous_encrypted_chat_key
+  );
+}
+
+function shouldSkipSyncedChatWithoutKey(
+  phase: string,
+  chatId: string,
+  serverChat: Partial<Chat>,
+  localChat: Chat | null,
+): boolean {
+  if (
+    serverChat.encrypted_chat_key ||
+    localChat?.encrypted_chat_key ||
+    localChat?.anonymous_encrypted_chat_key ||
+    localChat?.is_anonymous ||
+    isKeyOptionalSyncedChat(chatId, serverChat)
+  ) {
+    return false;
+  }
+  console.warn(
+    `[ChatSyncService] ${phase} - skipping ${chatId}: missing encrypted_chat_key`,
+  );
+  return true;
+}
+
+function buildMetadataOnlyChatFromDetails(
+  details: Partial<Chat> & { id: string },
+  existingChat: Chat | null,
+): Chat {
+  return {
+    chat_id: details.id,
+    encrypted_title: details.encrypted_title || null,
+    title: null,
+    messages_v: details.messages_v || 0,
+    title_v: details.title_v || 0,
+    metadata_v: details.metadata_v,
+    draft_v: 0,
+    encrypted_draft_md: null,
+    encrypted_draft_preview: null,
+    ideabucket: details.ideabucket,
+    ideabucket_processing_window_id: details.ideabucket_processing_window_id,
+    ideabucket_triggered_at: details.ideabucket_triggered_at,
+    last_edited_overall_timestamp:
+      details.last_edited_overall_timestamp ||
+      details.updated_at ||
+      Math.floor(Date.now() / 1000),
+    unread_count: details.unread_count || 0,
+    created_at: details.created_at || Math.floor(Date.now() / 1000),
+    updated_at: details.updated_at || Math.floor(Date.now() / 1000),
+    processing_metadata: false,
+    waiting_for_metadata: false,
+    encrypted_category: details.encrypted_category || null,
+    encrypted_icon: details.encrypted_icon || null,
+    encrypted_chat_key:
+      details.encrypted_chat_key || existingChat?.encrypted_chat_key || null,
+    anonymous_encrypted_chat_key:
+      details.anonymous_encrypted_chat_key ||
+      existingChat?.anonymous_encrypted_chat_key ||
+      null,
+    encrypted_chat_summary: details.encrypted_chat_summary || null,
+    encrypted_share_cta_text: details.encrypted_share_cta_text || null,
+    encrypted_chat_tags: details.encrypted_chat_tags || null,
+    encrypted_follow_up_request_suggestions:
+      details.encrypted_follow_up_request_suggestions || null,
+    encrypted_active_focus_id: details.encrypted_active_focus_id || null,
+    pinned: details.pinned || false,
+    is_shared: details.is_shared ?? false,
+    is_private: details.is_private ?? false,
+    is_anonymous: details.is_anonymous ?? existingChat?.is_anonymous ?? false,
+    share_pii: details.share_pii ?? false,
+    share_highlights: details.share_highlights ?? true,
+    is_metadata_only: true,
+  } as Chat;
+}
+
 /**
  * Validate encrypted metadata fields (title/icon/category) in a merged chat.
  * If the merged field fails to decrypt but the local version succeeds, swap to
@@ -680,6 +763,16 @@ async function storeRecentChats(
 
       // Get existing local chat to compare versions
       const existingChat = await chatDB.getChat(chatId);
+      if (
+        shouldSkipSyncedChatWithoutKey(
+          "Phase 2",
+          chatId,
+          chat_details,
+          existingChat,
+        )
+      ) {
+        continue;
+      }
       const keyMismatch = await hasEncryptedChatKeyMismatch(
         chat_details,
         existingChat,
@@ -898,6 +991,16 @@ async function storeAllChats(
 
       // Get existing local chat to compare versions
       const existingChat = await chatDB.getChat(chatId);
+      if (
+        shouldSkipSyncedChatWithoutKey(
+          "Phase 3",
+          chatId,
+          chat_details,
+          existingChat,
+        )
+      ) {
+        continue;
+      }
       const keyMismatch = await hasEncryptedChatKeyMismatch(
         chat_details,
         existingChat,
@@ -1294,50 +1397,23 @@ export async function handleLoadMoreChatsResponseImpl(
 
     // Convert server chat format to the Chat type expected by the UI
     // These are metadata-only chats (no messages) — messages load on-demand when user opens the chat
-    const chats: Chat[] = (payload.chats || [])
-      .map((chatWrapper) => {
-        const details = chatWrapper.chat_details;
-        if (!details?.id) return null;
-
-        return {
-          chat_id: details.id,
-          encrypted_title: details.encrypted_title || null,
-          title: null, // Will be decrypted by the UI
-          messages_v: details.messages_v || 0,
-          title_v: details.title_v || 0,
-          metadata_v: details.metadata_v,
-          draft_v: 0,
-          encrypted_draft_md: null,
-          encrypted_draft_preview: null,
-          ideabucket: details.ideabucket,
-          ideabucket_processing_window_id: details.ideabucket_processing_window_id,
-          ideabucket_triggered_at: details.ideabucket_triggered_at,
-          last_edited_overall_timestamp:
-            details.last_edited_overall_timestamp ||
-            details.updated_at ||
-            Math.floor(Date.now() / 1000),
-          unread_count: details.unread_count || 0,
-          created_at: details.created_at || Math.floor(Date.now() / 1000),
-          updated_at: details.updated_at || Math.floor(Date.now() / 1000),
-          processing_metadata: false,
-          waiting_for_metadata: false,
-          encrypted_category: details.encrypted_category || null,
-          encrypted_icon: details.encrypted_icon || null,
-          encrypted_chat_key: details.encrypted_chat_key || null,
-          encrypted_chat_summary: details.encrypted_chat_summary || null,
-          encrypted_share_cta_text: details.encrypted_share_cta_text || null,
-          encrypted_chat_tags: details.encrypted_chat_tags || null,
-          encrypted_follow_up_request_suggestions:
-            details.encrypted_follow_up_request_suggestions || null,
-          encrypted_active_focus_id: details.encrypted_active_focus_id || null,
-          pinned: details.pinned || false,
-          is_shared: details.is_shared || false,
-          is_private: details.is_private || false,
-          share_pii: details.share_pii || false,
-          share_highlights: details.share_highlights ?? true,
-        } as Chat;
-      })
-      .filter((c): c is Chat => c !== null);
+    const chats: Chat[] = [];
+    for (const chatWrapper of payload.chats || []) {
+      const details = chatWrapper.chat_details;
+      if (!details?.id) continue;
+      const existingChat = await chatDB.getChat(details.id);
+      if (
+        shouldSkipSyncedChatWithoutKey(
+          "Load more",
+          details.id,
+          details,
+          existingChat,
+        )
+      ) {
+        continue;
+      }
+      chats.push(buildMetadataOnlyChatFromDetails(details, existingChat));
+    }
 
     // Dispatch event to Chats.svelte — these chats go to memory only, NOT IndexedDB
     serviceInstance.dispatchEvent(
@@ -1381,49 +1457,23 @@ export async function handleSyncMetadataChatsResponseImpl(
     }
 
     // Convert server chat format to the Chat type with is_metadata_only flag
-    const chats: Chat[] = (payload.chats || [])
-      .map((chatWrapper) => {
-        const details = chatWrapper.chat_details;
-        if (!details?.id) return null;
-
-        return {
-          chat_id: details.id,
-          encrypted_title: details.encrypted_title || null,
-          title: null,
-          messages_v: details.messages_v || 0,
-          title_v: details.title_v || 0,
-          metadata_v: details.metadata_v,
-          draft_v: 0,
-          encrypted_draft_md: null,
-          encrypted_draft_preview: null,
-          ideabucket: details.ideabucket,
-          ideabucket_processing_window_id: details.ideabucket_processing_window_id,
-          ideabucket_triggered_at: details.ideabucket_triggered_at,
-          last_edited_overall_timestamp:
-            details.last_edited_overall_timestamp ||
-            details.updated_at ||
-            Math.floor(Date.now() / 1000),
-          unread_count: details.unread_count || 0,
-          created_at: details.created_at || Math.floor(Date.now() / 1000),
-          updated_at: details.updated_at || Math.floor(Date.now() / 1000),
-          processing_metadata: false,
-          waiting_for_metadata: false,
-          encrypted_category: details.encrypted_category || null,
-          encrypted_icon: details.encrypted_icon || null,
-          encrypted_chat_key: details.encrypted_chat_key || null,
-          encrypted_chat_summary: details.encrypted_chat_summary || null,
-          encrypted_share_cta_text: details.encrypted_share_cta_text || null,
-          encrypted_chat_tags: details.encrypted_chat_tags || null,
-          encrypted_follow_up_request_suggestions:
-            details.encrypted_follow_up_request_suggestions || null,
-          encrypted_active_focus_id: details.encrypted_active_focus_id || null,
-          pinned: details.pinned || false,
-          is_shared: details.is_shared || false,
-          is_private: details.is_private || false,
-          is_metadata_only: true,
-        } as Chat;
-      })
-      .filter((c): c is Chat => c !== null);
+    const chats: Chat[] = [];
+    for (const chatWrapper of payload.chats || []) {
+      const details = chatWrapper.chat_details;
+      if (!details?.id) continue;
+      const existingChat = await chatDB.getChat(details.id);
+      if (
+        shouldSkipSyncedChatWithoutKey(
+          "Metadata sync",
+          details.id,
+          details,
+          existingChat,
+        )
+      ) {
+        continue;
+      }
+      chats.push(buildMetadataOnlyChatFromDetails(details, existingChat));
+    }
 
     if (chats.length === 0) {
       console.info("[ChatSyncService] No metadata chats to save.");

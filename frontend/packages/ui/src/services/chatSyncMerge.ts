@@ -90,6 +90,7 @@ export async function mergeServerChatWithLocal(
       ideabucket_processing_window_id: serverChat.ideabucket_processing_window_id,
       ideabucket_triggered_at: serverChat.ideabucket_triggered_at,
       encrypted_chat_key: serverChat.encrypted_chat_key,
+      anonymous_encrypted_chat_key: serverChat.anonymous_encrypted_chat_key,
       candidate_encrypted_keys: serverChat.candidate_encrypted_keys,
       encrypted_icon: serverChat.encrypted_icon,
       encrypted_category: serverChat.encrypted_category,
@@ -107,6 +108,7 @@ export async function mergeServerChatWithLocal(
       encrypted_active_focus_id: serverChat.encrypted_active_focus_id,
       is_shared: serverChat.is_shared,
       is_private: serverChat.is_private,
+      is_anonymous: serverChat.is_anonymous,
       share_pii: serverChat.share_pii,
       share_highlights: serverChat.share_highlights,
       parent_id: serverChat.parent_id ?? null,
@@ -186,6 +188,9 @@ export async function mergeServerChatWithLocal(
     encrypted_chat_key: keyMismatch
       ? localChat.encrypted_chat_key
       : serverChat.encrypted_chat_key ?? localChat.encrypted_chat_key,
+    anonymous_encrypted_chat_key:
+      serverChat.anonymous_encrypted_chat_key ??
+      localChat.anonymous_encrypted_chat_key,
     candidate_encrypted_keys:
       serverChat.candidate_encrypted_keys ?? localChat.candidate_encrypted_keys,
     encrypted_icon: keyMismatch
@@ -234,6 +239,7 @@ export async function mergeServerChatWithLocal(
         : serverChat.encrypted_active_focus_id ?? localChat.encrypted_active_focus_id,
     is_shared: serverChat.is_shared ?? localChat.is_shared,
     is_private: serverChat.is_private ?? localChat.is_private,
+    is_anonymous: serverChat.is_anonymous ?? localChat.is_anonymous,
     share_pii: serverChat.share_pii ?? localChat.share_pii,
     share_highlights: serverChat.share_highlights ?? localChat.share_highlights,
     parent_id: serverChat.parent_id ?? localChat.parent_id ?? null,

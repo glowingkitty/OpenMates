@@ -315,11 +315,40 @@ export async function handlePhase1LastChatImpl(
     const currentUserId = userProfile?.user_id;
     await chatDB.init();
 
+    const isKeyOptionalChat = (details: Partial<Chat> & { id?: string }): boolean =>
+      !!(
+        details.id?.startsWith("demo-") ||
+        details.id?.startsWith("legal-") ||
+        details.is_anonymous ||
+        details.anonymous_encrypted_chat_key
+      );
+
+    const hasUsableChatKey = (
+      details: Partial<Chat> & { id?: string },
+      existingChat: Chat | null,
+      chatId: string,
+    ): boolean => {
+      if (
+        details.encrypted_chat_key ||
+        existingChat?.encrypted_chat_key ||
+        isKeyOptionalChat(details)
+      ) {
+        return true;
+      }
+      console.warn(
+        `[ChatSyncService:CoreSync] Phase 1a - skipping ${chatId}: missing encrypted_chat_key`,
+      );
+      return false;
+    };
+
     // Helper to build Chat from server metadata
     const buildChat = async (
       details: Partial<Chat> & { id: string },
-    ): Promise<Chat> => {
+    ): Promise<Chat | null> => {
       const existingChat = await chatDB.getChat(details.id);
+      if (!hasUsableChatKey(details, existingChat, details.id)) {
+        return null;
+      }
       const keyMismatch = await hasEncryptedChatKeyMismatch(details, existingChat);
 
       if (keyMismatch) {
@@ -337,23 +366,28 @@ export async function handlePhase1LastChatImpl(
 
     // Collect all chats to decrypt: last-opened + recent metadata
     const allPhase1Chats: Chat[] = [];
+    let acceptedLastChatId: string | null = null;
 
     if (payload.chat_details && payload.chat_id) {
       const lastChat = await buildChat({
         ...payload.chat_details,
         id: payload.chat_id,
       } as Partial<Chat> & { id: string });
-      allPhase1Chats.push(lastChat);
-      await chatDB.addChat(lastChat, undefined, {
-        isFromSync: true,
-        forceIncomingEncryptedChatKey: false,
-      });
-      chatListCache.upsertChat(lastChat);
+      if (lastChat) {
+        allPhase1Chats.push(lastChat);
+        acceptedLastChatId = lastChat.chat_id;
+        await chatDB.addChat(lastChat, undefined, {
+          isFromSync: true,
+          forceIncomingEncryptedChatKey: false,
+        });
+        chatListCache.upsertChat(lastChat);
+      }
     }
 
     if (payload.recent_chat_metadata) {
       for (const meta of payload.recent_chat_metadata) {
         const chat = await buildChat(meta);
+        if (!chat) continue;
         allPhase1Chats.push(chat);
         await chatDB.addChat(chat, undefined, {
           isFromSync: true,
@@ -422,9 +456,11 @@ export async function handlePhase1LastChatImpl(
     // Store in phasedSyncStateStore for immediate rendering
     phasedSyncState.setRecentChats(recentChatsDecrypted);
 
-    // Populate resume card for the last-opened chat (first in the list)
-    if (recentChatsDecrypted.length > 0 && payload.chat_id && payload.chat_details) {
-      const lastChat = recentChatsDecrypted[0];
+    // Populate resume card only when the last-opened chat survived validation.
+    const lastChat = acceptedLastChatId
+      ? recentChatsDecrypted.find(({ chat }) => chat.chat_id === acceptedLastChatId)
+      : undefined;
+    if (lastChat) {
       phasedSyncState.setResumeChatData(
         lastChat.chat,
         lastChat.title,

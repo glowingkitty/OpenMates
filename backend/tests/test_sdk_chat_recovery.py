@@ -13,6 +13,8 @@ import pytest
 from fastapi import HTTPException
 
 from backend.core.api.app.routes import sdk
+from backend.core.api.app.services.directus.team_methods import hash_id
+from backend.tests.test_token_broker_refs import FakeCache, FakeEncryption
 
 
 USER_ID = "11111111-1111-4111-8111-111111111111"
@@ -26,12 +28,36 @@ def _request() -> SimpleNamespace:
     )
 
 
+def _connected_account_request() -> SimpleNamespace:
+    class FakeDirectus:
+        async def get_items(self, _collection: str, params: dict | None = None):
+            return [
+                {
+                    "id": params["filter[id][_eq]"],
+                    "hashed_user_id": hash_id(USER_ID),
+                    "provider_type_hash": hash_id("revolut_business"),
+                }
+            ]
+
+    return SimpleNamespace(
+        headers={"Authorization": "Bearer test-key"},
+        app=SimpleNamespace(
+            state=SimpleNamespace(
+                cache_service=FakeCache(),
+                encryption_service=FakeEncryption(),
+                directus_service=FakeDirectus(),
+            )
+        ),
+    )
+
+
 def _auth() -> dict:
     return {
         "user_id": USER_ID,
         "device_hash": "device-hash",
         "api_key_hash": "key-hash",
         "api_key_metadata": {"full_access": True},
+        "vault_key_id": "vault-key",
     }
 
 
@@ -270,3 +296,144 @@ async def test_create_dispatches_only_canonical_inference_values_with_stable_aut
     assert dispatch["user_id"] == USER_ID
     assert dispatch["_api_key_hash"] == "key-hash"
     assert "inference_request" not in dispatch
+
+
+@pytest.mark.asyncio
+async def test_sdk_connected_account_skill_endpoint_brokers_refs_before_dispatch(monkeypatch):
+    from backend.apps.ai.processing import connected_account_execution
+
+    dispatched: dict[str, object] = {}
+
+    async def exchange(refresh_token: str, scope_context: dict[str, object]) -> dict[str, object]:
+        assert refresh_token == "refresh-secret"
+        assert scope_context["provider_id"] == "revolut_business"
+        return {"access_token": "access-secret", "expires_in": 3600}
+
+    async def fake_call_app_skill(**kwargs):
+        dispatched.update(kwargs)
+        assert "refresh-secret" not in str(kwargs["input_data"])
+        assert kwargs["input_data"]["_connected_account_access_tokens"]
+        return {"ok": True, "account_count": 1}
+
+    apps_api_module = ModuleType("backend.core.api.app.routes.apps_api")
+    apps_api_module.call_app_skill = fake_call_app_skill
+    monkeypatch.setitem(sys.modules, apps_api_module.__name__, apps_api_module)
+    monkeypatch.setattr(sdk, "_authenticate_sdk_request", AsyncMock(return_value=_auth()))
+    monkeypatch.setattr(connected_account_execution, "exchange_refresh_token_for_provider", lambda _provider_id: exchange)
+
+    result = await sdk.run_sdk_connected_account_skill(
+        _connected_account_request(),
+        "finance",
+        "check_accounts",
+        sdk.SdkConnectedAccountSkillRunRequest(
+            input={
+                "period": "monthly",
+                "connected_account_requests": [{"source_ref": "revolut:sandbox"}],
+                "csv_statements": [{"filename": "cash.csv", "content": "date,description,amount,currency\n2026-07-01,Cafe,-4.5,EUR"}],
+            },
+            connected_account_token_ref_inputs=[
+                {
+                    "connected_account_id": "acct-1",
+                    "app_id": "finance",
+                    "provider_id": "revolut_business",
+                    "allowed_actions": ["read"],
+                    "action_scope": {"provider": "revolut_business"},
+                    "refresh_token_envelope": {"refresh_token": "refresh-secret", "provider": "revolut_business"},
+                }
+            ],
+            chat_id="chat-1",
+            message_id="message-1",
+        ),
+    )
+
+    assert result == {"ok": True, "account_count": 1}
+    assert dispatched["app_id"] == "finance"
+    assert dispatched["skill_id"] == "check_accounts"
+    assert dispatched["enforce_rest_exposure_policy"] is False
+
+
+@pytest.mark.asyncio
+async def test_sdk_connected_account_skill_maps_provider_token_exchange_failure(monkeypatch):
+    from backend.apps.ai.processing import connected_account_execution
+    from backend.shared.providers.revolut_business.oauth import RevolutBusinessTokenExchangeError
+
+    async def exchange(_refresh_token: str, _scope_context: dict[str, object]) -> dict[str, object]:
+        raise RevolutBusinessTokenExchangeError("Revolut Business token exchange failed with HTTP 401")
+
+    monkeypatch.setattr(sdk, "_authenticate_sdk_request", AsyncMock(return_value=_auth()))
+    monkeypatch.setattr(connected_account_execution, "exchange_refresh_token_for_provider", lambda _provider_id: exchange)
+
+    with pytest.raises(HTTPException) as exc_info:
+        await sdk.run_sdk_connected_account_skill(
+            _connected_account_request(),
+            "finance",
+            "check_accounts",
+            sdk.SdkConnectedAccountSkillRunRequest(
+                input={
+                    "period": "monthly",
+                    "connected_account_requests": [{"source_ref": "revolut:sandbox"}],
+                },
+                connected_account_token_ref_inputs=[
+                    {
+                        "connected_account_id": "acct-1",
+                        "app_id": "finance",
+                        "provider_id": "revolut_business",
+                        "allowed_actions": ["read"],
+                        "action_scope": {"provider": "revolut_business"},
+                        "refresh_token_envelope": {"refresh_token": "refresh-secret", "provider": "revolut_business"},
+                    }
+                ],
+                chat_id="chat-1",
+                message_id="message-1",
+            ),
+        )
+
+    assert exc_info.value.status_code == 502
+    assert exc_info.value.detail == {
+        "error": "provider_token_exchange_failed",
+        "provider_id": "revolut_business",
+    }
+
+
+@pytest.mark.asyncio
+async def test_sdk_chat_route_converts_connected_account_inputs_to_safe_token_refs(monkeypatch):
+    registry = SimpleNamespace(dispatch_skill=AsyncMock(return_value={"response": {"content": "ok"}}))
+    registry_module = ModuleType("backend.core.api.app.services.skill_registry")
+    registry_module.get_global_registry = lambda: registry
+    monkeypatch.setitem(sys.modules, registry_module.__name__, registry_module)
+    monkeypatch.setattr(sdk, "_authenticate_sdk_request", AsyncMock(return_value=_auth()))
+
+    result = await sdk.create_sdk_chat(
+        _connected_account_request(),
+        sdk.SdkChatCreateRequest(
+            message="Check my accounts",
+            save_to_account=False,
+            connected_account_directory=[
+                {
+                    "connected_account_id": "acct-1",
+                    "app_id": "finance",
+                    "provider_id": "revolut_business",
+                    "account_ref": "revolut-sandbox",
+                    "label": "Revolut Sandbox",
+                    "capabilities": ["read"],
+                }
+            ],
+            connected_account_token_ref_inputs=[
+                {
+                    "connected_account_id": "acct-1",
+                    "app_id": "finance",
+                    "provider_id": "revolut_business",
+                    "allowed_actions": ["read"],
+                    "action_scope": {"provider": "revolut_business"},
+                    "refresh_token_envelope": {"refresh_token": "refresh-secret", "provider": "revolut_business"},
+                }
+            ],
+        ),
+    )
+
+    assert result["response"]["content"] == "ok"
+    payload = registry.dispatch_skill.await_args.args[2]
+    assert payload["connected_account_directory"][0]["provider_id"] == "revolut_business"
+    assert payload["connected_account_token_refs"][0]["provider_id"] == "revolut_business"
+    assert payload["connected_account_token_refs"][0]["turn_token_ref"].startswith("tref_")
+    assert "refresh-secret" not in str(payload)

@@ -79,6 +79,19 @@ describe("filterPersistableSyncedMessagesWithSkipped", () => {
     expect(mocks.decryptWithChatKey).not.toHaveBeenCalled();
   });
 
+  it("defers Phase 1b encrypted messages for keyless metadata parents", async () => {
+    const result = await filterPersistableSyncedMessagesWithSkipped(
+      [encryptedMessage("phase1b-keyless-parent")],
+      new Map([["phase1b-keyless-parent", undefined]]),
+      "Phase 1b content sync",
+    );
+
+    expect(result.messages).toEqual([]);
+    expect(result.skippedChatIds.has("phase1b-keyless-parent")).toBe(true);
+    expect(mocks.chatKeyManager.receiveKeyFromServer).not.toHaveBeenCalled();
+    expect(mocks.decryptWithChatKey).not.toHaveBeenCalled();
+  });
+
   it("keeps encrypted synced messages only when the loaded key decrypts a sample", async () => {
     const key = new Uint8Array([1, 2, 3]);
     const message = encryptedMessage();

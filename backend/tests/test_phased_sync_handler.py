@@ -379,3 +379,191 @@ async def test_phase1_full_content_ids_are_limited_to_recent_parent_chats(doc_as
     assert "preview-0" in sent_metadata_ids
     assert "sub-0" not in content_ids
     assert "last-sub" not in content_ids
+
+
+@pytest.mark.anyio
+async def test_phase1_emits_keyless_metadata_rows_for_client_key_recovery(doc_assert) -> None:
+    doc_assert("phase1-emits-keyless-metadata-rows-for-client-key-recovery")
+
+    metadata = {
+        "keyless-parent": {
+            "id": "keyless-parent",
+            "encrypted_title": "title-keyless",
+            "encrypted_icon": "icon-keyless",
+            "encrypted_category": "category-keyless",
+            "messages_v": 2,
+            "title_v": 1,
+            "parent_id": None,
+            "is_sub_chat": False,
+        },
+        "valid-parent": {
+            "id": "valid-parent",
+            "encrypted_title": "title-valid",
+            "encrypted_chat_key": "key-valid",
+            "encrypted_icon": "icon-valid",
+            "encrypted_category": "category-valid",
+            "messages_v": 1,
+            "title_v": 1,
+            "parent_id": None,
+            "is_sub_chat": False,
+        },
+    }
+
+    class FakeCache:
+        async def get_new_chat_suggestions(self, hashed_user_id):
+            return []
+
+        async def get_daily_inspirations_sync(self, hashed_user_id):
+            return []
+
+        async def get_user_by_id(self, user_id):
+            return {"last_opened": "chats/keyless-parent"}
+
+        async def get_batch_chat_list_item_data(self, user_id, chat_ids):
+            return {}
+
+        async def get_batch_chat_versions(self, user_id, chat_ids):
+            return {}
+
+    class FakeDirectusChat:
+        async def get_user_chats_metadata(
+            self, user_id, limit=100, sort=None, admin_required=True, team_id=None
+        ):
+            del user_id, limit, sort, admin_required, team_id
+            return [metadata["keyless-parent"], metadata["valid-parent"]]
+
+        async def get_chats_metadata_batch(self, chat_ids):
+            return {
+                chat_id: metadata[chat_id]
+                for chat_id in chat_ids
+                if chat_id in metadata
+            }
+
+        async def get_chat_metadata(self, chat_id):
+            return metadata.get(chat_id)
+
+    class FakeDirectus:
+        def __init__(self):
+            self.chat = FakeDirectusChat()
+
+        async def get_items(self, collection, params, admin_required=True):
+            return []
+
+    manager = SimpleNamespace(sent=[])
+
+    async def send_personal_message(message, user_id, device_fingerprint_hash):
+        manager.sent.append(message)
+
+    manager.send_personal_message = send_personal_message
+
+    content_ids = await _handle_phase1_sync(
+        manager=manager,
+        cache_service=FakeCache(),
+        directus_service=FakeDirectus(),
+        user_id="user-1",
+        device_fingerprint_hash="device-1",
+        client_chat_versions={},
+        client_chat_ids=[],
+        sent_embed_ids=set(),
+    )
+
+    assert content_ids == ["keyless-parent", "valid-parent"]
+    phase1_payload = manager.sent[0]["payload"]
+    assert phase1_payload["chat_id"] == "keyless-parent"
+    assert phase1_payload["chat_details"]["id"] == "keyless-parent"
+    sent_metadata_ids = {chat["id"] for chat in phase1_payload["recent_chat_metadata"]}
+    assert "valid-parent" in sent_metadata_ids
+
+
+@pytest.mark.anyio
+async def test_phase1_emits_keyless_direct_sub_chat_metadata_for_client_key_recovery(doc_assert) -> None:
+    doc_assert("phase1-emits-keyless-direct-sub-chat-metadata-for-client-key-recovery")
+
+    metadata = {
+        "valid-parent": {
+            "id": "valid-parent",
+            "encrypted_title": "title-valid",
+            "encrypted_chat_key": "key-valid",
+            "encrypted_icon": "icon-valid",
+            "encrypted_category": "category-valid",
+            "messages_v": 1,
+            "title_v": 1,
+            "parent_id": None,
+            "is_sub_chat": False,
+        },
+        "keyless-sub": {
+            "id": "keyless-sub",
+            "encrypted_title": "title-keyless-sub",
+            "encrypted_icon": "icon-keyless-sub",
+            "encrypted_category": "category-keyless-sub",
+            "messages_v": 1,
+            "title_v": 1,
+            "parent_id": "valid-parent",
+            "is_sub_chat": True,
+        },
+    }
+
+    class FakeCache:
+        async def get_new_chat_suggestions(self, hashed_user_id):
+            return []
+
+        async def get_daily_inspirations_sync(self, hashed_user_id):
+            return []
+
+        async def get_user_by_id(self, user_id):
+            return {"last_opened": "chats/valid-parent"}
+
+        async def get_batch_chat_list_item_data(self, user_id, chat_ids):
+            return {}
+
+        async def get_batch_chat_versions(self, user_id, chat_ids):
+            return {}
+
+    class FakeDirectusChat:
+        async def get_user_chats_metadata(
+            self, user_id, limit=100, sort=None, admin_required=True, team_id=None
+        ):
+            del user_id, limit, sort, admin_required, team_id
+            return [metadata["valid-parent"]]
+
+        async def get_chats_metadata_batch(self, chat_ids):
+            return {
+                chat_id: metadata[chat_id]
+                for chat_id in chat_ids
+                if chat_id in metadata
+            }
+
+        async def get_chat_metadata(self, chat_id):
+            return metadata.get(chat_id)
+
+    class FakeDirectus:
+        def __init__(self):
+            self.chat = FakeDirectusChat()
+
+        async def get_items(self, collection, params, admin_required=True):
+            return [
+                {"id": "keyless-sub", "parent_id": "valid-parent", "is_sub_chat": True}
+            ]
+
+    manager = SimpleNamespace(sent=[])
+
+    async def send_personal_message(message, user_id, device_fingerprint_hash):
+        manager.sent.append(message)
+
+    manager.send_personal_message = send_personal_message
+
+    content_ids = await _handle_phase1_sync(
+        manager=manager,
+        cache_service=FakeCache(),
+        directus_service=FakeDirectus(),
+        user_id="user-1",
+        device_fingerprint_hash="device-1",
+        client_chat_versions={},
+        client_chat_ids=[],
+        sent_embed_ids=set(),
+    )
+
+    assert content_ids == ["valid-parent"]
+    phase1_payload = manager.sent[0]["payload"]
+    sent_metadata_ids = {chat["id"] for chat in phase1_payload["recent_chat_metadata"]}
+    assert "keyless-sub" in sent_metadata_ids
