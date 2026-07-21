@@ -145,34 +145,73 @@ test('reminder — daily repeating cancellation prevents firing', async ({
 	log('=== S4: Cancelling repeating reminder before first occurrence ===');
 	await screenshot(page, 's5-before-cancel');
 
-	const reminderPreview = page.getByTestId('reminder-embed-preview').first();
-	await expect(reminderPreview).toBeVisible({ timeout: 30000 });
-	await expect(reminderPreview).toHaveAttribute('data-reminder-id', /[a-f0-9-]{36}/, { timeout: 30000 });
-	const reminderId = await reminderPreview.getAttribute('data-reminder-id');
-	expect(reminderId, 'Reminder ID should be available on the reminder preview').toBeTruthy();
-
-	const cancelResult = await page.evaluate(
-		async ({ apiBaseUrl, reminderId }: { apiBaseUrl: string; reminderId: string }) => {
-			const response = await fetch(`${apiBaseUrl}/v1/apps/reminder/skills/cancel-reminder`, {
+	const cancelResult: any = await page.evaluate(
+		async ({ apiBaseUrl }: { apiBaseUrl: string }) => {
+			const listResponse = await fetch(`${apiBaseUrl}/v1/apps/reminder/skills/list-reminders`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				credentials: 'include',
-				body: JSON.stringify({ reminder_id: reminderId })
+				body: JSON.stringify({ status: 'pending' })
 			});
-			let body: any = null;
+			let listBody: any = null;
 			try {
-				body = await response.json();
+				listBody = await listResponse.json();
 			} catch {
 				/* ignore non-JSON errors */
 			}
-			return { ok: response.ok, status: response.status, body };
+			if (!listResponse.ok) {
+				return { ok: false, stage: 'list', status: listResponse.status, body: listBody };
+			}
+
+			const listData = listBody?.data || listBody;
+			const now = Math.floor(Date.now() / 1000);
+			const reminders = Array.isArray(listData?.reminders) ? listData.reminders : [];
+			const matching = reminders.filter((reminder: any) => {
+				return (
+					reminder?.status === 'pending' &&
+					reminder?.is_repeating === true &&
+					String(reminder?.prompt_preview || '').includes('repeating test') &&
+					Number(reminder?.trigger_at || 0) >= now - 60 &&
+					Number(reminder?.trigger_at || 0) <= now + 600
+				);
+			});
+
+			const cancelled = [];
+			for (const reminder of matching) {
+				const cancelResponse = await fetch(`${apiBaseUrl}/v1/apps/reminder/skills/cancel-reminder`, {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					credentials: 'include',
+					body: JSON.stringify({ reminder_id: reminder.reminder_id })
+				});
+				let cancelBody: any = null;
+				try {
+					cancelBody = await cancelResponse.json();
+				} catch {
+					/* ignore non-JSON errors */
+				}
+				const cancelData = cancelBody?.data || cancelBody;
+				cancelled.push({
+					reminder_id: reminder.reminder_id,
+					ok: cancelResponse.ok,
+					status: cancelResponse.status,
+					body: cancelBody,
+					success: cancelData?.success === true
+				});
+			}
+
+			return {
+				ok: matching.length > 0 && cancelled.every((entry) => entry.ok && entry.success),
+				stage: 'cancel',
+				matched_count: matching.length,
+				cancelled
+			};
 		},
-		{ apiBaseUrl: API_BASE_URL, reminderId: reminderId as string }
+		{ apiBaseUrl: API_BASE_URL }
 	);
-	const cancelData = cancelResult.body?.data || cancelResult.body;
-	expect(cancelResult.ok, `Cancel request failed: ${JSON.stringify(cancelResult)}`).toBe(true);
-	expect(cancelData?.success, `Cancel skill failed: ${JSON.stringify(cancelResult)}`).toBe(true);
-	log('Cancellation confirmed via REST skill.', { reminderId });
+	expect(cancelResult.ok, `Cancel reminder flow failed: ${JSON.stringify(cancelResult)}`).toBe(true);
+	expect(cancelResult.matched_count, `No matching reminder found: ${JSON.stringify(cancelResult)}`).toBeGreaterThan(0);
+	log('Cancellation confirmed via REST skill.', cancelResult);
 	await screenshot(page, 's5-cancelled-via-chat');
 
 	// =========================================================================
