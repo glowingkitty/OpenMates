@@ -348,11 +348,31 @@
     return true;
   }
 
+  function flattenImagePreviewResults(values: unknown[]): ImageResultContent[] {
+    const results: ImageResultContent[] = [];
+
+    for (const value of values) {
+      if (!value || typeof value !== 'object') continue;
+
+      const record = value as Record<string, unknown>;
+      if (Array.isArray(record.results)) {
+        results.push(...flattenImagePreviewResults(record.results));
+        continue;
+      }
+
+      if (isImageResultContent(record)) {
+        results.push(record);
+      }
+    }
+
+    return results;
+  }
+
   function parseImagePreviewResultsJson(value: unknown): ImageResultContent[] {
     if (typeof value !== 'string' || !value.trim()) return [];
     try {
       const parsed = JSON.parse(value);
-      return Array.isArray(parsed) ? parsed.filter(isImageResultContent) : [];
+      return Array.isArray(parsed) ? flattenImagePreviewResults(parsed) : [];
     } catch {
       return [];
     }
@@ -368,8 +388,9 @@
     const previewResults = extractSearchResultsFromContent(
       decodedParent,
       ['preview_results', 'preview_thumbnails', 'results'],
-    ).filter(isImageResultContent);
-    if (previewResults.length > 0) return previewResults;
+    );
+    const flattenedPreviewResults = flattenImagePreviewResults(previewResults);
+    if (flattenedPreviewResults.length > 0) return flattenedPreviewResults;
 
     return parseImagePreviewResultsJson(decodedParent.preview_results_json);
   }
@@ -455,7 +476,10 @@
       const childEmbeds = await loadEmbedsWithRetry(childEmbedIds.slice(0, remainingCount), 3, 250);
       for (const childEmbed of childEmbeds) {
         const decodedChild = childEmbed.content ? await decodeToonContent(childEmbed.content) as ImageResultContent | null : null;
-        if (decodedChild && appendHeaderImageBubble(decodedChild, bubbles, seen, candidate.parentEmbedId, childEmbed.embed_id)) return bubbles;
+        const childResults = decodedChild ? flattenImagePreviewResults([decodedChild]) : [];
+        for (const childResult of childResults) {
+          if (appendHeaderImageBubble(childResult, bubbles, seen, candidate.parentEmbedId, childEmbed.embed_id)) return bubbles;
+        }
       }
     }
 
