@@ -165,6 +165,42 @@ describe('EmbedStore.resolveByRefDeep', () => {
     vi.clearAllMocks();
   });
 
+  it('repairs plaintext TOON refs without logging JSON parse errors', async () => {
+    const store = new EmbedStore();
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    store.registerStaticEmbed({
+      embedId: 'image-embed-id',
+      type: 'image',
+      content: 'type: image\nembed_ref: berlin-weather-image\nurl: https://example.com/image.png',
+    });
+
+    await expect(store.resolveByRefDeep('berlin-weather-image')).resolves.toBe(
+      'image-embed-id',
+    );
+    expect(consoleError).not.toHaveBeenCalledWith(
+      '[EmbedStore] Error parsing stored data as JSON:',
+      expect.anything(),
+    );
+  });
+
+  it('ignores non-TOON plaintext ref repair candidates without logging parse errors', async () => {
+    const store = new EmbedStore();
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    store.registerStaticEmbed({
+      embedId: 'plain-text-embed-id',
+      type: 'text',
+      content: 'Dear [Recipient],\n\nThis is plain text, not a TOON or JSON embed payload.',
+    });
+
+    await expect(store.resolveByRefDeep('missing-embed-ref')).resolves.toBeNull();
+    expect(consoleError).not.toHaveBeenCalledWith(
+      '[EmbedStore] JSON fallback also failed:',
+      expect.anything(),
+    );
+  });
+
   it('repairs video source quote refs that use a YouTube video ID', async () => {
     const store = new EmbedStore();
 

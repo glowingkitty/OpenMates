@@ -160,22 +160,10 @@ async function decodeToonContentLocal(
       // Use non-strict mode to be lenient with content that may have edge-case formatting
       // (e.g., large pasted text with unusual indentation or special characters)
       return toonDecode(toonContent, { strict: false });
-    } catch (error) {
-      console.debug(
-        "[EmbedStore] TOON decode failed, trying JSON fallback:",
-        error instanceof Error ? error.message : String(error),
-        {
-          contentLength: toonContent.length,
-          contentPreview: toonContent.substring(0, 200),
-        },
-      );
+    } catch {
       try {
         return JSON.parse(toonContent);
-      } catch (jsonError) {
-        console.error(
-          "[EmbedStore] JSON fallback also failed:",
-          jsonError instanceof Error ? jsonError.message : String(jsonError),
-        );
+      } catch {
         return null;
       }
     }
@@ -183,8 +171,7 @@ async function decodeToonContentLocal(
     // Fallback to JSON parsing if TOON decoder not available
     try {
       return JSON.parse(toonContent);
-    } catch (error) {
-      console.error("[EmbedStore] Error parsing content as JSON:", error);
+    } catch {
       return null;
     }
   }
@@ -654,9 +641,9 @@ export class EmbedStore {
         ? embed.type
         : null;
     if (typeof embed === "object" && typeof embed.content === "string") {
-      decodedSource = await decodeToonContentLocal(embed.content);
+      decodedSource = await decodeToonContentSilently(embed.content);
     } else if (typeof embed === "string") {
-      decodedSource = await decodeToonContentLocal(embed);
+      decodedSource = await decodeToonContentSilently(embed);
     }
 
     if (!decodedSource || typeof decodedSource !== "object") {
