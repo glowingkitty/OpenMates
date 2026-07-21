@@ -177,6 +177,24 @@ function spawnCliLogin(apiUrl: string) {
 				check();
 			});
 		},
+		waitForAuthorizationPrompt(): Promise<void> {
+			return new Promise((resolve, reject) => {
+				const timeout = setTimeout(
+					() => reject(new Error('login: timeout waiting for authorization prompt')),
+					30_000
+				);
+				const check = () => {
+					const output = [...stdout, ...stderr].join('');
+					if (output.includes('Waiting for authorization') || output.includes('Logged in')) {
+						clearTimeout(timeout);
+						resolve();
+					} else {
+						setTimeout(check, 300);
+					}
+				};
+				check();
+			});
+		},
 		waitForExit(): Promise<{ code: number | null; output: string }> {
 			return new Promise((resolve) => {
 				child.on('close', (code: number | null) => {
@@ -231,6 +249,7 @@ async function loginCliViaBrowser(page: any, apiUrl: string, logCheckpoint: (msg
 	const cli = spawnCliLogin(apiUrl);
 	const token = await cli.waitForToken();
 	if (token !== 'already') {
+		await cli.waitForAuthorizationPrompt();
 		await page.goto(`/#pair=${token}`);
 		const allowButton = page.getByTestId('pair-allow-button');
 		await expect(allowButton).toBeVisible({ timeout: 15000 });
