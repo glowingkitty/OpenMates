@@ -13,6 +13,7 @@
   import { getApiEndpoint } from '@repo/ui';
 
   const DEFAULT_CLIENT_ID = '';
+  const DEFAULT_PRIVATE_KEY_PATH = '~/.openmates/revolut-business/sandbox/privatecert.pem';
   const SERVER_EGRESS_IP_PATH = '/v1/connected-accounts/setup/revolut-business/server-egress-ip';
 
   let copied = $state(false);
@@ -21,12 +22,13 @@
   let error = $derived(page.url.searchParams.get('error') ?? '');
   let errorDescription = $derived(page.url.searchParams.get('error_description') ?? '');
   let clientId = $state(DEFAULT_CLIENT_ID);
+  let privateKeyPath = $state(DEFAULT_PRIVATE_KEY_PATH);
   let serverIps = $state<string[]>([]);
   let serverIpError = $state('');
   let exchangeCommand = $derived(
     clientId.trim()
-      ? `openmates connect-account revolut-business exchange-code --client-id "${clientId.trim()}" --code "${page.url.href}"`
-      : 'openmates connect-account revolut-business exchange-code --client-id "<ClientID>" --code "' + page.url.href + '"'
+      ? `openmates connect-account revolut-business exchange-code --client-id "${clientId.trim()}" --private-key "${privateKeyPath.trim() || DEFAULT_PRIVATE_KEY_PATH}" --code "${page.url.href}"`
+      : 'openmates connect-account revolut-business exchange-code --client-id "<ClientID>" --private-key "' + (privateKeyPath.trim() || DEFAULT_PRIVATE_KEY_PATH) + '" --code "' + page.url.href + '"'
   );
   let serverIpText = $derived(serverIps.length > 0 ? serverIps.join(', ') : 'Loading server IP...');
 
@@ -114,6 +116,19 @@
         spellcheck="false"
         data-testid="revolut-client-id-input"
       />
+
+      <label for="private-key-path">Private key path from the OpenMates CLI</label>
+      <input
+        id="private-key-path"
+        bind:value={privateKeyPath}
+        placeholder={DEFAULT_PRIVATE_KEY_PATH}
+        autocomplete="off"
+        spellcheck="false"
+        data-testid="revolut-private-key-path-input"
+      />
+      <p class="hint compact">
+        Use the path printed by the certificate generation command. If you did not pass <code>--output</code>, the default path above is correct.
+      </p>
 
       <div class="command" data-testid="revolut-exchange-command">
         <code>{exchangeCommand}</code>

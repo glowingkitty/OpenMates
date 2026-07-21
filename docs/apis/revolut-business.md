@@ -36,7 +36,7 @@ After registering the redirect URI and certificate in the Revolut Business Devel
 openmates connect-account revolut-business consent-url --client-id <client-id>
 ```
 
-The callback page shows a copyable `openmates connect-account revolut-business exchange-code ...` command for completing the local sandbox token exchange.
+The callback page shows a copyable `openmates connect-account revolut-business exchange-code ...` command for completing the local sandbox token exchange. Use the matching `privatecert.pem` path printed by `openmates connect-account revolut-business`; this is required when the certificate was generated with `--output`.
 
 Revolut Business also requires the API certificate's `Production IP whitelist` to contain the public egress IP of the OpenMates server that calls Revolut. For OpenMates cloud, use the IP shown by the web setup flow or by:
 
