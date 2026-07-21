@@ -4305,6 +4305,15 @@
         const { embedId, status } = event.detail as { embedId: string; status: string };
         if (!embedId) return;
 
+        // PDF upload completion changes only embed node attrs, not plain text.
+        // handleEditorUpdate intentionally ignores selection/attrs-only updates, so
+        // force-save the draft here or a later server echo can restore prompt-only
+        // content and drop the newly attached PDF card.
+        if (editor && !editor.isDestroyed && currentChatId) {
+            updateOriginalMarkdown(editor);
+            triggerSaveDraft(currentChatId, editor);
+        }
+
         // Find which chat this embed belongs to (searches ALL pending sends across all chats)
         const found = findPendingSendByEmbedId(embedId);
         if (!found) return; // Not waiting on any deferred send
