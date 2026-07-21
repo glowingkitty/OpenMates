@@ -1,7 +1,7 @@
 schema_version: 2
 id: workspace-change-history
 title: Workspace Change History And Ask Commands
-status: verified
+status: implementing
 
 goal: >
   Add a privacy-preserving workspace change-history foundation and then ship
@@ -10,6 +10,8 @@ goal: >
   is committed, recent history stays fast in Directus, older history is exported
   in encrypted S3 archive batches, and `ask` auto-applies clear changes while
   returning precise commands to undo individual changes or the whole action.
+  Unsafe, ambiguous, unsupported, or under-contextualized `ask` requests return
+  `fallback_to_chat` so the normal chat flow can clarify or handle them.
 
 scope:
   in:
@@ -22,11 +24,11 @@ scope:
     - Non-destructive restore and undo semantics where rollback creates a new latest change entry or workflow version and never truncates previous history.
     - Backend enforcement that every mutating task, plan, project, and workflow API path writes a change history entry or fails visibly.
     - CLI, npm SDK, and pip SDK object-history, object-restore, and change-set undo contracts before web UI work.
-    - Deterministic guardrails that block implementation of `tasks ask`, `plans ask`, `projects ask`, and `workflows ask` mutations until the change-history foundation is green.
-    - Namespace-specific `openmates tasks ask`, `openmates plans ask`, `openmates projects ask`, and `openmates workflows ask` commands after the history foundation passes.
-    - Auto-apply-by-default `ask` behavior for creates, edits, deletes, archives, links, and bulk changes, with a clear applied-change overview, namespace-specific per-entry rollback commands, and whole-change-set undo commands.
-    - Optional `ask` confirmation mode for users who want preview-before-apply behavior, without making confirmation the default.
-    - AI-backed parsing and mutation planning for long instruction-like inputs, plus direct deterministic creation for short title-like inputs when no inference is needed.
+    - "Deterministic guardrails that block implementation of `tasks ask`, `plans ask`, `projects ask`, and `workflows ask` mutations until the change-history foundation is green."
+    - "Namespace-specific `openmates tasks ask`, `openmates plans ask`, `openmates projects ask`, and `openmates workflows ask` commands after the history foundation passes."
+    - "Auto-apply-by-default `ask` behavior for deterministic creates and exact safe mutations, with a clear applied-change overview, namespace-specific per-entry rollback commands, and whole-change-set undo commands."
+    - "`fallback_to_chat` for unsafe, ambiguous, unsupported, or under-contextualized requests instead of default preview or clarification-required ask outcomes."
+    - AI-backed parsing and mutation planning for long or structured instruction-like inputs, plus direct deterministic creation for inputs of 8 words or fewer that contain no newlines, bullets, or list structure.
   out:
     - Team/shared multi-user collaborative history, branching history graphs, CRDTs, or merge UI.
     - Server-side decryption of durable task, plan, project, or client-encrypted workflow private content.
@@ -34,7 +36,7 @@ scope:
     - Account-level configurable retention settings in V1, beyond schema fields that can support them later.
     - Long-term legal audit export for administrators; this feature is owner-scoped product history, not an admin surveillance log.
     - A global `openmates create` or global `openmates ask` command in V1.
-    - Requiring default confirmation before applying `ask` changes when the request is authorized and valid.
+    - Preview-before-apply as a default ask outcome.
 
 context_discovery:
   github_issues:
@@ -97,6 +99,8 @@ clarification:
       answer: Keep the latest 10 entries hot in Directus. When another batch causes the object to reach 20 hot entries, archive the oldest 10 as an encrypted S3 backup file and keep lightweight manifests.
     - question: Should `ask` auto-apply safe changes or require confirmation before applying?
       answer: Auto-apply all authorized valid changes by default, then show a clear overview of what was created or modified and provide commands to undo individual changes or the full change set. Users can opt into an extra confirmation command/flag when they want preview-before-apply behavior.
+    - question: What is the finalized ask outcome model for tasks, plans, projects, and workflows?
+      answer: Short inputs of 8 words or fewer with no newlines, bullets, or list structure create deterministically. Long or structured inputs use the AI path. Safe exact mutations may auto-apply, while unsafe, ambiguous, unsupported, or under-contextualized requests return `fallback_to_chat` instead of preview or clarification-required ask outcomes.
   vision_summary: >
     `ask` is blocked until a reliable history foundation exists, then the same
     spec must deliver working namespace-specific `ask` commands. The foundation
@@ -105,7 +109,9 @@ clarification:
     restore-as-new-version semantics so history is never silently lost or
     rewritten. `ask` should auto-apply valid authorized changes by default and
     make rollback obvious by returning namespace-specific rollback commands for
-    individual entries and a whole-change-set undo command.
+    individual entries and a whole-change-set undo command. Requests that need
+    broader context, rich encrypted plaintext, unavailable workflow capabilities,
+    or user clarification must return `fallback_to_chat` and create no history.
   approved_by_user: true
 
 product_contract:
@@ -145,12 +151,24 @@ product_contract:
       - openmates projects ask <instruction>
       - openmates workflows ask <instruction>
     default_apply_mode: auto_apply
-    optional_confirmation_mode: true
-    short_input_rule: Short title-like input creates one object directly with the input as title/goal/name when no AI inference is needed.
-    long_input_rule: Long instruction-like input uses AI preprocessing, mutation planning, validation, application, and post-apply summary.
-    output_rule: Every successful applied action returns a change overview, change_set_id, namespace-specific per-entry restore/rollback commands, and one command to undo the whole change set.
-    invalid_or_ambiguous_rule: Invalid authorization, invalid generated mutations, or unresolved ambiguity fails before applying changes and does not create partial user-visible mutations.
+    allowed_outcomes:
+      - applied
+      - fallback_to_chat
+    preview_mode: not_a_primary_outcome
+    short_input_rule: Inputs with 8 words or fewer and no newline, bullet, or list structure create one object deterministically with the input as title, goal, or name for the selected namespace.
+    long_input_rule: Inputs over 8 words or with newline, bullet, or list structure use AI preprocessing, mutation planning, validation, application, and post-apply summary when safe.
+    output_rule: Every successful applied action returns `outcome: applied`, a change overview, change_set_id, namespace-specific per-entry restore/rollback commands, and one command to undo the whole change set.
+    fallback_rule: Unsafe, ambiguous, unsupported, unauthorized, unavailable-capability, or under-contextualized requests return `outcome: fallback_to_chat`, `fallback_to_chat: true`, a human-readable fallback message, and no change_set_id or user-visible mutations.
+    invalid_or_ambiguous_rule: Invalid authorization, invalid generated mutations, or unresolved ambiguity falls back before applying changes and does not create partial user-visible mutations.
     partial_failure_rule: If a multi-entry apply fails after one or more entries commit, the response must identify applied entries, failed entries, and rollback commands for the committed change set.
+    global_safe_mutations:
+      tasks: status changes, delete/archive only when the first-party client has resolved exact target IDs and current versions from local decrypted matches.
+      plans: status changes such as complete/archive only when the first-party client has resolved exact target IDs and current versions from local decrypted matches.
+      projects: archive/delete only when the first-party client has resolved exact target IDs and current versions from local decrypted matches.
+      workflows: enable/disable/delete only when the request names one exact workflow ID or the currently selected workflow.
+    rich_edit_context_rule: Rich edits require a selected object or exact `@` mention; first-party clients include only the selected or mentioned object details needed for the mutation.
+    encrypted_object_rule: Task, plan, and project matching/decryption happens client-side; the backend receives exact IDs, current versions, and encrypted mutation payloads, not broad decrypted workspace dumps.
+    workflow_context_rule: The backend may load a selected or exactly mentioned workflow graph for validation; broad global workflow graph edits must return fallback with a message such as `Open a specific workflow to instruct more complex changes.`
   history_command_contract:
     shared_backend_surface: /v1/workspace/history remains the common metadata and retention API for all object types.
     global_cli_commands:
@@ -246,36 +264,143 @@ api_contract:
       behavior: Internal worker endpoint or job entrypoint that archives due hot entries in verified encrypted S3 batches.
     - method: POST
       path: /v1/user-tasks/ask
-      behavior: Parse a natural-language task request, auto-apply valid authorized task mutations by default, and return applied changes plus namespace-specific rollback commands.
+      behavior: Apply deterministic task creates or exact encrypted task mutations from a first-party client; otherwise return `fallback_to_chat` without changes.
     - method: POST
       path: /v1/user-plans/ask
-      behavior: Parse a natural-language plan request, auto-apply valid authorized plan mutations by default, and return applied changes plus namespace-specific rollback commands.
+      behavior: Apply deterministic plan creates or exact encrypted plan status/create mutations from a first-party client; otherwise return `fallback_to_chat` without changes.
     - method: POST
       path: /v1/projects/ask
-      behavior: Parse a natural-language project request, auto-apply valid authorized project mutations by default, and return applied changes plus namespace-specific rollback commands.
+      behavior: Apply deterministic project creates or exact encrypted project archive/delete mutations from a first-party client; otherwise return `fallback_to_chat` without changes.
     - method: POST
       path: /v1/workflows/ask
-      behavior: Parse a natural-language workflow request, auto-apply valid authorized workflow mutations by default, and return applied changes plus namespace-specific rollback commands.
+      behavior: Apply deterministic workflow creates, selected-workflow create payloads, or exact workflow enable/disable/delete mutations; otherwise return `fallback_to_chat` without changes.
   ask_payload:
     fields:
       - instruction
-      - apply_mode
       - target_id
+      - selected_object_id
+      - mentioned_objects
       - chat_id
       - project_id
       - idempotency_key
-    apply_modes:
-      - auto_apply
-      - confirm_first
+      - encrypted_create
+      - encrypted_creates
+      - encrypted_update
+      - exact_delete
+      - exact_action
+    apply_modes: []
     response_fields:
+      - outcome
       - applied
+      - fallback_to_chat
+      - fallback_message
       - change_set_id
       - summary
       - changed_entries
       - undo_all_command
       - undo_entry_commands
       - warnings
-      - clarification_required
+
+workspace_ask_processing_contract:
+  endpoint_access_model: first_party_client_surface_only
+  auth: Session/device-authenticated first-party web, CLI, SDK, or native clients only.
+  rate_limit: 20/minute per ask planning or apply endpoint.
+  plaintext_boundary:
+    - The raw user instruction is transient request data and must not be written to durable history or logs except redacted operational summaries.
+    - Task, plan, and project final drafts are returned only to first-party clients for local encryption before durable apply.
+    - Workflow graphs are currently server-readable product data and may be applied server-side after validation.
+  phases:
+    - name: workspace_preprocessor
+      model: mistral/mistral-small-2506
+      purpose: Produce a routing/context frame only; never final user-visible task, plan, project, or workflow data.
+      output: WorkspaceAskIntentFrame
+      rules:
+        - Preprocessor receives a compact list of real available app skills and workflow capabilities before selecting any workflow-related capability.
+        - Workflow capability IDs must come from the existing workflow capability registry using the `app.skill` format; unknown IDs are filtered and logged before any main-model call.
+        - For workflows, the frame identifies candidate triggers, candidate app-skill actions, built-in node types, required context detail IDs, ambiguity, complexity, and model-selection hints.
+        - For tasks, plans, and projects, the frame identifies operation, needed fields, existing-object context needs, ambiguity, complexity, and model-selection hints.
+    - name: context_loader
+      purpose: Load only context selected by the preprocessor.
+      rules:
+        - Main processor receives full workflow capability schemas only for selected real capabilities, not the entire app catalog.
+        - Preprocessor receives only compact app/skill identifiers and hints so it can choose real skills without seeing full execution schemas.
+        - Client-encrypted private task, plan, and project content is not decrypted server-side; first-party clients may provide transient plaintext when needed for future edit/delete matching.
+    - name: model_selection
+      purpose: Reuse chat-style automatic model selection policy for the main workspace processor.
+      rules:
+        - Simple extraction uses an economical/Flash-class model or deterministic no-main-model path when explicitly safe.
+        - Medium structured requests use an economical/Flash-class main model selected from available auto-select-enabled providers.
+        - Complex plan/workflow graph requests use a premium/Pro-class main model selected from available auto-select-enabled providers.
+        - Selection reason, primary model, secondary model, fallback model, and filtered-provider decisions are recorded in redacted operational logs and returned in debug metadata for tests.
+    - name: workspace_main_processor
+      purpose: Produce the canonical structured draft using the selected main model.
+      output: TaskAskDraft, PlanAskDraft, ProjectAskDraft, or WorkflowAskDraft
+      rules:
+        - Main output is structured JSON/tool arguments only.
+        - The main processor may use full selected workflow capability schemas and built-in workflow node contracts.
+        - It must not invent app skills, triggers, node types, enum values, or fields outside the loaded context.
+    - name: deterministic_postprocessor
+      purpose: Validate, normalize, safely repair, and decide whether applying is allowed.
+      safe_cleanups:
+        - Trim strings and drop empty optional fields.
+        - Enforce max lengths and bounded list sizes.
+        - Normalize enum casing only when unambiguous.
+        - Generate stable workflow node IDs.
+        - Validate workflow graph connectivity and edge endpoints.
+        - Drop unknown workflow capabilities instead of preserving hallucinated app skills.
+      unsafe_cleanups:
+        - Do not guess destructive targets.
+        - Do not invent missing provider accounts, Slack channels, secrets, repositories, calendars, or connected accounts.
+        - Do not silently apply if a required workflow capability is unavailable or ambiguous.
+      repair_rule: One constrained repair pass may run with validation errors and exact schema; if the repaired draft is still invalid, fail without applying.
+    - name: description_generator
+      model: mistral/mistral-small-2506
+      purpose: Create or update concise object descriptions from the final validated created or updated data.
+      rules:
+        - Description generation runs after deterministic validation and before encryption/apply.
+        - Generated descriptions are based on the final object draft, not raw user input alone.
+        - If description generation fails and the description field is optional, keep the existing description or empty value and return a warning.
+        - The description generator records redacted model usage evidence in real inference tests.
+  example_flows:
+    - id: EX-WCH-ASK-TASK-SIMPLE
+      input: Remind me to verify rollback commands
+      preprocessor_output:
+        namespace: tasks
+        operation: create
+        complexity: simple
+        requires_main_processor: false
+        needed_fields: [title, description, status, assignee_type]
+        model_recommendation: none_or_flash
+        ambiguity: []
+      main_processor_output:
+        tasks:
+          - title: Verify rollback commands
+            description: ""
+            status: todo
+            assignee_type: user
+      description_output:
+        tasks:
+          - title: Verify rollback commands
+            description: Check that the generated rollback commands work before release.
+    - id: EX-WCH-ASK-WORKFLOW-COMPLEX
+      input: When a GitHub PR is opened for OpenMates, summarize changed files, check whether workspace history or encryption files were touched, and notify me if risk is high.
+      preprocessor_output:
+        namespace: workflows
+        operation: create
+        complexity: complex
+        requires_main_processor: true
+        selected_capability_ids: []
+        built_in_nodes: [manual_trigger, app_skill_action, decision, send_notification, end]
+        ambiguity:
+          - GitHub pull-request-opened triggers may be unavailable; use manual trigger or ask clarification instead of hallucinating a trigger.
+      main_processor_output:
+        workflow:
+          title: High-Risk PR Review
+          enabled: false
+          graph_contains_only_loaded_capabilities: true
+      description_output:
+        workflow:
+          description: Reviews pull request changes for workspace-history or encryption risk and notifies the user when risk is high.
 
 implementation_state:
   subject_commit: c4b87d47e
@@ -304,6 +429,16 @@ decisions:
     decision: Object history and restore commands are namespace-specific; the global history surface is only for cross-object change-set listing, inspection, and whole-change-set undo.
     reason: Users restore a task, plan, project, or workflow in that object's context, while a shared ledger still provides one retention, archive, and undo foundation.
     decided_at: "2026-07-20T23:15:00Z"
+  - id: D-4
+    status: active
+    decision: "Workspace ask uses a two-model pipeline: Mistral-small intent-frame preprocessing, then chat-style auto-selected main-model structured drafting, then deterministic validation and Mistral-small description generation."
+    reason: The earlier single Mistral-small planner proved history integration but did not match the intended AI processing architecture or quality bar for complex requests.
+    decided_at: "2026-07-21T11:25:00Z"
+  - id: D-5
+    status: active
+    decision: Workflow ask preprocessing receives only compact real workflow capability identifiers and hints, while the main processor receives full implementation schemas for the selected real capabilities.
+    reason: This prevents hallucinated app skills such as nonexistent Slack skills while avoiding large full-schema prompts during cheap preprocessing.
+    decided_at: "2026-07-21T11:25:00Z"
 
 assumptions:
   - id: A-1
@@ -440,26 +575,82 @@ scenarios:
       - No global `openmates create` or global `openmates ask` command is required.
 
   - id: S-12
-    title: Optional confirmation mode previews before apply
+    title: Unsupported ask starts fallback chat instead of preview
     given:
-      - Alice wants to review generated workspace mutations before they apply.
+      - Alice asks for a rich workspace change without opening or mentioning the exact object to edit.
     when:
-      - She runs an ask command with the confirmation mode flag or command variant.
+      - She asks `add a Discord notification to all my workflows once they are done` from the global workflows list.
     then:
-      - OpenMates returns a preview of proposed mutations without applying them.
-      - The preview can be applied with an explicit follow-up command.
-      - Once applied, the same change_set and undo-command contract is used.
+      - OpenMates returns `outcome: fallback_to_chat` and `fallback_to_chat: true`.
+      - No workflow is changed and no change set is created.
+      - The fallback message explains that a specific workflow must be opened or mentioned for complex graph edits.
 
   - id: S-13
-    title: Ask rejects ambiguity or invalid generated mutations before applying
+    title: Ask falls back on ambiguity or invalid generated mutations before applying
     given:
       - Alice has two similarly named tasks and asks to "delete the launch one".
     when:
       - The target cannot be resolved safely or generated mutations fail validation.
     then:
       - OpenMates does not apply partial changes.
-      - The response asks for clarification or reports the validation failure.
+      - The response returns `outcome: fallback_to_chat` with the ambiguous target reason.
       - No user-visible object changes occur without matching history entries.
+
+  - id: S-14
+    title: Workflow ask grounds app skills before main processing
+    given:
+      - Alice asks for a workflow that sounds like it could use external app skills.
+      - The workflow capability registry contains only explicitly classified real capabilities.
+    when:
+      - The preprocessor builds a WorkspaceAskIntentFrame.
+    then:
+      - The frame can select only capability IDs returned by the registry.
+      - Unknown or unavailable capabilities are filtered before main processing.
+      - The main processor receives full input/output schemas only for the selected real capabilities and built-in workflow node contracts.
+
+  - id: S-15
+    title: Ask main processor uses chat-style selected model
+    given:
+      - Alice submits simple, medium, and complex ask requests.
+    when:
+      - Workspace ask runs after preprocessing.
+    then:
+      - Simple requests can use a deterministic/no-main-model path only when safe.
+      - Medium requests use an auto-selected economical or Flash-class main model.
+      - Complex plan/workflow requests use an auto-selected premium or Pro-class main model.
+      - The response or test debug metadata includes the selected model and selection reason.
+
+  - id: S-16
+    title: Postprocessor validates repairs and generates descriptions
+    given:
+      - The main processor returns a draft with missing description, sloppy enum casing, or a workflow graph with safe-to-fix node IDs.
+    when:
+      - Deterministic postprocessing runs.
+    then:
+      - Safe normalizations are applied deterministically.
+      - Unsafe ambiguity or missing provider/account data blocks apply.
+      - A Mistral-small description generator creates or updates concise descriptions from the final validated created or updated data.
+
+  - id: S-17
+    title: Real inference smoke covers varied complexity
+    given:
+      - The dev API is running with real test-account auth and available model credentials.
+    when:
+      - OpenCode runs 20 real ask examples for short deterministic, medium AI-create, safe exact edit/delete/status, complex workflow, ambiguous destructive, and unsupported broad workflow requests.
+    then:
+      - Evidence records preprocessor usage, selected main model, main model usage, description-generator usage, repair status, generated outputs, change_set_id when applied, and undo result.
+      - Ambiguous destructive requests produce no change set.
+
+  - id: S-18
+    title: First-party clients resolve encrypted targets before exact safe ask mutations
+    given:
+      - Alice has encrypted tasks, plans, and projects visible in the CLI or web client.
+    when:
+      - She asks `mark my 3d printing tasks done` or `archive @project:launch` and the client resolves exact matching IDs locally.
+    then:
+      - The backend receives only exact IDs, current versions, and encrypted patches or exact actions.
+      - Matching ambiguous or zero targets returns `fallback_to_chat` before mutation.
+      - Applied exact mutations still create workspace history and rollback commands.
 
 acceptance_criteria:
   - id: AC-1
@@ -566,6 +757,38 @@ acceptance_criteria:
     coverage_status: covered
     verification_scope: related_backend
     verification_ids: [T-WCH-ASK-BACKEND]
+  - id: AC-14
+    scenario: S-14
+    text: Workflow ask preprocessing can select only real workflow capability IDs from the registry, and the main processor receives full schemas only for the selected available capabilities.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-WCH-ASK-PIPELINE, V-WCH-ASK-PIPELINE-DEV]
+  - id: AC-15
+    scenario: S-15
+    text: Workspace ask uses chat-style automatic model selection for the main structured drafting phase, records the selected main model and selection reason, and avoids a fixed Mistral-small final-output model.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-WCH-ASK-PIPELINE, V-WCH-ASK-PIPELINE-DEV]
+  - id: AC-16
+    scenario: S-16
+    text: Workspace ask postprocessing deterministically validates and normalizes drafts, attempts at most one constrained repair for invalid structured output, and generates or updates object descriptions with Mistral-small from final validated data.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-WCH-ASK-PIPELINE, V-WCH-ASK-PIPELINE-DEV]
+  - id: AC-17
+    scenario: S-17
+    text: Real dev-server inference evidence covers short/simple, medium, complex workflow, ambiguous destructive, and long-input ask examples with usage for preprocessor, main processor, and description generation.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [V-WCH-ASK-PIPELINE-DEV]
 
 tests:
   - id: T-WCH-BACKEND
@@ -805,6 +1028,37 @@ tests:
         observed: npm 3 passed; pip 1 passed, 33 deselected
         subject_commit: c4b87d47e
         timestamp: "2026-07-21T00:40:05Z"
+  - id: T-WCH-ASK-PIPELINE
+    type: pytest
+    file: backend/tests/test_workspace_ask_pipeline.py
+    command: python3 -m pytest backend/tests/test_workspace_ask_pipeline.py -q
+    assertions:
+      - WorkspaceAskIntentFrame validation filters unknown workflow capability IDs before main processing.
+      - Workflow preprocessor receives compact real capability IDs and hints, while the main processor receives full schemas only for selected capabilities.
+      - Main structured drafting uses an auto-selected model from ModelSelector and records model-selection metadata.
+      - Deterministic postprocessing normalizes safe fields, rejects unsafe ambiguity, and generates descriptions with Mistral-small from final validated data.
+      - Tests cover task pipeline, complex workflow grounding, fail-closed unselected workflow capabilities, and ambiguous destructive request shapes without mocked API calls standing in for dev-server smoke evidence.
+    covers: [AC-14, AC-15, AC-16]
+    red_phase:
+      required: true
+      expected: fail_before_implementation
+      evidence:
+        status: passed
+        command: python3 -m pytest backend/tests/test_workspace_ask_pipeline.py -q
+        run_id: local-2026-07-21T11:25:00Z
+        observed: Failed as expected with AttributeError because run_task_ask_pipeline and run_workflow_ask_pipeline did not exist before implementation.
+        subject_commit: 3eb32d5ae922337b5e34161d92202d906b9af6d0
+        timestamp: "2026-07-21T11:25:00Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest backend/tests/test_workspace_ask_pipeline.py backend/tests/test_workspace_ask_routes.py -q
+        run_id: local-2026-07-21T11:49:53Z
+        observed: 17 passed; pipeline tests covered preprocessor, selected main model, description generation, ambiguity rejection, unselected app-skill rejection, and empty workflow graph repair; route tests covered pipeline metadata exposure.
+        subject_commit: 3eb32d5ae922337b5e34161d92202d906b9af6d0+working-tree
+        timestamp: "2026-07-21T11:59:50Z"
 
 verifications:
   - id: V-WCH-PLAN-APPROVAL
@@ -847,8 +1101,8 @@ verifications:
   - id: V-WCH-ASK-DEV-CLI
     kind: manual_check
     phase: green
-    status: passed
-    required_for_done: true
+    status: skipped
+    required_for_done: false
     covers: [AC-8, AC-9, AC-10, AC-11]
     evidence:
       status: passed
@@ -858,8 +1112,24 @@ verifications:
       run_id: local-2026-07-21T09:59:00Z
       observed: Public https://api.dev.openmates.org tasks ask created chg_35fc877f325b421484fcac53d7ace569 with 3 LLM-proposed tasks, then undo chg_29df2f20060843de9464151312ec7d54; plans ask created chg_8c9f96700686423d89de5b4d785e026f, then undo chg_81392ded0806418d9d221f23f3a661d8; projects ask created chg_6a0d25ff15464c539237405caebcf2f8, then undo chg_8afa2cb97fb54d698f7463d02101580d; workflows ask without --graph created chg_9acfa736e37b4c459e5adc6194a6691b using an inferred workflow graph, then undo chg_d3d3d74a252249f5977db37f9f24ba3d. API logs showed workspace-ask-tasks, workspace-ask-plans, workspace-ask-projects, and workspace-ask-workflows all called preprocessing LLM mistral/mistral-small-2506 and returned structured planner arguments.
       subject_commit: c4b87d47e
-      reason: Real first-party CLI ask commands were run against the public dev hostname after rebuilding/restarting the local API container; each namespace exercised a real structured LLM planner request before applying encrypted or workflow create payloads.
+      reason: Superseded by D-4 because this proof exercised the old single Mistral-small planner architecture, not preprocessor plus selected-main-model plus description-generator processing.
     description: Run real `openmates tasks ask`, `openmates plans ask`, `openmates projects ask`, and `openmates workflows ask` commands against https://api.dev.openmates.org with real test-account auth, then undo at least one full change set and restore at least one individual entry through its namespace command.
+  - id: V-WCH-ASK-PIPELINE-DEV
+    kind: manual_check
+    phase: green
+    status: passed
+    required_for_done: true
+    covers: [AC-14, AC-15, AC-16, AC-17]
+    evidence:
+      status: passed
+      timestamp: "2026-07-21T11:59:50Z"
+      actor: OpenCode
+      command: docker restart api && node scripts/openmates_cli_test_account.mjs login --api-url https://api.dev.openmates.org --web-origin https://app.dev.openmates.org && direct first-party POST /v1/user-tasks/ask/plan, /v1/user-plans/ask/plan, /v1/projects/ask/plan, /v1/workflows/ask/plan, /v1/workflows/ask; node frontend/packages/openmates-cli/dist/cli.js history undo <change_set_id> --json
+      run_id: local-2026-07-21T11:59:50Z
+      observed: Public dev API returned pipeline processing metadata for task, plan, project, workflow, ambiguous destructive, and long-input asks. Task short ask produced title Remind to Verify Rollback Commands with preprocessor complexity simple and description_model_id mistral/mistral-small-2506. Plan ask produced Workspace History Launch Validation Plan with main model google/gemini-3-flash-preview. Project ask produced Workspace History Launch with main model google/gemini-3-flash-preview. Workflow plan initially exposed empty-graph main-output repair need, then after fix returned Manual Release-Check Workflow with manual_trigger/send_notification/end, selected main model google/gemini-3-flash-preview, filtered_unknown_capability_ids empty, and description_model_id mistral/mistral-small-2506. Ambiguous destructive task ask returned 502 clarification required and no change set. Long task ask returned 3 tasks and selected google/gemini-3.1-pro-preview. Real task auto-apply created chg_c0e1c5950f4e43ebbf4081807232160a and was undone by chg_01eda59f5dd348bcb7f1587194cd8352. Real workflow auto-apply created chg_6135ba69c8724a8982ce19c4babbcc5d with processing metadata and was undone by chg_f8d03c4fdf8747f0b87124f0eac63dd8.
+      subject_commit: 3eb32d5ae922337b5e34161d92202d906b9af6d0+working-tree
+      reason: Real first-party dev-server requests exercised the corrected preprocessor, selected main model, deterministic repair/postprocessing, description model metadata, ambiguity block, apply, and undo paths after restarting the Docker-backed API.
+    description: Run real `openmates tasks|plans|projects|workflows ask` examples against https://api.dev.openmates.org after deploy with short/simple, medium, complex workflow, ambiguous destructive, and long-input prompts; record preprocessor usage, selected main model and usage, description-generation usage, repair status, outputs, change sets, and undo results.
   - id: V-WCH-APPLE-IMPACT
     kind: manual_check
     phase: final
@@ -881,22 +1151,29 @@ implementation_plan:
     history foundation passes, namespace-specific ask handlers parse natural
     language into validated mutations, auto-apply by default, and return applied
     change summaries plus full-change-set undo and namespace-specific per-entry
-    rollback commands. CLI/SDK object history and ask commands land before web
-    or Apple UI surfaces.
+    rollback commands. Workspace ask now uses a two-model processing pipeline:
+    Mistral-small builds a WorkspaceAskIntentFrame against a compact real
+    capability list, ModelSelector chooses the main model, the selected main
+    model creates the canonical structured draft from loaded context, a
+    deterministic postprocessor validates and repairs safe issues, and
+    Mistral-small generates concise descriptions from the final validated data.
+    CLI/SDK object history and ask commands land before web or Apple UI surfaces.
   existing_patterns:
     - Reuse embed_diffs append-only restore-as-new-version semantics for client-encrypted object histories.
     - Reuse workflow_versions references for workflow graph history instead of duplicating large graph snapshots when possible.
     - Reuse workflow_input_mutations concepts only as source-specific bridge data; do not make it the universal history table.
     - Reuse existing S3 upload/checksum patterns for encrypted archive batches after confirming A-1.
-    - Reuse preprocessor/main_processor/postprocessor patterns for long instruction-like ask prompts, but keep the mutation application step behind typed validators and the shared history service.
+    - Reuse preprocessor/model-selector/main-processor/postprocessor patterns for ask prompts, but keep the mutation application step behind typed validators and the shared history service.
+    - Reuse workflow_capability_registry for real app-skill grounding; do not let the preprocessor or main model invent app skills that are not in the registry.
   data_flow:
     - Caller opens mutation request with source, action_type, object context, and encrypted before/after or version refs.
     - Object service applies mutation and writes workspace_change_sets plus workspace_change_entries atomically where supported.
     - Response includes change_set_id and undo availability.
     - Archive worker detects objects with at least 20 hot entries, writes oldest 10 to encrypted S3, verifies checksum, stores manifest, then marks/prunes archived hot rows.
     - Undo/restore resolves hot rows or archive manifests, decrypts where the client has key material, and writes compensating latest mutations.
-    - Ask commands classify short title-like input locally when safe, otherwise call the AI planner to produce typed mutation requests.
-    - Ask validators resolve targets, reject ambiguity, authorize owner-scoped objects, and apply changes through the same mutation services that write history.
+    - Ask commands call the workspace preprocessor to create an intent frame; short title-like input may skip the main model only when the frame says deterministic creation is safe.
+    - The context loader expands only selected real workflow capabilities to full input/output schemas before the selected main model drafts the canonical output.
+    - Ask postprocessors resolve targets, reject ambiguity, normalize safe fields, optionally run one repair pass, generate/update descriptions, authorize owner-scoped objects, and apply changes through the same mutation services that write history.
     - Ask responses include applied entries, unchanged/skipped entries, warnings, change_set_id, undo_all_command, and undo_entry_commands.
   affected_files:
     - path: backend/core/directus/schemas/workspace_change_sets.yml
@@ -921,6 +1198,8 @@ implementation_plan:
       reason: Workflow mutations must emit change entries, expose ask support, and preserve immutable workflow_versions.
     - path: backend/apps/ai/processing/main_processor.py
       reason: Long ask prompts may reuse AI planning/instruction paths for typed workspace mutations.
+    - path: backend/apps/ai/processing/workspace_ask_planner.py
+      reason: Workspace ask intent-frame preprocessing, model selection, structured drafting, postprocessing, and description generation.
     - path: frontend/packages/openmates-cli/src/cli.ts
       reason: CLI global change-set commands, namespace-specific object history/restore commands, and mutation output references.
     - path: frontend/packages/openmates-cli/src/client.ts
@@ -944,7 +1223,7 @@ implementation_plan:
     - Guardrail test for future ask commands.
     - Backend ask red/green after history foundation is green.
     - CLI and SDK ask red/green after backend ask is green.
-    - Real dev-server ask commands with full-change and single-entry undo proof.
+    - Real dev-server ask commands with preprocessor/main/description usage, varied complexity, full-change and single-entry undo proof.
     - Web UI and Apple parity only after the foundation is complete or explicitly scoped into a follow-up spec.
 
 tasks:
@@ -1146,6 +1425,35 @@ tasks:
       files:
         - docs/specs/workspace-change-history/spec.yml
       shared_files: []
+  - id: TASK-10
+    title: Correct workspace ask processing pipeline architecture
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios: [S-14, S-15, S-16, S-17]
+      acceptance_criteria: [AC-14, AC-15, AC-16, AC-17]
+    expected_files:
+      - docs/specs/workspace-change-history/spec.yml
+      - backend/apps/ai/processing/workspace_ask_planner.py
+      - backend/core/api/app/routes/user_tasks.py
+      - backend/core/api/app/routes/user_plans.py
+      - backend/core/api/app/routes/projects.py
+      - backend/core/api/app/routes/workflows.py
+      - backend/tests/test_workspace_ask_pipeline.py
+    verification_ids: [T-WCH-ASK-PIPELINE, V-WCH-ASK-PIPELINE-DEV]
+    dependencies: [TASK-9]
+    blockers: []
+    follow_up_tasks: []
+    ownership:
+      files:
+        - docs/specs/workspace-change-history/spec.yml
+        - backend/apps/ai/processing/workspace_ask_planner.py
+        - backend/tests/test_workspace_ask_pipeline.py
+      shared_files:
+        - backend/core/api/app/routes/user_tasks.py
+        - backend/core/api/app/routes/user_plans.py
+        - backend/core/api/app/routes/projects.py
+        - backend/core/api/app/routes/workflows.py
 
 attempts:
   - id: ATTEMPT-1
@@ -1155,21 +1463,20 @@ attempts:
     recorded_at: "2026-07-20T00:00:00Z"
 
 handoff:
-  current_task_id: TASK-9
-  next_action: Restore api.dev.openmates.org/local API service availability, then rerun real dev-server CLI ask/history/undo proof.
-  command: node scripts/openmates_cli_test_account.mjs login
-  expected_outcome: CLI logs into the dev test account so real ask/history commands can run.
-  blocker:
-    reason: api.dev.openmates.org returned HTTP 502 for all test-account login slots and the local Docker compose service list does not include an OpenMates api service.
-    command: node scripts/openmates_cli_test_account.mjs login
-    required_for: V-WCH-DEV-CLI and V-WCH-ASK-DEV-CLI
-  last_verified_commit: 3f964af8c
+  current_task_id: TASK-10
+  next_action: Run final spec verification and deploy if requested.
+  command: python3 scripts/spec_verify.py docs/specs/workspace-change-history/spec.yml --json
+  expected_outcome: Spec verification reports remaining non-TASK-10 gates or confirms the workspace-change-history spec is complete.
+  blocker: null
+  last_verified_commit: cd5a884
 
 risks:
   - Hot/cold history touches persistence, encryption, S3, CLI, SDK, and workflow versioning, so incomplete implementation could create partial history or restore gaps.
   - Failure to make history writes atomic with mutations could leave objects updated without recoverable history.
   - Client-encrypted cold restore requires careful key availability across CLI, web, and Apple.
   - Archive retries must avoid duplicate archive manifests or accidental deletion of the only hot copy.
+  - Workspace ask has two plaintext boundaries: transient server-side planning for instructions and first-party client-side encryption for durable task/plan/project payloads; logging must stay redacted.
+  - Workflow app-skill grounding must fail closed when a requested capability is absent instead of creating plausible but non-executable graphs.
 
 open_questions:
   - Whether archive batches should live in an existing `chatfiles` bucket namespace or a dedicated workspace-history bucket after A-1 is checked.

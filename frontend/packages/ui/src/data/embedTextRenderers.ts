@@ -153,6 +153,19 @@ function renderWorkflowsParent(content: Record<string, unknown>): string {
 	return lines.join('\n');
 }
 
+function renderFinanceCheckAccounts(content: Record<string, unknown>): string {
+	const accountCount = content.account_count ?? resolveResultCount(content);
+	const transactionCount = content.transaction_count;
+	const period = str(content.period);
+	const lines = ['**Finance | Check accounts**'];
+	if (period) lines.push(`period: ${period}`);
+	if (accountCount !== null && accountCount !== undefined) lines.push(`accounts: ${accountCount}`);
+	if (transactionCount !== null && transactionCount !== undefined) lines.push(`transactions: ${transactionCount}`);
+	const summary = str(content.summary) ?? str(content.overview);
+	if (summary) lines.push(trunc(summary, 240));
+	return lines.join('\n');
+}
+
 function renderWorkflow(content: Record<string, unknown>): string {
 	const title = str(content.title) ?? 'Workflow';
 	const status = str(content.status);
@@ -237,6 +250,7 @@ export const EMBED_TEXT_RENDERERS: Record<string, EmbedTextRenderer> = {
 	'app:weather:forecast': renderWeatherForecast,
 	'app:weather:rain_radar': renderWeatherRainRadar,
 	'app:business:company_financials': renderCompanyFinancials,
+	'app:finance:check_accounts': renderFinanceCheckAccounts,
 	'app:tasks:create': renderTasksParent,
 	'app:tasks:search': renderTasksParent,
 	'app:workflows:create-or-modify': renderWorkflowsParent,

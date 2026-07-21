@@ -4943,7 +4943,11 @@ async def handle_main_processing(
 
                     connected_account_token_artifacts: list[dict[str, str]] = []
                     connected_account_journal_entries: list[dict[str, Any]] = []
-                    if app_id == "calendar" and skill_id in {"get-events", "create-event", "update-event", "delete-event"}:
+                    from backend.apps.ai.processing.connected_account_execution import is_connected_account_skill
+
+                    if is_connected_account_skill(app_id, skill_id) and (
+                        app_id != "finance" or skill_arguments.get("connected_account_requests")
+                    ):
                         from backend.apps.ai.processing.connected_account_execution import (
                             cleanup_connected_account_token_artifacts,
                             connected_account_action_for_skill,

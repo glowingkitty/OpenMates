@@ -78,10 +78,27 @@ class FakeHistoryService:
         }
 
 
+class FakeTaskMethods:
+    async def get_task(self, task_id: str, user_id: str):
+        assert user_id == "user-1"
+        return {"task_id": task_id, "encrypted_title": "cipher-before", "status": "todo", "version": 1}
+
+    async def delete_task(self, task_id: str, user_id: str, version: int):
+        assert user_id == "user-1"
+        assert version == 1
+        return bool(task_id)
+
+
 class FakeTaskService:
+    task_methods = FakeTaskMethods()
+
     async def create_task(self, user_id: str, payload: dict):
         assert user_id == "user-1"
         return {**payload, "id": "row-task"}
+
+    async def update_task(self, task_id: str, user_id: str, patch: dict):
+        assert user_id == "user-1"
+        return {"task_id": task_id, "encrypted_title": "cipher-after", **patch, "version": 2}
 
 
 class FakeTaskReorderMethods:
@@ -103,24 +120,50 @@ class FakeTaskReorderService:
         return {"task_id": "task-1", "encrypted_title": "cipher-moved-updated", "position": patch["position"], "version": 2}
 
 
+class FakePlanMethods:
+    async def get_plan(self, plan_id: str, user_id: str):
+        assert user_id == "user-1"
+        return {"plan_id": plan_id, "encrypted_title": "cipher-before", "status": "draft", "version": 1}
+
+
 class FakePlanService:
+    plan_methods = FakePlanMethods()
+
     async def create_plan(self, user_id: str, payload: dict):
         assert user_id == "user-1"
         return {**payload, "id": "row-plan"}
 
+    async def update_plan(self, plan_id: str, user_id: str, patch: dict):
+        assert user_id == "user-1"
+        return {"plan_id": plan_id, "encrypted_title": "cipher-after", **patch, "version": 2}
+
 
 class FakeProjectMethods:
+    async def get_project(self, project_id: str, user_id: str):
+        assert user_id == "user-1"
+        return {"project_id": project_id, "encrypted_name": "cipher-before", "archived": False, "version": 1}
+
     async def create_project(self, user_id: str, payload: dict):
         assert user_id == "user-1"
         return {**payload, "id": "row-project"}
 
+    async def update_project(self, project_id: str, user_id: str, patch: dict):
+        assert user_id == "user-1"
+        return {"project_id": project_id, "encrypted_name": "cipher-after", **patch, "version": 2}
+
+    async def delete_project(self, project_id: str, user_id: str):
+        assert user_id == "user-1"
+        return bool(project_id)
+
 
 class FakeWorkflow:
-    id = "workflow-1"
-    current_version_id = "version-1"
+    def __init__(self, workflow_id: str = "workflow-1", version_id: str = "version-1", enabled: bool = True) -> None:
+        self.id = workflow_id
+        self.current_version_id = version_id
+        self.enabled = enabled
 
     def model_dump(self, **_kwargs):
-        return {"id": self.id, "current_version_id": self.current_version_id, "title": "Inferred workflow"}
+        return {"id": self.id, "current_version_id": self.current_version_id, "title": "Inferred workflow", "enabled": self.enabled}
 
 
 class FakeWorkflowService:
@@ -129,7 +172,19 @@ class FakeWorkflowService:
 
     def create_workflow(self, user_id: str, title: str, graph: dict, enabled: bool, *_args):
         self.created.append({"user_id": user_id, "title": title, "graph": graph, "enabled": enabled})
-        return FakeWorkflow()
+        return FakeWorkflow(enabled=enabled)
+
+    def get_workflow(self, workflow_id: str, user_id: str, _vault_key_id: str):
+        assert user_id == "user-1"
+        return FakeWorkflow(workflow_id=workflow_id, version_id="version-before", enabled=True)
+
+    def update_workflow(self, workflow_id: str, user_id: str, **kwargs):
+        assert user_id == "user-1"
+        return FakeWorkflow(workflow_id=workflow_id, version_id="version-after", enabled=bool(kwargs.get("enabled", False)))
+
+    def delete_workflow(self, workflow_id: str, user_id: str):
+        assert workflow_id
+        assert user_id == "user-1"
 
 
 def _user():
@@ -163,7 +218,9 @@ async def test_task_ask_auto_apply_requires_encrypted_create_and_records_history
 
     result = await user_tasks.ask_user_tasks(SimpleNamespace(), Response(), body, service=FakeTaskService(), history_service=history)
 
+    assert result["outcome"] == "applied"
     assert result["applied"] is True
+    assert result["fallback_to_chat"] is False
     assert result["change_set_id"] == "chg-1"
     assert result["undo_entry_commands"] == ["openmates tasks restore task-1 --entry che-1 --state before"]
     assert history.recorded[0]["source"] == "ai_ask"
@@ -204,17 +261,57 @@ async def test_task_ask_bulk_create_records_one_change_set(monkeypatch) -> None:
 
 
 @pytest.mark.asyncio
+async def test_task_ask_without_exact_payload_falls_back_without_history(monkeypatch) -> None:
+    async def fake_current_user(_request, _response):
+        return _user()
+
+    monkeypatch.setattr(user_tasks, "_current_user", fake_current_user)
+    history = FakeHistoryService()
+    body = user_tasks.UserTaskAskRequest(instruction="mark my 3d printing tasks done")
+
+    result = await user_tasks.ask_user_tasks(SimpleNamespace(), Response(), body, service=FakeTaskService(), history_service=history)
+
+    assert result["outcome"] == "fallback_to_chat"
+    assert result["fallback_to_chat"] is True
+    assert result["change_set_id"] is None
+    assert history.recorded == []
+
+
+@pytest.mark.asyncio
+async def test_task_ask_exact_status_update_records_history(monkeypatch) -> None:
+    async def fake_current_user(_request, _response):
+        return _user()
+
+    monkeypatch.setattr(user_tasks, "_current_user", fake_current_user)
+    history = FakeHistoryService()
+    body = user_tasks.UserTaskAskRequest(
+        instruction="mark @task:task-1 done",
+        encrypted_update={"task_id": "task-1", "patch": {"status": "done", "version": 1, "updated_at": 2}},
+    )
+
+    result = await user_tasks.ask_user_tasks(SimpleNamespace(), Response(), body, service=FakeTaskService(), history_service=history)
+
+    assert result["outcome"] == "applied"
+    assert result["tasks"][0]["status"] == "done"
+    assert history.recorded[0]["action_type"] == "ask_update"
+    assert history.recorded[0]["entries"][0]["operation"] == "status"
+
+
+@pytest.mark.asyncio
 async def test_task_ask_plan_route_uses_inference_planner(monkeypatch) -> None:
     async def fake_current_user(_request, _response):
         return _user()
 
-    async def fake_plan(instruction, secrets_manager):
+    async def fake_pipeline(instruction, secrets_manager):
         assert instruction == "split release work into tasks"
         assert secrets_manager is not None
-        return [SimpleNamespace(model_dump=lambda: {"title": "Verify release", "status": "todo", "assignee_type": "user"})]
+        return SimpleNamespace(
+            proposal=[SimpleNamespace(model_dump=lambda: {"title": "Verify release", "status": "todo", "assignee_type": "user"})],
+            processing={},
+        )
 
     monkeypatch.setattr(user_tasks, "_current_user", fake_current_user)
-    monkeypatch.setattr(user_tasks, "plan_task_ask", fake_plan)
+    monkeypatch.setattr(user_tasks, "run_task_ask_pipeline", fake_pipeline)
 
     result = await user_tasks.plan_user_task_ask(
         _request_with_secrets(),
@@ -222,23 +319,69 @@ async def test_task_ask_plan_route_uses_inference_planner(monkeypatch) -> None:
         user_tasks.UserTaskAskPlanRequest(instruction="split release work into tasks"),
     )
 
-    assert result == {"proposed_tasks": [{"title": "Verify release", "status": "todo", "assignee_type": "user"}], "inference_used": True}
+    assert result == {"proposed_tasks": [{"title": "Verify release", "status": "todo", "assignee_type": "user"}], "inference_used": True, "processing": {}}
 
 
 @pytest.mark.asyncio
-async def test_plan_ask_confirm_first_does_not_record_history(monkeypatch) -> None:
+async def test_task_ask_plan_route_exposes_pipeline_processing(monkeypatch) -> None:
+    async def fake_current_user(_request, _response):
+        return _user()
+
+    async def fake_pipeline(instruction, secrets_manager):
+        assert instruction == "split release work into tasks"
+        assert secrets_manager is not None
+        return SimpleNamespace(
+            proposal=[SimpleNamespace(model_dump=lambda: {"title": "Verify release", "status": "todo", "assignee_type": "user"})],
+            processing={"intent_frame": {"namespace": "tasks"}, "model_selection": {"primary_model_id": "google/gemini-3-flash-preview"}},
+        )
+
+    monkeypatch.setattr(user_tasks, "_current_user", fake_current_user)
+    monkeypatch.setattr(user_tasks, "run_task_ask_pipeline", fake_pipeline)
+
+    result = await user_tasks.plan_user_task_ask(
+        _request_with_secrets(),
+        Response(),
+        user_tasks.UserTaskAskPlanRequest(instruction="split release work into tasks"),
+    )
+
+    assert result["proposed_tasks"] == [{"title": "Verify release", "status": "todo", "assignee_type": "user"}]
+    assert result["processing"]["model_selection"]["primary_model_id"] == "google/gemini-3-flash-preview"
+
+
+@pytest.mark.asyncio
+async def test_plan_ask_without_exact_payload_falls_back_without_history(monkeypatch) -> None:
     async def fake_current_user(_request, _response):
         return _user()
 
     monkeypatch.setattr(user_plans, "_current_user", fake_current_user)
     history = FakeHistoryService()
-    body = user_plans.UserPlanAskRequest(instruction="Prepare launch plan", apply_mode="confirm_first")
+    body = user_plans.UserPlanAskRequest(instruction="archive the launch plan")
 
     result = await user_plans.ask_user_plans(SimpleNamespace(), Response(), body, service=FakePlanService(), history_service=history)
 
+    assert result["outcome"] == "fallback_to_chat"
     assert result["applied"] is False
     assert result["changed_entries"] == []
     assert history.recorded == []
+
+
+@pytest.mark.asyncio
+async def test_plan_ask_exact_status_update_records_history(monkeypatch) -> None:
+    async def fake_current_user(_request, _response):
+        return _user()
+
+    monkeypatch.setattr(user_plans, "_current_user", fake_current_user)
+    history = FakeHistoryService()
+    body = user_plans.UserPlanAskRequest(
+        instruction="archive @plan:plan-1",
+        encrypted_update={"plan_id": "plan-1", "patch": {"status": "archived", "version": 1, "updated_at": 2}},
+    )
+
+    result = await user_plans.ask_user_plans(SimpleNamespace(), Response(), body, service=FakePlanService(), history_service=history)
+
+    assert result["outcome"] == "applied"
+    assert result["plans"][0]["status"] == "archived"
+    assert history.recorded[0]["entries"][0]["operation"] == "status"
 
 
 @pytest.mark.asyncio
@@ -246,13 +389,16 @@ async def test_plan_ask_plan_route_uses_inference_planner(monkeypatch) -> None:
     async def fake_current_user(_request, _response):
         return _user()
 
-    async def fake_plan(instruction, secrets_manager):
+    async def fake_pipeline(instruction, secrets_manager):
         assert instruction == "make a release validation plan"
         assert secrets_manager is not None
-        return SimpleNamespace(model_dump=lambda: {"title": "Release validation", "summary": "Check release", "goal": "Ship safely"})
+        return SimpleNamespace(
+            proposal=SimpleNamespace(model_dump=lambda: {"title": "Release validation", "summary": "Check release", "goal": "Ship safely"}),
+            processing={},
+        )
 
     monkeypatch.setattr(user_plans, "_current_user", fake_current_user)
-    monkeypatch.setattr(user_plans, "plan_plan_ask", fake_plan)
+    monkeypatch.setattr(user_plans, "run_plan_ask_pipeline", fake_pipeline)
 
     result = await user_plans.plan_user_plan_ask(
         _request_with_secrets(),
@@ -260,7 +406,7 @@ async def test_plan_ask_plan_route_uses_inference_planner(monkeypatch) -> None:
         user_plans.UserPlanAskPlanRequest(instruction="make a release validation plan"),
     )
 
-    assert result == {"proposed_plan": {"title": "Release validation", "summary": "Check release", "goal": "Ship safely"}, "inference_used": True}
+    assert result == {"proposed_plan": {"title": "Release validation", "summary": "Check release", "goal": "Ship safely"}, "inference_used": True, "processing": {}}
 
 
 @pytest.mark.asyncio
@@ -286,6 +432,7 @@ async def test_project_ask_auto_apply_records_history_without_plaintext() -> Non
         history_service=history,
     )
 
+    assert result["outcome"] == "applied"
     assert result["applied"] is True
     assert result["undo_entry_commands"] == ["openmates projects restore project-1 --entry che-1 --state before"]
     assert history.recorded[0]["source"] == "ai_ask"
@@ -293,13 +440,37 @@ async def test_project_ask_auto_apply_records_history_without_plaintext() -> Non
 
 
 @pytest.mark.asyncio
+async def test_project_ask_exact_archive_records_history() -> None:
+    history = FakeHistoryService()
+    body = projects.ProjectAskRequest(
+        instruction="archive @project:project-1",
+        encrypted_update={"project_id": "project-1", "patch": {"archived": True, "version": 1, "updated_at": 2}},
+    )
+
+    result = await projects.ask_projects(
+        SimpleNamespace(),
+        body,
+        current_user=_user(),
+        directus_service=SimpleNamespace(project=FakeProjectMethods()),
+        history_service=history,
+    )
+
+    assert result["outcome"] == "applied"
+    assert result["projects"][0]["archived"] is True
+    assert history.recorded[0]["entries"][0]["operation"] == "archive"
+
+
+@pytest.mark.asyncio
 async def test_project_ask_plan_route_uses_inference_planner(monkeypatch) -> None:
-    async def fake_plan(instruction, secrets_manager):
+    async def fake_pipeline(instruction, secrets_manager):
         assert instruction == "make a release project"
         assert secrets_manager is not None
-        return SimpleNamespace(model_dump=lambda: {"name": "Release", "description": "Ship", "icon": "rocket", "color": "blue"})
+        return SimpleNamespace(
+            proposal=SimpleNamespace(model_dump=lambda: {"name": "Release", "description": "Ship", "icon": "rocket", "color": "blue"}),
+            processing={},
+        )
 
-    monkeypatch.setattr(projects, "plan_project_ask", fake_plan)
+    monkeypatch.setattr(projects, "run_project_ask_pipeline", fake_pipeline)
 
     result = await projects.plan_project_ask_route(
         _request_with_secrets(),
@@ -307,7 +478,7 @@ async def test_project_ask_plan_route_uses_inference_planner(monkeypatch) -> Non
         current_user=_user(),
     )
 
-    assert result == {"proposed_project": {"name": "Release", "description": "Ship", "icon": "rocket", "color": "blue"}, "inference_used": True}
+    assert result == {"proposed_project": {"name": "Release", "description": "Ship", "icon": "rocket", "color": "blue"}, "inference_used": True, "processing": {}}
 
 
 @pytest.mark.asyncio
@@ -345,44 +516,62 @@ async def test_task_reorder_history_uses_moved_task_before_snapshot(monkeypatch)
 
 
 @pytest.mark.asyncio
-async def test_workflow_ask_confirm_first_does_not_record_history() -> None:
+async def test_workflow_ask_selected_edit_without_exact_payload_falls_back() -> None:
     history = FakeHistoryService()
-    body = workflows.WorkflowAskRequest(instruction="Alert me if it rains", apply_mode="confirm_first")
+    body = workflows.WorkflowAskRequest(instruction="add a Discord notification", selected_object_id="workflow-1")
 
-    result = await workflows.ask_workflows(SimpleNamespace(), body, current_user=_user(), service=object(), history_service=history)
+    result = await workflows.ask_workflows(SimpleNamespace(), body, current_user=_user(), service=FakeWorkflowService(), history_service=history)
 
+    assert result["outcome"] == "fallback_to_chat"
     assert result["applied"] is False
     assert result["changed_entries"] == []
     assert history.recorded == []
 
 
 @pytest.mark.asyncio
-async def test_workflow_ask_without_create_uses_inference_planner(monkeypatch) -> None:
-    async def fake_plan(instruction, secrets_manager):
-        assert instruction == "make a release workflow"
-        assert secrets_manager is not None
-        return {
-            "title": "Inferred workflow",
-            "description": "From LLM",
-            "enabled": True,
-            "graph": {
-                "version": 1,
-                "trigger_node_id": "manual-trigger",
-                "nodes": [
-                    {"id": "manual-trigger", "type": "manual_trigger", "title": "Manual trigger"},
-                    {"id": "end", "type": "end", "title": "End"},
-                ],
-                "edges": [{"from": "manual-trigger", "to": "end"}],
-            },
-        }
+async def test_workflow_ask_exact_disable_records_history() -> None:
+    history = FakeHistoryService()
+    service = FakeWorkflowService()
+    body = workflows.WorkflowAskRequest(instruction="turn off @workflow:workflow-1", exact_action={"workflow_id": "workflow-1", "action": "disable"})
 
-    monkeypatch.setattr(workflows, "plan_workflow_ask", fake_plan)
+    result = await workflows.ask_workflows(SimpleNamespace(), body, current_user=_user(), service=service, history_service=history)
+
+    assert result["outcome"] == "applied"
+    assert result["workflow"]["enabled"] is False
+    assert history.recorded[0]["action_type"] == "ask_disable"
+    assert history.recorded[0]["entries"][0]["operation"] == "status"
+
+
+@pytest.mark.asyncio
+async def test_workflow_ask_without_create_uses_inference_planner(monkeypatch) -> None:
+    async def fake_pipeline(instruction, secrets_manager):
+        assert instruction == "create a workflow that prepares release validation and sends a notification"
+        assert secrets_manager is not None
+        return SimpleNamespace(
+            proposal={
+                "title": "Inferred workflow",
+                "description": "From LLM",
+                "enabled": True,
+                "graph": {
+                    "version": 1,
+                    "trigger_node_id": "manual-trigger",
+                    "nodes": [
+                        {"id": "manual-trigger", "type": "manual_trigger", "title": "Manual trigger"},
+                        {"id": "end", "type": "end", "title": "End"},
+                    ],
+                    "edges": [{"from": "manual-trigger", "to": "end"}],
+                },
+            },
+            processing={"intent_frame": {"namespace": "workflows"}},
+        )
+
+    monkeypatch.setattr(workflows, "run_workflow_ask_pipeline", fake_pipeline)
     history = FakeHistoryService()
     service = FakeWorkflowService()
 
     result = await workflows.ask_workflows(
         _request_with_secrets(),
-        workflows.WorkflowAskRequest(instruction="make a release workflow"),
+        workflows.WorkflowAskRequest(instruction="create a workflow that prepares release validation and sends a notification"),
         current_user=_user(),
         service=service,
         history_service=history,
@@ -391,4 +580,28 @@ async def test_workflow_ask_without_create_uses_inference_planner(monkeypatch) -
     assert result["applied"] is True
     assert service.created[0]["title"] == "Inferred workflow"
     assert service.created[0]["enabled"] is True
+    assert result["processing"] == {"intent_frame": {"namespace": "workflows"}}
     assert history.recorded[0]["entries"][0]["workflow_version_after_id"] == "version-1"
+
+
+@pytest.mark.asyncio
+async def test_workflow_ask_short_input_creates_deterministically_without_inference(monkeypatch) -> None:
+    async def fail_pipeline(_instruction, _secrets_manager):
+        raise AssertionError("short workflow asks must not use inference")
+
+    monkeypatch.setattr(workflows, "run_workflow_ask_pipeline", fail_pipeline)
+    history = FakeHistoryService()
+    service = FakeWorkflowService()
+
+    result = await workflows.ask_workflows(
+        SimpleNamespace(),
+        workflows.WorkflowAskRequest(instruction="Nightly report"),
+        current_user=_user(),
+        service=service,
+        history_service=history,
+    )
+
+    assert result["outcome"] == "applied"
+    assert service.created[0]["title"] == "Nightly report"
+    assert service.created[0]["enabled"] is False
+    assert result["processing"] == {"inference_used": False, "deterministic_short_create": True}
