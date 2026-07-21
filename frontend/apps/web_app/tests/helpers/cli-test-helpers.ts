@@ -57,6 +57,7 @@ async function runCli(
 			env: {
 				...process.env,
 				OPENMATES_API_URL: apiUrl,
+				OPENMATES_CLI_HTTP_TIMEOUT_MS: process.env.OPENMATES_CLI_HTTP_TIMEOUT_MS ?? String(timeoutMs),
 				NODE_PATH: path.join(cliDir, 'node_modules')
 			},
 			stdio: ['pipe', 'pipe', 'pipe']
