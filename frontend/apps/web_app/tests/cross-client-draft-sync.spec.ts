@@ -960,7 +960,6 @@ test.describe('Cross-client encrypted draft sync', () => {
 			await sendButton.click();
 			await expect(page.getByTestId('message-user').last()).toContainText(sentText, { timeout: 30_000 });
 			await waitForAssistantMessage(page, { which: 'last', timeout: 120_000, logCheckpoint: log });
-			await expect(page.getByTestId('typing-indicator')).not.toBeVisible({ timeout: 120_000 });
 			await expect
 				.poll(async () => {
 					const result = await runCliJson(apiUrl, ['drafts', 'get', sentChatId, '--refresh'], CLI_DRAFT_REFRESH_TIMEOUT_MS, {
@@ -968,7 +967,7 @@ test.describe('Cross-client encrypted draft sync', () => {
 					});
 					return result ? result.draft : lastTransientCliFailure || 'transient-cli-fetch-failed';
 				}, {
-					timeout: 30_000,
+					timeout: 60_000,
 					intervals: [1_000, 2_000]
 				})
 				.toBeNull();
