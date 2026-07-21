@@ -11683,7 +11683,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     />
                 {:else}
                 <!-- Left side container for chat history and buttons -->
-                <div class="chat-side" bind:this={chatSideEl}>
+                <div class="chat-side" data-testid="chat-side" bind:this={chatSideEl}>
                     <!-- Welcome hero/inspiration banners – shown above greeting on new chat screen. -->
                     <!-- Guests see the stable intro-video hero; authenticated users keep Daily Inspiration. -->
                     <!-- Rendered FIRST so it appears above the top-buttons row on the welcome screen. -->

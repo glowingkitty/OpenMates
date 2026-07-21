@@ -493,9 +493,9 @@ test('press hold and release creates audio embed', async ({ page }) => {
 	await setupAndFocusMessageField(page);
 	const micButton = await waitForMicButton(page);
 	const guestInterestRail = page.getByTestId('guest-interest-rail');
+	const guestInterestTags = page.getByTestId('guest-interest-tags');
+	const chatSide = page.getByTestId('chat-side');
 	await expect(guestInterestRail).toBeVisible({ timeout: 10000 });
-	const guestInterestRailTopBefore = (await guestInterestRail.boundingBox())?.y;
-	expect(guestInterestRailTopBefore).toBeDefined();
 
 	// Count existing recording embeds before
 	const embedCountBefore = await page.getByTestId('recording-preview').count();
@@ -518,14 +518,16 @@ test('press hold and release creates audio embed', async ({ page }) => {
 	await expect(previewWaveform).toBeVisible({ timeout: 10000 });
 	await expectPreviewWaveformFitsStrip(previewWaveform);
 	await expect(previewWaveform).toHaveAttribute('data-progress', '0');
-	await expect(guestInterestRail).toBeVisible();
+	await expect(guestInterestTags).toBeVisible();
 	await expect
 		.poll(async () => {
-			const box = await guestInterestRail.boundingBox();
-			if (!box || guestInterestRailTopBefore === undefined) return Number.POSITIVE_INFINITY;
-			return Math.abs(box.y - guestInterestRailTopBefore);
+			const chatBox = await chatSide.boundingBox();
+			const tagBox = await guestInterestTags.boundingBox();
+			if (!chatBox || !tagBox) return 'missing-box';
+			const bottomGap = (chatBox.y + chatBox.height) - (tagBox.y + tagBox.height);
+			return bottomGap >= 100 && bottomGap <= 160 ? 'ok' : `bottom-gap:${bottomGap}`;
 		})
-		.toBeLessThanOrEqual(2);
+		.toBe('ok');
 	await page.getByTestId('recording-preview-play-button').last().click();
 	await expect
 		.poll(async () => Number((await previewWaveform.getAttribute('data-progress')) ?? '0'), {
