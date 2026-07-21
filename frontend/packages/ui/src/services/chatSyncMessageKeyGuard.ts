@@ -145,7 +145,9 @@ export async function markSyncedMessagesDeferred(
   if (!chat || chat.messages_v === 0) {
     return;
   }
-  await chatDB.updateChat({ ...chat, messages_v: 0 });
+  await chatDB.addChat({ ...chat, messages_v: 0 }, undefined, {
+    isFromSync: true,
+  });
   console.warn(
     `[ChatSyncService] ${context}: Reset messages_v for chat ${chatId} so deferred encrypted messages can be retried.`,
   );

@@ -14,6 +14,7 @@ import {
 const mocks = vi.hoisted(() => ({
   chatDB: {
     getChat: vi.fn(),
+    addChat: vi.fn(),
     updateChat: vi.fn(),
   },
   chatKeyManager: {
@@ -113,8 +114,11 @@ describe("markSyncedMessagesDeferred", () => {
 
     await markSyncedMessagesDeferred("chat-1", "test sync");
 
-    expect(mocks.chatDB.updateChat).toHaveBeenCalledWith(
+    expect(mocks.chatDB.addChat).toHaveBeenCalledWith(
       expect.objectContaining({ chat_id: "chat-1", messages_v: 0 }),
+      undefined,
+      { isFromSync: true },
     );
+    expect(mocks.chatDB.updateChat).not.toHaveBeenCalled();
   });
 });
