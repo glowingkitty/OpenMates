@@ -37,3 +37,11 @@ openmates connect-account revolut-business consent-url --client-id <client-id>
 ```
 
 The callback page shows a copyable `openmates connect-account revolut-business exchange-code ...` command for completing the local sandbox token exchange.
+
+Revolut Business also requires the API certificate's `Production IP whitelist` to contain the public egress IP of the OpenMates server that calls Revolut. For OpenMates cloud, use the IP shown by the web setup flow or by:
+
+```bash
+openmates connect-account revolut-business
+```
+
+For self-hosted OpenMates, whitelist the self-hosted server's public outbound IP. Set `REVOLUT_BUSINESS_SERVER_EGRESS_IPS` on the API server when the deployment uses a known static egress IP or multiple NAT IPs; otherwise OpenMates detects the current public egress IP during setup.

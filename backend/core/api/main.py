@@ -68,6 +68,7 @@ from backend.core.api.app.routes import debug_sync  # noqa: E402 # Import debug 
 from backend.core.api.app.routes import sync_api  # noqa: E402 # Native/desktop optional offline sync endpoints
 from backend.core.api.app.routes import token_broker  # noqa: E402 # Active-turn connected-account token broker
 from backend.core.api.app.routes import connected_accounts  # noqa: E402 # Encrypted connected-account storage APIs
+from backend.core.api.app.routes import connected_account_setup  # noqa: E402 # Public setup metadata for connected-account providers
 from backend.core.api.app.routes import connected_account_actions  # noqa: E402 # Connected-account operation actions
 from backend.core.api.app.routes import connected_account_oauth  # noqa: E402 # One-time connected-account OAuth handoffs
 from backend.core.api.app.routes import provider_oauth_google_calendar  # noqa: E402 # Google Calendar connected-account OAuth adapter
@@ -1390,6 +1391,7 @@ def create_app() -> FastAPI:
     app.include_router(ideabucket.router, include_in_schema=False)  # IdeaBucket stores encrypted bucket data; official clients only
     app.include_router(token_broker.router, include_in_schema=False)  # Connected-account token refs - web/CLI/Apple authenticated only
     app.include_router(connected_accounts.router, include_in_schema=False)  # Encrypted connected-account rows - client source of truth
+    app.include_router(connected_account_setup.router, include_in_schema=False)  # Public provider setup metadata, no user data
     app.include_router(connected_account_actions.router, include_in_schema=False)  # Connected-account operation actions
     app.include_router(connected_account_oauth.router, include_in_schema=False)  # OAuth refresh-token handoffs - one-time browser encryption bridge
     app.include_router(provider_oauth_google_calendar.router, include_in_schema=False)  # Google Calendar OAuth adapter - creates one-time handoffs

@@ -229,6 +229,11 @@ decisions:
     decision: The Vercel rewrite allowlist must pass `/oauth/*` routes through to SvelteKit.
     reason: The catch-all SPA rewrite otherwise serves `/` for the Revolut callback path, hiding the callback page even when it is deployed.
     decided_at: "2026-07-21"
+  - id: D-10
+    status: active
+    decision: Revolut Business API calls are always server-mediated by OpenMates, including CLI-initiated setup.
+    reason: CLI is a client for OpenMates, not a direct Revolut integration surface; Revolut must whitelist the OpenMates server or self-hosted server public egress IP.
+    decided_at: "2026-07-21"
 
 attempts:
   - id: ATTEMPT-1
@@ -246,7 +251,7 @@ attempts:
 
 handoff:
   current_task_id: TASK-5
-  next_action: Deploy the Vercel `/oauth/*` rewrite allowlist fix, confirm the live callback page, then regenerate/register the Revolut Sandbox certificate with the app-host redirect URI.
+  next_action: Deploy the server-egress IP setup endpoint and callback/CLI guidance, then recreate the Revolut Sandbox certificate with the OpenMates server IP in the Revolut Production IP whitelist.
   command: NODE_OPTIONS=--max-old-space-size=8192 npm run build && /home/superdev/projects/OpenMates/.venv/bin/python3 scripts/spec_validate.py docs/specs/finance-check-accounts-v1/spec.yml
   expected_outcome: Web build, spec validation, and live callback URL check pass before the sandbox setup flow is retried.
   blocker: null
