@@ -25,7 +25,7 @@ class _FakeRedis:
                 return []
             if payload.get("status") == "sent":
                 return self._hgetall_list(key)
-            if payload.get("status") not in {"active", "failed"}:
+            if payload.get("status") not in {"active", "failed", "confirmation_required"}:
                 return []
             if int(payload.get("scheduled_send_at") or 0) > now:
                 return []
@@ -60,6 +60,17 @@ class _FakeRedis:
             payload["error_code"] = str(args[2])
             payload.pop("lock_token", None)
             self.ttls[key] = int(args[3])
+            return 1
+
+        if "confirmation_required_at" in script:
+            lock_token = str(args[0])
+            payload = self.store.get(key)
+            if not payload or payload.get("status") != "processing" or payload.get("lock_token") != lock_token:
+                return 0
+            payload["status"] = "confirmation_required"
+            payload["confirmation_required_at"] = str(args[1])
+            payload.pop("lock_token", None)
+            self.ttls[key] = int(args[2])
             return 1
 
         version = int(args[0])
@@ -133,6 +144,7 @@ async def test_ideabucket_processing_window_replaces_latest_payload_without_dire
         "client_encrypted_future_user_message": "client-cipher-v2",
         "client_encrypted_ideabucket_system_event": "system-cipher-v2",
         "payload_hash": "hash-v2",
+        "require_confirmation": False,
     }
     assert "server-cipher-v1" not in str(fake.store)
 
@@ -178,6 +190,31 @@ async def test_ideabucket_processing_window_rejects_stale_versions() -> None:
 
 
 @pytest.mark.anyio
+async def test_ideabucket_processing_window_persists_confirmation_preference() -> None:
+    service = CacheService()
+    fake = _FakeRedis()
+    service._client = fake
+
+    assert await service.replace_ideabucket_processing_window_in_cache(
+        "user-1",
+        "window-1",
+        version=1,
+        chat_id="chat-1",
+        scheduled_send_at=123,
+        encrypted_chat_key="chat-key-v1",
+        server_vault_encrypted_processing_payload="server-cipher-v1",
+        client_encrypted_future_user_message="client-cipher-v1",
+        client_encrypted_ideabucket_system_event="system-cipher-v1",
+        payload_hash="hash-v1",
+        require_confirmation=True,
+    ) is True
+
+    cached = await service.get_ideabucket_processing_window_from_cache("user-1", "window-1")
+
+    assert cached["require_confirmation"] is True
+
+
+@pytest.mark.anyio
 async def test_ideabucket_processing_window_locks_only_due_payload() -> None:
     service = CacheService()
     fake = _FakeRedis()
@@ -213,6 +250,49 @@ async def test_ideabucket_processing_window_locks_only_due_payload() -> None:
     assert locked["status"] == "processing"
     assert locked["version"] == 1
     assert locked["processing_started_at"] == 200
+
+
+@pytest.mark.anyio
+async def test_ideabucket_processing_window_confirmation_required_is_retryable() -> None:
+    service = CacheService()
+    fake = _FakeRedis()
+    service._client = fake
+
+    await service.replace_ideabucket_processing_window_in_cache(
+        "user-1",
+        "window-1",
+        version=1,
+        chat_id="chat-1",
+        scheduled_send_at=123,
+        encrypted_chat_key="chat-key-v1",
+        server_vault_encrypted_processing_payload="server-cipher-v1",
+        client_encrypted_future_user_message="client-cipher-v1",
+        client_encrypted_ideabucket_system_event="system-cipher-v1",
+        payload_hash="hash-v1",
+        require_confirmation=True,
+    )
+    await service.lock_due_ideabucket_processing_window_in_cache(
+        "user-1",
+        "window-1",
+        now=123,
+        lock_token="lock-1",
+    )
+    assert await service.mark_ideabucket_processing_window_confirmation_required_in_cache(
+        "user-1",
+        "window-1",
+        lock_token="lock-1",
+        required_at=124,
+    ) is True
+
+    locked = await service.lock_due_ideabucket_processing_window_in_cache(
+        "user-1",
+        "window-1",
+        now=125,
+        lock_token="lock-2",
+    )
+
+    assert locked["status"] == "processing"
+    assert locked["require_confirmation"] is True
 
 
 @pytest.mark.anyio

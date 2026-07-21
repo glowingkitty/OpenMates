@@ -123,6 +123,17 @@ test('creates and shares a chat link with QR code and short link', async ({
 	logCheckpoint('Clicked chat share button.');
 
 	// ── Step 6: Wait for share settings panel ─────────────────────────────
+	const settingsMenu = page.getByTestId('settings-menu');
+	await expect(settingsMenu).toBeVisible({ timeout: 15000 });
+	await expect(settingsMenu).toHaveAttribute('data-active-view', /^chats\/[a-zA-Z0-9-]+$/, {
+		timeout: 10000
+	});
+	await expect(page.getByTestId('chat-details-settings-panel')).not.toBeVisible({ timeout: 2000 });
+	await expect(settingsMenu.getByTestId('chat-settings-tabpanel-share')).toBeVisible({ timeout: 10000 });
+	await expect(settingsMenu.getByTestId('chat-settings-share-community')).toBeVisible({ timeout: 10000 });
+	await expect(settingsMenu.getByTestId('chat-settings-share-password')).toBeVisible({ timeout: 10000 });
+	await expect(settingsMenu.getByTestId('chat-settings-share-expire')).toBeVisible({ timeout: 10000 });
+	await expect(settingsMenu.getByTestId('chat-settings-share-download-chat')).toBeVisible({ timeout: 10000 });
 	// Wait for the share generate-link button (indicates share panel loaded)
 	const generateLinkButton = page.locator('[data-testid="share-generate-link"]');
 	await docAssert('share-panel-shows-link-configuration', async () => {
@@ -156,6 +167,10 @@ test('creates and shares a chat link with QR code and short link', async ({
 	await docAssert('share-link-has-copy-option', async () => {
 		await expect(copyLinkButton).toBeVisible({ timeout: 30000 });
 	});
+	await expect(settingsMenu.getByTestId('chat-settings-share-generated')).toBeVisible({ timeout: 30000 });
+	await expect(settingsMenu.getByTestId('chat-settings-share-show-qr')).toBeVisible({ timeout: 10000 });
+	await expect(settingsMenu.getByTestId('chat-settings-share-show-url')).toBeVisible({ timeout: 10000 });
+	await expect(settingsMenu.getByTestId('chat-settings-share-stop')).toBeVisible({ timeout: 10000 });
 	logCheckpoint('Copy link button is visible — link generated.');
 	await takeStepScreenshot(page, 'link-generated');
 	await docCheckpoint(page, {
@@ -166,32 +181,20 @@ test('creates and shares a chat link with QR code and short link', async ({
 	});
 
 	// ── Step 10: Verify QR code ───────────────────────────────────────────
-	const qrCode = page.locator('[data-testid="share-qr-code"]');
+	await settingsMenu.getByTestId('chat-settings-share-show-qr').click();
+	const qrCode = settingsMenu.getByTestId('chat-settings-share-qr');
 	await docAssert('share-link-has-qr-code', async () => {
 		await expect(qrCode).toBeVisible({ timeout: 10000 });
 		const qrSvg = qrCode.locator('svg');
 		await expect(qrSvg).toBeVisible({ timeout: 5000 });
 	});
+	await expect(settingsMenu.getByTestId('chat-settings-share-hide-qr')).toBeVisible({ timeout: 5000 });
 	logCheckpoint('QR code is visible with SVG.');
 
-	// ── Step 11: Test QR fullscreen ───────────────────────────────────────
-	await qrCode.click();
-	const qrFullscreen = page.locator('[data-testid="share-qr-fullscreen"]');
-	await docAssert('share-qr-code-opens-fullscreen', async () => {
-		await expect(qrFullscreen).toBeVisible({ timeout: 5000 });
-	});
-	logCheckpoint('QR fullscreen overlay opened.');
-	await takeStepScreenshot(page, 'qr-fullscreen');
-	await docCheckpoint(page, {
-		id: 'qr-fullscreen',
-		guide: SHARING_GUIDE_PATH,
-		title: 'QR code fullscreen view',
-		screenshot: 'docs/images/user-guide/sharing/qr-fullscreen.jpg'
-	});
-
-	await page.keyboard.press('Escape');
-	await expect(qrFullscreen).not.toBeVisible({ timeout: 5000 });
-	logCheckpoint('QR fullscreen closed.');
+	await settingsMenu.getByTestId('chat-settings-share-show-url').click();
+	await expect(settingsMenu.getByTestId('chat-settings-share-url')).toBeVisible({ timeout: 5000 });
+	await expect(settingsMenu.getByTestId('chat-settings-share-hide-url')).toBeVisible({ timeout: 5000 });
+	logCheckpoint('Generated share URL reveal state is visible.');
 
 	// ── Step 12: Verify short link is primary ──────────────────────────────
 	const shortLinkSection = page.locator('[data-testid="share-short-link-section"]');

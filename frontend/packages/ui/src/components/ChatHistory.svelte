@@ -409,24 +409,23 @@
 
     for (const candidate of candidates) {
       let childEmbedIds = candidate.childEmbedIds;
-      let decodedParent: Record<string, unknown> | null = null;
-      if (childEmbedIds.length === 0) {
-        const parentEmbed = await resolveEmbed(candidate.parentEmbedId);
-        decodedParent = parentEmbed?.content ? await decodeToonContent(parentEmbed.content) : null;
+      const parentEmbed = await resolveEmbed(candidate.parentEmbedId);
+      const decodedParent = parentEmbed?.content ? await decodeToonContent(parentEmbed.content) : null;
 
-        const parentPreviewResults = getParentPreviewImageResults(decodedParent);
-        for (let index = 0; index < parentPreviewResults.length; index += 1) {
-          if (appendHeaderImageBubble(
-            parentPreviewResults[index],
-            bubbles,
-            seen,
-            candidate.parentEmbedId,
-            `${candidate.parentEmbedId}:preview:${index}`,
-          )) {
-            return bubbles;
-          }
+      const parentPreviewResults = getParentPreviewImageResults(decodedParent);
+      for (let index = 0; index < parentPreviewResults.length; index += 1) {
+        if (appendHeaderImageBubble(
+          parentPreviewResults[index],
+          bubbles,
+          seen,
+          candidate.parentEmbedId,
+          `${candidate.parentEmbedId}:preview:${index}`,
+        )) {
+          return bubbles;
         }
+      }
 
+      if (childEmbedIds.length === 0) {
         childEmbedIds = normalizeEmbedIds(decodedParent?.embed_ids ?? parentEmbed?.embed_ids);
       }
       if (childEmbedIds.length === 0) continue;
