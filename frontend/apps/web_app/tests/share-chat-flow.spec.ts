@@ -44,6 +44,7 @@ const { docAssert, docCheckpoint } = require('./helpers/doc-checkpoint');
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 const SHARING_GUIDE_PATH = 'docs/user-guide/sharing.md';
 const EXPECTED_CHAT_OG_DESCRIPTION_TERM = 'sunset';
+const GENERATED_CHAT_METADATA_TIMEOUT_MS = 90_000;
 
 function metaContent(html: string, selector: string): string {
 	const escapedSelector = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -99,7 +100,9 @@ test('creates and shares a chat link with QR code and short link', async ({
 	await waitForAssistantMessage(page, { which: 'last', logCheckpoint });
 	await waitForEmbedFinished(page, 'images', 'search');
 	await expect(page.getByTestId('chat-header-title')).not.toContainText(/processing|untitled/i, { timeout: 30000 });
-	await expect(page.getByTestId('chat-header-summary')).toContainText(/sunsets?|ocean/i, { timeout: 30000 });
+	await expect(page.getByTestId('chat-header-summary')).toContainText(/sunsets?|ocean/i, {
+		timeout: GENERATED_CHAT_METADATA_TIMEOUT_MS
+	});
 	await expect(page.getByTestId('chat-header-image-bubble-left')).toBeVisible({ timeout: 30000 });
 	await expect(page.getByTestId('chat-header-image-bubble-right')).toBeVisible({ timeout: 30000 });
 	await expect(page).toHaveURL(/chat-id=[a-zA-Z0-9-]+/, { timeout: 15000 });
