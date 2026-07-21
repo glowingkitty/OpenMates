@@ -292,6 +292,7 @@
   let headerImageBubbleRetryTimer: ReturnType<typeof setTimeout> | null = null;
   let headerImageBubbleRetryBaseKey = '';
   let headerImageBubbleRetryCount = 0;
+  let headerImageBubbleChildIdsByParent = $state<Map<string, string[]>>(new Map());
   const HEADER_IMAGE_BUBBLE_LIMIT = 8;
   const HEADER_IMAGE_BUBBLE_RETRY_LIMIT = 10;
   const HEADER_IMAGE_BUBBLE_RETRY_DELAY_MS = 1000;
@@ -310,6 +311,22 @@
       return embedIds.filter((id): id is string => typeof id === 'string' && id.length > 0);
     }
     return [];
+  }
+
+  function rememberHeaderImageBubbleChildIds(parentEmbedId: unknown, childEmbedIds: unknown): void {
+    if (typeof parentEmbedId !== 'string') return;
+    const normalizedChildIds = normalizeEmbedIds(childEmbedIds);
+    if (normalizedChildIds.length === 0) return;
+
+    const existingChildIds = headerImageBubbleChildIdsByParent.get(parentEmbedId) ?? [];
+    if (existingChildIds.join('|') === normalizedChildIds.join('|')) return;
+
+    headerImageBubbleChildIdsByParent = new Map(headerImageBubbleChildIdsByParent).set(parentEmbedId, normalizedChildIds);
+    headerImageBubbleRetryTick += 1;
+  }
+
+  function mergeEmbedIds(...groups: string[][]): string[] {
+    return [...new Set(groups.flat())];
   }
 
   function clearHeaderImageBubbleRetry() {
@@ -391,9 +408,13 @@
       const skillId = attrs.skill_id;
       const contentRef = attrs.contentRef;
       if (appId === 'images' && skillId === 'search' && typeof contentRef === 'string' && contentRef.startsWith('embed:')) {
+        const parentEmbedId = contentRef.slice('embed:'.length);
         candidates.push({
-          parentEmbedId: contentRef.slice('embed:'.length),
-          childEmbedIds: normalizeEmbedIds(attrs.embed_ids),
+          parentEmbedId,
+          childEmbedIds: mergeEmbedIds(
+            normalizeEmbedIds(attrs.embed_ids),
+            headerImageBubbleChildIdsByParent.get(parentEmbedId) ?? [],
+          ),
         });
       }
     }
@@ -1225,6 +1246,20 @@
 
   onMount(() => {
     submittedAssistantFeedbackKeys = loadSubmittedAssistantFeedbackKeys();
+  });
+
+  onMount(() => {
+    const handleEmbedUpdated = (event: Event) => {
+      const detail = (event as CustomEvent<{
+        embed_id?: string;
+        child_embed_ids?: string[] | string;
+        embed_ids?: string[] | string;
+      }>).detail;
+      rememberHeaderImageBubbleChildIds(detail?.embed_id, detail?.child_embed_ids ?? detail?.embed_ids);
+    };
+
+    chatSyncService.addEventListener('embedUpdated', handleEmbedUpdated);
+    return () => chatSyncService.removeEventListener('embedUpdated', handleEmbedUpdated);
   });
 
   onDestroy(() => {
