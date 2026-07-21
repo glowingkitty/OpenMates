@@ -156,6 +156,7 @@ export async function insertVideo(
   setTimeout(() => {
     editor.commands.focus("end");
   }, 50);
+
 }
 
 /**
@@ -803,6 +804,7 @@ export async function insertFile(
   setTimeout(() => {
     editor.commands.focus("end");
   }, 50);
+
 }
 
 /**
@@ -835,6 +837,7 @@ export async function insertAudio(editor: Editor, file: File): Promise<void> {
   setTimeout(() => {
     editor.commands.focus("end");
   }, 50);
+
 }
 
 /**
@@ -977,6 +980,17 @@ export async function insertCodeFile(
   setTimeout(() => {
     editor.commands.focus("end");
   }, 50);
+
+  // Match image/PDF completion semantics so MessageInput immediately persists
+  // the newly inserted embed node. Without this, an empty draft can be restored
+  // from a stale canonical JSON echo before the code embed card is saved.
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(
+      new CustomEvent("embedUploadFinished", {
+        detail: { embedId: result.embed_id, status: "finished" },
+      }),
+    );
+  }
 }
 
 export async function insertMindMapFile(
