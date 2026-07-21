@@ -233,10 +233,11 @@
   });
 
   /** Progress bar fill percentage (0–100) */
-  let progressPercent = $derived(
-    totalDuration > 0 ? Math.round((currentTime / totalDuration) * 100) : 0,
-  );
-  let progressRatio = $derived(progressPercent / 100);
+  let progressPercent = $derived.by(() => {
+    const durationSeconds = totalDuration || waveform?.duration_seconds || 0;
+    if (durationSeconds <= 0) return 0;
+    return Math.round(Math.max(0, Math.min(100, (currentTime / durationSeconds) * 100)));
+  });
 
   // -------------------------------------------------------------------------
   // Lazy audio fetch from S3 (read-only context)
@@ -305,13 +306,19 @@
   function handleAudioPause() { isPlaying = false; }
   function handleAudioEnded() { isPlaying = false; currentTime = 0; }
   function handleAudioTimeUpdate() { if (audioEl) currentTime = audioEl.currentTime; }
-  function handleAudioLoadedMetadata() { if (audioEl) totalDuration = audioEl.duration; }
+  function handleAudioLoadedMetadata() {
+    if (!audioEl) return;
+    totalDuration = Number.isFinite(audioEl.duration) && audioEl.duration > 0
+      ? audioEl.duration
+      : (waveform?.duration_seconds ?? 0);
+  }
 
   function handleProgressClick(e: MouseEvent) {
-    if (!audioEl || !totalDuration) return;
+    const durationSeconds = totalDuration || waveform?.duration_seconds || 0;
+    if (!audioEl || !durationSeconds) return;
     const bar = e.currentTarget as HTMLElement;
     const rect = bar.getBoundingClientRect();
-    audioEl.currentTime = ((e.clientX - rect.left) / rect.width) * totalDuration;
+    audioEl.currentTime = ((e.clientX - rect.left) / rect.width) * durationSeconds;
   }
 
   function formatSeconds(s: number): string {
@@ -389,14 +396,18 @@
                   aria-valuemax={100}
                   onclick={handleProgressClick}
                   data-testid="recording-fullscreen-waveform"
+                  data-progress={progressPercent}
+                  style={`--waveform-progress: ${progressPercent}%`}
                 >
-                  {#each waveform.samples as sample, index (index)}
-                    <span
-                      class="waveform-bar"
-                      class:played={waveform.samples.length <= 1 || index / (waveform.samples.length - 1) <= progressRatio}
-                      style:height={`${Math.max(6, sample)}%`}
-                    ></span>
-                  {/each}
+                  <div class="waveform-bars">
+                    {#each waveform.samples as sample, index (index)}
+                      <span
+                        class="waveform-bar"
+                        style:height={`${Math.max(6, sample)}%`}
+                      ></span>
+                    {/each}
+                  </div>
+                  <span class="waveform-playhead"></span>
                 </button>
               {:else}
                 <button
@@ -594,11 +605,18 @@
     filter: none;
     background: transparent;
     cursor: pointer;
+    position: relative;
+    color: var(--color-app-audio, #e05555);
+    overflow: hidden;
+  }
+
+  .waveform-bars {
+    width: 100%;
+    height: 100%;
     display: flex;
     align-items: center;
     gap: 2px;
-    color: var(--color-grey-25, #d8d8d8);
-    overflow: hidden;
+    opacity: 0.82;
   }
 
   .waveform-bar {
@@ -607,11 +625,19 @@
     max-width: 5px;
     background: currentColor;
     border-radius: var(--radius-full, 9999px);
-    transition: background-color 0.1s linear;
   }
 
-  .waveform-bar.played {
-    background: var(--color-app-audio, #e05555);
+  .waveform-playhead {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: var(--waveform-progress, 0%);
+    width: 2px;
+    background: currentColor;
+    border-radius: var(--radius-full, 9999px);
+    opacity: 0.95;
+    transform: translateX(-1px);
+    transition: left 0.1s linear;
   }
 
   .progress-bar:hover {
@@ -778,10 +804,6 @@
 
   :global(.dark) .progress-bar {
     background: var(--color-grey-70, #444);
-  }
-
-  :global(.dark) .waveform-seek {
-    color: var(--color-grey-70, #444);
   }
 
   :global(.dark) .skeleton-circle,

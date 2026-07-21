@@ -474,7 +474,15 @@ test('press hold and release creates audio embed', async ({ page }) => {
 		targetTestId: 'recording-preview',
 		screenshot: true
 	});
-	await expect(page.getByTestId('recording-preview-waveform').last()).toBeVisible({ timeout: 10000 });
+	const previewWaveform = page.getByTestId('recording-preview-waveform').last();
+	await expect(previewWaveform).toBeVisible({ timeout: 10000 });
+	await expect(previewWaveform).toHaveAttribute('data-progress', '0');
+	await page.getByTestId('recording-preview-play-button').last().click();
+	await expect
+		.poll(async () => Number((await previewWaveform.getAttribute('data-progress')) ?? '0'), {
+			timeout: 5000
+		})
+		.toBeGreaterThan(0);
 
 	console.log('[TEST] Press hold release: audio embed inserted');
 });

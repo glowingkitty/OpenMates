@@ -174,6 +174,8 @@
   // Audio element reference for the playback controls
   let audioEl: HTMLAudioElement | undefined = $state(undefined);
   let isPlaying = $state(false);
+  let currentTime = $state(0);
+  let totalDuration = $state(0);
 
   // Track retained S3 cache key for cleanup on unmount
   let retainedS3Key: string | undefined = undefined;
@@ -335,6 +337,12 @@
   });
 
   let displayWaveform = $derived(normalizeWaveformData(waveform));
+  let waveformDurationSeconds = $derived(displayWaveform?.duration_seconds ?? 0);
+  let waveformProgressPercent = $derived.by(() => {
+    const durationSeconds = totalDuration || waveformDurationSeconds;
+    if (durationSeconds <= 0) return 0;
+    return Math.max(0, Math.min(100, (currentTime / durationSeconds) * 100));
+  });
 
   /**
    * Truncated transcript for the preview area.
@@ -371,6 +379,23 @@
 
   function handleAudioEnded() {
     isPlaying = false;
+    currentTime = 0;
+  }
+
+  function handleAudioTimeUpdate() {
+    if (!audioEl) return;
+    currentTime = audioEl.currentTime;
+    if (!totalDuration && Number.isFinite(audioEl.duration) && audioEl.duration > 0) {
+      totalDuration = audioEl.duration;
+    }
+  }
+
+  function handleAudioLoadedMetadata() {
+    if (!audioEl) return;
+    currentTime = audioEl.currentTime;
+    totalDuration = Number.isFinite(audioEl.duration) && audioEl.duration > 0
+      ? audioEl.duration
+      : waveformDurationSeconds;
   }
 </script>
 
@@ -388,6 +413,8 @@
     onplay={handleAudioPlay}
     onpause={handleAudioPause}
     onended={handleAudioEnded}
+    ontimeupdate={handleAudioTimeUpdate}
+    onloadedmetadata={handleAudioLoadedMetadata}
     preload="metadata"
     style="display:none"
     aria-hidden="true"
@@ -420,6 +447,7 @@
         class="play-btn"
         onclick={togglePlayback}
         type="button"
+        data-testid="recording-preview-play-button"
         aria-label={isPlaying ? 'Pause' : 'Play'}
         style="pointer-events: auto !important;"
       >
@@ -439,13 +467,22 @@
     <div class="recording-preview" data-testid="recording-preview" class:mobile={isMobileSnippet}>
 
       {#if displayWaveform && status !== 'error'}
-        <div class="waveform-strip" data-testid="recording-preview-waveform" aria-hidden="true">
-          {#each displayWaveform.samples as sample, index (index)}
-            <span
-              class="waveform-bar"
-              style:height={`${Math.max(6, sample)}%`}
-            ></span>
-          {/each}
+        <div
+          class="waveform-strip"
+          data-testid="recording-preview-waveform"
+          data-progress={Math.round(waveformProgressPercent)}
+          style={`--waveform-progress: ${waveformProgressPercent}%`}
+          aria-hidden="true"
+        >
+          <div class="waveform-bars">
+            {#each displayWaveform.samples as sample, index (index)}
+              <span
+                class="waveform-bar"
+                style:height={`${Math.max(6, sample)}%`}
+              ></span>
+            {/each}
+          </div>
+          <span class="waveform-playhead"></span>
         </div>
       {/if}
 
@@ -571,12 +608,18 @@
     width: 100%;
     height: 30px;
     min-height: 30px;
+    position: relative;
+    color: var(--color-app-audio, #e05555);
+    overflow: hidden;
+  }
+
+  .waveform-bars {
+    width: 100%;
+    height: 100%;
     display: flex;
     align-items: center;
     gap: 2px;
-    color: var(--color-app-audio, #e05555);
     opacity: 0.78;
-    overflow: hidden;
   }
 
   .waveform-bar {
@@ -585,6 +628,19 @@
     max-width: 4px;
     background: currentColor;
     border-radius: var(--radius-full, 9999px);
+  }
+
+  .waveform-playhead {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: var(--waveform-progress, 0%);
+    width: 2px;
+    background: currentColor;
+    border-radius: var(--radius-full, 9999px);
+    opacity: 0.95;
+    transform: translateX(-1px);
+    transition: left 0.1s linear;
   }
 
   /* ---- Signup prompt for unauthenticated users ---- */
