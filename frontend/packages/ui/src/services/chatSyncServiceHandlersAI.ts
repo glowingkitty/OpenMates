@@ -3895,6 +3895,11 @@ export async function handleSendEmbedDataImpl(
           `[ChatSyncService:AI] Embed ${embedData.embed_id} has no chat_id — draft PDF (OCR completed before message sent). ` +
             `Caching in-memory and dispatching embedUpdated for MessageInput.`,
         );
+        const decodedDraftPdfContent = await decodeToonContentSafe(embedData.content);
+        const draftPdfMetadata =
+          decodedDraftPdfContent && typeof decodedDraftPdfContent === "object"
+            ? (decodedDraftPdfContent as Record<string, unknown>)
+            : null;
         // Store in memory cache (not persisted to IndexedDB) so UnifiedEmbedPreview
         // can call resolveEmbed() → find plaintext TOON → decode screenshot credentials.
         try {
@@ -3929,6 +3934,8 @@ export async function handleSendEmbedDataImpl(
               chat_id: null,
               message_id: null,
               status: embedData.status,
+              filename: typeof draftPdfMetadata?.filename === "string" ? draftPdfMetadata.filename : undefined,
+              pageCount: typeof draftPdfMetadata?.page_count === "number" ? draftPdfMetadata.page_count : undefined,
               child_embed_ids: embedData.embed_ids,
               isProcessing: false,
             },

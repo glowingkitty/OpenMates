@@ -2890,6 +2890,8 @@
                 type?: string;
                 status: string;
                 isWaitingForContent?: boolean;
+                filename?: string;
+                pageCount?: number;
             };
             const { embed_id, status } = detail;
 
@@ -2935,7 +2937,46 @@
                 );
             }
 
-            if (targetPos === null) return; // No matching draft embed — nothing to do.
+            const isFinishedPdf =
+                (status === 'finished' || status === 'completed') &&
+                !detail.isWaitingForContent &&
+                (detail.chat_id === null || detail.chat_id === '') &&
+                detail.type === 'pdf';
+
+            if (targetPos === null) {
+                if (!isFinishedPdf) return; // No matching draft embed — nothing to do.
+
+                // A stale draft restore can remove the composer PDF before OCR finishes.
+                // The no-chat completion event is still authoritative for this draft, so
+                // restore the finished node with the server embed id rather than leaving
+                // the user with prompt-only content.
+                editor
+                    .chain()
+                    .focus('end')
+                    .insertContent({
+                        type: 'embed',
+                        attrs: {
+                            id: embed_id,
+                            type: 'pdf',
+                            status: 'finished',
+                            contentRef: `embed:${embed_id}`,
+                            uploadEmbedId: embed_id,
+                            filename: detail.filename ?? 'document.pdf',
+                            pageCount: detail.pageCount ?? null,
+                            uploadError: null,
+                        }
+                    })
+                    .insertContent(' ')
+                    .run();
+                console.info(
+                    `[MessageInput] PDF embed ${embed_id} OCR finished after draft node was missing — restored finished composer node`
+                );
+                if (currentChatId) {
+                    updateOriginalMarkdown(editor);
+                    await flushSaveDraft(editor, currentChatId);
+                }
+                return;
+            }
 
             let shouldFlushDraft = false;
 
@@ -2950,7 +2991,7 @@
                     `[MessageInput] PDF embed ${embed_id} OCR failed — updated in-editor node to error state`
                 );
                 shouldFlushDraft = true;
-            } else if ((status === 'finished' || status === 'completed') && !detail.isWaitingForContent) {
+            } else if (isFinishedPdf) {
                 // OCR completed successfully — update the in-editor node so
                 // PDFEmbedPreview transitions from "Reading PDF…" to the page count.
                 // Preserve all existing attrs (filename, pageCount, etc.) and only
