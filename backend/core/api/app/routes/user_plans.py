@@ -10,7 +10,7 @@ from typing import Any, Literal
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, Field
 
-from backend.apps.ai.processing.workspace_ask_planner import WorkspaceAskPlanningError, plan_plan_ask
+from backend.apps.ai.processing.workspace_ask_planner import WorkspaceAskPlanningError, run_plan_ask_pipeline
 from backend.core.api.app.models.user import User
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user_or_api_key
 from backend.core.api.app.services.directus.team_methods import TeamPermissionError
@@ -321,14 +321,20 @@ class UserPlanRestoreRequest(BaseModel):
     state: Literal["before", "after"] = "after"
 
 
-class UserPlanAskRequest(BaseModel):
-    instruction: str = Field(min_length=1, max_length=20_000)
-    apply_mode: Literal["auto_apply", "confirm_first"] = "auto_apply"
-    encrypted_create: UserPlanCreateRequest | None = None
-
-
 class UserPlanAskPlanRequest(BaseModel):
     instruction: str = Field(min_length=1, max_length=20_000)
+
+
+class UserPlanAskUpdateRequest(BaseModel):
+    plan_id: str = Field(min_length=1)
+    patch: UserPlanUpdateRequest
+
+
+class UserPlanAskRequest(BaseModel):
+    instruction: str = Field(min_length=1, max_length=20_000)
+    encrypted_create: UserPlanCreateRequest | None = None
+    encrypted_update: UserPlanAskUpdateRequest | None = None
+    encrypted_updates: list[UserPlanAskUpdateRequest] | None = None
 
 
 def get_user_plan_service(request: Request) -> UserPlanService:
@@ -384,6 +390,43 @@ async def _record_plan_history(
         redacted_summary=redacted_summary,
     )
     return {**history, **build_history_commands(history["change_set"]["change_set_id"], history["entries"])}
+
+
+def _plan_ask_fallback(message: str) -> dict[str, Any]:
+    return {
+        "outcome": "fallback_to_chat",
+        "applied": False,
+        "fallback_to_chat": True,
+        "fallback_message": message,
+        "change_set_id": None,
+        "summary": message,
+        "changed_entries": [],
+        "undo_all_command": None,
+        "undo_entry_commands": [],
+        "warnings": [],
+    }
+
+
+def _plan_ask_applied_response(*, summary: str, history: dict[str, Any], extra: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "outcome": "applied",
+        "applied": True,
+        "fallback_to_chat": False,
+        "fallback_message": None,
+        "change_set_id": history["change_set"]["change_set_id"],
+        "summary": summary,
+        "changed_entries": history["entries"],
+        "undo_all_command": history["undo_all_command"],
+        "undo_entry_commands": history["undo_entry_commands"],
+        "warnings": [],
+        "history": history,
+        **extra,
+    }
+
+
+def _plan_ask_operation_for_patch(patch: dict[str, Any]) -> str:
+    status_only_fields = {"status", "updated_at", "version"}
+    return "status" if patch and set(patch) <= status_only_fields else "update"
 
 
 @router.get("")
@@ -445,8 +488,8 @@ async def plan_user_plan_ask(
     if secrets_manager is None:
         raise HTTPException(status_code=503, detail="Workspace ask inference is not configured")
     try:
-        proposal = await plan_plan_ask(body.instruction, secrets_manager)
-        return {"proposed_plan": proposal.model_dump(), "inference_used": True}
+        result = await run_plan_ask_pipeline(body.instruction, secrets_manager)
+        return {"proposed_plan": result.proposal.model_dump(), "inference_used": True, "processing": result.processing}
     except WorkspaceAskPlanningError as exc:
         raise HTTPException(status_code=502, detail=f"Workspace ask inference failed: {exc}") from exc
 
@@ -461,41 +504,47 @@ async def ask_user_plans(
     history_service: WorkspaceChangeHistoryService = Depends(get_workspace_history_service),
 ) -> dict[str, Any]:
     current_user = await _current_user(request, response)
-    if body.apply_mode == "confirm_first":
-        return {
-            "applied": False,
-            "change_set_id": None,
-            "summary": "Preview requires a client-encrypted plan payload before apply.",
-            "changed_entries": [],
-            "undo_all_command": None,
-            "undo_entry_commands": [],
-            "warnings": [],
-            "clarification_required": False,
-        }
-    if body.encrypted_create is None:
-        raise HTTPException(status_code=400, detail="encrypted_create is required for plan ask auto-apply")
+    encrypted_updates = body.encrypted_updates or ([body.encrypted_update] if body.encrypted_update is not None else [])
+    operation_count = sum(bool(items) for items in (([body.encrypted_create] if body.encrypted_create is not None else []), encrypted_updates))
+    if operation_count != 1:
+        return _plan_ask_fallback("Open or mention an exact plan before asking for plan edits or status changes.")
     try:
-        plan = await service.create_plan(current_user.id, body.encrypted_create.model_dump())
+        plans: list[dict[str, Any]] = []
+        entries: list[dict[str, Any]] = []
+        if body.encrypted_create is not None:
+            plan = await service.create_plan(current_user.id, body.encrypted_create.model_dump())
+            plans.append(plan)
+            entries.append({"object_type": "plan", "object_id": plan["plan_id"], "operation": "create", "after": plan})
+            action_type = "ask_create"
+            summary = "Created 1 plan."
+        else:
+            for encrypted_update in encrypted_updates:
+                patch = encrypted_update.patch.model_dump(exclude_unset=True)
+                before = await service.plan_methods.get_plan(encrypted_update.plan_id, current_user.id)
+                plan = await service.update_plan(encrypted_update.plan_id, current_user.id, patch)
+                plans.append(plan)
+                entries.append({
+                    "object_type": "plan",
+                    "object_id": encrypted_update.plan_id,
+                    "operation": _plan_ask_operation_for_patch(patch),
+                    "before": before,
+                    "after": plan,
+                })
+            action_type = "ask_update"
+            summary = f"Updated {len(encrypted_updates)} plan(s)."
         history = await _record_plan_history(
             history_service,
             current_user.id,
             source="ai_ask",
-            action_type="ask_create",
-            entries=[{"object_type": "plan", "object_id": plan["plan_id"], "operation": "create", "after": plan}],
-            redacted_summary="Created 1 plan from ask",
+            action_type=action_type,
+            entries=entries,
+            redacted_summary=f"{summary[:-1]} from ask" if summary.endswith(".") else f"{summary} from ask",
         )
-        return {
-            "applied": True,
-            "change_set_id": history["change_set"]["change_set_id"],
-            "summary": "Created 1 plan.",
-            "changed_entries": history["entries"],
-            "undo_all_command": history["undo_all_command"],
-            "undo_entry_commands": history["undo_entry_commands"],
-            "warnings": [],
-            "clarification_required": False,
-            "plan": plan,
-            "history": history,
-        }
+        return _plan_ask_applied_response(
+            summary=summary,
+            history=history,
+            extra={"plan": plans[0] if len(plans) == 1 else None, "plans": plans},
+        )
     except Exception as exc:
         _handle_plan_error(exc)
 

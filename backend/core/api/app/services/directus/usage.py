@@ -333,6 +333,19 @@ class UsageMethods:
                 except Exception as e_daily:
                     # Log error but don't fail usage entry creation
                     logger.error(f"{log_prefix} Error updating daily summaries: {e_daily}", exc_info=True)
+
+                # Mark private overview rollups stale after the authoritative raw row exists.
+                # Rebuild happens on-demand or through reconciliation so billing writes stay reliable.
+                try:
+                    from backend.core.api.app.services.usage_overview_service import UsageOverviewService
+
+                    overview_service = UsageOverviewService(self.sdk, self.encryption_service)
+                    await overview_service.mark_entry_periods_stale(
+                        user_id_hash=user_id_hash,
+                        timestamp=timestamp,
+                    )
+                except Exception as e_overview:
+                    logger.error(f"{log_prefix} Error marking usage overview rollups stale: {e_overview}", exc_info=True)
                 
                 return entry_id
             else:

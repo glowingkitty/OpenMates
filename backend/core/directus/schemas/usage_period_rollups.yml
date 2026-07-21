@@ -1,0 +1,66 @@
+usage_period_rollups:
+  type: collection
+  fields:
+    id:
+      type: uuid
+      primary: true
+
+    user_id_hash:
+      type: string
+      length: 255
+      note: "[Indexed] Hashed identifier of the user this private usage rollup belongs to."
+
+    granularity:
+      type: string
+      length: 16
+      note: "[Indexed] Rollup granularity: daily, weekly, or monthly."
+
+    period_key:
+      type: string
+      length: 16
+      note: "[Indexed] Period key: YYYY-MM-DD, ISO YYYY-Www, or YYYY-MM."
+
+    period_start:
+      type: integer
+      note: "Unix timestamp in seconds for the inclusive period start."
+
+    period_end:
+      type: integer
+      note: "Unix timestamp in seconds for the exclusive period end."
+
+    rollup_version:
+      type: integer
+      note: "Version of the encrypted rollup JSON contract."
+
+    encrypted_rollup_json:
+      type: text
+      note: "Encrypted JSON aggregate containing sensitive credits, tokens, models, providers, and regions."
+
+    entry_count:
+      type: integer
+      note: "Cleartext count for completeness checks only; detailed counts live in encrypted_rollup_json."
+
+    source_min_created_at:
+      type: integer
+      note: "Earliest raw usage created_at included in this rollup, if any."
+
+    source_max_created_at:
+      type: integer
+      note: "Latest raw usage created_at included in this rollup, if any."
+
+    computed_at:
+      type: integer
+      note: "Unix timestamp in seconds when the rollup was computed."
+
+    stale_reason:
+      type: string
+      length: 255
+      note: "Nullable reason when this period needs reconciliation."
+
+    created_at:
+      type: timestamp
+      note: "Timestamp when this rollup record was first created."
+
+    updated_at:
+      type: timestamp
+      note: "Timestamp when this rollup record was last updated."
