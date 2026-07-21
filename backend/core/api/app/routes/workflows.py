@@ -53,6 +53,8 @@ from backend.core.api.app.services.workflow_template_service import (
     WorkflowTemplateProjectionService,
     WorkflowTemplateProjectionStaleError,
 )
+from backend.core.api.app.services.limiter import limiter
+from backend.core.api.app.services.workspace_change_history_service import WorkspaceChangeHistoryService, build_history_commands, s3_workspace_history_archive_io
 
 
 router = APIRouter(prefix="/v1/workflows", tags=["Workflows"], dependencies=[Depends(ensure_workflows_enabled)])
@@ -179,6 +181,17 @@ class WorkflowAssistantDeleteConfirmationRequest(BaseModel):
     confirmed: bool
 
 
+class WorkflowHistoryRestoreRequest(BaseModel):
+    entry_id: str = Field(min_length=1)
+    state: str = Field(default="after", pattern="^(before|after)$")
+
+
+class WorkflowAskRequest(BaseModel):
+    instruction: str = Field(min_length=1, max_length=20_000)
+    apply_mode: str = Field(default="auto_apply", pattern="^(auto_apply|confirm_first)$")
+    create: WorkflowCreateRequest | None = None
+
+
 def get_workflow_service(request: Request) -> WorkflowService:
     service = getattr(request.app.state, "workflow_service", None)
     if service is None:
@@ -191,6 +204,34 @@ def get_directus_service(request: Request) -> Any:
     if not hasattr(request.app.state, "directus_service"):
         raise HTTPException(status_code=500, detail="Internal configuration error")
     return request.app.state.directus_service
+
+
+def get_workspace_history_service(request: Request) -> WorkspaceChangeHistoryService:
+    s3_service = getattr(request.app.state, "s3_service", None)
+    if s3_service is not None:
+        archive_writer, archive_reader = s3_workspace_history_archive_io(s3_service)
+        return WorkspaceChangeHistoryService(get_directus_service(request), archive_writer=archive_writer, archive_reader=archive_reader)
+    return WorkspaceChangeHistoryService(get_directus_service(request))
+
+
+async def _record_workflow_history(
+    history_service: WorkspaceChangeHistoryService,
+    user_id: str,
+    *,
+    source: str = "cli",
+    action_type: str,
+    entries: list[dict[str, Any]],
+    redacted_summary: str,
+) -> dict[str, Any]:
+    history = await history_service.record_change_set(
+        user_id=user_id,
+        source=source,
+        namespace="workflows",
+        action_type=action_type,
+        entries=entries,
+        redacted_summary=redacted_summary,
+    )
+    return {**history, **build_history_commands(history["change_set"]["change_set_id"], history["entries"])}
 
 
 def get_workflow_input_service(request: Request) -> WorkflowInputService:
@@ -299,6 +340,7 @@ def _handle_workflow_input_error(exc: Exception) -> None:
 
 
 @router.get("")
+@limiter.limit("60/minute")
 async def list_workflows(
     request: Request,
     team_id: str | None = Query(default=None),
@@ -316,10 +358,13 @@ async def list_workflows(
 
 
 @router.post("")
+@limiter.limit("30/minute")
 async def create_workflow(
+    request: Request,
     body: WorkflowCreateRequest,
     current_user: User = Depends(get_current_user_or_api_key),
     service: WorkflowService = Depends(get_workflow_service),
+    history_service: WorkspaceChangeHistoryService = Depends(get_workspace_history_service),
 ) -> dict[str, Any]:
     try:
         workflow = await run_in_threadpool(
@@ -337,12 +382,94 @@ async def create_workflow(
             current_user.vault_key_id,
             body.description,
         )
-        return {"workflow": workflow.model_dump(mode="json", by_alias=True)}
+        after = workflow.model_dump(mode="json", by_alias=True)
+        history = await _record_workflow_history(
+            history_service,
+            current_user.id,
+            action_type="create",
+            entries=[{
+                "object_type": "workflow",
+                "object_id": workflow.id,
+                "operation": "create",
+                "workflow_version_after_id": workflow.current_version_id,
+            }],
+            redacted_summary="Created 1 workflow",
+        )
+        return {"workflow": after, "history": history}
+    except Exception as exc:
+        _handle_workflow_error(exc)
+
+
+@router.post("/ask")
+@limiter.limit("20/minute")
+async def ask_workflows(
+    request: Request,
+    body: WorkflowAskRequest,
+    current_user: User = Depends(get_current_user_or_api_key),
+    service: WorkflowService = Depends(get_workflow_service),
+    history_service: WorkspaceChangeHistoryService = Depends(get_workspace_history_service),
+) -> dict[str, Any]:
+    if body.apply_mode == "confirm_first":
+        return {
+            "applied": False,
+            "change_set_id": None,
+            "summary": "Preview requires an explicit workflow create payload before apply.",
+            "changed_entries": [],
+            "undo_all_command": None,
+            "undo_entry_commands": [],
+            "warnings": [],
+            "clarification_required": False,
+        }
+    if body.create is None:
+        raise HTTPException(status_code=400, detail="create is required for workflow ask auto-apply")
+    try:
+        workflow = await run_in_threadpool(
+            service.create_workflow,
+            current_user.id,
+            body.create.title,
+            body.create.graph,
+            body.create.enabled,
+            body.create.run_content_retention,
+            body.create.lifecycle,
+            body.create.source,
+            body.create.source_chat_id,
+            body.create.created_by_assistant,
+            body.create.auto_delete_at,
+            current_user.vault_key_id,
+            body.create.description,
+        )
+        after = workflow.model_dump(mode="json", by_alias=True)
+        history = await _record_workflow_history(
+            history_service,
+            current_user.id,
+            source="ai_ask",
+            action_type="ask_create",
+            entries=[{
+                "object_type": "workflow",
+                "object_id": workflow.id,
+                "operation": "create",
+                "workflow_version_after_id": workflow.current_version_id,
+            }],
+            redacted_summary="Created 1 workflow from ask",
+        )
+        return {
+            "applied": True,
+            "change_set_id": history["change_set"]["change_set_id"],
+            "summary": "Created 1 workflow.",
+            "changed_entries": history["entries"],
+            "undo_all_command": history["undo_all_command"],
+            "undo_entry_commands": history["undo_entry_commands"],
+            "warnings": [],
+            "clarification_required": False,
+            "workflow": after,
+            "history": history,
+        }
     except Exception as exc:
         _handle_workflow_error(exc)
 
 
 @router.get("/capabilities")
+@limiter.limit("60/minute")
 async def workflow_capabilities(
     request: Request,
     response: Response,
@@ -359,7 +486,9 @@ async def workflow_capabilities(
 
 
 @router.post("/validate")
+@limiter.limit("30/minute")
 async def validate_yaml_workflow(
+    request: Request,
     body: WorkflowYamlRequest,
     current_user: User = Depends(get_current_user_or_api_key),
 ) -> dict[str, Any]:
@@ -369,7 +498,9 @@ async def validate_yaml_workflow(
 
 
 @router.post("/yaml")
+@limiter.limit("30/minute")
 async def create_yaml_workflow(
+    request: Request,
     body: WorkflowYamlRequest,
     current_user: User = Depends(get_current_user_or_api_key),
     service: WorkflowService = Depends(get_workflow_service),
@@ -403,8 +534,10 @@ async def create_yaml_workflow(
 
 
 @router.post("/{workflow_id}/yaml")
+@limiter.limit("30/minute")
 async def update_yaml_workflow(
     workflow_id: str,
+    request: Request,
     body: WorkflowYamlRequest,
     current_user: User = Depends(get_current_user_or_api_key),
     service: WorkflowService = Depends(get_workflow_service),
@@ -439,7 +572,9 @@ async def update_yaml_workflow(
 
 
 @router.get("/temporary")
+@limiter.limit("60/minute")
 async def list_temporary_workflows(
+    request: Request,
     current_user: User = Depends(get_current_user_or_api_key),
     service: WorkflowService = Depends(get_workflow_service),
 ) -> dict[str, Any]:
@@ -451,7 +586,9 @@ async def list_temporary_workflows(
 
 
 @router.post("/input")
+@limiter.limit("30/minute")
 async def start_workflow_input(
+    request: Request,
     body: WorkflowInputStartRequest,
     current_user: User = Depends(get_current_user_or_api_key),
     service: WorkflowInputService = Depends(get_workflow_input_service),
@@ -473,8 +610,10 @@ async def start_workflow_input(
 
 
 @router.get("/input/{session_id}")
+@limiter.limit("60/minute")
 async def get_workflow_input_session(
     session_id: str,
+    request: Request,
     current_user: User = Depends(get_current_user_or_api_key),
     service: WorkflowInputService = Depends(get_workflow_input_service),
 ) -> dict[str, Any]:
@@ -486,8 +625,10 @@ async def get_workflow_input_session(
 
 
 @router.get("/input/{session_id}/events")
+@limiter.limit("60/minute")
 async def list_workflow_input_events(
     session_id: str,
+    request: Request,
     after_event_id: int = 0,
     current_user: User = Depends(get_current_user_or_api_key),
     service: WorkflowInputService = Depends(get_workflow_input_service),
@@ -500,8 +641,10 @@ async def list_workflow_input_events(
 
 
 @router.post("/input/{session_id}/follow-up")
+@limiter.limit("30/minute")
 async def follow_up_workflow_input(
     session_id: str,
+    request: Request,
     body: WorkflowInputFollowUpRequest,
     current_user: User = Depends(get_current_user_or_api_key),
     service: WorkflowInputService = Depends(get_workflow_input_service),
@@ -520,8 +663,10 @@ async def follow_up_workflow_input(
 
 
 @router.post("/input/{session_id}/stop")
+@limiter.limit("30/minute")
 async def stop_workflow_input(
     session_id: str,
+    request: Request,
     current_user: User = Depends(get_current_user_or_api_key),
     service: WorkflowInputService = Depends(get_workflow_input_service),
 ) -> dict[str, Any]:
@@ -538,8 +683,10 @@ async def stop_workflow_input(
 
 
 @router.post("/input/{session_id}/undo")
+@limiter.limit("30/minute")
 async def undo_workflow_input(
     session_id: str,
+    request: Request,
     current_user: User = Depends(get_current_user_or_api_key),
     service: WorkflowInputService = Depends(get_workflow_input_service),
 ) -> dict[str, Any]:
@@ -556,8 +703,10 @@ async def undo_workflow_input(
 
 
 @router.put("/{workflow_id}/template-projection")
+@limiter.limit("30/minute")
 async def upsert_workflow_template_projection(
     workflow_id: str,
+    request: Request,
     body: WorkflowTemplateProjectionUpsertRequest,
     current_user: User = Depends(get_current_user_or_api_key),
     service: WorkflowTemplateProjectionService = Depends(get_workflow_template_service),
@@ -584,7 +733,9 @@ async def upsert_workflow_template_projection(
 
 
 @router.post("/template-import")
+@limiter.limit("20/minute")
 async def import_workflow_template(
+    request: Request,
     body: WorkflowTemplateImportPayload,
     current_user: User = Depends(get_current_user_or_api_key),
     service: WorkflowTemplateProjectionService = Depends(get_workflow_template_service),
@@ -599,8 +750,10 @@ async def import_workflow_template(
 
 
 @router.get("/assistant-proposals/{proposal_id}")
+@limiter.limit("60/minute")
 async def get_workflow_assistant_proposal(
     proposal_id: str,
+    request: Request,
     current_user: User = Depends(get_current_user_or_api_key),
     service: WorkflowAssistantService = Depends(get_workflow_assistant_service),
 ) -> dict[str, Any]:
@@ -608,8 +761,10 @@ async def get_workflow_assistant_proposal(
 
 
 @router.post("/assistant-proposals/{proposal_id}/save")
+@limiter.limit("30/minute")
 async def save_workflow_assistant_proposal(
     proposal_id: str,
+    request: Request,
     current_user: User = Depends(get_current_user_or_api_key),
     service: WorkflowAssistantService = Depends(get_workflow_assistant_service),
     runtime_service: WorkflowRuntimeService = Depends(get_workflow_runtime_service),
@@ -623,8 +778,10 @@ async def save_workflow_assistant_proposal(
 
 
 @router.post("/assistant-proposals/{proposal_id}/cancel")
+@limiter.limit("30/minute")
 async def cancel_workflow_assistant_proposal(
     proposal_id: str,
+    request: Request,
     current_user: User = Depends(get_current_user_or_api_key),
     service: WorkflowAssistantService = Depends(get_workflow_assistant_service),
 ) -> dict[str, bool]:
@@ -632,8 +789,10 @@ async def cancel_workflow_assistant_proposal(
 
 
 @router.post("/assistant-proposals/{proposal_id}/confirm-delete")
+@limiter.limit("20/minute")
 async def confirm_workflow_assistant_delete(
     proposal_id: str,
+    request: Request,
     body: WorkflowAssistantDeleteConfirmationRequest,
     current_user: User = Depends(get_current_user_or_api_key),
     service: WorkflowAssistantService = Depends(get_workflow_assistant_service),
@@ -650,8 +809,10 @@ async def confirm_workflow_assistant_delete(
 
 
 @router.get("/template-projections/{template_id}")
+@limiter.limit("60/minute")
 async def get_public_workflow_template_projection(
     template_id: str,
+    request: Request,
     service: WorkflowTemplateProjectionService = Depends(get_workflow_template_service),
 ) -> dict[str, Any]:
     """Serve a revocation-aware opaque projection without exposing key material."""
@@ -663,8 +824,10 @@ async def get_public_workflow_template_projection(
 
 
 @router.post("/{workflow_id}/template-projection/revoke")
+@limiter.limit("30/minute")
 async def revoke_workflow_template_projection(
     workflow_id: str,
+    request: Request,
     current_user: User = Depends(get_current_user_or_api_key),
     service: WorkflowTemplateProjectionService = Depends(get_workflow_template_service),
 ) -> dict[str, Any]:
@@ -676,8 +839,10 @@ async def revoke_workflow_template_projection(
 
 
 @router.post("/{workflow_id}/template-projection/unrevoke")
+@limiter.limit("30/minute")
 async def unrevoke_workflow_template_projection(
     workflow_id: str,
+    request: Request,
     current_user: User = Depends(get_current_user_or_api_key),
     service: WorkflowTemplateProjectionService = Depends(get_workflow_template_service),
 ) -> dict[str, Any]:
@@ -689,6 +854,7 @@ async def unrevoke_workflow_template_projection(
 
 
 @router.post("/{workflow_id}/binding-requirements/complete")
+@limiter.limit("30/minute")
 async def complete_workflow_template_binding(
     workflow_id: str,
     body: WorkflowTemplateBindingCompletionRequest,
@@ -745,8 +911,10 @@ async def complete_workflow_template_binding(
 
 
 @router.get("/{workflow_id}/versions")
+@limiter.limit("60/minute")
 async def list_workflow_versions(
     workflow_id: str,
+    request: Request,
     current_user: User = Depends(get_current_user_or_api_key),
     service: WorkflowService = Depends(get_workflow_service),
 ) -> dict[str, Any]:
@@ -762,9 +930,11 @@ async def list_workflow_versions(
 
 
 @router.get("/{workflow_id}/versions/{version_id}")
+@limiter.limit("60/minute")
 async def get_workflow_version(
     workflow_id: str,
     version_id: str,
+    request: Request,
     current_user: User = Depends(get_current_user_or_api_key),
     service: WorkflowService = Depends(get_workflow_service),
 ) -> dict[str, Any]:
@@ -782,13 +952,17 @@ async def get_workflow_version(
 
 
 @router.post("/{workflow_id}/versions/{version_id}/restore")
+@limiter.limit("20/minute")
 async def restore_workflow_version(
     workflow_id: str,
     version_id: str,
+    request: Request,
     current_user: User = Depends(get_current_user_or_api_key),
     service: WorkflowService = Depends(get_workflow_service),
+    history_service: WorkspaceChangeHistoryService = Depends(get_workspace_history_service),
 ) -> dict[str, Any]:
     try:
+        before = await run_in_threadpool(service.get_workflow, workflow_id, current_user.id, current_user.vault_key_id)
         workflow = await run_in_threadpool(
             service.restore_workflow_version,
             workflow_id,
@@ -796,14 +970,92 @@ async def restore_workflow_version(
             version_id,
             current_user.vault_key_id,
         )
-        return {"workflow": workflow.model_dump(mode="json", by_alias=True)}
+        after = workflow.model_dump(mode="json", by_alias=True)
+        history = await _record_workflow_history(
+            history_service,
+            current_user.id,
+            action_type="restore",
+            entries=[{
+                "object_type": "workflow",
+                "object_id": workflow_id,
+                "operation": "restore",
+                "workflow_version_before_id": before.current_version_id,
+                "workflow_version_after_id": workflow.current_version_id,
+            }],
+            redacted_summary="Restored 1 workflow version",
+        )
+        return {"workflow": after, "history": history}
+    except Exception as exc:
+        _handle_workflow_error(exc)
+
+
+@router.get("/{workflow_id}/history")
+@limiter.limit("60/minute")
+async def list_workflow_history(
+    workflow_id: str,
+    request: Request,
+    limit: int = 50,
+    current_user: User = Depends(get_current_user_or_api_key),
+    history_service: WorkspaceChangeHistoryService = Depends(get_workspace_history_service),
+) -> dict[str, Any]:
+    entries = await history_service.list_object_history(current_user.id, object_type="workflow", object_id=workflow_id, limit=limit)
+    return {"entries": entries}
+
+
+@router.post("/{workflow_id}/restore")
+@limiter.limit("20/minute")
+async def restore_workflow_from_history(
+    workflow_id: str,
+    request: Request,
+    body: WorkflowHistoryRestoreRequest,
+    current_user: User = Depends(get_current_user_or_api_key),
+    service: WorkflowService = Depends(get_workflow_service),
+    history_service: WorkspaceChangeHistoryService = Depends(get_workspace_history_service),
+) -> dict[str, Any]:
+    try:
+        entry = await history_service.get_object_entry(current_user.id, object_type="workflow", object_id=workflow_id, entry_id=body.entry_id)
+        if not entry:
+            raise HTTPException(status_code=404, detail="Workspace history entry not found")
+        snapshot = history_service.snapshot_for_entry_state(entry, body.state)
+        version_id = snapshot.get("workflow_version_id") if isinstance(snapshot, dict) else None
+        if not version_id:
+            raise HTTPException(status_code=400, detail="History entry does not contain a workflow version for restore")
+        before = await run_in_threadpool(service.get_workflow, workflow_id, current_user.id, current_user.vault_key_id)
+        workflow = await run_in_threadpool(
+            service.restore_workflow_version,
+            workflow_id,
+            current_user.id,
+            version_id,
+            current_user.vault_key_id,
+        )
+        after = workflow.model_dump(mode="json", by_alias=True)
+        history = await _record_workflow_history(
+            history_service,
+            current_user.id,
+            action_type="restore",
+            entries=[{
+                "object_type": "workflow",
+                "object_id": workflow_id,
+                "operation": "restore",
+                "workflow_version_before_id": before.current_version_id,
+                "workflow_version_after_id": workflow.current_version_id,
+                "restored_from_entry_id": body.entry_id,
+                "restore_state": body.state,
+            }],
+            redacted_summary="Restored 1 workflow from history",
+        )
+        return {"workflow": after, "history": history}
+    except HTTPException:
+        raise
     except Exception as exc:
         _handle_workflow_error(exc)
 
 
 @router.get("/{workflow_id}")
+@limiter.limit("60/minute")
 async def get_workflow(
     workflow_id: str,
+    request: Request,
     team_id: str | None = Query(default=None),
     current_user: User = Depends(get_current_user_or_api_key),
     service: WorkflowService = Depends(get_workflow_service),
@@ -818,8 +1070,10 @@ async def get_workflow(
 
 
 @router.post("/{workflow_id}/move")
+@limiter.limit("20/minute")
 async def move_workflow_to_team(
     workflow_id: str,
+    request: Request,
     body: WorkflowMoveRequest,
     current_user: User = Depends(get_current_user_or_api_key),
     directus_service: Any = Depends(get_directus_service),
@@ -840,13 +1094,17 @@ async def move_workflow_to_team(
 
 
 @router.patch("/{workflow_id}")
+@limiter.limit("30/minute")
 async def update_workflow(
     workflow_id: str,
+    request: Request,
     body: WorkflowUpdateRequest,
     current_user: User = Depends(get_current_user_or_api_key),
     service: WorkflowService = Depends(get_workflow_service),
+    history_service: WorkspaceChangeHistoryService = Depends(get_workspace_history_service),
 ) -> dict[str, Any]:
     try:
+        before = await run_in_threadpool(service.get_workflow, workflow_id, current_user.id, current_user.vault_key_id)
         workflow = await run_in_threadpool(
             service.update_workflow,
             workflow_id,
@@ -858,51 +1116,106 @@ async def update_workflow(
             vault_key_id=current_user.vault_key_id,
             description=body.description,
         )
-        return {"workflow": workflow.model_dump(mode="json", by_alias=True)}
+        after = workflow.model_dump(mode="json", by_alias=True)
+        history = await _record_workflow_history(
+            history_service,
+            current_user.id,
+            action_type="update",
+            entries=[{
+                "object_type": "workflow",
+                "object_id": workflow_id,
+                "operation": "workflow_version" if body.graph is not None else "update",
+                "workflow_version_before_id": before.current_version_id,
+                "workflow_version_after_id": workflow.current_version_id,
+            }],
+            redacted_summary="Updated 1 workflow",
+        )
+        return {"workflow": after, "history": history}
     except Exception as exc:
         _handle_workflow_error(exc)
 
 
 @router.delete("/{workflow_id}")
+@limiter.limit("20/minute")
 async def delete_workflow(
     workflow_id: str,
+    request: Request,
     current_user: User = Depends(get_current_user_or_api_key),
     service: WorkflowService = Depends(get_workflow_service),
+    history_service: WorkspaceChangeHistoryService = Depends(get_workspace_history_service),
 ) -> dict[str, Any]:
     try:
+        before = await run_in_threadpool(service.get_workflow, workflow_id, current_user.id, current_user.vault_key_id)
         await run_in_threadpool(service.delete_workflow, workflow_id, current_user.id)
-        return {"deleted": True}
+        history = await _record_workflow_history(
+            history_service,
+            current_user.id,
+            action_type="delete",
+            entries=[{
+                "object_type": "workflow",
+                "object_id": workflow_id,
+                "operation": "delete",
+                "workflow_version_before_id": before.current_version_id,
+            }],
+            redacted_summary="Deleted 1 workflow",
+        )
+        return {"deleted": True, "history": history}
     except Exception as exc:
         _handle_workflow_error(exc)
 
 
 @router.post("/{workflow_id}/enable")
+@limiter.limit("30/minute")
 async def enable_workflow(
     workflow_id: str,
+    request: Request,
     current_user: User = Depends(get_current_user_or_api_key),
     service: WorkflowService = Depends(get_workflow_service),
+    history_service: WorkspaceChangeHistoryService = Depends(get_workspace_history_service),
 ) -> dict[str, Any]:
     try:
+        before = await run_in_threadpool(service.get_workflow, workflow_id, current_user.id, current_user.vault_key_id)
         workflow = await run_in_threadpool(service.update_workflow, workflow_id, current_user.id, enabled=True, vault_key_id=current_user.vault_key_id)
-        return {"workflow": workflow.model_dump(mode="json", by_alias=True)}
+        after = workflow.model_dump(mode="json", by_alias=True)
+        history = await _record_workflow_history(
+            history_service,
+            current_user.id,
+            action_type="enable",
+            entries=[{"object_type": "workflow", "object_id": workflow_id, "operation": "status", "workflow_version_before_id": before.current_version_id, "workflow_version_after_id": workflow.current_version_id}],
+            redacted_summary="Enabled 1 workflow",
+        )
+        return {"workflow": after, "history": history}
     except Exception as exc:
         _handle_workflow_error(exc)
 
 
 @router.post("/{workflow_id}/disable")
+@limiter.limit("30/minute")
 async def disable_workflow(
     workflow_id: str,
+    request: Request,
     current_user: User = Depends(get_current_user_or_api_key),
     service: WorkflowService = Depends(get_workflow_service),
+    history_service: WorkspaceChangeHistoryService = Depends(get_workspace_history_service),
 ) -> dict[str, Any]:
     try:
+        before = await run_in_threadpool(service.get_workflow, workflow_id, current_user.id, current_user.vault_key_id)
         workflow = await run_in_threadpool(service.update_workflow, workflow_id, current_user.id, enabled=False, vault_key_id=current_user.vault_key_id)
-        return {"workflow": workflow.model_dump(mode="json", by_alias=True)}
+        after = workflow.model_dump(mode="json", by_alias=True)
+        history = await _record_workflow_history(
+            history_service,
+            current_user.id,
+            action_type="disable",
+            entries=[{"object_type": "workflow", "object_id": workflow_id, "operation": "status", "workflow_version_before_id": before.current_version_id, "workflow_version_after_id": workflow.current_version_id}],
+            redacted_summary="Disabled 1 workflow",
+        )
+        return {"workflow": after, "history": history}
     except Exception as exc:
         _handle_workflow_error(exc)
 
 
 @router.post("/{workflow_id}/run")
+@limiter.limit("20/minute")
 async def run_workflow(
     workflow_id: str,
     body: WorkflowRunRequest,
@@ -938,9 +1251,11 @@ async def run_workflow(
 
 
 @router.post("/{workflow_id}/steps/{step_id}/test")
+@limiter.limit("20/minute")
 async def test_workflow_step(
     workflow_id: str,
     step_id: str,
+    request: Request,
     body: WorkflowStepTestRequest,
     current_user: User = Depends(get_current_user_or_api_key),
     service: WorkflowService = Depends(get_workflow_service),
@@ -968,9 +1283,11 @@ async def test_workflow_step(
 
 
 @router.post("/{workflow_id}/runs/{run_id}/respond")
+@limiter.limit("20/minute")
 async def respond_to_workflow_run_wait(
     workflow_id: str,
     run_id: str,
+    request: Request,
     body: WorkflowRunResponseRequest,
     current_user: User = Depends(get_current_user_or_api_key),
     service: WorkflowService = Depends(get_workflow_service),
@@ -1046,8 +1363,10 @@ def _accepted_run_response(accepted: dict[str, Any], workflow_id: str, trigger_t
 
 
 @router.post("/{workflow_id}/keep")
+@limiter.limit("30/minute")
 async def keep_workflow(
     workflow_id: str,
+    request: Request,
     current_user: User = Depends(get_current_user_or_api_key),
     service: WorkflowService = Depends(get_workflow_service),
 ) -> dict[str, Any]:
@@ -1059,8 +1378,10 @@ async def keep_workflow(
 
 
 @router.get("/{workflow_id}/runs")
+@limiter.limit("60/minute")
 async def list_workflow_runs(
     workflow_id: str,
+    request: Request,
     current_user: User = Depends(get_current_user_or_api_key),
     service: WorkflowService = Depends(get_workflow_service),
 ) -> dict[str, Any]:
@@ -1072,9 +1393,11 @@ async def list_workflow_runs(
 
 
 @router.get("/{workflow_id}/runs/{run_id}")
+@limiter.limit("60/minute")
 async def get_workflow_run(
     workflow_id: str,
     run_id: str,
+    request: Request,
     current_user: User = Depends(get_current_user_or_api_key),
     service: WorkflowService = Depends(get_workflow_service),
 ) -> dict[str, Any]:
@@ -1086,9 +1409,11 @@ async def get_workflow_run(
 
 
 @router.post("/{workflow_id}/runs/{run_id}/cancel")
+@limiter.limit("20/minute")
 async def cancel_workflow_run(
     workflow_id: str,
     run_id: str,
+    request: Request,
     current_user: User = Depends(get_current_user_or_api_key),
     service: WorkflowService = Depends(get_workflow_service),
     runtime_service: WorkflowRuntimeService = Depends(get_workflow_runtime_service),

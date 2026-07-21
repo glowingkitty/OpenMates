@@ -14,28 +14,34 @@ from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, Field
 
 from backend.core.api.app.services.account_import_service import AccountImportService, ImportScanError
+from backend.core.api.app.services.limiter import limiter
 
 
 router = APIRouter(prefix="/v1/account-imports", tags=["Account Imports"])
 
+MAX_IMPORT_PREVIEW_CHATS = 500
+MAX_IMPORT_SCAN_CHATS = 500
+MAX_IMPORT_PERSIST_CHATS = 500
+MAX_IMPORT_MESSAGES_PER_CHAT = 10_000
+
 
 class ScanImportRequest(BaseModel):
-    chats: list[dict[str, Any]] = Field(default_factory=list)
+    chats: list[dict[str, Any]] = Field(default_factory=list, max_length=MAX_IMPORT_SCAN_CHATS)
 
 
 class PreviewImportRequest(BaseModel):
     source: str
-    chat_count: int = Field(ge=0)
-    source_fingerprints: list[str] = Field(default_factory=list)
+    chat_count: int = Field(ge=0, le=MAX_IMPORT_PREVIEW_CHATS)
+    source_fingerprints: list[str] = Field(default_factory=list, max_length=MAX_IMPORT_PREVIEW_CHATS)
     estimated_tokens: int = Field(default=0, ge=0)
     estimated_bytes: int = Field(default=0, ge=0)
 
 
 class CompleteImportRequest(BaseModel):
-    imported_chat_ids: list[str] = Field(default_factory=list)
-    source_fingerprints: list[str] = Field(default_factory=list)
-    encrypted_record_counts: dict[str, int] = Field(default_factory=dict)
-    client_failures: list[dict[str, Any]] = Field(default_factory=list)
+    imported_chat_ids: list[str] = Field(default_factory=list, max_length=MAX_IMPORT_PERSIST_CHATS)
+    source_fingerprints: list[str] = Field(default_factory=list, max_length=MAX_IMPORT_PERSIST_CHATS)
+    encrypted_record_counts: dict[str, int] = Field(default_factory=dict, max_length=16)
+    client_failures: list[dict[str, Any]] = Field(default_factory=list, max_length=MAX_IMPORT_PERSIST_CHATS)
 
 
 class PersistEncryptedMessage(BaseModel):
@@ -55,11 +61,11 @@ class PersistEncryptedChat(BaseModel):
     created_at: int
     updated_at: int
     source_fingerprint: str
-    messages: list[PersistEncryptedMessage] = Field(default_factory=list)
+    messages: list[PersistEncryptedMessage] = Field(default_factory=list, max_length=MAX_IMPORT_MESSAGES_PER_CHAT)
 
 
 class PersistEncryptedImportRequest(BaseModel):
-    chats: list[PersistEncryptedChat] = Field(default_factory=list)
+    chats: list[PersistEncryptedChat] = Field(default_factory=list, max_length=MAX_IMPORT_PERSIST_CHATS)
 
 
 def get_account_import_service(
@@ -88,11 +94,14 @@ async def get_current_user_info(
 
 
 @router.post("/preview")
+@limiter.limit("20/minute")
 async def preview_import(
+    request: Request,
     payload: PreviewImportRequest,
     service: AccountImportService = Depends(get_account_import_service),
     user_info: dict[str, Any] = Depends(get_current_user_info),
 ) -> dict[str, Any]:
+    del request
     synthetic_chats = [
         {"source_fingerprint": fingerprint, "messages": []}
         for fingerprint in payload.source_fingerprints[: payload.chat_count]
@@ -110,12 +119,15 @@ async def preview_import(
 
 
 @router.post("/{import_id}/scan")
+@limiter.limit("10/minute")
 async def scan_import(
     import_id: str,
+    request: Request,
     payload: ScanImportRequest,
     service: AccountImportService = Depends(get_account_import_service),
     user_info: dict[str, Any] = Depends(get_current_user_info),
 ) -> dict[str, Any]:
+    del request
     user_id = str(user_info.get("user_id") or user_info.get("id") or "")
     if not user_id:
         raise HTTPException(status_code=401, detail="Authentication required")
@@ -126,12 +138,15 @@ async def scan_import(
 
 
 @router.post("/{import_id}/complete")
+@limiter.limit("20/minute")
 async def complete_import(
     import_id: str,
+    request: Request,
     payload: CompleteImportRequest,
     service: AccountImportService = Depends(get_account_import_service),
     user_info: dict[str, Any] = Depends(get_current_user_info),
 ) -> dict[str, Any]:
+    del request
     return await service.complete_import(
         user_id=str(user_info["user_id"]),
         import_id=import_id,
@@ -143,6 +158,7 @@ async def complete_import(
 
 
 @router.post("/{import_id}/persist-encrypted")
+@limiter.limit("10/minute")
 async def persist_encrypted_import(
     import_id: str,
     payload: PersistEncryptedImportRequest,

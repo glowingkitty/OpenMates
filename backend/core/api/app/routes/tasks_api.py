@@ -11,6 +11,7 @@
 # - See docs/architecture/apps/images.md for full flow
 
 import logging
+import hashlib
 from typing import Any, Dict, Optional
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
@@ -23,6 +24,38 @@ from backend.core.api.app.routes.apps_api import SessionOrApiKeyAuth
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/v1/tasks", tags=["Tasks"])
+
+
+def _hash_id(value: str) -> str:
+    return hashlib.sha256(value.encode()).hexdigest()
+
+
+def _extract_owner_hash(value: Any) -> str | None:
+    if not isinstance(value, dict):
+        return None
+
+    for key in ("user_id_hash", "hashed_user_id"):
+        owner_hash = value.get(key)
+        if isinstance(owner_hash, str) and owner_hash:
+            return owner_hash
+
+    user_id = value.get("user_id")
+    if isinstance(user_id, str) and user_id:
+        return _hash_id(user_id)
+
+    for key in ("result", "data", "metadata"):
+        nested_owner_hash = _extract_owner_hash(value.get(key))
+        if nested_owner_hash:
+            return nested_owner_hash
+    return None
+
+
+def _assert_task_owner(result_payload: Any, user_info: Dict[str, Any]) -> None:
+    owner_hash = _extract_owner_hash(result_payload)
+    if not owner_hash:
+        raise HTTPException(status_code=403, detail={"error": "task_owner_unverified"})
+    if owner_hash != _hash_id(str(user_info.get("user_id") or "")):
+        raise HTTPException(status_code=404, detail="Task not found")
 
 
 class TaskStatusResponse(BaseModel):
@@ -83,14 +116,18 @@ async def get_task_status(
         
         # If task is completed, include the result
         if raw_status == 'SUCCESS':
+            _assert_task_owner(result.result, user_info)
             response.result = result.result
         elif raw_status == 'FAILURE' or raw_status == 'REVOKED':
+            _assert_task_owner(result.result, user_info)
             # For failures, the 'result' property often contains the exception object
             # or a string representation of the error
             response.error = str(result.result) if result.result else "Unknown error occurred during task execution"
         
         return response
         
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error checking status for task {task_id} (User: {user_info.get('user_id')}): {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error while checking task status")

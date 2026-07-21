@@ -6,7 +6,7 @@ including retrieving the currently authenticated user.
 import logging
 import time
 from fastapi import Request, Response, HTTPException, Depends, Cookie
-from typing import Optional
+from typing import Any, Optional
 
 from backend.core.api.app.services.cache_config import ACCESS_TOKEN_TTL_SECONDS
 from backend.core.api.app.routes.auth_routes.auth_common import preserve_rotated_session_metadata
@@ -19,6 +19,70 @@ from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.models.user import User
 
 logger = logging.getLogger(__name__)
+
+API_KEY_BLOCKED_PRODUCT_PREFIXES = ("/v1/user-tasks", "/v1/user-plans")
+API_KEY_ALLOWED_METADATA_SUFFIX = "/metadata"
+WORKFLOW_EXECUTION_PATH_PARTS = ("/run", "/steps/", "/runs/", "/input")
+
+
+def _set_auth_state(request: Request | None, auth_info: dict[str, Any]) -> None:
+    if request is None:
+        return
+    request.state.auth_info = auth_info
+    request.state.auth_source = auth_info.get("auth_source")
+    request.state.api_key_metadata = auth_info.get("api_key_metadata")
+
+
+def _workflow_scope_for_request(method: str, path: str) -> str:
+    if method.upper() == "GET":
+        return "workflow:read"
+    if any(part in path for part in WORKFLOW_EXECUTION_PATH_PARTS):
+        return "workflow:execute"
+    return "workflow:write"
+
+
+def _enforce_api_key_route_policy(request: Request | None, api_key_info: dict[str, Any]) -> None:
+    if request is None:
+        return
+
+    path = request.url.path
+    if any(path == prefix or path.startswith(f"{prefix}/") for prefix in API_KEY_BLOCKED_PRODUCT_PREFIXES):
+        if not path.endswith(API_KEY_ALLOWED_METADATA_SUFFIX):
+            raise HTTPException(
+                status_code=403,
+                detail={"error": "developer_api_access_not_classified"},
+            )
+
+    if path == "/v1/workflows" or path.startswith("/v1/workflows/"):
+        from backend.core.api.app.services.api_key_authorization import ApiKeyAuthorizationService, ApiKeyScopeError
+
+        required_scope = _workflow_scope_for_request(request.method, path)
+        try:
+            ApiKeyAuthorizationService().require_scope(
+                api_key_info.get("api_key_metadata") or {},
+                "workflows",
+                required_scope,
+            )
+        except ApiKeyScopeError as exc:
+            raise HTTPException(
+                status_code=403,
+                detail={"error": "missing_scope", "missing_scope": exc.missing_scope},
+            ) from exc
+
+    if path == "/v1/account-imports" or path.startswith("/v1/account-imports/"):
+        from backend.core.api.app.services.api_key_authorization import ApiKeyAuthorizationService, ApiKeyScopeError
+
+        try:
+            ApiKeyAuthorizationService().require_scope(
+                api_key_info.get("api_key_metadata") or {},
+                "account",
+                "account:import",
+            )
+        except ApiKeyScopeError as exc:
+            raise HTTPException(
+                status_code=403,
+                detail={"error": "missing_scope", "missing_scope": exc.missing_scope},
+            ) from exc
 
 # All functions now accept Request and fetch services from backend.core.api.app.state
 # (Keep existing service getters)
@@ -350,13 +414,15 @@ async def get_current_user_or_api_key(
     # Try session authentication first
     if refresh_token:
         try:
-            return await get_current_user(
+            user = await get_current_user(
                 directus_service=directus_service,
                 cache_service=cache_service,
                 refresh_token=refresh_token,
                 response=response,
                 request=request,
             )
+            _set_auth_state(request, {"auth_source": "session", "user_id": user.id})
+            return user
         except HTTPException:
             # Session auth failed, try API key auth
             pass
@@ -374,6 +440,9 @@ async def get_current_user_or_api_key(
             api_key = auth_header[7:]  # Remove "Bearer " prefix
             
             user_info = await api_key_auth_service.authenticate_api_key(api_key, request=request)
+            user_info = {**user_info, "auth_source": "api_key"}
+            _enforce_api_key_route_policy(request, user_info)
+            _set_auth_state(request, user_info)
             user_id = user_info.get("user_id")
             
             if user_id:

@@ -16,34 +16,48 @@ Detailed test commands, Playwright Docker setup, test runner reference, and sequ
 For new shared functionality, implementation and verification must happen in this
 order by default:
 
-1. **OpenMates CLI first:** implement and test an OpenMates CLI command, real CLI
-   chat, or CLI contract test against the dev server. This must pass on the dev
-   server before any SDK, web, or Apple work starts. This catches backend processing, model routing, skill
-   invocation, embed resolution, sync, and WebSocket issues before browser state
-   is involved.
+1. **REST API/WebSocket contract first:** implement and test the direct backend
+   contract with a REST request, WebSocket probe, or focused API smoke script
+   against the dev server. This must pass before any CLI, SDK, web, or Apple work
+   starts. This catches route exposure, auth, owner/team scoping, rate limits,
+   credit/budget limits, backend processing, model routing, skill invocation,
+   embed resolution, sync, and WebSocket issues before client state is involved.
 
-   The CLI phase-gate proof must use real CLI commands against the real dev API
+   The REST/API phase-gate proof must classify every changed endpoint as
+   unauthenticated public REST API, developer API-key REST API, first-party client
+   surface only, or internal-only. It must state whether the endpoint accepts or
+   returns client-side encrypted data or decrypted plaintext. Endpoints that touch
+   client-side encrypted chat, memory, file, key, sync, or share material default
+   to first-party or internal-only access unless an approved spec explicitly
+   preserves encryption boundaries for public/developer access.
+
+   The REST/API phase-gate proof must use real requests against the real dev API
    and WebSocket services with real auth/test-account state. It must not be a
    mocked `fetch`, mocked SDK client, stubbed local server, direct function call,
    fixture replay, or unit test that bypasses the OpenMates API/WebSocket path.
-   Mocked tests are useful as supplemental unit coverage only; they never satisfy
-   the CLI-first gate. If an external paid provider would make the real command
+   It should verify the happy path and relevant 401/403/429 or budget errors for
+   the endpoint classification. Mocked tests are useful as supplemental unit
+   coverage only; they never satisfy the REST/API-first gate. If an external paid provider would make the real command
    expensive, use a low-cost real request or record an explicit user-approved
    waiver before relying on provider replay for that external call.
-2. **SDK parity second:** implement and test npm SDK and pip SDK parity locally
+2. **OpenMates CLI second:** implement and test an OpenMates CLI command, real CLI
+   chat, or CLI contract test against the dev server. This must pass on the dev
+   server before any SDK, web, or Apple work starts. This catches client packaging
+   and command behavior while still avoiding browser state.
+3. **SDK parity third:** implement and test npm SDK and pip SDK parity locally
    against the dev server for the same behavior when it is exposed
    programmatically. Run `python3 scripts/audit_sdk_cli_parity.py` when CLI or
-   SDK surfaces change. After local CLI and SDK evidence is green, reproduce or
+   SDK surfaces change. After local REST/API, CLI, and SDK evidence is green, reproduce or
    wire the same coverage into GitHub Actions for CI/daily tests.
-3. **Web app third:** after CLI and required SDK evidence are green, implement the
+4. **Web app fourth:** after REST/API, CLI, and required SDK evidence are green, implement the
    web surface and run the Playwright `*.spec.ts` that verifies the
    browser-specific flow through `python3 scripts/tests.py run --spec
    <name>.spec.ts`. Web specs prove Svelte, TipTap, IndexedDB/localStorage,
    rendering, screenshots, and user interaction behavior.
-4. **User confirmation fourth:** for user-visible web UI or behavior, ask the user
+5. **User confirmation fifth:** for user-visible web UI or behavior, ask the user
    to confirm the deployed dev web app works and looks correct. A passing
    `*.spec.ts` is necessary but not sufficient to start Apple parity.
-5. **Apple app last:** after CLI, SDK, web, and required user-confirmation
+6. **Apple app last:** after REST/API, CLI, SDK, web, and required user-confirmation
    evidence are green, run or attempt the Apple app test through
    `scripts/apple_remote.py` when the feature has an Apple counterpart. Use
    `test-ios` for native tests, `build-ios` when no targeted test exists, and
@@ -57,14 +71,16 @@ while an earlier phase is unimplemented, untested, or blocked unless the spec or
 session contract records an explicit user-approved waiver or accepted external
 blocker.
 
-CLI and SDK tests must prove the exact behavior on the dev server before being
-promoted into GitHub Actions. Do not add or rely on a GitHub Actions CLI or SDK
-run as the first proof for a new feature; GitHub Actions is the retention and
-daily-regression gate after local dev-server CLI and SDK evidence succeeds.
+REST/API, CLI, and SDK tests must prove the exact behavior on the dev server before being
+promoted into GitHub Actions. Do not add or rely on a GitHub Actions REST/API,
+CLI, or SDK run as the first proof for a new feature; GitHub Actions is the
+retention and daily-regression gate after local dev-server REST/API, CLI, and SDK
+evidence succeeds.
 
-Do not count a mocked API-call test as dev-server CLI evidence. The acceptance
-artifact should show the real command that was executed, the dev API URL or test
-environment target, and the observable product result returned by the dev server.
+Do not count a mocked API-call test as dev-server REST/API or CLI evidence. The
+acceptance artifact should show the real request or command that was executed,
+the dev API URL or test environment target, and the observable product result
+returned by the dev server.
 
 Use the parity verifier when a change spans shared product behavior or multiple
 clients:
@@ -89,34 +105,39 @@ reason with `--skip-web` or `--apple skip --skip-apple`.
 For chat, AI pipeline, settings-backed chat behavior, app skills, focus modes,
 embeds, memory types, provider-backed behavior, sync, billing, notifications,
 benchmark behavior, or any feature that exists across clients, implementation and
-tests must prove parity in this order: OpenMates CLI first, npm SDK and pip SDK
-second, web app third, user confirmation fourth, Apple app last.
+tests must prove parity in this order: REST API/WebSocket contract first,
+OpenMates CLI second, npm SDK and pip SDK third, web app fourth, user
+confirmation fifth, Apple app last.
 
-1. **CLI contract first:** add or run an OpenMates CLI test against the dev server
-   that exercises the backend/API/WebSocket contract without browser UI, TipTap,
-   IndexedDB UI state, screenshots, or Svelte rendering. This is the required
-   first proof for chat and app-skill behavior because it isolates backend
-   correctness. Once it passes on dev, move or wire the coverage into GitHub
-   Actions so it becomes part of the daily test set.
+1. **REST/API contract first:** add or run a direct REST/WebSocket test against
+   the dev server that exercises the backend/API/WebSocket contract without CLI,
+   SDK, browser UI, TipTap, IndexedDB UI state, screenshots, or Svelte rendering.
+   This is the required first proof because it isolates backend correctness and
+   endpoint exposure. It must classify public/developer/first-party/internal
+   access and verify auth, rate limits, credit/budget limits, and encryption
+   boundaries where relevant.
 
-   This contract must drive the real CLI binary or compiled CLI entrypoint against
+   This contract must drive real HTTP/WebSocket requests against
    `https://api.dev.openmates.org` or the approved dev-server target. It must not
    mock the OpenMates API, WebSocket client, SDK facade, route handlers, or backend
-   skill execution.
-2. **SDK parity second:** after the CLI contract is green, add or run npm SDK and
+   skill execution. Once it passes on dev, move or wire the coverage into GitHub
+   Actions so it becomes part of the daily test set.
+2. **CLI contract second:** after the REST/API contract is green, add or run an
+   OpenMates CLI test against the dev server for the same behavior.
+3. **SDK parity third:** after the CLI contract is green, add or run npm SDK and
    pip SDK parity checks locally against the dev server for exposed
    programmatic behavior.
-3. **Web app E2E third:** after CLI and required SDK parity are green, add or run the
+4. **Web app E2E fourth:** after REST/API, CLI, and required SDK parity are green, add or run the
    Playwright spec that verifies the browser-specific flow, including composer
    behavior, draft/autosave state, settings UI, embeds, rendering, and user
    interactions. If the CLI contract passes but Playwright fails, debug the web
    app path instead of the backend pipeline first.
-4. **User confirmation fourth:** for user-visible web changes, ask the user to
+5. **User confirmation fifth:** for user-visible web changes, ask the user to
    confirm the deployed dev web app works and looks correct. Automated specs are
    not enough to begin Apple parity.
-5. **Apple parity last:** when the product surface has an Apple counterpart,
+6. **Apple parity last:** when the product surface has an Apple counterpart,
    run or attempt the relevant iOS/macOS verification through
-   `scripts/apple_remote.py` after CLI, SDK, web, and required user-confirmation
+   `scripts/apple_remote.py` after REST/API, CLI, SDK, web, and required user-confirmation
    evidence are green. Record Mac/Xcode evidence or a sanitized failure class per
    the Apple App section below.
 

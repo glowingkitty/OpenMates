@@ -77,6 +77,8 @@ from backend.core.api.app.routes import teams  # noqa: E402 # Teams V1 endpoints
 from backend.core.api.app.routes import workflows  # noqa: E402 # Server-side Workflows V1 endpoints
 from backend.core.api.app.routes import user_plans  # noqa: E402 # User-facing Plans V1 endpoints
 from backend.core.api.app.routes import user_tasks  # noqa: E402 # User-facing Tasks V1 endpoints
+from backend.core.api.app.routes import developer_metadata_api  # noqa: E402 # Safe developer metadata for encrypted product objects
+from backend.core.api.app.routes import workspace_history  # noqa: E402 # Workspace history and undo endpoints
 from backend.core.api.app.routes import ideabucket  # noqa: E402 # IdeaBucket encrypted bucket routes
 from backend.core.api.app.routes import notifications as notifications_api  # noqa: E402 # Safe notification list + SSE stream
 from backend.core.api.app.routes import telemetry  # noqa: E402 # Import OTLP proxy for frontend browser traces
@@ -1358,7 +1360,7 @@ def create_app() -> FastAPI:
     from backend.core.api.app.routes import tasks_api
     from backend.core.api.app.routes import embeds_api
     from backend.core.api.app.routes import profile_api
-    app.include_router(settings.router, include_in_schema=True)  # Settings endpoints - some endpoints support API key auth
+    app.include_router(settings.router, include_in_schema=False)  # Settings contain sensitive account actions; expose narrow API docs via dedicated routers only
     app.include_router(account_exports.router, include_in_schema=True)  # Account Export V1 - CLI/SDK first, web and Apple later
     app.include_router(account_imports.router, include_in_schema=True)  # Account Import V1 - encrypted client persistence after transient scan
     app.include_router(sdk.router, include_in_schema=True)  # SDK bootstrap endpoints - API-key authenticated
@@ -1379,11 +1381,13 @@ def create_app() -> FastAPI:
     app.include_router(debug_sync.router, include_in_schema=False)  # Debug sync status - JWT auth, no admin required, window.debug integration
     app.include_router(sync_api.router, include_in_schema=False)  # Native/desktop optional offline prefetch - JWT auth, encrypted payloads only
     app.include_router(learning_mode.router, include_in_schema=False)  # Account-wide Learning Mode policy - web/CLI/Apple authenticated only
+    app.include_router(developer_metadata_api.router, include_in_schema=True)  # Safe task/plan status metadata without encrypted fields
     app.include_router(workflows.router, include_in_schema=True)  # Workflows V1 - web/CLI/SDK/Apple authenticated API
-    app.include_router(teams.router, include_in_schema=True)  # Teams V1 - shared team context, membership, and billing API
-    app.include_router(user_plans.router, include_in_schema=True)  # Plans V1 - user-facing plan management API
-    app.include_router(user_tasks.router, include_in_schema=True)  # Tasks V1 - user-facing task management API
-    app.include_router(ideabucket.router, include_in_schema=True)  # IdeaBucket - encrypted bucket add/status/process API
+    app.include_router(teams.router, include_in_schema=False)  # Teams V1 can contain sensitive membership/billing context; hide until route-level developer docs are classified
+    app.include_router(user_plans.router, include_in_schema=False)  # Plans carry client-side encrypted content; expose only safe metadata via developer_metadata_api
+    app.include_router(user_tasks.router, include_in_schema=False)  # Tasks carry client-side encrypted content; expose only safe metadata via developer_metadata_api
+    app.include_router(workspace_history.router, include_in_schema=False)  # Workspace history can reference encrypted objects; official clients only until classified
+    app.include_router(ideabucket.router, include_in_schema=False)  # IdeaBucket stores encrypted bucket data; official clients only
     app.include_router(token_broker.router, include_in_schema=False)  # Connected-account token refs - web/CLI/Apple authenticated only
     app.include_router(connected_accounts.router, include_in_schema=False)  # Encrypted connected-account rows - client source of truth
     app.include_router(connected_account_actions.router, include_in_schema=False)  # Connected-account operation actions

@@ -1,0 +1,1079 @@
+schema_version: 2
+id: rest-api-security-hardening
+title: REST API Security Hardening
+status: approved
+
+goal: >
+  Harden the OpenMates REST API and WebSocket contract so every externally
+  reachable endpoint has an explicit access classification, auth model,
+  owner/team scope check, rate or budget control, and encryption-boundary rule.
+  The first implementation slice must fail closed for uncertain developer/API-key
+  access, then reopen endpoints only when tests prove intended API behavior still
+  works and unauthorized, cross-user, over-scope, and over-limit access is denied.
+  Developer REST should get as close as possible to full web/CLI/SDK/Apple feature
+  parity for endpoints that do not touch client-side encrypted data and are not
+  sensitive account-security actions, while endpoints that do touch client-side
+  encrypted data remain official-client-only surfaces.
+
+scope:
+  in:
+    - Inventory every FastAPI route registered in `backend/core/api/main.py` and
+      every path exposed by dev/prod Caddy API allowlists.
+    - Classify each externally reachable route as unauthenticated public REST API,
+      developer API-key REST API, first-party client surface only, or internal-only.
+    - >
+      Inventory every endpoint used by the web app, CLI, npm SDK, pip SDK, and
+      Apple app and classify whether it touches client-side encrypted data,
+      performs a sensitive account-security action, or is safe for public
+      developer REST parity.
+    - Add a deterministic route/access audit that fails when a Caddy-exposed route
+      lacks classification, auth dependency, rate-limit/budget control, or an
+      explicit reviewed exception.
+    - Fail closed for uncertain developer/API-key access to encrypted product
+      surfaces until a route-specific scope, limit, and test exists.
+    - >
+      Exclude client-side encrypted endpoints from the public developer REST API,
+      even when those endpoints are used by the web app, CLI, SDK, or Apple app;
+      those routes remain official-client-only surfaces unless a separate approved
+      SDK/CLI encryption contract explicitly preserves opaque encrypted payloads.
+    - >
+      Preserve or add public developer REST access for endpoints used by the web
+      app, CLI, SDK, or Apple app when they do not touch client-side encrypted
+      content and are not sensitive account-security actions, so the developer API
+      covers the full feature set as closely as safely possible.
+    - >
+      Keep workflow template access and modification available through scoped
+      developer REST because workflow templates are not client-side encrypted;
+      chat, message, encrypted memory, encrypted task content, encrypted files,
+      key material, and sync material stay excluded from public developer REST.
+    - >
+      Preserve intended developer APIs: app-skill REST calls, SDK session/chats,
+      OpenAI-compatible `/v1/models` and `/v1/chat/completions`, documented
+      public metadata/docs routes, webhooks, and approved account portability
+      endpoints.
+    - Add direct REST/WebSocket tests before CLI/SDK/web tests for all changed
+      shared product behavior.
+    - Add or update API-key scope enforcement for product APIs that currently use
+      generic session-or-API-key auth without route-specific scope checks.
+    - Add route-level rate limits or explicit budget guards for all externally
+      reachable routes that can do meaningful work or expensive reads.
+    - Add ownership binding for async task polling so a valid user/API key cannot
+      read another user's task result by knowing a task id.
+    - Tighten account import endpoints because they transiently handle plaintext
+      imported chats before client-side encrypted persistence.
+    - Align dev and prod Caddy allowlists or add a deterministic mismatch audit
+      that requires an explicit dev-only/prod-only justification per path.
+    - >
+      Update `docs/architecture/apps/rest-api.md` to reflect the new access
+      taxonomy, REST/API-first verification ladder, concrete developer examples,
+      scope requirements, request/response envelopes, typed error shapes, rate
+      limit behavior, async polling contracts, and encryption-boundary rules.
+  out:
+    - Redesigning the entire API-key product UI.
+    - Removing approved public endpoints such as geocode, analytics beacon,
+      default inspirations, public docs, share GET routes, or status endpoints
+      when their access model is explicitly documented and tested.
+    - Replacing the SDK encrypted chat APIs with a different encryption protocol.
+    - Rewriting app-skill dispatch or OpenAI-compatible chat completion behavior.
+    - >
+      Exposing client-side encrypted chat/message/memory/task/file/key/sync
+      material or sensitive account-security actions such as passkey deletion as
+      generic public developer REST endpoints.
+    - Changing Apple app behavior beyond confirming no accidental API contract
+      regression for shared authenticated surfaces.
+    - Bulk migration of older specs that still say CLI-first; this spec only
+      governs the hardening work and the current instruction update.
+
+context_discovery:
+  github_issues:
+    - "GitHub MCP `get_me` failed with 401 Bad credentials during discovery."
+    - "Fallback command `gh issue list --repo glowingkitty/OpenMates --search 'REST API security auth rate limit API key scope encryption' --state all --limit 20 --json number,title,state,labels,url` returned no matching issues."
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/contributing/guides/testing.md
+    - docs/architecture/apps/rest-api.md
+    - docs/specs/sdk-packages-v1/spec.yml
+    - docs/specs/openai-compatible-api/spec.yml
+    - docs/specs/account-export-v1/spec.yml
+    - docs/specs/account-import-v1/spec.yml
+    - docs/specs/workflows-v1/spec.yml
+    - docs/specs/tasks-v1/spec.yml
+  code_patterns:
+    - "`backend/core/api/main.py` registers all API routers and controls OpenAPI schema exposure."
+    - "`deployment/dev_server/Caddyfile` and `deployment/prod_server/Caddyfile` are the external path allowlists before FastAPI auth runs."
+    - "`backend/core/api/app/routes/auth_routes/auth_dependencies.py:get_current_user_or_api_key` authenticates API keys but returns only `User`, losing API-key metadata and scopes."
+    - "`backend/core/api/app/routes/apps_api.py:get_session_or_api_key_info` preserves API-key metadata for app-skill and OpenAI-compatible billing/scope checks."
+    - "`backend/core/api/app/routes/sdk.py` uses `_authenticate_sdk_request` plus explicit `ApiKeyAuthorizationService` scope checks for `/v1/sdk/*` encrypted chat operations."
+    - "`backend/core/api/app/services/limiter.py` has no global default limits; externally reachable routes need explicit `@limiter.limit(...)` or explicit budget controls."
+    - "`backend/core/api/app/routes/tasks_api.py` returns raw Celery task result by task id after auth but does not bind the task to the authenticated owner."
+    - "`backend/core/api/app/routes/account_imports.py` handles transient plaintext import scans without visible route-level rate limits."
+    - "`backend/core/api/app/routes/workflows.py` exposes workflow CRUD/run/test APIs with session-or-API-key auth and no visible route-level rate limits."
+    - "`backend/core/api/app/routes/profile_api.py` intentionally decrypts profile images for any authenticated caller; this is allowed only if explicitly classified as authenticated public-profile media."
+  tests:
+    - backend/tests/test_auth_dependencies.py
+    - backend/tests/test_api_key_scopes.py
+    - backend/tests/test_apps_api.py
+    - backend/tests/test_rest_api_ai.py
+    - backend/tests/test_rest_api_events.py
+    - backend/tests/test_webhook_auth.py
+    - backend/tests/test_webhook_incoming.py
+    - frontend/packages/openmates-cli/tests/sdk.test.ts
+    - frontend/packages/openmates-cli/tests/sdk-workflows.test.ts
+    - packages/openmates-python/tests/test_sdk.py
+    - packages/openmates-python/tests/test_workflows.py
+  verified_assumptions:
+    - id: VA-1
+      status: confirmed
+      finding: Generic session-or-API-key auth drops API-key metadata and therefore cannot enforce scoped API-key access by itself.
+      evidence: backend/core/api/app/routes/auth_routes/auth_dependencies.py:331
+    - id: VA-2
+      status: confirmed
+      finding: "Workflows routes use generic session-or-API-key auth, are schema-included, and lack visible `@limiter.limit(...)` decorators."
+      evidence: backend/core/api/app/routes/workflows.py:325
+    - id: VA-3
+      status: confirmed
+      finding: "Celery task polling returns raw `AsyncResult.result` by task id without owner binding in the route."
+      evidence: backend/core/api/app/routes/tasks_api.py:43
+    - id: VA-4
+      status: confirmed
+      finding: Account import routes can process transient plaintext and lack visible route-level rate limits.
+      evidence: backend/core/api/app/routes/account_imports.py:90
+    - id: VA-5
+      status: revised
+      finding: "`/v1/chats` and `/v1/ideabucket` primary routes are session-authenticated, while `/v1/sdk/*` is the scoped API-key surface. Caddy still exposes first-party paths externally so FastAPI remains the boundary."
+      evidence: backend/core/api/app/routes/chats.py:70; backend/core/api/app/routes/ideabucket.py:195; deployment/dev_server/Caddyfile:127
+    - id: VA-6
+      status: revised
+      finding: Profile image server-side decryption is intentionally any-authenticated-user access, not necessarily a bug, but needs explicit classification and regression tests.
+      evidence: backend/core/api/app/routes/profile_api.py:11
+    - id: VA-7
+      status: confirmed
+      finding: Public docs routes are unauthenticated and lack route-level rate limits.
+      evidence: backend/core/api/app/routes/docs_routes.py:111
+    - id: VA-8
+      status: confirmed
+      finding: Dev and prod Caddy allowlists differ materially, so dev API proof can pass for paths not reachable in prod unless the difference is intentional and audited.
+      evidence: deployment/dev_server/Caddyfile:127; deployment/prod_server/Caddyfile:124
+
+apple_impact:
+  affected_files:
+    - none
+  parity_expectations:
+    - This is a backend/API security hardening spec. Apple continues using first-party session/device auth and should not gain API-key access to encrypted product routes.
+    - If a route used by Apple is made stricter, Apple impact must be reclassified before implementation and the relevant remote Mac build/test attempted.
+  verification:
+    - Apple not affected for the initial fail-closed REST/API hardening slice unless implementation changes first-party Apple-consumed auth/session routes.
+  intentional_native_differences:
+    - Apple is a first-party client and must not be treated as a public/developer REST API consumer.
+
+clarification:
+  rounds:
+    - question: "Should the first implementation slice be a strict safety pass that may temporarily remove or block developer API access for uncertain encrypted/product endpoints until each endpoint has explicit scopes, limits, and tests?"
+      answer: Strict first.
+    - question: "Confirm the product contract direction: strict fail-closed first for uncertain REST/API access, then endpoint-by-endpoint reopening with explicit scopes, rate/budget limits, encryption-boundary rules, and regression tests?"
+      answer: Confirmed.
+  vision_summary: >
+    The REST/API surface should be safe by default, even if that temporarily blocks
+    uncertain developer access while endpoints are classified and tested. The final
+    system should preserve intended public/developer/first-party APIs, but only
+    after tests prove both successful expected use and security denial behavior.
+  approved_by_user: true
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Use a strict fail-closed first slice for uncertain developer/API-key access to encrypted or plaintext-sensitive product routes.
+    reason: It is safer to temporarily block ambiguous API exposure than to keep broad access to encrypted chat, memory, file, key, sync, share, import, workflow, or task material.
+    decided_at: "2026-07-20T00:00:00Z"
+  - id: D-2
+    status: active
+    decision: REST/API tests are the first required verification gate before CLI, SDK, web, or Apple evidence.
+    reason: Direct route tests isolate auth, scope, Caddy exposure, rate limits, and encryption-boundary behavior before downstream clients add complexity.
+    decided_at: "2026-07-20T00:00:00Z"
+  - id: D-3
+    status: active
+    decision: API-key authorization must preserve metadata at the route boundary or use a dependency that returns a typed authenticated principal including session/API-key source and scopes.
+    reason: "Returning only `User` prevents product routes from distinguishing full-access keys from limited keys and from enforcing per-surface scopes."
+    decided_at: "2026-07-20T00:00:00Z"
+  - id: D-4
+    status: active
+    decision: Caddy dev/prod allowlist differences must be audited as code, not tracked by comments only.
+    reason: A route that passes on dev but is blocked in prod causes false confidence in REST/API verification.
+    decided_at: "2026-07-20T00:00:00Z"
+  - id: D-5
+    status: active
+    decision: Public developer REST must pursue maximum safe parity with web, CLI, SDK, and Apple for non-client-side-encrypted, non-account-security endpoints, while client-side encrypted data endpoints and sensitive account-security actions stay official-client-only.
+    reason: Developers need broad feature coverage, but generic REST access must not weaken zero-knowledge guarantees or expose destructive credential/security operations such as passkey deletion.
+    decided_at: "2026-07-20T00:00:00Z"
+
+scenarios:
+  - id: S-1
+    title: Unclassified API-key access fails closed
+    given:
+      - Alice has an approved API key with full access.
+      - An externally reachable product endpoint handles encrypted chat, task, plan, workflow, memory, file, key, sync, share, or transient plaintext data.
+      - The endpoint has not been classified with a developer API scope and rate/budget contract.
+    when:
+      - Alice calls the endpoint from a no-Origin REST client with `Authorization: Bearer <API_KEY>`.
+    then:
+      - The request returns 403 with a typed error such as `developer_api_access_not_classified`.
+      - The endpoint remains available to approved first-party session clients only when its first-party auth contract is already explicit.
+
+  - id: S-2
+    title: Scoped API keys can use approved developer endpoints
+    given:
+      - Alice has an approved API key with only the scope needed for one approved surface.
+      - The endpoint is classified as developer API-key REST API and has a documented scope.
+    when:
+      - Alice calls the endpoint within its rate/budget limit.
+    then:
+      - The request succeeds with the same response shape as before hardening.
+      - A key missing the required scope receives 403 with the missing scope.
+      - A key over budget receives a typed budget error where the endpoint spends credits.
+
+  - id: S-3
+    title: First-party encrypted product routes remain usable but not broad public APIs
+    given:
+      - Alice is logged in through a web/CLI/native session.
+      - Alice calls `/v1/chats`, `/v1/sync/offline-prefetch`, `/v1/user-tasks`, `/v1/user-plans`, or another first-party encrypted product route.
+    when:
+      - The request carries valid first-party session/device auth.
+    then:
+      - The route returns only Alice-owned encrypted data or safe metadata.
+      - The same route rejects unauthenticated callers.
+      - Developer API-key access is rejected unless the endpoint has an explicit developer scope and test.
+
+  - id: S-4
+    title: Task polling cannot leak another user's async result
+    given:
+      - Alice starts a long-running app-skill task and receives task id `task_a`.
+      - Bob has a valid session or approved API key.
+    when:
+      - Bob calls `GET /v1/tasks/task_a`.
+    then:
+      - The response is 404 or 403 and does not include Alice's raw Celery result or error details.
+      - Alice can still poll `task_a` successfully.
+
+  - id: S-5
+    title: Account import plaintext scan is bounded and non-durable
+    given:
+      - Alice uploads a selected import batch containing plaintext source messages.
+    when:
+      - Alice calls the import scan endpoint through an approved first-party or explicitly scoped API-key flow.
+    then:
+      - The request is size-limited, rate-limited, and budget checked where applicable.
+      - Plaintext is not logged, persisted, or returned except for the minimum reviewed scan result contract.
+      - Unauthenticated, unscoped, over-limit, and oversized requests fail with typed errors.
+
+  - id: S-6
+    title: Public endpoints stay public but bounded
+    given:
+      - A user is unauthenticated.
+    when:
+      - The user calls approved public endpoints such as geocode, analytics beacon, default inspirations, status, share GET routes, or docs.
+    then:
+      - The endpoint behaves as documented without auth.
+      - The endpoint has a route-level rate limit or an explicit reviewed exception.
+      - The endpoint does not expose private user data, decrypted plaintext, API keys, presigned private URLs, or share URL fragments.
+
+  - id: S-7
+    title: Dev and prod route exposure are intentionally aligned
+    given:
+      - A route is added to dev Caddy's public API allowlist.
+    when:
+      - The route inventory audit compares dev and prod Caddyfiles.
+    then:
+      - The route is also present in prod or listed in a reviewed dev-only exception table.
+      - API verification records whether the tested route is expected to be reachable in production.
+
+  - id: S-8
+    title: Developer REST reaches safe feature parity without exposing encrypted data
+    given:
+      - A feature is available through the web app, CLI, SDK, or Apple app.
+      - The backing endpoint is reachable through FastAPI or Caddy.
+    when:
+      - The route inventory classifies the endpoint for public developer REST exposure.
+    then:
+      - Endpoints that touch client-side encrypted chat, message, memory, task, file, key, sync, or share material are excluded from public developer REST and marked official-client-only.
+      - Sensitive account-security actions such as passkey deletion, two-factor secret changes, recovery-key changes, password changes, and account deletion are excluded from public developer REST unless a separate approved spec grants a constrained flow.
+      - Endpoints that do not touch client-side encrypted content and are not sensitive account-security actions are exposed or preserved through scoped developer REST whenever feasible.
+      - Workflow template list/create/update/delete remains available through scoped developer REST because workflow templates are not client-side encrypted.
+      - Chat, message, encrypted task content, encrypted memory, encrypted files, key material, and encrypted sync payloads remain web/CLI/SDK/Apple official-client surfaces only.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-7
+    text: Every route exposed by dev or prod Caddy has an explicit access classification and owner/team/encryption-boundary metadata in a deterministic inventory.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-ROUTE-INVENTORY-AUDIT]
+  - id: AC-2
+    scenario: S-1
+    text: Routes that use generic session-or-API-key auth cannot accept API-key requests unless route-specific scope enforcement has access to API-key metadata.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-AUTH-PRINCIPAL-UNIT, T-API-SCOPE-DENIAL-DEV]
+  - id: AC-3
+    scenario: S-2
+    text: Workflows API routes enforce explicit rate limits and API-key scopes before CRUD, run, step-test, or run-response behavior is available to developer keys.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-WORKFLOWS-SCOPE-RATE]
+  - id: AC-4
+    scenario: S-4
+    text: Celery task polling proves owner binding and cannot return another user's task result to a valid but unauthorized caller.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-TASK-POLLING-OWNERSHIP]
+  - id: AC-5
+    scenario: S-5
+    text: Account import endpoints are rate-limited, size-limited, non-durable for plaintext, and accessible only through approved first-party or explicitly scoped API-key flows.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-ACCOUNT-IMPORT-HARDENING]
+  - id: AC-6
+    scenario: S-2
+    text: Intended public/developer APIs still work after hardening, including app-skill REST, SDK session/chats, OpenAI-compatible models/chat completions, webhooks, public docs, geocode, analytics, status, and approved account export/import flows.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-REST-SMOKE-DEV, T-CLI-SMOKE-DEV, T-NPM-SDK-SMOKE-DEV, T-PIP-SDK-SMOKE-DEV]
+  - id: AC-7
+    scenario: S-7
+    text: Dev/prod Caddy API allowlist differences are either removed or represented as reviewed exceptions in the route inventory audit.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-CADDY-ALLOWLIST-PARITY]
+  - id: AC-8
+    scenario: S-6
+    text: REST API architecture docs and developer-facing reference docs describe the hardened access taxonomy, REST/API-first phase gate, concrete examples, request/response bodies, async task polling, scope names, rate-limit headers/errors, typed error variants, and encryption-boundary rules for each externally supported surface.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-DOCS-ARCHITECTURE]
+  - id: AC-9
+    scenario: S-8
+    text: Every endpoint shared with web, CLI, SDK, or Apple is classified for safe parity; non-client-side-encrypted and non-account-security feature endpoints are exposed or preserved through scoped developer REST where feasible, while client-side encrypted data endpoints and sensitive account-security actions are excluded from public developer REST.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-DEVELOPER-REST-SAFE-PARITY, T-REST-SMOKE-DEV]
+
+contracts:
+  access_models:
+    - id: public_rest
+      name: Unauthenticated public REST API
+      allowed_auth: none_optional
+      requirements:
+        - No private user data, decrypted plaintext, keys, token secrets, share fragments, or user-specific presigned private URLs.
+        - Route-level rate limit or explicit low-risk reviewed exception.
+        - CORS behavior intentionally supports public use.
+    - id: developer_api_key
+      name: Developer API-key REST API
+      allowed_auth: approved_api_key_required
+      requirements:
+        - API-key metadata available to the route at authorization time.
+        - Explicit scope per surface/action.
+        - Device approval enforced.
+        - Credit/budget check for paid work.
+        - Owner/team checks for user data.
+        - Public developer REST exposure is limited to endpoints that do not touch client-side encrypted data and are not sensitive account-security actions unless a separate approved spec grants a narrower contract.
+    - id: first_party_only
+      name: First-party client surface only
+      allowed_auth: session_or_approved_device_or_official_sdk_cli_auth
+      requirements:
+        - No broad developer API-key access unless separately classified.
+        - Caddy may route requests to FastAPI for correct 401/403/CORS, but FastAPI remains the security boundary.
+        - Encrypted chat, memory, file, key, sync, share, task, plan, and import material defaults here.
+        - Official CLI/SDK access may use API keys only when the endpoint preserves client-side encryption boundaries and is not documented as generic public developer REST.
+    - id: internal_only
+      name: Internal-only service API
+      allowed_auth: internal_service_token_or_private_network_only
+      requirements:
+        - Not reachable through public Caddy allowlists except narrowly approved HMAC webhook/tunnel paths.
+        - Internal token verification fails closed when the token is missing or misconfigured.
+  developer_rest_parity_policy:
+    target: maximum_safe_parity
+    include_when_all_true:
+      - The endpoint backs a feature available in web, CLI, SDK, or Apple.
+      - The request and response do not include client-side encrypted payloads, encrypted object material, plaintext derived from client-side encrypted material, or key material.
+      - The endpoint is not a sensitive account-security action.
+      - The endpoint can enforce API-key scope, owner/team checks, rate limits, and budget controls where applicable.
+    required_inclusions:
+      - Workflow template list/create/update/delete must remain available through scoped developer REST because templates are not client-side encrypted.
+      - Non-encrypted app metadata, skill metadata, public docs, model metadata, safe account portability metadata, feature metadata, and task/plan status metadata should be public or developer REST accessible according to their auth needs.
+      - Runtime-public utility routes such as geocode, analytics beacons, and default inspirations may stay callable but must not appear in developer REST docs unless they are intentionally supported as developer APIs.
+    excluded_from_public_developer_rest:
+      - Client-side encrypted chats, messages, memory entries, user task content, files, keys, sync payloads, share secrets, and decrypted material derived from those payloads.
+      - Sensitive account-security actions such as passkey deletion, two-factor secret changes, recovery-key changes, password changes, API-key secret disclosure, and account deletion unless a separate approved spec defines a constrained developer flow.
+    official_client_only_surfaces:
+      - Web app session/device authenticated routes.
+      - Apple app session/device authenticated routes.
+      - CLI and SDK encrypted protocol routes that preserve opaque client-side encrypted payloads and are tested separately from generic public developer REST.
+  route_groups:
+    - group: app_skills_rest
+      paths: ["/v1/apps", "/v1/apps/*"]
+      target_access_model: developer_api_key
+      must_preserve: true
+      notes:
+        - Existing `apps_api.py` scope and budget checks are the pattern for approved developer API surfaces.
+    - group: sdk_rest
+      paths: ["/v1/sdk", "/v1/sdk/*"]
+      target_access_model: first_party_only
+      must_preserve: true
+      notes:
+        - Existing `_authenticate_sdk_request` plus route-specific scope checks should remain the model for official SDK/CLI encrypted access.
+        - SDK encrypted chat/sync routes are not generic public developer REST even when they authenticate with API keys.
+    - group: openai_compat
+      paths: ["/v1/models", "/v1/models/*", "/v1/chat/completions"]
+      target_access_model: developer_api_key
+      must_preserve: true
+      notes:
+        - Must keep external client tools separate from OpenMates app skills.
+        - Must add explicit rate limit or documented credit-budget guard if missing.
+    - group: workflows
+      paths: ["/v1/workflows", "/v1/workflows/*"]
+      target_access_model: developer_api_key
+      must_preserve: true
+      notes:
+        - Workflow template list/create/update/delete must be available through scoped developer REST because templates are not client-side encrypted.
+        - Workflow execution or step testing must still enforce scopes, owner/team checks, rate limits, and encryption-boundary checks for any encrypted inputs or outputs.
+    - group: encrypted_chat_sync
+      paths: ["/v1/chats", "/v1/chats/*", "/v1/sync", "/v1/sync/*", "/v1/ideabucket", "/v1/ideabucket/*"]
+      target_access_model: first_party_only
+      must_preserve: true
+      notes:
+        - Client-side encrypted chat, message, idea bucket, and sync payload endpoints are excluded from generic public developer REST.
+        - Official web, CLI, SDK, and Apple clients may continue using these routes only through their approved encrypted/session/device contracts.
+    - group: tasks_plans_teams_history
+      paths: ["/v1/user-tasks", "/v1/user-tasks/*", "/v1/user-plans", "/v1/user-plans/*", "/v1/teams", "/v1/teams/*", "/v1/workspace/history", "/v1/workspace/history/*"]
+      target_access_model: first_party_only_until_scoped
+      must_preserve: false
+      notes:
+        - Client-side encrypted task, plan, chat-history, or workspace-history content defaults official-client-only.
+        - Non-encrypted metadata may become scoped developer REST only after safe-parity classification and tests.
+        - Safe task/plan status metadata is exposed only through `GET /v1/user-tasks/metadata`, `GET /v1/user-tasks/{task_id}/metadata`, `GET /v1/user-plans/metadata`, and `GET /v1/user-plans/{plan_id}/metadata`.
+    - group: sensitive_account_security
+      paths: ["/v1/settings/passkeys", "/v1/settings/passkeys/*", "/v1/auth/2fa", "/v1/auth/2fa/*", "/v1/settings/update-password", "/v1/settings/delete-account", "/v1/settings/api-keys", "/v1/settings/api-keys/*"]
+      target_access_model: first_party_only
+      must_preserve: true
+      notes:
+        - Sensitive account-security actions are excluded from generic public developer REST even when they do not contain client-side encrypted data.
+        - API-key management may have dedicated guided CLI or settings flows, but raw destructive/security-secret operations require explicit constrained-flow specs before developer exposure.
+    - group: account_portability
+      paths: ["/v1/account-exports", "/v1/account-exports/*", "/v1/account-imports", "/v1/account-imports/*"]
+      target_access_model: explicit_scoped_portability
+      must_preserve: true
+      notes:
+        - Export/import are allowed developer surfaces only with data-portability scope, bounds, and plaintext/import-specific guards.
+    - group: celery_task_polling
+      paths: ["/v1/tasks/*"]
+      target_access_model: developer_api_key_or_session_with_owner_binding
+      must_preserve: true
+      notes:
+        - Task result ownership must be proven before returning raw Celery result.
+    - group: profile_images
+      paths: ["/v1/users/*/profile-image"]
+      target_access_model: authenticated_public_profile_media
+      must_preserve: true
+      notes:
+        - Server-side decrypts plaintext bytes; allowed only as authenticated profile media with explicit rate limit and no private image assumption.
+    - group: public_safe
+      paths: ["/v1/geocode/*", "/v1/analytics/*", "/v1/default-inspirations", "/v1/docs", "/v1/docs/*", "/v1/status", "/v1/status/*", "/v1/share/*"]
+      target_access_model: public_rest
+      must_preserve: true
+      notes:
+        - Share POST/write routes are not public merely because share GET routes are public; method-level classification is required.
+        - Public runtime utility routes are not automatically developer REST documentation routes; geocode, analytics beacon, and default inspirations stay hidden from OpenAPI unless explicitly productized for developers.
+  error_contracts:
+    unauthorized: 401 with typed detail for missing/invalid credentials.
+    forbidden_scope: "403 with `missing_scope` or `developer_api_access_not_classified`."
+    forbidden_owner: 404 or 403 without leaking foreign object existence, using existing route conventions.
+    rate_limited: 429 with retry metadata where SlowAPI or custom limiter supports it.
+    budget_limited: 402 or typed 429/403 according to existing API-key budget conventions.
+
+tests:
+  - id: T-ROUTE-INVENTORY-AUDIT
+    type: unit
+    file: scripts/audit_rest_api_surface.py
+    command: python3 scripts/audit_rest_api_surface.py --check
+    assertions:
+      - Every FastAPI route registered in `main.py` and every dev/prod Caddy-exposed path has access classification metadata.
+      - Externally reachable non-public routes have auth requirements.
+      - Externally reachable work routes have rate limits, budget checks, or reviewed exceptions.
+      - Encrypted/plaintext-sensitive routes default first-party/internal unless explicitly approved for developer API access.
+    covers: [AC-1, AC-2, AC-7, AC-9]
+    red_phase:
+      required: true
+      expected: fail
+      evidence: { status: not_run, run_id: "", timestamp: "", reason: "Audit script does not exist yet and current route inventory is incomplete." }
+    green_phase:
+      required: true
+      expected: pass_after_implementation
+      evidence: { status: not_run, run_id: "", timestamp: "" }
+  - id: T-AUTH-PRINCIPAL-UNIT
+    type: pytest
+    file: backend/tests/test_auth_dependencies.py
+    command: python3 -m pytest backend/tests/test_auth_dependencies.py backend/tests/test_api_key_scopes.py
+    assertions:
+      - Auth helpers expose a typed principal or equivalent metadata-preserving object to routes that support API keys.
+      - Limited API keys remain denied for missing scopes.
+      - Device approval denial still returns 403.
+    covers: [AC-2]
+    red_phase:
+      required: true
+      expected: fail
+      evidence: { status: not_run, run_id: "", timestamp: "", reason: "Current generic auth returns only User and cannot expose API-key scopes to callers." }
+    green_phase:
+      required: true
+      expected: pass_after_implementation
+      evidence: { status: not_run, run_id: "", timestamp: "" }
+  - id: T-API-SCOPE-DENIAL-DEV
+    type: unit
+    file: scripts/api_tests/test_rest_api_security_hardening.py
+    command: OPENMATES_API_URL=https://api.dev.openmates.org python3 scripts/api_tests/test_rest_api_security_hardening.py --scenario scope-denials
+    assertions:
+      - Missing API key returns 401 on protected routes.
+      - Limited API keys return 403 for missing per-surface scopes.
+      - Unclassified encrypted/product routes reject API-key access while first-party session access remains separately testable.
+    covers: [AC-2, AC-9]
+    red_phase:
+      required: true
+      expected: fail
+      evidence: { status: not_run, run_id: "", timestamp: "", reason: "No direct REST hardening smoke script exists yet." }
+    green_phase:
+      required: true
+      expected: pass_after_implementation
+      evidence: { status: not_run, run_id: "", timestamp: "" }
+  - id: T-WORKFLOWS-SCOPE-RATE
+    type: pytest
+    file: backend/tests/test_workflows_routes_security.py
+    command: python3 -m pytest backend/tests/test_workflows_routes_security.py
+    assertions:
+      - Workflow list/create/update/delete/run/test routes have explicit limits or budget guards.
+      - API-key callers need route-specific workflow scopes.
+      - Existing session-authenticated workflow behavior remains compatible.
+    covers: [AC-3, AC-9]
+    red_phase:
+      required: true
+      expected: fail
+      evidence: { status: not_run, run_id: "", timestamp: "", reason: "Current workflows routes use generic auth and lack visible route-level limits." }
+    green_phase:
+      required: true
+      expected: pass_after_implementation
+      evidence: { status: not_run, run_id: "", timestamp: "" }
+  - id: T-TASK-POLLING-OWNERSHIP
+    type: pytest
+    file: backend/tests/test_tasks_api_security.py
+    command: python3 -m pytest backend/tests/test_tasks_api_security.py
+    assertions:
+      - Authenticated users can poll their own task ids.
+      - Authenticated users cannot poll another user's task id.
+      - Raw Celery result is not returned until owner binding succeeds.
+    covers: [AC-4]
+    red_phase:
+      required: true
+      expected: fail
+      evidence: { status: not_run, run_id: "", timestamp: "", reason: "Current route only checks auth and reads AsyncResult by task id." }
+    green_phase:
+      required: true
+      expected: pass_after_implementation
+      evidence: { status: not_run, run_id: "", timestamp: "" }
+  - id: T-ACCOUNT-IMPORT-HARDENING
+    type: pytest
+    file: backend/tests/test_account_import_security.py
+    command: python3 -m pytest backend/tests/test_account_import_security.py
+    assertions:
+      - Import preview/scan/complete/persist endpoints are rate-limited or explicitly budgeted.
+      - Scan rejects oversized plaintext payloads.
+      - Plaintext import data is not persisted or logged by the route/service contract.
+      - API-key access requires explicit data-portability/import scope.
+    covers: [AC-5, AC-9]
+    red_phase:
+      required: true
+      expected: fail
+      evidence: { status: not_run, run_id: "", timestamp: "", reason: "Current account import routes lack visible route-level limit decorators and explicit API-key scope checks." }
+    green_phase:
+      required: true
+      expected: pass_after_implementation
+      evidence: { status: not_run, run_id: "", timestamp: "" }
+  - id: T-CADDY-ALLOWLIST-PARITY
+    type: unit
+    file: scripts/audit_rest_api_surface.py
+    command: python3 scripts/audit_rest_api_surface.py --check-caddy-parity
+    assertions:
+      - Dev/prod public API allowlists match for production-intended API surfaces.
+      - Dev-only routes such as test recordings are documented as dev-only exceptions.
+      - Prod-only routes are documented or rejected.
+    covers: [AC-7]
+    red_phase:
+      required: true
+      expected: fail
+      evidence: { status: not_run, run_id: "", timestamp: "", reason: "Known dev/prod Caddy allowlist differences exist and no parity audit exists yet." }
+    green_phase:
+      required: true
+      expected: pass_after_implementation
+      evidence: { status: not_run, run_id: "", timestamp: "" }
+  - id: T-DEVELOPER-REST-SAFE-PARITY
+    type: unit
+    file: scripts/audit_rest_api_surface.py
+    command: python3 scripts/audit_rest_api_surface.py --check-public-rest-parity
+    assertions:
+      - Every endpoint used by web, CLI, npm SDK, pip SDK, or Apple is classified as client-side-encrypted, sensitive account-security, safe developer REST, or reviewed exception.
+      - Client-side encrypted chat, message, memory, user task, file, key, sync, share-secret, and decrypted-derived payload endpoints are excluded from generic public developer REST.
+      - Sensitive account-security actions such as passkey deletion, two-factor secret changes, recovery-key changes, password changes, API-key secret disclosure, and account deletion are excluded from generic public developer REST unless a separate approved spec grants a constrained flow.
+      - Safe non-encrypted feature endpoints shared with first-party clients are exposed or preserved through scoped developer REST where feasible.
+      - Workflow template list/create/update/delete is covered as scoped developer REST and has success plus missing-scope denial checks.
+    covers: [AC-1, AC-9]
+    red_phase:
+      required: true
+      expected: fail
+      evidence: { status: not_run, run_id: "", timestamp: "", reason: "No shared-endpoint safe-parity audit exists yet, and current route documentation does not distinguish official SDK encrypted routes from generic developer REST." }
+    green_phase:
+      required: true
+      expected: pass_after_implementation
+      evidence: { status: not_run, run_id: "", timestamp: "" }
+  - id: T-REST-SMOKE-DEV
+    type: unit
+    file: scripts/api_tests/test_rest_api_security_hardening.py
+    command: OPENMATES_API_URL=https://api.dev.openmates.org python3 scripts/api_tests/test_rest_api_security_hardening.py --scenario intended-surfaces
+    assertions:
+      - App-skill REST smoke succeeds with approved API key and required app-skill scope.
+      - SDK session smoke succeeds with approved API key/device.
+      - OpenAI-compatible `/v1/models` and `/v1/chat/completions` smoke succeeds.
+      - Workflow template list/create/update/delete smoke succeeds with a scoped API key and fails with a missing-scope API key.
+      - Public docs/geocode/status smoke succeeds unauthenticated within limits.
+      - Webhook auth smoke still enforces webhook key auth.
+    covers: [AC-6, AC-9]
+    red_phase:
+      required: true
+      expected: fail
+      evidence: { status: not_run, run_id: "", timestamp: "", reason: "No consolidated intended-surface REST smoke script exists yet." }
+    green_phase:
+      required: true
+      expected: pass_after_implementation
+      evidence: { status: not_run, run_id: "", timestamp: "" }
+  - id: T-CLI-SMOKE-DEV
+    type: unit
+    file: scripts/verify_app_skill_cli_smoke.py
+    command: python3 scripts/verify_app_skill_cli_smoke.py --api-url https://api.dev.openmates.org
+    assertions:
+      - CLI app-skill behavior still works after REST/API hardening.
+      - CLI receives clear 401/403 errors for denied developer/API-key surfaces.
+    covers: [AC-6]
+    red_phase:
+      required: false
+      expected: pass_or_fail_existing
+      evidence: { status: not_run, run_id: "", timestamp: "" }
+    green_phase:
+      required: true
+      expected: pass_after_implementation
+      evidence: { status: not_run, run_id: "", timestamp: "" }
+  - id: T-NPM-SDK-SMOKE-DEV
+    type: unit
+    file: scripts/sdk_cli_parity_live_smoke.py
+    command: OPENMATES_LIVE_SMOKE=1 python3 scripts/sdk_cli_parity_live_smoke.py --api-url https://api.dev.openmates.org --name rest-api-security-hardening
+    assertions:
+      - npm SDK approved surfaces still work against the dev server.
+      - Unapproved scopes receive typed denial errors.
+    covers: [AC-6]
+    red_phase:
+      required: false
+      expected: pass_or_fail_existing
+      evidence: { status: not_run, run_id: "", timestamp: "" }
+    green_phase:
+      required: true
+      expected: pass_after_implementation
+      evidence: { status: not_run, run_id: "", timestamp: "" }
+  - id: T-PIP-SDK-SMOKE-DEV
+    type: unit
+    file: scripts/sdk_cli_parity_live_smoke.py
+    command: OPENMATES_LIVE_SMOKE=1 python3 scripts/sdk_cli_parity_live_smoke.py --api-url https://api.dev.openmates.org --name rest-api-security-hardening
+    assertions:
+      - pip SDK approved surfaces still work against the dev server.
+      - Unapproved scopes receive typed denial errors.
+    covers: [AC-6]
+    red_phase:
+      required: false
+      expected: pass_or_fail_existing
+      evidence: { status: not_run, run_id: "", timestamp: "" }
+    green_phase:
+      required: true
+      expected: pass_after_implementation
+      evidence: { status: not_run, run_id: "", timestamp: "" }
+  - id: T-DOCS-ARCHITECTURE
+    type: pytest
+    file: docs/architecture/apps/rest-api.md
+    command: python3 -m pytest scripts/tests/test_architecture_static_claims.py scripts/tests/test_architecture_behavioral_claims.py
+    assertions:
+      - REST architecture docs describe the access taxonomy and which surfaces are public, developer API-key, first-party-only, or internal-only.
+      - REST docs explain that public developer REST targets maximum safe parity with web/CLI/SDK/Apple for non-client-side-encrypted, non-account-security endpoints.
+      - REST docs explicitly exclude client-side encrypted data endpoints and sensitive account-security actions from generic public developer REST, while documenting official CLI/SDK encrypted surfaces separately.
+      - Developer REST docs include copy-pasteable examples for app-skill calls, OpenAI-compatible calls, async task polling, public endpoints, and common denial cases.
+      - Request/response envelopes, scope names, rate-limit headers, typed error variants, and async task result shapes are documented or linked to generated OpenAPI schemas.
+      - REST docs no longer claim the REST API cannot decrypt anything without distinguishing server-side decrypted approved media/generated assets from client-side encrypted chat/memory data.
+      - Architecture claims stay grounded in source files.
+    covers: [AC-8, AC-9]
+    red_phase:
+      required: true
+      expected: fail
+      evidence: { status: not_run, run_id: "", timestamp: "", reason: "Current architecture doc predates the access taxonomy and says REST API cannot decrypt chats without the new classification detail." }
+    green_phase:
+      required: true
+      expected: pass_after_implementation
+      evidence: { status: not_run, run_id: "", timestamp: "" }
+
+verifications:
+  - id: V-USER-CONFIRMATION
+    kind: user_confirmation
+    phase: final
+    status: pending
+    required_for_done: true
+    covers: [AC-6, AC-8, AC-9]
+    description: User confirms any changed developer API availability and first-party web behavior are acceptable after the strict fail-closed slice and endpoint reopening plan.
+    evidence: { status: pending, timestamp: "", actor: "" }
+
+implementation_plan:
+  status: not_started
+  spec_path: docs/specs/rest-api-security-hardening/spec.yml
+  architecture: >
+    Add a deterministic REST API surface inventory that joins FastAPI routes,
+    Caddy exposure, auth dependencies, API-key scopes, rate/budget controls,
+    ownership checks, and encryption-boundary classification. Use that inventory
+    to fail closed for ambiguous developer REST access, then reopen safe
+    non-client-side-encrypted endpoints with explicit scopes, tests, and docs.
+  existing_patterns:
+    - "`apps_api.py` preserves API-key metadata for scoped app-skill and OpenAI-compatible calls."
+    - "`sdk.py` authenticates official SDK encrypted routes separately from generic public developer REST."
+    - "`limiter.py` requires explicit route-level or custom limits because there is no global default."
+    - "Architecture docs use frontmatter claims verified by `scripts/tests/test_architecture_*` tests."
+  data_flow:
+    - FastAPI and Caddy route inventory classify each route before authorization behavior changes.
+    - Session/device clients keep first-party access to encrypted product routes.
+    - Developer API keys reach only scoped, rate/budget-limited, safe developer REST surfaces by default.
+    - Official CLI/SDK encrypted routes remain separate from generic public developer REST and preserve opaque client-side encrypted payloads.
+  affected_files:
+    - path: scripts/audit_rest_api_surface.py
+      reason: New deterministic route/access/safe-parity audit.
+    - path: backend/core/api/app/routes/auth_routes/auth_dependencies.py
+      reason: Preserve API-key metadata where route-level scopes are enforced.
+    - path: backend/core/api/app/services/api_key_authorization.py
+      reason: Centralize scope checks and denial behavior for developer REST surfaces.
+    - path: backend/core/api/app/routes/workflows.py
+      reason: Keep non-encrypted workflow template CRUD available through scoped developer REST with limits.
+    - path: backend/core/api/app/routes/tasks_api.py
+      reason: Bind async task polling to authenticated owners before returning results.
+    - path: backend/core/api/app/routes/account_imports.py
+      reason: Bound plaintext import scans and API-key exposure.
+    - path: deployment/dev_server/Caddyfile
+      reason: Audit externally exposed dev API paths.
+    - path: deployment/prod_server/Caddyfile
+      reason: Audit prod exposure parity with dev.
+    - path: docs/architecture/apps/rest-api.md
+      reason: Document access taxonomy, safe parity, examples, types, errors, scopes, and encryption boundaries.
+  verification_strategy:
+    - Run the route inventory audit red before implementation and green after classifications/guards exist.
+    - Run backend pytest for auth metadata, workflows, task ownership, and account import hardening.
+    - Run direct dev-server REST smokes before CLI, npm SDK, pip SDK, web, user confirmation, or Apple checks.
+    - Run docs static/behavioral claim tests after updating developer REST documentation.
+  verification_order:
+    - Route inventory and safe-parity audit red phase.
+    - Backend auth/scope/ownership/rate-limit pytest red phase.
+    - Implementation and local backend green checks.
+    - Direct REST dev-server smoke after restarting affected Docker services.
+    - CLI, npm SDK, and pip SDK live smokes against `https://api.dev.openmates.org`.
+    - Documentation claim tests and user confirmation.
+  first_slice: >
+    Build `scripts/audit_rest_api_surface.py` with enough inventory metadata to
+    fail on current unclassified Caddy/FastAPI exposure, distinguish generic
+    public developer REST from official SDK/CLI encrypted routes, and prove the
+    safe-parity exclusions for client-side encrypted data and sensitive
+    account-security actions before changing route behavior.
+  api_impacts:
+    - Developer REST access becomes explicit and scoped by route group instead of implied by any session-or-API-key dependency.
+    - Workflow template CRUD is preserved as scoped developer REST because templates are not client-side encrypted.
+    - Generic developer REST denies client-side encrypted data endpoints and sensitive account-security actions with typed 403 errors.
+    - Official CLI/SDK encrypted endpoints remain available only through their approved encrypted protocol and are documented separately from generic developer REST.
+  privacy_security_impacts:
+    - Client-side encrypted chat, message, memory, user task, file, key, sync, and share-secret material must not become generic developer REST payloads.
+    - Plaintext account-import scanning remains bounded, non-durable, and rate-limited.
+    - Account-security operations such as passkey deletion and two-factor secret changes stay first-party or explicitly constrained flows.
+    - Route docs must identify any server-side decryption exception, such as approved profile media or generated assets, separately from zero-knowledge chat/memory data.
+  migration_rollout:
+    - No database migration is planned for the initial audit slice.
+    - Task ownership binding may require a task owner registry or signed task token before green implementation; fail closed for missing metadata unless a reviewed legacy exception is added.
+    - Deploy backend changes to the local dev Docker API service before live REST/CLI/SDK smokes against `https://api.dev.openmates.org`.
+  observability:
+    - Log typed denial reasons without plaintext payloads, decrypted data, API keys, passkey material, or share fragments.
+    - Preserve existing auth/rate-limit/compliance logging for developer API-key access.
+    - Add audit output that lists route group, method, access model, scope, rate/budget control, Caddy exposure, and safe-parity classification.
+  required_assumption_checks:
+    - Confirm exact workflow template route methods and payload fields before marking workflow CRUD as public developer REST.
+    - Confirm which task endpoints store client-side encrypted content versus non-encrypted async skill polling metadata.
+    - Confirm generated file/embed download routes do not leak client-side encrypted user files before developer REST exposure.
+    - Confirm passkey, 2FA, password, account deletion, and API-key secret routes are excluded or covered by a separate constrained-flow spec.
+  phases:
+    - id: P-1
+      title: Route inventory and fail-closed guardrails
+      description: Build the deterministic audit and add conservative blocking for unclassified developer/API-key access to sensitive routes.
+      exit_criteria: [AC-1, AC-2, AC-7, AC-9]
+    - id: P-2
+      title: Scope/rate/ownership fixes for high-risk routes
+      description: Harden workflows, task polling, account imports, and generic API-key auth metadata flow.
+      exit_criteria: [AC-2, AC-3, AC-4, AC-5]
+    - id: P-3
+      title: Preserve intended API compatibility
+      description: Prove approved public/developer/first-party surfaces still work through REST, CLI, npm SDK, and pip SDK gates.
+      exit_criteria: [AC-6, AC-9]
+    - id: P-4
+      title: Documentation and daily guardrails
+      description: Update architecture docs and wire low-noise audits into appropriate scripts or CI/daily checks.
+      exit_criteria: [AC-8]
+
+tasks:
+  - id: TASK-1
+    title: Add REST API surface inventory audit
+    status: pending
+    phase: drafting
+    priority: high
+    independently_deployable: false
+    verification_command: python3 scripts/audit_rest_api_surface.py --check
+    covers:
+      scenarios: [S-1, S-6, S-7, S-8]
+      acceptance_criteria: [AC-1, AC-7, AC-9]
+    verification_ids: [T-ROUTE-INVENTORY-AUDIT, T-CADDY-ALLOWLIST-PARITY, T-DEVELOPER-REST-SAFE-PARITY]
+    expected_files:
+      - scripts/audit_rest_api_surface.py
+      - scripts/tests/test_rest_api_surface_audit.py
+      - deployment/dev_server/Caddyfile
+      - deployment/prod_server/Caddyfile
+    dependencies: []
+    blockers: []
+    follow_up_tasks: []
+    ownership:
+      files:
+        - scripts/audit_rest_api_surface.py
+        - scripts/tests/test_rest_api_surface_audit.py
+        - deployment/dev_server/Caddyfile
+        - deployment/prod_server/Caddyfile
+      shared_files: []
+  - id: TASK-2
+    title: Preserve API-key metadata for scope-aware route authorization
+    status: pending
+    phase: drafting
+    priority: high
+    independently_deployable: false
+    verification_command: python3 -m pytest backend/tests/test_auth_dependencies.py backend/tests/test_api_key_scopes.py
+    covers:
+      scenarios: [S-1, S-2, S-3]
+      acceptance_criteria: [AC-2]
+    verification_ids: [T-AUTH-PRINCIPAL-UNIT, T-API-SCOPE-DENIAL-DEV]
+    expected_files:
+      - backend/core/api/app/routes/auth_routes/auth_dependencies.py
+      - backend/core/api/app/services/api_key_authorization.py
+      - backend/tests/test_auth_dependencies.py
+      - backend/tests/test_api_key_scopes.py
+    dependencies: [TASK-1]
+    blockers: []
+    follow_up_tasks: []
+    ownership:
+      files:
+        - backend/core/api/app/routes/auth_routes/auth_dependencies.py
+        - backend/core/api/app/services/api_key_authorization.py
+        - backend/tests/test_auth_dependencies.py
+        - backend/tests/test_api_key_scopes.py
+      shared_files: []
+  - id: TASK-3
+    title: Harden workflows API access and limits
+    status: pending
+    phase: drafting
+    priority: high
+    independently_deployable: false
+    verification_command: python3 -m pytest backend/tests/test_workflows_routes_security.py
+    covers:
+      scenarios: [S-1, S-2, S-8]
+      acceptance_criteria: [AC-3, AC-9]
+    verification_ids: [T-WORKFLOWS-SCOPE-RATE, T-DEVELOPER-REST-SAFE-PARITY]
+    expected_files:
+      - backend/core/api/app/routes/workflows.py
+      - backend/tests/test_workflows_routes_security.py
+    dependencies: [TASK-1, TASK-2]
+    blockers: []
+    follow_up_tasks: []
+    ownership:
+      files:
+        - backend/core/api/app/routes/workflows.py
+        - backend/tests/test_workflows_routes_security.py
+      shared_files: []
+  - id: TASK-4
+    title: Bind Celery task polling to authenticated owners
+    status: pending
+    phase: drafting
+    priority: high
+    independently_deployable: false
+    verification_command: python3 -m pytest backend/tests/test_tasks_api_security.py
+    covers:
+      scenarios: [S-4]
+      acceptance_criteria: [AC-4]
+    verification_ids: [T-TASK-POLLING-OWNERSHIP]
+    expected_files:
+      - backend/core/api/app/routes/tasks_api.py
+      - backend/tests/test_tasks_api_security.py
+    dependencies: [TASK-1, TASK-2]
+    blockers: []
+    follow_up_tasks: []
+    ownership:
+      files:
+        - backend/core/api/app/routes/tasks_api.py
+        - backend/tests/test_tasks_api_security.py
+      shared_files: []
+  - id: TASK-5
+    title: Harden account import plaintext and API-key boundaries
+    status: pending
+    phase: drafting
+    priority: high
+    independently_deployable: false
+    verification_command: python3 -m pytest backend/tests/test_account_import_security.py
+    covers:
+      scenarios: [S-5]
+      acceptance_criteria: [AC-5]
+    verification_ids: [T-ACCOUNT-IMPORT-HARDENING]
+    expected_files:
+      - backend/core/api/app/routes/account_imports.py
+      - backend/core/api/app/services/account_import_service.py
+      - backend/tests/test_account_import_security.py
+    dependencies: [TASK-1, TASK-2]
+    blockers: []
+    follow_up_tasks: []
+    ownership:
+      files:
+        - backend/core/api/app/routes/account_imports.py
+        - backend/core/api/app/services/account_import_service.py
+        - backend/tests/test_account_import_security.py
+      shared_files: []
+  - id: TASK-6
+    title: Prove intended API surfaces still work
+    status: pending
+    phase: drafting
+    priority: high
+    independently_deployable: true
+    verification_command: OPENMATES_API_URL=https://api.dev.openmates.org python3 scripts/api_tests/test_rest_api_security_hardening.py --scenario intended-surfaces
+    covers:
+      scenarios: [S-2, S-3, S-6, S-8]
+      acceptance_criteria: [AC-6, AC-9]
+    verification_ids: [T-REST-SMOKE-DEV, T-CLI-SMOKE-DEV, T-NPM-SDK-SMOKE-DEV, T-PIP-SDK-SMOKE-DEV, T-DEVELOPER-REST-SAFE-PARITY]
+    expected_files:
+      - scripts/api_tests/test_rest_api_security_hardening.py
+      - scripts/verify_app_skill_cli_smoke.py
+      - scripts/sdk_cli_parity_live_smoke.py
+    dependencies: [TASK-1, TASK-2, TASK-3, TASK-4, TASK-5]
+    blockers: []
+    follow_up_tasks: []
+    ownership:
+      files:
+        - scripts/api_tests/test_rest_api_security_hardening.py
+        - scripts/verify_app_skill_cli_smoke.py
+        - scripts/sdk_cli_parity_live_smoke.py
+      shared_files: []
+  - id: TASK-7
+    title: Update REST API architecture and developer docs
+    status: pending
+    phase: drafting
+    priority: medium
+    independently_deployable: true
+    verification_command: python3 -m pytest scripts/tests/test_architecture_static_claims.py scripts/tests/test_architecture_behavioral_claims.py
+    covers:
+      scenarios: [S-1, S-2, S-6, S-8]
+      acceptance_criteria: [AC-8, AC-9]
+    verification_ids: [T-DOCS-ARCHITECTURE]
+    expected_files:
+      - docs/architecture/apps/rest-api.md
+    dependencies: [TASK-1, TASK-3, TASK-6]
+    blockers: []
+    follow_up_tasks: []
+    ownership:
+      files:
+        - docs/architecture/apps/rest-api.md
+      shared_files: []
+
+implementation_state:
+  subject_commit: 930399a96+working-tree
+
+approvals:
+  product_contract:
+    status: approved
+    approved_at: "2026-07-20T00:00:00Z"
+    reason: User confirmed strict fail-closed first for uncertain REST/API access and endpoint-by-endpoint reopening with security tests.
+  implementation_plan:
+    status: not_required
+    approved_at: ""
+    reason: The plan operationalizes the approved strict-first and maximum-safe-parity product contract without adding a new material architecture or privacy decision.
+
+attempts:
+  - id: A-1
+    task_id: TASK-1
+    outcome: succeeded
+    approach: Discovery and assumption validation found no existing GitHub issue, confirmed generic auth metadata loss, workflows missing visible route limits, task polling ownership gap, account import plaintext/rate-limit risk, and Caddy allowlist drift.
+    recorded_at: "2026-07-20T00:00:00Z"
+    evidence:
+      - command: gh issue list --repo glowingkitty/OpenMates --search "REST API security auth rate limit API key scope encryption" --state all --limit 20 --json number,title,state,labels,url
+        result: no matching issues
+      - source: backend/core/api/app/routes/auth_routes/auth_dependencies.py:331
+        result: generic session/API-key auth returns User only
+      - source: backend/core/api/app/services/limiter.py:5
+        result: no default limits; explicit route limits required
+
+handoff:
+  current_task_id: TASK-1
+  status: ready_for_implementation
+  last_verified_commit: 930399a96+working-tree
+  next_action: "Begin TASK-1 by creating `scripts/audit_rest_api_surface.py` and `scripts/tests/test_rest_api_surface_audit.py`, record red evidence for T-ROUTE-INVENTORY-AUDIT and T-DEVELOPER-REST-SAFE-PARITY, then implement the first audit slice."
+  command: python3 scripts/audit_rest_api_surface.py --check
+  expected_outcome: The new audit fails red until route classification, Caddy parity, and safe developer REST parity metadata are implemented.
+  blocker:
+    requires_user_input: false
+    reason: ""
+    question: ""
+
+risks:
+  - id: R-1
+    severity: high
+    risk: Strict fail-closed changes can temporarily block developer workflows that currently depend on broad API-key access.
+    mitigation: Preserve app-skill, SDK, OpenAI-compatible, webhook, and approved portability surfaces with explicit tests; record user confirmation for changed availability.
+  - id: R-2
+    severity: high
+    risk: Route inventory audits can produce noisy false positives for dynamic routes or method-specific public/private behavior.
+    mitigation: Support reviewed exception entries with owner, reason, expiry/review date, and method-level matching.
+  - id: R-3
+    severity: medium
+    risk: Adding per-route rate limits can break high-frequency legitimate polling or streaming flows.
+    mitigation: Use endpoint-specific limits, preserve streaming/WebSocket behavior, and include intended-surface REST/CLI/SDK smokes.
+  - id: R-4
+    severity: medium
+    risk: Task ownership binding may require task metadata not currently stored with Celery results.
+    mitigation: Add a task owner registry at creation time or signed task tokens; fail closed when owner metadata is absent unless a legacy migration exception is approved.
+
+open_questions:
+  - id: OQ-1
+    status: deferred
+    question: Should profile images remain visible to any authenticated API-key caller long-term, or become first-party/session-only until public profile/avatar policy is finalized?
+    decision_needed_before: implementation_complete
+  - id: OQ-2
+    status: deferred
+    question: Which exact per-action scopes should tasks, plans, teams, workflow execution, and account import/export use beyond existing SDK/app-skill scopes?
+    decision_needed_before: reopening_developer_access

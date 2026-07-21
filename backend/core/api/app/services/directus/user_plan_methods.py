@@ -25,6 +25,8 @@ USER_PLAN_FIELDS = (
     "encrypted_context,encrypted_continuation_policy"
 )
 
+USER_PLAN_METADATA_FIELDS = "plan_id,status,updated_at,version"
+
 USER_PLAN_KEY_WRAPPER_FIELDS = (
     "id,hashed_plan_id,hashed_user_id,key_type,hashed_chat_id,hashed_project_id,"
     "hashed_context_plan_id,hashed_team_id,team_key_epoch,encrypted_plan_key,created_at,expires_at,wrapper_version"
@@ -217,6 +219,46 @@ class UserPlanMethods:
             params["filter[linked_project_hashes][_contains]"] = hash_id(project_id)
         response = await self.directus_service.get_items("user_plans", params=params, no_cache=True)
         return response if isinstance(response, list) else []
+
+    async def summarize_plan_metadata(self, user_id: str, team_id: str | None = None) -> dict[str, Any]:
+        params: dict[str, Any] = {
+            "fields": "status",
+            "limit": -1,
+        }
+        if team_id:
+            params["filter[hashed_team_id][_eq]"] = hash_id(team_id)
+        else:
+            params["filter[hashed_user_id][_eq]"] = hash_id(user_id)
+            params["filter[hashed_team_id][_null]"] = True
+        response = await self.directus_service.get_items("user_plans", params=params, no_cache=True)
+        plans = response if isinstance(response, list) else []
+        by_status: dict[str, int] = {}
+        for plan in plans:
+            status = str(plan.get("status") or "unknown")
+            by_status[status] = by_status.get(status, 0) + 1
+        return {"total": len(plans), "by_status": by_status}
+
+    async def get_plan_metadata(self, plan_id: str, user_id: str, team_id: str | None = None) -> dict[str, Any] | None:
+        params = {
+            "filter[plan_id][_eq]": plan_id,
+            "fields": USER_PLAN_METADATA_FIELDS,
+            "limit": 1,
+        }
+        if team_id:
+            params["filter[hashed_team_id][_eq]"] = hash_id(team_id)
+        else:
+            params["filter[hashed_user_id][_eq]"] = hash_id(user_id)
+            params["filter[hashed_team_id][_null]"] = True
+        response = await self.directus_service.get_items("user_plans", params=params, no_cache=True)
+        if response and isinstance(response, list):
+            plan = response[0]
+            return {
+                "plan_id": plan.get("plan_id"),
+                "status": plan.get("status"),
+                "updated_at": plan.get("updated_at"),
+                "version": plan.get("version"),
+            }
+        return None
 
     async def get_plan(self, plan_id: str, user_id: str, team_id: str | None = None) -> dict[str, Any] | None:
         params = {

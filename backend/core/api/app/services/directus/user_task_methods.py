@@ -25,6 +25,8 @@ USER_TASK_FIELDS = (
     "encrypted_activity_summary,encrypted_latest_instruction"
 )
 
+USER_TASK_METADATA_FIELDS = "task_id,status,updated_at,version"
+
 USER_TASK_KEY_WRAPPER_FIELDS = (
     "id,hashed_task_id,hashed_user_id,key_type,hashed_chat_id,hashed_project_id,"
     "hashed_plan_id,hashed_team_id,team_key_epoch,encrypted_task_key,created_at,expires_at,wrapper_version"
@@ -226,6 +228,49 @@ class UserTaskMethods:
 
         response = await self.directus_service.get_items("user_tasks", params=params, no_cache=True)
         return [_with_short_id(task) for task in response] if isinstance(response, list) else []
+
+    async def summarize_task_metadata(self, user_id: str, team_id: str | None = None) -> dict[str, Any]:
+        if team_id:
+            filter_terms: list[dict[str, Any]] = [{"hashed_team_id": {"_eq": hash_id(team_id)}}]
+        else:
+            filter_terms = [{"hashed_user_id": {"_eq": hash_id(user_id)}}, {"hashed_team_id": {"_null": True}}]
+        response = await self.directus_service.get_items(
+            "user_tasks",
+            params={
+                "fields": "status",
+                "filter": {"_and": filter_terms} if len(filter_terms) > 1 else filter_terms[0],
+                "limit": -1,
+            },
+            no_cache=True,
+        )
+        tasks = response if isinstance(response, list) else []
+        by_status: dict[str, int] = {}
+        for task in tasks:
+            status = str(task.get("status") or "unknown")
+            by_status[status] = by_status.get(status, 0) + 1
+        return {"total": len(tasks), "by_status": by_status}
+
+    async def get_task_metadata(self, task_id: str, user_id: str, team_id: str | None = None) -> dict[str, Any] | None:
+        params = {
+            "filter[task_id][_eq]": task_id,
+            "fields": USER_TASK_METADATA_FIELDS,
+            "limit": 1,
+        }
+        if team_id:
+            params["filter[hashed_team_id][_eq]"] = hash_id(team_id)
+        else:
+            params["filter[hashed_user_id][_eq]"] = hash_id(user_id)
+            params["filter[hashed_team_id][_null]"] = True
+        response = await self.directus_service.get_items("user_tasks", params=params, no_cache=True)
+        if response and isinstance(response, list):
+            task = response[0]
+            return {
+                "task_id": task.get("task_id"),
+                "status": task.get("status"),
+                "updated_at": task.get("updated_at"),
+                "version": task.get("version"),
+            }
+        return None
 
     async def get_task(self, task_id: str, user_id: str, team_id: str | None = None) -> dict[str, Any] | None:
         params = {
