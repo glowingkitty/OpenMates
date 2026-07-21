@@ -291,7 +291,7 @@
         <SettingsSectionHeading title="Share" icon="share" />
         <p class="section-description">Create an encrypted share link for this chat.</p>
         <SettingsCard>
-          <SettingsShare activeSettingsView="shared/share" />
+          <SettingsShare activeSettingsView="shared/share" chatId={chat.chat_id} />
           <div class="share-download-actions">
             <SettingsButton variant="secondary" onClick={() => void handleDownloadArchive()}>Download chat ZIP</SettingsButton>
             <SettingsButton variant="secondary" onClick={() => void handleDownloadYaml()}>Download chat YAML</SettingsButton>

@@ -77,12 +77,16 @@
         };
     }
     
-    // Props - the chat ID of the currently active chat
+    // Props - active route plus optional explicit chat context for embedded panels
     let { 
-        activeSettingsView = 'share'
+        activeSettingsView = 'share',
+        chatId = null,
     }: {
         activeSettingsView?: string;
+        chatId?: string | null;
     } = $props();
+
+    let isShareViewActive = $derived(activeSettingsView === 'share' || activeSettingsView === 'shared/share');
     
     // ===============================
     // State Variables
@@ -247,16 +251,16 @@
 
     // Check for embed context on mount, when (window as EmbedWindow).__embedShareContext changes, 
     // when settingsDeepLink is set to 'shared/share' (Share button clicked),
-    // and when component becomes active (activeSettingsView is 'share')
+    // and when component becomes active (activeSettingsView is 'share' or 'shared/share')
     $effect(() => {
         const windowEmbedContext = (window as EmbedWindow).__embedShareContext;
         const deepLink = $settingsDeepLink;
-        const isActive = activeSettingsView === 'share';
+        const isActive = isShareViewActive;
         
         // Check for embed context when:
         // 1. (window as EmbedWindow).__embedShareContext exists (embed share button clicked)
         // 2. settingsDeepLink is set to 'shared/share' (share settings opened)
-        // 3. Component becomes active (activeSettingsView is 'share')
+        // 3. Component becomes active (activeSettingsView is 'share' or 'shared/share')
         if (windowEmbedContext) {
             // If we already have an embed context and it's different, reset share state
             if (embedContext && embedContext.embed_id !== windowEmbedContext.embed_id) {
@@ -294,6 +298,28 @@
     // This remains stable even when user switches to other chats
     // Only updates when a new share link is generated
     let sharedChatId = $state<string | null>(null);
+
+    function normalizeChatId(value: string | null | undefined): string | null {
+        return typeof value === 'string' && value.trim() !== '' ? value.trim() : null;
+    }
+
+    $effect(() => {
+        if (isEmbedSharing) return;
+
+        const explicitChatId = normalizeChatId(chatId);
+        if (!explicitChatId) return;
+
+        if (isLinkGenerated && sharedChatId && explicitChatId !== sharedChatId) {
+            console.debug('[SettingsShare] Explicit chat changed, resetting share state. Old:', sharedChatId, 'New:', explicitChatId);
+            resetGeneratedState();
+        }
+
+        if (explicitChatId !== currentChatId) {
+            prepareChatOwnershipState(explicitChatId);
+            currentChatId = explicitChatId;
+            console.debug('[SettingsShare] Synced currentChatId from explicit chatId:', currentChatId);
+        }
+    });
 
     // ONLY update currentChatId when Share button is explicitly clicked
     // Watch settingsDeepLink for 'shared/share' - this is set when Share button is clicked
@@ -2266,7 +2292,7 @@
         border: 1px solid var(--color-grey-30);
         border-radius: var(--radius-3);
         font-size: var(--font-size-small);
-        background-color: var(--color-grey-5);
+        background-color: var(--color-grey-10);
         color: var(--color-grey-100);
         transition: border-color var(--duration-normal) var(--easing-default);
     }
@@ -2297,7 +2323,7 @@
         padding: var(--spacing-4) var(--spacing-8);
         border: 1px solid var(--color-grey-30);
         border-radius: var(--radius-8);
-        background-color: var(--color-grey-5);
+        background-color: var(--color-grey-10);
         color: var(--color-grey-80);
         font-size: var(--font-size-xs);
         cursor: pointer;
@@ -2320,7 +2346,7 @@
         align-items: flex-start;
         gap: var(--spacing-5);
         padding: var(--spacing-6) var(--spacing-8);
-        background-color: var(--color-grey-5);
+        background-color: var(--color-grey-10);
         border-radius: var(--radius-3);
         border: 1px solid var(--color-grey-20);
     }
@@ -2341,7 +2367,7 @@
     .chat-info-display {
         margin-bottom: var(--spacing-8);
         padding: var(--spacing-8);
-        background-color: var(--color-grey-5);
+        background-color: var(--color-grey-10);
         border-radius: var(--radius-3);
         border: 1px solid var(--color-grey-20);
     }
@@ -2386,7 +2412,7 @@
         align-items: flex-start;
         gap: var(--spacing-5);
         padding: var(--spacing-6) var(--spacing-8);
-        background-color: var(--color-grey-5);
+        background-color: var(--color-grey-10);
         border-radius: var(--radius-3);
         border: 1px solid var(--color-grey-20);
         margin-top: var(--spacing-4);
@@ -2410,7 +2436,7 @@
         align-items: flex-start;
         gap: var(--spacing-5);
         padding: var(--spacing-6) var(--spacing-8);
-        background-color: var(--color-grey-5);
+        background-color: var(--color-grey-10);
         border-radius: var(--radius-3);
         border: 1px solid var(--color-grey-20);
         margin-top: var(--spacing-4);
@@ -2444,7 +2470,7 @@
     }
     
     .back-to-config-button:hover {
-        background-color: var(--color-grey-15, #e8e8e8);
+        background-color: var(--color-grey-20);
         border-color: var(--color-grey-40);
     }
 
@@ -2491,7 +2517,7 @@
     }
     
     .copy-link-button:hover {
-        background-color: var(--color-grey-15, #e8e8e8);
+        background-color: var(--color-grey-20);
         border-color: var(--color-grey-50);
     }
     
@@ -2538,7 +2564,7 @@
         flex-direction: column;
         align-items: center;
         padding: var(--spacing-10);
-        background-color: var(--color-grey-5);
+        background-color: var(--color-grey-10);
         border-radius: var(--radius-5);
     }
     
@@ -2553,7 +2579,7 @@
         background-color: white;
         padding: var(--spacing-6);
         border-radius: var(--radius-3);
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        box-shadow: var(--shadow-xs);
         border: none;
         cursor: default;
         width: auto;
@@ -2605,7 +2631,7 @@
         right: 0;
         bottom: 0;
         background-color: white;
-        z-index: 9999;
+        z-index: var(--z-index-tooltip);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -2710,7 +2736,7 @@
         flex-direction: column;
         gap: var(--spacing-5);
         padding: var(--spacing-8);
-        background-color: var(--color-grey-5);
+        background-color: var(--color-grey-10);
         border-radius: var(--radius-4);
         border: 1px solid var(--color-grey-20);
     }
@@ -2745,7 +2771,7 @@
         padding: var(--spacing-3) var(--spacing-6);
         border: 1px solid var(--color-grey-30);
         border-radius: var(--radius-7);
-        background-color: var(--color-grey-5);
+        background-color: var(--color-grey-10);
         color: var(--color-grey-80);
         font-size: var(--font-size-xxs);
         cursor: pointer;
@@ -2776,7 +2802,7 @@
     }
 
     .short-link-generate-button:hover:not(:disabled) {
-        background-color: var(--color-grey-15, #e8e8e8);
+        background-color: var(--color-grey-20);
     }
 
     .short-link-generate-button:disabled {
@@ -2799,7 +2825,7 @@
     }
 
     .short-link-copy-button:hover {
-        background-color: var(--color-grey-15, #e8e8e8);
+        background-color: var(--color-grey-20);
         border-color: var(--color-grey-50);
     }
 
