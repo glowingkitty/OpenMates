@@ -21,6 +21,7 @@ PLAINTEXT_CONNECTED_ACCOUNT_FIELDS: set[str] = {
     "email",
     "account_email",
     "account_label",
+    "client_id",
     "display_name",
     "oauth_scopes",
     "scopes",
@@ -34,6 +35,7 @@ PLAINTEXT_CONNECTED_ACCOUNT_FIELDS: set[str] = {
     "password",
     "credential",
     "credentials",
+    "private_key",
     "secret",
 }
 

@@ -1,0 +1,105 @@
+id: finance
+name_translation_key: finance
+description_translation_key: finance.description
+icon_image: finance.svg
+category: personal
+last_updated: "2026-07-20"
+settings_and_memories: []
+embed_types:
+  - id: check_accounts
+    category: app-skill-use
+    skill_id: check_accounts
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: false
+    groupable: true
+    preview_component: finance/FinanceCheckAccountsEmbedPreview.svelte
+    fullscreen_component: finance/FinanceCheckAccountsEmbedFullscreen.svelte
+    icon: finance
+    gradient_var: "--color-app-finance"
+    i18n_namespace: embeds.finance.check_accounts
+    content_fields:
+      - name: period
+        type: string
+      - name: account_count
+        type: number
+      - name: transaction_count
+        type: number
+      - name: overview
+        type: object
+skills:
+  - id: check_accounts
+    name_translation_key: app_skills.finance.check_accounts
+    description_translation_key: app_skills.finance.check_accounts.description
+    icon_image: finance.svg
+    class_path: backend.apps.finance.skills.check_accounts.CheckAccountsSkill
+    providers:
+      - id: revolut_business
+        name: Revolut Business
+        no_api_key: true
+    pricing:
+      fixed: 1
+    preprocessor_hint: >
+      Read connected Revolut Business account data and canonical OpenMates CSV or TSV
+      bank statements to summarize balances, income, expenses, category spending,
+      recurring items, and deterministic projections. Use only for read-only
+      personal or business finance overview; do not initiate payments, transfers,
+      investment advice, tax advice, credit decisions, or account mutations.
+    api_config:
+      expose_post: false
+    tool_schema:
+      type: object
+      properties:
+        period:
+          type: string
+          enum: [monthly, quarterly, yearly, custom]
+          default: monthly
+        start_date:
+          type: string
+        end_date:
+          type: string
+        projection_horizon:
+          type: string
+          enum: [monthly, quarterly, yearly]
+          default: monthly
+        connected_account_requests:
+          type: array
+          items:
+            type: object
+            properties:
+              source_ref:
+                type: string
+              access_token_handle:
+                type: string
+        csv_statements:
+          type: array
+          items:
+            type: object
+            properties:
+              filename:
+                type: string
+              content:
+                type: string
+      required: [period]
+    workflow:
+      available: true
+      execution_mode: sync
+      effect: read
+      unattended: true
+      approval: never
+      binding_requirements: [connected_account_or_csv]
+      test_allowed: true
+      test_example_input:
+        period: monthly
+        projection_horizon: quarterly
+      output_schema:
+        type: object
+        properties:
+          summary:
+            type: string
+          account_count:
+            type: integer
+          transaction_count:
+            type: integer
+          overview:
+            type: object
