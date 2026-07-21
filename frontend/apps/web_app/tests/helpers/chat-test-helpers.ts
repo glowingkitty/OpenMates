@@ -1044,7 +1044,7 @@ async function waitForAssistantResponse(page: any, timeout = 60000): Promise<any
  *  1. `data-authenticated="true"` marker is present (set by ActiveChat.svelte
  *     when authStore.isAuthenticated flips to true).
  *  2. `message-editor` is visible.
- *  3. A short settle lets post-login WebSocket and sync initialization start.
+ *  3. Dev-only E2E hook reports the browser online and chat WebSocket ready.
  *
  * The send button is intentionally absent while the composer is empty, so it is
  * not a reliable readiness signal for specs that only need post-login UI access.
@@ -1061,12 +1061,40 @@ async function waitForChatReady(
 	await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: budget() });
 	await expect(page.locator('[data-hash-router-ready="true"]')).toBeVisible({ timeout: budget() });
 
-	// Small post-mount settle: the MessageInput mounts before chatSyncService finishes
-	// its initial WS handshake. 1.5s matches the pattern in chat-flow.spec.ts which
-	// passes reliably on nightly.
-	await page.waitForTimeout(1500);
+	let lastConnectionState: Record<string, unknown> | null = null;
+	try {
+		await expect.poll(async () => {
+			lastConnectionState = await page.evaluate(async () => {
+				const testWindow = window as unknown as {
+					__openmatesE2EChatConnectionState?: () => Promise<{
+						online: boolean;
+						websocketConnected: boolean;
+						cachePrimed: boolean;
+					}>;
+				};
+				if (typeof testWindow.__openmatesE2EChatConnectionState !== 'function') {
+					return { hookAvailable: false, online: window.navigator.onLine };
+				}
+				const state = await testWindow.__openmatesE2EChatConnectionState();
+				return { hookAvailable: true, ...state };
+			}).catch((error: unknown) => ({ hookAvailable: false, error: String(error) }));
 
-	logCheckpoint('Chat UI ready: authenticated + editor + hash router mounted.');
+			return Boolean(
+				lastConnectionState.hookAvailable &&
+				lastConnectionState.online &&
+				lastConnectionState.websocketConnected &&
+				lastConnectionState.cachePrimed
+			);
+		}, {
+			timeout: budget(),
+			intervals: [250, 500, 1000]
+		})
+		.toBe(true);
+	} catch (error) {
+		throw new Error(`Chat transport not ready: ${JSON.stringify(lastConnectionState)}. Original: ${error}`);
+	}
+
+	logCheckpoint('Chat UI ready: authenticated + editor + hash router + transport ready.', lastConnectionState ?? undefined);
 }
 
 /**

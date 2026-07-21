@@ -23,6 +23,11 @@ async function installE2ETestHooks() {
       chat: Record<string, unknown>;
       messages: Record<string, unknown>[];
     }) => Promise<{ chatId: string; messageCount: number }>;
+    __openmatesE2EChatConnectionState?: () => Promise<{
+      online: boolean;
+      websocketConnected: boolean;
+      cachePrimed: boolean;
+    }>;
   };
 
   testWindow.__openmatesE2ESeedChat = async ({ chat, messages }) => {
@@ -41,6 +46,15 @@ async function installE2ETestHooks() {
     }
     window.dispatchEvent(new CustomEvent("localChatListChanged", { detail: { chat_id: chatId } }));
     return { chatId, messageCount: messages.length };
+  };
+
+  testWindow.__openmatesE2EChatConnectionState = async () => {
+    const { chatSyncService } = await import("./services/chatSyncService");
+    return {
+      online: window.navigator.onLine,
+      websocketConnected: chatSyncService.webSocketConnected_FOR_SENDERS_ONLY,
+      cachePrimed: chatSyncService.cachePrimed_FOR_HANDLERS_ONLY,
+    };
   };
 }
 
