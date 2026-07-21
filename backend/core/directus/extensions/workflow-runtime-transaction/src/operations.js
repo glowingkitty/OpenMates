@@ -222,7 +222,12 @@ async function startClaimedRun(database, raw, now) {
     const trigger = await lockedTrigger(trx, triggerId);
     if (!activeClaim(trigger, now) || trigger.claim_generation !== generation || trigger.claim_token_hash !== claimTokenHash) fail(409, 'stale_claim');
     const run = await trx(RUNS).where({ run_id: runId, trigger_id: triggerId }).forUpdate().first();
-    if (!run) fail(404, 'run_not_found');
+    if (!run) {
+      await trx(TRIGGERS).where({ trigger_id: triggerId, claim_generation: generation }).update({
+        claim_status: null, claim_token_hash: null, claimed_at: null, claim_expires_at: null,
+      });
+      return { started: false, run_id: runId, status: 'missing_run', stale_claim_released: true };
+    }
     if (run.status === 'running' || run.status === 'cancellation_requested' || run.status === 'cancelled') {
       return { started: false, run_id: run.run_id, workflow_id: run.workflow_id, version_id: run.version_id, status: run.status };
     }

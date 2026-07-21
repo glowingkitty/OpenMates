@@ -155,7 +155,7 @@ class DirectusService:
         # user_passkeys contains user_id which requires admin permissions
         # usage collection contains encrypted user data and requires admin permissions
         # directus_sessions is a system collection that requires admin permissions
-        sensitive_collections = ['users', 'directus_users', 'directus_roles', 'directus_permissions', 'user_passkeys', 'usage', 'directus_sessions']
+        sensitive_collections = ['users', 'directus_users', 'directus_roles', 'directus_permissions', 'user_passkeys', 'usage', 'usage_period_rollups', 'directus_sessions']
         
         if admin_required or collection in sensitive_collections:
             # Ensure we have a valid admin token for sensitive collections
@@ -1126,7 +1126,7 @@ class DirectusService:
             url = f"{self.base_url}/items/{collection}/{item_id}"
 
         # For sensitive collections or when explicitly requested, use admin token
-        sensitive_collections = ['users', 'directus_users', 'directus_roles', 'directus_permissions', 'user_passkeys', 'usage', 'directus_sessions', 'demo_chats']
+        sensitive_collections = ['users', 'directus_users', 'directus_roles', 'directus_permissions', 'user_passkeys', 'usage', 'usage_period_rollups', 'directus_sessions', 'demo_chats']
         headers = {}
         if admin_required or collection in sensitive_collections:
             # Ensure we have a valid admin token for sensitive collections

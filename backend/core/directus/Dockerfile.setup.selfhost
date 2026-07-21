@@ -11,6 +11,8 @@ COPY setup /usr/src/app
 COPY schemas /usr/src/app/schemas
 COPY setup/migrate_chat_recovery_unique_indexes.sql /usr/src/app/migrations/migrate_chat_recovery_unique_indexes.sql
 COPY setup/migrate_workflow_runtime_indexes.sql /usr/src/app/migrations/migrate_workflow_runtime_indexes.sql
+COPY setup/migrate_user_task_indexes.sql /usr/src/app/migrations/migrate_user_task_indexes.sql
+COPY setup/migrate_usage_overview_indexes.sql /usr/src/app/migrations/migrate_usage_overview_indexes.sql
 
 RUN pip install --no-cache-dir requests pyyaml python-dotenv "psycopg[binary]" \
     && chmod +x setup_schemas.py

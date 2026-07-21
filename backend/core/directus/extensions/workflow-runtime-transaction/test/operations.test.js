@@ -279,6 +279,26 @@ test('cancelling a queued scheduled run releases its lease and advances the occu
   assert.equal(advanced.next_run_at, 1_783_929_600);
 });
 
+test('missing scheduled run releases the stale claim so the occurrence can be reclaimed', async () => {
+  const database = fakeDatabase({ workflow_triggers: [scheduleTrigger()], workflow_runs: [], workflow_event_receipts: [] });
+  const claim = await executeOperation(database, 'claim_due_trigger', { protocol_version: 1, trigger_id: 'trigger-1' }, NOW);
+  database.rows.workflow_runs = [];
+
+  const started = await executeOperation(database, 'start_claimed_run', {
+    protocol_version: 1, trigger_id: 'trigger-1', run_id: claim.run_id,
+    claim_generation: claim.claim_generation, claim_token: claim.claim_token,
+  }, NOW);
+
+  assert.deepEqual(started, {
+    started: false, run_id: claim.run_id, status: 'missing_run', stale_claim_released: true,
+  });
+  assert.equal(database.rows.workflow_triggers[0].claim_status, null);
+  const reclaimed = await executeOperation(database, 'claim_due_trigger', { protocol_version: 1, trigger_id: 'trigger-1' }, NOW);
+  assert.equal(reclaimed.accepted, true);
+  assert.notEqual(reclaimed.run_id, claim.run_id);
+  assert.equal(database.rows.workflow_runs.length, 1);
+});
+
 test('event acceptance stores one payload-free receipt and one run', async () => {
   const eventTrigger = {
     trigger_id: 'trigger-event', workflow_id: 'workflow-1', version_id: 'version-1', hashed_user_id: OWNER,
