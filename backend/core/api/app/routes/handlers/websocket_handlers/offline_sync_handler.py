@@ -13,6 +13,17 @@ from backend.core.api.app.tasks.celery_config import app as celery_app_instance
 
 logger = logging.getLogger(__name__)
 
+
+def _cached_version_component(server_versions: Any, component: str) -> int:
+    """Return a cached version component, including dynamic Pydantic extra fields."""
+    value = getattr(server_versions, component, None)
+    if value is None:
+        value = (getattr(server_versions, "model_extra", None) or {}).get(component)
+    try:
+        return int(value or 0)
+    except (TypeError, ValueError):
+        return 0
+
 async def handle_sync_offline_changes(
     websocket: WebSocket,
     manager: ConnectionManager,
@@ -28,7 +39,7 @@ async def handle_sync_offline_changes(
     
     _otel_span, _otel_token = None, None
     try:
-        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span, end_ws_handler_span
+        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span
         _otel_span, _otel_token = start_ws_handler_span("sync_offline_changes", user_id, payload, user_otel_attrs)
     except Exception:
         pass
@@ -66,15 +77,19 @@ async def handle_sync_offline_changes(
                 # 2. Conflict Resolution
                 server_current_version = -1
                 component_key: Optional[str] = None
+                client_version_key: Optional[str] = None
                 if change_type == "title":
-                    server_current_version = server_versions.title_v
+                    server_current_version = _cached_version_component(server_versions, "title_v")
                     component_key = "title_v"
+                    client_version_key = "title_v"
                 elif change_type == "draft":
-                    server_current_version = server_versions.draft_v
-                    component_key = "draft_v"
+                    server_current_version = _cached_version_component(server_versions, f"user_draft_v:{user_id}")
+                    component_key = f"user_draft_v:{user_id}"
+                    client_version_key = "draft_v"
                 elif change_type == "delete_draft":
-                    server_current_version = server_versions.draft_v
-                    component_key = "draft_v"
+                    server_current_version = _cached_version_component(server_versions, f"user_draft_v:{user_id}")
+                    component_key = f"user_draft_v:{user_id}"
+                    client_version_key = "draft_v"
                 else:
                     logger.warning(f"Skipping offline change for chat {chat_id}: Unknown change type '{change_type}'.")
                     error_count += 1
@@ -158,13 +173,20 @@ async def handle_sync_offline_changes(
                     # Content is already encrypted, use directly
                     encrypted_value_str = encrypted_draft_md
 
-                    # Update Cache Version & Data
-                    new_cache_version = await cache_service.increment_chat_component_version(user_id, chat_id, "draft_v")
+                    # Update user-specific draft version and data. Drafts are no longer
+                    # shared chat version components; each user owns an encrypted draft.
+                    new_cache_version = await cache_service.increment_user_draft_version(user_id, chat_id)
                     if new_cache_version is None:
                         logger.error(f"Failed to increment draft_v in cache for offline change (chat {chat_id}).")
                         error_count += 1
                         continue
-                    await cache_service.update_chat_list_item_field(user_id, chat_id, "encrypted_draft_md", encrypted_value_str)
+                    await cache_service.update_user_draft_in_cache(
+                        user_id,
+                        chat_id,
+                        encrypted_value_str,
+                        new_cache_version,
+                        encrypted_draft_preview=change.get("encrypted_draft_preview"),
+                    )
 
                     # NO immediate persistence task for drafts
 
@@ -249,7 +271,7 @@ async def handle_sync_offline_changes(
                     "event": broadcast_event,
                     "chat_id": chat_id,
                     "data": {broadcast_data_key: broadcast_data_value},
-                    "versions": {component_key: new_cache_version}
+                    "versions": {client_version_key or component_key: new_cache_version}
                 }
                 if update_timestamp:
                     broadcast_payload["last_edited_overall_timestamp"] = now_ts
@@ -270,7 +292,8 @@ async def handle_sync_offline_changes(
                         message={"type": "error", "payload": {"message": f"Error processing an offline change for chat {change.get('chat_id')}", "change": change}},
                         user_id=user_id, device_fingerprint_hash=device_fingerprint_hash
                      )
-                except: pass # Ignore send error
+                except Exception:
+                    pass  # Ignore send error
 
         logger.info(f"Finished processing offline changes for user {user_id}. Processed: {processed_count}, Conflicts: {conflict_count}, Errors: {error_count}.")
         # Optionally send a summary confirmation back to the client device
@@ -279,7 +302,8 @@ async def handle_sync_offline_changes(
                 message={"type": "offline_sync_complete", "payload": {"processed": processed_count, "conflicts": conflict_count, "errors": error_count}},
                 user_id=user_id, device_fingerprint_hash=device_fingerprint_hash
             )
-        except: pass
+        except Exception:
+            pass
     finally:
         if _otel_span is not None:
             try:

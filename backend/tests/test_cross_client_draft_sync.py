@@ -20,6 +20,9 @@ from backend.core.api.app.routes.handlers.websocket_handlers.get_draft_versions_
     get_authoritative_user_draft,
     handle_get_draft_versions,
 )
+from backend.core.api.app.routes.handlers.websocket_handlers.offline_sync_handler import (
+    handle_sync_offline_changes,
+)
 from backend.core.api.app.routes.handlers.websocket_handlers.phased_sync_handler import (
     _apply_authoritative_draft_metadata,
     _authoritative_chat_reconciliation,
@@ -28,6 +31,7 @@ from backend.core.api.app.routes.handlers.websocket_handlers.phased_sync_handler
     _phase2_metadata_is_current,
 )
 from backend.core.api.app.routes.chats import get_draft
+from backend.core.api.app.schemas.chat import CachedChatVersions
 from backend.core.api.app.services.cache_chat_mixin import ChatCacheMixin
 from backend.core.api.app.tasks.persistence_tasks import _async_persist_user_draft_task
 
@@ -40,8 +44,8 @@ class _Manager:
     async def send_personal_message(self, message, user_id, device_fingerprint_hash):
         self.sent.append(message)
 
-    async def broadcast_to_user(self, message, user_id, exclude_device_hash):
-        self.broadcasts.append(message)
+    async def broadcast_to_user(self, message=None, user_id=None, exclude_device_hash=None, message_content=None):
+        self.broadcasts.append(message if message is not None else message_content)
 
 
 class _WebSocket:
@@ -323,6 +327,59 @@ async def test_late_ideabucket_draft_persistence_skips_sent_window(monkeypatch) 
     )
 
     assert closed == [True]
+
+
+@pytest.mark.anyio
+async def test_offline_draft_sync_uses_user_specific_draft_version() -> None:
+    manager = _Manager()
+    draft_updates = []
+
+    class Cache:
+        async def get_chat_versions(self, user_id, chat_id):
+            return CachedChatVersions(
+                messages_v=0,
+                title_v=0,
+                **{"user_draft_v:user-1": 4},
+            )
+
+        async def increment_user_draft_version(self, user_id, chat_id):
+            draft_updates.append(("increment", user_id, chat_id))
+            return 5
+
+        async def update_user_draft_in_cache(self, user_id, chat_id, encrypted_md, draft_v, *, encrypted_draft_preview):
+            draft_updates.append(("update", user_id, chat_id, encrypted_md, draft_v, encrypted_draft_preview))
+            return True
+
+        async def update_chat_score_in_ids_versions(self, user_id, chat_id, timestamp):
+            draft_updates.append(("score", user_id, chat_id, timestamp))
+            return True
+
+    await handle_sync_offline_changes(
+        websocket=_WebSocket(),
+        manager=manager,
+        cache_service=Cache(),
+        directus_service=SimpleNamespace(),
+        encryption_service=None,
+        user_id="user-1",
+        device_fingerprint_hash="device-1",
+        payload={"changes": [{
+            "chat_id": "chat-1",
+            "type": "draft",
+            "value": "cipher-md",
+            "version_before_edit": 4,
+            "change_id": "change-1",
+        }]},
+    )
+
+    assert draft_updates[0] == ("increment", "user-1", "chat-1")
+    assert draft_updates[1] == ("update", "user-1", "chat-1", "cipher-md", 5, None)
+    assert manager.broadcasts[0]["event"] == "chat_draft_updated"
+    assert manager.broadcasts[0]["versions"] == {"draft_v": 5}
+    assert "user_draft_v" not in str(manager.broadcasts[0])
+    assert manager.sent[-1] == {
+        "type": "offline_sync_complete",
+        "payload": {"processed": 1, "conflicts": 0, "errors": 0},
+    }
 
 
 @pytest.mark.anyio
