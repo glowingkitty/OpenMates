@@ -18,7 +18,7 @@ function deriveApiUrl(baseUrl: string): string {
 }
 
 test.describe('Feature availability', () => {
-	test('enabled platform workspaces stay visible while disabled platform features stay hidden', async ({ page }) => {
+	test('server-enabled platform workspaces follow web release gates', async ({ page }) => {
 		test.setTimeout(120000);
 
 		const apiUrl = deriveApiUrl(process.env.PLAYWRIGHT_TEST_BASE_URL || '');
@@ -40,7 +40,7 @@ test.describe('Feature availability', () => {
 
 		await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 30000 });
 		await expect(page.getByTestId('chats-nav-link')).toBeVisible({ timeout: 30000 });
-		await expect(page.getByTestId('projects-nav-link')).toBeVisible({ timeout: 30000 });
+		await expect(page.getByTestId('projects-nav-link')).toHaveCount(0);
 		await expect(page.getByTestId('plans-nav-link')).toBeVisible({ timeout: 30000 });
 		await expect(page.getByTestId('workflows-nav-link')).toBeVisible();
 		await expect(page.getByTestId('tasks-nav-link')).toBeVisible();
