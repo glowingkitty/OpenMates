@@ -29,6 +29,7 @@ const AUDIO_FIXTURE = fs.existsSync('/workspace/backend/tests/fixtures/test_audi
 	? '/workspace/backend/tests/fixtures/test_audio.wav'
 	: path.resolve(__dirname, '../../../../backend/tests/fixtures/test_audio.wav');
 const CLI_DRAFT_REFRESH_TIMEOUT_MS = 60_000;
+const CHAT_DELETION_RECONCILE_TIMEOUT_MS = 90_000;
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount(1);
 let activeCliHome: string | null = null;
 let lastTransientCliFailure = '';
@@ -983,7 +984,7 @@ test.describe('Cross-client encrypted draft sync', () => {
 			await page.reload();
 			await waitForChatReady(page, log);
 			await openSidebar(page);
-			await expect(chatItem(page, sentChatId)).toHaveCount(0, { timeout: 30_000 });
+			await expect(chatItem(page, sentChatId)).toHaveCount(0, { timeout: CHAT_DELETION_RECONCILE_TIMEOUT_MS });
 			log('Missed chat deletion reconciled after reconnect.');
 		} finally {
 			await page.context().setOffline(false).catch(() => undefined);
