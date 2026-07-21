@@ -190,10 +190,10 @@ test('purchases credits with saved payment method, then verifies invoice is down
 		await screenshot(page, 'no-saved-methods-fresh-form');
 
 		const consentToggle = page.locator('#limited-refund-consent-toggle');
-		if (await consentToggle.isVisible({ timeout: 3000 }).catch(() => false)) {
+		if (await consentToggle.waitFor({ state: 'attached', timeout: 5000 }).then(() => true).catch(() => false)) {
 			await setToggleChecked(consentToggle, true);
+			await expect(consentToggle).toBeHidden({ timeout: 10000 });
 			log('Accepted limited refund consent.');
-			await page.waitForTimeout(1000);
 		}
 
 		// Wait for any iframe (Stripe EU or Stripe Managed Payments) to confirm the payment component loaded.
@@ -212,7 +212,7 @@ test('purchases credits with saved payment method, then verifies invoice is down
 		// seed a saved payment method — Managed Payments does not produce a saved card on the customer.
 		const switchToEuCardBtn = page.getByRole('button', { name: /EU card|with an EU card/i });
 		if (await switchToEuCardBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-			await switchToEuCardBtn.click();
+			await switchToEuCardBtn.click({ timeout: 10000 });
 			log('Switched to EU card (Stripe) provider for seeding.');
 			await page.waitForTimeout(3000);
 		}
