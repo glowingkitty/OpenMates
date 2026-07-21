@@ -1723,12 +1723,30 @@ export class EmbedStore {
         return decryptedData;
       }
     } else {
-      // Decryption failed or skipped - this might be stored via putEncrypted() (plain JSON with encrypted fields)
+      // Decryption failed or skipped - this might be stored via putEncrypted()
+      // (plain JSON with encrypted fields) or as legacy cleartext TOON fixtures.
       try {
         parsed = JSON.parse(storedData);
-      } catch (error) {
-        console.error("[EmbedStore] Error parsing stored data as JSON:", error);
-        return storedData;
+      } catch {
+        const decoded = await decodeToonContentSilently(storedData);
+        if (!decoded || typeof decoded !== "object") {
+          console.debug(
+            "[EmbedStore] Stored data was neither JSON nor TOON:",
+            contentRef,
+          );
+          return storedData;
+        }
+
+        parsed = decoded as Record<string, unknown>;
+        embedCache.set(contentRef, {
+          ...entry,
+          data: parsed as unknown as string,
+          type: this.normalizeEmbedType(
+            (parsed.type as string) || entry.type || "unknown",
+          ),
+          app_id: typeof parsed.app_id === "string" ? parsed.app_id : entry.app_id,
+          skill_id: typeof parsed.skill_id === "string" ? parsed.skill_id : entry.skill_id,
+        });
       }
 
       // If parsed object has encrypted_content, decrypt using embed key
