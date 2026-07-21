@@ -17,6 +17,7 @@ x-openmates-worker-base: &openmates-worker-base
     BACKEND_CONFIG_FILE: /app_config/backend_config.yml
     LOG_LEVEL: ${LOG_LEVEL:-info}
     SERVER_ENVIRONMENT: ${SERVER_ENVIRONMENT}
+    MOCK_EXTERNAL_APIS: ${MOCK_EXTERNAL_APIS:-false}
   volumes:
     - ../../config:/app_config
     - vault-setup-data:/vault-data
@@ -49,6 +50,8 @@ services:
       INTERNAL_API_SHARED_TOKEN: ${INTERNAL_API_SHARED_TOKEN}
       PROVIDER_CONFIG_DIR: /app_config/providers
       BACKEND_CONFIG_FILE: /app_config/backend_config.yml
+      SERVER_ENVIRONMENT: ${SERVER_ENVIRONMENT}
+      MOCK_EXTERNAL_APIS: ${MOCK_EXTERNAL_APIS:-false}
     ports:
       - "127.0.0.1:8000:8000"
     volumes:

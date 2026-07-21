@@ -20,6 +20,7 @@ x-openmates-worker-base: &openmates-worker-base
     BACKEND_CONFIG_FILE: "/app_config/backend_config.yml"
     LOG_LEVEL: ${LOG_LEVEL:-info}
     SERVER_ENVIRONMENT: "${SERVER_ENVIRONMENT}"
+    MOCK_EXTERNAL_APIS: "${MOCK_EXTERNAL_APIS:-false}"
   volumes:
     - api-logs:/app/logs
     - ../../config:/app_config
@@ -57,6 +58,7 @@ services:
       INTERNAL_API_SHARED_TOKEN: "${INTERNAL_API_SHARED_TOKEN}"
       TUNNEL_TRIGGER_SECRET: "${TUNNEL_TRIGGER_SECRET}"
       SERVER_ENVIRONMENT: "${SERVER_ENVIRONMENT}"
+      MOCK_EXTERNAL_APIS: "${MOCK_EXTERNAL_APIS:-false}"
       APPLICATION_PREVIEW_ORIGIN: "${APPLICATION_PREVIEW_ORIGIN:-}"
       CORE_SIDECAR_URL: "http://admin-sidecar:8001"
       PROVIDER_CONFIG_DIR: "/app_config/providers"
