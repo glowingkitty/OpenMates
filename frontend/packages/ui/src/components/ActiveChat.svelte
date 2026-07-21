@@ -2578,6 +2578,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 if (freshChat) {
                     // Update currentChat with latest metadata
                     currentChat = { ...currentChat, ...freshChat };
+                    await refreshActiveChatHeaderFromStoredChat(chatId, 'post-processing completed');
                     console.debug('[ActiveChat] Refreshed currentChat with latest metadata from database after post-processing');
                     
                     // Load follow-up suggestions from the database (source of truth)
