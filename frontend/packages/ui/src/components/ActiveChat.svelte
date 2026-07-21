@@ -185,6 +185,8 @@
     const DRAFT_RESTORE_APPLY_DELAY_MS = 50;
     const DRAFT_EMBED_HYDRATION_ATTEMPTS = 20;
     const DRAFT_EMBED_HYDRATION_DELAY_MS = 250;
+    const ON_DEMAND_MESSAGE_LOAD_POLL_ATTEMPTS = 20;
+    const ON_DEMAND_MESSAGE_LOAD_POLL_DELAY_MS = 500;
     const EMBED_ID_IN_REF_RE = /[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/i;
     // Temporary rollout gate: the current chat details/settings panel does not
     // match product requirements. Keep code in place for the redesign, but make
@@ -8885,6 +8887,19 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     console.info(`[ActiveChat] No local messages for ${currentChat.chat_id} — requesting from server (on-demand loading)`);
                     try {
                         await chatSyncService.requestChatContentBatch_FOR_HANDLERS_ONLY([currentChat.chat_id]);
+                        if ((currentChat.messages_v ?? 0) > 0) {
+                            for (let attempt = 0; attempt < ON_DEMAND_MESSAGE_LOAD_POLL_ATTEMPTS; attempt++) {
+                                if (thisLoadGeneration !== loadChatGeneration) return;
+                                await new Promise((resolve) => setTimeout(resolve, ON_DEMAND_MESSAGE_LOAD_POLL_DELAY_MS));
+                                const hydratedWindow = await chatDB.getMessageWindowForChat(currentChat.chat_id, { direction: 'latest' });
+                                if (hydratedWindow.messages.length > 0) {
+                                    newMessages = hydratedWindow.messages;
+                                    currentMessageWindowHasMoreBefore = hydratedWindow.hasMoreBefore;
+                                    console.info(`[ActiveChat] On-demand message load hydrated ${newMessages.length} message(s) for ${currentChat.chat_id}`);
+                                    break;
+                                }
+                            }
+                        }
                     } catch (err) {
                         console.error(`[ActiveChat] Failed to request messages from server for ${currentChat.chat_id}:`, err);
                     }

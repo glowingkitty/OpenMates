@@ -74,6 +74,8 @@ import { buildConnectedAccountSendContext, listConnectedAccounts } from "./conne
 
 // All payload interface definitions are now expected to be in types/chat.ts
 
+const CHAT_CONTENT_BATCH_WS_READY_TIMEOUT_MS = 8_000;
+
 export class ChatSynchronizationService extends EventTarget {
   private isSyncing = false;
   private serverChatOrder: string[] = [];
@@ -1660,7 +1662,27 @@ export class ChatSynchronizationService extends EventTarget {
   }
 
   private async requestChatContentBatch(chat_ids: string[]): Promise<void> {
-    if (!this.webSocketConnected || chat_ids.length === 0) return;
+    if (chat_ids.length === 0) return;
+    if (!this.webSocketConnected) {
+      await new Promise<void>((resolve) => {
+        const timeout = setTimeout(() => {
+          this.removeEventListener("webSocketConnected", handleConnected);
+          resolve();
+        }, CHAT_CONTENT_BATCH_WS_READY_TIMEOUT_MS);
+        const handleConnected = () => {
+          clearTimeout(timeout);
+          resolve();
+        };
+        this.addEventListener("webSocketConnected", handleConnected, { once: true });
+      });
+    }
+    if (!this.webSocketConnected) {
+      console.warn(
+        "[ChatSyncService] Skipping request_chat_content_batch because WebSocket did not connect in time.",
+        { chat_ids },
+      );
+      return;
+    }
     const payload: RequestChatContentBatchPayload = { chat_ids };
     try {
       await webSocketService.sendMessage("request_chat_content_batch", payload);
