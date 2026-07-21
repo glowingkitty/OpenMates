@@ -4311,7 +4311,7 @@
         // content and drop the newly attached PDF card.
         if (editor && !editor.isDestroyed && currentChatId) {
             updateOriginalMarkdown(editor);
-            triggerSaveDraft(currentChatId, editor);
+            await flushSaveDraft(editor, currentChatId);
         }
 
         // Find which chat this embed belongs to (searches ALL pending sends across all chats)
