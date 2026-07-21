@@ -210,7 +210,7 @@
 
   .btn-rewind {
     background: none;
-    border: 1px solid var(--color-grey-35, #ced4da);
+    border: 1px solid var(--color-grey-40, #ced4da);
     border-radius: var(--radius-8, 8px);
     padding: var(--spacing-6, 6px) var(--spacing-12, 12px);
     font-size: var(--font-size-small, 13px);
@@ -220,7 +220,7 @@
   }
 
   .btn-rewind:hover {
-    background: var(--color-grey-15, #e9ecef);
+    background: var(--color-grey-20, #e9ecef);
   }
 
   .action-buttons {

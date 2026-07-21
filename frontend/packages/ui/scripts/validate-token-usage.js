@@ -10,6 +10,7 @@
 //
 // Checks:
 //   ERROR:   font-size with px units (accessibility violation)
+//   ERROR:   undefined generated grey color token references
 //   WARNING: Raw hex/rgb colors, z-index, border-radius, spacing, shadow, transition
 //   WARNING: Local CSS rules redefining a Phase E component primitive (use .ds-* class instead)
 
@@ -23,6 +24,11 @@ const __dirname = dirname(__filename);
 const UI_SRC = resolve(__dirname, "../src");
 const COMPONENTS_DIR = resolve(UI_SRC, "components");
 const ALLOWLIST_PATH = resolve(UI_SRC, "tokens/.token-allowlist.json");
+const GENERATED_THEME_PATH = resolve(UI_SRC, "tokens/generated/theme.generated.css");
+
+const DESIGN_TOKEN_PREFIXES = [
+  "--color-grey-",
+];
 
 // Load allowlist (file:line pairs that are intentionally hardcoded)
 let allowlist = {};
@@ -47,6 +53,33 @@ const LIFTED_PRIMITIVES = new Set([
   "loading-text",
   "save-button-container",
 ]);
+
+function loadDefinedDesignTokens() {
+  const generatedTheme = readFileSync(GENERATED_THEME_PATH, "utf-8");
+  const tokens = new Set();
+  const regex = /(--[a-zA-Z0-9_-]+)\s*:/g;
+  let match;
+  while ((match = regex.exec(generatedTheme)) !== null) {
+    tokens.add(match[1]);
+  }
+  return tokens;
+}
+
+const definedDesignTokens = loadDefinedDesignTokens();
+
+function isDesignTokenName(tokenName) {
+  return DESIGN_TOKEN_PREFIXES.some((prefix) => tokenName.startsWith(prefix));
+}
+
+function extractVarReferences(line) {
+  const tokenNames = [];
+  const regex = /var\(\s*(--[a-zA-Z0-9_-]+)/g;
+  let match;
+  while ((match = regex.exec(line)) !== null) {
+    tokenNames.push(match[1]);
+  }
+  return tokenNames;
+}
 
 function extractStyleBlocks(content) {
   const blocks = [];
@@ -80,6 +113,15 @@ function validateFile(filePath, relPath) {
       if (/font-size:\s*\d+(?:\.\d+)?px/.test(line) && !line.includes("var(")) {
         violations.push({ line: lineNum, severity: "error", rule: "font-size-px",
           message: `font-size uses px — use var(--font-size-*) token (rem for accessibility)` });
+      }
+
+      // ERROR: generated grey color references must resolve in the token source
+      // of truth. Fallbacks hide regressions in dark mode.
+      for (const tokenName of extractVarReferences(line)) {
+        if (isDesignTokenName(tokenName) && !definedDesignTokens.has(tokenName)) {
+          violations.push({ line: lineNum, severity: "error", rule: "undefined-token",
+            message: `Undefined grey color token ${tokenName} — add it to generated tokens or use an existing token` });
+        }
       }
 
       // WARNING: raw hex colors in style properties
@@ -176,4 +218,14 @@ function main() {
   console.log("[validate-token-usage] ✓ Passed.");
 }
 
-main();
+if (process.argv[1] === __filename) {
+  main();
+}
+
+export {
+  extractStyleBlocks,
+  extractVarReferences,
+  isDesignTokenName,
+  loadDefinedDesignTokens,
+  validateFile,
+};

@@ -210,7 +210,7 @@
   }
 
   .option-item.interactive:hover {
-    background: var(--color-grey-15, #f1f3f5);
+    background: var(--color-grey-20, #f1f3f5);
     border-color: var(--color-grey-30, #dee2e6);
   }
 
