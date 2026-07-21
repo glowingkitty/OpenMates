@@ -147,5 +147,6 @@ describe('draftWebsocket chat_draft_updated', () => {
     });
 
     expect(mocks.setContent).not.toHaveBeenCalled();
+    expect(mocks.chatDB.upsertRawChat).not.toHaveBeenCalled();
   });
 });

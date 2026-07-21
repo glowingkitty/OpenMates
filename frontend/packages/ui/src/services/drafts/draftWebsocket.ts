@@ -19,6 +19,85 @@ import { getEditorInstance } from "./draftCore";
 
 // --- WebSocket Handlers ---
 
+const LOCAL_EMBED_MARKERS = ["embed:", '"embed_id"', "```json_embed", "[PDF]"] as const;
+
+async function decryptDraftMarkdown(
+  encryptedDraftMarkdown: string | null | undefined,
+  context: string,
+): Promise<{ markdown: string; content: TiptapJSON | null }> {
+  if (!encryptedDraftMarkdown) {
+    return { markdown: "", content: null };
+  }
+
+  try {
+    const markdown = await decryptWithMasterKey(encryptedDraftMarkdown);
+    if (!markdown) {
+      return { markdown: "", content: null };
+    }
+    return {
+      markdown,
+      content: parse_message(markdown, "write", {
+        unifiedParsingEnabled: true,
+      }),
+    };
+  } catch (error) {
+    console.error(`[DraftService] Error decrypting draft content for ${context}:`, error);
+    return { markdown: "", content: null };
+  }
+}
+
+function shouldPreserveActiveLocalDraft(
+  chatId: string,
+  incomingMarkdown: string,
+  incomingDraftVersion: number | null,
+  currentState: DraftEditorState,
+  source: string,
+): boolean {
+  if (currentState.currentChatId !== chatId) {
+    return false;
+  }
+
+  const editorInstance = getEditorInstance();
+  if (!editorInstance) {
+    return false;
+  }
+
+  const currentEditorMarkdown = tipTapToCanonicalMarkdown(
+    editorInstance.getJSON() as TiptapJSON,
+  );
+  if (currentEditorMarkdown === incomingMarkdown) {
+    return false;
+  }
+
+  const currentContentChangedSinceLastSave =
+    currentState.hasUnsavedChanges ||
+    currentState.isSaveInProgress ||
+    (currentState.lastSavedContentMarkdown !== null &&
+      currentEditorMarkdown !== currentState.lastSavedContentMarkdown);
+  const incomingIsNotNewer =
+    incomingDraftVersion !== null &&
+    incomingDraftVersion <= currentState.currentUserDraftVersion;
+  const localHasEmbedReference = LOCAL_EMBED_MARKERS.some((marker) =>
+    currentEditorMarkdown.includes(marker),
+  );
+  const incomingMissingLocalEmbedReference =
+    localHasEmbedReference &&
+    !LOCAL_EMBED_MARKERS.some((marker) => incomingMarkdown.includes(marker));
+
+  if (
+    currentContentChangedSinceLastSave ||
+    incomingIsNotNewer ||
+    incomingMissingLocalEmbedReference
+  ) {
+    console.info(
+      `[DraftService] Preserving active local draft for chat ${chatId}; ${source} content is older than local editor content`,
+    );
+    return true;
+  }
+
+  return false;
+}
+
 const handleDraftUpdated = async (
   payload: ServerChatDraftUpdatedEventPayload,
 ) => {
@@ -42,6 +121,21 @@ const handleDraftUpdated = async (
   );
 
   let dbOperationSuccess = false;
+
+  const { markdown: incomingMarkdown, content: decryptedDraftContent } =
+    await decryptDraftMarkdown(encrypted_draft_md, "chat_draft_updated");
+
+  if (
+    shouldPreserveActiveLocalDraft(
+      chat_id,
+      incomingMarkdown,
+      newUserDraftVersion,
+      currentEditorState,
+      "chat_draft_updated",
+    )
+  ) {
+    return;
+  }
 
   // Update the user's draft directly within the Chat object in IndexedDB
   try {
@@ -133,34 +227,11 @@ const handleDraftUpdated = async (
     // but if direct manipulation is needed:
     const editorInstance = getEditorInstance();
     if (editorInstance && editorInstance.isEditable) {
-      // Decrypt the draft content first
-      let decryptedDraftContent: TiptapJSON | null = null;
-      if (encrypted_draft_md) {
-        try {
-          const decryptedMarkdown =
-            await decryptWithMasterKey(encrypted_draft_md);
-          if (decryptedMarkdown) {
-            // Parse markdown back to TipTap JSON
-            decryptedDraftContent = parse_message(decryptedMarkdown, "write", {
-              unifiedParsingEnabled: true,
-            });
-          }
-        } catch (error) {
-          console.error(
-            "[DraftService] Error decrypting draft content for editor update:",
-            error,
-          );
-        }
-      }
-
       // Check if editor content needs updating (e.g., if this update came from another device)
       const currentEditorContent = editorInstance.getJSON();
       const currentEditorMarkdown = tipTapToCanonicalMarkdown(
         currentEditorContent as TiptapJSON,
       );
-      const incomingMarkdown = encrypted_draft_md
-        ? await decryptWithMasterKey(encrypted_draft_md)
-        : "";
       const latestEditorState = get(draftEditorUIState);
       const currentContentChangedSinceLastSave = currentEditorMarkdown !== incomingMarkdown && (
         latestEditorState.hasUnsavedChanges ||
@@ -249,6 +320,23 @@ const handleChatDetails = async (payload: ChatDetailsServerResponse) => {
   // Changed Chat to ChatDetailsServerResponse
   console.info(`[DraftService] Received chat_details:`, payload); // payload is of type ChatDetailsServerResponse
   let dbOperationSuccess = false;
+  const latestState = get(draftEditorUIState);
+  const { markdown: incomingDraftMarkdown, content: parsedDraftContent } =
+    await decryptDraftMarkdown(payload.encrypted_draft_md, "chat_details");
+  const decryptedDraftContent: TiptapJSON = parsedDraftContent ?? getInitialContent();
+
+  if (
+    shouldPreserveActiveLocalDraft(
+      payload.chat_id,
+      incomingDraftMarkdown,
+      payload.draft_v ?? null,
+      latestState,
+      "chat_details",
+    )
+  ) {
+    return;
+  }
+
   try {
     // The payload for 'chat_details' might still be based on the old 'Chat' type.
     // We need to adapt it to the new structure: separate Chat and UserChatDraft.
@@ -283,29 +371,6 @@ const handleChatDetails = async (payload: ChatDetailsServerResponse) => {
     // Section for separate UserChatDraft update is removed as draft is part of Chat object.
 
     // 2. Update draftEditorUIState and editor if this is the currently active chat
-    // Decrypt draft content before the update callback (since callbacks can't be async)
-    let decryptedDraftContent: TiptapJSON = getInitialContent();
-    let incomingDraftMarkdown = "";
-    if (payload.encrypted_draft_md) {
-      try {
-        const decryptedMarkdown = await decryptWithMasterKey(
-          payload.encrypted_draft_md,
-        );
-        if (decryptedMarkdown) {
-          incomingDraftMarkdown = decryptedMarkdown;
-          // Parse markdown back to TipTap JSON
-          decryptedDraftContent = parse_message(decryptedMarkdown, "write", {
-            unifiedParsingEnabled: true,
-          });
-        }
-      } catch (error) {
-        console.error(
-          "[DraftService] Error decrypting draft content from chat_details:",
-          error,
-        );
-      }
-    }
-
     draftEditorUIState.update((currentState) => {
       if (currentState.currentChatId === payload.chat_id) {
         console.info(
