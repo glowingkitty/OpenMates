@@ -2883,7 +2883,7 @@
         // belong to already-sent messages; this handler updates matching draft nodes
         // still present in the compose area.
         // We match by uploadEmbedId (server-assigned UUID) stored on the TipTap embed node.
-        embedUpdatedFromServerHandler = (event: Event) => {
+        embedUpdatedFromServerHandler = async (event: Event) => {
             const detail = (event as CustomEvent).detail as {
                 embed_id: string;
                 chat_id: string | null;
@@ -2937,6 +2937,8 @@
 
             if (targetPos === null) return; // No matching draft embed — nothing to do.
 
+            let shouldFlushDraft = false;
+
             if (status === 'error') {
                 // Update the TipTap node attrs so PDFEmbedPreview shows the error state.
                 const tr = editor.state.tr.setNodeMarkup(targetPos, undefined, {
@@ -2947,6 +2949,7 @@
                 console.info(
                     `[MessageInput] PDF embed ${embed_id} OCR failed — updated in-editor node to error state`
                 );
+                shouldFlushDraft = true;
             } else if ((status === 'finished' || status === 'completed') && !detail.isWaitingForContent) {
                 // OCR completed successfully — update the in-editor node so
                 // PDFEmbedPreview transitions from "Reading PDF…" to the page count.
@@ -2960,6 +2963,15 @@
                 console.info(
                     `[MessageInput] PDF embed ${embed_id} OCR finished — updated in-editor node to finished state`
                 );
+                shouldFlushDraft = true;
+            }
+
+            // Server PDF processing changes only embed attrs, so normal editor update
+            // handlers can skip it as text-identical. Persist immediately or stale
+            // draft echoes can restore an older composer without the PDF card.
+            if (shouldFlushDraft && currentChatId) {
+                updateOriginalMarkdown(editor);
+                await flushSaveDraft(editor, currentChatId);
             }
         };
         chatSyncService.addEventListener('embedUpdated', embedUpdatedFromServerHandler);
