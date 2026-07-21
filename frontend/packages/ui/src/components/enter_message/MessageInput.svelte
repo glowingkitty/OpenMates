@@ -52,6 +52,7 @@
     import type { Node as ProseMirrorNode } from '@tiptap/pm/model';
     import type { Content } from '@tiptap/core';
     import type { FocusModeMetadata } from '../../types/apps';
+    import type { AudioWaveformData } from '../../utils/audioWaveform';
 
     // Utils
     import {
@@ -2893,14 +2894,23 @@
 
             if (!editor || editor.isDestroyed) return;
 
-            // Walk the TipTap document looking for an embed node whose uploadEmbedId
-            // matches the server-assigned embed_id we just received.
+            // Walk the TipTap document looking for an embed node matching the
+            // server-assigned embed_id we just received. Prefer uploadEmbedId,
+            // but also match contentRef/id because restored draft nodes can lose
+            // ephemeral upload attrs while keeping the persisted server ref.
             // Use descendants() instead of forEach() — forEach only walks top-level nodes,
             // but embed nodes can be nested inside paragraphs or other container nodes.
             let targetPos: number | null = null;
             editor.state.doc.descendants((node, pos) => {
                 if (targetPos !== null) return false; // stop traversal once found
-                if (node.type.name === 'embed' && node.attrs.uploadEmbedId === embed_id) {
+                if (
+                    node.type.name === 'embed' &&
+                    (
+                        node.attrs.uploadEmbedId === embed_id ||
+                        node.attrs.contentRef === `embed:${embed_id}` ||
+                        node.attrs.id === embed_id
+                    )
+                ) {
                     targetPos = pos;
                     return false; // stop traversal
                 }
@@ -3939,8 +3949,8 @@
      *     });
      * }
      */
-    async function handleAudioRecorded(event: CustomEvent<{ blob: Blob, duration: number, mimeType: string }>) {
-        const { blob, duration, mimeType } = event.detail;
+    async function handleAudioRecorded(event: CustomEvent<{ blob: Blob, duration: number, mimeType: string, waveform?: AudioWaveformData }>) {
+        const { blob, duration, mimeType, waveform } = event.detail;
         const formattedDuration = formatDuration(duration);
         if (editor.isEmpty) { editor.commands.setContent(getInitialContent()); await tick(); }
 
@@ -3980,7 +3990,7 @@
         }
         // insertRecording() uploads to server + triggers Mistral Voxtral transcription in parallel.
         // It does NOT need a pre-created blob URL — it creates its own internally.
-        await insertRecording(editor, blob, mimeType, formattedDuration, $authStore.isAuthenticated, chatIdForRecording);
+        await insertRecording(editor, blob, mimeType, formattedDuration, $authStore.isAuthenticated, chatIdForRecording, waveform);
         hasContent = editorHasSendableText(editor);
         lastEditorUpdateText = editor.getText();
         triggerSaveDraft(chatIdForRecording || currentChatId, editor);

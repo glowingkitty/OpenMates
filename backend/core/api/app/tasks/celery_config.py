@@ -274,8 +274,18 @@ redis_retry_on_timeout = True
 
 
 
-# Dynamically generate configuration values from TASK_CONFIG
-include_modules = [config['module'] for config in TASK_CONFIG]
+def _task_configs_for_worker_queues(worker_queues_env: str) -> list[dict[str, str]]:
+    """Return task configs active for the current worker queue filter."""
+    if not worker_queues_env:
+        return TASK_CONFIG
+
+    designated_queue_names = {q.strip() for q in worker_queues_env.split(',') if q.strip()}
+    return [config for config in TASK_CONFIG if config['name'] in designated_queue_names]
+
+
+def _task_modules_for_worker_queues(worker_queues_env: str) -> list[str]:
+    """Return Celery task modules that should be imported by this process."""
+    return [config['module'] for config in _task_configs_for_worker_queues(worker_queues_env)]
 
 # =================================================================
 # WORKER-SPECIFIC QUEUE FILTERING
@@ -290,13 +300,13 @@ include_modules = [config['module'] for config in TASK_CONFIG]
 # For API/scheduler processes, we need ALL queues for routing tasks.
 
 worker_queues_env = os.getenv('CELERY_QUEUES', '')
+active_task_config = _task_configs_for_worker_queues(worker_queues_env)
+include_modules = _task_modules_for_worker_queues(worker_queues_env)
 if worker_queues_env:
     # Worker mode: Only include designated queues
-    designated_queue_names = {q.strip() for q in worker_queues_env.split(',')}
     task_queues = tuple(
         Queue(config['name'], exchange=config['name'], routing_key=config['name'])
-        for config in TASK_CONFIG
-        if config['name'] in designated_queue_names
+        for config in active_task_config
     )
     logger.info(f"[WORKER_QUEUE_FILTER] Worker mode - filtered queues to: {[q.name for q in task_queues]}")
 else:

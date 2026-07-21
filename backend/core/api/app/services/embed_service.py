@@ -5047,7 +5047,7 @@ class EmbedService:
                 )
 
                 # Track finished embeds as pending client encryption
-                if status == "finished":
+                if status == "finished" and chat_id and message_id:
                     await self._track_pending_embed(user_id, embed_id, log_prefix)
 
                 return True

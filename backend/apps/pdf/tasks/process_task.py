@@ -543,26 +543,25 @@ async def _async_process_pdf(task: BaseServiceTask, arguments: Dict[str, Any]) -
 
         chat_id = arguments.get("chat_id")
         message_id = arguments.get("message_id")
-        if chat_id and message_id:
-            await embed_service.send_embed_data_to_client(
-                embed_id=embed_id,
-                embed_type="pdf",
-                content_toon=content_toon,
-                chat_id=chat_id,
-                message_id=message_id,
-                user_id=user_id,
-                user_id_hash=user_id_hash,
-                status="finished",
-                encryption_mode="client",
-                created_at=now_ts,
-                updated_at=now_ts,
-                log_prefix=log_prefix,
-                check_cache_status=False,
-            )
-        else:
+        await embed_service.send_embed_data_to_client(
+            embed_id=embed_id,
+            embed_type="pdf",
+            content_toon=content_toon,
+            chat_id=chat_id or "",
+            message_id=message_id or "",
+            user_id=user_id,
+            user_id_hash=user_id_hash,
+            status="finished",
+            encryption_mode="client",
+            created_at=now_ts,
+            updated_at=now_ts,
+            log_prefix=log_prefix,
+            check_cache_status=False,
+        )
+        if not (chat_id and message_id):
             logger.info(
                 f"{log_prefix} PDF processed without chat/message context; "
-                "skipping client persistence event until contextual processing runs"
+                "sent draft completion event without client persistence context"
             )
 
         logger.info(
