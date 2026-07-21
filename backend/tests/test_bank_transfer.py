@@ -12,9 +12,60 @@ Execution:
 import hashlib
 import hmac
 import json
+import re
+import sys
 import time
+import types
 
 import pytest
+
+if "stripe" not in sys.modules:
+    stripe_module = types.ModuleType("stripe")
+
+    class FakeStripeError(Exception):
+        user_message = "stripe unavailable in tests"
+
+    class FakeStripeResource:
+        @staticmethod
+        def retrieve(*_args, **_kwargs):
+            raise FakeStripeError()
+
+        @staticmethod
+        def create(*_args, **_kwargs):
+            raise FakeStripeError()
+
+    stripe_module.Customer = FakeStripeResource
+    stripe_module.checkout = types.SimpleNamespace(Session=FakeStripeResource)
+    stripe_module.error = types.SimpleNamespace(StripeError=FakeStripeError)
+    sys.modules["stripe"] = stripe_module
+
+if "regex" not in sys.modules:
+    regex_module = types.ModuleType("regex")
+    regex_module.compile = re.compile
+    regex_module.match = re.match
+    regex_module.search = re.search
+    regex_module.sub = re.sub
+    regex_module.IGNORECASE = re.IGNORECASE
+    sys.modules["regex"] = regex_module
+
+if "backend.core.api.app.tasks.celery_config" not in sys.modules:
+    tasks_module = types.ModuleType("backend.core.api.app.tasks")
+    celery_config_module = types.ModuleType("backend.core.api.app.tasks.celery_config")
+    celery_config_module.app = types.SimpleNamespace(send_task=lambda **_kwargs: None)
+    tasks_module.__path__ = []
+    sys.modules["backend.core.api.app.tasks"] = tasks_module
+    sys.modules["backend.core.api.app.tasks.celery_config"] = celery_config_module
+
+if "backend.core.api.app.routes.websockets" not in sys.modules:
+    websockets_module = types.ModuleType("backend.core.api.app.routes.websockets")
+
+    async def fake_broadcast_to_user_specific_event(**_kwargs):
+        return None
+
+    websockets_module.manager = types.SimpleNamespace(
+        broadcast_to_user_specific_event=fake_broadcast_to_user_specific_event,
+    )
+    sys.modules["backend.core.api.app.routes.websockets"] = websockets_module
 
 from backend.core.api.app.routes import payments
 from backend.core.api.app.services.payment.revolut_business_service import (
@@ -441,7 +492,7 @@ class TestGiftCardBankTransferWebhook:
                 self.updated_items = []
                 self.updated_users = []
 
-            async def get_items(self, collection, params=None):
+            async def get_items(self, collection, params=None, **_kwargs):
                 if collection == "pending_bank_transfers":
                     return [{"id": "pending-row-id"}]
                 return []
@@ -518,3 +569,160 @@ class TestGiftCardBankTransferWebhook:
         assert sent_tasks[0]["name"] == "app.tasks.email_tasks.purchase_confirmation_email_task.process_invoice_and_send_email"
         assert sent_tasks[0]["kwargs"]["is_gift_card"] is True
         assert sent_tasks[0]["kwargs"]["gift_card_code"] == "GIFT-BANK-TEST"
+
+
+class TestTeamBankTransferWebhook:
+    """Regression coverage for team credits paid by SEPA transfer."""
+
+    @pytest.mark.asyncio
+    async def test_confirmed_team_transfer_grants_team_credits_not_personal_credits(self, monkeypatch):
+        reference = "OMT-team01-bt01"
+        order_id = "bt_team01"
+        user_id = "owner-123"
+        team_id = "team-123"
+        team_hash = hashlib.sha256(team_id.encode()).hexdigest()
+
+        class FakePaymentService:
+            revolut_business = object()
+
+        class FakeTeam:
+            async def require_team_role(self, requested_team_id, requested_user_id, roles):
+                assert requested_team_id == team_id
+                assert requested_user_id == user_id
+                assert "admin" in roles
+                return {"role": "owner"}
+
+        class FakeCache:
+            def __init__(self):
+                self.user = {"vault_key_id": "vault-key", "credits": 500}
+                self.status_updates = []
+                self.stats = []
+                self.set_user_calls = []
+
+            async def get_bank_transfer_by_reference(self, requested_reference):
+                assert requested_reference == reference
+                return {
+                    "order_id": order_id,
+                    "status": "pending",
+                    "amount_expected_cents": 10000,
+                    "user_id": user_id,
+                    "team_id": team_id,
+                    "hashed_team_id": team_hash,
+                    "credits_amount": 110000,
+                    "order_type": "team_credit_purchase",
+                    "email_encryption_key": "email-key",
+                }
+
+            async def get_user_by_id(self, requested_user_id):
+                assert requested_user_id == user_id
+                return dict(self.user)
+
+            async def set_user(self, data, user_id):
+                self.set_user_calls.append((user_id, dict(data)))
+                self.user = dict(data)
+
+            async def update_bank_transfer_status(self, **kwargs):
+                self.status_updates.append(kwargs)
+
+            async def increment_stat(self, name, value=None):
+                self.stats.append(("increment_stat", name, value))
+
+            async def increment_json_stat(self, name, key):
+                self.stats.append(("increment_json_stat", name, key))
+
+            async def update_liability(self, amount):
+                self.stats.append(("update_liability", amount))
+
+        class FakeDirectus:
+            def __init__(self):
+                self.team = FakeTeam()
+                self.team_credit_accounts = [
+                    {
+                        "id": "account-row-id",
+                        "hashed_team_id": team_hash,
+                        "encrypted_balance": "cipher-balance",
+                        "balance_credits": 5,
+                        "version": 1,
+                        "updated_at": 100,
+                    }
+                ]
+                self.team_credit_events = []
+                self.pending_bank_transfers = [
+                    {
+                        "id": "pending-row-id",
+                        "order_id": order_id,
+                        "reference": reference,
+                        "status": "pending",
+                    }
+                ]
+
+            async def get_items(self, collection, params=None, **_kwargs):
+                if collection == "team_credit_accounts":
+                    return list(self.team_credit_accounts)
+                if collection == "pending_bank_transfers":
+                    return list(self.pending_bank_transfers)
+                return []
+
+            async def update_item(self, collection, item_id, data, admin_required=False):
+                if collection == "team_credit_accounts":
+                    assert admin_required is True
+                    self.team_credit_accounts[0].update(data)
+                    return dict(self.team_credit_accounts[0])
+                if collection == "pending_bank_transfers":
+                    self.pending_bank_transfers[0].update(data)
+                    return dict(self.pending_bank_transfers[0])
+                raise AssertionError(f"Unexpected update collection: {collection}")
+
+            async def create_item(self, collection, data, admin_required=False):
+                assert collection == "team_credit_events"
+                assert admin_required is True
+                self.team_credit_events.append(dict(data))
+                return True, dict(data)
+
+        compliance_events = []
+        monkeypatch.setattr(
+            payments.ComplianceService,
+            "log_financial_transaction",
+            lambda **kwargs: compliance_events.append(kwargs),
+        )
+
+        cache = FakeCache()
+        directus = FakeDirectus()
+
+        result = await payments._handle_revolut_business_webhook(
+            event_payload=_make_transaction_created_event(
+                amount=100.0,
+                currency="EUR",
+                reference=reference,
+                transaction_id="txn-team-credit",
+            ),
+            event_type="TransactionCreated",
+            payment_service=FakePaymentService(),
+            cache_service=cache,
+            directus_service=directus,
+            encryption_service=object(),
+            secrets_manager=object(),
+            tier_service=object(),
+        )
+
+        assert result == {"status": "team_bank_transfer_completed"}
+        assert directus.team_credit_accounts[0]["balance_credits"] == 110005
+        assert directus.team_credit_accounts[0]["encrypted_balance"] == "cipher-balance"
+        assert directus.team_credit_events == [
+            {
+                "event_id": "bank-transfer:bt_team01",
+                "hashed_team_id": team_hash,
+                "actor_user_hash": hashlib.sha256(user_id.encode()).hexdigest(),
+                "event_type": "purchase",
+                "amount": 110000,
+                "encrypted_metadata": None,
+                "created_at": directus.team_credit_events[0]["created_at"],
+            }
+        ]
+        assert directus.pending_bank_transfers[0]["status"] == "completed"
+        assert cache.user["credits"] == 500
+        assert cache.set_user_calls == []
+        assert cache.status_updates[0]["order_id"] == order_id
+        assert ("increment_json_stat", "purchases_by_provider", "team_bank_transfer") in cache.stats
+        assert compliance_events[0]["transaction_type"] == "team_credit_purchase"
+        assert compliance_events[0]["details"]["team_id"] == team_id

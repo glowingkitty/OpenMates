@@ -22,6 +22,18 @@ pending_bank_transfers:
       type: uuid
       note: "The user who initiated the bank transfer"
 
+    team_id:
+      type: string
+      length: 128
+      nullable: true
+      note: "Team ID for team_credit_purchase orders. Null for personal, gift-card, and support orders."
+
+    hashed_team_id:
+      type: string
+      length: 64
+      nullable: true
+      note: "SHA256(team_id) for team_credit_purchase authorization and settlement."
+
     credits_amount:
       type: integer
       note: "Number of credits to grant when transfer is received"
@@ -52,7 +64,7 @@ pending_bank_transfers:
       type: string
       length: 30
       default: "credit_purchase"
-      note: "Type of order: 'credit_purchase' (default), 'gift_card_purchase', or 'support_contribution'"
+      note: "Type of order: 'credit_purchase' (default), 'team_credit_purchase', 'gift_card_purchase', or 'support_contribution'"
 
     created_at:
       type: datetime

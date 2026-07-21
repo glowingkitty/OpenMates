@@ -249,6 +249,50 @@ def test_chat_recovery_migration_executes_and_verifies_all_indexes(
     assert executed[1][1] == (list(setup_schemas.CHAT_RECOVERY_INDEXES),)
 
 
+def test_usage_overview_migration_executes_and_verifies_all_indexes(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    setup_schemas = load_setup_schemas_module()
+    migration = tmp_path / "migrate_usage_overview_indexes.sql"
+    migration.write_text("CREATE INDEX usage_overview_test ON usage (id);", encoding="utf-8")
+    executed: list[tuple[str, Any]] = []
+
+    class FakeCursor:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return None
+
+        def execute(self, query, params=None):
+            executed.append((str(query), params))
+
+        def fetchall(self):
+            return [(name,) for name in setup_schemas.USAGE_OVERVIEW_INDEXES]
+
+    class FakeConnection:
+        autocommit = False
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return None
+
+        def cursor(self):
+            return FakeCursor()
+
+    monkeypatch.setattr(setup_schemas, "USAGE_OVERVIEW_MIGRATION_PATH", str(migration))
+    monkeypatch.setattr(setup_schemas, "connect_database", lambda: FakeConnection())
+
+    setup_schemas.apply_and_verify_usage_overview_indexes()
+
+    assert executed[0][0] == migration.read_text(encoding="utf-8")
+    assert "FROM pg_indexes" in executed[1][0]
+    assert executed[1][1] == (list(setup_schemas.USAGE_OVERVIEW_INDEXES),)
+
+
 def test_chat_recovery_endpoint_health_uses_internal_token(monkeypatch) -> None:
     setup_schemas = load_setup_schemas_module()
     requests_seen: list[dict[str, Any]] = []

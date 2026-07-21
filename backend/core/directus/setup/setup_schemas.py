@@ -75,6 +75,21 @@ USER_TASK_INDEXES = (
     'user_task_activity_task_created_idx',
     'user_task_archives_owner_archived_idx',
 )
+USAGE_OVERVIEW_MIGRATION_PATH = os.getenv(
+    'USAGE_OVERVIEW_MIGRATION_PATH',
+    '/usr/src/app/migrations/migrate_usage_overview_indexes.sql',
+)
+USAGE_OVERVIEW_INDEXES = (
+    'usage_period_rollups_user_granularity_period_idx',
+    'usage_period_rollups_user_period_start_idx',
+    'usage_user_created_idx',
+    'usage_monthly_chat_user_month_idx',
+    'usage_monthly_app_user_month_idx',
+    'usage_monthly_api_key_user_month_idx',
+    'usage_daily_chat_user_date_idx',
+    'usage_daily_app_user_date_idx',
+    'usage_daily_api_key_user_date_idx',
+)
 
 BACKEND_PERMISSION_COLLECTIONS = (
     'anonymous_free_usage_budget',
@@ -1029,6 +1044,39 @@ def apply_and_verify_user_task_indexes():
     print(f"Verified {len(USER_TASK_INDEXES)} user task indexes")
 
 
+def apply_and_verify_usage_overview_indexes():
+    """Apply usage overview rollup and hot-path read indexes."""
+    if not os.path.isfile(USAGE_OVERVIEW_MIGRATION_PATH):
+        raise RuntimeError(
+            f"Required usage overview migration is missing: {USAGE_OVERVIEW_MIGRATION_PATH}"
+        )
+
+    with open(USAGE_OVERVIEW_MIGRATION_PATH, 'r', encoding='utf-8') as migration_file:
+        migration_sql = migration_file.read()
+
+    with connect_database() as connection:
+        connection.autocommit = True
+        with connection.cursor() as cursor:
+            cursor.execute(migration_sql)
+            cursor.execute(
+                """
+                SELECT indexname
+                FROM pg_indexes
+                WHERE schemaname = 'public' AND indexname = ANY(%s)
+                """,
+                (list(USAGE_OVERVIEW_INDEXES),),
+            )
+            installed_indexes = {row[0] for row in cursor.fetchall()}
+
+    missing_indexes = set(USAGE_OVERVIEW_INDEXES) - installed_indexes
+    if missing_indexes:
+        raise RuntimeError(
+            "Usage overview index verification failed: "
+            + ", ".join(sorted(missing_indexes))
+        )
+    print(f"Verified {len(USAGE_OVERVIEW_INDEXES)} usage overview indexes")
+
+
 def verify_chat_recovery_endpoint():
     """Require the baked extension to answer an authenticated metadata-only read."""
     if not INTERNAL_API_SHARED_TOKEN:
@@ -1133,6 +1181,9 @@ def setup_schemas():
 
         print("\n--- Applying user task database indexes ---")
         apply_and_verify_user_task_indexes()
+
+        print("\n--- Applying usage overview database indexes ---")
+        apply_and_verify_usage_overview_indexes()
 
         # Only create the first signup invite code if the 'invite_codes'
         # collection was newly created during this run (i.e., first setup).

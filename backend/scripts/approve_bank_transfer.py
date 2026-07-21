@@ -40,6 +40,7 @@ if "/app/backend" not in sys.path:
 from backend.core.api.app.services.cache import CacheService  # noqa: E402
 from backend.core.api.app.services.compliance import ComplianceService  # noqa: E402
 from backend.core.api.app.services.directus.directus import DirectusService  # noqa: E402
+from backend.core.api.app.services.team_billing_service import TeamBillingService  # noqa: E402
 from backend.core.api.app.utils.encryption import EncryptionService  # noqa: E402
 from backend.core.api.app.utils.secrets_manager import SecretsManager  # noqa: E402
 
@@ -147,6 +148,8 @@ def _print_order(order: dict[str, Any], received_cents: int | None) -> None:
     print(f"  Status:      {order.get('status')}")
     print(f"  Type:        {order.get('order_type', 'credit_purchase')}")
     print(f"  User ID:     {order.get('user_id')}")
+    if order.get("team_id"):
+        print(f"  Team ID:     {order.get('team_id')}")
     print(f"  Expected:    €{int(order.get('amount_expected_cents') or 0) / 100:.2f}")
     if received_cents is not None:
         print(f"  Received:    €{received_cents / 100:.2f}")
@@ -206,10 +209,10 @@ async def approve(args: argparse.Namespace) -> int:
 
         if not item_id or not order_id or not reference:
             raise ApprovalError("Bank transfer order is missing id/order_id/reference.")
-        if order_type != "credit_purchase":
+        if order_type not in {"credit_purchase", "team_credit_purchase"}:
             raise ApprovalError(
                 f"Order {order_id} is '{order_type}', not a credit purchase. "
-                "This script only grants user credits."
+                "This script only grants user or team credits."
             )
         if status == "completed":
             print("\nAlready completed. No credits granted.")
@@ -231,6 +234,69 @@ async def approve(args: argparse.Namespace) -> int:
                 f"received €{args.received_cents / 100:.2f}. "
                 "Use --allow-amount-mismatch only after manual review."
             )
+
+        if order_type == "team_credit_purchase":
+            team_id = order.get("team_id")
+            if not team_id:
+                raise ApprovalError(f"Team credit order {order_id} has no team_id.")
+
+            print("\nTeam credit change")
+            print(f"  Add:         {credits_amount}")
+            print(f"  Team ID:     {team_id}")
+
+            if not args.apply:
+                print("\nDry run only. Re-run with --apply to approve and grant team credits.")
+                return 0
+
+            completed_at = datetime.now(timezone.utc).isoformat()
+            await TeamBillingService(directus).add_credits(
+                team_id=str(team_id),
+                actor_user_id=str(user_id),
+                event_id=f"bank-transfer:{order_id}",
+                credits=credits_amount,
+                event_type="purchase",
+                encrypted_metadata=None,
+            )
+            order_update = {
+                "status": "completed",
+                "completed_at": completed_at,
+                "received_amount_cents": args.received_cents,
+                "admin_note": "Manually approved team credits via approve_bank_transfer.py",
+            }
+            if args.bank_transaction_id:
+                order_update["revolut_transaction_id"] = args.bank_transaction_id
+            await _update_order(directus, item_id, order_update)
+            await cache.update_bank_transfer_status(
+                order_id=order_id,
+                reference=reference,
+                status="completed",
+                extra_fields={
+                    "completed_at": completed_at,
+                    "received_amount_cents": args.received_cents,
+                },
+            )
+            await cache.increment_stat("income_eur_cents", args.received_cents)
+            await cache.increment_stat("credits_sold", credits_amount)
+            await cache.update_liability(credits_amount)
+            await cache.increment_stat("purchase_count")
+            await cache.increment_json_stat("purchases_by_provider", "team_bank_transfer_manual")
+            ComplianceService.log_financial_transaction(
+                user_id=user_id,
+                transaction_type="team_credit_purchase",
+                amount=credits_amount,
+                currency="eur",
+                status="success",
+                details={
+                    "order_id": order_id,
+                    "team_id": team_id,
+                    "provider": "team_bank_transfer_manual",
+                    "received_amount_cents": args.received_cents,
+                    "bank_transaction_id": args.bank_transaction_id,
+                },
+            )
+            print("\nApproved. Team credits granted and bank transfer marked completed.")
+            print("Confirmation email skipped for team credit orders until team invoices are implemented.")
+            return 0
 
         user_profile = await _get_user_profile(directus, cache, user_id)
         current_credits = int(user_profile["credits"])

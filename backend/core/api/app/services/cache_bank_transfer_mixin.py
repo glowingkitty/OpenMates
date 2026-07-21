@@ -31,6 +31,8 @@ class BankTransferCacheMixin:
         currency: str = "eur",
         email_encryption_key: Optional[str] = None,
         order_type: str = "credit_purchase",
+        team_id: Optional[str] = None,
+        hashed_team_id: Optional[str] = None,
         support_email: Optional[str] = None,
         expires_at: Optional[str] = None,
     ) -> bool:
@@ -46,6 +48,8 @@ class BankTransferCacheMixin:
             currency: ISO currency code (always "eur" for SEPA)
             email_encryption_key: Client-provided key for email decryption at completion
             order_type: "credit_purchase" or "support_contribution"
+            team_id: Team identifier for team credit purchases
+            hashed_team_id: Hashed team identifier for team credit purchases
             support_email: Plaintext email for support contributions (guest checkout)
             expires_at: ISO datetime when the order expires
 
@@ -71,6 +75,10 @@ class BankTransferCacheMixin:
 
             if email_encryption_key:
                 order_data["email_encryption_key"] = email_encryption_key
+            if team_id:
+                order_data["team_id"] = team_id
+            if hashed_team_id:
+                order_data["hashed_team_id"] = hashed_team_id
             if support_email:
                 order_data["support_email"] = support_email
             if expires_at:

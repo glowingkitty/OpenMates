@@ -28,6 +28,20 @@ def _safe_cache_payload_summary(payload: object) -> str:
 class CacheServiceBase:
     """Base service for caching data using Dragonfly (Redis-compatible)"""
 
+    _UPDATE_DRAFT_IF_CURRENT_LUA = """
+    local current = redis.call('HGET', KEYS[1], 'draft_v')
+    if current and tonumber(current) and tonumber(current) > tonumber(ARGV[3]) then
+        return 0
+    end
+    redis.call('HSET', KEYS[1],
+        'encrypted_draft_md', ARGV[1],
+        'encrypted_draft_preview', ARGV[2],
+        'draft_v', ARGV[3]
+    )
+    redis.call('EXPIRE', KEYS[1], ARGV[4])
+    return 1
+    """
+
     _CONNECTION_RETRY_COOLDOWN_SECONDS = 30.0
     _PUBSUB_RECONNECT_DELAY_SECONDS = 1.0
     _next_connection_retry_at = 0.0
@@ -454,13 +468,16 @@ class CacheServiceBase:
                 elif method_name == 'update_user_draft_in_cache':
                     user_id, chat_id, content, version = args
                     key = self._get_user_chat_draft_key(user_id, chat_id)
-                    pipe.hset(key, mapping={
-                        "encrypted_draft_md": content if content is not None else "null",
-                        "encrypted_draft_preview": "null",
-                        "draft_v": version
-                    })
-                    pipe.expire(key, self.USER_DRAFT_TTL)
-                    queued_operations += 2
+                    pipe.eval(
+                        self._UPDATE_DRAFT_IF_CURRENT_LUA,
+                        1,
+                        key,
+                        content if content is not None else "null",
+                        "null",
+                        version,
+                        self.USER_DRAFT_TTL,
+                    )
+                    queued_operations += 1
 
                 else:
                     logger.warning(f"Unknown pipeline operation: {method_name}")

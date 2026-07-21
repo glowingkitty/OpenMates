@@ -8,11 +8,37 @@ remain explicit, read-only operations.
 
 from __future__ import annotations
 
+from collections import defaultdict
 import sys
+import types
+from types import SimpleNamespace
 
 import pytest
 
+if "redis" not in sys.modules:
+    redis_module = types.ModuleType("redis")
+    redis_asyncio_module = types.ModuleType("redis.asyncio")
+
+    class FakeRedisClient:
+        pass
+
+    redis_asyncio_module.Redis = FakeRedisClient
+    redis_module.asyncio = redis_asyncio_module
+    redis_module.exceptions = SimpleNamespace(RedisError=Exception, ConnectionError=Exception, TimeoutError=Exception)
+    sys.modules["redis"] = redis_module
+    sys.modules["redis.asyncio"] = redis_asyncio_module
+
+if "aiohttp" not in sys.modules:
+    aiohttp_module = types.ModuleType("aiohttp")
+
+    class FakeClientSession:
+        pass
+
+    aiohttp_module.ClientSession = FakeClientSession
+    sys.modules["aiohttp"] = aiohttp_module
+
 from backend.scripts import approve_bank_transfer
+from backend.core.api.app.services.directus.team_methods import TeamMethods, hash_id
 
 
 class FakeDirectus:
@@ -55,6 +81,90 @@ class FakeEncryption:
     async def decrypt_with_email_key(self, encrypted_email: str, email_encryption_key: str):
         self.decrypt_calls.append((encrypted_email, email_encryption_key))
         return "buyer@example.com"
+
+
+class FakeSecrets:
+    async def initialize(self) -> None:
+        return None
+
+    async def get_secret(self, secret_path: str, secret_key: str) -> str:
+        return f"secret-{secret_key}"
+
+
+class FakeCache:
+    def __init__(self) -> None:
+        self.status_updates: list[dict] = []
+        self.stats: list[tuple] = []
+        self.closed = False
+
+    async def get_user_by_id(self, user_id: str):
+        return {"id": user_id, "vault_key_id": "vault-key", "credits": 10}
+
+    async def update_bank_transfer_status(self, **kwargs):
+        self.status_updates.append(kwargs)
+        return True
+
+    async def increment_stat(self, name: str, value: int | None = None):
+        self.stats.append(("increment_stat", name, value))
+
+    async def increment_json_stat(self, name: str, key: str):
+        self.stats.append(("increment_json_stat", name, key))
+
+    async def update_liability(self, amount: int):
+        self.stats.append(("update_liability", amount))
+
+    async def set_user(self, data: dict, user_id: str):
+        return True
+
+    async def close(self) -> None:
+        self.closed = True
+
+
+class FakeApprovalEncryption:
+    def __init__(self, cache_service=None) -> None:
+        self.cache_service = cache_service
+
+    async def encrypt_with_user_key(self, plaintext: str, key_id: str):
+        return f"encrypted:{plaintext}", "v1"
+
+
+class FakeApprovalDirectus:
+    def __init__(self) -> None:
+        self.rows: dict[str, list[dict]] = defaultdict(list)
+        self.team = TeamMethods(self)
+        self.updated_items: list[tuple[str, str, dict, bool]] = []
+        self.closed = False
+
+    async def create_item(self, collection: str, record: dict, admin_required: bool = False):
+        row = {"id": f"{collection}-{len(self.rows[collection]) + 1}", **record}
+        self.rows[collection].append(row)
+        return True, row
+
+    async def update_item(self, collection: str, item_id: str, patch: dict, admin_required: bool = False):
+        self.updated_items.append((collection, item_id, dict(patch), admin_required))
+        for row in self.rows[collection]:
+            if row.get("id") == item_id:
+                row.update(patch)
+                return row
+        return None
+
+    async def get_items(self, collection: str, params: dict | None = None, **_kwargs):
+        rows = list(self.rows[collection])
+        for key, expected in (params or {}).items():
+            if key.startswith("filter[") and "][_eq]" in key:
+                field = key.removeprefix("filter[").split("]", 1)[0]
+                rows = [row for row in rows if row.get(field) == expected]
+        limit = (params or {}).get("limit", len(rows))
+        return rows if limit == -1 else rows[:limit]
+
+    async def get_user_profile(self, user_id: str):
+        return True, {"id": user_id, "vault_key_id": "vault-key", "credits": 10}, "ok"
+
+    async def update_user(self, user_id: str, payload: dict):
+        return True
+
+    async def close(self) -> None:
+        self.closed = True
 
 
 @pytest.mark.asyncio
@@ -142,3 +252,83 @@ def test_parse_args_rejects_contact_lookup_with_apply(monkeypatch):
 
     with pytest.raises(SystemExit):
         approve_bank_transfer.parse_args()
+
+
+@pytest.mark.asyncio
+async def test_approve_team_bank_transfer_grants_team_credits_and_completes_order(monkeypatch):
+    cache = FakeCache()
+    directus = FakeApprovalDirectus()
+    compliance_events: list[dict] = []
+    await directus.team.create_team(
+        "alice",
+        {
+            "team_id": "team-1",
+            "encrypted_name": "cipher-name",
+            "encrypted_team_key": "cipher-team-key",
+            "encrypted_zero_balance": "cipher-zero",
+            "created_at": 100,
+            "updated_at": 100,
+        },
+    )
+    success, order = await directus.create_item(
+        "pending_bank_transfers",
+        {
+            "order_id": "bt_team01",
+            "user_id": "alice",
+            "team_id": "team-1",
+            "hashed_team_id": hash_id("team-1"),
+            "credits_amount": 110000,
+            "amount_expected_cents": 10000,
+            "currency": "eur",
+            "reference": "OMT-team01-bt01",
+            "status": "pending",
+            "order_type": "team_credit_purchase",
+            "created_at": "2026-07-18T00:00:00+00:00",
+            "expires_at": "2026-07-25T00:00:00+00:00",
+            "email_encryption_key": "email-key",
+        },
+        admin_required=True,
+    )
+    assert success is True
+    assert order["id"] == "pending_bank_transfers-1"
+
+    monkeypatch.setattr(approve_bank_transfer, "SecretsManager", lambda: FakeSecrets())
+    monkeypatch.setattr(approve_bank_transfer, "CacheService", lambda: cache)
+    monkeypatch.setattr(approve_bank_transfer, "EncryptionService", lambda cache_service=None: FakeApprovalEncryption(cache_service))
+    monkeypatch.setattr(approve_bank_transfer, "DirectusService", lambda cache_service=None, encryption_service=None: directus)
+    monkeypatch.setattr(
+        approve_bank_transfer.ComplianceService,
+        "log_financial_transaction",
+        lambda **kwargs: compliance_events.append(kwargs),
+    )
+
+    result = await approve_bank_transfer.approve(
+        SimpleNamespace(
+            reference="OMT-team01-bt01",
+            received_cents=10000,
+            bank_transaction_id="txn-team-1",
+            allow_amount_mismatch=False,
+            no_email=True,
+            show_contact_email=False,
+            apply=True,
+            verbose=False,
+        )
+    )
+
+    assert result == 0
+    account = directus.rows["team_credit_accounts"][0]
+    assert account["balance_credits"] == 110000
+    assert account["encrypted_balance"] == "cipher-zero"
+    credit_event = directus.rows["team_credit_events"][0]
+    assert credit_event["event_id"] == "bank-transfer:bt_team01"
+    assert credit_event["event_type"] == "purchase"
+    assert credit_event["amount"] == 110000
+    completed_order = directus.rows["pending_bank_transfers"][0]
+    assert completed_order["status"] == "completed"
+    assert completed_order["received_amount_cents"] == 10000
+    assert cache.status_updates[0]["order_id"] == "bt_team01"
+    assert ("increment_json_stat", "purchases_by_provider", "team_bank_transfer_manual") in cache.stats
+    assert compliance_events[0]["transaction_type"] == "team_credit_purchase"
+    assert compliance_events[0]["details"]["team_id"] == "team-1"
+    assert cache.closed is True
+    assert directus.closed is True
