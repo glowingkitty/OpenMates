@@ -442,3 +442,50 @@ async def test_undo_workflow_change_set_uses_injected_workflow_handler() -> None
     assert undone["entries"][0]["workflow_version_before_id"] == "wv-after"
     assert undone["entries"][0]["workflow_version_after_id"] == "wv-restored"
     assert directus.collections["workspace_change_entries"][0]["undone_at"] is not None
+
+
+@pytest.mark.asyncio
+async def test_workflow_status_history_keeps_opaque_status_snapshot_for_undo() -> None:
+    directus = FakeDirectus()
+    service = WorkspaceChangeHistoryService(directus)
+    change = await service.record_change_set(
+        user_id="user-1",
+        source="cli",
+        namespace="workflows",
+        action_type="disable",
+        entries=[{
+            "object_type": "workflow",
+            "object_id": "wf-1",
+            "operation": "status",
+            "before": {"workflow_version_id": "wv-1", "enabled": True, "status": "active"},
+            "after": {"workflow_version_id": "wv-1", "enabled": False, "status": "disabled"},
+            "workflow_version_before_id": "wv-1",
+            "workflow_version_after_id": "wv-1",
+        }],
+    )
+    entry = change["entries"][0]
+
+    before_snapshot = service.snapshot_for_entry_state(entry, "before")
+    after_snapshot = service.snapshot_for_entry_state(entry, "after")
+
+    assert before_snapshot == {"workflow_version_id": "wv-1", "enabled": True, "status": "active"}
+    assert after_snapshot == {"workflow_version_id": "wv-1", "enabled": False, "status": "disabled"}
+
+    async def workflow_handler(entry: dict) -> dict:
+        target = service.snapshot_for_entry_state(entry, "before")
+        return {
+            "before": {"workflow_version_id": "wv-1", "enabled": False, "status": "disabled"},
+            "after": target,
+            "workflow_version_before_id": entry["workflow_version_after_id"],
+            "workflow_version_after_id": entry["workflow_version_before_id"],
+        }
+
+    undone = await service.undo_change_set(
+        user_id="user-1",
+        change_set_id=change["change_set"]["change_set_id"],
+        workflow_undo_handler=workflow_handler,
+    )
+
+    undo_snapshot = service.snapshot_for_entry_state(undone["entries"][0], "after")
+    assert undone["entries"][0]["operation"] == "status"
+    assert undo_snapshot == {"workflow_version_id": "wv-1", "enabled": True, "status": "active"}

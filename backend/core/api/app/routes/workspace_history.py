@@ -50,6 +50,34 @@ def get_workflow_service(request: Request) -> WorkflowService:
     return service
 
 
+def _workflow_status_snapshot(workflow: Any) -> dict[str, Any]:
+    enabled = bool(getattr(workflow, "enabled", False))
+    status = getattr(workflow, "status", None)
+    status_value = getattr(status, "value", status)
+    if status_value is None:
+        status_value = "active" if enabled else "disabled"
+    return {
+        "current_version_id": getattr(workflow, "current_version_id", None),
+        "workflow_version_id": getattr(workflow, "current_version_id", None),
+        "enabled": enabled,
+        "status": str(status_value),
+    }
+
+
+def _workflow_enabled_from_snapshot(snapshot: Any) -> bool | None:
+    if not isinstance(snapshot, dict):
+        return None
+    enabled = snapshot.get("enabled")
+    if isinstance(enabled, bool):
+        return enabled
+    status = snapshot.get("status")
+    if status == "active":
+        return True
+    if status == "disabled":
+        return False
+    return None
+
+
 async def _current_user(request: Request, response: Response) -> User:
     return await get_current_user_or_api_key(
         request=request,
@@ -108,6 +136,24 @@ async def undo_workspace_history(
             if entry.get("operation") == "create":
                 await run_in_threadpool(workflow_service.delete_workflow, workflow_id, current_user.id)
                 return {"workflow_version_before_id": entry.get("workflow_version_after_id")}
+            if entry.get("operation") == "status":
+                current = await run_in_threadpool(workflow_service.get_workflow, workflow_id, current_user.id, current_user.vault_key_id)
+                target_enabled = _workflow_enabled_from_snapshot(service.snapshot_for_entry_state(entry, "before"))
+                if target_enabled is None:
+                    target_enabled = not bool(current.enabled)
+                workflow = await run_in_threadpool(
+                    workflow_service.update_workflow,
+                    workflow_id,
+                    current_user.id,
+                    enabled=target_enabled,
+                    vault_key_id=current_user.vault_key_id,
+                )
+                return {
+                    "before": _workflow_status_snapshot(current),
+                    "after": _workflow_status_snapshot(workflow),
+                    "workflow_version_before_id": entry.get("workflow_version_after_id"),
+                    "workflow_version_after_id": workflow.current_version_id,
+                }
             version_id = entry.get("workflow_version_before_id")
             if not isinstance(version_id, str) or not version_id:
                 raise ValueError("Workflow history entry is missing workflow_version_before_id")

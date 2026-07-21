@@ -318,6 +318,34 @@ def _workflow_ask_update_operation(patch: WorkflowUpdateRequest) -> str:
     return "update"
 
 
+def _workflow_status_snapshot(workflow: Any) -> dict[str, Any]:
+    enabled = bool(getattr(workflow, "enabled", False))
+    status = getattr(workflow, "status", None)
+    status_value = getattr(status, "value", status)
+    if status_value is None:
+        status_value = "active" if enabled else "disabled"
+    return {
+        "current_version_id": getattr(workflow, "current_version_id", None),
+        "workflow_version_id": getattr(workflow, "current_version_id", None),
+        "enabled": enabled,
+        "status": str(status_value),
+    }
+
+
+def _workflow_enabled_from_snapshot(snapshot: Any) -> bool | None:
+    if not isinstance(snapshot, dict):
+        return None
+    enabled = snapshot.get("enabled")
+    if isinstance(enabled, bool):
+        return enabled
+    status = snapshot.get("status")
+    if status == "active":
+        return True
+    if status == "disabled":
+        return False
+    return None
+
+
 def get_workflow_input_service(request: Request) -> WorkflowInputService:
     service = getattr(request.app.state, "workflow_input_service", None)
     if service is None:
@@ -559,6 +587,8 @@ async def ask_workflows(
                     "object_type": "workflow",
                     "object_id": body.exact_action.workflow_id,
                     "operation": "status",
+                    "before": _workflow_status_snapshot(before),
+                    "after": _workflow_status_snapshot(workflow),
                     "workflow_version_before_id": before.current_version_id,
                     "workflow_version_after_id": workflow.current_version_id,
                 }],
@@ -583,18 +613,23 @@ async def ask_workflows(
                 description=patch.description,
             )
             after = workflow.model_dump(mode="json", by_alias=True)
+            operation = _workflow_ask_update_operation(patch)
+            entry = {
+                "object_type": "workflow",
+                "object_id": body.exact_update.workflow_id,
+                "operation": operation,
+                "workflow_version_before_id": before.current_version_id,
+                "workflow_version_after_id": workflow.current_version_id,
+            }
+            if operation == "status":
+                entry["before"] = _workflow_status_snapshot(before)
+                entry["after"] = _workflow_status_snapshot(workflow)
             history = await _record_workflow_history(
                 history_service,
                 current_user.id,
                 source="ai_ask",
                 action_type="ask_update",
-                entries=[{
-                    "object_type": "workflow",
-                    "object_id": body.exact_update.workflow_id,
-                    "operation": _workflow_ask_update_operation(patch),
-                    "workflow_version_before_id": before.current_version_id,
-                    "workflow_version_after_id": workflow.current_version_id,
-                }],
+                entries=[entry],
                 redacted_summary="Updated 1 workflow from ask",
             )
             return _workflow_ask_applied_response(summary="Updated 1 workflow.", history=history, extra={"workflow": after})
@@ -1234,27 +1269,43 @@ async def restore_workflow_from_history(
         if not version_id:
             raise HTTPException(status_code=400, detail="History entry does not contain a workflow version for restore")
         before = await run_in_threadpool(service.get_workflow, workflow_id, current_user.id, current_user.vault_key_id)
-        workflow = await run_in_threadpool(
-            service.restore_workflow_version,
-            workflow_id,
-            current_user.id,
-            version_id,
-            current_user.vault_key_id,
-        )
+        target_enabled = _workflow_enabled_from_snapshot(snapshot) if entry.get("operation") == "status" else None
+        if target_enabled is None:
+            workflow = await run_in_threadpool(
+                service.restore_workflow_version,
+                workflow_id,
+                current_user.id,
+                version_id,
+                current_user.vault_key_id,
+            )
+            operation = "restore"
+        else:
+            workflow = await run_in_threadpool(
+                service.update_workflow,
+                workflow_id,
+                current_user.id,
+                enabled=target_enabled,
+                vault_key_id=current_user.vault_key_id,
+            )
+            operation = "status"
         after = workflow.model_dump(mode="json", by_alias=True)
+        history_entry = {
+            "object_type": "workflow",
+            "object_id": workflow_id,
+            "operation": operation,
+            "workflow_version_before_id": before.current_version_id,
+            "workflow_version_after_id": workflow.current_version_id,
+            "restored_from_entry_id": body.entry_id,
+            "restore_state": body.state,
+        }
+        if operation == "status":
+            history_entry["before"] = _workflow_status_snapshot(before)
+            history_entry["after"] = _workflow_status_snapshot(workflow)
         history = await _record_workflow_history(
             history_service,
             current_user.id,
             action_type="restore",
-            entries=[{
-                "object_type": "workflow",
-                "object_id": workflow_id,
-                "operation": "restore",
-                "workflow_version_before_id": before.current_version_id,
-                "workflow_version_after_id": workflow.current_version_id,
-                "restored_from_entry_id": body.entry_id,
-                "restore_state": body.state,
-            }],
+            entries=[history_entry],
             redacted_summary="Restored 1 workflow from history",
         )
         return {"workflow": after, "history": history}
@@ -1330,17 +1381,22 @@ async def update_workflow(
             description=body.description,
         )
         after = workflow.model_dump(mode="json", by_alias=True)
+        operation = _workflow_ask_update_operation(body)
+        history_entry = {
+            "object_type": "workflow",
+            "object_id": workflow_id,
+            "operation": operation,
+            "workflow_version_before_id": before.current_version_id,
+            "workflow_version_after_id": workflow.current_version_id,
+        }
+        if operation == "status":
+            history_entry["before"] = _workflow_status_snapshot(before)
+            history_entry["after"] = _workflow_status_snapshot(workflow)
         history = await _record_workflow_history(
             history_service,
             current_user.id,
             action_type="update",
-            entries=[{
-                "object_type": "workflow",
-                "object_id": workflow_id,
-                "operation": "workflow_version" if body.graph is not None else "update",
-                "workflow_version_before_id": before.current_version_id,
-                "workflow_version_after_id": workflow.current_version_id,
-            }],
+            entries=[history_entry],
             redacted_summary="Updated 1 workflow",
         )
         return {"workflow": after, "history": history}
@@ -1394,7 +1450,15 @@ async def enable_workflow(
             history_service,
             current_user.id,
             action_type="enable",
-            entries=[{"object_type": "workflow", "object_id": workflow_id, "operation": "status", "workflow_version_before_id": before.current_version_id, "workflow_version_after_id": workflow.current_version_id}],
+            entries=[{
+                "object_type": "workflow",
+                "object_id": workflow_id,
+                "operation": "status",
+                "before": _workflow_status_snapshot(before),
+                "after": _workflow_status_snapshot(workflow),
+                "workflow_version_before_id": before.current_version_id,
+                "workflow_version_after_id": workflow.current_version_id,
+            }],
             redacted_summary="Enabled 1 workflow",
         )
         return {"workflow": after, "history": history}
@@ -1419,7 +1483,15 @@ async def disable_workflow(
             history_service,
             current_user.id,
             action_type="disable",
-            entries=[{"object_type": "workflow", "object_id": workflow_id, "operation": "status", "workflow_version_before_id": before.current_version_id, "workflow_version_after_id": workflow.current_version_id}],
+            entries=[{
+                "object_type": "workflow",
+                "object_id": workflow_id,
+                "operation": "status",
+                "before": _workflow_status_snapshot(before),
+                "after": _workflow_status_snapshot(workflow),
+                "workflow_version_before_id": before.current_version_id,
+                "workflow_version_after_id": workflow.current_version_id,
+            }],
             redacted_summary="Disabled 1 workflow",
         )
         return {"workflow": after, "history": history}

@@ -45,7 +45,7 @@ sys.modules.setdefault("backend.core.api.app.services.directus.directus", direct
 sys.modules.setdefault("backend.core.api.app.services.cache", cache_stub)
 sys.modules.setdefault("backend.core.api.app.services.limiter", limiter_stub)
 
-from backend.core.api.app.routes import projects, user_plans, user_tasks, workflows  # noqa: E402
+from backend.core.api.app.routes import projects, user_plans, user_tasks, workflows, workspace_history  # noqa: E402
 
 
 class FakeHistoryService:
@@ -161,9 +161,10 @@ class FakeWorkflow:
         self.id = workflow_id
         self.current_version_id = version_id
         self.enabled = enabled
+        self.status = "active" if enabled else "disabled"
 
     def model_dump(self, **_kwargs):
-        return {"id": self.id, "current_version_id": self.current_version_id, "title": "Inferred workflow", "enabled": self.enabled}
+        return {"id": self.id, "current_version_id": self.current_version_id, "title": "Inferred workflow", "enabled": self.enabled, "status": self.status}
 
 
 class FakeWorkflowService:
@@ -539,7 +540,65 @@ async def test_workflow_ask_exact_disable_records_history() -> None:
     assert result["outcome"] == "applied"
     assert result["workflow"]["enabled"] is False
     assert history.recorded[0]["action_type"] == "ask_disable"
-    assert history.recorded[0]["entries"][0]["operation"] == "status"
+    entry = history.recorded[0]["entries"][0]
+    assert entry["operation"] == "status"
+    assert entry["before"]["enabled"] is True
+    assert entry["after"]["enabled"] is False
+
+
+@pytest.mark.asyncio
+async def test_workspace_history_undo_workflow_status_uses_snapshot_not_version_restore(monkeypatch) -> None:
+    async def fake_current_user(_request, _response):
+        return _user()
+
+    class FakeWorkflowUndoHistory:
+        def snapshot_for_entry_state(self, entry: dict, state: str):
+            assert entry["operation"] == "status"
+            assert state == "before"
+            return {"workflow_version_id": "version-before", "enabled": True, "status": "active"}
+
+        async def undo_change_set(self, **kwargs):
+            result = await kwargs["workflow_undo_handler"]({
+                "object_type": "workflow",
+                "object_id": "workflow-1",
+                "operation": "status",
+                "workflow_version_before_id": "version-before",
+                "workflow_version_after_id": "version-before",
+            })
+            return {"handler_result": result}
+
+    class FakeWorkflowUndoService:
+        def __init__(self) -> None:
+            self.updated_enabled: list[bool] = []
+
+        def get_workflow(self, workflow_id: str, user_id: str, vault_key_id: str):
+            assert workflow_id == "workflow-1"
+            assert user_id == "user-1"
+            assert vault_key_id == "vault-1"
+            return FakeWorkflow(workflow_id="workflow-1", version_id="version-before", enabled=False)
+
+        def update_workflow(self, workflow_id: str, user_id: str, **kwargs):
+            assert workflow_id == "workflow-1"
+            assert user_id == "user-1"
+            self.updated_enabled.append(kwargs["enabled"])
+            return FakeWorkflow(workflow_id="workflow-1", version_id="version-before", enabled=kwargs["enabled"])
+
+        def restore_workflow_version_from_history(self, *_args):
+            raise AssertionError("status undo must not restore the already-current workflow version")
+
+    monkeypatch.setattr(workspace_history, "_current_user", fake_current_user)
+    workflow_service = FakeWorkflowUndoService()
+
+    result = await workspace_history.undo_workspace_history(
+        SimpleNamespace(),
+        Response(),
+        "chg-1",
+        service=FakeWorkflowUndoHistory(),
+        workflow_service=workflow_service,
+    )
+
+    assert workflow_service.updated_enabled == [True]
+    assert result["handler_result"]["after"]["enabled"] is True
 
 
 @pytest.mark.asyncio

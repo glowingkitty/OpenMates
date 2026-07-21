@@ -561,6 +561,22 @@ export type ProjectSourceType = "local_folder" | "local_git_repository" | "remot
 export type ProjectSourceCapability = "read" | "search" | "import" | "write_request";
 export type ProjectSourceStatus = "connected" | "offline" | "permission_required" | "revoked";
 
+export interface ProjectRecord {
+  project_id: string;
+  encrypted_project_key?: string | null;
+  encrypted_name?: string | null;
+  encrypted_description?: string | null;
+  encrypted_icon?: string | null;
+  encrypted_color?: string | null;
+  pinned?: boolean;
+  archived?: boolean;
+  version?: number;
+  created_at?: number;
+  updated_at?: number;
+  last_opened_at?: number;
+  [key: string]: unknown;
+}
+
 export interface ProjectSourceRecord {
   source_id: string;
   source_type: ProjectSourceType;
@@ -7789,6 +7805,21 @@ export class OpenMatesClient {
   // -------------------------------------------------------------------------
   // Project sources
   // -------------------------------------------------------------------------
+
+  async listProjects(options: { includeArchived?: boolean; teamId?: string | null; personal?: boolean } = {}): Promise<ProjectRecord[]> {
+    this.requireSession();
+    const params = new URLSearchParams();
+    if (options.includeArchived) params.set("include_archived", "true");
+    const teamId = this.resolveTeamContext({ teamId: options.teamId, personal: options.personal });
+    if (teamId) params.set("team_id", teamId);
+    const query = params.toString();
+    const response = await this.http.get<{ projects?: ProjectRecord[] }>(
+      `/v1/projects${query ? `?${query}` : ""}`,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) throw new Error(`Project list failed with HTTP ${response.status}`);
+    return response.data.projects ?? [];
+  }
 
   async createProject(input: Record<string, unknown>): Promise<Record<string, unknown>> {
     this.requireSession();

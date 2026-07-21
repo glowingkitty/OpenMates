@@ -223,13 +223,24 @@ class WorkspaceChangeHistoryService:
             raise ValueError("Restore state must be before or after")
         if entry.get("object_type") == "workflow":
             version_id = entry.get("workflow_version_after_id") if state == "after" else entry.get("workflow_version_before_id")
-            return {"workflow_version_id": version_id} if version_id else None
+            ref = entry.get("encrypted_after_ref") if state == "after" else entry.get("encrypted_before_ref")
+            snapshot = _decode_snapshot_ref(ref)
+            if not isinstance(snapshot, dict):
+                snapshot = {}
+            if version_id:
+                snapshot = {**snapshot, "workflow_version_id": version_id}
+            return snapshot or None
         ref = entry.get("encrypted_after_ref") if state == "after" else entry.get("encrypted_before_ref")
         return _decode_snapshot_ref(ref)
 
     def _entry_has_snapshot_for_restore(self, entry: dict[str, Any]) -> bool:
         if entry.get("object_type") == "workflow":
-            return bool(entry.get("workflow_version_before_id") or entry.get("workflow_version_after_id"))
+            return bool(
+                entry.get("workflow_version_before_id")
+                or entry.get("workflow_version_after_id")
+                or entry.get("encrypted_before_ref")
+                or entry.get("encrypted_after_ref")
+            )
         return bool(entry.get("encrypted_before_ref") or entry.get("encrypted_after_ref"))
 
     async def restore_object_to_entry(
@@ -314,6 +325,16 @@ class WorkspaceChangeHistoryService:
         operation = entry.get("operation")
         before = _decode_snapshot_ref(entry.get("encrypted_before_ref"))
         after = _decode_snapshot_ref(entry.get("encrypted_after_ref"))
+        if entry.get("object_type") == "workflow" and operation == "status":
+            return {
+                "object_type": entry["object_type"],
+                "object_id": entry["object_id"],
+                "operation": "status",
+                "before": after,
+                "after": before,
+                "workflow_version_before_id": entry.get("workflow_version_after_id"),
+                "workflow_version_after_id": entry.get("workflow_version_before_id"),
+            }
         if operation == "create":
             result = {"object_type": entry["object_type"], "object_id": entry["object_id"], "operation": "delete", "before": after}
             if entry.get("object_type") == "workflow":

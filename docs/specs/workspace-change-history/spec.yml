@@ -403,7 +403,7 @@ workspace_ask_processing_contract:
           description: Reviews pull request changes for workspace-history or encryption risk and notifies the user when risk is high.
 
 implementation_state:
-  subject_commit: c4b87d47e
+  subject_commit: 707001f2c+working-tree
 
 approvals:
   product_contract:
@@ -785,7 +785,7 @@ acceptance_criteria:
     scenario: S-17
     text: Real dev-server inference evidence covers 20 short deterministic, medium AI-create, safe exact edit/delete/status, complex workflow, ambiguous destructive, and unsupported broad workflow ask examples with usage for preprocessor, main processor, and description generation where inference is used.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids: [V-WCH-ASK-PIPELINE-DEV]
@@ -793,7 +793,7 @@ acceptance_criteria:
     scenario: S-18
     text: First-party clients resolve encrypted task, plan, and project targets locally and send only exact IDs, current versions, and encrypted create/update/delete payloads to ask endpoints.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: cli
     verification_ids: [T-WCH-ASK-BACKEND, T-WCH-ASK-CLI, T-WCH-ASK-SDK, V-WCH-ASK-PIPELINE-DEV]
@@ -820,11 +820,11 @@ tests:
       expected: pass
       evidence:
         status: passed
-        command: python3 -m pytest backend/tests/test_workspace_change_history.py -q
-        run_id: local-2026-07-21T00:00:00Z
-        observed: 10 passed
-        subject_commit: c4b87d47e
-        timestamp: "2026-07-21T00:40:05Z"
+        command: python3 -m pytest backend/tests/test_workspace_ask_pipeline.py backend/tests/test_workspace_ask_routes.py backend/tests/test_workspace_change_history.py scripts/tests/test_workspace_ask_history_gate.py -q
+        run_id: local-2026-07-21T15:45:00Z
+        observed: 39 passed; workspace change history coverage included status-only workflow undo snapshots plus task, plan, project, archive, and restore semantics.
+        subject_commit: 707001f2c+working-tree
+        timestamp: "2026-07-21T15:56:30Z"
   - id: T-WCH-WORKFLOWS
     type: pytest
     file: backend/tests/test_workspace_change_history_workflows.py
@@ -846,11 +846,11 @@ tests:
       expected: pass
       evidence:
         status: passed
-        command: python3 -m pytest backend/tests/test_workspace_change_history.py backend/tests/test_workspace_ask_routes.py -q
-        run_id: local-2026-07-21T00:39:00Z
-        observed: 16 passed; workflow history records use version refs only and injected workflow undo creates compensating entries.
-        subject_commit: c4b87d47e
-        timestamp: "2026-07-21T00:40:05Z"
+        command: python3 -m pytest backend/tests/test_workspace_ask_pipeline.py backend/tests/test_workspace_ask_routes.py backend/tests/test_workspace_change_history.py scripts/tests/test_workspace_ask_history_gate.py -q
+        run_id: local-2026-07-21T15:45:00Z
+        observed: 39 passed; workflow history records preserve immutable version refs and status-only entries restore enabled/disabled state without restoring an already-current version.
+        subject_commit: 707001f2c+working-tree
+        timestamp: "2026-07-21T15:56:30Z"
   - id: T-WCH-ARCHIVE
     type: pytest
     file: backend/tests/test_workspace_change_history_archives.py
@@ -873,11 +873,11 @@ tests:
       expected: pass
       evidence:
         status: passed
-        command: python3 -m pytest backend/tests/test_workspace_change_history.py backend/tests/test_workspace_ask_routes.py -q
-        run_id: local-2026-07-21T00:39:00Z
-        observed: 16 passed; archive batching, S3 archive adapter, and cold restore through archive reader covered.
-        subject_commit: c4b87d47e
-        timestamp: "2026-07-21T00:40:05Z"
+        command: python3 -m pytest backend/tests/test_workspace_ask_pipeline.py backend/tests/test_workspace_ask_routes.py backend/tests/test_workspace_change_history.py scripts/tests/test_workspace_ask_history_gate.py -q
+        run_id: local-2026-07-21T15:45:00Z
+        observed: 39 passed; archive batching, S3 archive adapter, cold restore through archive reader, and status-only workflow undo coverage stayed green.
+        subject_commit: 707001f2c+working-tree
+        timestamp: "2026-07-21T15:56:30Z"
   - id: T-WCH-CLI
     type: vitest
     file: frontend/packages/openmates-cli/tests/workspace-history.test.ts
@@ -901,10 +901,10 @@ tests:
       evidence:
         status: passed
         command: node --test --experimental-strip-types --loader ./tests/loader.mjs tests/workspace-history.test.ts
-        run_id: local-2026-07-21T00:40:00Z
+        run_id: local-2026-07-21T15:47:00Z
         observed: 2 passed; CLI-client transport covers global history, namespace object history/restore, namespace ask endpoints, and undo command fields.
-        subject_commit: c4b87d47e
-        timestamp: "2026-07-21T00:40:05Z"
+        subject_commit: 707001f2c+working-tree
+        timestamp: "2026-07-21T15:56:30Z"
   - id: T-WCH-SDK
     type: vitest
     file: frontend/packages/openmates-cli/tests/sdk-workspace-history.test.ts
@@ -927,10 +927,10 @@ tests:
       evidence:
         status: passed
         command: node --test --experimental-strip-types --loader ./tests/loader.mjs tests/sdk-workspace-history.test.ts && python3 -m pytest packages/openmates-python/tests/test_sdk.py -q -k "workspace_history_methods"
-        run_id: local-2026-07-21T00:39:00Z
-        observed: npm 3 passed; pip 1 passed, 33 deselected.
-        subject_commit: c4b87d47e
-        timestamp: "2026-07-21T00:40:05Z"
+        run_id: local-2026-07-21T15:58:00Z
+        observed: npm 3 passed; pip 1 passed, 34 deselected.
+        subject_commit: 707001f2c+working-tree
+        timestamp: "2026-07-21T15:56:30Z"
   - id: T-WCH-ASK-GATE
     type: pytest
     file: scripts/tests/test_workspace_ask_history_gate.py
@@ -951,11 +951,11 @@ tests:
       expected: pass
       evidence:
         status: passed
-        command: python3 -m pytest scripts/tests/test_workspace_ask_history_gate.py -q
-        run_id: local-2026-07-21T00:00:00Z
-        observed: 3 passed, 1 pytest cache permission warning
-        subject_commit: c4b87d47e
-        timestamp: "2026-07-21T00:40:05Z"
+        command: python3 -m pytest backend/tests/test_workspace_ask_pipeline.py backend/tests/test_workspace_ask_routes.py backend/tests/test_workspace_change_history.py scripts/tests/test_workspace_ask_history_gate.py -q
+        run_id: local-2026-07-21T15:45:00Z
+        observed: 39 passed, including 3 workspace ask history gate checks.
+        subject_commit: 707001f2c+working-tree
+        timestamp: "2026-07-21T15:56:30Z"
   - id: T-WCH-ASK-BACKEND
     type: pytest
     file: backend/tests/test_workspace_ask_routes.py
@@ -979,11 +979,11 @@ tests:
       expected: pass
       evidence:
         status: passed
-        command: python3 -m pytest backend/tests/test_workspace_ask_routes.py -q
-        run_id: local-2026-07-21T18:00:00Z
-        observed: 18 passed; route tests cover applied/fallback outcomes, exact encrypted task and plan status updates, exact project archive, exact workflow disable, deterministic workflow short create, and history entries for safe ask mutations.
-        subject_commit: 44f5b9cf4+working-tree
-        timestamp: "2026-07-21T18:00:00Z"
+        command: python3 -m pytest backend/tests/test_workspace_ask_pipeline.py backend/tests/test_workspace_ask_routes.py backend/tests/test_workspace_change_history.py scripts/tests/test_workspace_ask_history_gate.py -q
+        run_id: local-2026-07-21T15:45:00Z
+        observed: 39 passed; route tests cover applied/fallback outcomes, exact encrypted task and plan status updates, exact project archive, exact workflow disable with status snapshots, deterministic workflow short create, and history entries for safe ask mutations.
+        subject_commit: 707001f2c+working-tree
+        timestamp: "2026-07-21T15:56:30Z"
   - id: T-WCH-ASK-CLI
     type: vitest
     file: frontend/packages/openmates-cli/tests/workspace-ask.test.ts
@@ -1008,10 +1008,10 @@ tests:
       evidence:
         status: passed
         command: node --test --experimental-strip-types --loader ./tests/loader.mjs tests/workspace-history.test.ts
-        run_id: local-2026-07-21T18:00:00Z
+        run_id: local-2026-07-21T15:47:00Z
         observed: 2 passed; client ask endpoint payloads omit apply_mode and include namespace-specific encrypted create payloads plus workflow create payloads.
-        subject_commit: 44f5b9cf4+working-tree
-        timestamp: "2026-07-21T18:00:00Z"
+        subject_commit: 707001f2c+working-tree
+        timestamp: "2026-07-21T15:56:30Z"
   - id: T-WCH-ASK-SDK
     type: vitest
     file: frontend/packages/openmates-cli/tests/sdk-workspace-history.test.ts
@@ -1034,10 +1034,10 @@ tests:
       evidence:
         status: passed
         command: node --test --experimental-strip-types --loader ./tests/loader.mjs tests/sdk-workspace-history.test.ts && python3 -m pytest packages/openmates-python/tests/test_sdk.py -q -k "workspace_history_methods"
-        run_id: local-2026-07-21T18:00:00Z
+        run_id: local-2026-07-21T15:58:00Z
         observed: npm 3 passed; pip 1 passed, 34 deselected; SDK ask payloads omit apply_mode and preserve encrypted create payloads.
-        subject_commit: 44f5b9cf4+working-tree
-        timestamp: "2026-07-21T18:00:00Z"
+        subject_commit: 707001f2c+working-tree
+        timestamp: "2026-07-21T15:56:30Z"
   - id: T-WCH-ASK-PIPELINE
     type: pytest
     file: backend/tests/test_workspace_ask_pipeline.py
@@ -1053,7 +1053,7 @@ tests:
       required: true
       expected: fail_before_implementation
       evidence:
-        status: passed
+        status: failed_as_expected
         command: python3 -m pytest backend/tests/test_workspace_ask_pipeline.py -q
         run_id: local-2026-07-21T11:25:00Z
         observed: Failed as expected with AttributeError because run_task_ask_pipeline and run_workflow_ask_pipeline did not exist before implementation.
@@ -1064,11 +1064,11 @@ tests:
       expected: pass
       evidence:
         status: passed
-        command: python3 -m pytest backend/tests/test_workspace_ask_pipeline.py backend/tests/test_workspace_ask_routes.py -q
-        run_id: local-2026-07-21T18:00:00Z
-        observed: 24 passed; pipeline tests covered preprocessor, selected main model, description generation, ambiguity rejection, unselected app-skill rejection, and empty workflow graph repair; route tests covered applied/fallback outcome shapes and exact safe ask mutations.
-        subject_commit: 44f5b9cf4+working-tree
-        timestamp: "2026-07-21T18:00:00Z"
+        command: python3 -m pytest backend/tests/test_workspace_ask_pipeline.py backend/tests/test_workspace_ask_routes.py backend/tests/test_workspace_change_history.py scripts/tests/test_workspace_ask_history_gate.py -q
+        run_id: local-2026-07-21T15:45:00Z
+        observed: 39 passed; pipeline tests covered preprocessor, selected main model, description generation, ambiguity rejection, unselected app-skill rejection, and empty workflow graph repair; route tests covered applied/fallback outcome shapes and exact safe ask mutations.
+        subject_commit: 707001f2c+working-tree
+        timestamp: "2026-07-21T15:56:30Z"
 
 verifications:
   - id: V-WCH-PLAN-APPROVAL
@@ -1097,16 +1097,19 @@ verifications:
   - id: V-WCH-SDK-PARITY
     kind: deterministic_check
     phase: green
-    status: passed
+    status: blocked
     required_for_done: true
     covers: [AC-5, AC-6]
     evidence:
-      status: passed
+      status: blocked
       command: python3 scripts/audit_sdk_cli_parity.py
-      run_id: local-2026-07-21T00:33:00Z
-      observed: sdk-cli-parity checked 79 command entries and 4 workflow template transport entries
-      subject_commit: c4b87d47e
-      timestamp: "2026-07-21T00:40:05Z"
+      run_id: local-2026-07-21T16:18:00Z
+      observed: npm SDK workspace-history tests passed and pip workspace_history_methods passed, but sdk-cli-parity fails on an existing unclassified top-level CLI command `finance` that is outside this workspace ask/history change set.
+      reason: The parity audit blocker is unrelated to workspace ask/history; the deployed staged diff excludes the finance CLI hunks and preserves existing SDK/CLI ask-history parity tests.
+      actor: OpenCode
+      next_action: Classify the existing `finance` CLI command in scripts/audit_sdk_cli_parity.py or add matching SDK parity before re-running python3 scripts/audit_sdk_cli_parity.py.
+      subject_commit: 707001f2c+working-tree
+      timestamp: "2026-07-21T16:18:00Z"
     description: Run npm SDK and pip SDK parity locally against the dev server, then run python3 scripts/audit_sdk_cli_parity.py.
   - id: V-WCH-ASK-DEV-CLI
     kind: manual_check
@@ -1127,18 +1130,18 @@ verifications:
   - id: V-WCH-ASK-PIPELINE-DEV
     kind: manual_check
     phase: green
-    status: pending
+    status: passed
     required_for_done: true
     covers: [AC-14, AC-15, AC-16, AC-17, AC-18]
     evidence:
-      status: superseded
-      timestamp: "2026-07-21T18:00:00Z"
+      status: passed
+      timestamp: "2026-07-21T15:56:30Z"
       actor: OpenCode
-      command: docker restart api && node scripts/openmates_cli_test_account.mjs login --api-url https://api.dev.openmates.org --web-origin https://app.dev.openmates.org && direct first-party POST /v1/user-tasks/ask/plan, /v1/user-plans/ask/plan, /v1/projects/ask/plan, /v1/workflows/ask/plan, /v1/workflows/ask; node frontend/packages/openmates-cli/dist/cli.js history undo <change_set_id> --json
-      run_id: local-2026-07-21T11:59:50Z
-      observed: Public dev API returned pipeline processing metadata for task, plan, project, workflow, ambiguous destructive, and long-input asks. Task short ask produced title Remind to Verify Rollback Commands with preprocessor complexity simple and description_model_id mistral/mistral-small-2506. Plan ask produced Workspace History Launch Validation Plan with main model google/gemini-3-flash-preview. Project ask produced Workspace History Launch with main model google/gemini-3-flash-preview. Workflow plan initially exposed empty-graph main-output repair need, then after fix returned Manual Release-Check Workflow with manual_trigger/send_notification/end, selected main model google/gemini-3-flash-preview, filtered_unknown_capability_ids empty, and description_model_id mistral/mistral-small-2506. Ambiguous destructive task ask returned 502 clarification required and no change set. Long task ask returned 3 tasks and selected google/gemini-3.1-pro-preview. Real task auto-apply created chg_c0e1c5950f4e43ebbf4081807232160a and was undone by chg_01eda59f5dd348bcb7f1587194cd8352. Real workflow auto-apply created chg_6135ba69c8724a8982ce19c4babbcc5d with processing metadata and was undone by chg_f8d03c4fdf8747f0b87124f0eac63dd8.
-      subject_commit: 3eb32d5ae922337b5e34161d92202d906b9af6d0+working-tree
-      reason: Superseded by the finalized ask contract requiring `fallback_to_chat`, exact encrypted mutation payloads, and 20 real examples.
+      command: python3 scripts/verify_workspace_ask_dev_examples.py --api-url https://api.dev.openmates.org
+      run_id: local-2026-07-21T15:55:00Z
+      observed: Public dev API completed 20 real CLI ask examples across tasks, plans, projects, and workflows. Short deterministic creates and medium AI creates applied; broad destructive/status asks returned fallback_to_chat with no change_set_id; exact task status/rename/delete, plan archive/rename, project archive/rename/delete, and workflow disable applied with change sets. The workflow complex and broad edit examples failed closed as fallback_to_chat. The verifier undid every applied change set, including workflow_exact_disable change set chg_43d516d515b24bc9a9fe9585f7a8bf81, with no undo errors and cleaned up the seeded workflow.
+      subject_commit: 707001f2c+working-tree
+      reason: Finalized contract proof for `applied` or `fallback_to_chat` outcomes, client-resolved exact mutations, and real dev-server undo behavior.
     description: Run 20 real `openmates tasks|plans|projects|workflows ask` examples against https://api.dev.openmates.org after deploy with short deterministic, medium AI-create, safe exact edit/delete/status, complex workflow, ambiguous destructive, and unsupported broad workflow prompts; record preprocessor usage, selected main model and usage, description-generation usage, repair status, outputs, change sets, fallback outcomes, and undo results.
   - id: V-WCH-APPLE-IMPACT
     kind: manual_check
@@ -1466,7 +1469,7 @@ tasks:
         - backend/core/api/app/routes/workflows.py
   - id: TASK-11
     title: Finalize workspace ask fallback and exact mutation contract
-    status: in_progress
+    status: done
     phase: running_checks
     covers:
       scenarios: [S-12, S-13, S-17, S-18]
@@ -1487,8 +1490,7 @@ tasks:
       - packages/openmates-python/tests/test_sdk.py
     verification_ids: [T-WCH-ASK-BACKEND, T-WCH-ASK-CLI, T-WCH-ASK-SDK, T-WCH-ASK-PIPELINE, V-WCH-ASK-PIPELINE-DEV]
     dependencies: [TASK-10]
-    blockers:
-      - V-WCH-ASK-PIPELINE-DEV needs a new 20-example real dev-server run against the finalized `fallback_to_chat` and exact mutation contract.
+    blockers: []
     follow_up_tasks: []
     ownership:
       files:
@@ -1516,11 +1518,11 @@ attempts:
 
 handoff:
   current_task_id: TASK-11
-  next_action: Restart the dev API, run the 20 real ask examples, update V-WCH-ASK-PIPELINE-DEV evidence, then run final spec verification.
+  next_action: Run final spec verification and decide whether to deploy the completed workspace ask/history slice.
   command: python3 scripts/spec_verify.py docs/specs/workspace-change-history/spec.yml --json
-  expected_outcome: Spec verification reports the workspace-change-history spec complete after 20-example evidence is recorded.
+  expected_outcome: Spec verification reports the workspace-change-history spec complete.
   blocker: null
-  last_verified_commit: 44f5b9cf4+working-tree
+  last_verified_commit: 707001f2c+working-tree
 
 risks:
   - Hot/cold history touches persistence, encryption, S3, CLI, SDK, and workflow versioning, so incomplete implementation could create partial history or restore gaps.

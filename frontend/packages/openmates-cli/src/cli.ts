@@ -37,6 +37,7 @@ import {
   type WorkflowRunDetail,
   type WorkflowRunContentRetention,
   type WorkflowSummary,
+  type ProjectRecord,
   type UserTaskActionInput,
   type UserTaskReorderInput,
   type UserTaskStatus,
@@ -154,7 +155,7 @@ import {
   renderPlanList,
   type DecryptedUserPlan,
 } from "./plansCli.js";
-import { encryptBytesWithAesGcm, encryptWithAesGcmCombined } from "./crypto.js";
+import { decryptBytesWithAesGcm, decryptWithAesGcmCombined, encryptBytesWithAesGcm, encryptWithAesGcmCombined } from "./crypto.js";
 import {
   buildRevolutBusinessConsentUrl,
   exchangeRevolutBusinessAuthorizationCode,
@@ -676,6 +677,12 @@ async function handleTasks(
 
   if (subcommand === "ask") {
     const instruction = requiredAskInstruction(flags, rest, "openmates tasks ask \"Prepare launch copy\"");
+    const exactAsk = await buildExactTaskAsk(client, masterKey, instruction, scope);
+    if (exactAsk) {
+      const result = await client.askUserTasks({ instruction, ...exactAsk });
+      printAskApplyResult("task", result, flags);
+      return;
+    }
     const proposals = await proposeTasksForAsk(client, instruction, flags);
     const encryptedCreates = [];
     for (const proposal of proposals) {
@@ -919,6 +926,286 @@ function printAskApplyResult(namespace: string, result: Record<string, unknown>,
   });
 }
 
+type ExactTaskAskInput = {
+  encryptedUpdate?: Record<string, unknown>;
+  exactDelete?: Record<string, unknown>;
+};
+
+type ExactPlanAskInput = {
+  encryptedUpdate?: Record<string, unknown>;
+};
+
+type ExactProjectAskInput = {
+  encryptedUpdate?: Record<string, unknown>;
+  exactDelete?: Record<string, unknown>;
+};
+
+type ExactWorkflowAskInput = {
+  exactUpdate?: Record<string, unknown>;
+  exactAction?: Record<string, unknown>;
+  selectedObjectId?: string | null;
+};
+
+type DecryptedProject = {
+  projectId: string;
+  name: string;
+  description: string;
+  icon: string;
+  color: string;
+  pinned: boolean;
+  archived: boolean;
+  version: number | null;
+  projectKey: Uint8Array;
+  encrypted: ProjectRecord;
+};
+
+async function buildExactTaskAsk(
+  client: OpenMatesClient,
+  masterKey: Uint8Array,
+  instruction: string,
+  scope: { status?: UserTaskStatus; chatId?: string; projectId?: string; planId?: string; labelHashes?: string[]; priority?: number; teamId?: string | null; personal?: boolean },
+): Promise<ExactTaskAskInput | null> {
+  const target = exactAskTarget(instruction, "task");
+  if (!target) return looksLikeTaskMutationAsk(instruction) ? {} : null;
+  const task = await tryResolveTask(client, masterKey, target, scope);
+  if (!task) return {};
+  if (isExactDeleteAsk(instruction, "task")) return { exactDelete: { task_id: task.taskId, version: task.version } };
+  const title = renameValueFromInstruction(instruction);
+  const status = taskStatusFromInstruction(instruction);
+  if (title === undefined && status === undefined) return {};
+  const patch = await buildUpdateUserTaskInput(task, masterKey, { title, status });
+  return { encryptedUpdate: { task_id: task.taskId, patch } };
+}
+
+async function buildExactPlanAsk(
+  client: OpenMatesClient,
+  masterKey: Uint8Array,
+  instruction: string,
+  scope: { status?: UserPlanStatus; chatId?: string; projectId?: string; activeOnly?: boolean; teamId?: string | null; personal?: boolean },
+): Promise<ExactPlanAskInput | null> {
+  const target = exactAskTarget(instruction, "plan");
+  if (!target) return looksLikePlanMutationAsk(instruction) ? {} : null;
+  const plan = await tryResolvePlan(client, masterKey, target, scope);
+  if (!plan) return {};
+  const title = renameValueFromInstruction(instruction);
+  const status = planStatusFromInstruction(instruction);
+  if (title === undefined && status === undefined) return {};
+  const patch = await buildUpdateUserPlanInput(plan, masterKey, { title, status });
+  return { encryptedUpdate: { plan_id: plan.planId, patch } };
+}
+
+async function buildExactProjectAsk(
+  client: OpenMatesClient,
+  masterKey: Uint8Array,
+  instruction: string,
+  flags: Record<string, string | boolean>,
+): Promise<ExactProjectAskInput | null> {
+  const target = exactAskTarget(instruction, "project");
+  if (!target) return looksLikeProjectMutationAsk(instruction) ? {} : null;
+  const project = await tryResolveProject(client, masterKey, target, flags);
+  if (!project) return {};
+  if (isExactDeleteAsk(instruction, "project")) {
+    return { exactDelete: { project_id: project.projectId, ...(project.version !== null ? { version: project.version } : {}) } };
+  }
+  const name = renameValueFromInstruction(instruction);
+  const archived = projectArchiveValueFromInstruction(instruction);
+  if (name === undefined && archived === undefined) return {};
+  const patch: Record<string, unknown> = {
+    ...(project.version !== null ? { version: project.version } : {}),
+    updated_at: nowSeconds(),
+  };
+  if (name !== undefined) patch.encrypted_name = await encryptWithAesGcmCombined(name, project.projectKey);
+  if (archived !== undefined) patch.archived = archived;
+  return { encryptedUpdate: { project_id: project.projectId, patch } };
+}
+
+async function buildExactWorkflowAsk(
+  client: OpenMatesClient,
+  instruction: string,
+  flags: Record<string, string | boolean>,
+): Promise<ExactWorkflowAskInput | null> {
+  const target = exactAskTarget(instruction, "workflow");
+  if (!target) return null;
+  const workflow = await tryResolveWorkflow(client, target, flags);
+  if (!workflow) return { selectedObjectId: target };
+  const action = workflowActionFromInstruction(instruction);
+  if (action) return { exactAction: { workflow_id: workflow.id, action } };
+  const title = renameValueFromInstruction(instruction);
+  if (title !== undefined) return { exactUpdate: { workflow_id: workflow.id, patch: { title } } };
+  return { selectedObjectId: workflow.id };
+}
+
+function exactAskTarget(instruction: string, type: "task" | "plan" | "project" | "workflow"): string | null {
+  const match = new RegExp(`@${type}:("[^"]+"|'[^']+'|[^\\s,;]+)`, "i").exec(instruction);
+  if (!match?.[1]) return null;
+  const value = stripMatchingQuotes(match[1].trim());
+  return value.replace(/[.)!?]+$/, "").trim() || null;
+}
+
+function stripMatchingQuotes(value: string): string {
+  if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+    return value.slice(1, -1).trim();
+  }
+  return value;
+}
+
+function renameValueFromInstruction(instruction: string): string | undefined {
+  if (!/\b(rename|retitle|title|name|call)\b/i.test(instruction)) return undefined;
+  const match = /\bto\s+(.+)$/i.exec(instruction);
+  if (!match?.[1]) return undefined;
+  const value = stripMatchingQuotes(match[1].trim()).replace(/[.]$/, "").trim();
+  return value || undefined;
+}
+
+function isExactDeleteAsk(instruction: string, type: "task" | "project"): boolean {
+  return new RegExp(`\\bdelete\\b[\\s\\S]*@${type}:`, "i").test(instruction)
+    || new RegExp(`\\bremove\\s+@${type}:`, "i").test(instruction);
+}
+
+function taskStatusFromInstruction(instruction: string): UserTaskStatus | undefined {
+  if (/\bbacklog\b/i.test(instruction)) return "backlog";
+  if (/\b(to\s*do|todo)\b/i.test(instruction)) return "todo";
+  if (/\b(in[-_\s]?progress|start|started)\b/i.test(instruction)) return "in_progress";
+  if (/\b(block|blocked)\b/i.test(instruction)) return "blocked";
+  if (/\b(done|complete|completed|finish|finished)\b/i.test(instruction)) return "done";
+  return undefined;
+}
+
+function planStatusFromInstruction(instruction: string): UserPlanStatus | undefined {
+  if (/\bunarchive\b/i.test(instruction)) return "active";
+  if (/\barchive|archived\b/i.test(instruction)) return "archived";
+  if (/\bactivate|resume|start\b/i.test(instruction)) return "active";
+  if (/\bcomplete|completed|done\b/i.test(instruction)) return "completed";
+  if (/\bblock|blocked\b/i.test(instruction)) return "blocked";
+  return undefined;
+}
+
+function projectArchiveValueFromInstruction(instruction: string): boolean | undefined {
+  if (/\bunarchive\b/i.test(instruction)) return false;
+  if (/\barchive|archived\b/i.test(instruction)) return true;
+  return undefined;
+}
+
+function workflowActionFromInstruction(instruction: string): "enable" | "disable" | "delete" | null {
+  if (/\bdelete\b/i.test(instruction) || /\bremove\s+@workflow:/i.test(instruction)) return "delete";
+  if (/\b(disable|turn\s+off|switch\s+off|pause)\b/i.test(instruction)) return "disable";
+  if (/\b(enable|turn\s+on|switch\s+on|resume)\b/i.test(instruction)) return "enable";
+  return null;
+}
+
+function looksLikeTaskMutationAsk(instruction: string): boolean {
+  return /\b(mark|delete|remove|finish|complete|completed|done|blocked?)\b/i.test(instruction);
+}
+
+function looksLikePlanMutationAsk(instruction: string): boolean {
+  return /\b(archive|unarchive|delete|remove|rename|retitle|activate|resume|complete|completed|done|blocked?)\b/i.test(instruction);
+}
+
+function looksLikeProjectMutationAsk(instruction: string): boolean {
+  return /\b(archive|unarchive|delete|remove|rename|name|pin|unpin)\b/i.test(instruction);
+}
+
+async function tryResolveTask(
+  client: OpenMatesClient,
+  masterKey: Uint8Array,
+  target: string,
+  scope: { status?: UserTaskStatus; chatId?: string; projectId?: string; planId?: string; labelHashes?: string[]; priority?: number; teamId?: string | null; personal?: boolean },
+): Promise<DecryptedUserTask | null> {
+  const tasks = await loadTasks(client, masterKey, { ...scope, status: undefined });
+  try {
+    return findTask(tasks, target);
+  } catch {
+    return singleExactNameMatch(tasks, target, (task) => task.title);
+  }
+}
+
+async function tryResolvePlan(
+  client: OpenMatesClient,
+  masterKey: Uint8Array,
+  target: string,
+  scope: { status?: UserPlanStatus; chatId?: string; projectId?: string; activeOnly?: boolean; teamId?: string | null; personal?: boolean },
+): Promise<DecryptedUserPlan | null> {
+  const plans = await loadPlans(client, masterKey, { ...scope, status: undefined, activeOnly: undefined });
+  try {
+    return findPlan(plans, target);
+  } catch {
+    return singleExactNameMatch(plans, target, (plan) => plan.title);
+  }
+}
+
+async function tryResolveProject(
+  client: OpenMatesClient,
+  masterKey: Uint8Array,
+  target: string,
+  flags: Record<string, string | boolean>,
+): Promise<DecryptedProject | null> {
+  const projects = await loadProjects(client, masterKey, flags);
+  const idMatch = projects.find((project) => project.projectId === target);
+  if (idMatch) return idMatch;
+  return singleExactNameMatch(projects, target, (project) => project.name);
+}
+
+async function tryResolveWorkflow(
+  client: OpenMatesClient,
+  target: string,
+  flags: Record<string, string | boolean>,
+): Promise<WorkflowSummary | null> {
+  const workflows = await client.listWorkflows(teamContextFromFlags(flags));
+  const idMatch = workflows.find((workflow) => workflow.id === target);
+  if (idMatch) return idMatch;
+  return singleExactNameMatch(workflows, target, (workflow) => workflow.title);
+}
+
+function singleExactNameMatch<T>(items: T[], target: string, label: (item: T) => string): T | null {
+  const normalized = normalizeAskLookup(target);
+  const matches = items.filter((item) => normalizeAskLookup(label(item)) === normalized);
+  return matches.length === 1 ? matches[0] : null;
+}
+
+function normalizeAskLookup(value: string): string {
+  return value.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+async function loadProjects(
+  client: OpenMatesClient,
+  masterKey: Uint8Array,
+  flags: Record<string, string | boolean>,
+): Promise<DecryptedProject[]> {
+  const records = await client.listProjects({ includeArchived: true, ...teamContextFromFlags(flags) });
+  const projects: DecryptedProject[] = [];
+  for (const record of records) {
+    const decrypted = await decryptProject(record, masterKey);
+    if (decrypted) projects.push(decrypted);
+  }
+  return projects;
+}
+
+async function decryptProject(record: ProjectRecord, masterKey: Uint8Array): Promise<DecryptedProject | null> {
+  if (!record.project_id || typeof record.encrypted_project_key !== "string") return null;
+  const projectKey = await decryptBytesWithAesGcm(record.encrypted_project_key, masterKey);
+  if (!projectKey) return null;
+  return {
+    projectId: record.project_id,
+    name: await decryptOptionalProjectField(record.encrypted_name, projectKey) || "(untitled project)",
+    description: await decryptOptionalProjectField(record.encrypted_description, projectKey),
+    icon: await decryptOptionalProjectField(record.encrypted_icon, projectKey),
+    color: await decryptOptionalProjectField(record.encrypted_color, projectKey),
+    pinned: record.pinned === true,
+    archived: record.archived === true,
+    version: typeof record.version === "number" ? record.version : null,
+    projectKey,
+    encrypted: record,
+  };
+}
+
+async function decryptOptionalProjectField(value: string | null | undefined, projectKey: Uint8Array): Promise<string> {
+  return value ? (await decryptWithAesGcmCombined(value, projectKey)) ?? "" : "";
+}
+
+function nowSeconds(): number {
+  return Math.floor(Date.now() / 1000);
+}
+
 function workflowAskGraphFromFlags(flags: Record<string, string | boolean>): WorkflowGraph {
   if (typeof flags.graph === "string") return parseJsonFlag<WorkflowGraph>(flags.graph, "--graph");
   return {
@@ -1016,6 +1303,12 @@ async function handlePlans(
 
   if (subcommand === "ask") {
     const instruction = requiredAskInstruction(flags, rest, "openmates plans ask \"Prepare launch plan\"");
+    const exactAsk = await buildExactPlanAsk(client, masterKey, instruction, scope);
+    if (exactAsk) {
+      const result = await client.askUserPlans({ instruction, ...exactAsk });
+      printAskApplyResult("plan", result, flags);
+      return;
+    }
     const proposal = isShortWorkspaceAsk(instruction)
       ? { title: instruction, summary: "", goal: instruction }
       : extractRecord(await client.planUserPlanAsk({ instruction }), "proposed_plan");
@@ -1263,10 +1556,16 @@ async function handleProjects(
 
   if (subcommand === "ask") {
     const instruction = requiredAskInstruction(flags, rest, "openmates projects ask \"Launch workspace\"");
+    const masterKey = client.getMasterKeyBytes();
+    const exactAsk = await buildExactProjectAsk(client, masterKey, instruction, flags);
+    if (exactAsk) {
+      const result = await client.askProject({ instruction, ...exactAsk });
+      printAskApplyResult("project", result, flags);
+      return;
+    }
     const proposal = isShortWorkspaceAsk(instruction)
       ? { name: instruction, description: "", icon: "folder", color: "default" }
       : extractRecord(await client.planProjectAsk({ instruction }), "proposed_project");
-    const masterKey = client.getMasterKeyBytes();
     const projectKey = randomBytes(32);
     const timestamp = Math.floor(Date.now() / 1000);
     const projectId = randomUUID();
@@ -3332,6 +3631,12 @@ async function handleWorkflows(
 
   if (subcommand === "ask") {
     const instruction = requiredAskInstruction(flags, rest, "openmates workflows ask \"alert me if it rains\"");
+    const exactAsk = await buildExactWorkflowAsk(client, instruction, flags);
+    if (exactAsk) {
+      const result = await client.askWorkflow({ instruction, ...exactAsk });
+      printAskApplyResult("workflow", result, flags);
+      return;
+    }
     const retention = parseWorkflowRunContentRetention(flags["run-content-retention"]);
     const explicitCreate = typeof flags.graph === "string" || typeof flags.description === "string" || flags.enabled === true || Boolean(retention)
       ? {
