@@ -100,10 +100,12 @@ const ALL_APPS = [
 	'sheets',
 	'shopping',
 	'social_media',
+	'tasks',
 	'travel',
 	'videos',
 	'weather',
-	'web'
+	'web',
+	'workflows'
 ] as const;
 
 const REQUIRED_SURFACE_HEADINGS = ['Inline Link', 'Quote Block', 'Group — Small', 'Fullscreen'];
