@@ -237,6 +237,27 @@ describe("chat sync merge", () => {
     expect(merged.ideabucket).toBe(true);
   });
 
+  it("clears stale local draft shell when server omits draft version but has messages", async () => {
+    const localChat = makeChat({
+      messages_v: 0,
+      draft_v: 3,
+      encrypted_draft_md: "stale-draft-shell",
+      encrypted_draft_preview: "stale-preview-shell",
+    });
+    const serverChat = {
+      id: "chat-1",
+      messages_v: 2,
+      title_v: 0,
+    };
+
+    const merged = await mergeServerChatWithLocal(serverChat, localChat, "user-1");
+
+    expect(merged.messages_v).toBe(2);
+    expect(merged.encrypted_draft_md).toBeUndefined();
+    expect(merged.encrypted_draft_preview).toBeUndefined();
+    expect(merged.draft_v).toBe(0);
+  });
+
   it("clears stale local draft when server metadata explicitly reports no draft", async () => {
     const localChat = makeChat({
       messages_v: 0,

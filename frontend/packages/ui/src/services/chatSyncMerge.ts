@@ -136,6 +136,12 @@ export async function mergeServerChatWithLocal(
     (serverHasDraftVersion &&
       (serverChat.messages_v ?? 0) > 0 &&
       serverChat.draft_v === 0);
+  const serverHasMessagesForLocalDraftOnlyShell =
+    (serverChat.messages_v ?? 0) > 0 &&
+    (localChat.messages_v ?? 0) === 0 &&
+    !!(localChat.encrypted_draft_md || localChat.encrypted_draft_preview);
+  const serverClearsDraft =
+    serverExplicitlyDeletesDraft || serverHasMessagesForLocalDraftOnlyShell;
   const merged: Chat = {
     chat_id: serverChat.id,
     user_id: localChat.user_id ?? currentUserId,
@@ -145,7 +151,7 @@ export async function mergeServerChatWithLocal(
     messages_v: serverChat.messages_v ?? localChat.messages_v ?? 0,
     title_v: serverChat.title_v ?? localChat.title_v ?? 0,
     metadata_v: serverChat.metadata_v ?? localChat.metadata_v,
-    draft_v: serverChat.draft_v ?? localChat.draft_v ?? 0,
+    draft_v: serverClearsDraft ? 0 : serverChat.draft_v ?? localChat.draft_v ?? 0,
     unread_count: serverChat.unread_count ?? localChat.unread_count ?? 0,
     created_at: serverChat.created_at ?? localChat.created_at ?? nowTimestamp,
     updated_at: serverChat.updated_at ?? localChat.updated_at ?? nowTimestamp,
@@ -157,14 +163,14 @@ export async function mergeServerChatWithLocal(
       serverChat.created_at ??
       localChat.created_at ??
       nowTimestamp,
-    encrypted_draft_md: serverExplicitlyDeletesDraft
+    encrypted_draft_md: serverClearsDraft
       ? undefined
       : serverHasDraftMarkdown
         ? serverChat.encrypted_draft_md ?? undefined
         : keyMismatch
           ? undefined
           : localChat.encrypted_draft_md,
-    encrypted_draft_preview: serverExplicitlyDeletesDraft
+    encrypted_draft_preview: serverClearsDraft
       ? undefined
       : serverHasDraftPreview
         ? serverChat.encrypted_draft_preview ?? undefined
@@ -275,7 +281,7 @@ export async function mergeServerChatWithLocal(
 
   const localDraftV = localChat.draft_v || 0;
   const serverDraftV = serverChat.draft_v || 0;
-  if (!serverExplicitlyDeletesDraft && localDraftV >= serverDraftV) {
+  if (!serverClearsDraft && localDraftV >= serverDraftV) {
     if (localChat.encrypted_draft_md) {
       merged.encrypted_draft_md = localChat.encrypted_draft_md;
     }
