@@ -124,7 +124,7 @@ test('background chat notification shows and allows reply', async ({ page }: { p
 	// 12. Wait for the background chat notification popup
 	// ══════════════════════════════════════════════════════════════
 	logStep('Waiting for background chat notification...');
-	const notification = page.getByTestId('chat-notification');
+	const notification = page.locator(`[data-testid="chat-notification"][data-chat-id="${chatAId}"]`).first();
 	await expect(notification).toBeVisible({ timeout: 60000 });
 	await expect(notification).toHaveAttribute('data-chat-id', chatAId);
 	logStep('Notification appeared!');
