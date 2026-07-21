@@ -6739,6 +6739,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             showWelcome = false;
             return;
         }
+        if (currentMessages.length > 0) {
+            showWelcome = false;
+            return;
+        }
         showWelcome = !hasMessages;
     }
 
