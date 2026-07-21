@@ -32,7 +32,7 @@ const {
 	getTestAccount,
 	getE2EDebugUrl
 } = require('./signup-flow-helpers');
-const { submitPasswordAndHandleOtp, waitForChatReady } = require('./helpers/chat-test-helpers');
+const { openSignupInterface, submitPasswordAndHandleOtp, waitForChatReady } = require('./helpers/chat-test-helpers');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
@@ -48,25 +48,23 @@ async function loginTestAccount(page: any, log: any): Promise<void> {
 		localStorage.removeItem('emailLookupRateLimit');
 	});
 
-	const loginBtn = page.getByTestId('header-login-signup-btn');
-	await expect(loginBtn).toBeVisible();
-	await loginBtn.click();
+	await openSignupInterface(page, 30000);
 
 	// Click Login tab to switch from signup to login view
 	const loginTab = page.getByTestId('tab-login');
 	await expect(loginTab).toBeVisible({ timeout: 10000 });
 	await loginTab.click();
 
-	const emailInput = page.locator('#login-email-input');
+	const emailInput = page.getByTestId('login-email-input');
 	await expect(emailInput).toBeVisible({ timeout: 15000 });
 	await page.waitForTimeout(1000);
 	await emailInput.fill(TEST_EMAIL);
 	// Wait for the continue button to be enabled (async email validation / rate-limit check)
-	const continueBtn = page.getByRole('button', { name: /continue/i });
+	const continueBtn = page.getByTestId('login-continue-button');
 	await expect(continueBtn).toBeEnabled({ timeout: 30000 });
 	await continueBtn.click();
 
-	const pwInput = page.locator('#login-password-input');
+	const pwInput = page.getByTestId('login-password-input');
 	await expect(pwInput).toBeVisible();
 	await pwInput.fill(TEST_PASSWORD);
 

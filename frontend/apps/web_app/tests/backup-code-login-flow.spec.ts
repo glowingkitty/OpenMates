@@ -23,7 +23,7 @@ const {
 	assertNoMissingTranslations,
 	getIsolatedTestAccount
 } = require('./signup-flow-helpers');
-const { loginToTestAccount } = require('./helpers/chat-test-helpers');
+const { loginToTestAccount, openSignupInterface } = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 /**
@@ -324,7 +324,7 @@ test('sets up backup codes in settings and logs in with a backup code', async ({
 	logCheckpoint('Logged out.');
 
 	// Logout now returns to the guest new-chat welcome screen and clears the active chat.
-	await expect(page.getByTestId('header-login-signup-btn')).toBeVisible({ timeout: 15000 });
+	await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 15000 });
 	expect(await page.evaluate(() => window.location.hash)).not.toContain('demo-for-everyone');
 	logCheckpoint('Returned to logged-out welcome screen after logout.');
 
@@ -333,9 +333,7 @@ test('sets up backup codes in settings and logs in with a backup code', async ({
 	// ========================================================================
 
 	// Open login dialog again
-	const loginButtonAfterLogout = page.getByTestId('header-login-signup-btn');
-	await expect(loginButtonAfterLogout).toBeVisible({ timeout: 15000 });
-	await loginButtonAfterLogout.click();
+	await openSignupInterface(page, 30000);
 
 	// Click Login tab to switch from signup to login view
 	const loginTabRelogin = page.getByTestId('tab-login');
@@ -344,30 +342,30 @@ test('sets up backup codes in settings and logs in with a backup code', async ({
 	logCheckpoint('Opened login dialog after logout.');
 
 	// Enter email
-	const emailInputRelogin = page.locator('#login-email-input');
+	const emailInputRelogin = page.getByTestId('login-email-input');
 	await expect(emailInputRelogin).toBeVisible({ timeout: 10000 });
 	await emailInputRelogin.fill(OPENMATES_TEST_ACCOUNT_EMAIL);
-	await page.locator('#login-continue-button').click();
+	await page.getByTestId('login-continue-button').click();
 	logCheckpoint('Submitted email for re-login.');
 
 	// Enter password first. The OTP field appears only after /login confirms that
 	// 2FA is required; /lookup stays generic for anti-enumeration.
-	const passwordInputRelogin = page.locator('#login-password-input');
+	const passwordInputRelogin = page.getByTestId('login-password-input');
 	await expect(passwordInputRelogin).toBeVisible({ timeout: 15000 });
 	await passwordInputRelogin.fill(OPENMATES_TEST_ACCOUNT_PASSWORD);
 	logCheckpoint('Filled password for re-login.');
-	const loginSubmitButton = page.locator('#login-submit-button');
+	const loginSubmitButton = page.getByTestId('login-submit-button');
 	await expect(loginSubmitButton).toBeVisible();
 	await loginSubmitButton.click();
 	logCheckpoint('Submitted password to reveal backup-code prompt.');
 
-	const tfaInputRelogin = page.locator('#login-otp-input');
+	const tfaInputRelogin = page.getByTestId('login-otp-input');
 	await expect(tfaInputRelogin).toBeVisible({ timeout: 15000 });
 	await takeStepScreenshot(page, 'tfa-prompt-relogin');
 	logCheckpoint('TFA input visible after password submission.');
 
 	// Switch to backup code mode using the toggle button
-	const backupModeButton = page.locator('#login-with-backup-code button');
+	const backupModeButton = page.getByTestId('login-with-backup-code');
 	await expect(backupModeButton).toBeVisible();
 	await backupModeButton.click();
 	await takeStepScreenshot(page, 'backup-mode-active');
@@ -380,7 +378,7 @@ test('sets up backup codes in settings and logs in with a backup code', async ({
 	});
 
 	// The TFA input now accepts backup code format (alphanumeric 14-char)
-	const backupCodeInput = page.locator('#login-otp-input');
+	const backupCodeInput = page.getByTestId('login-otp-input');
 	await expect(backupCodeInput).toBeVisible();
 	await backupCodeInput.fill(backupCodeToUse);
 	await takeStepScreenshot(page, 'backup-code-entered');
@@ -472,27 +470,27 @@ test('sets up backup codes in settings and logs in with a backup code', async ({
 
 	await expect(logoutItem).toBeVisible({ timeout: 10000 });
 	await logoutItem.click();
-	await expect(page.getByTestId('header-login-signup-btn')).toBeVisible({ timeout: 15000 });
+	await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 15000 });
 	await takeStepScreenshot(page, 'logged-out-after-disable');
 	logCheckpoint('Logged out after disabling OTP.');
 
-	await page.getByTestId('header-login-signup-btn').click();
+	await openSignupInterface(page, 30000);
 	const loginTabAfterDisable = page.getByTestId('tab-login');
 	await expect(loginTabAfterDisable).toBeVisible({ timeout: 10000 });
 	await loginTabAfterDisable.click();
 
-	const emailInputAfterDisable = page.locator('#login-email-input');
+	const emailInputAfterDisable = page.getByTestId('login-email-input');
 	await expect(emailInputAfterDisable).toBeVisible({ timeout: 10000 });
 	await emailInputAfterDisable.fill(OPENMATES_TEST_ACCOUNT_EMAIL);
-	await page.locator('#login-continue-button').click();
+	await page.getByTestId('login-continue-button').click();
 
-	const passwordInputAfterDisable = page.locator('#login-password-input');
+	const passwordInputAfterDisable = page.getByTestId('login-password-input');
 	await expect(passwordInputAfterDisable).toBeVisible({ timeout: 15000 });
 	await passwordInputAfterDisable.fill(OPENMATES_TEST_ACCOUNT_PASSWORD);
-	await page.locator('#login-submit-button').click();
+	await page.getByTestId('login-submit-button').click();
 
 	await expect(page.locator('[data-authenticated="true"]').first()).toBeVisible({ timeout: 60000 });
-	await expect(page.locator('#login-otp-input')).not.toBeVisible();
+	await expect(page.getByTestId('login-otp-input')).not.toBeVisible();
 	await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 30000 });
 	await takeStepScreenshot(page, 'login-success-password-only-after-disable');
 	logCheckpoint('Password-only login succeeded after disabling OTP. Test complete.');

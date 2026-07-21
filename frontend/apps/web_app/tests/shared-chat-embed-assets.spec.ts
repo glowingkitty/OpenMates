@@ -17,10 +17,9 @@ const os = require('os');
 const {
 	createSignupLogger,
 	getTestAccount,
-	assertNoMissingTranslations,
-	getE2EDebugUrl
+	assertNoMissingTranslations
 } = require('./signup-flow-helpers');
-const { openSignupInterface, submitPasswordAndHandleOtp } = require('./helpers/chat-test-helpers');
+const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 const CLI_DIST = fs.existsSync('/workspace/cli/dist/cli.js')
@@ -227,23 +226,7 @@ async function runCli(
 }
 
 async function loginCliViaBrowser(page: any, apiUrl: string, logCheckpoint: (msg: string) => void) {
-	await page.goto(getE2EDebugUrl('/'));
-	await page.waitForLoadState('load');
-	await page.evaluate(() => {
-		localStorage.removeItem('emailLookupRateLimit');
-		localStorage.removeItem('loginRateLimit');
-		localStorage.removeItem('passwordTfaRateLimit');
-	});
-	await openSignupInterface(page, 30000);
-
-	const loginTab = page.getByTestId('tab-login');
-	await expect(loginTab).toBeVisible({ timeout: 10000 });
-	await loginTab.click();
-
-	await page.locator('#login-email-input').fill(TEST_EMAIL);
-	await page.getByRole('button', { name: /continue/i }).click();
-	await page.locator('#login-password-input').fill(TEST_PASSWORD);
-	await submitPasswordAndHandleOtp(page, TEST_OTP_KEY, logCheckpoint);
+	await loginToTestAccount(page, logCheckpoint);
 
 	const cli = spawnCliLogin(apiUrl);
 	const token = await cli.waitForToken();

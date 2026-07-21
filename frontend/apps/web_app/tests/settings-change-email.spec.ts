@@ -13,7 +13,7 @@ const {
 	getE2EDebugUrl,
 	getIsolatedTestAccount
 } = require('./signup-flow-helpers');
-const { submitPasswordAndHandleOtp } = require('./helpers/chat-test-helpers');
+const { openSignupInterface, submitPasswordAndHandleOtp } = require('./helpers/chat-test-helpers');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getIsolatedTestAccount(
 	'settings-change-email.spec.ts'
@@ -23,17 +23,7 @@ const RECOVERY_GMAIL_ALIAS_LABELS = ['roundtrip', 'roundtrip-1777327279784'];
 test.describe.configure({ mode: 'serial' });
 
 async function openLoginDialog(page: any): Promise<void> {
-	const headerButton = page.getByTestId('header-login-signup-btn');
-	try {
-		await expect(headerButton).toBeVisible({ timeout: 5000 });
-		await headerButton.click({ timeout: 5000 });
-	} catch {
-		await page
-			.getByRole('button', { name: /sign up\s*\/\s*login|login\s*\/\s*sign up/i })
-			.first()
-			.click({ timeout: 15000 });
-	}
-
+	await openSignupInterface(page, 30000);
 	await expect(page.getByTestId('login-tabs')).toBeVisible({ timeout: 10000 });
 }
 
@@ -55,12 +45,12 @@ async function login(page: any, email: string, log: any): Promise<void> {
 	await expect(loginTab).toBeVisible({ timeout: 10000 });
 	await loginTab.click();
 
-	const emailInput = page.locator('#login-email-input');
+	const emailInput = page.getByTestId('login-email-input');
 	await expect(emailInput).toBeVisible({ timeout: 15000 });
 	await emailInput.fill(email);
-	await page.locator('#login-continue-button').click();
+	await page.getByTestId('login-continue-button').click();
 
-	const passwordInput = page.locator('#login-password-input');
+	const passwordInput = page.getByTestId('login-password-input');
 	await expect(passwordInput).toBeVisible({ timeout: 15000 });
 	await passwordInput.fill(TEST_PASSWORD);
 

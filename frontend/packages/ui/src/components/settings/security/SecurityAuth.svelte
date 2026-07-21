@@ -615,6 +615,7 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
                         bind:value={password}
                         placeholder={$text('common.password')}
                         disabled={isPasswordLoading}
+                        dataTestid="password-input"
                         onKeydown={handlePasswordKeydown}
                     />
                     {#if errorMessage}

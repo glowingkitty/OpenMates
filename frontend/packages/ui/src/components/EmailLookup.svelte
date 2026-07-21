@@ -335,6 +335,7 @@
                 <button 
                     type="button"
                     class="passkey-button" 
+                    data-testid="login-use-email-button"
                     onclick={onCancelPasskey}
                 >
                     <span class="clickable-icon icon_mail"></span>
@@ -344,6 +345,7 @@
                 <button 
                     type="button"
                     class="passkey-button" 
+                    data-testid="login-passkey-button"
                     onclick={onPasskeyClick}
                 >
                     <span class="clickable-icon icon_passkey"></span>
@@ -356,6 +358,7 @@
                 <button
                     type="button"
                     class="passkey-button pair-login-button"
+                    data-testid="login-pair-button"
                     onclick={onPairLoginClick}
                 >
                     <span class="clickable-icon icon_phone"></span>
@@ -379,6 +382,7 @@
                     <span class="clickable-icon icon_mail"></span>
                     <input
                         id="login-email-input"
+                        data-testid="login-email-input"
                         type="email"
                         name="username"
                         bind:value={emailInputValue}
@@ -407,6 +411,7 @@
             <!-- Continue button - fifth element -->
             <button
                 id="login-continue-button"
+                data-testid="login-continue-button"
                 type="submit"
                 class="login-button"
                 disabled={isLoading || !hasValidEmail}

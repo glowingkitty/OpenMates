@@ -41,7 +41,7 @@
 </script>
 
 <div class="options-container">
-    <p class="instruction-text">{@html $text('signup.how_to_login')}</p>
+    <p class="instruction-text">{$text('signup.how_to_login')}</p>
     
     {#if showPasskey}
         <!-- Passkey Option -->
@@ -49,11 +49,12 @@
             {#if showRecommendedBadge}
                 <div class="recommended-badge">
                     <div class="thumbs-up-icon"></div>
-                    <span>{@html $text('signup.recommended')}</span>
+                    <span>{$text('signup.recommended')}</span>
                 </div>
             {/if}
             <button
                 class="option-button"
+                data-testid="login-method-passkey"
                 class:selected={selectedOption === 'passkey'}
                 class:loading={isLoading && selectedOption === 'passkey'}
                 class:recommended={showRecommendedBadge}
@@ -65,7 +66,7 @@
                         <div class="clickable-icon icon_passkey" style="width: 30px; height: 30px"></div>
                     </div>
                     <div class="option-content">
-                        <h3 class="option-title">{@html $text('signup.passkey')}</h3>
+                        <h3 class="option-title">{$text('signup.passkey')}</h3>
                     </div>
                 </div>
                 <p class="option-description">
@@ -80,6 +81,7 @@
     <!-- Password Option -->
     <button
         class="option-button"
+        data-testid="login-method-password"
         class:selected={selectedOption === 'password'}
         class:loading={isLoading && selectedOption === 'password'}
         disabled={disabled || isLoading}
@@ -90,10 +92,10 @@
                 <div class="clickable-icon icon_password" style="width: 30px; height: 30px"></div>
             </div>
             <div class="option-content">
-                <h3 class="option-title">{@html $text('common.password')}</h3>
+                <h3 class="option-title">{$text('common.password')}</h3>
             </div>
         </div>
-        <p class="option-description">{@html $text('signup.password_descriptor')}</p>
+        <p class="option-description">{$text('signup.password_descriptor')}</p>
     </button>
 </div>
 
@@ -205,7 +207,7 @@
         justify-content: center;
         width: 48px;
         height: 48px;
-        background: var(--color-grey-15);
+        background: var(--color-grey-20);
         border-radius: var(--radius-3);
     }
     
@@ -234,4 +236,3 @@
         line-height: 1.4;
     }
 </style>
-

@@ -199,6 +199,14 @@ async function waitForLoginSuccessAfterSubmit(page: any, authSignal: any): Promi
 	return waitForAuthenticatedUi(page, authSignal, 20000);
 }
 
+async function waitForOtpOrAuthenticated(page: any, otpInput: any, authSignal: any, timeout = 15000): Promise<'otp' | 'auth' | null> {
+	return Promise.race([
+		otpInput.waitFor({ state: 'visible', timeout }).then(() => 'otp' as const).catch(() => null),
+		authSignal.waitFor({ state: 'visible', timeout }).then(() => 'auth' as const).catch(() => null),
+		page.waitForTimeout(timeout).then(() => null)
+	]);
+}
+
 async function waitForLoginSuccessAfterSubmitWithDiagnostics(
 	page: any,
 	authSignal: any,
@@ -219,7 +227,7 @@ async function waitForLoginSuccessAfterSubmitWithDiagnostics(
 			page.evaluate(() => ({
 				url: window.location.href,
 				isAuthenticated: document.querySelector('[data-authenticated="true"]') !== null,
-				hasOtpInput: document.querySelector('#login-otp-input') !== null,
+				hasOtpInput: document.querySelector('[data-testid="login-otp-input"]') !== null,
 				hasErrorMessage: document.querySelector('[data-testid="error-message"]')?.textContent?.trim() || null,
 				modalText: document.querySelector('[data-testid="signup-modal"], [data-testid="login-modal"]')?.textContent?.slice(0, 300) || null,
 			})),
@@ -241,7 +249,7 @@ async function hasStoredEmailSalt(page: any): Promise<boolean> {
 }
 
 async function waitForEmailLookupReady(page: any): Promise<boolean> {
-	const passwordInput = page.locator('#login-password-input');
+	const passwordInput = page.getByTestId('login-password-input');
 	const passwordVisible = passwordInput.waitFor({ state: 'visible', timeout: 15000 })
 		.then(() => true)
 		.catch(() => false);
@@ -333,14 +341,14 @@ async function loginToTestAccount(
 	logCheckpoint('Clicked Login tab to switch from signup to login view.');
 	await takeStepScreenshot(page, 'login-dialog');
 
-	const emailInput = page.locator('#login-email-input');
+	const emailInput = page.getByTestId('login-email-input');
 	await expect(emailInput).toBeVisible({ timeout: 15000 });
 	await emailInput.fill(TEST_EMAIL);
 
 	// Click "Stay logged in" toggle so keys survive any page navigation during the test.
 	await ensureStayLoggedInChecked(page, logCheckpoint);
 
-	await page.getByRole('button', { name: /continue/i }).click();
+	await page.getByTestId('login-continue-button').click();
 	logCheckpoint('Entered email and clicked continue.');
 
 	// Retry if lookup fails before password login. 429 shows a rate-limit view,
@@ -370,11 +378,11 @@ async function loginToTestAccount(
 		await expect(retryLoginTab).toBeVisible({ timeout: 10000 });
 		await retryLoginTab.click();
 
-		const retryEmailInput = page.locator('#login-email-input');
+		const retryEmailInput = page.getByTestId('login-email-input');
 		await expect(retryEmailInput).toBeVisible({ timeout: 15000 });
 		await retryEmailInput.fill(TEST_EMAIL);
 		await ensureStayLoggedInChecked(page, logCheckpoint);
-		await page.getByRole('button', { name: /continue/i }).click();
+		await page.getByTestId('login-continue-button').click();
 		logCheckpoint(`Retry ${retryCount + 1}: re-entered email and clicked continue.`);
 		lookupReady = await waitForEmailLookupReady(page);
 	}
@@ -383,14 +391,14 @@ async function loginToTestAccount(
 		throw new Error('Login email lookup did not store the email salt or show a usable password step.');
 	}
 
-	const passwordInput = page.locator('#login-password-input');
+	const passwordInput = page.getByTestId('login-password-input');
 	await expect(passwordInput).toBeVisible({ timeout: 15000 });
 	await passwordInput.fill(TEST_PASSWORD);
 	await takeStepScreenshot(page, 'password-entered');
 
 	// Submit password first — OTP field only appears after backend confirms 2FA is required
 	// (anti-enumeration: OTP is never shown upfront, only after first login attempt).
-	const submitLoginButton = page.locator('button[type="submit"]', { hasText: /log in|login/i });
+	const submitLoginButton = page.getByTestId('login-submit-button');
 	await expect(submitLoginButton).toBeVisible();
 	await submitLoginButton.click();
 	logCheckpoint('Submitted password — waiting for 2FA prompt or direct login.');
@@ -400,15 +408,15 @@ async function loginToTestAccount(
 	// reliable login success detector because it's driven directly by the canonical
 	// auth state, not by UI visibility heuristics (which can race with animations).
 	const authSignal = page.locator('[data-authenticated="true"]');
-	const otpInput = page.locator('#login-otp-input');
+	const otpInput = page.getByTestId('login-otp-input');
 
 	// Race: either OTP field appears (2FA required) or login succeeds immediately
 	// (2FA not configured for this account). Some test accounts may have lost their
 	// encrypted_tfa_secret, causing the backend to bypass 2FA entirely.
-	const otpOrAuth = await Promise.race([
-		otpInput.waitFor({ state: 'visible', timeout: 15000 }).then(() => 'otp' as const),
-		authSignal.waitFor({ state: 'visible', timeout: 15000 }).then(() => 'auth' as const),
-	]);
+	const otpOrAuth = await waitForOtpOrAuthenticated(page, otpInput, authSignal);
+	if (!otpOrAuth) {
+		throw new Error('Login did not show OTP input or authenticated UI after password submit.');
+	}
 
 	let loginSuccess = false;
 
@@ -511,18 +519,18 @@ async function submitPasswordAndHandleOtp(
 	otpKey: string,
 	log: (msg: string) => void = () => {}
 ): Promise<void> {
-	const submitBtn = page.locator('button[type="submit"]', { hasText: /log in|login/i });
+	const submitBtn = page.getByTestId('login-submit-button');
 	await expect(submitBtn).toBeVisible();
 	await submitBtn.click();
 	log('Submitted password — waiting for 2FA prompt or direct login.');
 
 	const authSignal = page.locator('[data-authenticated="true"]');
-	const otpInput = page.locator('#login-otp-input');
+	const otpInput = page.getByTestId('login-otp-input');
 
-	const otpOrAuth = await Promise.race([
-		otpInput.waitFor({ state: 'visible', timeout: 15000 }).then(() => 'otp' as const),
-		authSignal.waitFor({ state: 'visible', timeout: 15000 }).then(() => 'auth' as const),
-	]);
+	const otpOrAuth = await waitForOtpOrAuthenticated(page, otpInput, authSignal);
+	if (!otpOrAuth) {
+		throw new Error('Login did not show OTP input or authenticated UI after password submit.');
+	}
 
 	if (otpOrAuth === 'auth') {
 		log('Login successful without 2FA.');

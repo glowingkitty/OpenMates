@@ -2257,7 +2257,7 @@
 </script>
 
 {#if !$authStore.isAuthenticated || $isInSignupProcess}
-    <div class="login-container" bind:this={loginContainer} in:fade={{ duration: 300 }} out:fade={{ duration: 300 }}>
+    <div class="login-container" data-testid={$isInSignupProcess ? 'signup-modal' : 'login-modal'} bind:this={loginContainer} in:fade={{ duration: 300 }} out:fade={{ duration: 300 }}>
         <!-- Report issue button - fixed to top left for easy access during login/signup -->
         <div class="report-issue-button-wrapper">
             <button
