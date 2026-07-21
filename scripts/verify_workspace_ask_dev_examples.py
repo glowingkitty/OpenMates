@@ -26,6 +26,13 @@ CLI_DIR = ROOT / "frontend" / "packages" / "openmates-cli"
 CLI_PATH = CLI_DIR / "dist" / "cli.js"
 LOGIN_SCRIPT = ROOT / "scripts" / "openmates_cli_test_account.mjs"
 DEFAULT_API_URL = "https://api.dev.openmates.org"
+DEFAULT_RESPONSE_TIMEOUT_SECONDS = "240"
+EXPECTED_FALLBACK_CHAT_CASES = {
+    "task_broad_status_fallback",
+    "plan_broad_archive_fallback",
+    "project_broad_archive_fallback",
+    "workflow_broad_edit_fallback",
+}
 
 
 def run_command(args: list[str], *, env: dict[str, str], cwd: Path = ROOT, timeout: int = 240) -> subprocess.CompletedProcess[str]:
@@ -50,7 +57,7 @@ def parse_json_output(output: str) -> Any:
 
 def run_cli(args: list[str], *, api_url: str, env: dict[str, str], timeout: int = 300) -> dict[str, Any]:
     result = run_command(
-        ["node", str(CLI_PATH), "--api-url", api_url.rstrip("/"), *args, "--json"],
+        ["node", str(CLI_PATH), "--api-url", api_url.rstrip("/"), *args, "--response-timeout-seconds", DEFAULT_RESPONSE_TIMEOUT_SECONDS, "--json"],
         cwd=ROOT,
         env=env,
         timeout=timeout,
@@ -78,14 +85,18 @@ def workflow_id(result: dict[str, Any]) -> str:
 
 
 def summarize_result(case_id: str, command: list[str], result: dict[str, Any]) -> dict[str, Any]:
+    fallback = result.get("workspace_ask_fallback") if isinstance(result.get("workspace_ask_fallback"), dict) else None
     return {
         "case": case_id,
         "command": "openmates " + " ".join(command),
-        "outcome": result.get("outcome"),
+        "outcome": result.get("outcome") or (fallback or {}).get("outcome"),
         "applied": result.get("applied"),
-        "fallback_to_chat": result.get("fallback_to_chat"),
-        "change_set_id": result.get("change_set_id"),
-        "summary": result.get("summary"),
+        "fallback_to_chat": result.get("fallback_to_chat") or bool(fallback),
+        "fallback_chat_started": bool(fallback) and result.get("status") in {"completed", "waiting_for_user"},
+        "fallback_message": (fallback or {}).get("fallback_message") or result.get("fallback_message"),
+        "chat_id": result.get("chatId") if fallback else None,
+        "change_set_id": None if fallback else result.get("change_set_id"),
+        "summary": result.get("summary") if not fallback else result.get("assistant"),
         "warnings": result.get("warnings") or [],
         "processing": compact_processing(result.get("processing")),
     }
@@ -106,12 +117,26 @@ def compact_processing(value: Any) -> dict[str, Any] | None:
     }
 
 
-def run_case(case_id: str, command: list[str], *, api_url: str, env: dict[str, str], applied_change_sets: list[str]) -> tuple[dict[str, Any], dict[str, Any]]:
+def run_case(
+    case_id: str,
+    command: list[str],
+    *,
+    api_url: str,
+    env: dict[str, str],
+    applied_change_sets: list[str],
+    fallback_chat_ids: list[str],
+) -> tuple[dict[str, Any], dict[str, Any]]:
     result = run_cli(command, api_url=api_url, env=env)
     summary = summarize_result(case_id, command, result)
+    if case_id in EXPECTED_FALLBACK_CHAT_CASES and not summary["fallback_chat_started"]:
+        raise RuntimeError(f"Expected {case_id} to start fallback chat, got: {summary}")
     change_set_id = result.get("change_set_id")
     if result.get("outcome") == "applied" and isinstance(change_set_id, str) and change_set_id:
         applied_change_sets.append(change_set_id)
+    fallback = result.get("workspace_ask_fallback")
+    chat_id = result.get("chatId")
+    if isinstance(fallback, dict) and isinstance(chat_id, str) and chat_id:
+        fallback_chat_ids.append(chat_id)
     return summary, result
 
 
@@ -128,6 +153,22 @@ def undo_change_sets(change_set_ids: list[str], *, api_url: str, env: dict[str, 
         except Exception as exc:  # noqa: BLE001 - verification must report all cleanup failures.
             undo_results.append({"change_set_id": change_set_id, "error": str(exc)})
     return undo_results
+
+
+def cleanup_chats(chat_ids: list[str], *, api_url: str, env: dict[str, str]) -> list[dict[str, Any]]:
+    results: list[dict[str, Any]] = []
+    for chat_id in chat_ids:
+        try:
+            run_command(
+                ["node", str(CLI_PATH), "--api-url", api_url.rstrip("/"), "chats", "delete", chat_id, "--yes"],
+                cwd=ROOT,
+                env=env,
+                timeout=120,
+            )
+            results.append({"chat_id": chat_id, "deleted": True})
+        except Exception as exc:  # noqa: BLE001 - cleanup failures are evidence.
+            results.append({"chat_id": chat_id, "error": str(exc)})
+    return results
 
 
 def manual_workflow_graph() -> str:
@@ -174,32 +215,33 @@ def main() -> int:
         )
 
         applied_change_sets: list[str] = []
+        fallback_chat_ids: list[str] = []
         cleanup_workflow_ids: list[str] = []
         evidence: list[dict[str, Any]] = []
         run_error: Exception | None = None
 
         try:
-            task_create_summary, task_create = run_case("task_short_create", ["tasks", "ask", f"WCH quick task {suffix}"], api_url=args.api_url, env=env, applied_change_sets=applied_change_sets)
+            task_create_summary, task_create = run_case("task_short_create", ["tasks", "ask", f"WCH quick task {suffix}"], api_url=args.api_url, env=env, applied_change_sets=applied_change_sets, fallback_chat_ids=fallback_chat_ids)
             evidence.append(task_create_summary)
             task_id = first_id(task_create, "tasks", "task_id")
 
-            task_delete_summary, task_delete = run_case("task_delete_seed", ["tasks", "ask", f"WCH temporary task {suffix}"], api_url=args.api_url, env=env, applied_change_sets=applied_change_sets)
+            task_delete_summary, task_delete = run_case("task_delete_seed", ["tasks", "ask", f"WCH temporary task {suffix}"], api_url=args.api_url, env=env, applied_change_sets=applied_change_sets, fallback_chat_ids=fallback_chat_ids)
             _ = task_delete_summary
             task_delete_id = first_id(task_delete, "tasks", "task_id")
 
-            plan_create_summary, plan_create = run_case("plan_short_create", ["plans", "ask", f"WCH quick plan {suffix}"], api_url=args.api_url, env=env, applied_change_sets=applied_change_sets)
+            plan_create_summary, plan_create = run_case("plan_short_create", ["plans", "ask", f"WCH quick plan {suffix}"], api_url=args.api_url, env=env, applied_change_sets=applied_change_sets, fallback_chat_ids=fallback_chat_ids)
             evidence.append(plan_create_summary)
             plan_id = first_id(plan_create, "plans", "plan_id")
 
-            project_create_summary, project_create = run_case("project_short_create", ["projects", "ask", f"WCH quick project {suffix}"], api_url=args.api_url, env=env, applied_change_sets=applied_change_sets)
+            project_create_summary, project_create = run_case("project_short_create", ["projects", "ask", f"WCH quick project {suffix}"], api_url=args.api_url, env=env, applied_change_sets=applied_change_sets, fallback_chat_ids=fallback_chat_ids)
             evidence.append(project_create_summary)
             project_id = first_id(project_create, "projects", "project_id")
 
-            project_delete_summary, project_delete = run_case("project_delete_seed", ["projects", "ask", f"WCH temporary project {suffix}"], api_url=args.api_url, env=env, applied_change_sets=applied_change_sets)
+            project_delete_summary, project_delete = run_case("project_delete_seed", ["projects", "ask", f"WCH temporary project {suffix}"], api_url=args.api_url, env=env, applied_change_sets=applied_change_sets, fallback_chat_ids=fallback_chat_ids)
             _ = project_delete_summary
             project_delete_id = first_id(project_delete, "projects", "project_id")
 
-            workflow_create_summary, workflow_create = run_case("workflow_short_create", ["workflows", "ask", f"WCH quick workflow {suffix}"], api_url=args.api_url, env=env, applied_change_sets=applied_change_sets)
+            workflow_create_summary, workflow_create = run_case("workflow_short_create", ["workflows", "ask", f"WCH quick workflow {suffix}"], api_url=args.api_url, env=env, applied_change_sets=applied_change_sets, fallback_chat_ids=fallback_chat_ids)
             evidence.append(workflow_create_summary)
             workflow_disable_seed = run_cli(["workflows", "create", "--title", f"WCH enabled workflow {suffix}", "--graph", manual_workflow_graph(), "--enabled"], api_url=args.api_url, env=env, timeout=180)
             workflow = workflow_id(workflow_disable_seed)
@@ -225,7 +267,7 @@ def main() -> int:
             ]
 
             for case_id, command in cases:
-                summary, _result = run_case(case_id, command, api_url=args.api_url, env=env, applied_change_sets=applied_change_sets)
+                summary, _result = run_case(case_id, command, api_url=args.api_url, env=env, applied_change_sets=applied_change_sets, fallback_chat_ids=fallback_chat_ids)
                 evidence.append(summary)
 
             if len(evidence) != 20:
@@ -234,8 +276,9 @@ def main() -> int:
             run_error = exc
 
         undo_results = undo_change_sets(applied_change_sets, api_url=args.api_url, env=env)
+        chat_cleanup_results = cleanup_chats(fallback_chat_ids, api_url=args.api_url, env=env)
         cleanup_results = cleanup_workflows(cleanup_workflow_ids, api_url=args.api_url, env=env)
-        print(json.dumps({"api_url": args.api_url.rstrip("/"), "example_count": len(evidence), "examples": evidence, "undo_results": undo_results, "cleanup_results": cleanup_results}, indent=2))
+        print(json.dumps({"api_url": args.api_url.rstrip("/"), "example_count": len(evidence), "examples": evidence, "undo_results": undo_results, "chat_cleanup_results": chat_cleanup_results, "cleanup_results": cleanup_results}, indent=2))
         if run_error is not None:
             raise run_error
         failed_undo = [item for item in undo_results if item.get("error")]

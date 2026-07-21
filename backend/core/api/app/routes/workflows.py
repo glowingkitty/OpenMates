@@ -308,6 +308,27 @@ def _deterministic_workflow_create(instruction: str) -> WorkflowCreateRequest:
     return WorkflowCreateRequest(title=instruction.strip(), graph=graph, enabled=False, source="cli_ask", created_by_assistant=True)
 
 
+def _looks_like_broad_workflow_edit(instruction: str) -> bool:
+    normalized = " ".join(instruction.lower().split())
+    if not any(phrase in normalized for phrase in ("all workflows", "all my workflows", "every workflow", "each workflow", "my workflows")):
+        return False
+    return any(
+        term in normalized
+        for term in (
+            "add ",
+            "archive",
+            "change",
+            "delete",
+            "disable",
+            "edit",
+            "enable",
+            "notification",
+            "notify",
+            "update",
+        )
+    )
+
+
 def _workflow_ask_update_operation(patch: WorkflowUpdateRequest) -> str:
     if patch.graph is not None:
         return "workflow_version"
@@ -639,6 +660,8 @@ async def ask_workflows(
     processing: dict[str, Any] | None = None
     if create is None:
         if body.selected_object_id is not None:
+            return _workflow_ask_fallback("Open a specific workflow to instruct more complex changes.")
+        if _looks_like_broad_workflow_edit(body.instruction):
             return _workflow_ask_fallback("Open a specific workflow to instruct more complex changes.")
         if _is_short_title_like_ask(body.instruction):
             create = _deterministic_workflow_create(body.instruction)

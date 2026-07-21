@@ -207,6 +207,143 @@ async function withChatDeleteMock<T>(
   }
 }
 
+async function withWorkspaceAskFallbackChatMock<T>(
+  run: (params: { apiUrl: string; tempHome: string; frameTypes: string[]; requestPaths: string[]; chatMessages: string[]; clientCapabilities: string[][] }) => Promise<T>,
+): Promise<T> {
+  const tempHome = join(tmpdir(), `openmates-cli-ask-fallback-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+  const stateDir = join(tempHome, ".openmates");
+  const frameTypes: string[] = [];
+  const requestPaths: string[] = [];
+  const chatMessages: string[] = [];
+  const clientCapabilities: string[][] = [];
+  mkdirSync(stateDir, { recursive: true });
+  const wss = new WebSocketServer({ noServer: true });
+  const server = createServer(async (request, response) => {
+    if (request.url) requestPaths.push(`${request.method ?? "GET"} ${request.url}`);
+    if (request.method === "POST" && request.url === "/v1/workflows/ask") {
+      await readJsonBody(request);
+      writeJson(response, {
+        outcome: "fallback_to_chat",
+        applied: false,
+        fallback_to_chat: true,
+        fallback_message: "clarification required before applying workspace ask",
+        change_set_id: null,
+        summary: "clarification required before applying workspace ask",
+        changed_entries: [],
+        undo_all_command: null,
+        undo_entry_commands: [],
+        warnings: [],
+      });
+      return;
+    }
+    if (request.method === "POST" && request.url === "/v1/auth/session") {
+      writeJson(response, {
+        success: true,
+        ws_token: "fresh-ws-token",
+        user: { id: "11111111-1111-4111-8111-111111111111" },
+      });
+      return;
+    }
+    if (request.method === "GET" && request.url === "/v1/settings/export-account-data?include_usage=false&include_invoices=false") {
+      writeJson(response, { data: { app_settings_memories: [] } });
+      return;
+    }
+    response.writeHead(404);
+    response.end();
+  });
+  server.on("upgrade", (request, socket, head) => {
+    wss.handleUpgrade(request, socket, head, (ws) => {
+      let turnId = "turn-1";
+      let chatId = "chat-1";
+      let messageId = "message-1";
+      ws.on("message", (raw) => {
+        const frame = JSON.parse(raw.toString()) as { type: string; payload?: Record<string, unknown> };
+        frameTypes.push(frame.type);
+        const payload = frame.payload ?? {};
+        if (frame.type === "chat_turn_preflight") {
+          turnId = String(payload.turn_id ?? turnId);
+          chatId = String(payload.chat_id ?? chatId);
+          messageId = String(payload.message_id ?? messageId);
+          ws.send(JSON.stringify({
+            type: "chat_turn_preflight_ack",
+            payload: { turn_id: turnId, preflight_id: "preflight-1", committed_messages_v: 1 },
+          }));
+          return;
+        }
+        if (frame.type === "chat_message_added") {
+          const message = payload.message as Record<string, unknown> | undefined;
+          if (typeof message?.content === "string") chatMessages.push(message.content);
+          clientCapabilities.push(Array.isArray(payload.client_capabilities) ? payload.client_capabilities.filter((item): item is string => typeof item === "string") : []);
+          ws.send(JSON.stringify({
+            type: "chat_message_confirmed",
+            payload: { chat_id: chatId, message_id: messageId, new_messages_v: 1 },
+          }));
+          setTimeout(() => {
+            ws.send(JSON.stringify({
+              type: "ai_message_update",
+              payload: {
+                chat_id: chatId,
+                user_message_id: messageId,
+                message_id: "assistant-1",
+                full_content_so_far: "I can help narrow this down. Which workflow should I update?",
+                is_final_chunk: true,
+                category: "general",
+                model_name: "Test Model",
+                recovery_job_id: "recovery-1",
+                recovery_protocol_version: 1,
+              },
+            }));
+            ws.send(JSON.stringify({
+              type: "post_processing_metadata",
+              payload: { chat_id: chatId, follow_up_request_suggestions: [] },
+            }));
+          }, 10);
+          return;
+        }
+        if (frame.type === "recovery_job_claim") {
+          ws.send(JSON.stringify({
+            type: "recovery_job_claimed",
+            payload: {
+              job_id: "recovery-1",
+              state: "TERMINAL",
+              chat_id: chatId,
+              turn_id: turnId,
+              assistant_message_id: "assistant-1",
+              chat_key_version: 1,
+            },
+          }));
+        }
+      });
+    });
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  const apiUrl = `http://127.0.0.1:${address.port}`;
+  writeFileSync(join(stateDir, "session.json"), `${JSON.stringify({
+    apiUrl,
+    sessionId: "session-1",
+    wsToken: "ws-token",
+    cookies: { auth_refresh_token: "refresh-token" },
+    masterKeyExportedB64: Buffer.alloc(32).toString("base64"),
+    masterKeyStorage: "plaintext",
+    hashedEmail: "hashed-email",
+    userEmailSalt: "salt",
+    createdAt: Date.now(),
+    authorizerDeviceName: "test-device",
+    autoLogoutMinutes: null,
+  })}\n`);
+
+  try {
+    return await run({ apiUrl, tempHome, frameTypes, requestPaths, chatMessages, clientCapabilities });
+  } finally {
+    wss.close();
+    server.closeAllConnections();
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+    rmSync(tempHome, { recursive: true, force: true });
+  }
+}
+
 async function runCliWithEmptyCacheSession(
   apiUrl: string,
   args: string[],
@@ -3106,6 +3243,40 @@ describe("learning-mode command surface", () => {
           body: { passcode: "teach-1234" },
         },
       ]);
+    });
+  });
+});
+
+describe("workspace ask fallback chat", () => {
+  it("starts a saved chat with the original instruction when workflow ask falls back", async () => {
+    await withWorkspaceAskFallbackChatMock(async ({ apiUrl, tempHome, frameTypes, requestPaths, chatMessages, clientCapabilities }) => {
+      const instruction = "add a Discord notification to all my workflows once they are done";
+      const output = await runCliAsync(
+        ["workflows", "ask", instruction, "--json", "--api-url", apiUrl],
+        { HOME: tempHome, USERPROFILE: tempHome },
+      );
+      const parsed = JSON.parse(output) as {
+        status?: string;
+        chatId?: string;
+        assistant?: string;
+        workspace_ask_fallback?: { outcome?: string; fallback_message?: string; namespace?: string };
+      };
+
+      assert.equal(parsed.status, "completed");
+      assert.equal(typeof parsed.chatId, "string");
+      assert.match(parsed.chatId ?? "", /^[0-9a-f-]{36}$/i);
+      assert.equal(parsed.assistant, "I can help narrow this down. Which workflow should I update?");
+      assert.deepEqual(parsed.workspace_ask_fallback, {
+        outcome: "fallback_to_chat",
+        fallback_message: "clarification required before applying workspace ask",
+        namespace: "workflow",
+      });
+      assert.deepEqual(chatMessages, [instruction]);
+      assert.ok(requestPaths.includes("POST /v1/workflows/ask"));
+      assert.ok(requestPaths.includes("GET /v1/settings/export-account-data?include_usage=false&include_invoices=false"));
+      assert.deepEqual(clientCapabilities, [[]]);
+      assert.ok(frameTypes.includes("chat_turn_preflight"));
+      assert.ok(frameTypes.includes("chat_message_added"));
     });
   });
 });

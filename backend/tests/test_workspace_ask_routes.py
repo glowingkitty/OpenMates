@@ -530,6 +530,25 @@ async def test_workflow_ask_selected_edit_without_exact_payload_falls_back() -> 
 
 
 @pytest.mark.asyncio
+async def test_workflow_ask_broad_edit_without_exact_payload_falls_back(monkeypatch) -> None:
+    async def fail_pipeline(_instruction, _secrets_manager):
+        raise AssertionError("broad workflow edits must fall back before inference")
+
+    monkeypatch.setattr(workflows, "run_workflow_ask_pipeline", fail_pipeline)
+    history = FakeHistoryService()
+    service = FakeWorkflowService()
+    body = workflows.WorkflowAskRequest(instruction="add a Discord notification to all my workflows once they are done")
+
+    result = await workflows.ask_workflows(_request_with_secrets(), body, current_user=_user(), service=service, history_service=history)
+
+    assert result["outcome"] == "fallback_to_chat"
+    assert result["applied"] is False
+    assert result["changed_entries"] == []
+    assert service.created == []
+    assert history.recorded == []
+
+
+@pytest.mark.asyncio
 async def test_workflow_ask_exact_disable_records_history() -> None:
     history = FakeHistoryService()
     service = FakeWorkflowService()
