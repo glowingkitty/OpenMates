@@ -134,7 +134,7 @@ describe("chat sync merge", () => {
 
     expect(merged.encrypted_chat_key).toBe("local-key-k1");
     expect(merged.encrypted_title).toBe("local-title-k1");
-    expect(merged.encrypted_draft_md).toBe("local-draft-k1");
+    expect(merged.encrypted_draft_md).toBeUndefined();
     expect(merged.messages_v).toBe(6);
   });
 
@@ -237,6 +237,27 @@ describe("chat sync merge", () => {
     expect(merged.ideabucket).toBe(true);
   });
 
+  it("clears stale local draft when server metadata explicitly reports no draft", async () => {
+    const localChat = makeChat({
+      messages_v: 0,
+      draft_v: 2,
+      encrypted_draft_md: "stale-draft",
+      encrypted_draft_preview: "stale-preview",
+    });
+    const serverChat = {
+      id: "chat-1",
+      messages_v: 2,
+      title_v: 0,
+      draft_v: 0,
+    };
+
+    const merged = await mergeServerChatWithLocal(serverChat, localChat, "user-1");
+
+    expect(merged.encrypted_draft_md).toBeUndefined();
+    expect(merged.encrypted_draft_preview).toBeUndefined();
+    expect(merged.draft_v).toBe(0);
+  });
+
   it("preserves local encrypted header metadata when Phase 1a sends partial cache data", async () => {
     const localChat = makeChat({
       encrypted_title: "local-title-from-idb",
@@ -260,6 +281,7 @@ describe("chat sync merge", () => {
     expect(merged.encrypted_title).toBe("local-title-from-idb");
     expect(merged.encrypted_icon).toBe("local-icon-from-idb");
     expect(merged.encrypted_category).toBe("local-category-from-idb");
+    expect(merged.encrypted_draft_md).toBe("local-draft-k1");
     expect(merged.title_v).toBe(1);
   });
 
