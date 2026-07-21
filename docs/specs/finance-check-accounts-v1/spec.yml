@@ -1,0 +1,947 @@
+schema_version: 2
+id: finance-check-accounts-v1
+title: Finance Check Accounts Skill V1
+status: draft
+
+goal: >
+  Add a read-only Finance app skill named Check accounts that combines Revolut
+  Business connected-account data and user-provided CSV bank statements into one
+  unified account overview embed. The skill should summarize balances, income,
+  expenses, recurring transactions, category-level spending, and monthly,
+  quarterly, or yearly expense projections without exposing raw merchant,
+  counterparty, payer, or payee names to the server/LLM beyond transient
+  normalization.
+
+scope:
+  in:
+    - New enabled-by-default Finance app with one read-only `check_accounts` skill.
+    - Revolut Business API as the first connected-account provider, tested against
+      Revolut Business Sandbox before any real account is used.
+    - >
+      Guided Revolut Business connection setup for the certificate-gated
+      OAuth-like flow: OpenMates-generated local keypair/certificate by default,
+      advanced manual certificate/private-key import as fallback, public cert
+      upload in Revolut, client ID entry, consent redirect, authorization-code
+      exchange, refresh-token bundle storage as client-side encrypted
+      connected-account data.
+    - >
+      Account setup surfaces are CLI, web app, and Apple app only. SDKs can use
+      the Check accounts skill once a connected account already exists, but SDKs
+      do not own the interactive Revolut account-connection ceremony in V1.
+    - Manual CSV bank-statement inputs from one or more accounts as one-off
+      request/embed inputs, not a separate durable finance datastore in V1.
+    - Unified normalized transactions from connected accounts and CSV statements
+      in one app-skill-use embed result.
+    - Deterministic merchant/counterparty/payee/payer redaction using the
+      `pii-placeholder-rewrite-v1` mapping contract and category-aware placeholders.
+    - Monthly, quarterly, and yearly expense projection using deterministic
+      aggregation before LLM narrative.
+    - CLI-first execution against the dev server with sandbox credentials/test
+      account state, then npm SDK and pip SDK parity, then web, user confirmation,
+      and Apple parity.
+    - >
+      Fullscreen embed contract for later web implementation: filter by account,
+      source, date range, category, direction, transaction state, and placeholder.
+  out:
+    - Payment initiation, transfers, counterparties management, exchange, cards,
+      payouts, or any Revolut `WRITE`, `PAY`, or sensitive-card-data operation.
+    - Personal Revolut accounts; Revolut docs state there is no public API for
+      personal Revolut accounts through this Business API flow.
+    - Persistent normalized finance transaction storage outside the app-skill embed
+      result and encrypted owner-only PII mappings.
+    - Plaid/Tink/TrueLayer/Open Banking providers beyond noting future extension points.
+    - Production real-account testing until sandbox CLI and SDK evidence is green
+      and the user explicitly upgrades/provides a real account for final validation.
+    - Investment advice, tax advice, credit underwriting, or automated financial decisions.
+
+depends_on:
+  - docs/specs/pii-placeholder-rewrite-v1/spec.yml
+
+sequencing_gates:
+  - gate: PII_REWRITE_BEFORE_FINANCE
+    required_before: finance_skill_implementation
+    rule: Finance implementation must not persist or send raw counterparty names; category-aware placeholder rewrite must be designed and covered first.
+    evidence: [T-PII-UNIT-REWRITE]
+  - gate: SANDBOX_PROVIDER_BEFORE_REAL_ACCOUNT
+    required_before: production_account_validation
+    rule: Revolut Sandbox setup, provider wrapper, and CLI/SDK tests must pass before using the user's real upgraded account.
+    evidence: [T-API-REVOLUT-SANDBOX, T-CLI-FINANCE-DEV, T-NPM-SDK-FINANCE, T-PIP-SDK-FINANCE]
+  - gate: CLI_FIRST
+    required_before: sdk_implementation
+    rule: A real CLI command/chat against the dev server with sandbox-connected account and CSV fixture must pass before SDK or web work starts.
+    evidence: [T-CLI-FINANCE-DEV]
+  - gate: SDK_SECOND
+    required_before: web_implementation
+    rule: npm SDK and pip SDK parity must pass locally against the dev server before web implementation starts.
+    evidence: [T-NPM-SDK-FINANCE, T-PIP-SDK-FINANCE, T-PARITY-AUDIT]
+  - gate: WEB_THIRD
+    required_before: user_ui_confirmation
+    rule: Web implementation and Playwright green evidence happen only after CLI and SDK gates are green and deployed to dev.
+    evidence: [T-WEB-FINANCE-CHECK-ACCOUNTS]
+  - gate: USER_CONFIRMATION_BEFORE_APPLE
+    required_before: apple_implementation
+    rule: Apple parity starts only after deployed web behavior and visuals are user-confirmed.
+    evidence: [V-USER-CONFIRMATION]
+
+context_discovery:
+  github_issues:
+    - "GitHub MCP get_me failed with 401 Bad credentials. Fallback `gh issue list --repo glowingkitty/OpenMates --search \"finance Revolut bank accounts check accounts connected account\" --state all --limit 20 --json number,title,state,labels,url` returned no matches."
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/architecture/apps/app-skills.md
+    - docs/architecture/privacy/pii-protection.md
+    - docs/architecture/privacy/sensitive-data-redaction.md
+    - docs/specs/calendar-permission-management/spec.yml
+    - docs/specs/connected-account-cli-import/spec.yml
+    - docs/specs/account-import-v1/spec.yml
+    - docs/specs/business-company-financials/spec.yml
+    - docs/specs/pii-placeholder-rewrite-v1/spec.yml
+  code_patterns:
+    - backend/apps/ai/mates/finance.md defines the Finn finance mate but no Finance app exists yet.
+    - backend/apps/calendar/app.yml and backend/apps/calendar/skills/get_events_skill.py show connected-account read-skill patterns.
+    - backend/apps/ai/processing/connected_account_execution.py currently maps only Calendar skills and hardcodes Google refresh-token exchange.
+    - backend/core/directus/schemas/connected_accounts.yml stores connected account rows encrypted/hash-only.
+    - backend/core/api/app/services/token_broker.py provides short-lived turn-token refs and access-token handles.
+    - frontend/packages/ui/src/services/connectedAccountOAuthService.ts currently finalizes Google Calendar OAuth handoffs and must become provider-extensible.
+    - frontend/packages/openmates-cli/src/cli.ts already owns interactive command flows and is the priority V1 setup surface for Revolut Business connection.
+    - backend/core/api/app/services/payment/revolut_business_service.py is an internal OpenMates billing/bank-transfer service and must not be reused for user-connected finance data except as a source of API constants/docs context.
+    - frontend/packages/ui/src/components/enter_message/utils/fileHelpers.ts recognizes CSV/TSV attachments as sheet-like files.
+  tests:
+    - backend/tests/test_connected_accounts_permissions.py
+    - backend/tests/test_connected_account_execution.py
+    - backend/tests/test_local_connected_account_connectors.py
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - packages/openmates-python/tests/test_sdk.py
+    - frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
+    - frontend/apps/web_app/tests/pii-detection-flow.spec.ts
+  external_research:
+    - "Revolut Business API official page: API access is available to Revolut Business customers on Grow plan and above; no public API for personal Revolut accounts. UK pricing page currently shows Grow from £30/month, but pricing varies by country."
+    - "Business API base URL: https://b2b.revolut.com/api/1.0/; Sandbox base URL: https://sandbox-b2b.revolut.com/api/1.0/."
+    - "Business API read scope is READ; write/pay/card-sensitive scopes are separate and out of V1 scope."
+    - "GET /accounts returns account ID, name, balance, currency, state, public flag, and timestamps."
+    - "GET /transactions supports filters such as request_id, from, to, count, account, and state; max 1,000 transactions per request; pagination uses the last item created_at as next `to`."
+    - "Revolut Business API setup requires certificate upload, client assertion JWT, consent, authorization code exchange, access token, and refresh token; it is OAuth-like but not one-click consumer OAuth."
+    - "Sandbox supports mock data and simulation endpoints including POST /sandbox/topup and POST /sandbox/transactions/{id}/{action}; simulations are sandbox-only."
+
+apple_impact:
+  affected_files:
+    - apple/OpenMates/Sources/**/Chat*
+    - apple/OpenMates/Sources/**/Embeds*
+    - apple/OpenMates/Sources/**/Settings*
+    - apple/OpenMatesTests/SkillApplicationParityTests.swift
+  parity_expectations:
+    - Apple eventually renders Finance check-account embeds and respects the same placeholder/category privacy contract.
+    - Apple starts after CLI, SDK, web, and user confirmation or a spec-recorded waiver.
+  verification:
+    - python3 scripts/apple_remote.py status
+    - python3 scripts/apple_remote.py build-ios or targeted embed/app-skill parity test after web/user confirmation.
+  intentional_native_differences:
+    - Native Revolut connection setup may use platform web-auth/UI affordances, but encrypted connected-account storage and read-only scope boundaries must match web/CLI.
+
+clarification:
+  rounds:
+    - question: Should V1 support read-only actions only?
+      answer: Yes. V1 is read-only.
+    - question: Should CSV bank-statement import ship in the same first release as Revolut connected-account support?
+      answer: Yes. The skill should support both connected accounts and CSV statements and combine them into one result.
+    - question: Should CSV statements be persisted as a separate finance datastore?
+      answer: No separate finance datastore in V1. Each app skill use already creates an embed with processed output, which is enough for follow-up requests.
+    - question: Should raw merchant/counterparty names be saved in embeds?
+      answer: >
+        Use the PII/placeholder mapping approach instead: raw names should be
+        mapped to placeholders, with a reusable rewrite layer for follow-up
+        questions.
+    - question: Should this spec be split from the PII placeholder rewrite work?
+      answer: Yes. Create a separate PII spec and make Finance depend on it.
+    - question: Should V1 generate the Revolut API keypair/certificate locally or ask users to provide certificate files?
+      answer: >
+        Use OpenMates-generated local keypair/certificate by default, with manual
+        certificate/private-key import as an advanced fallback. Prioritize CLI
+        setup and skill execution first, ensure SDKs can use the skill after an
+        account is connected, and keep account setup exclusive to CLI, web app,
+        and Apple app surfaces.
+  vision_summary: >
+    The user wants a read-only Finance Check accounts skill that combines Revolut
+    Business connected-account data and CSV statements into one useful overview,
+    forecast, and eventually filterable fullscreen embed. The first implementation
+    should focus on CLI and SDK support, use Revolut Sandbox before any real
+    account, and rely on a separate reusable PII placeholder rewrite spec for
+    merchant/payee privacy.
+  approved_by_user: true
+
+implementation_state:
+  subject_commit: a754b9ac6
+
+approvals:
+  product_contract:
+    status: approved
+    approved_at: "2026-07-20"
+    reason: User approved implementing the Finance app spec with CLI priority, SDK execution parity, CLI/web/Apple-only account setup, OpenMates-generated Revolut certificate flow, and canonical CSV template first.
+  implementation_plan:
+    status: approved
+    approved_at: "2026-07-20"
+    reason: User explicitly instructed implementation; first slice stays within the approved contract and starts with canonical CSV template plus Revolut Sandbox provider scaffolding.
+
+decisions:
+  - id: D-1
+    status: active
+    decision: V1 is read-only and requests only Revolut READ behavior.
+    reason: Finance account data is sensitive and payment/write operations require separate risk, permission, and legal contracts.
+    decided_at: "2026-07-20"
+  - id: D-2
+    status: active
+    decision: Treat CSV statements as one-off skill inputs whose normalized results live in the output embed.
+    reason: This avoids a separate durable finance datastore while still supporting follow-up requests from embed context.
+    decided_at: "2026-07-20"
+  - id: D-3
+    status: active
+    decision: Test Revolut via Sandbox first and defer real account testing until sandbox gates are green.
+    reason: Revolut Business API requires paid Grow+ access in production; sandbox provides safer mock/simulation flows for implementation.
+    decided_at: "2026-07-20"
+  - id: D-4
+    status: active
+    decision: Keep OpenMates internal Revolut billing service separate from user-connected Finance provider code.
+    reason: Internal billing reconciliation and user-owned account analysis have different secrets, privacy, ownership, and data-retention boundaries.
+    decided_at: "2026-07-20"
+  - id: D-5
+    status: active
+    decision: Default Revolut setup generates the private key and public certificate locally in OpenMates.
+    reason: This avoids requiring users to run OpenSSL/manual certificate commands while preserving Revolut's certificate upload requirement and client-side encryption boundary.
+    decided_at: "2026-07-20"
+  - id: D-6
+    status: active
+    decision: SDKs can invoke Check accounts with existing connected accounts, but cannot create/connect Revolut accounts in V1.
+    reason: Revolut setup requires an interactive certificate upload, client ID entry, and consent ceremony best handled by CLI, web, and Apple clients.
+    decided_at: "2026-07-20"
+  - id: D-7
+    status: active
+    decision: V1 starts with a canonical OpenMates bank-statement CSV template and defers LLM-assisted conversion from arbitrary bank CSVs.
+    reason: A deterministic target format gives CLI, SDK, backend, and tests one stable contract before adding probabilistic conversion from varied bank exports.
+    decided_at: "2026-07-20"
+  - id: D-8
+    status: active
+    decision: Revolut Business OAuth callbacks use the app host, not the API host.
+    reason: The consent redirect is user-facing and should land on a web page that can show the authorization code and next CLI exchange command; the API host has no user-facing callback UI.
+    decided_at: "2026-07-21"
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-2
+    approach: Build Finance as a normal provider API-key skill.
+    outcome: rejected
+    recorded_at: "2026-07-20"
+    reason: Revolut Business uses certificate/JWT/consent and per-user banking data, so it must be a connected-account provider.
+  - id: ATTEMPT-2
+    task_id: TASK-3
+    approach: Store raw CSV/Revolut merchant names in the result embed for easier follow-up queries.
+    outcome: rejected
+    recorded_at: "2026-07-20"
+    reason: Merchant/payee names are sensitive; follow-up usability should come from encrypted mappings and placeholder rewrite.
+
+handoff:
+  current_task_id: TASK-5
+  next_action: Deploy the app-domain Revolut callback page and then regenerate/register the Revolut Sandbox certificate with the app-host redirect URI.
+  command: NODE_OPTIONS=--max-old-space-size=8192 npm run build && /home/superdev/projects/OpenMates/.venv/bin/python3 scripts/spec_validate.py docs/specs/finance-check-accounts-v1/spec.yml
+  expected_outcome: Web build and spec validation pass before the sandbox setup flow is retried.
+  blocker:
+    requires_user_input: true
+    reason: The worktree has many unrelated active-session edits, so a broad deploy could include unrelated changes.
+    question: Should the next deploy be limited to the Revolut app-domain callback/docs update, or should it wait for the broader Finance slice to be staged cleanly?
+    next_action: Create the deploy only after the deploy scope is confirmed.
+  last_verified_commit: a754b9ac6
+
+scenarios:
+  - id: S-1
+    title: User connects a Revolut Business Sandbox account
+    given:
+      - Alice has created a Revolut Business Sandbox account.
+    when:
+      - Alice starts `Connect Revolut Business` from OpenMates CLI or web settings.
+    then:
+      - OpenMates explains that Revolut Business API is available for Business accounts and production access requires Grow plan or above.
+      - OpenMates generates a local private key and public certificate by default, then shows Alice the public certificate to upload in Revolut.
+      - OpenMates also offers an advanced fallback for importing a user-generated certificate/private-key pair.
+      - OpenMates guides Alice through public certificate upload, client ID entry, consent redirect, and token exchange.
+      - OpenMates stores private key/client config/refresh-token bundle only in client-side encrypted connected-account fields.
+
+  - id: S-2
+    title: CLI checks accounts from Revolut Sandbox only
+    given:
+      - Alice has a connected Revolut Business Sandbox account with seeded test balances and transactions.
+    when:
+      - Alice runs the Finance Check accounts skill through a real OpenMates CLI command against `https://api.dev.openmates.org`.
+    then:
+      - The request reads accounts and transactions using short-lived connected-account token refs.
+      - The result includes balances, income, expenses, categories, recurring items, and projection for the requested period.
+      - No payment/write/pay/sensitive-card endpoint is called.
+
+  - id: S-3
+    title: CLI checks accounts from CSV statements only
+    given:
+      - Alice has CSV bank statements from two accounts.
+    when:
+      - Alice passes those CSV files to the Finance Check accounts skill.
+    then:
+      - OpenMates normalizes dates, amounts, currencies, accounts, descriptions, and transaction directions.
+      - The result combines both statement files into one overview embed.
+      - Raw merchant/counterparty names are replaced with category-aware placeholders before saved output or LLM context.
+
+  - id: S-4
+    title: CLI checks accounts from Revolut and CSV together
+    given:
+      - Alice has one connected Revolut Business Sandbox account and one uploaded CSV statement for another account.
+    when:
+      - Alice asks `Check all my accounts for this quarter`.
+    then:
+      - The result combines connected-account transactions and CSV transactions into one unified overview.
+      - Duplicate-looking rows are flagged without destructive merge unless deterministic identity matches.
+      - The embed records source/account metadata so future fullscreen filters can switch between accounts and sources.
+
+  - id: S-5
+    title: Follow-up asks about an original merchant name without exposing it
+    given:
+      - A prior Finance embed mapped `Spotify` to `[MERCHANT_STREAMING_001]`.
+    when:
+      - Alice asks `How much money did I spend on Spotify this year?`.
+    then:
+      - The PII rewrite layer sends `[MERCHANT_STREAMING_001]` to the server/LLM.
+      - The Finance result can answer using the placeholder/category and local UI can restore the original for Alice.
+
+  - id: S-6
+    title: Fullscreen Finance embed filters normalized results
+    given:
+      - Alice opens a Finance Check accounts embed with multiple accounts and categories.
+    when:
+      - Alice filters to one account, streaming category, and this year.
+    then:
+      - The fullscreen view shows filtered totals, transaction rows, and projections from the saved normalized embed data.
+      - Filtering does not require re-fetching raw Revolut data or re-uploading CSV files.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Revolut Business connection setup supports OpenMates-generated local keypair/certificate setup, advanced manual import fallback, the certificate-gated OAuth-like Sandbox flow, and stores access-enabling material only as client-side encrypted connected-account data.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-API-REVOLUT-SANDBOX, T-BACKEND-CONNECTED-ACCOUNT]
+  - id: AC-2
+    scenario: S-2
+    text: Check accounts reads Revolut Business Sandbox accounts and transactions through connected-account token refs and never calls write/pay/sensitive endpoints.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids: [T-API-REVOLUT-SANDBOX, T-CLI-FINANCE-DEV]
+  - id: AC-3
+    scenario: S-3
+    text: Check accounts normalizes one or more CSV bank statements into the same transaction model used for provider data.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-BACKEND-CSV-NORMALIZER, T-CLI-FINANCE-DEV]
+  - id: AC-4
+    scenario: S-4
+    text: Check accounts combines Revolut and CSV sources into one unified app-skill-use embed with source/account metadata.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-CLI-FINANCE-DEV, T-NPM-SDK-FINANCE, T-PIP-SDK-FINANCE, T-WEB-FINANCE-CHECK-ACCOUNTS]
+  - id: AC-5
+    scenario: S-5
+    text: Saved Finance embeds and LLM context contain category-aware placeholders instead of raw merchant/counterparty/payee/payer names, while owner-local mappings enable follow-up rewrite and local restoration.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-PII-UNIT-REWRITE, T-BACKEND-PRIVACY-REDUCTION, T-WEB-FINANCE-CHECK-ACCOUNTS]
+  - id: AC-6
+    scenario: S-2
+    text: Expense projections are deterministic and support monthly, quarterly, and yearly horizons with confidence/coverage notes.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-BACKEND-FINANCE-ANALYSIS, T-CLI-FINANCE-DEV, T-NPM-SDK-FINANCE, T-PIP-SDK-FINANCE]
+  - id: AC-7
+    scenario: S-6
+    text: The Finance embed contract includes enough normalized saved data for fullscreen account/source/category/date filtering without re-fetching external data.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-BACKEND-FINANCE-ANALYSIS, T-WEB-FINANCE-CHECK-ACCOUNTS]
+  - id: AC-8
+    scenario: S-4
+    text: CLI, npm SDK, and pip SDK expose the same Check accounts execution contract before web work begins, while connected-account setup remains CLI/web/Apple-only in V1.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-CLI-FINANCE-DEV, T-NPM-SDK-FINANCE, T-PIP-SDK-FINANCE, T-PARITY-AUDIT]
+
+assumptions:
+  - id: A-1
+    text: Revolut Business Sandbox signup and API certificate setup are accessible without upgrading a real Revolut Business account.
+    category: provider
+    required_before: implementation
+    status: unchecked
+    evidence:
+      - source: https://developer.revolut.com/docs/guides/manage-accounts/get-started/prepare-sandbox-environment
+        summary: Docs describe an independent Sandbox environment with mock data and separate credentials.
+  - id: A-2
+    text: Sandbox simulations can create enough test transactions for deterministic account analysis tests.
+    category: provider
+    required_before: task_execution
+    status: unchecked
+    evidence:
+      - source: https://developer.revolut.com/docs/guides/manage-accounts/api-usage-and-testing/test-flows-with-simulations
+        summary: Docs list sandbox top-up and transaction state simulation endpoints.
+  - id: A-3
+    text: The connected-account token broker can be generalized from Google Calendar to provider-specific token exchange without weakening existing Calendar behavior.
+    category: architecture
+    required_before: implementation
+    status: unchecked
+    evidence: []
+
+contracts:
+  provider:
+    name: Revolut Business API
+    environments:
+      sandbox: https://sandbox-b2b.revolut.com/api/1.0
+      production: https://b2b.revolut.com/api/1.0
+    production_plan_requirement: Grow plan or above per Revolut Business API page; pricing varies by country.
+    auth: certificate-gated OAuth-like Business API flow with client assertion JWT, authorization code, access token, and refresh token.
+    setup_contract:
+      default: OpenMates generates the private key and public X.509 certificate locally in CLI/web/Apple clients.
+      user_steps:
+        - Copy the generated public certificate from OpenMates.
+        - Paste the public certificate into Revolut Business or Sandbox API settings.
+        - Set the OpenMates redirect URI in Revolut.
+        - Copy the Revolut client_id back into OpenMates.
+        - Complete Revolut consent and return to OpenMates.
+      encrypted_client_fields:
+        - private_key
+        - client_id
+        - refresh_token_bundle
+        - provider_account_hint
+      advanced_fallback: User may import their own certificate/private-key pair if they already generated one outside OpenMates.
+      sdk_boundary: SDKs can use existing connected-account IDs for Check accounts execution but do not create or connect Revolut accounts in V1.
+    read_endpoints:
+      - method: GET
+        path: /accounts
+        purpose: List account balances/currencies/states.
+      - method: GET
+        path: /accounts/{account_id}
+        purpose: Fetch one account.
+      - method: GET
+        path: /transactions
+        purpose: List historical transactions with date/account/state/count filters.
+      - method: GET
+        path: /transactions/{transaction_id}
+        purpose: Fetch one transaction.
+    forbidden_v1_endpoints:
+      - POST /pay
+      - payment creation/cancel endpoints
+      - counterparty mutation endpoints
+      - currency exchange mutation endpoints
+      - sensitive card data endpoints
+    rate_limits:
+      - Respect 429 and Revolut error 3162, including retry-after when provided.
+      - Never tight-loop pagination; cap fetch windows and request counts.
+  skill:
+    app_id: finance
+    skill_id: check_accounts
+    user_facing_name: Check accounts
+    description: Read connected bank-account data and CSV statements to produce an account overview and expense projection.
+    input_schema:
+      type: object
+      properties:
+        period:
+          type: string
+          enum: [monthly, quarterly, yearly, custom]
+        start_date: { type: string }
+        end_date: { type: string }
+        connected_account_ids:
+          type: array
+          items: { type: string }
+        csv_embed_refs:
+          type: array
+          items: { type: string }
+        projection_horizon:
+          type: string
+          enum: [monthly, quarterly, yearly]
+        account_filters:
+          type: array
+          items: { type: string }
+      required: [period]
+    normalized_output:
+      accounts:
+        fields: [account_ref, source_ref, display_label, currency, balance, balance_as_of]
+      transactions:
+        fields: [transaction_ref, account_ref, source_ref, posted_at, amount, currency, direction, category, counterparty_placeholder, state]
+      summaries:
+        fields: [income_total, expense_total, net_total, by_category, recurring_items, projection, confidence]
+      privacy:
+        fields: [placeholder_mappings_ref, raw_names_persisted_false]
+  csv:
+    accepted_file_types: [csv, tsv]
+    canonical_template:
+      required_columns:
+        - transaction_id
+        - account_id
+        - account_label
+        - posted_at
+        - description
+        - amount
+        - currency
+      optional_columns:
+        - direction
+        - balance_after
+        - category_hint
+        - counterparty_type
+        - source_name
+        - notes
+      column_rules:
+        - posted_at uses ISO 8601 date or datetime.
+        - amount is signed from the account perspective; negative means money out and positive means money in.
+        - currency uses ISO 4217 uppercase code.
+        - description may contain raw bank text but must be transformed to category-aware placeholders before saved skill output or LLM context.
+        - transaction_id may be user/bank-provided or a deterministic row hash generated by the importer when missing in a future converter.
+    v1_behavior:
+      - Parse the canonical OpenMates bank-statement CSV/TSV template deterministically.
+      - If a CSV does not match the canonical template, return an actionable error that links to/downloads the template rather than guessing silently.
+      - Defer LLM-assisted conversion from arbitrary bank-specific CSV formats to a later phase after the target format is stable.
+      - Keep original CSV as an upload/embed input only; normalized saved result stores placeholders and derived fields.
+  privacy_security:
+    - Finance app is read-only and cannot initiate money movement.
+    - Raw merchant/counterparty/payee/payer names are transient normalization inputs only.
+    - Saved embeds and LLM context contain category-aware placeholders and aggregates, not raw counterparty names.
+    - Original-name mappings are owner-only encrypted PII mappings consumed by pii-placeholder-rewrite-v1.
+    - Production real-account testing requires explicit user approval after sandbox gates are green.
+
+tests:
+  - id: T-SPEC-VALIDATE
+    type: lint
+    file: docs/specs/finance-check-accounts-v1/spec.yml
+    command: python3 scripts/spec_validate.py docs/specs/finance-check-accounts-v1/spec.yml
+    covers: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8]
+    assertions:
+      - spec structure validates before implementation planning
+      - all required acceptance criteria have verification coverage
+    red_phase:
+      required: false
+      expected: not_applicable
+      evidence: { status: not_required, run_id: spec drafting validation, timestamp: "2026-07-20" }
+    green_phase:
+      required: true
+      expected: pass
+      evidence: { status: pass, command: "python3 -m pytest backend/tests/test_connected_account_execution.py backend/tests/test_connected_accounts_permissions.py", run_id: local-pytest-2026-07-20T12:47:26Z, subject_commit: working-tree@0af83a7c6, timestamp: "2026-07-20T12:47:26Z" }
+
+  - id: T-PII-UNIT-REWRITE
+    type: unit
+    file: frontend/packages/ui/src/components/enter_message/services/__tests__/placeholderRewriteService.test.ts
+    command: cd frontend/packages/ui && npm run test -- placeholderRewriteService
+    covers: [AC-5]
+    assertions:
+      - known merchant originals rewrite to category-aware placeholders
+      - raw merchant names are not required in outbound prompt
+    red_phase:
+      required: true
+      expected: fail
+      evidence: { status: "", run_id: "", timestamp: "" }
+    green_phase:
+      required: true
+      expected: pass
+      evidence: { status: "", command: "", run_id: "", subject_commit: "", timestamp: "" }
+
+  - id: T-API-REVOLUT-SANDBOX
+    type: manual
+    file: scripts/api_tests/test_revolut_business_api.py
+    command: python3 scripts/api_tests/test_revolut_business_api.py --env sandbox --test accounts-transactions-read
+    covers: [AC-1, AC-2]
+    assertions:
+      - sandbox token exchange succeeds with certificate/JWT flow
+      - GET /accounts returns at least one account after sandbox setup
+      - GET /transactions returns seeded or simulated transactions
+      - no write/pay/sensitive endpoint is invoked
+    red_phase:
+      required: true
+      expected: fail
+      evidence: { status: "", run_id: "", timestamp: "" }
+    green_phase:
+      required: true
+      expected: pass
+      evidence: { status: "", command: "", run_id: "", subject_commit: "", timestamp: "" }
+
+  - id: T-BACKEND-CONNECTED-ACCOUNT
+    type: pytest
+    file: backend/tests/test_revolut_connected_accounts.py
+    command: python3 -m pytest backend/tests/test_revolut_connected_accounts.py
+    covers: [AC-1]
+    assertions:
+      - connected-account row rejects plaintext Revolut private key/client id/token fields
+      - provider-specific token exchange registry supports Revolut without regressing Google Calendar
+      - Revolut read action maps to connected-account action `read`
+    red_phase:
+      required: true
+      expected: fail
+      evidence: { status: fail, command: "python3 -m pytest backend/tests/test_finance_csv_normalizer.py backend/tests/test_finance_privacy_redaction.py backend/tests/test_finance_check_accounts_skill.py backend/tests/test_revolut_connected_accounts.py", run_id: local-pytest-red-2026-07-20-finance-missing-modules, subject_commit: working-tree@0af83a7c6, timestamp: "2026-07-20T12:44:00Z" }
+    green_phase:
+      required: true
+      expected: pass
+      evidence: { status: pass, command: "python3 -m pytest backend/tests/test_finance_csv_normalizer.py backend/tests/test_finance_privacy_redaction.py backend/tests/test_finance_check_accounts_skill.py backend/tests/test_revolut_connected_accounts.py", run_id: local-pytest-2026-07-20T12:47:26Z, subject_commit: working-tree@0af83a7c6, timestamp: "2026-07-20T12:47:26Z" }
+
+  - id: T-BACKEND-CSV-NORMALIZER
+    type: pytest
+    file: backend/tests/test_finance_csv_normalizer.py
+    command: python3 -m pytest backend/tests/test_finance_csv_normalizer.py
+    covers: [AC-3]
+    assertions:
+      - parses representative CSV/TSV statement fixtures
+      - ambiguous columns fail with actionable mapping error
+      - raw description/counterparty values are replaced before normalized result persistence
+    red_phase:
+      required: true
+      expected: fail
+      evidence: { status: fail, command: "python3 -m pytest backend/tests/test_finance_csv_normalizer.py backend/tests/test_finance_privacy_redaction.py backend/tests/test_finance_check_accounts_skill.py backend/tests/test_revolut_connected_accounts.py", run_id: local-pytest-red-2026-07-20-finance-missing-modules, subject_commit: working-tree@0af83a7c6, timestamp: "2026-07-20T12:44:00Z" }
+    green_phase:
+      required: true
+      expected: pass
+      evidence: { status: pass, command: "python3 -m pytest backend/tests/test_finance_csv_normalizer.py backend/tests/test_finance_privacy_redaction.py backend/tests/test_finance_check_accounts_skill.py backend/tests/test_revolut_connected_accounts.py", run_id: local-pytest-2026-07-20T12:47:26Z, subject_commit: working-tree@0af83a7c6, timestamp: "2026-07-20T12:47:26Z" }
+
+  - id: T-BACKEND-FINANCE-ANALYSIS
+    type: pytest
+    file: backend/tests/test_finance_check_accounts_skill.py
+    command: python3 -m pytest backend/tests/test_finance_check_accounts_skill.py
+    covers: [AC-6, AC-7]
+    assertions:
+      - combines normalized provider and CSV transactions
+      - computes monthly, quarterly, and yearly projection deterministically
+      - emits account/source/category/filterable embed data
+      - returns coverage/confidence notes for short or volatile histories
+    red_phase:
+      required: true
+      expected: fail
+      evidence: { status: fail, command: "python3 -m pytest backend/tests/test_finance_csv_normalizer.py backend/tests/test_finance_privacy_redaction.py backend/tests/test_finance_check_accounts_skill.py backend/tests/test_revolut_connected_accounts.py", run_id: local-pytest-red-2026-07-20-finance-missing-modules, subject_commit: working-tree@0af83a7c6, timestamp: "2026-07-20T12:44:00Z" }
+    green_phase:
+      required: true
+      expected: pass
+      evidence: { status: pass, command: "python3 -m pytest backend/tests/test_finance_csv_normalizer.py backend/tests/test_finance_privacy_redaction.py backend/tests/test_finance_check_accounts_skill.py backend/tests/test_revolut_connected_accounts.py", run_id: local-pytest-2026-07-20T12:47:26Z, subject_commit: working-tree@0af83a7c6, timestamp: "2026-07-20T12:47:26Z" }
+
+  - id: T-BACKEND-PRIVACY-REDUCTION
+    type: pytest
+    file: backend/tests/test_finance_privacy_redaction.py
+    command: python3 -m pytest backend/tests/test_finance_privacy_redaction.py
+    covers: [AC-5]
+    assertions:
+      - raw merchant, counterparty, payer, and payee names do not appear in saved output
+      - placeholder tokens include category context
+      - logs/errors do not include raw names from fixtures
+    red_phase:
+      required: true
+      expected: fail
+      evidence: { status: fail, command: "python3 -m pytest backend/tests/test_finance_csv_normalizer.py backend/tests/test_finance_privacy_redaction.py backend/tests/test_finance_check_accounts_skill.py backend/tests/test_revolut_connected_accounts.py", run_id: local-pytest-red-2026-07-20-finance-missing-modules, subject_commit: working-tree@0af83a7c6, timestamp: "2026-07-20T12:44:00Z" }
+    green_phase:
+      required: true
+      expected: pass
+      evidence: { status: pass, command: "python3 -m pytest backend/tests/test_finance_csv_normalizer.py backend/tests/test_finance_privacy_redaction.py backend/tests/test_finance_check_accounts_skill.py backend/tests/test_revolut_connected_accounts.py", run_id: local-pytest-2026-07-20T12:47:26Z, subject_commit: working-tree@0af83a7c6, timestamp: "2026-07-20T12:47:26Z" }
+
+  - id: T-CLI-FINANCE-DEV
+    type: manual
+    file: scripts/verify_finance_check_accounts_cli.py
+    command: python3 scripts/verify_finance_check_accounts_cli.py --env dev --scenario revolut-sandbox-and-csv
+    covers: [AC-2, AC-3, AC-4, AC-6, AC-8]
+    assertions:
+      - real CLI command hits https://api.dev.openmates.org with real auth/test-account state
+      - connected Revolut Sandbox and CSV fixture combine into one skill result
+      - output is redacted and contains no raw merchant names
+    red_phase:
+      required: true
+      expected: fail
+      evidence: { status: "", run_id: "", timestamp: "" }
+    green_phase:
+      required: true
+      expected: pass
+      evidence: { status: "", command: "", run_id: "", subject_commit: "", timestamp: "" }
+
+  - id: T-NPM-SDK-FINANCE
+    type: unit
+    file: frontend/packages/openmates-cli/tests/financeCheckAccounts.sdk.test.ts
+    command: cd frontend/packages/openmates-cli && npm run test -- financeCheckAccounts.sdk
+    covers: [AC-4, AC-6, AC-8]
+    assertions:
+      - npm SDK can invoke/check the same Finance skill contract locally against dev server
+      - SDK output matches CLI normalized fields and redaction semantics
+    red_phase:
+      required: true
+      expected: fail
+      evidence: { status: "", run_id: "", timestamp: "" }
+    green_phase:
+      required: true
+      expected: pass
+      evidence: { status: "", command: "", run_id: "", subject_commit: "", timestamp: "" }
+
+  - id: T-PIP-SDK-FINANCE
+    type: pytest
+    file: packages/openmates-python/tests/test_finance_check_accounts.py
+    command: python3 -m pytest packages/openmates-python/tests/test_finance_check_accounts.py
+    covers: [AC-4, AC-6, AC-8]
+    assertions:
+      - pip SDK can invoke/check the same Finance skill contract locally against dev server
+      - SDK output matches CLI normalized fields and redaction semantics
+    red_phase:
+      required: true
+      expected: fail
+      evidence: { status: "", run_id: "", timestamp: "" }
+    green_phase:
+      required: true
+      expected: pass
+      evidence: { status: "", command: "", run_id: "", subject_commit: "", timestamp: "" }
+
+  - id: T-PARITY-AUDIT
+    type: manual
+    file: scripts/audit_sdk_cli_parity.py
+    command: python3 scripts/audit_sdk_cli_parity.py
+    covers: [AC-8]
+    assertions:
+      - Finance Check accounts CLI/npm SDK/pip SDK surfaces stay in parity
+    red_phase:
+      required: false
+      expected: not_applicable
+      evidence: { status: not_required, run_id: parity check is meaningful after surfaces exist, timestamp: "2026-07-20" }
+    green_phase:
+      required: true
+      expected: pass
+      evidence: { status: "", command: "", run_id: "", subject_commit: "", timestamp: "" }
+
+  - id: T-WEB-FINANCE-CHECK-ACCOUNTS
+    type: playwright
+    file: frontend/apps/web_app/tests/finance-check-accounts.spec.ts
+    command: python3 scripts/tests.py run --spec finance-check-accounts.spec.ts
+    target: app.dev.openmates.org
+    covers: [AC-4, AC-5, AC-7]
+    assertions:
+      - web can run Check accounts with CSV fixture and connected-account sandbox stub/state after CLI/SDK gates
+      - result embed renders unified account summary and filter controls
+      - raw merchant names are not visible unless restored locally for the owner
+    red_phase:
+      required: true
+      expected: fail
+      evidence: { status: "", run_id: "", timestamp: "" }
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence: { status: "", command: "", run_id: "", subject_commit: "", timestamp: "" }
+
+verifications:
+  - id: V-USER-CONFIRMATION
+    kind: user_confirmation
+    phase: final
+    required_for_done: true
+    covers: [AC-4, AC-7]
+    status: pending
+    evidence: { status: "", summary: "", timestamp: "" }
+  - id: V-REAL-REVOLUT-ACCOUNT
+    kind: manual_check
+    phase: final
+    required_for_done: false
+    covers: [AC-1, AC-2]
+    status: pending
+    evidence: { status: "", summary: "Only after sandbox gates are green and user explicitly approves real-account validation.", timestamp: "" }
+
+implementation_plan:
+  spec_path: docs/specs/finance-check-accounts-v1/spec.yml
+  existing_patterns:
+    - backend/apps/calendar/skills/get_events_skill.py
+    - backend/shared/providers/google_calendar/client.py
+    - backend/shared/providers/google_calendar/oauth.py
+    - backend/core/api/app/services/token_broker.py
+    - docs/specs/pii-placeholder-rewrite-v1/spec.yml
+  architecture: >
+    Add a new Finance app and pure Revolut Business provider wrapper. Generalize
+    connected-account token exchange for provider-specific refresh flows, parse
+    CSV statements into the same normalized transaction model, redact names with
+    the reusable placeholder system, and return one filterable app-skill embed.
+  data_flow:
+    - User connects Revolut Business Sandbox through OpenMates-generated local keypair/certificate, certificate upload, JWT, and consent setup.
+    - Client stores Revolut token/private-key material encrypted in connected_accounts.
+    - User invokes Check accounts from CLI with connected account refs and/or CSV files.
+    - Backend reads provider data through short-lived token refs and parses CSV inputs.
+    - Normalizer categorizes transactions and replaces raw counterparty names with placeholders.
+    - Skill computes summaries/projections and returns one unified app-skill embed payload.
+    - Follow-up prompts use pii-placeholder-rewrite-v1 to target placeholders instead of original names.
+  affected_files:
+    - path: backend/apps/finance/app.yml
+      reason: New Finance app metadata and Check accounts skill registration.
+    - path: backend/apps/finance/skills/check_accounts_skill.py
+      reason: Skill execution contract.
+    - path: backend/shared/providers/revolut_business/
+      reason: Pure async Revolut Business API wrapper and auth helpers.
+    - path: backend/apps/ai/processing/connected_account_execution.py
+      reason: Register Finance check_accounts as a connected-account read skill and generalize token exchange.
+    - path: frontend/packages/openmates-cli/src/cli.ts
+      reason: CLI-first Check accounts command/path.
+    - path: packages/openmates-python/openmates/sdk.py
+      reason: pip SDK parity if exposed through SDK facade.
+    - path: frontend/packages/ui/src/components/embeds/finance/
+      reason: Web embed preview/fullscreen after CLI and SDK gates.
+  verification_strategy:
+    - python3 scripts/spec_validate.py docs/specs/finance-check-accounts-v1/spec.yml
+    - python3 scripts/spec_verify.py docs/specs/finance-check-accounts-v1/spec.yml --phase red
+    - python3 scripts/spec_verify.py docs/specs/finance-check-accounts-v1/spec.yml --phase green
+  verification_order:
+    - PII placeholder rewrite unit evidence first.
+    - Revolut Sandbox API script and backend unit red/green.
+    - Real dev-server CLI red/green with sandbox + CSV.
+    - npm SDK and pip SDK parity locally against dev server.
+    - Parity audit and daily/GitHub wiring after local CLI/SDK success.
+    - Web implementation and deployed Playwright.
+    - User confirmation.
+    - Apple parity after confirmation or waiver.
+
+tasks:
+  - id: TASK-1
+    title: Approve product contract and create implementation plan
+    status: pending
+    phase: awaiting_approval
+    covers:
+      scenarios: [S-1, S-2, S-3, S-4, S-5, S-6]
+      acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8]
+    expected_files:
+      - docs/specs/finance-check-accounts-v1/spec.yml
+    verification: [T-SPEC-VALIDATE]
+    verification_ids: [T-SPEC-VALIDATE]
+    dependencies: []
+    ownership:
+      files:
+        - docs/specs/finance-check-accounts-v1/spec.yml
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+  - id: TASK-2
+    title: Build Revolut Business Sandbox provider and connected-account contract
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-1, S-2]
+      acceptance_criteria: [AC-1, AC-2]
+    expected_files:
+      - backend/shared/providers/revolut_business/client.py
+      - backend/shared/providers/revolut_business/oauth.py
+      - backend/shared/providers/revolut_business/models.py
+      - scripts/api_tests/test_revolut_business_api.py
+      - backend/tests/test_revolut_connected_accounts.py
+    verification: [T-API-REVOLUT-SANDBOX, T-BACKEND-CONNECTED-ACCOUNT]
+    verification_ids: [T-API-REVOLUT-SANDBOX, T-BACKEND-CONNECTED-ACCOUNT]
+    dependencies: [TASK-1]
+    ownership:
+      files:
+        - backend/shared/providers/revolut_business/
+        - scripts/api_tests/test_revolut_business_api.py
+        - backend/tests/test_revolut_connected_accounts.py
+      shared_files:
+        - backend/apps/ai/processing/connected_account_execution.py
+    blockers:
+      - assumption_id: A-1
+        reason: Sandbox account setup must be confirmed before live API tests can pass.
+    follow_up_tasks: []
+    independently_deployable: false
+  - id: TASK-3
+    title: Build CSV normalizer and deterministic finance analysis
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-3, S-4]
+      acceptance_criteria: [AC-3, AC-4, AC-6, AC-7]
+    expected_files:
+      - backend/apps/finance/app.yml
+      - backend/apps/finance/skills/check_accounts_skill.py
+      - backend/tests/test_finance_csv_normalizer.py
+      - backend/tests/test_finance_check_accounts_skill.py
+      - backend/tests/test_finance_privacy_redaction.py
+    verification: [T-BACKEND-CSV-NORMALIZER, T-BACKEND-FINANCE-ANALYSIS, T-BACKEND-PRIVACY-REDUCTION]
+    verification_ids: [T-BACKEND-CSV-NORMALIZER, T-BACKEND-FINANCE-ANALYSIS, T-BACKEND-PRIVACY-REDUCTION]
+    dependencies: [TASK-2]
+    ownership:
+      files:
+        - backend/apps/finance/
+        - backend/tests/test_finance_csv_normalizer.py
+        - backend/tests/test_finance_check_accounts_skill.py
+        - backend/tests/test_finance_privacy_redaction.py
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+  - id: TASK-4
+    title: Prove CLI and SDK phase gates against dev server
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-2, S-3, S-4]
+      acceptance_criteria: [AC-2, AC-3, AC-4, AC-6, AC-8]
+    expected_files:
+      - scripts/verify_finance_check_accounts_cli.py
+      - frontend/packages/openmates-cli/src/cli.ts
+      - frontend/packages/openmates-cli/tests/financeCheckAccounts.sdk.test.ts
+      - packages/openmates-python/tests/test_finance_check_accounts.py
+    verification: [T-CLI-FINANCE-DEV, T-NPM-SDK-FINANCE, T-PIP-SDK-FINANCE, T-PARITY-AUDIT]
+    verification_ids: [T-CLI-FINANCE-DEV, T-NPM-SDK-FINANCE, T-PIP-SDK-FINANCE, T-PARITY-AUDIT]
+    dependencies: [TASK-3]
+    ownership:
+      files:
+        - scripts/verify_finance_check_accounts_cli.py
+        - frontend/packages/openmates-cli/src/cli.ts
+        - frontend/packages/openmates-cli/tests/financeCheckAccounts.sdk.test.ts
+        - packages/openmates-python/tests/test_finance_check_accounts.py
+      shared_files:
+        - packages/openmates-python/openmates/sdk.py
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: true
+  - id: TASK-5
+    title: Implement web embed preview/fullscreen after CLI and SDK gates
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-4, S-5, S-6]
+      acceptance_criteria: [AC-4, AC-5, AC-7]
+    expected_files:
+      - frontend/packages/ui/src/components/embeds/finance/
+      - frontend/apps/web_app/tests/finance-check-accounts.spec.ts
+    verification: [T-WEB-FINANCE-CHECK-ACCOUNTS, V-USER-CONFIRMATION]
+    verification_ids: [T-WEB-FINANCE-CHECK-ACCOUNTS, V-USER-CONFIRMATION]
+    dependencies: [TASK-4]
+    ownership:
+      files:
+        - frontend/packages/ui/src/components/embeds/finance/
+        - frontend/apps/web_app/tests/finance-check-accounts.spec.ts
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: true
+
+risks:
+  - id: R-1
+    risk: Revolut Sandbox may not include enough transaction diversity by default.
+    mitigation: Seed deterministic data with sandbox simulations and CSV fixtures; record a blocker if provider simulation is insufficient.
+  - id: R-2
+    risk: Certificate/private-key handling could accidentally move access-enabling material to server persistence.
+    mitigation: Enforce connected-account plaintext field rejection and add tests for Revolut-specific secret field names.
+  - id: R-3
+    risk: CSV formats vary widely and may cause wrong balances if guessed.
+    mitigation: Fail closed with column-mapping errors instead of silently guessing ambiguous files.
+  - id: R-4
+    risk: Finance projections could be mistaken for advice.
+    mitigation: Label as informational projection based on supplied data coverage and avoid recommendations requiring professional advice.
+
+open_questions:
+  - id: OQ-1
+    question: Which non-template bank CSV formats should be included after the canonical OpenMates template works?
+    status: deferred
+    owner: product
