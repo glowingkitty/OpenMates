@@ -1688,6 +1688,7 @@
     // Handles embedUpdated events from chatSyncService for in-editor (draft) embeds
     // whose background processing fails (e.g. PDF OCR error) before the message is sent.
     let embedUpdatedFromServerHandler: ((event: Event) => void) | null = null;
+    const currentDraftPdfUploadEmbedIds = new Set<string>();
     let resizeObserver: ResizeObserver;
     let embedGroupResizeObserver: ResizeObserver;
     // ProseMirror decorations plumbing
@@ -2944,7 +2945,7 @@
                 detail.type === 'pdf';
 
             if (targetPos === null) {
-                if (!isFinishedPdf) return; // No matching draft embed — nothing to do.
+                if (!isFinishedPdf || !currentDraftPdfUploadEmbedIds.has(embed_id)) return; // No matching current draft embed — nothing to do.
 
                 // A stale draft restore can remove the composer PDF before OCR finishes.
                 // The no-chat completion event is still authoritative for this draft, so
@@ -2975,6 +2976,7 @@
                     updateOriginalMarkdown(editor);
                     await flushSaveDraft(editor, currentChatId);
                 }
+                currentDraftPdfUploadEmbedIds.delete(embed_id);
                 return;
             }
 
@@ -3013,6 +3015,9 @@
             if (shouldFlushDraft && currentChatId) {
                 updateOriginalMarkdown(editor);
                 await flushSaveDraft(editor, currentChatId);
+            }
+            if (shouldFlushDraft) {
+                currentDraftPdfUploadEmbedIds.delete(embed_id);
             }
         };
         chatSyncService.addEventListener('embedUpdated', embedUpdatedFromServerHandler);
@@ -4357,6 +4362,15 @@
     async function handleEmbedUploadFinished(event: CustomEvent) {
         const { embedId, status } = event.detail as { embedId: string; status: string };
         if (!embedId) return;
+        if (editor && !editor.isDestroyed) {
+            editor.state.doc.descendants((node) => {
+                if (node.type.name !== 'embed' || node.attrs.id !== embedId) return true;
+                if (node.attrs.type === 'pdf' && typeof node.attrs.uploadEmbedId === 'string') {
+                    currentDraftPdfUploadEmbedIds.add(node.attrs.uploadEmbedId);
+                }
+                return false;
+            });
+        }
 
         // PDF upload completion changes only embed node attrs, not plain text.
         // handleEditorUpdate intentionally ignores selection/attrs-only updates, so
