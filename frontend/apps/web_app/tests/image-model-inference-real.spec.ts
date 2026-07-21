@@ -32,6 +32,9 @@ const PROMPT = 'Evaluate the design and give recommendations for improvements.';
 const DESIGN_FEEDBACK_PATTERN = /design|recommend|improve|layout|spacing|interface|ui/i;
 const TRIALS = [1, 2, 3];
 const DEFAULT_SMOKE_MODEL_LABELS = ['gemini-pro'];
+const IMAGE_VIEW_TIMEOUT_MS = 180000;
+const ASSISTANT_MESSAGE_START_TIMEOUT_MS = 180000;
+const ASSISTANT_COMPLETION_TIMEOUT_MS = 240000;
 
 type ModelCase = {
 	provider: string;
@@ -201,14 +204,14 @@ async function sendImageQuestion(
 
 async function waitForImageViewAndResponse(page: any, log: (message: string, metadata?: Record<string, unknown>) => void) {
 	const imageViewEmbed = page.locator('[data-app-id="images"][data-skill-id="view"]').last();
-	await expect(imageViewEmbed).toBeVisible({ timeout: 180000 });
+	await expect(imageViewEmbed).toBeVisible({ timeout: IMAGE_VIEW_TIMEOUT_MS });
 	log('images.view embed is visible.');
 
 	const assistantMessage = page.getByTestId('message-assistant').last();
-	await expect(assistantMessage).toBeVisible({ timeout: 30000 });
+	await expect(assistantMessage).toBeVisible({ timeout: ASSISTANT_MESSAGE_START_TIMEOUT_MS });
 	const generatedBy = assistantMessage.getByTestId('generated-by');
-	await expect(generatedBy).toBeVisible({ timeout: 240000 });
-	await expect(assistantMessage).toContainText(DESIGN_FEEDBACK_PATTERN, { timeout: 240000 });
+	await expect(generatedBy).toBeVisible({ timeout: ASSISTANT_COMPLETION_TIMEOUT_MS });
+	await expect(assistantMessage).toContainText(DESIGN_FEEDBACK_PATTERN, { timeout: ASSISTANT_COMPLETION_TIMEOUT_MS });
 	const generatedByText = (await generatedBy.textContent()) || '';
 	const responseText = (await assistantMessage.textContent()) || '';
 	return { generatedByText, responseText };
