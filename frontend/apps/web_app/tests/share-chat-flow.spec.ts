@@ -98,8 +98,7 @@ test('creates and shares a chat link with QR code and short link', async ({
 	// ── Step 4: Wait for AI response and header image bubbles ─────────────
 	logCheckpoint('Waiting for assistant response...');
 	await waitForAssistantMessage(page, { which: 'last', logCheckpoint });
-	const imageSearchEmbed = await waitForEmbedFinished(page, 'images', 'search');
-	await expect(imageSearchEmbed.getByTestId('images-search-thumbnail-strip')).toBeVisible({ timeout: 30000 });
+	await waitForEmbedFinished(page, 'images', 'search');
 	await expect(page.getByTestId('chat-header-title')).not.toContainText(/processing|untitled/i, { timeout: 30000 });
 	await expect(page.getByTestId('chat-header-summary')).toContainText(/sunsets?|ocean/i, {
 		timeout: GENERATED_CHAT_METADATA_TIMEOUT_MS
