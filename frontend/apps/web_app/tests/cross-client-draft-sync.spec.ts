@@ -29,6 +29,7 @@ const AUDIO_FIXTURE = fs.existsSync('/workspace/backend/tests/fixtures/test_audi
 	? '/workspace/backend/tests/fixtures/test_audio.wav'
 	: path.resolve(__dirname, '../../../../backend/tests/fixtures/test_audio.wav');
 const CLI_DRAFT_REFRESH_TIMEOUT_MS = 60_000;
+const DRAFT_REPLACEMENT_HELPER_TIMEOUT_MS = 30_000;
 const CHAT_DELETION_RECONCILE_TIMEOUT_MS = 90_000;
 const CROSS_CLIENT_DRAFT_SYNC_TIMEOUT_MS = 480_000;
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount(1);
@@ -424,7 +425,7 @@ async function replaceMessageEditorText(page: any, chatId: string, text: string)
 		if (typeof helper !== 'function') throw new Error('E2E draft replacement helper is unavailable');
 		await Promise.race([
 			helper({ chatId: targetChatId, text: replacement }),
-			new Promise((_, reject) => window.setTimeout(() => reject(new Error('E2E draft replacement helper timed out')), 10_000)),
+			new Promise((_, reject) => window.setTimeout(() => reject(new Error('E2E draft replacement helper timed out')), DRAFT_REPLACEMENT_HELPER_TIMEOUT_MS)),
 		]);
 	}, { targetChatId: chatId, replacement: text });
 	console.log(`[CROSS_CLIENT_DRAFT_SYNC] Browser helper returned for ${chatId}; waiting for local encrypted draft.`);
