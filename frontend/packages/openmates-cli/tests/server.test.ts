@@ -57,7 +57,11 @@ import {
   findMissingRequiredSecrets,
   summarizeSecretPreflight,
   appendSelectedServices,
+  parseEnvEntries,
+  redactEnvValue,
   shouldCheckWebHealth,
+  unsetEnvValue,
+  upsertEnvValue,
 } from "../src/serverPlanning.ts";
 import { renderSupportStartReminder } from "../src/support.ts";
 
@@ -725,6 +729,38 @@ describe("server preflight and Caddy planning", () => {
     assert.match(plan.unit, /openmates server update --role core --channel main --continuous/);
     assert.match(plan.unit, /OPENMATES_UPDATE_WINDOW=02:00-04:00 Europe\/Berlin/);
     assert.doesNotMatch(plan.unit + plan.timer, /SECRET__|API_KEY|TOKEN=/);
+  });
+
+  it("parses env entries by category with redacted secret values", () => {
+    const entries = parseEnvEntries([
+      "DATABASE_NAME=directus",
+      "SECRET__BRAVE__API_KEY=sk-brave",
+      "SECRET__GOOGLE__OAUTH_CLIENT_ID=client-id",
+      "OPENOBSERVE_ROOT_PASSWORD=secret",
+      "APP_AI_WORKER_CONCURRENCY=3",
+    ].join("\n"));
+
+    assert.deepEqual(entries.map((entry) => [entry.key, entry.category, entry.redactedValue]), [
+      ["APP_AI_WORKER_CONCURRENCY", "advanced", "3"],
+      ["SECRET__GOOGLE__OAUTH_CLIENT_ID", "integrations", "<redacted>"],
+      ["OPENOBSERVE_ROOT_PASSWORD", "observability", "<redacted>"],
+      ["SECRET__BRAVE__API_KEY", "providers", "<redacted>"],
+      ["DATABASE_NAME", "runtime", "directus"],
+    ]);
+    assert.equal(redactEnvValue("SECRET__OPENAI__API_KEY", "IMPORTED_TO_VAULT"), "IMPORTED_TO_VAULT");
+  });
+
+  it("updates and unsets one canonical env file without exposing other values", () => {
+    const initial = "DATABASE_NAME=directus\nSECRET__BRAVE__API_KEY=old\n";
+
+    const updated = upsertEnvValue(initial, "SECRET__BRAVE__API_KEY", "new-secret");
+    const added = upsertEnvValue(updated, "SECRET__FIRECRAWL__API_KEY", "firecrawl-secret");
+    const removed = unsetEnvValue(added, "SECRET__BRAVE__API_KEY");
+
+    assert.match(updated, /SECRET__BRAVE__API_KEY=new-secret/);
+    assert.match(added, /SECRET__FIRECRAWL__API_KEY=firecrawl-secret/);
+    assert.doesNotMatch(removed, /SECRET__BRAVE__API_KEY=/);
+    assert.match(removed, /DATABASE_NAME=directus/);
   });
 });
 

@@ -51,7 +51,6 @@ describe("OpenMates SDK Teams", () => {
         if (request.method === "GET" && request.url === "/v1/teams/team-1") return { team: { team_id: "team-1" } };
         if (request.method === "POST" && request.url === "/v1/teams") return { team: { team_id: "team-1", ...(body as Record<string, unknown>) } };
         if (request.method === "PATCH" && request.url === "/v1/teams/team-1") return { team: { team_id: "team-1", ...(body as Record<string, unknown>) } };
-        if (request.method === "DELETE" && request.url === "/v1/teams/team-1") return { success: true };
         if (request.method === "POST" && request.url === "/v1/teams/team-1/invites") return { invite: { invite_id: "invite-1" } };
         if (request.method === "POST" && request.url === "/v1/team-invites/invite-1/accept") return { status: "pending_access_approval" };
         if (request.method === "POST" && request.url === "/v1/team-invites/invite-1/decline") return { success: true };
@@ -60,10 +59,11 @@ describe("OpenMates SDK Teams", () => {
         if (request.method === "POST" && request.url === "/v1/teams/team-1/access-requests/request-1/reject") return { success: true };
         if (request.method === "POST" && request.url === "/v1/teams/team-1/members/user-1/remove") return { success: true };
         if (request.method === "GET" && request.url === "/v1/teams/team-1/billing") return { billing: { credits: 1 } };
-        if (request.method === "POST" && request.url === "/v1/teams/team-1/billing/credits") return { billing: { credits: 2 } };
+        if (request.method === "POST" && request.url === "/v1/teams/team-1/billing/bank-transfer-orders") return { order_id: "bt_1" };
+        if (request.method === "GET" && request.url === "/v1/teams/team-1/billing/bank-transfer-orders/bt_1") return { order_id: "bt_1", status: "pending" };
+        if (request.method === "GET" && request.url === "/v1/teams/team-1/billing/bank-transfer-orders") return { orders: [{ order_id: "bt_1" }] };
         if (request.method === "GET" && request.url === "/v1/teams/team-1/billing/usage?member_user_id=user-1") return { usage: [{ credits: 1 }] };
         if (request.method === "GET" && request.url === "/v1/teams/team-1/memories") return { memories: [{ id: "memory-1" }] };
-        if (request.method === "POST" && request.url === "/v1/chats/chat-1/move") return { success: true };
         if (request.method === "POST" && request.url === "/v1/teams/team-1/export") return { export_id: "export-1" };
         if (request.method === "POST" && request.url === "/v1/teams/import") return { imported: true };
         throw new Error(`Unexpected request ${request.method} ${request.url}`);
@@ -74,7 +74,6 @@ describe("OpenMates SDK Teams", () => {
         assert.equal((await client.teams.get("team-1")).team_id, "team-1");
         assert.equal((await client.teams.create({ encrypted_name: "cipher" })).team_id, "team-1");
         assert.equal((await client.teams.update("team-1", { encrypted_name: "next" })).encrypted_name, "next");
-        assert.equal((await client.teams.delete("team-1")).success, true);
         assert.equal((await client.teams.invite("team-1", { invite_id: "invite-1" })).invite_id, "invite-1");
         assert.equal((await client.teams.acceptInvite("invite-1")).status, "pending_access_approval");
         assert.equal((await client.teams.declineInvite("invite-1")).success, true);
@@ -83,10 +82,12 @@ describe("OpenMates SDK Teams", () => {
         assert.equal((await client.teams.rejectAccess("team-1", "request-1")).success, true);
         assert.equal((await client.teams.removeMember("team-1", "user-1")).success, true);
         assert.equal((await client.teams.billing("team-1")).credits, 1);
-        assert.equal((await client.teams.addCredits("team-1", { credits: 1 })).credits, 2);
+        assert.equal((await client.teams.createBankTransferOrder("team-1", 110000, { emailEncryptionKey: "email-key" })).order_id, "bt_1");
+        assert.equal((await client.teams.bankTransferStatus("team-1", "bt_1")).status, "pending");
+        const orders = (await client.teams.listBankTransferOrders("team-1")).orders as Array<Record<string, unknown>>;
+        assert.equal(orders[0]?.order_id, "bt_1");
         assert.equal((await client.teams.usage("team-1", "user-1"))[0]?.credits, 1);
         assert.equal((await client.teams.memories("team-1"))[0]?.id, "memory-1");
-        assert.equal((await client.teams.move("chat", "chat-1", "team-1")).success, true);
         assert.equal((await client.teams.export("team-1")).export_id, "export-1");
         assert.equal((await client.teams.import({ destination_team_id: "team-2", artifact: {} })).imported, true);
 
@@ -95,7 +96,6 @@ describe("OpenMates SDK Teams", () => {
           ["GET", "/v1/teams/team-1"],
           ["POST", "/v1/teams"],
           ["PATCH", "/v1/teams/team-1"],
-          ["DELETE", "/v1/teams/team-1"],
           ["POST", "/v1/teams/team-1/invites"],
           ["POST", "/v1/team-invites/invite-1/accept"],
           ["POST", "/v1/team-invites/invite-1/decline"],
@@ -104,10 +104,11 @@ describe("OpenMates SDK Teams", () => {
           ["POST", "/v1/teams/team-1/access-requests/request-1/reject"],
           ["POST", "/v1/teams/team-1/members/user-1/remove"],
           ["GET", "/v1/teams/team-1/billing"],
-          ["POST", "/v1/teams/team-1/billing/credits"],
+          ["POST", "/v1/teams/team-1/billing/bank-transfer-orders"],
+          ["GET", "/v1/teams/team-1/billing/bank-transfer-orders/bt_1"],
+          ["GET", "/v1/teams/team-1/billing/bank-transfer-orders"],
           ["GET", "/v1/teams/team-1/billing/usage?member_user_id=user-1"],
           ["GET", "/v1/teams/team-1/memories"],
-          ["POST", "/v1/chats/chat-1/move"],
           ["POST", "/v1/teams/team-1/export"],
           ["POST", "/v1/teams/import"],
         ]);
@@ -121,5 +122,14 @@ describe("OpenMates SDK Teams", () => {
       () => client.connectedAccounts.import({ payload: "OMCA1.disabled", passcode: "x", teamId: "team-1" }),
       OpenMatesConfigError,
     );
+  });
+
+  it("does not expose direct team credit grants or destructive team methods", () => {
+    const client = new OpenMates({ apiKey: "x", apiUrl: "http://127.0.0.1:9" });
+    const teams = client.teams as unknown as Record<string, unknown>;
+
+    assert.equal("addCredits" in teams, false);
+    assert.equal("delete" in teams, false);
+    assert.equal("move" in teams, false);
   });
 });

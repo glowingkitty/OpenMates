@@ -126,6 +126,7 @@ PARITY_ENTRIES = [
     ParityEntry('matches(tokens, ["developers", "api-keys", "revoke"])', "apiKeys.revoke", "api_keys.revoke"),
     ParityEntry('matches(tokens, ["billing", "overview"])', "billing.overview", "billing.overview"),
     ParityEntry('matches(tokens, ["billing", "usage"])', "billing.usage", "billing.usage"),
+    ParityEntry('matches(tokens, ["billing", "usage", "overview"])', "billing.usageOverview", "billing.usage_overview"),
     ParityEntry('matches(tokens, ["billing", "usage", "export"])', "billing.usageExport", "billing.usage_export"),
     ParityEntry('matches(tokens, ["billing", "buy-credits", "bank-transfer"])', "billing.createBankTransferOrder", "billing.create_bank_transfer_order"),
     ParityEntry('matches(tokens, ["billing", "invoices", "list"])', "billing.listInvoices", "billing.list_invoices"),

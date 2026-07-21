@@ -6406,6 +6406,72 @@ async def _handle_revolut_business_webhook(
                 final_cache_data.pop("pending_order_id", None)
             await cache_service.set_user(final_cache_data, user_id=user_id)
 
+    if order_type == "team_credit_purchase":
+        team_id = pending_order.get("team_id")
+        if not team_id:
+            logger.error(f"Team bank transfer {order_id} is missing team_id")
+            return {"status": "processing_error"}
+
+        completed_at = datetime.now(timezone.utc).isoformat()
+        try:
+            from backend.core.api.app.services.team_billing_service import TeamBillingService
+
+            await TeamBillingService(directus_service).add_credits(
+                team_id=str(team_id),
+                actor_user_id=str(user_id),
+                event_id=f"bank-transfer:{order_id}",
+                credits=int(credits_amount),
+                event_type="purchase",
+                encrypted_metadata=None,
+            )
+            await _update_bank_transfer(order_id, {
+                "status": "completed",
+                "completed_at": completed_at,
+                "received_amount_cents": received_amount_cents,
+                "revolut_transaction_id": transaction_id,
+            })
+            await cache_service.update_bank_transfer_status(
+                order_id=order_id,
+                reference=reference,
+                status="completed",
+                extra_fields={
+                    "completed_at": completed_at,
+                    "received_amount_cents": received_amount_cents,
+                },
+            )
+            try:
+                await cache_service.increment_stat("income_eur_cents", int(received_amount_cents))
+                await cache_service.increment_stat("credits_sold", int(credits_amount))
+                await cache_service.update_liability(int(credits_amount))
+                await cache_service.increment_stat("purchase_count")
+                await cache_service.increment_json_stat("purchases_by_provider", "team_bank_transfer")
+            except Exception as stats_err:
+                logger.error(f"Error updating stats for team bank transfer {order_id}: {stats_err}")
+            try:
+                ComplianceService.log_financial_transaction(
+                    user_id=user_id,
+                    transaction_type="team_credit_purchase",
+                    amount=int(credits_amount),
+                    currency="eur",
+                    status="success",
+                    details={
+                        "order_id": order_id,
+                        "team_id": team_id,
+                        "provider": "team_bank_transfer",
+                        "revolut_transaction_id": transaction_id,
+                    },
+                )
+            except Exception as compliance_err:
+                logger.error(f"Error logging team bank transfer compliance for {order_id}: {compliance_err}")
+            logger.info(
+                f"Team bank transfer {order_id} completed successfully. "
+                f"Granted {credits_amount} credits to team {team_id}. Revolut txn: {transaction_id}"
+            )
+            return {"status": "team_bank_transfer_completed"}
+        except Exception as e:
+            logger.error(f"Error processing team bank transfer {order_id}: {e}", exc_info=True)
+            return {"status": "processing_error"}
+
     # ── Credit purchase path ─────────────────────────────────────────
     user_cache_data = await cache_service.get_user_by_id(user_id)
     if not user_cache_data:

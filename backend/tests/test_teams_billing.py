@@ -97,6 +97,22 @@ async def test_member_charge_deducts_team_balance_and_records_usage_attribution(
 
 
 @pytest.mark.anyio
+async def test_member_cannot_fund_team_credits_directly() -> None:
+    _directus, methods, billing = await _seed_team()
+    await methods.create_invite("team-1", "alice", {"invite_id": "invite-member", "role": "member", "created_at": 110})
+    await _approve_invited_member(methods, "invite-member", "bob", "cipher-team-key-for-bob")
+
+    with pytest.raises(TeamPermissionError):
+        await billing.add_credits(
+            team_id="team-1",
+            actor_user_id="bob",
+            event_id="purchase-1",
+            credits=100,
+            encrypted_balance="cipher-balance-100",
+        )
+
+
+@pytest.mark.anyio
 async def test_internal_team_charge_can_preserve_existing_encrypted_balance_snapshot() -> None:
     directus, methods, billing = await _seed_team()
     await methods.create_invite("team-1", "alice", {"invite_id": "invite-member", "role": "member", "created_at": 110})

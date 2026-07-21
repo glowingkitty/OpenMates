@@ -10,10 +10,14 @@ Secrets are read by existing CLI test-account tooling and are never printed.
 from __future__ import annotations
 
 import argparse
+import base64
+from decimal import Decimal
 import hashlib
+import hmac
 import json
 import os
 import subprocess
+import struct
 import sys
 import tempfile
 import time
@@ -24,6 +28,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 CLI_DIR = ROOT / "frontend" / "packages" / "openmates-cli"
 RUN_ENV = os.environ.copy()
+CURRENT_TEST_ACCOUNT_SLOT: str | None = None
 
 
 class VerificationError(RuntimeError):
@@ -64,12 +69,16 @@ def require(condition: bool, message: str) -> None:
 
 
 def setup_cli(api_url: str, skip_build: bool) -> None:
+    global CURRENT_TEST_ACCOUNT_SLOT
+    CURRENT_TEST_ACCOUNT_SLOT = ""
     if not skip_build:
         run(["npm", "run", "build"], cwd=CLI_DIR, timeout=240)
     run(["node", "scripts/openmates_cli_test_account.mjs", "login", "--api-url", api_url], timeout=180)
 
 
 def login_cli(api_url: str, slot: str | None = None) -> None:
+    global CURRENT_TEST_ACCOUNT_SLOT
+    CURRENT_TEST_ACCOUNT_SLOT = slot or ""
     command = ["node", "scripts/openmates_cli_test_account.mjs", "login", "--api-url", api_url]
     if slot:
         command.extend(["--slot", slot])
@@ -107,6 +116,24 @@ def test_account_email(slot: str) -> str:
     email = values.get(f"OPENMATES_TEST_ACCOUNT{suffix}_EMAIL")
     require(bool(email), f"Missing OPENMATES_TEST_ACCOUNT{suffix}_EMAIL for multi-account verification")
     return str(email)
+
+
+def test_account_otp_key(slot: str | None) -> str | None:
+    values = load_env_values()
+    suffix = f"_{slot}" if slot else ""
+    value = values.get(f"OPENMATES_TEST_ACCOUNT{suffix}_OTP_KEY")
+    return str(value) if value else None
+
+
+def generate_totp(secret: str, *, timestamp: int | None = None, digits: int = 6, period: int = 30) -> str:
+    normalized = secret.replace(" ", "").upper()
+    padding = "=" * ((8 - len(normalized) % 8) % 8)
+    key = base64.b32decode(f"{normalized}{padding}", casefold=True)
+    counter = int((timestamp or int(time.time())) / period)
+    digest = hmac.new(key, struct.pack(">Q", counter), hashlib.sha1).digest()
+    offset = digest[-1] & 0x0F
+    code = struct.unpack(">I", digest[offset:offset + 4])[0] & 0x7FFFFFFF
+    return str(code % (10 ** digits)).zfill(digits)
 
 
 def team_id_from(value: dict[str, Any]) -> str:
@@ -181,7 +208,43 @@ def create_test_team(prefix: str = "CLI Teams V1") -> str:
 
 
 def cleanup_team(team_id: str) -> None:
-    subprocess.run(["node", "dist/cli.js", "teams", "delete", team_id, "--yes", "--json"], cwd=CLI_DIR, env=RUN_ENV, text=True, capture_output=True, check=False)
+    otp_key = test_account_otp_key(CURRENT_TEST_ACCOUNT_SLOT)
+    stdin = f"{generate_totp(otp_key)}\n" if otp_key else "\n"
+    subprocess.run(
+        ["node", "dist/cli.js", "teams", "delete", team_id, "--yes", "--json"],
+        cwd=CLI_DIR,
+        env=RUN_ENV,
+        input=stdin,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+
+def create_team_bank_transfer_order(team_id: str, credits: int = 110000) -> dict[str, Any]:
+    order = run_cli_json(["teams", "billing", "bank-transfer", "create", team_id, "--credits", str(credits)], timeout=120)
+    require(isinstance(order.get("order_id"), str), "Team bank-transfer order did not return order_id")
+    require(isinstance(order.get("reference"), str), "Team bank-transfer order did not return reference")
+    return order
+
+
+def approve_team_bank_transfer_order(order: dict[str, Any]) -> None:
+    amount_eur = Decimal(str(order.get("amount_eur") or "0"))
+    received_cents = int(amount_eur * 100)
+    require(received_cents > 0, "Team bank-transfer order did not include a positive amount_eur")
+    run([
+        "docker",
+        "exec",
+        "api",
+        "python",
+        "/app/backend/scripts/approve_bank_transfer.py",
+        "--reference",
+        str(order["reference"]),
+        "--received-cents",
+        str(received_cents),
+        "--apply",
+        "--no-email",
+    ], timeout=180)
 
 
 def cleanup_memory(entry_id: str, team_id: str | None = None) -> None:
@@ -251,8 +314,12 @@ def scenario_billing(api_url: str, skip_build: bool) -> dict[str, Any]:
     try:
         billing = run_cli_json(["teams", "billing", team_id]).get("billing", {})
         require("balance_credits" in billing or "encrypted_balance" in billing, "Billing summary lacked balance fields")
-        funded = run_cli_json(["teams", "add-credits", team_id, "--credits", "1"])
-        require("billing" in funded, "Team add-credits did not return billing payload")
+        order = create_team_bank_transfer_order(team_id)
+        require(order.get("reference", "").startswith("OMT-"), "Team bank-transfer order reference did not use team prefix")
+        listed = run_cli_json(["teams", "billing", "bank-transfer", "list", team_id], timeout=120).get("orders", [])
+        require(any(isinstance(item, dict) and item.get("order_id") == order.get("order_id") for item in listed), "Team bank-transfer order was not listed")
+        status = run_cli_json(["teams", "billing", "bank-transfer", "status", team_id, str(order["order_id"])], timeout=120)
+        require(status.get("status") == "pending", "Team bank-transfer order status was not pending")
     finally:
         cleanup_team(team_id)
     return {"status": "passed", "team_id_prefix": team_id[:8]}
@@ -291,7 +358,7 @@ def scenario_chat(api_url: str, skip_build: bool) -> dict[str, Any]:
     member_email = test_account_email(member_slot)
     team_id = create_test_team("CLI Teams chat")
     try:
-        run_cli_json(["teams", "add-credits", team_id, "--credits", "1"], timeout=120)
+        approve_team_bank_transfer_order(create_team_bank_transfer_order(team_id))
         first = run_cli_json(["chats", "new", "Team note stored without mate mention", "--team", team_id, "--response-timeout-seconds", "5"], timeout=60)
         chat_id = chat_id_from(first)
         require(first.get("assistant") == "", "No-mention team chat should not wait for or return an assistant response")

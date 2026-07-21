@@ -55,7 +55,7 @@ class TeamBillingService:
         updated_account = await self._update_account(
             account,
             balance_credits=_safe_int(account.get("balance_credits")) + credits,
-            encrypted_balance=encrypted_balance,
+            encrypted_balance=encrypted_balance or account.get("encrypted_balance") or "",
             updated_at=now,
         )
         event = await self._create_credit_event(

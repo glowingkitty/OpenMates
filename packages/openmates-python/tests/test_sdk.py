@@ -29,6 +29,18 @@ def _encrypt_combined(value: bytes, key: bytes) -> str:
     return _b64(iv + AESGCM(key).encrypt(iv, value, None))
 
 
+def _decrypt_combined_bytes(value: str, key: bytes) -> bytes:
+    raw = base64.b64decode(value)
+    if raw.startswith(b"OM"):
+        raw = raw[6:]
+    iv, ciphertext = raw[:12], raw[12:]
+    return AESGCM(key).decrypt(iv, ciphertext, None)
+
+
+def _decrypt_combined(value: str, key: bytes) -> str:
+    return _decrypt_combined_bytes(value, key).decode("utf-8")
+
+
 def _wrap_master_key(api_key: str, master_key: bytes) -> dict[str, str]:
     salt = os.urandom(16)
     iv = os.urandom(12)
@@ -97,6 +109,104 @@ def test_native_app_skill_method_uses_generated_namespace(monkeypatch):
     assert requests[0]["json"] == {"requests": [{"query": "hello"}]}
 
 
+def test_native_app_skill_method_resolves_async_task_response(monkeypatch):
+    requests = []
+
+    class FakeResponse:
+        status_code = 200
+        ok = True
+
+        def __init__(self, payload):
+            self._payload = payload
+
+        def json(self):
+            return self._payload
+
+    def fake_post(url, *, json, headers, timeout):
+        requests.append(("POST", url, json, headers))
+        return FakeResponse({
+            "success": True,
+            "data": {"task_id": "task-image-html", "status": "processing"},
+            "credits_charged": 0,
+        })
+
+    def fake_get(url, *, headers, timeout):
+        requests.append(("GET", url, None, headers))
+        return FakeResponse({
+            "task_id": "task-image-html",
+            "status": "completed",
+            "result": {
+                "html": "<!doctype html><html><body>Generated</body></html>",
+                "usage": {"credits_charged": 30},
+            },
+        })
+
+    monkeypatch.setattr("openmates.sdk.requests.post", fake_post)
+    monkeypatch.setattr("openmates.sdk.requests.get", fake_get)
+
+    client = OpenMates(api_key="sk-api-test")
+    result = client.apps.code.image_to_html({"requests": [{"image_base64": "abc", "mime_type": "image/png"}]})
+
+    assert result == {
+        "success": True,
+        "data": {
+            "html": "<!doctype html><html><body>Generated</body></html>",
+            "usage": {"credits_charged": 30},
+        },
+        "credits_charged": 0,
+    }
+    assert [(method, url) for method, url, _body, _headers in requests] == [
+        ("POST", "https://api.openmates.org/v1/apps/code/skills/image_to_html"),
+        ("GET", "https://api.openmates.org/v1/tasks/task-image-html"),
+    ]
+
+
+def test_finance_connected_account_skill_uses_sdk_only_endpoint(monkeypatch):
+    requests = []
+
+    class FakeResponse:
+        status_code = 200
+
+        def json(self):
+            return {"account_count": 1, "transaction_count": 2}
+
+    def fake_post(url, *, json, headers, timeout):
+        requests.append({"url": url, "json": json, "headers": headers, "timeout": timeout})
+        return FakeResponse()
+
+    monkeypatch.setattr("openmates.sdk.requests.post", fake_post)
+
+    client = OpenMates(api_key="sk-api-test")
+    result = client.finance.check_accounts(
+        {
+            "period": "monthly",
+            "connected_account_requests": [{"source_ref": "revolut:sandbox"}],
+            "csv_statements": [
+                {
+                    "filename": "cash.csv",
+                    "content": "date,description,amount,currency\n2026-07-01,Cafe,-4.5,EUR",
+                }
+            ],
+        },
+        connected_account_token_ref_inputs=[
+            {
+                "connected_account_id": "acct-1",
+                "app_id": "finance",
+                "provider_id": "revolut_business",
+                "allowed_actions": ["read"],
+                "action_scope": {"provider": "revolut_business"},
+                "refresh_token_envelope": {"refresh_token": "refresh-secret", "provider": "revolut_business"},
+            }
+        ],
+    )
+
+    assert result == {"account_count": 1, "transaction_count": 2}
+    assert requests[0]["url"] == "https://api.openmates.org/v1/sdk/connected-account-skills/finance/check_accounts"
+    assert requests[0]["json"]["input"]["period"] == "monthly"
+    refs = requests[0]["json"]["connected_account_token_ref_inputs"]
+    assert refs[0]["provider_id"] == "revolut_business"
+    assert "access_token" not in json_module.dumps(requests[0]["json"])
+
 
 def test_native_app_skill_method_maps_prompt_injection_opt_out(monkeypatch):
     requests = []
@@ -132,6 +242,16 @@ def test_ideabucket_sdk_uses_existing_package_rest_methods(monkeypatch):
     api_key = "sk-api-test"
     master_key = b"\x00" * 32
     wrapper = _wrap_master_key(api_key, master_key)
+    encrypted_settings = _encrypt_combined(
+        json_module.dumps(
+            {
+                "processing_prompt": "Python account prompt",
+                "processing_times": "09:00,17:00",
+                "require_confirmation": False,
+            }
+        ).encode("utf-8"),
+        master_key,
+    )
 
     class FakeResponse:
         status_code = 200
@@ -152,6 +272,16 @@ def test_ideabucket_sdk_uses_existing_package_rest_methods(monkeypatch):
 
     def fake_get(url, *, headers, timeout):
         requests.append(("GET", url, None, headers))
+        if url.endswith("/v1/sdk/memories?app_id=ideabucket&item_type=processing_settings"):
+            return FakeResponse({
+                "memories": [{
+                    "id": "settings-entry-1",
+                    "app_id": "ideabucket",
+                    "item_type": "processing_settings",
+                    "item_version": 2,
+                    "encrypted_item_json": encrypted_settings,
+                }]
+            })
         return FakeResponse({"processing_window_id": "2026-07-18", "status": "pending"})
 
     monkeypatch.setattr("openmates.sdk.requests.post", fake_post)
@@ -163,15 +293,26 @@ def test_ideabucket_sdk_uses_existing_package_rest_methods(monkeypatch):
     assert client.ideabucket.process("2026-07-18", now=True)["status"] == "sent"
 
     assert [(method, url) for method, url, _body, _headers in requests] == [
+        ("GET", "https://api.openmates.org/v1/sdk/memories?app_id=ideabucket&item_type=processing_settings"),
         ("POST", "https://api.openmates.org/v1/sdk/session"),
         ("POST", "https://api.openmates.org/v1/sdk/ideabucket/buckets/2026-07-18/add"),
         ("GET", "https://api.openmates.org/v1/sdk/ideabucket/buckets/2026-07-18"),
         ("POST", "https://api.openmates.org/v1/sdk/ideabucket/buckets/2026-07-18/process"),
     ]
-    assert "ship" not in json_module.dumps(requests[1][2])
-    assert requests[1][2]["ideabucket_processing_window_id"] == "2026-07-18"
-    assert isinstance(requests[1][2]["encrypted_draft_md"], str)
-    assert requests[3][2] == {"now": True}
+    add_payload = requests[2][2]
+    assert "ship" not in json_module.dumps(add_payload)
+    assert "Python account prompt" not in json_module.dumps(add_payload)
+    server_payload = json_module.loads(_decrypt_combined(add_payload["server_vault_encrypted_processing_payload"], master_key))
+    assert server_payload["prompt"] == "Python account prompt"
+    assert add_payload["ideabucket_processing_window_id"] == "2026-07-18"
+    assert add_payload["require_confirmation"] is False
+    assert isinstance(add_payload["encrypted_draft_md"], str)
+    chat_key = _decrypt_combined_bytes(add_payload["encrypted_chat_key"], master_key)
+    assert len(chat_key) == 32
+    assert "ship" in _decrypt_combined(add_payload["client_encrypted_future_user_message"], chat_key)
+    system_event = json_module.loads(_decrypt_combined(add_payload["client_encrypted_ideabucket_system_event"], chat_key))
+    assert system_event["source"] == "openmates_pip_sdk"
+    assert requests[4][2] == {"now": True}
 
 
 def test_api_keys_list_decrypts_labels_and_never_used(monkeypatch):
@@ -698,9 +839,9 @@ def test_workspace_history_methods_match_npm_sdk_contract(monkeypatch):
     ]
     assert requests[2]["json"] == {}
     assert requests[4]["json"] == {"entry_id": "che-workflow", "state": "before"}
-    assert requests[5]["json"] == {"instruction": "Prepare launch", "apply_mode": "auto_apply", "encrypted_create": {"task_id": "task-1"}}
-    assert requests[6]["json"] == {"instruction": "Launch", "apply_mode": "auto_apply", "encrypted_create": {"project_id": "project-1"}}
-    assert requests[7]["json"] == {"instruction": "Rain alert", "apply_mode": "auto_apply", "create": {"title": "Rain alert"}}
+    assert requests[5]["json"] == {"instruction": "Prepare launch", "encrypted_create": {"task_id": "task-1"}}
+    assert requests[6]["json"] == {"instruction": "Launch", "encrypted_create": {"project_id": "project-1"}}
+    assert requests[7]["json"] == {"instruction": "Rain alert", "create": {"title": "Rain alert"}}
 
 
 def test_workflow_workspace_methods_match_npm_sdk_contract(monkeypatch):
@@ -1439,6 +1580,7 @@ def test_previously_blocked_sdk_surfaces_route_to_concrete_endpoints(monkeypatch
     client.chats.export("chat-1")
     client.account.list_interests()
     client.memories.types(app_id="code")
+    client.billing.usage_overview(granularity="monthly", months=2)
     client.billing.usage_export()
     client.billing.create_bank_transfer_order(110000)
     client.embeds.show("embed-1")
@@ -1455,6 +1597,7 @@ def test_previously_blocked_sdk_surfaces_route_to_concrete_endpoints(monkeypatch
         {"method": "POST", "url": "https://api.openmates.org/v1/sdk/chats/chat-1/export"},
         {"method": "GET", "url": "https://api.openmates.org/v1/sdk/account/topic-preferences"},
         {"method": "GET", "url": "https://api.openmates.org/v1/sdk/memories/types?app_id=code"},
+        {"method": "GET", "url": "https://api.openmates.org/v1/sdk/billing/usage/overview?granularity=monthly&months=2"},
         {"method": "GET", "url": "https://api.openmates.org/v1/sdk/billing/usage/export"},
         {"method": "POST", "url": "https://api.openmates.org/v1/sdk/billing/bank-transfer-orders"},
         {"method": "GET", "url": "https://api.openmates.org/v1/sdk/embeds/embed-1"},

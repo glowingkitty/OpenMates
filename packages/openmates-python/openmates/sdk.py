@@ -1694,6 +1694,8 @@ class OpenMatesIdeaBucket:
         }, separators=(",", ":"))
         payload_hash = hashlib.sha256(server_payload.encode("utf-8")).hexdigest()
         master_key = self._client._get_master_key()
+        chat_key = os.urandom(32)
+        encrypted_chat_key = _encrypt_aes_gcm_bytes(chat_key, master_key)
         return {
             "chat_id": chat_id,
             "encrypted_draft_md": _encrypt_aes_gcm_text(markdown, master_key),
@@ -1701,15 +1703,16 @@ class OpenMatesIdeaBucket:
             "ideabucket": True,
             "ideabucket_processing_window_id": bucket_id,
             "ideabucket_processing_version": now,
+            "encrypted_chat_key": encrypted_chat_key,
             "scheduled_send_at": scheduled_send_at,
             "server_vault_encrypted_processing_payload": _encrypt_aes_gcm_text(server_payload, master_key),
-            "client_encrypted_future_user_message": _encrypt_aes_gcm_text(markdown, master_key),
+            "client_encrypted_future_user_message": _encrypt_aes_gcm_text(markdown, chat_key),
             "client_encrypted_ideabucket_system_event": _encrypt_aes_gcm_text(json.dumps({
                 "type": "ideabucket_triggered_send",
                 "bucket_id": bucket_id,
                 "processing_window_id": bucket_id,
                 "source": "openmates_pip_sdk",
-            }, separators=(",", ":")), master_key),
+            }, separators=(",", ":")), chat_key),
             "payload_hash": payload_hash,
             "require_confirmation": bool(settings and settings.get("requireConfirmation") is True),
         }

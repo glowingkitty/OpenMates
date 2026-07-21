@@ -98,6 +98,96 @@ describe("OpenMates SDK", () => {
     });
   });
 
+  it("resolves async generated app-skill task responses", async () => {
+    const requests: string[] = [];
+    await withServer((request, response) => {
+      requests.push(`${request.method} ${request.url}`);
+      response.writeHead(200, { "content-type": "application/json" });
+      if (request.url === "/v1/apps/code/skills/image_to_html") {
+        response.end(JSON.stringify({
+          success: true,
+          data: { task_id: "task-image-html", status: "processing" },
+          credits_charged: 0,
+        }));
+        return;
+      }
+      if (request.url === "/v1/tasks/task-image-html") {
+        response.end(JSON.stringify({
+          task_id: "task-image-html",
+          status: "completed",
+          result: {
+            html: "<!doctype html><html><body>Generated</body></html>",
+            usage: { credits_charged: 30 },
+          },
+        }));
+        return;
+      }
+      response.statusCode = 404;
+      response.end(JSON.stringify({ detail: "not found" }));
+    }, async (apiUrl) => {
+      const client = new OpenMates({ apiKey: "sk-api-test", apiUrl });
+      const result = await client.apps.code.imageToHtml({
+        requests: [{ image_base64: "abc", mime_type: "image/png" }],
+      });
+
+      assert.deepEqual(result, {
+        success: true,
+        data: {
+          html: "<!doctype html><html><body>Generated</body></html>",
+          usage: { credits_charged: 30 },
+        },
+        credits_charged: 0,
+      });
+      assert.deepEqual(requests, [
+        "POST /v1/apps/code/skills/image_to_html",
+        "GET /v1/tasks/task-image-html",
+      ]);
+    });
+  });
+
+  it("runs Finance connected-account skills through the SDK-only endpoint", async () => {
+    let requestBody: Record<string, unknown> | undefined;
+    await withServer((request, response) => {
+      assert.equal(request.url, "/v1/sdk/connected-account-skills/finance/check_accounts");
+      assert.equal(request.headers.authorization, "Bearer sk-api-test");
+      request.setEncoding("utf8");
+      let raw = "";
+      request.on("data", (chunk) => { raw += chunk; });
+      request.on("end", () => {
+        requestBody = JSON.parse(raw) as Record<string, unknown>;
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ account_count: 1, transaction_count: 2 }));
+      });
+    }, async (apiUrl) => {
+      const client = new OpenMates({ apiKey: "sk-api-test", apiUrl });
+      const result = await client.finance.checkAccounts(
+        {
+          period: "monthly",
+          connected_account_requests: [{ source_ref: "revolut:sandbox" }],
+          csv_statements: [{ filename: "cash.csv", content: "date,description,amount,currency\n2026-07-01,Cafe,-4.5,EUR" }],
+        },
+        {
+          connectedAccountTokenRefInputs: [
+            {
+              connected_account_id: "acct-1",
+              app_id: "finance",
+              provider_id: "revolut_business",
+              allowed_actions: ["read"],
+              action_scope: { provider: "revolut_business" },
+              refresh_token_envelope: { refresh_token: "refresh-secret", provider: "revolut_business" },
+            },
+          ],
+        },
+      );
+
+      assert.deepEqual(result, { account_count: 1, transaction_count: 2 });
+      assert.equal((requestBody?.input as Record<string, unknown>).period, "monthly");
+      const refs = requestBody?.connected_account_token_ref_inputs as Array<Record<string, unknown>>;
+      assert.equal(refs[0].provider_id, "revolut_business");
+      assert.equal(JSON.stringify(requestBody).includes("access_token"), false);
+    });
+  });
+
   it("maps generated app-skill prompt-injection opt-out to request metadata", async () => {
     await withServer((request, response) => {
       assert.equal(request.url, "/v1/apps/web/skills/search");
@@ -822,6 +912,7 @@ describe("OpenMates SDK", () => {
       await client.chats.export("chat-1");
       await client.account.listInterests();
       await client.memories.types({ query: { app_id: "code" } });
+      await client.billing.usageOverview({ query: { granularity: "monthly", months: 2 } });
       await client.billing.usageExport();
       await client.billing.createBankTransferOrder(110000);
       await client.embeds.show("embed-1");
@@ -837,6 +928,7 @@ describe("OpenMates SDK", () => {
       { method: "POST", url: "/v1/sdk/chats/chat-1/export" },
       { method: "GET", url: "/v1/sdk/account/topic-preferences" },
       { method: "GET", url: "/v1/sdk/memories/types?app_id=code" },
+      { method: "GET", url: "/v1/sdk/billing/usage/overview?granularity=monthly&months=2" },
       { method: "GET", url: "/v1/sdk/billing/usage/export" },
       { method: "POST", url: "/v1/sdk/billing/bank-transfer-orders" },
       { method: "GET", url: "/v1/sdk/embeds/embed-1" },

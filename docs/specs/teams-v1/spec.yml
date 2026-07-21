@@ -28,7 +28,7 @@ scope:
     - Team chat LLM context includes per-human sender attribution so the model can distinguish speakers.
     - Shared team credit balance and team billing profile.
     - Team AI usage consumes team credits only, never personal credits.
-    - Owner/admin team credit purchase, optional team billing details, and personal-to-team credit transfer.
+    - Owner/admin team credit purchase by bank-transfer order from CLI/SDK; card payment starts remain web/Apple-only.
     - Per-member team usage attribution and owner/admin usage reporting.
     - Viewer read-only role with export and all write/AI-trigger actions disabled.
     - Member removal revokes server/sync access, revokes that member's team key wrapper, and instructs managed clients to delete local team data.
@@ -147,7 +147,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: e31c458230301f91070664baf733944011e3f593
+  subject_commit: 8acfb180aa682e0c3bf7d0702f54982a416fdbd4-plus-local-edits
 
 approvals:
   product_contract:
@@ -575,7 +575,7 @@ acceptance_criteria:
       - T-CLI-TEAM-OFFBOARDING-DEV
   - id: AC-9
     scenario: S-9
-    text: npm and pip SDKs expose team lifecycle, context, workspace, permission, and billing semantics equivalent to the CLI.
+    text: npm and pip SDKs expose non-destructive team lifecycle, context, workspace, permission, and bank-transfer billing semantics equivalent to the CLI; team deletion and team-owned move helpers are not public SDK methods.
     required: true
     status: pending
     coverage_status: covered
@@ -830,10 +830,14 @@ contracts:
       team_creation_requires_credits: false
       team_ai_usage_charges: team_balance
       personal_fallback_for_team_ai: false
-      personal_to_team_transfer: owner_admin_only
+      cli_sdk_team_funding: bank_transfer_order_only
+      direct_public_team_credit_grant: false
+      personal_to_team_transfer: false
       team_to_personal_transfer: false
       member_usage_limits_v1: false
       billing_profile_fields_required: false
+      server_visible_operational_balance: true
+      encrypted_balance_snapshot_source_of_truth: false
     memories:
       personal_encryption: user_master_key
       team_encryption: team_key_or_per_memory_object_key_wrapped_by_team_key
@@ -1150,6 +1154,18 @@ contracts:
       auth: authenticated
       allowed_roles: personal_user_or_authorized_team_user_by_context
       behavior: Mint active-turn token refs only for personal connected accounts in personal context; reject team_id with TEAM_CONNECTED_ACCOUNTS_DISABLED.
+    - route: POST /v1/teams/{team_id}/billing/bank-transfer-orders
+      auth: authenticated
+      allowed_roles: owner_admin
+      behavior: Create or return an idempotent pending SEPA team credit order. The record is order_type=team_credit_purchase, includes team_id and hashed_team_id, and does not grant credits until bank-transfer settlement.
+    - route: GET /v1/teams/{team_id}/billing/bank-transfer-orders
+      auth: authenticated
+      allowed_roles: owner_admin
+      behavior: List pending team bank-transfer orders for that team only.
+    - route: GET /v1/teams/{team_id}/billing/bank-transfer-orders/{order_id}
+      auth: authenticated
+      allowed_roles: owner_admin
+      behavior: Return status for a team bank-transfer order only after team authorization and team_id/order_id/order_type match.
   cli:
     commands:
       - openmates teams create <name>
@@ -1172,9 +1188,10 @@ contracts:
       - openmates teams set-role <team> <member> <role>
       - openmates teams export <team> --output <path>
       - openmates teams import --file <path> [--team <destination-team>|--new-team-name <name>]
-      - openmates teams credits <team>
-      - openmates teams buy-credits <team>
-      - openmates teams transfer-credits <team> --amount <credits>
+      - openmates teams billing <team>
+      - openmates teams billing bank-transfer create <team> --credits <credits>
+      - openmates teams billing bank-transfer status <team> <order>
+      - openmates teams billing bank-transfer list <team>
       - openmates teams usage <team>
       - openmates chat move <chat> --team <team>
       - openmates tasks move <task> --team <team>
@@ -1196,6 +1213,7 @@ contracts:
       - Owner/admin invite commands encrypt the team key into an invite-secret blob before sending; accept commands decrypt that blob locally and upload the recipient's own team_key_wrapper before active membership and team sync are enabled.
   privacy_security:
     - Backend authorization is mandatory before returning team records, encrypted object rows, wrappers, billing data, or usage events.
+    - Backend routes reject cleartext-looking payloads for team encrypted fields, including team metadata, invite key wrappers, billing balance snapshots, and encrypted billing metadata.
     - Viewer restrictions are enforced server-side and covered by tests for every mutating route.
     - Team key wrappers and object wrappers must not be treated as authorization records.
     - Removing a member does not cryptographically erase already-synced data; product copy must not promise that it does.
@@ -1332,9 +1350,10 @@ tests:
       expected: pass
       evidence:
         status: passed
-        command: python3 -m pytest backend/tests/test_teams_lifecycle.py backend/tests/test_teams_membership.py backend/tests/test_teams_permissions.py backend/tests/test_teams_billing.py backend/tests/test_teams_chat_ai.py backend/tests/test_teams_routes.py scripts/tests/test_teams_privacy_audit.py
-        run_id: teams-task3-backend-green-2026-07-18
-        subject_commit: b0e5f07afd4026fd222bd81acf0bc586496fcbce
+        command: python3 -m pytest backend/tests/test_teams_chat_ai.py backend/tests/test_teams_connected_accounts.py
+        run_id: teams-chat-ai-connected-accounts-isolation-green-2026-07-18
+        subject_commit: 8acfb180aa682e0c3bf7d0702f54982a416fdbd4-plus-local-edits
+        reason: Focused backend isolation regression passed after adding a guard that team AI credit charging uses the team billing endpoint and excludes personal billing/device identifiers from the team branch.
         timestamp: "2026-07-18"
   - id: T-BACKEND-TEAM-MOVE-AUTHZ
     type: pytest
@@ -1418,9 +1437,10 @@ tests:
       expected: pass
       evidence:
         status: passed
-        command: python3 -m pytest backend/tests/test_teams_lifecycle.py backend/tests/test_teams_membership.py backend/tests/test_teams_permissions.py backend/tests/test_teams_billing.py backend/tests/test_teams_routes.py scripts/tests/test_teams_privacy_audit.py
-        run_id: teams-task2-backend-green-2026-07-18
-        subject_commit: b0e5f07afd4026fd222bd81acf0bc586496fcbce
+        command: python3 -m pytest backend/tests/test_teams_routes.py backend/tests/test_teams_billing.py backend/tests/test_approve_bank_transfer_script.py backend/tests/test_bank_transfer.py
+        run_id: teams-bank-transfer-settlement-green-2026-07-18
+        subject_commit: ce08dd1821d5f8336ddf0645e4a7e98b7cc482fb-plus-local-edits
+        reason: Covers team bank-transfer order creation/list/status, owner/admin-only creation, team_id-scoped status isolation, manual approve_bank_transfer.py team settlement, and Revolut webhook team settlement without personal credit mutation.
         timestamp: "2026-07-18"
   - id: T-BACKEND-TEAM-OFFBOARDING
     type: pytest
@@ -1505,9 +1525,10 @@ tests:
       expected: pass
       evidence:
         status: passed
-        command: python3 -m pytest backend/tests/test_teams_lifecycle.py backend/tests/test_teams_membership.py backend/tests/test_teams_permissions.py backend/tests/test_teams_billing.py backend/tests/test_teams_chat_ai.py backend/tests/test_teams_move_authorization.py backend/tests/test_teams_routes.py backend/tests/test_teams_memory_isolation.py backend/tests/test_teams_connected_accounts.py backend/tests/test_teams_invite_email.py backend/tests/test_teams_data_portability.py scripts/tests/test_teams_privacy_audit.py
-        run_id: teams-backend-suite-green-2026-07-18
-        subject_commit: 25e194a6fbf1396dc846da96ec41b077a976ebd6-plus-local-edits
+        command: python3 -m pytest backend/tests/test_teams_chat_ai.py backend/tests/test_teams_connected_accounts.py
+        run_id: teams-chat-ai-connected-accounts-isolation-green-2026-07-18
+        subject_commit: 8acfb180aa682e0c3bf7d0702f54982a416fdbd4-plus-local-edits
+        reason: Focused backend isolation regression passed for disabled team connected accounts and no personal connected-account fallback while team context is active.
         timestamp: "2026-07-18"
   - id: T-BACKEND-TEAM-DATA-PORTABILITY
     type: pytest
@@ -1565,9 +1586,9 @@ tests:
       evidence:
         status: passed
         command: python3 scripts/verify_teams_cli_lifecycle.py --api-url https://api.dev.openmates.org --skip-build
-        run_id: teams-cli-lifecycle-dev-green-2026-07-18
-        subject_commit: 74b8cf646283d093c755e7c0ded4a0352ae028ad
-        reason: Real CLI verifier passed against deployed dev API after live Caddy allowlist reload.
+        run_id: teams-cli-full-suite-after-stepup-dev-green-2026-07-18
+        subject_commit: 8acfb180aa682e0c3bf7d0702f54982a416fdbd4-plus-local-edits
+        reason: Real CLI verifier passed against api.dev.openmates.org after rebuilding the CLI, restarting api, and confirming health; team delete cleanup used interactive destructive step-up.
         timestamp: "2026-07-18"
   - id: T-CLI-TEAM-MEMBERSHIP-DEV
     type: manual
@@ -1596,9 +1617,9 @@ tests:
       evidence:
         status: passed
         command: python3 scripts/verify_teams_cli_membership.py --api-url https://api.dev.openmates.org --skip-build
-        run_id: teams-cli-membership-dev-green-2026-07-18
-        subject_commit: 74b8cf646283d093c755e7c0ded4a0352ae028ad
-        reason: Real CLI verifier passed against deployed dev API after live Caddy allowlist reload.
+        run_id: teams-cli-full-suite-after-stepup-dev-green-2026-07-18
+        subject_commit: 8acfb180aa682e0c3bf7d0702f54982a416fdbd4-plus-local-edits
+        reason: Real CLI verifier passed as part of the full post-restart Teams CLI suite against api.dev.openmates.org.
         timestamp: "2026-07-18"
   - id: T-CLI-TEAM-CHAT-DEV
     type: manual
@@ -1625,9 +1646,9 @@ tests:
       evidence:
         status: passed
         command: python3 scripts/verify_teams_cli_chat.py --api-url https://api.dev.openmates.org --skip-build
-        run_id: teams-cli-chat-dev-green-2026-07-18
-        subject_commit: 74b8cf646283d093c755e7c0ded4a0352ae028ad
-        reason: Real CLI verifier passed against deployed dev API after live Caddy allowlist reload.
+        run_id: teams-cli-full-suite-after-stepup-dev-green-2026-07-18
+        subject_commit: 8acfb180aa682e0c3bf7d0702f54982a416fdbd4-plus-local-edits
+        reason: Real CLI verifier passed as part of the full post-restart Teams CLI suite; team credits were seeded through bank-transfer order approval and team AI kept personal credits unchanged.
         timestamp: "2026-07-18"
   - id: T-CLI-WORKSPACE-CONTEXT-DEV
     type: manual
@@ -1652,9 +1673,9 @@ tests:
       evidence:
         status: passed
         command: python3 scripts/verify_teams_cli_workspace_context.py --api-url https://api.dev.openmates.org --skip-build
-        run_id: teams-cli-workspace-context-dev-green-2026-07-18
-        subject_commit: 74b8cf646283d093c755e7c0ded4a0352ae028ad
-        reason: Real CLI verifier passed against deployed dev API after live Caddy allowlist reload.
+        run_id: teams-cli-full-suite-after-stepup-dev-green-2026-07-18
+        subject_commit: 8acfb180aa682e0c3bf7d0702f54982a416fdbd4-plus-local-edits
+        reason: Real CLI verifier passed as part of the full post-restart Teams CLI suite against api.dev.openmates.org.
         timestamp: "2026-07-18"
   - id: T-CLI-TEAM-MOVE-DEV
     type: manual
@@ -1679,9 +1700,9 @@ tests:
       evidence:
         status: passed
         command: python3 scripts/verify_teams_cli_move.py --api-url https://api.dev.openmates.org --skip-build
-        run_id: teams-cli-move-dev-green-2026-07-18
-        subject_commit: 74b8cf646283d093c755e7c0ded4a0352ae028ad
-        reason: Real CLI verifier passed against deployed dev API after live Caddy allowlist reload.
+        run_id: teams-cli-full-suite-after-stepup-dev-green-2026-07-18
+        subject_commit: 8acfb180aa682e0c3bf7d0702f54982a416fdbd4-plus-local-edits
+        reason: Real CLI verifier passed as part of the full post-restart Teams CLI suite against api.dev.openmates.org.
         timestamp: "2026-07-18"
   - id: T-CLI-VIEWER-PERMISSIONS
     type: unit
@@ -1732,9 +1753,9 @@ tests:
       evidence:
         status: passed
         command: python3 scripts/verify_teams_cli_billing.py --api-url https://api.dev.openmates.org --skip-build
-        run_id: teams-cli-billing-dev-green-2026-07-18
-        subject_commit: 74b8cf646283d093c755e7c0ded4a0352ae028ad
-        reason: Real CLI verifier passed against deployed dev API after live Caddy allowlist reload.
+        run_id: teams-cli-full-suite-after-stepup-dev-green-2026-07-18
+        subject_commit: 8acfb180aa682e0c3bf7d0702f54982a416fdbd4-plus-local-edits
+        reason: Real CLI verifier passed as part of the full post-restart Teams CLI suite using owner/admin team bank-transfer order create/list/status; direct public team credit grants remain absent.
         timestamp: "2026-07-18"
   - id: T-CLI-TEAM-OFFBOARDING-DEV
     type: manual
@@ -1759,9 +1780,9 @@ tests:
       evidence:
         status: passed
         command: python3 scripts/verify_teams_cli_offboarding.py --api-url https://api.dev.openmates.org --skip-build
-        run_id: teams-cli-offboarding-dev-green-2026-07-18
-        subject_commit: 74b8cf646283d093c755e7c0ded4a0352ae028ad
-        reason: Real CLI verifier passed against deployed dev API after live Caddy allowlist reload.
+        run_id: teams-cli-full-suite-after-stepup-dev-green-2026-07-18
+        subject_commit: 8acfb180aa682e0c3bf7d0702f54982a416fdbd4-plus-local-edits
+        reason: Real CLI verifier passed as part of the full post-restart Teams CLI suite against api.dev.openmates.org.
         timestamp: "2026-07-18"
   - id: T-CLI-TEAM-MEMORY-ACCOUNTS-DEV
     type: manual
@@ -1789,9 +1810,9 @@ tests:
       evidence:
         status: passed
         command: python3 scripts/verify_teams_cli_memory_accounts.py --api-url https://api.dev.openmates.org --skip-build
-        run_id: teams-cli-memory-accounts-dev-green-2026-07-18
-        subject_commit: 74b8cf646283d093c755e7c0ded4a0352ae028ad
-        reason: Real CLI verifier passed against deployed dev API after live Caddy allowlist reload.
+        run_id: teams-cli-full-suite-after-stepup-dev-green-2026-07-18
+        subject_commit: 8acfb180aa682e0c3bf7d0702f54982a416fdbd4-plus-local-edits
+        reason: Real CLI verifier passed as part of the full post-restart Teams CLI suite against api.dev.openmates.org.
         timestamp: "2026-07-18"
   - id: T-CLI-TEAM-DATA-PORTABILITY-DEV
     type: manual
@@ -1818,9 +1839,9 @@ tests:
       evidence:
         status: passed
         command: python3 scripts/verify_teams_cli_data_portability.py --api-url https://api.dev.openmates.org --skip-build
-        run_id: teams-cli-data-portability-dev-green-2026-07-18
-        subject_commit: 74b8cf646283d093c755e7c0ded4a0352ae028ad
-        reason: Real CLI verifier passed against deployed dev API after live Caddy allowlist reload.
+        run_id: teams-cli-full-suite-after-stepup-dev-green-2026-07-18
+        subject_commit: 8acfb180aa682e0c3bf7d0702f54982a416fdbd4-plus-local-edits
+        reason: Real CLI verifier passed as part of the full post-restart Teams CLI suite against api.dev.openmates.org.
         timestamp: "2026-07-18"
   - id: T-NPM-SDK-TEAMS-PARITY
     type: unit
@@ -1834,7 +1855,7 @@ tests:
       - AC-14
       - AC-15
     assertions:
-      - npm SDK exposes team lifecycle, membership, context, workspace, memory, connected-account, and billing methods.
+      - npm SDK exposes non-destructive team lifecycle, membership, context, workspace, memory, connected-account, and bank-transfer billing methods.
       - npm SDK honors role and active-context semantics.
       - npm SDK never exposes personal memories or personal connected accounts while team context is active.
       - npm SDK exposes invite email-link accept/decline plus team export/import methods with personal/team isolation.
@@ -1850,9 +1871,10 @@ tests:
       expected: pass
       evidence:
         status: passed
-        command: cd frontend/packages/openmates-cli && node --test --experimental-strip-types --loader ./tests/loader.mjs tests/sdk-teams.test.ts
-        run_id: teams-npm-sdk-green-2026-07-18
-        subject_commit: 25e194a6fbf1396dc846da96ec41b077a976ebd6-plus-local-edits
+        command: cd frontend/packages/openmates-cli && node --test --experimental-strip-types --loader ./tests/loader.mjs tests/sdk-teams.test.ts tests/teams-permissions.test.ts
+        run_id: teams-npm-sdk-bank-transfer-green-2026-07-18
+        subject_commit: ce08dd1821d5f8336ddf0645e4a7e98b7cc482fb-plus-local-edits
+        reason: Npm SDK exposes team bank-transfer create/status/list and does not expose addCredits, delete, or move team methods.
         timestamp: "2026-07-18"
   - id: T-PIP-SDK-TEAMS-PARITY
     type: pytest
@@ -1866,7 +1888,7 @@ tests:
       - AC-14
       - AC-15
     assertions:
-      - pip SDK exposes team lifecycle, membership, context, workspace, memory, connected-account, and billing methods.
+      - pip SDK exposes non-destructive team lifecycle, membership, context, workspace, memory, connected-account, and bank-transfer billing methods.
       - pip SDK honors role and active-context semantics.
       - pip SDK never exposes personal memories or personal connected accounts while team context is active.
       - pip SDK exposes invite email-link accept/decline plus team export/import methods with personal/team isolation.
@@ -1882,9 +1904,39 @@ tests:
       expected: pass
       evidence:
         status: passed
-        command: python3 -m pytest packages/openmates-python/tests/test_teams.py
-        run_id: teams-pip-sdk-green-2026-07-18
-        subject_commit: 25e194a6fbf1396dc846da96ec41b077a976ebd6-plus-local-edits
+        command: python3 -m pytest packages/openmates-python/tests/test_teams.py packages/openmates-python/tests/test_sdk.py
+        run_id: teams-pip-sdk-bank-transfer-green-2026-07-18
+        subject_commit: ce08dd1821d5f8336ddf0645e4a7e98b7cc482fb-plus-local-edits
+        reason: Pip SDK exposes team bank-transfer create/status/list and does not expose add_credits, delete, or move team methods.
+        timestamp: "2026-07-18"
+  - id: T-SDK-TEAM-BILLING-DEV
+    type: manual
+    file: scripts/verify_teams_sdk_billing.py
+    command: python3 scripts/verify_teams_sdk_billing.py --api-url https://api.dev.openmates.org --skip-build
+    target: api.dev.openmates.org with real API-key auth and approved npm/pip SDK devices
+    covers:
+      - AC-7
+      - AC-9
+    assertions:
+      - npm SDK can create, list, and read status for team bank-transfer billing orders through the real dev API.
+      - pip SDK can create, list, and read status for team bank-transfer billing orders through the real dev API.
+      - API-key device approval remains enforced; verifier registers and approves npm/pip SDK devices before retrying.
+    red_phase:
+      required: true
+      expected: fail_or_missing
+      evidence:
+        status: pending
+        run_id: pending-sdk-team-billing-dev-red
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: passed
+        command: python3 scripts/verify_teams_sdk_billing.py --api-url https://api.dev.openmates.org --skip-build
+        run_id: teams-sdk-billing-after-stepup-dev-green-2026-07-18
+        subject_commit: 8acfb180aa682e0c3bf7d0702f54982a416fdbd4-plus-local-edits
+        reason: Live SDK verifier passed against api.dev.openmates.org after the post-restart CLI suite, registering and approving npm/pip API-key devices, and exercising team bank-transfer create/list/status.
         timestamp: "2026-07-18"
   - id: T-SDK-CLI-PARITY-AUDIT
     type: manual
@@ -1909,8 +1961,9 @@ tests:
       evidence:
         status: passed
         command: python3 scripts/audit_sdk_cli_parity.py
-        run_id: teams-sdk-cli-parity-green-2026-07-18-ideabucket-teams
-        subject_commit: d0eb01fcc8bad2ecd5bac7a9b7a6bae7d2248d60-plus-local-edits
+        run_id: teams-sdk-cli-parity-bank-transfer-green-2026-07-18
+        subject_commit: ce08dd1821d5f8336ddf0645e4a7e98b7cc482fb-plus-local-edits
+        reason: Parity audit passed after replacing public team add-credits SDK/CLI surface with team bank-transfer order methods.
         timestamp: "2026-07-18"
   - id: T-WEB-TEAMS-PARITY
     type: playwright
@@ -2021,9 +2074,9 @@ verifications:
     evidence:
       status: passed
       command: python3 scripts/spec_validate.py docs/specs/teams-v1/spec.yml
-      run_id: teams-spec-validate-2026-07-18-disabled-connected-accounts
-      subject_commit: d0eb01fcc8bad2ecd5bac7a9b7a6bae7d2248d60-plus-local-edits
-      summary: "python3 scripts/spec_validate.py docs/specs/teams-v1/spec.yml passed after documenting disabled team connected accounts for Teams V1."
+      run_id: teams-spec-validate-after-cli-sdk-gates-2026-07-18
+      subject_commit: 8acfb180aa682e0c3bf7d0702f54982a416fdbd4-plus-local-edits
+      summary: "python3 scripts/spec_validate.py docs/specs/teams-v1/spec.yml passed after recording post-restart CLI suite, SDK billing, and backend isolation evidence."
       timestamp: "2026-07-18"
   - id: V-USER-CONFIRMATION
     kind: user_confirmation

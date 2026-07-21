@@ -26,6 +26,7 @@ function testSession(activeTeamId: string | null = null): OpenMatesSession {
     masterKeyExportedB64: Buffer.alloc(32).toString("base64"),
     hashedEmail: "hashed-email",
     userEmailSalt: "salt",
+    emailEncryptionKeyB64: Buffer.alloc(32).toString("base64"),
     createdAt: Date.now(),
     authorizerDeviceName: "test-device",
     autoLogoutMinutes: null,
@@ -102,7 +103,7 @@ describe("OpenMatesClient Teams V1", () => {
         if (request.url === "/v1/teams/import") return { success: true, imported_rows: 1, ...(body as Record<string, unknown>) };
         if (request.url === "/v1/teams/team-1/members/user-1") return { membership: { user_id: "user-1", ...(body as Record<string, unknown>) } };
         if (request.url === "/v1/teams/team-1/billing") return { billing: { balance_credits: 10 } };
-        if (request.url === "/v1/teams/team-1/billing/credits") return { billing: { balance_credits: 12, ...(body as Record<string, unknown>) } };
+        if (request.url === "/v1/teams/team-1/billing/bank-transfer-orders") return { order_id: "bt_1", reference: "OMT-team-bt1" };
         return { success: true };
       },
       async (apiUrl, seen) => {
@@ -120,7 +121,7 @@ describe("OpenMatesClient Teams V1", () => {
         assert.equal((await client.importTeamData("team-1", { schema: "openmates.team_export.v1", rewrapped_with_destination_team_key: true })).success, true);
         assert.equal((await client.updateTeamMemberRole("team-1", "user-1", "admin")).role, "admin");
         assert.equal((await client.getTeamBilling("team-1")).balance_credits, 10);
-        assert.equal((await client.addTeamCredits("team-1", { credits: 2 })).credits, 2);
+        assert.equal((await client.createTeamBankTransferOrder("team-1", 110000)).order_id, "bt_1");
 
         assert.deepEqual(seen.map((request) => [request.method, request.url]), [
           ["GET", "/v1/teams"],
@@ -135,7 +136,7 @@ describe("OpenMatesClient Teams V1", () => {
           ["POST", "/v1/teams/import"],
           ["PATCH", "/v1/teams/team-1/members/user-1"],
           ["GET", "/v1/teams/team-1/billing"],
-          ["POST", "/v1/teams/team-1/billing/credits"],
+          ["POST", "/v1/teams/team-1/billing/bank-transfer-orders"],
         ]);
         const createBody = seen[1]?.body as Record<string, unknown>;
         assert.equal(typeof createBody.team_id, "string");
@@ -149,8 +150,8 @@ describe("OpenMatesClient Teams V1", () => {
         assert.equal(typeof (seen[2]?.body as Record<string, unknown>).encrypted_invite_team_key, "string");
         assert.equal(typeof (seen[2]?.body as Record<string, unknown>).invite_key_kdf_context, "object");
         assert.equal((seen[5]?.body as Record<string, unknown>).encrypted_team_key, "cipher-team-key");
-        assert.equal(typeof (seen[12]?.body as Record<string, unknown>).event_id, "string");
-        assert.equal(typeof (seen[12]?.body as Record<string, unknown>).encrypted_balance, "string");
+        assert.equal((seen[12]?.body as Record<string, unknown>).credits_amount, 110000);
+        assert.equal(typeof (seen[12]?.body as Record<string, unknown>).email_encryption_key, "string");
       },
     );
   });
