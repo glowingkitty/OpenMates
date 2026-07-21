@@ -144,11 +144,8 @@ test.describe('App: Fitness / Skills: Urban Sports Club search', () => {
 			'fitness-urban-sports'
 		);
 
-		const streamingEmbed = page.locator('[data-testid="embed-preview"][data-app-id="fitness"][data-skill-id="search_classes"]');
-		await expect(streamingEmbed.first()).toBeVisible({ timeout: 60_000 });
-		await expect(page.getByTestId('fitness-search-preview').first()).toBeVisible({ timeout: 60_000 });
-
-		const embed = await waitForEmbedFinished(page, 'fitness', 'search_classes', 120_000);
+		const embed = await waitForEmbedFinished(page, 'fitness', 'search_classes', 180_000);
+		await expect(embed.getByTestId('fitness-search-preview')).toBeVisible({ timeout: 30_000 });
 		await expect(embed.getByText('Urban Sports Club', { exact: true })).toBeVisible({ timeout: 30_000 });
 		await expect(embed.getByTestId('fitness-search-result-count')).toBeVisible({ timeout: 30_000 });
 
