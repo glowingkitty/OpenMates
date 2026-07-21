@@ -8985,6 +8985,18 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             }
         }
         
+        if (
+            isSameActiveChat &&
+            newMessages.length === 0 &&
+            currentMessages.length > 0 &&
+            currentMessages.every(m => m.chat_id === chat.chat_id) &&
+            $authStore.isAuthenticated &&
+            !isPublicChat(chat.chat_id)
+        ) {
+            console.warn(`[ActiveChat] loadChat: Same-chat reload for ${chat.chat_id} returned no IndexedDB messages; preserving ${currentMessages.length} in-memory message(s) to avoid reverting to welcome during sync handoff.`);
+            newMessages = currentMessages;
+        }
+
         // CRITICAL: Preserve in-flight messages when reloading the SAME chat
         // During AI streaming or right after sending a message, various events (chatUpdated, etc.)
         // can trigger loadChat() calls which would wipe out:
