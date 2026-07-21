@@ -143,6 +143,70 @@ async function withUpdateRequiredMock<T>(
   }
 }
 
+async function withChatDeleteMock<T>(
+  run: (params: { apiUrl: string; tempHome: string; frameTypes: string[]; requestPaths: string[] }) => Promise<T>,
+): Promise<T> {
+  const tempHome = join(tmpdir(), "openmates-cli-chat-delete-" + Date.now() + "-" + Math.random().toString(16).slice(2));
+  const stateDir = join(tempHome, ".openmates");
+  const frameTypes: string[] = [];
+  const requestPaths: string[] = [];
+  mkdirSync(stateDir, { recursive: true });
+  const wss = new WebSocketServer({ noServer: true });
+  const server = createServer((request, response) => {
+    if (request.url) requestPaths.push((request.method ?? "GET") + " " + request.url);
+    if (request.method === "POST" && request.url === "/v1/auth/session") {
+      writeJson(response, {
+        success: true,
+        ws_token: "fresh-ws-token",
+        user: { id: "11111111-1111-4111-8111-111111111111" },
+      });
+      return;
+    }
+    response.writeHead(404);
+    response.end();
+  });
+  server.on("upgrade", (request, socket, head) => {
+    wss.handleUpgrade(request, socket, head, (ws) => {
+      ws.on("message", (raw) => {
+        const frame = JSON.parse(raw.toString()) as { type: string; payload?: { chat_id?: string; chatId?: string } };
+        frameTypes.push(frame.type);
+        if (frame.type === "delete_chat") {
+          ws.send(JSON.stringify({
+            type: "chat_deleted",
+            payload: { chat_id: frame.payload?.chat_id ?? frame.payload?.chatId },
+          }));
+        }
+      });
+    });
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  const apiUrl = "http://127.0.0.1:" + address.port;
+  writeFileSync(join(stateDir, "session.json"), JSON.stringify({
+    apiUrl,
+    sessionId: "session-1",
+    wsToken: "ws-token",
+    cookies: { auth_refresh_token: "refresh-token" },
+    masterKeyExportedB64: Buffer.alloc(32).toString("base64"),
+    masterKeyStorage: "plaintext",
+    hashedEmail: "hashed-email",
+    userEmailSalt: "salt",
+    createdAt: Date.now(),
+    authorizerDeviceName: "test-device",
+    autoLogoutMinutes: null,
+  }) + "\n");
+
+  try {
+    return await run({ apiUrl, tempHome, frameTypes, requestPaths });
+  } finally {
+    wss.close();
+    server.closeAllConnections();
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+    rmSync(tempHome, { recursive: true, force: true });
+  }
+}
+
 async function runCliWithEmptyCacheSession(
   apiUrl: string,
   args: string[],
@@ -2437,6 +2501,25 @@ describe("memory schema validation", () => {
   it("accepts entry with optional fields omitted", () => {
     const result = validateMemory("books/favorite_books", { title: "Dune" });
     assert.ok(result.valid);
+  });
+});
+
+describe("chat deletion command", () => {
+  it("skips chat title resolution when --yes is provided", async () => {
+    const chatId = "11111111-2222-4333-8444-555555555555";
+
+    await withChatDeleteMock(async ({ apiUrl, tempHome, frameTypes, requestPaths }) => {
+      const result = await execFileAsync("node", ["dist/cli.js", "chats", "delete", chatId, "--yes"], {
+        cwd: PACKAGE_ROOT,
+        encoding: "utf-8",
+        env: { ...process.env, TERM: "dumb", HOME: tempHome, USERPROFILE: tempHome, OPENMATES_API_URL: apiUrl },
+        timeout: 15_000,
+      });
+
+      assert.match(result.stdout, /1\/1 chat\(s\) deleted\./);
+      assert.deepEqual(frameTypes, ["delete_chat"]);
+      assert.equal(requestPaths.some((path) => path.includes("/v1/chats")), false);
+    });
   });
 });
 

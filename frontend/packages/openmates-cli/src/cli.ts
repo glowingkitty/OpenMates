@@ -2041,14 +2041,19 @@ async function handleChats(
       );
     }
 
-    // Resolve short IDs so we can show titles for confirmation
+    // Resolve titles only for the interactive confirmation prompt. --yes is
+    // commonly used in automation and should go straight to the delete path.
     const resolved: Array<{ input: string; title: string | null }> = [];
-    for (const id of chatIds) {
-      try {
-        const { chat } = await client.getChatMessages(id, teamContext);
-        resolved.push({ input: id, title: chat.title ?? null });
-      } catch {
-        resolved.push({ input: id, title: null });
+    if (flags.yes === true) {
+      for (const id of chatIds) resolved.push({ input: id, title: null });
+    } else {
+      for (const id of chatIds) {
+        try {
+          const { chat } = await client.getChatMessages(id, teamContext);
+          resolved.push({ input: id, title: chat.title ?? null });
+        } catch {
+          resolved.push({ input: id, title: null });
+        }
       }
     }
 
