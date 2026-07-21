@@ -2659,6 +2659,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 throw new Error('Message input draft replacement helper is unavailable');
             }
             await inputRef.replaceDraftWithPlainText(chatId, text, version, true);
+            await inputRef.flushCurrentDraft?.();
             return { text: inputRef.getTextContent() };
         };
 
