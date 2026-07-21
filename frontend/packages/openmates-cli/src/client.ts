@@ -73,7 +73,7 @@ import { CHAT_MODELS } from "./mentions.js";
 import type { EncryptedEmbed, EmbedKeyWrapper, PreparedEmbed } from "./embedCreator.js";
 import {
   computeSHA256,
-  createEmbedReferenceBlock,
+  createEmbedJsonReferenceBlock,
   createEmbedRef,
   encryptEmbed,
   toonEncodeContent,
@@ -3937,7 +3937,10 @@ export class OpenMatesClient {
     audioEmbed.embed.status = "finished";
     audioEmbed.embed.contentHash = uploadResult.content_hash;
 
-    const referenceBlock = createEmbedReferenceBlock(embedRef);
+    const referenceBlock = createEmbedJsonReferenceBlock(
+      "audio-recording",
+      audioEmbed.embed.embedId,
+    );
     const audioMarkdown = [
       `Audio: ${audioEmbed.displayName}`,
       referenceBlock,
