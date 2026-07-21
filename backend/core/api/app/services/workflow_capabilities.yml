@@ -1,0 +1,536 @@
+# Workflow app-skill classifications that are not yet inline in app.yml.
+# Existing app.yml workflow blocks are authoritative; this file fills missing
+# public classifications so audits and capability help fail closed by default.
+capabilities:
+  audio.transcribe:
+    available: false
+    unavailable_reason: WORKFLOW_FILE_OR_EMBED_INPUT_REQUIRED
+  books.translate:
+    available: false
+    unavailable_reason: WORKFLOW_SKILL_NOT_REGISTERED
+  calendar.get-events:
+    available: false
+    unavailable_reason: WORKFLOW_CONNECTED_ACCOUNT_REQUIRED
+  calendar.create-event:
+    available: false
+    unavailable_reason: WORKFLOW_CONNECTED_ACCOUNT_REQUIRED
+  calendar.update-event:
+    available: false
+    unavailable_reason: WORKFLOW_CONNECTED_ACCOUNT_REQUIRED
+  calendar.delete-event:
+    available: false
+    unavailable_reason: WORKFLOW_CONNECTED_ACCOUNT_REQUIRED
+  code.search_repos:
+    available: true
+    execution_mode: sync
+    effect: read
+    unattended: true
+    approval: never
+    binding_requirements: [none]
+    test_allowed: true
+    test_example_input:
+      requests:
+        - query: svelte markdown editor
+          count: 3
+    output_schema: &search_output
+      type: object
+      properties:
+        summary:
+          type: string
+        result_count:
+          type: integer
+        provider:
+          type: string
+  code.get_docs:
+    available: true
+    execution_mode: sync
+    effect: read
+    unattended: true
+    approval: never
+    binding_requirements: [none]
+    test_allowed: true
+    test_example_input:
+      library: Svelte
+      question: How do actions work?
+    output_schema: *search_output
+  code.run:
+    available: false
+    unavailable_reason: WORKFLOW_RUNTIME_UNSUPPORTED
+  code.clean_repo:
+    available: false
+    unavailable_reason: WORKFLOW_SKILL_NOT_IMPLEMENTED
+  code.get_issues:
+    available: false
+    unavailable_reason: WORKFLOW_SKILL_NOT_IMPLEMENTED
+  code.add_issue:
+    available: false
+    unavailable_reason: WORKFLOW_SKILL_NOT_IMPLEMENTED
+  code.remove_secrets:
+    available: false
+    unavailable_reason: WORKFLOW_SKILL_NOT_IMPLEMENTED
+  code.get_project_overview:
+    available: false
+    unavailable_reason: WORKFLOW_SKILL_NOT_IMPLEMENTED
+  design.search_icons:
+    available: true
+    execution_mode: sync
+    effect: read
+    unattended: true
+    approval: never
+    binding_requirements: [none]
+    test_allowed: true
+    test_example_input:
+      requests:
+        - query: calendar
+          count: 3
+    output_schema: *search_output
+  electronics.search_components:
+    available: true
+    execution_mode: sync
+    effect: read
+    unattended: true
+    approval: never
+    binding_requirements: [none]
+    test_allowed: true
+    test_example_input:
+      requests:
+        - category: power_converters
+          input_voltage_min: 5
+          input_voltage_max: 12
+          output_voltage: 3.3
+          output_current_max: 1
+          max_results: 3
+    output_schema: *search_output
+  fitness.search_locations:
+    available: true
+    execution_mode: sync
+    effect: read
+    unattended: true
+    approval: never
+    binding_requirements: [location]
+    test_allowed: true
+    test_example_input:
+      requests:
+        - query: yoga studio
+          city: Berlin
+          limit: 3
+    output_schema: *search_output
+  fitness.search_classes:
+    available: true
+    execution_mode: sync
+    effect: read
+    unattended: true
+    approval: never
+    binding_requirements: [location]
+    test_allowed: true
+    test_example_input:
+      requests:
+        - query: yoga
+          city: Berlin
+          limit: 3
+    output_schema: *search_output
+  health.search_appointments:
+    available: true
+    execution_mode: sync
+    effect: read
+    unattended: true
+    approval: never
+    binding_requirements: [location]
+    test_allowed: true
+    test_example_input:
+      requests:
+        - speciality: dermatologist
+          city: Berlin
+          max_doctors: 3
+    output_schema: *search_output
+  health.create_report:
+    available: false
+    unavailable_reason: WORKFLOW_SKILL_NOT_IMPLEMENTED
+  home.search:
+    available: true
+    execution_mode: sync
+    effect: read
+    unattended: true
+    approval: never
+    binding_requirements: [location]
+    test_allowed: true
+    test_example_input:
+      requests:
+        - query: apartments in Berlin
+          max_results: 3
+    output_schema: *search_output
+  images.search:
+    available: true
+    execution_mode: sync
+    effect: read
+    unattended: true
+    approval: never
+    binding_requirements: [none]
+    test_allowed: true
+    test_example_input:
+      requests:
+        - query: mountain lake
+          count: 3
+    output_schema: *search_output
+  images.generate:
+    available: true
+    execution_mode: async_job
+    effect: generate
+    unattended: true
+    approval: side_effect_confirmation
+    binding_requirements: [none]
+    test_allowed: true
+    test_example_input:
+      requests:
+        - prompt: simple blue circle icon on a white background
+          aspect_ratio: "1:1"
+          output_filetype: png
+          quality: default
+    output_schema: &generation_output
+      type: object
+      properties:
+        summary:
+          type: string
+        result_count:
+          type: integer
+        provider:
+          type: string
+        artifact_ids:
+          type: array
+          items:
+            type: string
+  images.vectorize:
+    available: false
+    unavailable_reason: WORKFLOW_FILE_OR_EMBED_INPUT_REQUIRED
+  images.generate_draft:
+    available: true
+    execution_mode: async_job
+    effect: generate
+    unattended: true
+    approval: side_effect_confirmation
+    binding_requirements: [none]
+    test_allowed: true
+    test_example_input:
+      requests:
+        - prompt: quick pencil sketch of a coffee mug
+    output_schema: *generation_output
+  mail.search:
+    available: false
+    unavailable_reason: WORKFLOW_CONNECTED_ACCOUNT_REQUIRED
+  maps.search:
+    available: true
+    execution_mode: sync
+    effect: read
+    unattended: true
+    approval: never
+    binding_requirements: [location]
+    test_allowed: true
+    test_example_input:
+      requests:
+        - query: coffee near Berlin Hauptbahnhof
+          pageSize: 3
+    output_schema: *search_output
+  math.calculate:
+    available: true
+    execution_mode: sync
+    effect: compute
+    unattended: true
+    approval: never
+    binding_requirements: [none]
+    test_allowed: true
+    test_example_input:
+      expression: 2 + 2
+    output_schema:
+      type: object
+      properties:
+        summary:
+          type: string
+        result:
+          type: string
+        result_count:
+          type: integer
+  models3d.search:
+    available: true
+    execution_mode: sync
+    effect: read
+    unattended: true
+    approval: never
+    binding_requirements: [none]
+    test_allowed: true
+    test_example_input:
+      requests:
+        - query: office chair
+          count: 3
+    output_schema: *search_output
+  models3d.generate:
+    available: true
+    execution_mode: async_job
+    effect: generate
+    unattended: true
+    approval: side_effect_confirmation
+    binding_requirements: [none]
+    test_allowed: true
+    test_example_input:
+      prompt: simple low poly coffee mug
+    output_schema: *generation_output
+  music.generate:
+    available: true
+    execution_mode: async_job
+    effect: generate
+    unattended: true
+    approval: side_effect_confirmation
+    binding_requirements: [none]
+    test_allowed: true
+    test_example_input:
+      requests:
+        - prompt: short calm piano loop
+          duration_seconds: 8
+    output_schema: *generation_output
+  nutrition.search_recipes:
+    available: true
+    execution_mode: sync
+    effect: read
+    unattended: true
+    approval: never
+    binding_requirements: [none]
+    test_allowed: true
+    test_example_input:
+      requests:
+        - query: lentil soup
+          max_results: 3
+    output_schema: *search_output
+  openmates.share-usecase:
+    available: true
+    execution_mode: sync
+    effect: notify
+    unattended: false
+    approval: always
+    binding_requirements: [none]
+    test_allowed: true
+    test_example_input:
+      summary: Workflow capability test for anonymous use-case sharing.
+      language: en
+    output_schema:
+      type: object
+      properties:
+        summary:
+          type: string
+        status:
+          type: string
+  openmates.get-docs:
+    available: true
+    execution_mode: sync
+    effect: read
+    unattended: true
+    approval: never
+    binding_requirements: [none]
+    test_allowed: true
+    test_example_input:
+      url: architecture/apps
+    output_schema: *search_output
+  openmates.search-docs:
+    available: true
+    execution_mode: sync
+    effect: read
+    unattended: true
+    approval: never
+    binding_requirements: [none]
+    test_allowed: true
+    test_example_input:
+      query: workflows
+    output_schema: *search_output
+  pdf.read:
+    available: false
+    unavailable_reason: WORKFLOW_FILE_OR_EMBED_INPUT_REQUIRED
+  pdf.search:
+    available: false
+    unavailable_reason: WORKFLOW_FILE_OR_EMBED_INPUT_REQUIRED
+  pdf.view:
+    available: false
+    unavailable_reason: WORKFLOW_FILE_OR_EMBED_INPUT_REQUIRED
+  reminder.set-reminder:
+    available: false
+    unavailable_reason: WORKFLOW_CLIENT_ENCRYPTED_DATA_REQUIRED
+  reminder.list-reminders:
+    available: false
+    unavailable_reason: WORKFLOW_CLIENT_ENCRYPTED_DATA_REQUIRED
+  reminder.cancel-reminder:
+    available: false
+    unavailable_reason: WORKFLOW_CLIENT_ENCRYPTED_DATA_REQUIRED
+  shopping.search_products:
+    available: true
+    execution_mode: sync
+    effect: read
+    unattended: true
+    approval: never
+    binding_requirements: [none]
+    test_allowed: true
+    test_example_input:
+      requests:
+        - query: coffee beans
+          max_results: 3
+    output_schema: *search_output
+  social_media.get-posts:
+    available: true
+    execution_mode: sync
+    effect: read
+    unattended: true
+    approval: never
+    binding_requirements: [none]
+    test_allowed: true
+    test_example_input:
+      requests:
+        - platform: reddit
+          page: selfhosted
+          limit: 3
+    output_schema: *search_output
+  social_media.search:
+    available: true
+    execution_mode: sync
+    effect: read
+    unattended: true
+    approval: never
+    binding_requirements: [none]
+    test_allowed: true
+    test_example_input:
+      requests:
+        - platform: reddit
+          query: open source AI
+          limit: 3
+    output_schema: *search_output
+  tasks.create:
+    available: false
+    unavailable_reason: WORKFLOW_CLIENT_ENCRYPTED_DATA_REQUIRED
+  tasks.search:
+    available: false
+    unavailable_reason: WORKFLOW_CLIENT_ENCRYPTED_DATA_REQUIRED
+  travel.search_connections:
+    available: true
+    execution_mode: sync
+    effect: read
+    unattended: true
+    approval: never
+    binding_requirements: [none]
+    test_allowed: true
+    test_example_input:
+      requests:
+        - legs:
+            - origin: Berlin
+              destination: Hamburg
+              date: "2026-08-01"
+          transport_methods: [train]
+          max_results: 3
+    output_schema: *search_output
+  travel.search_stays:
+    available: true
+    execution_mode: sync
+    effect: read
+    unattended: true
+    approval: never
+    binding_requirements: [location]
+    test_allowed: true
+    test_example_input:
+      requests:
+        - query: Berlin
+          check_in_date: "2026-08-01"
+          check_out_date: "2026-08-03"
+          adults: 1
+          max_results: 3
+    output_schema: *search_output
+  travel.get_flight:
+    available: true
+    execution_mode: sync
+    effect: read
+    unattended: true
+    approval: never
+    binding_requirements: [none]
+    test_allowed: true
+    test_example_input:
+      flight_number: LH400
+      departure_date: "2026-08-01"
+    output_schema: *search_output
+  videos.generate:
+    available: true
+    execution_mode: async_job
+    effect: generate
+    unattended: true
+    approval: side_effect_confirmation
+    binding_requirements: [none]
+    test_allowed: true
+    test_example_input:
+      requests:
+        - prompt: simple slow pan across a blue gradient background
+          duration_seconds: 4
+          resolution: 720p
+          model: veo-3.1-fast-generate-preview
+    output_schema: *generation_output
+  videos.create:
+    available: true
+    execution_mode: sandbox
+    effect: generate
+    unattended: true
+    approval: side_effect_confirmation
+    binding_requirements: [none]
+    test_allowed: true
+    test_example_input:
+      source: export default function Video(){return null;}
+      filename: WorkflowTest.tsx
+    output_schema: *generation_output
+  videos.get_transcript:
+    available: true
+    execution_mode: sync
+    effect: read
+    unattended: true
+    approval: never
+    binding_requirements: [none]
+    test_allowed: false
+    test_example_input:
+      requests:
+        - url: https://www.youtube.com/watch?v=dQw4w9WgXcQ
+          languages: [en]
+    output_schema: *search_output
+  videos.search:
+    available: true
+    execution_mode: sync
+    effect: read
+    unattended: true
+    approval: never
+    binding_requirements: [none]
+    test_allowed: false
+    test_example_input:
+      requests:
+        - query: Svelte tutorial
+          count: 3
+    output_schema: *search_output
+  weather.rain_radar:
+    available: true
+    execution_mode: sync
+    effect: read
+    unattended: true
+    approval: never
+    binding_requirements: [location]
+    test_allowed: true
+    test_example_input:
+      location: Berlin
+      radius_km: 5
+    output_schema: *search_output
+  web.read:
+    available: true
+    execution_mode: sync
+    effect: read
+    unattended: true
+    approval: never
+    binding_requirements: [none]
+    test_allowed: true
+    test_example_input:
+      requests:
+        - url: https://openmates.org
+          formats: [markdown]
+          only_main_content: true
+    output_schema: *search_output
+  workflows.create-or-modify:
+    available: false
+    unavailable_reason: WORKFLOW_CLIENT_ENCRYPTED_DATA_REQUIRED
+  workflows.search:
+    available: false
+    unavailable_reason: WORKFLOW_CLIENT_ENCRYPTED_DATA_REQUIRED

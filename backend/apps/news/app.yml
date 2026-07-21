@@ -184,7 +184,7 @@ skills:
       unattended: true
       approval: never
       binding_requirements: [none]
-      test_allowed: true
+      test_allowed: false
       test_example_input:
         requests:
           - query: OpenMates news

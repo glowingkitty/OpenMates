@@ -635,7 +635,7 @@ Props:
             has2FA={tfaEnabled}
             title={$text('settings.security.verify_identity')}
             description={$text('settings.security.tfa_auth_required')}
-            autoStart={true}
+            autoStart={false}
             onSuccess={handleAuthSuccess}
             onFailed={handleAuthFailed}
             onCancel={handleAuthCancel}
@@ -1003,7 +1003,7 @@ Props:
     /* QR Code */
     .qr-container {
         padding: var(--spacing-8);
-        background: var(--color-grey-5);
+        background: var(--color-grey-10);
         border-radius: var(--radius-5);
     }
 
@@ -1093,7 +1093,7 @@ Props:
     }
 
     .app-item:hover {
-        background: var(--color-grey-15);
+        background: var(--color-grey-20);
     }
 
     .app-item.selected {

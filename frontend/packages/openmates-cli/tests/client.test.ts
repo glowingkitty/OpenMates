@@ -40,6 +40,7 @@ function writeLegacySession(apiUrl = sessionApiUrl): void {
         wsToken: "test-ws-token",
         cookies: { auth_refresh_token: "test-refresh-token" },
         masterKeyExportedB64: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+        emailEncryptionKeyB64: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
         hashedEmail: "test-hashed-email",
         userEmailSalt: "test-email-salt",
         createdAt: 1710000000000,
@@ -384,6 +385,68 @@ describe("OpenMatesClient session API URL", () => {
       });
 
       assert.deepEqual(result, { success: true, data: { ok: true } });
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  it("rejects app-skill responses that carry skill-level errors", async () => {
+    const server = createServer((request: IncomingMessage, response: ServerResponse) => {
+      assert.strictEqual(request.url, "/v1/apps/news/skills/search");
+      assert.strictEqual(request.method, "POST");
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(JSON.stringify({ success: true, data: { results: [], error: "provider quota exceeded" } }));
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+
+    try {
+      writeLegacySession(`http://127.0.0.1:${address.port}`);
+      const client = OpenMatesClient.load({ apiUrl: `http://127.0.0.1:${address.port}` });
+      await assert.rejects(
+        client.runSkill({
+          app: "news",
+          skill: "search",
+          inputData: { requests: [{ query: "OpenMates" }] },
+        }),
+        /Skill execution failed: provider quota exceeded/,
+      );
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  it("uses action-code and TOTP endpoints for destructive CLI step-up", async () => {
+    const seen: Array<{ method: string | undefined; url: string | undefined; body: unknown }> = [];
+    const server = createServer((request: IncomingMessage, response: ServerResponse) => {
+      let raw = "";
+      request.setEncoding("utf8");
+      request.on("data", (chunk) => { raw += chunk; });
+      request.on("end", () => {
+        const body = raw ? JSON.parse(raw) : undefined;
+        seen.push({ method: request.method, url: request.url, body });
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ success: true }));
+      });
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+
+    try {
+      writeLegacySession(`http://127.0.0.1:${address.port}`);
+      const client = OpenMatesClient.load({ apiUrl: `http://127.0.0.1:${address.port}` });
+
+      await client.requestActionEmailCode("delete_team");
+      await client.verifyActionEmailCode("delete_team", "123456");
+      await client.verifyTotpForCurrentSession("654321");
+
+      assert.deepEqual(seen.map((request) => [request.method, request.url, request.body]), [
+        ["POST", "/v1/settings/request-action-verification", { action: "delete_team", email_encryption_key: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=" }],
+        ["POST", "/v1/settings/verify-action-code", { action: "delete_team", code: "123456" }],
+        ["POST", "/v1/auth/2fa/verify/device", { tfa_code: "654321" }],
+      ]);
     } finally {
       await new Promise<void>((resolve) => server.close(() => resolve()));
     }
@@ -967,6 +1030,7 @@ describe("connected account payload builders", () => {
         {
           connected_account_id: "acct-1",
           app_id: "calendar",
+          provider_id: "google",
           allowed_actions: ["read"],
           refresh_token_envelope: { refresh_token: "refresh-secret" },
           action_scope: { calendar_id: "primary" },
@@ -974,16 +1038,19 @@ describe("connected account payload builders", () => {
       ],
     });
     const directory = buildConnectedAccountDirectoryPayload([
-      {
-        connected_account_id: "acct-1",
-        app_id: "calendar",
-        account_ref: "work",
-        label: "Work",
-        capabilities: ["read"],
+        {
+          connected_account_id: "acct-1",
+          app_id: "calendar",
+          provider_id: "google",
+          account_ref: "work",
+          label: "Work",
+          capabilities: ["read"],
       },
     ]);
 
     assert.equal(request.refs[0]?.refresh_token_envelope.refresh_token, "refresh-secret");
+    assert.equal(request.refs[0]?.provider_id, "google");
+    assert.equal(directory[0]?.provider_id, "google");
     assert.equal(JSON.stringify(directory).includes("refresh-secret"), false);
   });
 

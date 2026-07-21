@@ -32,7 +32,7 @@ export interface SseMessage {
   data: string;
 }
 
-const DEFAULT_JSON_REQUEST_TIMEOUT_MS = 15_000;
+const DEFAULT_JSON_REQUEST_TIMEOUT_MS = 180_000;
 const JSON_REQUEST_TIMEOUT_ENV = "OPENMATES_CLI_HTTP_TIMEOUT_MS";
 
 export class OpenMatesHttpClient {
@@ -175,14 +175,22 @@ export class OpenMatesHttpClient {
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), getJsonRequestTimeoutMs());
-    let response: Response;
     try {
-      response = await fetch(url, {
-        method,
-        headers: requestHeaders,
-        body: body !== undefined ? JSON.stringify(body) : undefined,
-        signal: controller.signal,
-      });
+      let response: Response;
+      try {
+        response = await fetch(url, {
+          method,
+          headers: requestHeaders,
+          body: body !== undefined ? JSON.stringify(body) : undefined,
+          signal: controller.signal,
+        });
+      } catch (error) {
+        if (controller.signal.aborted) {
+          throw new Error(`HTTP ${method} ${path} timed out after ${getJsonRequestTimeoutMs()}ms`);
+        }
+        throw error;
+      }
+
       this.captureCookies(response);
 
       let data: unknown = {};

@@ -6817,7 +6817,34 @@ export class OpenMatesClient {
       (err as Error & { statusCode: number }).statusCode = response.status;
       throw err;
     }
-    return this.resolveAsyncSkillResponse(response.data, headers);
+    const resolved = await this.resolveAsyncSkillResponse(response.data, headers);
+    const failureMessage = this.appSkillFailureMessage(resolved);
+    if (failureMessage) {
+      throw new Error(`Skill execution failed: ${failureMessage}`);
+    }
+    return resolved;
+  }
+
+  private appSkillFailureMessage(responseData: unknown): string | null {
+    if (!responseData || typeof responseData !== "object") return null;
+    const envelope = responseData as Record<string, unknown>;
+    if (envelope.success === false) {
+      return typeof envelope.error === "string" && envelope.error.trim()
+        ? envelope.error
+        : "skill returned success=false";
+    }
+    const data = envelope.data;
+    if (!data || typeof data !== "object") return null;
+    const skillData = data as Record<string, unknown>;
+    if (skillData.success === false) {
+      return typeof skillData.error === "string" && skillData.error.trim()
+        ? skillData.error
+        : "skill returned success=false";
+    }
+    if (typeof skillData.error === "string" && skillData.error.trim()) {
+      return skillData.error;
+    }
+    return null;
   }
 
   async getCodeRunStreamAuth(): Promise<{ sessionId: string; token: string; fallbackToken?: string } | null> {
