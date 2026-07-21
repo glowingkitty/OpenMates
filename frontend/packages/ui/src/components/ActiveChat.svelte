@@ -11877,17 +11877,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 </div>
                             </div>
 
-                            {#if !$authStore.isAuthenticated && guestInterestSelectorVisible}
-                                <div class="guest-interest-tags-wrapper" transition:slide={{ duration: 320 }}>
-                                    <GuestInterestTags
-                                        shuffleToken={guestInterestShuffleToken}
-                                        onSelectionChange={handleGuestInterestSelectionChange}
-                                        onContinue={handleGuestInterestContinue}
-                                        onSkip={handleGuestInterestSkip}
-                                    />
-                                </div>
-                            {/if}
-
                             <!-- Resume card + recent chats horizontal scroll (authenticated users) -->
                             {#if hasContinueItems}
                                 <div
@@ -12387,6 +12376,22 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 </button>
                             {/if}
                         </div>
+
+                        {#if !$authStore.isAuthenticated && guestInterestSelectorVisible}
+                            <div
+                                class="guest-interest-tags-overlay"
+                                class:welcome-hiding={hideWelcomeForKeyboard}
+                                inert={hideWelcomeForKeyboard}
+                                transition:slide={{ duration: 320 }}
+                            >
+                                <GuestInterestTags
+                                    shuffleToken={guestInterestShuffleToken}
+                                    onSelectionChange={handleGuestInterestSelectionChange}
+                                    onContinue={handleGuestInterestContinue}
+                                    onSkip={handleGuestInterestSkip}
+                                />
+                            </div>
+                        {/if}
                     {/if}
 
                     {#if !showWelcome && $authStore.isAuthenticated && currentChat?.chat_id && !isPublicChat(currentChat.chat_id)}
@@ -13593,17 +13598,19 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         line-height: 1.25;
     }
 
-    .guest-interest-tags-wrapper {
+    .guest-interest-tags-overlay {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 128px;
+        z-index: var(--z-index-raised);
         width: 100%;
-        align-self: stretch;
+        pointer-events: none;
     }
 
-    @media (min-width: 731px) {
-        .center-content.guest-welcome-content .guest-interest-tags-wrapper {
-            position: absolute;
-            top: calc(100% + 10px);
-            left: 0;
-            right: 0;
+    @media (max-width: 730px) {
+        .guest-interest-tags-overlay {
+            bottom: 112px;
         }
     }
 
@@ -14815,12 +14822,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
        removed), visibility:visible applies immediately via the base 0s delay. */
     .daily-inspiration-area,
     .center-content,
+    .guest-interest-tags-overlay,
     .top-buttons {
         transition: opacity 200ms ease, visibility 0s 0s;
     }
 
     .daily-inspiration-area.welcome-hiding,
     .center-content.welcome-hiding,
+    .guest-interest-tags-overlay.welcome-hiding,
     .top-buttons.welcome-hiding {
         opacity: 0;
         pointer-events: none;
