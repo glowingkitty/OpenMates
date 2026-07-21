@@ -64,6 +64,43 @@ function ensureLeadingParagraph(editor: Editor): void {
 // ---------------------------------------------------------------------------
 const _uploadControllers = new Map<string, AbortController>();
 
+export type FileEmbedNodeContent = {
+  type: "embed";
+  attrs: Record<string, unknown>;
+};
+
+function dispatchEmbedFinished(embedId: string): void {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(
+    new CustomEvent("embedUploadFinished", {
+      detail: { embedId, status: "finished" },
+    }),
+  );
+}
+
+export function insertFileEmbedNodes(
+  editor: Editor,
+  nodes: FileEmbedNodeContent[],
+): void {
+  if (!nodes.length) return;
+
+  ensureLeadingParagraph(editor);
+  let chain = editor.chain().focus();
+  for (const node of nodes) {
+    chain = chain.insertContent(node).insertContent(" ");
+  }
+  chain.run();
+
+  setTimeout(() => {
+    editor.commands.focus("end");
+  }, 50);
+
+  for (const node of nodes) {
+    const embedId = node.attrs.id;
+    if (typeof embedId === "string") dispatchEmbedFinished(embedId);
+  }
+}
+
 /**
  * Cancel an in-flight image upload by embed ID.
  * Safe to call even if the upload has already completed (no-op in that case).
@@ -863,8 +900,14 @@ export async function insertCodeFile(
   file: File,
   isAuthenticated: boolean = true,
 ): Promise<void> {
-  ensureLeadingParagraph(editor);
+  const node = await createCodeFileEmbedNode(file, isAuthenticated);
+  if (node) insertFileEmbedNodes(editor, [node]);
+}
 
+export async function createCodeFileEmbedNode(
+  file: File,
+  isAuthenticated: boolean = true,
+): Promise<FileEmbedNodeContent | null> {
   // Read the file content as text
   let fileContent: string;
   try {
@@ -873,25 +916,18 @@ export async function insertCodeFile(
     console.error("[EmbedHandlers] Failed to read code file content:", error);
     // Fall back to a minimal embed with just filename/language info if reading fails
     const language = getLanguageFromFilename(file.name);
-    editor
-      .chain()
-      .focus()
-      .insertContent({
-        type: "embed",
-        attrs: {
-          id: generateUUID(),
-          type: "code-code",
-          status: "error",
-          contentRef: null,
-          src: URL.createObjectURL(file),
-          filename: file.name,
-          language: language,
-        },
-      })
-      .insertContent(" ")
-      .run();
-    setTimeout(() => editor.commands.focus("end"), 50);
-    return;
+    return {
+      type: "embed",
+      attrs: {
+        id: generateUUID(),
+        type: "code-code",
+        status: "error",
+        contentRef: null,
+        src: URL.createObjectURL(file),
+        filename: file.name,
+        language: language,
+      },
+    };
   }
 
   // Detect language: prefer filename extension, fall back to content heuristics
@@ -914,33 +950,25 @@ export async function insertCodeFile(
       { filename: file.name, language, lineCount, embedId },
     );
 
-    editor
-      .chain()
-      .focus()
-      .insertContent({
-        type: "embed",
-        attrs: {
-          id: embedId,
-          type: "code-code",
-          status: "finished",
-          // Use "preview:code:" prefix so GroupRenderer reads code from `item.code` attr
-          contentRef: `preview:code:${embedId}`,
-          code: redactedContent,
-          filename: file.name,
-          language: language,
-          lineCount: lineCount,
-        },
-      })
-      .insertContent(" ")
-      .run();
-
-    setTimeout(() => editor.commands.focus("end"), 50);
     if (piiMappings.length > 0) {
       console.info(
         `[EmbedHandlers] Demo code file embed redacted ${piiMappings.length} PII item(s)`,
       );
     }
-    return;
+    return {
+      type: "embed",
+      attrs: {
+        id: embedId,
+        type: "code-code",
+        status: "finished",
+        // Use "preview:code:" prefix so GroupRenderer reads code from `item.code` attr
+        contentRef: `preview:code:${embedId}`,
+        code: redactedContent,
+        filename: file.name,
+        language: language,
+        lineCount: lineCount,
+      },
+    };
   }
 
   // Authenticated path: create a proper TOON embed with PII detection and redaction.
@@ -957,40 +985,20 @@ export async function insertCodeFile(
 
   const lineCount = fileContent.split("\n").length;
 
-  // Insert a real embed node in the editor. The serializer will still emit the
-  // canonical JSON reference on send because contentRef uses the embed:<id> form.
-  editor
-    .chain()
-    .focus()
-    .insertContent({
-      type: "embed",
-      attrs: {
-        id: result.embed_id,
-        type: "code-code",
-        status: "finished",
-        contentRef: `embed:${result.embed_id}`,
-        filename: file.name,
-        language,
-        lineCount,
-      },
-    })
-    .insertContent(" ")
-    .run();
-
-  setTimeout(() => {
-    editor.commands.focus("end");
-  }, 50);
-
-  // Match image/PDF completion semantics so MessageInput immediately persists
-  // the newly inserted embed node. Without this, an empty draft can be restored
-  // from a stale canonical JSON echo before the code embed card is saved.
-  if (typeof window !== "undefined") {
-    window.dispatchEvent(
-      new CustomEvent("embedUploadFinished", {
-        detail: { embedId: result.embed_id, status: "finished" },
-      }),
-    );
-  }
+  // The serializer will still emit the canonical JSON reference on send because
+  // contentRef uses the embed:<id> form.
+  return {
+    type: "embed",
+    attrs: {
+      id: result.embed_id,
+      type: "code-code",
+      status: "finished",
+      contentRef: `embed:${result.embed_id}`,
+      filename: file.name,
+      language,
+      lineCount,
+    },
+  };
 }
 
 export async function insertMindMapFile(
@@ -1051,155 +1059,147 @@ export async function insertDelimitedTableFile(
   editor: Editor,
   file: File,
 ): Promise<void> {
-  ensureLeadingParagraph(editor);
+  const node = await createDelimitedTableFileEmbedNode(file);
+  if (node) insertFileEmbedNodes(editor, [node]);
+}
 
+export async function createDelimitedTableFileEmbedNode(
+  file: File,
+): Promise<FileEmbedNodeContent | null> {
   let fileContent: string;
   try {
     fileContent = await file.text();
   } catch (error) {
     console.error("[EmbedHandlers] Failed to read table file content:", error);
-    return;
+    return null;
   }
 
   const delimiter = file.name.toLowerCase().endsWith(".tsv") ? "\t" : ",";
   const tableMarkdown = delimitedTextToMarkdownTable(fileContent, delimiter);
   if (!tableMarkdown) {
     console.warn("[EmbedHandlers] Empty table file skipped:", file.name);
-    return;
+    return null;
   }
 
   const result = await createSheetEmbed(tableMarkdown, file.name);
-  editor
-    .chain()
-    .focus()
-    .insertContent({
-      type: "embed",
-      attrs: {
-        id: result.embed_id,
-        type: "sheets-sheet",
-        status: "finished",
-        contentRef: `embed:${result.embed_id}`,
-        title: file.name,
-      },
-    })
-    .insertContent(" ")
-    .run();
-
-  setTimeout(() => editor.commands.focus("end"), 50);
+  return {
+    type: "embed",
+    attrs: {
+      id: result.embed_id,
+      type: "sheets-sheet",
+      status: "finished",
+      contentRef: `embed:${result.embed_id}`,
+      title: file.name,
+    },
+  };
 }
 
 export async function insertEmailFile(
   editor: Editor,
   file: File,
 ): Promise<void> {
-  ensureLeadingParagraph(editor);
+  const node = await createEmailFileEmbedNode(file);
+  if (node) insertFileEmbedNodes(editor, [node]);
+}
 
+export async function createEmailFileEmbedNode(
+  file: File,
+): Promise<FileEmbedNodeContent | null> {
   let fileContent: string;
   try {
     fileContent = await file.text();
   } catch (error) {
     console.error("[EmbedHandlers] Failed to read email file content:", error);
-    return;
+    return null;
   }
 
   const parsedEmail = parseEmlText(fileContent);
   const result = await createMailEmbed(parsedEmail, file.name);
-  editor
-    .chain()
-    .focus()
-    .insertContent({
-      type: "embed",
-      attrs: {
-        id: result.embed_id,
-        type: "mail-email",
-        status: "finished",
-        contentRef: `embed:${result.embed_id}`,
-        subject: parsedEmail.subject,
-      },
-    })
-    .insertContent(" ")
-    .run();
-
-  setTimeout(() => editor.commands.focus("end"), 50);
+  return {
+    type: "embed",
+    attrs: {
+      id: result.embed_id,
+      type: "mail-email",
+      status: "finished",
+      contentRef: `embed:${result.embed_id}`,
+      subject: parsedEmail.subject,
+    },
+  };
 }
 
 export async function insertOfficeDocumentFile(
   editor: Editor,
   file: File,
 ): Promise<void> {
-  ensureLeadingParagraph(editor);
+  const node = await createOfficeDocumentFileEmbedNode(file);
+  if (node) insertFileEmbedNodes(editor, [node]);
+}
 
+export async function createOfficeDocumentFileEmbedNode(
+  file: File,
+): Promise<FileEmbedNodeContent | null> {
   let html: string;
   try {
     html = await docxArrayBufferToHtml(await file.arrayBuffer());
   } catch (error) {
     console.error("[EmbedHandlers] Failed to parse DOCX file content:", error);
-    return;
+    return null;
   }
 
   if (!html) {
     console.warn("[EmbedHandlers] Empty DOCX file skipped:", file.name);
-    return;
+    return null;
   }
 
   const result = await createDocEmbed(html, file.name, file.name);
-  editor
-    .chain()
-    .focus()
-    .insertContent({
-      type: "embed",
-      attrs: {
-        id: result.embed_id,
-        type: "docs-doc",
-        status: "finished",
-        contentRef: `embed:${result.embed_id}`,
-        title: file.name,
-        filename: file.name,
-      },
-    })
-    .insertContent(" ")
-    .run();
-
-  setTimeout(() => editor.commands.focus("end"), 50);
+  return {
+    type: "embed",
+    attrs: {
+      id: result.embed_id,
+      type: "docs-doc",
+      status: "finished",
+      contentRef: `embed:${result.embed_id}`,
+      title: file.name,
+      filename: file.name,
+    },
+  };
 }
 
 export async function insertOfficeSpreadsheetFile(
   editor: Editor,
   file: File,
 ): Promise<void> {
-  ensureLeadingParagraph(editor);
+  const node = await createOfficeSpreadsheetFileEmbedNode(file);
+  if (node) insertFileEmbedNodes(editor, [node]);
+}
 
+export async function createOfficeSpreadsheetFileEmbedNode(
+  file: File,
+): Promise<FileEmbedNodeContent | null> {
   let tableMarkdown: string;
   try {
     tableMarkdown = await xlsxArrayBufferToMarkdownTable(await file.arrayBuffer());
   } catch (error) {
     console.error("[EmbedHandlers] Failed to parse XLSX file content:", error);
-    return;
+    return null;
   }
 
   if (!tableMarkdown) {
     console.warn("[EmbedHandlers] Empty XLSX file skipped:", file.name);
-    return;
+    return null;
   }
 
   const result = await createSheetEmbed(tableMarkdown, file.name);
-  editor
-    .chain()
-    .focus()
-    .insertContent({
-      type: "embed",
-      attrs: {
-        id: result.embed_id,
-        type: "sheets-sheet",
-        status: "finished",
-        contentRef: `embed:${result.embed_id}`,
-        title: file.name,
-      },
-    })
-    .insertContent(" ")
-    .run();
-
-  setTimeout(() => editor.commands.focus("end"), 50);
+  return {
+    type: "embed",
+    attrs: {
+      id: result.embed_id,
+      type: "sheets-sheet",
+      status: "finished",
+      contentRef: `embed:${result.embed_id}`,
+      title: file.name,
+    },
+  };
 }
 
 /**
