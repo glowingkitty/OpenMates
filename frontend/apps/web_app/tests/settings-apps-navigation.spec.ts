@@ -39,7 +39,7 @@ async function openTopLevelSettingsPage(settingsMenu: any, pageName: string): Pr
 }
 
 async function backToSettingsRoot(settingsMenu: any): Promise<void> {
-	await settingsMenu.locator('#settings-back-button').click();
+	await settingsMenu.getByTestId('banner-back-button').click();
 	await expect(settingsMenu).toHaveAttribute('data-active-view', 'main', {
 		timeout: SETTINGS_TIMEOUT
 	});
