@@ -99,6 +99,7 @@ async def test_ideabucket_processing_window_replaces_latest_payload_without_dire
         version=1,
         chat_id="chat-1",
         scheduled_send_at=123,
+        encrypted_chat_key="chat-key-v1",
         server_vault_encrypted_processing_payload="server-cipher-v1",
         client_encrypted_future_user_message="client-cipher-v1",
         client_encrypted_ideabucket_system_event="system-cipher-v1",
@@ -110,6 +111,7 @@ async def test_ideabucket_processing_window_replaces_latest_payload_without_dire
         version=2,
         chat_id="chat-1",
         scheduled_send_at=123,
+        encrypted_chat_key="chat-key-v2",
         server_vault_encrypted_processing_payload="server-cipher-v2",
         client_encrypted_future_user_message="client-cipher-v2",
         client_encrypted_ideabucket_system_event="system-cipher-v2",
@@ -126,6 +128,7 @@ async def test_ideabucket_processing_window_replaces_latest_payload_without_dire
         "version": 2,
         "scheduled_send_at": 123,
         "status": "active",
+        "encrypted_chat_key": "chat-key-v2",
         "server_vault_encrypted_processing_payload": "server-cipher-v2",
         "client_encrypted_future_user_message": "client-cipher-v2",
         "client_encrypted_ideabucket_system_event": "system-cipher-v2",
@@ -146,6 +149,7 @@ async def test_ideabucket_processing_window_rejects_stale_versions() -> None:
         version=3,
         chat_id="chat-1",
         scheduled_send_at=123,
+        encrypted_chat_key="chat-key-v3",
         server_vault_encrypted_processing_payload="server-cipher-v3",
         client_encrypted_future_user_message="client-cipher-v3",
         client_encrypted_ideabucket_system_event="system-cipher-v3",
@@ -158,6 +162,7 @@ async def test_ideabucket_processing_window_rejects_stale_versions() -> None:
         version=2,
         chat_id="chat-1",
         scheduled_send_at=123,
+        encrypted_chat_key="chat-key-v2",
         server_vault_encrypted_processing_payload="server-cipher-v2",
         client_encrypted_future_user_message="client-cipher-v2",
         client_encrypted_ideabucket_system_event="system-cipher-v2",
@@ -167,6 +172,7 @@ async def test_ideabucket_processing_window_rejects_stale_versions() -> None:
     cached = await service.get_ideabucket_processing_window_from_cache("user-1", "window-1")
 
     assert cached["version"] == 3
+    assert cached["encrypted_chat_key"] == "chat-key-v3"
     assert cached["server_vault_encrypted_processing_payload"] == "server-cipher-v3"
     assert cached["client_encrypted_future_user_message"] == "client-cipher-v3"
 
@@ -183,6 +189,7 @@ async def test_ideabucket_processing_window_locks_only_due_payload() -> None:
         version=1,
         chat_id="chat-1",
         scheduled_send_at=200,
+        encrypted_chat_key="chat-key-v1",
         server_vault_encrypted_processing_payload="server-cipher-v1",
         client_encrypted_future_user_message="client-cipher-v1",
         client_encrypted_ideabucket_system_event="system-cipher-v1",
@@ -220,6 +227,7 @@ async def test_ideabucket_processing_window_tombstones_sent_payload() -> None:
         version=1,
         chat_id="chat-1",
         scheduled_send_at=123,
+        encrypted_chat_key="chat-key-v1",
         server_vault_encrypted_processing_payload="server-cipher-v1",
         client_encrypted_future_user_message="client-cipher-v1",
         client_encrypted_ideabucket_system_event="system-cipher-v1",
