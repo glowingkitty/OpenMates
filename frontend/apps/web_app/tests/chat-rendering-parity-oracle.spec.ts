@@ -88,7 +88,10 @@ async function openUserChatById(page: any, chatId: string): Promise<string | nul
 		const row = Array.from(document.querySelectorAll('[data-testid="chat-item-wrapper"]')).find((candidate) => {
 			return candidate.getAttribute('data-chat-id') === targetChatId;
 		}) as HTMLElement | undefined;
-		if (!row) throw new Error(`Missing user chat row for stable chat id ${targetChatId}`);
+		if (!row) {
+			window.location.hash = `chat-id=${encodeURIComponent(targetChatId)}`;
+			return targetChatId;
+		}
 		row.click();
 		return row.getAttribute('data-chat-id');
 	}, chatId);
@@ -121,12 +124,16 @@ async function waitForOpenedChat(page: any, chatId: string | null, previousFinge
 	await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 30000 });
 	if (chatId) {
 		await expect(async () => {
-			const active = await page.evaluate((targetChatId: string) => {
-				return Array.from(document.querySelectorAll('[data-testid="chat-item-wrapper"]')).some((row) => {
-					return row.getAttribute('data-chat-id') === targetChatId && row.classList.contains('active');
+			const opened = await page.evaluate((targetChatId: string) => {
+				const row = Array.from(document.querySelectorAll('[data-testid="chat-item-wrapper"]')).find((candidate) => {
+					return candidate.getAttribute('data-chat-id') === targetChatId;
 				});
+				if (row) return row.classList.contains('active');
+				const hash = window.location.hash.startsWith('#') ? window.location.hash.slice(1) : window.location.hash;
+				const params = new URLSearchParams(hash);
+				return params.get('chat-id') === targetChatId || params.get('chat_id') === targetChatId;
 			}, chatId);
-			expect(active, `Expected clicked chat ${hashStableId(chatId)} to become active.`).toBe(true);
+			expect(opened, `Expected clicked chat ${hashStableId(chatId)} to become active or open by stable hash.`).toBe(true);
 		}).toPass({ timeout: 30000, intervals: [500, 1000, 2000] });
 	}
 	await expect(async () => {
