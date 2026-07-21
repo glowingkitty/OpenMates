@@ -13,6 +13,8 @@ const BRIDGE = `${PROJECT_ROOT}/.codex/hooks/claude-hook-bridge.sh`;
 const REPO_RELATIVE_PREFIXES = ["frontend/", "backend/", "scripts/", "docs/", "apple/", ".opencode/", ".claude/"];
 const SOURCE_FILE_EXTENSION = /\.(?:py|js|mjs|ts|tsx|svelte|swift|md|ya?ml|json)$/;
 const CLI_LOGIN_HINT_MARKER = "[OpenMates CLI login hint]";
+const COMMAND_DOCTOR_MARKER = "[OpenMates command doctor]";
+const FAILED_TEST_LEASE_MARKER = "[OpenMates failed-test lease hint]";
 const CLI_AUTH_ERROR_PATTERNS = [
   /Authentication failed\. Run [`']openmates login[`'] to re-authenticate\./i,
   /Session expired or invalid\. Please run [`']openmates login[`'] to re-authenticate\./i,
@@ -170,11 +172,40 @@ function bindSessionStart(input, output) {
 }
 
 function guardBash(command) {
+  guardForbiddenLocalTests(command);
   const repositoryMutation = /\bgit\s+apply\b/.test(command);
   const writesRepositoryFile = extractWriteTargets(command).some(isRepositoryWritePath);
   if (repositoryMutation || writesRepositoryFile) {
     throw new Error("Use apply_patch for source-file changes so edits remain reviewable.");
   }
+}
+
+function guardForbiddenLocalTests(command) {
+  const normalized = command.replace(/\\\s*\n/g, " ");
+  for (const segment of commandSegments(normalized)) {
+    if (/scripts\/tests\.py\s+run\b/.test(segment)) continue;
+    if (/\b(?:npx\s+)?vitest\b/.test(segment) || /\bpnpm\s+(?:test|vitest)\b/.test(segment)) {
+      throw new Error("Use python3 scripts/tests.py run --suite vitest instead of local Vitest/pnpm test.");
+    }
+    if (/\b(?:npx\s+)?playwright\s+test\b/.test(segment) || /\bpnpm\s+playwright\s+test\b/.test(segment)) {
+      throw new Error("Use python3 scripts/tests.py run --spec <name>.spec.ts or --suite playwright instead of local Playwright.");
+    }
+  }
+}
+
+function commandSegments(command) {
+  const segments = [];
+  let current = [];
+  for (const token of tokenizeCommand(command)) {
+    if (isSeparator(token)) {
+      if (current.length) segments.push(current.join(" "));
+      current = [];
+      continue;
+    }
+    current.push(token);
+  }
+  if (current.length) segments.push(current.join(" "));
+  return segments;
 }
 
 function commandRunsOpenMatesCli(command) {
@@ -199,6 +230,38 @@ ${CLI_LOGIN_HINT_MARKER}
 The OpenMates CLI session is missing or invalid. Do not ask the user for test-account credentials.
 Run this from the repo root to log the CLI into the dev test account automatically:
   node scripts/openmates_cli_test_account.mjs login`;
+}
+
+function appendCommandDoctorHint(command, output) {
+  if (!output || typeof output.output !== "string" || output.output.includes(COMMAND_DOCTOR_MARKER)) return;
+  const text = output.output;
+  const suggestions = [];
+  if (/usage: tests\.py[\s\S]*unrecognized arguments: --(?:suite|spec)\b/.test(text)) {
+    suggestions.push("Run test dispatch through the passthrough form: python3 scripts/tests.py run -- --suite <suite> or python3 scripts/tests.py run -- --spec <name>.spec.ts");
+  }
+  if (/usage: sessions\.py[\s\S]*unrecognized arguments: --session\b/.test(text) && /scripts\/sessions\.py\s+status\b/.test(command)) {
+    suggestions.push("sessions.py status does not take --session in older checkouts. Use python3 scripts/sessions.py status, or python3 scripts/sessions.py summary --session <id> for one session.");
+  }
+  if (/scripts\/tests\.py\s+run\b/.test(command) && /(?:failed|timeout|timed out|result_unknown|dispatch_error)/i.test(text)) {
+    suggestions.push("If this is daily-failure debugging, claim a failure lease before editing: python3 scripts/tests.py next --lease --session ${OPENCODE_SESSION_ID:-manual}. Then rerun with --lease-required --lease-id <lease>.");
+  }
+  if (!suggestions.length) return;
+  output.output += `
+
+${COMMAND_DOCTOR_MARKER}
+${suggestions.map((suggestion) => `- ${suggestion}`).join("\n")}`;
+}
+
+function appendFailedTestLeaseHint(command, output) {
+  if (!output || typeof output.output !== "string" || output.output.includes(FAILED_TEST_LEASE_MARKER)) return;
+  if (!/scripts\/tests\.py\s+(?:triage|failed|next)\b/.test(command)) return;
+  if (!/(Failures: [1-9]|\[playwright\]|\.spec\.ts|failed|timeout)/i.test(output.output)) return;
+  output.output += `
+
+${FAILED_TEST_LEASE_MARKER}
+Parallel failed-test work should be leased before edits:
+  python3 scripts/tests.py next --lease --session \${OPENCODE_SESSION_ID:-manual}
+Use --lease-required --lease-id <lease> on follow-up test runs when debugging that group.`;
 }
 
 function runBridge(event, payload, sessionID) {
@@ -261,6 +324,8 @@ export const OpenMatesHooks = async () => ({
     if (BASH_TOOLS.has(tool)) {
       const command = bashCommand(toolArgs(input, output));
       if (isCliAuthFailure(command, output?.output || "")) appendCliLoginHint(output);
+      appendCommandDoctorHint(command, output);
+      appendFailedTestLeaseHint(command, output);
     }
     if (!EDIT_TOOLS.has(tool)) return;
     runBridge("PostToolUse", bridgePayload("PostToolUse", tool, toolArgs(input, output)), input.sessionID);

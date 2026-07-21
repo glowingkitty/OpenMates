@@ -23,6 +23,7 @@ Usage:
     python3 scripts/tests.py run --suite vitest            # just vitest
     python3 scripts/tests.py run --suite playwright        # just browser E2E
     python3 scripts/tests.py run --suite cli               # just CLI integration
+    python3 scripts/tests.py run --suite apple             # just Apple Remote checks
     python3 scripts/tests.py run --daily                   # cron mode (3 AM nightly)
     python3 scripts/tests.py run --daily --force           # skip commit check
     python3 scripts/tests.py run --hourly-dev              # hourly dev smoke (4 specs)
@@ -120,11 +121,21 @@ PROD_SMOKE_RUN_TIMEOUT = 1800  # 30 min — prod-smoke.yml has its own 25-min jo
 VITEST_TIMEOUT = 300  # seconds — vitest must complete in 5 min or be killed
 VERCEL_WAIT_TIMEOUT = 1200  # 20 min max to wait for dev deployment before E2E specs
 VERCEL_WAIT_POLL_INTERVAL = 15
+APPLE_REMOTE_TIMEOUT = 7200  # seconds — Xcode test/build runs can be slow on the remote Mac
 MAX_ERROR_SNIPPET = 600
 BREVO_API_URL = "https://api.brevo.com/v3/smtp/email"
 TEST_RECORDINGS_BUCKET_KEY = "test_recordings"
 TEST_RECORDINGS_S3_PREFIX = "latest"
 VERCEL_API = "https://api.vercel.com"
+APPLE_REMOTE_NIGHTLY_COMMANDS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("sync-repo", ("sync-repo", "--branch", GH_BRANCH)),
+    ("test-ios", ("test-ios", "--simulator", "iPhone 17")),
+    ("test-macos", ("test-macos",)),
+    (
+        "verify-watch-startup",
+        ("verify-watch-startup", "--simulator", "Apple Watch Series 11 (46mm)", "--duration", "60"),
+    ),
+)
 
 # Hourly dev smoke spec list — kept SHORT on purpose. See OPE-349 + the
 # tests/dev-smoke/README.md for the policy. Anything that isn't a core user
@@ -151,6 +162,13 @@ PROD_FREE_HOURLY_START_HOUR = 6
 PROD_FREE_HOURLY_END_HOUR = 23
 PROD_PAID_CHAT_HOURS = frozenset({7, 13, 19})
 PROD_APP_SKILL_HOURS = frozenset({9})
+ACCOUNT_IMPORT_TEST_CATALOG = (
+    "account-import: backend parser/limits/scan/fail-closed pytest",
+    "account-import: frontend CLI parser/client node test",
+    "account-import: npm SDK import parity node test",
+    "account-import: pip SDK import parity pytest",
+    "account-import: real dev CLI verifier script",
+)
 
 
 # ---------------------------------------------------------------------------
@@ -240,6 +258,42 @@ def _problem_summary_label(summary: dict) -> str:
     if summary.get("result_unknown", 0):
         parts.append(f"{summary['result_unknown']} unknown")
     return ", ".join(parts) if parts else "all passed"
+
+
+def _apple_remote_commands_for_nightly() -> list[tuple[str, tuple[str, ...]]]:
+    """Return serialized Apple Remote commands for the nightly suite."""
+    raw = os.getenv("OPENMATES_APPLE_REMOTE_NIGHTLY_COMMANDS", "").strip()
+    if not raw:
+        return list(APPLE_REMOTE_NIGHTLY_COMMANDS)
+
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        _log(f"Invalid OPENMATES_APPLE_REMOTE_NIGHTLY_COMMANDS JSON: {exc}; using defaults", "WARN")
+        return list(APPLE_REMOTE_NIGHTLY_COMMANDS)
+
+    if not isinstance(parsed, list):
+        _log("OPENMATES_APPLE_REMOTE_NIGHTLY_COMMANDS must be a JSON list; using defaults", "WARN")
+        return list(APPLE_REMOTE_NIGHTLY_COMMANDS)
+
+    commands: list[tuple[str, tuple[str, ...]]] = []
+    for index, entry in enumerate(parsed, start=1):
+        label = f"apple-remote-{index}"
+        command: object = entry
+        if isinstance(entry, dict):
+            label = str(entry.get("name") or label)
+            command = entry.get("command")
+        if not isinstance(command, list) or not all(isinstance(part, str) for part in command):
+            _log(f"Ignoring invalid Apple Remote command entry #{index}", "WARN")
+            continue
+        commands.append((label, tuple(command)))
+    return commands
+
+
+def _print_test_catalog() -> None:
+    """Print deterministic catalog entries used by spec evidence checks."""
+    for entry in ACCOUNT_IMPORT_TEST_CATALOG:
+        print(entry)
 
 
 def _test_recording_slug(spec_name: str) -> str:
@@ -5320,7 +5374,7 @@ class TestOrchestrator:
 
         # Archive previous failure screenshots before starting a new run
         screenshots_dir = RESULTS_DIR / "screenshots"
-        if screenshots_dir.is_dir():
+        if not self.dry_run and screenshots_dir.is_dir():
             # Move current screenshots to date-stamped archive (preserves history)
             current_dir = screenshots_dir / "current"
             if current_dir.is_dir() and any(current_dir.iterdir()):
@@ -5344,6 +5398,10 @@ class TestOrchestrator:
         # Run Playwright via GitHub Actions
         if self.suite in ("all", "playwright"):
             suites["playwright"] = self._run_playwright()
+
+        # Run native Apple checks only for nightly cron or explicit --suite apple.
+        if not self.spec and (self.suite == "apple" or (self.daily and self.suite == "all")):
+            suites["apple_remote"] = self._run_apple_remote_nightly()
 
         # Aggregate results
         duration = time.time() - start_time
@@ -5401,6 +5459,77 @@ class TestOrchestrator:
         _log(
             f"Obsidian test-result sync skipped/failed: {(rc.stderr or rc.stdout).strip()[:300]}",
             "WARN",
+        )
+
+    def _run_apple_remote_nightly(self) -> SuiteResult:
+        """Run Apple Remote nightly checks serially on the remote Mac."""
+        commands = _apple_remote_commands_for_nightly()
+        if not commands:
+            return SuiteResult(status="skipped", reason="no Apple Remote nightly commands configured")
+
+        script = PROJECT_ROOT / "scripts" / "apple_remote.py"
+        if not script.is_file():
+            return SuiteResult(
+                status="failed",
+                tests=[{
+                    "name": "apple-remote-script",
+                    "file": "scripts/apple_remote.py",
+                    "status": "failed",
+                    "duration_seconds": 0,
+                    "error": "scripts/apple_remote.py is missing",
+                }],
+                reason="apple_remote.py missing",
+            )
+
+        _log(f"Apple Remote: {len(commands)} command(s), serialized")
+        if self.dry_run:
+            for name, remote_args in commands:
+                print(f"    {name}: python3 scripts/apple_remote.py {' '.join(remote_args)}")
+            return SuiteResult(status="skipped", reason="dry run")
+
+        tests: list[dict] = []
+        suite_started = time.time()
+        timeout = int(os.getenv("OPENMATES_APPLE_REMOTE_TIMEOUT", str(APPLE_REMOTE_TIMEOUT)))
+        for name, remote_args in commands:
+            command_text = f"python3 scripts/apple_remote.py {' '.join(remote_args)}"
+            _log(f"  Apple Remote: {name}...")
+            started = time.time()
+            entry = {
+                "name": name,
+                "file": "scripts/apple_remote.py",
+                "command": command_text,
+                "duration_seconds": 0,
+            }
+            try:
+                proc = subprocess.run(
+                    [sys.executable, str(script), *remote_args],
+                    cwd=str(PROJECT_ROOT),
+                    capture_output=True,
+                    text=True,
+                    timeout=timeout,
+                )
+                entry["duration_seconds"] = round(time.time() - started, 1)
+                entry["exit_code"] = proc.returncode
+                if proc.returncode == 0:
+                    entry["status"] = "passed"
+                    _log(f"  Apple Remote: {name} passed ({entry['duration_seconds']}s)", "OK")
+                else:
+                    output = "\n".join(part for part in (proc.stdout, proc.stderr) if part).strip()
+                    entry["status"] = "failed"
+                    entry["error"] = output[:MAX_ERROR_SNIPPET] if output else f"{command_text} exited {proc.returncode}"
+                    _log(f"  Apple Remote: {name} failed with exit {proc.returncode}", "ERROR")
+            except subprocess.TimeoutExpired as exc:
+                output = "\n".join(part for part in (exc.stdout, exc.stderr) if isinstance(part, str)).strip()
+                entry["duration_seconds"] = round(time.time() - started, 1)
+                entry["status"] = "failed"
+                entry["error"] = output[:MAX_ERROR_SNIPPET] if output else f"{command_text} timed out after {timeout}s"
+                _log(f"  Apple Remote: {name} timed out after {timeout}s", "ERROR")
+            tests.append(entry)
+
+        return SuiteResult(
+            status="failed" if any(test.get("status") == "failed" for test in tests) else "passed",
+            tests=tests,
+            duration_seconds=round(time.time() - suite_started, 1),
         )
 
     def _run_unit_suite_via_gha(self, workflow_file: str, artifact_name: str) -> SuiteResult:
@@ -6057,7 +6186,7 @@ def main() -> int:
         description="OpenMates unified test orchestrator",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    parser.add_argument("--suite", choices=["all", "vitest", "pytest", "cli", "playwright"], default="all",
+    parser.add_argument("--suite", choices=["all", "vitest", "pytest", "cli", "playwright", "apple"], default="all",
                         help="Suite to run (default: all)")
     parser.add_argument("--spec", type=str, default=None,
                         help="Run a single Playwright spec (e.g., chat-flow.spec.ts)")
@@ -6100,11 +6229,17 @@ def main() -> int:
                         help="Show what would run without executing")
     parser.add_argument("--flaky-report", action="store_true",
                         help="Show top flaky tests from history and exit")
+    parser.add_argument("--list", action="store_true",
+                        help="List deterministic test catalog entries and exit")
 
     args = parser.parse_args()
 
     if args.flaky_report:
         _print_flaky_report()
+        return 0
+
+    if args.list:
+        _print_test_catalog()
         return 0
 
     # Reject incompatible mode combinations early so the user gets a clear

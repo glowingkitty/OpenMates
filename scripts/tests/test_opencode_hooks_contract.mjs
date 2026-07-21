@@ -21,6 +21,16 @@ async function runBeforeShell(command) {
   );
 }
 
+async function runAfterShell(command, text) {
+  const hooks = await pluginModule.OpenMatesHooks({});
+  const output = { args: { command }, output: text };
+  await hooks["tool.execute.after"](
+    { tool: "bash", args: { command }, sessionID: "test-session" },
+    output,
+  );
+  return output.output;
+}
+
 test("plugin module exports one valid OpenCode plugin factory", async () => {
   assert.deepEqual(Object.keys(pluginModule), ["OpenMatesHooks"]);
   assert.equal(typeof await pluginModule.OpenMatesHooks({}), "object");
@@ -74,4 +84,45 @@ test("bash guard blocks programmatic repo source writes", async () => {
     () => runBeforeShell("python3 -c 'from pathlib import Path; Path(\"scripts/example.py\").write_text(\"x\")'"),
     /Use apply_patch for source-file changes/,
   );
+});
+
+test("bash guard blocks local Playwright and Vitest commands", async () => {
+  await assert.rejects(
+    () => runBeforeShell("npx playwright test frontend/apps/web_app/tests/chat-flow.spec.ts"),
+    /Use python3 scripts\/tests\.py run --spec/,
+  );
+  await assert.rejects(
+    () => runBeforeShell("pnpm test"),
+    /Use python3 scripts\/tests\.py run --suite vitest/,
+  );
+});
+
+test("bash guard allows canonical tests.py Vitest wrapper", async () => {
+  await assert.doesNotReject(() => runBeforeShell("python3 scripts/tests.py run --suite vitest"));
+  await assert.doesNotReject(() => runBeforeShell("python3 scripts/tests.py run -- --suite vitest"));
+});
+
+test("bash guard still blocks forbidden local tests in chained commands", async () => {
+  await assert.rejects(
+    () => runBeforeShell("python3 scripts/tests.py run --suite vitest && npx playwright test"),
+    /Use python3 scripts\/tests\.py run --spec/,
+  );
+});
+
+test("command doctor appends script usage suggestions", async () => {
+  const output = await runAfterShell(
+    "python3 scripts/tests.py run --suite vitest",
+    "usage: tests.py [-h] ...\ntests.py: error: unrecognized arguments: --suite",
+  );
+  assert.match(output, /\[OpenMates command doctor\]/);
+  assert.match(output, /python3 scripts\/tests\.py run -- --suite <suite>/);
+});
+
+test("failed test triage output gets lease hint", async () => {
+  const output = await runAfterShell(
+    "python3 scripts/tests.py triage",
+    "Run: latest\nFailures: 2\n#1 [chat_sync_encryption] chat-flow.spec.ts -- timeout",
+  );
+  assert.match(output, /\[OpenMates failed-test lease hint\]/);
+  assert.match(output, /python3 scripts\/tests\.py next --lease/);
 });

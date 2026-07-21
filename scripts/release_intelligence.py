@@ -20,6 +20,7 @@ import sys
 import time
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 from urllib import error, request
@@ -35,7 +36,10 @@ _feature_availability = importlib.import_module(
 )
 FeatureAvailabilityService = _feature_availability.FeatureAvailabilityService
 PLATFORM_FEATURES = _feature_availability.PLATFORM_FEATURES
+app_feature_id = _feature_availability.app_feature_id
 collect_feature_definitions_from_app_config = _feature_availability.collect_feature_definitions_from_app_config
+embed_feature_id = _feature_availability.embed_feature_id
+skill_feature_id = _feature_availability.skill_feature_id
 DEFAULT_DAILY_DIR = REPO_ROOT / "docs" / "releases" / "daily"
 DEFAULT_WEEKLY_DIR = REPO_ROOT / "docs" / "releases" / "weekly"
 DEFAULT_MONTHLY_DIR = REPO_ROOT / "docs" / "releases" / "monthly"
@@ -97,6 +101,11 @@ FEATURE_FLAG_PATH_HINTS = (
     "feature_flags",
     "availability",
     "metadata",
+)
+
+FEATURE_CONFIG_STATUS_PATHS = (
+    "backend/config/backend_config.yml",
+    "backend/apps",
 )
 
 FEATURE_PATH_MAP = {
@@ -171,6 +180,8 @@ FEATURE_SUBJECT_HINTS = {
     "platform:tasks": ("task workspace", "tasks workspace", "task board", "user task", "user tasks"),
     "platform:teams": ("team workspace", "teams workspace", "team invite", "team member", "team billing"),
     "platform:workflows": ("(workflows)", "workflow input", "workflows input", "workflow workspace", "workflows workspace"),
+    "skill:code:image_to_html": ("image to code", "image-to-code", "image to html", "image-to-html", "screenshot to code"),
+    "skill:finance:check_accounts": ("revolut", "finance check", "check accounts", "connected account", "business finance"),
 }
 
 READY_COMMUNICATION_STATUS = "ready_for_public_communication"
@@ -446,6 +457,8 @@ def collect_commits(
     if not raw:
         return []
 
+    known_in_main = False if from_ref == main_ref else None
+    known_in_dev = True if to_ref == dev_ref else None
     commits: list[CommitChange] = []
     for record in raw.split("\x1e"):
         record = record.strip()
@@ -465,8 +478,8 @@ def collect_commits(
                 subject=subject.strip(),
                 body=body.strip(),
                 changed_paths=changed_paths,
-                in_main=is_ancestor(sha, main_ref),
-                in_dev=is_ancestor(sha, dev_ref),
+                in_main=known_in_main if known_in_main is not None else is_ancestor(sha, main_ref),
+                in_dev=known_in_dev if known_in_dev is not None else is_ancestor(sha, dev_ref),
             )
         )
     return commits
@@ -536,7 +549,7 @@ def release_availability_config() -> dict[str, Any]:
     return {"feature_overrides": {"disabled": overrides.get("disabled") or []}}
 
 
-def load_feature_availability_service() -> FeatureAvailabilityService:
+def collect_all_feature_definitions() -> list[Any]:
     definitions = list(PLATFORM_FEATURES)
     apps_dir = REPO_ROOT / "backend" / "apps"
     if apps_dir.exists():
@@ -546,13 +559,70 @@ def load_feature_availability_service() -> FeatureAvailabilityService:
                 continue
             app_id = app_yml_path.parent.name
             definitions.extend(collect_feature_definitions_from_app_config(app_id, raw_config, source=str(app_yml_path.relative_to(REPO_ROOT))))
+    return definitions
+
+
+def load_feature_availability_service() -> FeatureAvailabilityService:
+    definitions = collect_all_feature_definitions()
     return FeatureAvailabilityService(definitions, release_availability_config())
+
+
+def load_runtime_feature_availability_service() -> FeatureAvailabilityService:
+    definitions = collect_all_feature_definitions()
+    return FeatureAvailabilityService(definitions, load_backend_config())
+
+
+def class_path_to_repo_path(class_path: str) -> str:
+    return f"{class_path.replace('.', '/')}.py"
+
+
+@lru_cache(maxsize=1)
+def dynamic_feature_path_map() -> dict[str, tuple[str, ...]]:
+    mapping: dict[str, list[str]] = {}
+    apps_dir = REPO_ROOT / "backend" / "apps"
+    if not apps_dir.exists():
+        return {}
+    for app_yml_path in sorted(apps_dir.glob("*/app.yml")):
+        raw_config = yaml.safe_load(app_yml_path.read_text(encoding="utf-8")) or {}
+        if not isinstance(raw_config, dict):
+            continue
+        app_id = app_yml_path.parent.name
+        mapping.setdefault(app_feature_id(app_id), []).append(f"backend/apps/{app_id}/")
+        for skill in raw_config.get("skills") or []:
+            if not isinstance(skill, dict):
+                continue
+            skill_id = str(skill.get("id") or "").strip()
+            if not skill_id:
+                continue
+            feature_id = skill_feature_id(app_id, skill_id)
+            hints = mapping.setdefault(feature_id, [])
+            class_path = str(skill.get("class_path") or "").strip()
+            if class_path:
+                hints.append(class_path_to_repo_path(class_path))
+            hints.append(f"backend/apps/{app_id}/skills/{skill_id}")
+        for embed in raw_config.get("embed_types") or []:
+            if not isinstance(embed, dict):
+                continue
+            embed_id = str(embed.get("id") or "").strip()
+            if not embed_id:
+                continue
+            feature_id = embed_feature_id(app_id, embed_id)
+            hints = mapping.setdefault(feature_id, [])
+            for key in ("preview_component", "fullscreen_component", "child_preview_component", "child_fullscreen_component"):
+                component = str(embed.get(key) or "").strip()
+                if component:
+                    hints.append(f"frontend/packages/ui/src/components/embeds/{component}")
+            skill_id = str(embed.get("skill_id") or "").strip()
+            if skill_id:
+                hints.append(f"backend/apps/{app_id}/skills/{skill_id}")
+    return {feature_id: tuple(dict.fromkeys(hints)) for feature_id, hints in mapping.items()}
 
 
 def related_feature_ids_for_paths(paths: list[str]) -> list[str]:
     feature_ids: set[str] = set()
+    path_map = {**FEATURE_PATH_MAP, **dynamic_feature_path_map()}
     for path in paths:
-        for feature_id, prefixes in FEATURE_PATH_MAP.items():
+        for feature_id, prefixes in path_map.items():
             if any(path.startswith(prefix) for prefix in prefixes):
                 feature_ids.add(feature_id)
     return sorted(feature_ids)
@@ -565,6 +635,19 @@ def related_feature_ids_for_commit(commit: CommitChange) -> list[str]:
         if any(hint in subject for hint in hints):
             feature_ids.add(feature_id)
     return sorted(feature_ids)
+
+
+def feature_config_worktree_warnings(*, base_ref: str, head_ref: str) -> list[str]:
+    if not (base_ref.startswith("origin/") or head_ref.startswith("origin/")):
+        return []
+    result = run_git(["status", "--short", "--", *FEATURE_CONFIG_STATUS_PATHS], check=False)
+    changed = [line for line in result.stdout.splitlines() if line.strip()]
+    if not changed:
+        return []
+    return [
+        "Feature availability was evaluated from the local working tree while scanning remote refs. Commit, revert, or inspect these local feature-config changes before trusting the readiness state: "
+        + "; ".join(changed[:20])
+    ]
 
 
 def feature_explanations(feature_ids: list[str], service: FeatureAvailabilityService) -> list[dict[str, Any]]:
@@ -1176,6 +1259,227 @@ def iter_daily_items(daily_artifact: dict[str, Any]) -> list[dict[str, Any]]:
     return items
 
 
+def _feature_state(feature_id: str, *, runtime_service: FeatureAvailabilityService, release_service: FeatureAvailabilityService) -> dict[str, Any]:
+    runtime = runtime_service.explain(feature_id)
+    release = release_service.explain(feature_id)
+    return {
+        "id": feature_id,
+        "kind": runtime.kind,
+        "default_enabled": runtime.default_enabled,
+        "runtime_effective_enabled": runtime.effective_enabled,
+        "runtime_override": runtime.override,
+        "release_effective_enabled": release.effective_enabled,
+        "release_override": release.override,
+        "parent_id": runtime.parent_id,
+        "source": runtime.source,
+    }
+
+
+def _readiness_status(feature_state: dict[str, Any]) -> str:
+    if feature_state.get("runtime_effective_enabled") is True:
+        return "currently_accessible"
+    if feature_state.get("release_effective_enabled") is False:
+        return "disabled_or_unreleased"
+    return "available_by_default"
+
+
+def _readiness_action(feature_state: dict[str, Any]) -> str:
+    if feature_state.get("runtime_effective_enabled") is True:
+        return "Ask whether this is ready for public deployment. If not, remove the enabled override or add default_enabled: false / a disabled override before creating the PR."
+    if feature_state.get("release_effective_enabled") is False:
+        return "Confirm it should stay disabled for this PR and keep it out of public release language."
+    return "Ask whether this changed user-facing feature is ready for public deployment."
+
+
+def _append_unique(target: list[Any], value: Any) -> None:
+    if value not in target:
+        target.append(value)
+
+
+def _compact_candidate(candidate: dict[str, Any]) -> dict[str, Any]:
+    candidate["commits"] = sorted(candidate["commits"])
+    candidate["titles"] = sorted(candidate["titles"])
+    candidate["dates"] = sorted(candidate["dates"])
+    candidate["changed_paths"] = sorted(candidate["changed_paths"])[:25]
+    return candidate
+
+
+def build_pr_readiness_report(
+    *,
+    commits: list[CommitChange],
+    daily_artifacts: list[dict[str, Any]] | None = None,
+    base_ref: str,
+    head_ref: str,
+    warnings: list[str] | None = None,
+) -> dict[str, Any]:
+    release_service = load_feature_availability_service()
+    runtime_service = load_runtime_feature_availability_service()
+    candidates_by_id: dict[str, dict[str, Any]] = {}
+    unmapped_user_facing: list[dict[str, Any]] = []
+
+    def add_candidate(feature_id: str, *, title: str, commits_list: list[str], changed_paths: list[str], date_value: str | None) -> None:
+        feature_state = _feature_state(feature_id, runtime_service=runtime_service, release_service=release_service)
+        candidate = candidates_by_id.setdefault(
+            feature_id,
+            {
+                **feature_state,
+                "status": _readiness_status(feature_state),
+                "recommended_action": _readiness_action(feature_state),
+                "titles": [],
+                "commits": [],
+                "dates": [],
+                "changed_paths": [],
+            },
+        )
+        if title:
+            _append_unique(candidate["titles"], title)
+        for commit_ref in commits_list:
+            _append_unique(candidate["commits"], commit_ref)
+        for path in changed_paths:
+            _append_unique(candidate["changed_paths"], path)
+        if date_value:
+            _append_unique(candidate["dates"], date_value)
+
+    def add_unmapped(*, title: str, commits_list: list[str], changed_paths: list[str], source: str, date_value: str | None = None) -> None:
+        entry = {
+            "title": title,
+            "commits": commits_list,
+            "changed_paths": sorted(changed_paths)[:25],
+            "source": source,
+        }
+        if date_value:
+            entry["date"] = date_value
+        if entry not in unmapped_user_facing:
+            unmapped_user_facing.append(entry)
+
+    for commit in commits:
+        item = item_for_commit(commit, assume_released=False, availability_service=release_service)
+        feature_ids = related_feature_ids_for_commit(commit)
+        if feature_ids:
+            for feature_id in feature_ids:
+                add_candidate(
+                    feature_id,
+                    title=commit.subject,
+                    commits_list=[commit.short_sha],
+                    changed_paths=commit.changed_paths,
+                    date_value=commit.authored_at[:10] if commit.authored_at else None,
+                )
+        elif item["user_facing"] and item["section"] == "features":
+            add_unmapped(
+                title=commit.subject,
+                commits_list=[commit.short_sha],
+                changed_paths=commit.changed_paths,
+                source="commit_range",
+                date_value=commit.authored_at[:10] if commit.authored_at else None,
+            )
+
+    for artifact in daily_artifacts or []:
+        for item in iter_daily_items(artifact):
+            feature_ids = [str(feature.get("id")) for feature in item.get("related_features") or [] if isinstance(feature, dict) and feature.get("id")]
+            if feature_ids:
+                for feature_id in feature_ids:
+                    add_candidate(
+                        feature_id,
+                        title=str(item.get("title") or ""),
+                        commits_list=[str(commit) for commit in item.get("commits") or []],
+                        changed_paths=[str(path) for path in item.get("changed_paths") or []],
+                        date_value=str(item.get("date") or "") or None,
+                    )
+            elif item.get("user_facing") and item.get("section") == "features":
+                add_unmapped(
+                    title=str(item.get("title") or ""),
+                    commits_list=[str(commit) for commit in item.get("commits") or []],
+                    changed_paths=[str(path) for path in item.get("changed_paths") or []],
+                    source="daily_artifact",
+                    date_value=str(item.get("date") or "") or None,
+                )
+
+    candidates = [_compact_candidate(candidate) for candidate in candidates_by_id.values()]
+    candidates.sort(
+        key=lambda candidate: (
+            0 if candidate.get("runtime_effective_enabled") is True else 1,
+            0 if candidate.get("release_effective_enabled") is False else 1,
+            str(candidate.get("id")),
+        )
+    )
+    return {
+        "schema_version": 1,
+        "cadence": "pr_readiness",
+        "generated_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
+        "range": {"base_ref": base_ref, "head_ref": head_ref},
+        "summary": {
+            "commit_count": len(commits),
+            "feature_candidate_count": len(candidates),
+            "currently_accessible_count": sum(1 for candidate in candidates if candidate.get("runtime_effective_enabled") is True),
+            "disabled_or_unreleased_count": sum(1 for candidate in candidates if candidate.get("release_effective_enabled") is False),
+            "unmapped_user_facing_count": len(unmapped_user_facing),
+        },
+        "feature_candidates": candidates,
+        "unmapped_user_facing": sorted(unmapped_user_facing, key=lambda item: (str(item.get("date", "")), str(item.get("title", "")))),
+        "disabled_features": disabled_feature_context(release_service),
+        "warnings": warnings or [],
+        "required_human_gate": "Before creating the dev to main PR, ask which listed features are ready, should stay enabled, or must be deactivated. Stop until the user confirms.",
+    }
+
+
+def render_pr_readiness_markdown(report: dict[str, Any]) -> str:
+    summary = report.get("summary") or {}
+    lines = [
+        "## Feature Readiness Check",
+        "",
+        "Review these changed or inferred feature areas before creating the dev to main PR.",
+        "",
+        f"- Commits scanned: {summary.get('commit_count', 0)}",
+        f"- Feature candidates: {summary.get('feature_candidate_count', 0)}",
+        f"- Currently accessible candidates: {summary.get('currently_accessible_count', 0)}",
+        f"- Disabled or unreleased candidates: {summary.get('disabled_or_unreleased_count', 0)}",
+        f"- Unmapped user-facing feature commits: {summary.get('unmapped_user_facing_count', 0)}",
+        "",
+        "Reply with which items are `ready`, which should `stay disabled`, and which must be `deactivated` before the PR is created.",
+        "",
+    ]
+    warnings = report.get("warnings") or []
+    if warnings:
+        lines.append("### Warnings")
+        lines.append("")
+        for warning in warnings:
+            lines.append(f"- {warning}")
+        lines.append("")
+    candidates = report.get("feature_candidates") or []
+    if candidates:
+        lines.append("### Feature Candidates")
+        lines.append("")
+        for candidate in candidates:
+            runtime = "enabled" if candidate.get("runtime_effective_enabled") else "disabled"
+            release = "enabled" if candidate.get("release_effective_enabled") else "disabled"
+            titles = "; ".join(str(title) for title in (candidate.get("titles") or [])[:3])
+            commits = ", ".join(str(commit) for commit in (candidate.get("commits") or [])[:5])
+            lines.append(f"- `{candidate.get('id')}` ({candidate.get('kind')}; runtime {runtime}; release {release})")
+            if titles:
+                lines.append(f"  Evidence: {titles}")
+            if commits:
+                lines.append(f"  Commits: {commits}")
+            lines.append(f"  Action: {candidate.get('recommended_action')}")
+        lines.append("")
+    else:
+        lines.extend(["### Feature Candidates", "", "- None", ""])
+
+    unmapped = report.get("unmapped_user_facing") or []
+    if unmapped:
+        lines.append("### Unmapped User-Facing Feature Commits")
+        lines.append("")
+        for item in unmapped:
+            commits = ", ".join(str(commit) for commit in item.get("commits") or [])
+            suffix = f" ({commits})" if commits else ""
+            lines.append(f"- {item.get('title')}{suffix}")
+        lines.append("")
+
+    lines.append("### Required Gate")
+    lines.append("")
+    lines.append(f"- {report.get('required_human_gate')}")
+    return "\n".join(lines) + "\n"
+
+
 def theme_for_item(item: dict[str, Any]) -> str:
     haystack = " ".join(
         [
@@ -1549,6 +1853,38 @@ def monthly_command(args: argparse.Namespace) -> int:
     return 0
 
 
+def pr_readiness_command(args: argparse.Namespace) -> int:
+    commits = collect_commits(
+        since=args.since,
+        until=args.until,
+        from_ref=args.from_ref,
+        to_ref=args.to_ref,
+        main_ref=args.main_ref,
+        dev_ref=args.dev_ref,
+    )
+    daily_artifacts: list[dict[str, Any]] = []
+    if args.daily_start_date:
+        daily_dir = Path(args.daily_dir).resolve() if args.daily_dir else DEFAULT_DAILY_DIR
+        daily_end = parse_date(args.daily_end_date) if args.daily_end_date else datetime.now(timezone.utc).date()
+        daily_artifacts = load_daily_artifacts(daily_dir, parse_date(args.daily_start_date), daily_end)
+    report = build_pr_readiness_report(
+        commits=commits,
+        daily_artifacts=daily_artifacts,
+        base_ref=args.from_ref or args.main_ref,
+        head_ref=args.to_ref,
+        warnings=feature_config_worktree_warnings(base_ref=args.from_ref or args.main_ref, head_ref=args.to_ref),
+    )
+    rendered = render_pr_readiness_markdown(report) if args.format == "markdown" else dump_yaml(report)
+    if args.output:
+        output_path = Path(args.output).resolve()
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(rendered, encoding="utf-8")
+        print(f"[release-intelligence] wrote {output_path.relative_to(REPO_ROOT) if output_path.is_relative_to(REPO_ROOT) else output_path}", file=sys.stderr)
+    if args.stdout or not args.output:
+        print(rendered, end="")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Generate OpenMates release-intelligence artifacts.")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -1599,6 +1935,21 @@ def build_parser() -> argparse.ArgumentParser:
     monthly.add_argument("--llm-retries", type=int, default=DEFAULT_LLM_RETRIES, help="Retry count for transient or malformed Gemini responses.")
     monthly.add_argument("--no-llm", action="store_true", help="Skip Gemini and emit deterministic source data only.")
     monthly.set_defaults(func=monthly_command)
+
+    pr_readiness = subparsers.add_parser("pr-readiness", help="List feature areas that require human release readiness confirmation before a dev to main PR.")
+    pr_readiness.add_argument("--from-ref", default=DEFAULT_MAIN_REF, help="Lower git range bound, usually origin/main.")
+    pr_readiness.add_argument("--to-ref", default=DEFAULT_DEV_REF, help="Upper git range bound, usually origin/dev.")
+    pr_readiness.add_argument("--main-ref", default=DEFAULT_MAIN_REF, help="Ref used to decide public release reachability.")
+    pr_readiness.add_argument("--dev-ref", default=DEFAULT_DEV_REF, help="Ref used to decide dev reachability.")
+    pr_readiness.add_argument("--since", default=None, help="Optional git log --since window for the selected ref range.")
+    pr_readiness.add_argument("--until", default=None, help="Optional git log --until bound for the selected ref range.")
+    pr_readiness.add_argument("--daily-start-date", default=None, help="Optional first daily release-intelligence date to include as supporting evidence.")
+    pr_readiness.add_argument("--daily-end-date", default=None, help="Optional last daily release-intelligence date to include. Defaults to current UTC date.")
+    pr_readiness.add_argument("--daily-dir", default=None, help="Directory containing daily YYYY-MM-DD.yml artifacts.")
+    pr_readiness.add_argument("--format", choices=("markdown", "yaml"), default="markdown", help="Output format.")
+    pr_readiness.add_argument("--output", default=None, help="Optional output path.")
+    pr_readiness.add_argument("--stdout", action="store_true", help="Print the readiness report to stdout even when --output is used.")
+    pr_readiness.set_defaults(func=pr_readiness_command)
     return parser
 
 

@@ -661,6 +661,58 @@ def test_passing_flake_is_not_counted_as_a_final_failure():
     assert result.summary["failed"] == 0
 
 
+def test_apple_remote_default_nightly_commands_are_serialized(monkeypatch):
+    run_tests = load_run_tests_module()
+    monkeypatch.delenv("OPENMATES_APPLE_REMOTE_NIGHTLY_COMMANDS", raising=False)
+
+    commands = run_tests._apple_remote_commands_for_nightly()
+
+    assert [name for name, _command in commands] == [
+        "sync-repo",
+        "test-ios",
+        "test-macos",
+        "verify-watch-startup",
+    ]
+    assert commands[1][1] == ("test-ios", "--simulator", "iPhone 17")
+
+
+def test_apple_remote_nightly_commands_accept_json_override(monkeypatch):
+    run_tests = load_run_tests_module()
+    monkeypatch.setenv(
+        "OPENMATES_APPLE_REMOTE_NIGHTLY_COMMANDS",
+        json.dumps([
+            {"name": "ios-focused", "command": ["test-ios", "--only-testing", "OpenMatesTests/ExampleTests"]},
+            ["verify-macos-startup", "--duration", "30"],
+        ]),
+    )
+
+    commands = run_tests._apple_remote_commands_for_nightly()
+
+    assert commands == [
+        ("ios-focused", ("test-ios", "--only-testing", "OpenMatesTests/ExampleTests")),
+        ("apple-remote-2", ("verify-macos-startup", "--duration", "30")),
+    ]
+
+
+def test_apple_remote_suite_counts_like_regular_failures():
+    run_tests = load_run_tests_module()
+    suite = run_tests.SuiteResult(
+        status="failed",
+        tests=[
+            {"name": "test-ios", "status": "passed"},
+            {"name": "test-macos", "status": "failed", "error": "xcodebuild failed"},
+        ],
+    )
+
+    result = run_tests.ResultAggregator.build_run_result(
+        {"apple_remote": suite}, "run-1", "sha", "dev", "development", 1.0, {}
+    )
+
+    assert result.summary["total"] == 2
+    assert result.summary["passed"] == 1
+    assert result.summary["failed"] == 1
+
+
 def test_flake_history_is_idempotent_by_run_id(tmp_path, monkeypatch):
     run_tests = load_run_tests_module()
     monkeypatch.setattr(run_tests, "RESULTS_DIR", tmp_path)
