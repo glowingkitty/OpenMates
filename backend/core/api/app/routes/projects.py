@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 from starlette.concurrency import run_in_threadpool
 
-from backend.apps.ai.processing.workspace_ask_planner import WorkspaceAskPlanningError, plan_project_ask
+from backend.apps.ai.processing.workspace_ask_planner import WorkspaceAskPlanningError, run_project_ask_pipeline
 from backend.core.api.app.models.user import User
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user
 from backend.core.api.app.services.feature_availability_guards import ensure_projects_enabled
@@ -71,6 +71,43 @@ async def _record_project_history(
     return {**history, **build_history_commands(history["change_set"]["change_set_id"], history["entries"])}
 
 
+def _project_ask_fallback(message: str) -> Dict[str, Any]:
+    return {
+        "outcome": "fallback_to_chat",
+        "applied": False,
+        "fallback_to_chat": True,
+        "fallback_message": message,
+        "change_set_id": None,
+        "summary": message,
+        "changed_entries": [],
+        "undo_all_command": None,
+        "undo_entry_commands": [],
+        "warnings": [],
+    }
+
+
+def _project_ask_applied_response(*, summary: str, history: dict[str, Any], extra: dict[str, Any]) -> Dict[str, Any]:
+    return {
+        "outcome": "applied",
+        "applied": True,
+        "fallback_to_chat": False,
+        "fallback_message": None,
+        "change_set_id": history["change_set"]["change_set_id"],
+        "summary": summary,
+        "changed_entries": history["entries"],
+        "undo_all_command": history["undo_all_command"],
+        "undo_entry_commands": history["undo_entry_commands"],
+        "warnings": [],
+        "history": history,
+        **extra,
+    }
+
+
+def _project_ask_operation_for_patch(patch: dict[str, Any]) -> str:
+    archive_only_fields = {"archived", "updated_at", "version"}
+    return "archive" if patch and set(patch) <= archive_only_fields and patch.get("archived") is True else "update"
+
+
 class ProjectCreateRequest(BaseModel):
     project_id: str
     encrypted_project_key: str
@@ -101,14 +138,27 @@ class ProjectRestoreRequest(BaseModel):
     state: Literal["before", "after"] = "after"
 
 
-class ProjectAskRequest(BaseModel):
-    instruction: str = Field(min_length=1, max_length=20_000)
-    apply_mode: Literal["auto_apply", "confirm_first"] = "auto_apply"
-    encrypted_create: ProjectCreateRequest | None = None
-
-
 class ProjectAskPlanRequest(BaseModel):
     instruction: str = Field(min_length=1, max_length=20_000)
+
+
+class ProjectAskUpdateRequest(BaseModel):
+    project_id: str = Field(min_length=1)
+    patch: ProjectUpdateRequest
+
+
+class ProjectAskDeleteRequest(BaseModel):
+    project_id: str = Field(min_length=1)
+    version: int | None = None
+
+
+class ProjectAskRequest(BaseModel):
+    instruction: str = Field(min_length=1, max_length=20_000)
+    encrypted_create: ProjectCreateRequest | None = None
+    encrypted_update: ProjectAskUpdateRequest | None = None
+    encrypted_updates: list[ProjectAskUpdateRequest] | None = None
+    exact_delete: ProjectAskDeleteRequest | None = None
+    exact_deletes: list[ProjectAskDeleteRequest] | None = None
 
 
 class ProjectMoveRequest(BaseModel):
@@ -258,8 +308,8 @@ async def plan_project_ask_route(
     if secrets_manager is None:
         raise HTTPException(status_code=503, detail="Workspace ask inference is not configured")
     try:
-        proposal = await plan_project_ask(body.instruction, secrets_manager)
-        return {"proposed_project": proposal.model_dump(), "inference_used": True}
+        result = await run_project_ask_pipeline(body.instruction, secrets_manager)
+        return {"proposed_project": result.proposal.model_dump(), "inference_used": True, "processing": result.processing}
     except WorkspaceAskPlanningError as exc:
         raise HTTPException(status_code=502, detail=f"Workspace ask inference failed: {exc}") from exc
 
@@ -274,42 +324,65 @@ async def ask_projects(
     history_service: WorkspaceChangeHistoryService = Depends(get_workspace_history_service),
 ) -> Dict[str, Any]:
     del request
-    if body.apply_mode == "confirm_first":
-        return {
-            "applied": False,
-            "change_set_id": None,
-            "summary": "Preview requires a client-encrypted project payload before apply.",
-            "changed_entries": [],
-            "undo_all_command": None,
-            "undo_entry_commands": [],
-            "warnings": [],
-            "clarification_required": False,
-        }
-    if body.encrypted_create is None:
-        raise HTTPException(status_code=400, detail="encrypted_create is required for project ask auto-apply")
-    created = await directus_service.project.create_project(current_user.id, body.encrypted_create.model_dump())
-    if not created:
-        raise HTTPException(status_code=500, detail="Failed to create project")
+    encrypted_updates = body.encrypted_updates or ([body.encrypted_update] if body.encrypted_update is not None else [])
+    exact_deletes = body.exact_deletes or ([body.exact_delete] if body.exact_delete is not None else [])
+    operation_count = sum(bool(items) for items in (([body.encrypted_create] if body.encrypted_create is not None else []), encrypted_updates, exact_deletes))
+    if operation_count != 1:
+        return _project_ask_fallback("Open or mention an exact project before asking for project edits, archives, or deletes.")
+    projects: list[dict[str, Any]] = []
+    entries: list[dict[str, Any]] = []
+    action_type = "ask_create"
+    summary = ""
+    if body.encrypted_create is not None:
+        created = await directus_service.project.create_project(current_user.id, body.encrypted_create.model_dump())
+        if not created:
+            raise HTTPException(status_code=500, detail="Failed to create project")
+        projects.append(created)
+        entries.append({"object_type": "project", "object_id": created["project_id"], "operation": "create", "after": created})
+        summary = "Created 1 project."
+    for encrypted_update in encrypted_updates:
+        patch = encrypted_update.patch.model_dump(exclude_unset=True)
+        before = await directus_service.project.get_project(encrypted_update.project_id, current_user.id)
+        updated = await directus_service.project.update_project(encrypted_update.project_id, current_user.id, patch)
+        if not updated:
+            raise HTTPException(status_code=404, detail="Project not found")
+        projects.append(updated)
+        entries.append({
+            "object_type": "project",
+            "object_id": encrypted_update.project_id,
+            "operation": _project_ask_operation_for_patch(patch),
+            "before": before,
+            "after": updated,
+        })
+    for exact_delete in exact_deletes:
+        before = await directus_service.project.get_project(exact_delete.project_id, current_user.id)
+        deleted = await directus_service.project.delete_project(exact_delete.project_id, current_user.id)
+        if not deleted:
+            raise HTTPException(status_code=404, detail="Project not found")
+        entries.append({"object_type": "project", "object_id": exact_delete.project_id, "operation": "delete", "before": before})
+    if encrypted_updates:
+        action_type = "ask_update"
+        summary = f"Updated {len(encrypted_updates)} project(s)."
+    elif exact_deletes:
+        action_type = "ask_delete"
+        summary = f"Deleted {len(exact_deletes)} project(s)."
     history = await _record_project_history(
         history_service,
         current_user.id,
         source="ai_ask",
-        action_type="ask_create",
-        entries=[{"object_type": "project", "object_id": created["project_id"], "operation": "create", "after": created}],
-        redacted_summary="Created 1 project from ask",
+        action_type=action_type,
+        entries=entries,
+        redacted_summary=f"{summary[:-1]} from ask" if summary.endswith(".") else f"{summary} from ask",
     )
-    return {
-        "applied": True,
-        "change_set_id": history["change_set"]["change_set_id"],
-        "summary": "Created 1 project.",
-        "changed_entries": history["entries"],
-        "undo_all_command": history["undo_all_command"],
-        "undo_entry_commands": history["undo_entry_commands"],
-        "warnings": [],
-        "clarification_required": False,
-        "project": created,
-        "history": history,
-    }
+    return _project_ask_applied_response(
+        summary=summary,
+        history=history,
+        extra={
+            "project": projects[0] if len(projects) == 1 else None,
+            "projects": projects,
+            "deleted_project_ids": [exact_delete.project_id for exact_delete in exact_deletes],
+        },
+    )
 
 
 @router.get("/{project_id}")

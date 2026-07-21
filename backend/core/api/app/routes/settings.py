@@ -2085,6 +2085,57 @@ async def get_daily_overview(
         raise HTTPException(status_code=500, detail="Failed to fetch daily overview")
 
 
+@router.get("/usage/overview", include_in_schema=False)
+@limiter.limit("30/minute")
+async def get_usage_overview(
+    request: Request,
+    granularity: Literal["daily", "weekly", "monthly"] = "daily",
+    days: int = 30,
+    weeks: int = 12,
+    months: int = 12,
+    current_user: User = Depends(get_current_user_or_api_key),
+    directus_service: DirectusService = Depends(get_directus_service),
+    cache_service: CacheService = Depends(get_cache_service),
+    encryption_service: EncryptionService = Depends(get_encryption_service),
+):
+    """
+    Fetch fast private usage overview rollups for daily, weekly, or monthly periods.
+    Raw usage rows remain authoritative; missing/stale rollups are rebuilt on demand.
+    """
+    try:
+        count = {"daily": days, "weekly": weeks, "monthly": months}[granularity]
+        max_count = {"daily": 90, "weekly": 52, "monthly": 36}[granularity]
+        if count < 1 or count > max_count:
+            raise HTTPException(status_code=400, detail=f"{granularity} count must be between 1 and {max_count}")
+
+        user_vault_key_id = await cache_service.get_user_vault_key_id(current_user.id)
+        if not user_vault_key_id:
+            user_profile_result = await directus_service.get_user_profile(current_user.id)
+            if not user_profile_result or not user_profile_result[0]:
+                raise HTTPException(status_code=404, detail="User profile not found")
+            user_profile = user_profile_result[1]
+            user_vault_key_id = user_profile.get("vault_key_id")
+            if not user_vault_key_id:
+                raise HTTPException(status_code=500, detail="User encryption key not found")
+            await cache_service.update_user(current_user.id, {"vault_key_id": user_vault_key_id})
+
+        from backend.core.api.app.services.usage_overview_service import UsageOverviewService
+
+        user_id_hash = hashlib.sha256(current_user.id.encode()).hexdigest()
+        service = UsageOverviewService(directus_service=directus_service, encryption_service=encryption_service)
+        return await service.get_overview(
+            user_id_hash=user_id_hash,
+            user_vault_key_id=user_vault_key_id,
+            granularity=granularity,
+            count=count,
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching usage overview for user {current_user.id}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to fetch usage overview")
+
+
 # --- Endpoint for fetching all usage entries for a specific chat (no month filter) ---
 @router.get("/usage/chat-entries", include_in_schema=False)  # Exclude from schema - not in whitelist (available via usage_api)
 @limiter.limit("30/minute")
@@ -3350,7 +3401,7 @@ def _empty_delete_account_preview(total_credits: int = 0) -> DeleteAccountPrevie
 # ============================================================================
 
 # Allowed action identifiers for email OTP verification
-ALLOWED_VERIFICATION_ACTIONS = {"delete_account"}
+ALLOWED_VERIFICATION_ACTIONS = {"delete_account", "delete_team"}
 # TTL for action verification codes: 10 minutes
 ACTION_VERIFICATION_CODE_TTL = 600
 

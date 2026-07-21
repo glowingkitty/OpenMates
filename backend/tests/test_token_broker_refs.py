@@ -196,3 +196,171 @@ async def test_access_token_handle_resolves_only_for_matching_scope() -> None:
     )
 
     assert access_token == "access-secret"
+
+
+@pytest.mark.anyio
+async def test_token_ref_exchange_requires_matching_provider_id() -> None:
+    from backend.core.api.app.services.token_broker import TokenBrokerService
+
+    async def exchange(_refresh_token: str, _scope: dict[str, Any]) -> dict[str, Any]:
+        return {"access_token": "access-secret", "expires_in": 3600}
+
+    broker = TokenBrokerService(
+        cache_service=FakeCache(),
+        encryption_service=FakeEncryption(),
+        exchange_refresh_token=exchange,
+    )
+    ref = await broker.create_turn_token_ref(
+        user_id="user-1",
+        user_vault_key_id="vault-key",
+        connected_account_id="acct-1",
+        chat_id="chat-1",
+        message_id="msg-1",
+        app_id="calendar",
+        provider_id="google",
+        allowed_actions=["read"],
+        refresh_token_envelope={"refresh_token": "refresh-secret", "provider": "google"},
+    )
+
+    metadata = await broker.get_turn_token_ref_metadata(turn_token_ref=ref.turn_token_ref)
+    assert metadata and metadata["provider_id"] == "google"
+
+    with pytest.raises(PermissionError, match="provider"):
+        await broker.exchange_turn_token_ref(
+            turn_token_ref=ref.turn_token_ref,
+            user_id="user-1",
+            user_vault_key_id="vault-key",
+            chat_id="chat-1",
+            message_id="msg-1",
+            app_id="calendar",
+            provider_id="revolut_business",
+            action="read",
+        )
+
+
+@pytest.mark.anyio
+async def test_turn_token_ref_is_single_use_after_successful_exchange() -> None:
+    from backend.core.api.app.services.token_broker import TokenBrokerService
+
+    async def exchange(_refresh_token: str, _scope: dict[str, Any]) -> dict[str, Any]:
+        return {"access_token": "access-secret", "expires_in": 3600}
+
+    broker = TokenBrokerService(
+        cache_service=FakeCache(),
+        encryption_service=FakeEncryption(),
+        exchange_refresh_token=exchange,
+    )
+    ref = await broker.create_turn_token_ref(
+        user_id="user-1",
+        user_vault_key_id="vault-key",
+        connected_account_id="acct-1",
+        chat_id="chat-1",
+        message_id="msg-1",
+        app_id="calendar",
+        provider_id="google",
+        allowed_actions=["read"],
+        refresh_token_envelope={"refresh_token": "refresh-secret", "provider": "google"},
+    )
+
+    handle = await broker.exchange_turn_token_ref(
+        turn_token_ref=ref.turn_token_ref,
+        user_id="user-1",
+        user_vault_key_id="vault-key",
+        chat_id="chat-1",
+        message_id="msg-1",
+        app_id="calendar",
+        provider_id="google",
+        action="read",
+    )
+
+    assert handle.access_token_handle.startswith("ath_")
+    with pytest.raises(PermissionError, match="expired or not found"):
+        await broker.exchange_turn_token_ref(
+            turn_token_ref=ref.turn_token_ref,
+            user_id="user-1",
+            user_vault_key_id="vault-key",
+            chat_id="chat-1",
+            message_id="msg-1",
+            app_id="calendar",
+            provider_id="google",
+            action="read",
+        )
+
+
+@pytest.mark.anyio
+async def test_turn_token_ref_creation_rejects_actions_outside_app_provider_registry() -> None:
+    from backend.core.api.app.services.token_broker import TokenBrokerService
+
+    async def exchange(_refresh_token: str, _scope: dict[str, Any]) -> dict[str, Any]:
+        return {"access_token": "access-secret", "expires_in": 3600}
+
+    broker = TokenBrokerService(
+        cache_service=FakeCache(),
+        encryption_service=FakeEncryption(),
+        exchange_refresh_token=exchange,
+    )
+
+    with pytest.raises(ValueError, match="unsupported connected-account action"):
+        await broker.create_turn_token_ref(
+            user_id="user-1",
+            user_vault_key_id="vault-key",
+            connected_account_id="acct-1",
+            chat_id="chat-1",
+            message_id="msg-1",
+            app_id="finance",
+            provider_id="revolut_business",
+            allowed_actions=["write"],
+            refresh_token_envelope={"refresh_token": "refresh-secret", "provider": "revolut_business"},
+        )
+
+
+def test_token_broker_route_rejects_connected_account_provider_mismatch() -> None:
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    from backend.core.api.app.models.user import User
+    from backend.core.api.app.routes import token_broker
+    from backend.core.api.app.services.directus.team_methods import hash_id
+
+    class FakeDirectus:
+        async def get_items(self, _collection: str, params: dict[str, Any] | None = None):
+            assert params and params["filter[id][_eq]"] == "acct-1"
+            return [
+                {
+                    "id": "acct-1",
+                    "hashed_user_id": hash_id("user-1"),
+                    "provider_type_hash": hash_id("revolut_business"),
+                }
+            ]
+
+    app = FastAPI()
+    app.state.cache_service = FakeCache()
+    app.state.encryption_service = FakeEncryption()
+    app.state.directus_service = FakeDirectus()
+    app.include_router(token_broker.router)
+    app.dependency_overrides[token_broker.get_current_user] = lambda: User(
+        id="user-1",
+        username="alice",
+        vault_key_id="vault-key",
+    )
+    client = TestClient(app)
+
+    response = client.post(
+        "/v1/token-broker/turn-token-refs",
+        json={
+            "chat_id": "chat-1",
+            "message_id": "msg-1",
+            "refs": [
+                {
+                    "connected_account_id": "acct-1",
+                    "app_id": "calendar",
+                    "provider_id": "google",
+                    "allowed_actions": ["read"],
+                    "refresh_token_envelope": {"refresh_token": "refresh-secret", "provider": "google"},
+                }
+            ],
+        },
+    )
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Connected account provider mismatch"

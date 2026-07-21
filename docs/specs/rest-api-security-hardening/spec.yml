@@ -1,7 +1,7 @@
 schema_version: 2
 id: rest-api-security-hardening
 title: REST API Security Hardening
-status: approved
+status: implementing
 
 goal: >
   Harden the OpenMates REST API and WebSocket contract so every externally
@@ -305,7 +305,7 @@ acceptance_criteria:
     scenario: S-7
     text: Every route exposed by dev or prod Caddy has an explicit access classification and owner/team/encryption-boundary metadata in a deterministic inventory.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-ROUTE-INVENTORY-AUDIT]
@@ -313,7 +313,7 @@ acceptance_criteria:
     scenario: S-1
     text: Routes that use generic session-or-API-key auth cannot accept API-key requests unless route-specific scope enforcement has access to API-key metadata.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: related_backend
     verification_ids: [T-AUTH-PRINCIPAL-UNIT, T-API-SCOPE-DENIAL-DEV]
@@ -321,7 +321,7 @@ acceptance_criteria:
     scenario: S-2
     text: Workflows API routes enforce explicit rate limits and API-key scopes before CRUD, run, step-test, or run-response behavior is available to developer keys.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: related_backend
     verification_ids: [T-WORKFLOWS-SCOPE-RATE]
@@ -329,7 +329,7 @@ acceptance_criteria:
     scenario: S-4
     text: Celery task polling proves owner binding and cannot return another user's task result to a valid but unauthorized caller.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: related_backend
     verification_ids: [T-TASK-POLLING-OWNERSHIP]
@@ -337,7 +337,7 @@ acceptance_criteria:
     scenario: S-5
     text: Account import endpoints are rate-limited, size-limited, non-durable for plaintext, and accessible only through approved first-party or explicitly scoped API-key flows.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: related_backend
     verification_ids: [T-ACCOUNT-IMPORT-HARDENING]
@@ -345,15 +345,15 @@ acceptance_criteria:
     scenario: S-2
     text: Intended public/developer APIs still work after hardening, including app-skill REST, SDK session/chats, OpenAI-compatible models/chat completions, webhooks, public docs, geocode, analytics, status, and approved account export/import flows.
     required: true
-    status: pending
-    coverage_status: covered
+    status: blocked
+    coverage_status: blocked
     verification_scope: custom
     verification_ids: [T-REST-SMOKE-DEV, T-CLI-SMOKE-DEV, T-NPM-SDK-SMOKE-DEV, T-PIP-SDK-SMOKE-DEV]
   - id: AC-7
     scenario: S-7
     text: Dev/prod Caddy API allowlist differences are either removed or represented as reviewed exceptions in the route inventory audit.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-CADDY-ALLOWLIST-PARITY]
@@ -361,15 +361,15 @@ acceptance_criteria:
     scenario: S-6
     text: REST API architecture docs and developer-facing reference docs describe the hardened access taxonomy, REST/API-first phase gate, concrete examples, request/response bodies, async task polling, scope names, rate-limit headers/errors, typed error variants, and encryption-boundary rules for each externally supported surface.
     required: true
-    status: pending
-    coverage_status: covered
+    status: blocked
+    coverage_status: blocked
     verification_scope: custom
     verification_ids: [T-DOCS-ARCHITECTURE]
   - id: AC-9
     scenario: S-8
     text: Every endpoint shared with web, CLI, SDK, or Apple is classified for safe parity; non-client-side-encrypted and non-account-security feature endpoints are exposed or preserved through scoped developer REST where feasible, while client-side encrypted data endpoints and sensitive account-security actions are excluded from public developer REST.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-DEVELOPER-REST-SAFE-PARITY, T-REST-SMOKE-DEV]
@@ -521,11 +521,11 @@ tests:
     red_phase:
       required: true
       expected: fail
-      evidence: { status: not_run, run_id: "", timestamp: "", reason: "Audit script does not exist yet and current route inventory is incomplete." }
+      evidence: { status: skipped_with_reason, timestamp: "2026-07-21T09:09:39Z", reason: "Historical red-phase evidence was not preserved in this resumed session; the pre-implementation blocker was the missing audit script and incomplete route inventory documented in A-1." }
     green_phase:
       required: true
       expected: pass_after_implementation
-      evidence: { status: not_run, run_id: "", timestamp: "" }
+      evidence: { status: passed, command: "/home/superdev/projects/OpenMates/.venv/bin/python3 scripts/audit_rest_api_surface.py --check", run_id: "local-rest-surface-audit-20260721T0909Z", timestamp: "2026-07-21T09:09:39Z", subject_commit: "51d44d16+working-tree" }
   - id: T-AUTH-PRINCIPAL-UNIT
     type: pytest
     file: backend/tests/test_auth_dependencies.py
@@ -538,11 +538,11 @@ tests:
     red_phase:
       required: true
       expected: fail
-      evidence: { status: not_run, run_id: "", timestamp: "", reason: "Current generic auth returns only User and cannot expose API-key scopes to callers." }
+      evidence: { status: skipped_with_reason, timestamp: "2026-07-21T09:09:39Z", reason: "Historical red-phase evidence was not preserved in this resumed session; A-1 records that generic auth returned only User and could not expose API-key scopes to route authorization." }
     green_phase:
       required: true
       expected: pass_after_implementation
-      evidence: { status: not_run, run_id: "", timestamp: "" }
+      evidence: { status: passed, command: "/home/superdev/projects/OpenMates/.venv/bin/python3 -m pytest backend/tests/test_auth_dependencies.py backend/tests/test_api_key_scopes.py", run_id: "local-auth-scope-pytest-20260721T0909Z", timestamp: "2026-07-21T09:09:39Z", subject_commit: "51d44d16+working-tree" }
   - id: T-API-SCOPE-DENIAL-DEV
     type: unit
     file: scripts/api_tests/test_rest_api_security_hardening.py
@@ -555,11 +555,11 @@ tests:
     red_phase:
       required: true
       expected: fail
-      evidence: { status: not_run, run_id: "", timestamp: "", reason: "No direct REST hardening smoke script exists yet." }
+      evidence: { status: skipped_with_reason, timestamp: "2026-07-21T09:09:39Z", reason: "Historical red-phase evidence was not preserved in this resumed session; the direct REST hardening smoke script did not exist before the implementation slice." }
     green_phase:
       required: true
       expected: pass_after_implementation
-      evidence: { status: not_run, run_id: "", timestamp: "" }
+      evidence: { status: passed, command: "OPENMATES_API_URL=https://api.dev.openmates.org /home/superdev/projects/OpenMates/.venv/bin/python3 scripts/api_tests/test_rest_api_security_hardening.py --scenario all --skip-build", run_id: "live-rest-hardening-smoke-20260721T0909Z", timestamp: "2026-07-21T09:09:39Z", subject_commit: "51d44d16+working-tree", reason: "Dev has platform task/workflow routes feature-gated; live smoke records FEATURE_DISABLED for those route bodies while unit tests cover enabled-route API-key denial and workflow scope enforcement." }
   - id: T-WORKFLOWS-SCOPE-RATE
     type: pytest
     file: backend/tests/test_workflows_routes_security.py
@@ -572,11 +572,11 @@ tests:
     red_phase:
       required: true
       expected: fail
-      evidence: { status: not_run, run_id: "", timestamp: "", reason: "Current workflows routes use generic auth and lack visible route-level limits." }
+      evidence: { status: skipped_with_reason, timestamp: "2026-07-21T09:09:39Z", reason: "Historical red-phase evidence was not preserved in this resumed session; A-1 records that workflows used generic auth and lacked visible route-level limits." }
     green_phase:
       required: true
       expected: pass_after_implementation
-      evidence: { status: not_run, run_id: "", timestamp: "" }
+      evidence: { status: passed, command: "/home/superdev/projects/OpenMates/.venv/bin/python3 -m pytest backend/tests/test_workflows_routes_security.py backend/tests/test_tasks_api_security.py backend/tests/test_account_import_security.py backend/tests/test_openapi_public_rest_surface.py backend/tests/test_auth_dependencies.py backend/tests/test_api_key_scopes.py", run_id: "local-rest-hardening-pytest-20260721T0909Z", timestamp: "2026-07-21T09:09:39Z", subject_commit: "51d44d16+working-tree" }
   - id: T-TASK-POLLING-OWNERSHIP
     type: pytest
     file: backend/tests/test_tasks_api_security.py
@@ -589,11 +589,11 @@ tests:
     red_phase:
       required: true
       expected: fail
-      evidence: { status: not_run, run_id: "", timestamp: "", reason: "Current route only checks auth and reads AsyncResult by task id." }
+      evidence: { status: skipped_with_reason, timestamp: "2026-07-21T09:09:39Z", reason: "Historical red-phase evidence was not preserved in this resumed session; A-1 records that task polling only checked auth and read AsyncResult by task id." }
     green_phase:
       required: true
       expected: pass_after_implementation
-      evidence: { status: not_run, run_id: "", timestamp: "" }
+      evidence: { status: passed, command: "/home/superdev/projects/OpenMates/.venv/bin/python3 -m pytest backend/tests/test_workflows_routes_security.py backend/tests/test_tasks_api_security.py backend/tests/test_account_import_security.py backend/tests/test_openapi_public_rest_surface.py backend/tests/test_auth_dependencies.py backend/tests/test_api_key_scopes.py", run_id: "local-rest-hardening-pytest-20260721T0909Z", timestamp: "2026-07-21T09:09:39Z", subject_commit: "51d44d16+working-tree" }
   - id: T-ACCOUNT-IMPORT-HARDENING
     type: pytest
     file: backend/tests/test_account_import_security.py
@@ -607,11 +607,11 @@ tests:
     red_phase:
       required: true
       expected: fail
-      evidence: { status: not_run, run_id: "", timestamp: "", reason: "Current account import routes lack visible route-level limit decorators and explicit API-key scope checks." }
+      evidence: { status: skipped_with_reason, timestamp: "2026-07-21T09:09:39Z", reason: "Historical red-phase evidence was not preserved in this resumed session; A-1 records missing account import route limits and explicit API-key scope checks." }
     green_phase:
       required: true
       expected: pass_after_implementation
-      evidence: { status: not_run, run_id: "", timestamp: "" }
+      evidence: { status: passed, command: "/home/superdev/projects/OpenMates/.venv/bin/python3 -m pytest backend/tests/test_workflows_routes_security.py backend/tests/test_tasks_api_security.py backend/tests/test_account_import_security.py backend/tests/test_openapi_public_rest_surface.py backend/tests/test_auth_dependencies.py backend/tests/test_api_key_scopes.py", run_id: "local-rest-hardening-pytest-20260721T0909Z", timestamp: "2026-07-21T09:09:39Z", subject_commit: "51d44d16+working-tree" }
   - id: T-CADDY-ALLOWLIST-PARITY
     type: unit
     file: scripts/audit_rest_api_surface.py
@@ -624,11 +624,11 @@ tests:
     red_phase:
       required: true
       expected: fail
-      evidence: { status: not_run, run_id: "", timestamp: "", reason: "Known dev/prod Caddy allowlist differences exist and no parity audit exists yet." }
+      evidence: { status: skipped_with_reason, timestamp: "2026-07-21T09:09:39Z", reason: "Historical red-phase evidence was not preserved in this resumed session; A-1 records known dev/prod Caddy allowlist drift and no parity audit." }
     green_phase:
       required: true
       expected: pass_after_implementation
-      evidence: { status: not_run, run_id: "", timestamp: "" }
+      evidence: { status: passed, command: "/home/superdev/projects/OpenMates/.venv/bin/python3 scripts/audit_rest_api_surface.py --check-caddy-parity", run_id: "local-caddy-parity-audit-20260721T0909Z", timestamp: "2026-07-21T09:09:39Z", subject_commit: "51d44d16+working-tree" }
   - id: T-DEVELOPER-REST-SAFE-PARITY
     type: unit
     file: scripts/audit_rest_api_surface.py
@@ -643,11 +643,11 @@ tests:
     red_phase:
       required: true
       expected: fail
-      evidence: { status: not_run, run_id: "", timestamp: "", reason: "No shared-endpoint safe-parity audit exists yet, and current route documentation does not distinguish official SDK encrypted routes from generic developer REST." }
+      evidence: { status: skipped_with_reason, timestamp: "2026-07-21T09:09:39Z", reason: "Historical red-phase evidence was not preserved in this resumed session; A-1 records that no shared-endpoint safe-parity audit existed and route documentation did not distinguish official SDK encrypted routes from generic developer REST." }
     green_phase:
       required: true
       expected: pass_after_implementation
-      evidence: { status: not_run, run_id: "", timestamp: "" }
+      evidence: { status: passed, command: "/home/superdev/projects/OpenMates/.venv/bin/python3 scripts/audit_rest_api_surface.py --check-public-rest-parity", run_id: "local-public-rest-parity-audit-20260721T0909Z", timestamp: "2026-07-21T09:09:39Z", subject_commit: "51d44d16+working-tree" }
   - id: T-REST-SMOKE-DEV
     type: unit
     file: scripts/api_tests/test_rest_api_security_hardening.py
@@ -663,11 +663,11 @@ tests:
     red_phase:
       required: true
       expected: fail
-      evidence: { status: not_run, run_id: "", timestamp: "", reason: "No consolidated intended-surface REST smoke script exists yet." }
+      evidence: { status: skipped_with_reason, timestamp: "2026-07-21T09:09:39Z", reason: "Historical red-phase evidence was not preserved in this resumed session; the consolidated intended-surface REST smoke script did not exist before the implementation slice." }
     green_phase:
       required: true
       expected: pass_after_implementation
-      evidence: { status: not_run, run_id: "", timestamp: "" }
+      evidence: { status: passed, command: "OPENMATES_API_URL=https://api.dev.openmates.org /home/superdev/projects/OpenMates/.venv/bin/python3 scripts/api_tests/test_rest_api_security_hardening.py --scenario all --skip-build", run_id: "live-rest-hardening-smoke-20260721T0909Z", timestamp: "2026-07-21T09:09:39Z", subject_commit: "51d44d16+working-tree", reason: "Public docs/geocode/health, OpenAPI exposure, scoped task/plan metadata, and scoped account import preview passed. Workflows are feature-gated on dev and returned FEATURE_DISABLED rather than live CRUD success." }
   - id: T-CLI-SMOKE-DEV
     type: unit
     file: scripts/verify_app_skill_cli_smoke.py
@@ -679,11 +679,11 @@ tests:
     red_phase:
       required: false
       expected: pass_or_fail_existing
-      evidence: { status: not_run, run_id: "", timestamp: "" }
+      evidence: { status: skipped_with_reason, timestamp: "2026-07-21T09:09:39Z", reason: "Optional red phase was not needed for this smoke gate." }
     green_phase:
       required: true
       expected: pass_after_implementation
-      evidence: { status: not_run, run_id: "", timestamp: "" }
+      evidence: { status: blocked, timestamp: "2026-07-21T09:09:39Z", actor: "OpenCode", reason: "Dev currently returns HTTP 404 for CLI task creation in scripts/verify_app_skill_cli_smoke.py because the task route is platform feature-gated.", next_action: "Enable the task feature on dev or update the CLI smoke to use an always-enabled intended surface, then rerun python3 scripts/verify_app_skill_cli_smoke.py --api-url https://api.dev.openmates.org." }
   - id: T-NPM-SDK-SMOKE-DEV
     type: unit
     file: scripts/sdk_cli_parity_live_smoke.py
@@ -695,11 +695,11 @@ tests:
     red_phase:
       required: false
       expected: pass_or_fail_existing
-      evidence: { status: not_run, run_id: "", timestamp: "" }
+      evidence: { status: skipped_with_reason, timestamp: "2026-07-21T09:09:39Z", reason: "Optional red phase was not needed for this smoke gate." }
     green_phase:
       required: true
       expected: pass_after_implementation
-      evidence: { status: not_run, run_id: "", timestamp: "" }
+      evidence: { status: blocked, timestamp: "2026-07-21T09:09:39Z", actor: "OpenCode", reason: "Combined SDK live smoke failed before parity assertions: npm SDK first hit new-device approval 403, then retry hit HTTP 500 Internal service error; --models3d-only reproduced the same post-approval 500; each run revoked its temporary API key.", next_action: "Investigate scripts/sdk_cli_parity_live_smoke.py device approval/retry flow and the dev API 500 after approval, then rerun OPENMATES_LIVE_SMOKE=1 python3 scripts/sdk_cli_parity_live_smoke.py --api-url https://api.dev.openmates.org --name rest-api-security-hardening." }
   - id: T-PIP-SDK-SMOKE-DEV
     type: unit
     file: scripts/sdk_cli_parity_live_smoke.py
@@ -711,11 +711,11 @@ tests:
     red_phase:
       required: false
       expected: pass_or_fail_existing
-      evidence: { status: not_run, run_id: "", timestamp: "" }
+      evidence: { status: skipped_with_reason, timestamp: "2026-07-21T09:09:39Z", reason: "Optional red phase was not needed for this smoke gate." }
     green_phase:
       required: true
       expected: pass_after_implementation
-      evidence: { status: not_run, run_id: "", timestamp: "" }
+      evidence: { status: blocked, timestamp: "2026-07-21T09:09:39Z", actor: "OpenCode", reason: "Combined SDK live smoke failed before pip SDK assertions because npm SDK temporary API-key device approval/retry reached a dev API HTTP 500 first; --models3d-only reproduced the same npm-side blocker.", next_action: "Fix or bypass the npm SDK smoke blocker, then rerun the combined SDK parity live smoke to collect npm and pip evidence." }
   - id: T-DOCS-ARCHITECTURE
     type: pytest
     file: docs/architecture/apps/rest-api.md
@@ -732,11 +732,11 @@ tests:
     red_phase:
       required: true
       expected: fail
-      evidence: { status: not_run, run_id: "", timestamp: "", reason: "Current architecture doc predates the access taxonomy and says REST API cannot decrypt chats without the new classification detail." }
+      evidence: { status: skipped_with_reason, timestamp: "2026-07-21T09:09:39Z", reason: "Historical red-phase evidence was not preserved in this resumed session; the pre-implementation architecture doc predates the access taxonomy and encryption-boundary clarification." }
     green_phase:
       required: true
       expected: pass_after_implementation
-      evidence: { status: not_run, run_id: "", timestamp: "" }
+      evidence: { status: blocked, timestamp: "2026-07-21T09:09:39Z", actor: "OpenCode", reason: "Architecture claims suite reached 79 passed and 1 unrelated failure: missing source frontend/packages/ui/src/components/embeds/FocusModeActivationEmbed.svelte in test_arch_apps_focus_modes_implementation_behavior.", next_action: "Resolve or waive the existing focus-mode architecture source mismatch, then rerun python3 -m pytest scripts/tests/test_architecture_static_claims.py scripts/tests/test_architecture_behavioral_claims.py." }
 
 verifications:
   - id: V-USER-CONFIRMATION
@@ -749,7 +749,7 @@ verifications:
     evidence: { status: pending, timestamp: "", actor: "" }
 
 implementation_plan:
-  status: not_started
+  status: implementing
   spec_path: docs/specs/rest-api-security-hardening/spec.yml
   architecture: >
     Add a deterministic REST API surface inventory that joins FastAPI routes,
@@ -798,6 +798,7 @@ implementation_plan:
     - Direct REST dev-server smoke after restarting affected Docker services.
     - CLI, npm SDK, and pip SDK live smokes against `https://api.dev.openmates.org`.
     - Documentation claim tests and user confirmation.
+    - Current live dev blockers: task/workflow platform feature gates prevent full CLI task and workflow CRUD smokes, and the combined SDK live smoke fails on temporary API-key device approval/retry before npm/pip assertions.
   first_slice: >
     Build `scripts/audit_rest_api_surface.py` with enough inventory metadata to
     fail on current unclassified Caddy/FastAPI exposure, distinguish generic
@@ -848,8 +849,8 @@ implementation_plan:
 tasks:
   - id: TASK-1
     title: Add REST API surface inventory audit
-    status: pending
-    phase: drafting
+    status: done
+    phase: complete
     priority: high
     independently_deployable: false
     verification_command: python3 scripts/audit_rest_api_surface.py --check
@@ -874,8 +875,8 @@ tasks:
       shared_files: []
   - id: TASK-2
     title: Preserve API-key metadata for scope-aware route authorization
-    status: pending
-    phase: drafting
+    status: done
+    phase: complete
     priority: high
     independently_deployable: false
     verification_command: python3 -m pytest backend/tests/test_auth_dependencies.py backend/tests/test_api_key_scopes.py
@@ -900,8 +901,8 @@ tasks:
       shared_files: []
   - id: TASK-3
     title: Harden workflows API access and limits
-    status: pending
-    phase: drafting
+    status: done
+    phase: complete
     priority: high
     independently_deployable: false
     verification_command: python3 -m pytest backend/tests/test_workflows_routes_security.py
@@ -922,8 +923,8 @@ tasks:
       shared_files: []
   - id: TASK-4
     title: Bind Celery task polling to authenticated owners
-    status: pending
-    phase: drafting
+    status: done
+    phase: complete
     priority: high
     independently_deployable: false
     verification_command: python3 -m pytest backend/tests/test_tasks_api_security.py
@@ -944,8 +945,8 @@ tasks:
       shared_files: []
   - id: TASK-5
     title: Harden account import plaintext and API-key boundaries
-    status: pending
-    phase: drafting
+    status: done
+    phase: complete
     priority: high
     independently_deployable: false
     verification_command: python3 -m pytest backend/tests/test_account_import_security.py
@@ -968,8 +969,8 @@ tasks:
       shared_files: []
   - id: TASK-6
     title: Prove intended API surfaces still work
-    status: pending
-    phase: drafting
+    status: blocked
+    phase: blocked
     priority: high
     independently_deployable: true
     verification_command: OPENMATES_API_URL=https://api.dev.openmates.org python3 scripts/api_tests/test_rest_api_security_hardening.py --scenario intended-surfaces
@@ -982,7 +983,9 @@ tasks:
       - scripts/verify_app_skill_cli_smoke.py
       - scripts/sdk_cli_parity_live_smoke.py
     dependencies: [TASK-1, TASK-2, TASK-3, TASK-4, TASK-5]
-    blockers: []
+    blockers:
+      - Dev task/workflow platform feature gates return FEATURE_DISABLED/404 for first-party CLI task creation and workflow CRUD live checks.
+      - Combined SDK live smoke fails before npm/pip assertions on temporary API-key device approval/retry and dev API HTTP 500 after approval, including in --models3d-only mode.
     follow_up_tasks: []
     ownership:
       files:
@@ -992,8 +995,8 @@ tasks:
       shared_files: []
   - id: TASK-7
     title: Update REST API architecture and developer docs
-    status: pending
-    phase: drafting
+    status: blocked
+    phase: blocked
     priority: medium
     independently_deployable: true
     verification_command: python3 -m pytest scripts/tests/test_architecture_static_claims.py scripts/tests/test_architecture_behavioral_claims.py
@@ -1004,7 +1007,8 @@ tasks:
     expected_files:
       - docs/architecture/apps/rest-api.md
     dependencies: [TASK-1, TASK-3, TASK-6]
-    blockers: []
+    blockers:
+      - Architecture claim suite has an unrelated missing focus-mode source: frontend/packages/ui/src/components/embeds/FocusModeActivationEmbed.svelte.
     follow_up_tasks: []
     ownership:
       files:
@@ -1012,7 +1016,7 @@ tasks:
       shared_files: []
 
 implementation_state:
-  subject_commit: 930399a96+working-tree
+  subject_commit: 51d44d16+working-tree
 
 approvals:
   product_contract:
@@ -1037,18 +1041,36 @@ attempts:
         result: generic session/API-key auth returns User only
       - source: backend/core/api/app/services/limiter.py:5
         result: no default limits; explicit route limits required
+  - id: A-2
+    task_id: TASK-6
+    outcome: blocked
+    approach: Recorded green evidence for local REST hardening tests and direct dev REST smokes, then attempted the required CLI/SDK/docs live gates.
+    recorded_at: "2026-07-21T09:09:39Z"
+    evidence:
+      - command: OPENMATES_API_URL=https://api.dev.openmates.org /home/superdev/projects/OpenMates/.venv/bin/python3 scripts/api_tests/test_rest_api_security_hardening.py --scenario all --skip-build
+        result: passed; workflows and encrypted task content route bodies returned FEATURE_DISABLED on dev and were recorded as feature-gated.
+      - command: /home/superdev/projects/OpenMates/.venv/bin/python3 scripts/verify_app_skill_cli_smoke.py --api-url https://api.dev.openmates.org
+        result: blocked by HTTP 404 during CLI tasks create because the dev task route is feature-gated.
+      - command: OPENMATES_LIVE_SMOKE=1 /home/superdev/projects/OpenMates/.venv/bin/python3 scripts/sdk_cli_parity_live_smoke.py --api-url https://api.dev.openmates.org --name rest-api-security-hardening
+        result: blocked by temporary API-key new-device 403 and retry HTTP 500 before npm/pip SDK assertions; temporary key was revoked.
+      - command: OPENMATES_LIVE_SMOKE=1 /home/superdev/projects/OpenMates/.venv/bin/python3 scripts/sdk_cli_parity_live_smoke.py --api-url https://api.dev.openmates.org --name rest-api-security-hardening-models3d --models3d-only
+        result: blocked by the same npm SDK post-approval HTTP 500 in the narrower app-skill-only mode; temporary key was revoked.
+      - command: /home/superdev/projects/OpenMates/.venv/bin/python3 -m pytest scripts/tests/test_architecture_static_claims.py scripts/tests/test_architecture_behavioral_claims.py
+        result: blocked by unrelated missing focus-mode architecture source; 79 tests passed and 1 unrelated assertion failed.
 
 handoff:
-  current_task_id: TASK-1
-  status: ready_for_implementation
-  last_verified_commit: 930399a96+working-tree
-  next_action: "Begin TASK-1 by creating `scripts/audit_rest_api_surface.py` and `scripts/tests/test_rest_api_surface_audit.py`, record red evidence for T-ROUTE-INVENTORY-AUDIT and T-DEVELOPER-REST-SAFE-PARITY, then implement the first audit slice."
-  command: python3 scripts/audit_rest_api_surface.py --check
-  expected_outcome: The new audit fails red until route classification, Caddy parity, and safe developer REST parity metadata are implemented.
+  current_task_id: TASK-6
+  status: blocked_on_external_checks
+  last_verified_commit: 51d44d16+working-tree
+  next_action: "Resolve the remaining live gate blockers: dev task/workflow feature gates for CLI/workflow smokes, SDK temporary API-key device approval/retry plus post-approval 500, and unrelated focus-mode architecture claim source mismatch; then rerun spec_verify.py."
+  command: python3 scripts/spec_verify.py docs/specs/rest-api-security-hardening/spec.yml
+  expected_outcome: The spec remains incomplete until CLI/SDK/docs gates and user confirmation are collected.
   blocker:
+    task_id: TASK-6
     requires_user_input: false
-    reason: ""
+    reason: "Remaining blockers are environment/existing-test issues, not product-contract questions."
     question: ""
+    next_action: "Enable dev task/workflow feature gates or adjust live smokes to always-enabled surfaces, fix SDK temporary device approval/retry plus post-approval 500, and resolve the unrelated focus-mode architecture claim source mismatch."
 
 risks:
   - id: R-1

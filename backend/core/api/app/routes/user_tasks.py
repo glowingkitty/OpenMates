@@ -13,7 +13,7 @@ from pydantic import BaseModel, Field
 from starlette.concurrency import run_in_threadpool
 
 from backend.apps.ai.processing.task_proposals import extract_review_task_proposals
-from backend.apps.ai.processing.workspace_ask_planner import WorkspaceAskPlanningError, plan_task_ask
+from backend.apps.ai.processing.workspace_ask_planner import WorkspaceAskPlanningError, run_task_ask_pipeline
 from backend.core.api.app.models.user import User
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user_or_api_key
 from backend.core.api.app.services.directus.team_methods import TeamPermissionError
@@ -161,11 +161,24 @@ class UserTaskRestoreRequest(BaseModel):
     state: Literal["before", "after"] = "after"
 
 
+class UserTaskAskUpdateRequest(BaseModel):
+    task_id: str = Field(min_length=1)
+    patch: UserTaskUpdateRequest
+
+
+class UserTaskAskDeleteRequest(BaseModel):
+    task_id: str = Field(min_length=1)
+    version: int
+
+
 class UserTaskAskRequest(BaseModel):
     instruction: str = Field(min_length=1, max_length=20_000)
-    apply_mode: Literal["auto_apply", "confirm_first"] = "auto_apply"
     encrypted_create: UserTaskCreateRequest | None = None
     encrypted_creates: list[UserTaskCreateRequest] | None = None
+    encrypted_update: UserTaskAskUpdateRequest | None = None
+    encrypted_updates: list[UserTaskAskUpdateRequest] | None = None
+    exact_delete: UserTaskAskDeleteRequest | None = None
+    exact_deletes: list[UserTaskAskDeleteRequest] | None = None
 
 
 class UserTaskAskPlanRequest(BaseModel):
@@ -238,6 +251,43 @@ async def _record_task_history(
         redacted_summary=redacted_summary,
     )
     return {**history, **build_history_commands(history["change_set"]["change_set_id"], history["entries"])}
+
+
+def _task_ask_fallback(message: str) -> dict[str, Any]:
+    return {
+        "outcome": "fallback_to_chat",
+        "applied": False,
+        "fallback_to_chat": True,
+        "fallback_message": message,
+        "change_set_id": None,
+        "summary": message,
+        "changed_entries": [],
+        "undo_all_command": None,
+        "undo_entry_commands": [],
+        "warnings": [],
+    }
+
+
+def _task_ask_applied_response(*, summary: str, history: dict[str, Any], extra: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "outcome": "applied",
+        "applied": True,
+        "fallback_to_chat": False,
+        "fallback_message": None,
+        "change_set_id": history["change_set"]["change_set_id"],
+        "summary": summary,
+        "changed_entries": history["entries"],
+        "undo_all_command": history["undo_all_command"],
+        "undo_entry_commands": history["undo_entry_commands"],
+        "warnings": [],
+        "history": history,
+        **extra,
+    }
+
+
+def _task_ask_operation_for_patch(patch: dict[str, Any]) -> str:
+    status_only_fields = {"status", "updated_at", "version", "blocked_reason_code"}
+    return "status" if patch and set(patch) <= status_only_fields else "update"
 
 
 def _unwrap_query_default(value: Any) -> Any:
@@ -352,8 +402,8 @@ async def plan_user_task_ask(
     if secrets_manager is None:
         raise HTTPException(status_code=503, detail="Workspace ask inference is not configured")
     try:
-        proposals = await plan_task_ask(body.instruction, secrets_manager)
-        return {"proposed_tasks": [proposal.model_dump() for proposal in proposals], "inference_used": True}
+        result = await run_task_ask_pipeline(body.instruction, secrets_manager)
+        return {"proposed_tasks": [proposal.model_dump() for proposal in result.proposal], "inference_used": True, "processing": result.processing}
     except WorkspaceAskPlanningError as exc:
         raise HTTPException(status_code=502, detail=f"Workspace ask inference failed: {exc}") from exc
 
@@ -368,45 +418,64 @@ async def ask_user_tasks(
     history_service: WorkspaceChangeHistoryService = Depends(get_workspace_history_service),
 ) -> dict[str, Any]:
     current_user = await _current_user(request, response)
-    if body.apply_mode == "confirm_first":
-        return {
-            "applied": False,
-            "change_set_id": None,
-            "summary": "Preview requires a client-encrypted task payload before apply.",
-            "changed_entries": [],
-            "undo_all_command": None,
-            "undo_entry_commands": [],
-            "warnings": [],
-            "clarification_required": False,
-        }
     encrypted_creates = body.encrypted_creates or ([body.encrypted_create] if body.encrypted_create is not None else [])
-    if not encrypted_creates:
-        raise HTTPException(status_code=400, detail="encrypted_create or encrypted_creates is required for task ask auto-apply")
+    encrypted_updates = body.encrypted_updates or ([body.encrypted_update] if body.encrypted_update is not None else [])
+    exact_deletes = body.exact_deletes or ([body.exact_delete] if body.exact_delete is not None else [])
+    operation_count = sum(bool(items) for items in (encrypted_creates, encrypted_updates, exact_deletes))
+    if operation_count != 1:
+        return _task_ask_fallback("Open or mention exact tasks before asking for task edits, deletes, or status changes.")
     try:
-        tasks = []
+        tasks: list[dict[str, Any]] = []
+        entries: list[dict[str, Any]] = []
+        action_type = "ask_create"
+        summary = ""
         for encrypted_create in encrypted_creates:
-            tasks.append(await service.create_task(current_user.id, encrypted_create.model_dump()))
+            task = await service.create_task(current_user.id, encrypted_create.model_dump())
+            tasks.append(task)
+            entries.append({"object_type": "task", "object_id": task["task_id"], "operation": "create", "after": task})
+        for encrypted_update in encrypted_updates:
+            patch = encrypted_update.patch.model_dump(exclude_unset=True)
+            before = await service.task_methods.get_task(encrypted_update.task_id, current_user.id)
+            task = await service.update_task(encrypted_update.task_id, current_user.id, patch)
+            tasks.append(task)
+            entries.append({
+                "object_type": "task",
+                "object_id": encrypted_update.task_id,
+                "operation": _task_ask_operation_for_patch(patch),
+                "before": before,
+                "after": task,
+            })
+        for exact_delete in exact_deletes:
+            before = await service.task_methods.get_task(exact_delete.task_id, current_user.id)
+            deleted = await service.task_methods.delete_task(exact_delete.task_id, current_user.id, exact_delete.version)
+            if not deleted:
+                raise HTTPException(status_code=404, detail="Task not found")
+            entries.append({"object_type": "task", "object_id": exact_delete.task_id, "operation": "delete", "before": before})
+        if encrypted_updates:
+            action_type = "ask_update"
+            summary = f"Updated {len(encrypted_updates)} task(s)."
+        elif exact_deletes:
+            action_type = "ask_delete"
+            summary = f"Deleted {len(exact_deletes)} task(s)."
+        else:
+            summary = f"Created {len(encrypted_creates)} task(s)."
         history = await _record_task_history(
             history_service,
             current_user.id,
             source="ai_ask",
-            action_type="ask_create",
-            entries=[{"object_type": "task", "object_id": task["task_id"], "operation": "create", "after": task} for task in tasks],
-            redacted_summary=f"Created {len(tasks)} task(s) from ask",
+            action_type=action_type,
+            entries=entries,
+            redacted_summary=f"{summary[:-1]} from ask" if summary.endswith(".") else f"{summary} from ask",
         )
-        return {
-            "applied": True,
-            "change_set_id": history["change_set"]["change_set_id"],
-            "summary": f"Created {len(tasks)} task(s).",
-            "changed_entries": history["entries"],
-            "undo_all_command": history["undo_all_command"],
-            "undo_entry_commands": history["undo_entry_commands"],
-            "warnings": [],
-            "clarification_required": False,
-            "task": tasks[0] if len(tasks) == 1 else None,
-            "tasks": tasks,
-            "history": history,
-        }
+        return _task_ask_applied_response(
+            summary=summary,
+            history=history,
+            extra={
+                "task": tasks[0] if len(tasks) == 1 else None,
+                "tasks": tasks,
+                "deleted_task_ids": [exact_delete.task_id for exact_delete in exact_deletes],
+            },
+        )
     except Exception as exc:
         _handle_task_error(exc)
 

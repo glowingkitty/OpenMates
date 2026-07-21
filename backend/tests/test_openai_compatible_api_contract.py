@@ -17,8 +17,11 @@ from backend.core.api.app.routes import openai_compat
 
 
 class FakeConfigManager:
+    def __init__(self, providers: Dict[str, Dict[str, Any]] | None = None) -> None:
+        self._providers = providers
+
     def get_provider_configs(self) -> Dict[str, Dict[str, Any]]:
-        return {
+        return self._providers or {
             "openai": {
                 "provider_id": "openai",
                 "name": "OpenAI",
@@ -54,11 +57,28 @@ class FakeConfigManager:
             },
         }
 
+    def get_provider_config(self, provider_id: str) -> Dict[str, Any] | None:
+        return self.get_provider_configs().get(provider_id)
 
-def _client() -> TestClient:
+
+class FakeSecretsManager:
+    vault_token = "test-token"
+    vault_url = "http://vault.test"
+
+    def __init__(self, configured: set[str] | None = None) -> None:
+        self.configured = configured or {"openai", "anthropic"}
+
+    async def get_secret(self, *, secret_path: str, secret_key: str) -> str | None:
+        if secret_key != "api_key":
+            return None
+        provider_id = secret_path.rsplit("/", 1)[-1]
+        return "configured" if provider_id in self.configured else None
+
+
+def _client(config: FakeConfigManager | None = None, secrets_manager: FakeSecretsManager | None = None) -> TestClient:
     app = FastAPI()
-    app.state.config_manager = FakeConfigManager()
-    app.state.secrets_manager = object()
+    app.state.config_manager = config or FakeConfigManager()
+    app.state.secrets_manager = secrets_manager or FakeSecretsManager()
     app.state.directus_service = object()
     app.dependency_overrides[openai_compat.get_session_or_api_key_info] = lambda: {
         "user_id": "user-1",
@@ -82,6 +102,32 @@ def test_models_returns_openai_model_list_from_chat_provider_metadata() -> None:
     assert data["data"][0]["object"] == "model"
     assert isinstance(data["data"][0]["created"], int)
     assert data["data"][0]["owned_by"] == "anthropic"
+
+
+def test_models_omits_chat_models_when_required_provider_key_is_missing(monkeypatch) -> None:
+    monkeypatch.delenv("SECRET__ANTHROPIC__API_KEY", raising=False)
+
+    response = _client(secrets_manager=FakeSecretsManager(configured={"openai"})).get("/v1/models")
+
+    assert response.status_code == 200
+    model_ids = [model["id"] for model in response.json()["data"]]
+    assert model_ids == ["openai/gpt-4o-mini"]
+
+
+def test_models_keep_no_api_key_provider_visible_without_secret() -> None:
+    config = FakeConfigManager({
+        "open_meteo": {
+            "provider_id": "open_meteo",
+            "name": "Open-Meteo",
+            "no_api_key": True,
+            "models": [{"id": "weather-chat", "for_app_skill": "ai.ask", "output_types": ["text"]}],
+        }
+    })
+
+    response = _client(config=config, secrets_manager=FakeSecretsManager(configured=set())).get("/v1/models")
+
+    assert response.status_code == 200
+    assert [model["id"] for model in response.json()["data"]] == ["open_meteo/weather-chat"]
 
 
 def test_get_model_returns_one_model_or_openai_style_404() -> None:

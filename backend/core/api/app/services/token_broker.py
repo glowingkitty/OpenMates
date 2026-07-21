@@ -15,6 +15,8 @@ import time
 from dataclasses import dataclass
 from typing import Any, Awaitable, Callable
 
+from backend.shared.python_utils.connected_account_registry import is_connected_account_action_allowed
+
 
 DEFAULT_TURN_TOKEN_REF_TTL_SECONDS = 5 * 60
 DEFAULT_ACCESS_TOKEN_HANDLE_TTL_SECONDS = 5 * 60
@@ -28,6 +30,7 @@ class TurnTokenRef:
 
     turn_token_ref: str
     expires_at: int
+    provider_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -71,6 +74,7 @@ class TokenBrokerService:
         app_id: str,
         allowed_actions: list[str],
         refresh_token_envelope: dict[str, Any],
+        provider_id: str | None = None,
         action_scope: dict[str, Any] | None = None,
         team_id: str | None = None,
     ) -> TurnTokenRef:
@@ -87,13 +91,31 @@ class TokenBrokerService:
             json.dumps(refresh_token_envelope),
             user_vault_key_id,
         )
+        normalized_provider_id = _normalize_provider_id(
+            provider_id
+            or refresh_token_envelope.get("provider_id")
+            or refresh_token_envelope.get("provider")
+            or app_id
+        )
+        normalized_app_id = _normalize_app_id(app_id)
+        invalid_actions = [
+            action
+            for action in sorted(set(allowed_actions))
+            if not is_connected_account_action_allowed(normalized_app_id, normalized_provider_id, action)
+        ]
+        if invalid_actions:
+            raise ValueError(
+                "allowed_actions contains unsupported connected-account action(s): "
+                + ", ".join(invalid_actions)
+            )
         payload = {
             "user_id": user_id,
             "connected_account_id": connected_account_id,
             "team_id": team_id,
             "chat_id": chat_id,
             "message_id": message_id,
-            "app_id": app_id,
+            "app_id": normalized_app_id,
+            "provider_id": normalized_provider_id,
             "allowed_actions": sorted(set(allowed_actions)),
             "action_scope": action_scope or {},
             "encrypted_refresh_token_envelope": encrypted_envelope,
@@ -106,7 +128,7 @@ class TokenBrokerService:
         )
         if not ok:
             raise RuntimeError("token broker failed to store turn token ref")
-        return TurnTokenRef(turn_token_ref=token_ref, expires_at=expires_at)
+        return TurnTokenRef(turn_token_ref=token_ref, expires_at=expires_at, provider_id=normalized_provider_id)
 
     async def exchange_turn_token_ref(
         self,
@@ -118,6 +140,7 @@ class TokenBrokerService:
         message_id: str,
         app_id: str,
         action: str,
+        provider_id: str | None = None,
         action_scope: dict[str, Any] | None = None,
         team_id: str | None = None,
     ) -> AccessTokenHandle:
@@ -134,6 +157,7 @@ class TokenBrokerService:
             chat_id=chat_id,
             message_id=message_id,
             app_id=app_id,
+            provider_id=provider_id,
             action=action,
         )
         requested_scope = action_scope or {}
@@ -159,8 +183,10 @@ class TokenBrokerService:
             {
                 "connected_account_id": payload["connected_account_id"],
                 "app_id": app_id,
+                "provider_id": payload.get("provider_id"),
                 "action": action,
                 "action_scope": requested_scope or stored_scope,
+                "refresh_token_envelope": envelope,
             },
         )
         access_token = token_response.get("access_token")
@@ -179,6 +205,7 @@ class TokenBrokerService:
             "chat_id": chat_id,
             "message_id": message_id,
             "app_id": app_id,
+            "provider_id": payload.get("provider_id"),
             "action": action,
             "action_scope": requested_scope or stored_scope,
             "encrypted_access_token": encrypted_access_token,
@@ -191,6 +218,7 @@ class TokenBrokerService:
         )
         if not ok:
             raise RuntimeError("token broker failed to store access token handle")
+        await self.cache.delete(self._turn_token_key(turn_token_ref))
 
         rotated = token_response.get("rotated_refresh_token_bundle")
         return AccessTokenHandle(
@@ -233,6 +261,7 @@ class TokenBrokerService:
         message_id: str,
         app_id: str,
         action: str,
+        provider_id: str | None = None,
         action_scope: dict[str, Any] | None = None,
     ) -> str:
         """Decrypt a matching short-lived access-token handle for provider calls."""
@@ -246,6 +275,7 @@ class TokenBrokerService:
             chat_id=chat_id,
             message_id=message_id,
             app_id=app_id,
+            provider_id=provider_id,
             action=action,
         )
         requested_scope = action_scope or {}
@@ -269,6 +299,7 @@ class TokenBrokerService:
         chat_id: str,
         message_id: str,
         app_id: str,
+        provider_id: str | None,
         action: str,
     ) -> None:
         if payload.get("user_id") != user_id:
@@ -281,6 +312,8 @@ class TokenBrokerService:
             raise PermissionError("turn token ref message mismatch")
         if _normalize_app_id(payload.get("app_id")) != _normalize_app_id(app_id):
             raise PermissionError("turn token ref app mismatch")
+        if provider_id and payload.get("provider_id") and payload.get("provider_id") != _normalize_provider_id(provider_id):
+            raise PermissionError("turn token ref provider mismatch")
         if action not in set(payload.get("allowed_actions") or []):
             raise PermissionError("turn token ref action mismatch")
 
@@ -292,6 +325,7 @@ class TokenBrokerService:
         chat_id: str,
         message_id: str,
         app_id: str,
+        provider_id: str | None,
         action: str,
     ) -> None:
         if payload.get("user_id") != user_id:
@@ -302,6 +336,8 @@ class TokenBrokerService:
             raise PermissionError("access token handle message mismatch")
         if _normalize_app_id(payload.get("app_id")) != _normalize_app_id(app_id):
             raise PermissionError("access token handle app mismatch")
+        if provider_id and payload.get("provider_id") and payload.get("provider_id") != _normalize_provider_id(provider_id):
+            raise PermissionError("access token handle provider mismatch")
         if payload.get("action") != action:
             raise PermissionError("access token handle action mismatch")
 
@@ -318,3 +354,12 @@ def _normalize_app_id(value: Any) -> str:
     if value == "google_calendar":
         return "calendar"
     return str(value or "")
+
+
+def _normalize_provider_id(value: Any) -> str:
+    normalized = str(value or "").strip()
+    if normalized in {"calendar", "google_calendar"}:
+        return "google"
+    if normalized == "finance":
+        return "revolut_business"
+    return normalized

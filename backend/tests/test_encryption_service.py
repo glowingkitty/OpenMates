@@ -357,6 +357,43 @@ class TestEncryptionService:
             result = await encryption_service.decrypt_with_user_key("", "key_id")
             assert result is None
 
+        @pytest.mark.asyncio
+        async def test_decrypt_many_with_user_key_batches_valid_ciphertexts(self, encryption_service):
+            """Test user-specific batch decryption preserves order and context."""
+            key_id = "user_12345"
+            response = {
+                "data": {
+                    "batch_results": [
+                        {"plaintext": base64.b64encode(b"first").decode("utf-8")},
+                        {"plaintext": base64.b64encode(b"second").decode("utf-8")},
+                    ]
+                }
+            }
+
+            with patch.object(encryption_service, "_vault_request", return_value=response) as mock_request:
+                result = await encryption_service.decrypt_many_with_user_key(
+                    ["vault:v1:first", "not-vault", "vault:v1:second"],
+                    key_id,
+                )
+
+            assert result == ["first", None, "second"]
+            mock_request.assert_called_once()
+            method, path, payload = mock_request.call_args[0]
+            assert method == "post"
+            assert path == f"transit/decrypt/{key_id}"
+            assert payload == {
+                "batch_input": [
+                    {
+                        "ciphertext": "vault:v1:first",
+                        "context": base64.b64encode(key_id.encode()).decode("utf-8"),
+                    },
+                    {
+                        "ciphertext": "vault:v1:second",
+                        "context": base64.b64encode(key_id.encode()).decode("utf-8"),
+                    },
+                ]
+            }
+
     class TestEmailOperations:
         """Test email-related encryption operations"""
 

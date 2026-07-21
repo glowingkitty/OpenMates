@@ -15,7 +15,7 @@ import time
 import uuid
 from typing import Any, TYPE_CHECKING
 
-from fastapi import APIRouter, Body, HTTPException, Query, Request
+from fastapi import APIRouter, Body, HTTPException, Query, Request, Response
 from pydantic import BaseModel, Field
 
 from backend.core.api.app.models.user import User
@@ -46,6 +46,8 @@ from backend.core.api.app.routes.ideabucket import (
 )
 from backend.core.api.app.services.directus.team_methods import TeamPermissionError
 from backend.core.api.app.services.team_chat_ai_service import should_trigger_team_ai
+from backend.shared.providers.google_calendar.oauth import GoogleOAuthTokenExchangeError
+from backend.shared.providers.revolut_business.oauth import RevolutBusinessTokenExchangeError
 
 from backend.core.api.app.utils.api_key_auth import (
     ApiKeyAuthService,
@@ -134,6 +136,15 @@ class SdkChatCreateRequest(BaseModel):
     team_id_hash: str | None = Field(default=None)
     team_workspace_type: str | None = Field(default="chat")
     team_object_id_hash: str | None = Field(default=None)
+    connected_account_directory: list[dict[str, Any]] = Field(default_factory=list)
+    connected_account_token_ref_inputs: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class SdkConnectedAccountSkillRunRequest(BaseModel):
+    input: dict[str, Any] = Field(default_factory=dict)
+    connected_account_token_ref_inputs: list[dict[str, Any]] = Field(default_factory=list)
+    chat_id: str | None = None
+    message_id: str | None = None
 
 
 class SdkRecoveryClaimRequest(BaseModel):
@@ -352,6 +363,9 @@ def _extract_chat_response_content(result: Any) -> str | None:
         return None
     if isinstance(result.get("content"), str):
         return result["content"]
+    response = result.get("response")
+    if isinstance(response, dict) and isinstance(response.get("content"), str):
+        return response["content"]
     choices = result.get("choices")
     if not isinstance(choices, list) or not choices:
         return None
@@ -406,6 +420,79 @@ async def _execute_sdk_recovery(
         return await ChatRecoveryService(request.app.state.directus_service).execute(operation, data)
     except ChatRecoveryProtocolError as exc:
         raise HTTPException(status_code=exc.status_code, detail={"error": exc.code}) from exc
+
+
+async def _create_sdk_connected_account_turn_token_refs(
+    *,
+    request: Request,
+    api_key_info: dict[str, Any],
+    chat_id: str,
+    message_id: str,
+    token_ref_inputs: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    if not token_ref_inputs:
+        return []
+    from backend.core.api.app.routes.token_broker import _assert_connected_account_context
+    from backend.core.api.app.services.token_broker import TokenBrokerService
+
+    user_id = str(api_key_info["user_id"])
+    vault_key_id = str(api_key_info.get("vault_key_id") or "")
+    if not vault_key_id:
+        raise HTTPException(status_code=403, detail="User vault key is required for connected-account token brokerage")
+
+    async def _unused_exchange_refresh_token(_refresh_token: str, _scope_context: dict[str, Any]) -> dict[str, Any]:
+        raise RuntimeError("SDK token ref creation must not exchange refresh tokens")
+
+    broker = TokenBrokerService(
+        cache_service=request.app.state.cache_service,
+        encryption_service=request.app.state.encryption_service,
+        exchange_refresh_token=_unused_exchange_refresh_token,
+    )
+    token_refs: list[dict[str, Any]] = []
+    for token_input in token_ref_inputs:
+        if not isinstance(token_input, dict):
+            raise HTTPException(status_code=400, detail="connected_account_token_ref_inputs entries must be objects")
+        app_id = str(token_input.get("app_id") or "")
+        provider_id = str(token_input.get("provider_id") or token_input.get("provider") or app_id)
+        allowed_actions = [str(action) for action in (token_input.get("allowed_actions") or [])]
+        connected_account_id = str(token_input.get("connected_account_id") or "")
+        await _assert_connected_account_context(
+            directus_service=request.app.state.directus_service,
+            account_id=connected_account_id,
+            user_id=user_id,
+            team_id=None,
+            app_id=app_id,
+            provider_id=provider_id,
+            allowed_actions=allowed_actions,
+        )
+        action_scope = token_input.get("action_scope") or {}
+        try:
+            ref = await broker.create_turn_token_ref(
+                user_id=user_id,
+                user_vault_key_id=vault_key_id,
+                connected_account_id=connected_account_id,
+                chat_id=chat_id,
+                message_id=message_id,
+                app_id=app_id,
+                provider_id=provider_id,
+                allowed_actions=allowed_actions,
+                refresh_token_envelope=dict(token_input.get("refresh_token_envelope") or {}),
+                action_scope=action_scope if isinstance(action_scope, dict) else {},
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        token_refs.append(
+            {
+                "connected_account_id": connected_account_id,
+                "app_id": app_id,
+                "provider_id": provider_id,
+                "allowed_actions": allowed_actions,
+                "action_scope": action_scope if isinstance(action_scope, dict) else {},
+                "turn_token_ref": ref.turn_token_ref,
+                "expires_at": ref.expires_at,
+            }
+        )
+    return token_refs
 
 
 async def _sdk_user_from_api_key(
@@ -866,6 +953,25 @@ async def _dispatch_sdk_surface(
             settings_routes = _sdk_route_module("settings")
 
             return await _sdk_route_handler(settings_routes.get_daily_overview)(request, _bounded_int_query(request, "days", default=7, minimum=1, maximum=90), user, directus_service, cache_service)
+        if path == "usage/overview" and request.method == "GET":
+            settings_routes = _sdk_route_module("settings")
+
+            granularity = request.query_params.get("granularity", "daily")
+            if granularity not in {"daily", "weekly", "monthly"}:
+                raise HTTPException(status_code=400, detail="Invalid granularity")
+            count_name = {"daily": "days", "weekly": "weeks", "monthly": "months"}[granularity]
+            default_count = {"daily": 30, "weekly": 12, "monthly": 12}[granularity]
+            return await _sdk_route_handler(settings_routes.get_usage_overview)(
+                request,
+                granularity,
+                _bounded_int_query(request, "days", default=default_count if count_name == "days" else 30, minimum=1, maximum=90),
+                _bounded_int_query(request, "weeks", default=default_count if count_name == "weeks" else 12, minimum=1, maximum=52),
+                _bounded_int_query(request, "months", default=default_count if count_name == "months" else 12, minimum=1, maximum=36),
+                user,
+                directus_service,
+                cache_service,
+                encryption_service,
+            )
         if path == "usage/export" and request.method == "GET":
             settings_routes = _sdk_route_module("settings")
 
@@ -1240,6 +1346,15 @@ async def create_sdk_chat(
         }
 
     history_messages = [message for message in request_body.history if isinstance(message, dict)]
+    connected_account_chat_id = request_body.chat_id or f"sdk-connected-account-{uuid.uuid4()}"
+    connected_account_message_id = request_body.message_id or f"sdk-connected-account-message-{uuid.uuid4()}"
+    connected_account_token_refs = await _create_sdk_connected_account_turn_token_refs(
+        request=request,
+        api_key_info=api_key_info,
+        chat_id=connected_account_chat_id,
+        message_id=connected_account_message_id,
+        token_ref_inputs=request_body.connected_account_token_ref_inputs,
+    )
     payload = {
         "messages": [*history_messages, {"role": "user", "content": request_body.message}],
         "model": request_body.model,
@@ -1252,6 +1367,10 @@ async def create_sdk_chat(
         "_device_hash": api_key_info.get("device_hash"),
         "_external_request": True,
     }
+    if request_body.connected_account_directory:
+        payload["connected_account_directory"] = request_body.connected_account_directory
+    if connected_account_token_refs:
+        payload["connected_account_token_refs"] = connected_account_token_refs
     if request_body.memory_ids:
         payload["memory_ids"] = request_body.memory_ids
     if request_body.focus_mode:
@@ -1478,9 +1597,187 @@ async def process_sdk_ideabucket_bucket(
         user_id=str(api_key_info["user_id"]),
         bucket_id=bucket_id,
         now=request_body.now,
+        confirmation_token=request_body.confirmation_token,
         cache_service=request.app.state.cache_service,
         directus_service=request.app.state.directus_service,
     )
+
+
+@router.post("/connected-account-skills/{app_id}/{skill_id}")
+async def run_sdk_connected_account_skill_route(
+    request: Request,
+    response: Response,
+    app_id: str,
+    skill_id: str,
+    request_body: SdkConnectedAccountSkillRunRequest,
+) -> dict[str, Any]:
+    return await run_sdk_connected_account_skill(request, app_id, skill_id, request_body, response=response)
+
+
+async def run_sdk_connected_account_skill(
+    request: Request,
+    app_id: str,
+    skill_id: str,
+    request_body: SdkConnectedAccountSkillRunRequest,
+    *,
+    response: Response | None = None,
+) -> dict[str, Any]:
+    api_key_info = await _authenticate_connected_account_skill_request(request, response or Response())
+    from backend.apps.ai.processing.connected_account_execution import (
+        cleanup_connected_account_token_artifacts,
+        prepare_connected_account_skill_execution,
+    )
+    from backend.core.api.app.routes.apps_api import call_app_skill
+    from backend.core.api.app.routes.token_broker import _assert_connected_account_context
+    from backend.core.api.app.services.token_broker import TokenBrokerService
+    from backend.shared.python_utils.connected_account_registry import (
+        action_scope_for_request,
+        connected_account_skill_config,
+    )
+
+    config = connected_account_skill_config(app_id, skill_id)
+    user_id = str(api_key_info["user_id"])
+    vault_key_id = str(api_key_info.get("vault_key_id") or "")
+    if not vault_key_id:
+        raise HTTPException(status_code=403, detail="User vault key is required for connected-account skill execution")
+    chat_id = request_body.chat_id or f"sdk-connected-account-{uuid.uuid4()}"
+    message_id = request_body.message_id or f"sdk-connected-account-message-{uuid.uuid4()}"
+
+    skill_input = dict(request_body.input or {})
+    requests = skill_input.get(config.request_field)
+    if requests is None:
+        requests = []
+    if not isinstance(requests, list):
+        raise HTTPException(status_code=400, detail=f"{config.request_field} must be an array")
+
+    async def _unused_exchange_refresh_token(_refresh_token: str, _scope_context: dict[str, Any]) -> dict[str, Any]:
+        raise RuntimeError("SDK token ref creation must not exchange refresh tokens")
+
+    broker = TokenBrokerService(
+        cache_service=request.app.state.cache_service,
+        encryption_service=request.app.state.encryption_service,
+        exchange_refresh_token=_unused_exchange_refresh_token,
+    )
+    token_refs: list[dict[str, Any]] = []
+    for index, token_input in enumerate(request_body.connected_account_token_ref_inputs):
+        if not isinstance(token_input, dict):
+            raise HTTPException(status_code=400, detail="connected_account_token_ref_inputs entries must be objects")
+        request_item = dict(requests[min(index, len(requests) - 1)])
+        provider_id = str(token_input.get("provider_id") or config.provider_id)
+        app_for_ref = str(token_input.get("app_id") or app_id)
+        allowed_actions = [str(action) for action in (token_input.get("allowed_actions") or [config.action])]
+        await _assert_connected_account_context(
+            directus_service=request.app.state.directus_service,
+            account_id=str(token_input.get("connected_account_id") or ""),
+            user_id=user_id,
+            team_id=None,
+            app_id=app_for_ref,
+            provider_id=provider_id,
+            allowed_actions=allowed_actions,
+        )
+        action_scope = token_input.get("action_scope") or action_scope_for_request(
+            request_item,
+            action=config.action,
+            config=config,
+        )
+        try:
+            ref = await broker.create_turn_token_ref(
+                user_id=user_id,
+                user_vault_key_id=vault_key_id,
+                connected_account_id=str(token_input.get("connected_account_id") or ""),
+                chat_id=chat_id,
+                message_id=message_id,
+                app_id=app_for_ref,
+                provider_id=provider_id,
+                allowed_actions=allowed_actions,
+                refresh_token_envelope=dict(token_input.get("refresh_token_envelope") or {}),
+                action_scope=action_scope if isinstance(action_scope, dict) else {},
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        token_refs.append(
+            {
+                "connected_account_id": str(token_input.get("connected_account_id") or ""),
+                "app_id": app_for_ref,
+                "provider_id": provider_id,
+                "allowed_actions": allowed_actions,
+                "action_scope": action_scope if isinstance(action_scope, dict) else {},
+                "turn_token_ref": ref.turn_token_ref,
+            }
+        )
+
+    try:
+        if requests:
+            context = await prepare_connected_account_skill_execution(
+                app_id=app_id,
+                skill_id=skill_id,
+                skill_arguments=skill_input,
+                connected_account_token_refs=token_refs,
+                user_id=user_id,
+                user_vault_key_id=vault_key_id,
+                chat_id=chat_id,
+                message_id=message_id,
+                cache_service=request.app.state.cache_service,
+                encryption_service=request.app.state.encryption_service,
+            )
+        else:
+            from backend.apps.ai.processing.connected_account_execution import ConnectedAccountExecutionContext
+
+            context = ConnectedAccountExecutionContext(skill_arguments=skill_input)
+    except (GoogleOAuthTokenExchangeError, RevolutBusinessTokenExchangeError) as exc:
+        for token_ref in token_refs:
+            await broker.delete_turn_artifacts(turn_token_ref=str(token_ref.get("turn_token_ref") or ""))
+        logger.warning(
+            "Connected-account provider token exchange failed for %s/%s provider=%s: %s",
+            app_id,
+            skill_id,
+            config.provider_id,
+            exc,
+        )
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "error": "provider_token_exchange_failed",
+                "provider_id": config.provider_id,
+            },
+        ) from exc
+    try:
+        return await call_app_skill(
+            app_id=app_id,
+            skill_id=skill_id,
+            input_data=context.skill_arguments,
+            parameters={},
+            user_info=api_key_info,
+            enforce_rest_exposure_policy=False,
+        )
+    finally:
+        await cleanup_connected_account_token_artifacts(
+            token_artifacts=context.token_artifacts,
+            cache_service=request.app.state.cache_service,
+            encryption_service=request.app.state.encryption_service,
+        )
+
+
+async def _authenticate_connected_account_skill_request(request: Request, response: Response) -> dict[str, Any]:
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.startswith("Bearer "):
+        return await _authenticate_sdk_request(request)
+
+    from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user as get_authenticated_user
+
+    current_user = await get_authenticated_user(
+        directus_service=request.app.state.directus_service,
+        cache_service=request.app.state.cache_service,
+        refresh_token=request.cookies.get("auth_refresh_token"),
+        response=response,
+        request=request,
+    )
+    return {
+        "user_id": current_user.id,
+        "device_hash": getattr(current_user, "device_hash", None),
+        "api_key_metadata": {},
+        "vault_key_id": getattr(current_user, "vault_key_id", None),
+    }
 
 
 @router.api_route(

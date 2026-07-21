@@ -19,7 +19,9 @@ from backend.core.api.app.services.directus.team_methods import hash_id
 from backend.core.api.app.services.token_broker import TokenBrokerService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.shared.providers.google_calendar.oauth import exchange_google_refresh_token
+from backend.shared.providers.revolut_business.oauth import exchange_revolut_business_refresh_token
 from backend.core.api.app.models.user import User
+from backend.shared.python_utils.connected_account_registry import is_connected_account_action_allowed
 
 router = APIRouter(prefix="/v1/token-broker", tags=["Token Broker"])
 TEAM_CONNECTED_ACCOUNTS_DISABLED = "TEAM_CONNECTED_ACCOUNTS_DISABLED"
@@ -30,6 +32,7 @@ class CreateTurnTokenRefItem(BaseModel):
 
     connected_account_id: str
     app_id: str
+    provider_id: str | None = None
     allowed_actions: list[str] = Field(min_length=1)
     refresh_token_envelope: dict[str, Any]
     action_scope: dict[str, Any] | None = None
@@ -49,6 +52,7 @@ class TurnTokenRefResponse(BaseModel):
 
     connected_account_id: str
     app_id: str
+    provider_id: str | None = None
     turn_token_ref: str
     expires_at: int
 
@@ -66,6 +70,7 @@ class ExchangeTurnTokenRefRequest(BaseModel):
     chat_id: str
     message_id: str
     app_id: str
+    provider_id: str | None = None
     action: str
     action_scope: dict[str, Any] | None = None
     team_id: str | None = None
@@ -104,12 +109,30 @@ def _require_vault_key_id(current_user: User) -> str:
     return str(vault_key_id)
 
 
-def _build_token_broker(cache_service: CacheService, encryption_service: EncryptionService) -> TokenBrokerService:
+def _build_token_broker(
+    cache_service: CacheService,
+    encryption_service: EncryptionService,
+    *,
+    provider_id: str | None = None,
+) -> TokenBrokerService:
+    exchange_refresh_token = (
+        exchange_revolut_business_refresh_token
+        if _normalize_provider_id(provider_id) == "revolut_business"
+        else exchange_google_refresh_token
+    )
     return TokenBrokerService(
         cache_service=cache_service,
         encryption_service=encryption_service,
-        exchange_refresh_token=exchange_google_refresh_token,
+        exchange_refresh_token=exchange_refresh_token,
     )
+
+
+def _normalize_provider_id(value: str | None) -> str:
+    if value in {"calendar", "google_calendar"}:
+        return "google"
+    if value == "finance":
+        return "revolut_business"
+    return str(value or "google")
 
 
 async def _assert_connected_account_context(
@@ -118,6 +141,9 @@ async def _assert_connected_account_context(
     account_id: str,
     user_id: str,
     team_id: str | None,
+    app_id: str,
+    provider_id: str | None,
+    allowed_actions: list[str],
 ) -> None:
     if team_id:
         raise HTTPException(status_code=501, detail=TEAM_CONNECTED_ACCOUNTS_DISABLED)
@@ -130,6 +156,22 @@ async def _assert_connected_account_context(
     rows = await directus_service.get_items("connected_accounts", params=params)
     if not rows:
         raise HTTPException(status_code=403, detail="Connected account not found for current context")
+    normalized_provider = _normalize_provider_id(provider_id or app_id)
+    provider_hash = rows[0].get("provider_type_hash")
+    acceptable_provider_hashes = {
+        hash_id(normalized_provider),
+        hash_id(str(provider_id or "")),
+        hash_id(app_id),
+    }
+    if provider_hash and provider_hash not in acceptable_provider_hashes:
+        raise HTTPException(status_code=403, detail="Connected account provider mismatch")
+    invalid_actions = [
+        action
+        for action in sorted(set(allowed_actions))
+        if not is_connected_account_action_allowed(app_id, normalized_provider, action)
+    ]
+    if invalid_actions:
+        raise HTTPException(status_code=400, detail="Connected account action is not supported for this app/provider")
 
 
 @router.post("/turn-token-refs", response_model=CreateTurnTokenRefsResponse)
@@ -151,6 +193,9 @@ async def create_turn_token_refs(
             account_id=item.connected_account_id,
             user_id=current_user.id,
             team_id=body.team_id,
+            app_id=item.app_id,
+            provider_id=item.provider_id,
+            allowed_actions=item.allowed_actions,
         )
         try:
             ref = await broker.create_turn_token_ref(
@@ -163,6 +208,7 @@ async def create_turn_token_refs(
                 app_id=item.app_id,
                 allowed_actions=item.allowed_actions,
                 refresh_token_envelope=item.refresh_token_envelope,
+                provider_id=item.provider_id,
                 action_scope=item.action_scope,
             )
         except ValueError as exc:
@@ -171,6 +217,7 @@ async def create_turn_token_refs(
             TurnTokenRefResponse(
                 connected_account_id=item.connected_account_id,
                 app_id=item.app_id,
+                provider_id=ref.provider_id,
                 turn_token_ref=ref.turn_token_ref,
                 expires_at=ref.expires_at,
             )
@@ -191,7 +238,7 @@ async def exchange_turn_token_ref(
     vault_key_id = _require_vault_key_id(current_user)
     if body.team_id:
         raise HTTPException(status_code=501, detail=TEAM_CONNECTED_ACCOUNTS_DISABLED)
-    broker = _build_token_broker(cache_service, encryption_service)
+    broker = _build_token_broker(cache_service, encryption_service, provider_id=body.provider_id or body.app_id)
     try:
         handle = await broker.exchange_turn_token_ref(
             turn_token_ref=body.turn_token_ref,
@@ -202,6 +249,7 @@ async def exchange_turn_token_ref(
             message_id=body.message_id,
             app_id=body.app_id,
             action=body.action,
+            provider_id=body.provider_id,
             action_scope=body.action_scope,
         )
     except PermissionError as exc:

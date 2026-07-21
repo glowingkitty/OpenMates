@@ -603,6 +603,43 @@ async def test_sdk_dispatch_billing_invoices_reuses_billing_overview(monkeypatch
     assert result == {"invoices": [{"id": "invoice-1", "amount": "10.00"}]}
 
 
+@pytest.mark.asyncio
+async def test_sdk_dispatch_billing_usage_overview_reuses_settings_route(monkeypatch):
+    async def fake_get_usage_overview(
+        request,
+        granularity,
+        days,
+        weeks,
+        months,
+        current_user,
+        directus_service,
+        cache_service,
+        encryption_service,
+    ):
+        assert granularity == "weekly"
+        assert days == 30
+        assert weeks == 4
+        assert months == 12
+        assert current_user.id == "user-1"
+        assert directus_service is request.app.state.directus_service
+        assert cache_service is request.app.state.cache_service
+        assert encryption_service is request.app.state.encryption_service
+        return {"granularity": granularity, "totals": {"credits": 42}}
+
+    fake_settings_routes = SimpleNamespace(get_usage_overview=fake_get_usage_overview)
+    monkeypatch.setitem(sys.modules, "backend.core.api.app.routes.settings", fake_settings_routes)
+
+    result = await _dispatch_sdk_surface(
+        _FakeRequest(method="GET", query_params={"granularity": "weekly", "weeks": "4"}),
+        {"user_id": "user-1"},
+        "billing",
+        "usage/overview",
+        None,
+    )
+
+    assert result == {"granularity": "weekly", "totals": {"credits": 42}}
+
+
 @pytest.mark.anyio
 async def test_sdk_dispatch_chat_delete_requires_ownership_and_deletes_chat():
     request = _FakeRequest(method="DELETE")

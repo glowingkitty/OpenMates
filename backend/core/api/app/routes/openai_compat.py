@@ -20,6 +20,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from backend.apps.ai.llm_providers.openai_shared import OpenAIUsageMetadata
 from backend.core.api.app.routes.apps_api import (
     charge_credits_via_internal_api,
+    check_provider_api_key_available,
     get_directus_service,
     get_session_or_api_key_info,
     require_api_key_budget_for_charge,
@@ -89,6 +90,10 @@ def _get_global_skill_registry() -> Any:
     return get_global_registry()
 
 
+def _get_secrets_manager(request: Request) -> Any:
+    return getattr(request.app.state, "secrets_manager", None)
+
+
 def _is_chat_model(model_config: Dict[str, Any]) -> bool:
     output_types = model_config.get("output_types") or []
     return model_config.get("for_app_skill") == CHAT_APP_SKILL_ID and "text" in output_types
@@ -104,7 +109,29 @@ def _model_object(provider_id: str, model_config: Dict[str, Any]) -> Dict[str, A
     }
 
 
-def _available_model_objects(config: Any) -> List[Dict[str, Any]]:
+def _model_server_ids(provider_id: str, model_config: Dict[str, Any]) -> set[str]:
+    server_ids = {provider_id}
+    default_server = model_config.get("default_server")
+    if isinstance(default_server, str) and default_server.strip():
+        server_ids.add(default_server.strip())
+    for server in model_config.get("servers") or []:
+        if isinstance(server, dict) and isinstance(server.get("id"), str) and server["id"].strip():
+            server_ids.add(server["id"].strip())
+    return server_ids
+
+
+async def _server_or_provider_available(config: Any, provider_id: str, secrets_manager: Any) -> bool:
+    provider_config = config.get_provider_config(provider_id) if hasattr(config, "get_provider_config") else None
+    if not provider_config and hasattr(config, "get_provider_configs"):
+        provider_config = (config.get_provider_configs() or {}).get(provider_id)
+    if isinstance(provider_config, dict) and provider_config.get("no_api_key") is True:
+        return True
+    if secrets_manager is None:
+        return True
+    return await check_provider_api_key_available(provider_id, secrets_manager, config)
+
+
+async def _available_model_objects(config: Any, secrets_manager: Any = None) -> List[Dict[str, Any]]:
     provider_configs = config.get_provider_configs() if config else {}
     models: List[Dict[str, Any]] = []
     for provider_id, provider_config in provider_configs.items():
@@ -114,13 +141,15 @@ def _available_model_objects(config: Any) -> List[Dict[str, Any]]:
         for model_config in provider_config.get("models", []):
             if not isinstance(model_config, dict) or not model_config.get("id"):
                 continue
-            if _is_chat_model(model_config):
+            if _is_chat_model(model_config) and any(
+                [await _server_or_provider_available(config, server_id, secrets_manager) for server_id in _model_server_ids(canonical_provider_id, model_config)]
+            ):
                 models.append(_model_object(canonical_provider_id, model_config))
     return sorted(models, key=lambda model: model["id"])
 
 
-def _find_model(config: Any, model_id: str) -> Optional[Dict[str, Any]]:
-    for model in _available_model_objects(config):
+async def _find_model(config: Any, model_id: str, secrets_manager: Any = None) -> Optional[Dict[str, Any]]:
+    for model in await _available_model_objects(config, secrets_manager):
         if model["id"] == model_id:
             return model
     return None
@@ -246,7 +275,7 @@ def _validate_tool_choice(body: Dict[str, Any]) -> Optional[JSONResponse]:
     )
 
 
-def _validate_chat_request(config: Any, body: Dict[str, Any]) -> Optional[JSONResponse]:
+async def _validate_chat_request(config: Any, body: Dict[str, Any], secrets_manager: Any = None) -> Optional[JSONResponse]:
     model = body.get("model")
     if not isinstance(model, str) or not model.strip():
         return _openai_error(
@@ -255,7 +284,7 @@ def _validate_chat_request(config: Any, body: Dict[str, Any]) -> Optional[JSONRe
             param="model",
             code="missing_required_parameter",
         )
-    if not _find_model(config, model):
+    if not await _find_model(config, model, secrets_manager):
         return _openai_error(
             status_code=404,
             message=f"Model '{model}' is not available.",
@@ -338,6 +367,9 @@ async def _charge_client_tool_usage(
         "server_provider": provider_id,
         "server_region": None,
     }
+    if usage:
+        usage_details["input_tokens"] = usage.input_tokens
+        usage_details["output_tokens"] = usage.output_tokens
     await charge_credits_via_internal_api(
         user_id=user_id,
         user_id_hash=hashlib.sha256(user_id.encode()).hexdigest(),
@@ -497,7 +529,7 @@ async def list_models(
     user_info: Dict[str, Any] = Depends(get_session_or_api_key_info),
 ) -> Dict[str, Any]:
     del user_info
-    return {"object": OPENAI_LIST_OBJECT, "data": _available_model_objects(_get_config_manager(request))}
+    return {"object": OPENAI_LIST_OBJECT, "data": await _available_model_objects(_get_config_manager(request), _get_secrets_manager(request))}
 
 
 @router.get("/v1/models/{model_id:path}")
@@ -508,7 +540,7 @@ async def get_model(
 ) -> Any:
     del user_info
     canonical_model_id = _normalize_model_id(model_id)
-    model = _find_model(_get_config_manager(request), canonical_model_id)
+    model = await _find_model(_get_config_manager(request), canonical_model_id, _get_secrets_manager(request))
     if not model:
         return _openai_error(
             status_code=404,
@@ -542,7 +574,7 @@ async def create_chat_completion(
     body = dict(body)
     body["model"] = _normalize_model_id(body.get("model"))
 
-    validation_error = _validate_chat_request(_get_config_manager(request), body)
+    validation_error = await _validate_chat_request(_get_config_manager(request), body, _get_secrets_manager(request))
     if validation_error:
         return validation_error
 

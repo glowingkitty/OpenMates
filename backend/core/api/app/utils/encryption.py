@@ -966,6 +966,49 @@ class EncryptionService:
         
         # Use the user's specific key for decryption with context
         return await self.decrypt(ciphertext, key_name=key_id, context=context)
+
+    async def decrypt_many_with_user_key(self, ciphertexts: list[str], key_id: str) -> list[Optional[str]]:
+        """Decrypt multiple ciphertexts for one user key with one Vault transit batch request."""
+        if not ciphertexts:
+            return []
+        if not key_id:
+            return [None for _ in ciphertexts]
+
+        context = base64.b64encode(key_id.encode()).decode("utf-8")
+        batch_input = []
+        valid_indexes = []
+        plaintexts: list[Optional[str]] = [None for _ in ciphertexts]
+        for index, ciphertext in enumerate(ciphertexts):
+            if not isinstance(ciphertext, str) or not ciphertext.startswith("vault:"):
+                logger.warning(
+                    "decrypt_many_with_user_key: Ciphertext is not a Vault transit value "
+                    "(missing `vault:` prefix)."
+                )
+                continue
+            valid_indexes.append(index)
+            batch_input.append({"ciphertext": ciphertext, "context": context})
+        if not batch_input:
+            return plaintexts
+
+        try:
+            result = await self._vault_request(
+                "post",
+                f"{self.transit_mount}/decrypt/{key_id}",
+                {"batch_input": batch_input},
+            )
+        except Exception as e:
+            logger.error(f"Batch decryption error: {str(e)}")
+            return plaintexts
+
+        batch_results = result.get("data", {}).get("batch_results") or []
+        for original_index, item in zip(valid_indexes, batch_results):
+            if not isinstance(item, dict) or item.get("error") or not item.get("plaintext"):
+                continue
+            try:
+                plaintexts[original_index] = base64.b64decode(item["plaintext"]).decode("utf-8")
+            except Exception as e:
+                logger.warning(f"Batch decryption result decode failed: {e}")
+        return plaintexts
     
     async def encrypt_newsletter_email(self, email: str) -> str:
         """
