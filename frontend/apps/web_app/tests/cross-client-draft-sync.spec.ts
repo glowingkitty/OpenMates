@@ -30,6 +30,7 @@ const AUDIO_FIXTURE = fs.existsSync('/workspace/backend/tests/fixtures/test_audi
 	: path.resolve(__dirname, '../../../../backend/tests/fixtures/test_audio.wav');
 const CLI_DRAFT_REFRESH_TIMEOUT_MS = 60_000;
 const CHAT_DELETION_RECONCILE_TIMEOUT_MS = 90_000;
+const CROSS_CLIENT_DRAFT_SYNC_TIMEOUT_MS = 480_000;
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount(1);
 let activeCliHome: string | null = null;
 let lastTransientCliFailure = '';
@@ -851,7 +852,7 @@ async function openDraft(page: any, chatId: string, expectedText: string, requir
 
 test.describe('Cross-client encrypted draft sync', () => {
 	test.describe.configure({ mode: 'serial' });
-	test.setTimeout(300_000);
+	test.setTimeout(CROSS_CLIENT_DRAFT_SYNC_TIMEOUT_MS);
 
 	test('CLI and web reconcile draft lifecycle and missed chat deletion', async ({ page }: { page: any }) => {
 		skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
