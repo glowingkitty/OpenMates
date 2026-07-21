@@ -282,7 +282,9 @@ async def _async_persist_user_draft_task(
     chat_id: str,
     encrypted_draft_content: Optional[str],
     draft_version: int,
-    task_id: str
+    task_id: str,
+    user_id: Optional[str] = None,
+    ideabucket_processing_window_id: Optional[str] = None,
 ):
     """
     Async logic for persisting a user's specific draft.
@@ -291,6 +293,29 @@ async def _async_persist_user_draft_task(
         f"Task _async_persist_user_draft_task (task_id: {task_id}): Persisting draft for user (hashed): {hashed_user_id}, "
         f"chat {chat_id}, version: {draft_version}"
     )
+
+    if user_id and ideabucket_processing_window_id:
+        cache_service = CacheService()
+        try:
+            window = await cache_service.get_ideabucket_processing_window_from_cache(
+                user_id,
+                ideabucket_processing_window_id,
+            )
+            if window and window.get("status") == "sent" and window.get("chat_id") == chat_id:
+                logger.info(
+                    f"Skipping stale IdeaBucket draft persistence for sent window {ideabucket_processing_window_id}, "
+                    f"chat {chat_id} (task_id: {task_id})."
+                )
+                return
+        except Exception as e:
+            logger.warning(
+                f"Unable to check IdeaBucket window {ideabucket_processing_window_id} before draft persistence "
+                f"for chat {chat_id} (task_id: {task_id}): {e}",
+                exc_info=True,
+            )
+        finally:
+            await cache_service.close()
+
     directus_service = DirectusService()
     await directus_service.ensure_auth_token()
 
@@ -357,7 +382,9 @@ def persist_user_draft_task(
     hashed_user_id: str,
     chat_id: str,
     encrypted_draft_content: Optional[str],
-    draft_version: int
+    draft_version: int,
+    user_id: Optional[str] = None,
+    ideabucket_processing_window_id: Optional[str] = None,
 ):
     task_id = self.request.id if self and hasattr(self, 'request') else 'UNKNOWN_TASK_ID'
     logger.info(f"SYNC_WRAPPER: persist_user_draft_task for user {hashed_user_id}, chat {chat_id}, task_id: {task_id}")
@@ -366,7 +393,13 @@ def persist_user_draft_task(
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         loop.run_until_complete(_async_persist_user_draft_task(
-            hashed_user_id, chat_id, encrypted_draft_content, draft_version, task_id
+            hashed_user_id,
+            chat_id,
+            encrypted_draft_content,
+            draft_version,
+            task_id,
+            user_id=user_id,
+            ideabucket_processing_window_id=ideabucket_processing_window_id,
         ))
     except Exception as e:
         logger.error(f"SYNC_WRAPPER_ERROR: persist_user_draft_task for user {hashed_user_id}, chat {chat_id}, task_id: {task_id}: {e}", exc_info=True)

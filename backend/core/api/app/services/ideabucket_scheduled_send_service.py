@@ -39,12 +39,14 @@ class IdeaBucketScheduledSendService:
         persist_system_event: Callable[[dict[str, Any]], Any] | None = None,
         dispatch_ai: Callable[[dict[str, Any]], Any] | None = None,
         mark_chat_provenance: Callable[[dict[str, Any]], Any] | None = None,
+        delete_processed_draft: Callable[[dict[str, Any]], Any] | None = None,
     ) -> None:
         self.cache_service = cache_service
         self.persist_user_message = persist_user_message
         self.persist_system_event = persist_system_event
         self.dispatch_ai = dispatch_ai
         self.mark_chat_provenance = mark_chat_provenance
+        self.delete_processed_draft = delete_processed_draft
 
     async def process_due_window(
         self,
@@ -179,6 +181,7 @@ class IdeaBucketScheduledSendService:
         try:
             await self.cache_service.delete_user_draft_from_cache(user_id=user_id, chat_id=chat_id)
             await self.cache_service.delete_user_draft_version_from_chat_versions(user_id=user_id, chat_id=chat_id)
+            await self._maybe_call(self.delete_processed_draft, {"user_id": user_id, "chat_id": chat_id})
         except Exception as exc:
             logger.warning("Failed to clean up processed IdeaBucket draft for chat %s: %s", chat_id, exc)
 

@@ -29,6 +29,7 @@ from backend.core.api.app.routes.handlers.websocket_handlers.phased_sync_handler
 )
 from backend.core.api.app.routes.chats import get_draft
 from backend.core.api.app.services.cache_chat_mixin import ChatCacheMixin
+from backend.core.api.app.tasks.persistence_tasks import _async_persist_user_draft_task
 
 
 class _Manager:
@@ -206,10 +207,11 @@ async def test_update_draft_replaces_ideabucket_processing_window_payload(monkey
     manager = _Manager()
     websocket = _WebSocket()
     captured_windows = []
+    sent_tasks = []
 
     monkeypatch.setattr(
         "backend.core.api.app.routes.handlers.websocket_handlers.draft_update_handler.celery_app_instance",
-        SimpleNamespace(send_task=lambda **_kwargs: None),
+        SimpleNamespace(send_task=lambda **kwargs: sent_tasks.append(kwargs)),
     )
 
     class Cache:
@@ -275,7 +277,52 @@ async def test_update_draft_replaces_ideabucket_processing_window_payload(monkey
             "payload_hash": "hash-v7",
         },
     )]
+    assert sent_tasks == [{
+        "name": "app.tasks.persistence_tasks.persist_user_draft",
+        "kwargs": {
+            "hashed_user_id": hashlib.sha256("user-1".encode()).hexdigest(),
+            "chat_id": "11111111-1111-4111-8111-111111111111",
+            "encrypted_draft_content": "cipher-md",
+            "draft_version": 6,
+            "user_id": "user-1",
+            "ideabucket_processing_window_id": "2026-07-18T09:00:00Z",
+        },
+        "queue": "persistence",
+    }]
     assert websocket.sent[0]["payload"]["processing_payload_synced"] is True
+
+
+@pytest.mark.anyio
+async def test_late_ideabucket_draft_persistence_skips_sent_window(monkeypatch) -> None:
+    closed = []
+
+    class Cache:
+        async def get_ideabucket_processing_window_from_cache(self, user_id, processing_window_id):
+            assert user_id == "user-1"
+            assert processing_window_id == "window-1"
+            return {"status": "sent", "chat_id": "chat-1"}
+
+        async def close(self):
+            closed.append(True)
+
+    class Directus:
+        def __init__(self):
+            raise AssertionError("stale sent-window drafts must not reach Directus")
+
+    monkeypatch.setattr("backend.core.api.app.tasks.persistence_tasks.CacheService", Cache)
+    monkeypatch.setattr("backend.core.api.app.tasks.persistence_tasks.DirectusService", Directus)
+
+    await _async_persist_user_draft_task(
+        hashed_user_id=hashlib.sha256("user-1".encode()).hexdigest(),
+        chat_id="chat-1",
+        encrypted_draft_content="cipher-md",
+        draft_version=6,
+        task_id="task-1",
+        user_id="user-1",
+        ideabucket_processing_window_id="window-1",
+    )
+
+    assert closed == [True]
 
 
 @pytest.mark.anyio

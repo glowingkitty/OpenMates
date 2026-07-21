@@ -182,10 +182,14 @@ async def process_ideabucket_bucket(
     async def persist_message(payload: dict[str, Any]) -> Any:
         return await directus_service.chat.create_message_in_directus(payload)
 
+    async def delete_processed_draft(payload: dict[str, Any]) -> bool:
+        return await directus_service.chat.delete_all_drafts_for_chat(str(payload["chat_id"]))
+
     service = IdeaBucketScheduledSendService(
         cache_service=cache_service,
         persist_user_message=persist_message,
         persist_system_event=persist_message,
+        delete_processed_draft=delete_processed_draft,
     )
     result = await service.process_due_window(user_id=user_id, processing_window_id=bucket_id, now=timestamp)
     result["bucket_id"] = result.get("processing_window_id", bucket_id)

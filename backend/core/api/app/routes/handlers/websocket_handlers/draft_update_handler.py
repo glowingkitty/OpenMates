@@ -166,20 +166,6 @@ async def handle_update_draft(
         if not update_success:
             logger.error(f"Failed to update user draft in cache for user {user_id}, chat {chat_id}.")
             # Log error but continue, version was incremented.
-        else:
-            # Keep this persistence dispatch with the WebSocket cache write: CLI/SDK
-            # refreshes read /v1/drafts from a separate request path and must not
-            # depend on the sender's Redis connection still holding the ciphertext.
-            celery_app_instance.send_task(
-                name="app.tasks.persistence_tasks.persist_user_draft",
-                kwargs={
-                    "hashed_user_id": hashlib.sha256(user_id.encode()).hexdigest(),
-                    "chat_id": chat_id,
-                    "encrypted_draft_content": encrypted_draft_str,
-                    "draft_version": new_user_draft_v,
-                },
-                queue="persistence",
-            )
 
         draft_metadata: Dict[str, Any] = {}
         if "ideabucket" in payload or "ideabucket_processing_window_id" in payload:
@@ -259,6 +245,28 @@ async def handle_update_draft(
                     device_fingerprint_hash=device_fingerprint_hash,
                 )
                 return
+
+        if update_success:
+            # Keep this persistence dispatch with the WebSocket cache write: CLI/SDK
+            # refreshes read /v1/drafts from a separate request path and must not
+            # depend on the sender's Redis connection still holding the ciphertext.
+            persistence_kwargs = {
+                "hashed_user_id": hashlib.sha256(user_id.encode()).hexdigest(),
+                "chat_id": chat_id,
+                "encrypted_draft_content": encrypted_draft_str,
+                "draft_version": new_user_draft_v,
+            }
+            processing_window_id = draft_metadata.get("ideabucket_processing_window_id")
+            if isinstance(processing_window_id, str) and processing_window_id:
+                persistence_kwargs.update({
+                    "user_id": user_id,
+                    "ideabucket_processing_window_id": processing_window_id,
+                })
+            celery_app_instance.send_task(
+                name="app.tasks.persistence_tasks.persist_user_draft",
+                kwargs=persistence_kwargs,
+                queue="persistence",
+            )
 
         # --- Draft-only chat discoverability for cross-device sync ---
         # For draft-only NEW chats (not yet in the sorted set), we add them so that

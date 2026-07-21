@@ -117,6 +117,7 @@ async def test_scheduled_send_persists_only_client_encrypted_payloads_and_dispat
     persisted_system_events = []
     provenance_updates = []
     ai_dispatches = []
+    deleted_directus_drafts = []
 
     async def persist_user(payload):
         persisted_user_messages.append(payload)
@@ -131,12 +132,17 @@ async def test_scheduled_send_persists_only_client_encrypted_payloads_and_dispat
         ai_dispatches.append(payload)
         return "ai-task-1"
 
+    async def delete_processed_draft(payload):
+        deleted_directus_drafts.append(payload)
+        return True
+
     result = await IdeaBucketScheduledSendService(
         cache_service=cache,
         persist_user_message=persist_user,
         persist_system_event=persist_system,
         mark_chat_provenance=mark_provenance,
         dispatch_ai=dispatch_ai,
+        delete_processed_draft=delete_processed_draft,
     ).process_due_window(user_id="user-1", processing_window_id="window-1", now=101)
 
     assert result["status"] == "sent"
@@ -154,6 +160,7 @@ async def test_scheduled_send_persists_only_client_encrypted_payloads_and_dispat
     assert "server-cache-only-cipher" not in str(persisted_user_messages + persisted_system_events + provenance_updates)
     assert cache.deleted_drafts == [("user-1", "chat-1")]
     assert cache.deleted_draft_versions == [("user-1", "chat-1")]
+    assert deleted_directus_drafts == [{"user_id": "user-1", "chat_id": "chat-1"}]
     assert cache.active_ai_tasks == [("chat-1", "ai-task-1")]
 
 
