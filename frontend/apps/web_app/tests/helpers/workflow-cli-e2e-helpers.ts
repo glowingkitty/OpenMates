@@ -20,6 +20,13 @@ const { loginToTestAccount } = require('./chat-test-helpers');
 
 type CliResult = { code: number | null; stdout: string; stderr: string };
 
+const TRANSIENT_WORKFLOW_READ_STATUS_RE = /Workflow run get failed with HTTP (500|502|503|504)/;
+
+function isTransientWorkflowRunReadError(error: unknown): boolean {
+	const message = error instanceof Error ? error.message : String(error);
+	return TRANSIENT_WORKFLOW_READ_STATUS_RE.test(message) || message.includes('failed with code null');
+}
+
 function createWorkflowCliHome(prefix: string): string {
 	return fs.mkdtempSync(path.join(os.tmpdir(), `openmates-${prefix}-`));
 }
@@ -190,21 +197,32 @@ async function waitForWorkflowRunStatus(
 ): Promise<any> {
 	const started = Date.now();
 	let lastRun: any = null;
+	let lastTransientError: string | null = null;
 	while (Date.now() - started < timeoutMs) {
-		lastRun = await runWorkflowCliJson(
-			apiUrl,
-			homeDir,
-			['workflows', 'run-show', workflowId, runId],
-			`${label} run-show`,
-			30_000
-		);
+		try {
+			lastRun = await runWorkflowCliJson(
+				apiUrl,
+				homeDir,
+				['workflows', 'run-show', workflowId, runId],
+				`${label} run-show`,
+				30_000
+			);
+			lastTransientError = null;
+		} catch (error) {
+			if (!isTransientWorkflowRunReadError(error)) throw error;
+			lastTransientError = error instanceof Error ? error.message : String(error);
+			await new Promise((resolve) => setTimeout(resolve, 3_000));
+			continue;
+		}
 		if (allowedStatuses.includes(lastRun.status)) return lastRun;
 		if (lastRun.status === 'failed' || lastRun.status === 'cancelled') {
 			throw new Error(`${label} reached terminal status ${lastRun.status}: ${JSON.stringify(lastRun, null, 2)}`);
 		}
 		await new Promise((resolve) => setTimeout(resolve, 3_000));
 	}
-	throw new Error(`${label} did not reach ${allowedStatuses.join('/')} in ${timeoutMs}ms. Last run: ${JSON.stringify(lastRun, null, 2)}`);
+	throw new Error(
+		`${label} did not reach ${allowedStatuses.join('/')} in ${timeoutMs}ms. Last run: ${JSON.stringify(lastRun, null, 2)}. Last transient error: ${lastTransientError ?? 'none'}`
+	);
 }
 
 async function waitForWorkflowRunListStatus(
