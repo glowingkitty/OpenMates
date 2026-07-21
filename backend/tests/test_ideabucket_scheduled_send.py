@@ -26,6 +26,7 @@ class _FakeCache:
         self.deleted_drafts = []
         self.deleted_draft_versions = []
         self.active_ai_tasks = []
+        self.set_versions = []
 
     async def lock_due_ideabucket_processing_window_in_cache(self, user_id, processing_window_id, *, now, lock_token):
         if not self.window:
@@ -93,6 +94,10 @@ class _FakeCache:
         self.active_ai_tasks.append((chat_id, task_id))
         return True
 
+    async def set_chat_version_component(self, user_id, chat_id, component, value):
+        self.set_versions.append((user_id, chat_id, component, value))
+        return True
+
 
 def _window(**overrides) -> dict:
     payload = {
@@ -118,12 +123,17 @@ async def test_scheduled_send_persists_only_client_encrypted_payloads_and_dispat
     provenance_updates = []
     ai_dispatches = []
     deleted_directus_drafts = []
+    persisted_chat_metadata = []
 
     async def persist_user(payload):
         persisted_user_messages.append(payload)
 
     async def persist_system(payload):
         persisted_system_events.append(payload)
+
+    async def persist_chat(payload):
+        persisted_chat_metadata.append(payload)
+        return True
 
     async def mark_provenance(payload):
         provenance_updates.append(payload)
@@ -140,6 +150,7 @@ async def test_scheduled_send_persists_only_client_encrypted_payloads_and_dispat
         cache_service=cache,
         persist_user_message=persist_user,
         persist_system_event=persist_system,
+        persist_chat_metadata=persist_chat,
         mark_chat_provenance=mark_provenance,
         dispatch_ai=dispatch_ai,
         delete_processed_draft=delete_processed_draft,
@@ -149,6 +160,18 @@ async def test_scheduled_send_persists_only_client_encrypted_payloads_and_dispat
     assert persisted_user_messages[0]["encrypted_content"] == _window()["client_encrypted_future_user_message"]
     assert persisted_system_events[0]["encrypted_content"] == _window()["client_encrypted_ideabucket_system_event"]
     assert persisted_system_events[0]["user_message_id"] == result["user_message_id"]
+    assert persisted_chat_metadata == [{
+        "id": "chat-1",
+        "hashed_user_id": persisted_user_messages[0]["hashed_user_id"],
+        "messages_v": 9,
+        "title_v": 0,
+        "metadata_v": 0,
+        "last_edited_overall_timestamp": 101,
+        "unread_count": 0,
+        "created_at": 101,
+        "updated_at": 101,
+        "last_message_timestamp": 101,
+    }]
     assert provenance_updates == [{
         "chat_id": "chat-1",
         "ideabucket": True,
@@ -160,6 +183,7 @@ async def test_scheduled_send_persists_only_client_encrypted_payloads_and_dispat
     assert "server-cache-only-cipher" not in str(persisted_user_messages + persisted_system_events + provenance_updates)
     assert cache.deleted_drafts == [("user-1", "chat-1")]
     assert cache.deleted_draft_versions == [("user-1", "chat-1")]
+    assert cache.set_versions == [("user-1", "chat-1", "messages_v", 9)]
     assert deleted_directus_drafts == [{"user_id": "user-1", "chat_id": "chat-1"}]
     assert cache.active_ai_tasks == [("chat-1", "ai-task-1")]
 

@@ -37,6 +37,7 @@ class IdeaBucketScheduledSendService:
         cache_service: Any,
         persist_user_message: Callable[[dict[str, Any]], Any] | None = None,
         persist_system_event: Callable[[dict[str, Any]], Any] | None = None,
+        persist_chat_metadata: Callable[[dict[str, Any]], Any] | None = None,
         dispatch_ai: Callable[[dict[str, Any]], Any] | None = None,
         mark_chat_provenance: Callable[[dict[str, Any]], Any] | None = None,
         delete_processed_draft: Callable[[dict[str, Any]], Any] | None = None,
@@ -44,6 +45,7 @@ class IdeaBucketScheduledSendService:
         self.cache_service = cache_service
         self.persist_user_message = persist_user_message
         self.persist_system_event = persist_system_event
+        self.persist_chat_metadata = persist_chat_metadata
         self.dispatch_ai = dispatch_ai
         self.mark_chat_provenance = mark_chat_provenance
         self.delete_processed_draft = delete_processed_draft
@@ -100,6 +102,7 @@ class IdeaBucketScheduledSendService:
             )
             if not cache_versions:
                 return await self._mark_failed(user_id, processing_window_id, lock_token, current_time, "ai_cache_failed")
+            final_messages_v = int(cache_versions.get("messages_v") or 1) + 1
 
             user_persist_payload = {
                 "message_id": user_message_id,
@@ -128,10 +131,26 @@ class IdeaBucketScheduledSendService:
                 "ideabucket_processing_window_id": processing_window_id,
                 "ideabucket_triggered_at": created_at,
             }
+            chat_metadata_payload = {
+                "id": chat_id,
+                "hashed_user_id": hashed_user_id,
+                "messages_v": final_messages_v,
+                "title_v": 0,
+                "metadata_v": 0,
+                "last_edited_overall_timestamp": created_at,
+                "unread_count": 0,
+                "created_at": created_at,
+                "updated_at": created_at,
+                "last_message_timestamp": created_at,
+            }
 
+            chat_metadata_persisted = await self._maybe_call(self.persist_chat_metadata, chat_metadata_payload)
+            if self.persist_chat_metadata is not None and not chat_metadata_persisted:
+                return await self._mark_failed(user_id, processing_window_id, lock_token, current_time, "chat_metadata_failed")
             await self._maybe_call(self.persist_user_message, user_persist_payload)
             await self._maybe_call(self.persist_system_event, system_persist_payload)
             await self._maybe_call(self.mark_chat_provenance, provenance_payload)
+            await self.cache_service.set_chat_version_component(user_id, chat_id, "messages_v", final_messages_v)
 
             ai_task_id = await self._maybe_call(
                 self.dispatch_ai,
