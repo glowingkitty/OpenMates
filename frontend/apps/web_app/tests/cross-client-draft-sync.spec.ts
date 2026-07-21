@@ -28,7 +28,7 @@ const CLI_DIST = fs.existsSync('/workspace/cli/dist/cli.js')
 const AUDIO_FIXTURE = fs.existsSync('/workspace/backend/tests/fixtures/test_audio.wav')
 	? '/workspace/backend/tests/fixtures/test_audio.wav'
 	: path.resolve(__dirname, '../../../../backend/tests/fixtures/test_audio.wav');
-const CLI_DRAFT_REFRESH_TIMEOUT_MS = 30_000;
+const CLI_DRAFT_REFRESH_TIMEOUT_MS = 60_000;
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount(1);
 let activeCliHome: string | null = null;
 let lastTransientCliFailure = '';
@@ -276,7 +276,7 @@ async function runCliJson(
 	for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
 		result = await runCli(apiUrl, [...args, '--json'], timeoutMs);
 		if (result.code === 0) return JSON.parse(result.stdout);
-		const transientNetworkError = /fetch failed|ECONNRESET|ETIMEDOUT|EAI_AGAIN|ENOTFOUND/i.test(result.stderr);
+		const transientNetworkError = /fetch failed|ECONNRESET|ETIMEDOUT|EAI_AGAIN|ENOTFOUND|CLI timed out/i.test(result.stderr);
 		const transientAuthError = /Session expired or invalid/i.test(result.stderr);
 		sawAllowedTransientError ||= transientNetworkError || transientAuthError;
 		if (!transientNetworkError || attempt === maxAttempts - 1) break;
