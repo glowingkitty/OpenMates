@@ -139,8 +139,8 @@ describe("OpenMates workspace history SDK", () => {
       ["POST", "/v1/projects/ask"],
       ["POST", "/v1/workflows/ask"],
     ]);
-    assert.deepEqual(seen[0]?.body, { instruction: "Prepare launch", apply_mode: "auto_apply", encrypted_create: { task_id: "task-1" } });
-    assert.deepEqual(seen[1]?.body, { instruction: "Launch", apply_mode: "auto_apply", encrypted_create: { project_id: "project-1" } });
-    assert.deepEqual(seen[2]?.body, { instruction: "Rain alert", apply_mode: "auto_apply", create: { title: "Rain alert" } });
+    assert.deepEqual(seen[0]?.body, { instruction: "Prepare launch", encrypted_create: { task_id: "task-1" } });
+    assert.deepEqual(seen[1]?.body, { instruction: "Launch", encrypted_create: { project_id: "project-1" } });
+    assert.deepEqual(seen[2]?.body, { instruction: "Rain alert", create: { title: "Rain alert" } });
   });
 });

@@ -157,7 +157,7 @@ describe("OpenMatesClient workspace history", () => {
       assert.equal(taskAsk.change_set_id, "cs-ask");
       assert.equal(taskAsk.undo_all_command, "openmates history undo cs-ask");
       assert.deepEqual(taskAsk.undo_entry_commands, ["openmates tasks restore task-1 --entry entry-1 --state before"]);
-      assert.equal((await client.askUserPlans({ instruction: "Launch plan", applyMode: "confirm_first", encryptedCreate: encryptedPlanCreate() })).change_set_id, "cs-ask");
+      assert.equal((await client.askUserPlans({ instruction: "Launch plan", encryptedCreate: encryptedPlanCreate() })).change_set_id, "cs-ask");
       assert.equal((await client.askProject({ instruction: "Launch", encryptedCreate: { project_id: "project-1", encrypted_name: "cipher-name" } })).change_set_id, "cs-ask");
       assert.equal((await client.askWorkflow({ instruction: "Rain alert", create: { title: "Rain alert" } })).change_set_id, "cs-ask");
 
@@ -167,10 +167,10 @@ describe("OpenMatesClient workspace history", () => {
         ["POST", "/v1/projects/ask"],
         ["POST", "/v1/workflows/ask"],
       ]);
-      assert.deepEqual(seen[0]?.body, { instruction: "Prepare launch", apply_mode: "auto_apply", encrypted_create: encryptedTaskCreate() });
-      assert.deepEqual(seen[1]?.body, { instruction: "Launch plan", apply_mode: "confirm_first", encrypted_create: encryptedPlanCreate() });
-      assert.deepEqual(seen[2]?.body, { instruction: "Launch", apply_mode: "auto_apply", encrypted_create: { project_id: "project-1", encrypted_name: "cipher-name" } });
-      assert.deepEqual(seen[3]?.body, { instruction: "Rain alert", apply_mode: "auto_apply", create: { title: "Rain alert" } });
+      assert.deepEqual(seen[0]?.body, { instruction: "Prepare launch", encrypted_create: encryptedTaskCreate() });
+      assert.deepEqual(seen[1]?.body, { instruction: "Launch plan", encrypted_create: encryptedPlanCreate() });
+      assert.deepEqual(seen[2]?.body, { instruction: "Launch", encrypted_create: { project_id: "project-1", encrypted_name: "cipher-name" } });
+      assert.deepEqual(seen[3]?.body, { instruction: "Rain alert", create: { title: "Rain alert" } });
     });
   });
 });

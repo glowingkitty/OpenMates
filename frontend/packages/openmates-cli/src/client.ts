@@ -140,6 +140,50 @@ function defaultIdeaBucketScheduledSendAt(nowSeconds: number): number {
   return Math.floor(sendAt);
 }
 
+const IDEABUCKET_APP_ID = "ideabucket";
+const IDEABUCKET_SETTINGS_ITEM_TYPE = "processing_settings";
+const IDEABUCKET_DEFAULT_PROCESSING_TIMES = ["09:00"];
+const IDEABUCKET_PROCESSING_TIME_PATTERN = /^([01]\d|2[0-3]):([0-5]\d)$/;
+
+function normalizeIdeaBucketProcessingTimes(value: unknown): string[] {
+  const rawTimes = Array.isArray(value)
+    ? value
+    : typeof value === "string"
+      ? value.split(",")
+      : IDEABUCKET_DEFAULT_PROCESSING_TIMES;
+  const times = rawTimes.map((time) => String(time).trim()).filter(Boolean);
+  const uniqueSortedTimes = [...new Set(times)].sort((a, b) => ideaBucketTimeToMinutes(a) - ideaBucketTimeToMinutes(b));
+  if (uniqueSortedTimes.length < 1 || uniqueSortedTimes.length > 3) {
+    throw new Error("IdeaBucket processing_times must include one to three HH:MM values.");
+  }
+  for (const time of uniqueSortedTimes) {
+    if (!IDEABUCKET_PROCESSING_TIME_PATTERN.test(time)) {
+      throw new Error(`Invalid IdeaBucket processing time '${time}'. Expected HH:MM in 24-hour format.`);
+    }
+  }
+  return uniqueSortedTimes;
+}
+
+function ideaBucketTimeToMinutes(value: string): number {
+  const match = IDEABUCKET_PROCESSING_TIME_PATTERN.exec(value);
+  if (!match) return Number.POSITIVE_INFINITY;
+  return Number(match[1]) * 60 + Number(match[2]);
+}
+
+function nextIdeaBucketScheduledSendAt(nowSeconds: number, processingTimes: string[]): number {
+  const now = new Date(nowSeconds * 1000);
+  const candidates = processingTimes.map((time) => {
+    const [hour, minute] = time.split(":").map((part) => Number(part));
+    const candidate = new Date(now);
+    candidate.setHours(hour, minute, 0, 0);
+    if (Math.floor(candidate.getTime() / 1000) <= nowSeconds) {
+      candidate.setDate(candidate.getDate() + 1);
+    }
+    return Math.floor(candidate.getTime() / 1000);
+  });
+  return Math.min(...candidates);
+}
+
 function buildIdeaBucketMarkdown(
   prompt: string,
   ideas: Array<{ index: number; content: string }>,
@@ -256,6 +300,17 @@ export interface ConnectedAccountImportResult {
   appId: string;
   label: string;
   validation: ConnectedAccountImportValidationResult;
+}
+
+export interface DecryptedConnectedAccountForSkill {
+  id: string;
+  providerId: string;
+  appId: string;
+  label: string;
+  accountRef: string;
+  capabilities: string[];
+  runtimeModes: Record<string, string>;
+  refreshTokenBundle: Record<string, unknown>;
 }
 
 export interface RevolutBusinessSetupExchangeResult {
@@ -1060,6 +1115,22 @@ export function buildTurnTokenRefsRequestPayload(params: {
   };
 }
 
+async function decryptConnectedAccountField(value: unknown, masterKey: Uint8Array): Promise<unknown> {
+  if (typeof value !== "string" || !value) return null;
+  const plaintext = await decryptWithAesGcmCombined(value, masterKey);
+  if (plaintext === null) return null;
+  try {
+    return JSON.parse(plaintext) as unknown;
+  } catch {
+    return plaintext;
+  }
+}
+
+function normalizeStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return Array.from(new Set(value.map((item) => String(item).trim()).filter(Boolean)));
+}
+
 function categoryFromMemoryKey(key: string): { appId: string; itemType: string } | null {
   const separator = key.indexOf("-");
   if (separator <= 0 || separator === key.length - 1) return null;
@@ -1472,6 +1543,17 @@ export const MEMORY_TYPE_REGISTRY: Record<string, MemoryTypeDef> = {
     required: ["name"],
     properties: { name: { type: "string" }, description: { type: "string" } },
   },
+  "ideabucket/processing_settings": {
+    appId: "ideabucket",
+    itemType: "processing_settings",
+    entryType: "single",
+    required: ["processing_prompt", "processing_times"],
+    properties: {
+      processing_prompt: { type: "string" },
+      processing_times: { type: "string" },
+      require_confirmation: { type: "boolean" },
+    },
+  },
   "events/saved_events": {
     appId: "events",
     itemType: "saved_events",
@@ -1804,6 +1886,21 @@ export interface IdeaBucketAddResult {
   payloadHash: string;
   markdown: string;
   preview: string;
+}
+
+export interface IdeaBucketSettingsInput {
+  processingPrompt?: string;
+  processingTimes?: string[] | string;
+  requireConfirmation?: boolean;
+}
+
+export interface IdeaBucketSettings {
+  processingPrompt: string;
+  processingTimes: string[];
+  requireConfirmation: boolean;
+  entryId?: string;
+  itemVersion?: number;
+  source: "account" | "default";
 }
 
 export interface IdeaBucketStatusResult {
@@ -3074,6 +3171,104 @@ export class OpenMatesClient {
     });
   }
 
+  async listConnectedAccounts(): Promise<Array<Record<string, unknown>>> {
+    this.requireSession();
+    const response = await this.http.get<{ rows?: Array<Record<string, unknown>> }>(
+      "/v1/connected-accounts",
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !Array.isArray(response.data.rows)) {
+      throw new Error(`Failed to list connected accounts (HTTP ${response.status})`);
+    }
+    return response.data.rows;
+  }
+
+  async decryptConnectedAccountForSkill(params: {
+    accountId?: string;
+    appId: string;
+    providerId: string;
+  }): Promise<DecryptedConnectedAccountForSkill> {
+    const rows = await this.listConnectedAccounts();
+    const masterKey = this.getMasterKeyBytes();
+    const candidates: DecryptedConnectedAccountForSkill[] = [];
+    for (const row of rows) {
+      const id = String(row.id ?? "");
+      if (params.accountId && id !== params.accountId) continue;
+      const providerId = String(await decryptConnectedAccountField(row.encrypted_provider_type, masterKey));
+      if (providerId !== params.providerId) continue;
+      const permissions = await decryptConnectedAccountField(row.encrypted_app_permissions, masterKey);
+      const appId = permissions && typeof permissions === "object" && !Array.isArray(permissions)
+        ? String((permissions as Record<string, unknown>).app_id ?? params.appId)
+        : params.appId;
+      if (appId !== params.appId) continue;
+      const label = String(await decryptConnectedAccountField(row.encrypted_account_label, masterKey) ?? providerId);
+      const capabilities = normalizeStringArray(await decryptConnectedAccountField(row.encrypted_capabilities, masterKey));
+      const directoryHint = await decryptConnectedAccountField(row.encrypted_account_directory_hint, masterKey);
+      const hint = directoryHint && typeof directoryHint === "object" && !Array.isArray(directoryHint)
+        ? directoryHint as Record<string, unknown>
+        : {};
+      const refreshTokenBundle = await decryptConnectedAccountField(row.encrypted_refresh_token_bundle, masterKey);
+      if (!refreshTokenBundle || typeof refreshTokenBundle !== "object" || Array.isArray(refreshTokenBundle)) {
+        throw new Error(`Connected account ${id} is missing encrypted refresh-token material.`);
+      }
+      candidates.push({
+        id,
+        providerId,
+        appId,
+        label,
+        accountRef: String(hint.account_ref ?? id),
+        capabilities: capabilities.length ? capabilities : ["read"],
+        runtimeModes: hint.runtime_modes && typeof hint.runtime_modes === "object" && !Array.isArray(hint.runtime_modes)
+          ? hint.runtime_modes as Record<string, string>
+          : { read: "allow_automatically" },
+        refreshTokenBundle: refreshTokenBundle as Record<string, unknown>,
+      });
+    }
+    if (candidates.length === 0) {
+      throw new Error(params.accountId
+        ? `Connected account ${params.accountId} was not found for ${params.providerId}.`
+        : `No ${params.providerId} connected account found. Run \`openmates connect-account revolut-business\` first.`);
+    }
+    if (candidates.length > 1 && !params.accountId) {
+      throw new Error(`Multiple ${params.providerId} accounts found. Re-run with --connected-account <id>.`);
+    }
+    return candidates[0];
+  }
+
+  async runConnectedAccountSkill(params: {
+    appId: string;
+    skillId: string;
+    input: Record<string, unknown>;
+    connectedAccountTokenRefInputs: ConnectedAccountTurnTokenRefInput[];
+    chatId?: string;
+    messageId?: string;
+    apiKey?: string;
+  }): Promise<Record<string, unknown>> {
+    const headers = this.getCliRequestHeaders();
+    if (params.apiKey) headers.Authorization = `Bearer ${params.apiKey}`;
+    const response = await this.http.post<Record<string, unknown>>(
+      `/v1/sdk/connected-account-skills/${encodeURIComponent(params.appId)}/${encodeURIComponent(params.skillId)}`,
+      {
+        input: params.input,
+        connected_account_token_ref_inputs: params.connectedAccountTokenRefInputs,
+        chat_id: params.chatId,
+        message_id: params.messageId,
+      },
+      headers,
+    );
+    if (!response.ok) {
+      const detail = (response.data as { detail?: unknown } | undefined)?.detail;
+      const errorCode = detail && typeof detail === "object" && !Array.isArray(detail)
+        ? (detail as { error?: unknown }).error
+        : undefined;
+      const suffix = typeof errorCode === "string" && errorCode
+        ? `: ${errorCode}`
+        : "";
+      throw new Error(`Connected-account skill execution failed with HTTP ${response.status}${suffix}`);
+    }
+    return response.data;
+  }
+
   async importConnectedAccountFromCliPayload(params: {
     encryptedPayload: string;
     passcode: string;
@@ -3931,6 +4126,72 @@ export class OpenMatesClient {
     }
   }
 
+  async getIdeaBucketSettings(): Promise<IdeaBucketSettings> {
+    const entries = (await this.listMemories())
+      .filter((entry) => entry.app_id === IDEABUCKET_APP_ID && entry.item_type === IDEABUCKET_SETTINGS_ITEM_TYPE)
+      .sort((a, b) => b.updated_at - a.updated_at);
+    const entry = entries[0];
+    if (!entry) {
+      return this.normalizeIdeaBucketSettings(null, undefined, undefined);
+    }
+    return this.normalizeIdeaBucketSettings(entry.data, entry.id, entry.item_version);
+  }
+
+  async saveIdeaBucketSettings(input: IdeaBucketSettingsInput): Promise<IdeaBucketSettings> {
+    const current = await this.getIdeaBucketSettings();
+    const settings = this.normalizeIdeaBucketSettings({
+      processing_prompt: input.processingPrompt ?? current.processingPrompt,
+      processing_times: input.processingTimes ?? current.processingTimes,
+      require_confirmation: input.requireConfirmation ?? current.requireConfirmation,
+    }, current.entryId, current.itemVersion);
+    const itemValue = this.ideaBucketSettingsToMemoryValue(settings);
+    if (settings.entryId && settings.itemVersion) {
+      await this.updateMemory({
+        entryId: settings.entryId,
+        appId: IDEABUCKET_APP_ID,
+        itemType: IDEABUCKET_SETTINGS_ITEM_TYPE,
+        itemValue,
+        currentVersion: settings.itemVersion,
+      });
+    } else {
+      const created = await this.createMemory({
+        appId: IDEABUCKET_APP_ID,
+        itemType: IDEABUCKET_SETTINGS_ITEM_TYPE,
+        itemValue,
+      });
+      settings.entryId = created.id;
+      settings.itemVersion = 1;
+    }
+    settings.source = "account";
+    return settings;
+  }
+
+  private normalizeIdeaBucketSettings(
+    data: Record<string, unknown> | null,
+    entryId?: string,
+    itemVersion?: number,
+  ): IdeaBucketSettings {
+    const processingPrompt = typeof data?.processing_prompt === "string" && data.processing_prompt.trim()
+      ? data.processing_prompt.trim()
+      : IDEABUCKET_DEFAULT_PROCESSING_PROMPT;
+    return {
+      processingPrompt,
+      processingTimes: normalizeIdeaBucketProcessingTimes(data?.processing_times),
+      requireConfirmation: data?.require_confirmation === true,
+      entryId,
+      itemVersion,
+      source: entryId ? "account" : "default",
+    };
+  }
+
+  private ideaBucketSettingsToMemoryValue(settings: IdeaBucketSettings): Record<string, unknown> {
+    return {
+      processing_prompt: settings.processingPrompt,
+      processing_times: settings.processingTimes.join(","),
+      require_confirmation: settings.requireConfirmation,
+    };
+  }
+
   async addIdeaBucketText(params: {
     text: string;
     chatId?: string;
@@ -4063,9 +4324,15 @@ export class OpenMatesClient {
     const chatId = params.chatId ?? randomUUID();
     const bucketId = params.bucketId ?? defaultIdeaBucketProcessingWindowId();
     const processingWindowId = bucketId;
-    const scheduledSendAt = params.scheduledSendAt ?? defaultIdeaBucketScheduledSendAt(now);
+    const settings = params.prompt === undefined || params.scheduledSendAt === undefined
+      ? await this.getIdeaBucketSettings()
+      : null;
+    const scheduledSendAt = params.scheduledSendAt
+      ?? (settings?.source === "account"
+        ? nextIdeaBucketScheduledSendAt(now, settings.processingTimes)
+        : defaultIdeaBucketScheduledSendAt(now));
     const version = params.version ?? now;
-    const prompt = params.prompt ?? IDEABUCKET_DEFAULT_PROCESSING_PROMPT;
+    const prompt = params.prompt ?? settings?.processingPrompt ?? IDEABUCKET_DEFAULT_PROCESSING_PROMPT;
     const markdown = buildIdeaBucketMarkdown(
       prompt,
       params.ideas.map((idea, index) => ({ index: index + 1, content: idea.content })),
@@ -4109,6 +4376,7 @@ export class OpenMatesClient {
         client_encrypted_future_user_message: encryptedFutureUserMessage,
         client_encrypted_ideabucket_system_event: encryptedSystemEvent,
         payload_hash: payloadHash,
+        require_confirmation: settings?.requireConfirmation === true,
       },
     });
 
@@ -7049,11 +7317,23 @@ export class OpenMatesClient {
     return response.data.workflow;
   }
 
-  async askWorkflow(input: { instruction: string; applyMode?: "auto_apply" | "confirm_first"; create?: Record<string, unknown> }): Promise<Record<string, unknown>> {
+  async askWorkflow(input: {
+    instruction: string;
+    create?: Record<string, unknown>;
+    exactUpdate?: Record<string, unknown>;
+    exactAction?: Record<string, unknown>;
+    selectedObjectId?: string | null;
+  }): Promise<Record<string, unknown>> {
     this.requireSession();
     const response = await this.http.post<Record<string, unknown>>(
       "/v1/workflows/ask",
-      { instruction: input.instruction, apply_mode: input.applyMode ?? "auto_apply", ...(input.create ? { create: input.create } : {}) },
+      {
+        instruction: input.instruction,
+        ...(input.create ? { create: input.create } : {}),
+        ...(input.exactUpdate ? { exact_update: input.exactUpdate } : {}),
+        ...(input.exactAction ? { exact_action: input.exactAction } : {}),
+        ...(input.selectedObjectId !== undefined ? { selected_object_id: input.selectedObjectId } : {}),
+      },
       this.getCliRequestHeaders(),
     );
     if (!response.ok) throw new Error(`Workflow ask failed with HTTP ${response.status}`);
@@ -7521,11 +7801,25 @@ export class OpenMatesClient {
     return response.data;
   }
 
-  async askProject(input: { instruction: string; applyMode?: "auto_apply" | "confirm_first"; encryptedCreate?: Record<string, unknown> }): Promise<Record<string, unknown>> {
+  async askProject(input: {
+    instruction: string;
+    encryptedCreate?: Record<string, unknown>;
+    encryptedUpdate?: Record<string, unknown>;
+    encryptedUpdates?: Record<string, unknown>[];
+    exactDelete?: Record<string, unknown>;
+    exactDeletes?: Record<string, unknown>[];
+  }): Promise<Record<string, unknown>> {
     this.requireSession();
     const response = await this.http.post<Record<string, unknown>>(
       "/v1/projects/ask",
-      { instruction: input.instruction, apply_mode: input.applyMode ?? "auto_apply", ...(input.encryptedCreate ? { encrypted_create: input.encryptedCreate } : {}) },
+      {
+        instruction: input.instruction,
+        ...(input.encryptedCreate ? { encrypted_create: input.encryptedCreate } : {}),
+        ...(input.encryptedUpdate ? { encrypted_update: input.encryptedUpdate } : {}),
+        ...(input.encryptedUpdates ? { encrypted_updates: input.encryptedUpdates } : {}),
+        ...(input.exactDelete ? { exact_delete: input.exactDelete } : {}),
+        ...(input.exactDeletes ? { exact_deletes: input.exactDeletes } : {}),
+      },
       this.getCliRequestHeaders(),
     );
     if (!response.ok) throw new Error(`Project ask failed with HTTP ${response.status}`);
@@ -7658,15 +7952,26 @@ export class OpenMatesClient {
     return response.data.task;
   }
 
-  async askUserTasks(input: { instruction: string; applyMode?: "auto_apply" | "confirm_first"; encryptedCreate?: UserTaskCreateInput; encryptedCreates?: UserTaskCreateInput[] }): Promise<Record<string, unknown>> {
+  async askUserTasks(input: {
+    instruction: string;
+    encryptedCreate?: UserTaskCreateInput;
+    encryptedCreates?: UserTaskCreateInput[];
+    encryptedUpdate?: Record<string, unknown>;
+    encryptedUpdates?: Record<string, unknown>[];
+    exactDelete?: Record<string, unknown>;
+    exactDeletes?: Record<string, unknown>[];
+  }): Promise<Record<string, unknown>> {
     this.requireSession();
     const response = await this.http.post<Record<string, unknown>>(
       "/v1/user-tasks/ask",
       {
         instruction: input.instruction,
-        apply_mode: input.applyMode ?? "auto_apply",
         ...(input.encryptedCreate ? { encrypted_create: input.encryptedCreate } : {}),
         ...(input.encryptedCreates ? { encrypted_creates: input.encryptedCreates } : {}),
+        ...(input.encryptedUpdate ? { encrypted_update: input.encryptedUpdate } : {}),
+        ...(input.encryptedUpdates ? { encrypted_updates: input.encryptedUpdates } : {}),
+        ...(input.exactDelete ? { exact_delete: input.exactDelete } : {}),
+        ...(input.exactDeletes ? { exact_deletes: input.exactDeletes } : {}),
       },
       this.getCliRequestHeaders(),
     );
@@ -7833,11 +8138,21 @@ export class OpenMatesClient {
     return response.data.plan;
   }
 
-  async askUserPlans(input: { instruction: string; applyMode?: "auto_apply" | "confirm_first"; encryptedCreate?: UserPlanCreateInput }): Promise<Record<string, unknown>> {
+  async askUserPlans(input: {
+    instruction: string;
+    encryptedCreate?: UserPlanCreateInput;
+    encryptedUpdate?: Record<string, unknown>;
+    encryptedUpdates?: Record<string, unknown>[];
+  }): Promise<Record<string, unknown>> {
     this.requireSession();
     const response = await this.http.post<Record<string, unknown>>(
       "/v1/user-plans/ask",
-      { instruction: input.instruction, apply_mode: input.applyMode ?? "auto_apply", ...(input.encryptedCreate ? { encrypted_create: input.encryptedCreate } : {}) },
+      {
+        instruction: input.instruction,
+        ...(input.encryptedCreate ? { encrypted_create: input.encryptedCreate } : {}),
+        ...(input.encryptedUpdate ? { encrypted_update: input.encryptedUpdate } : {}),
+        ...(input.encryptedUpdates ? { encrypted_updates: input.encryptedUpdates } : {}),
+      },
       this.getCliRequestHeaders(),
     );
     if (!response.ok) throw new Error(`User plan ask failed with HTTP ${response.status}`);

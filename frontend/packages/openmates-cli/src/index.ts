@@ -84,6 +84,8 @@ export type {
   IdeaBucketAddInput,
   IdeaBucketProcessOptions,
   IdeaBucketResult,
+  IdeaBucketSettings,
+  IdeaBucketSettingsInput,
   OpenMatesOptions,
   TaskListFilters,
   TaskPlainCreateOptions,

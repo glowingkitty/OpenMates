@@ -992,8 +992,9 @@ tests:
       - "`openmates tasks ask \"Prepare launch copy\"` creates one task and prints change_set_id plus namespace-specific per-entry rollback and all-change undo commands."
       - Long `tasks ask` instructions can create multiple tasks in one change set.
       - Plans, projects, and workflows expose namespace-specific ask commands and no global ask/create command is required.
-      - Confirmation mode previews proposed changes without applying them until explicit follow-up.
-    covers: [AC-8, AC-9, AC-10, AC-11, AC-12]
+      - CLI and client transport omit preview/confirmation apply modes and pass only supported encrypted create/exact mutation ask payloads.
+      - Ask fallback responses are rendered as non-applied summaries with no change-set commands.
+    covers: [AC-8, AC-9, AC-10, AC-11, AC-12, AC-18]
     red_phase:
       required: true
       expected: fail_before_implementation
@@ -1007,19 +1008,19 @@ tests:
       evidence:
         status: passed
         command: node --test --experimental-strip-types --loader ./tests/loader.mjs tests/workspace-history.test.ts
-        run_id: local-2026-07-21T09:06:00Z
-        observed: 5 passed across workspace-history and sdk-workspace-history tests; ask endpoint payloads include apply modes, bulk task encrypted creates, full-change-set undo, and namespace rollback command fields.
-        subject_commit: c4b87d47e
-        timestamp: "2026-07-21T09:16:34Z"
+        run_id: local-2026-07-21T18:00:00Z
+        observed: 2 passed; client ask endpoint payloads omit apply_mode and include namespace-specific encrypted create payloads plus workflow create payloads.
+        subject_commit: 44f5b9cf4+working-tree
+        timestamp: "2026-07-21T18:00:00Z"
   - id: T-WCH-ASK-SDK
     type: vitest
     file: frontend/packages/openmates-cli/tests/sdk-workspace-history.test.ts
     command: node --test --experimental-strip-types --loader ./tests/loader.mjs tests/sdk-workspace-history.test.ts
     assertions:
-      - npm SDK exposes task, plan, project, and workflow ask helpers with apply_mode support.
+      - npm SDK exposes task, plan, project, and workflow ask helpers without apply_mode support.
       - SDK responses include applied changes, change_set_id, undo_all_command, and undo_entry_commands.
-      - pip SDK parity exposes matching ask helper contracts.
-    covers: [AC-11, AC-12]
+      - pip SDK parity exposes matching ask helper contracts with encrypted/exact mutation payload fields.
+    covers: [AC-11, AC-12, AC-18]
     red_phase:
       required: true
       expected: fail_before_implementation
@@ -1033,10 +1034,10 @@ tests:
       evidence:
         status: passed
         command: node --test --experimental-strip-types --loader ./tests/loader.mjs tests/sdk-workspace-history.test.ts && python3 -m pytest packages/openmates-python/tests/test_sdk.py -q -k "workspace_history_methods"
-        run_id: local-2026-07-21T00:39:00Z
-        observed: npm 3 passed; pip 1 passed, 33 deselected
-        subject_commit: c4b87d47e
-        timestamp: "2026-07-21T00:40:05Z"
+        run_id: local-2026-07-21T18:00:00Z
+        observed: npm 3 passed; pip 1 passed, 34 deselected; SDK ask payloads omit apply_mode and preserve encrypted create payloads.
+        subject_commit: 44f5b9cf4+working-tree
+        timestamp: "2026-07-21T18:00:00Z"
   - id: T-WCH-ASK-PIPELINE
     type: pytest
     file: backend/tests/test_workspace_ask_pipeline.py
@@ -1064,10 +1065,10 @@ tests:
       evidence:
         status: passed
         command: python3 -m pytest backend/tests/test_workspace_ask_pipeline.py backend/tests/test_workspace_ask_routes.py -q
-        run_id: local-2026-07-21T11:49:53Z
-        observed: 17 passed; pipeline tests covered preprocessor, selected main model, description generation, ambiguity rejection, unselected app-skill rejection, and empty workflow graph repair; route tests covered pipeline metadata exposure.
-        subject_commit: 3eb32d5ae922337b5e34161d92202d906b9af6d0+working-tree
-        timestamp: "2026-07-21T11:59:50Z"
+        run_id: local-2026-07-21T18:00:00Z
+        observed: 24 passed; pipeline tests covered preprocessor, selected main model, description generation, ambiguity rejection, unselected app-skill rejection, and empty workflow graph repair; route tests covered applied/fallback outcome shapes and exact safe ask mutations.
+        subject_commit: 44f5b9cf4+working-tree
+        timestamp: "2026-07-21T18:00:00Z"
 
 verifications:
   - id: V-WCH-PLAN-APPROVAL

@@ -45,6 +45,7 @@ import {
   type WorkspaceHistoryResult,
   type TeamRole,
   type WorkspaceMoveType,
+  type DecryptedConnectedAccountForSkill,
 } from "./client.js";
 import { OpenMates, OpenMatesApiError, type ChatResponse, type EncryptedChatMetadata } from "./sdk.js";
 import type { PendingTaskUpdateJobFrame, StreamEvent, SubChatEvent, TaskEventFrame } from "./ws.js";
@@ -276,6 +277,10 @@ async function main(): Promise<void> {
       printConnectedAccountsHelp();
       return;
     }
+    if (command === "finance") {
+      printFinanceHelp();
+      return;
+    }
     if (command === "connect-account") {
       printConnectAccountHelp();
       return;
@@ -469,6 +474,11 @@ async function main(): Promise<void> {
 
   if (command === "connected-accounts") {
     await handleConnectedAccounts(client, subcommand, parsed.flags);
+    return;
+  }
+
+  if (command === "finance") {
+    await handleFinance(client, subcommand, rest, parsed.flags);
     return;
   }
 
@@ -666,12 +676,6 @@ async function handleTasks(
 
   if (subcommand === "ask") {
     const instruction = requiredAskInstruction(flags, rest, "openmates tasks ask \"Prepare launch copy\"");
-    if (flags.confirm === true || flags["confirm-first"] === true) {
-      const proposals = await proposeTasksForAsk(client, instruction, flags);
-      if (flags.json === true) printJson({ applied: false, proposed_tasks: proposals });
-      else printAskPreview("tasks", proposals.map((proposal) => proposal.title));
-      return;
-    }
     const proposals = await proposeTasksForAsk(client, instruction, flags);
     const encryptedCreates = [];
     for (const proposal of proposals) {
@@ -866,8 +870,7 @@ function optionalString(record: Record<string, unknown>, key: string): string | 
 }
 
 async function proposeTasksForAsk(client: OpenMatesClient, instruction: string, flags: Record<string, string | boolean>): Promise<Array<{ title: string; description?: string | null; status?: UserTaskStatus; assignee_type?: string | null }>> {
-  const shortTitleLike = instruction.length <= 80 && !/[,:;\n]/.test(instruction);
-  if (shortTitleLike) return [{ title: instruction }];
+  if (isShortWorkspaceAsk(instruction)) return [{ title: instruction }];
   const proposals = await client.planUserTaskAsk({
     instruction,
     contextChatId: typeof flags.chat === "string" ? flags.chat : null,
@@ -878,15 +881,16 @@ async function proposeTasksForAsk(client: OpenMatesClient, instruction: string, 
   return splitProposals.length > 0 ? splitProposals : [{ title: instruction }];
 }
 
+function isShortWorkspaceAsk(instruction: string): boolean {
+  const stripped = instruction.trim();
+  if (!stripped || stripped.includes("\n")) return false;
+  if (/(^|\s)([-*]|\d+\.)\s/.test(stripped)) return false;
+  return stripped.split(/\s+/).length <= 8;
+}
+
 function splitTaskAskInstruction(instruction: string): Array<{ title: string }> {
   const suffix = instruction.includes(":") ? instruction.split(":").slice(1).join(":") : instruction;
   return suffix.split(/[,;]\s*/).map((title) => title.trim()).filter(Boolean).map((title) => ({ title }));
-}
-
-function printAskPreview(namespace: string, titles: string[]): void {
-  console.log(`Preview ${namespace} ask changes:`);
-  for (const title of titles) console.log(`  - ${title}`);
-  console.log("No changes applied. Re-run without --confirm-first to apply.");
 }
 
 function printHistoryCommands(history: WorkspaceHistoryResult | null | undefined): void {
@@ -1012,13 +1016,9 @@ async function handlePlans(
 
   if (subcommand === "ask") {
     const instruction = requiredAskInstruction(flags, rest, "openmates plans ask \"Prepare launch plan\"");
-    if (flags.confirm === true || flags["confirm-first"] === true) {
-      const proposal = extractRecord(await client.planUserPlanAsk({ instruction }), "proposed_plan");
-      if (flags.json === true) printJson({ applied: false, proposed_plan: proposal });
-      else printAskPreview("plans", [requiredString(proposal, "title", instruction)]);
-      return;
-    }
-    const proposal = extractRecord(await client.planUserPlanAsk({ instruction }), "proposed_plan");
+    const proposal = isShortWorkspaceAsk(instruction)
+      ? { title: instruction, summary: "", goal: instruction }
+      : extractRecord(await client.planUserPlanAsk({ instruction }), "proposed_plan");
     const title = requiredString(proposal, "title", instruction);
     const input = await buildCreateUserPlanInput(masterKey, {
       title,
@@ -1263,13 +1263,9 @@ async function handleProjects(
 
   if (subcommand === "ask") {
     const instruction = requiredAskInstruction(flags, rest, "openmates projects ask \"Launch workspace\"");
-    if (flags.confirm === true || flags["confirm-first"] === true) {
-      const proposal = extractRecord(await client.planProjectAsk({ instruction }), "proposed_project");
-      if (flags.json === true) printJson({ applied: false, proposed_project: proposal });
-      else printAskPreview("projects", [requiredString(proposal, "name", instruction)]);
-      return;
-    }
-    const proposal = extractRecord(await client.planProjectAsk({ instruction }), "proposed_project");
+    const proposal = isShortWorkspaceAsk(instruction)
+      ? { name: instruction, description: "", icon: "folder", color: "default" }
+      : extractRecord(await client.planProjectAsk({ instruction }), "proposed_project");
     const masterKey = client.getMasterKeyBytes();
     const projectKey = randomBytes(32);
     const timestamp = Math.floor(Date.now() / 1000);
@@ -2017,6 +2013,28 @@ async function handleIdeaBucket(
     const bucketId = rest[0] ?? (typeof flags.bucket === "string" ? flags.bucket : undefined);
     printJson(await client.getIdeaBucketStatus(bucketId));
     return;
+  }
+
+  if (subcommand === "settings") {
+    const action = rest[0] ?? "get";
+    if (action === "get") {
+      printJson(await client.getIdeaBucketSettings());
+      return;
+    }
+    if (action === "set") {
+      const hasRequireConfirmation = flags["require-confirmation"] === true;
+      const hasNoRequireConfirmation = flags["no-require-confirmation"] === true;
+      if (hasRequireConfirmation && hasNoRequireConfirmation) {
+        throw new Error("Use only one of --require-confirmation or --no-require-confirmation.");
+      }
+      printJson(await client.saveIdeaBucketSettings({
+        processingPrompt: typeof flags.prompt === "string" ? flags.prompt : undefined,
+        processingTimes: typeof flags.times === "string" ? flags.times : undefined,
+        requireConfirmation: hasRequireConfirmation ? true : hasNoRequireConfirmation ? false : undefined,
+      }));
+      return;
+    }
+    throw new Error(`Unknown ideabucket settings action '${action}'.`);
   }
 
   if (subcommand === "process") {
@@ -3314,11 +3332,6 @@ async function handleWorkflows(
 
   if (subcommand === "ask") {
     const instruction = requiredAskInstruction(flags, rest, "openmates workflows ask \"alert me if it rains\"");
-    if (flags.confirm === true || flags["confirm-first"] === true) {
-      if (flags.json === true) printJson({ applied: false, proposed_workflows: [{ title: instruction }] });
-      else printAskPreview("workflows", [instruction]);
-      return;
-    }
     const retention = parseWorkflowRunContentRetention(flags["run-content-retention"]);
     const explicitCreate = typeof flags.graph === "string" || typeof flags.description === "string" || flags.enabled === true || Boolean(retention)
       ? {
@@ -3680,6 +3693,9 @@ const APP_SKILL_COMMAND_EXAMPLES: Record<string, string[]> = {
   "code/search_repos": [
     "openmates apps code search_repos \"svelte markdown editor\" --count 3 --json",
   ],
+  "code/image_to_html": [
+    "openmates apps code image_to_html --file ./mockup.png --max-correction-passes 0 --json",
+  ],
   "electronics/search_components": [
     "openmates apps electronics search_components --category power_converters --input-voltage-min 12 --input-voltage-max 12 --output-voltage 3.3 --output-current-max 3 --max-results 3 --json",
   ],
@@ -3838,6 +3854,9 @@ function buildGeneratedAppSkillValue(
   if (command.app_id === "travel" && command.skill_id === "search_connections") {
     return buildTravelConnectionsRequest(positionals, flags);
   }
+  if (command.app_id === "code" && command.skill_id === "image_to_html") {
+    return buildCodeImageToHtmlRequest(positionals, flags);
+  }
 
   const value: Record<string, unknown> = {};
   const consumedPositionals = applyPrimaryPositionals(command, shape, value, positionals);
@@ -3883,6 +3902,37 @@ function buildTravelConnectionsRequest(
   const transport = stringFlag(flags, "transport") ?? stringFlag(flags, "transport-method");
   if (transport) request.transport_methods = [transport];
   return request;
+}
+
+function buildCodeImageToHtmlRequest(
+  positionals: string[],
+  flags: Record<string, string | boolean>,
+): Record<string, unknown> {
+  const file = stringFlag(flags, "file") ?? positionals[0];
+  if (!file) {
+    throw new Error(
+      "Missing screenshot file. Use --file <path>.\n\n" +
+        "Example: openmates apps code image_to_html --file ./mockup.png --json",
+    );
+  }
+  const request: Record<string, unknown> = {
+    image_base64: readFileSync(file).toString("base64"),
+    mime_type: inferImageToHtmlMimeType(file),
+    filename: file.split(/[\\/]/).pop() ?? file,
+  };
+  const maxCorrectionPasses = readFlag(flags, "max_correction_passes") ?? readFlag(flags, "max-correction-passes");
+  if (maxCorrectionPasses !== undefined) {
+    request.max_correction_passes = coerceAppSkillFlagValue("max_correction_passes", maxCorrectionPasses, { type: "integer" });
+  }
+  return request;
+}
+
+function inferImageToHtmlMimeType(file: string): string {
+  const lower = file.toLowerCase();
+  if (lower.endsWith(".png")) return "image/png";
+  if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) return "image/jpeg";
+  if (lower.endsWith(".webp")) return "image/webp";
+  throw new Error("Unsupported image file extension. Use .png, .jpg, .jpeg, or .webp");
 }
 
 function applyPrimaryPositionals(
@@ -3975,6 +4025,9 @@ function printGeneratedAppSkillCommandHelp(command: GeneratedAppSkillCommand): v
     console.log("  --destination <place> Route destination for a typed connection search.");
     console.log("  --date <YYYY-MM-DD>  Departure date for a typed connection search.");
     console.log("  --transport <mode>   Optional transport mode, e.g. train or plane.");
+  }
+  if (command.app_id === "code" && command.skill_id === "image_to_html") {
+    console.log("  --file <path>        Local PNG, JPEG, or WEBP screenshot to convert.");
   }
   console.log("  --api-key <key>      Use an API key instead of a stored CLI session.");
   console.log("  --disable-prompt-injection-protection  Skip GPT-OSS prompt-injection scanning for this direct call.");
@@ -5576,6 +5629,149 @@ async function handleConnectedAccounts(
   console.log(`Provider: ${result.providerId}`);
   console.log(`App: ${result.appId}`);
   console.log("Validation: harmless read succeeded");
+}
+
+async function handleFinance(
+  client: OpenMatesClient,
+  subcommand: string | undefined,
+  _rest: string[],
+  flags: Record<string, string | boolean>,
+): Promise<void> {
+  if (!subcommand || subcommand === "help" || flags.help === true) {
+    printFinanceHelp();
+    return;
+  }
+  if (subcommand !== "check-accounts" && subcommand !== "check_accounts") {
+    throw new Error(`Unknown finance command '${subcommand}'. Run 'openmates finance --help'.`);
+  }
+  if (!client.hasSession()) {
+    throw new Error("Not logged in. Run `openmates login` before checking connected Finance accounts.");
+  }
+
+  const csvStatements = readFinanceCsvStatements(flags);
+  let connectedAccount: DecryptedConnectedAccountForSkill | null = null;
+  if (flags["csv-only"] !== true) {
+    try {
+      connectedAccount = await client.decryptConnectedAccountForSkill({
+        accountId: stringFlag(flags, "connected-account"),
+        appId: "finance",
+        providerId: "revolut_business",
+      });
+    } catch (error) {
+      if (csvStatements.length === 0 || stringFlag(flags, "connected-account")) throw error;
+    }
+  }
+
+  if (!connectedAccount && csvStatements.length === 0) {
+    throw new Error("Check accounts requires a Revolut Business connected account or --csv <file.csv>.");
+  }
+
+  const input = buildFinanceCheckAccountsInput(flags, csvStatements, connectedAccount);
+  const result = await client.runConnectedAccountSkill({
+    appId: "finance",
+    skillId: "check_accounts",
+    input,
+    connectedAccountTokenRefInputs: connectedAccount
+      ? [
+          {
+            connected_account_id: connectedAccount.id,
+            app_id: "finance",
+            provider_id: "revolut_business",
+            allowed_actions: ["read"],
+            action_scope: { provider: "revolut_business" },
+            refresh_token_envelope: connectedAccount.refreshTokenBundle,
+          },
+        ]
+      : [],
+    chatId: `cli-finance-${randomUUID()}`,
+    messageId: `cli-finance-message-${randomUUID()}`,
+    apiKey: resolveApiKey(flags) ?? undefined,
+  });
+
+  if (flags.json === true) {
+    printJson(result);
+    return;
+  }
+  printFinanceCheckAccountsResult(result);
+}
+
+function readFinanceCsvStatements(flags: Record<string, string | boolean>): Array<{ filename: string; content: string }> {
+  const paths = parseCsvFlag(flags.csv) ?? [];
+  return paths.map((filePath) => ({ filename: basename(filePath), content: readFileSync(filePath, "utf8") }));
+}
+
+function buildFinanceCheckAccountsInput(
+  flags: Record<string, string | boolean>,
+  csvStatements: Array<{ filename: string; content: string }>,
+  connectedAccount: DecryptedConnectedAccountForSkill | null,
+): Record<string, unknown> {
+  const input: Record<string, unknown> = {
+    period: stringFlag(flags, "period") ?? "monthly",
+    projection_horizon: stringFlag(flags, "projection-horizon") ?? "monthly",
+  };
+  const startDate = stringFlag(flags, "from") ?? stringFlag(flags, "start-date");
+  const endDate = stringFlag(flags, "to") ?? stringFlag(flags, "end-date");
+  if (startDate) input.start_date = startDate;
+  if (endDate) input.end_date = endDate;
+  addFinanceListFilter(input, "account_filters", flags.account);
+  addFinanceListFilter(input, "source_filters", flags.source);
+  addFinanceListFilter(input, "category_filters", flags.category ?? flags.categories);
+  addFinanceListFilter(input, "state_filters", flags.state ?? flags.states);
+  addFinanceListFilter(input, "placeholder_filters", flags.placeholder ?? flags.placeholders);
+  const direction = stringFlag(flags, "direction");
+  if (direction) input.direction_filter = direction;
+  if (csvStatements.length > 0) input.csv_statements = csvStatements;
+  if (connectedAccount) {
+    input.connected_account_requests = [
+      {
+        source_ref: `revolut_business:${connectedAccount.accountRef || connectedAccount.id}`,
+      },
+    ];
+  }
+  return input;
+}
+
+function addFinanceListFilter(
+  input: Record<string, unknown>,
+  key: string,
+  value: string | boolean | undefined,
+): void {
+  const parsed = parseCsvFlag(value);
+  if (parsed && parsed.length > 0) input[key] = parsed;
+}
+
+function printFinanceCheckAccountsResult(result: Record<string, unknown>): void {
+  const overview = result.overview && typeof result.overview === "object"
+    ? result.overview as Record<string, unknown>
+    : {};
+  const summaries = overview.summaries && typeof overview.summaries === "object"
+    ? overview.summaries as Record<string, unknown>
+    : {};
+  header("Finance › Check accounts");
+  kv("Accounts", String(result.account_count ?? 0));
+  kv("Transactions", String(result.transaction_count ?? 0));
+  kv("Income", String(summaries.income_total ?? 0));
+  kv("Expenses", String(summaries.expense_total ?? 0));
+  kv("Net", String(summaries.net_total ?? 0));
+  const timeSeries = Array.isArray(summaries.time_series) ? summaries.time_series as Array<Record<string, unknown>> : [];
+  if (timeSeries.length > 0) {
+    console.log("\nTime series");
+    for (const bucket of timeSeries) {
+      console.log(`  ${String(bucket.bucket)}  income ${String(bucket.income ?? 0)}  expenses ${String(bucket.expense ?? 0)}  net ${String(bucket.net ?? 0)}`);
+    }
+  }
+  const transactions = Array.isArray(overview.transactions) ? overview.transactions as Array<Record<string, unknown>> : [];
+  if (transactions.length > 0) {
+    console.log("\nTransactions");
+    for (const transaction of transactions.slice(0, 25)) {
+      console.log(
+        `  ${String(transaction.posted_at)}  ${String(transaction.direction)}  ${String(transaction.amount)} ${String(transaction.currency)}  ${String(transaction.category)}  ${String(transaction.counterparty_placeholder)}`,
+      );
+    }
+    if (transactions.length > 25) console.log(`  ... ${transactions.length - 25} more`);
+  }
+  const warnings = Array.isArray(result.warnings) ? result.warnings as Array<Record<string, unknown>> : [];
+  for (const warning of warnings) console.log(`\nWarning: ${String(warning.message ?? warning.code ?? "unknown")}`);
 }
 
 async function handleConnectAccount(
@@ -9727,6 +9923,7 @@ Commands:
   openmates settings [--help]                Predefined settings commands
   openmates connected-accounts [--help]      Connected account import helpers
   openmates connect-account [--help]         Local connected-account setup helpers
+  openmates finance [--help]                 Finance account analysis commands
   openmates learning-mode [--help]           Account-wide Learning Mode controls
   openmates inspirations [--lang <code>] [--json]   Daily inspirations
   openmates newchatsuggestions [--limit <n>] [--json]   Personalized new chat suggestions
@@ -9809,6 +10006,33 @@ Options:
 
 Security:
   Do not pass the passcode as a flag. It is always entered through a hidden prompt.`);
+}
+
+function printFinanceHelp(): void {
+  console.log(`Finance commands:
+  openmates finance check-accounts [--connected-account <id>] [--csv <file.csv[,file.tsv]>] [--json]
+
+Runs the read-only Finance Check accounts skill through OpenMates API. Revolut
+Business access stays server-mediated through short-lived connected-account token
+refs; raw merchant names are returned only as category-aware placeholders.
+
+Filters:
+  --from <YYYY-MM-DD>              Start date
+  --to <YYYY-MM-DD>                End date
+  --period <monthly|quarterly|yearly|custom>
+  --projection-horizon <monthly|quarterly|yearly>
+  --direction <income|expense>
+  --category <csv>                 Category filter(s)
+  --account <csv>                  Normalized account ref filter(s)
+  --source <csv>                   Source ref filter(s)
+  --state <csv>                    Transaction state filter(s)
+  --placeholder <csv>              Counterparty placeholder filter(s)
+
+Options:
+  --connected-account <id>         Use a specific Revolut Business connected account
+  --csv <paths>                    Add canonical OpenMates CSV/TSV statements
+  --csv-only                       Do not auto-select a connected account
+  --json                           Output raw JSON`);
 }
 
 function printConnectAccountHelp(): void {
@@ -10109,7 +10333,7 @@ Notes:
 
 function printProjectsHelp(): void {
   console.log(`Projects commands:
-  openmates projects ask <name> [--description <text>] [--confirm-first] [--json]
+  openmates projects ask <name> [--description <text>] [--json]
   openmates projects history <project-id> [--limit <n>] [--json]
   openmates projects restore <project-id> --entry <history-entry-id> [--state before|after] [--json]
 
@@ -10169,12 +10393,15 @@ function printIdeaBucketHelp(): void {
   openmates ideabucket add <text> [--chat <uuid>] [--bucket <id>] [--scheduled-at <unix>] [--prompt <text>] [--json]
   openmates ideabucket audio <file> [--chat <uuid>] [--bucket <id>] [--scheduled-at <unix>] [--prompt <text>] [--json]
   openmates ideabucket status [bucket-id] [--json]
+  openmates ideabucket settings get [--json]
+  openmates ideabucket settings set [--prompt <text>] [--times <HH:MM[,HH:MM]>] [--require-confirmation|--no-require-confirmation] [--json]
   openmates ideabucket process <bucket-id> [--now] [--json]
 
 Adding text or audio updates the encrypted OpenMates IdeaBucket draft for the
 processing bucket and sends only ciphertext plus sparse non-content metadata to
 the server. Audio reuses OpenMates upload and audio.transcribe before encrypting
-the bucket draft.`);
+the bucket draft. Settings are stored as OpenMates account-backed encrypted
+settings/memories and are used as defaults when add/audio omit prompt or schedule.`);
 }
 
 function printAppsHelp(): void {
