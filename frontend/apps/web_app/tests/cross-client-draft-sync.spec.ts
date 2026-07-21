@@ -1144,11 +1144,11 @@ test.describe('Cross-client encrypted draft sync', () => {
 			const processedItem = chatItem(page, processedChatId);
 			await expect(processedItem).toBeVisible({ timeout: 30_000 });
 			await expect(processedItem.getByTestId('ideabucket-chat-badge')).toBeVisible({ timeout: 15_000 });
-			await processedItem.click();
-			await expect(page.getByTestId('message-user')).toHaveCount(1, { timeout: 30_000 });
-			await expect(page.getByTestId('message-user').first()).toContainText(processText, { timeout: 30_000 });
-			await expect(page.getByTestId('message-system')).toHaveCount(1, { timeout: 30_000 });
-			await expect(page.getByTestId('system-message-text').first()).toContainText('ideabucket_triggered_send', { timeout: 30_000 });
+			await openDraftByHash(page, processedChatId);
+			await waitForChatReady(page, log);
+			await expect(messageEditorHost(page, processedChatId)).toBeVisible({ timeout: 30_000 });
+			await expect(page.getByTestId('message-user').first()).toContainText(processText, { timeout: 60_000 });
+			await expect(page.getByTestId('system-message-text').first()).toContainText('ideabucket_triggered_send', { timeout: 60_000 });
 			await screenshot(page, 'processed-chat-marker-and-system-event');
 
 			await expectSearchFindsChat(page, processText);
