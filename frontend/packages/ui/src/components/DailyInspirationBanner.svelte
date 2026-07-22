@@ -56,8 +56,8 @@
   const INSPIRATION_AUTO_ROTATION_INTERVAL_MS = 20000;
   const MOBILE_CARD_ROTATION_INTERVAL_MS = Math.round(INSPIRATION_AUTO_ROTATION_INTERVAL_MS * 0.55);
   const LANDING_INTRO_REQUESTS_COUNT = 4;
-  const LANDING_INTRO_HEADLINE_ONLY_MS = 1800;
-  const LANDING_INTRO_REQUEST_INTERVAL_MS = 2600;
+  const LANDING_INTRO_HEADLINE_ONLY_MS = 1200;
+  const LANDING_INTRO_REQUEST_INTERVAL_MS = 1900;
   const LANDING_INTRO_TOTAL_MS = LANDING_INTRO_HEADLINE_ONLY_MS + (LANDING_INTRO_REQUEST_INTERVAL_MS * LANDING_INTRO_REQUESTS_COUNT) + 700;
   const TOUCH_SWIPE_DISTANCE_PX = 56;
   const TOUCH_SWIPE_VERTICAL_CANCEL_PX = 48;
@@ -370,11 +370,8 @@
   });
 
   let landingIntroAppIcons = $derived(buildLandingIntroAppIcons());
-  let landingIntroFirstRail = $derived.by(() => buildCenteredLandingIntroIcons(landingIntroAppIcons, landingIntroActiveAppId, 7));
-  let landingIntroSecondRail = $derived.by(() => buildSecondaryLandingIntroIcons(landingIntroAppIcons, landingIntroFirstRail, 7));
-  let landingIntroActiveIcon = $derived.by(() =>
-    landingIntroAppIcons.find((icon) => icon.appId === landingIntroActiveAppId) ?? null,
-  );
+  let landingIntroFirstRail = $derived.by(() => buildPrimaryLandingIntroIcons(landingIntroAppIcons));
+  let landingIntroSecondRail = $derived.by(() => buildSecondaryLandingIntroIcons(landingIntroAppIcons, landingIntroFirstRail));
   let carouselProgressDurationMs = $derived(
     landingIntroShouldExpand ? LANDING_INTRO_TOTAL_MS : INSPIRATION_AUTO_ROTATION_INTERVAL_MS,
   );
@@ -842,31 +839,23 @@
       });
   }
 
-  function buildCenteredLandingIntroIcons(
-    icons: LandingIntroAppIcon[],
-    activeAppId: string,
-    count: number,
-  ): LandingIntroAppIcon[] {
-    if (icons.length === 0) return [];
-    const activeIndex = Math.max(0, icons.findIndex((icon) => icon.appId === activeAppId));
-    const centerIndex = Math.floor(count / 2);
-    return Array.from({ length: count }, (_, index) => icons[positiveModulo(activeIndex + index - centerIndex, icons.length)]);
+  function buildPrimaryLandingIntroIcons(icons: LandingIntroAppIcon[]): LandingIntroAppIcon[] {
+    const featuredIcons = LANDING_INTRO_FEATURED_APP_IDS
+      .map((appId) => icons.find((icon) => icon.appId === appId))
+      .filter((icon): icon is LandingIntroAppIcon => Boolean(icon));
+    const otherIcons = icons.filter((icon) => !LANDING_INTRO_FEATURED_APP_IDS.includes(icon.appId));
+    return [...otherIcons.slice(0, 3), ...featuredIcons, ...otherIcons.slice(3, 8)];
   }
 
   function buildSecondaryLandingIntroIcons(
     icons: LandingIntroAppIcon[],
     firstRail: LandingIntroAppIcon[],
-    count: number,
   ): LandingIntroAppIcon[] {
     const firstRailIds = new Set(firstRail.map((icon) => icon.appId));
     const remainingIcons = icons.filter((icon) => !firstRailIds.has(icon.appId));
-    const sourceIcons = remainingIcons.length >= count ? remainingIcons : icons.filter((icon) => icon.appId !== landingIntroActiveAppId);
+    const sourceIcons = remainingIcons.length >= 7 ? remainingIcons : icons.filter((icon) => !LANDING_INTRO_FEATURED_APP_IDS.includes(icon.appId));
     if (sourceIcons.length === 0) return [];
-    return Array.from({ length: count }, (_, index) => sourceIcons[index % sourceIcons.length]);
-  }
-
-  function positiveModulo(value: number, divisor: number): number {
-    return ((value % divisor) + divisor) % divisor;
+    return Array.from({ length: Math.min(Math.max(sourceIcons.length, 7), 12) }, (_, index) => sourceIcons[index % sourceIcons.length]);
   }
 
   function landingIntroIconStyle(icon: LandingIntroAppIcon): string {
@@ -1063,43 +1052,33 @@
                     {/key}
                   </div>
                   <div class="landing-intro-app-rails" aria-hidden="true">
-                    {#key landingIntroActiveAppId}
-                      <div class="landing-intro-app-rail-row landing-intro-app-rail-row-primary">
-                        <div class="landing-intro-app-rail landing-intro-app-rail-primary" data-testid="landing-intro-app-rail">
-                          {#each [...landingIntroFirstRail, ...landingIntroFirstRail] as icon, index (`primary-${icon.appId}-${index}`)}
-                            <span
-                              class="landing-intro-app-icon"
-                              data-testid="landing-intro-app-icon"
-                              data-app-id={icon.appId}
-                              data-highlighted="false"
-                              style={landingIntroIconStyle(icon)}
-                            ></span>
-                          {/each}
-                        </div>
-                        {#if landingIntroActiveIcon}
+                    <div class="landing-intro-app-rail-row landing-intro-app-rail-row-primary">
+                      <div class="landing-intro-app-rail landing-intro-app-rail-primary" data-testid="landing-intro-app-rail">
+                        {#each [...landingIntroFirstRail, ...landingIntroFirstRail] as icon, index (`primary-${icon.appId}-${index}`)}
                           <span
-                            class="landing-intro-app-icon landing-intro-app-center-highlight highlighted"
+                            class="landing-intro-app-icon"
+                            class:highlighted={icon.appId === landingIntroActiveAppId}
                             data-testid="landing-intro-app-icon"
-                            data-app-id={landingIntroActiveIcon.appId}
-                            data-highlighted="true"
-                            style={landingIntroIconStyle(landingIntroActiveIcon)}
+                            data-app-id={icon.appId}
+                            data-highlighted={icon.appId === landingIntroActiveAppId ? 'true' : 'false'}
+                            style={landingIntroIconStyle(icon)}
                           ></span>
-                        {/if}
+                        {/each}
                       </div>
-                      <div class="landing-intro-app-rail-row landing-intro-app-rail-row-secondary">
-                        <div class="landing-intro-app-rail landing-intro-app-rail-secondary" data-testid="landing-intro-app-rail">
-                          {#each [...landingIntroSecondRail, ...landingIntroSecondRail] as icon, index (`secondary-${icon.appId}-${index}`)}
-                            <span
-                              class="landing-intro-app-icon"
-                              data-testid="landing-intro-app-icon"
-                              data-app-id={icon.appId}
-                              data-highlighted="false"
-                              style={landingIntroIconStyle(icon)}
-                            ></span>
-                          {/each}
-                        </div>
+                    </div>
+                    <div class="landing-intro-app-rail-row landing-intro-app-rail-row-secondary">
+                      <div class="landing-intro-app-rail landing-intro-app-rail-secondary" data-testid="landing-intro-app-rail">
+                        {#each [...landingIntroSecondRail, ...landingIntroSecondRail] as icon, index (`secondary-${icon.appId}-${index}`)}
+                          <span
+                            class="landing-intro-app-icon"
+                            data-testid="landing-intro-app-icon"
+                            data-app-id={icon.appId}
+                            data-highlighted="false"
+                            style={landingIntroIconStyle(icon)}
+                          ></span>
+                        {/each}
                       </div>
-                    {/key}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1508,7 +1487,7 @@
 
   .landing-intro-expanded .banner-inner {
     width: 100%;
-    padding: 28px 0 34px;
+    padding: 28px 0 0;
   }
 
   .landing-intro-expanded .banner-content {
@@ -1525,6 +1504,7 @@
     justify-content: center;
     width: 100%;
     height: 100%;
+    overflow: hidden;
     color: white;
     text-align: center;
     animation: landingIntroEnter 620ms cubic-bezier(0.22, 1, 0.36, 1) both;
@@ -1626,7 +1606,6 @@
     position: relative;
     width: 100%;
     overflow: hidden;
-    animation: landingIntroRequestIn 520ms ease both;
   }
 
   .landing-intro-app-rail {
@@ -1647,15 +1626,6 @@
     animation: landingIntroRailRight 23s linear infinite;
   }
 
-  .landing-intro-app-center-highlight {
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    z-index: var(--z-index-raised);
-    transform: translate(-50%, -50%) scale(1.18);
-    pointer-events: none;
-  }
-
   .landing-intro-app-icon {
     display: inline-grid;
     place-items: center;
@@ -1665,13 +1635,13 @@
     background: var(--landing-intro-app-bg);
     border: 1px solid rgba(255, 255, 255, 0.2);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 16px 32px rgba(24, 43, 106, 0.16);
-    opacity: 0.38;
-    transform: scale(0.92);
+    opacity: 0.3;
+    transform: scale(0.94);
     transition:
-      opacity 420ms ease,
-      transform 420ms ease,
-      box-shadow 420ms ease,
-      border-color 420ms ease;
+      opacity 680ms ease,
+      transform 680ms cubic-bezier(0.22, 1, 0.36, 1),
+      box-shadow 680ms ease,
+      border-color 680ms ease;
   }
 
   .landing-intro-app-icon::before {
@@ -1691,7 +1661,7 @@
 
   .landing-intro-app-icon.highlighted {
     opacity: 1;
-    transform: scale(1.18);
+    transform: scale(1.08);
     border-color: rgba(255, 255, 255, 0.78);
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.3),
@@ -1701,10 +1671,6 @@
 
   .landing-intro-app-icon.highlighted::before {
     background: rgba(255, 255, 255, 0.96);
-  }
-
-  .landing-intro-app-center-highlight.highlighted {
-    transform: translate(-50%, -50%) scale(1.18);
   }
 
   @keyframes landingIntroEnter {
@@ -2366,8 +2332,8 @@
     }
 
     .daily-inspiration-banner.landing-intro-expanded {
-      height: clamp(640px, calc(100dvh - 78px), 900px);
-      min-height: 640px;
+      height: clamp(520px, calc(100dvh - 190px), 650px);
+      min-height: 520px;
     }
 
     :global(.menu-open) .daily-inspiration-banner,
@@ -2386,7 +2352,7 @@
     }
 
     .landing-intro-expanded .banner-inner {
-      padding: 28px 0 30px;
+      padding: 24px 0 0;
     }
 
     .guest-intro-variant .banner-content {
@@ -2432,8 +2398,8 @@
     }
 
     .landing-intro-app-rails {
-      gap: 22px;
-      margin-top: 32px;
+      gap: 20px;
+      margin-top: 28px;
       width: 100%;
     }
 
