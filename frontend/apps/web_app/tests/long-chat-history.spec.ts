@@ -23,7 +23,7 @@ const {
 	getTestAccount
 } = require('./signup-flow-helpers');
 
-const CHAT_ID = 'demo-e2e-long-chat-history';
+const CHAT_ID = 'e2e-long-chat-history';
 const CHECKPOINT_ID = `${CHAT_ID}-checkpoint-001`;
 const BASE_TIMESTAMP = 1784700000;
 const COMPRESSED_UP_TO_INDEX = 80;
@@ -111,13 +111,15 @@ async function seedLongChatFixture(page: any): Promise<void> {
 					const padded = String(index).padStart(3, '0');
 					const forgotten = index <= compressedUpToIndex;
 					const role = index % 2 === 0 ? 'assistant' : 'user';
+					const content = `${forgotten ? 'Forgotten' : 'Active'} ${role} message ${padded}: realistic project planning detail for the long chat compression history fixture.`;
 					messagesStore.put({
 						message_id: `${chatId}-msg-${padded}`,
 						chat_id: chatId,
 						role,
 						created_at: baseTimestamp + index,
 						status: 'synced',
-						encrypted_content: `${forgotten ? 'Forgotten' : 'Active'} ${role} message ${padded}: realistic project planning detail for the long chat compression history fixture.`
+						content,
+						encrypted_content: content
 					});
 				}
 
