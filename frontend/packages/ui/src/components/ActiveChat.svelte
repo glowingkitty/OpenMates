@@ -8506,12 +8506,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
          // fields already reflect this chat. Resetting them would blank the title/summary
          // until the async decrypt branch below refills them — a visible flicker. Skip the
          // reset whenever the header is already valid for this chat.
-          const headerAlreadyLoadedForSameChat = isSameActiveChat
-              && !!activeChatDecryptedTitle
-              && !!activeChatDecryptedCategory;
-          if (!isSameActiveChat) {
-              clearPendingTaskProposals();
-          }
+           const headerAlreadyLoadedForSameChat = isSameActiveChat
+               && !!activeChatDecryptedTitle
+               && !!activeChatDecryptedCategory;
+           if (!isSameActiveChat) {
+               clearPendingTaskProposals();
+               focusPillSetByEvent = false;
+               activeFocusId = null;
+           }
           if (!(isSameActiveChat && (isNewChatHeaderActive || hasStreamingMessages || headerAlreadyLoadedForSameChat))) {
              resetChatHeaderState();
          } else {
