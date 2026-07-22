@@ -7,6 +7,8 @@
  * another Playwright spec or depending on concurrent test execution.
  */
 
+import type { Locator } from '@playwright/test';
+
 const { expect, test } = require('./helpers/cookie-audit');
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 const { skipIfFeaturesDisabled } = require('./helpers/env-guard');
@@ -26,6 +28,41 @@ function workflowGraph() {
 		nodes: [{ id: 'manual', type: 'manual_trigger', title: 'Manual', config: {} }],
 		edges: []
 	};
+}
+
+interface ClientRectSnapshot {
+	left: number;
+	right: number;
+	top: number;
+	bottom: number;
+	width: number;
+	height: number;
+}
+
+async function getClientRect(locator: Locator): Promise<ClientRectSnapshot> {
+	return locator.evaluate((element) => {
+		const rect = element.getBoundingClientRect();
+		return { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom, width: rect.width, height: rect.height };
+	});
+}
+
+async function getTextRects(locator: Locator): Promise<ClientRectSnapshot[]> {
+	return locator.evaluate((element) => {
+		const textNode = Array.from(element.childNodes).find((node) => node.nodeType === Node.TEXT_NODE && node.textContent?.trim());
+		if (!textNode) return [];
+
+		const range = document.createRange();
+		range.selectNodeContents(textNode);
+		const rects = Array.from(range.getClientRects())
+			.map((rect) => ({ left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom, width: rect.width, height: rect.height }))
+			.filter((rect) => rect.width > 0 && rect.height > 0);
+		range.detach();
+		return rects;
+	});
+}
+
+function rectsOverlap(a: ClientRectSnapshot, b: ClientRectSnapshot): boolean {
+	return Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left)) > 0 && Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top)) > 0;
 }
 
 test.describe('Unified detail header editing', () => {
@@ -62,9 +99,18 @@ test.describe('Unified detail header editing', () => {
 
 			const titleField = header.getByTestId('workspace-detail-title-field');
 			await titleField.hover();
-			await expect(titleField.getByTestId('workspace-detail-title-edit')).toBeVisible();
-			await titleField.getByTestId('workspace-detail-title-edit').focus();
-			await titleField.getByTestId('workspace-detail-title-edit').press('Enter');
+			const titleEditButton = titleField.getByTestId('workspace-detail-title-edit');
+			await expect(titleEditButton).toBeVisible();
+			const titleTextRects = await getTextRects(header.getByTestId('workspace-detail-title'));
+			const titleEditRect = await getClientRect(titleEditButton);
+			expect(titleEditRect.width).toBeLessThanOrEqual(40);
+			expect(titleEditRect.height).toBeLessThanOrEqual(40);
+			expect(
+				titleTextRects.some((rect) => rectsOverlap(rect, titleEditRect)),
+				'Title edit hover button must not overlap the rendered title text.'
+			).toBe(false);
+			await titleEditButton.focus();
+			await titleEditButton.press('Enter');
 
 			const titleInput = titleField.getByTestId('workspace-detail-title-input');
 			await expect(titleInput).toBeVisible();
