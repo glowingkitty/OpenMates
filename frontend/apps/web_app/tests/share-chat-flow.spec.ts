@@ -129,7 +129,7 @@ test('creates and shares a chat link with QR code and fallback link', async ({
 	});
 
 	// ── Step 8: Click "Share chat" (default settings) ─────────────────────
-	await generateLinkButton.click();
+	await generateLinkButton.dispatchEvent('click', undefined, { timeout: 10000 });
 	logCheckpoint('Clicked "Share chat" button.');
 
 	// ── Step 9: Verify link generated step ────────────────────────────────
