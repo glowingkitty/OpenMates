@@ -174,7 +174,9 @@
         generatedLongLink = `${window.location.origin}/share/chat/${chat.chat_id}#key=${encryptedBlob}`;
         const result = await createPrimaryShareLink(generatedLongLink, durationSeconds, passwordEnabled);
         generatedLink = result.url;
-        await markChatShared(result.usedLongFallback ? null : generatedLink);
+        void markChatShared(result.usedLongFallback ? null : generatedLink).catch((error) => {
+          console.error('[ChatSettingsShareSection] Failed to persist shared chat state:', error);
+        });
       }
       generateQrCode(generatedLink);
       showQr = false;
