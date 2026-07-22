@@ -93,7 +93,7 @@ test('chat Share opens Settings / Chats and supports tab deep links', async ({ p
 	const settingsMenu = await expectChatSettingsShell(page);
 	await expect(settingsMenu.getByTestId('chat-settings-header')).toBeVisible({ timeout: 10_000 });
 	await expect(settingsMenu.getByTestId('chat-settings-title')).toBeVisible({ timeout: 10_000 });
-	await expect(settingsMenu.getByTestId('chat-settings-credits')).toContainText(/credit/i, { timeout: 10_000 });
+	await expect(settingsMenu.getByTestId('chat-settings-credits')).toContainText(/\d+/, { timeout: 10_000 });
 	await expect(settingsMenu.getByTestId('chat-settings-summary')).toBeVisible({ timeout: 10_000 });
 	await expect(settingsMenu.getByTestId('chat-settings-tabs')).toBeVisible({ timeout: 10_000 });
 	await expect(settingsMenu.getByTestId('chat-settings-tabpanel-share')).toBeVisible({ timeout: 10_000 });
