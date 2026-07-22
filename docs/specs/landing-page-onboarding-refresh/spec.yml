@@ -119,7 +119,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: fd0e3d08c8e4b31b5c229ff9d8c246451047bdc0
+  subject_commit: 6a33dcae6
 
 approvals:
   product_contract:
@@ -204,6 +204,25 @@ attempts:
       `29950006297`). This proves the control plane is healthy, but does not count
       as final phase-1 green evidence until the local landing intro changes are
       deployed and rerun against the new commit.
+  - id: ATTEMPT-6
+    task_id: TASK-1
+    approach: Run focused Playwright after deploying the phase-1 app implementation.
+    outcome: failed_as_expected
+    recorded_at: "2026-07-22"
+    notes: >
+      `python3 scripts/tests.py run --spec guest-interest-smart-selection.spec.ts`
+      failed on commit `5d55e59` because the new assertion pinned the first
+      1.7-second request animation frame. The app had already advanced/collapsed,
+      so the E2E check was racing an intentionally transient animation state.
+  - id: ATTEMPT-7
+    task_id: TASK-1
+    approach: Stabilize the focused Playwright assertion and rerun after deploy.
+    outcome: succeeded
+    recorded_at: "2026-07-22"
+    notes: >
+      The test now snapshots the visible request label and highlighted app in one
+      DOM evaluation instead of waiting for the first transient frame. The deployed
+      rerun passed on commit `6a33dcae6`, GitHub Actions run `29951786947`.
 
 handoff:
   current_task_id: TASK-1
@@ -415,19 +434,25 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: ""
-        command: ""
-        run_id: ""
-        timestamp: ""
+        status: skipped_with_reason
+        reason: >
+          The original pre-implementation red run was attempted but its failure
+          artifact was not preserved before subsequent control-plane runs
+          overwrote `last-run.json`; the first preserved deployed failure was a
+          test race after implementation, not the intended pre-implementation red
+          proof.
+        timestamp: "2026-07-22T19:40:00Z"
     green_phase:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: ""
-        command: ""
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: python3 scripts/tests.py run --spec guest-interest-smart-selection.spec.ts
+        run_id: "29951786947"
+        subject_commit: 6a33dcae6
+        target: app.dev.openmates.org
+        deployment_reference: dpl_68GK4tAUnrP5aRPoEgC5qk1aN5CD
+        timestamp: "2026-07-22T19:40:04Z"
   - id: T-WEB-ACTIONABLE-EVENT
     type: playwright
     file: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
