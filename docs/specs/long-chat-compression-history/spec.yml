@@ -105,7 +105,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: "2506eeb1e"
+  subject_commit: "fa31e9a0f"
 
 approvals:
   product_contract:
@@ -177,10 +177,16 @@ attempts:
     outcome: blocked
     recorded_at: "2026-07-22T12:43:39Z"
     notes: GitHub Actions run 29921440863 loaded the latest window but could not reveal Active assistant message 082. The older-message request cursor was patched in 2506eeb1e to use the first active rendered message instead of raw internal history that may include forgotten or virtualized records. Vercel deployment dpl_3aekaAsjMoCfEa4myjM2Tr5fCjrs for 2506eeb1e was confirmed READY at 2026-07-22T13:08Z before releasing the completed deploy lock.
+  - id: ATTEMPT-5
+    task_id: TASK-6
+    approach: Rerun long-chat-history.spec.ts after owner paging fix 164776556 deployed.
+    outcome: blocked
+    recorded_at: "2026-07-22T13:25:07Z"
+    notes: GitHub Actions run 29924197174 still failed waiting for Active assistant message 082 while the persistent Security Reminder notification was visible over the chat. The spec was hardened in fa31e9a0f to dismiss that unrelated notification, assert loaded source-message counts of 40 then 80, and scroll to the loaded-window top before asserting the first older active message.
 
 handoff:
   current_task_id: TASK-6
-  next_action: Deploy 2506eeb1e plus this spec ledger update, rerun long-chat-history.spec.ts against app.dev.openmates.org, then run one on-demand real CLI long-chat compression validation.
+  next_action: Deploy fa31e9a0f plus this spec ledger update, rerun long-chat-history.spec.ts against app.dev.openmates.org, then run one on-demand real CLI long-chat compression validation.
   command: python3 scripts/tests.py run --spec long-chat-history.spec.ts
   expected_outcome: Run after deploy; deterministic spec should pass without model/provider calls and cover latest 40-message window, explicit older-message paging, faded forgotten-message reveal, shared boundaries, and export hydration metadata.
   blocker: null
