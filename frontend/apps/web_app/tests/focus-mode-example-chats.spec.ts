@@ -13,8 +13,9 @@ const { getE2EDebugUrl } = require('./signup-flow-helpers');
 async function navigateToExampleChat(page: any, chatId: string): Promise<void> {
   await page.evaluate((targetChatId: string) => {
     const params = new URLSearchParams(window.location.hash.slice(1));
-    params.set('chat-id', targetChatId);
-    window.location.hash = params.toString();
+    params.delete('chat-id');
+    const rest = params.toString();
+    window.location.hash = `chat-id=${encodeURIComponent(targetChatId)}${rest ? `&${rest}` : ''}`;
   }, chatId);
   await page.waitForFunction((targetChatId: string) => {
     return new URLSearchParams(window.location.hash.slice(1)).get('chat-id') === targetChatId;
