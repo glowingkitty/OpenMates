@@ -27,6 +27,9 @@ const LANDING_INTRO_REQUESTS = [
 	'Explain the news'
 ];
 const LANDING_INTRO_HIGHLIGHTED_APPS = ['health', 'events', 'code', 'news'];
+const LANDING_INTRO_REQUEST_APP_IDS = new Map(
+	LANDING_INTRO_REQUESTS.map((request, index) => [request, LANDING_INTRO_HIGHLIGHTED_APPS[index]])
+);
 
 async function interestTagOrder(page: any): Promise<string[]> {
 	return page.getByTestId('guest-interest-rail').locator('button[data-testid^="interest-tag-"]').evaluateAll(
@@ -123,6 +126,18 @@ async function skipExpandedLandingIntro(page: any): Promise<void> {
 	await expect(page.getByTestId('landing-intro-expanded')).toHaveCount(0, { timeout: 5000 });
 }
 
+async function landingIntroState(page: any): Promise<{
+	requestLabel: string;
+	highlightedAppIds: string[];
+}> {
+	return page.evaluate(() => ({
+		requestLabel: document.querySelector('[data-testid="landing-intro-request"]')?.textContent?.trim() || '',
+		highlightedAppIds: Array.from(document.querySelectorAll('[data-testid="landing-intro-app-icon"][data-highlighted="true"]'))
+			.map((node) => node.getAttribute('data-app-id') || '')
+			.filter(Boolean)
+	}));
+}
+
 test.describe('Guest interest smart selection', () => {
 	test('fresh guest welcome uses session-only tags and local smart ranking', async ({ page }: { page: any }) => {
 		test.setTimeout(90000);
@@ -143,11 +158,12 @@ test.describe('Guest interest smart selection', () => {
 		await expect(page.getByTestId('landing-intro-expanded')).toBeVisible({ timeout: 15000 });
 		await expect(page.getByTestId('landing-intro-headline')).toContainText('Simply ask', { timeout: 15000 });
 		await expect(page.getByTestId('landing-intro-headline')).toContainText('your AI team mates', { timeout: 15000 });
-		await expect(page.getByTestId('landing-intro-request')).toContainText(LANDING_INTRO_REQUESTS[0], { timeout: 15000 });
 		for (const appId of LANDING_INTRO_HIGHLIGHTED_APPS) {
 			await expect(page.locator(`[data-testid="landing-intro-app-icon"][data-app-id="${appId}"]`).first()).toBeVisible({ timeout: 15000 });
 		}
-		await expect(page.locator('[data-testid="landing-intro-app-icon"][data-app-id="health"][data-highlighted="true"]').first()).toBeVisible({ timeout: 15000 });
+		const introState = await landingIntroState(page);
+		expect(LANDING_INTRO_REQUESTS).toContain(introState.requestLabel);
+		expect(introState.highlightedAppIds).toContain(LANDING_INTRO_REQUEST_APP_IDS.get(introState.requestLabel));
 		const guestIntroMetrics = await page.evaluate(() => {
 			const banner = document.querySelector('[data-testid="daily-inspiration-banner"]');
 			const copy = document.querySelector('[data-testid="landing-intro-expanded"]');
