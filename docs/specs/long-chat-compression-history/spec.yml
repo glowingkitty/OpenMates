@@ -182,7 +182,7 @@ attempts:
     approach: Rerun long-chat-history.spec.ts after owner paging fix 164776556 deployed.
     outcome: blocked
     recorded_at: "2026-07-22T13:25:07Z"
-    notes: GitHub Actions run 29924197174 still failed waiting for Active assistant message 082 while the persistent Security Reminder notification was visible over the chat. The spec was hardened in fa31e9a0f to dismiss that unrelated notification, assert loaded source-message counts of 40 then 80, and scroll to the loaded-window top before asserting the first older active message.
+    notes: GitHub Actions run 29924197174 still failed waiting for Active assistant message 082 while the persistent Security Reminder notification was visible over the chat. The spec was hardened in fa31e9a0f to dismiss that unrelated notification, assert loaded source-message counts of 40 then 80, and scroll to the loaded-window top before asserting the first older active message. Vercel deployment dpl_EddgEyYAjd3FPs36GBbGz39uDudB for fa31e9a0f was confirmed READY at 2026-07-22T13:48Z.
 
 handoff:
   current_task_id: TASK-6
