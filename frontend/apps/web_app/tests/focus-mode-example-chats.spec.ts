@@ -15,15 +15,31 @@ async function navigateToFinanceExample(page: any): Promise<void> {
   await expect(sidebarToggle).toBeVisible({ timeout: 10_000 });
   await sidebarToggle.click();
 
-  const financeChat = page.locator('[data-testid="chat-item-wrapper"][data-chat-id="example-finance-cash-flow-overview"]');
-  if ((await financeChat.count()) === 0) {
-    const showMoreExamples = page.getByTestId('show-more-example-chats');
-    if (await showMoreExamples.isVisible().catch(() => false)) {
-      await showMoreExamples.click();
+  const searchButton = page.getByTestId('search-button');
+  await expect(searchButton).toBeVisible({ timeout: 10_000 });
+  await searchButton.click();
+
+  const searchInput = page.getByTestId('search-input');
+  await expect(searchInput).toBeVisible({ timeout: 5_000 });
+  await searchInput.fill('business finances');
+
+  const financeResult = page
+    .getByTestId('search-chat-item')
+    .filter({ hasText: 'Summarize recent business finances' })
+    .first();
+
+  await expect(async () => {
+    const isWarmingUp = await page.getByTestId('warming-up').isVisible().catch(() => false);
+    if (isWarmingUp || (await financeResult.count()) === 0) {
+      await searchInput.fill('');
+      await page.waitForTimeout(500);
+      await searchInput.fill('business finances');
+      await page.waitForTimeout(700);
     }
-  }
-  await expect(financeChat.first()).toBeVisible({ timeout: 10_000 });
-  await financeChat.first().click();
+    await expect(financeResult).toBeVisible();
+  }).toPass({ timeout: 30_000 });
+
+  await financeResult.click();
 }
 
 test.describe('focus-mode example chat state', () => {
