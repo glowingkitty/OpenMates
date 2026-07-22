@@ -249,7 +249,6 @@ def _run_npm_ideabucket_sdk(env: dict[str, str]) -> dict[str, Any]:
         settings: {{
           hasPrompt: typeof settings.processingPrompt === 'string' && settings.processingPrompt.length > 0,
           processingTimes: settings.processingTimes,
-          requireConfirmationType: typeof settings.requireConfirmation,
         }},
         add: {{
           success: add.success === true,
@@ -261,7 +260,6 @@ def _run_npm_ideabucket_sdk(env: dict[str, str]) -> dict[str, Any]:
           bucketMatches: status.bucket_id === bucketId || status.processing_window_id === bucketId,
           active: status.status === 'active',
           chatPresent: typeof status.chat_id === 'string' && status.chat_id.length > 0,
-          requireConfirmationType: typeof status.require_confirmation,
         }},
       }}));
     """
@@ -412,7 +410,6 @@ print(json.dumps({
     "settings": {
         "hasPrompt": isinstance(settings.get("processingPrompt"), str) and len(settings.get("processingPrompt", "")) > 0,
         "processingTimes": settings.get("processingTimes"),
-        "requireConfirmationType": type(settings.get("requireConfirmation")).__name__,
     },
     "add": {
         "success": add.get("success") is True,
@@ -424,7 +421,6 @@ print(json.dumps({
         "bucketMatches": status.get("bucket_id") == bucket_id or status.get("processing_window_id") == bucket_id,
         "active": status.get("status") == "active",
         "chatPresent": isinstance(status.get("chat_id"), str) and len(status.get("chat_id", "")) > 0,
-        "requireConfirmationType": type(status.get("require_confirmation")).__name__,
     },
 }))
 """ % os.fspath(PYTHON_SDK_PATH)
@@ -448,7 +444,7 @@ def _assert_ideabucket_live(result: dict[str, Any], *, sdk_name: str) -> None:
     status = result.get("status")
     if not isinstance(status, dict) or status.get("bucketMatches") is not True or status.get("active") is not True:
         raise RuntimeError(f"{sdk_name} IdeaBucket status did not return an active matching bucket: {status!r}")
-    if status.get("chatPresent") is not True or status.get("requireConfirmationType") != "boolean" and status.get("requireConfirmationType") != "bool":
+    if status.get("chatPresent") is not True:
         raise RuntimeError(f"{sdk_name} IdeaBucket status summary was incomplete: {status!r}")
 
 

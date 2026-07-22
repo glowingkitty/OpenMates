@@ -1,0 +1,27 @@
+name_translation_key: ideabucket
+description_translation_key: ideabucket.description
+icon_image: reminder.svg
+category: productivity
+last_updated: "2026-07-21"
+settings_and_memories:
+  - id: processing_settings
+    name_translation_key: ideabucket.processing_settings
+    description_translation_key: ideabucket.processing_settings.description
+    icon_image: reminder.svg
+    type: single
+    schema:
+      type: object
+      properties:
+        processing_prompt:
+          type: string
+          description: Prompt OpenMates should use when processing captured ideas
+          multiline: true
+          is_title: true
+        processing_times:
+          type: string
+          description: Comma-separated local processing times in HH:MM, one to three values
+          default: "09:00"
+          is_subtitle: true
+      required:
+        - processing_prompt
+        - processing_times

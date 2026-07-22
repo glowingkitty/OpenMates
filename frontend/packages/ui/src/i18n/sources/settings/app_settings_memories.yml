@@ -297,3 +297,52 @@ diff_not_set:
   sv: Inte inställt
   he: לא הוגדר
   verified_by_human: []
+
+ideabucket.processing_settings:
+  context: Settings/memories category name for IdeaBucket processing settings
+  en: Processing settings
+  de: Verarbeitungseinstellungen
+  zh: Processing settings
+  es: Processing settings
+  fr: Processing settings
+  pt: Processing settings
+  ru: Processing settings
+  ja: Processing settings
+  ko: Processing settings
+  it: Processing settings
+  tr: Processing settings
+  vi: Processing settings
+  id: Processing settings
+  pl: Processing settings
+  nl: Processing settings
+  ar: Processing settings
+  hi: Processing settings
+  th: Processing settings
+  cs: Processing settings
+  sv: Processing settings
+  he: Processing settings
+  verified_by_human: [en, de]
+ideabucket.processing_settings.description:
+  context: Settings/memories category description for IdeaBucket processing settings
+  en: Default prompt and processing times for IdeaBucket buckets.
+  de: Standardprompt und Verarbeitungszeiten für IdeaBucket-Buckets.
+  zh: Default prompt and processing times for IdeaBucket buckets.
+  es: Default prompt and processing times for IdeaBucket buckets.
+  fr: Default prompt and processing times for IdeaBucket buckets.
+  pt: Default prompt and processing times for IdeaBucket buckets.
+  ru: Default prompt and processing times for IdeaBucket buckets.
+  ja: Default prompt and processing times for IdeaBucket buckets.
+  ko: Default prompt and processing times for IdeaBucket buckets.
+  it: Default prompt and processing times for IdeaBucket buckets.
+  tr: Default prompt and processing times for IdeaBucket buckets.
+  vi: Default prompt and processing times for IdeaBucket buckets.
+  id: Default prompt and processing times for IdeaBucket buckets.
+  pl: Default prompt and processing times for IdeaBucket buckets.
+  nl: Default prompt and processing times for IdeaBucket buckets.
+  ar: Default prompt and processing times for IdeaBucket buckets.
+  hi: Default prompt and processing times for IdeaBucket buckets.
+  th: Default prompt and processing times for IdeaBucket buckets.
+  cs: Default prompt and processing times for IdeaBucket buckets.
+  sv: Default prompt and processing times for IdeaBucket buckets.
+  he: Default prompt and processing times for IdeaBucket buckets.
+  verified_by_human: [en, de]

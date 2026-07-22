@@ -62,7 +62,6 @@ class IdeaBucketProcessRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     now: bool = False
-    confirmation_token: str | None = None
 
 
 def default_bucket_id() -> str:
@@ -198,7 +197,11 @@ async def process_ideabucket_bucket(
         persist_chat_metadata=persist_chat_metadata,
         delete_processed_draft=delete_processed_draft,
     )
-    result = await service.process_due_window(user_id=user_id, processing_window_id=bucket_id, now=timestamp)
+    result = await service.process_due_window(
+        user_id=user_id,
+        processing_window_id=bucket_id,
+        now=timestamp,
+    )
     result["bucket_id"] = result.get("processing_window_id", bucket_id)
     return result
 

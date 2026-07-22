@@ -16,6 +16,7 @@ const {
   createApiKeyCryptoMaterial,
   decryptBytesWithAesGcm,
   decryptWithAesGcmCombined,
+  encryptWithAesGcmCombined,
 } = await import("../src/crypto.ts");
 
 describe("IdeaBucket CLI client", () => {
@@ -30,6 +31,11 @@ describe("IdeaBucket CLI client", () => {
       if (request.url === "/v1/auth/session") {
         response.writeHead(200, { "content-type": "application/json" });
         response.end(JSON.stringify({ success: true, ws_token: "fresh-token" }));
+        return;
+      }
+      if (request.url?.startsWith("/v1/settings/export-account-data")) {
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ data: { app_settings_memories: [] } }));
         return;
       }
       response.writeHead(404).end();
@@ -103,6 +109,95 @@ describe("IdeaBucket CLI client", () => {
     }
   });
 
+  it("uses encrypted account settings as IdeaBucket add defaults", async () => {
+    const originalHome = process.env.HOME;
+    const home = mkdtempSync(join(tmpdir(), "openmates-ideabucket-settings-"));
+    const state = join(home, ".openmates");
+    mkdirSync(state, { recursive: true });
+    process.env.HOME = home;
+    const seen: Array<{ type: string; payload: Record<string, unknown> }> = [];
+    const masterKey = Buffer.alloc(32);
+    const encryptedSettings = await encryptWithAesGcmCombined(JSON.stringify({
+      processing_prompt: "Account prompt for captured ideas",
+      processing_times: "09:00,17:00",
+    }), masterKey);
+    const server = createServer((request, response) => {
+      if (request.url === "/v1/auth/session") {
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ success: true, ws_token: "fresh-token" }));
+        return;
+      }
+      if (request.url?.startsWith("/v1/settings/export-account-data")) {
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({
+          data: {
+            app_settings_memories: [{
+              id: "settings-entry-1",
+              app_id: "ideabucket",
+              item_type: "processing_settings",
+              item_key: "hash",
+              item_version: 3,
+              created_at: 1,
+              updated_at: 2,
+              encrypted_item_json: encryptedSettings,
+            }],
+          },
+        }));
+        return;
+      }
+      response.writeHead(404).end();
+    });
+    const wss = new WebSocketServer({ server });
+    wss.on("connection", (socket: WebSocket) => {
+      socket.on("message", (raw: Buffer) => {
+        const frame = JSON.parse(raw.toString());
+        seen.push(frame);
+        if (frame.type === "update_draft") {
+          socket.send(JSON.stringify({
+            type: "draft_update_receipt",
+            payload: { chat_id: frame.payload.chat_id, draft_v: 9, success: true },
+          }));
+        }
+      });
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+    const apiUrl = `http://127.0.0.1:${address.port}`;
+    writeFileSync(join(state, "session.json"), JSON.stringify({
+      apiUrl,
+      sessionId: "session-1",
+      wsToken: "token",
+      cookies: { auth_refresh_token: "refresh" },
+      masterKeyExportedB64: masterKey.toString("base64"),
+      hashedEmail: "hashed-email",
+      userEmailSalt: "salt",
+      createdAt: Date.now(),
+      authorizerDeviceName: "test",
+      autoLogoutMinutes: null,
+    }));
+
+    try {
+      const { OpenMatesClient } = await import(`../src/client.ts?ideabucket-settings=${Date.now()}`);
+      const client = OpenMatesClient.load({ apiUrl });
+      const result = await client.addIdeaBucketText({ text: "use settings", bucketId: "settings-bucket" });
+
+      assert.equal(result.draftV, 9);
+      assert.match(result.markdown, /Account prompt for captured ideas/);
+      const update = seen.find((frame) => frame.type === "update_draft");
+      assert.ok(update);
+      assert.equal(JSON.stringify(update.payload).includes("Account prompt for captured ideas"), false);
+      const serverPayload = JSON.parse(String(await decryptWithAesGcmCombined(String(update.payload.server_vault_encrypted_processing_payload), masterKey)));
+      assert.equal(serverPayload.prompt, "Account prompt for captured ideas");
+      assert.equal(typeof update.payload.scheduled_send_at, "number");
+    } finally {
+      process.env.HOME = originalHome;
+      wss.close();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
+
   it("stores audio embeds before syncing the encrypted bucket draft", async () => {
     const originalHome = process.env.HOME;
     const home = mkdtempSync(join(tmpdir(), "openmates-ideabucket-audio-"));
@@ -114,6 +209,11 @@ describe("IdeaBucket CLI client", () => {
       if (request.url === "/v1/auth/session") {
         response.writeHead(200, { "content-type": "application/json" });
         response.end(JSON.stringify({ success: true, ws_token: "fresh-token", user: { id: "user-1" } }));
+        return;
+      }
+      if (request.url?.startsWith("/v1/settings/export-account-data")) {
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ data: { app_settings_memories: [] } }));
         return;
       }
       response.writeHead(404).end();
@@ -213,13 +313,25 @@ describe("IdeaBucket npm SDK", () => {
     const requests: Array<{ method?: string; url?: string; body: string }> = [];
     const material = await createApiKeyCryptoMaterial("IdeaBucket SDK Test", bytesToBase64(Buffer.alloc(32)));
     const apiKey = material.apiKey;
+    const encryptedSettings = await encryptWithAesGcmCombined(JSON.stringify({
+      processing_prompt: "NPM account prompt",
+      processing_times: "09:00,17:00",
+    }), Buffer.alloc(32));
     const server = createServer((request, response) => {
       let body = "";
       request.on("data", (chunk) => { body += chunk.toString(); });
       request.on("end", () => {
         requests.push({ method: request.method, url: request.url, body });
         response.writeHead(200, { "content-type": "application/json" });
-        if (request.method === "POST" && request.url === "/v1/sdk/session") {
+        if (request.method === "GET" && request.url === "/v1/sdk/memories?app_id=ideabucket&item_type=processing_settings") {
+          response.end(JSON.stringify({ memories: [{
+            id: "settings-entry-1",
+            app_id: "ideabucket",
+            item_type: "processing_settings",
+            item_version: 2,
+            encrypted_item_json: encryptedSettings,
+          }] }));
+        } else if (request.method === "POST" && request.url === "/v1/sdk/session") {
           response.end(JSON.stringify({ key_wrapper: { encrypted_key: material.encryptedMasterKey, salt: material.saltB64, key_iv: material.keyIv } }));
         } else if (request.method === "POST" && request.url === "/v1/sdk/ideabucket/buckets/2026-07-18/add") {
           response.end(JSON.stringify({ processing_window_id: "2026-07-18", status: "draft_synced" }));
@@ -247,22 +359,26 @@ describe("IdeaBucket npm SDK", () => {
     }
 
     assert.deepEqual(requests.map(({ method, url }) => ({ method, url })), [
+      { method: "GET", url: "/v1/sdk/memories?app_id=ideabucket&item_type=processing_settings" },
       { method: "POST", url: "/v1/sdk/session" },
       { method: "POST", url: "/v1/sdk/ideabucket/buckets/2026-07-18/add" },
       { method: "GET", url: "/v1/sdk/ideabucket/buckets/2026-07-18" },
       { method: "POST", url: "/v1/sdk/ideabucket/buckets/2026-07-18/process" },
     ]);
-    assert.equal(requests[1].body.includes("ship"), false);
-    const addPayload = JSON.parse(requests[1].body);
+    assert.equal(requests[2].body.includes("ship"), false);
+    assert.equal(requests[2].body.includes("NPM account prompt"), false);
+    const addPayload = JSON.parse(requests[2].body);
     assert.equal(addPayload.ideabucket_processing_window_id, "2026-07-18");
     assert.equal(typeof addPayload.encrypted_draft_md, "string");
     assert.equal(typeof addPayload.encrypted_chat_key, "string");
+    const serverPayload = JSON.parse(String(await decryptWithAesGcmCombined(addPayload.server_vault_encrypted_processing_payload, Buffer.alloc(32))));
+    assert.equal(serverPayload.prompt, "NPM account prompt");
     const chatKey = await decryptBytesWithAesGcm(addPayload.encrypted_chat_key, Buffer.alloc(32));
     assert.ok(chatKey);
     assert.match(
       String(await decryptWithAesGcmCombined(addPayload.client_encrypted_future_user_message, chatKey)),
       /ship/,
     );
-    assert.deepEqual(JSON.parse(requests[3].body), { now: true });
+    assert.deepEqual(JSON.parse(requests[4].body), { now: true });
   });
 });

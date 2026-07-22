@@ -191,6 +191,20 @@ async def test_scheduled_send_persists_only_client_encrypted_payloads_and_dispat
 
 
 @pytest.mark.anyio
+async def test_scheduled_send_ignores_legacy_confirmation_flag_and_sends() -> None:
+    cache = _FakeCache(_window(require_confirmation=True))
+    persisted_user_messages = []
+
+    result = await IdeaBucketScheduledSendService(
+        cache_service=cache,
+        persist_user_message=lambda payload: persisted_user_messages.append(payload),
+    ).process_due_window(user_id="user-1", processing_window_id="window-1", now=101)
+
+    assert result["status"] == "sent"
+    assert persisted_user_messages
+
+
+@pytest.mark.anyio
 async def test_scheduled_send_duplicate_trigger_is_idempotent() -> None:
     cache = _FakeCache(_window(status="sent", user_message_id="user-msg-1", system_event_id="system-msg-1"))
     persisted_user_messages = []
