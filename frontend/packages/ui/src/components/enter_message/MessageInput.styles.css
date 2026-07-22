@@ -902,6 +902,16 @@
   transform: translateX(-130px);
 }
 
+.message-field.inline-compact .stop-processing-button {
+  top: 50%;
+  bottom: auto;
+  transform: translateY(-50%);
+}
+
+.message-field.inline-compact .stop-processing-button.shifted-left {
+  transform: translate(-130px, -50%);
+}
+
 /* Override global button hover/active states from buttons.css */
 .stop-processing-button:hover {
   background: none !important;
