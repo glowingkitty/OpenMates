@@ -50,11 +50,16 @@ final class ChatStore: ObservableObject {
             }
         }
 
+        var indexByChatId: [String: Int] = [:]
+        for (index, chat) in chats.enumerated() {
+            indexByChatId[chat.id] = index
+        }
         for chat in newChats {
-            if let index = chats.firstIndex(where: { $0.id == chat.id }) {
+            if let index = indexByChatId[chat.id] {
                 logMetadataMerge(existing: chats[index], incoming: chat)
                 chats[index] = chats[index].merged(with: chat)
             } else {
+                indexByChatId[chat.id] = chats.count
                 chats.append(chat)
                 if NativeSyncPerfLog.verboseCrypto {
                     print("[ChatStore] insert chat id=\(chat.id.prefix(8)) title=\(chat.title != nil) category=\(chat.category != nil) icon=\(chat.icon != nil) summary=\(chat.chatSummary != nil) encryptedTitle=\(chat.encryptedTitle != nil)")

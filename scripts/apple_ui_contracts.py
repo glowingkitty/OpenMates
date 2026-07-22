@@ -81,6 +81,7 @@ REQUIRED_EMBED_SHOWCASE_APPS = {
     "docs",
     "electronics",
     "events",
+    "finance",
     "health",
     "home",
     "images",

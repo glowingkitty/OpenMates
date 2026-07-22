@@ -3060,6 +3060,35 @@ private struct AssistantResponseFeedbackView: View {
 
 // MARK: - Message bubble with embed support
 
+enum ChatMessageAccessibilityPolicy {
+    static func semanticLabel(
+        content: String,
+        thinkingContent: String?,
+        embedTypes: [String],
+        fallback: String
+    ) -> String {
+        let text = content.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !text.isEmpty {
+            return text
+        }
+        if let thinkingContent,
+           !thinkingContent.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return thinkingContent
+        }
+        let embedNames = embedTypes.compactMap { EmbedType.normalized(rawValue: $0)?.displayName }
+        if !embedNames.isEmpty {
+            return embedNames.joined(separator: ", ")
+        }
+        return fallback
+    }
+}
+
+enum ChatMessageStreamingRenderPolicy {
+    static func usesTransientPlainText(streamingContent: String?) -> Bool {
+        streamingContent != nil
+    }
+}
+
 struct MessageBubble: View {
     let message: Message
     let chatId: String
@@ -3101,6 +3130,36 @@ struct MessageBubble: View {
         let content = streamingContent ?? message.content ?? ""
         guard isPIIRevealed else { return content }
         return PIIDetector.restorePII(in: content, mappings: piiMappings)
+    }
+
+    private var semanticAccessibilityLabel: String {
+        ChatMessageAccessibilityPolicy.semanticLabel(
+            content: displayContent,
+            thinkingContent: thinkingContent,
+            embedTypes: embeds.map(\.type),
+            fallback: resolvedAccessibilityIdentifier
+        )
+    }
+
+    @ViewBuilder
+    private var assistantMarkdownContent: some View {
+        if ChatMessageStreamingRenderPolicy.usesTransientPlainText(streamingContent: streamingContent) {
+            Text(displayContent)
+                .fixedSize(horizontal: false, vertical: true)
+        } else {
+            RichMarkdownView(
+                content: displayContent,
+                renderDocument: stableRenderDocument,
+                isUserMessage: false,
+                onOpenPublicChat: onOpenPublicChat,
+                embedLookup: EmbedRecord.dictionaryById(embeds, context: "chatView.richMarkdown"),
+                allEmbedRecords: allEmbedRecords,
+                hiddenEmbedIds: hiddenInlineEmbedIds,
+                onEmbedTap: onEmbedTap,
+                onInteractiveQuestionSubmit: viewAllowsInteractiveQuestionSubmit ? onInteractiveQuestionSubmit : nil,
+                searchHighlightQuery: searchHighlightQuery
+            )
+        }
     }
 
     private var stableRenderDocument: ChatHistoryRenderDocument? {
@@ -3420,18 +3479,7 @@ struct MessageBubble: View {
                             .padding(.bottom, .spacing2)
                         }
 
-                        RichMarkdownView(
-                            content: displayContent,
-                            renderDocument: stableRenderDocument,
-                            isUserMessage: false,
-                            onOpenPublicChat: onOpenPublicChat,
-                            embedLookup: EmbedRecord.dictionaryById(embeds, context: "chatView.richMarkdown"),
-                            allEmbedRecords: allEmbedRecords,
-                            hiddenEmbedIds: hiddenInlineEmbedIds,
-                            onEmbedTap: onEmbedTap,
-                            onInteractiveQuestionSubmit: viewAllowsInteractiveQuestionSubmit ? onInteractiveQuestionSubmit : nil,
-                            searchHighlightQuery: searchHighlightQuery
-                        )
+                        assistantMarkdownContent
                     }
                     .foregroundStyle(Color.grey100)
                     .padding(.spacing6)
@@ -3533,6 +3581,7 @@ struct MessageBubble: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier(resolvedAccessibilityIdentifier)
+        .accessibilityLabel(semanticAccessibilityLabel)
         #if DEBUG
         .accessibilityValue(parityRenderManifestValue)
         #endif

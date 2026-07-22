@@ -1,0 +1,1025 @@
+schema_version: 2
+id: apple-live-chat-accessibility-fixes
+title: Apple Live Chat Accessibility And Runtime Fixes
+status: implementing
+
+goal: >
+  Fix the Apple app regressions found during the July 22 Apple Remote exploratory
+  pass so live-account chat sending, recent-chat opening, message accessibility,
+  streaming rendering, large chat-list performance, and Finance embed registry
+  coverage are deterministic, testable, and safe for iPhone users. The first
+  implementation slice should repair the concrete failures without reopening the
+  entire Apple parity program or changing backend/API contracts unless a required
+  assumption is contradicted by red-phase evidence.
+
+scope:
+  in:
+    - Apple iOS live-account chat send and assistant response smoke coverage.
+    - Apple iOS recent-chat opening for user-owned synced chats with missing in-memory message windows.
+    - Stable semantic message accessibility for user, assistant, and system messages.
+    - Streaming markdown and accessibility performance for long assistant responses.
+    - Apple chat-list merge/sidebar computed-work optimization where needed for live sync scale.
+    - Apple Finance `app:finance:check_accounts` embed registry and debug fixture coverage.
+    - Deterministic unit/UI/static tests plus Apple Remote verification on iPhone 17 simulator.
+  out:
+    - Watch UI/runtime changes.
+    - A full UIKit/AppKit rewrite of the chat transcript or app shell.
+    - Backend, Directus, CLI, SDK, or web behavior changes unless investigation proves the Apple-only contract cannot pass without them.
+    - Changing client-side encryption formats, key wrapping, or persisted plaintext boundaries.
+    - Adding new Finance provider functionality beyond native registry/debug-fixture/render classification for the existing `check_accounts` skill.
+    - Committing private test-account data, real chat IDs, simulator hostnames, local Mac paths, screenshots with private account content, or raw logs.
+
+context_discovery:
+  github_issues:
+    - "GitHub MCP get_me returned 401 Bad credentials during discovery."
+    - "gh issue list --repo glowingkitty/OpenMates --search 'Apple message-user accessibility real account chat opens no messages finance check accounts embed' --state all --limit 20 returned no output."
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - apple/AGENTS.md
+    - apple/CLAUDE.md
+    - .claude/rules/apple-ui.md
+    - docs/architecture/apple/parity-matrix.md
+    - docs/architecture/apple/sync-parity.md
+    - docs/architecture/apple/message-processing-parity.md
+    - docs/architecture/apple/responsive-and-next-spec-parity.md
+    - docs/specs/apple-chat-streaming-parity/spec.yml
+    - docs/specs/apple-chat-opening-parity/spec.yml
+    - docs/specs/apple-sync-decryption-performance/spec.yml
+    - docs/specs/apple-embed-rendering-parity/spec.yml
+    - docs/specs/apple-ui-contracts/spec.yml
+    - docs/specs/finance-check-accounts-v1/spec.yml
+  code_patterns:
+    - apple/OpenMates/Sources/App/MainAppView.swift opens authenticated ChatView with an in-memory initial message window from ChatStore.
+    - apple/OpenMates/Sources/Core/Persistence/OfflineSyncBridge.swift preloads latest message windows only for the first five startup chats.
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift takes the `initialChat` path and calls `loadSyncedChat` even when the provided message window is empty.
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift attaches `message-user`, `message-assistant`, and `message-system` identifiers to the MessageBubble wrapper with `.accessibilityElement(children: .contain)`.
+    - apple/OpenMates/Sources/Shared/Components/RichMarkdownRenderer.swift parses full markdown synchronously in `RichMarkdownView.init` when no stable render document exists.
+    - apple/OpenMates/Sources/Core/Persistence/ChatStore.swift merges chat batches with repeated `firstIndex` scans and stores messages by full chat arrays.
+    - apple/OpenMates/Sources/App/MainAppView.swift recomputes filtered pinned/unpinned chat arrays from ChatStore in computed properties.
+    - apple/OpenMates/Sources/Core/Models/EmbedModels.swift owns the Apple EmbedType registry and is missing `app:finance:check_accounts`.
+  tests:
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    - apple/OpenMatesUITests/ChatOpeningScalabilityUITests.swift
+    - apple/OpenMatesUITests/ComposerVisualParityUITests.swift
+    - apple/OpenMatesUITests/SettingsFullParityUITests.swift
+    - apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
+    - scripts/apple_evidence_bundle.py
+    - scripts/apple_ui_contracts.py
+
+apple_impact:
+  affected_files:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/Models/EmbedModels.swift
+    - apple/OpenMates/Sources/Core/Persistence/ChatStore.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineStore.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineSyncBridge.swift
+    - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewFixtures.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Shared/Components/RichMarkdownRenderer.swift
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    - apple/OpenMatesUITests/ChatOpeningScalabilityUITests.swift
+    - apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
+    - scripts/apple_ui_contracts.py
+  parity_expectations:
+    - Apple message accessibility identifiers match shared web product concepts and expose stable user-readable labels or values for tests and assistive technology.
+    - Opening a synced user chat from the sidebar always reaches a visible transcript state or visible error state; an empty invisible transcript after selecting a row is not acceptable.
+    - Streaming assistant output remains visually progressive but does not flood the accessibility tree with word-fragment elements or reparse expensive markdown work on every chunk when a cheaper transient representation can satisfy the streaming state.
+    - Apple embed registry/debug fixtures stay in lockstep with currently registered app-skill output surfaces.
+  verification:
+    - python3 scripts/apple_remote.py status
+    - python3 scripts/apple_remote.py doctor
+    - python3 scripts/apple_remote.py verify-ios-startup --simulator "iPhone 17" --duration 60 --fresh-install
+    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesUITests/ChatFlowRealAccountUITests/testPasswordOtpLoginCreatesChatAndReceivesAssistantResponse"
+    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesUITests/ChatFlowRealAccountUITests/testPasswordOtpLoginLoadsRecentChatsForWebParityManifest"
+    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesUITests/ChatOpeningScalabilityUITests"
+    - python3 scripts/apple_evidence_bundle.py --surface all
+    - python3 scripts/apple_remote.py cleanup --simulator "iPhone 17"
+  intentional_native_differences:
+    - Native tests use XCTest/XCUITest and Apple accessibility APIs rather than browser DOM selectors.
+    - Apple may use SwiftUI, UIKit, or cached render data for streaming internals as long as product UI, encryption boundaries, and accessibility semantics remain equivalent.
+
+clarification:
+  rounds: []
+  vision_summary: >
+    The user asked to further investigate the exploratory Apple Remote findings
+    and create a spec for implementing and testing fixes. Discovery confirmed
+    concrete Apple-only failures in live chat accessibility and chat opening,
+    plus a deterministic Finance embed registry gap; no additional user decision
+    is required before drafting this implementation contract.
+  approved_by_user: true
+
+implementation_state:
+  subject_commit: ed2d1b3f590d968679f4ff08e8ea6c9037b9f7a3
+
+approvals:
+  product_contract:
+    status: approved
+    approved_at: "2026-07-22T11:08:04Z"
+  implementation_plan:
+    status: approved
+    approved_at: "2026-07-22T11:08:04Z"
+    reason: User approved implementation on 2026-07-22; this focused spec already contains the implementation plan and task breakdown.
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Create a focused follow-up spec instead of expanding the broad Apple parity specs.
+    reason: The July 22 run found specific regressions with clear source paths; a narrow contract avoids re-scoping the full streaming, opening, and embed parity programs.
+    decided_at: "2026-07-22T01:45:00Z"
+  - id: D-2
+    status: active
+    decision: Treat this as Apple-only unless red-phase evidence proves a backend/API contract bug.
+    reason: Startup, settings, composer, seeded performance, and Apple source inspection point to native accessibility, in-memory loading, render, and registry gaps.
+    decided_at: "2026-07-22T01:45:00Z"
+  - id: D-3
+    status: active
+    decision: Use `message-*` wrapper accessibility labels/values as the native automation and VoiceOver contract.
+    reason: Tests and assistive technology need one stable semantic element per product message, not hundreds of word-fragment static texts.
+    decided_at: "2026-07-22T01:45:00Z"
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    approach: Run live-account send smoke on Apple Remote before creating the spec.
+    outcome: failed_as_expected
+    recorded_at: "2026-07-22T01:20:04Z"
+    evidence: "ChatFlowRealAccountUITests/testPasswordOtpLoginCreatesChatAndReceivesAssistantResponse failed after visible user text and assistant streaming because no `message-user` element label contained the prompt."
+  - id: ATTEMPT-2
+    task_id: TASK-2
+    approach: Run live-account recent-chat parity manifest test on Apple Remote.
+    outcome: failed_as_expected
+    recorded_at: "2026-07-22T01:22:11Z"
+    evidence: "ChatFlowRealAccountUITests/testPasswordOtpLoginLoadsRecentChatsForWebParityManifest found sidebar rows but opening row 2 produced no message elements before timeout."
+  - id: ATTEMPT-3
+    task_id: TASK-3
+    approach: Run seeded large-chat scalability tests to distinguish fixture performance from live sync/render failures.
+    outcome: succeeded
+    recorded_at: "2026-07-22T01:30:19Z"
+    evidence: "ChatOpeningScalabilityUITests passed 3/3 on Apple Remote, including 600-chat sidebar and 1000-message bounded opening."
+  - id: ATTEMPT-4
+    task_id: TASK-5
+    approach: Run static Apple evidence bundle for all surfaces.
+    outcome: failed_as_expected
+    recorded_at: "2026-07-22T01:31:20Z"
+    evidence: "apple-ui-contracts:embeds failed because `app:finance:check_accounts` is missing from Apple EmbedType and debug fixtures."
+
+handoff:
+  current_task_id: TASK-1
+  next_action: After approval, run plan-from-spec then write the red unit/UI assertions for message accessibility semantics before changing ChatView.
+  command: python3 scripts/spec_validate.py docs/specs/apple-live-chat-accessibility-fixes/spec.yml
+  expected_outcome: Spec validation passes and the next implementation session can add failing tests first.
+  blocker:
+    reason: Product contract awaits user approval before implementation.
+    requires_user_input: true
+    question: Approve this focused Apple fixes contract, or adjust scope before planning tasks?
+    next_action: Run plan-from-spec and tasks-from-spec after approval.
+  last_verified_commit: f7d9dd8bc4be7f888a0b0ad03db7663632e6cdee
+
+scenarios:
+  - id: S-1
+    title: Sent user message is one semantic message element
+    given:
+      - Alice is logged into the Apple app on the iPhone simulator with the existing live test account.
+    when:
+      - Alice sends the prompt `Kyoto and Osaka quick tip test` from the native composer.
+    then:
+      - The prompt appears visually in the transcript.
+      - A `message-user` accessibility element exists and exposes a label or value containing the normalized prompt text.
+      - The message element keeps the parity render manifest needed by existing tests.
+      - VoiceOver/test traversal does not require walking individual markdown word fragments to identify the message.
+  - id: S-2
+    title: Assistant streaming remains readable and bounded
+    given:
+      - A live or seeded assistant response streams a long markdown answer with thinking, bullets, emphasis, and follow-up suggestions.
+    when:
+      - The native transcript updates during streaming and after completion.
+    then:
+      - A `message-assistant` accessibility element appears once streaming content is visible.
+      - During streaming, the accessibility tree does not expose hundreds of word-fragment static texts for one assistant message.
+      - Expensive markdown parsing is throttled, cached, deferred, or temporarily simplified so streaming remains responsive.
+      - On completion, the final rendered markdown remains visually equivalent to the stable render-document path.
+  - id: S-3
+    title: Selecting any recent user chat opens messages or a visible error state
+    given:
+      - Alice is logged into Apple and opens the chat history sidebar after initial sync completes.
+      - The sidebar contains more user-owned chat rows than the in-memory startup prefetch window.
+    when:
+      - Alice opens row 0, row 1, and row 2 in sequence.
+    then:
+      - Each selected chat either renders at least one `message-user`, `message-assistant`, or `message-system` element within the timeout, or renders a localized visible error/retry state.
+      - ChatViewModel does not treat `initialChat` plus an empty `initialMessages` array as a completed transcript load.
+      - The app loads a bounded latest message window from in-memory store, offline store, or existing authenticated REST path without loading/decrypting the full chat history.
+  - id: S-4
+    title: Chat-list sync remains responsive at live-account scale
+    given:
+      - Apple receives a large chat batch through startup, offline restore, or phased sync.
+    when:
+      - The store merges chats and the shell computes sidebar rows.
+    then:
+      - Batch upsert avoids repeated linear scans over the growing chat list.
+      - Sidebar visible pinned/unpinned rows avoid unnecessary repeated filtering/sorting during unrelated message/stream updates.
+      - Existing seeded 600-chat and 1000-message UI performance tests continue to pass.
+  - id: S-5
+    title: Finance check-accounts embeds have Apple registry coverage
+    given:
+      - The Finance app skill registry exposes `app:finance:check_accounts`.
+    when:
+      - The Apple embed contract audit runs.
+    then:
+      - Apple EmbedType classifies `app:finance:check_accounts`.
+      - A synthetic debug fixture exists with sanitized account-summary/projected-expense content.
+      - The renderer path is classified as native-rendered, supported generic placeholder with reason, or intentionally native-limited; the contract audit passes with no missing key or missing fixture error.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Native user messages expose one stable `message-user` accessibility element whose label or value contains the normalized user prompt and whose value still carries the render manifest when DEBUG tests need it.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids:
+      - T-APPLE-UI-CHAT-SEND
+      - T-APPLE-UNIT-MESSAGE-A11Y
+  - id: AC-2
+    scenario: S-2
+    text: Native assistant streaming exposes bounded semantic accessibility and avoids reparsing or rebuilding large markdown output on every chunk in the hot path.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids:
+      - T-APPLE-UNIT-STREAMING-RENDER
+      - T-APPLE-UI-CHAT-SEND
+  - id: AC-3
+    scenario: S-3
+    text: Opening recent sidebar chat rows with empty in-memory message windows triggers bounded message loading or a visible error/retry state instead of an empty transcript.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids:
+      - T-APPLE-UI-RECENT-CHATS
+      - T-APPLE-UNIT-CHAT-OPENING
+  - id: AC-4
+    scenario: S-4
+    text: Large chat-list merge and sidebar computation avoid avoidable O(n^2) work and keep the existing seeded scalability suite green.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids:
+      - T-APPLE-UNIT-CHATSTORE-BATCH
+      - T-APPLE-UI-SCALABILITY
+  - id: AC-5
+    scenario: S-5
+    text: Apple embed registry and debug fixtures cover `app:finance:check_accounts`, and the all-surface Apple evidence bundle no longer fails on that missing key.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids:
+      - T-APPLE-CONTRACTS-EMBEDS
+      - T-APPLE-EVIDENCE-ALL
+  - id: AC-6
+    scenario: S-1
+    text: Fresh-install startup, settings, composer, and existing seeded chat-opening smoke coverage remain green after the fixes.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids:
+      - T-APPLE-STARTUP
+      - T-APPLE-UI-SETTINGS
+      - T-APPLE-UI-COMPOSER
+      - T-APPLE-UI-SCALABILITY
+
+assumptions:
+  - id: A-1
+    text: The real-account row-2 failure is caused by Apple opening a synced chat with `initialChat` but no in-memory message window, not by backend data loss.
+    category: sync
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: apple/OpenMates/Sources/App/MainAppView.swift:1536-1545
+        summary: Authenticated ChatView receives `initialChat` and `initialMessages` from ChatStore.
+      - source: apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift:241-243
+        summary: ChatViewModel returns through `loadSyncedChat` whenever `initialChat` is present.
+      - source: apple/OpenMates/Sources/Core/Persistence/OfflineSyncBridge.swift:204-208
+        summary: Offline bridge preloads message windows only for the first five startup chats.
+  - id: A-2
+    text: The live chat-send failure is an accessibility semantics bug rather than failed message send.
+    category: accessibility
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: Apple Remote test output 2026-07-22T01:20Z
+        summary: The prompt text and assistant response were visible, but no `message-user` element with prompt label existed.
+      - source: apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift:3534-3535
+        summary: "The message identifier is attached to a wrapper with `.accessibilityElement(children: .contain)`."
+  - id: A-3
+    text: "`app:finance:check_accounts` is already an approved app-skill output from the Finance spec; this spec only adds missing Apple classification/fixture coverage."
+    category: embed_registry
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: docs/specs/finance-check-accounts-v1/spec.yml:487-491
+        summary: Finance skill id is `check_accounts` with user-facing name `Check accounts`.
+      - source: test-results/apple-evidence/latest-summary.json
+        summary: Apple embed contract audit fails only on missing registry key and debug fixture for `app:finance:check_accounts`.
+  - id: A-4
+    text: No production API, CLI, SDK, or web contract change is required for the first fix slice.
+    category: phase_gates
+    required_before: task_execution
+    status: unchecked
+    evidence:
+      - source: current investigation
+        summary: Confirm during implementation by proving Apple can pass via existing authenticated REST/offline/sync paths.
+
+contracts:
+  api:
+    - route: Existing authenticated Apple chat REST and WebSocket paths
+      access_model: first-party client surface only
+      auth: Existing session/device auth used by the native app and live UI tests.
+      request: No API shape changes expected.
+      response: Existing encrypted chat/message/embed payloads.
+      errors:
+        - Existing errors must remain visible in native UI/logs with sanitized diagnostics.
+    - route: No new public/developer REST API is planned.
+      access_model: not_applicable
+      auth: not_applicable
+      request: not_applicable
+      response: not_applicable
+      errors: []
+  data:
+    - Message accessibility label text may contain decrypted visible message text already rendered on screen; it must not be logged to diagnostics or committed artifacts.
+    - DEBUG accessibility values may carry sanitized render manifests, but not plaintext private chat IDs, emails, tokens, keys, or hostnames.
+    - Empty initial message windows for an existing chat must be treated as incomplete data, not as an empty chat.
+    - ChatStore batch merge should preserve server sort order, pinned state, hidden/subchat classification, and existing decrypted metadata.
+    - Finance embed fixtures must use synthetic, sanitized account names, balances, and projections only.
+  ui_states:
+    - Fresh signed-out launch.
+    - Password/OTP login using existing test credentials.
+    - New chat prompt send and assistant streaming.
+    - Recent sidebar row open with populated window.
+    - Recent sidebar row open with initially missing message window.
+    - Streaming long markdown response before final render document exists.
+    - Finance check-accounts embed preview/debug fixture.
+    - Error/retry state when message loading fails.
+  privacy_security:
+    - Never log message plaintext, encryption keys, auth tokens, cookies, push tokens, full share URL fragments, private emails, private hostnames, or local Mac paths.
+    - Apple Remote output in specs must be sanitized to command class, test name, failure class, timestamps, and redacted summaries.
+    - Client-side encrypted chat/message/embed payloads remain decrypted only inside the first-party Apple client for rendering.
+    - No screenshot or fixture generated from a live private account may be committed.
+
+tests:
+  - id: T-APPLE-UNIT-MESSAGE-A11Y
+    type: unit
+    file: apple/OpenMatesTests/ChatHistoryRenderDocumentTests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesTests/ChatHistoryRenderDocumentTests"
+    covers:
+      - AC-1
+    assertions:
+      - user message wrapper exposes `message-user` and normalized prompt text as label or value.
+      - assistant message wrapper exposes `message-assistant` with bounded semantic label/value.
+      - DEBUG render manifest remains available without replacing the user-facing semantic label.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+        command: ""
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 scripts/apple_ui_contracts.py audit --surface embeds
+        run_id: apple-ui-contracts-embeds-2026-07-22T11-12Z
+        subject_commit: ed2d1b3f590d968679f4ff08e8ea6c9037b9f7a3+working-tree
+        timestamp: "2026-07-22T11:12:00Z"
+        summary: "Embeds audit passed after adding Finance check-accounts EmbedType, renderer route, and debug fixture coverage."
+  - id: T-APPLE-UNIT-STREAMING-RENDER
+    type: unit
+    file: apple/OpenMatesTests/ChatHistoryRenderDocumentTests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesTests/ChatHistoryRenderDocumentTests"
+    covers:
+      - AC-2
+    assertions:
+      - streaming chunks do not invoke full markdown parse for every chunk above the accepted threshold.
+      - final content still builds or uses ChatHistoryRenderDocument for stable rendering.
+      - accessibility summary for a long response remains bounded.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+        command: ""
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 scripts/apple_evidence_bundle.py --surface all
+        run_id: apple-evidence-static-2026-07-22T11-14Z
+        subject_commit: ed2d1b3f590d968679f4ff08e8ea6c9037b9f7a3+working-tree
+        timestamp: "2026-07-22T11:14:00Z"
+        summary: "All-surface static Apple evidence bundle completed successfully."
+  - id: T-APPLE-UNIT-CHAT-OPENING
+    type: unit
+    file: apple/OpenMatesTests/ChatWindowLoadingTests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesTests/ChatWindowLoadingTests"
+    covers:
+      - AC-3
+    assertions:
+      - "`initialChat` plus empty `initialMessages` triggers bounded latest-window lookup or authenticated load fallback."
+      - failed fallback produces visible error/retry state instead of empty transcript success.
+      - fallback preserves encrypted-data boundaries and does not load full history when bounded data is available.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+        command: ""
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+        command: ""
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+  - id: T-APPLE-UNIT-CHATSTORE-BATCH
+    type: unit
+    file: apple/OpenMatesTests/ChatWindowLoadingTests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesTests/ChatWindowLoadingTests"
+    covers:
+      - AC-4
+    assertions:
+      - batch upsert merges large chat sets through keyed lookup instead of repeated scans.
+      - server sort order and merged metadata remain stable after repeated sync batches.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+        command: ""
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+        command: ""
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+  - id: T-APPLE-UI-CHAT-SEND
+    type: unit
+    file: apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesUITests/ChatFlowRealAccountUITests/testPasswordOtpLoginCreatesChatAndReceivesAssistantResponse"
+    covers:
+      - AC-1
+      - AC-2
+      - AC-6
+    assertions:
+      - login completes using existing real-account credentials.
+      - sent prompt appears as a `message-user` semantic element.
+      - assistant streaming or final response appears as a `message-assistant` semantic element.
+      - accessibility traversal is bounded enough that the test does not time out while enumerating a long response.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesUITests/ChatFlowRealAccountUITests/testPasswordOtpLoginCreatesChatAndReceivesAssistantResponse"
+        run_id: apple-remote-chat-send-2026-07-22T01-20Z
+        subject_commit: f7d9dd8bc4be7f888a0b0ad03db7663632e6cdee
+        timestamp: "2026-07-22T01:20:04Z"
+        summary: "Failed because prompt text was visible and assistant streamed, but `message-user` with prompt label was not found."
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+        command: ""
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+  - id: T-APPLE-UI-RECENT-CHATS
+    type: unit
+    file: apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesUITests/ChatFlowRealAccountUITests/testPasswordOtpLoginLoadsRecentChatsForWebParityManifest"
+    covers:
+      - AC-3
+    assertions:
+      - initial sync complete marker appears.
+      - sidebar exposes user chat rows.
+      - opening the first configured recent rows renders message elements or a visible error/retry state.
+      - parity manifests record non-empty opened-chat message counts for rows with messages.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesUITests/ChatFlowRealAccountUITests/testPasswordOtpLoginLoadsRecentChatsForWebParityManifest"
+        run_id: apple-remote-recent-chats-2026-07-22T01-22Z
+        subject_commit: f7d9dd8bc4be7f888a0b0ad03db7663632e6cdee
+        timestamp: "2026-07-22T01:22:11Z"
+        summary: "Failed because opening chat row 2 produced no message elements before timeout."
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+        command: ""
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+  - id: T-APPLE-UI-SCALABILITY
+    type: unit
+    file: apple/OpenMatesUITests/ChatOpeningScalabilityUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesUITests/ChatOpeningScalabilityUITests"
+    covers:
+      - AC-4
+      - AC-6
+    assertions:
+      - 600-chat sidebar reaction fixture stays below threshold.
+      - 1000-message bounded chat opens and accepts input within threshold.
+      - latest bounded window opens without showing the oldest seeded message.
+    red_phase:
+      required: false
+      expected: pass_baseline
+      evidence:
+        status: passed
+        command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesUITests/ChatOpeningScalabilityUITests"
+        run_id: apple-remote-scalability-baseline-2026-07-22T01-30Z
+        subject_commit: f7d9dd8bc4be7f888a0b0ad03db7663632e6cdee
+        timestamp: "2026-07-22T01:30:19Z"
+        summary: "Passed 3/3 before fixes; keep as regression gate while optimizing."
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+        command: ""
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+  - id: T-APPLE-CONTRACTS-EMBEDS
+    type: lint
+    file: scripts/apple_ui_contracts.py
+    command: python3 scripts/apple_ui_contracts.py audit --surface embeds
+    covers:
+      - AC-5
+    assertions:
+      - "`app:finance:check_accounts` is classified in Apple EmbedType coverage."
+      - A debug fixture exists for `app:finance:check_accounts`.
+      - No missing registry key or missing fixture error remains for Finance check accounts.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: python3 scripts/apple_evidence_bundle.py --surface all
+        run_id: apple-evidence-2026-07-22T01-31Z
+        subject_commit: f7d9dd8bc4be7f888a0b0ad03db7663632e6cdee
+        timestamp: "2026-07-22T01:31:20Z"
+        summary: "Embeds audit failed: missing Apple EmbedType and debug fixture for `app:finance:check_accounts`."
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+        command: ""
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+  - id: T-APPLE-EVIDENCE-ALL
+    type: lint
+    file: scripts/apple_evidence_bundle.py
+    command: python3 scripts/apple_evidence_bundle.py --surface all
+    covers:
+      - AC-5
+      - AC-6
+    assertions:
+      - parity inventory is current.
+      - chat parity audit passes.
+      - message-input, settings, and embeds contract audits pass.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: python3 scripts/apple_evidence_bundle.py --surface all
+        run_id: apple-evidence-2026-07-22T01-31Z
+        subject_commit: f7d9dd8bc4be7f888a0b0ad03db7663632e6cdee
+        timestamp: "2026-07-22T01:31:20Z"
+        summary: "Failed only at apple-ui-contracts:embeds for Finance check accounts registry/fixture gap."
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+        command: ""
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+  - id: T-APPLE-STARTUP
+    type: unit
+    file: scripts/apple_remote.py
+    command: python3 scripts/apple_remote.py verify-ios-startup --simulator "iPhone 17" --duration 60 --fresh-install
+    covers:
+      - AC-6
+    assertions:
+      - build, install, launch, screenshots, log capture, and 60s crash polling pass.
+    red_phase:
+      required: false
+      expected: pass_baseline
+      evidence:
+        status: passed
+        command: python3 scripts/apple_remote.py verify-ios-startup --simulator "iPhone 17" --duration 60 --fresh-install
+        run_id: apple-remote-startup-baseline-2026-07-22T01-15Z
+        subject_commit: f7d9dd8bc4be7f888a0b0ad03db7663632e6cdee
+        timestamp: "2026-07-22T01:15:00Z"
+        summary: "Fresh-install startup passed before fixes; keep as regression gate."
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+        command: ""
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+  - id: T-APPLE-UI-SETTINGS
+    type: unit
+    file: apple/OpenMatesUITests/SettingsFullParityUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesUITests/SettingsFullParityUITests"
+    covers:
+      - AC-6
+    assertions:
+      - guest/authenticated settings submenus, share settings, report issue, and light/dark artifacts remain green.
+    red_phase:
+      required: false
+      expected: pass_baseline
+      evidence:
+        status: passed
+        command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesUITests/SettingsFullParityUITests"
+        run_id: apple-remote-settings-baseline-2026-07-22T01-25Z
+        subject_commit: f7d9dd8bc4be7f888a0b0ad03db7663632e6cdee
+        timestamp: "2026-07-22T01:25:48Z"
+        summary: "Passed 5/5 before fixes."
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+        command: ""
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+  - id: T-APPLE-UI-COMPOSER
+    type: unit
+    file: apple/OpenMatesUITests/ComposerVisualParityUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesUITests/ComposerVisualParityUITests"
+    covers:
+      - AC-6
+    assertions:
+      - composer fullscreen, signed-out actions, location embed insertion, image/audio previews, sketch controls, and quick capture remain green.
+    red_phase:
+      required: false
+      expected: pass_baseline
+      evidence:
+        status: passed
+        command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesUITests/ComposerVisualParityUITests"
+        run_id: apple-remote-composer-baseline-2026-07-22T01-29Z
+        subject_commit: f7d9dd8bc4be7f888a0b0ad03db7663632e6cdee
+        timestamp: "2026-07-22T01:29:12Z"
+        summary: "Passed 8/8 before fixes."
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+        command: ""
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+
+verifications:
+  - id: V-REMOTE-READINESS
+    kind: deterministic_check
+    phase: red
+    required_for_done: false
+    covers:
+      - AC-6
+    status: passed
+    evidence:
+      status: passed
+      command: python3 scripts/apple_remote.py status && python3 scripts/apple_remote.py doctor
+      run_id: apple-remote-readiness-2026-07-22T11-13Z
+      subject_commit: ed2d1b3f590d968679f4ff08e8ea6c9037b9f7a3+working-tree
+      timestamp: "2026-07-22T11:13:00Z"
+      summary: "SSH, Xcode, simulator, repo, and scheme passed; Watch test scheme absent as expected."
+  - id: V-SPEC-VALIDATE
+    kind: deterministic_check
+    phase: final
+    required_for_done: true
+    covers:
+      - AC-1
+      - AC-2
+      - AC-3
+      - AC-4
+      - AC-5
+      - AC-6
+    status: passed
+    evidence:
+      status: passed
+      command: python3 scripts/spec_validate.py docs/specs/apple-live-chat-accessibility-fixes/spec.yml
+      run_id: spec-validate-2026-07-22T11-12Z
+      subject_commit: ed2d1b3f590d968679f4ff08e8ea6c9037b9f7a3+working-tree
+      timestamp: "2026-07-22T11:12:00Z"
+
+implementation_plan:
+  spec_path: docs/specs/apple-live-chat-accessibility-fixes/spec.yml
+  existing_patterns:
+    - Existing ChatFlowRealAccountUITests provide real-account login, send, sync, sidebar, manifest, and redacted credential handling.
+    - Existing ChatOpeningScalabilityUITests provide deterministic performance fixture coverage that should stay green.
+    - Existing apple_ui_contracts.py embed audit already detects missing registry/fixture keys.
+    - Existing ChatHistoryRenderDocument stores stable render documents for final messages and should remain the final-render path.
+  architecture: >
+    Repair the native chat transcript semantics and missing-data path without
+    changing shared backend contracts. Add explicit semantic message accessibility,
+    teach ChatViewModel/MainAppView to recover from empty initial message windows,
+    reduce streaming markdown/accessibility hot-path work, optimize only the
+    measured chat-list merge/sidebar paths, and add the missing Finance embed
+    registry/debug fixture classification.
+  data_flow:
+    - Sidebar row selection passes selected chat metadata and any available bounded latest message window to ChatView.
+    - If the initial window is empty for a server-sync chat, ChatViewModel requests a bounded window from ChatStore/OfflineStore or the existing REST path before declaring the transcript loaded.
+    - MessageBubble exposes a semantic message element with normalized text label/value plus DEBUG manifest metadata.
+    - Streaming assistant chunks update a bounded transient render/accessibility model before final render-document presentation.
+    - Finance embed contract audit reads EmbedType and debug fixtures and finds `app:finance:check_accounts` classified.
+  affected_files:
+    - path: apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+      reason: Message accessibility semantics and streaming render path.
+    - path: apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+      reason: Empty initial window fallback and streaming render throttling/caching.
+    - path: apple/OpenMates/Sources/App/MainAppView.swift
+      reason: ChatView initial window handoff and sidebar computed-work optimization.
+    - path: apple/OpenMates/Sources/Core/Persistence/ChatStore.swift
+      reason: Batch merge and bounded message-window helpers.
+    - path: apple/OpenMates/Sources/Core/Persistence/OfflineStore.swift
+      reason: Bounded fallback reads if ChatStore lacks messages.
+    - path: apple/OpenMates/Sources/Core/Models/EmbedModels.swift
+      reason: Finance check-accounts EmbedType registry coverage.
+    - path: apple/OpenMates/Sources/DevPreview/DevEmbedPreviewFixtures.swift
+      reason: Finance check-accounts synthetic fixture.
+    - path: apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+      reason: Strengthen assertions and keep red/green live evidence.
+    - path: apple/OpenMatesTests/ChatHistoryRenderDocumentTests.swift
+      reason: New unit coverage for semantic message elements.
+    - path: apple/OpenMatesTests/ChatWindowLoadingTests.swift
+      reason: New unit coverage for empty initial window fallback.
+    - path: apple/OpenMatesTests/ChatHistoryRenderDocumentTests.swift
+      reason: New unit coverage for streaming markdown/accessibility bounds.
+    - path: apple/OpenMatesTests/ChatWindowLoadingTests.swift
+      reason: New unit coverage for batch merge behavior.
+  verification_strategy:
+    - Validate this spec before implementation.
+    - Add or update the listed unit/UI/static checks in red phase before production code changes.
+    - Implement the smallest Apple-only fixes that make each red check pass.
+    - Run Apple Remote green checks in dependency order, then cleanup the simulator.
+    - Run spec_verify before marking complete.
+  verification_order:
+    - No REST/API change planned; if contradicted, update this spec with access model and real dev API proof before continuing.
+    - No CLI or SDK change planned; if contradicted, update this spec and run parity gates before Apple green evidence.
+    - No web Playwright change planned; browser-rendered parity remains the source of truth for visual values but this fix is native-only.
+    - Apple unit tests first for semantics, fallback, streaming, and batch behavior.
+    - Apple UI tests second for live-account chat send and recent-chat opening.
+    - Static Apple evidence bundle third for embed registry and parity guardrails.
+    - Regression Apple UI suites last for startup, settings, composer, and scalability.
+
+tasks:
+  - id: TASK-1
+    title: Fix semantic message accessibility
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+    expected_files:
+      - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+      - apple/OpenMatesTests/ChatHistoryRenderDocumentTests.swift
+      - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    verification:
+      - T-APPLE-UNIT-MESSAGE-A11Y
+      - T-APPLE-UI-CHAT-SEND
+    verification_ids:
+      - T-APPLE-UNIT-MESSAGE-A11Y
+      - T-APPLE-UI-CHAT-SEND
+    dependencies: []
+    ownership:
+      files:
+        - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+        - apple/OpenMatesTests/ChatHistoryRenderDocumentTests.swift
+      shared_files:
+        - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: true
+  - id: TASK-2
+    title: Fix empty initial-window chat opening
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-3
+      acceptance_criteria:
+        - AC-3
+    expected_files:
+      - apple/OpenMates/Sources/App/MainAppView.swift
+      - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+      - apple/OpenMates/Sources/Core/Persistence/ChatStore.swift
+      - apple/OpenMates/Sources/Core/Persistence/OfflineStore.swift
+      - apple/OpenMatesTests/ChatWindowLoadingTests.swift
+      - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    verification:
+      - T-APPLE-UNIT-CHAT-OPENING
+      - T-APPLE-UI-RECENT-CHATS
+    verification_ids:
+      - T-APPLE-UNIT-CHAT-OPENING
+      - T-APPLE-UI-RECENT-CHATS
+    dependencies:
+      - TASK-1
+    ownership:
+      files:
+        - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+        - apple/OpenMatesTests/ChatWindowLoadingTests.swift
+      shared_files:
+        - apple/OpenMates/Sources/App/MainAppView.swift
+        - apple/OpenMates/Sources/Core/Persistence/ChatStore.swift
+        - apple/OpenMates/Sources/Core/Persistence/OfflineStore.swift
+        - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: true
+  - id: TASK-3
+    title: Bound streaming markdown and accessibility work
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-2
+      acceptance_criteria:
+        - AC-2
+    expected_files:
+      - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+      - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+      - apple/OpenMates/Sources/Shared/Components/RichMarkdownRenderer.swift
+      - apple/OpenMatesTests/ChatHistoryRenderDocumentTests.swift
+    verification:
+      - T-APPLE-UNIT-STREAMING-RENDER
+      - T-APPLE-UI-CHAT-SEND
+    verification_ids:
+      - T-APPLE-UNIT-STREAMING-RENDER
+      - T-APPLE-UI-CHAT-SEND
+    dependencies:
+      - TASK-1
+    ownership:
+      files:
+        - apple/OpenMatesTests/ChatHistoryRenderDocumentTests.swift
+      shared_files:
+        - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+        - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+        - apple/OpenMates/Sources/Shared/Components/RichMarkdownRenderer.swift
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: true
+  - id: TASK-4
+    title: Optimize chat-list merge and sidebar computed work
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-4
+      acceptance_criteria:
+        - AC-4
+    expected_files:
+      - apple/OpenMates/Sources/Core/Persistence/ChatStore.swift
+      - apple/OpenMates/Sources/App/MainAppView.swift
+      - apple/OpenMatesTests/ChatWindowLoadingTests.swift
+      - apple/OpenMatesUITests/ChatOpeningScalabilityUITests.swift
+    verification:
+      - T-APPLE-UNIT-CHATSTORE-BATCH
+      - T-APPLE-UI-SCALABILITY
+    verification_ids:
+      - T-APPLE-UNIT-CHATSTORE-BATCH
+      - T-APPLE-UI-SCALABILITY
+    dependencies: []
+    ownership:
+      files:
+        - apple/OpenMatesTests/ChatWindowLoadingTests.swift
+      shared_files:
+        - apple/OpenMates/Sources/Core/Persistence/ChatStore.swift
+        - apple/OpenMates/Sources/App/MainAppView.swift
+        - apple/OpenMatesUITests/ChatOpeningScalabilityUITests.swift
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: true
+  - id: TASK-5
+    title: Add Finance check-accounts Apple embed coverage
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-5
+      acceptance_criteria:
+        - AC-5
+    expected_files:
+      - apple/OpenMates/Sources/Core/Models/EmbedModels.swift
+      - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewFixtures.swift
+      - apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
+      - scripts/apple_ui_contracts.py
+    verification:
+      - T-APPLE-CONTRACTS-EMBEDS
+      - T-APPLE-EVIDENCE-ALL
+    verification_ids:
+      - T-APPLE-CONTRACTS-EMBEDS
+      - T-APPLE-EVIDENCE-ALL
+    dependencies: []
+    ownership:
+      files:
+        - apple/OpenMates/Sources/Core/Models/EmbedModels.swift
+        - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewFixtures.swift
+      shared_files:
+        - apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
+        - scripts/apple_ui_contracts.py
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: true
+  - id: TASK-6
+    title: Run final Apple regression evidence
+    status: pending
+    phase: running_checks
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+        - S-4
+        - S-5
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+        - AC-4
+        - AC-5
+        - AC-6
+    expected_files:
+      - docs/specs/apple-live-chat-accessibility-fixes/spec.yml
+    verification:
+      - T-APPLE-STARTUP
+      - T-APPLE-UI-SETTINGS
+      - T-APPLE-UI-COMPOSER
+      - T-APPLE-UI-SCALABILITY
+      - T-APPLE-EVIDENCE-ALL
+      - V-SPEC-VALIDATE
+    verification_ids:
+      - T-APPLE-STARTUP
+      - T-APPLE-UI-SETTINGS
+      - T-APPLE-UI-COMPOSER
+      - T-APPLE-UI-SCALABILITY
+      - T-APPLE-EVIDENCE-ALL
+      - V-SPEC-VALIDATE
+    dependencies:
+      - TASK-1
+      - TASK-2
+      - TASK-3
+      - TASK-4
+      - TASK-5
+    ownership:
+      files:
+        - docs/specs/apple-live-chat-accessibility-fixes/spec.yml
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false

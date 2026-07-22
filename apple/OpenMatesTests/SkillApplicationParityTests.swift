@@ -310,6 +310,20 @@ final class SkillApplicationParityTests: XCTestCase {
         XCTAssertEqual(generatedVideo.rawData?["title"]?.value as? String, "Product launch promo")
     }
 
+    func testFinanceCheckAccountsFixtureUsesRegisteredAppSkillType() throws {
+        let embed = try XCTUnwrap(
+            DevEmbedPreviewFixtures.skills(for: .finance).first { $0.id == "finance-check-accounts" }?.primaryEmbed
+        )
+
+        XCTAssertTrue(embed.isAppSkillUse)
+        XCTAssertEqual(embed.type, EmbedType.financeCheckAccounts.rawValue)
+        XCTAssertEqual(EmbedType.financeCheckAccounts.displayName, "Check accounts")
+        XCTAssertEqual(embed.appId, "finance")
+        XCTAssertEqual(embed.skillId, "check_accounts")
+        XCTAssertEqual(embed.rawData?["account_count"]?.value as? Int, 2)
+        XCTAssertNil(embed.rawData?["secret"])
+    }
+
     func testDiagramsMermaidFixtureDecodesSourcePayload() throws {
         let diagramsSkills = DevEmbedPreviewFixtures.skills(for: .diagrams)
         let mermaid = try XCTUnwrap(diagramsSkills.first { $0.id == "diagrams-mermaid" }?.primaryEmbed)

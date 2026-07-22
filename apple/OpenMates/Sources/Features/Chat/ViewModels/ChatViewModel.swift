@@ -165,6 +165,15 @@ struct ChatStreamingLifecycleState: Equatable {
     }
 }
 
+enum ChatOpeningFallbackPolicy {
+    static func shouldFetchMissingSyncedMessages(messagesV: Int?, lastMessageAt: String?) -> Bool {
+        if let messagesV, messagesV > 0 {
+            return true
+        }
+        return lastMessageAt != nil
+    }
+}
+
 @MainActor
 final class ChatViewModel: ObservableObject {
 
@@ -335,7 +344,24 @@ final class ChatViewModel: ObservableObject {
         }
 
         chat = loadedChat
-        let rawMessages = syncedMessages.sorted { $0.createdAt < $1.createdAt }
+        var rawMessages = syncedMessages.sorted { $0.createdAt < $1.createdAt }
+        if rawMessages.isEmpty && shouldFetchMissingSyncedMessages(for: loadedChat) {
+            do {
+                rawMessages = try await api.request(.get, path: "/v1/chats/\(loadedChat.id)/messages")
+                rawMessages.sort { $0.createdAt < $1.createdAt }
+                NativeSyncPerfLog.info(
+                    "phase=loadSyncedChatMessageFallback chat=\(loadedChat.id.prefix(8)) messages=\(rawMessages.count)"
+                )
+            } catch {
+                self.error = error.localizedDescription
+                isLoading = false
+                NativeSyncPerfLog.warning(
+                    "phase=loadSyncedChatMessageFallbackFailed chat=\(loadedChat.id.prefix(8)) error=\(error.localizedDescription)"
+                )
+                return
+            }
+            guard generation == loadGeneration else { return }
+        }
         openingMetrics.initialMessagesReceived = rawMessages.count
         openingMetrics.initialEmbedsReceived = syncedEmbeds.count
         allMessages = rawMessages
@@ -369,6 +395,13 @@ final class ChatViewModel: ObservableObject {
             generation: generation,
             existingRecords: embedRecords,
             source: "loadSynced"
+        )
+    }
+
+    private func shouldFetchMissingSyncedMessages(for chat: Chat) -> Bool {
+        ChatOpeningFallbackPolicy.shouldFetchMissingSyncedMessages(
+            messagesV: chat.messagesV,
+            lastMessageAt: chat.lastMessageAt
         )
     }
 

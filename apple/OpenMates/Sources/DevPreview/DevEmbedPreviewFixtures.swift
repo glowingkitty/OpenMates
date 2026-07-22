@@ -25,6 +25,7 @@ enum DevEmbedPreviewApp: String, CaseIterable, Identifiable {
     case docs
     case electronics
     case fitness
+    case finance
     case health
     case home
     case web
@@ -62,6 +63,7 @@ enum DevEmbedPreviewApp: String, CaseIterable, Identifiable {
         case .docs: return "Docs"
         case .electronics: return "Electronics"
         case .fitness: return "Fitness"
+        case .finance: return "Finance"
         case .health: return "Health"
         case .home: return "Home"
         case .web: return "Web"
@@ -118,6 +120,8 @@ enum DevEmbedPreviewFixtures {
             return [electronicsPcbSchematic, electronicsSearch, electronicsComponent]
         case .fitness:
             return [fitnessSearchLocations, fitnessLocation, fitnessSearchClasses, fitnessClass]
+        case .finance:
+            return [financeCheckAccounts]
         case .health:
             return [healthAppointment, healthSearch]
         case .home:
@@ -979,6 +983,23 @@ enum DevEmbedPreviewFixtures {
         let child = workflowsWorkflow.primaryEmbed
         let parent = appSkill(id: "preview-workflows-search-1", type: EmbedType.workflowsSearch.rawValue, appId: "workflows", skillId: "search", data: ["query": "Travel packing workflows", "provider": "OpenMates", "result_count": 1], embedIds: child.id)
         return skill(id: "workflows-search", label: "Search", primary: parent, children: [child])
+    }
+
+    private static var financeCheckAccounts: DevEmbedPreviewSkill {
+        let embed = appSkill(
+            id: "preview-finance-check-accounts-1",
+            type: EmbedType.financeCheckAccounts.rawValue,
+            appId: "finance",
+            skillId: "check_accounts",
+            data: [
+                "summary": "Checked 2 accounts and 5 transactions.",
+                "income_total": "8000 EUR",
+                "expense_total": "2291.25 EUR",
+                "account_count": 2,
+                "transaction_count": 5
+            ]
+        )
+        return skill(id: "finance-check-accounts", label: "Check accounts", primary: embed)
     }
 
     // MARK: - Builders

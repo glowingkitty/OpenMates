@@ -240,6 +240,10 @@ struct EmbedContentView: View {
             case .mathCalculate:
                 MathCalculateRenderer(data: rawData, mode: mode)
 
+            // Finance
+            case .financeCheckAccounts:
+                SearchResultsRenderer(data: rawData, mode: mode, resultLabel: "accounts")
+
             // Music
             case .musicGenerate:
                 MusicGenerateEmbedRenderer(data: rawData, mode: mode)

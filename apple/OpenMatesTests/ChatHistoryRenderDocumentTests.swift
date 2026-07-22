@@ -159,4 +159,39 @@ final class ChatHistoryRenderDocumentTests: XCTestCase {
         XCTAssertEqual(message.encryptedModelName, "ciphertext-model")
         XCTAssertEqual(message.renderDocumentForDisplay?.messageId, "message-decoded")
     }
+
+    func testMessageAccessibilityPolicyPrefersSemanticTextOverChildren() {
+        XCTAssertEqual(
+            ChatMessageAccessibilityPolicy.semanticLabel(
+                content: "  User-visible prompt  ",
+                thinkingContent: nil,
+                embedTypes: [],
+                fallback: "message-user"
+            ),
+            "User-visible prompt"
+        )
+        XCTAssertEqual(
+            ChatMessageAccessibilityPolicy.semanticLabel(
+                content: "",
+                thinkingContent: "  Thinking summary  ",
+                embedTypes: [],
+                fallback: "message-assistant"
+            ),
+            "Thinking summary"
+        )
+        XCTAssertEqual(
+            ChatMessageAccessibilityPolicy.semanticLabel(
+                content: "",
+                thinkingContent: nil,
+                embedTypes: [EmbedType.financeCheckAccounts.rawValue],
+                fallback: "message-assistant"
+            ),
+            "Check accounts"
+        )
+    }
+
+    func testStreamingRenderPolicyUsesTransientPlainTextOnlyForActiveStream() {
+        XCTAssertTrue(ChatMessageStreamingRenderPolicy.usesTransientPlainText(streamingContent: "partial answer"))
+        XCTAssertFalse(ChatMessageStreamingRenderPolicy.usesTransientPlainText(streamingContent: nil))
+    }
 }
