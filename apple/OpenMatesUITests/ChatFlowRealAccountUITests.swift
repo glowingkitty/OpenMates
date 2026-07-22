@@ -105,7 +105,13 @@ final class ChatFlowRealAccountUITests: XCTestCase {
 
     private func chatRows(in app: XCUIApplication) -> XCUIElementQuery {
         app.descendants(matching: .any)
-            .matching(NSPredicate(format: "identifier == %@ AND value == %@", "chat-item-wrapper", "user-chat"))
+            .matching(NSPredicate(
+                format: "(identifier == %@ AND value == %@) OR identifier BEGINSWITH %@ OR identifier BEGINSWITH %@",
+                "chat-item-wrapper",
+                "user-chat",
+                "welcome-chat-compact-card-",
+                "welcome-chat-card-"
+            ))
     }
 
     private func waitForChatRows(_ rows: XCUIElementQuery, timeout: TimeInterval) -> Bool {
