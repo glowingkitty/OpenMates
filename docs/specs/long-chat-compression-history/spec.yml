@@ -105,7 +105,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: "b058f8249f1e"
+  subject_commit: "2506eeb1e"
 
 approvals:
   product_contract:
@@ -165,14 +165,26 @@ attempts:
       The final UX needs two explicit states: Show older messages for active
       full-opacity history, and Show old forgotten messages for faded
       pre-checkpoint history.
+  - id: ATTEMPT-3
+    task_id: TASK-6
+    approach: Run the deployed provider-free long-chat Playwright fixture after commit 63b66e60f.
+    outcome: blocked
+    recorded_at: "2026-07-22T12:31:34Z"
+    notes: The fixture used a demo-* chat id, so ActiveChat treated it as a static public chat and rendered no IndexedDB messages. Fixed in d5a933f8a by using a normal E2E chat id and storing plaintext fixture content.
+  - id: ATTEMPT-4
+    task_id: TASK-6
+    approach: Rerun long-chat-history.spec.ts after fixture commit d5a933f8a deployed.
+    outcome: blocked
+    recorded_at: "2026-07-22T12:43:39Z"
+    notes: GitHub Actions run 29921440863 loaded the latest window but could not reveal Active assistant message 082. The older-message request cursor was patched in 2506eeb1e to use the first active rendered message instead of raw internal history that may include forgotten or virtualized records.
 
 handoff:
   current_task_id: TASK-6
-  next_action: Deploy the deterministic implementation, run long-chat-history.spec.ts against app.dev.openmates.org, then run one on-demand real CLI long-chat compression validation.
+  next_action: Deploy 2506eeb1e plus this spec ledger update, rerun long-chat-history.spec.ts against app.dev.openmates.org, then run one on-demand real CLI long-chat compression validation.
   command: python3 scripts/tests.py run --spec long-chat-history.spec.ts
   expected_outcome: Run after deploy; deterministic spec should pass without model/provider calls and cover latest 40-message window, explicit older-message paging, faded forgotten-message reveal, shared boundaries, and export hydration metadata.
   blocker: null
-  last_verified_commit: "b058f8249f1e"
+  last_verified_commit: "d5a933f8a"
 
 scenarios:
   - id: S-1
