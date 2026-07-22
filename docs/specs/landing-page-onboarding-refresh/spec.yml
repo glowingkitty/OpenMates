@@ -119,7 +119,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 6a33dcae6
+  subject_commit: 355388134c9dba279573d45cc9c52e844cbf7247
 
 approvals:
   product_contract:
@@ -223,14 +223,27 @@ attempts:
       The test now snapshots the visible request label and highlighted app in one
       DOM evaluation instead of waiting for the first transient frame. The deployed
       rerun passed on commit `6a33dcae6`, GitHub Actions run `29951786947`.
+  - id: ATTEMPT-8
+    task_id: TASK-1
+    approach: Pin the normal guest intro path to `openmates-intro` and rerun focused deployed Playwright.
+    outcome: succeeded
+    recorded_at: "2026-07-22"
+    notes: >
+      Firecrawl debugging showed normal logged-out captures could start on a later
+      product explainer before the expanded intro. Commit `d2ca5bb4d` pins
+      guest-intro mode to `openmates-intro` until the expanded intro is dismissed.
+      `python3 scripts/tests.py run --spec guest-interest-smart-selection.spec.ts`
+      passed on deployed commit `355388134`, GitHub Actions run `29955550084`.
 
 handoff:
   current_task_id: TASK-1
-  next_action: Wait for Docker/Vercel locks to clear, then run focused Playwright and deploy scoped phase-1 files.
-  command: python3 scripts/tests.py run --spec guest-interest-smart-selection.spec.ts
-  expected_outcome: Green after deploy once the test control plane can mint a token and the dev deployment is Ready.
-  blocker: null
-  last_verified_commit: fd0e3d08c8e4b31b5c229ff9d8c246451047bdc0
+  next_action: Ask for user visual confirmation of the deployed phase-1 intro before activating slide 2 work.
+  command: python3 scripts/spec_verify.py docs/specs/landing-page-onboarding-refresh/spec.yml
+  expected_outcome: Fails only on pending V-USER-PHASE1 until the user approves the deployed visual result.
+  blocker:
+    id: V-USER-PHASE1
+    reason: User visual confirmation is required before TASK-1 can be marked done or TASK-2 can start.
+  last_verified_commit: 355388134c9dba279573d45cc9c52e844cbf7247
 
 scenarios:
   - id: S-1
@@ -448,11 +461,11 @@ tests:
       evidence:
         status: passed
         command: python3 scripts/tests.py run --spec guest-interest-smart-selection.spec.ts
-        run_id: "29951786947"
-        subject_commit: 6a33dcae6
+        run_id: "29955550084"
+        subject_commit: 355388134c9dba279573d45cc9c52e844cbf7247
         target: app.dev.openmates.org
-        deployment_reference: dpl_68GK4tAUnrP5aRPoEgC5qk1aN5CD
-        timestamp: "2026-07-22T19:40:04Z"
+        deployment_reference: dpl_4z1WWRDAFWhePz1az3Lgj5xZ4V6t
+        timestamp: "2026-07-22T20:34:24Z"
   - id: T-WEB-ACTIONABLE-EVENT
     type: playwright
     file: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
