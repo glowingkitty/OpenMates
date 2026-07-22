@@ -690,6 +690,7 @@ class ChatCacheMixin:
         client_encrypted_future_user_message: str,
         client_encrypted_ideabucket_system_event: str,
         payload_hash: str,
+        require_confirmation: bool = False,
         status: str = "active",
         ttl: Optional[int] = None,
     ) -> bool:
@@ -727,6 +728,7 @@ class ChatCacheMixin:
                 "client_encrypted_future_user_message", client_encrypted_future_user_message,
                 "client_encrypted_ideabucket_system_event", client_encrypted_ideabucket_system_event,
                 "payload_hash", payload_hash,
+                "require_confirmation", "1" if require_confirmation else "0",
                 str(final_ttl),
             )
             return replaced == 1
@@ -752,6 +754,8 @@ class ChatCacheMixin:
             for integer_field in ("version", "scheduled_send_at"):
                 if integer_field in data:
                     data[integer_field] = int(data[integer_field])
+            if "require_confirmation" in data:
+                data["require_confirmation"] = data["require_confirmation"] in {"1", "true", "True"}
             return data
         except Exception as e:
             logger.error(f"Error getting IdeaBucket processing window {processing_window_id} for user {user_id}: {e}")
@@ -781,7 +785,7 @@ class ChatCacheMixin:
         if status == 'sent' then
             return redis.call('HGETALL', KEYS[1])
         end
-        if status ~= 'active' and status ~= 'failed' then
+        if status ~= 'active' and status ~= 'failed' and status ~= 'confirmation_required' then
             return {}
         end
         local scheduled = tonumber(redis.call('HGET', KEYS[1], 'scheduled_send_at') or '')
@@ -901,6 +905,50 @@ class ChatCacheMixin:
             logger.error(f"Error marking IdeaBucket processing window {processing_window_id} failed for user {user_id}: {e}")
             return False
 
+    async def mark_ideabucket_processing_window_confirmation_required_in_cache(
+        self,
+        user_id: str,
+        processing_window_id: str,
+        *,
+        lock_token: str,
+        required_at: int,
+        ttl: Optional[int] = None,
+    ) -> bool:
+        """Marks a locked IdeaBucket processing window as waiting for user confirmation."""
+        client = await self.client
+        if not client:
+            return False
+
+        key = self._get_ideabucket_processing_window_key(user_id, processing_window_id)
+        final_ttl = ttl if ttl is not None else self.USER_DRAFT_TTL
+        mark_confirmation_required_lua = """
+        if redis.call('HGET', KEYS[1], 'status') ~= 'processing' or redis.call('HGET', KEYS[1], 'lock_token') ~= ARGV[1] then
+            return 0
+        end
+        redis.call(
+            'HSET', KEYS[1],
+            'status', 'confirmation_required',
+            'confirmation_required_at', ARGV[2]
+        )
+        redis.call('HDEL', KEYS[1], 'lock_token')
+        redis.call('EXPIRE', KEYS[1], ARGV[3])
+        return 1
+        """
+
+        try:
+            marked = await client.eval(
+                mark_confirmation_required_lua,
+                1,
+                key,
+                lock_token,
+                str(required_at),
+                str(final_ttl),
+            )
+            return marked == 1
+        except Exception as e:
+            logger.error(f"Error marking IdeaBucket processing window {processing_window_id} confirmation-required for user {user_id}: {e}")
+            return False
+
     def _decode_ideabucket_processing_window_hash(self, raw_data: Any) -> Optional[Dict[str, Any]]:
         """Decodes Redis HGETALL data for IdeaBucket processing-window helpers."""
         if not raw_data:
@@ -923,9 +971,11 @@ class ChatCacheMixin:
                     value.decode('utf-8') if isinstance(value, bytes) else str(value)
                 )
 
-        for integer_field in ("version", "scheduled_send_at", "processing_started_at", "sent_at", "failed_at"):
+        for integer_field in ("version", "scheduled_send_at", "processing_started_at", "sent_at", "failed_at", "confirmation_required_at"):
             if integer_field in data:
                 data[integer_field] = int(data[integer_field])
+        if "require_confirmation" in data:
+            data["require_confirmation"] = data["require_confirmation"] in {"1", "true", "True"}
         return data
 
     async def delete_user_draft_from_cache(self, user_id: str, chat_id: str) -> bool:
