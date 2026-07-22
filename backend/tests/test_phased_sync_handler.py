@@ -34,6 +34,7 @@ from backend.core.api.app.routes.handlers.websocket_handlers.phased_sync_handler
     _handle_phase1b_sync,
     _is_parent_chat_details,
     _merge_partial_cache_chat_details,
+    _phase2_metadata_is_current,
     _phase1_metadata_invariant_violations,
     handle_phased_sync_request,
 )
@@ -110,6 +111,14 @@ def test_phase1_partial_cache_keeps_cached_versions_when_present() -> None:
     assert merged["encrypted_chat_key"] == "cached-key"
     assert merged["messages_v"] == 4
     assert merged["title_v"] == 1
+
+
+def test_phase2_metadata_current_handles_missing_cached_message_version() -> None:
+    assert _phase2_metadata_is_current(
+        {"messages_v": 3, "title_v": 1, "metadata_v": 1, "draft_v": 0},
+        SimpleNamespace(messages_v=None, title_v=1, metadata_v=1),
+        {"messages_v": 3, "draft_v": 0},
+    ) is True
 
 
 def test_phase1_metadata_invariant_reports_missing_titled_header() -> None:

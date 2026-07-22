@@ -201,6 +201,24 @@ describe('EmbedStore.resolveByRefDeep', () => {
     );
   });
 
+  it('returns memory-only embeds without logging every cache hit', async () => {
+    const store = new EmbedStore();
+    const consoleDebug = vi.spyOn(console, 'debug').mockImplementation(() => undefined);
+
+    store.setInMemoryOnly('embed:memory-only-id', {
+      embed_id: 'memory-only-id',
+      type: 'image_result',
+      skill_id: 'search',
+    });
+
+    await expect(store.get('embed:memory-only-id')).resolves.toMatchObject({
+      embed_id: 'memory-only-id',
+      type: 'image_result',
+      skill_id: 'search',
+    });
+    expect(consoleDebug).not.toHaveBeenCalled();
+  });
+
   it('repairs video source quote refs that use a YouTube video ID', async () => {
     const store = new EmbedStore();
 

@@ -41,13 +41,16 @@ def _phase2_metadata_is_current(
     chat_details: Dict[str, Any],
 ) -> bool:
     client_title_v = client_versions.get("title_v", 0)
+    server_messages_v = server_versions.messages_v
+    if server_messages_v is None:
+        server_messages_v = chat_details.get("messages_v", 0)
     server_metadata_v = server_versions.metadata_v
     if server_metadata_v is None:
         server_metadata_v = server_versions.title_v
 
     return (
         client_versions.get("messages_v", 0)
-        >= max(server_versions.messages_v, chat_details.get("messages_v", 0))
+        >= max(server_messages_v, chat_details.get("messages_v", 0))
         and client_title_v >= server_versions.title_v
         and client_versions.get("metadata_v", client_title_v) >= server_metadata_v
         and client_versions.get("draft_v", 0)

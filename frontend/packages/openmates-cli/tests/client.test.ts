@@ -79,6 +79,7 @@ const {
   decryptWithAesGcmCombined,
   createApiKeyCryptoMaterial,
   encryptBytesWithAesGcm,
+  encryptWithAesGcmCombined,
   sealChatCompletionRecoveryPayload,
 } = await import("../src/crypto.ts");
 
@@ -579,6 +580,91 @@ describe("OpenMatesClient session API URL", () => {
         await decryptWithAesGcmCombined(cachedMessage.encrypted_content, chatKey),
         "Completed while the first client was gone.",
       );
+    } finally {
+      await new Promise<void>((resolve) => wsServer.close(() => resolve()));
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  it("refreshes exact chat messages before showing a selected chat", async () => {
+    const server = createServer((request: IncomingMessage, response: ServerResponse) => {
+      if (request.url === "/v1/auth/session") {
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ success: true, ws_token: "fresh-ws-token" }));
+        return;
+      }
+      response.writeHead(404);
+      response.end();
+    });
+    const wsServer = new WebSocketServer({ server });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+
+    const chatId = "22222222-2222-4222-8222-222222222222";
+    const chatKey = new Uint8Array(32).fill(8);
+    const masterKey = new Uint8Array(32);
+    const encryptedChatKey = await encryptBytesWithAesGcm(chatKey, masterKey);
+    const encryptedMessage = await encryptWithAesGcmCombined("Persisted fallback chat message", chatKey);
+    const syncPayloads: Record<string, any>[] = [];
+
+    wsServer.on("connection", (socket: any) => {
+      socket.on("message", (raw: Buffer) => {
+        const frame = JSON.parse(raw.toString());
+        if (frame.type !== "phased_sync_request") return;
+        syncPayloads.push(frame.payload);
+        const isTargetedMetadataRefresh = Array.isArray(frame.payload?.refresh_chat_ids)
+          && frame.payload.refresh_chat_ids.includes(chatId);
+        if (frame.payload?.phase === "all" && !isTargetedMetadataRefresh) {
+          socket.send(JSON.stringify({
+            type: "phase_2_last_20_chats_ready",
+            payload: {
+              total_chat_count: 1,
+              chats: [{
+                chat_details: {
+                  id: chatId,
+                  encrypted_chat_key: encryptedChatKey,
+                  messages_v: 1,
+                  title_v: 0,
+                  draft_v: 0,
+                  last_edited_overall_timestamp: 1780000000,
+                },
+              }],
+            },
+          }));
+        }
+        if (frame.payload?.phase === "phase3") {
+          socket.send(JSON.stringify({
+            type: "background_message_sync",
+            payload: {
+              chats: [{
+                chat_id: chatId,
+                messages: [JSON.stringify({
+                  client_message_id: "message-1",
+                  chat_id: chatId,
+                  encrypted_content: encryptedMessage,
+                  role: "assistant",
+                  created_at: 1780000000,
+                })],
+              }],
+            },
+          }));
+        }
+        socket.send(JSON.stringify({ type: "phased_sync_complete", payload: {} }));
+      });
+    });
+
+    try {
+      writeLegacySession(`http://127.0.0.1:${address.port}`);
+      const client = OpenMatesClient.load({ apiUrl: `http://127.0.0.1:${address.port}` });
+      const result = await client.getChatMessages(chatId);
+
+      assert.equal(syncPayloads.length, 3);
+      assert.deepEqual(syncPayloads[1]?.refresh_chat_ids, [chatId]);
+      assert.equal(syncPayloads[2]?.phase, "phase3");
+      assert.equal(syncPayloads[2]?.client_chat_versions?.[chatId], undefined);
+      assert.equal(result.messages.length, 1);
+      assert.equal(result.messages[0]?.content, "Persisted fallback chat message");
     } finally {
       await new Promise<void>((resolve) => wsServer.close(() => resolve()));
       await new Promise<void>((resolve) => server.close(() => resolve()));
@@ -1269,6 +1355,12 @@ describe("task update job helpers", () => {
         short_id: undefined,
         plan_id: null,
         due_at: null,
+        task_type: "verification",
+        verification_id: "verify-1",
+        parent_task_id: "parent-1",
+        queue_state: "waiting_for_user",
+        blocked_reason_code: "needs_input",
+        ai_execution_state: "waiting_for_user",
         encrypted_task_key: "cipher-key",
         encrypted_title: "cipher-title",
         encrypted_description: "cipher-description",
@@ -1277,6 +1369,12 @@ describe("task update job helpers", () => {
     });
     assert.deepEqual(createPayload.encrypted_task_payload, {
       task_id: "task-1",
+      task_type: "verification",
+      verification_id: "verify-1",
+      parent_task_id: "parent-1",
+      queue_state: "waiting_for_user",
+      blocked_reason_code: "needs_input",
+      ai_execution_state: "waiting_for_user",
       encrypted_task_key: "cipher-key",
       encrypted_title: "cipher-title",
       encrypted_description: "cipher-description",

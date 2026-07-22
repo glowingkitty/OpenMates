@@ -47,7 +47,7 @@ const {
 	getE2EDebugUrl
 } = require('./signup-flow-helpers');
 
-const { loginToTestAccount } = require('./helpers/chat-test-helpers');
+const { loginToTestAccount, waitForAssistantMessage, waitForChatReady } = require('./helpers/chat-test-helpers');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
@@ -275,8 +275,8 @@ test('message sync: verifies all messages are synced after sending multiple mess
 	await loginToTestAccount(page, logCheckpoint, takeStepScreenshot);
 	logCheckpoint('Redirected to chat page.');
 
-	// Wait for initial sync to complete
-	await page.waitForTimeout(3000);
+	// Wait for the chat transport and cache readiness hooks instead of sleeping.
+	await waitForChatReady(page, logCheckpoint, 60000);
 
 	// =========================================================================
 	// STEP 2: Start a new chat
@@ -313,8 +313,12 @@ test('message sync: verifies all messages are synced after sending multiple mess
 
 	// Wait for first AI response
 	logCheckpoint('Waiting for first AI response...');
-	const assistantResponse = page.getByTestId('message-assistant');
-	await expect(assistantResponse.last()).toContainText('4', { timeout: 45000 });
+	await waitForAssistantMessage(page, {
+		nth: 0,
+		contains: '4',
+		timeout: 120000,
+		logCheckpoint,
+	});
 	await waitForSyncedAssistantMessages(page, chatId, 1, 60000);
 	await takeStepScreenshot(page, '08-first-response-received');
 	logCheckpoint('Received first AI response containing "4".');
@@ -362,7 +366,12 @@ test('message sync: verifies all messages are synced after sending multiple mess
 
 	// Wait for second AI response
 	logCheckpoint('Waiting for second AI response...');
-	await expect(assistantResponse.last()).toContainText('40', { timeout: 45000 });
+	await waitForAssistantMessage(page, {
+		nth: 1,
+		contains: '40',
+		timeout: 120000,
+		logCheckpoint,
+	});
 	await waitForSyncedAssistantMessages(page, chatId, 2, 60000);
 	await takeStepScreenshot(page, '11-second-response-received');
 	logCheckpoint('Received second AI response containing "40".');

@@ -726,4 +726,129 @@ describe("handleSendEmbedDataImpl", () => {
       vi.useRealTimers();
     }
   });
+
+  it("flushes hashed queued finalized embeds when the raw chat shell is created", async () => {
+    vi.useFakeTimers();
+    try {
+      const chatKey = new Uint8Array([1, 2, 3]);
+      const embedKey = new Uint8Array([4, 5, 6]);
+      const localChat = {
+        chat_id: "chat-1",
+        encrypted_chat_key: "encrypted-chat-key",
+      };
+      mockChatDB.getChat.mockImplementation(async (chatId: string) =>
+        chatId === "chat-1" ? localChat : null,
+      );
+      mockChatDB.getAllChats.mockResolvedValue([localChat]);
+      mockChatListCache.getCache.mockReturnValue([localChat]);
+      mockChatKeyManager.getKeySync.mockImplementation((chatId: string) =>
+        chatId === "chat-1" ? chatKey : null,
+      );
+      mockChatKeyManager.getKey.mockImplementation(async (chatId: string) =>
+        chatId === "chat-1" ? chatKey : null,
+      );
+      mockDeriveEmbedKeyFromChatKey.mockResolvedValue(embedKey);
+      mockEncryptWithEmbedKey.mockImplementation(async (value: string) =>
+        `encrypted:${value}`,
+      );
+      mockWrapEmbedKeyWithMasterKey.mockResolvedValue("wrapped-master-key");
+      mockWrapEmbedKeyWithChatKey.mockResolvedValue("wrapped-chat-key");
+      mockSendStoreEmbed.mockResolvedValue(undefined);
+      mockSendStoreEmbedKeys.mockResolvedValue(undefined);
+      const service = {
+        dispatchEvent: vi.fn(),
+      } as unknown as ChatSynchronizationService;
+
+      await handleSendEmbedDataImpl(service, {
+        type: "send_embed_data",
+        event_for_client: "send_embed_data",
+        payload: {
+          embed_id: "embed-1",
+          type: "pdf",
+          content: JSON.stringify({ app_id: "pdf", skill_id: "read" }),
+          text_preview: "Test PDF",
+          status: "finished",
+          chat_id: HASHED_CHAT_ID,
+          message_id: "message-1",
+          user_id: "user-1",
+          createdAt: 123,
+          updatedAt: 124,
+        },
+      });
+
+      expect(mockEmbedStore.putEncrypted).not.toHaveBeenCalled();
+
+      await flushPendingFinalizedEmbedsForChat(service, "chat-1");
+
+      expect(mockEmbedStore.putEncrypted).toHaveBeenCalledWith(
+        "embed:embed-1",
+        expect.objectContaining({
+          embed_id: "embed-1",
+          encrypted_content: "encrypted:{\"app_id\":\"pdf\",\"skill_id\":\"read\"}",
+          hashed_chat_id: HASHED_CHAT_ID,
+          hashed_message_id: HASHED_MESSAGE_ID,
+          status: "finished",
+        }),
+        "pdf",
+        JSON.stringify({ app_id: "pdf", skill_id: "read" }),
+        expect.objectContaining({ app_id: "pdf", skill_id: "read" }),
+      );
+      expect(mockSendStoreEmbed).toHaveBeenCalledWith(
+        service,
+        expect.objectContaining({
+          embed_id: "embed-1",
+          hashed_chat_id: HASHED_CHAT_ID,
+          hashed_message_id: HASHED_MESSAGE_ID,
+          hashed_user_id: HASHED_USER_ID,
+        }),
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("stores finalized server incognito embeds in memory without durable persistence", async () => {
+    const service = {
+      dispatchEvent: vi.fn(),
+    } as unknown as ChatSynchronizationService;
+
+    await handleSendEmbedDataImpl(service, {
+      type: "send_embed_data",
+      event_for_client: "send_embed_data",
+      payload: {
+        embed_id: "embed-1",
+        type: "app-skill-use",
+        content: "app_id: images\nskill_id: search\nstatus: finished",
+        text_preview: "Image search results",
+        status: "finished",
+        chat_id: "incognito",
+        message_id: "message-1",
+        user_id: "user-1",
+        createdAt: 123,
+        updatedAt: 124,
+      },
+    });
+
+    expect(mockEmbedStore.setInMemoryOnly).toHaveBeenCalledWith(
+      "embed:embed-1",
+      expect.objectContaining({
+        embed_id: "embed-1",
+        status: "finished",
+        content: "app_id: images\nskill_id: search\nstatus: finished",
+        chat_id: "incognito",
+      }),
+    );
+    expect(mockEmbedStore.putEncrypted).not.toHaveBeenCalled();
+    expect(mockSendStoreEmbed).not.toHaveBeenCalled();
+    expect(service.dispatchEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "embedUpdated",
+        detail: expect.objectContaining({
+          embed_id: "embed-1",
+          status: "finished",
+          isProcessing: false,
+        }),
+      }),
+    );
+  });
 });

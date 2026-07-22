@@ -19,7 +19,30 @@ DEFAULT_TASK_UPDATE_JOB_LEASE_TTL_SECONDS = 60
 TASK_UPDATE_JOB_PENDING = "PENDING"
 TASK_UPDATE_JOB_LEASED = "LEASED"
 TASK_UPDATE_JOB_TERMINAL = "TERMINAL"
-ALLOWED_CLIENT_PAYLOAD_SAFE_KEYS = {"version", "key_wrappers", "linked_project_ids"}
+ALLOWED_CLIENT_PAYLOAD_SAFE_KEYS = {
+    "ai_execution_state",
+    "assignee_hash",
+    "assignee_type",
+    "blocked_reason_code",
+    "created_at",
+    "due_at",
+    "key_wrappers",
+    "label_hashes",
+    "linked_project_ids",
+    "parent_task_id",
+    "plan_id",
+    "plan_step_id",
+    "position",
+    "primary_chat_id",
+    "priority",
+    "queue_state",
+    "status",
+    "task_id",
+    "task_type",
+    "updated_at",
+    "verification_id",
+    "version",
+}
 
 
 class TaskUpdateJobConflictError(ValueError):

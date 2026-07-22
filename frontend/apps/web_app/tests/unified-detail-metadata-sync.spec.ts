@@ -141,6 +141,33 @@ async function coldBootContextPage(context: any, baseUrl: string): Promise<any> 
 	return page;
 }
 
+async function waitForColdBootHeaderMetadata(
+	page: any,
+	chatId: string,
+	expectedTitle: string,
+	expectedSummary: string,
+	timeoutMs = 120_000
+): Promise<void> {
+	const deadline = Date.now() + timeoutMs;
+	let lastTitle = '';
+	let lastSummary = '';
+
+	while (Date.now() < deadline) {
+		const header = await openOwnedChat(page, chatId);
+		lastTitle = (await header.getByTestId('chat-header-title').innerText().catch(() => '')).trim();
+		lastSummary = (await header.getByTestId('chat-header-summary').innerText().catch(() => '')).trim();
+
+		if (lastTitle === expectedTitle && lastSummary === expectedSummary) return;
+		await page.waitForTimeout(3_000);
+	}
+
+	throw new Error(
+		`Cold-boot header metadata did not converge for ${chatId}. ` +
+			`Expected title=${JSON.stringify(expectedTitle)}, summary=${JSON.stringify(expectedSummary)}; ` +
+			`last title=${JSON.stringify(lastTitle)}, summary=${JSON.stringify(lastSummary)}`
+	);
+}
+
 async function deleteExactChat(page: any, chatId: string): Promise<void> {
 	await page.goto(getE2EDebugUrl(`/#chat-id=${encodeURIComponent(chatId)}`), {
 		waitUntil: 'domcontentloaded'
@@ -283,13 +310,7 @@ test.describe('Unified detail metadata multi-device sync', () => {
 			await expect
 				.poll(() => localMetadataVersion(pageB, chatId), { timeout: 60_000 })
 				.toBeGreaterThanOrEqual(summaryVersion);
-			const coldBootHeader = pageB.getByTestId('workspace-detail-header');
-			await expect(coldBootHeader.getByTestId('chat-header-title')).toHaveText(savedTitle, {
-				timeout: 45_000
-			});
-			await expect(coldBootHeader.getByTestId('chat-header-summary')).toHaveText(savedSummary, {
-				timeout: 45_000
-			});
+			await waitForColdBootHeaderMetadata(pageB, chatId, savedTitle, savedSummary);
 		} finally {
 			if (chatId) {
 				await deleteExactChat(pageA, chatId).catch((error: Error) => {

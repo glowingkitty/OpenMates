@@ -1004,10 +1004,11 @@ export async function handleChatContentBatchResponseImpl(
         }
 
         await chatDB.updateChat(chat);
+        chatListCache.upsertChat(chat);
         updatedChatCount++;
         serviceInstance.dispatchEvent(
           new CustomEvent("chatUpdated", {
-            detail: { chat_id: chatId, messagesUpdated: true },
+            detail: { chat_id: chatId, chat, messagesUpdated: true },
           }),
         );
       }

@@ -147,6 +147,7 @@ const pendingFinalizedEmbedFlushTimersByChat = new Map<
   string,
   ReturnType<typeof setTimeout>
 >();
+const SERVER_INCOGNITO_CHAT_ID = "incognito";
 const PENDING_FINALIZED_EMBED_RETRY_MS = 2000;
 const PENDING_FINALIZED_EMBED_TTL_MS = 120000;
 const SHA256_HEX_RE = /^[a-f0-9]{64}$/i;
@@ -186,6 +187,51 @@ function queuePendingFinalizedEmbed(
     `[ChatSyncService:AI] Queued finalized embed ${embedData.embed_id}; ${reason}`,
   );
   return true;
+}
+
+async function storeVolatileFinalizedEmbedInMemory(
+  serviceInstance: ChatSynchronizationService,
+  embedData: EmbedDataPayload,
+  reason: string,
+): Promise<void> {
+  const { embedStore } = await import("./embedStore");
+  const embedPayload = embedData as Record<string, unknown>;
+  embedStore.setInMemoryOnly(`embed:${embedData.embed_id}`, {
+    embed_id: embedData.embed_id,
+    type: embedData.type,
+    status: embedData.status,
+    content: embedData.content,
+    text_preview: embedData.text_preview,
+    task_id: embedData.task_id,
+    embed_ids: embedData.embed_ids,
+    parent_embed_id: embedData.parent_embed_id,
+    chat_id: embedData.chat_id,
+    message_id: embedData.message_id,
+    skill_id: embedPayload.skill_id as string | undefined,
+    app_id: embedPayload.app_id as string | undefined,
+    query: embedPayload.query as string | undefined,
+    provider: embedPayload.provider as string | undefined,
+    results: embedPayload.results as unknown[] | undefined,
+    version_number: embedData.version_number,
+    createdAt: embedData.createdAt || Date.now(),
+    updatedAt: embedData.updatedAt || Date.now(),
+  });
+  console.info(
+    `[ChatSyncService:AI] Stored finalized embed ${embedData.embed_id} in memory only; ${reason}`,
+  );
+  serviceInstance.dispatchEvent(
+    new CustomEvent("embedUpdated", {
+      detail: {
+        embed_id: embedData.embed_id,
+        chat_id: embedData.chat_id,
+        message_id: embedData.message_id,
+        status: embedData.status,
+        version_number: embedData.version_number,
+        child_embed_ids: embedData.embed_ids,
+        isProcessing: false,
+      },
+    }),
+  );
 }
 
 // OPE-360: ai_typing_started payloads queued when the chat shell doesn't yet
@@ -237,14 +283,27 @@ export async function flushPendingFinalizedEmbedsForChat(
   serviceInstance: ChatSynchronizationService,
   chatId: string,
 ): Promise<void> {
-  const pendingForChat = pendingFinalizedEmbedsByChat.get(chatId);
+  let pendingQueueChatId = chatId;
+  let pendingForChat = pendingFinalizedEmbedsByChat.get(pendingQueueChatId);
+  if (
+    !pendingForChat &&
+    !SHA256_HEX_RE.test(chatId) &&
+    (await chatDB.getChat(chatId))
+  ) {
+    const { computeSHA256 } = await import("../message_parsing/utils");
+    const hashedChatId = await computeSHA256(chatId);
+    pendingForChat = pendingFinalizedEmbedsByChat.get(hashedChatId);
+    if (pendingForChat) {
+      pendingQueueChatId = hashedChatId;
+    }
+  }
   if (!pendingForChat) return;
 
-  const rawChatId = await resolveRawChatIdForFinalizedEmbed(chatId);
+  const rawChatId = await resolveRawChatIdForFinalizedEmbed(pendingQueueChatId);
   if (!rawChatId) return;
 
   console.info(
-    `[ChatSyncService:AI] Flushing ${pendingForChat.size} finalized embed(s) queued for chat ${chatId}`,
+    `[ChatSyncService:AI] Flushing ${pendingForChat.size} finalized embed(s) queued for chat ${pendingQueueChatId}`,
   );
   let processedThisPass = false;
   do {
@@ -265,15 +324,15 @@ export async function flushPendingFinalizedEmbedsForChat(
         }
       } catch (error) {
         console.warn(
-          `[ChatSyncService:AI] Failed to flush queued finalized embed ${embedData.embed_id} for chat ${chatId}:`,
+          `[ChatSyncService:AI] Failed to flush queued finalized embed ${embedData.embed_id} for chat ${pendingQueueChatId}:`,
           error,
         );
       }
     }
   } while (processedThisPass && pendingForChat.size > 0);
   if (pendingForChat.size === 0) {
-    pendingFinalizedEmbedsByChat.delete(chatId);
-    pendingFinalizedEmbedQueuedAtByChat.delete(chatId);
+    pendingFinalizedEmbedsByChat.delete(pendingQueueChatId);
+    pendingFinalizedEmbedQueuedAtByChat.delete(pendingQueueChatId);
   }
 }
 
@@ -3667,6 +3726,21 @@ export async function handleSendEmbedDataImpl(
       const alreadyEncrypted =
         (embedData as unknown as Record<string, unknown>).already_encrypted ===
         true;
+      if (
+        !alreadyEncrypted &&
+        embedData.chat_id === SERVER_INCOGNITO_CHAT_ID
+      ) {
+        if (isEmbedAlreadyProcessed(embedData.embed_id, embedData.version_number)) {
+          return;
+        }
+        markEmbedAsProcessed(embedData.embed_id, embedData.version_number);
+        await storeVolatileFinalizedEmbedInMemory(
+          serviceInstance,
+          embedData,
+          "server incognito embeds are not backed by a durable chat key",
+        );
+        return;
+      }
       if (!alreadyEncrypted && embedData.chat_id) {
         if (!(await chatDB.getChat(embedData.chat_id))) {
           if (

@@ -1647,15 +1647,6 @@ export class EmbedStore {
     if (typeof storedData !== "string") {
       // Memory-only entries (from setInMemoryOnly) store data as objects directly
       // This is expected behavior for "processing" embeds that need immediate rendering
-      console.debug(
-        "[EmbedStore] ✅ Returning memory-only embed data (not encrypted):",
-        contentRef,
-        {
-          type: storedData.type,
-          skill_id: storedData.skill_id,
-          status: storedData.status,
-        },
-      );
       return storedData;
     }
 

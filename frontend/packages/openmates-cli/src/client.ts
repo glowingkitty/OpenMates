@@ -1326,17 +1326,23 @@ function assertTaskPersistPayloadEncrypted(payload: Record<string, unknown>): vo
     "assignee_type",
     "blocked_reason_code",
     "created_at",
+    "due_at",
+    "ai_execution_state",
     "key_wrappers",
     "label_hashes",
     "linked_project_ids",
+    "parent_task_id",
     "plan_id",
     "plan_step_id",
     "position",
     "primary_chat_id",
     "priority",
+    "queue_state",
     "status",
     "task_id",
+    "task_type",
     "updated_at",
+    "verification_id",
     "version",
   ]);
   for (const key of Object.keys(payload)) {
@@ -10037,6 +10043,7 @@ export class OpenMatesClient {
     let reconciliation: AuthoritativeChatReconciliation = { authoritative: false };
     const pendingAIResponses: PendingAIResponseFrame[] = [];
     let pendingTaskUpdateJobs: PendingTaskUpdateJobFrame[] = [];
+    const messagesByChatId = new Map<string, string[]>();
 
     try {
       // Send phase:all so the server runs all sync phases over a single WS
@@ -10048,6 +10055,7 @@ export class OpenMatesClient {
         client_embed_ids: clientEmbedIds,
       };
 
+      const syncFrames = ws.collectMessages("phased_sync_complete", 90_000);
       ws.send("phased_sync_request", {
         phase: "all",
         ...baseSyncPayload,
@@ -10058,18 +10066,21 @@ export class OpenMatesClient {
       // Processing inline rather than per-event avoids race conditions where
       // a fast server response could arrive before a waitForMessage listener
       // is registered.
-      const frames = await ws.collectMessages("phased_sync_complete", 90_000);
+      const frames = await syncFrames;
       if (includeMessageContentRefresh && refreshChatIdSet.size > 0) {
+        const phase3Frames = ws.collectMessages("phased_sync_complete", 90_000);
         ws.send("phased_sync_request", {
           phase: "phase3",
           ...baseSyncPayload,
         });
-        frames.push(...await ws.collectMessages("phased_sync_complete", 90_000));
+        const collectedPhase3Frames = await phase3Frames;
+        frames.push(...collectedPhase3Frames);
       }
 
       // Messages keyed by chat_id — merged from phase_1b and background_message_sync.
-      const messagesByChatId = new Map<string, string[]>();
-
+      const normalizeSyncedMessages = (messages: unknown[]): string[] => messages.map((message) =>
+        typeof message === "string" ? message : JSON.stringify(message),
+      );
       for (const frame of frames) {
         if (frame.type === "phase_1_last_chat_ready") {
           // Primary source for new_chat_suggestions (not included in phase2/3).
@@ -10081,14 +10092,14 @@ export class OpenMatesClient {
         } else if (frame.type === "phase_1b_chat_content_ready") {
           // Messages + embeds for the most recent ~11 chats.
           const p = frame.payload as {
-            chats?: Array<{ chat_id: string; messages: string[] | null }>;
+            chats?: Array<{ chat_id: string; messages: unknown[] | null }>;
             embeds?: Record<string, unknown>[];
             embed_keys?: Record<string, unknown>[];
             chat_key_wrappers?: Record<string, unknown>[];
           };
           for (const c of (p.chats ?? [])) {
             if (c.chat_id && Array.isArray(c.messages) && c.messages.length > 0) {
-              messagesByChatId.set(c.chat_id, c.messages);
+              messagesByChatId.set(c.chat_id, normalizeSyncedMessages(c.messages));
             }
           }
           if (p.embeds) embeds.push(...p.embeds);
@@ -10121,14 +10132,14 @@ export class OpenMatesClient {
         } else if (frame.type === "background_message_sync") {
           // Chunked message batches for chats not already covered by phase_1b.
           const p = frame.payload as {
-            chats?: Array<{ chat_id: string; messages: string[] }>;
+            chats?: Array<{ chat_id: string; messages: unknown[] }>;
             embeds?: Record<string, unknown>[];
             embed_keys?: Record<string, unknown>[];
             chat_key_wrappers?: Record<string, unknown>[];
           };
           for (const c of (p.chats ?? [])) {
             if (c.chat_id && Array.isArray(c.messages) && c.messages.length > 0) {
-              messagesByChatId.set(c.chat_id, c.messages);
+              messagesByChatId.set(c.chat_id, normalizeSyncedMessages(c.messages));
             }
           }
           if (p.embeds) embeds.push(...p.embeds);
@@ -10160,6 +10171,14 @@ export class OpenMatesClient {
     // Also preserve cached messages when the server sends a chat update
     // without messages (delta optimization — messages_v unchanged).
     if (existingCache) {
+      const currentChatIds = new Set(chats.map((chat) => String(chat.details.id ?? "")));
+      for (const [chatId, messages] of messagesByChatId) {
+        if (currentChatIds.has(chatId)) continue;
+        const cached = existingCache.chats.find((chat) => String(chat.details.id ?? "") === chatId);
+        if (!cached) continue;
+        chats.push({ details: cached.details, messages });
+        currentChatIds.add(chatId);
+      }
       const cachedById = new Map(
         existingCache.chats.map((c) => [String(c.details.id ?? ""), c]),
       );
@@ -10194,7 +10213,10 @@ export class OpenMatesClient {
       for (const cached of existingCache.chats) {
         const cachedId = String(cached.details.id ?? "");
         if (cachedId && !serverChatIds.has(cachedId)) {
-          chats.push(cached);
+          const refreshedMessages = messagesByChatId.get(cachedId);
+          chats.push(refreshedMessages && refreshedMessages.length > 0
+            ? { details: cached.details, messages: refreshedMessages }
+            : cached);
         }
       }
       // Also carry forward embeds/embed_keys not already in the server response
@@ -10235,6 +10257,7 @@ export class OpenMatesClient {
 
     const reconciledChats = reconcileAuthoritativeChats(chats, reconciliation);
     chats.splice(0, chats.length, ...reconciledChats);
+    if (totalChatCount === 0) totalChatCount = chats.length;
 
     if (reconciliation.deleted_chat_ids?.length) {
       const { createHash } = await import("node:crypto");

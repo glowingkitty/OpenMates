@@ -387,7 +387,30 @@ def _job_summary(job: dict[str, Any]) -> dict[str, Any]:
 
 
 def _validate_encrypted_payload(payload: dict[str, Any]) -> None:
-    allowed_safe = {"version", "key_wrappers", "linked_project_ids", "task_id", "status", "assignee_type", "assignee_hash", "primary_chat_id", "position", "created_at", "updated_at", "blocked_reason_code", "priority"}
+    allowed_safe = {
+        "ai_execution_state",
+        "assignee_hash",
+        "assignee_type",
+        "blocked_reason_code",
+        "created_at",
+        "due_at",
+        "key_wrappers",
+        "label_hashes",
+        "linked_project_ids",
+        "parent_task_id",
+        "plan_id",
+        "plan_step_id",
+        "position",
+        "primary_chat_id",
+        "priority",
+        "queue_state",
+        "status",
+        "task_id",
+        "task_type",
+        "updated_at",
+        "verification_id",
+        "version",
+    }
     for key in payload:
         if key.startswith("encrypted_") or key in allowed_safe:
             continue
