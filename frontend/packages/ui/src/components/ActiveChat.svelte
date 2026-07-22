@@ -5227,6 +5227,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     let selectedGuestInterestTagIds = $state<InterestTagId[]>([]);
     let guestInterestContinueConfirmed = $state(false);
     let guestInterestSelectorVisible = $state(true);
+    let guestLandingIntroExpanded = $state(false);
     let guestInterestShuffleToken = $state(0);
     let lastGuestInspirationShuffleId = $state('');
     let lastGuestPersonalizationKey = '';
@@ -5294,6 +5295,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         if (nextId === lastGuestInspirationShuffleId) return;
         lastGuestInspirationShuffleId = nextId;
         guestInterestShuffleToken += 1;
+    }
+
+    function handleLandingIntroExpandedChange(expanded: boolean) {
+        guestLandingIntroExpanded = expanded;
     }
 
     $effect(() => {
@@ -11709,6 +11714,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 class:side-by-side-exiting={sideBySideAnimating && sideBySideAnimationDirection === 'exit'}
                 class:side-by-side-minimizing={sideBySideAnimating && sideBySideAnimationDirection === 'minimize'}
                 class:side-by-side-restoring={sideBySideAnimating && sideBySideAnimationDirection === 'restore'}
+                class:landing-intro-welcome-active={showWelcome && guestLandingIntroExpanded}
             >
                 <!-- 404 Not-Found screen: shown exclusively when the user landed on an unknown URL.
                      Replaces both chat-side and message-input-wrapper entirely. -->
@@ -11733,6 +11739,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 onStartChat={handleStartChatFromInspiration}
                                 onEmbedFullscreen={handleInspirationEmbedFullscreen}
                                 onVisibleInspirationChange={handleVisibleInspirationChange}
+                                onLandingIntroExpandedChange={handleLandingIntroExpandedChange}
                                 containerWidth={effectiveChatWidth}
                                 variant={$authStore.isAuthenticated ? 'default' : 'guest-intro'}
                             />
@@ -14516,6 +14523,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         flex-shrink: 0;
         width: 100%;
     }
+
+    .chat-wrapper.landing-intro-welcome-active .message-input-wrapper {
+        display: none;
+    }
     
 
     .chat-wrapper.fullscreen .message-input-wrapper { /* Changed from .message-input-container */
@@ -14791,6 +14802,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         /* Ensure full width to keep justify-content: space-between working */
         width: 100%;
         box-sizing: border-box;
+    }
+
+    .chat-wrapper.landing-intro-welcome-active .top-buttons,
+    .chat-wrapper.landing-intro-welcome-active .center-content,
+    .chat-wrapper.landing-intro-welcome-active .guest-interest-tags-overlay {
+        opacity: 0;
+        pointer-events: none;
+        visibility: hidden;
     }
 
     /* Adjust top-buttons position on small screens (absolute mode only) */
