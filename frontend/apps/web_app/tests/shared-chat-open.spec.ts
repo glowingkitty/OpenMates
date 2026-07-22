@@ -142,7 +142,9 @@ test('public shared chat shows audio transcript to logged-out visitors', async (
 
 	await page.goto(sharedChatUrl);
 	await expect(page).toHaveURL(/#chat-id=/, { timeout: 45000 });
-	await expect(page.getByTestId('shared-chat-badge')).toHaveText('Shared chat', { timeout: 45000 });
+	await expect(page.getByTestId('chat-header-banner').getByTestId('shared-chat-badge')).toHaveText('Shared chat', {
+		timeout: 45000
+	});
 
 	const audioEmbed = page.locator(
 		'[data-testid="embed-preview"][data-app-id="audio"][data-skill-id="transcribe"]'

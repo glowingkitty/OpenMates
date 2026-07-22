@@ -68,7 +68,7 @@
     import { aiTypingStore, type AITypingStatus } from '../stores/aiTypingStore'; // Import the new store
     import { decryptWithChatKey, decryptWithMasterKey } from '../services/cryptoService'; // Import decryption function
     import { getModelDisplayName } from '../utils/modelDisplayName'; // For clean model name display
-    import { pruneDecryptedMessageWindow } from '../utils/messageWindowPruning';
+    import { pruneDecryptedMessageWindow, shouldPreserveExpandedMessageWindow } from '../utils/messageWindowPruning';
     import { modelsMetadata } from '../data/modelsMetadata'; // For reasoning model detection in typing indicator
     import { parse_message } from '../message_parsing/parse_message'; // Import markdown parser
     import { loadSessionStorageDraft, getSessionStorageDraftMarkdown, migrateSessionStorageDraftsToIndexedDB, getAllDraftChatIdsWithDrafts } from '../services/drafts/sessionStorageDraftService'; // Import sessionStorage draft service
@@ -8207,7 +8207,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 // Only update if the message set actually changed to avoid unnecessary re-renders
                 const currentIds = currentMessages.map(m => m.message_id).sort().join(',');
                 const freshIds = freshMessages.map(m => m.message_id).sort().join(',');
-                if (currentIds !== freshIds || freshMessages.length !== currentMessages.length) {
+                if (shouldPreserveExpandedMessageWindow(currentMessages, freshMessages)) {
+                    console.debug('[ActiveChat] handleChatUpdated: Preserving expanded older-message window; latest reload is already covered by current messages.');
+                } else if (currentIds !== freshIds || freshMessages.length !== currentMessages.length) {
                     console.info(`[ActiveChat] handleChatUpdated: Message set changed after IndexedDB reload (${currentMessages.length} → ${freshMessages.length}). Updating display.`);
                     currentMessages = freshMessages;
                     if (chatHistoryRef) {
@@ -11271,7 +11273,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     direction: 'latest',
                     compressedUpToTimestamp: latestCheckpoint?.compressed_up_to_timestamp,
                 });
-                currentMessages = messageWindow.messages;
+                currentMessages = shouldPreserveExpandedMessageWindow(currentMessages, messageWindow.messages)
+                    ? currentMessages
+                    : messageWindow.messages;
                 currentMessageWindowHasMoreBefore = messageWindow.hasMoreBefore;
                 chatHistoryRef?.updateMessages(currentMessages);
             }

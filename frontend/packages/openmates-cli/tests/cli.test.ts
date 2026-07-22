@@ -2709,17 +2709,25 @@ describe("apps metadata commands", () => {
 
   it("routes nested app-skill errors through explicit command result formatting", async () => {
     await withSkillFormattingMockApi(async ({ apiUrl, requests }) => {
-      const { stdout, stderr } = await execFileAsync("node", [
-        "dist/cli.js",
-        "--api-url", apiUrl,
-        "apps", "workflows", "search",
-        "--input", JSON.stringify({ query: "vault-blocked" }),
-      ], {
-        cwd: PACKAGE_ROOT,
-        encoding: "utf-8",
-        env: { ...process.env, TERM: "dumb" },
-        timeout: 15_000,
-      });
+      let stdout = "";
+      let stderr = "";
+      try {
+        await execFileAsync("node", [
+          "dist/cli.js",
+          "--api-url", apiUrl,
+          "apps", "workflows", "search",
+          "--input", JSON.stringify({ query: "vault-blocked" }),
+        ], {
+          cwd: PACKAGE_ROOT,
+          encoding: "utf-8",
+          env: { ...process.env, TERM: "dumb" },
+          timeout: 15_000,
+        });
+        assert.fail("expected workflows search to fail when Vault key material is missing");
+      } catch (error) {
+        stdout = (error as { stdout?: string }).stdout ?? "";
+        stderr = (error as { stderr?: string }).stderr ?? String(error);
+      }
 
       assert.equal(stdout, "");
       assert.match(stderr, /Workflow encryption requires the user's Vault key id/);

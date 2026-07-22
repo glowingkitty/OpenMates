@@ -12,6 +12,7 @@ import {
   DECRYPTED_WINDOW_TARGET,
   NORMAL_MESSAGE_PAGE_LIMIT,
   pruneDecryptedMessageWindow,
+  shouldPreserveExpandedMessageWindow,
 } from "../../utils/messageWindowPruning";
 
 function makeMessages(count: number, offset = 0): Message[] {
@@ -67,5 +68,13 @@ describe("pruneDecryptedMessageWindow", () => {
 
     expect(result.messages.filter((message) => message.created_at <= 10)).toHaveLength(10);
     expect(result.messages.filter((message) => message.created_at > 10)).toHaveLength(DECRYPTED_WINDOW_TARGET);
+  });
+
+  it("preserves an expanded older-message window when a latest-window refresh is a subset", () => {
+    const currentMessages = makeMessages(60);
+    const incomingLatestMessages = currentMessages.slice(30);
+
+    expect(shouldPreserveExpandedMessageWindow(currentMessages, incomingLatestMessages)).toBe(true);
+    expect(shouldPreserveExpandedMessageWindow(incomingLatestMessages, currentMessages)).toBe(false);
   });
 });
