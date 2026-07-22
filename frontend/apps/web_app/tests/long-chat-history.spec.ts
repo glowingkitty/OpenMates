@@ -30,16 +30,6 @@ const COMPRESSED_UP_TO_INDEX = 80;
 const TOTAL_MESSAGE_COUNT = 161;
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
-async function ensureSidebarOpen(page: any): Promise<void> {
-	const activityHistory = page.getByTestId('activity-history-wrapper');
-	if (await activityHistory.isVisible({ timeout: 1000 }).catch(() => false)) return;
-
-	const toggle = page.getByTestId('sidebar-toggle');
-	await expect(toggle).toBeVisible({ timeout: 10000 });
-	await toggle.click();
-	await expect(activityHistory).toBeVisible({ timeout: 10000 });
-}
-
 async function dismissSecurityReminder(page: any): Promise<void> {
 	const reminder = page.getByTestId('notification').filter({ hasText: 'Security Reminder' });
 	if (!(await reminder.isVisible({ timeout: 2000 }).catch(() => false))) return;
@@ -221,13 +211,10 @@ test('loads long compressed history explicitly and exports hydrated metadata', a
 		.toBeCloseTo(0.6, 1);
 	await screenshot(page, 'forgotten-page-revealed');
 
-	await ensureSidebarOpen(page);
-	const seededChatItem = page.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${CHAT_ID}"]`);
-	await expect(seededChatItem).toBeVisible({ timeout: 45000 });
 	const downloadPromise = page.waitForEvent('download', { timeout: 45000 });
-	await seededChatItem.click({ button: 'right' });
-	await expect(page.getByTestId('chat-context-download')).toBeVisible({ timeout: 10000 });
-	await page.getByTestId('chat-context-download').click();
+	await page.getByTestId('chat-share-button').click();
+	await expect(page.getByTestId('chat-details-settings-panel')).toBeVisible({ timeout: 10000 });
+	await page.getByRole('button', { name: /download chat zip/i }).click();
 	const download = await downloadPromise;
 	expect(download.suggestedFilename()).toMatch(/\.zip$/);
 	const metadata = await readZipMetadata(download, testInfo.outputPath('long-chat-history.zip'));

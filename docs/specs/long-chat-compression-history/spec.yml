@@ -195,10 +195,16 @@ attempts:
     outcome: blocked
     recorded_at: "2026-07-22T14:04:26Z"
     notes: GitHub Actions run 29927228621 reached Vercel READY deployment dpl_wsmHy3UsCCETqWVQPvixdj1yxyCV and passed account preflight 29927070958. The long-chat scenario progressed through forgotten-message reveal and failed at ZIP metadata because the export hydrated all 161 requested messages but still reported status partial with the compression-checkpoint hydration warning. The export completeness rule was fixed locally to warn only when available messages do not cover the checkpoint compressed_message_count.
+  - id: ATTEMPT-8
+    task_id: TASK-6
+    approach: Rerun long-chat-history.spec.ts after export completeness fix f06a96fa4 deployed.
+    outcome: blocked
+    recorded_at: "2026-07-22T14:18:07Z"
+    notes: GitHub Actions run 29928243181 reached Vercel READY deployment dpl_F1LgL5baYHiG6VwiW9n3rCwfoSkG, passed account preflight 29928095936, and followed green Vitest run 29927806931 with 622/622 passing. The long-chat scenario failed when it tried to find the seeded IndexedDB-only chat in the synced sidebar list before opening the context menu. The Playwright spec was fixed locally to trigger ZIP export from the active chat share/details panel instead.
 
 handoff:
   current_task_id: TASK-6
-  next_action: Deploy the export completeness fix plus this spec ledger update, rerun Vitest export coverage and long-chat-history.spec.ts against app.dev.openmates.org, then run one on-demand real CLI long-chat compression validation.
+  next_action: Deploy the active-chat ZIP download trigger fix plus this spec ledger update, rerun long-chat-history.spec.ts against app.dev.openmates.org, then run one on-demand real CLI long-chat compression validation.
   command: python3 scripts/tests.py run --spec long-chat-history.spec.ts
   expected_outcome: Run after deploy; deterministic spec should pass without model/provider calls and cover latest 40-message window, explicit older-message paging, faded forgotten-message reveal, shared boundaries, and export hydration metadata.
   blocker: null

@@ -5334,6 +5334,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // activation event.
         if (chatId !== lastLoadedChatId) {
             focusPillSetByEvent = false;
+            activeFocusId = null;
         }
         if (!chatId) {
             activeFocusId = null;
