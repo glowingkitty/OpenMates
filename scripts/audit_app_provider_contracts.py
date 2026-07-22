@@ -33,6 +33,44 @@ LEGAL_I18N_PATH = REPO_ROOT / "frontend" / "packages" / "ui" / "src" / "i18n" / 
 GENERATED_TRAINING_PATH = REPO_ROOT / "frontend" / "packages" / "ui" / "src" / "legal" / "trainingPolicies.generated.ts"
 VIRTUAL_PROVIDER_IDS = {"pretalx"}
 MINIMUM_APP_SKILL_CREDITS = 1
+DENIED_CHINESE_SERVER_IDS = {
+    "alibaba",
+    "aliyun",
+    "baidu",
+    "bytedance",
+    "dashscope",
+    "deepseek",
+    "doubao",
+    "kimi",
+    "minimax",
+    "moonshot",
+    "moonshotai",
+    "siliconflow",
+    "tencent",
+    "volcengine",
+    "zai",
+    "z_ai",
+    "zhipu",
+}
+DENIED_CHINESE_SERVER_HOSTS = (
+    "aliyuncs.com",
+    "alibabacloud.com",
+    "baidu.com",
+    "bigmodel.cn",
+    "deepseek.com",
+    "doubao.com",
+    "kimi.com",
+    "moonshot.ai",
+    "moonshot.cn",
+    "siliconflow.cn",
+    "tencentcloudapi.com",
+    "volces.com",
+    "volcengine.com",
+    "z.ai",
+)
+DENIED_DIRECT_CHINESE_OPENROUTER_MODEL_IDS = {
+    "moonshotai/kimi-k3",
+}
 KNOWN_TRANSLATION_NAMESPACES = (
     "apps.",
     "app_skills.",
@@ -120,6 +158,88 @@ def _rel(path: Path) -> str:
         return str(path.relative_to(REPO_ROOT))
     except ValueError:
         return str(path)
+
+
+def _server_identifier(value: Any) -> str:
+    return re.sub(r"[^a-z0-9]+", "_", str(value or "").lower()).strip("_")
+
+
+def _is_denied_chinese_server_identifier(value: Any) -> bool:
+    identifier = _server_identifier(value)
+    if not identifier:
+        return False
+    if identifier in DENIED_CHINESE_SERVER_IDS:
+        return True
+    return any(part in DENIED_CHINESE_SERVER_IDS for part in identifier.split("_"))
+
+
+def _is_denied_chinese_server_url(value: Any) -> bool:
+    text = str(value or "").lower()
+    return any(host in text for host in DENIED_CHINESE_SERVER_HOSTS)
+
+
+def _audit_no_chinese_server_routes(data: dict[str, Any], rel: str) -> list[AuditIssue]:
+    issues: list[AuditIssue] = []
+
+    for optional_key in data.get("optional_keys") or []:
+        if not isinstance(optional_key, dict):
+            continue
+        for field in ("env_key", "vault_path"):
+            value = optional_key.get(field)
+            if _is_denied_chinese_server_identifier(value):
+                issues.append(
+                    AuditIssue(rel, f"optional key '{field}' points to blocked Chinese server provider '{value}'")
+                )
+
+    for model in data.get("models") or []:
+        if not isinstance(model, dict):
+            continue
+        model_id = str(model.get("id") or "<unnamed>")
+        for server in model.get("servers") or []:
+            if not isinstance(server, dict):
+                continue
+            server_id = str(server.get("id") or "<unnamed>")
+            server_name = str(server.get("name") or server_id)
+            region = str(server.get("region") or "").upper()
+            aws_region = str(server.get("aws_region") or "").lower()
+            if region == "CN" or aws_region.startswith("cn-"):
+                issues.append(AuditIssue(rel, f"model '{model_id}' server '{server_id}' uses blocked Chinese region"))
+
+            for field in ("id", "name", "provider", "gateway"):
+                value = server.get(field)
+                if _is_denied_chinese_server_identifier(value):
+                    issues.append(
+                        AuditIssue(rel, f"model '{model_id}' server '{server_name}' uses blocked Chinese server '{value}'")
+                    )
+
+            for field in ("base_url", "api_base", "api_url", "url", "endpoint", "host"):
+                value = server.get(field)
+                if _is_denied_chinese_server_url(value):
+                    issues.append(
+                        AuditIssue(rel, f"model '{model_id}' server '{server_name}' points to blocked Chinese server URL")
+                    )
+
+            server_model_id = str(server.get("model_id") or "").lower()
+            if server_id == "openrouter" and server_model_id in DENIED_DIRECT_CHINESE_OPENROUTER_MODEL_IDS:
+                issues.append(
+                    AuditIssue(
+                        rel,
+                        f"model '{model_id}' uses OpenRouter route '{server_model_id}', which currently forwards to a Chinese upstream",
+                    )
+                )
+
+        provider_overrides = model.get("provider_overrides")
+        if isinstance(provider_overrides, dict):
+            for upstream in provider_overrides.get("order") or []:
+                if _is_denied_chinese_server_identifier(upstream):
+                    issues.append(
+                        AuditIssue(
+                            rel,
+                            f"model '{model_id}' provider_overrides.order targets blocked Chinese upstream '{upstream}'",
+                        )
+                    )
+
+    return issues
 
 
 def _privacy_provider(data: Any, provider_id: str) -> dict[str, Any] | None:
@@ -251,6 +371,8 @@ def audit_provider_file(path: Path) -> list[AuditIssue]:
     for pricing_key, value in pricing_values:
         if value < MINIMUM_APP_SKILL_CREDITS:
             issues.append(AuditIssue(rel, f"provider pricing '{pricing_key}' must be at least {MINIMUM_APP_SKILL_CREDITS} credit"))
+
+    issues.extend(_audit_no_chinese_server_routes(data, rel))
 
     return issues
 

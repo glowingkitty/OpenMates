@@ -36,3 +36,102 @@ def test_hi3d_training_disclosure_rejects_mismatched_privacy_url(tmp_path, monke
     issues = audit_provider_file(PROVIDERS_ROOT / "hi3d.yml")
 
     assert any("privacy_policy.yml" in issue.message for issue in issues)
+
+
+def test_provider_audit_blocks_direct_chinese_server_routes(tmp_path) -> None:
+    provider_path = tmp_path / "blocked.yml"
+    provider_path.write_text(
+        """
+provider_id: blocked
+name: Blocked
+description: Blocked provider fixture
+privacy_policy: https://example.test/privacy
+logo_svg: icons/moonshot.svg
+optional_keys:
+  - env_key: SECRET__MOONSHOT__API_KEY
+    vault_path: kv/data/providers/moonshot
+    vault_key: api_key
+models:
+  - id: blocked-model
+    name: Blocked Model
+    input_types: [text]
+    output_types: [text]
+    servers:
+      - id: moonshot
+        name: Moonshot AI
+        model_id: kimi-k3
+        region: CN
+        base_url: https://api.moonshot.ai/v1
+""",
+        encoding="utf-8",
+    )
+
+    issues = audit_provider_file(provider_path)
+
+    messages = "\n".join(issue.message for issue in issues)
+    assert "optional key 'env_key'" in messages
+    assert "optional key 'vault_path'" in messages
+    assert "uses blocked Chinese region" in messages
+    assert "uses blocked Chinese server" in messages
+    assert "blocked Chinese server URL" in messages
+
+
+def test_provider_audit_blocks_known_openrouter_direct_chinese_route(tmp_path) -> None:
+    provider_path = tmp_path / "blocked_openrouter.yml"
+    provider_path.write_text(
+        """
+provider_id: blocked_openrouter
+name: Blocked OpenRouter
+description: Blocked provider fixture
+privacy_policy: https://example.test/privacy
+logo_svg: icons/moonshot.svg
+models:
+  - id: kimi-k3
+    name: Kimi K3
+    input_types: [text]
+    output_types: [text]
+    servers:
+      - id: openrouter
+        name: OpenRouter
+        model_id: moonshotai/kimi-k3
+        region: US
+""",
+        encoding="utf-8",
+    )
+
+    issues = audit_provider_file(provider_path)
+
+    assert any("currently forwards to a Chinese upstream" in issue.message for issue in issues)
+
+
+def test_provider_audit_allows_chinese_origin_models_on_non_chinese_servers(tmp_path) -> None:
+    provider_path = tmp_path / "allowed.yml"
+    provider_path.write_text(
+        """
+provider_id: allowed
+name: Allowed
+description: Allowed provider fixture
+privacy_policy: https://example.test/privacy
+logo_svg: icons/moonshot.svg
+optional_keys:
+  - env_key: SECRET__TOGETHER__API_KEY
+    vault_path: kv/data/providers/together
+    vault_key: api_key
+models:
+  - id: kimi-k3
+    name: Kimi K3
+    country_origin: CN
+    input_types: [text]
+    output_types: [text]
+    servers:
+      - id: together
+        name: Together AI
+        model_id: moonshotai/Kimi-K3
+        region: US
+""",
+        encoding="utf-8",
+    )
+
+    issues = audit_provider_file(provider_path)
+
+    assert not any("Chinese" in issue.message for issue in issues)
