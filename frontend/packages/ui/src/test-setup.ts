@@ -5,6 +5,8 @@
 
 import { vi } from "vitest";
 
+const windowEventTarget = new EventTarget();
+
 // Mock browser APIs that might not be available in test environment.
 //
 // NOTE: This replaces the entire window object. Any browser API needed by
@@ -44,6 +46,15 @@ Object.defineProperty(global, "window", {
       removeEventListener: vi.fn(),
       dispatchEvent: vi.fn(),
     })),
+    addEventListener: vi.fn(
+      (...args: Parameters<EventTarget["addEventListener"]>) =>
+        windowEventTarget.addEventListener(...args),
+    ),
+    removeEventListener: vi.fn(
+      (...args: Parameters<EventTarget["removeEventListener"]>) =>
+        windowEventTarget.removeEventListener(...args),
+    ),
+    dispatchEvent: vi.fn((event: Event) => windowEventTarget.dispatchEvent(event)),
   },
   writable: true,
 });
