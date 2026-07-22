@@ -61,6 +61,7 @@
   const LANDING_INTRO_TOTAL_MS = LANDING_INTRO_HEADLINE_ONLY_MS + (LANDING_INTRO_REQUEST_INTERVAL_MS * LANDING_INTRO_REQUESTS_COUNT) + 700;
   const TOUCH_SWIPE_DISTANCE_PX = 56;
   const TOUCH_SWIPE_VERTICAL_CANCEL_PX = 48;
+  const LANDING_INTRO_INSPIRATION_ID = 'openmates-intro';
   // Temporarily disabled with the visit-cycling effect below.
   // const VISIT_INDEX_STORAGE_PREFIX = 'openmates.daily_inspiration.visit_index.';
   const AUTHENTICATED_ONLY_FEATURE_IDS = new Set([
@@ -341,7 +342,7 @@
   });
 
   let landingIntroShouldExpand = $derived(
-    isGuestIntroVariant && current?.inspiration_id === 'openmates-intro' && !landingIntroDismissed,
+    isGuestIntroVariant && current?.inspiration_id === LANDING_INTRO_INSPIRATION_ID && !landingIntroDismissed,
   );
 
   let landingIntroActiveRequest = $derived(
@@ -368,6 +369,16 @@
   let carouselProgressDurationMs = $derived(
     landingIntroShouldExpand ? LANDING_INTRO_TOTAL_MS : INSPIRATION_AUTO_ROTATION_INTERVAL_MS,
   );
+
+  $effect(() => {
+    if (!isGuestIntroVariant || landingIntroDismissed || visibleInspirations.length === 0) return;
+    const introIndex = visibleInspirations.findIndex((inspiration) =>
+      inspiration.inspiration_id === LANDING_INTRO_INSPIRATION_ID,
+    );
+    if (introIndex >= 0 && currentIndex !== introIndex) {
+      currentIndex = introIndex;
+    }
+  });
 
   $effect(() => {
     if (!landingIntroShouldExpand) {
@@ -1068,10 +1079,10 @@
             {:else}
               <div
                 class="guest-intro-copy"
-                class:guest-feature-copy={current.inspiration_id !== 'openmates-intro' || isGuestActionableSlide}
+                class:guest-feature-copy={current.inspiration_id !== LANDING_INTRO_INSPIRATION_ID || isGuestActionableSlide}
                 data-testid="guest-intro-copy"
               >
-                {#if current.inspiration_id === 'openmates-intro'}
+                {#if current.inspiration_id === LANDING_INTRO_INSPIRATION_ID}
                   <div class="guest-intro-ai-icon" data-testid="guest-intro-ai-icon" aria-hidden="true"></div>
                   <span class="guest-intro-copy-line">{$text('demo_chats.for_everyone.teaser_line1')}</span>
                   <span class="guest-intro-copy-line">{$text('demo_chats.for_everyone.teaser_line2')}</span>
@@ -1162,7 +1173,7 @@
           {:else if isGuestIntroVariant && hasInfoContent}
             <div
               class="guest-intro-feature-card"
-              class:guest-feature-card={current.inspiration_id !== 'openmates-intro'}
+              class:guest-feature-card={current.inspiration_id !== LANDING_INTRO_INSPIRATION_ID}
               data-testid="daily-inspiration-info-card"
             >
               {#if InfoCardIconComponent}
@@ -1172,7 +1183,7 @@
               {/if}
               <div class="guest-intro-feature-text">
                 <h3>{infoCardTitle}</h3>
-                {#if infoCardSubtitle && current.inspiration_id === 'openmates-intro'}
+                {#if infoCardSubtitle && current.inspiration_id === LANDING_INTRO_INSPIRATION_ID}
                   <p>{infoCardSubtitle}</p>
                 {/if}
               </div>
