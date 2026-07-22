@@ -313,7 +313,17 @@ async def test_sdk_connected_account_skill_endpoint_brokers_refs_before_dispatch
         dispatched.update(kwargs)
         assert "refresh-secret" not in str(kwargs["input_data"])
         assert kwargs["input_data"]["_connected_account_access_tokens"]
-        return {"ok": True, "account_count": 1}
+        return {
+            "ok": True,
+            "account_count": 1,
+            "owner_pii_mappings": [
+                {
+                    "placeholder": "[MERCHANT_SOFTWARE_001]",
+                    "original": "SaaS Vendor Ltd",
+                    "type": "COUNTERPARTY",
+                }
+            ],
+        }
 
     apps_api_module = ModuleType("backend.core.api.app.routes.apps_api")
     apps_api_module.call_app_skill = fake_call_app_skill

@@ -136,3 +136,45 @@ def test_finance_embed_sanitizer_strips_owner_only_mapping_fields() -> None:
     assert "owner_pii_mappings" not in payload
     assert "Grocery Mart" not in payload
     assert "[MERCHANT_GROCERIES_001]" in payload
+
+
+def test_finance_embed_sidecar_extracts_owner_mappings_before_sanitizing() -> None:
+    content = {
+        "app_id": "finance",
+        "skill_id": "check_accounts",
+        "results": [
+            {
+                "overview": {
+                    "transactions": [
+                        {"counterparty_placeholder": "[MERCHANT_SOFTWARE_001]"},
+                    ],
+                },
+                "owner_pii_mappings": [
+                    {
+                        "placeholder": "[MERCHANT_SOFTWARE_001]",
+                        "original": "SaaS Vendor Ltd",
+                        "type": "COUNTERPARTY",
+                    },
+                ],
+            }
+        ],
+    }
+
+    sidecar = EmbedService._extract_finance_owner_pii_mappings(
+        "finance",
+        "check_accounts",
+        content,
+    )
+    sanitized = EmbedService._sanitize_final_app_skill_content("finance", "check_accounts", content)
+    sanitized_payload = json.dumps(sanitized)
+
+    assert sidecar == [
+        {
+            "placeholder": "[MERCHANT_SOFTWARE_001]",
+            "original": "SaaS Vendor Ltd",
+            "type": "COUNTERPARTY",
+        }
+    ]
+    assert "SaaS Vendor Ltd" not in sanitized_payload
+    assert "owner_pii_mappings" not in sanitized_payload
+    assert "[MERCHANT_SOFTWARE_001]" in sanitized_payload

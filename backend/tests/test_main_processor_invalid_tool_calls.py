@@ -159,6 +159,7 @@ sub_chat_stub.MAX_DIRECT_SUB_CHATS_PER_PARENT = 3
 _install_stub("backend.apps.ai.sub_chat_orchestration", sub_chat_stub)
 
 skill_executor_stub = types.ModuleType("backend.apps.ai.processing.skill_executor")
+skill_executor_stub.execute_skill = object
 skill_executor_stub.execute_skill_with_multiple_requests = object
 skill_executor_stub.SkillCancelledException = Exception
 skill_executor_stub.generate_skill_task_id = lambda: "skill-task-id"
@@ -171,6 +172,9 @@ billing_stub.MINIMUM_CREDITS_CHARGED = 1
 _install_stub("backend.shared.python_utils.billing_utils", billing_stub)
 
 main_processor = importlib.import_module("backend.apps.ai.processing.main_processor")
+for module_name, stub in list(_INSTALLED_STUB_MODULES.items()):
+    if sys.modules.get(module_name) is stub:
+        del sys.modules[module_name]
 INVALID_TOOL_FALLBACK_MESSAGE = main_processor.INVALID_TOOL_FALLBACK_MESSAGE
 INVALID_TOOL_RESULT_REASON = main_processor.INVALID_TOOL_RESULT_REASON
 _append_tool_call_turn_to_history = main_processor._append_tool_call_turn_to_history

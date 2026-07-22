@@ -254,6 +254,14 @@ export function registerExampleChatEmbedRefs(): void {
         appId,
         skillId,
       });
+      if (embed.pii_mappings?.length) {
+        const embedId = normalizeEmbedId(embed.embed_id);
+        embedStore.setInMemoryOnly(`embed_pii:${embedId}`, {
+          embed_id: embedId,
+          pii_mappings: embed.pii_mappings,
+          created_at: Date.now(),
+        });
+      }
 
       const refMatch = embed.content.match(EMBED_REF_RE);
       if (!refMatch) continue;

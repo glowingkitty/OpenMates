@@ -171,7 +171,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 03b758fce
+  subject_commit: working-tree
 
 approvals:
   product_contract:
@@ -234,6 +234,11 @@ decisions:
     decision: Revolut Business API calls are always server-mediated by OpenMates, including CLI-initiated setup.
     reason: CLI is a client for OpenMates, not a direct Revolut integration surface; Revolut must whitelist the OpenMates server or self-hosted server public egress IP.
     decided_at: "2026-07-21"
+  - id: D-11
+    status: active
+    decision: Finance owner PII mappings are delivered as owner-only sidecar data and stored under encrypted `embed_pii:{embed_id}`, never inside persisted app-skill embed content.
+    reason: CSV and Revolut flows need the same show/hide behavior as message-input and code-embed PII, while shared embeds and LLM context must remain placeholder-only.
+    decided_at: "2026-07-22"
 
 attempts:
   - id: ATTEMPT-1
@@ -250,12 +255,14 @@ attempts:
     reason: Merchant/payee names are sensitive; follow-up usability should come from encrypted mappings and placeholder rewrite.
 
 handoff:
-  current_task_id: TASK-5
-  next_action: Request user UI confirmation for the deployed Finance check-accounts embed and example chat.
+  current_task_id: TASK-6
+  next_action: Implement and verify Finance owner-only PII mapping sidecars plus real example preview/no-clipping behavior.
   command: python3 scripts/tests.py run --spec finance-check-accounts.spec.ts
-  expected_outcome: Deployed dev web renders the Finance preview/fullscreen graph and filtered list without raw names or request metadata.
-  blocker: null
-  last_verified_commit: 03b758fce
+  expected_outcome: Deployed dev web renders the real Finance example preview without clipping and supports owner-only PII reveal/hide from encrypted embed sidecars.
+  blocker:
+    reason: User rejected prior UI confirmation because the Finance example preview still clipped and static placeholder behavior was wrong.
+    required_resolution: Deploy corrected preview and encrypted sidecar mapping behavior, then request user confirmation again.
+  last_verified_commit: 5f47d65
 
 scenarios:
   - id: S-1
@@ -314,6 +321,17 @@ scenarios:
       - The PII rewrite layer sends `[MERCHANT_STREAMING_001]` to the server/LLM.
       - The Finance result can answer using the placeholder/category and local UI can restore the original for Alice.
 
+  - id: S-8
+    title: Owner reveals Finance PII from encrypted sidecar mappings
+    given:
+      - A Finance Check accounts embed contains only category-aware placeholders in its saved content.
+    when:
+      - Alice opens the embed and toggles the existing show/hide PII control.
+    then:
+      - CSV-originated names reveal only if the client created and stored encrypted mappings before server submission.
+      - Revolut-originated names reveal only if the server returned owner mappings as sidecar WebSocket metadata and the client stored them in `embed_pii:{embed_id}`.
+      - The sidecar mappings are encrypted with the owner master key and are not included in `store_embed`, shared embed payloads, LLM context, public example content, or saved app-skill TOON.
+
   - id: S-6
     title: Fullscreen Finance embed filters normalized results
     given:
@@ -323,6 +341,16 @@ scenarios:
     then:
       - The fullscreen view shows filtered totals, transaction rows, and projections from the saved normalized embed data.
       - Filtering does not require re-fetching raw Revolut data or re-uploading CSV files.
+
+  - id: S-9
+    title: Public Finance example preview fits and remains placeholder-safe
+    given:
+      - A visitor opens `https://app.dev.openmates.org/example/finance-cash-flow-overview`.
+    when:
+      - The Finance example preview renders in the public page and interactive example chat.
+    then:
+      - The preview shows all intended summary, totals, chart, and transaction preview content without vertical clipping on desktop or mobile.
+      - Static example embed content stays placeholder-only, while optional synthetic sidecar mappings let the normal owner-style reveal/hide UI demonstrate PII restoration in the interactive example.
 
   - id: S-7
     title: CLI filters financial data and prints a list view
@@ -369,13 +397,13 @@ acceptance_criteria:
     verification_scope: custom
     verification_ids: [T-CLI-FINANCE-DEV, T-NPM-SDK-FINANCE, T-PIP-SDK-FINANCE, T-WEB-FINANCE-CHECK-ACCOUNTS]
   - id: AC-5
-    scenario: S-5
-    text: Saved Finance embeds and LLM context contain category-aware placeholders instead of raw merchant/counterparty/payee/payer names, while owner-local mappings enable follow-up rewrite and local restoration.
+    scenario: S-8
+    text: Saved Finance embeds and LLM context contain category-aware placeholders instead of raw merchant/counterparty/payee/payer names; CSV client mappings and Revolut server-detected owner mappings are stored only as encrypted owner-local `embed_pii:{embed_id}` sidecars for follow-up rewrite and local restoration.
     required: true
     status: pending
     coverage_status: covered
     verification_scope: custom
-    verification_ids: [T-PII-UNIT-REWRITE, T-BACKEND-PRIVACY-REDUCTION, T-WEB-FINANCE-CHECK-ACCOUNTS]
+    verification_ids: [T-PII-UNIT-REWRITE, T-BACKEND-PRIVACY-REDUCTION, T-FRONTEND-FINANCE-PII-SIDECAR, T-WEB-FINANCE-CHECK-ACCOUNTS]
   - id: AC-6
     scenario: S-2
     text: Expense projections are deterministic and support monthly, quarterly, and yearly horizons with confidence/coverage notes.
@@ -392,6 +420,14 @@ acceptance_criteria:
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-BACKEND-FINANCE-ANALYSIS, T-WEB-FINANCE-CHECK-ACCOUNTS]
+  - id: AC-10
+    scenario: S-9
+    text: The public and interactive Finance example preview renders without clipping and keeps checked-in/static embed content placeholder-safe while exercising the same PII reveal/hide path through synthetic sidecar mappings.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids: [T-FRONTEND-FINANCE-PII-SIDECAR, T-WEB-FINANCE-CHECK-ACCOUNTS]
   - id: AC-8
     scenario: S-4
     text: CLI, npm SDK, and pip SDK expose the same Check accounts execution contract before web work begins, while connected-account setup remains CLI/web/Apple-only in V1.
@@ -488,7 +524,7 @@ contracts:
     app_id: finance
     skill_id: check_accounts
     user_facing_name: Check accounts
-    description: Read connected bank-account data and CSV statements to produce an account overview and expense projection.
+    description: Read connected bank-account data, CSV statements, and uploaded CSV/TSV sheet embeds to produce an account overview and expense projection.
     input_schema:
       type: object
       properties:
@@ -500,8 +536,9 @@ contracts:
         connected_account_ids:
           type: array
           items: { type: string }
-        csv_embed_refs:
+        sheet_embed_refs:
           type: array
+          description: Human-readable embed_ref values for uploaded `sheets-sheet` CSV/TSV embeds already present in the chat.
           items: { type: string }
         projection_horizon:
           type: string
@@ -524,6 +561,15 @@ contracts:
         placeholder_filters:
           type: array
           items: { type: string }
+        owner_pii_mappings:
+          type: array
+          items:
+            type: object
+            properties:
+              placeholder: { type: string }
+              original: { type: string }
+              type: { type: string }
+          description: Owner-only WebSocket sidecar payload; stripped from saved embed content and never accepted from public/shared embed context.
       required: [period]
     normalized_output:
       accounts:
@@ -562,12 +608,32 @@ contracts:
       - Parse the canonical OpenMates bank-statement CSV/TSV template deterministically.
       - If a CSV does not match the canonical template, return an actionable error that links to/downloads the template rather than guessing silently.
       - Defer LLM-assisted conversion from arbitrary bank-specific CSV formats to a later phase after the target format is stable.
+      - Client surfaces that upload CSVs run placeholder detection before server submission and store original-name mappings as encrypted `embed_pii:{embed_id}` sidecars; the server receives and persists only placeholders/derived fields for those rows.
+      - Chat uploads of CSV/TSV files auto-convert to `sheets-sheet` embeds and Check accounts accepts their `embed_ref` values through `sheet_embed_refs`.
       - Keep original CSV as an upload/embed input only; normalized saved result stores placeholders and derived fields.
+  owner_pii_sidecar:
+    storage_key: embed_pii:{embed_id}
+    encryption: owner master-key encryption through the existing embed PII mapping store
+    csv_flow:
+      - Client detects CSV statement counterparty text before upload/skill submission.
+      - Client submits placeholder-safe CSV/skill inputs to the server.
+      - Client stores `{ placeholder, original, type }` mappings locally for the resulting Finance embed.
+    revolut_flow:
+      - Backend redacts Revolut account transaction counterparties during transient normalization.
+      - Backend sends owner mappings only in top-level `send_embed_data.owner_pii_mappings` WebSocket metadata for the requesting owner.
+      - Client stores those mappings in `embed_pii:{embed_id}` before encrypting and sending sanitized app-skill embed content back to Directus.
+    forbidden_locations:
+      - app-skill TOON content
+      - store_embed payloads
+      - shared embed payloads
+      - LLM context
+      - public example checked-in embed content
   privacy_security:
     - Finance app is read-only and cannot initiate money movement.
     - Raw merchant/counterparty/payee/payer names are transient normalization inputs only.
     - Saved embeds and LLM context contain category-aware placeholders and aggregates, not raw counterparty names.
     - Original-name mappings are owner-only encrypted PII mappings consumed by pii-placeholder-rewrite-v1.
+    - Revolut server-detected owner mappings may cross the owner WebSocket only as transient sidecar metadata and must be stripped before client persistence/sync.
     - Production real-account testing requires explicit user approval after sandbox gates are green.
 
 tests:
@@ -575,7 +641,7 @@ tests:
     type: lint
     file: docs/specs/finance-check-accounts-v1/spec.yml
     command: python3 scripts/spec_validate.py docs/specs/finance-check-accounts-v1/spec.yml
-    covers: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8, AC-9]
+    covers: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8, AC-9, AC-10]
     assertions:
       - spec structure validates before implementation planning
       - all required acceptance criteria have verification coverage
@@ -586,7 +652,7 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: { status: passed, command: "python3 scripts/spec_validate.py docs/specs/finance-check-accounts-v1/spec.yml", run_id: local-spec-validate-2026-07-22T01:26:30Z, subject_commit: 03b758fce, timestamp: "2026-07-22T01:26:30Z" }
+      evidence: { status: passed, command: "python3 scripts/spec_validate.py docs/specs/finance-check-accounts-v1/spec.yml", run_id: local-spec-validate-2026-07-22T18:33:10Z, subject_commit: working-tree, timestamp: "2026-07-22T18:33:10Z" }
 
   - id: T-PII-UNIT-REWRITE
     type: unit
@@ -603,7 +669,7 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: { status: passed, command: "npm run test:run -- placeholderRewriteService", run_id: local-vitest-2026-07-22T01:27:02Z, subject_commit: 03b758fce, timestamp: "2026-07-22T01:27:02Z" }
+      evidence: { status: passed, command: "npm run test:run -- placeholderRewriteService", run_id: local-vitest-2026-07-22T18:35:22Z-placeholder-rewrite, subject_commit: working-tree, timestamp: "2026-07-22T18:35:22Z" }
 
   - id: T-API-REVOLUT-SANDBOX
     type: manual
@@ -640,7 +706,7 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: { status: passed, command: ".venv/bin/python3 -m pytest backend/tests/test_finance_csv_normalizer.py backend/tests/test_finance_privacy_redaction.py backend/tests/test_finance_check_accounts_skill.py backend/tests/test_revolut_connected_accounts.py backend/tests/test_skill_preview_metadata.py", run_id: local-pytest-2026-07-22T01:27:02Z, subject_commit: 03b758fce, timestamp: "2026-07-22T01:27:02Z" }
+      evidence: { status: passed, command: ".venv/bin/python3 -m pytest backend/tests/test_revolut_connected_accounts.py", run_id: local-pytest-2026-07-22T18:33:10Z-revolut, subject_commit: working-tree, timestamp: "2026-07-22T18:33:10Z" }
 
   - id: T-BACKEND-CSV-NORMALIZER
     type: pytest
@@ -658,7 +724,7 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: { status: passed, command: ".venv/bin/python3 -m pytest backend/tests/test_finance_csv_normalizer.py backend/tests/test_finance_privacy_redaction.py backend/tests/test_finance_check_accounts_skill.py backend/tests/test_revolut_connected_accounts.py backend/tests/test_skill_preview_metadata.py", run_id: local-pytest-2026-07-22T01:27:02Z, subject_commit: 03b758fce, timestamp: "2026-07-22T01:27:02Z" }
+      evidence: { status: passed, command: ".venv/bin/python3 -m pytest backend/tests/test_finance_check_accounts_skill.py backend/tests/test_finance_csv_normalizer.py backend/tests/test_finance_privacy_redaction.py backend/tests/test_sdk_chat_recovery.py::test_sdk_connected_account_skill_endpoint_brokers_refs_before_dispatch", run_id: local-pytest-2026-07-22T18:33:10Z-finance, subject_commit: working-tree, timestamp: "2026-07-22T18:33:10Z" }
 
   - id: T-BACKEND-FINANCE-ANALYSIS
     type: pytest
@@ -667,6 +733,7 @@ tests:
     covers: [AC-6, AC-7, AC-9]
     assertions:
       - combines normalized provider and CSV transactions
+      - accepts uploaded `sheets-sheet` CSV/TSV embed refs through `sheet_embed_refs`
       - computes monthly, quarterly, and yearly projection deterministically
       - emits account/source/category/filterable embed data
       - emits graph-ready income/expense time-series buckets and honors CLI filters
@@ -678,7 +745,7 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: { status: passed, command: ".venv/bin/python3 -m pytest backend/tests/test_finance_csv_normalizer.py backend/tests/test_finance_privacy_redaction.py backend/tests/test_finance_check_accounts_skill.py backend/tests/test_revolut_connected_accounts.py backend/tests/test_skill_preview_metadata.py", run_id: local-pytest-2026-07-22T01:27:02Z, subject_commit: 03b758fce, timestamp: "2026-07-22T01:27:02Z" }
+      evidence: { status: passed, command: ".venv/bin/python3 -m pytest backend/tests/test_finance_check_accounts_skill.py backend/tests/test_finance_csv_normalizer.py backend/tests/test_finance_privacy_redaction.py backend/tests/test_sdk_chat_recovery.py::test_sdk_connected_account_skill_endpoint_brokers_refs_before_dispatch", run_id: local-pytest-2026-07-22T18:33:10Z-finance, subject_commit: working-tree, timestamp: "2026-07-22T18:33:10Z" }
 
   - id: T-BACKEND-PRIVACY-REDUCTION
     type: pytest
@@ -688,6 +755,7 @@ tests:
     assertions:
       - raw merchant, counterparty, payer, and payee names do not appear in saved output
       - placeholder tokens include category context
+      - Finance owner mappings can be extracted for owner delivery while sanitizer strips them from saved content
       - logs/errors do not include raw names from fixtures
     red_phase:
       required: true
@@ -696,7 +764,25 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: { status: passed, command: ".venv/bin/python3 -m pytest backend/tests/test_finance_csv_normalizer.py backend/tests/test_finance_privacy_redaction.py backend/tests/test_finance_check_accounts_skill.py backend/tests/test_revolut_connected_accounts.py backend/tests/test_skill_preview_metadata.py", run_id: local-pytest-2026-07-22T01:27:02Z, subject_commit: 03b758fce, timestamp: "2026-07-22T01:27:02Z" }
+      evidence: { status: passed, command: ".venv/bin/python3 -m pytest backend/tests/test_finance_check_accounts_skill.py backend/tests/test_finance_csv_normalizer.py backend/tests/test_finance_privacy_redaction.py backend/tests/test_sdk_chat_recovery.py::test_sdk_connected_account_skill_endpoint_brokers_refs_before_dispatch", run_id: local-pytest-2026-07-22T18:33:10Z-finance, subject_commit: working-tree, timestamp: "2026-07-22T18:33:10Z" }
+
+  - id: T-FRONTEND-FINANCE-PII-SIDECAR
+    type: unit
+    file: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+    command: cd frontend/packages/ui && npm run test:run -- chatSyncServiceHandlersAI -t "stores Finance owner PII mappings as sidecar data"
+    covers: [AC-5, AC-10]
+    assertions:
+      - finalized Finance send_embed_data stores owner_pii_mappings under encrypted embed PII sidecar storage
+      - owner_pii_mappings are not included in the encrypted app-skill content or store_embed payload sent back to Directus
+      - static Finance examples can register synthetic PII sidecars for the normal reveal/hide UI without putting raw names in checked-in embed content
+    red_phase:
+      required: true
+      expected: fail
+      evidence: { status: skipped_with_reason, reason: "Focused unit was added during this corrective implementation pass; no preserved failing run was retained before the fix.", run_id: red-phase-skipped-2026-07-22T17:53:16Z, timestamp: "2026-07-22T17:53:16Z" }
+    green_phase:
+      required: true
+      expected: pass
+      evidence: { status: passed, command: "npm run test:run -- chatSyncServiceHandlersAI -t \"stores Finance owner PII mappings as sidecar data\"", run_id: local-vitest-2026-07-22T18:33:10Z, subject_commit: working-tree, timestamp: "2026-07-22T18:33:10Z" }
 
   - id: T-CLI-FINANCE-DEV
     type: manual
@@ -732,7 +818,7 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: { status: passed, command: "node --test --experimental-strip-types --loader ./tests/loader.mjs --test-name-pattern 'runs Finance connected-account skills through the SDK-only endpoint' tests/sdk.test.ts", run_id: local-node-test-2026-07-22T01:27:02Z, subject_commit: 03b758fce, timestamp: "2026-07-22T01:27:02Z" }
+      evidence: { status: passed, command: "node --test --experimental-strip-types --loader ./tests/loader.mjs --test-name-pattern 'runs Finance connected-account skills through the SDK-only endpoint' tests/sdk.test.ts", run_id: local-node-test-2026-07-22T18:35:22Z, subject_commit: working-tree, timestamp: "2026-07-22T18:35:22Z" }
 
   - id: T-PIP-SDK-FINANCE
     type: pytest
@@ -749,7 +835,7 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: { status: passed, command: ".venv/bin/python3 -m pytest packages/openmates-python/tests/test_sdk.py::test_finance_connected_account_skill_uses_sdk_only_endpoint", run_id: local-pytest-2026-07-22T01:27:02Z, subject_commit: 03b758fce, timestamp: "2026-07-22T01:27:02Z" }
+      evidence: { status: passed, command: ".venv/bin/python3 -m pytest packages/openmates-python/tests/test_sdk.py::test_finance_connected_account_skill_uses_sdk_only_endpoint", run_id: local-pytest-2026-07-22T18:35:22Z-pip-sdk, subject_commit: working-tree, timestamp: "2026-07-22T18:35:22Z" }
 
   - id: T-PARITY-AUDIT
     type: manual
@@ -779,6 +865,8 @@ tests:
       - fullscreen renders an interactive income/expense graph over time plus a filtered list view underneath
       - fullscreen filter controls support account, source, date range, category, direction, state, and placeholder filters from saved normalized data
       - raw merchant names are not visible unless restored locally for the owner
+      - real Finance example preview does not clip intended summary/chart/list content on desktop or mobile
+      - static example placeholder reveal/hide uses the same encrypted sidecar lookup path as real Finance embeds
     red_phase:
       required: true
       expected: fail
@@ -793,7 +881,7 @@ verifications:
     kind: user_confirmation
     phase: final
     required_for_done: true
-    covers: [AC-4, AC-7]
+    covers: [AC-4, AC-7, AC-10]
     status: pending
     evidence: { status: "", summary: "", timestamp: "" }
   - id: V-REAL-REVOLUT-ACCOUNT
@@ -821,9 +909,11 @@ implementation_plan:
     - User connects Revolut Business Sandbox through OpenMates-generated local keypair/certificate, certificate upload, JWT, and consent setup.
     - Client stores Revolut token/private-key material encrypted in connected_accounts.
     - User invokes Check accounts from CLI with connected account refs and/or CSV files.
-    - Backend reads provider data through short-lived token refs and parses CSV inputs.
-    - Normalizer categorizes transactions and replaces raw counterparty names with placeholders.
-    - Skill computes summaries/projections and returns one unified app-skill embed payload.
+    - CSV-capable clients rewrite CSV counterparty names to placeholders before submission and store owner mappings under encrypted `embed_pii:{embed_id}`.
+    - Backend reads provider data through short-lived token refs and parses placeholder-safe CSV inputs.
+    - Backend normalizer categorizes Revolut transactions, replaces raw counterparty names with placeholders, and returns owner mappings only as transient `send_embed_data` sidecar metadata.
+    - Skill computes summaries/projections and returns one unified placeholder-safe app-skill embed payload.
+    - Client stores sidecar mappings locally, encrypts sanitized embed content, and sends only placeholder-safe content to Directus.
     - Follow-up prompts use pii-placeholder-rewrite-v1 to target placeholders instead of original names.
   affected_files:
     - path: backend/apps/finance/app.yml
@@ -860,8 +950,8 @@ tasks:
     status: pending
     phase: awaiting_approval
     covers:
-      scenarios: [S-1, S-2, S-3, S-4, S-5, S-6, S-7]
-      acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8, AC-9]
+      scenarios: [S-1, S-2, S-3, S-4, S-5, S-6, S-7, S-8, S-9]
+      acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8, AC-9, AC-10]
     expected_files:
       - docs/specs/finance-check-accounts-v1/spec.yml
     verification: [T-SPEC-VALIDATE]
@@ -978,6 +1068,43 @@ tasks:
         - frontend/apps/web_app/tests/finance-check-accounts.spec.ts
       shared_files: []
     blockers: []
+    follow_up_tasks: []
+    independently_deployable: true
+  - id: TASK-6
+    title: Fix Finance encrypted PII sidecars and deployed example preview regressions
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-8, S-9]
+      acceptance_criteria: [AC-5, AC-10]
+    expected_files:
+      - docs/specs/finance-check-accounts-v1/spec.yml
+      - backend/apps/finance/skills/check_accounts.py
+      - backend/core/api/app/services/embed_service.py
+      - backend/tests/test_finance_privacy_redaction.py
+      - frontend/packages/ui/src/components/enter_message/services/codeEmbedService.ts
+      - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+      - frontend/packages/ui/src/demo_chats/types.ts
+      - frontend/packages/ui/src/demo_chats/exampleChatStore.ts
+      - frontend/packages/ui/src/demo_chats/data/example_chats/finance-cash-flow-overview.ts
+      - frontend/apps/web_app/tests/finance-check-accounts.spec.ts
+    verification: [T-SPEC-VALIDATE, T-BACKEND-PRIVACY-REDUCTION, T-FRONTEND-FINANCE-PII-SIDECAR, T-WEB-FINANCE-CHECK-ACCOUNTS, V-USER-CONFIRMATION]
+    verification_ids: [T-SPEC-VALIDATE, T-BACKEND-PRIVACY-REDUCTION, T-FRONTEND-FINANCE-PII-SIDECAR, T-WEB-FINANCE-CHECK-ACCOUNTS, V-USER-CONFIRMATION]
+    dependencies: [TASK-5]
+    ownership:
+      files:
+        - docs/specs/finance-check-accounts-v1/spec.yml
+        - backend/apps/finance/skills/check_accounts.py
+        - backend/core/api/app/services/embed_service.py
+        - backend/tests/test_finance_privacy_redaction.py
+        - frontend/packages/ui/src/components/enter_message/services/codeEmbedService.ts
+        - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+        - frontend/packages/ui/src/demo_chats/
+        - frontend/apps/web_app/tests/finance-check-accounts.spec.ts
+      shared_files: []
+    blockers:
+      - verification_id: V-USER-CONFIRMATION
+        reason: User must confirm the deployed visual and privacy behavior after the corrected implementation is live.
     follow_up_tasks: []
     independently_deployable: true
 

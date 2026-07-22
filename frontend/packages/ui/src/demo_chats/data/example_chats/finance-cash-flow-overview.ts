@@ -80,6 +80,16 @@ overview_filter_options_states: completed
 overview_filter_options_placeholders: [MERCHANT_MARKETING_001]|[MERCHANT_SOFTWARE_001]|[MERCHANT_TRAVEL_001]|[PAYEE_CONTRACTORS_001]|[PAYER_REVENUE_001]|[PAYER_REVENUE_002]|[PAYER_REVENUE_003]|[PAYER_TRANSFER_001]`,
       parent_embed_id: null,
       embed_ids: null,
+      pii_mappings: [
+        { placeholder: "[PAYER_REVENUE_001]", original: "Example Studio GmbH", type: "COUNTERPARTY" },
+        { placeholder: "[MERCHANT_SOFTWARE_001]", original: "Example SaaS Suite", type: "COUNTERPARTY" },
+        { placeholder: "[PAYEE_CONTRACTORS_001]", original: "Example Freelance Partner", type: "COUNTERPARTY" },
+        { placeholder: "[PAYER_REVENUE_002]", original: "Example Agency Client", type: "COUNTERPARTY" },
+        { placeholder: "[MERCHANT_MARKETING_001]", original: "Example Ads Platform", type: "COUNTERPARTY" },
+        { placeholder: "[PAYER_TRANSFER_001]", original: "Example Reserve Transfer", type: "COUNTERPARTY" },
+        { placeholder: "[PAYER_REVENUE_003]", original: "Example Retainer Client", type: "COUNTERPARTY" },
+        { placeholder: "[MERCHANT_TRAVEL_001]", original: "Example Travel Provider", type: "COUNTERPARTY" },
+      ],
     },
   ],
   metadata: {

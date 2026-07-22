@@ -67,6 +67,7 @@ export interface ExampleChatEmbed {
   content: string; // TOON-encoded content (cleartext)
   parent_embed_id: string | null;
   embed_ids: string[] | null; // child embed IDs for parent embeds
+  pii_mappings?: PIIMapping[]; // Optional synthetic sidecar mappings for example reveal/hide UI
 }
 
 /**

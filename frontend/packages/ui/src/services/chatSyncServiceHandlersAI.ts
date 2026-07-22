@@ -152,6 +152,46 @@ const PENDING_FINALIZED_EMBED_RETRY_MS = 2000;
 const PENDING_FINALIZED_EMBED_TTL_MS = 120000;
 const SHA256_HEX_RE = /^[a-f0-9]{64}$/i;
 
+type OwnerPIIMappingForStorage = {
+  placeholder: string;
+  original: string;
+  type: "COUNTERPARTY";
+};
+
+function normalizeOwnerPIIMappings(value: unknown): OwnerPIIMappingForStorage[] {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set<string>();
+  const mappings: OwnerPIIMappingForStorage[] = [];
+
+  for (const item of value) {
+    if (!item || typeof item !== "object") continue;
+    const mapping = item as Record<string, unknown>;
+    const placeholder = typeof mapping.placeholder === "string" ? mapping.placeholder.trim() : "";
+    const original = typeof mapping.original === "string" ? mapping.original.trim() : "";
+    if (!placeholder || !original || seen.has(placeholder)) continue;
+    seen.add(placeholder);
+    mappings.push({ placeholder, original, type: "COUNTERPARTY" });
+  }
+
+  return mappings;
+}
+
+async function storeOwnerPIIMappingsForEmbed(embedData: EmbedDataPayload): Promise<void> {
+  const mappings = normalizeOwnerPIIMappings(embedData.owner_pii_mappings);
+  if (mappings.length === 0) return;
+
+  const { embedStore } = await import("./embedStore");
+  await embedStore.put(
+    `embed_pii:${embedData.embed_id}`,
+    {
+      embed_id: embedData.embed_id,
+      pii_mappings: mappings,
+      created_at: Date.now(),
+    },
+    "code-code" as EmbedType,
+  );
+}
+
 async function resolveRawChatIdForFinalizedEmbed(
   chatId: string,
 ): Promise<string | null> {
@@ -3777,6 +3817,8 @@ export async function handleSendEmbedDataImpl(
           }
         }
       }
+
+      await storeOwnerPIIMappingsForEmbed(embedData);
 
       // CRITICAL: Check if this embed has already been processed to prevent duplicate keys
       // The same send_embed_data event may be received multiple times (e.g., duplicate WebSocket messages)

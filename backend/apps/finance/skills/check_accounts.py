@@ -10,10 +10,15 @@
 
 from __future__ import annotations
 
+import csv
+import io
+import json
 import logging
+import re
 from typing import Any, Protocol
 
 from pydantic import BaseModel, Field
+from toon_format import decode as toon_decode
 
 from backend.apps.base_skill import BaseSkill
 from backend.shared.providers.revolut_business import RevolutBusinessClient
@@ -49,6 +54,7 @@ class CheckAccountsResponse(BaseModel):
     transaction_count: int = 0
     overview: FinanceOverview | None = None
     summary: str | None = None
+    owner_pii_mappings: list[dict[str, str]] = Field(default_factory=list)
     warnings: list[dict[str, str]] = Field(default_factory=list)
     errors: list[dict[str, str]] = Field(default_factory=list)
     error: str | None = None
@@ -56,6 +62,7 @@ class CheckAccountsResponse(BaseModel):
     ignore_fields_for_inference: list[str] = Field(
         default_factory=lambda: [
             "overview.privacy.public_mappings",
+            "owner_pii_mappings",
         ]
     )
 
@@ -76,12 +83,12 @@ class CheckAccountsSkill(BaseSkill):
         state_filters: list[str] | None = None,
         placeholder_filters: list[str] | None = None,
         csv_statements: list[dict[str, Any]] | None = None,
+        sheet_embed_refs: list[str | dict[str, Any]] | None = None,
         connected_account_requests: list[dict[str, Any]] | None = None,
         connected_account_access_tokens: dict[str, str] | None = None,
         revolut_client_factory: Any | None = None,
         **kwargs: Any,
     ) -> CheckAccountsResponse:
-        del kwargs
         redactor = FinancePrivacyRedactor()
         accounts: list[NormalizedAccount] = []
         transactions: list[NormalizedTransaction] = []
@@ -97,6 +104,22 @@ class CheckAccountsSkill(BaseSkill):
                     content,
                     filename=filename,
                     source_ref=f"csv:{filename}",
+                    redactor=redactor,
+                )
+                accounts.extend(result.accounts)
+                transactions.extend(result.transactions)
+
+            for statement in await self._resolve_sheet_embed_statements(
+                sheet_embed_refs=sheet_embed_refs or [],
+                file_path_index=kwargs.get("file_path_index") or {},
+                cache_service=kwargs.get("cache_service"),
+                encryption_service=kwargs.get("encryption_service"),
+                user_vault_key_id=kwargs.get("user_vault_key_id"),
+            ):
+                result = parse_bank_statement_text(
+                    statement["content"],
+                    filename=statement["filename"],
+                    source_ref=f"sheet:{statement['embed_ref']}",
                     redactor=redactor,
                 )
                 accounts.extend(result.accounts)
@@ -165,6 +188,14 @@ class CheckAccountsSkill(BaseSkill):
             transaction_count=len(overview.transactions),
             overview=overview,
             summary=summary,
+            owner_pii_mappings=[
+                {
+                    "placeholder": item["placeholder"],
+                    "original": item["original"],
+                    "type": "COUNTERPARTY",
+                }
+                for item in redactor.owner_mapping_payload()
+            ],
             warnings=warnings,
         )
 
@@ -199,18 +230,116 @@ class CheckAccountsSkill(BaseSkill):
         ]
         return _ProviderNormalizationResult(accounts=accounts, transactions=transactions)
 
+    async def _resolve_sheet_embed_statements(
+        self,
+        *,
+        sheet_embed_refs: list[str | dict[str, Any]],
+        file_path_index: dict[str, str],
+        cache_service: Any | None,
+        encryption_service: Any | None,
+        user_vault_key_id: str | None,
+    ) -> list[dict[str, str]]:
+        if not sheet_embed_refs:
+            return []
+        if not cache_service or not encryption_service or not user_vault_key_id:
+            raise FinanceCSVTemplateError("Sheet embed inputs require active chat encryption context")
+
+        statements: list[dict[str, str]] = []
+        for item in sheet_embed_refs:
+            embed_ref = _sheet_embed_ref_value(item)
+            if not embed_ref:
+                raise FinanceCSVTemplateError("sheet_embed_refs entries must be embed_ref strings")
+            embed_id = file_path_index.get(embed_ref)
+            if not embed_id:
+                available = ", ".join(sorted(file_path_index)) or "none"
+                raise FinanceCSVTemplateError(
+                    f"No sheet embed found for '{embed_ref}'. Available refs: {available}"
+                )
+
+            cached = await cache_service.get_embed_from_cache(embed_id)
+            encrypted_content = cached.get("encrypted_content") if isinstance(cached, dict) else None
+            if not encrypted_content:
+                raise FinanceCSVTemplateError(f"Sheet embed '{embed_ref}' is not available for analysis")
+
+            plaintext = await encryption_service.decrypt_with_user_key(
+                encrypted_content,
+                user_vault_key_id,
+            )
+            content = _decode_sheet_embed_content(plaintext)
+            if str(content.get("type") or "") not in {"sheet", "sheets-sheet"}:
+                raise FinanceCSVTemplateError(f"Embed '{embed_ref}' is not a sheet")
+
+            table_markdown = str(content.get("table") or content.get("code") or "")
+            if not table_markdown.strip():
+                raise FinanceCSVTemplateError(f"Sheet embed '{embed_ref}' has no table content")
+            filename = str(content.get("title") or embed_ref or "statement.csv")
+            if not filename.lower().endswith((".csv", ".tsv")):
+                filename = f"{filename}.csv"
+            statements.append(
+                {
+                    "embed_ref": embed_ref,
+                    "filename": filename,
+                    "content": _markdown_table_to_csv(table_markdown),
+                }
+            )
+        return statements
+
     @classmethod
     def resolve_preview_metadata(cls, request: dict[str, Any]) -> dict[str, Any]:
         return {
             "provider": "Revolut Business",
             "period": request.get("period") or "monthly",
             "csv_count": len(request.get("csv_statements") or []),
+            "sheet_count": len(request.get("sheet_embed_refs") or []),
         }
 
 
 class _ProviderNormalizationResult(BaseModel):
     accounts: list[NormalizedAccount]
     transactions: list[NormalizedTransaction]
+
+
+def _sheet_embed_ref_value(item: str | dict[str, Any]) -> str:
+    if isinstance(item, str):
+        return item.strip()
+    if isinstance(item, dict):
+        return str(item.get("embed_ref") or item.get("file_path") or item.get("filename") or "").strip()
+    return ""
+
+
+def _decode_sheet_embed_content(plaintext: Any) -> dict[str, Any]:
+    if isinstance(plaintext, dict):
+        return plaintext
+    if not isinstance(plaintext, str) or not plaintext.strip():
+        return {}
+    try:
+        decoded = toon_decode(plaintext)
+        return decoded if isinstance(decoded, dict) else {}
+    except Exception:
+        try:
+            decoded = json.loads(plaintext)
+            return decoded if isinstance(decoded, dict) else {}
+        except Exception:
+            return {}
+
+
+def _markdown_table_to_csv(table_markdown: str) -> str:
+    rows: list[list[str]] = []
+    for raw_line in table_markdown.splitlines():
+        line = raw_line.strip()
+        if not line.startswith("|") or not line.endswith("|"):
+            continue
+        cells = [cell.strip() for cell in line.strip("|").split("|")]
+        if cells and all(re.fullmatch(r":?-{3,}:?", cell) for cell in cells):
+            continue
+        rows.append(cells)
+    if not rows:
+        raise FinanceCSVTemplateError("Sheet embed table is empty")
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerows(rows)
+    return output.getvalue()
 
 
 def _revolut_base_url_for_request(request: dict[str, Any]) -> str:

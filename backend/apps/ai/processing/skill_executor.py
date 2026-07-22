@@ -184,7 +184,8 @@ async def execute_skill(
     user_id: Optional[str] = None,
     skill_task_id: Optional[str] = None,
     cache_service: Optional[Any] = None,
-    max_retries: int = DEFAULT_SKILL_MAX_RETRIES
+    max_retries: int = DEFAULT_SKILL_MAX_RETRIES,
+    encryption_service: Optional[Any] = None,
 ) -> Dict[str, Any]:
     """
     Execute a skill in-process via the SkillRegistry, with retry logic for
@@ -241,6 +242,10 @@ async def execute_skill(
         request_body["_message_id"] = message_id
     if user_id:
         request_body["_user_id"] = user_id
+    if cache_service:
+        request_body["_cache_service"] = cache_service
+    if encryption_service:
+        request_body["_encryption_service"] = encryption_service
 
     registry = get_global_registry()
     if not registry.has_app(app_id) or not registry.is_skill_available(app_id, skill_id):
@@ -406,7 +411,8 @@ async def execute_skill_with_multiple_requests(
     user_id: Optional[str] = None,
     skill_task_id: Optional[str] = None,
     cache_service: Optional[Any] = None,
-    max_retries: int = DEFAULT_SKILL_MAX_RETRIES
+    max_retries: int = DEFAULT_SKILL_MAX_RETRIES,
+    encryption_service: Optional[Any] = None,
 ) -> List[Dict[str, Any]]:
     """
     Executes a skill with support for multiple parallel requests and retry logic.
@@ -465,7 +471,8 @@ async def execute_skill_with_multiple_requests(
             result = await execute_skill(
                 app_id, skill_id, arguments, timeout, 
                 extracted_chat_id, extracted_message_id, extracted_user_id,
-                skill_task_id, cache_service, max_retries
+                skill_task_id, cache_service, max_retries,
+                encryption_service=encryption_service,
             )
             # Skills return a response with a "results" array - return as list for consistency
             return [result]
@@ -474,7 +481,8 @@ async def execute_skill_with_multiple_requests(
             result = await execute_skill(
                 app_id, skill_id, arguments, timeout, 
                 extracted_chat_id, extracted_message_id, extracted_user_id,
-                skill_task_id, cache_service, max_retries
+                skill_task_id, cache_service, max_retries,
+                encryption_service=encryption_service,
             )
             return [result]
         else:
@@ -485,7 +493,8 @@ async def execute_skill_with_multiple_requests(
         result = await execute_skill(
             app_id, skill_id, arguments, timeout,
             extracted_chat_id, extracted_message_id, extracted_user_id,
-            skill_task_id, cache_service, max_retries
+            skill_task_id, cache_service, max_retries,
+            encryption_service=encryption_service,
         )
         return [result]
 
@@ -511,7 +520,8 @@ async def execute_skill_with_multiple_requests(
         result = await execute_skill(
             app_id, skill_id, standard_arguments, timeout, 
             extracted_chat_id, extracted_message_id, extracted_user_id,
-            skill_task_id, cache_service, max_retries
+            skill_task_id, cache_service, max_retries,
+            encryption_service=encryption_service,
         )
         return [result]
     
@@ -519,7 +529,8 @@ async def execute_skill_with_multiple_requests(
     result = await execute_skill(
         app_id, skill_id, arguments, timeout, 
         extracted_chat_id, extracted_message_id, extracted_user_id,
-        skill_task_id, cache_service, max_retries
+        skill_task_id, cache_service, max_retries,
+        encryption_service=encryption_service,
     )
     return [result]
 

@@ -1741,7 +1741,7 @@ async def run_sdk_connected_account_skill(
             },
         ) from exc
     try:
-        return await call_app_skill(
+        result = await call_app_skill(
             app_id=app_id,
             skill_id=skill_id,
             input_data=context.skill_arguments,
@@ -1751,12 +1751,32 @@ async def run_sdk_connected_account_skill(
             cache_service=getattr(request.app.state, "cache_service", None),
             enforce_rest_exposure_policy=False,
         )
+        return _strip_sdk_owner_pii_mappings(app_id, skill_id, result)
     finally:
         await cleanup_connected_account_token_artifacts(
             token_artifacts=context.token_artifacts,
             cache_service=request.app.state.cache_service,
             encryption_service=request.app.state.encryption_service,
         )
+
+
+def _strip_sdk_owner_pii_mappings(
+    app_id: str,
+    skill_id: str,
+    value: Any,
+) -> Any:
+    """Keep SDK-only connected-account responses placeholder-safe."""
+    if app_id != "finance" or skill_id != "check_accounts":
+        return value
+    if isinstance(value, dict):
+        return {
+            key: _strip_sdk_owner_pii_mappings(app_id, skill_id, child)
+            for key, child in value.items()
+            if key not in {"owner_pii_mappings", "_owner_pii_mappings"}
+        }
+    if isinstance(value, list):
+        return [_strip_sdk_owner_pii_mappings(app_id, skill_id, child) for child in value]
+    return value
 
 
 async def _authenticate_connected_account_skill_request(request: Request, response: Response) -> dict[str, Any]:

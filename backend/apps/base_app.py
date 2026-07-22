@@ -387,6 +387,8 @@ class BaseApp:
             file_path_index = request_body.get("_file_path_index")
             connected_account_access_tokens = request_body.get("_connected_account_access_tokens")
             secrets_manager = request_body.get("_secrets_manager")
+            cache_service = request_body.get("_cache_service")
+            encryption_service = request_body.get("_encryption_service")
 
             # Initialize skill instance. Server-side AI processing may inject a
             # validated model override for user-configurable app skill defaults.
@@ -448,6 +450,8 @@ class BaseApp:
                 "file_path_index": file_path_index,
                 "connected_account_access_tokens": connected_account_access_tokens,
                 "secrets_manager": secrets_manager,
+                "cache_service": cache_service,
+                "encryption_service": encryption_service,
             }
             # Remove None values
             skill_kwargs = {k: v for k, v in skill_kwargs.items() if v is not None}

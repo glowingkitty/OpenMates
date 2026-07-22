@@ -69,6 +69,12 @@ const mockChatKeyManager = vi.hoisted(() => ({
   receiveKeyFromServer: vi.fn(),
   computeKeyFingerprint: vi.fn(() => "raw-key-fingerprint"),
 }));
+const mockWebSocketService = vi.hoisted(() => ({
+  on: vi.fn(),
+  off: vi.fn(),
+  send: vi.fn(),
+  isConnected: vi.fn(() => true),
+}));
 
 const mockEncryptWithChatKey = vi.hoisted(() => vi.fn());
 const mockEncryptChatKeyWithMasterKey = vi.hoisted(() => vi.fn());
@@ -149,6 +155,10 @@ vi.mock("../chatSyncServiceSenders", () => ({
   sendStoreEmbedImpl: mockSendStoreEmbed,
   sendStoreEmbedKeysImpl: mockSendStoreEmbedKeys,
   sendStoreEmbedDiffImpl: mockSendStoreEmbedDiff,
+}));
+
+vi.mock("../websocketService", () => ({
+  webSocketService: mockWebSocketService,
 }));
 
 vi.mock("../incognitoChatService", () => ({
@@ -643,6 +653,81 @@ describe("handleSendEmbedDataImpl", () => {
           isProcessing: false,
         }),
       }),
+    );
+  });
+
+  it("stores Finance owner PII mappings as sidecar data without syncing them in store_embed", async () => {
+    const chatKey = new Uint8Array([1, 2, 3]);
+    const embedKey = new Uint8Array([4, 5, 6]);
+    mockChatDB.getChat.mockResolvedValue({
+      chat_id: "chat-1",
+      encrypted_chat_key: "encrypted-chat-key",
+    });
+    mockChatKeyManager.getKeySync.mockReturnValue(chatKey);
+    mockChatKeyManager.getKey.mockResolvedValue(chatKey);
+    mockDeriveEmbedKeyFromChatKey.mockResolvedValue(embedKey);
+    mockEncryptWithEmbedKey.mockImplementation(async (value: string) =>
+      `encrypted:${value}`,
+    );
+    mockWrapEmbedKeyWithMasterKey.mockResolvedValue("wrapped-master-key");
+    mockWrapEmbedKeyWithChatKey.mockResolvedValue("wrapped-chat-key");
+    mockSendStoreEmbed.mockResolvedValue(undefined);
+    mockSendStoreEmbedKeys.mockResolvedValue(undefined);
+    const service = {
+      dispatchEvent: vi.fn(),
+    } as unknown as ChatSynchronizationService;
+
+    await handleSendEmbedDataImpl(service, {
+      type: "send_embed_data",
+      event_for_client: "send_embed_data",
+      payload: {
+        embed_id: "embed-1",
+        type: "app_skill_use",
+        content: "app_id: finance\nskill_id: check_accounts\nstatus: finished\noverview_transactions[1]{counterparty_placeholder}:\n  [MERCHANT_SOFTWARE_001]",
+        text_preview: "Finance overview",
+        status: "finished",
+        chat_id: "chat-1",
+        message_id: "message-1",
+        user_id: "user-1",
+        createdAt: 123,
+        updatedAt: 124,
+        owner_pii_mappings: [
+          {
+            placeholder: "[MERCHANT_SOFTWARE_001]",
+            original: "SaaS Vendor Ltd",
+            type: "COUNTERPARTY",
+          },
+        ],
+      },
+    });
+
+    expect(mockEmbedStore.put).toHaveBeenCalledWith(
+      "embed_pii:embed-1",
+      expect.objectContaining({
+        embed_id: "embed-1",
+        pii_mappings: [
+          {
+            placeholder: "[MERCHANT_SOFTWARE_001]",
+            original: "SaaS Vendor Ltd",
+            type: "COUNTERPARTY",
+          },
+        ],
+      }),
+      "code-code",
+    );
+    expect(mockEmbedStore.putEncrypted).toHaveBeenCalledWith(
+      "embed:embed-1",
+      expect.objectContaining({
+        embed_id: "embed-1",
+        encrypted_content: expect.not.stringContaining("SaaS Vendor Ltd"),
+      }),
+      "app_skill_use",
+      expect.not.stringContaining("SaaS Vendor Ltd"),
+      expect.objectContaining({ app_id: "finance", skill_id: "check_accounts" }),
+    );
+    expect(mockSendStoreEmbed).toHaveBeenCalledWith(
+      service,
+      expect.not.objectContaining({ owner_pii_mappings: expect.anything() }),
     );
   });
 

@@ -676,6 +676,7 @@ export interface SendEmbedDataPayload {
     // need to decode TOON to determine which renderer to use.
     app_id?: string; // Parent app ID (e.g. "images")
     skill_id?: string; // Child type as skill_id (e.g. "image_result") — NOT the parent's skill
+    owner_pii_mappings?: PIIMapping[]; // Owner-only sidecar mappings; stored as encrypted embed_pii:{embed_id}, never synced in embed content
     version_history_rows?: Array<{
       embed_id: string;
       version_number: number;

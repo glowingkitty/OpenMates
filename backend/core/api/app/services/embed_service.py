@@ -267,6 +267,50 @@ class EmbedService:
         )
 
     @staticmethod
+    def _extract_finance_owner_pii_mappings(
+        app_id: str,
+        skill_id: str,
+        content: Dict[str, Any],
+    ) -> List[Dict[str, str]]:
+        """Return owner-only Finance mappings before embed-content sanitization."""
+        if app_id != "finance" or skill_id != "check_accounts":
+            return []
+
+        mappings: List[Dict[str, str]] = []
+
+        def collect(value: Any) -> None:
+            if isinstance(value, dict):
+                owner_mappings = value.get("owner_pii_mappings") or value.get(
+                    "_owner_pii_mappings"
+                )
+                if isinstance(owner_mappings, list):
+                    for item in owner_mappings:
+                        if not isinstance(item, dict):
+                            continue
+                        placeholder = item.get("placeholder")
+                        original = item.get("original")
+                        if not isinstance(placeholder, str) or not isinstance(
+                            original,
+                            str,
+                        ):
+                            continue
+                        mappings.append(
+                            {
+                                "placeholder": placeholder,
+                                "original": original,
+                                "type": str(item.get("type") or "COUNTERPARTY"),
+                            }
+                        )
+                for child in value.values():
+                    collect(child)
+            elif isinstance(value, list):
+                for child in value:
+                    collect(child)
+
+        collect(content)
+        return mappings
+
+    @staticmethod
     def _strip_fields_recursive(
         value: Any,
         excluded_fields: set[str],
@@ -300,6 +344,7 @@ class EmbedService:
             "_connected_account_access_tokens",
             "_external_request",
             "_placeholder_embed_ids",
+            "_owner_pii_mappings",
             "_user_id",
             "_user_vault_key_id",
             "chat_id",
@@ -309,6 +354,7 @@ class EmbedService:
             "embed_id",
             "external_request",
             "message_id",
+            "owner_pii_mappings",
             "placeholder_embed_ids",
             "revolut_client_factory",
             "user_id",
@@ -4760,6 +4806,11 @@ class EmbedService:
                     "embed_ref": single_embed_ref,
                     **original_metadata  # Preserve query, url, provider, languages, etc. from placeholder
                 }
+                owner_pii_mappings = EmbedService._extract_finance_owner_pii_mappings(
+                    app_id,
+                    skill_id,
+                    content_with_metadata,
+                )
                 content_with_metadata = EmbedService._sanitize_final_app_skill_content(app_id, skill_id, content_with_metadata)
                 
                 # Log final content to verify metadata is included
@@ -4818,6 +4869,7 @@ class EmbedService:
                     text_length_chars=single_text_length_chars,
                     created_at=updated_at,
                     updated_at=updated_at,
+                    owner_pii_mappings=owner_pii_mappings,
                     log_prefix=log_prefix
                 )
                 if not send_ok:
@@ -5088,7 +5140,8 @@ class EmbedService:
         log_prefix: str = "",
         check_cache_status: bool = True,  # New parameter to optionally skip cache check
         app_id: Optional[str] = None,  # App ID for renderer routing (child embeds)
-        skill_id: Optional[str] = None  # Skill ID for renderer routing (child embeds)
+        skill_id: Optional[str] = None,  # Skill ID for renderer routing (child embeds)
+        owner_pii_mappings: Optional[List[Dict[str, str]]] = None,
     ) -> bool:
         """
         Send PLAINTEXT TOON embed content to client via WebSocket for client-side encryption and storage.
@@ -5209,6 +5262,8 @@ class EmbedService:
                 payload["payload"]["app_id"] = app_id
             if skill_id is not None:
                 payload["payload"]["skill_id"] = skill_id
+            if owner_pii_mappings:
+                payload["payload"]["owner_pii_mappings"] = owner_pii_mappings
 
             # Publish to Redis for WebSocket delivery
             client = await self.cache_service.client
@@ -5592,6 +5647,11 @@ class EmbedService:
                     for key in ["query", "expression", "provider", "providers", "url", "languages", "country", "search_lang", "safesearch", "start_date", "end_date", "time_range", "location"]:
                         if key in safe_request_metadata:
                             content_with_metadata[key] = safe_request_metadata[key]
+                owner_pii_mappings = EmbedService._extract_finance_owner_pii_mappings(
+                    app_id,
+                    skill_id,
+                    content_with_metadata,
+                )
                 content_with_metadata = EmbedService._sanitize_final_app_skill_content(app_id, skill_id, content_with_metadata)
                 
                 content_toon = EmbedService._sanitize_finance_check_accounts_toon(encode(_flatten_for_toon_tabular(content_with_metadata)))
@@ -5641,6 +5701,7 @@ class EmbedService:
                     text_length_chars=single_text_length_chars,
                     created_at=single_created_at,
                     updated_at=single_created_at,
+                    owner_pii_mappings=owner_pii_mappings,
                     log_prefix=log_prefix
                 )
                 

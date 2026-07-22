@@ -182,9 +182,10 @@
   .finance-preview {
     display: flex;
     flex-direction: column;
-    justify-content: center;
-    gap: 10px;
-    min-height: 100%;
+    justify-content: flex-start;
+    gap: 7px;
+    min-height: 0;
+    padding-block: 1px;
   }
 
   .finance-preview.mobile {
@@ -209,7 +210,7 @@
   strong {
     overflow: hidden;
     color: var(--color-font-primary);
-    font-size: var(--font-size-xl);
+    font-size: var(--font-size-lg);
     line-height: 1.05;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -243,8 +244,8 @@
 
   .trend {
     position: relative;
-    min-height: 58px;
-    padding: 8px 10px 18px;
+    min-height: 48px;
+    padding: 6px 10px 15px;
     border-radius: var(--radius-full);
     background:
       radial-gradient(circle at 12% 0%, color-mix(in srgb, var(--color-app-finance-end) 20%, transparent), transparent 48%),
@@ -255,7 +256,7 @@
   svg {
     display: block;
     width: 100%;
-    height: 42px;
+    height: 34px;
     overflow: visible;
   }
 
@@ -273,7 +274,7 @@
   .bucket-labels {
     position: absolute;
     right: 10px;
-    bottom: 5px;
+    bottom: 4px;
     left: 10px;
     display: flex;
     justify-content: space-between;

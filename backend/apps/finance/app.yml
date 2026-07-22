@@ -40,9 +40,9 @@ skills:
     pricing:
       fixed: 1
     preprocessor_hint: >
-      Read connected Revolut Business account data and canonical OpenMates CSV or TSV
-      bank statements to summarize balances, income, expenses, category spending,
-      recurring items, and deterministic projections. Use only for read-only
+      Read connected Revolut Business account data, canonical OpenMates CSV or TSV
+      bank statements, or uploaded sheets-sheet CSV/TSV embeds to summarize balances,
+      income, expenses, category spending, recurring items, and deterministic projections. Use only for read-only
       personal or business finance overview; do not initiate payments, transfers,
       investment advice, tax advice, credit decisions, or account mutations.
     api_config:
@@ -83,6 +83,11 @@ skills:
                 type: string
               content:
                 type: string
+        sheet_embed_refs:
+          type: array
+          description: Human-readable embed_ref values for uploaded sheets-sheet CSV/TSV embeds already present in the chat.
+          items:
+            type: string
       required: [period]
     workflow:
       available: true

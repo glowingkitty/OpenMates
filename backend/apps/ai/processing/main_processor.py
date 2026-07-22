@@ -5051,7 +5051,8 @@ async def handle_main_processing(
                             message_id=request_data.message_id,
                             user_id=request_data.user_id,
                             skill_task_id=skill_task_id,
-                            cache_service=cache_service
+                            cache_service=cache_service,
+                            encryption_service=encryption_service,
                             # max_retries uses default (1 retry = 2 total attempts)
                         )
                         results, ascii_sanitization_stats = sanitize_text_payload_for_ascii_smuggling(

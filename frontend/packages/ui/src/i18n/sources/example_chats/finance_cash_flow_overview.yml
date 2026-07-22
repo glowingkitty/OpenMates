@@ -83,7 +83,7 @@ message_2:
     Your business has a healthy recent cash position across the last 3 months.
 
     ### Financial snapshot
-    * **Total value:** 30,842.58 EUR
+    * **Cash balance:** 30,842.58 EUR
     * **Income:** 26,000.00 EUR
     * **Expenses:** 4,129.42 EUR
     * **Net [cash flow](wiki:Cash_flow):** +21,870.58 EUR
@@ -101,7 +101,7 @@ message_2:
     Dein Unternehmen hat in den letzten 3 Monaten eine gesunde aktuelle Liquiditätsposition.
 
     ### Finanzüberblick
-    * **Gesamtwert:** 30.842,58 EUR
+    * **Liquidität:** 30.842,58 EUR
     * **Einnahmen:** 26.000,00 EUR
     * **Ausgaben:** 4.129,42 EUR
     * **Netto-[Cashflow](wiki:Cash_flow):** +21.870,58 EUR

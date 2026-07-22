@@ -21,6 +21,7 @@ from typing import Any
 
 import pytest
 import yaml
+from toon_format import encode as toon_encode
 
 from backend.apps.finance.skills.check_accounts import CheckAccountsSkill
 from backend.shared.providers.revolut_business import RevolutAccount, RevolutTransaction
@@ -67,6 +68,33 @@ class FakeRevolutClient:
         ]
 
 
+class FakeCacheService:
+    def __init__(self, embeds: dict[str, dict[str, Any]]) -> None:
+        self.embeds = embeds
+
+    async def get_embed_from_cache(self, embed_id: str) -> dict[str, Any] | None:
+        return self.embeds.get(embed_id)
+
+
+class FakeEncryptionService:
+    async def decrypt_with_user_key(self, encrypted_content: str, user_vault_key_id: str) -> str:
+        assert encrypted_content == "encrypted-sheet"
+        assert user_vault_key_id == "vault-key"
+        return toon_encode(
+            {
+                "type": "sheet",
+                "title": "cash.csv",
+                "table": "\n".join(
+                    [
+                        "| transaction_id | account_id | account_label | posted_at | description | amount | currency | direction | balance_after | category_hint | counterparty_type | source_name |",
+                        "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+                        "| sheet-1 | cash | Cash account | 2026-01-05 | Rent Ltd | -800.00 | EUR | expense | 650.00 | rent | merchant | sheet upload |",
+                    ]
+                ),
+                "status": "finished",
+            }
+        )
+
 def _skill() -> CheckAccountsSkill:
     return CheckAccountsSkill(
         app=None,
@@ -103,7 +131,14 @@ async def test_check_accounts_combines_revolut_and_csv_into_filterable_embed() -
     assert payload["overview"]["filter_options"]["sources"] == ["csv:cash.csv", "revolut:sandbox"]
     assert payload["overview"]["privacy"]["raw_names_persisted"] is False
 
-    serialized = json.dumps(payload)
+    assert {
+        "placeholder": "[MERCHANT_STREAMING_001]",
+        "original": "Spotify Premium",
+        "type": "COUNTERPARTY",
+    } in payload["owner_pii_mappings"]
+
+    persisted_payload = {key: value for key, value in payload.items() if key != "owner_pii_mappings"}
+    serialized = json.dumps(persisted_payload)
     for raw_name in ["Spotify", "Grocery Mart", "Acme Payroll"]:
         assert raw_name not in serialized
     assert "[MERCHANT_STREAMING_001]" in serialized
@@ -160,6 +195,33 @@ async def test_check_accounts_applies_filters_before_totals_and_list_output() ->
 
 
 @pytest.mark.asyncio
+async def test_check_accounts_reads_uploaded_sheet_embed_refs() -> None:
+    response = await _skill().execute(
+        period="monthly",
+        projection_horizon="monthly",
+        sheet_embed_refs=["cash.csv"],
+        file_path_index={"cash.csv": "sheet-embed-id"},
+        cache_service=FakeCacheService({"sheet-embed-id": {"encrypted_content": "encrypted-sheet"}}),
+        encryption_service=FakeEncryptionService(),
+        user_vault_key_id="vault-key",
+    )
+    payload = response.model_dump()
+
+    assert payload["success"] is True
+    assert payload["account_count"] == 1
+    assert payload["transaction_count"] == 1
+    assert payload["overview"]["summaries"]["expense_total"] == 800.0
+    assert payload["overview"]["filter_options"]["sources"] == ["sheet:cash.csv"]
+    persisted_payload = {key: value for key, value in payload.items() if key != "owner_pii_mappings"}
+    assert "Rent Ltd" not in json.dumps(persisted_payload)
+    assert {
+        "placeholder": "[MERCHANT_RENT_001]",
+        "original": "Rent Ltd",
+        "type": "COUNTERPARTY",
+    } in payload["owner_pii_mappings"]
+
+
+@pytest.mark.asyncio
 async def test_check_accounts_requires_at_least_one_source() -> None:
     response = await _skill().execute(period="monthly")
 
@@ -182,3 +244,4 @@ def test_finance_app_metadata_declares_read_only_connected_account_skill() -> No
     assert skill["workflow"]["approval"] == "never"
     assert skill["workflow"]["binding_requirements"] == ["connected_account_or_csv"]
     assert skill["api_config"]["expose_post"] is False
+    assert "sheet_embed_refs" in skill["tool_schema"]["properties"]
