@@ -16,7 +16,7 @@ async function navigateToFinanceExample(page: any): Promise<void> {
   await sidebarToggle.click();
 
   const financeChat = page.locator('[data-testid="chat-item-wrapper"][data-chat-id="example-finance-cash-flow-overview"]');
-  for (let attempt = 0; attempt < 6; attempt += 1) {
+  for (let attempt = 0; attempt < 40; attempt += 1) {
     if ((await financeChat.count()) > 0) {
       await financeChat.first().scrollIntoViewIfNeeded();
       await expect(financeChat.first()).toBeVisible({ timeout: 10_000 });
@@ -29,7 +29,10 @@ async function navigateToFinanceExample(page: any): Promise<void> {
       await showMoreExamples.scrollIntoViewIfNeeded();
       await showMoreExamples.click();
       await page.waitForTimeout(500);
+      continue;
     }
+
+    break;
   }
 
   await expect(financeChat.first()).toBeVisible({ timeout: 10_000 });
