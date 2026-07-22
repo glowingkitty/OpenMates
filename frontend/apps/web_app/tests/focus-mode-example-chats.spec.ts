@@ -10,16 +10,19 @@ export {};
 const { test, expect } = require('./helpers/cookie-audit');
 const { getE2EDebugUrl } = require('./signup-flow-helpers');
 
-async function navigateToExampleChat(page: any, chatId: string): Promise<void> {
-  await page.evaluate((targetChatId: string) => {
-    const params = new URLSearchParams(window.location.hash.slice(1));
-    params.delete('chat-id');
-    const rest = params.toString();
-    window.location.hash = `chat-id=${encodeURIComponent(targetChatId)}${rest ? `&${rest}` : ''}`;
-  }, chatId);
-  await page.waitForFunction((targetChatId: string) => {
-    return new URLSearchParams(window.location.hash.slice(1)).get('chat-id') === targetChatId;
-  }, chatId, { timeout: 10_000 });
+async function navigateToFinanceExample(page: any): Promise<void> {
+  const financeTitle = page.getByTestId('chat-header-title').filter({ hasText: 'Summarize recent business finances' }).first();
+  for (let attempt = 0; attempt < 12; attempt += 1) {
+    if (await financeTitle.isVisible().catch(() => false)) return;
+    const previousButton = page.getByTestId('chat-header-previous').first();
+    if (await previousButton.isVisible().catch(() => false)) {
+      await previousButton.click();
+    } else {
+      await page.getByTestId('chat-header-next').first().click();
+    }
+    await expect(page.getByTestId('chat-header-title').first()).toBeVisible({ timeout: 5_000 });
+  }
+  await expect(financeTitle).toBeVisible({ timeout: 5_000 });
 }
 
 test.describe('focus-mode example chat state', () => {
@@ -33,9 +36,9 @@ test.describe('focus-mode example chat state', () => {
     await expect(page.getByTestId('focus-pill')).toBeVisible({ timeout: 15_000 });
     await expect(page.getByTestId('focus-pill-label')).toContainText(/career/i);
 
-    await navigateToExampleChat(page, 'example-finance-cash-flow-overview');
+    await navigateToFinanceExample(page);
     await expect(page).toHaveURL(/chat-id=example-finance-cash-flow-overview/, { timeout: 10_000 });
-    await expect(page.getByText('Summarize recent business finances')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByTestId('chat-header-title').filter({ hasText: 'Summarize recent business finances' }).first()).toBeVisible({ timeout: 15_000 });
     await expect(page.getByTestId('user-message-content').filter({ hasText: 'cash flow' }).first()).toBeVisible({ timeout: 15_000 });
     await expect(page.getByTestId('focus-pill')).toHaveCount(0);
     await expect(page.locator('body')).not.toContainText('Focus active');
