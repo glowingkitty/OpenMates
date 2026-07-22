@@ -5,9 +5,9 @@ export {};
  * Guest interest smart-selection E2E coverage.
  *
  * Verifies the logged-out landing contract from
- * docs/specs/guest-interest-smart-selection/spec.yml: new visitors stay on the
- * welcome screen, see the OpenMates intro hero, select session-only interest
- * tags, and get deterministic developer/privacy suggestions.
+ * docs/specs/landing-page-onboarding-refresh/spec.yml and the legacy
+ * docs/specs/guest-interest-smart-selection/spec.yml behavior that still exists
+ * after the phase-1 intro is skipped.
  */
 
 const { test, expect } = require('./helpers/cookie-audit');
@@ -20,6 +20,13 @@ const SELECTED_INTEREST_TAGS = [
 	'run_code',
 	'build_electronics'
 ];
+const LANDING_INTRO_REQUESTS = [
+	'Find doctor appointments',
+	'Find events',
+	'Build a web app',
+	'Explain the news'
+];
+const LANDING_INTRO_HIGHLIGHTED_APPS = ['health', 'events', 'code', 'news'];
 
 async function interestTagOrder(page: any): Promise<string[]> {
 	return page.getByTestId('guest-interest-rail').locator('button[data-testid^="interest-tag-"]').evaluateAll(
@@ -104,15 +111,16 @@ async function lastTagCenterDeltaAtScrollEnd(page: any): Promise<number> {
 	});
 }
 
-async function guestIntroOpacity(page: any, testId: string): Promise<number> {
-	return page.getByTestId(testId).evaluate((element: HTMLElement) => Number.parseFloat(getComputedStyle(element).opacity));
-}
-
 async function interestTagsPromptGap(page: any): Promise<number> {
 	const promptBox = await page.getByText('What are your interests?').boundingBox();
 	const tagsBox = await page.getByTestId('guest-interest-tags').boundingBox();
 	if (!promptBox || !tagsBox) return Number.NEGATIVE_INFINITY;
 	return tagsBox.y - (promptBox.y + promptBox.height);
+}
+
+async function skipExpandedLandingIntro(page: any): Promise<void> {
+	await page.getByTestId('daily-inspiration-next').click();
+	await expect(page.getByTestId('landing-intro-expanded')).toHaveCount(0, { timeout: 5000 });
 }
 
 test.describe('Guest interest smart selection', () => {
@@ -132,14 +140,18 @@ test.describe('Guest interest smart selection', () => {
 
 		await expect(page.getByTestId('daily-inspiration-banner')).toBeVisible({ timeout: 15000 });
 		await expect(page.getByTestId('daily-inspiration-carousel-progress')).toBeVisible({ timeout: 15000 });
-		await expect(page.getByTestId('guest-intro-video')).toBeVisible({ timeout: 15000 });
-		await expect(page.getByTestId('guest-intro-ai-icon')).toBeVisible({ timeout: 15000 });
-		await expect(page.getByTestId('guest-intro-copy')).toContainText('AI team mates.', { timeout: 15000 });
+		await expect(page.getByTestId('landing-intro-expanded')).toBeVisible({ timeout: 15000 });
+		await expect(page.getByTestId('landing-intro-headline')).toContainText('Simply ask', { timeout: 15000 });
+		await expect(page.getByTestId('landing-intro-headline')).toContainText('your AI team mates', { timeout: 15000 });
+		await expect(page.getByTestId('landing-intro-request')).toContainText(LANDING_INTRO_REQUESTS[0], { timeout: 15000 });
+		for (const appId of LANDING_INTRO_HIGHLIGHTED_APPS) {
+			await expect(page.locator(`[data-testid="landing-intro-app-icon"][data-app-id="${appId}"]`).first()).toBeVisible({ timeout: 15000 });
+		}
+		await expect(page.locator('[data-testid="landing-intro-app-icon"][data-app-id="health"][data-highlighted="true"]').first()).toBeVisible({ timeout: 15000 });
 		const guestIntroMetrics = await page.evaluate(() => {
 			const banner = document.querySelector('[data-testid="daily-inspiration-banner"]');
-			const copy = document.querySelector('[data-testid="guest-intro-copy"]');
-			const copyLine = document.querySelector('.guest-intro-copy-line');
-			const videoShell = document.querySelector('[data-testid="guest-intro-video-shell"]');
+			const copy = document.querySelector('[data-testid="landing-intro-expanded"]');
+			const headline = document.querySelector('[data-testid="landing-intro-headline"]');
 			const bannerRect = banner?.getBoundingClientRect();
 			const copyRect = copy?.getBoundingClientRect();
 			return {
@@ -148,17 +160,16 @@ test.describe('Guest interest smart selection', () => {
 				copyBottom: copyRect?.bottom ?? 0,
 				bannerTop: bannerRect?.top ?? 0,
 				bannerBottom: bannerRect?.bottom ?? 0,
-				copyFontSize: copyLine ? Number.parseFloat(getComputedStyle(copyLine).fontSize) : 0,
-				videoHeight: videoShell?.getBoundingClientRect().height ?? 0
+				copyFontSize: headline ? Number.parseFloat(getComputedStyle(headline).fontSize) : 0
 			};
 		});
-		expect(guestIntroMetrics.bannerHeight).toBeGreaterThanOrEqual(230);
-		expect(guestIntroMetrics.bannerHeight).toBeLessThanOrEqual(300);
+		expect(guestIntroMetrics.bannerHeight).toBeGreaterThanOrEqual(520);
 		expect(guestIntroMetrics.copyTop).toBeGreaterThanOrEqual(guestIntroMetrics.bannerTop);
 		expect(guestIntroMetrics.copyBottom).toBeLessThanOrEqual(guestIntroMetrics.bannerBottom);
 		expect(guestIntroMetrics.copyFontSize).toBeGreaterThanOrEqual(32);
-		expect(guestIntroMetrics.videoHeight).toBeGreaterThanOrEqual(guestIntroMetrics.bannerHeight * 0.75);
-		expect(guestIntroMetrics.videoHeight).toBeLessThanOrEqual(guestIntroMetrics.bannerHeight);
+
+		await skipExpandedLandingIntro(page);
+		await expect(page.getByTestId('daily-inspiration-phrase')).toContainText('Actionable', { timeout: 5000 });
 
 		await expect(page.getByTestId('guest-interest-tags')).toBeVisible({ timeout: 15000 });
 		expect(await interestTagsPromptGap(page)).toBeGreaterThanOrEqual(8);
@@ -256,7 +267,7 @@ test.describe('Guest interest smart selection', () => {
 		await expect(page.getByText('Explore what you can do:')).toBeVisible({ timeout: 5000 });
 		await expect(page.getByText('What are your interests?')).toHaveCount(0);
 		await expect(page.getByTestId('daily-inspiration-banner')).toBeVisible({ timeout: 15000 });
-		await expect(page.getByTestId('guest-intro-copy')).toContainText('AI team mates.', { timeout: 15000 });
+		await expect(page.getByTestId('daily-inspiration-banner')).toBeVisible({ timeout: 15000 });
 		expect(await page.getByTestId('message-editor').evaluate((editor: HTMLElement) => editor.contains(document.activeElement))).toBe(false);
 		const storageStateAfterContinue = await page.evaluate((key: string) => ({
 			sessionValue: sessionStorage.getItem(key),
@@ -305,6 +316,7 @@ test.describe('Guest interest smart selection', () => {
 
 		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
 		await page.waitForLoadState('networkidle');
+		await skipExpandedLandingIntro(page);
 
 		await expect(page.getByTestId('guest-interest-tags')).toBeVisible({ timeout: 15000 });
 		await expect(page.getByTestId('new-chat-suggestion-card')).toHaveCount(0);
@@ -324,16 +336,16 @@ test.describe('Guest interest smart selection', () => {
 		await page.waitForLoadState('networkidle');
 
 		await expect(page.getByTestId('daily-inspiration-banner')).toBeVisible({ timeout: 15000 });
+		await expect(page.getByTestId('landing-intro-expanded')).toBeVisible({ timeout: 15000 });
+		await expect(page.getByTestId('landing-intro-headline')).toContainText('your AI team mates', { timeout: 15000 });
+		const mobileIntroMetrics = await page.getByTestId('daily-inspiration-banner').evaluate((banner: HTMLElement) => ({
+			height: banner.getBoundingClientRect().height,
+			containerHeight: document.querySelector<HTMLElement>('[data-testid="active-chat-container"]')?.getBoundingClientRect().height ?? 0
+		}));
+		expect(mobileIntroMetrics.height).toBeGreaterThanOrEqual(mobileIntroMetrics.containerHeight * 0.65);
+
+		await skipExpandedLandingIntro(page);
 		await expect(page.getByTestId('guest-interest-tags')).toBeVisible({ timeout: 15000 });
 		expect(await lastTagCenterDeltaAtScrollEnd(page)).toBeLessThanOrEqual(32);
-		await expect(page.getByTestId('guest-intro-copy')).toBeVisible({ timeout: 15000 });
-		await expect(page.getByTestId('guest-intro-video-shell')).toBeVisible({ timeout: 15000 });
-		expect(await guestIntroOpacity(page, 'guest-intro-copy')).toBeGreaterThan(0.7);
-
-		await page.waitForTimeout(8000);
-		expect(await guestIntroOpacity(page, 'guest-intro-copy')).toBeGreaterThan(0.7);
-		expect(await guestIntroOpacity(page, 'guest-intro-video-shell')).toBeLessThan(0.4);
-		await expect.poll(async () => await guestIntroOpacity(page, 'guest-intro-video-shell'), { timeout: 6000 }).toBeGreaterThan(0.7);
-		await expect.poll(async () => await guestIntroOpacity(page, 'guest-intro-copy'), { timeout: 11000 }).toBeGreaterThan(0.7);
 	});
 });

@@ -2477,3 +2477,196 @@ teaser_line3:
   sv: "Med integritet & säkerhet by design."
   he: "עם פרטיות ואבטחה בתכנון."
   verified_by_human: []
+
+landing_intro_headline_line1:
+  context: First line of the expanded logged-out landing intro headline
+  en: Simply ask
+  de: Frag einfach
+  zh: Simply ask
+  es: Simply ask
+  fr: Simply ask
+  pt: Simply ask
+  ru: Simply ask
+  ja: Simply ask
+  ko: Simply ask
+  it: Simply ask
+  tr: Simply ask
+  vi: Simply ask
+  id: Simply ask
+  pl: Simply ask
+  nl: Simply ask
+  ar: Simply ask
+  hi: Simply ask
+  th: Simply ask
+  cs: Simply ask
+  sv: Simply ask
+  he: Simply ask
+  verified_by_human: []
+landing_intro_headline_line2:
+  context: Second line of the expanded logged-out landing intro headline
+  en: your AI team mates
+  de: deine KI Team-Mates
+  zh: your AI team mates
+  es: your AI team mates
+  fr: your AI team mates
+  pt: your AI team mates
+  ru: your AI team mates
+  ja: your AI team mates
+  ko: your AI team mates
+  it: your AI team mates
+  tr: your AI team mates
+  vi: your AI team mates
+  id: your AI team mates
+  pl: your AI team mates
+  nl: your AI team mates
+  ar: your AI team mates
+  hi: your AI team mates
+  th: your AI team mates
+  cs: your AI team mates
+  sv: your AI team mates
+  he: your AI team mates
+  verified_by_human: []
+landing_intro_request_doctor:
+  context: Short rotating request bubble in the expanded logged-out landing intro
+  en: Find doctor appointments
+  de: Arzttermine finden
+  zh: Find doctor appointments
+  es: Find doctor appointments
+  fr: Find doctor appointments
+  pt: Find doctor appointments
+  ru: Find doctor appointments
+  ja: Find doctor appointments
+  ko: Find doctor appointments
+  it: Find doctor appointments
+  tr: Find doctor appointments
+  vi: Find doctor appointments
+  id: Find doctor appointments
+  pl: Find doctor appointments
+  nl: Find doctor appointments
+  ar: Find doctor appointments
+  hi: Find doctor appointments
+  th: Find doctor appointments
+  cs: Find doctor appointments
+  sv: Find doctor appointments
+  he: Find doctor appointments
+  verified_by_human: []
+landing_intro_request_events:
+  context: Short rotating request bubble in the expanded logged-out landing intro
+  en: Find events
+  de: Events finden
+  zh: Find events
+  es: Find events
+  fr: Find events
+  pt: Find events
+  ru: Find events
+  ja: Find events
+  ko: Find events
+  it: Find events
+  tr: Find events
+  vi: Find events
+  id: Find events
+  pl: Find events
+  nl: Find events
+  ar: Find events
+  hi: Find events
+  th: Find events
+  cs: Find events
+  sv: Find events
+  he: Find events
+  verified_by_human: []
+landing_intro_request_web_app:
+  context: Short rotating request bubble in the expanded logged-out landing intro
+  en: Build a web app
+  de: Web-App bauen
+  zh: Build a web app
+  es: Build a web app
+  fr: Build a web app
+  pt: Build a web app
+  ru: Build a web app
+  ja: Build a web app
+  ko: Build a web app
+  it: Build a web app
+  tr: Build a web app
+  vi: Build a web app
+  id: Build a web app
+  pl: Build a web app
+  nl: Build a web app
+  ar: Build a web app
+  hi: Build a web app
+  th: Build a web app
+  cs: Build a web app
+  sv: Build a web app
+  he: Build a web app
+  verified_by_human: []
+landing_intro_request_news:
+  context: Short rotating request bubble in the expanded logged-out landing intro
+  en: Explain the news
+  de: Nachrichten erklären
+  zh: Explain the news
+  es: Explain the news
+  fr: Explain the news
+  pt: Explain the news
+  ru: Explain the news
+  ja: Explain the news
+  ko: Explain the news
+  it: Explain the news
+  tr: Explain the news
+  vi: Explain the news
+  id: Explain the news
+  pl: Explain the news
+  nl: Explain the news
+  ar: Explain the news
+  hi: Explain the news
+  th: Explain the news
+  cs: Explain the news
+  sv: Explain the news
+  he: Explain the news
+  verified_by_human: []
+landing_actionable_line1:
+  context: First line of the second logged-out landing slide headline
+  en: Actionable.
+  de: Umsetzbar.
+  zh: Actionable.
+  es: Actionable.
+  fr: Actionable.
+  pt: Actionable.
+  ru: Actionable.
+  ja: Actionable.
+  ko: Actionable.
+  it: Actionable.
+  tr: Actionable.
+  vi: Actionable.
+  id: Actionable.
+  pl: Actionable.
+  nl: Actionable.
+  ar: Actionable.
+  hi: Actionable.
+  th: Actionable.
+  cs: Actionable.
+  sv: Actionable.
+  he: Actionable.
+  verified_by_human: []
+landing_actionable_line2:
+  context: Second line of the second logged-out landing slide headline
+  en: Not just a wall of text.
+  de: Nicht nur eine Textwand.
+  zh: Not just a wall of text.
+  es: Not just a wall of text.
+  fr: Not just a wall of text.
+  pt: Not just a wall of text.
+  ru: Not just a wall of text.
+  ja: Not just a wall of text.
+  ko: Not just a wall of text.
+  it: Not just a wall of text.
+  tr: Not just a wall of text.
+  vi: Not just a wall of text.
+  id: Not just a wall of text.
+  pl: Not just a wall of text.
+  nl: Not just a wall of text.
+  ar: Not just a wall of text.
+  hi: Not just a wall of text.
+  th: Not just a wall of text.
+  cs: Not just a wall of text.
+  sv: Not just a wall of text.
+  he: Not just a wall of text.
+  verified_by_human: []

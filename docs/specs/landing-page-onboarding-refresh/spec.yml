@@ -1,0 +1,742 @@
+schema_version: 2
+id: landing-page-onboarding-refresh
+title: Landing Page Onboarding Refresh
+status: implementing
+
+goal: >
+  Make the logged-out OpenMates landing experience explain the product clearly to
+  non-technical visitors by reusing the real app shell, existing daily inspiration
+  header, active app metadata, and public example-chat system. The first shipped
+  slice expands the guest daily inspiration header into a full active-chat intro
+  animation that communicates: "Simply ask your AI team mates".
+
+scope:
+  in:
+    - A full landing-page product contract for the logged-out discovery journey.
+    - A phase-1 implementation of the expanded first guest intro animation only.
+    - Reuse and update `DailyInspirationBanner.svelte` and the existing `ActiveChat.svelte` welcome placement before adding new top-level surfaces.
+    - Logged-out first slide expands to fill the active chat container, then collapses into the regular daily inspiration header size.
+    - Only active OpenMates app icons from current web app metadata appear in the intro icon rails.
+    - The first intro replays on every fresh logged-out page load.
+    - Manual previous/next buttons skip or navigate slides immediately.
+    - The current slide progress bar remains visible at the bottom of the intro/header.
+    - Later logged-out slides explain actionable embeds, privacy/safety, mates/focus modes, and provider/cross-platform independence.
+    - Example chats are selected from existing public example chats first; new example chats are added only when no suitable existing chat exists and must remain SEO-safe public fixtures.
+    - Topic tags move out of pre-signup landing and into post-signup onboarding.
+  out:
+    - Replacing the chat app shell with a separate static marketing page.
+    - Showing inactive, future, or provider-only app icons in the intro rails.
+    - Implementing all later landing slides in phase 1.
+    - Implementing account import, external provider import UI, topic inference, onboarding video-call scheduling, README/CLI/social copy updates, or Apple parity in phase 1.
+    - Changing anonymous free-usage budgets, signup billing, chat encryption, or app-skill execution behavior.
+    - Rendering full real chat/embed components inside compact autoplay explainer animations when a lightweight visually faithful animation component is safer.
+
+current_milestone:
+  id: phase-1-expanded-intro
+  goal: >
+    Implement, deploy, and verify the first expanded logged-out intro animation.
+    Later slides remain in the spec but require visual confirmation and explicit task activation.
+  in:
+    - Full-container intro for the first guest slide only.
+    - Headline `Simply ask\nyour AI team mates` with the existing AI/sparkle visual language.
+    - User-message style bubble rotating through `Find doctor appointments`, `Find events`, `Build a web app`, and `Explain the news`.
+    - About 8.5 seconds total intro timing: roughly 0.6s entrance, 1.7s per request, then about 1.1s collapse.
+    - Two active-app icon rails moving continuously in opposite directions, timed so Health, Events, Code, and News are near center during the matching request.
+    - Highlighted active app opacity/scale emphasis while non-current icons are muted.
+    - Existing-style progress bar and left/right controls.
+    - Skip behavior: pressing next during expanded intro collapses immediately and shows slide 2 at regular header size.
+  deferred:
+    - Slide 2 `Actionable.\nNot just a wall of text.` with the language-learning event in Berlin explainer.
+    - Privacy and safety slide animations.
+    - Mates and focus-mode slide animations.
+    - Provider/cross-platform slide animations.
+    - Post-signup import/topics/inspiration onboarding.
+    - Documentation, README, CLI, and social communication updates.
+
+context_discovery:
+  github_issues:
+    - GitHub MCP `get_me` returned 401 Bad credentials on 2026-07-22, so issue lookup through MCP was unavailable.
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/specs/guest-interest-smart-selection/spec.yml
+    - docs/specs/example-chat-public-quality/spec.yml
+    - docs/specs/apple-reminders-public-content-parity/spec.yml
+    - docs/architecture/frontend/web-app.md (stale per sessions.py, not loaded as authority for new behavior)
+  code_patterns:
+    - frontend/apps/web_app/src/routes/+page.svelte mounts the real app shell and `ActiveChat` instead of a separate marketing page.
+    - frontend/packages/ui/src/components/ActiveChat.svelte renders `DailyInspirationBanner` above the welcome content with `variant='guest-intro'` for logged-out users.
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte already owns guest intro copy, carousel arrows, progress animation, mobile card alternation, and default inspiration rendering.
+    - frontend/packages/ui/src/components/GuestInterestTags.svelte currently renders logged-out interest selection; this refresh moves tags after signup.
+    - frontend/packages/ui/src/demo_chats/exampleChatData.ts registers public example chats, including events, Artemis, code, privacy, memory, health, and CLI-related examples.
+    - frontend/packages/ui/src/demo_chats/interestTags.ts currently maps guest tags to daily inspirations, intro chats, and example chats.
+    - frontend/packages/ui/src/data/appsMetadata.ts and generated app metadata provide the active app list and app icon/color sources.
+  tests:
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts currently checks logged-out guest intro visuals and tag-first onboarding.
+    - frontend/apps/web_app/tests/daily-inspiration-chat-flow.spec.ts checks daily inspiration carousel controls and progress behavior.
+    - frontend/apps/web_app/tests/unauthenticated-chat-navigation.spec.ts checks logged-out welcome responsiveness.
+    - frontend/apps/web_app/tests/language-switch-welcome-screen.spec.ts checks translated welcome screen state.
+
+apple_impact:
+  affected_files:
+    - apple/OpenMates/Sources/Features/Chat/Views/DailyInspirationView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ExampleChatsView.swift
+    - apple/OpenMates/Sources/App/MainAppView.swift
+  parity_expectations:
+    - Apple parity is not part of phase 1 because the approved milestone is web landing animation only.
+    - A later Apple task must decide whether native logged-out entry should mirror the expanded intro animation or intentionally keep a native-specific onboarding shape.
+  verification:
+    - Phase 1 records Apple deferred with reason after web deploy and user visual confirmation.
+  intentional_native_differences:
+    - None approved yet; native behavior is deferred rather than declared different.
+
+clarification:
+  rounds:
+    - question: Should the new logged-out landing replace the current ActiveChat welcome state or update the existing daily inspiration/header path?
+      answer: Update existing components first. The intro belongs in the existing daily inspirations header/guest intro path, expanded for logged-out users on load.
+    - question: After the first full-container intro collapses, should later slides also expand?
+      answer: No. Only the `Simply ask your AI team mates` intro fills the active chat container; all later slides remain regular daily inspiration header size so example chats below stay visible.
+    - question: Should the intro replay on every fresh page load or be remembered as seen?
+      answer: Replay on every fresh logged-out page load, with previous/next buttons letting impatient users skip immediately.
+    - question: What timing and request order should the intro use?
+      answer: Use about 8.5 seconds total, with the order `Find doctor appointments`, `Find events`, `Build a web app`, `Explain the news`.
+    - question: Which icons should appear in the intro app rails?
+      answer: Only exact active app icons from the web app. Do not show inactive, non-existing, or future apps. Highlight Health, Events, Code, and News for the matching short request.
+    - question: How should app rail movement work?
+      answer: Rails move continuously at the same speed, in opposite directions, and the icon order/timing should align the relevant app near center when its matching request is visible.
+    - question: What should happen after the fourth request?
+      answer: Auto-collapse immediately and switch to slide 2, showing `Actionable.\nNot just a wall of text.`; keep the progress bar.
+    - question: Should slide 2 initially include all mini-animations or one polished example?
+      answer: Implement only the `Find events` mini-animation first for slide 2; other slide internals come later.
+    - question: Should the `Find events` animation render real embed components or a lightweight visual match?
+      answer: Use a simplified lightweight component that is visually identical in style but not feature-equivalent.
+    - question: Which event should the first `Actionable` animation represent?
+      answer: Use a language-learning event in Berlin. The sequence is user message, `Sure, let me help with that!`, fade response up/out, fade in embed preview, then expand preview into fullscreen details while the scene zooms out.
+  vision_summary: >
+    Logged-out users should understand OpenMates from the real app UI before they
+    choose topics or read long intro chats. The first page load should feel like a
+    concise animated product overview using real active apps and short natural
+    requests, then collapse into the existing welcome/example-chat discovery area.
+  approved_by_user: true
+
+implementation_state:
+  subject_commit: fd0e3d08c8e4b31b5c229ff9d8c246451047bdc0
+
+approvals:
+  product_contract:
+    status: approved
+    approved_at: "2026-07-22"
+    reason: User explicitly asked to create the spec, then implement, deploy, and test after the ten clarification rounds.
+  implementation_plan:
+    status: approved
+    approved_at: "2026-07-22"
+    reason: User approved implementing the first intro animation properly before later slide-by-slide work.
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Reuse `DailyInspirationBanner` and `ActiveChat` for the landing refresh.
+    reason: The landing page is the real app shell and the user explicitly requested updating existing components before adding new ones.
+    decided_at: "2026-07-22"
+  - id: D-2
+    status: active
+    decision: The expanded full-container state is one-time per fresh page load but not persisted as seen.
+    reason: Replaying preserves the product overview for every fresh visitor while manual arrows keep it skippable.
+    decided_at: "2026-07-22"
+  - id: D-3
+    status: active
+    decision: The icon rails may only use active app metadata.
+    reason: The user rejected showing non-existing, inactive, or future app affordances in the landing intro.
+    decided_at: "2026-07-22"
+  - id: D-4
+    status: active
+    decision: Post-signup topic selection supersedes logged-out topic tags.
+    reason: The refreshed landing should show real example chats and product benefits before asking visitors to categorize themselves.
+    decided_at: "2026-07-22"
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    approach: Fetch all linked Figma nodes through MCP in one batch.
+    outcome: blocked
+    recorded_at: "2026-07-22"
+    notes: Figma API returned HTTP 429 Too Many Requests for most frames; user supplied screenshots and updated notes, which are the design authority for phase 1.
+  - id: ATTEMPT-2
+    task_id: TASK-1
+    approach: Run focused changed-file lint/static checks for the phase-1 Svelte, YAML, and Playwright test edits.
+    outcome: succeeded
+    recorded_at: "2026-07-22"
+    notes: >
+      `bash scripts/lint_changed.sh --svelte --ts --yml --path ...` passed for
+      DailyInspirationBanner, guest-interest-smart-selection spec, the i18n YAML
+      source, and this spec. The lint script reported that the test-folder-local
+      `tsc` binary was unavailable, but its TypeScript parser check passed for
+      the touched spec.
+  - id: ATTEMPT-3
+    task_id: TASK-1
+    approach: Run locale validation after adding the phase-1 intro/actionable copy keys.
+    outcome: succeeded
+    recorded_at: "2026-07-22"
+    notes: >
+      `npm run validate:locales` in `frontend/packages/ui` passed. Existing
+      cross-locale missing-key warnings remain unrelated.
+  - id: ATTEMPT-4
+    task_id: TASK-1
+    approach: Run production web build to catch Svelte/Rollup compile failures.
+    outcome: blocked
+    recorded_at: "2026-07-22"
+    notes: >
+      First `npm run build` attempt reached Vite chunk rendering and OOMed at the
+      default Node heap. Retrying with `NODE_OPTIONS=--max-old-space-size=8192`
+      progressed further and failed on unrelated dirty worktree settings code:
+      `Could not resolve "./chats/ChatSettingsPage.svelte" from
+      "../../packages/ui/src/components/Settings.svelte"`.
+  - id: ATTEMPT-5
+    task_id: TASK-1
+    approach: Run focused deployed Playwright spec through the unified test control plane.
+    outcome: succeeded
+    recorded_at: "2026-07-22"
+    notes: >
+      Initial run failed preflight because `DIRECTUS_TOKEN` was unset and the
+      local Docker `api` container was not running. After taking and releasing
+      the Docker lock around `docker compose ... up -d api`, the same command
+      dispatched successfully and `guest-interest-smart-selection.spec.ts` passed
+      against the currently deployed dev commit `52f131ec4` (GitHub Actions run
+      `29950006297`). This proves the control plane is healthy, but does not count
+      as final phase-1 green evidence until the local landing intro changes are
+      deployed and rerun against the new commit.
+
+handoff:
+  current_task_id: TASK-1
+  next_action: Wait for Docker/Vercel locks to clear, then run focused Playwright and deploy scoped phase-1 files.
+  command: python3 scripts/tests.py run --spec guest-interest-smart-selection.spec.ts
+  expected_outcome: Green after deploy once the test control plane can mint a token and the dev deployment is Ready.
+  blocker: null
+  last_verified_commit: fd0e3d08c8e4b31b5c229ff9d8c246451047bdc0
+
+scenarios:
+  - id: S-1
+    title: Fresh logged-out visitor sees expanded app-shell intro
+    given:
+      - A fresh logged-out visitor opens `/` without a chat hash.
+      - The page is rendered inside the normal OpenMates app shell.
+    when:
+      - The guest welcome state finishes initial loading.
+    then:
+      - The guest daily inspiration intro expands to fill the active chat container.
+      - The headline reads `Simply ask` and `your AI team mates` on separate lines.
+      - A user-message style bubble rotates through the four approved short requests.
+      - Active app icons move in two rails under the message bubble.
+      - The current matching active app icon is visually emphasized.
+      - The existing-style progress bar is visible at the bottom.
+
+  - id: S-2
+    title: Visitor can skip intro and see regular-size slide 2
+    given:
+      - A logged-out visitor is viewing the expanded intro.
+    when:
+      - The visitor clicks the right carousel arrow before the intro completes.
+    then:
+      - The expanded intro collapses immediately.
+      - The regular daily inspiration header shows slide 2 with `Actionable.` and `Not just a wall of text.`.
+      - The example-chat area remains visible below the header.
+
+  - id: S-3
+    title: Intro auto-collapses after the fourth request
+    given:
+      - A logged-out visitor does not interact with the intro.
+    when:
+      - The intro reaches the end of `Explain the news`.
+    then:
+      - The intro collapses without a hold screen.
+      - Slide 2 appears at regular daily inspiration header size.
+      - The page remains usable with the message input and example-chat carousel visible.
+
+  - id: S-4
+    title: Future actionable slide demonstrates embeds without full chat complexity
+    given:
+      - The visitor is on the `Actionable` slide.
+    when:
+      - The slide plays the first event explainer animation.
+    then:
+      - The animation shows a simple user message for language-learning events in Berlin.
+      - It shows a simple assistant response saying `Sure, let me help with that!`.
+      - The assistant response fades up/out and an event embed preview fades in below.
+      - The preview expands into a fullscreen details view while the scene zooms out.
+      - The animation is visually faithful to real OpenMates embed styling but does not mount full feature components.
+
+  - id: S-5
+    title: Future landing sections show filtered real examples instead of pre-signup tags
+    given:
+      - A logged-out visitor views any regular-size explanatory slide.
+    when:
+      - The slide changes between actionable, privacy, mates/focus modes, and cross-platform benefits.
+    then:
+      - The cards below the header show real matching public example chats for the current benefit.
+      - "`Show all example chats` opens the all-examples grid."
+      - Secondary links alternate between apps exploration and privacy/encryption education as specified by the active benefit.
+      - Topic tags are not shown before signup.
+
+  - id: S-6
+    title: Future post-signup onboarding replaces public examples
+    given:
+      - A visitor completes signup.
+    when:
+      - The app returns to the welcome/new-chat area.
+    then:
+      - The public example-chat area is replaced by an onboarding flow that offers chat import, job-based topic selection, and filtered inspiration.
+      - If imported chats exist, the user sees `Continue where you left off` with real user chats instead of generic example chats.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Fresh logged-out `/` loads show an expanded `DailyInspirationBanner` guest intro inside the existing app shell with the approved headline, four request bubbles, active-app icon rails, current-app highlight, and progress bar.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids:
+      - T-WEB-GUEST-INTRO
+      - V-USER-PHASE1
+  - id: AC-2
+    scenario: S-2
+    text: Manual next navigation during the expanded intro skips the remaining intro timing, collapses to regular header size, and shows the `Actionable` slide without hiding example chats.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids:
+      - T-WEB-GUEST-INTRO
+      - V-USER-PHASE1
+  - id: AC-3
+    scenario: S-3
+    text: Without interaction, the intro auto-collapses after the fourth request and does not replay until a fresh page load.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids:
+      - T-WEB-GUEST-INTRO
+      - V-USER-PHASE1
+  - id: AC-4
+    scenario: S-4
+    text: The future `Actionable` slide uses a lightweight visually faithful language-learning event embed animation rather than full embed feature components.
+    required: false
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids:
+      - T-WEB-ACTIONABLE-EVENT
+  - id: AC-5
+    scenario: S-5
+    text: Future regular-size landing slides show filtered real example chats and remove pre-signup topic tags.
+    required: false
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids:
+      - T-WEB-LANDING-EXAMPLES
+  - id: AC-6
+    scenario: S-6
+    text: Future post-signup onboarding offers import, job-based topic selection, and continue/inspiration behavior based on imported chats or selected topics.
+    required: false
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids:
+      - T-WEB-POST-SIGNUP-ONBOARDING
+
+assumptions:
+  - id: A-1
+    text: Active app metadata exposes enough enabled apps and icon/color data for the intro rails without adding fake app entries.
+    category: frontend_data
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: frontend/packages/ui/src/data/appsMetadata.ts
+        summary: Existing app metadata is the source for active app icon/color rendering.
+  - id: A-2
+    text: Phase 1 is browser-only visual behavior and does not change REST, WebSocket, CLI, SDK, or encryption contracts.
+    category: phase_gate
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+        summary: The change is contained to Svelte rendering and CSS for logged-out guest intro state.
+  - id: A-3
+    text: User confirmation is required before implementing later slides or Apple parity.
+    category: rollout
+    required_before: completion
+    status: confirmed
+    evidence:
+      - source: user clarification 2026-07-22
+        summary: User requested first intro animation implementation, confirmation, then slide-by-slide continuation.
+
+contracts:
+  api:
+    - route: none
+      access_model: browser-only UI change
+      auth: no API contract changes
+      rate_limits: unchanged
+      credit_budget: unchanged
+      encrypted_or_plaintext_data: no new server data handled
+  data:
+    - Active app icon rails derive from active app metadata only; no fake apps or inactive apps are introduced.
+    - Phase 1 does not persist a `seen intro` flag; replay is tied to fresh page load/component initialization.
+    - Public example chat data is not changed in phase 1.
+  ui_states:
+    - Expanded logged-out intro.
+    - Manual skip to slide 2.
+    - Auto-collapse to slide 2.
+    - Reduced-motion fallback keeps content readable and navigation usable without complex motion.
+    - Authenticated users keep the existing default daily inspiration behavior and never see the expanded guest intro.
+  privacy_security:
+    - No cleartext interests are collected before signup in the refreshed landing flow.
+    - Phase 1 introduces no analytics payloads, tracking IDs, or persistence of visitor categories.
+    - Public demo text and icons contain no private user data.
+
+tests:
+  - id: T-WEB-GUEST-INTRO
+    type: playwright
+    file: frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    command: python3 scripts/tests.py run --spec guest-interest-smart-selection.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-1
+      - AC-2
+      - AC-3
+    assertions:
+      - fresh logged-out `/` shows expanded guest intro with approved headline
+      - approved request bubbles appear in order
+      - active app rail contains active metadata-backed app icons and highlights current app
+      - progress bar is visible
+      - next arrow skips to regular-size `Actionable` slide
+      - expanded intro auto-collapses to regular-size `Actionable` slide
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        command: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: ""
+        command: ""
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+  - id: T-WEB-ACTIONABLE-EVENT
+    type: playwright
+    file: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    command: python3 scripts/tests.py run --spec landing-page-onboarding-refresh.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-4
+    assertions:
+      - future actionable slide shows lightweight language-learning event explainer sequence
+    red_phase:
+      required: false
+      expected: fail_when_activated
+      evidence:
+        status: not_applicable
+        reason: Deferred until slide 2 implementation is activated by user visual confirmation of phase 1.
+        timestamp: "2026-07-22"
+    green_phase:
+      required: false
+      expected: pass_after_deploy
+      evidence:
+        status: not_applicable
+        reason: Deferred until slide 2 implementation is activated by user visual confirmation of phase 1.
+        subject_commit: ""
+        timestamp: "2026-07-22"
+  - id: T-WEB-LANDING-EXAMPLES
+    type: playwright
+    file: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    command: python3 scripts/tests.py run --spec landing-page-onboarding-refresh.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-5
+    assertions:
+      - future slides show matching real example chats and no pre-signup tags
+    red_phase:
+      required: false
+      expected: fail_when_activated
+      evidence:
+        status: not_applicable
+        reason: Deferred until filtered example-chat slide implementation is activated.
+        timestamp: "2026-07-22"
+    green_phase:
+      required: false
+      expected: pass_after_deploy
+      evidence:
+        status: not_applicable
+        reason: Deferred until filtered example-chat slide implementation is activated.
+        subject_commit: ""
+        timestamp: "2026-07-22"
+  - id: T-WEB-POST-SIGNUP-ONBOARDING
+    type: playwright
+    file: frontend/apps/web_app/tests/onboarding-after-signup.spec.ts
+    command: python3 scripts/tests.py run --spec onboarding-after-signup.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-6
+    assertions:
+      - future post-signup onboarding replaces public examples with import/topic/inspiration flow
+    red_phase:
+      required: false
+      expected: fail_when_activated
+      evidence:
+        status: not_applicable
+        reason: Deferred until post-signup onboarding implementation is activated.
+        timestamp: "2026-07-22"
+    green_phase:
+      required: false
+      expected: pass_after_deploy
+      evidence:
+        status: not_applicable
+        reason: Deferred until post-signup onboarding implementation is activated.
+        subject_commit: ""
+        timestamp: "2026-07-22"
+
+verifications:
+  - id: V-USER-PHASE1
+    kind: user_confirmation
+    phase: final
+    required_for_done: true
+    covers:
+      - AC-1
+      - AC-2
+      - AC-3
+    status: pending
+    evidence:
+      status: ""
+      summary: ""
+      timestamp: ""
+  - id: V-APPLE-DEFERRED-PHASE1
+    kind: manual_check
+    phase: final
+    required_for_done: false
+    covers:
+      - AC-1
+      - AC-2
+      - AC-3
+    status: skipped
+    evidence:
+      status: skipped_with_reason
+      summary: Phase 1 is web-only visual landing behavior; Apple parity requires user confirmation of deployed web design first.
+      timestamp: "2026-07-22"
+
+implementation_plan:
+  spec_path: docs/specs/landing-page-onboarding-refresh/spec.yml
+  existing_patterns:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/data/appsMetadata.ts
+    - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+  architecture: >
+    Keep the landing in the existing app shell. Extend the guest intro variant of
+    DailyInspirationBanner with an expanded-first-slide state, metadata-backed
+    icon rails, deterministic request timing, and immediate skip/collapse behavior.
+    Later slides can add lightweight explainer animation subcomponents without
+    mounting the full chat/embed runtime inside autoplay header animations.
+  data_flow:
+    - ActiveChat renders DailyInspirationBanner with `variant='guest-intro'` for logged-out welcome state.
+    - DailyInspirationBanner detects first guest intro slide and starts expanded on mount for logged-out users.
+    - Intro request timing drives current request text, highlighted app id, icon-rail alignment, and progress.
+    - Manual next/previous updates the carousel immediately and disables the expanded intro state for the current component instance.
+    - Auto completion collapses and advances to slide 2.
+  affected_files:
+    - path: docs/specs/landing-page-onboarding-refresh/spec.yml
+      reason: Product contract, implementation plan, and evidence ledger.
+    - path: frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+      reason: Phase-1 guest intro animation implementation.
+    - path: frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+      reason: Focused deployed Playwright coverage for the refreshed logged-out intro.
+  verification_strategy:
+    - python3 scripts/spec_validate.py docs/specs/landing-page-onboarding-refresh/spec.yml
+    - python3 scripts/tests.py run --spec guest-interest-smart-selection.spec.ts before implementation for red evidence if feasible.
+    - bash scripts/lint_changed.sh with focused `--path` arguments for the touched files before deploy.
+    - python3 scripts/sessions.py deploy --session aab5 after focused local checks.
+    - python3 backend/scripts/debug.py vercel until Ready.
+    - python3 scripts/tests.py run --spec guest-interest-smart-selection.spec.ts after deploy for green evidence.
+    - User visual confirmation before activating slide 2 work or Apple parity.
+  verification_order:
+    - Spec validation.
+    - Browser-only web implementation and focused local static/lint checks.
+    - Deploy to dev.
+    - Web Playwright against app.dev.openmates.org.
+    - User visual confirmation.
+    - Later slide-by-slide tasks and Apple parity only after confirmation.
+
+tasks:
+  - id: TASK-1
+    title: Implement expanded logged-out intro animation
+    status: in_progress
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+    expected_files:
+      - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+      - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+      - docs/specs/landing-page-onboarding-refresh/spec.yml
+    verification:
+      - T-WEB-GUEST-INTRO
+      - V-USER-PHASE1
+    verification_ids:
+      - T-WEB-GUEST-INTRO
+      - V-USER-PHASE1
+    dependencies: []
+    ownership:
+      files:
+        - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+        - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+        - docs/specs/landing-page-onboarding-refresh/spec.yml
+      shared_files:
+        - frontend/packages/ui/src/data/appsMetadata.ts
+    blockers: []
+    follow_up_tasks:
+      - TASK-2
+      - TASK-3
+      - TASK-4
+      - TASK-5
+    independently_deployable: true
+  - id: TASK-2
+    title: Implement Actionable language-learning event explainer slide
+    status: pending
+    phase: blocked
+    covers:
+      scenarios:
+        - S-4
+      acceptance_criteria:
+        - AC-4
+    expected_files:
+      - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+      - frontend/packages/ui/src/components/landing/LandingActionableEventDemo.svelte
+      - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    verification:
+      - T-WEB-ACTIONABLE-EVENT
+      - V-USER-PHASE1
+    verification_ids:
+      - T-WEB-ACTIONABLE-EVENT
+    dependencies:
+      - TASK-1
+    ownership:
+      files:
+        - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+        - frontend/packages/ui/src/components/landing/LandingActionableEventDemo.svelte
+        - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+      shared_files: []
+    blockers:
+      - Requires user visual confirmation of TASK-1 deployed result.
+    follow_up_tasks: []
+    independently_deployable: true
+  - id: TASK-3
+    title: Replace pre-signup tags with slide-filtered example chats
+    status: pending
+    phase: blocked
+    covers:
+      scenarios:
+        - S-5
+      acceptance_criteria:
+        - AC-5
+    expected_files:
+      - frontend/packages/ui/src/components/ActiveChat.svelte
+      - frontend/packages/ui/src/demo_chats/exampleChatStore.ts
+      - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    verification:
+      - T-WEB-LANDING-EXAMPLES
+    verification_ids:
+      - T-WEB-LANDING-EXAMPLES
+    dependencies:
+      - TASK-1
+      - TASK-2
+    ownership:
+      files:
+        - frontend/packages/ui/src/components/ActiveChat.svelte
+        - frontend/packages/ui/src/demo_chats/exampleChatStore.ts
+        - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+      shared_files: []
+    blockers:
+      - Requires slide 2 visual confirmation and final example-chat selection audit.
+    follow_up_tasks: []
+    independently_deployable: true
+  - id: TASK-4
+    title: Implement remaining explanatory slides
+    status: pending
+    phase: blocked
+    covers:
+      scenarios:
+        - S-5
+      acceptance_criteria:
+        - AC-5
+    expected_files:
+      - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+      - frontend/packages/ui/src/components/landing/*.svelte
+      - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    verification:
+      - T-WEB-LANDING-EXAMPLES
+    verification_ids:
+      - T-WEB-LANDING-EXAMPLES
+    dependencies:
+      - TASK-2
+      - TASK-3
+    ownership:
+      files:
+        - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+        - frontend/packages/ui/src/components/landing/*.svelte
+        - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+      shared_files: []
+    blockers:
+      - Requires slide-by-slide user visual approval.
+    follow_up_tasks: []
+    independently_deployable: false
+  - id: TASK-5
+    title: Implement post-signup onboarding replacement
+    status: pending
+    phase: blocked
+    covers:
+      scenarios:
+        - S-6
+      acceptance_criteria:
+        - AC-6
+    expected_files:
+      - frontend/packages/ui/src/components/signup/**
+      - frontend/packages/ui/src/components/settings/account/**
+      - frontend/apps/web_app/tests/onboarding-after-signup.spec.ts
+    verification:
+      - T-WEB-POST-SIGNUP-ONBOARDING
+    verification_ids:
+      - T-WEB-POST-SIGNUP-ONBOARDING
+    dependencies:
+      - TASK-3
+    ownership:
+      files:
+        - frontend/packages/ui/src/components/signup/**
+        - frontend/packages/ui/src/components/settings/account/**
+        - frontend/apps/web_app/tests/onboarding-after-signup.spec.ts
+      shared_files: []
+    blockers:
+      - Requires a separate implementation decision for account import and encrypted topic preferences.
+    follow_up_tasks: []
+    independently_deployable: false
+
+risks:
+  - Motion can overwhelm users if the first intro is too long; mitigate with manual arrows, progress bar, and reduced-motion fallback.
+  - "`DailyInspirationBanner.svelte` is already complex; phase 1 should keep logic localized and avoid changing authenticated behavior."
+  - Existing Playwright tests expect tag-first guest onboarding and may need careful assertion updates to distinguish phase-1 intro from future tag removal.
+  - Figma structured metadata was rate-limited; screenshots and user notes are the current phase-1 design authority.
+
+open_questions:
+  - Which exact five public example chats should be attached to each future slide section after the current example inventory audit?
+  - Should later README/CLI/social copy updates live in this spec after phase 1, or in separate docs/marketing tasks?
+  - What is the final post-signup import contract for Gemini and other providers beyond existing account-import specs?
