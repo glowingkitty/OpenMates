@@ -187,6 +187,8 @@ test('loads long compressed history explicitly and exports hydrated metadata', a
 	await page.goto(getE2EDebugUrl(`/#chat-id=${CHAT_ID}`), { waitUntil: 'domcontentloaded' });
 	await dismissSecurityReminder(page);
 	await expect(page.getByTestId('chat-history-container')).toBeVisible({ timeout: 45000 });
+	const historyContent = page.getByTestId('chat-history-content');
+	await expect(historyContent).toHaveAttribute('data-source-message-count', '40', { timeout: 45000 });
 	await expect(page.getByText('Compression summary: the first 80 planning messages')).toBeVisible({
 		timeout: 45000
 	});
@@ -196,6 +198,10 @@ test('loads long compressed history explicitly and exports hydrated metadata', a
 	await screenshot(page, 'initial-latest-window');
 
 	await page.getByTestId('show-older-messages').click();
+	await expect(historyContent).toHaveAttribute('data-source-message-count', '80', { timeout: 45000 });
+	await page.getByTestId('chat-history-container').evaluate((element: HTMLElement) => {
+		element.scrollTop = 0;
+	});
 	await expect(page.getByText('Active assistant message 082')).toBeVisible({ timeout: 45000 });
 	await expect(page.getByText('Active user message 081')).not.toBeVisible();
 	await screenshot(page, 'older-active-page-loaded');
