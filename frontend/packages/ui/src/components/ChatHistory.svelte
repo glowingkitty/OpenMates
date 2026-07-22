@@ -912,8 +912,7 @@
   }
 
   function getOlderMessagesCursor(): InternalMessage | null {
-    const candidates = virtualizedDisplayMessages.length > 0 ? virtualizedDisplayMessages : displayMessages;
-    return candidates.find((message) => {
+    return messages.find((message) => {
       if (message.role === 'system' && message.category === 'compression_summary') return false;
       if (isForgottenMessage(message)) return false;
       return !!message.original_message?.created_at && !!message.id;

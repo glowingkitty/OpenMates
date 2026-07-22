@@ -8339,8 +8339,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     async function handleLoadOlderMessages(event: CustomEvent) {
         if (!currentChat?.chat_id || olderMessageWindowLoading) return;
         if (isPublicChat(currentChat.chat_id) || currentChat.is_incognito) return;
-        const { beforeTimestamp, beforeMessageId, firstMessageId } = event.detail as { beforeTimestamp?: number; beforeMessageId?: string; firstMessageId?: string };
-        if (!beforeTimestamp || !beforeMessageId) return;
+        const { firstMessageId } = event.detail as { beforeTimestamp?: number; beforeMessageId?: string; firstMessageId?: string };
 
         olderMessageWindowLoading = true;
         try {
@@ -8403,11 +8402,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 return;
             }
             if (!currentMessageWindowHasMoreBefore) return;
+            const windowStartMessage = currentMessages[0];
+            if (!windowStartMessage?.created_at || !windowStartMessage.message_id) return;
             const latestCheckpoint = [...currentCompressionCheckpoints].sort((a, b) => b.created_at - a.created_at)[0];
             const olderWindow = await chatDB.getMessageWindowForChat(currentChat.chat_id, {
                 direction: 'before',
-                beforeTimestamp,
-                beforeMessageId,
+                beforeTimestamp: windowStartMessage.created_at,
+                beforeMessageId: windowStartMessage.message_id,
                 compressedUpToTimestamp: latestCheckpoint?.compressed_up_to_timestamp,
             });
             if (olderWindow.messages.length === 0) {
@@ -8421,9 +8422,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             ];
             currentMessageWindowHasMoreBefore = olderWindow.hasMoreBefore;
             chatHistoryRef?.updateMessages(currentMessages);
-            if (firstMessageId) {
+            const restoreMessageId = firstMessageId || windowStartMessage.message_id;
+            if (restoreMessageId) {
                 await tick();
-                chatHistoryRef?.restoreScrollPosition(firstMessageId);
+                chatHistoryRef?.restoreScrollPosition(restoreMessageId);
             }
         } catch (error) {
             console.error('[ActiveChat] Failed to load older message window:', error);
