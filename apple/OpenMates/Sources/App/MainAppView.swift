@@ -4963,6 +4963,12 @@ struct NewChatWelcomeView: View {
         .onChange(of: piiPrivacySettingsStore.settings) { _, _ in
             updatePIIMatches(for: messageText)
         }
+        .onKeyPress(.init("m"), phases: .down) { press in
+            handleKeyboardRecordShortcut(press)
+        }
+        .onKeyPress(.return, phases: .down) { press in
+            handleKeyboardRecordEnter(press)
+        }
         .onKeyPress(.escape, phases: .down) { _ in
             handleKeyboardRecordEscape()
         }
@@ -5356,6 +5362,22 @@ struct NewChatWelcomeView: View {
     private func handleKeyboardRecordEscape() -> KeyPress.Result {
         guard recordStartedFromKeyboard else { return .ignored }
         cancelWelcomeRecording()
+        return .handled
+    }
+
+    private func handleKeyboardRecordShortcut(_ press: KeyPress) -> KeyPress.Result {
+        guard press.modifiers == [.command, .shift] || press.modifiers == [.control, .shift] else { return .ignored }
+        guard recordStartedFromKeyboard else {
+            beginRecordAttempt(startedFromKeyboard: true)
+            return .handled
+        }
+        finishRecordAttempt()
+        return .handled
+    }
+
+    private func handleKeyboardRecordEnter(_ press: KeyPress) -> KeyPress.Result {
+        guard press.modifiers.isEmpty, recordStartedFromKeyboard else { return .ignored }
+        finishRecordAttempt()
         return .handled
     }
 

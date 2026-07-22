@@ -172,7 +172,6 @@ struct ChatView: View {
     @State private var recordDragOffsetX: CGFloat = 0
     @State private var recordAttemptActive = false
     @State private var recordStartedFromKeyboard = false
-    @State private var suppressKeyboardRecordSpaceUntilKeyUp = false
     @State private var recordStartTask: Task<Void, Never>?
     @State private var recordHintTask: Task<Void, Never>?
     @State private var detectedPIIMatches: [PIIMatch] = []
@@ -356,8 +355,11 @@ struct ChatView: View {
                 NotificationCenter.default.post(name: .toggleIncognito, object: nil)
             }
         )
-        .onKeyPress(.space, phases: [.down, .repeat, .up]) { press in
-            handleKeyboardRecordSpace(press)
+        .onKeyPress(.init("m"), phases: .down) { press in
+            handleKeyboardRecordShortcut(press)
+        }
+        .onKeyPress(.return, phases: .down) { press in
+            handleKeyboardRecordEnter(press)
         }
         .onKeyPress(.escape, phases: .down) { _ in
             handleKeyboardRecordEscape()
@@ -2625,31 +2627,24 @@ struct ChatView: View {
         }
     }
 
-    private func handleKeyboardRecordSpace(_ press: KeyPress) -> KeyPress.Result {
-        guard press.modifiers.isEmpty else { return .ignored }
-
-        if press.phase == .up {
-            if suppressKeyboardRecordSpaceUntilKeyUp {
-                suppressKeyboardRecordSpaceUntilKeyUp = false
-                return .handled
-            }
-            guard recordStartedFromKeyboard else { return .ignored }
-            finishRecordAttempt()
+    private func handleKeyboardRecordShortcut(_ press: KeyPress) -> KeyPress.Result {
+        guard press.modifiers == [.command, .shift] || press.modifiers == [.control, .shift] else { return .ignored }
+        guard recordStartedFromKeyboard else {
+            beginKeyboardRecordAttempt()
             return .handled
         }
+        finishRecordAttempt()
+        return .handled
+    }
 
-        if suppressKeyboardRecordSpaceUntilKeyUp || recordStartedFromKeyboard {
-            return .handled
-        }
-
-        guard !isInputFocused else { return .ignored }
-        beginKeyboardRecordAttempt()
+    private func handleKeyboardRecordEnter(_ press: KeyPress) -> KeyPress.Result {
+        guard press.modifiers.isEmpty, recordStartedFromKeyboard else { return .ignored }
+        finishRecordAttempt()
         return .handled
     }
 
     private func handleKeyboardRecordEscape() -> KeyPress.Result {
         guard recordStartedFromKeyboard else { return .ignored }
-        suppressKeyboardRecordSpaceUntilKeyUp = true
         cancelRecordAttempt()
         return .handled
     }

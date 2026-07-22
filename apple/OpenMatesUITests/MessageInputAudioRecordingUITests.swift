@@ -49,6 +49,7 @@ final class MessageInputAudioRecordingUITests: XCTestCase {
         ])
 
         XCTAssertTrue(element(in: app, identifier: "record-overlay").waitForExistence(timeout: 5))
+        assertReleaseText(in: app, contains: "Press Enter to finish", excludes: "Release to finish")
         assertCancelHint(in: app, contains: "Press ESC to cancel", excludes: "Slide left to cancel")
 
         element(in: app, identifier: "cancel-hint").tap()
@@ -89,6 +90,7 @@ final class MessageInputAudioRecordingUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Native Chat Opening Preview"].waitForExistence(timeout: 12))
         let releaseText = element(in: app, identifier: "release-text")
         XCTAssertTrue(releaseText.waitForExistence(timeout: 2))
+        XCTAssertTrue(releaseText.label.localizedCaseInsensitiveContains("Release to finish"), "Expected pointer overlay release text; label=\(releaseText.label)")
         XCTAssertTrue(element(in: app, identifier: "timer-pill").waitForExistence(timeout: 2))
         XCTAssertTrue(element(in: app, identifier: "cancel-hint").waitForExistence(timeout: 2))
         assertCancelHint(in: app, contains: "Slide left to cancel", excludes: "Press ESC to cancel")
@@ -118,6 +120,7 @@ final class MessageInputAudioRecordingUITests: XCTestCase {
         app.launch()
 
         XCTAssertTrue(app.staticTexts["Native Chat Opening Preview"].waitForExistence(timeout: 12))
+        assertReleaseText(in: app, contains: "Press Enter to finish", excludes: "Release to finish")
         XCTAssertTrue(element(in: app, identifier: "cancel-hint").waitForExistence(timeout: 2))
         assertCancelHint(in: app, contains: "Press ESC to cancel", excludes: "Slide left to cancel")
     }
@@ -140,6 +143,14 @@ final class MessageInputAudioRecordingUITests: XCTestCase {
         let label = hint.label
         XCTAssertTrue(label.localizedCaseInsensitiveContains(expected), "Expected cancel hint label to contain \(expected); label=\(label)")
         XCTAssertFalse(label.localizedCaseInsensitiveContains(unexpected), "Expected cancel hint label to exclude \(unexpected); label=\(label)")
+    }
+
+    private func assertReleaseText(in app: XCUIApplication, contains expected: String, excludes unexpected: String) {
+        let releaseText = element(in: app, identifier: "release-text")
+        XCTAssertTrue(releaseText.waitForExistence(timeout: 2))
+        let label = releaseText.label
+        XCTAssertTrue(label.localizedCaseInsensitiveContains(expected), "Expected release text to contain \(expected); label=\(label)")
+        XCTAssertFalse(label.localizedCaseInsensitiveContains(unexpected), "Expected release text to exclude \(unexpected); label=\(label)")
     }
 
     private func waitForAbsence(_ element: XCUIElement, timeout: TimeInterval = 5) -> Bool {

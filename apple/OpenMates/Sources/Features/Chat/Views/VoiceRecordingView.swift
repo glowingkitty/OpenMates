@@ -5,7 +5,7 @@
 // Svelte:  frontend/packages/ui/src/components/enter_message/RecordAudio.svelte
 // CSS:     RecordAudio.svelte <style>
 // i18n:    enter_message.record_audio.{slide_left_to_cancel,press_esc_to_cancel,release_to_finish,
-//          press_and_hold_reminder,allow_microphone_access,microphone_blocked}
+//          press_enter_to_finish,press_and_hold_reminder,allow_microphone_access,microphone_blocked}
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
 
@@ -190,7 +190,7 @@ struct ComposerRecordingOverlay: View {
     var body: some View {
         VStack(spacing: 0) {
             VStack(spacing: .spacing4) {
-                Text(recorder.error ?? AppStrings.releaseToFinishRecording)
+                Text(recorder.error ?? (startedFromKeyboard ? AppStrings.pressEnterToFinishRecording : AppStrings.releaseToFinishRecording))
                     .font(.omP.weight(.bold))
                     .foregroundStyle(Color.white)
                     .multilineTextAlignment(.center)
@@ -251,8 +251,8 @@ struct ComposerRecordingOverlay: View {
                         .offset(x: max(-120, dragOffsetX))
                 }
                 .buttonStyle(.plain)
-                .help(Text(AppStrings.releaseToFinishRecording))
-                .accessibilityLabel(AppStrings.releaseToFinishRecording)
+                .help(Text(startedFromKeyboard ? AppStrings.pressEnterToFinishRecording : AppStrings.releaseToFinishRecording))
+                .accessibilityLabel(startedFromKeyboard ? AppStrings.pressEnterToFinishRecording : AppStrings.releaseToFinishRecording)
                 .accessibilityIdentifier("mic-button")
             }
             .accessibilityElement(children: .contain)
