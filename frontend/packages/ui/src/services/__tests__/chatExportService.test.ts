@@ -53,13 +53,13 @@ function makeChat(overrides: Partial<Chat> = {}): Chat {
   } as Chat;
 }
 
-function makeMessages(count: number): Message[] {
+function makeMessages(count: number, startIndex = 1): Message[] {
   return Array.from({ length: count }, (_, index) => ({
-    message_id: `msg-${index + 1}`,
+    message_id: `msg-${startIndex + index}`,
     chat_id: "chat-export",
     role: index % 2 === 0 ? "user" : "assistant",
-    content: `message ${index + 1}`,
-    created_at: index + 1,
+    content: `message ${startIndex + index}`,
+    created_at: startIndex + index,
     status: "synced",
   }) as Message);
 }
@@ -109,17 +109,35 @@ describe("chatExportService", () => {
   });
 
   it("marks exports partial when durable rows or forgotten checkpoint messages may be missing", async () => {
-    mocks.getMessagesForChat.mockResolvedValue(makeMessages(40));
+    mocks.getMessagesForChat.mockResolvedValue(makeMessages(40, 62));
     mocks.getChatCompressionCheckpoints.mockResolvedValue([makeCheckpoint()]);
 
     const { hydrateChatForExport } = await import("../chatExportService");
-    const hydrated = await hydrateChatForExport(makeChat(), makeMessages(40));
+    const hydrated = await hydrateChatForExport(makeChat(), makeMessages(40, 62));
 
     expect(hydrated.completeness.status).toBe("partial");
     expect(hydrated.completeness.warnings).toEqual([
       "Only 40 of 101 durable messages were available locally.",
       "This chat has compression checkpoints; some forgotten raw messages may require server hydration before export is complete.",
     ]);
+  });
+
+  it("marks compressed exports complete when all checkpoint messages are hydrated", async () => {
+    const allMessages = makeMessages(101);
+    mocks.getMessagesForChat.mockResolvedValue(allMessages);
+    mocks.getChatCompressionCheckpoints.mockResolvedValue([makeCheckpoint()]);
+
+    const { hydrateChatForExport } = await import("../chatExportService");
+    const hydrated = await hydrateChatForExport(makeChat(), allMessages.slice(61));
+
+    expect(hydrated.messages).toHaveLength(101);
+    expect(hydrated.completeness).toMatchObject({
+      status: "complete",
+      requested_message_count: 101,
+      hydrated_message_count: 101,
+      checkpoint_count: 1,
+      warnings: [],
+    });
   });
 
   it("serializes export completeness and compression checkpoints into YAML", async () => {

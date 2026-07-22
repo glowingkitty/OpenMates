@@ -189,10 +189,16 @@ attempts:
     outcome: blocked
     recorded_at: "2026-07-22T13:52:33Z"
     notes: GitHub Actions run 29926193344 reached Vercel READY deployment dpl_BhV8oRXbJxzbHjSHZACqyPAuR45L and passed account preflight 29926059029. The long-chat scenario progressed through initial latest-window, older active page loading, and forgotten-message reveal, then failed because the test sampled forgotten-row computed opacity during the Svelte fade transition and expected exactly 0.6. The spec was hardened locally to poll until the final computed opacity settles near 0.6.
+  - id: ATTEMPT-7
+    task_id: TASK-6
+    approach: Rerun long-chat-history.spec.ts after opacity hardening commit 2d895157f deployed.
+    outcome: blocked
+    recorded_at: "2026-07-22T14:04:26Z"
+    notes: GitHub Actions run 29927228621 reached Vercel READY deployment dpl_wsmHy3UsCCETqWVQPvixdj1yxyCV and passed account preflight 29927070958. The long-chat scenario progressed through forgotten-message reveal and failed at ZIP metadata because the export hydrated all 161 requested messages but still reported status partial with the compression-checkpoint hydration warning. The export completeness rule was fixed locally to warn only when available messages do not cover the checkpoint compressed_message_count.
 
 handoff:
   current_task_id: TASK-6
-  next_action: Deploy the opacity-polling Playwright hardening plus this spec ledger update, rerun long-chat-history.spec.ts against app.dev.openmates.org, then run one on-demand real CLI long-chat compression validation.
+  next_action: Deploy the export completeness fix plus this spec ledger update, rerun Vitest export coverage and long-chat-history.spec.ts against app.dev.openmates.org, then run one on-demand real CLI long-chat compression validation.
   command: python3 scripts/tests.py run --spec long-chat-history.spec.ts
   expected_outcome: Run after deploy; deterministic spec should pass without model/provider calls and cover latest 40-message window, explicit older-message paging, faded forgotten-message reveal, shared boundaries, and export hydration metadata.
   blocker: null

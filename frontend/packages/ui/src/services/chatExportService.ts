@@ -71,9 +71,10 @@ export async function hydrateChatForExport(
     warnings.push(`Only ${messages.length} of ${requestedMessageCount} durable messages were available locally.`);
   }
   if (checkpoints.length > 0 && checkpoints.some((checkpoint) => checkpoint.compressed_message_count > 0)) {
-    const earliestMessageTimestamp = Math.min(...messages.map((message) => message.created_at));
     const missingForgotten = checkpoints.some(
-      (checkpoint) => checkpoint.compressed_up_to_timestamp >= earliestMessageTimestamp,
+      (checkpoint) =>
+        messages.filter((message) => message.created_at <= checkpoint.compressed_up_to_timestamp).length <
+        checkpoint.compressed_message_count,
     );
     if (missingForgotten) {
       warnings.push("This chat has compression checkpoints; some forgotten raw messages may require server hydration before export is complete.");
