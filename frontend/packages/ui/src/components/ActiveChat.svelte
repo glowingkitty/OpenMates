@@ -12481,14 +12481,16 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                            backgroundFrames={(() => { const frames = activeLocaleVideo?.background_frames ?? activePublicChatMetadata?.background_frames; if (!frames) return null; const titleFrame = $locale?.startsWith('de') ? '/intro-frames/frame-00_DE.webp' : '/intro-frames/frame-00_EN.webp'; return [titleFrame, ...frames]; })()}
                           autoplayVideo={pendingAutoplayVideo}
                           onResend={handleResendAfterCreditsRestored}
-                          onChatNavigate={handleChatNavigate}
+                           onChatNavigate={handleChatNavigate}
                            followUpSuggestions={showFollowUpSuggestions ? followUpSuggestions : []}
                            {quickTipSlugs}
                            compressionCheckpoints={currentCompressionCheckpoints}
-                            onSuggestionClick={handleFollowUpSuggestionClick}
-                          on:quickTipAction={handleQuickTipAction}
-                          on:messagesChange={handleMessagesChange}
-                          on:chatUpdated={handleChatUpdated}
+                           hasOlderMessages={currentMessageWindowHasMoreBefore}
+                           olderMessagesLoading={olderMessageWindowLoading}
+                           onSuggestionClick={handleFollowUpSuggestionClick}
+                           on:quickTipAction={handleQuickTipAction}
+                           on:messagesChange={handleMessagesChange}
+                           on:chatUpdated={handleChatUpdated}
                           on:loadOlderMessages={handleLoadOlderMessages}
                           on:scrollPositionUI={handleScrollPositionUI}
                          on:scrollPositionChanged={handleScrollPositionChanged}

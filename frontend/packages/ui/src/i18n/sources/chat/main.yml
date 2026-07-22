@@ -2566,8 +2566,8 @@ compression.show_less:
 
 compression.show_forgotten:
   context: Button text to show messages that were compressed/forgotten
-  en: Show earlier messages
-  de: Frühere Nachrichten anzeigen
+  en: Show old forgotten messages
+  de: Alte vergessene Nachrichten anzeigen
   zh: 显示早期消息
   es: Mostrar mensajes anteriores
   fr: Afficher les messages précédents
@@ -2587,6 +2587,81 @@ compression.show_forgotten:
   cs: Zobrazit starší zprávy
   sv: Visa tidigare meddelanden
   he: הצג הודעות קודמות
+  verified_by_human: []
+
+compression.show_more_forgotten:
+  context: Button text to load another page of compressed/forgotten messages
+  en: Show more forgotten messages
+  de: Mehr vergessene Nachrichten anzeigen
+  zh: Show more forgotten messages
+  es: Show more forgotten messages
+  fr: Show more forgotten messages
+  pt: Show more forgotten messages
+  ru: Show more forgotten messages
+  ja: Show more forgotten messages
+  ko: Show more forgotten messages
+  it: Show more forgotten messages
+  tr: Show more forgotten messages
+  vi: Show more forgotten messages
+  id: Show more forgotten messages
+  pl: Show more forgotten messages
+  nl: Show more forgotten messages
+  ar: Show more forgotten messages
+  hi: Show more forgotten messages
+  th: Show more forgotten messages
+  cs: Show more forgotten messages
+  sv: Show more forgotten messages
+  he: Show more forgotten messages
+  verified_by_human: []
+
+compression.forgotten_note:
+  context: Explanation shown above faded messages that are readable but no longer active AI context
+  en: Faded messages are readable history, but they are no longer part of the assistant's active context.
+  de: Ausgeblendete Nachrichten sind lesbarer Verlauf, gehören aber nicht mehr zum aktiven Kontext des Assistenten.
+  zh: Faded messages are readable history, but they are no longer part of the assistant's active context.
+  es: Faded messages are readable history, but they are no longer part of the assistant's active context.
+  fr: Faded messages are readable history, but they are no longer part of the assistant's active context.
+  pt: Faded messages are readable history, but they are no longer part of the assistant's active context.
+  ru: Faded messages are readable history, but they are no longer part of the assistant's active context.
+  ja: Faded messages are readable history, but they are no longer part of the assistant's active context.
+  ko: Faded messages are readable history, but they are no longer part of the assistant's active context.
+  it: Faded messages are readable history, but they are no longer part of the assistant's active context.
+  tr: Faded messages are readable history, but they are no longer part of the assistant's active context.
+  vi: Faded messages are readable history, but they are no longer part of the assistant's active context.
+  id: Faded messages are readable history, but they are no longer part of the assistant's active context.
+  pl: Faded messages are readable history, but they are no longer part of the assistant's active context.
+  nl: Faded messages are readable history, but they are no longer part of the assistant's active context.
+  ar: Faded messages are readable history, but they are no longer part of the assistant's active context.
+  hi: Faded messages are readable history, but they are no longer part of the assistant's active context.
+  th: Faded messages are readable history, but they are no longer part of the assistant's active context.
+  cs: Faded messages are readable history, but they are no longer part of the assistant's active context.
+  sv: Faded messages are readable history, but they are no longer part of the assistant's active context.
+  he: Faded messages are readable history, but they are no longer part of the assistant's active context.
+  verified_by_human: []
+
+history.show_older_messages:
+  context: Button text to load another page of older active chat messages
+  en: Show older messages
+  de: Ältere Nachrichten anzeigen
+  zh: Show older messages
+  es: Show older messages
+  fr: Show older messages
+  pt: Show older messages
+  ru: Show older messages
+  ja: Show older messages
+  ko: Show older messages
+  it: Show older messages
+  tr: Show older messages
+  vi: Show older messages
+  id: Show older messages
+  pl: Show older messages
+  nl: Show older messages
+  ar: Show older messages
+  hi: Show older messages
+  th: Show older messages
+  cs: Show older messages
+  sv: Show older messages
+  he: Show older messages
   verified_by_human: []
 
 compression.hide_forgotten:

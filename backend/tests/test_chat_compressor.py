@@ -169,6 +169,10 @@ class TestShouldCompress:
         history = [_msg("hello world") for _ in range(5)]
         assert should_compress(history, compression_threshold=10) is True
 
+    def test_many_short_messages_do_not_trigger_by_count_only(self):
+        history = [_msg("short text", created_at=index) for index in range(500)]
+        assert should_compress(history) is False
+
     def test_custom_threshold_higher(self):
         # With a very high threshold, even big messages should not trigger
         big_msg = "x" * 100000
@@ -258,6 +262,27 @@ class TestSplitHistoryForCompression:
             oldest_recent = min(m["created_at"] for m in recent)
             newest_compressed = max(m["created_at"] for m in to_compress)
             assert newest_compressed <= oldest_recent
+
+    def test_keeps_latest_assistant_and_follow_up_even_when_tail_exceeds_budget(self):
+        history = _make_history(20, chars_per_msg=2000)
+        latest_assistant = _msg(
+            "latest assistant response " + "a" * ((RECENT_WINDOW_TOKEN_BUDGET + 1000) * 4),
+            role="assistant",
+            created_at=10_000,
+        )
+        follow_up = _msg(
+            "latest user follow up " + "u" * ((RECENT_WINDOW_TOKEN_BUDGET + 1000) * 4),
+            role="user",
+            created_at=10_001,
+        )
+        history.extend([latest_assistant, follow_up])
+
+        to_compress, recent = split_history_for_compression(history)
+
+        assert latest_assistant in recent
+        assert follow_up in recent
+        assert latest_assistant not in to_compress
+        assert follow_up not in to_compress
 
 
 # ===========================================================================

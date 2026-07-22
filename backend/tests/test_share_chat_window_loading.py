@@ -117,6 +117,7 @@ class FakeChatMethods:
             "encrypted_chat_summary": "encrypted-summary",
             "encrypted_icon": "encrypted-icon",
             "encrypted_category": "encrypted-category",
+            "messages_v": 82,
             "is_private": False,
             "share_pii": False,
             "share_highlights": True,
@@ -165,6 +166,19 @@ class FakeDirectusService:
     def __init__(self) -> None:
         self.chat = FakeChatMethods()
         self.embed = FakeEmbedMethods()
+        self.checkpoints = [
+            {
+                "id": "checkpoint-1",
+                "chat_id": "chat-shared",
+                "encrypted_summary": "encrypted-checkpoint-summary",
+                "compressed_up_to_timestamp": 80,
+                "compressed_message_count": 80,
+                "summary_token_estimate": 123,
+                "key_version": 1,
+                "created_at": 1000,
+                "updated_at": 1001,
+            }
+        ]
 
     async def get_items(
         self,
@@ -179,6 +193,18 @@ class FakeDirectusService:
             return []
         if collection == "chats":
             return []
+        if collection == "chat_compression_checkpoints":
+            checkpoint_filter = params.get("filter") or {}
+            chat_id_filter = checkpoint_filter.get("chat_id") or {}
+            checkpoint_id_filter = checkpoint_filter.get("id") or {}
+            rows = [
+                row
+                for row in self.checkpoints
+                if not chat_id_filter or row["chat_id"] == chat_id_filter.get("_eq")
+            ]
+            if checkpoint_id_filter:
+                rows = [row for row in rows if row["id"] == checkpoint_id_filter.get("_eq")]
+            return rows
         return []
 
 
@@ -222,6 +248,19 @@ async def test_shared_chat_manifest_includes_key_addressable_embeds():
 
 
 @pytest.mark.asyncio
+async def test_shared_chat_manifest_includes_compression_checkpoints():
+    directus = FakeDirectusService()
+
+    payload = await get_shared_chat_manifest(
+        request=None,
+        chat_id="chat-shared",
+        directus_service=directus,
+    )
+
+    assert payload["compression_checkpoints"] == directus.checkpoints
+
+
+@pytest.mark.asyncio
 async def test_shared_chat_message_window_is_bounded_and_sanitized():
     directus = FakeDirectusService()
 
@@ -242,6 +281,24 @@ async def test_shared_chat_message_window_is_bounded_and_sanitized():
 
 
 @pytest.mark.asyncio
+async def test_shared_chat_message_window_uses_durable_rows_when_messages_v_is_stale():
+    directus = FakeDirectusService()
+
+    payload = await get_shared_chat_message_window(
+        request=None,
+        chat_id="chat-shared",
+        before_timestamp=2147483647,
+        limit=40,
+        directus_service=directus,
+    )
+
+    assert directus.chat.requested_limits == [41]
+    assert len(payload["messages"]) == 40
+    assert payload["has_more"] is True
+    assert payload["messages_v"] == 82
+
+
+@pytest.mark.asyncio
 async def test_shared_chat_message_window_can_anchor_target_message():
     directus = FakeDirectusService()
 
@@ -256,6 +313,26 @@ async def test_shared_chat_message_window_can_anchor_target_message():
 
     assert payload["target_message_id"] == "msg-42"
     assert json.loads(payload["messages"][-1])["message_id"] == "msg-42"
+
+
+@pytest.mark.asyncio
+async def test_shared_chat_message_window_can_page_forgotten_checkpoint_messages():
+    directus = FakeDirectusService()
+
+    payload = await get_shared_chat_message_window(
+        request=None,
+        chat_id="chat-shared",
+        before_timestamp=100,
+        checkpoint_id="checkpoint-1",
+        limit=10,
+        directus_service=directus,
+    )
+
+    assert payload["checkpoint_id"] == "checkpoint-1"
+    assert payload["checkpoint_boundary_timestamp"] == 80
+    assert payload["is_forgotten_page"] is True
+    assert len(payload["messages"]) == 10
+    assert json.loads(payload["messages"][-1])["message_id"] == "msg-80"
 
 
 @pytest.mark.asyncio

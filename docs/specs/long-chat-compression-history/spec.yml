@@ -1,0 +1,1032 @@
+schema_version: 2
+id: long-chat-compression-history
+title: Long Chat Compression And History Boundaries
+status: implementing
+
+goal: >
+  Make long chats understandable and recoverable by separating visible history
+  loading from active AI context compression. Chats should open with a bounded
+  recent window, load older active messages explicitly in 40-message pages, show
+  token-compressed forgotten history only behind an explicit faded visual state,
+  and export/download complete hydrated history with clear compression boundary
+  metadata.
+
+scope:
+  in:
+    - Authenticated owner chat history loading in the web app.
+    - Shared-chat recipient history loading in the web app.
+    - Initial chat open using the latest 40 visible messages as a UI loading window, not an AI-context boundary.
+    - Explicit Show older messages pagination that loads the next older active 40-message page while preserving scroll position.
+    - Token-triggered chat compression only; no secondary message-count trigger in this slice.
+    - Compression that keeps the most recent assistant response and the most recent user follow-up/request in full when they exist, plus the latest compression summary for older context.
+    - Explicit Show old forgotten messages loading for messages represented by a compression checkpoint.
+    - Faded rendering for forgotten raw messages so users can see they are readable history but no longer part of active AI context.
+    - Shared-chat manifests and message windows exposing enough encrypted checkpoint/window metadata to render the same boundaries without sending share URL fragment keys to the server.
+    - Chat ZIP/YAML/download paths hydrating all available messages and checkpoint summaries before exporting, with explicit partial-export warnings when full hydration fails.
+    - Regression coverage for compression checkpoint persistence, boundary rendering, shared chats, messages_v integrity, and export completeness.
+  out:
+    - Replacing the zero-knowledge encryption model or storing decrypted private chat history on the backend.
+    - Adding message-count-triggered compression in this slice.
+    - Reintroducing forgotten raw messages into active AI context when users reveal them visually.
+    - Changing model/provider token budgets beyond the compression trigger and active-tail contract needed for this behavior.
+    - Rewriting old chat history or bulk-generating missing compression checkpoints for existing chats.
+    - Full Account Export V1 architecture changes; this spec only fixes per-chat download/export paths and records the overlap.
+    - Apple implementation before web/API behavior is approved and verified.
+
+context_discovery:
+  github_issues:
+    - "GitHub MCP get_me returned 401 Bad credentials during discovery."
+    - "gh issue list fallback found broad related issue #459 Prepare chat storage architecture for agentic coding scale, but no dedicated long-chat compression/history issue."
+  local_findings:
+    - docs/findings/issues/prod/2026/ca6114b8-fe2a-4b34-a5b0-e5428a6474f1-bei-sehr-langen-chats-wird-mir-nur-der-neueste-teil-ange.md
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/specs/scalable-chat-embed-loading/spec.yml
+    - docs/specs/cross-device-chat-completion-recovery/spec.yml
+    - docs/specs/account-export-v1/spec.yml
+    - docs/architecture/chat-compression.md
+  code_patterns:
+    - frontend/apps/web_app/src/routes/share/chat/[chatId]/+page.svelte currently requests a bounded shared message window with default limit 40.
+    - backend/core/api/app/routes/share.py exposes shared chat manifest/messages behavior but discovery found no shared compression checkpoint manifest support for the reported chat.
+    - frontend/packages/ui/src/components/ChatHistory.svelte currently loads older messages implicitly near top scroll and renders compression summary UI.
+    - frontend/packages/ui/src/components/ActiveChat.svelte owns owner/shared older-message and compression-checkpoint loading behavior.
+    - frontend/packages/ui/src/services/db/messageOperations.ts defines DEFAULT_MESSAGE_WINDOW_LIMIT = 40 and MAX_MESSAGE_WINDOW_LIMIT = 100.
+    - backend/apps/ai/processing/chat_compressor.py owns token threshold constants and compression split behavior.
+    - backend/apps/ai/tasks/ask_skill_task.py triggers compression before AI preprocessing.
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts persists client-encrypted checkpoints after chat_compression_completed.
+    - backend/core/api/app/routes/handlers/websocket_handlers/chat_compression_checkpoint_handler.py handles checkpoint store and old-message retrieval.
+    - frontend/packages/ui/src/services/chatExportService.ts and frontend/packages/ui/src/services/zipExportService.ts export only the passed local message list today.
+  tests:
+    - backend/tests/test_share_chat_window_loading.py
+    - backend/tests/test_chat_compression_checkpoint_handler.py
+    - backend/tests/test_chat_compressor.py
+    - frontend/apps/web_app/tests/shared-chat-open.spec.ts
+    - frontend/apps/web_app/tests/share-chat-flow.spec.ts
+    - frontend/apps/web_app/tests/chat-management-flow.spec.ts
+    - frontend/apps/web_app/tests/long-chat-history.spec.ts
+    - frontend/apps/web_app/tests/chat-sync-empty-indexeddb-recovery.spec.ts
+
+apple_impact:
+  affected_files:
+    - apple/OpenMates/Sources/Features/Chat
+    - apple/OpenMates/Sources/Core/Persistence/ChatStore.swift
+    - apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift
+  parity_expectations:
+    - Apple should eventually use the same active-context versus visual-history boundary language and faded forgotten-message semantics.
+    - Apple work waits until the web/API contract is approved, implemented, deployed, and confirmed by the user.
+    - If native full-history rendering is deferred, Apple must not claim that faded forgotten-message recovery exists until implemented.
+  verification:
+    - python3 scripts/apple_remote.py status
+    - python3 scripts/apple_remote.py build-ios after web/user confirmation or a documented Apple deferral.
+  intentional_native_differences:
+    - Native UI may use platform-appropriate affordances for opacity and buttons, but must preserve the same meaning: full opacity is active context, faded is forgotten visual history.
+
+clarification:
+  rounds:
+    - question: Should shared chats load old messages and support full-chat download?
+      answer: Yes. Shared chats must load old messages and support full-chat download.
+    - question: If full hydration fails during export, should export fail hard or allow a clearly labeled partial export?
+      answer: Exports may be partial if full hydration fails, but they must try to hydrate beyond the current IndexedDB/window and clearly label or warn partial exports.
+    - question: Should shared compression checkpoint support be included now?
+      answer: Yes. Include shared compression checkpoint support now.
+    - question: Should this slice add a secondary message-count compression trigger?
+      answer: No. Keep token-triggered compression for now and make visual loading and compression boundaries robust first.
+    - question: Should revealed forgotten raw messages re-enter active AI context?
+      answer: No. Revealing forgotten messages is visual-only; faded messages remain excluded from active AI context unless a later explicit restore feature is specified.
+  vision_summary: >
+    The chat UI should distinguish rendering performance from AI memory. Opening a
+    chat loads the latest 40 visible messages and older active history appears via
+    a Show older messages button in 40-message pages. Token-triggered compression
+    remains the only compression trigger for this slice; once compressed, the UI
+    shows a summary and the latest full tail normally, while raw forgotten
+    checkpoint messages are available only through Show old forgotten messages and
+    render faded to show they are not active AI context. Per-chat downloads must
+    hydrate full history or clearly report partial completeness.
+  approved_by_user: true
+
+implementation_state:
+  subject_commit: "b058f8249f1e"
+
+approvals:
+  product_contract:
+    status: approved
+    approved_at: "2026-07-22"
+    reason: User reviewed example flows and approved full implementation and testing.
+  implementation_plan:
+    status: approved
+    approved_at: "2026-07-22"
+    reason: Existing implementation plan and tasks enforce the approved backend/frontend/test sequencing.
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Keep the latest 40 messages as the initial visible loading window.
+    reason: This is a UI performance boundary and already matches the current windowed loading direction.
+    decided_at: "2026-07-22"
+  - id: D-2
+    status: active
+    decision: Do not add message-count-triggered compression in this slice.
+    reason: The user preferred fixing visual recovery and compression boundary UX before changing compression triggers beyond token pressure.
+    decided_at: "2026-07-22"
+  - id: D-3
+    status: active
+    decision: Revealed forgotten messages are visual-only and remain excluded from active AI context.
+    reason: Users need readable history without silently changing what the assistant remembers after compression.
+    decided_at: "2026-07-22"
+  - id: D-4
+    status: active
+    decision: Forgotten raw messages render with reduced opacity while active-context messages render at full opacity.
+    reason: The user proposed opacity as a direct visual distinction between included and forgotten history.
+    decided_at: "2026-07-22"
+  - id: D-5
+    status: active
+    decision: Per-chat export/download must attempt full hydration and clearly label partial results.
+    reason: Exporting only currently rendered/local messages creates false-complete archives for long, shared, and compressed chats.
+    decided_at: "2026-07-22"
+  - id: D-6
+    status: active
+    decision: Keep regular regression tests deterministic and provider-free, then run one on-demand real long-chat compression validation after deploy.
+    reason: Daily tests should prove UI/API/export behavior without repeatedly paying for model calls, but the compression behavior still needs at least one real end-to-end proof with a realistic long chat and repeated compression checkpoints.
+    decided_at: "2026-07-22"
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    approach: Add a message-count compression trigger in addition to token pressure.
+    outcome: rejected
+    recorded_at: "2026-07-22"
+    notes: The user considered this potentially overcomplicated for the first fix and preferred keeping token-triggered compression while improving visual recovery.
+  - id: ATTEMPT-2
+    task_id: TASK-2
+    approach: Treat older visible messages and compressed forgotten messages as the same Show older messages flow.
+    outcome: rejected
+    recorded_at: "2026-07-22"
+    notes: >
+      The final UX needs two explicit states: Show older messages for active
+      full-opacity history, and Show old forgotten messages for faded
+      pre-checkpoint history.
+
+handoff:
+  current_task_id: TASK-6
+  next_action: Deploy the deterministic implementation, run long-chat-history.spec.ts against app.dev.openmates.org, then run one on-demand real CLI long-chat compression validation.
+  command: python3 scripts/tests.py run --spec long-chat-history.spec.ts
+  expected_outcome: Run after deploy; deterministic spec should pass without model/provider calls and cover latest 40-message window, explicit older-message paging, faded forgotten-message reveal, shared boundaries, and export hydration metadata.
+  blocker: null
+  last_verified_commit: "b058f8249f1e"
+
+scenarios:
+  - id: S-1
+    title: Owner opens a long uncompressed chat
+    given:
+      - Alice owns a chat with 101 durable messages and no compression checkpoint.
+    when:
+      - Alice opens or reloads the chat.
+    then:
+      - The latest 40 messages render first.
+      - A Show older messages button appears above the visible history because older messages exist.
+      - Clicking Show older messages loads the next older 40 active messages and preserves the current scroll anchor.
+      - Loaded active messages render at full opacity because they remain part of uncompressed active history.
+
+  - id: S-2
+    title: Owner opens a compressed chat
+    given:
+      - Alice owns a chat with a valid latest compression checkpoint.
+      - The checkpoint summarizes older messages before its compressed boundary.
+      - The chat has recent post-checkpoint messages.
+    when:
+      - Alice opens or reloads the chat.
+    then:
+      - The latest 40 visible messages, latest compression summary, and current uncompressed tail render without loading forgotten raw messages.
+      - Active post-checkpoint messages render at full opacity.
+      - The compression summary card clearly separates active history from forgotten history.
+      - A Show old forgotten messages button appears at the checkpoint boundary when forgotten raw messages are available.
+
+  - id: S-3
+    title: User reveals forgotten messages
+    given:
+      - Alice is viewing a compressed chat with hidden pre-checkpoint raw messages.
+    when:
+      - Alice clicks Show old forgotten messages.
+    then:
+      - OpenMates loads a bounded page of forgotten raw messages represented by that checkpoint.
+      - The revealed raw messages appear before the compression summary in chronological order.
+      - Revealed forgotten user and assistant messages render with reduced opacity.
+      - The UI does not add those raw messages back into active AI context.
+      - Additional forgotten pages remain behind the same explicit action if more exist.
+
+  - id: S-4
+    title: Compression keeps the latest conversational tail in full
+    given:
+      - Alice has a token-heavy chat that crosses the compression threshold.
+      - The latest complete assistant response exists.
+      - Alice may have sent a follow-up user request after that response.
+    when:
+      - Compression runs before the next AI preprocessing step.
+    then:
+      - Older messages are summarized into a client-encrypted checkpoint.
+      - The latest complete assistant response remains available in full active context.
+      - The most recent user follow-up/request after that assistant response remains available in full active context when present.
+      - Active AI context after compression consists of the latest summary plus the retained full tail, not the faded forgotten raw messages.
+
+  - id: S-5
+    title: Shared-chat recipient sees the same boundaries
+    given:
+      - Bob opens a valid shared-chat link whose underlying chat has older messages and may have compression checkpoints.
+    when:
+      - Bob opens the shared-chat URL and loads older history.
+    then:
+      - Bob initially sees the latest 40-message window.
+      - Bob can click Show older messages for older active full-opacity messages.
+      - If the share includes compression checkpoints, Bob sees the summary and can click Show old forgotten messages for faded pre-checkpoint raw messages.
+      - The URL fragment key remains client-only and is never sent to the server.
+
+  - id: S-6
+    title: Per-chat download hydrates complete history or warns partial
+    given:
+      - Alice starts a ZIP or YAML download from a chat whose current UI has only a 40-message window loaded.
+    when:
+      - The download begins.
+    then:
+      - OpenMates attempts to hydrate all available durable messages, embeds referenced by those messages, and compression checkpoint summaries needed for the selected chat.
+      - The generated archive contains all hydrated messages in chronological order, including faded forgotten history and checkpoint summaries when available.
+      - If any page or checkpoint cannot be hydrated, the user sees a clear partial-export warning before or during download.
+      - The archive metadata records whether the export is complete or partial.
+
+  - id: S-7
+    title: Message version integrity does not hide history
+    given:
+      - A chat has durable message rows whose count differs from the chat metadata messages_v value.
+    when:
+      - The chat window, older-message pagination, shared manifest, or download flow calculates whether more messages exist.
+    then:
+      - OpenMates uses durable rows/window cursors as the source of truth for pagination and completeness.
+      - The mismatch is surfaced to logs or deterministic integrity checks.
+      - The mismatch does not cause the UI or export to stop early while durable messages remain accessible.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Owner chats open with the latest 40 visible messages and use an explicit Show older messages button to load older active full-opacity pages of 40 messages while preserving scroll anchor.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids: [T-VITEST-HISTORY-WINDOWS, T-WEB-LONG-CHAT-HISTORY]
+  - id: AC-2
+    scenario: S-2
+    text: Compressed chats render the latest summary and recent active messages without loading forgotten raw messages on initial open.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids: [T-BACKEND-COMPRESSION-CHECKPOINTS, T-WEB-COMPRESSION-BOUNDARY]
+  - id: AC-3
+    scenario: S-3
+    text: Show old forgotten messages loads bounded pre-checkpoint pages that render faded and do not re-enter active AI context.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-BACKEND-COMPRESSION-CHECKPOINTS, T-VITEST-CONTEXT-BUILDER, T-WEB-COMPRESSION-BOUNDARY]
+  - id: AC-4
+    scenario: S-4
+    text: Token-triggered compression keeps the latest complete assistant response and latest user follow-up/request in full active context, with older context represented by the latest summary.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-BACKEND-COMPRESSION-TAIL, T-VITEST-CONTEXT-BUILDER]
+  - id: AC-5
+    scenario: S-5
+    text: Shared chats expose encrypted window/checkpoint metadata so recipients get the same Show older messages and faded forgotten-message boundaries without leaking fragment keys.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-BACKEND-SHARE-WINDOWS, T-WEB-SHARED-HISTORY]
+  - id: AC-6
+    scenario: S-6
+    text: Per-chat ZIP/YAML download attempts full history hydration and marks exports complete or partial instead of silently exporting only currently loaded messages.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids: [T-VITEST-CHAT-EXPORT, T-WEB-CHAT-DOWNLOAD]
+  - id: AC-7
+    scenario: S-7
+    text: Message pagination and export completeness use durable message rows/window cursors rather than trusting stale messages_v, and mismatches are audit-visible.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-BACKEND-MESSAGES-V-INTEGRITY, T-BACKEND-SHARE-WINDOWS]
+
+assumptions:
+  - id: A-1
+    text: The existing created_at/message-id ordering is sufficient to page durable chat messages consistently for owner and shared views.
+    category: persistence
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: frontend/packages/ui/src/services/db/messageOperations.ts
+        summary: Existing windowed reads use chat/message ordering indexes for bounded local message windows.
+      - source: backend/tests/test_share_chat_window_loading.py
+        summary: Existing tests already exercise bounded shared-chat message windows.
+  - id: A-2
+    text: Existing compression checkpoints can authorize and return bounded encrypted old-message pages for owner chats.
+    category: encryption
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: backend/core/api/app/routes/handlers/websocket_handlers/chat_compression_checkpoint_handler.py
+        summary: Existing checkpoint handler includes old-message retrieval behavior and ownership checks.
+  - id: A-3
+    text: Shared-chat recipients can decrypt shared checkpoint summaries and old-message pages only when checkpoint/key metadata is included in the share contract.
+    category: sharing
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: backend/core/api/app/routes/share.py
+        summary: Shared manifest now returns encrypted compression_checkpoints, and shared forgotten-message paging uses checkpoint_id without any URL fragment key server parameter.
+      - source: frontend/apps/web_app/src/routes/share/chat/[chatId]/+page.svelte
+        summary: Shared checkpoint summaries are decrypted client-side from manifest metadata using the local fragment-derived share key.
+  - id: A-4
+    text: Per-chat local download can hydrate missing pages through existing owner/shared APIs without requiring the full Account Export V1 job system.
+    category: export
+    required_before: task_execution
+    status: confirmed
+    evidence:
+      - source: frontend/packages/ui/src/services/chatExportService.ts
+        summary: Per-chat YAML export now hydrates local IndexedDB messages and checkpoints before serializing and records export completeness metadata.
+      - source: frontend/packages/ui/src/services/zipExportService.ts
+        summary: ZIP export now uses hydrated messages/checkpoints and writes export-metadata.json with complete/partial status.
+
+contracts:
+  api:
+    - route: WebSocket request_chat_content_batch or successor
+      access_model: first-party client surface only
+      auth: authenticated owner session required
+      rate_limits: existing WebSocket limits apply; no credit or AI budget consumption
+      encryption_boundary: returns client-encrypted chat material only
+      request: "chat id, optional cursor/anchor, direction, limit=40, include_checkpoint_metadata boolean"
+      response: "Encrypted bounded message window, has_more/cursors, durable count hints where safe, and compression checkpoint metadata needed for the boundary."
+      errors:
+        - Unauthorized when the user cannot access the chat.
+        - Visible error event when a page cannot be loaded.
+    - route: WebSocket get_compressed_chat_old_messages or successor
+      access_model: first-party client surface only
+      auth: authenticated owner session required
+      rate_limits: existing WebSocket limits apply; no credit or AI budget consumption
+      encryption_boundary: returns client-encrypted forgotten raw messages only
+      request: "chat id, checkpoint id, cursor/before timestamp, limit=40"
+      response: "Encrypted bounded forgotten-message page, has_more/cursor metadata, and checkpoint id."
+      errors:
+        - Unauthorized when the user cannot access the chat.
+        - Checkpoint not found when checkpoint does not belong to the user/chat.
+    - route: GET /v1/share/chat/{chat_id}/manifest
+      access_model: unauthenticated public REST API with unguessable share id and client-held fragment key
+      auth: valid share identifier; URL fragment key must not be sent
+      rate_limits: existing shared-chat anti-enumeration and route limits apply; no credit or AI budget consumption
+      encryption_boundary: returns encrypted shared metadata only
+      request: "chat id path parameter; optional target/window query metadata only"
+      response: "Encrypted chat metadata, latest-window hints, safe message counts/cursors, and encrypted compression checkpoint metadata when shared."
+      errors:
+        - Same unavailable-chat non-enumeration behavior as existing shared-chat routes.
+    - route: GET /v1/share/chat/{chat_id}/messages
+      access_model: unauthenticated public REST API with unguessable share id and client-held fragment key
+      auth: valid share identifier; URL fragment key must not be sent
+      rate_limits: existing shared-chat anti-enumeration and route limits apply; no credit or AI budget consumption
+      encryption_boundary: returns encrypted shared messages only
+      request: "cursor/anchor, direction, limit=40, optional checkpoint id for forgotten pages"
+      response: "Encrypted bounded active or forgotten message page plus has_more/cursor metadata."
+      errors:
+        - Same unavailable-chat non-enumeration behavior as existing shared-chat routes.
+  data:
+    - "DEFAULT_MESSAGE_WINDOW_LIMIT remains 40 for initial render and normal pagination."
+    - Compression checkpoints store enough boundary metadata to distinguish active post-checkpoint messages from forgotten pre-checkpoint raw messages.
+    - "messages_v is not the only source of truth for pagination or export completeness."
+    - Export metadata records complete, partial, failed_pages, message_count, checkpoint_count, and generated_at.
+  ui_states:
+    - Initial latest 40-message loading.
+    - Show older messages available for active full-opacity older pages.
+    - Loading older active messages.
+    - Compression summary visible at the active/forgotten boundary.
+    - Show old forgotten messages available for pre-checkpoint raw pages.
+    - Forgotten raw messages visible with reduced opacity and accessible text explaining they are no longer active AI context.
+    - Full-history export hydrating, complete, partial warning, and failed states.
+  privacy_security:
+    - Shared-chat URL fragment keys must never be sent to the server.
+    - Faded forgotten raw messages remain decrypted client-side only.
+    - Compression summaries and forgotten pages remain encrypted at rest and in transit until client decryption.
+    - Export/download must not include raw chat keys, master keys, share URL fragments, reusable credentials, or private tokens.
+    - Logs for messages_v mismatch must avoid plaintext message content and private user data.
+
+tests:
+  - id: T-BACKEND-COMPRESSION-TAIL
+    type: pytest
+    file: backend/tests/test_chat_compressor.py
+    command: python3 -m pytest backend/tests/test_chat_compressor.py
+    covers: [AC-4]
+    assertions:
+      - token threshold still triggers compression
+      - compression keeps the latest complete assistant response in full
+      - compression keeps the latest user follow-up/request in full when present
+      - no message-count-only trigger compresses a short-token chat
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        reason: Earlier red run was not retained before implementation; test now guards the regression and containerized green evidence is recorded.
+        timestamp: "2026-07-22T12:08:15Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: docker exec api python -m pytest /app/backend/tests/test_chat_compressor.py
+        run_id: docker-api-2026-07-22T12:22:32Z
+        subject_commit: "b058f8249f1e"
+        timestamp: "2026-07-22T12:22:32Z"
+        notes: 48 chat_compressor tests passed in the api container, including no message-count-only compression and latest assistant/follow-up tail retention.
+
+  - id: T-BACKEND-COMPRESSION-CHECKPOINTS
+    type: pytest
+    file: backend/tests/test_chat_compression_checkpoint_handler.py
+    command: python3 -m pytest backend/tests/test_chat_compression_checkpoint_handler.py
+    covers: [AC-2, AC-3]
+    assertions:
+      - checkpoint metadata identifies the active/forgotten boundary
+      - forgotten old-message pages are bounded to 40 messages by default
+      - checkpoint old-message access enforces owner/chat authorization
+      - pagination returns has_more/cursor metadata for additional forgotten pages
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        reason: Earlier red run was not retained before implementation; checkpoint paging regression coverage is now present and green evidence is recorded.
+        timestamp: "2026-07-22T12:08:15Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest backend/tests/test_chat_compressor.py backend/tests/test_chat_compression_checkpoint_handler.py backend/tests/test_share_chat_window_loading.py
+        run_id: local-2026-07-22T12:22:32Z
+        subject_commit: "b058f8249f1e"
+        timestamp: "2026-07-22T12:22:32Z"
+        summary: 8 checkpoint-handler tests passed; default forgotten pages are 40 messages and requests clamp to checkpoint boundaries.
+
+  - id: T-BACKEND-SHARE-WINDOWS
+    type: pytest
+    file: backend/tests/test_share_chat_window_loading.py
+    command: python3 -m pytest backend/tests/test_share_chat_window_loading.py
+    covers: [AC-5, AC-7]
+    assertions:
+      - shared manifest includes encrypted checkpoint/window metadata when shared checkpoints exist
+      - shared messages endpoint pages older active messages with limit 40
+      - shared messages endpoint pages forgotten checkpoint messages with limit 40
+      - shared pagination does not trust stale messages_v over durable rows
+      - unavailable shared chats preserve non-enumeration behavior
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        reason: Earlier red run was not retained before implementation; shared window/checkpoint regression coverage is now present and green evidence is recorded.
+        timestamp: "2026-07-22T12:08:15Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest backend/tests/test_chat_compressor.py backend/tests/test_chat_compression_checkpoint_handler.py backend/tests/test_share_chat_window_loading.py
+        run_id: local-2026-07-22T12:22:32Z
+        subject_commit: "b058f8249f1e"
+        timestamp: "2026-07-22T12:22:32Z"
+        summary: 10 shared-window tests passed, including encrypted checkpoint manifest data, forgotten checkpoint paging, and stale messages_v handling.
+
+  - id: T-BACKEND-MESSAGES-V-INTEGRITY
+    type: pytest
+    file: backend/tests/test_share_chat_window_loading.py
+    command: python3 -m pytest backend/tests/test_share_chat_window_loading.py -k messages_v
+    covers: [AC-7]
+    assertions:
+      - durable rows/cursors determine has_more when messages_v is stale
+      - integrity mismatch is visible through logs, metrics, or deterministic check output without plaintext content
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        reason: Earlier red run was not retained before implementation; durable-row/messages_v regression coverage is now present and green evidence is recorded through the shared window suite.
+        timestamp: "2026-07-22T12:08:15Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest backend/tests/test_share_chat_window_loading.py -k messages_v
+        run_id: local-2026-07-22T12:22:32Z
+        subject_commit: "b058f8249f1e"
+        timestamp: "2026-07-22T12:22:32Z"
+        summary: Covered by the full backend rerun; shared windows use durable message rows when messages_v is stale.
+
+  - id: T-VITEST-HISTORY-WINDOWS
+    type: vitest
+    file: frontend/packages/ui/src/services/db/__tests__/messageWindowOperations.test.ts
+    command: python3 scripts/run_tests.py --suite vitest
+    covers: [AC-1]
+    assertions:
+      - latest chat window returns 40 messages by default
+      - older active page returns the next older 40 messages
+      - active older pages are not marked forgotten
+      - scroll-anchor metadata is preserved for prepend operations
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        reason: Earlier red run was not retained before implementation; frontend unit coverage was added and will be proven by the post-commit Vitest dispatch.
+        timestamp: "2026-07-22T12:08:15Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: typecheck_passed_suite_unverified_on_dirty_worktree
+        command: bash scripts/lint_changed.sh
+        run_id: local-2026-07-22T11:36:00Z
+        subject_commit: 9500b0b9b913
+        timestamp: "2026-07-22T11:36:00Z"
+        summary: Added default latest-window and explicit older-page Vitest coverage; TypeScript check passed for messageWindowOperations.test.ts. Full Vitest dispatch runs committed HEAD only, so this remains unverified until deploy/commit.
+
+  - id: T-VITEST-CONTEXT-BUILDER
+    type: vitest
+    file: frontend/packages/ui/src/services/__tests__/chatContextCompression.test.ts
+    command: python3 scripts/run_tests.py --suite vitest
+    covers: [AC-3, AC-4]
+    assertions:
+      - active AI context includes latest checkpoint summary and retained full tail
+      - revealed forgotten messages are excluded from active AI context
+      - UI-only reveal state cannot mutate the outbound context payload
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        reason: Earlier red run was not retained before implementation; active-context separation is covered by backend compressor behavior and UI-only forgotten reveal coverage, with full Vitest proof pending post-commit dispatch.
+        timestamp: "2026-07-22T12:08:15Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: typecheck_passed_suite_unverified_on_dirty_worktree
+        command: bash scripts/lint_changed.sh
+        run_id: local-2026-07-22T11:36:00Z
+        subject_commit: 9500b0b9b913
+        timestamp: "2026-07-22T11:36:00Z"
+        summary: Added hydration/completeness/checkpoint YAML Vitest coverage; TypeScript check passed for chatExportService.test.ts. Full Vitest dispatch run 29915942308 still failed on unrelated chatSyncServiceHandlersAI window.addEventListener and did not prove uncommitted tests.
+
+  - id: T-VITEST-CHAT-EXPORT
+    type: vitest
+    file: frontend/packages/ui/src/services/__tests__/chatExportService.test.ts
+    command: python3 scripts/run_tests.py --suite vitest
+    covers: [AC-6]
+    assertions:
+      - per-chat export requests missing message pages before packaging
+      - export includes checkpoint summaries and forgotten messages in chronological order
+      - partial hydration produces explicit partial metadata and user-facing warning state
+      - export excludes raw keys, share fragments, and reusable secrets
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        reason: Earlier red run was not retained before implementation; export hydration unit coverage was added and will be proven by the post-commit Vitest dispatch.
+        timestamp: "2026-07-22T12:08:15Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+        command: "python3 scripts/tests.py run --suite vitest"
+        run_id: ""
+        subject_commit: "b058f8249f1e"
+        timestamp: ""
+
+  - id: T-WEB-LONG-CHAT-HISTORY
+    type: playwright
+    file: frontend/apps/web_app/tests/long-chat-history.spec.ts
+    command: python3 scripts/tests.py run --spec long-chat-history.spec.ts
+    target: app.dev.openmates.org
+    covers: [AC-1]
+    assertions:
+      - seeded deterministic long owner chat opens with latest 40 post-checkpoint messages
+      - Show older messages loads one older 40-message active page
+      - active older messages render at full opacity
+      - scroll position is preserved after prepending older messages
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        reason: New provider-free Playwright coverage was added during implementation; red run must target deployed app.dev.openmates.org and was not captured before the implementation changed.
+        timestamp: "2026-07-22T12:00:00Z"
+        summary: Added frontend/apps/web_app/tests/long-chat-history.spec.ts with a provider-free IndexedDB-seeded long chat fixture.
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: ""
+        command: ""
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+
+  - id: T-WEB-COMPRESSION-BOUNDARY
+    type: playwright
+    file: frontend/apps/web_app/tests/long-chat-history.spec.ts
+    command: python3 scripts/tests.py run --spec long-chat-history.spec.ts
+    target: app.dev.openmates.org
+    covers: [AC-2, AC-3]
+    assertions:
+      - compressed seeded chat shows summary and full-opacity active tail on open
+      - forgotten messages are hidden until Show old forgotten messages is clicked
+      - revealed forgotten messages render with reduced opacity and explanatory accessible text
+      - sending a follow-up does not include revealed forgotten raw messages in the active context payload
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        reason: New provider-free Playwright coverage was added during implementation; red run must target deployed app.dev.openmates.org and was not captured before the implementation changed.
+        timestamp: "2026-07-22T12:00:00Z"
+        summary: The deterministic Playwright fixture seeds a compression checkpoint and verifies faded forgotten-message reveal through the real UI without provider calls.
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: ""
+        command: ""
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+
+  - id: T-WEB-SHARED-HISTORY
+    type: playwright
+    file: frontend/apps/web_app/tests/shared-chat-open.spec.ts
+    command: python3 scripts/tests.py run --spec shared-chat-open.spec.ts
+    target: app.dev.openmates.org
+    covers: [AC-5]
+    assertions:
+      - shared chat opens with latest 40-message window
+      - Show older messages loads older shared active messages
+      - shared compression summary and faded forgotten-message reveal work when checkpoint metadata exists
+      - browser/server requests never include the URL fragment key
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        reason: A dedicated shared-chat Playwright red run was not captured before implementation; backend shared contract coverage is green and browser shared proof remains a post-deploy follow-up.
+        timestamp: "2026-07-22T12:08:15Z"
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: ""
+        command: ""
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+
+  - id: T-WEB-CHAT-DOWNLOAD
+    type: playwright
+    file: frontend/apps/web_app/tests/long-chat-history.spec.ts
+    command: python3 scripts/tests.py run --spec long-chat-history.spec.ts
+    target: app.dev.openmates.org
+    covers: [AC-6]
+    assertions:
+      - downloading a long chat hydrates more than the initially rendered 40 messages
+      - archive metadata marks complete when all pages hydrate
+      - simulated page failure shows partial warning and marks archive partial
+      - downloaded archive contains no raw keys or share fragments
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        reason: New provider-free Playwright coverage was added during implementation; red run must target deployed app.dev.openmates.org and was not captured before the implementation changed.
+        timestamp: "2026-07-22T12:00:00Z"
+        summary: The deterministic Playwright fixture downloads the seeded chat ZIP and parses export-metadata.json to verify hydrated message/checkpoint completeness.
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: ""
+        command: ""
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+
+  - id: T-REAL-LONG-CHAT-COMPRESSION
+    type: manual
+    covers: [AC-2, AC-3, AC-4, AC-6]
+    assertions:
+      - an on-demand CLI-created realistic long chat reaches the first compression checkpoint after enough real turns
+      - continuing the same chat reaches a second compression checkpoint without losing the latest assistant response or latest user follow-up
+      - the deployed web UI can open that real chat, load older active history, reveal faded forgotten history, and export with accurate completeness metadata
+      - the run records model/provider, approximate prompt/output token use, total cost estimate, chat id, checkpoint count, and whether it is cheap enough for any scheduled cadence
+    red_phase:
+      required: false
+      expected: not_applicable
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_on_demand_after_deploy
+      evidence:
+        status: ""
+        command: ""
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+
+verifications:
+  - id: V-PRODUCT-CONTRACT-APPROVAL
+    kind: user_confirmation
+    phase: final
+    required_for_done: true
+    covers: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7]
+    status: passed
+    evidence:
+      status: passed
+      reason: User reviewed the example flows and instructed OpenCode to fully implement and test the spec.
+      summary: User reviewed the example flows and instructed OpenCode to fully implement and test the spec.
+      timestamp: "2026-07-22"
+  - id: V-USER-CONFIRMATION
+    kind: user_confirmation
+    phase: final
+    required_for_done: true
+    covers: [AC-1, AC-2, AC-3, AC-5, AC-6]
+    status: pending
+    evidence:
+      status: ""
+      summary: ""
+      timestamp: ""
+  - id: V-REAL-COMPRESSION-COST-REVIEW
+    kind: manual_check
+    phase: final
+    required_for_done: true
+    covers: [AC-2, AC-3, AC-4, AC-6]
+    status: pending
+    evidence:
+      status: ""
+      summary: "After the on-demand real long-chat run, record actual/estimated provider cost and decide whether any scheduled cadence is acceptable. Default remains not daily."
+      timestamp: ""
+  - id: V-APPLE-STATUS
+    kind: manual_check
+    phase: final
+    required_for_done: false
+    covers: [AC-1, AC-2, AC-3, AC-5, AC-6]
+    status: pending
+    evidence:
+      status: ""
+      summary: "Run apple_remote status/build or record approved native deferral after web confirmation."
+      timestamp: ""
+
+implementation_plan:
+  spec_path: docs/specs/long-chat-compression-history/spec.yml
+  existing_patterns:
+    - docs/specs/scalable-chat-embed-loading/spec.yml
+    - frontend/packages/ui/src/services/db/messageOperations.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - backend/core/api/app/routes/handlers/websocket_handlers/chat_compression_checkpoint_handler.py
+    - backend/core/api/app/routes/share.py
+  architecture: >
+    Keep message windows, compression context, forgotten-message reveal state, and
+    export hydration as separate layers. Backend/share APIs provide encrypted
+    bounded pages and checkpoint metadata; frontend state marks each rendered row
+    as active or forgotten; AI context construction ignores visual-only forgotten
+    rows; export/download performs explicit hydration before packaging.
+  data_flow:
+    - Chat opens and requests latest 40-message active window plus latest checkpoint metadata.
+    - Show older messages prepends the next active 40-message page until a checkpoint boundary or no older active messages remains.
+    - Show old forgotten messages requests checkpoint-bound forgotten pages and marks returned rows as forgotten for rendering only.
+    - Compression runs on token pressure, persists encrypted checkpoint summary, and retains the latest assistant/user tail in full context.
+    - Download asks the hydration layer for all active and forgotten pages before calling ZIP/YAML serializers.
+  affected_files:
+    - path: backend/apps/ai/processing/chat_compressor.py
+      reason: Retained-tail compression contract and tests.
+    - path: backend/apps/ai/tasks/ask_skill_task.py
+      reason: Compression trigger/context boundary integration if needed.
+    - path: backend/core/api/app/routes/share.py
+      reason: Shared checkpoint/window manifest support.
+    - path: backend/core/api/app/routes/handlers/websocket_handlers/chat_compression_checkpoint_handler.py
+      reason: Forgotten-message paging and boundary metadata.
+    - path: frontend/packages/ui/src/components/ActiveChat.svelte
+      reason: Owner/shared loading, reveal state, export hydration entry points.
+    - path: frontend/packages/ui/src/components/ChatHistory.svelte
+      reason: Buttons, faded forgotten messages, scroll anchoring, accessibility text.
+    - path: frontend/packages/ui/src/services/db/messageOperations.ts
+      reason: Window paging and durable completeness reads.
+    - path: frontend/packages/ui/src/services/chatExportService.ts
+      reason: Full-history export hydration and partial metadata.
+    - path: frontend/packages/ui/src/services/zipExportService.ts
+      reason: ZIP archive completeness metadata and secret-safe packaging.
+  verification_strategy:
+    - python3 scripts/spec_validate.py docs/specs/long-chat-compression-history/spec.yml
+    - backend pytest red/green for compression, checkpoints, shared windows, and messages_v integrity
+    - vitest red/green for frontend window state, active context construction, and export hydration
+    - deploy before Playwright green runs against app.dev.openmates.org
+    - on-demand real CLI long-chat compression run after deploy, with measured checkpoint behavior and cost review before any recurring schedule
+    - user confirms deployed web UI semantics and visual quality
+    - Apple parity or deferral after user confirmation
+  verification_order:
+    - Direct backend/WebSocket/share contract tests first, with access model and encryption-boundary checks.
+    - Frontend unit/Vitest tests for local state, rendering semantics, and export hydration second.
+    - Web Playwright tests after deployment third, using deterministic provider-free fixtures for regular regression coverage.
+    - Real CLI long-chat compression validation fourth, on demand only and not part of daily tests unless the recorded cost review explicitly approves a cadence.
+    - User confirmation fifth.
+    - Apple status/build or documented deferral last.
+
+tasks:
+  - id: TASK-1
+    title: Approve product contract and expand implementation plan
+    status: done
+    phase: awaiting_approval
+    covers:
+      scenarios: [S-1, S-2, S-3, S-4, S-5, S-6, S-7]
+      acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7]
+    expected_files:
+      - docs/specs/long-chat-compression-history/spec.yml
+    verification: [V-PRODUCT-CONTRACT-APPROVAL]
+    verification_ids: [V-PRODUCT-CONTRACT-APPROVAL]
+    dependencies: []
+    ownership:
+      files:
+        - docs/specs/long-chat-compression-history/spec.yml
+      shared_files: []
+    blockers:
+      - Product contract awaits user approval.
+    follow_up_tasks: [TASK-2]
+    independently_deployable: false
+  - id: TASK-2
+    title: Add red backend and frontend tests for history/compression/export boundaries
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios: [S-1, S-2, S-3, S-4, S-5, S-6, S-7]
+      acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7]
+    expected_files:
+      - backend/tests/test_chat_compressor.py
+      - backend/tests/test_chat_compression_checkpoint_handler.py
+      - backend/tests/test_share_chat_window_loading.py
+      - frontend/packages/ui/src/services/__tests__/chatExportService.test.ts
+      - frontend/apps/web_app/tests/long-chat-history.spec.ts
+    verification: [T-BACKEND-COMPRESSION-TAIL, T-BACKEND-COMPRESSION-CHECKPOINTS, T-BACKEND-SHARE-WINDOWS, T-BACKEND-MESSAGES-V-INTEGRITY, T-VITEST-HISTORY-WINDOWS, T-VITEST-CONTEXT-BUILDER, T-VITEST-CHAT-EXPORT, T-WEB-LONG-CHAT-HISTORY, T-WEB-COMPRESSION-BOUNDARY, T-WEB-SHARED-HISTORY, T-WEB-CHAT-DOWNLOAD]
+    verification_ids: [T-BACKEND-COMPRESSION-TAIL, T-BACKEND-COMPRESSION-CHECKPOINTS, T-BACKEND-SHARE-WINDOWS, T-BACKEND-MESSAGES-V-INTEGRITY, T-VITEST-HISTORY-WINDOWS, T-VITEST-CONTEXT-BUILDER, T-VITEST-CHAT-EXPORT, T-WEB-LONG-CHAT-HISTORY, T-WEB-COMPRESSION-BOUNDARY, T-WEB-SHARED-HISTORY, T-WEB-CHAT-DOWNLOAD]
+    dependencies: [TASK-1]
+    ownership:
+      files:
+        - backend/tests/test_chat_compressor.py
+        - backend/tests/test_chat_compression_checkpoint_handler.py
+        - backend/tests/test_share_chat_window_loading.py
+        - frontend/packages/ui/src/services/__tests__/chatExportService.test.ts
+        - frontend/apps/web_app/tests/long-chat-history.spec.ts
+      shared_files:
+        - frontend/apps/web_app/tests/shared-chat-open.spec.ts
+        - frontend/apps/web_app/tests/chat-management-flow.spec.ts
+    blockers: []
+    follow_up_tasks: [TASK-3]
+    independently_deployable: false
+  - id: TASK-3
+    title: Implement backend compression tail and shared/checkpoint paging contracts
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios: [S-2, S-3, S-4, S-5, S-7]
+      acceptance_criteria: [AC-2, AC-3, AC-4, AC-5, AC-7]
+    expected_files:
+      - backend/apps/ai/processing/chat_compressor.py
+      - backend/core/api/app/routes/share.py
+      - backend/core/api/app/routes/handlers/websocket_handlers/chat_compression_checkpoint_handler.py
+    verification: [T-BACKEND-COMPRESSION-TAIL, T-BACKEND-COMPRESSION-CHECKPOINTS, T-BACKEND-SHARE-WINDOWS, T-BACKEND-MESSAGES-V-INTEGRITY]
+    verification_ids: [T-BACKEND-COMPRESSION-TAIL, T-BACKEND-COMPRESSION-CHECKPOINTS, T-BACKEND-SHARE-WINDOWS, T-BACKEND-MESSAGES-V-INTEGRITY]
+    dependencies: [TASK-2]
+    ownership:
+      files:
+        - backend/apps/ai/processing/chat_compressor.py
+        - backend/core/api/app/routes/share.py
+        - backend/core/api/app/routes/handlers/websocket_handlers/chat_compression_checkpoint_handler.py
+      shared_files:
+        - backend/apps/ai/tasks/ask_skill_task.py
+    blockers: []
+    follow_up_tasks: [TASK-4]
+    independently_deployable: false
+  - id: TASK-4
+    title: Implement web history boundary rendering and active-context separation
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios: [S-1, S-2, S-3, S-5]
+      acceptance_criteria: [AC-1, AC-2, AC-3, AC-5]
+    expected_files:
+      - frontend/packages/ui/src/components/ActiveChat.svelte
+      - frontend/packages/ui/src/components/ChatHistory.svelte
+      - frontend/packages/ui/src/services/db/messageOperations.ts
+    verification: [T-VITEST-HISTORY-WINDOWS, T-VITEST-CONTEXT-BUILDER]
+    verification_ids: [T-VITEST-HISTORY-WINDOWS, T-VITEST-CONTEXT-BUILDER]
+    dependencies: [TASK-3]
+    ownership:
+      files:
+        - frontend/packages/ui/src/components/ActiveChat.svelte
+        - frontend/packages/ui/src/components/ChatHistory.svelte
+        - frontend/packages/ui/src/services/db/messageOperations.ts
+      shared_files: []
+    blockers: []
+    follow_up_tasks: [TASK-5]
+    independently_deployable: false
+  - id: TASK-5
+    title: Implement full-history per-chat download hydration
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios: [S-6]
+      acceptance_criteria: [AC-6]
+    expected_files:
+      - frontend/packages/ui/src/services/chatExportService.ts
+      - frontend/packages/ui/src/services/zipExportService.ts
+      - frontend/packages/ui/src/components/chats/Chat.svelte
+      - frontend/packages/ui/src/components/chats/ChatDetailsSettingsPage.svelte
+    verification: [T-VITEST-CHAT-EXPORT]
+    verification_ids: [T-VITEST-CHAT-EXPORT]
+    dependencies: [TASK-4]
+    ownership:
+      files:
+        - frontend/packages/ui/src/services/chatExportService.ts
+        - frontend/packages/ui/src/services/zipExportService.ts
+        - frontend/packages/ui/src/components/chats/Chat.svelte
+        - frontend/packages/ui/src/components/chats/ChatDetailsSettingsPage.svelte
+      shared_files: []
+    blockers: []
+    follow_up_tasks: [TASK-6]
+    independently_deployable: false
+  - id: TASK-6
+    title: Deploy and run web/user/Apple verification gates
+    status: in_progress
+    phase: running_checks
+    covers:
+      scenarios: [S-1, S-2, S-3, S-5, S-6]
+      acceptance_criteria: [AC-1, AC-2, AC-3, AC-5, AC-6]
+    expected_files:
+      - frontend/apps/web_app/tests/long-chat-history.spec.ts
+      - frontend/apps/web_app/tests/shared-chat-open.spec.ts
+      - frontend/apps/web_app/tests/chat-management-flow.spec.ts
+    verification: [T-WEB-LONG-CHAT-HISTORY, T-WEB-COMPRESSION-BOUNDARY, T-WEB-SHARED-HISTORY, T-WEB-CHAT-DOWNLOAD, T-REAL-LONG-CHAT-COMPRESSION, V-REAL-COMPRESSION-COST-REVIEW, V-USER-CONFIRMATION, V-APPLE-STATUS]
+    verification_ids: [T-WEB-LONG-CHAT-HISTORY, T-WEB-COMPRESSION-BOUNDARY, T-WEB-SHARED-HISTORY, T-WEB-CHAT-DOWNLOAD, T-REAL-LONG-CHAT-COMPRESSION, V-REAL-COMPRESSION-COST-REVIEW, V-USER-CONFIRMATION, V-APPLE-STATUS]
+    dependencies: [TASK-3, TASK-4, TASK-5]
+    ownership:
+      files:
+        - frontend/apps/web_app/tests/long-chat-history.spec.ts
+        - frontend/apps/web_app/tests/shared-chat-open.spec.ts
+        - frontend/apps/web_app/tests/chat-management-flow.spec.ts
+      shared_files: []
+    blockers:
+      - Requires deployment before Playwright green evidence.
+      - Requires one on-demand real CLI long-chat compression run and cost review before final verification.
+      - Requires user confirmation before Apple parity or deferral is complete.
+    follow_up_tasks: []
+    independently_deployable: false
+
+risks:
+  - id: R-1
+    risk: Shared checkpoint metadata may require careful key-envelope handling to avoid weakening share-link encryption boundaries.
+    mitigation: Keep all checkpoint summaries/messages encrypted and prove fragment keys are never sent in shared Playwright/network tests.
+  - id: R-2
+    risk: Faded forgotten messages may be visually too subtle or inaccessible.
+    mitigation: Pair opacity with accessible explanatory text and user confirmation on deployed dev UI.
+  - id: R-3
+    risk: Export hydration can be slow for very large chats.
+    mitigation: Use bounded pages, visible progress, and explicit partial-export handling instead of blocking silently or exporting false-complete archives.
+  - id: R-4
+    risk: Existing chats with no checkpoints, stale messages_v, or partial local IndexedDB state may expose inconsistent has_more behavior.
+    mitigation: Use durable cursors/rows for completeness checks and add integrity tests/logs for mismatches.
+
+open_questions:
+  - id: OQ-1
+    status: resolved
+    question: Should message-count compression be included now?
+    answer: No, token-triggered compression only for this slice.
+  - id: OQ-2
+    status: resolved
+    question: Should revealed forgotten messages re-enter active AI context?
+    answer: No, they are visual-only and faded.
+  - id: OQ-3
+    status: pending
+    question: What exact copy should label the two buttons and explain faded forgotten messages?
+    recommendation: Use concise UI copy during implementation and confirm visually on dev.

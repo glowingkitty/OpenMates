@@ -253,6 +253,20 @@ describe("shouldUpdateMessage", () => {
 });
 
 describe("getMessageWindowForChat", () => {
+  it("uses the 40-message default for latest windows", async () => {
+    vi.stubGlobal("IDBKeyRange", TestKeyRange);
+    const db = makeDb(makeMessages(101));
+
+    const result = await getMessageWindowForChat(db as never, "chat-window");
+
+    expect(result.messages).toHaveLength(40);
+    expect(result.messages[0]?.message_id).toBe("msg-62");
+    expect(result.messages[result.messages.length - 1]?.message_id).toBe("msg-101");
+    expect(result.hasMoreBefore).toBe(true);
+    expect(result.hasMoreAfter).toBe(false);
+    expect(db.decryptMessageFields).toHaveBeenCalledTimes(40);
+  });
+
   it("returns a bounded latest window without decrypting the whole chat", async () => {
     vi.stubGlobal("IDBKeyRange", TestKeyRange);
     const db = makeDb(makeMessages(1000));
@@ -268,6 +282,26 @@ describe("getMessageWindowForChat", () => {
     expect(result.hasMoreBefore).toBe(true);
     expect(result.hasMoreAfter).toBe(false);
     expect(db.decryptMessageFields).toHaveBeenCalledTimes(40);
+  });
+
+  it("loads the next older active page behind an explicit cursor", async () => {
+    vi.stubGlobal("IDBKeyRange", TestKeyRange);
+    const db = makeDb(makeMessages(101));
+
+    const latest = await getMessageWindowForChat(db as never, "chat-window");
+    const older = await getMessageWindowForChat(db as never, "chat-window", {
+      direction: "before",
+      beforeTimestamp: latest.startCursor ?? undefined,
+      beforeMessageId: latest.startCursorMessageId ?? undefined,
+    });
+
+    expect(older.messages).toHaveLength(40);
+    expect(older.messages.map((message) => message.message_id)).toEqual(
+      Array.from({ length: 40 }, (_, index) => `msg-${22 + index}`),
+    );
+    expect(older.hasMoreBefore).toBe(true);
+    expect(older.hasMoreAfter).toBe(true);
+    expect(older.messages.some((message) => message.created_at >= latest.startCursor!)).toBe(false);
   });
 
   it("returns a bounded target-message window around the anchor", async () => {

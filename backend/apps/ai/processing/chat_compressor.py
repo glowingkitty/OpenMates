@@ -148,6 +148,8 @@ def split_history_for_compression(
     if not message_history:
         return [], []
 
+    protected_tail_start = _find_latest_assistant_tail_start(message_history)
+
     # Walk backwards to find the split point
     accumulated_tokens = 0
     split_index = len(message_history)
@@ -178,6 +180,9 @@ def split_history_for_compression(
         accumulated_tokens += msg_tokens
         split_index = i
 
+    if protected_tail_start is not None:
+        split_index = min(split_index, protected_tail_start)
+
     # Split the history
     messages_to_compress = message_history[:split_index]
     recent_messages = [
@@ -192,6 +197,21 @@ def split_history_for_compression(
     )
 
     return messages_to_compress, recent_messages
+
+
+def _find_latest_assistant_tail_start(message_history: List[Dict[str, Any]]) -> Optional[int]:
+    """Return the index of the latest assistant response that must stay in full.
+
+    The visible forgotten-message UI is separate from active AI context. After a
+    token-triggered compression, the model still needs the latest full assistant
+    response plus any user follow-up messages after it so immediate replies stay
+    grounded even when those messages exceed the normal recent-window token budget.
+    """
+    for index in range(len(message_history) - 1, -1, -1):
+        msg = message_history[index]
+        if msg.get("role") == "assistant":
+            return index
+    return None
 
 
 def _find_existing_summary(messages: List[Dict[str, Any]]) -> Optional[str]:

@@ -13,6 +13,7 @@ import type { Chat, Message } from "../types/chat";
 import {
   convertChatToYaml,
   generateChatFilename,
+  hydrateChatForExport,
   type PIIExportOptions,
 } from "./chatExportService";
 import {
@@ -1366,12 +1367,20 @@ export async function downloadChatAsZip(
     const filename = await generateChatFilename(chat, "");
     const filenameWithoutExt = filename.replace(/\.[^.]+$/, "");
 
+    const hydrated = await hydrateChatForExport(chat, messages);
+    messages = hydrated.messages;
+    if (hydrated.completeness.status === "partial") {
+      console.warn("[ZipExportService] Export is partial:", hydrated.completeness.warnings);
+    }
+    zip.file("export-metadata.json", JSON.stringify(hydrated.completeness, null, 2));
+
     // Add YAML file, respecting PII visibility
     const yamlContent = await convertChatToYaml(
       chat,
       messages,
       false,
       piiOptions,
+      hydrated,
     );
     zip.file(`${filenameWithoutExt}.yml`, yamlContent);
 

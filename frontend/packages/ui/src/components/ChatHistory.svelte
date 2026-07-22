@@ -69,6 +69,7 @@
   import { extractSearchResultsFromContent } from './embeds/embedPreviewHydration';
   import { chatDB } from '../services/db';
   import { webSocketService } from '../services/websocketService';
+  import { getApiEndpoint } from '../config/api';
   import { activeChatStore } from '../stores/activeChatStore';
   import { reportIssueStore } from '../stores/reportIssueStore';
   import { settingsDeepLink } from '../stores/settingsDeepLinkStore';
@@ -664,10 +665,26 @@
   let showForgottenMessages = $state(false);
   let oldCompressedMessages = $state<GlobalMessage[]>([]);
   let oldCompressedMessagesLoading = $state(false);
+  let oldCompressedMessagesHasMore = $state(false);
+  let oldCompressedMessagesNextBeforeTimestamp = $state<number | null>(null);
+  let oldCompressedMessagesNextBeforeMessageId = $state<string | null>(null);
+  let oldCompressedMessagesCheckpointId = $state<string | null>(null);
+  const LOCAL_FORGOTTEN_CURSOR_SENTINEL = '\uffff';
 
   let latestCompressionCheckpoint = $derived.by(() => {
     if (!compressionCheckpoints || compressionCheckpoints.length === 0) return null;
     return [...compressionCheckpoints].sort((a, b) => b.created_at - a.created_at)[0];
+  });
+
+  $effect(() => {
+    const checkpointId = latestCompressionCheckpoint?.id ?? null;
+    if (checkpointId === oldCompressedMessagesCheckpointId) return;
+    oldCompressedMessagesCheckpointId = checkpointId;
+    oldCompressedMessages = [];
+    oldCompressedMessagesHasMore = false;
+    oldCompressedMessagesNextBeforeTimestamp = null;
+    oldCompressedMessagesNextBeforeMessageId = null;
+    showForgottenMessages = false;
   });
 
   function makeCompressionSummaryMessage(checkpoint: ChatCompressionCheckpoint): InternalMessage {
@@ -814,21 +831,108 @@
       return;
     }
     if (!showForgottenMessages && oldCompressedMessages.length === 0) {
-      oldCompressedMessagesLoading = true;
+      await loadForgottenMessagePage();
+    }
+    showForgottenMessages = !showForgottenMessages;
+  }
+
+  async function loadForgottenMessagePage(): Promise<void> {
+    if (!latestCompressionCheckpoint || oldCompressedMessagesLoading) return;
+    oldCompressedMessagesLoading = true;
+    const beforeTimestamp = oldCompressedMessagesNextBeforeTimestamp ?? latestCompressionCheckpoint.compressed_up_to_timestamp;
+    const beforeMessageId = oldCompressedMessagesNextBeforeMessageId ?? undefined;
+    try {
+      if (isSharedChat) {
+        const params = new URLSearchParams({
+          checkpoint_id: latestCompressionCheckpoint.id,
+          before_timestamp: String(beforeTimestamp),
+          limit: '40',
+        });
+        if (beforeMessageId) params.set('before_message_id', beforeMessageId);
+        const response = await fetch(getApiEndpoint(`/v1/share/chat/${latestCompressionCheckpoint.chat_id}/messages?${params.toString()}`));
+        if (!response.ok) throw new Error(`Shared forgotten-message fetch failed: ${response.status}`);
+        await handleOldMessagesResponse(await response.json() as {
+          chat_id: string;
+          checkpoint_id: string;
+          messages?: Array<string | GlobalMessage>;
+          has_more?: boolean;
+          next_before_timestamp?: number | null;
+          next_before_message_id?: string | null;
+        });
+        return;
+      }
+      const servedFromLocalHistory = await loadLocalForgottenMessagePage(beforeTimestamp, beforeMessageId);
+      if (servedFromLocalHistory) {
+        oldCompressedMessagesLoading = false;
+        return;
+      }
       await webSocketService.sendMessage('get_compressed_chat_old_messages', {
         chat_id: latestCompressionCheckpoint.chat_id,
         checkpoint_id: latestCompressionCheckpoint.id,
-        before_timestamp: latestCompressionCheckpoint.compressed_up_to_timestamp,
-        limit: 250,
+        before_timestamp: beforeTimestamp,
+        before_message_id: beforeMessageId,
+        limit: 40,
       });
+    } catch (error) {
+      oldCompressedMessagesLoading = false;
+      console.warn('[ChatHistory] Failed to load forgotten messages', error);
     }
-    showForgottenMessages = !showForgottenMessages;
+  }
+
+  async function loadLocalForgottenMessagePage(
+    beforeTimestamp: number,
+    beforeMessageId: string | undefined,
+  ): Promise<boolean> {
+    if (!latestCompressionCheckpoint) return false;
+    try {
+      const window = await chatDB.getMessageWindowForChat(latestCompressionCheckpoint.chat_id, {
+        direction: 'before',
+        beforeTimestamp,
+        beforeMessageId: beforeMessageId ?? LOCAL_FORGOTTEN_CURSOR_SENTINEL,
+        limit: 40,
+      });
+      const messagesBeforeBoundary = window.messages.filter(
+        (message) => message.created_at <= latestCompressionCheckpoint!.compressed_up_to_timestamp,
+      );
+      if (messagesBeforeBoundary.length === 0) return false;
+
+      const existingIds = new Set(oldCompressedMessages.map((message) => message.message_id));
+      const newMessages = messagesBeforeBoundary.filter((message) => !existingIds.has(message.message_id));
+      oldCompressedMessages = [...newMessages, ...oldCompressedMessages].sort(
+        (a, b) => a.created_at - b.created_at || a.message_id.localeCompare(b.message_id),
+      );
+      oldCompressedMessagesHasMore = window.hasMoreBefore;
+      oldCompressedMessagesNextBeforeTimestamp = window.startCursor;
+      oldCompressedMessagesNextBeforeMessageId = window.startCursorMessageId;
+      return true;
+    } catch (error) {
+      console.warn('[ChatHistory] Failed to read local forgotten messages', error);
+      return false;
+    }
+  }
+
+  function requestOlderMessages(): void {
+    if (!hasOlderMessages || olderMessagesLoading || messages.length === 0) return;
+    dispatch('loadOlderMessages', {
+      beforeTimestamp: messages[0].created_at,
+      beforeMessageId: messages[0].message_id,
+      firstMessageId: messages[0].message_id,
+    });
+  }
+
+  function isForgottenMessage(msg: InternalMessage): boolean {
+    if (!latestCompressionCheckpoint) return false;
+    if (msg.role === 'system' && msg.category === 'compression_summary') return false;
+    return (msg.original_message?.created_at ?? 0) <= latestCompressionCheckpoint.compressed_up_to_timestamp;
   }
 
   async function handleOldMessagesResponse(payload: {
     chat_id: string;
     checkpoint_id: string;
     messages?: Array<string | GlobalMessage>;
+    has_more?: boolean;
+    next_before_timestamp?: number | null;
+    next_before_message_id?: string | null;
   }): Promise<void> {
     if (!latestCompressionCheckpoint || payload.checkpoint_id !== latestCompressionCheckpoint.id) return;
     const prepared: GlobalMessage[] = [];
@@ -852,7 +956,14 @@
         console.warn('[ChatHistory] Failed to decrypt compressed old message', message.message_id, error);
       }
     }
-    oldCompressedMessages = prepared;
+    const existingIds = new Set(oldCompressedMessages.map((message) => message.message_id));
+    oldCompressedMessages = [
+      ...prepared.filter((message) => !existingIds.has(message.message_id)),
+      ...oldCompressedMessages,
+    ].sort((a, b) => a.created_at - b.created_at || a.message_id.localeCompare(b.message_id));
+    oldCompressedMessagesHasMore = !!payload.has_more;
+    oldCompressedMessagesNextBeforeTimestamp = payload.next_before_timestamp ?? null;
+    oldCompressedMessagesNextBeforeMessageId = payload.next_before_message_id ?? null;
     oldCompressedMessagesLoading = false;
   }
 
@@ -955,6 +1066,8 @@
     followUpSuggestions = [],
     quickTipSlugs = [],
     compressionCheckpoints = [],
+    hasOlderMessages = false,
+    olderMessagesLoading = false,
     onSuggestionClick = undefined,
     onChatNavigate = undefined,
     canAnnotate = true,
@@ -1028,6 +1141,8 @@
     onSuggestionClick?: (suggestion: string) => void;
     onChatNavigate?: (chatId: string) => Promise<void> | void;
     compressionCheckpoints?: ChatCompressionCheckpoint[];
+    hasOlderMessages?: boolean;
+    olderMessagesLoading?: boolean;
   } = $props();
 
   async function navigateToChat(chatId: string): Promise<void> {
@@ -2104,7 +2219,6 @@
   let scrollDebounceTimer: ReturnType<typeof setTimeout> | null = null;
   let isRestoringScroll = false;
   let scrollFrame: number | null = null;
-  let olderWindowRequestInFlight = false;
 
   // Track scroll position with optimized performance using requestAnimationFrame
   // This ensures smooth scrolling without blocking the main thread
@@ -2162,17 +2276,6 @@
     
     // Dispatch immediate event for UI state changes (button visibility)
     dispatch('scrollPositionUI', { isAtBottom: isAtBottomLocal, isAtTop: isAtTopLocal });
-    if (isAtTopLocal && !olderWindowRequestInFlight && messages.length > 0) {
-      olderWindowRequestInFlight = true;
-      dispatch('loadOlderMessages', {
-        beforeTimestamp: messages[0].created_at,
-        beforeMessageId: messages[0].message_id,
-        firstMessageId: messages[0].message_id,
-      });
-      setTimeout(() => {
-        olderWindowRequestInFlight = false;
-      }, 500);
-    }
   }
 
   // Find the last message that's currently visible in viewport
@@ -2483,6 +2586,7 @@
               <div class="forgotten-messages-toggle">
                 <button
                   class="forgotten-messages-btn"
+                  data-testid="show-forgotten-messages"
                   onclick={() => { void toggleForgottenMessages(); }}
                 >
                   {showForgottenMessages
@@ -2491,6 +2595,34 @@
                   {#if !showForgottenMessages && forgottenMessages.length > 0}
                     <span class="forgotten-count">({forgottenMessages.length})</span>
                   {/if}
+                </button>
+                {#if showForgottenMessages && oldCompressedMessagesHasMore}
+                  <button
+                    class="forgotten-messages-btn secondary"
+                    data-testid="show-more-forgotten-messages"
+                    onclick={() => { void loadForgottenMessagePage(); }}
+                    disabled={oldCompressedMessagesLoading}
+                  >
+                    {oldCompressedMessagesLoading ? $text('chat.compression.loading_messages') : $text('chat.compression.show_more_forgotten')}
+                  </button>
+                {/if}
+                {#if showForgottenMessages && forgottenMessages.length > 0}
+                  <p class="forgotten-messages-note" id="forgotten-messages-note">
+                    {$text('chat.compression.forgotten_note')}
+                  </p>
+                {/if}
+              </div>
+            {/if}
+
+            {#if hasOlderMessages}
+              <div class="older-messages-toggle">
+                <button
+                  class="older-messages-btn"
+                  data-testid="show-older-messages"
+                  onclick={requestOlderMessages}
+                  disabled={olderMessagesLoading}
+                >
+                  {olderMessagesLoading ? $text('chat.compression.loading_messages') : $text('chat.history.show_older_messages')}
                 </button>
               </div>
             {/if}
@@ -2504,11 +2636,14 @@
                      to prevent visual glitches when content height changes rapidly.
                      Duration 0 effectively disables the animation without removing the directive. -->
                 <div class="message-wrapper {msg.role === 'system' ? 'system' : (msg.role === 'user' ? 'user' : 'assistant')}"
-                     class:target-message={$messageHighlightStore === msg.id}
-                     data-testid="message-{msg.role === 'system' ? 'system' : (msg.role === 'user' ? 'user' : 'assistant')}"
-                     data-message-id={msg.id}
-                     style={`
-                          opacity: ${latestCompressionCheckpoint && (msg.original_message?.created_at ?? 0) <= latestCompressionCheckpoint.compressed_up_to_timestamp ? 0.6 : (($editMessageStore && $editMessageStore.chatId === currentChatId && (msg.original_message?.created_at ?? 0) >= $editMessageStore.createdAt) ? 0.4 : (msg.status === 'sending' ? 0.5 : (msg.status === 'failed' ? 0.7 : 1)))};
+                      class:target-message={$messageHighlightStore === msg.id}
+                      class:forgotten-message={isForgottenMessage(msg)}
+                      data-testid="message-{msg.role === 'system' ? 'system' : (msg.role === 'user' ? 'user' : 'assistant')}"
+                      data-forgotten={isForgottenMessage(msg) ? 'true' : 'false'}
+                      data-message-id={msg.id}
+                      aria-describedby={isForgottenMessage(msg) ? 'forgotten-messages-note' : undefined}
+                      style={`
+                           opacity: ${isForgottenMessage(msg) ? 0.6 : (($editMessageStore && $editMessageStore.chatId === currentChatId && (msg.original_message?.created_at ?? 0) >= $editMessageStore.createdAt) ? 0.4 : (msg.status === 'sending' ? 0.5 : (msg.status === 'failed' ? 0.7 : 1)))};
                          ${($editMessageStore && $editMessageStore.chatId === currentChatId && (msg.original_message?.created_at ?? 0) >= $editMessageStore.createdAt) ? 'pointer-events: none;' : ''}
                          ${msg.status === 'failed' ? 'border: 1px solid var(--color-error); border-radius: 12px; padding: 2px;' : ''}
                      `}
@@ -3038,11 +3173,15 @@
      Appears above the message list when a compression summary exists. */
   .forgotten-messages-toggle {
     display: flex;
+    flex-direction: column;
+    align-items: center;
     justify-content: center;
+    gap: var(--spacing-2);
     padding: 8px 0 4px;
   }
 
-  .forgotten-messages-btn {
+  .forgotten-messages-btn,
+  .older-messages-btn {
     display: inline-flex;
     align-items: center;
     gap: var(--spacing-2);
@@ -3057,9 +3196,31 @@
     transition: background-color var(--duration-fast) var(--easing-default), color var(--duration-fast) var(--easing-default);
   }
 
-  .forgotten-messages-btn:hover {
+  .forgotten-messages-btn:hover,
+  .older-messages-btn:hover {
     background: var(--color-grey-20, rgba(255, 255, 255, 0.08));
     color: var(--color-grey-80, #ccc);
+  }
+
+  .forgotten-messages-btn:disabled,
+  .older-messages-btn:disabled {
+    cursor: wait;
+    opacity: 0.6;
+  }
+
+  .forgotten-messages-note {
+    margin: 0;
+    max-width: min(520px, calc(100vw - 48px));
+    color: var(--color-grey-60, #8a8a8a);
+    font-size: var(--font-size-xxs);
+    line-height: 1.35;
+    text-align: center;
+  }
+
+  .older-messages-toggle {
+    display: flex;
+    justify-content: center;
+    padding: 8px 0 4px;
   }
 
   .forgotten-count {

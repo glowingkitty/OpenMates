@@ -144,6 +144,18 @@
 		updated_at: number;
 	};
 
+	type ShareChatCompressionCheckpoint = {
+		id: string;
+		chat_id: string;
+		encrypted_summary?: string;
+		compressed_up_to_timestamp?: number;
+		compressed_message_count?: number;
+		summary_token_estimate?: number;
+		key_version?: number | null;
+		created_at?: number;
+		updated_at?: number;
+	};
+
 	type ShareChatPayload = {
 		chat_id?: string;
 		encrypted_title?: string | null;
@@ -157,6 +169,7 @@
 		sub_chats?: ShareChatSubChat[];
 		code_run_outputs?: ShareChatCodeRunOutput[];
 		message_highlights?: ShareChatHighlight[];
+		compression_checkpoints?: ShareChatCompressionCheckpoint[];
 		share_pii?: boolean;
 		share_highlights?: boolean;
 		message_window?: { has_more?: boolean; next_before_timestamp?: number | null; next_before_message_id?: string | null };
@@ -218,6 +231,7 @@
 		embed_keys: ShareChatEmbedKey[];
 		code_run_outputs: ShareChatCodeRunOutput[];
 		message_highlights: ShareChatHighlight[];
+		compression_checkpoints: ShareChatCompressionCheckpoint[];
 	}> {
 		try {
 			let data: ShareChatPayload;
@@ -410,11 +424,12 @@
 				embeds: (data.embeds || []) as ShareChatEmbedLike[],
 				embed_keys: (data.embed_keys || []) as ShareChatEmbedKey[],
 				code_run_outputs: (data.code_run_outputs || []) as ShareChatCodeRunOutput[],
-				message_highlights: (data.message_highlights || []) as ShareChatHighlight[]
+				message_highlights: (data.message_highlights || []) as ShareChatHighlight[],
+				compression_checkpoints: (data.compression_checkpoints || []) as ShareChatCompressionCheckpoint[]
 			};
 		} catch (error) {
 			console.error('[ShareChat] Error fetching chat from server:', error);
-			return { chat: null, messages: [], subChats: [], embeds: [], embed_keys: [], code_run_outputs: [], message_highlights: [] };
+			return { chat: null, messages: [], subChats: [], embeds: [], embed_keys: [], code_run_outputs: [], message_highlights: [], compression_checkpoints: [] };
 		}
 	}
 
@@ -570,7 +585,8 @@
 				embeds: fetchedEmbeds,
 				embed_keys: fetchedEmbedKeys,
 				code_run_outputs: fetchedCodeRunOutputs,
-				message_highlights: fetchedMessageHighlights
+				message_highlights: fetchedMessageHighlights,
+				compression_checkpoints: fetchedCompressionCheckpoints
 			} = await fetchChatFromServer(chatId, messageId);
 
 			if (!fetchedChat) {
@@ -639,6 +655,32 @@
 			if (fetchedMessages.length > 0) {
 				await chatDB.batchSaveMessages(fetchedMessages);
 				console.debug(`[ShareChat] Stored ${fetchedMessages.length} messages`);
+			}
+
+			if (fetchedCompressionCheckpoints.length > 0) {
+				const { decryptWithChatKey } = await import('@repo/ui');
+				for (const checkpoint of fetchedCompressionCheckpoints) {
+					const encryptedSummary = checkpoint.encrypted_summary;
+					const summary = encryptedSummary
+						? await decryptWithChatKey(encryptedSummary, keyBytes, {
+								chatId,
+								fieldName: 'shared_compression_checkpoint_summary'
+							})
+						: null;
+					await chatDB.saveChatCompressionCheckpoint({
+						id: checkpoint.id,
+						chat_id: fetchedChat.chat_id,
+						encrypted_summary: encryptedSummary,
+						summary: summary || undefined,
+						compressed_up_to_timestamp: checkpoint.compressed_up_to_timestamp || 0,
+						compressed_message_count: checkpoint.compressed_message_count || 0,
+						summary_token_estimate: checkpoint.summary_token_estimate,
+						key_version: checkpoint.key_version ?? null,
+						created_at: checkpoint.created_at || Math.floor(Date.now() / 1000),
+						updated_at: checkpoint.updated_at || Math.floor(Date.now() / 1000)
+					});
+				}
+				console.debug(`[ShareChat] Stored ${fetchedCompressionCheckpoints.length} compression checkpoints`);
 			}
 
 			if (fetchedMessageHighlights.length > 0) {

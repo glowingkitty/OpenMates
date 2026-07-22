@@ -26,6 +26,7 @@ from backend.core.api.app.services.user_plan_share_bundle import get_shared_chat
 from backend.core.api.app.services.user_task_share_bundle import get_shared_chat_tasks
 
 logger = logging.getLogger(__name__)
+CHAT_COMPRESSION_CHECKPOINT_COLLECTION = "chat_compression_checkpoints"
 
 router = APIRouter(
     prefix="/v1/share",
@@ -270,6 +271,28 @@ async def get_shared_chat_auxiliary_payload(
     }
 
 
+async def get_shared_chat_compression_checkpoints(
+    chat_id: str,
+    directus_service: DirectusService,
+) -> List[Dict[str, Any]]:
+    """Return encrypted compression checkpoints for a public shared chat.
+
+    Access model: unauthenticated public share endpoint scoped by an unguessable
+    shared chat id. The server returns only client-encrypted checkpoint summaries
+    and boundary metadata; the share URL fragment key remains client-only.
+    """
+    return await directus_service.get_items(
+        CHAT_COMPRESSION_CHECKPOINT_COLLECTION,
+        params={
+            "filter": {"chat_id": {"_eq": chat_id}},
+            "fields": "id,chat_id,encrypted_summary,compressed_up_to_timestamp,compressed_message_count,summary_token_estimate,key_version,created_at,updated_at",
+            "sort": "created_at",
+            "limit": -1,
+        },
+        admin_required=True,
+    ) or []
+
+
 
 def shared_chat_metadata_payload(chat_id: str, chat: Dict[str, Any]) -> Dict[str, Any]:
     return {
@@ -430,6 +453,7 @@ async def get_shared_chat_manifest(
             return dummy or generate_dummy_encrypted_data(chat_id)
         payload = shared_chat_metadata_payload(chat_id, chat)
         payload.update(await get_shared_chat_auxiliary_payload(chat_id, chat, directus_service))
+        payload["compression_checkpoints"] = await get_shared_chat_compression_checkpoints(chat_id, directus_service)
         payload["messages"] = []
         return payload
     except Exception as e:
@@ -446,6 +470,7 @@ async def get_shared_chat_message_window(
     before_timestamp: int = Query(default=2147483647),
     before_message_id: Optional[str] = Query(default=None),
     target_message_id: Optional[str] = Query(default=None),
+    checkpoint_id: Optional[str] = Query(default=None),
     limit: int = Query(default=40, ge=1, le=100),
     directus_service: DirectusService = Depends(get_directus_service)
 ) -> Dict[str, Any]:
@@ -455,9 +480,36 @@ async def get_shared_chat_message_window(
             before_message_id = None
         if not isinstance(target_message_id, str):
             target_message_id = None
+        if not isinstance(checkpoint_id, str):
+            checkpoint_id = None
         chat, dummy = await get_shared_chat_or_dummy(chat_id, directus_service)
         if dummy is not None or chat is None:
             return {"chat_id": chat_id, "messages": (dummy or {}).get("messages", []), "has_more": False, "next_before_timestamp": None}
+        checkpoint_boundary_timestamp = None
+        if checkpoint_id:
+            checkpoint_rows = await directus_service.get_items(
+                CHAT_COMPRESSION_CHECKPOINT_COLLECTION,
+                params={
+                    "filter": {
+                        "id": {"_eq": checkpoint_id},
+                        "chat_id": {"_eq": chat_id},
+                    },
+                    "limit": 1,
+                },
+                admin_required=True,
+            )
+            if not checkpoint_rows:
+                return {
+                    "chat_id": chat_id,
+                    "messages": [],
+                    "has_more": False,
+                    "next_before_timestamp": None,
+                    "next_before_message_id": None,
+                    "checkpoint_id": checkpoint_id,
+                    "is_forgotten_page": True,
+                    "error": "Compression checkpoint not found.",
+                }
+            checkpoint_boundary_timestamp = int(checkpoint_rows[0].get("compressed_up_to_timestamp") or 0)
         if target_message_id:
             target_message = await directus_service.chat.get_message_for_chat_by_client_id(
                 chat_id=chat_id,
@@ -465,6 +517,8 @@ async def get_shared_chat_message_window(
             )
             if target_message:
                 before_timestamp = min(int(before_timestamp), int(target_message.get("created_at") or before_timestamp))
+        if checkpoint_boundary_timestamp:
+            before_timestamp = min(int(before_timestamp), checkpoint_boundary_timestamp)
         messages = await directus_service.chat.get_messages_for_chat_before_timestamp(
             chat_id=chat_id,
             before_timestamp=before_timestamp,
@@ -493,6 +547,10 @@ async def get_shared_chat_message_window(
             "next_before_timestamp": next_before_timestamp,
             "next_before_message_id": next_before_message_id,
             "target_message_id": target_message_id,
+            "checkpoint_id": checkpoint_id,
+            "checkpoint_boundary_timestamp": checkpoint_boundary_timestamp,
+            "is_forgotten_page": bool(checkpoint_id),
+            "messages_v": chat.get("messages_v"),
         }
     except Exception as e:
         logger.error(f"Error fetching shared chat messages {chat_id}: {e}", exc_info=True)

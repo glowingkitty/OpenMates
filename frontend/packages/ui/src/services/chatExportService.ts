@@ -7,7 +7,7 @@ import { chatDB } from "./db";
 import { chatKeyManager } from "./encryption/ChatKeyManager";
 import { chatMetadataCache } from "./chatMetadataCache";
 import { tipTapToCanonicalMarkdown } from "../message_parsing/serializers";
-import type { Chat, Message, PIIMapping } from "../types/chat";
+import type { Chat, ChatCompressionCheckpoint, Message, PIIMapping } from "../types/chat";
 import {
   extractEmbedReferences,
   loadEmbeds,
@@ -28,6 +28,72 @@ export interface PIIExportOptions {
   piiHidden: boolean;
   /** Cumulative PII mappings from all user messages in the chat */
   piiMappings: PIIMapping[];
+}
+
+export interface ChatExportHydrationResult {
+  messages: Message[];
+  checkpoints: ChatCompressionCheckpoint[];
+  completeness: {
+    status: "complete" | "partial";
+    requested_message_count: number;
+    hydrated_message_count: number;
+    checkpoint_count: number;
+    warnings: string[];
+  };
+}
+
+export async function hydrateChatForExport(
+  chat: Chat,
+  renderedMessages: Message[],
+): Promise<ChatExportHydrationResult> {
+  const warnings: string[] = [];
+  let messages = renderedMessages;
+  try {
+    const allLocalMessages = await chatDB.getMessagesForChat(chat.chat_id);
+    if (allLocalMessages.length > renderedMessages.length) {
+      messages = allLocalMessages;
+    }
+  } catch (error) {
+    warnings.push("Could not hydrate additional local message pages before export.");
+    console.warn("[ChatExportService] Failed to hydrate full local message history", error);
+  }
+
+  let checkpoints: ChatCompressionCheckpoint[] = [];
+  try {
+    checkpoints = await chatDB.getChatCompressionCheckpoints(chat.chat_id);
+  } catch (error) {
+    warnings.push("Could not hydrate compression checkpoint summaries before export.");
+    console.warn("[ChatExportService] Failed to hydrate compression checkpoints", error);
+  }
+
+  const requestedMessageCount = Number.isFinite(chat.messages_v) ? chat.messages_v : messages.length;
+  if (requestedMessageCount > messages.length) {
+    warnings.push(`Only ${messages.length} of ${requestedMessageCount} durable messages were available locally.`);
+  }
+  if (checkpoints.length > 0 && checkpoints.some((checkpoint) => checkpoint.compressed_message_count > 0)) {
+    const earliestMessageTimestamp = Math.min(...messages.map((message) => message.created_at));
+    const missingForgotten = checkpoints.some(
+      (checkpoint) => checkpoint.compressed_up_to_timestamp >= earliestMessageTimestamp,
+    );
+    if (missingForgotten) {
+      warnings.push("This chat has compression checkpoints; some forgotten raw messages may require server hydration before export is complete.");
+    }
+  }
+
+  const sortedMessages = [...messages].sort(
+    (a, b) => a.created_at - b.created_at || a.message_id.localeCompare(b.message_id),
+  );
+  return {
+    messages: sortedMessages,
+    checkpoints,
+    completeness: {
+      status: warnings.length === 0 ? "complete" : "partial",
+      requested_message_count: requestedMessageCount,
+      hydrated_message_count: sortedMessages.length,
+      checkpoint_count: checkpoints.length,
+      warnings,
+    },
+  };
 }
 
 /**
@@ -69,8 +135,13 @@ export async function downloadChatAsYaml(
     // Generate filename with date, time, and title
     const filename = await generateChatFilename(chat, "yaml");
 
+    const hydrated = await hydrateChatForExport(chat, messages);
+    if (hydrated.completeness.status === "partial") {
+      console.warn("[ChatExportService] Export is partial:", hydrated.completeness.warnings);
+    }
+
     // Convert chat and messages to YAML
-    const yamlContent = await convertChatToYaml(chat, messages);
+    const yamlContent = await convertChatToYaml(chat, hydrated.messages, false, undefined, hydrated);
 
     // Create and download the file
     downloadYamlFile(yamlContent, filename);
@@ -380,6 +451,7 @@ export async function convertChatToYaml(
   messages: Message[],
   includeLink: boolean = false,
   piiOptions?: PIIExportOptions,
+  hydration?: ChatExportHydrationResult,
 ): Promise<string> {
   const chatMeta: Record<string, unknown> = {
     title: null as string | null,
@@ -387,12 +459,27 @@ export async function convertChatToYaml(
     message_count: messages.length,
     draft: null as string | null,
     summary: null as string | null,
+    export_completeness: hydration?.completeness ?? {
+      status: "complete",
+      requested_message_count: messages.length,
+      hydrated_message_count: messages.length,
+      checkpoint_count: 0,
+      warnings: [],
+    },
   };
   const yamlMessages: Record<string, unknown>[] = [];
   const yamlData: Record<string, unknown> = {
     chat: chatMeta,
     messages: yamlMessages,
     embeds: [], // Separate field for embeds with decoded content
+    compression_checkpoints: (hydration?.checkpoints || []).map((checkpoint) => ({
+      id: checkpoint.id,
+      created_at: safeTimestampToISO(checkpoint.created_at),
+      compressed_up_to: safeTimestampToISO(checkpoint.compressed_up_to_timestamp),
+      compressed_message_count: checkpoint.compressed_message_count,
+      summary_token_estimate: checkpoint.summary_token_estimate ?? null,
+      summary: checkpoint.summary ?? null,
+    })),
   };
 
   // Add chat link at the top if requested (for clipboard copy)

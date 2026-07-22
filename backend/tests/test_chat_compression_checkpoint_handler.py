@@ -112,7 +112,12 @@ class FakeDirectusService:
         params = kwargs.get("params") or (args[0] if args else {}) or {}
         checkpoint_filter = params.get("filter") or {}
         if collection == CHECKPOINT_COLLECTION and "hashed_user_id" in checkpoint_filter:
-            return [{"id": "compression_ok", "chat_id": "chat-123", "hashed_user_id": "user-hash"}]
+            return [{
+                "id": "compression_ok",
+                "chat_id": "chat-123",
+                "hashed_user_id": "user-hash",
+                "compressed_up_to_timestamp": 80,
+            }]
         return []
 
     async def create_item(self, collection: str, payload: dict, admin_required: bool = False):
@@ -205,8 +210,60 @@ def test_get_old_messages_returns_bounded_page_with_cursor_metadata():
     assert directus.chat.requested_old_message_limits == [11]
     assert len(payload["messages"]) == 10
     assert payload["has_more"] is True
-    assert payload["next_before_timestamp"] == 91
-    assert payload["next_before_message_id"] == "msg-91"
+    assert payload["next_before_timestamp"] == 71
+    assert payload["next_before_message_id"] == "msg-71"
+
+
+def test_get_old_messages_defaults_to_forty_message_pages():
+    directus = FakeDirectusService()
+    manager = FakeManager()
+
+    asyncio.run(
+        handle_get_compressed_chat_old_messages(
+            cache_service=None,
+            directus_service=directus,
+            manager=manager,
+            user_id="user-123",
+            user_id_hash="user-hash",
+            device_fingerprint_hash="device-123",
+            payload={
+                "chat_id": "chat-123",
+                "checkpoint_id": "compression_ok",
+                "before_timestamp": 80,
+            },
+        )
+    )
+
+    payload = manager.messages[0]["payload"]
+    assert directus.chat.requested_old_message_limits == [41]
+    assert len(payload["messages"]) == 40
+    assert payload["has_more"] is True
+
+
+def test_get_old_messages_clamps_requests_to_checkpoint_boundary():
+    directus = FakeDirectusService()
+    manager = FakeManager()
+
+    asyncio.run(
+        handle_get_compressed_chat_old_messages(
+            cache_service=None,
+            directus_service=directus,
+            manager=manager,
+            user_id="user-123",
+            user_id_hash="user-hash",
+            device_fingerprint_hash="device-123",
+            payload={
+                "chat_id": "chat-123",
+                "checkpoint_id": "compression_ok",
+                "before_timestamp": 100,
+                "limit": 10,
+            },
+        )
+    )
+
+    payload = manager.messages[0]["payload"]
+    assert [json.loads(message)["message_id"] for message in payload["messages"]][-1] == "msg-80"
+    assert payload["checkpoint_boundary_timestamp"] == 80
 
 
 def test_get_old_messages_can_target_a_forgotten_message():

@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     from backend.core.api.app.services.directus import DirectusService
 
 CHECKPOINT_COLLECTION = "chat_compression_checkpoints"
-DEFAULT_OLD_MESSAGE_LIMIT = 100
+DEFAULT_OLD_MESSAGE_LIMIT = 40
 MAX_OLD_MESSAGE_LIMIT = 250
 
 
@@ -240,6 +240,8 @@ async def _handle_get_compressed_chat_old_messages(
             device_fingerprint_hash,
         )
         return
+    checkpoint = checkpoint_rows[0]
+    checkpoint_boundary_timestamp = int(checkpoint.get("compressed_up_to_timestamp") or 0)
 
     if target_message_id:
         target_message = await directus_service.chat.get_message_for_chat_by_client_id(
@@ -248,6 +250,8 @@ async def _handle_get_compressed_chat_old_messages(
         )
         if target_message:
             before_timestamp = min(int(before_timestamp), int(target_message.get("created_at") or before_timestamp))
+    if checkpoint_boundary_timestamp > 0:
+        before_timestamp = min(int(before_timestamp), checkpoint_boundary_timestamp)
 
     messages: List[str] = await directus_service.chat.get_messages_for_chat_before_timestamp(
         chat_id=chat_id,
@@ -279,6 +283,8 @@ async def _handle_get_compressed_chat_old_messages(
                 "next_before_timestamp": next_before_timestamp,
                 "next_before_message_id": next_before_message_id,
                 "target_message_id": target_message_id,
+                "checkpoint_boundary_timestamp": checkpoint_boundary_timestamp,
+                "is_forgotten_page": True,
             },
         },
         user_id,
