@@ -1,0 +1,640 @@
+schema_version: 2
+id: finance-example-quality
+title: Finance Example Chat Quality And PII Restoration
+status: implementing
+
+goal: >
+  Fix the deployed Finance Check accounts example so it is visually clear,
+  financially accurate for bank-transaction data, privacy-safe, and consistent
+  with normal chat state. The Finance embed should lead with net cash flow,
+  render an unclipped line-chart preview, restore owner-visible counterparty PII
+  through the existing embed PII system, and never inherit stale focus-mode state
+  from a different chat.
+
+scope:
+  in:
+    - Finance Check accounts preview uses `Net cash flow` as the primary metric and fits inside the standard preview card.
+    - Finance preview renders a left-to-right line chart for income and expenses instead of clipped vertical bars.
+    - Finance fullscreen leads with filtered net cash flow; income, expenses, and cash balance are secondary context.
+    - Finance fullscreen transaction counterparties use placeholders by default and restore owner-only originals when PII reveal is enabled.
+    - Finance owner PII mappings use the existing `embed_pii:{embed_id}` storage pattern; raw originals never enter saved embed content, shared payloads, or LLM context.
+    - Finance example chat remains natural-language and public-safe.
+    - Opening the Finance example chat must not show a focus-mode pill unless the Finance chat history contains a matching focus-mode activation record.
+    - Follow-up behavior stays simple: existing fullscreen UI filters saved data locally; the assistant may call `finance.check_accounts` again for broader, refreshed, or unavailable data.
+  out:
+    - Building a new natural-language follow-up filtering orchestration layer.
+    - Calling Revolut or reprocessing CSV automatically just because a user clicks an example follow-up suggestion.
+    - Arbitrary bank-export CSV auto-detection or conversion; canonical OpenMates CSV/TSV remains the V1 supported CSV input.
+    - True accounting profit/loss claims. The user-facing metric is net cash flow, not accrual profit.
+    - Exposing raw merchant, counterparty, payer, or payee names to shared viewers, public examples, backend persistence, or LLM context.
+
+depends_on:
+  - docs/specs/finance-check-accounts-v1/spec.yml
+  - docs/specs/pii-placeholder-rewrite-v1/spec.yml
+  - docs/specs/focus-mode-example-chat-rendering/spec.yml
+
+context_discovery:
+  github_issues:
+    - "GitHub MCP get_me failed with 401 Bad credentials; issue discovery could not use the configured GitHub token."
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/specs/finance-check-accounts-v1/spec.yml
+    - docs/specs/pii-placeholder-rewrite-v1/spec.yml
+    - docs/specs/focus-mode-example-chat-rendering/spec.yml
+    - docs/specs/example-chat-public-quality/spec.yml
+  code_patterns:
+    - frontend/packages/ui/src/components/embeds/finance/FinanceCheckAccountsEmbedPreview.svelte currently shows `Current total value`, paired vertical bars, and enough content to clip inside the standard preview card.
+    - frontend/packages/ui/src/components/embeds/finance/FinanceCheckAccountsEmbedFullscreen.svelte currently orders chart, `Total value`, income, expenses, net, filters, accounts, transactions and renders `counterparty_placeholder` directly.
+    - frontend/packages/ui/src/components/embeds/finance/financeCheckAccountsContent.ts normalizes nested and TOON-flattened Finance overview payloads but has no Finance PII mapping support.
+    - backend/shared/python_utils/finance_accounts.py has `FinancePrivacyRedactor.owner_mapping_payload()` and public mapping summaries, but Finance owner mappings are not persisted in the existing `embed_pii:{embed_id}` owner-only store.
+    - frontend/packages/ui/src/stores/embedPIIStore.ts and frontend/packages/ui/src/components/enter_message/services/codeEmbedService.ts define the current owner-only embed PII storage/load pattern used by docs, sheets, code, and mail embeds.
+    - frontend/packages/ui/src/components/ActiveChat.svelte keeps `activeFocusId` as local state and may leave the old focus pill visible while asynchronously checking metadata for a newly opened non-focus example chat.
+    - frontend/packages/ui/src/demo_chats/data/example_chats/finance-cash-flow-overview.ts has no `active_focus_id`, so any `Focus active focus on` pill on that example is stale state, not Finance example data.
+  tests:
+    - frontend/apps/web_app/tests/finance-check-accounts.spec.ts
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    - frontend/apps/web_app/tests/focus-mode-ui-after-activation.spec.ts
+    - frontend/packages/ui/src/components/embeds/finance/__tests__/financeCheckAccountsContent.test.ts
+    - frontend/packages/ui/src/stores/__tests__/embedPIIStore.test.ts
+    - backend/tests/test_finance_privacy_redaction.py
+    - backend/tests/test_skill_preview_metadata.py
+  findings:
+    - "The deployed Finance preview is clipped because it tries to fit a large primary balance, metadata, a bar chart, legend, and the standard BasicInfosBar inside the fixed UnifiedEmbedPreview card."
+    - "Bank data can support net cash flow, not accounting profit/loss; user approved `Net cash flow` as the primary label."
+    - "The current LLM-readable Finance embed text is intentionally compact and does not need a new follow-up filtering system; broader questions should call the skill again."
+    - "Finance PII restoration was promised by the V1 spec but not wired: owner mappings are conceptual on the backend and not stored/read by the Finance frontend."
+    - "A focus pill on the Finance example chat is a stale state regression because the Finance example has no active focus metadata or activation embed."
+
+apple_impact:
+  affected_files:
+    - apple/OpenMates/Sources/**/Embeds*
+    - apple/OpenMates/Sources/**/Chat*
+  parity_expectations:
+    - Apple eventually renders Finance check-account embeds with the same net-cash-flow priority and placeholder/default privacy contract.
+    - This corrective slice may complete web/user confirmation first; Apple parity remains gated by the original Finance V1 spec unless the user explicitly asks for native work now.
+  verification:
+    - python3 scripts/apple_remote.py status
+    - python3 scripts/apple_remote.py build-ios or targeted Finance embed parity test after web/user confirmation, unless waived as follow-up by the active Finance V1 spec.
+  intentional_native_differences:
+    - none
+
+clarification:
+  rounds:
+    - question: Should the main Finance metric be labeled Net cash flow or Profit/Loss?
+      answer: Use Net cash flow; Profit/Loss overstates what bank transactions alone can prove.
+    - question: Should this slice implement a new follow-up filtering system or rely on the assistant calling the existing skill again when new data is needed?
+      answer: Do not add a complicated follow-up orchestration system now; keep deterministic fullscreen filters and let the assistant call the skill again for new/different data.
+  vision_summary: >
+    The Finance example should look like a polished financial snapshot, not a cut-off
+    fixture. Net cash flow is the hero metric, income/expense trends should read left
+    to right, owner-only PII restoration must match the existing docs/sheets/mail
+    privacy model, and unrelated focus-mode UI must never leak into a non-focus
+    example chat.
+  approved_by_user: true
+
+implementation_state:
+  subject_commit: working-tree@finance-example-quality
+
+approvals:
+  product_contract:
+    status: approved
+    approved_at: "2026-07-22"
+    reason: User explicitly approved completing the spec and implementing after choosing Net cash flow and declining a new follow-up orchestration system.
+  implementation_plan:
+    status: approved
+    approved_at: "2026-07-22"
+    reason: User instructed continuation; implementation stays within the approved corrective slice and existing Finance/embed/focus architectures.
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Use `Net cash flow` as the Finance hero metric.
+    reason: Bank-account data can accurately compute income minus expenses for a period but cannot prove accounting profit/loss.
+    decided_at: "2026-07-22"
+  - id: D-2
+    status: active
+    decision: Do not build a new Finance follow-up filtering orchestration system in this slice.
+    reason: Existing fullscreen filters handle saved data, and the assistant can call `finance.check_accounts` again when the user asks for unavailable or refreshed data.
+    decided_at: "2026-07-22"
+  - id: D-3
+    status: active
+    decision: Finance raw counterparty originals must use owner-only embed PII mapping storage, not saved embed content.
+    reason: Shared embeds and LLM context must remain placeholder-only while the owner can reveal originals locally.
+    decided_at: "2026-07-22"
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    approach: Use total balance/current value as the primary Finance number.
+    outcome: rejected
+    recorded_at: "2026-07-22"
+    reason: User cares first whether the business made or lost cash over the selected period; balance is secondary context.
+  - id: ATTEMPT-2
+    task_id: TASK-3
+    approach: Show only redacted placeholders in Finance fullscreen transactions.
+    outcome: rejected
+    recorded_at: "2026-07-22"
+    reason: Owner UI must support the existing show/hide PII behavior used by docs, sheets, and mail.
+
+handoff:
+  current_task_id: TASK-6
+  next_action: Deploy the Finance example quality fix, run deployed Playwright evidence, then request user confirmation.
+  command: python3 scripts/sessions.py prepare-deploy --session c685
+  expected_outcome: Only Finance example quality, Finance PII, focus stale-pill, and spec evidence files are selected for deploy.
+  blocker: null
+  last_verified_commit: working-tree@finance-example-quality
+
+scenarios:
+  - id: S-1
+    title: Finance preview is compact and net-cash-flow first
+    given:
+      - A visitor opens `https://app.dev.openmates.org/#chat-id=example-finance-cash-flow-overview`.
+      - The Finance embed has three monthly buckets with income, expenses, and net values.
+    when:
+      - The assistant answer renders the Finance Check accounts preview.
+    then:
+      - The preview hero number is labeled `Net cash flow` and equals income minus expenses for the selected period.
+      - The preview renders a left-to-right line chart for income and expenses.
+      - The preview content is not clipped by the card or the BasicInfosBar.
+      - The preview does not show transaction rows or raw/placeholder counterparties.
+
+  - id: S-2
+    title: Finance fullscreen prioritizes net cash flow and clear secondary context
+    given:
+      - A user opens the Finance Check accounts fullscreen embed.
+    when:
+      - The fullscreen view renders saved overview data or filtered overview data.
+    then:
+      - The visually dominant metric is `Net cash flow` for the current filters.
+      - Income, expenses, and cash balance are secondary metrics.
+      - The chart appears before detailed account/transaction lists and uses a line chart for income and expenses over time.
+      - Filter changes recompute net cash flow, income, expenses, and cash balance from saved normalized data.
+
+  - id: S-3
+    title: Finance transaction PII restores only for the owner
+    given:
+      - A Finance embed contains redacted transaction counterparties and owner-only PII mappings.
+    when:
+      - The owner views the fullscreen transaction list with PII hidden.
+    then:
+      - Counterparty cells show placeholders such as `[MERCHANT_SOFTWARE_001]`.
+    and_when:
+      - The owner enables the existing PII reveal toggle.
+    then:
+      - Counterparty cells show original merchant/payer/payee names restored locally.
+      - Saved embed content, shared embed content, and LLM-visible text remain placeholder-only.
+
+  - id: S-4
+    title: Finance example chat never inherits stale focus-mode UI
+    given:
+      - The browser previously viewed a chat or example with an active focus mode.
+    when:
+      - The user navigates to `#chat-id=example-finance-cash-flow-overview`.
+    then:
+      - No focus-mode pill is visible for the Finance example.
+      - The message history does not need a focus activation embed because Finance has no active focus mode.
+      - If any chat does show a focus pill, its history contains a matching focus-mode activation artifact and clicking the pill deep-links to the correct settings focus page.
+
+  - id: S-5
+    title: Finance follow-ups use existing skill calls for new data
+    given:
+      - A Finance embed represents a finite saved snapshot.
+    when:
+      - The user asks for a filter or period covered by the saved snapshot.
+    then:
+      - The UI can filter the existing fullscreen data deterministically.
+    and_when:
+      - The user asks for a broader date range, fresh data, another account/source, or another CSV upload.
+    then:
+      - The assistant should call `finance.check_accounts` again with the needed inputs instead of guessing from the old snapshot.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Finance preview labels the hero number as Net cash flow, shows the period total net amount, renders an income/expense line chart, and stays within preview bounds.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids: [T-WEB-FINANCE-EXAMPLE]
+  - id: AC-2
+    scenario: S-2
+    text: Finance fullscreen makes filtered Net cash flow visually primary and demotes cash balance to secondary context.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids: [T-UNIT-FINANCE-CONTENT, T-WEB-FINANCE-EXAMPLE]
+  - id: AC-3
+    scenario: S-3
+    text: Finance owner PII mappings are stored and loaded through owner-only embed PII storage; raw originals never appear in saved embed content, shared content, or LLM-readable text.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-BACKEND-FINANCE-PII, T-UNIT-FINANCE-PII, T-WEB-FINANCE-EXAMPLE]
+  - id: AC-4
+    scenario: S-4
+    text: Opening a non-focus example chat clears stale focus pill state immediately and no focus pill renders unless the chat has a matching focus activation contract.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids: [T-WEB-FINANCE-EXAMPLE, T-WEB-FOCUS-STALE-PILL]
+  - id: AC-5
+    scenario: S-5
+    text: Finance follow-up behavior remains scoped to existing UI filters and normal skill re-invocation; no new follow-up orchestration system is introduced.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [V-CODE-REVIEW]
+
+contracts:
+  data:
+    - Finance saved embed content may include placeholder-safe transaction rows, account labels, source refs, summaries, time-series data, and public mapping summaries.
+    - Finance saved embed content must not include raw counterparty originals, raw CSV contents, connected-account token refs, private keys, vault keys, user IDs, or owner-only mapping payloads.
+    - Owner-only Finance mappings must use the existing `PIIMapping` shape `{ placeholder, original, type }` and be stored under `embed_pii:{embed_id}` or an equivalent owner-master-key encrypted embed PII channel.
+    - Public examples may use synthetic original names for owner restoration tests only when they are clearly public fixture values and still default to hidden placeholders.
+  ui:
+    - "Preview primary label: `Net cash flow`."
+    - "Fullscreen hero label: `Net cash flow`."
+    - "Secondary labels: `Income`, `Expenses`, `Cash balance`."
+    - "Tooltip/helper copy: `Income - expenses for the selected period and accounts`."
+    - "Preview chart: line chart with income and expenses lines from left to right."
+    - "Fullscreen chart: line chart with income and expenses lines; net is communicated through the hero metric and filtered totals."
+  followups:
+    - Existing fullscreen controls deterministically filter saved data.
+    - LLM-readable Finance embed text should summarize period, accounts, transactions, net cash flow, income, expenses, cash balance, source/date coverage, and available filters compactly.
+    - Questions outside saved coverage require a normal `finance.check_accounts` skill call.
+  focus_modes:
+    - "`activeFocusId` must be cleared synchronously on chat switch unless the new chat has clear active focus metadata."
+    - "Example chats with `active_focus_id` must have a matching activation artifact; non-focus examples must not show focus pills."
+  privacy_security:
+    - Owner-side PII restoration must not change share behavior; shared viewers see placeholders only.
+    - "Finance mappings must not be included when `share_pii` is false, and `share_pii=true` does not expose Finance embed-level owner mappings unless a future explicit spec approves it."
+
+tests:
+  - id: T-UNIT-FINANCE-CONTENT
+    type: unit
+    file: frontend/packages/ui/src/components/embeds/finance/__tests__/financeCheckAccountsContent.test.ts
+    command: npm run test:run -- src/components/embeds/finance/__tests__/financeCheckAccountsContent.test.ts
+    covers: [AC-2]
+    assertions:
+      - Finance helpers compute net cash flow, secondary totals, line-chart points, and filtered totals from saved overview data.
+      - Negative net values keep sign and produce line-chart points without division-by-zero or clipping assumptions.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: npm run test:run -- src/components/embeds/finance/__tests__/financeCheckAccountsContent.test.ts
+        run_id: local-vitest-red-finance-content-2026-07-22
+        subject_commit: working-tree-before-finance-example-quality-fix
+        timestamp: "2026-07-22T14:32:04Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: npm run test:run -- src/components/embeds/finance/__tests__/financeCheckAccountsContent.test.ts
+        run_id: local-vitest-finance-content-2026-07-22T14:32:24Z
+        subject_commit: working-tree@finance-example-quality
+        timestamp: "2026-07-22T14:32:24Z"
+  - id: T-UNIT-FINANCE-PII
+    type: unit
+    file: frontend/packages/ui/src/stores/__tests__/embedPIIStore.test.ts
+    command: npm run test:run -- src/stores/__tests__/embedPIIStore.test.ts src/components/embeds/finance/__tests__/financeCheckAccountsContent.test.ts
+    covers: [AC-3]
+    assertions:
+      - Finance mapping payloads can be normalized to existing `PIIMapping` entries.
+      - Finance transaction display uses placeholders when hidden and originals when revealed.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: npm run test:run -- src/components/embeds/finance/__tests__/financeCheckAccountsContent.test.ts
+        run_id: local-vitest-red-finance-pii-2026-07-22
+        subject_commit: working-tree-before-finance-example-quality-fix
+        timestamp: "2026-07-22T14:32:04Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: npm run test:run -- src/components/embeds/finance/__tests__/financeCheckAccountsContent.test.ts
+        run_id: local-vitest-finance-pii-2026-07-22T14:32:24Z
+        subject_commit: working-tree@finance-example-quality
+        timestamp: "2026-07-22T14:32:24Z"
+  - id: T-BACKEND-FINANCE-PII
+    type: pytest
+    file: backend/tests/test_skill_preview_metadata.py
+    command: .venv/bin/python3 -m pytest backend/tests/test_finance_privacy_redaction.py backend/tests/test_skill_preview_metadata.py
+    covers: [AC-3]
+    assertions:
+      - Finance public/saved content excludes raw owner mappings and sensitive request fields.
+      - Any future owner mapping field is stripped from saved content/TOON and ignored for inference.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: .venv/bin/python3 -m pytest backend/tests/test_finance_privacy_redaction.py backend/tests/test_skill_preview_metadata.py
+        run_id: local-pytest-red-finance-pii-2026-07-22
+        subject_commit: working-tree-before-finance-example-quality-fix
+        timestamp: "2026-07-22T14:32:04Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: .venv/bin/python3 -m pytest backend/tests/test_finance_privacy_redaction.py backend/tests/test_skill_preview_metadata.py
+        run_id: local-pytest-finance-pii-2026-07-22T14:32:47Z
+        subject_commit: working-tree@finance-example-quality
+        timestamp: "2026-07-22T14:32:47Z"
+  - id: T-WEB-FINANCE-EXAMPLE
+    type: playwright
+    file: frontend/apps/web_app/tests/finance-check-accounts.spec.ts
+    command: python3 scripts/tests.py run --spec finance-check-accounts.spec.ts
+    target: app.dev.openmates.org
+    covers: [AC-1, AC-2, AC-3, AC-4]
+    assertions:
+      - Finance example preview shows Net cash flow as hero metric and no clipped preview details.
+      - Finance preview/fullscreen render line charts rather than paired bar charts.
+      - Finance fullscreen shows net cash flow before income/expenses/cash balance and restores owner fixture counterparties only when PII is revealed.
+      - Finance example has no stale focus pill.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        reason: New deployed Playwright regression spec was added before implementation from observed dev-app regressions; uncommitted specs cannot be dispatched to GitHub Actions for a separate red run before deploy.
+        timestamp: "2026-07-22T14:32:04Z"
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence: { status: "", command: "", run_id: "", subject_commit: "", timestamp: "" }
+  - id: T-WEB-FOCUS-STALE-PILL
+    type: playwright
+    file: frontend/apps/web_app/tests/focus-mode-example-chats.spec.ts
+    command: python3 scripts/tests.py run --spec focus-mode-example-chats.spec.ts
+    target: app.dev.openmates.org
+    covers: [AC-4]
+    assertions:
+      - Navigating from a focus-mode example to the Finance example clears the focus pill immediately.
+      - Focus examples still show their activation affordance and deep-linkable pill when active.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        reason: New deployed Playwright regression spec was added before implementation from observed stale focus-pill behavior; uncommitted specs cannot be dispatched to GitHub Actions for a separate red run before deploy.
+        timestamp: "2026-07-22T14:32:04Z"
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence: { status: "", command: "", run_id: "", subject_commit: "", timestamp: "" }
+
+verifications:
+  - id: V-CODE-REVIEW
+    kind: artifact_review
+    phase: final
+    required_for_done: true
+    covers: [AC-5]
+    status: passed
+    evidence:
+      status: passed
+      summary: Confirmed no new Finance follow-up orchestration system was added; saved snapshot filtering remains in fullscreen UI and broader/fresh data remains a normal finance.check_accounts skill re-invocation.
+      timestamp: "2026-07-22T14:32:47Z"
+  - id: V-USER-CONFIRMATION
+    kind: user_confirmation
+    phase: final
+    required_for_done: true
+    covers: [AC-1, AC-2, AC-3, AC-4]
+    status: pending
+    evidence: { status: "", summary: "", timestamp: "" }
+
+implementation_plan:
+  spec_path: docs/specs/finance-example-quality/spec.yml
+  affected_files:
+    - path: frontend/packages/ui/src/components/embeds/finance/FinanceCheckAccountsEmbedPreview.svelte
+      reason: Make preview lead with net cash flow and an unclipped income/expense line chart.
+      covers: [AC-1, AC-2]
+    - path: frontend/packages/ui/src/components/embeds/finance/FinanceCheckAccountsEmbedFullscreen.svelte
+      reason: Make fullscreen lead with filtered net cash flow and restore owner-only PII display when enabled.
+      covers: [AC-2, AC-3]
+    - path: frontend/packages/ui/src/components/embeds/finance/financeCheckAccountsContent.ts
+      reason: Centralize Finance totals, chart points, and placeholder-to-original display helpers.
+      covers: [AC-2, AC-3]
+    - path: frontend/packages/ui/src/components/embeds/finance/__tests__/financeCheckAccountsContent.test.ts
+      reason: Red/green unit coverage for Finance metrics, chart data, and PII display helpers.
+      covers: [AC-2, AC-3]
+    - path: frontend/packages/ui/src/components/ActiveChat.svelte
+      reason: Clear stale active focus state on chat navigation before metadata resolves.
+      covers: [AC-4]
+    - path: frontend/apps/web_app/tests/finance-check-accounts.spec.ts
+      reason: Deployed regression coverage for Finance example UX and owner-visible PII behavior.
+      covers: [AC-1, AC-2, AC-3, AC-4]
+    - path: frontend/apps/web_app/tests/focus-mode-example-chats.spec.ts
+      reason: Deployed regression coverage for stale focus pill leakage between example chats.
+      covers: [AC-4]
+    - path: backend/core/api/app/services/embed_service.py
+      reason: Ensure Finance owner mappings remain excluded from saved/shared embed payloads.
+      covers: [AC-3]
+    - path: backend/tests/test_finance_privacy_redaction.py
+      reason: Backend red/green coverage for Finance owner mapping exclusion.
+      covers: [AC-3]
+  existing_patterns:
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedFullscreen.svelte
+    - frontend/packages/ui/src/stores/embedPIIStore.ts
+    - frontend/packages/ui/src/components/enter_message/services/codeEmbedService.ts
+    - frontend/packages/ui/src/components/embeds/docs/DocsEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/sheets/SheetEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/demo_chats/exampleChatStore.ts
+  architecture: >
+    Keep Finance analysis in the existing app-skill embed contract. Move only pure
+    presentation calculations into shared Finance frontend helpers, wire Finance
+    into the existing owner-only embed PII store, and fix the focus pill as a chat
+    state reset bug rather than a Finance-specific workaround.
+  data_flow:
+    - Finance skill returns placeholder-safe saved content plus no raw owner mappings in model/saved output.
+    - First-party owner client stores Finance owner mappings separately under owner-encrypted embed PII storage when available.
+    - Finance preview/fullscreen read saved overview data and owner-only PII mappings locally.
+    - Shared/public viewers get saved placeholder content but not owner mapping storage.
+    - Chat navigation clears focus state when the new chat does not carry active focus metadata.
+  verification_order:
+    - Unit tests for Finance calculations and PII display helpers.
+    - Backend sanitizer/privacy tests for owner mapping exclusion.
+    - Deployed Playwright for Finance example and focus stale-pill regression.
+    - User confirmation.
+    - Apple parity attempt or explicit follow-up waiver under Finance V1.
+  verification_strategy:
+    - Run frontend unit tests for Finance calculation and PII display helpers before implementation and after changes.
+    - Run backend Finance privacy tests to prove raw owner mappings stay out of saved/shared payloads.
+    - Deploy to dev before Playwright, then run Finance example and stale focus-pill specs against `app.dev.openmates.org`.
+    - Record evidence in this spec and leave final completion gated on user confirmation.
+
+tasks:
+  - id: TASK-1
+    title: Add red tests for Finance metric/chart/focus regressions
+    status: done
+    phase: working_tasks
+    owner: opencode
+    depends_on: []
+    dependencies: []
+    covers:
+      acceptance_criteria: [AC-1, AC-2, AC-4]
+    expected_files:
+      - frontend/packages/ui/src/components/embeds/finance/__tests__/financeCheckAccountsContent.test.ts
+      - frontend/apps/web_app/tests/finance-check-accounts.spec.ts
+      - frontend/apps/web_app/tests/focus-mode-example-chats.spec.ts
+    verification: [T-UNIT-FINANCE-CONTENT, T-WEB-FINANCE-EXAMPLE, T-WEB-FOCUS-STALE-PILL]
+    verification_ids: [T-UNIT-FINANCE-CONTENT, T-WEB-FINANCE-EXAMPLE, T-WEB-FOCUS-STALE-PILL]
+    ownership:
+      files:
+        - frontend/packages/ui/src/components/embeds/finance/__tests__/financeCheckAccountsContent.test.ts
+        - frontend/apps/web_app/tests/finance-check-accounts.spec.ts
+        - frontend/apps/web_app/tests/focus-mode-example-chats.spec.ts
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+  - id: TASK-2
+    title: Add owner-only Finance PII restoration tests
+    status: done
+    phase: working_tasks
+    owner: opencode
+    depends_on: [TASK-1]
+    dependencies: [TASK-1]
+    covers:
+      acceptance_criteria: [AC-3]
+    expected_files:
+      - frontend/packages/ui/src/components/embeds/finance/__tests__/financeCheckAccountsContent.test.ts
+      - backend/tests/test_finance_privacy_redaction.py
+      - frontend/apps/web_app/tests/finance-check-accounts.spec.ts
+    verification: [T-UNIT-FINANCE-PII, T-BACKEND-FINANCE-PII, T-WEB-FINANCE-EXAMPLE]
+    verification_ids: [T-UNIT-FINANCE-PII, T-BACKEND-FINANCE-PII, T-WEB-FINANCE-EXAMPLE]
+    ownership:
+      files:
+        - frontend/packages/ui/src/components/embeds/finance/__tests__/financeCheckAccountsContent.test.ts
+        - backend/tests/test_finance_privacy_redaction.py
+        - frontend/apps/web_app/tests/finance-check-accounts.spec.ts
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+  - id: TASK-3
+    title: Implement Finance net-cash-flow UI and line charts
+    status: done
+    phase: working_tasks
+    owner: opencode
+    depends_on: [TASK-1]
+    dependencies: [TASK-1]
+    covers:
+      acceptance_criteria: [AC-1, AC-2]
+    expected_files:
+      - frontend/packages/ui/src/components/embeds/finance/FinanceCheckAccountsEmbedPreview.svelte
+      - frontend/packages/ui/src/components/embeds/finance/FinanceCheckAccountsEmbedFullscreen.svelte
+      - frontend/packages/ui/src/components/embeds/finance/financeCheckAccountsContent.ts
+    verification: [T-UNIT-FINANCE-CONTENT, T-WEB-FINANCE-EXAMPLE]
+    verification_ids: [T-UNIT-FINANCE-CONTENT, T-WEB-FINANCE-EXAMPLE]
+    ownership:
+      files:
+        - frontend/packages/ui/src/components/embeds/finance/FinanceCheckAccountsEmbedPreview.svelte
+        - frontend/packages/ui/src/components/embeds/finance/FinanceCheckAccountsEmbedFullscreen.svelte
+        - frontend/packages/ui/src/components/embeds/finance/financeCheckAccountsContent.ts
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+  - id: TASK-4
+    title: Implement Finance owner PII mapping storage and reveal display
+    status: done
+    phase: working_tasks
+    owner: opencode
+    depends_on: [TASK-2]
+    dependencies: [TASK-2]
+    covers:
+      acceptance_criteria: [AC-3]
+    expected_files:
+      - frontend/packages/ui/src/components/embeds/finance/FinanceCheckAccountsEmbedFullscreen.svelte
+      - frontend/packages/ui/src/components/embeds/finance/financeCheckAccountsContent.ts
+      - backend/core/api/app/services/embed_service.py
+    verification: [T-UNIT-FINANCE-PII, T-BACKEND-FINANCE-PII, T-WEB-FINANCE-EXAMPLE]
+    verification_ids: [T-UNIT-FINANCE-PII, T-BACKEND-FINANCE-PII, T-WEB-FINANCE-EXAMPLE]
+    ownership:
+      files:
+        - frontend/packages/ui/src/components/embeds/finance/FinanceCheckAccountsEmbedFullscreen.svelte
+        - frontend/packages/ui/src/components/embeds/finance/financeCheckAccountsContent.ts
+        - backend/core/api/app/services/embed_service.py
+      shared_files:
+        - frontend/packages/ui/src/stores/embedPIIStore.ts
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+  - id: TASK-5
+    title: Fix stale focus pill on non-focus chat navigation
+    status: done
+    phase: working_tasks
+    owner: opencode
+    depends_on: [TASK-1]
+    dependencies: [TASK-1]
+    covers:
+      acceptance_criteria: [AC-4]
+    expected_files:
+      - frontend/packages/ui/src/components/ActiveChat.svelte
+      - frontend/apps/web_app/tests/focus-mode-example-chats.spec.ts
+    verification: [T-WEB-FOCUS-STALE-PILL, T-WEB-FINANCE-EXAMPLE]
+    verification_ids: [T-WEB-FOCUS-STALE-PILL, T-WEB-FINANCE-EXAMPLE]
+    ownership:
+      files:
+        - frontend/packages/ui/src/components/ActiveChat.svelte
+        - frontend/apps/web_app/tests/focus-mode-example-chats.spec.ts
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+  - id: TASK-6
+    title: Deploy, verify, and request user confirmation
+    status: pending
+    phase: working_tasks
+    owner: opencode
+    depends_on: [TASK-3, TASK-4, TASK-5]
+    dependencies: [TASK-3, TASK-4, TASK-5]
+    covers:
+      acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5]
+    expected_files:
+      - docs/specs/finance-example-quality/spec.yml
+    verification: [T-WEB-FINANCE-EXAMPLE, T-WEB-FOCUS-STALE-PILL, V-CODE-REVIEW, V-USER-CONFIRMATION]
+    verification_ids: [T-WEB-FINANCE-EXAMPLE, T-WEB-FOCUS-STALE-PILL, V-CODE-REVIEW, V-USER-CONFIRMATION]
+    ownership:
+      files:
+        - docs/specs/finance-example-quality/spec.yml
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+
+risks:
+  - id: R-1
+    risk: Accidentally storing raw Finance counterparties inside saved embed content would expose them to shared viewers and LLM context.
+    mitigation: Backend sanitizer tests and frontend owner-only `embed_pii:{embed_id}` tests must be red/green before deploy.
+  - id: R-2
+    risk: A custom SVG line chart can become inaccessible or visually misleading with negative values.
+    mitigation: Unit tests cover chart points; Playwright checks labels and visible line chart; accessible labels summarize totals.
+  - id: R-3
+    risk: Clearing focus state too aggressively could hide valid active focus modes.
+    mitigation: Focus stale-pill test includes both positive focus example and negative Finance example navigation.
+
+open_questions:
+  - id: OQ-1
+    status: resolved
+    question: Should Finance use Profit/Loss or Net cash flow as the hero metric?
+    resolution: Net cash flow.
+  - id: OQ-2
+    status: resolved
+    question: Should this slice add a new follow-up filtering orchestration layer?
+    resolution: No; use existing UI filters and normal skill re-invocation.

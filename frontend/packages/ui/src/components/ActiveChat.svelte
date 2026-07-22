@@ -819,6 +819,7 @@
     let showRecordingFullscreen = $state(false);
     let recordingFullscreenData = $state<{
         transcript?: string;
+        title?: string;
         transcriptOriginal?: string;
         transcriptCorrected?: string;
         useCorrected?: boolean;
@@ -1280,6 +1281,7 @@
         console.debug('[ActiveChat] Received recordingfullscreen event:', event.detail);
         recordingFullscreenData = {
             transcript: event.detail.transcript,
+            title: event.detail.title,
             transcriptOriginal: event.detail.transcriptOriginal,
             transcriptCorrected: event.detail.transcriptCorrected,
             useCorrected: event.detail.useCorrected,
@@ -12848,6 +12850,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     data={{
                         decodedContent: {
                             transcript: recordingFullscreenData.transcript,
+                            title: recordingFullscreenData.title,
                             transcript_original: recordingFullscreenData.transcriptOriginal,
                             transcript_corrected: recordingFullscreenData.transcriptCorrected,
                             use_corrected: recordingFullscreenData.useCorrected,
@@ -12869,6 +12872,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     onAttrsChange={(embedId, changedAttrs) => {
                         handleRecordingAttrsChange(embedId, changedAttrs);
                         if (changedAttrs.transcript !== undefined) recordingFullscreenData.transcript = changedAttrs.transcript;
+                        if (changedAttrs.title !== undefined) recordingFullscreenData.title = changedAttrs.title;
                         if (changedAttrs.transcriptOriginal !== undefined) recordingFullscreenData.transcriptOriginal = changedAttrs.transcriptOriginal;
                         if (changedAttrs.transcriptCorrected !== undefined) recordingFullscreenData.transcriptCorrected = changedAttrs.transcriptCorrected;
                         if (changedAttrs.useCorrected !== undefined) recordingFullscreenData.useCorrected = changedAttrs.useCorrected;

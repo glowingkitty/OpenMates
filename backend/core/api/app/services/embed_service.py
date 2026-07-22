@@ -128,6 +128,7 @@ FINANCE_CHECK_ACCOUNTS_CONTENT_EXCLUDE_FIELDS = {
     "hashed_task_id",
     "hashed_user_id",
     "message_id",
+    "owner_pii_mappings",
     "placeholder_embed_ids",
     "revolut_client_factory",
     "user_id",
@@ -136,6 +137,7 @@ FINANCE_CHECK_ACCOUNTS_CONTENT_EXCLUDE_FIELDS = {
 }
 
 FINANCE_CHECK_ACCOUNTS_CONTENT_EXCLUDE_PREFIXES = (
+    "_owner_pii_mappings",
     "csv_statements",
     "connected_account_access_tokens",
     "_connected_account_access_tokens",

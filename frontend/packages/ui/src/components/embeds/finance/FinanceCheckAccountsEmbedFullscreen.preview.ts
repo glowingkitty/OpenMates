@@ -28,6 +28,8 @@ const defaultProps = {
   onClose: () => {},
   hasPreviousEmbed: false,
   hasNextEmbed: false,
+  piiMappings: [],
+  piiRevealed: false,
 };
 
 export default defaultProps;
@@ -36,5 +38,14 @@ export const variants = {
   filtered: {
     ...defaultProps,
     embedId: 'preview-finance-check-accounts-filtered',
+  },
+  ownerPiiRevealed: {
+    ...defaultProps,
+    embedId: 'preview-finance-check-accounts-owner-pii',
+    piiRevealed: true,
+    piiMappings: [
+      { placeholder: '[MERCHANT_SOFTWARE_001]', original: 'Acme Software Ltd', type: 'merchant' },
+      { placeholder: '[PAYER_REVENUE_001]', original: 'Northstar Client', type: 'payer' },
+    ],
   },
 };

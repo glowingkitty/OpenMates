@@ -10,7 +10,9 @@
   import { text } from '@repo/ui';
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
-  import { normalizeFinanceOverview, toNumber } from './financeCheckAccountsContent';
+  import type { PIIMapping } from '../../../types/chat';
+  import { loadEmbedPIIMappings } from '../../enter_message/services/codeEmbedService';
+  import { buildFinanceLineChartSeries, normalizeFinanceOverview, resolveFinanceCounterpartyLabel, toNumber, type FinanceLineChartPoint } from './financeCheckAccountsContent';
 
   type EmbedStatus = 'processing' | 'finished' | 'error' | 'cancelled';
 
@@ -63,6 +65,9 @@
     navigateDirection?: 'previous' | 'next';
     showChatButton?: boolean;
     onShowChat?: () => void;
+    piiMappings?: PIIMapping[];
+    piiRevealed?: boolean;
+    chatId?: string;
   }
 
   let {
@@ -76,6 +81,8 @@
     navigateDirection,
     showChatButton = false,
     onShowChat,
+    piiMappings = [],
+    piiRevealed = false,
   }: Props = $props();
 
   const skillName = $text('app_skills.finance.check_accounts');
@@ -85,6 +92,7 @@
   let localOverview = $state<FinanceOverview | null>(null);
   let localSummary = $state('');
   let localProvider = $state('Revolut Business');
+  let embedPIIMappings = $state<PIIMapping[]>([]);
 
   let selectedAccount = $state('');
   let selectedSource = $state('');
@@ -114,8 +122,11 @@
   let primaryCurrency = $derived(resolvePrimaryCurrency(filteredAccounts, filteredTransactions));
   let filteredTotals = $derived(calculateTotals(filteredTransactions));
   let filteredTrend = $derived(buildFilteredTrend(filteredTransactions, localPeriod));
-  let trendMax = $derived(Math.max(1, ...filteredTrend.flatMap((bucket) => [bucket.income, bucket.expense])));
+  let filteredChartSeries = $derived(buildFinanceLineChartSeries({ summaries: { time_series: filteredTrend } }));
+  let incomePolyline = $derived(toPolyline(filteredChartSeries.points, 'incomeY'));
+  let expensePolyline = $derived(toPolyline(filteredChartSeries.points, 'expenseY'));
   let hasFilters = $derived(Boolean(selectedAccount || selectedSource || selectedCategory || selectedDirection || selectedState || selectedPlaceholder || startDate || endDate));
+  let allPIIMappings = $derived([...piiMappings, ...embedPIIMappings]);
 
   let filterOptions = $derived(localOverview?.filter_options ?? {});
   let accountOptions = $derived(optionList(filterOptions.accounts, accounts.map((account) => account.account_ref)));
@@ -124,6 +135,15 @@
   let directionOptions = $derived(optionList(filterOptions.directions, transactions.map((item) => item.direction)));
   let stateOptions = $derived(optionList(filterOptions.states, transactions.map((item) => item.state ?? '')));
   let placeholderOptions = $derived(optionList(filterOptions.placeholders, transactions.map((item) => item.counterparty_placeholder)));
+
+  $effect(() => {
+    if (!embedId) return;
+    let cancelled = false;
+    loadEmbedPIIMappings(embedId).then((mappings) => {
+      if (!cancelled) embedPIIMappings = mappings;
+    });
+    return () => { cancelled = true; };
+  });
 
   function handleEmbedDataUpdated(data: { status: string; decodedContent: Record<string, unknown> }) {
     localStatus = normalizeStatus(data.status);
@@ -175,14 +195,14 @@
     return items.find((account) => account.currency)?.currency || txs.find((item) => item.currency)?.currency || 'EUR';
   }
 
-  function calculateTotals(items: FinanceTransaction[]): { income: number; expense: number; net: number } {
+  function calculateTotals(items: FinanceTransaction[]): { income: number; expenses: number; netCashFlow: number } {
     return items.reduce((totals, item) => {
       const amount = toNumber(item.amount);
       if (item.direction === 'income') totals.income += amount;
-      if (item.direction === 'expense') totals.expense += Math.abs(amount);
-      totals.net = totals.income - totals.expense;
+      if (item.direction === 'expense') totals.expenses += Math.abs(amount);
+      totals.netCashFlow = totals.income - totals.expenses;
       return totals;
-    }, { income: 0, expense: 0, net: 0 });
+    }, { income: 0, expenses: 0, netCashFlow: 0 });
   }
 
   function buildFilteredTrend(items: FinanceTransaction[], period: string): TimeSeriesBucket[] {
@@ -246,8 +266,16 @@
     return sourceRef.startsWith('revolut_business:') ? 'Revolut Business' : sourceRef;
   }
 
-  function barHeight(value: number): string {
-    return `${Math.max(8, Math.round((value / trendMax) * 92))}px`;
+  function toPolyline(points: FinanceLineChartPoint[], key: 'incomeY' | 'expenseY'): string {
+    if (points.length === 0) return '';
+    return points.map((point, index) => {
+      const x = points.length === 1 ? 50 : Math.round((index / (points.length - 1)) * 10000) / 100;
+      return `${x},${point[key]}`;
+    }).join(' ');
+  }
+
+  function counterpartyLabel(placeholder: string): string {
+    return resolveFinanceCounterpartyLabel(placeholder, allPIIMappings, piiRevealed);
   }
 
   function resetFilters() {
@@ -287,6 +315,26 @@
       <div class="state-message" data-testid="finance-empty-state">{localSummary || 'No account data available.'}</div>
     {:else}
       <div class="finance-fullscreen-content">
+        <section class="summary-grid" aria-label="Finance summary" data-testid="finance-summary-grid">
+          <article class="summary-card net">
+            <span>Net cash flow</span>
+            <strong data-testid="finance-fullscreen-net-cash-flow">{formatMoney(filteredTotals.netCashFlow)}</strong>
+            <small data-testid="finance-net-cash-flow-helper">Income - expenses for the selected period and accounts.</small>
+          </article>
+          <article class="summary-card income">
+            <span>Income</span>
+            <strong>{formatMoney(filteredTotals.income)}</strong>
+          </article>
+          <article class="summary-card expense">
+            <span>Expenses</span>
+            <strong>{formatMoney(filteredTotals.expenses)}</strong>
+          </article>
+          <article class="summary-card cash-balance">
+            <span>Cash balance</span>
+            <strong data-testid="finance-fullscreen-cash-balance"><span data-testid="finance-fullscreen-total-value">{formatMoney(totalBalance)}</span></strong>
+          </article>
+        </section>
+
         <section class="panel chart-panel" data-testid="finance-fullscreen-chart">
           <div class="section-heading">
             <div>
@@ -295,39 +343,20 @@
             </div>
           </div>
           {#if filteredTrend.length > 0}
-            <div class="chart" aria-label="Income and expenses over time">
-              {#each filteredTrend as bucket}
-                <div class="chart-bucket">
-                  <div class="bars">
-                    <span class="bar income" style={`height: ${barHeight(bucket.income)}`} title={`Income ${formatMoney(bucket.income)}`}></span>
-                    <span class="bar expense" style={`height: ${barHeight(bucket.expense)}`} title={`Expenses ${formatMoney(bucket.expense)}`}></span>
-                  </div>
-                  <span class="bucket-label">{bucket.bucket}</span>
-                </div>
-              {/each}
+            <div class="chart" aria-label="Income and expenses over time" data-chart-type="line">
+              <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                <polyline data-testid="finance-fullscreen-income-line" class="line income-line" points={incomePolyline}></polyline>
+                <polyline data-testid="finance-fullscreen-expense-line" class="line expense-line" points={expensePolyline}></polyline>
+              </svg>
+              <div class="bucket-labels" aria-hidden="true">
+                {#each filteredChartSeries.points as bucket}
+                  <span title={bucket.bucket}>{bucket.bucket}</span>
+                {/each}
+              </div>
             </div>
           {:else}
             <p class="empty-copy">No transactions match the current filters.</p>
           {/if}
-        </section>
-
-        <section class="summary-grid" aria-label="Finance summary">
-          <article class="summary-card total">
-            <span>Total value</span>
-            <strong data-testid="finance-fullscreen-total-value">{formatMoney(totalBalance)}</strong>
-          </article>
-          <article class="summary-card income">
-            <span>Income</span>
-            <strong>{formatMoney(filteredTotals.income)}</strong>
-          </article>
-          <article class="summary-card expense">
-            <span>Expenses</span>
-            <strong>{formatMoney(filteredTotals.expense)}</strong>
-          </article>
-          <article class="summary-card net">
-            <span>Net</span>
-            <strong>{formatMoney(filteredTotals.net)}</strong>
-          </article>
         </section>
 
         <section class="panel filters" data-testid="finance-filters">
@@ -453,7 +482,7 @@
               {#each filteredTransactions as transaction}
                 <div class="transaction-row" role="row" data-testid="finance-transaction-row">
                   <span>{transaction.posted_at}</span>
-                  <span class="placeholder">{transaction.counterparty_placeholder}</span>
+                  <span class="placeholder">{counterpartyLabel(transaction.counterparty_placeholder)}</span>
                   <span>{transaction.category}</span>
                   <span>{accountLabel(transaction.account_ref)}</span>
                   <span class:negative={transaction.direction === 'expense'} class:positive={transaction.direction === 'income'}>
@@ -493,7 +522,7 @@
 
   .summary-grid {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: minmax(280px, 1.4fr) repeat(3, minmax(0, 1fr));
     gap: 12px;
   }
 
@@ -513,7 +542,7 @@
     border-radius: 24px;
   }
 
-  .summary-card.total {
+  .summary-card.net {
     background:
       radial-gradient(circle at 10% 0%, color-mix(in srgb, var(--color-app-finance-end) 24%, transparent), transparent 52%),
       color-mix(in srgb, var(--color-grey-0) 90%, transparent);
@@ -535,6 +564,10 @@
     line-height: 1.08;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  .summary-card.net strong {
+    font-size: clamp(1.85rem, 3vw, 2.85rem);
   }
 
   .summary-card.income strong,
@@ -569,43 +602,39 @@
 
   .chart {
     display: flex;
-    align-items: stretch;
-    gap: 12px;
-    min-height: 150px;
-    overflow-x: auto;
-    padding: 12px 4px 4px;
-  }
-
-  .chart-bucket {
-    display: flex;
-    flex: 1 0 72px;
     flex-direction: column;
-    justify-content: flex-end;
-    gap: 8px;
-    min-width: 72px;
-  }
-
-  .bars {
-    display: flex;
-    align-items: flex-end;
-    justify-content: center;
-    gap: 7px;
-    min-height: 100px;
-    padding: 0 8px;
+    gap: 10px;
+    min-height: 170px;
+    padding: 18px 18px 12px;
     border-radius: 18px;
     background: color-mix(in srgb, var(--color-grey-10) 62%, transparent);
   }
 
-  .bar {
-    width: 16px;
-    min-height: 8px;
-    border-radius: 999px 999px 4px 4px;
+  .chart svg {
+    display: block;
+    width: 100%;
+    height: 118px;
+    overflow: visible;
   }
 
-  .bar.income { background: var(--color-app-finance-end); }
-  .bar.expense { background: var(--color-warning); }
+  .line {
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 4;
+    vector-effect: non-scaling-stroke;
+  }
 
-  .bucket-label {
+  .income-line { stroke: var(--color-app-finance-end); }
+  .expense-line { stroke: var(--color-warning); }
+
+  .bucket-labels {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .bucket-labels span {
     overflow: hidden;
     color: var(--color-font-secondary);
     font-size: var(--font-size-xxs);
@@ -721,6 +750,10 @@
     .summary-grid,
     .filter-grid {
       grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .summary-card.net {
+      grid-column: 1 / -1;
     }
 
     .transaction-table {

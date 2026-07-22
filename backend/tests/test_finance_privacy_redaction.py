@@ -23,6 +23,7 @@ from backend.shared.python_utils.finance_accounts import (
     NormalizedTransaction,
     build_finance_overview,
 )
+from backend.core.api.app.services.embed_service import EmbedService
 
 
 def test_finance_overview_excludes_raw_counterparty_names() -> None:
@@ -110,3 +111,28 @@ def test_placeholder_mapping_export_keeps_originals_out_of_embed_payload() -> No
         }
     ]
     assert encrypted_mapping[0]["original"] == "Grocery Mart"
+
+
+def test_finance_embed_sanitizer_strips_owner_only_mapping_fields() -> None:
+    content = {
+        "app_id": "finance",
+        "skill_id": "check_accounts",
+        "overview": {
+            "transactions": [
+                {"counterparty_placeholder": "[MERCHANT_GROCERIES_001]"},
+            ],
+        },
+        "owner_pii_mappings": [
+            {"placeholder": "[MERCHANT_GROCERIES_001]", "original": "Grocery Mart", "type": "merchant"},
+        ],
+        "_owner_pii_mappings": [
+            {"placeholder": "[MERCHANT_GROCERIES_001]", "original": "Grocery Mart", "type": "merchant"},
+        ],
+    }
+
+    sanitized = EmbedService._sanitize_final_app_skill_content("finance", "check_accounts", content)
+    payload = json.dumps(sanitized)
+
+    assert "owner_pii_mappings" not in payload
+    assert "Grocery Mart" not in payload
+    assert "[MERCHANT_GROCERIES_001]" in payload

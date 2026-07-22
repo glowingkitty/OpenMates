@@ -10,7 +10,7 @@
 <script lang="ts">
   import { text } from '@repo/ui';
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
-  import { isRecord, normalizeFinanceOverview, toNumber, type FinanceOverview, type TimeSeriesBucket } from './financeCheckAccountsContent';
+  import { buildFinanceLineChartSeries, calculateFinanceTotals, normalizeFinanceOverview, type FinanceOverview, type FinanceLineChartPoint } from './financeCheckAccountsContent';
 
   type EmbedStatus = 'processing' | 'finished' | 'error' | 'cancelled';
 
@@ -69,15 +69,12 @@
     localProvider = providerProp || 'Revolut Business';
   });
 
-  let summaries = $derived(localOverview?.summaries ?? {});
-  let accounts = $derived(Array.isArray(localOverview?.accounts) ? localOverview.accounts : []);
-  let totalBalance = $derived(sumBalances(accounts));
-  let primaryCurrency = $derived(resolvePrimaryCurrency(accounts));
-  let incomeTotal = $derived(toNumber(summaries.income_total));
-  let expenseTotal = $derived(toNumber(summaries.expense_total));
-  let netTotal = $derived(toNumber(summaries.net_total));
-  let trend = $derived(normalizeTimeSeries(summaries.time_series));
-  let trendMax = $derived(Math.max(1, ...trend.flatMap((bucket) => [toNumber(bucket.income), toNumber(bucket.expense)])));
+  let totals = $derived(calculateFinanceTotals(localOverview));
+  let primaryCurrency = $derived(totals.currency);
+  let chartSeries = $derived(buildFinanceLineChartSeries(localOverview));
+  let trend = $derived(chartSeries.points.slice(-6));
+  let incomePolyline = $derived(toPolyline(trend, 'incomeY'));
+  let expensePolyline = $derived(toPolyline(trend, 'expenseY'));
   let accountLabel = $derived(localAccountCount === 1 ? 'account' : 'accounts');
   let transactionLabel = $derived(localTransactionCount === 1 ? 'transaction' : 'transactions');
   let subtitle = $derived(`${localAccountCount} ${accountLabel} · ${localTransactionCount} ${transactionLabel}`);
@@ -103,37 +100,6 @@
     return value === 'processing' || value === 'finished' || value === 'error' || value === 'cancelled';
   }
 
-  function sumBalances(items: Array<Record<string, unknown>>): number | null {
-    let foundBalance = false;
-    const total = items.reduce((sum, account) => {
-      const balance = toNumber(account.balance);
-      if (account.balance !== null && account.balance !== undefined && Number.isFinite(balance)) foundBalance = true;
-      return sum + balance;
-    }, 0);
-    return foundBalance ? total : null;
-  }
-
-  function resolvePrimaryCurrency(items: Array<Record<string, unknown>>): string {
-    const currencies = items
-      .map((account) => typeof account.currency === 'string' ? account.currency : '')
-      .filter(Boolean);
-    return currencies[0] || 'EUR';
-  }
-
-  function normalizeTimeSeries(value: unknown): TimeSeriesBucket[] {
-    if (!Array.isArray(value)) return [];
-    return value
-      .filter(isRecord)
-      .map((bucket) => ({
-        bucket: String(bucket.bucket ?? ''),
-        income: Math.max(0, toNumber(bucket.income)),
-        expense: Math.max(0, toNumber(bucket.expense)),
-        net: toNumber(bucket.net),
-        transaction_count: Math.max(0, toNumber(bucket.transaction_count)),
-      }))
-      .filter((bucket) => bucket.bucket);
-  }
-
   function formatMoney(value: number | null | undefined, currency = primaryCurrency): string {
     if (value === null || value === undefined || !Number.isFinite(value)) return 'No balance';
     return new Intl.NumberFormat(undefined, {
@@ -147,8 +113,12 @@
     return value.replace(/_/g, ' ');
   }
 
-  function barHeight(value: number): string {
-    return `${Math.max(7, Math.round((value / trendMax) * 38))}px`;
+  function toPolyline(points: FinanceLineChartPoint[], key: 'incomeY' | 'expenseY'): string {
+    if (points.length === 0) return '';
+    return points.map((point, index) => {
+      const x = points.length === 1 ? 50 : Math.round((index / (points.length - 1)) * 10000) / 100;
+      return `${x},${point[key]}`;
+    }).join(' ');
   }
 
   function handleStop() {
@@ -175,28 +145,31 @@
   {#snippet details({ isMobile: isMobileLayout })}
     <section class="finance-preview" class:mobile={isMobileLayout} data-testid="finance-check-accounts-preview">
       <div class="headline">
-        <span class="label">Current total value</span>
-        <strong data-testid="finance-total-value">{formatMoney(totalBalance)}</strong>
+        <span class="label">Net cash flow</span>
+        <strong data-testid="finance-net-cash-flow"><span data-testid="finance-total-value">{formatMoney(totals.netCashFlow)}</span></strong>
       </div>
 
       <div class="preview-meta">
         <span class="provider-pill" data-testid="finance-provider-pill"><i></i>{localProvider}</span>
         <span>{formatPeriod(localPeriod)}</span>
-        <span>{formatMoney(netTotal)} net</span>
+        <span>Cash balance {formatMoney(totals.cashBalance)}</span>
       </div>
 
       {#if trend.length > 0}
-        <div class="trend" aria-label="Income and expenses over time" data-testid="finance-income-expense-chart">
-          {#each trend.slice(-6) as bucket}
-            <div class="bucket" title={bucket.bucket}>
-              <span class="bar income" style={`height: ${barHeight(bucket.income ?? 0)}`}></span>
-              <span class="bar expense" style={`height: ${barHeight(bucket.expense ?? 0)}`}></span>
-            </div>
-          {/each}
+        <div class="trend" aria-label="Income and expenses over time" data-testid="finance-income-expense-chart" data-chart-type="line">
+          <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+            <polyline data-testid="finance-income-line" class="line income-line" points={incomePolyline}></polyline>
+            <polyline data-testid="finance-expense-line" class="line expense-line" points={expensePolyline}></polyline>
+          </svg>
+          <div class="bucket-labels" aria-hidden="true">
+            {#each trend as bucket}
+              <span title={bucket.bucket}>{bucket.bucket.slice(5) || bucket.bucket}</span>
+            {/each}
+          </div>
         </div>
         <div class="legend" aria-hidden="true">
-          <span><i class="income-dot"></i>Income {formatMoney(incomeTotal)}</span>
-          <span><i class="expense-dot"></i>Expenses {formatMoney(expenseTotal)}</span>
+          <span><i class="income-dot"></i>Income {formatMoney(totals.income)}</span>
+          <span><i class="expense-dot"></i>Expenses {formatMoney(totals.expenses)}</span>
         </div>
       {:else}
         <p class="summary">{localSummary || subtitle}</p>
@@ -262,42 +235,59 @@
   .provider-pill i {
     width: 13px;
     height: 13px;
-    border-radius: 4px;
+    border-radius: var(--radius-full);
     background: var(--color-font-secondary);
     -webkit-mask: url('@openmates/ui/static/icons/revolut_business.svg') center / contain no-repeat;
     mask: url('@openmates/ui/static/icons/revolut_business.svg') center / contain no-repeat;
   }
 
   .trend {
-    display: grid;
-    grid-template-columns: repeat(6, minmax(0, 1fr));
-    align-items: end;
-    gap: 7px;
-    min-height: 46px;
-    padding: 8px 10px;
-    border-radius: 18px;
+    position: relative;
+    min-height: 58px;
+    padding: 8px 10px 18px;
+    border-radius: var(--radius-full);
     background:
       radial-gradient(circle at 12% 0%, color-mix(in srgb, var(--color-app-finance-end) 20%, transparent), transparent 48%),
       color-mix(in srgb, var(--color-grey-0) 84%, transparent);
     border: 1px solid color-mix(in srgb, var(--color-app-finance-start) 16%, var(--color-grey-20));
   }
 
-  .bucket {
+  svg {
+    display: block;
+    width: 100%;
+    height: 42px;
+    overflow: visible;
+  }
+
+  .line {
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 4;
+    vector-effect: non-scaling-stroke;
+  }
+
+  .income-line { stroke: var(--color-app-finance-end); }
+  .expense-line { stroke: var(--color-warning); }
+
+  .bucket-labels {
+    position: absolute;
+    right: 10px;
+    bottom: 5px;
+    left: 10px;
     display: flex;
-    align-items: end;
-    justify-content: center;
-    gap: 3px;
+    justify-content: space-between;
+    gap: 4px;
+    color: var(--color-font-secondary);
+    font-size: var(--font-size-xxs);
+  }
+
+  .bucket-labels span {
+    overflow: hidden;
     min-width: 0;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
-
-  .bar {
-    width: 7px;
-    min-height: 7px;
-    border-radius: 999px 999px 2px 2px;
-  }
-
-  .income { background: var(--color-app-finance-end); }
-  .expense { background: var(--color-warning); }
 
   .legend span {
     display: inline-flex;
@@ -309,7 +299,7 @@
   .legend i {
     width: 7px;
     height: 7px;
-    border-radius: 999px;
+    border-radius: var(--radius-full);
   }
 
   .income-dot { background: var(--color-app-finance-end); }

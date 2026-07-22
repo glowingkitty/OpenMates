@@ -21,15 +21,20 @@ async function waitForFinancePreview(page: any) {
 }
 
 test.describe('Finance Check accounts web embeds', () => {
-  test('renders aggregate-only preview and filtered transaction fullscreen', async ({ page }) => {
+  test('renders aggregate-only preview and filtered transaction fullscreen', async ({ page }: { page: any }) => {
     test.setTimeout(120_000);
 
     await waitForFinancePreview(page);
 
     const preview = page.getByTestId('finance-check-accounts-preview').first();
     await expect(preview).toBeVisible({ timeout: 15_000 });
-    await expect(preview.getByTestId('finance-total-value')).toBeVisible();
+    await expect(preview).toContainText('Net cash flow');
+    await expect(preview).not.toContainText('Current total value');
+    await expect(preview.getByTestId('finance-net-cash-flow')).toBeVisible();
     await expect(preview.getByTestId('finance-income-expense-chart')).toBeVisible();
+    await expect(preview.getByTestId('finance-income-expense-chart')).toHaveAttribute('data-chart-type', 'line');
+    await expect(preview.getByTestId('finance-income-line')).toBeVisible();
+    await expect(preview.getByTestId('finance-expense-line')).toBeVisible();
     await expect(preview.getByTestId('finance-provider-pill')).toContainText('Revolut Business');
     await expect(preview.getByTestId('finance-transaction-row')).toHaveCount(0);
     await expect(preview).not.toContainText('[MERCHANT_');
@@ -41,14 +46,20 @@ test.describe('Finance Check accounts web embeds', () => {
     const section = page.getByTestId('skill-section').filter({ has: preview }).first();
     const fullscreenClip = section.getByTestId('fs-clip').first();
     await expect(fullscreenClip.getByTestId('finance-check-accounts-fullscreen')).toBeVisible({ timeout: 15_000 });
-    await expect(fullscreenClip.getByTestId('finance-fullscreen-total-value')).toBeVisible();
+    await expect(fullscreenClip.getByTestId('finance-fullscreen-net-cash-flow')).toBeVisible();
+    await expect(fullscreenClip.getByTestId('finance-net-cash-flow-helper')).toContainText('Income - expenses');
+    await expect(fullscreenClip.getByTestId('finance-fullscreen-cash-balance')).toBeVisible();
+    await expect(fullscreenClip.getByTestId('finance-summary-grid')).not.toContainText('Total value');
     await expect(fullscreenClip.getByTestId('finance-fullscreen-chart')).toBeVisible();
+    await expect(fullscreenClip.getByTestId('finance-fullscreen-chart').locator('[data-chart-type="line"]')).toBeVisible();
+    await expect(fullscreenClip.getByTestId('finance-fullscreen-income-line')).toBeVisible();
+    await expect(fullscreenClip.getByTestId('finance-fullscreen-expense-line')).toBeVisible();
     await expect(fullscreenClip.getByTestId('finance-filters')).toBeVisible();
     await expect(fullscreenClip.getByTestId('finance-check-accounts-fullscreen')).toContainText('Revolut Business');
 
     const chartTop = await fullscreenClip.getByTestId('finance-fullscreen-chart').boundingBox();
-    const summaryTop = await fullscreenClip.locator('.summary-grid').boundingBox();
-    expect(chartTop?.y ?? Number.POSITIVE_INFINITY).toBeLessThan(summaryTop?.y ?? 0);
+    const summaryTop = await fullscreenClip.getByTestId('finance-summary-grid').boundingBox();
+    expect(summaryTop?.y ?? Number.POSITIVE_INFINITY).toBeLessThan(chartTop?.y ?? 0);
 
     await expect(fullscreenClip.getByTestId('finance-filter-account')).toBeVisible();
     await expect(fullscreenClip.getByTestId('finance-filter-source')).toBeVisible();
@@ -62,6 +73,11 @@ test.describe('Finance Check accounts web embeds', () => {
 
     await expect(fullscreenClip.getByTestId('finance-transaction-row')).toHaveCount(5);
     await expect(fullscreenClip.getByTestId('finance-transaction-list')).toContainText('[MERCHANT_SOFTWARE_001]');
+    await expect(fullscreenClip.getByTestId('finance-transaction-list')).not.toContainText('Acme Software Ltd');
+
+    await section.getByRole('button', { name: 'ownerPiiRevealed' }).click();
+    await expect(fullscreenClip.getByTestId('finance-transaction-list')).toContainText('Acme Software Ltd');
+    await expect(fullscreenClip.getByTestId('finance-transaction-list')).toContainText('Northstar Client');
 
     await fullscreenClip.getByTestId('finance-filter-direction').selectOption('expense');
     await expect(fullscreenClip.getByTestId('finance-transaction-row')).toHaveCount(3);
