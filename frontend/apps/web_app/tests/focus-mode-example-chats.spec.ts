@@ -11,18 +11,19 @@ const { test, expect } = require('./helpers/cookie-audit');
 const { getE2EDebugUrl } = require('./signup-flow-helpers');
 
 async function navigateToFinanceExample(page: any): Promise<void> {
-  const financeTitle = page.getByTestId('chat-header-title').filter({ hasText: 'Summarize recent business finances' }).first();
-  for (let attempt = 0; attempt < 12; attempt += 1) {
-    if (await financeTitle.isVisible().catch(() => false)) return;
-    const previousButton = page.getByTestId('chat-header-previous').first();
-    if (await previousButton.isVisible().catch(() => false)) {
-      await previousButton.click();
-    } else {
-      await page.getByTestId('chat-header-next').first().click();
+  const sidebarToggle = page.getByTestId('sidebar-toggle');
+  await expect(sidebarToggle).toBeVisible({ timeout: 10_000 });
+  await sidebarToggle.click();
+
+  const financeChat = page.locator('[data-testid="chat-item-wrapper"][data-chat-id="example-finance-cash-flow-overview"]');
+  if ((await financeChat.count()) === 0) {
+    const showMoreExamples = page.getByTestId('show-more-example-chats');
+    if (await showMoreExamples.isVisible().catch(() => false)) {
+      await showMoreExamples.click();
     }
-    await expect(page.getByTestId('chat-header-title').first()).toBeVisible({ timeout: 5_000 });
   }
-  await expect(financeTitle).toBeVisible({ timeout: 5_000 });
+  await expect(financeChat.first()).toBeVisible({ timeout: 10_000 });
+  await financeChat.first().click();
 }
 
 test.describe('focus-mode example chat state', () => {
