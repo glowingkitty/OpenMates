@@ -54,6 +54,9 @@ optional_api_key_scheme = HTTPBearer(
 router = APIRouter(prefix="/v1/settings", tags=["Settings"])
 logger = logging.getLogger(__name__)
 
+ISSUE_REPORT_TITLE_MAX_CHARS = 5_000
+ISSUE_REPORT_DB_TITLE_MAX_CHARS = 250
+
 LLM_PROVIDER_ENV_KEYS = (
     "SECRET__MISTRAL_AI__API_KEY",
     "SECRET__CEREBRAS__API_KEY",
@@ -2676,7 +2679,7 @@ class DeviceInfo(BaseModel):
 
 class IssueReportRequest(BaseModel):
     """Request model for issue reporting endpoint"""
-    title: str = Field(..., min_length=3, max_length=500, description="Short description of the issue (required, 3-500 characters)")
+    title: str = Field(..., min_length=3, max_length=ISSUE_REPORT_TITLE_MAX_CHARS, description="Short description of the issue (required, 3-5000 characters)")
     description: Optional[str] = Field(None, min_length=10, max_length=5000, description="Issue description (optional, 10-5000 characters if provided)")
     issue_type: Literal["bug_report", "feature_request"] = Field("bug_report", description="Lightweight category for the submitted report")
     chat_or_embed_url: Optional[str] = Field(None, max_length=500, description="Optional chat or embed URL related to the issue")
@@ -3141,11 +3144,10 @@ async def report_issue(
             # Truncate here so the Directus write never fails on long titles while the
             # migration is pending. Apply `ALTER TABLE issues ALTER COLUMN title TYPE TEXT`
             # on the production DB to remove this limit.
-            _DB_TITLE_MAX = 250
-            db_title = sanitized_title[:_DB_TITLE_MAX] if len(sanitized_title) > _DB_TITLE_MAX else sanitized_title
-            if len(sanitized_title) > _DB_TITLE_MAX:
+            db_title = sanitized_title[:ISSUE_REPORT_DB_TITLE_MAX_CHARS] if len(sanitized_title) > ISSUE_REPORT_DB_TITLE_MAX_CHARS else sanitized_title
+            if len(sanitized_title) > ISSUE_REPORT_DB_TITLE_MAX_CHARS:
                 logger.warning(
-                    f"[report_issue] Title truncated from {len(sanitized_title)} to {_DB_TITLE_MAX} chars "
+                    f"[report_issue] Title truncated from {len(sanitized_title)} to {ISSUE_REPORT_DB_TITLE_MAX_CHARS} chars "
                     "for Directus storage (varchar(255) constraint not yet migrated to TEXT on prod)"
                 )
 
