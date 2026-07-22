@@ -176,7 +176,7 @@ attempts:
     approach: Rerun long-chat-history.spec.ts after fixture commit d5a933f8a deployed.
     outcome: blocked
     recorded_at: "2026-07-22T12:43:39Z"
-    notes: GitHub Actions run 29921440863 loaded the latest window but could not reveal Active assistant message 082. The older-message request cursor was patched in 2506eeb1e to use the first active rendered message instead of raw internal history that may include forgotten or virtualized records.
+    notes: GitHub Actions run 29921440863 loaded the latest window but could not reveal Active assistant message 082. The older-message request cursor was patched in 2506eeb1e to use the first active rendered message instead of raw internal history that may include forgotten or virtualized records. Vercel deployment dpl_3aekaAsjMoCfEa4myjM2Tr5fCjrs for 2506eeb1e was confirmed READY at 2026-07-22T13:08Z before releasing the completed deploy lock.
 
 handoff:
   current_task_id: TASK-6
