@@ -158,9 +158,12 @@ test.describe('Guest interest smart selection', () => {
 		await expect(page.getByTestId('landing-intro-expanded')).toBeVisible({ timeout: 15000 });
 		await expect(page.getByTestId('landing-intro-headline')).toContainText('Simply ask', { timeout: 15000 });
 		await expect(page.getByTestId('landing-intro-headline')).toContainText('your AI team mates', { timeout: 15000 });
+		await expect(page.getByTestId('daily-inspiration-previous')).toHaveCount(0);
 		for (const appId of LANDING_INTRO_HIGHLIGHTED_APPS) {
 			await expect(page.locator(`[data-testid="landing-intro-app-icon"][data-app-id="${appId}"]`).first()).toBeVisible({ timeout: 15000 });
 		}
+		await expect(page.locator('[data-testid="landing-intro-app-icon"][data-app-id="ai"]')).toHaveCount(0);
+		await expect.poll(async () => (await landingIntroState(page)).requestLabel, { timeout: 5000 }).toBeTruthy();
 		const introState = await landingIntroState(page);
 		expect(LANDING_INTRO_REQUESTS).toContain(introState.requestLabel);
 		expect(introState.highlightedAppIds).toContain(LANDING_INTRO_REQUEST_APP_IDS.get(introState.requestLabel));

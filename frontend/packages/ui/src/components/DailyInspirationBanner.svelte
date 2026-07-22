@@ -55,8 +55,10 @@
 
   const INSPIRATION_AUTO_ROTATION_INTERVAL_MS = 20000;
   const MOBILE_CARD_ROTATION_INTERVAL_MS = Math.round(INSPIRATION_AUTO_ROTATION_INTERVAL_MS * 0.55);
-  const LANDING_INTRO_TOTAL_MS = 8500;
-  const LANDING_INTRO_REQUEST_INTERVAL_MS = 1700;
+  const LANDING_INTRO_REQUESTS_COUNT = 4;
+  const LANDING_INTRO_HEADLINE_ONLY_MS = 1800;
+  const LANDING_INTRO_REQUEST_INTERVAL_MS = 2600;
+  const LANDING_INTRO_TOTAL_MS = LANDING_INTRO_HEADLINE_ONLY_MS + (LANDING_INTRO_REQUEST_INTERVAL_MS * LANDING_INTRO_REQUESTS_COUNT) + 700;
   const TOUCH_SWIPE_DISTANCE_PX = 56;
   const TOUCH_SWIPE_VERTICAL_CANCEL_PX = 48;
   // Temporarily disabled with the visit-cycling effect below.
@@ -74,6 +76,7 @@
     'settings_memories',
   ]);
   const LANDING_INTRO_FEATURED_APP_IDS = ['health', 'events', 'code', 'news'];
+  const LANDING_INTRO_EXCLUDED_APP_IDS = new Set(['ai']);
   const LANDING_INTRO_REQUESTS = [
     { appId: 'health', labelKey: 'demo_chats.for_everyone.landing_intro_request_doctor' },
     { appId: 'events', labelKey: 'demo_chats.for_everyone.landing_intro_request_events' },
@@ -150,7 +153,7 @@
   let progressRestartToken = $state(0);
   let lastNotifiedInspirationId = $state('');
   let landingIntroDismissed = $state(false);
-  let landingIntroRequestIndex = $state(0);
+  let landingIntroRequestIndex = $state(-1);
   // Temporarily disabled with the visit-cycling effect below.
   // let visitCycleTargetIndexes = $state(new Map<string, number>());
   // let visitCycleAppliedInspirations = $state<DailyInspiration[] | null>(null);
@@ -345,7 +348,8 @@
     LANDING_INTRO_REQUESTS[landingIntroRequestIndex] ?? LANDING_INTRO_REQUESTS[0],
   );
 
-  let landingIntroRequestLabel = $derived($text(landingIntroActiveRequest.labelKey));
+  let landingIntroExamplesVisible = $derived(landingIntroRequestIndex >= 0);
+  let landingIntroRequestLabel = $derived(landingIntroExamplesVisible ? $text(landingIntroActiveRequest.labelKey) : '');
   let landingIntroActiveAppId = $derived(landingIntroActiveRequest.appId);
   let isGuestActionableSlide = $derived(isGuestIntroVariant && !landingIntroShouldExpand && currentIndex === 1);
   let guestFeatureHeadlineLines = $derived.by(() => {
@@ -359,46 +363,36 @@
   });
 
   let landingIntroAppIcons = $derived(buildLandingIntroAppIcons());
-  let landingIntroFeaturedIcons = $derived(
-    LANDING_INTRO_FEATURED_APP_IDS
-      .map((appId) => landingIntroAppIcons.find((icon) => icon.appId === appId))
-      .filter((icon): icon is LandingIntroAppIcon => Boolean(icon)),
-  );
-  let landingIntroRemainingIcons = $derived(
-    landingIntroAppIcons.filter((icon) => !LANDING_INTRO_FEATURED_APP_IDS.includes(icon.appId)),
-  );
-  let landingIntroFirstRail = $derived([
-    ...landingIntroFeaturedIcons,
-    ...landingIntroRemainingIcons.filter((_, index) => index % 2 === 0),
-  ]);
-  let landingIntroSecondRail = $derived(
-    landingIntroRemainingIcons.filter((_, index) => index % 2 === 1),
-  );
-  let landingIntroFirstRailLoop = $derived([...landingIntroFirstRail, ...landingIntroFirstRail]);
-  let landingIntroSecondRailLoop = $derived([...landingIntroSecondRail, ...landingIntroSecondRail]);
+  let landingIntroFirstRail = $derived.by(() => buildCenteredLandingIntroIcons(landingIntroAppIcons, landingIntroActiveAppId, 7));
+  let landingIntroSecondRail = $derived.by(() => buildSecondaryLandingIntroIcons(landingIntroAppIcons, landingIntroFirstRail, 7));
   let carouselProgressDurationMs = $derived(
     landingIntroShouldExpand ? LANDING_INTRO_TOTAL_MS : INSPIRATION_AUTO_ROTATION_INTERVAL_MS,
   );
 
   $effect(() => {
     if (!landingIntroShouldExpand) {
-      landingIntroRequestIndex = 0;
+      landingIntroRequestIndex = -1;
       return;
     }
 
-    landingIntroRequestIndex = 0;
-    const interval = window.setInterval(() => {
-      landingIntroRequestIndex = Math.min(
-        LANDING_INTRO_REQUESTS.length - 1,
-        landingIntroRequestIndex + 1,
-      );
-    }, LANDING_INTRO_REQUEST_INTERVAL_MS);
+    landingIntroRequestIndex = -1;
+    let interval: number | undefined;
+    const headlineTimeout = window.setTimeout(() => {
+      landingIntroRequestIndex = 0;
+      interval = window.setInterval(() => {
+        landingIntroRequestIndex = Math.min(
+          LANDING_INTRO_REQUESTS.length - 1,
+          landingIntroRequestIndex + 1,
+        );
+      }, LANDING_INTRO_REQUEST_INTERVAL_MS);
+    }, LANDING_INTRO_HEADLINE_ONLY_MS);
     const timeout = window.setTimeout(() => {
       completeLandingIntro(1);
     }, LANDING_INTRO_TOTAL_MS);
 
     return () => {
-      window.clearInterval(interval);
+      window.clearTimeout(headlineTimeout);
+      if (interval !== undefined) window.clearInterval(interval);
       window.clearTimeout(timeout);
     };
   });
@@ -797,7 +791,7 @@
 
   function completeLandingIntro(direction: 1 | -1): void {
     landingIntroDismissed = true;
-    landingIntroRequestIndex = 0;
+    landingIntroRequestIndex = -1;
     markManualNavigation();
     resumeAutoRotation();
     goToVisibleIndex(currentIndex + direction);
@@ -806,7 +800,7 @@
 
   function buildLandingIntroAppIcons(): LandingIntroAppIcon[] {
     return Object.values(appsMetadata)
-      .filter((app) => Boolean(app.id && app.icon_image))
+      .filter((app) => Boolean(app.id && app.icon_image) && !LANDING_INTRO_EXCLUDED_APP_IDS.has(app.id))
       .map((app) => ({
         appId: app.id,
         iconName: resolveIconName((app.icon_image ?? app.id).replace(/\.svg$/, '').trim()),
@@ -820,6 +814,33 @@
         }
         return a.appId.localeCompare(b.appId);
       });
+  }
+
+  function buildCenteredLandingIntroIcons(
+    icons: LandingIntroAppIcon[],
+    activeAppId: string,
+    count: number,
+  ): LandingIntroAppIcon[] {
+    if (icons.length === 0) return [];
+    const activeIndex = Math.max(0, icons.findIndex((icon) => icon.appId === activeAppId));
+    const centerIndex = Math.floor(count / 2);
+    return Array.from({ length: count }, (_, index) => icons[positiveModulo(activeIndex + index - centerIndex, icons.length)]);
+  }
+
+  function buildSecondaryLandingIntroIcons(
+    icons: LandingIntroAppIcon[],
+    firstRail: LandingIntroAppIcon[],
+    count: number,
+  ): LandingIntroAppIcon[] {
+    const firstRailIds = new Set(firstRail.map((icon) => icon.appId));
+    const remainingIcons = icons.filter((icon) => !firstRailIds.has(icon.appId));
+    const sourceIcons = remainingIcons.length >= count ? remainingIcons : icons.filter((icon) => icon.appId !== landingIntroActiveAppId);
+    if (sourceIcons.length === 0) return [];
+    return Array.from({ length: count }, (_, index) => sourceIcons[index % sourceIcons.length]);
+  }
+
+  function positiveModulo(value: number, divisor: number): number {
+    return ((value % divisor) + divisor) % divisor;
   }
 
   function landingIntroIconStyle(icon: LandingIntroAppIcon): string {
@@ -1001,6 +1022,7 @@
             {#if landingIntroShouldExpand}
               <div
                 class="landing-intro-expanded-content"
+                class:examples-visible={landingIntroExamplesVisible}
                 data-testid="landing-intro-expanded"
               >
                 <div class="guest-intro-ai-icon landing-intro-ai-icon" data-testid="guest-intro-ai-icon" aria-hidden="true"></div>
@@ -1008,35 +1030,38 @@
                   <span>{$text('demo_chats.for_everyone.landing_intro_headline_line1')}</span>
                   <span>{$text('demo_chats.for_everyone.landing_intro_headline_line2')}</span>
                 </h1>
-                <div class="landing-intro-request" data-testid="landing-intro-request" aria-live="polite">
-                  {#key landingIntroRequestLabel}
-                    <span>{landingIntroRequestLabel}</span>
-                  {/key}
-                </div>
-                <div class="landing-intro-app-rails" aria-hidden="true">
-                  <div class="landing-intro-app-rail landing-intro-app-rail-primary" data-testid="landing-intro-app-rail">
-                    {#each landingIntroFirstRailLoop as icon, index (`primary-${icon.appId}-${index}`)}
-                      <span
-                        class="landing-intro-app-icon"
-                        class:highlighted={icon.appId === landingIntroActiveAppId}
-                        data-testid="landing-intro-app-icon"
-                        data-app-id={icon.appId}
-                        data-highlighted={icon.appId === landingIntroActiveAppId ? 'true' : 'false'}
-                        style={landingIntroIconStyle(icon)}
-                      ></span>
-                    {/each}
+                <div class="landing-intro-examples" class:visible={landingIntroExamplesVisible}>
+                  <div class="landing-intro-request" data-testid="landing-intro-request" aria-live="polite">
+                    {#key landingIntroRequestLabel}
+                      <span>{landingIntroRequestLabel}</span>
+                    {/key}
                   </div>
-                  <div class="landing-intro-app-rail landing-intro-app-rail-secondary" data-testid="landing-intro-app-rail">
-                    {#each landingIntroSecondRailLoop as icon, index (`secondary-${icon.appId}-${index}`)}
-                      <span
-                        class="landing-intro-app-icon"
-                        class:highlighted={icon.appId === landingIntroActiveAppId}
-                        data-testid="landing-intro-app-icon"
-                        data-app-id={icon.appId}
-                        data-highlighted={icon.appId === landingIntroActiveAppId ? 'true' : 'false'}
-                        style={landingIntroIconStyle(icon)}
-                      ></span>
-                    {/each}
+                  <div class="landing-intro-app-rails" aria-hidden="true">
+                    {#key landingIntroActiveAppId}
+                      <div class="landing-intro-app-rail landing-intro-app-rail-primary" data-testid="landing-intro-app-rail">
+                        {#each landingIntroFirstRail as icon, index (`primary-${icon.appId}-${index}`)}
+                          <span
+                            class="landing-intro-app-icon"
+                            class:highlighted={icon.appId === landingIntroActiveAppId}
+                            data-testid="landing-intro-app-icon"
+                            data-app-id={icon.appId}
+                            data-highlighted={icon.appId === landingIntroActiveAppId ? 'true' : 'false'}
+                            style={landingIntroIconStyle(icon)}
+                          ></span>
+                        {/each}
+                      </div>
+                      <div class="landing-intro-app-rail landing-intro-app-rail-secondary" data-testid="landing-intro-app-rail">
+                        {#each landingIntroSecondRail as icon, index (`secondary-${icon.appId}-${index}`)}
+                          <span
+                            class="landing-intro-app-icon"
+                            data-testid="landing-intro-app-icon"
+                            data-app-id={icon.appId}
+                            data-highlighted="false"
+                            style={landingIntroIconStyle(icon)}
+                          ></span>
+                        {/each}
+                      </div>
+                    {/key}
                   </div>
                 </div>
               </div>
@@ -1278,15 +1303,17 @@
           </div>
         {/if}
 
-        <button
-          class="carousel-arrow carousel-arrow-left"
-          data-testid="daily-inspiration-previous"
-          onclick={handlePrevious}
-          aria-label={$text('daily_inspiration.previous')}
-          type="button"
-        >
-          <ChevronLeft size={22} color="rgba(255,255,255,0.85)" />
-        </button>
+        {#if !landingIntroShouldExpand}
+          <button
+            class="carousel-arrow carousel-arrow-left"
+            data-testid="daily-inspiration-previous"
+            onclick={handlePrevious}
+            aria-label={$text('daily_inspiration.previous')}
+            type="button"
+          >
+            <ChevronLeft size={22} color="rgba(255,255,255,0.85)" />
+          </button>
+        {/if}
 
         <button
           class="carousel-arrow carousel-arrow-right"
@@ -1376,8 +1403,8 @@
   }
 
   .daily-inspiration-banner.landing-intro-expanded {
-    height: clamp(520px, calc(100vh - 190px), 720px);
-    min-height: 520px;
+    height: clamp(620px, calc(100vh - 120px), 860px);
+    min-height: 620px;
     transition:
       filter 0.15s ease,
       transform 0.1s ease,
@@ -1438,12 +1465,12 @@
     gap: 36px;
     width: 100%;
     transform: translateZ(0);
-    contain: layout paint;
+    contain: layout;
   }
 
   .landing-intro-expanded .banner-inner {
     width: 100%;
-    padding: 28px 58px 34px;
+    padding: 28px 0 34px;
   }
 
   .landing-intro-expanded .banner-content {
@@ -1458,7 +1485,7 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    width: min(100%, 1220px);
+    width: 100%;
     height: 100%;
     color: white;
     text-align: center;
@@ -1470,6 +1497,7 @@
     height: clamp(54px, 5.2vw, 92px);
     margin: 0 0 clamp(18px, 2.2vw, 30px);
     filter: drop-shadow(0 12px 34px rgba(0, 0, 0, 0.2));
+    transition: transform 780ms cubic-bezier(0.22, 1, 0.36, 1), margin 780ms cubic-bezier(0.22, 1, 0.36, 1);
   }
 
   .landing-intro-headline {
@@ -1477,12 +1505,41 @@
     flex-direction: column;
     gap: 0;
     margin: 0;
-    font-size: clamp(2.65rem, 4.6vw, 5.6rem);
+    max-width: min(100% - 48px, 1050px);
+    font-size: clamp(2.35rem, 4.15vw, 4.95rem);
     line-height: 1.05;
     font-weight: 800;
-    letter-spacing: -0.045em;
+    letter-spacing: -0.04em;
     color: rgba(255, 255, 255, 0.96);
     text-shadow: 0 8px 38px rgba(0, 0, 0, 0.22);
+    transition: transform 780ms cubic-bezier(0.22, 1, 0.36, 1), font-size 780ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .landing-intro-expanded-content.examples-visible .landing-intro-ai-icon {
+    margin-bottom: clamp(12px, 1.4vw, 20px);
+    transform: translateY(-8px) scale(0.88);
+  }
+
+  .landing-intro-expanded-content.examples-visible .landing-intro-headline {
+    transform: translateY(-10px);
+  }
+
+  .landing-intro-examples {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    opacity: 0;
+    transform: translateY(22px);
+    pointer-events: none;
+    transition:
+      opacity 680ms ease,
+      transform 780ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .landing-intro-examples.visible {
+    opacity: 1;
+    transform: translateY(0);
   }
 
   .landing-intro-request {
@@ -1490,7 +1547,7 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    margin-top: clamp(26px, 3vw, 42px);
+    margin-top: clamp(18px, 2.1vw, 30px);
     min-height: clamp(44px, 4.1vw, 68px);
     padding: 0 clamp(22px, 2.5vw, 38px);
     border-radius: clamp(11px, 1.1vw, 18px);
@@ -1522,27 +1579,19 @@
     display: flex;
     flex-direction: column;
     gap: clamp(22px, 3vw, 42px);
-    width: min(100%, 1120px);
-    margin-top: clamp(42px, 6vw, 84px);
+    width: 100%;
+    margin-top: clamp(36px, 5vw, 66px);
     overflow: hidden;
-    -webkit-mask-image: linear-gradient(90deg, transparent, #000 9%, #000 91%, transparent);
-    mask-image: linear-gradient(90deg, transparent, #000 9%, #000 91%, transparent);
   }
 
   .landing-intro-app-rail {
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: clamp(24px, 3.3vw, 58px);
-    width: max-content;
-    will-change: transform;
-  }
-
-  .landing-intro-app-rail-primary {
-    animation: landingIntroRailLeft 24s linear infinite;
-  }
-
-  .landing-intro-app-rail-secondary {
-    animation: landingIntroRailRight 24s linear infinite;
+    min-width: max-content;
+    width: 100%;
+    animation: landingIntroRequestIn 520ms ease both;
   }
 
   .landing-intro-app-icon {
@@ -1554,8 +1603,8 @@
     background: var(--landing-intro-app-bg);
     border: 1px solid rgba(255, 255, 255, 0.2);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 16px 32px rgba(24, 43, 106, 0.16);
-    opacity: 0.32;
-    transform: scale(0.94);
+    opacity: 0.38;
+    transform: scale(0.92);
     transition:
       opacity 420ms ease,
       transform 420ms ease,
@@ -1580,9 +1629,12 @@
 
   .landing-intro-app-icon.highlighted {
     opacity: 1;
-    transform: scale(1.08);
-    border-color: rgba(255, 255, 255, 0.54);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 20px 46px rgba(24, 43, 106, 0.28);
+    transform: scale(1.18);
+    border-color: rgba(255, 255, 255, 0.78);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.3),
+      0 0 0 5px rgba(255, 255, 255, 0.18),
+      0 24px 58px rgba(24, 43, 106, 0.36);
   }
 
   .landing-intro-app-icon.highlighted::before {
@@ -2247,8 +2299,8 @@
     }
 
     .daily-inspiration-banner.landing-intro-expanded {
-      height: clamp(430px, calc(100dvh - 180px), 620px);
-      min-height: 430px;
+      height: clamp(640px, calc(100dvh - 78px), 900px);
+      min-height: 640px;
     }
 
     :global(.menu-open) .daily-inspiration-banner,
@@ -2267,7 +2319,7 @@
     }
 
     .landing-intro-expanded .banner-inner {
-      padding: 26px 44px 30px;
+      padding: 28px 0 30px;
     }
 
     .guest-intro-variant .banner-content {
@@ -2282,8 +2334,10 @@
     }
 
     .landing-intro-headline {
-      font-size: clamp(2rem, 9vw, 3.25rem);
-      line-height: 1.08;
+      max-width: min(100% - 34px, 390px);
+      font-size: clamp(1.7rem, 8vw, 2.55rem);
+      line-height: 1.1;
+      letter-spacing: -0.032em;
     }
 
     .landing-intro-ai-icon {
@@ -2292,28 +2346,38 @@
       margin-bottom: 16px;
     }
 
+    .landing-intro-expanded-content.examples-visible .landing-intro-ai-icon {
+      transform: translateY(-5px) scale(0.82);
+      margin-bottom: 10px;
+    }
+
+    .landing-intro-expanded-content.examples-visible .landing-intro-headline {
+      transform: translateY(-6px);
+    }
+
     .landing-intro-request {
       max-width: min(100%, 280px);
       min-height: 38px;
-      margin-top: 20px;
+      margin-top: 18px;
       padding: 0 16px;
-      font-size: clamp(1rem, 5vw, 1.42rem);
+      font-size: clamp(1rem, 4.8vw, 1.32rem);
       white-space: normal;
     }
 
     .landing-intro-app-rails {
       gap: 22px;
-      margin-top: 34px;
-      width: min(100%, 340px);
+      margin-top: 32px;
+      width: 100%;
     }
 
     .landing-intro-app-rail {
       gap: 22px;
+      justify-content: center;
     }
 
     .landing-intro-app-icon {
-      width: clamp(48px, 14vw, 64px);
-      height: clamp(48px, 14vw, 64px);
+      width: clamp(48px, 13vw, 58px);
+      height: clamp(48px, 13vw, 58px);
       border-radius: 12px;
     }
 
