@@ -204,9 +204,32 @@ async function waitForChatInSidebarAndClick(
 			})
 		});
 
-	// Wait for it to appear (delivered via WebSocket real-time sync)
-	await expect(chatItem.first()).toBeVisible({ timeout: timeoutMs });
-	logFn(`Chat "${expectedTitleFragment}" appeared in sidebar — clicking to open.`);
+	// Wait for it to appear (delivered via WebSocket real-time sync). The sidebar
+	// renders a progressive slice of recent chats, so synced chats can exist in
+	// IndexedDB but sit below the initially mounted rows when older drafts sort first.
+	const deadline = Date.now() + timeoutMs;
+	let showMoreClicks = 0;
+	while (Date.now() < deadline) {
+		if (await chatItem.first().isVisible({ timeout: 1000 }).catch(() => false)) {
+			break;
+		}
+
+		const showMoreButton = page.getByTestId('show-more-chats');
+		if (
+			await showMoreButton.isVisible({ timeout: 500 }).catch(() => false) &&
+			await showMoreButton.isEnabled().catch(() => false)
+		) {
+			showMoreClicks += 1;
+			logFn(`Target chat not in mounted sidebar slice - clicking Show more (${showMoreClicks}).`);
+			await showMoreButton.click();
+			await page.waitForTimeout(500);
+			continue;
+		}
+
+		await page.waitForTimeout(1000);
+	}
+	await expect(chatItem.first()).toBeVisible({ timeout: 1000 });
+	logFn(`Chat "${expectedTitleFragment}" appeared in sidebar - clicking to open.`);
 
 	// Click the chat to open it
 	await chatItem.first().click();
