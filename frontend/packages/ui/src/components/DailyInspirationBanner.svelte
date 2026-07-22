@@ -1428,7 +1428,7 @@
   }
 
   .daily-inspiration-banner.landing-intro-expanded {
-    height: clamp(620px, calc(100vh - 120px), 860px);
+    height: clamp(620px, calc(100dvh - 64px), 940px);
     min-height: 620px;
     transition:
       filter 0.15s ease,
@@ -1685,6 +1685,69 @@
     opacity: 1;
     transform: scale(1.12);
     box-shadow: 0 22px 48px rgba(24, 43, 106, 0.28);
+  }
+
+  @media (orientation: landscape) and (max-height: 760px) {
+    .daily-inspiration-banner.landing-intro-expanded {
+      height: calc(100dvh - 40px);
+      min-height: 0;
+      max-height: none;
+    }
+
+    .landing-intro-ai-icon {
+      width: clamp(42px, 8vh, 58px);
+      height: clamp(42px, 8vh, 58px);
+      margin-bottom: 12px;
+    }
+
+    .landing-intro-headline {
+      font-size: clamp(2rem, 5.2vh, 3.05rem);
+      line-height: 1.02;
+    }
+
+    .landing-intro-expanded-content.examples-visible .landing-intro-ai-icon {
+      transform: translateY(-34px) scale(0.78);
+      margin-bottom: 6px;
+    }
+
+    .landing-intro-expanded-content.examples-visible .landing-intro-headline {
+      transform: translateY(-38px) scale(0.9);
+    }
+
+    .landing-intro-examples {
+      top: calc(50% + 46px);
+      padding-bottom: 10px;
+    }
+
+    .landing-intro-request {
+      min-height: 38px;
+      margin-top: 6px;
+      padding: 0 22px;
+      font-size: clamp(1.1rem, 3.7vh, 1.75rem);
+      border-radius: 12px;
+    }
+
+    .landing-intro-request::after {
+      bottom: 6px;
+      width: 14px;
+      height: 14px;
+    }
+
+    .landing-intro-app-rails {
+      gap: 14px;
+      margin-top: 20px;
+    }
+
+    .landing-intro-app-rail {
+      gap: 24px;
+      padding: 4px 0;
+    }
+
+    .landing-intro-app-icon {
+      width: clamp(44px, 8vh, 56px);
+      height: clamp(44px, 8vh, 56px);
+      border-radius: 12px;
+    }
   }
 
   @keyframes landingIntroEnter {
