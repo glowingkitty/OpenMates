@@ -22,7 +22,7 @@ class FakeModelSelector:
         self.calls.append(kwargs)
         complexity = kwargs.get("complexity")
         return SimpleNamespace(
-            primary_model_id="google/gemini-3.1-pro-preview" if complexity == "complex" else "google/gemini-3-flash-preview",
+            primary_model_id="google/gemini-3.6-flash" if complexity == "complex" else "google/gemini-3-flash-preview",
             secondary_model_id="anthropic/claude-haiku-4-5-20251001",
             fallback_model_id="anthropic/claude-sonnet-4-6",
             selection_reason=f"fake selector complexity={complexity}",
@@ -94,7 +94,7 @@ async def test_task_pipeline_uses_preprocessor_selected_main_model_and_descripti
                 "ambiguity": [],
             }
         if task_id.endswith("-main"):
-            assert kwargs["model_id"] == "google/gemini-3.1-pro-preview"
+            assert kwargs["model_id"] == "google/gemini-3.6-flash"
             return {
                 "tasks": [
                     {"title": "Draft QA checklist", "description": "", "status": "todo", "assignee_type": "user"},
@@ -118,8 +118,8 @@ async def test_task_pipeline_uses_preprocessor_selected_main_model_and_descripti
     assert result.processing["intent_frame"]["complexity"] == "medium"
     assert result.processing["intent_frame"]["selected_capability_ids"] == []
     assert result.processing["preprocessing_result"]["user_unhappy"] is True
-    assert result.processing["model_selection"]["primary_model_id"] == "google/gemini-3.1-pro-preview"
-    assert result.processing["intent_frame"]["selected_main_llm_model_id"] == "google/gemini-3.1-pro-preview"
+    assert result.processing["model_selection"]["primary_model_id"] == "google/gemini-3.6-flash"
+    assert result.processing["intent_frame"]["selected_main_llm_model_id"] == "google/gemini-3.6-flash"
     assert selector.calls[0]["task_area"] == "instruction"
     assert selector.calls[0]["china_related"] is True
     assert selector.calls[0]["user_unhappy"] is True
@@ -157,7 +157,7 @@ async def test_workflow_pipeline_filters_unknown_capabilities_before_main_proces
                 "ambiguity": [],
             }
         if task_id.endswith("-main"):
-            assert kwargs["model_id"] == "google/gemini-3.1-pro-preview"
+            assert kwargs["model_id"] == "google/gemini-3.6-flash"
             graph_schema = kwargs["tool_definition"]["function"]["parameters"]["properties"]["graph"]
             assert graph_schema["required"] == ["version", "trigger_node_id", "nodes", "edges"]
             detailed_context = kwargs["dynamic_context"]
@@ -194,7 +194,7 @@ async def test_workflow_pipeline_filters_unknown_capabilities_before_main_proces
     assert result.proposal["title"] == "Manual Release Review"
     assert result.proposal["description"] == "Prompts the user to review release risk before shipping."
     assert result.processing["filtered_unknown_capability_ids"] == ["slack.send_message"]
-    assert result.processing["model_selection"]["primary_model_id"] == "google/gemini-3.1-pro-preview"
+    assert result.processing["model_selection"]["primary_model_id"] == "google/gemini-3.6-flash"
 
 
 @pytest.mark.asyncio

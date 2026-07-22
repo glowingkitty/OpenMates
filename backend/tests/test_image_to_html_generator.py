@@ -15,11 +15,12 @@ from backend.shared.providers.image_to_html_generator import (
     GeneratedHtmlCandidate,
     HtmlGenerationUsage,
     ImageToHtmlGenerator,
+    SourceImageDimensions,
     _generate_html_with_gemini,
 )
 
 
-PNG_BYTES = b"\x89PNG\r\n\x1a\n"
+PNG_BYTES = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01"
 
 
 async def test_generator_repairs_invalid_external_reference_before_render() -> None:
@@ -65,6 +66,7 @@ async def test_generator_repairs_invalid_external_reference_before_render() -> N
 
 async def test_generator_uses_e2b_render_screenshot_for_correction_pass() -> None:
     calls: list[dict[str, object]] = []
+    render_calls: list[dict[str, object]] = []
 
     async def fake_gemini(**kwargs):
         calls.append(kwargs)
@@ -75,6 +77,7 @@ async def test_generator_uses_e2b_render_screenshot_for_correction_pass() -> Non
         )
 
     def fake_renderer(**kwargs):
+        render_calls.append(kwargs)
         return E2BHtmlRenderResult(sandbox_id="sandbox-1", screenshot_bytes=PNG_BYTES, duration_seconds=1.0)
 
     generator = ImageToHtmlGenerator(
@@ -94,6 +97,21 @@ async def test_generator_uses_e2b_render_screenshot_for_correction_pass() -> Non
     assert result.usage["e2b_render_seconds"] == 2.0
     assert calls[1]["current_html"] == "<!doctype html><html><body>First</body></html>"
     assert calls[1]["rendered_screenshot_bytes"] == PNG_BYTES
+    assert calls[1]["source_dimensions"] == SourceImageDimensions(width=1, height=1)
+    assert render_calls == [
+        {
+            "html": "<!doctype html><html><body>First</body></html>",
+            "api_key": "test-e2b-key",
+            "viewport_width": 1,
+            "viewport_height": 1,
+        },
+        {
+            "html": "<!doctype html><html><body>Improved</body></html>",
+            "api_key": "test-e2b-key",
+            "viewport_width": 1,
+            "viewport_height": 1,
+        },
+    ]
 
 
 async def test_default_gemini_path_reuses_existing_google_ai_studio_wrapper(monkeypatch) -> None:
@@ -114,7 +132,7 @@ async def test_default_gemini_path_reuses_existing_google_ai_studio_wrapper(monk
     monkeypatch.setitem(sys.modules, "backend.apps.ai.llm_providers.google_client", fake_google_client)
 
     result = await _generate_html_with_gemini(
-        model_id="gemini-3.1-pro-preview",
+        model_id="gemini-3.6-flash",
         secrets_manager=object(),
         prompt="Create HTML",
         image_bytes=PNG_BYTES,
@@ -126,11 +144,15 @@ async def test_default_gemini_path_reuses_existing_google_ai_studio_wrapper(monk
     assert result.html.startswith("<!doctype html>")
     assert result.usage.input_tokens == 11
     assert result.usage.output_tokens == 7
-    assert captured["model_id"] == "gemini-3.1-pro-preview"
+    assert captured["model_id"] == "gemini-3.6-flash"
     assert captured["temperature"] == 0.2
+    assert captured["max_tokens"] == 50000
     assert captured["stream"] is False
     messages = captured["messages"]
     assert isinstance(messages, list)
     user_content = messages[1]["content"]
-    assert user_content[0] == {"type": "text", "text": "Create HTML"}
-    assert user_content[2]["image_url"]["url"].startswith("data:image/png;base64,")
+    assert user_content[0]["type"] == "text"
+    assert "Original screenshot" in user_content[0]["text"]
+    assert user_content[1]["image_url"]["url"].startswith("data:image/png;base64,")
+    assert user_content[1]["image_url"]["detail"] == "high"
+    assert user_content[-1] == {"type": "text", "text": "Create HTML"}

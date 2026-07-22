@@ -31,7 +31,7 @@ const IMAGE_FIXTURE = path.resolve(
 const PROMPT = 'Evaluate the design and give recommendations for improvements.';
 const DESIGN_FEEDBACK_PATTERN = /design|recommend|improve|layout|spacing|interface|ui/i;
 const TRIALS = [1, 2, 3];
-const DEFAULT_SMOKE_MODEL_LABELS = ['gemini-pro'];
+const DEFAULT_SMOKE_MODEL_LABELS = ['gemini-36-flash'];
 const IMAGE_VIEW_TIMEOUT_MS = 180000;
 const ASSISTANT_MESSAGE_START_TIMEOUT_MS = 180000;
 const ASSISTANT_COMPLETION_TIMEOUT_MS = 240000;
@@ -96,8 +96,8 @@ const MODELS: ModelCase[] = [
 	},
 	{
 		provider: 'google',
-		model: 'gemini-3.1-pro-preview',
-		label: 'gemini-pro',
+		model: 'gemini-3.6-flash',
+		label: 'gemini-36-flash',
 		expectedGeneratedBy: /Claude Haiku 4\.5|claude-haiku-4-5-20251001/i,
 		expectsReroute: true
 	},

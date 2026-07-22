@@ -35,8 +35,8 @@ def mock_leaderboard_data() -> Dict[str, Any]:
         "rankings": [
             {
                 "rank": 1,
-                "model_id": "gemini-3.1-pro-preview",
-                "name": "Gemini 3.1 Pro Preview",
+                "model_id": "gemini-3.6-flash",
+                "name": "Gemini 3.6 Flash",
                 "provider_id": "google",
                 "country_origin": "US",
                 "composite_score": 97.8,
@@ -53,6 +53,15 @@ def mock_leaderboard_data() -> Dict[str, Any]:
             },
             {
                 "rank": 3,
+                "model_id": "gemini-3.5-flash-lite",
+                "name": "Gemini 3.5 Flash-Lite",
+                "provider_id": "google",
+                "country_origin": "US",
+                "composite_score": 94.0,
+                "lmarena_elo": 1468
+            },
+            {
+                "rank": 4,
                 "model_id": "qwen3-max",
                 "name": "Qwen3 Max",
                 "provider_id": "alibaba",
@@ -61,7 +70,7 @@ def mock_leaderboard_data() -> Dict[str, Any]:
                 "lmarena_elo": 1460
             },
             {
-                "rank": 4,
+                "rank": 5,
                 "model_id": "claude-sonnet-4-6",
                 "name": "Claude Sonnet 4.6",
                 "provider_id": "anthropic",
@@ -70,7 +79,7 @@ def mock_leaderboard_data() -> Dict[str, Any]:
                 "lmarena_elo": 1450
             },
             {
-                "rank": 5,
+                "rank": 6,
                 "model_id": "gpt-5.4",
                 "name": "GPT-5.4",
                 "provider_id": "openai",
@@ -79,7 +88,7 @@ def mock_leaderboard_data() -> Dict[str, Any]:
                 "lmarena_elo": 1440
             },
             {
-                "rank": 6,
+                "rank": 7,
                 "model_id": "mistral-large",
                 "name": "Mistral Large",
                 "provider_id": "mistral",
@@ -88,7 +97,7 @@ def mock_leaderboard_data() -> Dict[str, Any]:
                 "lmarena_elo": 1410
             },
             {
-                "rank": 7,
+                "rank": 8,
                 "model_id": "claude-haiku-4-5-20251001",
                 "name": "Claude Haiku 4.5",
                 "provider_id": "anthropic",
@@ -97,7 +106,7 @@ def mock_leaderboard_data() -> Dict[str, Any]:
                 "lmarena_elo": 1403
             },
             {
-                "rank": 8,
+                "rank": 9,
                 "model_id": "deepseek-v3",
                 "name": "DeepSeek V3",
                 "provider_id": "deepseek",
@@ -128,32 +137,41 @@ class TestModelSelector:
         assert result.primary_model_id is not None
         assert result.selection_reason != ""
 
-    def test_select_models_complex_task_prefers_premium(self, mock_leaderboard_data):
+    def test_select_models_complex_task_prefers_premium(self, mock_leaderboard_data, monkeypatch):
         """Complex tasks should prefer premium/top-ranked models."""
-        from backend.apps.ai.utils.model_selector import ModelSelector, PREMIUM_MODELS
+        from backend.apps.ai.utils import model_selector
 
-        selector = ModelSelector(leaderboard_data=mock_leaderboard_data)
+        monkeypatch.setattr(
+            model_selector,
+            "_auto_select_cache",
+            {
+                model["model_id"]: True
+                for model in mock_leaderboard_data["rankings"]
+            },
+        )
+
+        selector = model_selector.ModelSelector(leaderboard_data=mock_leaderboard_data)
         result = selector.select_models(task_area="general", complexity="complex")
 
-        # For complex tasks, should prefer a premium model if available in rankings
-        # Primary should be from top rankings
-        assert result.primary_model_id in [
-            "gemini-3.1-pro-preview",
-            "claude-opus-4-5-20251101",
-            "claude-sonnet-4-6",
-            "anthropic/claude-sonnet-4-6",  # DEFAULT_FALLBACK_MODEL includes provider prefix
-        ] or result.primary_model_id in PREMIUM_MODELS
+        assert result.primary_model_id == "google/gemini-3.6-flash"
 
-    def test_select_models_simple_task_prefers_economical(self, mock_leaderboard_data):
+    def test_select_models_simple_task_prefers_economical(self, mock_leaderboard_data, monkeypatch):
         """Simple tasks should prefer economical models."""
-        from backend.apps.ai.utils.model_selector import ModelSelector, ECONOMICAL_MODELS
+        from backend.apps.ai.utils import model_selector
 
-        selector = ModelSelector(leaderboard_data=mock_leaderboard_data)
+        monkeypatch.setattr(
+            model_selector,
+            "_auto_select_cache",
+            {
+                model["model_id"]: True
+                for model in mock_leaderboard_data["rankings"]
+            },
+        )
+
+        selector = model_selector.ModelSelector(leaderboard_data=mock_leaderboard_data)
         result = selector.select_models(task_area="general", complexity="simple")
 
-        # For simple tasks, should prefer economical model if one is ranked
-        # Claude Haiku is in ECONOMICAL_MODELS and should be selected
-        assert "economical" in result.selection_reason.lower() or result.primary_model_id in ECONOMICAL_MODELS or result.primary_model_id is not None
+        assert result.primary_model_id == "google/gemini-3.5-flash-lite"
 
     def test_select_models_excludes_cn_when_china_related(self, mock_leaderboard_data):
         """When china_related=True, CN models should be excluded."""

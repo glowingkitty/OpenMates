@@ -532,7 +532,7 @@ skills:
       convert a screenshot, mockup, UI image, or app screen into HTML. Do not use
       remote image URLs; reference an uploaded image or pass image_base64.
     class_path: backend.apps.code.skills.image_to_html_skill.ImageToHtmlSkill
-    full_model_reference: google/gemini-3.1-pro-preview
+    full_model_reference: google/gemini-3.6-flash
     providers:
       - name: google_ai_studio
       - name: e2b

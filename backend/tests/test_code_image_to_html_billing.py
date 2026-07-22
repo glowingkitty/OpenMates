@@ -19,7 +19,7 @@ def test_skill_response_usage_includes_actual_charge_metadata() -> None:
         ImageToHtmlGenerationResult(
             html="<!doctype html><html><body>Hello</body></html>",
             correction_passes_used=1,
-            usage={"model": "gemini-3.1-pro-preview", "input_tokens": 1_000, "output_tokens": 500, "e2b_render_seconds": 61.0},
+            usage={"model": "gemini-3.6-flash", "input_tokens": 1_000, "output_tokens": 500, "e2b_render_seconds": 61.0},
         ),
         max_correction_passes=2,
     )
@@ -31,7 +31,7 @@ def test_skill_response_usage_includes_actual_charge_metadata() -> None:
 
 def test_actual_cost_credit_calculation_includes_tokens_e2b_and_minimum() -> None:
     usage = ImageToHtmlUsage(
-        model="gemini-3.1-pro-preview",
+        model="gemini-3.6-flash",
         input_tokens=40_000,
         output_tokens=8_000,
         cache_read_tokens=20_000,
@@ -53,7 +53,7 @@ def test_actual_cost_credit_calculation_includes_tokens_e2b_and_minimum() -> Non
     assert result.provider_cost_usd > 0
     assert result.e2b_credits == 5
     assert result.credits_charged >= 30
-    assert result.usage.model == "gemini-3.1-pro-preview"
+    assert result.usage.model == "gemini-3.6-flash"
 
 
 def test_credit_calculation_charges_each_started_e2b_minute() -> None:
@@ -68,4 +68,3 @@ def test_credit_calculation_charges_each_started_e2b_minute() -> None:
 
     assert result.e2b_credits == 10
     assert result.credits_charged >= 10
-

@@ -11,6 +11,24 @@ import { modelsMetadata, type AIModelMetadata } from "../data/modelsMetadata";
 
 // Build a lookup map from model metadata for fallback names
 let modelsById: Record<string, AIModelMetadata> | null = null;
+let modelsByNormalizedKey: Record<string, AIModelMetadata> | null = null;
+
+function modelLookupCandidates(modelNameOrId: string): string[] {
+  const raw = modelNameOrId.trim();
+  const withoutProviderPrefix = raw.includes("/") ? raw.split("/").at(-1) ?? raw : raw;
+  const withoutProviderSuffix = withoutProviderPrefix.includes(":")
+    ? withoutProviderPrefix.split(":")[0]
+    : withoutProviderPrefix;
+  return [...new Set([raw, withoutProviderPrefix, withoutProviderSuffix].filter(Boolean))];
+}
+
+function normalizeModelLookupKey(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ");
+}
 
 /**
  * Lazily initialize the models lookup map.
@@ -47,7 +65,9 @@ function getModelsById(): Record<string, AIModelMetadata> {
 export function getModelDisplayName(modelNameOrId: string): string {
   // Try to get name from model metadata (if input looks like a model ID)
   const models = getModelsById();
-  const model = models[modelNameOrId];
+  const model = modelLookupCandidates(modelNameOrId)
+    .map((candidate) => models[candidate])
+    .find(Boolean);
   if (model?.name) {
     return model.name;
   }
@@ -76,6 +96,20 @@ function getModelsByName(): Record<string, AIModelMetadata> {
   return modelsByName;
 }
 
+function getModelsByNormalizedKey(): Record<string, AIModelMetadata> {
+  if (!modelsByNormalizedKey) {
+    modelsByNormalizedKey = modelsMetadata.reduce(
+      (acc, model) => {
+        acc[normalizeModelLookupKey(model.id)] = model;
+        acc[normalizeModelLookupKey(model.name)] = model;
+        return acc;
+      },
+      {} as Record<string, AIModelMetadata>,
+    );
+  }
+  return modelsByNormalizedKey;
+}
+
 /**
  * Resolve a model by its display name or ID.
  * Looks up the model first by ID (exact match), then by display name (case-insensitive).
@@ -96,10 +130,18 @@ export function getModelByNameOrId(
   modelNameOrId: string,
 ): AIModelMetadata | undefined {
   // First try by ID (exact match)
-  const byId = getModelsById()[modelNameOrId];
+  const candidates = modelLookupCandidates(modelNameOrId);
+  const modelsById = getModelsById();
+  const byId = candidates.map((candidate) => modelsById[candidate]).find(Boolean);
   if (byId) return byId;
 
   // Then try by display name (case-insensitive)
-  const byName = getModelsByName()[modelNameOrId.toLowerCase()];
-  return byName;
+  const modelsByName = getModelsByName();
+  const byName = candidates.map((candidate) => modelsByName[candidate.toLowerCase()]).find(Boolean);
+  if (byName) return byName;
+
+  const modelsByNormalizedKey = getModelsByNormalizedKey();
+  return candidates
+    .map((candidate) => modelsByNormalizedKey[normalizeModelLookupKey(candidate)])
+    .find(Boolean);
 }

@@ -69,7 +69,7 @@ def _clamp_temperature_for_thinking_model(model_id: str, temperature: float) -> 
     is_thinking_gemini = (
         "gemini-2.5-" in model_lower
         or "gemini-3-" in model_lower
-        or "gemini-3." in model_lower  # e.g. gemini-3.1-pro-preview
+        or "gemini-3." in model_lower  # e.g. gemini-3.6-flash
     )
     if is_thinking_gemini and temperature < GEMINI_THINKING_MIN_TEMPERATURE:
         logger.info(
@@ -245,6 +245,16 @@ def _map_tools_to_google_format(tools: List[Dict[str, Any]]) -> Optional[List[ty
 DATA_URL_RE = re.compile(r"^data:(?P<mime>[-\w.+/]+);base64,(?P<data>.+)$", re.DOTALL)
 
 
+def _media_resolution_from_image_url(image_url: Any) -> Any:
+    if not isinstance(image_url, dict):
+        return None
+    detail = str(image_url.get("detail") or "").strip().lower()
+    if detail in {"high", "original", "ultra_high", "ultra-high"}:
+        resolution_levels = getattr(types, "PartMediaResolutionLevel", None)
+        return getattr(resolution_levels, "MEDIA_RESOLUTION_ULTRA_HIGH", None)
+    return None
+
+
 def _parts_from_message_content(content: Any) -> List[types.Part]:
     if not content:
         return []
@@ -273,10 +283,18 @@ def _parts_from_message_content(content: Any) -> List[types.Part]:
             if not match:
                 raise ValueError("Google Gemini multimodal messages only support data: image URLs")
             try:
-                parts.append(types.Part.from_bytes(
-                    data=base64.b64decode(match.group("data"), validate=True),
-                    mime_type=match.group("mime"),
-                ))
+                media_resolution = _media_resolution_from_image_url(image_url)
+                part_kwargs = {
+                    "data": base64.b64decode(match.group("data"), validate=True),
+                    "mime_type": match.group("mime"),
+                }
+                if media_resolution is not None:
+                    part_kwargs["media_resolution"] = media_resolution
+                try:
+                    parts.append(types.Part.from_bytes(**part_kwargs))
+                except TypeError:
+                    part_kwargs.pop("media_resolution", None)
+                    parts.append(types.Part.from_bytes(**part_kwargs))
             except (binascii.Error, ValueError) as exc:
                 raise ValueError("Invalid base64 image data in Gemini multimodal message") from exc
             continue
@@ -421,8 +439,17 @@ def _prepare_messages_and_system_prompt(messages: List[Dict[str, Any]]) -> (Opti
                                     header, b64_data = url.split(";base64,", 1)
                                     mime_type = header[len("data:"):]  # e.g. "image/webp"
                                     image_bytes = base64.b64decode(b64_data)
+                                    media_resolution = _media_resolution_from_image_url(image_url_data)
+                                    part_kwargs = {"data": image_bytes, "mime_type": mime_type}
+                                    if media_resolution is not None:
+                                        part_kwargs["media_resolution"] = media_resolution
+                                    try:
+                                        image_part = types.Part.from_bytes(**part_kwargs)
+                                    except TypeError:
+                                        part_kwargs.pop("media_resolution", None)
+                                        image_part = types.Part.from_bytes(**part_kwargs)
                                     tool_response_parts.append(
-                                        types.Part.from_bytes(data=image_bytes, mime_type=mime_type)
+                                        image_part
                                     )
                                 else:
                                     logger.warning(

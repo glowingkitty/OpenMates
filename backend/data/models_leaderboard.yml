@@ -11,18 +11,18 @@ metadata:
       url: https://openrouter.ai/rankings
       models_fetched: 0
       valid: false
-  total_models: 19
-  ranked_models: 10
-  unranked_models: 9
+  total_models: 22
+  ranked_models: 11
+  unranked_models: 11
 rankings:
   - rank: 1
-    model_id: gemini-3.1-pro-preview
-    name: Gemini 3.1 Pro Preview
+    model_id: gemini-3.6-flash
+    name: Gemini 3.6 Flash
     provider_id: google
     country_origin: US
-    composite_score: 97.8
-    lmarena_elo: 1487
-    lmarena_rank: 1
+    composite_score: 98.2
+    lmarena_elo: null
+    lmarena_rank: null
     openrouter_rank: null
   - rank: 2
     model_id: gpt-5.5
@@ -43,6 +43,15 @@ rankings:
     lmarena_rank: 5
     openrouter_rank: null
   - rank: 4
+    model_id: gemini-3.5-flash-lite
+    name: Gemini 3.5 Flash-Lite
+    provider_id: google
+    country_origin: US
+    composite_score: 93.9
+    lmarena_elo: null
+    lmarena_rank: null
+    openrouter_rank: null
+  - rank: 5
     model_id: gemini-3-flash-preview
     name: Gemini 3 Flash Preview
     provider_id: google
@@ -51,7 +60,7 @@ rankings:
     lmarena_elo: 1463
     lmarena_rank: 7
     openrouter_rank: null
-  - rank: 5
+  - rank: 6
     model_id: claude-sonnet-4-6
     name: Claude Sonnet 4.6
     provider_id: anthropic
@@ -60,7 +69,7 @@ rankings:
     lmarena_elo: 1450
     lmarena_rank: 11
     openrouter_rank: null
-  - rank: 6
+  - rank: 7
     model_id: gpt-5.4
     name: GPT-5.4
     provider_id: openai
@@ -69,7 +78,7 @@ rankings:
     lmarena_elo: 1440
     lmarena_rank: 21
     openrouter_rank: null
-  - rank: 7
+  - rank: 8
     model_id: gemini-flash-latest
     name: Gemini Flash Latest
     provider_id: google
@@ -78,7 +87,7 @@ rankings:
     lmarena_elo: 1405
     lmarena_rank: 55
     openrouter_rank: null
-  - rank: 8
+  - rank: 9
     model_id: claude-haiku-4-5-20251001
     name: Claude Haiku 4.5
     provider_id: anthropic
@@ -87,7 +96,7 @@ rankings:
     lmarena_elo: 1403
     lmarena_rank: 57
     openrouter_rank: null
-  - rank: 9
+  - rank: 10
     model_id: qwen3-235b-a22b-2507
     name: Qwen3 235B A22B (2507)
     provider_id: alibaba
@@ -96,7 +105,7 @@ rankings:
     lmarena_elo: 1374
     lmarena_rank: 86
     openrouter_rank: null
-  - rank: 10
+  - rank: 11
     model_id: zai-glm-4.7
     name: GLM 4.7
     provider_id: zai
@@ -128,6 +137,10 @@ unranked:
     country_origin: US
   - model_id: gemini-3.5-flash
     name: Gemini 3.5 Flash
+    provider_id: google
+    country_origin: US
+  - model_id: gemini-3.1-pro-preview
+    name: Gemini 3.1 Pro Preview
     provider_id: google
     country_origin: US
   - model_id: mistral-small-2506
