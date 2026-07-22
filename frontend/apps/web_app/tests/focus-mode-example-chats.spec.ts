@@ -34,7 +34,7 @@ test.describe('focus-mode example chat state', () => {
 
     await navigateToExampleChat(page, 'example-finance-cash-flow-overview');
     await expect(page).toHaveURL(/chat-id=example-finance-cash-flow-overview/, { timeout: 10_000 });
-    await expect(page.getByText('Business Cash Flow Overview')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText('Summarize recent business finances')).toBeVisible({ timeout: 15_000 });
     await expect(page.getByTestId('user-message-content').filter({ hasText: 'cash flow' }).first()).toBeVisible({ timeout: 15_000 });
     await expect(page.getByTestId('focus-pill')).toHaveCount(0);
     await expect(page.locator('body')).not.toContainText('Focus active');
