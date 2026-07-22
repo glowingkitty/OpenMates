@@ -114,9 +114,11 @@
     variant?: 'default' | 'guest-intro';
     /** Called when the visible inspiration changes, including manual and automatic carousel moves. */
     onVisibleInspirationChange?: (inspiration: DailyInspiration) => void;
+    /** Called while the logged-out intro owns the full welcome surface. */
+    onLandingIntroExpandedChange?: (expanded: boolean) => void;
   }
 
-  let { onStartChat, onEmbedFullscreen, containerWidth = 0, surface = 'chats', variant = 'default', onVisibleInspirationChange }: Props = $props();
+  let { onStartChat, onEmbedFullscreen, containerWidth = 0, surface = 'chats', variant = 'default', onVisibleInspirationChange, onLandingIntroExpandedChange }: Props = $props();
   let isGuestIntroVariant = $derived(variant === 'guest-intro');
 
   // ─── Local state (Svelte 5 runes) ──────────────────────────────────────────
@@ -153,6 +155,7 @@
   let directVideoFullscreenOpen = $state(false);
   let progressRestartToken = $state(0);
   let lastNotifiedInspirationId = $state('');
+  let lastNotifiedLandingIntroExpanded = $state(false);
   let landingIntroDismissed = $state(false);
   let landingIntroRequestIndex = $state(-1);
   // Temporarily disabled with the visit-cycling effect below.
@@ -215,6 +218,9 @@
   onDestroy(() => {
     unsubscribeDailyInspirations();
     unsubscribeAuth();
+    if (lastNotifiedLandingIntroExpanded) {
+      onLandingIntroExpandedChange?.(false);
+    }
   });
 
   // ─── Reload inspirations on language change ─────────────────────────────────
@@ -366,9 +372,18 @@
   let landingIntroAppIcons = $derived(buildLandingIntroAppIcons());
   let landingIntroFirstRail = $derived.by(() => buildCenteredLandingIntroIcons(landingIntroAppIcons, landingIntroActiveAppId, 7));
   let landingIntroSecondRail = $derived.by(() => buildSecondaryLandingIntroIcons(landingIntroAppIcons, landingIntroFirstRail, 7));
+  let landingIntroActiveIcon = $derived.by(() =>
+    landingIntroAppIcons.find((icon) => icon.appId === landingIntroActiveAppId) ?? null,
+  );
   let carouselProgressDurationMs = $derived(
     landingIntroShouldExpand ? LANDING_INTRO_TOTAL_MS : INSPIRATION_AUTO_ROTATION_INTERVAL_MS,
   );
+
+  $effect(() => {
+    if (landingIntroShouldExpand === lastNotifiedLandingIntroExpanded) return;
+    lastNotifiedLandingIntroExpanded = landingIntroShouldExpand;
+    onLandingIntroExpandedChange?.(landingIntroShouldExpand);
+  });
 
   $effect(() => {
     if (!isGuestIntroVariant || landingIntroDismissed || visibleInspirations.length === 0) return;
@@ -1049,28 +1064,40 @@
                   </div>
                   <div class="landing-intro-app-rails" aria-hidden="true">
                     {#key landingIntroActiveAppId}
-                      <div class="landing-intro-app-rail landing-intro-app-rail-primary" data-testid="landing-intro-app-rail">
-                        {#each landingIntroFirstRail as icon, index (`primary-${icon.appId}-${index}`)}
+                      <div class="landing-intro-app-rail-row landing-intro-app-rail-row-primary">
+                        <div class="landing-intro-app-rail landing-intro-app-rail-primary" data-testid="landing-intro-app-rail">
+                          {#each [...landingIntroFirstRail, ...landingIntroFirstRail] as icon, index (`primary-${icon.appId}-${index}`)}
+                            <span
+                              class="landing-intro-app-icon"
+                              data-testid="landing-intro-app-icon"
+                              data-app-id={icon.appId}
+                              data-highlighted="false"
+                              style={landingIntroIconStyle(icon)}
+                            ></span>
+                          {/each}
+                        </div>
+                        {#if landingIntroActiveIcon}
                           <span
-                            class="landing-intro-app-icon"
-                            class:highlighted={icon.appId === landingIntroActiveAppId}
+                            class="landing-intro-app-icon landing-intro-app-center-highlight highlighted"
                             data-testid="landing-intro-app-icon"
-                            data-app-id={icon.appId}
-                            data-highlighted={icon.appId === landingIntroActiveAppId ? 'true' : 'false'}
-                            style={landingIntroIconStyle(icon)}
+                            data-app-id={landingIntroActiveIcon.appId}
+                            data-highlighted="true"
+                            style={landingIntroIconStyle(landingIntroActiveIcon)}
                           ></span>
-                        {/each}
+                        {/if}
                       </div>
-                      <div class="landing-intro-app-rail landing-intro-app-rail-secondary" data-testid="landing-intro-app-rail">
-                        {#each landingIntroSecondRail as icon, index (`secondary-${icon.appId}-${index}`)}
-                          <span
-                            class="landing-intro-app-icon"
-                            data-testid="landing-intro-app-icon"
-                            data-app-id={icon.appId}
-                            data-highlighted="false"
-                            style={landingIntroIconStyle(icon)}
-                          ></span>
-                        {/each}
+                      <div class="landing-intro-app-rail-row landing-intro-app-rail-row-secondary">
+                        <div class="landing-intro-app-rail landing-intro-app-rail-secondary" data-testid="landing-intro-app-rail">
+                          {#each [...landingIntroSecondRail, ...landingIntroSecondRail] as icon, index (`secondary-${icon.appId}-${index}`)}
+                            <span
+                              class="landing-intro-app-icon"
+                              data-testid="landing-intro-app-icon"
+                              data-app-id={icon.appId}
+                              data-highlighted="false"
+                              style={landingIntroIconStyle(icon)}
+                            ></span>
+                          {/each}
+                        </div>
                       </div>
                     {/key}
                   </div>
@@ -1562,8 +1589,8 @@
     min-height: clamp(44px, 4.1vw, 68px);
     padding: 0 clamp(22px, 2.5vw, 38px);
     border-radius: clamp(11px, 1.1vw, 18px);
-    color: #050816;
-    background: rgba(221, 229, 255, 0.94);
+    color: var(--color-grey-100);
+    background: var(--color-grey-blue);
     box-shadow: 0 8px 0 rgba(43, 62, 122, 0.22), 0 16px 30px rgba(17, 31, 76, 0.24);
     font-size: clamp(1.2rem, 2.25vw, 2.35rem);
     font-weight: 750;
@@ -1578,7 +1605,7 @@
     bottom: 9px;
     width: 18px;
     height: 18px;
-    background: rgba(221, 229, 255, 0.94);
+    background: var(--color-grey-blue);
     clip-path: polygon(0 0, 100% 100%, 0 72%);
   }
 
@@ -1595,14 +1622,38 @@
     overflow: hidden;
   }
 
+  .landing-intro-app-rail-row {
+    position: relative;
+    width: 100%;
+    overflow: hidden;
+    animation: landingIntroRequestIn 520ms ease both;
+  }
+
   .landing-intro-app-rail {
     display: flex;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
     gap: clamp(24px, 3.3vw, 58px);
     min-width: max-content;
-    width: 100%;
-    animation: landingIntroRequestIn 520ms ease both;
+    width: max-content;
+    padding: clamp(8px, 1vw, 14px) 0;
+  }
+
+  .landing-intro-app-rail-primary {
+    animation: landingIntroRailLeft 20s linear infinite;
+  }
+
+  .landing-intro-app-rail-secondary {
+    animation: landingIntroRailRight 23s linear infinite;
+  }
+
+  .landing-intro-app-center-highlight {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    z-index: var(--z-index-raised);
+    transform: translate(-50%, -50%) scale(1.18);
+    pointer-events: none;
   }
 
   .landing-intro-app-icon {
@@ -1650,6 +1701,10 @@
 
   .landing-intro-app-icon.highlighted::before {
     background: rgba(255, 255, 255, 0.96);
+  }
+
+  .landing-intro-app-center-highlight.highlighted {
+    transform: translate(-50%, -50%) scale(1.18);
   }
 
   @keyframes landingIntroEnter {
@@ -2256,6 +2311,7 @@
     .orb { animation: none !important; }
     .landing-intro-expanded-content,
     .landing-intro-request span,
+    .landing-intro-app-rail-row,
     .landing-intro-app-rail {
       animation: none !important;
     }
@@ -2383,7 +2439,6 @@
 
     .landing-intro-app-rail {
       gap: 22px;
-      justify-content: center;
     }
 
     .landing-intro-app-icon {
