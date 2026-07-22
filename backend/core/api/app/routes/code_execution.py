@@ -102,6 +102,7 @@ PYTHON_PACKAGE_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*(?:\[[A-Za-z0-9
 NPM_PACKAGE_NAME_PATTERN = re.compile(r"^(?:@[a-z0-9][a-z0-9._-]*/[a-z0-9][a-z0-9._-]*|[a-z0-9][a-z0-9._-]*)$")
 NPM_PACKAGE_PATTERN = re.compile(r"^(?:@[a-z0-9][a-z0-9._-]*/[a-z0-9][a-z0-9._-]*|[a-z0-9][a-z0-9._-]*)(?:@[A-Za-z0-9._~^*-]+)?$")
 NPM_VERSION_PATTERN = re.compile(r"^[A-Za-z0-9.*^~<>=| &!_-]+$")
+PYTHON_PACKAGE_ID_PATTERN = re.compile(r"^([A-Za-z0-9][A-Za-z0-9._-]*)(?:\[[A-Za-z0-9_,.-]+\])?")
 INSTALL_SNIPPET_LANGUAGES = {"bash", "sh", "shell", "terminal", "console"}
 PACKAGE_JSON_DEPENDENCY_SECTIONS = ("dependencies", "devDependencies")
 PACKAGE_JSON_UNSUPPORTED_DEPENDENCY_SECTIONS = ("optionalDependencies", "peerDependencies", "bundleDependencies", "bundledDependencies")
@@ -797,14 +798,29 @@ def _merge_dependency_installs(*groups: list[CodeRunDependencyInstall]) -> list[
     for group in groups:
         for install in group:
             for package in install.packages:
-                if package not in seen[install.ecosystem]:
+                package_id = _dependency_package_id(install.ecosystem, package)
+                if package_id not in seen[install.ecosystem]:
                     merged[install.ecosystem].append(package)
-                    seen[install.ecosystem].add(package)
+                    seen[install.ecosystem].add(package_id)
     return [
         CodeRunDependencyInstall(ecosystem=ecosystem, packages=packages)
         for ecosystem, packages in merged.items()
         if packages
     ]
+
+
+def _dependency_package_id(ecosystem: Literal["python", "npm"], package: str) -> str:
+    if ecosystem == "python":
+        match = PYTHON_PACKAGE_ID_PATTERN.match(package)
+        name = match.group(1) if match else package
+        return re.sub(r"[-_.]+", "-", name).lower()
+
+    if package.startswith("@"):
+        scope, _, remainder = package.partition("/")
+        name, _, _version = remainder.partition("@")
+        return f"{scope}/{name}".lower() if name else package.lower()
+    name, _, _version = package.partition("@")
+    return name.lower()
 
 
 def _metadata_allowed_for_chat(embed: dict[str, Any], chat_id: str, expected_user_hash: str, chat_index_embed_ids: set[str]) -> bool:

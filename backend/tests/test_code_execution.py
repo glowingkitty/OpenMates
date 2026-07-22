@@ -632,6 +632,39 @@ def test_merge_dependency_installs_deduplicates_client_and_snippet_packages() ->
     ]
 
 
+def test_merge_dependency_installs_prefers_pinned_python_spec_over_inferred_import() -> None:
+    installs = _merge_dependency_installs(
+        [ApiCodeRunDependencyInstall(ecosystem="python", packages=["numpy==2.5.1"])],
+        [ApiCodeRunDependencyInstall(ecosystem="python", packages=["numpy"])],
+    )
+
+    assert [install.model_dump() for install in installs] == [
+        {"ecosystem": "python", "packages": ["numpy==2.5.1"]}
+    ]
+
+
+def test_merge_dependency_installs_normalizes_python_package_identity() -> None:
+    installs = _merge_dependency_installs(
+        [ApiCodeRunDependencyInstall(ecosystem="python", packages=["Requests[security]>=2.32.0"])],
+        [ApiCodeRunDependencyInstall(ecosystem="python", packages=["requests"])],
+    )
+
+    assert [install.model_dump() for install in installs] == [
+        {"ecosystem": "python", "packages": ["Requests[security]>=2.32.0"]}
+    ]
+
+
+def test_merge_dependency_installs_normalizes_scoped_npm_package_identity() -> None:
+    installs = _merge_dependency_installs(
+        [ApiCodeRunDependencyInstall(ecosystem="npm", packages=["@supabase/supabase-js@2.47.0"])],
+        [ApiCodeRunDependencyInstall(ecosystem="npm", packages=["@supabase/supabase-js"])],
+    )
+
+    assert [install.model_dump() for install in installs] == [
+        {"ecosystem": "npm", "packages": ["@supabase/supabase-js@2.47.0"]}
+    ]
+
+
 @pytest.mark.anyio
 async def test_cancel_code_run_marks_execution_cancelling() -> None:
     cache = FakeCache([], {})
