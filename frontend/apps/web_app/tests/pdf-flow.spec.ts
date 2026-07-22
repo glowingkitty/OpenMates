@@ -84,7 +84,12 @@ const {
 	getTestAccount
 } = require('./signup-flow-helpers');
 
-const { loginToTestAccount, deleteActiveChat } = require('./helpers/chat-test-helpers');
+const {
+	loginToTestAccount,
+	deleteActiveChat,
+	waitForChatReady,
+	waitForAssistantMessage
+} = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 // ─── Log buckets ─────────────────────────────────────────────────────────────
@@ -426,6 +431,7 @@ test('pdf: upload, AI reads and answers, embeds persist through reload and relog
 	await loginToTestAccount(page, log, screenshot);
 	await page.waitForTimeout(3000);
 	await openNewChat(page, log);
+	await waitForChatReady(page, log);
 	await screenshot(page, '01-new-chat-ready');
 
 	// Attach sample.pdf via the file input.
@@ -517,32 +523,11 @@ test('pdf: upload, AI reads and answers, embeds persist through reload and relog
 	await screenshot(page, '04-message-sent');
 	saveWarnErrorLogs('pdf', 'after_send');
 
-	// Wait for AI to start responding.
-	// If the message is stuck in "Sending..." after 30s (WebSocket disconnect),
-	// reload the page to reconnect and retry delivery.
-	const activeChatContainer = page.getByTestId('active-chat-container');
-	const preSendCount = await activeChatContainer.locator('[data-testid="message-assistant"]').count();
-	const assistantMessages = activeChatContainer.locator('[data-testid="message-assistant"]');
-
-	let reloadAttempted = false;
-	await expect(async () => {
-		const count = await assistantMessages.count();
-		if (count <= preSendCount) {
-			// If still no AI response after 30s and we haven't reloaded yet,
-			// the message may be stuck due to WebSocket disconnect. Reload to reconnect.
-			if (!reloadAttempted) {
-				const sendingIndicator = page.locator('text=Sending...');
-				const isStuck = await sendingIndicator.isVisible({ timeout: 500 }).catch(() => false);
-				if (isStuck) {
-					reloadAttempted = true;
-					log('Message stuck in "Sending..." — reloading page to reconnect WebSocket.');
-					await page.reload();
-					await page.waitForTimeout(5000);
-				}
-			}
-			throw new Error(`No new assistant message yet (count=${count})`);
-		}
-	}).toPass({ timeout: 120000, intervals: [2000] });
+	const assistantMessage = await waitForAssistantMessage(page, {
+		which: 'last',
+		timeout: 120000,
+		logCheckpoint: log
+	});
 
 	// Wait for AI PDF skill card to appear (AI uses pdf/read, pdf/view, or pdf/search)
 	// The skill card appears before the text response completes streaming.
@@ -553,7 +538,7 @@ test('pdf: upload, AI reads and answers, embeds persist through reload and relog
 	// Wait for stable (non-streaming) AI text response
 	let stableText = '';
 	await expect(async () => {
-		const text = await assistantMessages.last().textContent();
+		const text = await assistantMessage.textContent();
 		if (!text || text.trim().length < 10) throw new Error('Response too short');
 		if (text === stableText) return;
 		stableText = text ?? '';
