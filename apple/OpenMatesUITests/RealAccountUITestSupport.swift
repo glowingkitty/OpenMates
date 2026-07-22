@@ -81,8 +81,8 @@ enum RealAccountUITestSupport {
             XCTFail("Expected message editor to appear")
             return
         }
-        editor.tap()
-        editor.typeText(prompt)
+        editor.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        app.typeText(prompt)
 
         let send = app.buttons["send-button"]
         XCTAssertTrue(send.waitForExistence(timeout: 5))
