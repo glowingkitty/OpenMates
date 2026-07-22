@@ -57,7 +57,7 @@ async function createChatWithSummary(
 async function expectChatSettingsShell(page: any): Promise<any> {
 	const settingsMenu = page.getByTestId('settings-menu');
 	await expect(settingsMenu).toBeVisible({ timeout: 15_000 });
-	await expect(settingsMenu).toHaveAttribute('data-active-view', /^chats\/[a-zA-Z0-9-]+$/, {
+	await expect(settingsMenu).toHaveAttribute('data-active-view', /^chats\/[a-zA-Z0-9-]+(?:\/[a-z]+)?$/, {
 		timeout: 10_000
 	});
 	await expect(page.getByTestId('chat-details-settings-panel')).not.toBeVisible({ timeout: 2_000 });

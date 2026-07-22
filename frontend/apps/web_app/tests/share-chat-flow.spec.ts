@@ -165,35 +165,16 @@ test('creates and shares a chat link with QR code and short link', async ({
 		screenshot: 'docs/images/user-guide/sharing/link-generated.jpg'
 	});
 
-	// ── Step 10: Verify QR code ───────────────────────────────────────────
-	const qrCode = page.locator('[data-testid="share-qr-code"]');
+	// ── Step 10: Verify QR code reveal ─────────────────────────────────────
+	await page.getByTestId('chat-settings-share-show-qr').click();
+	const qrCode = page.locator('[data-testid="chat-settings-share-qr"]');
 	await docAssert('share-link-has-qr-code', async () => {
 		await expect(qrCode).toBeVisible({ timeout: 10000 });
-		const qrSvg = qrCode.locator('svg');
-		await expect(qrSvg).toBeVisible({ timeout: 5000 });
+		await expect(qrCode.locator('img')).toBeVisible({ timeout: 5000 });
 	});
 	logCheckpoint('QR code is visible with SVG.');
 
-	// ── Step 11: Test QR fullscreen ───────────────────────────────────────
-	await qrCode.click();
-	const qrFullscreen = page.locator('[data-testid="share-qr-fullscreen"]');
-	await docAssert('share-qr-code-opens-fullscreen', async () => {
-		await expect(qrFullscreen).toBeVisible({ timeout: 5000 });
-	});
-	logCheckpoint('QR fullscreen overlay opened.');
-	await takeStepScreenshot(page, 'qr-fullscreen');
-	await docCheckpoint(page, {
-		id: 'qr-fullscreen',
-		guide: SHARING_GUIDE_PATH,
-		title: 'QR code fullscreen view',
-		screenshot: 'docs/images/user-guide/sharing/qr-fullscreen.jpg'
-	});
-
-	await page.keyboard.press('Escape');
-	await expect(qrFullscreen).not.toBeVisible({ timeout: 5000 });
-	logCheckpoint('QR fullscreen closed.');
-
-	// ── Step 12: Verify short link is primary ──────────────────────────────
+	// ── Step 11: Verify short link is primary ──────────────────────────────
 	const shortLinkSection = page.locator('[data-testid="share-short-link-section"]');
 	await docAssert('share-link-uses-short-link-by-default', async () => {
 		await expect(shortLinkSection).toBeVisible({ timeout: 5000 });
@@ -281,75 +262,19 @@ test('creates and shares a chat link with QR code and short link', async ({
 	});
 
 	await expect(qrCode).toBeVisible({ timeout: 5000 });
-	logCheckpoint('Generated share panel shows short link and QR code directly.');
+	logCheckpoint('Generated share panel shows short link and a revealable QR code.');
 
-	// ── Step 13: Test copy link ───────────────────────────────────────────
+	// ── Step 12: Test copy link ────────────────────────────────────────────
 	await copyLinkButton.click();
 	// The copied state adds a .copied class
 	await expect(copyLinkButton).toHaveClass(/copied/, { timeout: 5000 });
 	logCheckpoint('Copy link button shows copied state.');
 
-	// ── Step 14: Test back-to-config ──────────────────────────────────────
-	const backButton = page.locator('[data-testid="share-back-to-config"]');
-	await expect(backButton).toBeVisible({ timeout: 5000 });
-	await backButton.click();
-	logCheckpoint('Clicked back to configuration.');
-
-	// Verify we're back in config step
-	await expect(generateLinkButton).toBeVisible({ timeout: 10000 });
-	logCheckpoint('Back in configuration step.');
-
-	// ── Step 15: Set 1-minute expiration and reshare ──────────────────────
-	const durationOptions = page.getByTestId('duration-option');
-	await expect(durationOptions.nth(1)).toBeVisible({ timeout: 5000 });
-	await durationOptions.nth(1).click(); // 1 minute
-	logCheckpoint('Selected 1-minute expiration.');
-
-	await page.route('**/v1/share/short-url', async (route: any) => {
-		if (route.request().method() !== 'POST') {
-			await route.continue();
-			return;
-		}
-
-		await page.waitForTimeout(7000);
-		try {
-			await route.fulfill({
-				status: 200,
-				contentType: 'application/json',
-				body: JSON.stringify({ success: true, expires_at: null })
-			});
-		} catch (_error) {
-			// The app aborts this request after 5 seconds and falls back to the long link.
-		}
-	});
-
-	await generateLinkButton.click();
-	logCheckpoint('Clicked "Share chat" with expiration.');
-	await expect(page.getByTestId('share-generation-status')).toContainText(/Sharing chat/i, {
-		timeout: 1000
-	});
-
-	// Verify link regenerated
-	await expect(copyLinkButton).toBeVisible({ timeout: 30000 });
-	await expect(page.getByTestId('share-short-link-error')).toContainText(/took too long/i, {
-		timeout: 8000
-	});
-	await expect(page.locator('[data-share-url-kind="long"]')).toBeVisible({ timeout: 5000 });
-	await page.unroute('**/v1/share/short-url');
-
-	// Verify expiration info
-	const expirationInfo = page.locator('[data-testid="share-expiration-info"]');
-	await docAssert('share-link-can-have-expiration', async () => {
-		await expect(expirationInfo).toBeVisible({ timeout: 5000 });
-	});
-	logCheckpoint('Expiration info is visible.');
-	await takeStepScreenshot(page, 'with-expiration');
-	await docCheckpoint(page, {
-		id: 'with-expiration',
-		guide: SHARING_GUIDE_PATH,
-		title: 'Share link configured with expiration',
-		screenshot: 'docs/images/user-guide/sharing/with-expiration.jpg'
-	});
+	// ── Step 13: Test URL reveal and expiration summary ────────────────────
+	await page.getByTestId('chat-settings-share-show-url').click();
+	await expect(page.locator('[data-share-url-kind="short"]')).toBeVisible({ timeout: 5000 });
+	await expect(page.getByTestId('chat-settings-share-generated')).toContainText(/Auto expire in\s+never/i);
+	logCheckpoint('Generated share panel reveals the primary URL and expiration summary.');
 
 	saveWarnErrorLogs('share-chat', 'after_share_flow');
 

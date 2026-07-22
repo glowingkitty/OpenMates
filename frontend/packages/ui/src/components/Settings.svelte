@@ -66,12 +66,14 @@ changes to the documentation (to keep the documentation up to date).
     import CurrentSettingsPage from './settings/CurrentSettingsPage.svelte';
     import SettingsItem from './SettingsItem.svelte';
     import AppDetailsHeader from './settings/AppDetailsHeader.svelte';
+    import ChatSettingsHeader from './settings/ChatSettingsHeader.svelte';
     import SettingsMainHeader from './settings/SettingsMainHeader.svelte';
     
     // Import all settings route definitions and the dynamic wrapper components
     import { baseSettingsViews, AppDetailsWrapper, MateDetailsWrapper, EditPersonalDataEntryWrapper, SettingsProjects } from './settings/settingsRoutes';
     import AiModelDetailsWrapper from './settings/AiModelDetailsWrapper.svelte';
     import AiProviderDetailsWrapper from './settings/AiProviderDetailsWrapper.svelte';
+    import ChatSettingsPage from './chats/ChatSettingsPage.svelte';
     import { matesMetadata } from '../data/matesMetadata';
     import { appSkillsStore } from '../stores/appSkillsStore';
     import { appSettingsMemoriesStore } from '../stores/appSettingsMemoriesStore';
@@ -83,6 +85,7 @@ changes to the documentation (to keep the documentation up to date).
     import { chatListCache } from '../services/chatListCache';
     import { chatMetadataCache } from '../services/chatMetadataCache';
     import { chatDB } from '../services/db';
+    import { chatSettingsStore } from '../stores/chatSettingsStore';
     import type { Chat } from '../types/chat';
     import {
         getCategoryGradientColors,
@@ -289,6 +292,8 @@ changes to the documentation (to keep the documentation up to date).
                 views[route] = AiModelDetailsWrapper;
             } else if (/^ai\/provider\//.test(route)) {
                 views[route] = AiProviderDetailsWrapper;
+            } else if (/^chats\/[^/]+(?:\/[^/]+)?$/.test(route)) {
+                views[route] = ChatSettingsPage;
             } else if (/^projects\/[^/]+$/.test(route)) {
                 views[route] = SettingsProjects;
             } else if (/^developers\/api-keys\/[^/]+$/.test(route)) {
@@ -751,6 +756,10 @@ changes to the documentation (to keep the documentation up to date).
                     const translationKey = `settings.${translationKeyParts.join('.')}`;
                     pathLabels.push($text(translationKey));
                 }
+            } else if (pathString === 'chats') {
+                pathLabels.push('Chats');
+            } else if (pathString.startsWith('chats/')) {
+                continue;
             } else {
                 // For other routes, use translation keys
                 const translationKey = getSettingsRouteTitleKey(pathString) ??
@@ -950,6 +959,8 @@ changes to the documentation (to keep the documentation up to date).
         cameFromPath !== 'ai'
     );
 
+    let isChatSettingsPage = $derived(/^chats\/[^/]+(?:\/[^/]+)?$/.test(activeSettingsView));
+
     /**
      * True when any gradient banner (top-level or sub-page) should be visible.
      * Used to suppress the normal submenu-info header and shrink the settings-header.
@@ -965,6 +976,7 @@ changes to the documentation (to keep the documentation up to date).
     let isStandardSubPage = $derived(
         activeSettingsView !== 'main' &&
         !isAnyAppBannerPage &&
+        !isChatSettingsPage &&
         !isMateDetailPage &&
         !isModelDetailPage
     );
@@ -973,7 +985,7 @@ changes to the documentation (to keep the documentation up to date).
      * True when ANY gradient banner should be visible (Apps OR standard sub-page).
      * Used to suppress the normal submenu-info block and shrink the settings-header.
      */
-    let isAnyBannerPage = $derived(isAnyAppBannerPage || isStandardSubPage);
+    let isAnyBannerPage = $derived(isAnyAppBannerPage || isStandardSubPage || isChatSettingsPage);
 
     /**
      * Description translation keys for standard settings pages.
@@ -1033,6 +1045,28 @@ changes to the documentation (to keep the documentation up to date).
             { count: totalMemories,  iconClass: 'memory' },
         ];
     });
+
+    let chatSettingsContext = $derived($chatSettingsStore);
+    let chatSettingsTitle = $derived(
+        chatSettingsContext?.chat.title ||
+        [...(chatSettingsContext?.messages ?? [])].reverse().find((message) => message.current_chat_title)?.current_chat_title ||
+        $text('common.untitled_chat')
+    );
+    let chatSettingsCategory = $derived(chatSettingsContext?.chat.category || 'general_knowledge');
+    let chatSettingsIcon = $derived(
+        getValidIconName(
+            chatSettingsContext?.chat.icon || getFallbackIconForCategory(chatSettingsCategory),
+            chatSettingsCategory
+        )
+    );
+    let chatSettingsGradient = $derived(
+        getCategoryGradientColors(chatSettingsCategory) ?? { start: '#063f4d', end: '#0d6b7c' }
+    );
+    let chatSettingsCredits = $derived(
+        chatSettingsContext?.chat.budget_spent ??
+        chatSettingsContext?.messages.reduce((sum, message) => sum + (message.example_response_credits ?? 0), 0) ??
+        0
+    );
 
     /**
      * Data needed to render the AppDetailsHeader for sub-pages (skill/focus/memories).
@@ -1425,6 +1459,12 @@ changes to the documentation (to keep the documentation up to date).
 
         const apiKeyDetailPattern = /^developers\/api-keys\/[^/]+$/;
         if (apiKeyDetailPattern.test(settingsPath) && settingsPath !== 'developers/api-keys/create' && !dynamicEntryRoutes.has(settingsPath)) {
+            dynamicEntryRoutes.add(settingsPath);
+            dynamicEntryRoutes = new Set(dynamicEntryRoutes);
+        }
+
+        const chatSettingsPattern = /^chats\/[^/]+(?:\/[^/]+)?$/;
+        if (chatSettingsPattern.test(settingsPath) && !dynamicEntryRoutes.has(settingsPath)) {
             dynamicEntryRoutes.add(settingsPath);
             dynamicEntryRoutes = new Set(dynamicEntryRoutes);
         }
@@ -2481,7 +2521,8 @@ changes to the documentation (to keep the documentation up to date).
                                      settingsPath.startsWith('report_issue/') ||
                                      settingsPath.startsWith('account/delete/') ||
                                      settingsPath.startsWith('mates/') ||
-                                     settingsPath.startsWith('ai/');
+                                      settingsPath.startsWith('ai/') ||
+                                      settingsPath.startsWith('chats/');
                 
                 if (!isAllowedPath) {
                     // Clear the deep link if path is not allowed for non-authenticated users
@@ -2981,6 +3022,22 @@ changes to the documentation (to keep the documentation up to date).
                     iconType: subPageBannerData.iconType,
                 } : undefined}
                 onSubItemMention={subPageBannerData?.mentionSyntax ? handleSubPageBannerMentionClick : undefined}
+            />
+        </div>
+    {/if}
+
+    {#if isChatSettingsPage}
+        <div class="settings-banner-shell" data-testid="settings-banner-shell">
+            <ChatSettingsHeader
+                title={chatSettingsTitle}
+                icon={chatSettingsIcon}
+                credits={chatSettingsCredits}
+                gradientStart={chatSettingsGradient.start}
+                gradientEnd={chatSettingsGradient.end}
+                scrollTop={contentScrollTop}
+                breadcrumbLabel={breadcrumbLabel}
+                fullBreadcrumbLabel={fullBreadcrumbLabel}
+                onBack={() => backToMainView()}
             />
         </div>
     {/if}

@@ -123,7 +123,7 @@
     import SavedEmbedContinuePreview from './SavedEmbedContinuePreview.svelte';
     import ActiveChatTaskPreview from './tasks/ActiveChatTaskPreview.svelte';
     import TaskProposalReview from './tasks/TaskProposalReview.svelte';
-    import ChatDetailsSettingsPage from './chats/ChatDetailsSettingsPage.svelte';
+    import { chatSettingsRouteFor, chatSettingsStore, type ChatSettingsTab } from '../stores/chatSettingsStore';
     import type { UserTaskProposal, UserTaskUpdateProposal } from '../services/userTaskService';
     import Not404Screen from './Not404Screen.svelte'; // 404 not-found screen shown when user lands on an unknown URL
     import ForkProgressBanner from './chats/ForkProgressBanner.svelte'; // Slim banner shown while a fork is in progress
@@ -189,11 +189,6 @@
     const ON_DEMAND_MESSAGE_LOAD_POLL_ATTEMPTS = 20;
     const ON_DEMAND_MESSAGE_LOAD_POLL_DELAY_MS = 500;
     const EMBED_ID_IN_REF_RE = /[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/i;
-    // Temporary rollout gate: the current chat details/settings panel does not
-    // match product requirements. Keep code in place for the redesign, but make
-    // all entry points inaccessible until this is intentionally re-enabled.
-    const CHAT_DETAILS_SETTINGS_ENABLED = false;
-
     function extractPlainIdeaBucketText(markdown: string): string | null {
         const matches = [...markdown.matchAll(/----- Idea \d+ -----\r?\n([\s\S]*?)\r?\n-----------------/g)];
         if (matches.length !== 1) return null;
@@ -257,7 +252,7 @@
     type EventListenerCallback = (event: Event) => void;
     type UserProfileRecord = { user_id?: string | null };
     type HiddenChatFlag = { is_hidden?: boolean | null };
-    type ChatDetailsTab = 'tasks' | 'files' | 'usage' | 'share';
+    type ChatDetailsTab = ChatSettingsTab;
 
     type ChatHistoryRef = {
         updateMessages: (messages: ChatMessageModel[], isNewChat?: boolean) => void;
@@ -301,9 +296,6 @@
     };
 
     type EmbedDataRecord = EmbedStoreEntry | EmbedResolverData | Partial<EmbedResolverData>;
-
-    let showChatDetailsSettings = $state(false);
-    let chatDetailsInitialTab = $state<ChatDetailsTab>('tasks');
 
     function mergeFullscreenDecodedContent(
         previousContent: EmbedDecodedContent | null | undefined,
@@ -7754,29 +7746,25 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     }
 
     function openChatDetailsSettings(tab: ChatDetailsTab = 'tasks') {
-        if (!CHAT_DETAILS_SETTINGS_ENABLED && tab !== 'share') return;
         if (!currentChat?.chat_id) return;
         activeChatStore.setActiveChat(currentChat.chat_id);
-        chatDetailsInitialTab = tab;
-        showChatDetailsSettings = true;
+        chatSettingsStore.open(currentChat, currentMessages, tab);
+        settingsMenuVisible.set(true);
+        panelState.openSettings();
+        settingsDeepLink.set(chatSettingsRouteFor(currentChat.chat_id, tab));
     }
 
     function handleOpenChatDetailsSettingsEvent(event: Event) {
         const chatDetailsEvent = event as CustomEvent<{ chatId?: string | null; tab?: ChatDetailsTab }>;
-        if (!CHAT_DETAILS_SETTINGS_ENABLED && chatDetailsEvent.detail?.tab !== 'share') {
-            chatDetailsEvent.preventDefault();
-            return;
-        }
-
         const detail = chatDetailsEvent.detail;
         if (detail?.chatId && currentChat?.chat_id !== detail.chatId) return;
         chatDetailsEvent.preventDefault();
-        openChatDetailsSettings(detail?.tab ?? 'tasks');
+        openChatDetailsSettings(detail?.tab ?? 'plan');
     }
 
-    /** Open the unified chat details panel directly on the Share tab. */
+    /** Open chat-specific settings inside the Settings shell directly on Share. */
     function handleShareChat() {
-        console.debug("[ActiveChat] Share chat button clicked, opening chat details share tab");
+        console.debug("[ActiveChat] Share chat button clicked, opening chat settings share tab");
         openChatDetailsSettings('share');
     }
 
@@ -11822,18 +11810,16 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         <!-- Right side buttons -->
                         <div class="right-buttons">
                             {#if hasActivePrivateChatSurface && $authStore.isAuthenticated && currentChat?.chat_id}
-                                {#if CHAT_DETAILS_SETTINGS_ENABLED}
-                                    <div class="new-chat-button-wrapper">
-                                        <button
-                                            class="clickable-icon icon_settings top-button"
-                                            data-testid="chat-details-button"
-                                            aria-label="Chat details"
-                                            onclick={() => openChatDetailsSettings('tasks')}
-                                            use:tooltip
-                                        >
-                                        </button>
-                                    </div>
-                                {/if}
+                                <div class="new-chat-button-wrapper">
+                                    <button
+                                        class="clickable-icon icon_settings top-button"
+                                        data-testid="chat-details-button"
+                                        aria-label="Chat details"
+                                        onclick={() => openChatDetailsSettings('tasks')}
+                                        use:tooltip
+                                    >
+                                    </button>
+                                </div>
                                 <div class="new-chat-button-wrapper">
                                     <button
                                         class="clickable-icon icon_reminder top-button"
@@ -12444,12 +12430,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     {/if}
 
                     {#if !showWelcome && $authStore.isAuthenticated && currentChat?.chat_id && !isPublicChat(currentChat.chat_id)}
-                        {#if CHAT_DETAILS_SETTINGS_ENABLED}
                         <ActiveChatTaskPreview
                             chatId={currentChat.chat_id}
                             onOpenDetails={openChatDetailsSettings}
                         />
-                        {/if}
                         <TaskProposalReview
                             chatId={currentChat.chat_id}
                             proposals={pendingTaskProposals}
@@ -13068,16 +13052,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     </div>
                 {/await}
             {/if}
-
-            {#if (CHAT_DETAILS_SETTINGS_ENABLED || chatDetailsInitialTab === 'share') && showChatDetailsSettings && currentChat}
-                <ChatDetailsSettingsPage
-                    chat={currentChat}
-                    messages={currentMessages}
-                    initialTab={chatDetailsInitialTab}
-                    onClose={() => { showChatDetailsSettings = false; }}
-                />
-            {/if}
-             
             <!-- Video autoplay is handled by ChatHeader via the autoplayVideo prop.
                  The &autoplay-video deep link sets pendingAutoplayVideo which is
                  passed through ChatHistory → ChatHeader → native requestFullscreen. -->

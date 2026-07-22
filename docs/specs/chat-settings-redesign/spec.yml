@@ -26,10 +26,11 @@ scope:
     - Usage tab showing local chat usage rows and CSV/YAML export using existing message metadata.
     - Share tab fully replacing the old SettingsShare chat-sharing UI, with Figma-guided initial, generated-link, QR, and URL-reveal states.
     - Existing zero-knowledge chat share-link generation, durable short-link creation, long-link fallback, password protection, expiration, community option, stop sharing, copy, QR, show URL, and download chat behavior.
+    - Deleting frontend/packages/ui/src/components/chats/ChatDetailsSettingsPage.svelte and removing all product imports/render paths for that separate overlay.
     - Playwright coverage for opening chat settings from Share, tab deep linking, downloadable Files rows, Usage export controls, and Share state transitions.
   out:
     - Adding a normal Settings sidebar/menu entry for chat settings.
-    - Keeping or reusing the standalone ChatDetailsSettingsPage overlay UI as a visible entry point.
+    - Keeping, importing, rendering, or reusing the standalone ChatDetailsSettingsPage overlay UI.
     - Changing embed sharing UI or embed share behavior in this slice.
     - New backend API routes, Directus schema changes, or new server-side file index endpoints.
     - Implementing real Plan tab behavior beyond a Coming soon placeholder.
@@ -58,9 +59,10 @@ context_discovery:
     - "chat_files cached text includes Download files, Dev Server /projects/OpenMates/, 5 files 2.32MB, Whisper, code rows with line counts/language, and image rows with dimensions/AI-generated metadata."
     - "chat_usage cached text includes Download usage data, CSV & YAML, provider rows via Google and via Brave, AI | Ask, Web | Search, timestamps, words, attachment-like row, and credit counts."
     - "chat_share cached text includes Share with community, Password protection, Auto expire, Share chat, Download chat, Share Link created Auto expire in 10 minutes, Show QR code, Hide QR code, Copy to clipboard, Show URL, Hide URL, Stop sharing, and sample short URL omts.io/#98d2f-9cnv."
+    - "docs/specs/tasks-v1/spec.yml contains older overlapping chat settings notes and still references ChatDetailsSettingsPage; this dedicated chat-settings-redesign spec supersedes that implementation detail for the current work."
   code_patterns:
     - frontend/packages/ui/src/components/ActiveChat.svelte currently gates chat settings behind CHAT_DETAILS_SETTINGS_ENABLED=false; dev partially re-opened only the Share tab.
-    - frontend/packages/ui/src/components/chats/ChatDetailsSettingsPage.svelte is the separate overlay UI that must not remain the product surface.
+    - frontend/packages/ui/src/components/chats/ChatDetailsSettingsPage.svelte is the separate overlay UI that must be deleted, with imports/render paths removed from ActiveChat.svelte.
     - frontend/packages/ui/src/components/settings/settingsRoutes.ts owns base settings routes; current shared/share maps to SettingsShare.svelte.
     - frontend/packages/ui/src/stores/settingsDeepLinkStore.ts carries string settings paths from external UI into Settings.
     - frontend/packages/ui/src/stores/settingsNavigationStore.ts owns breadcrumb state and navigateToSettings().
@@ -205,7 +207,7 @@ scenarios:
       - The existing Settings shell opens instead of a separate overlay.
       - Breadcrumb shows Settings / Chats and can return to main Settings.
       - The chat settings page opens on the Share tab.
-      - The old standalone chat share menu is not shown.
+      - The old standalone chat details/share overlay is not shown and has no remaining product render path.
 
   - id: S-2
     title: Chat settings header and tabs match the Figma structure
@@ -343,6 +345,7 @@ contracts:
         - Is not listed in regular settings navigation.
         - Supports a chat id plus tab id in the deep-link request without exposing private data in committed URLs or tests.
         - Uses SettingsTabs for tab navigation.
+        - Replaces ChatDetailsSettingsPage.svelte completely; that file and all imports/render branches must be removed.
     - name: ChatSettingsHeader
       requirements:
         - Uses decrypted chat metadata already available to the client.
@@ -645,7 +648,7 @@ implementation_plan:
     - Chat settings route is not added to the regular settings sidebar/menu.
     - Embed share entry points remain on shared/share and existing embed context detection.
     - SettingsShare.svelte may be mined for helper behavior, but the chat UI must be new and Figma-guided.
-    - ChatDetailsSettingsPage.svelte may remain temporarily as dead legacy code during the slice, but ActiveChat must not render it for the product Share path.
+      - ChatDetailsSettingsPage.svelte must be deleted during the route-seam slice, with ActiveChat imports, state, event handling, and render branches updated to use the Settings shell path instead.
   data_flow:
     - step: Chat Share entry
       example: active chat chat_id="chat-dev-123", title="Embedded software development", requested tab="share".
@@ -703,6 +706,9 @@ implementation_plan:
     - path: frontend/packages/ui/src/components/chats/ChatSettingsPage.svelte
       reason: New settings-shell chat page replacing the overlay product surface.
       covers: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6]
+    - path: frontend/packages/ui/src/components/chats/ChatDetailsSettingsPage.svelte
+      reason: Delete legacy separate overlay component once Settings-shell route seam exists.
+      covers: [AC-1]
     - path: frontend/packages/ui/src/components/chats/ChatSettingsShareSection.svelte
       reason: New chat-only Share tab UI.
       covers: [AC-6]
@@ -930,7 +936,7 @@ tasks:
     follow_up_tasks: [TASK-6]
     independently_deployable: false
   - id: TASK-5
-    title: Implement chat settings deep-link route seam in Settings
+    title: Implement chat settings route seam and delete legacy overlay
     status: pending
     phase: working_tasks
     covers:
@@ -943,6 +949,7 @@ tasks:
       - frontend/packages/ui/src/stores/settingsDeepLinkStore.ts
       - frontend/packages/ui/src/stores/settingsNavigationStore.ts
       - frontend/packages/ui/src/components/chats/ChatSettingsPage.svelte
+      - frontend/packages/ui/src/components/chats/ChatDetailsSettingsPage.svelte
       - docs/specs/chat-settings-redesign/spec.yml
     ownership:
       files:
@@ -952,6 +959,7 @@ tasks:
         - frontend/packages/ui/src/stores/settingsDeepLinkStore.ts
         - frontend/packages/ui/src/stores/settingsNavigationStore.ts
         - frontend/packages/ui/src/components/chats/ChatSettingsPage.svelte
+        - frontend/packages/ui/src/components/chats/ChatDetailsSettingsPage.svelte
       shared_files:
         - docs/specs/chat-settings-redesign/spec.yml
     verification_ids: [T-E2E-CHAT-SETTINGS]

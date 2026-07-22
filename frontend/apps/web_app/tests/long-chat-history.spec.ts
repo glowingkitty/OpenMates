@@ -213,7 +213,10 @@ test('loads long compressed history explicitly and exports hydrated metadata', a
 
 	const downloadPromise = page.waitForEvent('download', { timeout: 45000 });
 	await page.getByTestId('chat-share-button').click();
-	await expect(page.getByTestId('chat-details-settings-panel')).toBeVisible({ timeout: 10000 });
+	await expect(page.getByTestId('settings-menu')).toHaveAttribute('data-active-view', /^chats\/[a-zA-Z0-9-]+\/share$/, {
+		timeout: 10000
+	});
+	await expect(page.getByTestId('chat-settings-tabpanel-share')).toBeVisible({ timeout: 10000 });
 	await page.getByRole('button', { name: /download chat zip/i }).click();
 	const download = await downloadPromise;
 	expect(download.suggestedFilename()).toMatch(/\.zip$/);

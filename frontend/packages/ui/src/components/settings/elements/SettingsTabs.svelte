@@ -34,12 +34,14 @@
         activeTab = $bindable(''),
         gradientStart = '',
         gradientEnd = '',
+        testIdPrefix = 'settings-tab',
         onChange = undefined,
     }: {
         tabs?: TabItem[];
         activeTab?: string;
         gradientStart?: string;
         gradientEnd?: string;
+        testIdPrefix?: string;
         onChange?: ((tabId: string) => void) | undefined;
     } = $props();
 
@@ -115,6 +117,7 @@
                     <button
                         class="settings-tab"
                         class:active={activeTab === tab.id}
+                        data-testid={`${testIdPrefix}-${tab.id}`}
                         role="tab"
                         aria-selected={activeTab === tab.id}
                         aria-controls={`tabpanel-${tab.id}`}
