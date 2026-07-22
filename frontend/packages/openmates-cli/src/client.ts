@@ -38,7 +38,7 @@ import {
   type ChatCompletionRecoveryEnvelope,
   type SignupCryptoMaterial,
 } from "./crypto.js";
-import { OpenMatesHttpClient } from "./http.js";
+import { OpenMatesHttpClient, type HttpResponse } from "./http.js";
 import {
   type OpenMatesSession,
   type SyncCache,
@@ -206,6 +206,9 @@ interface IdeaBucketPreparedIdea {
 function shouldWaitForTeamAi(message: string, teamId: string | null): boolean {
   return !teamId || message.toLowerCase().includes("@openmates");
 }
+
+const CLI_MESSAGE_HISTORY_PAGE_LIMIT = 100;
+const CLI_MESSAGE_HISTORY_MAX_PAGES = 100;
 
 function normalizeSyncedMessages(messages: unknown[]): string[] {
   return messages.map((message) =>
@@ -2034,6 +2037,12 @@ export type ChatMessageWindowDirection = "latest" | "before" | "after" | "around
 export interface ChatMessageWindowCursor {
   created_at: number;
   message_id: string;
+}
+
+interface RawChatMessageWindowResponse {
+  messages?: Array<string | Record<string, unknown>>;
+  has_more_before?: boolean;
+  start_cursor?: ChatMessageWindowCursor | null;
 }
 
 export interface ChatMessageWindowOptions extends TeamContextOptions {
@@ -4961,12 +4970,33 @@ export class OpenMatesClient {
     const hasServerMessages =
       typeof found.details.messages_v === "number" && found.details.messages_v > 0;
     if (rawMessages.length === 0 && hasServerMessages && foundChatId) {
-      const response = await this.http.get<Array<string | Record<string, unknown>>>(
-        this.appendTeamQuery(`/v1/chats/${encodeURIComponent(foundChatId)}/messages`, { teamId }),
-        this.getCliRequestHeaders(),
-      );
-      if (!response.ok) throw new Error(`Chat messages failed with HTTP ${response.status}`);
-      rawMessages = Array.isArray(response.data) ? normalizeSyncedMessages(response.data) : [];
+      const pages: string[][] = [];
+      let cursor: ChatMessageWindowCursor | null = null;
+      let hasMoreBefore = true;
+      for (let page = 0; page < CLI_MESSAGE_HISTORY_MAX_PAGES && hasMoreBefore; page += 1) {
+        const queryParams = new URLSearchParams({
+          direction: cursor ? "before" : "latest",
+          limit: String(CLI_MESSAGE_HISTORY_PAGE_LIMIT),
+          respect_compression_boundary: "false",
+        });
+        if (cursor) {
+          queryParams.set("before_timestamp", String(cursor.created_at));
+          queryParams.set("before_message_id", cursor.message_id);
+        }
+        const response: HttpResponse<RawChatMessageWindowResponse> = await this.http.get<RawChatMessageWindowResponse>(
+          this.appendTeamQuery(`/v1/chats/${encodeURIComponent(foundChatId)}/messages/window?${queryParams.toString()}`, { teamId }),
+          this.getCliRequestHeaders(),
+        );
+        if (!response.ok) throw new Error(`Chat messages failed with HTTP ${response.status}`);
+        const pageMessages = Array.isArray(response.data.messages)
+          ? normalizeSyncedMessages(response.data.messages)
+          : [];
+        if (pageMessages.length === 0) break;
+        pages.unshift(pageMessages);
+        cursor = response.data.start_cursor ?? null;
+        hasMoreBefore = response.data.has_more_before === true && cursor !== null;
+      }
+      rawMessages = pages.flat();
     }
     const messages = await this.decryptRawChatMessages(rawMessages, chatItem, chatKeyBytes, cache.embeds);
     return { chat: chatItem, messages };

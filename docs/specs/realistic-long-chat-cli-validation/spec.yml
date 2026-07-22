@@ -163,14 +163,20 @@ attempts:
     outcome: succeeded
     recorded_at: "2026-07-22"
     notes: The recovery transaction extension now allows mark_inference_failed from ENQUEUED before worker claim, so API dispatch failures can mark the preflight/outbox FAILED. The WebSocket message handler now treats ai.ask responses without a task_id as a scoped ai_dispatch_failed error and marks the expected recovery inference failed; CLI collectAiResponse already rejects scoped error frames instead of timing out. The SDK saved-chat path now does the same and returns a retryable 502 detail. api and cms were restarted and api.dev.openmates.org health recovered. This guards the orphan/timeout path but does not implement a new CLI/SDK fork-from-message API; the existing fork behavior remains client-side web-only.
+  - id: ATTEMPT-7
+    task_id: TASK-3
+    approach: Implemented CLI/SDK chat messages, fork, rewind, and retry support; repaired chat 30521f99 by retrying the PRD turn from boundary 736e1dc9-d0b0-478d-8542-fb5bfc1adbae with source CLI history hydration for saved chats.
+    outcome: blocked
+    recorded_at: "2026-07-22"
+    notes: Focused npm SDK tests passed after the CLI client fixes. Live retry first exposed that the destructive rewind had already removed the orphan PRD user turn, then a direct send with @Gemini-3.5-Flash-Lite persisted a retryable PRD user message while the WebSocket closed during an api restart. A subsequent `chats retry 30521f99 --yes --response-timeout-seconds 600 --json` succeeded, deleted the orphan user message, invalidated one preflight/job/outbox set, and produced durable assistant message ce16cb9b-a28f-40be-936d-ca9305d4cdeb with a usable PRD response. `chats messages 30521f99 --json` now returns the full decrypted 22-message transcript after adding a paginated message-window fallback for empty full-sync caches. Direct database query found zero chat_compression_checkpoints rows for this chat, so the validation remains blocked on the two-checkpoint requirement before share/example publishing.
 
 handoff:
   current_task_id: TASK-3
-  next_action: Retry the PRD turn from repaired chat 30521f99 with the source CLI, watching for immediate ai_dispatch_failed versus normal ai_task_initiated; if it succeeds, inspect the assistant response and compression checkpoint behavior before continuing.
-  command: node --experimental-strip-types --loader ./tests/loader.mjs src/cli.ts chats send --chat 30521f99 --response-timeout-seconds 600 "@Gemini-3.5-Flash-Lite <next turn>"
-  expected_outcome: The turn should either start a real AI task and stream a usable response, or fail quickly with scoped ai_dispatch_failed instead of silently timing out with an ambiguous orphan message.
+  next_action: Decide whether to continue extending repaired chat 30521f99 with additional inspected Gemini Flash-Lite turns until two durable compression checkpoints exist, or start a cleaner fresh long-chat run now that CLI rewind/retry and history hydration are fixed.
+  command: node --experimental-strip-types --loader ./tests/loader.mjs src/cli.ts --api-url https://api.dev.openmates.org chats send --chat 30521f99 --response-timeout-seconds 600 "@Gemini-3.5-Flash-Lite <next inspected turn>"
+  expected_outcome: Additional real CLI turns should stream usable responses, remain visible via `chats messages 30521f99 --json`, and eventually create at least two durable chat_compression_checkpoints rows for the same chat before share/example conversion.
   blocker:
-    reason: Recovery version conflict, pre-terminal cache writes, compression split skipping, and no-task dispatch failure are covered by targeted tests. The validation run is still incomplete because chat 30521f99 has not yet produced two durable compression checkpoints or a final publishable transcript.
+    reason: Recovery version conflict, pre-terminal cache writes, compression split skipping, no-task dispatch failure, saved-chat history hydration, and empty full-sync message listing are covered by targeted tests or live checks. The validation run is still incomplete because chat 30521f99 has zero durable compression checkpoints and no final publishable example transcript.
     since: "2026-07-22"
   last_verified_commit: working-tree-2026-07-22
 
@@ -262,7 +268,7 @@ acceptance_criteria:
     scenario: S-3
     text: The workflow pauses and asks the user before debugging or continuing when an assistant response fails or an embed is clearly broken, missing, irrelevant, or nonsensical.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: manual
     verification_ids: [T-SKILL-CONTRACT, V-LIVE-RUN-OBSERVATION]
@@ -496,11 +502,11 @@ verifications:
     phase: green
     required_for_done: true
     covers: [AC-4]
-    status: pending
+    status: passed
     evidence:
-      status: pending
-      summary: Record whether any pause condition occurred during the live run and how the user chose to proceed.
-      timestamp: null
+      status: passed
+      summary: The workflow paused on missing/unusable assistant responses, orphan retry tails, a WebSocket closure, and an empty full-sync transcript display. The user instructed OpenCode to continue if next steps were clear, so the run was debugged and repaired instead of silently continuing. The repaired PRD retry produced a usable Gemini 3.5 Flash-Lite assistant response and `chats messages 30521f99 --json` now shows the full transcript.
+      timestamp: "2026-07-22"
   - id: V-USER-CONFIRMATION
     kind: user_confirmation
     phase: final
