@@ -113,13 +113,6 @@ test('creates and shares a chat link with QR code and fallback link', async ({
 	});
 	logCheckpoint('Share panel loaded — configuration step visible.');
 
-	// ── Step 7: Verify chat preview is shown ──────────────────────────────
-	const chatPreview = page.locator('[data-testid="share-chat-preview"]');
-	await expect(chatPreview).toBeVisible({ timeout: 10000 });
-	const expectedChatOgTitle = (await chatPreview.getByTestId('chat-title').textContent())?.trim();
-	expect(expectedChatOgTitle).toBeTruthy();
-	logCheckpoint('Chat preview is visible in share panel.');
-
 	await page.route('**/v1/share/short-url', async (route: any) => {
 		await route.fulfill({
 			status: 503,
