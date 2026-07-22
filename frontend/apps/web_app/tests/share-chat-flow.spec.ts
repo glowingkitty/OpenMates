@@ -112,12 +112,9 @@ test('creates and shares a chat link with QR code and short link', async ({
 	const shareButton = page.locator('[data-testid="chat-share-button"]');
 	await docAssert('share-panel-opens-from-chat-header', async () => {
 		await expect(shareButton).toBeVisible({ timeout: 10000 });
-		await page.evaluate(() => {
-			const button = document.querySelector('[data-testid="chat-share-button"]');
-			if (!(button instanceof HTMLButtonElement)) {
-				throw new Error('Chat share button was not available for DOM click.');
-			}
-			button.click();
+		await shareButton.click({ timeout: 10000 });
+		await expect(page.getByTestId('settings-menu')).toHaveAttribute('data-active-view', /^chats\/[a-zA-Z0-9-]+\/share$/, {
+			timeout: 10000
 		});
 	});
 	logCheckpoint('Clicked chat share button.');
