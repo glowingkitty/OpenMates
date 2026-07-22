@@ -40,6 +40,13 @@ async function ensureSidebarOpen(page: any): Promise<void> {
 	await expect(activityHistory).toBeVisible({ timeout: 10000 });
 }
 
+async function dismissSecurityReminder(page: any): Promise<void> {
+	const reminder = page.getByTestId('notification').filter({ hasText: 'Security Reminder' });
+	if (!(await reminder.isVisible({ timeout: 2000 }).catch(() => false))) return;
+	await reminder.getByTestId('notification-dismiss').click();
+	await expect(reminder).not.toBeVisible({ timeout: 10000 });
+}
+
 async function seedLongChatFixture(page: any): Promise<void> {
 	await page.evaluate(
 		async ({ chatId, checkpointId, baseTimestamp, compressedUpToIndex, totalMessageCount }) => {
@@ -174,9 +181,11 @@ test('loads long compressed history explicitly and exports hydrated metadata', a
 
 	await archiveExistingScreenshots(log);
 	await loginToTestAccount(page, log, screenshot);
+	await dismissSecurityReminder(page);
 	await seedLongChatFixture(page);
 
 	await page.goto(getE2EDebugUrl(`/#chat-id=${CHAT_ID}`), { waitUntil: 'domcontentloaded' });
+	await dismissSecurityReminder(page);
 	await expect(page.getByTestId('chat-history-container')).toBeVisible({ timeout: 45000 });
 	await expect(page.getByText('Compression summary: the first 80 planning messages')).toBeVisible({
 		timeout: 45000
