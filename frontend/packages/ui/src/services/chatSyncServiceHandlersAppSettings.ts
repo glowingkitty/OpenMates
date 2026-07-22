@@ -20,6 +20,7 @@ import { chatDB } from "./db";
 import { chatKeyManager } from "./encryption/ChatKeyManager";
 import { dispatchEmbedFullscreen } from "./embedFullscreenController";
 import { ensureChatKeySafeForWrite } from "./chatKeyWriteGuard";
+import { isChatVisiblyActive } from "./chatNotificationVisibility";
 import { encryptWithChatKey } from "./encryption/MessageEncryptor";
 import { decryptWithMasterKey } from "./encryption/MetadataEncryptor";
 import { aiTypingStore } from "../stores/aiTypingStore";
@@ -2804,13 +2805,15 @@ export async function handleReminderFiredImpl(
     const notificationPreview = promptMatch
       ? promptMatch[1].substring(0, 100)
       : "Your reminder has triggered";
-    notificationStore.chatMessage(
-      chat_id,
-      notificationTitle,
-      notificationPreview,
-      undefined,
-      notificationCategory,
-    );
+    if (!isChatVisiblyActive(chat_id)) {
+      notificationStore.chatMessage(
+        chat_id,
+        notificationTitle,
+        notificationPreview,
+        undefined,
+        notificationCategory,
+      );
+    }
 
     console.info(
       `[ChatSyncService:Reminder] Processed reminder for chat ${chat_id} (${target_type})`,

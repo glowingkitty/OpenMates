@@ -8,8 +8,8 @@ import { chatMetadataCache } from "./chatMetadataCache"; // Import for cache inv
 import { chatListCache } from "./chatListCache"; // Import for cache invalidation when metadata arrives
 import { flushPendingMessagesForChat } from "./chatSyncServiceHandlersChatUpdates"; // Flush messages queued while chat key was unavailable
 import { flushPendingSystemMessagesForChat } from "./chatSyncServiceHandlersAppSettings"; // Flush system messages queued while chat key was unavailable
+import { isChatVisiblyActive } from "./chatNotificationVisibility";
 import type { EmbedType } from "../message_parsing/types";
-import { activeChatStore } from "../stores/activeChatStore";
 import { notificationStore } from "../stores/notificationStore";
 import { unreadMessagesStore } from "../stores/unreadMessagesStore";
 import { webSocketService } from "./websocketService"; // For notifying data activity during AI streaming
@@ -1040,12 +1040,12 @@ export async function handleAIBackgroundResponseCompletedImpl(
     // Show notification and increment unread count for background chat completion.
     // Sub-chats run as parent-owned background workers; they should only notify when
     // they explicitly ask for user input, which is handled by awaiting_user_input.
-    // The activeChatStore check is a safety guard in case the user switched back
+    // The visible-chat check is a safety guard in case the user switched back
     // to this chat between the server sending the event and us processing it.
-    const activeChatId = activeChatStore.get();
-    if (activeChatId !== payload.chat_id && !chat.is_sub_chat && !chat.parent_id) {
+    const chatIsVisible = isChatVisiblyActive(payload.chat_id);
+    if (!chatIsVisible && !chat.is_sub_chat && !chat.parent_id) {
       console.debug(
-        `[ChatSyncService:AI] Showing notification for background chat ${payload.chat_id} (active: ${activeChatId})`,
+        `[ChatSyncService:AI] Showing notification for background chat ${payload.chat_id}`,
       );
 
       // Increment unread count for this chat
@@ -5503,8 +5503,7 @@ export async function handleAwaitingUserInputImpl(
       }),
     );
 
-    const activeChatId = activeChatStore.get();
-    if (activeChatId !== payload.chat_id) {
+    if (!isChatVisiblyActive(payload.chat_id)) {
       unreadMessagesStore.incrementUnread(payload.chat_id);
       notificationStore.chatMessage(
         payload.chat_id,

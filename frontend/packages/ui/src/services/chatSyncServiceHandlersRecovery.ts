@@ -16,9 +16,9 @@ import { chatDB } from "./db";
 import { chatKeyManager } from "./encryption/ChatKeyManager";
 import { ensureChatKeySafeForWrite } from "./chatKeyWriteGuard";
 import { webSocketService } from "./websocketService";
-import { activeChatStore } from "../stores/activeChatStore";
 import { notificationStore } from "../stores/notificationStore";
 import { unreadMessagesStore } from "../stores/unreadMessagesStore";
+import { isChatVisiblyActive } from "./chatNotificationVisibility";
 
 const CHAT_RECOVERY_PROTOCOL_VERSION = 1;
 const CHAT_RECOVERY_EVENT_TIMEOUT_MS = 20_000;
@@ -48,19 +48,6 @@ function buildRecoveryMessagePreview(content: string): string {
 
   if (!plainText) return "New AI response ready";
   return plainText.length > 120 ? `${plainText.substring(0, 120)}...` : plainText;
-}
-
-function getVisibleHashChatId(): string | null {
-  const hash = window.location.hash.startsWith("#")
-    ? window.location.hash.slice(1)
-    : window.location.hash;
-  if (!hash) return null;
-  const params = new URLSearchParams(hash);
-  return params.get("chat-id") ?? params.get("chat_id");
-}
-
-function isChatVisiblyActive(chatId: string): boolean {
-  return activeChatStore.get() === chatId && getVisibleHashChatId() === chatId;
 }
 
 class RecoveryEventTimeoutError extends Error {}

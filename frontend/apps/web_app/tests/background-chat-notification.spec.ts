@@ -165,6 +165,16 @@ test('background chat notification shows and allows reply', async ({ page }: { p
 		logStep('Reply button not visible; notification display behavior verified.');
 		return;
 	}
+	const notificationBox = await notification.boundingBox();
+	const replyButtonBox = await replyButton.boundingBox();
+	if (!notificationBox || !replyButtonBox) {
+		throw new Error('Could not measure notification reply button bounds.');
+	}
+	const replyInsetLeft = replyButtonBox.x - notificationBox.x;
+	const replyInsetRight = notificationBox.x + notificationBox.width - (replyButtonBox.x + replyButtonBox.width);
+	expect(Math.abs(replyInsetLeft - replyInsetRight)).toBeLessThanOrEqual(1);
+	expect(replyInsetRight).toBeGreaterThanOrEqual(0);
+	logStep('Reply button horizontal inset is balanced.', { replyInsetLeft, replyInsetRight });
 	await replyButton.click();
 	logStep('Clicked reply button.');
 	await takeScreenshot(page, 'reply-expanded');

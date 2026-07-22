@@ -25,6 +25,7 @@ const mockChatDB = vi.hoisted(() => ({
   getAllChats: vi.fn(),
   getEncryptedChatKey: vi.fn(),
   updateChat: vi.fn(),
+  saveMessage: vi.fn(),
   getMessage: vi.fn(),
   getMessagesForChat: vi.fn(),
 }));
@@ -44,6 +45,22 @@ const mockEmbedStore = vi.hoisted(() => ({
 const mockAiTypingStore = vi.hoisted(() => ({
   clearTyping: vi.fn(),
   setTyping: vi.fn(),
+  subscribe: vi.fn((run: (value: unknown) => void) => {
+    run(null);
+    return () => {};
+  }),
+}));
+
+const mockActiveChatStore = vi.hoisted(() => ({
+  get: vi.fn(),
+}));
+
+const mockNotificationStore = vi.hoisted(() => ({
+  chatMessage: vi.fn(),
+}));
+
+const mockUnreadMessagesStore = vi.hoisted(() => ({
+  incrementUnread: vi.fn(),
 }));
 
 const mockChatKeyManager = vi.hoisted(() => ({
@@ -156,9 +173,25 @@ vi.mock("../../stores/aiTypingStore", () => ({
   aiTypingStore: mockAiTypingStore,
 }));
 
+vi.mock("../../stores/activeChatStore", () => ({
+  activeChatStore: mockActiveChatStore,
+}));
+
+vi.mock("../../stores/notificationStore", () => ({
+  notificationStore: mockNotificationStore,
+}));
+
+vi.mock("../../stores/unreadMessagesStore", () => ({
+  unreadMessagesStore: mockUnreadMessagesStore,
+}));
+
 describe("handleAIBackgroundResponseCompletedImpl", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    window.history.replaceState(null, "", "/");
+    mockChatDB.saveMessage.mockResolvedValue(undefined);
+    mockChatDB.updateChat.mockResolvedValue(undefined);
+    mockActiveChatStore.get.mockReturnValue(null);
   });
 
   it("does not send legacy persistence for epoch-one recovery completions", async () => {
@@ -188,6 +221,38 @@ describe("handleAIBackgroundResponseCompletedImpl", () => {
     expect(service.dispatchEvent).toHaveBeenCalledWith(
       expect.objectContaining({ type: "aiTaskEnded" }),
     );
+  });
+
+  it("does not notify when the completed background response is for the visibly open chat", async () => {
+    const chat = {
+      chat_id: "chat-1",
+      title: "Open chat",
+      messages_v: 1,
+      last_edited_overall_timestamp: 100,
+    };
+    mockChatDB.getChat.mockResolvedValue(chat);
+    mockActiveChatStore.get.mockReturnValue(null);
+    window.location.hash = "#chat-id=chat-1";
+    const service = {
+      activeAITasks: new Map([["chat-1", { taskId: "task-1" }]]),
+      dispatchEvent: vi.fn(),
+      sendCompletedAIResponse: vi.fn(),
+    } as unknown as ChatSynchronizationService;
+
+    await handleAIBackgroundResponseCompletedImpl(service, {
+      chat_id: "chat-1",
+      message_id: "assistant-1",
+      user_message_id: "user-message-1",
+      task_id: "task-1",
+      full_content: "Visible chat response",
+      category: "general_knowledge",
+    });
+
+    expect(mockChatDB.saveMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ message_id: "assistant-1", chat_id: "chat-1" }),
+    );
+    expect(mockUnreadMessagesStore.incrementUnread).not.toHaveBeenCalled();
+    expect(mockNotificationStore.chatMessage).not.toHaveBeenCalled();
   });
 });
 

@@ -698,6 +698,7 @@
         all: unset;
         cursor: pointer;
         display: block;
+        box-sizing: border-box;
         width: 100%;
         margin-top: var(--spacing-6);
         padding: var(--spacing-6) var(--spacing-8);

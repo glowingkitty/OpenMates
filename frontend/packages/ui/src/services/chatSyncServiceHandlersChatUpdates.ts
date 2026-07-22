@@ -22,10 +22,10 @@ import { chatKeyManager } from "./encryption/ChatKeyManager";
 import { ensureChatKeySafeForWrite } from "./chatKeyWriteGuard";
 import { encryptWithChatKey, decryptWithChatKey } from "./encryption/MessageEncryptor";
 import { decryptChatKeyWithMasterKey, encryptChatKeyWithMasterKey } from "./encryption/MetadataEncryptor";
-import { activeChatStore } from "../stores/activeChatStore";
 import { notificationStore } from "../stores/notificationStore";
 import { unreadMessagesStore } from "../stores/unreadMessagesStore";
 import { LOCAL_CHAT_LIST_CHANGED_EVENT } from "./drafts/draftConstants";
+import { isChatVisiblyActive } from "./chatNotificationVisibility";
 
 const ASSISTANT_NOTIFICATION_PREVIEW_MAX_LENGTH = 120;
 
@@ -83,20 +83,6 @@ function buildAssistantMessagePreview(content: string | undefined): string {
   return plainText.length > ASSISTANT_NOTIFICATION_PREVIEW_MAX_LENGTH
     ? `${plainText.substring(0, ASSISTANT_NOTIFICATION_PREVIEW_MAX_LENGTH)}...`
     : plainText;
-}
-
-function getVisibleHashChatId(): string | null {
-  if (typeof window === "undefined") return null;
-  const hash = window.location.hash.startsWith("#")
-    ? window.location.hash.slice(1)
-    : window.location.hash;
-  if (!hash) return null;
-  const params = new URLSearchParams(hash);
-  return params.get("chat-id") ?? params.get("chat_id");
-}
-
-function isChatVisiblyActive(chatId: string): boolean {
-  return activeChatStore.get() === chatId && getVisibleHashChatId() === chatId;
 }
 
 function clearDraftOnlyShellForMessages(chat: Chat, messagesV: number): Chat {
