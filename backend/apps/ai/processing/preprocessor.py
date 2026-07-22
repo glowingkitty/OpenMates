@@ -109,6 +109,7 @@ IMAGE_SEARCH_ACTION_PATTERN = re.compile(
 MINDMAP_CONFLICTING_GENERATIVE_SKILLS = {"images-generate", "images-generate_draft"}
 
 SAME_TOPIC_SHIFT_VALUES = {"same_topic", "unclear"}
+FOLLOW_UP_CONTINUITY_TOPIC_AREAS = {"education_learning"}
 
 
 def _message_history_has_image_upload_embed(request_data: AskSkillRequest) -> bool:
@@ -282,6 +283,21 @@ def _normalize_task_area(raw_task_area: Any) -> Optional[str]:
     return normalized or None
 
 
+def _latest_assistant_category_from_history(message_history: List[Any]) -> Optional[str]:
+    """Return the most recent assistant category from chat history, if present."""
+    for msg in reversed(message_history or []):
+        if isinstance(msg, dict):
+            role = msg.get("role")
+            category = msg.get("category")
+        else:
+            role = getattr(msg, "role", None)
+            category = getattr(msg, "category", None)
+
+        if role == "assistant" and isinstance(category, str) and category.strip():
+            return category.strip()
+    return None
+
+
 def _resolve_category_from_topic_area(
     *,
     raw_topic_area: Any,
@@ -314,6 +330,9 @@ def _resolve_category_from_topic_area(
         return previous_category
 
     if previous_category and topic_area == "general_misc":
+        return previous_category
+
+    if previous_category and topic_area in FOLLOW_UP_CONTINUITY_TOPIC_AREAS:
         return previous_category
 
     return mapped_category
@@ -1876,7 +1895,15 @@ async def handle_preprocessing(
     # keeping the same mate/category unless the topic has clearly changed.
     # This prevents follow-up questions from falling back to 'general_knowledge'.
     previous_category: Optional[str] = None
-    if not is_first_message and cache_service and request_data.user_id and request_data.chat_id:
+    if not is_first_message:
+        previous_category = _latest_assistant_category_from_history(request_data.message_history)
+        if previous_category:
+            logger.info(
+                f"{log_prefix} Retrieved previous category '{previous_category}' from message history "
+                f"for follow-up category continuity."
+            )
+
+    if not is_first_message and not previous_category and cache_service and request_data.user_id and request_data.chat_id:
         try:
             chat_list_item = await cache_service.get_chat_list_item_data(
                 request_data.user_id, request_data.chat_id, refresh_ttl=False

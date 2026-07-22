@@ -16,6 +16,7 @@ try:
         _contains_image_search_intent_in_user_history,
         _contains_rain_radar_intent_in_user_history,
         _contains_repo_search_intent_in_user_history,
+        _latest_assistant_category_from_history,
         _normalize_topic_area,
         _resolve_category_from_topic_area,
         ONBOARDING_TRIGGER_PHRASES,
@@ -36,9 +37,10 @@ except ImportError as _exc:
 
 class FakeMessage:
     """Minimal stand-in for AIHistoryMessage with role and content."""
-    def __init__(self, role: str, content):
+    def __init__(self, role: str, content, category=None):
         self.role = role
         self.content = content
+        self.category = category
 
 
 def _user_msg(content: str) -> FakeMessage:
@@ -47,6 +49,10 @@ def _user_msg(content: str) -> FakeMessage:
 
 def _assistant_msg(content: str) -> FakeMessage:
     return FakeMessage(role="assistant", content=content)
+
+
+def _assistant_msg_with_category(content: str, category: str) -> FakeMessage:
+    return FakeMessage(role="assistant", content=content, category=category)
 
 
 # ===========================================================================
@@ -371,6 +377,13 @@ class TestTopicAreaMateRouting:
     def test_normalizes_full_topic_string(self):
         assert _normalize_topic_area("textiles_sewing: Fabric and sewing") == "textiles_sewing"
 
+    def test_finds_previous_category_from_latest_assistant_message(self):
+        assert _latest_assistant_category_from_history([
+            _user_msg("Explain the basics of machine learning"),
+            _assistant_msg_with_category("Machine learning basics", "software_development"),
+            _user_msg("I'm just starting out and want fundamentals"),
+        ]) == "software_development"
+
     def test_routes_textiles_to_maker_not_cooking(self):
         assert _resolve_category_from_topic_area(
             raw_topic_area="textiles_sewing",
@@ -402,6 +415,15 @@ class TestTopicAreaMateRouting:
             previous_category="maker_prototyping",
             available_category_ids=AVAILABLE_CATEGORY_IDS,
         ) == "maker_prototyping"
+
+    def test_keeps_previous_category_for_learning_follow_up(self):
+        assert _resolve_category_from_topic_area(
+            raw_topic_area="education_learning",
+            raw_topic_shift="noticeable_shift",
+            previous_category="software_development",
+            available_category_ids=AVAILABLE_CATEGORY_IDS,
+            raw_task_area="general",
+        ) == "software_development"
 
     def test_allows_clear_follow_up_topic_shift(self):
         assert _resolve_category_from_topic_area(
