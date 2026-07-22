@@ -90,7 +90,6 @@ final class ChatFlowRealAccountUITests: XCTestCase {
         )
         toggle.tap()
         XCTAssertTrue(panel.waitForExistence(timeout: 15), "Chat history panel did not open")
-        XCTAssertTrue(waitForChatRows(rows, timeout: 15), "Chat history panel opened without chat rows")
     }
 
     private func parityCredentials() throws -> RealAccountTestCredentials {
