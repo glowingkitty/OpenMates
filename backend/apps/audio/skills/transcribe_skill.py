@@ -23,7 +23,6 @@
 # Same rationale as TranscriptSkill in videos app.
 
 import logging
-import json
 import base64
 import io
 import os
@@ -55,6 +54,8 @@ VOXTRAL_MODEL = "voxtral-mini-2602"
 
 # Model used to clean up raw speech-to-text output after transcription.
 GEMINI_CORRECTION_MODEL = "gemini-3.5-flash"
+GEMINI_TRANSCRIPT_TOOL_NAME = "finalize_transcript"
+TRANSCRIPT_TITLE_MAX_LENGTH = 80
 
 # Timeout for Mistral API calls (seconds)
 MISTRAL_API_TIMEOUT = 120
@@ -87,6 +88,16 @@ def _sanitize_transcription_result_text(
             f"from transcription output across {stats.get('fields_sanitized', 0)} field(s)"
         )
     return sanitized
+
+
+def _clean_transcript_title(title: Optional[str]) -> str:
+    """Return a compact, single-line title for a recording transcript."""
+    cleaned = re.sub(r"\s+", " ", (title or "").strip().strip("\"'")).strip(" .")
+    if not cleaned:
+        return "Voice note"
+    if len(cleaned) > TRANSCRIPT_TITLE_MAX_LENGTH:
+        return cleaned[:TRANSCRIPT_TITLE_MAX_LENGTH].rstrip()
+    return cleaned
 
 
 class TranscribeRequestItem(BaseModel):
@@ -141,6 +152,7 @@ class TranscribeRequest(BaseModel):
 class TranscribeResult(BaseModel):
     """Result for a single audio transcription."""
     s3_key: str
+    title: Optional[str] = None
     transcript: Optional[str] = None
     language: Optional[str] = None
     duration_seconds: Optional[float] = None
@@ -571,13 +583,13 @@ class TranscribeSkill(BaseSkill):
         raw_transcript: str,
         google_api_key: str,
         detected_language: Optional[str] = None,
-    ) -> str:
+    ) -> Dict[str, str]:
         """
         Use Gemini to auto-correct a raw, potentially incoherent audio transcript.
 
-        Removes filler words, verbal self-corrections, and formatting issues.
-        Returns the clean transcript. Raises when correction fails so callers do
-        not label the raw transcript as corrected.
+        Removes filler words, verbal self-corrections, and formatting issues,
+        then returns a compact title plus the clean transcript. Raises when
+        correction fails so callers do not label the raw transcript as corrected.
         """
         if not raw_transcript.strip():
             raise ValueError("Cannot correct an empty transcript")
@@ -607,7 +619,13 @@ class TranscribeSkill(BaseSkill):
             "6. For long or confusing recordings, keep all concrete user requirements, remove abandoned starts, "
             "and organize the final request into short coherent sentences or bullets when that improves readability.\n"
             "7. If the input is already clean, keep it as-is (with punctuation/formatting adjustments).\n\n"
-            "Return JSON with a single key 'corrected_transcript' containing the corrected text."
+            "Call the finalize_transcript function with the final title and corrected transcript.\n"
+            "Title rules:\n"
+            "- Keep title in the same language as the transcript.\n"
+            "- Use 3 to 8 words when possible.\n"
+            "- No quotes, no trailing period, no markdown.\n"
+            "- Do not invent names, facts, or entities that are not in the transcript.\n"
+            "- If the recording is unclear or too generic, use 'Voice note'."
         )
 
         body = {
@@ -620,16 +638,38 @@ class TranscribeSkill(BaseSkill):
                     ]
                 }
             ],
+            "tools": [
+                {
+                    "functionDeclarations": [
+                        {
+                            "name": GEMINI_TRANSCRIPT_TOOL_NAME,
+                            "description": "Return the cleaned transcript and compact display title for the audio recording.",
+                            "parameters": {
+                                "type": "OBJECT",
+                                "required": ["title", "corrected_transcript"],
+                                "properties": {
+                                    "title": {
+                                        "type": "STRING",
+                                        "description": "A compact same-language title for the recording, 3 to 8 words when possible.",
+                                    },
+                                    "corrected_transcript": {
+                                        "type": "STRING",
+                                        "description": "The corrected transcript, preserving the speaker's intent and language.",
+                                    },
+                                },
+                            },
+                        }
+                    ]
+                }
+            ],
+            "toolConfig": {
+                "functionCallingConfig": {
+                    "mode": "ANY",
+                    "allowedFunctionNames": [GEMINI_TRANSCRIPT_TOOL_NAME],
+                }
+            },
             "generationConfig": {
                 "temperature": 0.1,
-                "responseMimeType": "application/json",
-                "responseSchema": {
-                    "type": "OBJECT",
-                    "required": ["corrected_transcript"],
-                    "properties": {
-                        "corrected_transcript": {"type": "STRING"},
-                    },
-                },
             }
         }
 
@@ -646,33 +686,32 @@ class TranscribeSkill(BaseSkill):
                     )
 
                 res = response.json()
+                parts = res.get("candidates", [{}])[0].get("content", {}).get("parts", [])
+                for part in parts:
+                    function_call = part.get("functionCall") if isinstance(part, dict) else None
+                    if not isinstance(function_call, dict):
+                        continue
+                    if function_call.get("name") != GEMINI_TRANSCRIPT_TOOL_NAME:
+                        continue
+                    args = function_call.get("args")
+                    if not isinstance(args, dict):
+                        raise RuntimeError("Gemini transcript tool call did not contain args")
+                    corrected = str(args.get("corrected_transcript") or "").strip()
+                    if not corrected:
+                        raise RuntimeError("Gemini transcript tool call did not contain corrected_transcript")
+                    return {
+                        "title": _clean_transcript_title(str(args.get("title") or "")),
+                        "corrected_transcript": corrected,
+                    }
+
                 text_content = "".join(
                     part.get("text", "")
-                    for part in res.get("candidates", [{}])[0].get("content", {}).get("parts", [])
+                    for part in parts
+                    if isinstance(part, dict)
                 )
-
-                try:
-                    parsed = json.loads(text_content)
-                    corrected = parsed.get("corrected_transcript", "").strip()
-                    if corrected:
-                        return corrected
-                    raise RuntimeError("Gemini correction response did not contain corrected_transcript")
-                except Exception as parse_err:
-                    match = re.search(
-                        r'"corrected_transcript"\s*:\s*"((?:\\.|[^"\\])*)"',
-                        text_content,
-                        re.DOTALL,
-                    )
-                    if match:
-                        corrected = json.loads(f'"{match.group(1)}"').strip()
-                        if corrected:
-                            logger.warning(
-                                "[TranscribeSkill] Recovered corrected transcript from malformed Gemini JSON"
-                            )
-                            return corrected
-                    raise RuntimeError(
-                        f"Failed to parse Gemini correction JSON: {parse_err}. Response text: {text_content[:500]}"
-                    ) from parse_err
+                raise RuntimeError(
+                    f"Gemini correction response did not call {GEMINI_TRANSCRIPT_TOOL_NAME}. Response text: {text_content[:500]}"
+                )
 
         except Exception as e:
             raise RuntimeError(f"Failed to run Gemini correction: {e}") from e
@@ -755,6 +794,7 @@ class TranscribeSkill(BaseSkill):
             waveform = await self._extract_waveform(audio_bytes, duration_seconds)
 
             transcript_corrected: Optional[str] = None
+            recording_title: Optional[str] = None
             correction_model: Optional[str] = None
             use_corrected = False
             try:
@@ -764,13 +804,18 @@ class TranscribeSkill(BaseSkill):
                     secret_key="api_key"
                 )
                 if google_api_key:
-                    transcript_corrected = await self._correct_transcript_with_gemini(
+                    correction_result = await self._correct_transcript_with_gemini(
                         raw_transcript=transcript_text,
                         google_api_key=google_api_key,
                         detected_language=detected_language or language,
                     )
+                    recording_title = sanitize_text_simple(
+                        correction_result.get("title", ""),
+                        log_prefix="[TranscribeSkill][Gemini title] ",
+                    )
+                    recording_title = _clean_transcript_title(recording_title)
                     transcript_corrected = sanitize_text_simple(
-                        transcript_corrected,
+                        correction_result.get("corrected_transcript", ""),
                         log_prefix="[TranscribeSkill][Gemini correction] ",
                     )
                     if transcript_corrected.strip():
@@ -788,6 +833,7 @@ class TranscribeSkill(BaseSkill):
             result_entry = {
                 "type": "transcription_result",
                 "s3_key": s3_key,
+                "title": recording_title,
                 "transcript": transcript_corrected if use_corrected and transcript_corrected else transcript_text,
                 "transcript_original": transcript_text,
                 "transcript_corrected": transcript_corrected if use_corrected else None,

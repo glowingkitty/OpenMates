@@ -98,6 +98,7 @@
 
   let dc = $derived(data.decodedContent);
   let transcriptProp = $derived(typeof dc.transcript === 'string' ? dc.transcript : undefined);
+  let title = $derived(typeof dc.title === 'string' ? dc.title : undefined);
   let blobUrl = $derived(typeof dc.blob_url === 'string' ? dc.blob_url : undefined);
   let filename = $derived(typeof dc.filename === 'string' ? dc.filename : 'voice_note.webm');
   let duration = $derived(typeof dc.duration === 'string' ? dc.duration : undefined);
@@ -212,6 +213,7 @@
 
   /** Truncated filename for the info bar */
   let infoBarTitle = $derived.by(() => {
+    if (title) return title;
     if (!filename) return 'Voice Note';
     if (filename.length <= MAX_FILENAME_LENGTH) return filename;
     const lastDot = filename.lastIndexOf('.');
@@ -567,7 +569,7 @@
   .player-section {
     padding: var(--spacing-12) var(--spacing-16) var(--spacing-10);
     flex-shrink: 0;
-    border-bottom: 1px solid var(--color-grey-15, #f0f0f0);
+    border-bottom: 1px solid var(--color-grey-20, #f0f0f0);
   }
 
   .player-row {
@@ -722,7 +724,7 @@
     width: 48px;
     height: 48px;
     border-radius: 50%;
-    background: var(--color-grey-15, #f0f0f0);
+    background: var(--color-grey-20, #f0f0f0);
     flex-shrink: 0;
     animation: pulse 1.5s ease-in-out infinite;
   }
@@ -736,7 +738,7 @@
 
   .skeleton-line {
     height: 10px;
-    background: var(--color-grey-15, #f0f0f0);
+    background: var(--color-grey-20, #f0f0f0);
     border-radius: var(--radius-1);
     animation: pulse 1.5s ease-in-out infinite;
   }
@@ -772,7 +774,7 @@
     align-items: center;
     gap: var(--spacing-4, 12px);
     margin-bottom: var(--spacing-8, 20px);
-    border-bottom: 1px dashed var(--color-grey-15, #f0f0f0);
+    border-bottom: 1px dashed var(--color-grey-20, #f0f0f0);
     padding-bottom: var(--spacing-6, 15px);
   }
 

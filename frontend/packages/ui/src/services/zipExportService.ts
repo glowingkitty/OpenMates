@@ -1024,7 +1024,7 @@ async function fetchAndDecryptBlob(
  *
  * Audio TOON content shape (audio-recording type):
  *   { app_id: "audio", skill_id: "transcribe", files: { original: { s3_key, size_bytes } },
- *     aes_key, aes_nonce, transcript, filename, mime_type, duration }
+ *     aes_key, aes_nonce, title, transcript, filename, mime_type, duration }
  */
 export async function getAudioRecordingsForChat(messages: Message[]): Promise<
   Array<{

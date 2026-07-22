@@ -68,6 +68,8 @@ interface RecordingEmbedAttrs extends Omit<EmbedNodeAttributes, "status"> {
   uploadError?: string;
   /** Transcript text from Mistral Voxtral */
   transcript?: string;
+  /** Generated title summarizing the transcript */
+  title?: string;
   transcriptOriginal?: string;
   transcriptCorrected?: string;
   useCorrected?: boolean;
@@ -178,6 +180,7 @@ export class RecordingRenderer implements EmbedRenderer {
           const s3BaseUrl = parsed.s3_base_url as string | undefined;
           const aesKey = parsed.aes_key as string | undefined;
           const aesNonce = parsed.aes_nonce as string | undefined;
+          const title = parsed.title as string | undefined;
           const transcript = parsed.transcript as string | undefined;
           const transcriptOriginal = parsed.transcript_original as string | undefined;
           const transcriptCorrected = parsed.transcript_corrected as string | undefined;
@@ -195,6 +198,7 @@ export class RecordingRenderer implements EmbedRenderer {
             s3BaseUrl,
             aesKey,
             aesNonce,
+            title,
             transcript,
             transcriptOriginal,
             transcriptCorrected,
@@ -280,6 +284,7 @@ export class RecordingRenderer implements EmbedRenderer {
             composed: true,
             detail: {
               transcript: attrs.transcript,
+              title: attrs.title,
               transcriptOriginal: attrs.transcriptOriginal,
               transcriptCorrected: attrs.transcriptCorrected,
               useCorrected: attrs.useCorrected,
@@ -295,23 +300,6 @@ export class RecordingRenderer implements EmbedRenderer {
               embedId: attrs.id,
               model: attrs.model,
               isEditable,
-            },
-          }),
-        );
-      };
-
-      const handleToggleCorrected = (useCorrectedVal: boolean) => {
-        const targetTranscript = useCorrectedVal ? attrs.transcriptCorrected : attrs.transcriptOriginal;
-        content.dispatchEvent(
-          new CustomEvent("updaterecordingattrs", {
-            bubbles: true,
-            composed: true,
-            detail: {
-              embedId: attrs.id,
-              attrs: {
-                useCorrected: useCorrectedVal,
-                transcript: targetTranscript,
-              },
             },
           }),
         );
@@ -361,6 +349,7 @@ export class RecordingRenderer implements EmbedRenderer {
           blobUrl: attrs.blobUrl,
           uploadError: attrs.uploadError,
           transcript: attrs.transcript,
+          title: attrs.title,
           transcriptOriginal: attrs.transcriptOriginal,
           transcriptCorrected: attrs.transcriptCorrected,
           useCorrected: attrs.useCorrected,
@@ -380,7 +369,6 @@ export class RecordingRenderer implements EmbedRenderer {
           // and status is 'error' (transcription failed). Guard prevents showing
           // retry when upload itself failed (no S3 data to retry from).
           onRetry: attrs.s3Files ? handleRetry : undefined,
-          onToggleCorrected: handleToggleCorrected,
         },
       });
 
@@ -388,6 +376,7 @@ export class RecordingRenderer implements EmbedRenderer {
 
       console.debug("[RecordingRenderer] Mounted RecordingEmbedPreview:", {
         filename: attrs.filename,
+        title: attrs.title,
         status: attrs.status,
         hasBlobUrl: !!attrs.blobUrl,
         hasTranscript: !!attrs.transcript,

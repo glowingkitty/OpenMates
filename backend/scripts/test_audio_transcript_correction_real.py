@@ -61,7 +61,7 @@ SAMPLES: list[dict[str, str]] = [
 
 async def run_sample(skill: TranscribeSkill, api_key: str, sample: dict[str, str]) -> dict[str, Any]:
     try:
-        corrected = await skill._correct_transcript_with_gemini(
+        correction = await skill._correct_transcript_with_gemini(
             raw_transcript=sample["raw"],
             google_api_key=api_key,
             detected_language=sample["language"],
@@ -71,8 +71,9 @@ async def run_sample(skill: TranscribeSkill, api_key: str, sample: dict[str, str
             "language": sample["language"],
             "status": "pass",
             "model": GEMINI_CORRECTION_MODEL,
+            "title": correction["title"],
             "before": sample["raw"],
-            "after": corrected,
+            "after": correction["corrected_transcript"],
         }
     except Exception as exc:
         return {

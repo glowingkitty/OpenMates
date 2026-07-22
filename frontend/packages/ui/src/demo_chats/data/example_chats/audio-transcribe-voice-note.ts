@@ -35,7 +35,7 @@ export const audioTranscribeVoiceNoteChat: ExampleChat = {
     {
         "embed_id": "4e7bca90-2a2a-4cf2-b773-ac5b3a4dc40b",
         "type": "audio-recording",
-        "content": "app_id: audio\nskill_id: transcribe\ntype: audio-recording\nstatus: finished\nfilename: openmates-audio-transcribe-example.wav\nmime_type: audio/wav\ntranscript: OpenMates can transcribe short voice notes from the command line.\ntranscript_original: OpenMates can transcribe short voice notes from the command line.\ntranscript_corrected: OpenMates can transcribe short voice notes from the command line.\nuse_corrected: true\ncorrection_model: gemini-3.5-flash\nmodel: voxtral-mini-2602\nsummary: Public fixture transcript only; audio file omitted from static example.",
+        "content": "app_id: audio\nskill_id: transcribe\ntype: audio-recording\nstatus: finished\ntitle: Command-line voice note transcription\nfilename: openmates-audio-transcribe-example.wav\nmime_type: audio/wav\ntranscript: OpenMates can transcribe short voice notes from the command line.\ntranscript_original: OpenMates can transcribe short voice notes from the command line.\ntranscript_corrected: OpenMates can transcribe short voice notes from the command line.\nuse_corrected: true\ncorrection_model: gemini-3.5-flash\nmodel: voxtral-mini-2602\nsummary: Public fixture transcript only; audio file omitted from static example.",
         "parent_embed_id": null,
         "embed_ids": null
     }

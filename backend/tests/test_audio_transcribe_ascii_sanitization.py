@@ -16,6 +16,7 @@ from fastapi import HTTPException
 from backend.apps.audio.skills import transcribe_skill as transcribe_module
 from backend.apps.audio.skills.transcribe_skill import (
     GEMINI_CORRECTION_MODEL,
+    GEMINI_TRANSCRIPT_TOOL_NAME,
     TranscribeSkill,
     _sanitize_transcription_result_text,
 )
@@ -32,6 +33,7 @@ def _tag_payload(text: str = HIDDEN_INSTRUCTION) -> str:
 def test_transcription_result_fields_remove_ascii_smuggling() -> None:
     hidden = _tag_payload()
     result = {
+        "title": f"Visible title {hidden}",
         "transcript": f"Corrected visible {hidden}",
         "transcript_original": f"Original visible {hidden}",
         "transcript_corrected": f"Corrected visible {hidden}",
@@ -40,11 +42,12 @@ def test_transcription_result_fields_remove_ascii_smuggling() -> None:
 
     sanitized = _sanitize_transcription_result_text(result, log_prefix="[test] ")
 
+    assert sanitized["title"] == "Visible title "
     assert sanitized["transcript"] == "Corrected visible "
     assert sanitized["transcript_original"] == "Original visible "
     assert sanitized["transcript_corrected"] == "Corrected visible "
     assert sanitized["s3_key"] == result["s3_key"]
-    for field in ("transcript", "transcript_original", "transcript_corrected"):
+    for field in ("title", "transcript", "transcript_original", "transcript_corrected"):
         contains, decoded = contains_ascii_smuggling(sanitized[field])
         assert not contains, decoded
 
@@ -121,8 +124,11 @@ async def test_successful_gemini_correction_marks_transcript_corrected() -> None
             "duration": 9.0,
         }
 
-    async def correct_transcript(*_args, **_kwargs) -> str:
-        return "Search for green storage boxes."
+    async def correct_transcript(*_args, **_kwargs) -> dict[str, str]:
+        return {
+            "title": "Green storage boxes",
+            "corrected_transcript": "Search for green storage boxes.",
+        }
 
     class FakeSecretsManager:
         async def get_secret(self, *, secret_path: str, secret_key: str) -> str:
@@ -151,6 +157,7 @@ async def test_successful_gemini_correction_marks_transcript_corrected() -> None
 
     assert error is None
     result = results[0]
+    assert result["title"] == "Green storage boxes"
     assert result["transcript"] == "Search for green storage boxes."
     assert result["transcript_original"] == "um search yellow actually green storage boxes"
     assert result["transcript_corrected"] == "Search for green storage boxes."
@@ -175,7 +182,13 @@ async def test_gemini_correction_prompt_supports_german_and_long_confusing_audio
                         "content": {
                             "parts": [
                                 {
-                                    "text": '{"corrected_transcript":"Suche nach gr\\u00fcnen Boxen und fasse die wichtigsten Ergebnisse zusammen."}'
+                                    "functionCall": {
+                                        "name": GEMINI_TRANSCRIPT_TOOL_NAME,
+                                        "args": {
+                                            "title": "Grüne Boxen suchen",
+                                            "corrected_transcript": "Suche nach grünen Boxen und fasse die wichtigsten Ergebnisse zusammen.",
+                                        },
+                                    }
                                 }
                             ]
                         }
@@ -202,7 +215,7 @@ async def test_gemini_correction_prompt_supports_german_and_long_confusing_audio
     monkeypatch.setattr(transcribe_module.httpx, "AsyncClient", FakeAsyncClient)
 
     skill = object.__new__(TranscribeSkill)
-    corrected = await skill._correct_transcript_with_gemini(
+    result = await skill._correct_transcript_with_gemini(
         raw_transcript=(
             "\u00e4hm ich brauche also suche mal gelbe boxen nein warte gr\u00fcne boxen "
             "und dann bitte sehr lange zusammenfassen was wichtig ist"
@@ -212,15 +225,21 @@ async def test_gemini_correction_prompt_supports_german_and_long_confusing_audio
     )
 
     prompt = captured_body["contents"][0]["parts"][0]["text"]
-    assert corrected == "Suche nach gr\u00fcnen Boxen und fasse die wichtigsten Ergebnisse zusammen."
+    assert result == {
+        "title": "Grüne Boxen suchen",
+        "corrected_transcript": "Suche nach grünen Boxen und fasse die wichtigsten Ergebnisse zusammen.",
+    }
     assert GEMINI_CORRECTION_MODEL in captured_url
-    assert captured_body["generationConfig"]["responseMimeType"] == "application/json"
-    assert captured_body["generationConfig"]["responseSchema"] == {
-        "type": "OBJECT",
-        "required": ["corrected_transcript"],
-        "properties": {
-            "corrected_transcript": {"type": "STRING"},
-        },
+    assert captured_body["tools"][0]["functionDeclarations"][0]["name"] == GEMINI_TRANSCRIPT_TOOL_NAME
+    assert captured_body["tools"][0]["functionDeclarations"][0]["parameters"]["required"] == [
+        "title",
+        "corrected_transcript",
+    ]
+    assert captured_body["toolConfig"] == {
+        "functionCallingConfig": {
+            "mode": "ANY",
+            "allowedFunctionNames": [GEMINI_TRANSCRIPT_TOOL_NAME],
+        }
     }
     assert "Detected or requested transcript language: de" in prompt
     assert "same language" in prompt
@@ -230,7 +249,7 @@ async def test_gemini_correction_prompt_supports_german_and_long_confusing_audio
 
 
 @pytest.mark.asyncio
-async def test_gemini_correction_recovers_explicit_field_from_malformed_json(
+async def test_gemini_correction_rejects_response_without_tool_call(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     class FakeResponse:
@@ -243,7 +262,7 @@ async def test_gemini_correction_recovers_explicit_field_from_malformed_json(
                         "content": {
                             "parts": [
                                 {
-                                    "text": '{"corrected_transcript":"Can you search for green storage boxes?"'
+                                    "text": '{"title":"Green storage boxes","corrected_transcript":"Can you search for green storage boxes?"}'
                                 }
                             ]
                         }
@@ -267,13 +286,12 @@ async def test_gemini_correction_recovers_explicit_field_from_malformed_json(
     monkeypatch.setattr(transcribe_module.httpx, "AsyncClient", FakeAsyncClient)
 
     skill = object.__new__(TranscribeSkill)
-    corrected = await skill._correct_transcript_with_gemini(
-        raw_transcript="um search yellow actually green storage boxes",
-        google_api_key="google-key",
-        detected_language="en",
-    )
-
-    assert corrected == "Can you search for green storage boxes?"
+    with pytest.raises(RuntimeError, match="did not call finalize_transcript"):
+        await skill._correct_transcript_with_gemini(
+            raw_transcript="um search yellow actually green storage boxes",
+            google_api_key="google-key",
+            detected_language="en",
+        )
 
 
 @pytest.mark.asyncio
@@ -368,6 +386,11 @@ async def test_audio_custom_route_can_dispatch_hidden_transcribe_skill(monkeypat
     )
 
     from backend.core.api.app.routes import apps_api
+
+    async def fake_sanitize_app_skill_output(result, _context):
+        return result
+
+    monkeypatch.setattr(apps_api, "sanitize_app_skill_output", fake_sanitize_app_skill_output)
 
     user_info = {
         "user_id": "user-audio-test",

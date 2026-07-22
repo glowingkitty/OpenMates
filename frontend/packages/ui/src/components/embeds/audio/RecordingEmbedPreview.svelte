@@ -71,6 +71,8 @@
     uploadError?: string;
     /** Transcribed text returned by Mistral Voxtral */
     transcript?: string;
+    /** Generated title summarizing the transcript */
+    title?: string;
     /** Original raw transcript */
     transcriptOriginal?: string;
     /** Corrected transcript */
@@ -105,8 +107,6 @@
      * can be retried without re-uploading. Passed from RecordingRenderer.ts.
      */
     onRetry?: () => void;
-    /** Called when user toggles corrected vs original transcript */
-    onToggleCorrected?: (useCorrected: boolean) => void;
     /**
      * Transcription model name (e.g. 'voxtral-mini-2602').
      * Shown during 'transcribing' and in the finished subtitle as "Transcribed via <model>".
@@ -121,6 +121,7 @@
     blobUrl,
     uploadError,
     transcript,
+    title,
     transcriptOriginal,
     transcriptCorrected,
     useCorrected = true,
@@ -136,7 +137,6 @@
     onFullscreen,
     onStop,
     onRetry,
-    onToggleCorrected,
     model,
   }: Props = $props();
 
@@ -148,15 +148,6 @@
       useCorrectedState = useCorrected;
     }
   });
-
-  function handleToggleCorrected(e: MouseEvent) {
-    e.stopPropagation(); // Avoid triggering card click
-    const nextVal = !useCorrectedState;
-    useCorrectedState = nextVal;
-    if (onToggleCorrected) {
-      onToggleCorrected(nextVal);
-    }
-  }
 
   // --- Audio playback state ---
 
@@ -195,6 +186,7 @@
   // --- Derived state ---
 
   let status = $derived(statusProp);
+  let displayTitle = $derived(title || $text('app_skills.audio.transcribe.audio_recording'));
 
   /** Map upload-specific status to UnifiedEmbedPreview's status union */
   let unifiedStatus = $derived(
@@ -462,7 +454,7 @@
   skillId="transcribe"
   skillIconName="microphone"
   status={unifiedStatus}
-  skillName={$text('app_skills.audio.transcribe.audio_recording')}
+  skillName={displayTitle}
   {isMobile}
   onFullscreen={isFullscreenEnabled ? onFullscreen : (undefined as unknown as () => void)}
   onStop={showStop ? onStop : undefined}
@@ -570,38 +562,6 @@
         </div>
 
       {:else if transcriptPreview}
-        <!--
-          Finished with transcript: show provider label ("Transcribed by Mistral:")
-          with a circular logo above the truncated preview text.
-          The label is only shown when we know which model was used so it's
-          future-proof if the transcription provider is swapped out.
-        -->
-        <div class="transcript-meta-row">
-          {#if model}
-            <div class="model-info-line">
-              {#if modelIconUrl}
-                <div class="model-icon-circle">
-                  <img src={modelIconUrl} alt="" class="model-icon" />
-                </div>
-              {/if}
-              <span class="model-info-text">
-                {$text('app_skills.audio.transcribe.transcribed_by').replace('{model}', getModelDisplayName(model))}
-              </span>
-            </div>
-          {/if}
-
-          {#if transcriptOriginal && transcriptCorrected}
-            <button
-              class="ai-correction-badge"
-              class:corrected={useCorrectedState}
-              onclick={handleToggleCorrected}
-              type="button"
-            >
-              <span class="sparkle-icon"></span>
-              <span class="badge-text">{useCorrectedState ? 'Corrected transcript ON' : 'Verbatim transcript'}</span>
-            </button>
-          {/if}
-        </div>
         <p class="transcript-preview">{transcriptPreview}</p>
 
       {:else if audioLoadError}
@@ -687,98 +647,7 @@
     font-style: italic;
   }
 
-  /* ---- Transcript Auto-correct Toggle Bar ---- */
-  .transcript-meta-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--spacing-4);
-    flex-wrap: wrap;
-    width: 100%;
-  }
-
-  .ai-correction-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    padding: 3px 8px;
-    border-radius: var(--radius-full, 9999px);
-    background: var(--color-grey-10, #f5f5f5);
-    border: 1px solid var(--color-grey-20, #e8e8e8);
-    color: var(--color-grey-60, #666);
-    font-size: var(--font-size-tiny);
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.15s ease-in-out;
-    pointer-events: auto !important;
-  }
-
-  .ai-correction-badge:hover {
-    background: var(--color-grey-20, #f0f0f0);
-    border-color: var(--color-grey-30, #ccc);
-  }
-
-  .ai-correction-badge.corrected {
-    background: rgba(224, 85, 85, 0.08); /* 8% opacity of var(--color-app-audio) */
-    border-color: rgba(224, 85, 85, 0.25);
-    color: var(--color-app-audio, #e05555);
-  }
-
-  .ai-correction-badge.corrected:hover {
-    background: rgba(224, 85, 85, 0.15);
-    border-color: rgba(224, 85, 85, 0.35);
-  }
-
-  .sparkle-icon {
-    display: block;
-    width: 11px;
-    height: 11px;
-    background: var(--color-grey-50, #888);
-    -webkit-mask-image: url('/icons/ai.svg');
-    mask-image: url('/icons/ai.svg');
-    -webkit-mask-size: contain;
-    mask-size: contain;
-    -webkit-mask-repeat: no-repeat;
-    mask-repeat: no-repeat;
-    -webkit-mask-position: center;
-    mask-position: center;
-  }
-
-  .ai-correction-badge.corrected .sparkle-icon {
-    background: var(--color-app-audio, #e05555);
-  }
-
-  :global(.dark) .ai-correction-badge {
-    background: var(--color-grey-80, #333);
-    border-color: var(--color-grey-70, #444);
-    color: var(--color-grey-30, #ccc);
-  }
-
-  :global(.dark) .ai-correction-badge:hover {
-    background: var(--color-grey-70, #3a3a3a);
-    border-color: var(--color-grey-60, #555);
-  }
-
-  :global(.dark) .ai-correction-badge.corrected {
-    background: rgba(224, 85, 85, 0.15);
-    border-color: rgba(224, 85, 85, 0.35);
-    color: var(--color-app-audio, #e05555);
-  }
-
-  :global(.dark) .ai-correction-badge.corrected:hover {
-    background: rgba(224, 85, 85, 0.22);
-    border-color: rgba(224, 85, 85, 0.45);
-  }
-
-  :global(.dark) .sparkle-icon {
-    background: var(--color-grey-40, #aaa);
-  }
-
-  :global(.dark) .ai-correction-badge.corrected .sparkle-icon {
-    background: var(--color-app-audio, #e05555);
-  }
-
-  /* ---- Provider model info row (used in both transcribing and finished states) ---- */
+  /* ---- Provider model info row (used while transcribing) ---- */
   /* Displays a circular provider logo followed by the "Transcribing via / Transcribed by" label */
   .model-info-line {
     display: flex;

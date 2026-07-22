@@ -1543,8 +1543,9 @@ export async function retryTranscription(
   // Parse transcript and update embed to 'finished'
   // Response shape: SkillResponse wrapper from apps_api.py:
   // { success: true, data: { results: [{ id: request_id, results: [{ transcript, model, s3_key, ... }] }] } }
-  let transcriptText: string | undefined;
-  let modelFromResponse: string | undefined;
+    let transcriptText: string | undefined;
+    let titleFromResponse: string | undefined;
+    let modelFromResponse: string | undefined;
   let transcriptOriginal: string | undefined;
   let transcriptCorrected: string | undefined;
   let useCorrected: boolean | undefined;
@@ -1556,6 +1557,7 @@ export async function retryTranscription(
       (r: { id: string }) => r.id === embedId,
     );
     const resultObj = group?.results?.[0];
+    titleFromResponse = resultObj?.title ?? undefined;
     transcriptText = resultObj?.transcript ?? undefined;
     modelFromResponse = resultObj?.model ?? undefined;
     transcriptOriginal = resultObj?.transcript_original ?? undefined;
@@ -1572,6 +1574,7 @@ export async function retryTranscription(
 
   updateEmbedNode({
     status: "finished",
+    title: titleFromResponse ?? null,
     transcript: transcriptText ?? null,
     transcriptOriginal: transcriptOriginal ?? null,
     transcriptCorrected: transcriptCorrected ?? null,
@@ -1784,8 +1787,9 @@ async function _performRecordingUpload(
     // -----------------------------------------------------------------------
     // Step 4: Parse transcript and update embed to 'finished'
     // -----------------------------------------------------------------------
-    let transcriptText: string | undefined;
-    let modelFromResponse: string | undefined;
+  let transcriptText: string | undefined;
+  let titleFromResponse: string | undefined;
+  let modelFromResponse: string | undefined;
     let transcriptOriginal: string | undefined;
     let transcriptCorrected: string | undefined;
     let useCorrected: boolean | undefined;
@@ -1799,6 +1803,7 @@ async function _performRecordingUpload(
         (r: { id: string }) => r.id === localEmbedId,
       );
       const resultObj = group?.results?.[0];
+      titleFromResponse = resultObj?.title ?? undefined;
       transcriptText = resultObj?.transcript ?? undefined;
       // Read model from API response — backend includes the model ID in result_entry
       // so the frontend never needs to hardcode it after the response arrives.
@@ -1821,6 +1826,7 @@ async function _performRecordingUpload(
 
     updateEmbedNode({
       status: "finished",
+      title: titleFromResponse ?? null,
       transcript: transcriptText ?? null,
       transcriptOriginal: transcriptOriginal ?? null,
       transcriptCorrected: transcriptCorrected ?? null,
@@ -1844,6 +1850,7 @@ async function _performRecordingUpload(
         skill_id: "transcribe",
         type: "audio-recording",
         status: "finished",
+        title: titleFromResponse ?? null,
         filename: file.name || null,
         duration: duration || null,
         waveform: waveform ?? responseWaveform ?? null,
@@ -1876,7 +1883,7 @@ async function _performRecordingUpload(
           type: "audio-recording",
           status: "finished",
           content: toonRecContent,
-          text_preview: transcriptText || file.name || "Voice note",
+          text_preview: titleFromResponse || transcriptText || file.name || "Voice note",
           createdAt: nowRec,
           updatedAt: nowRec,
         },

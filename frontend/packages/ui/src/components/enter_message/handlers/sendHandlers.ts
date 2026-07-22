@@ -951,6 +951,7 @@ export async function handleSend(
         skill_id: "transcribe",
         type: "audio-recording",
         status: "finished",
+        title: attrs.title || null,
         filename: attrs.filename || null,
         duration: attrs.duration || null,
         waveform: attrs.waveform || null,
@@ -977,6 +978,7 @@ export async function handleSend(
 
       const now = Date.now();
       const textPreview =
+        (attrs.title as string) ||
         (attrs.transcript as string) ||
         (attrs.filename as string) ||
         "Voice note";
