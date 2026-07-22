@@ -9,6 +9,8 @@ const { getTestAccount } = require('./signup-flow-helpers');
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
 test.describe('Projects v1 flow', () => {
+  test.describe.configure({ timeout: 120000 });
+
   test.beforeEach(async ({ page }) => {
     skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
     await skipIfFeaturesDisabled(test, page, ['platform:projects']);
@@ -16,8 +18,6 @@ test.describe('Projects v1 flow', () => {
   });
 
   test('creates and deletes a project', async ({ page }) => {
-    test.setTimeout(120000);
-
     await page.goto('/projects');
     await page.waitForLoadState('domcontentloaded');
     await expect(page.getByTestId('projects-page')).toBeVisible({ timeout: 30000 });
