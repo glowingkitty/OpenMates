@@ -911,12 +911,22 @@
     }
   }
 
+  function getOlderMessagesCursor(): InternalMessage | null {
+    const candidates = virtualizedDisplayMessages.length > 0 ? virtualizedDisplayMessages : displayMessages;
+    return candidates.find((message) => {
+      if (message.role === 'system' && message.category === 'compression_summary') return false;
+      if (isForgottenMessage(message)) return false;
+      return !!message.original_message?.created_at && !!message.id;
+    }) ?? null;
+  }
+
   function requestOlderMessages(): void {
-    if (!hasOlderMessages || olderMessagesLoading || messages.length === 0) return;
+    const cursorMessage = getOlderMessagesCursor();
+    if (!hasOlderMessages || olderMessagesLoading || !cursorMessage?.original_message) return;
     dispatch('loadOlderMessages', {
-      beforeTimestamp: messages[0].created_at,
-      beforeMessageId: messages[0].message_id,
-      firstMessageId: messages[0].message_id,
+      beforeTimestamp: cursorMessage.original_message.created_at,
+      beforeMessageId: cursorMessage.id,
+      firstMessageId: cursorMessage.id,
     });
   }
 
