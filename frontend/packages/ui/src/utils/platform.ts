@@ -25,3 +25,17 @@ export function isDesktop(): boolean {
 export function isMobile(): boolean {
     return !isDesktop();
 }
+
+type NavigatorWithUserAgentData = Navigator & {
+    userAgentData?: {
+        platform?: string;
+    };
+};
+
+export function isMacPlatform(): boolean {
+    if (typeof navigator === 'undefined') return false;
+
+    const navigatorWithUserAgentData = navigator as NavigatorWithUserAgentData;
+    const platform = navigatorWithUserAgentData.userAgentData?.platform || navigator.platform || '';
+    return /mac/i.test(platform) && !(navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}

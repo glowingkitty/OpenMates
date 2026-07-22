@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, createEventDispatcher } from 'svelte';
-  import { isDesktop } from '../utils/platform';
+  import { isDesktop, isMacPlatform } from '../utils/platform';
   import { panelState } from '../stores/panelStateStore';
   import { openSearch } from '../stores/searchStore';
 
@@ -26,7 +26,7 @@
      * preventDefault() to try to override them, but success depends on the browser.
      */
     const handleKeyDown = (event: KeyboardEvent) => {
-      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+      const isMac = isMacPlatform();
       // Improved check for focused input: look for textarea, contenteditable, or ProseMirror class
       // This catches TipTap editors which create contenteditable divs
       const activeElement = document.activeElement;
@@ -36,7 +36,7 @@
 
       if (
         _desktop &&
-        (isMac ? event.metaKey : event.ctrlKey) &&
+        (event.metaKey || event.ctrlKey) &&
         event.shiftKey &&
         event.key.toLowerCase() === 'm' &&
         !event.repeat &&
@@ -55,6 +55,14 @@
         event.stopPropagation();
         keyboardRecordingShortcutActive = false;
         window.dispatchEvent(new CustomEvent('recordingShortcut', { detail: { action: 'cancel' } }));
+        return;
+      }
+
+      if (_desktop && event.key === 'Enter' && !event.shiftKey && keyboardRecordingShortcutActive) {
+        event.preventDefault();
+        event.stopPropagation();
+        keyboardRecordingShortcutActive = false;
+        window.dispatchEvent(new CustomEvent('recordingShortcut', { detail: { action: 'stop' } }));
         return;
       }
 

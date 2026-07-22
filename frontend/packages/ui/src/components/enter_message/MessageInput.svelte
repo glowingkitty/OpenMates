@@ -121,6 +121,7 @@
     // Privacy settings store — controls master toggle, per-category toggles, and personal data entries
     import { personalDataStore, type PersonalDataEntry, type PIIDetectionSettings } from '../../stores/personalDataStore';
     import { get } from 'svelte/store';
+    import { isMacPlatform } from '../../utils/platform';
     // Draft audio chat tracking — links usage entries to pre-allocated UUIDs for unsent recordings
     import { markChatIdAsDraftAudio, unmarkChatIdAsDraftAudio } from '../../stores/draftAudioChatStore';
     import { draftEditorUIState } from '../../services/drafts/draftState';
@@ -236,6 +237,7 @@
     let messageInputWrapper: HTMLElement;
     let recordAudioComponent = $state<RecordAudio>();
     let recordAudioStartedFromKeyboard = $state(false);
+    let keyboardRecordingStartCheckTimer: ReturnType<typeof setTimeout> | null = null;
 
     // --- Local UI State ---
     let showCamera = $state(false);
@@ -478,7 +480,10 @@
 
     function updateCyclingPlaceholderText() {
         if (showRecordingPlaceholderHint && !isTouchInputDevice()) {
-            messageInputPlaceholderOverride.set($text('enter_message.placeholder.record_shortcut_desktop'));
+            const shortcutKey = isMacPlatform()
+                ? 'enter_message.placeholder.record_shortcut_mac_desktop'
+                : 'enter_message.placeholder.record_shortcut_control_desktop';
+            messageInputPlaceholderOverride.set($text(shortcutKey));
         } else {
             messageInputPlaceholderOverride.set(getBasePlaceholderText());
         }
@@ -2156,6 +2161,11 @@
         
         // Clean up heavy parsing debounce timer
         if (heavyParsingDebounceTimer) { clearTimeout(heavyParsingDebounceTimer); heavyParsingDebounceTimer = null; }
+
+        if (keyboardRecordingStartCheckTimer) {
+            clearTimeout(keyboardRecordingStartCheckTimer);
+            keyboardRecordingStartCheckTimer = null;
+        }
     });
 
     // --- Editor Lifecycle Handlers ---
@@ -4663,7 +4673,15 @@
                 clientX: position.x,
                 clientY: position.y,
             });
-            handleRecordMouseDownLogic(syntheticMouseDown);
+            await handleRecordMouseDownLogic(syntheticMouseDown);
+            clearTimeout(keyboardRecordingStartCheckTimer ?? undefined);
+            keyboardRecordingStartCheckTimer = setTimeout(() => {
+                keyboardRecordingStartCheckTimer = null;
+                if (!get(recordingState).showRecordAudioUI) {
+                    recordAudioStartedFromKeyboard = false;
+                    window.dispatchEvent(new Event('recordingShortcutFinished'));
+                }
+            }, 250);
             return;
         }
 
@@ -4721,6 +4739,8 @@
     }
 
     function handleStopRecordingCleanup() {
+        clearTimeout(keyboardRecordingStartCheckTimer ?? undefined);
+        keyboardRecordingStartCheckTimer = null;
         recordAudioStartedFromKeyboard = false;
         window.dispatchEvent(new Event('recordingShortcutFinished'));
         cleanupRecordingState();
@@ -5660,7 +5680,7 @@
     />
 </div>
 
-<!-- Keyboard Shortcuts Listener: Shift+Enter focuses input; Cmd/Ctrl+Shift+M toggles audio recording. -->
+<!-- Keyboard Shortcuts Listener: Shift+Enter focuses input; Cmd/Ctrl+Shift+M starts/stops keyboard audio recording. -->
 <KeyboardShortcuts on:focusInput={handleFocusInput} />
 
 <style>

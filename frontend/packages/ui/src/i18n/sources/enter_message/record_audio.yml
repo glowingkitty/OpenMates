@@ -70,6 +70,30 @@ release_to_finish:
   sv: "Släpp för att slutföra"
   he: שחרר לסיום
   verified_by_human: []
+press_enter_to_finish:
+  context: Text shown when a keyboard-started recording is in progress
+  en: Press Enter to finish
+  de: Enter drücken zum Fertigstellen
+  zh: 按 Enter 完成
+  es: Pulsa Enter para finalizar
+  fr: Appuyez sur Entrée pour terminer
+  pt: Pressione Enter para finalizar
+  ru: Нажмите Enter для завершения
+  ja: Enter を押して終了
+  ko: Enter를 눌러 완료
+  it: Premi Enter per finire
+  tr: Bitirmek için Enter'a basın
+  vi: Nhấn Enter để hoàn thành
+  id: Tekan Enter untuk menyelesaikan
+  pl: Naciśnij Enter, aby zakończyć
+  nl: Druk op Enter om te voltooien
+  ar: اضغط Enter للإنهاء
+  hi: समाप्त करने के लिए Enter दबाएं
+  th: กด Enter เพื่อเสร็จสิ้น
+  cs: Stiskněte Enter pro dokončení
+  sv: Tryck på Enter för att slutföra
+  he: לחץ על Enter לסיום
+  verified_by_human: []
 press_and_hold_reminder:
   context: Text shown when the user has only pressed the record button for less than 500ms
   en: Press and hold to record

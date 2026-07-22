@@ -8,7 +8,8 @@
   - apple/OpenMates/Sources/Features/Chat/Views/VoiceRecordingView.swift
 
   ┌──────────────────────────────────────────────────────┐
-  │              Release to finish                       │  ← bold, centered
+  │              Release to finish                       │  ← pointer start
+  │              Press Enter to finish                   │  ← keyboard start
   │                                                      │
   │  [00:01]   ← Slide left to cancel     [●mic]         │  ← controls row
   └──────────────────────────────────────────────────────┘
@@ -407,7 +408,7 @@
     /**
      * mouseup anywhere on the document completes pointer-started recordings.
      * This fires even though the overlay covers the original mic button.
-     * Keyboard-started recordings are owned by Space keyup / Escape instead.
+     * Keyboard-started recordings are owned by Enter / Escape instead.
      *
      * Ignored until readyForRelease is true — prevents a queued/bubbled mouseup
      * from the original press interaction from stopping the recording before the
@@ -518,9 +519,11 @@
 -->
 <div class="record-overlay" data-testid="record-overlay" transition:fade={{ duration: 150 }}>
     <div class="record-content">
-        <!-- Top: "Release to finish" heading -->
+        <!-- Top: pointer and keyboard recordings have different completion gestures. -->
         <div class="record-header">
-            <span class="release-text" data-testid="release-text">{$text('enter_message.record_audio.release_to_finish')}</span>
+            <span class="release-text" data-testid="release-text">
+                {$text(startedFromKeyboard ? 'enter_message.record_audio.press_enter_to_finish' : 'enter_message.record_audio.release_to_finish')}
+            </span>
         </div>
 
         <!-- Recent microphone levels enter on the right and roll left. -->
