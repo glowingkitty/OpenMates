@@ -62,7 +62,9 @@ async function expectChatSettingsShell(page: any): Promise<any> {
 	});
 	await expect(page.getByTestId('chat-details-settings-panel')).not.toBeVisible({ timeout: 2_000 });
 	await expect(settingsMenu.getByTestId('chat-settings-page')).toBeVisible({ timeout: 10_000 });
-	await expect(settingsMenu.getByText(/Settings\s*\/\s*Chats/i)).toBeVisible({ timeout: 5_000 });
+	await expect(settingsMenu.getByTestId('banner-back-button')).toContainText(/Settings\s*\/\s*Chats/i, {
+		timeout: 5_000
+	});
 	return settingsMenu;
 }
 
