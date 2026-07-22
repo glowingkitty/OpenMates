@@ -214,7 +214,11 @@ test('loads long compressed history explicitly and exports hydrated metadata', a
 		timeout: 45000
 	});
 	expect(await forgottenRows.count()).toBe(40);
-	expect(await forgottenRows.first().evaluate((element: HTMLElement) => getComputedStyle(element).opacity)).toBe('0.6');
+	await expect
+		.poll(async () => Number(await forgottenRows.first().evaluate((element: HTMLElement) => getComputedStyle(element).opacity)), {
+			timeout: 5000
+		})
+		.toBeCloseTo(0.6, 1);
 	await screenshot(page, 'forgotten-page-revealed');
 
 	await ensureSidebarOpen(page);

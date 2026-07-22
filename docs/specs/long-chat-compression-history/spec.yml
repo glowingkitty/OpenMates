@@ -183,10 +183,16 @@ attempts:
     outcome: blocked
     recorded_at: "2026-07-22T13:25:07Z"
     notes: GitHub Actions run 29924197174 still failed waiting for Active assistant message 082 while the persistent Security Reminder notification was visible over the chat. The spec was hardened in fa31e9a0f to dismiss that unrelated notification, assert loaded source-message counts of 40 then 80, and scroll to the loaded-window top before asserting the first older active message. Vercel deployment dpl_EddgEyYAjd3FPs36GBbGz39uDudB for fa31e9a0f was confirmed READY at 2026-07-22T13:48Z.
+  - id: ATTEMPT-6
+    task_id: TASK-6
+    approach: Rerun long-chat-history.spec.ts after hardened spec commit ae435588e deployed.
+    outcome: blocked
+    recorded_at: "2026-07-22T13:52:33Z"
+    notes: GitHub Actions run 29926193344 reached Vercel READY deployment dpl_BhV8oRXbJxzbHjSHZACqyPAuR45L and passed account preflight 29926059029. The long-chat scenario progressed through initial latest-window, older active page loading, and forgotten-message reveal, then failed because the test sampled forgotten-row computed opacity during the Svelte fade transition and expected exactly 0.6. The spec was hardened locally to poll until the final computed opacity settles near 0.6.
 
 handoff:
   current_task_id: TASK-6
-  next_action: Deploy fa31e9a0f plus this spec ledger update, rerun long-chat-history.spec.ts against app.dev.openmates.org, then run one on-demand real CLI long-chat compression validation.
+  next_action: Deploy the opacity-polling Playwright hardening plus this spec ledger update, rerun long-chat-history.spec.ts against app.dev.openmates.org, then run one on-demand real CLI long-chat compression validation.
   command: python3 scripts/tests.py run --spec long-chat-history.spec.ts
   expected_outcome: Run after deploy; deterministic spec should pass without model/provider calls and cover latest 40-message window, explicit older-message paging, faded forgotten-message reveal, shared boundaries, and export hydration metadata.
   blocker: null
