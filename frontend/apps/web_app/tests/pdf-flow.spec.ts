@@ -523,6 +523,7 @@ test('pdf: upload, AI reads and answers, embeds persist through reload and relog
 	await screenshot(page, '04-message-sent');
 	saveWarnErrorLogs('pdf', 'after_send');
 
+	const activeChatContainer = page.getByTestId('active-chat-container');
 	const assistantMessage = await waitForAssistantMessage(page, {
 		which: 'last',
 		timeout: 120000,
