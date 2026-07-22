@@ -104,7 +104,6 @@ test('creates and shares a chat link with QR code and short link', async ({
 	const activeChatId = chatIdMatch?.[1] ?? '';
 	expect(activeChatId).toBeTruthy();
 	logCheckpoint('Assistant response received and image-search embed is finished.');
-	await takeStepScreenshot(page, 'assistant-response', { fullPage: false });
 
 	saveWarnErrorLogs('share-chat', 'after_response');
 
