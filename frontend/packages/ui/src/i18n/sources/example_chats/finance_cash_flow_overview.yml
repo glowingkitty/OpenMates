@@ -1,7 +1,7 @@
 title:
   context: "Title of example chat: Summarize recent business finances"
   en: "Summarize recent business finances"
-  de: "Summarize recent business finances"
+  de: "Aktuelle Geschäftsfinanzen zusammenfassen"
   zh: "Summarize recent business finances"
   es: "Summarize recent business finances"
   fr: "Summarize recent business finances"
@@ -26,7 +26,7 @@ title:
 summary:
   context: "Summary of example chat: Summarize recent business finances"
   en: "Review recent Revolut Business account activity, income, expenses, net cash flow, and category trends with the Finance app."
-  de: "Review recent Revolut Business account activity, income, expenses, net cash flow, and category trends with the Finance app."
+  de: "Prüfe mit der Finanz-App aktuelle Aktivitäten im Revolut-Business-Konto, Einnahmen, Ausgaben, Netto-Cashflow und Kategorietrends."
   zh: "Review recent Revolut Business account activity, income, expenses, net cash flow, and category trends with the Finance app."
   es: "Review recent Revolut Business account activity, income, expenses, net cash flow, and category trends with the Finance app."
   fr: "Review recent Revolut Business account activity, income, expenses, net cash flow, and category trends with the Finance app."
@@ -51,7 +51,7 @@ summary:
 message_1:
   context: "user message 1 in example chat: Summarize recent business finances. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: "Summarize the recent financial situation from the past 3 months of my business. Use my connected Revolut Business account and focus on cash position, income, expenses, net cash flow, and anything that looks important."
-  de: "Summarize the recent financial situation from the past 3 months of my business. Use my connected Revolut Business account and focus on cash position, income, expenses, net cash flow, and anything that looks important."
+  de: "Fasse die aktuelle finanzielle Lage meines Unternehmens aus den letzten 3 Monaten zusammen. Nutze mein verbundenes Revolut-Business-Konto und konzentriere dich auf Liquidität, Einnahmen, Ausgaben, Netto-Cashflow und alles, was wichtig wirkt."
   zh: "Summarize the recent financial situation from the past 3 months of my business. Use my connected Revolut Business account and focus on cash position, income, expenses, net cash flow, and anything that looks important."
   es: "Summarize the recent financial situation from the past 3 months of my business. Use my connected Revolut Business account and focus on cash position, income, expenses, net cash flow, and anything that looks important."
   fr: "Summarize the recent financial situation from the past 3 months of my business. Use my connected Revolut Business account and focus on cash position, income, expenses, net cash flow, and anything that looks important."
@@ -93,7 +93,24 @@ message_2:
     The fullscreen Finance embed shows the monthly graph, account balances, filters, and the redacted transaction list using placeholders such as [MERCHANT_SOFTWARE_001] instead of raw merchant names.
 
     *This is informational analysis, not financial, tax, or investment advice.*
-  de: *message_2_en
+  de: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "cdffac4e-8176-40f0-a286-e0b98fff36f6", "app_id": "finance", "skill_id": "check_accounts", "provider": "Revolut Business", "period": "past 3 months"}
+    ```
+
+    Dein Unternehmen hat in den letzten 3 Monaten eine gesunde aktuelle Liquiditätsposition.
+
+    ### Finanzüberblick
+    * **Gesamtwert:** 30.842,58 EUR
+    * **Einnahmen:** 26.000,00 EUR
+    * **Ausgaben:** 4.129,42 EUR
+    * **Netto-[Cashflow](wiki:Cash_flow):** +21.870,58 EUR
+
+    Der Umsatz blieb von Monat zu Monat stabil, während sich die Ausgaben vor allem auf Software, Auftragnehmer, Marketing und Reisen konzentrierten. Der stärkste Monat war Juni mit +8.459,80 EUR Netto-Cashflow.
+
+    Das Finance-Embed im Vollbild zeigt die Monatsgrafik, Kontostände, Filter und die redigierte Transaktionsliste mit Platzhaltern wie [MERCHANT_SOFTWARE_001] statt echten Händlernamen.
+
+    *Dies ist eine informative Analyse, keine Finanz-, Steuer- oder Anlageberatung.*
   zh: *message_2_en
   es: *message_2_en
   fr: *message_2_en
@@ -115,9 +132,9 @@ message_2:
   he: *message_2_en
   verified_by_human: []
 
-follow_up_1: { context: "Follow-up suggestion 1", en: "Show only expense transactions", de: "Show only expense transactions", zh: "Show only expense transactions", es: "Show only expense transactions", fr: "Show only expense transactions", pt: "Show only expense transactions", ru: "Show only expense transactions", ja: "Show only expense transactions", ko: "Show only expense transactions", it: "Show only expense transactions", tr: "Show only expense transactions", vi: "Show only expense transactions", id: "Show only expense transactions", pl: "Show only expense transactions", nl: "Show only expense transactions", ar: "Show only expense transactions", hi: "Show only expense transactions", th: "Show only expense transactions", cs: "Show only expense transactions", sv: "Show only expense transactions", he: "Show only expense transactions", verified_by_human: [] }
-follow_up_2: { context: "Follow-up suggestion 2", en: "Compare income by month", de: "Compare income by month", zh: "Compare income by month", es: "Compare income by month", fr: "Compare income by month", pt: "Compare income by month", ru: "Compare income by month", ja: "Compare income by month", ko: "Compare income by month", it: "Compare income by month", tr: "Compare income by month", vi: "Compare income by month", id: "Compare income by month", pl: "Compare income by month", nl: "Compare income by month", ar: "Compare income by month", hi: "Compare income by month", th: "Compare income by month", cs: "Compare income by month", sv: "Compare income by month", he: "Compare income by month", verified_by_human: [] }
-follow_up_3: { context: "Follow-up suggestion 3", en: "Which expense categories grew?", de: "Which expense categories grew?", zh: "Which expense categories grew?", es: "Which expense categories grew?", fr: "Which expense categories grew?", pt: "Which expense categories grew?", ru: "Which expense categories grew?", ja: "Which expense categories grew?", ko: "Which expense categories grew?", it: "Which expense categories grew?", tr: "Which expense categories grew?", vi: "Which expense categories grew?", id: "Which expense categories grew?", pl: "Which expense categories grew?", nl: "Which expense categories grew?", ar: "Which expense categories grew?", hi: "Which expense categories grew?", th: "Which expense categories grew?", cs: "Which expense categories grew?", sv: "Which expense categories grew?", he: "Which expense categories grew?", verified_by_human: [] }
-follow_up_4: { context: "Follow-up suggestion 4", en: "Project the next month", de: "Project the next month", zh: "Project the next month", es: "Project the next month", fr: "Project the next month", pt: "Project the next month", ru: "Project the next month", ja: "Project the next month", ko: "Project the next month", it: "Project the next month", tr: "Project the next month", vi: "Project the next month", id: "Project the next month", pl: "Project the next month", nl: "Project the next month", ar: "Project the next month", hi: "Project the next month", th: "Project the next month", cs: "Project the next month", sv: "Project the next month", he: "Project the next month", verified_by_human: [] }
-follow_up_5: { context: "Follow-up suggestion 5", en: "Find recurring costs", de: "Find recurring costs", zh: "Find recurring costs", es: "Find recurring costs", fr: "Find recurring costs", pt: "Find recurring costs", ru: "Find recurring costs", ja: "Find recurring costs", ko: "Find recurring costs", it: "Find recurring costs", tr: "Find recurring costs", vi: "Find recurring costs", id: "Find recurring costs", pl: "Find recurring costs", nl: "Find recurring costs", ar: "Find recurring costs", hi: "Find recurring costs", th: "Find recurring costs", cs: "Find recurring costs", sv: "Find recurring costs", he: "Find recurring costs", verified_by_human: [] }
-follow_up_6: { context: "Follow-up suggestion 6", en: "Explain the cash-flow trend", de: "Explain the cash-flow trend", zh: "Explain the cash-flow trend", es: "Explain the cash-flow trend", fr: "Explain the cash-flow trend", pt: "Explain the cash-flow trend", ru: "Explain the cash-flow trend", ja: "Explain the cash-flow trend", ko: "Explain the cash-flow trend", it: "Explain the cash-flow trend", tr: "Explain the cash-flow trend", vi: "Explain the cash-flow trend", id: "Explain the cash-flow trend", pl: "Explain the cash-flow trend", nl: "Explain the cash-flow trend", ar: "Explain the cash-flow trend", hi: "Explain the cash-flow trend", th: "Explain the cash-flow trend", cs: "Explain the cash-flow trend", sv: "Explain the cash-flow trend", he: "Explain the cash-flow trend", verified_by_human: [] }
+follow_up_1: { context: "Follow-up suggestion 1", en: "Show only expense transactions", de: "Nur Ausgabentransaktionen anzeigen", zh: "Show only expense transactions", es: "Show only expense transactions", fr: "Show only expense transactions", pt: "Show only expense transactions", ru: "Show only expense transactions", ja: "Show only expense transactions", ko: "Show only expense transactions", it: "Show only expense transactions", tr: "Show only expense transactions", vi: "Show only expense transactions", id: "Show only expense transactions", pl: "Show only expense transactions", nl: "Show only expense transactions", ar: "Show only expense transactions", hi: "Show only expense transactions", th: "Show only expense transactions", cs: "Show only expense transactions", sv: "Show only expense transactions", he: "Show only expense transactions", verified_by_human: [] }
+follow_up_2: { context: "Follow-up suggestion 2", en: "Compare income by month", de: "Einnahmen nach Monat vergleichen", zh: "Compare income by month", es: "Compare income by month", fr: "Compare income by month", pt: "Compare income by month", ru: "Compare income by month", ja: "Compare income by month", ko: "Compare income by month", it: "Compare income by month", tr: "Compare income by month", vi: "Compare income by month", id: "Compare income by month", pl: "Compare income by month", nl: "Compare income by month", ar: "Compare income by month", hi: "Compare income by month", th: "Compare income by month", cs: "Compare income by month", sv: "Compare income by month", he: "Compare income by month", verified_by_human: [] }
+follow_up_3: { context: "Follow-up suggestion 3", en: "Which expense categories grew?", de: "Welche Ausgabenkategorien sind gewachsen?", zh: "Which expense categories grew?", es: "Which expense categories grew?", fr: "Which expense categories grew?", pt: "Which expense categories grew?", ru: "Which expense categories grew?", ja: "Which expense categories grew?", ko: "Which expense categories grew?", it: "Which expense categories grew?", tr: "Which expense categories grew?", vi: "Which expense categories grew?", id: "Which expense categories grew?", pl: "Which expense categories grew?", nl: "Which expense categories grew?", ar: "Which expense categories grew?", hi: "Which expense categories grew?", th: "Which expense categories grew?", cs: "Which expense categories grew?", sv: "Which expense categories grew?", he: "Which expense categories grew?", verified_by_human: [] }
+follow_up_4: { context: "Follow-up suggestion 4", en: "Project the next month", de: "Den nächsten Monat prognostizieren", zh: "Project the next month", es: "Project the next month", fr: "Project the next month", pt: "Project the next month", ru: "Project the next month", ja: "Project the next month", ko: "Project the next month", it: "Project the next month", tr: "Project the next month", vi: "Project the next month", id: "Project the next month", pl: "Project the next month", nl: "Project the next month", ar: "Project the next month", hi: "Project the next month", th: "Project the next month", cs: "Project the next month", sv: "Project the next month", he: "Project the next month", verified_by_human: [] }
+follow_up_5: { context: "Follow-up suggestion 5", en: "Find recurring costs", de: "Wiederkehrende Kosten finden", zh: "Find recurring costs", es: "Find recurring costs", fr: "Find recurring costs", pt: "Find recurring costs", ru: "Find recurring costs", ja: "Find recurring costs", ko: "Find recurring costs", it: "Find recurring costs", tr: "Find recurring costs", vi: "Find recurring costs", id: "Find recurring costs", pl: "Find recurring costs", nl: "Find recurring costs", ar: "Find recurring costs", hi: "Find recurring costs", th: "Find recurring costs", cs: "Find recurring costs", sv: "Find recurring costs", he: "Find recurring costs", verified_by_human: [] }
+follow_up_6: { context: "Follow-up suggestion 6", en: "Explain the cash-flow trend", de: "Den Cashflow-Trend erklären", zh: "Explain the cash-flow trend", es: "Explain the cash-flow trend", fr: "Explain the cash-flow trend", pt: "Explain the cash-flow trend", ru: "Explain the cash-flow trend", ja: "Explain the cash-flow trend", ko: "Explain the cash-flow trend", it: "Explain the cash-flow trend", tr: "Explain the cash-flow trend", vi: "Explain the cash-flow trend", id: "Explain the cash-flow trend", pl: "Explain the cash-flow trend", nl: "Explain the cash-flow trend", ar: "Explain the cash-flow trend", hi: "Explain the cash-flow trend", th: "Explain the cash-flow trend", cs: "Explain the cash-flow trend", sv: "Explain the cash-flow trend", he: "Explain the cash-flow trend", verified_by_human: [] }
