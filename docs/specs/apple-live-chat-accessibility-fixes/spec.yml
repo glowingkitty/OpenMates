@@ -110,7 +110,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: ed2d1b3f590d968679f4ff08e8ea6c9037b9f7a3
+  subject_commit: 337b929b5
 
 approvals:
   product_contract:
@@ -165,16 +165,16 @@ attempts:
     evidence: "apple-ui-contracts:embeds failed because `app:finance:check_accounts` is missing from Apple EmbedType and debug fixtures."
 
 handoff:
-  current_task_id: TASK-1
-  next_action: After approval, run plan-from-spec then write the red unit/UI assertions for message accessibility semantics before changing ChatView.
-  command: python3 scripts/spec_validate.py docs/specs/apple-live-chat-accessibility-fixes/spec.yml
-  expected_outcome: Spec validation passes and the next implementation session can add failing tests first.
+  current_task_id: TASK-6
+  next_action: Push commit 337b929b5, run Apple Remote green checks, then record final evidence and complete the spec.
+  command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesTests/ChatHistoryRenderDocumentTests"
+  expected_outcome: Remote unit tests pass against the committed Apple fix.
   blocker:
-    reason: Product contract awaits user approval before implementation.
-    requires_user_input: true
-    question: Approve this focused Apple fixes contract, or adjust scope before planning tasks?
-    next_action: Run plan-from-spec and tasks-from-spec after approval.
-  last_verified_commit: f7d9dd8bc4be7f888a0b0ad03db7663632e6cdee
+    reason: Vercel deploy lock from another session delayed pushing 337b929b5 for remote Apple validation.
+    requires_user_input: false
+    question: ""
+    next_action: Wait for lock release, push, then run remote Apple checks.
+  last_verified_commit: 337b929b5
 
 scenarios:
   - id: S-1
@@ -332,10 +332,10 @@ assumptions:
     text: No production API, CLI, SDK, or web contract change is required for the first fix slice.
     category: phase_gates
     required_before: task_execution
-    status: unchecked
+    status: confirmed
     evidence:
-      - source: current investigation
-        summary: Confirm during implementation by proving Apple can pass via existing authenticated REST/offline/sync paths.
+      - source: commit 337b929b5
+        summary: Implementation touched only native Apple code, native tests, the Apple embed contract audit, and this spec; no backend, CLI, SDK, or web product contract files changed.
 
 contracts:
   api:
@@ -388,21 +388,21 @@ tests:
       required: true
       expected: fail
       evidence:
+        status: missing_test
+        command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesTests/ChatHistoryRenderDocumentTests"
+        run_id: pre-implementation-discovery
+        subject_commit: f7d9dd8bc4be7f888a0b0ad03db7663632e6cdee
+        timestamp: "2026-07-22T01:45:00Z"
+        summary: Focused semantic message accessibility policy unit coverage did not exist before implementation.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
         status: pending
         command: ""
         run_id: ""
         subject_commit: ""
         timestamp: ""
-    green_phase:
-      required: true
-      expected: pass
-      evidence:
-        status: passed
-        command: python3 scripts/apple_ui_contracts.py audit --surface embeds
-        run_id: apple-ui-contracts-embeds-2026-07-22T11-12Z
-        subject_commit: ed2d1b3f590d968679f4ff08e8ea6c9037b9f7a3+working-tree
-        timestamp: "2026-07-22T11:12:00Z"
-        summary: "Embeds audit passed after adding Finance check-accounts EmbedType, renderer route, and debug fixture coverage."
   - id: T-APPLE-UNIT-STREAMING-RENDER
     type: unit
     file: apple/OpenMatesTests/ChatHistoryRenderDocumentTests.swift
@@ -417,21 +417,21 @@ tests:
       required: true
       expected: fail
       evidence:
+        status: missing_test
+        command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesTests/ChatHistoryRenderDocumentTests"
+        run_id: pre-implementation-discovery
+        subject_commit: f7d9dd8bc4be7f888a0b0ad03db7663632e6cdee
+        timestamp: "2026-07-22T01:45:00Z"
+        summary: Focused streaming render policy unit coverage did not exist before implementation.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
         status: pending
         command: ""
         run_id: ""
         subject_commit: ""
         timestamp: ""
-    green_phase:
-      required: true
-      expected: pass
-      evidence:
-        status: passed
-        command: python3 scripts/apple_evidence_bundle.py --surface all
-        run_id: apple-evidence-static-2026-07-22T11-14Z
-        subject_commit: ed2d1b3f590d968679f4ff08e8ea6c9037b9f7a3+working-tree
-        timestamp: "2026-07-22T11:14:00Z"
-        summary: "All-surface static Apple evidence bundle completed successfully."
   - id: T-APPLE-UNIT-CHAT-OPENING
     type: unit
     file: apple/OpenMatesTests/ChatWindowLoadingTests.swift
@@ -446,20 +446,22 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: pending
-        command: ""
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: missing_test
+        command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesTests/ChatWindowLoadingTests"
+        run_id: pre-implementation-discovery
+        subject_commit: f7d9dd8bc4be7f888a0b0ad03db7663632e6cdee
+        timestamp: "2026-07-22T01:45:00Z"
+        summary: Focused empty initial-window fallback unit coverage did not exist before implementation.
     green_phase:
       required: true
       expected: pass
       evidence:
-        status: pending
-        command: ""
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: missing_test
+        command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesTests/ChatWindowLoadingTests"
+        run_id: pre-implementation-discovery
+        subject_commit: f7d9dd8bc4be7f888a0b0ad03db7663632e6cdee
+        timestamp: "2026-07-22T01:45:00Z"
+        summary: Focused ChatStore batch-upsert policy coverage did not exist before implementation.
   - id: T-APPLE-UNIT-CHATSTORE-BATCH
     type: unit
     file: apple/OpenMatesTests/ChatWindowLoadingTests.swift
