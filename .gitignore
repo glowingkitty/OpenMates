@@ -187,6 +187,7 @@ scripts/.tmp/
 scripts/.*-state.json
 processed_websites/
 temp_data
+tmp/
 
 token_counts.json
 tree_structure.md
@@ -347,7 +348,5 @@ temp-ssh-access.sh
 docs/architecture/compliance/top-10-recommendations.md
 backend/core/directus/uploads/
 
-# Reported issue findings are local investigation notes and may contain private context.
-docs/findings/issues/**
-!docs/findings/issues/
-!docs/findings/issues/README.md
+# Findings are local investigation notes and may contain private context.
+docs/findings/**
