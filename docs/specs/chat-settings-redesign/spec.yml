@@ -495,15 +495,9 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: passed
-        command: python3 scripts/tests.py run --spec share-chat-flow.spec.ts
-        run_id: "29964665062"
-        orchestrator_run_id: "2026-07-22T22:53:18Z"
-        subject_commit: be2639d27
-        timestamp: "2026-07-22T23:04:51Z"
-        target: app.dev.openmates.org
-        flaky: true
-        notes: Passed on retry; first attempt timed out resolving share-generate-link. Artifacts saved under test-results/screenshots/current/share-chat-flow/.
+        status: pending
+        run_id: pending
+        timestamp: pending
 
   - id: T-E2E-CHAT-FILES
     type: playwright
@@ -578,9 +572,16 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: pending
-        run_id: pending
-        timestamp: pending
+        status: passed
+        command: python3 scripts/tests.py run --spec share-chat-flow.spec.ts
+        run_id: "29964665062"
+        orchestrator_run_id: "2026-07-22T22:53:18Z"
+        subject_commit: be2639d27
+        timestamp: "2026-07-22T23:04:51Z"
+        target: app.dev.openmates.org
+        deployment_reference: "Vercel dpl_Eokg3kquoqdDvVL5C6J23hNoCGxv READY for be2639d27"
+        flaky: true
+        notes: Passed on retry; first attempt timed out resolving share-generate-link. Artifacts saved under test-results/screenshots/current/share-chat-flow/.
 
   - id: T-E2E-EMBED-SHARE
     type: playwright
