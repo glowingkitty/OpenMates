@@ -147,6 +147,107 @@ def test_message_send_marks_origin_connection_active_before_ai_dispatch(monkeypa
     cache_service.set_active_ai_task.assert_awaited_once_with("chat-123", "task-123")
 
 
+def test_message_send_forwards_client_embed_ref_index(monkeypatch):
+    from backend.core.api.app.routes.handlers.websocket_handlers import message_received_handler
+
+    manager = FakeManager()
+    captured: dict[str, object] = {}
+
+    class CapturingSkillRegistry:
+        async def dispatch_skill(self, app_name, skill_name, request_payload):
+            assert app_name == "ai"
+            assert skill_name == "ask"
+            captured.update(request_payload)
+            return {"task_id": "task-123"}
+
+    cutover = SimpleNamespace(
+        get_epoch=AsyncMock(return_value=0),
+        admit_legacy_inference=AsyncMock(return_value={"admitted": True}),
+        release_legacy_inference=AsyncMock(return_value={"released": True}),
+    )
+    cache_service = SimpleNamespace(
+        get_user_vault_key_id=AsyncMock(return_value="vault-key-123"),
+        save_chat_message_and_update_versions=AsyncMock(
+            return_value={"messages_v": 1, "last_edited_overall_timestamp": 1_700_000_000}
+        ),
+        delete_user_draft_from_cache=AsyncMock(return_value=False),
+        delete_user_draft_version_from_chat_versions=AsyncMock(return_value=False),
+        set_embed_in_cache=AsyncMock(),
+        add_embed_id_to_chat_index=AsyncMock(),
+        get_ai_messages_history=AsyncMock(return_value=[]),
+        get_user_by_id=AsyncMock(return_value={"language": "en"}),
+        get_chat_list_item_data=AsyncMock(return_value={}),
+        get_active_ai_task=AsyncMock(return_value=None),
+        set_active_ai_task=AsyncMock(),
+        update_user=AsyncMock(),
+    )
+    directus_service = SimpleNamespace(
+        chat=SimpleNamespace(
+            get_chat_metadata=AsyncMock(return_value=None),
+            check_chat_ownership=AsyncMock(return_value=True),
+        ),
+        get_user_profile=AsyncMock(),
+        get_user_fields_direct=AsyncMock(return_value={}),
+    )
+    encryption_service = SimpleNamespace(encrypt_with_user_key=AsyncMock(return_value=("encrypted", 1)))
+    payload = {
+        "chat_id": "chat-123",
+        "message": {
+            "message_id": "msg-123",
+            "role": "user",
+            "content": "Turn this into HTML\n[!](embed:mockup-png-abc123)",
+            "created_at": 1_700_000_000,
+            "chat_has_title": False,
+        },
+        "embeds": [
+            {
+                "embed_id": "embed-image-1",
+                "type": "image",
+                "content": json.dumps({
+                    "type": "image",
+                    "embed_ref": "mockup-png-abc123",
+                    "status": "finished",
+                    "filename": "mockup.png",
+                }),
+                "status": "finished",
+                "text_preview": "mockup.png",
+            }
+        ],
+    }
+
+    monkeypatch.setitem(
+        sys.modules,
+        "backend.core.api.app.services.embed_service",
+        SimpleNamespace(EmbedService=FakeEmbedService),
+    )
+    monkeypatch.setitem(
+        sys.modules,
+        "backend.core.api.app.services.skill_registry",
+        SimpleNamespace(get_global_registry=lambda: CapturingSkillRegistry()),
+    )
+    monkeypatch.setattr(
+        message_received_handler,
+        "ChatRecoveryCutoverController",
+        lambda cache, directus: cutover,
+    )
+
+    asyncio.run(
+        message_received_handler.handle_message_received(
+            websocket=SimpleNamespace(),
+            manager=manager,
+            cache_service=cache_service,
+            directus_service=directus_service,
+            encryption_service=encryption_service,
+            user_id="user-123",
+            device_fingerprint_hash="device-123",
+            payload=payload,
+        )
+    )
+
+    assert captured["embed_file_path_index"] == {"mockup-png-abc123": "embed-image-1"}
+    cache_service.set_active_ai_task.assert_awaited_once_with("chat-123", "task-123")
+
+
 def test_recovery_send_does_not_enqueue_while_another_task_is_active(monkeypatch):
     from backend.core.api.app.routes.handlers.websocket_handlers import message_received_handler
 

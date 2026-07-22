@@ -856,6 +856,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         
         # Process embeds if provided by client
         # Embeds are sent as cleartext (TOON-encoded) and will be encrypted server-side for cache
+        _client_embed_file_path_index: Dict[str, str] = {}
         embeds_from_client = payload.get("embeds", [])
         if embeds_from_client:
             logger.info(f"Processing {len(embeds_from_client)} embeds from client for message {message_id}")
@@ -886,6 +887,11 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                     if not embed_id or not embed_type or not embed_content:
                         logger.warning("Invalid embed data from client: missing required fields")
                         continue
+
+                    decoded_embed_content = _decode_embed_toon(embed_content)
+                    embed_ref = decoded_embed_content.get("embed_ref")
+                    if isinstance(embed_ref, str) and embed_ref:
+                        _client_embed_file_path_index[embed_ref] = embed_id
                     
                     # Encrypt embed content with vault key for server cache
                     # Server can decrypt for AI context building
@@ -938,7 +944,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                     logger.debug(f"Cached embed {embed_id} (type: {embed_type}) for message {message_id}")
 
                     if embed_type == "pdf" and embed_status == "processing":
-                        content = _decode_embed_toon(embed_content)
+                        content = decoded_embed_content
                         original_s3_key = _extract_uploaded_pdf_original_s3_key(content)
                         if original_s3_key and content.get("vault_wrapped_aes_key") and content.get("aes_nonce"):
                             try:
@@ -1206,7 +1212,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         # (b) all embed_ref → embed_id mappings are collected in one place and
         #     forwarded to the AI task via AskSkillRequest.embed_file_path_index.
         _seen_embed_refs: Dict[str, int] = {}
-        _embed_file_path_index: Dict[str, str] = {}
+        _embed_file_path_index: Dict[str, str] = dict(_client_embed_file_path_index)
 
         # When the current user message is saved to cache before history is loaded (the
         # normal fast-path), it appears in the history loop AND would be resolved again

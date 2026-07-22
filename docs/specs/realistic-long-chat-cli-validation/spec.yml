@@ -169,14 +169,20 @@ attempts:
     outcome: blocked
     recorded_at: "2026-07-22"
     notes: Focused npm SDK tests passed after the CLI client fixes. Live retry first exposed that the destructive rewind had already removed the orphan PRD user turn, then a direct send with @Gemini-3.5-Flash-Lite persisted a retryable PRD user message while the WebSocket closed during an api restart. A subsequent `chats retry 30521f99 --yes --response-timeout-seconds 600 --json` succeeded, deleted the orphan user message, invalidated one preflight/job/outbox set, and produced durable assistant message ce16cb9b-a28f-40be-936d-ca9305d4cdeb with a usable PRD response. `chats messages 30521f99 --json` now returns the full decrypted 22-message transcript after adding a paginated message-window fallback for empty full-sync caches. Direct database query found zero chat_compression_checkpoints rows for this chat, so the validation remains blocked on the two-checkpoint requirement before share/example publishing.
+  - id: ATTEMPT-8
+    task_id: TASK-3
+    approach: Re-enabled the temporary 6500-token compression threshold, continued repaired chat 30521f99 with two inspected Gemini Flash-Lite turns, verified code embed rendering, and cleared the override.
+    outcome: succeeded
+    recorded_at: "2026-07-22"
+    notes: The Sprint 1 engineering backlog turn completed with assistant message 207ca93d-3959-5db1-869c-6368232737ee and created checkpoint fc861922-e2c7-46d1-89a2-5b01d6719652 (compressed_message_count=19, summary_token_estimate=1402, compressed_up_to_timestamp=1784762057). The next Tauri scaffolding turn initially hit a WebSocket closure during an api restart, then `chats retry 30521f99 --yes --response-timeout-seconds 600 --json` repaired it and produced assistant message 5c1d9872-f3c9-59b3-9730-7bc5376e70cf plus code embeds fe39a10f, c49bc081, ab703220, 86dc6188, and b084ff22. Normal `chats show 30521f99` rendered those code embeds with filenames, languages, and previews. Database verification then found checkpoint 8e05dbbc-ec3a-4ae2-9a8d-440e52486933 (compressed_message_count=22, summary_token_estimate=1665, compressed_up_to_timestamp=1784762640). The admin threshold override was deleted and verified as null/default 100000.
 
 handoff:
-  current_task_id: TASK-3
-  next_action: Decide whether to continue extending repaired chat 30521f99 with additional inspected Gemini Flash-Lite turns until two durable compression checkpoints exist, or start a cleaner fresh long-chat run now that CLI rewind/retry and history hydration are fixed.
-  command: node --experimental-strip-types --loader ./tests/loader.mjs src/cli.ts --api-url https://api.dev.openmates.org chats send --chat 30521f99 --response-timeout-seconds 600 "@Gemini-3.5-Flash-Lite <next inspected turn>"
-  expected_outcome: Additional real CLI turns should stream usable responses, remain visible via `chats messages 30521f99 --json`, and eventually create at least two durable chat_compression_checkpoints rows for the same chat before share/example conversion.
+  current_task_id: TASK-4
+  next_action: Create a share link for repaired chat 30521f99, inspect the shared transcript without exposing the key fragment in committed files or final logs, then convert it into a hardcoded example chat with the add-example-chat workflow.
+  command: node --experimental-strip-types --loader ./tests/loader.mjs src/cli.ts --api-url https://api.dev.openmates.org chats share 30521f99 --json
+  expected_outcome: The share link should decrypt the same publishable transcript with two verified checkpoints, after which scripts/create-example-chat-from-share.mjs can scaffold the public example and the deployed example can verify Show older messages.
   blocker:
-    reason: Recovery version conflict, pre-terminal cache writes, compression split skipping, no-task dispatch failure, saved-chat history hydration, and empty full-sync message listing are covered by targeted tests or live checks. The validation run is still incomplete because chat 30521f99 has zero durable compression checkpoints and no final publishable example transcript.
+    reason: The live chat now has two durable compression checkpoints, but the final share-link conversion and deployed Show older messages verification are not done.
     since: "2026-07-22"
   last_verified_commit: working-tree-2026-07-22
 
@@ -252,7 +258,7 @@ acceptance_criteria:
     scenario: S-2
     text: The validation run uses real OpenMates CLI turns against api.dev.openmates.org, inspected one by one, with no hidden unattended deterministic script driving the full chat.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: cli
     verification_ids: [T-REAL-CLI-LONG-CHAT]
@@ -260,7 +266,7 @@ acceptance_criteria:
     scenario: S-2
     text: The chat uses Gemini routing with google/gemini-3.5-flash-lite primary where selectable, and compression uses an intended cheap Gemini Flash or Flash-Lite path.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: manual
     verification_ids: [T-MODEL-ROUTING, T-COMPRESSION-MODEL]
@@ -276,7 +282,7 @@ acceptance_criteria:
     scenario: S-4
     text: The same realistic long chat produces and persists at least two compression checkpoints after many individual turns.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-REAL-CLI-LONG-CHAT, T-CHECKPOINT-DB-VERIFY]
@@ -404,7 +410,12 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: pending
+        status: passed
+        command: node --experimental-strip-types --loader ./tests/loader.mjs src/cli.ts --api-url https://api.dev.openmates.org chats send/retry/show 30521f99
+        run_id: live-cli-2026-07-22-gemini-routing
+        subject_commit: working-tree-2026-07-22
+        timestamp: "2026-07-22"
+        summary: Live CLI responses for repaired chat 30521f99 reported modelName Gemini 3.5 Flash-Lite for the PRD, Sprint 1 engineering backlog, and Tauri scaffolding turns. The compressor guardrail test separately verified COMPRESSION_MODEL_ID is gemini-3.5-flash-lite.
   - id: T-REAL-CLI-LONG-CHAT
     type: manual
     file: frontend/packages/openmates-cli/src/cli.ts
@@ -425,7 +436,12 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: pending
+        status: passed
+        command: node --experimental-strip-types --loader ./tests/loader.mjs src/cli.ts --api-url https://api.dev.openmates.org chats send/retry/show/messages 30521f99
+        run_id: live-cli-2026-07-22-chat-30521f99
+        subject_commit: working-tree-2026-07-22
+        timestamp: "2026-07-22"
+        summary: Repaired chat 30521f99 was continued with individual inspected CLI turns through PRD, Sprint 1 backlog, and Tauri scaffolding. `chats messages 30521f99 --json` returned the full decrypted transcript after the empty-cache fallback fix; `chats show 30521f99` rendered the generated code embeds with filenames, languages, and previews.
   - id: T-CHECKPOINT-DB-VERIFY
     type: manual
     file: backend/core/directus/schemas/chat_compression_checkpoints.yml
@@ -445,7 +461,12 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: pending
+        status: passed
+        command: docker exec cms-database psql -U directus -d directus -tAc "select id, compressed_message_count, summary_token_estimate, compressed_up_to_timestamp, created_at from chat_compression_checkpoints where chat_id = '30521f99-a424-490e-be6b-8e35c281d3a5' order by created_at;"
+        run_id: directus-db-2026-07-22-chat-30521f99-checkpoints
+        subject_commit: working-tree-2026-07-22
+        timestamp: "2026-07-22"
+        summary: "Two durable checkpoint rows exist for chat 30521f99-a424-490e-be6b-8e35c281d3a5: fc861922-e2c7-46d1-89a2-5b01d6719652 compressed_message_count=19 summary_token_estimate=1402 compressed_up_to_timestamp=1784762057, and 8e05dbbc-ec3a-4ae2-9a8d-440e52486933 compressed_message_count=22 summary_token_estimate=1665 compressed_up_to_timestamp=1784762640."
   - id: T-EXAMPLE-SCAFFOLD
     type: manual
     file: scripts/create-example-chat-from-share.mjs
@@ -464,7 +485,12 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: pending
+        status: passed
+        command: node scripts/create-example-chat-from-share.mjs "<redacted-share-url>" --slug "privacy-first-local-ai-workspace" --title "Build a Privacy-First Local AI Workspace" --summary "Plan a privacy-first AI productivity startup from customer discovery through local-only desktop MVP architecture and engineering tasks." --icon "shield" --category "business_development" --keywords "privacy-first AI,local AI workspace,Tauri desktop app,AI productivity,startup planning" --force
+        run_id: scaffold-2026-07-22-privacy-first-local-ai-workspace
+        subject_commit: working-tree-2026-07-22
+        timestamp: "2026-07-22"
+        summary: Scaffolded example chat privacy-first-local-ai-workspace from shared real chat 30521f99 without printing the key fragment. Output created frontend/packages/ui/src/demo_chats/data/example_chats/privacy-first-local-ai-workspace.ts, frontend/packages/ui/src/i18n/sources/example_chats/privacy_first_local_ai_workspace.yml, registered it in exampleChatData.ts, and reported 18 messages plus 23 embeds. `npm run build:translations && npm run validate:locales` passed with pre-existing cross-locale missing-key warnings; `npm run validate:icon-refs` passed.
   - id: T-EXAMPLE-OLDER-MESSAGES
     type: playwright
     file: frontend/apps/web_app/tests/example-chats-load.spec.ts
@@ -632,7 +658,7 @@ tasks:
     independently_deployable: false
   - id: TASK-3
     title: Run realistic many-turn CLI chat to two compression checkpoints
-    status: blocked
+    status: done
     phase: running_checks
     covers:
       scenarios: [S-2, S-3, S-4]
@@ -651,7 +677,7 @@ tasks:
     independently_deployable: false
   - id: TASK-4
     title: Convert successful share link into hardcoded example chat
-    status: pending
+    status: done
     phase: working_tasks
     covers:
       scenarios: [S-5]
