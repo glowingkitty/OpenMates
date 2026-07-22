@@ -12,6 +12,7 @@ import importlib
 import json
 import sys
 import types
+import uuid
 
 import pytest
 
@@ -51,6 +52,7 @@ checkpoint_handler = importlib.import_module(
 CHECKPOINT_COLLECTION = checkpoint_handler.CHECKPOINT_COLLECTION
 handle_get_compressed_chat_old_messages = checkpoint_handler.handle_get_compressed_chat_old_messages
 handle_store_chat_compression_checkpoint = checkpoint_handler.handle_store_chat_compression_checkpoint
+CHECKPOINT_ID = "11111111-1111-4111-8111-111111111111"
 
 
 class FakeChatMethods:
@@ -113,7 +115,7 @@ class FakeDirectusService:
         checkpoint_filter = params.get("filter") or {}
         if collection == CHECKPOINT_COLLECTION and "hashed_user_id" in checkpoint_filter:
             return [{
-                "id": "compression_ok",
+                "id": CHECKPOINT_ID,
                 "chat_id": "chat-123",
                 "hashed_user_id": "user-hash",
                 "compressed_up_to_timestamp": 80,
@@ -148,13 +150,38 @@ def test_store_checkpoint_rejects_vault_ciphertext_before_directus_write():
                 device_fingerprint_hash="device-123",
                 payload={
                     "chat_id": "chat-123",
-                    "checkpoint_id": "compression_bad",
+                    "checkpoint_id": CHECKPOINT_ID,
                     "encrypted_summary": "vault:v1:not-client-ciphertext",
                 },
             )
         )
 
     assert directus.created == []
+
+
+def test_store_checkpoint_rejects_non_uuid_checkpoint_id_before_directus_write():
+    directus = FakeDirectusService()
+    manager = FakeManager()
+
+    asyncio.run(
+        handle_store_chat_compression_checkpoint(
+            cache_service=None,
+            directus_service=directus,
+            manager=manager,
+            user_id="user-123",
+            user_id_hash="user-hash",
+            device_fingerprint_hash="device-123",
+            payload={
+                "chat_id": "chat-123",
+                "checkpoint_id": "compression_bad",
+                "encrypted_summary": "T00xYTViM2I3YzAwMDAwMDAwMDAwMGNpcGhlcnRleHQtb2s=",
+            },
+        )
+    )
+
+    assert directus.created == []
+    assert manager.messages[0]["type"] == "error"
+    assert manager.messages[0]["payload"]["message"] == "Compression checkpoint ID must be a UUID."
 
 
 def test_store_checkpoint_persists_client_encrypted_summary():
@@ -171,7 +198,7 @@ def test_store_checkpoint_persists_client_encrypted_summary():
             device_fingerprint_hash="device-123",
             payload={
                 "chat_id": "chat-123",
-                "checkpoint_id": "compression_ok",
+                "checkpoint_id": CHECKPOINT_ID,
                 "encrypted_summary": "T00xYTViM2I3YzAwMDAwMDAwMDAwMGNpcGhlcnRleHQtb2s=",
                 "compressed_up_to_timestamp": 100,
                 "compressed_message_count": 12,
@@ -181,7 +208,8 @@ def test_store_checkpoint_persists_client_encrypted_summary():
     )
 
     assert directus.created[0][0] == CHECKPOINT_COLLECTION
-    assert directus.created[0][1]["id"] == "compression_ok"
+    assert directus.created[0][1]["id"] == CHECKPOINT_ID
+    uuid.UUID(directus.created[0][1]["id"])
     assert manager.messages[0]["type"] == "chat_compression_checkpoint_stored"
 
 
@@ -199,7 +227,7 @@ def test_get_old_messages_returns_bounded_page_with_cursor_metadata():
             device_fingerprint_hash="device-123",
             payload={
                 "chat_id": "chat-123",
-                "checkpoint_id": "compression_ok",
+                "checkpoint_id": CHECKPOINT_ID,
                 "before_timestamp": 100,
                 "limit": 10,
             },
@@ -214,7 +242,7 @@ def test_get_old_messages_returns_bounded_page_with_cursor_metadata():
     assert payload["next_before_message_id"] == "msg-71"
 
 
-def test_get_old_messages_defaults_to_forty_message_pages():
+def test_get_old_messages_defaults_to_thirty_message_pages():
     directus = FakeDirectusService()
     manager = FakeManager()
 
@@ -228,15 +256,15 @@ def test_get_old_messages_defaults_to_forty_message_pages():
             device_fingerprint_hash="device-123",
             payload={
                 "chat_id": "chat-123",
-                "checkpoint_id": "compression_ok",
+                "checkpoint_id": CHECKPOINT_ID,
                 "before_timestamp": 80,
             },
         )
     )
 
     payload = manager.messages[0]["payload"]
-    assert directus.chat.requested_old_message_limits == [41]
-    assert len(payload["messages"]) == 40
+    assert directus.chat.requested_old_message_limits == [31]
+    assert len(payload["messages"]) == 30
     assert payload["has_more"] is True
 
 
@@ -254,7 +282,7 @@ def test_get_old_messages_clamps_requests_to_checkpoint_boundary():
             device_fingerprint_hash="device-123",
             payload={
                 "chat_id": "chat-123",
-                "checkpoint_id": "compression_ok",
+                "checkpoint_id": CHECKPOINT_ID,
                 "before_timestamp": 100,
                 "limit": 10,
             },
@@ -280,7 +308,7 @@ def test_get_old_messages_can_target_a_forgotten_message():
             device_fingerprint_hash="device-123",
             payload={
                 "chat_id": "chat-123",
-                "checkpoint_id": "compression_ok",
+                "checkpoint_id": CHECKPOINT_ID,
                 "before_timestamp": 100,
                 "target_message_id": "msg-42",
                 "limit": 10,
@@ -313,7 +341,7 @@ def test_get_old_messages_compound_cursor_preserves_duplicate_timestamps():
             device_fingerprint_hash="device-123",
             payload={
                 "chat_id": "chat-123",
-                "checkpoint_id": "compression_ok",
+                "checkpoint_id": CHECKPOINT_ID,
                 "before_timestamp": 10,
                 "before_message_id": "msg-c",
                 "limit": 10,
@@ -339,7 +367,7 @@ def test_get_old_messages_enforces_checkpoint_ownership():
             device_fingerprint_hash="device-123",
             payload={
                 "chat_id": "chat-123",
-                "checkpoint_id": "compression_ok",
+                "checkpoint_id": CHECKPOINT_ID,
                 "before_timestamp": 100,
                 "limit": 10,
             },

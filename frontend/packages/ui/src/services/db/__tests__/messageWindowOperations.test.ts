@@ -8,9 +8,13 @@
 import { describe, expect, it, vi } from "vitest";
 import type { Message } from "../../../types/chat";
 import {
+  evictStaleMessageWindowPages,
+  getMessageWindowPagesForChat,
   getMessageWindowForChat,
   isContentDuplicate,
+  recordMessageWindowPage,
   shouldUpdateMessage,
+  type MessageWindowResult,
 } from "../messageOperations";
 
 type CursorDirection = "next" | "prev";
@@ -116,6 +120,85 @@ function makeDb(messages: Message[]) {
     getTransaction: vi.fn(async () => ({
       objectStore: () => store,
     })),
+  };
+}
+
+function makeWindowResult(messages: Message[]): MessageWindowResult {
+  return {
+    messages,
+    hasMoreBefore: true,
+    hasMoreAfter: false,
+    startCursor: messages[0]?.created_at ?? null,
+    startCursorMessageId: messages[0]?.message_id ?? null,
+    endCursor: messages[messages.length - 1]?.created_at ?? null,
+    endCursorMessageId: messages[messages.length - 1]?.message_id ?? null,
+    anchorFound: true,
+  };
+}
+
+function makePageCacheDb(messages: Message[]) {
+  const messagesById = new Map(messages.map((message) => [message.message_id, message]));
+  const pagesById = new Map<string, Record<string, unknown>>();
+
+  const messageStore = {
+    get(messageId: string) {
+      const request = new TestRequest<Message | undefined>(messagesById.get(messageId));
+      queueMicrotask(() => request.onsuccess?.());
+      return request;
+    },
+    delete(messageId: string) {
+      messagesById.delete(messageId);
+      const request = new TestRequest<undefined>(undefined);
+      queueMicrotask(() => request.onsuccess?.());
+      return request;
+    },
+  };
+
+  const pageStore = {
+    get(pageId: string) {
+      const request = new TestRequest<Record<string, unknown> | undefined>(pagesById.get(pageId));
+      queueMicrotask(() => request.onsuccess?.());
+      return request;
+    },
+    put(page: Record<string, unknown>) {
+      pagesById.set(String(page.id), page);
+      const request = new TestRequest<undefined>(undefined);
+      queueMicrotask(() => request.onsuccess?.());
+      return request;
+    },
+    delete(pageId: string) {
+      pagesById.delete(pageId);
+      const request = new TestRequest<undefined>(undefined);
+      queueMicrotask(() => request.onsuccess?.());
+      return request;
+    },
+    index() {
+      return {
+        getAll(range: TestKeyRange) {
+          const chatId = range.lower[0];
+          const pages = Array.from(pagesById.values())
+            .filter((page) => page.chat_id === chatId)
+            .sort((a, b) => Number(a.last_accessed_at) - Number(b.last_accessed_at));
+          const request = new TestRequest<Record<string, unknown>[]>(pages);
+          queueMicrotask(() => request.onsuccess?.());
+          return request;
+        },
+      };
+    },
+  };
+
+  return {
+    messagesById,
+    pagesById,
+    db: {
+      init: vi.fn(async () => undefined),
+      getTransaction: vi.fn(async () => ({
+        objectStore: (storeName: string) =>
+          storeName === "message_window_pages" ? pageStore : messageStore,
+      })),
+      encryptMessageFields: vi.fn(async (message: Message) => message),
+      decryptMessageFields: vi.fn(async (message: Message) => message),
+    },
   };
 }
 
@@ -253,18 +336,18 @@ describe("shouldUpdateMessage", () => {
 });
 
 describe("getMessageWindowForChat", () => {
-  it("uses the 40-message default for latest windows", async () => {
+  it("uses the 30-message default for latest windows", async () => {
     vi.stubGlobal("IDBKeyRange", TestKeyRange);
     const db = makeDb(makeMessages(101));
 
     const result = await getMessageWindowForChat(db as never, "chat-window");
 
-    expect(result.messages).toHaveLength(40);
-    expect(result.messages[0]?.message_id).toBe("msg-62");
+    expect(result.messages).toHaveLength(30);
+    expect(result.messages[0]?.message_id).toBe("msg-72");
     expect(result.messages[result.messages.length - 1]?.message_id).toBe("msg-101");
     expect(result.hasMoreBefore).toBe(true);
     expect(result.hasMoreAfter).toBe(false);
-    expect(db.decryptMessageFields).toHaveBeenCalledTimes(40);
+    expect(db.decryptMessageFields).toHaveBeenCalledTimes(30);
   });
 
   it("returns a bounded latest window without decrypting the whole chat", async () => {
@@ -295,9 +378,9 @@ describe("getMessageWindowForChat", () => {
       beforeMessageId: latest.startCursorMessageId ?? undefined,
     });
 
-    expect(older.messages).toHaveLength(40);
+    expect(older.messages).toHaveLength(30);
     expect(older.messages.map((message) => message.message_id)).toEqual(
-      Array.from({ length: 40 }, (_, index) => `msg-${22 + index}`),
+      Array.from({ length: 30 }, (_, index) => `msg-${42 + index}`),
     );
     expect(older.hasMoreBefore).toBe(true);
     expect(older.hasMoreAfter).toBe(true);
@@ -365,5 +448,92 @@ describe("getMessageWindowForChat", () => {
     });
 
     expect(result.messages.map((message) => message.message_id)).toEqual(["msg-a", "msg-b"]);
+  });
+});
+
+describe("message window page cache metadata", () => {
+  it("records viewed encrypted page ranges separately from message rows", async () => {
+    vi.stubGlobal("IDBKeyRange", TestKeyRange);
+    const messages = makeMessages(30);
+    const { db, pagesById } = makePageCacheDb(messages);
+
+    const record = await recordMessageWindowPage(
+      db as never,
+      "chat-window",
+      makeWindowResult(messages),
+      { direction: "latest", now: 1000 },
+    );
+    const pages = await getMessageWindowPagesForChat(db as never, "chat-window");
+
+    expect(record?.message_ids).toEqual(messages.map((message) => message.message_id));
+    expect(pages).toHaveLength(1);
+    expect(pages[0]).toMatchObject({
+      chat_id: "chat-window",
+      page_kind: "normal",
+      direction: "latest",
+      start_cursor: 1,
+      end_cursor: 30,
+      cached_at: 1000,
+      last_accessed_at: 1000,
+    });
+    expect(pagesById.size).toBe(1);
+  });
+
+  it("evicts least-recent normal pages while preserving unsafe and protected messages", async () => {
+    vi.stubGlobal("IDBKeyRange", TestKeyRange);
+    const messages = makeMessages(90);
+    messages[1] = { ...messages[1], status: "streaming" };
+    const { db, messagesById } = makePageCacheDb(messages);
+
+    await recordMessageWindowPage(db as never, "chat-window", makeWindowResult(messages.slice(0, 30)), {
+      direction: "latest",
+      now: 1000,
+    });
+    await recordMessageWindowPage(db as never, "chat-window", makeWindowResult(messages.slice(30, 60)), {
+      direction: "before",
+      now: 2000,
+    });
+    await recordMessageWindowPage(db as never, "chat-window", makeWindowResult(messages.slice(60, 90)), {
+      direction: "before",
+      now: 3000,
+    });
+
+    const result = await evictStaleMessageWindowPages(db as never, "chat-window", {
+      maxPagesPerChat: 2,
+      protectedMessageIds: ["msg-3"],
+    });
+    const remainingPages = await getMessageWindowPagesForChat(db as never, "chat-window");
+
+    expect(result.deletedPageIds).toHaveLength(1);
+    expect(remainingPages).toHaveLength(2);
+    expect(messagesById.has("msg-1")).toBe(false);
+    expect(messagesById.has("msg-2")).toBe(true);
+    expect(messagesById.has("msg-3")).toBe(true);
+    expect(messagesById.has("msg-31")).toBe(true);
+  });
+
+  it("does not evict explicitly revealed forgotten pages", async () => {
+    vi.stubGlobal("IDBKeyRange", TestKeyRange);
+    const messages = makeMessages(60);
+    const { db } = makePageCacheDb(messages);
+
+    await recordMessageWindowPage(db as never, "chat-window", makeWindowResult(messages.slice(0, 30)), {
+      direction: "before",
+      pageKind: "forgotten",
+      now: 1000,
+    });
+    await recordMessageWindowPage(db as never, "chat-window", makeWindowResult(messages.slice(30, 60)), {
+      direction: "latest",
+      pageKind: "normal",
+      now: 2000,
+    });
+
+    const result = await evictStaleMessageWindowPages(db as never, "chat-window", {
+      maxPagesPerChat: 1,
+    });
+    const remainingPages = await getMessageWindowPagesForChat(db as never, "chat-window");
+
+    expect(result.deletedPageIds).toHaveLength(0);
+    expect(remainingPages.map((page) => page.page_kind).sort()).toEqual(["forgotten", "normal"]);
   });
 });

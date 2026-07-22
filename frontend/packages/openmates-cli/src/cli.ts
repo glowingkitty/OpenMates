@@ -17,6 +17,7 @@ import {
   deriveAppUrl,
   type ChatListPage,
   type ChatListItem,
+  type ChatRewindResult,
   type DecryptedMessage,
   type DailyInspiration,
   type DecryptedNewChatSuggestion,
@@ -2473,6 +2474,113 @@ async function handleChats(
     return;
   }
 
+  if (subcommand === "messages") {
+    const chatId = rest[0];
+    if (!chatId) {
+      throw new Error("Missing chat ID. Usage: openmates chats messages <chat-id> [--json]");
+    }
+    const resolvedId = chatId.toLowerCase() === "last" ? "__last__" : chatId;
+    const result = apiKey
+      ? await createCliOpenMates(client, apiKey).chats.messages({
+          chatId: resolvedId === "__last__"
+            ? String((await createCliOpenMates(client, apiKey).chats.list({ limit: 1 }))[0]?.id ?? "")
+            : resolvedId,
+        })
+      : await client.getChatMessageSummaries(resolvedId, teamContext);
+    if (flags.json === true) {
+      printJson(result);
+    } else {
+      printChatMessagesTable(result.chat as ChatListItem, result.messages as Array<DecryptedMessage & { preview?: string }>);
+    }
+    return;
+  }
+
+  if (subcommand === "fork") {
+    const chatId = rest[0];
+    const fromMessageId = typeof flags["from-message"] === "string" ? flags["from-message"] : undefined;
+    if (!chatId || !fromMessageId) {
+      throw new Error("Missing fork target. Usage: openmates chats fork <chat-id> --from-message <message-id> [--title <title>] [--json]");
+    }
+    const result = apiKey
+      ? await createCliOpenMates(client, apiKey).chats.fork({
+          chatId,
+          fromMessageId,
+          title: typeof flags.title === "string" ? flags.title : undefined,
+        })
+      : await client.forkChat({
+          chatId,
+          fromMessageId,
+          title: typeof flags.title === "string" ? flags.title : undefined,
+          ...teamContext,
+        });
+    if (flags.json === true) {
+      printJson(result);
+    } else {
+      process.stdout.write(`Forked chat ${String(result.chat_id)} (${String(result.copied_message_count)} messages copied)\n`);
+    }
+    return;
+  }
+
+  if (subcommand === "rewind") {
+    const chatId = rest[0];
+    const toMessageId = typeof flags["to-message"] === "string" ? flags["to-message"] : undefined;
+    if (!chatId || !toMessageId) {
+      throw new Error("Missing rewind target. Usage: openmates chats rewind <chat-id> --to-message <message-id> [--send <prompt>] [--dry-run] [--yes] [--json]");
+    }
+    const dryRun = flags["dry-run"] === true || flags.yes !== true;
+    const send = typeof flags.send === "string" ? flags.send : undefined;
+    const result = apiKey
+      ? await createCliOpenMates(client, apiKey).chats.rewind({
+          chatId,
+          toMessageId,
+          send,
+          dryRun,
+          confirmDestructive: flags.yes === true,
+        })
+      : await client.rewindChat({
+          chatId,
+          toMessageId,
+          send,
+          dryRun,
+          confirmDestructive: flags.yes === true,
+          responseTimeoutMs: parseResponseTimeoutMs(flags),
+          ...teamContext,
+        });
+    if (flags.json === true) {
+      printJson(result);
+    } else {
+      printChatRewindResult(result);
+    }
+    return;
+  }
+
+  if (subcommand === "retry") {
+    const chatId = rest[0];
+    if (!chatId) {
+      throw new Error("Missing chat ID. Usage: openmates chats retry <chat-id> [--dry-run] [--yes] [--json]");
+    }
+    const dryRun = flags["dry-run"] === true || flags.yes !== true;
+    const result = apiKey
+      ? await createCliOpenMates(client, apiKey).chats.retry({
+          chatId,
+          dryRun,
+          confirmDestructive: flags.yes === true,
+        })
+      : await client.retryChat({
+          chatId,
+          dryRun,
+          confirmDestructive: flags.yes === true,
+          responseTimeoutMs: parseResponseTimeoutMs(flags),
+          ...teamContext,
+        });
+    if (flags.json === true) {
+      printJson(result);
+    } else {
+      printChatRewindResult(result);
+    }
+    return;
+  }
+
   if (subcommand === "new") {
     const message = rest.join(" ").trim();
     if (!message)
@@ -2674,6 +2782,7 @@ async function handleChats(
 		}
 		// "last" opens the most recently modified chat
 		const resolvedId = chatId.toLowerCase() === "last" ? "__last__" : chatId;
+		const showAllMessages = flags.all === true;
 		if (apiKey) {
 			const sdk = createCliOpenMates(client, apiKey);
 			const sdkChatId = resolvedId === "__last__"
@@ -2682,12 +2791,23 @@ async function handleChats(
 			if (!sdkChatId) {
 				throw new Error("No chats found for API key session.");
 			}
-			const loaded = await sdk.chats.load(sdkChatId);
-			const { chat, messages, followUpSuggestions } = normalizeApiKeyLoadedChat(loaded);
+			const loaded = showAllMessages
+				? await sdk.chats.load(sdkChatId)
+				: await sdk.chats.messages({ chatId: sdkChatId, limit: 30 });
+			const apiKeyHasMoreBefore = (loaded as { hasMoreBefore?: boolean }).hasMoreBefore === true;
+			const { chat, messages, followUpSuggestions } = normalizeApiKeyLoadedChat(loaded as Record<string, unknown>);
 			if (flags.json === true) {
-				printJson({ chat, messages, follow_up_suggestions: followUpSuggestions });
+				printJson({
+					chat,
+					messages,
+					follow_up_suggestions: followUpSuggestions,
+					...(showAllMessages ? {} : { has_more_before: apiKeyHasMoreBefore }),
+				});
 			} else {
 				await printChatConversationRaw(chat, messages);
+				if (!showAllMessages && apiKeyHasMoreBefore) {
+					process.stdout.write("\nShowing latest 30 messages. Use --all for full history.\n");
+				}
 			}
 			return;
 		}
@@ -2712,21 +2832,35 @@ async function handleChats(
       }
       return;
     }
-    const { chat, messages } = await client.getChatMessages(resolvedId, teamContext);
+    const messageResult = showAllMessages
+      ? await client.getChatMessages(resolvedId, teamContext)
+      : await client.getChatMessagesWindow(resolvedId, { ...teamContext, limit: 30 });
+    const { chat, messages } = messageResult;
     if (flags.json === true) {
       // Fetch follow-up suggestions for JSON output too
       const followUpSuggestions = await client
         .getChatFollowUpSuggestions(chat.id, teamContext)
         .catch(() => [] as string[]);
-      printJson({ chat, messages, follow_up_suggestions: followUpSuggestions });
+      printJson({
+        chat,
+        messages,
+        follow_up_suggestions: followUpSuggestions,
+        ...(showAllMessages || !("hasMoreBefore" in messageResult) ? {} : { has_more_before: messageResult.hasMoreBefore }),
+      });
     } else if (flags.raw === true) {
       await printChatConversationRaw(chat, messages);
+      if (!showAllMessages && "hasMoreBefore" in messageResult && messageResult.hasMoreBefore) {
+        process.stdout.write("\nShowing latest 30 messages. Use --all for full history.\n");
+      }
     } else {
       // Fetch follow-up suggestions to display at the end of the conversation
       const followUpSuggestions = await client
         .getChatFollowUpSuggestions(chat.id, teamContext)
         .catch(() => [] as string[]);
       await printChatConversation(client, chat, messages, followUpSuggestions);
+      if (!showAllMessages && "hasMoreBefore" in messageResult && messageResult.hasMoreBefore) {
+        process.stdout.write("\nShowing latest 30 messages. Use --all for full history.\n");
+      }
     }
     return;
   }
@@ -3319,12 +3453,12 @@ async function sendApiKeyChatNew(
 ): Promise<Record<string, unknown>> {
   const sdk = createCliOpenMates(client, apiKey);
   let response: ChatResponse;
-	try {
-		response = await sdk.chats.send(message, {
-			saveToAccount: true,
-			recoveryTimeoutMs: parseResponseTimeoutMs(flags),
-		});
-	} catch (err) {
+  try {
+    response = await sdk.chats.send(message, {
+      saveToAccount: false,
+      recoveryTimeoutMs: parseResponseTimeoutMs(flags),
+    });
+  } catch (err) {
     if (!isSdkChatScopeDenied(err)) throw err;
     const aiAskResult = await client.runSkill({
       app: "ai",
@@ -7811,6 +7945,43 @@ function printChatsTable(result: ChatListPage): void {
   }
 }
 
+function printChatMessagesTable(
+  chat: { id?: string; title?: string | null },
+  messages: Array<DecryptedMessage & { preview?: string }>,
+): void {
+  const title = chat.title ?? chat.id ?? "Chat";
+  process.stdout.write(`\x1b[1m${title}\x1b[0m\n`);
+  process.stdout.write(`\x1b[2m${messages.length} message${messages.length === 1 ? "" : "s"}\x1b[0m\n\n`);
+  for (const message of messages) {
+    const id = message.id;
+    const time = formatTimestamp(message.createdAt || null);
+    const preview = (message.preview ?? message.content.replace(/\s+/g, " ").trim().slice(0, 120)) || "(empty)";
+    process.stdout.write(`${id}  ${message.role.padEnd(9)}  ${time}  ${preview}\n`);
+  }
+}
+
+function printChatRewindResult(result: ChatRewindResult | Record<string, unknown>): void {
+  const dryRun = result.dry_run === true;
+  const deletedCount = dryRun
+    ? Number(result.planned_deleted_message_count ?? 0)
+    : Number(result.deleted_message_count ?? 0);
+  const ids = dryRun
+    ? result.planned_deleted_message_ids
+    : result.deleted_message_ids;
+  process.stdout.write(`${dryRun ? "Dry run" : "Rewound"} chat ${String(result.chat_id ?? "")}\n`);
+  process.stdout.write(`${dryRun ? "Would delete" : "Deleted"} ${deletedCount} message${deletedCount === 1 ? "" : "s"}.\n`);
+  if (Array.isArray(ids) && ids.length > 0) {
+    process.stdout.write(`\x1b[2m${ids.map(String).join(", ")}\x1b[0m\n`);
+  }
+  const response = result.response;
+  if (response && typeof response === "object" && "assistant" in response) {
+    process.stdout.write(`\n${String((response as { assistant?: unknown }).assistant ?? "")}\n`);
+  }
+  if (dryRun) {
+    process.stdout.write("\nRun again with --yes to apply this rewind.\n");
+  }
+}
+
 /**
  * Send a message with live streaming output.
  *
@@ -10511,7 +10682,11 @@ Options:
 function printChatsHelp(): void {
   console.log(`Chats commands:
   openmates chats list [--limit <n>] [--page <n>] [--json]
-  openmates chats show <chat-id> [--raw] [--json]
+  openmates chats show <chat-id> [--raw] [--json] [--all]
+  openmates chats messages <chat-id> [--json]
+  openmates chats fork <chat-id> --from-message <message-id> [--title <title>] [--json]
+  openmates chats rewind <chat-id> --to-message <message-id> [--send <prompt>] [--dry-run] [--yes] [--json]
+  openmates chats retry <chat-id> [--dry-run] [--yes] [--json]
   openmates chats open [<n|example-id|slug>] [--json]
   openmates chats search <query> [--json]
   openmates chats new <message> [--json] [--learning-mode --age-group <group>] [--auto-approve] [--auto-approve-memories] [--accept-task-proposals] [--no-pii-detection]
@@ -10530,8 +10705,16 @@ Options for 'list':
   --page <n>    Page number (default: 1)
 
 Options for 'show':
+  --all         Load full chat history. By default, show loads latest 30 messages.
   --raw         Show raw decrypted message content without rendering embeds
                 or cleaning embed references. Useful for debugging.
+
+Options for 'fork', 'rewind', and 'retry':
+  --from-message <id>  Message boundary for non-destructive fork.
+  --to-message <id>    Message boundary to keep when rewinding.
+  --send <prompt>      Send a replacement prompt after rewind.
+  --dry-run            Show planned deletion without mutating.
+  --yes                Apply destructive rewind/retry. Without --yes these commands dry-run.
 
 Options for 'open':
   <n>           Position of the chat to open (default: 1 = most recent)
@@ -10602,6 +10785,10 @@ Examples:
   openmates chats open 3            (opens 3rd most recent chat)
   openmates chats open gigantic-airplanes-transporting-rocket-parts
   openmates chats show d262cb68
+  openmates chats messages d262cb68
+  openmates chats fork d262cb68 --from-message 8f4e2a1c --title "Clean branch"
+  openmates chats rewind d262cb68 --to-message 8f4e2a1c --send "Continue from here" --yes
+  openmates chats retry d262cb68 --yes
   openmates chats show last
   openmates chats show "Flight Connections Berlin to Bangkok"
   openmates chats search "Madrid"

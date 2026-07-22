@@ -59,7 +59,12 @@ class FakeCacheService:
         self.closed = True
 
 
-@pytest.mark.asyncio
+@pytest.fixture
+def anyio_backend() -> str:
+    return "asyncio"
+
+
+@pytest.mark.anyio
 async def test_claim_binds_authenticated_owner_and_device(monkeypatch) -> None:
     monkeypatch.setattr(chat_recovery_job_handlers, "ChatRecoveryService", FakeRecoveryService)
     FakeRecoveryService.calls = []
@@ -88,7 +93,7 @@ async def test_claim_binds_authenticated_owner_and_device(monkeypatch) -> None:
     assert manager.messages[0]["payload"]["request_id"] == "claim-request-1"
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_terminal_persistence_overrides_encrypted_message_owner(monkeypatch) -> None:
     monkeypatch.setattr(chat_recovery_job_handlers, "ChatRecoveryService", FakeRecoveryService)
     monkeypatch.setattr(chat_recovery_job_handlers, "_create_cache_service", FakeCacheService)

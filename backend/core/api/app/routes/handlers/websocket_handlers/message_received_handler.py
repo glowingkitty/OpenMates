@@ -1981,13 +1981,42 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 )
                 logger.debug(f"Sent 'ai_task_initiated' ack to client for task {ai_task_id}")
             else:
-                logger.warning(f"ai.ask returned but no task_id found. Response: {response_data}")
+                raise RuntimeError(f"AI dispatcher returned no task_id. Response: {response_data}")
 
         except Exception as e_ai_task:
             logger.error(f"Failed to dispatch ai.ask for chat {chat_id}: {e_ai_task}", exc_info=True)
+            expected_recovery_task_id = (recovery_enqueue_result or {}).get("inference_task_id")
+            if recovery_enqueue_result and ai_task_id != expected_recovery_task_id:
+                try:
+                    await ChatRecoveryService(directus_service).execute(
+                        "mark_inference_failed",
+                        {
+                            "protocol_version": 1,
+                            "inference_task_id": expected_recovery_task_id,
+                            "failure_category": "dispatch_failed",
+                        },
+                    )
+                except Exception as recovery_failure_error:
+                    logger.error(
+                        "Failed to mark undispatched recovery inference failed for chat %s, message %s",
+                        chat_id,
+                        message_id,
+                        exc_info=recovery_failure_error,
+                    )
             try:
                 await manager.send_personal_message(
-                    {"type": "error", "payload": {"message": "Could not initiate AI response. Please try again."}},
+                    {
+                        "type": "error",
+                        "payload": {
+                            "code": "ai_dispatch_failed",
+                            "message": "Message saved, but AI did not start. Please retry.",
+                            "chat_id": chat_id,
+                            "message_id": message_id,
+                            "user_message_id": message_id,
+                            "turn_id": payload.get("turn_id"),
+                            "retryable": True,
+                        },
+                    },
                     user_id, device_fingerprint_hash
                 )
             except Exception as e_send_err:

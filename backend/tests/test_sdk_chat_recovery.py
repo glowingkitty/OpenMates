@@ -7,6 +7,7 @@ scope enforcement, and ciphertext-only persistence without external services.
 
 from types import ModuleType, SimpleNamespace
 from unittest.mock import AsyncMock
+import asyncio
 import sys
 
 import pytest
@@ -296,6 +297,67 @@ async def test_create_dispatches_only_canonical_inference_values_with_stable_aut
     assert dispatch["user_id"] == USER_ID
     assert dispatch["_api_key_hash"] == "key-hash"
     assert "inference_request" not in dispatch
+
+
+def test_create_marks_recovery_failed_when_dispatch_returns_no_task(monkeypatch):
+    async def run_test():
+        with pytest.raises(HTTPException) as exc:
+            await sdk.create_sdk_chat(
+                _request(),
+                sdk.SdkChatCreateRequest(
+                    message="canonical",
+                    save_to_account=True,
+                    protocol_version=1,
+                    chat_id="chat-id",
+                    turn_id="turn-id",
+                    message_id="message-id",
+                    chat_key_version=1,
+                    encrypted_chat_key="wrapped-key",
+                    recovery_public_key="public-key",
+                    expected_messages_v=0,
+                    encrypted_user_message={"chat_id": "chat-id", "client_message_id": "message-id", "encrypted_content": "ciphertext"},
+                    inference_request={"messages": [{"role": "user", "content": "canonical"}], "model": "canonical-model"},
+                ),
+            )
+
+        return exc
+
+    registry = SimpleNamespace(dispatch_skill=AsyncMock(return_value={"status": "accepted_without_task"}))
+    registry_module = ModuleType("backend.core.api.app.services.skill_registry")
+    registry_module.get_global_registry = lambda: registry
+    monkeypatch.setitem(sys.modules, registry_module.__name__, registry_module)
+    monkeypatch.setattr(sdk, "_authenticate_sdk_request", AsyncMock(return_value=_auth()))
+    monkeypatch.setattr(sdk, "build_inference_commitment", lambda _request: "commitment")
+    monkeypatch.setattr(
+        sdk.ChatRecoveryService,
+        "execute",
+        AsyncMock(return_value={"preflight_id": "preflight-id"}),
+    )
+    monkeypatch.setattr(
+        sdk,
+        "enqueue_chat_turn",
+        AsyncMock(return_value={"inference_task_id": TASK_ID, "outbox_id": "outbox-id"}),
+    )
+    recovery_execute = AsyncMock(return_value={"failed": True})
+    monkeypatch.setattr(sdk, "_execute_sdk_recovery", recovery_execute)
+
+    exc = asyncio.run(run_test())
+
+    assert exc.value.status_code == 502
+    assert exc.value.detail == {
+        "error": "ai_dispatch_failed",
+        "message": "Message saved, but AI did not start. Please retry.",
+        "chat_id": "chat-id",
+        "message_id": "message-id",
+        "retryable": True,
+    }
+    recovery_execute.assert_awaited_once()
+    assert recovery_execute.await_args.args[1] == "mark_inference_failed"
+    assert recovery_execute.await_args.args[2] == {
+        "protocol_version": 1,
+        "inference_task_id": TASK_ID,
+        "failure_category": "dispatch_failed",
+    }
 
 
 @pytest.mark.asyncio

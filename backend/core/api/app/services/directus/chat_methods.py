@@ -1029,6 +1029,186 @@ class ChatMethods:
             )
             return []
 
+    @staticmethod
+    def _normalize_message_window_rows(messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        for msg in messages:
+            msg['message_id'] = msg.get('client_message_id') or msg.get('id')
+        return messages
+
+    @staticmethod
+    def _message_cursor(message: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        message_id = message.get('message_id') or message.get('client_message_id') or message.get('id')
+        created_at = message.get('created_at')
+        if message_id is None or created_at is None:
+            return None
+        try:
+            created_at = int(created_at)
+        except (TypeError, ValueError):
+            return None
+        return {"created_at": created_at, "message_id": str(message_id)}
+
+    @staticmethod
+    def _cursor_before_filter(chat_id: str, timestamp: int, message_id: Optional[str] = None) -> Dict[str, Any]:
+        if not message_id:
+            return {'chat_id': {'_eq': chat_id}, 'created_at': {'_lte': timestamp}}
+        return {
+            'chat_id': {'_eq': chat_id},
+            '_or': [
+                {'created_at': {'_lt': timestamp}},
+                {'created_at': {'_eq': timestamp}, 'client_message_id': {'_lt': message_id}},
+                {'created_at': {'_eq': timestamp}, 'client_message_id': {'_null': True}, 'id': {'_lt': message_id}},
+            ],
+        }
+
+    @staticmethod
+    def _cursor_after_filter(chat_id: str, timestamp: int, message_id: Optional[str] = None) -> Dict[str, Any]:
+        if not message_id:
+            return {'chat_id': {'_eq': chat_id}, 'created_at': {'_gt': timestamp}}
+        return {
+            'chat_id': {'_eq': chat_id},
+            '_or': [
+                {'created_at': {'_gt': timestamp}},
+                {'created_at': {'_eq': timestamp}, 'client_message_id': {'_gt': message_id}},
+                {'created_at': {'_eq': timestamp}, 'client_message_id': {'_null': True}, 'id': {'_gt': message_id}},
+            ],
+        }
+
+    @staticmethod
+    def _apply_lower_bound(message_filter: Dict[str, Any], lower_bound_timestamp: Optional[int]) -> Dict[str, Any]:
+        if not lower_bound_timestamp:
+            return message_filter
+        return {
+            '_and': [
+                message_filter,
+                {'created_at': {'_gt': lower_bound_timestamp}},
+            ],
+        }
+
+    async def _fetch_message_window_rows(
+        self,
+        message_filter: Dict[str, Any],
+        sort: List[str],
+        limit: int,
+    ) -> List[Dict[str, Any]]:
+        rows = await self.directus_service.get_items(
+            'messages',
+            params={
+                'filter': message_filter,
+                'fields': MESSAGE_ALL_FIELDS,
+                'sort': sort,
+                'limit': limit,
+            },
+            admin_required=True,
+        )
+        if not rows or not isinstance(rows, list):
+            return []
+        return self._normalize_message_window_rows(rows)
+
+    async def get_message_window_for_chat(
+        self,
+        chat_id: str,
+        direction: str = "latest",
+        limit: int = 30,
+        before_timestamp: Optional[int] = None,
+        before_message_id: Optional[str] = None,
+        after_timestamp: Optional[int] = None,
+        after_message_id: Optional[str] = None,
+        anchor_message_id: Optional[str] = None,
+        lower_bound_timestamp: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Fetch a bounded encrypted chat message window without changing full-sync semantics."""
+        safe_limit = max(1, min(int(limit or 30), 100))
+        direction = direction if direction in {"latest", "before", "after", "around"} else "latest"
+
+        if direction == "after":
+            if after_timestamp is None:
+                return self._message_window_result([], True, False, anchor_found=False)
+            rows = await self._fetch_message_window_rows(
+                self._cursor_after_filter(chat_id, int(after_timestamp), after_message_id),
+                ['created_at', 'client_message_id', 'id'],
+                safe_limit + 1,
+            )
+            has_more_after = len(rows) > safe_limit
+            if has_more_after:
+                rows = rows[:safe_limit]
+            return self._message_window_result(rows, True, has_more_after)
+
+        if direction == "around":
+            anchor = await self.get_message_for_chat_by_client_id(chat_id, anchor_message_id) if anchor_message_id else None
+            if not anchor:
+                return self._message_window_result([], False, False, anchor_found=False)
+            anchor_timestamp = int(anchor.get('created_at') or 0)
+            if lower_bound_timestamp and anchor_timestamp <= lower_bound_timestamp:
+                return self._message_window_result([], False, False, anchor_found=False)
+            anchor_id = anchor.get('message_id') or anchor.get('client_message_id') or anchor.get('id')
+            before_limit = max(0, (safe_limit - 1) // 2)
+            after_limit = max(0, safe_limit - 1 - before_limit)
+            before_rows = await self._fetch_message_window_rows(
+                self._apply_lower_bound(
+                    self._cursor_before_filter(chat_id, anchor_timestamp, str(anchor_id) if anchor_id else None),
+                    lower_bound_timestamp,
+                ),
+                ['-created_at', '-client_message_id', '-id'],
+                before_limit + 1,
+            ) if before_limit > 0 else []
+            after_rows = await self._fetch_message_window_rows(
+                self._cursor_after_filter(chat_id, anchor_timestamp, str(anchor_id) if anchor_id else None),
+                ['created_at', 'client_message_id', 'id'],
+                after_limit + 1,
+            ) if after_limit > 0 else []
+            has_more_before = len(before_rows) > before_limit
+            has_more_after = len(after_rows) > after_limit
+            if has_more_before:
+                before_rows = before_rows[:before_limit]
+            if has_more_after:
+                after_rows = after_rows[:after_limit]
+            before_rows.reverse()
+            return self._message_window_result([*before_rows, anchor, *after_rows], has_more_before, has_more_after, anchor_found=True)
+
+        if direction == "before":
+            if before_timestamp is None:
+                return self._message_window_result([], False, True, anchor_found=False)
+            rows = await self._fetch_message_window_rows(
+                self._apply_lower_bound(
+                    self._cursor_before_filter(chat_id, int(before_timestamp), before_message_id),
+                    lower_bound_timestamp,
+                ),
+                ['-created_at', '-client_message_id', '-id'],
+                safe_limit + 1,
+            )
+            has_more_before = len(rows) > safe_limit
+            if has_more_before:
+                rows = rows[:safe_limit]
+            rows.reverse()
+            return self._message_window_result(rows, has_more_before, True)
+
+        rows = await self._fetch_message_window_rows(
+            self._apply_lower_bound({'chat_id': {'_eq': chat_id}}, lower_bound_timestamp),
+            ['-created_at', '-client_message_id', '-id'],
+            safe_limit + 1,
+        )
+        has_more_before = len(rows) > safe_limit
+        if has_more_before:
+            rows = rows[:safe_limit]
+        rows.reverse()
+        return self._message_window_result(rows, has_more_before, False)
+
+    def _message_window_result(
+        self,
+        rows: List[Dict[str, Any]],
+        has_more_before: bool,
+        has_more_after: bool,
+        anchor_found: bool = True,
+    ) -> Dict[str, Any]:
+        return {
+            "messages": [json.dumps(row) for row in rows],
+            "has_more_before": has_more_before,
+            "has_more_after": has_more_after,
+            "start_cursor": self._message_cursor(rows[0]) if rows else None,
+            "end_cursor": self._message_cursor(rows[-1]) if rows else None,
+            "anchor_found": anchor_found,
+        }
+
     async def get_message_for_chat_by_client_id(
         self,
         chat_id: str,

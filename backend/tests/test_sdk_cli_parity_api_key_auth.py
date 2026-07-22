@@ -30,6 +30,8 @@ class _FakeDirectusService:
             check_chat_ownership=self.check_chat_ownership,
             get_chat_metadata=self.get_chat_metadata,
             get_all_messages_for_chat=self.get_all_messages_for_chat,
+            get_message_window_for_chat=self.get_message_window_for_chat,
+            get_message_count_for_chat=self.get_message_count_for_chat,
             delete_all_messages_for_chat=self.delete_all_messages_for_chat,
             delete_all_drafts_for_chat=self.delete_all_drafts_for_chat,
             persist_delete_chat=self.persist_delete_chat,
@@ -46,9 +48,20 @@ class _FakeDirectusService:
         self.suggestion_queries = []
         self.chat_metadata_queries = []
         self.chat_key_wrapper_queries = []
+        self.message_window_queries = []
+        self.full_message_reads = 0
         self.ownership_allowed = True
         self.embed_owner_allowed = True
         self.deleted_chat_id = None
+        self.compression_checkpoints = [
+            {
+                "id": "checkpoint-1",
+                "chat_id": "chat-1",
+                "hashed_user_id": hashlib.sha256(b"user-1").hexdigest(),
+                "encrypted_summary": "cipher-summary",
+                "compressed_up_to_timestamp": 10,
+            }
+        ]
         self.chat_key_wrappers = [
             {
                 "id": "chat-wrapper-1",
@@ -88,7 +101,31 @@ class _FakeDirectusService:
 
     async def get_all_messages_for_chat(self, chat_id, decrypt_content=False):
         assert decrypt_content is False
+        self.full_message_reads += 1
         return [{"id": "message-1", "encrypted_content": "cipher-content"}]
+
+    async def get_message_window_for_chat(self, **kwargs):
+        self.message_window_queries.append(kwargs)
+        return {
+            "messages": [
+                {
+                    "id": "row-1",
+                    "client_message_id": "message-1",
+                    "chat_id": kwargs["chat_id"],
+                    "encrypted_content": "cipher-content",
+                    "content": "plaintext must not leak",
+                    "created_at": 50,
+                }
+            ],
+            "has_more_before": True,
+            "has_more_after": False,
+            "start_cursor": {"created_at": 50, "message_id": "message-1"},
+            "end_cursor": {"created_at": 50, "message_id": "message-1"},
+            "anchor_found": True,
+        }
+
+    async def get_message_count_for_chat(self, chat_id):
+        return 101 if chat_id == "chat-1" else 0
 
     async def delete_all_messages_for_chat(self, chat_id):
         self.deleted_chat_id = chat_id
@@ -128,7 +165,16 @@ class _FakeDirectusService:
         hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
         return await self.get_wrappers_by_hashed_chat_ids_batch([hashed_chat_id], hashed_user_id=hashed_user_id)
 
-    async def get_items(self, collection, params=None):
+    async def get_items(self, collection, params=None, **kwargs):
+        if collection == "chat_compression_checkpoints":
+            filters = (params or {}).get("filter") or {}
+            chat_id = filters.get("chat_id", {}).get("_eq")
+            hashed_user_id = filters.get("hashed_user_id", {}).get("_eq")
+            return [
+                checkpoint for checkpoint in self.compression_checkpoints
+                if checkpoint["chat_id"] == chat_id
+                and checkpoint["hashed_user_id"] == hashed_user_id
+            ]
         if collection == "embeds":
             if not self.embed_owner_allowed:
                 return []
@@ -717,6 +763,92 @@ async def test_sdk_load_chat_returns_encrypted_chat_and_messages_after_ownership
         "embed_keys": [{"hashed_embed_id": "hash-embed-1", "key_type": "master", "encrypted_embed_key": "cipher-key"}],
         "chat_key_wrappers": request.app.state.directus_service.chat_key_wrappers,
     }
+
+
+@pytest.mark.anyio
+async def test_sdk_chat_messages_returns_bounded_encrypted_window_after_ownership(monkeypatch):
+    async def fake_authenticate(request):
+        return {
+            "user_id": "user-1",
+            "api_key_metadata": {
+                "full_access": False,
+                "scopes": {"chat": ["chat:read_existing"]},
+            },
+        }
+
+    monkeypatch.setattr(sdk_routes, "_authenticate_sdk_request", fake_authenticate)
+    request = _FakeRequest(method="GET")
+
+    result = await sdk_routes.get_sdk_chat_messages(
+        request,
+        "chat-1",
+        direction="latest",
+        limit=sdk_routes.DEFAULT_SDK_MESSAGE_WINDOW_LIMIT,
+        before_timestamp=None,
+        before_message_id=None,
+        after_timestamp=None,
+        after_message_id=None,
+        anchor_message_id=None,
+        respect_compression_boundary=True,
+    )
+
+    assert result["chat"] == {"id": "chat-1", "encrypted_title": "cipher-title", "encrypted_chat_key": "cipher-key"}
+    assert result["messages"] == [
+        {
+            "id": "row-1",
+            "client_message_id": "message-1",
+            "chat_id": "chat-1",
+            "encrypted_content": "cipher-content",
+            "created_at": 50,
+            "message_id": "message-1",
+        }
+    ]
+    assert result["has_more_before"] is True
+    assert result["has_more_after"] is False
+    assert result["server_message_count"] == 101
+    assert result["compression_boundary_timestamp"] == 10
+    assert result["chat_key_wrappers"] == request.app.state.directus_service.chat_key_wrappers
+    assert request.app.state.directus_service.message_window_queries == [
+        {
+            "chat_id": "chat-1",
+            "direction": "latest",
+            "limit": sdk_routes.DEFAULT_SDK_MESSAGE_WINDOW_LIMIT,
+            "before_timestamp": None,
+            "before_message_id": None,
+            "after_timestamp": None,
+            "after_message_id": None,
+            "anchor_message_id": None,
+            "lower_bound_timestamp": 10,
+        }
+    ]
+    assert request.app.state.directus_service.full_message_reads == 0
+
+
+@pytest.mark.anyio
+async def test_sdk_chat_messages_hides_chats_owned_by_other_users(monkeypatch):
+    async def fake_authenticate(request):
+        return {"user_id": "user-2", "api_key_metadata": {"full_access": True}}
+
+    monkeypatch.setattr(sdk_routes, "_authenticate_sdk_request", fake_authenticate)
+    request = _FakeRequest(method="GET")
+
+    with pytest.raises(HTTPException) as exc:
+        await sdk_routes.get_sdk_chat_messages(
+            request,
+            "chat-1",
+            direction="latest",
+            limit=sdk_routes.DEFAULT_SDK_MESSAGE_WINDOW_LIMIT,
+            before_timestamp=None,
+            before_message_id=None,
+            after_timestamp=None,
+            after_message_id=None,
+            anchor_message_id=None,
+            respect_compression_boundary=True,
+        )
+
+    assert exc.value.status_code == 404
+    assert request.app.state.directus_service.message_window_queries == []
+    assert request.app.state.directus_service.full_message_reads == 0
 
 
 @pytest.mark.asyncio

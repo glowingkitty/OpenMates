@@ -58,6 +58,17 @@ class FakeSkillRegistry:
         return {"task_id": "task-123"}
 
 
+class FakeNoTaskSkillRegistry:
+    def __init__(self, manager):
+        self.manager = manager
+
+    async def dispatch_skill(self, app_name, skill_name, request_payload):
+        assert app_name == "ai"
+        assert skill_name == "ask"
+        self.manager.calls.append(("dispatch_skill", app_name, skill_name, request_payload["chat_id"]))
+        return {"status": "accepted_without_task"}
+
+
 def test_message_send_marks_origin_connection_active_before_ai_dispatch(monkeypatch):
     from backend.core.api.app.routes.handlers.websocket_handlers import message_received_handler
 
@@ -299,6 +310,125 @@ def test_team_recovery_send_skips_personal_cache_completeness_gate(monkeypatch):
     assert recovery_calls[0][0] == "mark_outbox_dispatched"
     cache_service.set_active_ai_task.assert_awaited_once_with("team-chat-123", "task-123")
     directus_service.chat.check_chat_ownership.assert_not_awaited()
+
+
+def test_recovery_send_marks_enqueue_failed_when_dispatch_returns_no_task(monkeypatch):
+    from backend.core.api.app.routes.handlers.websocket_handlers import message_received_handler
+
+    manager = FakeManager()
+    cutover = SimpleNamespace(get_epoch=AsyncMock(return_value=1))
+    cached_current_message = json.dumps(
+        {
+            "id": "msg-current",
+            "chat_id": "chat-123",
+            "role": "user",
+            "sender_name": "user",
+            "encrypted_content": "encrypted-current",
+            "created_at": 1_700_000_010,
+        }
+    )
+    cache_service = SimpleNamespace(
+        get_user_vault_key_id=AsyncMock(return_value="vault-key-123"),
+        save_chat_message_and_update_versions=AsyncMock(
+            return_value={"messages_v": 2, "last_edited_overall_timestamp": 1_700_000_010}
+        ),
+        delete_user_draft_from_cache=AsyncMock(return_value=False),
+        delete_user_draft_version_from_chat_versions=AsyncMock(return_value=False),
+        get_ai_messages_history=AsyncMock(return_value=[cached_current_message]),
+        get_user_by_id=AsyncMock(return_value={"language": "en"}),
+        get_chat_list_item_data=AsyncMock(return_value={}),
+        get_active_ai_task=AsyncMock(return_value=None),
+        set_active_ai_task=AsyncMock(),
+        update_user=AsyncMock(),
+    )
+    directus_service = SimpleNamespace(
+        chat=SimpleNamespace(
+            get_chat_metadata=AsyncMock(return_value={"messages_v": 1, "title_v": 1}),
+            check_chat_ownership=AsyncMock(return_value=True),
+        ),
+        get_user_profile=AsyncMock(),
+        get_user_fields_direct=AsyncMock(return_value={}),
+    )
+    encryption_service = SimpleNamespace(
+        encrypt_with_user_key=AsyncMock(return_value=("encrypted-current", 1)),
+        decrypt_with_user_key=AsyncMock(return_value="retry me"),
+    )
+    enqueue = AsyncMock(
+        return_value={
+            "inference_task_id": "task-123",
+            "outbox_id": "outbox-123",
+            "committed_messages_v": 2,
+        }
+    )
+    recovery_calls = []
+
+    class FakeRecoveryService:
+        def __init__(self, directus_service):
+            self.directus_service = directus_service
+
+        async def execute(self, operation, data):
+            recovery_calls.append((operation, data))
+            return {"failed": True}
+
+    monkeypatch.setitem(
+        sys.modules,
+        "backend.core.api.app.services.embed_service",
+        SimpleNamespace(EmbedService=FakeEmbedService),
+    )
+    monkeypatch.setitem(
+        sys.modules,
+        "backend.core.api.app.services.skill_registry",
+        SimpleNamespace(get_global_registry=lambda: FakeNoTaskSkillRegistry(manager)),
+    )
+    monkeypatch.setattr(message_received_handler, "enqueue_chat_turn", enqueue)
+    monkeypatch.setattr(message_received_handler, "ChatRecoveryService", FakeRecoveryService)
+    monkeypatch.setattr(
+        message_received_handler,
+        "ChatRecoveryCutoverController",
+        lambda cache, directus: cutover,
+    )
+
+    asyncio.run(
+        message_received_handler.handle_message_received(
+            websocket=SimpleNamespace(),
+            manager=manager,
+            cache_service=cache_service,
+            directus_service=directus_service,
+            encryption_service=encryption_service,
+            user_id="user-123",
+            device_fingerprint_hash="device-123",
+            payload={
+                "chat_id": "chat-123",
+                "protocol_version": 1,
+                "preflight_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+                "turn_id": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+                "recovery_public_key": "recovery-public-key",
+                "chat_key_version": 1,
+                "message": {
+                    "message_id": "msg-current",
+                    "role": "user",
+                    "content": "retry me",
+                    "created_at": 1_700_000_010,
+                    "chat_has_title": True,
+                },
+            },
+        )
+    )
+
+    assert ("dispatch_skill", "ai", "ask", "chat-123") in manager.calls
+    assert recovery_calls == [
+        (
+            "mark_inference_failed",
+            {
+                "protocol_version": 1,
+                "inference_task_id": "task-123",
+                "failure_category": "dispatch_failed",
+            },
+        )
+    ]
+    cache_service.set_active_ai_task.assert_not_awaited()
+    error_payloads = [call for call in manager.calls if call[:2] == ("send_personal_message", "error")]
+    assert error_payloads
 
 
 def test_incognito_send_skips_durable_cutover_lookup(monkeypatch):

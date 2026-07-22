@@ -33,6 +33,16 @@ export interface StreamEvent {
   modelName: string | null;
 }
 
+export interface ChatCompressionCheckpointEvent {
+  chatId: string;
+  taskId: string | null;
+  checkpointId: string;
+  summaryContent: string;
+  compressedUpToTimestamp: number;
+  compressedMessageCount: number;
+  summaryTokenEstimate: number | null;
+}
+
 export interface SendEmbedDataFrame {
   embed_id: string;
   type?: string;
@@ -646,6 +656,7 @@ export class OpenMatesWsClient {
     embeds: SendEmbedDataFrame[];
     subChatEvents: SubChatEvent[];
     recoveryJobId: string | null;
+    compressionCheckpoints: ChatCompressionCheckpointEvent[];
   }> {
     const timeoutMs = options?.timeoutMs ?? 90_000;
     const onStream = options?.onStream;
@@ -658,6 +669,7 @@ export class OpenMatesWsClient {
       let category: string | null = null;
       let modelName: string | null = null;
       let recoveryJobId: string | null = null;
+      const compressionCheckpoints: ChatCompressionCheckpointEvent[] = [];
       let followUpSuggestions: string[] = [];
       let newChatSuggestions: string[] = [];
       let chatSummary: string | null = null;
@@ -759,6 +771,7 @@ export class OpenMatesWsClient {
             embeds: [...embeds.values()],
             subChatEvents,
             recoveryJobId,
+            compressionCheckpoints,
           });
           return;
         }
@@ -788,6 +801,7 @@ export class OpenMatesWsClient {
               embeds: [...embeds.values()],
               subChatEvents,
               recoveryJobId,
+              compressionCheckpoints,
             });
           }, asyncEmbedWaitMs);
           return;
@@ -813,6 +827,7 @@ export class OpenMatesWsClient {
           embeds: [...embeds.values()],
           subChatEvents,
           recoveryJobId,
+          compressionCheckpoints,
         });
       };
 
@@ -935,6 +950,27 @@ export class OpenMatesWsClient {
 
           if (type === "request_app_settings_memories") {
             handleAppSettingsMemoriesRequest(p);
+            return;
+          }
+
+          if (type === "chat_compression_completed") {
+            if (p.chat_id !== chatId || p.error) return;
+            if (typeof p.summary_message_id !== "string" || typeof p.summary_content !== "string") return;
+            compressionCheckpoints.push({
+              chatId,
+              taskId: typeof p.task_id === "string" ? p.task_id : null,
+              checkpointId: p.summary_message_id,
+              summaryContent: p.summary_content,
+              compressedUpToTimestamp: typeof p.compressed_up_to_timestamp === "number"
+                ? p.compressed_up_to_timestamp
+                : 0,
+              compressedMessageCount: typeof p.compressed_message_count === "number"
+                ? p.compressed_message_count
+                : 0,
+              summaryTokenEstimate: typeof p.summary_token_estimate === "number"
+                ? p.summary_token_estimate
+                : null,
+            });
             return;
           }
 
@@ -1136,6 +1172,7 @@ export class OpenMatesWsClient {
             embeds: [...embeds.values()],
             subChatEvents,
             recoveryJobId,
+            compressionCheckpoints,
           });
           return;
         }

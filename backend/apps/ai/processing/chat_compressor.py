@@ -50,9 +50,9 @@ ADMIN_COMPRESSION_THRESHOLD_CACHE_KEY = "admin:compression_threshold_override"
 # Category marker for compression summary system messages
 COMPRESSION_SUMMARY_CATEGORY = "compression_summary"
 
-# Compression model: Gemini 3 Flash (fast, cheap, 1M context)
-COMPRESSION_MODEL_ID = "gemini-3-flash-preview"
-COMPRESSION_MODEL_SERVER = "google_ai_studio"  # Default server for Gemini Flash
+# Compression model: Gemini Flash-Lite (cheap, high-context summarization path)
+COMPRESSION_MODEL_ID = "gemini-3.5-flash-lite"
+COMPRESSION_MODEL_SERVER = "google_ai_studio"  # Default server for Gemini Flash-Lite
 CEREBRAS_COMPRESSION_FALLBACK_MODEL_ID = os.getenv(
     "CEREBRAS_COMPRESSION_FALLBACK_MODEL_ID",
     "gpt-oss-120b",
@@ -128,6 +128,7 @@ def should_compress(
 
 def split_history_for_compression(
     message_history: List[Dict[str, Any]],
+    force_latest_assistant_tail_split: bool = False,
 ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
     """Split message history into messages to compress and recent messages to keep.
 
@@ -140,6 +141,12 @@ def split_history_for_compression(
 
     Args:
         message_history: Full message history in chronological order (oldest first).
+        force_latest_assistant_tail_split: When compression has already been
+            triggered, force older messages before the latest assistant response
+            into the compressed set even if they fit within the fixed recent
+            window budget. This keeps low admin thresholds from producing an
+            empty compression set while preserving the latest assistant + user
+            follow-up tail for immediate context.
 
     Returns:
         Tuple of (messages_to_compress, recent_messages).
@@ -181,7 +188,10 @@ def split_history_for_compression(
         split_index = i
 
     if protected_tail_start is not None:
-        split_index = min(split_index, protected_tail_start)
+        if force_latest_assistant_tail_split and split_index < protected_tail_start:
+            split_index = protected_tail_start
+        else:
+            split_index = min(split_index, protected_tail_start)
 
     # Split the history
     messages_to_compress = message_history[:split_index]
@@ -360,7 +370,10 @@ async def compress_chat_history(
     )
 
     # Split history
-    messages_to_compress, recent_messages = split_history_for_compression(message_history)
+    messages_to_compress, recent_messages = split_history_for_compression(
+        message_history,
+        force_latest_assistant_tail_split=True,
+    )
 
     if not messages_to_compress:
         logger.info(f"{log_prefix} No messages to compress after split. Skipping.")
@@ -486,7 +499,10 @@ async def get_admin_compression_threshold(
         Custom threshold in tokens, or None to use the default.
     """
     try:
-        override = await cache_service.redis_client.get(
+        redis_client = await cache_service.client
+        if redis_client is None:
+            return None
+        override = await redis_client.get(
             f"{ADMIN_COMPRESSION_THRESHOLD_CACHE_KEY}:{user_id}"
         )
         if override:

@@ -1,0 +1,1046 @@
+schema_version: 2
+id: scalable-chat-message-windowing
+title: Scalable Chat Message Windowing
+status: implementing
+
+goal: >
+  Make large chats scale safely across web, shared links, CLI, SDK, and Apple by
+  using a bounded 30-message viewing window, encrypted IndexedDB page caching,
+  automatic normal-history paging, and explicit forgotten-history reveal without
+  changing existing full-history sync, repair, recovery, export, or login semantics.
+
+scope:
+  in:
+    - Additive bounded normal-message window contract for authenticated first-party clients.
+    - Additive bounded normal-message window contract for API-key SDK clients.
+    - Shared-chat normal message windows unified to a 30-message default.
+    - Shared-chat compression summaries and explicit forgotten-message pages available to shared viewers under existing share access and share_pii rules.
+    - Web active chat opening around last_visible_message_id when possible, otherwise latest 30.
+    - Web automatic normal older-message loading on upward scroll, replacing the normal Show older messages primary button.
+    - Web decrypted UI state pruning with target 60 and hard cap 90 normal messages.
+    - IndexedDB as an encrypted LRU page cache for viewed normal-history pages, with conservative safe exclusions.
+    - CLI chats show defaulting to latest 30 unless --all is explicitly passed.
+    - npm SDK bounded chat messages API and iterator while preserving chats.load(chatId) full-history compatibility.
+    - Pip SDK bounded chat messages API and iterator if the Python SDK package is present for this surface.
+    - Tests proving startup/login phased sync and request_chat_content_batch semantics are not changed.
+  out:
+    - Repurposing request_chat_content_batch or changing its full-history repair/recovery semantics.
+    - Treating messages_v as proof that every message row is cached locally.
+    - Replacing account export, per-chat export, or debug full-history hydration behavior.
+    - Reintroducing forgotten raw messages into active AI context after visual reveal.
+    - Adding a new owner-level setting to exclude forgotten messages from shared links.
+    - Full Apple implementation before API, CLI, SDK, web, and user-confirmed dev behavior are verified.
+    - A breaking change to npm SDK chats.load(chatId).
+
+context_discovery:
+  github_issues:
+    - "GitHub MCP get_me returned 401 Bad credentials during discovery; issue search could not run in this environment."
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/specs/long-chat-compression-history/spec.yml
+    - docs/specs/apple-chat-opening-parity/spec.yml
+    - docs/specs/apple-live-chat-accessibility-fixes/spec.yml
+    - docs/architecture/frontend/virtual-scrolling-chat-history.md
+    - docs/user-guide/cli/chats.md
+  code_patterns:
+    - frontend/packages/ui/src/services/db/messageOperations.ts currently defaults local windows to 40 and max 100.
+    - frontend/packages/ui/src/components/ActiveChat.svelte reads local windows but falls back to request_chat_content_batch when local messages are absent.
+    - frontend/packages/ui/src/components/ChatHistory.svelte renders the normal Show older messages button and already gates forgotten history separately.
+    - frontend/apps/web_app/src/routes/share/chat/[chatId]/+page.svelte fetches shared manifest plus a 40-message shared message window.
+    - backend/core/api/app/routes/handlers/websocket_handlers/chat_content_batch_handler.py returns full encrypted histories for requested chats.
+    - backend/core/api/app/routes/chats.py exposes session-authenticated full encrypted message reads.
+    - backend/core/api/app/routes/sdk.py exposes API-key chats.load full encrypted message reads.
+    - backend/core/api/app/routes/share.py already returns encrypted shared compression checkpoints and can page old checkpoint messages.
+    - frontend/packages/openmates-cli/src/cli.ts uses full-history chat load for chats show.
+    - frontend/packages/openmates-cli/src/sdk.ts has chats.load(chatId) full-history compatibility but no bounded messages API.
+  tests:
+    - frontend/packages/ui/src/services/db/__tests__/messageWindowOperations.test.ts
+    - backend/tests/test_native_chats_api.py
+    - backend/tests/test_share_chat_window_loading.py
+    - backend/tests/test_chat_compression_checkpoint_handler.py
+    - frontend/apps/web_app/tests/startup-sync-contract.spec.ts
+    - frontend/apps/web_app/tests/show-more-chats-flow.spec.ts
+    - frontend/apps/web_app/tests/long-chat-history.spec.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/sdk.test.ts
+    - packages/openmates-python/tests/test_sdk.py
+  risk_assessment:
+    - Changing request_chat_content_batch in place is high risk because startup sync, recovery, and repair flows depend on full-history hydration.
+    - Safe implementation is additive: new bounded window contract, separate page-cache metadata, and existing full-history paths preserved for repair/recovery/export/debug.
+
+apple_impact:
+  affected_files:
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Core/Persistence/ChatStore.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineStore.swift
+    - apple/OpenMates/Sources/Core/Networking/SyncManager.swift
+  parity_expectations:
+    - Apple should eventually consume the same bounded message-window contract and keep full sync semantics separate from viewing-window semantics.
+    - Existing Apple chat-opening specs already require bounded window behavior; this web/API/SDK spec must not invalidate those expectations.
+  verification:
+    - python3 scripts/apple_remote.py status after web/API/SDK implementation.
+    - build-ios or test-ios after user-confirmed dev web behavior, unless Apple is explicitly deferred by user-approved blocker.
+  intentional_native_differences:
+    - Native scrolling and page-trigger affordances may be platform-specific, but the data contract and forgotten-history gate must match.
+
+clarification:
+  rounds:
+    - question: Should IndexedDB cache normal older pages or keep them memory-only?
+      answer: Use IndexedDB as an encrypted LRU page cache for normal history, with memory-only decrypted UI windows.
+    - question: Is this high risk for sync/login architecture?
+      answer: Yes if request_chat_content_batch is changed. Use the safe additive implementation and ensure sync is not broken.
+    - question: Should the page/window default become 30, with UI caps target 60 and hard 90?
+      answer: Yes.
+    - question: Should shared chats include compression summaries and old forgotten messages?
+      answer: Yes. Shared viewers should access compressed summaries and explicit forgotten pages under existing share permissions and share_pii.
+    - question: Should SDK compatibility be preserved?
+      answer: Yes. Keep SDK chats.load full-history compatibility, add bounded messages/iterator APIs, and make CLI show bounded by default with --all.
+    - question: Should IndexedDB eviction be included in the first implementation?
+      answer: Yes, using conservative safe exclusions.
+  vision_summary: >
+    OpenMates should stop treating normal chat viewing as full-history hydration,
+    while preserving full-history sync and recovery contracts. Users should open
+    large chats at their saved position or latest 30 messages, scroll normally to
+    auto-load active history, and reveal forgotten compressed history only through
+    the explicit existing gate. Shared viewers, CLI users, and SDK developers get
+    the same bounded normal-history model without breaking compatibility escapes.
+  approved_by_user: true
+
+implementation_state:
+  subject_commit: "502629ed4"
+
+approvals:
+  product_contract:
+    status: approved
+    approved_at: "2026-07-22"
+    reason: User approved the summarized product contract and explicitly asked to write and implement.
+  implementation_plan:
+    status: approved
+    approved_at: "2026-07-22"
+    reason: User approved the safe additive migration strategy and requested implementation.
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Keep request_chat_content_batch full-history semantics unchanged in the first slice.
+    reason: Startup sync, repair, and recovery flows rely on it as a full encrypted history hydration path.
+    decided_at: "2026-07-22"
+  - id: D-2
+    status: active
+    decision: Use 30 as the default normal message-window/page size across web, share, CLI, and SDK viewing APIs.
+    reason: Mobile and long-chat performance should be more conservative than the earlier 40-message window.
+    decided_at: "2026-07-22"
+  - id: D-3
+    status: active
+    decision: Treat IndexedDB as an encrypted LRU page cache, not as active decrypted chat state.
+    reason: This preserves scroll restoration and avoids repeated network/decryption churn while keeping UI memory bounded.
+    decided_at: "2026-07-22"
+  - id: D-4
+    status: active
+    decision: Shared links include compression summaries and explicit forgotten pages under existing share access and share_pii behavior.
+    reason: A shared chat should be readable as the owner intentionally shared it, without adding a new share setting in this slice.
+    decided_at: "2026-07-22"
+  - id: D-5
+    status: active
+    decision: Preserve SDK chats.load(chatId) full-history behavior for compatibility.
+    reason: Bounded SDK history should be additive through new messages APIs, not a breaking behavior change.
+    decided_at: "2026-07-22"
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    approach: Repurpose request_chat_content_batch to return bounded pages.
+    outcome: rejected
+    recorded_at: "2026-07-22"
+    notes: Chat-sync risk review found this could break startup sync, recovery, and version/completeness invariants.
+
+handoff:
+  current_task_id: TASK-9
+  next_action: Run the remaining deployed dev-server REST and Playwright gates, then record user confirmation or Apple deferral.
+  command: python3 scripts/spec_verify.py docs/specs/scalable-chat-message-windowing/spec.yml --phase green
+  expected_outcome: Spec remains incomplete until deployed web/manual gates have current green or blocked evidence.
+  blocker:
+    task_id: TASK-9
+    requires_user_input: false
+    reason: Real dev-server REST verification requires an authenticated test session/API key not available in this shell.
+    next_action: Run curl checks against https://api.dev.openmates.org with a real test session/API key after deployment.
+  last_verified_commit: "502629ed4"
+
+scenarios:
+  - id: S-1
+    title: Owner opens a large chat without full-history hydration
+    given:
+      - Alice owns a chat with 300 durable encrypted messages.
+      - Alice has no compression checkpoint in that chat.
+    when:
+      - Alice opens the chat in the web app.
+    then:
+      - The app loads a bounded 30-message normal window from IndexedDB or the new bounded server path.
+      - If Alice has last_visible_message_id, the window is centered around that message when possible.
+      - If no saved position exists, the latest 30 messages are shown.
+      - request_chat_content_batch is not sent for normal viewing when a bounded server window can satisfy the open.
+
+  - id: S-2
+    title: Normal older messages auto-load on scroll
+    given:
+      - Alice is viewing a normal active message window with older active messages available.
+    when:
+      - Alice scrolls near the top of the loaded normal window.
+    then:
+      - The next older normal 30-message page loads automatically once.
+      - The scroll anchor is preserved after prepending messages.
+      - The primary Show older messages button is no longer required for normal active history.
+      - Only one load per direction can be in flight for the chat.
+
+  - id: S-3
+    title: Web keeps decrypted UI state small
+    given:
+      - Alice scrolls through more than 90 normal messages in a chat.
+    when:
+      - New normal pages are loaded.
+    then:
+      - Decrypted Svelte message state targets 60 normal messages and is pruned before exceeding 90 normal messages.
+      - Streaming, sending, failed, permission, highlighted, visible, latest-page, and last-viewed messages are not pruned unsafely.
+      - IndexedDB can retain encrypted viewed pages according to the page cache budget.
+
+  - id: S-4
+    title: IndexedDB caches viewed encrypted pages without implying full sync
+    given:
+      - Alice has viewed latest and older pages for a chat.
+    when:
+      - Alice switches chats and later returns.
+    then:
+      - Cached encrypted pages can satisfy matching windows without refetching.
+      - Page-cache metadata records cached ranges and cursors separately from messages_v.
+      - Eviction never deletes pending, offline, streaming, recovery, active visible, latest-page, or last-viewed page messages.
+      - Partial page cache does not mark full chat history as locally complete.
+
+  - id: S-5
+    title: Compressed and forgotten history stay explicitly gated
+    given:
+      - Alice opens a chat with a compression checkpoint and pre-checkpoint forgotten raw messages.
+    when:
+      - Alice opens the chat and scrolls normal active history.
+    then:
+      - Compression summary metadata is available without fetching forgotten raw pages.
+      - Forgotten raw pages are not auto-loaded before Alice clicks Show old forgotten messages.
+      - After explicit reveal, forgotten pages load in bounded 30-message pages and render faded.
+      - Revealed forgotten raw messages do not re-enter active AI context.
+
+  - id: S-6
+    title: Shared viewer receives the same readable boundaries
+    given:
+      - Bob opens a shared-chat link for a chat with normal older messages and compression checkpoints.
+    when:
+      - Bob opens the link and scrolls or reveals forgotten history.
+    then:
+      - The shared page loads a latest 30-message normal window by default.
+      - Shared compression summaries render from encrypted checkpoint metadata.
+      - Bob can explicitly reveal old forgotten messages behind the same button.
+      - share_pii=false strips encrypted_pii_mappings from all shared normal and forgotten pages.
+      - The share URL fragment key remains client-only and is not sent to the server.
+
+  - id: S-7
+    title: CLI and SDK use bounded viewing APIs by default
+    given:
+      - Alice has a 300-message saved chat.
+    when:
+      - Alice runs openmates chats show <chat> without flags or developer code calls the new SDK messages API.
+    then:
+      - CLI prints the latest 30 messages by default and indicates that more history exists.
+      - CLI --all explicitly uses the compatibility full-history path.
+      - npm and pip SDK messages APIs return bounded windows and iterators page safely.
+      - npm SDK chats.load(chatId) remains full-history compatible.
+
+  - id: S-8
+    title: Startup sync and recovery semantics are preserved
+    given:
+      - Alice logs in on a browser with empty IndexedDB and server-side chats.
+    when:
+      - Startup phased sync, recovery checks, and normal chat opening run.
+    then:
+      - Phased sync still reaches its normal complete state.
+      - Existing full-history request_chat_content_batch responses still update full-history repair/recovery state.
+      - Bounded window responses do not set flags that suppress future missing-page or full-repair fetches.
+      - No re-sync loop is caused by partial page caches.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Owner web chat opening uses a 30-message bounded window around last_visible_message_id or latest messages without using request_chat_content_batch as the normal viewing path.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-BACKEND-NATIVE-WINDOW, T-WEB-WINDOW-OPEN]
+  - id: AC-2
+    scenario: S-2
+    text: Normal active older messages auto-load in 30-message pages on upward scroll with scroll anchor preservation and single-flight loading.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids: [T-WEB-AUTO-LOAD]
+  - id: AC-3
+    scenario: S-3
+    text: Web active decrypted normal-message state targets 60 messages, hard-caps at 90, and preserves unsafe-to-prune messages.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_frontend
+    verification_ids: [T-VITEST-UI-PRUNING]
+  - id: AC-4
+    scenario: S-4
+    text: IndexedDB records encrypted page-cache metadata separately from messages_v and evicts only safe cached pages.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_frontend
+    verification_ids: [T-VITEST-PAGE-CACHE]
+  - id: AC-5
+    scenario: S-5
+    text: Compression summaries remain visible and forgotten raw messages remain explicitly gated, bounded, faded, and excluded from active AI context.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-BACKEND-COMPRESSION-WINDOW, T-WEB-FORGOTTEN-GATE]
+  - id: AC-6
+    scenario: S-6
+    text: Shared chats default to 30-message windows and expose encrypted compression summaries plus explicit forgotten pages while preserving share_pii and fragment-key boundaries.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-BACKEND-SHARE-WINDOW, T-WEB-SHARE-COMPRESSION]
+  - id: AC-7
+    scenario: S-7
+    text: CLI and SDK default normal viewing APIs are bounded to 30 while explicit compatibility APIs remain available for full history.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-CLI-CHAT-WINDOW, T-NPM-SDK-MESSAGES, T-PIP-SDK-MESSAGES]
+  - id: AC-8
+    scenario: S-8
+    text: Startup phased sync, recovery, and request_chat_content_batch full-history semantics are unchanged and covered by regression tests.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-WEB-STARTUP-SYNC, T-WEB-EMPTY-IDB-RECOVERY, T-BACKEND-SYNC-FULL-CONTENT]
+
+contracts:
+  api:
+    - route: GET /v1/chats/{chat_id}/messages/window
+      access_model: first-party client surface only
+      auth: session auth; owner or authorized team membership required before encrypted reads
+      rate_limits: existing first-party API limits plus normal auth throttling
+      request: direction latest|before|after|around, limit default 30 max 100, before/after cursors, optional anchor_message_id, optional respect_compression_boundary=true
+      response: encrypted messages only, has_more_before, has_more_after, start_cursor, end_cursor, anchor_found, server_message_count, compression_boundary_timestamp, compression_checkpoints metadata when relevant
+      encryption: returns client-side encrypted chat data only; no plaintext private chat content or keys
+    - route: GET /v1/sdk/chats/{chat_id}/messages
+      access_model: developer API-key REST API
+      auth: API key with chat:read_existing and approved device when required by existing SDK chat read policy
+      rate_limits: SDK route limits and API-key budgets where applicable
+      request: same bounded window query as first-party route
+      response: same encrypted bounded message-window envelope plus wrappers needed by SDK decryption when not already loaded
+      encryption: returns client-side encrypted chat data only; no plaintext account master keys or chat keys
+    - route: GET /v1/share/chat/{chat_id}/messages
+      access_model: unauthenticated public share REST API scoped by unguessable shared chat id and client-only fragment key
+      auth: public share lookup; URL fragment key never sent
+      request: limit default 30 max 100, before cursor, target_message_id, optional checkpoint_id for forgotten pages
+      response: encrypted shared messages, has_more, next_before cursor, checkpoint metadata fields where relevant
+      encryption: returns encrypted data only and strips encrypted_pii_mappings unless share_pii is true
+    - route: WebSocket request_chat_content_batch
+      access_model: first-party internal sync/repair path
+      contract: unchanged full-history response semantics in this spec
+  data:
+    - messages_v remains a server message-version/count signal and must not be used as proof that all pages are cached in IndexedDB.
+    - IndexedDB stores encrypted messages and page-cache metadata; Svelte stores only decrypted active UI windows.
+    - Cached page metadata records chat_id, direction/range cursors, start/end cursors, has_more flags, cached_at, last_accessed_at, page_kind normal|forgotten, and cache generation.
+    - Eviction excludes active chat visible-window messages, pending/offline local messages, streaming/sending/processing/failed messages, recovery-related messages, latest page, last-viewed page, and explicitly revealed forgotten pages until chat close.
+  ui_states:
+    - Initial latest 30 window.
+    - Initial around-last-visible window.
+    - Normal older page auto-loading.
+    - Normal page-load retry/error affordance.
+    - Compression summary collapsed forgotten range.
+    - Explicit forgotten reveal and additional forgotten page loading.
+    - Shared read-only normal and forgotten history.
+  privacy_security:
+    - Bounded endpoints must authorize before encrypted reads and hide cross-user chat existence using existing 404/permission behavior.
+    - Shared endpoints must not receive URL fragment keys and must not widen access beyond existing shared encrypted records.
+    - No endpoint added by this spec returns decrypted private message content.
+    - Logs and test artifacts must not include plaintext private user data, raw encryption keys, private emails, or share URL fragments.
+
+tests:
+  - id: T-BACKEND-NATIVE-WINDOW
+    type: unit
+    file: backend/tests/test_native_chats_api.py
+    command: pytest backend/tests/test_native_chats_api.py
+    covers: [AC-1]
+    assertions:
+      - session message-window route requires current user auth
+      - owner access is checked before encrypted reads
+      - latest default returns 30 encrypted messages and has_more_before for a 101-message chat
+      - around anchor returns bounded neighbors and anchor_found
+      - request_chat_content_batch is not part of the route
+    red_phase:
+      required: true
+      expected: fail
+      evidence: { status: pending }
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: docker exec api pytest /app/backend/tests/test_native_chats_api.py /app/backend/tests/test_share_chat_window_loading.py /app/backend/tests/test_chat_compression_checkpoint_handler.py /app/backend/tests/test_sdk_cli_parity_api_key_auth.py -k 'chat_messages or chat_message_window or shared or compression or server_message_count'
+        run_id: local-docker-backend-windowing-20260722T2244Z
+        subject_commit: "502629ed4"
+        timestamp: "2026-07-22T22:44:00Z"
+        summary: "Selected backend windowing routes passed; native route returned 30 encrypted rows, has_more metadata, compression boundary metadata, and avoided full-message reads."
+  - id: T-BACKEND-SHARE-WINDOW
+    type: unit
+    file: backend/tests/test_share_chat_window_loading.py
+    command: pytest backend/tests/test_share_chat_window_loading.py
+    covers: [AC-6]
+    assertions:
+      - shared message windows default to 30
+      - manifest includes encrypted compression checkpoints
+      - checkpoint forgotten pages are available by explicit checkpoint_id
+      - share_pii=false strips encrypted_pii_mappings from normal and forgotten pages
+    red_phase:
+      required: true
+      expected: fail
+      evidence: { status: pending }
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: docker exec api pytest /app/backend/tests/test_native_chats_api.py /app/backend/tests/test_share_chat_window_loading.py /app/backend/tests/test_chat_compression_checkpoint_handler.py /app/backend/tests/test_sdk_cli_parity_api_key_auth.py -k 'chat_messages or chat_message_window or shared or compression or server_message_count'
+        run_id: local-docker-backend-windowing-20260722T2244Z
+        subject_commit: "502629ed4"
+        timestamp: "2026-07-22T22:44:00Z"
+        summary: "Shared chat manifest/window tests passed, including 30-message default, checkpoint metadata, forgotten checkpoint pages, PII stripping, and non-enumeration behavior."
+  - id: T-BACKEND-COMPRESSION-WINDOW
+    type: unit
+    file: backend/tests/test_chat_compression_checkpoint_handler.py
+    command: pytest backend/tests/test_chat_compression_checkpoint_handler.py
+    covers: [AC-5]
+    assertions:
+      - old forgotten pages remain explicit and bounded to 30 by default
+      - checkpoint boundary prevents normal windows from leaking forgotten messages when respect_compression_boundary is true
+    red_phase:
+      required: true
+      expected: fail
+      evidence: { status: pending }
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: docker exec api pytest /app/backend/tests/test_native_chats_api.py /app/backend/tests/test_share_chat_window_loading.py /app/backend/tests/test_chat_compression_checkpoint_handler.py /app/backend/tests/test_sdk_cli_parity_api_key_auth.py -k 'chat_messages or chat_message_window or shared or compression or server_message_count'
+        run_id: local-docker-backend-windowing-20260722T2244Z
+        subject_commit: "502629ed4"
+        timestamp: "2026-07-22T22:44:00Z"
+        summary: "Forgotten-message checkpoint handler tests passed, including default 30-message pages and checkpoint-boundary clamping."
+  - id: T-BACKEND-SYNC-FULL-CONTENT
+    type: unit
+    file: backend/tests/test_phased_sync_handler.py
+    command: pytest backend/tests/test_phased_sync_handler.py::test_phase1b_refetches_directus_when_sync_cache_is_partial
+    covers: [AC-8]
+    assertions:
+      - phased startup sync still refetches complete Directus message rows when sync cache history is partial
+      - bounded message-window routes remain additive and do not replace full-history sync repair reads
+    red_phase:
+      required: true
+      expected: fail
+      evidence: { status: pending }
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: docker exec api pytest /app/backend/tests/test_phased_sync_handler.py::test_phase1b_refetches_directus_when_sync_cache_is_partial
+        run_id: local-docker-phased-sync-full-content-20260722T2246Z
+        subject_commit: "502629ed4"
+        timestamp: "2026-07-22T22:46:00Z"
+        summary: "Phase 1b regression passed and still returns the complete Directus message rows plus server_message_count when cache content is partial."
+  - id: T-VITEST-PAGE-CACHE
+    type: unit
+    file: frontend/packages/ui/src/services/db/__tests__/messageWindowOperations.test.ts
+    command: pnpm --filter @repo/ui test -- messageWindowOperations
+    covers: [AC-4]
+    assertions:
+      - local message window default is 30
+      - page-cache metadata is independent from messages_v
+      - LRU eviction preserves safe-excluded messages and pages
+    red_phase:
+      required: true
+      expected: fail
+      evidence: { status: pending }
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 scripts/tests.py run --suite vitest
+        run_id: "2026-07-22T22:47:23Z"
+        subject_commit: "502629ed4"
+        timestamp: "2026-07-22T22:48:22Z"
+        summary: "Vitest suite passed 625/625, including messageWindowOperations page-cache metadata and safe-eviction coverage."
+  - id: T-VITEST-UI-PRUNING
+    type: unit
+    file: frontend/packages/ui/src/components/__tests__/chatHistoryWindowPruning.test.ts
+    command: pnpm --filter @repo/ui test -- chatHistoryWindowPruning
+    covers: [AC-3]
+    assertions:
+      - decrypted UI state prunes toward 60 normal messages and never exceeds 90 after loading a page
+      - unsafe-to-prune messages remain present
+    red_phase:
+      required: true
+      expected: fail
+      evidence: { status: pending }
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 scripts/tests.py run --suite vitest
+        run_id: "2026-07-22T22:47:23Z"
+        subject_commit: "502629ed4"
+        timestamp: "2026-07-22T22:48:22Z"
+        summary: "Vitest suite passed 625/625, including ChatHistory window-pruning coverage for target 60, hard cap 90, and unsafe-message preservation."
+  - id: T-CLI-CHAT-WINDOW
+    type: unit
+    file: frontend/packages/openmates-cli/tests/cli.test.ts
+    command: pnpm --filter openmates-cli test -- cli.test.ts
+    covers: [AC-7]
+    assertions:
+      - chats show defaults to latest 30 through bounded message API
+      - chats show --all uses full-history compatibility path
+      - output indicates when more history exists
+    red_phase:
+      required: true
+      expected: fail
+      evidence: { status: pending }
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: node --test --experimental-strip-types --test-name-pattern 'shows API-key chat history through bounded windows by default|shows API-key full chat history only with --all' tests/cli.test.ts
+        run_id: local-node-cli-bounded-show-20260722T2249Z
+        subject_commit: "502629ed4"
+        timestamp: "2026-07-22T22:49:00Z"
+        summary: "Focused compiled CLI tests passed for bounded default chats show and explicit --all full-history path after rebuilding dist with tsup. Full cli.test.ts has one unrelated app-skill error-formatting failure."
+  - id: T-NPM-SDK-MESSAGES
+    type: unit
+    file: frontend/packages/openmates-cli/tests/sdk.test.ts
+    command: pnpm --filter openmates-cli test -- sdk.test.ts
+    covers: [AC-7]
+    assertions:
+      - sdk.chats.messages returns bounded decrypted windows
+      - sdk.chats.iterMessages pages without calling chats.load full-history path
+      - sdk.chats.load remains compatible
+    red_phase:
+      required: true
+      expected: fail
+      evidence: { status: pending }
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: node --test --experimental-strip-types --loader ./tests/loader.mjs tests/sdk.test.ts
+        run_id: local-node-npm-sdk-20260722T2244Z
+        subject_commit: "502629ed4"
+        timestamp: "2026-07-22T22:44:00Z"
+        summary: "npm SDK tests passed 31/31, including bounded chats.messages, message paging, and chats.load full-history compatibility."
+  - id: T-PIP-SDK-MESSAGES
+    type: unit
+    file: packages/openmates-python/tests/test_sdk.py
+    command: pytest packages/openmates-python/tests/test_sdk.py
+    covers: [AC-7]
+    assertions:
+      - Python SDK exposes bounded chat messages and iterator APIs when package exists
+      - Python SDK keeps existing load compatibility if present
+    red_phase:
+      required: true
+      expected: fail
+      evidence: { status: pending }
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest packages/openmates-python/tests/test_sdk.py
+        run_id: local-python-sdk-20260722T2244Z
+        subject_commit: "502629ed4"
+        timestamp: "2026-07-22T22:44:00Z"
+        summary: "Python SDK tests passed 37/37, including bounded chat messages and iterator compatibility."
+  - id: T-WEB-STARTUP-SYNC
+    type: playwright
+    file: frontend/apps/web_app/tests/startup-sync-contract.spec.ts
+    command: python3 scripts/tests.py run --spec startup-sync-contract.spec.ts
+    target: app.dev.openmates.org
+    covers: [AC-8]
+    assertions:
+      - startup phased sync still completes
+      - startup does not depend on bounded viewing windows for full-history repair state
+      - no unbounded background message sync is triggered by normal active chat opening when a bounded window suffices
+    red_phase:
+      required: true
+      expected: fail
+      evidence: { status: pending }
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence: { status: pending }
+  - id: T-WEB-EMPTY-IDB-RECOVERY
+    type: playwright
+    file: frontend/apps/web_app/tests/chat-sync-empty-indexeddb-recovery.spec.ts
+    command: python3 scripts/tests.py run --spec chat-sync-empty-indexeddb-recovery.spec.ts
+    target: app.dev.openmates.org
+    covers: [AC-8]
+    assertions:
+      - empty IndexedDB plus server chats does not produce a sync loop
+      - partial page cache does not masquerade as full local history
+    red_phase:
+      required: true
+      expected: fail
+      evidence: { status: pending }
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence: { status: pending }
+  - id: T-WEB-WINDOW-OPEN
+    type: playwright
+    file: frontend/apps/web_app/tests/long-chat-history.spec.ts
+    command: python3 scripts/tests.py run --spec long-chat-history.spec.ts
+    target: app.dev.openmates.org
+    covers: [AC-1, AC-5]
+    assertions:
+      - initial long-chat visible source-message count is 30
+      - owner open restores last-visible message when available
+      - normal owner viewing path does not send request_chat_content_batch when bounded route succeeds
+    red_phase:
+      required: true
+      expected: fail
+      evidence: { status: pending }
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence: { status: pending }
+  - id: T-WEB-AUTO-LOAD
+    type: playwright
+    file: frontend/apps/web_app/tests/long-chat-history.spec.ts
+    command: python3 scripts/tests.py run --spec long-chat-history.spec.ts
+    target: app.dev.openmates.org
+    covers: [AC-2]
+    assertions:
+      - upward scroll auto-loads an older normal page without clicking Show older messages
+      - scroll anchor remains stable after prepend
+      - only one older-page request is in flight
+    red_phase:
+      required: true
+      expected: fail
+      evidence: { status: pending }
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence: { status: pending }
+  - id: T-WEB-FORGOTTEN-GATE
+    type: playwright
+    file: frontend/apps/web_app/tests/long-chat-history.spec.ts
+    command: python3 scripts/tests.py run --spec long-chat-history.spec.ts
+    target: app.dev.openmates.org
+    covers: [AC-5]
+    assertions:
+      - forgotten messages are not loaded before Show old forgotten messages
+      - explicit reveal loads 30-message forgotten pages and faded rows
+    red_phase:
+      required: true
+      expected: fail
+      evidence: { status: pending }
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence: { status: pending }
+  - id: T-WEB-SHARE-COMPRESSION
+    type: playwright
+    file: frontend/apps/web_app/tests/shared-chat-open.spec.ts
+    command: python3 scripts/tests.py run --spec shared-chat-open.spec.ts
+    target: app.dev.openmates.org
+    covers: [AC-6]
+    assertions:
+      - shared initial window is 30 messages
+      - shared compression summary renders from manifest checkpoint metadata
+      - shared forgotten reveal fetches explicit checkpoint page and strips PII mappings when share_pii=false
+    red_phase:
+      required: true
+      expected: fail
+      evidence: { status: pending }
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence: { status: pending }
+
+verifications:
+  - id: V-REST-DEV
+    kind: manual_check
+    phase: green
+    required_for_done: true
+    status: blocked
+    command: curl against https://api.dev.openmates.org bounded message-window endpoints with a real test session/API key
+    covers: [AC-1, AC-6, AC-7, AC-8]
+    evidence:
+      status: blocked
+      actor: opencode
+      reason: Authenticated curl checks require a real dev test session/API key that is not available in this shell.
+      next_action: Run after deployment with valid test credentials against https://api.dev.openmates.org.
+      summary: "Not run locally; Docker route/unit coverage passed, but real dev REST remains outstanding."
+      timestamp: "2026-07-22T22:54:01Z"
+  - id: V-AUDIT-PARITY
+    kind: deterministic_check
+    phase: green
+    required_for_done: true
+    status: passed
+    command: python3 scripts/audit_sdk_cli_parity.py
+    covers: [AC-7]
+    evidence:
+      status: passed
+      command: python3 scripts/audit_sdk_cli_parity.py
+      run_id: local-sdk-cli-parity-20260722T2246Z
+      subject_commit: "502629ed4"
+      summary: "sdk-cli-parity checked 80 command entries and 4 workflow template transport entries."
+      timestamp: "2026-07-22T22:46:00Z"
+  - id: V-APPLE-STATUS
+    kind: manual_check
+    phase: final
+    required_for_done: false
+    status: pending
+    command: python3 scripts/apple_remote.py status
+    covers: [AC-1, AC-2, AC-5]
+    evidence:
+      status: ""
+      summary: "Run Apple status/build or record an approved Apple deferral after web confirmation."
+      timestamp: ""
+
+implementation_plan:
+  spec_path: docs/specs/scalable-chat-message-windowing/spec.yml
+  existing_patterns:
+    - docs/specs/long-chat-compression-history/spec.yml
+    - docs/specs/apple-chat-opening-parity/spec.yml
+    - frontend/packages/ui/src/services/db/messageOperations.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - backend/core/api/app/routes/share.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/chat_content_batch_handler.py
+  architecture: >
+    Keep viewing windows additive and separate from sync completeness. Existing
+    full-history request_chat_content_batch remains the repair/recovery/export
+    hammer, while new bounded REST/SDK/share APIs satisfy normal chat viewing.
+    IndexedDB caches encrypted pages with explicit range metadata; the web UI
+    keeps only a small decrypted active window.
+  data_flow:
+    - Chat open asks local IndexedDB for a 30-message window around last_visible_message_id or the latest 30 messages.
+    - If the matching encrypted page is missing locally, the client requests the new bounded message-window endpoint and stores the encrypted page plus range metadata.
+    - Upward scroll auto-loads the previous normal page while preserving the visible anchor.
+    - Compression summaries are lightweight checkpoint metadata; forgotten raw pages require explicit reveal and use checkpoint paging.
+    - CLI and SDK normal viewing use bounded windows, while explicit --all or chats.load compatibility uses existing full-history paths.
+  affected_files:
+    - path: backend/core/api/app/routes/chats.py
+      reason: First-party bounded message-window endpoint.
+    - path: backend/core/api/app/routes/sdk.py
+      reason: API-key bounded SDK message-window endpoint.
+    - path: backend/core/api/app/routes/share.py
+      reason: Shared 30-message default and checkpoint/forgotten page contract.
+    - path: backend/core/api/app/services/directus/chat_methods.py
+      reason: Shared cursor-window query helper that does not affect full-history fetches.
+    - path: frontend/packages/ui/src/services/db/messageOperations.ts
+      reason: 30-message default, page-cache metadata, and safe eviction helpers.
+    - path: frontend/packages/ui/src/components/ActiveChat.svelte
+      reason: Bounded server-window loading and sync-safe fallback behavior.
+    - path: frontend/packages/ui/src/components/ChatHistory.svelte
+      reason: Auto-load sentinel, pruning, and forgotten-message gate behavior.
+    - path: frontend/apps/web_app/src/routes/share/chat/[chatId]/+page.svelte
+      reason: Shared page size and compression boundary propagation.
+    - path: frontend/packages/openmates-cli/src/client.ts
+      reason: Session CLI bounded chat message fetch/decrypt path.
+    - path: frontend/packages/openmates-cli/src/cli.ts
+      reason: chats show bounded default and --all escape.
+    - path: frontend/packages/openmates-cli/src/sdk.ts
+      reason: npm SDK bounded messages and iterator API.
+    - path: packages/openmates-python
+      reason: Pip SDK parity if this repository contains the relevant Python SDK surface.
+  verification_strategy:
+    - Validate this spec before implementation.
+    - Backend unit tests prove new bounded endpoints and unchanged request_chat_content_batch semantics.
+    - CLI and SDK unit/contract tests prove bounded defaults plus full-history escapes.
+    - Frontend unit/Vitest tests prove page-cache metadata, safe eviction, and UI pruning.
+    - Dev-server REST/CLI/SDK evidence runs before web Playwright green evidence.
+    - Web Playwright green evidence runs only after deploy to app.dev.openmates.org.
+    - User confirms deployed web behavior, then Apple status/build or approved deferral is recorded.
+  verification_order:
+    - Backend REST/route contracts first.
+    - CLI second.
+    - npm SDK and pip SDK third.
+    - Web implementation and Playwright fourth after deploy.
+    - User confirmation fifth.
+    - Apple status/build or deferral last.
+
+tasks:
+  - id: TASK-1
+    title: Backend session bounded message-window route
+    status: done
+    phase: working_tasks
+    owner: opencode
+    dependencies: []
+    covers:
+      scenarios: [S-1, S-8]
+      acceptance_criteria: [AC-1, AC-8]
+    expected_files:
+      - backend/core/api/app/routes/chats.py
+      - backend/core/api/app/services/directus/chat_methods.py
+      - backend/tests/test_native_chats_api.py
+    ownership:
+      files:
+        - backend/core/api/app/routes/chats.py
+        - backend/core/api/app/services/directus/chat_methods.py
+        - backend/tests/test_native_chats_api.py
+      shared_files: []
+    verification_ids: [T-BACKEND-NATIVE-WINDOW, T-BACKEND-SYNC-FULL-CONTENT]
+    blockers: []
+    follow_up_tasks: [TASK-2, TASK-3, TASK-6]
+    independently_deployable: false
+    traceability: [S-1, S-8, AC-1, AC-8]
+  - id: TASK-2
+    title: Backend shared-chat 30 default and compression/forgotten contract tests
+    status: done
+    phase: working_tasks
+    owner: opencode
+    dependencies: [TASK-1]
+    covers:
+      scenarios: [S-5, S-6]
+      acceptance_criteria: [AC-5, AC-6]
+    expected_files:
+      - backend/core/api/app/routes/share.py
+      - backend/tests/test_share_chat_window_loading.py
+      - backend/tests/test_chat_compression_checkpoint_handler.py
+    ownership:
+      files:
+        - backend/core/api/app/routes/share.py
+        - backend/tests/test_share_chat_window_loading.py
+        - backend/tests/test_chat_compression_checkpoint_handler.py
+      shared_files: []
+    verification_ids: [T-BACKEND-SHARE-WINDOW, T-BACKEND-COMPRESSION-WINDOW]
+    blockers: []
+    follow_up_tasks: [TASK-8]
+    independently_deployable: false
+    traceability: [S-5, S-6, AC-5, AC-6]
+  - id: TASK-3
+    title: Backend SDK bounded messages endpoint
+    status: done
+    phase: working_tasks
+    owner: opencode
+    dependencies: [TASK-1]
+    covers:
+      scenarios: [S-7]
+      acceptance_criteria: [AC-7]
+    expected_files:
+      - backend/core/api/app/routes/sdk.py
+      - backend/tests/test_sdk_cli_parity_api_key_auth.py
+    ownership:
+      files:
+        - backend/core/api/app/routes/sdk.py
+        - backend/tests/test_sdk_cli_parity_api_key_auth.py
+      shared_files: []
+    verification_ids: [T-NPM-SDK-MESSAGES, T-PIP-SDK-MESSAGES]
+    blockers: []
+    follow_up_tasks: [TASK-4, TASK-5]
+    independently_deployable: false
+    traceability: [S-7, AC-7]
+  - id: TASK-4
+    title: npm SDK bounded messages and iterator API
+    status: done
+    phase: working_tasks
+    owner: opencode
+    dependencies: [TASK-3]
+    covers:
+      scenarios: [S-7]
+      acceptance_criteria: [AC-7]
+    expected_files:
+      - frontend/packages/openmates-cli/src/sdk.ts
+      - frontend/packages/openmates-cli/tests/sdk.test.ts
+    ownership:
+      files:
+        - frontend/packages/openmates-cli/src/sdk.ts
+        - frontend/packages/openmates-cli/tests/sdk.test.ts
+      shared_files: []
+    verification_ids: [T-NPM-SDK-MESSAGES]
+    blockers: []
+    follow_up_tasks: [TASK-5]
+    independently_deployable: false
+    traceability: [S-7, AC-7]
+  - id: TASK-5
+    title: CLI chats show bounded default and --all compatibility
+    status: done
+    phase: working_tasks
+    owner: opencode
+    dependencies: [TASK-3, TASK-4]
+    covers:
+      scenarios: [S-7]
+      acceptance_criteria: [AC-7]
+    expected_files:
+      - frontend/packages/openmates-cli/src/cli.ts
+      - frontend/packages/openmates-cli/src/client.ts
+      - frontend/packages/openmates-cli/tests/cli.test.ts
+      - docs/user-guide/cli/chats.md
+    ownership:
+      files:
+        - frontend/packages/openmates-cli/src/cli.ts
+        - frontend/packages/openmates-cli/src/client.ts
+        - frontend/packages/openmates-cli/tests/cli.test.ts
+        - docs/user-guide/cli/chats.md
+      shared_files: []
+    verification_ids: [T-CLI-CHAT-WINDOW, V-AUDIT-PARITY]
+    blockers: []
+    follow_up_tasks: [TASK-9]
+    independently_deployable: false
+    traceability: [S-7, AC-7]
+  - id: TASK-6
+    title: Web IndexedDB page-cache metadata and safe LRU eviction
+    status: done
+    phase: working_tasks
+    owner: opencode
+    dependencies: [TASK-1]
+    covers:
+      scenarios: [S-4]
+      acceptance_criteria: [AC-4]
+    expected_files:
+      - frontend/packages/ui/src/services/db.ts
+      - frontend/packages/ui/src/services/db/messageOperations.ts
+      - frontend/packages/ui/src/services/db/__tests__/messageWindowOperations.test.ts
+    ownership:
+      files:
+        - frontend/packages/ui/src/services/db.ts
+        - frontend/packages/ui/src/services/db/messageOperations.ts
+        - frontend/packages/ui/src/services/db/__tests__/messageWindowOperations.test.ts
+      shared_files: []
+    verification_ids: [T-VITEST-PAGE-CACHE]
+    blockers: []
+    follow_up_tasks: [TASK-7]
+    independently_deployable: false
+    traceability: [S-4, AC-4]
+  - id: TASK-7
+    title: Web active chat bounded server window loading and auto normal-history paging
+    status: in_progress
+    phase: working_tasks
+    owner: opencode
+    dependencies: [TASK-1, TASK-6]
+    covers:
+      scenarios: [S-1, S-2, S-5]
+      acceptance_criteria: [AC-1, AC-2, AC-5]
+    expected_files:
+      - frontend/packages/ui/src/components/ActiveChat.svelte
+      - frontend/packages/ui/src/components/ChatHistory.svelte
+      - frontend/apps/web_app/tests/long-chat-history.spec.ts
+    ownership:
+      files:
+        - frontend/packages/ui/src/components/ActiveChat.svelte
+        - frontend/packages/ui/src/components/ChatHistory.svelte
+        - frontend/apps/web_app/tests/long-chat-history.spec.ts
+      shared_files: []
+    verification_ids: [T-WEB-WINDOW-OPEN, T-WEB-AUTO-LOAD, T-WEB-FORGOTTEN-GATE]
+    blockers: []
+    follow_up_tasks: [TASK-8, TASK-9]
+    independently_deployable: false
+    traceability: [S-1, S-2, S-5, AC-1, AC-2, AC-5]
+  - id: TASK-8
+    title: Web UI decrypted-window pruning and shared compression boundaries
+    status: in_progress
+    phase: working_tasks
+    owner: opencode
+    dependencies: [TASK-2, TASK-7]
+    covers:
+      scenarios: [S-3, S-6]
+      acceptance_criteria: [AC-3, AC-6]
+    expected_files:
+      - frontend/packages/ui/src/components/ChatHistory.svelte
+      - frontend/apps/web_app/src/routes/share/chat/[chatId]/+page.svelte
+      - frontend/apps/web_app/tests/shared-chat-open.spec.ts
+    ownership:
+      files:
+        - frontend/packages/ui/src/components/ChatHistory.svelte
+        - frontend/apps/web_app/src/routes/share/chat/[chatId]/+page.svelte
+        - frontend/apps/web_app/tests/shared-chat-open.spec.ts
+      shared_files: []
+    verification_ids: [T-VITEST-UI-PRUNING, T-WEB-SHARE-COMPRESSION]
+    blockers: []
+    follow_up_tasks: [TASK-9]
+    independently_deployable: false
+    traceability: [S-3, S-6, AC-3, AC-6]
+  - id: TASK-9
+    title: Sync regression gates and dev-server REST/CLI/SDK verification
+    status: in_progress
+    phase: running_checks
+    owner: opencode
+    dependencies: [TASK-1, TASK-2, TASK-3, TASK-4, TASK-5, TASK-6, TASK-7, TASK-8]
+    covers:
+      scenarios: [S-8]
+      acceptance_criteria: [AC-8]
+    expected_files:
+      - frontend/apps/web_app/tests/startup-sync-contract.spec.ts
+      - frontend/apps/web_app/tests/chat-sync-empty-indexeddb-recovery.spec.ts
+      - scripts/audit_sdk_cli_parity.py
+    ownership:
+      files:
+        - frontend/apps/web_app/tests/startup-sync-contract.spec.ts
+        - frontend/apps/web_app/tests/chat-sync-empty-indexeddb-recovery.spec.ts
+        - scripts/audit_sdk_cli_parity.py
+      shared_files: []
+    verification_ids: [T-WEB-STARTUP-SYNC, T-WEB-EMPTY-IDB-RECOVERY, V-REST-DEV, V-AUDIT-PARITY]
+    blockers: []
+    follow_up_tasks: [TASK-10]
+    independently_deployable: false
+    traceability: [S-8, AC-8]
+  - id: TASK-10
+    title: Deploy, web confirmation, and Apple parity status
+    status: pending
+    phase: running_checks
+    owner: opencode
+    dependencies: [TASK-9]
+    covers:
+      scenarios: [S-1, S-2, S-6]
+      acceptance_criteria: [AC-1, AC-2, AC-6]
+    expected_files:
+      - docs/specs/scalable-chat-message-windowing/spec.yml
+    ownership:
+      files:
+        - docs/specs/scalable-chat-message-windowing/spec.yml
+      shared_files: []
+    verification_ids: [T-WEB-WINDOW-OPEN, T-WEB-AUTO-LOAD, T-WEB-SHARE-COMPRESSION, V-APPLE-STATUS]
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+    traceability: [S-1, S-2, S-6]
+
+risks:
+  - id: R-1
+    risk: Partial page caches could be mistaken for full local sync completeness.
+    mitigation: Keep messages_v separate from page-cache metadata and preserve request_chat_content_batch semantics.
+  - id: R-2
+    risk: Scroll-anchor preservation can regress on mobile when prepending or pruning pages.
+    mitigation: Use explicit anchor message ids and Playwright/mobile viewport coverage.
+  - id: R-3
+    risk: Shared forgotten pages could leak PII mappings when share_pii=false.
+    mitigation: Apply sanitize_shared_pii to every shared page response including checkpoint pages.
+  - id: R-4
+    risk: Eviction could delete pending/offline/recovery records needed for reliability.
+    mitigation: Conservative exclusions and unit tests before enabling eviction.
+
+open_questions: []

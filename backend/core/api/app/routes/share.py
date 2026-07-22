@@ -27,6 +27,8 @@ from backend.core.api.app.services.user_task_share_bundle import get_shared_chat
 
 logger = logging.getLogger(__name__)
 CHAT_COMPRESSION_CHECKPOINT_COLLECTION = "chat_compression_checkpoints"
+DEFAULT_SHARED_MESSAGE_WINDOW_LIMIT = 30
+MAX_SHARED_MESSAGE_WINDOW_LIMIT = 100
 
 router = APIRouter(
     prefix="/v1/share",
@@ -471,7 +473,7 @@ async def get_shared_chat_message_window(
     before_message_id: Optional[str] = Query(default=None),
     target_message_id: Optional[str] = Query(default=None),
     checkpoint_id: Optional[str] = Query(default=None),
-    limit: int = Query(default=40, ge=1, le=100),
+    limit: int = Query(default=DEFAULT_SHARED_MESSAGE_WINDOW_LIMIT, ge=1, le=MAX_SHARED_MESSAGE_WINDOW_LIMIT),
     directus_service: DirectusService = Depends(get_directus_service)
 ) -> Dict[str, Any]:
     """Get a bounded encrypted shared-chat message window."""

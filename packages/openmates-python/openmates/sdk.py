@@ -1301,6 +1301,178 @@ class OpenMatesChats:
     def load(self, chat_id: str) -> dict[str, Any]:
         return self._client._decrypt_loaded_chat_payload(self._client._get(f"/v1/sdk/chats/{_quote(chat_id)}"))
 
+    def messages(
+        self,
+        *,
+        chat_id: str,
+        direction: str = "latest",
+        limit: int = 30,
+        before_timestamp: int | None = None,
+        before_message_id: str | None = None,
+        after_timestamp: int | None = None,
+        after_message_id: str | None = None,
+        anchor_message_id: str | None = None,
+        respect_compression_boundary: bool = True,
+        all: bool = False,
+    ) -> dict[str, Any]:
+        if all:
+            loaded = self.load(chat_id)
+            chat = loaded.get("chat") if isinstance(loaded.get("chat"), dict) else None
+            if not isinstance(chat, dict):
+                raise OpenMatesConfigError("Saved chat payload did not include chat metadata")
+            messages = _normalize_loaded_chat_messages(loaded)
+            return {
+                "chat": chat,
+                "messages": messages,
+                "has_more_before": False,
+                "has_more_after": False,
+                "start_cursor": {"created_at": messages[0]["created_at"], "message_id": messages[0]["id"]} if messages else None,
+                "end_cursor": {"created_at": messages[-1]["created_at"], "message_id": messages[-1]["id"]} if messages else None,
+                "anchor_found": True,
+                "server_message_count": len(messages),
+            }
+        query = {
+            "direction": direction,
+            "limit": limit,
+            "before_timestamp": before_timestamp,
+            "before_message_id": before_message_id,
+            "after_timestamp": after_timestamp,
+            "after_message_id": after_message_id,
+            "anchor_message_id": anchor_message_id,
+            "respect_compression_boundary": False if respect_compression_boundary is False else None,
+        }
+        path = f"/v1/sdk/chats/{_quote(chat_id)}/messages?{urlencode({key: value for key, value in query.items() if value is not None})}"
+        loaded = self._client._decrypt_loaded_chat_payload(self._client._get(path))
+        chat = loaded.get("chat") if isinstance(loaded.get("chat"), dict) else None
+        if not isinstance(chat, dict):
+            raise OpenMatesConfigError("Saved chat payload did not include chat metadata")
+        return {
+            "chat": chat,
+            "messages": _normalize_loaded_chat_messages(loaded),
+            "has_more_before": loaded.get("has_more_before") is True,
+            "has_more_after": loaded.get("has_more_after") is True,
+            "start_cursor": loaded.get("start_cursor") if isinstance(loaded.get("start_cursor"), dict) else None,
+            "end_cursor": loaded.get("end_cursor") if isinstance(loaded.get("end_cursor"), dict) else None,
+            "anchor_found": loaded.get("anchor_found") is not False,
+            "server_message_count": loaded.get("server_message_count") if isinstance(loaded.get("server_message_count"), int) else None,
+        }
+
+    def message_pages(self, *, chat_id: str, limit: int = 30, **kwargs: Any):
+        direction = str(kwargs.pop("direction", "latest"))
+        before_timestamp = kwargs.pop("before_timestamp", None)
+        before_message_id = kwargs.pop("before_message_id", None)
+        while True:
+            page = self.messages(
+                chat_id=chat_id,
+                direction=direction,
+                limit=limit,
+                before_timestamp=before_timestamp,
+                before_message_id=before_message_id,
+                **kwargs,
+            )
+            yield page
+            start_cursor = page.get("start_cursor") if isinstance(page.get("start_cursor"), dict) else None
+            if page.get("has_more_before") is not True or not start_cursor:
+                break
+            direction = "before"
+            before_timestamp = start_cursor.get("created_at")
+            before_message_id = start_cursor.get("message_id")
+
+    def fork(self, *, chat_id: str, from_message_id: str, title: str | None = None) -> dict[str, Any]:
+        loaded, chat, _chat_key = self._load_personal_encrypted_chat(chat_id)
+        messages = _normalize_loaded_chat_messages(loaded)
+        boundary_index = _find_message_boundary_index(messages, from_message_id)
+        new_chat_id = str(uuid.uuid4())
+        new_chat_key = os.urandom(32)
+        now = int(time.time())
+        id_map: dict[str, str] = {}
+        encrypted_messages = []
+        for message in messages[: boundary_index + 1]:
+            new_message_id = str(uuid.uuid4())
+            id_map[message["id"]] = new_message_id
+            raw = message.get("raw") if isinstance(message.get("raw"), dict) else {}
+            encrypted_message: dict[str, Any] = {
+                "client_message_id": new_message_id,
+                "message_id": new_message_id,
+                "chat_id": new_chat_id,
+                "encrypted_content": _encrypt_aes_gcm_text(str(message.get("content") or ""), new_chat_key),
+                "encrypted_sender_name": _encrypt_aes_gcm_text(str(message.get("sender_name") or _default_sender_name(str(message.get("role") or "user"))), new_chat_key),
+                "role": str(message.get("role") or "unknown"),
+                "created_at": int(message.get("created_at") or now),
+                "updated_at": _numeric_seconds(raw.get("updated_at")) or int(message.get("created_at") or now),
+            }
+            old_user_message_id = raw.get("user_message_id")
+            if isinstance(old_user_message_id, str) and old_user_message_id in id_map:
+                encrypted_message["user_message_id"] = id_map[old_user_message_id]
+            if isinstance(message.get("category"), str):
+                encrypted_message["encrypted_category"] = _encrypt_aes_gcm_text(message["category"], new_chat_key)
+            if isinstance(message.get("model_name"), str):
+                encrypted_message["encrypted_model_name"] = _encrypt_aes_gcm_text(message["model_name"], new_chat_key)
+            encrypted_messages.append(encrypted_message)
+        return self._client._post(
+            f"/v1/sdk/chats/{_quote(chat_id)}/fork",
+            {
+                "protocol_version": 1,
+                "from_message_id": from_message_id,
+                "new_chat_id": new_chat_id,
+                "expected_source_messages_v": int(chat.get("messages_v") or len(messages)),
+                "encrypted_chat_metadata": {
+                    "id": new_chat_id,
+                    "encrypted_title": _encrypt_aes_gcm_text(title or f"Fork of {chat.get('title') or chat.get('id')}", new_chat_key),
+                    "encrypted_chat_key": _encrypt_aes_gcm_bytes(new_chat_key, self._client._get_master_key()),
+                    "created_at": now,
+                    "updated_at": now,
+                },
+                "encrypted_messages": encrypted_messages,
+            },
+        )
+
+    def rewind(
+        self,
+        *,
+        chat_id: str,
+        to_message_id: str,
+        send: str | None = None,
+        dry_run: bool = False,
+        confirm_destructive: bool = False,
+    ) -> dict[str, Any]:
+        if not dry_run:
+            _require_confirmed(confirm_destructive, "Rewinding a chat")
+        loaded, chat, _chat_key = self._load_personal_encrypted_chat(chat_id)
+        messages = _normalize_loaded_chat_messages(loaded)
+        _find_message_boundary_index(messages, to_message_id)
+        result = self._client._post(
+            f"/v1/sdk/chats/{_quote(chat_id)}/rewind",
+            {
+                "protocol_version": 1,
+                "to_message_id": to_message_id,
+                "expected_messages_v": int(chat.get("messages_v") or len(messages)),
+                "dry_run": dry_run,
+                "confirm_destructive": confirm_destructive,
+            },
+        )
+        if send and not dry_run:
+            result["response"] = self.send(send, save_to_account=True, chat_id=chat_id).raw
+        return result
+
+    def retry(self, *, chat_id: str, dry_run: bool = False, confirm_destructive: bool = False) -> dict[str, Any]:
+        if not dry_run:
+            _require_confirmed(confirm_destructive, "Retrying a chat")
+        loaded, _chat, _chat_key = self._load_personal_encrypted_chat(chat_id)
+        messages = _normalize_loaded_chat_messages(loaded)
+        retry_index = _find_retryable_user_message_index(messages)
+        if retry_index < 0:
+            raise OpenMatesConfigError("No retryable user message found for this chat")
+        if retry_index == 0:
+            raise OpenMatesConfigError("Cannot retry a chat whose first message is the failed user turn")
+        return self.rewind(
+            chat_id=chat_id,
+            to_message_id=messages[retry_index - 1]["id"],
+            send=str(messages[retry_index].get("content") or ""),
+            dry_run=dry_run,
+            confirm_destructive=confirm_destructive,
+        )
+
     def send(
         self,
         message: str,
@@ -1598,6 +1770,84 @@ class OpenMatesChats:
 
     def incognito(self, message: str) -> ChatResponse:
         return self.send(message, save_to_account=False)
+
+    def _load_personal_encrypted_chat(self, chat_id: str) -> tuple[dict[str, Any], dict[str, Any], bytes]:
+        loaded = self.load(chat_id)
+        chat = loaded.get("chat") if isinstance(loaded.get("chat"), dict) else None
+        if not isinstance(chat, dict):
+            raise OpenMatesConfigError("Saved chat payload did not include chat metadata")
+        if chat.get("hashed_team_id") or chat.get("team_id") or chat.get("shared_chat_id"):
+            raise OpenMatesConfigError("Only personal saved chats are supported for fork, rewind, and retry")
+        encrypted_chat_key = chat.get("encrypted_chat_key")
+        if not isinstance(encrypted_chat_key, str):
+            raise OpenMatesConfigError("Saved chat does not include encrypted chat key material")
+        chat_key = _decrypt_aes_gcm_bytes(encrypted_chat_key, self._client._get_master_key())
+        if chat_key is None:
+            raise OpenMatesConfigError("Unable to decrypt saved chat key material")
+        return loaded, chat, chat_key
+
+
+def _normalize_loaded_chat_messages(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    raw_messages = payload.get("messages") if isinstance(payload.get("messages"), list) else []
+    normalized = []
+    for entry in raw_messages:
+        raw = json.loads(entry) if isinstance(entry, str) else dict(entry)
+        message_id = raw.get("client_message_id") or raw.get("message_id") or raw.get("id")
+        if not isinstance(message_id, str) or not message_id:
+            raise OpenMatesConfigError("Loaded chat message is missing a stable message id")
+        content = raw.get("content") if isinstance(raw.get("content"), str) else ""
+        normalized.append({
+            "id": message_id,
+            "role": raw.get("role") if isinstance(raw.get("role"), str) else "unknown",
+            "content": content,
+            "sender_name": raw.get("sender_name") if isinstance(raw.get("sender_name"), str) else None,
+            "category": raw.get("category") if isinstance(raw.get("category"), str) else None,
+            "model_name": raw.get("model_name") if isinstance(raw.get("model_name"), str) else None,
+            "created_at": _numeric_seconds(raw.get("created_at")) or 0,
+            "preview": " ".join(content.split())[:120],
+            "raw": raw,
+        })
+    return sorted(normalized, key=lambda message: int(message.get("created_at") or 0))
+
+
+def _find_message_boundary_index(messages: list[dict[str, Any]], message_id: str) -> int:
+    for index, message in enumerate(messages):
+        current_id = message.get("id")
+        if isinstance(current_id, str) and (current_id == message_id or current_id.startswith(message_id)):
+            return index
+    raise OpenMatesConfigError(f"Message '{message_id}' was not found in the chat")
+
+
+def _find_retryable_user_message_index(messages: list[dict[str, Any]]) -> int:
+    has_later_assistant = False
+    for index in range(len(messages) - 1, -1, -1):
+        role = str(messages[index].get("role") or "").lower()
+        if role == "assistant":
+            has_later_assistant = True
+        if role == "user" and not has_later_assistant:
+            return index
+    return -1
+
+
+def _numeric_seconds(value: Any) -> int | None:
+    if isinstance(value, (int, float)) and math.isfinite(value):
+        parsed = int(value)
+    elif isinstance(value, str) and value.strip():
+        try:
+            parsed = int(float(value))
+        except ValueError:
+            return None
+    else:
+        return None
+    return parsed // 1000 if parsed > 10_000_000_000 else parsed
+
+
+def _default_sender_name(role: str) -> str:
+    if role == "assistant":
+        return "Assistant"
+    if role == "system":
+        return "System"
+    return "User"
 
 
 class OpenMatesIdeaBucket:

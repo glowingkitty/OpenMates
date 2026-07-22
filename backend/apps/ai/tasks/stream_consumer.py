@@ -2050,6 +2050,25 @@ async def _update_chat_metadata(
             persisted event is broadcast with the correct role/status for system
             rejection messages (e.g. "insufficient_credits").
     """
+    if getattr(request_data, "recovery_task_id", None):
+        fields_to_update = {
+            "last_edited_overall_timestamp": timestamp,
+            "last_mate_category": category,
+            "updated_at": int(time.time())
+        }
+        success = await directus_service.chat.update_chat_fields_in_directus(
+            request_data.chat_id, fields_to_update
+        )
+        if not success:
+            logger.error(f"{log_prefix} Failed to update recovery chat metadata for {request_data.chat_id}.")
+            return
+
+        logger.info(
+            f"{log_prefix} Updated recovery chat metadata without advancing terminal messages_v: "
+            f"timestamp {timestamp}, category {category}"
+        )
+        return
+
     # 1. Increment messages_v atomically via cache HINCRBY (same mechanism as system_message_handler)
     # This prevents race conditions where system messages and AI responses compete for version numbers.
     # Previously this used a Directus read-modify-write which was non-atomic and could collide

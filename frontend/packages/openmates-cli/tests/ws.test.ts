@@ -36,6 +36,7 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
     const chatId = "chat-active";
     const userMessageId = "user-message-1";
     const asyncEmbedId = "embed-async";
+    const checkpointId = "11111111-1111-4111-8111-111111111111";
 
     server.once("connection", (socket) => {
       setTimeout(() => {
@@ -49,6 +50,21 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
             status: "finished",
             type: "app_skill_use",
             content: "app_id: web\nskill_id: search\nstatus: finished",
+          },
+        }),
+      );
+
+      socket.send(
+        JSON.stringify({
+          type: "chat_compression_completed",
+          payload: {
+            chat_id: chatId,
+            task_id: "task-compression-1",
+            compressed_message_count: 120,
+            summary_token_estimate: 420,
+            compressed_up_to_timestamp: 1780000010,
+            summary_message_id: checkpointId,
+            summary_content: "Earlier discussion summary.",
           },
         }),
       );
@@ -221,6 +237,17 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
           status: "todo",
           created_at: 1780000000,
           task_update_job_id: "task-update-job-1",
+        },
+      ]);
+      assert.deepEqual(response.compressionCheckpoints, [
+        {
+          chatId,
+          taskId: "task-compression-1",
+          checkpointId,
+          summaryContent: "Earlier discussion summary.",
+          compressedUpToTimestamp: 1780000010,
+          compressedMessageCount: 120,
+          summaryTokenEstimate: 420,
         },
       ]);
       assert.deepEqual(response.pendingTaskUpdateJobs, [

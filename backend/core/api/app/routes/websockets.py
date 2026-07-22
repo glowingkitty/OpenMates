@@ -1327,6 +1327,7 @@ async def listen_for_ai_typing_indicator_events(app: FastAPI):
                             "summary_token_estimate": redis_payload.get("summary_token_estimate"),
                             "compressed_up_to_timestamp": redis_payload.get("compressed_up_to_timestamp"),
                             "summary_message_id": redis_payload.get("summary_message_id"),
+                            "summary_content": redis_payload.get("summary_content"),
                         }
                         # Include error if present (compression failed gracefully)
                         if redis_payload.get("error"):

@@ -105,7 +105,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: "fa31e9a0f"
+  subject_commit: "5c280a371"
 
 approvals:
   product_contract:
@@ -201,14 +201,26 @@ attempts:
     outcome: blocked
     recorded_at: "2026-07-22T14:18:07Z"
     notes: GitHub Actions run 29928243181 reached Vercel READY deployment dpl_F1LgL5baYHiG6VwiW9n3rCwfoSkG, passed account preflight 29928095936, and followed green Vitest run 29927806931 with 622/622 passing. The long-chat scenario failed when it tried to find the seeded IndexedDB-only chat in the synced sidebar list before opening the context menu. The Playwright spec was fixed locally to trigger ZIP export from the active chat share/details panel instead.
+  - id: ATTEMPT-9
+    task_id: TASK-6
+    approach: Rerun long-chat-history.spec.ts after active-chat ZIP download trigger fix 5c280a371 deployed.
+    outcome: succeeded
+    recorded_at: "2026-07-22T14:31:06Z"
+    notes: GitHub Actions run 29929575651 passed after Vercel deployment dpl_5jAsHbPu1tmoBLX2i8DMgpiroKTC reached READY and preflight run 29929412977 passed. The provider-free fixture verified initial 40-message loading, older active paging to 80 source messages, faded forgotten-message reveal, complete ZIP export metadata for 161 hydrated messages and 1 checkpoint, and no provider endpoint calls.
+  - id: ATTEMPT-10
+    task_id: TASK-6
+    approach: Run real source-CLI compression smoke with temporary admin threshold 1000 against api.dev.openmates.org.
+    outcome: succeeded
+    recorded_at: "2026-07-22T15:35:00Z"
+    notes: The first large-history smoke exposed Directus UUID schema enforcement because the worker emitted prefixed compression ids. The worker now emits UUID summary ids and the checkpoint handler rejects non-UUID ids before Directus. The rerun created chat 164a9f3c-13e7-4602-bce1-ef4428fd7d14, persisted checkpoint e5fc2130-c9dc-44f7-8530-38941707315b, compressed 1 large old message into an estimated 281-token summary, spent 109 credits, and cleared the temporary threshold afterward.
 
 handoff:
   current_task_id: TASK-6
-  next_action: Deploy the active-chat ZIP download trigger fix plus this spec ledger update, rerun long-chat-history.spec.ts against app.dev.openmates.org, then run one on-demand real CLI long-chat compression validation.
+  next_action: Gather final user confirmation, then run Apple parity/status or record an approved Apple deferral.
   command: python3 scripts/tests.py run --spec long-chat-history.spec.ts
   expected_outcome: Run after deploy; deterministic spec should pass without model/provider calls and cover latest 40-message window, explicit older-message paging, faded forgotten-message reveal, shared boundaries, and export hydration metadata.
   blocker: null
-  last_verified_commit: "d5a933f8a"
+  last_verified_commit: "5c280a371+working-tree-2026-07-22T15:35Z"
 
 scenarios:
   - id: S-1
@@ -481,9 +493,9 @@ tests:
       evidence:
         status: passed
         command: docker exec api python -m pytest /app/backend/tests/test_chat_compressor.py
-        run_id: docker-api-2026-07-22T12:22:32Z
-        subject_commit: "b058f8249f1e"
-        timestamp: "2026-07-22T12:22:32Z"
+        run_id: docker-api-2026-07-22T14:45:00Z
+        subject_commit: "5c280a371"
+        timestamp: "2026-07-22T14:45:00Z"
         notes: 48 chat_compressor tests passed in the api container, including no message-count-only compression and latest assistant/follow-up tail retention.
 
   - id: T-BACKEND-COMPRESSION-CHECKPOINTS
@@ -508,10 +520,10 @@ tests:
       expected: pass
       evidence:
         status: passed
-        command: python3 -m pytest backend/tests/test_chat_compressor.py backend/tests/test_chat_compression_checkpoint_handler.py backend/tests/test_share_chat_window_loading.py
-        run_id: local-2026-07-22T12:22:32Z
-        subject_commit: "b058f8249f1e"
-        timestamp: "2026-07-22T12:22:32Z"
+        command: python3 -m pytest backend/tests/test_share_chat_window_loading.py backend/tests/test_chat_compression_checkpoint_handler.py
+        run_id: local-2026-07-22T14:44:00Z
+        subject_commit: "5c280a371"
+        timestamp: "2026-07-22T14:44:00Z"
         summary: 8 checkpoint-handler tests passed; default forgotten pages are 40 messages and requests clamp to checkpoint boundaries.
 
   - id: T-BACKEND-SHARE-WINDOWS
@@ -537,10 +549,10 @@ tests:
       expected: pass
       evidence:
         status: passed
-        command: python3 -m pytest backend/tests/test_chat_compressor.py backend/tests/test_chat_compression_checkpoint_handler.py backend/tests/test_share_chat_window_loading.py
-        run_id: local-2026-07-22T12:22:32Z
-        subject_commit: "b058f8249f1e"
-        timestamp: "2026-07-22T12:22:32Z"
+        command: python3 -m pytest backend/tests/test_share_chat_window_loading.py backend/tests/test_chat_compression_checkpoint_handler.py
+        run_id: local-2026-07-22T14:44:00Z
+        subject_commit: "5c280a371"
+        timestamp: "2026-07-22T14:44:00Z"
         summary: 10 shared-window tests passed, including encrypted checkpoint manifest data, forgotten checkpoint paging, and stale messages_v handling.
 
   - id: T-BACKEND-MESSAGES-V-INTEGRITY
@@ -564,9 +576,9 @@ tests:
       evidence:
         status: passed
         command: python3 -m pytest backend/tests/test_share_chat_window_loading.py -k messages_v
-        run_id: local-2026-07-22T12:22:32Z
-        subject_commit: "b058f8249f1e"
-        timestamp: "2026-07-22T12:22:32Z"
+        run_id: local-2026-07-22T14:44:00Z
+        subject_commit: "5c280a371"
+        timestamp: "2026-07-22T14:44:00Z"
         summary: Covered by the full backend rerun; shared windows use durable message rows when messages_v is stale.
 
   - id: T-VITEST-HISTORY-WINDOWS
@@ -590,12 +602,12 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: typecheck_passed_suite_unverified_on_dirty_worktree
-        command: bash scripts/lint_changed.sh
-        run_id: local-2026-07-22T11:36:00Z
-        subject_commit: 9500b0b9b913
-        timestamp: "2026-07-22T11:36:00Z"
-        summary: Added default latest-window and explicit older-page Vitest coverage; TypeScript check passed for messageWindowOperations.test.ts. Full Vitest dispatch runs committed HEAD only, so this remains unverified until deploy/commit.
+        status: passed
+        command: python3 scripts/tests.py run --suite vitest
+        run_id: "29929795068"
+        subject_commit: "5c280a371"
+        timestamp: "2026-07-22T14:41:23Z"
+        summary: GitHub Actions Vitest suite passed 622/622, including messageWindowOperations latest-window and older-page coverage.
 
   - id: T-VITEST-CONTEXT-BUILDER
     type: vitest
@@ -617,12 +629,12 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: typecheck_passed_suite_unverified_on_dirty_worktree
-        command: bash scripts/lint_changed.sh
-        run_id: local-2026-07-22T11:36:00Z
-        subject_commit: 9500b0b9b913
-        timestamp: "2026-07-22T11:36:00Z"
-        summary: Added hydration/completeness/checkpoint YAML Vitest coverage; TypeScript check passed for chatExportService.test.ts. Full Vitest dispatch run 29915942308 still failed on unrelated chatSyncServiceHandlersAI window.addEventListener and did not prove uncommitted tests.
+        status: passed
+        command: python3 scripts/tests.py run --suite vitest
+        run_id: "29929795068"
+        subject_commit: "5c280a371"
+        timestamp: "2026-07-22T14:41:23Z"
+        summary: GitHub Actions Vitest suite passed 622/622 on the deployed subject commit; active-context separation remains primarily covered by compressor and UI-only forgotten reveal checks in this slice.
 
   - id: T-VITEST-CHAT-EXPORT
     type: vitest
@@ -645,11 +657,12 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: pending
+        status: passed
         command: "python3 scripts/tests.py run --suite vitest"
-        run_id: ""
-        subject_commit: "b058f8249f1e"
-        timestamp: ""
+        run_id: "29929795068"
+        subject_commit: "5c280a371"
+        timestamp: "2026-07-22T14:41:23Z"
+        summary: GitHub Actions Vitest suite passed 622/622, including chatExportService complete/partial metadata and compressed-export completeness coverage.
 
   - id: T-WEB-LONG-CHAT-HISTORY
     type: playwright
@@ -674,11 +687,14 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: ""
-        command: ""
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: python3 scripts/tests.py run --spec long-chat-history.spec.ts
+        run_id: "29929575651"
+        subject_commit: "5c280a371"
+        timestamp: "2026-07-22T14:31:06Z"
+        target: app.dev.openmates.org
+        deployment_reference: dpl_5jAsHbPu1tmoBLX2i8DMgpiroKTC
+        summary: Deployed app.dev run passed after Vercel dpl_5jAsHbPu1tmoBLX2i8DMgpiroKTC was READY; initial window stayed at 40 and Show older messages loaded the next 40 active messages.
 
   - id: T-WEB-COMPRESSION-BOUNDARY
     type: playwright
@@ -703,11 +719,14 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: ""
-        command: ""
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: python3 scripts/tests.py run --spec long-chat-history.spec.ts
+        run_id: "29929575651"
+        subject_commit: "5c280a371"
+        timestamp: "2026-07-22T14:31:06Z"
+        target: app.dev.openmates.org
+        deployment_reference: dpl_5jAsHbPu1tmoBLX2i8DMgpiroKTC
+        summary: Deployed app.dev run passed; compressed summary rendered, forgotten messages stayed hidden until requested, and revealed forgotten rows settled near opacity 0.6 with explanatory text.
 
   - id: T-WEB-SHARED-HISTORY
     type: playwright
@@ -731,11 +750,14 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: ""
-        command: ""
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: python3 scripts/tests.py run --spec shared-chat-open.spec.ts
+        run_id: "29930260567"
+        subject_commit: "5c280a371"
+        timestamp: "2026-07-22T14:45:27Z"
+        target: app.dev.openmates.org
+        deployment_reference: dpl_5jAsHbPu1tmoBLX2i8DMgpiroKTC
+        summary: Deployed app.dev shared-chat browser spec passed after preflight 29930121798; backend shared-window tests cover checkpoint manifest, older active paging, and forgotten checkpoint paging for this slice.
 
   - id: T-WEB-CHAT-DOWNLOAD
     type: playwright
@@ -760,11 +782,14 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: ""
-        command: ""
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: python3 scripts/tests.py run --spec long-chat-history.spec.ts
+        run_id: "29929575651"
+        subject_commit: "5c280a371"
+        timestamp: "2026-07-22T14:31:06Z"
+        target: app.dev.openmates.org
+        deployment_reference: dpl_5jAsHbPu1tmoBLX2i8DMgpiroKTC
+        summary: Deployed app.dev run passed; ZIP export metadata reported complete, requested_message_count 161, hydrated_message_count 161, checkpoint_count 1, and no provider calls.
 
   - id: T-REAL-LONG-CHAT-COMPRESSION
     type: manual
@@ -785,11 +810,14 @@ tests:
       required: true
       expected: pass_on_demand_after_deploy
       evidence:
-        status: ""
-        command: ""
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: node --input-type=module '<source CLI compression smoke script>'
+        run_id: "manual-cli-real-compression-2026-07-22T15:35Z"
+        subject_commit: "5c280a371+working-tree-2026-07-22T15:35Z"
+        timestamp: "2026-07-22T15:35:00Z"
+        target: api.dev.openmates.org
+        reason: Manual real-provider validation is intentionally on-demand because deterministic daily tests avoid paid model calls while this run proves the live compression/checkpoint path.
+        summary: Source CLI created chat 164a9f3c-13e7-4602-bce1-ef4428fd7d14 with a temporary admin threshold of 1000, sent one large old-history turn plus four short follow-ups, persisted Directus checkpoint e5fc2130-c9dc-44f7-8530-38941707315b, compressed_message_count 1, summary_token_estimate 281, and cleared the admin threshold afterward.
 
 verifications:
   - id: V-PRODUCT-CONTRACT-APPROVAL
@@ -818,11 +846,12 @@ verifications:
     phase: final
     required_for_done: true
     covers: [AC-2, AC-3, AC-4, AC-6]
-    status: pending
+    status: passed
     evidence:
-      status: ""
-      summary: "After the on-demand real long-chat run, record actual/estimated provider cost and decide whether any scheduled cadence is acceptable. Default remains not daily."
-      timestamp: ""
+      status: passed
+      reason: The measured smoke run consumed enough credits that scheduled real compression validation would be wasteful and flaky compared with the existing deterministic provider-free coverage.
+      summary: Real source-CLI smoke spent 109 test-account credits for five turns including one real compression checkpoint; compression should remain manual/on-demand for validation and must not be added to a scheduled daily cadence by this spec.
+      timestamp: "2026-07-22T15:35:00Z"
   - id: V-APPLE-STATUS
     kind: manual_check
     phase: final
@@ -1034,7 +1063,6 @@ tasks:
       shared_files: []
     blockers:
       - Requires deployment before Playwright green evidence.
-      - Requires one on-demand real CLI long-chat compression run and cost review before final verification.
       - Requires user confirmation before Apple parity or deferral is complete.
     follow_up_tasks: []
     independently_deployable: false

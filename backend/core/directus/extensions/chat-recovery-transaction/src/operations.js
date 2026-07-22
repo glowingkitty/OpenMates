@@ -722,8 +722,9 @@ async function markInferenceFailed(database, raw, now) {
       return { inference_task_id: taskId, failed: false, state: 'FAILED' };
     }
     if (row.state === 'TERMINAL') return { inference_task_id: taskId, failed: false, state: 'TERMINAL' };
-    if (row.state !== 'RUNNING') fail(409, 'invalid_inference_state');
-    const updated = await trx(PREFLIGHTS).where({ id: row.id, state: 'RUNNING' }).update({
+    if (!['ENQUEUED', 'RUNNING'].includes(row.state)) fail(409, 'invalid_inference_state');
+    const previousState = row.state;
+    const updated = await trx(PREFLIGHTS).where({ id: row.id, state: previousState }).update({
       state: 'FAILED', failed_at: now, failure_category: category,
     });
     if (updated !== 1) fail(409, 'inference_failure_conflict');

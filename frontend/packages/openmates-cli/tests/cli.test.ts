@@ -1126,6 +1126,25 @@ async function withSdkChatMockApi<T>(
         return;
       }
 
+      if (request.method === "GET" && request.url?.startsWith("/v1/sdk/chats/chat-1/messages")) {
+        requests.push({ method: request.method, url: request.url });
+        writeJson(response, {
+          chat: { id: "chat-1", title: "Windowed chat" },
+          messages: [{ id: "message-1", chat_id: "chat-1", role: "assistant", content: "latest window", created_at: 1 }],
+          has_more_before: true,
+        });
+        return;
+      }
+
+      if (request.method === "GET" && request.url === "/v1/sdk/chats/chat-1") {
+        requests.push({ method: request.method, url: request.url });
+        writeJson(response, {
+          chat: { id: "chat-1", title: "Full chat" },
+          messages: [{ id: "message-1", chat_id: "chat-1", role: "assistant", content: "full history", created_at: 1 }],
+        });
+        return;
+      }
+
       if (request.method === "DELETE" && request.url?.startsWith("/v1/sdk/chats/")) {
         requests.push({ method: request.method, url: request.url });
         writeJson(response, { deleted: true });
@@ -3607,6 +3626,40 @@ describe("unauthenticated example chats", () => {
       assert.equal(requests[0]?.body?.message, "Workflow chat delivery test");
       assert.equal(requests[0]?.body?.save_to_account, false);
       assert.equal(requests.some((request) => request.url === "/v1/anonymous/chat/stream"), false);
+    });
+  });
+
+  it("shows API-key chat history through bounded windows by default", async () => {
+    await withSdkChatMockApi(async ({ apiUrl, apiKey, requests }) => {
+      const output = await runCliAsync([
+        "--api-url", apiUrl,
+        "--api-key", apiKey,
+        "chats", "show", "chat-1", "--json",
+      ]);
+      const parsed = JSON.parse(output) as { messages?: Array<{ content?: string }>; has_more_before?: boolean };
+
+      assert.equal(parsed.messages?.[0]?.content, "latest window");
+      assert.equal(parsed.has_more_before, true);
+      assert.deepEqual(requests.map((request) => request.url), [
+        "/v1/sdk/chats/chat-1/messages?direction=latest&limit=30",
+      ]);
+    });
+  });
+
+  it("shows API-key full chat history only with --all", async () => {
+    await withSdkChatMockApi(async ({ apiUrl, apiKey, requests }) => {
+      const output = await runCliAsync([
+        "--api-url", apiUrl,
+        "--api-key", apiKey,
+        "chats", "show", "chat-1", "--json", "--all",
+      ]);
+      const parsed = JSON.parse(output) as { messages?: Array<{ content?: string }>; has_more_before?: boolean };
+
+      assert.equal(parsed.messages?.[0]?.content, "full history");
+      assert.equal(parsed.has_more_before, undefined);
+      assert.deepEqual(requests.map((request) => request.url), [
+        "/v1/sdk/chats/chat-1",
+      ]);
     });
   });
 

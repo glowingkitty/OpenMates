@@ -29,8 +29,22 @@ interface ChatDatabaseInstance {
 
 // Store name constant (must match the one in db.ts)
 const MESSAGES_STORE_NAME = "messages";
-const DEFAULT_MESSAGE_WINDOW_LIMIT = 40;
+const MESSAGE_WINDOW_PAGES_STORE_NAME = "message_window_pages";
+const DEFAULT_MESSAGE_WINDOW_LIMIT = 30;
 const MAX_MESSAGE_WINDOW_LIMIT = 100;
+const MESSAGE_WINDOW_PAGE_CACHE_GENERATION = 1;
+const DEFAULT_MESSAGE_WINDOW_PAGE_CACHE_LIMIT = 12;
+
+const UNSAFE_TO_EVICT_MESSAGE_STATUSES = new Set<Message["status"]>([
+  "sending",
+  "waiting_for_upload",
+  "waiting_for_internet",
+  "processing",
+  "streaming",
+  "failed",
+  "waiting_for_user",
+  "delivered",
+]);
 
 export type MessageWindowDirection = "latest" | "before" | "after" | "around";
 
@@ -55,6 +69,49 @@ export interface MessageWindowResult {
   endCursor: number | null;
   endCursorMessageId: string | null;
   anchorFound: boolean;
+}
+
+export type MessageWindowPageKind = "normal" | "forgotten";
+
+export interface MessageWindowPageCacheRecord {
+  id: string;
+  chat_id: string;
+  page_kind: MessageWindowPageKind;
+  direction: MessageWindowDirection;
+  start_cursor: number | null;
+  start_cursor_message_id: string | null;
+  end_cursor: number | null;
+  end_cursor_message_id: string | null;
+  has_more_before: boolean;
+  has_more_after: boolean;
+  message_ids: string[];
+  cached_at: number;
+  last_accessed_at: number;
+  cache_generation: number;
+}
+
+export interface RecordMessageWindowPageOptions {
+  direction?: MessageWindowDirection;
+  pageKind?: MessageWindowPageKind;
+  now?: number;
+}
+
+export interface EvictMessageWindowPagesOptions {
+  maxPagesPerChat?: number;
+  protectedPageIds?: string[];
+  protectedMessageIds?: string[];
+}
+
+export interface EvictMessageWindowPagesResult {
+  deletedPageIds: string[];
+  deletedMessageIds: string[];
+}
+
+function requestToPromise<T>(request: IDBRequest<T>): Promise<T> {
+  return new Promise((resolve, reject) => {
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
 }
 
 function clampWindowLimit(limit?: number): number {
@@ -142,6 +199,33 @@ function compareMessageCursorPosition(message: Message, timestamp: number, messa
   }
   if (!messageId) return 0;
   return message.message_id.localeCompare(messageId);
+}
+
+function buildMessageWindowPageId(
+  chatId: string,
+  pageKind: MessageWindowPageKind,
+  direction: MessageWindowDirection,
+  result: MessageWindowResult,
+): string {
+  return [
+    chatId,
+    pageKind,
+    direction,
+    result.startCursor ?? "start",
+    result.startCursorMessageId ?? "start-id",
+    result.endCursor ?? "end",
+    result.endCursorMessageId ?? "end-id",
+    MESSAGE_WINDOW_PAGE_CACHE_GENERATION,
+  ].join("|");
+}
+
+function isSafeToEvictMessage(message: Message | undefined): boolean {
+  if (!message) return false;
+  return !UNSAFE_TO_EVICT_MESSAGE_STATUSES.has(message.status);
+}
+
+function pageRecordsForChatRange(chatId: string): IDBKeyRange {
+  return IDBKeyRange.bound([chatId, -Infinity], [chatId, Infinity]);
 }
 
 // ============================================================================
@@ -564,6 +648,130 @@ export async function getMessageWindowForChat(
   );
   const messages = await decryptWindow(dbInstance, records.reverse(), chat_id);
   return windowResult(messages, hasMore, false);
+}
+
+/**
+ * Record metadata for an encrypted message window cached in IndexedDB.
+ * The metadata is intentionally separate from messages_v: it describes viewed
+ * pages only and must never be treated as full local sync completeness.
+ */
+export async function recordMessageWindowPage(
+  dbInstance: ChatDatabaseInstance,
+  chat_id: string,
+  result: MessageWindowResult,
+  options: RecordMessageWindowPageOptions = {},
+): Promise<MessageWindowPageCacheRecord | null> {
+  if (result.messages.length === 0) return null;
+  await dbInstance.init();
+
+  const direction = options.direction ?? "latest";
+  const pageKind = options.pageKind ?? "normal";
+  const now = options.now ?? Date.now();
+  const id = buildMessageWindowPageId(chat_id, pageKind, direction, result);
+  const readTransaction = await dbInstance.getTransaction(
+    MESSAGE_WINDOW_PAGES_STORE_NAME,
+    "readonly",
+  );
+  const existing = await requestToPromise<MessageWindowPageCacheRecord | undefined>(
+    readTransaction.objectStore(MESSAGE_WINDOW_PAGES_STORE_NAME).get(id),
+  );
+  const record: MessageWindowPageCacheRecord = {
+    id,
+    chat_id,
+    page_kind: pageKind,
+    direction,
+    start_cursor: result.startCursor,
+    start_cursor_message_id: result.startCursorMessageId,
+    end_cursor: result.endCursor,
+    end_cursor_message_id: result.endCursorMessageId,
+    has_more_before: result.hasMoreBefore,
+    has_more_after: result.hasMoreAfter,
+    message_ids: result.messages.map((message) => message.message_id),
+    cached_at: existing?.cached_at ?? now,
+    last_accessed_at: now,
+    cache_generation: MESSAGE_WINDOW_PAGE_CACHE_GENERATION,
+  };
+  const writeTransaction = await dbInstance.getTransaction(
+    MESSAGE_WINDOW_PAGES_STORE_NAME,
+    "readwrite",
+  );
+  await requestToPromise(writeTransaction.objectStore(MESSAGE_WINDOW_PAGES_STORE_NAME).put(record));
+  return record;
+}
+
+export async function getMessageWindowPagesForChat(
+  dbInstance: ChatDatabaseInstance,
+  chat_id: string,
+): Promise<MessageWindowPageCacheRecord[]> {
+  await dbInstance.init();
+  const transaction = await dbInstance.getTransaction(
+    MESSAGE_WINDOW_PAGES_STORE_NAME,
+    "readonly",
+  );
+  const store = transaction.objectStore(MESSAGE_WINDOW_PAGES_STORE_NAME);
+  const index = store.index("chat_id_last_accessed_at");
+  const records = await requestToPromise<MessageWindowPageCacheRecord[]>(
+    index.getAll(pageRecordsForChatRange(chat_id)),
+  );
+  return (records || []).filter(
+    (record) => record.cache_generation === MESSAGE_WINDOW_PAGE_CACHE_GENERATION,
+  );
+}
+
+/**
+ * Evict old cached normal window pages using conservative safety exclusions.
+ * Forgotten pages are never evicted here; they are only loaded after an explicit
+ * reveal and stay available until normal chat teardown/cleanup paths run.
+ */
+export async function evictStaleMessageWindowPages(
+  dbInstance: ChatDatabaseInstance,
+  chat_id: string,
+  options: EvictMessageWindowPagesOptions = {},
+): Promise<EvictMessageWindowPagesResult> {
+  const maxPagesPerChat = Math.max(1, Math.floor(options.maxPagesPerChat ?? DEFAULT_MESSAGE_WINDOW_PAGE_CACHE_LIMIT));
+  const protectedPageIds = new Set(options.protectedPageIds ?? []);
+  const protectedMessageIds = new Set(options.protectedMessageIds ?? []);
+  const pages = await getMessageWindowPagesForChat(dbInstance, chat_id);
+  const normalPages = pages
+    .filter((page) => page.page_kind === "normal" && !protectedPageIds.has(page.id))
+    .sort((a, b) => a.last_accessed_at - b.last_accessed_at);
+  const deleteCount = Math.max(0, pages.filter((page) => page.page_kind === "normal").length - maxPagesPerChat);
+  const pagesToDelete = normalPages.slice(0, deleteCount);
+  if (pagesToDelete.length === 0) {
+    return { deletedPageIds: [], deletedMessageIds: [] };
+  }
+
+  const deletingPageIds = new Set(pagesToDelete.map((page) => page.id));
+  const retainedMessageIds = new Set<string>();
+  for (const page of pages) {
+    if (deletingPageIds.has(page.id)) continue;
+    for (const messageId of page.message_ids) retainedMessageIds.add(messageId);
+  }
+
+  const deletedPageIds: string[] = [];
+  const deletedMessageIds: string[] = [];
+  for (const page of pagesToDelete) {
+    const pageTransaction = await dbInstance.getTransaction(
+      MESSAGE_WINDOW_PAGES_STORE_NAME,
+      "readwrite",
+    );
+    await requestToPromise(pageTransaction.objectStore(MESSAGE_WINDOW_PAGES_STORE_NAME).delete(page.id));
+    deletedPageIds.push(page.id);
+
+    for (const messageId of page.message_ids) {
+      if (retainedMessageIds.has(messageId) || protectedMessageIds.has(messageId)) continue;
+      const readTransaction = await dbInstance.getTransaction(MESSAGES_STORE_NAME, "readonly");
+      const message = await requestToPromise<Message | undefined>(
+        readTransaction.objectStore(MESSAGES_STORE_NAME).get(messageId),
+      );
+      if (!isSafeToEvictMessage(message)) continue;
+      const deleteTransaction = await dbInstance.getTransaction(MESSAGES_STORE_NAME, "readwrite");
+      await requestToPromise(deleteTransaction.objectStore(MESSAGES_STORE_NAME).delete(messageId));
+      deletedMessageIds.push(messageId);
+    }
+  }
+
+  return { deletedPageIds, deletedMessageIds };
 }
 
 /**

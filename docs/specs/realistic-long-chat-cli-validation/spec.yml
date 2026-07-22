@@ -1,0 +1,717 @@
+schema_version: 2
+id: realistic-long-chat-cli-validation
+title: Realistic Long Chat CLI Validation Workflow
+status: implementing
+
+goal: >
+  Create a reusable OpenCode skill and verified workflow for running a realistic,
+  many-turn OpenMates CLI chat that validates long-context quality, Gemini model
+  routing, generated embed quality, repeated compression checkpoints, share-link
+  conversion, and final example-chat UX with Show older messages.
+
+scope:
+  in:
+    - A reusable skill that first agrees with the user on a long-running chat topic before starting any CLI chat.
+    - Suggested topic examples, with the default candidate being business advice for building a company across strategy, product, finance, marketing, hiring, operations, documents, sheets, and code/tooling.
+    - A real OpenMates CLI chat driven turn by turn by OpenCode against api.dev.openmates.org with real auth/test-account state.
+    - Individual human-inspected turns; no hidden deterministic script may drive the full conversation unattended.
+    - Primary chat model routing to Gemini, preferably google/gemini-3.5-flash-lite when selectable.
+    - Compression model verification and, if needed, correction so compression uses an intended cheap Gemini Flash or Flash-Lite path.
+    - Continuation until at least two durable compression checkpoints are observed and verified in the same chat.
+    - Pausing when an assistant response fails or a generated embed is clearly broken, missing, irrelevant, or nonsensical.
+    - Conversion of the successful shared real chat into a hardcoded public example chat using the existing add-example-chat workflow.
+    - Verification that the final example chat exposes and exercises Show older messages.
+  out:
+    - Treating a one-large-message smoke test as realistic long-chat validation.
+    - Using mocked API calls, fixture replay, direct backend calls, or synthetic transcripts as proof for the real validation run.
+    - Continuing through broken assistant responses or broken embeds without user permission.
+    - Setting an arbitrary max credit, token, or time cap for this validation run.
+    - Publishing an example chat before the real source chat passes the validation gates.
+    - Hand-editing the transcript into a better demo after the fact instead of generating a better real CLI chat.
+
+context_discovery:
+  github_issues:
+    - "GitHub MCP get_me is unavailable in this environment with 401 Bad credentials; no new tracker lookup was performed for this workflow spec."
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/specs/long-chat-compression-history/spec.yml
+    - docs/specs/example-chat-public-quality/spec.yml
+    - docs/specs/cli-model-benchmarks/spec.yml
+    - docs/architecture/chat-compression.md
+  code_patterns:
+    - .agents/skills/add-example-chat/SKILL.md composes real CLI chat creation, share URL extraction, scaffold generation, deployment, and deployed example verification.
+    - .claude/skills/add-example-chat/SKILL.md is the canonical Claude-compatible skill source mirrored into .agents/skills.
+    - scripts/create-example-chat-from-share.mjs converts a shared chat URL with key fragment into hardcoded example chat data and i18n sources.
+    - scripts/extract-shared-chat.mjs decrypts shared chat content for inspection.
+    - backend/apps/ai/processing/chat_compressor.py owns COMPRESSION_MODEL_ID and compression split behavior.
+    - frontend/packages/openmates-cli/src/cli.ts and frontend/packages/openmates-cli/src/client.ts provide the source CLI path for real chats.
+    - frontend/apps/web_app/tests/long-chat-history.spec.ts verifies Show older messages, forgotten-message reveal, and export metadata for deterministic long-chat fixtures.
+  tests:
+    - backend/tests/test_chat_compressor.py
+    - backend/tests/test_chat_compression_checkpoint_handler.py
+    - frontend/packages/openmates-cli/tests/ws.test.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - scripts/tests/create_example_chat_from_share.test.mjs
+    - frontend/apps/web_app/tests/long-chat-history.spec.ts
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+
+apple_impact:
+  affected_files:
+    - none
+  parity_expectations:
+    - This spec creates an OpenCode workflow skill, runs a CLI validation chat, and publishes a public web example chat. It does not change Apple runtime behavior directly.
+  verification:
+    - Apple not affected.
+  intentional_native_differences:
+    - none
+
+clarification:
+  rounds:
+    - question: What exact validation target should be proven this time?
+      answer: A realistic many-turn CLI chat that triggers compression twice, then a published UX example chat after success.
+    - question: What realistic long-running task should the chat be about?
+      answer: Business advice for building up a company, going step by step through many topics including docs, sheets, code, and other generated artifacts.
+    - question: What guardrails should stop or pause the run?
+      answer: Pause when an assistant response fails or an embed is clearly broken, missing, irrelevant, or nonsensical; report the issue and ask whether to debug or continue. No max credits, tokens, or time limit.
+    - question: Should model selection be forced or normal auto-selection used?
+      answer: Keep using Gemini models, with google/gemini-3.5-flash-lite as the primary model where possible, and verify compression uses the intended cheap Gemini Flash or Flash-Lite path.
+    - question: What should publishing mean after the chat succeeds?
+      answer: Use the share link of the successful chat to convert it into an example chat, and ensure the example chat has the button to Show older messages.
+  vision_summary: >
+    The reusable workflow should test OpenMates like a real long-running user would:
+    a natural, multi-topic company-building advisory chat through the CLI, many
+    individual inspected turns, Gemini Flash-Lite primary routing, repeated real
+    compression, and generated docs/sheets/code quality checks. Only after the
+    real chat succeeds should the share link be converted into a public example
+    chat that visibly exercises Show older messages.
+  approved_by_user: true
+
+implementation_state:
+  subject_commit: working-tree-2026-07-22
+
+approvals:
+  product_contract:
+    status: approved
+    approved_at: "2026-07-22"
+    reason: User approved the reusable long-chat validation workflow product contract and instructed OpenCode to proceed.
+  implementation_plan:
+    status: pending
+    approved_at: null
+    reason: Plan/tasks should be finalized after product-contract approval.
+
+decisions:
+  - id: D-1
+    status: active
+    decision: The realistic validation chat must be driven by individual CLI turns inspected by OpenCode, not by a hidden deterministic script.
+    reason: The goal is to evaluate real OpenMates quality, not just automated plumbing.
+    decided_at: "2026-07-22"
+  - id: D-2
+    status: active
+    decision: The validation run has no explicit max credit, token, or time cap.
+    reason: The user explicitly accepted the expected high token/credit cost for realistic validation.
+    decided_at: "2026-07-22"
+  - id: D-3
+    status: active
+    decision: Pause on failed assistant responses or clearly broken/nonsensical embeds and ask before debugging or continuing.
+    reason: Continuing a broken long chat can hide product defects and produce a poor public example.
+    decided_at: "2026-07-22"
+  - id: D-4
+    status: active
+    decision: Use Gemini models for the chat, primarily google/gemini-3.5-flash-lite where possible.
+    reason: The validation should exercise the intended economical Gemini path.
+    decided_at: "2026-07-22"
+  - id: D-5
+    status: active
+    decision: Compression must use an intended cheap Gemini Flash or Flash-Lite path before the real validation counts as complete.
+    reason: The previous smoke used a configured compression model that did not satisfy the user's expected Flash/Flash-Lite constraint.
+    decided_at: "2026-07-22"
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-3
+    approach: One large first message plus four short follow-ups as a real compression smoke.
+    outcome: rejected
+    recorded_at: "2026-07-22"
+    notes: This proved live checkpoint plumbing but violated the realistic many-turn validation requirement; it compressed one large old message and triggered only one checkpoint.
+  - id: ATTEMPT-2
+    task_id: TASK-3
+    approach: Realistic Gemini Flash-Lite CLI chat 30521f99-a424-490e-be6b-8e35c281d3a5 continued turn by turn through business strategy, customer discovery, architecture, UX, GTM, outbound assets, and PRD planning with a temporary 6500-token compression threshold override.
+    outcome: blocked
+    recorded_at: "2026-07-22"
+    notes: Turn 7 streamed a coherent PRD response, but the source CLI exited with "Encrypted completion recovery was rejected" and the raw transcript did not contain the assistant response. Compression triggered for 13 messages, but no chat_compression_checkpoints row persisted. Redis override cleanup via direct redis-cli was rejected by Redis auth, so use the admin API or authenticated cache path before resuming or ending the run.
+  - id: ATTEMPT-3
+    task_id: TASK-3
+    approach: Applied a recovery metadata/versioning fix, restarted api/app-ai-worker, re-enabled the temporary 6500-token compression threshold, and retried chat 30521f99 with a repair-style PRD prompt through the source CLI.
+    outcome: blocked
+    recorded_at: "2026-07-22"
+    notes: The CLI turn persisted without the previous encrypted completion recovery rejection, and logs showed recovery metadata no longer advanced terminal messages_v. The assistant response was unusable because it referred to a PRD "right above" that the user could not see; logs show the failed PRD assistant from ATTEMPT-2 remained in AI context/cache despite not being present in the raw Directus transcript. Compression triggered at 15 messages with the 6500-token override but skipped with "No messages to compress after split," so no chat_compression_checkpoints row exists for chat 30521f99. The temporary threshold override was cleared via /v1/admin/compression-threshold and verified as null.
+  - id: ATTEMPT-4
+    task_id: TASK-3
+    approach: Tightened the recovery stream-consumer patch after code review so recovery cleanup updates non-terminal metadata only and performs no inference-cache write before terminal persistence.
+    outcome: blocked
+    recorded_at: "2026-07-22"
+    notes: Targeted recovery tests now assert no messages_v increment, no client persistence event, and no AI inference-cache mutation in the recovery cleanup path. app-ai-worker was restarted with this safer behavior. The preserved chat 30521f99 may still contain polluted AI cache/history from ATTEMPT-2/3 and should not be used as final example source unless explicitly repaired or accepted by the user.
+  - id: ATTEMPT-5
+    task_id: TASK-3
+    approach: Fixed the compression split edge case, dev-repaired chat 30521f99 by removing failed tail rows and the stale PRD task, cleared AI/sync caches, then retried the PRD turn with the 6500-token threshold override.
+    outcome: blocked
+    recorded_at: "2026-07-22"
+    notes: Targeted compressor/recovery tests passed and app-ai-worker was restarted. The repaired raw transcript ended at the last good outbound-assets assistant response before retrying. The retry wrote a new user message but the CLI timed out waiting for AI response; app-ai-worker logs did not show the task being received and no assistant/checkpoint rows appeared. The new orphan user row was removed, AI cache cleared again, and the temporary threshold override was cleared/verified null. Next blocker is the CLI/API dispatch path that can persist a user message without starting the AI task.
+  - id: ATTEMPT-6
+    task_id: TASK-3
+    approach: Added retryable dispatch-failure handling for saved-chat recovery sends and SDK saved-chat creation.
+    outcome: succeeded
+    recorded_at: "2026-07-22"
+    notes: The recovery transaction extension now allows mark_inference_failed from ENQUEUED before worker claim, so API dispatch failures can mark the preflight/outbox FAILED. The WebSocket message handler now treats ai.ask responses without a task_id as a scoped ai_dispatch_failed error and marks the expected recovery inference failed; CLI collectAiResponse already rejects scoped error frames instead of timing out. The SDK saved-chat path now does the same and returns a retryable 502 detail. api and cms were restarted and api.dev.openmates.org health recovered. This guards the orphan/timeout path but does not implement a new CLI/SDK fork-from-message API; the existing fork behavior remains client-side web-only.
+
+handoff:
+  current_task_id: TASK-3
+  next_action: Retry the PRD turn from repaired chat 30521f99 with the source CLI, watching for immediate ai_dispatch_failed versus normal ai_task_initiated; if it succeeds, inspect the assistant response and compression checkpoint behavior before continuing.
+  command: node --experimental-strip-types --loader ./tests/loader.mjs src/cli.ts chats send --chat 30521f99 --response-timeout-seconds 600 "@Gemini-3.5-Flash-Lite <next turn>"
+  expected_outcome: The turn should either start a real AI task and stream a usable response, or fail quickly with scoped ai_dispatch_failed instead of silently timing out with an ambiguous orphan message.
+  blocker:
+    reason: Recovery version conflict, pre-terminal cache writes, compression split skipping, and no-task dispatch failure are covered by targeted tests. The validation run is still incomplete because chat 30521f99 has not yet produced two durable compression checkpoints or a final publishable transcript.
+    since: "2026-07-22"
+  last_verified_commit: working-tree-2026-07-22
+
+scenarios:
+  - id: S-1
+    title: User chooses a long-running validation topic
+    given:
+      - OpenCode starts the reusable long-chat validation skill.
+    when:
+      - No topic is already approved for the session.
+    then:
+      - The skill suggests concrete long-running topics, including company-building advice across strategy, product, finance, marketing, hiring, operations, docs, sheets, and code.
+      - The skill asks the user to choose or confirm one topic before any CLI chat is started.
+
+  - id: S-2
+    title: OpenCode drives a realistic many-turn CLI chat
+    given:
+      - The user has approved a topic.
+      - The CLI test account is logged in against api.dev.openmates.org.
+    when:
+      - OpenCode starts and continues the chat.
+    then:
+      - Each turn is sent through the real OpenMates CLI path.
+      - OpenCode inspects the assistant response and any generated embeds before sending the next turn.
+      - The transcript consists of many individual user/assistant turns rather than one giant synthetic message.
+      - The chat stays on Gemini routing with google/gemini-3.5-flash-lite primary where selectable.
+
+  - id: S-3
+    title: Workflow pauses on broken quality or product behavior
+    given:
+      - The long-running chat is in progress.
+    when:
+      - A CLI turn fails, an assistant response is missing or unusable, or a generated embed is broken, irrelevant, or nonsensical.
+    then:
+      - OpenCode pauses the run.
+      - OpenCode reports the issue with the chat id, turn number, model when known, and affected embed or response.
+      - OpenCode asks the user whether to debug/fix the issue or continue anyway.
+
+  - id: S-4
+    title: Two real compression checkpoints are verified
+    given:
+      - The same realistic CLI chat has accumulated enough token history.
+    when:
+      - Compression triggers during the first and later second context-pressure cycles.
+    then:
+      - The first compression checkpoint is durably persisted for the chat.
+      - The chat continues with more inspected CLI turns.
+      - A second compression checkpoint is durably persisted for the same chat.
+      - Evidence records checkpoint ids, compressed_message_count values, summary_token_estimate values, model routing, and approximate credit spend.
+
+  - id: S-5
+    title: Successful chat becomes a public example chat
+    given:
+      - A realistic long CLI chat has passed quality checks and produced two verified compression checkpoints.
+    when:
+      - OpenCode publishes the chat as an example.
+    then:
+      - OpenCode creates a share link for the real chat and keeps the key fragment out of committed files and final public logs.
+      - OpenCode uses the add-example-chat workflow and scripts/create-example-chat-from-share.mjs to scaffold the hardcoded example.
+      - The deployed example page opens successfully.
+      - The example exposes and exercises Show older messages.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: The reusable skill asks the user to choose or confirm a long-running topic before starting the CLI chat and offers concrete topic examples.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: manual
+    verification_ids: [T-SKILL-CONTRACT]
+  - id: AC-2
+    scenario: S-2
+    text: The validation run uses real OpenMates CLI turns against api.dev.openmates.org, inspected one by one, with no hidden unattended deterministic script driving the full chat.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids: [T-REAL-CLI-LONG-CHAT]
+  - id: AC-3
+    scenario: S-2
+    text: The chat uses Gemini routing with google/gemini-3.5-flash-lite primary where selectable, and compression uses an intended cheap Gemini Flash or Flash-Lite path.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: manual
+    verification_ids: [T-MODEL-ROUTING, T-COMPRESSION-MODEL]
+  - id: AC-4
+    scenario: S-3
+    text: The workflow pauses and asks the user before debugging or continuing when an assistant response fails or an embed is clearly broken, missing, irrelevant, or nonsensical.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: manual
+    verification_ids: [T-SKILL-CONTRACT, V-LIVE-RUN-OBSERVATION]
+  - id: AC-5
+    scenario: S-4
+    text: The same realistic long chat produces and persists at least two compression checkpoints after many individual turns.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-REAL-CLI-LONG-CHAT, T-CHECKPOINT-DB-VERIFY]
+  - id: AC-6
+    scenario: S-5
+    text: The successful real chat is converted from its share link into a hardcoded example chat and the deployed example has working Show older messages UX.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-EXAMPLE-SCAFFOLD, T-EXAMPLE-OLDER-MESSAGES]
+
+assumptions:
+  - id: A-1
+    text: The OpenMates CLI can select or bias the desired Gemini model for normal chat turns, or the backend model-selection logs can prove the chosen Gemini path.
+    category: cli
+    required_before: task_execution
+    status: unchecked
+    evidence: []
+    blocker: Confirm available CLI model-selection flags or acceptable backend auto-selection proof before the live run.
+  - id: A-2
+    text: The current compression model can be changed to, or already configured as, an intended cheap Gemini Flash or Flash-Lite model before the live validation.
+    category: ai_pipeline
+    required_before: task_execution
+    status: unchecked
+    evidence: []
+    blocker: Inspect and, if needed, update backend/apps/ai/processing/chat_compressor.py before counting real validation evidence.
+  - id: A-3
+    text: The existing example-chat scaffold can preserve enough long-chat history from a share link for Show older messages to appear in the final example.
+    category: example_chat
+    required_before: task_execution
+    status: unchecked
+    evidence: []
+    blocker: Verify scripts/create-example-chat-from-share.mjs and example rendering support long transcripts before publishing.
+
+contracts:
+  workflow:
+    - name: realistic-long-chat-validation skill
+      access_model: internal developer workflow only
+      auth: OpenCode operator uses logged-in OpenMates CLI test account and dev API
+      rate_limits: existing OpenMates CLI/API/WebSocket limits apply
+      credit_limits: no explicit max credit cap for this workflow; actual usage must be recorded
+      encryption_boundary: share URL key fragments and chat keys must not be committed or printed in final public output
+      stop_conditions:
+        - assistant response failure
+        - clearly broken, missing, irrelevant, or nonsensical embed
+        - missing or non-persisted checkpoint when compression should have completed
+        - non-Gemini model route unless user explicitly accepts continuing
+  data:
+    - The final example chat must originate from the successful real shared chat.
+    - Evidence must record sanitized chat id, checkpoint ids, compressed_message_count, summary_token_estimate, model names, and credit spend.
+    - The share URL key fragment may be used locally during conversion but must not be committed.
+  ui_states:
+    - Final deployed example chat opens normally.
+    - Final deployed example chat shows Show older messages.
+    - Older-message loading works on the final deployed example chat.
+  privacy_security:
+    - Do not commit share URL fragments, chat keys, private account data, raw cookies, or private tokens.
+    - Inspect generated business advice for private test-account artifacts before publishing.
+    - Do not hand-edit private content into the example transcript.
+
+tests:
+  - id: T-SKILL-CONTRACT
+    type: manual
+    file: .claude/skills/realistic-long-chat-validation/SKILL.md
+    command: python3 scripts/sync_agent_parity.py --check
+    covers: [AC-1, AC-4]
+    assertions:
+      - skill asks the user to choose or confirm topic before CLI use
+      - skill forbids unattended deterministic full-chat scripts
+      - skill lists pause conditions and user-confirmation gate for debugging or continuing
+      - .agents mirror is in sync with .claude canonical skill source
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 scripts/sync_agent_parity.py --check
+        run_id: local-2026-07-22-skill-parity
+        subject_commit: working-tree-2026-07-22
+        timestamp: "2026-07-22"
+        summary: Created canonical .claude skill, synced .agents mirror, and verified agent-tool parity is up to date.
+  - id: T-COMPRESSION-MODEL
+    type: pytest
+    file: backend/tests/test_chat_compressor.py
+    command: python3 -m pytest backend/tests/test_chat_compressor.py -k compression_model
+    covers: [AC-3]
+    assertions:
+      - compression model id is an approved cheap Gemini Flash or Flash-Lite model
+      - fallback does not silently replace the intended cheap Gemini path without evidence
+    red_phase:
+      required: true
+      expected: fail_if_current_model_is_not_approved
+      evidence:
+        status: pending
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: docker exec api python -m pytest /app/backend/tests/test_chat_compressor.py -k compression_model
+        run_id: docker-api-2026-07-22-compression-model
+        subject_commit: working-tree-2026-07-22
+        timestamp: "2026-07-22"
+        summary: Compressor guardrail passed in the api container; COMPRESSION_MODEL_ID is gemini-3.5-flash-lite.
+  - id: T-MODEL-ROUTING
+    type: manual
+    file: backend logs / CLI output
+    command: docker logs app-ai-worker --since <run-start> | rg '<chat_id>|MODEL_SELECTION|gemini-3.5-flash-lite|compression LLM'
+    covers: [AC-3]
+    assertions:
+      - normal chat turns select Gemini with gemini-3.5-flash-lite primary where available
+      - compression calls use the intended cheap Gemini Flash or Flash-Lite model
+    red_phase:
+      required: false
+      expected: not_applicable
+      evidence:
+        status: pending
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+  - id: T-REAL-CLI-LONG-CHAT
+    type: manual
+    file: frontend/packages/openmates-cli/src/cli.ts
+    command: openmates chats new/send against api.dev.openmates.org, one inspected turn at a time
+    covers: [AC-2, AC-5]
+    assertions:
+      - many individual user/assistant turns are present
+      - generated docs, sheets, code, or other embeds are inspected before continuation
+      - first compression checkpoint is observed
+      - same chat continues after first checkpoint
+      - second compression checkpoint is observed
+    red_phase:
+      required: false
+      expected: not_applicable
+      evidence:
+        status: pending
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+  - id: T-CHECKPOINT-DB-VERIFY
+    type: manual
+    file: backend/core/directus/schemas/chat_compression_checkpoints.yml
+    command: docker exec cms-database psql -U directus -d directus -tAc '<checkpoint query for chat_id>'
+    covers: [AC-5]
+    assertions:
+      - checkpoint count for the chat is at least 2
+      - checkpoint ids are UUIDs
+      - compressed_message_count values indicate many individual messages were represented across the run, not one synthetic old message
+      - summary_token_estimate is present for each checkpoint
+    red_phase:
+      required: false
+      expected: not_applicable
+      evidence:
+        status: pending
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+  - id: T-EXAMPLE-SCAFFOLD
+    type: manual
+    file: scripts/create-example-chat-from-share.mjs
+    command: node scripts/create-example-chat-from-share.mjs '<share-url>' --slug '<slug>' --title '<title>' --summary '<summary>' --icon '<icon>' --category '<category>' --keywords '<keywords>'
+    covers: [AC-6]
+    assertions:
+      - scaffold succeeds from the real share link
+      - committed example data contains no share key fragment or private credentials
+      - generated example preserves enough messages for older-message UX
+    red_phase:
+      required: false
+      expected: not_applicable
+      evidence:
+        status: pending
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+  - id: T-EXAMPLE-OLDER-MESSAGES
+    type: playwright
+    file: frontend/apps/web_app/tests/example-chats-load.spec.ts
+    command: python3 scripts/tests.py run --spec example-chats-load.spec.ts
+    target: app.dev.openmates.org
+    covers: [AC-6]
+    assertions:
+      - deployed example page opens
+      - Show older messages is visible for the example chat
+      - clicking Show older messages reveals older messages without breaking layout
+    red_phase:
+      required: true
+      expected: fail_before_example_exists
+      evidence:
+        status: pending
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: pending
+
+verifications:
+  - id: V-PRODUCT-CONTRACT-APPROVAL
+    kind: user_confirmation
+    phase: final
+    required_for_done: true
+    covers: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6]
+    status: pending
+    evidence:
+      status: passed
+      summary: User approved this executable spec and said "ok go ahead" before implementation began.
+      timestamp: "2026-07-22"
+  - id: V-LIVE-RUN-OBSERVATION
+    kind: manual_check
+    phase: green
+    required_for_done: true
+    covers: [AC-4]
+    status: pending
+    evidence:
+      status: pending
+      summary: Record whether any pause condition occurred during the live run and how the user chose to proceed.
+      timestamp: null
+  - id: V-USER-CONFIRMATION
+    kind: user_confirmation
+    phase: final
+    required_for_done: true
+    covers: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6]
+    status: pending
+    evidence:
+      status: pending
+      summary: User confirms the workflow and final example-chat UX are acceptable.
+      timestamp: null
+
+implementation_plan:
+  spec_path: docs/specs/realistic-long-chat-cli-validation/spec.yml
+  existing_patterns:
+    - .agents/skills/add-example-chat/SKILL.md
+    - .claude/skills/add-example-chat/SKILL.md
+    - docs/specs/long-chat-compression-history/spec.yml
+    - scripts/create-example-chat-from-share.mjs
+  architecture: >
+    Add a reusable workflow skill that composes existing CLI chat, compression,
+    sharing, and add-example-chat behavior instead of creating a new product API.
+    Keep model/cost/checkpoint evidence in this spec, pause on real quality bugs,
+    and only publish the chat after two verified compression checkpoints.
+  data_flow:
+    - User approves topic through the reusable skill before any chat starts.
+    - OpenCode sends one CLI turn at a time against api.dev.openmates.org.
+    - Backend model-selection and compression logs provide sanitized model evidence.
+    - Directus chat_compression_checkpoints rows provide checkpoint persistence evidence.
+    - OpenCode creates a share link only after live validation succeeds.
+    - scripts/create-example-chat-from-share.mjs converts the shared chat into public example-chat files.
+    - Deployed app.dev example page verifies Show older messages for the published example.
+  affected_files:
+    - path: .claude/skills/realistic-long-chat-validation/SKILL.md
+      reason: Canonical reusable workflow skill source.
+    - path: .agents/skills/realistic-long-chat-validation/SKILL.md
+      reason: OpenCode-compatible skill mirror generated from the canonical skill.
+    - path: backend/apps/ai/processing/chat_compressor.py
+      reason: Compression model routing must use the approved cheap Gemini Flash/Flash-Lite path.
+    - path: backend/tests/test_chat_compressor.py
+      reason: Regression coverage for compression model routing and existing compression behavior.
+    - path: frontend/packages/ui/src/demo_chats/data/example_chats/<slug>.ts
+      reason: Generated final hardcoded example chat from the successful share link.
+    - path: frontend/packages/ui/src/i18n/sources/example_chats/<slug>.yml
+      reason: Generated i18n source for the final example chat.
+    - path: frontend/packages/ui/src/demo_chats/exampleChatStore.ts
+      reason: Registration point for the final example chat.
+    - path: frontend/apps/web_app/tests/example-chats-load.spec.ts
+      reason: Deployed example-page Show older messages verification.
+    - path: docs/specs/realistic-long-chat-cli-validation/spec.yml
+      reason: Product contract and evidence ledger for the workflow.
+  verification_strategy:
+    - Validate skill contract and agent parity before running any live chat.
+    - Prove compression model routing uses the intended cheap Gemini Flash or Flash-Lite path.
+    - Run the realistic CLI chat manually one turn at a time and record model, quality, cost, and checkpoint evidence.
+    - Verify at least two persisted Directus compression checkpoints for the same chat.
+    - Convert the successful share link into a hardcoded example and audit for private data.
+    - Deploy and verify the example page on app.dev.openmates.org with Show older messages.
+  verification_order:
+    - V-PRODUCT-CONTRACT-APPROVAL
+    - T-SKILL-CONTRACT
+    - T-COMPRESSION-MODEL
+    - T-MODEL-ROUTING
+    - T-REAL-CLI-LONG-CHAT
+    - T-CHECKPOINT-DB-VERIFY
+    - V-LIVE-RUN-OBSERVATION
+    - T-EXAMPLE-SCAFFOLD
+    - T-EXAMPLE-OLDER-MESSAGES
+    - V-USER-CONFIRMATION
+  phases:
+    - phase: awaiting_approval
+      tasks: [TASK-1]
+    - phase: working_tasks
+      tasks: [TASK-2]
+    - phase: running_checks
+      tasks: [TASK-3]
+    - phase: working_tasks
+      tasks: [TASK-4, TASK-5]
+
+tasks:
+  - id: TASK-1
+    title: Approve product contract
+    status: done
+    phase: awaiting_approval
+    covers:
+      scenarios: [S-1, S-2, S-3, S-4, S-5]
+      acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6]
+    expected_files:
+      - docs/specs/realistic-long-chat-cli-validation/spec.yml
+    verification: [V-PRODUCT-CONTRACT-APPROVAL]
+    verification_ids: [V-PRODUCT-CONTRACT-APPROVAL]
+    dependencies: []
+    ownership:
+      files:
+        - docs/specs/realistic-long-chat-cli-validation/spec.yml
+      shared_files: []
+    blockers: []
+    follow_up_tasks: [TASK-2]
+    independently_deployable: false
+  - id: TASK-2
+    title: Create reusable skill and compression/model guardrails
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios: [S-1, S-3]
+      acceptance_criteria: [AC-1, AC-3, AC-4]
+    expected_files:
+      - .claude/skills/realistic-long-chat-validation/SKILL.md
+      - .agents/skills/realistic-long-chat-validation/SKILL.md
+      - backend/apps/ai/processing/chat_compressor.py
+      - backend/tests/test_chat_compressor.py
+    verification: [T-SKILL-CONTRACT, T-COMPRESSION-MODEL]
+    verification_ids: [T-SKILL-CONTRACT, T-COMPRESSION-MODEL]
+    dependencies: [TASK-1]
+    ownership:
+      files:
+        - .claude/skills/realistic-long-chat-validation/SKILL.md
+        - .agents/skills/realistic-long-chat-validation/SKILL.md
+        - backend/apps/ai/processing/chat_compressor.py
+        - backend/tests/test_chat_compressor.py
+      shared_files: []
+    blockers: []
+    follow_up_tasks: [TASK-3]
+    independently_deployable: false
+  - id: TASK-3
+    title: Run realistic many-turn CLI chat to two compression checkpoints
+    status: blocked
+    phase: running_checks
+    covers:
+      scenarios: [S-2, S-3, S-4]
+      acceptance_criteria: [AC-2, AC-3, AC-4, AC-5]
+    expected_files:
+      - docs/specs/realistic-long-chat-cli-validation/spec.yml
+    verification: [T-MODEL-ROUTING, T-REAL-CLI-LONG-CHAT, T-CHECKPOINT-DB-VERIFY, V-LIVE-RUN-OBSERVATION]
+    verification_ids: [T-MODEL-ROUTING, T-REAL-CLI-LONG-CHAT, T-CHECKPOINT-DB-VERIFY, V-LIVE-RUN-OBSERVATION]
+    dependencies: [TASK-2]
+    ownership:
+      files:
+        - docs/specs/realistic-long-chat-cli-validation/spec.yml
+      shared_files: []
+    blockers: []
+    follow_up_tasks: [TASK-4]
+    independently_deployable: false
+  - id: TASK-4
+    title: Convert successful share link into hardcoded example chat
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-5]
+      acceptance_criteria: [AC-6]
+    expected_files:
+      - frontend/packages/ui/src/demo_chats/data/example_chats/<slug>.ts
+      - frontend/packages/ui/src/i18n/sources/example_chats/<slug>.yml
+      - frontend/packages/ui/src/demo_chats/exampleChatStore.ts
+    verification: [T-EXAMPLE-SCAFFOLD]
+    verification_ids: [T-EXAMPLE-SCAFFOLD]
+    dependencies: [TASK-3]
+    ownership:
+      files:
+        - frontend/packages/ui/src/demo_chats/data/example_chats/<slug>.ts
+        - frontend/packages/ui/src/i18n/sources/example_chats/<slug>.yml
+        - frontend/packages/ui/src/demo_chats/exampleChatStore.ts
+      shared_files: []
+    blockers: []
+    follow_up_tasks: [TASK-5]
+    independently_deployable: false
+  - id: TASK-5
+    title: Deploy and verify example-chat older-message UX
+    status: pending
+    phase: running_checks
+    covers:
+      scenarios: [S-5]
+      acceptance_criteria: [AC-6]
+    expected_files:
+      - frontend/apps/web_app/tests/example-chats-load.spec.ts
+      - docs/specs/realistic-long-chat-cli-validation/spec.yml
+    verification: [T-EXAMPLE-OLDER-MESSAGES, V-USER-CONFIRMATION]
+    verification_ids: [T-EXAMPLE-OLDER-MESSAGES, V-USER-CONFIRMATION]
+    dependencies: [TASK-4]
+    ownership:
+      files:
+        - frontend/apps/web_app/tests/example-chats-load.spec.ts
+        - docs/specs/realistic-long-chat-cli-validation/spec.yml
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+
+risks:
+  - id: R-1
+    risk: A realistic long chat may uncover unrelated product bugs or broken embeds.
+    mitigation: Pause and ask the user whether to debug/fix or continue.
+  - id: R-2
+    risk: The intended Gemini Flash-Lite model cannot be forced by the current CLI.
+    mitigation: Record backend model-selection evidence or add a narrow model-selection path before the run if needed.
+  - id: R-3
+    risk: Long share-link extraction or example scaffold may not preserve enough history for Show older messages.
+    mitigation: Verify scaffold output count before deploy and extend example-chat support only if needed.
+  - id: R-4
+    risk: The example chat may contain public-inappropriate business advice or private test artifacts.
+    mitigation: Inspect the transcript and generated embeds before conversion and again after deployed rendering.
+
+open_questions:
+  - id: OQ-1
+    status: resolved
+    question: Should this run have a max cost or time cap?
+    answer: No explicit cap.
+  - id: OQ-2
+    status: resolved
+    question: What should the default topic be?
+    answer: Business advice for building a company across many functional areas.
+  - id: OQ-3
+    status: open
+    question: Which exact public slug/title should the final example use?
+    answer: Decide after the successful source chat exists and its strongest theme is known.

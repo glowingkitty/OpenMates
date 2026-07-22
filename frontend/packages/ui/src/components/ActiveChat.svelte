@@ -68,6 +68,7 @@
     import { aiTypingStore, type AITypingStatus } from '../stores/aiTypingStore'; // Import the new store
     import { decryptWithChatKey, decryptWithMasterKey } from '../services/cryptoService'; // Import decryption function
     import { getModelDisplayName } from '../utils/modelDisplayName'; // For clean model name display
+    import { pruneDecryptedMessageWindow } from '../utils/messageWindowPruning';
     import { modelsMetadata } from '../data/modelsMetadata'; // For reasoning model detection in typing indicator
     import { parse_message } from '../message_parsing/parse_message'; // Import markdown parser
     import { loadSessionStorageDraft, getSessionStorageDraftMarkdown, migrateSessionStorageDraftsToIndexedDB, getAllDraftChatIdsWithDrafts } from '../services/drafts/sessionStorageDraftService'; // Import sessionStorage draft service
@@ -188,6 +189,7 @@
     const DRAFT_EMBED_HYDRATION_DELAY_MS = 250;
     const ON_DEMAND_MESSAGE_LOAD_POLL_ATTEMPTS = 20;
     const ON_DEMAND_MESSAGE_LOAD_POLL_DELAY_MS = 500;
+    const MESSAGE_WINDOW_LIMIT = 30;
     const EMBED_ID_IN_REF_RE = /[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/i;
     function extractPlainIdeaBucketText(markdown: string): string | null {
         const matches = [...markdown.matchAll(/----- Idea \d+ -----\r?\n([\s\S]*?)\r?\n-----------------/g)];
@@ -4900,13 +4902,24 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
      let currentChat = $state<Chat | null>(initialPublicChat ?? initialAnonymousChat);
      let currentMessages = $state<ChatMessageModel[]>(initialPublicMessages); // Holds messages for the currentChat - MUST use $state for Svelte 5 reactivity
      let currentCompressionCheckpoints = $state<ChatCompressionCheckpoint[]>([]);
-     let currentMessageWindowHasMoreBefore = $state(false);
-     let olderMessageWindowLoading = $state(false);
-     let lastBoundChatHistoryRef = $state<ChatHistoryRef | null>(null);
-     let anonymousShellHydratingChatId = $state<string | null>(null);
-     let hasActivePrivateChatSurface = $derived(Boolean(
-        currentChat?.chat_id &&
-        !isPublicChat(currentChat.chat_id) &&
+      let currentMessageWindowHasMoreBefore = $state(false);
+      let olderMessageWindowLoading = $state(false);
+      let lastBoundChatHistoryRef = $state<ChatHistoryRef | null>(null);
+      let anonymousShellHydratingChatId = $state<string | null>(null);
+
+      function pruneCurrentDecryptedMessageWindow(messages: ChatMessageModel[]): ChatMessageModel[] {
+        const prunedWindow = pruneDecryptedMessageWindow(messages, {
+            compressionCheckpoints: currentCompressionCheckpoints,
+        });
+        if (prunedWindow.prunedCount > 0) {
+            console.debug(`[ActiveChat] Pruned ${prunedWindow.prunedCount} decrypted normal message(s) from active window`);
+        }
+        return prunedWindow.messages;
+      }
+
+      let hasActivePrivateChatSurface = $derived(Boolean(
+         currentChat?.chat_id &&
+         !isPublicChat(currentChat.chat_id) &&
         (!showWelcome || currentMessages.length > 0)
      ));
 
@@ -8332,6 +8345,89 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }, 1000);
     }
 
+    type AuthenticatedMessageWindowPayload = {
+        messages?: Array<string | Record<string, unknown>>;
+        has_more_before?: boolean;
+        has_more_after?: boolean;
+        start_cursor?: { created_at?: number; message_id?: string } | null;
+        end_cursor?: { created_at?: number; message_id?: string } | null;
+        anchor_found?: boolean;
+    };
+
+    function normalizeServerMessage(raw: string | Record<string, unknown>, chatId: string): ChatMessageModel | null {
+        const messageObj = typeof raw === 'string' ? JSON.parse(raw) as Record<string, unknown> : raw;
+        const messageId = messageObj.client_message_id || messageObj.message_id || messageObj.id;
+        if (typeof messageId !== 'string') return null;
+        return {
+            message_id: messageId,
+            chat_id: typeof messageObj.chat_id === 'string' ? messageObj.chat_id : chatId,
+            role: messageObj.role === 'assistant' || messageObj.role === 'system' ? messageObj.role : 'user',
+            created_at: typeof messageObj.created_at === 'number' ? messageObj.created_at : Math.floor(Date.now() / 1000),
+            status: 'synced',
+            encrypted_content: typeof messageObj.encrypted_content === 'string' ? messageObj.encrypted_content : '',
+            encrypted_sender_name: typeof messageObj.encrypted_sender_name === 'string' ? messageObj.encrypted_sender_name : undefined,
+            encrypted_category: typeof messageObj.encrypted_category === 'string' ? messageObj.encrypted_category : undefined,
+            encrypted_model_name: typeof messageObj.encrypted_model_name === 'string' ? messageObj.encrypted_model_name : undefined,
+            encrypted_thinking_content: typeof messageObj.encrypted_thinking_content === 'string' ? messageObj.encrypted_thinking_content : undefined,
+            encrypted_thinking_signature: typeof messageObj.encrypted_thinking_signature === 'string' ? messageObj.encrypted_thinking_signature : undefined,
+            has_thinking: typeof messageObj.has_thinking === 'boolean' ? messageObj.has_thinking : undefined,
+            thinking_token_count: typeof messageObj.thinking_token_count === 'number' ? messageObj.thinking_token_count : undefined,
+            user_message_id: typeof messageObj.user_message_id === 'string' ? messageObj.user_message_id : undefined,
+            encrypted_pii_mappings: typeof messageObj.encrypted_pii_mappings === 'string' ? messageObj.encrypted_pii_mappings : undefined,
+            client_message_id: typeof messageObj.client_message_id === 'string' ? messageObj.client_message_id : undefined,
+            key_version: typeof messageObj.key_version === 'number' ? messageObj.key_version : undefined,
+        };
+    }
+
+    async function fetchAuthenticatedMessageWindow(chatId: string, options: {
+        direction: 'latest' | 'before' | 'after' | 'around';
+        beforeTimestamp?: number;
+        beforeMessageId?: string;
+        anchorMessageId?: string;
+        compressedUpToTimestamp?: number;
+    }) {
+        const params = new URLSearchParams({
+            direction: options.direction,
+            limit: String(MESSAGE_WINDOW_LIMIT),
+        });
+        if (typeof options.beforeTimestamp === 'number') params.set('before_timestamp', String(options.beforeTimestamp));
+        if (options.beforeMessageId) params.set('before_message_id', options.beforeMessageId);
+        if (options.anchorMessageId) params.set('anchor_message_id', options.anchorMessageId);
+
+        const response = await fetch(getApiEndpoint(`/v1/chats/${chatId}/messages/window?${params.toString()}`), {
+            credentials: 'include',
+        });
+        if (!response.ok) throw new Error(`Authenticated message-window fetch failed: ${response.status}`);
+        const payload = await response.json() as AuthenticatedMessageWindowPayload;
+        const parsedMessages = (payload.messages || []).flatMap((raw) => {
+            const normalized = normalizeServerMessage(raw, chatId);
+            return normalized ? [normalized] : [];
+        });
+        if (parsedMessages.length > 0) {
+            await chatDB.batchSaveMessages(parsedMessages);
+        }
+        const localWindow = await chatDB.getMessageWindowForChat(chatId, {
+            direction: options.direction,
+            beforeTimestamp: options.beforeTimestamp,
+            beforeMessageId: options.beforeMessageId,
+            anchorMessageId: options.anchorMessageId,
+            compressedUpToTimestamp: options.compressedUpToTimestamp,
+        });
+        await chatDB.recordMessageWindowPage(chatId, localWindow, {
+            direction: options.direction,
+            pageKind: 'normal',
+        });
+        await chatDB.evictStaleMessageWindowPages(chatId, {
+            protectedMessageIds: localWindow.messages.map((message) => message.message_id),
+        });
+        return {
+            ...localWindow,
+            hasMoreBefore: payload.has_more_before ?? localWindow.hasMoreBefore,
+            hasMoreAfter: payload.has_more_after ?? localWindow.hasMoreAfter,
+            anchorFound: payload.anchor_found ?? localWindow.anchorFound,
+        };
+    }
+
     async function handleLoadOlderMessages(event: CustomEvent) {
         if (!currentChat?.chat_id || olderMessageWindowLoading) return;
         if (isPublicChat(currentChat.chat_id) || currentChat.is_incognito) return;
@@ -8343,7 +8439,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 const params = new URLSearchParams({
                     before_timestamp: String(currentChat.shared_message_window_next_before_timestamp),
                     before_message_id: currentChat.shared_message_window_next_before_message_id,
-                    limit: '40',
+                    limit: String(MESSAGE_WINDOW_LIMIT),
                 });
                 const response = await fetch(getApiEndpoint(`/v1/share/chat/${currentChat.chat_id}/messages?${params.toString()}`));
                 if (!response.ok) throw new Error(`Shared older-window fetch failed: ${response.status}`);
@@ -8401,21 +8497,29 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             const windowStartMessage = currentMessages[0];
             if (!windowStartMessage?.created_at || !windowStartMessage.message_id) return;
             const latestCheckpoint = [...currentCompressionCheckpoints].sort((a, b) => b.created_at - a.created_at)[0];
-            const olderWindow = await chatDB.getMessageWindowForChat(currentChat.chat_id, {
+            let olderWindow = await chatDB.getMessageWindowForChat(currentChat.chat_id, {
                 direction: 'before',
                 beforeTimestamp: windowStartMessage.created_at,
                 beforeMessageId: windowStartMessage.message_id,
                 compressedUpToTimestamp: latestCheckpoint?.compressed_up_to_timestamp,
             });
             if (olderWindow.messages.length === 0) {
+                olderWindow = await fetchAuthenticatedMessageWindow(currentChat.chat_id, {
+                    direction: 'before',
+                    beforeTimestamp: windowStartMessage.created_at,
+                    beforeMessageId: windowStartMessage.message_id,
+                    compressedUpToTimestamp: latestCheckpoint?.compressed_up_to_timestamp,
+                });
+            }
+            if (olderWindow.messages.length === 0) {
                 currentMessageWindowHasMoreBefore = false;
                 return;
             }
             const existingIds = new Set(currentMessages.map((message) => message.message_id));
-            currentMessages = [
+            currentMessages = pruneCurrentDecryptedMessageWindow([
                 ...olderWindow.messages.filter((message) => !existingIds.has(message.message_id)),
                 ...currentMessages,
-            ];
+            ]);
             currentMessageWindowHasMoreBefore = olderWindow.hasMoreBefore;
             chatHistoryRef?.updateMessages(currentMessages);
             const restoreMessageId = firstMessageId || windowStartMessage.message_id;
@@ -8961,13 +9065,26 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 try {
                     currentCompressionCheckpoints = await loadCompressionCheckpointsForChat(currentChat.chat_id);
                     const latestCheckpoint = [...currentCompressionCheckpoints].sort((a, b) => b.created_at - a.created_at)[0];
-                    const windowResult = await chatDB.getMessageWindowForChat(currentChat.chat_id, {
+                    let windowResult = await chatDB.getMessageWindowForChat(currentChat.chat_id, {
                         direction: options?.messageId ? 'around' : 'latest',
                         anchorMessageId: options?.messageId ?? undefined,
                         compressedUpToTimestamp: latestCheckpoint && !options?.messageId
                             ? latestCheckpoint.compressed_up_to_timestamp
                             : undefined,
                     });
+                    if (windowResult.messages.length === 0 || (options?.messageId && !windowResult.anchorFound)) {
+                        try {
+                            windowResult = await fetchAuthenticatedMessageWindow(currentChat.chat_id, {
+                                direction: options?.messageId ? 'around' : 'latest',
+                                anchorMessageId: options?.messageId ?? undefined,
+                                compressedUpToTimestamp: latestCheckpoint && !options?.messageId
+                                    ? latestCheckpoint.compressed_up_to_timestamp
+                                    : undefined,
+                            });
+                        } catch (windowError) {
+                            console.warn(`[ActiveChat] Bounded server message window failed for ${currentChat.chat_id}:`, windowError);
+                        }
+                    }
                     newMessages = windowResult.messages;
                     currentMessageWindowHasMoreBefore = windowResult.hasMoreBefore;
                     console.debug(`[ActiveChat] Loaded ${newMessages.length} messages from IndexedDB for ${currentChat.chat_id}`);
@@ -8977,8 +9094,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     newMessages = [];
                 }
 
-                // On-demand message loading: if this chat has no messages locally (metadata-only
-                // or older chat not in IndexedDB), request messages from the server.
+                // On-demand repair fallback: bounded server windows are tried above first.
                 // The server response (chat_content_batch_response) saves messages to IndexedDB
                 // and dispatches chatUpdated with messagesUpdated=true, which triggers
                 // handleChatUpdated to reload messages from IDB into the view.
@@ -9189,7 +9305,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             return;
         }
 
-        currentMessages = newMessages;
+        currentMessages = currentChat?.chat_id && !isPublicChat(currentChat.chat_id) && !currentChat.is_incognito && !currentChat.is_anonymous
+            ? pruneCurrentDecryptedMessageWindow(newMessages)
+            : newMessages;
 
         // Hide welcome screen when we have messages to display
         // This ensures public chats (demo + legal, like welcome chat) show their content immediately

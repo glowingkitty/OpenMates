@@ -7,6 +7,7 @@ trigger AI inference to create or exercise long chats.
 
 import json
 import importlib
+import inspect
 import sys
 import types
 
@@ -70,6 +71,7 @@ get_shared_chat_message_window = getattr(
     share_routes.get_shared_chat_message_window,
 )
 get_shared_sub_chats = share_routes.get_shared_sub_chats
+DEFAULT_SHARED_MESSAGE_WINDOW_LIMIT = share_routes.DEFAULT_SHARED_MESSAGE_WINDOW_LIMIT
 
 
 class FakeEmbedMethods:
@@ -208,7 +210,7 @@ class FakeDirectusService:
         return []
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_shared_chat_manifest_omits_full_messages():
     directus = FakeDirectusService()
 
@@ -225,7 +227,7 @@ async def test_shared_chat_manifest_omits_full_messages():
     assert payload["message_highlights"]
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_shared_chat_manifest_includes_key_addressable_embeds():
     directus = FakeDirectusService()
     directus.embed.chat_embeds = [{"embed_id": "image-embed", "hashed_embed_id": "image-hash"}]
@@ -247,7 +249,7 @@ async def test_shared_chat_manifest_includes_key_addressable_embeds():
     assert [embed["embed_id"] for embed in payload["embeds"]] == ["image-embed", "pdf-embed"]
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_shared_chat_manifest_includes_compression_checkpoints():
     directus = FakeDirectusService()
 
@@ -260,7 +262,15 @@ async def test_shared_chat_manifest_includes_compression_checkpoints():
     assert payload["compression_checkpoints"] == directus.checkpoints
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
+async def test_shared_chat_message_window_default_limit_is_thirty():
+    limit_default = inspect.signature(share_routes.get_shared_chat_message_window).parameters["limit"].default
+
+    assert limit_default.default == DEFAULT_SHARED_MESSAGE_WINDOW_LIMIT
+    assert DEFAULT_SHARED_MESSAGE_WINDOW_LIMIT == 30
+
+
+@pytest.mark.anyio
 async def test_shared_chat_message_window_is_bounded_and_sanitized():
     directus = FakeDirectusService()
 
@@ -280,7 +290,7 @@ async def test_shared_chat_message_window_is_bounded_and_sanitized():
     assert "encrypted_pii_mappings" not in payload["messages"][0]
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_shared_chat_message_window_uses_durable_rows_when_messages_v_is_stale():
     directus = FakeDirectusService()
 
@@ -288,17 +298,17 @@ async def test_shared_chat_message_window_uses_durable_rows_when_messages_v_is_s
         request=None,
         chat_id="chat-shared",
         before_timestamp=2147483647,
-        limit=40,
+        limit=DEFAULT_SHARED_MESSAGE_WINDOW_LIMIT,
         directus_service=directus,
     )
 
-    assert directus.chat.requested_limits == [41]
-    assert len(payload["messages"]) == 40
+    assert directus.chat.requested_limits == [DEFAULT_SHARED_MESSAGE_WINDOW_LIMIT + 1]
+    assert len(payload["messages"]) == DEFAULT_SHARED_MESSAGE_WINDOW_LIMIT
     assert payload["has_more"] is True
     assert payload["messages_v"] == 82
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_shared_chat_message_window_can_anchor_target_message():
     directus = FakeDirectusService()
 
@@ -315,7 +325,7 @@ async def test_shared_chat_message_window_can_anchor_target_message():
     assert json.loads(payload["messages"][-1])["message_id"] == "msg-42"
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_shared_chat_message_window_can_page_forgotten_checkpoint_messages():
     directus = FakeDirectusService()
 
@@ -335,7 +345,7 @@ async def test_shared_chat_message_window_can_page_forgotten_checkpoint_messages
     assert json.loads(payload["messages"][-1])["message_id"] == "msg-80"
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_shared_chat_message_window_compound_cursor_preserves_duplicate_timestamps():
     directus = FakeDirectusService()
     directus.chat.messages = [
@@ -357,7 +367,7 @@ async def test_shared_chat_message_window_compound_cursor_preserves_duplicate_ti
     assert [json.loads(message)["message_id"] for message in payload["messages"]] == ["msg-a", "msg-b"]
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_shared_chat_window_preserves_non_enumeration_dummy_response():
     directus = FakeDirectusService()
 
@@ -378,7 +388,7 @@ async def test_shared_chat_window_preserves_non_enumeration_dummy_response():
     assert messages["has_more"] is False
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_shared_sub_chats_retry_without_metadata_v_on_directus_permission_denial():
     class MetadataDeniedDirectus(FakeDirectusService):
         def __init__(self) -> None:

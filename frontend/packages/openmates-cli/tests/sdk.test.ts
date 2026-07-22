@@ -835,6 +835,97 @@ describe("OpenMates SDK", () => {
     assert.deepEqual(seenUrls, ["GET /v1/sdk/chats/chat-1", "POST /v1/sdk/session"]);
   });
 
+  it("supports chat messages, encrypted fork payloads, and rewind dry runs", async () => {
+    const masterKey = generateSalt(32);
+    const chatKey = generateSalt(32);
+    const material = await createApiKeyCryptoMaterial("SDK fork key", bytesToBase64(masterKey));
+    const encryptedChatKey = await encryptBytesWithAesGcm(chatKey, masterKey);
+    const encryptedTitle = await encryptWithAesGcmCombined("Source chat", chatKey);
+    const encryptedQuestion = await encryptWithAesGcmCombined("First question", chatKey);
+    const encryptedAnswer = await encryptWithAesGcmCombined("First answer", chatKey);
+    const requests: Array<{ method?: string; url?: string; body?: Record<string, unknown> }> = [];
+
+    await withServer((request, response) => {
+      let raw = "";
+      request.on("data", (chunk) => { raw += chunk.toString(); });
+      request.on("end", () => {
+        const body = raw ? JSON.parse(raw) as Record<string, unknown> : undefined;
+        requests.push({ method: request.method, url: request.url, body });
+        response.writeHead(200, { "content-type": "application/json" });
+        if (request.url === "/v1/sdk/session") {
+          response.end(JSON.stringify({ key_wrapper: { encrypted_key: material.encryptedMasterKey, salt: material.saltB64, key_iv: material.keyIv } }));
+          return;
+        }
+        if (request.url === "/v1/sdk/chats/chat-1" && request.method === "GET") {
+          response.end(JSON.stringify({
+            chat: { id: "chat-1", encrypted_chat_key: encryptedChatKey, encrypted_title: encryptedTitle, messages_v: 2 },
+            messages: [
+              { client_message_id: "user-1", chat_id: "chat-1", role: "user", encrypted_content: encryptedQuestion, created_at: 10 },
+              { client_message_id: "assistant-1", chat_id: "chat-1", role: "assistant", encrypted_content: encryptedAnswer, user_message_id: "user-1", created_at: 20 },
+            ],
+          }));
+          return;
+        }
+        if (request.url === "/v1/sdk/chats/chat-1/messages?direction=latest&limit=30" && request.method === "GET") {
+          response.end(JSON.stringify({
+            chat: { id: "chat-1", encrypted_chat_key: encryptedChatKey, encrypted_title: encryptedTitle, messages_v: 2 },
+            messages: [
+              { client_message_id: "user-1", chat_id: "chat-1", role: "user", encrypted_content: encryptedQuestion, created_at: 10 },
+              { client_message_id: "assistant-1", chat_id: "chat-1", role: "assistant", encrypted_content: encryptedAnswer, user_message_id: "user-1", created_at: 20 },
+            ],
+            has_more_before: true,
+            has_more_after: false,
+            start_cursor: { created_at: 10, message_id: "user-1" },
+            end_cursor: { created_at: 20, message_id: "assistant-1" },
+            anchor_found: true,
+            server_message_count: 200,
+          }));
+          return;
+        }
+        if (request.url === "/v1/sdk/chats/chat-1/fork") {
+          assert.equal(JSON.stringify(body).includes("First question"), false);
+          assert.equal(JSON.stringify(body).includes("First answer"), false);
+          assert.equal((body?.encrypted_messages as unknown[]).length, 2);
+          response.end(JSON.stringify({ success: true, chat_id: body?.new_chat_id, copied_message_count: 2, messages_v: 2 }));
+          return;
+        }
+        if (request.url === "/v1/sdk/chats/chat-1/rewind") {
+          assert.deepEqual(body, {
+            protocol_version: 1,
+            to_message_id: "user-1",
+            expected_messages_v: 2,
+            dry_run: true,
+            confirm_destructive: false,
+          });
+          response.end(JSON.stringify({ success: true, dry_run: true, chat_id: "chat-1", planned_deleted_message_count: 1, messages_v: 2 }));
+          return;
+        }
+        response.writeHead(404);
+        response.end(JSON.stringify({ detail: "not found" }));
+      });
+    }, async (apiUrl) => {
+      const client = new OpenMates({ apiKey: material.apiKey, apiUrl });
+      const listed = await client.chats.messages({ chatId: "chat-1" });
+      assert.equal(listed.messages[0].content, "First question");
+      assert.equal(listed.messages[1].preview, "First answer");
+      assert.equal(listed.hasMoreBefore, true);
+      assert.equal(listed.serverMessageCount, 200);
+      const forked = await client.chats.fork({ chatId: "chat-1", fromMessageId: "assistant-1", title: "Forked" });
+      assert.equal(forked.copied_message_count, 2);
+      const rewind = await client.chats.rewind({ chatId: "chat-1", toMessageId: "user-1", dryRun: true });
+      assert.equal(rewind.dry_run, true);
+    });
+
+    assert.deepEqual(requests.map((request) => `${request.method} ${request.url}`), [
+      "GET /v1/sdk/chats/chat-1/messages?direction=latest&limit=30",
+      "POST /v1/sdk/session",
+      "GET /v1/sdk/chats/chat-1",
+      "POST /v1/sdk/chats/chat-1/fork",
+      "GET /v1/sdk/chats/chat-1",
+      "POST /v1/sdk/chats/chat-1/rewind",
+    ]);
+  });
+
   it("defaults chat listing to 10 and allows limit 0 for all chats", async () => {
     const urls: string[] = [];
     await withServer((request, response) => {
@@ -847,6 +938,36 @@ describe("OpenMates SDK", () => {
       await client.chats.list({ limit: 0 });
       assert.deepEqual(urls, ["/v1/sdk/chats?limit=10", "/v1/sdk/chats?limit=0"]);
     });
+  });
+
+  it("keeps chats.messages all true on the full-history load route", async () => {
+    const masterKey = generateSalt(32);
+    const chatKey = generateSalt(32);
+    const material = await createApiKeyCryptoMaterial("SDK all messages key", bytesToBase64(masterKey));
+    const encryptedChatKey = await encryptBytesWithAesGcm(chatKey, masterKey);
+    const encryptedContent = await encryptWithAesGcmCombined("Full history message", chatKey);
+    const urls: string[] = [];
+
+    await withServer((request, response) => {
+      urls.push(`${request.method} ${request.url}`);
+      response.writeHead(200, { "content-type": "application/json" });
+      if (request.url === "/v1/sdk/session") {
+        response.end(JSON.stringify({ key_wrapper: { encrypted_key: material.encryptedMasterKey, salt: material.saltB64, key_iv: material.keyIv } }));
+        return;
+      }
+      assert.equal(request.url, "/v1/sdk/chats/chat-1");
+      response.end(JSON.stringify({
+        chat: { id: "chat-1", encrypted_chat_key: encryptedChatKey },
+        messages: [{ client_message_id: "message-1", chat_id: "chat-1", role: "assistant", encrypted_content: encryptedContent, created_at: 1 }],
+      }));
+    }, async (apiUrl) => {
+      const result = await new OpenMates({ apiKey: material.apiKey, apiUrl }).chats.messages({ chatId: "chat-1", all: true });
+
+      assert.equal(result.messages[0].content, "Full history message");
+      assert.equal(result.hasMoreBefore, false);
+    });
+
+    assert.deepEqual(urls, ["GET /v1/sdk/chats/chat-1", "POST /v1/sdk/session"]);
   });
 
   it("exposes named CLI parity namespaces without generic passthroughs", async () => {
@@ -946,6 +1067,14 @@ describe("OpenMates SDK", () => {
 
     await assert.rejects(
       () => client.chats.delete("chat-1", {}),
+      /requires confirmed: true/,
+    );
+    await assert.rejects(
+      () => client.chats.rewind({ chatId: "chat-1", toMessageId: "message-1" }),
+      /requires confirmed: true/,
+    );
+    await assert.rejects(
+      () => client.chats.retry({ chatId: "chat-1" }),
       /requires confirmed: true/,
     );
     await assert.rejects(

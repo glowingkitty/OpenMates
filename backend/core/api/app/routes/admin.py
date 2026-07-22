@@ -654,6 +654,10 @@ async def admin_list_gift_cards(
 ADMIN_COMPRESSION_THRESHOLD_CACHE_KEY = "admin:compression_threshold_override"
 
 
+def _compression_threshold_cache_key(user_id: str) -> str:
+    return f"{ADMIN_COMPRESSION_THRESHOLD_CACHE_KEY}:{user_id}"
+
+
 class CompressionThresholdRequest(BaseModel):
     """Request body for setting the admin compression threshold override."""
     threshold: int = Field(
@@ -687,9 +691,7 @@ async def get_compression_threshold(
         redis_client = await cache_service.client
         if redis_client is None:
             raise RuntimeError("cache client not connected")
-        raw = await redis_client.hget(
-            ADMIN_COMPRESSION_THRESHOLD_CACHE_KEY, admin_user.id
-        )
+        raw = await redis_client.get(_compression_threshold_cache_key(admin_user.id))
         threshold = int(raw) if raw else None
         return CompressionThresholdResponse(
             success=True,
@@ -714,9 +716,7 @@ async def set_compression_threshold(
         redis_client = await cache_service.client
         if redis_client is None:
             raise RuntimeError("cache client not connected")
-        await redis_client.hset(
-            ADMIN_COMPRESSION_THRESHOLD_CACHE_KEY, admin_user.id, str(body.threshold)
-        )
+        await redis_client.set(_compression_threshold_cache_key(admin_user.id), str(body.threshold))
         logger.info(
             f"Admin {admin_user.id} set compression threshold to {body.threshold} tokens"
         )
@@ -742,9 +742,7 @@ async def delete_compression_threshold(
         redis_client = await cache_service.client
         if redis_client is None:
             raise RuntimeError("cache client not connected")
-        await redis_client.hdel(
-            ADMIN_COMPRESSION_THRESHOLD_CACHE_KEY, admin_user.id
-        )
+        await redis_client.delete(_compression_threshold_cache_key(admin_user.id))
         logger.info(f"Admin {admin_user.id} removed compression threshold override")
         return CompressionThresholdResponse(
             success=True,

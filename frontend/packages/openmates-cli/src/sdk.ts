@@ -411,6 +411,68 @@ export interface ChatResponse {
   [key: string]: unknown;
 }
 
+export interface ChatMessageRecord {
+  id: string;
+  role: string;
+  content: string;
+  senderName: string | null;
+  category: string | null;
+  modelName: string | null;
+  createdAt: number;
+  preview: string;
+}
+
+export type ChatMessageWindowDirection = "latest" | "before" | "after" | "around";
+
+export interface ChatMessageWindowCursor {
+  created_at: number;
+  message_id: string;
+}
+
+export interface ChatMessagesOptions {
+  chatId: string;
+  direction?: ChatMessageWindowDirection;
+  limit?: number;
+  beforeTimestamp?: number;
+  beforeMessageId?: string;
+  afterTimestamp?: number;
+  afterMessageId?: string;
+  anchorMessageId?: string;
+  respectCompressionBoundary?: boolean;
+  all?: boolean;
+}
+
+export interface ChatMessagesResult {
+  chat: EncryptedChatMetadata;
+  messages: ChatMessageRecord[];
+  hasMoreBefore: boolean;
+  hasMoreAfter: boolean;
+  startCursor: ChatMessageWindowCursor | null;
+  endCursor: ChatMessageWindowCursor | null;
+  anchorFound: boolean;
+  serverMessageCount: number | null;
+}
+
+export interface ChatForkOptions {
+  chatId: string;
+  fromMessageId: string;
+  title?: string;
+}
+
+export interface ChatRewindOptions {
+  chatId: string;
+  toMessageId: string;
+  send?: string;
+  dryRun?: boolean;
+  confirmDestructive?: boolean;
+}
+
+export interface ChatRetryOptions {
+  chatId: string;
+  dryRun?: boolean;
+  confirmDestructive?: boolean;
+}
+
 export interface EncryptedEmbedRecord {
   id?: string;
   embed_id?: string;
@@ -1044,6 +1106,172 @@ export class OpenMatesChats {
     return this.client.decryptLoadedChatPayload(payload);
   }
 
+  async messages(options: ChatMessagesOptions): Promise<ChatMessagesResult> {
+    if (options.all === true) {
+      const loaded = await this.load(options.chatId);
+      const chat = loaded.chat as EncryptedChatMetadata | undefined;
+      if (!chat) {
+        throw new OpenMatesConfigError("Saved chat payload did not include chat metadata");
+      }
+      const messages = normalizeLoadedChatMessages(loaded);
+      return {
+        chat,
+        messages,
+        hasMoreBefore: false,
+        hasMoreAfter: false,
+        startCursor: messages[0] ? { created_at: messages[0].createdAt, message_id: messages[0].id } : null,
+        endCursor: messages[messages.length - 1] ? { created_at: messages[messages.length - 1].createdAt, message_id: messages[messages.length - 1].id } : null,
+        anchorFound: true,
+        serverMessageCount: messages.length,
+      };
+    }
+    const payload = await this.client.get<Record<string, unknown>>(
+      withQuery(`/v1/sdk/chats/${encodeURIComponent(options.chatId)}/messages`, {
+        direction: options.direction ?? "latest",
+        limit: options.limit ?? 30,
+        before_timestamp: options.beforeTimestamp,
+        before_message_id: options.beforeMessageId,
+        after_timestamp: options.afterTimestamp,
+        after_message_id: options.afterMessageId,
+        anchor_message_id: options.anchorMessageId,
+        respect_compression_boundary: options.respectCompressionBoundary === false ? false : undefined,
+      }),
+    );
+    const loaded = await this.client.decryptLoadedChatPayload(payload);
+    const chat = loaded.chat as EncryptedChatMetadata | undefined;
+    if (!chat) {
+      throw new OpenMatesConfigError("Saved chat payload did not include chat metadata");
+    }
+    return {
+      chat,
+      messages: normalizeLoadedChatMessages(loaded),
+      hasMoreBefore: loaded.has_more_before === true,
+      hasMoreAfter: loaded.has_more_after === true,
+      startCursor: (loaded.start_cursor as ChatMessageWindowCursor | null | undefined) ?? null,
+      endCursor: (loaded.end_cursor as ChatMessageWindowCursor | null | undefined) ?? null,
+      anchorFound: loaded.anchor_found !== false,
+      serverMessageCount: typeof loaded.server_message_count === "number" ? loaded.server_message_count : null,
+    };
+  }
+
+  async *messagePages(options: ChatMessagesOptions): AsyncGenerator<ChatMessagesResult> {
+    let direction: ChatMessageWindowDirection = options.direction ?? "latest";
+    let beforeTimestamp = options.beforeTimestamp;
+    let beforeMessageId = options.beforeMessageId;
+    while (true) {
+      const page = await this.messages({
+        ...options,
+        all: false,
+        direction,
+        beforeTimestamp,
+        beforeMessageId,
+      });
+      yield page;
+      if (!page.hasMoreBefore || !page.startCursor) break;
+      direction = "before";
+      beforeTimestamp = page.startCursor.created_at;
+      beforeMessageId = page.startCursor.message_id;
+    }
+  }
+
+  async fork(options: ChatForkOptions): Promise<Record<string, unknown>> {
+    const { loaded, chat } = await this.loadPersonalEncryptedChat(options.chatId);
+    const messages = normalizeLoadedChatMessages(loaded);
+    const boundaryIndex = findMessageBoundaryIndex(messages, options.fromMessageId);
+    const sourceSlice = messages.slice(0, boundaryIndex + 1);
+    const masterKey = await this.client.masterKey();
+    const newChatId = randomUUID();
+    const newChatKey = new Uint8Array(randomBytes(32));
+    const now = Math.floor(Date.now() / 1000);
+    const idMap = new Map<string, string>();
+    const encryptedMessages = [] as Record<string, unknown>[];
+    for (const message of sourceSlice) {
+      const newMessageId = randomUUID();
+      idMap.set(message.id, newMessageId);
+      const raw = message.raw;
+      const encryptedMessage: Record<string, unknown> = {
+        client_message_id: newMessageId,
+        message_id: newMessageId,
+        chat_id: newChatId,
+        encrypted_content: await encryptWithAesGcmCombined(message.content, newChatKey),
+        encrypted_sender_name: await encryptWithAesGcmCombined(message.senderName ?? defaultSenderName(message.role), newChatKey),
+        role: message.role,
+        created_at: message.createdAt || now,
+        updated_at: numericField(raw.updated_at) ?? (message.createdAt || now),
+      };
+      const oldUserMessageId = stringField(raw.user_message_id);
+      if (oldUserMessageId && idMap.has(oldUserMessageId)) {
+        encryptedMessage.user_message_id = idMap.get(oldUserMessageId);
+      }
+      if (message.category) {
+        encryptedMessage.encrypted_category = await encryptWithAesGcmCombined(message.category, newChatKey);
+      }
+      if (message.modelName) {
+        encryptedMessage.encrypted_model_name = await encryptWithAesGcmCombined(message.modelName, newChatKey);
+      }
+      encryptedMessages.push(encryptedMessage);
+    }
+    return this.client.request<Record<string, unknown>>(`/v1/sdk/chats/${encodeURIComponent(options.chatId)}/fork`, {
+      protocol_version: 1,
+      from_message_id: options.fromMessageId,
+      new_chat_id: newChatId,
+      expected_source_messages_v: Number(chat.messages_v ?? messages.length),
+      encrypted_chat_metadata: {
+        id: newChatId,
+        encrypted_title: await encryptWithAesGcmCombined(options.title ?? `Fork of ${String(chat.title ?? chat.id)}`, newChatKey),
+        encrypted_chat_key: await encryptBytesWithAesGcm(newChatKey, masterKey),
+        created_at: now,
+        updated_at: now,
+      },
+      encrypted_messages: encryptedMessages,
+    });
+  }
+
+  async rewind(options: ChatRewindOptions): Promise<Record<string, unknown>> {
+    if (!options.dryRun) {
+      requireConfirmed({ confirmed: options.confirmDestructive === true }, "Rewinding a chat");
+    }
+    const { loaded, chat } = await this.loadPersonalEncryptedChat(options.chatId);
+    const messages = normalizeLoadedChatMessages(loaded);
+    findMessageBoundaryIndex(messages, options.toMessageId);
+    const rewind = await this.client.request<Record<string, unknown>>(`/v1/sdk/chats/${encodeURIComponent(options.chatId)}/rewind`, {
+      protocol_version: 1,
+      to_message_id: options.toMessageId,
+      expected_messages_v: Number(chat.messages_v ?? messages.length),
+      dry_run: options.dryRun === true,
+      confirm_destructive: options.confirmDestructive === true,
+    });
+    if (options.send && options.dryRun !== true) {
+      const response = await this.send(options.send, { saveToAccount: true, chatId: options.chatId });
+      return { ...rewind, response };
+    }
+    return rewind;
+  }
+
+  async retry(options: ChatRetryOptions): Promise<Record<string, unknown>> {
+    if (!options.dryRun) {
+      requireConfirmed({ confirmed: options.confirmDestructive === true }, "Retrying a chat");
+    }
+    const { loaded } = await this.loadPersonalEncryptedChat(options.chatId);
+    const messages = normalizeLoadedChatMessages(loaded);
+    const retryIndex = findRetryableUserMessageIndex(messages);
+    if (retryIndex < 0) {
+      throw new OpenMatesConfigError("No retryable user message found for this chat");
+    }
+    if (retryIndex === 0) {
+      throw new OpenMatesConfigError("Cannot retry a chat whose first message is the failed user turn");
+    }
+    const retryMessage = messages[retryIndex];
+    const boundary = messages[retryIndex - 1];
+    return this.rewind({
+      chatId: options.chatId,
+      toMessageId: boundary.id,
+      send: retryMessage.content,
+      dryRun: options.dryRun,
+      confirmDestructive: options.confirmDestructive,
+    });
+  }
+
   async send(message: string, options: ChatSendOptions = {}): Promise<ChatResponse> {
     if (options.saveToAccount === true) {
       return this.sendSaved(message, options);
@@ -1347,6 +1575,94 @@ export class OpenMatesChats {
   async incognito(message: string): Promise<ChatResponse> {
     return this.send(message, { saveToAccount: false });
   }
+
+  private async loadPersonalEncryptedChat(chatId: string): Promise<{
+    loaded: Record<string, unknown>;
+    chat: EncryptedChatMetadata;
+    chatKey: Uint8Array;
+  }> {
+    const loaded = await this.load(chatId);
+    const chat = loaded.chat as EncryptedChatMetadata | undefined;
+    if (!chat) {
+      throw new OpenMatesConfigError("Saved chat payload did not include chat metadata");
+    }
+    if (chat.hashed_team_id || chat.team_id || chat.shared_chat_id) {
+      throw new OpenMatesConfigError("Only personal saved chats are supported for fork, rewind, and retry");
+    }
+    if (typeof chat.encrypted_chat_key !== "string") {
+      throw new OpenMatesConfigError("Saved chat does not include encrypted chat key material");
+    }
+    const chatKey = await decryptBytesWithAesGcm(chat.encrypted_chat_key, await this.client.masterKey());
+    if (!chatKey) {
+      throw new OpenMatesConfigError("Unable to decrypt saved chat key material");
+    }
+    return { loaded, chat, chatKey };
+  }
+}
+
+type LoadedMessageWithRaw = ChatMessageRecord & { raw: Record<string, unknown> };
+
+function normalizeLoadedChatMessages(payload: Record<string, unknown>): LoadedMessageWithRaw[] {
+  const rawMessages = Array.isArray(payload.messages) ? payload.messages : [];
+  return rawMessages.map((entry) => {
+    const raw = typeof entry === "string"
+      ? JSON.parse(entry) as Record<string, unknown>
+      : { ...(entry as Record<string, unknown>) };
+    const id = stringField(raw.client_message_id) ?? stringField(raw.message_id) ?? stringField(raw.id);
+    if (!id) {
+      throw new OpenMatesConfigError("Loaded chat message is missing a stable message id");
+    }
+    const content = stringField(raw.content) ?? "";
+    const preview = content.replace(/\s+/g, " ").trim().slice(0, 120);
+    return {
+      id,
+      role: stringField(raw.role) ?? "unknown",
+      content,
+      senderName: stringField(raw.senderName) ?? stringField(raw.sender_name),
+      category: stringField(raw.category),
+      modelName: stringField(raw.modelName) ?? stringField(raw.model_name),
+      createdAt: numericField(raw.created_at) ?? 0,
+      preview,
+      raw,
+    };
+  }).sort((a, b) => a.createdAt - b.createdAt);
+}
+
+function findMessageBoundaryIndex(messages: ChatMessageRecord[], messageId: string): number {
+  const index = messages.findIndex((message) => message.id === messageId || message.id.startsWith(messageId));
+  if (index < 0) {
+    throw new OpenMatesConfigError(`Message '${messageId}' was not found in the chat`);
+  }
+  return index;
+}
+
+function findRetryableUserMessageIndex(messages: ChatMessageRecord[]): number {
+  let hasLaterAssistant = false;
+  for (let index = messages.length - 1; index >= 0; index--) {
+    const role = messages[index].role.toLowerCase();
+    if (role === "assistant") hasLaterAssistant = true;
+    if (role === "user" && !hasLaterAssistant) return index;
+  }
+  return -1;
+}
+
+function stringField(value: unknown): string | null {
+  return typeof value === "string" && value.length > 0 ? value : null;
+}
+
+function numericField(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value > 10_000_000_000 ? Math.floor(value / 1000) : Math.floor(value);
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed > 10_000_000_000 ? Math.floor(parsed / 1000) : Math.floor(parsed);
+  }
+  return null;
+}
+
+function defaultSenderName(role: string): string {
+  if (role === "assistant") return "Assistant";
+  if (role === "system") return "System";
+  return "User";
 }
 
 export class OpenMatesIdeaBucket {

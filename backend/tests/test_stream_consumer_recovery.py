@@ -26,6 +26,56 @@ class _StubCacheService:
         self.events.append((channel, payload))
 
 
+class _MetadataDirectus:
+    def __init__(self) -> None:
+        self.chat = self
+        self.updates: list[dict] = []
+
+    async def get_chat_metadata(self, _chat_id: str) -> dict:
+        return {"messages_v": 12}
+
+    async def update_chat_fields_in_directus(self, _chat_id: str, fields: dict) -> bool:
+        self.updates.append(fields)
+        return True
+
+
+class _RecoveryCache:
+    def __init__(self) -> None:
+        self.version_increments: list[tuple[str, str, str]] = []
+        self.ai_messages: list[tuple[str, str, str]] = []
+        self.version_sets: list[tuple[str, str, str, int]] = []
+        self.events: list[tuple[str, dict]] = []
+
+    async def increment_chat_component_version(self, user_id: str, chat_id: str, component: str) -> int:
+        self.version_increments.append((user_id, chat_id, component))
+        return 13
+
+    async def add_ai_message_to_history(
+        self,
+        user_id: str,
+        chat_id: str,
+        message_json: str,
+        max_history_length: int = 100,
+    ) -> bool:
+        self.ai_messages.append((user_id, chat_id, message_json))
+        return True
+
+    async def set_chat_version_component(self, user_id: str, chat_id: str, component: str, value: int) -> bool:
+        self.version_sets.append((user_id, chat_id, component, value))
+        return True
+
+    async def save_chat_message_and_update_versions(self, **kwargs) -> dict:
+        raise AssertionError("recovery tasks must not publish or version saved assistant messages")
+
+    async def publish_event(self, channel: str, payload: dict) -> None:
+        self.events.append((channel, payload))
+
+
+class _Encryption:
+    async def encrypt_with_user_key(self, value: str, _key_id: str) -> tuple[str, dict]:
+        return f"encrypted:{value}", {}
+
+
 def test_harmful_fake_stream_includes_recovery_job_before_final_marker(monkeypatch) -> None:
     task_id = "11111111-1111-4111-8111-111111111111"
     request_data = AskSkillRequest(
@@ -89,3 +139,43 @@ def test_harmful_fake_stream_includes_recovery_job_before_final_marker(monkeypat
     assert final_chunks[0]["recovery_job_id"] == "77777777-7777-4777-8777-777777777777"
     assert final_chunks[0]["recovery_protocol_version"] == 1
     assert final_chunks[0]["category"] == "general_knowledge"
+
+
+def test_recovery_metadata_update_does_not_claim_terminal_or_inference_persistence() -> None:
+    request_data = SimpleNamespace(
+        chat_id="22222222-2222-4222-8222-222222222222",
+        user_id="44444444-4444-4444-8444-444444444444",
+        user_id_hash="a" * 64,
+        recovery_task_id="11111111-1111-4111-8111-111111111111",
+    )
+    directus = _MetadataDirectus()
+    cache = _RecoveryCache()
+
+    asyncio.run(
+        stream_consumer._update_chat_metadata(
+            request_data=request_data,
+            category="software_development",
+            timestamp=1234,
+            content_markdown="assistant response",
+            content_tiptap="assistant response",
+            directus_service=directus,
+            cache_service=cache,
+            encryption_service=_Encryption(),
+            user_vault_key_id="vault-key",
+            task_id="11111111-1111-4111-8111-111111111111",
+            log_prefix="test",
+            model_name="Gemini 3.5 Flash-Lite",
+        )
+    )
+
+    assert cache.version_increments == []
+    assert cache.version_sets == []
+    assert cache.events == []
+    assert cache.ai_messages == []
+    assert directus.updates == [{
+        "last_edited_overall_timestamp": 1234,
+        "last_mate_category": "software_development",
+        "updated_at": directus.updates[0]["updated_at"],
+    }]
+    assert "messages_v" not in directus.updates[0]
+    assert "last_message_timestamp" not in directus.updates[0]

@@ -61,6 +61,7 @@ import {
   OpenMatesWsClient,
   WebSocketProtocolError,
   type AppSettingsMemoriesRequestEvent,
+  type ChatCompressionCheckpointEvent,
   type SendEmbedDataFrame,
   type SubChatEvent,
   type TaskEventFrame,
@@ -206,11 +207,41 @@ function shouldWaitForTeamAi(message: string, teamId: string | null): boolean {
   return !teamId || message.toLowerCase().includes("@openmates");
 }
 
+function normalizeSyncedMessages(messages: unknown[]): string[] {
+  return messages.map((message) =>
+    typeof message === "string" ? message : JSON.stringify(message),
+  );
+}
+
 export function getClientMessagesVersionForSync(cached: CachedChat): number {
   if (cached.messages.length === 0) return 0;
   const messagesVersion =
     typeof cached.details.messages_v === "number" ? cached.details.messages_v : 0;
   return Math.min(messagesVersion, cached.messages.length);
+}
+
+function findCliMessageBoundaryIndex(messages: Array<{ id: string }>, messageId: string): number {
+  const index = messages.findIndex((message) => message.id === messageId || message.id.startsWith(messageId));
+  if (index < 0) {
+    throw new Error(`Message '${messageId}' was not found in the chat.`);
+  }
+  return index;
+}
+
+function findCliRetryableUserMessageIndex(messages: DecryptedMessage[]): number {
+  let hasLaterAssistant = false;
+  for (let index = messages.length - 1; index >= 0; index--) {
+    const role = messages[index].role.toLowerCase();
+    if (role === "assistant") hasLaterAssistant = true;
+    if (role === "user" && !hasLaterAssistant) return index;
+  }
+  return -1;
+}
+
+function defaultCliSenderName(role: string): string {
+  if (role === "assistant") return "Assistant";
+  if (role === "system") return "System";
+  return "User";
 }
 
 interface PendingAIResponseFrame {
@@ -1992,6 +2023,61 @@ export interface DecryptedMessage {
   modelName: string | null;
   createdAt: number;
   embedIds: string[];
+}
+
+export interface ChatMessageSummary extends DecryptedMessage {
+  preview: string;
+}
+
+export type ChatMessageWindowDirection = "latest" | "before" | "after" | "around";
+
+export interface ChatMessageWindowCursor {
+  created_at: number;
+  message_id: string;
+}
+
+export interface ChatMessageWindowOptions extends TeamContextOptions {
+  direction?: ChatMessageWindowDirection;
+  limit?: number;
+  beforeTimestamp?: number;
+  beforeMessageId?: string;
+  afterTimestamp?: number;
+  afterMessageId?: string;
+  anchorMessageId?: string;
+  respectCompressionBoundary?: boolean;
+}
+
+export interface ChatMessageWindowResult {
+  chat: ChatListItem;
+  messages: DecryptedMessage[];
+  hasMoreBefore: boolean;
+  hasMoreAfter: boolean;
+  startCursor: ChatMessageWindowCursor | null;
+  endCursor: ChatMessageWindowCursor | null;
+  anchorFound: boolean;
+  serverMessageCount: number | null;
+}
+
+export interface ChatForkResult {
+  success: boolean;
+  source_chat_id: string;
+  chat_id: string;
+  copied_message_count: number;
+  messages_v: number;
+}
+
+export interface ChatRewindResult {
+  success: boolean;
+  dry_run: boolean;
+  chat_id: string;
+  to_message_id: string;
+  deleted_message_ids?: string[];
+  deleted_message_count?: number;
+  planned_deleted_message_ids?: string[];
+  planned_deleted_message_count?: number;
+  messages_v: number;
+  resulting_messages_v?: number;
+  response?: Awaited<ReturnType<OpenMatesClient["sendMessage"]>>;
 }
 
 /** Decrypted embed summary for display */
@@ -4720,89 +4806,14 @@ export class OpenMatesClient {
     return results;
   }
 
-  /**
-   * Get the decrypted messages for a specific chat.
-   *
-   * Lookup order (most-recent-first for all title matches):
-   * 1. Exact full UUID match
-   * 2. Short 8-char prefix match
-   * 3. Exact title match (case-insensitive, most recent first)
-   * 4. Partial title match (case-insensitive, most recent first)
-   *
-   * @param query Full UUID, 8-char short ID, or chat title.
-   */
-  async getChatMessages(query: string, options: TeamContextOptions = {}): Promise<{
-    chat: ChatListItem;
-    messages: DecryptedMessage[];
-  }> {
-    const teamId = this.resolveTeamContext(options);
-    let cache = await this.ensureSynced(true, [], options);
-    const masterKey = this.getMasterKeyBytes();
-    const wrappingKey = await this.getChatWrappingKey(teamId, masterKey);
-    const normalized = query.trim().toLowerCase();
-
-    // "last" / "__last__" → most recently modified chat (cache is sorted desc by timestamp)
-    let found: (typeof cache.chats)[0] | undefined;
-    if (query === "__last__" || query.toLowerCase() === "last") {
-      if (cache.chats.length === 0) {
-        throw new Error(
-          "No chats found in local cache. Run 'openmates chats list' to sync.",
-        );
-      }
-      found = cache.chats[0];
-    }
-
-    // Pass 1: fast ID match (no decryption needed)
-    if (!found) {
-      found = cache.chats.find(
-        (c) =>
-          String(c.details.id) === query ||
-          String(c.details.id).startsWith(query),
-      );
-    }
-
-    // Pass 2: title match — decrypt all chats and match by title.
-    // The cache is already sorted most-recent-first, so the first match wins.
-    if (!found) {
-      for (const cached of cache.chats) {
-        const item = await this.decryptChatListItem(cached, wrappingKey, cache, teamId);
-        const title = (item.title ?? "").toLowerCase();
-        if (title === normalized) {
-          found = cached;
-          break;
-        }
-      }
-    }
-
-    // Pass 3: partial title match (most recent first)
-    if (!found) {
-      for (const cached of cache.chats) {
-        const item = await this.decryptChatListItem(cached, wrappingKey, cache, teamId);
-        const title = (item.title ?? "").toLowerCase();
-        if (title.includes(normalized)) {
-          found = cached;
-          break;
-        }
-      }
-    }
-
-    if (!found) {
-      throw new Error(
-        `Chat '${query}' not found. Try 'openmates chats search "${query}"' to browse matches.`,
-      );
-    }
-
-    const foundChatId = String(found.details.id ?? "");
-    if (foundChatId && getClientMessagesVersionForSync(found) === 0) {
-      cache = await this.ensureSynced(true, [foundChatId], options, true);
-      found = cache.chats.find((c) => String(c.details.id ?? "") === foundChatId) ?? found;
-    }
-
-    const chatItem = await this.decryptChatListItem(found, wrappingKey, cache, teamId);
-    const chatKeyBytes = await this.resolveChatKey(cache, found, wrappingKey, teamId);
-
+  private async decryptRawChatMessages(
+    rawMessages: Array<string | Record<string, unknown>>,
+    chatItem: ChatListItem,
+    chatKeyBytes: Uint8Array | null,
+    embeds: Record<string, unknown>[] = [],
+  ): Promise<DecryptedMessage[]> {
     const messages: DecryptedMessage[] = [];
-    for (const raw of found.messages) {
+    for (const raw of rawMessages) {
       const m =
         typeof raw === "string"
           ? (JSON.parse(raw) as Record<string, unknown>)
@@ -4830,25 +4841,16 @@ export class OpenMatesClient {
             )
           : null;
 
-      // Resolve embed IDs for this message.
-      // The WS payload doesn't include embed_ids in messages; instead each embed
-      // record carries hashed_message_id = SHA-256(client_message_id).
-      // We match on that to find embeds belonging to this message.
       const clientMsgId = String(
         m.client_message_id ?? m.id ?? m.message_id ?? "",
       );
       let msgEmbedIds: string[] = [];
-      if (clientMsgId && cache.embeds.length > 0) {
-        const { createHash } = await import("node:crypto");
+      if (clientMsgId && embeds.length > 0) {
         const hashed = createHash("sha256").update(clientMsgId).digest("hex");
-        msgEmbedIds = cache.embeds
+        msgEmbedIds = embeds
           .filter(
             (e) =>
               e.hashed_message_id === hashed &&
-              // Only include parent embeds (no parent_embed_id).
-              // Child embeds inherit the parent's key and are loaded
-              // via the parent's embed_ids — showing them separately
-              // causes confusing duplicates under the user message.
               !e.parent_embed_id,
           )
           .map((e) => String(e.embed_id ?? e.id ?? ""))
@@ -4868,7 +4870,314 @@ export class OpenMatesClient {
       });
     }
     messages.sort((a, b) => a.createdAt - b.createdAt);
+    return messages;
+  }
+
+  private async resolveCachedChatForQuery(
+    query: string,
+    cache: SyncCache,
+    wrappingKey: Uint8Array,
+    teamId: string | null,
+  ): Promise<CachedChat> {
+    const normalized = query.trim().toLowerCase();
+    let found: CachedChat | undefined;
+    if (query === "__last__" || query.toLowerCase() === "last") {
+      if (cache.chats.length === 0) {
+        throw new Error(
+          "No chats found in local cache. Run 'openmates chats list' to sync.",
+        );
+      }
+      found = cache.chats[0];
+    }
+
+    if (!found) {
+      found = cache.chats.find(
+        (c) =>
+          String(c.details.id) === query ||
+          String(c.details.id).startsWith(query),
+      );
+    }
+
+    if (!found) {
+      for (const cached of cache.chats) {
+        const item = await this.decryptChatListItem(cached, wrappingKey, cache, teamId);
+        const title = (item.title ?? "").toLowerCase();
+        if (title === normalized) {
+          found = cached;
+          break;
+        }
+      }
+    }
+
+    if (!found) {
+      for (const cached of cache.chats) {
+        const item = await this.decryptChatListItem(cached, wrappingKey, cache, teamId);
+        const title = (item.title ?? "").toLowerCase();
+        if (title.includes(normalized)) {
+          found = cached;
+          break;
+        }
+      }
+    }
+
+    if (!found) {
+      throw new Error(
+        `Chat '${query}' not found. Try 'openmates chats search "${query}"' to browse matches.`,
+      );
+    }
+    return found;
+  }
+
+  /**
+   * Get the decrypted messages for a specific chat.
+   *
+   * Lookup order (most-recent-first for all title matches):
+   * 1. Exact full UUID match
+   * 2. Short 8-char prefix match
+   * 3. Exact title match (case-insensitive, most recent first)
+   * 4. Partial title match (case-insensitive, most recent first)
+   *
+   * @param query Full UUID, 8-char short ID, or chat title.
+   */
+  async getChatMessages(query: string, options: TeamContextOptions = {}): Promise<{
+    chat: ChatListItem;
+    messages: DecryptedMessage[];
+  }> {
+    const teamId = this.resolveTeamContext(options);
+    let cache = await this.ensureSynced(true, [], options);
+    const masterKey = this.getMasterKeyBytes();
+    const wrappingKey = await this.getChatWrappingKey(teamId, masterKey);
+    let found = await this.resolveCachedChatForQuery(query, cache, wrappingKey, teamId);
+
+    const foundChatId = String(found.details.id ?? "");
+    if (foundChatId && getClientMessagesVersionForSync(found) === 0) {
+      cache = await this.ensureSynced(true, [foundChatId], options, true);
+      found = cache.chats.find((c) => String(c.details.id ?? "") === foundChatId) ?? found;
+    }
+
+    const chatItem = await this.decryptChatListItem(found, wrappingKey, cache, teamId);
+    const chatKeyBytes = await this.resolveChatKey(cache, found, wrappingKey, teamId);
+    let rawMessages = found.messages;
+    const hasServerMessages =
+      typeof found.details.messages_v === "number" && found.details.messages_v > 0;
+    if (rawMessages.length === 0 && hasServerMessages && foundChatId) {
+      const response = await this.http.get<Array<string | Record<string, unknown>>>(
+        this.appendTeamQuery(`/v1/chats/${encodeURIComponent(foundChatId)}/messages`, { teamId }),
+        this.getCliRequestHeaders(),
+      );
+      if (!response.ok) throw new Error(`Chat messages failed with HTTP ${response.status}`);
+      rawMessages = Array.isArray(response.data) ? normalizeSyncedMessages(response.data) : [];
+    }
+    const messages = await this.decryptRawChatMessages(rawMessages, chatItem, chatKeyBytes, cache.embeds);
     return { chat: chatItem, messages };
+  }
+
+  async getChatMessagesWindow(query: string, options: ChatMessageWindowOptions = {}): Promise<ChatMessageWindowResult> {
+    const teamId = this.resolveTeamContext(options);
+    const cache = await this.ensureSynced(false, [], options);
+    const masterKey = this.getMasterKeyBytes();
+    const wrappingKey = await this.getChatWrappingKey(teamId, masterKey);
+    const found = await this.resolveCachedChatForQuery(query, cache, wrappingKey, teamId);
+    const chatItem = await this.decryptChatListItem(found, wrappingKey, cache, teamId);
+    const chatKeyBytes = await this.resolveChatKey(cache, found, wrappingKey, teamId);
+    const chatId = String(found.details.id ?? chatItem.id);
+    const params = new URLSearchParams({
+      direction: options.direction ?? "latest",
+      limit: String(options.limit ?? 30),
+    });
+    if (typeof options.beforeTimestamp === "number") params.set("before_timestamp", String(options.beforeTimestamp));
+    if (options.beforeMessageId) params.set("before_message_id", options.beforeMessageId);
+    if (typeof options.afterTimestamp === "number") params.set("after_timestamp", String(options.afterTimestamp));
+    if (options.afterMessageId) params.set("after_message_id", options.afterMessageId);
+    if (options.anchorMessageId) params.set("anchor_message_id", options.anchorMessageId);
+    if (options.respectCompressionBoundary === false) params.set("respect_compression_boundary", "false");
+
+    const response = await this.http.get<{
+      messages?: Array<string | Record<string, unknown>>;
+      has_more_before?: boolean;
+      has_more_after?: boolean;
+      start_cursor?: ChatMessageWindowCursor | null;
+      end_cursor?: ChatMessageWindowCursor | null;
+      anchor_found?: boolean;
+      server_message_count?: number | null;
+    }>(
+      this.appendTeamQuery(`/v1/chats/${encodeURIComponent(chatId)}/messages/window?${params.toString()}`, { teamId }),
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) throw new Error(`Chat message window failed with HTTP ${response.status}`);
+    const rawMessages = Array.isArray(response.data.messages) ? response.data.messages : [];
+    const messages = await this.decryptRawChatMessages(rawMessages, chatItem, chatKeyBytes, cache.embeds);
+    return {
+      chat: chatItem,
+      messages,
+      hasMoreBefore: response.data.has_more_before === true,
+      hasMoreAfter: response.data.has_more_after === true,
+      startCursor: response.data.start_cursor ?? null,
+      endCursor: response.data.end_cursor ?? null,
+      anchorFound: response.data.anchor_found !== false,
+      serverMessageCount: typeof response.data.server_message_count === "number" ? response.data.server_message_count : null,
+    };
+  }
+
+  async getChatMessageSummaries(query: string, options: TeamContextOptions = {}): Promise<{
+    chat: ChatListItem;
+    messages: ChatMessageSummary[];
+  }> {
+    const { chat, messages } = await this.getChatMessages(query, options);
+    return {
+      chat,
+      messages: messages.map((message) => ({
+        ...message,
+        preview: message.content.replace(/\s+/g, " ").trim().slice(0, 120),
+      })),
+    };
+  }
+
+  async forkChat(params: {
+    chatId: string;
+    fromMessageId: string;
+    title?: string;
+  } & TeamContextOptions): Promise<ChatForkResult> {
+    const state = await this.loadPersonalChatMutationState(params.chatId, params);
+    const boundaryIndex = findCliMessageBoundaryIndex(state.messages, params.fromMessageId);
+    const sourceSlice = state.messages.slice(0, boundaryIndex + 1);
+    const masterKey = this.getMasterKeyBytes();
+    const newChatId = randomUUID();
+    const newChatKey = new Uint8Array(randomBytes(32));
+    const now = Math.floor(Date.now() / 1000);
+    const encryptedMessages: Record<string, unknown>[] = [];
+    for (const message of sourceSlice) {
+      const newMessageId = randomUUID();
+      const encryptedMessage: Record<string, unknown> = {
+        client_message_id: newMessageId,
+        message_id: newMessageId,
+        chat_id: newChatId,
+        encrypted_content: await encryptWithAesGcmCombined(message.content, newChatKey),
+        encrypted_sender_name: await encryptWithAesGcmCombined(message.senderName ?? defaultCliSenderName(message.role), newChatKey),
+        role: message.role,
+        created_at: message.createdAt || now,
+        updated_at: message.createdAt || now,
+      };
+      if (message.category) {
+        encryptedMessage.encrypted_category = await encryptWithAesGcmCombined(message.category, newChatKey);
+      }
+      if (message.modelName) {
+        encryptedMessage.encrypted_model_name = await encryptWithAesGcmCombined(message.modelName, newChatKey);
+      }
+      encryptedMessages.push(encryptedMessage);
+    }
+
+    const response = await this.http.post<ChatForkResult>(
+      `/v1/chats/${encodeURIComponent(state.chat.id)}/fork`,
+      {
+        protocol_version: 1,
+        from_message_id: params.fromMessageId,
+        new_chat_id: newChatId,
+        expected_source_messages_v: state.messagesV,
+        encrypted_chat_metadata: {
+          id: newChatId,
+          encrypted_title: await encryptWithAesGcmCombined(params.title ?? `Fork of ${state.chat.title ?? state.chat.id}`, newChatKey),
+          encrypted_chat_key: await encryptBytesWithAesGcm(newChatKey, masterKey),
+          created_at: now,
+          updated_at: now,
+        },
+        encrypted_messages: encryptedMessages,
+      },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`Chat fork failed with HTTP ${response.status}: ${JSON.stringify(response.data)}`);
+    }
+    clearSyncCache();
+    return response.data;
+  }
+
+  async rewindChat(params: {
+    chatId: string;
+    toMessageId: string;
+    send?: string;
+    dryRun?: boolean;
+    confirmDestructive?: boolean;
+    responseTimeoutMs?: number;
+  } & TeamContextOptions): Promise<ChatRewindResult> {
+    if (params.dryRun !== true && params.confirmDestructive !== true) {
+      throw new Error("Rewinding a chat requires confirmDestructive=true.");
+    }
+    const state = await this.loadPersonalChatMutationState(params.chatId, params);
+    findCliMessageBoundaryIndex(state.messages, params.toMessageId);
+    const response = await this.http.post<ChatRewindResult>(
+      `/v1/chats/${encodeURIComponent(state.chat.id)}/rewind`,
+      {
+        protocol_version: 1,
+        to_message_id: params.toMessageId,
+        expected_messages_v: state.messagesV,
+        dry_run: params.dryRun === true,
+        confirm_destructive: params.confirmDestructive === true,
+      },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`Chat rewind failed with HTTP ${response.status}: ${JSON.stringify(response.data)}`);
+    }
+    clearSyncCache();
+    if (params.send && params.dryRun !== true) {
+      response.data.response = await this.sendMessage({
+        message: params.send,
+        chatId: state.chat.id,
+        responseTimeoutMs: params.responseTimeoutMs,
+      });
+    }
+    return response.data;
+  }
+
+  async retryChat(params: {
+    chatId: string;
+    dryRun?: boolean;
+    confirmDestructive?: boolean;
+    responseTimeoutMs?: number;
+  } & TeamContextOptions): Promise<ChatRewindResult> {
+    if (params.dryRun !== true && params.confirmDestructive !== true) {
+      throw new Error("Retrying a chat requires confirmDestructive=true.");
+    }
+    const state = await this.loadPersonalChatMutationState(params.chatId, params);
+    const retryIndex = findCliRetryableUserMessageIndex(state.messages);
+    if (retryIndex < 0) {
+      throw new Error("No retryable user message found for this chat.");
+    }
+    if (retryIndex === 0) {
+      throw new Error("Cannot retry a chat whose first message is the failed user turn.");
+    }
+    return this.rewindChat({
+      chatId: state.chat.id,
+      toMessageId: state.messages[retryIndex - 1].id,
+      send: state.messages[retryIndex].content,
+      dryRun: params.dryRun,
+      confirmDestructive: params.confirmDestructive,
+      responseTimeoutMs: params.responseTimeoutMs,
+    });
+  }
+
+  private async loadPersonalChatMutationState(query: string, options: TeamContextOptions = {}): Promise<{
+    chat: ChatListItem;
+    messages: DecryptedMessage[];
+    messagesV: number;
+  }> {
+    if (options.teamId) {
+      throw new Error("Only personal saved chats are supported for fork, rewind, and retry.");
+    }
+    const { chat, messages } = await this.getChatMessages(query, options);
+    const cache = loadSyncCache();
+    const cached = cache?.chats.find((entry) => String(entry.details.id ?? "") === chat.id);
+    if (!cached || typeof cached.details.encrypted_chat_key !== "string") {
+      throw new Error("Saved chat does not include encrypted chat key material.");
+    }
+    return {
+      chat,
+      messages,
+      messagesV: typeof cached.details.messages_v === "number" && Number.isSafeInteger(cached.details.messages_v)
+        ? cached.details.messages_v
+        : messages.length,
+    };
   }
 
   /**
@@ -5393,6 +5702,19 @@ export class OpenMatesClient {
     const messageId = randomUUID();
     const createdAt = Math.floor(Date.now() / 1000);
     const isNewChat = !params.chatId;
+    let messageHistoryForRequest = params.messageHistory;
+    if (!params.incognito && !teamId && !isNewChat && !messageHistoryForRequest) {
+      const { messages } = await this.getChatMessages(chatId, { personal: true });
+      messageHistoryForRequest = messages.map((message) => ({
+        message_id: message.id,
+        chat_id: chatId,
+        role: message.role as "user" | "assistant" | "system",
+        sender_name: message.senderName ?? message.role,
+        content: message.content,
+        created_at: message.createdAt,
+        category: message.category,
+      }));
+    }
     // Mark this chat as active so the server streams incremental chunks
     // rather than sending a single background-completion event.
     ws.send("set_active_chat", { chat_id: chatId, ...(teamId ? { team_id: teamId } : {}) });
@@ -5519,8 +5841,8 @@ export class OpenMatesClient {
         content: params.message,
         created_at: createdAt,
       }];
-    } else if (isNewChat && params.messageHistory && params.messageHistory.length > 0) {
-      messagePayload.message_history = params.messageHistory.map((historyMessage) => ({
+    } else if (messageHistoryForRequest && messageHistoryForRequest.length > 0) {
+      messagePayload.message_history = messageHistoryForRequest.map((historyMessage) => ({
         message_id: historyMessage.message_id,
         chat_id: chatId,
         role: historyMessage.role,
@@ -5809,6 +6131,38 @@ export class OpenMatesClient {
       );
     };
 
+    const persistCompressionCheckpoints = async (
+      checkpoints: ChatCompressionCheckpointEvent[],
+    ) => {
+      if (!chatKeyBytes || checkpoints.length === 0) return;
+      for (const checkpoint of checkpoints) {
+        const createdAtSeconds = Math.floor(Date.now() / 1000);
+        const storedPromise = ws.waitForMessage(
+          "chat_compression_checkpoint_stored",
+          (payload) => {
+            const p = payload as Record<string, unknown>;
+            const storedCheckpoint = p.checkpoint as Record<string, unknown> | undefined;
+            return p.chat_id === checkpoint.chatId && storedCheckpoint?.id === checkpoint.checkpointId;
+          },
+          20_000,
+        );
+        await ws.sendAsync("store_chat_compression_checkpoint", {
+          chat_id: checkpoint.chatId,
+          checkpoint_id: checkpoint.checkpointId,
+          encrypted_summary: await encryptWithAesGcmCombined(
+            checkpoint.summaryContent,
+            chatKeyBytes,
+          ),
+          compressed_up_to_timestamp: checkpoint.compressedUpToTimestamp,
+          compressed_message_count: checkpoint.compressedMessageCount,
+          summary_token_estimate: checkpoint.summaryTokenEstimate,
+          key_version: 1,
+          created_at: createdAtSeconds,
+        });
+        await storedPromise;
+      }
+    };
+
     const persistMemoryRequestSystemMessage = async (
       event: AppSettingsMemoriesRequestEvent,
     ) => {
@@ -5945,6 +6299,7 @@ export class OpenMatesClient {
         subChatEvents = resp.subChatEvents;
         // Incognito chats are not post-processed — follow-up suggestions are not stored.
         if (resp.status === "waiting_for_user") {
+          await persistCompressionCheckpoints(resp.compressionCheckpoints);
           return {
             status: resp.status,
             chatId,
@@ -6039,6 +6394,7 @@ export class OpenMatesClient {
             modelName = resp.modelName;
             assistantMessageId = assistantId;
             clearSyncCache(teamId);
+            await persistCompressionCheckpoints(resp.compressionCheckpoints);
             const mateName = category ? (MATE_NAMES[category] ?? null) : null;
             return {
               status: "completed",
@@ -6222,6 +6578,7 @@ export class OpenMatesClient {
             updatedChatTitle: resp.updatedChatTitle,
             encryptedChatKey,
           });
+          await persistCompressionCheckpoints(resp.compressionCheckpoints);
           if (taskUpdateJobsEnabled) {
             const persistedTaskJobIds = await this.persistPendingTaskUpdateJobs({
               ws,
@@ -10078,9 +10435,6 @@ export class OpenMatesClient {
       }
 
       // Messages keyed by chat_id — merged from phase_1b and background_message_sync.
-      const normalizeSyncedMessages = (messages: unknown[]): string[] => messages.map((message) =>
-        typeof message === "string" ? message : JSON.stringify(message),
-      );
       for (const frame of frames) {
         if (frame.type === "phase_1_last_chat_ready") {
           // Primary source for new_chat_suggestions (not included in phase2/3).

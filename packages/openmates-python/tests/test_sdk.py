@@ -1461,6 +1461,91 @@ def test_load_decrypts_chat_messages_client_side(monkeypatch):
     ]
 
 
+def test_chat_messages_fork_and_rewind_helpers_preserve_encrypted_payloads(monkeypatch):
+    api_key = "sk-api-test"
+    master_key = os.urandom(32)
+    chat_key = os.urandom(32)
+    key_wrapper = _wrap_master_key(api_key, master_key)
+    encrypted_chat_key = _encrypt_combined(chat_key, master_key)
+    encrypted_title = _encrypt_combined(b"Source chat", chat_key)
+    encrypted_question = _encrypt_combined(b"First question", chat_key)
+    encrypted_answer = _encrypt_combined(b"First answer", chat_key)
+    requests_seen = []
+
+    class FakeResponse:
+        status_code = 200
+
+        def __init__(self, payload):
+            self._payload = payload
+
+        def json(self):
+            return self._payload
+
+    def fake_get(url, *, headers, timeout):
+        requests_seen.append(("GET", url, None))
+        if url == "https://api.openmates.org/v1/sdk/chats/chat-1/messages?direction=latest&limit=30":
+            return FakeResponse({
+                "chat": {"id": "chat-1", "encrypted_chat_key": encrypted_chat_key, "encrypted_title": encrypted_title, "messages_v": 2},
+                "messages": [
+                    {"client_message_id": "user-1", "chat_id": "chat-1", "role": "user", "encrypted_content": encrypted_question, "created_at": 10},
+                    {"client_message_id": "assistant-1", "chat_id": "chat-1", "role": "assistant", "encrypted_content": encrypted_answer, "user_message_id": "user-1", "created_at": 20},
+                ],
+                "has_more_before": True,
+                "server_message_count": 200,
+            })
+        assert url == "https://api.openmates.org/v1/sdk/chats/chat-1"
+        return FakeResponse({
+            "chat": {"id": "chat-1", "encrypted_chat_key": encrypted_chat_key, "encrypted_title": encrypted_title, "messages_v": 2},
+            "messages": [
+                {"client_message_id": "user-1", "chat_id": "chat-1", "role": "user", "encrypted_content": encrypted_question, "created_at": 10},
+                {"client_message_id": "assistant-1", "chat_id": "chat-1", "role": "assistant", "encrypted_content": encrypted_answer, "user_message_id": "user-1", "created_at": 20},
+            ],
+        })
+
+    def fake_post(url, *, json, headers, timeout):
+        requests_seen.append(("POST", url, json))
+        if url == "https://api.openmates.org/v1/sdk/session":
+            return FakeResponse({"key_wrapper": key_wrapper})
+        if url == "https://api.openmates.org/v1/sdk/chats/chat-1/fork":
+            assert "First question" not in json_module.dumps(json)
+            assert "First answer" not in json_module.dumps(json)
+            assert len(json["encrypted_messages"]) == 2
+            return FakeResponse({"success": True, "chat_id": json["new_chat_id"], "copied_message_count": 2, "messages_v": 2})
+        if url == "https://api.openmates.org/v1/sdk/chats/chat-1/rewind":
+            assert json == {
+                "protocol_version": 1,
+                "to_message_id": "user-1",
+                "expected_messages_v": 2,
+                "dry_run": True,
+                "confirm_destructive": False,
+            }
+            return FakeResponse({"success": True, "dry_run": True, "chat_id": "chat-1", "planned_deleted_message_count": 1, "messages_v": 2})
+        raise AssertionError(f"unexpected POST {url}")
+
+    monkeypatch.setattr("openmates.sdk.requests.get", fake_get)
+    monkeypatch.setattr("openmates.sdk.requests.post", fake_post)
+
+    client = OpenMates(api_key=api_key)
+    listed = client.chats.messages(chat_id="chat-1")
+    assert listed["messages"][0]["content"] == "First question"
+    assert listed["messages"][1]["preview"] == "First answer"
+    assert listed["has_more_before"] is True
+    assert listed["server_message_count"] == 200
+    forked = client.chats.fork(chat_id="chat-1", from_message_id="assistant-1", title="Forked")
+    assert forked["copied_message_count"] == 2
+    rewind = client.chats.rewind(chat_id="chat-1", to_message_id="user-1", dry_run=True)
+    assert rewind["dry_run"] is True
+
+    assert [(method, url) for method, url, _body in requests_seen] == [
+        ("GET", "https://api.openmates.org/v1/sdk/chats/chat-1/messages?direction=latest&limit=30"),
+        ("POST", "https://api.openmates.org/v1/sdk/session"),
+        ("GET", "https://api.openmates.org/v1/sdk/chats/chat-1"),
+        ("POST", "https://api.openmates.org/v1/sdk/chats/chat-1/fork"),
+        ("GET", "https://api.openmates.org/v1/sdk/chats/chat-1"),
+        ("POST", "https://api.openmates.org/v1/sdk/chats/chat-1/rewind"),
+    ]
+
+
 def test_chat_list_defaults_to_10_and_limit_zero_requests_all(monkeypatch):
     urls = []
 
@@ -1483,6 +1568,49 @@ def test_chat_list_defaults_to_10_and_limit_zero_requests_all(monkeypatch):
     assert urls == [
         "https://api.openmates.org/v1/sdk/chats?limit=10&offset=0",
         "https://api.openmates.org/v1/sdk/chats?limit=0&offset=0",
+    ]
+
+
+def test_chat_messages_all_true_uses_full_history_route(monkeypatch):
+    api_key = "sk-api-python-all"
+    master_key = os.urandom(32)
+    chat_key = os.urandom(32)
+    key_wrapper = _wrap_master_key(api_key, master_key)
+    encrypted_chat_key = _encrypt_combined(chat_key, master_key)
+    encrypted_content = _encrypt_combined(b"Full history message", chat_key)
+    requests_seen = []
+
+    class FakeResponse:
+        status_code = 200
+
+        def __init__(self, payload):
+            self._payload = payload
+
+        def json(self):
+            return self._payload
+
+    def fake_get(url, *, headers, timeout):
+        requests_seen.append(("GET", url))
+        assert url == "https://api.openmates.org/v1/sdk/chats/chat-1"
+        return FakeResponse({
+            "chat": {"id": "chat-1", "encrypted_chat_key": encrypted_chat_key},
+            "messages": [{"client_message_id": "message-1", "chat_id": "chat-1", "role": "assistant", "encrypted_content": encrypted_content, "created_at": 1}],
+        })
+
+    def fake_post(url, *, json, headers, timeout):
+        requests_seen.append(("POST", url))
+        return FakeResponse({"key_wrapper": key_wrapper})
+
+    monkeypatch.setattr("openmates.sdk.requests.get", fake_get)
+    monkeypatch.setattr("openmates.sdk.requests.post", fake_post)
+
+    result = OpenMates(api_key=api_key).chats.messages(chat_id="chat-1", all=True)
+
+    assert result["messages"][0]["content"] == "Full history message"
+    assert result["has_more_before"] is False
+    assert requests_seen == [
+        ("GET", "https://api.openmates.org/v1/sdk/chats/chat-1"),
+        ("POST", "https://api.openmates.org/v1/sdk/session"),
     ]
 
 
@@ -1610,6 +1738,10 @@ def test_destructive_sdk_operations_require_confirmation():
 
     with pytest.raises(OpenMatesConfigError, match="requires confirmed=True"):
         client.chats.delete("chat-1")
+    with pytest.raises(OpenMatesConfigError, match="requires confirmed=True"):
+        client.chats.rewind(chat_id="chat-1", to_message_id="message-1")
+    with pytest.raises(OpenMatesConfigError, match="requires confirmed=True"):
+        client.chats.retry(chat_id="chat-1")
     with pytest.raises(OpenMatesConfigError, match="requires confirmed=True"):
         client.memories.delete("memory-1")
     with pytest.raises(OpenMatesConfigError, match="requires confirmed=True"):

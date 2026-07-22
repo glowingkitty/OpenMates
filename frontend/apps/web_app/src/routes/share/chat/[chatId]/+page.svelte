@@ -74,6 +74,7 @@
 
 	// Get chat ID from URL params
 	let chatId = $derived($page.params.chatId);
+	const SHARED_MESSAGE_WINDOW_LIMIT = 30;
 
 	// State
 	let isLoading = $state(true);
@@ -236,7 +237,7 @@
 		try {
 			let data: ShareChatPayload;
 			try {
-				const messageParams = new URLSearchParams({ limit: '40' });
+				const messageParams = new URLSearchParams({ limit: String(SHARED_MESSAGE_WINDOW_LIMIT) });
 				if (messageId) {
 					messageParams.set('target_message_id', messageId);
 				}

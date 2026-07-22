@@ -1148,7 +1148,7 @@ async def _async_process_ai_skill_ask_task(
 
                         # Create a summary system message in the AI cache
                         import uuid as _uuid
-                        summary_message_id = f"compression_{_uuid.uuid4().hex[:12]}"
+                        summary_message_id = str(_uuid.uuid4())
                         summary_timestamp = int(time.time())
 
                         # Vault-encrypt the summary content for AI cache storage

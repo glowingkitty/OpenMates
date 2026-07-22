@@ -696,6 +696,35 @@ test('outbox dispatch and worker failure transitions are idempotent and sanitize
   );
 });
 
+test('dispatch failure before worker claim marks enqueued inference failed', async () => {
+  const database = fakeDatabase({
+    chat_turn_preflights: [{
+      id: '018f1111-1111-7111-8111-111111111111',
+      inference_task_id: TASK_ID,
+      state: 'ENQUEUED',
+      outbox_id: OUTBOX_ID,
+    }],
+    chat_inference_outbox: [{
+      id: OUTBOX_ID,
+      inference_task_id: TASK_ID,
+      state: 'PENDING',
+      attempts: 0,
+    }],
+    chat_completion_recovery_jobs: [],
+  });
+
+  const failed = await executeOperation(database, 'mark_inference_failed', {
+    protocol_version: 1,
+    inference_task_id: TASK_ID,
+    failure_category: 'dispatch_failed',
+  });
+
+  assert.deepEqual(failed, { inference_task_id: TASK_ID, failed: true, state: 'FAILED' });
+  assert.equal(database.rows.chat_turn_preflights[0].state, 'FAILED');
+  assert.equal(database.rows.chat_inference_outbox[0].state, 'FAILED');
+  assert.equal(database.rows.chat_inference_outbox[0].last_error_category, 'dispatch_failed');
+});
+
 test('worker failure after sealed job is treated as stale and idempotent', async () => {
   const database = fakeDatabase({
     chat_turn_preflights: [{

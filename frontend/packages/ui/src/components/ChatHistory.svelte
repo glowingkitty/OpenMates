@@ -75,6 +75,13 @@
   import { settingsDeepLink } from '../stores/settingsDeepLinkStore';
   import { panelState } from '../stores/panelStateStore';
   import { chatSyncService } from '../services/chatSyncService';
+  import {
+    NORMAL_MESSAGE_PAGE_LIMIT,
+    pruneDecryptedMessageWindow,
+  } from '../utils/messageWindowPruning';
+
+  const FORGOTTEN_MESSAGE_PAGE_LIMIT = NORMAL_MESSAGE_PAGE_LIMIT;
+  const OLDER_MESSAGES_AUTOLOAD_THRESHOLD_PX = 180;
 
   type AppCardData = {
     component: new (...args: unknown[]) => SvelteComponent;
@@ -846,7 +853,7 @@
         const params = new URLSearchParams({
           checkpoint_id: latestCompressionCheckpoint.id,
           before_timestamp: String(beforeTimestamp),
-          limit: '40',
+          limit: String(FORGOTTEN_MESSAGE_PAGE_LIMIT),
         });
         if (beforeMessageId) params.set('before_message_id', beforeMessageId);
         const response = await fetch(getApiEndpoint(`/v1/share/chat/${latestCompressionCheckpoint.chat_id}/messages?${params.toString()}`));
@@ -871,7 +878,7 @@
         checkpoint_id: latestCompressionCheckpoint.id,
         before_timestamp: beforeTimestamp,
         before_message_id: beforeMessageId,
-        limit: 40,
+        limit: FORGOTTEN_MESSAGE_PAGE_LIMIT,
       });
     } catch (error) {
       oldCompressedMessagesLoading = false;
@@ -889,12 +896,17 @@
         direction: 'before',
         beforeTimestamp,
         beforeMessageId: beforeMessageId ?? LOCAL_FORGOTTEN_CURSOR_SENTINEL,
-        limit: 40,
+        limit: FORGOTTEN_MESSAGE_PAGE_LIMIT,
       });
       const messagesBeforeBoundary = window.messages.filter(
         (message) => message.created_at <= latestCompressionCheckpoint!.compressed_up_to_timestamp,
       );
       if (messagesBeforeBoundary.length === 0) return false;
+
+      await chatDB.recordMessageWindowPage(latestCompressionCheckpoint.chat_id, window, {
+        direction: 'before',
+        pageKind: 'forgotten',
+      });
 
       const existingIds = new Set(oldCompressedMessages.map((message) => message.message_id));
       const newMessages = messagesBeforeBoundary.filter((message) => !existingIds.has(message.message_id));
@@ -1860,7 +1872,13 @@
       }
     }
 
-    messages = newInternalMessages;
+    const prunedWindow = pruneDecryptedMessageWindow(newInternalMessages, {
+      compressionCheckpoints,
+    });
+    if (prunedWindow.prunedCount > 0) {
+      console.debug(`[ChatHistory] Pruned ${prunedWindow.prunedCount} decrypted normal message(s) from active UI window`);
+    }
+    messages = prunedWindow.messages;
     // Add a log to confirm this path is taken and what the new messages are.
     // console.debug('[ChatHistory] updateMessages: messages array REPLACED (intelligent assignment). New internal messages:', JSON.parse(JSON.stringify(messages)));
     dispatch('messagesChange', { hasMessages: messages.length > 0 });
@@ -2236,6 +2254,15 @@
     if (isRestoringScroll) return;
 
     updateVirtualRangeAroundScroll();
+
+    if (
+      container &&
+      container.scrollTop <= OLDER_MESSAGES_AUTOLOAD_THRESHOLD_PX &&
+      hasOlderMessages &&
+      !olderMessagesLoading
+    ) {
+      requestOlderMessages();
+    }
 
     // Detect if user has manually scrolled away during streaming.
     // If streaming is active and the user scrolls upward (away from the bottom),

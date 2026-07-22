@@ -141,11 +141,14 @@ class ChatDatabase {
   // Version 29: schema-healing bump for clients whose DB reached v28 without
   //             chat_compression_checkpoints; opening the same version cannot
   //             trigger onupgradeneeded, so affected browsers need a new bump.
-  private readonly VERSION = 29;
+  // Version 30: message_window_pages store — encrypted page-cache metadata for
+  //             bounded chat viewing windows, explicitly separate from messages_v.
+  private readonly VERSION = 30;
   public readonly MESSAGE_HIGHLIGHTS_STORE_NAME = "message_highlights";
   public readonly EMBED_DIFFS_STORE_NAME = "embed_diffs";
   public readonly CODE_RUN_OUTPUTS_STORE_NAME = "code_run_outputs";
   public readonly DAILY_INSPIRATIONS_STORE_NAME = "daily_inspirations";
+  public readonly MESSAGE_WINDOW_PAGES_STORE_NAME = "message_window_pages";
   private readonly REQUIRED_STORE_NAMES = [
     this.CHATS_STORE_NAME,
     this.MESSAGES_STORE_NAME,
@@ -162,6 +165,7 @@ class ChatDatabase {
     this.CODE_RUN_OUTPUTS_STORE_NAME,
     this.DAILY_INSPIRATIONS_STORE_NAME,
     this.CHAT_COMPRESSION_CHECKPOINTS_STORE_NAME,
+    this.MESSAGE_WINDOW_PAGES_STORE_NAME,
   ];
   private readonly DATA_BEARING_STORE_NAMES = [
     ...this.REQUIRED_STORE_NAMES,
@@ -1285,6 +1289,52 @@ class ChatDatabase {
       }
     }
 
+    if (!db.objectStoreNames.contains(this.MESSAGE_WINDOW_PAGES_STORE_NAME)) {
+      const windowPagesStore = db.createObjectStore(
+        this.MESSAGE_WINDOW_PAGES_STORE_NAME,
+        { keyPath: "id" },
+      );
+      windowPagesStore.createIndex("chat_id", "chat_id", { unique: false });
+      windowPagesStore.createIndex(
+        "chat_id_last_accessed_at",
+        ["chat_id", "last_accessed_at"],
+        { unique: false },
+      );
+      windowPagesStore.createIndex(
+        "chat_id_page_kind",
+        ["chat_id", "page_kind"],
+        { unique: false },
+      );
+      windowPagesStore.createIndex("cache_generation", "cache_generation", {
+        unique: false,
+      });
+      console.warn("[ChatDatabase] Created message_window_pages store (v30)");
+    } else if (transaction) {
+      const windowPagesStore = transaction.objectStore(this.MESSAGE_WINDOW_PAGES_STORE_NAME);
+      if (!windowPagesStore.indexNames.contains("chat_id")) {
+        windowPagesStore.createIndex("chat_id", "chat_id", { unique: false });
+      }
+      if (!windowPagesStore.indexNames.contains("chat_id_last_accessed_at")) {
+        windowPagesStore.createIndex(
+          "chat_id_last_accessed_at",
+          ["chat_id", "last_accessed_at"],
+          { unique: false },
+        );
+      }
+      if (!windowPagesStore.indexNames.contains("chat_id_page_kind")) {
+        windowPagesStore.createIndex(
+          "chat_id_page_kind",
+          ["chat_id", "page_kind"],
+          { unique: false },
+        );
+      }
+      if (!windowPagesStore.indexNames.contains("cache_generation")) {
+        windowPagesStore.createIndex("cache_generation", "cache_generation", {
+          unique: false,
+        });
+      }
+    }
+
     // Data migrations for messages
     if (transaction && oldVersion < 6) {
       this.migrateMessagesFromChats(transaction);
@@ -1967,6 +2017,27 @@ class ChatDatabase {
     transaction?: IDBTransaction,
   ): Promise<messageOps.MessageWindowResult> {
     return messageOps.getMessageWindowForChat(this, chat_id, options, transaction);
+  }
+
+  async recordMessageWindowPage(
+    chat_id: string,
+    result: messageOps.MessageWindowResult,
+    options: messageOps.RecordMessageWindowPageOptions = {},
+  ): Promise<messageOps.MessageWindowPageCacheRecord | null> {
+    return messageOps.recordMessageWindowPage(this, chat_id, result, options);
+  }
+
+  async getMessageWindowPagesForChat(
+    chat_id: string,
+  ): Promise<messageOps.MessageWindowPageCacheRecord[]> {
+    return messageOps.getMessageWindowPagesForChat(this, chat_id);
+  }
+
+  async evictStaleMessageWindowPages(
+    chat_id: string,
+    options: messageOps.EvictMessageWindowPagesOptions = {},
+  ): Promise<messageOps.EvictMessageWindowPagesResult> {
+    return messageOps.evictStaleMessageWindowPages(this, chat_id, options);
   }
 
   async getMessage(

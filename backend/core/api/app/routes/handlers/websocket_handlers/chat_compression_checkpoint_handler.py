@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import logging
 import json
+import uuid
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
@@ -16,7 +17,7 @@ if TYPE_CHECKING:
     from backend.core.api.app.services.directus import DirectusService
 
 CHECKPOINT_COLLECTION = "chat_compression_checkpoints"
-DEFAULT_OLD_MESSAGE_LIMIT = 40
+DEFAULT_OLD_MESSAGE_LIMIT = 30
 MAX_OLD_MESSAGE_LIMIT = 250
 
 
@@ -93,6 +94,16 @@ async def _handle_store_chat_compression_checkpoint(
     if not chat_id or not checkpoint_id or not encrypted_summary:
         await manager.send_personal_message(
             {"type": "error", "payload": {"message": "Missing compression checkpoint fields."}},
+            user_id,
+            device_fingerprint_hash,
+        )
+        return
+
+    try:
+        checkpoint_id = str(uuid.UUID(str(checkpoint_id)))
+    except (TypeError, ValueError):
+        await manager.send_personal_message(
+            {"type": "error", "payload": {"message": "Compression checkpoint ID must be a UUID.", "chat_id": chat_id}},
             user_id,
             device_fingerprint_hash,
         )

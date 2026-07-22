@@ -1,0 +1,670 @@
+schema_version: 2
+id: cli-sdk-chat-fork-rewind
+title: CLI And SDK Chat Fork, Rewind, And Retry
+status: implementing
+
+goal: >
+  Add first-party CLI and SDK support for recovering or branching saved personal
+  chats from a specific message. Users must be able to list message IDs, create a
+  non-destructive fork through a chosen message, destructively rewind the same
+  chat to an earlier point with explicit confirmation, and retry the latest
+  orphan or failed user turn without hand-editing Directus state.
+
+scope:
+  in:
+    - A CLI message-listing command that exposes stable message IDs, roles, timestamps, and short previews for a saved personal chat.
+    - A non-destructive CLI fork command that creates a new encrypted personal chat from an existing chat through a selected message.
+    - A destructive CLI rewind command that removes messages after a selected message in the same chat and can optionally send a new prompt.
+    - A safe CLI retry command that finds the latest user message without a valid assistant response after it, rewinds to the retry boundary, and resends that user prompt.
+    - npm SDK parity for listing messages, forking, rewinding, and retrying saved personal chats.
+    - pip SDK parity for the same operations.
+    - First-party backend API/WebSocket support only where server-side ownership, deletion, version integrity, or encrypted persistence requires it.
+  out:
+    - Web UI changes; the existing browser fork flow remains unchanged in this slice.
+    - Apple app parity implementation; Apple impact is recorded but implementation is deferred unless later requested.
+    - Team chats, shared read-only chats, incognito chats, anonymous chats, and imported third-party chats with missing key material.
+    - Server-side decryption, plaintext transcript transfer to the backend, or server-generated fork content.
+    - Rewriting existing assistant messages or editing historical message ciphertext.
+    - Automatically publishing or sharing a forked chat.
+
+context_discovery:
+  github_issues:
+    - "GitHub MCP get_me failed with 401 Bad credentials, so no tracker lookup could be performed from this environment."
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/specs/explain-in-new-chat/spec.yml
+    - docs/specs/realistic-long-chat-cli-validation/spec.yml
+    - docs/specs/apple-chat-management-sharing-parity/spec.yml
+  code_patterns:
+    - frontend/packages/ui/src/services/forkChatService.ts implements the existing web-only zero-knowledge client fork flow.
+    - frontend/packages/openmates-cli/src/client.ts owns the source CLI saved-chat send and recovery flow.
+    - frontend/packages/openmates-cli/src/sdk.ts owns the npm SDK chats facade and saved-chat recovery flow.
+    - backend/core/api/app/routes/sdk.py exposes API-key SDK chat list/load/create/recovery routes.
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py owns first-party WebSocket saved-chat sends.
+    - backend/core/api/app/routes/handlers/websocket_handlers/encrypted_chat_metadata_handler.py and related persistence tasks handle encrypted client-owned chat metadata/history writes.
+  tests:
+    - backend/tests/test_sdk_chat_recovery.py
+    - backend/tests/test_sdk_cli_parity_api_key_auth.py
+    - backend/tests/test_encrypted_chat_metadata_guard.py
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - frontend/packages/openmates-cli/tests/sdk.test.ts
+
+apple_impact:
+  affected_files:
+    - apple/openmates/OpenMates/Features/Chat/
+  parity_expectations:
+    - Apple already has chat-management parity expectations that mention fork/explain behavior, but this spec changes only CLI/SDK/API surfaces.
+    - Native same-chat destructive rewind/retry is not implemented in this slice.
+  verification:
+    - Apple not implemented in this slice; record as deferred parity if the CLI/SDK contract ships.
+  intentional_native_differences:
+    - CLI/SDK expose recovery/admin-like chat repair operations before native UI because the immediate need is validation-chat recovery.
+
+clarification:
+  rounds:
+    - question: Should the first CLI/SDK slice support both non-destructive fork and one-shot continue-from-message?
+      answer: Both fork and from-message continuation must be supported because they are different use cases.
+    - question: Should same-chat continuation be modeled as an explicit destructive operation with a retry shortcut?
+      answer: >
+        Use the recommended command set: fork for non-destructive branching,
+        rewind for same-chat destructive continuation, retry for the latest
+        orphan/failed turn, plus easy message ID discovery.
+  vision_summary: >
+    The user needs two separate workflows: branch safely into a new chat, and repair
+    the same chat by deleting the bad tail and continuing from an earlier point.
+    The destructive workflow must be explicit and confirmable, while retry should
+    be a convenience wrapper for the common failed-chat case.
+  approved_by_user: true
+
+assumptions:
+  - id: A-1
+    text: The first implementation slice can be limited to personal saved chats because the failed validation chat is personal and team/shared/incognito support adds separate permission and key-management work.
+    status: confirmed
+    required_before: implementation
+    evidence:
+      - User approved the recommended command set for recovering the earlier failed chat; no team/shared requirement was requested.
+  - id: A-2
+    text: Rewind may delete encrypted message rows and associated recovery/cache state after the chosen boundary, but must not expose plaintext to the server.
+    status: unchecked
+    required_before: implementation
+
+scenarios:
+  - id: S-1
+    title: List message IDs for a saved chat
+    given:
+      - Alice has a saved personal chat with several user and assistant messages.
+    when:
+      - Alice runs `openmates chats messages <chat-id>`.
+    then:
+      - The CLI prints messages in chronological order with role, timestamp, short preview, and full message ID or copyable short ID.
+      - JSON output includes enough fields for scripts to choose a fork or rewind boundary.
+
+  - id: S-2
+    title: Fork a saved chat through a chosen message
+    given:
+      - Alice has a saved personal chat and can decrypt its chat key locally.
+      - Alice selected an assistant message ID as the fork boundary.
+    when:
+      - Alice runs `openmates chats fork <chat-id> --from-message <message-id>`.
+    then:
+      - A new saved personal chat is created with a new chat ID and new encrypted chat key.
+      - The new chat contains encrypted copies of source messages up to and including the selected message.
+      - The source chat is unchanged.
+      - The CLI prints the new chat ID and copied message count.
+
+  - id: S-3
+    title: Rewind the same chat and send a replacement prompt
+    given:
+      - Alice has a saved personal chat whose tail after message `<message-id>` is invalid or unusable.
+    when:
+      - Alice runs `openmates chats rewind <chat-id> --to-message <message-id> --send "Continue from here" --yes`.
+    then:
+      - Messages after the selected boundary are deleted from durable encrypted storage for that chat.
+      - Chat version metadata reflects the remaining durable message count.
+      - AI inference caches and recovery state for the deleted tail are invalidated.
+      - The replacement prompt is sent as the next normal saved-chat turn in the same chat.
+
+  - id: S-4
+    title: Retry the latest failed or orphan user turn
+    given:
+      - Alice has a saved personal chat where the latest user message has no valid assistant response after it.
+    when:
+      - Alice runs `openmates chats retry <chat-id> --yes`.
+    then:
+      - The CLI identifies the retryable user message and shows the planned deletion/send boundary in dry-run output.
+      - With confirmation, the chat is rewound to before that user message and the same plaintext prompt is resent.
+      - If no retryable user message is found, the CLI exits with a clear no-op error and changes nothing.
+
+  - id: S-5
+    title: SDKs expose the same capabilities
+    given:
+      - A script has an approved OpenMates SDK session with chat read/create/delete permissions and local master-key access.
+    when:
+      - It calls SDK message listing, fork, rewind, or retry helpers.
+    then:
+      - npm SDK and pip SDK expose equivalent option names and result fields.
+      - SDK helpers preserve zero-knowledge encryption boundaries and return structured errors for unsupported chats, missing keys, permission failures, and destructive-confirmation omissions.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: CLI and SDK users can list saved personal chat messages with stable IDs, roles, timestamps, and short previews without exposing plaintext to the backend beyond already-local client decryption.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids: [T-CLI-MESSAGES, T-NPM-SDK-FORK, T-PIP-SDK-FORK]
+  - id: AC-2
+    scenario: S-2
+    text: "`chats fork` creates a new encrypted saved chat through the chosen message and leaves the source chat unchanged."
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids: [T-API-FORK-REWIND, T-CLI-FORK]
+  - id: AC-3
+    scenario: S-3
+    text: "`chats rewind` is destructive, requires `--yes` unless dry-running, deletes only messages after the chosen boundary, invalidates tail cache/recovery state, and can send a replacement prompt in the same chat."
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids: [T-API-FORK-REWIND, T-CLI-REWIND]
+  - id: AC-4
+    scenario: S-4
+    text: "`chats retry` detects the latest user message without a valid assistant response, rewinds to the correct retry boundary, and resends that same prompt; if no retryable turn exists, it makes no changes."
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids: [T-CLI-RETRY]
+  - id: AC-5
+    scenario: S-5
+    text: npm SDK and pip SDK expose equivalent message-list, fork, rewind, and retry helpers with consistent structured results and errors.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: npm_sdk
+    verification_ids: [T-NPM-SDK-FORK, T-PIP-SDK-FORK, T-SDK-CLI-PARITY]
+  - id: AC-6
+    scenario: S-2
+    text: Team, shared read-only, incognito, anonymous, and undecryptable chats are rejected explicitly in the first slice.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-API-FORK-REWIND, T-CLI-FORK]
+
+contracts:
+  api:
+    - route: POST /v1/sdk/chats/{chat_id}/fork
+      access_model: developer API-key REST API and first-party CLI/SDK helper surface
+      auth: API key with chat read and create saved-chat scopes, approved device identity, and owner-scoped personal chat access
+      request: Client supplies new chat id, encrypted new chat metadata/key wrapper as needed, and client-encrypted message history copied through the selected source message.
+      response: New chat id, copied message count, messages_v, and encrypted metadata echo sufficient for CLI/SDK cache refresh.
+      errors:
+        - 400 invalid_message_boundary
+        - 400 encrypted_history_required
+        - 403 missing_scope
+        - 403 approved_device_required
+        - 404 chat_not_found
+        - 409 unsupported_chat_kind
+      plaintext_policy: Backend must never receive decrypted message content; all message content and metadata are client-encrypted fields.
+    - route: POST /v1/sdk/chats/{chat_id}/rewind
+      access_model: developer API-key REST API and first-party CLI/SDK helper surface
+      auth: API key with chat read and delete/update saved-chat scopes, approved device identity, and owner-scoped personal chat access
+      request: Client supplies boundary message id, expected messages_v, optional encrypted replacement user turn through normal saved-chat send flow, and confirmation flag for destructive execution.
+      response: Deleted message count, new messages_v, invalidated recovery/cache state counts when available, and optional replacement task id if a send was requested.
+      errors:
+        - 400 destructive_confirmation_required
+        - 400 invalid_message_boundary
+        - 403 missing_scope
+        - 403 approved_device_required
+        - 404 chat_not_found
+        - 409 version_conflict
+        - 409 active_task_in_progress
+      plaintext_policy: Backend deletes encrypted rows by ownership and message ordering; it must not decrypt or receive plaintext transcript content.
+  cli:
+    - command: openmates chats messages <chat-id> [--json]
+      behavior: Print chronological message IDs, roles, timestamps, and previews decrypted locally by the CLI.
+    - command: openmates chats fork <chat-id> --from-message <message-id> [--title <title>] [--json]
+      behavior: Create a new encrypted chat with copied history through the boundary and print the new chat ID.
+    - command: openmates chats rewind <chat-id> --to-message <message-id> [--send <prompt>] [--dry-run] [--yes] [--json]
+      behavior: Dry-run by default unless `--yes`; destructive execution deletes the tail and optionally sends a replacement prompt in the same chat.
+    - command: openmates chats retry <chat-id> [--dry-run] [--yes] [--json]
+      behavior: Identify and resend the latest retryable user prompt by delegating to rewind plus normal send.
+  sdk:
+    - npm: client.chats.messages({ chatId })
+    - npm: client.chats.fork({ chatId, fromMessageId, title? })
+    - npm: client.chats.rewind({ chatId, toMessageId, send?, confirmDestructive })
+    - npm: client.chats.retry({ chatId, confirmDestructive })
+    - pip: client.chats.messages(chat_id=...)
+    - pip: client.chats.fork(chat_id=..., from_message_id=..., title=None)
+    - pip: client.chats.rewind(chat_id=..., to_message_id=..., send=None, confirm_destructive=True)
+    - pip: client.chats.retry(chat_id=..., confirm_destructive=True)
+  data:
+    - Forked chats use a new chat id and new chat key; source message ciphertext is decrypted locally and re-encrypted locally for the new chat.
+    - Rewind deletes messages after the selected boundary and updates `messages_v` to the remaining durable message count in the same transaction as deletion.
+    - Rewind invalidates AI inference cache, sync cache, and active recovery state for the deleted tail before any replacement send is started.
+    - Retry considers a user message retryable only when no later valid assistant message is present in the locally decrypted transcript and durable metadata agrees after sync.
+  privacy_security:
+    - No endpoint accepts decrypted message content or decrypted chat metadata.
+    - All destructive operations require owner authorization and an approved device/API-key context.
+    - Destructive CLI commands require `--yes` or `--dry-run`; SDK commands require an explicit `confirmDestructive`/`confirm_destructive` boolean.
+    - Logs must include chat/message identifiers only, never decrypted content.
+  rate_limits_budget:
+    - Fork and message listing do not consume AI credits.
+    - Rewind without send does not consume AI credits.
+    - Rewind with send and retry consume normal saved-chat AI credits for the replacement turn only.
+    - Existing API-key and WebSocket rate limits apply; no new bypass is introduced.
+
+tests:
+  - id: T-API-FORK-REWIND
+    type: pytest
+    file: backend/tests/test_sdk_chat_fork_rewind.py
+    command: docker exec api python -m pytest /app/backend/tests/test_sdk_chat_fork_rewind.py -q
+    covers: [AC-2, AC-3, AC-6]
+    assertions:
+      - fork endpoint rejects unsupported chat kinds and missing scopes
+      - fork endpoint persists only client-encrypted copied messages for a new owner-scoped chat
+      - rewind endpoint requires explicit destructive confirmation
+      - rewind endpoint deletes only messages after the boundary and updates messages_v transactionally
+      - rewind endpoint invalidates recovery/cache state for the deleted tail
+    red_phase:
+      required: true
+      expected: fail_before_routes_exist
+      evidence:
+        status: pending
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+  - id: T-CLI-MESSAGES
+    type: unit
+    file: frontend/packages/openmates-cli/tests/cli.test.ts
+    command: pnpm --filter openmates-cli test -- cli.test.ts --grep "chats messages"
+    covers: [AC-1]
+    assertions:
+      - chats messages renders chronological role/id/timestamp/preview output
+      - --json output is script-friendly and includes full message IDs
+    red_phase:
+      required: true
+      expected: fail_before_command_exists
+      evidence:
+        status: pending
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+  - id: T-CLI-FORK
+    type: unit
+    file: frontend/packages/openmates-cli/tests/client.test.ts
+    command: pnpm --filter openmates-cli test -- client.test.ts --grep "chats fork"
+    covers: [AC-2, AC-6]
+    assertions:
+      - CLI decrypts source messages locally and sends only encrypted fork payloads to the backend
+      - source chat remains unchanged in the client result
+      - unsupported or undecryptable chats produce explicit errors
+    red_phase:
+      required: true
+      expected: fail_before_command_exists
+      evidence:
+        status: pending
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+  - id: T-CLI-REWIND
+    type: unit
+    file: frontend/packages/openmates-cli/tests/client.test.ts
+    command: pnpm --filter openmates-cli test -- client.test.ts --grep "chats rewind"
+    covers: [AC-3]
+    assertions:
+      - rewind dry-run prints planned deletion boundary without mutating
+      - rewind without --yes is rejected
+      - rewind with --yes calls the backend deletion path and optional saved-chat send path in order
+    red_phase:
+      required: true
+      expected: fail_before_command_exists
+      evidence:
+        status: pending
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+  - id: T-CLI-RETRY
+    type: unit
+    file: frontend/packages/openmates-cli/tests/client.test.ts
+    command: pnpm --filter openmates-cli test -- client.test.ts --grep "chats retry"
+    covers: [AC-4]
+    assertions:
+      - retry finds the latest user message without a following assistant message
+      - retry refuses no-op chats with no retryable turn
+      - retry delegates to rewind plus resend with destructive confirmation
+    red_phase:
+      required: true
+      expected: fail_before_command_exists
+      evidence:
+        status: pending
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+  - id: T-NPM-SDK-FORK
+    type: unit
+    file: frontend/packages/openmates-cli/tests/sdk.test.ts
+    command: pnpm --filter openmates-cli test -- sdk.test.ts --grep "chat fork rewind retry"
+    covers: [AC-1, AC-5]
+    assertions:
+      - npm SDK exposes messages, fork, rewind, and retry helpers
+      - npm SDK requires explicit destructive confirmation for rewind and retry
+      - npm SDK errors are structured and preserve zero-knowledge payload boundaries
+    red_phase:
+      required: true
+      expected: fail_before_sdk_helpers_exist
+      evidence:
+        status: pending
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+  - id: T-PIP-SDK-FORK
+    type: unit
+    file: frontend/packages/openmates-py/tests/test_chats.py
+    command: python3 -m pytest frontend/packages/openmates-py/tests/test_chats.py -k "fork or rewind or retry"
+    covers: [AC-1, AC-5]
+    assertions:
+      - pip SDK exposes messages, fork, rewind, and retry helpers with names matching npm semantics
+      - pip SDK requires explicit destructive confirmation for rewind and retry
+      - pip SDK serializes backend requests with encrypted payloads only
+    red_phase:
+      required: true
+      expected: fail_before_sdk_helpers_exist
+      evidence:
+        status: pending
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+  - id: T-SDK-CLI-PARITY
+    type: manual
+    covers: [AC-5]
+    assertions:
+      - "`python3 scripts/audit_sdk_cli_parity.py` reports no missing CLI/SDK fork-rewind-retry surface"
+      - real dev-server CLI, npm SDK, and pip SDK calls exercise the same backend contract after local API proof passes
+    red_phase:
+      required: false
+      expected: not_applicable
+      evidence:
+        status: pending
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+
+verifications:
+  - id: V-DEV-API-PROOF
+    kind: manual_check
+    phase: green
+    required_for_done: true
+    covers: [AC-2, AC-3, AC-4]
+    status: pending
+    evidence:
+      status: pending
+      summary: Real dev-server REST/WebSocket proof must run before CLI/SDK proof.
+      timestamp: null
+  - id: V-CLI-DEV-PROOF
+    kind: manual_check
+    phase: green
+    required_for_done: true
+    covers: [AC-1, AC-2, AC-3, AC-4]
+    status: pending
+    evidence:
+      status: pending
+      summary: Source CLI must list messages, fork, rewind dry-run, and retry/rewind a test chat against api.dev.openmates.org.
+      timestamp: null
+  - id: V-SDK-DEV-PROOF
+    kind: manual_check
+    phase: green
+    required_for_done: true
+    covers: [AC-5]
+    status: pending
+    evidence:
+      status: pending
+      summary: npm and pip SDK helpers must run locally against api.dev.openmates.org with real auth/test-account state.
+      timestamp: null
+  - id: V-USER-CONFIRMATION
+    kind: user_confirmation
+    phase: final
+    required_for_done: false
+    covers: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6]
+    status: pending
+    evidence:
+      status: pending
+      summary: User confirms the CLI/SDK command shape is acceptable before using it to recover the failed validation chat.
+      timestamp: null
+
+implementation_state:
+  subject_commit: working-tree-2026-07-22
+
+approvals:
+  product_contract:
+    status: approved
+    approved_at: "2026-07-22"
+    reason: User approved implementation after reviewing the written product contract.
+  implementation_plan:
+    status: pending
+    approved_at: null
+    reason: Plan should be finalized after product-contract approval.
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Expose both non-destructive fork and destructive same-chat rewind flows.
+    reason: The user explicitly clarified that fork and from-message continuation are different use cases.
+    decided_at: "2026-07-22"
+  - id: D-2
+    status: active
+    decision: Name destructive same-chat continuation `rewind`, and provide `retry` as a convenience wrapper for the latest failed/orphan user turn.
+    reason: The name makes destructive history editing explicit and keeps common failed-chat recovery easy.
+    decided_at: "2026-07-22"
+  - id: D-3
+    status: active
+    decision: Require `--yes` for destructive CLI rewind/retry and explicit confirmation booleans for SDK rewind/retry.
+    reason: Same-chat history deletion must not happen accidentally.
+    decided_at: "2026-07-22"
+  - id: D-4
+    status: active
+    decision: Keep the first slice personal-chat only.
+    reason: Personal saved-chat recovery solves the immediate failed validation-chat need and avoids team/shared/incognito key and permission complexity.
+    decided_at: "2026-07-22"
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    approach: Draft full executable product contract for CLI/SDK fork, rewind, retry, and message ID discovery.
+    outcome: planned
+    recorded_at: "2026-07-22"
+    notes: No implementation has started; this spec must be approved first.
+
+handoff:
+  current_task_id: TASK-1
+  next_action: Present this validated product contract to the user and wait for approval before implementation.
+  command: python3 scripts/spec_validate.py docs/specs/cli-sdk-chat-fork-rewind/spec.yml
+  expected_outcome: Spec validates and user approves or requests product-contract edits.
+  blocker: null
+  last_verified_commit: working-tree-2026-07-22
+
+implementation_plan:
+  spec_path: docs/specs/cli-sdk-chat-fork-rewind/spec.yml
+  existing_patterns:
+    - Existing web fork uses client-side decrypt/re-encrypt in frontend/packages/ui/src/services/forkChatService.ts.
+    - Existing CLI saved-chat send already decrypts chat keys locally and uses durable recovery preflight.
+    - Existing SDK saved-chat send already uses client-encrypted user/assistant messages and recovery claim/persist.
+    - Existing SDK routes already enforce API-key scopes and approved device requirements.
+  architecture: >
+    Implement a backend owner-scoped encrypted persistence/deletion contract for
+    fork and rewind while keeping all plaintext operations in CLI/SDK clients.
+    CLI/SDK load and decrypt the source chat locally, build copied encrypted rows
+    or choose deletion boundaries locally, then call backend APIs that persist or
+    delete ciphertext only. Retry composes message listing, rewind, and normal
+    saved-chat send.
+  data_flow:
+    - CLI/SDK load source chat and messages using existing authenticated saved-chat load paths.
+    - For fork, CLI/SDK decrypt source messages locally, create a new chat key, re-encrypt copied messages, and call the encrypted fork API.
+    - For rewind, CLI/SDK identify the selected boundary and call the rewind API with expected version and confirmation.
+    - For rewind with send, CLI/SDK waits for the rewind acknowledgement before invoking the existing saved-chat send path.
+    - For retry, CLI/SDK identify the latest retryable user message, rewind to before it, then resend the same plaintext prompt.
+  affected_files:
+    - path: backend/core/api/app/routes/sdk.py
+      reason: Add owner-scoped API-key endpoints for encrypted fork persistence and destructive rewind.
+    - path: backend/tests/test_sdk_chat_fork_rewind.py
+      reason: Cover backend API contracts and failure modes.
+    - path: frontend/packages/openmates-cli/src/client.ts
+      reason: Add source CLI client helpers for message listing, fork, rewind, and retry composition.
+    - path: frontend/packages/openmates-cli/src/cli.ts
+      reason: Add `chats messages`, `chats fork`, `chats rewind`, and `chats retry` commands and help text.
+    - path: frontend/packages/openmates-cli/tests/cli.test.ts
+      reason: Cover command parsing and user-facing output.
+    - path: frontend/packages/openmates-cli/tests/client.test.ts
+      reason: Cover CLI client fork/rewind/retry request composition.
+    - path: frontend/packages/openmates-cli/src/sdk.ts
+      reason: Add npm SDK chat helper methods.
+    - path: frontend/packages/openmates-cli/tests/sdk.test.ts
+      reason: Cover npm SDK parity and destructive confirmation behavior.
+    - path: frontend/packages/openmates-py/
+      reason: Add pip SDK parity for the same chat helper methods.
+    - path: scripts/audit_sdk_cli_parity.py
+      reason: Update deterministic parity audit if it tracks chat helper surfaces.
+  verification_strategy:
+    - python3 scripts/spec_validate.py docs/specs/cli-sdk-chat-fork-rewind/spec.yml
+    - docker exec api python -m pytest /app/backend/tests/test_sdk_chat_fork_rewind.py -q
+    - real dev-server API proof through source CLI/SDK auth state before CLI/SDK green gates
+    - source CLI command tests and real CLI smoke against api.dev.openmates.org
+    - npm SDK and pip SDK local smoke calls against api.dev.openmates.org
+    - python3 scripts/audit_sdk_cli_parity.py
+  verification_order:
+    - REST/API contract tests and dev-server proof first.
+    - CLI implementation and dev-server proof second.
+    - npm SDK and pip SDK parity third.
+    - CI/daily wiring only after local dev-server CLI/SDK proof.
+    - Web and Apple are out of scope for this slice.
+
+tasks:
+  - id: TASK-1
+    title: Approve executable product contract
+    status: done
+    phase: complete
+    covers:
+      scenarios: [S-1, S-2, S-3, S-4, S-5]
+      acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6]
+    expected_files:
+      - docs/specs/cli-sdk-chat-fork-rewind/spec.yml
+    verification_ids:
+      - V-USER-CONFIRMATION
+    dependencies: []
+    blockers: []
+    follow_up_tasks: []
+    ownership:
+      files:
+        - docs/specs/cli-sdk-chat-fork-rewind/spec.yml
+      shared_files: []
+  - id: TASK-2
+    title: Implement backend encrypted fork and rewind API contract
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-2, S-3]
+      acceptance_criteria: [AC-2, AC-3, AC-6]
+    expected_files:
+      - backend/core/api/app/routes/sdk.py
+      - backend/tests/test_sdk_chat_fork_rewind.py
+    verification_ids:
+      - T-API-FORK-REWIND
+      - V-DEV-API-PROOF
+    dependencies: [TASK-1]
+    blockers: []
+    follow_up_tasks: []
+    ownership:
+      files:
+        - backend/core/api/app/routes/sdk.py
+        - backend/tests/test_sdk_chat_fork_rewind.py
+      shared_files: []
+  - id: TASK-3
+    title: Implement CLI message listing, fork, rewind, and retry
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-1, S-2, S-3, S-4]
+      acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-6]
+    expected_files:
+      - frontend/packages/openmates-cli/src/client.ts
+      - frontend/packages/openmates-cli/src/cli.ts
+      - frontend/packages/openmates-cli/tests/client.test.ts
+      - frontend/packages/openmates-cli/tests/cli.test.ts
+    verification_ids:
+      - T-CLI-MESSAGES
+      - T-CLI-FORK
+      - T-CLI-REWIND
+      - T-CLI-RETRY
+      - V-CLI-DEV-PROOF
+    dependencies: [TASK-2]
+    blockers: []
+    follow_up_tasks: []
+    ownership:
+      files:
+        - frontend/packages/openmates-cli/src/client.ts
+        - frontend/packages/openmates-cli/src/cli.ts
+        - frontend/packages/openmates-cli/tests/client.test.ts
+        - frontend/packages/openmates-cli/tests/cli.test.ts
+      shared_files: []
+  - id: TASK-4
+    title: Implement npm and pip SDK parity
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-5]
+      acceptance_criteria: [AC-1, AC-5]
+    expected_files:
+      - frontend/packages/openmates-cli/src/sdk.ts
+      - frontend/packages/openmates-cli/tests/sdk.test.ts
+      - frontend/packages/openmates-py/
+      - scripts/audit_sdk_cli_parity.py
+    verification_ids:
+      - T-NPM-SDK-FORK
+      - T-PIP-SDK-FORK
+      - T-SDK-CLI-PARITY
+      - V-SDK-DEV-PROOF
+    dependencies: [TASK-3]
+    blockers: []
+    follow_up_tasks: []
+    ownership:
+      files:
+        - frontend/packages/openmates-cli/src/sdk.ts
+        - frontend/packages/openmates-cli/tests/sdk.test.ts
+        - frontend/packages/openmates-py/
+        - scripts/audit_sdk_cli_parity.py
+      shared_files: []
+
+risks:
+  - id: R-1
+    risk: Destructive rewind could delete more encrypted history than intended if boundary ordering is wrong.
+    mitigation: Require dry-run output, explicit confirmation, expected messages_v, and backend owner/version checks.
+  - id: R-2
+    risk: Fork could leak plaintext if implemented server-side.
+    mitigation: Contract requires local decrypt/re-encrypt and encrypted-only backend payloads.
+  - id: R-3
+    risk: Retry might resend the wrong user prompt when the latest assistant response is missing due to local sync lag.
+    mitigation: Require fresh sync/load before retry and report dry-run boundary before destructive execution.
+
+open_questions:
+  - Should team/shared/incognito support be added in a later spec after the personal-chat recovery path is verified?
