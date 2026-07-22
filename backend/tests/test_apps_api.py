@@ -13,8 +13,10 @@ import inspect
 import re
 import sys
 import types
+from pathlib import Path
 
 import pytest
+import yaml
 from fastapi import FastAPI, HTTPException, Response
 from fastapi.testclient import TestClient
 from pydantic import BaseModel, Field
@@ -151,9 +153,12 @@ code_execution.start_code_run_execution = start_code_run_execution
 
 User = importlib.import_module("backend.core.api.app.models.user").User
 apps_api = importlib.import_module("backend.core.api.app.routes.apps_api")
+AppYAML = importlib.import_module("backend.shared.python_schemas.app_metadata_schemas").AppYAML
 get_current_user_or_api_key = importlib.import_module(
     "backend.core.api.app.routes.auth_routes.auth_dependencies"
 ).get_current_user_or_api_key
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
 
 for module_name, stub in (
     ("backend.core.api.app.services.limiter", limiter_stub),
@@ -404,6 +409,62 @@ def test_apps_api_calculates_image_to_html_preflight_reservation() -> None:
         "run",
         {"requests": [{"max_correction_passes": 2}]},
     ) == 0
+
+
+def test_generated_image_to_html_route_preserves_base64_request(monkeypatch) -> None:
+    captured: dict[str, object] = {}
+    user_info = {
+        "user_id": "user-1",
+        "api_key_encrypted_name": "key-name",
+        "api_key_hash": "api-key-hash",
+        "api_key_metadata": {"allowed_app_skills": ["code.image_to_html"]},
+        "device_hash": "device-hash",
+    }
+
+    async def fake_call_app_skill(**kwargs):
+        captured.update(kwargs)
+        return {"results": [{"task_id": "task-1", "embed_id": "embed-1", "status": "processing"}], "task_id": "task-1", "embed_id": "embed-1"}
+
+    async def fake_require_api_key_budget_for_charge(_directus_service, *, user_info, requested_credits):
+        captured["budget"] = {"user_info": user_info, "requested_credits": requested_credits}
+
+    app_yml_data = yaml.safe_load((REPO_ROOT / "apps/code/app.yml").read_text(encoding="utf-8"))
+    app_yml_data["icon_image"] = app_yml_data["icon_image"].strip()
+    app_yml = AppYAML.model_validate(app_yml_data)
+    app = FastAPI()
+    app.state.config_manager = types.SimpleNamespace(get_model_pricing=lambda *_args, **_kwargs: None)
+    app.dependency_overrides[apps_api.get_session_or_api_key_info] = lambda: user_info
+    app.dependency_overrides[apps_api.get_cache_service] = lambda: object()
+    app.dependency_overrides[apps_api.get_directus_service] = lambda: object()
+    monkeypatch.setattr(apps_api, "call_app_skill", fake_call_app_skill)
+    monkeypatch.setattr(apps_api, "require_api_key_budget_for_charge", fake_require_api_key_budget_for_charge)
+    monkeypatch.setattr(apps_api, "_register_code_custom_routes", lambda *_args, **_kwargs: None)
+    apps_api.register_app_and_skill_routes(app, {"code": app_yml})
+
+    encoded = _b64("png-bytes")
+    response = TestClient(app).post(
+        "/v1/apps/code/skills/image_to_html",
+        json={
+            "requests": [{
+                "image_base64": encoded,
+                "mime_type": "image/png",
+                "filename": "fixture.png",
+                "max_correction_passes": 0,
+            }]
+        },
+    )
+
+    assert response.status_code == 200
+    assert captured["input_data"] == {
+        "requests": [{
+            "image_base64": encoded,
+            "mime_type": "image/png",
+            "filename": "fixture.png",
+            "max_correction_passes": 0,
+            "id": None,
+        }]
+    }
+    assert captured["budget"] == {"user_info": user_info, "requested_credits": 500}
 
 
 def test_models3d_custom_route_resolves_only_the_callers_uploaded_image(monkeypatch) -> None:

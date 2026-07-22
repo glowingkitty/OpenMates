@@ -18,6 +18,7 @@ class FakeConfigManager:
         return {
             "openai": {
                 "provider_id": "openai",
+                "no_api_key": True,
                 "models": [
                     {
                         "id": "gpt-4o-mini",
@@ -29,6 +30,9 @@ class FakeConfigManager:
                 ],
             }
         }
+
+    def get_provider_config(self, provider_id: str) -> Dict[str, Any] | None:
+        return self.get_provider_configs().get(provider_id)
 
 
 def _client() -> TestClient:

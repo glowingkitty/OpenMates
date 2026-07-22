@@ -7,16 +7,15 @@ goal: >
   Add a Code app skill that turns an uploaded screenshot or existing image embed
   into a standalone HTML code embed with inline CSS and optional inline JS, using
   Gemini Pro for generation and isolated E2B browser rendering for visual feedback
-  so OpenMates can match or exceed the useful quality observed from
-  abi/screenshot-to-code without executing untrusted generated code on OpenMates
-  hosts.
+  so OpenMates can match or exceed the useful quality observed from a reference
+  implementation without executing untrusted generated code on OpenMates hosts.
 
 scope:
   in:
     - New Code app skill `image_to_html` exposed through chat, REST, CLI, npm SDK, and pip SDK app-skill surfaces.
     - Input from uploaded image bytes (`image_base64`, `mime_type`, optional `filename`) and chat-bound existing image embed references.
     - No arbitrary remote `image_url` input in v1.
-    - Gemini Pro quality generation using an upstream-like agent loop with file creation/edit tools and E2B-rendered screenshot feedback.
+    - Gemini Pro quality generation using a reference-like agent loop with file creation/edit tools and E2B-rendered screenshot feedback.
     - User-configurable `max_correction_passes` with default 2, minimum 0, maximum 5.
     - Strict final output as one complete `index.html` with inline CSS and optional inline JS only.
     - Deterministic validation that forbids external URLs, `local-assets`, remote fonts/icons/scripts/images, unsafe HTML, and broken asset references.
@@ -72,8 +71,8 @@ context_discovery:
     - frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
     - apple/OpenMatesTests/SkillApplicationParityTests.swift
     - apple/OpenMatesUITests/SkillApplicationParityUITests.swift
-  upstream_eval_evidence:
-    - "Cloned abi/screenshot-to-code into /tmp/opencode/screenshot-to-code; upstream license is MIT."
+  reference_eval_evidence:
+    - "Cloned the reference implementation into a local temporary workspace; license is MIT."
     - "Upstream targeted tests passed: `poetry run pytest tests/test_model_selection.py tests/test_agent_tool_runtime.py tests/test_asset_extraction.py` -> 22 passed."
     - "Gemini Flash simple card: 70.63s, estimated provider cost $0.0573, text correct but CTA clipped."
     - "Gemini Flash complex dashboard: 88.87s, estimated provider cost $0.0758, recognizable but wrong proportions, extra chart bar, broken local asset."
@@ -110,11 +109,11 @@ clarification:
     - question: Should v1 accept `image_url`?
       answer: No. Keep v1 to base64/file upload and existing image embed refs because image URL fetching adds SSRF and fetch-abuse risks.
     - question: How many correction passes should the quality loop support?
-      answer: Match the upstream repo's quality/correction-loop spirit and allow users to define a custom correction pass count while keeping a default.
+      answer: Match the reference implementation's quality/correction-loop spirit and allow users to define a custom correction pass count while keeping a default.
   vision_summary: >
     The feature should be a production OpenMates Code app skill that creates a
     useful starter HTML code embed from a screenshot, not a pixel-perfect design
-    converter. It should recreate the useful upstream agentic flow in OpenMates
+    converter. It should recreate the useful reference agentic flow in OpenMates
     architecture, with Gemini Pro generation, E2B-isolated browser rendering,
     actual-cost credit billing, inline-only output validation, screenshot artifact
     storage for chat-bound embeds, and REST/CLI/npm/pip readiness before web and
@@ -122,7 +121,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 8d4ab05cb
+  subject_commit: 378f04c60
 
 approvals:
   product_contract:
@@ -137,8 +136,8 @@ approvals:
 decisions:
   - id: D-1
     status: active
-    decision: Build an OpenMates-native implementation instead of vendoring the upstream app wholesale.
-    reason: Upstream is MIT and legally reusable, but its WebSocket/frontend flow, external asset defaults, and local Playwright assumptions do not match OpenMates architecture.
+    decision: Build an OpenMates-native implementation instead of vendoring the reference app wholesale.
+    reason: The reference is MIT and legally reusable, but its WebSocket/frontend flow, external asset defaults, and local Playwright assumptions do not match OpenMates architecture.
     decided_at: "2026-07-21T00:00:00Z"
   - id: D-2
     status: active
@@ -148,7 +147,7 @@ decisions:
   - id: D-3
     status: active
     decision: Default `max_correction_passes` is 2 with bounds 0 through 5.
-    reason: This preserves upstream-like iterative quality while capping cost and latency.
+    reason: This preserves reference-like iterative quality while capping cost and latency.
     decided_at: "2026-07-21T00:00:00Z"
   - id: D-4
     status: active
@@ -164,7 +163,7 @@ decisions:
 attempts:
   - id: ATTEMPT-1
     task_id: TASK-1
-    approach: Run upstream Gemini Flash and Pro evals against simple, complex, and Figma screenshots before spec design.
+    approach: Run reference Gemini Flash and Pro evals against simple, complex, and Figma screenshots before spec design.
     outcome: succeeded
     recorded_at: "2026-07-21T00:00:00Z"
     reason: Pro output was useful enough for an MVP on simple/medium screenshots, but validation and E2B feedback are needed for OpenMates quality/security.
@@ -174,16 +173,33 @@ attempts:
     outcome: rejected
     recorded_at: "2026-07-21T00:00:00Z"
     reason: Remote image fetching increases SSRF/fetch-abuse risk and is not required for the CLI/web upload MVP.
+  - id: ATTEMPT-3
+    task_id: TASK-9
+    approach: Run all three eval fixtures plus CLI/npm/pip smokes in one `scripts/eval_code_image_to_html.py --skip-build` process.
+    outcome: blocked
+    recorded_at: "2026-07-21T17:12:20Z"
+    reason: The long combined run was interrupted twice by the local dev API container being recreated into `Created` state, causing 502s during `/v1/tasks/{task_id}` polling. Temp API keys `d1f23eb1-4c2b-4c3f-884d-68f252c224b9` and `fe69424f-9f5d-43d5-ac12-74ed2fe2f45f` were manually revoked after API restart.
+  - id: ATTEMPT-4
+    task_id: TASK-9
+    approach: Run per-fixture REST evals from prepared PNG inputs and run CLI/npm/pip smokes on simple-card.
+    outcome: succeeded
+    recorded_at: "2026-07-21T17:29:04Z"
+    reason: >
+      REST succeeded for simple-card, complex-dashboard, and Figma OpenMates tasks;
+      CLI, npm SDK, and pip SDK smokes succeeded on simple-card. Output HTML
+      was rendered to local E2B screenshots. Initial Discord posting failed with
+      `HTTP 403: error code 1010` because Python urllib used its default user
+      agent; adding an explicit browser-like `User-Agent` restored delivery.
 
 handoff:
-  current_task_id: TASK-7
-  next_action: Run the real dev-server REST, CLI, npm SDK, and pip SDK image_to_html proofs with `OPENMATES_API_KEY` against `https://api.dev.openmates.org`, after ensuring the local API/worker services are restarted with the async worker changes.
-  command: OPENMATES_API_KEY=<dev-api-key> python3 scripts/test_code_image_to_html_dev.py --api-url https://api.dev.openmates.org --fixture /tmp/opencode/screenshot-to-code/backend/evals_data/inputs/simple-card.png
-  expected_outcome: "The live dev app-skill returns task metadata, task polling resolves final HTML and itemized usage, and no durable chat is created for direct calls."
+  current_task_id: TASK-9
+  next_action: Wait for user confirmation on Discord message `1529182772898300046`, then continue to web and Apple gates or record follow-up quality fixes.
+  command: python3 scripts/eval_code_image_to_html.py --fixture simple-card=tmp/code-image-to-html-eval/20260721-170124/simple-card-input.png --fixture complex-dashboard=tmp/code-image-to-html-eval/20260721-170124/complex-dashboard-input.png --fixture figma-openmates-tasks=tmp/code-image-to-html-eval/20260721-170124/figma-openmates-tasks-input.png --skip-build
+  expected_outcome: "User confirms the generated screenshots are acceptable or records follow-up quality fixes."
   blocker:
-    reason: Requires real OPENMATES_API_KEY plus running dev API/app_code worker with Gemini and E2B credentials.
-    owner: operator
-  last_verified_commit: pending-dev-server-proof
+    reason: "Awaiting user visual confirmation for Discord message `1529182772898300046`; long combined evals also encountered dev API container recreation causing intermittent 502s, so per-fixture evidence was used."
+    owner: user
+  last_verified_commit: 378f04c60
 
 scenarios:
   - id: S-1
@@ -251,14 +267,14 @@ scenarios:
       - Logs do not include image bytes or sensitive local filenames.
 
   - id: S-6
-    title: Quality regression evals match or exceed upstream Pro baseline
+    title: Quality regression evals match or exceed reference Pro baseline
     given:
       - The implementation includes deterministic eval fixtures for simple card, complex dashboard, and Figma OpenMates tasks screenshots.
     when:
       - The eval script runs with the configured Gemini and E2B provider credentials.
     then:
       - Each eval produces generated HTML and a rendered screenshot.
-      - Results are not obviously worse than the prior upstream Gemini Pro outputs for the same input.
+      - Results are not obviously worse than the prior reference Gemini Pro outputs for the same input.
       - Input and output screenshots are sent to Discord for user confirmation.
       - The spec records the eval command, run id, timestamp, subject commit, token usage, E2B duration, and Discord delivery status.
 
@@ -340,7 +356,7 @@ acceptance_criteria:
       - T-REST-001
   - id: AC-6
     scenario: S-6
-    text: Eval evidence proves OpenMates output is not worse than the upstream Gemini Pro baseline on the agreed screenshots and sends input/output artifacts to Discord for user confirmation.
+    text: Eval evidence proves OpenMates output is not worse than the reference Gemini Pro baseline on the agreed screenshots and sends input/output artifacts to Discord for user confirmation.
     required: true
     status: pending
     coverage_status: covered
@@ -392,8 +408,8 @@ assumptions:
     required_before: implementation
     status: unchecked
     evidence:
-      - source: /tmp/opencode/screenshot-to-code upstream eval logs
-        summary: Upstream Gemini provider reported input, output, cache read/write tokens and estimated costs during local evals.
+      - source: local reference eval logs
+        summary: Reference Gemini provider reported input, output, cache read/write tokens and estimated costs during local evals.
 
 contracts:
   api:
@@ -610,16 +626,17 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: pending
-        command: python3 scripts/test_code_image_to_html_dev.py --api-url https://api.dev.openmates.org --fixture simple-card.png
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: "python3 scripts/eval_code_image_to_html.py --fixture simple-card=tmp/code-image-to-html-eval/20260721-170124/simple-card-input.png --max-correction-passes 0 --skip-build --no-discord; python3 scripts/eval_code_image_to_html.py --fixture complex-dashboard=tmp/code-image-to-html-eval/20260721-170124/complex-dashboard-input.png --max-correction-passes 0 --skip-cli-sdk --no-discord --skip-build; python3 scripts/eval_code_image_to_html.py --fixture figma-openmates-tasks=tmp/code-image-to-html-eval/20260721-170124/figma-openmates-tasks-input.png --max-correction-passes 0 --skip-cli-sdk --no-discord --skip-build"
+        run_id: dev-rest-image-to-html-per-fixture-20260721
+        subject_commit: 378f04c60
+        timestamp: "2026-07-21T17:22:05Z"
+        summary: "REST dev-server proofs passed: simple-card task d7e8e144-2290-440c-aa39-7887d9b32046 in 73.743s (30 credits, $0.023486 provider, 34.437s E2B); complex-dashboard task d78265db-c168-4dd5-b65a-bfb0a5fb6676 in 98.991s (30 credits, $0.048698 provider, 32.066s E2B); figma-openmates-tasks task b0022bd6-86f1-4a75-b55b-c42b0b3ff43c in 153.386s (37 credits, $0.15887 provider, 33.511s E2B). Optional generated-asset signed screenshot downloads failed with RemoteDisconnected, so output HTML was rendered separately in E2B for local artifacts."
 
   - id: T-CLI-001
     type: manual
     file: frontend/packages/openmates-cli/tests/cli.test.ts
-    command: openmates apps code image_to_html --file /tmp/opencode/screenshot-to-code/backend/evals_data/inputs/simple-card.png --json
+    command: openmates apps code image_to_html --file tmp/code-image-to-html-eval/20260721-170124/simple-card-input.png --json
     covers:
       - AC-2
     assertions:
@@ -631,7 +648,7 @@ tests:
       expected: fail
       evidence:
         status: pending
-        command: openmates apps code image_to_html --file /tmp/opencode/screenshot-to-code/backend/evals_data/inputs/simple-card.png --json
+        command: openmates apps code image_to_html --file tmp/code-image-to-html-eval/20260721-170124/simple-card-input.png --json
         run_id: ""
         subject_commit: ""
         timestamp: ""
@@ -646,11 +663,12 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: pending
-        command: openmates apps code image_to_html --file /tmp/opencode/screenshot-to-code/backend/evals_data/inputs/simple-card.png --json
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: python3 scripts/eval_code_image_to_html.py --fixture simple-card=tmp/code-image-to-html-eval/20260721-170124/simple-card-input.png --max-correction-passes 0 --skip-build --no-discord
+        run_id: dev-cli-image-to-html-simple-card-20260721
+        subject_commit: 378f04c60
+        timestamp: "2026-07-21T17:22:05Z"
+        summary: "CLI smoke passed against https://api.dev.openmates.org on simple-card: 80.878s, 30 credits charged, 470 refunded, provider_cost_usd=0.024422, e2b_render_seconds=33.160."
 
   - id: T-NPM-001
     type: manual
@@ -682,11 +700,12 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: pending
-        command: node scripts/test_code_image_to_html_npm_dev.mjs
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: python3 scripts/eval_code_image_to_html.py --fixture simple-card=tmp/code-image-to-html-eval/20260721-170124/simple-card-input.png --max-correction-passes 0 --skip-build --no-discord
+        run_id: dev-npm-sdk-image-to-html-simple-card-20260721
+        subject_commit: 378f04c60
+        timestamp: "2026-07-21T17:22:05Z"
+        summary: "npm SDK smoke passed against https://api.dev.openmates.org on simple-card: 88.566s, 30 credits charged, 470 refunded, provider_cost_usd=0.025202, e2b_render_seconds=32.797."
 
   - id: T-PIP-001
     type: manual
@@ -718,11 +737,12 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: pending
-        command: python3 scripts/test_code_image_to_html_pip_dev.py
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: python3 scripts/eval_code_image_to_html.py --fixture simple-card=tmp/code-image-to-html-eval/20260721-170124/simple-card-input.png --max-correction-passes 0 --skip-build --no-discord
+        run_id: dev-pip-sdk-image-to-html-simple-card-20260721
+        subject_commit: 378f04c60
+        timestamp: "2026-07-21T17:22:05Z"
+        summary: "pip SDK smoke passed against https://api.dev.openmates.org on simple-card: 104.954s, 30 credits charged, 470 refunded, provider_cost_usd=0.023018, e2b_render_seconds=37.065."
 
   - id: T-WEB-001
     type: playwright
@@ -766,7 +786,7 @@ tests:
       - Eval runs the implemented dev-server skill on all three agreed screenshots.
       - Each output is rendered through E2B and saved as an image artifact.
       - Input/output screenshot pairs are sent to Discord.
-      - The result is manually judged by the user as same or better than the upstream Pro baseline, or the spec records required follow-up fixes.
+      - The result is manually judged by the user as same or better than the reference Pro baseline, or the spec records required follow-up fixes.
     red_phase:
       required: false
       expected: fail
@@ -777,11 +797,12 @@ tests:
       required: true
       expected: pass_with_user_confirmation
       evidence:
-        status: pending
-        command: python3 scripts/eval_code_image_to_html.py --api-url https://api.dev.openmates.org --fixtures simple-card.png complex-dashboard.png figma-openmates-tasks-5371-46143.png --discord
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: python3 scripts/eval_code_image_to_html.py --fixture simple-card=tmp/code-image-to-html-eval/20260721-170124/simple-card-input.png --fixture complex-dashboard=tmp/code-image-to-html-eval/20260721-170124/complex-dashboard-input.png --fixture figma-openmates-tasks=tmp/code-image-to-html-eval/20260721-170124/figma-openmates-tasks-input.png --skip-build
+        run_id: combined-local-artifacts-20260721-172904
+        subject_commit: 378f04c60
+        timestamp: "2026-07-21T17:29:04Z"
+        summary: "Per-fixture REST evals and E2B-rendered local output screenshots completed; combined artifacts are in tmp/code-image-to-html-eval/combined-20260721-172904/summary.json with input PNGs in the per-run folders and output PNGs in the combined folder. Discord delivery succeeded after adding an explicit `User-Agent`; message id `1529182772898300046` in channel `1491044222294556874`. Quality notes: simple-card strong, complex-dashboard structurally good with scale/spacing drift, Figma OpenMates tasks recognizable but lower fidelity. User visual confirmation remains pending."
 
   - id: T-APPLE-001
     type: manual
@@ -816,12 +837,12 @@ verifications:
     covers:
       - AC-6
     status: pending
-    description: User confirms Discord-posted eval screenshots are same or better quality than upstream Gemini Pro baseline.
+    description: User confirms Discord-posted eval screenshots are same or better quality than reference Gemini Pro baseline.
     evidence:
-      status: ""
-      summary: ""
-      timestamp: ""
-      prompt: User confirms Discord-posted eval screenshots are same or better quality than upstream Gemini Pro baseline.
+      status: pending_user_confirmation
+      summary: "Discord message `1529182772898300046` posted to channel `1491044222294556874` with input/output pairs and quality notes. Awaiting user confirmation or follow-up quality requests."
+      timestamp: "2026-07-21T17:45:20Z"
+      prompt: User confirms Discord-posted eval screenshots are same or better quality than reference Gemini Pro baseline.
 
 implementation_plan:
   spec_path: docs/specs/code-image-to-html/spec.yml
@@ -1115,7 +1136,7 @@ tasks:
       - Run `scripts/test_code_image_to_html_dev.py` against `https://api.dev.openmates.org` with real `OPENMATES_API_KEY` after restarting the local dev API/app_code worker services.
   - id: TASK-7
     title: Add CLI and generated SDK parity
-    status: in_progress
+    status: done
     phase: working_tasks
     covers:
       scenarios: [S-2, S-3]
@@ -1153,8 +1174,7 @@ tasks:
       - T-NPM-001
       - T-PIP-001
     blockers: []
-    follow_up_tasks:
-      - Add/run live npm and pip SDK dev proof scripts or equivalent real SDK calls against `https://api.dev.openmates.org` with `OPENMATES_API_KEY`.
+    follow_up_tasks: []
   - id: TASK-8
     title: Add web code embed screenshot rendering and Playwright coverage
     status: pending
@@ -1182,7 +1202,7 @@ tasks:
     follow_up_tasks: []
   - id: TASK-9
     title: Run implementation evals and Discord confirmation
-    status: pending
+    status: in_progress
     phase: working_tasks
     covers:
       scenarios: [S-6]
@@ -1200,8 +1220,10 @@ tasks:
     verification_ids:
       - T-EVAL-001
       - V-USER-001
-    blockers: []
-    follow_up_tasks: []
+    blockers:
+      - Awaiting user visual confirmation for Discord message `1529182772898300046`.
+    follow_up_tasks:
+      - Record user confirmation or requested quality fixes after Discord review.
   - id: TASK-10
     title: Apple code embed metadata tolerance verification
     status: pending

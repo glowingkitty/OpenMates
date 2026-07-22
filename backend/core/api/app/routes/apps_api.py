@@ -49,7 +49,7 @@ from backend.core.api.app.routes.auth_routes.auth_dependencies import get_curren
 
 # Import comprehensive ASCII smuggling sanitization
 # This module protects against invisible Unicode characters used to embed hidden instructions
-from backend.core.api.app.utils.text_sanitization import sanitize_text_simple
+from backend.core.api.app.utils.text_sanitization import sanitize_text_payload_for_ascii_smuggling
 
 # Import AI models for documentation purposes
 # Use absolute imports to avoid circular dependencies
@@ -300,19 +300,8 @@ def _sanitize_dict_recursively(data: Any, log_prefix: str = "") -> Any:
     Returns:
         A copy of the data with all strings sanitized
     """
-    if isinstance(data, dict):
-        return {key: _sanitize_dict_recursively(value, log_prefix) for key, value in data.items()}
-    elif isinstance(data, list):
-        return [_sanitize_dict_recursively(item, log_prefix) for item in data]
-    elif isinstance(data, str):
-        # Only sanitize for ASCII smuggling — do NOT strip URL query params here.
-        # Skill input_data often contains URLs where query params are functional
-        # (e.g. ?v=VIDEO_ID for YouTube). The URL query/fragment stripping is
-        # appropriate for LLM chat context but not for structured skill inputs.
-        return sanitize_text_simple(data, log_prefix=log_prefix)
-    else:
-        # Primitives (int, float, bool, None) pass through unchanged
-        return data
+    sanitized, _ = sanitize_text_payload_for_ascii_smuggling(data, log_prefix=log_prefix)
+    return sanitized
 
 
 def resolve_translation(translation_service, translation_key: str, namespace: str, fallback: str = "") -> str:
@@ -448,7 +437,9 @@ async def check_provider_api_key_available(provider_id: str, secrets_manager: Se
     """
     # If the provider YAML declares no_api_key: true, it never needs a key — always available.
     if config_manager is not None:
-        provider_config = config_manager.get_provider_config(provider_id)
+        provider_config = config_manager.get_provider_config(provider_id) if hasattr(config_manager, "get_provider_config") else None
+        if provider_config is None and hasattr(config_manager, "get_provider_configs"):
+            provider_config = (config_manager.get_provider_configs() or {}).get(provider_id)
         if provider_config and provider_config.get("no_api_key") is True:
             logger.debug(f"Provider '{provider_id}' has no_api_key=true — always available")
             return True
@@ -460,7 +451,7 @@ async def check_provider_api_key_available(provider_id: str, secrets_manager: Se
     
     # First, try to get from Vault
     try:
-        if secrets_manager.vault_token and secrets_manager.vault_url:
+        if getattr(secrets_manager, "vault_token", None) and getattr(secrets_manager, "vault_url", None):
             api_key = await secrets_manager.get_secret(
                 secret_path=vault_path,
                 secret_key=vault_key
@@ -484,7 +475,7 @@ async def check_provider_api_key_available(provider_id: str, secrets_manager: Se
         vertex_project_id = os.getenv("GOOGLE_VERTEX_PROJECT_ID")
         vertex_service_account = os.getenv("GOOGLE_VERTEX_SERVICE_ACCOUNT_JSON")
         try:
-            if secrets_manager.vault_token and secrets_manager.vault_url:
+            if getattr(secrets_manager, "vault_token", None) and getattr(secrets_manager, "vault_url", None):
                 vertex_project_id = vertex_project_id or await secrets_manager.get_secret(
                     secret_path=vault_path,
                     secret_key="project_id",
@@ -2590,8 +2581,14 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                     except Exception as e:
                         logger.warning(f"Could not import models from skill module {captured_skill.class_path}: {e}")
                 
-                # If we found the models, enhance them with proper structure from tool_schema
-                if SkillRequestModel and SkillResponseModel and captured_skill.tool_schema:
+                # If a response model exists, build the request model from tool_schema.
+                # Some async skills (e.g. code.image_to_html) intentionally define
+                # only a Response model and rely on app.yml for request structure.
+                if (
+                    SkillResponseModel
+                    and captured_skill.tool_schema
+                    and "requests" in (captured_skill.tool_schema.get("properties") or {})
+                ):
                     # Create an enhanced request model that properly defines the requests array items
                     # The original SearchRequest uses List[Dict[str, Any]] which doesn't show structure
                     # We'll create a new model based on the tool_schema

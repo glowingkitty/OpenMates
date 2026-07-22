@@ -93,7 +93,8 @@ def validate_image_input(request: dict[str, Any]) -> ParsedImageToHtmlInput:
 
     image_base64 = request.get("image_base64")
     if not image_base64 or not isinstance(image_base64, str):
-        raise ValueError("image_base64 is required")
+        received_keys = sorted(str(key) for key in request.keys())
+        raise ValueError(f"image_base64 is required (received keys: {received_keys})")
 
     mime_type = str(request.get("mime_type") or "").strip().lower()
     if mime_type not in SUPPORTED_IMAGE_MIME_TYPES:

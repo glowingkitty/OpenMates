@@ -17,36 +17,75 @@ from dataclasses import dataclass
 from typing import Any
 
 
-RENDER_TIMEOUT_SECONDS = 45
-INSTALL_TIMEOUT_SECONDS = 300
+RENDER_TIMEOUT_SECONDS = 0
+BROWSER_PROCESS_TIMEOUT_SECONDS = 120
+INSTALL_TIMEOUT_SECONDS = 600
+DEFAULT_VIEWPORT_WIDTH = 1440
+DEFAULT_VIEWPORT_HEIGHT = 1200
+MIN_VIEWPORT_WIDTH = 320
+MIN_VIEWPORT_HEIGHT = 240
+MAX_VIEWPORT_WIDTH = 4096
+MAX_VIEWPORT_HEIGHT = 4096
 PLAYWRIGHT_INSTALL_COMMAND = """
 if ! node -e "require.resolve('playwright')" >/dev/null 2>&1; then
   npm init -y >/dev/null 2>&1
   npm install --no-audit --no-fund playwright
 fi
-npx playwright install chromium
+npx playwright install --with-deps chromium
 """.strip()
-SCREENSHOT_COMMAND = """
-node - <<'NODE'
-const { chromium } = require('playwright');
-(async () => {
-  const browser = await chromium.launch({ headless: true });
-  const context = await browser.newContext({ viewport: { width: 1440, height: 1200 }, deviceScaleFactor: 1 });
-  await context.setOffline(true);
-  const page = await context.newPage();
-  await page.route('**/*', async (route) => {
-    const url = route.request().url();
-    if (url.startsWith('file://')) return route.continue();
-    return route.abort();
-  });
-  await page.goto('file://' + process.cwd() + '/index.html', { waitUntil: 'load' });
-  await page.waitForTimeout(500);
-  const screenshot = await page.screenshot({ type: 'png', fullPage: true });
-  await browser.close();
+
+
+def _screenshot_command(viewport_width: int, viewport_height: int) -> str:
+    width = _bounded_int(viewport_width, MIN_VIEWPORT_WIDTH, MAX_VIEWPORT_WIDTH, DEFAULT_VIEWPORT_WIDTH)
+    height = _bounded_int(viewport_height, MIN_VIEWPORT_HEIGHT, MAX_VIEWPORT_HEIGHT, DEFAULT_VIEWPORT_HEIGHT)
+    return f"""
+timeout {BROWSER_PROCESS_TIMEOUT_SECONDS}s node - <<'NODE'
+const fs = require('fs');
+const path = require('path');
+const {{ chromium }} = require('playwright');
+
+(async () => {{
+  const browser = await chromium.launch({{
+    headless: true,
+    args: [
+      '--no-sandbox',
+      '--disable-gpu',
+      '--disable-dev-shm-usage',
+      '--disable-background-networking',
+      '--host-resolver-rules=MAP * 0.0.0.0',
+      '--no-zygote',
+      '--single-process',
+      '--js-flags=--jitless',
+    ],
+  }});
+  try {{
+    const page = await browser.newPage({{ viewport: {{ width: {width}, height: {height} }}, deviceScaleFactor: 1 }});
+    await page.goto('file://' + path.join(process.cwd(), 'index.html'), {{ waitUntil: 'load', timeout: 60000 }});
+    try {{ await page.evaluate(() => document.fonts && document.fonts.ready); }} catch (_) {{}}
+    await page.waitForTimeout(250);
+    await page.screenshot({{ path: '/tmp/openmates-render.png', fullPage: true }});
+  }} finally {{
+    await browser.close();
+  }}
+  const screenshot = fs.readFileSync('/tmp/openmates-render.png');
+  if (!screenshot.length) {{
+    throw new Error('empty screenshot file');
+  }}
   process.stdout.write(screenshot.toString('base64'));
-})();
+}})().catch((error) => {{
+  console.error(error && error.stack ? error.stack : String(error));
+  process.exit(1);
+}});
 NODE
 """.strip()
+
+
+def _bounded_int(value: int, minimum: int, maximum: int, default: int) -> int:
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        return default
+    return min(max(parsed, minimum), maximum)
 
 
 @dataclass(frozen=True)
@@ -60,6 +99,8 @@ def render_html_in_e2b(
     *,
     html: str,
     api_key: str,
+    viewport_width: int = DEFAULT_VIEWPORT_WIDTH,
+    viewport_height: int = DEFAULT_VIEWPORT_HEIGHT,
     sandbox_cls: Any | None = None,
     now: Callable[[], float] | None = None,
     monotonic: Callable[[], float] | None = None,
@@ -84,10 +125,16 @@ def render_html_in_e2b(
     try:
         sandbox.commands.run(f"bash -lc {shlex.quote(PLAYWRIGHT_INSTALL_COMMAND)}", timeout=INSTALL_TIMEOUT_SECONDS)
         sandbox.files.write_files([{"path": "index.html", "data": html}])
-        command = f"bash -lc {shlex.quote(SCREENSHOT_COMMAND)}"
+        command = f"bash -lc {shlex.quote(_screenshot_command(viewport_width, viewport_height))}"
         result = sandbox.commands.run(command, timeout=RENDER_TIMEOUT_SECONDS)
+        exit_code = getattr(result, "exit_code", 0)
         screenshot_stdout = str(getattr(result, "stdout", "")).strip()
+        if exit_code not in (0, None) or not screenshot_stdout:
+            stderr = str(getattr(result, "stderr", "")).strip()
+            raise RuntimeError(f"E2B HTML render failed with exit_code={exit_code}: {stderr or 'empty screenshot output'}")
         screenshot_bytes = base64.b64decode(screenshot_stdout)
+        if not screenshot_bytes:
+            raise RuntimeError("E2B HTML render returned an empty screenshot")
         return E2BHtmlRenderResult(
             sandbox_id=sandbox_id,
             screenshot_bytes=screenshot_bytes,

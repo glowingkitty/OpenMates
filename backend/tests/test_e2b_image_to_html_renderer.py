@@ -8,6 +8,8 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
+import pytest
+
 from backend.shared.providers.e2b_html_renderer import render_html_in_e2b
 
 
@@ -85,6 +87,41 @@ def test_render_command_uses_browser_inside_sandbox() -> None:
     assert install_kwargs.get("timeout")
     command, kwargs = sandbox.commands.commands[1]
     assert "playwright" in command.lower() or "chromium" in command.lower()
-    assert "setOffline" in command
-    assert "route.abort" in command
-    assert kwargs.get("timeout")
+    assert "--disable-background-networking" in command
+    assert "--host-resolver-rules" in command
+    assert "width: 1440, height: 1200" in command
+    assert kwargs.get("timeout") == 0
+
+
+def test_render_command_uses_source_viewport_when_provided() -> None:
+    sandbox = FakeSandbox()
+
+    render_html_in_e2b(
+        html="<html><body>Hello</body></html>",
+        api_key="test-e2b-key",
+        viewport_width=1520,
+        viewport_height=929,
+        sandbox_cls=lambda **_kwargs: sandbox,
+    )
+
+    command, _kwargs = sandbox.commands.commands[1]
+    assert "width: 1520, height: 929" in command
+
+
+def test_render_html_in_e2b_rejects_empty_screenshot_stdout() -> None:
+    class EmptyStdoutCommands(FakeCommands):
+        def run(self, command: str, **kwargs: object) -> SimpleNamespace:
+            self.commands.append((command, kwargs))
+            return SimpleNamespace(stdout="", stderr="missing screenshot", exit_code=1)
+
+    class EmptyStdoutSandbox(FakeSandbox):
+        def __init__(self) -> None:
+            super().__init__()
+            self.commands = EmptyStdoutCommands()
+
+    with pytest.raises(RuntimeError, match="E2B HTML render failed"):
+        render_html_in_e2b(
+            html="<html><body>Hello</body></html>",
+            api_key="test-e2b-key",
+            sandbox_cls=EmptyStdoutSandbox,
+        )

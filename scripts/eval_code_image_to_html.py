@@ -14,6 +14,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import base64
+import http.client
 import json
 import os
 import platform
@@ -37,10 +38,13 @@ PYTHON_SDK_PATH = ROOT / "packages" / "openmates-python"
 DEFAULT_API_URL = "https://api.dev.openmates.org"
 TASK_POLL_INTERVAL_SECONDS = 5.0
 TASK_POLL_TIMEOUT_SECONDS = 1200.0
+E2B_FIXTURE_RENDER_TIMEOUT_SECONDS = 720
+E2B_FIXTURE_RENDER_CONTAINERS = ("app-code-worker", "api")
 DOCKER_E2B_RENDER_CODE = r"""
 import asyncio
 import base64
 import json
+import os
 import sys
 
 from backend.core.api.app.utils.secrets_manager import SecretsManager
@@ -49,11 +53,13 @@ from backend.shared.providers.e2b_html_renderer import render_html_in_e2b
 
 async def main():
     html = sys.stdin.read()
+    viewport_width = int(os.environ.get("OPENMATES_EVAL_VIEWPORT_WIDTH") or "1440")
+    viewport_height = int(os.environ.get("OPENMATES_EVAL_VIEWPORT_HEIGHT") or "1200")
     secrets_manager = SecretsManager()
     await secrets_manager.initialize()
     try:
         api_key = await get_e2b_api_key_async(secrets_manager)
-        render = render_html_in_e2b(html=html, api_key=api_key)
+        render = render_html_in_e2b(html=html, api_key=api_key, viewport_width=viewport_width, viewport_height=viewport_height)
         print(json.dumps({"screenshot_base64": base64.b64encode(render.screenshot_bytes).decode("ascii"), "duration_seconds": render.duration_seconds}))
     finally:
         await secrets_manager.aclose()
@@ -62,9 +68,9 @@ asyncio.run(main())
 """
 
 DEFAULT_FIXTURES = [
-    ("simple-card", Path("/tmp/opencode/screenshot-to-code/local-test-fixtures/simple-card.html")),
-    ("complex-dashboard", Path("/tmp/opencode/screenshot-to-code/local-test-fixtures/complex-dashboard.html")),
-    ("figma-openmates-tasks", ROOT / "tmp/opencode/screenshot-to-code/backend/evals_data/inputs/figma-openmates-tasks-5371-46143.png"),
+    ("simple-card", ROOT / "tmp/code-image-to-html-eval/20260721-170124/simple-card-input.png"),
+    ("complex-dashboard", ROOT / "tmp/code-image-to-html-eval/20260721-170124/complex-dashboard-input.png"),
+    ("figma-openmates-tasks", ROOT / "tmp/code-image-to-html-eval/20260721-170124/figma-openmates-tasks-input.png"),
 ]
 
 
@@ -251,39 +257,64 @@ async def render_html_with_vault_e2b_stdin() -> int:
     from backend.shared.providers.e2b_html_renderer import render_html_in_e2b
 
     html = sys.stdin.read()
+    viewport_width = int(os.environ.get("OPENMATES_EVAL_VIEWPORT_WIDTH") or "1440")
+    viewport_height = int(os.environ.get("OPENMATES_EVAL_VIEWPORT_HEIGHT") or "1200")
     secrets_manager = SecretsManager()
     await secrets_manager.initialize()
     try:
         api_key = await get_e2b_api_key_async(secrets_manager)
-        render = render_html_in_e2b(html=html, api_key=api_key)
+        render = render_html_in_e2b(html=html, api_key=api_key, viewport_width=viewport_width, viewport_height=viewport_height)
         print(json.dumps({"screenshot_base64": base64.b64encode(render.screenshot_bytes).decode("ascii"), "duration_seconds": render.duration_seconds}))
         return 0
     finally:
         await secrets_manager.aclose()
 
 
-def render_trusted_html_fixture_in_e2b(html_path: Path, *, env: dict[str, str]) -> tuple[bytes, float]:
+def render_trusted_html_fixture_in_e2b(
+    html_path: Path,
+    *,
+    env: dict[str, str],
+    viewport_width: int = 1440,
+    viewport_height: int = 1200,
+) -> tuple[bytes, float]:
     html = html_path.read_text(encoding="utf-8")
     env_key = (env.get("SECRET__E2B__API_KEY") or env.get("E2B_API_KEY") or "").strip()
     if env_key and env_key != "IMPORTED_TO_VAULT":
         from backend.shared.providers.e2b_html_renderer import render_html_in_e2b
 
-        render = render_html_in_e2b(html=html, api_key=env_key)
+        render = render_html_in_e2b(html=html, api_key=env_key, viewport_width=viewport_width, viewport_height=viewport_height)
         return render.screenshot_bytes, render.duration_seconds
 
     if shutil.which("docker"):
-        result = subprocess.run(
-            ["docker", "exec", "-i", "api", "python", "-c", DOCKER_E2B_RENDER_CODE],
-            input=html,
-            text=True,
-            capture_output=True,
-            check=False,
-            timeout=120,
-        )
-        if result.returncode == 0:
-            payload = json.loads(result.stdout)
-            return base64.b64decode(payload["screenshot_base64"]), float(payload.get("duration_seconds") or 0.0)
-        raise EvalError(f"Docker E2B fixture render failed:\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}")
+        failures: list[str] = []
+        for container in E2B_FIXTURE_RENDER_CONTAINERS:
+            result = subprocess.run(
+                [
+                    "docker",
+                    "exec",
+                    "-i",
+                    "-e",
+                    f"OPENMATES_EVAL_VIEWPORT_WIDTH={viewport_width}",
+                    "-e",
+                    f"OPENMATES_EVAL_VIEWPORT_HEIGHT={viewport_height}",
+                    container,
+                    "python",
+                    "-c",
+                    DOCKER_E2B_RENDER_CODE,
+                ],
+                input=html,
+                text=True,
+                capture_output=True,
+                check=False,
+                timeout=E2B_FIXTURE_RENDER_TIMEOUT_SECONDS,
+            )
+            if result.returncode == 0:
+                payload = json.loads(result.stdout)
+                return base64.b64decode(payload["screenshot_base64"]), float(payload.get("duration_seconds") or 0.0)
+            failures.append(
+                f"{container}: exit={result.returncode}\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+            )
+        raise EvalError("Docker E2B fixture render failed:\n" + "\n\n".join(failures))
 
     raise EvalError("E2B API key is not available in env and docker fallback is unavailable")
 
@@ -302,18 +333,40 @@ def prepare_fixture(fixture_id: str, source: Path, *, output_dir: Path, env: dic
         raise EvalError(f"Fixture not found: {source}")
     if source.suffix.lower() in {".html", ".htm"}:
         screenshot_bytes, render_seconds = render_trusted_html_fixture_in_e2b(source, env=env)
+        if not screenshot_bytes:
+            raise EvalError(f"Rendered fixture screenshot is empty: {source}")
         image_path = output_dir / f"{fixture_id}-input.png"
         image_path.write_bytes(screenshot_bytes)
+        dimensions = image_dimensions(image_path)
         return {
             "id": fixture_id,
             "source": str(source),
             "input_image_path": image_path,
             "mime_type": "image/png",
             "input_render_seconds": round(render_seconds, 3),
+            "width": dimensions[0] if dimensions else 1440,
+            "height": dimensions[1] if dimensions else 1200,
         }
     image_path = output_dir / f"{fixture_id}-input{source.suffix.lower() or '.png'}"
     shutil.copyfile(source, image_path)
-    return {"id": fixture_id, "source": str(source), "input_image_path": image_path, "mime_type": fixture_mime(source)}
+    if image_path.stat().st_size <= 0:
+        raise EvalError(f"Fixture image is empty: {source}")
+    dimensions = image_dimensions(image_path)
+    return {
+        "id": fixture_id,
+        "source": str(source),
+        "input_image_path": image_path,
+        "mime_type": fixture_mime(source),
+        "width": dimensions[0] if dimensions else 1440,
+        "height": dimensions[1] if dimensions else 1200,
+    }
+
+
+def image_dimensions(path: Path) -> tuple[int, int] | None:
+    data = path.read_bytes()
+    if len(data) >= 24 and data[:8] == b"\x89PNG\r\n\x1a\n":
+        return int.from_bytes(data[16:20], "big"), int.from_bytes(data[20:24], "big")
+    return None
 
 
 def download_output_screenshot(result: dict[str, Any], *, output_path: Path) -> bool:
@@ -321,9 +374,13 @@ def download_output_screenshot(result: dict[str, Any], *, output_path: Path) -> 
     download_url = screenshot.get("download_url") if isinstance(screenshot, dict) else None
     if not isinstance(download_url, str) or not download_url:
         return False
-    with urllib.request.urlopen(download_url, timeout=90) as response:
-        output_path.write_bytes(response.read())
-    return True
+    try:
+        with urllib.request.urlopen(download_url, timeout=90) as response:
+            output_path.write_bytes(response.read())
+        return output_path.stat().st_size > 0
+    except (urllib.error.URLError, http.client.RemoteDisconnected, TimeoutError) as exc:
+        print(f"WARNING: failed to download output screenshot {download_url}: {exc}", file=sys.stderr)
+        return False
 
 
 def run_rest_eval(
@@ -371,6 +428,18 @@ def run_rest_eval(
     html_path.write_text(html, encoding="utf-8")
     output_screenshot_path = output_dir / f"{fixture['id']}-output.png"
     downloaded_screenshot = download_output_screenshot(result, output_path=output_screenshot_path)
+    rendered_output_screenshot_path = None
+    rendered_output_screenshot_seconds = None
+    if not downloaded_screenshot:
+        screenshot_bytes, render_seconds = render_trusted_html_fixture_in_e2b(
+            html_path,
+            env=env,
+            viewport_width=int(fixture.get("width") or 1440),
+            viewport_height=int(fixture.get("height") or 1200),
+        )
+        output_screenshot_path.write_bytes(screenshot_bytes)
+        rendered_output_screenshot_path = str(output_screenshot_path)
+        rendered_output_screenshot_seconds = round(render_seconds, 3)
     usage = result.get("usage") if isinstance(result.get("usage"), dict) else {}
     return {
         "fixture_id": fixture["id"],
@@ -381,6 +450,8 @@ def run_rest_eval(
         "html_path": str(html_path),
         "input_image_path": str(fixture["input_image_path"]),
         "output_screenshot_path": str(output_screenshot_path) if downloaded_screenshot else None,
+        "rendered_output_screenshot_path": rendered_output_screenshot_path,
+        "rendered_output_screenshot_seconds": rendered_output_screenshot_seconds,
         "downloaded_output_screenshot": downloaded_screenshot,
         "usage": usage,
     }
@@ -516,8 +587,16 @@ def post_to_discord(summary: dict[str, Any], *, files: list[tuple[str, Path]], e
             f"provider_usd={usage.get('provider_cost_usd')}, e2b_s={usage.get('e2b_render_seconds')}, "
             f"passes={usage.get('correction_passes_used')}"
         )
+    quality_notes = summary.get("quality_notes")
+    if isinstance(quality_notes, list) and quality_notes:
+        lines.append("")
+        lines.append("Quality notes:")
+        lines.extend(f"- {note}" for note in quality_notes[:6])
     lines.append("")
-    lines.append("Attachments are paired as `<fixture>-input` and `<fixture>-output`.")
+    if summary.get("reference_outputs"):
+        lines.append("Attachments are grouped as `<fixture>-input`, `<fixture>-reference`, and `<fixture>-openmates`.")
+    else:
+        lines.append("Attachments are paired as `<fixture>-input` and `<fixture>-openmates`.")
     content = "\n".join(lines)[:1900]
     payload = {"content": content}
     boundary = f"----openmates-{uuid.uuid4().hex}"
@@ -536,7 +615,7 @@ def post_to_discord(summary: dict[str, Any], *, files: list[tuple[str, Path]], e
         body.extend(b"\r\n")
 
     add_field("payload_json", json.dumps(payload).encode("utf-8"), content_type="application/json")
-    for index, (name, path) in enumerate(files[:9]):
+    for index, (name, path) in enumerate(files[:10]):
         content_type = "image/png" if path.suffix.lower() == ".png" else "application/json"
         add_field(f"files[{index}]", path.read_bytes(), filename=name, content_type=content_type)
     body.extend(f"--{boundary}--\r\n".encode("utf-8"))
@@ -544,7 +623,10 @@ def post_to_discord(summary: dict[str, Any], *, files: list[tuple[str, Path]], e
         f"{webhook}?wait=true",
         data=bytes(body),
         method="POST",
-        headers={"Content-Type": f"multipart/form-data; boundary={boundary}"},
+        headers={
+            "Content-Type": f"multipart/form-data; boundary={boundary}",
+            "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 OpenMates-Eval/1.0",
+        },
     )
     with urllib.request.urlopen(request, timeout=60) as response:
         return json.loads(response.read().decode("utf-8") or "{}")
@@ -564,11 +646,25 @@ def parse_fixture(value: str) -> tuple[str, Path]:
     return path.stem, path
 
 
+def parse_reference_outputs(values: list[str] | None) -> dict[str, Path]:
+    outputs: dict[str, Path] = {}
+    for value in values or []:
+        if "=" not in value:
+            raise EvalError("--reference-output must use fixture_id=/path/to/output.png")
+        fixture_id, path = value.split("=", 1)
+        resolved = Path(path).expanduser()
+        if not resolved.exists():
+            raise EvalError(f"Reference output not found: {resolved}")
+        outputs[fixture_id.strip()] = resolved
+    return outputs
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run real Code image-to-HTML evals and Discord reporting.")
     parser.add_argument("--api-url", default=os.getenv("OPENMATES_API_URL", DEFAULT_API_URL))
     parser.add_argument("--slot", default=os.getenv("OPENMATES_TEST_ACCOUNT_SOURCE_SLOT"))
     parser.add_argument("--fixture", action="append", help="Fixture as id=/path/to/image-or-html. Defaults to original eval fixtures.")
+    parser.add_argument("--reference-output", action="append", help="Comparison output as fixture_id=/path/to/reference-output.png; posted to Discord when provided.")
     parser.add_argument("--max-correction-passes", type=int, default=2)
     parser.add_argument("--skip-build", action="store_true")
     parser.add_argument("--skip-cli-sdk", action="store_true", help="Only run REST evals for all fixtures.")
@@ -582,6 +678,7 @@ def main() -> int:
 
     api_url = args.api_url.rstrip("/")
     fixtures = [parse_fixture(value) for value in args.fixture] if args.fixture else DEFAULT_FIXTURES
+    reference_outputs = parse_reference_outputs(args.reference_output)
     output_dir = (args.output_dir or ROOT / "tmp" / "code-image-to-html-eval" / time.strftime("%Y%m%d-%H%M%S")).resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -620,6 +717,7 @@ def main() -> int:
                 "output_dir": str(output_dir),
                 "max_correction_passes": args.max_correction_passes,
                 "fixtures": [{key: str(value) if isinstance(value, Path) else value for key, value in fixture.items()} for fixture in prepared],
+                "reference_outputs": {key: str(value) for key, value in reference_outputs.items()},
                 "rest_evals": rest_evals,
                 "surface_smokes": surface_smokes,
             }
@@ -629,8 +727,13 @@ def main() -> int:
                 attachments: list[tuple[str, Path]] = []
                 for item in rest_evals:
                     attachments.append((f"{item['fixture_id']}-input.png", Path(item["input_image_path"])))
+                    reference_output = reference_outputs.get(str(item["fixture_id"]))
+                    if reference_output:
+                        attachments.append((f"{item['fixture_id']}-reference.png", reference_output))
                     if item.get("output_screenshot_path"):
-                        attachments.append((f"{item['fixture_id']}-output.png", Path(item["output_screenshot_path"])))
+                        attachments.append((f"{item['fixture_id']}-openmates.png", Path(item["output_screenshot_path"])))
+                    elif item.get("rendered_output_screenshot_path"):
+                        attachments.append((f"{item['fixture_id']}-openmates.png", Path(item["rendered_output_screenshot_path"])))
                 attachments.append(("summary.json", summary_path))
                 discord_result = post_to_discord(summary, files=attachments, env=env)
                 summary["discord"] = {"message_id": discord_result.get("id")} if isinstance(discord_result, dict) else None

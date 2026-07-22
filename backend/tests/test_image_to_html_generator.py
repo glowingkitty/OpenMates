@@ -12,6 +12,7 @@ import types
 
 from backend.shared.providers.e2b_html_renderer import E2BHtmlRenderResult
 from backend.shared.providers.image_to_html_generator import (
+    ExtractedImageAsset,
     GeneratedHtmlCandidate,
     HtmlGenerationUsage,
     ImageToHtmlGenerator,
@@ -21,6 +22,10 @@ from backend.shared.providers.image_to_html_generator import (
 
 
 PNG_BYTES = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01"
+
+
+async def fake_empty_asset_extractor(**_kwargs):
+    return [], HtmlGenerationUsage(model="fake")
 
 
 async def test_generator_repairs_invalid_external_reference_before_render() -> None:
@@ -45,6 +50,7 @@ async def test_generator_repairs_invalid_external_reference_before_render() -> N
 
     generator = ImageToHtmlGenerator(
         gemini_html_generator=fake_gemini,
+        asset_extractor=fake_empty_asset_extractor,
         renderer=fake_renderer,
         e2b_api_key="test-e2b-key",
     )
@@ -82,6 +88,7 @@ async def test_generator_uses_e2b_render_screenshot_for_correction_pass() -> Non
 
     generator = ImageToHtmlGenerator(
         gemini_html_generator=fake_gemini,
+        asset_extractor=fake_empty_asset_extractor,
         renderer=fake_renderer,
         e2b_api_key="test-e2b-key",
     )
@@ -95,6 +102,7 @@ async def test_generator_uses_e2b_render_screenshot_for_correction_pass() -> Non
     assert result.html == "<!doctype html><html><body>Improved</body></html>"
     assert result.correction_passes_used == 1
     assert result.usage["e2b_render_seconds"] == 2.0
+    assert result.usage["extracted_asset_count"] == 0
     assert calls[1]["current_html"] == "<!doctype html><html><body>First</body></html>"
     assert calls[1]["rendered_screenshot_bytes"] == PNG_BYTES
     assert calls[1]["source_dimensions"] == SourceImageDimensions(width=1, height=1)
@@ -112,6 +120,57 @@ async def test_generator_uses_e2b_render_screenshot_for_correction_pass() -> Non
             "viewport_height": 1,
         },
     ]
+
+
+async def test_generator_inlines_extracted_asset_placeholders() -> None:
+    asset_data_url = "data:image/png;base64,QUJD"
+    calls: list[dict[str, object]] = []
+    rendered_html: list[str] = []
+
+    async def fake_asset_extractor(**_kwargs):
+        return [
+            ExtractedImageAsset(
+                placeholder="__OPENMATES_EXTRACTED_ASSET_1__",
+                label="logo",
+                description="small logo mark",
+                data_url=asset_data_url,
+                box_2d=[10, 20, 30, 40],
+                pixel_box=(1, 2, 3, 4),
+                width=2,
+                height=2,
+            )
+        ], HtmlGenerationUsage(model="fake", input_tokens=3, output_tokens=4)
+
+    async def fake_gemini(**kwargs):
+        calls.append(kwargs)
+        return GeneratedHtmlCandidate(
+            html='<!doctype html><html><body><img src="__OPENMATES_EXTRACTED_ASSET_1__" alt=""></body></html>',
+            usage=HtmlGenerationUsage(model="fake", input_tokens=1, output_tokens=2),
+        )
+
+    def fake_renderer(**kwargs):
+        rendered_html.append(kwargs["html"])
+        return E2BHtmlRenderResult(sandbox_id="sandbox-1", screenshot_bytes=PNG_BYTES, duration_seconds=1.0)
+
+    generator = ImageToHtmlGenerator(
+        gemini_html_generator=fake_gemini,
+        asset_extractor=fake_asset_extractor,
+        renderer=fake_renderer,
+        e2b_api_key="test-e2b-key",
+    )
+
+    result = await generator.generate(
+        image_bytes=PNG_BYTES,
+        mime_type="image/png",
+        max_correction_passes=0,
+    )
+
+    assert result.html == f'<!doctype html><html><body><img src="{asset_data_url}" alt=""></body></html>'
+    assert rendered_html == [result.html]
+    assert result.usage["extracted_asset_count"] == 1
+    assert result.usage["input_tokens"] == 4
+    assert result.usage["output_tokens"] == 6
+    assert "__OPENMATES_EXTRACTED_ASSET_1__" in calls[0]["prompt"]
 
 
 async def test_default_gemini_path_reuses_existing_google_ai_studio_wrapper(monkeypatch) -> None:

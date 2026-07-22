@@ -56,6 +56,9 @@ capabilities:
   code.run:
     available: false
     unavailable_reason: WORKFLOW_RUNTIME_UNSUPPORTED
+  code.image_to_html:
+    available: false
+    unavailable_reason: WORKFLOW_FILE_OR_EMBED_INPUT_REQUIRED
   code.clean_repo:
     available: false
     unavailable_reason: WORKFLOW_SKILL_NOT_IMPLEMENTED

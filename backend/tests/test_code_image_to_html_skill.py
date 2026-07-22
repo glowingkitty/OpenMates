@@ -23,6 +23,13 @@ PNG_1X1 = base64.b64encode(
 ).decode("ascii")
 
 
+def test_dispatcher_detects_builtin_list_annotations_for_request_arrays() -> None:
+    pytest.importorskip("celery")
+    from backend.apps.base_app import _is_list_annotation
+
+    assert _is_list_annotation("list[dict[str, Any]]")
+
+
 def test_validate_image_input_rejects_image_url() -> None:
     with pytest.raises(ValueError, match="image_url"):
         validate_image_input({"image_url": "https://example.com/mockup.png"})

@@ -33,6 +33,15 @@ INTERNAL_API_BASE_URL = os.getenv("INTERNAL_API_BASE_URL", "http://api:8000")
 INTERNAL_API_TIMEOUT = 10
 INTERNAL_API_SHARED_TOKEN = os.getenv("INTERNAL_API_SHARED_TOKEN")
 
+
+def _is_list_annotation(annotation: Any) -> bool:
+    origin = get_origin(annotation)
+    if origin is list or annotation is list:
+        return True
+    annotation_text = str(annotation)
+    return "List" in annotation_text or annotation_text.startswith("list[")
+
+
 class CreditChargePayload(BaseModel):
     user_id: str
     user_id_hash: str
@@ -571,7 +580,7 @@ class BaseApp:
                             if k in execute_params or any(p.kind == inspect.Parameter.VAR_KEYWORD for p in execute_params.values())
                         }
 
-                        if first_param and 'List' in str(first_param.annotation):
+                        if first_param and _is_list_annotation(first_param.annotation):
                             # Execute method expects a list - extract requests from Pydantic model
                             if hasattr(request_obj, 'requests'):
                                 # Serialize typed Pydantic items to plain dicts so execute()
@@ -636,7 +645,7 @@ class BaseApp:
                     if 'requests' not in clean_request_body and 'requests' in execute_params:
                         requests_param = execute_params['requests']
                         if (requests_param.default is inspect.Parameter.empty
-                                and 'List' in str(requests_param.annotation)):
+                                and _is_list_annotation(requests_param.annotation)):
                             # Collect non-metadata fields that likely belong to a single request item
                             request_item_fields = {
                                 k: v for k, v in clean_request_body.items()
