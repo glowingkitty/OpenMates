@@ -3071,9 +3071,11 @@ enum ChatMessageAccessibilityPolicy {
         if !text.isEmpty {
             return text
         }
-        if let thinkingContent,
-           !thinkingContent.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            return thinkingContent
+        if let thinkingContent {
+            let thinkingText = thinkingContent.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !thinkingText.isEmpty {
+                return thinkingText
+            }
         }
         let embedNames = embedTypes.compactMap { EmbedType.normalized(rawValue: $0)?.displayName }
         if !embedNames.isEmpty {
