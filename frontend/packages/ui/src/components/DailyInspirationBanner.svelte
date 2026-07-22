@@ -57,7 +57,7 @@
   const MOBILE_CARD_ROTATION_INTERVAL_MS = Math.round(INSPIRATION_AUTO_ROTATION_INTERVAL_MS * 0.55);
   const LANDING_INTRO_REQUESTS_COUNT = 4;
   const LANDING_INTRO_HEADLINE_ONLY_MS = 1200;
-  const LANDING_INTRO_REQUEST_INTERVAL_MS = 1900;
+  const LANDING_INTRO_REQUEST_INTERVAL_MS = 2100;
   const LANDING_INTRO_TOTAL_MS = LANDING_INTRO_HEADLINE_ONLY_MS + (LANDING_INTRO_REQUEST_INTERVAL_MS * LANDING_INTRO_REQUESTS_COUNT) + 700;
   const TOUCH_SWIPE_DISTANCE_PX = 56;
   const TOUCH_SWIPE_VERTICAL_CANCEL_PX = 48;
@@ -588,7 +588,7 @@
     }
     markManualNavigation();
     resumeAutoRotation();
-    goToVisibleIndex(currentIndex - 1);
+    goToVisibleIndex(currentIndex - 1, { restoreLandingIntro: true });
     restartProgressAnimation();
   }
 
@@ -653,7 +653,7 @@
         return;
       }
       resumeAutoRotation();
-      goToVisibleIndex(currentIndex - 1);
+      goToVisibleIndex(currentIndex - 1, { restoreLandingIntro: true });
     }
   }
 
@@ -887,12 +887,20 @@
     );
   }
 
-  function goToVisibleIndex(nextIndex: number): void {
+  function goToVisibleIndex(
+    nextIndex: number,
+    options: { restoreLandingIntro?: boolean } = {},
+  ): void {
     if (visibleInspirations.length === 0) {
       currentIndex = 0;
       return;
     }
-    currentIndex = (nextIndex + visibleInspirations.length) % visibleInspirations.length;
+    const resolvedIndex = (nextIndex + visibleInspirations.length) % visibleInspirations.length;
+    if (options.restoreLandingIntro && visibleInspirations[resolvedIndex]?.inspiration_id === LANDING_INTRO_INSPIRATION_ID) {
+      landingIntroDismissed = false;
+      landingIntroRequestIndex = -1;
+    }
+    currentIndex = resolvedIndex;
   }
 
   // Temporarily disabled with the visit-cycling effect above.
@@ -1487,7 +1495,7 @@
 
   .landing-intro-expanded .banner-inner {
     width: 100%;
-    padding: 28px 0 0;
+    padding: 0;
   }
 
   .landing-intro-expanded .banner-content {
@@ -1504,7 +1512,7 @@
     justify-content: center;
     width: 100%;
     height: 100%;
-    overflow: hidden;
+    overflow: visible;
     color: white;
     text-align: center;
     animation: landingIntroEnter 620ms cubic-bezier(0.22, 1, 0.36, 1) both;
@@ -1533,20 +1541,35 @@
     transition: transform 780ms cubic-bezier(0.22, 1, 0.36, 1), font-size 780ms cubic-bezier(0.22, 1, 0.36, 1);
   }
 
+  .landing-intro-headline span {
+    transform-origin: center;
+    animation: landingIntroHeadlineScale 1800ms ease-in-out infinite alternate;
+  }
+
+  .landing-intro-headline span:nth-child(2) {
+    animation-delay: 160ms;
+  }
+
   .landing-intro-expanded-content.examples-visible .landing-intro-ai-icon {
     margin-bottom: clamp(12px, 1.4vw, 20px);
-    transform: translateY(-8px) scale(0.88);
+    transform: translateY(clamp(-72px, -7vw, -40px)) scale(0.88);
   }
 
   .landing-intro-expanded-content.examples-visible .landing-intro-headline {
-    transform: translateY(-10px);
+    transform: translateY(clamp(-80px, -7.6vw, -44px)) scale(0.96);
   }
 
   .landing-intro-examples {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: calc(50% + clamp(66px, 7.6vw, 126px));
     display: flex;
     flex-direction: column;
     align-items: center;
     width: 100%;
+    padding-bottom: clamp(28px, 4vw, 52px);
+    box-sizing: border-box;
     opacity: 0;
     transform: translateY(22px);
     pointer-events: none;
@@ -1633,15 +1656,14 @@
     height: clamp(58px, 5.7vw, 96px);
     border-radius: clamp(12px, 1.1vw, 20px);
     background: var(--landing-intro-app-bg);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 16px 32px rgba(24, 43, 106, 0.16);
+    border: 0;
+    box-shadow: 0 16px 32px rgba(24, 43, 106, 0.16);
     opacity: 0.3;
     transform: scale(0.94);
     transition:
       opacity 680ms ease,
       transform 680ms cubic-bezier(0.22, 1, 0.36, 1),
-      box-shadow 680ms ease,
-      border-color 680ms ease;
+      box-shadow 680ms ease;
   }
 
   .landing-intro-app-icon::before {
@@ -1661,16 +1683,8 @@
 
   .landing-intro-app-icon.highlighted {
     opacity: 1;
-    transform: scale(1.08);
-    border-color: rgba(255, 255, 255, 0.78);
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.3),
-      0 0 0 5px rgba(255, 255, 255, 0.18),
-      0 24px 58px rgba(24, 43, 106, 0.36);
-  }
-
-  .landing-intro-app-icon.highlighted::before {
-    background: rgba(255, 255, 255, 0.96);
+    transform: scale(1.12);
+    box-shadow: 0 22px 48px rgba(24, 43, 106, 0.28);
   }
 
   @keyframes landingIntroEnter {
@@ -1681,6 +1695,11 @@
   @keyframes landingIntroRequestIn {
     from { opacity: 0; transform: translateY(8px); }
     to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes landingIntroHeadlineScale {
+    from { transform: scale(1); }
+    to { transform: scale(1.018); }
   }
 
   @keyframes landingIntroRailLeft {
@@ -2352,7 +2371,7 @@
     }
 
     .landing-intro-expanded .banner-inner {
-      padding: 24px 0 0;
+      padding: 0;
     }
 
     .guest-intro-variant .banner-content {
@@ -2380,12 +2399,16 @@
     }
 
     .landing-intro-expanded-content.examples-visible .landing-intro-ai-icon {
-      transform: translateY(-5px) scale(0.82);
+      transform: translateY(-42px) scale(0.82);
       margin-bottom: 10px;
     }
 
     .landing-intro-expanded-content.examples-visible .landing-intro-headline {
-      transform: translateY(-6px);
+      transform: translateY(-46px) scale(0.96);
+    }
+
+    .landing-intro-examples {
+      top: calc(50% + 62px);
     }
 
     .landing-intro-request {

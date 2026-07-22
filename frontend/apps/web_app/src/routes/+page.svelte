@@ -3605,6 +3605,7 @@
 	.chat-container {
 		display: flex;
 		flex-direction: row;
+		box-sizing: border-box;
 		/* Fallback for browsers that don't support dvh */
 		height: calc(100vh - 82px - var(--dev-console-height, 0px));
 		/* Modern browsers will use this */
