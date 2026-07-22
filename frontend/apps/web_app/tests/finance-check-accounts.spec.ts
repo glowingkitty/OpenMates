@@ -30,8 +30,13 @@ test.describe('Finance Check accounts web embeds', () => {
     await expect(preview).toBeVisible({ timeout: 15_000 });
     await expect(preview.getByTestId('finance-total-value')).toBeVisible();
     await expect(preview.getByTestId('finance-income-expense-chart')).toBeVisible();
+    await expect(preview.getByTestId('finance-provider-pill')).toContainText('Revolut Business');
     await expect(preview.getByTestId('finance-transaction-row')).toHaveCount(0);
     await expect(preview).not.toContainText('[MERCHANT_');
+    await expect(page.locator('[data-skill-icon="finance"]').first()).toBeVisible();
+    await expect(page.locator('body')).not.toContainText('placeholder CSV');
+    await expect(page.locator('body')).not.toContainText('CSV statement');
+    await expect(page.locator('body')).not.toContainText('sandbox');
 
     const section = page.getByTestId('skill-section').filter({ has: preview }).first();
     const fullscreenClip = section.getByTestId('fs-clip').first();
@@ -39,6 +44,11 @@ test.describe('Finance Check accounts web embeds', () => {
     await expect(fullscreenClip.getByTestId('finance-fullscreen-total-value')).toBeVisible();
     await expect(fullscreenClip.getByTestId('finance-fullscreen-chart')).toBeVisible();
     await expect(fullscreenClip.getByTestId('finance-filters')).toBeVisible();
+    await expect(fullscreenClip.getByTestId('finance-check-accounts-fullscreen')).toContainText('Revolut Business');
+
+    const chartTop = await fullscreenClip.getByTestId('finance-fullscreen-chart').boundingBox();
+    const summaryTop = await fullscreenClip.locator('.summary-grid').boundingBox();
+    expect(chartTop?.y ?? Number.POSITIVE_INFINITY).toBeLessThan(summaryTop?.y ?? 0);
 
     await expect(fullscreenClip.getByTestId('finance-filter-account')).toBeVisible();
     await expect(fullscreenClip.getByTestId('finance-filter-source')).toBeVisible();
@@ -48,6 +58,7 @@ test.describe('Finance Check accounts web embeds', () => {
     await expect(fullscreenClip.getByTestId('finance-filter-direction')).toBeVisible();
     await expect(fullscreenClip.getByTestId('finance-filter-state')).toBeVisible();
     await expect(fullscreenClip.getByTestId('finance-filter-placeholder')).toBeVisible();
+    await expect(fullscreenClip.getByTestId('finance-filter-source')).toContainText('Revolut Business');
 
     await expect(fullscreenClip.getByTestId('finance-transaction-row')).toHaveCount(5);
     await expect(fullscreenClip.getByTestId('finance-transaction-list')).toContainText('[MERCHANT_SOFTWARE_001]');

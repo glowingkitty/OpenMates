@@ -797,6 +797,13 @@ div.clickable-icon {
   }
 }
 
+.icon_rounded.finance {
+  background: var(--color-app-finance);
+  &::after {
+    background-image: url("@openmates/ui/static/icons/finance.svg");
+  }
+}
+
 /* Skill icons - used in app skill previews for specific skill types */
 .icon_rounded.search {
   /* Search skill icon - grey background, search icon */
@@ -1866,6 +1873,5 @@ div.clickable-icon {
   -webkit-mask-position: center;
   mask-position: center;
 }
-
 
 

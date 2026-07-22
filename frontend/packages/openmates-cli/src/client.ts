@@ -4730,7 +4730,7 @@ export class OpenMatesClient {
     messages: DecryptedMessage[];
   }> {
     const teamId = this.resolveTeamContext(options);
-    const cache = await this.ensureSynced(true, [], options);
+    let cache = await this.ensureSynced(true, [], options);
     const masterKey = this.getMasterKeyBytes();
     const wrappingKey = await this.getChatWrappingKey(teamId, masterKey);
     const normalized = query.trim().toLowerCase();
@@ -4784,6 +4784,12 @@ export class OpenMatesClient {
       throw new Error(
         `Chat '${query}' not found. Try 'openmates chats search "${query}"' to browse matches.`,
       );
+    }
+
+    const foundChatId = String(found.details.id ?? "");
+    if (foundChatId && getClientMessagesVersionForSync(found) === 0) {
+      cache = await this.ensureSynced(true, [foundChatId], options, true);
+      found = cache.chats.find((c) => String(c.details.id ?? "") === foundChatId) ?? found;
     }
 
     const chatItem = await this.decryptChatListItem(found, wrappingKey, cache, teamId);
@@ -9973,6 +9979,7 @@ export class OpenMatesClient {
     forceRefresh = false,
     refreshChatIds: string[] = [],
     options: TeamContextOptions = {},
+    includeMessageContentRefresh = false,
   ): Promise<SyncCache> {
     const teamId = this.resolveTeamContext(options);
     const refreshChatIdSet = new Set(refreshChatIds.filter(Boolean));
@@ -10034,13 +10041,17 @@ export class OpenMatesClient {
     try {
       // Send phase:all so the server runs all sync phases over a single WS
       // connection and terminates with phased_sync_complete.
-      ws.send("phased_sync_request", {
-        phase: "all",
+      const baseSyncPayload = {
         ...(teamId ? { team_id: teamId } : {}),
         client_chat_versions: clientChatVersions,
         client_chat_ids: clientChatIds,
-        ...(refreshChatIdSet.size > 0 ? { refresh_chat_ids: Array.from(refreshChatIdSet) } : {}),
         client_embed_ids: clientEmbedIds,
+      };
+
+      ws.send("phased_sync_request", {
+        phase: "all",
+        ...baseSyncPayload,
+        ...(refreshChatIdSet.size > 0 ? { refresh_chat_ids: Array.from(refreshChatIdSet) } : {}),
       });
 
       // Collect every frame until phased_sync_complete (or 90s timeout).
@@ -10048,6 +10059,13 @@ export class OpenMatesClient {
       // a fast server response could arrive before a waitForMessage listener
       // is registered.
       const frames = await ws.collectMessages("phased_sync_complete", 90_000);
+      if (includeMessageContentRefresh && refreshChatIdSet.size > 0) {
+        ws.send("phased_sync_request", {
+          phase: "phase3",
+          ...baseSyncPayload,
+        });
+        frames.push(...await ws.collectMessages("phased_sync_complete", 90_000));
+      }
 
       // Messages keyed by chat_id — merged from phase_1b and background_message_sync.
       const messagesByChatId = new Map<string, string[]>();

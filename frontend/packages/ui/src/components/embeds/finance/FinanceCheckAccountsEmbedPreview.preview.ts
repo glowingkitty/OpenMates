@@ -8,7 +8,7 @@ const overview = {
   accounts: [
     {
       account_ref: 'acct-main-eur',
-      source_ref: 'csv:sample-statement.csv',
+      source_ref: 'revolut_business:connected-account',
       display_label: 'Operating EUR',
       currency: 'EUR',
       balance: 8450.25,
@@ -16,7 +16,7 @@ const overview = {
     },
     {
       account_ref: 'acct-savings-eur',
-      source_ref: 'revolut_business:sandbox',
+      source_ref: 'revolut_business:connected-account',
       display_label: 'Savings EUR',
       currency: 'EUR',
       balance: 12500,
@@ -25,9 +25,9 @@ const overview = {
   ],
   transactions: [
     {
-      transaction_ref: 'csv:sample-statement.csv:tx-001',
+      transaction_ref: 'revolut_business:tx-001',
       account_ref: 'acct-main-eur',
-      source_ref: 'csv:sample-statement.csv',
+      source_ref: 'revolut_business:connected-account',
       posted_at: '2026-05-05',
       amount: 4200,
       currency: 'EUR',
@@ -37,9 +37,9 @@ const overview = {
       state: 'completed',
     },
     {
-      transaction_ref: 'csv:sample-statement.csv:tx-002',
+      transaction_ref: 'revolut_business:tx-002',
       account_ref: 'acct-main-eur',
-      source_ref: 'csv:sample-statement.csv',
+      source_ref: 'revolut_business:connected-account',
       posted_at: '2026-05-08',
       amount: -760.8,
       currency: 'EUR',
@@ -49,9 +49,9 @@ const overview = {
       state: 'completed',
     },
     {
-      transaction_ref: 'revolut_business:sandbox:tx-003',
+      transaction_ref: 'revolut_business:tx-003',
       account_ref: 'acct-savings-eur',
-      source_ref: 'revolut_business:sandbox',
+      source_ref: 'revolut_business:connected-account',
       posted_at: '2026-06-03',
       amount: 3800,
       currency: 'EUR',
@@ -61,9 +61,9 @@ const overview = {
       state: 'completed',
     },
     {
-      transaction_ref: 'revolut_business:sandbox:tx-004',
+      transaction_ref: 'revolut_business:tx-004',
       account_ref: 'acct-main-eur',
-      source_ref: 'revolut_business:sandbox',
+      source_ref: 'revolut_business:connected-account',
       posted_at: '2026-06-12',
       amount: -1180.45,
       currency: 'EUR',
@@ -73,9 +73,9 @@ const overview = {
       state: 'completed',
     },
     {
-      transaction_ref: 'csv:sample-statement.csv:tx-005',
+      transaction_ref: 'revolut_business:tx-005',
       account_ref: 'acct-main-eur',
-      source_ref: 'csv:sample-statement.csv',
+      source_ref: 'revolut_business:connected-account',
       posted_at: '2026-07-02',
       amount: -350,
       currency: 'EUR',
@@ -105,7 +105,7 @@ const overview = {
   },
   filter_options: {
     accounts: ['acct-main-eur', 'acct-savings-eur'],
-    sources: ['csv:sample-statement.csv', 'revolut_business:sandbox'],
+    sources: ['revolut_business:connected-account'],
     categories: ['meals', 'revenue', 'software', 'travel'],
     directions: ['expense', 'income'],
     states: ['completed'],
@@ -120,6 +120,7 @@ const defaultProps = {
   accountCount: overview.accounts.length,
   transactionCount: overview.transactions.length,
   overview,
+  provider: 'Revolut Business',
   summary: 'Finance overview for 2 accounts and 5 transactions: income 8000, expenses 2291.25.',
   isMobile: false,
   onFullscreen: () => {},

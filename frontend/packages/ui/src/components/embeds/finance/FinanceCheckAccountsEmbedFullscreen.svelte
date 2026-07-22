@@ -84,6 +84,7 @@
   let localPeriod = $state('monthly');
   let localOverview = $state<FinanceOverview | null>(null);
   let localSummary = $state('');
+  let localProvider = $state('Revolut Business');
 
   let selectedAccount = $state('');
   let selectedSource = $state('');
@@ -100,6 +101,7 @@
     localPeriod = typeof content.period === 'string' ? content.period : 'monthly';
     localOverview = normalizeFinanceOverview(content) as FinanceOverview | null;
     localSummary = typeof content.summary === 'string' ? content.summary : '';
+    localProvider = typeof content.provider === 'string' ? content.provider : 'Revolut Business';
   });
 
   let accounts = $derived(Array.isArray(localOverview?.accounts) ? localOverview.accounts : []);
@@ -131,6 +133,7 @@
     const overview = normalizeFinanceOverview(content) as FinanceOverview | null;
     if (overview) localOverview = overview;
     if (typeof content.summary === 'string') localSummary = content.summary;
+    if (typeof content.provider === 'string') localProvider = content.provider;
   }
 
   function normalizeStatus(value: unknown): EmbedStatus {
@@ -239,6 +242,10 @@
     return accounts.find((account) => account.account_ref === accountRef)?.display_label || accountRef;
   }
 
+  function sourceLabel(sourceRef: string): string {
+    return sourceRef.startsWith('revolut_business:') ? 'Revolut Business' : sourceRef;
+  }
+
   function barHeight(value: number): string {
     return `${Math.max(8, Math.round((value / trendMax) * 92))}px`;
   }
@@ -259,9 +266,9 @@
   testId="finance-check-accounts-fullscreen"
   appId="finance"
   skillId="check_accounts"
-  skillIconName="search"
+  skillIconName="finance"
   embedHeaderTitle={skillName}
-  embedHeaderSubtitle={`${formatPeriod(localPeriod)} · ${filteredAccounts.length} accounts · ${filteredTransactions.length} transactions`}
+  embedHeaderSubtitle={`${localProvider} · ${formatPeriod(localPeriod)} · ${filteredAccounts.length} accounts · ${filteredTransactions.length} transactions`}
   onClose={onClose}
   currentEmbedId={embedId}
   onEmbedDataUpdated={handleEmbedDataUpdated}
@@ -280,30 +287,11 @@
       <div class="state-message" data-testid="finance-empty-state">{localSummary || 'No account data available.'}</div>
     {:else}
       <div class="finance-fullscreen-content">
-        <section class="summary-grid" aria-label="Finance summary">
-          <article class="summary-card total">
-            <span>Total value</span>
-            <strong data-testid="finance-fullscreen-total-value">{formatMoney(totalBalance)}</strong>
-          </article>
-          <article class="summary-card income">
-            <span>Income</span>
-            <strong>{formatMoney(filteredTotals.income)}</strong>
-          </article>
-          <article class="summary-card expense">
-            <span>Expenses</span>
-            <strong>{formatMoney(filteredTotals.expense)}</strong>
-          </article>
-          <article class="summary-card net">
-            <span>Net</span>
-            <strong>{formatMoney(filteredTotals.net)}</strong>
-          </article>
-        </section>
-
         <section class="panel chart-panel" data-testid="finance-fullscreen-chart">
           <div class="section-heading">
             <div>
               <h2>Income and expenses over time</h2>
-              <p>{formatPeriod(localPeriod)} buckets from the saved account snapshot.</p>
+              <p>{formatPeriod(localPeriod)} buckets from {localProvider}.</p>
             </div>
           </div>
           {#if filteredTrend.length > 0}
@@ -321,6 +309,25 @@
           {:else}
             <p class="empty-copy">No transactions match the current filters.</p>
           {/if}
+        </section>
+
+        <section class="summary-grid" aria-label="Finance summary">
+          <article class="summary-card total">
+            <span>Total value</span>
+            <strong data-testid="finance-fullscreen-total-value">{formatMoney(totalBalance)}</strong>
+          </article>
+          <article class="summary-card income">
+            <span>Income</span>
+            <strong>{formatMoney(filteredTotals.income)}</strong>
+          </article>
+          <article class="summary-card expense">
+            <span>Expenses</span>
+            <strong>{formatMoney(filteredTotals.expense)}</strong>
+          </article>
+          <article class="summary-card net">
+            <span>Net</span>
+            <strong>{formatMoney(filteredTotals.net)}</strong>
+          </article>
         </section>
 
         <section class="panel filters" data-testid="finance-filters">
@@ -350,7 +357,7 @@
               <select bind:value={selectedSource} data-testid="finance-filter-source">
                 <option value="">All sources</option>
                 {#each sourceOptions as source}
-                  <option value={source}>{source}</option>
+                  <option value={source}>{sourceLabel(source)}</option>
                 {/each}
               </select>
             </label>
@@ -419,7 +426,7 @@
               <article class="account-card">
                 <span>{account.display_label || account.account_ref}</span>
                 <strong>{formatMoney(account.balance ?? null, account.currency || primaryCurrency)}</strong>
-                <small>{account.source_ref}{account.balance_as_of ? ` · ${account.balance_as_of}` : ''}</small>
+                <small>{sourceLabel(account.source_ref)}{account.balance_as_of ? ` · ${account.balance_as_of}` : ''}</small>
               </article>
             {/each}
           </div>

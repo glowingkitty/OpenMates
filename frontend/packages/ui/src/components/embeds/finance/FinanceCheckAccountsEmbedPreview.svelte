@@ -25,6 +25,7 @@
     overview?: FinanceOverview | null;
     results?: unknown[];
     summary?: string;
+    provider?: string;
     taskId?: string;
     isMobile?: boolean;
     onFullscreen: () => void;
@@ -41,6 +42,7 @@
     overview: overviewProp = null,
     results = [],
     summary: summaryProp = '',
+    provider: providerProp = 'Revolut Business',
     taskId,
     isMobile = false,
     onFullscreen,
@@ -54,6 +56,7 @@
   let localTransactionCount = $state(0);
   let localOverview = $state<FinanceOverview | null>(null);
   let localSummary = $state('');
+  let localProvider = $state('Revolut Business');
 
   $effect(() => {
     const overview = normalizeFinanceOverview({ overview: overviewProp, results });
@@ -63,6 +66,7 @@
     localAccountCount = accountCount ?? account_count ?? overview?.accounts?.length ?? 0;
     localTransactionCount = transactionCount ?? transaction_count ?? overview?.transactions?.length ?? 0;
     localSummary = summaryProp;
+    localProvider = providerProp || 'Revolut Business';
   });
 
   let summaries = $derived(localOverview?.summaries ?? {});
@@ -73,7 +77,7 @@
   let expenseTotal = $derived(toNumber(summaries.expense_total));
   let netTotal = $derived(toNumber(summaries.net_total));
   let trend = $derived(normalizeTimeSeries(summaries.time_series));
-  let trendMax = $derived(Math.max(1, ...trend.flatMap((bucket) => [bucket.income, bucket.expense])));
+  let trendMax = $derived(Math.max(1, ...trend.flatMap((bucket) => [toNumber(bucket.income), toNumber(bucket.expense)])));
   let accountLabel = $derived(localAccountCount === 1 ? 'account' : 'accounts');
   let transactionLabel = $derived(localTransactionCount === 1 ? 'transaction' : 'transactions');
   let subtitle = $derived(`${localAccountCount} ${accountLabel} · ${localTransactionCount} ${transactionLabel}`);
@@ -92,6 +96,7 @@
       if (typeof content.transaction_count !== 'number') localTransactionCount = overview.transactions?.length ?? 0;
     }
     if (typeof content.summary === 'string') localSummary = content.summary;
+    if (typeof content.provider === 'string') localProvider = content.provider;
   }
 
   function isEmbedStatus(value: string): value is EmbedStatus {
@@ -155,7 +160,7 @@
   {id}
   appId="finance"
   skillId="check_accounts"
-  skillIconName="search"
+  skillIconName="finance"
   status={localStatus}
   {skillName}
   {taskId}
@@ -175,6 +180,7 @@
       </div>
 
       <div class="preview-meta">
+        <span class="provider-pill" data-testid="finance-provider-pill"><i></i>{localProvider}</span>
         <span>{formatPeriod(localPeriod)}</span>
         <span>{formatMoney(netTotal)} net</span>
       </div>
@@ -244,6 +250,22 @@
     color: var(--color-font-secondary);
     font-size: var(--font-size-xs);
     text-transform: capitalize;
+  }
+
+  .provider-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    text-transform: none;
+  }
+
+  .provider-pill i {
+    width: 13px;
+    height: 13px;
+    border-radius: 4px;
+    background: var(--color-font-secondary);
+    -webkit-mask: url('@openmates/ui/static/icons/revolut_business.svg') center / contain no-repeat;
+    mask: url('@openmates/ui/static/icons/revolut_business.svg') center / contain no-repeat;
   }
 
   .trend {

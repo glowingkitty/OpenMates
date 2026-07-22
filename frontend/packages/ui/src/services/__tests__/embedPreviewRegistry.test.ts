@@ -4,7 +4,7 @@
 // preview-time child hydration or provider calls.
 
 import { describe, expect, it } from 'vitest';
-import { parentPreviewProps } from '../embedPreviewRegistry';
+import { embedPreviewRegistry, parentPreviewProps } from '../embedPreviewRegistry';
 
 function metadataFor(decodedContent: Record<string, unknown>) {
   return parentPreviewProps(
@@ -21,6 +21,14 @@ function metadataFor(decodedContent: Record<string, unknown>) {
 }
 
 describe('embedPreviewRegistry parent preview metadata', () => {
+  it('resolves Finance check_accounts app skill previews', () => {
+    expect(embedPreviewRegistry.canResolve({
+      embedId: 'finance-preview',
+      embedData: { type: 'app_skill_use', app_id: 'finance', skill_id: 'check_accounts' },
+      decodedContent: { app_id: 'finance', skill_id: 'check_accounts' },
+    })).toBe(true);
+  });
+
   it('forwards web search parent metadata', async () => {
     const metadata = metadataFor({
       preview_results: [{ title: 'OpenMates', url: 'https://openmates.org', favicon: 'https://openmates.org/favicon.svg' }],

@@ -13,6 +13,7 @@ const decodedContent = {
   period: 'monthly',
   account_count: overview.accounts.length,
   transaction_count: overview.transactions.length,
+  provider: 'Revolut Business',
   overview,
   summary: 'Finance overview for 2 accounts and 5 transactions: income 8000, expenses 2291.25.',
 };

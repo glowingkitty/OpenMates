@@ -3,4 +3,4 @@ name: Revolut Business
 description: Read-only Revolut Business account and transaction data for user-connected Finance skills.
 privacy_policy: https://www.revolut.com/en-LT/legal/privacy/
 no_api_key: true
-logo_svg: icons/money.svg
+logo_svg: icons/revolut_business.svg
