@@ -108,6 +108,13 @@ async function guestIntroOpacity(page: any, testId: string): Promise<number> {
 	return page.getByTestId(testId).evaluate((element: HTMLElement) => Number.parseFloat(getComputedStyle(element).opacity));
 }
 
+async function interestTagsPromptGap(page: any): Promise<number> {
+	const promptBox = await page.getByText('What are your interests?').boundingBox();
+	const tagsBox = await page.getByTestId('guest-interest-tags').boundingBox();
+	if (!promptBox || !tagsBox) return Number.NEGATIVE_INFINITY;
+	return tagsBox.y - (promptBox.y + promptBox.height);
+}
+
 test.describe('Guest interest smart selection', () => {
 	test('fresh guest welcome uses session-only tags and local smart ranking', async ({ page }: { page: any }) => {
 		test.setTimeout(90000);
@@ -154,6 +161,7 @@ test.describe('Guest interest smart selection', () => {
 		expect(guestIntroMetrics.videoHeight).toBeLessThanOrEqual(guestIntroMetrics.bannerHeight);
 
 		await expect(page.getByTestId('guest-interest-tags')).toBeVisible({ timeout: 15000 });
+		expect(await interestTagsPromptGap(page)).toBeGreaterThanOrEqual(8);
 		await expect(page.getByTestId('interest-tag-find_apartments')).toHaveAttribute('data-app-id', 'home');
 		await expect(page.getByTestId('recent-chats-scroll-container')).toHaveCount(0);
 		await expect(page.getByTestId('new-chat-suggestion-card')).toHaveCount(0);
@@ -171,6 +179,7 @@ test.describe('Guest interest smart selection', () => {
 		await page.getByTestId('guest-interest-select-interests').click();
 		await expect(page.getByTestId('guest-interest-tags')).toBeVisible({ timeout: 5000 });
 		await expect(page.getByText('What are your interests?')).toBeVisible({ timeout: 5000 });
+		expect(await interestTagsPromptGap(page)).toBeGreaterThanOrEqual(8);
 		await expect(page.getByText('Explore what you can do:')).toHaveCount(0);
 		await expect(page.getByTestId('guest-interest-continue')).toHaveCount(0);
 		await expect(page.getByTestId('recent-chats-scroll-container')).toHaveCount(0);

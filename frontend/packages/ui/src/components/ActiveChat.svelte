@@ -4585,6 +4585,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     let chatSideEl = $state<HTMLElement | null>(null);
     let welcomeContentEl = $state<HTMLElement | null>(null);
     let messageInputContainerEl = $state<HTMLElement | null>(null);
+    let guestInterestTagsTop = $state<number | null>(null);
 
     /**
      * True when the new-chat suggestions would overlap the welcome / resume-chat
@@ -4624,6 +4625,18 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // Used as the minimum clearance we require between the welcome block bottom
     // and the message-input top before we consider the layout "tight".
     const SUGGESTIONS_APPROX_HEIGHT = 150;
+    const GUEST_INTEREST_TAGS_PROMPT_GAP = 10;
+
+    function recalculateGuestInterestTagsTop() {
+        if (!chatSideEl || !welcomeContentEl) {
+            guestInterestTagsTop = null;
+            return;
+        }
+
+        const chatRect = chatSideEl.getBoundingClientRect();
+        const welcomeRect = welcomeContentEl.getBoundingClientRect();
+        guestInterestTagsTop = Math.max(0, welcomeRect.bottom - chatRect.top + GUEST_INTEREST_TAGS_PROMPT_GAP);
+    }
 
     /**
      * Re-measure whether suggestions would overlap the welcome content.
@@ -4639,8 +4652,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
         if (!chatSideEl) {
             suggestionsWouldOverlapWelcome = false;
+            guestInterestTagsTop = null;
             return;
         }
+
+        recalculateGuestInterestTagsTop();
 
         const containerRect = chatSideEl.getBoundingClientRect();
         const containerHeight = containerRect.height;
@@ -10675,6 +10691,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 recalculateSuggestionsOverlap();
             });
             overlapObserver.observe(chatSideEl);
+            if (welcomeContentEl) {
+                overlapObserver.observe(welcomeContentEl);
+            }
             // Initial measurement
             recalculateSuggestionsOverlap();
         }
@@ -12404,6 +12423,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 class="guest-interest-tags-overlay"
                                 class:welcome-hiding={hideWelcomeForKeyboard}
                                 inert={hideWelcomeForKeyboard}
+                                style:--guest-interest-tags-top={guestInterestTagsTop === null ? undefined : `${guestInterestTagsTop}px`}
                                 transition:slide={{ duration: 320 }}
                             >
                                 <GuestInterestTags
@@ -13624,7 +13644,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         position: absolute;
         left: 0;
         right: 0;
-        bottom: 128px;
+        top: var(--guest-interest-tags-top, calc(50% + 17.5vh + 58px));
         z-index: var(--z-index-raised);
         width: 100%;
         pointer-events: none;
@@ -13632,7 +13652,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     @media (max-width: 730px) {
         .guest-interest-tags-overlay {
-            bottom: 112px;
+            top: var(--guest-interest-tags-top, calc(50% + 17.5vh + 48px));
         }
     }
 
