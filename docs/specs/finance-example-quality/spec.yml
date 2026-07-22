@@ -93,7 +93,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: working-tree@finance-example-quality
+  subject_commit: "49b870cf2"
 
 approvals:
   product_contract:
@@ -142,7 +142,7 @@ handoff:
   command: python3 scripts/sessions.py prepare-deploy --session c685
   expected_outcome: Only Finance example quality, Finance PII, focus stale-pill, and spec evidence files are selected for deploy.
   blocker: null
-  last_verified_commit: working-tree@finance-example-quality
+  last_verified_commit: "49b870cf2"
 
 scenarios:
   - id: S-1
@@ -299,7 +299,7 @@ tests:
         status: passed
         command: npm run test:run -- src/components/embeds/finance/__tests__/financeCheckAccountsContent.test.ts
         run_id: local-vitest-finance-content-2026-07-22T14:32:24Z
-        subject_commit: working-tree@finance-example-quality
+        subject_commit: "49b870cf2"
         timestamp: "2026-07-22T14:32:24Z"
   - id: T-UNIT-FINANCE-PII
     type: unit
@@ -325,7 +325,7 @@ tests:
         status: passed
         command: npm run test:run -- src/components/embeds/finance/__tests__/financeCheckAccountsContent.test.ts
         run_id: local-vitest-finance-pii-2026-07-22T14:32:24Z
-        subject_commit: working-tree@finance-example-quality
+        subject_commit: "49b870cf2"
         timestamp: "2026-07-22T14:32:24Z"
   - id: T-BACKEND-FINANCE-PII
     type: pytest
@@ -351,7 +351,7 @@ tests:
         status: passed
         command: .venv/bin/python3 -m pytest backend/tests/test_finance_privacy_redaction.py backend/tests/test_skill_preview_metadata.py
         run_id: local-pytest-finance-pii-2026-07-22T14:32:47Z
-        subject_commit: working-tree@finance-example-quality
+        subject_commit: "49b870cf2"
         timestamp: "2026-07-22T14:32:47Z"
   - id: T-WEB-FINANCE-EXAMPLE
     type: playwright
@@ -374,7 +374,14 @@ tests:
     green_phase:
       required: true
       expected: pass_after_deploy
-      evidence: { status: "", command: "", run_id: "", subject_commit: "", timestamp: "" }
+      evidence:
+        status: passed
+        command: python3 scripts/tests.py run --spec finance-check-accounts.spec.ts
+        run_id: "29938269835"
+        subject_commit: "49b870cf2"
+        timestamp: "2026-07-22T16:28:06Z"
+        target: app.dev.openmates.org
+        deployment_reference: dpl_5mgEy4KH6awLZsY6JCfLqCQQHXxz
   - id: T-WEB-FOCUS-STALE-PILL
     type: playwright
     file: frontend/apps/web_app/tests/focus-mode-example-chats.spec.ts
@@ -394,7 +401,14 @@ tests:
     green_phase:
       required: true
       expected: pass_after_deploy
-      evidence: { status: "", command: "", run_id: "", subject_commit: "", timestamp: "" }
+      evidence:
+        status: passed
+        command: python3 scripts/tests.py run --spec focus-mode-example-chats.spec.ts
+        run_id: "29937833306"
+        subject_commit: "49b870cf2"
+        timestamp: "2026-07-22T16:18:45Z"
+        target: app.dev.openmates.org
+        deployment_reference: dpl_5mgEy4KH6awLZsY6JCfLqCQQHXxz
 
 verifications:
   - id: V-CODE-REVIEW
@@ -406,6 +420,7 @@ verifications:
     evidence:
       status: passed
       summary: Confirmed no new Finance follow-up orchestration system was added; saved snapshot filtering remains in fullscreen UI and broader/fresh data remains a normal finance.check_accounts skill re-invocation.
+      reason: Reviewed the changed Finance skill and embed files; no new dispatcher, scheduler, or hidden follow-up workflow was introduced.
       timestamp: "2026-07-22T14:32:47Z"
   - id: V-USER-CONFIRMATION
     kind: user_confirmation
