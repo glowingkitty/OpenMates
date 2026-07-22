@@ -15,6 +15,7 @@ from typing import Any
 import pytest
 
 pytest.importorskip("redis.asyncio", reason="apps_api imports backend service dependencies")
+pytest.importorskip("celery", reason="skill_registry imports backend app dependencies")
 
 slowapi_module = ModuleType("slowapi")
 slowapi_util_module = ModuleType("slowapi.util")
@@ -121,3 +122,40 @@ async def test_call_app_skill_consumes_security_opt_out_before_skill_dispatch(
     assert captured_contexts[0].surface == "rest"
     assert captured_contexts[0].external_data is True
     assert captured_contexts[0].request_body["security"] == {"prompt_injection_protection": "disabled"}
+
+
+@pytest.mark.anyio
+async def test_call_app_skill_passes_output_safety_dependencies(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    registry = FakeRegistry()
+    captured_contexts = []
+    secrets_manager = object()
+    cache_service = object()
+
+    async def fake_safety(result: Any, context: Any) -> Any:
+        captured_contexts.append(context)
+        return result
+
+    monkeypatch.setattr(skill_registry, "get_global_registry", lambda: registry)
+    monkeypatch.setattr(apps_api, "assert_rest_skill_execution_allowed", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(apps_api, "sanitize_app_skill_output", fake_safety)
+
+    await apps_api.call_app_skill(
+        "audio",
+        "transcribe",
+        {"requests": []},
+        {},
+        {
+            "user_id": "user-1",
+            "api_key_hash": None,
+            "device_hash": "device-1",
+        },
+        secrets_manager=secrets_manager,
+        cache_service=cache_service,
+        enforce_rest_exposure_policy=False,
+    )
+
+    assert captured_contexts[0].external_data is True
+    assert captured_contexts[0].secrets_manager is secrets_manager
+    assert captured_contexts[0].cache_service is cache_service

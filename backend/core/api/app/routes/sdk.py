@@ -1747,6 +1747,8 @@ async def run_sdk_connected_account_skill(
             input_data=context.skill_arguments,
             parameters={},
             user_info=api_key_info,
+            secrets_manager=getattr(request.app.state, "secrets_manager", None),
+            cache_service=getattr(request.app.state, "cache_service", None),
             enforce_rest_exposure_policy=False,
         )
     finally:

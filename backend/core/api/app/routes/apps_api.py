@@ -768,6 +768,7 @@ async def call_app_skill(
     parameters: Dict[str, Any],
     user_info: Dict[str, Any],
     secrets_manager: SecretsManager | None = None,
+    cache_service: CacheService | None = None,
     enforce_rest_exposure_policy: bool = True,
 ) -> Dict[str, Any]:
     """
@@ -836,6 +837,8 @@ async def call_app_skill(
                 surface=APP_SKILL_SURFACE_REST,
                 request_body=input_data if isinstance(input_data, dict) else {},
                 external_data=is_external_data_skill(registry.get_metadata(app_id), app_id, skill_id),
+                secrets_manager=secrets_manager,
+                cache_service=cache_service,
                 log_prefix=log_prefix,
             ),
         )
@@ -1982,7 +1985,10 @@ def _register_audio_custom_routes(app: FastAPI, app_name: str) -> None:
     - POST /v1/apps/audio/skills/transcribe — Audio transcription via Mistral Voxtral.
       Accepts session cookies (webapp) or Bearer API key (external clients).
     """
-    from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user_or_api_key
+    from backend.core.api.app.routes.auth_routes.auth_dependencies import (
+        get_current_user_or_api_key,
+        get_secrets_manager,
+    )
 
     async def transcribe_handler(
         request_body: Dict[str, Any] = Body(..., description="Transcription request matching the audio/transcribe tool_schema."),
@@ -1990,6 +1996,7 @@ def _register_audio_custom_routes(app: FastAPI, app_name: str) -> None:
         user=Depends(get_current_user_or_api_key),
         cache_service: CacheService = Depends(get_cache_service),
         directus_service: DirectusService = Depends(get_directus_service),
+        secrets_manager: SecretsManager = Depends(get_secrets_manager),
     ) -> SkillResponse:
         """
         Transcribe an audio recording that has been uploaded to S3.
@@ -2047,6 +2054,8 @@ def _register_audio_custom_routes(app: FastAPI, app_name: str) -> None:
                 input_data=request_body,
                 parameters={},
                 user_info=user_info,
+                secrets_manager=secrets_manager,
+                cache_service=cache_service,
                 # Keep generic REST POST hidden while allowing this authenticated
                 # custom route to reach the transcription skill.
                 enforce_rest_exposure_policy=False,
@@ -2161,6 +2170,8 @@ def _register_models3d_custom_routes(app: FastAPI, app_name: str) -> None:
             input_data=request_data,
             parameters={},
             user_info=user_info,
+            secrets_manager=getattr(request.app.state, "secrets_manager", None) if request is not None else None,
+            cache_service=cache_service,
             enforce_rest_exposure_policy=False,
         )
         return SkillResponse(success=True, data=result, credits_charged=None)
@@ -2786,6 +2797,7 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                 parameters={},  # No separate parameters for skills with tool_schema
                                 user_info=user_info,
                                 secrets_manager=getattr(request.app.state, "secrets_manager", None) if request is not None else None,
+                                cache_service=cache_service,
                             )
                             
                             # Check if skill execution was successful before charging credits
@@ -3000,7 +3012,9 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                 skill_id=captured_skill.id,
                                 input_data=request_dict,
                                 parameters={},
-                                user_info=user_info
+                                user_info=user_info,
+                                secrets_manager=getattr(request.app.state, "secrets_manager", None) if request is not None else None,
+                                cache_service=cache_service,
                             )
                             
                             # Check if skill execution was successful before charging credits
@@ -3096,7 +3110,9 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                 skill_id=captured_skill.id,
                                 input_data=request_body,
                                 parameters={},
-                                user_info=user_info
+                                user_info=user_info,
+                                secrets_manager=getattr(request.app.state, "secrets_manager", None) if request is not None else None,
+                                cache_service=cache_service,
                             )
                             
                             # Check if skill execution was successful before charging credits
@@ -3187,7 +3203,9 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                 skill_id=captured_skill.id,
                                 input_data=request_data.input_data,
                                 parameters=request_data.parameters or {},
-                                user_info=user_info
+                                user_info=user_info,
+                                secrets_manager=getattr(request.app.state, "secrets_manager", None) if request is not None else None,
+                                cache_service=cache_service,
                             )
                             
                             # Check if skill execution was successful before charging credits
