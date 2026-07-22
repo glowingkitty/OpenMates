@@ -71,6 +71,16 @@ jobs:
           if [ ! -s $GITHUB_WORKSPACE/test-results/vitest-webapp.json ]; then
             echo '{"testResults":[],"numTotalTests":0}' > $GITHUB_WORKSPACE/test-results/vitest-webapp.json
           fi
+      - name: Run CLI account import SDK tests
+        id: cli_account_import_tests
+        continue-on-error: true
+        timeout-minutes: 5
+        run: |
+          set -o pipefail
+          mkdir -p $GITHUB_WORKSPACE/test-results
+          cd frontend/packages/openmates-cli
+          node --test --experimental-strip-types --loader ./tests/loader.mjs tests/account-import.test.ts tests/account-import-sdk.test.ts \
+            2>&1 | tee $GITHUB_WORKSPACE/test-results/cli-account-import-tests.txt
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -79,5 +89,5 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
       - name: Fail if tests failed
-        if: steps.ui_tests.outcome == 'failure' || steps.webapp_tests.outcome == 'failure'
+        if: steps.ui_tests.outcome == 'failure' || steps.webapp_tests.outcome == 'failure' || steps.cli_account_import_tests.outcome == 'failure'
         run: exit 1

@@ -83,8 +83,8 @@ async def test_pipeline_chat_cache_operations_use_current_key_schema(monkeypatch
         def hsetnx(self, key, field, value):
             self.commands.append(("hsetnx", key, field, value))
 
-        def eval(self, script, numkeys, key, field, value):
-            self.commands.append(("eval", key, field, value))
+        def eval(self, script, numkeys, key, *args):
+            self.commands.append(("eval", key, args))
 
         async def execute(self):
             return [1] * len(self.commands)

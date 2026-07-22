@@ -6,6 +6,7 @@ and permission-error mapping without a live Directus or auth stack.
 """
 
 import base64
+from itertools import count
 import sys
 import types
 from types import SimpleNamespace
@@ -49,6 +50,9 @@ from fastapi.testclient import TestClient
 from backend.core.api.app.models.user import User
 from backend.core.api.app.routes import teams
 from backend.core.api.app.services.directus.team_methods import TeamPermissionError
+
+
+_TEST_CLIENT_COUNTER = count(1)
 
 
 def client_ciphertext(label: bytes = b"ciphertext-ok") -> str:
@@ -225,7 +229,8 @@ def build_client(team_service, team_billing_service=None, config: dict | None = 
         return User(id="alice", username="alice", vault_key_id="vault-alice")
 
     app.dependency_overrides[teams._current_user] = fake_current_user
-    return TestClient(app)
+    client_index = next(_TEST_CLIENT_COUNTER)
+    return TestClient(app, client=(f"teams-test-{client_index}", 50000 + client_index))
 
 
 def test_teams_routes_block_when_feature_disabled() -> None:
