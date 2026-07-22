@@ -1993,11 +1993,6 @@ export async function handleEncryptedChatMetadataImpl(
       );
       if (typeof window !== "undefined") {
         window.dispatchEvent(
-          new CustomEvent("chatHidden", {
-            detail: { chat_id: payload.chat_id },
-          }),
-        );
-        window.dispatchEvent(
           new CustomEvent("chatUpdated", {
             detail: { chat_id: payload.chat_id, type: "metadata_updated", chat },
           }),

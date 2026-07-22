@@ -183,21 +183,30 @@ describe("handleEncryptedChatMetadataImpl", () => {
 
   it("creates a synced metadata-only shell when metadata arrives before the chat row", async () => {
     const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+    const chatHiddenListener = vi.fn();
+    const windowChatUpdatedListener = vi.fn();
+    window.addEventListener("chatHidden", chatHiddenListener);
+    window.addEventListener("chatUpdated", windowChatUpdatedListener);
 
-    await handleEncryptedChatMetadataImpl(service, {
-      chat_id: "chat-metadata-only",
-      encrypted_chat_key: "encrypted-chat-key",
-      encrypted_title: "encrypted-title",
-      encrypted_chat_summary: "encrypted-summary",
-      encrypted_chat_category: "encrypted-category",
-      encrypted_icon: "encrypted-icon",
-      versions: {
-        messages_v: 1,
-        title_v: 2,
-        metadata_v: 3,
-        draft_v: 0,
-      },
-    });
+    try {
+      await handleEncryptedChatMetadataImpl(service, {
+        chat_id: "chat-metadata-only",
+        encrypted_chat_key: "encrypted-chat-key",
+        encrypted_title: "encrypted-title",
+        encrypted_chat_summary: "encrypted-summary",
+        encrypted_chat_category: "encrypted-category",
+        encrypted_icon: "encrypted-icon",
+        versions: {
+          messages_v: 1,
+          title_v: 2,
+          metadata_v: 3,
+          draft_v: 0,
+        },
+      });
+    } finally {
+      window.removeEventListener("chatHidden", chatHiddenListener);
+      window.removeEventListener("chatUpdated", windowChatUpdatedListener);
+    }
 
     expect(mocks.chatKeyManager.receiveKeyFromServer).toHaveBeenCalledWith(
       "chat-metadata-only",
@@ -231,6 +240,15 @@ describe("handleEncryptedChatMetadataImpl", () => {
         }),
       }),
     );
+    expect(windowChatUpdatedListener).toHaveBeenCalledWith(
+      expect.objectContaining({
+        detail: expect.objectContaining({
+          chat_id: "chat-metadata-only",
+          type: "metadata_updated",
+        }),
+      }),
+    );
+    expect(chatHiddenListener).not.toHaveBeenCalled();
   });
 
   it("merges summary broadcasts at the current metadata revision", async () => {
