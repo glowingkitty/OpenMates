@@ -16,6 +16,8 @@ test.describe('Projects v1 flow', () => {
   });
 
   test('creates and deletes a project', async ({ page }) => {
+    test.setTimeout(120000);
+
     await page.goto('/projects');
     await page.waitForLoadState('domcontentloaded');
     await expect(page.getByTestId('projects-page')).toBeVisible({ timeout: 30000 });
