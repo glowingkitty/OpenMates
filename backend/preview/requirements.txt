@@ -17,7 +17,7 @@ beautifulsoup4==4.12.3
 lxml==6.1.0
 
 # Image processing and validation
-Pillow==12.2.0
+Pillow==12.3.0
 
 # URL parsing and validation
 validators==0.34.0
