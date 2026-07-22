@@ -100,6 +100,7 @@ async function withUpdateRequiredMock<T>(
     response.end();
   });
   server.on("upgrade", (request, socket, head) => {
+    if (request.url) requestPaths.push(`${request.method ?? "GET"} ${request.url}`);
     wss.handleUpgrade(request, socket, head, (ws) => {
       ws.on("message", (raw) => {
         const frame = JSON.parse(raw.toString()) as { type: string };
@@ -146,14 +147,14 @@ async function withUpdateRequiredMock<T>(
 async function withChatDeleteMock<T>(
   run: (params: { apiUrl: string; tempHome: string; frameTypes: string[]; requestPaths: string[] }) => Promise<T>,
 ): Promise<T> {
-  const tempHome = join(tmpdir(), "openmates-cli-chat-delete-" + Date.now() + "-" + Math.random().toString(16).slice(2));
+  const tempHome = join(tmpdir(), `openmates-cli-chat-delete-${Date.now()}-${Math.random().toString(16).slice(2)}`);
   const stateDir = join(tempHome, ".openmates");
   const frameTypes: string[] = [];
   const requestPaths: string[] = [];
   mkdirSync(stateDir, { recursive: true });
   const wss = new WebSocketServer({ noServer: true });
   const server = createServer((request, response) => {
-    if (request.url) requestPaths.push((request.method ?? "GET") + " " + request.url);
+    if (request.url) requestPaths.push(`${request.method ?? "GET"} ${request.url}`);
     if (request.method === "POST" && request.url === "/v1/auth/session") {
       writeJson(response, {
         success: true,
@@ -182,8 +183,8 @@ async function withChatDeleteMock<T>(
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   const address = server.address();
   assert.ok(address && typeof address === "object");
-  const apiUrl = "http://127.0.0.1:" + address.port;
-  writeFileSync(join(stateDir, "session.json"), JSON.stringify({
+  const apiUrl = `http://127.0.0.1:${address.port}`;
+  writeFileSync(join(stateDir, "session.json"), `${JSON.stringify({
     apiUrl,
     sessionId: "session-1",
     wsToken: "ws-token",
@@ -195,7 +196,7 @@ async function withChatDeleteMock<T>(
     createdAt: Date.now(),
     authorizerDeviceName: "test-device",
     autoLogoutMinutes: null,
-  }) + "\n");
+  })}\n`);
 
   try {
     return await run({ apiUrl, tempHome, frameTypes, requestPaths });
@@ -482,6 +483,70 @@ async function withBillingInvoicesMockApi<T>(
   }
 }
 
+async function withUsageOverviewMockApi<T>(
+  run: (params: {
+    apiUrl: string;
+    requests: Array<{ method: string; url: string }>;
+    tempHome: string;
+  }) => T | Promise<T>,
+): Promise<T> {
+  const requests: Array<{ method: string; url: string }> = [];
+  const tempHome = join(
+    tmpdir(),
+    `openmates-cli-usage-overview-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+  );
+  const stateDir = join(tempHome, ".openmates");
+  mkdirSync(stateDir, { recursive: true });
+
+  const server = createServer(async (request, response) => {
+    try {
+      if (request.method === "GET" && request.url?.startsWith("/v1/settings/usage/overview")) {
+        assert.match(String(request.headers.cookie ?? ""), /auth_refresh_token=refresh-token/);
+        requests.push({ method: request.method, url: request.url });
+        writeJson(response, {
+          granularity: "weekly",
+          totals: { credits: 42, entries: 2, input_tokens: 100, output_tokens: 50, total_tokens: 150 },
+          periods: [
+            { period_key: "2026-W30", totals: { credits: 42, entries: 2, input_tokens: 100, output_tokens: 50, total_tokens: 150 } },
+          ],
+          freshness: { is_stale: false, staleness_seconds: 5 },
+        });
+        return;
+      }
+      response.writeHead(404);
+      response.end();
+    } catch (error) {
+      response.writeHead(500, { "Content-Type": "text/plain" });
+      response.end(String(error));
+    }
+  });
+
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  const apiUrl = `http://127.0.0.1:${address.port}`;
+  writeFileSync(join(stateDir, "session.json"), `${JSON.stringify({
+    apiUrl,
+    sessionId: "session-1",
+    wsToken: "ws-token",
+    cookies: { auth_refresh_token: "refresh-token" },
+    masterKeyExportedB64: Buffer.alloc(32).toString("base64"),
+    hashedEmail: "hashed-email",
+    userEmailSalt: "salt",
+    createdAt: Date.now(),
+    authorizerDeviceName: "test-device",
+    autoLogoutMinutes: null,
+  })}\n`);
+
+  try {
+    return await run({ apiUrl, requests, tempHome });
+  } finally {
+    server.closeAllConnections();
+    server.close();
+    rmSync(tempHome, { recursive: true, force: true });
+  }
+}
+
 function readRepoText(path: string): string {
   return readFileSync(join(REPO_ROOT, path), "utf-8");
 }
@@ -536,6 +601,95 @@ describe("connected account import command", () => {
     const source = readRepoText("frontend/packages/openmates-cli/src/cli.ts");
     assert.doesNotMatch(source, /label: result\.label/);
     assert.doesNotMatch(source, /Connected account imported: \$\{result\.label\}/);
+  });
+});
+
+describe("Revolut Business connect-account command", () => {
+  it("generates a local private key and public X509 certificate without login", () => {
+    const tempHome = join(tmpdir(), `openmates-cli-revolut-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+    mkdirSync(tempHome, { recursive: true });
+    try {
+      const output = runCli(["connect-account", "revolut-business", "--json"], {
+        HOME: tempHome,
+        USERPROFILE: tempHome,
+        REVOLUT_BUSINESS_SERVER_EGRESS_IPS: "8.8.8.8",
+      });
+      const result = JSON.parse(output) as Record<string, unknown>;
+      assert.equal(result.provider_id, "revolut_business");
+      assert.equal(result.environment, "sandbox");
+      assert.equal(result.certificate_title, "OpenMates FinanceApp");
+      assert.equal(result.oauth_redirect_uri, "https://app.dev.openmates.org/oauth/revolut-business/callback");
+      assert.deepEqual(result.server_egress_ip_addresses, ["8.8.8.8"]);
+      assert.equal(result.server_egress_ip_source, "configured");
+      assert.match(String(result.public_certificate_pem), /^-----BEGIN CERTIFICATE-----/);
+      assert.match(String(result.public_certificate_pem), /-----END CERTIFICATE-----$/);
+      assert.match(String(result.docs_url), /developer\.revolut\.com/);
+      assert.ok(existsSync(String(result.private_key_path)));
+      assert.ok(existsSync(String(result.public_certificate_path)));
+      assert.match(readFileSync(String(result.public_certificate_path), "utf-8"), /BEGIN CERTIFICATE/);
+      assert.match(readFileSync(String(result.private_key_path), "utf-8"), /BEGIN (RSA )?PRIVATE KEY/);
+    } finally {
+      rmSync(tempHome, { recursive: true, force: true });
+    }
+  });
+
+  it("prints Revolut setup guidance and refuses accidental overwrite", () => {
+    const tempHome = join(tmpdir(), `openmates-cli-revolut-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+    mkdirSync(tempHome, { recursive: true });
+    try {
+      const first = runCli(["connect-account", "revolut"], {
+        HOME: tempHome,
+        USERPROFILE: tempHome,
+        REVOLUT_BUSINESS_SERVER_EGRESS_IPS: "8.8.8.8",
+      });
+      assert.match(first, /Certificate title: OpenMates FinanceApp/);
+      assert.match(first, /OAuth redirect URI: https:\/\/app\.dev\.openmates\.org\/oauth\/revolut-business\/callback/);
+      assert.match(first, /Production IP whitelist: 8\.8\.8\.8/);
+      assert.match(first, /X509 public key:/);
+      assert.match(first, /Manual setup docs: https:\/\/developer\.revolut\.com/);
+      const second = spawnSync("node", ["dist/cli.js", "connect-account", "revolut"], {
+        cwd: PACKAGE_ROOT,
+        encoding: "utf-8",
+        env: { ...process.env, TERM: "dumb", HOME: tempHome, USERPROFILE: tempHome },
+        timeout: 15_000,
+      });
+      assert.notEqual(second.status, 0);
+      assert.match(second.stderr, /already exist/);
+    } finally {
+      rmSync(tempHome, { recursive: true, force: true });
+    }
+  });
+
+  it("prints sandbox consent URL and validates exchange-code dry run", () => {
+    const consentOutput = runCliWithoutSession([
+      "connect-account",
+      "revolut-business",
+      "consent-url",
+      "--client-id",
+      "client-123",
+      "--json",
+    ]);
+    const consent = JSON.parse(consentOutput) as Record<string, string>;
+    assert.equal(consent.environment, "sandbox");
+    assert.match(consent.consent_url, /^https:\/\/sandbox-business\.revolut\.com\/app-confirm\?/);
+    assert.match(consent.consent_url, /client_id=client-123/);
+    assert.match(consent.consent_url, /scope=READ/);
+
+    const dryRunOutput = runCliWithoutSession([
+      "connect-account",
+      "revolut-business",
+      "exchange-code",
+      "--client-id",
+      "client-123",
+      "--code",
+      "https://app.dev.openmates.org/oauth/revolut-business/callback?code=oa_sand_test",
+      "--dry-run",
+      "--json",
+    ]);
+    const dryRun = JSON.parse(dryRunOutput) as Record<string, string | boolean>;
+    assert.equal(dryRun.provider_id, "revolut_business");
+    assert.equal(dryRun.code_present, true);
+    assert.equal(dryRun.token_url, "https://sandbox-b2b.revolut.com/api/1.0/auth/token");
   });
 });
 
@@ -670,6 +824,16 @@ describe("benchmark command", () => {
     ]);
     assert.notEqual(result.status, 0);
     assert.match(result.stderr, /--confirm-spend-credits/);
+  });
+});
+
+describe("plans command", () => {
+  it("is listed in global help and prints contextual help", () => {
+    assert.match(runCli(["help"]), /openmates plans \[--help\]/);
+    const output = runCli(["plans", "--help"]);
+    assert.match(output, /openmates plans create --goal <goal>/);
+    assert.match(output, /openmates plans checks evidence <plan-id\|short-id>/);
+    assert.match(output, /openmates chats <chat-id> plans list/);
   });
 });
 
@@ -1397,6 +1561,34 @@ async function withSkillFormattingMockApi<T>(
             provider: "auto",
           },
           credits_charged: 30,
+        });
+        return;
+      }
+      if (request.method === "POST" && request.url === "/v1/apps/code/skills/image_to_html") {
+        const body = await readJsonBody(request);
+        requests.push({ url: request.url, body });
+        writeJson(response, {
+          success: true,
+          data: {
+            task_id: "task-image-html",
+            embed_id: "embed-image-html",
+            status: "processing",
+            results: [{ task_id: "task-image-html", embed_id: "embed-image-html", status: "processing", reserved_credits: 500 }],
+          },
+          credits_charged: 0,
+        });
+        return;
+      }
+      if (request.method === "GET" && request.url === "/v1/tasks/task-image-html") {
+        writeJson(response, {
+          task_id: "task-image-html",
+          status: "completed",
+          result: {
+            status: "finished",
+            embed_id: "embed-image-html",
+            html: "<!doctype html><html><body>Generated</body></html>",
+            usage: { model: "fake-gemini", credits_charged: 30, e2b_render_seconds: 1 },
+          },
         });
         return;
       }
@@ -2409,6 +2601,38 @@ describe("apps metadata commands", () => {
     });
   });
 
+  it("runs code image_to_html from a local image file and resolves the task", async () => {
+    await withSkillFormattingMockApi(async ({ apiUrl, requests }) => {
+      const tempDir = mkdtempSync(join(tmpdir(), "openmates-cli-image-to-html-"));
+      const file = join(tempDir, "mockup.png");
+      writeFileSync(file, Buffer.from("iVBORw0KGgo=", "base64"));
+      try {
+        const output = await runCliAsync([
+          "--api-url", apiUrl,
+          "apps", "code", "image_to_html",
+          "--file", file,
+          "--max-correction-passes", "0",
+          "--json",
+        ]);
+        const parsed = JSON.parse(output) as { data?: { html?: string; usage?: { credits_charged?: number } } };
+
+        assert.equal(requests[0].url, "/v1/apps/code/skills/image_to_html");
+        assert.deepEqual(requests[0].body, {
+          requests: [{
+            image_base64: "iVBORw0KGgo=",
+            mime_type: "image/png",
+            filename: "mockup.png",
+            max_correction_passes: 0,
+          }],
+        });
+        assert.match(parsed.data?.html ?? "", /Generated/);
+        assert.equal(parsed.data?.usage?.credits_charged, 30);
+      } finally {
+        rmSync(tempDir, { recursive: true, force: true });
+      }
+    });
+  });
+
   it("runs the explicit design search-icons command", async () => {
     await withSkillFormattingMockApi(async ({ apiUrl, requests }) => {
       const output = await runCliAsync([
@@ -3092,6 +3316,7 @@ describe("settings command surface", () => {
   it("shows nested help examples for settings groups", () => {
     const output = runCli(["settings", "billing", "--help"]);
     assert.ok(output.includes("openmates settings billing overview"));
+    assert.ok(output.includes("openmates settings billing usage overview"));
     assert.ok(output.includes("e.g. openmates settings billing usage"));
     assert.ok(output.includes("buy-credits bank-transfer"));
     assert.ok(output.includes("gift-card redeem"));
@@ -3191,6 +3416,21 @@ describe("settings command surface", () => {
       assert.match(output, /\[completed\]/);
       assert.deepEqual(requests.map((request) => `${request.method} ${request.url}`), [
         "GET /v1/payments/invoices",
+      ]);
+    });
+  });
+
+  it("fetches fast usage overview rollups with requested granularity", async () => {
+    await withUsageOverviewMockApi(async ({ apiUrl, tempHome, requests }) => {
+      const output = await runCliAsync(
+        ["settings", "billing", "usage", "overview", "--granularity", "weekly", "--weeks", "4", "--json", "--api-url", apiUrl],
+        { HOME: tempHome, USERPROFILE: tempHome },
+      );
+      const parsed = JSON.parse(output) as { granularity?: string; totals?: { credits?: number } };
+      assert.equal(parsed.granularity, "weekly");
+      assert.equal(parsed.totals?.credits, 42);
+      assert.deepEqual(requests.map((request) => `${request.method} ${request.url}`), [
+        "GET /v1/settings/usage/overview?granularity=weekly&weeks=4",
       ]);
     });
   });
