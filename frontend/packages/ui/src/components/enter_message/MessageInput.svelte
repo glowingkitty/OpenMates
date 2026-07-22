@@ -4722,6 +4722,7 @@
 
     function handleStopRecordingCleanup() {
         recordAudioStartedFromKeyboard = false;
+        window.dispatchEvent(new Event('recordingShortcutFinished'));
         cleanupRecordingState();
     }
 
@@ -5659,7 +5660,7 @@
     />
 </div>
 
-<!-- Keyboard Shortcuts Listener: Shift+Enter focuses input; hold Space on chat surface records audio. -->
+<!-- Keyboard Shortcuts Listener: Shift+Enter focuses input; Cmd/Ctrl+Shift+M toggles audio recording. -->
 <KeyboardShortcuts on:focusInput={handleFocusInput} />
 
 <style>

@@ -28,7 +28,7 @@ export function handleKeyboardShortcut(
         case 'startRecording':
             // For now, we just log to the console as requested.
             // The actual recording logic is commented out.
-            console.log('Spacebar held: Audio recording feature would start here.');
+            console.log('Audio recording shortcut would start here.');
 
             // if (currentState.micPermissionGranted && !currentState.isRecordButtonPressed) {
             //     console.debug('Handling startRecording shortcut');

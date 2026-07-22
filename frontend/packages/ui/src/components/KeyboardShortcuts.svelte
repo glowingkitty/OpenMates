@@ -14,8 +14,7 @@
   // This prevents multiple KeyboardShortcuts instances from registering duplicate listeners
   let _isGlobalListenerRegistered = false;
 
-  let spaceRecordingShortcutActive = false;
-  let suppressSpaceUntilKeyUp = false;
+  let keyboardRecordingShortcutActive = false;
 
   onMount(() => {
     const _desktop = isDesktop();
@@ -35,37 +34,26 @@
                             activeElement?.getAttribute('contenteditable') === 'true' ||
                             activeElement?.classList.contains('ProseMirror');
 
-      // Hold Space from the chat surface to record audio without first focusing
-      // MessageInput. When the editor is focused, Space must remain normal text input.
-      if (_desktop && event.code === 'Space' && (spaceRecordingShortcutActive || suppressSpaceUntilKeyUp)) {
-        event.preventDefault();
-        event.stopPropagation();
-        return;
-      }
-
       if (
         _desktop &&
-        event.code === 'Space' &&
+        (isMac ? event.metaKey : event.ctrlKey) &&
+        event.shiftKey &&
+        event.key.toLowerCase() === 'm' &&
         !event.repeat &&
-        !event.metaKey &&
-        !event.ctrlKey &&
-        !event.altKey &&
-        !event.shiftKey &&
-        !isInputFocused
+        !event.altKey
       ) {
         event.preventDefault();
         event.stopPropagation();
-        spaceRecordingShortcutActive = true;
-        suppressSpaceUntilKeyUp = true;
-        window.dispatchEvent(new CustomEvent('recordingShortcut', { detail: { action: 'start', source: 'keyboard' } }));
+        const action = keyboardRecordingShortcutActive ? 'stop' : 'start';
+        keyboardRecordingShortcutActive = action === 'start';
+        window.dispatchEvent(new CustomEvent('recordingShortcut', { detail: { action, source: 'keyboard' } }));
         return;
       }
 
-      if (_desktop && event.key === 'Escape' && spaceRecordingShortcutActive) {
+      if (_desktop && event.key === 'Escape' && keyboardRecordingShortcutActive) {
         event.preventDefault();
         event.stopPropagation();
-        spaceRecordingShortcutActive = false;
-        suppressSpaceUntilKeyUp = true;
+        keyboardRecordingShortcutActive = false;
         window.dispatchEvent(new CustomEvent('recordingShortcut', { detail: { action: 'cancel' } }));
         return;
       }
@@ -241,17 +229,8 @@
       }
     };
 
-    const handleKeyUp = (event: KeyboardEvent) => {
-      if (_desktop && event.code === 'Space' && (spaceRecordingShortcutActive || suppressSpaceUntilKeyUp)) {
-        event.preventDefault();
-        event.stopPropagation();
-        const shouldStopRecording = spaceRecordingShortcutActive;
-        spaceRecordingShortcutActive = false;
-        suppressSpaceUntilKeyUp = false;
-        if (shouldStopRecording) {
-          window.dispatchEvent(new CustomEvent('recordingShortcut', { detail: { action: 'stop' } }));
-        }
-      }
+    const handleRecordingShortcutFinished = () => {
+      keyboardRecordingShortcutActive = false;
     };
 
     // IMPORTANT: Only register the global listener ONCE, even if multiple KeyboardShortcuts components exist
@@ -260,14 +239,14 @@
     if (!windowWithKeyboardShortcutsFlag.__keyboardShortcutsListenerRegistered) {
       console.info('[KeyboardShortcuts] Registering global keyboard listener (first instance)');
       window.addEventListener('keydown', handleKeyDown, true);
-      window.addEventListener('keyup', handleKeyUp, true);
+      window.addEventListener('recordingShortcutFinished', handleRecordingShortcutFinished);
       windowWithKeyboardShortcutsFlag.__keyboardShortcutsListenerRegistered = true;
       
       return () => {
         // Only remove listener if this was the registering instance
         console.info('[KeyboardShortcuts] Removing global keyboard listener');
         window.removeEventListener('keydown', handleKeyDown, true);
-        window.removeEventListener('keyup', handleKeyUp, true);
+        window.removeEventListener('recordingShortcutFinished', handleRecordingShortcutFinished);
         windowWithKeyboardShortcutsFlag.__keyboardShortcutsListenerRegistered = false;
       };
     } else {
