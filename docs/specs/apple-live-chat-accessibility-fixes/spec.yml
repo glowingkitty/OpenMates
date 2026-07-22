@@ -1,7 +1,7 @@
 schema_version: 2
 id: apple-live-chat-accessibility-fixes
 title: Apple Live Chat Accessibility And Runtime Fixes
-status: implementing
+status: verified
 
 goal: >
   Fix the Apple app regressions found during the July 22 Apple Remote exploratory
@@ -110,7 +110,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 337b929b5
+  subject_commit: 63b66e60f242417625595522b784f183c287980b
 
 approvals:
   product_contract:
@@ -166,15 +166,15 @@ attempts:
 
 handoff:
   current_task_id: TASK-6
-  next_action: Push commit 337b929b5, run Apple Remote green checks, then record final evidence and complete the spec.
-  command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesTests/ChatHistoryRenderDocumentTests"
-  expected_outcome: Remote unit tests pass against the committed Apple fix.
+  next_action: Spec evidence is complete; deploy the spec-only evidence update with sessions.py deploy.
+  command: python3 scripts/spec_verify.py docs/specs/apple-live-chat-accessibility-fixes/spec.yml
+  expected_outcome: Spec verification passes with all required red and green evidence recorded.
   blocker:
     reason: Vercel deploy lock from another session delayed pushing 337b929b5 for remote Apple validation.
     requires_user_input: false
     question: ""
     next_action: Wait for lock release, push, then run remote Apple checks.
-  last_verified_commit: 337b929b5
+  last_verified_commit: 63b66e60f242417625595522b784f183c287980b
 
 scenarios:
   - id: S-1
@@ -236,7 +236,7 @@ acceptance_criteria:
     scenario: S-1
     text: Native user messages expose one stable `message-user` accessibility element whose label or value contains the normalized user prompt and whose value still carries the render manifest when DEBUG tests need it.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: apple
     verification_ids:
@@ -246,7 +246,7 @@ acceptance_criteria:
     scenario: S-2
     text: Native assistant streaming exposes bounded semantic accessibility and avoids reparsing or rebuilding large markdown output on every chunk in the hot path.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: apple
     verification_ids:
@@ -256,7 +256,7 @@ acceptance_criteria:
     scenario: S-3
     text: Opening recent sidebar chat rows with empty in-memory message windows triggers bounded message loading or a visible error/retry state instead of an empty transcript.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: apple
     verification_ids:
@@ -266,7 +266,7 @@ acceptance_criteria:
     scenario: S-4
     text: Large chat-list merge and sidebar computation avoid avoidable O(n^2) work and keep the existing seeded scalability suite green.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: apple
     verification_ids:
@@ -276,7 +276,7 @@ acceptance_criteria:
     scenario: S-5
     text: Apple embed registry and debug fixtures cover `app:finance:check_accounts`, and the all-surface Apple evidence bundle no longer fails on that missing key.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: apple
     verification_ids:
@@ -286,7 +286,7 @@ acceptance_criteria:
     scenario: S-1
     text: Fresh-install startup, settings, composer, and existing seeded chat-opening smoke coverage remain green after the fixes.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: apple
     verification_ids:
@@ -393,16 +393,18 @@ tests:
         run_id: pre-implementation-discovery
         subject_commit: f7d9dd8bc4be7f888a0b0ad03db7663632e6cdee
         timestamp: "2026-07-22T01:45:00Z"
+        reason: Focused semantic message accessibility policy unit coverage did not exist before this spec.
         summary: Focused semantic message accessibility policy unit coverage did not exist before implementation.
     green_phase:
       required: true
       expected: pass
       evidence:
-        status: pending
-        command: ""
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesTests/ChatHistoryRenderDocumentTests"
+        run_id: apple-remote-chat-history-render-current-2026-07-22T12-41Z
+        subject_commit: 63b66e60f242417625595522b784f183c287980b
+        timestamp: "2026-07-22T12:41:30Z"
+        summary: "Passed 6/6; message accessibility policy prefers semantic text while retaining DEBUG render manifest coverage."
   - id: T-APPLE-UNIT-STREAMING-RENDER
     type: unit
     file: apple/OpenMatesTests/ChatHistoryRenderDocumentTests.swift
@@ -422,16 +424,18 @@ tests:
         run_id: pre-implementation-discovery
         subject_commit: f7d9dd8bc4be7f888a0b0ad03db7663632e6cdee
         timestamp: "2026-07-22T01:45:00Z"
+        reason: Focused streaming render policy unit coverage did not exist before this spec.
         summary: Focused streaming render policy unit coverage did not exist before implementation.
     green_phase:
       required: true
       expected: pass
       evidence:
-        status: pending
-        command: ""
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesTests/ChatHistoryRenderDocumentTests"
+        run_id: apple-remote-chat-history-render-current-2026-07-22T12-41Z
+        subject_commit: 63b66e60f242417625595522b784f183c287980b
+        timestamp: "2026-07-22T12:41:30Z"
+        summary: "Passed 6/6; streaming render policy uses transient plain text for active streams and stable render documents for final content."
   - id: T-APPLE-UNIT-CHAT-OPENING
     type: unit
     file: apple/OpenMatesTests/ChatWindowLoadingTests.swift
@@ -451,17 +455,18 @@ tests:
         run_id: pre-implementation-discovery
         subject_commit: f7d9dd8bc4be7f888a0b0ad03db7663632e6cdee
         timestamp: "2026-07-22T01:45:00Z"
+        reason: Focused empty initial-window fallback unit coverage did not exist before this spec.
         summary: Focused empty initial-window fallback unit coverage did not exist before implementation.
     green_phase:
       required: true
       expected: pass
       evidence:
-        status: missing_test
+        status: passed
         command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesTests/ChatWindowLoadingTests"
-        run_id: pre-implementation-discovery
-        subject_commit: f7d9dd8bc4be7f888a0b0ad03db7663632e6cdee
-        timestamp: "2026-07-22T01:45:00Z"
-        summary: Focused ChatStore batch-upsert policy coverage did not exist before implementation.
+        run_id: apple-remote-chat-window-loading-current-2026-07-22T12-41Z
+        subject_commit: 63b66e60f242417625595522b784f183c287980b
+        timestamp: "2026-07-22T12:41:54Z"
+        summary: "Passed 5/5; synced chats with empty initial windows trigger bounded fallback loading."
   - id: T-APPLE-UNIT-CHATSTORE-BATCH
     type: unit
     file: apple/OpenMatesTests/ChatWindowLoadingTests.swift
@@ -475,20 +480,23 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: pending
-        command: ""
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: missing_test
+        command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesTests/ChatWindowLoadingTests"
+        run_id: pre-implementation-discovery
+        subject_commit: f7d9dd8bc4be7f888a0b0ad03db7663632e6cdee
+        timestamp: "2026-07-22T01:45:00Z"
+        reason: Focused ChatStore batch-upsert policy coverage did not exist before this spec.
+        summary: Focused ChatStore batch-upsert policy coverage did not exist before implementation.
     green_phase:
       required: true
       expected: pass
       evidence:
-        status: pending
-        command: ""
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesTests/ChatWindowLoadingTests"
+        run_id: apple-remote-chat-window-loading-current-2026-07-22T12-41Z
+        subject_commit: 63b66e60f242417625595522b784f183c287980b
+        timestamp: "2026-07-22T12:41:54Z"
+        summary: "Passed 5/5; batch upsert merges large chat sets with keyed lookup and stable metadata."
   - id: T-APPLE-UI-CHAT-SEND
     type: unit
     file: apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
@@ -516,11 +524,12 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: pending
-        command: ""
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesUITests/ChatFlowRealAccountUITests/testPasswordOtpLoginCreatesChatAndReceivesAssistantResponse"
+        run_id: apple-remote-chat-send-current-2026-07-22T12-44Z
+        subject_commit: 63b66e60f242417625595522b784f183c287980b
+        timestamp: "2026-07-22T12:44:08Z"
+        summary: "Passed 1/1; real-account login, composer typing, prompt send, semantic user message, and assistant response all succeeded."
   - id: T-APPLE-UI-RECENT-CHATS
     type: unit
     file: apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
@@ -546,11 +555,12 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: pending
-        command: ""
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesUITests/ChatFlowRealAccountUITests/testPasswordOtpLoginLoadsRecentChatsForWebParityManifest"
+        run_id: apple-remote-recent-chats-current-2026-07-22T12-46Z
+        subject_commit: 63b66e60f242417625595522b784f183c287980b
+        timestamp: "2026-07-22T12:46:09Z"
+        summary: "Passed 1/1; real-account recent chat rows opened with non-empty message manifests."
   - id: T-APPLE-UI-SCALABILITY
     type: unit
     file: apple/OpenMatesUITests/ChatOpeningScalabilityUITests.swift
@@ -576,11 +586,12 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: pending
-        command: ""
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesUITests/ChatOpeningScalabilityUITests"
+        run_id: apple-remote-scalability-current-2026-07-22T12-47Z
+        subject_commit: 63b66e60f242417625595522b784f183c287980b
+        timestamp: "2026-07-22T12:47:16Z"
+        summary: "Passed 3/3; 600-chat sidebar, 1000-message bounded open, and input reaction metrics remained green."
   - id: T-APPLE-CONTRACTS-EMBEDS
     type: lint
     file: scripts/apple_ui_contracts.py
@@ -605,11 +616,12 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: pending
-        command: ""
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: python3 scripts/apple_ui_contracts.py audit --surface embeds
+        run_id: apple-ui-contracts-embeds-current-2026-07-22T12-40Z
+        subject_commit: 63b66e60f242417625595522b784f183c287980b
+        timestamp: "2026-07-22T12:40:30Z"
+        summary: "Passed; Finance check-accounts is classified and has a debug fixture."
   - id: T-APPLE-EVIDENCE-ALL
     type: lint
     file: scripts/apple_evidence_bundle.py
@@ -635,11 +647,12 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: pending
-        command: ""
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: python3 scripts/apple_evidence_bundle.py --surface all
+        run_id: apple-evidence-all-current-2026-07-22T12-40Z
+        subject_commit: 63b66e60f242417625595522b784f183c287980b
+        timestamp: "2026-07-22T12:40:30Z"
+        summary: "Passed all-surface Apple evidence bundle including parity inventory, chat parity, message-input, settings, and embeds contracts."
   - id: T-APPLE-STARTUP
     type: unit
     file: scripts/apple_remote.py
@@ -662,11 +675,12 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: pending
-        command: ""
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: python3 scripts/apple_remote.py verify-ios-startup --simulator "iPhone 17" --duration 60 --fresh-install
+        run_id: apple-remote-startup-current-2026-07-22T12-50Z
+        subject_commit: 63b66e60f242417625595522b784f183c287980b
+        timestamp: "2026-07-22T12:50:00Z"
+        summary: "Passed fresh-install startup: translations, settings, build, boot, install, launch, screenshots, log capture, and 60s crash polling."
   - id: T-APPLE-UI-SETTINGS
     type: unit
     file: apple/OpenMatesUITests/SettingsFullParityUITests.swift
@@ -689,11 +703,12 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: pending
-        command: ""
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesUITests/SettingsFullParityUITests"
+        run_id: apple-remote-settings-current-2026-07-22T12-54Z
+        subject_commit: 63b66e60f242417625595522b784f183c287980b
+        timestamp: "2026-07-22T12:54:15Z"
+        summary: "Passed 5/5 settings parity tests."
   - id: T-APPLE-UI-COMPOSER
     type: unit
     file: apple/OpenMatesUITests/ComposerVisualParityUITests.swift
@@ -716,11 +731,12 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: pending
-        command: ""
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesUITests/ComposerVisualParityUITests"
+        run_id: apple-remote-composer-current-2026-07-22T12-57Z
+        subject_commit: 63b66e60f242417625595522b784f183c287980b
+        timestamp: "2026-07-22T12:57:24Z"
+        summary: "Passed 8/8 composer visual parity tests."
 
 verifications:
   - id: V-REMOTE-READINESS
@@ -752,9 +768,10 @@ verifications:
     evidence:
       status: passed
       command: python3 scripts/spec_validate.py docs/specs/apple-live-chat-accessibility-fixes/spec.yml
-      run_id: spec-validate-2026-07-22T11-12Z
-      subject_commit: ed2d1b3f590d968679f4ff08e8ea6c9037b9f7a3+working-tree
-      timestamp: "2026-07-22T11:12:00Z"
+      run_id: spec-validate-2026-07-22T13-01Z
+      subject_commit: 63b66e60f242417625595522b784f183c287980b
+      timestamp: "2026-07-22T13:01:15Z"
+      summary: "Spec schema validation passed after recording current-subject green evidence."
 
 implementation_plan:
   spec_path: docs/specs/apple-live-chat-accessibility-fixes/spec.yml
@@ -819,7 +836,7 @@ implementation_plan:
 tasks:
   - id: TASK-1
     title: Fix semantic message accessibility
-    status: pending
+    status: done
     phase: working_tasks
     covers:
       scenarios:
@@ -850,7 +867,7 @@ tasks:
     independently_deployable: true
   - id: TASK-2
     title: Fix empty initial-window chat opening
-    status: pending
+    status: done
     phase: working_tasks
     covers:
       scenarios:
@@ -886,7 +903,7 @@ tasks:
     independently_deployable: true
   - id: TASK-3
     title: Bound streaming markdown and accessibility work
-    status: pending
+    status: done
     phase: working_tasks
     covers:
       scenarios:
@@ -918,7 +935,7 @@ tasks:
     independently_deployable: true
   - id: TASK-4
     title: Optimize chat-list merge and sidebar computed work
-    status: pending
+    status: done
     phase: working_tasks
     covers:
       scenarios:
@@ -949,7 +966,7 @@ tasks:
     independently_deployable: true
   - id: TASK-5
     title: Add Finance check-accounts Apple embed coverage
-    status: pending
+    status: done
     phase: working_tasks
     covers:
       scenarios:
@@ -980,7 +997,7 @@ tasks:
     independently_deployable: true
   - id: TASK-6
     title: Run final Apple regression evidence
-    status: pending
+    status: done
     phase: running_checks
     covers:
       scenarios:
