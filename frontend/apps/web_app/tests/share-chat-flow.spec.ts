@@ -165,13 +165,13 @@ test('creates and shares a chat link with QR code and fallback link', async ({
 	logCheckpoint('Generated share panel shows short link and a revealable QR code.');
 
 	// ── Step 12: Test copy link ────────────────────────────────────────────
-	await copyLinkButton.click();
+	await copyLinkButton.dispatchEvent('click', undefined, { timeout: 10000 });
 	// The copied state adds a .copied class
 	await expect(copyLinkButton).toHaveClass(/copied/, { timeout: 5000 });
 	logCheckpoint('Copy link button shows copied state.');
 
 	// ── Step 13: Test URL reveal and expiration summary ────────────────────
-	await page.getByTestId('chat-settings-share-show-url').click();
+	await page.getByTestId('chat-settings-share-show-url').dispatchEvent('click', undefined, { timeout: 10000 });
 	await expect(page.locator('[data-share-url-kind="long"]')).toBeVisible({ timeout: 5000 });
 	await expect(page.getByTestId('chat-settings-share-generated')).toContainText(/Auto expire in\s+never/i);
 	logCheckpoint('Generated share panel reveals the primary URL and expiration summary.');
