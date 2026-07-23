@@ -129,11 +129,18 @@ async function installShortUrlFallback(page: any): Promise<void> {
 				report({ status: 'passed', chatId, url, longUrl, expirationText, hasQr });
 			}
 		};
-		new MutationObserver(driveSharePanel).observe(document.documentElement, {
-			attributes: true,
-			childList: true,
-			subtree: true
-		});
+		const observeWhenReady = () => {
+			if (!document.documentElement) {
+				window.requestAnimationFrame(observeWhenReady);
+				return;
+			}
+			new MutationObserver(driveSharePanel).observe(document.documentElement, {
+				attributes: true,
+				childList: true,
+				subtree: true
+			});
+		};
+		observeWhenReady();
 		window.setInterval(driveSharePanel, 250);
 	}, SHARE_AUTOMATION_RESULT_PREFIX);
 }
