@@ -1411,7 +1411,7 @@
     width: 100%;
     border: none;
     border-radius: var(--radius-6);
-    height: 35vh;
+    height: max(35vh, 240px);
     min-height: 240px;
     cursor: pointer;
     overflow: hidden;
