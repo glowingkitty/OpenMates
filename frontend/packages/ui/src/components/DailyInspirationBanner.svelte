@@ -62,6 +62,7 @@
   const TOUCH_SWIPE_DISTANCE_PX = 56;
   const TOUCH_SWIPE_VERTICAL_CANCEL_PX = 48;
   const LANDING_INTRO_INSPIRATION_ID = 'openmates-intro';
+  const LANDING_INTRO_RAIL_MIN_ICON_COUNT = 24;
   // Temporarily disabled with the visit-cycling effect below.
   // const VISIT_INDEX_STORAGE_PREFIX = 'openmates.daily_inspiration.visit_index.';
   const AUTHENTICATED_ONLY_FEATURE_IDS = new Set([
@@ -370,8 +371,10 @@
   });
 
   let landingIntroAppIcons = $derived(buildLandingIntroAppIcons());
-  let landingIntroFirstRail = $derived.by(() => buildPrimaryLandingIntroIcons(landingIntroAppIcons));
-  let landingIntroSecondRail = $derived.by(() => buildSecondaryLandingIntroIcons(landingIntroAppIcons, landingIntroFirstRail));
+  let landingIntroFirstRailBase = $derived.by(() => buildPrimaryLandingIntroIcons(landingIntroAppIcons));
+  let landingIntroSecondRailBase = $derived.by(() => buildSecondaryLandingIntroIcons(landingIntroAppIcons, landingIntroFirstRailBase));
+  let landingIntroFirstRail = $derived.by(() => repeatLandingIntroRailIcons(landingIntroFirstRailBase));
+  let landingIntroSecondRail = $derived.by(() => repeatLandingIntroRailIcons(landingIntroSecondRailBase));
   let carouselProgressDurationMs = $derived(
     landingIntroShouldExpand ? LANDING_INTRO_TOTAL_MS : INSPIRATION_AUTO_ROTATION_INTERVAL_MS,
   );
@@ -856,6 +859,12 @@
     const sourceIcons = remainingIcons.length >= 7 ? remainingIcons : icons.filter((icon) => !LANDING_INTRO_FEATURED_APP_IDS.includes(icon.appId));
     if (sourceIcons.length === 0) return [];
     return Array.from({ length: Math.min(Math.max(sourceIcons.length, 7), 12) }, (_, index) => sourceIcons[index % sourceIcons.length]);
+  }
+
+  function repeatLandingIntroRailIcons(icons: LandingIntroAppIcon[]): LandingIntroAppIcon[] {
+    if (icons.length === 0) return [];
+    const count = Math.max(icons.length, LANDING_INTRO_RAIL_MIN_ICON_COUNT);
+    return Array.from({ length: count }, (_, index) => icons[index % icons.length]);
   }
 
   function landingIntroIconStyle(icon: LandingIntroAppIcon): string {
@@ -1537,7 +1546,7 @@
     gap: 0;
     margin: 0;
     max-width: min(100% - 48px, 1050px);
-    font-size: clamp(2.35rem, 4.15vw, 4.95rem);
+    font-size: clamp(2.75rem, 4.7vw, 5.65rem);
     line-height: 1.05;
     font-weight: 800;
     letter-spacing: -0.04em;
@@ -1557,18 +1566,18 @@
 
   .landing-intro-expanded-content.examples-visible .landing-intro-ai-icon {
     margin-bottom: clamp(12px, 1.4vw, 20px);
-    transform: translateY(clamp(-92px, -8vw, -54px)) scale(0.88);
+    transform: translateY(clamp(-138px, -10.8vw, -82px)) scale(0.86);
   }
 
   .landing-intro-expanded-content.examples-visible .landing-intro-headline {
-    transform: translateY(clamp(-106px, -8.8vw, -60px)) scale(0.96);
+    transform: translateY(clamp(-154px, -11.8vw, -90px)) scale(0.98);
   }
 
   .landing-intro-examples {
     position: absolute;
     left: 0;
     right: 0;
-    top: calc(50% + clamp(44px, 5.2vw, 96px));
+    top: calc(50% + clamp(34px, 4.2vw, 76px));
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -1625,10 +1634,10 @@
   .landing-intro-app-rails {
     display: flex;
     flex-direction: column;
-    gap: clamp(22px, 3vw, 42px);
+    gap: clamp(18px, 2.4vw, 34px);
     width: 100%;
     min-width: 100%;
-    margin-top: clamp(36px, 5vw, 66px);
+    margin-top: clamp(28px, 3.8vw, 52px);
     overflow: hidden;
   }
 
@@ -1650,11 +1659,11 @@
   }
 
   .landing-intro-app-rail-primary {
-    animation: landingIntroRailLeft 20s linear infinite;
+    animation: landingIntroRailLeft 42s linear infinite;
   }
 
   .landing-intro-app-rail-secondary {
-    animation: landingIntroRailRight 23s linear infinite;
+    animation: landingIntroRailRight 48s linear infinite;
   }
 
   .landing-intro-app-icon {
@@ -1709,21 +1718,21 @@
     }
 
     .landing-intro-headline {
-      font-size: clamp(2rem, 5.2vh, 3.05rem);
+      font-size: clamp(2.45rem, 6.5vh, 3.75rem);
       line-height: 1.02;
     }
 
     .landing-intro-expanded-content.examples-visible .landing-intro-ai-icon {
-      transform: translateY(-54px) scale(0.78);
+      transform: translateY(-72px) scale(0.76);
       margin-bottom: 6px;
     }
 
     .landing-intro-expanded-content.examples-visible .landing-intro-headline {
-      transform: translateY(-62px) scale(0.9);
+      transform: translateY(-86px) scale(0.96);
     }
 
     .landing-intro-examples {
-      top: calc(50% + 18px);
+      top: calc(50% + 34px);
       padding-bottom: 10px;
     }
 
@@ -1742,8 +1751,8 @@
     }
 
     .landing-intro-app-rails {
-      gap: clamp(14px, 2.1vh, 22px);
-      margin-top: clamp(20px, 3.2vh, 30px);
+      gap: clamp(12px, 1.8vh, 18px);
+      margin-top: clamp(16px, 2.6vh, 24px);
     }
 
     .landing-intro-app-rail {

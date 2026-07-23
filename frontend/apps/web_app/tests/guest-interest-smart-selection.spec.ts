@@ -138,7 +138,100 @@ async function landingIntroState(page: any): Promise<{
 	}));
 }
 
+async function landingIntroIpadLandscapeMetrics(page: any): Promise<{
+	bannerHeight: number;
+	bannerBottomGap: number;
+	headlineTopRatio: number;
+	headlineFontSize: number;
+	headlineRequestGap: number;
+	rails: Array<{
+		iconCount: number;
+		rowWidth: number;
+		oneCycleWidth: number;
+		leftGap: number;
+		rightGap: number;
+		maxGap: number;
+		rowBottomGap: number;
+	}>;
+}> {
+	return page.evaluate(() => {
+		const banner = document.querySelector<HTMLElement>('[data-testid="daily-inspiration-banner"]');
+		const headline = document.querySelector<HTMLElement>('[data-testid="landing-intro-headline"]');
+		const request = document.querySelector<HTMLElement>('[data-testid="landing-intro-request"]');
+		if (!banner || !headline || !request) throw new Error('landing intro elements not found');
+
+		const bannerRect = banner.getBoundingClientRect();
+		const headlineRect = headline.getBoundingClientRect();
+		const requestRect = request.getBoundingClientRect();
+		const rails = Array.from(document.querySelectorAll<HTMLElement>('[data-testid="landing-intro-app-rail"]'));
+
+		return {
+			bannerHeight: bannerRect.height,
+			bannerBottomGap: window.innerHeight - bannerRect.bottom,
+			headlineTopRatio: (headlineRect.top - bannerRect.top) / bannerRect.height,
+			headlineFontSize: Number.parseFloat(getComputedStyle(headline).fontSize),
+			headlineRequestGap: requestRect.top - headlineRect.bottom,
+			rails: rails.map((rail) => {
+				const row = rail.parentElement as HTMLElement | null;
+				if (!row) throw new Error('landing intro rail row not found');
+				const rowRect = row.getBoundingClientRect();
+				const clippedIconRects = Array.from(rail.querySelectorAll<HTMLElement>('[data-testid="landing-intro-app-icon"]'))
+					.map((icon) => {
+						const rect = icon.getBoundingClientRect();
+						return {
+							left: Math.max(rect.left, rowRect.left),
+							right: Math.min(rect.right, rowRect.right)
+						};
+					})
+					.filter((rect) => rect.right > rect.left)
+					.sort((a, b) => a.left - b.left);
+				let maxGap = 0;
+				for (let index = 1; index < clippedIconRects.length; index += 1) {
+					maxGap = Math.max(maxGap, clippedIconRects[index].left - clippedIconRects[index - 1].right);
+				}
+				return {
+					iconCount: rail.querySelectorAll('[data-testid="landing-intro-app-icon"]').length,
+					rowWidth: rowRect.width,
+					oneCycleWidth: rail.scrollWidth / 2,
+					leftGap: clippedIconRects.length > 0 ? clippedIconRects[0].left - rowRect.left : Number.POSITIVE_INFINITY,
+					rightGap: clippedIconRects.length > 0 ? rowRect.right - clippedIconRects[clippedIconRects.length - 1].right : Number.POSITIVE_INFINITY,
+					maxGap,
+					rowBottomGap: bannerRect.bottom - rowRect.bottom
+				};
+			})
+		};
+	});
+}
+
 test.describe('Guest interest smart selection', () => {
+	test('expanded landing intro uses the iPad landscape viewport without rail clipping', async ({ page }: { page: any }) => {
+		test.setTimeout(45000);
+		await page.setViewportSize({ width: 1366, height: 1024 });
+
+		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
+		await page.waitForLoadState('networkidle');
+
+		await expect(page.getByTestId('daily-inspiration-banner')).toBeVisible({ timeout: 15000 });
+		await expect(page.getByTestId('landing-intro-expanded')).toBeVisible({ timeout: 15000 });
+		await expect.poll(async () => (await landingIntroState(page)).requestLabel, { timeout: 5000 }).toBeTruthy();
+		await expect(page.getByTestId('landing-intro-app-rail')).toHaveCount(2, { timeout: 5000 });
+
+		const metrics = await landingIntroIpadLandscapeMetrics(page);
+		expect(metrics.bannerHeight).toBeGreaterThanOrEqual(760);
+		expect(metrics.bannerBottomGap).toBeLessThanOrEqual(48);
+		expect(metrics.headlineTopRatio).toBeLessThanOrEqual(0.34);
+		expect(metrics.headlineFontSize).toBeGreaterThanOrEqual(64);
+		expect(metrics.headlineRequestGap).toBeGreaterThanOrEqual(28);
+		for (const rail of metrics.rails) {
+			expect(rail.iconCount).toBeGreaterThanOrEqual(48);
+			expect(rail.oneCycleWidth).toBeGreaterThanOrEqual(rail.rowWidth + 180);
+			expect(rail.leftGap).toBeLessThanOrEqual(40);
+			expect(rail.rightGap).toBeLessThanOrEqual(40);
+			expect(rail.maxGap).toBeLessThanOrEqual(96);
+			expect(rail.rowBottomGap).toBeGreaterThanOrEqual(20);
+		}
+	});
+
 	test('fresh guest welcome uses session-only tags and local smart ranking', async ({ page }: { page: any }) => {
 		test.setTimeout(90000);
 		await page.setViewportSize({ width: 1280, height: 800 });
