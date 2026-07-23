@@ -125,6 +125,11 @@ decisions:
     decision: Compression must use an intended cheap Gemini Flash or Flash-Lite path before the real validation counts as complete.
     reason: The previous smoke used a configured compression model that did not satisfy the user's expected Flash/Flash-Lite constraint.
     decided_at: "2026-07-22"
+  - id: D-6
+    status: active
+    decision: The published compressed example chat must expose the compression summary and Show old forgotten messages reveal, not the normal Show older messages control.
+    reason: The final example represents compressed history through checkpoint metadata and local reveal behavior, while normal older-message loading remains scroll-driven for non-static chat windows.
+    decided_at: "2026-07-23"
 
 attempts:
   - id: ATTEMPT-1
