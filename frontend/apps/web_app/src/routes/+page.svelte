@@ -3613,6 +3613,7 @@
 		height: auto;
 		gap: 0px;
 		padding: 10px;
+		padding-bottom: 20px;
 		/* Logical property: extra breathing room on the inline-end side (right in LTR, left in RTL) */
 		padding-inline-end: 20px;
 		/* Only apply gap transition on larger screens */
@@ -3650,6 +3651,7 @@
 	@media (max-width: 600px) {
 		.chat-container {
 			padding-inline-end: 10px;
+			padding-bottom: 10px;
 			height: auto;
 		}
 		.sidebar {
