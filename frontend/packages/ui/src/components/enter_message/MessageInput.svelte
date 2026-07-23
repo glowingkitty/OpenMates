@@ -1261,6 +1261,26 @@
             isUpdatingFromMarkdown = false;
         }
     }
+
+    function escapeHtml(value: string): string {
+        return value
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function rememberDraftMarkdownToHtml(markdown: string): string {
+        const [prefixLine = '', ...rest] = markdown.split(/\r?\n/);
+        const quoteLines = rest
+            .filter((line) => line.trim().length > 0)
+            .map((line) => line.replace(/^> ?/, ''));
+        const quoteHtml = quoteLines.length > 0
+            ? `<blockquote>${quoteLines.map((line) => `<p>${escapeHtml(line)}</p>`).join('')}</blockquote>`
+            : '';
+        return `<p>${escapeHtml(prefixLine)}</p>${quoteHtml}`;
+    }
     
     /**
      * Update the original markdown based on editor changes
@@ -5331,7 +5351,12 @@
                 originalMarkdown = currentMarkdown
                     ? `${currentMarkdown}\n\n${rememberText}`
                     : rememberText;
-                updateEditorFromMarkdown(editor, originalMarkdown);
+                editor.commands.focus('end');
+                if (currentMarkdown) {
+                    editor.commands.insertContent(`<p></p>${rememberDraftMarkdownToHtml(rememberText)}`);
+                } else {
+                    editor.commands.setContent(rememberDraftMarkdownToHtml(rememberText), { emitUpdate: false });
+                }
                 hasContent = true;
                 lastEditorUpdateText = editor.getText();
                 editor.commands.focus('end');
