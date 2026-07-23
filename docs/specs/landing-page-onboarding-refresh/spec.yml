@@ -29,7 +29,7 @@ scope:
     - Implementing all later landing slides in phase 1.
     - Implementing account import, external provider import UI, topic inference, onboarding video-call scheduling, README/CLI/social copy updates, or Apple parity in phase 1.
     - Changing anonymous free-usage budgets, signup billing, chat encryption, or app-skill execution behavior.
-    - Rendering full real chat/embed components inside compact autoplay explainer animations when a lightweight visually faithful animation component is safer.
+    - Rendering a full interactive chat or embed runtime inside compact autoplay explainer animations; visual-only reuse of real chat/embed components and styles is allowed when it is deterministic.
 
 current_milestone:
   id: phase-2-actionable-event-slide
@@ -107,7 +107,7 @@ clarification:
     - question: Should slide 2 initially include all mini-animations or one polished example?
       answer: Implement only the `Find events` mini-animation first for slide 2; other slide internals come later.
     - question: Should the `Find events` animation render real embed components or a lightweight visual match?
-      answer: Use a simplified lightweight component that is visually identical in style but not feature-equivalent.
+      answer: Use a simplified deterministic animation, but its user/assistant messages must match the real chat history UI and its events surfaces must reuse or mirror the real events embed preview/fullscreen designs.
     - question: Which event should the first `Actionable` animation represent?
       answer: Use a language-learning event in Berlin. The sequence is user message, `Sure, let me help with that!`, fade response up/out, fade in embed preview, then expand preview into fullscreen details while the scene zooms out.
   vision_summary: >
@@ -251,23 +251,37 @@ attempts:
   - id: ATTEMPT-10
     task_id: TASK-2
     approach: Implement the activated regular-size Actionable event explainer slide and run its deployed Playwright spec.
-    outcome: succeeded
+    outcome: rejected
     recorded_at: "2026-07-23"
     notes: >
       Commit `50437d678` adds a dedicated `openmates-actionable-events` guest
       product inspiration plus a lightweight language-learning event animation.
       `python3 scripts/tests.py run --spec landing-page-onboarding-refresh.spec.ts`
-      passed against `app.dev.openmates.org`, GitHub Actions run `29971701474`.
+      passed against `app.dev.openmates.org`, GitHub Actions run `29971701474`,
+      but the user rejected the visual result because the slide used invented
+      chat/event blocks instead of real chat bubble/profile styling and real events
+      embed preview/fullscreen styling.
+  - id: ATTEMPT-11
+    task_id: TASK-2
+    approach: Replace the rejected custom Actionable block with real chat-message styling, real EventEmbedPreview reuse, a real events-fullscreen-inspired map/detail surface, and stricter visual regression assertions.
+    outcome: succeeded
+    recorded_at: "2026-07-23"
+    notes: >
+      Local changed-file checks passed with `bash scripts/lint_changed.sh --svelte
+      --ts --yml --path ...` for the touched Svelte components, Playwright specs,
+      and this spec. The script still reported its known test-folder `tsc` binary
+      skip, but Svelte, token, and TS parser checks passed. This records the local
+      replacement edit only; deployment and focused Playwright reruns are still pending.
 
 handoff:
   current_task_id: TASK-2
-  next_action: Ask for user visual confirmation of the deployed expanded intro and Actionable event slide before activating underspecified later slides.
+  next_action: Deploy the replacement rail/Actionable slide implementation, rerun `guest-interest-smart-selection.spec.ts` and `landing-page-onboarding-refresh.spec.ts`, then ask for user visual confirmation before activating underspecified later slides.
   command: python3 scripts/spec_verify.py docs/specs/landing-page-onboarding-refresh/spec.yml
-  expected_outcome: Fails only on pending V-USER-PHASE1 until the user approves the deployed visual result.
+  expected_outcome: Fails on pending replacement web evidence and V-USER-PHASE1 until deploy/tests/user approval are complete.
   blocker:
     id: V-USER-PHASE1
-    reason: User visual confirmation is required before TASK-1 can be marked done or TASK-2 can start.
-  last_verified_commit: 50437d678c1c4db3efc52c5f0db5e5b363c8ce99
+    reason: User visual confirmation is required before TASK-1/TASK-2 can be marked complete.
+  last_verified_commit: pending-replacement-deploy
 
 scenarios:
   - id: S-1
@@ -315,10 +329,11 @@ scenarios:
       - The slide plays the first event explainer animation.
     then:
       - The animation shows a simple user message for language-learning events in Berlin.
-      - It shows a simple assistant response saying `Sure, let me help with that!`.
-      - The assistant response fades up/out and an event embed preview fades in below.
-      - The preview expands into a fullscreen details view while the scene zooms out.
-      - The animation is visually faithful to real OpenMates embed styling but does not mount full feature components.
+      - It shows a real chat-history-style user bubble with the speech-tail pointer.
+      - It shows a real chat-history-style assistant response with a mate profile image and speech-tail pointer saying `Sure, let me help with that!`.
+      - The assistant response fades up/out and an event embed preview based on the real events embed preview design fades in below.
+      - The preview expands into a fullscreen details view based on the real event fullscreen/map-detail design while the scene zooms out.
+      - The animation is visually faithful to real OpenMates chat and events embed styling without mounting a full interactive chat runtime.
 
   - id: S-5
     title: Future landing sections show filtered real examples instead of pre-signup tags
@@ -375,7 +390,7 @@ acceptance_criteria:
       - V-USER-PHASE1
   - id: AC-4
     scenario: S-4
-    text: The future `Actionable` slide uses a lightweight visually faithful language-learning event embed animation rather than full embed feature components.
+    text: The `Actionable` slide uses real chat bubble/profile styling plus real events embed preview/fullscreen visual styling for the language-learning event animation, without mounting a full interactive chat runtime.
     required: true
     status: pending
     coverage_status: covered
@@ -483,13 +498,14 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: passed
+        status: pending
+        reason: Rail layout and viewport assertions changed after user screenshot rejection; focused spec must be redeployed and rerun.
         command: python3 scripts/tests.py run --spec guest-interest-smart-selection.spec.ts
-        run_id: "29971878945"
-        subject_commit: 50437d678c1c4db3efc52c5f0db5e5b363c8ce99
+        run_id: ""
+        subject_commit: ""
         target: app.dev.openmates.org
-        deployment_reference: dpl_8U9pDUWQBU47TQiVpZFSH3UwVGG9
-        timestamp: "2026-07-23T01:30:35Z"
+        deployment_reference: ""
+        timestamp: "2026-07-23"
   - id: T-WEB-ACTIONABLE-EVENT
     type: playwright
     file: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
@@ -498,7 +514,11 @@ tests:
     covers:
       - AC-4
     assertions:
-      - future actionable slide shows lightweight language-learning event explainer sequence
+      - actionable slide shows the language-learning event explainer sequence
+      - user and assistant messages expose real chat bubble speech-tail styling
+      - assistant message includes a mate profile image
+      - event preview uses the real events embed preview surface with app id `events` and skill id `event`
+      - event fullscreen visual includes map, Date & Time, Location, About, and event metadata surfaces
     red_phase:
       required: false
       expected: fail_when_activated
@@ -510,13 +530,13 @@ tests:
       required: false
       expected: pass_after_deploy
       evidence:
-        status: passed
+        status: pending
+        reason: User rejected the previous deployed visual result; replacement implementation and stricter assertions must be deployed and rerun.
         command: python3 scripts/tests.py run --spec landing-page-onboarding-refresh.spec.ts
-        run_id: "29971701474"
-        subject_commit: 50437d678c1c4db3efc52c5f0db5e5b363c8ce99
+        subject_commit: ""
         target: app.dev.openmates.org
-        deployment_reference: dpl_8U9pDUWQBU47TQiVpZFSH3UwVGG9
-        timestamp: "2026-07-23T01:26:23Z"
+        deployment_reference: ""
+        timestamp: "2026-07-23"
   - id: T-WEB-LANDING-EXAMPLES
     type: playwright
     file: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts

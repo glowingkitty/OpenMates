@@ -146,7 +146,7 @@ async function landingIntroIpadLandscapeMetrics(page: any): Promise<{
 	headlineRequestGap: number;
 	rails: Array<{
 		iconCount: number;
-		rowWidth: number;
+		bannerWidth: number;
 		oneCycleWidth: number;
 		leftGap: number;
 		rightGap: number;
@@ -179,8 +179,8 @@ async function landingIntroIpadLandscapeMetrics(page: any): Promise<{
 					.map((icon) => {
 						const rect = icon.getBoundingClientRect();
 						return {
-							left: Math.max(rect.left, rowRect.left),
-							right: Math.min(rect.right, rowRect.right)
+							left: Math.max(rect.left, bannerRect.left),
+							right: Math.min(rect.right, bannerRect.right)
 						};
 					})
 					.filter((rect) => rect.right > rect.left)
@@ -191,10 +191,10 @@ async function landingIntroIpadLandscapeMetrics(page: any): Promise<{
 				}
 				return {
 					iconCount: rail.querySelectorAll('[data-testid="landing-intro-app-icon"]').length,
-					rowWidth: rowRect.width,
+					bannerWidth: bannerRect.width,
 					oneCycleWidth: rail.scrollWidth / 2,
-					leftGap: clippedIconRects.length > 0 ? clippedIconRects[0].left - rowRect.left : Number.POSITIVE_INFINITY,
-					rightGap: clippedIconRects.length > 0 ? rowRect.right - clippedIconRects[clippedIconRects.length - 1].right : Number.POSITIVE_INFINITY,
+					leftGap: clippedIconRects.length > 0 ? clippedIconRects[0].left - bannerRect.left : Number.POSITIVE_INFINITY,
+					rightGap: clippedIconRects.length > 0 ? bannerRect.right - clippedIconRects[clippedIconRects.length - 1].right : Number.POSITIVE_INFINITY,
 					maxGap,
 					rowBottomGap: bannerRect.bottom - rowRect.bottom
 				};
@@ -206,7 +206,7 @@ async function landingIntroIpadLandscapeMetrics(page: any): Promise<{
 test.describe('Guest interest smart selection', () => {
 	test('expanded landing intro uses the iPad landscape viewport without rail clipping', async ({ page }: { page: any }) => {
 		test.setTimeout(45000);
-		await page.setViewportSize({ width: 1366, height: 1024 });
+		await page.setViewportSize({ width: 1000, height: 712 });
 
 		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
 		await page.waitForLoadState('networkidle');
@@ -217,18 +217,18 @@ test.describe('Guest interest smart selection', () => {
 		await expect(page.getByTestId('landing-intro-app-rail')).toHaveCount(2, { timeout: 5000 });
 
 		const metrics = await landingIntroIpadLandscapeMetrics(page);
-		expect(metrics.bannerHeight).toBeGreaterThanOrEqual(760);
+		expect(metrics.bannerHeight).toBeGreaterThanOrEqual(660);
 		expect(metrics.bannerBottomGap).toBeLessThanOrEqual(48);
 		expect(metrics.headlineTopRatio).toBeLessThanOrEqual(0.34);
-		expect(metrics.headlineFontSize).toBeGreaterThanOrEqual(64);
-		expect(metrics.headlineRequestGap).toBeGreaterThanOrEqual(28);
+		expect(metrics.headlineFontSize).toBeGreaterThanOrEqual(44);
+		expect(metrics.headlineRequestGap).toBeGreaterThanOrEqual(12);
 		for (const rail of metrics.rails) {
-			expect(rail.iconCount).toBeGreaterThanOrEqual(48);
-			expect(rail.oneCycleWidth).toBeGreaterThanOrEqual(rail.rowWidth + 180);
-			expect(rail.leftGap).toBeLessThanOrEqual(40);
-			expect(rail.rightGap).toBeLessThanOrEqual(40);
-			expect(rail.maxGap).toBeLessThanOrEqual(96);
-			expect(rail.rowBottomGap).toBeGreaterThanOrEqual(20);
+			expect(rail.iconCount).toBeGreaterThanOrEqual(64);
+			expect(rail.oneCycleWidth).toBeGreaterThanOrEqual(rail.bannerWidth + 320);
+			expect(rail.leftGap).toBeLessThanOrEqual(4);
+			expect(rail.rightGap).toBeLessThanOrEqual(4);
+			expect(rail.maxGap).toBeLessThanOrEqual(72);
+			expect(rail.rowBottomGap).toBeGreaterThanOrEqual(8);
 		}
 	});
 

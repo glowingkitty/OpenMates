@@ -64,7 +64,7 @@
   const TOUCH_SWIPE_VERTICAL_CANCEL_PX = 48;
   const LANDING_INTRO_INSPIRATION_ID = 'openmates-intro';
   const LANDING_ACTIONABLE_EVENTS_ID = 'openmates-actionable-events';
-  const LANDING_INTRO_RAIL_MIN_ICON_COUNT = 24;
+  const LANDING_INTRO_RAIL_MIN_ICON_COUNT = 32;
   // Temporarily disabled with the visit-cycling effect below.
   // const VISIT_INDEX_STORAGE_PREFIX = 'openmates.daily_inspiration.visit_index.';
   const AUTHENTICATED_ONLY_FEATURE_IDS = new Set([
@@ -1641,8 +1641,10 @@
     display: flex;
     flex-direction: column;
     gap: clamp(18px, 2.4vw, 34px);
-    width: 100%;
-    min-width: 100%;
+    width: calc(100% + clamp(220px, 32vw, 520px));
+    min-width: calc(100% + clamp(220px, 32vw, 520px));
+    margin-left: calc(-1 * clamp(110px, 16vw, 260px));
+    margin-right: calc(-1 * clamp(110px, 16vw, 260px));
     margin-top: clamp(28px, 3.8vw, 52px);
     overflow: hidden;
   }
@@ -1759,6 +1761,10 @@
     .landing-intro-app-rails {
       gap: clamp(12px, 1.8vh, 18px);
       margin-top: clamp(16px, 2.6vh, 24px);
+      width: calc(100% + clamp(260px, 44vw, 560px));
+      min-width: calc(100% + clamp(260px, 44vw, 560px));
+      margin-left: calc(-1 * clamp(130px, 22vw, 280px));
+      margin-right: calc(-1 * clamp(130px, 22vw, 280px));
     }
 
     .landing-intro-app-rail {
@@ -2510,6 +2516,9 @@
       gap: 20px;
       margin-top: 28px;
       width: 100%;
+      min-width: 100%;
+      margin-left: 0;
+      margin-right: 0;
     }
 
     .landing-intro-app-rail {

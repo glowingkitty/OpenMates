@@ -31,6 +31,7 @@ test.describe('Landing page onboarding refresh', () => {
 		await expect(page.getByTestId('daily-inspiration-phrase')).toContainText('Actionable', { timeout: 5000 });
 		await expect(page.getByTestId('daily-inspiration-phrase')).toContainText('Not just a wall of text.', { timeout: 5000 });
 		await expect(page.getByTestId('landing-actionable-event-demo')).toBeVisible({ timeout: 5000 });
+		await expect(page.getByTestId('landing-actionable-assistant-profile')).toBeVisible({ timeout: 5000 });
 		await expect(page.getByTestId('landing-actionable-user-message')).toContainText(
 			'Find language-learning events in Berlin'
 		);
@@ -38,9 +39,16 @@ test.describe('Landing page onboarding refresh', () => {
 			'Sure, let me help with that!'
 		);
 		await expect(page.getByTestId('landing-actionable-event-preview')).toContainText('Berlin Language Exchange');
+		await expect(page.getByTestId('landing-actionable-event-preview').getByTestId('embed-preview')).toHaveAttribute(
+			'data-app-id',
+			'events'
+		);
 		await expect(page.getByTestId('landing-actionable-event-fullscreen')).toContainText(
 			'Practice German and English'
 		);
+		await expect(page.getByTestId('landing-actionable-event-fullscreen')).toContainText('Date & Time');
+		await expect(page.getByTestId('landing-actionable-event-fullscreen')).toContainText('Location');
+		await expect(page.getByTestId('landing-actionable-event-map')).toBeVisible();
 		await expect(page.getByTestId('guest-intro-video-shell')).toHaveCount(0);
 
 		const metrics = await page.evaluate(() => {
@@ -48,11 +56,20 @@ test.describe('Landing page onboarding refresh', () => {
 			const headline = document.querySelector<HTMLElement>('[data-testid="daily-inspiration-phrase"]');
 			const demo = document.querySelector<HTMLElement>('[data-testid="landing-actionable-event-demo"]');
 			const scene = document.querySelector<HTMLElement>('[data-testid="landing-actionable-event-scene"]');
-			if (!banner || !headline || !demo || !scene) throw new Error('Actionable slide elements missing');
+			const userMessage = document.querySelector<HTMLElement>('[data-testid="landing-actionable-user-message"]');
+			const assistantMessage = document.querySelector<HTMLElement>('[data-testid="landing-actionable-assistant-message"]');
+			const assistantProfile = document.querySelector<HTMLElement>('[data-testid="landing-actionable-assistant-profile"]');
+			const previewEmbed = document.querySelector<HTMLElement>('[data-testid="landing-actionable-event-preview"] [data-testid="embed-preview"]');
+			if (!banner || !headline || !demo || !scene || !userMessage || !assistantMessage || !assistantProfile || !previewEmbed) {
+				throw new Error('Actionable slide elements missing');
+			}
 
 			const bannerRect = banner.getBoundingClientRect();
 			const headlineRect = headline.getBoundingClientRect();
 			const demoRect = demo.getBoundingClientRect();
+			const userTail = getComputedStyle(userMessage, '::before');
+			const assistantTail = getComputedStyle(assistantMessage, '::before');
+			const assistantProfileStyle = getComputedStyle(assistantProfile);
 			return {
 				bannerHeight: bannerRect.height,
 				demoWidth: demoRect.width,
@@ -60,7 +77,14 @@ test.describe('Landing page onboarding refresh', () => {
 				demoLeftGap: demoRect.left - bannerRect.left,
 				demoRightGap: bannerRect.right - demoRect.right,
 				headlineDemoGap: demoRect.left - headlineRect.right,
-				sceneAnimation: getComputedStyle(scene).animationName
+				sceneAnimation: getComputedStyle(scene).animationName,
+				userTailWidth: Number.parseFloat(userTail.width),
+				userTailHeight: Number.parseFloat(userTail.height),
+				assistantTailWidth: Number.parseFloat(assistantTail.width),
+				assistantTailHeight: Number.parseFloat(assistantTail.height),
+				assistantProfileBackground: assistantProfileStyle.backgroundImage,
+				previewStatus: previewEmbed.dataset.status,
+				previewSkillId: previewEmbed.dataset.skillId
 			};
 		});
 
@@ -71,5 +95,12 @@ test.describe('Landing page onboarding refresh', () => {
 		expect(metrics.demoRightGap).toBeGreaterThanOrEqual(40);
 		expect(metrics.headlineDemoGap).toBeGreaterThanOrEqual(24);
 		expect(metrics.sceneAnimation).toContain('landingActionableScene');
+		expect(metrics.userTailWidth).toBeGreaterThanOrEqual(10);
+		expect(metrics.userTailHeight).toBeGreaterThanOrEqual(18);
+		expect(metrics.assistantTailWidth).toBeGreaterThanOrEqual(10);
+		expect(metrics.assistantTailHeight).toBeGreaterThanOrEqual(18);
+		expect(metrics.assistantProfileBackground).toContain('general_knowledge');
+		expect(metrics.previewStatus).toBe('finished');
+		expect(metrics.previewSkillId).toBe('event');
 	});
 });
