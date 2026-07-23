@@ -18,7 +18,12 @@ const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getIsolatedTestAccount(
 	'settings-change-email.spec.ts'
 );
-const RECOVERY_GMAIL_ALIAS_LABELS = ['roundtrip', 'roundtrip-1777327279784'];
+const TEMPORARY_GMAIL_ALIAS_LABEL = 'roundtrip';
+const RECOVERY_GMAIL_ALIAS_LABELS = [
+	TEMPORARY_GMAIL_ALIAS_LABEL,
+	'roundtrip-mrxd1cji',
+	'roundtrip-1777327279784'
+];
 
 test.describe.configure({ mode: 'serial' });
 
@@ -196,7 +201,7 @@ test('changes account email and verifies login with the new address', async ({ p
 
 	const isCurrentMailosaur = TEST_EMAIL?.endsWith('.mailosaur.net');
 	const migrationEmail = getGmailAlias('testacct');
-	const temporaryEmail = getGmailAlias(`roundtrip-${Date.now().toString(36)}`);
+	const temporaryEmail = getGmailAlias(TEMPORARY_GMAIL_ALIAS_LABEL);
 	test.skip(!migrationEmail || !temporaryEmail, 'Could not build Gmail test aliases.');
 
 	const quota = await checkEmailQuota(isCurrentMailosaur ? migrationEmail! : temporaryEmail!);
@@ -222,7 +227,8 @@ test('changes account email and verifies login with the new address', async ({ p
 		}
 	}
 
-	const finalEmail = isCurrentMailosaur ? migrationEmail! : currentEmail;
+	const finalEmail = isCurrentMailosaur ? migrationEmail! : TEST_EMAIL;
+	test.skip(temporaryEmail === finalEmail, 'Temporary and final email aliases must differ.');
 	await changeEmail(page, temporaryEmail!, log);
 	await screenshot(page, 'changed-to-temporary-gmail');
 	await resetBrowserAuth(page, context);
