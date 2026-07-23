@@ -13,7 +13,7 @@ const {
 	getE2EDebugUrl,
 	getIsolatedTestAccount
 } = require('./signup-flow-helpers');
-const { openSignupInterface, submitPasswordAndHandleOtp } = require('./helpers/chat-test-helpers');
+const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getIsolatedTestAccount(
 	'settings-change-email.spec.ts'
@@ -21,11 +21,6 @@ const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = get
 const RECOVERY_GMAIL_ALIAS_LABELS = ['roundtrip', 'roundtrip-1777327279784'];
 
 test.describe.configure({ mode: 'serial' });
-
-async function openLoginDialog(page: any): Promise<void> {
-	await openSignupInterface(page, 30000);
-	await expect(page.getByTestId('login-tabs')).toBeVisible({ timeout: 10000 });
-}
 
 function getGmailAlias(label: string): string | null {
 	const base = process.env.GMAIL_TEST_ADDRESS;
@@ -36,25 +31,10 @@ function getGmailAlias(label: string): string | null {
 }
 
 async function login(page: any, email: string, log: any): Promise<void> {
-	await page.goto(getE2EDebugUrl('/'));
-	await page.evaluate(() => localStorage.removeItem('emailLookupRateLimit'));
-
-	await openLoginDialog(page);
-
-	const loginTab = page.getByTestId('tab-login');
-	await expect(loginTab).toBeVisible({ timeout: 10000 });
-	await loginTab.click();
-
-	const emailInput = page.getByTestId('login-email-input');
-	await expect(emailInput).toBeVisible({ timeout: 15000 });
-	await emailInput.fill(email);
-	await page.getByTestId('login-continue-button').click();
-
-	const passwordInput = page.getByTestId('login-password-input');
-	await expect(passwordInput).toBeVisible({ timeout: 15000 });
-	await passwordInput.fill(TEST_PASSWORD);
-
-	await submitPasswordAndHandleOtp(page, TEST_OTP_KEY, log);
+	await loginToTestAccount(page, log, async () => {}, {
+		waitForEditor: false,
+		credentials: { email, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY }
+	});
 
 	await expect(page.getByTestId('profile-picture')).toBeVisible({ timeout: 30000 });
 	await page.waitForTimeout(5000);
