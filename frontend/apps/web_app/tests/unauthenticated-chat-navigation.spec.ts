@@ -141,6 +141,19 @@ test.describe('Unauthenticated chat navigation stays reactive', () => {
 		await expect(settingsMenu).toBeVisible({ timeout: SETTINGS_TIMEOUT });
 		console.log('[chat-nav] Settings menu opened — settings panel is reactive');
 
+		const activeChatLayout = await activeChatContainer.evaluate((element: HTMLElement) => {
+			const rect = element.getBoundingClientRect();
+			return {
+				bottom: rect.bottom,
+				overflowY: getComputedStyle(element).overflowY,
+				viewportHeight: window.innerHeight
+			};
+		});
+		expect(activeChatLayout.overflowY, 'active chat itself must not become vertically scrollable').toBe('hidden');
+		expect(activeChatLayout.bottom, 'settings panel must not push active chat below the viewport').toBeLessThanOrEqual(
+			activeChatLayout.viewportHeight - 1
+		);
+
 		// ─── 5. Close the settings panel ─────────────────────────────────────
 		const closeButton = page.getByTestId('icon-button-close');
 		await expect(closeButton).toBeVisible({ timeout: 5000 });

@@ -3562,8 +3562,6 @@
 		inset-inline-end: 0;
 		top: 0;
 		bottom: 0;
-		display: flex;
-		flex-direction: column;
 		background-color: var(--color-grey-0);
 		z-index: 10;
 		/* Smooth transitions for width changes (large screens) and slide animations (small screens) */
@@ -3607,10 +3605,11 @@
 	.chat-container {
 		display: flex;
 		flex-direction: row;
-		flex: 1 1 auto;
 		box-sizing: border-box;
-		min-height: 0;
-		height: auto;
+		/* Fallback for browsers that don't support dvh */
+		height: calc(100vh - 82px - var(--dev-console-height, 0px));
+		/* Modern browsers will use this */
+		height: calc(100dvh - 82px - var(--dev-console-height, 0px));
 		gap: 0px;
 		padding: 10px;
 		padding-bottom: 20px;
@@ -3652,7 +3651,8 @@
 		.chat-container {
 			padding-inline-end: 10px;
 			padding-bottom: 10px;
-			height: auto;
+			height: calc(100vh - 75px - var(--dev-console-height, 0px));
+			height: calc(100dvh - 75px - var(--dev-console-height, 0px));
 		}
 		.sidebar {
 			width: 100%;
