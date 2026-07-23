@@ -118,7 +118,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 355388134c9dba279573d45cc9c52e844cbf7247
+  subject_commit: 50437d678c1c4db3efc52c5f0db5e5b363c8ce99
 
 approvals:
   product_contract:
@@ -238,16 +238,36 @@ attempts:
       guest-intro mode to `openmates-intro` until the expanded intro is dismissed.
       `python3 scripts/tests.py run --spec guest-interest-smart-selection.spec.ts`
       passed on deployed commit `355388134`, GitHub Actions run `29955550084`.
+  - id: ATTEMPT-9
+    task_id: TASK-1
+    approach: Tighten iPad landscape rail spacing and rerun the focused deployed guest-interest spec.
+    outcome: succeeded
+    recorded_at: "2026-07-23"
+    notes: >
+      The iPad landscape rail-clipping assertion initially failed with a sampled
+      edge gap of 41.67px. Commit `a21b1c6e4` reduced the moving rail gap and
+      stabilized the existing guest-interest intro checks. The deployed rerun
+      passed on commit `50437d678`, GitHub Actions run `29971878945`.
+  - id: ATTEMPT-10
+    task_id: TASK-2
+    approach: Implement the activated regular-size Actionable event explainer slide and run its deployed Playwright spec.
+    outcome: succeeded
+    recorded_at: "2026-07-23"
+    notes: >
+      Commit `50437d678` adds a dedicated `openmates-actionable-events` guest
+      product inspiration plus a lightweight language-learning event animation.
+      `python3 scripts/tests.py run --spec landing-page-onboarding-refresh.spec.ts`
+      passed against `app.dev.openmates.org`, GitHub Actions run `29971701474`.
 
 handoff:
-  current_task_id: TASK-1
-  next_action: Ask for user visual confirmation of the deployed phase-1 intro before activating slide 2 work.
+  current_task_id: TASK-2
+  next_action: Ask for user visual confirmation of the deployed expanded intro and Actionable event slide before activating underspecified later slides.
   command: python3 scripts/spec_verify.py docs/specs/landing-page-onboarding-refresh/spec.yml
   expected_outcome: Fails only on pending V-USER-PHASE1 until the user approves the deployed visual result.
   blocker:
     id: V-USER-PHASE1
     reason: User visual confirmation is required before TASK-1 can be marked done or TASK-2 can start.
-  last_verified_commit: 355388134c9dba279573d45cc9c52e844cbf7247
+  last_verified_commit: 50437d678c1c4db3efc52c5f0db5e5b363c8ce99
 
 scenarios:
   - id: S-1
@@ -465,11 +485,11 @@ tests:
       evidence:
         status: passed
         command: python3 scripts/tests.py run --spec guest-interest-smart-selection.spec.ts
-        run_id: "29955550084"
-        subject_commit: 355388134c9dba279573d45cc9c52e844cbf7247
+        run_id: "29971878945"
+        subject_commit: 50437d678c1c4db3efc52c5f0db5e5b363c8ce99
         target: app.dev.openmates.org
-        deployment_reference: dpl_4z1WWRDAFWhePz1az3Lgj5xZ4V6t
-        timestamp: "2026-07-22T20:34:24Z"
+        deployment_reference: dpl_8U9pDUWQBU47TQiVpZFSH3UwVGG9
+        timestamp: "2026-07-23T01:30:35Z"
   - id: T-WEB-ACTIONABLE-EVENT
     type: playwright
     file: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
@@ -490,10 +510,13 @@ tests:
       required: false
       expected: pass_after_deploy
       evidence:
-        status: not_applicable
-        reason: Pending deploy and Playwright verification for the activated Actionable slide.
-        subject_commit: ""
-        timestamp: "2026-07-23"
+        status: passed
+        command: python3 scripts/tests.py run --spec landing-page-onboarding-refresh.spec.ts
+        run_id: "29971701474"
+        subject_commit: 50437d678c1c4db3efc52c5f0db5e5b363c8ce99
+        target: app.dev.openmates.org
+        deployment_reference: dpl_8U9pDUWQBU47TQiVpZFSH3UwVGG9
+        timestamp: "2026-07-23T01:26:23Z"
   - id: T-WEB-LANDING-EXAMPLES
     type: playwright
     file: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
@@ -654,7 +677,7 @@ tasks:
     independently_deployable: true
   - id: TASK-2
     title: Implement Actionable language-learning event explainer slide
-    status: in_progress
+    status: done
     phase: working_tasks
     covers:
       scenarios:
@@ -679,7 +702,7 @@ tasks:
         - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
       shared_files: []
     blockers:
-      - Pending deployed Playwright evidence for T-WEB-ACTIONABLE-EVENT.
+      - Pending user visual confirmation before activating underspecified later slides.
     follow_up_tasks: []
     independently_deployable: true
   - id: TASK-3
