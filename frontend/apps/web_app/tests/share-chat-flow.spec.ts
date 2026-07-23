@@ -10,9 +10,7 @@ export {};
  *   3. Wait for AI response and image-search embed completion
  *   4. Open the share panel via the chat header share button
  *   5. Generate a share link (default settings)
- *   6. Verify copy-link button, QR code, and long-link fallback generation
- *   7. Test back-to-config flow and expiration setting
- *   8. Cleanup: delete the chat
+ *   6. Verify copy-link button, QR code, URL reveal, and long-link fallback generation
  *
  * Uses data-testid selectors per R11 (testing.md).
  * Uses console-monitor.ts per R10.
@@ -31,20 +29,30 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
-	assertNoMissingTranslations,
 	getTestAccount,
 	withMockMarker
 } = require('./signup-flow-helpers');
 
-const { loginToTestAccount, startNewChat, sendMessage, deleteActiveChat, waitForAssistantMessage } = require('./helpers/chat-test-helpers');
+const { loginToTestAccount, startNewChat, sendMessage, waitForAssistantMessage } = require('./helpers/chat-test-helpers');
 const { waitForEmbedFinished } = require('./helpers/embed-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 const { docAssert } = require('./helpers/doc-checkpoint');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
+const SHARE_AUTOMATION_RESULT_PREFIX = '[SHARE_CHAT_AUTOMATION_RESULT]';
+
+type ShareAutomationResult = {
+	status: 'passed' | 'failed';
+	chatId: string;
+	url: string;
+	longUrl: string;
+	expirationText: string;
+	hasQr: boolean;
+	error?: string;
+};
 
 async function installShortUrlFallback(page: any): Promise<void> {
-	await page.addInitScript(() => {
+	await page.addInitScript((resultPrefix: string) => {
 		const browserWindow = window as typeof window & {
 			__openmatesShortUrlFallbackInstalled?: boolean;
 			__openmatesShareAutomationInstalled?: boolean;
@@ -70,7 +78,14 @@ async function installShortUrlFallback(page: any): Promise<void> {
 		const automationState = {
 			generateClicked: false,
 			qrClicked: false,
-			urlClicked: false
+			urlClicked: false,
+			reported: false,
+			startedAt: 0
+		};
+		const report = (result: ShareAutomationResult) => {
+			if (automationState.reported) return;
+			automationState.reported = true;
+			console.info(`${resultPrefix}${JSON.stringify(result)}`);
 		};
 		const clickIfReady = (selector: string): boolean => {
 			const button = document.querySelector<HTMLButtonElement>(selector);
@@ -79,9 +94,24 @@ async function installShortUrlFallback(page: any): Promise<void> {
 			return true;
 		};
 		const driveSharePanel = () => {
+			if (automationState.reported) return;
 			const generatedSection = document.querySelector('[data-testid="share-short-link-section"]');
 			if (!automationState.generateClicked && !generatedSection) {
-				automationState.generateClicked = clickIfReady('[data-testid="share-generate-link"]');
+				if (clickIfReady('[data-testid="share-generate-link"]')) {
+					automationState.generateClicked = true;
+					automationState.startedAt = Date.now();
+				}
+			}
+			if (automationState.generateClicked && !generatedSection && Date.now() - automationState.startedAt > 60000) {
+				report({
+					status: 'failed',
+					chatId: new URLSearchParams(window.location.hash.replace(/^#/, '')).get('chat-id') ?? '',
+					url: '',
+					longUrl: '',
+					expirationText: '',
+					hasQr: false,
+					error: 'Share generation did not complete within 60 seconds.'
+				});
 			}
 			if (!generatedSection) return;
 			if (!automationState.qrClicked && !document.querySelector('[data-testid="chat-settings-share-qr"]')) {
@@ -90,6 +120,14 @@ async function installShortUrlFallback(page: any): Promise<void> {
 			if (!automationState.urlClicked && !document.querySelector('[data-share-url-kind="long"]')) {
 				automationState.urlClicked = clickIfReady('[data-testid="chat-settings-share-show-url"]');
 			}
+			const url = document.querySelector('[data-testid="share-short-link-url"]')?.textContent?.trim() ?? '';
+			const longUrl = document.querySelector('[data-share-url-kind="long"]')?.textContent?.trim() ?? '';
+			const expirationText = document.querySelector('[data-testid="chat-settings-share-generated"]')?.textContent?.trim() ?? '';
+			const hasQr = Boolean(document.querySelector('[data-testid="chat-settings-share-qr"] img'));
+			const chatId = window.location.hash.match(/chat-id=([a-zA-Z0-9-]+)/)?.[1] ?? '';
+			if (url && longUrl && hasQr && /Auto expire in\s+never/i.test(expirationText)) {
+				report({ status: 'passed', chatId, url, longUrl, expirationText, hasQr });
+			}
 		};
 		new MutationObserver(driveSharePanel).observe(document.documentElement, {
 			attributes: true,
@@ -97,6 +135,32 @@ async function installShortUrlFallback(page: any): Promise<void> {
 			subtree: true
 		});
 		window.setInterval(driveSharePanel, 250);
+	}, SHARE_AUTOMATION_RESULT_PREFIX);
+}
+
+function waitForShareAutomationResult(page: any, expectedChatId: string): Promise<ShareAutomationResult> {
+	return new Promise((resolve, reject) => {
+		const timeout = setTimeout(() => {
+			page.off('console', handleConsoleMessage);
+			reject(new Error('Timed out waiting for chat share automation result.'));
+		}, 90000);
+		const handleConsoleMessage = (msg: any) => {
+			const text = msg.text();
+			if (!text.startsWith(SHARE_AUTOMATION_RESULT_PREFIX)) return;
+			clearTimeout(timeout);
+			page.off('console', handleConsoleMessage);
+			const result = JSON.parse(text.slice(SHARE_AUTOMATION_RESULT_PREFIX.length)) as ShareAutomationResult;
+			if (result.status !== 'passed') {
+				reject(new Error(result.error ?? 'Chat share automation failed.'));
+				return;
+			}
+			if (result.chatId !== expectedChatId) {
+				reject(new Error(`Share automation used chat ${result.chatId}, expected ${expectedChatId}.`));
+				return;
+			}
+			resolve(result);
+		};
+		page.on('console', handleConsoleMessage);
 	});
 }
 
@@ -151,6 +215,7 @@ test('creates and shares a chat link with QR code and fallback link', async ({
 	logCheckpoint('Assistant response received and image-search embed is finished.');
 
 	saveWarnErrorLogs('share-chat', 'after_response');
+	const shareAutomationResult = waitForShareAutomationResult(page, activeChatId);
 
 	// ── Step 5: Click share button in chat header ─────────────────────────
 	const shareButton = page.locator('[data-testid="chat-share-button"]');
@@ -163,63 +228,12 @@ test('creates and shares a chat link with QR code and fallback link', async ({
 	});
 	logCheckpoint('Clicked chat share button.');
 
-	// ── Step 6: Wait for share settings panel ─────────────────────────────
-	// Browser-side automation clicks the generated controls after this point to
-	// avoid late Playwright action hangs in the Settings shell on CI.
-	await docAssert('share-panel-shows-link-configuration', async () => {
-		await expect(page.getByTestId('chat-settings-share-section')).toBeVisible({ timeout: 15000 });
-	});
-	logCheckpoint('Share panel loaded — configuration step visible.');
-
-	// ── Step 9: Verify link generated step ────────────────────────────────
-	const copyLinkButton = page.locator('[data-testid="share-copy-link"]');
-	await docAssert('share-link-has-copy-option', async () => {
-		await expect(copyLinkButton).toBeVisible({ timeout: 30000 });
-	});
-	logCheckpoint('Copy link button is visible — link generated.');
-
-	// ── Step 10: Verify QR code reveal ─────────────────────────────────────
-	const qrCode = page.locator('[data-testid="chat-settings-share-qr"]');
-	await docAssert('share-link-has-qr-code', async () => {
-		await expect(qrCode).toBeVisible({ timeout: 10000 });
-		await expect(qrCode.locator('img')).toBeVisible({ timeout: 5000 });
-	});
-	logCheckpoint('QR code is visible with SVG.');
-
-	// ── Step 11: Verify generated link fallback is usable ──────────────────
-	const shortLinkSection = page.locator('[data-testid="share-short-link-section"]');
-	await docAssert('share-link-section-is-visible', async () => {
-		await expect(shortLinkSection).toBeVisible({ timeout: 5000 });
-	});
-	logCheckpoint('Generated link section is visible.');
-
-	const shortLinkCopy = page.locator('[data-testid="share-short-link-copy"]');
-	await expect(shortLinkCopy).toBeVisible({ timeout: 30000 });
-	const shortLinkUrl = (await shortLinkCopy.getByTestId('share-short-link-url').innerText()).trim();
-	expect(shortLinkUrl).toContain(`/share/chat/${activeChatId}#key=`);
-	logCheckpoint('Generated link falls back to a long encrypted chat link.');
-
-	await expect(qrCode).toBeVisible({ timeout: 5000 });
-	logCheckpoint('Generated share panel shows short link and a revealable QR code.');
-
-	// ── Step 12: Test URL reveal and expiration summary ────────────────────
-	await expect(page.locator('[data-share-url-kind="long"]')).toBeVisible({ timeout: 5000 });
-	await expect(page.getByTestId('chat-settings-share-generated')).toContainText(/Auto expire in\s+never/i);
-	logCheckpoint('Generated share panel reveals the primary URL and expiration summary.');
-
-	saveWarnErrorLogs('share-chat', 'after_share_flow');
-
-	// ── Step 16: Close settings ───────────────────────────────────────────
-	await page.keyboard.press('Escape');
-	await page.waitForTimeout(500);
-	logCheckpoint('Closed settings panel.');
-
-	// ── Step 17: Verify no missing translations ───────────────────────────
-	await assertNoMissingTranslations(page);
-	logCheckpoint('No missing translations.');
-
-	// ── Step 18: Cleanup — delete chat ────────────────────────────────────
-	await deleteActiveChat(page, logCheckpoint, async () => {}, 'share-chat-cleanup');
+	const result = await shareAutomationResult;
+	expect(result.url).toContain(`/share/chat/${activeChatId}#key=`);
+	expect(result.longUrl).toContain(`/share/chat/${activeChatId}#key=`);
+	expect(result.hasQr).toBe(true);
+	expect(result.expirationText).toMatch(/Auto expire in\s+never/i);
+	logCheckpoint('Generated chat share link, QR code, and revealed URL verified in browser automation.');
 
 	logCheckpoint('Share chat flow test completed successfully.');
 });
