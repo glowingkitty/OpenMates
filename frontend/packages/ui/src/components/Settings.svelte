@@ -363,7 +363,8 @@ changes to the documentation (to keep the documentation up to date).
             }
             
             // For non-authenticated users, include interface settings (top-level and nested),
-            // privacy overview, Apps (including app details), memories examples, mates (browse only), share chat (for sharing demo chats),
+            // privacy overview, Apps (including app details), memories examples, mates (browse only),
+            // read-only chat settings for shared chats, share chat (for sharing demo chats),
             // newsletter, support, report issue, and the pricing overview page.
             // Apps and mates are read-only for non-authenticated users (browse only, no modifications)
             if (!isAuthenticated) {
@@ -373,6 +374,7 @@ changes to the documentation (to keep the documentation up to date).
                     key === 'settings_memories' ||
                     key === 'apps' || key.startsWith('apps/') ||
                     key === 'mates' || key.startsWith('mates/') ||
+                    key.startsWith('chats/') ||
                     key === 'shared/share' || key === 'newsletter' ||
                     key === 'support' || key.startsWith('support/') ||
                     key === 'report_issue' || key.startsWith('report_issue/') || key === 'account/delete' ||
