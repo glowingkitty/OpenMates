@@ -5,8 +5,8 @@
  * Uses the same crypto flow as the browser client:
  * 1. Derive key from chat ID (PBKDF2-SHA256)
  * 2. Decrypt the key blob from URL fragment (AES-256-GCM)
- * 3. Fetch encrypted chat data from API
- * 4. Decrypt messages and embeds
+ * 3. Fetch encrypted share manifest and message windows from API
+ * 4. Decrypt messages, embeds, and compression checkpoint summaries
  *
  * Usage: node scripts/extract-shared-chat.mjs <share-url>
  */
@@ -42,6 +42,8 @@ const API_BASE = host.startsWith('app.dev.')
 
 console.log(`Chat ID: ${chatId}`);
 console.log(`API Base: ${API_BASE}`);
+
+const SHARED_MESSAGE_PAGE_LIMIT = 100;
 
 // --- Crypto helpers ---
 
@@ -150,12 +152,59 @@ async function unwrapEmbedKey(wrappedKeyBase64, chatKeyBytes) {
   return new Uint8Array(decrypted);
 }
 
-async function fetchSharedPayload(apiBase, targetChatId) {
-  const res = await fetch(`${apiBase}/v1/share/chat/${targetChatId}`);
+function normalizeJsonRows(rows) {
+  return (rows || []).map((row) => (typeof row === 'string' ? JSON.parse(row) : row));
+}
+
+async function fetchJson(url, label) {
+  const res = await fetch(url);
   if (!res.ok) {
-    throw new Error(`API error for ${targetChatId}: ${res.status} ${res.statusText}`);
+    throw new Error(`${label} failed: ${res.status} ${res.statusText}`);
   }
   return res.json();
+}
+
+async function fetchSharedMessages(apiBase, targetChatId) {
+  const pages = [];
+  let beforeTimestamp = null;
+  let beforeMessageId = null;
+  let hasMore = true;
+
+  while (hasMore) {
+    const params = new URLSearchParams({ limit: String(SHARED_MESSAGE_PAGE_LIMIT) });
+    if (beforeTimestamp !== null) params.set('before_timestamp', String(beforeTimestamp));
+    if (beforeMessageId) params.set('before_message_id', beforeMessageId);
+    const payload = await fetchJson(
+      `${apiBase}/v1/share/chat/${targetChatId}/messages?${params.toString()}`,
+      `Shared messages fetch for ${targetChatId}`,
+    );
+    const rows = normalizeJsonRows(payload.messages || []);
+    if (rows.length === 0) break;
+    pages.unshift(rows);
+    hasMore = payload.has_more === true;
+    beforeTimestamp = payload.next_before_timestamp ?? null;
+    beforeMessageId = payload.next_before_message_id ?? null;
+    if (hasMore && (beforeTimestamp === null || !beforeMessageId)) break;
+  }
+
+  return pages.flat();
+}
+
+async function fetchSharedPayload(apiBase, targetChatId) {
+  try {
+    const manifest = await fetchJson(
+      `${apiBase}/v1/share/chat/${targetChatId}/manifest`,
+      `Shared manifest fetch for ${targetChatId}`,
+    );
+    const messages = await fetchSharedMessages(apiBase, targetChatId);
+    return { ...manifest, messages };
+  } catch (error) {
+    console.warn(`   Windowed share fetch failed for ${targetChatId}, falling back to legacy payload: ${error.message}`);
+    return fetchJson(
+      `${apiBase}/v1/share/chat/${targetChatId}`,
+      `Legacy shared payload fetch for ${targetChatId}`,
+    );
+  }
 }
 
 async function decryptMessages(rawMessages, chatKeyBytes) {
@@ -254,6 +303,26 @@ async function decryptEmbeds(rawEmbeds, rawEmbedKeys, chatKeyBytes) {
   return embeds;
 }
 
+async function decryptCompressionCheckpoints(rawCheckpoints, chatKeyBytes, targetChatId) {
+  const checkpoints = [];
+  for (const rawCheckpoint of rawCheckpoints || []) {
+    const checkpoint = typeof rawCheckpoint === 'string' ? JSON.parse(rawCheckpoint) : rawCheckpoint;
+    if (!checkpoint || !checkpoint.id) continue;
+    checkpoints.push({
+      id: checkpoint.id,
+      chat_id: targetChatId,
+      summary: await decryptContent(checkpoint.encrypted_summary, chatKeyBytes) || '',
+      compressed_up_to_timestamp: Number(checkpoint.compressed_up_to_timestamp || 0),
+      compressed_message_count: Number(checkpoint.compressed_message_count || 0),
+      summary_token_estimate: checkpoint.summary_token_estimate ?? undefined,
+      key_version: checkpoint.key_version ?? null,
+      created_at: Number(checkpoint.created_at || 0),
+      updated_at: Number(checkpoint.updated_at || checkpoint.created_at || 0),
+    });
+  }
+  return checkpoints;
+}
+
 async function decryptSharedChatPayload(targetChatId, data, chatKeyBytes, options = {}) {
   const title = await decryptContent(data.encrypted_title, chatKeyBytes);
   const summary = await decryptContent(data.encrypted_chat_summary, chatKeyBytes);
@@ -261,9 +330,7 @@ async function decryptSharedChatPayload(targetChatId, data, chatKeyBytes, option
   const category = await decryptContent(data.encrypted_category, chatKeyBytes);
   const followUps = await decryptContent(data.encrypted_follow_up_request_suggestions, chatKeyBytes);
 
-  const rawMessages = (data.messages || []).map(m =>
-    typeof m === 'string' ? JSON.parse(m) : m
-  );
+  const rawMessages = normalizeJsonRows(data.messages || []);
   console.log(`\n${options.label || 'Chat'}: decrypting ${rawMessages.length} messages for ${targetChatId}...`);
   const messages = await decryptMessages(rawMessages, chatKeyBytes);
 
@@ -276,6 +343,10 @@ async function decryptSharedChatPayload(targetChatId, data, chatKeyBytes, option
   console.log(`${options.label || 'Chat'}: decrypting ${rawEmbeds.length} embeds for ${targetChatId}...`);
   const embeds = await decryptEmbeds(rawEmbeds, rawEmbedKeys, chatKeyBytes);
 
+  const rawCompressionCheckpoints = normalizeJsonRows(data.compression_checkpoints || []);
+  console.log(`${options.label || 'Chat'}: decrypting ${rawCompressionCheckpoints.length} compression checkpoints for ${targetChatId}...`);
+  const compressionCheckpoints = await decryptCompressionCheckpoints(rawCompressionCheckpoints, chatKeyBytes, targetChatId);
+
   return {
     chat_id: targetChatId,
     title,
@@ -285,6 +356,7 @@ async function decryptSharedChatPayload(targetChatId, data, chatKeyBytes, option
     follow_up_suggestions: followUps ? JSON.parse(followUps) : null,
     messages,
     embeds,
+    compression_checkpoints: compressionCheckpoints,
   };
 }
 

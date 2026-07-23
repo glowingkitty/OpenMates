@@ -9038,9 +9038,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 } else {
                     // Try to load messages from IndexedDB (might be a real chat)
                     try {
+                        currentCompressionCheckpoints = await loadCompressionCheckpointsForChat(currentChat.chat_id);
+                        const latestCheckpoint = [...currentCompressionCheckpoints].sort((a, b) => b.created_at - a.created_at)[0];
                         const windowResult = await chatDB.getMessageWindowForChat(currentChat.chat_id, {
                             direction: options?.messageId ? 'around' : 'latest',
                             anchorMessageId: options?.messageId ?? undefined,
+                            compressedUpToTimestamp: latestCheckpoint && !options?.messageId
+                                ? latestCheckpoint.compressed_up_to_timestamp
+                                : undefined,
                         });
                         newMessages = windowResult.messages;
                         currentMessageWindowHasMoreBefore = windowResult.hasMoreBefore;

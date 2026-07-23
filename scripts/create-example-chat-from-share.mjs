@@ -835,14 +835,30 @@ function formatEmbeds(embeds) {
   }));
 }
 
+function formatCompressionCheckpoints(checkpoints, chatId) {
+  return (checkpoints || []).map((checkpoint) => ({
+    id: checkpoint.id,
+    chat_id: chatId,
+    summary: checkpoint.summary || '',
+    compressed_up_to_timestamp: normalizeTimestamp(checkpoint.compressed_up_to_timestamp),
+    compressed_message_count: toPositiveInteger(checkpoint.compressed_message_count) ?? 0,
+    summary_token_estimate: toPositiveInteger(checkpoint.summary_token_estimate) ?? undefined,
+    key_version: checkpoint.key_version ?? null,
+    created_at: normalizeTimestamp(checkpoint.created_at),
+    updated_at: normalizeTimestamp(checkpoint.updated_at || checkpoint.created_at),
+  }));
+}
+
 function formatTs(chat, metadata) {
   const varName = `${toCamel(metadata.slug)}Chat`;
   const messages = formatMessages(chat.messages, metadata, 'message');
   const embeds = formatEmbeds(chat.embeds);
+  const compressionCheckpoints = formatCompressionCheckpoints(chat.compression_checkpoints, metadata.chatId);
   const subChats = (chat.sub_chats || []).map((subChat, index) => {
     const keyPrefix = `sub_chat_${index + 1}`;
+    const subChatId = `${metadata.chatId}-${keyPrefix.replace(/_/g, '-')}`;
     return {
-      chat_id: `${metadata.chatId}-${keyPrefix.replace(/_/g, '-')}`,
+      chat_id: subChatId,
       title: `example_chats.${metadata.snake}.${keyPrefix}_title`,
       summary: `example_chats.${metadata.snake}.${keyPrefix}_summary`,
       icon: subChat.icon || metadata.icon,
@@ -856,9 +872,13 @@ function formatTs(chat, metadata) {
       is_sub_chat: true,
       budget_limit: subChat.budget_limit ?? null,
       budget_spent: subChat.budget_spent ?? 0,
+      compression_checkpoints: formatCompressionCheckpoints(subChat.compression_checkpoints, subChatId),
     };
   });
   const subChatsLine = subChats.length > 0 ? `\n  sub_chats: ${JSON.stringify(subChats, null, 4)},` : '';
+  const compressionCheckpointsLine = compressionCheckpoints.length > 0
+    ? `\n  compression_checkpoints: ${JSON.stringify(compressionCheckpoints, null, 4)},`
+    : '';
   const appFocusLine = metadata.appFocusModeExamples.length > 0
     ? `\n    app_focus_mode_examples: ${tsArray(metadata.appFocusModeExamples)},`
     : '';
@@ -892,6 +912,7 @@ export const ${varName}: ExampleChat = {
   category: ${tsString(metadata.category)},
   keywords: ${tsArray(metadata.keywords)},
   follow_up_suggestions: ${tsArray(metadata.followUps.map((_, i) => `example_chats.${metadata.snake}.follow_up_${i + 1}`))},
+  ${compressionCheckpointsLine ? compressionCheckpointsLine.trimStart() : ''}
   messages: ${JSON.stringify(messages, null, 4)},
   embeds: ${JSON.stringify(embeds, null, 4)},${subChatsLine}
   metadata: {

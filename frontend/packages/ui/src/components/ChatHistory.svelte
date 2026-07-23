@@ -683,6 +683,13 @@
     return [...compressionCheckpoints].sort((a, b) => b.created_at - a.created_at)[0];
   });
 
+  let locallyAvailableForgottenMessages = $derived.by(() => {
+    if (!latestCompressionCheckpoint) return [] as typeof messages;
+    return messages.filter(
+      (msg) => (msg.original_message?.created_at ?? 0) <= latestCompressionCheckpoint.compressed_up_to_timestamp,
+    );
+  });
+
   $effect(() => {
     const checkpointId = latestCompressionCheckpoint?.id ?? null;
     if (checkpointId === oldCompressedMessagesCheckpointId) return;
@@ -732,7 +739,8 @@
   /** Messages before the compression summary (the "forgotten" ones). */
   let forgottenMessages = $derived.by(() => {
     if (latestCompressionCheckpoint) {
-      return oldCompressedMessages.map((message) => G_mapToInternalMessage(message));
+      const loadedMessages = oldCompressedMessages.map((message) => G_mapToInternalMessage(message));
+      return loadedMessages.length > 0 ? loadedMessages : locallyAvailableForgottenMessages;
     }
     if (!hasCompressionSummary) return [] as typeof messages;
     return messages.slice(0, compressionSummaryIndex);
@@ -837,7 +845,7 @@
       showForgottenMessages = !showForgottenMessages;
       return;
     }
-    if (!showForgottenMessages && oldCompressedMessages.length === 0) {
+    if (!showForgottenMessages && oldCompressedMessages.length === 0 && locallyAvailableForgottenMessages.length === 0) {
       await loadForgottenMessagePage();
     }
     showForgottenMessages = !showForgottenMessages;
@@ -2650,19 +2658,6 @@
               </div>
             {/if}
 
-            {#if hasOlderMessages}
-              <div class="older-messages-toggle">
-                <button
-                  class="older-messages-btn"
-                  data-testid="show-older-messages"
-                  onclick={requestOlderMessages}
-                  disabled={olderMessagesLoading}
-                >
-                  {olderMessagesLoading ? $text('chat.compression.loading_messages') : $text('chat.history.show_older_messages')}
-                </button>
-              </div>
-            {/if}
-
             {#if virtualTopSpacerHeight > 0}
               <div class="virtual-message-spacer" style="height: {virtualTopSpacerHeight}px;" aria-hidden="true"></div>
             {/if}
@@ -3216,8 +3211,7 @@
     padding: 8px 0 4px;
   }
 
-  .forgotten-messages-btn,
-  .older-messages-btn {
+  .forgotten-messages-btn {
     display: inline-flex;
     align-items: center;
     gap: var(--spacing-2);
@@ -3232,14 +3226,12 @@
     transition: background-color var(--duration-fast) var(--easing-default), color var(--duration-fast) var(--easing-default);
   }
 
-  .forgotten-messages-btn:hover,
-  .older-messages-btn:hover {
+  .forgotten-messages-btn:hover {
     background: var(--color-grey-20, rgba(255, 255, 255, 0.08));
     color: var(--color-grey-80, #ccc);
   }
 
-  .forgotten-messages-btn:disabled,
-  .older-messages-btn:disabled {
+  .forgotten-messages-btn:disabled {
     cursor: wait;
     opacity: 0.6;
   }
@@ -3251,12 +3243,6 @@
     font-size: var(--font-size-xxs);
     line-height: 1.35;
     text-align: center;
-  }
-
-  .older-messages-toggle {
-    display: flex;
-    justify-content: center;
-    padding: 8px 0 4px;
   }
 
   .forgotten-count {

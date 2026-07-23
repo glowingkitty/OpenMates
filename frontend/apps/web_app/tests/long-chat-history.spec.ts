@@ -187,10 +187,13 @@ test('loads long compressed history explicitly and exports hydrated metadata', a
 	});
 	await expect(page.getByText('Active assistant message 132')).toBeVisible({ timeout: 45000 });
 	await expect(page.getByText('Active user message 081')).not.toBeVisible();
-	await expect(page.getByTestId('show-older-messages')).toBeVisible({ timeout: 45000 });
+	await expect(page.getByTestId('show-older-messages')).toHaveCount(0);
 	await screenshot(page, 'initial-latest-window');
 
-	await page.getByTestId('show-older-messages').click();
+	await page.getByTestId('chat-history-container').evaluate((element: HTMLElement) => {
+		element.scrollTop = 0;
+		element.dispatchEvent(new Event('scroll', { bubbles: true }));
+	});
 	await expect(historyContent).toHaveAttribute('data-source-message-count', String(MESSAGE_WINDOW_PAGE_SIZE * 2), {
 		timeout: 45000
 	});
