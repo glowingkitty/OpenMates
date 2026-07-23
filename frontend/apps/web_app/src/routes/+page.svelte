@@ -3562,6 +3562,8 @@
 		inset-inline-end: 0;
 		top: 0;
 		bottom: 0;
+		display: flex;
+		flex-direction: column;
 		background-color: var(--color-grey-0);
 		z-index: 10;
 		/* Smooth transitions for width changes (large screens) and slide animations (small screens) */
@@ -3605,11 +3607,10 @@
 	.chat-container {
 		display: flex;
 		flex-direction: row;
+		flex: 1 1 auto;
 		box-sizing: border-box;
-		/* Fallback for browsers that don't support dvh */
-		height: calc(100vh - 82px - var(--dev-console-height, 0px));
-		/* Modern browsers will use this */
-		height: calc(100dvh - 82px - var(--dev-console-height, 0px));
+		min-height: 0;
+		height: auto;
 		gap: 0px;
 		padding: 10px;
 		/* Logical property: extra breathing room on the inline-end side (right in LTR, left in RTL) */
@@ -3649,8 +3650,7 @@
 	@media (max-width: 600px) {
 		.chat-container {
 			padding-inline-end: 10px;
-			height: calc(100vh - 75px - var(--dev-console-height, 0px));
-			height: calc(100dvh - 75px - var(--dev-console-height, 0px));
+			height: auto;
 		}
 		.sidebar {
 			width: 100%;

@@ -1443,8 +1443,8 @@
   }
 
   .daily-inspiration-banner.landing-intro-expanded {
-    height: calc(100dvh - 60px - var(--dev-console-height, 0px));
-    min-height: min(720px, calc(100dvh - 60px - var(--dev-console-height, 0px)));
+    height: 100%;
+    min-height: 0;
     max-height: none;
     transition:
       filter 0.15s ease,
@@ -1533,6 +1533,8 @@
     width: 100%;
     min-width: 100%;
     height: 100%;
+    padding: clamp(18px, 2.2vw, 34px) 0 clamp(16px, 1.8vw, 28px);
+    box-sizing: border-box;
     overflow: visible;
     color: white;
     text-align: center;
@@ -1540,9 +1542,9 @@
   }
 
   .landing-intro-ai-icon {
-    width: clamp(54px, 5.2vw, 92px);
-    height: clamp(54px, 5.2vw, 92px);
-    margin: 0 0 clamp(18px, 2.2vw, 30px);
+    width: clamp(68px, 6.2vw, 112px);
+    height: clamp(68px, 6.2vw, 112px);
+    margin: 0 0 clamp(8px, 1vw, 16px);
     filter: drop-shadow(0 12px 34px rgba(0, 0, 0, 0.2));
     transition: transform 780ms cubic-bezier(0.22, 1, 0.36, 1), margin 780ms cubic-bezier(0.22, 1, 0.36, 1);
   }
@@ -1550,13 +1552,15 @@
   .landing-intro-headline {
     display: flex;
     flex-direction: column;
+    align-items: center;
     gap: 0;
-    margin: 0;
+    margin: 0 auto;
     max-width: min(100% - 48px, 1050px);
     font-size: clamp(2.75rem, 4.7vw, 5.65rem);
     line-height: 1.05;
     font-weight: 800;
     letter-spacing: -0.04em;
+    text-align: center;
     color: rgba(255, 255, 255, 0.96);
     text-shadow: 0 8px 38px rgba(0, 0, 0, 0.22);
     transition: transform 780ms cubic-bezier(0.22, 1, 0.36, 1), font-size 780ms cubic-bezier(0.22, 1, 0.36, 1);
@@ -1573,28 +1577,25 @@
   }
 
   .landing-intro-expanded-content.examples-visible .landing-intro-ai-icon {
-    margin-bottom: clamp(12px, 1.4vw, 20px);
-    transform: translateY(clamp(-168px, -13.4vw, -108px)) scale(0.82);
+    margin-bottom: clamp(6px, 0.8vw, 12px);
+    transform: scale(0.92);
   }
 
   .landing-intro-expanded-content.examples-visible .landing-intro-headline {
-    transform: translateY(clamp(-186px, -14.8vw, -122px)) scale(0.96);
+    transform: scale(0.96);
   }
 
   .landing-intro-examples {
-    position: absolute;
-    left: 0;
-    right: 0;
-    top: calc(50% + clamp(2px, 2.2vw, 38px));
+    position: relative;
     display: flex;
     flex-direction: column;
     align-items: center;
     width: 100%;
     min-width: 100%;
-    padding-bottom: clamp(28px, 4vw, 52px);
+    padding-bottom: 0;
     box-sizing: border-box;
     opacity: 0;
-    transform: translateY(22px);
+    transform: translateY(12px);
     pointer-events: none;
     transition:
       opacity 680ms ease,
@@ -1611,7 +1612,7 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    margin-top: clamp(18px, 2.1vw, 30px);
+    margin-top: clamp(10px, 1.15vw, 20px);
     min-height: clamp(44px, 4.1vw, 68px);
     padding: 0 clamp(22px, 2.5vw, 38px);
     border-radius: clamp(11px, 1.1vw, 18px);
@@ -1642,12 +1643,12 @@
   .landing-intro-app-rails {
     display: flex;
     flex-direction: column;
-    gap: clamp(18px, 2.4vw, 34px);
+    gap: clamp(12px, 1.4vw, 22px);
     width: calc(100% + clamp(220px, 32vw, 520px));
     min-width: calc(100% + clamp(220px, 32vw, 520px));
     margin-left: calc(-1 * clamp(110px, 16vw, 260px));
     margin-right: calc(-1 * clamp(110px, 16vw, 260px));
-    margin-top: clamp(22px, 2.8vw, 40px);
+    margin-top: clamp(12px, 1.35vw, 24px);
     overflow: visible;
   }
 
@@ -1716,33 +1717,36 @@
 
   @media (orientation: landscape) and (max-height: 760px) {
     .daily-inspiration-banner.landing-intro-expanded {
-      height: calc(100dvh - 60px - var(--dev-console-height, 0px));
+      height: 100%;
       min-height: 0;
       max-height: none;
     }
 
+    .landing-intro-expanded-content {
+      padding: clamp(12px, 2.1vh, 18px) 0 clamp(10px, 1.8vh, 16px);
+    }
+
     .landing-intro-ai-icon {
-      width: clamp(42px, 8vh, 58px);
-      height: clamp(42px, 8vh, 58px);
-      margin-bottom: 12px;
+      width: clamp(58px, 9.2vh, 76px);
+      height: clamp(58px, 9.2vh, 76px);
+      margin-bottom: clamp(4px, 1vh, 8px);
     }
 
     .landing-intro-headline {
-      font-size: clamp(2.45rem, 6.5vh, 3.75rem);
+      font-size: clamp(2.5rem, 7.2vh, 3.9rem);
       line-height: 1.02;
     }
 
     .landing-intro-expanded-content.examples-visible .landing-intro-ai-icon {
-      transform: translateY(-92px) scale(0.74);
-      margin-bottom: 6px;
+      transform: scale(0.9);
+      margin-bottom: 4px;
     }
 
     .landing-intro-expanded-content.examples-visible .landing-intro-headline {
-      transform: translateY(-108px) scale(0.94);
+      transform: scale(0.94);
     }
 
     .landing-intro-examples {
-      top: calc(50% + 12px);
       padding-bottom: 10px;
     }
 
@@ -1761,8 +1765,8 @@
     }
 
     .landing-intro-app-rails {
-      gap: clamp(12px, 1.8vh, 18px);
-      margin-top: clamp(10px, 1.9vh, 18px);
+      gap: clamp(8px, 1.3vh, 12px);
+      margin-top: clamp(8px, 1.4vh, 12px);
       width: calc(100% + clamp(260px, 44vw, 560px));
       min-width: calc(100% + clamp(260px, 44vw, 560px));
       margin-left: calc(-1 * clamp(130px, 22vw, 280px));
@@ -1770,13 +1774,13 @@
     }
 
     .landing-intro-app-rail {
-      gap: clamp(28px, 4.8vh, 44px);
-      padding: 5px 0;
+      gap: clamp(22px, 3.8vh, 36px);
+      padding: 3px 0;
     }
 
     .landing-intro-app-icon {
-      width: clamp(62px, 10.2vh, 84px);
-      height: clamp(62px, 10.2vh, 84px);
+      width: clamp(54px, 8.8vh, 74px);
+      height: clamp(54px, 8.8vh, 74px);
       border-radius: clamp(14px, 2vh, 18px);
     }
   }
@@ -2485,39 +2489,41 @@
       font-size: clamp(1.95rem, 10vw, 2.5rem);
       line-height: 1.1;
       letter-spacing: -0.032em;
+      text-align: center;
+      align-items: center;
     }
 
     .landing-intro-ai-icon {
-      width: clamp(42px, 13vw, 64px);
-      height: clamp(42px, 13vw, 64px);
-      margin-bottom: 16px;
+      width: clamp(56px, 15vw, 74px);
+      height: clamp(56px, 15vw, 74px);
+      margin-bottom: 8px;
     }
 
     .landing-intro-expanded-content.examples-visible .landing-intro-ai-icon {
-      transform: translateY(-74px) scale(0.78);
-      margin-bottom: 10px;
+      transform: scale(0.9);
+      margin-bottom: 6px;
     }
 
     .landing-intro-expanded-content.examples-visible .landing-intro-headline {
-      transform: translateY(-84px) scale(0.94);
+      transform: scale(0.94);
     }
 
     .landing-intro-examples {
-      top: calc(50% + 24px);
+      padding-bottom: 0;
     }
 
     .landing-intro-request {
       max-width: min(100%, 280px);
       min-height: 38px;
-      margin-top: 18px;
+      margin-top: 8px;
       padding: 0 16px;
       font-size: clamp(1rem, 4.8vw, 1.32rem);
       white-space: normal;
     }
 
     .landing-intro-app-rails {
-      gap: 18px;
-      margin-top: 20px;
+      gap: 12px;
+      margin-top: 12px;
       width: calc(100% + 180px);
       min-width: calc(100% + 180px);
       margin-left: -90px;
@@ -2529,8 +2535,8 @@
     }
 
     .landing-intro-app-icon {
-      width: clamp(48px, 13vw, 58px);
-      height: clamp(48px, 13vw, 58px);
+      width: clamp(44px, 12vw, 56px);
+      height: clamp(44px, 12vw, 56px);
       border-radius: 12px;
     }
 

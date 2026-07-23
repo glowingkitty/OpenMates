@@ -220,12 +220,13 @@ test.describe('Guest interest smart selection', () => {
 		await expect(page.getByTestId('landing-intro-app-rail')).toHaveCount(2, { timeout: 5000 });
 
 		const metrics = await landingIntroIpadLandscapeMetrics(page);
-		expect(metrics.bannerHeight).toBeGreaterThanOrEqual(640);
+		expect(metrics.bannerHeight).toBeGreaterThanOrEqual(560);
 		expect(metrics.bannerBottomGap).toBeLessThanOrEqual(48);
-		expect(metrics.headlineTopRatio).toBeLessThanOrEqual(0.28);
+		expect(metrics.headlineTopRatio).toBeLessThanOrEqual(0.36);
 		expect(metrics.headlineText).toBe(LANDING_INTRO_HEADLINE_TEXT);
 		expect(metrics.headlineFontSize).toBeGreaterThanOrEqual(44);
-		expect(metrics.headlineRequestGap).toBeGreaterThanOrEqual(12);
+		expect(metrics.headlineRequestGap).toBeGreaterThanOrEqual(4);
+		expect(metrics.headlineRequestGap).toBeLessThanOrEqual(48);
 		for (const rail of metrics.rails) {
 			expect(rail.iconCount).toBeGreaterThanOrEqual(64);
 			expect(rail.oneCycleWidth).toBeGreaterThanOrEqual(rail.bannerWidth + 320);
