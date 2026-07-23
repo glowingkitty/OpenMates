@@ -120,10 +120,15 @@ test('creates and shares a chat link with QR code and fallback link', async ({
 			body: JSON.stringify({ detail: 'short link unavailable in fallback test' })
 		});
 	});
+	logCheckpoint('Short-link fallback route installed.');
 
 	// ── Step 8: Click "Share chat" (default settings) ─────────────────────
-	await generateLinkButton.dispatchEvent('click', undefined, { timeout: 10000 });
-	logCheckpoint('Clicked "Share chat" button.');
+	await page.evaluate(() => {
+		window.setTimeout(() => {
+			document.querySelector<HTMLButtonElement>('[data-testid="share-generate-link"]')?.click();
+		}, 0);
+	});
+	logCheckpoint('Scheduled "Share chat" button click.');
 
 	// ── Step 9: Verify link generated step ────────────────────────────────
 	const copyLinkButton = page.locator('[data-testid="share-copy-link"]');
