@@ -3651,8 +3651,8 @@
 		.chat-container {
 			padding-inline-end: 10px;
 			padding-bottom: 10px;
-			height: calc(100vh - 75px - var(--dev-console-height, 0px));
-			height: calc(100dvh - 75px - var(--dev-console-height, 0px));
+			height: calc(100vh - 66px - var(--dev-console-height, 0px));
+			height: calc(100dvh - 66px - var(--dev-console-height, 0px));
 		}
 		.sidebar {
 			width: 100%;
