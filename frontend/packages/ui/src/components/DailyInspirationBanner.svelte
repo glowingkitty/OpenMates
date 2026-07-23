@@ -2494,8 +2494,8 @@
     }
 
     .landing-intro-ai-icon {
-      width: clamp(56px, 15vw, 74px);
-      height: clamp(56px, 15vw, 74px);
+      width: clamp(60px, 15vw, 74px);
+      height: clamp(60px, 15vw, 74px);
       margin-bottom: 8px;
     }
 
