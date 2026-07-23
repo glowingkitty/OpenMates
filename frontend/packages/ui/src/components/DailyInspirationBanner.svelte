@@ -1478,10 +1478,6 @@
     gap: 0;
   }
 
-  .daily-inspiration-banner:not(.landing-intro-expanded) {
-    min-height: 253px;
-  }
-
   /* ── Top label ── */
   .banner-label {
     display: flex;
@@ -2455,10 +2451,6 @@
   @media (max-width: 730px) {
     .daily-inspiration-banner {
       height: 190px;
-    }
-
-    .daily-inspiration-banner:not(.landing-intro-expanded) {
-      min-height: 190px;
     }
 
     .daily-inspiration-banner.landing-intro-expanded {

@@ -192,6 +192,7 @@ test.describe('Landing page onboarding refresh', () => {
 			const cursorStyle = getComputedStyle(cursor);
 			return {
 				bannerHeight: bannerRect.height,
+				bannerLayoutHeight: banner.offsetHeight,
 				demoWidth: demoRect.width,
 				demoHeight: demoRect.height,
 				demoLeftGap: demoRect.left - bannerRect.left,
@@ -213,7 +214,7 @@ test.describe('Landing page onboarding refresh', () => {
 			};
 		});
 
-		expect(metrics.bannerHeight).toBeGreaterThanOrEqual(240);
+		expect(metrics.bannerLayoutHeight).toBeGreaterThanOrEqual(240);
 		expect(metrics.demoWidth).toBeGreaterThanOrEqual(360);
 		expect(metrics.demoHeight).toBeLessThanOrEqual(metrics.bannerHeight);
 		expect(metrics.demoLeftGap).toBeGreaterThanOrEqual(40);
