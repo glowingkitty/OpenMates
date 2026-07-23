@@ -37,15 +37,28 @@
     onFullscreen,
   }: Props = $props();
 
+  function humanizeSkillId(value: string): string {
+    return value
+      .split(/[_-]+/)
+      .filter(Boolean)
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(' ');
+  }
+
+  function isMissingTranslation(value: string, key: string): boolean {
+    return value === key || value === `[T:${key}]`;
+  }
+
   let normalizedSkillId = $derived(skillId.replace(/-/g, '_'));
   let translationKey = $derived(`app_skills.${appId}.${normalizedSkillId}`);
-  let fallbackSkillName = $derived(`${appId} | ${skillId}`);
+  let fallbackSkillName = $derived(humanizeSkillId(skillId) || appId || 'App skill');
   let translatedSkillName = $derived($text(translationKey));
   let skillName = $derived(
-    translatedSkillName && translatedSkillName !== translationKey
+    translatedSkillName && !isMissingTranslation(translatedSkillName, translationKey)
       ? translatedSkillName
       : fallbackSkillName,
   );
+  let displaySkillId = $derived(humanizeSkillId(skillId) || skillId);
 
   let statusText = $derived.by(() => {
     const parts: string[] = [];
@@ -70,9 +83,9 @@
   customStatusText={statusText}
 >
   {#snippet details()}
-    <div class="generic-app-skill-details">
-      <div class="generic-app-skill-eyebrow">{appId}</div>
-      <div class="generic-app-skill-title">{skillId}</div>
+      <div class="generic-app-skill-details">
+        <div class="generic-app-skill-eyebrow">{appId}</div>
+      <div class="generic-app-skill-title">{displaySkillId}</div>
       {#if statusText}
         <div class="generic-app-skill-meta">{statusText}</div>
       {/if}
