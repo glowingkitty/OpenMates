@@ -46,6 +46,7 @@ current_milestone:
     - Existing-style progress bar and left/right controls.
     - Skip behavior: pressing next during expanded intro collapses immediately and shows slide 2 at regular header size.
   deferred:
+    - Playwright `*.spec.ts` verification until the full landing page refresh is implemented.
     - Privacy and safety slide animations.
     - Mates and focus-mode slide animations.
     - Provider/cross-platform slide animations.
@@ -312,12 +313,23 @@ attempts:
       passed in GitHub Actions run `30005783218`; `guest-interest-smart-selection.spec.ts`
       passed in GitHub Actions run `30005765899`. User visual confirmation remains
       pending before the phase can be marked complete.
+  - id: ATTEMPT-15
+    task_id: TASK-2
+    approach: Replace partial Playwright gating with Firecrawl visual debugging after user clarified `.spec.ts` is out of scope until the full landing page refresh is implemented.
+    outcome: planned
+    recorded_at: "2026-07-23"
+    notes: >
+      Firecrawl visual inspection and DOM measurements showed the live dev landing still failed
+      the focused visual contract: the intro parent container was taller than the fixed chat
+      container, and each intro headline span could wrap into multiple visual lines. The next
+      validation gate is deployed Firecrawl screenshots/measurements across viewports, not
+      `*.spec.ts` runs.
 
 handoff:
   current_task_id: TASK-2
-  next_action: Validate and deploy the revised expanded intro and Luma CTA slide, rerun the two focused Playwright specs, then ask for user visual confirmation.
+  next_action: Deploy the responsive landing fixes and validate the live dev site with Firecrawl screenshots across mobile, tablet, and desktop viewports; defer `*.spec.ts` runs until the full landing page refresh is implemented.
   command: python3 scripts/spec_verify.py docs/specs/landing-page-onboarding-refresh/spec.yml
-  expected_outcome: Fails only on pending V-USER-PHASE1 until the user approves the deployed visual result.
+  expected_outcome: Fails only on pending visual/user evidence until the full landing page refresh is implemented and the user approves the deployed visual result.
   blocker:
     id: V-USER-PHASE1
     reason: User visual confirmation is required before TASK-1/TASK-2 can be marked complete.
@@ -685,19 +697,19 @@ implementation_plan:
       reason: Focused deployed Playwright coverage for the refreshed logged-out intro.
   verification_strategy:
     - python3 scripts/spec_validate.py docs/specs/landing-page-onboarding-refresh/spec.yml
-    - python3 scripts/tests.py run --spec guest-interest-smart-selection.spec.ts before implementation for red evidence if feasible.
     - bash scripts/lint_changed.sh with focused `--path` arguments for the touched files before deploy.
     - python3 scripts/sessions.py deploy --session aab5 after focused local checks.
     - python3 backend/scripts/debug.py vercel until Ready.
-    - python3 scripts/tests.py run --spec guest-interest-smart-selection.spec.ts after deploy for green evidence.
-    - User visual confirmation before activating slide 2 work or Apple parity.
+    - Firecrawl screenshots of app.dev.openmates.org at mobile, tablet, and desktop viewports after deploy.
+    - Defer `*.spec.ts` Playwright runs until the full landing page refresh is implemented.
+    - User visual confirmation before Apple parity.
   verification_order:
     - Spec validation.
     - Browser-only web implementation and focused local static/lint checks.
     - Deploy to dev.
-    - Web Playwright against app.dev.openmates.org.
+    - Firecrawl visual inspection against app.dev.openmates.org across viewports.
     - User visual confirmation.
-    - Later slide-by-slide tasks and Apple parity only after confirmation.
+    - Full landing-page Playwright specs and Apple parity only after the full landing page refresh is implemented.
 
 tasks:
   - id: TASK-1

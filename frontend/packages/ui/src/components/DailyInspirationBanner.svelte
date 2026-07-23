@@ -1564,6 +1564,7 @@
 
   .landing-intro-headline span {
     transform-origin: center;
+    white-space: nowrap;
     animation: landingIntroHeadlineScale 1800ms ease-in-out infinite alternate;
   }
 
@@ -2480,8 +2481,8 @@
     }
 
     .landing-intro-headline {
-      max-width: min(100% - 34px, 390px);
-      font-size: clamp(1.7rem, 8vw, 2.55rem);
+      max-width: calc(100% - 18px);
+      font-size: clamp(1.95rem, 10vw, 2.5rem);
       line-height: 1.1;
       letter-spacing: -0.032em;
     }

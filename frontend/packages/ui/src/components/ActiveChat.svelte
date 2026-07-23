@@ -13301,11 +13301,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         box-sizing: border-box;
     }
 
-    .active-chat-container.landing-intro-active {
-        height: calc(100dvh - 60px - var(--dev-console-height, 0px));
-        min-height: min(720px, calc(100dvh - 60px - var(--dev-console-height, 0px)));
-    }
-
     /* ===========================================
        Rainbow border ring + outer glow while AI is typing
        Uses @property --chat-gradient-angle to animate the conic-gradient rotation
