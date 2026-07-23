@@ -686,6 +686,17 @@ def audit_recipe_embed(chat_id: str, block: str, content: str) -> list[str]:
     return issues
 
 
+def audit_uploaded_image_embed(chat_id: str, block: str, content: str) -> list[str]:
+    embed_id = parse_ts_string_field(block, "embed_id") or "<unknown>"
+    if toon_value(content, "app_id") != "images" or toon_value(content, "skill_id") != "upload":
+        return []
+    if toon_value(content, "src") or toon_value(content, "previewImageUrl"):
+        return []
+    if "\nfiles:" in content and toon_value(content, "s3_base_url"):
+        return []
+    return [f"{chat_id}: uploaded image embed {embed_id} is missing a public src or S3 files"]
+
+
 def audit() -> list[str]:
     issues: list[str] = audit_german_example_translations()
     valid_categories = load_canonical_categories()
@@ -794,6 +805,8 @@ def audit() -> list[str]:
             content_type = toon_value(content, "type")
             if embed_type in RECIPE_EMBED_TYPES or content_type in RECIPE_EMBED_TYPES:
                 issues.extend(audit_recipe_embed(chat_id, block, content))
+            if embed_type == "image" or content_type == "image":
+                issues.extend(audit_uploaded_image_embed(chat_id, block, content))
             if embed_type != "app_skill_use":
                 continue
             app_id = toon_value(content, "app_id")

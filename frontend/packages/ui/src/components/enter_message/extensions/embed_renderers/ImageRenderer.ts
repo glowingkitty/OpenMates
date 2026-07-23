@@ -168,7 +168,7 @@ export class ImageRenderer implements EmbedRenderer {
         // File object is no longer available (attrs.originalFile is always undefined there).
         const fileSize = parsed.file_size as number | undefined;
         const fileType = parsed.file_type as string | undefined;
-        const publicSrc = parsed.src as string | undefined;
+        const publicSrc = (parsed.src as string | undefined) || (parsed.previewImageUrl as string | undefined);
 
         if (publicSrc) {
           const publicAttrs: ImageEmbedAttrs = {
