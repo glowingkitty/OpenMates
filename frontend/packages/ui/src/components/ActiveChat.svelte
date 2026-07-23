@@ -11817,6 +11817,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     class:wide={isWide && !showSideBySideLayout}
     class:extra-wide={isExtraWide}
     class:side-by-side-active={showSideBySideLayout}
+    class:landing-intro-active={showWelcome && guestLandingIntroExpanded}
     bind:clientWidth={containerWidth}
     bind:this={activeChatContainerEl}
 >
@@ -13298,6 +13299,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         transition: opacity 0.3s ease, box-shadow 0.6s ease;
         overflow: hidden;
         box-sizing: border-box;
+    }
+
+    .active-chat-container.landing-intro-active {
+        height: calc(100dvh - 60px - var(--dev-console-height, 0px));
+        min-height: min(720px, calc(100dvh - 60px - var(--dev-console-height, 0px)));
     }
 
     /* ===========================================

@@ -64,7 +64,7 @@
   const TOUCH_SWIPE_VERTICAL_CANCEL_PX = 48;
   const LANDING_INTRO_INSPIRATION_ID = 'openmates-intro';
   const LANDING_ACTIONABLE_EVENTS_ID = 'openmates-actionable-events';
-  const LANDING_INTRO_RAIL_MIN_ICON_COUNT = 32;
+  const LANDING_INTRO_RAIL_MIN_ICON_COUNT = 40;
   // Temporarily disabled with the visit-cycling effect below.
   // const VISIT_INDEX_STORAGE_PREFIX = 'openmates.daily_inspiration.visit_index.';
   const AUTHENTICATED_ONLY_FEATURE_IDS = new Set([
@@ -851,7 +851,7 @@
       .map((appId) => icons.find((icon) => icon.appId === appId))
       .filter((icon): icon is LandingIntroAppIcon => Boolean(icon));
     const otherIcons = icons.filter((icon) => !LANDING_INTRO_FEATURED_APP_IDS.includes(icon.appId));
-    return [...otherIcons.slice(0, 3), ...featuredIcons, ...otherIcons.slice(3, 8)];
+    return [...otherIcons.slice(0, 7), ...featuredIcons, ...otherIcons.slice(7, 14)];
   }
 
   function buildSecondaryLandingIntroIcons(
@@ -1443,8 +1443,9 @@
   }
 
   .daily-inspiration-banner.landing-intro-expanded {
-    height: clamp(620px, calc(100dvh - 64px), 940px);
-    min-height: 620px;
+    height: calc(100dvh - 60px - var(--dev-console-height, 0px));
+    min-height: min(720px, calc(100dvh - 60px - var(--dev-console-height, 0px)));
+    max-height: none;
     transition:
       filter 0.15s ease,
       transform 0.1s ease,
@@ -1572,18 +1573,18 @@
 
   .landing-intro-expanded-content.examples-visible .landing-intro-ai-icon {
     margin-bottom: clamp(12px, 1.4vw, 20px);
-    transform: translateY(clamp(-138px, -10.8vw, -82px)) scale(0.86);
+    transform: translateY(clamp(-168px, -13.4vw, -108px)) scale(0.82);
   }
 
   .landing-intro-expanded-content.examples-visible .landing-intro-headline {
-    transform: translateY(clamp(-154px, -11.8vw, -90px)) scale(0.98);
+    transform: translateY(clamp(-186px, -14.8vw, -122px)) scale(0.96);
   }
 
   .landing-intro-examples {
     position: absolute;
     left: 0;
     right: 0;
-    top: calc(50% + clamp(34px, 4.2vw, 76px));
+    top: calc(50% + clamp(2px, 2.2vw, 38px));
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -1645,15 +1646,15 @@
     min-width: calc(100% + clamp(220px, 32vw, 520px));
     margin-left: calc(-1 * clamp(110px, 16vw, 260px));
     margin-right: calc(-1 * clamp(110px, 16vw, 260px));
-    margin-top: clamp(28px, 3.8vw, 52px);
-    overflow: hidden;
+    margin-top: clamp(22px, 2.8vw, 40px);
+    overflow: visible;
   }
 
   .landing-intro-app-rail-row {
     position: relative;
     width: 100%;
     min-width: 100%;
-    overflow: hidden;
+    overflow: visible;
   }
 
   .landing-intro-app-rail {
@@ -1714,7 +1715,7 @@
 
   @media (orientation: landscape) and (max-height: 760px) {
     .daily-inspiration-banner.landing-intro-expanded {
-      height: calc(100dvh - 24px);
+      height: calc(100dvh - 60px - var(--dev-console-height, 0px));
       min-height: 0;
       max-height: none;
     }
@@ -1731,16 +1732,16 @@
     }
 
     .landing-intro-expanded-content.examples-visible .landing-intro-ai-icon {
-      transform: translateY(-72px) scale(0.76);
+      transform: translateY(-92px) scale(0.74);
       margin-bottom: 6px;
     }
 
     .landing-intro-expanded-content.examples-visible .landing-intro-headline {
-      transform: translateY(-86px) scale(0.96);
+      transform: translateY(-108px) scale(0.94);
     }
 
     .landing-intro-examples {
-      top: calc(50% + 34px);
+      top: calc(50% + 12px);
       padding-bottom: 10px;
     }
 
@@ -1760,7 +1761,7 @@
 
     .landing-intro-app-rails {
       gap: clamp(12px, 1.8vh, 18px);
-      margin-top: clamp(16px, 2.6vh, 24px);
+      margin-top: clamp(10px, 1.9vh, 18px);
       width: calc(100% + clamp(260px, 44vw, 560px));
       min-width: calc(100% + clamp(260px, 44vw, 560px));
       margin-left: calc(-1 * clamp(130px, 22vw, 280px));
@@ -2443,8 +2444,9 @@
     }
 
     .daily-inspiration-banner.landing-intro-expanded {
-      height: clamp(520px, calc(100dvh - 190px), 650px);
-      min-height: 520px;
+      height: calc(100dvh - 60px - var(--dev-console-height, 0px));
+      min-height: min(620px, calc(100dvh - 60px - var(--dev-console-height, 0px)));
+      max-height: none;
     }
 
     :global(.menu-open) .daily-inspiration-banner,
@@ -2491,16 +2493,16 @@
     }
 
     .landing-intro-expanded-content.examples-visible .landing-intro-ai-icon {
-      transform: translateY(-42px) scale(0.82);
+      transform: translateY(-74px) scale(0.78);
       margin-bottom: 10px;
     }
 
     .landing-intro-expanded-content.examples-visible .landing-intro-headline {
-      transform: translateY(-46px) scale(0.96);
+      transform: translateY(-84px) scale(0.94);
     }
 
     .landing-intro-examples {
-      top: calc(50% + 62px);
+      top: calc(50% + 24px);
     }
 
     .landing-intro-request {
@@ -2513,12 +2515,12 @@
     }
 
     .landing-intro-app-rails {
-      gap: 20px;
-      margin-top: 28px;
-      width: 100%;
-      min-width: 100%;
-      margin-left: 0;
-      margin-right: 0;
+      gap: 18px;
+      margin-top: 20px;
+      width: calc(100% + 180px);
+      min-width: calc(100% + 180px);
+      margin-left: -90px;
+      margin-right: -90px;
     }
 
     .landing-intro-app-rail {

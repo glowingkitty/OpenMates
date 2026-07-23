@@ -2480,7 +2480,7 @@ teaser_line3:
 
 landing_intro_headline_line1:
   context: First line of the expanded logged-out landing intro headline
-  en: Simply ask
+  en: Simply ask your
   de: Frag einfach
   zh: Simply ask
   es: Simply ask
@@ -2504,7 +2504,7 @@ landing_intro_headline_line1:
   verified_by_human: []
 landing_intro_headline_line2:
   context: Second line of the expanded logged-out landing intro headline
-  en: your AI team mates
+  en: AI team mates
   de: deine KI Team-Mates
   zh: your AI team mates
   es: your AI team mates
@@ -2672,8 +2672,8 @@ landing_actionable_line2:
   verified_by_human: []
 landing_actionable_event_user_message:
   context: User message shown in the lightweight Actionable landing slide event demo
-  en: Find language-learning events in Berlin
-  de: Finde Sprachlern-Events in Berlin
+  en: Find tech events in Berlin
+  de: Finde Tech-Events in Berlin
   zh: Find language-learning events in Berlin
   es: Find language-learning events in Berlin
   fr: Find language-learning events in Berlin
@@ -2696,8 +2696,8 @@ landing_actionable_event_user_message:
   verified_by_human: []
 landing_actionable_event_assistant_message:
   context: Assistant message shown in the lightweight Actionable landing slide event demo
-  en: Sure, let me help with that!
-  de: Klar, ich helfe dir dabei!
+  en: I found a real Luma event with a preview you can open directly.
+  de: Ich habe ein echtes Luma-Event mit Vorschau gefunden, das du direkt oeffnen kannst.
   zh: Sure, let me help with that!
   es: Sure, let me help with that!
   fr: Sure, let me help with that!
@@ -2720,8 +2720,8 @@ landing_actionable_event_assistant_message:
   verified_by_human: []
 landing_actionable_event_source:
   context: Source label for the lightweight Actionable landing slide event demo
-  en: Event preview
-  de: Event-Vorschau
+  en: Luma event
+  de: Luma-Event
   zh: Event preview
   es: Event preview
   fr: Event preview
@@ -2744,8 +2744,8 @@ landing_actionable_event_source:
   verified_by_human: []
 landing_actionable_event_title:
   context: Event title for the lightweight Actionable landing slide event demo
-  en: Berlin Language Exchange
-  de: Berlin Language Exchange
+  en: DEPIN DAY BERLIN
+  de: DEPIN DAY BERLIN
   zh: Berlin Language Exchange
   es: Berlin Language Exchange
   fr: Berlin Language Exchange
@@ -2768,8 +2768,8 @@ landing_actionable_event_title:
   verified_by_human: []
 landing_actionable_event_meta:
   context: Event metadata for the lightweight Actionable landing slide event demo
-  en: Today at 19:00 near Kreuzberg
-  de: Heute um 19:00 in der Naehe von Kreuzberg
+  en: May 22 at Magazin in der Heeresbaeckerei
+  de: 22. Mai in der Heeresbaeckerei
   zh: Today at 19:00 near Kreuzberg
   es: Today at 19:00 near Kreuzberg
   fr: Today at 19:00 near Kreuzberg
@@ -2792,8 +2792,8 @@ landing_actionable_event_meta:
   verified_by_human: []
 landing_actionable_event_detail:
   context: Fullscreen detail description for the lightweight Actionable landing slide event demo
-  en: Practice German and English in small groups, then save the event or ask for similar options.
-  de: Uebe Deutsch und Englisch in kleinen Gruppen und speichere das Event oder frage nach aehnlichen Optionen.
+  en: A Berlin Luma event about decentralized compute and DePIN research, found from a real event search.
+  de: Ein Berliner Luma-Event ueber dezentrales Computing und DePIN-Forschung, gefunden aus einer echten Eventsuche.
   zh: Practice German and English in small groups, then save the event or ask for similar options.
   es: Practice German and English in small groups, then save the event or ask for similar options.
   fr: Practice German and English in small groups, then save the event or ask for similar options.

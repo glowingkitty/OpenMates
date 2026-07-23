@@ -35,10 +35,10 @@ current_milestone:
   id: phase-2-actionable-event-slide
   goal: >
     Implement, deploy, and verify the first regular-size follow-up slide after the
-    expanded logged-out intro: the `Actionable` language-learning event explainer.
+    expanded logged-out intro: the `Actionable` Luma event preview explainer.
   in:
     - Full-container intro for the first guest slide only.
-    - Headline `Simply ask\nyour AI team mates` with the existing AI/sparkle visual language.
+    - Headline `Simply ask your\nAI team mates` with the existing AI/sparkle visual language.
     - User-message style bubble rotating through `Find doctor appointments`, `Find events`, `Build a web app`, and `Explain the news`.
     - About 8.5 seconds total intro timing: roughly 0.6s entrance, 1.7s per request, then about 1.1s collapse.
     - Two active-app icon rails moving continuously in opposite directions, timed so Health, Events, Code, and News are near center during the matching request.
@@ -283,10 +283,35 @@ attempts:
       passed in GitHub Actions run `29996759129`; `landing-page-onboarding-refresh.spec.ts`
       passed in GitHub Actions run `29996759142`. User visual confirmation remains
       pending before the phase can be marked complete.
+  - id: ATTEMPT-13
+    task_id: TASK-2
+    approach: User visual review of the deployed `f02fd182b` replacement.
+    outcome: rejected
+    recorded_at: "2026-07-23"
+    notes: >
+      User rejected the deployed visual despite green focused specs: the active
+      chat container still did not stretch tall enough, mobile height was wrong,
+      the intro headline needed to be exactly `Simply ask your\nAI team mates`,
+      app icons and shadows were still clipped, highlighted icons were too far
+      left, and slide 2 needed a real Luma event image plus cursor clicks that
+      reveal and click an `Open on Luma` CTA instead of showing a simplified
+      fullscreen/map surface.
+  - id: ATTEMPT-14
+    task_id: TASK-2
+    approach: Patch the rejected landing intro layout and replace slide 2 with a real Luma event preview-to-CTA cursor animation.
+    outcome: planned
+    recorded_at: "2026-07-23"
+    notes: >
+      Local edits update the active-chat intro height to use the viewport-fill
+      calc preferred by the user, move the intro headline/rails upward, add more
+      left-side rail icons before featured apps, remove icon rail overflow
+      clipping, and replace the fake fullscreen detail with the real Luma event
+      `DEPIN DAY BERLIN`, its real cover image, a visible cursor click on the
+      preview, and an `Open on Luma` CTA button.
 
 handoff:
   current_task_id: TASK-2
-  next_action: Ask for user visual confirmation of the deployed expanded intro and Actionable event slide before activating underspecified later slides.
+  next_action: Validate and deploy the revised expanded intro and Luma CTA slide, rerun the two focused Playwright specs, then ask for user visual confirmation.
   command: python3 scripts/spec_verify.py docs/specs/landing-page-onboarding-refresh/spec.yml
   expected_outcome: Fails only on pending V-USER-PHASE1 until the user approves the deployed visual result.
   blocker:
@@ -304,7 +329,7 @@ scenarios:
       - The guest welcome state finishes initial loading.
     then:
       - The guest daily inspiration intro expands to fill the active chat container.
-      - The headline reads `Simply ask` and `your AI team mates` on separate lines.
+      - The headline reads exactly `Simply ask your` and `AI team mates` on separate lines.
       - A user-message style bubble rotates through the four approved short requests.
       - Active app icons move in two rails under the message bubble.
       - The current matching active app icon is visually emphasized.
@@ -339,11 +364,13 @@ scenarios:
     when:
       - The slide plays the first event explainer animation.
     then:
-      - The animation shows a simple user message for language-learning events in Berlin.
+      - The animation shows a simple user message for tech events in Berlin.
       - It shows a real chat-history-style user bubble with the speech-tail pointer.
-      - It shows a real chat-history-style assistant response with a mate profile image and speech-tail pointer saying `Sure, let me help with that!`.
-      - The assistant response fades up/out and an event embed preview based on the real events embed preview design fades in below.
-      - The preview expands into a fullscreen details view based on the real event fullscreen/map-detail design while the scene zooms out.
+      - It shows a real chat-history-style assistant response with a mate profile image and speech-tail pointer saying it found a real Luma event.
+      - A real events embed preview for `DEPIN DAY BERLIN` fades in with its Luma cover image.
+      - A visible cursor moves over the preview and clicks it.
+      - The click reveals the actual CTA text `Open on Luma`, and the cursor clicks that CTA.
+      - The slide does not show the rejected simplified fullscreen/map surface.
       - The animation is visually faithful to real OpenMates chat and events embed styling without mounting a full interactive chat runtime.
 
   - id: S-5
@@ -401,7 +428,7 @@ acceptance_criteria:
       - V-USER-PHASE1
   - id: AC-4
     scenario: S-4
-    text: The `Actionable` slide uses real chat bubble/profile styling plus real events embed preview/fullscreen visual styling for the language-learning event animation, without mounting a full interactive chat runtime.
+    text: The `Actionable` slide uses real chat bubble/profile styling plus a real-image Luma event preview and cursor-to-`Open on Luma` CTA animation, without mounting a full interactive chat runtime or showing the rejected fake fullscreen/map surface.
     required: true
     status: pending
     coverage_status: covered
@@ -524,11 +551,13 @@ tests:
     covers:
       - AC-4
     assertions:
-      - actionable slide shows the language-learning event explainer sequence
+      - actionable slide shows the Luma event preview-to-CTA explainer sequence
       - user and assistant messages expose real chat bubble speech-tail styling
       - assistant message includes a mate profile image
       - event preview uses the real events embed preview surface with app id `events` and skill id `event`
-      - event fullscreen visual includes map, Date & Time, Location, About, and event metadata surfaces
+      - event preview uses a real Luma cover image and provider label
+      - no simplified fullscreen/map surface is rendered
+      - visible cursor animation reveals and clicks the `Open on Luma` CTA
     red_phase:
       required: false
       expected: fail_when_activated

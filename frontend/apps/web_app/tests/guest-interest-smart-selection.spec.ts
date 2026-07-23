@@ -26,6 +26,7 @@ const LANDING_INTRO_REQUESTS = [
 	'Build a web app',
 	'Explain the news'
 ];
+const LANDING_INTRO_HEADLINE_TEXT = 'Simply ask your\nAI team mates';
 const LANDING_INTRO_HIGHLIGHTED_APPS = ['health', 'events', 'code', 'news'];
 const LANDING_INTRO_REQUEST_APP_IDS = new Map(
 	LANDING_INTRO_REQUESTS.map((request, index) => [request, LANDING_INTRO_HIGHLIGHTED_APPS[index]])
@@ -142,6 +143,7 @@ async function landingIntroIpadLandscapeMetrics(page: any): Promise<{
 	bannerHeight: number;
 	bannerBottomGap: number;
 	headlineTopRatio: number;
+	headlineText: string;
 	headlineFontSize: number;
 	headlineRequestGap: number;
 	rails: Array<{
@@ -169,6 +171,7 @@ async function landingIntroIpadLandscapeMetrics(page: any): Promise<{
 			bannerHeight: bannerRect.height,
 			bannerBottomGap: window.innerHeight - bannerRect.bottom,
 			headlineTopRatio: (headlineRect.top - bannerRect.top) / bannerRect.height,
+			headlineText: headline.innerText.trim(),
 			headlineFontSize: Number.parseFloat(getComputedStyle(headline).fontSize),
 			headlineRequestGap: requestRect.top - headlineRect.bottom,
 			rails: rails.map((rail) => {
@@ -217,9 +220,10 @@ test.describe('Guest interest smart selection', () => {
 		await expect(page.getByTestId('landing-intro-app-rail')).toHaveCount(2, { timeout: 5000 });
 
 		const metrics = await landingIntroIpadLandscapeMetrics(page);
-		expect(metrics.bannerHeight).toBeGreaterThanOrEqual(660);
+		expect(metrics.bannerHeight).toBeGreaterThanOrEqual(640);
 		expect(metrics.bannerBottomGap).toBeLessThanOrEqual(48);
-		expect(metrics.headlineTopRatio).toBeLessThanOrEqual(0.34);
+		expect(metrics.headlineTopRatio).toBeLessThanOrEqual(0.28);
+		expect(metrics.headlineText).toBe(LANDING_INTRO_HEADLINE_TEXT);
 		expect(metrics.headlineFontSize).toBeGreaterThanOrEqual(44);
 		expect(metrics.headlineRequestGap).toBeGreaterThanOrEqual(12);
 		for (const rail of metrics.rails) {
@@ -242,8 +246,8 @@ test.describe('Guest interest smart selection', () => {
 		await expect(page.getByTestId('daily-inspiration-banner')).toBeVisible({ timeout: 15000 });
 		await expect(page.getByTestId('daily-inspiration-carousel-progress')).toBeVisible({ timeout: 15000 });
 		await expect(page.getByTestId('landing-intro-expanded')).toBeVisible({ timeout: 15000 });
-		await expect(page.getByTestId('landing-intro-headline')).toContainText('Simply ask', { timeout: 15000 });
-		await expect(page.getByTestId('landing-intro-headline')).toContainText('your AI team mates', { timeout: 15000 });
+		await expect(page.getByTestId('landing-intro-headline')).toContainText('Simply ask your', { timeout: 15000 });
+		await expect(page.getByTestId('landing-intro-headline')).toContainText('AI team mates', { timeout: 15000 });
 		await expect(page.getByTestId('daily-inspiration-previous')).toHaveCount(0);
 		for (const appId of LANDING_INTRO_HIGHLIGHTED_APPS) {
 			await expect(page.locator(`[data-testid="landing-intro-app-icon"][data-app-id="${appId}"]`).first()).toBeVisible({ timeout: 15000 });
@@ -265,10 +269,12 @@ test.describe('Guest interest smart selection', () => {
 				copyBottom: copyRect?.bottom ?? 0,
 				bannerTop: bannerRect?.top ?? 0,
 				bannerBottom: bannerRect?.bottom ?? 0,
-				copyFontSize: headline ? Number.parseFloat(getComputedStyle(headline).fontSize) : 0
+				copyFontSize: headline ? Number.parseFloat(getComputedStyle(headline).fontSize) : 0,
+				headlineText: (headline as HTMLElement | null)?.innerText.trim() ?? ''
 			};
 		});
 		expect(guestIntroMetrics.bannerHeight).toBeGreaterThanOrEqual(520);
+		expect(guestIntroMetrics.headlineText).toBe(LANDING_INTRO_HEADLINE_TEXT);
 		expect(guestIntroMetrics.copyTop).toBeGreaterThanOrEqual(guestIntroMetrics.bannerTop);
 		expect(guestIntroMetrics.copyBottom).toBeLessThanOrEqual(guestIntroMetrics.bannerBottom);
 		expect(guestIntroMetrics.copyFontSize).toBeGreaterThanOrEqual(32);

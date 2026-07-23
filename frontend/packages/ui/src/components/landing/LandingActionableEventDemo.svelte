@@ -3,39 +3,39 @@
    * LandingActionableEventDemo.svelte
    *
    * Lightweight logged-out landing animation for the Actionable product slide.
-   * It mirrors the real chat-message bubble classes and real events embed
-   * preview/fullscreen visual system without mounting an interactive chat flow.
+   * It mirrors real chat-message bubbles and the events embed preview while
+   * showing a cursor opening a real Luma event CTA.
    */
 
   import { text } from '@repo/ui';
   import EventEmbedPreview from '../embeds/events/EventEmbedPreview.svelte';
 
-  const demoStartDate = new Date();
-  demoStartDate.setHours(19, 0, 0, 0);
+  const demoStartDate = new Date('2024-05-22T11:00:00+02:00');
   const demoEndDate = new Date(demoStartDate);
-  demoEndDate.setHours(21, 0, 0, 0);
+  demoEndDate.setHours(18, 0, 0, 0);
 
   const demoEvent = {
     embed_id: 'landing-actionable-event-preview',
-    id: 'landing-actionable-language-exchange',
-    provider: 'meetup',
-    title: 'Berlin Language Exchange',
-    description: 'Practice German and English in small groups, then save the event or ask for similar options.',
-    url: 'https://example.com/events/berlin-language-exchange',
+    id: 'landing-actionable-depin-berlin',
+    provider: 'luma',
+    title: 'DEPIN DAY BERLIN',
+    description: 'The second edition of DePIN Day in Berlin, with research and talks on decentralized compute.',
+    url: 'https://luma.com/depin-berlin',
     date_start: demoStartDate.toISOString(),
     date_end: demoEndDate.toISOString(),
     event_type: 'PHYSICAL',
     venue: {
-      name: 'Cafe Kreuzberg',
-      address: 'Oranienstrasse 24',
+      name: 'Magazin in der Heeresbaeckerei',
+      address: 'Koepenicker Strasse 16-17',
       city: 'Berlin',
       country: 'Germany',
-      lat: 52.5009,
-      lon: 13.4215,
+      lat: 52.5094,
+      lon: 13.4307,
     },
-    organizer: { name: 'Berlin Language Friends' },
-    rsvp_count: 42,
+    organizer: { name: 'Fluence' },
+    rsvp_count: 460,
     is_paid: false,
+    image_url: 'https://images.lumacdn.com/cdn-cgi/image/format=auto,fit=cover,dpr=2,background=white,quality=75,width=400,height=400/event-covers/g3/d98ef380-57c3-4dd8-b751-d7c0ae6c2519',
   };
 
   function noop() {
@@ -67,49 +67,18 @@
 
     <div class="landing-actionable-preview" data-testid="landing-actionable-event-preview">
       <EventEmbedPreview id="landing-actionable-event-preview-card" event={demoEvent} isMobile={false} onFullscreen={noop} />
+      <div class="landing-actionable-preview-title" data-testid="landing-actionable-event-title">{$text('demo_chats.for_everyone.landing_actionable_event_title')}</div>
     </div>
 
-    <div class="landing-actionable-fullscreen" data-testid="landing-actionable-event-fullscreen">
-      <div class="landing-actionable-fullscreen-header">
-        <div class="landing-actionable-fullscreen-icon" aria-hidden="true"></div>
-        <div>
-          <h3>{$text('demo_chats.for_everyone.landing_actionable_event_title')}</h3>
-          <p>{$text('demo_chats.for_everyone.landing_actionable_event_meta')}</p>
-        </div>
+    <div class="landing-actionable-cta-card" data-testid="landing-actionable-event-cta-card">
+      <div class="landing-actionable-cta-copy">
+        <span>{$text('demo_chats.for_everyone.landing_actionable_event_source')}</span>
+        <strong>{$text('demo_chats.for_everyone.landing_actionable_event_title')}</strong>
       </div>
-
-      <div class="landing-actionable-fullscreen-layout">
-        <div class="landing-actionable-map" data-testid="landing-actionable-event-map">
-          <div class="landing-actionable-map-grid"></div>
-          <div class="landing-actionable-map-marker"></div>
-        </div>
-
-        <div class="landing-actionable-detail-card">
-          <div class="event-meta-row">
-            <span class="event-type-badge">In Person</span>
-            <span class="event-free-badge">Free</span>
-            <span class="event-rsvp">42 RSVPs</span>
-            <span class="event-source-badge">Meetup</span>
-          </div>
-
-          <div class="event-section">
-            <div class="section-label">Date &amp; Time</div>
-            <div class="section-value date-relative">{$text('demo_chats.for_everyone.landing_actionable_event_chip_day')}</div>
-            <div class="section-value">{$text('demo_chats.for_everyone.landing_actionable_event_chip_time')}</div>
-          </div>
-
-          <div class="event-section">
-            <div class="section-label">Location</div>
-            <div class="section-value venue-address">Cafe Kreuzberg<br>Oranienstrasse 24<br>{$text('demo_chats.for_everyone.landing_actionable_event_chip_place')}</div>
-          </div>
-
-          <div class="event-section">
-            <div class="section-label">About</div>
-            <div class="section-value">{$text('demo_chats.for_everyone.landing_actionable_event_detail')}</div>
-          </div>
-        </div>
-      </div>
+      <button class="landing-actionable-luma-button" data-testid="landing-actionable-luma-button" type="button">Open on Luma</button>
     </div>
+
+    <div class="landing-actionable-cursor" data-testid="landing-actionable-cursor" aria-hidden="true"></div>
   </div>
 </div>
 
@@ -122,7 +91,7 @@
     height: calc(100% - 18px);
     min-height: 210px;
     border-radius: var(--radius-4);
-    overflow: hidden;
+    overflow: visible;
     background: rgba(12, 18, 48, 0.48);
     border: 1px solid rgba(255, 255, 255, 0.18);
     box-shadow: var(--shadow-xl);
@@ -223,200 +192,114 @@
     max-height: 200px;
   }
 
-  .landing-actionable-fullscreen {
+  .landing-actionable-preview-title {
     position: absolute;
-    inset: 10px;
+    left: 20px;
+    top: 20px;
+    z-index: var(--z-index-raised);
+    max-width: 150px;
+    color: var(--color-grey-100);
+    font-size: 0.92rem;
+    line-height: 1.08;
+    font-weight: 800;
+    letter-spacing: -0.025em;
+    pointer-events: none;
+  }
+
+  .landing-actionable-cta-card {
+    position: absolute;
+    left: 50%;
+    bottom: 30px;
     z-index: var(--z-index-dropdown);
     display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    border-radius: 22px;
-    background: var(--color-grey-0);
-    box-shadow: var(--shadow-xl);
-    transform: translateY(26px) scale(0.76);
-    opacity: 0;
-    animation: landingActionableFullscreen 9.6s ease-in-out infinite;
-  }
-
-  .landing-actionable-fullscreen-header {
-    display: flex;
     align-items: center;
-    gap: 12px;
-    min-height: 62px;
-    padding: 12px 16px;
-    color: white;
-    background: linear-gradient(135deg, var(--color-app-events-start, #a20000), var(--color-app-events-end, #e61b3e));
-  }
-
-  .landing-actionable-fullscreen-icon {
-    width: 38px;
-    height: 38px;
-    border-radius: 999px;
-    background: rgba(255, 255, 255, 0.92);
-    -webkit-mask-image: url('@openmates/ui/static/icons/event.svg');
-    mask-image: url('@openmates/ui/static/icons/event.svg');
-    -webkit-mask-size: 58%;
-    mask-size: 58%;
-    -webkit-mask-position: center;
-    mask-position: center;
-    -webkit-mask-repeat: no-repeat;
-    mask-repeat: no-repeat;
-  }
-
-  .landing-actionable-fullscreen-header h3,
-  .landing-actionable-fullscreen-header p {
-    margin: 0;
-  }
-
-  .landing-actionable-fullscreen-header h3 {
-    font-size: clamp(0.98rem, 1.4vw, 1.25rem);
-    line-height: 1.1;
-    letter-spacing: -0.025em;
-  }
-
-  .landing-actionable-fullscreen-header p {
-    margin-top: 3px;
-    color: rgba(255, 255, 255, 0.82);
-    font-size: 0.78rem;
-    font-weight: 650;
-  }
-
-  .landing-actionable-fullscreen-layout {
-    position: relative;
-    flex: 1;
-    min-height: 0;
-    background: var(--color-background-secondary, #f4f5f8);
-  }
-
-  .landing-actionable-map {
-    position: absolute;
-    inset: 0;
-    overflow: hidden;
-    background: linear-gradient(135deg, #dbeafe, #eef2ff);
-  }
-
-  .landing-actionable-map-grid {
-    position: absolute;
-    inset: -20%;
-    opacity: 0.52;
-    background-image:
-      linear-gradient(rgba(59, 91, 170, 0.18) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(59, 91, 170, 0.18) 1px, transparent 1px);
-    background-size: 38px 38px;
-    transform: rotate(-7deg) scale(1.1);
-  }
-
-  .landing-actionable-map-marker {
-    position: absolute;
-    left: 64%;
-    top: 42%;
-    width: 22px;
-    height: 22px;
-    border-radius: 999px 999px 999px 0;
-    background: var(--color-app-events-start, #a20000);
-    transform: rotate(-45deg);
-    box-shadow: var(--shadow-md);
-  }
-
-  .landing-actionable-map-marker::after {
-    content: '';
-    position: absolute;
-    inset: 6px;
-    border-radius: 999px;
-    background: var(--color-grey-0);
-  }
-
-  .landing-actionable-detail-card {
-    position: absolute;
-    left: 18px;
-    top: 18px;
-    bottom: 18px;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    width: min(48%, 300px);
-    overflow: hidden;
+    justify-content: space-between;
+    gap: 16px;
+    width: min(86%, 430px);
     padding: 16px;
     border-radius: var(--radius-5);
     background: var(--color-grey-0);
-    box-shadow: var(--shadow-lg);
+    box-shadow: var(--shadow-xl);
     color: var(--color-font-primary);
+    transform: translateX(-50%) translateY(28px) scale(0.94);
+    opacity: 0;
+    animation: landingActionableCtaCard 9.6s ease-in-out infinite;
   }
 
-  .event-meta-row {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 6px;
-  }
-
-  .event-type-badge,
-  .event-free-badge,
-  .event-source-badge {
-    display: inline-flex;
-    align-items: center;
-    padding: 4px 8px;
-    border-radius: 100px;
-    font-size: 0.64rem;
-    font-weight: 700;
-  }
-
-  .event-type-badge {
-    color: var(--color-grey-0);
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    background: var(--color-app-events-start, #a20000);
-  }
-
-  .event-free-badge {
-    background: rgba(34, 197, 94, 0.15);
-    color: var(--color-font-primary);
-  }
-
-  .event-rsvp {
-    color: var(--color-grey-60);
-    font-size: 0.68rem;
-  }
-
-  .event-source-badge {
-    background: var(--color-grey-10);
-    border: 1px solid var(--color-grey-25);
-    color: var(--color-font-secondary);
-  }
-
-  .event-section {
+  .landing-actionable-cta-copy {
     display: flex;
     flex-direction: column;
     gap: 3px;
+    min-width: 0;
   }
 
-  .section-label {
+  .landing-actionable-cta-copy span {
     color: var(--color-grey-60);
-    font-size: 0.62rem;
+    font-size: 0.72rem;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.05em;
   }
 
-  .section-value {
-    color: var(--color-font-primary);
-    font-size: 0.78rem;
-    line-height: 1.35;
-    font-weight: 600;
+  .landing-actionable-cta-copy strong {
+    overflow: hidden;
+    font-size: 1rem;
+    line-height: 1.15;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
-  .date-relative {
-    font-size: 0.96rem;
+  .landing-actionable-luma-button {
+    flex: 0 0 auto;
+    min-width: 136px;
+    height: 42px;
+    padding: 0 18px;
+    border: 0;
+    border-radius: 999px;
+    color: white;
+    background: #111827;
+    box-shadow: 0 8px 18px rgba(17, 24, 39, 0.2);
+    font: inherit;
+    font-size: 0.86rem;
     font-weight: 800;
   }
 
-  .venue-address {
-    font-size: 0.74rem;
+  .landing-actionable-cursor {
+    position: absolute;
+    left: 24%;
+    top: 50%;
+    z-index: var(--z-index-popover);
+    width: 24px;
+    height: 24px;
+    filter: drop-shadow(0 5px 8px rgba(0, 0, 0, 0.3));
+    transform: translate(-50%, -50%);
+    animation: landingActionableCursor 9.6s ease-in-out infinite;
+  }
+
+  .landing-actionable-cursor::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: white;
+    clip-path: polygon(0 0, 0 100%, 28% 76%, 45% 100%, 60% 92%, 44% 68%, 78% 68%);
+  }
+
+  .landing-actionable-cursor::after {
+    content: '';
+    position: absolute;
+    left: 8px;
+    top: 8px;
+    width: 22px;
+    height: 22px;
+    border-radius: 999px;
+    border: 2px solid rgba(255, 255, 255, 0.84);
+    opacity: 0;
+    transform: scale(0.28);
+    animation: landingActionableCursorClick 9.6s ease-in-out infinite;
   }
 
   @keyframes landingActionableScene {
-    0%, 58% { transform: scale(1); }
-    72%, 100% { transform: scale(0.95); }
+    0%, 100% { transform: scale(1); }
   }
 
   @keyframes landingActionableUserMessage {
@@ -426,19 +309,31 @@
 
   @keyframes landingActionableAssistantMessage {
     0%, 12% { opacity: 0; transform: translateY(12px); }
-    22%, 42% { opacity: 1; transform: translateY(0); }
-    54%, 100% { opacity: 0; transform: translateY(-18px); }
+    22%, 100% { opacity: 1; transform: translateY(0); }
   }
 
   @keyframes landingActionablePreview {
     0%, 38% { opacity: 0; transform: translateX(-50%) translateY(18px) scale(0.92); }
-    50%, 64% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
-    76%, 100% { opacity: 0; transform: translateX(-50%) translateY(-12px) scale(1.08); }
+    50%, 100% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
   }
 
-  @keyframes landingActionableFullscreen {
-    0%, 62% { opacity: 0; transform: translateY(26px) scale(0.76); }
-    76%, 100% { opacity: 1; transform: translateY(0) scale(1); }
+  @keyframes landingActionableCtaCard {
+    0%, 66% { opacity: 0; transform: translateX(-50%) translateY(28px) scale(0.94); }
+    76%, 100% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+  }
+
+  @keyframes landingActionableCursor {
+    0%, 46% { opacity: 0; left: 28%; top: 54%; transform: translate(-50%, -50%) scale(1); }
+    52%, 62% { opacity: 1; left: 54%; top: 71%; transform: translate(-50%, -50%) scale(1); }
+    66% { opacity: 1; left: 54%; top: 71%; transform: translate(-50%, -50%) scale(0.86); }
+    72%, 84% { opacity: 1; left: 64%; top: 83%; transform: translate(-50%, -50%) scale(1); }
+    88% { opacity: 1; left: 73%; top: 83%; transform: translate(-50%, -50%) scale(0.86); }
+    96%, 100% { opacity: 0; left: 73%; top: 83%; transform: translate(-50%, -50%) scale(1); }
+  }
+
+  @keyframes landingActionableCursorClick {
+    0%, 62%, 70%, 84%, 92%, 100% { opacity: 0; transform: scale(0.28); }
+    66%, 88% { opacity: 0.9; transform: scale(1); }
   }
 
   @media (max-width: 730px) {
@@ -459,14 +354,18 @@
       width: min(100%, 300px);
     }
 
-    .landing-actionable-fullscreen {
-      inset: 8px;
+    .landing-actionable-cta-card {
+      bottom: 14px;
+      width: min(92%, 360px);
+      padding: 12px;
+      gap: 10px;
     }
 
-    .landing-actionable-detail-card {
-      width: min(58%, 230px);
-      padding: 11px;
-      gap: 7px;
+    .landing-actionable-luma-button {
+      min-width: 118px;
+      height: 38px;
+      padding: 0 14px;
+      font-size: 0.78rem;
     }
   }
 
@@ -475,19 +374,24 @@
     .landing-actionable-user-row,
     .landing-actionable-assistant-row,
     .landing-actionable-preview,
-    .landing-actionable-fullscreen {
+    .landing-actionable-cta-card,
+    .landing-actionable-cursor,
+    .landing-actionable-cursor::after {
       animation: none !important;
     }
 
     .landing-actionable-user-row,
-    .landing-actionable-fullscreen {
+    .landing-actionable-preview,
+    .landing-actionable-cta-card {
       opacity: 1;
-      transform: none;
     }
 
-    .landing-actionable-assistant-row,
     .landing-actionable-preview {
-      opacity: 0;
+      transform: translateX(-50%);
+    }
+
+    .landing-actionable-cta-card {
+      transform: translateX(-50%);
     }
   }
 </style>

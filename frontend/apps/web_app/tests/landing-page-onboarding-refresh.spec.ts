@@ -18,7 +18,7 @@ async function skipExpandedLandingIntro(page: any): Promise<void> {
 }
 
 test.describe('Landing page onboarding refresh', () => {
-	test('actionable slide shows the language-learning event explainer animation', async ({ page }: { page: any }) => {
+	test('actionable slide shows the Luma event preview cursor-to-CTA animation', async ({ page }: { page: any }) => {
 		test.setTimeout(45000);
 		await page.setViewportSize({ width: 1280, height: 800 });
 
@@ -33,22 +33,21 @@ test.describe('Landing page onboarding refresh', () => {
 		await expect(page.getByTestId('landing-actionable-event-demo')).toBeVisible({ timeout: 5000 });
 		await expect(page.getByTestId('landing-actionable-assistant-profile')).toBeVisible({ timeout: 5000 });
 		await expect(page.getByTestId('landing-actionable-user-message')).toContainText(
-			'Find language-learning events in Berlin'
+			'Find tech events in Berlin'
 		);
 		await expect(page.getByTestId('landing-actionable-assistant-message')).toContainText(
-			'Sure, let me help with that!'
+			'I found a real Luma event'
 		);
-		await expect(page.getByTestId('landing-actionable-event-preview')).toContainText('Berlin Language Exchange');
+		await expect(page.getByTestId('landing-actionable-event-preview')).toContainText('DEPIN DAY BERLIN');
 		await expect(page.getByTestId('landing-actionable-event-preview').getByTestId('embed-preview')).toHaveAttribute(
 			'data-app-id',
 			'events'
 		);
-		await expect(page.getByTestId('landing-actionable-event-fullscreen')).toContainText(
-			'Practice German and English'
-		);
-		await expect(page.getByTestId('landing-actionable-event-fullscreen')).toContainText('Date & Time');
-		await expect(page.getByTestId('landing-actionable-event-fullscreen')).toContainText('Location');
-		await expect(page.getByTestId('landing-actionable-event-map')).toBeVisible();
+		await expect(page.getByTestId('landing-actionable-event-cta-card')).toContainText('Luma event');
+		await expect(page.getByTestId('landing-actionable-luma-button')).toContainText('Open on Luma');
+		await expect(page.getByTestId('landing-actionable-cursor')).toBeVisible();
+		await expect(page.getByTestId('landing-actionable-event-fullscreen')).toHaveCount(0);
+		await expect(page.getByTestId('landing-actionable-event-map')).toHaveCount(0);
 		await expect(page.getByTestId('guest-intro-video-shell')).toHaveCount(0);
 
 		const metrics = await page.evaluate(() => {
@@ -60,7 +59,11 @@ test.describe('Landing page onboarding refresh', () => {
 			const assistantMessage = document.querySelector<HTMLElement>('[data-testid="landing-actionable-assistant-message"]');
 			const assistantProfile = document.querySelector<HTMLElement>('[data-testid="landing-actionable-assistant-profile"]');
 			const previewEmbed = document.querySelector<HTMLElement>('[data-testid="landing-actionable-event-preview"] [data-testid="embed-preview"]');
-			if (!banner || !headline || !demo || !scene || !userMessage || !assistantMessage || !assistantProfile || !previewEmbed) {
+			const ctaCard = document.querySelector<HTMLElement>('[data-testid="landing-actionable-event-cta-card"]');
+			const ctaButton = document.querySelector<HTMLElement>('[data-testid="landing-actionable-luma-button"]');
+			const cursor = document.querySelector<HTMLElement>('[data-testid="landing-actionable-cursor"]');
+			const previewImage = document.querySelector<HTMLImageElement>('[data-testid="landing-actionable-event-preview"] img');
+			if (!banner || !headline || !demo || !scene || !userMessage || !assistantMessage || !assistantProfile || !previewEmbed || !ctaCard || !ctaButton || !cursor || !previewImage) {
 				throw new Error('Actionable slide elements missing');
 			}
 
@@ -70,6 +73,8 @@ test.describe('Landing page onboarding refresh', () => {
 			const userTail = getComputedStyle(userMessage, '::before');
 			const assistantTail = getComputedStyle(assistantMessage, '::before');
 			const assistantProfileStyle = getComputedStyle(assistantProfile);
+			const ctaCardStyle = getComputedStyle(ctaCard);
+			const cursorStyle = getComputedStyle(cursor);
 			return {
 				bannerHeight: bannerRect.height,
 				demoWidth: demoRect.width,
@@ -84,7 +89,12 @@ test.describe('Landing page onboarding refresh', () => {
 				assistantTailHeight: Number.parseFloat(assistantTail.height),
 				assistantProfileBackground: assistantProfileStyle.backgroundImage,
 				previewStatus: previewEmbed.dataset.status,
-				previewSkillId: previewEmbed.dataset.skillId
+				previewSkillId: previewEmbed.dataset.skillId,
+				previewImageSrc: previewImage.currentSrc || previewImage.src,
+				previewProvider: previewEmbed.textContent || '',
+				ctaCardAnimation: ctaCardStyle.animationName,
+				ctaButtonText: ctaButton.textContent?.trim() || '',
+				cursorAnimation: cursorStyle.animationName
 			};
 		});
 
@@ -102,5 +112,10 @@ test.describe('Landing page onboarding refresh', () => {
 		expect(metrics.assistantProfileBackground).toContain('general_knowledge');
 		expect(metrics.previewStatus).toBe('finished');
 		expect(metrics.previewSkillId).toBe('event');
+		expect(metrics.previewImageSrc).toContain('lumacdn.com');
+		expect(metrics.previewProvider).toContain('Luma');
+		expect(metrics.ctaCardAnimation).toContain('landingActionableCtaCard');
+		expect(metrics.ctaButtonText).toBe('Open on Luma');
+		expect(metrics.cursorAnimation).toContain('landingActionableCursor');
 	});
 });
