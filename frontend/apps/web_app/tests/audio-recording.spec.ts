@@ -322,26 +322,20 @@ test('single tap on mic button does not start recording', async ({ page }) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Test 2b: Hold Space from chat surface starts recording without focusing input
+// Test 2b: Keyboard shortcut starts recording without inserting text
 // ─────────────────────────────────────────────────────────────────────────────
-test('spacebar hold shows ESC cancel hint and escape cancels without inserting spaces', async ({ page }) => {
+test('keyboard recording shortcut shows Enter and Escape controls without inserting text', async ({ page }) => {
 	test.setTimeout(60000);
 
 	await setupAndFocusMessageField(page);
-
-	// Simulate the user being in the chat surface rather than inside the editor.
-	await page.getByTestId('message-field').evaluate((element: HTMLElement) => element.blur());
-	await page.getByTestId('message-editor').evaluate(() => {
-		const activeElement = document.activeElement as HTMLElement | null;
-		activeElement?.blur();
-	});
 	expect(await getEditorPlainText(page)).toBe('');
 	const embedCountBefore = await page.getByTestId('recording-preview').count();
 
-	await page.keyboard.down('Space');
+	await page.keyboard.press('Control+Shift+M');
 
 	const overlay = page.getByTestId('record-overlay');
 	await expect(overlay).toBeVisible({ timeout: 5000 });
+	await expect(overlay.getByTestId('release-text')).toContainText('Press Enter to finish');
 	await expect(overlay.getByTestId('cancel-hint')).toContainText('Press ESC to cancel');
 	await expect(overlay.getByTestId('cancel-hint')).not.toContainText('Slide left to cancel');
 
@@ -354,12 +348,60 @@ test('spacebar hold shows ESC cancel hint and escape cancels without inserting s
 	await page.waitForTimeout(500);
 	await page.keyboard.press('Escape');
 	await expect(overlay).not.toBeVisible({ timeout: 5000 });
-	await page.keyboard.up('Space');
 
 	expect(await getEditorPlainText(page)).toBe('');
 	expect(await page.getByTestId('recording-preview').count()).toBe(embedCountBefore);
 
-	console.log('[TEST] Spacebar hold: ESC hint visible and cancel leaves editor empty');
+	console.log('[TEST] Keyboard recording shortcut: controls visible and cancel leaves editor empty');
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Test 2c: Keyboard recording shortcut must not leave the large message field
+// with the global orange focus-visible outline.
+// ─────────────────────────────────────────────────────────────────────────────
+test('keyboard recording shortcut moves focus to recording overlay and suppresses composer outline', async ({ page }) => {
+	test.setTimeout(60000);
+
+	await setupAndFocusMessageField(page);
+	const messageField = page.getByTestId('message-field');
+	await waitForMicButton(page);
+
+	await messageField.evaluate((element: HTMLElement) => element.focus());
+	await expect
+		.poll(() =>
+			messageField.evaluate((element: HTMLElement) => ({
+				isActive: document.activeElement === element,
+				outlineStyle: getComputedStyle(element).outlineStyle
+			}))
+		)
+		.toMatchObject({ isActive: true, outlineStyle: 'solid' });
+
+	await page.keyboard.press('Control+Shift+M');
+
+	const overlay = page.getByTestId('record-overlay');
+	await expect(overlay).toBeVisible({ timeout: 5000 });
+	await expect(overlay.getByTestId('release-text')).toContainText('Press Enter to finish');
+	await expect
+		.poll(() =>
+			overlay.evaluate((element: HTMLElement) => ({
+				isActive: document.activeElement === element,
+				outlineStyle: getComputedStyle(element).outlineStyle
+			}))
+		)
+		.toMatchObject({ isActive: true, outlineStyle: 'none' });
+	await expect
+		.poll(() =>
+			messageField.evaluate((element: HTMLElement) => ({
+				isActive: document.activeElement === element,
+				outlineStyle: getComputedStyle(element).outlineStyle
+			}))
+		)
+		.toMatchObject({ isActive: false, outlineStyle: 'none' });
+
+	await page.keyboard.press('Escape');
+	await expect(overlay).not.toBeVisible({ timeout: 5000 });
+
+	console.log('[TEST] Keyboard recording shortcut: overlay owns focus and composer outline is suppressed');
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

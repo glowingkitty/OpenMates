@@ -10,11 +10,20 @@
 
   const dispatch = createEventDispatcher();
 
+  function setRecordingShortcutFocusState(active: boolean): void {
+    if (active) {
+      document.documentElement.dataset.recordingShortcutActive = 'true';
+    } else {
+      delete document.documentElement.dataset.recordingShortcutActive;
+    }
+  }
+
   // Track if this is the first instance to register global listener
   // This prevents multiple KeyboardShortcuts instances from registering duplicate listeners
   let _isGlobalListenerRegistered = false;
 
   let keyboardRecordingShortcutActive = false;
+  let recordingShortcutStartFallbackTimer: ReturnType<typeof setTimeout> | null = null;
 
   onMount(() => {
     const _desktop = isDesktop();
@@ -44,8 +53,21 @@
       ) {
         event.preventDefault();
         event.stopPropagation();
+        event.stopImmediatePropagation();
         const action = keyboardRecordingShortcutActive ? 'stop' : 'start';
         keyboardRecordingShortcutActive = action === 'start';
+        setRecordingShortcutFocusState(action === 'start');
+        clearTimeout(recordingShortcutStartFallbackTimer ?? undefined);
+        recordingShortcutStartFallbackTimer = null;
+        if (action === 'start') {
+          recordingShortcutStartFallbackTimer = setTimeout(() => {
+            recordingShortcutStartFallbackTimer = null;
+            if (!document.querySelector('[data-testid="record-overlay"]')) {
+              keyboardRecordingShortcutActive = false;
+              setRecordingShortcutFocusState(false);
+            }
+          }, 750);
+        }
         window.dispatchEvent(new CustomEvent('recordingShortcut', { detail: { action, source: 'keyboard' } }));
         return;
       }
@@ -53,6 +75,7 @@
       if (_desktop && event.key === 'Escape' && keyboardRecordingShortcutActive) {
         event.preventDefault();
         event.stopPropagation();
+        event.stopImmediatePropagation();
         keyboardRecordingShortcutActive = false;
         window.dispatchEvent(new CustomEvent('recordingShortcut', { detail: { action: 'cancel' } }));
         return;
@@ -61,6 +84,7 @@
       if (_desktop && event.key === 'Enter' && !event.shiftKey && keyboardRecordingShortcutActive) {
         event.preventDefault();
         event.stopPropagation();
+        event.stopImmediatePropagation();
         keyboardRecordingShortcutActive = false;
         window.dispatchEvent(new CustomEvent('recordingShortcut', { detail: { action: 'stop' } }));
         return;
@@ -239,6 +263,9 @@
 
     const handleRecordingShortcutFinished = () => {
       keyboardRecordingShortcutActive = false;
+      clearTimeout(recordingShortcutStartFallbackTimer ?? undefined);
+      recordingShortcutStartFallbackTimer = null;
+      setRecordingShortcutFocusState(false);
     };
 
     // IMPORTANT: Only register the global listener ONCE, even if multiple KeyboardShortcuts components exist
@@ -255,6 +282,9 @@
         console.info('[KeyboardShortcuts] Removing global keyboard listener');
         window.removeEventListener('keydown', handleKeyDown, true);
         window.removeEventListener('recordingShortcutFinished', handleRecordingShortcutFinished);
+        clearTimeout(recordingShortcutStartFallbackTimer ?? undefined);
+        recordingShortcutStartFallbackTimer = null;
+        setRecordingShortcutFocusState(false);
         windowWithKeyboardShortcutsFlag.__keyboardShortcutsListenerRegistered = false;
       };
     } else {

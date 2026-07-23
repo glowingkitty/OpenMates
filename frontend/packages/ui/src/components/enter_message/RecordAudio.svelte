@@ -100,6 +100,7 @@
     let waveformAnalyser: AnalyserNode | null = null;
     let waveformAnimationFrame: number | null = null;
     let lastWaveformSampleAt = 0;
+    let recordOverlayElement: HTMLDivElement | null = null;
 
     const logger = {
         debug: (...args: unknown[]) => console.debug('[RecordAudio]', ...args),
@@ -120,6 +121,12 @@
         document.addEventListener('mousemove', handleMouseMove);
         document.addEventListener('touchmove', handleTouchMove, { passive: false });
         document.addEventListener('keydown',   handleKeyDown);
+
+        if (startedFromKeyboard) {
+            requestAnimationFrame(() => {
+                recordOverlayElement?.focus({ preventScroll: true });
+            });
+        }
 
         initializeAndStartRecording();
         dispatch('recordingStateChange', { active: true });
@@ -517,7 +524,13 @@
   pointer-events: none on the overlay itself so clicks/taps fall through to
   document-level listeners — no need to intercept on the div.
 -->
-<div class="record-overlay" data-testid="record-overlay" transition:fade={{ duration: 150 }}>
+<div
+    bind:this={recordOverlayElement}
+    class="record-overlay"
+    data-testid="record-overlay"
+    tabindex="-1"
+    transition:fade={{ duration: 150 }}
+>
     <div class="record-content">
         <!-- Top: pointer and keyboard recordings have different completion gestures. -->
         <div class="record-header">
@@ -584,6 +597,16 @@
         box-sizing: border-box;
         color: white;
         overflow: hidden;
+    }
+
+    .record-overlay:focus,
+    .record-overlay:focus-visible {
+        outline: none;
+    }
+
+    :global(html[data-recording-shortcut-active='true'] [data-testid='active-chat-container']:focus-visible),
+    :global(html[data-recording-shortcut-active='true'] [data-testid='active-chat-container'] :focus-visible) {
+        outline: none !important;
     }
 
     .record-content {
