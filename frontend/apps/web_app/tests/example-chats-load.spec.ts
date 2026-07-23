@@ -235,6 +235,35 @@ test.describe('Example chats loading for new users', () => {
 		await expect(page.getByTestId('message-assistant').filter({ hasText: 'Best, Alex' })).toBeVisible({ timeout: 15000 });
 	});
 
+	test('privacy-first local AI example reveals older messages', async ({
+		page
+	}: {
+		page: any;
+	}) => {
+		test.setTimeout(90000);
+
+		await page.goto(getE2EDebugUrl('/#chat-id=example-privacy-first-local-ai'), {
+			waitUntil: 'domcontentloaded'
+		});
+
+		await expect(page.getByTestId('chat-history-container')).toBeVisible({ timeout: 15000 });
+		await expect(page.getByTestId('message-assistant').filter({ hasText: 'Tauri' }).first()).toBeVisible({ timeout: 15000 });
+
+		const firstPrompt = page.getByTestId('user-message-content').filter({
+			hasText: 'I want to build a privacy-first AI productivity company from zero'
+		});
+		await expect(firstPrompt).toHaveCount(0);
+
+		const visibleMessageCount = await page.locator('[data-testid="message-user"], [data-testid="message-assistant"]').count();
+		await page.getByTestId('show-older-messages').click();
+
+		await expect.poll(async () => page.locator('[data-testid="message-user"], [data-testid="message-assistant"]').count(), {
+			message: 'Show older messages should prepend the older static example window',
+			timeout: 10000
+		}).toBeGreaterThan(visibleMessageCount);
+		await expect(firstPrompt).toBeVisible({ timeout: 10000 });
+	});
+
 	test('nutrition example renders Edamam recipe search embed card', async ({
 		page
 	}: {

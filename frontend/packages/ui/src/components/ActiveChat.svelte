@@ -190,6 +190,8 @@
     const ON_DEMAND_MESSAGE_LOAD_POLL_ATTEMPTS = 20;
     const ON_DEMAND_MESSAGE_LOAD_POLL_DELAY_MS = 500;
     const MESSAGE_WINDOW_LIMIT = 30;
+    const EXAMPLE_MESSAGE_WINDOW_LIMIT = 9;
+    const STATIC_EXAMPLE_MESSAGE_WINDOW_CHAT_IDS = new Set(['example-privacy-first-local-ai']);
     const EMBED_ID_IN_REF_RE = /[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/i;
     function extractPlainIdeaBucketText(markdown: string): string | null {
         const matches = [...markdown.matchAll(/----- Idea \d+ -----\r?\n([\s\S]*?)\r?\n-----------------/g)];
@@ -4917,6 +4919,29 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         return prunedWindow.messages;
       }
 
+      function getStaticExampleMessageWindow(chatId: string, options: { beforeTimestamp?: number; beforeMessageId?: string } = {}): { messages: ChatMessageModel[]; hasMoreBefore: boolean } {
+        const allMessages = getDemoMessages(chatId, DEMO_CHATS, LEGAL_CHATS)
+            .sort((a, b) => (a.created_at ?? 0) - (b.created_at ?? 0) || a.message_id.localeCompare(b.message_id));
+        const cursorIndex = options.beforeMessageId
+            ? allMessages.findIndex((message) => message.message_id === options.beforeMessageId)
+            : -1;
+        const fallbackIndex = options.beforeTimestamp
+            ? allMessages.findIndex((message) => (message.created_at ?? 0) >= options.beforeTimestamp!)
+            : -1;
+        const endIndex = cursorIndex >= 0
+            ? cursorIndex
+            : (fallbackIndex >= 0 ? fallbackIndex : allMessages.length);
+        const startIndex = Math.max(0, endIndex - EXAMPLE_MESSAGE_WINDOW_LIMIT);
+        return {
+            messages: allMessages.slice(startIndex, endIndex),
+            hasMoreBefore: startIndex > 0,
+        };
+      }
+
+      function usesStaticExampleMessageWindow(chatId: string): boolean {
+        return STATIC_EXAMPLE_MESSAGE_WINDOW_CHAT_IDS.has(chatId);
+      }
+
       let hasActivePrivateChatSurface = $derived(Boolean(
          currentChat?.chat_id &&
          !isPublicChat(currentChat.chat_id) &&
@@ -8432,8 +8457,32 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     async function handleLoadOlderMessages(event: CustomEvent) {
         if (!currentChat?.chat_id || olderMessageWindowLoading) return;
+        const { beforeTimestamp, beforeMessageId, firstMessageId } = event.detail as { beforeTimestamp?: number; beforeMessageId?: string; firstMessageId?: string };
+        if (isExampleChat(currentChat.chat_id) && usesStaticExampleMessageWindow(currentChat.chat_id)) {
+            olderMessageWindowLoading = true;
+            try {
+                const olderWindow = getStaticExampleMessageWindow(currentChat.chat_id, { beforeTimestamp, beforeMessageId });
+                if (olderWindow.messages.length === 0) {
+                    currentMessageWindowHasMoreBefore = false;
+                    return;
+                }
+                const existingIds = new Set(currentMessages.map((message) => message.message_id));
+                currentMessages = [
+                    ...olderWindow.messages.filter((message) => !existingIds.has(message.message_id)),
+                    ...currentMessages,
+                ];
+                currentMessageWindowHasMoreBefore = olderWindow.hasMoreBefore;
+                chatHistoryRef?.updateMessages(currentMessages);
+                if (firstMessageId) {
+                    await tick();
+                    chatHistoryRef?.restoreScrollPosition(firstMessageId);
+                }
+            } finally {
+                olderMessageWindowLoading = false;
+            }
+            return;
+        }
         if (isPublicChat(currentChat.chat_id) || currentChat.is_incognito) return;
-        const { firstMessageId } = event.detail as { beforeTimestamp?: number; beforeMessageId?: string; firstMessageId?: string };
 
         olderMessageWindowLoading = true;
         try {
@@ -8983,8 +9032,15 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             // Check if this is a public chat (demo or legal) - load messages from static bundle instead of IndexedDB
             if (isPublicChat(currentChat.chat_id)) {
                 console.debug(`[ActiveChat] Loading public chat messages for: ${currentChat.chat_id}`);
-                // Pass both DEMO_CHATS and LEGAL_CHATS to getDemoMessages
-                newMessages = getDemoMessages(currentChat.chat_id, DEMO_CHATS, LEGAL_CHATS);
+                if (isExampleChat(currentChat.chat_id) && usesStaticExampleMessageWindow(currentChat.chat_id)) {
+                    const exampleWindow = getStaticExampleMessageWindow(currentChat.chat_id);
+                    newMessages = exampleWindow.messages;
+                    currentMessageWindowHasMoreBefore = exampleWindow.hasMoreBefore;
+                } else {
+                    // Pass both DEMO_CHATS and LEGAL_CHATS to getDemoMessages
+                    newMessages = getDemoMessages(currentChat.chat_id, DEMO_CHATS, LEGAL_CHATS);
+                    currentMessageWindowHasMoreBefore = false;
+                }
                 console.debug(`[ActiveChat] Loaded ${newMessages.length} messages for ${currentChat.chat_id}`);
                 
                 // CRITICAL: For public chats, ensure we always have messages loaded
