@@ -239,13 +239,6 @@ test.describe('Guest interest smart selection', () => {
 		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
 		await page.waitForLoadState('networkidle');
 
-		await expect(page.getByTestId('active-chat-container')).toBeVisible({ timeout: 15000 });
-		await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 15000 });
-		await expect(page.getByText('Hey there!')).toBeVisible({ timeout: 15000 });
-		await expect(page.getByText('What are your interests?')).toBeVisible({ timeout: 15000 });
-		await expect(page.getByText('Explore what you can do:')).toHaveCount(0);
-		expect(await page.evaluate(() => window.location.hash)).not.toContain('demo-for-everyone');
-
 		await expect(page.getByTestId('daily-inspiration-banner')).toBeVisible({ timeout: 15000 });
 		await expect(page.getByTestId('daily-inspiration-carousel-progress')).toBeVisible({ timeout: 15000 });
 		await expect(page.getByTestId('landing-intro-expanded')).toBeVisible({ timeout: 15000 });
@@ -282,6 +275,13 @@ test.describe('Guest interest smart selection', () => {
 
 		await skipExpandedLandingIntro(page);
 		await expect(page.getByTestId('daily-inspiration-phrase')).toContainText('Actionable', { timeout: 5000 });
+
+		await expect(page.getByTestId('active-chat-container')).toBeVisible({ timeout: 15000 });
+		await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 15000 });
+		await expect(page.getByText('Hey there!')).toBeVisible({ timeout: 15000 });
+		await expect(page.getByText('What are your interests?')).toBeVisible({ timeout: 15000 });
+		await expect(page.getByText('Explore what you can do:')).toHaveCount(0);
+		expect(await page.evaluate(() => window.location.hash)).not.toContain('demo-for-everyone');
 
 		await expect(page.getByTestId('guest-interest-tags')).toBeVisible({ timeout: 15000 });
 		expect(await interestTagsPromptGap(page)).toBeGreaterThanOrEqual(8);

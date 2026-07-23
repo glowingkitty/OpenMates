@@ -1652,7 +1652,7 @@
     display: flex;
     align-items: center;
     justify-content: flex-start;
-    gap: clamp(24px, 3.3vw, 58px);
+    gap: clamp(22px, 2.7vw, 38px);
     min-width: max-content;
     width: max-content;
     padding: clamp(8px, 1vw, 14px) 0;
