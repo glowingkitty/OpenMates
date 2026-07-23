@@ -43,6 +43,7 @@
   import VideoEmbedPreview from './embeds/videos/VideoEmbedPreview.svelte';
   import DirectVideoEmbedFullscreen from './embeds/videos/DirectVideoEmbedFullscreen.svelte';
   import WikipediaEmbedPreview from './embeds/wiki/WikipediaEmbedPreview.svelte';
+  import LandingActionableEventDemo from './landing/LandingActionableEventDemo.svelte';
 
   // ─── Lucide icons ────────────────────────────────────────────────────────────
 
@@ -62,6 +63,7 @@
   const TOUCH_SWIPE_DISTANCE_PX = 56;
   const TOUCH_SWIPE_VERTICAL_CANCEL_PX = 48;
   const LANDING_INTRO_INSPIRATION_ID = 'openmates-intro';
+  const LANDING_ACTIONABLE_EVENTS_ID = 'openmates-actionable-events';
   const LANDING_INTRO_RAIL_MIN_ICON_COUNT = 24;
   // Temporarily disabled with the visit-cycling effect below.
   // const VISIT_INDEX_STORAGE_PREFIX = 'openmates.daily_inspiration.visit_index.';
@@ -359,7 +361,9 @@
   let landingIntroExamplesVisible = $derived(landingIntroRequestIndex >= 0);
   let landingIntroRequestLabel = $derived(landingIntroExamplesVisible ? $text(landingIntroActiveRequest.labelKey) : '');
   let landingIntroActiveAppId = $derived(landingIntroActiveRequest.appId);
-  let isGuestActionableSlide = $derived(isGuestIntroVariant && !landingIntroShouldExpand && currentIndex === 1);
+  let isGuestActionableSlide = $derived(
+    isGuestIntroVariant && !landingIntroShouldExpand && current?.inspiration_id === LANDING_ACTIONABLE_EVENTS_ID,
+  );
   let guestFeatureHeadlineLines = $derived.by(() => {
     if (isGuestActionableSlide) {
       return [
@@ -1162,6 +1166,8 @@
                and prevent the banner's onclick from firing. -->
           {#if isGuestIntroVariant && landingIntroShouldExpand}
             <!-- The expanded intro owns the full banner; no side preview is rendered. -->
+          {:else if isGuestIntroVariant && isGuestActionableSlide}
+            <LandingActionableEventDemo />
           {:else if isGuestIntroVariant && directVideoMp4Url}
             <button
               type="button"
@@ -2584,6 +2590,7 @@
     .banner-content.mobile-card-loop .banner-embed-wrapper,
     .banner-content.mobile-card-loop .guest-intro-video-box,
     .banner-content.mobile-card-loop .guest-intro-feature-card,
+    .banner-content.mobile-card-loop :global(.landing-actionable-demo),
     .banner-content.mobile-card-loop .banner-info-card {
       position: absolute;
       inset: 0;
@@ -2633,6 +2640,7 @@
     .banner-content.mobile-card-loop .banner-embed-wrapper,
     .banner-content.mobile-card-loop .guest-intro-video-box,
     .banner-content.mobile-card-loop .guest-intro-feature-card,
+    .banner-content.mobile-card-loop :global(.landing-actionable-demo),
     .banner-content.mobile-card-loop .banner-info-card {
       margin: 0;
       opacity: 0;
@@ -2644,6 +2652,7 @@
     .banner-content.mobile-card-loop.show-mobile-card .banner-embed-wrapper,
     .banner-content.mobile-card-loop.show-mobile-card .guest-intro-video-box,
     .banner-content.mobile-card-loop.show-mobile-card .guest-intro-feature-card,
+    .banner-content.mobile-card-loop.show-mobile-card :global(.landing-actionable-demo),
     .banner-content.mobile-card-loop.show-mobile-card .banner-info-card {
       opacity: 1;
       pointer-events: auto;
@@ -2651,7 +2660,8 @@
     }
 
     .banner-content.mobile-card-loop .guest-intro-video-box,
-    .banner-content.mobile-card-loop .guest-intro-feature-card {
+    .banner-content.mobile-card-loop .guest-intro-feature-card,
+    .banner-content.mobile-card-loop :global(.landing-actionable-demo) {
       width: min(100%, 560px);
       height: 100%;
       max-height: none;

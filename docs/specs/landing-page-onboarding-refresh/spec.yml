@@ -32,10 +32,10 @@ scope:
     - Rendering full real chat/embed components inside compact autoplay explainer animations when a lightweight visually faithful animation component is safer.
 
 current_milestone:
-  id: phase-1-expanded-intro
+  id: phase-2-actionable-event-slide
   goal: >
-    Implement, deploy, and verify the first expanded logged-out intro animation.
-    Later slides remain in the spec but require visual confirmation and explicit task activation.
+    Implement, deploy, and verify the first regular-size follow-up slide after the
+    expanded logged-out intro: the `Actionable` language-learning event explainer.
   in:
     - Full-container intro for the first guest slide only.
     - Headline `Simply ask\nyour AI team mates` with the existing AI/sparkle visual language.
@@ -46,7 +46,6 @@ current_milestone:
     - Existing-style progress bar and left/right controls.
     - Skip behavior: pressing next during expanded intro collapses immediately and shows slide 2 at regular header size.
   deferred:
-    - Slide 2 `Actionable.\nNot just a wall of text.` with the language-learning event in Berlin explainer.
     - Privacy and safety slide animations.
     - Mates and focus-mode slide animations.
     - Provider/cross-platform slide animations.
@@ -152,6 +151,11 @@ decisions:
     decision: Post-signup topic selection supersedes logged-out topic tags.
     reason: The refreshed landing should show real example chats and product benefits before asking visitors to categorize themselves.
     decided_at: "2026-07-22"
+  - id: D-5
+    status: active
+    decision: Activate the regular-size Actionable event explainer slide after deployed iPad rail verification.
+    reason: User instructed continuation with the other slides once the app rail clipping fix was confirmed working.
+    decided_at: "2026-07-23"
 
 attempts:
   - id: ATTEMPT-1
@@ -352,7 +356,7 @@ acceptance_criteria:
   - id: AC-4
     scenario: S-4
     text: The future `Actionable` slide uses a lightweight visually faithful language-learning event embed animation rather than full embed feature components.
-    required: false
+    required: true
     status: pending
     coverage_status: covered
     verification_scope: playwright
@@ -479,17 +483,17 @@ tests:
       required: false
       expected: fail_when_activated
       evidence:
-        status: not_applicable
-        reason: Deferred until slide 2 implementation is activated by user visual confirmation of phase 1.
-        timestamp: "2026-07-22"
+        status: skipped_with_reason
+        reason: Slide 2 was activated after the first intro fix was already implemented; pre-activation failure was known from missing spec/component coverage but no preserved red run exists.
+        timestamp: "2026-07-23"
     green_phase:
       required: false
       expected: pass_after_deploy
       evidence:
         status: not_applicable
-        reason: Deferred until slide 2 implementation is activated by user visual confirmation of phase 1.
+        reason: Pending deploy and Playwright verification for the activated Actionable slide.
         subject_commit: ""
-        timestamp: "2026-07-22"
+        timestamp: "2026-07-23"
   - id: T-WEB-LANDING-EXAMPLES
     type: playwright
     file: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
@@ -650,8 +654,8 @@ tasks:
     independently_deployable: true
   - id: TASK-2
     title: Implement Actionable language-learning event explainer slide
-    status: pending
-    phase: blocked
+    status: in_progress
+    phase: working_tasks
     covers:
       scenarios:
         - S-4
@@ -675,7 +679,7 @@ tasks:
         - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
       shared_files: []
     blockers:
-      - Requires user visual confirmation of TASK-1 deployed result.
+      - Pending deployed Playwright evidence for T-WEB-ACTIONABLE-EVENT.
     follow_up_tasks: []
     independently_deployable: true
   - id: TASK-3

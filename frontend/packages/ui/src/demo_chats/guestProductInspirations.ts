@@ -22,6 +22,7 @@ const PRODUCT_FEATURE_MODULES = import.meta.glob("../data/product_features.yml",
   eager: true,
 }) as Record<string, string>;
 const PRODUCT_FEATURES_YAML = Object.values(PRODUCT_FEATURE_MODULES)[0] ?? "features: []";
+const ACTIONABLE_EVENTS_INSPIRATION_ID = "openmates-actionable-events";
 
 interface ProductFeatureConfig {
   id: string;
@@ -162,6 +163,32 @@ function getProductExplainers(locale: string): Array<DailyInspiration & { tags: 
     },
     tags: ["learning", "privacy", "software_development"],
     order: 10,
+  },
+  {
+    inspiration_id: ACTIONABLE_EVENTS_INSPIRATION_ID,
+    phrase: "Actionable. Not just a wall of text.",
+    title: "Find language-learning events",
+    category: "openmates_official",
+    content_type: "feature",
+    video: null,
+    direct_video: null,
+    generated_at: 0,
+    assistant_response:
+      "OpenMates can turn a simple request into useful results, previews, and details instead of only writing a long answer.",
+    follow_up_suggestions: [
+      "Find language-learning events in Berlin",
+      "Show beginner-friendly events this week",
+      "Compare event options near me",
+    ],
+    feature: {
+      feature_id: ACTIONABLE_EVENTS_INSPIRATION_ID,
+      icon: "calendar-search",
+      title: "Actionable results",
+      description: "Search for real-world options and inspect useful details from one chat.",
+      settings_path: null,
+    },
+    tags: ["find_events", "learning"],
+    order: 15,
   },
   ...features.map((feature, index) => {
     const title = localizedFeatureField(feature, translations, locale, "title");

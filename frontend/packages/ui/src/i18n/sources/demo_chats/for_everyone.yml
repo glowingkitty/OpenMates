@@ -2670,3 +2670,267 @@ landing_actionable_line2:
   sv: Not just a wall of text.
   he: Not just a wall of text.
   verified_by_human: []
+landing_actionable_event_user_message:
+  context: User message shown in the lightweight Actionable landing slide event demo
+  en: Find language-learning events in Berlin
+  de: Finde Sprachlern-Events in Berlin
+  zh: Find language-learning events in Berlin
+  es: Find language-learning events in Berlin
+  fr: Find language-learning events in Berlin
+  pt: Find language-learning events in Berlin
+  ru: Find language-learning events in Berlin
+  ja: Find language-learning events in Berlin
+  ko: Find language-learning events in Berlin
+  it: Find language-learning events in Berlin
+  tr: Find language-learning events in Berlin
+  vi: Find language-learning events in Berlin
+  id: Find language-learning events in Berlin
+  pl: Find language-learning events in Berlin
+  nl: Find language-learning events in Berlin
+  ar: Find language-learning events in Berlin
+  hi: Find language-learning events in Berlin
+  th: Find language-learning events in Berlin
+  cs: Find language-learning events in Berlin
+  sv: Find language-learning events in Berlin
+  he: Find language-learning events in Berlin
+  verified_by_human: []
+landing_actionable_event_assistant_message:
+  context: Assistant message shown in the lightweight Actionable landing slide event demo
+  en: Sure, let me help with that!
+  de: Klar, ich helfe dir dabei!
+  zh: Sure, let me help with that!
+  es: Sure, let me help with that!
+  fr: Sure, let me help with that!
+  pt: Sure, let me help with that!
+  ru: Sure, let me help with that!
+  ja: Sure, let me help with that!
+  ko: Sure, let me help with that!
+  it: Sure, let me help with that!
+  tr: Sure, let me help with that!
+  vi: Sure, let me help with that!
+  id: Sure, let me help with that!
+  pl: Sure, let me help with that!
+  nl: Sure, let me help with that!
+  ar: Sure, let me help with that!
+  hi: Sure, let me help with that!
+  th: Sure, let me help with that!
+  cs: Sure, let me help with that!
+  sv: Sure, let me help with that!
+  he: Sure, let me help with that!
+  verified_by_human: []
+landing_actionable_event_source:
+  context: Source label for the lightweight Actionable landing slide event demo
+  en: Event preview
+  de: Event-Vorschau
+  zh: Event preview
+  es: Event preview
+  fr: Event preview
+  pt: Event preview
+  ru: Event preview
+  ja: Event preview
+  ko: Event preview
+  it: Event preview
+  tr: Event preview
+  vi: Event preview
+  id: Event preview
+  pl: Event preview
+  nl: Event preview
+  ar: Event preview
+  hi: Event preview
+  th: Event preview
+  cs: Event preview
+  sv: Event preview
+  he: Event preview
+  verified_by_human: []
+landing_actionable_event_title:
+  context: Event title for the lightweight Actionable landing slide event demo
+  en: Berlin Language Exchange
+  de: Berlin Language Exchange
+  zh: Berlin Language Exchange
+  es: Berlin Language Exchange
+  fr: Berlin Language Exchange
+  pt: Berlin Language Exchange
+  ru: Berlin Language Exchange
+  ja: Berlin Language Exchange
+  ko: Berlin Language Exchange
+  it: Berlin Language Exchange
+  tr: Berlin Language Exchange
+  vi: Berlin Language Exchange
+  id: Berlin Language Exchange
+  pl: Berlin Language Exchange
+  nl: Berlin Language Exchange
+  ar: Berlin Language Exchange
+  hi: Berlin Language Exchange
+  th: Berlin Language Exchange
+  cs: Berlin Language Exchange
+  sv: Berlin Language Exchange
+  he: Berlin Language Exchange
+  verified_by_human: []
+landing_actionable_event_meta:
+  context: Event metadata for the lightweight Actionable landing slide event demo
+  en: Today at 19:00 near Kreuzberg
+  de: Heute um 19:00 in der Naehe von Kreuzberg
+  zh: Today at 19:00 near Kreuzberg
+  es: Today at 19:00 near Kreuzberg
+  fr: Today at 19:00 near Kreuzberg
+  pt: Today at 19:00 near Kreuzberg
+  ru: Today at 19:00 near Kreuzberg
+  ja: Today at 19:00 near Kreuzberg
+  ko: Today at 19:00 near Kreuzberg
+  it: Today at 19:00 near Kreuzberg
+  tr: Today at 19:00 near Kreuzberg
+  vi: Today at 19:00 near Kreuzberg
+  id: Today at 19:00 near Kreuzberg
+  pl: Today at 19:00 near Kreuzberg
+  nl: Today at 19:00 near Kreuzberg
+  ar: Today at 19:00 near Kreuzberg
+  hi: Today at 19:00 near Kreuzberg
+  th: Today at 19:00 near Kreuzberg
+  cs: Today at 19:00 near Kreuzberg
+  sv: Today at 19:00 near Kreuzberg
+  he: Today at 19:00 near Kreuzberg
+  verified_by_human: []
+landing_actionable_event_detail:
+  context: Fullscreen detail description for the lightweight Actionable landing slide event demo
+  en: Practice German and English in small groups, then save the event or ask for similar options.
+  de: Uebe Deutsch und Englisch in kleinen Gruppen und speichere das Event oder frage nach aehnlichen Optionen.
+  zh: Practice German and English in small groups, then save the event or ask for similar options.
+  es: Practice German and English in small groups, then save the event or ask for similar options.
+  fr: Practice German and English in small groups, then save the event or ask for similar options.
+  pt: Practice German and English in small groups, then save the event or ask for similar options.
+  ru: Practice German and English in small groups, then save the event or ask for similar options.
+  ja: Practice German and English in small groups, then save the event or ask for similar options.
+  ko: Practice German and English in small groups, then save the event or ask for similar options.
+  it: Practice German and English in small groups, then save the event or ask for similar options.
+  tr: Practice German and English in small groups, then save the event or ask for similar options.
+  vi: Practice German and English in small groups, then save the event or ask for similar options.
+  id: Practice German and English in small groups, then save the event or ask for similar options.
+  pl: Practice German and English in small groups, then save the event or ask for similar options.
+  nl: Practice German and English in small groups, then save the event or ask for similar options.
+  ar: Practice German and English in small groups, then save the event or ask for similar options.
+  hi: Practice German and English in small groups, then save the event or ask for similar options.
+  th: Practice German and English in small groups, then save the event or ask for similar options.
+  cs: Practice German and English in small groups, then save the event or ask for similar options.
+  sv: Practice German and English in small groups, then save the event or ask for similar options.
+  he: Practice German and English in small groups, then save the event or ask for similar options.
+  verified_by_human: []
+landing_actionable_event_tag_language:
+  context: Language tag in the lightweight Actionable landing slide event demo
+  en: German
+  de: Deutsch
+  zh: German
+  es: German
+  fr: German
+  pt: German
+  ru: German
+  ja: German
+  ko: German
+  it: German
+  tr: German
+  vi: German
+  id: German
+  pl: German
+  nl: German
+  ar: German
+  hi: German
+  th: German
+  cs: German
+  sv: German
+  he: German
+  verified_by_human: []
+landing_actionable_event_tag_level:
+  context: Skill level tag in the lightweight Actionable landing slide event demo
+  en: Beginner friendly
+  de: Fuer Anfaenger geeignet
+  zh: Beginner friendly
+  es: Beginner friendly
+  fr: Beginner friendly
+  pt: Beginner friendly
+  ru: Beginner friendly
+  ja: Beginner friendly
+  ko: Beginner friendly
+  it: Beginner friendly
+  tr: Beginner friendly
+  vi: Beginner friendly
+  id: Beginner friendly
+  pl: Beginner friendly
+  nl: Beginner friendly
+  ar: Beginner friendly
+  hi: Beginner friendly
+  th: Beginner friendly
+  cs: Beginner friendly
+  sv: Beginner friendly
+  he: Beginner friendly
+  verified_by_human: []
+landing_actionable_event_chip_day:
+  context: Day chip in the lightweight Actionable landing slide event demo
+  en: Today
+  de: Heute
+  zh: Today
+  es: Today
+  fr: Today
+  pt: Today
+  ru: Today
+  ja: Today
+  ko: Today
+  it: Today
+  tr: Today
+  vi: Today
+  id: Today
+  pl: Today
+  nl: Today
+  ar: Today
+  hi: Today
+  th: Today
+  cs: Today
+  sv: Today
+  he: Today
+  verified_by_human: []
+landing_actionable_event_chip_time:
+  context: Time chip in the lightweight Actionable landing slide event demo
+  en: "19:00"
+  de: "19:00"
+  zh: "19:00"
+  es: "19:00"
+  fr: "19:00"
+  pt: "19:00"
+  ru: "19:00"
+  ja: "19:00"
+  ko: "19:00"
+  it: "19:00"
+  tr: "19:00"
+  vi: "19:00"
+  id: "19:00"
+  pl: "19:00"
+  nl: "19:00"
+  ar: "19:00"
+  hi: "19:00"
+  th: "19:00"
+  cs: "19:00"
+  sv: "19:00"
+  he: "19:00"
+  verified_by_human: []
+landing_actionable_event_chip_place:
+  context: Place chip in the lightweight Actionable landing slide event demo
+  en: Kreuzberg
+  de: Kreuzberg
+  zh: Kreuzberg
+  es: Kreuzberg
+  fr: Kreuzberg
+  pt: Kreuzberg
+  ru: Kreuzberg
+  ja: Kreuzberg
+  ko: Kreuzberg
+  it: Kreuzberg
+  tr: Kreuzberg
+  vi: Kreuzberg
+  id: Kreuzberg
+  pl: Kreuzberg
+  nl: Kreuzberg
+  ar: Kreuzberg
+  hi: Kreuzberg
+  th: Kreuzberg
+  cs: Kreuzberg
+  sv: Kreuzberg
+  he: Kreuzberg
+  verified_by_human: []
