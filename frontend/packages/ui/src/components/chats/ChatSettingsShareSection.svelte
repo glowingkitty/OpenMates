@@ -241,7 +241,7 @@
     <SettingsCard>
       <SettingsItem
         type="action"
-        icon="subsetting_icon globe"
+        icon="subsetting_icon share"
         title="Share with community"
         subtitleTop="Allow this shared chat to appear in community surfaces."
         hasToggle={true}
