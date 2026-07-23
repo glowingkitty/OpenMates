@@ -87,7 +87,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: working-tree-2026-07-22
+  subject_commit: 41100e482
 
 approvals:
   product_contract:
@@ -178,13 +178,13 @@ attempts:
 
 handoff:
   current_task_id: TASK-4
-  next_action: Create a share link for repaired chat 30521f99, inspect the shared transcript without exposing the key fragment in committed files or final logs, then convert it into a hardcoded example chat with the add-example-chat workflow.
-  command: node --experimental-strip-types --loader ./tests/loader.mjs src/cli.ts --api-url https://api.dev.openmates.org chats share 30521f99 --json
-  expected_outcome: The share link should decrypt the same publishable transcript with two verified checkpoints, after which scripts/create-example-chat-from-share.mjs can scaffold the public example and the deployed example can verify Show older messages.
+  next_action: Ask the user to confirm the final deployed privacy-first local AI example-chat UX is acceptable.
+  command: python3 scripts/tests.py run --spec example-chats-load.spec.ts
+  expected_outcome: The deployed Playwright proof is green; only explicit final user confirmation remains before closing this spec.
   blocker:
-    reason: The live chat now has two durable compression checkpoints, but the final share-link conversion and deployed Show older messages verification are not done.
-    since: "2026-07-22"
-  last_verified_commit: working-tree-2026-07-22
+    reason: Final user confirmation is still pending.
+    since: "2026-07-23"
+  last_verified_commit: 41100e482
 
 scenarios:
   - id: S-1
@@ -290,7 +290,7 @@ acceptance_criteria:
     scenario: S-5
     text: The successful real chat is converted from its share link into a hardcoded example chat and the deployed example has working Show older messages UX.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-EXAMPLE-SCAFFOLD, T-EXAMPLE-OLDER-MESSAGES]
@@ -300,23 +300,32 @@ assumptions:
     text: The OpenMates CLI can select or bias the desired Gemini model for normal chat turns, or the backend model-selection logs can prove the chosen Gemini path.
     category: cli
     required_before: task_execution
-    status: unchecked
-    evidence: []
-    blocker: Confirm available CLI model-selection flags or acceptable backend auto-selection proof before the live run.
+    status: confirmed
+    evidence:
+      - status: passed
+        summary: Live CLI responses for repaired chat 30521f99 reported Gemini 3.5 Flash-Lite model routing for the inspected final turns.
+        timestamp: "2026-07-22"
+    blocker: null
   - id: A-2
     text: The current compression model can be changed to, or already configured as, an intended cheap Gemini Flash or Flash-Lite model before the live validation.
     category: ai_pipeline
     required_before: task_execution
-    status: unchecked
-    evidence: []
-    blocker: Inspect and, if needed, update backend/apps/ai/processing/chat_compressor.py before counting real validation evidence.
+    status: confirmed
+    evidence:
+      - status: passed
+        summary: Compressor guardrail test passed and verified COMPRESSION_MODEL_ID is gemini-3.5-flash-lite.
+        timestamp: "2026-07-22"
+    blocker: null
   - id: A-3
     text: The existing example-chat scaffold can preserve enough long-chat history from a share link for Show older messages to appear in the final example.
     category: example_chat
     required_before: task_execution
-    status: unchecked
-    evidence: []
-    blocker: Verify scripts/create-example-chat-from-share.mjs and example rendering support long transcripts before publishing.
+    status: confirmed
+    evidence:
+      - status: passed
+        summary: The generated privacy-first example preserved 18 messages and deployed Show older messages passed after adding a scoped static example message window.
+        timestamp: "2026-07-23"
+    blocker: null
 
 contracts:
   workflow:
@@ -505,12 +514,22 @@ tests:
       required: true
       expected: fail_before_example_exists
       evidence:
-        status: pending
+        status: missing_test
+        reason: No durable red run was retained before the example existed; the first deployed run after adding the assertion failed on an over-strict visibility check rather than missing product behavior.
+        command: python3 scripts/tests.py run --spec example-chats-load.spec.ts
+        run_id: "2026-07-23T00:35:15Z / GitHub 29969744616"
+        subject_commit: a61ef45dd
+        timestamp: "2026-07-23T00:35:15Z"
     green_phase:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: pending
+        status: passed
+        command: python3 scripts/tests.py run --spec example-chats-load.spec.ts
+        run_id: "2026-07-23T01:04:06Z / GitHub 29971064585"
+        subject_commit: 41100e482
+        timestamp: "2026-07-23T01:04:06Z"
+        summary: Vercel dev deployment dpl_5a1NLUng9g9JZRYaGdxCW7kT6kb8 reached READY; example-chats-load.spec.ts passed, including the privacy-first local AI example opening, showing Show older messages, increasing the rendered message count after click, and revealing an older design-partner prompt without layout failure.
 
 verifications:
   - id: V-PRODUCT-CONTRACT-APPROVAL
@@ -716,7 +735,8 @@ tasks:
         - frontend/apps/web_app/tests/example-chats-load.spec.ts
         - docs/specs/realistic-long-chat-cli-validation/spec.yml
       shared_files: []
-    blockers: []
+    blockers:
+      - Final user confirmation remains pending after deployed Playwright evidence passed.
     follow_up_tasks: []
     independently_deployable: false
 
