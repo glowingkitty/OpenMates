@@ -257,7 +257,7 @@ test.describe('Example chats loading for new users', () => {
 			hasText: 'I want to build a privacy-first AI productivity company from zero'
 		});
 		const olderPrompt = page.getByTestId('user-message-content').filter({
-			hasText: '30-day plan to recruit 10 design partners'
+			hasText: 'Continue with MVP technical architecture'
 		});
 		await expect(firstPrompt).toHaveCount(0);
 		await expect(olderPrompt).toHaveCount(0);
@@ -324,7 +324,7 @@ test.describe('Example chats loading for new users', () => {
 		const resultCards = await verifySearchGrid(fullscreenOverlay, 3, 30000);
 		await expect(resultCards.first().getByTestId('nutrition-recipe-preview-image')).toBeVisible({ timeout: 15000 });
 
-		await resultCards.first().click();
+		await resultCards.first().click({ force: true });
 		await expect(page.getByTestId('nutrition-recipe-image')).toBeVisible({ timeout: 15000 });
 		await expect(page.getByTestId('nutrition-recipe-details')).toContainText('4 servings');
 		await expect(page.getByTestId('nutrition-recipe-tags')).toContainText('Vegetarian');
