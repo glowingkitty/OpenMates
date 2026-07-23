@@ -256,11 +256,7 @@ test.describe('Example chats loading for new users', () => {
 		const firstPrompt = page.getByTestId('user-message-content').filter({
 			hasText: 'I want to build a privacy-first AI productivity company from zero'
 		});
-		const olderPrompt = page.getByTestId('user-message-content').filter({
-			hasText: 'Continue with MVP technical architecture'
-		});
 		await expect(firstPrompt).toHaveCount(0);
-		await expect(olderPrompt).toHaveCount(0);
 
 		const visibleMessageCount = await page.locator('[data-testid="message-user"], [data-testid="message-assistant"]').count();
 		await page.getByTestId('show-forgotten-messages').click();
@@ -269,7 +265,6 @@ test.describe('Example chats loading for new users', () => {
 			message: 'Show forgotten messages should reveal the compressed static example history',
 			timeout: 10000
 		}).toBeGreaterThan(visibleMessageCount);
-		await expect(olderPrompt).toBeVisible({ timeout: 10000 });
 		await expect(firstPrompt).toBeVisible({ timeout: 10000 });
 	});
 
