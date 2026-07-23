@@ -118,7 +118,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 50437d678c1c4db3efc52c5f0db5e5b363c8ce99
+  subject_commit: f02fd182b76f459a5e9718bc7a1d46542d630464
 
 approvals:
   product_contract:
@@ -272,16 +272,27 @@ attempts:
       and this spec. The script still reported its known test-folder `tsc` binary
       skip, but Svelte, token, and TS parser checks passed. This records the local
       replacement edit only; deployment and focused Playwright reruns are still pending.
+  - id: ATTEMPT-12
+    task_id: TASK-2
+    approach: Deploy the replacement landing intro/actionable slide implementation and rerun the two focused Playwright specs against the dev preview.
+    outcome: succeeded
+    recorded_at: "2026-07-23"
+    notes: >
+      Commit `f02fd182b` deployed to Vercel deployment
+      `dpl_5e41wUPDGkjH7FT3YTiBYVRCCLWY`. `guest-interest-smart-selection.spec.ts`
+      passed in GitHub Actions run `29996759129`; `landing-page-onboarding-refresh.spec.ts`
+      passed in GitHub Actions run `29996759142`. User visual confirmation remains
+      pending before the phase can be marked complete.
 
 handoff:
   current_task_id: TASK-2
-  next_action: Deploy the replacement rail/Actionable slide implementation, rerun `guest-interest-smart-selection.spec.ts` and `landing-page-onboarding-refresh.spec.ts`, then ask for user visual confirmation before activating underspecified later slides.
+  next_action: Ask for user visual confirmation of the deployed expanded intro and Actionable event slide before activating underspecified later slides.
   command: python3 scripts/spec_verify.py docs/specs/landing-page-onboarding-refresh/spec.yml
-  expected_outcome: Fails on pending replacement web evidence and V-USER-PHASE1 until deploy/tests/user approval are complete.
+  expected_outcome: Fails only on pending V-USER-PHASE1 until the user approves the deployed visual result.
   blocker:
     id: V-USER-PHASE1
     reason: User visual confirmation is required before TASK-1/TASK-2 can be marked complete.
-  last_verified_commit: pending-replacement-deploy
+  last_verified_commit: f02fd182b76f459a5e9718bc7a1d46542d630464
 
 scenarios:
   - id: S-1
@@ -498,14 +509,13 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: pending
-        reason: Rail layout and viewport assertions changed after user screenshot rejection; focused spec must be redeployed and rerun.
+        status: passed
         command: python3 scripts/tests.py run --spec guest-interest-smart-selection.spec.ts
-        run_id: ""
-        subject_commit: ""
+        run_id: "29996759129"
+        subject_commit: f02fd182b76f459a5e9718bc7a1d46542d630464
         target: app.dev.openmates.org
-        deployment_reference: ""
-        timestamp: "2026-07-23"
+        deployment_reference: dpl_5e41wUPDGkjH7FT3YTiBYVRCCLWY
+        timestamp: "2026-07-23T09:49:49Z"
   - id: T-WEB-ACTIONABLE-EVENT
     type: playwright
     file: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
@@ -530,13 +540,13 @@ tests:
       required: false
       expected: pass_after_deploy
       evidence:
-        status: pending
-        reason: User rejected the previous deployed visual result; replacement implementation and stricter assertions must be deployed and rerun.
+        status: passed
         command: python3 scripts/tests.py run --spec landing-page-onboarding-refresh.spec.ts
-        subject_commit: ""
+        run_id: "29996759142"
+        subject_commit: f02fd182b76f459a5e9718bc7a1d46542d630464
         target: app.dev.openmates.org
-        deployment_reference: ""
-        timestamp: "2026-07-23"
+        deployment_reference: dpl_5e41wUPDGkjH7FT3YTiBYVRCCLWY
+        timestamp: "2026-07-23T09:49:17Z"
   - id: T-WEB-LANDING-EXAMPLES
     type: playwright
     file: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
