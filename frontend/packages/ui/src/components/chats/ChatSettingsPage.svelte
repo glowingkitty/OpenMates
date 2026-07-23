@@ -6,7 +6,6 @@
   tabs, and local-first Plan/Tasks/Files/Usage/Share sections.
 -->
 <script lang="ts">
-  import { onMount } from 'svelte';
   import { chatSettingsStore, normalizeChatSettingsTab, type ChatSettingsTab } from '../../stores/chatSettingsStore';
   import { SettingsTabs, SettingsCard, SettingsButton, SettingsInfoBox, SettingsProgressBar } from '../settings/elements';
   import ChatSettingsShareSection from './ChatSettingsShareSection.svelte';
@@ -48,15 +47,18 @@
   });
 
   $effect(() => {
-    usageRows = buildChatUsageRows(messages);
-    void refreshFiles();
+    const requestedTab = activeSettingsView.split('/')[2];
+    if (!requestedTab) return;
+    const nextTab = normalizeChatSettingsTab(requestedTab);
+    if (nextTab !== context?.activeTab) {
+      chatSettingsStore.setTab(nextTab);
+    }
+    activeTab = nextTab;
   });
 
-  onMount(() => {
-    const requestedTab = activeSettingsView.split('/')[2];
-    if (requestedTab) {
-      chatSettingsStore.setTab(requestedTab);
-    }
+  $effect(() => {
+    usageRows = buildChatUsageRows(messages);
+    void refreshFiles();
   });
 
   function setTab(tabId: string): void {
