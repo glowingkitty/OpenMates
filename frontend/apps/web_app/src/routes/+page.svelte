@@ -3607,9 +3607,9 @@
 		flex-direction: row;
 		box-sizing: border-box;
 		/* Fallback for browsers that don't support dvh */
-		height: calc(100vh - 66px - var(--dev-console-height, 0px));
+		height: calc(100vh - 55px - var(--dev-console-height, 0px));
 		/* Modern browsers will use this */
-		height: calc(100dvh - 66px - var(--dev-console-height, 0px));
+		height: calc(100dvh - 55px - var(--dev-console-height, 0px));
 		gap: 0px;
 		padding: 10px;
 		padding-bottom: 20px;
@@ -3637,6 +3637,13 @@
 	@media (max-width: 1099px) {
 		.chat-container.menu-open {
 			gap: 0px;
+		}
+	}
+
+	@media (max-width: 1099px) and (orientation: portrait) {
+		.chat-container {
+			height: calc(100vh - 66px - var(--dev-console-height, 0px));
+			height: calc(100dvh - 66px - var(--dev-console-height, 0px));
 		}
 	}
 
