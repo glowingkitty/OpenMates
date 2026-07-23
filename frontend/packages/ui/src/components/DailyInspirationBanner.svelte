@@ -1478,7 +1478,7 @@
     gap: 0;
   }
 
-  .daily-inspiration-banner.guest-intro-variant:not(.landing-intro-expanded) {
+  .daily-inspiration-banner:not(.landing-intro-expanded) {
     min-height: 253px;
   }
 
@@ -1840,6 +1840,11 @@
     -webkit-mask-position: center;
     mask-position: center;
     background-color: rgba(255, 255, 255, 0.92);
+  }
+
+  .guest-intro-ai-icon.landing-intro-ai-icon {
+    width: clamp(70px, 6.2vw, 112px);
+    height: clamp(70px, 6.2vw, 112px);
   }
 
   .guest-intro-copy-line {
@@ -2452,7 +2457,7 @@
       height: 190px;
     }
 
-    .daily-inspiration-banner.guest-intro-variant:not(.landing-intro-expanded) {
+    .daily-inspiration-banner:not(.landing-intro-expanded) {
       min-height: 190px;
     }
 
