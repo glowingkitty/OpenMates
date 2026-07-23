@@ -118,7 +118,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: f02fd182b76f459a5e9718bc7a1d46542d630464
+  subject_commit: 0d0a6b5fe5250c6edebe2d0a858a4488cbc3b103
 
 approvals:
   product_contract:
@@ -299,15 +299,19 @@ attempts:
   - id: ATTEMPT-14
     task_id: TASK-2
     approach: Patch the rejected landing intro layout and replace slide 2 with a real Luma event preview-to-CTA cursor animation.
-    outcome: planned
+    outcome: succeeded
     recorded_at: "2026-07-23"
     notes: >
-      Local edits update the active-chat intro height to use the viewport-fill
+      Commit `0d0a6b5fe` updates the active-chat intro height to use the viewport-fill
       calc preferred by the user, move the intro headline/rails upward, add more
       left-side rail icons before featured apps, remove icon rail overflow
       clipping, and replace the fake fullscreen detail with the real Luma event
       `DEPIN DAY BERLIN`, its real cover image, a visible cursor click on the
-      preview, and an `Open on Luma` CTA button.
+      preview, and an `Open on Luma` CTA button. Deployed to Vercel deployment
+      `dpl_Czhn8Px12FNnsMM6o1RRsS1SkRcx`; `landing-page-onboarding-refresh.spec.ts`
+      passed in GitHub Actions run `30005783218`; `guest-interest-smart-selection.spec.ts`
+      passed in GitHub Actions run `30005765899`. User visual confirmation remains
+      pending before the phase can be marked complete.
 
 handoff:
   current_task_id: TASK-2
@@ -317,7 +321,7 @@ handoff:
   blocker:
     id: V-USER-PHASE1
     reason: User visual confirmation is required before TASK-1/TASK-2 can be marked complete.
-  last_verified_commit: f02fd182b76f459a5e9718bc7a1d46542d630464
+  last_verified_commit: 0d0a6b5fe5250c6edebe2d0a858a4488cbc3b103
 
 scenarios:
   - id: S-1
@@ -538,11 +542,11 @@ tests:
       evidence:
         status: passed
         command: python3 scripts/tests.py run --spec guest-interest-smart-selection.spec.ts
-        run_id: "29996759129"
-        subject_commit: f02fd182b76f459a5e9718bc7a1d46542d630464
+        run_id: "30005765899"
+        subject_commit: 0d0a6b5fe5250c6edebe2d0a858a4488cbc3b103
         target: app.dev.openmates.org
-        deployment_reference: dpl_5e41wUPDGkjH7FT3YTiBYVRCCLWY
-        timestamp: "2026-07-23T09:49:49Z"
+        deployment_reference: dpl_Czhn8Px12FNnsMM6o1RRsS1SkRcx
+        timestamp: "2026-07-23T12:10:20Z"
   - id: T-WEB-ACTIONABLE-EVENT
     type: playwright
     file: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
@@ -571,11 +575,11 @@ tests:
       evidence:
         status: passed
         command: python3 scripts/tests.py run --spec landing-page-onboarding-refresh.spec.ts
-        run_id: "29996759142"
-        subject_commit: f02fd182b76f459a5e9718bc7a1d46542d630464
+        run_id: "30005783218"
+        subject_commit: 0d0a6b5fe5250c6edebe2d0a858a4488cbc3b103
         target: app.dev.openmates.org
-        deployment_reference: dpl_5e41wUPDGkjH7FT3YTiBYVRCCLWY
-        timestamp: "2026-07-23T09:49:17Z"
+        deployment_reference: dpl_Czhn8Px12FNnsMM6o1RRsS1SkRcx
+        timestamp: "2026-07-23T12:09:47Z"
   - id: T-WEB-LANDING-EXAMPLES
     type: playwright
     file: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
