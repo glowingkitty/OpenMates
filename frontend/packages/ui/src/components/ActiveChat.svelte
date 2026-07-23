@@ -11959,7 +11959,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
                         <!-- Right side buttons -->
                         <div class="right-buttons">
-                            {#if hasActivePrivateChatSurface && $authStore.isAuthenticated && currentChat?.chat_id}
+                            {#if hasActivePrivateChatSurface && currentChat?.chat_id && ($authStore.isAuthenticated || currentChat.is_shared_by_others)}
                                 <div class="new-chat-button-wrapper">
                                     <button
                                         class="clickable-icon icon_settings top-button"
@@ -11970,6 +11970,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                     >
                                     </button>
                                 </div>
+                            {/if}
+                            {#if hasActivePrivateChatSurface && $authStore.isAuthenticated && currentChat?.chat_id && !currentChat.is_shared_by_others}
                                 <div class="new-chat-button-wrapper">
                                     <button
                                         class="clickable-icon icon_reminder top-button"

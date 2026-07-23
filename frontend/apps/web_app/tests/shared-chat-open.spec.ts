@@ -169,6 +169,39 @@ test('public shared chat shows audio transcript to logged-out visitors', async (
 	);
 	await expect(sharedChatItem.getByTestId('shared-chat-public-icon')).toBeVisible({ timeout: 15000 });
 
+	await page.getByTestId('chat-details-button').click();
+	const settingsMenu = page.getByTestId('settings-menu');
+	await expect(settingsMenu).toBeVisible({ timeout: 15000 });
+	await expect(settingsMenu).toHaveAttribute('data-active-view', /^chats\/[a-zA-Z0-9-]+(?:\/[a-z]+)?$/, {
+		timeout: 10000
+	});
+	await expect(settingsMenu.getByTestId('chat-settings-page')).toBeVisible({ timeout: 10000 });
+	await expect(settingsMenu.getByText(/read-only/i)).toBeVisible({ timeout: 10000 });
+
+	await settingsMenu.getByTestId('chat-settings-tab-tasks').click();
+	await expect(settingsMenu.getByTestId('chat-settings-tabpanel-tasks')).toBeVisible({ timeout: 10000 });
+	await expect(settingsMenu.getByText(/No shared tasks are available|Tasks/i)).toBeVisible({ timeout: 10000 });
+
+	await settingsMenu.getByTestId('chat-settings-tab-plan').click();
+	await expect(settingsMenu.getByTestId('chat-settings-tabpanel-plan')).toBeVisible({ timeout: 10000 });
+	await expect(settingsMenu.getByText(/No shared plan is available|Untitled plan/i)).toBeVisible({ timeout: 10000 });
+
+	await settingsMenu.getByTestId('chat-settings-tab-usage').click();
+	await expect(settingsMenu.getByTestId('chat-settings-tabpanel-usage')).toBeVisible({ timeout: 10000 });
+	await expect(settingsMenu.getByTestId('chat-settings-usage-total')).toContainText(/credits/i, { timeout: 10000 });
+
+	await settingsMenu.getByTestId('chat-settings-tab-share').click();
+	await expect(settingsMenu.getByTestId('chat-settings-share-readonly')).toBeVisible({ timeout: 10000 });
+	await expect(settingsMenu.getByTestId('share-short-link-url')).toContainText(/\/share\/chat\/|\/s\//, {
+		timeout: 10000
+	});
+	await expect(settingsMenu.getByTestId('chat-settings-share-community')).not.toBeVisible();
+	await expect(settingsMenu.getByTestId('chat-settings-share-password')).not.toBeVisible();
+	await expect(settingsMenu.getByTestId('chat-settings-share-expire')).not.toBeVisible();
+	await expect(settingsMenu.getByTestId('chat-settings-share-stop')).not.toBeVisible();
+	await page.getByTestId('profile-container').click();
+	await expect(settingsMenu).not.toBeVisible({ timeout: 10000 });
+
 	const newChatButton = page.getByTestId('new-chat-button').or(page.getByTestId('new-chat-cta-fullwidth')).first();
 	await expect(newChatButton).toBeVisible({ timeout: 10000 });
 	await newChatButton.click();

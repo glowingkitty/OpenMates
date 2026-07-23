@@ -20,6 +20,7 @@
   import { downloadChatAsZip } from '../../services/zipExportService';
   import { userDB } from '../../services/userDB';
   import { isPublicChat } from '../../demo_chats/convertToChat';
+  import { getSharedChatUrl } from '../../services/sharedChatKeyStorage';
   import type { Chat, Message } from '../../types/chat';
   import {
     SettingsButton,
@@ -56,8 +57,34 @@
   let showUrl = $state(false);
   let qrCodeImageUrl = $state('');
   let shortLinkError = $state('');
+  let storedSharedUrl = $state<string | null>(null);
+  let isLoadingStoredSharedUrl = $state(false);
+  let storedSharedUrlError = $state('');
 
   let durationSeconds = $derived<ShareDuration>(autoExpireEnabled ? 600 : 0);
+  let isSharedViewer = $derived(!!chat?.is_shared_by_others);
+
+  $effect(() => {
+    const chatId = chat?.chat_id;
+    if (!chatId || !isSharedViewer) return;
+    void loadStoredSharedUrl(chatId);
+  });
+
+  async function loadStoredSharedUrl(chatId: string): Promise<void> {
+    isLoadingStoredSharedUrl = true;
+    storedSharedUrlError = '';
+    try {
+      const url = await getSharedChatUrl(chatId);
+      storedSharedUrl = url;
+      if (url) generateQrCode(url);
+    } catch (error) {
+      console.error('[ChatSettingsShareSection] Failed to load stored shared URL:', error);
+      storedSharedUrl = null;
+      storedSharedUrlError = 'Could not load the original share link on this device.';
+    } finally {
+      isLoadingStoredSharedUrl = false;
+    }
+  }
 
   function generateQrCode(link: string): void {
     const qr = new QRCodeSVG({
@@ -208,6 +235,17 @@
     setTimeout(() => { isCopied = false; }, 2000);
   }
 
+  async function copyStoredSharedLink(): Promise<void> {
+    if (!storedSharedUrl) return;
+    const result = await copyToClipboard(storedSharedUrl);
+    if (!result.success) {
+      notificationStore.error('Could not copy link.');
+      return;
+    }
+    isCopied = true;
+    setTimeout(() => { isCopied = false; }, 2000);
+  }
+
   async function stopSharing(): Promise<void> {
     const existing = await chatDB.getChat(chat.chat_id);
     if (!existing) return;
@@ -237,7 +275,44 @@
 </script>
 
 <section class="chat-share" data-testid="chat-settings-share-section">
-  {#if !generatedLink}
+  {#if isSharedViewer}
+    <SettingsCard>
+      <div class="generated" data-testid="chat-settings-share-readonly">
+        <SettingsInfoBox type="info">This shared chat is read-only. Only the owner can change password, expiration, community sharing, or stop sharing.</SettingsInfoBox>
+      </div>
+      {#if isLoadingStoredSharedUrl}
+        <p data-testid="chat-settings-share-link-loading">Loading shared chat link...</p>
+      {:else if storedSharedUrl}
+        <div class="generated-actions" data-testid="share-short-link-section">
+          <SettingsItem type="action" icon="subsetting_icon copy" title={isCopied ? 'Copied' : 'Copy shared chat link'} data-testid="share-copy-link" onClick={() => void copyStoredSharedLink()} />
+          <div data-testid="share-short-link-copy" class="short-link-copy">
+            <span data-testid="share-short-link-url">{storedSharedUrl}</span>
+          </div>
+          <SettingsItem type="action" icon="subsetting_icon camera" title={showQr ? 'Hide QR code' : 'Show QR code'} data-testid={showQr ? 'chat-settings-share-hide-qr' : 'chat-settings-share-show-qr'} onClick={() => { showQr = !showQr; }} />
+          {#if showQr}
+            <div class="qr-code" data-testid="chat-settings-share-qr">
+              <img src={qrCodeImageUrl} alt="Share QR code" />
+            </div>
+          {/if}
+          <SettingsItem type="action" icon="subsetting_icon copy" title={showUrl ? 'Hide URL' : 'Show URL'} data-testid={showUrl ? 'chat-settings-share-hide-url' : 'chat-settings-share-show-url'} onClick={() => { showUrl = !showUrl; }} />
+          {#if showUrl}
+            <div class="url-box" data-testid="chat-settings-share-url" data-share-url-kind="original">{storedSharedUrl}</div>
+          {/if}
+        </div>
+      {:else}
+        <div data-testid="chat-settings-share-link-unavailable">
+          <SettingsInfoBox type="warning">
+            {storedSharedUrlError || 'The original share link is not stored on this device. Open the chat from its share link again to save it here.'}
+          </SettingsInfoBox>
+        </div>
+      {/if}
+    </SettingsCard>
+    <SettingsDivider spacing="sm" />
+    <SettingsCard>
+      <SettingsItem type="action" icon="subsetting_icon download" title="Download chat" data-testid="chat-settings-share-download-chat" onClick={() => void downloadChat()} />
+      <SettingsItem type="action" icon="subsetting_icon files" title="Download chat zip" data-testid="chat-settings-share-download-zip" onClick={() => void downloadChatZip()} />
+    </SettingsCard>
+  {:else if !generatedLink}
     <SettingsCard>
       <SettingsItem
         type="action"

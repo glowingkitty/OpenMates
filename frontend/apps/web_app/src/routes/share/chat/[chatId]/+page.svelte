@@ -483,6 +483,7 @@
 		}
 
 		try {
+			const originalShareUrl = browser ? window.location.href : null;
 			isLoading = true;
 			error = null;
 			passwordError = null;
@@ -631,7 +632,7 @@
 			// This is essential for unauthenticated users who can't derive keys from a master key.
 			// Without this, the key would be lost on reload since it's only in memory.
 			const { saveSharedChatKey } = await import('@repo/ui');
-			await saveSharedChatKey(chatId, keyBytes);
+			await saveSharedChatKey(chatId, keyBytes, originalShareUrl);
 			console.debug('[ShareChat] Persisted shared chat key to IndexedDB for chat:', chatId);
 
 			// Store chat and messages in IndexedDB
@@ -645,7 +646,7 @@
 			await chatDB.addChat(fetchedChat);
 			for (const subChat of fetchedSubChats) {
 				chatDB.setChatKey(subChat.chat_id, keyBytes, 'share_link');
-				await saveSharedChatKey(subChat.chat_id, keyBytes);
+				await saveSharedChatKey(subChat.chat_id, keyBytes, originalShareUrl);
 				await chatDB.addChat(subChat);
 			}
 			if (fetchedSubChats.length > 0) {

@@ -66,6 +66,7 @@
     
     // Check if the current chat is selected
     let isChatSelected = $derived(chat ? selectedChatIds.has(chat.chat_id) : false);
+    let canShareChat = $derived(!!chat && ($authStore.isAuthenticated || !!chat.is_shared_by_others));
     
     // State for decrypted chat summary
     let chatSummary = $state<string | null>(null);
@@ -565,15 +566,15 @@
             {#if !hideShare && chat && !chat.is_incognito && !isPublicChat(chat.chat_id)}
                 <button
                     class="menu-item share"
-                    class:disabled={!$authStore.isAuthenticated}
-                    disabled={!$authStore.isAuthenticated}
+                    class:disabled={!canShareChat}
+                    disabled={!canShareChat}
                     onclick={(event) => {
-                        if ($authStore.isAuthenticated) {
+                        if (canShareChat) {
                             handleButtonClick('share', event);
                         }
                     }}
                     ontouchend={(event) => {
-                        if ($authStore.isAuthenticated) {
+                        if (canShareChat) {
                             handleButtonClick('share', event);
                         }
                     }}

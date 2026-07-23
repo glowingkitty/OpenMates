@@ -16,6 +16,7 @@
   import { notificationStore } from '../../stores/notificationStore';
   import { listUserTasks, type UserTaskViewModel } from '../../services/userTaskService';
   import { listUserPlans, type UserPlanViewModel } from '../../services/userPlanService';
+  import { loadSharedChatDetails } from '../../services/sharedChatDetailsService';
 
   let { activeSettingsView = '' }: { activeSettingsView?: string } = $props();
 
@@ -46,6 +47,7 @@
     cleanDisplaySummary(display?.summary || chat?.chat_summary || null) || 'No summary available yet.'
   );
   let totalCredits = $derived(display?.credits ?? chat?.budget_spent ?? totalKnownCredits(usageRows));
+  let isSharedViewer = $derived(!!chat?.is_shared_by_others);
   let doneTaskCount = $derived(tasks.filter((task) => task.status === 'done').length);
   let taskProgressPercent = $derived(tasks.length > 0 ? Math.round((doneTaskCount / tasks.length) * 100) : 0);
   let activePlans = $derived(plans.filter((plan) => !['completed', 'archived'].includes(plan.status)));
@@ -71,7 +73,7 @@
 
   $effect(() => {
     if (!chat?.chat_id) return;
-    void refreshPlanningData(chat.chat_id);
+    void refreshPlanningData(chat.chat_id, isSharedViewer);
   });
 
   function setTab(tabId: string): void {
@@ -110,13 +112,15 @@
     return trimmed;
   }
 
-  async function refreshPlanningData(chatId: string): Promise<void> {
+  async function refreshPlanningData(chatId: string, sharedViewer: boolean): Promise<void> {
     isLoadingPlanning = true;
     try {
-      const [nextTasks, nextPlans] = await Promise.all([
-        listUserTasks({ chatId }),
-        listUserPlans({ chatId, limit: 6 }),
-      ]);
+      const [nextTasks, nextPlans] = sharedViewer
+        ? await loadSharedChatDetails(chatId).then((details) => [details.tasks, details.plans] as const)
+        : await Promise.all([
+            listUserTasks({ chatId }),
+            listUserPlans({ chatId, limit: 6 }),
+          ]);
       tasks = nextTasks;
       plans = nextPlans;
     } catch (error) {
@@ -175,6 +179,9 @@
 {#if chat}
   <section class="chat-settings-page" data-testid="chat-settings-page">
     <p class="chat-summary" data-testid="chat-settings-summary">{summary}</p>
+    {#if isSharedViewer}
+      <SettingsInfoBox type="info">This is a shared chat. Details are read-only for everyone except the owner.</SettingsInfoBox>
+    {/if}
 
     <div class="tabs-shell" data-testid="chat-settings-tabs">
       <SettingsTabs tabs={tabs} bind:activeTab testIdPrefix="chat-settings-tab" onChange={setTab} />
@@ -203,7 +210,7 @@
             {/each}
           </div>
         {:else}
-          <SettingsInfoBox type="info">No plan is linked to this chat yet.</SettingsInfoBox>
+          <SettingsInfoBox type="info">{isSharedViewer ? 'No shared plan is available for this chat.' : 'No plan is linked to this chat yet.'}</SettingsInfoBox>
         {/if}
       </div>
     {:else if activeTab === 'tasks'}
@@ -231,7 +238,7 @@
             </div>
           </SettingsCard>
         {:else}
-          <SettingsInfoBox type="info">No tasks are linked to this chat yet.</SettingsInfoBox>
+          <SettingsInfoBox type="info">{isSharedViewer ? 'No shared tasks are available for this chat.' : 'No tasks are linked to this chat yet.'}</SettingsInfoBox>
         {/if}
       </div>
     {:else if activeTab === 'files'}

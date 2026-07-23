@@ -33,6 +33,7 @@
     import { embedPreviewRegistry } from '../../../services/embedPreviewRegistry';
     import { copyToClipboard } from '../../../utils/clipboardUtils';
     import { getApiEndpoint } from '../../../config/api';
+    import { getSharedChatUrl } from '../../../services/sharedChatKeyStorage';
     import {
         generateShortUrlParts,
         encryptShareUrl,
@@ -562,51 +563,20 @@
                 console.debug('[SettingsShare] Public chat (demo/legal) share link generated:', generatedLink);
                 return;
             }
+
+            const restoredSharedUrl = await restoreStoredSharedChatUrl(currentChatId);
+            if (restoredSharedUrl) {
+                console.debug('[SettingsShare] Restored original shared chat link:', currentChatId);
+                return;
+            }
             
-            // For shared chats user doesn't own: reconstruct original share link
-            // Use default settings (no password, no expiration) since we don't have original settings
+            // For shared chats the user doesn't own: restore the original share link.
+            // We no longer reconstruct from the raw chat key because that would drop
+            // owner-chosen password/expiry settings from the original URL.
             // Check ownership directly (not using derived value since it might not be updated yet)
             if ($authStore.isAuthenticated && !isPublicChatType && !isOwnedByUser) {
-                try {
-                    // Get the chat encryption key from cache (it was stored when user accessed the shared chat)
-                    const chatEncryptionKey = await getChatEncryptionKey();
-                    
-                    // Create encrypted blob with default settings (no password, no expiration)
-                    // This reconstructs the share link, though it may differ from original if original had password/expiration
-                    const encryptedBlob = await generateShareKeyBlob(
-                        currentChatId,
-                        chatEncryptionKey,
-                        0, // No expiration
-                        undefined // No password
-                    );
-                    
-                    const baseUrl = window.location.origin;
-                    const longShareLink = `${baseUrl}/share/chat/${currentChatId}#key=${encryptedBlob}`;
-                    const shareLinkResult = await createPrimaryShareLink(
-                        longShareLink,
-                        'chat',
-                        currentChatId,
-                        0,
-                        false,
-                        false,
-                    );
-                    generatedLink = shareLinkResult.url;
-                    generatedLongLink = longShareLink;
-                    generatedShareContentType = null;
-                    generatedShareContentId = '';
-                    generatedSharePasswordProtected = false;
-                    isLinkGenerated = true;
-                    isConfigurationStep = false;
-                    // Store the shared chat ID to keep it stable when user switches chats
-                    sharedChatId = currentChatId;
-                    generateQRCode(generatedLink);
-                    console.debug('[SettingsShare] Shared chat (not owned) share link generated:', generatedLink);
-                    return;
-                } catch (error) {
-                    console.error('[SettingsShare] Error generating share link for shared chat:', error);
-                    // If we can't get the key, we can't generate the link
-                    return;
-                }
+                console.warn('[SettingsShare] Original shared chat link is not available; refusing to regenerate unrestricted non-owner link:', currentChatId);
+                return;
             }
             
             // For owned chats: use configured settings
@@ -678,6 +648,31 @@
             console.debug('[SettingsShare] Share link generated successfully');
         } catch (error) {
             console.error('[SettingsShare] Error generating share link:', error);
+        }
+    }
+
+    async function restoreStoredSharedChatUrl(chatId: string): Promise<boolean> {
+        try {
+            const { chatDB } = await import('../../../services/db');
+            const chat = await chatDB.getChat(chatId);
+            if (!chat?.is_shared_by_others) return false;
+
+            const originalUrl = await getSharedChatUrl(chatId);
+            if (!originalUrl) return false;
+
+            generatedLink = originalUrl;
+            generatedLongLink = originalUrl;
+            generatedShareContentType = null;
+            generatedShareContentId = '';
+            generatedSharePasswordProtected = false;
+            isLinkGenerated = true;
+            isConfigurationStep = false;
+            sharedChatId = chatId;
+            generateQRCode(generatedLink);
+            return true;
+        } catch (error) {
+            console.error('[SettingsShare] Failed to restore original shared chat URL:', error);
+            return false;
         }
     }
 
@@ -2179,6 +2174,11 @@
                     Stop sharing
                 </button>
             {/if}
+        </div>
+    {:else if displayChatId && currentChat?.is_shared_by_others}
+        <div class="encryption-info" data-testid="share-original-link-unavailable">
+            <div class="info-icon">🔒</div>
+            <p>The original share link is not stored on this device. Open the chat from its share link again to save it here.</p>
         </div>
     {/if}
     {/if}
