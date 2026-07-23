@@ -1,0 +1,396 @@
+title:
+  context: "Title of example chat: Screenshot to HTML pricing card"
+  en: "Screenshot to HTML pricing card"
+  de: "Screenshot in HTML-Preiskarte umwandeln"
+  zh: "截图转 HTML 价格卡片"
+  es: "Tarjeta de precios de captura a HTML"
+  fr: "Carte tarifaire de capture en HTML"
+  pt: "Cartão de preços de captura para HTML"
+  ru: "Карточка цен из скриншота в HTML"
+  ja: "スクリーンショットからHTML料金カードへ"
+  ko: "스크린샷을 HTML 가격 카드로"
+  it: "Scheda prezzi da screenshot a HTML"
+  tr: "Ekran görüntüsünden HTML fiyat kartı"
+  vi: "Thẻ giá HTML từ ảnh chụp màn hình"
+  id: "Kartu harga HTML dari tangkapan layar"
+  pl: "Karta cenowa HTML ze zrzutu ekranu"
+  nl: "Prijskaart van screenshot naar HTML"
+  ar: "بطاقة تسعير HTML من لقطة شاشة"
+  hi: "स्क्रीनशॉट से HTML मूल्य कार्ड"
+  th: "การ์ดราคาจากภาพหน้าจอเป็น HTML"
+  cs: "Cenová karta HTML ze snímku obrazovky"
+  sv: "Priskort från skärmbild till HTML"
+  he: "כרטיס תמחור HTML מצילום מסך"
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: Screenshot to HTML pricing card"
+  en: "Watch OpenMates turn a pricing-card screenshot into a standalone inline HTML code embed with visual QA metadata."
+  de: "Sieh, wie OpenMates aus einem Screenshot einer Preiskarte ein eigenständiges Inline-HTML-Code-Embed mit visuellen QA-Metadaten erstellt."
+  zh: "观看 OpenMates 如何把价格卡片截图转换成带有视觉 QA 元数据的独立内联 HTML 代码嵌入。"
+  es: "Mira cómo OpenMates convierte una captura de una tarjeta de precios en un embed de código HTML inline e independiente con metadatos de QA visual."
+  fr: "Regardez OpenMates transformer la capture d'une carte tarifaire en embed de code HTML inline autonome avec des métadonnées de QA visuelle."
+  pt: "Veja o OpenMates transformar uma captura de um cartão de preços em um embed de código HTML inline e autônomo com metadados de QA visual."
+  ru: "Посмотрите, как OpenMates превращает скриншот ценовой карточки в автономный inline HTML-embed с метаданными визуального QA."
+  ja: "OpenMates が料金カードのスクリーンショットを、視覚 QA メタデータ付きの独立したインライン HTML コード埋め込みに変換する様子をご覧ください。"
+  ko: "OpenMates가 가격 카드 스크린샷을 시각적 QA 메타데이터가 포함된 독립형 인라인 HTML 코드 임베드로 바꾸는 과정을 확인하세요."
+  it: "Guarda OpenMates trasformare lo screenshot di una scheda prezzi in un embed di codice HTML inline autonomo con metadati di QA visiva."
+  tr: "OpenMates'in bir fiyat kartı ekran görüntüsünü görsel QA meta verileriyle bağımsız bir inline HTML kod embed'ine dönüştürmesini izleyin."
+  vi: "Xem OpenMates biến ảnh chụp thẻ giá thành một embed mã HTML inline độc lập kèm siêu dữ liệu QA trực quan."
+  id: "Lihat OpenMates mengubah tangkapan layar kartu harga menjadi embed kode HTML inline mandiri dengan metadata QA visual."
+  pl: "Zobacz, jak OpenMates zamienia zrzut ekranu karty cenowej w samodzielny embed kodu HTML inline z metadanymi wizualnego QA."
+  nl: "Bekijk hoe OpenMates een screenshot van een prijskaart omzet in een zelfstandige inline HTML-code-embed met visuele QA-metadata."
+  ar: "شاهد كيف يحول OpenMates لقطة شاشة لبطاقة تسعير إلى تضمين كود HTML مضمن ومستقل مع بيانات QA مرئية."
+  hi: "देखें कि OpenMates कैसे एक मूल्य कार्ड स्क्रीनशॉट को विज़ुअल QA मेटाडेटा वाले स्वतंत्र inline HTML कोड embed में बदलता है।"
+  th: "ดู OpenMates เปลี่ยนภาพหน้าจอการ์ดราคาให้เป็น embed โค้ด HTML แบบ inline ที่ทำงานได้เอง พร้อมข้อมูล QA ด้านภาพ"
+  cs: "Podívejte se, jak OpenMates mění snímek cenové karty na samostatný inline embed HTML kódu s metadaty vizuální QA."
+  sv: "Se hur OpenMates gör om en skärmbild av ett priskort till en fristående inline HTML-kodembed med visuell QA-metadata."
+  he: "צפו ב-OpenMates הופך צילום מסך של כרטיס תמחור להטמעת קוד HTML עצמאית ו-inline עם מטא-נתוני QA חזותיים."
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: Screenshot to HTML pricing card. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    Please turn this screenshot into a standalone inline HTML code embed. Match the screenshot closely and keep it self-contained.
+    [!](embed:simple-card-input-png-fcfe81c4-5baa-4580-afa07b)
+  de: |
+    Bitte wandle diesen Screenshot in ein eigenständiges Inline-HTML-Code-Embed um. Triff den Screenshot möglichst genau und halte alles in sich abgeschlossen.
+    [!](embed:simple-card-input-png-fcfe81c4-5baa-4580-afa07b)
+  zh: |
+    请把这个截图转换成一个独立的 inline HTML 代码 embed。请尽量贴近截图，并保持自包含。
+    [!](embed:simple-card-input-png-fcfe81c4-5baa-4580-afa07b)
+  es: |
+    Convierte esta captura en un embed de código HTML inline e independiente. Haz que se parezca mucho a la captura y mantenlo autocontenido.
+    [!](embed:simple-card-input-png-fcfe81c4-5baa-4580-afa07b)
+  fr: |
+    Transforme cette capture en embed de code HTML inline autonome. Reproduis la capture aussi fidèlement que possible et garde le tout autonome.
+    [!](embed:simple-card-input-png-fcfe81c4-5baa-4580-afa07b)
+  pt: |
+    Transforme esta captura em um embed de código HTML inline e independente. Faça ficar bem próximo da captura e mantenha tudo autocontido.
+    [!](embed:simple-card-input-png-fcfe81c4-5baa-4580-afa07b)
+  ru: |
+    Преврати этот скриншот в автономный inline HTML code embed. Сделай его максимально похожим на скриншот и полностью самодостаточным.
+    [!](embed:simple-card-input-png-fcfe81c4-5baa-4580-afa07b)
+  ja: |
+    このスクリーンショットを、独立したインライン HTML コード embed に変換してください。スクリーンショットにできるだけ近づけ、自包含にしてください。
+    [!](embed:simple-card-input-png-fcfe81c4-5baa-4580-afa07b)
+  ko: |
+    이 스크린샷을 독립형 인라인 HTML 코드 embed로 변환해 주세요. 스크린샷과 최대한 비슷하게 만들고 자체 포함 상태를 유지해 주세요.
+    [!](embed:simple-card-input-png-fcfe81c4-5baa-4580-afa07b)
+  it: |
+    Trasforma questo screenshot in un embed di codice HTML inline autonomo. Rendilo il più fedele possibile allo screenshot e mantienilo autocontenuto.
+    [!](embed:simple-card-input-png-fcfe81c4-5baa-4580-afa07b)
+  tr: |
+    Lütfen bu ekran görüntüsünü bağımsız bir inline HTML kod embed'ine dönüştür. Ekran görüntüsüne çok yakın olsun ve tamamen kendi içinde çalışsın.
+    [!](embed:simple-card-input-png-fcfe81c4-5baa-4580-afa07b)
+  vi: |
+    Hãy biến ảnh chụp màn hình này thành một embed mã HTML inline độc lập. Hãy khớp sát ảnh chụp và giữ mọi thứ tự chứa.
+    [!](embed:simple-card-input-png-fcfe81c4-5baa-4580-afa07b)
+  id: |
+    Ubah tangkapan layar ini menjadi embed kode HTML inline mandiri. Buat semirip mungkin dengan tangkapan layar dan tetap self-contained.
+    [!](embed:simple-card-input-png-fcfe81c4-5baa-4580-afa07b)
+  pl: |
+    Zamień ten zrzut ekranu w samodzielny inline HTML code embed. Dopasuj go możliwie blisko do zrzutu i zachowaj pełną samowystarczalność.
+    [!](embed:simple-card-input-png-fcfe81c4-5baa-4580-afa07b)
+  nl: |
+    Zet deze screenshot om in een zelfstandige inline HTML-code-embed. Laat hem nauw aansluiten op de screenshot en houd alles self-contained.
+    [!](embed:simple-card-input-png-fcfe81c4-5baa-4580-afa07b)
+  ar: |
+    حوّل لقطة الشاشة هذه إلى embed مستقل لكود HTML inline. اجعله مطابقا للقطة قدر الإمكان ومكتفيا بذاته.
+    [!](embed:simple-card-input-png-fcfe81c4-5baa-4580-afa07b)
+  hi: |
+    कृपया इस स्क्रीनशॉट को एक स्वतंत्र inline HTML code embed में बदल दें। इसे स्क्रीनशॉट से जितना हो सके मिलाएं और self-contained रखें।
+    [!](embed:simple-card-input-png-fcfe81c4-5baa-4580-afa07b)
+  th: |
+    โปรดเปลี่ยนภาพหน้าจอนี้ให้เป็น embed โค้ด HTML แบบ inline ที่ทำงานได้เอง ให้ใกล้เคียงกับภาพหน้าจอและเก็บทุกอย่างไว้ในตัวเอง
+    [!](embed:simple-card-input-png-fcfe81c4-5baa-4580-afa07b)
+  cs: |
+    Přeměň tento snímek obrazovky na samostatný inline HTML code embed. Co nejvěrněji ho přizpůsob snímku a zachovej ho jako self-contained.
+    [!](embed:simple-card-input-png-fcfe81c4-5baa-4580-afa07b)
+  sv: |
+    Gör om den här skärmbilden till en fristående inline HTML-kodembed. Matcha skärmbilden noggrant och håll allt self-contained.
+    [!](embed:simple-card-input-png-fcfe81c4-5baa-4580-afa07b)
+  he: |
+    הפוך את צילום המסך הזה להטמעת קוד HTML עצמאית ו-inline. התאם אותו מקרוב לצילום המסך ושמור עליו self-contained.
+    [!](embed:simple-card-input-png-fcfe81c4-5baa-4580-afa07b)
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: Screenshot to HTML pricing card. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "395f8816-7e0b-4753-8058-f1f5c49d0482", "app_id": "code", "skill_id": "image_to_html"}
+    ```
+    
+    我现在正根据你的截图生成独立的 HTML 代码 embed。
+  de: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "395f8816-7e0b-4753-8058-f1f5c49d0482", "app_id": "code", "skill_id": "image_to_html"}
+    ```
+    
+    Ich erstelle jetzt das eigenständige HTML-Code-Embed auf Basis deines Screenshots.
+  zh: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "395f8816-7e0b-4753-8058-f1f5c49d0482", "app_id": "code", "skill_id": "image_to_html"}
+    ```
+    
+    I'm generating the standalone HTML code embed for you now based on your screenshot.
+  es: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "395f8816-7e0b-4753-8058-f1f5c49d0482", "app_id": "code", "skill_id": "image_to_html"}
+    ```
+    
+    Estoy generando ahora el embed de código HTML independiente basado en tu captura.
+  fr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "395f8816-7e0b-4753-8058-f1f5c49d0482", "app_id": "code", "skill_id": "image_to_html"}
+    ```
+    
+    Je génère maintenant l'embed de code HTML autonome à partir de ta capture d'écran.
+  pt: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "395f8816-7e0b-4753-8058-f1f5c49d0482", "app_id": "code", "skill_id": "image_to_html"}
+    ```
+    
+    Estou gerando agora o embed de código HTML independente com base na sua captura.
+  ru: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "395f8816-7e0b-4753-8058-f1f5c49d0482", "app_id": "code", "skill_id": "image_to_html"}
+    ```
+    
+    Сейчас я создаю автономный HTML code embed на основе вашего скриншота.
+  ja: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "395f8816-7e0b-4753-8058-f1f5c49d0482", "app_id": "code", "skill_id": "image_to_html"}
+    ```
+    
+    スクリーンショットをもとに、独立した HTML コード embed を生成しています。
+  ko: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "395f8816-7e0b-4753-8058-f1f5c49d0482", "app_id": "code", "skill_id": "image_to_html"}
+    ```
+    
+    지금 스크린샷을 바탕으로 독립형 HTML 코드 embed를 생성하고 있습니다.
+  it: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "395f8816-7e0b-4753-8058-f1f5c49d0482", "app_id": "code", "skill_id": "image_to_html"}
+    ```
+    
+    Sto generando ora l'embed di codice HTML autonomo basato sul tuo screenshot.
+  tr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "395f8816-7e0b-4753-8058-f1f5c49d0482", "app_id": "code", "skill_id": "image_to_html"}
+    ```
+    
+    Şimdi ekran görüntünü temel alarak bağımsız HTML kod embed'ini oluşturuyorum.
+  vi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "395f8816-7e0b-4753-8058-f1f5c49d0482", "app_id": "code", "skill_id": "image_to_html"}
+    ```
+    
+    Bây giờ tôi đang tạo embed mã HTML độc lập dựa trên ảnh chụp màn hình của bạn.
+  id: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "395f8816-7e0b-4753-8058-f1f5c49d0482", "app_id": "code", "skill_id": "image_to_html"}
+    ```
+    
+    Saya sekarang membuat embed kode HTML mandiri berdasarkan tangkapan layar Anda.
+  pl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "395f8816-7e0b-4753-8058-f1f5c49d0482", "app_id": "code", "skill_id": "image_to_html"}
+    ```
+    
+    Teraz generuję samodzielny embed kodu HTML na podstawie Twojego zrzutu ekranu.
+  nl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "395f8816-7e0b-4753-8058-f1f5c49d0482", "app_id": "code", "skill_id": "image_to_html"}
+    ```
+    
+    Ik genereer nu de zelfstandige HTML-code-embed op basis van je screenshot.
+  ar: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "395f8816-7e0b-4753-8058-f1f5c49d0482", "app_id": "code", "skill_id": "image_to_html"}
+    ```
+    
+    أقوم الآن بإنشاء embed مستقل لكود HTML بناء على لقطة الشاشة الخاصة بك.
+  hi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "395f8816-7e0b-4753-8058-f1f5c49d0482", "app_id": "code", "skill_id": "image_to_html"}
+    ```
+    
+    मैं अब आपके स्क्रीनशॉट के आधार पर स्वतंत्र HTML code embed बना रहा हूं।
+  th: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "395f8816-7e0b-4753-8058-f1f5c49d0482", "app_id": "code", "skill_id": "image_to_html"}
+    ```
+    
+    ตอนนี้ฉันกำลังสร้าง embed โค้ด HTML แบบทำงานได้เองจากภาพหน้าจอของคุณ
+  cs: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "395f8816-7e0b-4753-8058-f1f5c49d0482", "app_id": "code", "skill_id": "image_to_html"}
+    ```
+    
+    Teď podle tvého snímku obrazovky generuji samostatný HTML code embed.
+  sv: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "395f8816-7e0b-4753-8058-f1f5c49d0482", "app_id": "code", "skill_id": "image_to_html"}
+    ```
+    
+    Jag genererar nu den fristående HTML-kodembedden baserat på din skärmbild.
+  he: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "395f8816-7e0b-4753-8058-f1f5c49d0482", "app_id": "code", "skill_id": "image_to_html"}
+    ```
+    
+    אני יוצר עכשיו את הטמעת קוד ה-HTML העצמאית על בסיס צילום המסך שלך.
+  verified_by_human: []
+
+follow_up_1:
+  context: "Follow-up suggestion 1"
+  en: "Run this HTML code to see how it works"
+  de: "Führe diesen HTML-Code aus, um zu sehen, wie er funktioniert"
+  zh: "运行这段 HTML 代码看看效果"
+  es: "Ejecuta este código HTML para ver cómo funciona"
+  fr: "Exécuter ce code HTML pour voir comment il fonctionne"
+  pt: "Execute este código HTML para ver como funciona"
+  ru: "Запустить этот HTML-код и посмотреть, как он работает"
+  ja: "この HTML コードを実行して動作を見る"
+  ko: "이 HTML 코드를 실행해 작동 방식을 보기"
+  it: "Esegui questo codice HTML per vedere come funziona"
+  tr: "Nasıl çalıştığını görmek için bu HTML kodunu çalıştır"
+  vi: "Chạy mã HTML này để xem nó hoạt động thế nào"
+  id: "Jalankan kode HTML ini untuk melihat cara kerjanya"
+  pl: "Uruchom ten kod HTML, aby zobaczyć, jak działa"
+  nl: "Voer deze HTML-code uit om te zien hoe hij werkt"
+  ar: "شغّل كود HTML هذا لترى كيف يعمل"
+  hi: "यह HTML कोड चलाकर देखें कि यह कैसे काम करता है"
+  th: "รันโค้ด HTML นี้เพื่อดูว่าทำงานอย่างไร"
+  cs: "Spusť tento HTML kód a podívej se, jak funguje"
+  sv: "Kör den här HTML-koden för att se hur den fungerar"
+  he: "הרץ את קוד ה-HTML הזה כדי לראות איך הוא עובד"
+  verified_by_human: []
+
+follow_up_2:
+  context: "Follow-up suggestion 2"
+  en: "Explain how to customize this card's colors"
+  de: "Erkläre, wie ich die Farben dieser Karte anpasse"
+  zh: "说明如何自定义这张卡片的颜色"
+  es: "Explica cómo personalizar los colores de esta tarjeta"
+  fr: "Expliquer comment personnaliser les couleurs de cette carte"
+  pt: "Explique como personalizar as cores deste cartão"
+  ru: "Объяснить, как настроить цвета этой карточки"
+  ja: "このカードの色をカスタマイズする方法を説明する"
+  ko: "이 카드의 색상을 맞춤 설정하는 방법 설명하기"
+  it: "Spiega come personalizzare i colori di questa scheda"
+  tr: "Bu kartın renklerini nasıl özelleştireceğini açıkla"
+  vi: "Giải thích cách tùy chỉnh màu của thẻ này"
+  id: "Jelaskan cara menyesuaikan warna kartu ini"
+  pl: "Wyjaśnij, jak dostosować kolory tej karty"
+  nl: "Leg uit hoe ik de kleuren van deze kaart aanpas"
+  ar: "اشرح كيفية تخصيص ألوان هذه البطاقة"
+  hi: "बताएं कि इस कार्ड के रंग कैसे अनुकूलित करें"
+  th: "อธิบายวิธีปรับแต่งสีของการ์ดนี้"
+  cs: "Vysvětli, jak upravit barvy této karty"
+  sv: "Förklara hur jag anpassar färgerna i det här kortet"
+  he: "הסבר איך להתאים אישית את צבעי הכרטיס הזה"
+  verified_by_human: []
+
+follow_up_3:
+  context: "Follow-up suggestion 3"
+  en: "Find similar HTML card designs for inspiration"
+  de: "Finde ähnliche HTML-Kartendesigns als Inspiration"
+  zh: "寻找类似的 HTML 卡片设计作为灵感"
+  es: "Busca diseños de tarjetas HTML similares para inspirarme"
+  fr: "Trouver des designs de cartes HTML similaires pour m'inspirer"
+  pt: "Encontre designs de cartões HTML semelhantes para inspiração"
+  ru: "Найти похожие дизайны HTML-карточек для вдохновения"
+  ja: "参考になる似た HTML カードデザインを探す"
+  ko: "영감을 얻을 비슷한 HTML 카드 디자인 찾기"
+  it: "Trova design di schede HTML simili come ispirazione"
+  tr: "İlham için benzer HTML kart tasarımları bul"
+  vi: "Tìm các thiết kế thẻ HTML tương tự để lấy cảm hứng"
+  id: "Cari desain kartu HTML serupa untuk inspirasi"
+  pl: "Znajdź podobne projekty kart HTML jako inspirację"
+  nl: "Zoek vergelijkbare HTML-kaartontwerpen ter inspiratie"
+  ar: "ابحث عن تصاميم بطاقات HTML مشابهة للإلهام"
+  hi: "प्रेरणा के लिए समान HTML कार्ड डिजाइन खोजें"
+  th: "ค้นหาดีไซน์การ์ด HTML ที่คล้ายกันเพื่อเป็นแรงบันดาลใจ"
+  cs: "Najdi podobné návrhy HTML karet pro inspiraci"
+  sv: "Hitta liknande HTML-kortdesigner som inspiration"
+  he: "מצא עיצובי כרטיסי HTML דומים להשראה"
+  verified_by_human: []
+
+follow_up_4:
+  context: "Follow-up suggestion 4"
+  en: "Show me how to add interactive elements"
+  de: "Zeig mir, wie ich interaktive Elemente hinzufüge"
+  zh: "教我如何添加交互元素"
+  es: "Muéstrame cómo añadir elementos interactivos"
+  fr: "Montre-moi comment ajouter des éléments interactifs"
+  pt: "Mostre como adicionar elementos interativos"
+  ru: "Покажи, как добавить интерактивные элементы"
+  ja: "インタラクティブ要素の追加方法を見せて"
+  ko: "인터랙티브 요소를 추가하는 방법 보여주기"
+  it: "Mostrami come aggiungere elementi interattivi"
+  tr: "Etkileşimli öğeleri nasıl ekleyeceğimi göster"
+  vi: "Chỉ tôi cách thêm các yếu tố tương tác"
+  id: "Tunjukkan cara menambahkan elemen interaktif"
+  pl: "Pokaż mi, jak dodać elementy interaktywne"
+  nl: "Laat zien hoe ik interactieve elementen toevoeg"
+  ar: "أرني كيفية إضافة عناصر تفاعلية"
+  hi: "मुझे दिखाएं कि इंटरैक्टिव तत्व कैसे जोड़ें"
+  th: "แสดงวิธีเพิ่มองค์ประกอบแบบโต้ตอบ"
+  cs: "Ukaž mi, jak přidat interaktivní prvky"
+  sv: "Visa hur jag lägger till interaktiva element"
+  he: "הראה לי איך להוסיף אלמנטים אינטראקטיביים"
+  verified_by_human: []
+
+follow_up_5:
+  context: "Follow-up suggestion 5"
+  en: "Generate a matching mobile version of this card"
+  de: "Erstelle eine passende mobile Version dieser Karte"
+  zh: "生成这张卡片的匹配移动端版本"
+  es: "Genera una versión móvil a juego de esta tarjeta"
+  fr: "Générer une version mobile assortie de cette carte"
+  pt: "Gere uma versão mobile correspondente deste cartão"
+  ru: "Создать подходящую мобильную версию этой карточки"
+  ja: "このカードに合うモバイル版を生成する"
+  ko: "이 카드에 맞는 모바일 버전 생성하기"
+  it: "Genera una versione mobile coordinata di questa scheda"
+  tr: "Bu kartın uyumlu bir mobil sürümünü oluştur"
+  vi: "Tạo phiên bản di động phù hợp của thẻ này"
+  id: "Buat versi mobile yang cocok untuk kartu ini"
+  pl: "Wygeneruj pasującą mobilną wersję tej karty"
+  nl: "Genereer een passende mobiele versie van deze kaart"
+  ar: "أنشئ نسخة جوال متناسقة من هذه البطاقة"
+  hi: "इस कार्ड का मेल खाता मोबाइल संस्करण बनाएं"
+  th: "สร้างเวอร์ชันมือถือที่เข้ากับการ์ดนี้"
+  cs: "Vygeneruj odpovídající mobilní verzi této karty"
+  sv: "Generera en matchande mobilversion av det här kortet"
+  he: "צור גרסת מובייל תואמת לכרטיס הזה"
+  verified_by_human: []
+
+follow_up_6:
+  context: "Follow-up suggestion 6"
+  en: "Teach me about responsive design principles"
+  de: "Erkläre mir die Grundlagen von Responsive Design"
+  zh: "教我响应式设计原则"
+  es: "Enséñame principios de diseño responsive"
+  fr: "Apprends-moi les principes du design responsive"
+  pt: "Ensine-me princípios de design responsivo"
+  ru: "Расскажи мне о принципах адаптивного дизайна"
+  ja: "レスポンシブデザインの原則を教えて"
+  ko: "반응형 디자인 원칙 알려주기"
+  it: "Insegnami i principi del responsive design"
+  tr: "Bana responsive tasarım ilkelerini öğret"
+  vi: "Dạy tôi các nguyên tắc thiết kế responsive"
+  id: "Ajari saya prinsip desain responsif"
+  pl: "Naucz mnie zasad projektowania responsywnego"
+  nl: "Leer me de principes van responsive design"
+  ar: "علمني مبادئ التصميم المتجاوب"
+  hi: "मुझे responsive design के सिद्धांत सिखाएं"
+  th: "สอนหลักการออกแบบ responsive design ให้ฉัน"
+  cs: "Nauč mě principy responzivního designu"
+  sv: "Lär mig principerna för responsiv design"
+  he: "למד אותי עקרונות של עיצוב רספונסיבי"
+  verified_by_human: []

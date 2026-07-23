@@ -395,6 +395,8 @@ def test_apps_api_uses_image_to_html_result_declared_credits() -> None:
         "image_to_html_model": "gemini",
         "image_to_html_credits_charged": 42,
         "image_to_html_e2b_render_seconds": 61.0,
+        "model_used": "gemini",
+        "duration_second": 61.0,
     }
 
 
@@ -461,6 +463,7 @@ def test_generated_image_to_html_route_preserves_base64_request(monkeypatch) -> 
             "mime_type": "image/png",
             "filename": "fixture.png",
             "max_correction_passes": 0,
+            "source_image": None,
             "id": None,
         }]
     }

@@ -12,6 +12,7 @@ import asyncio
 import base64
 import hashlib
 import logging
+import math
 import os
 import time
 import uuid
@@ -24,20 +25,20 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from backend.apps.code.skills.image_to_html_skill import (
     DEFAULT_CACHE_READ_USD_PER_MILLION,
     DEFAULT_CACHE_WRITE_USD_PER_MILLION,
-    DEFAULT_CREDITS_PER_USD,
     DEFAULT_E2B_CREDITS_PER_STARTED_MINUTE,
     DEFAULT_INPUT_USD_PER_MILLION,
-    DEFAULT_MARGIN_MULTIPLIER,
     DEFAULT_MINIMUM_CREDITS,
     DEFAULT_OUTPUT_USD_PER_MILLION,
     ImageToHtmlGenerationResult,
     ImageToHtmlUsage,
     calculate_image_to_html_credits,
+    image_to_html_model_pricing,
     reserved_credits_for_correction_passes,
     validate_image_input,
 )
 from backend.shared.providers.image_to_html_generator import ImageToHtmlGenerator
-from backend.shared.python_utils.billing_utils import ensure_credit_headroom
+from backend.shared.python_utils.encrypted_embed_images import resolve_encrypted_image_embed
+from backend.shared.python_utils.billing_utils import ensure_credit_headroom, get_usd_per_credit
 from backend.shared.python_utils.generated_assets import (
     build_download_url,
     cache_s3_file_keys,
@@ -121,7 +122,13 @@ async def _async_image_to_html(
             operation_name="image-to-HTML generation",
         )
 
-        parsed = validate_image_input(arguments)
+        resolved_arguments = await _resolve_image_input_arguments(
+            task,
+            arguments,
+            user_id=user_id,
+            user_vault_key_id=user_vault_key_id,
+        )
+        parsed = validate_image_input(resolved_arguments)
         generator = generator_factory(task) if generator_factory else ImageToHtmlGenerator(secrets_manager=task._secrets_manager)
         generated = await generator.generate(
             image_bytes=parsed.image_bytes,
@@ -154,6 +161,10 @@ async def _async_image_to_html(
                 "embed_id": embed_id,
                 "source_filename": parsed.filename,
                 "unit_name": "image_to_html_generation",
+                "model_used": usage.get("model"),
+                "input_tokens": usage.get("input_tokens"),
+                "output_tokens": usage.get("output_tokens"),
+                "duration_second": usage.get("duration_second"),
                 "server_provider": "Google AI Studio + E2B",
                 **{f"image_to_html_{key}": value for key, value in usage.items()},
             },
@@ -231,16 +242,16 @@ def _usage_payload_with_charge(generation: ImageToHtmlGenerationResult, max_corr
     )
     charge = calculate_image_to_html_credits(
         usage,
+        pricing_details=image_to_html_model_pricing(usage.model),
         input_usd_per_million=DEFAULT_INPUT_USD_PER_MILLION,
         output_usd_per_million=DEFAULT_OUTPUT_USD_PER_MILLION,
         cache_read_usd_per_million=DEFAULT_CACHE_READ_USD_PER_MILLION,
         cache_write_usd_per_million=DEFAULT_CACHE_WRITE_USD_PER_MILLION,
-        credits_per_usd=DEFAULT_CREDITS_PER_USD,
-        margin_multiplier=DEFAULT_MARGIN_MULTIPLIER,
         e2b_credits_per_started_minute=DEFAULT_E2B_CREDITS_PER_STARTED_MINUTE,
         minimum_credits=DEFAULT_MINIMUM_CREDITS,
     )
     reserved_credits = reserved_credits_for_correction_passes(max_correction_passes)
+    estimated_cost_credits = math.ceil(charge.provider_cost_usd / get_usd_per_credit()) if charge.provider_cost_usd > 0 else 0
     usage_payload.update(
         {
             "model": usage.model,
@@ -249,9 +260,13 @@ def _usage_payload_with_charge(generation: ImageToHtmlGenerationResult, max_corr
             "cache_read_tokens": usage.cache_read_tokens,
             "cache_write_tokens": usage.cache_write_tokens,
             "e2b_render_seconds": usage.e2b_render_seconds,
+            "duration_second": usage.e2b_render_seconds,
             "correction_passes_used": usage.correction_passes_used,
             "provider_cost_usd": charge.provider_cost_usd,
+            "provider_cost_credits": estimated_cost_credits,
+            "model_credits": charge.model_credits,
             "e2b_credits": charge.e2b_credits,
+            "e2b_started_minutes": charge.e2b_started_minutes,
             "reserved_credits": reserved_credits,
             "credits_charged": charge.credits_charged,
             "credits_refunded": max(0, reserved_credits - charge.credits_charged),
@@ -455,6 +470,37 @@ async def _resolve_user_vault_key_id(task: BaseServiceTask, user_id: str) -> str
     if success and isinstance(user_profile, dict):
         return str(user_profile.get("vault_key_id") or "")
     return ""
+
+
+async def _resolve_image_input_arguments(
+    task: BaseServiceTask,
+    arguments: dict[str, Any],
+    *,
+    user_id: str,
+    user_vault_key_id: str,
+) -> dict[str, Any]:
+    if arguments.get("image_base64"):
+        return arguments
+
+    source_embed_id = str(arguments.get("source_image_embed_id") or "")
+    if not source_embed_id:
+        return arguments
+
+    resolved_vault_key_id = user_vault_key_id or await _resolve_user_vault_key_id(task, user_id)
+    resolved = await resolve_encrypted_image_embed(
+        embed_id=source_embed_id,
+        user_vault_key_id=resolved_vault_key_id,
+        cache_client=task._cache_service,
+        directus_service=task._directus_service,
+        encryption_service=task._encryption_service,
+        s3_service=task._s3_service,
+        bucket_name=get_bucket_name("chatfiles"),
+    )
+    return {
+        **arguments,
+        "image_base64": base64.b64encode(resolved.content).decode("ascii"),
+        "mime_type": resolved.mime_type,
+    }
 
 
 def _hash_value(value: str) -> str:

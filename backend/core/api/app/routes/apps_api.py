@@ -1149,7 +1149,18 @@ def get_variable_result_usage_details(
     usage = _as_dict(_as_dict(results[request_index]).get("usage"))
     if not usage:
         return {}
-    return {f"image_to_html_{key}": value for key, value in usage.items()}
+    details = {f"image_to_html_{key}": value for key, value in usage.items()}
+    if usage.get("model"):
+        details["model_used"] = usage["model"]
+    if usage.get("input_tokens") is not None:
+        details["input_tokens"] = usage["input_tokens"]
+    if usage.get("output_tokens") is not None:
+        details["output_tokens"] = usage["output_tokens"]
+    if usage.get("duration_second") is not None:
+        details["duration_second"] = usage["duration_second"]
+    elif usage.get("e2b_render_seconds") is not None:
+        details["duration_second"] = usage["e2b_render_seconds"]
+    return details
 
 
 def _as_dict(value: Any) -> Dict[str, Any]:

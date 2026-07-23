@@ -52,6 +52,7 @@ class UsageMethods:
         server_region: Optional[str] = None,  # Server region (e.g., "EU", "US")
         code_run_filenames: Optional[List[str]] = None,  # Code Run file paths included in the sandbox request
         code_run_duration_seconds: Optional[float] = None,  # Total Code Run billable execution time
+        duration_second: Optional[float] = None,  # Generic billable duration in seconds for non-Code-Run skills
         tool_inference_iterations: Optional[int] = None,  # Extra LLM calls from tool use (cleartext int)
     ) -> Optional[str]:
         """
@@ -84,6 +85,7 @@ class UsageMethods:
             server_region: Optional server region (e.g., "EU", "US", "APAC"). Only for AI Ask skill.
             code_run_filenames: File paths included in a Code Run sandbox request. Only for Code Run.
             code_run_duration_seconds: Total Code Run billable execution duration in seconds. Only for Code Run.
+            duration_second: Generic billable duration in seconds for skills such as Code image-to-HTML.
             tool_inference_iterations: Number of extra LLM calls triggered by tool use in this turn
                 (0 or None = no tool calls). Stored as a cleartext integer for client-side display.
                 Only populated for AI Ask skill.
@@ -129,15 +131,14 @@ class UsageMethods:
                 )
                 encrypted_model_used = encrypted_model_used_tuple[0] if encrypted_model_used_tuple else None
 
-            # CRITICAL: Only save tokens for AI Ask skill (app_id='ai', skill_id='ask')
-            # Other skills don't use LLM tokens directly, so storing tokens is incorrect
-            should_save_tokens = (app_id == "ai" and skill_id == "ask")
+            # Save token fields for skills whose billing directly depends on provider token usage.
+            should_save_tokens = (app_id, skill_id) in {("ai", "ask"), ("code", "image_to_html")}
             
             if actual_input_tokens is not None or actual_output_tokens is not None:
                 if not should_save_tokens:
                     logger.warning(
                         f"{log_prefix} Tokens provided for non-AI-Ask skill (app_id='{app_id}', skill_id='{skill_id}'). "
-                        f"Tokens will not be saved. Only AI Ask skill should have tokens."
+                        f"Tokens will not be saved. Only token-billed skills should have tokens."
                     )
                     actual_input_tokens = None
                     actual_output_tokens = None
@@ -202,9 +203,10 @@ class UsageMethods:
                     encrypted_code_run_filenames = res[0] if res else None
 
             encrypted_code_run_duration_seconds = None
-            if code_run_duration_seconds is not None:
+            billable_duration_second = code_run_duration_seconds if code_run_duration_seconds is not None else duration_second
+            if billable_duration_second is not None:
                 res = await self.encryption_service.encrypt_with_user_key(
-                    key_id=encryption_key_id, plaintext=str(round(float(code_run_duration_seconds), 3))
+                    key_id=encryption_key_id, plaintext=str(round(float(billable_duration_second), 3))
                 )
                 encrypted_code_run_duration_seconds = res[0] if res else None
 

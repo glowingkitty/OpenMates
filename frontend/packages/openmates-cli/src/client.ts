@@ -6423,6 +6423,14 @@ export class OpenMatesClient {
             category = resp.category;
             modelName = resp.modelName;
             assistantMessageId = assistantId;
+            await this.persistStreamedEmbeds({
+              ws,
+              embeds: resp.embeds,
+              chatId,
+              chatKeyBytes,
+              fallbackMessageId: assistantId,
+              ownerId,
+            });
             clearSyncCache(teamId);
             await persistCompressionCheckpoints(resp.compressionCheckpoints);
             const mateName = category ? (MATE_NAMES[category] ?? null) : null;

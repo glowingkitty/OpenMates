@@ -33,6 +33,12 @@ MAX_EXTRACTED_ASSETS = 8
 MAX_EXTRACTED_ASSET_AREA_RATIO = 0.18
 MAX_EXTRACTED_ASSET_EDGE_PX = 360
 MIN_EXTRACTED_ASSET_EDGE_PX = 8
+LOW_INFORMATION_ASSET_BPP = 0.08
+LOW_INFORMATION_ASSET_MIN_AREA = 3000
+MAX_WIDE_UI_CONTROL_ASPECT_RATIO = 3.0
+MIN_WIDE_UI_CONTROL_WIDTH = 120
+MAX_LAYOUT_REGIONS = 12
+MAX_TEXT_LINE_HEIGHTS = 6
 ASSET_EXTRACTION_MODEL = "gemini-3.6-flash"
 SYSTEM_PROMPT = """You turn screenshots into one standalone index.html file.
 
@@ -59,8 +65,9 @@ Return only JSON with this exact shape:
 
 Rules:
 - box_2d uses normalized coordinates from 0 to 1000 in [y0,x0,y1,x1] order.
-- Crop only standalone visual assets: logos, avatars, app icons, distinctive glyphs, illustrations, product images, badges, and decorative marks.
-- Do not crop text blocks, whole cards, whole sidebars, whole panels, charts made mostly of simple bars/lines, or the full screenshot.
+- Crop only standalone visual assets that are hard to redraw accurately: avatars, product images, real illustrations/photos, brand marks, app icons, distinctive glyphs, and decorative mascots.
+- Do not crop text blocks, wordmarks made mostly of readable text, navigation controls, filter/search/buttons/chips, whole cards, whole sidebars, whole panels, charts made mostly of simple bars/lines, or the full screenshot.
+- If an element is mostly simple rectangles/circles/text and can be redrawn with HTML/CSS/SVG, do not crop it.
 - Prefer tight boxes with transparent/nearby whitespace only when it belongs to the visual mark.
 - Return at most 8 assets, ordered by visual importance.
 - If no useful asset crops exist, return {"assets":[]}.
@@ -103,6 +110,25 @@ class ExtractedImageAsset:
     pixel_box: tuple[int, int, int, int]
     width: int
     height: int
+
+
+@dataclass(frozen=True)
+class LayoutRegionHint:
+    kind: str
+    x: int
+    y: int
+    width: int
+    height: int
+    color: str
+
+
+@dataclass(frozen=True)
+class LayoutAnalysisHints:
+    background_color: str | None
+    dominant_colors: list[str]
+    regions: list[LayoutRegionHint]
+    text_line_heights: list[int]
+    font_family_hint: str
 
 
 @dataclass(frozen=True)
@@ -161,6 +187,7 @@ class ImageToHtmlGenerator:
             width=DEFAULT_RENDER_WIDTH,
             height=DEFAULT_RENDER_HEIGHT,
         )
+        layout_hints = _analyze_layout_hints(image_bytes, source_dimensions)
         extracted_assets, asset_usage = await self._extract_assets(
             image_bytes=image_bytes,
             mime_type=mime_type,
@@ -176,7 +203,7 @@ class ImageToHtmlGenerator:
         )
 
         candidate = await self._call_gemini(
-            prompt=_create_prompt(source_dimensions, extracted_assets),
+            prompt=_create_prompt(source_dimensions, extracted_assets, layout_hints),
             image_bytes=image_bytes,
             mime_type=mime_type,
             source_dimensions=source_dimensions,
@@ -184,7 +211,7 @@ class ImageToHtmlGenerator:
         )
         html, usage = self._merge_candidate(candidate, usage)
         html = _inline_asset_placeholders(html, extracted_assets)
-        html, usage, repair_warning = await self._repair_if_needed(html, usage)
+        html, usage, repair_warning = await self._repair_if_needed(html, usage, extracted_assets)
         if repair_warning:
             warnings.append(repair_warning)
 
@@ -197,17 +224,17 @@ class ImageToHtmlGenerator:
         correction_passes_used = 0
         for _ in range(max(0, max_correction_passes)):
             correction = await self._call_gemini(
-                prompt=_correction_prompt(source_dimensions, extracted_assets, best_score),
+                prompt=_correction_prompt(source_dimensions, extracted_assets, layout_hints, best_score),
                 image_bytes=image_bytes,
                 mime_type=mime_type,
-                current_html=html,
+                current_html=_restore_asset_placeholders(html, extracted_assets),
                 rendered_screenshot_bytes=render.screenshot_bytes,
                 source_dimensions=source_dimensions,
                 extracted_assets=extracted_assets,
             )
             html, usage = self._merge_candidate(correction, usage)
             html = _inline_asset_placeholders(html, extracted_assets)
-            html, usage, repair_warning = await self._repair_if_needed(html, usage)
+            html, usage, repair_warning = await self._repair_if_needed(html, usage, extracted_assets)
             if repair_warning:
                 warnings.append(repair_warning)
             render = await self._render(html, source_dimensions)
@@ -260,22 +287,34 @@ class ImageToHtmlGenerator:
         self,
         html: str,
         usage: HtmlGenerationUsage,
+        extracted_assets: list[ExtractedImageAsset] | None = None,
     ) -> tuple[str, HtmlGenerationUsage, str | None]:
         validation = validate_inline_html(html)
         if validation.passed:
             return html, usage, None
 
+        deterministic_html = _deterministic_inline_html_repair(html)
+        deterministic_validation = validate_inline_html(deterministic_html)
+        if deterministic_validation.passed:
+            return deterministic_html, usage, validation.to_repair_prompt()
+
         repair = await self._call_gemini(
             prompt=f"{REPAIR_PROMPT}\n\n{validation.to_repair_prompt()}",
-            current_html=html,
+            current_html=_restore_asset_placeholders(html, extracted_assets or []),
+            extracted_assets=extracted_assets or [],
         )
         repaired_html, usage = self._merge_candidate(repair, usage)
+        repaired_html = _inline_asset_placeholders(repaired_html, extracted_assets or [])
         usage = _merge_usage(
             usage,
             validation_repair_attempts=usage.validation_repair_attempts + 1,
         )
         repaired_validation = validate_inline_html(repaired_html)
         if not repaired_validation.passed:
+            deterministic_repaired_html = _deterministic_inline_html_repair(repaired_html)
+            deterministic_repaired_validation = validate_inline_html(deterministic_repaired_html)
+            if deterministic_repaired_validation.passed:
+                return deterministic_repaired_html, usage, validation.to_repair_prompt()
             raise ImageToHtmlGenerationError(
                 "Generated HTML failed inline-only validation after repair",
                 validation_errors=repaired_validation.errors,
@@ -419,7 +458,25 @@ def _asset_prompt_block(assets: list[ExtractedImageAsset]) -> str:
     return "\n".join(lines)
 
 
-def _create_prompt(dimensions: SourceImageDimensions, assets: list[ExtractedImageAsset]) -> str:
+def _layout_prompt_block(layout_hints: LayoutAnalysisHints) -> str:
+    lines = [
+        "Deterministic layout hints from image analysis. Treat as approximate measurements; the screenshot remains authoritative:",
+        f"- likely canvas background: {layout_hints.background_color or 'unknown'}",
+        f"- dominant colors: {', '.join(layout_hints.dominant_colors) if layout_hints.dominant_colors else 'unknown'}",
+        f"- font family class: {layout_hints.font_family_hint}",
+    ]
+    if layout_hints.text_line_heights:
+        lines.append("- common text/label line heights: " + ", ".join(f"{height}px" for height in layout_hints.text_line_heights))
+    if layout_hints.regions:
+        lines.append("- major visual regions to preserve as x,y,w,h,color:")
+        for region in layout_hints.regions:
+            lines.append(
+                f"  - {region.kind}: {region.x},{region.y},{region.width},{region.height},{region.color}"
+            )
+    return "\n".join(lines)
+
+
+def _create_prompt(dimensions: SourceImageDimensions, assets: list[ExtractedImageAsset], layout_hints: LayoutAnalysisHints) -> str:
     return f"""{CREATE_PROMPT}
 
 Replication requirements:
@@ -428,11 +485,14 @@ Replication requirements:
 - Do not center a smaller app/card on a larger canvas unless the input screenshot does so.
 - Preserve exact visible text and approximate font weights, sizes, colors, shadows, and spacing.
 - If a visual asset is small and recognizable, recreate it with inline SVG/CSS or an embedded data URL. Do not use placeholders unless no detail is visible.
-- {_asset_prompt_block(assets)}
+
+{_layout_prompt_block(layout_hints)}
+
+{_asset_prompt_block(assets)}
 - Keep the final file self-contained and inline-only."""
 
 
-def _correction_prompt(dimensions: SourceImageDimensions, assets: list[ExtractedImageAsset], best_score: float | None) -> str:
+def _correction_prompt(dimensions: SourceImageDimensions, assets: list[ExtractedImageAsset], layout_hints: LayoutAnalysisHints, best_score: float | None) -> str:
     score_text = f" Current best visual diff score is {best_score:.4f}; lower is better." if best_score is not None else ""
     return f"""{CORRECTION_PROMPT}
 
@@ -443,7 +503,10 @@ Fix the most visible mismatches first:
 - typography size/weight/line breaks
 - colors, shadows, border radii, and spacing
 - missing or inaccurate visible text, icons, avatars, logos, and badges
-- {_asset_prompt_block(assets)}
+
+{_layout_prompt_block(layout_hints)}
+
+{_asset_prompt_block(assets)}
 
 Do not change parts that already match. Do not introduce external URLs or dependencies. Return only the full corrected index.html."""
 
@@ -547,9 +610,14 @@ def _crop_extracted_assets(
             continue
         crop = source.crop((left, top, right, bottom))
         crop = _resize_asset_crop(crop)
-        data_url = _image_to_png_data_url(crop)
-        if not data_url:
+        png_bytes = _image_to_png_bytes(crop)
+        if not png_bytes or not _is_useful_asset_crop(
+            width=crop.width,
+            height=crop.height,
+            png_byte_count=len(png_bytes),
+        ):
             continue
+        data_url = _png_bytes_to_data_url(png_bytes)
         index = len(assets) + 1
         label = _clean_asset_text(raw_asset.get("label"), f"asset {index}")
         description = _clean_asset_text(raw_asset.get("description"), label)
@@ -609,10 +677,259 @@ def _resize_asset_crop(crop: Any) -> Any:
     return crop.resize((max(1, int(crop.width * scale)), max(1, int(crop.height * scale))))
 
 
-def _image_to_png_data_url(image: Any) -> str:
+def _image_to_png_bytes(image: Any) -> bytes:
     output = io.BytesIO()
     image.save(output, format="PNG", optimize=True)
-    return f"data:image/png;base64,{base64.b64encode(output.getvalue()).decode('ascii')}"
+    return output.getvalue()
+
+
+def _png_bytes_to_data_url(png_bytes: bytes) -> str:
+    return f"data:image/png;base64,{base64.b64encode(png_bytes).decode('ascii')}"
+
+
+def _is_useful_asset_crop(*, width: int, height: int, png_byte_count: int) -> bool:
+    area = max(1, width * height)
+    aspect_ratio = max(width / max(1, height), height / max(1, width))
+    if width >= MIN_WIDE_UI_CONTROL_WIDTH and aspect_ratio >= MAX_WIDE_UI_CONTROL_ASPECT_RATIO:
+        return False
+    bytes_per_pixel = png_byte_count / area
+    if area >= LOW_INFORMATION_ASSET_MIN_AREA and bytes_per_pixel < LOW_INFORMATION_ASSET_BPP:
+        return False
+    return True
+
+
+def _analyze_layout_hints(image_bytes: bytes, dimensions: SourceImageDimensions) -> LayoutAnalysisHints:
+    try:
+        from PIL import Image
+    except ImportError:
+        return _empty_layout_hints()
+    try:
+        with Image.open(io.BytesIO(image_bytes)) as image:
+            source = image.convert("RGB")
+            background_color = _estimate_background_color(source)
+            dominant_colors = _dominant_colors(source)
+            regions = _detect_layout_regions(source, dimensions)
+            text_line_heights = _estimate_text_line_heights(source)
+    except Exception:
+        return _empty_layout_hints()
+    return LayoutAnalysisHints(
+        background_color=background_color,
+        dominant_colors=dominant_colors,
+        regions=regions,
+        text_line_heights=text_line_heights,
+        font_family_hint="system-ui / Inter-like sans-serif",
+    )
+
+
+def _empty_layout_hints() -> LayoutAnalysisHints:
+    return LayoutAnalysisHints(
+        background_color=None,
+        dominant_colors=[],
+        regions=[],
+        text_line_heights=[],
+        font_family_hint="system-ui / Inter-like sans-serif",
+    )
+
+
+def _estimate_background_color(image: Any) -> str | None:
+    width, height = image.size
+    samples: list[tuple[int, int, int]] = []
+    if width <= 0 or height <= 0:
+        return None
+    step_x = max(1, width // 80)
+    step_y = max(1, height // 80)
+    for x in range(0, width, step_x):
+        samples.append(image.getpixel((x, 0)))
+        samples.append(image.getpixel((x, height - 1)))
+    for y in range(0, height, step_y):
+        samples.append(image.getpixel((0, y)))
+        samples.append(image.getpixel((width - 1, y)))
+    if not samples:
+        return None
+    return _rgb_to_hex(_most_common_quantized_color(samples, step=16))
+
+
+def _dominant_colors(image: Any) -> list[str]:
+    sample = image.copy()
+    sample.thumbnail((96, 96))
+    counts: dict[tuple[int, int, int], int] = {}
+    for pixel in sample.getdata():
+        quantized = _quantize_rgb(pixel, step=24)
+        counts[quantized] = counts.get(quantized, 0) + 1
+    ordered = sorted(counts.items(), key=lambda item: item[1], reverse=True)
+    colors: list[str] = []
+    for color, _count in ordered:
+        hex_color = _rgb_to_hex(color)
+        if hex_color not in colors:
+            colors.append(hex_color)
+        if len(colors) >= 8:
+            break
+    return colors
+
+
+def _detect_layout_regions(image: Any, dimensions: SourceImageDimensions) -> list[LayoutRegionHint]:
+    analysis = image.copy()
+    analysis.thumbnail((180, 140))
+    width, height = analysis.size
+    if width <= 0 or height <= 0:
+        return []
+    pixels = list(analysis.getdata())
+    quantized_pixels = [_quantize_rgb(pixel, step=16) for pixel in pixels]
+    visited = [False] * (width * height)
+    regions: list[tuple[int, int, int, int, int, tuple[int, int, int]]] = []
+    min_cells = max(18, int(width * height * 0.012))
+    for start in range(width * height):
+        if visited[start]:
+            continue
+        color = quantized_pixels[start]
+        stack = [start]
+        visited[start] = True
+        count = 0
+        min_x = width
+        max_x = 0
+        min_y = height
+        max_y = 0
+        while stack:
+            index = stack.pop()
+            x = index % width
+            y = index // width
+            count += 1
+            min_x = min(min_x, x)
+            max_x = max(max_x, x)
+            min_y = min(min_y, y)
+            max_y = max(max_y, y)
+            for neighbor in _grid_neighbors(x, y, width, height):
+                if visited[neighbor] or quantized_pixels[neighbor] != color:
+                    continue
+                visited[neighbor] = True
+                stack.append(neighbor)
+        if count < min_cells:
+            continue
+        box_width = max_x - min_x + 1
+        box_height = max_y - min_y + 1
+        if box_width * box_height > width * height * 0.96:
+            continue
+        if box_width < 8 or box_height < 8:
+            continue
+        regions.append((count, min_x, min_y, max_x, max_y, color))
+
+    scale_x = dimensions.width / width
+    scale_y = dimensions.height / height
+    hints: list[LayoutRegionHint] = []
+    for count, min_x, min_y, max_x, max_y, color in sorted(regions, key=lambda item: item[0], reverse=True):
+        x = int(min_x * scale_x)
+        y = int(min_y * scale_y)
+        region_width = max(1, int((max_x - min_x + 1) * scale_x))
+        region_height = max(1, int((max_y - min_y + 1) * scale_y))
+        hints.append(
+            LayoutRegionHint(
+                kind=_classify_layout_region(x, y, region_width, region_height, dimensions),
+                x=x,
+                y=y,
+                width=region_width,
+                height=region_height,
+                color=_rgb_to_hex(color),
+            )
+        )
+        if len(hints) >= MAX_LAYOUT_REGIONS:
+            break
+    return hints
+
+
+def _estimate_text_line_heights(image: Any) -> list[int]:
+    sample = image.convert("L")
+    width, height = sample.size
+    if width <= 0 or height <= 0:
+        return []
+    edge_background = _luminance_from_hex(_estimate_background_color(image) or "#ffffff")
+    foreground_is_dark = edge_background > 128
+    row_counts: list[int] = []
+    threshold = max(8, int(width * 0.004))
+    for y in range(height):
+        count = 0
+        for x in range(0, width, 2):
+            value = sample.getpixel((x, y))
+            if (foreground_is_dark and value < edge_background - 55) or ((not foreground_is_dark) and value > edge_background + 55):
+                count += 1
+        row_counts.append(count)
+    groups: list[int] = []
+    y = 0
+    while y < height:
+        if row_counts[y] < threshold:
+            y += 1
+            continue
+        start = y
+        gap = 0
+        while y < height and gap <= 2:
+            if row_counts[y] >= threshold:
+                gap = 0
+            else:
+                gap += 1
+            y += 1
+        line_height = max(1, y - start - gap)
+        if 6 <= line_height <= 48:
+            groups.append(line_height)
+    if not groups:
+        return []
+    counts: dict[int, int] = {}
+    for height_value in groups:
+        rounded = int(round(height_value / 2) * 2)
+        counts[rounded] = counts.get(rounded, 0) + 1
+    return [height for height, _count in sorted(counts.items(), key=lambda item: (-item[1], item[0]))[:MAX_TEXT_LINE_HEIGHTS]]
+
+
+def _grid_neighbors(x: int, y: int, width: int, height: int) -> tuple[int, ...]:
+    neighbors: list[int] = []
+    if x > 0:
+        neighbors.append(y * width + x - 1)
+    if x + 1 < width:
+        neighbors.append(y * width + x + 1)
+    if y > 0:
+        neighbors.append((y - 1) * width + x)
+    if y + 1 < height:
+        neighbors.append((y + 1) * width + x)
+    return tuple(neighbors)
+
+
+def _classify_layout_region(x: int, y: int, width: int, height: int, dimensions: SourceImageDimensions) -> str:
+    if x < dimensions.width * 0.08 and width < dimensions.width * 0.32 and height > dimensions.height * 0.55:
+        return "sidebar"
+    if y < dimensions.height * 0.12 and width > dimensions.width * 0.35 and height < dimensions.height * 0.2:
+        return "top_bar"
+    if width > dimensions.width * 0.45 and height > dimensions.height * 0.12:
+        return "large_panel"
+    if width > dimensions.width * 0.12 and height > dimensions.height * 0.06:
+        return "card_or_panel"
+    return "region"
+
+
+def _most_common_quantized_color(pixels: list[tuple[int, int, int]], *, step: int) -> tuple[int, int, int]:
+    counts: dict[tuple[int, int, int], int] = {}
+    for pixel in pixels:
+        color = _quantize_rgb(pixel, step=step)
+        counts[color] = counts.get(color, 0) + 1
+    return max(counts.items(), key=lambda item: item[1])[0]
+
+
+def _quantize_rgb(pixel: tuple[int, int, int], *, step: int) -> tuple[int, int, int]:
+    return tuple(min(255, max(0, int(channel // step * step + step // 2))) for channel in pixel[:3])
+
+
+def _rgb_to_hex(pixel: tuple[int, int, int]) -> str:
+    return f"#{pixel[0]:02x}{pixel[1]:02x}{pixel[2]:02x}"
+
+
+def _luminance_from_hex(hex_color: str) -> int:
+    cleaned = hex_color.strip().lstrip("#")
+    if len(cleaned) != 6:
+        return 255
+    try:
+        red = int(cleaned[0:2], 16)
+        green = int(cleaned[2:4], 16)
+        blue = int(cleaned[4:6], 16)
+    except ValueError:
+        return 255
+    return int(0.2126 * red + 0.7152 * green + 0.0722 * blue)
 
 
 def _clean_asset_text(value: Any, fallback: str) -> str:
@@ -630,6 +947,22 @@ def _inline_asset_placeholders(html: str, assets: list[ExtractedImageAsset]) -> 
     for asset in assets:
         html = html.replace(asset.placeholder, asset.data_url)
     return html
+
+
+def _restore_asset_placeholders(html: str, assets: list[ExtractedImageAsset]) -> str:
+    for asset in assets:
+        html = html.replace(asset.data_url, asset.placeholder)
+    return html
+
+
+def _deterministic_inline_html_repair(html: str) -> str:
+    repaired = re.sub(r"(?is)<script\b[^>]*\bsrc\s*=\s*(['\"]?)(?:(?:https?:)?//|[^'\">]*local-assets)[^>]*>\s*</script>", "", html)
+    repaired = re.sub(r"(?is)<link\b[^>]*\bhref\s*=\s*(['\"]?)(?:(?:https?:)?//|[^'\">]*local-assets)[^>]*>", "", repaired)
+    repaired = re.sub(r"(?is)\s(?:src|href)\s*=\s*(['\"])(?:(?:https?:)?//|[^'\"]*local-assets)[^'\"]*\1", "", repaired)
+    repaired = re.sub(r"(?is)url\(\s*(['\"]?)(?:(?:https?:)?//|[^)'\"]*local-assets)[^)]+\)", "none", repaired)
+    repaired = re.sub(r"(?i)https?://[^\s;\"')<]+", "", repaired)
+    repaired = re.sub(r"(?i)local-assets/?[^\s;\"')<]*", "", repaired)
+    return repaired
 
 
 def _visual_diff_score(source_bytes: bytes, rendered_bytes: bytes) -> float | None:

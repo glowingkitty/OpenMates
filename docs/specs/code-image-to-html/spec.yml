@@ -21,7 +21,7 @@ scope:
     - Deterministic validation that forbids external URLs, `local-assets`, remote fonts/icons/scripts/images, unsafe HTML, and broken asset references.
     - One deterministic repair attempt when validation fails; validation repair does not count as a visual correction pass.
     - E2B isolated Chromium/Playwright render helper for generated HTML screenshots and visual feedback.
-    - Actual-cost metered billing with an upfront max credit reservation, Gemini token usage, E2B render duration, margin/minimum, and itemized usage metadata.
+    - Actual-cost metered billing with a conservative upfront credit headroom check, Gemini token usage, E2B render duration, minimum charge, and itemized usage metadata.
     - Chat-bound runs create a durable `code-code` embed containing generated HTML plus latest E2B render screenshot metadata.
     - Direct REST/CLI/SDK calls without `chat_id` return long-running task metadata first; the worker result contains generated HTML, screenshot artifact metadata when stored, and usage metadata without silently creating a chat.
     - Store the latest successful E2B render screenshot as a lightweight encrypted generated asset linked to the code embed for chat-bound runs.
@@ -156,8 +156,8 @@ decisions:
     decided_at: "2026-07-21T00:00:00Z"
   - id: D-5
     status: active
-    decision: Use actual-cost metered billing with a max reservation and itemized usage metadata.
-    reason: Gemini token cost and E2B render duration vary materially by image complexity and correction-pass count.
+    decision: Use actual-cost metered billing with a max preflight headroom check and itemized usage metadata.
+    reason: Gemini token use and E2B render duration vary materially by image complexity and correction-pass count; the preflight check must avoid starting expensive work for users who cannot cover a reasonable estimate, but final deduction must use actual usage.
     decided_at: "2026-07-21T00:00:00Z"
 
 attempts:
@@ -190,15 +190,25 @@ attempts:
       was rendered to local E2B screenshots. Initial Discord posting failed with
       `HTTP 403: error code 1010` because Python urllib used its default user
       agent; adding an explicit browser-like `User-Agent` restored delivery.
+  - id: ATTEMPT-5
+    task_id: TASK-4
+    approach: Update billing tests to require provider token-per-credit pricing, unprefixed token metadata, and `duration_second` persistence before changing implementation.
+    outcome: succeeded
+    recorded_at: "2026-07-22T00:00:00Z"
+    reason: >
+      Red phase failed as expected: old code rejected `input_tokens_per_credit`,
+      omitted `model_used`/token fields from worker billing metadata, and did not
+      accept `duration_second` in usage entry persistence. Green phase passed
+      after implementation with `python3 -m pytest backend/tests/test_code_image_to_html_billing.py backend/tests/test_code_image_to_html_task.py backend/tests/test_usage_entries.py backend/tests/test_apps_api.py -k 'image_to_html or duration_second or actual_cost'` -> 9 passed.
 
 handoff:
-  current_task_id: TASK-9
-  next_action: Wait for user confirmation on Discord message `1529182772898300046`, then continue to web and Apple gates or record follow-up quality fixes.
-  command: python3 scripts/eval_code_image_to_html.py --fixture simple-card=tmp/code-image-to-html-eval/20260721-170124/simple-card-input.png --fixture complex-dashboard=tmp/code-image-to-html-eval/20260721-170124/complex-dashboard-input.png --fixture figma-openmates-tasks=tmp/code-image-to-html-eval/20260721-170124/figma-openmates-tasks-input.png --skip-build
-  expected_outcome: "User confirms the generated screenshots are acceptable or records follow-up quality fixes."
+  current_task_id: TASK-4
+  next_action: Run focused backend verification after billing changes, then continue to real CLI natural-language chat, web verification, user quality confirmation, and example-chat conversion.
+  command: python3 -m pytest backend/tests/test_code_image_to_html_billing.py backend/tests/test_code_image_to_html_task.py backend/tests/test_usage_entries.py backend/tests/test_apps_api.py -k 'image_to_html or duration_second or actual_cost'
+  expected_outcome: "Billing charges provider token-per-credit usage plus E2B started minutes, and usage entries persist token counts plus `duration_second`."
   blocker:
-    reason: "Awaiting user visual confirmation for Discord message `1529182772898300046`; long combined evals also encountered dev API container recreation causing intermittent 502s, so per-fixture evidence was used."
-    owner: user
+    reason: "None. Continue verification and follow-up web/example-chat gates."
+    owner: none
   last_verified_commit: 378f04c60
 
 scenarios:
@@ -239,9 +249,9 @@ scenarios:
     when:
       - The request is accepted and the worker completes successfully.
     then:
-      - "The initial response includes `task_id`, `embed_id`, `status: processing`, and reserved credits."
-      - The final worker result includes Gemini model, input tokens, output tokens, cache read/write tokens when available, E2B render seconds, correction passes used, reserved credits, final credits charged, and any refunded/unused reservation amount.
-      - The usage entry records app_id `code`, skill_id `image_to_html`, provider/model, token usage, E2B seconds, and whether the run was chat-bound or direct.
+      - "The initial response includes `task_id`, `embed_id`, `status: processing`, and the estimated preflight credits."
+      - The final worker result includes Gemini model, input tokens, output tokens, cache read/write tokens when available, `duration_second` for E2B render seconds, correction passes used, estimated credits, final credits charged, and unused estimate amount.
+      - The usage entry records app_id `code`, skill_id `image_to_html`, provider/model, token usage, `duration_second`, and whether the run was chat-bound or direct.
 
   - id: S-4
     title: Validation failure triggers one repair then fails visibly if still unsafe
@@ -314,7 +324,7 @@ acceptance_criteria:
       - T-WEB-001
   - id: AC-2
     scenario: S-2
-    text: "Direct REST/CLI/SDK calls without `chat_id` return `task_id`, `embed_id`, `status: processing`, and reserved credits immediately; final task status exposes HTML and usage metadata without creating a durable chat."
+    text: "Direct REST/CLI/SDK calls without `chat_id` return `task_id`, `embed_id`, `status: processing`, and estimated preflight credits immediately; final task status exposes HTML and usage metadata without creating a durable chat."
     required: true
     status: pending
     coverage_status: covered
@@ -326,7 +336,7 @@ acceptance_criteria:
       - T-PIP-001
   - id: AC-3
     scenario: S-3
-    text: Billing reserves a maximum budget and then charges actual Gemini token cost plus E2B render duration plus configured margin/minimum, with itemized usage metadata.
+    text: Billing checks a conservative maximum budget before provider calls, then charges actual Gemini token usage using provider token-per-credit pricing plus E2B started minutes plus the configured minimum, with itemized token counts and `duration_second` metadata stored in usage entries.
     required: true
     status: pending
     coverage_status: covered
@@ -417,7 +427,7 @@ contracts:
       access_model: first-party session and developer API-key REST app-skill endpoint
       auth: session cookie or Bearer API key, matching existing app-skill routes
       rate_limits: per-user app-skill limits plus provider concurrency limits for Gemini and E2B render jobs
-      credit_budget: requires max reservation before task dispatch and repeats headroom preflight before provider calls; fails with 402 when the authenticated user cannot cover reservation
+      credit_budget: requires estimated maximum headroom before task dispatch and repeats headroom preflight before provider calls; fails with 402 when the authenticated user cannot cover the estimate within the overdraft policy
       encryption_boundary: accepts decrypted image bytes in request body for direct calls or resolves encrypted image embeds only for authorized chat-bound users; returns decrypted generated HTML only through the authorized task result or encrypted code embed
       request: >
         { requests: [{ image_base64?: string, mime_type?: "image/png"|"image/jpeg"|"image/webp", filename?: string,
@@ -431,11 +441,12 @@ contracts:
         { status: "finished", embed_id: string, html: string, latest_screenshot?: object,
         usage: { model: string, input_tokens?: integer, output_tokens?: integer,
         cache_read_tokens?: integer, cache_write_tokens?: integer, e2b_render_seconds: number,
+        duration_second: number, model_credits: integer, e2b_credits: integer,
         reserved_credits: integer, credits_charged: integer } }
       errors:
         - 400 for missing image, malformed base64, unsupported MIME type, over-limit image bytes/pixels, forbidden `image_url`, invalid correction pass bounds, or final validation failure.
         - 401 for unauthenticated calls.
-        - 402 for insufficient credits to reserve the maximum configured budget.
+        - 402 for insufficient credits to cover the maximum configured estimate.
         - 403 for unauthorized `source_image_embed_id` or chat access.
         - 429 for per-user, Gemini, or E2B concurrency/rate limits.
         - 502 for provider failures after visible structured error handling.

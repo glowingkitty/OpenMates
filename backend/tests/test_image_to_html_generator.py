@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import sys
 import types
+from io import BytesIO
 
 from backend.shared.providers.e2b_html_renderer import E2BHtmlRenderResult
 from backend.shared.providers.image_to_html_generator import (
@@ -17,6 +18,8 @@ from backend.shared.providers.image_to_html_generator import (
     HtmlGenerationUsage,
     ImageToHtmlGenerator,
     SourceImageDimensions,
+    _analyze_layout_hints,
+    _crop_extracted_assets,
     _generate_html_with_gemini,
 )
 
@@ -26,6 +29,15 @@ PNG_BYTES = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x0
 
 async def fake_empty_asset_extractor(**_kwargs):
     return [], HtmlGenerationUsage(model="fake")
+
+
+def png_bytes(width: int, height: int, color: tuple[int, int, int, int] = (255, 255, 255, 255)) -> bytes:
+    from PIL import Image
+
+    image = Image.new("RGBA", (width, height), color)
+    output = BytesIO()
+    image.save(output, format="PNG")
+    return output.getvalue()
 
 
 async def test_generator_repairs_invalid_external_reference_before_render() -> None:
@@ -61,11 +73,12 @@ async def test_generator_repairs_invalid_external_reference_before_render() -> N
         max_correction_passes=0,
     )
 
-    assert result.html.startswith("<!doctype html>")
+    assert "https://fonts.example" not in result.html
+    assert result.html.endswith("</html>")
     assert rendered_html == [result.html]
-    assert result.usage["input_tokens"] == 15
-    assert result.usage["output_tokens"] == 30
-    assert result.usage["validation_repair_attempts"] == 1
+    assert result.usage["input_tokens"] == 10
+    assert result.usage["output_tokens"] == 20
+    assert result.usage["validation_repair_attempts"] == 0
     assert result.validation_warnings
     assert "https://fonts.example" not in result.validation_warnings[0]
 
@@ -103,6 +116,7 @@ async def test_generator_uses_e2b_render_screenshot_for_correction_pass() -> Non
     assert result.correction_passes_used == 1
     assert result.usage["e2b_render_seconds"] == 2.0
     assert result.usage["extracted_asset_count"] == 0
+    assert "Deterministic layout hints" in calls[0]["prompt"]
     assert calls[1]["current_html"] == "<!doctype html><html><body>First</body></html>"
     assert calls[1]["rendered_screenshot_bytes"] == PNG_BYTES
     assert calls[1]["source_dimensions"] == SourceImageDimensions(width=1, height=1)
@@ -171,6 +185,70 @@ async def test_generator_inlines_extracted_asset_placeholders() -> None:
     assert result.usage["input_tokens"] == 4
     assert result.usage["output_tokens"] == 6
     assert "__OPENMATES_EXTRACTED_ASSET_1__" in calls[0]["prompt"]
+
+
+def test_asset_crop_filter_rejects_wide_low_information_ui_controls() -> None:
+    image_bytes = png_bytes(300, 120)
+
+    assets = _crop_extracted_assets(
+        image_bytes=image_bytes,
+        source_dimensions=SourceImageDimensions(width=300, height=120),
+        requested_assets=[
+            {
+                "label": "tab switcher",
+                "description": "wide navigation tabs control",
+                "box_2d": [100, 50, 450, 900],
+            }
+        ],
+    )
+
+    assert assets == []
+
+
+def test_asset_crop_filter_keeps_detailed_avatar_like_crop() -> None:
+    from PIL import Image, ImageDraw
+
+    image = Image.new("RGBA", (300, 300), (255, 255, 255, 255))
+    draw = ImageDraw.Draw(image)
+    for offset in range(0, 60, 4):
+        draw.ellipse((105 + offset // 3, 100 + offset, 170 - offset // 4, 170), fill=(20 + offset * 3, 80, 160, 255))
+        draw.line((95, offset + 95, 175, 175 - offset // 2), fill=(220, 40 + offset, 80, 255), width=2)
+    output = BytesIO()
+    image.save(output, format="PNG")
+
+    assets = _crop_extracted_assets(
+        image_bytes=output.getvalue(),
+        source_dimensions=SourceImageDimensions(width=300, height=300),
+        requested_assets=[
+            {
+                "label": "avatar",
+                "description": "colorful user avatar",
+                "box_2d": [300, 300, 650, 650],
+            }
+        ],
+    )
+
+    assert len(assets) == 1
+    assert assets[0].label == "avatar"
+
+
+def test_layout_analysis_detects_major_regions() -> None:
+    from PIL import Image, ImageDraw
+
+    image = Image.new("RGB", (400, 300), (240, 242, 246))
+    draw = ImageDraw.Draw(image)
+    draw.rectangle((0, 0, 95, 299), fill=(224, 226, 232))
+    draw.rectangle((120, 35, 380, 110), fill=(12, 88, 96))
+    draw.rectangle((120, 135, 230, 210), fill=(255, 255, 255))
+    output = BytesIO()
+    image.save(output, format="PNG")
+
+    hints = _analyze_layout_hints(output.getvalue(), SourceImageDimensions(width=400, height=300))
+
+    assert hints.background_color is not None
+    assert hints.dominant_colors
+    assert any(region.kind == "sidebar" for region in hints.regions)
+    assert any(region.kind in {"large_panel", "card_or_panel"} for region in hints.regions)
 
 
 async def test_default_gemini_path_reuses_existing_google_ai_studio_wrapper(monkeypatch) -> None:

@@ -530,7 +530,8 @@ skills:
       Turn an uploaded screenshot into one standalone index.html code embed with
       inline CSS and optional inline JavaScript. Use this when the user asks to
       convert a screenshot, mockup, UI image, or app screen into HTML. Do not use
-      remote image URLs; reference an uploaded image or pass image_base64.
+      remote image URLs; pass source_image with the uploaded image embed_ref in
+      chat, or image_base64 for REST/API calls.
     class_path: backend.apps.code.skills.image_to_html_skill.ImageToHtmlSkill
     full_model_reference: google/gemini-3.6-flash
     providers:
@@ -547,11 +548,14 @@ skills:
             properties:
               image_base64:
                 type: string
-                description: Base64-encoded PNG, JPEG, or WEBP image bytes.
+                description: Base64-encoded PNG, JPEG, or WEBP image bytes. Use this for REST/API calls.
+              source_image:
+                type: string
+                description: Uploaded image filename/embed_ref from the conversation. Use this in chat/CLI when the user references an attached screenshot or mockup.
               mime_type:
                 type: string
                 enum: [image/png, image/jpeg, image/webp]
-                description: MIME type for image_base64.
+                description: MIME type for image_base64. Optional when using source_image because the server resolves it from the uploaded image.
               filename:
                 type: string
                 description: Optional source filename for caller-side correlation.
@@ -561,9 +565,6 @@ skills:
                 maximum: 5
                 default: 2
                 description: Maximum E2B render-feedback correction passes.
-            required:
-              - image_base64
-              - mime_type
       required:
         - requests
   - id: clean_repo

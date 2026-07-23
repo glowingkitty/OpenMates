@@ -27,6 +27,10 @@ PNG_1X1 = base64.b64encode(
 class FakeTask:
     request = types.SimpleNamespace(id="task-image-html-1")
     _secrets_manager = object()
+    _cache_service = object()
+    _directus_service = object()
+    _encryption_service = object()
+    _s3_service = object()
 
     def __init__(self) -> None:
         self.initialized = False
@@ -89,8 +93,52 @@ async def test_image_to_html_worker_generates_charges_and_returns_result(monkeyp
     assert prechecks[0]["estimated_credits"] == 1500
     assert charges[0]["credits"] == result["usage"]["credits_charged"]
     assert charges[0]["usage_details"]["image_to_html_e2b_credits"] == 10
+    assert charges[0]["usage_details"]["model_used"] == "fake-gemini"
+    assert charges[0]["usage_details"]["input_tokens"] == 1000
+    assert charges[0]["usage_details"]["output_tokens"] == 500
+    assert charges[0]["usage_details"]["duration_second"] == 61.0
     assert result["status"] == "finished"
     assert result["embed_id"] == "embed-1"
     assert result["user_id_hash"]
     assert result["html"].startswith("<!doctype html>")
     assert result["usage"]["credits_refunded"] >= 0
+
+
+@pytest.mark.asyncio
+async def test_image_to_html_worker_resolves_uploaded_source_image(monkeypatch: pytest.MonkeyPatch) -> None:
+    async def fake_ensure_credit_headroom(**kwargs):
+        return None
+
+    async def fake_charge_func(**kwargs):
+        return kwargs["credits"]
+
+    async def fake_resolve_encrypted_image_embed(**kwargs):
+        assert kwargs["embed_id"] == "source-embed-1"
+        assert kwargs["user_vault_key_id"] == "vault-1"
+        return types.SimpleNamespace(
+            content=base64.b64decode(PNG_1X1),
+            mime_type="image/png",
+        )
+
+    monkeypatch.setattr(task_module, "ensure_credit_headroom", fake_ensure_credit_headroom)
+    monkeypatch.setattr(task_module, "resolve_encrypted_image_embed", fake_resolve_encrypted_image_embed)
+
+    result = await task_module._async_image_to_html(
+        FakeTask(),
+        "code",
+        "image_to_html",
+        {
+            "source_image_embed_id": "source-embed-1",
+            "filename": "mockup.png",
+            "max_correction_passes": 2,
+            "reserved_credits": 1500,
+            "user_id": "user-1",
+            "user_vault_key_id": "vault-1",
+            "embed_id": "embed-1",
+        },
+        generator_factory=lambda _task: FakeGenerator(),
+        charge_func=fake_charge_func,
+    )
+
+    assert result["status"] == "finished"
+    assert result["html"].startswith("<!doctype html>")

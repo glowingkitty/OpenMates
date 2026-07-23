@@ -472,9 +472,9 @@ function normalizeRainRadarEmbedContent(content) {
 export function sanitizeEmbedContent(content) {
   const source = normalizeRainRadarEmbedContent(content) || String(content || '');
   const isTaskSnapshot = /^type:\s*task\s*$/m.test(source) || /^parent_app_skill_type:\s*app_skill_use\s*$/m.test(source);
-  const privateFieldPattern = /^(vault_key_id|user_id|vault_wrapped_aes_key|aes_key|aes_nonce|s3_base_url|s3_key|docx_s3_key|screenshot_s3_keys):\s*/;
+  const privateFieldPattern = /^(vault_key_id|user_id|vault_wrapped_aes_key|aes_key|aes_nonce|s3_base_url|s3_key|docx_s3_key|screenshot_s3_keys|latest_screenshot_url|latest_screenshot_mime_type):\s*/;
   const taskTransientFieldPattern = /^(task_id|short_id|task_update_job_id|pending_client_persistence):\s*/;
-  const blockFieldPattern = /^(files|screenshots):\s*/;
+  const blockFieldPattern = /^(files|screenshots|latest_screenshot):\s*/;
   const publicLines = [];
   let skippingPrivateBlock = false;
 

@@ -14,6 +14,7 @@ try:
         _contains_mindmap_intent_in_user_history,
         _contains_image_generation_intent_in_user_history,
         _contains_image_search_intent_in_user_history,
+        _contains_image_to_html_intent_in_user_history,
         _contains_rain_radar_intent_in_user_history,
         _contains_repo_search_intent_in_user_history,
         _latest_assistant_category_from_history,
@@ -277,6 +278,31 @@ class TestContainsImageGenerationIntent:
         ]
 
         assert _contains_image_generation_intent_in_user_history(history) is False
+
+
+class TestContainsImageToHtmlIntent:
+    def test_detects_uploaded_screenshot_to_html_request(self):
+        history = [_user_msg("Please turn the uploaded screenshot into a standalone index.html code embed.")]
+
+        assert _contains_image_to_html_intent_in_user_history(history) is True
+
+    def test_detects_mockup_to_self_contained_webpage_request(self):
+        history = [_user_msg("Convert this UI mockup image into a self-contained webpage with CSS.")]
+
+        assert _contains_image_to_html_intent_in_user_history(history) is True
+
+    def test_ignores_regular_image_search_request(self):
+        history = [_user_msg("Find images of SaaS dashboard mockups")]
+
+        assert _contains_image_to_html_intent_in_user_history(history) is False
+
+    def test_only_user_messages_checked(self):
+        history = [
+            _assistant_msg("Turn the screenshot into HTML."),
+            _user_msg("Thanks"),
+        ]
+
+        assert _contains_image_to_html_intent_in_user_history(history) is False
 
 
 # ===========================================================================

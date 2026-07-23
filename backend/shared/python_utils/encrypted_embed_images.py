@@ -50,17 +50,29 @@ async def _load_embed_record(
             return preloaded
 
     cache_key = f"embed:{embed_id}"
+    if hasattr(cache_client, "get_embed_from_cache"):
+        try:
+            cached_embed = await cache_client.get_embed_from_cache(embed_id)
+        except Exception as exc:
+            logger.warning("Encrypted image embed cache helper failed: %s", type(exc).__name__)
+            cached_embed = None
+        if isinstance(cached_embed, dict):
+            return cached_embed
+
     try:
         cached = await cache_client.get(cache_key)
     except Exception as exc:
         logger.warning("Encrypted image cache read failed: %s", type(exc).__name__)
         cached = None
     if cached:
-        try:
-            record = json.loads(cached)
-        except (TypeError, json.JSONDecodeError):
-            logger.warning("Encrypted image cache record is malformed; reading Directus")
-            record = None
+        if isinstance(cached, dict):
+            record = cached
+        else:
+            try:
+                record = json.loads(cached)
+            except (TypeError, json.JSONDecodeError):
+                logger.warning("Encrypted image cache record is malformed; reading Directus")
+                record = None
         if isinstance(record, dict):
             return record
 
@@ -69,7 +81,14 @@ async def _load_embed_record(
         raise EncryptedEmbedImageError("Referenced image is no longer available")
     try:
         await cache_client.set(cache_key, json.dumps(record), ex=24 * 60 * 60)
-    except (TypeError, ValueError) as exc:
+    except (TypeError, ValueError):
+        try:
+            await cache_client.set(cache_key, record, ttl=24 * 60 * 60)
+        except (TypeError, ValueError) as fallback_exc:
+            logger.warning("Encrypted image cache write failed: %s", type(fallback_exc).__name__)
+        except Exception as fallback_exc:
+            logger.warning("Encrypted image cache write failed: %s", type(fallback_exc).__name__)
+    except Exception as exc:
         logger.warning("Encrypted image cache write failed: %s", type(exc).__name__)
     return record
 

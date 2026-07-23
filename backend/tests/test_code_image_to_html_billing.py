@@ -41,18 +41,15 @@ def test_actual_cost_credit_calculation_includes_tokens_e2b_and_minimum() -> Non
 
     result = calculate_image_to_html_credits(
         usage,
-        input_usd_per_million=2.0,
-        output_usd_per_million=12.0,
-        cache_read_usd_per_million=0.2,
-        credits_per_usd=100,
-        margin_multiplier=2.0,
+        input_tokens_per_credit=200,
+        output_tokens_per_credit=45,
         e2b_credits_per_started_minute=5,
         minimum_credits=30,
     )
 
-    assert result.provider_cost_usd > 0
+    assert result.model_credits == 382
     assert result.e2b_credits == 5
-    assert result.credits_charged >= 30
+    assert result.credits_charged == 387
     assert result.usage.model == "gemini-3.6-flash"
 
 
@@ -61,7 +58,8 @@ def test_credit_calculation_charges_each_started_e2b_minute() -> None:
 
     result = calculate_image_to_html_credits(
         usage,
-        credits_per_usd=100,
+        input_tokens_per_credit=200,
+        output_tokens_per_credit=45,
         e2b_credits_per_started_minute=5,
         minimum_credits=1,
     )

@@ -106,6 +106,18 @@ IMAGE_SEARCH_ACTION_PATTERN = re.compile(
     r"\b(?:search|find|look\s+for|browse|image\s+search|photo\s+search)\b",
     re.IGNORECASE,
 )
+IMAGE_TO_HTML_ACTION_PATTERN = re.compile(
+    r"\b(?:turn|convert|recreate|rebuild|make|create|generate|code|implement)\b",
+    re.IGNORECASE,
+)
+IMAGE_TO_HTML_SOURCE_PATTERN = re.compile(
+    r"\b(?:screenshot|mockup|ui\s+image|app\s+screen|screen|uploaded\s+image|image)\b",
+    re.IGNORECASE,
+)
+IMAGE_TO_HTML_TARGET_PATTERN = re.compile(
+    r"\b(?:html|index\.html|web\s?page|webpage|landing\s?page|css|code\s+embed|standalone|self[-\s]?contained)\b",
+    re.IGNORECASE,
+)
 MINDMAP_CONFLICTING_GENERATIVE_SKILLS = {"images-generate", "images-generate_draft"}
 
 SAME_TOPIC_SHIFT_VALUES = {"same_topic", "unclear"}
@@ -672,6 +684,27 @@ def _contains_image_search_intent_in_user_history(message_history: List[AIHistor
             continue
 
         if IMAGE_SEARCH_ACTION_PATTERN.search(content):
+            return True
+
+    return False
+
+
+def _contains_image_to_html_intent_in_user_history(message_history: List[AIHistoryMessage]) -> bool:
+    """Return True when user text asks to turn a screenshot/mockup image into HTML."""
+    for message in message_history:
+        role = message.role if hasattr(message, "role") else (message.get("role") if isinstance(message, dict) else None)
+        if role != USER_ROLE:
+            continue
+
+        content = message.content if hasattr(message, "content") else (message.get("content") if isinstance(message, dict) else None)
+        if not isinstance(content, str):
+            continue
+
+        if (
+            IMAGE_TO_HTML_ACTION_PATTERN.search(content)
+            and IMAGE_TO_HTML_SOURCE_PATTERN.search(content)
+            and IMAGE_TO_HTML_TARGET_PATTERN.search(content)
+        ):
             return True
 
     return False
@@ -3092,6 +3125,28 @@ async def handle_preprocessing(
                     f"{log_prefix} [RULE_BASED] 'images-view' already preselected by LLM — no override needed."
                 )
 
+        # --- code-image_to_html ---
+        # Screenshot/mockup-to-HTML requests contain image terms and can be
+        # misread as image search/generation. Force the Code skill so the main
+        # LLM receives the upload-reference schema needed to start the worker.
+        if (
+            "code-image_to_html" in available_skill_ids
+            and _contains_image_to_html_intent_in_user_history(request_data.message_history)
+        ):
+            validated_relevant_skills = [
+                "code-image_to_html",
+                *[
+                    skill
+                    for skill in validated_relevant_skills
+                    if skill not in {"code-image_to_html", "images-view", "images-search", "images-generate", "images-generate_draft"}
+                ],
+            ]
+            logger.info(
+                f"{log_prefix} [RULE_BASED] Forced 'code-image_to_html' into preselected skills: "
+                "detected screenshot/mockup-to-HTML intent. "
+                "(Prevents image search/generation from handling HTML recreation requests.)"
+            )
+
         # --- images-generate ---
         # Text-to-image requests are easy for the preprocessing LLM to confuse
         # with images.search because both mention "image/photo". Force the
@@ -3100,6 +3155,7 @@ async def handle_preprocessing(
         if (
             "images-generate" in available_skill_ids
             and _contains_image_generation_intent_in_user_history(request_data.message_history)
+            and not _contains_image_to_html_intent_in_user_history(request_data.message_history)
         ):
             if "images-generate" not in validated_relevant_skills:
                 validated_relevant_skills = ["images-generate"] + validated_relevant_skills

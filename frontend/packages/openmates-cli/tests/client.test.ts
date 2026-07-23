@@ -1753,6 +1753,148 @@ describe("CLI saved-chat recovery preflight", () => {
     }
   });
 
+  it("persists streamed embeds when the recovery claim is already terminal", async () => {
+    const ownerId = "11111111-1111-4111-8111-111111111111";
+    const assistantMessageId = "33333333-3333-4333-8333-333333333333";
+    const recoveryJobId = "44444444-4444-4444-8444-444444444444";
+    const embedId = "55555555-5555-4555-8555-555555555555";
+    const captured: {
+      preflightPayload?: Record<string, unknown>;
+      frameTypes: string[];
+      storeEmbedPayload?: Record<string, unknown>;
+      storeEmbedKeysPayload?: Record<string, unknown>;
+    } = { frameTypes: [] };
+    const wss = new WebSocketServer({ noServer: true });
+    const server = createServer((request: IncomingMessage, response: ServerResponse) => {
+      if (request.method === "POST" && request.url === "/v1/auth/session") {
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({
+          success: true,
+          ws_token: "fresh-ws-token",
+          user: { id: ownerId },
+        }));
+        return;
+      }
+      if (
+        request.method === "GET" &&
+        request.url === "/v1/settings/export-account-data?include_usage=false&include_invoices=false"
+      ) {
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ data: { app_settings_memories: [] } }));
+        return;
+      }
+      response.writeHead(404);
+      response.end();
+    });
+    server.on("upgrade", (request, socket, head) => {
+      wss.handleUpgrade(request, socket, head, (ws) => {
+        ws.on("message", (raw) => {
+          const frame = JSON.parse(raw.toString()) as { type: string; payload: Record<string, unknown> };
+          captured.frameTypes.push(frame.type);
+          if (frame.type === "chat_turn_preflight") {
+            captured.preflightPayload = frame.payload;
+            ws.send(JSON.stringify({
+              type: "chat_turn_preflight_ack",
+              payload: {
+                preflight_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+                turn_id: frame.payload.turn_id,
+              },
+            }));
+          }
+          if (frame.type === "chat_message_added") {
+            const message = frame.payload.message as Record<string, unknown>;
+            ws.send(JSON.stringify({
+              type: "chat_message_confirmed",
+              payload: {
+                chat_id: frame.payload.chat_id,
+                message_id: message.message_id,
+              },
+            }));
+            setTimeout(() => {
+              ws.send(JSON.stringify({
+                type: "send_embed_data",
+                payload: {
+                  embed_id: embedId,
+                  type: "code",
+                  content: '{"type":"code","code":"<html></html>","status":"finished"}',
+                  status: "finished",
+                  chat_id: frame.payload.chat_id,
+                  message_id: assistantMessageId,
+                },
+              }));
+              ws.send(JSON.stringify({
+                type: "ai_message_update",
+                payload: {
+                  chat_id: frame.payload.chat_id,
+                  user_message_id: message.message_id,
+                  message_id: assistantMessageId,
+                  full_content_so_far: "ok",
+                  is_final_chunk: true,
+                  recovery_job_id: recoveryJobId,
+                  recovery_protocol_version: 1,
+                },
+              }));
+              ws.send(JSON.stringify({ type: "post_processing_metadata", payload: { chat_id: frame.payload.chat_id } }));
+            }, 10);
+          }
+          if (frame.type === "recovery_job_claim") {
+            ws.send(JSON.stringify({
+              type: "recovery_job_claimed",
+              payload: {
+                job_id: recoveryJobId,
+                state: "TERMINAL",
+                chat_id: captured.preflightPayload?.chat_id,
+                turn_id: captured.preflightPayload?.turn_id,
+                assistant_message_id: assistantMessageId,
+                chat_key_version: 1,
+              },
+            }));
+          }
+          if (frame.type === "store_embed") {
+            captured.storeEmbedPayload = frame.payload;
+            ws.send(JSON.stringify({
+              type: "store_embed_confirmed",
+              payload: {
+                request_id: frame.payload.request_id,
+                embed_id: frame.payload.embed_id,
+              },
+            }));
+          }
+          if (frame.type === "store_embed_keys") {
+            captured.storeEmbedKeysPayload = frame.payload;
+            ws.send(JSON.stringify({
+              type: "store_embed_keys_confirmed",
+              payload: { request_id: frame.payload.request_id, created_count: 2, failed_count: 0 },
+            }));
+          }
+        });
+      });
+    });
+
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+
+    try {
+      writeLegacySession(`http://127.0.0.1:${address.port}`);
+      const client = OpenMatesClient.load({ apiUrl: `http://127.0.0.1:${address.port}` });
+      const result = await client.sendMessage({ message: "Make HTML from this screenshot" });
+
+      assert.equal(result.assistant, "ok");
+      assert.equal(captured.frameTypes.includes("recovery_job_persist"), false);
+      assert.equal(captured.storeEmbedPayload?.embed_id, embedId);
+      assert.equal(captured.storeEmbedPayload?.status, "finished");
+      assert.equal(captured.storeEmbedPayload?.hashed_user_id, createHash("sha256").update(ownerId).digest("hex"));
+      const keyRows = captured.storeEmbedKeysPayload?.keys as Array<Record<string, unknown>> | undefined;
+      assert.equal(keyRows?.length, 2);
+      assert.deepEqual(keyRows?.map((row) => row.key_type).sort(), ["chat", "master"]);
+    } finally {
+      wss.close();
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
   it("lazily registers epoch-1 recovery material for an old saved chat", async () => {
     const chatId = "11111111-1111-4111-8111-111111111111";
     const ownerId = "22222222-2222-4222-8222-222222222222";

@@ -13,6 +13,7 @@ from backend.apps.code.skills.image_to_html_skill import (
     DEFAULT_MAX_CORRECTION_PASSES,
     MAX_CORRECTION_PASSES,
     ImageToHtmlSkill,
+    parse_image_to_html_dispatch_input,
     validate_image_input,
 )
 
@@ -46,6 +47,19 @@ def test_validate_image_input_accepts_base64_png_and_defaults_correction_passes(
 def test_validate_image_input_rejects_out_of_range_correction_passes() -> None:
     with pytest.raises(ValueError, match="max_correction_passes"):
         validate_image_input({"image_base64": PNG_1X1, "mime_type": "image/png", "max_correction_passes": MAX_CORRECTION_PASSES + 1})
+
+
+def test_dispatch_input_resolves_uploaded_source_image() -> None:
+    parsed = parse_image_to_html_dispatch_input(
+        {"source_image": "mockup.png", "max_correction_passes": 2},
+        file_path_index={"mockup.png": "embed-source-1"},
+    )
+
+    assert parsed.image_base64 is None
+    assert parsed.mime_type is None
+    assert parsed.filename == "mockup.png"
+    assert parsed.source_image_embed_id == "embed-source-1"
+    assert parsed.max_correction_passes == 2
 
 
 @pytest.mark.asyncio
@@ -127,3 +141,39 @@ async def test_chat_bound_skill_reuses_placeholder_embed_id(monkeypatch: pytest.
     assert arguments["embed_id"] == "embed-placeholder-1"
     assert arguments["chat_id"] == "chat-1"
     assert arguments["message_id"] == "message-1"
+
+
+@pytest.mark.asyncio
+async def test_skill_dispatches_uploaded_source_image_reference(monkeypatch: pytest.MonkeyPatch) -> None:
+    dispatched: dict[str, object] = {}
+
+    async def fake_execute_skill_via_celery(**kwargs):
+        dispatched.update(kwargs)
+        return "task-source"
+
+    from backend.apps.code.skills import image_to_html_skill as skill_module
+
+    monkeypatch.setattr(skill_module, "execute_skill_via_celery", fake_execute_skill_via_celery)
+    skill = ImageToHtmlSkill(
+        app=None,
+        app_id="code",
+        skill_id="image_to_html",
+        skill_name="Image to HTML",
+        skill_description="Generate HTML from an image.",
+        celery_producer=object(),
+    )
+
+    response = await skill.execute(
+        requests=[{"source_image": "mockup.png", "max_correction_passes": 2}],
+        user_id="user-1",
+        user_vault_key_id="vault-1",
+        file_path_index={"mockup.png": "embed-source-1"},
+    )
+
+    assert response.task_id == "task-source"
+    arguments = dispatched["arguments"]
+    assert isinstance(arguments, dict)
+    assert "image_base64" not in arguments
+    assert arguments["source_image_embed_id"] == "embed-source-1"
+    assert arguments["filename"] == "mockup.png"
+    assert arguments["user_vault_key_id"] == "vault-1"

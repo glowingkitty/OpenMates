@@ -105,7 +105,14 @@ def _contains_external_or_local_asset_url(value: str) -> bool:
 
 def _is_external_or_local_asset(value: str) -> bool:
     stripped = value.strip()
+    if stripped.lower().startswith("data:"):
+        return False
+    stripped = _strip_data_urls(stripped)
     return bool(EXTERNAL_URL_PATTERN.search(stripped) or LOCAL_ASSETS_PATTERN.search(stripped))
+
+
+def _strip_data_urls(value: str) -> str:
+    return re.sub(r"(?is)data:[^\s;\"')]+(?:;[^\s,\"')]+)*,[^\s\"')]+", "<data-url>", value)
 
 
 def _redact_url(value: str) -> str:

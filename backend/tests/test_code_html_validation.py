@@ -24,6 +24,19 @@ def test_inline_html_with_style_and_script_passes() -> None:
     assert result.errors == []
 
 
+def test_inline_data_urls_with_slashes_pass() -> None:
+    html = """
+    <!doctype html>
+    <html><head><style>.logo { background-image: url(data:image/png;base64,AB//CD); }</style></head>
+    <body><img src="data:image/png;base64,EF//GH" alt=""></body></html>
+    """
+
+    result = validate_inline_html(html)
+
+    assert result.passed is True
+    assert result.errors == []
+
+
 @pytest.mark.parametrize(
     ("html", "expected"),
     [

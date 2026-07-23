@@ -16,6 +16,8 @@ const WebSocket = require("ws");
 
 type RawData = Buffer | ArrayBuffer | Buffer[];
 
+const DEFAULT_ASYNC_EMBED_WAIT_MS = 300_000;
+
 export interface WsEnvelope<T = unknown> {
   type: string;
   payload: T;
@@ -660,7 +662,7 @@ export class OpenMatesWsClient {
   }> {
     const timeoutMs = options?.timeoutMs ?? 90_000;
     const onStream = options?.onStream;
-    const asyncEmbedWaitMs = options?.asyncEmbedWaitMs ?? 120_000;
+    const asyncEmbedWaitMs = options?.asyncEmbedWaitMs ?? DEFAULT_ASYNC_EMBED_WAIT_MS;
 
     return new Promise((resolve, reject) => {
       let latestContent = "";

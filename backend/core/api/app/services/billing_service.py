@@ -380,6 +380,7 @@ class BillingService:
                     server_region=usage_details.get("server_region") if usage_details else None,
                     code_run_filenames=usage_details.get("code_run_filenames") if usage_details else None,
                     code_run_duration_seconds=usage_details.get("duration_seconds") if usage_details else None,
+                    duration_second=usage_details.get("duration_second") if usage_details else None,
                     tool_inference_iterations=_tool_inference_iterations,
                 )
 
