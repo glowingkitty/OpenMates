@@ -8,7 +8,7 @@
     OR a local blob URL as fallback when the user is not authenticated (no S3 upload).
   - Download button for the original file (S3 path only)
   - Close button (inherited from UnifiedEmbedFullscreen)
-  - Embed header with truncated filename + "Signup to upload…" or file type/size subtitle
+   - Embed header with truncated filename + file metadata when the image is renderable
 
   Does NOT show prompt/model info — uploaded images are user photos, not AI-generated.
 
@@ -165,12 +165,12 @@
   }
 
   /**
-   * Header subtitle:
-   * - Unauthenticated: "Signup to upload…"
-   * - Authenticated: "JPEG · 1.2 MB" (or just type or just size)
+   * Header subtitle: public/example/shared image embeds should describe the
+   * already-rendered image, even when the viewer is not authenticated.
    */
   let headerSubtitle = $derived.by(() => {
-    if (!isAuthenticated) {
+    const hasRenderableSource = !!src || !!(files && s3BaseUrl && aesKey && aesNonce);
+    if (!isAuthenticated && !hasRenderableSource) {
       return $text('app_skills.images.view.signup_to_upload');
     }
     const typeLabel = getFileTypeLabel(fileType, filename);

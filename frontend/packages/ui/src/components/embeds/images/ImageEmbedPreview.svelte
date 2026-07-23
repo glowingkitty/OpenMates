@@ -307,8 +307,8 @@
    * Card subtitle (customStatusText):
    * - 'uploading'                       → "Uploading…"
    * - 'error'                           → "Upload failed" (or server error message)
-   * - 'finished' + !isAuthenticated     → "Signup to upload…"
-   * - 'finished' + isAuthenticated      → "JPEG · 1.2 MB" (file type + size)
+   * - 'finished' + renderable image      → "JPEG · 1.2 MB" (file type + size) or "Uploaded image"
+   * - 'finished' + no renderable image   → "Signup to upload…"
    * - no displayUrl yet (S3 loading)    → empty (UnifiedEmbedPreview shows its own skeleton)
    */
   let statusText = $derived.by(() => {
@@ -318,11 +318,10 @@
     if (status === 'error') return uploadError || $text('common.upload_failed');
     if (imageError) return imageError;
     if (status === 'finished') {
-      // Unauthenticated users: prompt to sign up for actual upload
-      if (!isAuthenticated) {
+      const hasRenderableSource = !!displayUrl || !!(previewS3Key && s3BaseUrl && aesKey && aesNonce);
+      if (!isAuthenticated && !hasRenderableSource) {
         return $text('app_skills.images.view.signup_to_upload');
       }
-      // Authenticated + finished: show file type and size
       const typeLabel = getFileTypeLabel(fileType, filename);
       const sizeLabel = fileSize ? formatFileSize(fileSize) : '';
       if (typeLabel && sizeLabel) return `${typeLabel} \u00B7 ${sizeLabel}`;
@@ -555,7 +554,7 @@
    */
   .preview-image.portrait {
     object-fit: contain;
-    background: var(--color-grey-15, #f0f0f0);
+    background: var(--color-grey-20, #f0f0f0);
   }
 
   .image-content.clickable:hover .preview-image {
@@ -581,7 +580,7 @@
 
   .skeleton-line {
     height: 12px;
-    background: var(--color-grey-15, #f0f0f0);
+    background: var(--color-grey-20, #f0f0f0);
     border-radius: var(--radius-1);
     animation: pulse 1.5s ease-in-out infinite;
   }

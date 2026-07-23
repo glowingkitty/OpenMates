@@ -79,6 +79,7 @@ import BusinessCompanyFinancialResultEmbedPreview from "../../../embeds/business
 import FinanceCheckAccountsEmbedPreview from "../../../embeds/finance/FinanceCheckAccountsEmbedPreview.svelte";
 import { normalizeFinanceOverview } from "../../../embeds/finance/financeCheckAccountsContent";
 import CalendarActionEmbedPreview from "../../../embeds/calendar/CalendarActionEmbedPreview.svelte";
+import GenericAppSkillEmbedPreview from "../../../embeds/app_skill/GenericAppSkillEmbedPreview.svelte";
 import { proxyImage } from "../../../../utils/imageProxy";
 import { resolveImageSourceDomain } from "../../../../utils/embedSourceDomain";
 
@@ -5452,7 +5453,6 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     // CRITICAL: Handle null decodedContent gracefully - use attrs as fallback
     const skillId = decodedContent?.skill_id || (attrs as any).skill_id || "";
     const appId = decodedContent?.app_id || (attrs as any).app_id || "";
-    const title = attrs.title || `${appId} | ${skillId}`;
     const status =
       decodedContent?.status ||
       embedData?.status ||
@@ -5466,97 +5466,24 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       decodedContent,
     });
 
-    const previewLines = this.buildGenericPreviewLines(decodedContent);
-    const previewHtml = previewLines.length > 0
-      ? previewLines
-          .map((line) => `<div class="skill-result-preview-line">${this.escapeHtml(line)}</div>`)
-          .join("")
-      : `<div class="skill-result-preview-line">${this.escapeHtml(status === "finished" ? "Finished" : status)}</div>`;
+    this.prepareMount(content);
 
-    // Render generic skill preview - no need for embed-unified-container wrapper
-    // The container is already provided by Embed.ts, just create the content directly
-    const html = `
-      <div class="embed-content">
-        <div class="embed-app-icon ${appId}">
-          <span class="icon icon_${appId}"></span>
-        </div>
-        <div class="embed-text-content">
-          <div class="embed-text-line">${this.escapeHtml(title)}</div>
-          <div class="embed-text-line">${appId} | ${skillId}</div>
-        </div>
-        <div class="embed-extended-preview">
-          <div class="app-skill-preview-content">
-            <div class="skill-result-preview">${previewHtml}</div>
-          </div>
-        </div>
-      </div>
-    `;
+    const component = mount(GenericAppSkillEmbedPreview, {
+      target: content,
+      props: {
+        id: attrs.contentRef?.replace("embed:", "") || attrs.id || "",
+        appId,
+        skillId,
+        status: status as "processing" | "finished" | "error" | "cancelled",
+        provider: decodedContent?.provider || embedData?.provider || "",
+        resultCount: typeof decodedContent?.result_count === "number" ? decodedContent.result_count : undefined,
+        taskId: decodedContent?.task_id || decodedContent?.skill_task_id || "",
+        isMobile: false,
+        onFullscreen: () => this.openFullscreen(attrs, embedData, decodedContent),
+      },
+    });
 
-    content.innerHTML = html;
-
-    // Add click handler for fullscreen
-    if (status === "finished") {
-      content.style.cursor = "pointer";
-      content.addEventListener("click", () => {
-        this.openFullscreen(attrs, embedData, decodedContent);
-      });
-    }
-  }
-
-  private buildGenericPreviewLines(decodedContent: Record<string, unknown> | null): string[] {
-    if (!decodedContent || typeof decodedContent !== "object") return [];
-
-    const skipKeys = new Set([
-      "app_id",
-      "skill_id",
-      "embed_id",
-      "embed_ids",
-      "embed_ref",
-      "status",
-      "aes_key",
-      "aes_nonce",
-      "iv",
-      "s3_key",
-      "s3_base_url",
-    ]);
-    const preferredKeys = [
-      "query",
-      "prompt",
-      "title",
-      "summary",
-      "result_count",
-      "error",
-      "provider",
-    ];
-    const lines: string[] = [];
-
-    for (const key of preferredKeys) {
-      const value = decodedContent[key];
-      const line = this.formatGenericPreviewValue(key, value);
-      if (line) lines.push(line);
-    }
-
-    for (const [key, value] of Object.entries(decodedContent)) {
-      if (skipKeys.has(key) || preferredKeys.includes(key)) continue;
-      const line = this.formatGenericPreviewValue(key, value);
-      if (line) lines.push(line);
-      if (lines.length >= 6) break;
-    }
-
-    return lines.slice(0, 6);
-  }
-
-  private formatGenericPreviewValue(key: string, value: unknown): string | null {
-    if (typeof value === "string" && value.trim()) {
-      return `${key}: ${value.trim()}`;
-    }
-    if (typeof value === "number" || typeof value === "boolean") {
-      return `${key}: ${value}`;
-    }
-    if (Array.isArray(value)) {
-      return `${key}: ${value.length} item${value.length === 1 ? "" : "s"}`;
-    }
-    return null;
+    mountedComponents.set(content, component);
   }
 
   /**

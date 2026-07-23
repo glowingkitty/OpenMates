@@ -89,6 +89,7 @@ import WeatherDayEmbedPreview from "../../../embeds/weather/WeatherDayEmbedPrevi
 import BusinessCompanyFinancialsEmbedPreview from "../../../embeds/business/BusinessCompanyFinancialsEmbedPreview.svelte";
 import BusinessCompanyFinancialResultEmbedPreview from "../../../embeds/business/BusinessCompanyFinancialResultEmbedPreview.svelte";
 import FinanceCheckAccountsEmbedPreview from "../../../embeds/finance/FinanceCheckAccountsEmbedPreview.svelte";
+import GenericAppSkillEmbedPreview from "../../../embeds/app_skill/GenericAppSkillEmbedPreview.svelte";
 import { normalizeFinanceOverview } from "../../../embeds/finance/financeCheckAccountsContent";
 import PdfReadEmbedPreview from "../../../embeds/pdf/PdfReadEmbedPreview.svelte";
 import PdfViewEmbedPreview from "../../../embeds/pdf/PdfViewEmbedPreview.svelte";
@@ -2484,13 +2485,21 @@ export class GroupRenderer implements EmbedRenderer {
       );
     }
 
-    // Fallback: render the legacy HTML view (better than a blank group item)
-    const fallbackHtml = await this.renderAppSkillUseItem(
-      item,
-      embedData,
-      decodedContent,
-    );
-    target.innerHTML = fallbackHtml;
+    const component = mount(GenericAppSkillEmbedPreview, {
+      target,
+      props: {
+        id: embedId,
+        appId: appId || "app",
+        skillId: skillId || "skill",
+        status,
+        provider,
+        resultCount,
+        taskId,
+        isMobile: false,
+        onFullscreen: handleFullscreen,
+      },
+    });
+    mountedComponents.set(target, component);
   }
 
   /**
