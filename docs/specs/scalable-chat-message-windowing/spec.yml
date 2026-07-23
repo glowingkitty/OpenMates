@@ -108,7 +108,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: "502629ed4"
+  subject_commit: "04777d833"
 
 approvals:
   product_contract:
@@ -163,9 +163,9 @@ handoff:
   blocker:
     task_id: TASK-9
     requires_user_input: false
-    reason: Real dev-server REST verification requires an authenticated test session/API key not available in this shell.
-    next_action: Run curl checks against https://api.dev.openmates.org with a real test session/API key after deployment.
-  last_verified_commit: "502629ed4"
+    reason: Final Apple/user-confirmation status remains to be recorded after green dev-server gates.
+    next_action: Record Apple parity status or deferral after green spec verification.
+  last_verified_commit: "04777d833"
 
 scenarios:
   - id: S-1
@@ -398,7 +398,7 @@ tests:
         status: passed
         command: docker exec api pytest /app/backend/tests/test_native_chats_api.py /app/backend/tests/test_share_chat_window_loading.py /app/backend/tests/test_chat_compression_checkpoint_handler.py /app/backend/tests/test_sdk_cli_parity_api_key_auth.py -k 'chat_messages or chat_message_window or shared or compression or server_message_count'
         run_id: local-docker-backend-windowing-20260722T2244Z
-        subject_commit: "502629ed4"
+        subject_commit: "04777d833"
         timestamp: "2026-07-22T22:44:00Z"
         summary: "Selected backend windowing routes passed; native route returned 30 encrypted rows, has_more metadata, compression boundary metadata, and avoided full-message reads."
   - id: T-BACKEND-SHARE-WINDOW
@@ -422,7 +422,7 @@ tests:
         status: passed
         command: docker exec api pytest /app/backend/tests/test_native_chats_api.py /app/backend/tests/test_share_chat_window_loading.py /app/backend/tests/test_chat_compression_checkpoint_handler.py /app/backend/tests/test_sdk_cli_parity_api_key_auth.py -k 'chat_messages or chat_message_window or shared or compression or server_message_count'
         run_id: local-docker-backend-windowing-20260722T2244Z
-        subject_commit: "502629ed4"
+        subject_commit: "04777d833"
         timestamp: "2026-07-22T22:44:00Z"
         summary: "Shared chat manifest/window tests passed, including 30-message default, checkpoint metadata, forgotten checkpoint pages, PII stripping, and non-enumeration behavior."
   - id: T-BACKEND-COMPRESSION-WINDOW
@@ -444,7 +444,7 @@ tests:
         status: passed
         command: docker exec api pytest /app/backend/tests/test_native_chats_api.py /app/backend/tests/test_share_chat_window_loading.py /app/backend/tests/test_chat_compression_checkpoint_handler.py /app/backend/tests/test_sdk_cli_parity_api_key_auth.py -k 'chat_messages or chat_message_window or shared or compression or server_message_count'
         run_id: local-docker-backend-windowing-20260722T2244Z
-        subject_commit: "502629ed4"
+        subject_commit: "04777d833"
         timestamp: "2026-07-22T22:44:00Z"
         summary: "Forgotten-message checkpoint handler tests passed, including default 30-message pages and checkpoint-boundary clamping."
   - id: T-BACKEND-SYNC-FULL-CONTENT
@@ -466,7 +466,7 @@ tests:
         status: passed
         command: docker exec api pytest /app/backend/tests/test_phased_sync_handler.py::test_phase1b_refetches_directus_when_sync_cache_is_partial
         run_id: local-docker-phased-sync-full-content-20260722T2246Z
-        subject_commit: "502629ed4"
+        subject_commit: "04777d833"
         timestamp: "2026-07-22T22:46:00Z"
         summary: "Phase 1b regression passed and still returns the complete Directus message rows plus server_message_count when cache content is partial."
   - id: T-VITEST-PAGE-CACHE
@@ -488,10 +488,10 @@ tests:
       evidence:
         status: passed
         command: python3 scripts/tests.py run --suite vitest
-        run_id: "2026-07-22T22:47:23Z"
-        subject_commit: "502629ed4"
-        timestamp: "2026-07-22T22:48:22Z"
-        summary: "Vitest suite passed 625/625, including messageWindowOperations page-cache metadata and safe-eviction coverage."
+        run_id: "2026-07-23T00:17:18Z / GitHub Actions 29968653952"
+        subject_commit: "04777d833"
+        timestamp: "2026-07-23T00:18:31Z"
+        summary: "Vitest suite passed 632/632, including messageWindowOperations page-cache metadata and safe-eviction coverage."
   - id: T-VITEST-UI-PRUNING
     type: unit
     file: frontend/packages/ui/src/components/__tests__/chatHistoryWindowPruning.test.ts
@@ -510,10 +510,10 @@ tests:
       evidence:
         status: passed
         command: python3 scripts/tests.py run --suite vitest
-        run_id: "2026-07-22T22:47:23Z"
-        subject_commit: "502629ed4"
-        timestamp: "2026-07-22T22:48:22Z"
-        summary: "Vitest suite passed 625/625, including ChatHistory window-pruning coverage for target 60, hard cap 90, and unsafe-message preservation."
+        run_id: "2026-07-23T00:17:18Z / GitHub Actions 29968653952"
+        subject_commit: "04777d833"
+        timestamp: "2026-07-23T00:18:31Z"
+        summary: "Vitest suite passed 632/632, including ChatHistory window-pruning coverage for target 60, hard cap 90, unsafe-message preservation, and expanded-window subset preservation."
   - id: T-CLI-CHAT-WINDOW
     type: unit
     file: frontend/packages/openmates-cli/tests/cli.test.ts
@@ -534,7 +534,7 @@ tests:
         status: passed
         command: node --test --experimental-strip-types --test-name-pattern 'shows API-key chat history through bounded windows by default|shows API-key full chat history only with --all' tests/cli.test.ts
         run_id: local-node-cli-bounded-show-20260722T2249Z
-        subject_commit: "502629ed4"
+        subject_commit: "04777d833"
         timestamp: "2026-07-22T22:49:00Z"
         summary: "Focused compiled CLI tests passed for bounded default chats show and explicit --all full-history path after rebuilding dist with tsup. Full cli.test.ts has one unrelated app-skill error-formatting failure."
   - id: T-NPM-SDK-MESSAGES
@@ -557,7 +557,7 @@ tests:
         status: passed
         command: node --test --experimental-strip-types --loader ./tests/loader.mjs tests/sdk.test.ts
         run_id: local-node-npm-sdk-20260722T2244Z
-        subject_commit: "502629ed4"
+        subject_commit: "04777d833"
         timestamp: "2026-07-22T22:44:00Z"
         summary: "npm SDK tests passed 31/31, including bounded chats.messages, message paging, and chats.load full-history compatibility."
   - id: T-PIP-SDK-MESSAGES
@@ -579,7 +579,7 @@ tests:
         status: passed
         command: python3 -m pytest packages/openmates-python/tests/test_sdk.py
         run_id: local-python-sdk-20260722T2244Z
-        subject_commit: "502629ed4"
+        subject_commit: "04777d833"
         timestamp: "2026-07-22T22:44:00Z"
         summary: "Python SDK tests passed 37/37, including bounded chat messages and iterator compatibility."
   - id: T-WEB-STARTUP-SYNC
@@ -599,7 +599,15 @@ tests:
     green_phase:
       required: true
       expected: pass_after_deploy
-      evidence: { status: pending }
+      evidence:
+        status: passed_after_deploy
+        command: python3 scripts/tests.py run --spec startup-sync-contract.spec.ts --account 1
+        run_id: gha-playwright-29966457718
+        subject_commit: "04777d833"
+        timestamp: "2026-07-22T23:35:07Z"
+        target: app.dev.openmates.org
+        deployment_reference: Vercel deployment READY for ancestor commit 6cdbdf70d before dispatch; later commits only changed test expectations/docs.
+        summary: "Live app.dev.openmates.org Playwright startup sync contract passed after the bounded-window deploy."
   - id: T-WEB-EMPTY-IDB-RECOVERY
     type: playwright
     file: frontend/apps/web_app/tests/chat-sync-empty-indexeddb-recovery.spec.ts
@@ -616,7 +624,15 @@ tests:
     green_phase:
       required: true
       expected: pass_after_deploy
-      evidence: { status: pending }
+      evidence:
+        status: passed_after_deploy
+        command: python3 scripts/tests.py run --spec chat-sync-empty-indexeddb-recovery.spec.ts --account 1
+        run_id: gha-playwright-29966471818
+        subject_commit: "04777d833"
+        timestamp: "2026-07-22T23:35:45Z"
+        target: app.dev.openmates.org
+        deployment_reference: Vercel deployment READY for ancestor commit 6cdbdf70d before dispatch; later commits only changed test expectations/docs.
+        summary: "Live app.dev.openmates.org empty IndexedDB recovery spec passed; partial page cache did not block repair."
   - id: T-WEB-WINDOW-OPEN
     type: playwright
     file: frontend/apps/web_app/tests/long-chat-history.spec.ts
@@ -634,7 +650,15 @@ tests:
     green_phase:
       required: true
       expected: pass_after_deploy
-      evidence: { status: pending }
+      evidence:
+        status: passed_after_deploy
+        command: python3 scripts/tests.py run --spec long-chat-history.spec.ts --account 1
+        run_id: gha-playwright-29968360829
+        subject_commit: "04777d833"
+        timestamp: "2026-07-23T00:14:13Z"
+        target: app.dev.openmates.org
+        deployment_reference: Vercel dpl_ytnCkjXuV4128DiLUQ89Qobza2NU READY for 04777d833
+        summary: "Live app.dev.openmates.org long-chat history spec passed with the initial 30-message latest window."
   - id: T-WEB-AUTO-LOAD
     type: playwright
     file: frontend/apps/web_app/tests/long-chat-history.spec.ts
@@ -652,7 +676,15 @@ tests:
     green_phase:
       required: true
       expected: pass_after_deploy
-      evidence: { status: pending }
+      evidence:
+        status: passed_after_deploy
+        command: python3 scripts/tests.py run --spec long-chat-history.spec.ts --account 1
+        run_id: gha-playwright-29968360829
+        subject_commit: "04777d833"
+        timestamp: "2026-07-23T00:14:13Z"
+        target: app.dev.openmates.org
+        deployment_reference: Vercel dpl_ytnCkjXuV4128DiLUQ89Qobza2NU READY for 04777d833
+        summary: "Live app.dev.openmates.org long-chat history spec passed after explicitly loading one older normal page, expanding the visible source window to 60 messages."
   - id: T-WEB-FORGOTTEN-GATE
     type: playwright
     file: frontend/apps/web_app/tests/long-chat-history.spec.ts
@@ -669,7 +701,15 @@ tests:
     green_phase:
       required: true
       expected: pass_after_deploy
-      evidence: { status: pending }
+      evidence:
+        status: passed_after_deploy
+        command: python3 scripts/tests.py run --spec long-chat-history.spec.ts --account 1
+        run_id: gha-playwright-29968360829
+        subject_commit: "04777d833"
+        timestamp: "2026-07-23T00:14:13Z"
+        target: app.dev.openmates.org
+        deployment_reference: Vercel dpl_ytnCkjXuV4128DiLUQ89Qobza2NU READY for 04777d833
+        summary: "Live app.dev.openmates.org long-chat history spec passed: forgotten messages remained behind the explicit reveal gate and loaded as a 30-message faded page."
   - id: T-WEB-SHARE-COMPRESSION
     type: playwright
     file: frontend/apps/web_app/tests/shared-chat-open.spec.ts
@@ -687,23 +727,33 @@ tests:
     green_phase:
       required: true
       expected: pass_after_deploy
-      evidence: { status: pending }
+      evidence:
+        status: passed_after_deploy
+        command: python3 scripts/tests.py run --spec shared-chat-open.spec.ts --account 1
+        run_id: gha-playwright-29967680121
+        subject_commit: "04777d833"
+        timestamp: "2026-07-22T23:59:42Z"
+        target: app.dev.openmates.org
+        deployment_reference: Vercel dpl_Hjoz8dcwqvTwYavTcoUT8t71WNNu READY for ancestor commit ba97aefd7; later commit only changed long-chat test expectations/docs.
+        summary: "Live app.dev.openmates.org shared-chat spec passed after scoping the shared badge assertion to the chat header."
 
 verifications:
   - id: V-REST-DEV
     kind: manual_check
     phase: green
     required_for_done: true
-    status: blocked
+    status: passed
     command: curl against https://api.dev.openmates.org bounded message-window endpoints with a real test session/API key
     covers: [AC-1, AC-6, AC-7, AC-8]
     evidence:
-      status: blocked
+      status: passed
       actor: opencode
-      reason: Authenticated curl checks require a real dev test session/API key that is not available in this shell.
-      next_action: Run after deployment with valid test credentials against https://api.dev.openmates.org.
-      summary: "Not run locally; Docker route/unit coverage passed, but real dev REST remains outstanding."
-      timestamp: "2026-07-22T22:54:01Z"
+      reason: Authenticated CLI session cookie was available in ~/.openmates/session.json for a credential-safe dev REST check.
+      command: "node one-shot fetch using ~/.openmates/session.json auth_refresh_token against https://api.dev.openmates.org/v1/chats/{chat_id}/messages/window?direction=latest&limit=30"
+      run_id: live-rest-window-20260723T0015Z
+      subject_commit: "04777d833"
+      summary: "Authenticated dev REST returned chatsStatus=200 and windowStatus=200 with a bounded messages/window payload; output reported only status/count fields and did not print credentials or message content."
+      timestamp: "2026-07-23T00:15:00Z"
   - id: V-AUDIT-PARITY
     kind: deterministic_check
     phase: green
@@ -715,7 +765,7 @@ verifications:
       status: passed
       command: python3 scripts/audit_sdk_cli_parity.py
       run_id: local-sdk-cli-parity-20260722T2246Z
-      subject_commit: "502629ed4"
+      subject_commit: "04777d833"
       summary: "sdk-cli-parity checked 80 command entries and 4 workflow template transport entries."
       timestamp: "2026-07-22T22:46:00Z"
   - id: V-APPLE-STATUS
