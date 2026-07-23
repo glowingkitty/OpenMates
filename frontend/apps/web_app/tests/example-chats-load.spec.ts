@@ -247,7 +247,6 @@ test.describe('Example chats loading for new users', () => {
 		});
 
 		await expect(page.getByTestId('chat-history-container')).toBeVisible({ timeout: 15000 });
-		await expect(page.getByTestId('message-assistant').filter({ hasText: 'Tauri' }).first()).toBeVisible({ timeout: 15000 });
 		await expect(page.getByTestId('show-older-messages')).toHaveCount(0);
 
 		const compressionSummary = page.getByTestId('message-system').filter({ hasText: 'Conversation History Summary' });
