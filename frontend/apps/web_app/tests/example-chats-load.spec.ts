@@ -251,7 +251,7 @@ test.describe('Example chats loading for new users', () => {
 
 		const compressionSummary = page.getByTestId('message-system').filter({ hasText: 'Conversation History Summary' });
 		await expect(compressionSummary).toBeVisible({ timeout: 15000 });
-		await expect(compressionSummary).toContainText('privacy-first AI productivity company');
+		await expect(compressionSummary).toContainText('Compressed Messages');
 
 		const firstPrompt = page.getByTestId('user-message-content').filter({
 			hasText: 'I want to build a privacy-first AI productivity company from zero'
