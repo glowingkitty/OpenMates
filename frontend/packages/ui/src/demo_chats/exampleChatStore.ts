@@ -7,7 +7,7 @@
 // They include full message content and embed data, and require NO backend loading.
 // Each chat has a natural-language slug for SEO-friendly URLs.
 
-import type { Chat, Message } from "../types/chat";
+import type { Chat, ChatCompressionCheckpoint, Message } from "../types/chat";
 import type { ExampleChat, ExampleChatEmbed, ExampleSubChat } from "./types";
 import { get } from "svelte/store";
 import { text } from "../i18n/translations";
@@ -304,6 +304,12 @@ export function getExampleChatBySlug(slug: string): ExampleChat | undefined {
 export function getExampleChatMessages(chatId: string): Message[] {
   const record = chatRecordById.get(chatId);
   return record ? exampleMessagesToMessages(record.example) : [];
+}
+
+/** Get compression checkpoints for a static example chat. */
+export function getExampleChatCompressionCheckpoints(chatId: string): ChatCompressionCheckpoint[] {
+  const record = chatRecordById.get(chatId);
+  return record?.example.compression_checkpoints?.map((checkpoint) => ({ ...checkpoint })) ?? [];
 }
 
 /** Get embeds for an example chat */

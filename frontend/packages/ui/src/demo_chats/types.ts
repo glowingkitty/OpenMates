@@ -1,4 +1,4 @@
-import type { PIIMapping } from "../types/chat";
+import type { ChatCompressionCheckpoint, PIIMapping } from "../types/chat";
 
 export interface DemoMessage {
   id: string;
@@ -87,6 +87,7 @@ export interface ExampleSubChat {
   is_sub_chat: true;
   budget_limit?: number | null;
   budget_spent?: number;
+  compression_checkpoints?: ChatCompressionCheckpoint[];
 }
 
 /**
@@ -126,6 +127,7 @@ export interface ExampleChat {
   messages: ExampleChatMessage[];
   embeds: ExampleChatEmbed[];
   sub_chats?: ExampleSubChat[];
+  compression_checkpoints?: ChatCompressionCheckpoint[];
   metadata: {
     featured: boolean; // Show in default 10 on homepage
     order: number; // Display order
