@@ -316,14 +316,18 @@ attempts:
   - id: ATTEMPT-15
     task_id: TASK-2
     approach: Replace partial Playwright gating with Firecrawl visual debugging after user clarified `.spec.ts` is out of scope until the full landing page refresh is implemented.
-    outcome: planned
+    outcome: succeeded
     recorded_at: "2026-07-23"
     notes: >
       Firecrawl visual inspection and DOM measurements showed the live dev landing still failed
       the focused visual contract: the intro parent container was taller than the fixed chat
-      container, and each intro headline span could wrap into multiple visual lines. The next
-      validation gate is deployed Firecrawl screenshots/measurements across viewports, not
-      `*.spec.ts` runs.
+      container, and each intro headline span could wrap into multiple visual lines. Commit
+      `9d02a2ad5` removes the independent intro parent height override and prevents internal
+      headline-span wrapping. Vercel deployment `dpl_6wH4gwXFhFkQJLL5bvUR3gpDtSFF` is Ready
+      and aliased to `app.dev.openmates.org`; Firecrawl fresh-state DOM checks passed on its
+      mobile and desktop browser profiles. Firecrawl did not honor exact requested viewport
+      dimensions for JS measurements, so tablet/narrow-desktop pixel-perfect review remains
+      part of user visual confirmation.
 
 handoff:
   current_task_id: TASK-2
@@ -332,8 +336,12 @@ handoff:
   expected_outcome: Fails only on pending visual/user evidence until the full landing page refresh is implemented and the user approves the deployed visual result.
   blocker:
     id: V-USER-PHASE1
+    task_id: TASK-2
+    requires_user_input: true
     reason: User visual confirmation is required before TASK-1/TASK-2 can be marked complete.
-  last_verified_commit: 0d0a6b5fe5250c6edebe2d0a858a4488cbc3b103
+    question: Does the deployed logged-out landing intro now look correct at your real mobile, tablet, narrow desktop, and desktop sizes?
+    next_action: If confirmed, mark phase-1 user confirmation complete; if rejected, record the exact visual mismatch and patch the focused landing intro issue before moving to later slides.
+  last_verified_commit: 9d02a2ad5f50be7ed888540967ea46adbad0a035
 
 scenarios:
   - id: S-1
@@ -652,9 +660,23 @@ verifications:
       - AC-3
     status: pending
     evidence:
-      status: ""
-      summary: ""
-      timestamp: ""
+      status: blocked
+      summary: >
+        Firecrawl fresh-state checks on `app.dev.openmates.org` after commit `9d02a2ad5`
+        confirmed the focused parent-overflow and heading-line contracts on Firecrawl's
+        mobile profile (`window.innerWidth=360`) and desktop profile (`window.innerWidth=1920`):
+        `.active-chat-container` did not overflow `.chat-container` vertically, the headline
+        text was `Simply ask your AI team mates`, and both headline spans had one client rect
+        each (`Simply ask your`, `AI team mates`). Screenshot evidence:
+        mobile `screenshot-a581230f-8169-4d33-884b-62ab7f3824bd.png`, desktop
+        `screenshot-a19739df-2dac-40cd-8bf1-13c62f825358.png`. Firecrawl did not honor exact
+        390/680/768/1440 viewport dimensions for JS measurements, so final approval remains
+        pending user visual confirmation.
+      reason: User visual confirmation is still required for the exact requested real-device viewport set before this final gate can be marked complete.
+      actor: assistant
+      next_action: Ask the user to visually confirm the deployed `app.dev.openmates.org` landing intro across their real mobile, tablet, narrow desktop, and desktop sizes.
+      subject_commit: 9d02a2ad5f50be7ed888540967ea46adbad0a035
+      timestamp: "2026-07-23T14:06:00Z"
   - id: V-APPLE-DEFERRED-PHASE1
     kind: manual_check
     phase: final
