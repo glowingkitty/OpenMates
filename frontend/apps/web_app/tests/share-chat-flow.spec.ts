@@ -43,6 +43,27 @@ const { docAssert } = require('./helpers/doc-checkpoint');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
+async function installShortUrlFallback(page: any): Promise<void> {
+	await page.evaluate(() => {
+		const browserWindow = window as typeof window & { __openmatesShortUrlFallbackInstalled?: boolean };
+		if (browserWindow.__openmatesShortUrlFallbackInstalled) return;
+		const originalFetch = window.fetch.bind(window);
+		browserWindow.__openmatesShortUrlFallbackInstalled = true;
+		window.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
+			const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
+			if (url.includes('/v1/share/short-url')) {
+				return Promise.resolve(
+					new Response(JSON.stringify({ detail: 'short link unavailable in fallback test' }), {
+						status: 503,
+						headers: { 'Content-Type': 'application/json' }
+					})
+				);
+			}
+			return originalFetch(input, init);
+		};
+	});
+}
+
 // ─── Test ────────────────────────────────────────────────────────────────────
 
 test('creates and shares a chat link with QR code and fallback link', async ({
@@ -112,15 +133,8 @@ test('creates and shares a chat link with QR code and fallback link', async ({
 		await expect(generateLinkButton).toBeVisible({ timeout: 15000 });
 	});
 	logCheckpoint('Share panel loaded — configuration step visible.');
-
-	await page.route('**/v1/share/short-url', async (route: any) => {
-		await route.fulfill({
-			status: 503,
-			contentType: 'application/json',
-			body: JSON.stringify({ detail: 'short link unavailable in fallback test' })
-		});
-	});
-	logCheckpoint('Short-link fallback route installed.');
+	await installShortUrlFallback(page);
+	logCheckpoint('Short-link fallback fetch stub installed.');
 
 	// ── Step 8: Click "Share chat" (default settings) ─────────────────────
 	await page.evaluate(() => {
