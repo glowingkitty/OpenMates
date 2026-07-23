@@ -124,7 +124,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 3c999b53c
+  subject_commit: b3a001a8b
 
 approvals:
   product_contract:
@@ -422,9 +422,9 @@ tests:
       evidence:
         status: passed
         command: npm run test -- --run src/components/chats/__tests__/chatDownloadableFiles.test.ts
-        run_id: local-vitest-2026-07-23T03:31:56Z
-        subject_commit: 3c999b53c
-        timestamp: "2026-07-23T03:31:57Z"
+        run_id: local-vitest-2026-07-23T04:17:39Z
+        subject_commit: b3a001a8b
+        timestamp: "2026-07-23T04:17:40Z"
 
   - id: T-UNIT-USAGE
     type: unit
@@ -448,9 +448,9 @@ tests:
       evidence:
         status: passed
         command: npm run test -- --run src/components/chats/__tests__/chatUsageRows.test.ts
-        run_id: local-vitest-2026-07-23T03:31:56Z
-        subject_commit: 3c999b53c
-        timestamp: "2026-07-23T03:31:57Z"
+        run_id: local-vitest-2026-07-23T04:17:39Z
+        subject_commit: b3a001a8b
+        timestamp: "2026-07-23T04:17:40Z"
 
   - id: T-UNIT-SHARE
     type: unit
@@ -474,9 +474,9 @@ tests:
       evidence:
         status: passed
         command: npm run test -- --run src/services/encryption/__tests__/shareEncryption.test.ts
-        run_id: local-vitest-2026-07-23T03:20:27Z
-        subject_commit: 3c999b53c
-        timestamp: "2026-07-23T03:20:32Z"
+        run_id: local-vitest-2026-07-23T04:17:39Z
+        subject_commit: b3a001a8b
+        timestamp: "2026-07-23T04:17:44Z"
 
   - id: T-E2E-CHAT-SETTINGS
     type: playwright
@@ -502,13 +502,13 @@ tests:
       expected: pass_after_deploy
       evidence:
         status: passed
-        command: python3 scripts/tests.py run --spec chat-settings-flow.spec.ts --gate-deploy --expected-commit 3c999b53c12ee7af75f28273b1c537d1d72bf448
-        run_id: "29976843078"
-        orchestrator_run_id: "2026-07-23T03:20:30Z"
-        subject_commit: 3c999b53c
-        timestamp: "2026-07-23T03:26:02Z"
+        command: python3 scripts/tests.py run --spec chat-settings-flow.spec.ts --gate-deploy --expected-commit b3a001a8bc7d9e2558ad12c316f75752f0fb0f67
+        run_id: "29978891376"
+        orchestrator_run_id: "2026-07-23T04:09:12Z"
+        subject_commit: b3a001a8b
+        timestamp: "2026-07-23T04:13:10Z"
         target: app.dev.openmates.org
-        deployment_reference: "Vercel dpl_3yY5CMkfAvKhj15G47wiwa1gDGXC READY for 3c999b53c"
+        deployment_reference: "Vercel dpl_H7dCG1PNvRkpBeGQqx2agWnAhAZa READY for b3a001a8b"
 
   - id: T-E2E-CHAT-FILES
     type: playwright
@@ -532,9 +532,15 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: pending
-        run_id: pending
-        timestamp: pending
+        status: passed
+        command: python3 scripts/tests.py run --spec chat-settings-flow.spec.ts --gate-deploy --expected-commit b3a001a8bc7d9e2558ad12c316f75752f0fb0f67
+        run_id: "29978891376"
+        orchestrator_run_id: "2026-07-23T04:09:12Z"
+        subject_commit: b3a001a8b
+        timestamp: "2026-07-23T04:13:10Z"
+        target: app.dev.openmates.org
+        deployment_reference: "Vercel dpl_H7dCG1PNvRkpBeGQqx2agWnAhAZa READY for b3a001a8b"
+        notes: Extended chat-settings-flow proves the Files tab opens, shows the empty state for a chat without downloadable fixtures, and disables Download files; row-level downloadable filtering is covered by T-UNIT-DOWNLOADABLE-FILES.
 
   - id: T-E2E-CHAT-USAGE
     type: playwright
@@ -556,9 +562,15 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: pending
-        run_id: pending
-        timestamp: pending
+        status: passed
+        command: python3 scripts/tests.py run --spec chat-settings-flow.spec.ts --gate-deploy --expected-commit b3a001a8bc7d9e2558ad12c316f75752f0fb0f67
+        run_id: "29978891376"
+        orchestrator_run_id: "2026-07-23T04:09:12Z"
+        subject_commit: b3a001a8b
+        timestamp: "2026-07-23T04:13:10Z"
+        target: app.dev.openmates.org
+        deployment_reference: "Vercel dpl_H7dCG1PNvRkpBeGQqx2agWnAhAZa READY for b3a001a8b"
+        notes: Extended chat-settings-flow proves the Usage tab opens after an assistant response and exposes total credits plus CSV/YAML export controls; row serialization is covered by T-UNIT-USAGE.
 
   - id: T-E2E-CHAT-SHARE
     type: playwright
@@ -584,13 +596,13 @@ tests:
       expected: pass_after_deploy
       evidence:
         status: passed
-        command: python3 scripts/tests.py run --spec share-chat-flow.spec.ts --gate-deploy --expected-commit 3c999b53c12ee7af75f28273b1c537d1d72bf448
-        run_id: "29976520979"
-        orchestrator_run_id: "2026-07-23T03:13:26Z"
-        subject_commit: 3c999b53c
-        timestamp: "2026-07-23T03:18:42Z"
+        command: python3 scripts/tests.py run --spec share-chat-flow.spec.ts --gate-deploy --expected-commit b3a001a8bc7d9e2558ad12c316f75752f0fb0f67
+        run_id: "29978681100"
+        orchestrator_run_id: "2026-07-23T04:04:08Z"
+        subject_commit: b3a001a8b
+        timestamp: "2026-07-23T04:08:53Z"
         target: app.dev.openmates.org
-        deployment_reference: "Vercel dpl_3yY5CMkfAvKhj15G47wiwa1gDGXC READY for 3c999b53c"
+        deployment_reference: "Vercel dpl_H7dCG1PNvRkpBeGQqx2agWnAhAZa READY for b3a001a8b"
         flaky: false
         notes: Passed with the deployment gate after ChatSettingsPage synced tab changes from the active Settings route. Artifacts saved under test-results/screenshots/current/share-chat-flow/.
 
@@ -616,13 +628,13 @@ tests:
       expected: pass_after_deploy
       evidence:
         status: passed
-        command: python3 scripts/tests.py run --spec share-embed-flow.spec.ts --gate-deploy --expected-commit 3c999b53c12ee7af75f28273b1c537d1d72bf448
-        run_id: "29977065985"
-        orchestrator_run_id: "2026-07-23T03:26:19Z"
-        subject_commit: 3c999b53c
-        timestamp: "2026-07-23T03:30:02Z"
+        command: python3 scripts/tests.py run --spec share-embed-flow.spec.ts --gate-deploy --expected-commit b3a001a8bc7d9e2558ad12c316f75752f0fb0f67
+        run_id: "29979082675"
+        orchestrator_run_id: "2026-07-23T04:13:25Z"
+        subject_commit: b3a001a8b
+        timestamp: "2026-07-23T04:17:23Z"
         target: app.dev.openmates.org
-        deployment_reference: "Vercel dpl_3yY5CMkfAvKhj15G47wiwa1gDGXC READY for 3c999b53c"
+        deployment_reference: "Vercel dpl_H7dCG1PNvRkpBeGQqx2agWnAhAZa READY for b3a001a8b"
         flaky: false
         notes: Passed with the deployment gate, proving the existing embed share flow still opens embed sharing and generates an embed share link on the current chat-settings subject commit.
 
