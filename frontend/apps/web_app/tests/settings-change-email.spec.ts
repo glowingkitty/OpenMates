@@ -18,10 +18,11 @@ const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getIsolatedTestAccount(
 	'settings-change-email.spec.ts'
 );
-const TEMPORARY_GMAIL_ALIAS_LABEL = 'roundtrip';
+const TEMPORARY_GMAIL_ALIAS_LABEL = 'roundtrip-v2';
 const RECOVERY_GMAIL_ALIAS_LABELS = [
-	TEMPORARY_GMAIL_ALIAS_LABEL,
 	'roundtrip-mrxd1cji',
+	TEMPORARY_GMAIL_ALIAS_LABEL,
+	'roundtrip',
 	'roundtrip-1777327279784'
 ];
 
