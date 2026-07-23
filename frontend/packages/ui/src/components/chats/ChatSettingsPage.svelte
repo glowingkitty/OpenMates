@@ -6,7 +6,8 @@
   tabs, and local-first Plan/Tasks/Files/Usage/Share sections.
 -->
 <script lang="ts">
-  import { chatSettingsStore, normalizeChatSettingsTab, type ChatSettingsTab } from '../../stores/chatSettingsStore';
+  import { chatSettingsRouteFor, chatSettingsStore, normalizeChatSettingsTab, type ChatSettingsTab } from '../../stores/chatSettingsStore';
+  import { settingsDeepLink } from '../../stores/settingsDeepLinkStore';
   import { SettingsTabs, SettingsCard, SettingsButton, SettingsInfoBox, SettingsProgressBar, SettingsBadge } from '../settings/elements';
   import ChatSettingsShareSection from './ChatSettingsShareSection.svelte';
   import { loadChatFileRows, type ChatFileRow } from './chatSettingsFiles';
@@ -77,6 +78,9 @@
     const nextTab = normalizeChatSettingsTab(tabId);
     activeTab = nextTab;
     chatSettingsStore.setTab(nextTab);
+    if (chat?.chat_id) {
+      settingsDeepLink.set(chatSettingsRouteFor(chat.chat_id, nextTab));
+    }
   }
 
   async function refreshFiles(): Promise<void> {
