@@ -122,127 +122,253 @@ message_2:
     {"type": "app_skill_use", "embed_id": "395f8816-7e0b-4753-8058-f1f5c49d0482", "app_id": "code", "skill_id": "image_to_html"}
     ```
     
-    我现在正根据你的截图生成独立的 HTML 代码 embed。
+    I'm generating the standalone HTML code embed from your screenshot now.
+    
+    ```json
+    {"type": "code", "embed_id": "395f8816-7e0b-4753-8058-f1f5c49d0482", "app_id": "code", "skill_id": "image_to_html", "language": "html"}
+    ```
+    
+    I added the finished HTML as a code preview below so you can open it fullscreen and inspect the self-contained card.
   de: |
     ```json
     {"type": "app_skill_use", "embed_id": "395f8816-7e0b-4753-8058-f1f5c49d0482", "app_id": "code", "skill_id": "image_to_html"}
     ```
     
     Ich erstelle jetzt das eigenständige HTML-Code-Embed auf Basis deines Screenshots.
+    
+    ```json
+    {"type": "code", "embed_id": "395f8816-7e0b-4753-8058-f1f5c49d0482", "app_id": "code", "skill_id": "image_to_html", "language": "html"}
+    ```
+    
+    Ich habe das fertige HTML unten als Codevorschau hinzugefügt, damit du es im Vollbild öffnen und die eigenständige Karte prüfen kannst.
   zh: |
     ```json
     {"type": "app_skill_use", "embed_id": "395f8816-7e0b-4753-8058-f1f5c49d0482", "app_id": "code", "skill_id": "image_to_html"}
     ```
     
-    I'm generating the standalone HTML code embed for you now based on your screenshot.
+    我现在正根据你的截图生成独立的 HTML 代码 embed。
+    
+    ```json
+    {"type": "code", "embed_id": "395f8816-7e0b-4753-8058-f1f5c49d0482", "app_id": "code", "skill_id": "image_to_html", "language": "html"}
+    ```
+    
+    我已把完成的 HTML 添加为下面的代码预览，你可以全屏打开并检查这个自包含卡片。
   es: |
     ```json
     {"type": "app_skill_use", "embed_id": "395f8816-7e0b-4753-8058-f1f5c49d0482", "app_id": "code", "skill_id": "image_to_html"}
     ```
     
     Estoy generando ahora el embed de código HTML independiente basado en tu captura.
+    
+    ```json
+    {"type": "code", "embed_id": "395f8816-7e0b-4753-8058-f1f5c49d0482", "app_id": "code", "skill_id": "image_to_html", "language": "html"}
+    ```
+    
+    Añadí el HTML terminado como vista previa de código abajo para que puedas abrirlo en pantalla completa y revisar la tarjeta autocontenida.
   fr: |
     ```json
     {"type": "app_skill_use", "embed_id": "395f8816-7e0b-4753-8058-f1f5c49d0482", "app_id": "code", "skill_id": "image_to_html"}
     ```
     
     Je génère maintenant l'embed de code HTML autonome à partir de ta capture d'écran.
+    
+    ```json
+    {"type": "code", "embed_id": "395f8816-7e0b-4753-8058-f1f5c49d0482", "app_id": "code", "skill_id": "image_to_html", "language": "html"}
+    ```
+    
+    J'ai ajouté le HTML final en aperçu de code ci-dessous pour que tu puisses l'ouvrir en plein écran et vérifier la carte autonome.
   pt: |
     ```json
     {"type": "app_skill_use", "embed_id": "395f8816-7e0b-4753-8058-f1f5c49d0482", "app_id": "code", "skill_id": "image_to_html"}
     ```
     
     Estou gerando agora o embed de código HTML independente com base na sua captura.
+    
+    ```json
+    {"type": "code", "embed_id": "395f8816-7e0b-4753-8058-f1f5c49d0482", "app_id": "code", "skill_id": "image_to_html", "language": "html"}
+    ```
+    
+    Adicionei o HTML final como uma prévia de código abaixo para você abrir em tela cheia e revisar o cartão autocontido.
   ru: |
     ```json
     {"type": "app_skill_use", "embed_id": "395f8816-7e0b-4753-8058-f1f5c49d0482", "app_id": "code", "skill_id": "image_to_html"}
     ```
     
     Сейчас я создаю автономный HTML code embed на основе вашего скриншота.
+    
+    ```json
+    {"type": "code", "embed_id": "395f8816-7e0b-4753-8058-f1f5c49d0482", "app_id": "code", "skill_id": "image_to_html", "language": "html"}
+    ```
+    
+    Я добавил готовый HTML ниже как предпросмотр кода, чтобы вы могли открыть его на весь экран и проверить автономную карточку.
   ja: |
     ```json
     {"type": "app_skill_use", "embed_id": "395f8816-7e0b-4753-8058-f1f5c49d0482", "app_id": "code", "skill_id": "image_to_html"}
     ```
     
     スクリーンショットをもとに、独立した HTML コード embed を生成しています。
+    
+    ```json
+    {"type": "code", "embed_id": "395f8816-7e0b-4753-8058-f1f5c49d0482", "app_id": "code", "skill_id": "image_to_html", "language": "html"}
+    ```
+    
+    完成した HTML を下にコードプレビューとして追加したので、全画面で開いて自己完結型のカードを確認できます。
   ko: |
     ```json
     {"type": "app_skill_use", "embed_id": "395f8816-7e0b-4753-8058-f1f5c49d0482", "app_id": "code", "skill_id": "image_to_html"}
     ```
     
     지금 스크린샷을 바탕으로 독립형 HTML 코드 embed를 생성하고 있습니다.
+    
+    ```json
+    {"type": "code", "embed_id": "395f8816-7e0b-4753-8058-f1f5c49d0482", "app_id": "code", "skill_id": "image_to_html", "language": "html"}
+    ```
+    
+    완성된 HTML을 아래 코드 미리보기로 추가했으니 전체 화면으로 열어 self-contained 카드를 확인할 수 있습니다.
   it: |
     ```json
     {"type": "app_skill_use", "embed_id": "395f8816-7e0b-4753-8058-f1f5c49d0482", "app_id": "code", "skill_id": "image_to_html"}
     ```
     
     Sto generando ora l'embed di codice HTML autonomo basato sul tuo screenshot.
+    
+    ```json
+    {"type": "code", "embed_id": "395f8816-7e0b-4753-8058-f1f5c49d0482", "app_id": "code", "skill_id": "image_to_html", "language": "html"}
+    ```
+    
+    Ho aggiunto l'HTML finito come anteprima del codice qui sotto, così puoi aprirlo a schermo intero e controllare la scheda autonoma.
   tr: |
     ```json
     {"type": "app_skill_use", "embed_id": "395f8816-7e0b-4753-8058-f1f5c49d0482", "app_id": "code", "skill_id": "image_to_html"}
     ```
     
     Şimdi ekran görüntünü temel alarak bağımsız HTML kod embed'ini oluşturuyorum.
+    
+    ```json
+    {"type": "code", "embed_id": "395f8816-7e0b-4753-8058-f1f5c49d0482", "app_id": "code", "skill_id": "image_to_html", "language": "html"}
+    ```
+    
+    Tamamlanan HTML'i aşağıda kod önizlemesi olarak ekledim; tam ekran açıp kendi kendine çalışan kartı inceleyebilirsin.
   vi: |
     ```json
     {"type": "app_skill_use", "embed_id": "395f8816-7e0b-4753-8058-f1f5c49d0482", "app_id": "code", "skill_id": "image_to_html"}
     ```
     
     Bây giờ tôi đang tạo embed mã HTML độc lập dựa trên ảnh chụp màn hình của bạn.
+    
+    ```json
+    {"type": "code", "embed_id": "395f8816-7e0b-4753-8058-f1f5c49d0482", "app_id": "code", "skill_id": "image_to_html", "language": "html"}
+    ```
+    
+    Tôi đã thêm HTML hoàn chỉnh dưới dạng bản xem trước mã bên dưới để bạn có thể mở toàn màn hình và kiểm tra thẻ tự chứa.
   id: |
     ```json
     {"type": "app_skill_use", "embed_id": "395f8816-7e0b-4753-8058-f1f5c49d0482", "app_id": "code", "skill_id": "image_to_html"}
     ```
     
     Saya sekarang membuat embed kode HTML mandiri berdasarkan tangkapan layar Anda.
+    
+    ```json
+    {"type": "code", "embed_id": "395f8816-7e0b-4753-8058-f1f5c49d0482", "app_id": "code", "skill_id": "image_to_html", "language": "html"}
+    ```
+    
+    Saya menambahkan HTML final sebagai pratinjau kode di bawah agar Anda bisa membukanya layar penuh dan memeriksa kartu mandiri ini.
   pl: |
     ```json
     {"type": "app_skill_use", "embed_id": "395f8816-7e0b-4753-8058-f1f5c49d0482", "app_id": "code", "skill_id": "image_to_html"}
     ```
     
     Teraz generuję samodzielny embed kodu HTML na podstawie Twojego zrzutu ekranu.
+    
+    ```json
+    {"type": "code", "embed_id": "395f8816-7e0b-4753-8058-f1f5c49d0482", "app_id": "code", "skill_id": "image_to_html", "language": "html"}
+    ```
+    
+    Dodałem gotowy HTML poniżej jako podgląd kodu, aby można było otworzyć go na pełnym ekranie i sprawdzić samodzielną kartę.
   nl: |
     ```json
     {"type": "app_skill_use", "embed_id": "395f8816-7e0b-4753-8058-f1f5c49d0482", "app_id": "code", "skill_id": "image_to_html"}
     ```
     
     Ik genereer nu de zelfstandige HTML-code-embed op basis van je screenshot.
+    
+    ```json
+    {"type": "code", "embed_id": "395f8816-7e0b-4753-8058-f1f5c49d0482", "app_id": "code", "skill_id": "image_to_html", "language": "html"}
+    ```
+    
+    Ik heb de afgeronde HTML hieronder als codepreview toegevoegd, zodat je hem fullscreen kunt openen en de zelfstandige kaart kunt controleren.
   ar: |
     ```json
     {"type": "app_skill_use", "embed_id": "395f8816-7e0b-4753-8058-f1f5c49d0482", "app_id": "code", "skill_id": "image_to_html"}
     ```
     
     أقوم الآن بإنشاء embed مستقل لكود HTML بناء على لقطة الشاشة الخاصة بك.
+    
+    ```json
+    {"type": "code", "embed_id": "395f8816-7e0b-4753-8058-f1f5c49d0482", "app_id": "code", "skill_id": "image_to_html", "language": "html"}
+    ```
+    
+    أضفت HTML النهائي أدناه كمعاينة كود حتى تتمكن من فتحه بملء الشاشة ومراجعة البطاقة المستقلة.
   hi: |
     ```json
     {"type": "app_skill_use", "embed_id": "395f8816-7e0b-4753-8058-f1f5c49d0482", "app_id": "code", "skill_id": "image_to_html"}
     ```
     
     मैं अब आपके स्क्रीनशॉट के आधार पर स्वतंत्र HTML code embed बना रहा हूं।
+    
+    ```json
+    {"type": "code", "embed_id": "395f8816-7e0b-4753-8058-f1f5c49d0482", "app_id": "code", "skill_id": "image_to_html", "language": "html"}
+    ```
+    
+    मैंने तैयार HTML को नीचे code preview के रूप में जोड़ दिया है ताकि आप इसे fullscreen खोलकर self-contained card जांच सकें।
   th: |
     ```json
     {"type": "app_skill_use", "embed_id": "395f8816-7e0b-4753-8058-f1f5c49d0482", "app_id": "code", "skill_id": "image_to_html"}
     ```
     
     ตอนนี้ฉันกำลังสร้าง embed โค้ด HTML แบบทำงานได้เองจากภาพหน้าจอของคุณ
+    
+    ```json
+    {"type": "code", "embed_id": "395f8816-7e0b-4753-8058-f1f5c49d0482", "app_id": "code", "skill_id": "image_to_html", "language": "html"}
+    ```
+    
+    ฉันเพิ่ม HTML ที่เสร็จแล้วเป็นตัวอย่างโค้ดด้านล่าง เพื่อให้คุณเปิดแบบเต็มหน้าจอและตรวจสอบการ์ดแบบ self-contained ได้
   cs: |
     ```json
     {"type": "app_skill_use", "embed_id": "395f8816-7e0b-4753-8058-f1f5c49d0482", "app_id": "code", "skill_id": "image_to_html"}
     ```
     
     Teď podle tvého snímku obrazovky generuji samostatný HTML code embed.
+    
+    ```json
+    {"type": "code", "embed_id": "395f8816-7e0b-4753-8058-f1f5c49d0482", "app_id": "code", "skill_id": "image_to_html", "language": "html"}
+    ```
+    
+    Hotové HTML jsem níže přidal jako náhled kódu, abys ho mohl otevřít na celou obrazovku a zkontrolovat samostatnou kartu.
   sv: |
     ```json
     {"type": "app_skill_use", "embed_id": "395f8816-7e0b-4753-8058-f1f5c49d0482", "app_id": "code", "skill_id": "image_to_html"}
     ```
     
     Jag genererar nu den fristående HTML-kodembedden baserat på din skärmbild.
+    
+    ```json
+    {"type": "code", "embed_id": "395f8816-7e0b-4753-8058-f1f5c49d0482", "app_id": "code", "skill_id": "image_to_html", "language": "html"}
+    ```
+    
+    Jag lade till den färdiga HTML:en som en kodförhandsvisning nedan, så att du kan öppna den i helskärm och granska det självständiga kortet.
   he: |
     ```json
     {"type": "app_skill_use", "embed_id": "395f8816-7e0b-4753-8058-f1f5c49d0482", "app_id": "code", "skill_id": "image_to_html"}
     ```
     
     אני יוצר עכשיו את הטמעת קוד ה-HTML העצמאית על בסיס צילום המסך שלך.
+    
+    ```json
+    {"type": "code", "embed_id": "395f8816-7e0b-4753-8058-f1f5c49d0482", "app_id": "code", "skill_id": "image_to_html", "language": "html"}
+    ```
+    
+    הוספתי את ה-HTML המוכן כתצוגת קוד מקדימה למטה, כך שתוכל לפתוח אותו במסך מלא ולבדוק את הכרטיס העצמאי.
   verified_by_human: []
 
 follow_up_1:

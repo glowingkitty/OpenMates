@@ -71,6 +71,7 @@ UNSAFE_ADVICE_PATTERNS = [
 ]
 FENCED_CODE_BLOCK_RE = re.compile(r"```[a-zA-Z0-9_-]*\n[\s\S]*?```", re.MULTILINE)
 SETTINGS_MARKDOWN_LINK_RE = re.compile(r"(?<!!)\[([^\]\n]+)\]\(((?:\/?#settings)[^\n]*?)\)")
+CODE_IMAGE_TO_HTML_APP_SKILL = "code.image_to_html"
 
 
 @dataclass(frozen=True)
@@ -422,18 +423,74 @@ def embed_ids_in_source(source: str) -> set[str]:
 
 def json_embed_refs_in_text(text: str) -> set[str]:
     refs: set[str] = set()
-    for match in re.finditer(r"```json\s*(?P<body>[\s\S]*?)\s*```", text):
-        body = match.group("body").strip()
-        if '"embed_id"' not in body:
-            continue
-        try:
-            parsed = json.loads(body)
-        except json.JSONDecodeError:
-            continue
+    for parsed in json_embed_payloads_in_text(text):
         embed_id = parsed.get("embed_id")
         if isinstance(embed_id, str):
             refs.add(embed_id)
     return refs
+
+
+def json_embed_payloads_in_text(text: str) -> list[dict[str, object]]:
+    payloads: list[dict[str, object]] = []
+    for match in re.finditer(r"```json\s*(?P<body>[\s\S]*?)\s*```", text):
+        body = match.group("body").strip()
+        try:
+            parsed = json.loads(body)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(parsed, dict):
+            payloads.append(parsed)
+    return payloads
+
+
+def clean_markdown_embed_ref(ref: str) -> str:
+    return ref.split("#", 1)[0].strip()
+
+
+def markdown_embed_refs_in_text(text: str) -> set[str]:
+    return {
+        clean_markdown_embed_ref(match.group(1))
+        for match in re.finditer(r"\[[^\]]*\]\(embed:([^\)]+)\)", text)
+    }
+
+
+def known_embed_refs(source: str) -> set[str]:
+    refs = embed_ids_in_source(source)
+    for block in iter_embed_blocks(source):
+        content = parse_embed_content(block)
+        embed_ref = toon_value(content, "embed_ref")
+        if embed_ref:
+            refs.add(embed_ref)
+    return refs
+
+
+def visible_app_skill_use_keys(source: str) -> set[str]:
+    keys: set[str] = set()
+    for message in parse_messages(source):
+        resolved, _ = resolve_message_content(message.content)
+        for payload in json_embed_payloads_in_text(resolved):
+            if payload.get("type") != "app_skill_use":
+                continue
+            app_id = payload.get("app_id")
+            skill_id = payload.get("skill_id")
+            if isinstance(app_id, str) and isinstance(skill_id, str):
+                keys.add(f"{app_id}.{skill_id}")
+    return keys
+
+
+def is_dynamic_embed_array(source: str) -> bool:
+    return bool(re.search(r"\bembeds:\s*\[\s*\.\.\.", source))
+
+
+def has_image_to_html_code_reference(source: str) -> bool:
+    for message in parse_messages(source):
+        resolved, _ = resolve_message_content(message.content)
+        for payload in json_embed_payloads_in_text(resolved):
+            if payload.get("type") != "code":
+                continue
+            if payload.get("app_id") == "code" and payload.get("skill_id") == "image_to_html":
+                return True
+    return False
 
 
 def audit_interactive_questions(chat_id: str, message_index: int, text: str) -> list[str]:
@@ -643,11 +700,25 @@ def audit() -> list[str]:
         chat_id = parse_ts_string_field(source, "chat_id") or path.stem
         category = parse_ts_string_field(source, "category")
         source_embed_ids = embed_ids_in_source(source)
+        source_known_embed_refs = known_embed_refs(source)
+        visible_app_skills = visible_app_skill_use_keys(source)
         settings_memory_examples = parse_ts_string_array_field(source, "app_settings_memory_examples")
         issues.extend(audit_static_source(chat_id, source))
 
         if category not in valid_categories:
             issues.append(f"{chat_id}: invalid chat category {category!r}")
+
+        for app_skill_example in parse_ts_string_array_field(source, "app_skill_examples"):
+            if app_skill_example != CODE_IMAGE_TO_HTML_APP_SKILL:
+                continue
+            if app_skill_example not in visible_app_skills:
+                issues.append(
+                    f"{chat_id}: app skill example {app_skill_example!r} is not referenced by a visible app_skill_use JSON block"
+                )
+            if not has_image_to_html_code_reference(source):
+                issues.append(
+                    f"{chat_id}: app skill example {app_skill_example!r} is missing a visible code JSON embed reference"
+                )
 
         for content_key in parse_ts_string_array_field(source, "content_embed_examples"):
             catalog_item = content_catalog.get(content_key)
@@ -692,6 +763,12 @@ def audit() -> list[str]:
                 issues.append(
                     f"{chat_id}: message {index} references missing JSON embed IDs: {', '.join(missing_json_refs)}"
                 )
+            if not is_dynamic_embed_array(source):
+                missing_markdown_refs = sorted(markdown_embed_refs_in_text(resolved) - source_known_embed_refs)
+                if missing_markdown_refs:
+                    issues.append(
+                        f"{chat_id}: message {index} references missing markdown embed refs: {', '.join(missing_markdown_refs)}"
+                    )
             if active_focus_id in FOCUS_MODES_REQUIRING_SUB_CHATS and message.role == "user":
                 if FOCUS_MENTION_RE.search(resolved):
                     issues.append(

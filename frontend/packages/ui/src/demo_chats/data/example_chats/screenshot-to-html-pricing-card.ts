@@ -52,5 +52,6 @@ export const screenshotToHtmlPricingCardChat: ExampleChat = {
   metadata: {
     featured: true,
     order: 118,
+    app_skill_examples: ["code.image_to_html"],
   },
 };
