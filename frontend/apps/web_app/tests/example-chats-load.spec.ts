@@ -252,7 +252,11 @@ test.describe('Example chats loading for new users', () => {
 		const firstPrompt = page.getByTestId('user-message-content').filter({
 			hasText: 'I want to build a privacy-first AI productivity company from zero'
 		});
+		const olderPrompt = page.getByTestId('user-message-content').filter({
+			hasText: '30-day plan to recruit 10 design partners'
+		});
 		await expect(firstPrompt).toHaveCount(0);
+		await expect(olderPrompt).toHaveCount(0);
 
 		const visibleMessageCount = await page.locator('[data-testid="message-user"], [data-testid="message-assistant"]').count();
 		await page.getByTestId('show-older-messages').click();
@@ -261,7 +265,7 @@ test.describe('Example chats loading for new users', () => {
 			message: 'Show older messages should prepend the older static example window',
 			timeout: 10000
 		}).toBeGreaterThan(visibleMessageCount);
-		await expect(firstPrompt).toBeVisible({ timeout: 10000 });
+		await expect(olderPrompt).toBeVisible({ timeout: 10000 });
 	});
 
 	test('nutrition example renders Edamam recipe search embed card', async ({
