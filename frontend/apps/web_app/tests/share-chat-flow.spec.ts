@@ -44,7 +44,7 @@ const { docAssert } = require('./helpers/doc-checkpoint');
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
 async function installShortUrlFallback(page: any): Promise<void> {
-	await page.evaluate(() => {
+	await page.addInitScript(() => {
 		const browserWindow = window as typeof window & { __openmatesShortUrlFallbackInstalled?: boolean };
 		if (browserWindow.__openmatesShortUrlFallbackInstalled) return;
 		const originalFetch = window.fetch.bind(window);
@@ -83,6 +83,7 @@ test('creates and shares a chat link with QR code and fallback link', async ({
 	});
 
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+	await installShortUrlFallback(page);
 
 	await archiveExistingScreenshots(logCheckpoint);
 	logCheckpoint('Starting share chat flow test.', { email: TEST_EMAIL });
@@ -133,16 +134,10 @@ test('creates and shares a chat link with QR code and fallback link', async ({
 		await expect(generateLinkButton).toBeVisible({ timeout: 15000 });
 	});
 	logCheckpoint('Share panel loaded — configuration step visible.');
-	await installShortUrlFallback(page);
-	logCheckpoint('Short-link fallback fetch stub installed.');
 
 	// ── Step 8: Click "Share chat" (default settings) ─────────────────────
-	await page.evaluate(() => {
-		window.setTimeout(() => {
-			document.querySelector<HTMLButtonElement>('[data-testid="share-generate-link"]')?.click();
-		}, 0);
-	});
-	logCheckpoint('Scheduled "Share chat" button click.');
+	await generateLinkButton.dispatchEvent('click', undefined, { timeout: 10000 });
+	logCheckpoint('Clicked "Share chat" button.');
 
 	// ── Step 9: Verify link generated step ────────────────────────────────
 	const copyLinkButton = page.locator('[data-testid="share-copy-link"]');
