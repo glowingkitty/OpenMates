@@ -105,10 +105,20 @@ test('chat Share opens Settings / Chats and supports tab deep links', async ({ p
 				detail: { tab: requestedTab }
 			}));
 		}, tab);
+		const tabPanel = settingsMenu.getByTestId(`chat-settings-tabpanel-${tab}`);
 		await expect(settingsMenu.getByTestId(`chat-settings-tabpanel-${tab}`)).toBeVisible({
 			timeout: 10_000
 		});
 		await expect(settingsMenu.getByTestId(`chat-settings-tab-${tab}`)).toHaveAttribute('aria-selected', 'true');
+		if (tab === 'files') {
+			await expect(tabPanel.getByText('No downloadable files found for this chat yet.')).toBeVisible({ timeout: 10_000 });
+			await expect(tabPanel.getByRole('button', { name: 'Download files' })).toBeDisabled();
+		}
+		if (tab === 'usage') {
+			await expect(tabPanel.getByTestId('chat-settings-usage-total')).toContainText(/\d+ credits/i, { timeout: 10_000 });
+			await expect(tabPanel.getByRole('button', { name: 'Download usage data' })).toBeVisible();
+			await expect(tabPanel.getByRole('button', { name: 'YAML' })).toBeVisible();
+		}
 		logCheckpoint(`Deep-linked chat settings tab rendered: ${tab}`);
 	}
 

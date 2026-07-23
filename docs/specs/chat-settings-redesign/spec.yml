@@ -124,7 +124,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: be2639d27
+  subject_commit: 3c999b53c
 
 approvals:
   product_contract:
@@ -413,16 +413,18 @@ tests:
       required: true
       expected: fail_or_missing
       evidence:
-        status: pending
-        run_id: pending
-        timestamp: pending
+        status: skipped_with_reason
+        timestamp: "2026-07-23T03:32:30Z"
+        reason: Red-phase evidence was missed during earlier implementation; green helper coverage is now recorded and future changes should add or update tests before product code.
     green_phase:
       required: true
       expected: pass
       evidence:
-        status: pending
-        run_id: pending
-        timestamp: pending
+        status: passed
+        command: npm run test -- --run src/components/chats/__tests__/chatDownloadableFiles.test.ts
+        run_id: local-vitest-2026-07-23T03:31:56Z
+        subject_commit: 3c999b53c
+        timestamp: "2026-07-23T03:31:57Z"
 
   - id: T-UNIT-USAGE
     type: unit
@@ -437,16 +439,18 @@ tests:
       required: true
       expected: fail_or_missing
       evidence:
-        status: pending
-        run_id: pending
-        timestamp: pending
+        status: skipped_with_reason
+        timestamp: "2026-07-23T03:32:30Z"
+        reason: Red-phase evidence was missed during earlier implementation; green helper coverage is now recorded and future changes should add or update tests before product code.
     green_phase:
       required: true
       expected: pass
       evidence:
-        status: pending
-        run_id: pending
-        timestamp: pending
+        status: passed
+        command: npm run test -- --run src/components/chats/__tests__/chatUsageRows.test.ts
+        run_id: local-vitest-2026-07-23T03:31:56Z
+        subject_commit: 3c999b53c
+        timestamp: "2026-07-23T03:31:57Z"
 
   - id: T-UNIT-SHARE
     type: unit
@@ -461,16 +465,18 @@ tests:
       required: false
       expected: existing_contract
       evidence:
-        status: pending
-        run_id: pending
-        timestamp: pending
+        status: not_applicable
+        timestamp: "2026-07-23T03:20:32Z"
+        reason: Existing share encryption regression was preserved; no red phase was expected for this unchanged helper contract.
     green_phase:
       required: true
       expected: pass
       evidence:
-        status: pending
-        run_id: pending
-        timestamp: pending
+        status: passed
+        command: npm run test -- --run src/services/encryption/__tests__/shareEncryption.test.ts
+        run_id: local-vitest-2026-07-23T03:20:27Z
+        subject_commit: 3c999b53c
+        timestamp: "2026-07-23T03:20:32Z"
 
   - id: T-E2E-CHAT-SETTINGS
     type: playwright
@@ -488,16 +494,21 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: pending
-        run_id: pending
-        timestamp: pending
+        status: skipped_with_reason
+        timestamp: "2026-07-23T03:32:30Z"
+        reason: Red-phase evidence was missed during earlier implementation; the current deployed green run proves the replacement Settings route and tab deep links after the fix.
     green_phase:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: pending
-        run_id: pending
-        timestamp: pending
+        status: passed
+        command: python3 scripts/tests.py run --spec chat-settings-flow.spec.ts --gate-deploy --expected-commit 3c999b53c12ee7af75f28273b1c537d1d72bf448
+        run_id: "29976843078"
+        orchestrator_run_id: "2026-07-23T03:20:30Z"
+        subject_commit: 3c999b53c
+        timestamp: "2026-07-23T03:26:02Z"
+        target: app.dev.openmates.org
+        deployment_reference: "Vercel dpl_3yY5CMkfAvKhj15G47wiwa1gDGXC READY for 3c999b53c"
 
   - id: T-E2E-CHAT-FILES
     type: playwright
@@ -514,9 +525,9 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: pending
-        run_id: pending
-        timestamp: pending
+        status: skipped_with_reason
+        timestamp: "2026-07-23T03:32:30Z"
+        reason: Red-phase evidence was missed during earlier implementation; dedicated Files E2E green coverage still needs to be added or the spec narrowed to the existing tab-render coverage.
     green_phase:
       required: true
       expected: pass_after_deploy
@@ -538,9 +549,9 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: pending
-        run_id: pending
-        timestamp: pending
+        status: skipped_with_reason
+        timestamp: "2026-07-23T03:32:30Z"
+        reason: Red-phase evidence was missed during earlier implementation; dedicated Usage E2E green coverage still needs to be added or the spec narrowed to the existing tab-render coverage.
     green_phase:
       required: true
       expected: pass_after_deploy
@@ -565,23 +576,23 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: pending
-        run_id: pending
-        timestamp: pending
+        status: skipped_with_reason
+        timestamp: "2026-07-23T03:32:30Z"
+        reason: Red-phase evidence was missed during earlier implementation; current deployed green evidence covers the fixed Share tab route and share-link state transition.
     green_phase:
       required: true
       expected: pass_after_deploy
       evidence:
         status: passed
-        command: python3 scripts/tests.py run --spec share-chat-flow.spec.ts
-        run_id: "29964665062"
-        orchestrator_run_id: "2026-07-22T22:53:18Z"
-        subject_commit: be2639d27
-        timestamp: "2026-07-22T23:04:51Z"
+        command: python3 scripts/tests.py run --spec share-chat-flow.spec.ts --gate-deploy --expected-commit 3c999b53c12ee7af75f28273b1c537d1d72bf448
+        run_id: "29976520979"
+        orchestrator_run_id: "2026-07-23T03:13:26Z"
+        subject_commit: 3c999b53c
+        timestamp: "2026-07-23T03:18:42Z"
         target: app.dev.openmates.org
-        deployment_reference: "Vercel dpl_Eokg3kquoqdDvVL5C6J23hNoCGxv READY for be2639d27"
-        flaky: true
-        notes: Passed on retry; first attempt timed out resolving share-generate-link. Artifacts saved under test-results/screenshots/current/share-chat-flow/.
+        deployment_reference: "Vercel dpl_3yY5CMkfAvKhj15G47wiwa1gDGXC READY for 3c999b53c"
+        flaky: false
+        notes: Passed with the deployment gate after ChatSettingsPage synced tab changes from the active Settings route. Artifacts saved under test-results/screenshots/current/share-chat-flow/.
 
   - id: T-E2E-EMBED-SHARE
     type: playwright
@@ -604,9 +615,16 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: pending
-        run_id: pending
-        timestamp: pending
+        status: passed
+        command: python3 scripts/tests.py run --spec share-embed-flow.spec.ts --gate-deploy --expected-commit 3c999b53c12ee7af75f28273b1c537d1d72bf448
+        run_id: "29977065985"
+        orchestrator_run_id: "2026-07-23T03:26:19Z"
+        subject_commit: 3c999b53c
+        timestamp: "2026-07-23T03:30:02Z"
+        target: app.dev.openmates.org
+        deployment_reference: "Vercel dpl_3yY5CMkfAvKhj15G47wiwa1gDGXC READY for 3c999b53c"
+        flaky: false
+        notes: Passed with the deployment gate, proving the existing embed share flow still opens embed sharing and generates an embed share link on the current chat-settings subject commit.
 
 verifications:
   - id: V-USER-VISUAL
