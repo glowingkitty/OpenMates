@@ -97,8 +97,24 @@ async function loginWithMigrationFallback(page: any, migrationEmail: string | nu
 	}
 }
 
-async function resetBrowserAuth(page: any, context: any): Promise<void> {
-	await context.clearCookies();
+async function resetBrowserAuth(page: any, context: any, log: any): Promise<void> {
+	try {
+		const settingsMenu = await openSettingsMenuAtMain(page);
+		const logoutItem = settingsMenu.getByRole('menuitem', { name: /logout|log out|abmelden/i }).first();
+		await expect(logoutItem).toBeVisible({ timeout: 10000 });
+		await logoutItem.click();
+		await expect(page.getByTestId('header-login-signup-btn')).toBeVisible({ timeout: 20000 });
+		log('Logged out through settings menu.');
+	} catch (error) {
+		log('Settings logout failed; falling back to bounded browser auth reset.', { error: String(error) });
+		await Promise.race([
+			context.clearCookies(),
+			page.waitForTimeout(10000).then(() => {
+				throw new Error('Timed out clearing browser cookies.');
+			})
+		]);
+	}
+
 	await page.evaluate(() => {
 		localStorage.clear();
 		sessionStorage.clear();
@@ -221,7 +237,7 @@ test('changes account email and verifies login with the new address', async ({ p
 		if (currentEmail === TEST_EMAIL) {
 			await changeEmail(page, migrationEmail!, log);
 			await screenshot(page, 'mailosaur-migrated-to-gmail');
-			await resetBrowserAuth(page, context);
+			await resetBrowserAuth(page, context, log);
 			await login(page, migrationEmail!, log);
 			log('Migration login with Gmail alias succeeded.', { migrationEmail });
 			return;
@@ -232,12 +248,12 @@ test('changes account email and verifies login with the new address', async ({ p
 	test.skip(temporaryEmail === finalEmail, 'Temporary and final email aliases must differ.');
 	await changeEmail(page, temporaryEmail!, log);
 	await screenshot(page, 'changed-to-temporary-gmail');
-	await resetBrowserAuth(page, context);
+	await resetBrowserAuth(page, context, log);
 	await login(page, temporaryEmail!, log);
 	await openEmailSettings(page, log);
 	await changeEmail(page, finalEmail, log);
 	await screenshot(page, 'changed-back-to-original-gmail');
-	await resetBrowserAuth(page, context);
+	await resetBrowserAuth(page, context, log);
 	await login(page, finalEmail, log);
 	log('Roundtrip login with original Gmail alias succeeded.', { email: finalEmail });
 });
