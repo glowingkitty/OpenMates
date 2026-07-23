@@ -28,6 +28,7 @@ const CHECKPOINT_ID = `${CHAT_ID}-checkpoint-001`;
 const BASE_TIMESTAMP = 1784700000;
 const COMPRESSED_UP_TO_INDEX = 80;
 const TOTAL_MESSAGE_COUNT = 161;
+const MESSAGE_WINDOW_PAGE_SIZE = 30;
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
 async function dismissSecurityReminder(page: any): Promise<void> {
@@ -178,32 +179,36 @@ test('loads long compressed history explicitly and exports hydrated metadata', a
 	await dismissSecurityReminder(page);
 	await expect(page.getByTestId('chat-history-container')).toBeVisible({ timeout: 45000 });
 	const historyContent = page.getByTestId('chat-history-content');
-	await expect(historyContent).toHaveAttribute('data-source-message-count', '40', { timeout: 45000 });
+	await expect(historyContent).toHaveAttribute('data-source-message-count', String(MESSAGE_WINDOW_PAGE_SIZE), {
+		timeout: 45000
+	});
 	await expect(page.getByText('Compression summary: the first 80 planning messages')).toBeVisible({
 		timeout: 45000
 	});
-	await expect(page.getByText('Active assistant message 122')).toBeVisible({ timeout: 45000 });
+	await expect(page.getByText('Active assistant message 132')).toBeVisible({ timeout: 45000 });
 	await expect(page.getByText('Active user message 081')).not.toBeVisible();
 	await expect(page.getByTestId('show-older-messages')).toBeVisible({ timeout: 45000 });
 	await screenshot(page, 'initial-latest-window');
 
 	await page.getByTestId('show-older-messages').click();
-	await expect(historyContent).toHaveAttribute('data-source-message-count', '80', { timeout: 45000 });
+	await expect(historyContent).toHaveAttribute('data-source-message-count', String(MESSAGE_WINDOW_PAGE_SIZE * 2), {
+		timeout: 45000
+	});
 	await page.getByTestId('chat-history-container').evaluate((element: HTMLElement) => {
 		element.scrollTop = 0;
 	});
-	await expect(page.getByText('Active assistant message 082')).toBeVisible({ timeout: 45000 });
+	await expect(page.getByText('Active assistant message 102')).toBeVisible({ timeout: 45000 });
 	await expect(page.getByText('Active user message 081')).not.toBeVisible();
 	await screenshot(page, 'older-active-page-loaded');
 
 	await page.getByTestId('show-forgotten-messages').click();
 	const forgottenRows = page.locator('[data-forgotten="true"]');
 	await expect(forgottenRows.first()).toBeVisible({ timeout: 45000 });
-	await expect(page.getByText('Forgotten user message 041')).toBeVisible({ timeout: 45000 });
+	await expect(page.getByText('Forgotten user message 051')).toBeVisible({ timeout: 45000 });
 	await expect(page.getByText(/readable history, but they are no longer part of the assistant's active context/i)).toBeVisible({
 		timeout: 45000
 	});
-	expect(await forgottenRows.count()).toBe(40);
+	expect(await forgottenRows.count()).toBe(MESSAGE_WINDOW_PAGE_SIZE);
 	await expect
 		.poll(async () => Number(await forgottenRows.first().evaluate((element: HTMLElement) => getComputedStyle(element).opacity)), {
 			timeout: 5000
