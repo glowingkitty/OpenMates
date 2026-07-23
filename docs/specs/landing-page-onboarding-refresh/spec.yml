@@ -119,7 +119,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 4d2acb0509d2a3cbca2e2a0b11d8b248e1c73c55
+  subject_commit: 0382b2e2c4747f6d65d269e31996275c9546a71b
 
 approvals:
   product_contract:
@@ -344,6 +344,20 @@ attempts:
       Playwright control-plane run passed on `app.dev.openmates.org` for commit
       `4d2acb050`, GitHub Actions run `30033131199`, after Vercel deployment
       `dpl_77AUH6AtASCANrPDMYyasfUYgN5s` became Ready.
+  - id: ATTEMPT-17
+    task_id: TASK-2
+    approach: Restore fixed active-chat row sizing for settings-panel opens and tune the landing viewport offsets by orientation.
+    outcome: succeeded
+    recorded_at: "2026-07-23"
+    notes: >
+      Commits through `0382b2e2c4747f6d65d269e31996275c9546a71b` restore fixed
+      viewport-based `.chat-container` sizing so the settings panel cannot push
+      the active chat below the viewport, then use a `55px` fixed-row offset for
+      landscape/desktop and a `66px` offset for portrait/mobile viewports. The
+      deployed Playwright control-plane run passed on `app.dev.openmates.org`,
+      including the settings-open active-chat regression assertion and the exact
+      landing viewport matrix, in GitHub Actions run `30052743776` after Vercel
+      deployment `dpl_GGGVZtr8AJByDKv8L7qEBaNh6FcE` became Ready.
 
 handoff:
   current_task_id: TASK-2
@@ -357,7 +371,7 @@ handoff:
     reason: User visual confirmation is required before TASK-1/TASK-2 can be marked complete.
     question: Does the deployed logged-out landing intro now look correct at your real mobile, tablet, narrow desktop, and desktop sizes?
     next_action: If confirmed, mark phase-1 user confirmation complete; if rejected, record the exact visual mismatch and patch the focused landing intro issue before moving to later slides.
-  last_verified_commit: 4d2acb0509d2a3cbca2e2a0b11d8b248e1c73c55
+  last_verified_commit: 0382b2e2c4747f6d65d269e31996275c9546a71b
 
 scenarios:
   - id: S-1
@@ -578,11 +592,11 @@ tests:
       evidence:
         status: passed
         command: python3 scripts/tests.py run --spec landing-page-onboarding-refresh.spec.ts
-        run_id: "30033131199"
-        subject_commit: 4d2acb0509d2a3cbca2e2a0b11d8b248e1c73c55
+        run_id: "30052743776"
+        subject_commit: 0382b2e2c4747f6d65d269e31996275c9546a71b
         target: app.dev.openmates.org
-        deployment_reference: dpl_77AUH6AtASCANrPDMYyasfUYgN5s
-        timestamp: "2026-07-23T18:22:25Z"
+        deployment_reference: dpl_GGGVZtr8AJByDKv8L7qEBaNh6FcE
+        timestamp: "2026-07-23T23:19:33Z"
   - id: T-WEB-ACTIONABLE-EVENT
     type: playwright
     file: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
@@ -611,11 +625,11 @@ tests:
       evidence:
         status: passed
         command: python3 scripts/tests.py run --spec landing-page-onboarding-refresh.spec.ts
-        run_id: "30033131199"
-        subject_commit: 4d2acb0509d2a3cbca2e2a0b11d8b248e1c73c55
+        run_id: "30052743776"
+        subject_commit: 0382b2e2c4747f6d65d269e31996275c9546a71b
         target: app.dev.openmates.org
-        deployment_reference: dpl_77AUH6AtASCANrPDMYyasfUYgN5s
-        timestamp: "2026-07-23T18:22:25Z"
+        deployment_reference: dpl_GGGVZtr8AJByDKv8L7qEBaNh6FcE
+        timestamp: "2026-07-23T23:19:33Z"
   - id: T-WEB-LANDING-EXAMPLES
     type: playwright
     file: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
@@ -687,14 +701,16 @@ verifications:
         mobile `screenshot-a581230f-8169-4d33-884b-62ab7f3824bd.png`, desktop
         `screenshot-a19739df-2dac-40cd-8bf1-13c62f825358.png`. Firecrawl did not honor exact
         390/768/1024/1280/1920 viewport dimensions for JS measurements; exact viewport coverage
-        was therefore added to `landing-page-onboarding-refresh.spec.ts` and passed on commit
-        `4d2acb050`, GitHub Actions run `30033131199`. Final approval remains pending user
-        visual confirmation.
+        was therefore added to `landing-page-onboarding-refresh.spec.ts`. The latest deployed
+        run also verifies that opening settings does not make the active chat vertically
+        scrollable or push it below the viewport; it passed on commit
+        `0382b2e2c4747f6d65d269e31996275c9546a71b`, GitHub Actions run
+        `30052743776`. Final approval remains pending user visual confirmation.
       reason: User visual confirmation is still required for the exact requested real-device viewport set before this final gate can be marked complete.
       actor: assistant
       next_action: Ask the user to visually confirm the deployed `app.dev.openmates.org` landing intro across their real mobile, tablet, narrow desktop, and desktop sizes.
-      subject_commit: 4d2acb0509d2a3cbca2e2a0b11d8b248e1c73c55
-      timestamp: "2026-07-23T18:22:25Z"
+      subject_commit: 0382b2e2c4747f6d65d269e31996275c9546a71b
+      timestamp: "2026-07-23T23:19:33Z"
   - id: V-APPLE-DEFERRED-PHASE1
     kind: manual_check
     phase: final
