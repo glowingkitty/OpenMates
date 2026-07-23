@@ -133,6 +133,31 @@ test.describe('Landing page onboarding refresh', () => {
 		}
 	});
 
+	test('settings panel keeps active chat fixed inside the viewport', async ({ page }: { page: any }) => {
+		test.setTimeout(45000);
+		await page.setViewportSize({ width: 1920, height: 1080 });
+
+		await page.goto(getE2EDebugUrl('/?settings-active-chat-layout'), { waitUntil: 'domcontentloaded' });
+		await page.waitForLoadState('networkidle');
+		await expect(page.getByTestId('active-chat-container')).toBeVisible({ timeout: 15000 });
+
+		await page.getByTestId('profile-container').click();
+		await expect(page.getByTestId('settings-menu')).toBeVisible({ timeout: 10000 });
+
+		const activeChatLayout = await page.getByTestId('active-chat-container').evaluate((element: HTMLElement) => {
+			const rect = element.getBoundingClientRect();
+			return {
+				bottom: rect.bottom,
+				overflowY: getComputedStyle(element).overflowY,
+				viewportHeight: window.innerHeight
+			};
+		});
+		expect(activeChatLayout.overflowY, 'active chat itself must not become vertically scrollable').toBe('hidden');
+		expect(activeChatLayout.bottom, 'settings panel must not push active chat below the viewport').toBeLessThanOrEqual(
+			activeChatLayout.viewportHeight - 1
+		);
+	});
+
 	test('actionable slide shows the Luma event preview cursor-to-CTA animation', async ({ page }: { page: any }) => {
 		test.setTimeout(45000);
 		await page.setViewportSize({ width: 1280, height: 800 });
