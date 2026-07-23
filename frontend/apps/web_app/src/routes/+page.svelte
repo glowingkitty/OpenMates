@@ -3607,9 +3607,9 @@
 		flex-direction: row;
 		box-sizing: border-box;
 		/* Fallback for browsers that don't support dvh */
-		height: calc(100vh - 82px - var(--dev-console-height, 0px));
+		height: calc(100vh - 66px - var(--dev-console-height, 0px));
 		/* Modern browsers will use this */
-		height: calc(100dvh - 82px - var(--dev-console-height, 0px));
+		height: calc(100dvh - 66px - var(--dev-console-height, 0px));
 		gap: 0px;
 		padding: 10px;
 		padding-bottom: 20px;
