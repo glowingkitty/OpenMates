@@ -256,11 +256,11 @@ test.describe('Example chats loading for new users', () => {
 		await expect(compressionSummary).not.toContainText('## Conversation History Summary');
 		await expect(compressionSummary).not.toContainText('**Compressed Messages:**');
 
-		const summaryShowMore = compressionSummary.getByRole('button', { name: 'Show more' });
+		const summaryShowMore = compressionSummary.getByRole('button', { name: /Show full summary|Show more/ });
 		if (await summaryShowMore.isVisible().catch(() => false)) {
 			await summaryShowMore.click();
 		}
-		await expect(compressionSummary.locator('[data-type="embed-inline"][data-embed-ref]').first()).toBeVisible({ timeout: 15000 });
+		await expect(compressionSummary).toContainText('Referenced Artifacts', { timeout: 15000 });
 
 		const firstPrompt = page.getByTestId('user-message-content').filter({
 			hasText: 'I want to build a privacy-first AI productivity company from zero'
