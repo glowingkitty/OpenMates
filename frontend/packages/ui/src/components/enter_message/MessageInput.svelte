@@ -23,6 +23,7 @@
     import { pendingNotificationReplyStore } from '../../stores/pendingNotificationReplyStore';
     import { editMessageStore, cancelEdit } from '../../stores/editMessageStore';
     import { pendingMentionStore } from '../../stores/pendingMentionStore';
+    import { pendingRememberMessageStore } from '../../stores/pendingRememberMessageStore';
     import { getMatesById } from '../../data/matesMetadata';
     import { appSkillsStore } from '../../stores/appSkillsStore';
     import { appSettingsMemoriesStore } from '../../stores/appSettingsMemoriesStore';
@@ -5315,6 +5316,24 @@
                 hasContent = true;
                 lastEditorUpdateText = editor.getText();
                 updateOriginalMarkdown(editor);
+                editor.commands.focus('end');
+            });
+        }
+    });
+
+    $effect(() => {
+        const rememberText = $pendingRememberMessageStore;
+        if (rememberText && editor && !editor.isDestroyed) {
+            pendingRememberMessageStore.set(null);
+            tick().then(() => {
+                if (!editor || editor.isDestroyed) return;
+                const currentMarkdown = originalMarkdown || editor.getText().trim();
+                originalMarkdown = currentMarkdown
+                    ? `${currentMarkdown}\n\n${rememberText}`
+                    : rememberText;
+                updateEditorFromMarkdown(editor, originalMarkdown);
+                hasContent = true;
+                lastEditorUpdateText = editor.getText();
                 editor.commands.focus('end');
             });
         }

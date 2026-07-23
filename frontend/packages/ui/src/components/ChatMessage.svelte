@@ -71,10 +71,12 @@
   import { text, settingsDeepLink, panelState } from '@repo/ui'; // For translations
   import { getModelDisplayName, getModelByNameOrId } from '../utils/modelDisplayName';
   import { getMatesById } from '../data/matesMetadata';
-import { reportIssueStore } from '../stores/reportIssueStore';
-import { startEdit } from '../stores/editMessageStore';
-import { messageHighlightStore, searchTextHighlightStore } from '../stores/messageHighlightStore';
-import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadStore';
+  import { reportIssueStore } from '../stores/reportIssueStore';
+  import { startEdit } from '../stores/editMessageStore';
+  import { messageHighlightStore, searchTextHighlightStore } from '../stores/messageHighlightStore';
+  import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadStore';
+  import { pendingRememberMessageStore } from '../stores/pendingRememberMessageStore';
+  import { formatRememberMessageDraft } from '../utils/rememberMessage';
   import { chatDB } from '../services/db';
   import { chatKeyManager } from '../services/encryption/ChatKeyManager';
   import { chatSyncService } from '../services/chatSyncService';
@@ -177,6 +179,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
     onResend = undefined,
     onChatNavigate = undefined,
     canAnnotate = true,
+    isForgottenMessage = false,
   }: {
     role?: MessageRole;
     category?: string;
@@ -216,6 +219,8 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
      *  the Highlight entry points (context menu + selection toolbar) so the
      *  UI mirrors the backend's owner-only enforcement. Defaults to true. */
     canAnnotate?: boolean;
+    /** True when this message is readable history outside the active compressed context. */
+    isForgottenMessage?: boolean;
   } = $props();
   
   // State for thinking section expansion
@@ -940,6 +945,16 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
     return lines.slice(0, 4).join('\n') + '...';
   });
 
+  function normalizeCompressionSummaryEmbedRefs(summary: string): string {
+    return summary
+      .replace(/`embed_ref:\s*([^`\s)]+)`/g, (_match, embedRef: string) => `[${embedRef}](embed:${embedRef})`)
+      .replace(/\(embed_ref:\s*([A-Za-z0-9._-]+)\)/g, (_match, embedRef: string) => `([${embedRef}](embed:${embedRef}))`);
+  }
+
+  let compressionPreviewMarkdown = $derived(
+    normalizeCompressionSummaryEmbedRefs(compressionPreviewLines)
+  );
+
   let compressionNeedsExpand = $derived.by(() => {
     if (!compressionSummaryText) return false;
     return compressionSummaryText.split('\n').length > 4;
@@ -1376,6 +1391,16 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
 
     settingsDeepLink.set('report_issue');
     panelState.openSettings();
+  }
+
+  function handleRememberMessage(event?: Event) {
+    event?.stopPropagation();
+    event?.preventDefault();
+    const markdown = typeof original_message?.content === 'string'
+      ? original_message.content
+      : (typeof content === 'string' ? content : '');
+    if (!markdown.trim()) return;
+    pendingRememberMessageStore.set(formatRememberMessageDraft(markdown));
   }
 
   /**
@@ -2983,7 +3008,12 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
           <span class="compression-summary-title">{$text('chat.compression.summary_title')}</span>
         </div>
         <div class="compression-summary-body" class:expanded={compressionExpanded}>
-          <pre class="compression-summary-text">{compressionPreviewLines}</pre>
+          <ReadOnlyMessage
+            content={compressionPreviewMarkdown}
+            selectable={true}
+            role="system"
+            _embedUpdateTimestamp={_embedUpdateTimestamp}
+          />
         </div>
         {#if compressionNeedsExpand}
           <button
@@ -3086,6 +3116,18 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
       ontouchend={handleMessageTouchEnd}
       ontouchcancel={handleMessageTouchEnd}
     >
+      {#if isForgottenMessage}
+        <button
+          type="button"
+          class="remember-forgotten-message-pill"
+          data-testid="remember-forgotten-message"
+          onclick={handleRememberMessage}
+        >
+          <span class="remember-forgotten-message-icon" aria-hidden="true"></span>
+          <span>{$text('chat.compression.remember_this_message')}</span>
+        </button>
+      {/if}
+
       {#if role === 'assistant'}
         {#if isMateClickable}
           <button
@@ -3447,9 +3489,10 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
            onFork={handleFork}
            disableFork={isForkDisabled}
            onHighlight={messageId && !isSharedReadOnly ? handleHighlightAction : undefined}
-           onHighlightAndComment={messageId && !isSharedReadOnly ? handleHighlightAndCommentAction : undefined}
-           onExplainInNewChat={messageId && !isSharedReadOnly && !isForkDisabled ? handleExplainInNewChatFromSelection : undefined}
-           hideHighlight={!cachedSelectionAnchor || isSharedReadOnly}
+            onHighlightAndComment={messageId && !isSharedReadOnly ? handleHighlightAndCommentAction : undefined}
+            onExplainInNewChat={messageId && !isSharedReadOnly && !isForkDisabled ? handleExplainInNewChatFromSelection : undefined}
+            onRemember={isForgottenMessage ? handleRememberMessage : undefined}
+            hideHighlight={!cachedSelectionAnchor || isSharedReadOnly}
            {messageId}
            {userMessageId}
            {role}
@@ -3583,7 +3626,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
     text-align: center;
     padding: var(--spacing-4) var(--spacing-8);
     border-radius: var(--radius-5);
-    background: var(--color-grey-15, rgba(255, 255, 255, 0.05));
+    background: var(--color-grey-10, rgba(255, 255, 255, 0.05));
   }
 
   .system-message-text {
@@ -3752,7 +3795,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
     align-items: start;
     padding: 8px 10px;
     border-radius: 14px;
-    background: var(--color-grey-5);
+    background: var(--color-grey-10);
   }
 
   .sub-chat-confirmation-item span {
@@ -3810,7 +3853,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
   }
 
   .sub-chat-confirmation-secondary {
-    background: var(--color-grey-15);
+    background: var(--color-grey-10);
     color: var(--color-font-primary);
   }
 
@@ -3882,7 +3925,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
     background: rgba(0, 0, 0, 0.28);
     border: 1px solid rgba(255, 255, 255, 0.22);
     color: rgba(255, 255, 255, 0.92);
-    font-size: 10px;
+    font-size: var(--font-size-xxs);
     font-weight: 800;
     line-height: 1;
   }
@@ -4043,7 +4086,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
   .compression-summary-card {
     max-width: 90%;
     width: 600px;
-    background: var(--color-grey-15, rgba(255, 255, 255, 0.05));
+    background: var(--color-grey-10, rgba(255, 255, 255, 0.05));
     border: 1px solid var(--color-grey-20, rgba(255, 255, 255, 0.08));
     border-radius: var(--radius-7);
     padding: var(--spacing-8) var(--spacing-10);
@@ -4100,6 +4143,40 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
 
   .compression-summary-toggle:hover {
     opacity: 0.7;
+  }
+
+  .remember-forgotten-message-pill {
+    all: unset;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    align-self: flex-start;
+    width: fit-content;
+    margin-bottom: var(--spacing-4);
+    padding: var(--spacing-2) var(--spacing-5);
+    border: 1px solid var(--color-grey-20, rgba(255, 255, 255, 0.08));
+    border-radius: var(--radius-full);
+    background: var(--color-grey-10, rgba(255, 255, 255, 0.05));
+    color: var(--color-grey-80, #ccc);
+    cursor: pointer;
+    font-size: var(--font-size-xxs);
+    font-weight: 600;
+    line-height: 1.2;
+    transition: background-color var(--duration-fast) var(--easing-default), color var(--duration-fast) var(--easing-default);
+  }
+
+  .remember-forgotten-message-pill:hover {
+    background: var(--color-grey-20, rgba(255, 255, 255, 0.08));
+    color: var(--color-font-primary);
+  }
+
+  .remember-forgotten-message-icon {
+    width: 14px;
+    height: 14px;
+    flex: 0 0 14px;
+    background: currentColor;
+    -webkit-mask: var(--icon-url-reasoning) center / contain no-repeat;
+    mask: var(--icon-url-reasoning) center / contain no-repeat;
   }
 
   .chat-app-cards-container {
@@ -4262,7 +4339,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
     margin-left: var(--spacing-6);
     padding: var(--spacing-3) var(--spacing-5);
     border-radius: var(--radius-3);
-    background: var(--color-grey-15, rgba(255, 255, 255, 0.05));
+    background: var(--color-grey-10, rgba(255, 255, 255, 0.05));
   }
 
   .embed-error-text {
@@ -4399,7 +4476,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    background: var(--color-grey-15, #f5f5f5);
+    background: var(--color-grey-10, #f5f5f5);
     border-radius: var(--radius-3);
     padding: var(--spacing-1) var(--spacing-4) var(--spacing-1) var(--spacing-2);
     cursor: pointer;

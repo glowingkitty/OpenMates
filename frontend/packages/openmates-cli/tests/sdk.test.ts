@@ -458,6 +458,31 @@ describe("OpenMates SDK", () => {
     });
   });
 
+  it("rewrites remember-message references before non-persistent SDK sends", async () => {
+    let requestBody: Record<string, unknown> | undefined;
+    await withServer((request, response) => {
+      assert.equal(request.url, "/v1/sdk/chats");
+      let body = "";
+      request.on("data", (chunk) => { body += chunk.toString(); });
+      request.on("end", () => {
+        requestBody = JSON.parse(body) as Record<string, unknown>;
+        response.setHeader("content-type", "application/json");
+        response.end(JSON.stringify({ response: { content: "ok" } }));
+      });
+    }, async (apiUrl) => {
+      const client = new OpenMates({ apiKey: "sk-api-test", apiUrl });
+      await client.chats.send("Remember my message @abc12345", {
+        history: [{ id: "abc12345-0000-4000-8000-000000000000", role: "user", content: "Earlier\nWith [embed](embed:ref-1)" }],
+      });
+    });
+
+    assert.equal(
+      requestBody?.message,
+      "Remember my earlier message:\n\n> Earlier\n> With [embed](embed:ref-1)",
+    );
+    assert.equal(((requestBody?.history as Record<string, unknown>[])?.[0])?.content, "Earlier\nWith [embed](embed:ref-1)");
+  });
+
   it("preflights saved chats with epoch-1 encrypted recovery material", async () => {
     const masterKey = generateSalt(32);
     const material = await createApiKeyCryptoMaterial("Saved chat test", bytesToBase64(masterKey));

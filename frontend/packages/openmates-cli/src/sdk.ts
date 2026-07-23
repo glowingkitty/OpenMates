@@ -69,6 +69,7 @@ import {
   type TaskPriorityLevel,
   type TaskUpdateOptions,
 } from "./tasksCli.js";
+import { hasRememberMessageReference, rewriteRememberMessageReferences } from "./rememberMessage.js";
 import type {
   WorkflowCapability,
   WorkflowDetail,
@@ -1058,6 +1059,26 @@ function normalizeHistory(history: ChatSendOptions["history"]): Array<Record<str
   return Array.isArray(history.messages) ? history.messages : [];
 }
 
+function rememberableMessagesFromRecords(records: Array<Record<string, unknown>>): ChatMessageRecord[] {
+  return records
+    .map((record) => {
+      const id = stringField(record.id) ?? stringField(record.client_message_id) ?? stringField(record.message_id);
+      const content = stringField(record.content);
+      if (!id || content === null) return null;
+      return {
+        id,
+        role: stringField(record.role) ?? "unknown",
+        content,
+        senderName: stringField(record.senderName) ?? stringField(record.sender_name),
+        category: stringField(record.category),
+        modelName: stringField(record.modelName) ?? stringField(record.model_name),
+        createdAt: numericField(record.created_at) ?? 0,
+        preview: content.replace(/\s+/g, " ").trim().slice(0, 120),
+      } satisfies ChatMessageRecord;
+    })
+    .filter((message): message is ChatMessageRecord => message !== null);
+}
+
 function parseMaybeJson(value: string | null): unknown {
   if (value === null) return null;
   try {
@@ -1273,12 +1294,16 @@ export class OpenMatesChats {
   }
 
   async send(message: string, options: ChatSendOptions = {}): Promise<ChatResponse> {
+    const history = normalizeHistory(options.history);
+    const finalMessage = hasRememberMessageReference(message)
+      ? rewriteRememberMessageReferences(message, rememberableMessagesFromRecords(history))
+      : message;
     if (options.saveToAccount === true) {
-      return this.sendSaved(message, options);
+      return this.sendSaved(finalMessage, options);
     }
     const result = await this.client.request<{ response?: ChatResponse }>("/v1/sdk/chats", {
-      message,
-      history: normalizeHistory(options.history),
+      message: finalMessage,
+      history,
       save_to_account: false,
       memory_ids: options.memoryIds ?? [],
       model: options.model,
@@ -1306,10 +1331,12 @@ export class OpenMatesChats {
     let encryptedChatKey: string;
     let expectedMessagesV = 0;
     let encryptedChatMetadata: Record<string, unknown> | undefined;
+    let loadedMessages: ChatMessageRecord[] = [];
 
     if (options.chatId) {
       const loaded = await this.load(chatId);
       const chat = loaded.chat as EncryptedChatMetadata | undefined;
+      loadedMessages = normalizeLoadedChatMessages(loaded);
       if (!chat?.encrypted_chat_key) {
         throw new OpenMatesConfigError("Saved chat does not include encrypted chat key material");
       }
@@ -1331,14 +1358,24 @@ export class OpenMatesChats {
       };
     }
 
+    const history = normalizeHistory(options.history);
+    const rememberableMessages = loadedMessages.length > 0
+      ? loadedMessages
+      : rememberableMessagesFromRecords(history);
+    const finalMessage = hasRememberMessageReference(message)
+      ? rewriteRememberMessageReferences(message, rememberableMessages)
+      : message;
+    if (encryptedChatMetadata && !options.title && finalMessage !== message) {
+      encryptedChatMetadata.encrypted_title = await encryptWithAesGcmCombined(finalMessage.slice(0, 80), chatKey);
+    }
+
     const recovery = await deriveChatCompletionRecoveryKeypair(
       Buffer.from(chatKey).toString("base64url"),
       chatId,
       1,
     );
-    const history = normalizeHistory(options.history);
     const inferenceRequest = {
-      messages: [...history, { role: "user", content: message }],
+      messages: [...history, { role: "user", content: finalMessage }],
       model: options.model,
       focus_mode: options.focusMode
         ? { app_id: options.focusMode.appId, focus_mode_id: options.focusMode.focusModeId }
@@ -1350,7 +1387,7 @@ export class OpenMatesChats {
       preflight?: Record<string, unknown>;
       task_id?: string;
     }>("/v1/sdk/chats", {
-      message,
+      message: finalMessage,
       history,
       save_to_account: true,
       title: options.title,
@@ -1368,7 +1405,7 @@ export class OpenMatesChats {
       encrypted_user_message: {
         client_message_id: messageId,
         chat_id: chatId,
-        encrypted_content: await encryptWithAesGcmCombined(message, chatKey),
+        encrypted_content: await encryptWithAesGcmCombined(finalMessage, chatKey),
         encrypted_sender_name: await encryptWithAesGcmCombined("User", chatKey),
         role: "user",
         created_at: createdAt,

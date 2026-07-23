@@ -1072,6 +1072,31 @@ def test_new_chat_defaults_to_non_persistent(monkeypatch):
     assert requests[0]["json"]["save_to_account"] is False
 
 
+def test_chat_send_rewrites_remember_message_references(monkeypatch):
+    requests = []
+
+    class FakeResponse:
+        status_code = 200
+
+        def json(self):
+            return {"response": {"content": "ok"}}
+
+    def fake_post(url, *, json, headers, timeout):
+        requests.append({"url": url, "json": json, "headers": headers, "timeout": timeout})
+        return FakeResponse()
+
+    monkeypatch.setattr("openmates.sdk.requests.post", fake_post)
+
+    client = OpenMates(api_key="sk-api-test")
+    client.chats.send(
+        "Remember my message @abc12345",
+        history=[{"id": "abc12345-0000-4000-8000-000000000000", "role": "user", "content": "Earlier\nWith [embed](embed:ref-1)"}],
+    )
+
+    assert requests[0]["json"]["message"] == "Remember my earlier message:\n\n> Earlier\n> With [embed](embed:ref-1)"
+    assert requests[0]["json"]["history"][0]["content"] == "Earlier\nWith [embed](embed:ref-1)"
+
+
 def test_saved_chat_preflights_epoch_one_encrypted_recovery_material(monkeypatch):
     api_key = "sk-api-python-saved"
     key_wrapper = _wrap_master_key(api_key, os.urandom(32))

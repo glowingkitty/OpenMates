@@ -251,7 +251,16 @@ test.describe('Example chats loading for new users', () => {
 
 		const compressionSummary = page.getByTestId('message-system').filter({ hasText: 'Conversation History Summary' });
 		await expect(compressionSummary).toBeVisible({ timeout: 15000 });
-		await expect(compressionSummary).toContainText('Compressed Messages');
+		await expect(compressionSummary.locator('h2, h3').filter({ hasText: 'Conversation History Summary' })).toBeVisible({ timeout: 15000 });
+		await expect(compressionSummary.locator('strong').filter({ hasText: 'Compressed Messages:' })).toBeVisible({ timeout: 15000 });
+		await expect(compressionSummary).not.toContainText('## Conversation History Summary');
+		await expect(compressionSummary).not.toContainText('**Compressed Messages:**');
+
+		const summaryShowMore = compressionSummary.getByRole('button', { name: 'Show more' });
+		if (await summaryShowMore.isVisible().catch(() => false)) {
+			await summaryShowMore.click();
+		}
+		await expect(compressionSummary.locator('[data-type="embed-inline"][data-embed-ref]').first()).toBeVisible({ timeout: 15000 });
 
 		const firstPrompt = page.getByTestId('user-message-content').filter({
 			hasText: 'I want to build a privacy-first AI productivity company from zero'
@@ -266,6 +275,12 @@ test.describe('Example chats loading for new users', () => {
 			timeout: 10000
 		}).toBeGreaterThan(visibleMessageCount);
 		await expect(firstPrompt).toBeVisible({ timeout: 10000 });
+		await expect(page.getByTestId('hide-forgotten-messages-at-boundary')).toBeVisible({ timeout: 10000 });
+
+		await firstPrompt.getByTestId('remember-forgotten-message').click();
+		const messageEditor = page.getByTestId('message-editor');
+		await expect(messageEditor).toContainText('Remember my earlier message:', { timeout: 10000 });
+		await expect(messageEditor).toContainText('privacy-first AI productivity company from zero', { timeout: 10000 });
 	});
 
 	test('nutrition example renders Edamam recipe search embed card', async ({

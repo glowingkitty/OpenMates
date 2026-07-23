@@ -2893,6 +2893,31 @@ context_menu.highlight_and_comment:
   he: הדגשה ותגובה
   verified_by_human: []
 
+context_menu.remember:
+  context: Message context menu option to insert a forgotten message into the draft as an explicit quote block. Short label, 1 word.
+  en: Remember
+  de: Erinnern
+  zh: Remember
+  es: Remember
+  fr: Remember
+  pt: Remember
+  ru: Remember
+  ja: Remember
+  ko: Remember
+  it: Remember
+  tr: Remember
+  vi: Remember
+  id: Remember
+  pl: Remember
+  nl: Remember
+  ar: Remember
+  hi: Remember
+  th: Remember
+  cs: Remember
+  sv: Remember
+  he: Remember
+  verified_by_human: []
+
 highlight.comment_placeholder:
   context: Placeholder text inside the comment textarea of the highlight comment popover, inviting the user to write a short note about the highlighted passage.
   en: Add a comment…

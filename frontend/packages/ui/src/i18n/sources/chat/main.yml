@@ -2615,8 +2615,8 @@ compression.show_more_forgotten:
   verified_by_human: []
 
 compression.forgotten_note:
-  context: Explanation shown above faded messages that are readable but no longer active AI context
-  en: Faded messages are readable history, but they are no longer part of the assistant's active context.
+  context: Explanation shown above messages that are readable but no longer active AI context
+  en: These messages are readable history, but they are no longer part of the assistant's active context.
   de: Ausgeblendete Nachrichten sind lesbarer Verlauf, gehören aber nicht mehr zum aktiven Kontext des Assistenten.
   zh: Faded messages are readable history, but they are no longer part of the assistant's active context.
   es: Faded messages are readable history, but they are no longer part of the assistant's active context.
@@ -2637,6 +2637,31 @@ compression.forgotten_note:
   cs: Faded messages are readable history, but they are no longer part of the assistant's active context.
   sv: Faded messages are readable history, but they are no longer part of the assistant's active context.
   he: Faded messages are readable history, but they are no longer part of the assistant's active context.
+  verified_by_human: []
+
+compression.remember_this_message:
+  context: Pill button shown on forgotten messages to copy that message into the draft as an explicit quote block
+  en: Remember this message
+  de: Diese Nachricht erinnern
+  zh: Remember this message
+  es: Remember this message
+  fr: Remember this message
+  pt: Remember this message
+  ru: Remember this message
+  ja: Remember this message
+  ko: Remember this message
+  it: Remember this message
+  tr: Remember this message
+  vi: Remember this message
+  id: Remember this message
+  pl: Remember this message
+  nl: Remember this message
+  ar: Remember this message
+  hi: Remember this message
+  th: Remember this message
+  cs: Remember this message
+  sv: Remember this message
+  he: Remember this message
   verified_by_human: []
 
 history.show_older_messages:
@@ -2666,7 +2691,7 @@ history.show_older_messages:
 
 compression.hide_forgotten:
   context: Button text to hide the earlier compressed/forgotten messages
-  en: Hide earlier messages
+  en: Hide old forgotten messages
   de: Frühere Nachrichten ausblenden
   zh: 隐藏早期消息
   es: Ocultar mensajes anteriores

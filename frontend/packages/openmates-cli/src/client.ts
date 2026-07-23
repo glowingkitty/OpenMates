@@ -103,6 +103,7 @@ import {
   findTask,
   type DecryptedUserTask,
 } from "./tasksCli.js";
+import { hasRememberMessageReference, rewriteRememberMessageReferences } from "./rememberMessage.js";
 
 const PROMPT_INJECTION_DISABLED = "disabled";
 
@@ -5680,7 +5681,6 @@ export class OpenMatesClient {
     }>;
   }> {
     const teamId = this.resolveTeamContext({ teamId: params.teamId, personal: params.personal });
-    const shouldWaitForAi = shouldWaitForTeamAi(params.message, teamId);
     // Resolve short IDs (8-char prefix) to full UUIDs via sync cache.
     // Full UUIDs and undefined (new chat) pass through unchanged.
     let chatId: string;
@@ -5698,6 +5698,19 @@ export class OpenMatesClient {
     } else {
       chatId = params.chatId;
     }
+
+    let finalMessage = params.message;
+    if (hasRememberMessageReference(finalMessage)) {
+      const rememberedHistory = (params.messageHistory ?? [])
+        .map((message) => ({ id: message.message_id, content: message.content }))
+        .filter((message) => Boolean(message.id) && typeof message.content === "string");
+      finalMessage = rewriteRememberMessageReferences(finalMessage, rememberedHistory);
+    }
+    if (params.chatId && !params.incognito && hasRememberMessageReference(finalMessage)) {
+      const { messages } = await this.getChatMessages(chatId, { personal: !teamId, teamId });
+      finalMessage = rewriteRememberMessageReferences(finalMessage, messages);
+    }
+    const shouldWaitForAi = shouldWaitForTeamAi(finalMessage, teamId);
 
     let availableMemories: DecryptedMemoryEntry[] = [];
     let memoryMetadataKeys: string[] = [];
@@ -5719,7 +5732,7 @@ export class OpenMatesClient {
       }
     }
 
-    const explicitTasksAppSkill = messageExplicitlyRequestsTasksAppSkill(params.message);
+    const explicitTasksAppSkill = messageExplicitlyRequestsTasksAppSkill(finalMessage);
     const taskUpdateJobsEnabled = params.taskUpdateJobs !== false && !explicitTasksAppSkill;
     const { ws, ownerId } = await this.openWsClient({
       taskUpdateJobs: taskUpdateJobsEnabled,
@@ -5830,7 +5843,7 @@ export class OpenMatesClient {
         role: "user",
         sender_name: "User",
         status: "sent",
-        content: params.message,
+        content: finalMessage,
         created_at: createdAt,
         chat_has_title: Boolean(params.chatId),
       },
@@ -5868,7 +5881,7 @@ export class OpenMatesClient {
         chat_id: chatId,
         role: "user",
         sender_name: "User",
-        content: params.message,
+        content: finalMessage,
         created_at: createdAt,
       }];
     } else if (messageHistoryForRequest && messageHistoryForRequest.length > 0) {
@@ -5933,7 +5946,7 @@ export class OpenMatesClient {
         chatKeyVersion,
       );
       const encryptedContent = await encryptWithAesGcmCombined(
-        params.message,
+        finalMessage,
         chatKeyBytes,
       );
       const encryptedUserMessage: Record<string, unknown> = {

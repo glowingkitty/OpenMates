@@ -951,8 +951,12 @@
 
   function isForgottenMessage(msg: InternalMessage): boolean {
     if (!latestCompressionCheckpoint) return false;
-    if (msg.role === 'system' && msg.category === 'compression_summary') return false;
+    if (isCompressionSummaryMessage(msg)) return false;
     return (msg.original_message?.created_at ?? 0) <= latestCompressionCheckpoint.compressed_up_to_timestamp;
+  }
+
+  function isCompressionSummaryMessage(msg: InternalMessage): boolean {
+    return msg.role === 'system' && (msg.category === 'compression_summary' || msg.original_message?.category === 'compression_summary');
   }
 
   async function handleOldMessagesResponse(payload: {
@@ -2669,17 +2673,29 @@
                 <div class="message-wrapper {msg.role === 'system' ? 'system' : (msg.role === 'user' ? 'user' : 'assistant')}"
                       class:target-message={$messageHighlightStore === msg.id}
                       class:forgotten-message={isForgottenMessage(msg)}
+                      class:compression-boundary-wrapper={showForgottenMessages && isCompressionSummaryMessage(msg)}
                       data-testid="message-{msg.role === 'system' ? 'system' : (msg.role === 'user' ? 'user' : 'assistant')}"
                       data-forgotten={isForgottenMessage(msg) ? 'true' : 'false'}
                       data-message-id={msg.id}
                       aria-describedby={isForgottenMessage(msg) ? 'forgotten-messages-note' : undefined}
                       style={`
-                           opacity: ${isForgottenMessage(msg) ? 0.6 : (($editMessageStore && $editMessageStore.chatId === currentChatId && (msg.original_message?.created_at ?? 0) >= $editMessageStore.createdAt) ? 0.4 : (msg.status === 'sending' ? 0.5 : (msg.status === 'failed' ? 0.7 : 1)))};
+                            opacity: ${($editMessageStore && $editMessageStore.chatId === currentChatId && (msg.original_message?.created_at ?? 0) >= $editMessageStore.createdAt) ? 0.4 : (msg.status === 'sending' ? 0.5 : (msg.status === 'failed' ? 0.7 : 1))};
                          ${($editMessageStore && $editMessageStore.chatId === currentChatId && (msg.original_message?.created_at ?? 0) >= $editMessageStore.createdAt) ? 'pointer-events: none;' : ''}
                          ${msg.status === 'failed' ? 'border: 1px solid var(--color-error); border-radius: 12px; padding: 2px;' : ''}
-                     `}
-                     in:fade={{ duration: (msg.status === 'streaming' || msg.status === 'processing') ? 0 : 300 }}
-                     animate:flip={{ duration: (msg.status === 'streaming' || msg.status === 'processing') ? 0 : 250 }}>
+                      `}
+                      in:fade={{ duration: (msg.status === 'streaming' || msg.status === 'processing') ? 0 : 300 }}
+                      animate:flip={{ duration: (msg.status === 'streaming' || msg.status === 'processing') ? 0 : 250 }}>
+                    {#if showForgottenMessages && isCompressionSummaryMessage(msg)}
+                      <div class="forgotten-messages-boundary-toggle">
+                        <button
+                          class="forgotten-messages-btn"
+                          data-testid="hide-forgotten-messages-at-boundary"
+                          onclick={() => { void toggleForgottenMessages(); }}
+                        >
+                          {$text('chat.compression.hide_forgotten')}
+                        </button>
+                      </div>
+                    {/if}
                     <ChatMessage
                         role={msg.role}
                         category={msg.category}
@@ -2704,6 +2720,7 @@
                         {onResend}
                         {onChatNavigate}
                         {canAnnotate}
+                        isForgottenMessage={isForgottenMessage(msg)}
                     />
 
                 </div>
@@ -3190,6 +3207,11 @@
     justify-content: center;
   }
 
+  .message-wrapper.compression-boundary-wrapper {
+    flex-direction: column;
+    align-items: center;
+  }
+
   .message-wrapper :global(.chat-message) {
     width: 100%;
   }
@@ -3200,7 +3222,7 @@
     border-radius: var(--radius-8);
   }
 
-  /* "Show earlier messages" toggle button for compressed chats.
+  /* Forgotten-message controls for compressed chats.
      Appears above the message list when a compression summary exists. */
   .forgotten-messages-toggle {
     display: flex;
@@ -3209,6 +3231,12 @@
     justify-content: center;
     gap: var(--spacing-2);
     padding: 8px 0 4px;
+  }
+
+  .forgotten-messages-boundary-toggle {
+    display: flex;
+    justify-content: center;
+    padding: 2px 0 var(--spacing-4);
   }
 
   .forgotten-messages-btn {

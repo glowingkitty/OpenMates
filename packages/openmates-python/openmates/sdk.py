@@ -65,6 +65,8 @@ IDEABUCKET_APP_ID = "ideabucket"
 IDEABUCKET_SETTINGS_ITEM_TYPE = "processing_settings"
 IDEABUCKET_DEFAULT_PROCESSING_TIMES = ("09:00",)
 IDEABUCKET_PROCESSING_TIME_PATTERN = re.compile(r"^([01]\d|2[0-3]):([0-5]\d)$")
+REMEMBER_MESSAGE_PREFIX = "Remember my earlier message:"
+REMEMBER_MESSAGE_REFERENCE_RE = re.compile(r"\bRemember my (?:earlier )?message @([A-Za-z0-9-]{4,36})\b", re.IGNORECASE)
 ACCOUNT_EXPORT_FORBIDDEN_FIELD_NAMES = {
     "access_token",
     "api_key",
@@ -650,6 +652,31 @@ def _normalize_history(history: Any) -> list[dict[str, Any]]:
     if isinstance(history, dict) and isinstance(history.get("messages"), list):
         return [item for item in history["messages"] if isinstance(item, dict)]
     return []
+
+
+def _format_remember_message_draft(content: str) -> str:
+    trimmed = content.strip()
+    if not trimmed:
+        return REMEMBER_MESSAGE_PREFIX
+    quoted = "\n".join(f"> {line}" for line in re.split(r"\r?\n", trimmed))
+    return f"{REMEMBER_MESSAGE_PREFIX}\n\n{quoted}"
+
+
+def _rewrite_remember_message_references(message: str, messages: list[dict[str, Any]]) -> str:
+    def replace(match: re.Match[str]) -> str:
+        message_id = match.group(1)
+        for candidate in messages:
+            candidate_id = candidate.get("id") or candidate.get("client_message_id") or candidate.get("message_id")
+            content = candidate.get("content")
+            if isinstance(candidate_id, str) and isinstance(content, str) and (candidate_id == message_id or candidate_id.startswith(message_id)):
+                return _format_remember_message_draft(content)
+        return match.group(0)
+
+    return REMEMBER_MESSAGE_REFERENCE_RE.sub(replace, message)
+
+
+def _has_remember_message_reference(message: str) -> bool:
+    return REMEMBER_MESSAGE_REFERENCE_RE.search(message) is not None
 
 
 def _b64decode(value: str) -> bytes:
@@ -1489,10 +1516,12 @@ class OpenMatesChats:
         recovery_poll_interval_seconds: float = DEFAULT_RECOVERY_POLL_INTERVAL_SECONDS,
         recovery_timeout_seconds: float = DEFAULT_RECOVERY_TIMEOUT_SECONDS,
     ) -> ChatResponse:
+        normalized_history = _normalize_history(history)
+        final_message = _rewrite_remember_message_references(message, normalized_history) if _has_remember_message_reference(message) else message
         if save_to_account:
             return self._send_saved(
-                message,
-                history=history,
+                final_message,
+                history=normalized_history,
                 focus_mode=focus_mode,
                 memory_ids=memory_ids,
                 model=model,
@@ -1506,8 +1535,8 @@ class OpenMatesChats:
         data = self._client._post(
             "/v1/sdk/chats",
             {
-                "message": message,
-                "history": _normalize_history(history),
+                "message": final_message,
+                "history": normalized_history,
                 "save_to_account": save_to_account,
                 "focus_mode": focus_mode,
                 "memory_ids": memory_ids or [],
@@ -1546,9 +1575,11 @@ class OpenMatesChats:
         created_at = int(time.time())
         expected_messages_v = 0
         encrypted_chat_metadata = None
+        loaded_messages: list[dict[str, Any]] = []
         if chat_id:
             loaded = self.load(chat_id)
             chat = loaded.get("chat") if isinstance(loaded.get("chat"), dict) else {}
+            loaded_messages = _normalize_loaded_chat_messages(loaded)
             encrypted_chat_key = chat.get("encrypted_chat_key")
             if not isinstance(encrypted_chat_key, str):
                 raise OpenMatesConfigError("Saved chat does not include encrypted chat key material")
@@ -1572,14 +1603,18 @@ class OpenMatesChats:
             1,
         )
         normalized_history = _normalize_history(history)
+        rememberable_messages = loaded_messages or normalized_history
+        final_message = _rewrite_remember_message_references(message, rememberable_messages) if _has_remember_message_reference(message) else message
+        if encrypted_chat_metadata is not None and title is None and final_message != message:
+            encrypted_chat_metadata["encrypted_title"] = _encrypt_aes_gcm_text(final_message[:80], chat_key)
         inference_request = {
-            "messages": [*normalized_history, {"role": "user", "content": message}],
+            "messages": [*normalized_history, {"role": "user", "content": final_message}],
             "model": model,
             "focus_mode": focus_mode,
             "memory_ids": memory_ids or [],
         }
         payload = {
-            "message": message,
+            "message": final_message,
             "history": normalized_history,
             "save_to_account": True,
             "title": title,
@@ -1597,7 +1632,7 @@ class OpenMatesChats:
             "encrypted_user_message": {
                 "client_message_id": message_id,
                 "chat_id": saved_chat_id,
-                "encrypted_content": _encrypt_aes_gcm_text(message, chat_key),
+                "encrypted_content": _encrypt_aes_gcm_text(final_message, chat_key),
                 "encrypted_sender_name": _encrypt_aes_gcm_text("User", chat_key),
                 "role": "user",
                 "created_at": created_at,
