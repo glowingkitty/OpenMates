@@ -21,6 +21,14 @@
   import { userDB } from '../../services/userDB';
   import { isPublicChat } from '../../demo_chats/convertToChat';
   import type { Chat, Message } from '../../types/chat';
+  import {
+    SettingsButton,
+    SettingsCard,
+    SettingsDivider,
+    SettingsInfoBox,
+    SettingsInput,
+    SettingsItem,
+  } from '../settings/elements';
 
   const PRIMARY_SHORT_LINK_TIMEOUT_MS = 5000;
 
@@ -230,90 +238,98 @@
 
 <section class="chat-share" data-testid="chat-settings-share-section">
   {#if !generatedLink}
-    <div class="share-option" data-testid="chat-settings-share-community">
-      <span class="option-icon icon_globe"></span>
-      <strong>Share with community</strong>
-      <label class="switch"><input type="checkbox" bind:checked={shareWithCommunity} /><span></span></label>
-    </div>
-    <div class="share-option" data-testid="chat-settings-share-password">
-      <span class="option-icon icon_key"></span>
-      <strong>Password protection</strong>
-      <label class="switch"><input type="checkbox" bind:checked={passwordEnabled} /><span></span></label>
-    </div>
+    <SettingsCard>
+      <SettingsItem
+        type="action"
+        icon="subsetting_icon globe"
+        title="Share with community"
+        subtitleTop="Allow this shared chat to appear in community surfaces."
+        hasToggle={true}
+        checked={shareWithCommunity}
+        data-testid="chat-settings-share-community"
+        onClick={() => { shareWithCommunity = !shareWithCommunity; }}
+      />
+      <SettingsItem
+        type="action"
+        icon="subsetting_icon key"
+        title="Password protection"
+        subtitleTop="Require a short password before opening the shared chat."
+        hasToggle={true}
+        checked={passwordEnabled}
+        data-testid="chat-settings-share-password"
+        onClick={() => { passwordEnabled = !passwordEnabled; }}
+      />
     {#if passwordEnabled}
-      <input class="password-input" data-testid="chat-settings-share-password-input" bind:value={password} maxlength="10" placeholder="Password" />
+        <SettingsInput
+          bind:value={password}
+          type="password"
+          maxlength={10}
+          placeholder="Password"
+          dataTestid="chat-settings-share-password-input"
+        />
     {/if}
-    <div class="share-option" data-testid="chat-settings-share-expire">
-      <span class="option-icon icon_clock"></span>
-      <strong>Auto expire</strong>
-      <label class="switch"><input type="checkbox" bind:checked={autoExpireEnabled} /><span></span></label>
-    </div>
-    <button class="share-primary" data-testid="share-generate-link" onclick={() => void generateLink()} disabled={isGenerating}>
-      {isGenerating ? 'Sharing chat...' : 'Share chat'}
-    </button>
+      <SettingsItem
+        type="action"
+        icon="subsetting_icon clock"
+        title="Auto expire"
+        subtitleTop="Expire the share link after 10 minutes."
+        hasToggle={true}
+        checked={autoExpireEnabled}
+        data-testid="chat-settings-share-expire"
+        onClick={() => { autoExpireEnabled = !autoExpireEnabled; }}
+      />
+      <SettingsButton fullWidth={true} loading={isGenerating} dataTestid="share-generate-link" onClick={() => void generateLink()}>
+        {isGenerating ? 'Sharing chat...' : 'Share chat'}
+      </SettingsButton>
+    </SettingsCard>
     {#if isGenerating}
       <p data-testid="share-generation-status">Sharing chat...</p>
     {/if}
-    <div class="share-divider"><span></span><em>or</em><span></span></div>
-    <button class="share-action" data-testid="chat-settings-share-download-chat" onclick={() => void downloadChat()}>
-      <span class="option-icon icon_download"></span>
-      <strong>Download chat</strong>
-    </button>
-    <button class="share-action" data-testid="chat-settings-share-download-zip" onclick={() => void downloadChatZip()}>
-      <span class="option-icon icon_files"></span>
-      <strong>Download chat zip</strong>
-    </button>
-    <div class="share-preview" data-testid="share-chat-preview">
-      <span class="option-icon icon_chat"></span>
-      <strong data-testid="chat-title">{title}</strong>
-      {#if summary}<small>{summary}</small>{/if}
-    </div>
+    <SettingsDivider spacing="sm" />
+    <SettingsCard>
+      <SettingsItem type="action" icon="subsetting_icon download" title="Download chat" data-testid="chat-settings-share-download-chat" onClick={() => void downloadChat()} />
+      <SettingsItem type="action" icon="subsetting_icon files" title="Download chat zip" data-testid="chat-settings-share-download-zip" onClick={() => void downloadChatZip()} />
+    </SettingsCard>
+    <SettingsCard>
+      <div class="share-preview" data-testid="share-chat-preview">
+        <span class="option-icon icon_chat"></span>
+        <div>
+          <strong data-testid="chat-title">{title}</strong>
+          {#if summary}<small>{summary}</small>{/if}
+        </div>
+      </div>
+    </SettingsCard>
   {:else}
-    <div class="generated" data-testid="chat-settings-share-generated">
-      <p><span class="check">✓</span><strong>Share Link created</strong></p>
-      <p><span class="check">✓</span><strong>Auto expire in <mark>{autoExpireEnabled ? '10 minutes' : 'never'}</mark></strong></p>
-    </div>
-    <div class="generated-actions" data-testid="share-short-link-section">
-      <button class:copied={isCopied} class="share-action" data-testid="share-copy-link" onclick={() => void copyGeneratedLink()}>
-        <span class="option-icon icon_copy"></span>
-        <strong>{isCopied ? 'Copied' : 'Copy to clipboard'}</strong>
-      </button>
+    <SettingsCard>
+      <div class="generated" data-testid="chat-settings-share-generated">
+        <SettingsInfoBox type="success">Share link created. Auto expire: {autoExpireEnabled ? '10 minutes' : 'never'}.</SettingsInfoBox>
+      </div>
+      <div class="generated-actions" data-testid="share-short-link-section">
+      <SettingsItem type="action" icon="subsetting_icon copy" title={isCopied ? 'Copied' : 'Copy to clipboard'} data-testid="share-copy-link" onClick={() => void copyGeneratedLink()} />
       <div data-testid="share-short-link-copy" class="short-link-copy">
         <span data-testid="share-short-link-url">{generatedLink}</span>
       </div>
-      <button class="share-action" data-testid={showQr ? 'chat-settings-share-hide-qr' : 'chat-settings-share-show-qr'} onclick={() => { showQr = !showQr; }}>
-        <span class="option-icon icon_camera"></span>
-        <strong>{showQr ? 'Hide QR code' : 'Show QR code'}</strong>
-      </button>
+      <SettingsItem type="action" icon="subsetting_icon camera" title={showQr ? 'Hide QR code' : 'Show QR code'} data-testid={showQr ? 'chat-settings-share-hide-qr' : 'chat-settings-share-show-qr'} onClick={() => { showQr = !showQr; }} />
       {#if showQr}
         <div class="qr-code" data-testid="chat-settings-share-qr">
           <img src={qrCodeImageUrl} alt="Share QR code" />
         </div>
       {/if}
-      <button class="share-action" data-testid={showUrl ? 'chat-settings-share-hide-url' : 'chat-settings-share-show-url'} onclick={() => { showUrl = !showUrl; }}>
-        <span class="option-icon icon_copy"></span>
-        <strong>{showUrl ? 'Hide URL' : 'Show URL'}</strong>
-      </button>
+      <SettingsItem type="action" icon="subsetting_icon copy" title={showUrl ? 'Hide URL' : 'Show URL'} data-testid={showUrl ? 'chat-settings-share-hide-url' : 'chat-settings-share-show-url'} onClick={() => { showUrl = !showUrl; }} />
       {#if showUrl}
         <div class="url-box" data-testid="chat-settings-share-url" data-share-url-kind={generatedLink === generatedLongLink ? 'long' : 'short'}>{generatedLink}</div>
       {/if}
       {#if shortLinkError}
         <p class="share-error" data-testid="share-short-link-error">{shortLinkError}</p>
       {/if}
-      <button class="share-action danger" data-testid="chat-settings-share-stop" onclick={() => void stopSharing()}>
-        <span class="option-icon icon_delete"></span>
-        <strong>Stop sharing</strong>
-      </button>
-      <div class="share-divider"><span></span><em>or</em><span></span></div>
-      <button class="share-action" data-testid="chat-settings-share-download-chat" onclick={() => void downloadChat()}>
-        <span class="option-icon icon_download"></span>
-        <strong>Download chat</strong>
-      </button>
-      <button class="share-action" data-testid="chat-settings-share-download-zip" onclick={() => void downloadChatZip()}>
-        <span class="option-icon icon_files"></span>
-        <strong>Download chat zip</strong>
-      </button>
-    </div>
+      <SettingsItem type="action" icon="subsetting_icon delete" title="Stop sharing" data-testid="chat-settings-share-stop" onClick={() => void stopSharing()} />
+      </div>
+    </SettingsCard>
+    <SettingsDivider spacing="sm" />
+    <SettingsCard>
+      <SettingsItem type="action" icon="subsetting_icon download" title="Download chat" data-testid="chat-settings-share-download-chat" onClick={() => void downloadChat()} />
+      <SettingsItem type="action" icon="subsetting_icon files" title="Download chat zip" data-testid="chat-settings-share-download-zip" onClick={() => void downloadChatZip()} />
+    </SettingsCard>
   {/if}
 </section>
 
@@ -324,35 +340,13 @@
     gap: var(--spacing-4);
   }
 
-  .share-option,
-  .share-action,
   .share-preview {
     display: grid;
-    grid-template-columns: 3.25rem 1fr auto;
+    grid-template-columns: 3.25rem 1fr;
     gap: var(--spacing-4);
     align-items: center;
     min-height: 3.25rem;
     color: var(--color-primary);
-  }
-
-  .share-action,
-  .share-primary {
-    border: 0;
-    background: transparent;
-    cursor: pointer;
-    text-align: left;
-    font: inherit;
-  }
-
-  .share-primary {
-    width: 100%;
-    min-height: 3.75rem;
-    border-radius: var(--radius-full);
-    background: var(--color-error, #ff503f);
-    color: var(--color-white);
-    text-align: center;
-    font-weight: var(--font-weight-bold);
-    box-shadow: var(--shadow-sm);
   }
 
   .option-icon {
@@ -366,38 +360,6 @@
     background-size: 1.45rem;
   }
 
-  .switch input {
-    display: none;
-  }
-
-  .switch span {
-    display: block;
-    width: 3.5rem;
-    height: 2rem;
-    border-radius: var(--radius-full);
-    background: var(--color-grey-30);
-    box-shadow: inset 0 0 0 1px var(--color-border);
-    position: relative;
-  }
-
-  .switch span::after {
-    content: '';
-    position: absolute;
-    width: 1.7rem;
-    height: 1.7rem;
-    top: 0.15rem;
-    left: 0.15rem;
-    border-radius: 50%;
-    background: var(--color-white);
-    box-shadow: var(--shadow-sm);
-    transition: transform var(--duration-fast) var(--easing-default);
-  }
-
-  .switch input:checked + span::after {
-    transform: translateX(1.5rem);
-  }
-
-  .password-input,
   .url-box,
   .short-link-copy {
     width: 100%;
@@ -410,48 +372,16 @@
     word-break: break-all;
   }
 
-  .share-divider {
-    display: grid;
-    grid-template-columns: 1fr auto 1fr;
-    gap: var(--spacing-3);
-    align-items: center;
-    color: var(--color-grey-60);
-    font-weight: var(--font-weight-bold);
-  }
-
-  .share-divider span {
-    height: 2px;
-    background: var(--color-grey-30);
-  }
-
-  .generated p {
+  .generated-actions {
     display: flex;
-    align-items: center;
+    flex-direction: column;
     gap: var(--spacing-3);
-    margin: var(--spacing-1) 0;
-    font-size: 1.35rem;
-  }
-
-  .check {
-    color: var(--color-success, #0aa000);
-    font-size: 2rem;
-  }
-
-  mark {
-    color: var(--color-primary);
-    background: transparent;
   }
 
   .qr-code {
     display: flex;
     justify-content: center;
     padding: var(--spacing-4);
-  }
-
-  .danger strong,
-  .danger .option-icon {
-    color: var(--color-error);
-    background-color: var(--color-error);
   }
 
   .share-error {

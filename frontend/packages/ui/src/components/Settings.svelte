@@ -1048,14 +1048,15 @@ changes to the documentation (to keep the documentation up to date).
 
     let chatSettingsContext = $derived($chatSettingsStore);
     let chatSettingsTitle = $derived(
+        chatSettingsContext?.display?.title ||
         chatSettingsContext?.chat.title ||
         [...(chatSettingsContext?.messages ?? [])].reverse().find((message) => message.current_chat_title)?.current_chat_title ||
         $text('common.untitled_chat')
     );
-    let chatSettingsCategory = $derived(chatSettingsContext?.chat.category || 'general_knowledge');
+    let chatSettingsCategory = $derived(chatSettingsContext?.display?.category || chatSettingsContext?.chat.category || 'general_knowledge');
     let chatSettingsIcon = $derived(
         getValidIconName(
-            chatSettingsContext?.chat.icon || getFallbackIconForCategory(chatSettingsCategory),
+            chatSettingsContext?.display?.icon || chatSettingsContext?.chat.icon || getFallbackIconForCategory(chatSettingsCategory),
             chatSettingsCategory
         )
     );
@@ -1063,6 +1064,7 @@ changes to the documentation (to keep the documentation up to date).
         getCategoryGradientColors(chatSettingsCategory) ?? { start: '#063f4d', end: '#0d6b7c' }
     );
     let chatSettingsCredits = $derived(
+        chatSettingsContext?.display?.credits ??
         chatSettingsContext?.chat.budget_spent ??
         chatSettingsContext?.messages.reduce((sum, message) => sum + (message.example_response_credits ?? 0), 0) ??
         0

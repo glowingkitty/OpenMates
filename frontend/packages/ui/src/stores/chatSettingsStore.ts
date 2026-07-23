@@ -11,10 +11,19 @@ import type { Chat, Message } from '../types/chat';
 
 export type ChatSettingsTab = 'plan' | 'tasks' | 'files' | 'usage' | 'share';
 
+export interface ChatSettingsDisplayMetadata {
+    title?: string | null;
+    summary?: string | null;
+    category?: string | null;
+    icon?: string | null;
+    credits?: number | null;
+}
+
 export interface ChatSettingsContext {
     chat: Chat;
     messages: Message[];
     activeTab: ChatSettingsTab;
+    display?: ChatSettingsDisplayMetadata;
 }
 
 export const CHAT_SETTINGS_ROUTE_PREFIX = 'chats';
@@ -30,8 +39,13 @@ function createChatSettingsStore() {
 
     return {
         subscribe,
-        open(chat: Chat, messages: Message[], activeTab: string | null | undefined = 'plan') {
-            set({ chat, messages, activeTab: normalizeChatSettingsTab(activeTab) });
+        open(
+            chat: Chat,
+            messages: Message[],
+            activeTab: string | null | undefined = 'plan',
+            display?: ChatSettingsDisplayMetadata,
+        ) {
+            set({ chat, messages, activeTab: normalizeChatSettingsTab(activeTab), display });
         },
         setTab(activeTab: string | null | undefined) {
             update((context) => context ? { ...context, activeTab: normalizeChatSettingsTab(activeTab) } : context);

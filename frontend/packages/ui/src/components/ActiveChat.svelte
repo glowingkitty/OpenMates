@@ -92,7 +92,7 @@
     import { chatDebugStore } from '../stores/chatDebugStore';
     import { videoIframeStore } from '../stores/videoIframeStore'; // For standalone VideoIframe component with CSS-based PiP
     import { updateHashParams } from '../utils/settingsHashUtils';
-    import { DEMO_CHATS, LEGAL_CHATS, getDemoMessages, isPublicChat, isNewsletterChat, isLegalChat, isDemoChat, translateDemoChat, getAllExampleChats, isExampleChat, getExampleChatEmbed } from '../demo_chats';
+    import { DEMO_CHATS, LEGAL_CHATS, getDemoMessages, isPublicChat, isNewsletterChat, isLegalChat, isDemoChat, translateDemoChat, getAllExampleChats, isExampleChat, getExampleChatCompressionCheckpoints, getExampleChatEmbed } from '../demo_chats';
     import { getVideoForLocale } from '../demo_chats/data/videos';
     import { ALL_NEWSLETTER_CHATS } from '../demo_chats/newsletterChatStore';
     import ChatContextMenu from './chats/ChatContextMenu.svelte'; // Context menu for resume chat cards
@@ -190,8 +190,6 @@
     const ON_DEMAND_MESSAGE_LOAD_POLL_ATTEMPTS = 20;
     const ON_DEMAND_MESSAGE_LOAD_POLL_DELAY_MS = 500;
     const MESSAGE_WINDOW_LIMIT = 30;
-    const EXAMPLE_MESSAGE_WINDOW_LIMIT = 9;
-    const STATIC_EXAMPLE_MESSAGE_WINDOW_CHAT_IDS = new Set(['example-privacy-first-local-ai']);
     const EMBED_ID_IN_REF_RE = /[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/i;
     function extractPlainIdeaBucketText(markdown: string): string | null {
         const matches = [...markdown.matchAll(/----- Idea \d+ -----\r?\n([\s\S]*?)\r?\n-----------------/g)];
@@ -2786,6 +2784,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     const initialPublicMessages = initialPublicChat
         ? getDemoMessages(initialPublicChat.chat_id, DEMO_CHATS, LEGAL_CHATS)
         : [];
+    const initialPublicCompressionCheckpoints = initialPublicChat && isExampleChat(initialPublicChat.chat_id)
+        ? getExampleChatCompressionCheckpoints(initialPublicChat.chat_id)
+        : [];
 
     let showWelcome = $state(!initialPublicChat && !initialAnonymousChatId);
     let pendingAutoplayVideo = $state(false);
@@ -4903,7 +4904,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // Add state for current chat and messages using $state - MUST be declared before $derived that uses them
      let currentChat = $state<Chat | null>(initialPublicChat ?? initialAnonymousChat);
      let currentMessages = $state<ChatMessageModel[]>(initialPublicMessages); // Holds messages for the currentChat - MUST use $state for Svelte 5 reactivity
-     let currentCompressionCheckpoints = $state<ChatCompressionCheckpoint[]>([]);
+     let currentCompressionCheckpoints = $state<ChatCompressionCheckpoint[]>(initialPublicCompressionCheckpoints);
       let currentMessageWindowHasMoreBefore = $state(false);
       let olderMessageWindowLoading = $state(false);
       let lastBoundChatHistoryRef = $state<ChatHistoryRef | null>(null);
@@ -4917,29 +4918,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             console.debug(`[ActiveChat] Pruned ${prunedWindow.prunedCount} decrypted normal message(s) from active window`);
         }
         return prunedWindow.messages;
-      }
-
-      function getStaticExampleMessageWindow(chatId: string, options: { beforeTimestamp?: number; beforeMessageId?: string } = {}): { messages: ChatMessageModel[]; hasMoreBefore: boolean } {
-        const allMessages = getDemoMessages(chatId, DEMO_CHATS, LEGAL_CHATS)
-            .sort((a, b) => (a.created_at ?? 0) - (b.created_at ?? 0) || a.message_id.localeCompare(b.message_id));
-        const cursorIndex = options.beforeMessageId
-            ? allMessages.findIndex((message) => message.message_id === options.beforeMessageId)
-            : -1;
-        const fallbackIndex = options.beforeTimestamp
-            ? allMessages.findIndex((message) => (message.created_at ?? 0) >= options.beforeTimestamp!)
-            : -1;
-        const endIndex = cursorIndex >= 0
-            ? cursorIndex
-            : (fallbackIndex >= 0 ? fallbackIndex : allMessages.length);
-        const startIndex = Math.max(0, endIndex - EXAMPLE_MESSAGE_WINDOW_LIMIT);
-        return {
-            messages: allMessages.slice(startIndex, endIndex),
-            hasMoreBefore: startIndex > 0,
-        };
-      }
-
-      function usesStaticExampleMessageWindow(chatId: string): boolean {
-        return STATIC_EXAMPLE_MESSAGE_WINDOW_CHAT_IDS.has(chatId);
       }
 
       let hasActivePrivateChatSurface = $derived(Boolean(
@@ -7791,7 +7769,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     function openChatDetailsSettings(tab: ChatDetailsTab = 'tasks') {
         if (!currentChat?.chat_id) return;
         activeChatStore.setActiveChat(currentChat.chat_id);
-        chatSettingsStore.open(currentChat, currentMessages, tab);
+        chatSettingsStore.open(currentChat, currentMessages, tab, {
+            title: activeChatDecryptedTitle || currentChat.title || null,
+            summary: activeChatDecryptedSummary || currentChat.chat_summary || null,
+            category: activeChatDecryptedCategory || currentChat.category || null,
+            icon: activeChatDecryptedIcon || currentChat.icon?.split(',')[0]?.trim() || null,
+            credits: currentChat.budget_spent ?? null,
+        });
         settingsMenuVisible.set(true);
         panelState.openSettings();
         settingsDeepLink.set(chatSettingsRouteFor(currentChat.chat_id, tab));
@@ -8457,31 +8441,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     async function handleLoadOlderMessages(event: CustomEvent) {
         if (!currentChat?.chat_id || olderMessageWindowLoading) return;
-        const { beforeTimestamp, beforeMessageId, firstMessageId } = event.detail as { beforeTimestamp?: number; beforeMessageId?: string; firstMessageId?: string };
-        if (isExampleChat(currentChat.chat_id) && usesStaticExampleMessageWindow(currentChat.chat_id)) {
-            olderMessageWindowLoading = true;
-            try {
-                const olderWindow = getStaticExampleMessageWindow(currentChat.chat_id, { beforeTimestamp, beforeMessageId });
-                if (olderWindow.messages.length === 0) {
-                    currentMessageWindowHasMoreBefore = false;
-                    return;
-                }
-                const existingIds = new Set(currentMessages.map((message) => message.message_id));
-                currentMessages = [
-                    ...olderWindow.messages.filter((message) => !existingIds.has(message.message_id)),
-                    ...currentMessages,
-                ];
-                currentMessageWindowHasMoreBefore = olderWindow.hasMoreBefore;
-                chatHistoryRef?.updateMessages(currentMessages);
-                if (firstMessageId) {
-                    await tick();
-                    chatHistoryRef?.restoreScrollPosition(firstMessageId);
-                }
-            } finally {
-                olderMessageWindowLoading = false;
-            }
-            return;
-        }
+        const { firstMessageId } = event.detail as { beforeTimestamp?: number; beforeMessageId?: string; firstMessageId?: string };
         if (isPublicChat(currentChat.chat_id) || currentChat.is_incognito) return;
 
         olderMessageWindowLoading = true;
@@ -9032,15 +8992,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             // Check if this is a public chat (demo or legal) - load messages from static bundle instead of IndexedDB
             if (isPublicChat(currentChat.chat_id)) {
                 console.debug(`[ActiveChat] Loading public chat messages for: ${currentChat.chat_id}`);
-                if (isExampleChat(currentChat.chat_id) && usesStaticExampleMessageWindow(currentChat.chat_id)) {
-                    const exampleWindow = getStaticExampleMessageWindow(currentChat.chat_id);
-                    newMessages = exampleWindow.messages;
-                    currentMessageWindowHasMoreBefore = exampleWindow.hasMoreBefore;
-                } else {
-                    // Pass both DEMO_CHATS and LEGAL_CHATS to getDemoMessages
-                    newMessages = getDemoMessages(currentChat.chat_id, DEMO_CHATS, LEGAL_CHATS);
-                    currentMessageWindowHasMoreBefore = false;
-                }
+                currentCompressionCheckpoints = isExampleChat(currentChat.chat_id)
+                    ? getExampleChatCompressionCheckpoints(currentChat.chat_id)
+                    : [];
+                // Pass both DEMO_CHATS and LEGAL_CHATS to getDemoMessages
+                newMessages = getDemoMessages(currentChat.chat_id, DEMO_CHATS, LEGAL_CHATS);
+                currentMessageWindowHasMoreBefore = false;
                 console.debug(`[ActiveChat] Loaded ${newMessages.length} messages for ${currentChat.chat_id}`);
                 
                 // CRITICAL: For public chats, ensure we always have messages loaded
@@ -10776,6 +10733,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
                     // Get the messages from the static example chat store (always available, no waiting needed)
                     const newMessages = getExampleChatMessages(snapshotChat.chat_id);
+                    currentCompressionCheckpoints = getExampleChatCompressionCheckpoints(snapshotChat.chat_id);
+                    currentMessageWindowHasMoreBefore = false;
 
                     if (newMessages.length > 0) {
                         console.debug(`[ActiveChat] Reloaded ${newMessages.length} messages for example chat ${snapshotChat.chat_id}`);

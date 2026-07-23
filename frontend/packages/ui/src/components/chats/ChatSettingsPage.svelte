@@ -7,12 +7,14 @@
 -->
 <script lang="ts">
   import { chatSettingsStore, normalizeChatSettingsTab, type ChatSettingsTab } from '../../stores/chatSettingsStore';
-  import { SettingsTabs, SettingsCard, SettingsButton, SettingsInfoBox, SettingsProgressBar } from '../settings/elements';
+  import { SettingsTabs, SettingsCard, SettingsButton, SettingsInfoBox, SettingsProgressBar, SettingsBadge } from '../settings/elements';
   import ChatSettingsShareSection from './ChatSettingsShareSection.svelte';
   import { loadChatFileRows, type ChatFileRow } from './chatSettingsFiles';
   import { buildChatUsageRows, totalKnownCredits, usageRowsToCsv, usageRowsToYaml, type ChatUsageRow } from './chatUsageRows';
   import { downloadChatAsZip } from '../../services/zipExportService';
   import { notificationStore } from '../../stores/notificationStore';
+  import { listUserTasks, type UserTaskViewModel } from '../../services/userTaskService';
+  import { listUserPlans, type UserPlanViewModel } from '../../services/userPlanService';
 
   let { activeSettingsView = '' }: { activeSettingsView?: string } = $props();
 
@@ -27,20 +29,25 @@
   let activeTab = $state<ChatSettingsTab>('plan');
   let files = $state<ChatFileRow[]>([]);
   let isLoadingFiles = $state(false);
+  let tasks = $state<UserTaskViewModel[]>([]);
+  let plans = $state<UserPlanViewModel[]>([]);
+  let isLoadingPlanning = $state(false);
   let usageRows = $state<ChatUsageRow[]>([]);
 
   let context = $derived($chatSettingsStore);
   let chat = $derived(context?.chat ?? null);
   let messages = $derived(context?.messages ?? []);
+  let display = $derived(context?.display ?? null);
   let title = $derived(
-    chat?.title || [...messages].reverse().find((message) => message.current_chat_title)?.current_chat_title || 'Untitled chat'
+    display?.title || chat?.title || [...messages].reverse().find((message) => message.current_chat_title)?.current_chat_title || 'Untitled chat'
   );
   let summary = $derived(
-    chat?.chat_summary ||
-    messages.find((message) => message.role === 'user')?.content ||
-    'No summary available yet.'
+    cleanDisplaySummary(display?.summary || chat?.chat_summary || null) || 'No summary available yet.'
   );
-  let totalCredits = $derived(chat?.budget_spent ?? totalKnownCredits(usageRows));
+  let totalCredits = $derived(display?.credits ?? chat?.budget_spent ?? totalKnownCredits(usageRows));
+  let doneTaskCount = $derived(tasks.filter((task) => task.status === 'done').length);
+  let taskProgressPercent = $derived(tasks.length > 0 ? Math.round((doneTaskCount / tasks.length) * 100) : 0);
+  let activePlans = $derived(plans.filter((plan) => !['completed', 'archived'].includes(plan.status)));
 
   $effect(() => {
     activeTab = normalizeChatSettingsTab(context?.activeTab);
@@ -61,6 +68,11 @@
     void refreshFiles();
   });
 
+  $effect(() => {
+    if (!chat?.chat_id) return;
+    void refreshPlanningData(chat.chat_id);
+  });
+
   function setTab(tabId: string): void {
     const nextTab = normalizeChatSettingsTab(tabId);
     activeTab = nextTab;
@@ -77,6 +89,50 @@
     } finally {
       isLoadingFiles = false;
     }
+  }
+
+  function cleanDisplaySummary(value: string | null | undefined): string {
+    const trimmed = value?.trim() ?? '';
+    if (!trimmed) return '';
+    const lower = trimmed.toLowerCase();
+    if (
+      lower.includes('[!](embed:') ||
+      lower.includes('```json') ||
+      lower.includes('"embed_id"') ||
+      (lower.includes('"type"') && lower.includes('"content"'))
+    ) {
+      return '';
+    }
+    return trimmed;
+  }
+
+  async function refreshPlanningData(chatId: string): Promise<void> {
+    isLoadingPlanning = true;
+    try {
+      const [nextTasks, nextPlans] = await Promise.all([
+        listUserTasks({ chatId }),
+        listUserPlans({ chatId, limit: 6 }),
+      ]);
+      tasks = nextTasks;
+      plans = nextPlans;
+    } catch (error) {
+      console.error('[ChatSettingsPage] Failed to load chat plans/tasks:', error);
+      tasks = [];
+      plans = [];
+    } finally {
+      isLoadingPlanning = false;
+    }
+  }
+
+  function statusBadgeVariant(status: string): 'info' | 'success' | 'warning' | 'danger' | 'neutral' {
+    if (status === 'done' || status === 'completed') return 'success';
+    if (status === 'blocked') return 'warning';
+    if (status === 'in_progress' || status === 'executing' || status === 'active') return 'info';
+    return 'neutral';
+  }
+
+  function formatStatus(status: string): string {
+    return status.replaceAll('_', ' ');
   }
 
   function downloadTextFile(content: string, filename: string, type: string): void {
@@ -122,29 +178,57 @@
 
     {#if activeTab === 'plan'}
       <div class="tabpanel" data-testid="chat-settings-tabpanel-plan" role="tabpanel" aria-labelledby="chat-settings-tab-plan">
-        <SettingsCard>
-          <div class="coming-soon">
-            <strong>No plan active</strong>
-            <p>Coming soon.</p>
+        {#if isLoadingPlanning}
+          <SettingsInfoBox type="info">Loading chat plans...</SettingsInfoBox>
+        {:else if activePlans.length > 0}
+          <div class="plan-list" data-testid="chat-settings-plan-list">
+            {#each activePlans as plan (plan.plan_id)}
+              <SettingsCard>
+                <article class="planning-row" data-testid="chat-settings-plan-row">
+                  <div>
+                    <div class="row-heading">
+                      <strong>{plan.title || 'Untitled plan'}</strong>
+                      <SettingsBadge variant={statusBadgeVariant(plan.status)} text={formatStatus(plan.status)} />
+                    </div>
+                    {#if plan.summary || plan.goal}
+                      <p>{plan.summary || plan.goal}</p>
+                    {/if}
+                  </div>
+                </article>
+              </SettingsCard>
+            {/each}
           </div>
-        </SettingsCard>
+        {:else}
+          <SettingsInfoBox type="info">No plan is linked to this chat yet.</SettingsInfoBox>
+        {/if}
       </div>
     {:else if activeTab === 'tasks'}
       <div class="tabpanel" data-testid="chat-settings-tabpanel-tasks" role="tabpanel" aria-labelledby="chat-settings-tab-tasks">
-        <SettingsCard>
-          <h2>Tasks</h2>
-          <SettingsProgressBar value={25} label="25% complete" />
-          <div class="task-actions">
-            <SettingsButton variant="danger" size="sm">Stop</SettingsButton>
-            <SettingsButton variant="secondary" size="sm">Add</SettingsButton>
-          </div>
-          <ul class="task-list">
-            <li>Research Whisper usecases & answer user questions</li>
-            <li>Implement Whisper code</li>
-            <li>Debug code</li>
-          </ul>
-          <SettingsInfoBox type="info">Task editing UI is coming with the full Plans feature.</SettingsInfoBox>
-        </SettingsCard>
+        {#if isLoadingPlanning}
+          <SettingsInfoBox type="info">Loading chat tasks...</SettingsInfoBox>
+        {:else if tasks.length > 0}
+          <SettingsCard>
+            <h2>Tasks</h2>
+            <SettingsProgressBar value={taskProgressPercent} label={`${taskProgressPercent}% complete`} />
+            <div class="task-list" data-testid="chat-settings-task-list">
+              {#each tasks as task (task.task_id)}
+                <article class="planning-row" data-testid="chat-settings-task-row">
+                  <div>
+                    <div class="row-heading">
+                      <strong>{task.title || 'Untitled task'}</strong>
+                      <SettingsBadge variant={statusBadgeVariant(task.status)} text={formatStatus(task.status)} />
+                    </div>
+                    {#if task.description || task.latestInstruction}
+                      <p>{task.description || task.latestInstruction}</p>
+                    {/if}
+                  </div>
+                </article>
+              {/each}
+            </div>
+          </SettingsCard>
+        {:else}
+          <SettingsInfoBox type="info">No tasks are linked to this chat yet.</SettingsInfoBox>
+        {/if}
       </div>
     {:else if activeTab === 'files'}
       <div class="tabpanel" data-testid="chat-settings-tabpanel-files" role="tabpanel" aria-labelledby="chat-settings-tab-files">
@@ -237,20 +321,6 @@
     gap: var(--spacing-4);
   }
 
-  .coming-soon {
-    min-height: 10rem;
-    display: grid;
-    place-items: center;
-    text-align: center;
-    color: var(--color-grey-60);
-  }
-
-  .coming-soon strong {
-    color: var(--color-grey-60);
-    font-size: 1.25rem;
-  }
-
-  .task-actions,
   .section-action {
     display: flex;
     flex-wrap: wrap;
@@ -263,9 +333,38 @@
     flex-direction: column;
     gap: var(--spacing-3);
     margin: 0;
-    padding: 0 0 0 var(--spacing-5);
+    padding: 0;
+  }
+
+  .plan-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-4);
+  }
+
+  .planning-row {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-2);
+  }
+
+  .row-heading {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-2);
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .planning-row strong {
     color: var(--color-primary);
     font-weight: var(--font-weight-bold);
+  }
+
+  .planning-row p {
+    margin: var(--spacing-2) 0 0;
+    color: var(--color-grey-70);
+    line-height: 1.45;
   }
 
   .file-list,

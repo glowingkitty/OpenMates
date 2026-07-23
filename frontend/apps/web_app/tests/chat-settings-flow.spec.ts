@@ -36,7 +36,7 @@ async function createChatWithSummary(
 	page: any,
 	logCheckpoint: (message: string, metadata?: Record<string, unknown>) => void,
 	takeStepScreenshot: (page: any, label: string) => Promise<void>
-): Promise<void> {
+): Promise<string> {
 	await startNewChat(page, logCheckpoint);
 	await sendMessage(
 		page,
@@ -52,6 +52,7 @@ async function createChatWithSummary(
 	await expect(page.getByTestId('chat-header-title')).not.toContainText(/processing|untitled/i, {
 		timeout: 30_000
 	});
+	return (await page.getByTestId('chat-header-title').innerText()).trim();
 }
 
 async function expectChatSettingsShell(page: any): Promise<any> {
@@ -84,7 +85,7 @@ test('chat Share opens Settings / Chats and supports tab deep links', async ({ p
 
 	await archiveExistingScreenshots(logCheckpoint);
 	await loginToTestAccount(page, logCheckpoint, takeStepScreenshot);
-	await createChatWithSummary(page, logCheckpoint, takeStepScreenshot);
+	const chatHeaderTitle = await createChatWithSummary(page, logCheckpoint, takeStepScreenshot);
 	await takeStepScreenshot(page, 'chat-ready');
 
 	await page.getByTestId('chat-share-button').click();
@@ -92,19 +93,21 @@ test('chat Share opens Settings / Chats and supports tab deep links', async ({ p
 
 	const settingsMenu = await expectChatSettingsShell(page);
 	await expect(settingsMenu.getByTestId('chat-settings-header')).toBeVisible({ timeout: 10_000 });
-	await expect(settingsMenu.getByTestId('chat-settings-title')).toBeVisible({ timeout: 10_000 });
+	await expect(settingsMenu.getByTestId('chat-settings-title')).toHaveText(chatHeaderTitle, { timeout: 10_000 });
+	await expect(settingsMenu.getByTestId('chat-settings-title')).not.toContainText(/untitled/i);
 	await expect(settingsMenu.getByTestId('chat-settings-credits')).toContainText(/\d+/, { timeout: 10_000 });
-	await expect(settingsMenu.getByTestId('chat-settings-summary')).toBeVisible({ timeout: 10_000 });
+	const settingsSummary = settingsMenu.getByTestId('chat-settings-summary');
+	await expect(settingsSummary).toBeVisible({ timeout: 10_000 });
+	await expect(settingsSummary).not.toContainText(/```json|"embed_id"|\[!\]\(embed:/i);
 	await expect(settingsMenu.getByTestId('chat-settings-tabs')).toBeVisible({ timeout: 10_000 });
 	await expect(settingsMenu.getByTestId('chat-settings-tabpanel-share')).toBeVisible({ timeout: 10_000 });
+	await expect(settingsMenu.getByTestId('chat-settings-share-community')).toBeVisible({ timeout: 10_000 });
+	await expect(settingsMenu.getByTestId('chat-settings-share-password')).toBeVisible({ timeout: 10_000 });
+	await expect(settingsMenu.getByTestId('chat-settings-share-expire')).toBeVisible({ timeout: 10_000 });
 	await takeStepScreenshot(page, 'share-tab-opened');
 
 	for (const tab of CHAT_SETTINGS_TABS) {
-		await page.evaluate((requestedTab: string) => {
-			window.dispatchEvent(new CustomEvent('openmates-open-chat-details', {
-				detail: { tab: requestedTab }
-			}));
-		}, tab);
+		await settingsMenu.getByTestId(`chat-settings-tab-${tab}`).click();
 		const tabPanel = settingsMenu.getByTestId(`chat-settings-tabpanel-${tab}`);
 		await expect(settingsMenu.getByTestId(`chat-settings-tabpanel-${tab}`)).toBeVisible({
 			timeout: 10_000
@@ -119,8 +122,19 @@ test('chat Share opens Settings / Chats and supports tab deep links', async ({ p
 			await expect(tabPanel.getByRole('button', { name: 'Download usage data' })).toBeVisible();
 			await expect(tabPanel.getByRole('button', { name: 'YAML' })).toBeVisible();
 		}
+		if (tab === 'tasks') {
+			await expect(tabPanel).not.toContainText(/Research Whisper usecases|Implement Whisper code|Debug code/i);
+			await expect(tabPanel.getByText(/No tasks are linked to this chat yet|Loading chat tasks|Tasks/i)).toBeVisible({ timeout: 10_000 });
+		}
 		logCheckpoint(`Deep-linked chat settings tab rendered: ${tab}`);
 	}
+
+	await page.evaluate(() => {
+		window.dispatchEvent(new CustomEvent('openmates-open-chat-details', {
+			detail: { tab: 'share' }
+		}));
+	});
+	await expect(settingsMenu.getByTestId('chat-settings-tabpanel-share')).toBeVisible({ timeout: 10_000 });
 
 	await page.evaluate(() => {
 		window.dispatchEvent(new CustomEvent('openmates-open-chat-details', {
