@@ -19,7 +19,7 @@
 
 const { test, expect } = require('./helpers/cookie-audit');
 const { getE2EDebugUrl } = require('./signup-flow-helpers');
-const { openFullscreen } = require('./helpers/embed-test-helpers');
+const { closeFullscreen, openFullscreen } = require('./helpers/embed-test-helpers');
 
 test.describe('Demo chat embed rendering', () => {
 	test('embeds inside demo chats render for unauthenticated users', async ({ page }) => {
@@ -184,5 +184,31 @@ test.describe('Demo chat embed rendering', () => {
 		await fullscreenOverlay.getByTestId('application-start-preview').click();
 		await expect(page.getByTestId('tab-login')).toBeVisible({ timeout: 10000 });
 		expect(await previewStartAttempt).toBe('not-started');
+	});
+
+	test('public screenshot-to-html example opens generated code fullscreen from app skill card', async ({ page }) => {
+		test.setTimeout(90000);
+
+		await page.goto(getE2EDebugUrl('/example/screenshot-to-html-pricing-card'), { waitUntil: 'domcontentloaded' });
+		await expect(page).toHaveURL(/#chat-id=example-screenshot-to-html-pricing-card$/, { timeout: 15000 });
+		await expect(page.getByTestId('message-assistant').first()).toBeVisible({ timeout: 30000 });
+
+		const appSkillEmbed = page.locator(
+			'[data-testid="embed-preview"][data-app-id="code"][data-skill-id="image_to_html"][data-status="finished"]'
+		).first();
+		await expect(appSkillEmbed).toBeVisible({ timeout: 30000 });
+		await expect(appSkillEmbed.locator('img[alt="Input preview"]')).toBeVisible({ timeout: 10000 });
+		await expect(appSkillEmbed).toContainText('Image To HTML');
+
+		const fullscreenOverlay = await openFullscreen(page, appSkillEmbed);
+		const appSkillFallback = page.locator('.embed-fullscreen-fallback').filter({ hasText: 'Fullscreen view not available for embed type: app-skill-use' }).first();
+		if (await appSkillFallback.isVisible({ timeout: 5000 }).catch(() => false)) {
+			const debug = await page.getByTestId('embed-fullscreen-debug').first().textContent().catch(() => null);
+			throw new Error(`Screenshot-to-HTML fullscreen used app-skill fallback. Debug: ${debug ?? 'missing'}`);
+		}
+
+		await expect(fullscreenOverlay.getByTestId('code-fullscreen-code')).toBeVisible({ timeout: 15000 });
+		await expect(fullscreenOverlay).toContainText(/Pricing|Starter|Professional|Enterprise|HTML/i, { timeout: 15000 });
+		await closeFullscreen(page, fullscreenOverlay);
 	});
 });

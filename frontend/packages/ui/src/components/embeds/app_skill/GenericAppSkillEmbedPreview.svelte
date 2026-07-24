@@ -20,6 +20,7 @@
     status?: 'processing' | 'finished' | 'error' | 'cancelled';
     provider?: string;
     resultCount?: number;
+    previewImageUrl?: string;
     taskId?: string;
     isMobile?: boolean;
     onFullscreen: () => void;
@@ -32,6 +33,7 @@
     status = 'processing',
     provider = '',
     resultCount,
+    previewImageUrl = '',
     taskId,
     isMobile = false,
     onFullscreen,
@@ -41,7 +43,12 @@
     return value
       .split(/[_-]+/)
       .filter(Boolean)
-      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .map((part) => {
+        const lower = part.toLowerCase();
+        if (lower === 'html') return 'HTML';
+        if (lower === 'ai') return 'AI';
+        return part.charAt(0).toUpperCase() + part.slice(1);
+      })
       .join(' ');
   }
 
@@ -81,15 +88,22 @@
   {isMobile}
   {onFullscreen}
   customStatusText={statusText}
+  hasFullWidthImage={!!previewImageUrl}
 >
   {#snippet details()}
+    {#if previewImageUrl}
+      <div class="generic-app-skill-thumbnail">
+        <img src={previewImageUrl} alt="Input preview" loading="lazy" />
+      </div>
+    {:else}
       <div class="generic-app-skill-details">
         <div class="generic-app-skill-eyebrow">{appId}</div>
-      <div class="generic-app-skill-title">{displaySkillId}</div>
-      {#if statusText}
-        <div class="generic-app-skill-meta">{statusText}</div>
-      {/if}
-    </div>
+        <div class="generic-app-skill-title">{displaySkillId}</div>
+        {#if statusText}
+          <div class="generic-app-skill-meta">{statusText}</div>
+        {/if}
+      </div>
+    {/if}
   {/snippet}
 </UnifiedEmbedPreview>
 
@@ -105,6 +119,22 @@
     background:
       radial-gradient(circle at 20% 20%, color-mix(in srgb, var(--color-primary) 18%, transparent), transparent 36%),
       linear-gradient(135deg, var(--color-grey-20), var(--color-grey-25));
+  }
+
+  .generic-app-skill-thumbnail {
+    display: flex;
+    width: 100%;
+    height: 100%;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    background: var(--color-grey-20);
+  }
+
+  .generic-app-skill-thumbnail img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
   }
 
   .generic-app-skill-eyebrow {

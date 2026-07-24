@@ -100,7 +100,11 @@ import EventEmbedPreview from "../../../embeds/events/EventEmbedPreview.svelte";
 import MapLocationEmbedPreview from "../../../embeds/maps/MapLocationEmbedPreview.svelte";
 import HomeListingEmbedPreview from "../../../embeds/home/HomeListingEmbedPreview.svelte";
 import HomeSearchEmbedPreview from "../../../embeds/home/HomeSearchEmbedPreview.svelte";
-import { proxyFavicon, proxyImage } from "../../../../utils/imageProxy";
+import {
+  MAX_WIDTH_PREVIEW_THUMBNAIL,
+  proxyFavicon,
+  proxyImage,
+} from "../../../../utils/imageProxy";
 import { resolveImageSourceDomain } from "../../../../utils/embedSourceDomain";
 import { get } from "svelte/store";
 import { text } from "@repo/ui";
@@ -119,6 +123,28 @@ const mountedComponents = new WeakMap<HTMLElement, ReturnType<typeof mount>>();
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- TOON-decoded content is genuinely schemaless (100+ dynamic fields across embed types)
 type DecodedEmbedContent = Record<string, any>;
+
+function normalizeEmbedIdList(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.filter((item): item is string => typeof item === "string" && item.length > 0);
+  }
+  if (typeof value === "string") {
+    return value.split(/[|,\s]+/).map((item) => item.trim()).filter(Boolean);
+  }
+  return [];
+}
+
+function firstStringField(
+  content: Record<string, unknown> | null | undefined,
+  fields: string[],
+): string {
+  if (!content) return "";
+  for (const field of fields) {
+    const value = content[field];
+    if (typeof value === "string" && value.length > 0) return value;
+  }
+  return "";
+}
 
 function escapeHtml(value: string): string {
   return value
@@ -1334,12 +1360,9 @@ export class GroupRenderer implements EmbedRenderer {
         ? decodedContent.result_count
         : undefined;
     const results = decodedContent?.results || decodedContent?.preview_results || [];
-    const rawChildEmbedIds = embedData?.embed_ids || decodedContent?.embed_ids;
-    const childEmbedIds = typeof rawChildEmbedIds === "string"
-      ? rawChildEmbedIds.split("|").filter((id: string) => id.length > 0)
-      : Array.isArray(rawChildEmbedIds)
-        ? rawChildEmbedIds
-        : [];
+    const childEmbedIds = normalizeEmbedIdList(
+      decodedContent?.embed_ids || embedData?.embed_ids,
+    );
 
     // Error embeds are kept in the group and rendered with status: 'error'.
     // The individual preview components handle the error state display (dimmed,
@@ -1390,15 +1413,19 @@ export class GroupRenderer implements EmbedRenderer {
     }
     target.innerHTML = "";
 
-    const handleFullscreen = () => {
-      this.openFullscreen(item, embedData, {
+    const fullscreenContent = {
         ...(decodedContent ?? {}),
         app_id: appId,
         skill_id: skillId,
         query,
         provider,
         embed_ids: childEmbedIds,
-      });
+      };
+    const handleFullscreen = () => {
+      this.openFullscreen(item, embedData, fullscreenContent);
+    };
+    const handleGenericFullscreen = () => {
+      void this.openAppSkillOutputFullscreen(item, embedData, fullscreenContent);
     };
 
     try {
@@ -2485,6 +2512,7 @@ export class GroupRenderer implements EmbedRenderer {
       );
     }
 
+    const previewImageUrl = await this.resolveInputPreviewImageUrl(decodedContent);
     const component = mount(GenericAppSkillEmbedPreview, {
       target,
       props: {
@@ -2494,12 +2522,80 @@ export class GroupRenderer implements EmbedRenderer {
         status,
         provider,
         resultCount,
+        previewImageUrl,
         taskId,
         isMobile: false,
-        onFullscreen: handleFullscreen,
+        onFullscreen: handleGenericFullscreen,
       },
     });
     mountedComponents.set(target, component);
+  }
+
+  private async resolveInputPreviewImageUrl(
+    decodedContent: DecodedEmbedContent | null,
+  ): Promise<string> {
+    const inputEmbedId = normalizeEmbedIdList(decodedContent?.input_embed_ids)[0];
+    if (!inputEmbedId) return "";
+
+    try {
+      const inputEmbed = await resolveEmbed(inputEmbedId);
+      const inputContent = inputEmbed?.content
+        ? await decodeToonContent(inputEmbed.content)
+        : null;
+      const rawUrl = firstStringField(inputContent, [
+        "src",
+        "previewImageUrl",
+        "preview_image_url",
+        "thumbnail_url",
+        "public_thumbnail_url",
+        "image_url",
+      ]);
+      return proxyImage(rawUrl, MAX_WIDTH_PREVIEW_THUMBNAIL);
+    } catch (error) {
+      console.warn("[GroupRenderer] Failed to resolve app-skill input thumbnail:", error);
+      return "";
+    }
+  }
+
+  private async openAppSkillOutputFullscreen(
+    attrs: EmbedNodeAttributes,
+    embedData: EmbedData | null,
+    decodedContent: DecodedEmbedContent | null,
+  ): Promise<void> {
+    const outputEmbedId = normalizeEmbedIdList(decodedContent?.output_embed_ids)[0] ||
+      normalizeEmbedIdList(decodedContent?.embed_ids || embedData?.embed_ids)[0];
+
+    if (!outputEmbedId) {
+      await this.openFullscreen(attrs, embedData, decodedContent);
+      return;
+    }
+
+    try {
+      const outputEmbed = await resolveEmbed(outputEmbedId);
+      const outputContent = outputEmbed?.content
+        ? await decodeToonContent(outputEmbed.content)
+        : null;
+      const outputType = registryNormalizeEmbedType(outputEmbed?.type) || outputEmbed?.type || attrs.type;
+      const registryKey = resolveRegistryKey(
+        outputType,
+        outputContent ?? undefined,
+      );
+
+      if (outputEmbed && registryKey && hasFullscreenComponent(registryKey)) {
+        dispatchEmbedFullscreen({
+          embedId: outputEmbedId,
+          embedData: outputEmbed,
+          decodedContent: outputContent,
+          embedType: outputType,
+          attrs: undefined,
+        });
+        return;
+      }
+    } catch (error) {
+      console.warn("[GroupRenderer] Failed to open app-skill output fullscreen:", error);
+    }
+
+    await this.openFullscreen(attrs, embedData, decodedContent);
   }
 
   /**

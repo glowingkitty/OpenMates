@@ -28,7 +28,12 @@ import {
   dispatchEmbedFullscreen,
   resolveEmbedFullscreenTarget,
 } from "../../../../services/embedFullscreenController";
+import {
+  hasFullscreenComponent,
+  resolveRegistryKey,
+} from "../../../../services/embedFullscreenResolver";
 import { resolveExampleFullscreenTarget } from "../../../../demo_chats/exampleChatStore";
+import { normalizeEmbedType as registryNormalizeEmbedType } from "../../../../data/embedRegistry.generated";
 import { mount, unmount } from "svelte";
 import WebSearchEmbedPreview from "../../../embeds/web/WebSearchEmbedPreview.svelte";
 import MailSearchEmbedPreview from "../../../embeds/mail/MailSearchEmbedPreview.svelte";
@@ -80,7 +85,10 @@ import FinanceCheckAccountsEmbedPreview from "../../../embeds/finance/FinanceChe
 import { normalizeFinanceOverview } from "../../../embeds/finance/financeCheckAccountsContent";
 import CalendarActionEmbedPreview from "../../../embeds/calendar/CalendarActionEmbedPreview.svelte";
 import GenericAppSkillEmbedPreview from "../../../embeds/app_skill/GenericAppSkillEmbedPreview.svelte";
-import { proxyImage } from "../../../../utils/imageProxy";
+import {
+  MAX_WIDTH_PREVIEW_THUMBNAIL,
+  proxyImage,
+} from "../../../../utils/imageProxy";
 import { resolveImageSourceDomain } from "../../../../utils/embedSourceDomain";
 
 // Track mounted components for cleanup
@@ -88,6 +96,28 @@ const mountedComponents = new WeakMap<HTMLElement, ReturnType<typeof mount>>();
 const YOUTUBE_VIDEO_ID_RE = /^[a-zA-Z0-9_-]{11}$/;
 const YOUTUBE_URL_VIDEO_ID_RE =
   /(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/|v\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
+
+function normalizeEmbedIdList(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.filter((item): item is string => typeof item === "string" && item.length > 0);
+  }
+  if (typeof value === "string") {
+    return value.split(/[|,\s]+/).map((item) => item.trim()).filter(Boolean);
+  }
+  return [];
+}
+
+function firstStringField(
+  content: Record<string, unknown> | null | undefined,
+  fields: string[],
+): string {
+  if (!content) return "";
+  for (const field of fields) {
+    const value = content[field];
+    if (typeof value === "string" && value.length > 0) return value;
+  }
+  return "";
+}
 
 export class AppSkillUseRenderer implements EmbedRenderer {
   type = "app-skill-use";
@@ -5444,12 +5474,12 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     }
   }
 
-  private renderGenericSkill(
+  private async renderGenericSkill(
     attrs: EmbedNodeAttributes,
     embedData: any,
     decodedContent: any,
     content: HTMLElement,
-  ): void {
+  ): Promise<void> {
     // CRITICAL: Handle null decodedContent gracefully - use attrs as fallback
     const skillId = decodedContent?.skill_id || (attrs as any).skill_id || "";
     const appId = decodedContent?.app_id || (attrs as any).app_id || "";
@@ -5467,6 +5497,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     });
 
     this.prepareMount(content);
+    const previewImageUrl = await this.resolveInputPreviewImageUrl(decodedContent);
 
     const component = mount(GenericAppSkillEmbedPreview, {
       target: content,
@@ -5477,13 +5508,80 @@ export class AppSkillUseRenderer implements EmbedRenderer {
         status: status as "processing" | "finished" | "error" | "cancelled",
         provider: decodedContent?.provider || embedData?.provider || "",
         resultCount: typeof decodedContent?.result_count === "number" ? decodedContent.result_count : undefined,
+        previewImageUrl,
         taskId: decodedContent?.task_id || decodedContent?.skill_task_id || "",
         isMobile: false,
-        onFullscreen: () => this.openFullscreen(attrs, embedData, decodedContent),
+        onFullscreen: () => {
+          void this.openAppSkillOutputFullscreen(attrs, embedData, decodedContent);
+        },
       },
     });
 
     mountedComponents.set(content, component);
+  }
+
+  private async resolveInputPreviewImageUrl(
+    decodedContent: Record<string, unknown> | null | undefined,
+  ): Promise<string> {
+    const inputEmbedId = normalizeEmbedIdList(decodedContent?.input_embed_ids)[0];
+    if (!inputEmbedId) return "";
+
+    try {
+      const inputEmbed = await resolveEmbed(inputEmbedId);
+      const inputContent = inputEmbed?.content
+        ? await decodeToonContent(inputEmbed.content)
+        : null;
+      const rawUrl = firstStringField(inputContent, [
+        "src",
+        "previewImageUrl",
+        "preview_image_url",
+        "thumbnail_url",
+        "public_thumbnail_url",
+        "image_url",
+      ]);
+      return proxyImage(rawUrl, MAX_WIDTH_PREVIEW_THUMBNAIL);
+    } catch (error) {
+      console.warn("[AppSkillUseRenderer] Failed to resolve app-skill input thumbnail:", error);
+      return "";
+    }
+  }
+
+  private async openAppSkillOutputFullscreen(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: Record<string, unknown> | null | undefined,
+  ): Promise<void> {
+    const outputEmbedId = normalizeEmbedIdList(decodedContent?.output_embed_ids)[0] ||
+      normalizeEmbedIdList(decodedContent?.embed_ids || embedData?.embed_ids)[0];
+
+    if (!outputEmbedId) {
+      await this.openFullscreen(attrs, embedData, decodedContent);
+      return;
+    }
+
+    try {
+      const outputEmbed = await resolveEmbed(outputEmbedId);
+      const outputContent = outputEmbed?.content
+        ? await decodeToonContent(outputEmbed.content)
+        : null;
+      const outputType = registryNormalizeEmbedType(outputEmbed?.type) || outputEmbed?.type || attrs.type;
+      const registryKey = resolveRegistryKey(outputType, outputContent ?? undefined);
+
+      if (outputEmbed && registryKey && hasFullscreenComponent(registryKey)) {
+        dispatchEmbedFullscreen({
+          embedId: outputEmbedId,
+          embedData: outputEmbed,
+          decodedContent: outputContent,
+          embedType: outputType,
+          attrs: undefined,
+        });
+        return;
+      }
+    } catch (error) {
+      console.warn("[AppSkillUseRenderer] Failed to open app-skill output fullscreen:", error);
+    }
+
+    await this.openFullscreen(attrs, embedData, decodedContent);
   }
 
   /**
