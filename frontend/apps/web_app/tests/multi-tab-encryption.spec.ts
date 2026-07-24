@@ -251,7 +251,28 @@ async function waitForChatInSidebarAndClick(
 			})
 		});
 
-	await expect(chatItem.first()).toBeVisible({ timeout: timeoutMs });
+	const deadline = Date.now() + timeoutMs;
+	let showMoreClicks = 0;
+	while (Date.now() < deadline) {
+		if (await chatItem.first().isVisible({ timeout: 1000 }).catch(() => false)) {
+			break;
+		}
+
+		const showMoreButton = page.getByTestId('show-more-chats');
+		if (
+			await showMoreButton.isVisible({ timeout: 500 }).catch(() => false) &&
+			await showMoreButton.isEnabled().catch(() => false)
+		) {
+			showMoreClicks += 1;
+			logFn(`Target chat not in mounted sidebar slice - clicking Show more (${showMoreClicks}).`);
+			await showMoreButton.click();
+			await page.waitForTimeout(500);
+			continue;
+		}
+
+		await page.waitForTimeout(1000);
+	}
+	await expect(chatItem.first()).toBeVisible({ timeout: 1000 });
 	logFn(`Chat "${expectedTitleFragment}" appeared in sidebar -- clicking to open.`);
 
 	await chatItem.first().click();
