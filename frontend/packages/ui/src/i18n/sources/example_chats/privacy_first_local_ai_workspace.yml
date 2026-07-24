@@ -1,7 +1,7 @@
 title:
   context: "Title of example chat: Build a Privacy-First Local AI Workspace"
   en: "Build a Privacy-First Local AI Workspace"
-  de: "Build a Privacy-First Local AI Workspace"
+  de: "Einen datenschutzorientierten lokalen KI-Arbeitsbereich aufbauen"
   zh: "Build a Privacy-First Local AI Workspace"
   es: "Build a Privacy-First Local AI Workspace"
   fr: "Build a Privacy-First Local AI Workspace"
@@ -26,7 +26,7 @@ title:
 summary:
   context: "Summary of example chat: Build a Privacy-First Local AI Workspace"
   en: "Plan a privacy-first AI productivity startup from customer discovery through local-only desktop MVP architecture and engineering tasks."
-  de: "Plan a privacy-first AI productivity startup from customer discovery through local-only desktop MVP architecture and engineering tasks."
+  de: "Plane ein datenschutzorientiertes KI-Produktivitäts-Startup von der Kundenerkundung bis zur lokalen Desktop-MVP-Architektur und den Engineering-Aufgaben."
   zh: "Plan a privacy-first AI productivity startup from customer discovery through local-only desktop MVP architecture and engineering tasks."
   es: "Plan a privacy-first AI productivity startup from customer discovery through local-only desktop MVP architecture and engineering tasks."
   fr: "Plan a privacy-first AI productivity startup from customer discovery through local-only desktop MVP architecture and engineering tasks."
@@ -51,7 +51,7 @@ summary:
 message_1:
   context: "user message 1 in example chat: Build a Privacy-First Local AI Workspace. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: "@ai-model:gemini-3.5-flash-lite I want to build a privacy-first AI productivity company from zero. Act as my operating partner over a long multi-step planning process. Start by defining the company thesis, ideal customer, initial product wedge, and the first 90-day roadmap. Keep it practical and concise, then ask me to continue with customer discovery."
-  de: "@ai-model:gemini-3.5-flash-lite I want to build a privacy-first AI productivity company from zero. Act as my operating partner over a long multi-step planning process. Start by defining the company thesis, ideal customer, initial product wedge, and the first 90-day roadmap. Keep it practical and concise, then ask me to continue with customer discovery."
+  de: "@ai-model:gemini-3.5-flash-lite Ich möchte von null an ein datenschutzorientiertes KI-Produktivitätsunternehmen aufbauen. Handle über einen langen, mehrstufigen Planungsprozess hinweg als mein Operating Partner. Beginne mit der Unternehmens-These, dem idealen Kunden, dem ersten Produktansatz und der Roadmap für die ersten 90 Tage. Bleibe praktisch und prägnant und bitte mich dann, mit der Kundenerkundung fortzufahren."
   zh: "@ai-model:gemini-3.5-flash-lite I want to build a privacy-first AI productivity company from zero. Act as my operating partner over a long multi-step planning process. Start by defining the company thesis, ideal customer, initial product wedge, and the first 90-day roadmap. Keep it practical and concise, then ask me to continue with customer discovery."
   es: "@ai-model:gemini-3.5-flash-lite I want to build a privacy-first AI productivity company from zero. Act as my operating partner over a long multi-step planning process. Start by defining the company thesis, ideal customer, initial product wedge, and the first 90-day roadmap. Keep it practical and concise, then ask me to continue with customer discovery."
   fr: "@ai-model:gemini-3.5-flash-lite I want to build a privacy-first AI productivity company from zero. Act as my operating partner over a long multi-step planning process. Start by defining the company thesis, ideal customer, initial product wedge, and the first 90-day roadmap. Keep it practical and concise, then ask me to continue with customer discovery."
@@ -96,7 +96,7 @@ message_2:
     {"type":"app_skill_use","embed_id":"28dc9b68-c6eb-41c7-a1c3-f67330fd63de","app_id":"web","skill_id":"search","provider":"Brave","status":"finished"}
     ```
     
-    As your operating partner, I'm thrilled to tackle this. Building a privacy-first AI productivity company is one of the most compelling and necessary challenges in tech right now, given how many professionals and regulated enterprises are locked out of mainstream tools due to data leakage and compliance fears.
+    Als dein Operating Partner gehe ich das sehr gern an. Ein datenschutzorientiertes KI-Produktivitätsunternehmen aufzubauen, ist gerade eine der spannendsten und notwendigsten Aufgaben in der Tech-Welt, weil viele Fachleute und regulierte Unternehmen wegen Datenabfluss- und Compliance-Risiken von Mainstream-Tools ausgeschlossen sind.
     
     Let's lay down the foundational blueprint to kick off our multi-step planning process:
     
@@ -1193,7 +1193,7 @@ message_2:
 message_3:
   context: "user message 3 in example chat: Build a Privacy-First Local AI Workspace. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: "@ai-model:gemini-3.5-flash-lite Continue with customer discovery. Design a practical interview plan for 20 prospects: segments to recruit, outreach positioning, interview script, what signals would validate urgency, and what signals would tell us to pivot."
-  de: "@ai-model:gemini-3.5-flash-lite Continue with customer discovery. Design a practical interview plan for 20 prospects: segments to recruit, outreach positioning, interview script, what signals would validate urgency, and what signals would tell us to pivot."
+  de: "@ai-model:gemini-3.5-flash-lite Fahre mit der Kundenerkundung fort. Entwirf einen praktischen Interviewplan für 20 potenzielle Kunden: Zielsegmente, Outreach-Positionierung, Interviewleitfaden, Signale für validierte Dringlichkeit und Signale, die für einen Pivot sprechen würden."
   zh: "@ai-model:gemini-3.5-flash-lite Continue with customer discovery. Design a practical interview plan for 20 prospects: segments to recruit, outreach positioning, interview script, what signals would validate urgency, and what signals would tell us to pivot."
   es: "@ai-model:gemini-3.5-flash-lite Continue with customer discovery. Design a practical interview plan for 20 prospects: segments to recruit, outreach positioning, interview script, what signals would validate urgency, and what signals would tell us to pivot."
   fr: "@ai-model:gemini-3.5-flash-lite Continue with customer discovery. Design a practical interview plan for 20 prospects: segments to recruit, outreach positioning, interview script, what signals would validate urgency, and what signals would tell us to pivot."
@@ -1218,7 +1218,7 @@ message_3:
 message_4:
   context: "assistant message 4 in example chat: Build a Privacy-First Local AI Workspace. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: |
-    Let's dive into customer discovery. The goal here is not to pitch our solution, but to diagnose how painful their current compliance friction is and whether they are actively losing billable hours or deals because of it.
+    Lass uns in die Kundenerkundung einsteigen. Ziel ist hier nicht, unsere Lösung zu verkaufen, sondern zu diagnostizieren, wie schmerzhaft die aktuelle Compliance-Reibung ist und ob dadurch abrechenbare Stunden oder Deals verloren gehen.
     
     Here is a practical, rigorous interview plan for our first 20 prospects.
     
@@ -2440,7 +2440,7 @@ message_4:
 message_5:
   context: "user message 5 in example chat: Build a Privacy-First Local AI Workspace. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: "@ai-model:gemini-3.5-flash-lite Continue with MVP technical architecture. Compare three options for this privacy-first workspace copilot: local-only desktop app, encrypted cloud workspace with zero-retention model calls, and hybrid local-plus-cloud routing. Give a tradeoff matrix and recommend the first version."
-  de: "@ai-model:gemini-3.5-flash-lite Continue with MVP technical architecture. Compare three options for this privacy-first workspace copilot: local-only desktop app, encrypted cloud workspace with zero-retention model calls, and hybrid local-plus-cloud routing. Give a tradeoff matrix and recommend the first version."
+  de: "@ai-model:gemini-3.5-flash-lite Fahre mit der technischen MVP-Architektur fort. Vergleiche drei Optionen für diesen datenschutzorientierten Workspace-Copiloten: rein lokale Desktop-App, verschlüsselter Cloud-Arbeitsbereich mit Zero-Retention-Modellaufrufen und hybrides Local-plus-Cloud-Routing. Gib eine Trade-off-Matrix und empfehle die erste Version."
   zh: "@ai-model:gemini-3.5-flash-lite Continue with MVP technical architecture. Compare three options for this privacy-first workspace copilot: local-only desktop app, encrypted cloud workspace with zero-retention model calls, and hybrid local-plus-cloud routing. Give a tradeoff matrix and recommend the first version."
   es: "@ai-model:gemini-3.5-flash-lite Continue with MVP technical architecture. Compare three options for this privacy-first workspace copilot: local-only desktop app, encrypted cloud workspace with zero-retention model calls, and hybrid local-plus-cloud routing. Give a tradeoff matrix and recommend the first version."
   fr: "@ai-model:gemini-3.5-flash-lite Continue with MVP technical architecture. Compare three options for this privacy-first workspace copilot: local-only desktop app, encrypted cloud workspace with zero-retention model calls, and hybrid local-plus-cloud routing. Give a tradeoff matrix and recommend the first version."
@@ -2465,7 +2465,7 @@ message_5:
 message_6:
   context: "assistant message 6 in example chat: Build a Privacy-First Local AI Workspace. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: |
-    Let's evaluate the technical architecture for our privacy-first copilot. Choosing the right architecture for Day 1 dictates our infrastructure costs, developer velocity, and how easily we can pass a strict security audit during customer discovery.
+    Lass uns die technische Architektur für unseren datenschutzorientierten Copiloten bewerten. Die richtige Day-1-Architektur bestimmt Infrastrukturkosten, Entwicklungsgeschwindigkeit und wie leicht wir während der Kundenerkundung ein strenges Security-Audit bestehen.
     
     Here is a comparison of the three architectural approaches, followed by a tradeoff matrix and our recommended first version.
     
@@ -3435,7 +3435,7 @@ message_6:
 message_7:
   context: "user message 7 in example chat: Build a Privacy-First Local AI Workspace. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: "@ai-model:gemini-3.5-flash-lite Continue with MVP feature scope and UX. Define the smallest lovable workflow for the local-only desktop app, including onboarding, local file indexing, meeting transcript ingestion, document Q&A, draft generation, and privacy controls. Separate must-have, should-have, and later features."
-  de: "@ai-model:gemini-3.5-flash-lite Continue with MVP feature scope and UX. Define the smallest lovable workflow for the local-only desktop app, including onboarding, local file indexing, meeting transcript ingestion, document Q&A, draft generation, and privacy controls. Separate must-have, should-have, and later features."
+  de: "@ai-model:gemini-3.5-flash-lite Fahre mit MVP-Funktionsumfang und UX fort. Definiere den kleinsten begeisternden Workflow für die rein lokale Desktop-App, einschließlich Onboarding, lokaler Dateiindizierung, Meeting-Transkript-Import, Dokument-Q&A, Entwurfserstellung und Datenschutzkontrollen. Trenne Must-have-, Should-have- und spätere Funktionen."
   zh: "@ai-model:gemini-3.5-flash-lite Continue with MVP feature scope and UX. Define the smallest lovable workflow for the local-only desktop app, including onboarding, local file indexing, meeting transcript ingestion, document Q&A, draft generation, and privacy controls. Separate must-have, should-have, and later features."
   es: "@ai-model:gemini-3.5-flash-lite Continue with MVP feature scope and UX. Define the smallest lovable workflow for the local-only desktop app, including onboarding, local file indexing, meeting transcript ingestion, document Q&A, draft generation, and privacy controls. Separate must-have, should-have, and later features."
   fr: "@ai-model:gemini-3.5-flash-lite Continue with MVP feature scope and UX. Define the smallest lovable workflow for the local-only desktop app, including onboarding, local file indexing, meeting transcript ingestion, document Q&A, draft generation, and privacy controls. Separate must-have, should-have, and later features."
@@ -3460,7 +3460,7 @@ message_7:
 message_8:
   context: "assistant message 8 in example chat: Build a Privacy-First Local AI Workspace. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: |
-    Let's lock down the **MVP Feature Scope and UX** for our local-only desktop app. 
+    Lass uns den **MVP-Funktionsumfang und die UX** für unsere rein lokale Desktop-App festzurren.
     
     To make this product truly lovable (not just functional), we need to solve the friction of setting up local models while delivering an interface that feels as snappy and polished as a modern cloud SaaS tool (like Notion or Raycast), but running 100% offline.
     
@@ -4745,7 +4745,7 @@ message_8:
 message_9:
   context: "user message 9 in example chat: Build a Privacy-First Local AI Workspace. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: "@ai-model:gemini-3.5-flash-lite Continue with go-to-market and design partner strategy. Build a 30-day plan to recruit 10 design partners, including channels, messaging angles, qualification criteria, incentives, onboarding process, weekly feedback cadence, and success metrics."
-  de: "@ai-model:gemini-3.5-flash-lite Continue with go-to-market and design partner strategy. Build a 30-day plan to recruit 10 design partners, including channels, messaging angles, qualification criteria, incentives, onboarding process, weekly feedback cadence, and success metrics."
+  de: "@ai-model:gemini-3.5-flash-lite Fahre mit Go-to-Market und Designpartner-Strategie fort. Erstelle einen 30-Tage-Plan, um 10 Designpartner zu gewinnen, einschließlich Kanälen, Messaging-Perspektiven, Qualifikationskriterien, Anreizen, Onboarding-Prozess, wöchentlichem Feedbackrhythmus und Erfolgsmetriken."
   zh: "@ai-model:gemini-3.5-flash-lite Continue with go-to-market and design partner strategy. Build a 30-day plan to recruit 10 design partners, including channels, messaging angles, qualification criteria, incentives, onboarding process, weekly feedback cadence, and success metrics."
   es: "@ai-model:gemini-3.5-flash-lite Continue with go-to-market and design partner strategy. Build a 30-day plan to recruit 10 design partners, including channels, messaging angles, qualification criteria, incentives, onboarding process, weekly feedback cadence, and success metrics."
   fr: "@ai-model:gemini-3.5-flash-lite Continue with go-to-market and design partner strategy. Build a 30-day plan to recruit 10 design partners, including channels, messaging angles, qualification criteria, incentives, onboarding process, weekly feedback cadence, and success metrics."
@@ -4770,7 +4770,7 @@ message_9:
 message_10:
   context: "assistant message 10 in example chat: Build a Privacy-First Local AI Workspace. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: |
-    Let's build a rigorous, high-touch **30-Day Design Partner Acquisition Plan** to secure our first 10 pilot users. 
+    Lass uns einen rigorosen, persönlichen **30-Tage-Plan zur Gewinnung von Designpartnern** erstellen, um die ersten 10 Pilotnutzer zu sichern.
     
     For a privacy-first product, trust is our primary asset. We aren't running broad ad campaigns; we are conducting a selective, high-trust concierge recruitment campaign to find professionals who feel the compliance bottleneck most acutely.
     
@@ -6076,7 +6076,7 @@ message_10:
 message_11:
   context: "user message 11 in example chat: Build a Privacy-First Local AI Workspace. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: "@ai-model:gemini-3.5-flash-lite Draft the exact first outbound assets for recruiting design partners: a LinkedIn DM, a warm intro email, a follow-up email, a calendar invite description, and a short landing-page section. Keep them credible, non-hype, and privacy-focused."
-  de: "@ai-model:gemini-3.5-flash-lite Draft the exact first outbound assets for recruiting design partners: a LinkedIn DM, a warm intro email, a follow-up email, a calendar invite description, and a short landing-page section. Keep them credible, non-hype, and privacy-focused."
+  de: "@ai-model:gemini-3.5-flash-lite Entwirf die ersten konkreten Outbound-Materialien zur Gewinnung von Designpartnern: eine LinkedIn-DM, eine Warm-Intro-E-Mail, eine Follow-up-E-Mail, eine Kalender-Einladungsbeschreibung und einen kurzen Landingpage-Abschnitt. Halte sie glaubwürdig, ohne Hype und datenschutzfokussiert."
   zh: "@ai-model:gemini-3.5-flash-lite Draft the exact first outbound assets for recruiting design partners: a LinkedIn DM, a warm intro email, a follow-up email, a calendar invite description, and a short landing-page section. Keep them credible, non-hype, and privacy-focused."
   es: "@ai-model:gemini-3.5-flash-lite Draft the exact first outbound assets for recruiting design partners: a LinkedIn DM, a warm intro email, a follow-up email, a calendar invite description, and a short landing-page section. Keep them credible, non-hype, and privacy-focused."
   fr: "@ai-model:gemini-3.5-flash-lite Draft the exact first outbound assets for recruiting design partners: a LinkedIn DM, a warm intro email, a follow-up email, a calendar invite description, and a short landing-page section. Keep them credible, non-hype, and privacy-focused."
@@ -6101,7 +6101,7 @@ message_11:
 message_12:
   context: "assistant message 12 in example chat: Build a Privacy-First Local AI Workspace. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: |
-    Here are the exact outbound and conversion assets for recruiting our first 10 design partners. Each asset is written with a tone of quiet competence, respecting their professional rigor and avoiding any hype-driven language.
+    Hier sind die konkreten Outbound- und Conversion-Materialien zur Gewinnung unserer ersten 10 Designpartner. Jedes Asset ist im Ton ruhiger Kompetenz formuliert, respektiert ihre professionelle Sorgfalt und vermeidet Hype-Sprache.
     
     ---
     
@@ -8016,7 +8016,7 @@ message_12:
 message_13:
   context: "user message 13 in example chat: Build a Privacy-First Local AI Workspace. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: "@ai-model:gemini-3.5-flash-lite Continue by mapping out the Product Requirements Document (PRD) for the local-only Tauri desktop client wrapper. Include target users, core jobs-to-be-done, user stories, functional requirements, non-functional privacy/security requirements, acceptance criteria, MVP milestones, and explicit out-of-scope items."
-  de: "@ai-model:gemini-3.5-flash-lite Continue by mapping out the Product Requirements Document (PRD) for the local-only Tauri desktop client wrapper. Include target users, core jobs-to-be-done, user stories, functional requirements, non-functional privacy/security requirements, acceptance criteria, MVP milestones, and explicit out-of-scope items."
+  de: "@ai-model:gemini-3.5-flash-lite Fahre fort, indem du das Product Requirements Document (PRD) für den rein lokalen Tauri-Desktop-Client-Wrapper strukturierst. Berücksichtige Zielnutzer, zentrale Jobs-to-be-done, User Stories, funktionale Anforderungen, nicht-funktionale Datenschutz- und Sicherheitsanforderungen, Akzeptanzkriterien, MVP-Meilensteine und explizite Out-of-Scope-Punkte."
   zh: "@ai-model:gemini-3.5-flash-lite Continue by mapping out the Product Requirements Document (PRD) for the local-only Tauri desktop client wrapper. Include target users, core jobs-to-be-done, user stories, functional requirements, non-functional privacy/security requirements, acceptance criteria, MVP milestones, and explicit out-of-scope items."
   es: "@ai-model:gemini-3.5-flash-lite Continue by mapping out the Product Requirements Document (PRD) for the local-only Tauri desktop client wrapper. Include target users, core jobs-to-be-done, user stories, functional requirements, non-functional privacy/security requirements, acceptance criteria, MVP milestones, and explicit out-of-scope items."
   fr: "@ai-model:gemini-3.5-flash-lite Continue by mapping out the Product Requirements Document (PRD) for the local-only Tauri desktop client wrapper. Include target users, core jobs-to-be-done, user stories, functional requirements, non-functional privacy/security requirements, acceptance criteria, MVP milestones, and explicit out-of-scope items."
@@ -8041,7 +8041,7 @@ message_13:
 message_14:
   context: "assistant message 14 in example chat: Build a Privacy-First Local AI Workspace. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: |
-    Let's map out a comprehensive **Product Requirements Document (PRD)** for our privacy-first Tauri desktop client wrapper. This document will serve as our engineering north star for the 30-day MVP build.
+    Lass uns ein umfassendes **Product Requirements Document (PRD)** für unseren datenschutzorientierten Tauri-Desktop-Client-Wrapper ausarbeiten. Dieses Dokument dient als Engineering-Nordstern für den 30-Tage-MVP-Build.
     
     ---
     
@@ -9599,7 +9599,7 @@ message_14:
 message_15:
   context: "user message 15 in example chat: Build a Privacy-First Local AI Workspace. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: "@ai-model:gemini-3.5-flash-lite Continue with Sprint 1 engineering tasks for the local-only Tauri/Rust desktop MVP. Break the work into concrete tickets for app shell, local model setup, document parsing, indexing, chat UI, citations, privacy controls, packaging, QA, and measurement. Include dependencies, risks, and acceptance checks for each workstream."
-  de: "@ai-model:gemini-3.5-flash-lite Continue with Sprint 1 engineering tasks for the local-only Tauri/Rust desktop MVP. Break the work into concrete tickets for app shell, local model setup, document parsing, indexing, chat UI, citations, privacy controls, packaging, QA, and measurement. Include dependencies, risks, and acceptance checks for each workstream."
+  de: "@ai-model:gemini-3.5-flash-lite Fahre mit den Engineering-Aufgaben für Sprint 1 des rein lokalen Tauri/Rust-Desktop-MVPs fort. Zerlege die Arbeit in konkrete Tickets für App-Shell, lokales Modell-Setup, Dokument-Parsing, Indizierung, Chat-UI, Quellenangaben, Datenschutzkontrollen, Packaging, QA und Messung. Nenne Abhängigkeiten, Risiken und Akzeptanzprüfungen für jeden Workstream."
   zh: "@ai-model:gemini-3.5-flash-lite Continue with Sprint 1 engineering tasks for the local-only Tauri/Rust desktop MVP. Break the work into concrete tickets for app shell, local model setup, document parsing, indexing, chat UI, citations, privacy controls, packaging, QA, and measurement. Include dependencies, risks, and acceptance checks for each workstream."
   es: "@ai-model:gemini-3.5-flash-lite Continue with Sprint 1 engineering tasks for the local-only Tauri/Rust desktop MVP. Break the work into concrete tickets for app shell, local model setup, document parsing, indexing, chat UI, citations, privacy controls, packaging, QA, and measurement. Include dependencies, risks, and acceptance checks for each workstream."
   fr: "@ai-model:gemini-3.5-flash-lite Continue with Sprint 1 engineering tasks for the local-only Tauri/Rust desktop MVP. Break the work into concrete tickets for app shell, local model setup, document parsing, indexing, chat UI, citations, privacy controls, packaging, QA, and measurement. Include dependencies, risks, and acceptance checks for each workstream."
@@ -9624,7 +9624,7 @@ message_15:
 message_16:
   context: "assistant message 16 in example chat: Build a Privacy-First Local AI Workspace. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: |
-    Here is the complete **Sprint 1 Engineering Task Breakdown** for our 30-day MVP. The work is organized into 10 discrete workstreams, detailing dependencies, technical risks, and verifiable acceptance criteria for each ticket.
+    Hier ist die vollständige **Aufschlüsselung der Sprint-1-Engineering-Aufgaben** für unseren 30-Tage-MVP. Die Arbeit ist in 10 klar getrennte Workstreams gegliedert, mit Abhängigkeiten, technischen Risiken und überprüfbaren Akzeptanzkriterien für jedes Ticket.
     
     ---
     
@@ -12988,7 +12988,7 @@ message_16:
 message_17:
   context: "user message 17 in example chat: Build a Privacy-First Local AI Workspace. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: "@ai-model:gemini-3.5-flash-lite Continue by reviewing the Tauri project scaffolding configuration for ENG-01. Specify the recommended repository structure, tauri.conf.json security settings, CSP/network restrictions, Rust command boundaries, local filesystem permissions, build scripts, and the first smoke tests we should write before implementing features."
-  de: "@ai-model:gemini-3.5-flash-lite Continue by reviewing the Tauri project scaffolding configuration for ENG-01. Specify the recommended repository structure, tauri.conf.json security settings, CSP/network restrictions, Rust command boundaries, local filesystem permissions, build scripts, and the first smoke tests we should write before implementing features."
+  de: "@ai-model:gemini-3.5-flash-lite Fahre fort, indem du die Tauri-Projektscaffolding-Konfiguration für ENG-01 prüfst. Spezifiziere die empfohlene Repository-Struktur, tauri.conf.json-Sicherheitseinstellungen, CSP-/Netzwerkbeschränkungen, Rust-Command-Grenzen, lokale Dateisystemberechtigungen, Build-Skripte und die ersten Smoke-Tests, die wir vor Feature-Implementierungen schreiben sollten."
   zh: "@ai-model:gemini-3.5-flash-lite Continue by reviewing the Tauri project scaffolding configuration for ENG-01. Specify the recommended repository structure, tauri.conf.json security settings, CSP/network restrictions, Rust command boundaries, local filesystem permissions, build scripts, and the first smoke tests we should write before implementing features."
   es: "@ai-model:gemini-3.5-flash-lite Continue by reviewing the Tauri project scaffolding configuration for ENG-01. Specify the recommended repository structure, tauri.conf.json security settings, CSP/network restrictions, Rust command boundaries, local filesystem permissions, build scripts, and the first smoke tests we should write before implementing features."
   fr: "@ai-model:gemini-3.5-flash-lite Continue by reviewing the Tauri project scaffolding configuration for ENG-01. Specify the recommended repository structure, tauri.conf.json security settings, CSP/network restrictions, Rust command boundaries, local filesystem permissions, build scripts, and the first smoke tests we should write before implementing features."
@@ -13013,7 +13013,7 @@ message_17:
 message_18:
   context: "assistant message 18 in example chat: Build a Privacy-First Local AI Workspace. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: |
-    To build a rock-solid, air-gapped foundation for **Project Citadel** under **Ticket `ENG-01`**, we need to configure our Tauri 2.x project scaffolding with zero-trust IPC boundaries, strict Content Security Policies (CSP), explicit filesystem capability scopes, and automated smoke tests. 
+    Um unter **Ticket `ENG-01`** eine robuste, abgeschottete Grundlage für **Project Citadel** zu schaffen, müssen wir unser Tauri-2.x-Projektscaffolding mit Zero-Trust-IPC-Grenzen, strengen Content Security Policies (CSP), expliziten Dateisystem-Capability-Scopes und automatisierten Smoke-Tests konfigurieren.
     
     Since our core thesis is absolute data privacy and zero network leakage, our configuration must actively clamp down on default Tauri permissive settings.
     
@@ -14571,7 +14571,7 @@ message_18:
 follow_up_1:
   context: "Follow-up suggestion 1"
   en: "Search for Tauri project scaffolding best practices"
-  de: "Search for Tauri project scaffolding best practices"
+  de: "Best Practices für Tauri-Projektscaffolding suchen"
   zh: "Search for Tauri project scaffolding best practices"
   es: "Search for Tauri project scaffolding best practices"
   fr: "Search for Tauri project scaffolding best practices"
@@ -14596,7 +14596,7 @@ follow_up_1:
 follow_up_2:
   context: "Follow-up suggestion 2"
   en: "Explain the importance of strict CSP in Tauri projects"
-  de: "Explain the importance of strict CSP in Tauri projects"
+  de: "Die Bedeutung strenger CSP in Tauri-Projekten erklären"
   zh: "Explain the importance of strict CSP in Tauri projects"
   es: "Explain the importance of strict CSP in Tauri projects"
   fr: "Explain the importance of strict CSP in Tauri projects"
@@ -14621,7 +14621,7 @@ follow_up_2:
 follow_up_3:
   context: "Follow-up suggestion 3"
   en: "Find Rust libraries for secure IPC"
-  de: "Find Rust libraries for secure IPC"
+  de: "Rust-Bibliotheken für sichere IPC finden"
   zh: "Find Rust libraries for secure IPC"
   es: "Find Rust libraries for secure IPC"
   fr: "Find Rust libraries for secure IPC"
@@ -14646,7 +14646,7 @@ follow_up_3:
 follow_up_4:
   context: "Follow-up suggestion 4"
   en: "List common security pitfalls in Tauri applications"
-  de: "List common security pitfalls in Tauri applications"
+  de: "Häufige Sicherheitsfallen in Tauri-Anwendungen auflisten"
   zh: "List common security pitfalls in Tauri applications"
   es: "List common security pitfalls in Tauri applications"
   fr: "List common security pitfalls in Tauri applications"
@@ -14671,7 +14671,7 @@ follow_up_4:
 follow_up_5:
   context: "Follow-up suggestion 5"
   en: "Compare local inference runtimes for Rust"
-  de: "Compare local inference runtimes for Rust"
+  de: "Lokale Inferenz-Runtimes für Rust vergleichen"
   zh: "Compare local inference runtimes for Rust"
   es: "Compare local inference runtimes for Rust"
   fr: "Compare local inference runtimes for Rust"
@@ -14696,7 +14696,7 @@ follow_up_5:
 follow_up_6:
   context: "Follow-up suggestion 6"
   en: "Help me understand the implications of capability scopes in Tauri"
-  de: "Help me understand the implications of capability scopes in Tauri"
+  de: "Hilf mir, die Auswirkungen von Capability Scopes in Tauri zu verstehen"
   zh: "Help me understand the implications of capability scopes in Tauri"
   es: "Help me understand the implications of capability scopes in Tauri"
   fr: "Help me understand the implications of capability scopes in Tauri"
