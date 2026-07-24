@@ -9,7 +9,7 @@
 export {};
 
 const { expect, test } = require('./helpers/cookie-audit');
-const { loginToTestAccount, sendMessage, startNewChat } = require('./helpers/chat-test-helpers');
+const { loginToTestAccount, sendMessage, startNewChat, waitForChatReady } = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 const { getE2EDebugUrl, getTestAccount, withMockMarker } = require('./signup-flow-helpers');
 
@@ -220,11 +220,13 @@ test.describe('Unified detail metadata multi-device sync', () => {
 		try {
 			await pageA.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
 			await loginToTestAccount(pageA);
+			await waitForChatReady(pageA);
 			await ensureSidebarClosed(pageA);
 
 			await waitForNextTotpWindow(pageA);
 			await pageB.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
 			await loginToTestAccount(pageB);
+			await waitForChatReady(pageB);
 			await ensureSidebarClosed(pageB);
 
 			const unique = `${Date.now()}-${test.info().workerIndex}`;
@@ -302,6 +304,7 @@ test.describe('Unified detail metadata multi-device sync', () => {
 			await waitForNextTotpWindow(pageA);
 			await pageB.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
 			await loginToTestAccount(pageB);
+			await waitForChatReady(pageB, undefined, 60_000);
 			await ensureSidebarClosed(pageB);
 
 			await openOwnedChat(pageB, chatId);
