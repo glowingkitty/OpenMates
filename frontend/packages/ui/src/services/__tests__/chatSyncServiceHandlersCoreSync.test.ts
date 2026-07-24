@@ -32,6 +32,7 @@ const mocks = vi.hoisted(() => ({
     batchSaveMessages: vi.fn(),
     saveChatCompressionCheckpoint: vi.fn(),
     updateChat: vi.fn(),
+    getMessageCountForChat: vi.fn(),
     saveEncryptedNewChatSuggestions: vi.fn(),
   },
   userDB: {
@@ -247,6 +248,7 @@ describe("handleChatContentBatchResponseImpl", () => {
     mocks.chatDB.batchSaveMessages.mockResolvedValue(undefined);
     mocks.chatDB.saveChatCompressionCheckpoint.mockResolvedValue(undefined);
     mocks.chatDB.updateChat.mockResolvedValue(undefined);
+    mocks.chatDB.getMessageCountForChat.mockResolvedValue(1);
   });
 
   it("upserts the updated chat shell into the global chat-list cache", async () => {
