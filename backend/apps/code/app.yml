@@ -535,8 +535,17 @@ skills:
     class_path: backend.apps.code.skills.image_to_html_skill.ImageToHtmlSkill
     full_model_reference: google/gemini-3.6-flash
     providers:
-      - name: google_ai_studio
+      - name: google
+        display_name: Google
       - name: e2b
+        display_name: E2B
+    pricing:
+      tokens:
+        input:
+          per_credit_unit: 200
+        output:
+          per_credit_unit: 45
+      per_minute: 5
     tool_schema:
       type: object
       properties:

@@ -24,7 +24,7 @@
     import { modelsMetadata, type AIModelMetadata } from '../../data/modelsMetadata';
     import { findProviderByName } from '../../data/providersMetadata';
     import { getProviderIconUrl } from '../../data/providerIcons';
-    import { SettingsDropdown, SettingsSectionHeading } from './elements';
+    import { SettingsDropdown, SettingsInfoBox, SettingsSectionHeading } from './elements';
     import SkillExamplesSection from './SkillExamplesSection.svelte';
     import type { AppMetadata, SkillMetadata, SkillPricing } from '../../types/apps';
     import { createEventDispatcher } from 'svelte';
@@ -85,8 +85,8 @@
      * Valid pricing types:
      *   - fixed → "{N} credits / request" (default)
      *   - per_minute → "{N} credits / minute"
-     *   - tokens.input → "{N} tokens / credit (input)"
-     *   - tokens.output → "{N} tokens / credit (output)"
+     *   - tokens.input → "1 credit per {N} input tokens"
+     *   - tokens.output → "1 credit per {N} output tokens"
      *
      * Only used when hasModels is false.
      */
@@ -102,12 +102,28 @@
         if (pricing.tokens) {
             const tokenParts: string[] = [];
             if (pricing.tokens.input) {
-                tokenParts.push(`${pricing.tokens.input.per_credit_unit} ${$text('settings.app_store.skills.pricing.token')} / ${$text('common.credits')} (${$text('settings.app_store.skills.pricing.input')})`);
+                tokenParts.push(
+                    $text('settings.app_store.skills.pricing.tokens_per_credit')
+                        .replace('{credits}', '1')
+                        .replace('{tokens}', String(pricing.tokens.input.per_credit_unit))
+                        .replace('{direction}', $text('settings.app_store.skills.pricing.input'))
+                );
             }
             if (pricing.tokens.output) {
-                tokenParts.push(`${pricing.tokens.output.per_credit_unit} ${$text('settings.app_store.skills.pricing.token')} / ${$text('common.credits')} (${$text('settings.app_store.skills.pricing.output')})`);
+                tokenParts.push(
+                    $text('settings.app_store.skills.pricing.tokens_per_credit')
+                        .replace('{credits}', '1')
+                        .replace('{tokens}', String(pricing.tokens.output.per_credit_unit))
+                        .replace('{direction}', $text('settings.app_store.skills.pricing.output'))
+                );
             }
             if (tokenParts.length > 0) {
+                if (pricing.per_minute !== undefined) {
+                    tokenParts.push(
+                        $text('settings.app_store.skills.pricing.credits_per_started_minute')
+                            .replace('{credits}', String(pricing.per_minute))
+                    );
+                }
                 return tokenParts;
             }
         }
@@ -129,7 +145,10 @@
         
         // Per minute pricing → "N credits / minute"
         if (pricing.per_minute !== undefined) {
-            parts.push(`${pricing.per_minute} ${$text('common.credits')} / ${$text('settings.app_store.skills.pricing.minute')}`);
+            parts.push(
+                $text('settings.app_store.skills.pricing.credits_per_minute')
+                    .replace('{credits}', String(pricing.per_minute))
+            );
         }
 
         if (pricing.per_second !== undefined) {
@@ -371,6 +390,11 @@
                     {:else}
                         <p class="pricing">{formattedPricing}</p>
                     {/if}
+                    {#if skill?.pricing?.tokens}
+                        <SettingsInfoBox type="info">
+                            {$text('settings.app_store.skills.pricing.token_usage_note')}
+                        </SettingsInfoBox>
+                    {/if}
                 </div>
             </div>
 
@@ -479,6 +503,11 @@
                     {:else}
                         <!-- Other pricing types: single line -->
                         <p class="pricing">{formattedPricing}</p>
+                    {/if}
+                    {#if skill?.pricing?.tokens}
+                        <SettingsInfoBox type="info">
+                            {$text('settings.app_store.skills.pricing.token_usage_note')}
+                        </SettingsInfoBox>
                     {/if}
                 </div>
             </div>
@@ -678,7 +707,7 @@
         font-weight: 500;
         color: var(--color-grey-100);
     }
-    
+
     /* How to use section styles */
     .how-to-use-section {
         margin-top: 1.5rem;
@@ -940,11 +969,11 @@
     
     /* Dark mode */
     :global(.dark) .model-item:hover {
-        background: var(--color-grey-15);
+        background: var(--color-grey-20);
     }
 
     :global(.dark) .provider-item--clickable:hover {
-        background: var(--color-grey-15);
+        background: var(--color-grey-20);
     }
     
     :global(.dark) .provider-logo {

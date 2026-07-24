@@ -719,12 +719,12 @@ async def get_skill_providers_with_pricing(
             
             # Get provider config to extract name and description
             provider_config = config_manager.get_provider_config(provider_id)
-            provider_display_name = provider_name  # Fallback to provider_name from app.yml
+            provider_display_name = provider_ref.display_name or provider_name  # Fallback to provider_name from app.yml
             provider_description = ""  # Default empty description
             
             if provider_config:
                 # Use name and description from provider YAML file if available
-                provider_display_name = provider_config.get("name", provider_name)
+                provider_display_name = provider_ref.display_name or provider_config.get("name", provider_name)
                 provider_description = provider_config.get("description", "")
             else:
                 logger.debug(f"Provider config not found for '{provider_id}', using fallback name '{provider_name}'")

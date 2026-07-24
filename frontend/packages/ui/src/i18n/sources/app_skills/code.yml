@@ -126,6 +126,131 @@ run.description:
   he: "הפעלת קוד מהצ'אט הנוכחי בארגז חול מבודד."
   verified_by_human: [en, de]
 
+image_to_html:
+  context: Skill name for converting a screenshot or UI mockup image into a standalone HTML code embed
+  en: Screenshot to HTML
+  de: Screenshot zu HTML
+  zh: Screenshot to HTML
+  es: Screenshot to HTML
+  fr: Screenshot to HTML
+  pt: Screenshot to HTML
+  ru: Screenshot to HTML
+  ja: Screenshot to HTML
+  ko: Screenshot to HTML
+  it: Screenshot to HTML
+  tr: Screenshot to HTML
+  vi: Screenshot to HTML
+  id: Screenshot to HTML
+  pl: Screenshot to HTML
+  nl: Screenshot to HTML
+  ar: Screenshot to HTML
+  hi: Screenshot to HTML
+  th: Screenshot to HTML
+  cs: Screenshot to HTML
+  sv: Screenshot to HTML
+  he: Screenshot to HTML
+  verified_by_human: [en, de]
+
+image_to_html.description:
+  context: Description for the Code image_to_html skill in Apps settings
+  en: Turn a screenshot or UI mockup into a standalone HTML code embed.
+  de: Verwandle einen Screenshot oder ein UI-Mockup in ein eigenständiges HTML-Code-Embed.
+  zh: Turn a screenshot or UI mockup into a standalone HTML code embed.
+  es: Turn a screenshot or UI mockup into a standalone HTML code embed.
+  fr: Turn a screenshot or UI mockup into a standalone HTML code embed.
+  pt: Turn a screenshot or UI mockup into a standalone HTML code embed.
+  ru: Turn a screenshot or UI mockup into a standalone HTML code embed.
+  ja: Turn a screenshot or UI mockup into a standalone HTML code embed.
+  ko: Turn a screenshot or UI mockup into a standalone HTML code embed.
+  it: Turn a screenshot or UI mockup into a standalone HTML code embed.
+  tr: Turn a screenshot or UI mockup into a standalone HTML code embed.
+  vi: Turn a screenshot or UI mockup into a standalone HTML code embed.
+  id: Turn a screenshot or UI mockup into a standalone HTML code embed.
+  pl: Turn a screenshot or UI mockup into a standalone HTML code embed.
+  nl: Turn a screenshot or UI mockup into a standalone HTML code embed.
+  ar: Turn a screenshot or UI mockup into a standalone HTML code embed.
+  hi: Turn a screenshot or UI mockup into a standalone HTML code embed.
+  th: Turn a screenshot or UI mockup into a standalone HTML code embed.
+  cs: Turn a screenshot or UI mockup into a standalone HTML code embed.
+  sv: Turn a screenshot or UI mockup into a standalone HTML code embed.
+  he: Turn a screenshot or UI mockup into a standalone HTML code embed.
+  verified_by_human: [en, de]
+
+image_to_html.how_to_use.1:
+  context: Example prompt for using the screenshot to HTML skill
+  en: Convert this uploaded **pricing-card screenshot** into a standalone HTML embed.
+  de: Wandle diesen hochgeladenen **Pricing-Card-Screenshot** in ein eigenständiges HTML-Embed um.
+  zh: Convert this uploaded **pricing-card screenshot** into a standalone HTML embed.
+  es: Convert this uploaded **pricing-card screenshot** into a standalone HTML embed.
+  fr: Convert this uploaded **pricing-card screenshot** into a standalone HTML embed.
+  pt: Convert this uploaded **pricing-card screenshot** into a standalone HTML embed.
+  ru: Convert this uploaded **pricing-card screenshot** into a standalone HTML embed.
+  ja: Convert this uploaded **pricing-card screenshot** into a standalone HTML embed.
+  ko: Convert this uploaded **pricing-card screenshot** into a standalone HTML embed.
+  it: Convert this uploaded **pricing-card screenshot** into a standalone HTML embed.
+  tr: Convert this uploaded **pricing-card screenshot** into a standalone HTML embed.
+  vi: Convert this uploaded **pricing-card screenshot** into a standalone HTML embed.
+  id: Convert this uploaded **pricing-card screenshot** into a standalone HTML embed.
+  pl: Convert this uploaded **pricing-card screenshot** into a standalone HTML embed.
+  nl: Convert this uploaded **pricing-card screenshot** into a standalone HTML embed.
+  ar: Convert this uploaded **pricing-card screenshot** into a standalone HTML embed.
+  hi: Convert this uploaded **pricing-card screenshot** into a standalone HTML embed.
+  th: Convert this uploaded **pricing-card screenshot** into a standalone HTML embed.
+  cs: Convert this uploaded **pricing-card screenshot** into a standalone HTML embed.
+  sv: Convert this uploaded **pricing-card screenshot** into a standalone HTML embed.
+  he: Convert this uploaded **pricing-card screenshot** into a standalone HTML embed.
+  verified_by_human: [en, de]
+
+image_to_html.how_to_use.2:
+  context: Example prompt for using the screenshot to HTML skill
+  en: Rebuild this app screen as one **inline HTML file** with matching layout and styling.
+  de: Baue diesen App-Screen als eine **Inline-HTML-Datei** mit passendem Layout und Styling nach.
+  zh: Rebuild this app screen as one **inline HTML file** with matching layout and styling.
+  es: Rebuild this app screen as one **inline HTML file** with matching layout and styling.
+  fr: Rebuild this app screen as one **inline HTML file** with matching layout and styling.
+  pt: Rebuild this app screen as one **inline HTML file** with matching layout and styling.
+  ru: Rebuild this app screen as one **inline HTML file** with matching layout and styling.
+  ja: Rebuild this app screen as one **inline HTML file** with matching layout and styling.
+  ko: Rebuild this app screen as one **inline HTML file** with matching layout and styling.
+  it: Rebuild this app screen as one **inline HTML file** with matching layout and styling.
+  tr: Rebuild this app screen as one **inline HTML file** with matching layout and styling.
+  vi: Rebuild this app screen as one **inline HTML file** with matching layout and styling.
+  id: Rebuild this app screen as one **inline HTML file** with matching layout and styling.
+  pl: Rebuild this app screen as one **inline HTML file** with matching layout and styling.
+  nl: Rebuild this app screen as one **inline HTML file** with matching layout and styling.
+  ar: Rebuild this app screen as one **inline HTML file** with matching layout and styling.
+  hi: Rebuild this app screen as one **inline HTML file** with matching layout and styling.
+  th: Rebuild this app screen as one **inline HTML file** with matching layout and styling.
+  cs: Rebuild this app screen as one **inline HTML file** with matching layout and styling.
+  sv: Rebuild this app screen as one **inline HTML file** with matching layout and styling.
+  he: Rebuild this app screen as one **inline HTML file** with matching layout and styling.
+  verified_by_human: [en, de]
+
+image_to_html.how_to_use.3:
+  context: Example prompt for using the screenshot to HTML skill
+  en: Turn this website mockup into clean **HTML and CSS** I can inspect fullscreen.
+  de: Verwandle dieses Website-Mockup in sauberes **HTML und CSS**, das ich im Vollbild prüfen kann.
+  zh: Turn this website mockup into clean **HTML and CSS** I can inspect fullscreen.
+  es: Turn this website mockup into clean **HTML and CSS** I can inspect fullscreen.
+  fr: Turn this website mockup into clean **HTML and CSS** I can inspect fullscreen.
+  pt: Turn this website mockup into clean **HTML and CSS** I can inspect fullscreen.
+  ru: Turn this website mockup into clean **HTML and CSS** I can inspect fullscreen.
+  ja: Turn this website mockup into clean **HTML and CSS** I can inspect fullscreen.
+  ko: Turn this website mockup into clean **HTML and CSS** I can inspect fullscreen.
+  it: Turn this website mockup into clean **HTML and CSS** I can inspect fullscreen.
+  tr: Turn this website mockup into clean **HTML and CSS** I can inspect fullscreen.
+  vi: Turn this website mockup into clean **HTML and CSS** I can inspect fullscreen.
+  id: Turn this website mockup into clean **HTML and CSS** I can inspect fullscreen.
+  pl: Turn this website mockup into clean **HTML and CSS** I can inspect fullscreen.
+  nl: Turn this website mockup into clean **HTML and CSS** I can inspect fullscreen.
+  ar: Turn this website mockup into clean **HTML and CSS** I can inspect fullscreen.
+  hi: Turn this website mockup into clean **HTML and CSS** I can inspect fullscreen.
+  th: Turn this website mockup into clean **HTML and CSS** I can inspect fullscreen.
+  cs: Turn this website mockup into clean **HTML and CSS** I can inspect fullscreen.
+  sv: Turn this website mockup into clean **HTML and CSS** I can inspect fullscreen.
+  he: Turn this website mockup into clean **HTML and CSS** I can inspect fullscreen.
+  verified_by_human: [en, de]
+
 run.output:
   context: Terminal panel title for Code Run
   en: Run output

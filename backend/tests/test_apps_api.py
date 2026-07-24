@@ -154,6 +154,8 @@ code_execution.start_code_run_execution = start_code_run_execution
 User = importlib.import_module("backend.core.api.app.models.user").User
 apps_api = importlib.import_module("backend.core.api.app.routes.apps_api")
 AppYAML = importlib.import_module("backend.shared.python_schemas.app_metadata_schemas").AppYAML
+AppSkillDefinition = importlib.import_module("backend.shared.python_schemas.app_metadata_schemas").AppSkillDefinition
+ProviderRef = importlib.import_module("backend.shared.python_schemas.app_metadata_schemas").ProviderRef
 get_current_user_or_api_key = importlib.import_module(
     "backend.core.api.app.routes.auth_routes.auth_dependencies"
 ).get_current_user_or_api_key
@@ -187,6 +189,34 @@ def test_image_to_html_processing_response_defers_billing_to_worker() -> None:
     )
 
     assert credits == 0
+
+
+@pytest.mark.asyncio
+async def test_skill_provider_pricing_uses_provider_ref_display_name(monkeypatch) -> None:
+    class FakeConfigManager:
+        def get_provider_config(self, provider_id: str):
+            assert provider_id == "google"
+            return {"name": "Google Vertex AI", "description": "Google provider metadata"}
+
+    async def fake_fetch_provider_pricing(provider_id: str):
+        assert provider_id == "google"
+        return {"tokens": {"input": {"per_credit_unit": 200}}}
+
+    monkeypatch.setattr(apps_api, "fetch_provider_pricing", fake_fetch_provider_pricing)
+
+    providers = await apps_api.get_skill_providers_with_pricing(
+        AppSkillDefinition(
+            id="image_to_html",
+            name_translation_key="app_skills.code.image_to_html",
+            description_translation_key="app_skills.code.image_to_html.description",
+            providers=[ProviderRef(name="google", display_name="Google")],
+        ),
+        "code",
+        FakeConfigManager(),
+    )
+
+    assert providers[0].provider == "google"
+    assert providers[0].name == "Google"
 
 
 @pytest.mark.asyncio
