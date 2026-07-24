@@ -31,6 +31,7 @@
    */
 
   import { onMount, onDestroy } from 'svelte';
+  import { fade } from 'svelte/transition';
   import { get } from 'svelte/store';
   import { text } from '@repo/ui';
   import { CATEGORY_GRADIENTS, getCategoryGradientColors } from '../utils/categoryUtils';
@@ -842,11 +843,11 @@
     landingIntroRequestIndex = -1;
     markManualNavigation();
     resumeAutoRotation();
+    landingIntroDismissed = true;
+    goToVisibleIndex(currentIndex + direction);
+    restartProgressAnimation();
     landingIntroTransitionTimeout = window.setTimeout(() => {
-      landingIntroDismissed = true;
       landingIntroPhase = 'regular';
-      goToVisibleIndex(currentIndex + direction);
-      restartProgressAnimation();
     }, LANDING_INTRO_RESIZE_TRANSITION_MS);
   }
 
@@ -1118,6 +1119,7 @@
                 class="landing-intro-expanded-content"
                 class:examples-visible={landingIntroExamplesVisible}
                 data-testid="landing-intro-expanded"
+                out:fade={{ duration: 320 }}
               >
                 <div class="guest-intro-ai-icon landing-intro-ai-icon" data-testid="guest-intro-ai-icon" aria-hidden="true"></div>
                 <h1 class="landing-intro-headline" data-testid="landing-intro-headline">
@@ -1162,29 +1164,32 @@
                 </div>
               </div>
             {:else}
-              <div
-                class="guest-intro-copy"
-                class:guest-feature-copy={current.inspiration_id !== LANDING_INTRO_INSPIRATION_ID || isGuestActionableSlide}
-                data-testid="guest-intro-copy"
-              >
-                {#if current.inspiration_id === LANDING_INTRO_INSPIRATION_ID}
-                  <div class="guest-intro-ai-icon" data-testid="guest-intro-ai-icon" aria-hidden="true"></div>
-                  <span class="guest-intro-copy-line">{$text('demo_chats.for_everyone.teaser_line1')}</span>
-                  <span class="guest-intro-copy-line">{$text('demo_chats.for_everyone.teaser_line2')}</span>
-                  <span class="guest-intro-copy-line">{$text('demo_chats.for_everyone.teaser_line3')}</span>
-                {:else}
-                {#if InfoCardIconComponent}
-                  <span class="guest-feature-inline-icon" aria-hidden="true">
-                    <InfoCardIconComponent size={44} color="white" />
-                  </span>
-                {/if}
-                  <span class="guest-feature-headline" data-testid="daily-inspiration-phrase">
-                    {#each guestFeatureHeadlineLines as line, index}
-                      <span>{line}</span>{#if index < guestFeatureHeadlineLines.length - 1}<br>{/if}
-                    {/each}
-                  </span>
-                {/if}
-              </div>
+              {#key current.inspiration_id}
+                <div
+                  class="guest-intro-copy"
+                  class:guest-feature-copy={current.inspiration_id !== LANDING_INTRO_INSPIRATION_ID || isGuestActionableSlide}
+                  data-testid="guest-intro-copy"
+                  in:fade={{ duration: 320 }}
+                >
+                  {#if current.inspiration_id === LANDING_INTRO_INSPIRATION_ID}
+                    <div class="guest-intro-ai-icon" data-testid="guest-intro-ai-icon" aria-hidden="true"></div>
+                    <span class="guest-intro-copy-line">{$text('demo_chats.for_everyone.teaser_line1')}</span>
+                    <span class="guest-intro-copy-line">{$text('demo_chats.for_everyone.teaser_line2')}</span>
+                    <span class="guest-intro-copy-line">{$text('demo_chats.for_everyone.teaser_line3')}</span>
+                  {:else}
+                  {#if InfoCardIconComponent}
+                    <span class="guest-feature-inline-icon" aria-hidden="true">
+                      <InfoCardIconComponent size={44} color="white" />
+                    </span>
+                  {/if}
+                    <span class="guest-feature-headline" data-testid="daily-inspiration-phrase">
+                      {#each guestFeatureHeadlineLines as line, index}
+                        <span>{line}</span>{#if index < guestFeatureHeadlineLines.length - 1}<br>{/if}
+                      {/each}
+                    </span>
+                  {/if}
+                </div>
+              {/key}
             {/if}
           {:else}
             <!-- Left column: mate profile (left) + phrase (right), CTA pinned to bottom -->
@@ -1224,57 +1229,65 @@
                and prevent the banner's onclick from firing. -->
           {#if isGuestIntroVariant && landingIntroOverlayActive}
             <!-- The expanded intro owns the full banner; no side preview is rendered. -->
-          {:else if isGuestIntroVariant && isGuestActionableSlide}
-            <LandingActionableEventDemo />
-          {:else if isGuestIntroVariant && directVideoMp4Url}
-            <button
-              type="button"
-              class="guest-intro-video-box"
-              data-testid="guest-intro-video-shell"
-              aria-label={$text('daily_inspiration.watch_video')}
-              onclick={handleDirectVideoClick}
-            >
-              {#if directVideoTeaserUrl || directVideoTeaserMp4Url}
-                <video
-                  class="guest-intro-video"
-                  data-testid="guest-intro-video"
-                  poster={directVideoPosterUrl || undefined}
-                  autoplay
-                  muted
-                  loop
-                  playsinline
-                  preload="metadata"
+          {:else if isGuestIntroVariant}
+            {#key current.inspiration_id}
+              {#if isGuestActionableSlide}
+                <div class="guest-actionable-demo-shell" in:fade={{ duration: 320 }}>
+                  <LandingActionableEventDemo />
+                </div>
+              {:else if directVideoMp4Url}
+                <button
+                  type="button"
+                  class="guest-intro-video-box"
+                  data-testid="guest-intro-video-shell"
+                  aria-label={$text('daily_inspiration.watch_video')}
+                  onclick={handleDirectVideoClick}
+                  in:fade={{ duration: 320 }}
                 >
-                  {#if directVideoTeaserUrl}
-                    <source src={directVideoTeaserUrl} type="video/webm" />
+                  {#if directVideoTeaserUrl || directVideoTeaserMp4Url}
+                    <video
+                      class="guest-intro-video"
+                      data-testid="guest-intro-video"
+                      poster={directVideoPosterUrl || undefined}
+                      autoplay
+                      muted
+                      loop
+                      playsinline
+                      preload="metadata"
+                    >
+                      {#if directVideoTeaserUrl}
+                        <source src={directVideoTeaserUrl} type="video/webm" />
+                      {/if}
+                      {#if directVideoTeaserMp4Url}
+                        <source src={directVideoTeaserMp4Url} type="video/mp4" />
+                      {/if}
+                    </video>
+                  {:else if directVideoPosterUrl}
+                    <img class="guest-intro-video" data-testid="guest-intro-video" src={directVideoPosterUrl} alt="" />
                   {/if}
-                  {#if directVideoTeaserMp4Url}
-                    <source src={directVideoTeaserMp4Url} type="video/mp4" />
+                  <span class="guest-intro-play" aria-hidden="true"><span></span></span>
+                </button>
+              {:else if hasInfoContent}
+                <div
+                  class="guest-intro-feature-card"
+                  class:guest-feature-card={current.inspiration_id !== LANDING_INTRO_INSPIRATION_ID}
+                  data-testid="daily-inspiration-info-card"
+                  in:fade={{ duration: 320 }}
+                >
+                  {#if InfoCardIconComponent}
+                    <div class="guest-intro-feature-icon" aria-hidden="true">
+                      <InfoCardIconComponent size={34} color="white" />
+                    </div>
                   {/if}
-                </video>
-              {:else if directVideoPosterUrl}
-                <img class="guest-intro-video" data-testid="guest-intro-video" src={directVideoPosterUrl} alt="" />
-              {/if}
-              <span class="guest-intro-play" aria-hidden="true"><span></span></span>
-            </button>
-          {:else if isGuestIntroVariant && hasInfoContent}
-            <div
-              class="guest-intro-feature-card"
-              class:guest-feature-card={current.inspiration_id !== LANDING_INTRO_INSPIRATION_ID}
-              data-testid="daily-inspiration-info-card"
-            >
-              {#if InfoCardIconComponent}
-                <div class="guest-intro-feature-icon" aria-hidden="true">
-                  <InfoCardIconComponent size={34} color="white" />
+                  <div class="guest-intro-feature-text">
+                    <h3>{infoCardTitle}</h3>
+                    {#if infoCardSubtitle && current.inspiration_id === LANDING_INTRO_INSPIRATION_ID}
+                      <p>{infoCardSubtitle}</p>
+                    {/if}
+                  </div>
                 </div>
               {/if}
-              <div class="guest-intro-feature-text">
-                <h3>{infoCardTitle}</h3>
-                {#if infoCardSubtitle && current.inspiration_id === LANDING_INTRO_INSPIRATION_ID}
-                  <p>{infoCardSubtitle}</p>
-                {/if}
-              </div>
-            </div>
+            {/key}
           {:else if hasVideo && embedPreviewId}
             <div
               class="banner-embed-wrapper"
@@ -1525,6 +1538,19 @@
       min-height 0.75s cubic-bezier(0.22, 1, 0.36, 1);
   }
 
+  .daily-inspiration-banner.landing-intro-collapsing {
+    transition:
+      filter 0.15s ease,
+      transform 0.1s ease,
+      height 0.75s cubic-bezier(0.22, 1, 0.36, 1),
+      min-height 0.75s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .daily-inspiration-banner.landing-intro-collapsing .landing-intro-expanded-content {
+    position: absolute;
+    inset: 0;
+  }
+
   /* ── Inner content wrapper: max-width 680px, centered ── */
   .banner-inner {
     width: 100%;
@@ -1573,6 +1599,7 @@
   }
 
   .guest-intro-variant .banner-content {
+    position: relative;
     align-items: center;
     justify-content: center;
     gap: 36px;
@@ -1978,7 +2005,8 @@
   }
 
   .guest-intro-video-box,
-  .guest-intro-feature-card {
+  .guest-intro-feature-card,
+  .guest-actionable-demo-shell {
     position: relative;
     flex: 0 1 auto;
     height: calc(100% - 20px);
@@ -1991,6 +2019,20 @@
     overflow: hidden;
     background: rgba(18, 18, 18, 0.9);
     box-shadow: 0 18px 44px rgba(0, 0, 0, 0.3), 0 4px 12px rgba(0, 0, 0, 0.18);
+  }
+
+  .guest-actionable-demo-shell {
+    min-height: 210px;
+    overflow: visible;
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+  }
+
+  .guest-actionable-demo-shell :global(.landing-actionable-demo) {
+    width: 100%;
+    min-width: 0;
+    height: 100%;
   }
 
   .guest-intro-video-box {
@@ -2649,7 +2691,8 @@
     }
 
     .guest-intro-video-box,
-    .guest-intro-feature-card {
+    .guest-intro-feature-card,
+    .guest-actionable-demo-shell {
       width: 100%;
       min-width: 0;
       flex-basis: auto;
@@ -2692,6 +2735,7 @@
     .banner-content.mobile-card-loop .banner-embed-wrapper,
     .banner-content.mobile-card-loop .guest-intro-video-box,
     .banner-content.mobile-card-loop .guest-intro-feature-card,
+    .banner-content.mobile-card-loop .guest-actionable-demo-shell,
     .banner-content.mobile-card-loop :global(.landing-actionable-demo),
     .banner-content.mobile-card-loop .banner-info-card {
       position: absolute;
@@ -2742,6 +2786,7 @@
     .banner-content.mobile-card-loop .banner-embed-wrapper,
     .banner-content.mobile-card-loop .guest-intro-video-box,
     .banner-content.mobile-card-loop .guest-intro-feature-card,
+    .banner-content.mobile-card-loop .guest-actionable-demo-shell,
     .banner-content.mobile-card-loop :global(.landing-actionable-demo),
     .banner-content.mobile-card-loop .banner-info-card {
       margin: 0;
@@ -2754,6 +2799,7 @@
     .banner-content.mobile-card-loop.show-mobile-card .banner-embed-wrapper,
     .banner-content.mobile-card-loop.show-mobile-card .guest-intro-video-box,
     .banner-content.mobile-card-loop.show-mobile-card .guest-intro-feature-card,
+    .banner-content.mobile-card-loop.show-mobile-card .guest-actionable-demo-shell,
     .banner-content.mobile-card-loop.show-mobile-card :global(.landing-actionable-demo),
     .banner-content.mobile-card-loop.show-mobile-card .banner-info-card {
       opacity: 1;
@@ -2763,6 +2809,7 @@
 
     .banner-content.mobile-card-loop .guest-intro-video-box,
     .banner-content.mobile-card-loop .guest-intro-feature-card,
+    .banner-content.mobile-card-loop .guest-actionable-demo-shell,
     .banner-content.mobile-card-loop :global(.landing-actionable-demo) {
       width: min(100%, 560px);
       height: 100%;
