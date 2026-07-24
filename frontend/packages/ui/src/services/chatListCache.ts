@@ -248,12 +248,14 @@ class ChatListCache {
    * Update or insert a chat in the cache
    */
   upsertChat(chat: Chat): void {
-    if (!this.cacheReady) {
+    if (!this.cacheReady || this.sidebarDestroyedSinceLastSet) {
       this.pendingUpserts.set(chat.chat_id, chat);
       this.persistPendingUpserts();
       console.debug(
-        `[ChatListCache] Cache not ready, queued pending upsert for chat: ${chat.chat_id}`,
+        `[ChatListCache] Queued pending upsert for chat: ${chat.chat_id}`,
       );
+    }
+    if (!this.cacheReady) {
       return;
     }
     const idx = this.cachedChats.findIndex((c) => c.chat_id === chat.chat_id);

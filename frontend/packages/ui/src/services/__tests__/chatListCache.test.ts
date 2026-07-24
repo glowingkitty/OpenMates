@@ -217,6 +217,20 @@ describe("ChatListCache", () => {
       chatListCache.setCache([makeChat("b")]); // This should reset the flag
       expect(chatListCache.getCache(false, true)).not.toBeNull();
     });
+
+    it("queues upserts while the sidebar is destroyed so remount can apply missed chats", () => {
+      chatListCache.setCache([makeChat("a")]);
+      chatListCache.notifySidebarDestroyed();
+
+      chatListCache.upsertChat(makeChat("new-chat"));
+
+      expect(chatListCache.getCache(false, true)).toBeNull();
+      expect(chatListCache.getPendingUpserts().map((chat: any) => chat.chat_id)).toEqual(["new-chat"]);
+
+      chatListCache.setCache([makeChat("a")]);
+      expect(chatListCache.getCache()!.map((chat: any) => chat.chat_id)).toEqual(["a", "new-chat"]);
+      expect(chatListCache.getPendingUpserts()).toHaveLength(0);
+    });
   });
 
   // ──────────────────────────────────────────────────────────────────
