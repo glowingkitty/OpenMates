@@ -1466,18 +1466,24 @@ export async function sendCompletedAIResponseImpl(
 		// value. Without this increment, every AI response sends the same stale
 		// messages_v (e.g. 1) and the server's optimistic lock skips the update,
 		// causing permanent client/server version drift.
-		// The `handleChatMessageReceivedImpl` handler is the SOLE authority for
-		// writing the server's messages_v to IndexedDB — we only control what we
-		// send to the server; the broadcast response updates the local DB.
-		// DO NOT write the chat back here — the previous addChat() call created a
-		// race condition: if `chat_message_added` updated messages_v between our
-		// getChat() read above and the addChat() write, we would CLOBBER the
-		// correct value with a stale one, causing permanent client/server drift.
+		// Store the local version optimistically using a component-only update. The
+		// server does not broadcast chat_message_added for assistant responses, and
+		// ai_response_storage_confirmed can arrive after UI/tests read IndexedDB.
+		// Do not rewrite the full chat record here; that can clobber encrypted
+		// metadata updates that arrive while the response is completing.
 		const newMessagesV = (chat.messages_v || 0) + 1;
 		const newLastEdited = aiMessage.created_at;
+		const localMessageCount = await chatDB.getMessageCountForChat(aiMessage.chat_id);
+		const localMessagesV = Math.max(newMessagesV, localMessageCount);
+		await chatDB.updateChatComponentVersion(
+			aiMessage.chat_id,
+			"messages_v",
+			localMessagesV
+		);
+		chat.messages_v = Math.max(chat.messages_v || 0, localMessagesV);
 
 		console.debug(
-			`[ChatSyncService:Senders] Using current messages_v for chat ${chat.chat_id}: ${newMessagesV} (not writing back to IDB — version owned by chat_message_added handler)`
+			`[ChatSyncService:Senders] Using current messages_v for chat ${chat.chat_id}: ${newMessagesV} (local persisted as ${localMessagesV})`
 		);
 
 		const chatKey =

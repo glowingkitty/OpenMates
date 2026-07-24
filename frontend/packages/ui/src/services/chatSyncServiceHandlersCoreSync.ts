@@ -996,11 +996,17 @@ export async function handleChatContentBatchResponseImpl(
         // and trigger another full re-sync.
         const versionInfo = payload.versions_by_chat_id?.[chatId];
         if (versionInfo && versionInfo.messages_v !== undefined) {
+          const localMessageCount = await chatDB.getMessageCountForChat(chatId);
+          const updatedMessagesV = Math.max(
+            chat.messages_v || 0,
+            versionInfo.messages_v,
+            localMessageCount,
+          );
           console.info(
             `[ChatSyncService:CoreSync] Batch response: Updating messages_v for chat ${chatId}: ` +
-              `${chat.messages_v} → ${versionInfo.messages_v} (server_message_count: ${versionInfo.server_message_count})`,
+              `${chat.messages_v} → ${updatedMessagesV} (server_message_count: ${versionInfo.server_message_count})`,
           );
-          chat.messages_v = versionInfo.messages_v;
+          chat.messages_v = updatedMessagesV;
         }
 
         await chatDB.updateChat(chat);

@@ -2128,17 +2128,17 @@ export async function handleAIResponseStorageConfirmedImpl(
   // Unmark message as syncing
   serviceInstance.unmarkMessageSyncing(payload.message_id);
 
-  // Update messages_v in IndexedDB to reflect the AI response.
+  // Reconcile messages_v in IndexedDB to reflect the stored AI response.
   // The server does NOT broadcast a chat_message_added event for AI responses,
-  // so handleChatMessageReceivedImpl (the sole writer of messages_v from
-  // server broadcasts) never fires for AI responses. We must update locally.
-  // This is safe because no chat_message_added broadcast races with AI
-  // response completion — the user message broadcast has already been
-  // processed before the AI typing even started.
+  // so server broadcast handlers never advance the sender tab's local chat
+  // version. Use the durable local message count instead of incrementing
+  // blindly, since sendCompletedAIResponse may have already advanced the
+  // local version optimistically.
   try {
     const chat = await chatDB.getChat(payload.chat_id);
     if (chat) {
-      chat.messages_v = (chat.messages_v || 0) + 1;
+      const messageCount = await chatDB.getMessageCountForChat(payload.chat_id);
+      chat.messages_v = Math.max(chat.messages_v || 0, messageCount);
       chat.updated_at = Math.floor(Date.now() / 1000);
       await chatDB.updateChat(chat);
     } else {
