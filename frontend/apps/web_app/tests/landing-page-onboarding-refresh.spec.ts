@@ -428,7 +428,7 @@ test.describe('Landing page onboarding refresh', () => {
 			};
 		});
 		expect(visualState.workspaceSurface).toBe('chats');
-		expect(visualState.workspaceMask).toContain('chat.svg');
+		expect(visualState.workspaceMask).toContain('image/svg+xml');
 		expect(visualState.workspaceBackground).not.toBe('rgba(0, 0, 0, 0)');
 		expect(visualState.workspaceBoxShadow).toBe('none');
 		expect(visualState.workspaceBorderRadius).toBe('0px');
