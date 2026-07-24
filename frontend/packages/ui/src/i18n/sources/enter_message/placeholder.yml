@@ -66,6 +66,26 @@ guest_ask_anything_touch:
   en: Tap here to ask anything
   de: Tippe hier, um alles zu fragen
   verified_by_human: []
+guest_privacy_desktop:
+  context: Logged-out landing placeholder synchronized with the privacy/encryption helper link on desktop
+  en: Click here to ask anything
+  de: Klicke hier, um alles zu fragen
+  verified_by_human: []
+guest_privacy_touch:
+  context: Logged-out landing placeholder synchronized with the privacy/encryption helper link on touch devices
+  en: Tap here to ask anything
+  de: Tippe hier, um alles zu fragen
+  verified_by_human: []
+guest_apps_desktop:
+  context: Logged-out landing placeholder synchronized with the apps helper link on desktop
+  en: Click here to ask OpenMates to use apps
+  de: Klicke hier, damit OpenMates Apps nutzt
+  verified_by_human: []
+guest_apps_touch:
+  context: Logged-out landing placeholder synchronized with the apps helper link on touch devices
+  en: Tap here to ask OpenMates to use apps
+  de: Tippe hier, damit OpenMates Apps nutzt
+  verified_by_human: []
 followup_desktop:
   context: Placeholder text shown in message input on desktop when viewing someone else's chat (encourages followup)
   en: Click to ask followup...

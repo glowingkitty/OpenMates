@@ -526,7 +526,7 @@
     }
 
     $effect(() => {
-        if (!editor || editor.isDestroyed || startNewChatOnClick || hasContent || isMessageFieldFocused) {
+        if (!editor || editor.isDestroyed || startNewChatOnClick || placeholderText || hasContent || isMessageFieldFocused) {
             stopPlaceholderCycle();
             return;
         }
@@ -5792,6 +5792,10 @@
 	.message-input-wrapper.guest-cta-mode {
 		filter: none;
 	}
+
+    .message-input-wrapper.guest-cta-mode .message-field :global(.ProseMirror p.is-editor-empty:first-child::before) {
+        color: var(--color-grey-60);
+    }
 
 	.message-field.empty-welcome-field {
 		min-height: 64px;

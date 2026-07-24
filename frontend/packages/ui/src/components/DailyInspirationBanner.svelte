@@ -380,6 +380,13 @@
   let isGuestActionableSlide = $derived(
     isGuestIntroVariant && !landingIntroOverlayActive && current?.inspiration_id === LANDING_ACTIONABLE_EVENTS_ID,
   );
+  let guestProductAnimationKind = $derived.by(() => {
+    if (!isGuestIntroVariant || landingIntroOverlayActive) return '';
+    if (current?.inspiration_id === 'openmates-privacy-safety') return 'privacy';
+    if (current?.inspiration_id === 'openmates-mates-focus') return 'mates';
+    if (current?.inspiration_id === 'openmates-provider-cross-platform') return 'platform';
+    return '';
+  });
   let guestFeatureHeadlineLines = $derived.by(() => {
     if (isGuestActionableSlide) {
       return [
@@ -1235,6 +1242,38 @@
                 <div class="guest-actionable-demo-shell" in:fade={{ duration: 320 }}>
                   <LandingActionableEventDemo />
                 </div>
+              {:else if guestProductAnimationKind && InfoCardIconComponent}
+                <div
+                  class="guest-product-demo-shell"
+                  data-demo-kind={guestProductAnimationKind}
+                  data-testid="guest-product-demo-shell"
+                  in:fade={{ duration: 320 }}
+                >
+                  {#if guestProductAnimationKind === 'privacy'}
+                    <div class="guest-product-privacy-card guest-product-card-primary">
+                      <span class="guest-product-card-dot"></span>
+                      <span class="guest-product-card-line long"></span>
+                      <span class="guest-product-card-line short"></span>
+                    </div>
+                    <div class="guest-product-lock-ring">
+                      <InfoCardIconComponent size={34} color="white" />
+                    </div>
+                    <div class="guest-product-privacy-card guest-product-card-secondary">
+                      <span class="guest-product-card-line medium"></span>
+                      <span class="guest-product-card-line tiny"></span>
+                    </div>
+                  {:else if guestProductAnimationKind === 'mates'}
+                    <div class="guest-product-mate-node mate-one"><InfoCardIconComponent size={24} color="white" /></div>
+                    <div class="guest-product-mate-node mate-two"><InfoCardIconComponent size={24} color="white" /></div>
+                    <div class="guest-product-mate-node mate-three"><InfoCardIconComponent size={24} color="white" /></div>
+                    <div class="guest-product-task-bubble">Focus</div>
+                  {:else}
+                    <div class="guest-product-platform-node node-browser">Web</div>
+                    <div class="guest-product-platform-node node-cli">CLI</div>
+                    <div class="guest-product-platform-node node-api">API</div>
+                    <div class="guest-product-platform-core"><InfoCardIconComponent size={32} color="white" /></div>
+                  {/if}
+                </div>
               {:else if directVideoMp4Url}
                 <button
                   type="button"
@@ -2006,6 +2045,7 @@
 
   .guest-intro-video-box,
   .guest-intro-feature-card,
+  .guest-product-demo-shell,
   .guest-actionable-demo-shell {
     position: relative;
     flex: 0 1 auto;
@@ -2027,6 +2067,159 @@
     background: transparent;
     border: 0;
     box-shadow: none;
+  }
+
+  .guest-product-demo-shell {
+    display: grid;
+    place-items: center;
+    min-height: 210px;
+    isolation: isolate;
+    background:
+      radial-gradient(circle at 20% 18%, rgba(255, 255, 255, 0.2), transparent 28%),
+      radial-gradient(circle at 82% 76%, rgba(255, 255, 255, 0.14), transparent 32%),
+      rgba(18, 18, 18, 0.45);
+  }
+
+  .guest-product-demo-shell::before {
+    content: '';
+    position: absolute;
+    inset: 14%;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    animation: landingProductPulse 4.8s ease-in-out infinite;
+    z-index: -1;
+  }
+
+  .guest-product-privacy-card {
+    position: absolute;
+    width: 42%;
+    min-width: 132px;
+    padding: 15px 16px;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.14);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.2);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  .guest-product-card-primary {
+    top: 16%;
+    left: 10%;
+    animation: landingProductFloatA 6s ease-in-out infinite;
+  }
+
+  .guest-product-card-secondary {
+    right: 10%;
+    bottom: 16%;
+    animation: landingProductFloatB 6.4s ease-in-out infinite;
+  }
+
+  .guest-product-card-dot,
+  .guest-product-card-line {
+    display: block;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.78);
+  }
+
+  .guest-product-card-dot {
+    width: 20px;
+    height: 20px;
+    margin-bottom: 12px;
+  }
+
+  .guest-product-card-line {
+    height: 8px;
+    margin-top: 8px;
+    opacity: 0.66;
+  }
+
+  .guest-product-card-line.long { width: 82%; }
+  .guest-product-card-line.medium { width: 68%; }
+  .guest-product-card-line.short { width: 52%; }
+  .guest-product-card-line.tiny { width: 38%; }
+
+  .guest-product-lock-ring,
+  .guest-product-platform-core {
+    display: grid;
+    place-items: center;
+    width: 86px;
+    height: 86px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.17);
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.24);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    animation: landingProductPulse 4.4s ease-in-out infinite;
+  }
+
+  .guest-product-mate-node,
+  .guest-product-platform-node {
+    position: absolute;
+    display: grid;
+    place-items: center;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.14);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.2);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  .guest-product-mate-node {
+    width: 62px;
+    height: 62px;
+  }
+
+  .mate-one { top: 18%; left: 18%; animation: landingProductFloatA 5.8s ease-in-out infinite; }
+  .mate-two { top: 16%; right: 18%; animation: landingProductFloatB 6.2s ease-in-out infinite; }
+  .mate-three { bottom: 18%; left: 50%; transform: translateX(-50%); animation: landingProductFloatC 6.6s ease-in-out infinite; }
+
+  .guest-product-task-bubble {
+    position: relative;
+    z-index: 1;
+    padding: 12px 20px;
+    border-radius: 999px;
+    color: white;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.24);
+    box-shadow: 0 16px 34px rgba(0, 0, 0, 0.2);
+  }
+
+  .guest-product-platform-node {
+    width: 70px;
+    height: 42px;
+    border-radius: 999px;
+    color: white;
+    font-size: 0.78rem;
+    font-weight: 800;
+  }
+
+  .node-browser { top: 18%; left: 16%; animation: landingProductFloatA 5.8s ease-in-out infinite; }
+  .node-cli { top: 20%; right: 15%; animation: landingProductFloatB 6.1s ease-in-out infinite; }
+  .node-api { bottom: 17%; left: 50%; transform: translateX(-50%); animation: landingProductFloatC 6.5s ease-in-out infinite; }
+
+  @keyframes landingProductPulse {
+    0%, 100% { transform: scale(0.96); opacity: 0.74; }
+    50% { transform: scale(1.05); opacity: 1; }
+  }
+
+  @keyframes landingProductFloatA {
+    0%, 100% { transform: translate3d(0, 0, 0); }
+    50% { transform: translate3d(8px, -10px, 0); }
+  }
+
+  @keyframes landingProductFloatB {
+    0%, 100% { transform: translate3d(0, 0, 0); }
+    50% { transform: translate3d(-10px, 9px, 0); }
+  }
+
+  @keyframes landingProductFloatC {
+    0%, 100% { transform: translate3d(-50%, 0, 0); }
+    50% { transform: translate3d(calc(-50% + 6px), 10px, 0); }
   }
 
   .guest-actionable-demo-shell :global(.landing-actionable-demo) {
@@ -2521,7 +2714,13 @@
     .landing-intro-expanded-content,
     .landing-intro-request span,
     .landing-intro-app-rail-row,
-    .landing-intro-app-rail {
+    .landing-intro-app-rail,
+    .guest-product-demo-shell::before,
+    .guest-product-privacy-card,
+    .guest-product-lock-ring,
+    .guest-product-platform-core,
+    .guest-product-mate-node,
+    .guest-product-platform-node {
       animation: none !important;
     }
   }
@@ -2574,6 +2773,10 @@
       height: 190px;
     }
 
+    .daily-inspiration-banner.guest-intro-variant:not(.landing-intro-expanded) {
+      height: 170px;
+    }
+
     .daily-inspiration-banner.landing-intro-expanded {
       height: 100%;
       min-height: 0;
@@ -2584,6 +2787,11 @@
     :global(.side-by-side-active) .daily-inspiration-banner {
       height: 190px;
       min-height: unset;
+    }
+
+    :global(.menu-open) .daily-inspiration-banner.guest-intro-variant:not(.landing-intro-expanded),
+    :global(.side-by-side-active) .daily-inspiration-banner.guest-intro-variant:not(.landing-intro-expanded) {
+      height: 170px;
     }
 
     .banner-inner {
@@ -2692,6 +2900,7 @@
 
     .guest-intro-video-box,
     .guest-intro-feature-card,
+    .guest-product-demo-shell,
     .guest-actionable-demo-shell {
       width: 100%;
       min-width: 0;
@@ -2735,6 +2944,7 @@
     .banner-content.mobile-card-loop .banner-embed-wrapper,
     .banner-content.mobile-card-loop .guest-intro-video-box,
     .banner-content.mobile-card-loop .guest-intro-feature-card,
+    .banner-content.mobile-card-loop .guest-product-demo-shell,
     .banner-content.mobile-card-loop .guest-actionable-demo-shell,
     .banner-content.mobile-card-loop :global(.landing-actionable-demo),
     .banner-content.mobile-card-loop .banner-info-card {
@@ -2786,6 +2996,7 @@
     .banner-content.mobile-card-loop .banner-embed-wrapper,
     .banner-content.mobile-card-loop .guest-intro-video-box,
     .banner-content.mobile-card-loop .guest-intro-feature-card,
+    .banner-content.mobile-card-loop .guest-product-demo-shell,
     .banner-content.mobile-card-loop .guest-actionable-demo-shell,
     .banner-content.mobile-card-loop :global(.landing-actionable-demo),
     .banner-content.mobile-card-loop .banner-info-card {
@@ -2799,6 +3010,7 @@
     .banner-content.mobile-card-loop.show-mobile-card .banner-embed-wrapper,
     .banner-content.mobile-card-loop.show-mobile-card .guest-intro-video-box,
     .banner-content.mobile-card-loop.show-mobile-card .guest-intro-feature-card,
+    .banner-content.mobile-card-loop.show-mobile-card .guest-product-demo-shell,
     .banner-content.mobile-card-loop.show-mobile-card .guest-actionable-demo-shell,
     .banner-content.mobile-card-loop.show-mobile-card :global(.landing-actionable-demo),
     .banner-content.mobile-card-loop.show-mobile-card .banner-info-card {
@@ -2809,6 +3021,7 @@
 
     .banner-content.mobile-card-loop .guest-intro-video-box,
     .banner-content.mobile-card-loop .guest-intro-feature-card,
+    .banner-content.mobile-card-loop .guest-product-demo-shell,
     .banner-content.mobile-card-loop .guest-actionable-demo-shell,
     .banner-content.mobile-card-loop :global(.landing-actionable-demo) {
       width: min(100%, 560px);

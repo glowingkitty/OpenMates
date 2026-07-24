@@ -182,6 +182,35 @@
 
     const GUEST_DEFAULT_INTRO_INSPIRATION_ID = 'openmates-intro';
     const GUEST_EXAMPLE_SURFACES = new Set<DailyInspirationSurface>(['chats', 'projects', 'workflows']);
+    const GUEST_INPUT_LINK_ROTATION_MS = 6500;
+    const GUEST_LANDING_DEFAULT_EXAMPLE_IDS = [
+        'example-ai-workshops-meetups-berlin',
+        'example-privacy-first-local-ai',
+        'example-openmates-app-skills-embeds',
+        'example-private-workspace-demo-video',
+    ];
+    const GUEST_LANDING_EXAMPLE_CHAT_IDS_BY_INSPIRATION: Record<string, string[]> = {
+        'openmates-actionable-events': [
+            'example-ai-workshops-meetups-berlin',
+            'example-urban-sports-fitness-studios',
+            'example-berlin-dermatology-appointments',
+        ],
+        'openmates-privacy-safety': [
+            'example-privacy-first-local-ai',
+            'example-pdf-search-encryption',
+            'example-privacy-first-product-launch',
+        ],
+        'openmates-mates-focus': [
+            'example-openmates-app-skills-embeds',
+            'example-memory-ai-learning-preferences',
+            'example-frontend-developer-career-pivot',
+        ],
+        'openmates-provider-cross-platform': [
+            'example-private-workspace-demo-video',
+            'example-openmates-add-app-skill',
+            'example-svelte-runes-docs',
+        ],
+    };
     const CANCELLED_NEW_CHAT_DRAFT_RESTORE_ATTEMPTS = 5;
     const CANCELLED_NEW_CHAT_DRAFT_RESTORE_DELAY_MS = 50;
     const DRAFT_RESTORE_REF_RETRY_ATTEMPTS = 80;
@@ -3367,7 +3396,18 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }
     }
 
-    async function loadNonAuthRecentChats(selectedTagIds: InterestTagId[] = [], includeGuestExamples = false): Promise<RecentChatMeta[]> {
+    function orderMetasByPreferredIds(metas: RecentChatMeta[], preferredIds: string[]): RecentChatMeta[] {
+        const metaById = new Map(metas.map((meta) => [meta.chat.chat_id, meta]));
+        return preferredIds
+            .map((id) => metaById.get(id))
+            .filter((meta): meta is RecentChatMeta => Boolean(meta));
+    }
+
+    async function loadNonAuthRecentChats(
+        selectedTagIds: InterestTagId[] = [],
+        includeGuestExamples = false,
+        activeInspirationId = GUEST_DEFAULT_INTRO_INSPIRATION_ID,
+    ): Promise<RecentChatMeta[]> {
         const sharedMetas = await loadSharedByOthersRecentChats();
 
         if (!includeGuestExamples) {
@@ -3402,8 +3442,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             draftPreview: null,
         }));
 
+        const slideExampleIds = GUEST_LANDING_EXAMPLE_CHAT_IDS_BY_INSPIRATION[activeInspirationId];
+        if (slideExampleIds) {
+            const slideMetas = orderMetasByPreferredIds(communityMetas, slideExampleIds);
+            return [...sharedMetas, ...slideMetas];
+        }
+
         if (selectedTagIds.length === 0) {
-            return [...sharedMetas, ...introMetas, ...communityMetas];
+            return [...sharedMetas, ...introMetas, ...orderMetasByPreferredIds(communityMetas, GUEST_LANDING_DEFAULT_EXAMPLE_IDS)];
         }
 
         const rankedExampleIds = rankExampleChatIdsByInterests(
@@ -3448,6 +3494,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         void $appSettingsMemoriesStore.entriesByApp;
         const guestTags = selectedGuestInterestTagIds;
         const guestTagsConfirmed = guestInterestContinueConfirmed;
+        const guestInspirationId = activeGuestInspirationId;
         // Re-run when carousel is invalidated by cross-device events
         void carouselInvalidationCounter;
         if (!isWelcome) {
@@ -3474,7 +3521,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             priorityContinueItems = [];
             recentChatsScrolledByUser = false;
             const requestId = ++nonAuthRecentChatsRequestId;
-            loadNonAuthRecentChats(guestTagsConfirmed ? guestTags : [], guestTagsConfirmed).then((metas) => {
+            loadNonAuthRecentChats(guestTagsConfirmed ? guestTags : [], guestTagsConfirmed, guestInspirationId).then((metas) => {
                 if (requestId !== nonAuthRecentChatsRequestId) return;
                 nonAuthChatTiltStates = reconcileRecentChatTiltStates(nonAuthChatTiltStates, metas.length);
                 nonAuthRecentChats = metas;
@@ -5256,6 +5303,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     let guestInterestSelectorVisible = $state(false);
     let guestAllExamplesVisible = $state(false);
     let activeGuestSurface = $state<DailyInspirationSurface>('chats');
+    let activeGuestInspirationId = $state(GUEST_DEFAULT_INTRO_INSPIRATION_ID);
     let guestInputLinkIndex = $state(0);
     type LandingIntroPhase = 'regular' | 'expanded' | 'collapsing' | 'expanding';
     let guestLandingIntroPhase = $state<LandingIntroPhase>('regular');
@@ -5284,9 +5332,17 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     let activeGuestInputLinkKey = $derived(
         guestInputLinkIndex === 0 ? 'chat.welcome.guest_privacy_link' : 'chat.welcome.guest_apps_link'
     );
+    let activeGuestInputPlaceholderKey = $derived.by(() => {
+        const deviceType = typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0)
+            ? 'touch'
+            : 'desktop';
+        const intent = guestInputLinkIndex === 0 ? 'privacy' : 'apps';
+        return `enter_message.placeholder.guest_${intent}_${deviceType}`;
+    });
     let activeGuestInputLinkHref = $derived(
         guestInputLinkIndex === 0 ? externalLinks.legal.privacyPolicy : '#apps'
     );
+    let ActiveGuestInputIcon = $derived.by(() => getLucideIcon(guestInputLinkIndex === 0 ? 'lock-keyhole' : 'blocks'));
     let activeGuestAllExamplesLinkKey = $derived(
         activeGuestSurface === 'projects'
             ? 'chat.welcome.show_all_projects'
@@ -5362,6 +5418,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         if ($authStore.isAuthenticated) return;
         activeGuestSurface = inspiration.surface ?? 'chats';
         const nextId = inspiration.inspiration_id;
+        activeGuestInspirationId = nextId;
         if (!lastGuestInspirationShuffleId) {
             lastGuestInspirationShuffleId = nextId;
             return;
@@ -10201,7 +10258,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         installChatReplayCommand();
         const guestInputLinkInterval = window.setInterval(() => {
             guestInputLinkIndex = (guestInputLinkIndex + 1) % 2;
-        }, 6500);
+        }, GUEST_INPUT_LINK_ROTATION_MS);
         
         // Listen for event to open login interface from header button
         const handleOpenLoginInterface = () => {
@@ -12788,6 +12845,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             onclick={guestInputLinkIndex === 1 ? handleGuestAppsLinkClick : undefined}
                             transition:fade={{ duration: 260 }}
                         >
+                            <span class="guest-input-context-icon" aria-hidden="true">
+                                <ActiveGuestInputIcon size={13} color="currentColor" />
+                            </span>
                             {$text(activeGuestInputLinkKey)}
                         </a>
                     {/if}
@@ -12963,6 +13023,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                     on:startNewChat={handleNewChatClick}
                                     on:heightchange={handleInputHeightChange}
                                     on:draftSaved={handleDraftSaved}
+                                    placeholderText={showWelcome && !$authStore.isAuthenticated ? $text(activeGuestInputPlaceholderKey) : undefined}
                                     guestCtaMode={showWelcome && !$authStore.isAuthenticated}
                                     on:textchange={(e) => {
                                         const t = (e.detail?.text || '');
@@ -13991,7 +14052,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     }
 
     .guest-show-all-examples {
-        color: var(--color-primary);
+        color: var(--color-grey-60);
     }
 
     .guest-link-icon {
@@ -14125,7 +14186,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     }
 
     .guest-input-context-link {
-        display: block;
+        display: inline-flex;
+        align-items: center;
+        gap: var(--spacing-2);
         width: fit-content;
         margin: 0 auto var(--spacing-3);
         color: var(--color-grey-60);
@@ -14135,6 +14198,16 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         text-decoration: none;
         pointer-events: auto;
         transition: color var(--duration-fast) var(--easing-default), opacity 260ms ease;
+    }
+
+    .guest-input-context-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 14px;
+        height: 14px;
+        flex-shrink: 0;
+        opacity: 0.94;
     }
 
     .guest-input-context-link:hover {
