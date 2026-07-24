@@ -21,5 +21,6 @@ export function getVisibleHashChatId(): string | null {
 export function isChatVisiblyActive(chatId: string): boolean {
   const visibleHashChatId = getVisibleHashChatId();
   if (visibleHashChatId !== null) return visibleHashChatId === chatId;
+  if (typeof window !== "undefined") return false;
   return activeChatStore.get() === chatId;
 }
