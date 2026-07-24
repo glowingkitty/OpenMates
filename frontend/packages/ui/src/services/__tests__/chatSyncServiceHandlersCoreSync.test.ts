@@ -73,7 +73,7 @@ vi.mock("../../stores/dailyInspirationStore", () => ({
   dailyInspirationStore: mocks.dailyInspirationStore,
 }));
 vi.mock("../../stores/notificationStore", () => ({
-  notificationStore: { error: vi.fn() },
+  notificationStore: { chatMessage: vi.fn(), error: vi.fn() },
 }));
 vi.mock("../../stores/activeChatStore", () => ({
   activeChatStore: { get: vi.fn(() => null) },

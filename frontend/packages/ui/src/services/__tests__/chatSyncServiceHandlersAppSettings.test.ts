@@ -18,6 +18,9 @@ const mocks = vi.hoisted(() => ({
   chatKeyManager: {
     getKey: vi.fn(),
   },
+  userDB: {
+    getUserProfile: vi.fn(),
+  },
   notificationStore: {
     addNotificationWithOptions: vi.fn(),
     addNotification: vi.fn(),
@@ -49,6 +52,7 @@ vi.mock("../db", () => ({ chatDB: mocks.chatDB }));
 vi.mock("../encryption/ChatKeyManager", () => ({
   chatKeyManager: mocks.chatKeyManager,
 }));
+vi.mock("../userDB", () => ({ userDB: mocks.userDB }));
 vi.mock("../../stores/notificationStore", () => ({
   notificationStore: mocks.notificationStore,
 }));
@@ -467,6 +471,111 @@ describe("handleRecoveryJobsAvailableImpl", () => {
     );
     expect(service.dispatchEvent).toHaveBeenCalledWith(
       expect.objectContaining({ type: "chatUpdated" }),
+    );
+  });
+
+  it("hydrates a missing local chat user id before claiming a keyed recovery job", async () => {
+    const handlers = new Map<string, (payload: unknown) => void>();
+    let claimRequestId: string | undefined;
+    let persistRequestId: string | undefined;
+    mocks.webSocketService.on.mockImplementation((type: string, handler: (payload: unknown) => void) => {
+      handlers.set(type, handler);
+    });
+    mocks.webSocketService.off.mockImplementation((type: string) => {
+      handlers.delete(type);
+    });
+    mocks.webSocketService.sendMessage.mockImplementation(async (
+      type: string,
+      payload: Record<string, unknown>,
+    ) => {
+      if (type === "recovery_job_claim") {
+        claimRequestId = payload.request_id as string;
+      }
+      if (type === "recovery_job_persist") {
+        persistRequestId = payload.request_id as string;
+      }
+    });
+    mocks.chatDB.getChat.mockResolvedValue({
+      chat_id: "chat-1",
+      title: "Background chat",
+      messages_v: 2,
+    });
+    mocks.chatKeyManager.getKey.mockResolvedValue(new Uint8Array([1, 2, 3]));
+    mocks.userDB.getUserProfile.mockResolvedValue({ user_id: "user-1" });
+    mocks.ensureChatKeySafeForWrite.mockResolvedValue(true);
+    mocks.deriveChatCompletionRecoveryKeypair.mockResolvedValue({ privateKey: "private-key" });
+    mocks.openChatCompletionRecoveryEnvelope.mockResolvedValue(
+      new TextEncoder().encode(JSON.stringify({
+        assistant_message_id: "assistant-1",
+        category: "general",
+        chat_id: "chat-1",
+        content: "Recovered response",
+        job_id: "job-1",
+        key_version: 1,
+        model_name: "model-1",
+        turn_id: "turn-1",
+      })),
+    );
+    mocks.chatDB.getEncryptedFields.mockResolvedValue({
+      encrypted_content: "encrypted-content",
+      encrypted_sender_name: "encrypted-sender",
+      encrypted_category: "encrypted-category",
+      encrypted_model_name: "encrypted-model",
+    });
+    const service = {
+      dispatchEvent: vi.fn(),
+      hasCompletedInitialSync_FOR_HANDLERS_ONLY: true,
+      requestChatContentBatch_FOR_HANDLERS_ONLY: vi.fn().mockResolvedValue(undefined),
+    } as unknown as ChatSynchronizationService;
+
+    const recovery = handleRecoveryJobsAvailableImpl(service, {
+      jobs: [{
+        job_id: "job-1",
+        chat_id: "chat-1",
+        turn_id: "turn-1",
+        assistant_message_id: "assistant-1",
+        chat_key_version: 1,
+      }],
+    });
+    await vi.waitFor(() => {
+      expect(claimRequestId).toEqual(expect.any(String));
+    });
+    handlers.get("recovery_job_claimed")?.({
+      job_id: "job-1",
+      request_id: claimRequestId,
+      state: "LEASED",
+      lease_token: "lease-token",
+      lease_generation: 2,
+      sealed_payload: '{"v":1}',
+      chat_id: "chat-1",
+      turn_id: "turn-1",
+      assistant_message_id: "assistant-1",
+      chat_key_version: 1,
+    });
+    await vi.waitFor(() => {
+      expect(persistRequestId).toEqual(expect.any(String));
+    });
+    handlers.get("recovery_job_persisted")?.({
+      job_id: "job-1",
+      request_id: persistRequestId,
+      state: "TERMINAL",
+      committed_messages_v: 3,
+    });
+    await recovery;
+
+    expect(mocks.chatDB.updateChat).toHaveBeenCalledWith(
+      expect.objectContaining({ chat_id: "chat-1", user_id: "user-1" }),
+    );
+    expect(mocks.openChatCompletionRecoveryEnvelope).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ ownerId: "user-1" }),
+    );
+    expect(mocks.notificationStore.chatMessage).toHaveBeenCalledWith(
+      "chat-1",
+      "Background chat",
+      "Recovered response",
+      undefined,
+      "general",
     );
   });
 

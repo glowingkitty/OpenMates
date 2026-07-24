@@ -13,6 +13,7 @@ import {
   type ChatCompletionRecoveryEnvelope,
 } from "../utils/chatCompletionRecovery";
 import { chatDB } from "./db";
+import { userDB } from "./userDB";
 import { chatKeyManager } from "./encryption/ChatKeyManager";
 import { ensureChatKeySafeForWrite } from "./chatKeyWriteGuard";
 import { webSocketService } from "./websocketService";
@@ -95,8 +96,26 @@ async function waitForRecoveryPrerequisites(job: AvailableRecoveryJob): Promise<
   const deadline = Date.now() + RECOVERY_PREREQUISITE_TIMEOUT_MS;
   while (Date.now() < deadline) {
     const chat = await chatDB.getChat(job.chat_id);
-    const chatKey = chat?.user_id ? await chatKeyManager.getKey(job.chat_id) : null;
-    if (chat?.user_id && chatKey) return { chat, chatKey };
+    if (!chat) {
+      await new Promise((resolve) => window.setTimeout(resolve, RECOVERY_PREREQUISITE_POLL_MS));
+      continue;
+    }
+
+    const chatKey = await chatKeyManager.getKey(job.chat_id);
+    if (!chatKey) {
+      await new Promise((resolve) => window.setTimeout(resolve, RECOVERY_PREREQUISITE_POLL_MS));
+      continue;
+    }
+
+    if (chat.user_id) return { chat, chatKey };
+
+    const userProfile = await userDB.getUserProfile();
+    if (userProfile?.user_id) {
+      const hydratedChat = { ...chat, user_id: userProfile.user_id };
+      await chatDB.updateChat(hydratedChat);
+      return { chat: hydratedChat, chatKey };
+    }
+
     await new Promise((resolve) => window.setTimeout(resolve, RECOVERY_PREREQUISITE_POLL_MS));
   }
   return null;
