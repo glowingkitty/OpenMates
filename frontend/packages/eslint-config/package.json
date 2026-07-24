@@ -6,12 +6,12 @@
     "access": "public"
   },
   "devDependencies": {
-    "@eslint/eslintrc": "^3.3.5",
+    "@eslint/eslintrc": "^3.3.6",
     "@eslint/js": "^9.19.0",
     "eslint-config-prettier": "^10.0.1",
-    "eslint-config-turbo": "^2.9.18",
+    "eslint-config-turbo": "^2.10.5",
     "eslint-plugin-svelte": "^2.46.1",
     "globals": "^15.14.0",
-    "typescript-eslint": "^8.61.0"
+    "typescript-eslint": "^8.65.0"
   }
 }
