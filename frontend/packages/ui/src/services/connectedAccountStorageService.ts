@@ -13,6 +13,7 @@ import type { ConnectedAccountSendContext } from './connectedAccountTokenBrokerS
 import { assertNoConnectedAccountSecretLeak } from './connectedAccountTokenBrokerService';
 
 const CONNECTED_ACCOUNTS_ENDPOINT = '/v1/connected-accounts';
+const CONNECTED_ACCOUNTS_LIST_TIMEOUT_MS = 8000;
 
 const STORAGE_FORBIDDEN_FIELDS = [
 	'provider',
@@ -114,9 +115,22 @@ export async function computeConnectedAccountUserHash(userId: string): Promise<s
 }
 
 export async function listConnectedAccounts(): Promise<EncryptedConnectedAccountRow[]> {
-	const response = await fetch(getApiEndpoint(CONNECTED_ACCOUNTS_ENDPOINT), {
-		credentials: 'include'
-	});
+	const controller = new AbortController();
+	const timeoutId = setTimeout(() => controller.abort(), CONNECTED_ACCOUNTS_LIST_TIMEOUT_MS);
+	let response: Response;
+	try {
+		response = await fetch(getApiEndpoint(CONNECTED_ACCOUNTS_ENDPOINT), {
+			credentials: 'include',
+			signal: controller.signal
+		});
+	} catch (error) {
+		if (error instanceof DOMException && error.name === 'AbortError') {
+			throw new Error('Connected accounts list request timed out');
+		}
+		throw error;
+	} finally {
+		clearTimeout(timeoutId);
+	}
 	if (!response.ok) {
 		throw new Error(`Failed to list connected accounts (HTTP ${response.status})`);
 	}
