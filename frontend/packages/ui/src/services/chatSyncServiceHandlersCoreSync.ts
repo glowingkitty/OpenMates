@@ -8,6 +8,7 @@ import { userDB } from "./userDB";
 import { chatListCache } from "./chatListCache";
 import { notificationStore } from "../stores/notificationStore";
 import { activeChatStore } from "../stores/activeChatStore";
+import { unreadMessagesStore } from "../stores/unreadMessagesStore";
 import { phasedSyncState } from "../stores/phasedSyncStateStore";
 import {
   filterPersistableSyncedMessages,
@@ -18,6 +19,7 @@ import {
   hasEncryptedChatKeyMismatch,
   mergeServerChatWithLocal,
 } from "./chatSyncMerge";
+import { isChatVisiblyActive } from "./chatNotificationVisibility";
 import type {
   InitialSyncResponsePayload,
   Phase1LastChatPayload,
@@ -32,6 +34,8 @@ import type {
 } from "../types/chat";
 import type { EmbedType } from "../message_parsing/types";
 
+const RECENT_ASSISTANT_BATCH_NOTIFICATION_WINDOW_SECONDS = 5 * 60;
+
 /**
  * Yield control back to the browser's main thread.
  * This prevents long-running sync operations from blocking UI rendering,
@@ -39,6 +43,68 @@ import type { EmbedType } from "../message_parsing/types";
  */
 function yieldToMainThread(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, 0));
+}
+
+function buildBatchAssistantMessagePreview(message: Message): string {
+  const plainText = (message.content || "")
+    .replace(/#{1,6}\s+/g, "")
+    .replace(/\*\*(.+?)\*\*/g, "$1")
+    .replace(/\*(.+?)\*/g, "$1")
+    .replace(/`{1,3}[^`]*`{1,3}/g, "")
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/!\[[^\]]*\]\([^)]+\)/g, "")
+    .replace(/>\s+/g, "")
+    .replace(/[-*+]\s+/g, "")
+    .replace(/\n+/g, " ")
+    .trim();
+
+  if (!plainText) return "New AI response ready";
+  return plainText.length > 120 ? `${plainText.substring(0, 120)}...` : plainText;
+}
+
+async function notifyBackgroundAssistantBatchMessage(
+  chatId: string,
+  messages: Message[],
+  chat: Chat,
+): Promise<void> {
+  if (chat.is_sub_chat || chat.parent_id || isChatVisiblyActive(chatId)) return;
+
+  const nowSeconds = Math.floor(Date.now() / 1000);
+  const assistantMessage = messages.find((message) =>
+    message.role === "assistant" &&
+    typeof message.created_at === "number" &&
+    nowSeconds - message.created_at <= RECENT_ASSISTANT_BATCH_NOTIFICATION_WINDOW_SECONDS
+  );
+  if (!assistantMessage) return;
+
+  unreadMessagesStore.incrementUnread(chatId);
+
+  let chatTitle = chat.title || "New message";
+  if (!chat.title && chat.encrypted_title) {
+    try {
+      await chatKeyManager.withKey(
+        chatId,
+        "decrypt-batch-assistant-notification-title",
+        async (chatKey) => {
+          const decryptedTitle = await decryptWithChatKey(chat.encrypted_title!, chatKey);
+          if (decryptedTitle) chatTitle = decryptedTitle;
+        },
+      );
+    } catch (titleError) {
+      console.debug(
+        "[ChatSyncService:CoreSync] Could not decrypt chat title for batch assistant notification, using fallback:",
+        titleError,
+      );
+    }
+  }
+
+  notificationStore.chatMessage(
+    chatId,
+    chatTitle,
+    buildBatchAssistantMessagePreview(assistantMessage),
+    undefined,
+    assistantMessage.category || chat.category || undefined,
+  );
 }
 
 export async function handleInitialSyncResponseImpl(
@@ -1011,6 +1077,7 @@ export async function handleChatContentBatchResponseImpl(
 
         await chatDB.updateChat(chat);
         chatListCache.upsertChat(chat);
+        await notifyBackgroundAssistantBatchMessage(chatId, persistableMessages, chat);
         updatedChatCount++;
         serviceInstance.dispatchEvent(
           new CustomEvent("chatUpdated", {
