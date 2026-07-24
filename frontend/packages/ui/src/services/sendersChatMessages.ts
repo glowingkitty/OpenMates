@@ -41,7 +41,7 @@ import { generateUUID } from "../message_parsing/utils";
 
 const CHAT_RECOVERY_PROTOCOL_VERSION = 1;
 const CHAT_RECOVERY_KEY_VERSION = 1;
-const CHAT_PREFLIGHT_TIMEOUT_MS = 20_000;
+const CHAT_PREFLIGHT_TIMEOUT_MS = 60_000;
 const CHAT_PREFLIGHT_TIMEOUT_MESSAGE = "Encrypted chat preflight acknowledgement timed out.";
 const SEND_EMBED_LOAD_RETRY_ATTEMPTS = 12;
 const SEND_EMBED_LOAD_RETRY_DELAY_MS = 500;
