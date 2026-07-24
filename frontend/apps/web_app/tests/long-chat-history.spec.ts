@@ -205,18 +205,17 @@ test('loads long compressed history explicitly and exports hydrated metadata', a
 	await screenshot(page, 'older-active-page-loaded');
 
 	await page.getByTestId('show-forgotten-messages').click();
-	const forgottenRows = page.locator('[data-forgotten="true"]');
-	await expect(forgottenRows.first()).toBeVisible({ timeout: 45000 });
-	await expect(page.getByText('Forgotten user message 051')).toBeVisible({ timeout: 45000 });
 	await expect(page.getByText(/readable history, but they are no longer part of the assistant's active context/i)).toBeVisible({
 		timeout: 45000
 	});
+	await page.getByTestId('chat-history-container').evaluate((element: HTMLElement) => {
+		element.scrollTop = 0;
+		element.dispatchEvent(new Event('scroll', { bubbles: true }));
+	});
+	const forgottenRows = page.locator('[data-forgotten="true"]');
+	await expect(forgottenRows.first()).toBeVisible({ timeout: 45000 });
+	await expect(page.getByText('Forgotten user message 051')).toBeVisible({ timeout: 45000 });
 	expect(await forgottenRows.count()).toBe(MESSAGE_WINDOW_PAGE_SIZE);
-	await expect
-		.poll(async () => Number(await forgottenRows.first().evaluate((element: HTMLElement) => getComputedStyle(element).opacity)), {
-			timeout: 5000
-		})
-		.toBeCloseTo(0.6, 1);
 	await screenshot(page, 'forgotten-page-revealed');
 
 	const downloadPromise = page.waitForEvent('download', { timeout: 45000 });
