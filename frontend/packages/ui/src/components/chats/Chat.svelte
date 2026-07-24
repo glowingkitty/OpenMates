@@ -456,8 +456,8 @@
   let activeFocusId = $derived(cachedMetadata?.activeFocusId ?? liveActiveFocusId);
   let activeFocusBadgeAppId = $derived(activeFocusId ? activeFocusId.split('-')[0] : null);
   let plaintextChatTitle = $derived(normalizePlaintextChatTitle(chat?.title));
-  let lastMessageChatTitle = $derived(normalizePlaintextChatTitle(lastMessage?.current_chat_title));
-  let displayChatTitle = $derived(cachedMetadata?.title ?? lastMessageChatTitle ?? plaintextChatTitle);
+  let messageChatTitle = $state<string | null>(null);
+  let displayChatTitle = $derived(cachedMetadata?.title ?? messageChatTitle ?? plaintextChatTitle);
   
   // CRITICAL: Track if we're waiting for title (reactive variable for template)
   // This ensures we keep showing "Processing..." until title is ready
@@ -471,9 +471,12 @@
       lastMessage = null;
       displayLabel = '';
       displayText = '';
+      messageChatTitle = null;
       cachedMetadata = null;
       return;
     }
+
+    messageChatTitle = null;
 
     // INCOGNITO CHAT HANDLING: Incognito chats store title/category/icon directly (no encryption,
     // no IndexedDB). All metadata is read directly from the chat object, and messages are loaded
@@ -742,7 +745,18 @@
           }
         }
       }
-      
+
+      messageChatTitle = normalizePlaintextChatTitle(lastMessage?.current_chat_title);
+      if (!messageChatTitle && !cachedMetadata?.title && currentChat.chat_id === activeChatId) {
+        try {
+          const messages = await chatDB.getMessagesForChat(currentChat.chat_id);
+          const titledMessage = [...messages].reverse().find((message) => message.current_chat_title);
+          messageChatTitle = normalizePlaintextChatTitle(titledMessage?.current_chat_title);
+        } catch (error) {
+          console.debug(`[Chat] Error loading message title fallback for ${currentChat.chat_id}:`, error);
+        }
+      }
+
       // CRITICAL: Use cached metadata for category/icon to avoid repeated decryption
       // The chatMetadataCache already decrypts and caches category/icon, so use it!
       // This ensures consistent behavior and avoids redundant decryption calls
