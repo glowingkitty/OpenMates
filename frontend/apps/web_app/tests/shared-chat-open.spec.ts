@@ -199,7 +199,10 @@ test('public shared chat shows audio transcript to logged-out visitors', async (
 	await expect(settingsMenu.getByTestId('chat-settings-share-password')).not.toBeVisible();
 	await expect(settingsMenu.getByTestId('chat-settings-share-expire')).not.toBeVisible();
 	await expect(settingsMenu.getByTestId('chat-settings-share-stop')).not.toBeVisible();
-	await page.getByTestId('profile-container').click();
+	// The visible close button overlays the profile container while settings are open.
+	// Click it directly so Playwright does not wait until the overall test timeout
+	// on a pointer-events interception from the close icon subtree.
+	await page.getByTestId('icon-button-close').click({ timeout: 5000 });
 	await expect(settingsMenu).not.toBeVisible({ timeout: 10000 });
 
 	const newChatButton = page.getByTestId('new-chat-button').or(page.getByTestId('new-chat-cta-fullwidth')).first();
