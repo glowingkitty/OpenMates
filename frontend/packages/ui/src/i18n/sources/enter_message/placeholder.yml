@@ -46,6 +46,26 @@ touch:
   sv: "Tryck för att fråga vad som helst..."
   he: הקש כדי לשאול כל דבר...
   verified_by_human: []
+guest_try_free_desktop:
+  context: Logged-out landing placeholder on desktop when anonymous free text sending is available
+  en: Click here to try for free
+  de: Klicke hier, um es kostenlos zu testen
+  verified_by_human: []
+guest_try_free_touch:
+  context: Logged-out landing placeholder on touch devices when anonymous free text sending is available
+  en: Tap here to try for free
+  de: Tippe hier, um es kostenlos zu testen
+  verified_by_human: []
+guest_ask_anything_desktop:
+  context: Logged-out landing placeholder on desktop when free anonymous sending is unavailable
+  en: Click here to ask anything
+  de: Klicke hier, um alles zu fragen
+  verified_by_human: []
+guest_ask_anything_touch:
+  context: Logged-out landing placeholder on touch devices when free anonymous sending is unavailable
+  en: Tap here to ask anything
+  de: Tippe hier, um alles zu fragen
+  verified_by_human: []
 followup_desktop:
   context: Placeholder text shown in message input on desktop when viewing someone else's chat (encourages followup)
   en: Click to ask followup...

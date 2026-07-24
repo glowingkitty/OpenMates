@@ -204,6 +204,8 @@
         inlineCompact?: boolean;
         /** True after an unauthenticated user tried to attach a file and must sign up first. */
         anonymousFileAttachmentPending?: boolean;
+        /** Logged-out welcome CTA treatment with icon, centered copy, and direct mic affordance. */
+        guestCtaMode?: boolean;
     }
     let { 
         currentChatId = undefined,
@@ -225,7 +227,8 @@
         startNewChatOnClick = false,
         isNewChatContext = false,
         inlineCompact = false,
-        anonymousFileAttachmentPending = $bindable(false)
+        anonymousFileAttachmentPending = $bindable(false),
+        guestCtaMode = false
     }: Props = $props();
 
     // --- Refs ---
@@ -473,6 +476,11 @@
 
     function getBasePlaceholderText(): string {
         if (placeholderText) return placeholderText;
+        if (guestCtaMode && !$authStore.isAuthenticated) {
+            const keySuffix = anonymousTextSendEnabled ? 'try_free' : 'ask_anything';
+            const deviceType = isTouchInputDevice() ? 'touch' : 'desktop';
+            return $text(`enter_message.placeholder.guest_${keySuffix}_${deviceType}`);
+        }
         const variant = get(messageInputPlaceholderVariant);
         const suffix = variant === 'followup' ? 'followup_' : '';
         const deviceType = isTouchInputDevice() ? 'touch' : 'desktop';
@@ -5371,6 +5379,7 @@
     bind:this={messageInputWrapper}
     class="message-input-wrapper"
     class:start-new-chat-only={startNewChatOnClick}
+    class:guest-cta-mode={guestCtaMode && !$authStore.isAuthenticated}
     role="none"
     onmousedown={handleMessageWrapperMouseDown}
     onclick={handleMessageWrapperClick}
@@ -5435,6 +5444,7 @@
         class:has-focus-pill={showFocusPill || showIncognitoPill || showIdeaBucketPill}
         class:inline-compact={inlineCompact && !isMessageFieldFocused && !hasContent}
         class:placeholder-fading={isPlaceholderFading}
+        class:guest-cta-field={guestCtaMode && !$authStore.isAuthenticated && !isMessageFieldFocused && !hasContent}
         style={containerStyle}
         ondragover={handleDragOver}
         ondragleave={handleDragLeave}
@@ -5450,6 +5460,23 @@
                 aria-label={placeholderText || 'Click to start a new chat'}
                 onclick={handleStartNewChatPlaceholderClick}
             ></button>
+        {/if}
+
+        {#if guestCtaMode && !$authStore.isAuthenticated && !isMessageFieldFocused && !hasContent}
+            <span class="guest-cta-ai-icon" aria-hidden="true"></span>
+            <button
+                class="guest-cta-mic-button"
+                type="button"
+                data-testid="guest-cta-mic-button"
+                aria-label={$text('enter_message.attachments.record_audio')}
+                onmousedown={(event) => onRecordMouseDown(new CustomEvent('recordMouseDown', { detail: { originalEvent: event } }))}
+                onmouseup={(event) => onRecordMouseUp(new CustomEvent('recordMouseUp', { detail: { originalEvent: event } }))}
+                onmouseleave={(event) => onRecordMouseLeave(new CustomEvent('recordMouseLeave', { detail: { originalEvent: event } }))}
+                ontouchstart={(event) => onRecordTouchStart(new CustomEvent('recordTouchStart', { detail: { originalEvent: event } }))}
+                ontouchend={(event) => onRecordTouchEnd(new CustomEvent('recordTouchEnd', { detail: { originalEvent: event } }))}
+            >
+                <span class="clickable-icon icon_recordaudio" aria-hidden="true"></span>
+            </button>
         {/if}
 
         <!-- Focus mode pill: shown when a focus mode is active.
@@ -5755,6 +5782,105 @@
 
     .message-field.placeholder-fading :global(.ProseMirror p.is-editor-empty:first-child::before) {
         opacity: 0;
+    }
+
+    .message-input-wrapper.guest-cta-mode {
+        filter: drop-shadow(0 18px 34px rgba(30, 45, 90, 0.14));
+    }
+
+    .message-field.guest-cta-field {
+        min-height: 64px;
+        padding: 0 64px;
+        border: 1px solid transparent;
+        border-radius: var(--radius-full, 9999px);
+        background:
+            linear-gradient(var(--color-grey-blue), var(--color-grey-blue)) padding-box,
+            linear-gradient(135deg, var(--color-primary), var(--color-primary-light, #8b5cf6)) border-box;
+        box-shadow:
+            0 16px 42px rgba(38, 57, 116, 0.18),
+            0 2px 8px rgba(38, 57, 116, 0.1);
+    }
+
+    .message-field.guest-cta-field .scrollable-content {
+        padding-top: 0;
+        overflow: hidden;
+    }
+
+    .message-field.guest-cta-field .content-wrapper {
+        min-height: 62px;
+        padding: 0;
+        display: flex;
+        align-items: center;
+    }
+
+    .message-field.guest-cta-field :global(.ProseMirror) {
+        min-height: auto;
+        padding: 0;
+        line-height: 62px;
+    }
+
+    .message-field.guest-cta-field :global(.ProseMirror p) {
+        min-height: auto;
+        margin: 0;
+    }
+
+    .message-field.guest-cta-field :global(.ProseMirror p.is-editor-empty:first-child::before) {
+        top: 0;
+        height: 62px;
+        color: color-mix(in srgb, var(--color-font-primary) 72%, transparent);
+        font-weight: 700;
+        line-height: 62px;
+    }
+
+    .guest-cta-ai-icon {
+        position: absolute;
+        top: 50%;
+        left: 22px;
+        z-index: 31;
+        width: 24px;
+        height: 24px;
+        background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light, #8b5cf6));
+        transform: translateY(-50%);
+        -webkit-mask-image: url('@openmates/ui/static/icons/ai.svg');
+        mask-image: url('@openmates/ui/static/icons/ai.svg');
+        -webkit-mask-position: center;
+        mask-position: center;
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+        -webkit-mask-size: contain;
+        mask-size: contain;
+        pointer-events: none;
+    }
+
+    .guest-cta-mic-button {
+        position: absolute;
+        top: 50%;
+        right: 10px;
+        z-index: 32;
+        display: grid;
+        place-items: center;
+        width: 44px;
+        min-width: 44px;
+        height: 44px;
+        padding: 0 !important;
+        border: 0;
+        border-radius: 999px;
+        background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light, #8b5cf6)) !important;
+        box-shadow: 0 8px 20px rgba(82, 76, 255, 0.22);
+        cursor: pointer;
+        transform: translateY(-50%);
+        touch-action: none;
+    }
+
+    .guest-cta-mic-button .clickable-icon {
+        width: 20px !important;
+        height: 20px !important;
+        background: white !important;
+        filter: none !important;
+    }
+
+    .guest-cta-mic-button:hover {
+        transform: translateY(-50%) scale(1.04);
     }
 
     /* Edit message banner — shown above the editor when editing a previous message */

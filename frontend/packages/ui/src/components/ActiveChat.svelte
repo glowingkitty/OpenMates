@@ -131,7 +131,7 @@
     import { forkProgressStore } from '../stores/forkProgressStore'; // Global fork progress — used to show banner on source chat
     import { notFoundPathStore } from '../stores/notFoundPathStore'; // 404 not-found path — set when user lands on unknown URL
     import { openSearch, setSearchQuery } from '../stores/searchStore'; // For 404 search handler
-    import { dailyInspirationStore, type DailyInspiration } from '../stores/dailyInspirationStore'; // Type/store for inspiration handler
+    import { dailyInspirationStore, type DailyInspiration, type DailyInspirationSurface } from '../stores/dailyInspirationStore'; // Type/store for inspiration handler
     import { chatListCache } from '../services/chatListCache'; // For invalidating stale 'sending' status in sidebar cache
     import { updateNavFromCache } from '../stores/chatNavigationStore'; // Populate prev/next nav state from cache when sidebar hasn't been opened yet
     import { sortChats } from './chats/utils/chatSortUtils'; // For recent-chats horizontal scroll sort order
@@ -178,8 +178,10 @@
     import type { EmbedStoreEntry } from '../message_parsing/types';
     import { proxyImage, MAX_WIDTH_VIDEO_FULLSCREEN } from '../utils/imageProxy';
     import { autoStartCreatedApplicationPreview } from '../services/applicationPreviewService';
+    import { externalLinks } from '../config/links';
 
     const GUEST_DEFAULT_INTRO_INSPIRATION_ID = 'openmates-intro';
+    const GUEST_EXAMPLE_SURFACES = new Set<DailyInspirationSurface>(['chats', 'projects', 'workflows']);
     const CANCELLED_NEW_CHAT_DRAFT_RESTORE_ATTEMPTS = 5;
     const CANCELLED_NEW_CHAT_DRAFT_RESTORE_DELAY_MS = 50;
     const DRAFT_RESTORE_REF_RETRY_ATTEMPTS = 80;
@@ -678,7 +680,10 @@
     });
 
     let guestInterestHeadingParts = $derived.by(() => {
-        const key = guestInterestSelectorVisible ? 'chat.interests.active_title' : 'chat.interests.title';
+        if (!guestInterestSelectorVisible) {
+            return splitHtmlLineBreaks($text($isMobileView ? 'chat.welcome.guest_explore_touch' : 'chat.welcome.guest_explore_desktop'));
+        }
+        const key = 'chat.interests.active_title';
         return splitHtmlLineBreaks($text(key));
     });
     
@@ -3452,12 +3457,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             recentChats = [];
             priorityContinueItems = [];
             nonAuthRecentChats = [];
+            guestAllExamplesVisible = false;
             return;
         }
         if (isAuth) {
             nonAuthRecentChatsRequestId++;
             nonAuthChatTiltStates = [];
             nonAuthRecentChats = [];
+            guestAllExamplesVisible = false;
             recentChatsScrolledByUser = false;
             loadRecentChatsDebounced();
             loadPriorityContinueItemsDebounced();
@@ -4460,7 +4467,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
      * Tall phones should still use compact cards so saved embeds don't dominate
      * the welcome screen.
      */
-    let isTallViewport = $derived(viewportHeight >= 800 && viewportWidth >= 550);
+    let isTallViewport = $derived(viewportHeight >= 900 && viewportWidth >= 550);
 
     // Hover tilt effect for the large welcome-screen chat preview card.
     // Mirrors UnifiedEmbedPreview's 3D hover behavior.
@@ -5247,6 +5254,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     let selectedGuestInterestTagIds = $state<InterestTagId[]>([]);
     let guestInterestContinueConfirmed = $state(true);
     let guestInterestSelectorVisible = $state(false);
+    let guestAllExamplesVisible = $state(false);
+    let activeGuestSurface = $state<DailyInspirationSurface>('chats');
+    let guestInputLinkIndex = $state(0);
     type LandingIntroPhase = 'regular' | 'expanded' | 'collapsing' | 'expanding';
     let guestLandingIntroPhase = $state<LandingIntroPhase>('regular');
     let guestLandingIntroOverlayActive = $derived(guestLandingIntroPhase !== 'regular');
@@ -5256,6 +5266,37 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     let guestInterestShuffleToken = $state(0);
     let lastGuestInspirationShuffleId = $state('');
     let lastGuestPersonalizationKey = '';
+    let showGuestAllExamplesLink = $derived(
+        !$authStore.isAuthenticated && GUEST_EXAMPLE_SURFACES.has(activeGuestSurface)
+    );
+    let GuestWorkspaceIcon = $derived.by(() => {
+        const iconName = activeGuestSurface === 'projects'
+            ? 'folder-kanban'
+            : activeGuestSurface === 'plans'
+                ? 'calendar-clock'
+                : activeGuestSurface === 'tasks'
+                    ? 'check-square'
+                    : activeGuestSurface === 'workflows'
+                        ? 'workflow'
+                        : 'message-square';
+        return getLucideIcon(iconName);
+    });
+    let activeGuestInputLinkKey = $derived(
+        guestInputLinkIndex === 0 ? 'chat.welcome.guest_privacy_link' : 'chat.welcome.guest_apps_link'
+    );
+    let activeGuestInputLinkHref = $derived(
+        guestInputLinkIndex === 0 ? externalLinks.legal.privacyPolicy : '#apps'
+    );
+
+    function handleShowAllGuestExamples() {
+        guestAllExamplesVisible = true;
+    }
+
+    function handleGuestAppsLinkClick(event: MouseEvent) {
+        event.preventDefault();
+        settingsDeepLink.set('apps/all/skills');
+        panelState.openSettings();
+    }
 
     function applyGuestInterestPersonalization(selectedTagIds: InterestTagId[]) {
         const state = get(dailyInspirationStore);
@@ -5312,6 +5353,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     function handleVisibleInspirationChange(inspiration: DailyInspiration) {
         if ($authStore.isAuthenticated) return;
+        activeGuestSurface = inspiration.surface ?? 'chats';
         const nextId = inspiration.inspiration_id;
         if (!lastGuestInspirationShuffleId) {
             lastGuestInspirationShuffleId = nextId;
@@ -10150,6 +10192,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
         initialize();
         installChatReplayCommand();
+        const guestInputLinkInterval = window.setInterval(() => {
+            guestInputLinkIndex = (guestInputLinkIndex + 1) % 2;
+        }, 6500);
         
         // Listen for event to open login interface from header button
         const handleOpenLoginInterface = () => {
@@ -11708,6 +11753,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         });
 
         return () => {
+            window.clearInterval(guestInputLinkInterval);
             // Remove listeners from chatSyncService
             uninstallChatReplayCommand();
             chatSyncService.removeEventListener('chatUpdated', chatUpdateHandler);
@@ -11882,7 +11928,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     <!-- Welcome hero/inspiration banners – shown above greeting on new chat screen. -->
                     <!-- Guests see the stable intro-video hero; authenticated users keep Daily Inspiration. -->
                     <!-- Rendered FIRST so it appears above the top-buttons row on the welcome screen. -->
-                    {#if showWelcome}
+                    {#if showWelcome && !guestAllExamplesVisible}
                         <div
                             class="daily-inspiration-area"
                             class:welcome-hiding={hideWelcomeForKeyboard}
@@ -12036,20 +12082,53 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             inert={hideWelcomeForKeyboard}
                             bind:this={welcomeContentEl}
                         >
+                            {#if guestAllExamplesVisible && !$authStore.isAuthenticated}
+                                <div class="guest-all-examples-view" data-testid="guest-all-examples-view" transition:fade={fadeParams}>
+                                    <div class="guest-all-examples-header">
+                                        <GuestWorkspaceIcon size={36} color="var(--color-primary)" />
+                                        <h2>{$text('chat.welcome.all_examples_title')}</h2>
+                                        <p>{$text('chat.welcome.all_examples_subtitle')}</p>
+                                    </div>
+                                    <div class="guest-all-examples-grid" data-testid="guest-all-examples-grid">
+                                        {#each nonAuthRecentChats.filter((meta) => isExampleChat(meta.chat.chat_id) || meta.chat.chat_id === 'demo-for-everyone') as meta (meta.chat.chat_id)}
+                                            {@const category = meta.category || 'general_knowledge'}
+                                            {@const gradientColors = getCategoryGradientColors(category)}
+                                            {@const iconName = getValidIconName(meta.icon || '', category)}
+                                            {@const IconComponent = getLucideIcon(iconName)}
+                                            <button
+                                                type="button"
+                                                class="guest-all-example-card"
+                                                data-testid="guest-all-example-card"
+                                                data-chat-id={meta.chat.chat_id}
+                                                style={getResumeCardGradientStyle(gradientColors)}
+                                                onclick={() => handleOpenRecentChat(meta.chat)}
+                                            >
+                                                <span class="guest-all-example-icon" aria-hidden="true">
+                                                    <IconComponent size={20} color="rgba(255, 255, 255, 0.95)" />
+                                                </span>
+                                                <span class="guest-all-example-title">{meta.title || $text('common.untitled_chat')}</span>
+                                                {#if meta.summary}
+                                                    <span class="guest-all-example-summary">{meta.summary}</span>
+                                                {/if}
+                                            </button>
+                                        {/each}
+                                    </div>
+                                </div>
+                            {:else}
                             <div class="team-profile">
                                 <!-- <div class="team-image" class:disabled={!isTeamEnabled}></div> -->
                                 <div class="welcome-text">
-                                    <h2>
-                                        {#if !$authStore.isAuthenticated}
+                                    {#if !$authStore.isAuthenticated}
+                                        <div class="guest-workspace-icon" data-testid="guest-workspace-icon" aria-hidden="true">
+                                            <GuestWorkspaceIcon size={38} color="var(--color-primary)" />
+                                        </div>
+                                    {:else}
+                                        <h2>
                                             {#each welcomeHeadingParts as part, index}
                                                 <span>{part}</span>{#if index < welcomeHeadingParts.length - 1}<br>{/if}
                                             {/each}
-                                        {:else}
-                                            {#each welcomeHeadingParts as part, index}
-                                                <span>{part}</span>{#if index < welcomeHeadingParts.length - 1}<br>{/if}
-                                            {/each}
-                                        {/if}
-                                    </h2>
+                                        </h2>
+                                    {/if}
                                     {#if !$authStore.isAuthenticated}
                                         <p class="guest-interest-prompt" transition:fade={fadeParams}>
                                             {#each guestInterestHeadingParts as part, index}
@@ -12573,6 +12652,17 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 >
                                     {$text('chat.interests.select_interests')}
                                 </button>
+                                {#if !$authStore.isAuthenticated && showGuestAllExamplesLink}
+                                    <button
+                                        type="button"
+                                        class="guest-show-all-examples"
+                                        data-testid="guest-show-all-examples"
+                                        onclick={handleShowAllGuestExamples}
+                                    >
+                                        {$text('chat.welcome.show_all_examples')}
+                                    </button>
+                                {/if}
+                            {/if}
                             {/if}
                         </div>
 
@@ -12678,6 +12768,19 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
                 <!-- Right side container for message input -->
                 <div class="message-input-wrapper" data-testid="message-input-wrapper">
+                    {#if showWelcome && !$authStore.isAuthenticated}
+                        <a
+                            class="guest-input-context-link"
+                            data-testid="guest-input-context-link"
+                            href={activeGuestInputLinkHref}
+                            target={guestInputLinkIndex === 0 ? '_blank' : undefined}
+                            rel={guestInputLinkIndex === 0 ? 'noopener noreferrer' : undefined}
+                            onclick={guestInputLinkIndex === 1 ? handleGuestAppsLinkClick : undefined}
+                            transition:fade={{ duration: 260 }}
+                        >
+                            {$text(activeGuestInputLinkKey)}
+                        </a>
+                    {/if}
                     {#if typingIndicatorLines.length > 0}
                         <div
                             class="typing-indicator"
@@ -12850,6 +12953,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                     on:startNewChat={handleNewChatClick}
                                     on:heightchange={handleInputHeightChange}
                                     on:draftSaved={handleDraftSaved}
+                                    guestCtaMode={showWelcome && !$authStore.isAuthenticated}
                                     on:textchange={(e) => {
                                         const t = (e.detail?.text || '');
                                         liveInputText = t;
@@ -13790,6 +13894,17 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         line-height: 1.25;
     }
 
+    .guest-workspace-icon {
+        display: inline-grid;
+        place-items: center;
+        width: 70px;
+        height: 70px;
+        margin: 0 auto var(--spacing-5);
+        border-radius: 26px;
+        background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+        box-shadow: 0 14px 36px rgba(70, 84, 150, 0.14);
+    }
+
     .guest-interest-tags-overlay {
         position: absolute;
         left: 0;
@@ -13819,6 +13934,161 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         text-decoration: none;
         box-shadow: none;
         filter: none;
+    }
+
+    .guest-show-all-examples {
+        margin-top: var(--spacing-3);
+        border: none;
+        background: transparent;
+        color: var(--color-primary);
+        padding: var(--spacing-1) 0 0;
+        font: inherit;
+        font-size: 0.92rem;
+        font-weight: 750;
+        cursor: pointer;
+        pointer-events: auto;
+        text-decoration: none;
+        box-shadow: none;
+        filter: none;
+    }
+
+    .guest-show-all-examples:hover,
+    .guest-interest-select-link:hover {
+        text-decoration: underline;
+        text-underline-offset: 3px;
+    }
+
+    .guest-all-examples-view {
+        width: min(100% - 32px, 1040px);
+        max-height: min(42vh, 430px);
+        display: flex;
+        flex-direction: column;
+        gap: var(--spacing-7);
+        pointer-events: auto;
+    }
+
+    .guest-all-examples-header {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: var(--spacing-2);
+    }
+
+    .guest-all-examples-header h2,
+    .guest-all-examples-header p {
+        margin: 0;
+    }
+
+    .guest-all-examples-header h2 {
+        color: var(--color-grey-80);
+        font-size: clamp(1.25rem, 2.4vw, 2rem);
+        line-height: 1.1;
+    }
+
+    .guest-all-examples-header p {
+        color: var(--color-grey-60);
+        font-size: var(--font-size-small);
+    }
+
+    .guest-all-examples-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: var(--spacing-5);
+        overflow-y: auto;
+        padding: var(--spacing-1) var(--spacing-2) var(--spacing-4);
+        scrollbar-width: thin;
+    }
+
+    .guest-all-example-card {
+        position: relative;
+        min-height: 132px;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--spacing-3);
+        padding: var(--spacing-7);
+        border: 0;
+        border-radius: 24px;
+        color: white;
+        text-align: left;
+        overflow: hidden;
+        box-shadow: 0 12px 28px rgba(30, 45, 90, 0.16);
+    }
+
+    .guest-all-example-icon {
+        display: grid;
+        place-items: center;
+        width: 34px;
+        height: 34px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.16);
+    }
+
+    .guest-all-example-title {
+        font-size: var(--font-size-p);
+        font-weight: 800;
+        line-height: 1.18;
+    }
+
+    .guest-all-example-summary {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        color: rgba(255, 255, 255, 0.84);
+        font-size: var(--font-size-xs);
+        line-height: 1.35;
+    }
+
+    .guest-input-context-link {
+        display: block;
+        width: fit-content;
+        margin: 0 auto var(--spacing-3);
+        color: var(--color-grey-60);
+        font-size: var(--font-size-xs);
+        font-weight: 650;
+        text-align: center;
+        text-decoration: none;
+        pointer-events: auto;
+        transition: color var(--duration-fast) var(--easing-default), opacity 260ms ease;
+    }
+
+    .guest-input-context-link:hover {
+        color: var(--color-primary);
+        text-decoration: underline;
+        text-underline-offset: 3px;
+    }
+
+    @media (max-width: 730px) {
+        .guest-workspace-icon {
+            width: 58px;
+            height: 58px;
+            border-radius: 22px;
+            margin-bottom: var(--spacing-4);
+        }
+
+        .guest-all-examples-view {
+            width: min(100% - 24px, 520px);
+            max-height: 44vh;
+            gap: var(--spacing-5);
+        }
+
+        .guest-all-examples-grid {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-4);
+        }
+
+        .guest-all-example-card {
+            min-height: 74px;
+            border-radius: 20px;
+            padding: var(--spacing-5) var(--spacing-6);
+        }
+
+        .guest-all-example-summary {
+            display: none;
+        }
     }
 
     .welcome-text .decrypting-chats-text {

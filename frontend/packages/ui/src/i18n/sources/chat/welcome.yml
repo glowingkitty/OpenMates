@@ -70,3 +70,38 @@ what_do_you_need_help_with:
   sv: Vad behöver du hjälp med?
   he: "במה אפשר לעזור לך?"
   verified_by_human: []
+guest_explore_desktop:
+  context: Logged-out landing prompt on non-touch devices after the daily inspiration intro
+  en: "Click or swipe, to explore real chats:"
+  de: "Klicke oder wische, um echte Chats zu entdecken:"
+  verified_by_human: []
+guest_explore_touch:
+  context: Logged-out landing prompt on touch devices after the daily inspiration intro
+  en: "Tap or swipe, to explore real chats:"
+  de: "Tippe oder wische, um echte Chats zu entdecken:"
+  verified_by_human: []
+guest_privacy_link:
+  context: Small rotating link above the logged-out message input that opens the privacy policy
+  en: Your chats & memories will be encrypted
+  de: Deine Chats und Erinnerungen werden verschlüsselt
+  verified_by_human: []
+guest_apps_link:
+  context: Small rotating link above the logged-out message input that opens app settings
+  en: OpenMates uses apps to fulfill tasks
+  de: OpenMates nutzt Apps, um Aufgaben zu erledigen
+  verified_by_human: []
+show_all_examples:
+  context: Link below logged-out example cards that replaces the inspiration area with all examples
+  en: Show all examples
+  de: Alle Beispiele anzeigen
+  verified_by_human: []
+all_examples_title:
+  context: Heading for the logged-out all examples replacement view
+  en: Explore real OpenMates chats
+  de: Entdecke echte OpenMates-Chats
+  verified_by_human: []
+all_examples_subtitle:
+  context: Subtitle for the logged-out all examples replacement view
+  en: Pick one to see how the workspace feels in practice.
+  de: Wähle einen aus, um das Workspace-Gefühl praktisch zu sehen.
+  verified_by_human: []

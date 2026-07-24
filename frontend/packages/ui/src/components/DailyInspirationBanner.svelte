@@ -355,6 +355,7 @@
     if (visibleInspirations.length === 0) return null;
     return visibleInspirations[currentIndex % visibleInspirations.length] ?? null;
   });
+  let reachableSlideIndexes = $derived.by(() => getReachableSlideIndexes(currentIndex, visibleInspirations.length));
 
   let landingIntroIsCurrentSlide = $derived(
     isGuestIntroVariant && current?.inspiration_id === LANDING_INTRO_INSPIRATION_ID,
@@ -872,7 +873,17 @@
       .map((appId) => icons.find((icon) => icon.appId === appId))
       .filter((icon): icon is LandingIntroAppIcon => Boolean(icon));
     const otherIcons = icons.filter((icon) => !LANDING_INTRO_FEATURED_APP_IDS.includes(icon.appId));
-    return [...otherIcons.slice(0, 7), ...featuredIcons, ...otherIcons.slice(7, 14)];
+    if (featuredIcons.length === 0) return otherIcons.slice(0, 14);
+    const sequence: LandingIntroAppIcon[] = [];
+    let fillerIndex = 0;
+    for (const featuredIcon of featuredIcons) {
+      sequence.push(featuredIcon);
+      for (let offset = 0; offset < 2 && otherIcons.length > 0; offset += 1) {
+        sequence.push(otherIcons[fillerIndex % otherIcons.length]);
+        fillerIndex += 1;
+      }
+    }
+    return sequence;
   }
 
   function buildSecondaryLandingIntroIcons(
@@ -890,6 +901,15 @@
     if (icons.length === 0) return [];
     const count = Math.max(icons.length, LANDING_INTRO_RAIL_MIN_ICON_COUNT);
     return Array.from({ length: count }, (_, index) => icons[index % icons.length]);
+  }
+
+  function getReachableSlideIndexes(index: number, count: number): number[] {
+    if (count <= 0) return [];
+    if (count === 1) return [0];
+    const safeIndex = Math.min(Math.max(index, 0), count - 1);
+    const start = Math.max(0, safeIndex - 1);
+    const end = Math.min(count - 1, safeIndex + 1);
+    return Array.from({ length: end - start + 1 }, (_, offset) => start + offset);
   }
 
   function landingIntroIconStyle(icon: LandingIntroAppIcon): string {
@@ -1036,6 +1056,7 @@
       class:landing-intro-collapsing={landingIntroPhase === 'collapsing'}
       class:landing-intro-expanding={landingIntroPhase === 'expanding'}
       data-landing-intro-phase={landingIntroParentPhase}
+      data-mounted-slide-indexes={reachableSlideIndexes.join(',')}
       data-testid="daily-inspiration-banner"
       style={gradientStyle}
       onclick={handleStartChat}
@@ -1359,6 +1380,16 @@
           {/if}
         </div>
       </div><!-- /.banner-inner -->
+
+      <div class="mounted-slide-sentinels" aria-hidden="true">
+        {#each reachableSlideIndexes as slideIndex (slideIndex)}
+          <span
+            data-testid="daily-inspiration-mounted-slide"
+            data-slide-index={slideIndex}
+            data-current={slideIndex === currentIndex ? 'true' : 'false'}
+          ></span>
+        {/each}
+      </div>
 
       <!-- ── Carousel navigation arrows ──
            These are real <button> elements with explicit stopPropagation.
@@ -1713,11 +1744,15 @@
   }
 
   .landing-intro-app-rail-primary {
-    animation: landingIntroRailLeft 42s linear infinite;
+    animation: landingIntroRailLeft 36s linear infinite;
   }
 
   .landing-intro-app-rail-secondary {
     animation: landingIntroRailRight 48s linear infinite;
+  }
+
+  .mounted-slide-sentinels {
+    display: none;
   }
 
   .landing-intro-app-icon {
@@ -2349,7 +2384,7 @@
     left: 0;
     right: 0;
     bottom: 0;
-    height: 2px;
+    height: 4px;
     background: transparent;
     pointer-events: none;
     z-index: var(--z-index-dropdown-2);

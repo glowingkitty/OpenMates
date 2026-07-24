@@ -360,4 +360,40 @@ test.describe('Landing page onboarding refresh', () => {
 		expect(metrics.ctaButtonText).toBe('Open on Luma');
 		expect(metrics.cursorAnimation).toContain('landingActionableCursor');
 	});
+
+	test('regular guest landing exposes workspace prompt, CTA input links, compact cards, and all examples', async ({ page }: { page: any }) => {
+		test.setTimeout(45000);
+		await page.setViewportSize({ width: 1280, height: 800 });
+
+		await page.goto(getE2EDebugUrl('/?landing-guest-refresh'), { waitUntil: 'domcontentloaded' });
+		await page.waitForLoadState('networkidle');
+		await waitForLandingIntroExamples(page);
+		await skipExpandedLandingIntro(page);
+
+		await expect(page.getByTestId('guest-workspace-icon')).toBeVisible({ timeout: 5000 });
+		await expect(page.getByTestId('welcome-content')).toContainText('Click or swipe, to explore real chats:');
+		await expect(page.getByTestId('welcome-content')).not.toContainText('Hey there');
+		await expect(page.getByTestId('guest-input-context-link')).toBeVisible();
+		await expect(page.getByTestId('guest-cta-mic-button')).toBeVisible();
+		const guestPlaceholder = await page.getByTestId('message-editor').evaluate((element: HTMLElement) => {
+			const paragraph = element.querySelector<HTMLElement>('.ProseMirror p[data-placeholder]');
+			return paragraph?.dataset.placeholder ?? '';
+		});
+		expect(guestPlaceholder).toMatch(/Click here to (try for free|ask anything)/);
+		await expect(page.getByTestId('resume-chat-card').first()).toBeVisible();
+		await expect(page.getByTestId('resume-chat-large-card')).toHaveCount(0);
+
+		const bannerState = await page.getByTestId('daily-inspiration-banner').evaluate((element: HTMLElement) => ({
+			mountedIndexes: element.dataset.mountedSlideIndexes,
+			progressHeight: document.querySelector<HTMLElement>('[data-testid="daily-inspiration-carousel-progress"]')?.getBoundingClientRect().height ?? 0
+		}));
+		expect(bannerState.mountedIndexes).toBe('0,1,2');
+		expect(bannerState.progressHeight).toBeGreaterThanOrEqual(4);
+
+		await page.getByTestId('guest-show-all-examples').click();
+		await expect(page.getByTestId('daily-inspiration-area')).toHaveCount(0);
+		await expect(page.getByTestId('guest-all-examples-view')).toBeVisible({ timeout: 5000 });
+		await expect(page.getByTestId('guest-all-example-card').first()).toBeVisible();
+		await expect(page.getByTestId('message-input-wrapper')).toBeVisible();
+	});
 });
