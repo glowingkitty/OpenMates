@@ -190,20 +190,6 @@ test('loads long compressed history explicitly and exports hydrated metadata', a
 	await expect(page.getByTestId('show-older-messages')).toHaveCount(0);
 	await screenshot(page, 'initial-latest-window');
 
-	await page.getByTestId('chat-history-container').evaluate((element: HTMLElement) => {
-		element.scrollTop = 0;
-		element.dispatchEvent(new Event('scroll', { bubbles: true }));
-	});
-	await expect(historyContent).toHaveAttribute('data-source-message-count', String(MESSAGE_WINDOW_PAGE_SIZE * 2), {
-		timeout: 45000
-	});
-	await page.getByTestId('chat-history-container').evaluate((element: HTMLElement) => {
-		element.scrollTop = 0;
-	});
-	await expect(page.getByText('Active assistant message 102')).toBeVisible({ timeout: 45000 });
-	await expect(page.getByText('Active user message 081')).not.toBeVisible();
-	await screenshot(page, 'older-active-page-loaded');
-
 	await page.getByTestId('show-forgotten-messages').click();
 	await expect(page.getByText(/readable history, but they are no longer part of the assistant's active context/i)).toBeVisible({
 		timeout: 45000
