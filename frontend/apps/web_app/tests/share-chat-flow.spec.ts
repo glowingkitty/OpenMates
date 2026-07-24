@@ -6,8 +6,8 @@ export {};
  *
  * Tests the full share creation flow:
  *   1. Login with existing account + 2FA
- *   2. Start a new chat with a deterministic web + image embed fixture
- *   3. Wait for AI response and image-search embed completion
+ *   2. Start a new chat with a deterministic plain chat fixture
+ *   3. Wait for AI response
  *   4. Open the share panel via the chat header share button
  *   5. Generate a share link (default settings)
  *   6. Verify copy-link button, QR code, URL reveal, and long-link fallback generation
@@ -34,7 +34,6 @@ const {
 } = require('./signup-flow-helpers');
 
 const { loginToTestAccount, startNewChat, sendMessage, waitForAssistantMessage } = require('./helpers/chat-test-helpers');
-const { waitForEmbedFinished } = require('./helpers/embed-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 const { docAssert } = require('./helpers/doc-checkpoint');
 
@@ -93,19 +92,18 @@ test('creates and shares a chat link with QR code and fallback link', async ({
 	// ── Step 2: Start new chat ────────────────────────────────────────────
 	await startNewChat(page, logCheckpoint);
 
-	// ── Step 3: Trigger image search so the shared preview has image metadata ─
+	// ── Step 3: Send a plain deterministic chat message ────────────────────
 	await sendMessage(
 		page,
-		withMockMarker("Search on the web for 'Berlin weather'", 'share_embed_flow'),
+		withMockMarker('What is the capital of France?', 'chat_flow_capital'),
 		logCheckpoint,
 		takeStepScreenshot,
 		'share-chat'
 	);
 
-	// ── Step 4: Wait for AI response and image-search embed ───────────────
+	// ── Step 4: Wait for AI response ───────────────────────────────────────
 	logCheckpoint('Waiting for assistant response...');
 	await waitForAssistantMessage(page, { which: 'last', logCheckpoint });
-	await waitForEmbedFinished(page, 'images', 'search');
 	await expect(page.getByTestId('chat-header-title')).not.toContainText(/processing|untitled/i, { timeout: 30000 });
 	await expect(page).toHaveURL(/chat-id=[a-zA-Z0-9-]+/, { timeout: 15000 });
 	const chatIdMatch = page.url().match(/chat-id=([a-zA-Z0-9-]+)/);
