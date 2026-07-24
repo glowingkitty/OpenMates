@@ -142,7 +142,7 @@ test('creates and shares a chat link with QR code and fallback link', async ({
 
 	expect(url).toContain(`/share/chat/${activeChatId}#key=`);
 	expect(longUrl).toContain(`/share/chat/${activeChatId}#key=`);
-	expect(expirationText).toMatch(/Auto expire in\s+never/i);
+	expect(expirationText).toMatch(/Auto expire(?: in|:)\s+never/i);
 	logCheckpoint('Generated chat share link, QR code, and revealed URL verified in browser automation.');
 
 	logCheckpoint('Share chat flow test completed successfully.');
