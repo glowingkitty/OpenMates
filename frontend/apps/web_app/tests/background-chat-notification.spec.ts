@@ -67,14 +67,20 @@ test('background chat notification shows and allows reply', async ({ page }: { p
 	logStep('Login succeeded. Waiting for initial chat load...');
 	await page.waitForTimeout(2000);
 	await takeScreenshot(page, 'after-login');
+	const existingNotificationDismiss = page.getByTestId('notification-dismiss').first();
+	if (await existingNotificationDismiss.isVisible({ timeout: 5000 }).catch(() => false)) {
+		await existingNotificationDismiss.click();
+		logStep('Dismissed pre-existing setup notification to isolate chat notification behavior.');
+	}
 
 	// ══════════════════════════════════════════════════════════════
 	// 9. Send a message in Chat A
 	// ══════════════════════════════════════════════════════════════
 	const messageEditor = page.getByTestId('message-editor');
 	await expect(messageEditor).toBeVisible({ timeout: 15000 });
+	const chatAMessage = 'What is the tallest mountain in the world?';
 	await messageEditor.click();
-	await page.keyboard.type('What is the tallest mountain in the world?');
+	await page.keyboard.type(chatAMessage);
 	await takeScreenshot(page, 'chat-a-message-typed');
 
 	const sendButton = page.locator('[data-action="send-message"]');
@@ -94,6 +100,9 @@ test('background chat notification shows and allows reply', async ({ page }: { p
 	if (!chatAId) {
 		throw new Error(`Could not extract chat ID from URL: ${chatAUrl}`);
 	}
+	const chatAUserMessage = page.getByTestId('message-user').filter({ hasText: chatAMessage }).last();
+	await expect(chatAUserMessage.getByText('Sending...')).not.toBeVisible({ timeout: 30000 });
+	logStep('Chat A message left the transient sending state.');
 
 	// ══════════════════════════════════════════════════════════════
 	// 10. Switch to a new Chat B (making Chat A a background chat)
