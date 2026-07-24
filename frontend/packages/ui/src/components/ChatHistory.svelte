@@ -1186,11 +1186,24 @@
     activeChatStore.setActiveChat(chatId);
   }
 
+  let lastSourceSyncChatKey = $state<string | undefined>(undefined);
+
   $effect(() => {
     const incomingMessages = sourceMessages;
-    if (incomingMessages.length === 0) return;
+    const sourceChatKey = currentChatId ?? incomingMessages[0]?.chat_id;
+    const sourceChatChanged = sourceChatKey !== lastSourceSyncChatKey;
     const internalMessagesEmpty = untrack(() => messages.length === 0);
-    if (!internalMessagesEmpty) return;
+
+    if (incomingMessages.length === 0) {
+      if (sourceChatChanged) {
+        lastSourceSyncChatKey = sourceChatKey;
+        untrack(() => updateMessages([]));
+      }
+      return;
+    }
+
+    if (!internalMessagesEmpty && !sourceChatChanged) return;
+    lastSourceSyncChatKey = sourceChatKey;
     untrack(() => updateMessages(incomingMessages));
   });
 
