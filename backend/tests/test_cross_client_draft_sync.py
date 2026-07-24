@@ -210,6 +210,7 @@ async def test_update_draft_broadcasts_ideabucket_metadata_without_plaintext(mon
 async def test_update_draft_replaces_ideabucket_processing_window_payload(monkeypatch) -> None:
     manager = _Manager()
     websocket = _WebSocket()
+    captured_metadata = []
     captured_windows = []
     sent_tasks = []
 
@@ -226,6 +227,7 @@ async def test_update_draft_replaces_ideabucket_processing_window_payload(monkey
             return True
 
         async def update_user_draft_metadata_in_cache(self, user_id, chat_id, **metadata):
+            captured_metadata.append(metadata)
             return True
 
         async def replace_ideabucket_processing_window_in_cache(self, user_id, processing_window_id, **payload):
@@ -283,6 +285,11 @@ async def test_update_draft_replaces_ideabucket_processing_window_payload(monkey
             "payload_hash": "hash-v7",
         },
     )]
+    assert captured_metadata == [{
+        "ideabucket": True,
+        "ideabucket_processing_window_id": "2026-07-18T09:00:00Z",
+        "encrypted_chat_key": "wrapped-chat-key-v7",
+    }]
     assert sent_tasks == [{
         "name": "app.tasks.persistence_tasks.persist_user_draft",
         "kwargs": {
@@ -1164,6 +1171,7 @@ async def test_phase2_synthesizes_ideabucket_draft_only_metadata() -> None:
             return {
                 "ideabucket": True,
                 "ideabucket_processing_window_id": "2026-07-18T09:00:00Z",
+                "encrypted_chat_key": "wrapped-chat-key-v7",
             }
 
     class Directus:
@@ -1174,6 +1182,7 @@ async def test_phase2_synthesizes_ideabucket_draft_only_metadata() -> None:
 
     assert wrapper["chat_details"]["ideabucket"] is True
     assert wrapper["chat_details"]["ideabucket_processing_window_id"] == "2026-07-18T09:00:00Z"
+    assert wrapper["chat_details"]["encrypted_chat_key"] == "wrapped-chat-key-v7"
     assert "captured ideas" not in str(wrapper).lower()
 
 

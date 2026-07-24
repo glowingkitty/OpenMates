@@ -630,6 +630,7 @@ class ChatCacheMixin:
         *,
         ideabucket: Optional[bool] = None,
         ideabucket_processing_window_id: Optional[str] = None,
+        encrypted_chat_key: Optional[str] = None,
     ) -> bool:
         """Stores sparse non-content metadata for a user's draft."""
         client = await self.client
@@ -642,6 +643,8 @@ class ChatCacheMixin:
                 cache_payload["ideabucket"] = "1" if ideabucket else "0"
             if ideabucket_processing_window_id is not None:
                 cache_payload["ideabucket_processing_window_id"] = ideabucket_processing_window_id
+            if encrypted_chat_key is not None:
+                cache_payload["encrypted_chat_key"] = encrypted_chat_key
 
             if not cache_payload:
                 return True
@@ -672,6 +675,9 @@ class ChatCacheMixin:
             processing_window_id = draft_data.get("ideabucket_processing_window_id")
             if processing_window_id:
                 metadata["ideabucket_processing_window_id"] = processing_window_id
+            encrypted_chat_key = draft_data.get("encrypted_chat_key")
+            if encrypted_chat_key:
+                metadata["encrypted_chat_key"] = encrypted_chat_key
             return metadata
         except Exception as e:
             logger.error(f"Error getting draft metadata for user {user_id}, chat {chat_id} from {key}: {e}")

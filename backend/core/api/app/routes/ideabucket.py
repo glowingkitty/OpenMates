@@ -117,6 +117,7 @@ async def store_ideabucket_encrypted_add(
         chat_id,
         ideabucket=body.ideabucket,
         ideabucket_processing_window_id=bucket_id,
+        encrypted_chat_key=body.encrypted_chat_key,
     )
     processing_ok = await cache_service.replace_ideabucket_processing_window_in_cache(
         user_id,

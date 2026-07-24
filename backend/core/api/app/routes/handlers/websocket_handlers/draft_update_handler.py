@@ -185,15 +185,8 @@ async def handle_update_draft(
             if isinstance(processing_window_id, str) and processing_window_id.strip():
                 draft_metadata["ideabucket_processing_window_id"] = processing_window_id.strip()
 
-            metadata_update_success = await cache_service.update_user_draft_metadata_in_cache(
-                user_id,
-                chat_id,
-                **draft_metadata,
-            )
-            if not metadata_update_success:
-                logger.error(f"Failed to update user draft metadata in cache for user {user_id}, chat {chat_id}.")
-
         processing_payload_synced = False
+        encrypted_chat_key_for_metadata: Optional[str] = None
         processing_payload_fields = (
             "ideabucket_processing_version",
             "encrypted_chat_key",
@@ -248,6 +241,19 @@ async def handle_update_draft(
                     device_fingerprint_hash=device_fingerprint_hash,
                 )
                 return
+            encrypted_chat_key_for_metadata = encrypted_chat_key.strip()
+
+        if encrypted_chat_key_for_metadata:
+            draft_metadata["encrypted_chat_key"] = encrypted_chat_key_for_metadata
+
+        if draft_metadata:
+            metadata_update_success = await cache_service.update_user_draft_metadata_in_cache(
+                user_id,
+                chat_id,
+                **draft_metadata,
+            )
+            if not metadata_update_success:
+                logger.error(f"Failed to update user draft metadata in cache for user {user_id}, chat {chat_id}.")
 
         if update_success:
             # Keep this persistence dispatch with the WebSocket cache write: CLI/SDK
