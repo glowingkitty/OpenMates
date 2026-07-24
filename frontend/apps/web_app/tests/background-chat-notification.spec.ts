@@ -107,7 +107,18 @@ test('background chat notification shows and allows reply', async ({ page }: { p
 	await page.waitForTimeout(1000);
 
 	// ══════════════════════════════════════════════════════════════
-	// 11. (Soft check) Typing indicator shimmer in sidebar
+	// 11. Wait for the background chat notification popup
+	// ══════════════════════════════════════════════════════════════
+	logStep('Waiting for background chat notification...');
+	const notification = page.locator(`[data-testid="chat-notification"][data-chat-id="${chatAId}"]`).first();
+	await expect(notification).toBeVisible({ timeout: 60000 });
+	await expect(notification).toHaveAttribute('data-chat-id', chatAId);
+	await notification.hover();
+	logStep('Notification appeared and was hovered to interrupt auto-dismiss.');
+	await takeScreenshot(page, 'notification-appeared');
+
+	// ══════════════════════════════════════════════════════════════
+	// 12. (Soft check) Typing indicator shimmer in sidebar
 	// ══════════════════════════════════════════════════════════════
 	logStep('Checking for typing shimmer in sidebar...');
 	const typingShimmer = page.getByTestId('chat-typing-shimmer');
@@ -119,16 +130,6 @@ test('background chat notification shows and allows reply', async ({ page }: { p
 		logStep('Typing shimmer not caught (may have already completed).');
 		await takeScreenshot(page, 'typing-shimmer-missed');
 	}
-
-	// ══════════════════════════════════════════════════════════════
-	// 12. Wait for the background chat notification popup
-	// ══════════════════════════════════════════════════════════════
-	logStep('Waiting for background chat notification...');
-	const notification = page.locator(`[data-testid="chat-notification"][data-chat-id="${chatAId}"]`).first();
-	await expect(notification).toBeVisible({ timeout: 60000 });
-	await expect(notification).toHaveAttribute('data-chat-id', chatAId);
-	logStep('Notification appeared!');
-	await takeScreenshot(page, 'notification-appeared');
 
 	// 13. Verify notification content
 	const messagePreview = notification.getByTestId('notification-message');
