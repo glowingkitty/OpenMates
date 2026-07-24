@@ -75,6 +75,7 @@ let _chatUpsertsDuringDbRead = new Map<string, ChatType>();
 	let syncing = $derived($authStore.isAuthenticated && !$phasedSyncState.initialSyncCompleted);
 	let syncComplete = $state(false); // Shows "Sync complete" message briefly
 	let selectedChatId: string | null = $state(null); // ID of the currently selected chat (synced with activeChatStore)
+	let lastActiveChatIdForDisplay: string | null = $state(null); // Keeps the last active chat visible after returning to new-chat mode
 	let _chatIdToSelectAfterUpdate: string | null = $state(null); // Helper to select a chat after list updates
 	let currentServerSortOrder: string[] = $state([]); // Server's preferred sort order for chats
 	let sessionStorageDraftUpdateTrigger = $state(0); // Trigger for reactivity when sessionStorage drafts change
@@ -205,8 +206,10 @@ let _chatUpsertsDuringDbRead = new Map<string, ChatType>();
 		if (activeChat && activeChat !== selectedChatId) {
 			console.debug('[Chats] Syncing selectedChatId with activeChatStore:', activeChat);
 			selectedChatId = activeChat;
+			lastActiveChatIdForDisplay = activeChat;
 		} else if (activeChat && activeChat === selectedChatId) {
 			console.debug('[Chats] selectedChatId already matches activeChat:', activeChat);
+			lastActiveChatIdForDisplay = activeChat;
 		} else if (!activeChat) {
 			console.debug('[Chats] activeChat is null/empty');
 		}
@@ -711,10 +714,11 @@ let _chatUpsertsDuringDbRead = new Map<string, ChatType>();
 		}
 
 		const visibleUserChats = userChats.slice(0, visibleUserChatLimit);
-		if (selectedChatId && !visibleUserChats.some(chat => chat.chat_id === selectedChatId)) {
-			const activeUserChat = userChats.find(chat => chat.chat_id === selectedChatId);
+		const chatIdToKeepVisible = selectedChatId ?? lastActiveChatIdForDisplay;
+		if (chatIdToKeepVisible && !visibleUserChats.some(chat => chat.chat_id === chatIdToKeepVisible)) {
+			const activeUserChat = userChats.find(chat => chat.chat_id === chatIdToKeepVisible);
 			if (activeUserChat) {
-				// Keep the active row mounted even when it is outside the initial recent-chat window.
+				// Keep the active or recently-active row mounted even when it is outside the initial recent-chat window.
 				if (visibleUserChats.length >= visibleUserChatLimit && visibleUserChats.length > 0) {
 					visibleUserChats[visibleUserChats.length - 1] = activeUserChat;
 				} else {
@@ -1016,6 +1020,9 @@ let _chatUpsertsDuringDbRead = new Map<string, ChatType>();
 			activeChatStore.clearActiveChat();
 			
 			dispatch('chatDeselected');
+		}
+		if (lastActiveChatIdForDisplay === event.detail.chat_id) {
+			lastActiveChatIdForDisplay = null;
 		}
 	};
 	
@@ -1636,6 +1643,7 @@ let _chatUpsertsDuringDbRead = new Map<string, ChatType>();
 			console.debug('[Chats] User not authenticated on mount - clearing user chats');
 			allChatsFromDB = []; // Clear user chats immediately
 			selectedChatId = null;
+			lastActiveChatIdForDisplay = null;
 			_chatIdToSelectAfterUpdate = null;
 			currentServerSortOrder = [];
 			// Note: syncing is now derived from authStore and phasedSyncState
@@ -1684,6 +1692,7 @@ let _chatUpsertsDuringDbRead = new Map<string, ChatType>();
 		const currentActiveChat = $activeChatStore;
 		if (currentActiveChat) {
 			selectedChatId = currentActiveChat;
+			lastActiveChatIdForDisplay = currentActiveChat;
 			console.debug('[Chats] Restored active chat from store:', currentActiveChat);
 		}
 
@@ -1742,6 +1751,7 @@ let _chatUpsertsDuringDbRead = new Map<string, ChatType>();
 			const activeIsExample = activeChatId ? isExampleChat(activeChatId) : false;
 			if (!activeIsShared && !activeIsExample) {
 				selectedChatId = null;
+				lastActiveChatIdForDisplay = null;
 			}
 			_chatIdToSelectAfterUpdate = null;
 			currentServerSortOrder = [];
@@ -1809,6 +1819,7 @@ let _chatUpsertsDuringDbRead = new Map<string, ChatType>();
 				console.debug('[Chats] Auth state changed to unauthenticated - clearing user chats immediately');
 				allChatsFromDB = [];
 				selectedChatId = null;
+				lastActiveChatIdForDisplay = null;
 				_chatIdToSelectAfterUpdate = null;
 				currentServerSortOrder = [];
 				olderChatsFromServer = [];
@@ -1886,6 +1897,7 @@ let _chatUpsertsDuringDbRead = new Map<string, ChatType>();
 				if (selectedChatId !== newChatId) {
 					console.debug(`[Chats] Global chat selected event received, updating selectedChatId to: ${newChatId}`);
 					selectedChatId = newChatId;
+					lastActiveChatIdForDisplay = newChatId;
 					
 					// Update the persistent store so the selection survives component unmount/remount.
 					// CRITICAL: Skip if activeChatStore is already null — that means the user
@@ -2360,6 +2372,7 @@ let _chatUpsertsDuringDbRead = new Map<string, ChatType>();
 	async function handleChatClick(chat: ChatType, userInitiated: boolean = true, closePanelOnMobile: boolean = true) {
 		console.debug('[Chats] Chat clicked:', chat.chat_id, 'userInitiated:', userInitiated);
 		selectedChatId = chat.chat_id;
+		lastActiveChatIdForDisplay = chat.chat_id;
 		
 		// CRITICAL: Mark that user made an explicit choice when they click on a chat
 		// This ensures sync phases will NEVER override the user's choice
@@ -2785,6 +2798,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 					const activeId = $activeChatStore;
 					if (activeId && loadedChats.some(c => c.chat_id === activeId)) {
 						selectedChatId = activeId;
+						lastActiveChatIdForDisplay = activeId;
 						console.debug(`[Chats] Auto-selected shared chat from activeChatStore: ${activeId}`);
 					}
 				} else {
@@ -2861,6 +2875,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 			const stillExists = flattenedNavigableChats.some(c => c.chat_id === previouslySelectedChatId); // Corrected variable
 			if (stillExists) {
 				selectedChatId = previouslySelectedChatId; // Reselect if it still exists
+				lastActiveChatIdForDisplay = previouslySelectedChatId;
 			} else {
 				selectedChatId = null; // Deselect if it no longer exists
 				dispatch('chatDeselected');
@@ -4579,9 +4594,9 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
         border-left: 3px solid var(--color-grey-50);
     }
 
-    .chat-item.incognito.active {
-        background-color: var(--color-grey-35);
-    }
+	.chat-item.incognito.active {
+		background-color: var(--color-grey-40);
+	}
 
     .events-group {
         gap: var(--spacing-2);
@@ -4617,13 +4632,13 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
         height: 42px;
         border-radius: var(--radius-3);
         background: linear-gradient(135deg, var(--color-app-events-start, #a20000), var(--color-app-events-end, #ff6b3d));
-        color: #fff;
+		color: var(--color-white);
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
         line-height: 1;
-        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+		box-shadow: var(--shadow-xs);
     }
 
     .event-list-date span {
@@ -4631,14 +4646,14 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
         font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 0.04em;
-        color: #fff;
+		color: var(--color-white);
     }
 
     .event-list-date strong {
         font-size: 1.15rem;
         font-weight: 800;
         margin-top: 2px;
-        color: #fff;
+		color: var(--color-white);
     }
 
     .event-list-body {
@@ -4796,17 +4811,17 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
         border-color: var(--color-primary);
     }
 
-    .overscroll-unlock-input.error {
-        border-color: #E80000;
-    }
+	.overscroll-unlock-input.error {
+		border-color: var(--color-error);
+	}
 
     .overscroll-unlock-input:disabled {
         opacity: 0.5;
         cursor: not-allowed;
     }
 
-    .overscroll-unlock-error {
-        color: #E80000;
+	.overscroll-unlock-error {
+		color: var(--color-error);
         font-size: 0.85em;
         margin-top: var(--spacing-2);
     }
@@ -4878,21 +4893,21 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
         white-space: nowrap;
     }
 
-    .active-chat-pin:hover {
-        background-color: var(--color-grey-35);
-    }
+	.active-chat-pin:hover {
+		background-color: var(--color-grey-40);
+	}
 
     /* Pin anchored just below the top buttons container */
     .active-chat-pin.pin-top {
         top: 0;
-        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+		box-shadow: var(--shadow-xs);
         border-bottom: 1px solid var(--color-grey-40);
     }
 
     /* Pin anchored at the very bottom of the scroll container */
     .active-chat-pin.pin-bottom {
         bottom: 0;
-        box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.15);
+		box-shadow: var(--shadow-xs);
         border-top: 1px solid var(--color-grey-40);
     }
 
