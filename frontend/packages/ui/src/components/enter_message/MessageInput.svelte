@@ -5073,11 +5073,13 @@
         }
     });
 
-    $effect(() => {
-        messageInputPlaceholderOverride.set(placeholderText ?? null);
-        if (editor && !editor.isDestroyed) {
-            editor.setEditable(!startNewChatOnClick);
-            editor.view.dispatch(editor.state.tr);
+	$effect(() => {
+		messageInputPlaceholderOverride.set(
+			guestCtaMode && !$authStore.isAuthenticated ? getBasePlaceholderText() : (placeholderText ?? null)
+		);
+		if (editor && !editor.isDestroyed) {
+			editor.setEditable(!startNewChatOnClick);
+			editor.view.dispatch(editor.state.tr);
         }
 
         return () => {
