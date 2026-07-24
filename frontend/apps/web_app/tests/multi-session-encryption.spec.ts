@@ -25,7 +25,6 @@
 export {};
 
 const { test, expect } = require('./helpers/cookie-audit');
-const { chromium } = require('@playwright/test');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 const {
@@ -327,7 +326,7 @@ async function deleteActiveChat(page: any, logFn: (msg: string) => void): Promis
 
 // ─── Main test ───────────────────────────────────────────────────────────────
 
-test('multi-session encryption: two simultaneous sessions can send and read 4 chats without decryption errors', async () => {
+test('multi-session encryption: two simultaneous sessions can send and read 4 chats without decryption errors', async ({ browser }: { browser: any }) => {
 	test.slow();
 	// 4 chats × ~60s AI response + login + sync time = budget 10 minutes
 	test.setTimeout(600000);
@@ -350,7 +349,6 @@ test('multi-session encryption: two simultaneous sessions can send and read 4 ch
 	// IMPORTANT: manually created contexts do NOT inherit playwright.config.ts baseURL,
 	// so we must pass it explicitly so that page.goto('/...') resolves correctly.
 	const baseURL = process.env.PLAYWRIGHT_TEST_BASE_URL ?? 'https://app.dev.openmates.org';
-	const browser = await chromium.launch();
 	const contextA = await browser.newContext({ baseURL });
 	const contextB = await browser.newContext({ baseURL });
 	const pageA = await contextA.newPage();
