@@ -447,6 +447,9 @@
             $recordingState.showRecordAudioUI
         )
     );
+    let showEmptyWelcomeAffordances = $derived(
+        isNewChatContext && !startNewChatOnClick && !isMessageFieldFocused && !hasContent
+    );
 
     // Single-tap feedback: briefly highlight the inline "Press & hold to record" label
     // in ActionButtons (and force it visible even when there's text in the editor).
@@ -3800,7 +3803,7 @@
         // The mic button starts a press-and-hold gesture. Letting it take focus
         // blurs TipTap, and the delayed blur handler collapses the composer while
         // recording is starting. Keep focus in the editor for this one control.
-        if (target.closest('[data-testid="record-audio-button"]')) {
+        if (target.closest('[data-record-audio-trigger="true"], [data-testid="record-audio-button"]')) {
             event.preventDefault();
             if (blurTimeoutId) {
                 clearTimeout(blurTimeoutId);
@@ -4777,8 +4780,10 @@
 
     // --- Handlers to bridge ActionButtons events to recordingHandlers ---
     // These now extract the original event from the detail payload
-    function onRecordMouseDown(event: CustomEvent<{ originalEvent: MouseEvent }>) {
+    async function onRecordMouseDown(event: CustomEvent<{ originalEvent: MouseEvent }>) {
         recordAudioStartedFromKeyboard = false;
+        focus();
+        await tick();
         handleRecordMouseDownLogic(event.detail.originalEvent);
     }
     async function onRecordMouseUp(_event: CustomEvent<{ originalEvent: MouseEvent }>) {
@@ -4799,8 +4804,10 @@
         await tick();
         handleRecordMouseLeaveLogic(recordAudioComponent);
     }
-    function onRecordTouchStart(event: CustomEvent<{ originalEvent: TouchEvent }>) {
+    async function onRecordTouchStart(event: CustomEvent<{ originalEvent: TouchEvent }>) {
         recordAudioStartedFromKeyboard = false;
+        focus();
+        await tick();
         handleRecordTouchStartLogic(event.detail.originalEvent);
     }
     async function onRecordTouchEnd(_event: CustomEvent<{ originalEvent: TouchEvent }>) {
@@ -5446,7 +5453,7 @@
         class:has-focus-pill={showFocusPill || showIncognitoPill || showIdeaBucketPill}
         class:inline-compact={inlineCompact && !isMessageFieldFocused && !hasContent}
         class:placeholder-fading={isPlaceholderFading}
-        class:guest-cta-field={guestCtaMode && !$authStore.isAuthenticated && !isMessageFieldFocused && !hasContent}
+        class:empty-welcome-field={showEmptyWelcomeAffordances}
         style={containerStyle}
         ondragover={handleDragOver}
         ondragleave={handleDragLeave}
@@ -5464,12 +5471,13 @@
             ></button>
         {/if}
 
-		{#if guestCtaMode && !$authStore.isAuthenticated && !isMessageFieldFocused && !hasContent}
-			<span class="guest-cta-ai-icon" aria-hidden="true"></span>
+		{#if showEmptyWelcomeAffordances}
+			<span class="empty-input-ai-icon" aria-hidden="true"></span>
 			<button
-				class="clickable-icon icon_recordaudio guest-cta-mic-button"
+				class="clickable-icon icon_recordaudio empty-input-mic-button"
 				type="button"
 				data-testid="guest-cta-mic-button"
+				data-record-audio-trigger="true"
 				aria-label={$text('enter_message.attachments.record_audio')}
 				onmousedown={(event) => onRecordMouseDown(new CustomEvent('recordMouseDown', { detail: { originalEvent: event } }))}
 				ontouchstart={(event) => onRecordTouchStart(new CustomEvent('recordTouchStart', { detail: { originalEvent: event } }))}
@@ -5785,36 +5793,36 @@
 		filter: none;
 	}
 
-	.message-field.guest-cta-field {
+	.message-field.empty-welcome-field {
 		min-height: 64px;
 		padding: 0 64px;
 		border-radius: var(--radius-full, 9999px);
 	}
 
-    .message-field.guest-cta-field .scrollable-content {
+    .message-field.empty-welcome-field .scrollable-content {
         padding-top: 0;
         overflow: hidden;
     }
 
-    .message-field.guest-cta-field .content-wrapper {
+    .message-field.empty-welcome-field .content-wrapper {
         min-height: 62px;
         padding: 0;
         display: flex;
         align-items: center;
     }
 
-    .message-field.guest-cta-field :global(.ProseMirror) {
+    .message-field.empty-welcome-field :global(.ProseMirror) {
         min-height: auto;
         padding: 0;
         line-height: 62px;
     }
 
-    .message-field.guest-cta-field :global(.ProseMirror p) {
+    .message-field.empty-welcome-field :global(.ProseMirror p) {
         min-height: auto;
         margin: 0;
     }
 
-    .message-field.guest-cta-field :global(.ProseMirror p.is-editor-empty:first-child::before) {
+    .message-field.empty-welcome-field :global(.ProseMirror p.is-editor-empty:first-child::before) {
         top: 0;
         height: 62px;
         color: color-mix(in srgb, var(--color-font-primary) 72%, transparent);
@@ -5822,14 +5830,14 @@
         line-height: 62px;
     }
 
-    .guest-cta-ai-icon {
+    .empty-input-ai-icon {
         position: absolute;
         top: 50%;
         left: 22px;
         z-index: 31;
         width: 24px;
         height: 24px;
-        background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light, #8b5cf6));
+        background: var(--color-grey-30);
         transform: translateY(-50%);
         -webkit-mask-image: url('@openmates/ui/static/icons/ai.svg');
         mask-image: url('@openmates/ui/static/icons/ai.svg');
@@ -5842,7 +5850,7 @@
         pointer-events: none;
     }
 
-	.guest-cta-mic-button {
+	.empty-input-mic-button {
 		position: absolute;
 		top: 50%;
 		right: 24px;
@@ -5852,7 +5860,7 @@
 		background: var(--color-primary);
 	}
 
-	.guest-cta-mic-button:hover {
+	.empty-input-mic-button:hover {
 		transform: translateY(-50%) scale(1.05);
 	}
 

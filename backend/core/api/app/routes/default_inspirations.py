@@ -45,7 +45,7 @@ _CACHE_KEY_PREFIX = "public:default_inspirations:v8:"
 _CACHE_TTL = 3600  # 1 hour
 _DEFAULT_INSPIRATION_COUNT = 10
 _DEFAULT_WIKI_COUNT = 3
-_DEFAULT_FEATURE_COUNT = 4
+_DEFAULT_FEATURE_COUNT = 5
 
 # Supported languages (same as SUPPORTED_LANGUAGES in default_inspiration_tasks.py)
 _SUPPORTED_LANGUAGES = {

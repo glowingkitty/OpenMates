@@ -458,36 +458,25 @@ test.describe('Landing page onboarding refresh', () => {
 
 		const bannerState = await page.getByTestId('daily-inspiration-banner').evaluate((element: HTMLElement) => ({
 			mountedIndexes: element.dataset.mountedSlideIndexes,
+			visibleIds: element.dataset.visibleInspirationIds,
 			progressHeight: document.querySelector<HTMLElement>('[data-testid="daily-inspiration-carousel-progress"]')?.getBoundingClientRect().height ?? 0
 		}));
 		expect(bannerState.mountedIndexes).toBe('0,1,2');
 		expect(bannerState.progressHeight).toBeGreaterThanOrEqual(4);
-
-		const seenSlideText = new Set<string>();
-		for (let index = 0; index < 5; index += 1) {
-			const currentSlideText = (await page.getByTestId('daily-inspiration-phrase').textContent())?.replace(/\s+/g, ' ').trim() || '';
-			seenSlideText.add(currentSlideText);
-			await page.getByTestId('daily-inspiration-next').click();
-			await expect.poll(async () => (
-				(await page.getByTestId('daily-inspiration-phrase').textContent())?.replace(/\s+/g, ' ').trim() || ''
-			), { timeout: 2000 }).not.toBe(currentSlideText);
-		}
-		const slideText = [...seenSlideText].join(' | ');
-		expect(slideText).toContain('Actionable.');
-		expect(slideText).toContain('Privacy & safety by design.');
-		expect(slideText).toContain('Specialized team mates and focus modes.');
-		expect(slideText).toContain('Provider independent and cross-platform.');
-		for (const oldPhrase of [
-			'Replace emails',
-			'Use app-specific memories',
-			'Trust quotes',
-			'Search Meetup',
-			'Learn step by step',
-			'Send audio messages',
-			'Download chats and files',
-			'AI team mates for everyday tasks'
+		expect(bannerState.visibleIds).toBe(
+			'openmates-intro,openmates-actionable-events,openmates-privacy-safety,openmates-mates-focus,openmates-provider-cross-platform'
+		);
+		for (const oldId of [
+			'pii-detection',
+			'relevant-memories',
+			'trusted-quotes',
+			'events-search',
+			'learning-mode',
+			'audio-messages',
+			'chat-file-downloads',
+			'provider-independent'
 		]) {
-			expect(slideText).not.toContain(oldPhrase);
+			expect(bannerState.visibleIds).not.toContain(oldId);
 		}
 
 		await page.getByTestId('guest-show-all-examples').click();

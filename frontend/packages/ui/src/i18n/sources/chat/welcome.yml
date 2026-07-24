@@ -95,6 +95,21 @@ show_all_examples:
   en: Show all examples
   de: Alle Beispiele anzeigen
   verified_by_human: []
+show_all_chats:
+  context: Link below logged-out example chat cards that replaces the inspiration area with all chat examples
+  en: Show all chats
+  de: Alle Chats anzeigen
+  verified_by_human: []
+show_all_projects:
+  context: Link below logged-out project example cards that replaces the inspiration area with all project examples
+  en: Show all projects
+  de: Alle Projekte anzeigen
+  verified_by_human: []
+show_all_workflows:
+  context: Link below logged-out workflow example cards that replaces the inspiration area with all workflow examples
+  en: Show all workflows
+  de: Alle Workflows anzeigen
+  verified_by_human: []
 all_examples_title:
   context: Heading for the logged-out all examples replacement view
   en: Explore real OpenMates chats

@@ -1057,6 +1057,7 @@
       class:landing-intro-expanding={landingIntroPhase === 'expanding'}
       data-landing-intro-phase={landingIntroParentPhase}
       data-mounted-slide-indexes={reachableSlideIndexes.join(',')}
+      data-visible-inspiration-ids={visibleInspirations.map((inspiration) => inspiration.inspiration_id).join(',')}
       data-testid="daily-inspiration-banner"
       style={gradientStyle}
       onclick={handleStartChat}

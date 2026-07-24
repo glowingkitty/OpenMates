@@ -5287,6 +5287,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     let activeGuestInputLinkHref = $derived(
         guestInputLinkIndex === 0 ? externalLinks.legal.privacyPolicy : '#apps'
     );
+    let activeGuestAllExamplesLinkKey = $derived(
+        activeGuestSurface === 'projects'
+            ? 'chat.welcome.show_all_projects'
+            : activeGuestSurface === 'workflows'
+                ? 'chat.welcome.show_all_workflows'
+                : 'chat.welcome.show_all_chats'
+    );
 
     function handleShowAllGuestExamples() {
         guestAllExamplesVisible = true;
@@ -12118,9 +12125,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             <div class="team-profile">
                                 <!-- <div class="team-image" class:disabled={!isTeamEnabled}></div> -->
 								<div class="welcome-text">
-									{#if !$authStore.isAuthenticated}
-										<div class="guest-workspace-icon" data-testid="guest-workspace-icon" data-surface={activeGuestSurface} aria-hidden="true"></div>
-									{:else}
+									<div class="guest-workspace-icon" data-testid="guest-workspace-icon" data-surface={!$authStore.isAuthenticated ? activeGuestSurface : 'chats'} aria-hidden="true"></div>
+									{#if $authStore.isAuthenticated}
                                         <h2>
                                             {#each welcomeHeadingParts as part, index}
                                                 <span>{part}</span>{#if index < welcomeHeadingParts.length - 1}<br>{/if}
@@ -12642,24 +12648,30 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                         {/if}
                                     {/each}
                                 </div>
-                                <button
-                                    type="button"
-                                    class="guest-interest-select-link"
-                                    data-testid="guest-interest-select-interests"
-                                    onclick={handleGuestInterestSelectInterests}
-                                >
-                                    {$text('chat.interests.select_interests')}
-                                </button>
-                                {#if !$authStore.isAuthenticated && showGuestAllExamplesLink}
+                                <div class="guest-example-link-row" data-testid="guest-example-link-row">
                                     <button
                                         type="button"
-                                        class="guest-show-all-examples"
-                                        data-testid="guest-show-all-examples"
-                                        onclick={handleShowAllGuestExamples}
+                                        class="guest-interest-select-link"
+                                        data-testid="guest-interest-select-interests"
+                                        onclick={handleGuestInterestSelectInterests}
                                     >
-                                        {$text('chat.welcome.show_all_examples')}
+                                        <span class="guest-link-icon guest-link-icon-heart" aria-hidden="true"></span>
+                                        <span>{$text('chat.interests.select_interests')}</span>
                                     </button>
-                                {/if}
+                                    {#if !$authStore.isAuthenticated && showGuestAllExamplesLink}
+                                        <span class="guest-example-link-divider" aria-hidden="true"></span>
+                                        <button
+                                            type="button"
+                                            class="guest-show-all-examples"
+                                            data-testid="guest-show-all-examples"
+                                            data-surface={activeGuestSurface}
+                                            onclick={handleShowAllGuestExamples}
+                                        >
+                                            <span class="guest-link-icon guest-link-icon-surface" aria-hidden="true"></span>
+                                            <span>{$text(activeGuestAllExamplesLinkKey)}</span>
+                                        </button>
+                                    {/if}
+                                </div>
                             {/if}
                             {/if}
                         </div>
@@ -13948,35 +13960,79 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }
     }
 
-    .guest-interest-select-link {
+    .guest-example-link-row {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: var(--spacing-3);
+        margin-top: var(--spacing-1);
+        pointer-events: auto;
+    }
+
+    .guest-interest-select-link,
+    .guest-show-all-examples {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--spacing-2);
         border: none;
         background: transparent;
-        color: var(--color-grey-60);
         padding: var(--spacing-1) 0 0;
         font: inherit;
-        font-size: 0.9rem;
-        font-weight: 650;
+        font-size: 0.92rem;
+        font-weight: 720;
         cursor: pointer;
-        pointer-events: auto;
         text-decoration: none;
         box-shadow: none;
         filter: none;
     }
 
+    .guest-interest-select-link {
+        color: var(--color-grey-60);
+    }
+
     .guest-show-all-examples {
-        margin-top: var(--spacing-3);
-        border: none;
-        background: transparent;
         color: var(--color-primary);
-        padding: var(--spacing-1) 0 0;
-        font: inherit;
-        font-size: 0.92rem;
-        font-weight: 750;
-        cursor: pointer;
-        pointer-events: auto;
-        text-decoration: none;
-        box-shadow: none;
-        filter: none;
+    }
+
+    .guest-link-icon {
+        width: 14px;
+        height: 14px;
+        display: inline-block;
+        flex-shrink: 0;
+        background: currentColor;
+        -webkit-mask-position: center;
+        mask-position: center;
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+        -webkit-mask-size: contain;
+        mask-size: contain;
+    }
+
+    .guest-link-icon-heart {
+        -webkit-mask-image: url('@openmates/ui/static/icons/heart.svg');
+        mask-image: url('@openmates/ui/static/icons/heart.svg');
+    }
+
+    .guest-link-icon-surface {
+        -webkit-mask-image: url('@openmates/ui/static/icons/chat.svg');
+        mask-image: url('@openmates/ui/static/icons/chat.svg');
+    }
+
+    .guest-show-all-examples[data-surface='projects'] .guest-link-icon-surface {
+        -webkit-mask-image: url('@openmates/ui/static/icons/project.svg');
+        mask-image: url('@openmates/ui/static/icons/project.svg');
+    }
+
+    .guest-show-all-examples[data-surface='workflows'] .guest-link-icon-surface {
+        -webkit-mask-image: url('@openmates/ui/static/icons/workflow.svg');
+        mask-image: url('@openmates/ui/static/icons/workflow.svg');
+    }
+
+    .guest-example-link-divider {
+        width: 1px;
+        height: 16px;
+        border-radius: 999px;
+        background: color-mix(in srgb, var(--color-grey-60) 26%, transparent);
     }
 
     .guest-show-all-examples:hover,
@@ -14237,7 +14293,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
            so the first card starts centred relative to the chat-wrapper.
            box-sizing: border-box ensures padding is included in width: 100%
            so the element never exceeds the center-content container bounds. */
-        padding: 12px 48px 12px calc(50% - 150px);
+        padding: 12px 48px 30px calc(50% - 150px);
         box-sizing: border-box;
         pointer-events: auto;
         width: 100%;
@@ -14268,7 +14324,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     @media (min-height: 800px) {
         .recent-chats-scroll-container {
-            padding: 35px 48px 12px calc(50% - 150px);
+            padding: 35px 48px 34px calc(50% - 150px);
         }
     }
 
@@ -14325,8 +14381,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         cursor: pointer;
         overflow: hidden;
         box-shadow:
-            0 8px 24px rgba(0, 0, 0, 0.16),
-            0 2px 6px rgba(0, 0, 0, 0.1);
+            0 5px 16px rgba(0, 0, 0, 0.11),
+            0 1px 4px rgba(0, 0, 0, 0.08);
         transition:
             background-position 0.25s ease,
             transform 0.15s ease-out,
@@ -14344,16 +14400,16 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         background-position: 100% 50%;
         transform: translateY(-1px);
         box-shadow:
-            0 10px 28px rgba(0, 0, 0, 0.18),
-            0 3px 8px rgba(0, 0, 0, 0.12);
+            0 7px 20px rgba(0, 0, 0, 0.13),
+            0 2px 6px rgba(0, 0, 0, 0.09);
     }
 
     .resume-chat-card:active {
         background-color: transparent;
         transform: scale(0.98);
         box-shadow:
-            0 4px 12px rgba(0, 0, 0, 0.12),
-            0 1px 3px rgba(0, 0, 0, 0.08);
+            0 3px 9px rgba(0, 0, 0, 0.1),
+            0 1px 2px rgba(0, 0, 0, 0.07);
         filter: none;
     }
 
@@ -14427,9 +14483,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     .continue-priority-card {
         border-color: rgba(255, 255, 255, 0.28);
         box-shadow:
-            0 12px 30px rgba(255, 149, 0, 0.16),
-            0 8px 24px rgba(0, 0, 0, 0.16),
-            0 2px 6px rgba(0, 0, 0, 0.1);
+            0 8px 22px rgba(255, 149, 0, 0.12),
+            0 5px 16px rgba(0, 0, 0, 0.11),
+            0 1px 4px rgba(0, 0, 0, 0.08);
     }
 
     .continue-priority-pill {
@@ -14591,8 +14647,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         pointer-events: auto;
         /* Shadow matching ChatEmbedPreview */
         box-shadow:
-            0 8px 24px rgba(0, 0, 0, 0.16),
-            0 2px 6px rgba(0, 0, 0, 0.1);
+            0 5px 16px rgba(0, 0, 0, 0.11),
+            0 1px 4px rgba(0, 0, 0, 0.08);
         transition:
             transform 0.15s ease-out,
             box-shadow 0.2s ease-out;
@@ -14609,16 +14665,16 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     .resume-chat-large-card.hovering {
         box-shadow:
-            0 4px 12px rgba(0, 0, 0, 0.12),
-            0 1px 3px rgba(0, 0, 0, 0.08);
+            0 3px 9px rgba(0, 0, 0, 0.1),
+            0 1px 2px rgba(0, 0, 0, 0.07);
     }
 
     /* CSS fallback hover (non-JS scenarios) */
     .resume-chat-large-card:hover:not(.hovering) {
         transform: scale(0.98);
         box-shadow:
-            0 4px 12px rgba(0, 0, 0, 0.12),
-            0 1px 3px rgba(0, 0, 0, 0.08);
+            0 3px 9px rgba(0, 0, 0, 0.1),
+            0 1px 2px rgba(0, 0, 0, 0.07);
     }
 
     .resume-chat-large-card:active {
