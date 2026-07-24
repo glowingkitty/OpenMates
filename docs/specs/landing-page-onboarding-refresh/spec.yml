@@ -119,7 +119,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 0382b2e2c4747f6d65d269e31996275c9546a71b
+  subject_commit: bf6784ac326e7a804658d908a4b21dfdc9589d09
 
 approvals:
   product_contract:
@@ -358,6 +358,21 @@ attempts:
       including the settings-open active-chat regression assertion and the exact
       landing viewport matrix, in GitHub Actions run `30052743776` after Vercel
       deployment `dpl_GGGVZtr8AJByDKv8L7qEBaNh6FcE` became Ready.
+  - id: ATTEMPT-18
+    task_id: TASK-2
+    approach: Convert the expanded landing intro into a true active-chat overlay and keep underlying welcome content mounted with opacity transitions.
+    outcome: succeeded
+    recorded_at: "2026-07-24"
+    notes: >
+      Commits through `bf6784ac326e7a804658d908a4b21dfdc9589d09` make the colored
+      daily inspiration intro cover the full active-chat card, add explicit expanded,
+      collapsing, expanding, and regular phases, keep the intro content visible during
+      the resize so the purple header is not empty, fade the mounted welcome/input
+      content between opacity 0 and 1, and default logged-out visitors to the public
+      example carousel instead of pre-signup interest tags. The deployed Playwright
+      control-plane run passed on `app.dev.openmates.org` in GitHub Actions run
+      `30088768978` after Vercel deployment `dpl_BrEka7VsjdnYMLxfMEHj7vtsmkG7`
+      became Ready.
 
 handoff:
   current_task_id: TASK-2
@@ -371,7 +386,7 @@ handoff:
     reason: User visual confirmation is required before TASK-1/TASK-2 can be marked complete.
     question: Does the deployed logged-out landing intro now look correct at your real mobile, tablet, narrow desktop, and desktop sizes?
     next_action: If confirmed, mark phase-1 user confirmation complete; if rejected, record the exact visual mismatch and patch the focused landing intro issue before moving to later slides.
-  last_verified_commit: 0382b2e2c4747f6d65d269e31996275c9546a71b
+  last_verified_commit: bf6784ac326e7a804658d908a4b21dfdc9589d09
 
 scenarios:
   - id: S-1
@@ -592,11 +607,11 @@ tests:
       evidence:
         status: passed
         command: python3 scripts/tests.py run --spec landing-page-onboarding-refresh.spec.ts
-        run_id: "30052743776"
-        subject_commit: 0382b2e2c4747f6d65d269e31996275c9546a71b
+        run_id: "30088768978"
+        subject_commit: bf6784ac326e7a804658d908a4b21dfdc9589d09
         target: app.dev.openmates.org
-        deployment_reference: dpl_GGGVZtr8AJByDKv8L7qEBaNh6FcE
-        timestamp: "2026-07-23T23:19:33Z"
+        deployment_reference: dpl_BrEka7VsjdnYMLxfMEHj7vtsmkG7
+        timestamp: "2026-07-24T11:14:41Z"
   - id: T-WEB-ACTIONABLE-EVENT
     type: playwright
     file: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
@@ -625,11 +640,11 @@ tests:
       evidence:
         status: passed
         command: python3 scripts/tests.py run --spec landing-page-onboarding-refresh.spec.ts
-        run_id: "30052743776"
-        subject_commit: 0382b2e2c4747f6d65d269e31996275c9546a71b
+        run_id: "30088768978"
+        subject_commit: bf6784ac326e7a804658d908a4b21dfdc9589d09
         target: app.dev.openmates.org
-        deployment_reference: dpl_GGGVZtr8AJByDKv8L7qEBaNh6FcE
-        timestamp: "2026-07-23T23:19:33Z"
+        deployment_reference: dpl_BrEka7VsjdnYMLxfMEHj7vtsmkG7
+        timestamp: "2026-07-24T11:14:41Z"
   - id: T-WEB-LANDING-EXAMPLES
     type: playwright
     file: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
@@ -703,14 +718,17 @@ verifications:
         390/768/1024/1280/1920 viewport dimensions for JS measurements; exact viewport coverage
         was therefore added to `landing-page-onboarding-refresh.spec.ts`. The latest deployed
         run also verifies that opening settings does not make the active chat vertically
-        scrollable or push it below the viewport; it passed on commit
-        `0382b2e2c4747f6d65d269e31996275c9546a71b`, GitHub Actions run
-        `30052743776`. Final approval remains pending user visual confirmation.
+        scrollable or push it below the viewport. The latest deployed run also verifies
+        the expanded intro overlays the full active-chat card, fades mounted welcome
+        content in and out, avoids an empty purple collapse frame, and defaults guests
+        to example cards instead of pre-signup tags; it passed on commit
+        `bf6784ac326e7a804658d908a4b21dfdc9589d09`, GitHub Actions run
+        `30088768978`. Final approval remains pending user visual confirmation.
       reason: User visual confirmation is still required for the exact requested real-device viewport set before this final gate can be marked complete.
       actor: assistant
       next_action: Ask the user to visually confirm the deployed `app.dev.openmates.org` landing intro across their real mobile, tablet, narrow desktop, and desktop sizes.
-      subject_commit: 0382b2e2c4747f6d65d269e31996275c9546a71b
-      timestamp: "2026-07-23T23:19:33Z"
+      subject_commit: bf6784ac326e7a804658d908a4b21dfdc9589d09
+      timestamp: "2026-07-24T11:14:41Z"
   - id: V-APPLE-DEFERRED-PHASE1
     kind: manual_check
     phase: final
