@@ -217,6 +217,7 @@ describe("OpenMates SDK user tasks", () => {
         assert.equal((await client.tasks.skip("TASK-1")).queueState, "skipped");
         assert.equal((await client.tasks.done("TASK-1")).status, "done");
         assert.equal((await client.tasks.move("TASK-1", { position: 42, status: "todo" }))[0]?.position, 42);
+        assert.deepEqual((await client.tasks.addToProject("TASK-1", "project-1")).linkedProjectIds, ["project-1"]);
         assert.equal((await client.tasks.delete("TASK-1", { confirmed: true })).deleted, true);
       },
       `Bearer ${material.apiKey}`,

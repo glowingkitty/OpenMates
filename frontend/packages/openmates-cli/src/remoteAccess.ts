@@ -11,7 +11,7 @@
  */
 
 import { homedir } from "node:os";
-import { chmodSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, readFileSync, realpathSync, statSync, writeFileSync } from "node:fs";
 import { spawn } from "node:child_process";
 import { join, resolve, relative } from "node:path";
 
@@ -94,10 +94,11 @@ export function resolveRemoteCachePath(sourceId: string, homeDirectory = homedir
 export function startRemoteAccessSource(input: StartRemoteAccessSourceInput): RemoteAccessSourceRecord {
   assertSafeSourceId(input.sourceId);
   const homeDirectory = input.homeDirectory ?? homedir();
-  const rootPath = resolve(input.rootPath);
-  if (!existsSync(rootPath) || !statSync(rootPath).isDirectory()) {
-    throw new Error(`Remote source path does not exist or is not a directory: ${rootPath}`);
+  const requestedRootPath = resolve(input.rootPath);
+  if (!existsSync(requestedRootPath) || !statSync(requestedRootPath).isDirectory()) {
+    throw new Error(`Remote source path does not exist or is not a directory: ${requestedRootPath}`);
   }
+  const rootPath = realpathSync(requestedRootPath);
   const now = Math.floor(Date.now() / 1000);
   const source: RemoteAccessSourceRecord = {
     sourceId: input.sourceId,

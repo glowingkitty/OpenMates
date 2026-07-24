@@ -7,6 +7,7 @@ Run: python3 -m pytest packages/openmates-python/tests/test_plans.py
 """
 
 from openmates import OpenMates
+from openmates.sdk import _create_api_key_material, _encrypt_aes_gcm_bytes, _encrypt_aes_gcm_text
 
 
 PLAN = {
@@ -115,3 +116,58 @@ def test_pip_sdk_user_plan_methods_use_shared_plans_api(monkeypatch):
         {"method": "POST", "url": "https://api.openmates.org/v1/user-plans/plan-1/learnings/create-tasks", "json": {"learning_ids": ["LRN-1"]}},
         {"method": "POST", "url": "https://api.openmates.org/v1/user-plans/plan-1/verification/V-1/evidence", "json": {"status": "passed"}},
     ]
+
+
+def test_pip_sdk_plan_add_to_project_encrypts_linked_project_ids(monkeypatch):
+    master_key = bytes([3]) * 32
+    plan_key = bytes([4]) * 32
+    api_key, material = _create_api_key_material("pip plan parity", master_key)
+    plan = {
+        "plan_id": "plan-1",
+        "version": 1,
+        "encrypted_plan_key": _encrypt_aes_gcm_bytes(plan_key, master_key),
+        "encrypted_title": _encrypt_aes_gcm_text("Plan", plan_key),
+        "encrypted_linked_project_ids": _encrypt_aes_gcm_text("[]", plan_key),
+        "linked_project_ids": [],
+        "status": "draft",
+        "created_at": 100,
+        "updated_at": 100,
+    }
+    seen_patch = {}
+
+    class FakeResponse:
+        status_code = 200
+
+        def __init__(self, payload):
+            self._payload = payload
+
+        def json(self):
+            return self._payload
+
+    def fake_get(url, *, headers, timeout):
+        assert headers["Authorization"] == f"Bearer {api_key}"
+        if url.endswith("/v1/user-plans?active_only=False"):
+            return FakeResponse({"plans": [plan]})
+        raise AssertionError(f"Unexpected GET {url}")
+
+    def fake_post(url, *, json, headers, timeout):
+        assert headers["Authorization"] == f"Bearer {api_key}"
+        if url.endswith("/v1/sdk/session"):
+            return FakeResponse({"key_wrapper": {"encrypted_key": material["encrypted_master_key"], "salt": material["salt"], "key_iv": material["key_iv"]}})
+        raise AssertionError(f"Unexpected POST {url}")
+
+    def fake_patch(url, *, json, headers, timeout):
+        assert headers["Authorization"] == f"Bearer {api_key}"
+        assert url.endswith("/v1/user-plans/plan-1")
+        seen_patch.update(json)
+        return FakeResponse({"plan": {**plan, **json}})
+
+    monkeypatch.setattr("openmates.sdk.requests.get", fake_get)
+    monkeypatch.setattr("openmates.sdk.requests.post", fake_post)
+    monkeypatch.setattr("openmates.sdk.requests.patch", fake_patch)
+
+    client = OpenMates(api_key=api_key, device_id="test-device")
+    updated = client.plans.add_to_project("plan-1", "project-1")
+    assert updated["linked_project_ids"] == ["project-1"]
+    assert isinstance(seen_patch["encrypted_linked_project_ids"], str)
+    assert seen_patch["linked_project_ids"] == ["project-1"]

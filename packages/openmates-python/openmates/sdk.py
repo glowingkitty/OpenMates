@@ -564,6 +564,279 @@ def _require_confirmed(confirmed: bool, action: str) -> None:
         raise OpenMatesConfigError(f"{action} requires confirmed=True")
 
 
+def _append_project_link_result(item: dict[str, Any], target_mode: str, remote_copy_proposal: dict[str, Any] | None) -> dict[str, Any]:
+    return {**item, "targetMode": target_mode, "remoteCopyProposal": remote_copy_proposal}
+
+
+def _resolve_project_key(client: OpenMates, project_id: str) -> bytes:
+    projects = client._get("/v1/projects?include_archived=true").get("projects", [])
+    record = next((project for project in projects if isinstance(project, dict) and project.get("project_id") == project_id), None)
+    if not isinstance(record, dict):
+        raise OpenMatesApiError(404, {"detail": "Project not found"})
+    encrypted_project_key = record.get("encrypted_project_key")
+    if not isinstance(encrypted_project_key, str):
+        raise OpenMatesConfigError("Project response is missing encrypted_project_key")
+    project_key = _decrypt_aes_gcm_bytes(encrypted_project_key, client._get_master_key())
+    if project_key is None:
+        raise OpenMatesConfigError("Failed to decrypt Project key")
+    return project_key
+
+
+def _resolve_add_to_project_storage_choice(
+    client: OpenMates,
+    project_id: str,
+    *,
+    object_type: str,
+    openmates_only: bool = False,
+    remote_copy: bool = False,
+    repo_copy: bool = False,
+    remote_cache_copy: bool = False,
+) -> tuple[str, dict[str, Any] | None]:
+    sources = client._get(f"/v1/projects/{_quote(project_id)}/sources").get("sources", [])
+    source = sources[0] if sources and isinstance(sources[0], dict) else None
+    if openmates_only and (remote_copy or repo_copy or remote_cache_copy):
+        raise OpenMatesConfigError("Choose either openmates_only or a remote-copy mode, not both")
+    if repo_copy and remote_cache_copy:
+        raise OpenMatesConfigError("Choose only one remote-copy mode: repo_copy or remote_cache_copy")
+    if repo_copy or (remote_copy and object_type == "workflow"):
+        if source is None:
+            raise OpenMatesConfigError("Remote-copy proposals require a Project source")
+        return "store_on_remote_machine_and_include_in_git", source
+    if remote_cache_copy or remote_copy:
+        if source is None:
+            raise OpenMatesConfigError("Remote-copy proposals require a Project source")
+        return "store_local_only_on_remote_machine", source
+    return "save_only_in_openmates", source
+
+
+def _create_encrypted_project_item(
+    client: OpenMates,
+    project_id: str,
+    project_key: bytes,
+    *,
+    item_type: str,
+    target_id: str,
+    display_name: str,
+    folder: str | None = None,
+    metadata: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    now = int(time.time())
+    response = client._post(f"/v1/projects/{_quote(project_id)}/items", {
+        "project_item_id": str(uuid.uuid4()),
+        "folder_id": folder,
+        "item_type": item_type,
+        "target_id": target_id,
+        "target_id_encrypted": _encrypt_aes_gcm_text(target_id, project_key),
+        "encrypted_display_name": _encrypt_aes_gcm_text(display_name, project_key),
+        "encrypted_note": _encrypt_aes_gcm_text("", project_key),
+        "encrypted_metadata": _encrypt_aes_gcm_text(json.dumps(metadata or {}), project_key),
+        "created_at": now,
+        "updated_at": now,
+        "position": now,
+    })
+    item = response.get("item")
+    if not isinstance(item, dict):
+        raise OpenMatesApiError(500, {"detail": "Project item response missing item"})
+    return item
+
+
+def _create_encrypted_project_source(client: OpenMates, project_id: str, project_key: bytes, payload: dict[str, Any]) -> dict[str, Any]:
+    now = int(time.time())
+    source_type = payload.get("source_type") or payload.get("sourceType")
+    display_name = payload.get("display_name") or payload.get("displayName")
+    if not source_type:
+        raise OpenMatesConfigError("Project source input requires source_type")
+    if not display_name:
+        raise OpenMatesConfigError("Project source input requires display_name")
+    response = client._post(f"/v1/projects/{_quote(project_id)}/sources", {
+        "source_id": str(payload.get("source_id") or payload.get("sourceId") or uuid.uuid4()),
+        "source_type": str(source_type),
+        "encrypted_display_name": _encrypt_aes_gcm_text(str(display_name), project_key),
+        "encrypted_metadata": _encrypt_aes_gcm_text(json.dumps(payload.get("metadata") if isinstance(payload.get("metadata"), dict) else {}), project_key),
+        "capabilities": _string_list(payload.get("capabilities") or ["read", "search"]),
+        "status": str(payload.get("status") or "connected"),
+        "created_at": int(payload.get("created_at") or payload.get("createdAt") or now),
+        "updated_at": int(payload.get("updated_at") or payload.get("updatedAt") or now),
+    })
+    source = response.get("source")
+    if not isinstance(source, dict):
+        raise OpenMatesApiError(500, {"detail": "Project source response missing source"})
+    return source
+
+
+def _validate_project_source_payload(payload: dict[str, Any]) -> None:
+    if not payload.get("source_type") and not payload.get("sourceType"):
+        raise OpenMatesConfigError("Project source input requires source_type")
+    if not payload.get("display_name") and not payload.get("displayName"):
+        raise OpenMatesConfigError("Project source input requires display_name")
+
+
+def _decrypt_project_source(record: dict[str, Any], project_key: bytes) -> dict[str, Any]:
+    display_name = _decrypt_aes_gcm_text(str(record.get("encrypted_display_name") or ""), project_key)
+    metadata_text = _decrypt_aes_gcm_text(str(record.get("encrypted_metadata") or ""), project_key)
+    if display_name is None or metadata_text is None:
+        raise OpenMatesConfigError("Failed to decrypt Project source metadata")
+    metadata = _parse_maybe_json(metadata_text)
+    return {
+        "source_id": record.get("source_id"),
+        "sourceId": record.get("source_id"),
+        "source_type": record.get("source_type"),
+        "sourceType": record.get("source_type"),
+        "display_name": display_name,
+        "displayName": display_name,
+        "metadata": metadata if isinstance(metadata, dict) else {},
+        "capabilities": record.get("capabilities") if isinstance(record.get("capabilities"), list) else [],
+        "status": record.get("status"),
+        "created_at": record.get("created_at"),
+        "createdAt": record.get("created_at"),
+        "updated_at": record.get("updated_at"),
+        "updatedAt": record.get("updated_at"),
+    }
+
+
+def _remote_copy_proposal(
+    *,
+    object_type: str,
+    object_id: str,
+    title: str,
+    content: str,
+    source: dict[str, Any],
+    target_mode: str,
+) -> dict[str, Any]:
+    extension = "yml" if object_type == "workflow" else "md"
+    slug = _slugify_project_path(title or object_id)
+    source_id = str(source.get("source_id") or "source")
+    if target_mode == "store_local_only_on_remote_machine":
+        target_path = f"~/.openmates/remote-cache/{source_id}/exports/{object_type}/{slug}.{extension}"
+    elif object_type == "workflow":
+        target_path = f".openmates/workflows/{slug}.yml"
+    else:
+        target_path = f"docs/openmates/chats/{slug}.md"
+    return {
+        "source_id": source_id,
+        "object_type": object_type,
+        "object_id": object_id,
+        "target_mode": target_mode,
+        "target_path": target_path,
+        "git_tracking_intent": "include_in_git" if target_mode == "store_on_remote_machine_and_include_in_git" else "local_only",
+        "pii_scan_result": _scan_pii_like_text(content),
+        "secret_scan_result": _scan_secret_like_text(content),
+        "diff_or_create_file_patch": {"operation": "create_file", "path": target_path, "content": content},
+        "approval_required": True,
+        "writes_files": False,
+    }
+
+
+def _slugify_project_path(value: str) -> str:
+    slug = re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")[:80]
+    return slug or "openmates-item"
+
+
+def _scan_pii_like_text(content: str) -> dict[str, Any]:
+    categories = []
+    if re.search(r"[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}", content, re.IGNORECASE):
+        categories.append("email")
+    if re.search(r"\b(?:\+?\d[\d .()-]{7,}\d)\b", content):
+        categories.append("phone_or_number_sequence")
+    return {"found": bool(categories), "categories": categories}
+
+
+def _scan_secret_like_text(content: str) -> dict[str, Any]:
+    patterns = []
+    if re.search(r"-----BEGIN [A-Z ]*PRIVATE KEY-----", content):
+        patterns.append("private_key")
+    if re.search(r"\b(?:sk-(?:api|proj|live|test)|OPENAI_API_KEY|ANTHROPIC_API_KEY|GITHUB_TOKEN)\b", content, re.IGNORECASE):
+        patterns.append("api_token_marker")
+    if re.search(r"\b[A-Za-z0-9_-]{32,}\b", content):
+        patterns.append("long_token_like_string")
+    return {"found": bool(patterns), "patterns": patterns}
+
+
+def _chat_remote_copy_markdown(chat: dict[str, Any], messages: list[dict[str, Any]]) -> str:
+    updated_at = _numeric_seconds(chat.get("updated_at") or chat.get("updatedAt")) or int(time.time())
+    content = [
+        f"# {chat.get('title') or 'Untitled Chat'}",
+        "",
+        f"OpenMates chat ID: {chat.get('id')}",
+        f"Exported at: {_iso_timestamp(int(time.time()))}",
+        f"Last updated: {_iso_timestamp(updated_at)}",
+        "",
+        "---",
+        "",
+    ]
+    for message in messages:
+        role = "You" if message.get("role") == "user" else (message.get("sender_name") or "Assistant")
+        body = re.sub(r"```(?:json_embed|json)\n[\s\S]*?\n```", "", str(message.get("content") or "")).strip()
+        content.extend([
+            f"## {role} - {_iso_timestamp(_numeric_seconds(message.get('created_at')) or 0)}",
+            "",
+            body or "(empty message)",
+            "",
+        ])
+    return "\n".join(content)
+
+
+def _workflow_remote_copy_yaml(workflow: dict[str, Any]) -> str:
+    return _serialize_sdk_yaml({
+        "workflow": {
+            "id": workflow.get("id"),
+            "title": workflow.get("title"),
+            "description": workflow.get("description"),
+            "status": workflow.get("status"),
+            "enabled": workflow.get("enabled"),
+            "lifecycle": workflow.get("lifecycle"),
+            "source_chat_id": workflow.get("source_chat_id"),
+            "current_version_id": workflow.get("current_version_id"),
+            "created_at": workflow.get("created_at"),
+            "updated_at": workflow.get("updated_at"),
+        },
+        "graph": workflow.get("graph") or {},
+    })
+
+
+def _serialize_sdk_yaml(data: dict[str, Any], indent: int = 0) -> str:
+    pad = "  " * indent
+    output = ""
+    for key, value in data.items():
+        if value is None:
+            output += f"{pad}{key}: null\n"
+        elif isinstance(value, bool) or isinstance(value, (int, float)):
+            output += f"{pad}{key}: {str(value).lower() if isinstance(value, bool) else value}\n"
+        elif isinstance(value, str):
+            output += f"{pad}{key}: {_yaml_string(value)}\n" if "\n" not in value else f"{pad}{key}: |\n" + "\n".join(f"{pad}  {line}" for line in value.split("\n")) + "\n"
+        elif isinstance(value, list):
+            output += f"{pad}{key}:\n"
+            for item in value:
+                if isinstance(item, dict):
+                    output += f"{pad}  -\n{_serialize_sdk_yaml(item, indent + 2)}"
+                else:
+                    output += f"{pad}  - {_yaml_scalar(item)}\n"
+        elif isinstance(value, dict):
+            output += f"{pad}{key}:\n{_serialize_sdk_yaml(value, indent + 1)}"
+    return output
+
+
+def _yaml_string(value: str) -> str:
+    needs_quote = any(token in value for token in [":", "#"]) or value.startswith(("{", "[", "'", '"')) or value in {"", "true", "false", "null"}
+    return json.dumps(value) if needs_quote else value
+
+
+def _yaml_scalar(value: Any) -> str:
+    if value is None:
+        return "null"
+    if isinstance(value, bool):
+        return str(value).lower()
+    if isinstance(value, (int, float)):
+        return str(value)
+    if isinstance(value, str):
+        return _yaml_string(value)
+    return json.dumps(value)
+
+
+def _iso_timestamp(unix_seconds: int) -> str:
+    return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(unix_seconds))
+
+
 def _unsupported_sdk_feature(feature: str) -> Any:
     raise OpenMatesConfigError(f"{feature} is not available through the API-key SDK yet")
 
@@ -990,6 +1263,34 @@ def _task_key_from_record(record: dict[str, Any], master_key: bytes) -> bytes:
     return task_key
 
 
+def _plan_key_from_record(record: dict[str, Any], master_key: bytes) -> bytes:
+    encrypted_plan_key = record.get("encrypted_plan_key")
+    if not isinstance(encrypted_plan_key, str):
+        raise OpenMatesConfigError(f"Plan {record.get('plan_id')} is missing encrypted plan key")
+    plan_key = _decrypt_aes_gcm_bytes(encrypted_plan_key, master_key)
+    if plan_key is None:
+        raise OpenMatesConfigError(f"Failed to decrypt plan key for {record.get('plan_id')}")
+    return plan_key
+
+
+def _append_unique_id(existing: list[str], item_id: str) -> list[str]:
+    return existing if item_id in existing else [*existing, item_id]
+
+
+def _reject_remote_copy_options(object_type: str, *, remote_copy: bool = False, repo_copy: bool = False, remote_cache_copy: bool = False) -> None:
+    if remote_copy or repo_copy or remote_cache_copy:
+        raise OpenMatesConfigError(f"{object_type} stores encrypted Project links only; remote-machine copies are supported for chats/workflows as proposal output")
+
+
+def _find_plan(plans: list[dict[str, Any]], plan_id: str) -> dict[str, Any]:
+    matches = [plan for plan in plans if plan.get("plan_id") == plan_id or str(plan.get("plan_id") or "").startswith(plan_id)]
+    if len(matches) > 1:
+        raise OpenMatesConfigError(f"Plan '{plan_id}' is ambiguous. Use the full plan ID")
+    if not matches:
+        raise OpenMatesConfigError(f"Plan '{plan_id}' was not found")
+    return matches[0]
+
+
 def _find_task(tasks: list[dict[str, Any]], task_id: str) -> dict[str, Any]:
     for task in tasks:
         if task.get("task_id") == task_id:
@@ -1327,6 +1628,61 @@ class OpenMatesChats:
 
     def load(self, chat_id: str) -> dict[str, Any]:
         return self._client._decrypt_loaded_chat_payload(self._client._get(f"/v1/sdk/chats/{_quote(chat_id)}"))
+
+    def add_to_project(
+        self,
+        chat_id: str,
+        project_id: str,
+        *,
+        folder: str | None = None,
+        openmates_only: bool = False,
+        remote_copy: bool = False,
+        repo_copy: bool = False,
+        remote_cache_copy: bool = False,
+    ) -> dict[str, Any]:
+        target_mode, source = _resolve_add_to_project_storage_choice(
+            self._client,
+            project_id,
+            object_type="chat",
+            openmates_only=openmates_only,
+            remote_copy=remote_copy,
+            repo_copy=repo_copy,
+            remote_cache_copy=remote_cache_copy,
+        )
+        project_key = _resolve_project_key(self._client, project_id)
+        loaded = self.load(chat_id)
+        chat = loaded.get("chat") if isinstance(loaded.get("chat"), dict) else None
+        if not isinstance(chat, dict):
+            raise OpenMatesConfigError("Loaded chat payload did not include chat metadata for Project linking")
+        target_id = str(chat.get("id") or chat_id)
+        display_name = str(chat.get("title") or target_id)
+        remote_copy_proposal = None
+        if target_mode != "save_only_in_openmates":
+            if source is None:
+                raise OpenMatesConfigError("Remote-copy proposals require a Project source")
+            remote_copy_proposal = _remote_copy_proposal(
+                object_type="chat",
+                object_id=target_id,
+                title=display_name,
+                content=_chat_remote_copy_markdown(chat, _normalize_loaded_chat_messages(loaded)),
+                source=source,
+                target_mode=target_mode,
+            )
+        item = _create_encrypted_project_item(
+            self._client,
+            project_id,
+            project_key,
+            item_type="chat",
+            target_id=target_id,
+            display_name=display_name,
+            folder=folder,
+            metadata={
+                "storage": target_mode,
+                "source": "sdk_add_to_project",
+                "remote_copy_proposal": {"target_path": remote_copy_proposal["target_path"], "source_id": remote_copy_proposal["source_id"]} if remote_copy_proposal else None,
+            },
+        )
+        return _append_project_link_result(item, target_mode, remote_copy_proposal)
 
     def messages(
         self,
@@ -2069,6 +2425,32 @@ class OpenMatesPlans:
     def update(self, plan_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         return self._client._patch(f"/v1/user-plans/{_quote(plan_id)}", payload).get("plan", {})
 
+    def add_to_project(
+        self,
+        plan_id: str,
+        project_id: str,
+        *,
+        folder: str | None = None,
+        remote_copy: bool = False,
+        repo_copy: bool = False,
+        remote_cache_copy: bool = False,
+    ) -> dict[str, Any]:
+        _reject_remote_copy_options("Plan", remote_copy=remote_copy, repo_copy=repo_copy, remote_cache_copy=remote_cache_copy)
+        if folder:
+            raise OpenMatesConfigError("Plan folder placement in Projects requires Project item folder support and is not available in this SDK slice")
+        plan = _find_plan(self.list(active_only=False), plan_id)
+        master_key = self._client._get_master_key()
+        plan_key = _plan_key_from_record(plan, master_key)
+        linked_project_ids = _json_string_list(_decrypt_aes_gcm_text(str(plan.get("encrypted_linked_project_ids") or ""), plan_key)) or _string_list(plan.get("linked_project_ids") or [])
+        updated_project_ids = _append_unique_id(linked_project_ids, project_id)
+        patch = {
+            "version": plan.get("version"),
+            "updated_at": int(time.time()),
+            "linked_project_ids": updated_project_ids,
+            "encrypted_linked_project_ids": _encrypt_aes_gcm_text(json.dumps(updated_project_ids), plan_key),
+        }
+        return self.update(str(plan.get("plan_id")), patch)
+
     def history(self, plan_id: str, *, limit: int | None = None) -> list[dict[str, Any]]:
         query = f"?limit={limit}" if limit is not None else ""
         return self._client._get(f"/v1/user-plans/{_quote(plan_id)}/history{query}").get("entries", [])
@@ -2277,6 +2659,24 @@ class OpenMatesTasks:
                 task = self._resolve(task_id, filters)
         raise OpenMatesConfigError("Task update retry failed unexpectedly")
 
+    def add_to_project(
+        self,
+        task_id: str,
+        project_id: str,
+        *,
+        remote_copy: bool = False,
+        repo_copy: bool = False,
+        remote_cache_copy: bool = False,
+        **filters: Any,
+    ) -> dict[str, Any]:
+        _reject_remote_copy_options("Task", remote_copy=remote_copy, repo_copy=repo_copy, remote_cache_copy=remote_cache_copy)
+        task = self._resolve(task_id, filters)
+        master_key = self._client._get_master_key()
+        updated = self._update_raw(str(task["task_id"]), _build_task_update_input(task, master_key, {
+            "linked_project_ids": _append_unique_id(_string_list(task.get("linked_project_ids") or []), project_id),
+        }))
+        return _public_task(_decrypt_task_record(updated, master_key))
+
     def start_ai(self, task_id: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
         return self.start(task_id)
 
@@ -2409,11 +2809,39 @@ class OpenMatesProjects:
     def __init__(self, client: OpenMates):
         self._client = client
 
+    def list(self, *, include_archived: bool | None = None) -> list[dict[str, Any]]:
+        params: dict[str, str] = {}
+        if include_archived is not None:
+            params["include_archived"] = "true" if include_archived else "false"
+        query = f"?{urlencode(params)}" if params else ""
+        return self._client._get(f"/v1/projects{query}").get("projects", [])
+
     def list_sources(self, project_id: str) -> list[dict[str, Any]]:
-        return self._client._get(f"/v1/projects/{_quote(project_id)}/sources").get("sources", [])
+        project_key = _resolve_project_key(self._client, project_id)
+        return [
+            _decrypt_project_source(source, project_key)
+            for source in self._client._get(f"/v1/projects/{_quote(project_id)}/sources").get("sources", [])
+            if isinstance(source, dict)
+        ]
 
     def create_source(self, project_id: str, payload: dict[str, Any]) -> dict[str, Any]:
-        return self._client._post(f"/v1/projects/{_quote(project_id)}/sources", payload).get("source", {})
+        _validate_project_source_payload(payload)
+        project_key = _resolve_project_key(self._client, project_id)
+        return _decrypt_project_source(_create_encrypted_project_source(self._client, project_id, project_key, payload), project_key)
+
+    def create_item(self, project_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        return self._client._post(f"/v1/projects/{_quote(project_id)}/items", payload).get("item", {})
+
+    def audit_instructions(self, project_id: str, source_id: str, *, confirmed: bool = False, **options: Any) -> dict[str, Any]:
+        _require_confirmed(confirmed, "Project instruction audit")
+        return _unsupported_sdk_feature("Project instruction audit")
+
+    def apply_selected_instruction_audit_suggestions(self, project_id: str, source_id: str, selected_suggestion_ids: list[str], *, confirmed: bool = False) -> dict[str, Any]:
+        _require_confirmed(confirmed, "Applying Project instruction audit suggestions")
+        return _unsupported_sdk_feature("Project instruction audit suggestion apply")
+
+    def get_instruction_audit_status(self, project_id: str, source_id: str) -> dict[str, Any]:
+        return _unsupported_sdk_feature("Project instruction audit status")
 
     def history(self, project_id: str, *, limit: int | None = None) -> list[dict[str, Any]]:
         query = f"?limit={limit}" if limit is not None else ""
@@ -2563,6 +2991,58 @@ class OpenMatesWorkflows:
 
     def get(self, workflow_id: str) -> dict[str, Any]:
         return self._client._get(f"/v1/workflows/{_quote(workflow_id)}").get("workflow", {})
+
+    def add_to_project(
+        self,
+        workflow_id: str,
+        project_id: str,
+        *,
+        folder: str | None = None,
+        openmates_only: bool = False,
+        remote_copy: bool = False,
+        repo_copy: bool = False,
+        remote_cache_copy: bool = False,
+    ) -> dict[str, Any]:
+        target_mode, source = _resolve_add_to_project_storage_choice(
+            self._client,
+            project_id,
+            object_type="workflow",
+            openmates_only=openmates_only,
+            remote_copy=remote_copy,
+            repo_copy=repo_copy,
+            remote_cache_copy=remote_cache_copy,
+        )
+        project_key = _resolve_project_key(self._client, project_id)
+        workflow = self.get(workflow_id)
+        target_id = str(workflow.get("id") or workflow_id)
+        display_name = str(workflow.get("title") or target_id)
+        remote_copy_proposal = None
+        if target_mode != "save_only_in_openmates":
+            if source is None:
+                raise OpenMatesConfigError("Remote-copy proposals require a Project source")
+            remote_copy_proposal = _remote_copy_proposal(
+                object_type="workflow",
+                object_id=target_id,
+                title=display_name,
+                content=_workflow_remote_copy_yaml(workflow),
+                source=source,
+                target_mode=target_mode,
+            )
+        item = _create_encrypted_project_item(
+            self._client,
+            project_id,
+            project_key,
+            item_type="workflow",
+            target_id=target_id,
+            display_name=display_name,
+            folder=folder,
+            metadata={
+                "storage": target_mode,
+                "source": "sdk_add_to_project",
+                "remote_copy_proposal": {"target_path": remote_copy_proposal["target_path"], "source_id": remote_copy_proposal["source_id"]} if remote_copy_proposal else None,
+            },
+        )
+        return _append_project_link_result(item, target_mode, remote_copy_proposal)
 
     def create(
         self,

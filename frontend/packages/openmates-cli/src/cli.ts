@@ -39,6 +39,7 @@ import {
   type WorkflowRunContentRetention,
   type WorkflowSummary,
   type ProjectRecord,
+  type ProjectSourceRecord,
   type UserTaskActionInput,
   type UserTaskReorderInput,
   type UserTaskStatus,
@@ -1295,25 +1296,54 @@ function appendUniqueId(existing: string[], id: string): string[] {
   return existing.includes(id) ? existing : [...existing, id];
 }
 
+type AddToProjectStorageChoice = {
+  targetMode: "save_only_in_openmates" | "store_on_remote_machine_and_include_in_git" | "store_local_only_on_remote_machine";
+  source: ProjectSourceRecord | null;
+};
+
+type RemoteCopyProposal = {
+  source_id: string;
+  object_type: "chat" | "workflow";
+  object_id: string;
+  target_mode: AddToProjectStorageChoice["targetMode"];
+  target_path: string;
+  git_tracking_intent: "include_in_git" | "local_only" | "not_applicable";
+  pii_scan_result: { found: boolean; categories: string[] };
+  secret_scan_result: { found: boolean; patterns: string[] };
+  diff_or_create_file_patch: { operation: "create_file"; path: string; content: string };
+  approval_required: true;
+  writes_files: false;
+};
+
 function rejectRemoteCopyFlags(flags: Record<string, string | boolean>): void {
   if (flags["remote-copy"] === true || flags["repo-copy"] === true || flags["remote-cache-copy"] === true) {
-    throw new Error("Remote-machine add-to-project copies are reserved for the later remote file proposal slice.");
+    throw new Error("Tasks and plans store encrypted Project links only; remote-machine copies are supported for chats/workflows as proposal output.");
   }
 }
 
-async function requireOpenMatesOnlyStorageForRemoteProject(
+async function resolveAddToProjectStorageChoice(
   client: OpenMatesClient,
   project: DecryptedProject,
   flags: Record<string, string | boolean>,
   objectType: "chat" | "workflow",
-): Promise<void> {
-  rejectRemoteCopyFlags(flags);
+): Promise<AddToProjectStorageChoice> {
   const sources = await client.listProjectSources(project.projectId);
-  if (sources.length === 0) return;
-  if (flags["openmates-only"] === true) return;
-  throw new Error(
-    `${objectType} add-to-project targets a remote-access Project. Pass --openmates-only to keep encrypted OpenMates storage only; remote-machine copy proposals are not implemented yet.`,
-  );
+  const source = sources[0] ?? null;
+  if (flags["openmates-only"] === true && (flags["remote-copy"] === true || flags["repo-copy"] === true || flags["remote-cache-copy"] === true)) {
+    throw new Error("Choose either --openmates-only or a remote-copy mode, not both.");
+  }
+  if (flags["repo-copy"] === true && flags["remote-cache-copy"] === true) {
+    throw new Error("Choose only one remote-copy mode: --repo-copy or --remote-cache-copy.");
+  }
+  if (flags["repo-copy"] === true || (flags["remote-copy"] === true && objectType === "workflow")) {
+    if (!source) throw new Error("Remote-copy proposals require a Project source.");
+    return { targetMode: "store_on_remote_machine_and_include_in_git", source };
+  }
+  if (flags["remote-cache-copy"] === true || flags["remote-copy"] === true) {
+    if (!source) throw new Error("Remote-copy proposals require a Project source.");
+    return { targetMode: "store_local_only_on_remote_machine", source };
+  }
+  return { targetMode: "save_only_in_openmates", source };
 }
 
 async function createEncryptedProjectItem(
@@ -1344,15 +1374,116 @@ async function createEncryptedProjectItem(
 }
 
 function printAddToProjectResult(
-  result: { objectType: string; objectId: string; projectId: string; item?: Record<string, unknown>; targetMode: "openmates_only" },
+  result: { objectType: string; objectId: string; projectId: string; item?: Record<string, unknown>; targetMode: AddToProjectStorageChoice["targetMode"]; remoteCopyProposal?: RemoteCopyProposal | null },
   flags: Record<string, string | boolean>,
 ): void {
   if (flags.json === true) {
-    printJson({ ...result, remote_copy_proposal: null });
+    printJson({ ...result, remote_copy_proposal: result.remoteCopyProposal ?? null });
     return;
   }
   console.log(`${result.objectType} added to Project: ${result.projectId}`);
-  console.log("Storage: encrypted OpenMates Project link only");
+  if (result.remoteCopyProposal) {
+    console.log(`Remote-copy proposal: ${result.remoteCopyProposal.target_path}`);
+    console.log("No remote files were written. Review and approve the proposal before applying it.");
+  } else {
+    console.log("Storage: encrypted OpenMates Project link only");
+  }
+}
+
+function buildRemoteCopyProposal(input: {
+  objectType: "chat" | "workflow";
+  objectId: string;
+  title: string;
+  content: string;
+  source: ProjectSourceRecord;
+  targetMode: Exclude<AddToProjectStorageChoice["targetMode"], "save_only_in_openmates">;
+  targetPath?: string;
+}): RemoteCopyProposal {
+  const extension = input.objectType === "workflow" ? "yml" : "md";
+  const slug = slugifyProjectPath(input.title || input.objectId);
+  const targetPath = input.targetPath || defaultRemoteCopyPath(input.objectType, slug, extension, input.source, input.targetMode);
+  return {
+    source_id: input.source.source_id,
+    object_type: input.objectType,
+    object_id: input.objectId,
+    target_mode: input.targetMode,
+    target_path: targetPath,
+    git_tracking_intent: input.targetMode === "store_on_remote_machine_and_include_in_git" ? "include_in_git" : "local_only",
+    pii_scan_result: scanPiiLikeText(input.content),
+    secret_scan_result: scanSecretLikeText(input.content),
+    diff_or_create_file_patch: { operation: "create_file", path: targetPath, content: input.content },
+    approval_required: true,
+    writes_files: false,
+  };
+}
+
+function defaultRemoteCopyPath(
+  objectType: "chat" | "workflow",
+  slug: string,
+  extension: string,
+  source: ProjectSourceRecord,
+  targetMode: Exclude<AddToProjectStorageChoice["targetMode"], "save_only_in_openmates">,
+): string {
+  if (targetMode === "store_local_only_on_remote_machine") {
+    return `~/.openmates/remote-cache/${source.source_id}/exports/${objectType}/${slug}.${extension}`;
+  }
+  return objectType === "workflow"
+    ? `.openmates/workflows/${slug}.yml`
+    : `docs/openmates/chats/${slug}.md`;
+}
+
+function slugifyProjectPath(value: string): string {
+  const slug = value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 80);
+  return slug || "openmates-item";
+}
+
+function scanPiiLikeText(content: string): { found: boolean; categories: string[] } {
+  const categories = new Set<string>();
+  if (/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i.test(content)) categories.add("email");
+  if (/\b(?:\+?\d[\d .()-]{7,}\d)\b/.test(content)) categories.add("phone_or_number_sequence");
+  return { found: categories.size > 0, categories: [...categories] };
+}
+
+function scanSecretLikeText(content: string): { found: boolean; patterns: string[] } {
+  const patterns = new Set<string>();
+  if (/-----BEGIN [A-Z ]*PRIVATE KEY-----/.test(content)) patterns.add("private_key");
+  if (/\b(?:sk-(?:api|proj|live|test)|OPENAI_API_KEY|ANTHROPIC_API_KEY|GITHUB_TOKEN)\b/i.test(content)) patterns.add("api_token_marker");
+  if (/\b[A-Za-z0-9_-]{32,}\b/.test(content)) patterns.add("long_token_like_string");
+  return { found: patterns.size > 0, patterns: [...patterns] };
+}
+
+function buildChatRemoteCopyMarkdown(chat: ChatListItem, messages: DecryptedMessage[]): string {
+  const timestampMs = chat.updatedAt && chat.updatedAt < 1e12 ? chat.updatedAt * 1000 : (chat.updatedAt ?? Date.now());
+  let content = `# ${chat.title ?? "Untitled Chat"}\n\n`;
+  content += `OpenMates chat ID: ${chat.id}\n`;
+  content += `Exported at: ${new Date().toISOString()}\n`;
+  content += `Last updated: ${new Date(timestampMs).toISOString()}\n\n---\n\n`;
+  for (const msg of messages) {
+    const msgTimestampMs = msg.createdAt < 1e12 ? msg.createdAt * 1000 : msg.createdAt;
+    const role = msg.role === "user" ? "You" : (msg.senderName ?? "Assistant");
+    content += `## ${role} - ${new Date(msgTimestampMs).toISOString()}\n\n`;
+    const cleaned = msg.content.replace(/```(?:json_embed|json)\n[\s\S]*?\n```/g, "").trim();
+    content += `${cleaned || "(empty message)"}\n\n`;
+  }
+  return content;
+}
+
+function buildWorkflowRemoteCopyYaml(workflow: WorkflowDetail): string {
+  return serializeToYaml({
+    workflow: {
+      id: workflow.id,
+      title: workflow.title,
+      description: workflow.description ?? null,
+      status: workflow.status,
+      enabled: workflow.enabled,
+      lifecycle: workflow.lifecycle ?? null,
+      source_chat_id: workflow.source_chat_id ?? null,
+      current_version_id: workflow.current_version_id,
+      created_at: workflow.created_at,
+      updated_at: workflow.updated_at,
+    },
+    graph: workflow.graph,
+  });
 }
 
 function nowSeconds(): number {
@@ -2641,16 +2772,27 @@ async function handleChats(
     if (apiKey) throw new Error("Chat add-to-project through --api-key is not supported by the CLI command; use an authenticated CLI session.");
     const projectId = requiredStringFlag(rest[1], "<project-id>");
     const project = await requiredResolvedProject(client, client.getMasterKeyBytes(), projectId, flags);
-    await requireOpenMatesOnlyStorageForRemoteProject(client, project, flags, "chat");
+    const storageChoice = await resolveAddToProjectStorageChoice(client, project, flags, "chat");
     const result = await client.getChatMessages(subcommand, teamContext);
+    const displayName = result.chat.title ?? result.chat.shortId ?? result.chat.id;
+    const remoteCopyProposal = storageChoice.targetMode === "save_only_in_openmates"
+      ? null
+      : buildRemoteCopyProposal({
+        objectType: "chat",
+        objectId: result.chat.id,
+        title: displayName,
+        content: buildChatRemoteCopyMarkdown(result.chat, result.messages),
+        source: storageChoice.source!,
+        targetMode: storageChoice.targetMode,
+      });
     const item = await createEncryptedProjectItem(client, project, {
       itemType: "chat",
       targetId: result.chat.id,
-      displayName: result.chat.title ?? result.chat.shortId ?? result.chat.id,
+      displayName,
       folderId: typeof flags.folder === "string" ? flags.folder : null,
-      metadata: { storage: "openmates_only", source: "cli_add_to_project" },
+      metadata: { storage: storageChoice.targetMode, source: "cli_add_to_project", remote_copy_proposal: remoteCopyProposal ? { target_path: remoteCopyProposal.target_path, source_id: remoteCopyProposal.source_id } : null },
     });
-    printAddToProjectResult({ objectType: "chat", objectId: result.chat.id, projectId: project.projectId, item, targetMode: "openmates_only" }, flags);
+    printAddToProjectResult({ objectType: "chat", objectId: result.chat.id, projectId: project.projectId, item, targetMode: storageChoice.targetMode, remoteCopyProposal }, flags);
     return;
   }
 
@@ -3943,16 +4085,26 @@ async function handleWorkflows(
     const projectId = requiredStringFlag(rest[1], "<project-id>");
     const masterKey = client.getMasterKeyBytes();
     const project = await requiredResolvedProject(client, masterKey, projectId, flags);
-    await requireOpenMatesOnlyStorageForRemoteProject(client, project, flags, "workflow");
+    const storageChoice = await resolveAddToProjectStorageChoice(client, project, flags, "workflow");
     const workflow = await client.getWorkflow(subcommand, teamContextFromFlags(flags));
+    const remoteCopyProposal = storageChoice.targetMode === "save_only_in_openmates"
+      ? null
+      : buildRemoteCopyProposal({
+        objectType: "workflow",
+        objectId: workflow.id,
+        title: workflow.title,
+        content: buildWorkflowRemoteCopyYaml(workflow),
+        source: storageChoice.source!,
+        targetMode: storageChoice.targetMode,
+      });
     const item = await createEncryptedProjectItem(client, project, {
       itemType: "workflow",
       targetId: workflow.id,
       displayName: workflow.title,
       folderId: typeof flags.folder === "string" ? flags.folder : null,
-      metadata: { storage: "openmates_only", source: "cli_add_to_project" },
+      metadata: { storage: storageChoice.targetMode, source: "cli_add_to_project", remote_copy_proposal: remoteCopyProposal ? { target_path: remoteCopyProposal.target_path, source_id: remoteCopyProposal.source_id } : null },
     });
-    printAddToProjectResult({ objectType: "workflow", objectId: workflow.id, projectId: project.projectId, item, targetMode: "openmates_only" }, flags);
+    printAddToProjectResult({ objectType: "workflow", objectId: workflow.id, projectId: project.projectId, item, targetMode: storageChoice.targetMode, remoteCopyProposal }, flags);
     return;
   }
 
@@ -10592,13 +10744,13 @@ export function serializeToYaml(
       out += `${pad}${key}:\n`;
       for (const item of val) {
         if (typeof item === "object" && item !== null) {
-          out += `${pad}- \n`;
+          out += `${pad}  -\n`;
           out += serializeToYaml(
             item as Record<string, unknown>,
             indent + 2,
           );
         } else {
-          out += `${pad}- ${item}\n`;
+          out += `${pad}  - ${formatYamlScalar(item)}\n`;
         }
       }
     } else if (typeof val === "object") {
@@ -10607,6 +10759,26 @@ export function serializeToYaml(
     }
   }
   return out;
+}
+
+function formatYamlScalar(value: unknown): string {
+  if (value === null || value === undefined) return "null";
+  if (typeof value === "boolean" || typeof value === "number") return String(value);
+  if (typeof value === "string") {
+    const needsQuote =
+      value.includes(":") ||
+      value.includes("#") ||
+      value.startsWith("{") ||
+      value.startsWith("[") ||
+      value.startsWith("'") ||
+      value.startsWith('"') ||
+      value === "" ||
+      value === "true" ||
+      value === "false" ||
+      value === "null";
+    return needsQuote ? `"${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"` : value;
+  }
+  return JSON.stringify(value);
 }
 
 /** Map language identifier to file extension for code embed downloads. */
@@ -10936,7 +11108,7 @@ function printChatsHelp(): void {
   openmates chats list [--limit <n>] [--page <n>] [--json]
   openmates chats show <chat-id> [--raw] [--json] [--all]
   openmates chats messages <chat-id> [--json]
-  openmates chats <chat-id> add-to-project <project-id> [--folder <folder-id>] [--openmates-only] [--json]
+  openmates chats <chat-id> add-to-project <project-id> [--folder <folder-id>] [--openmates-only|--repo-copy|--remote-cache-copy|--remote-copy] [--json]
   openmates chats fork <chat-id> --from-message <message-id> [--title <title>] [--json]
   openmates chats rewind <chat-id> --to-message <message-id> [--send <prompt>] [--dry-run] [--yes] [--json]
   openmates chats retry <chat-id> [--dry-run] [--yes] [--json]
@@ -11287,7 +11459,7 @@ function printWorkflowsHelp(): void {
   openmates workflows validate --file workflow.yml [--json]
   openmates workflows create --file workflow.yml [--json]
   openmates workflows update <workflow-id> --file workflow.yml [--json]
-  openmates workflows <workflow-id> add-to-project <project-id> [--folder <folder-id>] [--openmates-only] [--json]
+  openmates workflows <workflow-id> add-to-project <project-id> [--folder <folder-id>] [--openmates-only|--repo-copy|--remote-cache-copy|--remote-copy] [--json]
   openmates workflows history <workflow-id> [--limit <n>] [--json]
   openmates workflows restore <workflow-id> --entry <history-entry-id> [--state before|after] [--json]
   openmates workflows create --title <title> --graph '<json>' [--enabled] [--run-content-retention last_5|none] [--json]
