@@ -4714,14 +4714,14 @@
             return;
         }
 
-        await tick();
-        recordAudioStartedFromKeyboard = false;
-        if (action === 'stop') {
-            handleRecordMouseUpLogic(recordAudioComponent);
-        } else {
-            handleRecordMouseLeaveLogic(recordAudioComponent);
-        }
-    }
+		await tick();
+		recordAudioStartedFromKeyboard = false;
+		if (action === 'stop') {
+			recordAudioComponent?.stop();
+		} else {
+			recordAudioComponent?.cancel();
+		}
+	}
 
     async function insertCodeRunOutputFollowup(rawOutput: string | undefined) {
         const output = sanitizeText(rawOutput || '').trimEnd();
@@ -5464,22 +5464,17 @@
             ></button>
         {/if}
 
-        {#if guestCtaMode && !$authStore.isAuthenticated && !isMessageFieldFocused && !hasContent}
-            <span class="guest-cta-ai-icon" aria-hidden="true"></span>
-            <button
-                class="guest-cta-mic-button"
-                type="button"
-                data-testid="guest-cta-mic-button"
-                aria-label={$text('enter_message.attachments.record_audio')}
-                onmousedown={(event) => onRecordMouseDown(new CustomEvent('recordMouseDown', { detail: { originalEvent: event } }))}
-                onmouseup={(event) => onRecordMouseUp(new CustomEvent('recordMouseUp', { detail: { originalEvent: event } }))}
-                onmouseleave={(event) => onRecordMouseLeave(new CustomEvent('recordMouseLeave', { detail: { originalEvent: event } }))}
-                ontouchstart={(event) => onRecordTouchStart(new CustomEvent('recordTouchStart', { detail: { originalEvent: event } }))}
-                ontouchend={(event) => onRecordTouchEnd(new CustomEvent('recordTouchEnd', { detail: { originalEvent: event } }))}
-            >
-                <span class="clickable-icon icon_recordaudio" aria-hidden="true"></span>
-            </button>
-        {/if}
+		{#if guestCtaMode && !$authStore.isAuthenticated && !isMessageFieldFocused && !hasContent}
+			<span class="guest-cta-ai-icon" aria-hidden="true"></span>
+			<button
+				class="clickable-icon icon_recordaudio guest-cta-mic-button"
+				type="button"
+				data-testid="guest-cta-mic-button"
+				aria-label={$text('enter_message.attachments.record_audio')}
+				onmousedown={(event) => onRecordMouseDown(new CustomEvent('recordMouseDown', { detail: { originalEvent: event } }))}
+				ontouchstart={(event) => onRecordTouchStart(new CustomEvent('recordTouchStart', { detail: { originalEvent: event } }))}
+			></button>
+		{/if}
 
         <!-- Focus mode pill: shown when a focus mode is active.
              Absolutely positioned at the top of the message-field; the field gets extra
@@ -5786,22 +5781,15 @@
         opacity: 0;
     }
 
-    .message-input-wrapper.guest-cta-mode {
-        filter: drop-shadow(0 18px 34px rgba(30, 45, 90, 0.14));
-    }
+	.message-input-wrapper.guest-cta-mode {
+		filter: none;
+	}
 
-    .message-field.guest-cta-field {
-        min-height: 64px;
-        padding: 0 64px;
-        border: 1px solid transparent;
-        border-radius: var(--radius-full, 9999px);
-        background:
-            linear-gradient(var(--color-grey-blue), var(--color-grey-blue)) padding-box,
-            linear-gradient(135deg, var(--color-primary), var(--color-primary-light, #8b5cf6)) border-box;
-        box-shadow:
-            0 16px 42px rgba(38, 57, 116, 0.18),
-            0 2px 8px rgba(38, 57, 116, 0.1);
-    }
+	.message-field.guest-cta-field {
+		min-height: 64px;
+		padding: 0 64px;
+		border-radius: var(--radius-full, 9999px);
+	}
 
     .message-field.guest-cta-field .scrollable-content {
         padding-top: 0;
@@ -5854,36 +5842,19 @@
         pointer-events: none;
     }
 
-    .guest-cta-mic-button {
-        position: absolute;
-        top: 50%;
-        right: 10px;
-        z-index: 32;
-        display: grid;
-        place-items: center;
-        width: 44px;
-        min-width: 44px;
-        height: 44px;
-        padding: 0 !important;
-        border: 0;
-        border-radius: 999px;
-        background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light, #8b5cf6)) !important;
-        box-shadow: 0 8px 20px rgba(82, 76, 255, 0.22);
-        cursor: pointer;
-        transform: translateY(-50%);
-        touch-action: none;
-    }
+	.guest-cta-mic-button {
+		position: absolute;
+		top: 50%;
+		right: 24px;
+		z-index: 32;
+		transform: translateY(-50%);
+		touch-action: none;
+		background: var(--color-primary);
+	}
 
-    .guest-cta-mic-button .clickable-icon {
-        width: 20px !important;
-        height: 20px !important;
-        background: white !important;
-        filter: none !important;
-    }
-
-    .guest-cta-mic-button:hover {
-        transform: translateY(-50%) scale(1.04);
-    }
+	.guest-cta-mic-button:hover {
+		transform: translateY(-50%) scale(1.05);
+	}
 
     /* Edit message banner — shown above the editor when editing a previous message */
     .edit-banner {

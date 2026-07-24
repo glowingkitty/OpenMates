@@ -12117,12 +12117,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             {:else}
                             <div class="team-profile">
                                 <!-- <div class="team-image" class:disabled={!isTeamEnabled}></div> -->
-                                <div class="welcome-text">
-                                    {#if !$authStore.isAuthenticated}
-                                        <div class="guest-workspace-icon" data-testid="guest-workspace-icon" aria-hidden="true">
-                                            <GuestWorkspaceIcon size={38} color="var(--color-primary)" />
-                                        </div>
-                                    {:else}
+								<div class="welcome-text">
+									{#if !$authStore.isAuthenticated}
+										<div class="guest-workspace-icon" data-testid="guest-workspace-icon" data-surface={activeGuestSurface} aria-hidden="true"></div>
+									{:else}
                                         <h2>
                                             {#each welcomeHeadingParts as part, index}
                                                 <span>{part}</span>{#if index < welcomeHeadingParts.length - 1}<br>{/if}
@@ -13874,8 +13872,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     }
 
 
-    .welcome-text h2 {
-        margin: 0;
+	.welcome-text {
+		position: relative;
+	}
+
+	.welcome-text h2 {
+		margin: 0;
         color: var(--color-grey-80);
         font-size: var(--font-size-h2-mobile);
         font-weight: 600;
@@ -13887,23 +13889,48 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         font-size: var(--font-size-p);
     }
 
-    .welcome-text .guest-interest-prompt {
-        color: var(--color-grey-60);
-        font-size: var(--font-size-p);
-        font-weight: 600;
+	.welcome-text .guest-interest-prompt {
+		position: relative;
+		z-index: 1;
+		color: var(--color-grey-60);
+		font-size: var(--font-size-p);
+		font-weight: 600;
         line-height: 1.25;
     }
 
-    .guest-workspace-icon {
-        display: inline-grid;
-        place-items: center;
-        width: 70px;
-        height: 70px;
-        margin: 0 auto var(--spacing-5);
-        border-radius: 26px;
-        background: color-mix(in srgb, var(--color-primary) 10%, transparent);
-        box-shadow: 0 14px 36px rgba(70, 84, 150, 0.14);
-    }
+	.guest-workspace-icon {
+		position: absolute;
+		left: 50%;
+		top: 50%;
+		z-index: 0;
+		width: clamp(76px, 11vw, 128px);
+		height: clamp(76px, 11vw, 128px);
+		background: var(--color-grey-30);
+		transform: translate(-50%, -54%);
+		pointer-events: none;
+		-webkit-mask: url('@openmates/ui/static/icons/chat.svg') center / contain no-repeat;
+		mask: url('@openmates/ui/static/icons/chat.svg') center / contain no-repeat;
+	}
+
+	.guest-workspace-icon[data-surface='projects'] {
+		-webkit-mask-image: url('@openmates/ui/static/icons/project.svg');
+		mask-image: url('@openmates/ui/static/icons/project.svg');
+	}
+
+	.guest-workspace-icon[data-surface='plans'] {
+		-webkit-mask-image: url('@openmates/ui/static/icons/planning.svg');
+		mask-image: url('@openmates/ui/static/icons/planning.svg');
+	}
+
+	.guest-workspace-icon[data-surface='workflows'] {
+		-webkit-mask-image: url('@openmates/ui/static/icons/workflow.svg');
+		mask-image: url('@openmates/ui/static/icons/workflow.svg');
+	}
+
+	.guest-workspace-icon[data-surface='tasks'] {
+		-webkit-mask-image: url('@openmates/ui/static/icons/task.svg');
+		mask-image: url('@openmates/ui/static/icons/task.svg');
+	}
 
     .guest-interest-tags-overlay {
         position: absolute;
@@ -14061,12 +14088,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     }
 
     @media (max-width: 730px) {
-        .guest-workspace-icon {
-            width: 58px;
-            height: 58px;
-            border-radius: 22px;
-            margin-bottom: var(--spacing-4);
-        }
+		.guest-workspace-icon {
+			width: 76px;
+			height: 76px;
+		}
 
         .guest-all-examples-view {
             width: min(100% - 24px, 520px);

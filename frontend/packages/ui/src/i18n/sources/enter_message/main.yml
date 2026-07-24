@@ -656,30 +656,6 @@ status.selecting_model:
   sv: Väljer AI-modell...
   he: בוחר מודל AI...
   verified_by_human: []
-attachments.record_audio.hint:
-  context: Inline hint text shown next to the audio record button
-  en: Hold to record
-  de: Halten zum Aufnehmen
-  zh: 按住录音
-  es: Mantener para grabar
-  fr: Maintenir pour enregistrer
-  pt: Segure para gravar
-  ru: Удерживайте для записи
-  ja: 押し続けて録音
-  ko: 길게 눌러 녹음
-  it: Tieni premuto per registrare
-  tr: Kaydetmek için basılı tutun
-  vi: Giữ để ghi âm
-  id: Tahan untuk merekam
-  pl: Przytrzymaj, aby nagrać
-  nl: Vasthouden om op te nemen
-  ar: اضغط مطولاً للتسجيل
-  hi: रिकॉर्ड करने के लिए होल्ड करें
-  th: กดค้างเพื่อบันทึก
-  cs: Podržte pro nahrávání
-  sv: Håll inne för att spela in
-  he: החזק כדי להקליט
-  verified_by_human: []
 message_queued:
   context: Fallback text shown when user sends a message while AI task is active
   en: Message queued

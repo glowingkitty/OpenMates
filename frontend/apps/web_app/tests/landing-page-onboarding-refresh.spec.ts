@@ -364,6 +364,34 @@ test.describe('Landing page onboarding refresh', () => {
 	test('regular guest landing exposes workspace prompt, CTA input links, compact cards, and all examples', async ({ page }: { page: any }) => {
 		test.setTimeout(45000);
 		await page.setViewportSize({ width: 1280, height: 800 });
+		await page.addInitScript(() => {
+			class FakeMediaRecorder extends EventTarget {
+				static isTypeSupported() { return true; }
+				state = 'inactive';
+				mimeType = 'audio/webm';
+				ondataavailable: ((event: Event) => void) | null = null;
+				onstop: (() => void) | null = null;
+				onerror: ((event: Event) => void) | null = null;
+				start() {
+					this.state = 'recording';
+				}
+				stop() {
+					this.state = 'inactive';
+					this.onstop?.();
+					this.dispatchEvent(new Event('stop'));
+				}
+			}
+			Object.defineProperty(window, 'MediaRecorder', {
+				configurable: true,
+				value: FakeMediaRecorder
+			});
+			Object.defineProperty(navigator, 'mediaDevices', {
+				configurable: true,
+				value: {
+					getUserMedia: async () => new MediaStream()
+				}
+			});
+		});
 
 		await page.goto(getE2EDebugUrl('/?landing-guest-refresh'), { waitUntil: 'domcontentloaded' });
 		await page.waitForLoadState('networkidle');
@@ -375,6 +403,51 @@ test.describe('Landing page onboarding refresh', () => {
 		await expect(page.getByTestId('welcome-content')).not.toContainText('Hey there');
 		await expect(page.getByTestId('guest-input-context-link')).toBeVisible();
 		await expect(page.getByTestId('guest-cta-mic-button')).toBeVisible();
+		const visualState = await page.evaluate(() => {
+			const workspaceIcon = document.querySelector<HTMLElement>('[data-testid="guest-workspace-icon"]');
+			const messageField = document.querySelector<HTMLElement>('[data-testid="message-field"]');
+			const micButton = document.querySelector<HTMLElement>('[data-testid="guest-cta-mic-button"]');
+			if (!workspaceIcon || !messageField || !micButton) throw new Error('Guest landing visual elements missing');
+			const iconStyle = getComputedStyle(workspaceIcon);
+			const fieldStyle = getComputedStyle(messageField);
+			const micStyle = getComputedStyle(micButton);
+			const iconWebkitStyle = iconStyle as CSSStyleDeclaration & { webkitMaskImage?: string };
+			const micRect = micButton.getBoundingClientRect();
+			return {
+				workspaceSurface: workspaceIcon.dataset.surface,
+				workspaceMask: iconStyle.maskImage || iconWebkitStyle.webkitMaskImage,
+				workspaceBackground: iconStyle.backgroundColor,
+				workspaceBoxShadow: iconStyle.boxShadow,
+				workspaceBorderRadius: iconStyle.borderRadius,
+				fieldBackgroundImage: fieldStyle.backgroundImage,
+				fieldBorderRadius: fieldStyle.borderRadius,
+				micWidth: micRect.width,
+				micHeight: micRect.height,
+				micBorderRadius: micStyle.borderRadius,
+				micBoxShadow: micStyle.boxShadow
+			};
+		});
+		expect(visualState.workspaceSurface).toBe('chats');
+		expect(visualState.workspaceMask).toContain('chat.svg');
+		expect(visualState.workspaceBackground).not.toBe('rgba(0, 0, 0, 0)');
+		expect(visualState.workspaceBoxShadow).toBe('none');
+		expect(visualState.workspaceBorderRadius).toBe('0px');
+		expect(visualState.fieldBackgroundImage).toBe('none');
+		expect(Number.parseFloat(visualState.fieldBorderRadius)).toBeGreaterThanOrEqual(24);
+		expect(visualState.micWidth).toBeLessThanOrEqual(30);
+		expect(visualState.micHeight).toBeLessThanOrEqual(30);
+		expect(visualState.micBorderRadius).toBe('0px');
+		expect(visualState.micBoxShadow).toBe('none');
+
+		await page.getByTestId('guest-cta-mic-button').click();
+		await expect(page.getByTestId('record-overlay')).toBeVisible({ timeout: 5000 });
+		await expect(page.getByTestId('record-finish-button')).toContainText('Finish');
+		await expect(page.getByTestId('record-cancel-button')).toContainText('Cancel');
+		await expect(page.getByTestId('cancel-hint')).toHaveCount(0);
+		await expect(page.getByTestId('release-text')).toContainText('Recording');
+		await page.keyboard.press('Escape');
+		await expect(page.getByTestId('record-overlay')).toHaveCount(0, { timeout: 5000 });
+
 		const guestPlaceholder = await page.getByTestId('message-editor').evaluate((element: HTMLElement) => {
 			const paragraph = element.querySelector<HTMLElement>('.ProseMirror p[data-placeholder]');
 			return paragraph?.dataset.placeholder ?? '';
@@ -389,6 +462,33 @@ test.describe('Landing page onboarding refresh', () => {
 		}));
 		expect(bannerState.mountedIndexes).toBe('0,1,2');
 		expect(bannerState.progressHeight).toBeGreaterThanOrEqual(4);
+
+		const seenSlideText = new Set<string>();
+		for (let index = 0; index < 5; index += 1) {
+			const currentSlideText = (await page.getByTestId('daily-inspiration-phrase').textContent())?.replace(/\s+/g, ' ').trim() || '';
+			seenSlideText.add(currentSlideText);
+			await page.getByTestId('daily-inspiration-next').click();
+			await expect.poll(async () => (
+				(await page.getByTestId('daily-inspiration-phrase').textContent())?.replace(/\s+/g, ' ').trim() || ''
+			), { timeout: 2000 }).not.toBe(currentSlideText);
+		}
+		const slideText = [...seenSlideText].join(' | ');
+		expect(slideText).toContain('Actionable.');
+		expect(slideText).toContain('Privacy & safety by design.');
+		expect(slideText).toContain('Specialized team mates and focus modes.');
+		expect(slideText).toContain('Provider independent and cross-platform.');
+		for (const oldPhrase of [
+			'Replace emails',
+			'Use app-specific memories',
+			'Trust quotes',
+			'Search Meetup',
+			'Learn step by step',
+			'Send audio messages',
+			'Download chats and files',
+			'AI team mates for everyday tasks'
+		]) {
+			expect(slideText).not.toContain(oldPhrase);
+		}
 
 		await page.getByTestId('guest-show-all-examples').click();
 		await expect(page.getByTestId('daily-inspiration-area')).toHaveCount(0);

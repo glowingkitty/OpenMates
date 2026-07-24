@@ -1,35 +1,26 @@
 <!-- frontend/packages/ui/src/components/enter_message/RecordAudio.svelte -->
 <!--
   Audio recording UI — renders as a full overlay inside .message-field.
-  Replaces the normal message field appearance with a purple/blue gradient
-  while recording is in progress, matching the Figma design:
+  Replaces the normal message field appearance while recording is in progress.
 
   Native Swift counterparts:
   - apple/OpenMates/Sources/Features/Chat/Views/VoiceRecordingView.swift
 
   ┌──────────────────────────────────────────────────────┐
-  │              Release to finish                       │  ← pointer start
-  │              Press Enter to finish                   │  ← keyboard start
+  │              Recording...                           │
   │                                                      │
-  │  [00:01]   ← Slide left to cancel     [●mic]         │  ← controls row
+  │  [00:01]                  [Cancel] [Finish]          │  ← controls row
   └──────────────────────────────────────────────────────┘
 
-  Release / stop behaviour:
+  Finish / cancel behaviour:
   ─────────────────────────
-  The overlay covers the entire message field (inset:0, z-index:200), so the
-  original mic button underneath can never receive mouseup/touchend after the
-  overlay mounts. We therefore own ALL pointer-release and keyboard events here,
-  via document-level listeners attached on mount and removed on destroy:
+  The overlay covers the entire message field (inset:0, z-index:200). Recording
+  starts on the initial mic press and then stays active until an explicit finish
+  or cancel action:
 
-    • mouseup   → stop()  (complete recording → audiorecorded event)
-    • touchend  → stop()  (complete recording on mobile)
+    • Finish button / Enter → stop()  (complete recording → audiorecorded event)
+    • Cancel button / Escape → cancel()  (discard recording)
     • keydown Escape → cancel()  (discard recording)
-
-  Drag-left-to-cancel:
-  ────────────────────
-  mousemove / touchmove track horizontal displacement from the start position.
-  Dragging left >100px triggers cancel(). The mic circle follows the drag so
-  the user gets visual feedback.
 
   Exported methods (called by parent as fallback):
     stop()   — complete the recording
@@ -50,7 +41,7 @@
 
     // --- Props ---
     interface Props {
-        initialPosition: { x: number; y: number };
+    initialPosition: { x: number; y: number };
         externalStream?: MediaStream | null;
         startedFromKeyboard?: boolean;
     }
@@ -67,14 +58,10 @@
     let recordedChunks: Blob[] = [];
     let recordingTime = $state(0);
     let recordingInterval: ReturnType<typeof setInterval> | null = null;
-    let startPosition = { x: 0, y: 0 };
-    let currentPosition = { x: 0, y: 0 };
     let isCancelled = false;
     // Whether stop() has already been called (prevents double-stop from both
     // document mouseup and parent's onRecordMouseUp after tick()).
     let stopAlreadyCalled = false;
-    // Horizontal drag offset for the cancel animation (negative = dragging left)
-    let dragOffsetX = $state(0);
     // Guard: ignore pointer-release events until the MediaRecorder has actually
     // started. Without this, a queued/bubbled mouseup from the original press
     // interaction fires before getUserMedia resolves, causing stopInternal to see
@@ -111,15 +98,10 @@
     // --- Lifecycle ---
     onMount(() => {
         logger.debug('Component mounted, starting recording.');
-        startPosition = { ...initialPosition };
-        currentPosition = { ...startPosition };
+        void initialPosition;
 
-        // Attach document-level listeners so release / Escape work even though
-        // the overlay completely covers the original mic button.
-        document.addEventListener('mouseup',   handleDocumentMouseUp);
-        document.addEventListener('touchend',  handleDocumentTouchEnd);
-        document.addEventListener('mousemove', handleMouseMove);
-        document.addEventListener('touchmove', handleTouchMove, { passive: false });
+        // Attach document-level key handling so Enter/Escape work while the
+        // overlay owns focus and pointer events.
         document.addEventListener('keydown',   handleKeyDown);
 
         if (startedFromKeyboard) {
@@ -139,10 +121,6 @@
         if (!stopAlreadyCalled) {
             stopInternal(true);
         }
-        document.removeEventListener('mouseup',   handleDocumentMouseUp);
-        document.removeEventListener('touchend',  handleDocumentTouchEnd);
-        document.removeEventListener('mousemove', handleMouseMove);
-        document.removeEventListener('touchmove', handleTouchMove);
         document.removeEventListener('keydown',   handleKeyDown);
         dispatch('recordingStateChange', { active: false });
     });
@@ -410,45 +388,18 @@
         }
     }
 
-    // --- Document-level pointer release → complete recording ---
-
-    /**
-     * mouseup anywhere on the document completes pointer-started recordings.
-     * This fires even though the overlay covers the original mic button.
-     * Keyboard-started recordings are owned by Enter / Escape instead.
-     *
-     * Ignored until readyForRelease is true — prevents a queued/bubbled mouseup
-     * from the original press interaction from stopping the recording before the
-     * MediaRecorder has had time to initialise (getUserMedia is async).
-     */
-    function handleDocumentMouseUp(_event: MouseEvent) {
-        if (startedFromKeyboard) return;
-        if (!readyForRelease) {
-            logger.debug('Document mouseup — deferred (not ready for release yet).');
-            pendingReleaseCancel = false; // queue: complete when ready
-            return;
-        }
-        logger.debug('Document mouseup — completing recording.');
-        stopInternal(false); // not cancelled
-    }
-
-    /**
-     * touchend anywhere on the document completes pointer-started recordings on mobile.
-     * Same readyForRelease guard as mouseup.
-     */
-    function handleDocumentTouchEnd(_event: TouchEvent) {
-        if (startedFromKeyboard) return;
-        if (!readyForRelease) {
-            logger.debug('Document touchend — deferred (not ready for release yet).');
-            pendingReleaseCancel = false; // queue: complete when ready
-            return;
-        }
-        logger.debug('Document touchend — completing recording.');
-        stopInternal(false);
-    }
-
-    // --- Escape key → cancel recording ---
+    // --- Keyboard shortcuts ---
     function handleKeyDown(event: KeyboardEvent) {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            if (!readyForRelease) {
+                logger.debug('Enter pressed — deferred finish (not ready yet).');
+                pendingReleaseCancel = false;
+                return;
+            }
+            logger.debug('Enter pressed — finishing recording.');
+            stopInternal(false);
+        }
         if (event.key === 'Escape') {
             event.preventDefault();
             if (!readyForRelease) {
@@ -458,39 +409,6 @@
             }
             logger.debug('Escape pressed — cancelling recording.');
             stopInternal(true); // cancelled
-        }
-    }
-
-    // --- Drag / Cancel Logic ---
-    function handleMouseMove(event: MouseEvent) {
-        if (startedFromKeyboard) return;
-        if (!isRecording || !readyForRelease) return;
-        currentPosition = { x: event.clientX, y: event.clientY };
-        updateDragState();
-    }
-
-    function handleTouchMove(event: TouchEvent) {
-        if (startedFromKeyboard) return;
-        if (!isRecording || !readyForRelease) return;
-        event.preventDefault();
-        if (event.touches.length > 0) {
-            currentPosition = { x: event.touches[0].clientX, y: event.touches[0].clientY };
-            updateDragState();
-        }
-    }
-
-    function updateDragState() {
-        const deltaX = currentPosition.x - startPosition.x;
-        const deltaY = currentPosition.y - startPosition.y;
-        const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-
-        // Only show leftward drag visually
-        dragOffsetX = Math.min(0, deltaX);
-
-        // Cancel when dragged left >100px total distance AND mostly horizontal
-        if (distance > 100 && deltaX < -60) {
-            logger.debug('Recording cancelled by drag.');
-            stopInternal(true);
         }
     }
 
@@ -532,10 +450,13 @@
     transition:fade={{ duration: 150 }}
 >
     <div class="record-content">
-        <!-- Top: pointer and keyboard recordings have different completion gestures. -->
+        <!-- Top: explicit completion/cancellation shortcuts. -->
         <div class="record-header">
             <span class="release-text" data-testid="release-text">
-                {$text(startedFromKeyboard ? 'enter_message.record_audio.press_enter_to_finish' : 'enter_message.record_audio.release_to_finish')}
+                {$text('enter_message.record_audio.recording')}
+            </span>
+            <span class="record-shortcuts" data-testid="record-shortcuts">
+                {$text('enter_message.record_audio.enter_to_finish_escape_to_cancel')}
             </span>
         </div>
 
@@ -552,31 +473,19 @@
         </div>
     </div>
 
-    <!-- Bottom controls: timer | cancel hint | mic circle -->
+    <!-- Bottom controls: timer | explicit actions -->
     <div class="record-controls" data-testid="record-controls">
-        <!-- Red timer pill -->
         <div class="timer-pill" data-testid="timer-pill">
             {formatTime(recordingTime)}
         </div>
 
-        <!-- Pointer/touch starts can drag left; keyboard starts cancel with Escape. -->
-        <div class="cancel-hint" data-testid="cancel-hint" style="opacity: {Math.max(0.3, 1 + dragOffsetX / 80)}">
-            {#if startedFromKeyboard}
-                <span class="cancel-text">{$text('enter_message.record_audio.press_esc_to_cancel')}</span>
-            {:else}
-                <span class="cancel-arrow">‹</span>
-                <span class="cancel-text">{$text('enter_message.record_audio.slide_left_to_cancel')}</span>
-            {/if}
-        </div>
-
-        <!-- Green mic circle follows horizontal drag -->
-        <div
-            class="mic-button"
-            data-testid="mic-button"
-            class:recording={isRecording}
-            style="transform: translateX({Math.max(-120, dragOffsetX)}px)"
-        >
-            <div class="mic-icon icon_recordaudio"></div>
+        <div class="record-action-buttons" data-testid="record-action-buttons">
+            <button type="button" class="record-action-button cancel" data-testid="record-cancel-button" onclick={cancel}>
+                {$text('enter_message.record_audio.cancel')}
+            </button>
+            <button type="button" class="record-action-button finish" data-testid="record-finish-button" onclick={stop}>
+                {$text('enter_message.record_audio.finish')}
+            </button>
         </div>
     </div>
 </div>
@@ -620,13 +529,15 @@
         gap: var(--spacing-4);
     }
 
-    /* "Release to finish" heading */
+    /* Recording heading and keyboard shortcut hint */
     .record-header {
         width: 100%;
         text-align: center;
         display: flex;
+        flex-direction: column;
         align-items: center;
         justify-content: center;
+        gap: var(--spacing-1);
     }
 
     .release-text {
@@ -634,6 +545,12 @@
         font-weight: 700;
         color: white;
         letter-spacing: 0.01em;
+    }
+
+    .record-shortcuts {
+        color: rgba(255, 255, 255, 0.72);
+        font-size: var(--font-size-xs);
+        font-weight: 500;
     }
 
     .recording-waveform {
@@ -669,7 +586,6 @@
         gap: var(--spacing-4);
     }
 
-    /* Red timer pill */
     .timer-pill {
         background-color: #ff4444;
         color: white;
@@ -683,62 +599,45 @@
         letter-spacing: 0.02em;
     }
 
-    /* "Slide left to cancel" hint */
-    .cancel-hint {
+    .record-action-buttons {
         display: flex;
         align-items: center;
-        gap: var(--spacing-2);
-        color: rgba(255, 255, 255, 0.7);
-        font-size: var(--font-size-xs);
-        font-weight: 400;
+        justify-content: flex-end;
+        gap: var(--spacing-3);
         flex: 1;
-        justify-content: center;
-        transition: opacity 0.1s ease-out;
-        user-select: none;
     }
 
-    .cancel-arrow {
-        font-size: var(--font-size-h3-mobile);
-        line-height: 1;
-        color: rgba(255, 255, 255, 0.5);
+    .record-action-button {
+        border: 0;
+        border-radius: var(--radius-8);
+        padding: var(--spacing-4) var(--spacing-8);
+        color: white;
+        font: inherit;
+        font-size: var(--font-size-small);
+        font-weight: 700;
+        cursor: pointer;
     }
 
-    /* Green mic button circle */
-    .mic-button {
-        width: 44px;
-        height: 44px;
-        background-color: #4caf50;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-        transition: transform 0.05s ease-out, background-color 0.15s ease;
-        cursor: grabbing;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
-        will-change: transform;
+    .record-action-button.cancel {
+        background: rgba(255, 255, 255, 0.18);
     }
 
-    .mic-button.recording {
-        background-color: #43a047;
-        animation: mic-pulse 1.8s ease-in-out infinite;
+    .record-action-button.finish {
+        background: white;
+        color: var(--color-primary);
     }
 
-    @keyframes mic-pulse {
-        0%, 100% { box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25); }
-        50%       { box-shadow: 0 2px 16px rgba(76, 175, 80, 0.6), 0 0 0 6px rgba(76, 175, 80, 0.2); }
-    }
+    @media (max-width: 520px) {
+        .record-controls {
+            align-items: stretch;
+        }
 
-    /* Mic icon (mask-based CSS icon, white) */
-    .mic-icon {
-        width: 22px;
-        height: 22px;
-        background-color: white;
-        -webkit-mask-size: contain;
-        mask-size: contain;
-        -webkit-mask-repeat: no-repeat;
-        mask-repeat: no-repeat;
-        -webkit-mask-position: center;
-        mask-position: center;
+        .record-action-buttons {
+            gap: var(--spacing-2);
+        }
+
+        .record-action-button {
+            padding-inline: var(--spacing-6);
+        }
     }
 </style>
