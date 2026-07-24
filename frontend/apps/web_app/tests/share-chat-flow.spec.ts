@@ -39,23 +39,11 @@ const { skipWithoutCredentials } = require('./helpers/env-guard');
 const { docAssert } = require('./helpers/doc-checkpoint');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
-const SHARE_AUTOMATION_RESULT_PREFIX = '[SHARE_CHAT_AUTOMATION_RESULT]';
-
-type ShareAutomationResult = {
-	status: 'passed' | 'failed';
-	chatId: string;
-	url: string;
-	longUrl: string;
-	expirationText: string;
-	hasQr: boolean;
-	error?: string;
-};
 
 async function installShortUrlFallback(page: any): Promise<void> {
-	await page.addInitScript((resultPrefix: string) => {
+	await page.addInitScript(() => {
 		const browserWindow = window as typeof window & {
 			__openmatesShortUrlFallbackInstalled?: boolean;
-			__openmatesShareAutomationInstalled?: boolean;
 		};
 		if (browserWindow.__openmatesShortUrlFallbackInstalled) return;
 		const originalFetch = window.fetch.bind(window);
@@ -72,102 +60,6 @@ async function installShortUrlFallback(page: any): Promise<void> {
 			}
 			return originalFetch(input, init);
 		};
-
-		if (browserWindow.__openmatesShareAutomationInstalled) return;
-		browserWindow.__openmatesShareAutomationInstalled = true;
-		const automationState = {
-			generateClicked: false,
-			qrClicked: false,
-			urlClicked: false,
-			reported: false,
-			startedAt: 0
-		};
-		const report = (result: ShareAutomationResult) => {
-			if (automationState.reported) return;
-			automationState.reported = true;
-			console.info(`${resultPrefix}${JSON.stringify(result)}`);
-		};
-		const clickIfReady = (selector: string): boolean => {
-			const button = document.querySelector<HTMLButtonElement>(selector);
-			if (!button || button.disabled) return false;
-			button.click();
-			return true;
-		};
-		const driveSharePanel = () => {
-			if (automationState.reported) return;
-			const generatedSection = document.querySelector('[data-testid="share-short-link-section"]');
-			if (!automationState.generateClicked && !generatedSection) {
-				if (clickIfReady('[data-testid="share-generate-link"]')) {
-					automationState.generateClicked = true;
-					automationState.startedAt = Date.now();
-				}
-			}
-			if (automationState.generateClicked && !generatedSection && Date.now() - automationState.startedAt > 60000) {
-				report({
-					status: 'failed',
-					chatId: new URLSearchParams(window.location.hash.replace(/^#/, '')).get('chat-id') ?? '',
-					url: '',
-					longUrl: '',
-					expirationText: '',
-					hasQr: false,
-					error: 'Share generation did not complete within 60 seconds.'
-				});
-			}
-			if (!generatedSection) return;
-			if (!automationState.qrClicked && !document.querySelector('[data-testid="chat-settings-share-qr"]')) {
-				automationState.qrClicked = clickIfReady('[data-testid="chat-settings-share-show-qr"]');
-			}
-			if (!automationState.urlClicked && !document.querySelector('[data-share-url-kind="long"]')) {
-				automationState.urlClicked = clickIfReady('[data-testid="chat-settings-share-show-url"]');
-			}
-			const url = document.querySelector('[data-testid="share-short-link-url"]')?.textContent?.trim() ?? '';
-			const longUrl = document.querySelector('[data-share-url-kind="long"]')?.textContent?.trim() ?? '';
-			const expirationText = document.querySelector('[data-testid="chat-settings-share-generated"]')?.textContent?.trim() ?? '';
-			const hasQr = Boolean(document.querySelector('[data-testid="chat-settings-share-qr"] img'));
-			const chatId = window.location.hash.match(/chat-id=([a-zA-Z0-9-]+)/)?.[1] ?? '';
-			if (url && longUrl && hasQr && /Auto expire in\s+never/i.test(expirationText)) {
-				report({ status: 'passed', chatId, url, longUrl, expirationText, hasQr });
-			}
-		};
-		const observeWhenReady = () => {
-			if (!document.documentElement) {
-				window.requestAnimationFrame(observeWhenReady);
-				return;
-			}
-			new MutationObserver(driveSharePanel).observe(document.documentElement, {
-				attributes: true,
-				childList: true,
-				subtree: true
-			});
-		};
-		observeWhenReady();
-		window.setInterval(driveSharePanel, 250);
-	}, SHARE_AUTOMATION_RESULT_PREFIX);
-}
-
-function waitForShareAutomationResult(page: any, expectedChatId: string): Promise<ShareAutomationResult> {
-	return new Promise((resolve, reject) => {
-		const timeout = setTimeout(() => {
-			page.off('console', handleConsoleMessage);
-			reject(new Error('Timed out waiting for chat share automation result.'));
-		}, 90000);
-		const handleConsoleMessage = (msg: any) => {
-			const text = msg.text();
-			if (!text.startsWith(SHARE_AUTOMATION_RESULT_PREFIX)) return;
-			clearTimeout(timeout);
-			page.off('console', handleConsoleMessage);
-			const result = JSON.parse(text.slice(SHARE_AUTOMATION_RESULT_PREFIX.length)) as ShareAutomationResult;
-			if (result.status !== 'passed') {
-				reject(new Error(result.error ?? 'Chat share automation failed.'));
-				return;
-			}
-			if (result.chatId !== expectedChatId) {
-				reject(new Error(`Share automation used chat ${result.chatId}, expected ${expectedChatId}.`));
-				return;
-			}
-			resolve(result);
-		};
-		page.on('console', handleConsoleMessage);
 	});
 }
 
@@ -222,7 +114,6 @@ test('creates and shares a chat link with QR code and fallback link', async ({
 	logCheckpoint('Assistant response received and image-search embed is finished.');
 
 	saveWarnErrorLogs('share-chat', 'after_response');
-	const shareAutomationResult = waitForShareAutomationResult(page, activeChatId);
 
 	// ── Step 5: Click share button in chat header ─────────────────────────
 	const shareButton = page.locator('[data-testid="chat-share-button"]');
@@ -235,11 +126,25 @@ test('creates and shares a chat link with QR code and fallback link', async ({
 	});
 	logCheckpoint('Clicked chat share button.');
 
-	const result = await shareAutomationResult;
-	expect(result.url).toContain(`/share/chat/${activeChatId}#key=`);
-	expect(result.longUrl).toContain(`/share/chat/${activeChatId}#key=`);
-	expect(result.hasQr).toBe(true);
-	expect(result.expirationText).toMatch(/Auto expire in\s+never/i);
+	await docAssert('share-link-generates-with-fallback-url', async () => {
+		const generateButton = page.getByTestId('share-generate-link');
+		await expect(generateButton).toBeVisible({ timeout: 10000 });
+		await generateButton.dispatchEvent('click');
+		await expect(page.getByTestId('share-short-link-section')).toBeVisible({ timeout: 90000 });
+	});
+
+	const url = (await page.getByTestId('share-short-link-url').textContent())?.trim() ?? '';
+	await page.getByTestId('chat-settings-share-show-qr').dispatchEvent('click');
+	await expect(page.locator('[data-testid="chat-settings-share-qr"] img')).toBeVisible({ timeout: 10000 });
+	await page.getByTestId('chat-settings-share-show-url').dispatchEvent('click');
+	const longUrlBox = page.locator('[data-share-url-kind="long"]');
+	await expect(longUrlBox).toBeVisible({ timeout: 10000 });
+	const longUrl = (await longUrlBox.textContent())?.trim() ?? '';
+	const expirationText = (await page.getByTestId('chat-settings-share-generated').textContent())?.trim() ?? '';
+
+	expect(url).toContain(`/share/chat/${activeChatId}#key=`);
+	expect(longUrl).toContain(`/share/chat/${activeChatId}#key=`);
+	expect(expirationText).toMatch(/Auto expire in\s+never/i);
 	logCheckpoint('Generated chat share link, QR code, and revealed URL verified in browser automation.');
 
 	logCheckpoint('Share chat flow test completed successfully.');
