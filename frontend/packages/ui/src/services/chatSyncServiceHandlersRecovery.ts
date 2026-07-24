@@ -16,6 +16,7 @@ import { chatDB } from "./db";
 import { chatKeyManager } from "./encryption/ChatKeyManager";
 import { ensureChatKeySafeForWrite } from "./chatKeyWriteGuard";
 import { webSocketService } from "./websocketService";
+import { aiTypingStore } from "../stores/aiTypingStore";
 import { notificationStore } from "../stores/notificationStore";
 import { unreadMessagesStore } from "../stores/unreadMessagesStore";
 import { isChatVisiblyActive } from "./chatNotificationVisibility";
@@ -365,6 +366,11 @@ export async function handleRecoveryJobsAvailableImpl(
         updated_at: now,
       };
       await chatDB.updateChat(updatedChat);
+      const taskInfo = serviceInstance.activeAITasks?.get(job.chat_id);
+      if (taskInfo && taskInfo.taskId === job.assistant_message_id) {
+        serviceInstance.activeAITasks?.delete(job.chat_id);
+      }
+      aiTypingStore.clearTyping(job.chat_id, job.assistant_message_id);
       if (!isChatVisiblyActive(job.chat_id) && !updatedChat.is_sub_chat && !updatedChat.parent_id) {
         unreadMessagesStore.incrementUnread(job.chat_id);
         notificationStore.chatMessage(
@@ -383,6 +389,15 @@ export async function handleRecoveryJobsAvailableImpl(
             newMessage: aiMessage,
             type: "recovery_job_persisted",
             messagesUpdated: true,
+          },
+        }),
+      );
+      serviceInstance.dispatchEvent(
+        new CustomEvent("aiTaskEnded", {
+          detail: {
+            chatId: job.chat_id,
+            taskId: job.assistant_message_id,
+            status: "completed",
           },
         }),
       );

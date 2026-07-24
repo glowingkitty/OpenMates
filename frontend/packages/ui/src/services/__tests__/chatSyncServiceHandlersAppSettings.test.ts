@@ -30,6 +30,7 @@ const mocks = vi.hoisted(() => ({
     incrementUnread: vi.fn(),
   },
   aiTypingStore: {
+    clearTyping: vi.fn(),
     clearTypingForChat: vi.fn(),
   },
   ensureChatKeySafeForWrite: vi.fn(),

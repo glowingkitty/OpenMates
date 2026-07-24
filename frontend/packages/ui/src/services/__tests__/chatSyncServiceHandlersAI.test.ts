@@ -223,12 +223,9 @@ describe("handleAIBackgroundResponseCompletedImpl", () => {
     });
 
     expect(service.sendCompletedAIResponse).not.toHaveBeenCalled();
-    expect(activeAITasks.has("chat-1")).toBe(false);
-    expect(mockAiTypingStore.clearTyping).toHaveBeenCalledWith(
-      "chat-1",
-      "assistant-1",
-    );
-    expect(service.dispatchEvent).toHaveBeenCalledWith(
+    expect(activeAITasks.has("chat-1")).toBe(true);
+    expect(mockAiTypingStore.clearTyping).not.toHaveBeenCalled();
+    expect(service.dispatchEvent).not.toHaveBeenCalledWith(
       expect.objectContaining({ type: "aiTaskEnded" }),
     );
   });
