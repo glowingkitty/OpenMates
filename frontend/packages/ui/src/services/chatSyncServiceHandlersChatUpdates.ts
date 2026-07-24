@@ -1256,7 +1256,7 @@ export async function handleChatMessageConfirmedImpl(
         payload.new_messages_v !== undefined &&
         payload.new_messages_v !== null
       ) {
-        chat.messages_v = payload.new_messages_v;
+        chat.messages_v = Math.max(chat.messages_v || 0, payload.new_messages_v);
       }
       if (
         payload.new_last_edited_overall_timestamp !== undefined &&
