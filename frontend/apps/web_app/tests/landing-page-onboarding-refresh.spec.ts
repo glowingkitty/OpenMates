@@ -33,6 +33,10 @@ async function waitForLandingIntroExamples(page: any): Promise<void> {
 async function landingIntroLayoutMetrics(page: any): Promise<{
 	activeSideGap: number;
 	activeBottomGap: number;
+	bannerActiveTopDelta: number;
+	bannerActiveLeftDelta: number;
+	bannerActiveRightDelta: number;
+	bannerActiveBottomDelta: number;
 	aiIconWidth: number;
 	headlineTextAlign: string;
 	headlineCenterDelta: number;
@@ -72,6 +76,10 @@ async function landingIntroLayoutMetrics(page: any): Promise<{
 		return {
 			activeSideGap: Math.min(activeRect.left, window.innerWidth - activeRect.right),
 			activeBottomGap: window.innerHeight - activeRect.bottom,
+			bannerActiveTopDelta: Math.abs(bannerRect.top - activeRect.top),
+			bannerActiveLeftDelta: Math.abs(bannerRect.left - activeRect.left),
+			bannerActiveRightDelta: Math.abs(bannerRect.right - activeRect.right),
+			bannerActiveBottomDelta: Math.abs(bannerRect.bottom - activeRect.bottom),
 			aiIconWidth: aiIconRect.width,
 			headlineTextAlign: getComputedStyle(headline).textAlign,
 			headlineCenterDelta: Math.abs(headlineCenter - bannerCenter),
@@ -100,6 +108,44 @@ async function landingIntroLayoutMetrics(page: any): Promise<{
 	});
 }
 
+async function landingIntroOverlayMetrics(page: any): Promise<{
+	phase: string | null;
+	activeHeight: number;
+	bannerHeight: number;
+	bannerActiveTopDelta: number;
+	bannerActiveLeftDelta: number;
+	bannerActiveRightDelta: number;
+	bannerActiveBottomDelta: number;
+	messageInputOpacity: number;
+	welcomeContentOpacity: number;
+	messageInputExists: boolean;
+}> {
+	return page.evaluate(() => {
+		const active = document.querySelector<HTMLElement>('[data-testid="active-chat-container"]');
+		const banner = document.querySelector<HTMLElement>('[data-testid="daily-inspiration-banner"]');
+		const messageInput = document.querySelector<HTMLElement>('[data-testid="message-input-wrapper"]');
+		const welcomeContent = document.querySelector<HTMLElement>('[data-testid="welcome-content"]');
+		if (!active || !banner || !messageInput || !welcomeContent) {
+			throw new Error('Landing intro overlay elements missing');
+		}
+
+		const activeRect = active.getBoundingClientRect();
+		const bannerRect = banner.getBoundingClientRect();
+		return {
+			phase: banner.getAttribute('data-landing-intro-phase'),
+			activeHeight: activeRect.height,
+			bannerHeight: bannerRect.height,
+			bannerActiveTopDelta: Math.abs(bannerRect.top - activeRect.top),
+			bannerActiveLeftDelta: Math.abs(bannerRect.left - activeRect.left),
+			bannerActiveRightDelta: Math.abs(bannerRect.right - activeRect.right),
+			bannerActiveBottomDelta: Math.abs(bannerRect.bottom - activeRect.bottom),
+			messageInputOpacity: Number.parseFloat(getComputedStyle(messageInput).opacity),
+			welcomeContentOpacity: Number.parseFloat(getComputedStyle(welcomeContent).opacity),
+			messageInputExists: true
+		};
+	});
+}
+
 test.describe('Landing page onboarding refresh', () => {
 	test('expanded intro fits all target device viewports', async ({ page }: { page: any }) => {
 		test.setTimeout(120000);
@@ -113,6 +159,10 @@ test.describe('Landing page onboarding refresh', () => {
 			const metrics = await landingIntroLayoutMetrics(page);
 			expect(metrics.activeBottomGap, `${viewport.name}: bottom gap should match side gap`).toBeLessThanOrEqual(metrics.activeSideGap + 3);
 			expect(metrics.activeBottomGap, `${viewport.name}: bottom gap should not collapse`).toBeGreaterThanOrEqual(Math.max(0, metrics.activeSideGap - 3));
+			expect(metrics.bannerActiveTopDelta, `${viewport.name}: expanded banner must cover active chat top`).toBeLessThanOrEqual(2);
+			expect(metrics.bannerActiveLeftDelta, `${viewport.name}: expanded banner must cover active chat left`).toBeLessThanOrEqual(2);
+			expect(metrics.bannerActiveRightDelta, `${viewport.name}: expanded banner must cover active chat right`).toBeLessThanOrEqual(2);
+			expect(metrics.bannerActiveBottomDelta, `${viewport.name}: expanded banner must cover active chat bottom`).toBeLessThanOrEqual(2);
 			expect(metrics.aiIconWidth, `${viewport.name}: AI icon is too small`).toBeGreaterThanOrEqual(viewport.minAiIconWidth);
 			expect(metrics.headlineTextAlign, `${viewport.name}: headline should be center aligned`).toBe('center');
 			expect(metrics.headlineCenterDelta, `${viewport.name}: headline should be centered in banner`).toBeLessThanOrEqual(3);
@@ -131,6 +181,48 @@ test.describe('Landing page onboarding refresh', () => {
 				expect(row.bottomGap, `${viewport.name}: app row is below the banner`).toBeGreaterThanOrEqual(0);
 			}
 		}
+	});
+
+	test('expanded intro overlays active chat content and reverses when returning to slide one', async ({ page }: { page: any }) => {
+		test.setTimeout(60000);
+		await page.setViewportSize({ width: 1280, height: 800 });
+
+		await page.goto(getE2EDebugUrl('/?landing-overlay-contract'), { waitUntil: 'domcontentloaded' });
+		await page.waitForLoadState('networkidle');
+		await waitForLandingIntroExamples(page);
+
+		const expanded = await landingIntroOverlayMetrics(page);
+		expect(expanded.phase).toBe('expanded');
+		expect(expanded.messageInputExists, 'message input stays mounted under the overlay').toBe(true);
+		expect(expanded.bannerActiveTopDelta, 'expanded intro covers active chat top').toBeLessThanOrEqual(2);
+		expect(expanded.bannerActiveLeftDelta, 'expanded intro covers active chat left').toBeLessThanOrEqual(2);
+		expect(expanded.bannerActiveRightDelta, 'expanded intro covers active chat right').toBeLessThanOrEqual(2);
+		expect(expanded.bannerActiveBottomDelta, 'expanded intro covers active chat bottom').toBeLessThanOrEqual(2);
+		expect(expanded.messageInputOpacity, 'message input is transparent while covered').toBeLessThanOrEqual(0.05);
+		expect(expanded.welcomeContentOpacity, 'welcome content is transparent while covered').toBeLessThanOrEqual(0.05);
+
+		await page.getByTestId('daily-inspiration-next').click();
+		await expect.poll(async () => (await landingIntroOverlayMetrics(page)).phase, { timeout: 2000 }).toBe('collapsing');
+		await expect.poll(async () => (await landingIntroOverlayMetrics(page)).messageInputOpacity, { timeout: 1500 }).toBeGreaterThan(0.2);
+		const collapsing = await landingIntroOverlayMetrics(page);
+		expect(collapsing.messageInputOpacity, 'message input fades in while intro shrinks').toBeGreaterThan(0.2);
+		expect(collapsing.welcomeContentOpacity, 'welcome content fades in while intro shrinks').toBeGreaterThan(0.2);
+
+		await expect(page.getByTestId('landing-intro-expanded')).toHaveCount(0, { timeout: 5000 });
+		await expect(page.getByTestId('daily-inspiration-phrase')).toContainText('Actionable', { timeout: 5000 });
+		const regular = await landingIntroOverlayMetrics(page);
+		expect(regular.phase).toBe('regular');
+		expect(regular.bannerHeight, 'regular daily inspiration is smaller than the active chat').toBeLessThan(regular.activeHeight * 0.55);
+		expect(regular.messageInputOpacity, 'message input is visible after collapse').toBeGreaterThanOrEqual(0.95);
+		expect(regular.welcomeContentOpacity, 'welcome content is visible after collapse').toBeGreaterThanOrEqual(0.95);
+
+		await page.getByTestId('daily-inspiration-previous').click();
+		await expect(page.getByTestId('landing-intro-expanded')).toBeVisible({ timeout: 5000 });
+		await expect.poll(async () => (await landingIntroOverlayMetrics(page)).phase, { timeout: 5000 }).toBe('expanded');
+		const restored = await landingIntroOverlayMetrics(page);
+		expect(restored.bannerActiveBottomDelta, 'returning to slide one expands over active chat bottom').toBeLessThanOrEqual(2);
+		expect(restored.messageInputOpacity, 'message input fades out when slide one expands again').toBeLessThanOrEqual(0.05);
+		expect(restored.welcomeContentOpacity, 'welcome content fades out when slide one expands again').toBeLessThanOrEqual(0.05);
 	});
 
 	test('settings panel keeps active chat fixed inside the viewport', async ({ page }: { page: any }) => {

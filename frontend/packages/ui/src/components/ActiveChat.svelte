@@ -5243,7 +5243,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     let selectedGuestInterestTagIds = $state<InterestTagId[]>([]);
     let guestInterestContinueConfirmed = $state(false);
     let guestInterestSelectorVisible = $state(true);
-    let guestLandingIntroExpanded = $state(false);
+    type LandingIntroPhase = 'regular' | 'expanded' | 'collapsing' | 'expanding';
+    let guestLandingIntroPhase = $state<LandingIntroPhase>('regular');
+    let guestLandingIntroOverlayActive = $derived(guestLandingIntroPhase !== 'regular');
+    let guestLandingIntroContentCovered = $derived(
+        guestLandingIntroPhase === 'expanded' || guestLandingIntroPhase === 'expanding'
+    );
     let guestInterestShuffleToken = $state(0);
     let lastGuestInspirationShuffleId = $state('');
     let lastGuestPersonalizationKey = '';
@@ -5313,8 +5318,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         guestInterestShuffleToken += 1;
     }
 
-    function handleLandingIntroExpandedChange(expanded: boolean) {
-        guestLandingIntroExpanded = expanded;
+    function handleLandingIntroExpandedChange(phase: LandingIntroPhase) {
+        guestLandingIntroPhase = phase;
     }
 
     $effect(() => {
@@ -11817,7 +11822,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     class:wide={isWide && !showSideBySideLayout}
     class:extra-wide={isExtraWide}
     class:side-by-side-active={showSideBySideLayout}
-    class:landing-intro-active={showWelcome && guestLandingIntroExpanded}
+    class:landing-intro-active={showWelcome && guestLandingIntroOverlayActive}
     bind:clientWidth={containerWidth}
     bind:this={activeChatContainerEl}
 >
@@ -11857,7 +11862,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 class:side-by-side-exiting={sideBySideAnimating && sideBySideAnimationDirection === 'exit'}
                 class:side-by-side-minimizing={sideBySideAnimating && sideBySideAnimationDirection === 'minimize'}
                 class:side-by-side-restoring={sideBySideAnimating && sideBySideAnimationDirection === 'restore'}
-                class:landing-intro-welcome-active={showWelcome && guestLandingIntroExpanded}
+                class:landing-intro-overlay-active={showWelcome && guestLandingIntroOverlayActive}
+                class:landing-intro-content-covered={showWelcome && guestLandingIntroContentCovered}
             >
                 <!-- 404 Not-Found screen: shown exclusively when the user landed on an unknown URL.
                      Replaces both chat-side and message-input-wrapper entirely. -->
@@ -11876,7 +11882,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         <div
                             class="daily-inspiration-area"
                             class:welcome-hiding={hideWelcomeForKeyboard}
+                            class:landing-intro-overlay-active={guestLandingIntroOverlayActive}
                             inert={hideWelcomeForKeyboard}
+                            data-testid="daily-inspiration-area"
                         >
                             <DailyInspirationBanner
                                 onStartChat={handleStartChatFromInspiration}
@@ -12018,6 +12026,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     {#if showWelcome}
                         <div
                             class="center-content"
+                            data-testid="welcome-content"
                             class:guest-welcome-content={!$authStore.isAuthenticated}
                             class:welcome-hiding={hideWelcomeForKeyboard}
                             inert={hideWelcomeForKeyboard}
@@ -12664,7 +12673,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 </div>
 
                 <!-- Right side container for message input -->
-                <div class="message-input-wrapper">
+                <div class="message-input-wrapper" data-testid="message-input-wrapper">
                     {#if typingIndicatorLines.length > 0}
                         <div
                             class="typing-indicator"
@@ -14669,11 +14678,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         width: 100%;
     }
 
-    .chat-wrapper.landing-intro-welcome-active .message-input-wrapper {
-        display: none;
-    }
-    
-
     .chat-wrapper.fullscreen .message-input-wrapper { /* Changed from .message-input-container */
         width: 35%;
         min-width: 400px;
@@ -14806,6 +14810,34 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         flex-direction: column;
         height: 100%;
         transition: all var(--duration-slow) var(--easing-default);
+    }
+
+    .chat-wrapper.landing-intro-overlay-active {
+        overflow: hidden;
+    }
+
+    .chat-wrapper.landing-intro-overlay-active .chat-side {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        overflow: visible;
+    }
+
+    .chat-wrapper.landing-intro-overlay-active .daily-inspiration-area.landing-intro-overlay-active {
+        position: absolute;
+        inset: 0;
+        z-index: var(--z-index-dropdown-1);
+        height: 100%;
+        padding: 0;
+    }
+
+    .chat-wrapper.landing-intro-overlay-active .message-input-wrapper {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: var(--z-index-raised);
     }
 
     /* 
@@ -14949,12 +14981,22 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         box-sizing: border-box;
     }
 
-    .chat-wrapper.landing-intro-welcome-active .top-buttons,
-    .chat-wrapper.landing-intro-welcome-active .center-content,
-    .chat-wrapper.landing-intro-welcome-active .guest-interest-tags-overlay {
+    .chat-wrapper.landing-intro-overlay-active .top-buttons,
+    .chat-wrapper.landing-intro-overlay-active .center-content,
+    .chat-wrapper.landing-intro-overlay-active .guest-interest-tags-overlay,
+    .chat-wrapper.landing-intro-overlay-active .message-input-wrapper {
+        transition:
+            opacity 760ms cubic-bezier(0.22, 1, 0.36, 1),
+            visibility 0s 0s;
+    }
+
+    .chat-wrapper.landing-intro-content-covered .top-buttons,
+    .chat-wrapper.landing-intro-content-covered .center-content,
+    .chat-wrapper.landing-intro-content-covered .guest-interest-tags-overlay,
+    .chat-wrapper.landing-intro-content-covered .message-input-wrapper {
         opacity: 0;
         pointer-events: none;
-        visibility: hidden;
+        visibility: visible;
     }
 
     /* Adjust top-buttons position on small screens (absolute mode only) */

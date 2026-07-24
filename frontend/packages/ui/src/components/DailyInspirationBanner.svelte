@@ -60,6 +60,7 @@
   const LANDING_INTRO_HEADLINE_ONLY_MS = 1200;
   const LANDING_INTRO_REQUEST_INTERVAL_MS = 2100;
   const LANDING_INTRO_TOTAL_MS = LANDING_INTRO_HEADLINE_ONLY_MS + (LANDING_INTRO_REQUEST_INTERVAL_MS * LANDING_INTRO_REQUESTS_COUNT) + 700;
+  const LANDING_INTRO_RESIZE_TRANSITION_MS = 760;
   const TOUCH_SWIPE_DISTANCE_PX = 56;
   const TOUCH_SWIPE_VERTICAL_CANCEL_PX = 48;
   const LANDING_INTRO_INSPIRATION_ID = 'openmates-intro';
@@ -93,6 +94,8 @@
     iconName: string;
   }
 
+  type LandingIntroPhase = 'regular' | 'expanded' | 'collapsing' | 'expanding';
+
   // ─── Component props ────────────────────────────────────────────────────────
 
   interface Props {
@@ -117,8 +120,8 @@
     variant?: 'default' | 'guest-intro';
     /** Called when the visible inspiration changes, including manual and automatic carousel moves. */
     onVisibleInspirationChange?: (inspiration: DailyInspiration) => void;
-    /** Called while the logged-out intro owns the full welcome surface. */
-    onLandingIntroExpandedChange?: (expanded: boolean) => void;
+    /** Called while the logged-out intro overlay changes size over the welcome surface. */
+    onLandingIntroExpandedChange?: (phase: LandingIntroPhase) => void;
   }
 
   let { onStartChat, onEmbedFullscreen, containerWidth = 0, surface = 'chats', variant = 'default', onVisibleInspirationChange, onLandingIntroExpandedChange }: Props = $props();
@@ -158,9 +161,12 @@
   let directVideoFullscreenOpen = $state(false);
   let progressRestartToken = $state(0);
   let lastNotifiedInspirationId = $state('');
-  let lastNotifiedLandingIntroExpanded = $state(false);
+  let lastNotifiedLandingIntroPhase = $state<LandingIntroPhase>('regular');
   let landingIntroDismissed = $state(false);
+  let landingIntroPhase = $state<LandingIntroPhase>('expanded');
   let landingIntroRequestIndex = $state(-1);
+  let landingIntroTransitionTimeout: number | undefined;
+  let landingIntroAnimationFrame: number | undefined;
   // Temporarily disabled with the visit-cycling effect below.
   // let visitCycleTargetIndexes = $state(new Map<string, number>());
   // let visitCycleAppliedInspirations = $state<DailyInspiration[] | null>(null);
@@ -221,9 +227,9 @@
   onDestroy(() => {
     unsubscribeDailyInspirations();
     unsubscribeAuth();
-    if (lastNotifiedLandingIntroExpanded) {
-      onLandingIntroExpandedChange?.(false);
-    }
+    onLandingIntroExpandedChange?.('regular');
+    window.clearTimeout(landingIntroTransitionTimeout);
+    window.cancelAnimationFrame(landingIntroAnimationFrame ?? 0);
   });
 
   // ─── Reload inspirations on language change ─────────────────────────────────
@@ -350,10 +356,18 @@
     return visibleInspirations[currentIndex % visibleInspirations.length] ?? null;
   });
 
-  let landingIntroShouldExpand = $derived(
-    isGuestIntroVariant && current?.inspiration_id === LANDING_INTRO_INSPIRATION_ID && !landingIntroDismissed,
+  let landingIntroIsCurrentSlide = $derived(
+    isGuestIntroVariant && current?.inspiration_id === LANDING_INTRO_INSPIRATION_ID,
   );
-
+  let landingIntroOverlayActive = $derived(
+    landingIntroIsCurrentSlide && !landingIntroDismissed && landingIntroPhase !== 'regular',
+  );
+  let landingIntroUsesFullHeight = $derived(
+    landingIntroOverlayActive && landingIntroPhase === 'expanded',
+  );
+  let landingIntroParentPhase = $derived(
+    landingIntroOverlayActive ? landingIntroPhase : 'regular',
+  );
   let landingIntroActiveRequest = $derived(
     LANDING_INTRO_REQUESTS[landingIntroRequestIndex] ?? LANDING_INTRO_REQUESTS[0],
   );
@@ -362,7 +376,7 @@
   let landingIntroRequestLabel = $derived(landingIntroExamplesVisible ? $text(landingIntroActiveRequest.labelKey) : '');
   let landingIntroActiveAppId = $derived(landingIntroActiveRequest.appId);
   let isGuestActionableSlide = $derived(
-    isGuestIntroVariant && !landingIntroShouldExpand && current?.inspiration_id === LANDING_ACTIONABLE_EVENTS_ID,
+    isGuestIntroVariant && !landingIntroOverlayActive && current?.inspiration_id === LANDING_ACTIONABLE_EVENTS_ID,
   );
   let guestFeatureHeadlineLines = $derived.by(() => {
     if (isGuestActionableSlide) {
@@ -380,13 +394,13 @@
   let landingIntroFirstRail = $derived.by(() => repeatLandingIntroRailIcons(landingIntroFirstRailBase));
   let landingIntroSecondRail = $derived.by(() => repeatLandingIntroRailIcons(landingIntroSecondRailBase));
   let carouselProgressDurationMs = $derived(
-    landingIntroShouldExpand ? LANDING_INTRO_TOTAL_MS : INSPIRATION_AUTO_ROTATION_INTERVAL_MS,
+    landingIntroOverlayActive ? LANDING_INTRO_TOTAL_MS : INSPIRATION_AUTO_ROTATION_INTERVAL_MS,
   );
 
   $effect(() => {
-    if (landingIntroShouldExpand === lastNotifiedLandingIntroExpanded) return;
-    lastNotifiedLandingIntroExpanded = landingIntroShouldExpand;
-    onLandingIntroExpandedChange?.(landingIntroShouldExpand);
+    if (landingIntroParentPhase === lastNotifiedLandingIntroPhase) return;
+    lastNotifiedLandingIntroPhase = landingIntroParentPhase;
+    onLandingIntroExpandedChange?.(landingIntroParentPhase);
   });
 
   $effect(() => {
@@ -400,7 +414,7 @@
   });
 
   $effect(() => {
-    if (!landingIntroShouldExpand) {
+    if (!landingIntroOverlayActive || landingIntroPhase !== 'expanded') {
       landingIntroRequestIndex = -1;
       return;
     }
@@ -589,7 +603,7 @@
   function handlePrevious(e: MouseEvent) {
     e.stopPropagation();
     e.preventDefault();
-    if (landingIntroShouldExpand) {
+    if (landingIntroOverlayActive) {
       completeLandingIntro(-1);
       return;
     }
@@ -606,7 +620,7 @@
   function handleNext(e: MouseEvent) {
     e.stopPropagation();
     e.preventDefault();
-    if (landingIntroShouldExpand) {
+    if (landingIntroOverlayActive) {
       completeLandingIntro(1);
       return;
     }
@@ -648,14 +662,14 @@
     markManualNavigation();
 
     if (deltaX < 0) {
-      if (landingIntroShouldExpand) {
+      if (landingIntroOverlayActive) {
         completeLandingIntro(1);
         return;
       }
       resumeAutoRotation();
       goToVisibleIndex(currentIndex + 1);
     } else {
-      if (landingIntroShouldExpand) {
+      if (landingIntroOverlayActive) {
         completeLandingIntro(-1);
         return;
       }
@@ -701,7 +715,7 @@
       return;
     }
 
-    if (landingIntroShouldExpand) {
+    if (landingIntroOverlayActive) {
       e.stopPropagation();
       e.preventDefault();
       completeLandingIntro(1);
@@ -738,7 +752,7 @@
 
   function handleProgressAnimationEnd(e: AnimationEvent) {
     if (e.target !== e.currentTarget) return;
-    if (landingIntroShouldExpand) {
+    if (landingIntroOverlayActive) {
       completeLandingIntro(1);
       return;
     }
@@ -820,12 +834,19 @@
   }
 
   function completeLandingIntro(direction: 1 | -1): void {
-    landingIntroDismissed = true;
+    if (!landingIntroOverlayActive || landingIntroPhase === 'collapsing') return;
+    window.clearTimeout(landingIntroTransitionTimeout);
+    window.cancelAnimationFrame(landingIntroAnimationFrame ?? 0);
+    landingIntroPhase = 'collapsing';
     landingIntroRequestIndex = -1;
     markManualNavigation();
     resumeAutoRotation();
-    goToVisibleIndex(currentIndex + direction);
-    restartProgressAnimation();
+    landingIntroTransitionTimeout = window.setTimeout(() => {
+      landingIntroDismissed = true;
+      landingIntroPhase = 'regular';
+      goToVisibleIndex(currentIndex + direction);
+      restartProgressAnimation();
+    }, LANDING_INTRO_RESIZE_TRANSITION_MS);
   }
 
   function buildLandingIntroAppIcons(): LandingIntroAppIcon[] {
@@ -910,8 +931,14 @@
     }
     const resolvedIndex = (nextIndex + visibleInspirations.length) % visibleInspirations.length;
     if (options.restoreLandingIntro && visibleInspirations[resolvedIndex]?.inspiration_id === LANDING_INTRO_INSPIRATION_ID) {
+      window.clearTimeout(landingIntroTransitionTimeout);
+      window.cancelAnimationFrame(landingIntroAnimationFrame ?? 0);
       landingIntroDismissed = false;
       landingIntroRequestIndex = -1;
+      landingIntroPhase = 'expanding';
+      landingIntroAnimationFrame = window.requestAnimationFrame(() => {
+        landingIntroPhase = 'expanded';
+      });
     }
     currentIndex = resolvedIndex;
   }
@@ -989,7 +1016,12 @@
   <!-- Outer wrapper for fade-in animation and full-width layout.
        bind:this lets the IntersectionObserver target this element to detect
        when the banner enters the viewport for passive view tracking. -->
-  <div class="daily-inspiration-wrapper" class:crossfading={isCrossfading} bind:this={bannerWrapperEl}>
+  <div
+    class="daily-inspiration-wrapper"
+    class:crossfading={isCrossfading}
+    class:landing-intro-overlay-active={landingIntroOverlayActive}
+    bind:this={bannerWrapperEl}
+  >
 
     <!--
       Banner card: div[role=button] avoids nested-button HTML validation errors
@@ -999,7 +1031,11 @@
       <div
         class="daily-inspiration-banner"
       class:guest-intro-variant={isGuestIntroVariant}
-      class:landing-intro-expanded={landingIntroShouldExpand}
+      class:landing-intro-overlay-active={landingIntroOverlayActive}
+      class:landing-intro-expanded={landingIntroUsesFullHeight}
+      class:landing-intro-collapsing={landingIntroPhase === 'collapsing'}
+      class:landing-intro-expanding={landingIntroPhase === 'expanding'}
+      data-landing-intro-phase={landingIntroParentPhase}
       data-testid="daily-inspiration-banner"
       style={gradientStyle}
       onclick={handleStartChat}
@@ -1050,12 +1086,12 @@
         <!-- ── Main content row: left (mate + text + CTA) + right (embed) ── -->
         <div
           class="banner-content"
-          class:mobile-card-loop={shouldCycleMobileCard && !landingIntroShouldExpand}
-          class:show-mobile-card={shouldCycleMobileCard && !landingIntroShouldExpand && showMobileCard}
+          class:mobile-card-loop={shouldCycleMobileCard && !landingIntroOverlayActive}
+          class:show-mobile-card={shouldCycleMobileCard && !landingIntroOverlayActive && showMobileCard}
         >
 
           {#if isGuestIntroVariant}
-            {#if landingIntroShouldExpand}
+            {#if landingIntroOverlayActive}
               <div
                 class="landing-intro-expanded-content"
                 class:examples-visible={landingIntroExamplesVisible}
@@ -1164,7 +1200,7 @@
                Click on this area opens the video fullscreen, NOT a new chat.
                We wrap with a transparent overlay button to capture clicks cleanly
                and prevent the banner's onclick from firing. -->
-          {#if isGuestIntroVariant && landingIntroShouldExpand}
+          {#if isGuestIntroVariant && landingIntroOverlayActive}
             <!-- The expanded intro owns the full banner; no side preview is rendered. -->
           {:else if isGuestIntroVariant && isGuestActionableSlide}
             <LandingActionableEventDemo />
@@ -1343,7 +1379,7 @@
           </div>
         {/if}
 
-        {#if !landingIntroShouldExpand}
+        {#if !landingIntroOverlayActive}
           <button
             class="carousel-arrow carousel-arrow-left"
             data-testid="daily-inspiration-previous"
@@ -1385,6 +1421,10 @@
     /* Must be above other chat-side elements so the banner is clickable */
     position: relative;
     z-index: var(--z-index-dropdown);
+  }
+
+  .daily-inspiration-wrapper.landing-intro-overlay-active {
+    height: 100%;
   }
 
   @keyframes inspirationFadeIn {
@@ -1539,6 +1579,16 @@
     color: white;
     text-align: center;
     animation: landingIntroEnter 620ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    transition:
+      opacity 360ms ease,
+      transform 760ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .landing-intro-collapsing .landing-intro-expanded-content,
+  .landing-intro-expanding .landing-intro-expanded-content {
+    animation: none;
+    opacity: 0;
+    transform: scale(0.96);
   }
 
   .landing-intro-ai-icon {
