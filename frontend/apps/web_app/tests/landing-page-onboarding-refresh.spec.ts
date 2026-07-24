@@ -146,6 +146,11 @@ async function landingIntroOverlayMetrics(page: any): Promise<{
 	});
 }
 
+async function waitForExpandedIntroToCoverActiveChat(page: any): Promise<void> {
+	await expect.poll(async () => (await landingIntroOverlayMetrics(page)).phase, { timeout: 5000 }).toBe('expanded');
+	await expect.poll(async () => (await landingIntroOverlayMetrics(page)).bannerActiveBottomDelta, { timeout: 5000 }).toBeLessThanOrEqual(2);
+}
+
 test.describe('Landing page onboarding refresh', () => {
 	test('expanded intro fits all target device viewports', async ({ page }: { page: any }) => {
 		test.setTimeout(120000);
@@ -155,6 +160,7 @@ test.describe('Landing page onboarding refresh', () => {
 			await page.goto(getE2EDebugUrl(`/?landing-layout=${viewport.name}`), { waitUntil: 'domcontentloaded' });
 			await page.waitForLoadState('networkidle');
 			await waitForLandingIntroExamples(page);
+			await waitForExpandedIntroToCoverActiveChat(page);
 
 			const metrics = await landingIntroLayoutMetrics(page);
 			expect(metrics.activeBottomGap, `${viewport.name}: bottom gap should match side gap`).toBeLessThanOrEqual(metrics.activeSideGap + 3);
@@ -190,6 +196,7 @@ test.describe('Landing page onboarding refresh', () => {
 		await page.goto(getE2EDebugUrl('/?landing-overlay-contract'), { waitUntil: 'domcontentloaded' });
 		await page.waitForLoadState('networkidle');
 		await waitForLandingIntroExamples(page);
+		await waitForExpandedIntroToCoverActiveChat(page);
 
 		const expanded = await landingIntroOverlayMetrics(page);
 		expect(expanded.phase).toBe('expanded');
@@ -218,7 +225,7 @@ test.describe('Landing page onboarding refresh', () => {
 
 		await page.getByTestId('daily-inspiration-previous').click();
 		await expect(page.getByTestId('landing-intro-expanded')).toBeVisible({ timeout: 5000 });
-		await expect.poll(async () => (await landingIntroOverlayMetrics(page)).phase, { timeout: 5000 }).toBe('expanded');
+		await waitForExpandedIntroToCoverActiveChat(page);
 		const restored = await landingIntroOverlayMetrics(page);
 		expect(restored.bannerActiveBottomDelta, 'returning to slide one expands over active chat bottom').toBeLessThanOrEqual(2);
 		expect(restored.messageInputOpacity, 'message input fades out when slide one expands again').toBeLessThanOrEqual(0.05);
