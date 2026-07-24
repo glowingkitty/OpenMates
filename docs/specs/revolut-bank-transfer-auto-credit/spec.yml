@@ -1,0 +1,650 @@
+schema_version: 2
+id: revolut-bank-transfer-auto-credit
+title: Revolut Bank Transfer Auto Credit
+status: implementing
+
+goal: >
+  Automatically settle Revolut Business SEPA bank-transfer credit purchases when
+  incoming transactions match an OpenMates bank-transfer reference, including
+  overpaid and underpaid orders, without requiring manual admin confirmation for
+  normal mismatches.
+
+scope:
+  in:
+    - Personal credit-purchase bank-transfer orders.
+    - Team credit-purchase bank-transfer orders.
+    - Gift-card bank-transfer purchase orders.
+    - Accumulating multiple Revolut transactions with the same OpenMates reference.
+    - User email notifications for overpayments and underpayments.
+    - Revolut Sandbox verification via /sandbox/topup when company credentials are available.
+  out:
+    - Support-contribution bank-transfer automation changes.
+    - Automatically upgrading users to a larger credit pack when they overpay.
+    - Automatically refunding surplus money.
+    - Production Revolut writes outside normal incoming-transfer webhook processing.
+    - Web UI redesign for bank-transfer status.
+    - Self-hosted credit-sale or support-contribution bank-transfer endpoints.
+
+context_discovery:
+  github_issues:
+    - "GitHub MCP returned 401. Fallback `gh issue list --repo glowingkitty/OpenMates --search \"bank transfer Revolut credits overpaid underpaid partial payment\" --state all --limit 10` found no matching issue."
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/architecture/payments/payment-processing.md
+    - docs/specs/bank-transfer-invoice-visibility/spec.yml
+    - docs/specs/cli-signup-billing-provisioning/spec.yml
+    - docs/apis/revolut-business.md
+    - https://developer.revolut.com/docs/guides/manage-accounts/api-usage-and-testing/test-flows-with-simulations
+  code_patterns:
+    - backend/core/api/app/routes/payments.py
+    - backend/core/api/app/services/payment/revolut_business_service.py
+    - backend/core/api/app/services/cache_bank_transfer_mixin.py
+    - backend/core/directus/schemas/pending_bank_transfers.yml
+    - backend/scripts/approve_bank_transfer.py
+    - backend/shared/providers/revolut_business/client.py
+    - backend/shared/providers/revolut_business/oauth.py
+    - scripts/revolut_business_setup.py
+  tests:
+    - backend/tests/test_bank_transfer.py
+    - backend/tests/test_approve_bank_transfer_script.py
+    - backend/tests/test_cli_bank_transfer_gift_card_purchase.py
+    - backend/tests/test_teams_routes.py
+
+apple_impact:
+  affected_files:
+    - none
+  parity_expectations:
+    - Apple billing uses native StoreKit-oriented flows and does not own the web SEPA bank-transfer settlement path.
+  verification:
+    - Apple not affected for this backend settlement slice.
+  intentional_native_differences:
+    - Native apps are not expected to initiate or render SEPA bank-transfer status changes in this slice.
+
+clarification:
+  rounds:
+    - question: Should underpaid follow-up transfers be linked by the same OpenMates bank-transfer reference rather than the same Revolut transaction ID?
+      answer: Yes, use the same bank-transfer reference.
+    - question: Should overpayments ever upgrade the selected credit pack automatically?
+      answer: No. Credit only the selected pack and ask the user to contact support about surplus money.
+    - question: Should the behavior apply only to personal credit purchases or also team and gift-card bank-transfer orders?
+      answer: Apply it to personal, team, and gift-card bank-transfer purchases.
+    - question: Should an underpaid order keep the original 7-day expiry or extend when partial money arrives?
+      answer: Extend the deadline by 7 days.
+    - question: Should testing use Revolut Sandbox and can existing Revolut Business code be reused?
+      answer: Use deterministic tests first plus Revolut Sandbox for live verification; reuse shared Revolut OAuth/client code with company Vault credentials rather than the Finance skill runtime.
+  vision_summary: >
+    Matched Revolut Business incoming transfers should be handled automatically
+    when the OM reference identifies a pending personal, team, or gift-card
+    credit purchase. The selected pack is the contract: enough money grants that
+    pack, surplus is handled with support by email, and short payments accumulate
+    under the same reference until the expected price is reached.
+  approved_by_user: true
+
+implementation_state:
+  subject_commit: ba97aefd77439a1f0583c8c55a15f5c868dd0f3f+working-tree
+
+approvals:
+  product_contract:
+    status: approved
+    approved_at: "2026-07-22T00:00:00Z"
+    reason: User confirmed behavior and asked to update the spec, implement, and test.
+  implementation_plan:
+    status: approved
+    approved_at: "2026-07-22T00:00:00Z"
+    reason: Implementation is constrained to existing backend webhook/manual settlement patterns plus deterministic and Sandbox tests.
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Match incoming money by the OpenMates bank-transfer reference, not Revolut transaction ID.
+    reason: Follow-up underpayment transfers get new Revolut transaction IDs but can reuse the same OM reference.
+    decided_at: "2026-07-22T00:00:00Z"
+  - id: D-2
+    status: active
+    decision: Credit exactly the selected purchased pack when cumulative received money is at least the expected pack price.
+    reason: User explicitly rejected automatic pack upgrades on overpayment.
+    decided_at: "2026-07-22T00:00:00Z"
+  - id: D-3
+    status: active
+    decision: Use deterministic signed webhook tests as required evidence and Revolut Sandbox /sandbox/topup as live provider evidence when credentials are configured.
+    reason: Sandbox proves provider integration but is too credential- and webhook-dependent for default CI.
+    decided_at: "2026-07-22T00:00:00Z"
+  - id: D-4
+    status: active
+    decision: Expose bank-transfer credit-sale endpoints only on the official cloud deployment.
+    reason: Self-hosted OpenMates must not ask instance users to send money to buy OpenMates credits; the operator-only manual script remains available for official-cloud fallback handling.
+    decided_at: "2026-07-23T00:23:07Z"
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    approach: Inspect existing Revolut webhook/manual approval paths before drafting the contract.
+    outcome: succeeded
+    recorded_at: "2026-07-22T00:00:00Z"
+    notes: Current webhook auto-settles exact-ish matches but sends amount mismatches to admin_review.
+
+handoff:
+  current_task_id: TASK-3
+  next_action: Optional live Revolut Sandbox verification after dev API deployment and company webhook credentials are available.
+  command: python3 scripts/api_tests/test_revolut_business_bank_transfer_settlement.py --api-url https://api.dev.openmates.org --scenarios exact,overpaid,underpaid-complete
+  expected_outcome: Exact, overpaid, and underpaid-then-complete flows settle through the real dev API and Revolut Sandbox webhook path.
+  blocker: null
+  last_verified_commit: ba97aefd77439a1f0583c8c55a15f5c868dd0f3f+working-tree
+
+scenarios:
+  - id: S-1
+    title: Exact payment credits personal pack
+    given:
+      - Alice starts a 54,000 credit personal bank-transfer order for EUR 50.00.
+      - Revolut sends a completed EUR 50.00 TransactionCreated webhook with Alice's OM reference.
+    when:
+      - OpenMates processes the webhook.
+    then:
+      - Alice receives exactly 54,000 credits.
+      - The order status becomes completed.
+      - The invoice email task is queued as today.
+  - id: S-2
+    title: Overpayment credits selected pack and emails support instruction
+    given:
+      - Alice starts a 54,000 credit personal bank-transfer order for EUR 50.00.
+      - Revolut sends a completed EUR 70.00 webhook with Alice's OM reference.
+    when:
+      - OpenMates processes the webhook.
+    then:
+      - Alice receives exactly 54,000 credits, not a larger pack.
+      - The order status becomes completed.
+      - The order stores received EUR 70.00 and overpaid EUR 20.00.
+      - Alice receives an email asking her to contact support@openmates.org about the surplus.
+  - id: S-3
+    title: Underpayment waits for remaining transfer
+    given:
+      - Alice starts a 54,000 credit personal bank-transfer order for EUR 50.00.
+      - Revolut sends a completed EUR 45.00 webhook with Alice's OM reference.
+    when:
+      - OpenMates processes the webhook.
+    then:
+      - Alice receives no credits yet.
+      - The order remains pending.
+      - The order stores the partial transaction and total received EUR 45.00.
+      - The expiry is extended by 7 days from the partial receipt time.
+      - Alice receives an email asking her to send the remaining EUR 5.00 with the same OM reference.
+  - id: S-4
+    title: Second partial completes the order
+    given:
+      - Alice's EUR 50.00 order has already received EUR 45.00 under OM-ACCT-bt123456.
+      - Revolut sends a later completed EUR 5.00 webhook with the same OM reference.
+    when:
+      - OpenMates processes the second webhook.
+    then:
+      - Alice receives exactly 54,000 credits.
+      - The order status becomes completed.
+      - The order records both Revolut transaction IDs and total received EUR 50.00.
+      - Alice receives the normal purchase confirmation email.
+  - id: S-5
+    title: Duplicate Revolut transaction is ignored
+    given:
+      - Alice's pending order has already recorded Revolut transaction txn-1 as a partial payment.
+    when:
+      - Revolut retries the same TransactionCreated webhook with transaction ID txn-1.
+    then:
+      - OpenMates does not add the amount again.
+      - No duplicate credits, gift cards, team events, or underpayment emails are created.
+  - id: S-6
+    title: Team and gift-card purchases use the same amount rules
+    given:
+      - A team credit order or gift-card order is pending with an OM reference.
+    when:
+      - Revolut sends exact, overpaid, underpaid, or completing partial webhooks.
+    then:
+      - Settlement uses the same cumulative amount rules as personal credit purchases.
+      - Team credits or gift-card code creation happens only after cumulative received money reaches the selected pack price.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Matched Revolut transfers auto-complete personal, team, and gift-card bank-transfer orders only when cumulative received money is at least the selected pack price.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids:
+      - T-PYTEST-BANK-TRANSFER
+  - id: AC-2
+    scenario: S-2
+    text: Overpaid matched transfers credit exactly the selected pack, store cumulative received and surplus amounts, and queue a user-facing surplus email.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids:
+      - T-PYTEST-BANK-TRANSFER
+  - id: AC-3
+    scenario: S-3
+    text: Underpaid matched transfers remain pending, grant nothing, store the partial transaction, extend expiry by 7 days, and queue a remaining-payment email.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids:
+      - T-PYTEST-BANK-TRANSFER
+  - id: AC-4
+    scenario: S-4
+    text: Multiple Revolut transactions with the same OM reference accumulate and complete the selected purchase once the total received reaches the expected price.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids:
+      - T-PYTEST-BANK-TRANSFER
+  - id: AC-5
+    scenario: S-5
+    text: Revolut transaction IDs are idempotency keys and duplicate webhook deliveries do not double-count money or repeat settlement side effects.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids:
+      - T-PYTEST-BANK-TRANSFER
+  - id: AC-6
+    scenario: S-6
+    text: Personal, team, and gift-card bank-transfer purchases all use the same amount classification and accumulation contract.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids:
+      - T-PYTEST-BANK-TRANSFER
+      - T-PYTEST-MANUAL-SCRIPT
+  - id: AC-7
+    scenario: S-4
+    text: A manual/operator fallback remains available for exceptional cases without weakening the automated idempotency contract.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids:
+      - T-PYTEST-MANUAL-SCRIPT
+  - id: AC-8
+    scenario: S-4
+    text: Revolut Sandbox can prove exact, overpaid, and underpaid-then-complete flows against the dev API when company Vault credentials and webhook setup are available.
+    required: false
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids:
+      - T-SANDBOX-REVOLUT
+  - id: AC-9
+    scenario: S-1
+    text: Bank-transfer availability, order creation, support-transfer creation, and status/pending endpoints are hidden or rejected on self-hosted domains.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids:
+      - T-PYTEST-SELFHOST-BANK-TRANSFER
+
+assumptions:
+  - id: A-1
+    text: Revolut Sandbox /sandbox/topup can simulate incoming top-ups with arbitrary references and completed or pending states.
+    category: provider
+    required_before: completion
+    status: confirmed
+    evidence:
+      - source: https://developer.revolut.com/docs/guides/manage-accounts/api-usage-and-testing/test-flows-with-simulations
+        summary: Official docs confirm POST /sandbox/topup accepts account_id, amount, currency, reference, and state.
+  - id: A-2
+    text: Existing personal, team, and gift-card settlement side effects are correct once the payment is considered funded.
+    category: billing
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: backend/core/api/app/routes/payments.py
+        summary: Existing webhook handler already settles the three order types after an amount-tolerance pass.
+  - id: A-3
+    text: Email notifications can use the same email decryption pattern as bank-transfer reminder and purchase-confirmation tasks.
+    category: email
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: backend/core/api/app/tasks/email_tasks/bank_transfer_reminder_email_task.py
+        summary: Existing task decrypts the user email with the order's email_encryption_key and sends a templated email once.
+
+contracts:
+  api:
+    - route: POST /v1/payments/webhook
+      access_model: unauthenticated provider webhook with signed Revolut or Stripe headers
+      auth: Revolut requests require Revolut-Request-Timestamp and Revolut-Signature HMAC verification.
+      rate_limits: Provider webhook route has no normal user rate limit; signature verification and idempotency protect repeated delivery.
+      credit_budget: Credits are granted only for matching pending credit-purchase, team-credit-purchase, or gift-card-purchase orders whose cumulative received amount reaches amount_expected_cents.
+      encryption_boundary: Uses stored user_id, vault_key_id, encrypted balance, and email_encryption_key; does not expose client-side encrypted chat/memory/file material.
+      behavior: Match Revolut TransactionCreated events by OM reference and classify cumulative EUR amount as underpaid, funded/exact, or overpaid.
+    - route: POST /v1/payments/create-bank-transfer-order and related bank-transfer status/support endpoints
+      access_model: first-party official-cloud client surface only
+      auth: Authenticated user session is required for credit-purchase order creation and status reads; support-contribution creation is public but official-cloud-only.
+      rate_limits: Existing endpoint limits apply.
+      credit_budget: No credits are granted by these creation/status endpoints; credits are granted only by signed provider webhooks or operator scripts.
+      encryption_boundary: Stores encrypted email key material for cloud billing emails only; no client-side encrypted chat/memory/file material is exposed.
+      behavior: Self-hosted domains receive 404 or hidden bank-transfer availability even if local Revolut-like secrets are present.
+  data:
+    - pending_bank_transfers records cumulative received_amount_cents, latest revolut_transaction_id, and a durable transaction ledger/idempotency field for all matched Revolut transaction IDs.
+    - Underpaid rows remain status pending and extend expires_at by 7 days from the latest partial receipt.
+    - Completed rows store overpaid_amount_cents when cumulative received exceeds amount_expected_cents.
+    - Directus remains the durable store; Redis cache is updated with the same settlement summary fields when available.
+  ui_states:
+    - Existing bank-transfer status polling can continue to show pending until enough cumulative money arrives.
+    - No new web UI is required for surplus or remaining amount in this slice; email is the user-facing mismatch channel.
+  privacy_security:
+    - Do not store or log full Revolut counterparty data for these flows.
+    - Do not include raw user IDs, Vault keys, email encryption keys, or Revolut credentials in user emails, logs, or Sandbox evidence.
+    - Support email link is mailto:support@openmates.org or equivalent safe text.
+    - Idempotency must prevent replayed provider webhooks from granting duplicate credits or gift cards.
+  provider:
+    - Reuse shared Revolut OAuth/client code for company-level Sandbox probes, but do not reuse user connected-account refresh token envelopes from the Finance app skill.
+    - Company Revolut credentials come from Vault or explicit operator env for manual Sandbox verification.
+
+tests:
+  - id: T-PYTEST-BANK-TRANSFER
+    type: pytest
+    file: backend/tests/test_bank_transfer.py
+    command: python3 -m pytest backend/tests/test_bank_transfer.py
+    covers:
+      - AC-1
+      - AC-2
+      - AC-3
+      - AC-4
+      - AC-5
+      - AC-6
+    assertions:
+      - exact personal payment still completes and queues purchase confirmation
+      - received amounts below the selected pack price do not auto-complete even when within the old negative tolerance
+      - overpaid personal payment grants selected credits and queues overpayment email
+      - underpaid personal payment stays pending, extends expiry, and queues remaining-payment email
+      - second partial with same OM reference completes without double-counting the first partial
+      - duplicate Revolut transaction IDs are ignored
+      - team and gift-card orders use the same amount rules before their existing settlement side effects
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: missing_test
+        run_id: ""
+        timestamp: "2026-07-22T23:47:43Z"
+        reason: Deterministic webhook coverage for cumulative partial payments, overpayments, and duplicate Revolut transaction IDs did not exist before this implementation.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: .venv/bin/python3 -m pytest "backend/tests/test_cli_bank_transfer_gift_card_purchase.py" "backend/tests/test_bank_transfer.py" "backend/tests/test_approve_bank_transfer_script.py"
+        run_id: local-2026-07-23-bank-transfer-56-passed
+        subject_commit: ba97aefd77439a1f0583c8c55a15f5c868dd0f3f+working-tree
+        timestamp: "2026-07-23T00:23:07Z"
+  - id: T-PYTEST-MANUAL-SCRIPT
+    type: pytest
+    file: backend/tests/test_approve_bank_transfer_script.py
+    command: python3 -m pytest backend/tests/test_approve_bank_transfer_script.py
+    covers:
+      - AC-6
+      - AC-7
+    assertions:
+      - manual approval still uses admin Directus access
+      - manual team approval remains available for exceptional cases
+      - manual script rejects unsupported order types unless explicitly supported by existing behavior
+    red_phase:
+      required: false
+      expected: fail
+      evidence:
+        status: not_applicable
+        summary: Existing fallback test coverage should remain green; new automation is covered by T-PYTEST-BANK-TRANSFER.
+        timestamp: "2026-07-22T23:47:43Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: .venv/bin/python3 -m pytest "backend/tests/test_cli_bank_transfer_gift_card_purchase.py" "backend/tests/test_bank_transfer.py" "backend/tests/test_approve_bank_transfer_script.py"
+        run_id: local-2026-07-23-bank-transfer-56-passed
+        subject_commit: ba97aefd77439a1f0583c8c55a15f5c868dd0f3f+working-tree
+        timestamp: "2026-07-23T00:23:07Z"
+  - id: T-PYTEST-SELFHOST-BANK-TRANSFER
+    type: pytest
+    file: backend/tests/test_cli_bank_transfer_gift_card_purchase.py
+    command: python3 -m pytest backend/tests/test_cli_bank_transfer_gift_card_purchase.py
+    covers:
+      - AC-9
+    assertions:
+      - payment config hides bank_transfer_available on self-hosted domains
+      - credit bank-transfer create/status/pending endpoints reject self-hosted domains
+      - support bank-transfer creation rejects self-hosted domains
+      - gift-card bank-transfer routes continue rejecting self-hosted domains
+    red_phase:
+      required: false
+      expected: fail
+      evidence:
+        status: not_applicable
+        summary: Cloud/self-host route gating was added as a hardening regression after implementation discussion.
+        timestamp: "2026-07-23T00:23:07Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: .venv/bin/python3 -m pytest "backend/tests/test_cli_bank_transfer_gift_card_purchase.py" "backend/tests/test_bank_transfer.py" "backend/tests/test_approve_bank_transfer_script.py"
+        run_id: local-2026-07-23-bank-transfer-56-passed
+        subject_commit: ba97aefd77439a1f0583c8c55a15f5c868dd0f3f+working-tree
+        timestamp: "2026-07-23T00:23:07Z"
+  - id: T-SANDBOX-REVOLUT
+    type: manual
+    file: scripts/api_tests/test_revolut_business_bank_transfer_settlement.py
+    command: python3 scripts/api_tests/test_revolut_business_bank_transfer_settlement.py --api-url https://api.dev.openmates.org --scenarios exact,overpaid,underpaid-complete
+    covers:
+      - AC-8
+    assertions:
+      - creates real dev bank-transfer orders with test-account auth
+      - calls Revolut Sandbox /sandbox/topup with the returned OM reference
+      - waits for the real Revolut webhook to settle or partially settle the dev order
+      - redacts account IDs, tokens, transaction IDs, and user emails from output
+    red_phase:
+      required: false
+      expected: fail
+      evidence:
+        status: not_applicable
+        summary: Live Sandbox verification is not used as red-phase evidence.
+    green_phase:
+      required: false
+      expected: pass
+      evidence:
+        status: ""
+        command: ""
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+
+verifications:
+  - id: V-SPEC-VALIDATE
+    kind: deterministic_check
+    phase: final
+    required_for_done: true
+    covers:
+      - AC-1
+      - AC-2
+      - AC-3
+      - AC-4
+      - AC-5
+      - AC-6
+      - AC-7
+      - AC-8
+    status: pending
+    evidence:
+      status: passed
+      summary: Spec validation passed after backend implementation and evidence updates.
+      command: python3 scripts/spec_validate.py "docs/specs/revolut-bank-transfer-auto-credit/spec.yml"
+      run_id: local-2026-07-22-spec-validate-pass
+      subject_commit: ba97aefd77439a1f0583c8c55a15f5c868dd0f3f+working-tree
+      timestamp: "2026-07-22T23:47:43Z"
+
+implementation_plan:
+  spec_path: docs/specs/revolut-bank-transfer-auto-credit/spec.yml
+  existing_patterns:
+    - backend/core/api/app/routes/payments.py _handle_revolut_business_webhook owns settlement branching.
+    - backend/scripts/approve_bank_transfer.py has the operator fallback settlement path.
+    - backend/core/api/app/tasks/email_tasks/bank_transfer_reminder_email_task.py has the bank-transfer user email decryption pattern.
+    - backend/shared/providers/revolut_business/oauth.py and client.py already implement token exchange and read-only client calls.
+    - scripts/revolut_business_setup.py already proves /sandbox/topup shape but should not remain the long-term test contract.
+  architecture: >
+    Keep webhook matching in payments.py for the first slice, but isolate the new
+    amount accumulation/classification helpers enough to test them deterministically.
+    Extend pending_bank_transfers with durable transaction/idempotency summary
+    fields instead of adding a separate table unless implementation discovery
+    proves a normalized ledger is necessary.
+  data_flow:
+    - User starts a bank-transfer order and receives an OM reference.
+    - Revolut sends a signed TransactionCreated webhook for incoming EUR money.
+    - The handler matches the pending order by reference.
+    - The handler ignores duplicate Revolut transaction IDs.
+    - The handler appends the transaction amount to the order ledger and recomputes cumulative received amount.
+    - If cumulative received is below expected, the order remains pending, expires_at extends 7 days, and remaining-payment email is queued.
+    - If cumulative received is at least expected, existing settlement logic grants the selected personal/team/gift-card value and queues existing purchase confirmation.
+    - If cumulative received exceeds expected, an overpayment email is additionally queued.
+  affected_files:
+    - path: docs/specs/revolut-bank-transfer-auto-credit/spec.yml
+      reason: Durable product contract and evidence ledger.
+    - path: backend/core/api/app/routes/payments.py
+      reason: Revolut webhook settlement, amount classification, idempotency, and email task dispatch.
+    - path: backend/core/directus/schemas/pending_bank_transfers.yml
+      reason: Durable transaction ledger and surplus/remaining summary fields.
+    - path: backend/core/api/app/services/cache_bank_transfer_mixin.py
+      reason: Cache extra settlement fields for status polling and duplicate checks.
+    - path: backend/core/api/app/tasks/email_tasks/bank_transfer_amount_notice_email_task.py
+      reason: User-facing overpayment and underpayment emails.
+    - path: frontend/packages/ui/src/i18n/sources/email/main.yml
+      reason: Email template copy for bank-transfer amount notices.
+    - path: backend/tests/test_bank_transfer.py
+      reason: Core webhook and settlement coverage.
+    - path: backend/tests/test_approve_bank_transfer_script.py
+      reason: Fallback regression coverage.
+    - path: scripts/api_tests/test_revolut_business_bank_transfer_settlement.py
+      reason: Optional real Sandbox verification against the dev API.
+    - path: backend/shared/providers/revolut_business/client.py
+      reason: Optional Sandbox top-up helper for live provider testing.
+  verification_strategy:
+    - python3 scripts/spec_validate.py docs/specs/revolut-bank-transfer-auto-credit/spec.yml
+    - python3 -m pytest backend/tests/test_bank_transfer.py backend/tests/test_approve_bank_transfer_script.py
+    - python3 scripts/api_tests/test_revolut_business_bank_transfer_settlement.py --api-url https://api.dev.openmates.org --scenarios exact,overpaid,underpaid-complete when Vault/company Sandbox credentials are configured.
+  verification_order:
+    - Backend deterministic pytest first.
+    - Spec validation before final handoff.
+    - Optional Revolut Sandbox live provider proof after backend code is deployed to the local dev API and company credentials/webhook are configured.
+
+tasks:
+  - id: TASK-1
+    title: Add transaction accumulation and idempotent settlement
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+        - S-4
+        - S-5
+        - S-6
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+        - AC-4
+        - AC-5
+        - AC-6
+    expected_files:
+      - backend/core/api/app/routes/payments.py
+      - backend/core/directus/schemas/pending_bank_transfers.yml
+      - backend/core/api/app/services/cache_bank_transfer_mixin.py
+      - backend/tests/test_bank_transfer.py
+    verification:
+      - T-PYTEST-BANK-TRANSFER
+    verification_ids:
+      - T-PYTEST-BANK-TRANSFER
+    dependencies: []
+    ownership:
+      files:
+        - backend/core/api/app/routes/payments.py
+        - backend/core/directus/schemas/pending_bank_transfers.yml
+        - backend/core/api/app/services/cache_bank_transfer_mixin.py
+        - backend/tests/test_bank_transfer.py
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: true
+  - id: TASK-2
+    title: Add bank-transfer amount notice emails
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-2
+        - S-3
+      acceptance_criteria:
+        - AC-2
+        - AC-3
+    expected_files:
+      - backend/core/api/app/tasks/email_tasks/bank_transfer_amount_notice_email_task.py
+      - frontend/packages/ui/src/i18n/sources/email/main.yml
+      - backend/tests/test_bank_transfer.py
+    verification:
+      - T-PYTEST-BANK-TRANSFER
+    verification_ids:
+      - T-PYTEST-BANK-TRANSFER
+    dependencies:
+      - TASK-1
+    ownership:
+      files:
+        - backend/core/api/app/tasks/email_tasks/bank_transfer_amount_notice_email_task.py
+        - frontend/packages/ui/src/i18n/sources/email/main.yml
+        - backend/tests/test_bank_transfer.py
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: true
+  - id: TASK-3
+    title: Add optional Revolut Sandbox verification script
+    status: pending
+    phase: blocked
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+        - S-4
+      acceptance_criteria:
+        - AC-8
+    expected_files:
+      - scripts/api_tests/test_revolut_business_bank_transfer_settlement.py
+      - backend/shared/providers/revolut_business/client.py
+    verification:
+      - T-SANDBOX-REVOLUT
+    verification_ids:
+      - T-SANDBOX-REVOLUT
+    dependencies:
+      - TASK-1
+      - TASK-2
+    ownership:
+      files:
+        - scripts/api_tests/test_revolut_business_bank_transfer_settlement.py
+        - backend/shared/providers/revolut_business/client.py
+      shared_files: []
+    blockers:
+      - reason: Requires live dev API, company Revolut Sandbox credentials, and webhook configured to api.dev.openmates.org.
+        requires_user_input: false
+    follow_up_tasks: []
+    independently_deployable: false
+
+risks:
+  - Duplicate webhook retries can create financial over-crediting if transaction ID idempotency is incomplete.
+  - Directus schema changes need migration/deployment coordination before live provider webhooks rely on new fields.
+  - Email decryption can fail if the original order lacks email_encryption_key and the user lacks server-side email fallback.
+  - Revolut Sandbox webhook delivery depends on external configuration and may not be reliable enough for default CI.
+
+open_questions:
+  - Should support-contribution overpayments/underpayments get similar user emails in a later slice?
+  - Should Billing > Invoices eventually display partial paid/remaining amount state before completion?

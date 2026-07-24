@@ -84,11 +84,26 @@ pending_bank_transfers:
       nullable: true
       note: "Actual amount received from the bank (null until transfer arrives)"
 
+    remaining_amount_cents:
+      type: integer
+      nullable: true
+      note: "Remaining amount required before automatic settlement for partially paid orders"
+
+    overpaid_amount_cents:
+      type: integer
+      nullable: true
+      note: "Amount received above the selected credit-pack price; support must resolve it with the sender"
+
     revolut_transaction_id:
       type: string
       length: 255
       nullable: true
-      note: "Revolut's transaction ID from the webhook (null until transfer arrives)"
+      note: "Latest Revolut transaction ID from the webhook (null until transfer arrives)"
+
+    revolut_transactions:
+      type: json
+      nullable: true
+      note: "Durable ledger of matched Revolut transactions for this reference, used for idempotency and partial-payment accumulation"
 
     email_encryption_key:
       type: string

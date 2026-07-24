@@ -1,10 +1,10 @@
 """
 Revolut Business Service — SEPA Bank Transfer Provider
 
-Handles incoming SEPA bank transfers via the Revolut Business API.
-Unlike card-payment providers, this service monitors
-the company's Revolut Business account for incoming transfers and matches
-them to pending orders by structured reference.
+Handles incoming SEPA bank transfers through Revolut Business webhooks.
+Unlike card-payment providers, this service does not poll the company account;
+Revolut pushes signed transaction events to OpenMates, and the payment route
+matches incoming transfers to pending orders by structured reference.
 
 Webhook events:
   - TransactionCreated: incoming transfer detected (may be in "pending" state)

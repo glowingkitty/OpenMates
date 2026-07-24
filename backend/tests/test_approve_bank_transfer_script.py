@@ -46,6 +46,7 @@ class FakeDirectus:
         self.get_items_calls: list[dict] = []
         self.update_item_calls: list[dict] = []
         self.user_fields_calls: list[tuple[str, list[str]]] = []
+        self.row = {"id": "row-id", "reference": "OM-TEST"}
 
     async def get_items(self, collection, params=None, no_cache=False, admin_required=False):
         self.get_items_calls.append(
@@ -56,7 +57,7 @@ class FakeDirectus:
                 "admin_required": admin_required,
             }
         )
-        return [{"id": "row-id", "reference": "OM-TEST"}]
+        return [dict(self.row)]
 
     async def update_item(self, collection, item_id, data, admin_required=False):
         self.update_item_calls.append(
@@ -67,11 +68,31 @@ class FakeDirectus:
                 "admin_required": admin_required,
             }
         )
+        self.row.update(data)
         return {"id": item_id, **data}
 
     async def get_user_fields_direct(self, user_id: str, fields: list[str]):
         self.user_fields_calls.append((user_id, fields))
         return {"encrypted_email_address": "encrypted-email"}
+
+
+class FakeCaseSensitiveDirectus:
+    def __init__(self, stored_reference: str) -> None:
+        self.stored_reference = stored_reference
+        self.get_items_calls: list[dict] = []
+
+    async def get_items(self, collection, params=None, no_cache=False, admin_required=False):
+        self.get_items_calls.append(
+            {
+                "collection": collection,
+                "params": params,
+                "no_cache": no_cache,
+                "admin_required": admin_required,
+            }
+        )
+        if (params or {}).get("filter[reference][_eq]") == self.stored_reference:
+            return [{"id": "row-id", "reference": self.stored_reference}]
+        return []
 
 
 class FakeEncryption:
@@ -182,6 +203,19 @@ async def test_fetch_order_uses_admin_access_for_pending_bank_transfers():
             "admin_required": True,
         }
     ]
+
+
+@pytest.mark.asyncio
+async def test_fetch_order_matches_uppercase_operator_input_to_legacy_mixed_case_reference():
+    directus = FakeCaseSensitiveDirectus("OM-93D2OGN-7b9c5cad")
+
+    order = await approve_bank_transfer._fetch_order(directus, "OM-93D2OGN-7B9C5CAD")
+
+    assert order["reference"] == "OM-93D2OGN-7b9c5cad"
+    assert directus.get_items_calls[-1]["params"] == {
+        "filter[reference][_eq]": "OM-93D2OGN-7b9c5cad",
+        "limit": 1,
+    }
 
 
 @pytest.mark.asyncio
@@ -325,6 +359,9 @@ async def test_approve_team_bank_transfer_grants_team_credits_and_completes_orde
     assert credit_event["amount"] == 110000
     completed_order = directus.rows["pending_bank_transfers"][0]
     assert completed_order["status"] == "completed"
+    pending_updates = [update for update in directus.updated_items if update[0] == "pending_bank_transfers"]
+    assert pending_updates[0][2]["status"] == "admin_review"
+    assert pending_updates[1][2]["status"] == "completed"
     assert completed_order["received_amount_cents"] == 10000
     assert cache.status_updates[0]["order_id"] == "bt_team01"
     assert ("increment_json_stat", "purchases_by_provider", "team_bank_transfer_manual") in cache.stats

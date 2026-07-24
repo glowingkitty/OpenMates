@@ -24,6 +24,7 @@ from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.services.team_billing_service import TEAM_BILLING_ROLES, TeamBillingService, TeamInsufficientCreditsError
 from backend.core.api.app.services.team_data_portability_service import TeamDataPortabilityError, TeamDataPortabilityService
 from backend.core.api.app.services.team_invite_email_service import TeamInviteEmailService
+from backend.core.api.app.utils.bank_transfer_references import generate_bank_transfer_reference
 
 if TYPE_CHECKING:
     from backend.core.api.app.services.directus import DirectusService
@@ -757,7 +758,7 @@ async def create_team_bank_transfer_order(
     order_id = f"bt_{uuid.uuid4().hex[:16]}"
     hashed_team_id = hashlib.sha256(team_id.encode()).hexdigest()
     team_prefix = hashed_team_id[:8]
-    reference = f"OMT-{team_prefix}-{order_id[3:11]}"
+    reference = generate_bank_transfer_reference("OMT", team_prefix, middle_length=len(team_prefix))
     created_at = datetime.now(timezone.utc).isoformat()
     expires_at = (datetime.now(timezone.utc) + timedelta(days=7)).isoformat()
     record = {

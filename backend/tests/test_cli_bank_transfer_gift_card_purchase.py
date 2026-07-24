@@ -10,11 +10,58 @@ Execution:
   /OpenMates/.venv/bin/python3 -m pytest backend/tests/test_cli_bank_transfer_gift_card_purchase.py
 """
 
+import sys
+import types
 from types import SimpleNamespace
 
 import pytest
 from fastapi import HTTPException
 from starlette.requests import Request
+
+if "boto3" not in sys.modules:
+    boto3_module = types.ModuleType("boto3")
+    boto3_module.client = lambda *_args, **_kwargs: None
+    sys.modules["boto3"] = boto3_module
+
+if "botocore" not in sys.modules:
+    botocore_module = types.ModuleType("botocore")
+    botocore_config_module = types.ModuleType("botocore.config")
+    botocore_config_module.Config = lambda *_args, **_kwargs: None
+    botocore_exceptions_module = types.ModuleType("botocore.exceptions")
+    botocore_exceptions_module.ClientError = Exception
+    botocore_exceptions_module.ReadTimeoutError = Exception
+    botocore_exceptions_module.ConnectTimeoutError = Exception
+    botocore_exceptions_module.EndpointConnectionError = Exception
+    sys.modules["botocore"] = botocore_module
+    sys.modules["botocore.config"] = botocore_config_module
+    sys.modules["botocore.exceptions"] = botocore_exceptions_module
+
+if "redis" not in sys.modules:
+    redis_module = types.ModuleType("redis")
+    redis_asyncio_module = types.ModuleType("redis.asyncio")
+
+    class FakeRedisClient:
+        pass
+
+    redis_asyncio_module.Redis = FakeRedisClient
+    redis_module.asyncio = redis_asyncio_module
+    redis_module.exceptions = SimpleNamespace(RedisError=Exception, ConnectionError=Exception, TimeoutError=Exception)
+    sys.modules["redis"] = redis_module
+    sys.modules["redis.asyncio"] = redis_asyncio_module
+
+if "aiohttp" not in sys.modules:
+    aiohttp_module = types.ModuleType("aiohttp")
+
+    class FakeClientSession:
+        pass
+
+    aiohttp_module.ClientSession = FakeClientSession
+    sys.modules["aiohttp"] = aiohttp_module
+
+if "backend.core.api.app.services.limiter" not in sys.modules:
+    limiter_module = types.ModuleType("backend.core.api.app.services.limiter")
+    limiter_module.limiter = SimpleNamespace(limit=lambda *_args, **_kwargs: (lambda func: func))
+    sys.modules["backend.core.api.app.services.limiter"] = limiter_module
 
 from backend.core.api.app.routes import payments
 
@@ -50,11 +97,34 @@ class FakeDirectus:
         return [order for order in self.orders if order.get("order_id") == order_id]
 
 
+class FakeSecrets:
+    async def get_secret(self, **_kwargs):
+        return "pk_test_openmates"
+
+
 def test_gift_card_bank_transfer_routes_are_registered():
     route_paths = {route.path for route in payments.router.routes}
 
     assert "/v1/payments/create-gift-card-bank-transfer-order" in route_paths
     assert "/v1/payments/gift-card-purchase-status/{order_id}" in route_paths
+
+
+@pytest.mark.anyio
+async def test_payment_config_hides_bank_transfer_on_self_hosted(monkeypatch):
+    monkeypatch.setattr(
+        payments,
+        "validate_request_domain",
+        lambda _request: (None, True, "self_hosted"),
+    )
+    monkeypatch.setattr(payments, "get_geo_data_from_ip", lambda _ip: {"country_code": "DE"})
+
+    response = await payments.get_payment_config(
+        request=fake_request("GET", "/v1/payments/config"),
+        secrets_manager=FakeSecrets(),
+        payment_service=SimpleNamespace(is_bank_transfer_available=True),
+    )
+
+    assert response.bank_transfer_available is False
 
 
 @pytest.mark.anyio
@@ -197,3 +267,73 @@ async def test_gift_card_bank_transfer_routes_reject_self_hosted(monkeypatch):
 
     assert create_exc.value.status_code == 404
     assert status_exc.value.status_code == 404
+
+
+@pytest.mark.anyio
+async def test_credit_bank_transfer_routes_reject_self_hosted(monkeypatch):
+    monkeypatch.setattr(
+        payments,
+        "validate_request_domain",
+        lambda _request: (None, True, "self_hosted"),
+    )
+
+    with pytest.raises(HTTPException) as create_exc:
+        await payments.create_bank_transfer_order(
+            request=fake_request("POST", "/v1/payments/create-bank-transfer-order"),
+            order_data=payments.CreateBankTransferOrderRequest(
+                credits_amount=21000,
+                currency="eur",
+                email_encryption_key="email-key",
+            ),
+            payment_service=SimpleNamespace(is_bank_transfer_available=True),
+            cache_service=SimpleNamespace(),
+            directus_service=SimpleNamespace(),
+            encryption_service=SimpleNamespace(),
+            current_user=SimpleNamespace(id="user-1", account_id="acct-1"),
+        )
+
+    with pytest.raises(HTTPException) as status_exc:
+        await payments.get_bank_transfer_status(
+            request=fake_request("GET", "/v1/payments/bank-transfer-status/bt_done"),
+            order_id="bt_done",
+            cache_service=FakeBankTransferCache(),
+            directus_service=FakeDirectus(),
+            current_user=SimpleNamespace(id="user-1"),
+        )
+
+    with pytest.raises(HTTPException) as pending_exc:
+        await payments.get_pending_bank_transfers(
+            request=fake_request("GET", "/v1/payments/bank-transfer-pending"),
+            cache_service=SimpleNamespace(),
+            directus_service=SimpleNamespace(),
+            current_user=SimpleNamespace(id="user-1"),
+        )
+
+    assert create_exc.value.status_code == 404
+    assert status_exc.value.status_code == 404
+    assert pending_exc.value.status_code == 404
+
+
+@pytest.mark.anyio
+async def test_support_bank_transfer_route_rejects_self_hosted(monkeypatch):
+    monkeypatch.setattr(
+        payments,
+        "validate_request_domain",
+        lambda _request: (None, True, "self_hosted"),
+    )
+
+    with pytest.raises(HTTPException) as exc_info:
+        await payments.create_support_bank_transfer_order(
+            request=fake_request("POST", "/v1/payments/create-support-bank-transfer-order"),
+            order_data=payments.CreateSupportBankTransferRequest(
+                amount=1000,
+                currency="eur",
+                support_email="supporter@example.com",
+            ),
+            payment_service=SimpleNamespace(is_bank_transfer_available=True),
+            cache_service=SimpleNamespace(),
+            directus_service=SimpleNamespace(),
+            current_user=None,
+        )
+
+    assert exc_info.value.status_code == 404

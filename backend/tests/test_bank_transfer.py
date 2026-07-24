@@ -16,6 +16,7 @@ import re
 import sys
 import time
 import types
+from datetime import datetime
 
 import pytest
 
@@ -56,6 +57,51 @@ if "backend.core.api.app.tasks.celery_config" not in sys.modules:
     sys.modules["backend.core.api.app.tasks"] = tasks_module
     sys.modules["backend.core.api.app.tasks.celery_config"] = celery_config_module
 
+if "backend.core.api.app.services.limiter" not in sys.modules:
+    limiter_module = types.ModuleType("backend.core.api.app.services.limiter")
+    limiter_module.limiter = types.SimpleNamespace(limit=lambda *_args, **_kwargs: (lambda func: func))
+    sys.modules["backend.core.api.app.services.limiter"] = limiter_module
+
+if "redis" not in sys.modules:
+    redis_module = types.ModuleType("redis")
+    redis_asyncio_module = types.ModuleType("redis.asyncio")
+
+    class FakeRedisClient:
+        pass
+
+    redis_asyncio_module.Redis = FakeRedisClient
+    redis_module.asyncio = redis_asyncio_module
+    redis_module.exceptions = types.SimpleNamespace(RedisError=Exception, ConnectionError=Exception, TimeoutError=Exception)
+    sys.modules["redis"] = redis_module
+    sys.modules["redis.asyncio"] = redis_asyncio_module
+
+if "aiohttp" not in sys.modules:
+    aiohttp_module = types.ModuleType("aiohttp")
+
+    class FakeClientSession:
+        pass
+
+    aiohttp_module.ClientSession = FakeClientSession
+    sys.modules["aiohttp"] = aiohttp_module
+
+if "boto3" not in sys.modules:
+    boto3_module = types.ModuleType("boto3")
+    boto3_module.client = lambda *_args, **_kwargs: None
+    sys.modules["boto3"] = boto3_module
+
+if "botocore" not in sys.modules:
+    botocore_module = types.ModuleType("botocore")
+    botocore_config_module = types.ModuleType("botocore.config")
+    botocore_config_module.Config = lambda *_args, **_kwargs: None
+    botocore_exceptions_module = types.ModuleType("botocore.exceptions")
+    botocore_exceptions_module.ClientError = Exception
+    botocore_exceptions_module.ReadTimeoutError = Exception
+    botocore_exceptions_module.ConnectTimeoutError = Exception
+    botocore_exceptions_module.EndpointConnectionError = Exception
+    sys.modules["botocore"] = botocore_module
+    sys.modules["botocore.config"] = botocore_config_module
+    sys.modules["botocore.exceptions"] = botocore_exceptions_module
+
 if "backend.core.api.app.routes.websockets" not in sys.modules:
     websockets_module = types.ModuleType("backend.core.api.app.routes.websockets")
 
@@ -71,6 +117,7 @@ from backend.core.api.app.routes import payments
 from backend.core.api.app.services.payment.revolut_business_service import (
     RevolutBusinessService,
 )
+from backend.core.api.app.utils.bank_transfer_references import generate_bank_transfer_reference
 
 
 # =============================================================================
@@ -78,6 +125,16 @@ from backend.core.api.app.services.payment.revolut_business_service import (
 # =============================================================================
 
 SIGNING_SECRET = "wsk_test_secret_for_unit_tests_only"
+
+
+def test_generated_bank_transfer_reference_segments_avoid_zero_and_o():
+    reference = generate_bank_transfer_reference("OM", "93D2OGN", middle_length=7)
+
+    assert reference == reference.upper()
+    assert reference.startswith("OM-")
+    generated_segments = reference.removeprefix("OM-")
+    assert "0" not in generated_segments
+    assert "O" not in generated_segments
 
 
 def _make_signature(payload_str: str, timestamp: str, secret: str = SIGNING_SECRET) -> str:
@@ -431,6 +488,370 @@ class TestBankDetails:
         assert details["account_holder_postal_code"] == ""
         assert details["account_holder_city"] == ""
         assert details["account_holder_country"] == ""
+
+
+class TestPersonalBankTransferWebhook:
+    """Automation coverage for personal SEPA credit purchases."""
+
+    class FakePaymentService:
+        revolut_business = object()
+
+    class FakeEncryption:
+        async def encrypt_with_user_key(self, plaintext, key_id):
+            return f"encrypted:{plaintext}:{key_id}", "v1"
+
+    class FakeSecrets:
+        async def get_secret(self, secret_path, secret_key):
+            return f"secret-{secret_key}"
+
+    class FakeTier:
+        def __init__(self):
+            self.spending_updates = []
+            self.successful_payments = []
+
+        async def update_monthly_spending(self, **kwargs):
+            self.spending_updates.append(kwargs)
+
+        async def handle_successful_payment(self, **kwargs):
+            self.successful_payments.append(kwargs)
+
+    class FakeReferralService:
+        def __init__(self, *_args, **_kwargs):
+            pass
+
+        async def reward_after_purchase(self, **_kwargs):
+            return types.SimpleNamespace(
+                awarded=False,
+                referred_new_total=None,
+                referrer_user_id=None,
+                referrer_new_total=None,
+                referred_bonus=0,
+                referrer_bonus=0,
+            )
+
+    class FakeCache:
+        def __init__(self, order):
+            self.order = dict(order)
+            self.user = {"vault_key_id": "vault-key", "credits": 500}
+            self.status_updates = []
+            self.set_user_calls = []
+            self.stats = []
+            self.events = []
+
+        async def get_bank_transfer_by_reference(self, requested_reference):
+            assert requested_reference == self.order["reference"]
+            return dict(self.order)
+
+        async def update_bank_transfer_status(self, **kwargs):
+            self.status_updates.append(kwargs)
+            self.order.update(kwargs.get("extra_fields") or {})
+            self.order["status"] = kwargs.get("status")
+            return True
+
+        async def get_user_by_id(self, requested_user_id):
+            assert requested_user_id == self.order["user_id"]
+            return dict(self.user)
+
+        async def set_user(self, data, user_id):
+            assert user_id == self.order["user_id"]
+            self.set_user_calls.append(dict(data))
+            self.user = dict(data)
+            return True
+
+        async def increment_stat(self, name, value=None):
+            self.stats.append(("increment_stat", name, value))
+
+        async def increment_json_stat(self, name, key):
+            self.stats.append(("increment_json_stat", name, key))
+
+        async def update_liability(self, amount):
+            self.stats.append(("update_liability", amount))
+
+        async def publish_event(self, channel, event_data):
+            self.events.append((channel, event_data))
+
+    class FakeDirectus:
+        def __init__(self, order):
+            self.pending_bank_transfer = {"id": "pending-row-id", **order}
+            self.updated_users = []
+            self.updated_items = []
+
+        async def get_items(self, collection, params=None, **_kwargs):
+            if collection == "pending_bank_transfers":
+                return [{"id": self.pending_bank_transfer["id"]}]
+            return []
+
+        async def update_item(self, collection, item_id, data):
+            assert collection == "pending_bank_transfers"
+            assert item_id == "pending-row-id"
+            self.updated_items.append((collection, item_id, dict(data)))
+            self.pending_bank_transfer.update(data)
+            return dict(self.pending_bank_transfer)
+
+        async def update_user(self, user_id, payload):
+            self.updated_users.append((user_id, payload))
+            return True
+
+    @staticmethod
+    def _order(**overrides):
+        order = {
+            "order_id": "bt_personal01",
+            "status": "pending",
+            "amount_expected_cents": 5000,
+            "user_id": "user-123",
+            "credits_amount": 54000,
+            "order_type": "credit_purchase",
+            "reference": "OM-USER-bt01",
+            "email_encryption_key": "email-key",
+            "expires_at": "2026-07-29T00:00:00+00:00",
+        }
+        order.update(overrides)
+        return order
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("order_type", "amount", "remaining_amount_eur"),
+        [
+            ("credit_purchase", 45.0, "5.00"),
+            ("credit_purchase", 49.75, "0.25"),
+            ("team_credit_purchase", 45.0, "5.00"),
+            ("gift_card_purchase", 45.0, "5.00"),
+        ],
+    )
+    async def test_underpaid_transfer_stays_pending_extends_expiry_and_emails(
+        self,
+        monkeypatch,
+        order_type,
+        amount,
+        remaining_amount_eur,
+    ):
+        order = self._order(order_type=order_type)
+        cache = self.FakeCache(order)
+        directus = self.FakeDirectus(order)
+        sent_tasks = []
+        monkeypatch.setattr(payments.app, "send_task", lambda **kwargs: sent_tasks.append(kwargs))
+
+        result = await payments._handle_revolut_business_webhook(
+            event_payload=_make_transaction_created_event(
+                amount=amount,
+                currency="EUR",
+                reference=order["reference"],
+                transaction_id="txn-underpaid",
+            ),
+            event_type="TransactionCreated",
+            payment_service=self.FakePaymentService(),
+            cache_service=cache,
+            directus_service=directus,
+            encryption_service=self.FakeEncryption(),
+            secrets_manager=self.FakeSecrets(),
+            tier_service=self.FakeTier(),
+        )
+
+        assert result == {"status": "bank_transfer_underpaid"}
+        update = directus.updated_items[0][2]
+        assert update["status"] == "pending"
+        assert update["received_amount_cents"] == int(amount * 100)
+        assert update["remaining_amount_cents"] == int(float(remaining_amount_eur) * 100)
+        assert update["overpaid_amount_cents"] == 0
+        assert update["revolut_transactions"] == [
+            {
+                "transaction_id": "txn-underpaid",
+                "amount_cents": int(amount * 100),
+                "currency": "eur",
+                "received_at": "2026-04-13T12:00:00.000Z",
+            }
+        ]
+        assert datetime.fromisoformat(update["expires_at"]).tzinfo is not None
+        assert cache.set_user_calls == []
+        assert sent_tasks[0]["name"] == payments.BANK_TRANSFER_AMOUNT_NOTICE_TASK
+        assert sent_tasks[0]["kwargs"]["notice_type"] == "underpaid"
+        assert sent_tasks[0]["kwargs"]["remaining_amount_eur"] == remaining_amount_eur
+
+    @pytest.mark.asyncio
+    async def test_second_partial_completes_selected_pack_once_total_is_enough(self, monkeypatch):
+        order = self._order(
+            received_amount_cents=4500,
+            remaining_amount_cents=500,
+            revolut_transaction_id="txn-first",
+            revolut_transactions=[
+                {
+                    "transaction_id": "txn-first",
+                    "amount_cents": 4500,
+                    "currency": "eur",
+                    "received_at": "2026-04-13T12:00:00.000Z",
+                }
+            ],
+        )
+        cache = self.FakeCache(order)
+        directus = self.FakeDirectus(order)
+        sent_tasks = []
+        compliance_events = []
+        broadcasts = []
+        monkeypatch.setattr(payments.app, "send_task", lambda **kwargs: sent_tasks.append(kwargs))
+        monkeypatch.setattr(payments, "ReferralService", self.FakeReferralService)
+        monkeypatch.setattr(
+            payments.ComplianceService,
+            "log_financial_transaction",
+            lambda **kwargs: compliance_events.append(kwargs),
+        )
+        monkeypatch.setattr(payments.manager, "broadcast_to_user_specific_event", lambda **kwargs: broadcasts.append(kwargs))
+
+        result = await payments._handle_revolut_business_webhook(
+            event_payload=_make_transaction_created_event(
+                amount=5.0,
+                currency="EUR",
+                reference=order["reference"],
+                transaction_id="txn-second",
+            ),
+            event_type="TransactionCreated",
+            payment_service=self.FakePaymentService(),
+            cache_service=cache,
+            directus_service=directus,
+            encryption_service=self.FakeEncryption(),
+            secrets_manager=self.FakeSecrets(),
+            tier_service=self.FakeTier(),
+        )
+
+        assert result == {"status": "bank_transfer_completed"}
+        assert cache.user["credits"] == 54500
+        update = directus.updated_items[0][2]
+        assert update["status"] == "completed"
+        assert update["received_amount_cents"] == 5000
+        assert update["remaining_amount_cents"] == 0
+        assert len(update["revolut_transactions"]) == 2
+        assert [task["name"] for task in sent_tasks] == [
+            "app.tasks.email_tasks.purchase_confirmation_email_task.process_invoice_and_send_email"
+        ]
+        assert compliance_events[0]["details"]["received_amount_cents"] == 5000
+
+    @pytest.mark.asyncio
+    async def test_uppercase_bank_reference_matches_legacy_mixed_case_order(self, monkeypatch):
+        order = self._order(reference="OM-USER-btcase01")
+
+        class VariantCache(self.FakeCache):
+            def __init__(self, order):
+                super().__init__(order)
+                self.lookup_requests = []
+
+            async def get_bank_transfer_by_reference(self, requested_reference):
+                self.lookup_requests.append(requested_reference)
+                if requested_reference == self.order["reference"]:
+                    return dict(self.order)
+                return None
+
+        cache = VariantCache(order)
+        directus = self.FakeDirectus(order)
+        sent_tasks = []
+        compliance_events = []
+        monkeypatch.setattr(payments.app, "send_task", lambda **kwargs: sent_tasks.append(kwargs))
+        monkeypatch.setattr(payments, "ReferralService", self.FakeReferralService)
+        monkeypatch.setattr(
+            payments.ComplianceService,
+            "log_financial_transaction",
+            lambda **kwargs: compliance_events.append(kwargs),
+        )
+        monkeypatch.setattr(payments.manager, "broadcast_to_user_specific_event", lambda **kwargs: None)
+
+        result = await payments._handle_revolut_business_webhook(
+            event_payload=_make_transaction_created_event(
+                amount=50.0,
+                currency="EUR",
+                reference="OM-USER-BTCASE01",
+                transaction_id="txn-uppercase-reference",
+            ),
+            event_type="TransactionCreated",
+            payment_service=self.FakePaymentService(),
+            cache_service=cache,
+            directus_service=directus,
+            encryption_service=self.FakeEncryption(),
+            secrets_manager=self.FakeSecrets(),
+            tier_service=self.FakeTier(),
+        )
+
+        assert result == {"status": "bank_transfer_completed"}
+        assert "OM-USER-btcase01" in cache.lookup_requests
+        assert cache.status_updates[0]["reference"] == "OM-USER-btcase01"
+        assert directus.updated_items[0][2]["status"] == "completed"
+
+    @pytest.mark.asyncio
+    async def test_overpaid_transfer_credits_selected_pack_and_queues_surplus_notice(self, monkeypatch):
+        order = self._order()
+        cache = self.FakeCache(order)
+        directus = self.FakeDirectus(order)
+        sent_tasks = []
+        monkeypatch.setattr(payments.app, "send_task", lambda **kwargs: sent_tasks.append(kwargs))
+        monkeypatch.setattr(payments, "ReferralService", self.FakeReferralService)
+        monkeypatch.setattr(payments.ComplianceService, "log_financial_transaction", lambda **_kwargs: None)
+        monkeypatch.setattr(payments.manager, "broadcast_to_user_specific_event", lambda **_kwargs: None)
+
+        result = await payments._handle_revolut_business_webhook(
+            event_payload=_make_transaction_created_event(
+                amount=70.0,
+                currency="EUR",
+                reference=order["reference"],
+                transaction_id="txn-overpaid",
+            ),
+            event_type="TransactionCreated",
+            payment_service=self.FakePaymentService(),
+            cache_service=cache,
+            directus_service=directus,
+            encryption_service=self.FakeEncryption(),
+            secrets_manager=self.FakeSecrets(),
+            tier_service=self.FakeTier(),
+        )
+
+        assert result == {"status": "bank_transfer_completed"}
+        assert cache.user["credits"] == 54500
+        update = directus.updated_items[0][2]
+        assert update["received_amount_cents"] == 7000
+        assert update["overpaid_amount_cents"] == 2000
+        assert [task["name"] for task in sent_tasks] == [
+            "app.tasks.email_tasks.purchase_confirmation_email_task.process_invoice_and_send_email",
+            payments.BANK_TRANSFER_AMOUNT_NOTICE_TASK,
+        ]
+        assert sent_tasks[1]["kwargs"]["notice_type"] == "overpaid"
+        assert sent_tasks[1]["kwargs"]["overpaid_amount_eur"] == "20.00"
+
+    @pytest.mark.asyncio
+    async def test_duplicate_revolut_transaction_id_is_ignored(self, monkeypatch):
+        order = self._order(
+            received_amount_cents=4500,
+            remaining_amount_cents=500,
+            revolut_transaction_id="txn-duplicate",
+            revolut_transactions=[
+                {
+                    "transaction_id": "txn-duplicate",
+                    "amount_cents": 4500,
+                    "currency": "eur",
+                    "received_at": "2026-04-13T12:00:00.000Z",
+                }
+            ],
+        )
+        cache = self.FakeCache(order)
+        directus = self.FakeDirectus(order)
+        sent_tasks = []
+        monkeypatch.setattr(payments.app, "send_task", lambda **kwargs: sent_tasks.append(kwargs))
+
+        result = await payments._handle_revolut_business_webhook(
+            event_payload=_make_transaction_created_event(
+                amount=45.0,
+                currency="EUR",
+                reference=order["reference"],
+                transaction_id="txn-duplicate",
+            ),
+            event_type="TransactionCreated",
+            payment_service=self.FakePaymentService(),
+            cache_service=cache,
+            directus_service=directus,
+            encryption_service=self.FakeEncryption(),
+            secrets_manager=self.FakeSecrets(),
+            tier_service=self.FakeTier(),
+        )
+
+        assert result == {"status": "duplicate_transaction_ignored"}
+        assert directus.updated_items == []
+        assert cache.status_updates == []
+        assert sent_tasks == []
 
 
 class TestGiftCardBankTransferWebhook:

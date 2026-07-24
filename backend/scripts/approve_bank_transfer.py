@@ -41,6 +41,7 @@ from backend.core.api.app.services.cache import CacheService  # noqa: E402
 from backend.core.api.app.services.compliance import ComplianceService  # noqa: E402
 from backend.core.api.app.services.directus.directus import DirectusService  # noqa: E402
 from backend.core.api.app.services.team_billing_service import TeamBillingService  # noqa: E402
+from backend.core.api.app.utils.bank_transfer_references import bank_transfer_reference_lookup_variants  # noqa: E402
 from backend.core.api.app.utils.encryption import EncryptionService  # noqa: E402
 from backend.core.api.app.utils.secrets_manager import SecretsManager  # noqa: E402
 
@@ -50,6 +51,7 @@ logger = logging.getLogger("approve_bank_transfer")
 AMOUNT_TOLERANCE_CENTS = 50
 PAID_SIGNUP_COMPLETION_LAST_OPENED = "/chat/new"
 PENDING_BANK_TRANSFERS_COLLECTION = "pending_bank_transfers"
+MANUAL_APPROVAL_IN_PROGRESS_STATUS = "admin_review"
 INVOICE_SENDER_SECRET_PATH = "kv/data/providers/invoice_sender"
 PURCHASE_CONFIRMATION_TASK = (
     "app.tasks.email_tasks.purchase_confirmation_email_task."
@@ -70,18 +72,19 @@ def _paid_signup_completion_update_payload(**extra_fields: Any) -> dict[str, Any
 
 
 async def _fetch_order(directus: DirectusService, reference: str) -> dict[str, Any]:
-    rows = await directus.get_items(
-        PENDING_BANK_TRANSFERS_COLLECTION,
-        params={
-            "filter[reference][_eq]": reference,
-            "limit": 1,
-        },
-        no_cache=True,
-        admin_required=True,
-    )
-    if not rows:
-        raise ApprovalError(f"No bank transfer order found for reference '{reference}'.")
-    return rows[0]
+    for candidate_reference in bank_transfer_reference_lookup_variants(reference):
+        rows = await directus.get_items(
+            PENDING_BANK_TRANSFERS_COLLECTION,
+            params={
+                "filter[reference][_eq]": candidate_reference,
+                "limit": 1,
+            },
+            no_cache=True,
+            admin_required=True,
+        )
+        if rows:
+            return rows[0]
+    raise ApprovalError(f"No bank transfer order found for reference '{reference}'.")
 
 
 async def _update_order(
@@ -97,6 +100,39 @@ async def _update_order(
     )
     if not updated:
         raise ApprovalError(f"Failed to update bank transfer Directus item {item_id}.")
+    if "status" in data:
+        rows = await directus.get_items(
+            PENDING_BANK_TRANSFERS_COLLECTION,
+            params={
+                "filter[id][_eq]": item_id,
+                "fields": "id,status",
+                "limit": 1,
+            },
+            no_cache=True,
+            admin_required=True,
+        )
+        persisted_status = rows[0].get("status") if rows else None
+        if persisted_status != data["status"]:
+            raise ApprovalError(
+                f"Bank transfer Directus item {item_id} status update did not persist: "
+                f"expected '{data['status']}', got '{persisted_status}'."
+            )
+
+
+async def _mark_manual_approval_started(
+    directus: DirectusService,
+    item_id: str,
+    received_cents: int,
+) -> None:
+    await _update_order(
+        directus,
+        item_id,
+        {
+            "status": MANUAL_APPROVAL_IN_PROGRESS_STATUS,
+            "received_amount_cents": received_cents,
+            "admin_note": "Manual approval in progress via approve_bank_transfer.py",
+        },
+    )
 
 
 async def _get_user_profile(
@@ -248,6 +284,7 @@ async def approve(args: argparse.Namespace) -> int:
                 print("\nDry run only. Re-run with --apply to approve and grant team credits.")
                 return 0
 
+            await _mark_manual_approval_started(directus, item_id, args.received_cents)
             completed_at = datetime.now(timezone.utc).isoformat()
             await TeamBillingService(directus).add_credits(
                 team_id=str(team_id),
@@ -312,6 +349,7 @@ async def approve(args: argparse.Namespace) -> int:
             print("\nDry run only. Re-run with --apply to approve and grant credits.")
             return 0
 
+        await _mark_manual_approval_started(directus, item_id, args.received_cents)
         completed_at = datetime.now(timezone.utc).isoformat()
         encrypted_credits, _ = await encryption.encrypt_with_user_key(
             str(new_total_credits),

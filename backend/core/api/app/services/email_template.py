@@ -418,6 +418,7 @@ class EmailTemplateService:
                 'community_share_notification',
                 'password-security-reminder',
                 'post-purchase-security-setup',
+                'bank-transfer-amount-notice',
                 'inactive-account-deletion-reminder', 'inactive-account-deleted',
                 'account-deletion-warning-correction',
                 'storage-billing-failed-1', 'storage-billing-failed-2',
