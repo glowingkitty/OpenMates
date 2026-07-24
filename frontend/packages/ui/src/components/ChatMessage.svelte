@@ -897,6 +897,12 @@
   
   // Get the chat ID from the original message (needed for ExampleChatsGroup exclusion)
   let currentChatId = $derived(original_message?.chat_id || 'demo-for-everyone');
+  let isInteractiveResponseMessage = $derived.by(() => {
+    const rawContent = typeof original_message?.content === 'string'
+      ? original_message.content
+      : (typeof content === 'string' ? content : '');
+    return role === 'user' && rawContent.includes('```interactive_response');
+  });
 
   /**
    * Whether the fork action is disabled for this message.
@@ -3106,7 +3112,7 @@
     <div 
       bind:this={messageContentElement}
       class="{role === 'user' ? 'user' : 'mate'}-message-content {animated ? 'message-animated' : ''}"
-      class:interactive-response-bubble={role === 'user' && typeof content === 'string' && content.includes('```interactive_response')}
+      class:interactive-response-bubble={isInteractiveResponseMessage}
       data-testid="{role === 'user' ? 'user' : 'mate'}-message-content"
       style="opacity: {defaultHidden ? '0' : '1'};"
       role="article"
@@ -3366,6 +3372,7 @@
             <ReadOnlyMessage
                 bind:this={readOnlyMessageComponent}
                 content={fullContent}
+                chatId={currentChatId}
                 isStreaming={status === 'streaming'}
                 {_embedUpdateTimestamp}
                 {selectable}
@@ -3386,6 +3393,7 @@
             <ReadOnlyMessage
                 bind:this={readOnlyMessageComponent}
                 {content}
+                chatId={currentChatId}
                 isStreaming={status === 'streaming'}
                 {_embedUpdateTimestamp}
                 {selectable}

@@ -75,6 +75,9 @@
 	// Get chat ID from URL params
 	let chatId = $derived($page.params.chatId);
 	const SHARED_MESSAGE_WINDOW_LIMIT = 30;
+	const SHARED_INTERACTIVE_CONTEXT_PAGE_LIMIT = 4;
+	const INTERACTIVE_QUESTION_BLOCK_RE = /```interactive_question\s*([\s\S]*?)\s*```/g;
+	const INTERACTIVE_RESPONSE_BLOCK_RE = /```interactive_response\s*([\s\S]*?)\s*```/g;
 
 	// State
 	let isLoading = $state(true);
@@ -176,6 +179,19 @@
 		message_window?: { has_more?: boolean; next_before_timestamp?: number | null; next_before_message_id?: string | null };
 	};
 
+	type ShareMessageWindow = {
+		messages: Message[];
+		has_more: boolean;
+		next_before_timestamp: number | null;
+		next_before_message_id: string | null;
+	};
+
+	type DecryptWithChatKey = (
+		ciphertext: string,
+		keyBytes: Uint8Array,
+		context?: { chatId?: string; fieldName?: string }
+	) => Promise<string | null>;
+
 	/**
 	 * Extract the encryption key and message ID from the URL fragment
 	 * Format: #key={encrypted_blob} or #key={encrypted_blob}&messageid={messageId}
@@ -215,6 +231,176 @@
 			console.warn('[ShareChat] Failed to get server time, using client time:', error);
 			return Math.floor(Date.now() / 1000);
 		}
+	}
+
+	function parseShareChatServerMessage(msg: string | ShareChatServerMessage): ShareChatServerMessage | null {
+		if (typeof msg !== 'string') return msg;
+		try {
+			return JSON.parse(msg) as ShareChatServerMessage;
+		} catch (e) {
+			console.warn('[ShareChat] Failed to parse message JSON:', e);
+			return null;
+		}
+	}
+
+	function parseSharedMessageWindow(
+		payload: Pick<ShareChatPayload, 'messages' | 'message_window'> & {
+			has_more?: boolean;
+			next_before_timestamp?: number | null;
+			next_before_message_id?: string | null;
+		},
+		resolvedChatId: string
+	): ShareMessageWindow {
+		const rawMessages = (payload.messages || []) as Array<string | ShareChatServerMessage>;
+		const parsedMessages = rawMessages
+			.map(parseShareChatServerMessage)
+			.filter((msg): msg is ShareChatServerMessage => msg !== null);
+
+		const messages: Message[] = parsedMessages.flatMap((messageObj) => {
+			const messageId = messageObj.client_message_id || messageObj.message_id || messageObj.id;
+			if (!messageId) return [];
+			const role =
+				messageObj.role === 'assistant' || messageObj.role === 'system' ? messageObj.role : 'user';
+			return [{
+				message_id: messageId,
+				chat_id: resolvedChatId,
+				role,
+				created_at: messageObj.created_at || Math.floor(Date.now() / 1000),
+				status: 'synced' as const,
+				encrypted_content: messageObj.encrypted_content || '',
+				encrypted_sender_name: messageObj.encrypted_sender_name,
+				encrypted_category: messageObj.encrypted_category,
+				encrypted_model_name: messageObj.encrypted_model_name,
+				user_message_id: messageObj.user_message_id,
+				encrypted_pii_mappings: messageObj.encrypted_pii_mappings,
+				client_message_id: messageObj.client_message_id
+			}];
+		});
+
+		return {
+			messages,
+			has_more: !!(payload.message_window?.has_more ?? payload.has_more),
+			next_before_timestamp: payload.message_window?.next_before_timestamp ?? payload.next_before_timestamp ?? null,
+			next_before_message_id: payload.message_window?.next_before_message_id ?? payload.next_before_message_id ?? null
+		};
+	}
+
+	function extractInteractiveIds(content: string, pattern: RegExp): Set<string> {
+		const ids = new Set<string>();
+		pattern.lastIndex = 0;
+		let match = pattern.exec(content);
+		while (match) {
+			try {
+				const parsed = JSON.parse(match[1]) as { id?: unknown };
+				if (typeof parsed.id === 'string' && parsed.id.trim()) ids.add(parsed.id);
+			} catch {
+				// Ignore malformed historic blocks; rendering already has its own fallback.
+			}
+			match = pattern.exec(content);
+		}
+		return ids;
+	}
+
+	async function findMissingInteractiveQuestionIds(
+		messages: Message[],
+		keyBytes: Uint8Array,
+		decryptWithChatKey: DecryptWithChatKey
+	): Promise<Set<string>> {
+		const seenQuestionIds = new Set<string>();
+		const missingQuestionIds = new Set<string>();
+		const chronologicalMessages = [...messages].sort(
+			(a, b) => (a.created_at ?? 0) - (b.created_at ?? 0) || a.message_id.localeCompare(b.message_id)
+		);
+
+		for (const message of chronologicalMessages) {
+			if (!message.encrypted_content) continue;
+			const plaintext = await decryptWithChatKey(message.encrypted_content, keyBytes, {
+				chatId: message.chat_id,
+				fieldName: 'shared_interactive_question_context'
+			});
+			if (!plaintext) continue;
+
+			if (message.role === 'assistant') {
+				for (const id of extractInteractiveIds(plaintext, INTERACTIVE_QUESTION_BLOCK_RE)) {
+					seenQuestionIds.add(id);
+					missingQuestionIds.delete(id);
+				}
+			} else if (message.role === 'user') {
+				for (const id of extractInteractiveIds(plaintext, INTERACTIVE_RESPONSE_BLOCK_RE)) {
+					if (!seenQuestionIds.has(id)) missingQuestionIds.add(id);
+				}
+			}
+		}
+
+		return missingQuestionIds;
+	}
+
+	function mergeOlderSharedMessages(olderMessages: Message[], currentMessages: Message[]): Message[] {
+		const seen = new Set<string>();
+		return [...olderMessages, ...currentMessages].filter((message) => {
+			if (seen.has(message.message_id)) return false;
+			seen.add(message.message_id);
+			return true;
+		}).sort((a, b) => (a.created_at ?? 0) - (b.created_at ?? 0) || a.message_id.localeCompare(b.message_id));
+	}
+
+	async function expandSharedInteractiveQuestionContext(
+		chatId: string,
+		messages: Message[],
+		chat: Chat,
+		keyBytes: Uint8Array
+	): Promise<Message[]> {
+		const { decryptWithChatKey } = await import('@repo/ui');
+		let expandedMessages = messages;
+		let hasMoreBefore = !!chat.shared_message_window_has_more_before;
+		let nextBeforeTimestamp = chat.shared_message_window_next_before_timestamp ?? null;
+		let nextBeforeMessageId = chat.shared_message_window_next_before_message_id ?? null;
+
+		for (let page = 0; page < SHARED_INTERACTIVE_CONTEXT_PAGE_LIMIT; page += 1) {
+			const missingQuestionIds = await findMissingInteractiveQuestionIds(expandedMessages, keyBytes, decryptWithChatKey as DecryptWithChatKey);
+			if (missingQuestionIds.size === 0 || !hasMoreBefore || nextBeforeTimestamp === null) {
+				break;
+			}
+
+			const params = new URLSearchParams({
+				limit: String(SHARED_MESSAGE_WINDOW_LIMIT),
+				before_timestamp: String(nextBeforeTimestamp)
+			});
+			if (nextBeforeMessageId) params.set('before_message_id', nextBeforeMessageId);
+
+			try {
+				const response = await fetch(getApiEndpoint(`/v1/share/chat/${chatId}/messages?${params.toString()}`));
+				if (!response.ok) {
+					console.warn('[ShareChat] Failed to expand interactive question context:', response.status);
+					break;
+				}
+				const payload = await response.json();
+				const olderWindow = parseSharedMessageWindow(payload, chatId);
+				if (olderWindow.messages.length === 0) {
+					hasMoreBefore = false;
+					break;
+				}
+				expandedMessages = mergeOlderSharedMessages(olderWindow.messages, expandedMessages);
+				hasMoreBefore = olderWindow.has_more;
+				nextBeforeTimestamp = olderWindow.next_before_timestamp;
+				nextBeforeMessageId = olderWindow.next_before_message_id;
+			} catch (error) {
+				console.warn('[ShareChat] Error expanding interactive question context:', error);
+				break;
+			}
+		}
+
+		chat.shared_message_window_has_more_before = hasMoreBefore;
+		chat.shared_message_window_next_before_timestamp = nextBeforeTimestamp;
+		chat.shared_message_window_next_before_message_id = nextBeforeMessageId;
+		chat.messages_v = expandedMessages.length;
+
+		const unresolvedIds = await findMissingInteractiveQuestionIds(expandedMessages, keyBytes, decryptWithChatKey as DecryptWithChatKey);
+		if (unresolvedIds.size > 0) {
+			console.warn('[ShareChat] Interactive responses still missing prior questions after bounded expansion:', [...unresolvedIds]);
+		}
+
+		return expandedMessages;
 	}
 
 	/**
@@ -279,61 +465,17 @@
 				embed_keys_count: data.embed_keys?.length || 0
 			});
 
-			// Parse messages first (backend returns JSON strings when decrypt_content=False)
-			const rawMessages = (data.messages || []) as Array<string | ShareChatServerMessage>;
-			const parsedMessages = rawMessages
-				.map((msg): ShareChatServerMessage | null => {
-					if (typeof msg === 'string') {
-						try {
-							return JSON.parse(msg) as ShareChatServerMessage;
-						} catch (e) {
-							console.warn('[ShareChat] Failed to parse message JSON:', e);
-							return null;
-						}
-					}
-					return msg;
-				})
-				.filter((msg): msg is ShareChatServerMessage => msg !== null);
+			const resolvedChatId = data.chat_id || chatId;
+			const messageWindow = parseSharedMessageWindow(data, resolvedChatId);
 
 			// Calculate last_edited_overall_timestamp from parsed messages
-			const messageTimestamps = parsedMessages
+			const messageTimestamps = messageWindow.messages
 				.map((m) => m.created_at || 0)
 				.filter((ts: number) => ts > 0);
 			const lastMessageTimestamp =
 				messageTimestamps.length > 0
 					? Math.max(...messageTimestamps)
 					: Math.floor(Date.now() / 1000);
-
-			const resolvedChatId = data.chat_id || chatId;
-
-			// Convert parsed messages to Message format
-			const messages: Message[] = parsedMessages.flatMap((messageObj) => {
-				const messageId = messageObj.client_message_id || messageObj.message_id || messageObj.id;
-				if (!messageId) return [];
-				const role =
-					messageObj.role === 'assistant' || messageObj.role === 'system' ? messageObj.role : 'user';
-				// Prefer client_message_id as the IDB key so that batchSaveMessages() can
-				// find the already-stored entry when the owner opens their own share link.
-				// The owner's IDB keyed the message by client_message_id at creation time;
-				// if we use the Directus `id` here the duplicate-check lookup misses and a
-				// second copy is inserted under a different key → duplicate message in the chat.
-				// Fall back to `message_id` then `id` for non-owner viewers who have no prior
-				// local copy (so any stable ID is fine for them).
-				return [{
-					message_id: messageId,
-					chat_id: resolvedChatId,
-					role,
-					created_at: messageObj.created_at || Math.floor(Date.now() / 1000),
-					status: 'synced' as const,
-					encrypted_content: messageObj.encrypted_content || '',
-					encrypted_sender_name: messageObj.encrypted_sender_name,
-					encrypted_category: messageObj.encrypted_category,
-					encrypted_model_name: messageObj.encrypted_model_name, // Model name for assistant messages
-					user_message_id: messageObj.user_message_id,
-					encrypted_pii_mappings: messageObj.encrypted_pii_mappings,
-					client_message_id: messageObj.client_message_id
-				}];
-			});
 
 			// Get current user ID to check ownership
 			// For authenticated users, we need to determine if they own this chat
@@ -369,7 +511,7 @@
 			const chat: Chat = {
 				chat_id: resolvedChatId,
 				encrypted_title: data.encrypted_title || null,
-				messages_v: messages.length, // Set based on actual message count
+				messages_v: messageWindow.messages.length, // Set based on actual message count
 				title_v: 0,
 				last_edited_overall_timestamp: lastMessageTimestamp,
 				unread_count: 0,
@@ -386,9 +528,9 @@
 				is_shared_by_others: true,
 				share_pii: data.share_pii ?? false,
 				share_highlights: data.share_highlights ?? true,
-				shared_message_window_has_more_before: !!data.message_window?.has_more,
-				shared_message_window_next_before_timestamp: data.message_window?.next_before_timestamp ?? null,
-				shared_message_window_next_before_message_id: data.message_window?.next_before_message_id ?? null,
+				shared_message_window_has_more_before: messageWindow.has_more,
+				shared_message_window_next_before_timestamp: messageWindow.next_before_timestamp,
+				shared_message_window_next_before_message_id: messageWindow.next_before_message_id,
 				group_key: 'shared_by_others'
 			};
 
@@ -420,7 +562,7 @@
 
 			return {
 				chat,
-				messages,
+				messages: messageWindow.messages,
 				subChats,
 				embeds: (data.embeds || []) as ShareChatEmbedLike[],
 				embed_keys: (data.embed_keys || []) as ShareChatEmbedKey[],
@@ -600,6 +742,7 @@
 			// Convert the chat encryption key from base64 string to Uint8Array
 			// The key is stored as base64 in the blob, but chatDB expects Uint8Array
 			const keyBytes = Uint8Array.from(atob(result.chatEncryptionKey), (c) => c.charCodeAt(0));
+			let messagesToStore = fetchedMessages;
 
 			// The API deliberately returns deterministic dummy ciphertext for missing/unshared
 			// chats to prevent ID enumeration. Validate that the URL key can decrypt at
@@ -621,6 +764,13 @@
 					return;
 				}
 			}
+
+			messagesToStore = await expandSharedInteractiveQuestionContext(
+				chatId,
+				messagesToStore,
+				fetchedChat,
+				keyBytes
+			);
 
 			// Set the chat encryption key in the database cache BEFORE storing chat
 			// This allows the chat to be decrypted when stored.
@@ -654,9 +804,9 @@
 			}
 
 			// Store messages if any (batchSaveMessages creates its own transaction)
-			if (fetchedMessages.length > 0) {
-				await chatDB.batchSaveMessages(fetchedMessages);
-				console.debug(`[ShareChat] Stored ${fetchedMessages.length} messages`);
+			if (messagesToStore.length > 0) {
+				await chatDB.batchSaveMessages(messagesToStore);
+				console.debug(`[ShareChat] Stored ${messagesToStore.length} messages`);
 			}
 
 			if (fetchedCompressionCheckpoints.length > 0) {
@@ -834,7 +984,7 @@
 				console.debug(`[ShareChat] Stored ${fetchedCodeRunOutputs.length} code run outputs`);
 			}
 
-			await validateSharedEmbedRefs(chatId, fetchedMessages, keyBytes);
+			await validateSharedEmbedRefs(chatId, messagesToStore, keyBytes);
 
 			// NOTE: Shared chat keys are now persisted in IndexedDB via sharedChatKeyStorage
 			// This allows unauthenticated users to reload the tab and still access the chat.

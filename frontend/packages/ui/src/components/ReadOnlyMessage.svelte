@@ -41,7 +41,8 @@
         selectable = false,
         piiMappings = undefined,
         piiRevealed = false,
-        role = undefined
+        role = undefined,
+        chatId = ''
     }: {
         content: string | Record<string, unknown> | null;
         isStreaming?: boolean;
@@ -50,6 +51,7 @@
         piiMappings?: PIIMapping[];
         piiRevealed?: boolean; // Whether PII original values are visible (false = placeholders shown, true = originals shown)
         role?: "user" | "assistant" | "system"; // Message role — passed to parse_message for single-embed large promotion
+        chatId?: string;
     } = $props(); // The message content from Tiptap JSON
 
     let editorElement: HTMLElement;
@@ -670,7 +672,7 @@
             WikiInlineNode, // For Wikipedia topic inline links from post-processing
             SourceQuoteNode, // For > [quoted text](embed:ref) verified source quotes
             EmbedPreviewLargeNode, // For [!](embed:ref) and [](embed:ref) — responsive preview card (carousel-capable)
-            InteractiveQuestionNode, // For interactive questions embedded in LLM output
+            InteractiveQuestionNode.configure({ chatId }), // For interactive questions embedded in LLM output
             ...MarkdownExtensions, // Spread the array of markdown extensions
         ];
         
