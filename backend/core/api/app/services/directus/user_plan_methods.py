@@ -61,6 +61,19 @@ REFERENCE_PATTERN_FIELDS = (
     "encrypted_waiver_reason"
 )
 
+LEARNING_FIELDS = (
+    "id,plan_id,learning_id,type,target_kind,status,severity,confidence,linked_task_ids,"
+    "linked_check_ids,applied_task_id,version,created_at,updated_at,encrypted_title,"
+    "encrypted_observation,encrypted_root_cause,encrypted_suggested_change,"
+    "encrypted_evidence_summary,encrypted_task_draft,encrypted_rejection_reason"
+)
+
+LEARNING_TYPES = {"workflow_improvement", "agent_instruction_improvement"}
+LEARNING_TARGET_KINDS = {"workflow", "project_agent_instructions"}
+LEARNING_STATUSES = {"draft", "proposed", "accepted", "applied", "rejected", "duplicate", "merged"}
+LEARNING_SEVERITIES = {"low", "medium", "high"}
+LEARNING_CONFIDENCES = {"low", "medium", "high"}
+
 VERIFICATION_RUN_FIELDS = (
     "id,plan_id,verification_id,run_id,runner_kind,status,exit_code,source_embed_id,"
     "started_at,finished_at,duration_ms,artifact_count,created_at,encrypted_command,"
@@ -574,6 +587,67 @@ class UserPlanMethods:
         update = dict(patch)
         update["version"] = int(existing.get("version") or 1) + 1
         return await self.directus_service.update_item("user_plan_reference_patterns", existing["id"], update)
+
+    async def create_learning(self, plan_id: str, payload: dict[str, Any]) -> dict[str, Any] | None:
+        record = {
+            **payload,
+            "plan_id": plan_id,
+            "status": payload.get("status") or "draft",
+            "severity": payload.get("severity") or "medium",
+            "confidence": payload.get("confidence") or "medium",
+            "version": payload.get("version", 1),
+        }
+        if not self._validate_learning_record(record):
+            return None
+        success, data = await self.directus_service.create_item("user_plan_learnings", record)
+        if not success:
+            logger.error("Failed to create plan learning: %s", data)
+            return None
+        return data
+
+    async def list_learnings(self, plan_id: str) -> list[dict[str, Any]]:
+        params = {"filter[plan_id][_eq]": plan_id, "fields": LEARNING_FIELDS, "sort": "created_at"}
+        response = await self.directus_service.get_items("user_plan_learnings", params=params, no_cache=True)
+        return response if isinstance(response, list) else []
+
+    async def update_learning(self, plan_id: str, learning_id: str, patch: dict[str, Any]) -> dict[str, Any] | None:
+        params = {
+            "filter[plan_id][_eq]": plan_id,
+            "filter[learning_id][_eq]": learning_id,
+            "fields": LEARNING_FIELDS,
+            "limit": 1,
+        }
+        existing_rows = await self.directus_service.get_items("user_plan_learnings", params=params, no_cache=True)
+        if not existing_rows:
+            return None
+        existing = existing_rows[0]
+        update = dict(patch)
+        candidate = {**existing, **update}
+        if not self._validate_learning_record(candidate):
+            return None
+        update["version"] = int(existing.get("version") or 1) + 1
+        return await self.directus_service.update_item("user_plan_learnings", existing["id"], update)
+
+    def _validate_learning_record(self, record: dict[str, Any]) -> bool:
+        if record.get("type") not in LEARNING_TYPES:
+            logger.error("Rejected plan learning with invalid type")
+            return False
+        if record.get("target_kind") not in LEARNING_TARGET_KINDS:
+            logger.error("Rejected plan learning with invalid target_kind")
+            return False
+        if record.get("status") not in LEARNING_STATUSES:
+            logger.error("Rejected plan learning with invalid status")
+            return False
+        if record.get("severity") is not None and record.get("severity") not in LEARNING_SEVERITIES:
+            logger.error("Rejected plan learning with invalid severity")
+            return False
+        if record.get("confidence") is not None and record.get("confidence") not in LEARNING_CONFIDENCES:
+            logger.error("Rejected plan learning with invalid confidence")
+            return False
+        if not record.get("learning_id") or not record.get("encrypted_title"):
+            logger.error("Rejected plan learning without required encrypted fields")
+            return False
+        return True
 
     async def create_verification_run(self, plan_id: str, verification_id: str, payload: dict[str, Any]) -> dict[str, Any] | None:
         record = {**payload, "plan_id": plan_id, "verification_id": verification_id}

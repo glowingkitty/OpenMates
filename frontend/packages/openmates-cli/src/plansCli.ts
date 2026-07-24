@@ -14,6 +14,11 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
 import type {
   UserPlanCreateInput,
   UserPlanCriterionRecord,
+  UserPlanLearningLevel,
+  UserPlanLearningRecord,
+  UserPlanLearningStatus,
+  UserPlanLearningTargetKind,
+  UserPlanLearningType,
   UserPlanRecord,
   UserPlanStatus,
   UserPlanUpdateInput,
@@ -27,7 +32,12 @@ import {
   encryptWithAesGcmCombined,
 } from "./crypto.js";
 
-const PLAN_STATUSES: UserPlanStatus[] = ["draft", "awaiting_confirmation", "active", "executing", "blocked", "completed", "archived"];
+const PLAN_STATUSES: UserPlanStatus[] = ["draft", "checking_assumptions", "awaiting_confirmation", "active", "executing", "running_checks", "blocked", "completed", "archived"];
+const LEARNING_TYPES: UserPlanLearningType[] = ["workflow_improvement", "agent_instruction_improvement"];
+const LEARNING_TARGET_KINDS: UserPlanLearningTargetKind[] = ["workflow", "project_agent_instructions"];
+const LEARNING_STATUSES: UserPlanLearningStatus[] = ["draft", "proposed", "accepted", "applied", "rejected", "duplicate", "merged"];
+const LEARNING_LEVELS: UserPlanLearningLevel[] = ["low", "medium", "high"];
+const FINALIZED_LEARNING_STATUSES = new Set<UserPlanLearningStatus>(["proposed", "accepted", "applied"]);
 const DEFAULT_PLAN_PREFIX = "PLAN";
 
 export interface DecryptedUserPlan {
@@ -55,6 +65,29 @@ export interface DecryptedUserPlan {
   updatedAt: number;
   completedAt: number | null;
   encrypted: UserPlanRecord;
+}
+
+export interface DecryptedPlanLearning {
+  learningId: string;
+  type: UserPlanLearningType;
+  targetKind: UserPlanLearningTargetKind;
+  status: UserPlanLearningStatus;
+  severity: UserPlanLearningLevel | null;
+  confidence: UserPlanLearningLevel | null;
+  linkedTaskIds: string[];
+  linkedCheckIds: string[];
+  appliedTaskId: string | null;
+  title: string;
+  observation: string;
+  rootCause: string;
+  suggestedChange: string;
+  evidenceSummary: string;
+  taskDraft: string;
+  rejectionReason: string;
+  version: number;
+  createdAt: number;
+  updatedAt: number;
+  encrypted: UserPlanLearningRecord;
 }
 
 export interface PlanCreateOptions {
@@ -135,10 +168,68 @@ export interface PlanVerificationEvidenceOptions {
   requiredFixes?: string;
 }
 
+export interface PlanLearningCreateOptions {
+  learningId?: string;
+  type: UserPlanLearningType;
+  targetKind: UserPlanLearningTargetKind;
+  status?: UserPlanLearningStatus;
+  severity?: UserPlanLearningLevel | null;
+  confidence?: UserPlanLearningLevel | null;
+  linkedTaskIds?: string[];
+  linkedCheckIds?: string[];
+  title: string;
+  observation?: string;
+  rootCause?: string;
+  suggestedChange?: string;
+  evidenceSummary?: string;
+  taskDraft?: string;
+  rejectionReason?: string;
+}
+
+export interface PlanLearningUpdateOptions {
+  status?: UserPlanLearningStatus;
+  severity?: UserPlanLearningLevel | null;
+  confidence?: UserPlanLearningLevel | null;
+  linkedTaskIds?: string[];
+  linkedCheckIds?: string[];
+  appliedTaskId?: string | null;
+  title?: string;
+  observation?: string;
+  rootCause?: string;
+  suggestedChange?: string;
+  evidenceSummary?: string;
+  taskDraft?: string;
+  rejectionReason?: string;
+}
+
 export function normalizePlanStatus(value: string | undefined): UserPlanStatus | undefined {
   if (value === undefined) return undefined;
   if (PLAN_STATUSES.includes(value as UserPlanStatus)) return value as UserPlanStatus;
   throw new Error(`Unknown plan status '${value}'. Expected one of: ${PLAN_STATUSES.join(", ")}`);
+}
+
+export function normalizeLearningType(value: string | undefined): UserPlanLearningType | undefined {
+  if (value === undefined) return undefined;
+  if (LEARNING_TYPES.includes(value as UserPlanLearningType)) return value as UserPlanLearningType;
+  throw new Error(`Unknown learning type '${value}'. Expected one of: ${LEARNING_TYPES.join(", ")}`);
+}
+
+export function normalizeLearningTargetKind(value: string | undefined): UserPlanLearningTargetKind | undefined {
+  if (value === undefined) return undefined;
+  if (LEARNING_TARGET_KINDS.includes(value as UserPlanLearningTargetKind)) return value as UserPlanLearningTargetKind;
+  throw new Error(`Unknown learning target '${value}'. Expected one of: ${LEARNING_TARGET_KINDS.join(", ")}`);
+}
+
+export function normalizeLearningStatus(value: string | undefined): UserPlanLearningStatus | undefined {
+  if (value === undefined) return undefined;
+  if (LEARNING_STATUSES.includes(value as UserPlanLearningStatus)) return value as UserPlanLearningStatus;
+  throw new Error(`Unknown learning status '${value}'. Expected one of: ${LEARNING_STATUSES.join(", ")}`);
+}
+
+export function normalizeLearningLevel(value: string | undefined): UserPlanLearningLevel | undefined {
+  if (value === undefined) return undefined;
+  if (LEARNING_LEVELS.includes(value as UserPlanLearningLevel)) return value as UserPlanLearningLevel;
+  throw new Error(`Unknown learning level '${value}'. Expected one of: ${LEARNING_LEVELS.join(", ")}`);
 }
 
 export async function buildCreateUserPlanInput(masterKey: Uint8Array, input: PlanCreateOptions): Promise<UserPlanCreateInput> {
@@ -235,6 +326,85 @@ export async function decryptUserPlan(record: UserPlanRecord, masterKey: Uint8Ar
 export async function decryptUserPlans(records: UserPlanRecord[], masterKey: Uint8Array): Promise<DecryptedUserPlan[]> {
   const output: DecryptedUserPlan[] = [];
   for (const record of records) output.push(await decryptUserPlan(record, masterKey));
+  return output;
+}
+
+export async function buildCreatePlanLearningInput(plan: DecryptedUserPlan, masterKey: Uint8Array, input: PlanLearningCreateOptions): Promise<UserPlanLearningRecord> {
+  const planKey = await planKeyFromRecord(plan.encrypted, masterKey);
+  const timestamp = nowSeconds();
+  if (input.taskDraft) assertSafeLearningTaskDraft(input.taskDraft);
+  return {
+    learning_id: input.learningId ?? randomUUIDCompat(),
+    type: input.type,
+    target_kind: input.targetKind,
+    status: input.status ?? "draft",
+    severity: input.severity ?? "medium",
+    confidence: input.confidence ?? "medium",
+    linked_task_ids: input.linkedTaskIds,
+    linked_check_ids: input.linkedCheckIds,
+    encrypted_title: await encryptWithAesGcmCombined(input.title, planKey),
+    encrypted_observation: input.observation !== undefined ? await encryptWithAesGcmCombined(input.observation, planKey) : undefined,
+    encrypted_root_cause: input.rootCause !== undefined ? await encryptWithAesGcmCombined(input.rootCause, planKey) : undefined,
+    encrypted_suggested_change: input.suggestedChange !== undefined ? await encryptWithAesGcmCombined(input.suggestedChange, planKey) : undefined,
+    encrypted_evidence_summary: input.evidenceSummary !== undefined ? await encryptWithAesGcmCombined(input.evidenceSummary, planKey) : undefined,
+    encrypted_task_draft: input.taskDraft !== undefined ? await encryptWithAesGcmCombined(input.taskDraft, planKey) : undefined,
+    encrypted_rejection_reason: input.rejectionReason !== undefined ? await encryptWithAesGcmCombined(input.rejectionReason, planKey) : undefined,
+    created_at: timestamp,
+    updated_at: timestamp,
+  };
+}
+
+export async function buildUpdatePlanLearningInput(plan: DecryptedUserPlan, masterKey: Uint8Array, input: PlanLearningUpdateOptions): Promise<Partial<UserPlanLearningRecord>> {
+  const planKey = await planKeyFromRecord(plan.encrypted, masterKey);
+  const patch: Partial<UserPlanLearningRecord> = { updated_at: nowSeconds() };
+  if (input.status !== undefined) patch.status = input.status;
+  if (input.severity !== undefined) patch.severity = input.severity;
+  if (input.confidence !== undefined) patch.confidence = input.confidence;
+  if (input.linkedTaskIds !== undefined) patch.linked_task_ids = input.linkedTaskIds;
+  if (input.linkedCheckIds !== undefined) patch.linked_check_ids = input.linkedCheckIds;
+  if (input.appliedTaskId !== undefined) patch.applied_task_id = input.appliedTaskId;
+  if (input.title !== undefined) patch.encrypted_title = await encryptWithAesGcmCombined(input.title, planKey);
+  if (input.observation !== undefined) patch.encrypted_observation = await encryptWithAesGcmCombined(input.observation, planKey);
+  if (input.rootCause !== undefined) patch.encrypted_root_cause = await encryptWithAesGcmCombined(input.rootCause, planKey);
+  if (input.suggestedChange !== undefined) patch.encrypted_suggested_change = await encryptWithAesGcmCombined(input.suggestedChange, planKey);
+  if (input.evidenceSummary !== undefined) patch.encrypted_evidence_summary = await encryptWithAesGcmCombined(input.evidenceSummary, planKey);
+  if (input.taskDraft !== undefined) {
+    assertSafeLearningTaskDraft(input.taskDraft);
+    patch.encrypted_task_draft = await encryptWithAesGcmCombined(input.taskDraft, planKey);
+  }
+  if (input.rejectionReason !== undefined) patch.encrypted_rejection_reason = await encryptWithAesGcmCombined(input.rejectionReason, planKey);
+  return patch;
+}
+
+export async function decryptPlanLearning(plan: DecryptedUserPlan, record: UserPlanLearningRecord, masterKey: Uint8Array): Promise<DecryptedPlanLearning> {
+  const planKey = await planKeyFromRecord(plan.encrypted, masterKey);
+  return {
+    learningId: record.learning_id,
+    type: record.type,
+    targetKind: record.target_kind,
+    status: record.status ?? "draft",
+    severity: record.severity ?? null,
+    confidence: record.confidence ?? null,
+    linkedTaskIds: record.linked_task_ids ?? [],
+    linkedCheckIds: record.linked_check_ids ?? [],
+    appliedTaskId: record.applied_task_id ?? null,
+    title: await decryptOptional(record.encrypted_title, planKey) || "(untitled learning)",
+    observation: await decryptOptional(record.encrypted_observation, planKey),
+    rootCause: await decryptOptional(record.encrypted_root_cause, planKey),
+    suggestedChange: await decryptOptional(record.encrypted_suggested_change, planKey),
+    evidenceSummary: await decryptOptional(record.encrypted_evidence_summary, planKey),
+    taskDraft: await decryptOptional(record.encrypted_task_draft, planKey),
+    rejectionReason: await decryptOptional(record.encrypted_rejection_reason, planKey),
+    version: record.version ?? 1,
+    createdAt: record.created_at ?? 0,
+    updatedAt: record.updated_at ?? 0,
+    encrypted: record,
+  };
+}
+
+export async function decryptPlanLearnings(plan: DecryptedUserPlan, records: UserPlanLearningRecord[], masterKey: Uint8Array): Promise<DecryptedPlanLearning[]> {
+  const output: DecryptedPlanLearning[] = [];
+  for (const record of records) output.push(await decryptPlanLearning(plan, record, masterKey));
   return output;
 }
 
@@ -336,6 +506,74 @@ export function renderPlanDetail(plan: DecryptedUserPlan): string {
   if (plan.plannerFocusId) lines.push(`Planner focus: ${plan.plannerFocusId}`);
   if (plan.completedAt) lines.push(`Completed at: ${plan.completedAt}`);
   return lines.join("\n");
+}
+
+export function renderPlanLearningList(learnings: DecryptedPlanLearning[]): string {
+  if (learnings.length === 0) return "No plan learnings found.";
+  const lines = ["Plan Learnings", "ID                  Status      Type                           Title"];
+  for (const learning of learnings) {
+    lines.push(`${pad(learning.learningId, 19)} ${pad(learning.status, 11)} ${pad(learning.type, 30)} ${learning.title}`);
+  }
+  return lines.join("\n");
+}
+
+export function renderPlanLearningDetail(learning: DecryptedPlanLearning): string {
+  const lines = [
+    `Learning ${learning.learningId}`,
+    `Title: ${learning.title}`,
+    `Status: ${learning.status}`,
+    `Type: ${learning.type}`,
+    `Target: ${learning.targetKind}`,
+  ];
+  if (learning.severity) lines.push(`Severity: ${learning.severity}`);
+  if (learning.confidence) lines.push(`Confidence: ${learning.confidence}`);
+  if (learning.observation) lines.push(`Observation: ${learning.observation}`);
+  if (learning.rootCause) lines.push(`Root cause: ${learning.rootCause}`);
+  if (learning.suggestedChange) lines.push(`Suggested change: ${learning.suggestedChange}`);
+  if (learning.evidenceSummary) lines.push(`Evidence: ${learning.evidenceSummary}`);
+  if (learning.taskDraft) lines.push(`Task draft: ${learning.taskDraft}`);
+  if (learning.rejectionReason) lines.push(`Rejection reason: ${learning.rejectionReason}`);
+  if (learning.appliedTaskId) lines.push(`Applied task: ${learning.appliedTaskId}`);
+  if (learning.linkedTaskIds.length > 0) lines.push(`Linked tasks: ${learning.linkedTaskIds.join(", ")}`);
+  if (learning.linkedCheckIds.length > 0) lines.push(`Linked checks: ${learning.linkedCheckIds.join(", ")}`);
+  return lines.join("\n");
+}
+
+export function findPlanLearning(learnings: DecryptedPlanLearning[], learningId: string): DecryptedPlanLearning {
+  const learning = learnings.find((candidate) => candidate.learningId === learningId);
+  if (!learning) throw new Error(`Plan learning '${learningId}' was not found.`);
+  return learning;
+}
+
+export function assertSafeLearningTaskDraft(taskDraft: string): void {
+  if (!taskDraft.trim()) return;
+  if (hasHiddenControlCharacter(taskDraft)) {
+    throw new Error("Learning task draft contains hidden or control characters.");
+  }
+  if (/[\u200B-\u200F\u202A-\u202E\u2060-\u206F]/u.test(taskDraft)) {
+    throw new Error("Learning task draft contains hidden Unicode formatting characters.");
+  }
+  if (/\b(ignore (all|previous) instructions|system prompt|developer message|exfiltrat|reveal secrets?)\b/i.test(taskDraft)) {
+    throw new Error("Learning task draft looks like prompt injection or secret exfiltration.");
+  }
+  if (/\b(api[_-]?key|access[_-]?token|refresh[_-]?token|password|private key)\b/i.test(taskDraft)) {
+    throw new Error("Learning task draft appears to contain credential instructions.");
+  }
+  if (/\b(rm\s+-rf|drop\s+database|delete\s+production|force[- ]?push)\b/i.test(taskDraft)) {
+    throw new Error("Learning task draft contains destructive-action language.");
+  }
+}
+
+function hasHiddenControlCharacter(value: string): boolean {
+  for (let index = 0; index < value.length; index += 1) {
+    const code = value.charCodeAt(index);
+    if (code === 127 || (code < 32 && code !== 9 && code !== 10 && code !== 13)) return true;
+  }
+  return false;
+}
+
+export function finalizedLearningNeedsTaskSafetyScan(learning: DecryptedPlanLearning): boolean {
+  return FINALIZED_LEARNING_STATUSES.has(learning.status) && !learning.appliedTaskId && Boolean(learning.taskDraft.trim());
 }
 
 async function planKeyFromRecord(record: UserPlanRecord, masterKey: Uint8Array): Promise<Uint8Array> {

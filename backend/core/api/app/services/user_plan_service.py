@@ -4,6 +4,8 @@
 # tasks, chat messages, and compression while enforcing completion blockers and
 # verification evidence rules.
 
+import time
+import uuid
 from typing import Any
 
 from backend.core.api.app.services.directus.user_plan_methods import UserPlanMethods
@@ -16,6 +18,9 @@ ASSUMPTION_RESOLVED_STATUSES = {"confirmed", "corrected", "waived"}
 REFERENCE_IMPLEMENTATION_READY_STATUSES = {"inspected", "matched", "waived"}
 REFERENCE_COMPLETION_READY_STATUSES = {"matched", "waived"}
 ACTIVE_PLAN_STATUSES = {"active", "executing", "running_checks", "blocked"}
+FINALIZED_LEARNING_STATUSES = {"proposed", "accepted", "applied"}
+MIN_FINALIZED_LEARNINGS = 1
+MAX_FINALIZED_LEARNINGS = 5
 
 
 class UserPlanConflictError(ValueError):
@@ -92,6 +97,7 @@ class UserPlanService:
         verifications = await self.plan_methods.list_verifications(plan_id)
         assumptions = await self.plan_methods.list_assumptions(plan_id) if hasattr(self.plan_methods, "list_assumptions") else []
         reference_patterns = await self.plan_methods.list_reference_patterns(plan_id) if hasattr(self.plan_methods, "list_reference_patterns") else []
+        learnings = await self.plan_methods.list_learnings(plan_id) if hasattr(self.plan_methods, "list_learnings") else []
         blockers: list[dict[str, Any]] = []
         for criterion in criteria:
             if criterion.get("required") is False:
@@ -118,6 +124,11 @@ class UserPlanService:
                 blockers.append({"kind": "reference_pattern", "id": pattern.get("pattern_id"), "status": pattern.get("status")})
             elif pattern.get("required_before") in {"implementation", "task_execution"} and pattern.get("status") not in REFERENCE_IMPLEMENTATION_READY_STATUSES:
                 blockers.append({"kind": "reference_pattern", "id": pattern.get("pattern_id"), "status": pattern.get("status")})
+        finalized_learning_count = sum(1 for learning in learnings if learning.get("status") in FINALIZED_LEARNING_STATUSES)
+        if finalized_learning_count < MIN_FINALIZED_LEARNINGS:
+            blockers.append({"kind": "missing_learnings", "status": "missing", "count": finalized_learning_count})
+        elif finalized_learning_count > MAX_FINALIZED_LEARNINGS:
+            blockers.append({"kind": "excess_learnings", "status": "too_many", "count": finalized_learning_count})
         return blockers
 
     async def implementation_blockers(self, plan_id: str) -> list[dict[str, Any]]:
@@ -177,6 +188,91 @@ class UserPlanService:
         if not updated:
             raise UserPlanNotFoundError("Plan reference pattern not found")
         return updated
+
+    async def create_learning(self, plan_id: str, user_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        await self.ensure_plan_owner(plan_id, user_id)
+        created = await self.plan_methods.create_learning(plan_id, payload)
+        if not created:
+            raise ValueError("Failed to create plan learning")
+        return created
+
+    async def update_learning(self, plan_id: str, user_id: str, learning_id: str, patch: dict[str, Any]) -> dict[str, Any]:
+        await self.ensure_plan_owner(plan_id, user_id)
+        updated = await self.plan_methods.update_learning(plan_id, learning_id, patch)
+        if not updated:
+            raise UserPlanNotFoundError("Plan learning not found")
+        return updated
+
+    async def create_tasks_from_learnings(self, plan_id: str, user_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        if not self.task_service:
+            raise ValueError("Task service is required to create tasks from learnings")
+        plan = await self.plan_methods.get_plan(plan_id, user_id)
+        if not plan:
+            raise UserPlanNotFoundError("Plan not found")
+
+        requested_ids = [item for item in payload.get("learning_ids") or [] if isinstance(item, str) and item]
+        create_all = payload.get("all") is True
+        if not create_all and not requested_ids:
+            raise ValueError("Select at least one learning")
+
+        learnings = await self.plan_methods.list_learnings(plan_id)
+        learnings_by_id = {str(learning.get("learning_id")): learning for learning in learnings if learning.get("learning_id")}
+        selected = learnings if create_all else [learnings_by_id[learning_id] for learning_id in requested_ids if learning_id in learnings_by_id]
+        skipped: list[dict[str, Any]] = []
+        for missing_id in requested_ids:
+            if missing_id not in learnings_by_id:
+                skipped.append({"learning_id": missing_id, "reason": "not_found"})
+
+        now = int(payload.get("updated_at") or payload.get("created_at") or time.time())
+        tasks: list[dict[str, Any]] = []
+        for learning in selected:
+            learning_id = str(learning.get("learning_id") or "")
+            applied_task_id = learning.get("applied_task_id")
+            if learning.get("status") == "applied" or applied_task_id:
+                skipped.append({"learning_id": learning_id, "reason": "already_applied", "task_id": applied_task_id})
+                continue
+            if learning.get("status") not in FINALIZED_LEARNING_STATUSES:
+                skipped.append({"learning_id": learning_id, "reason": "not_finalized", "status": learning.get("status")})
+                continue
+            if not learning.get("encrypted_task_draft"):
+                skipped.append({"learning_id": learning_id, "reason": "missing_task_draft"})
+                continue
+            task_key_wrappers = []
+            for wrapper in plan.get("key_wrappers") or []:
+                if not isinstance(wrapper, dict) or not wrapper.get("encrypted_plan_key"):
+                    continue
+                task_key_wrappers.append(
+                    {
+                        **{key: value for key, value in wrapper.items() if key != "encrypted_plan_key"},
+                        "encrypted_task_key": wrapper.get("encrypted_plan_key"),
+                    }
+                )
+            task_payload = {
+                "task_id": str(uuid.uuid4()),
+                "version": 1,
+                "encrypted_task_key": plan.get("encrypted_plan_key"),
+                "key_wrappers": task_key_wrappers,
+                "encrypted_title": learning.get("encrypted_title"),
+                "encrypted_description": learning.get("encrypted_task_draft"),
+                "status": "backlog",
+                "assignee_type": "user",
+                "primary_chat_id": plan.get("primary_chat_id"),
+                "linked_project_ids": [],
+                "plan_id": plan_id,
+                "source_plan_id": plan_id,
+                "source_learning_id": learning_id,
+                "task_type": "work",
+                "created_at": now,
+                "updated_at": now,
+            }
+            task = await self.task_service.create_task(user_id, task_payload)
+            tasks.append(task)
+            await self.plan_methods.update_learning(
+                plan_id,
+                learning_id,
+                {"status": "applied", "applied_task_id": task.get("task_id"), "updated_at": now},
+            )
+        return {"tasks": tasks, "skipped": skipped}
 
     async def create_verification(self, plan_id: str, user_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         await self.ensure_plan_owner(plan_id, user_id)
@@ -262,9 +358,21 @@ class UserPlanService:
     async def active_context(self, user_id: str, chat_id: str, now: int) -> dict[str, Any]:
         context = await self.plan_methods.get_active_execution_context(user_id, chat_id, now)
         if not context:
-            return {"active_plan": None, "blockers": [{"kind": "execution_context", "status": "missing_or_expired"}]}
+            return {
+                "active_plan": None,
+                "blockers": [{"kind": "execution_context", "status": "missing_or_expired"}],
+                "completion_guidance": self.completion_guidance([], has_active_plan=False),
+            }
         blockers = await self.completion_blockers(str(context.get("plan_id")))
-        return {"active_plan": context, "blockers": blockers}
+        return {"active_plan": context, "blockers": blockers, "completion_guidance": self.completion_guidance(blockers, has_active_plan=True)}
+
+    def completion_guidance(self, blockers: list[dict[str, Any]], *, has_active_plan: bool = True) -> dict[str, Any]:
+        missing_learnings = any(blocker.get("kind") == "missing_learnings" for blocker in blockers)
+        return {
+            "can_complete": has_active_plan and not blockers,
+            "requires_learning_records": has_active_plan and missing_learnings,
+            "final_response_sections": ["Learnings / Suggested Improvements"] if has_active_plan and not missing_learnings else [],
+        }
 
     async def cleanup_expired_plan_data(self, now: int) -> dict[str, int]:
         expired_contexts = await self.plan_methods.delete_expired_execution_contexts(now)

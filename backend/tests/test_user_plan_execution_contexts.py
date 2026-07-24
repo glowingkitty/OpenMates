@@ -41,6 +41,11 @@ async def test_active_context_returns_missing_blocker_when_context_absent() -> N
 
     assert result["active_plan"] is None
     assert result["blockers"] == [{"kind": "execution_context", "status": "missing_or_expired"}]
+    assert result["completion_guidance"] == {
+        "can_complete": False,
+        "requires_learning_records": False,
+        "final_response_sections": [],
+    }
 
 
 @pytest.mark.asyncio

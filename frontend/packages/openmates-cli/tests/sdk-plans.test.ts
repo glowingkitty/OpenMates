@@ -56,6 +56,9 @@ describe("OpenMates SDK user plans", () => {
   it("manages encrypted plans through the shared API contract", async () => {
     await withServer(
       (request, body) => {
+        if (request.url?.includes("/learnings/create-tasks")) return { tasks: [], skipped: [] };
+        if (request.url?.includes("/learnings") && request.method === "GET") return { learnings: [] };
+        if (request.url?.includes("/learnings")) return { learning: body };
         if (request.method === "GET") return { plans: [plan] };
         if (request.url?.includes("/criteria")) return { criterion: body };
         if (request.url?.includes("/assumptions")) return { assumption: body };
@@ -80,6 +83,10 @@ describe("OpenMates SDK user plans", () => {
         assert.equal((await client.plans.updateAssumption("plan-1", "A-1", { status: "confirmed" })).status, "confirmed");
         assert.equal((await client.plans.createReferencePattern("plan-1", { pattern_id: "RP-1", encrypted_title: "cipher-pattern", created_at: 100 })).pattern_id, "RP-1");
         assert.equal((await client.plans.listReferencePatterns("plan-1")).length, 0);
+        assert.equal((await client.plans.createLearning("plan-1", { learning_id: "LRN-1", type: "workflow_improvement", target_kind: "workflow", encrypted_title: "cipher-learning", created_at: 100 })).learning_id, "LRN-1");
+        assert.equal((await client.plans.listLearnings("plan-1")).length, 0);
+        assert.equal((await client.plans.updateLearning("plan-1", "LRN-1", { status: "accepted" })).status, "accepted");
+        assert.deepEqual(await client.plans.createLearningTasks("plan-1", { learning_ids: ["LRN-1"] }), { tasks: [], skipped: [] });
         assert.equal((await client.plans.addVerificationEvidence("plan-1", "V-1", { status: "passed" })).status, "passed");
 
         assert.deepEqual(seen.map((request) => [request.method, request.url]), [
@@ -97,6 +104,10 @@ describe("OpenMates SDK user plans", () => {
           ["PATCH", "/v1/user-plans/plan-1/assumptions/A-1"],
           ["POST", "/v1/user-plans/plan-1/reference-patterns"],
           ["GET", "/v1/user-plans/plan-1/reference-patterns"],
+          ["POST", "/v1/user-plans/plan-1/learnings"],
+          ["GET", "/v1/user-plans/plan-1/learnings"],
+          ["PATCH", "/v1/user-plans/plan-1/learnings/LRN-1"],
+          ["POST", "/v1/user-plans/plan-1/learnings/create-tasks"],
           ["POST", "/v1/user-plans/plan-1/verification/V-1/evidence"],
         ]);
       },

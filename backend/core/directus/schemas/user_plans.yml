@@ -481,6 +481,72 @@ user_plan_reference_patterns:
       type: text
       nullable: true
 
+user_plan_learnings:
+  type: collection
+  fields:
+    id:
+      type: uuid
+    plan_id:
+      type: string
+      note: "Plan this encrypted execution learning belongs to."
+    learning_id:
+      type: string
+      note: "Client-generated stable learning id."
+    type:
+      type: string
+      note: "workflow_improvement or agent_instruction_improvement."
+    target_kind:
+      type: string
+      note: "workflow or project_agent_instructions."
+    status:
+      type: string
+      note: "draft, proposed, accepted, applied, rejected, duplicate, or merged."
+    severity:
+      type: string
+      nullable: true
+      note: "low, medium, or high."
+    confidence:
+      type: string
+      nullable: true
+      note: "low, medium, or high."
+    linked_task_ids:
+      type: json
+      nullable: true
+    linked_check_ids:
+      type: json
+      nullable: true
+    applied_task_id:
+      type: string
+      nullable: true
+      note: "Task id created from this learning's suggested task draft."
+    version:
+      type: integer
+      default: 1
+    created_at:
+      type: integer
+    updated_at:
+      type: integer
+    encrypted_title:
+      type: text
+    encrypted_observation:
+      type: text
+      nullable: true
+    encrypted_root_cause:
+      type: text
+      nullable: true
+    encrypted_suggested_change:
+      type: text
+      nullable: true
+    encrypted_evidence_summary:
+      type: text
+      nullable: true
+    encrypted_task_draft:
+      type: text
+      nullable: true
+    encrypted_rejection_reason:
+      type: text
+      nullable: true
+
 user_plan_verification_runs:
   type: collection
   fields:

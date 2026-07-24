@@ -116,9 +116,6 @@ import { handleBenchmark, printBenchmarkHelp } from "./benchmark.js";
 import { defaultModeForStreams, printProgrammaticQuickstart, runTui } from "./tui.js";
 import { SUPPORT_MESSAGE, SUPPORT_URL, renderSupportInfo } from "./support.js";
 import {
-  listRemoteAccessSources,
-  runRgCommand,
-  searchStoredRemoteAccessSource,
   startRemoteAccessSource,
   type RemoteAccessSourceRecord,
 } from "./remoteAccess.js";
@@ -144,16 +141,30 @@ import {
 } from "./tasksCli.js";
 import {
   buildCreatePlanCriterionInput,
+  buildCreatePlanLearningInput,
   buildCreatePlanVerificationInput,
   buildCreateUserPlanInput,
   buildPlanVerificationEvidenceInput,
+  buildUpdatePlanLearningInput,
   buildUpdateUserPlanInput,
+  assertSafeLearningTaskDraft,
+  decryptPlanLearning,
+  decryptPlanLearnings,
   decryptUserPlan,
   decryptUserPlans,
+  finalizedLearningNeedsTaskSafetyScan,
   findPlan,
+  findPlanLearning,
+  normalizeLearningLevel,
+  normalizeLearningStatus,
+  normalizeLearningTargetKind,
+  normalizeLearningType,
   normalizePlanStatus,
+  renderPlanLearningDetail,
+  renderPlanLearningList,
   renderPlanDetail,
   renderPlanList,
+  type DecryptedPlanLearning,
   type DecryptedUserPlan,
 } from "./plansCli.js";
 import { decryptBytesWithAesGcm, decryptWithAesGcmCombined, encryptBytesWithAesGcm, encryptWithAesGcmCombined } from "./crypto.js";
@@ -632,6 +643,17 @@ async function handleTasks(
   const masterKey = client.getMasterKeyBytes();
   const scope = taskScopeFromFlags(flags, masterKey);
 
+  if (rest[0] === "add-to-project") {
+    rejectRemoteCopyFlags(flags);
+    const projectId = requiredStringFlag(rest[1], "<project-id>");
+    const task = await requiredResolvedTask(client, masterKey, subcommand, scope, "add-to-project");
+    const linkedProjectIds = appendUniqueId(task.linkedProjectIds, projectId);
+    const patch = await buildUpdateUserTaskInput(task, masterKey, { projectIds: linkedProjectIds });
+    const updated = await client.updateUserTask(task.taskId, patch);
+    printTaskOutput(await decryptUserTask(updated, masterKey), flags);
+    return;
+  }
+
   if (subcommand === "list" || subcommand === "status") {
     if (subcommand === "status" && rest[0]) {
       const task = await resolveTask(client, masterKey, rest[0], scope);
@@ -855,6 +877,11 @@ function printTaskOutput(task: DecryptedUserTask, flags: Record<string, string |
     console.log(renderTaskDetail(task));
     printHistoryCommands(task.encrypted.history ?? null);
   }
+}
+
+function printPlanLearningOutput(learning: DecryptedPlanLearning, flags: Record<string, string | boolean>): void {
+  if (flags.json === true) printJson({ learning: planLearningToJson(learning) });
+  else console.log(renderPlanLearningDetail(learning));
 }
 
 function requiredAskInstruction(flags: Record<string, string | boolean>, rest: string[], usage: string): string {
@@ -1253,6 +1280,81 @@ async function decryptOptionalProjectField(value: string | null | undefined, pro
   return value ? (await decryptWithAesGcmCombined(value, projectKey)) ?? "" : "";
 }
 
+async function requiredResolvedProject(
+  client: OpenMatesClient,
+  masterKey: Uint8Array,
+  target: string,
+  flags: Record<string, string | boolean>,
+): Promise<DecryptedProject> {
+  const project = await tryResolveProject(client, masterKey, target, flags);
+  if (!project) throw new Error(`Project '${target}' not found.`);
+  return project;
+}
+
+function appendUniqueId(existing: string[], id: string): string[] {
+  return existing.includes(id) ? existing : [...existing, id];
+}
+
+function rejectRemoteCopyFlags(flags: Record<string, string | boolean>): void {
+  if (flags["remote-copy"] === true || flags["repo-copy"] === true || flags["remote-cache-copy"] === true) {
+    throw new Error("Remote-machine add-to-project copies are reserved for the later remote file proposal slice.");
+  }
+}
+
+async function requireOpenMatesOnlyStorageForRemoteProject(
+  client: OpenMatesClient,
+  project: DecryptedProject,
+  flags: Record<string, string | boolean>,
+  objectType: "chat" | "workflow",
+): Promise<void> {
+  rejectRemoteCopyFlags(flags);
+  const sources = await client.listProjectSources(project.projectId);
+  if (sources.length === 0) return;
+  if (flags["openmates-only"] === true) return;
+  throw new Error(
+    `${objectType} add-to-project targets a remote-access Project. Pass --openmates-only to keep encrypted OpenMates storage only; remote-machine copy proposals are not implemented yet.`,
+  );
+}
+
+async function createEncryptedProjectItem(
+  client: OpenMatesClient,
+  project: DecryptedProject,
+  input: {
+    itemType: "chat" | "workflow";
+    targetId: string;
+    displayName: string;
+    folderId?: string | null;
+    metadata?: Record<string, unknown>;
+  },
+): Promise<Record<string, unknown>> {
+  const timestamp = nowSeconds();
+  return client.createProjectItem(project.projectId, {
+    project_item_id: randomUUID(),
+    folder_id: input.folderId ?? null,
+    item_type: input.itemType,
+    target_id: input.targetId,
+    target_id_encrypted: await encryptWithAesGcmCombined(input.targetId, project.projectKey),
+    encrypted_display_name: await encryptWithAesGcmCombined(input.displayName, project.projectKey),
+    encrypted_note: await encryptWithAesGcmCombined("", project.projectKey),
+    encrypted_metadata: await encryptWithAesGcmCombined(JSON.stringify(input.metadata ?? {}), project.projectKey),
+    created_at: timestamp,
+    updated_at: timestamp,
+    position: timestamp,
+  });
+}
+
+function printAddToProjectResult(
+  result: { objectType: string; objectId: string; projectId: string; item?: Record<string, unknown>; targetMode: "openmates_only" },
+  flags: Record<string, string | boolean>,
+): void {
+  if (flags.json === true) {
+    printJson({ ...result, remote_copy_proposal: null });
+    return;
+  }
+  console.log(`${result.objectType} added to Project: ${result.projectId}`);
+  console.log("Storage: encrypted OpenMates Project link only");
+}
+
 function nowSeconds(): number {
   return Math.floor(Date.now() / 1000);
 }
@@ -1314,6 +1416,20 @@ async function handlePlans(
 
   const masterKey = client.getMasterKeyBytes();
   const scope = planScopeFromFlags(flags);
+
+  if (rest[0] === "add-to-project") {
+    rejectRemoteCopyFlags(flags);
+    if (flags.folder !== undefined) {
+      throw new Error("Plan folder placement in Projects requires Project item folder support and is not available in this CLI slice.");
+    }
+    const projectId = requiredStringFlag(rest[1], "<project-id>");
+    const plan = await requiredResolvedPlan(client, masterKey, subcommand, scope, "add-to-project");
+    const linkedProjectIds = appendUniqueId(plan.linkedProjectIds, projectId);
+    const patch = await buildUpdateUserPlanInput(plan, masterKey, { linkedProjectIds });
+    const updated = await client.updateUserPlan(plan.planId, patch);
+    printPlanOutput(await decryptUserPlan(updated, masterKey), flags);
+    return;
+  }
 
   if (subcommand === "list" || subcommand === "status") {
     if (subcommand === "status" && rest[0]) {
@@ -1479,6 +1595,98 @@ async function handlePlans(
     return;
   }
 
+  if (subcommand === "learning" || subcommand === "learnings") {
+    const action = rest[0];
+    if (action === "list") {
+      const plan = await requiredResolvedPlan(client, masterKey, rest[1], scope, "learnings list");
+      const learnings = await loadPlanLearnings(client, masterKey, plan);
+      if (flags.json === true) printJson({ learnings: learnings.map(planLearningToJson) });
+      else console.log(renderPlanLearningList(learnings));
+      return;
+    }
+    if (action === "show") {
+      const plan = await requiredResolvedPlan(client, masterKey, rest[1], scope, "learnings show");
+      const learningId = requiredStringFlag(flags.learning ?? rest[2], "--learning <learning-id>");
+      const learning = findPlanLearning(await loadPlanLearnings(client, masterKey, plan), learningId);
+      printPlanLearningOutput(learning, flags);
+      return;
+    }
+    if (action === "add" || action === "create") {
+      const plan = await requiredResolvedPlan(client, masterKey, rest[1], scope, "learnings add");
+      const title = requiredStringFlag(flags.title ?? rest.slice(2).join(" "), "--title <title>");
+      const input = await buildCreatePlanLearningInput(plan, masterKey, {
+        learningId: typeof flags.id === "string" ? flags.id : undefined,
+        type: normalizeLearningType(typeof flags.type === "string" ? flags.type : undefined) ?? "workflow_improvement",
+        targetKind: normalizeLearningTargetKind(typeof flags.target === "string" ? flags.target : typeof flags["target-kind"] === "string" ? flags["target-kind"] : undefined) ?? "workflow",
+        status: normalizeLearningStatus(typeof flags.status === "string" ? flags.status : undefined),
+        severity: normalizeLearningLevel(typeof flags.severity === "string" ? flags.severity : undefined),
+        confidence: normalizeLearningLevel(typeof flags.confidence === "string" ? flags.confidence : undefined),
+        linkedTaskIds: splitCsvFlag(flags.task ?? flags.tasks),
+        linkedCheckIds: splitCsvFlag(flags.check ?? flags.checks),
+        title,
+        observation: typeof flags.observation === "string" ? flags.observation : undefined,
+        rootCause: typeof flags["root-cause"] === "string" ? flags["root-cause"] : undefined,
+        suggestedChange: typeof flags.change === "string" ? flags.change : typeof flags["suggested-change"] === "string" ? flags["suggested-change"] : undefined,
+        evidenceSummary: typeof flags.evidence === "string" ? flags.evidence : typeof flags.summary === "string" ? flags.summary : undefined,
+        taskDraft: typeof flags["task-draft"] === "string" ? flags["task-draft"] : undefined,
+        rejectionReason: typeof flags["rejection-reason"] === "string" ? flags["rejection-reason"] : undefined,
+      });
+      const created = await client.createPlanLearning(plan.planId, input);
+      printPlanLearningOutput(await decryptPlanLearning(plan, created, masterKey), flags);
+      return;
+    }
+    if (action === "edit" || action === "update") {
+      const plan = await requiredResolvedPlan(client, masterKey, rest[1], scope, "learnings edit");
+      const learningId = requiredStringFlag(flags.learning ?? rest[2], "--learning <learning-id>");
+      const patch = await buildUpdatePlanLearningInput(plan, masterKey, {
+        status: normalizeLearningStatus(typeof flags.status === "string" ? flags.status : undefined),
+        severity: flags.severity === true ? null : normalizeLearningLevel(typeof flags.severity === "string" ? flags.severity : undefined),
+        confidence: flags.confidence === true ? null : normalizeLearningLevel(typeof flags.confidence === "string" ? flags.confidence : undefined),
+        linkedTaskIds: flags.task || flags.tasks ? splitCsvFlag(flags.task ?? flags.tasks) : undefined,
+        linkedCheckIds: flags.check || flags.checks ? splitCsvFlag(flags.check ?? flags.checks) : undefined,
+        appliedTaskId: flags["applied-task"] === true ? null : typeof flags["applied-task"] === "string" ? flags["applied-task"] : undefined,
+        title: typeof flags.title === "string" ? flags.title : undefined,
+        observation: typeof flags.observation === "string" ? flags.observation : undefined,
+        rootCause: typeof flags["root-cause"] === "string" ? flags["root-cause"] : undefined,
+        suggestedChange: typeof flags.change === "string" ? flags.change : typeof flags["suggested-change"] === "string" ? flags["suggested-change"] : undefined,
+        evidenceSummary: typeof flags.evidence === "string" ? flags.evidence : typeof flags.summary === "string" ? flags.summary : undefined,
+        taskDraft: typeof flags["task-draft"] === "string" ? flags["task-draft"] : undefined,
+        rejectionReason: typeof flags["rejection-reason"] === "string" ? flags["rejection-reason"] : undefined,
+      });
+      const updated = await client.updatePlanLearning(plan.planId, learningId, patch);
+      printPlanLearningOutput(await decryptPlanLearning(plan, updated, masterKey), flags);
+      return;
+    }
+    if (action === "create-tasks") {
+      const plan = await requiredResolvedPlan(client, masterKey, rest[1], scope, "learnings create-tasks");
+      const learningIds = splitCsvFlag(flags.learning ?? flags.learnings).concat(rest.slice(2));
+      if (flags.all !== true && learningIds.length === 0) throw new Error("Select at least one learning with --learning <learning-id>, or pass --all.");
+      const learnings = await loadPlanLearnings(client, masterKey, plan);
+      const selected = flags.all === true ? learnings : learningIds.map((learningId) => findPlanLearning(learnings, learningId));
+      for (const learning of selected) {
+        if (finalizedLearningNeedsTaskSafetyScan(learning)) assertSafeLearningTaskDraft(learning.taskDraft);
+      }
+      const timestamp = Math.floor(Date.now() / 1000);
+      const result = await client.createPlanLearningTasks(plan.planId, {
+        all: flags.all === true,
+        learning_ids: flags.all === true ? undefined : learningIds,
+        created_at: timestamp,
+        updated_at: timestamp,
+      });
+      const tasks = await decryptUserTasks(result.tasks, masterKey);
+      if (flags.json === true) printJson({ tasks: tasks.map(taskToJson), skipped: result.skipped });
+      else {
+        console.log(renderTaskList(tasks));
+        if (result.skipped.length > 0) {
+          const skipped = result.skipped.map((item) => `${item.learning_id ?? "unknown"}:${item.reason ?? "unknown"}`).join(", ");
+          console.log(`Skipped learnings: ${skipped}`);
+        }
+      }
+      return;
+    }
+    throw new Error("Usage: openmates plans learnings list <plan-id>, add <plan-id> --title <title>, edit <plan-id> --learning <id>, or create-tasks <plan-id> --learning <id>");
+  }
+
   if (subcommand === "check" || subcommand === "checks" || subcommand === "verification") {
     const action = rest[0];
     if (action === "add" || action === "create") {
@@ -1543,6 +1751,11 @@ async function loadPlans(
 ): Promise<DecryptedUserPlan[]> {
   const records = await client.listUserPlans(scope);
   return decryptUserPlans(records, masterKey);
+}
+
+async function loadPlanLearnings(client: OpenMatesClient, masterKey: Uint8Array, plan: DecryptedUserPlan): Promise<DecryptedPlanLearning[]> {
+  const records = await client.listPlanLearnings(plan.planId);
+  return decryptPlanLearnings(plan, records, masterKey);
 }
 
 async function resolvePlan(
@@ -2075,6 +2288,30 @@ function planToJson(plan: DecryptedUserPlan): Record<string, unknown> {
   };
 }
 
+function planLearningToJson(learning: DecryptedPlanLearning): Record<string, unknown> {
+  return {
+    learning_id: learning.learningId,
+    type: learning.type,
+    target_kind: learning.targetKind,
+    status: learning.status,
+    severity: learning.severity,
+    confidence: learning.confidence,
+    linked_task_ids: learning.linkedTaskIds,
+    linked_check_ids: learning.linkedCheckIds,
+    applied_task_id: learning.appliedTaskId,
+    title: learning.title,
+    observation: learning.observation,
+    root_cause: learning.rootCause,
+    suggested_change: learning.suggestedChange,
+    evidence_summary: learning.evidenceSummary,
+    task_draft: learning.taskDraft,
+    rejection_reason: learning.rejectionReason,
+    version: learning.version,
+    created_at: learning.createdAt,
+    updated_at: learning.updatedAt,
+  };
+}
+
 function taskTitleFromFlagsOrRest(flags: Record<string, string | boolean>, rest: string[]): string {
   const title = typeof flags.title === "string" ? flags.title : rest.join(" ").trim();
   if (!title) throw new Error("Missing task title. Usage: openmates tasks create --title <title>");
@@ -2129,15 +2366,18 @@ async function handleRemoteAccess(
   flags: Record<string, string | boolean>,
 ): Promise<void> {
   if (!subcommand || subcommand === "help" || flags.help === true) {
-    printRemoteAccessHelp();
-    return;
-  }
-
-  if (subcommand === "start") {
-    const rootPath = typeof flags.path === "string" ? flags.path : rest[0];
-    if (!rootPath) {
-      throw new Error("Missing source path. Usage: openmates remote-access start --path <folder>");
+    if (subcommand && subcommand !== "help") {
+      throw new Error("openmates remote-access does not accept public subcommands. Run 'openmates remote-access --help'.");
     }
+    if (rest.length > 0) {
+      throw new Error("openmates remote-access uses --path <folder>; positional paths are not supported.");
+    }
+    if (flags.help === true || subcommand === "help") {
+      printRemoteAccessHelp();
+      return;
+    }
+
+    const rootPath = parseRemoteAccessRootPath(flags);
     const sourceId = typeof flags["source-id"] === "string" ? flags["source-id"] : randomUUID();
     const projectId = typeof flags.project === "string" ? flags.project : undefined;
     validateRemoteSourceRegistrationFlags(projectId, flags);
@@ -2146,51 +2386,26 @@ async function handleRemoteAccess(
     const source = startRemoteAccessSource({ sourceId, projectId, rootPath, sourceType, displayName });
     await maybeRegisterRemoteSource(client, source, flags);
     if (flags.json === true) {
-      printJson({ source });
+      printJson({ source, foreground: true });
     } else {
-      console.log(`Remote source attached: ${source.sourceId}`);
+      console.log(`Remote access foreground session started: ${source.sourceId}`);
       console.log(`Root: ${source.rootPath}`);
       console.log(`Cache: ${source.cachePath}`);
+      console.log("Keep this terminal open. For long-running work, start it inside zellij, tmux, or screen.");
     }
     return;
   }
 
-  if (subcommand === "status" || subcommand === "list") {
-    const sources = listRemoteAccessSources();
-    if (flags.json === true) {
-      printJson({ sources });
-    } else if (sources.length === 0) {
-      console.log("No remote sources attached.");
-    } else {
-      for (const source of sources) {
-        console.log(`${source.sourceId}\t${source.status}\t${source.rootPath}`);
-      }
-    }
-    return;
-  }
+  throw new Error("openmates remote-access does not accept public subcommands. Run 'openmates remote-access --help'.");
+}
 
-  if (subcommand === "search") {
-    const sourceId = typeof flags.source === "string" ? flags.source : rest[0];
-    const query = typeof flags.source === "string" ? rest.join(" ").trim() : rest.slice(1).join(" ").trim();
-    if (!sourceId || !query) {
-      throw new Error("Missing source or query. Usage: openmates remote-access search --source <id> <query>");
-    }
-    const maxResults = parsePositiveIntegerFlag(flags.limit, "--limit");
-    const result = await searchStoredRemoteAccessSource({ sourceId, query, maxResults, runRg: runRgCommand });
-    if (flags.json === true) {
-      printJson(result);
-    } else {
-      for (const match of result.matches) {
-        console.log(`${match.path}:${match.line}: ${match.snippet.trim()}`);
-      }
-      if (result.excluded > 0 || result.omitted > 0) {
-        console.log(`Excluded ${result.excluded}, omitted ${result.omitted}.`);
-      }
-    }
-    return;
+function parseRemoteAccessRootPath(flags: Record<string, string | boolean>): string {
+  const rootPath = flags.path;
+  if (rootPath === undefined) return process.cwd();
+  if (typeof rootPath !== "string") {
+    throw new Error("--path requires a folder value.");
   }
-
-  throw new Error(`Unknown remote-access command '${subcommand}'. Run 'openmates remote-access --help'.`);
+  return rootPath;
 }
 
 function parsePositiveIntegerFlag(value: string | boolean | undefined, flagName: string): number | undefined {
@@ -2249,7 +2464,7 @@ function validateRemoteSourceRegistrationFlags(
   if (!projectId || flags["local-only"] === true) return;
   if (typeof flags["encrypted-display-name"] === "string" && typeof flags["encrypted-metadata"] === "string") return;
   throw new Error(
-    "remote-access start with --project requires --local-only or both --encrypted-display-name and --encrypted-metadata",
+    "remote-access with --project requires --local-only or both --encrypted-display-name and --encrypted-metadata",
   );
 }
 
@@ -2421,6 +2636,23 @@ async function handleChats(
 
   const apiKey = resolveApiKey(flags) ?? undefined;
   const teamContext = teamContextFromFlags(flags);
+
+  if (rest[0] === "add-to-project") {
+    if (apiKey) throw new Error("Chat add-to-project through --api-key is not supported by the CLI command; use an authenticated CLI session.");
+    const projectId = requiredStringFlag(rest[1], "<project-id>");
+    const project = await requiredResolvedProject(client, client.getMasterKeyBytes(), projectId, flags);
+    await requireOpenMatesOnlyStorageForRemoteProject(client, project, flags, "chat");
+    const result = await client.getChatMessages(subcommand, teamContext);
+    const item = await createEncryptedProjectItem(client, project, {
+      itemType: "chat",
+      targetId: result.chat.id,
+      displayName: result.chat.title ?? result.chat.shortId ?? result.chat.id,
+      folderId: typeof flags.folder === "string" ? flags.folder : null,
+      metadata: { storage: "openmates_only", source: "cli_add_to_project" },
+    });
+    printAddToProjectResult({ objectType: "chat", objectId: result.chat.id, projectId: project.projectId, item, targetMode: "openmates_only" }, flags);
+    return;
+  }
 
   if (rest[0] === "tasks") {
     await handleTasks(client, rest[1], rest.slice(2), { ...flags, chat: subcommand }, redactor);
@@ -3704,6 +3936,23 @@ async function handleWorkflows(
 ): Promise<void> {
   if (!subcommand || subcommand === "help" || flags.help === true) {
     printWorkflowsHelp();
+    return;
+  }
+
+  if (rest[0] === "add-to-project") {
+    const projectId = requiredStringFlag(rest[1], "<project-id>");
+    const masterKey = client.getMasterKeyBytes();
+    const project = await requiredResolvedProject(client, masterKey, projectId, flags);
+    await requireOpenMatesOnlyStorageForRemoteProject(client, project, flags, "workflow");
+    const workflow = await client.getWorkflow(subcommand, teamContextFromFlags(flags));
+    const item = await createEncryptedProjectItem(client, project, {
+      itemType: "workflow",
+      targetId: workflow.id,
+      displayName: workflow.title,
+      folderId: typeof flags.folder === "string" ? flags.folder : null,
+      metadata: { storage: "openmates_only", source: "cli_add_to_project" },
+    });
+    printAddToProjectResult({ objectType: "workflow", objectId: workflow.id, projectId: project.projectId, item, targetMode: "openmates_only" }, flags);
     return;
   }
 
@@ -10463,7 +10712,7 @@ Commands:
   openmates newchatsuggestions [--limit <n>] [--json]   Personalized new chat suggestions
   openmates feedback [--help]                Assistant response feedback helpers
   openmates benchmark [--help]               Run real model benchmarks with usage tagged as benchmark spend
-  openmates remote-access [--help]           Attach and search local Project sources
+  openmates remote-access [--path <folder>]  Attach a local Project source in the foreground
   openmates support                          Show voluntary financial support options
   openmates version                          Show CLI version and update availability
   openmates update                           Update the installed OpenMates CLI package
@@ -10508,10 +10757,13 @@ Options:
 }
 
 function printRemoteAccessHelp(): void {
-  console.log(`Remote access commands:
-  openmates remote-access start --path <folder> [--source-id <id>] [--project <id>] [--type <type>] [--local-only] [--json]
-  openmates remote-access status [--json]
-  openmates remote-access search --source <id> <query> [--limit <n>] [--json]
+  console.log(`Remote access command:
+  openmates remote-access [--path <folder>] [--source-id <id>] [--project <id>] [--type <type>] [--local-only] [--json]
+
+Behavior:
+  Runs in the foreground and defaults to the current working directory when
+  --path is omitted. Keep the terminal open; use zellij, tmux, or screen for
+  long-running access sessions.
 
 Source types:
   local_folder, local_git_repository
@@ -10519,8 +10771,8 @@ Source types:
 Security:
   Source metadata is stored locally under ~/.openmates/remote-sources.json.
   Preview cache defaults to ~/.openmates/remote-cache/<source-id>.
-  Search is read-only, runs rg inside the approved source root, and excludes
-  high-risk, binary, and out-of-root paths by default.`);
+  Local searches are internal bridge capability only and run inside the approved
+  source root with high-risk, binary, and out-of-root paths excluded by default.`);
 }
 
 function printConnectedAccountsHelp(): void {
@@ -10684,6 +10936,7 @@ function printChatsHelp(): void {
   openmates chats list [--limit <n>] [--page <n>] [--json]
   openmates chats show <chat-id> [--raw] [--json] [--all]
   openmates chats messages <chat-id> [--json]
+  openmates chats <chat-id> add-to-project <project-id> [--folder <folder-id>] [--openmates-only] [--json]
   openmates chats fork <chat-id> --from-message <message-id> [--title <title>] [--json]
   openmates chats rewind <chat-id> --to-message <message-id> [--send <prompt>] [--dry-run] [--yes] [--json]
   openmates chats retry <chat-id> [--dry-run] [--yes] [--json]
@@ -10813,6 +11066,7 @@ function printTasksHelp(): void {
   openmates tasks list [--status <status>] [--chat <id>] [--project <id>] [--label <label>] [--priority <level>] [--json]
   openmates tasks board [--chat <id>] [--project <id>] [--label <label>] [--priority <level>] [--json]
   openmates tasks show <task-id|short-id> [--json]
+  openmates tasks <task-id|short-id> add-to-project <project-id> [--json]
   openmates tasks history <task-id|short-id> [--limit <n>] [--json]
   openmates tasks restore <task-id|short-id> --entry <history-entry-id> [--state before|after] [--json]
   openmates tasks create --title <title> [--description <text>] [--assign user|ai] [--chat <id>] [--project <id>] [--label <label>] [--priority <level>] [--status <status>] [--due <date>] [--json]
@@ -10847,6 +11101,7 @@ function printPlansHelp(): void {
   console.log(`Plans commands:
   openmates plans list [--status <status>] [--active] [--chat <id>] [--project <id>] [--json]
   openmates plans show <plan-id|short-id> [--json]
+  openmates plans <plan-id|short-id> add-to-project <project-id> [--json]
   openmates plans history <plan-id|short-id> [--limit <n>] [--json]
   openmates plans restore <plan-id|short-id> --entry <history-entry-id> [--state before|after] [--json]
   openmates plans create --title <title> [--goal <goal>] [--summary <text>] [--chat <id>] [--project <id>] [--status <status>] [--json]
@@ -10859,6 +11114,11 @@ function printPlansHelp(): void {
   openmates plans archive <plan-id|short-id> [--json]
   openmates plans complete <plan-id|short-id> [--json]
   openmates plans criteria add <plan-id|short-id> --text <criterion> [--type <type>] [--required] [--json]
+  openmates plans learnings list <plan-id|short-id> [--json]
+  openmates plans learnings show <plan-id|short-id> --learning <learning-id> [--json]
+  openmates plans learnings add <plan-id|short-id> --title <title> [--type workflow_improvement|agent_instruction_improvement] [--target workflow|project_agent_instructions] [--status draft|proposed|accepted] [--task-draft <text>] [--json]
+  openmates plans learnings edit <plan-id|short-id> --learning <learning-id> [--status <status>] [--task-draft <text>] [--json]
+  openmates plans learnings create-tasks <plan-id|short-id> (--learning <learning-id> | --all) [--json]
   openmates plans checks add <plan-id|short-id> --kind <manual_check|command|ai_evaluator> [--command <cmd>] [--prompt <text>] [--expected <text>] [--required] [--json]
   openmates plans checks evidence <plan-id|short-id> --verification <id> --status <status> [--summary <text>] [--score <n>] [--json]
 
@@ -10868,7 +11128,10 @@ Chat-scoped aliases:
   openmates chats <chat-id> plans approve <plan-id|short-id>
 
 Statuses:
-  draft, awaiting_confirmation, active, executing, blocked, completed, archived
+  draft, checking_assumptions, awaiting_confirmation, active, executing, running_checks, blocked, completed, archived
+
+Learning finalized statuses:
+  proposed, accepted, applied
 
 Check statuses:
   pending, passed, failed, passed_unexpectedly, skipped, waived
@@ -11024,6 +11287,7 @@ function printWorkflowsHelp(): void {
   openmates workflows validate --file workflow.yml [--json]
   openmates workflows create --file workflow.yml [--json]
   openmates workflows update <workflow-id> --file workflow.yml [--json]
+  openmates workflows <workflow-id> add-to-project <project-id> [--folder <folder-id>] [--openmates-only] [--json]
   openmates workflows history <workflow-id> [--limit <n>] [--json]
   openmates workflows restore <workflow-id> --entry <history-entry-id> [--state before|after] [--json]
   openmates workflows create --title <title> --graph '<json>' [--enabled] [--run-content-retention last_5|none] [--json]

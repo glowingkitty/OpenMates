@@ -32,6 +32,10 @@ PlanStatus = Literal["draft", "checking_assumptions", "awaiting_confirmation", "
 CriterionStatus = Literal["pending", "satisfied", "failed", "waived"]
 VerificationStatus = Literal["proposed", "pending", "passed", "failed", "passed_unexpectedly", "skipped", "skipped_with_reason", "not_applicable", "waived"]
 KeyWrapperType = Literal["master", "chat", "project"]
+PlanLearningType = Literal["workflow_improvement", "agent_instruction_improvement"]
+PlanLearningTargetKind = Literal["workflow", "project_agent_instructions"]
+PlanLearningStatus = Literal["draft", "proposed", "accepted", "applied", "rejected", "duplicate", "merged"]
+PlanLearningLevel = Literal["low", "medium", "high"]
 
 
 class UserPlanKeyWrapperRequest(BaseModel):
@@ -287,6 +291,51 @@ class PlanReferencePatternUpdateRequest(BaseModel):
     encrypted_anti_patterns: str | None = None
     encrypted_evidence_summary: str | None = None
     encrypted_waiver_reason: str | None = None
+    updated_at: int | None = None
+
+
+class PlanLearningRequest(BaseModel):
+    learning_id: str = Field(min_length=1)
+    type: PlanLearningType
+    target_kind: PlanLearningTargetKind
+    status: PlanLearningStatus = "draft"
+    severity: PlanLearningLevel | None = "medium"
+    confidence: PlanLearningLevel | None = "medium"
+    linked_task_ids: list[str] = Field(default_factory=list)
+    linked_check_ids: list[str] = Field(default_factory=list)
+    applied_task_id: str | None = None
+    encrypted_title: str = Field(min_length=1)
+    encrypted_observation: str | None = None
+    encrypted_root_cause: str | None = None
+    encrypted_suggested_change: str | None = None
+    encrypted_evidence_summary: str | None = None
+    encrypted_task_draft: str | None = None
+    encrypted_rejection_reason: str | None = None
+    created_at: int
+    updated_at: int | None = None
+
+
+class PlanLearningUpdateRequest(BaseModel):
+    status: PlanLearningStatus | None = None
+    severity: PlanLearningLevel | None = None
+    confidence: PlanLearningLevel | None = None
+    linked_task_ids: list[str] | None = None
+    linked_check_ids: list[str] | None = None
+    applied_task_id: str | None = None
+    encrypted_title: str | None = None
+    encrypted_observation: str | None = None
+    encrypted_root_cause: str | None = None
+    encrypted_suggested_change: str | None = None
+    encrypted_evidence_summary: str | None = None
+    encrypted_task_draft: str | None = None
+    encrypted_rejection_reason: str | None = None
+    updated_at: int | None = None
+
+
+class PlanLearningCreateTasksRequest(BaseModel):
+    learning_ids: list[str] = Field(default_factory=list)
+    all: bool = False
+    created_at: int | None = None
     updated_at: int | None = None
 
 
@@ -940,6 +989,73 @@ async def update_plan_reference_pattern(
     try:
         pattern = await service.update_reference_pattern(plan_id, current_user.id, pattern_id, body.model_dump(exclude_unset=True))
         return {"reference_pattern": pattern}
+    except Exception as exc:
+        _handle_plan_error(exc)
+
+
+@router.post("/{plan_id}/learnings")
+@limiter.limit("60/minute")
+async def create_plan_learning(
+    request: Request,
+    response: Response,
+    plan_id: str,
+    body: PlanLearningRequest,
+    service: UserPlanService = Depends(get_user_plan_service),
+) -> dict[str, Any]:
+    current_user = await _current_user(request, response)
+    try:
+        learning = await service.create_learning(plan_id, current_user.id, body.model_dump())
+        return {"learning": learning}
+    except Exception as exc:
+        _handle_plan_error(exc)
+
+
+@router.get("/{plan_id}/learnings")
+@limiter.limit("60/minute")
+async def list_plan_learnings(
+    request: Request,
+    response: Response,
+    plan_id: str,
+    service: UserPlanService = Depends(get_user_plan_service),
+) -> dict[str, Any]:
+    current_user = await _current_user(request, response)
+    try:
+        await service.ensure_plan_owner(plan_id, current_user.id)
+        return {"learnings": await service.plan_methods.list_learnings(plan_id)}
+    except Exception as exc:
+        _handle_plan_error(exc)
+
+
+@router.patch("/{plan_id}/learnings/{learning_id}")
+@limiter.limit("60/minute")
+async def update_plan_learning(
+    request: Request,
+    response: Response,
+    plan_id: str,
+    learning_id: str,
+    body: PlanLearningUpdateRequest,
+    service: UserPlanService = Depends(get_user_plan_service),
+) -> dict[str, Any]:
+    current_user = await _current_user(request, response)
+    try:
+        learning = await service.update_learning(plan_id, current_user.id, learning_id, body.model_dump(exclude_unset=True))
+        return {"learning": learning}
+    except Exception as exc:
+        _handle_plan_error(exc)
+
+
+@router.post("/{plan_id}/learnings/create-tasks")
+@limiter.limit("20/minute")
+async def create_tasks_from_plan_learnings(
+    request: Request,
+    response: Response,
+    plan_id: str,
+    body: PlanLearningCreateTasksRequest,
+    service: UserPlanService = Depends(get_user_plan_service),
+) -> dict[str, Any]:
+    current_user = await _current_user(request, response)
+    try:
+        return await service.create_tasks_from_learnings(plan_id, current_user.id, body.model_dump())
     except Exception as exc:
         _handle_plan_error(exc)
 

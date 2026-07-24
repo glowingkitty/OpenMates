@@ -33,6 +33,8 @@ def test_pip_sdk_user_plan_methods_use_shared_plans_api(monkeypatch):
 
     def fake_get(url, *, headers, timeout):
         requests_seen.append({"method": "GET", "url": url})
+        if url.endswith("/learnings"):
+            return FakeResponse({"learnings": []})
         if url.endswith("/criteria"):
             return FakeResponse({"criteria": []})
         if url.endswith("/verification"):
@@ -45,6 +47,10 @@ def test_pip_sdk_user_plan_methods_use_shared_plans_api(monkeypatch):
 
     def fake_post(url, *, json, headers, timeout):
         requests_seen.append({"method": "POST", "url": url, "json": json})
+        if url.endswith("/learnings/create-tasks"):
+            return FakeResponse({"tasks": [], "skipped": []})
+        if "/learnings" in url:
+            return FakeResponse({"learning": json})
         if "/criteria" in url:
             return FakeResponse({"criterion": json})
         if "/assumptions" in url:
@@ -57,6 +63,8 @@ def test_pip_sdk_user_plan_methods_use_shared_plans_api(monkeypatch):
 
     def fake_patch(url, *, json, headers, timeout):
         requests_seen.append({"method": "PATCH", "url": url, "json": json})
+        if "/learnings/" in url:
+            return FakeResponse({"learning": json})
         if "/assumptions/" in url:
             return FakeResponse({"assumption": json})
         return FakeResponse({"plan": {**PLAN, **json}})
@@ -80,6 +88,10 @@ def test_pip_sdk_user_plan_methods_use_shared_plans_api(monkeypatch):
     assert client.plans.update_assumption("plan-1", "A-1", {"status": "confirmed"})["status"] == "confirmed"
     assert client.plans.create_reference_pattern("plan-1", {"pattern_id": "RP-1", "encrypted_title": "cipher-pattern", "created_at": 100})["pattern_id"] == "RP-1"
     assert client.plans.list_reference_patterns("plan-1") == []
+    assert client.plans.create_learning("plan-1", {"learning_id": "LRN-1", "type": "workflow_improvement", "target_kind": "workflow", "encrypted_title": "cipher-learning", "created_at": 100})["learning_id"] == "LRN-1"
+    assert client.plans.list_learnings("plan-1") == []
+    assert client.plans.update_learning("plan-1", "LRN-1", {"status": "accepted"})["status"] == "accepted"
+    assert client.plans.create_learning_tasks("plan-1", {"learning_ids": ["LRN-1"]}) == {"tasks": [], "skipped": []}
     assert client.plans.add_verification_evidence("plan-1", "V-1", {"status": "passed"})["status"] == "passed"
 
     assert requests_seen == [
@@ -97,5 +109,9 @@ def test_pip_sdk_user_plan_methods_use_shared_plans_api(monkeypatch):
         {"method": "PATCH", "url": "https://api.openmates.org/v1/user-plans/plan-1/assumptions/A-1", "json": {"status": "confirmed"}},
         {"method": "POST", "url": "https://api.openmates.org/v1/user-plans/plan-1/reference-patterns", "json": {"pattern_id": "RP-1", "encrypted_title": "cipher-pattern", "created_at": 100}},
         {"method": "GET", "url": "https://api.openmates.org/v1/user-plans/plan-1/reference-patterns"},
+        {"method": "POST", "url": "https://api.openmates.org/v1/user-plans/plan-1/learnings", "json": {"learning_id": "LRN-1", "type": "workflow_improvement", "target_kind": "workflow", "encrypted_title": "cipher-learning", "created_at": 100}},
+        {"method": "GET", "url": "https://api.openmates.org/v1/user-plans/plan-1/learnings"},
+        {"method": "PATCH", "url": "https://api.openmates.org/v1/user-plans/plan-1/learnings/LRN-1", "json": {"status": "accepted"}},
+        {"method": "POST", "url": "https://api.openmates.org/v1/user-plans/plan-1/learnings/create-tasks", "json": {"learning_ids": ["LRN-1"]}},
         {"method": "POST", "url": "https://api.openmates.org/v1/user-plans/plan-1/verification/V-1/evidence", "json": {"status": "passed"}},
     ]

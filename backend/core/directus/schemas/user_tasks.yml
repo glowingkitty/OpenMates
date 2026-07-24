@@ -83,6 +83,16 @@ user_tasks:
       nullable: true
       note: "Optional Plans V1 verification id when task_type is verification."
 
+    source_plan_id:
+      type: string
+      nullable: true
+      note: "Optional source plan id when this task was materialized from a plan learning."
+
+    source_learning_id:
+      type: string
+      nullable: true
+      note: "Optional source learning id when this task was materialized from a plan learning."
+
     due_at:
       type: integer
       nullable: true

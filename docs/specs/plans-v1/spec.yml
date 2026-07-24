@@ -40,6 +40,9 @@ scope:
     - AI validation checks that link to an existing evaluator sub-chat with explicit evaluator instructions instead of pretending to be deterministic test runs.
     - Runnable test-file checks that execute in isolated sandbox runners and expose structured run details with source, output, screenshots, video, traces, logs, steps, and environment metadata when produced by the runner.
     - Verification tasks that appear in the regular Tasks view, can be assigned to AI or user, and link back to acceptance criteria.
+    - Finalized plan learnings that capture 1-5 workflow or project agent-instruction improvements before a plan can be completed.
+    - One encrypted suggested task draft per learning, materialized into a normal user_tasks row only when the user or assistant explicitly creates tasks from learnings.
+    - Learning provenance from materialized tasks back to the source plan and source learning so future agents can see why the improvement task exists.
     - Multi-phase plan processing: draft, check assumptions, await approval, work tasks, run checks, loop back to tasks when checks fail, and complete only when required evidence is satisfied or waived.
     - Test-first enforcement for coding checks: planned deterministic test/check files are created and red-run before implementation when feasible; passed_unexpectedly, skipped_with_reason, or not_applicable must be explicitly recorded with rationale.
     - Required green/final verification evidence before a plan or task can be marked done.
@@ -56,6 +59,8 @@ scope:
     - Unlimited dependency graphs or arbitrary workflow engines beyond simple ordered phases, steps, and task/criterion links.
     - Automatic execution of high-stakes remote filesystem writes, shell commands, payments, or account mutations without later permission specs.
     - Native Apple plan UI implementation in the first web/API slice, although the spec records expected parity.
+    - Directly modifying workflow definitions, hooks, global agent instructions, or project agent instructions when a learning is recorded.
+    - Auto-executing learning improvement tasks or creating recursive improvement plans from learning records in V1.
     - Building Mac/Xcode, electronics CAD, or hardware-control automation in V1; these can be represented as user-confirmed verification tasks.
 
 context_discovery:
@@ -193,6 +198,14 @@ clarification:
         destructive-action, repo-rule, approved-spec-rule, failed-required-check,
         missing-required-input, or contradicted-assumption cases. Otherwise the
         user must approve making them required.
+    - question: How should execution learnings improve future workflows and agent instructions?
+      answer: >
+        Plan execution should produce 1-5 finalized learnings before completion.
+        V1 learnings focus on workflow improvements and project agent-instruction
+        improvements. Each learning can carry one encrypted suggested task draft;
+        creating tasks from learnings materializes those drafts as regular tasks
+        with provenance back to the source plan and learning. Learnings must not
+        directly mutate workflows, hooks, or agent instructions in V1.
     - question: What does CLI --autoconfirm approve?
       answer: >
         --autoconfirm may approve the generated plan, assumption/check workflow,
@@ -457,6 +470,33 @@ scenarios:
       - Pattern drift is shown in the plan and can create follow-up tasks or checks.
       - The active-plan context includes required pattern rules near the current focus so continuation turns keep matching the source-of-truth examples.
 
+  - id: S-22
+    title: Assistant records learnings before completing an active chat plan
+    given:
+      - Alice has an active plan in a chat and the assistant has finished the required work tasks and checks.
+      - The plan has no finalized learnings yet.
+    when:
+      - The assistant attempts to mark the plan complete during normal chat continuation.
+    then:
+      - Completion is blocked with a missing-learnings blocker, just like missing required checks or unresolved assumptions.
+      - The assistant summarizes 1-5 useful workflow or project agent-instruction learnings from the execution.
+      - Each learning includes one encrypted suggested task draft describing how to improve the workflow or project agent instructions later.
+      - The assistant saves the learnings and then completes the plan after all other completion blockers are resolved.
+      - The final chat response includes a concise Learnings / Suggested Improvements section.
+
+  - id: S-23
+    title: User creates tasks from plan learnings without mutating workflows directly
+    given:
+      - Alice opens a completed plan whose learnings include task drafts for a workflow improvement and a project agent-instruction improvement.
+    when:
+      - Alice runs `openmates plans learnings create-tasks <plan-id> --all` or confirms the equivalent UI action.
+    then:
+      - OpenMates creates one normal user_tasks record for each selected learning that has an unapplied task draft.
+      - Each created task stores provenance linking it to the source plan id and source learning id.
+      - The learning is marked applied and records the created task id.
+      - No workflow record, hook, global instruction, or project instruction is modified by the create-tasks action itself.
+      - A repeated create-tasks action skips already applied learnings instead of creating duplicate tasks.
+
   - id: S-18
     title: Check cards open either sub-chat validation or structured test run details
     given:
@@ -614,6 +654,18 @@ acceptance_criteria:
   - id: AC-38
     scenario: S-21
     text: Required reference patterns are first-class plan records whose inspection/match status gates implementation or completion, preventing agents from ignoring existing design guidelines, source examples, and structural conventions.
+  - id: AC-39
+    scenario: S-22
+    text: Plan completion is blocked until the plan has 1-5 finalized learnings; finalized learnings are proposed, accepted, or applied, while draft, rejected, duplicate, and merged records do not satisfy the count.
+  - id: AC-40
+    scenario: S-22
+    text: Learnings are client-encrypted plan child records focused on workflow_improvement or agent_instruction_improvement in V1, with server-visible metadata limited to routing, count, status, type, target, severity, confidence, links, and timestamps.
+  - id: AC-41
+    scenario: S-22
+    text: Assistant-driven chat continuation treats missing learnings as an active-plan completion blocker, records useful learnings before completion, and includes a concise Learnings / Suggested Improvements section in the final response.
+  - id: AC-42
+    scenario: S-23
+    text: Learnings can create normal task records from their single encrypted suggested task draft with provenance to source plan and source learning, but do not directly mutate workflows, hooks, global instructions, or project agent instructions.
 
 contracts:
   product_model:
@@ -676,6 +728,9 @@ contracts:
       - section: Reference Patterns
         purpose: Existing files, docs, design guidelines, source components, API/CLI/SDK examples, tests, naming conventions, visual systems, and anti-patterns that the plan must follow.
         enforcement: Required reference patterns block implementation until inspected or explicitly waived; completion checks compare changed work against required patterns so agents do not invent inconsistent structure or visual style.
+      - section: Learnings
+        purpose: Final execution reflections that identify improvements to future workflows or project agent instructions.
+        enforcement: Completion requires 1-5 finalized learnings; each finalized learning should include exactly one suggested task draft when the improvement is actionable.
       - section: Context
         purpose: Compact plan context and artifact references needed after chat compression.
         enforcement: Injected into active-plan turns through protected active-plan context, never by server-side durable decryption.
@@ -721,6 +776,8 @@ contracts:
       response: "{ plan: PlanRecord, blocked_by?: VerificationBlocker[] }"
       notes:
         - Refuses completion while required acceptance criteria or verification items remain incomplete unless explicitly waived.
+        - Refuses completion while finalized learning count is below 1 or above 5.
+        - Assistant-driven chat completion must resolve missing-learning blockers by recording concise learnings before retrying completion.
     - route: POST /v1/user-plans/{plan_id}/criteria
       auth: session_or_api_key
       request: "{ criterion_id, encrypted_text, type, required, linked_step_ids?, linked_task_ids?, created_at }"
@@ -742,6 +799,34 @@ contracts:
       auth: session_or_api_key
       request: "{ result, score?, threshold?, status, encrypted_reason?, encrypted_required_fixes?, run_id?, task_id?, artifact_ids?, linked_sub_chat_id?, created_at }"
       response: "{ verification: VerificationRecord }"
+    - route: GET /v1/user-plans/{plan_id}/learnings
+      auth: session_or_api_key
+      request: "path params only"
+      response: "{ learnings: PlanLearningRecord[] }"
+      notes:
+        - Returns encrypted learning content and server-visible metadata for owner-side CLI, SDK, and UI review.
+    - route: POST /v1/user-plans/{plan_id}/learnings
+      auth: session_or_api_key
+      request: "{ learning_id, type, target_kind, status, severity?, confidence?, linked_task_ids?, linked_check_ids?, encrypted_title, encrypted_observation?, encrypted_root_cause?, encrypted_suggested_change?, encrypted_evidence_summary?, encrypted_task_draft? }"
+      response: "{ learning: PlanLearningRecord }"
+      notes:
+        - V1 accepts workflow_improvement and agent_instruction_improvement types.
+        - encrypted_task_draft stores exactly one suggested task draft with title, description, target, and optional labels.
+        - Creating a learning never creates a task or mutates workflows/instructions by itself.
+    - route: PATCH /v1/user-plans/{plan_id}/learnings/{learning_id}
+      auth: session_or_api_key
+      request: "{ status?, severity?, confidence?, linked_task_ids?, linked_check_ids?, applied_task_id?, encrypted_*?, version? }"
+      response: "{ learning: PlanLearningRecord }"
+      notes:
+        - Used to normalize draft learnings, reject duplicates, mark merged entries, or record the task created from a learning.
+    - route: POST /v1/user-plans/{plan_id}/learnings/create-tasks
+      auth: session_or_api_key
+      request: "{ learning_ids?: string[], all?: boolean }"
+      response: "{ tasks: UserTaskRecord[], skipped: LearningTaskSkip[] }"
+      notes:
+        - Creates one regular user_tasks row per selected unapplied learning task draft.
+        - Created tasks keep source_plan_id and source_learning_id provenance.
+        - The action is idempotent for already applied learnings and never edits workflow or instruction records directly.
     - route: POST /v1/user-plans/{plan_id}/verification/{verification_id}/runs
       auth: session_or_api_key
       request: "{ run_id, runner_kind, status, command?, source_embed_id?, started_at, environment?, encrypted_summary? }"
@@ -931,6 +1016,36 @@ contracts:
           - Match rules describe what must be preserved, such as component hierarchy, data-testid conventions, tokens, route shape, API error style, SDK method naming, or test fixture structure.
           - Required reference patterns with status proposed, required, drift_detected, or blocked prevent the relevant phase until inspected/matched, waived, or user-resolved.
           - This section is intentionally generic: it covers UI design patterns and also backend, CLI, SDK, test, docs, privacy, and Apple parity patterns.
+      - name: user_plan_learnings
+        purpose: Machine-processable, encrypted plan execution learnings that suggest future workflow or project agent-instruction improvements.
+        server_visible_fields:
+          - id
+          - plan_id
+          - learning_id
+          - type: workflow_improvement|agent_instruction_improvement
+          - target_kind: workflow|project_agent_instructions
+          - status: draft|proposed|accepted|applied|rejected|duplicate|merged
+          - severity: low|medium|high
+          - confidence: low|medium|high
+          - linked_task_ids
+          - linked_check_ids
+          - applied_task_id
+          - version
+          - created_at
+          - updated_at
+        encrypted_fields:
+          - encrypted_title
+          - encrypted_observation
+          - encrypted_root_cause
+          - encrypted_suggested_change
+          - encrypted_evidence_summary
+          - encrypted_task_draft
+          - encrypted_rejection_reason
+        notes:
+          - Completion counts only proposed, accepted, and applied learnings.
+          - Each finalized actionable learning has exactly one encrypted task draft; if one observation needs several tasks, split it into separate learnings or choose the highest-value first task.
+          - Task drafts remain drafts until create-tasks materializes them as normal user_tasks records.
+          - Learning text, suggested changes, evidence summaries, and task draft titles/descriptions are private plan content and must remain client-encrypted.
       - name: user_plan_steps
         purpose: Optional ordered phases/grouping steps inside a plan. User-facing work items remain linked user_tasks.
         server_visible_fields:
@@ -1261,6 +1376,9 @@ contracts:
     - Plan execution must never start from an unapproved draft unless an explicit CLI/autonomous autoconfirm flag is present and allowed by policy.
     - Active/executable plans must have primary_chat_id so progress, assumption sub-chats, tasks, checks, and continuation events remain visible in the plan command-center chat.
     - Required reference patterns must be inspected before implementation and matched before completion unless explicitly waived; the assistant must not silently ignore existing design guidelines, examples, or source-of-truth structures.
+    - Learnings must never store plaintext private execution observations, suggested workflow changes, agent-instruction text, or suggested task drafts in durable server storage.
+    - Creating tasks from learnings must scan decrypted task drafts for prompt-injection, hidden Unicode, secret exfiltration, destructive-action, and credential patterns before materializing tasks when the client has plaintext available.
+    - Learning create-tasks actions must never directly mutate workflows, hooks, global agent instructions, project agent instructions, or other permanent automation records.
     - Durable plan keys must never be stored raw; only wrapped plan keys are stored.
     - Shared chats include only existing plan keys wrapped for the shared plan subset, protected by the share URL fragment key and optional password, not owner/master wrappers.
     - Active-plan assistant context must come from short-lived Vault-encrypted execution context or a fresh client submission, never from server-side durable decryption.
@@ -1341,6 +1459,8 @@ contracts:
       - All required acceptance criteria must be satisfied or explicitly waived.
       - All required acceptance criteria must have coverage_status covered, waived, or blocked with an accepted blocker before completion.
       - All required verification items must have passing, completed, waived, or user-confirmed evidence.
+      - A plan must have at least one and at most five finalized learnings before completion; missing or excessive finalized learnings block completion.
+      - The assistant must include the finalized learnings in the final plan execution summary so the user can decide whether to create improvement tasks.
       - Required green/final checks block completion.
       - Required deterministic checks with explicit commands/test files keep the plan and linked task active until the check passes, is completed by the assigned user, or is explicitly waived.
       - Red phase is recommended for coding but does not block completion when recorded as passed_unexpectedly, missing_test, skipped_with_reason, or not_applicable.
@@ -1641,6 +1761,36 @@ tests:
         run_id: "local:2026-07-20:python3 -m pytest backend/tests/test_user_plans_api.py backend/tests/test_plan_focus_routing.py backend/tests/test_plan_anti_drift.py backend/tests/test_user_plans_share_bundle.py backend/tests/test_user_plan_execution_contexts.py backend/tests/test_plan_assumption_workflow.py backend/tests/test_plan_acceptance_criteria_coverage.py backend/tests/test_plan_reference_patterns.py"
         timestamp: "2026-07-20T09:35:48Z"
 
+  - id: T-PYTEST-PLAN-LEARNINGS
+    type: pytest
+    file: backend/tests/test_plan_learnings.py
+    command: python3 -m pytest backend/tests/test_plan_learnings.py
+    covers:
+      - AC-39
+      - AC-40
+      - AC-41
+      - AC-42
+    assertions:
+      - plan learnings are stored as encrypted child records with only type, target, status, severity, confidence, links, applied_task_id, version, and timestamps visible to the server.
+      - completion is blocked while finalized learning count is zero and while finalized learning count is greater than five.
+      - draft, rejected, duplicate, and merged learnings do not satisfy the completion count.
+      - create-tasks materializes one regular user_task from one unapplied learning task draft and records source plan and source learning provenance.
+      - create-tasks is idempotent for already applied learnings and does not mutate workflow or instruction records.
+    red_phase:
+      required: true
+      expected: fail_or_missing
+      evidence:
+        status: missing_test
+        run_id: "local:pre-implementation:backend/tests/test_plan_learnings.py absent"
+        timestamp: "2026-07-24T13:41:58Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "local:2026-07-24:python3 -m pytest backend/tests/test_plan_learnings.py backend/tests/test_user_plan_execution_contexts.py backend/tests/test_user_plans_api.py backend/tests/test_plan_acceptance_criteria_coverage.py backend/tests/test_plan_reference_patterns.py"
+        timestamp: "2026-07-24T13:41:58Z"
+
   - id: T-CLI-PLANS
     type: unit
     file: frontend/packages/openmates-cli/tests/plans.test.ts
@@ -1652,11 +1802,16 @@ tests:
       - AC-18
       - AC-32
       - AC-33
+      - AC-39
+      - AC-40
+      - AC-42
     assertions:
       - CLI can list, create, update, activate, and complete plans through /v1/user-plans
       - CLI can add acceptance criteria and verification evidence
+      - CLI can add, list, show, edit, and create tasks from plan learnings
       - CLI serializes chat_id and project_id filters
-      - CLI exposes completion blockers when verification evidence is missing
+      - CLI exposes completion blockers when verification evidence or finalized learnings are missing
+      - CLI uses `plans learnings create-tasks`, not an ambiguous apply command, to materialize suggested improvement tasks
     red_phase:
       required: true
       expected: fail_or_missing
@@ -1669,8 +1824,8 @@ tests:
       expected: pass
       evidence:
         status: passed
-        run_id: "local:2026-07-20:node --test --experimental-strip-types --loader ./tests/loader.mjs tests/plans.test.ts tests/sdk-plans.test.ts"
-        timestamp: "2026-07-20T09:35:48Z"
+        run_id: "local:2026-07-24:node --test --experimental-strip-types --loader ./tests/loader.mjs tests/plans.test.ts tests/sdk-plans.test.ts"
+        timestamp: "2026-07-24T13:41:58Z"
 
   - id: T-NPM-SDK-PLANS
     type: unit
@@ -1680,9 +1835,13 @@ tests:
       - AC-6
       - AC-7
       - AC-18
+      - AC-39
+      - AC-40
+      - AC-42
     assertions:
       - npm SDK exposes plan list/create/update/activate/complete helpers
       - npm SDK exposes acceptance-criteria and verification-evidence helpers
+      - npm SDK exposes learning list/create/update/create-tasks helpers under the plans facade
       - helper paths match /v1/user-plans contracts
     red_phase:
       required: true
@@ -1696,8 +1855,8 @@ tests:
       expected: pass
       evidence:
         status: passed
-        run_id: "local:2026-07-20:node --test --experimental-strip-types --loader ./tests/loader.mjs tests/plans.test.ts tests/sdk-plans.test.ts"
-        timestamp: "2026-07-20T09:35:48Z"
+        run_id: "local:2026-07-24:node --test --experimental-strip-types --loader ./tests/loader.mjs tests/plans.test.ts tests/sdk-plans.test.ts"
+        timestamp: "2026-07-24T13:41:58Z"
 
   - id: T-PIP-SDK-PLANS
     type: pytest
@@ -1707,9 +1866,13 @@ tests:
       - AC-6
       - AC-7
       - AC-18
+      - AC-39
+      - AC-40
+      - AC-42
     assertions:
       - pip SDK exposes plan list/create/update/activate/complete helpers
       - pip SDK exposes acceptance-criteria and verification-evidence helpers
+      - pip SDK exposes learning list/create/update/create-tasks helpers under the plans facade
       - helper paths match /v1/user-plans contracts
     red_phase:
       required: true
@@ -1723,8 +1886,8 @@ tests:
       expected: pass
       evidence:
         status: passed
-        run_id: "local:2026-07-20:python3 -m pytest packages/openmates-python/tests/test_plans.py"
-        timestamp: "2026-07-20T09:35:48Z"
+        run_id: "local:2026-07-24:python3 -m pytest packages/openmates-python/tests/test_plans.py"
+        timestamp: "2026-07-24T13:41:58Z"
 
   - id: T-E2E-PLANS-CHAT
     type: playwright
@@ -1744,12 +1907,15 @@ tests:
       - AC-34
       - AC-35
       - AC-37
+      - AC-39
+      - AC-41
     assertions:
       - "@plan starts a planner flow and asks one clarifying question"
       - approved plan appears in chat Tasks tab
       - chat header shows plan title before execution and task title during execution
       - failed AI evaluation shows a system/status correction and keeps the plan active
       - user-confirmed verification task blocks completion until completed or waived
+      - missing finalized learnings blocks assistant-driven completion and the final plan summary includes Learnings / Suggested Improvements after learnings are recorded
     red_phase:
       required: true
       expected: fail_or_missing
@@ -1884,6 +2050,8 @@ implementation_plan:
     - Active-plan context is fetched and injected into future assistant requests separately from message history and compression summaries.
     - Assistant execution updates task, criteria, verification, and plan status.
     - Failed required checks create or suggest linked follow-up tasks and move the plan back to working_tasks or blocked until the checks pass, are user-confirmed, or are waived.
+    - When all required work/check blockers are resolved, completion review requires 1-5 finalized learnings; missing learnings steer the assistant to record concise workflow or project agent-instruction improvements before retrying completion.
+    - Selected learnings can later create normal user_tasks from their encrypted task drafts with provenance to the source plan and learning, without directly mutating workflows or instructions.
     - AI validation checks store a linked evaluator sub-chat and open that chat as the evidence detail.
     - Runnable test-file checks execute in an isolated sandbox runner, store structured run/artifact manifests, and open a run-details fullscreen using existing source-code, code-output, image, video, and artifact embed primitives.
     - Anti-drift checks run after assistant turns or task transitions and can send steering corrections to the LLM while rendering system/status messages in the UI.
@@ -1891,7 +2059,7 @@ implementation_plan:
     - path: backend/core/directus/schemas/user_plans.yml
       reason: Durable plan, step, criterion, verification, activity, and artifact collections.
     - path: backend/core/directus/schemas/user_tasks.yml
-      reason: Add plan_id, plan_step_id, task_type, and verification_id fields.
+      reason: Add plan_id, plan_step_id, task_type, verification_id, and source learning provenance fields.
     - path: backend/core/api/app/routes/user_plans.py
       reason: User-facing /v1/user-plans API.
     - path: backend/core/api/app/services/user_plan_service.py
@@ -1902,6 +2070,8 @@ implementation_plan:
       reason: Assumption checking, source evidence, sub-chat merge, and failed-check loop contracts.
     - path: backend/tests/test_plan_acceptance_criteria_coverage.py
       reason: Acceptance-criteria coverage, ambiguous all-tests normalization, and check/fix/check loop contracts.
+    - path: backend/tests/test_plan_learnings.py
+      reason: Plan learning storage, completion blocker, and create-tasks provenance contracts.
     - path: backend/core/api/app/utils/override_parser.py
       reason: Add @plan parsing and cleaned-message behavior.
     - path: backend/apps/openmates/app.yml
@@ -1931,20 +2101,26 @@ implementation_plan:
     - path: frontend/packages/ui/src/components/projects/ProjectsPage.svelte
       reason: Add project linked plans management surface.
     - path: frontend/packages/openmates-cli/src/client.ts
-      reason: CLI plan contract helpers.
+      reason: CLI plan and learning contract helpers.
+    - path: frontend/packages/openmates-cli/src/plansCli.ts
+      reason: Client-side encryption/decryption and rendering for plan learning records and suggested task drafts.
+    - path: frontend/packages/openmates-cli/src/cli.ts
+      reason: "plans learnings commands including create-tasks."
     - path: frontend/packages/openmates-cli/src/sdk.ts
-      reason: npm SDK plan facade.
+      reason: npm SDK plan and learning facade.
     - path: packages/openmates-python/openmates/sdk.py
-      reason: pip SDK plan facade.
+      reason: pip SDK plan and learning facade.
   verification_strategy:
     - python3 scripts/spec_validate.py docs/specs/plans-v1/spec.yml
     - python3 scripts/spec_verify.py docs/specs/plans-v1/spec.yml --phase red
+    - python3 -m pytest backend/tests/test_plan_learnings.py
     - CLI contract tests before web E2E.
     - npm and pip SDK tests before web E2E.
     - Playwright red/green for chat and project plan flows after deploy.
     - Apple remote status/build attempt when Apple shared clients or native UI are touched.
   verification_order:
     - Backend pytest contracts.
+    - Direct REST API contract against https://api.dev.openmates.org after backend service restart.
     - CLI contract tests.
     - npm SDK contract tests.
     - pip SDK contract tests.
@@ -2142,6 +2318,41 @@ tasks:
       - T-E2E-PLAN-AC-CHECKS
     independently_deployable: false
 
+  - id: TASK-9
+    title: Add plan learnings and create-tasks flow
+    covers:
+      scenarios:
+        - S-22
+        - S-23
+      acceptance_criteria:
+        - AC-39
+        - AC-40
+        - AC-41
+        - AC-42
+    expected_files:
+      - backend/core/directus/schemas/user_plans.yml
+      - backend/core/directus/schemas/user_tasks.yml
+      - backend/core/api/app/routes/user_plans.py
+      - backend/core/api/app/services/user_plan_service.py
+      - backend/core/api/app/services/directus/user_plan_methods.py
+      - backend/tests/test_plan_learnings.py
+      - frontend/packages/openmates-cli/src/client.ts
+      - frontend/packages/openmates-cli/src/plansCli.ts
+      - frontend/packages/openmates-cli/src/cli.ts
+      - frontend/packages/openmates-cli/src/sdk.ts
+      - frontend/packages/openmates-cli/tests/plans.test.ts
+      - frontend/packages/openmates-cli/tests/sdk-plans.test.ts
+      - packages/openmates-python/openmates/sdk.py
+      - packages/openmates-python/tests/test_plans.py
+      - frontend/apps/web_app/tests/plans-flow.spec.ts
+    verification:
+      - T-PYTEST-PLAN-LEARNINGS
+      - T-CLI-PLANS
+      - T-NPM-SDK-PLANS
+      - T-PIP-SDK-PLANS
+      - T-E2E-PLANS-CHAT
+    independently_deployable: false
+
 risks:
   - Plan scope can become too broad if V1 tries to implement every app-specific planner at once; V1 should add the generic openmates.plan and wire existing code.project_planner first, then add more app planners incrementally.
   - Anti-drift can be annoying if too sensitive; thresholds must allow intentional user pivots and ask whether to update the plan when scope changes.
@@ -2149,9 +2360,12 @@ risks:
   - Client-encrypted plan data limits server-side search and routing; V1 should keep server-visible metadata sparse and explicit.
   - Verification tasks may clutter task boards; UI should visually distinguish work tasks from verification tasks while keeping them assignable and actionable.
   - Chat header can become overloaded; V1 should only show plan title/current task and navigation, with details in the Tasks tab.
+  - Requiring learnings can create low-value filler if agents are not instructed to merge or reject weak observations; completion should allow only 1-5 finalized entries and UI/CLI should encourage concise, actionable learnings.
+  - Learning task drafts could become a backdoor for unsafe instruction changes; create-tasks must route changes through normal tasks and scan drafts rather than mutating workflows or instructions directly.
 
 open_questions:
   - Which app-specific planner focus modes beyond code.project_planner should ship in the first implementation slice versus later app-by-app follow-up specs?
   - Should @plan in a chat with an existing active plan update the existing plan by default, create a new draft plan, or ask the user which action they want?
   - Should plan cards on the Project page appear in the first project overview slice or behind an expandable section until there are linked plans?
   - What is the first acceptable AI evaluation threshold default for generic qualitative checks: 80, 85, or per-plan only?
+  - Should tasks created from learnings default to backlog, todo, or a dedicated suggested/improvement queue once the Tasks UI has richer source filters?

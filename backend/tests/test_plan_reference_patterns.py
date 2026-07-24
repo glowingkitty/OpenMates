@@ -34,6 +34,7 @@ async def test_completion_required_reference_patterns_block_until_matched_or_wai
             {"pattern_id": "PAT-1", "required_before": "completion", "status": "drift_detected"},
             {"pattern_id": "PAT-2", "required_before": "completion", "status": "matched"},
         ]),
+        list_learnings=AsyncMock(return_value=[{"learning_id": "LRN-1", "status": "accepted"}]),
     )
 
     blockers = await UserPlanService(plan_methods).completion_blockers("plan-1")

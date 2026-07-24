@@ -2133,6 +2133,18 @@ class OpenMatesPlans:
     def list_reference_patterns(self, plan_id: str) -> list[dict[str, Any]]:
         return self._client._get(f"/v1/user-plans/{_quote(plan_id)}/reference-patterns").get("reference_patterns", [])
 
+    def create_learning(self, plan_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        return self._client._post(f"/v1/user-plans/{_quote(plan_id)}/learnings", payload).get("learning", {})
+
+    def list_learnings(self, plan_id: str) -> list[dict[str, Any]]:
+        return self._client._get(f"/v1/user-plans/{_quote(plan_id)}/learnings").get("learnings", [])
+
+    def update_learning(self, plan_id: str, learning_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        return self._client._patch(f"/v1/user-plans/{_quote(plan_id)}/learnings/{_quote(learning_id)}", payload).get("learning", {})
+
+    def create_learning_tasks(self, plan_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        return self._client._post(f"/v1/user-plans/{_quote(plan_id)}/learnings/create-tasks", payload)
+
     def add_verification_evidence(self, plan_id: str, verification_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         return self._client._post(
             f"/v1/user-plans/{_quote(plan_id)}/verification/{_quote(verification_id)}/evidence",

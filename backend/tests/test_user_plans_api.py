@@ -62,6 +62,21 @@ def verification_payload(**overrides):
     return base
 
 
+def learning_payload(**overrides):
+    base = {
+        "learning_id": "LRN-1",
+        "type": "workflow_improvement",
+        "target_kind": "workflow",
+        "status": "accepted",
+        "encrypted_title": "cipher-learning-title",
+        "encrypted_task_draft": "cipher-task-draft",
+        "created_at": 100,
+        "updated_at": 100,
+    }
+    base.update(overrides)
+    return base
+
+
 @pytest.mark.asyncio
 async def test_create_plan_hashes_owner_and_projects_without_plaintext_content() -> None:
     directus = SimpleNamespace()
@@ -327,6 +342,7 @@ async def test_completion_blocks_missing_required_verification() -> None:
         [verification_payload(status="pending")],
         [],
         [],
+        [learning_payload()],
     ])
     directus.update_item = AsyncMock()
 
@@ -347,6 +363,7 @@ async def test_red_phase_passed_unexpectedly_does_not_block_completion() -> None
         [verification_payload(phase="red", status="passed_unexpectedly", required_for_done=False)],
         [],
         [],
+        [learning_payload()],
         [{"id": "row-1", "version": 1, **plan_payload(status="active")}],
     ])
     directus.update_item = AsyncMock(return_value={"id": "row-1", "status": "completed"})

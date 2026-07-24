@@ -627,6 +627,36 @@ export interface ProjectSourceRecord {
 
 export type ProjectSourceCreateInput = ProjectSourceRecord;
 
+export type ProjectItemType = "embed" | "chat" | "upload" | "workflow";
+
+export interface ProjectItemRecord {
+  project_item_id: string;
+  item_type: ProjectItemType;
+  target_id_hash?: string;
+  target_id_encrypted: string;
+  encrypted_display_name?: string | null;
+  encrypted_note?: string | null;
+  encrypted_metadata?: string | null;
+  created_at?: number;
+  updated_at?: number;
+  position?: number;
+  [key: string]: unknown;
+}
+
+export interface ProjectItemCreateInput {
+  project_item_id: string;
+  folder_id?: string | null;
+  item_type: ProjectItemType;
+  target_id: string;
+  target_id_encrypted: string;
+  encrypted_display_name?: string | null;
+  encrypted_note?: string | null;
+  encrypted_metadata?: string | null;
+  created_at: number;
+  updated_at: number;
+  position?: number;
+}
+
 export interface UserTaskRecord {
   task_id: string;
   source?: string | null;
@@ -658,6 +688,8 @@ export interface UserTaskRecord {
   plan_step_id?: string | null;
   task_type?: "work" | "verification" | null;
   verification_id?: string | null;
+  source_plan_id?: string | null;
+  source_learning_id?: string | null;
   due_at?: number | null;
   priority?: number;
   position?: number;
@@ -709,9 +741,13 @@ export type UserTaskReorderInput = {
   }>;
 };
 
-export type UserPlanStatus = "draft" | "awaiting_confirmation" | "active" | "executing" | "blocked" | "completed" | "archived";
+export type UserPlanStatus = "draft" | "checking_assumptions" | "awaiting_confirmation" | "active" | "executing" | "running_checks" | "blocked" | "completed" | "archived";
 export type UserPlanCriterionStatus = "pending" | "satisfied" | "failed" | "waived";
 export type UserPlanVerificationStatus = "pending" | "passed" | "failed" | "passed_unexpectedly" | "skipped" | "waived";
+export type UserPlanLearningType = "workflow_improvement" | "agent_instruction_improvement";
+export type UserPlanLearningTargetKind = "workflow" | "project_agent_instructions";
+export type UserPlanLearningStatus = "draft" | "proposed" | "accepted" | "applied" | "rejected" | "duplicate" | "merged";
+export type UserPlanLearningLevel = "low" | "medium" | "high";
 
 export interface UserPlanRecord {
   plan_id: string;
@@ -795,6 +831,40 @@ export interface UserPlanReferencePatternRecord {
   encrypted_waiver_reason?: string | null;
   created_at?: number;
   updated_at?: number;
+}
+
+export interface UserPlanLearningRecord {
+  learning_id: string;
+  type: UserPlanLearningType;
+  target_kind: UserPlanLearningTargetKind;
+  status?: UserPlanLearningStatus;
+  severity?: UserPlanLearningLevel | null;
+  confidence?: UserPlanLearningLevel | null;
+  linked_task_ids?: string[];
+  linked_check_ids?: string[];
+  applied_task_id?: string | null;
+  encrypted_title: string;
+  encrypted_observation?: string | null;
+  encrypted_root_cause?: string | null;
+  encrypted_suggested_change?: string | null;
+  encrypted_evidence_summary?: string | null;
+  encrypted_task_draft?: string | null;
+  encrypted_rejection_reason?: string | null;
+  version?: number;
+  created_at?: number;
+  updated_at?: number;
+}
+
+export interface UserPlanLearningCreateTasksInput {
+  learning_ids?: string[];
+  all?: boolean;
+  created_at?: number;
+  updated_at?: number;
+}
+
+export interface UserPlanLearningCreateTasksResult {
+  tasks: UserTaskRecord[];
+  skipped: Array<Record<string, unknown>>;
 }
 
 export interface UserPlanVerificationRecord {
@@ -8312,6 +8382,19 @@ export class OpenMatesClient {
     return response.data.source;
   }
 
+  async createProjectItem(projectId: string, input: ProjectItemCreateInput): Promise<ProjectItemRecord> {
+    this.requireSession();
+    const response = await this.http.post<{ item?: ProjectItemRecord }>(
+      `/v1/projects/${encodeURIComponent(projectId)}/items`,
+      input,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !response.data.item) {
+      throw new Error(`Project item create failed with HTTP ${response.status}`);
+    }
+    return response.data.item;
+  }
+
   async listWorkspaceHistory(filters: { objectType?: string; objectId?: string; limit?: number } = {}): Promise<Record<string, unknown>[]> {
     this.requireSession();
     const params = new URLSearchParams();
@@ -8720,6 +8803,42 @@ export class OpenMatesClient {
       throw new Error(`User plan reference pattern create failed with HTTP ${response.status}`);
     }
     return response.data.reference_pattern;
+  }
+
+  async createPlanLearning(planId: string, input: UserPlanLearningRecord): Promise<UserPlanLearningRecord> {
+    this.requireSession();
+    const response = await this.http.post<{ learning?: UserPlanLearningRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}/learnings`, input, this.getCliRequestHeaders());
+    if (!response.ok || !response.data.learning) {
+      throw new Error(`User plan learning create failed with HTTP ${response.status}`);
+    }
+    return response.data.learning;
+  }
+
+  async listPlanLearnings(planId: string): Promise<UserPlanLearningRecord[]> {
+    this.requireSession();
+    const response = await this.http.get<{ learnings?: UserPlanLearningRecord[] }>(`/v1/user-plans/${encodeURIComponent(planId)}/learnings`, this.getCliRequestHeaders());
+    if (!response.ok) {
+      throw new Error(`User plan learnings list failed with HTTP ${response.status}`);
+    }
+    return response.data.learnings ?? [];
+  }
+
+  async updatePlanLearning(planId: string, learningId: string, input: Partial<UserPlanLearningRecord>): Promise<UserPlanLearningRecord> {
+    this.requireSession();
+    const response = await this.http.patch<{ learning?: UserPlanLearningRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}/learnings/${encodeURIComponent(learningId)}`, input, this.getCliRequestHeaders());
+    if (!response.ok || !response.data.learning) {
+      throw new Error(`User plan learning update failed with HTTP ${response.status}`);
+    }
+    return response.data.learning;
+  }
+
+  async createPlanLearningTasks(planId: string, input: UserPlanLearningCreateTasksInput): Promise<UserPlanLearningCreateTasksResult> {
+    this.requireSession();
+    const response = await this.http.post<UserPlanLearningCreateTasksResult>(`/v1/user-plans/${encodeURIComponent(planId)}/learnings/create-tasks`, input, this.getCliRequestHeaders());
+    if (!response.ok) {
+      throw new Error(`User plan learning create-tasks failed with HTTP ${response.status}`);
+    }
+    return { tasks: response.data.tasks ?? [], skipped: response.data.skipped ?? [] };
   }
 
   async listPlanReferencePatterns(planId: string): Promise<UserPlanReferencePatternRecord[]> {

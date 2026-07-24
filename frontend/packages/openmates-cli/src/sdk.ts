@@ -69,6 +69,10 @@ import {
   type TaskPriorityLevel,
   type TaskUpdateOptions,
 } from "./tasksCli.js";
+import {
+  buildUpdateUserPlanInput,
+  decryptUserPlan,
+} from "./plansCli.js";
 import { hasRememberMessageReference, rewriteRememberMessageReferences } from "./rememberMessage.js";
 import type {
   WorkflowCapability,
@@ -95,9 +99,15 @@ import type {
   WorkflowSummary,
   ProjectSourceCreateInput,
   ProjectSourceRecord,
+  ProjectItemCreateInput,
+  ProjectItemRecord,
+  ProjectRecord,
   UserPlanCreateInput,
   UserPlanAssumptionRecord,
   UserPlanCriterionRecord,
+  UserPlanLearningCreateTasksInput,
+  UserPlanLearningCreateTasksResult,
+  UserPlanLearningRecord,
   UserPlanRecord,
   UserPlanReferencePatternRecord,
   UserPlanStatus,
@@ -112,7 +122,7 @@ import type {
   UserTaskUpdateInput,
 } from "./client.js";
 
-export type { ProjectSourceCreateInput, ProjectSourceRecord } from "./client.js";
+export type { ProjectItemCreateInput, ProjectItemRecord, ProjectSourceCreateInput, ProjectSourceRecord } from "./client.js";
 
 const DEFAULT_API_URL = "https://api.openmates.org";
 const DEFAULT_RECOVERY_POLL_INTERVAL_MS = 500;
@@ -1042,6 +1052,69 @@ function requireConfirmed(options: ConfirmedMutationOptions | undefined, action:
   }
 }
 
+function appendUniqueProjectId(existing: string[] = [], projectId: string): string[] {
+  return existing.includes(projectId) ? existing : [...existing, projectId];
+}
+
+function rejectRemoteCopyOptions(options: { remoteCopy?: boolean; repoCopy?: boolean; remoteCacheCopy?: boolean; folder?: string } = {}, objectType: string): void {
+  if (options.remoteCopy || options.repoCopy || options.remoteCacheCopy) {
+    throw new OpenMatesConfigError(`${objectType} remote-machine add-to-project copies are reserved for the later remote file proposal slice`);
+  }
+}
+
+async function resolveSdkProject(client: OpenMates, projectId: string): Promise<{ record: ProjectRecord; projectKey: Uint8Array }> {
+  const response = await client.get<{ projects?: ProjectRecord[] }>("/v1/projects?include_archived=true");
+  const record = (response.projects ?? []).find((project) => project.project_id === projectId);
+  if (!record) throw new OpenMatesApiError(404, { detail: "Project not found" });
+  if (typeof record.encrypted_project_key !== "string") throw new OpenMatesConfigError("Project response is missing encrypted_project_key");
+  const projectKey = await decryptBytesWithAesGcm(record.encrypted_project_key, await client.masterKey());
+  if (!projectKey) throw new OpenMatesConfigError("Failed to decrypt Project key");
+  return { record, projectKey };
+}
+
+async function requireSdkOpenMatesOnlyForRemoteProject(
+  client: OpenMates,
+  projectId: string,
+  options: { openmatesOnly?: boolean; remoteCopy?: boolean; repoCopy?: boolean; remoteCacheCopy?: boolean } = {},
+  objectType: string,
+): Promise<void> {
+  rejectRemoteCopyOptions(options, objectType);
+  const response = await client.get<{ sources?: ProjectSourceRecord[] }>(`/v1/projects/${encodeURIComponent(projectId)}/sources`);
+  if ((response.sources ?? []).length === 0) return;
+  if (options.openmatesOnly === true) return;
+  throw new OpenMatesConfigError(`${objectType} addToProject targets a remote-access Project. Pass openmatesOnly: true to keep encrypted OpenMates storage only; remote-machine copy proposals are not implemented yet.`);
+}
+
+async function createSdkProjectItem(
+  client: OpenMates,
+  projectId: string,
+  projectKey: Uint8Array,
+  input: {
+    itemType: "chat" | "workflow";
+    targetId: string;
+    displayName: string;
+    folder?: string;
+    metadata?: Record<string, unknown>;
+  },
+): Promise<ProjectItemRecord> {
+  const timestamp = Math.floor(Date.now() / 1000);
+  const response = await client.request<{ item?: ProjectItemRecord }>(`/v1/projects/${encodeURIComponent(projectId)}/items`, {
+    project_item_id: randomUUID(),
+    folder_id: input.folder ?? null,
+    item_type: input.itemType,
+    target_id: input.targetId,
+    target_id_encrypted: await encryptWithAesGcmCombined(input.targetId, projectKey),
+    encrypted_display_name: await encryptWithAesGcmCombined(input.displayName, projectKey),
+    encrypted_note: await encryptWithAesGcmCombined("", projectKey),
+    encrypted_metadata: await encryptWithAesGcmCombined(JSON.stringify(input.metadata ?? {}), projectKey),
+    created_at: timestamp,
+    updated_at: timestamp,
+    position: timestamp,
+  });
+  if (!response.item) throw new OpenMatesApiError(500, { detail: "Project item response missing item" });
+  return response.item;
+}
+
 function unsupportedSdkFeature(feature: string): never {
   throw new OpenMatesConfigError(`${feature} is not available through the API-key SDK yet`);
 }
@@ -1125,6 +1198,21 @@ export class OpenMatesChats {
   async load(chatId: string): Promise<Record<string, unknown>> {
     const payload = await this.client.get<Record<string, unknown>>(`/v1/sdk/chats/${encodeURIComponent(chatId)}`);
     return this.client.decryptLoadedChatPayload(payload);
+  }
+
+  async addToProject(chatId: string, projectId: string, options: { folder?: string; openmatesOnly?: boolean; remoteCopy?: boolean; repoCopy?: boolean; remoteCacheCopy?: boolean } = {}): Promise<ProjectItemRecord> {
+    await requireSdkOpenMatesOnlyForRemoteProject(this.client, projectId, options, "Chat");
+    const { projectKey } = await resolveSdkProject(this.client, projectId);
+    const loaded = await this.load(chatId);
+    const chat = loaded.chat as EncryptedChatMetadata | undefined;
+    const targetId = String(chat?.id ?? chatId);
+    return createSdkProjectItem(this.client, projectId, projectKey, {
+      itemType: "chat",
+      targetId,
+      displayName: typeof chat?.title === "string" ? chat.title : targetId,
+      folder: options.folder,
+      metadata: { storage: "openmates_only", source: "sdk_add_to_project" },
+    });
   }
 
   async messages(options: ChatMessagesOptions): Promise<ChatMessagesResult> {
@@ -2449,6 +2537,13 @@ export class OpenMatesProjects {
     this.client = client;
   }
 
+  async list(options: { includeArchived?: boolean } = {}): Promise<ProjectRecord[]> {
+    const response = await this.client.get<{ projects?: ProjectRecord[] }>(withQuery("/v1/projects", {
+      include_archived: options.includeArchived,
+    }));
+    return response.projects ?? [];
+  }
+
   async listSources(projectId: string): Promise<ProjectSourceRecord[]> {
     const response = await this.client.get<{ sources?: ProjectSourceRecord[] }>(`/v1/projects/${encodeURIComponent(projectId)}/sources`);
     return response.sources ?? [];
@@ -2458,6 +2553,12 @@ export class OpenMatesProjects {
     const response = await this.client.request<{ source?: ProjectSourceRecord }>(`/v1/projects/${encodeURIComponent(projectId)}/sources`, input);
     if (!response.source) throw new OpenMatesApiError(500, { detail: "Project source response missing source" });
     return response.source;
+  }
+
+  async createItem(projectId: string, input: ProjectItemCreateInput): Promise<ProjectItemRecord> {
+    const response = await this.client.request<{ item?: ProjectItemRecord }>(`/v1/projects/${encodeURIComponent(projectId)}/items`, input);
+    if (!response.item) throw new OpenMatesApiError(500, { detail: "Project item response missing item" });
+    return response.item;
   }
 
   async history(projectId: string, options: { limit?: number } = {}): Promise<Record<string, unknown>[]> {
@@ -2570,6 +2671,16 @@ export class OpenMatesTasks {
 
   async edit(id: string, input: TaskPlainUpdateOptions, filters: TaskListFilters = {}): Promise<TaskRecord> {
     return this.update(id, input, filters);
+  }
+
+  async addToProject(id: string, projectId: string, options: { filters?: TaskListFilters; remoteCopy?: boolean; repoCopy?: boolean; remoteCacheCopy?: boolean } = {}): Promise<TaskRecord> {
+    rejectRemoteCopyOptions(options, "Task");
+    const task = await this.resolve(id, options.filters ?? {});
+    const masterKey = await this.client.masterKey();
+    const updated = await this.updateRaw(task.taskId, await buildUpdateUserTaskInput(task, masterKey, {
+      projectIds: appendUniqueProjectId(task.linkedProjectIds, projectId),
+    }));
+    return toPublicTask(await decryptUserTask(updated, masterKey));
   }
 
   async start(id: string, filters: TaskListFilters = {}): Promise<TaskRecord> {
@@ -2756,10 +2867,29 @@ export class OpenMatesPlans {
     return response.plan;
   }
 
+  async addToProject(planId: string, projectId: string, options: { remoteCopy?: boolean; repoCopy?: boolean; remoteCacheCopy?: boolean; folder?: string } = {}): Promise<UserPlanRecord> {
+    rejectRemoteCopyOptions(options, "Plan");
+    if (options.folder) {
+      throw new OpenMatesConfigError("Plan folder placement in Projects requires Project item folder support and is not available in this SDK slice");
+    }
+    const masterKey = await this.client.masterKey();
+    const plan = await decryptUserPlan(await this.getRawPlan(planId), masterKey);
+    return this.update(plan.planId, await buildUpdateUserPlanInput(plan, masterKey, {
+      linkedProjectIds: appendUniqueProjectId(plan.linkedProjectIds, projectId),
+    }));
+  }
+
   async history(planId: string, options: { limit?: number } = {}): Promise<Record<string, unknown>[]> {
     const query = options.limit ? `?limit=${encodeURIComponent(String(options.limit))}` : "";
     const response = await this.client.get<{ entries?: Record<string, unknown>[] }>(`/v1/user-plans/${encodeURIComponent(planId)}/history${query}`);
     return response.entries ?? [];
+  }
+
+  private async getRawPlan(planId: string): Promise<UserPlanRecord> {
+    const plans = await this.list({ activeOnly: false });
+    const plan = plans.find((candidate) => candidate.plan_id === planId || candidate.plan_id?.startsWith(planId));
+    if (!plan) throw new OpenMatesApiError(404, { detail: "Plan not found" });
+    return plan;
   }
 
   async restore(planId: string, options: { entryId: string; state?: "before" | "after" }): Promise<Record<string, unknown>> {
@@ -2847,6 +2977,27 @@ export class OpenMatesPlans {
     return response.reference_patterns ?? [];
   }
 
+  async createLearning(planId: string, input: UserPlanLearningRecord): Promise<UserPlanLearningRecord> {
+    const response = await this.client.request<{ learning?: UserPlanLearningRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}/learnings`, input);
+    if (!response.learning) throw new OpenMatesApiError(500, { detail: "User plan learning response missing learning" });
+    return response.learning;
+  }
+
+  async listLearnings(planId: string): Promise<UserPlanLearningRecord[]> {
+    const response = await this.client.get<{ learnings?: UserPlanLearningRecord[] }>(`/v1/user-plans/${encodeURIComponent(planId)}/learnings`);
+    return response.learnings ?? [];
+  }
+
+  async updateLearning(planId: string, learningId: string, input: Partial<UserPlanLearningRecord>): Promise<UserPlanLearningRecord> {
+    const response = await this.client.patch<{ learning?: UserPlanLearningRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}/learnings/${encodeURIComponent(learningId)}`, input);
+    if (!response.learning) throw new OpenMatesApiError(500, { detail: "User plan learning response missing learning" });
+    return response.learning;
+  }
+
+  async createLearningTasks(planId: string, input: UserPlanLearningCreateTasksInput): Promise<UserPlanLearningCreateTasksResult> {
+    return await this.client.request<UserPlanLearningCreateTasksResult>(`/v1/user-plans/${encodeURIComponent(planId)}/learnings/create-tasks`, input);
+  }
+
   async addVerificationEvidence(planId: string, verificationId: string, input: Partial<UserPlanVerificationRecord>): Promise<UserPlanVerificationRecord> {
     const response = await this.client.request<{ verification?: UserPlanVerificationRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}/verification/${encodeURIComponent(verificationId)}/evidence`, input);
     if (!response.verification) throw new OpenMatesApiError(500, { detail: "User plan verification response missing verification" });
@@ -2864,6 +3015,19 @@ export class OpenMatesWorkflows {
   async list(): Promise<WorkflowSummary[]> {
     const response = await this.client.get<{ workflows?: WorkflowSummary[] }>("/v1/workflows");
     return response.workflows ?? [];
+  }
+
+  async addToProject(workflowId: string, projectId: string, options: { folder?: string; openmatesOnly?: boolean; remoteCopy?: boolean; repoCopy?: boolean; remoteCacheCopy?: boolean } = {}): Promise<ProjectItemRecord> {
+    await requireSdkOpenMatesOnlyForRemoteProject(this.client, projectId, options, "Workflow");
+    const { projectKey } = await resolveSdkProject(this.client, projectId);
+    const workflow = await this.get(workflowId);
+    return createSdkProjectItem(this.client, projectId, projectKey, {
+      itemType: "workflow",
+      targetId: workflow.id,
+      displayName: workflow.title,
+      folder: options.folder,
+      metadata: { storage: "openmates_only", source: "sdk_add_to_project" },
+    });
   }
 
   async temporary(): Promise<WorkflowSummary[]> {
