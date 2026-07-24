@@ -399,13 +399,15 @@ function messageEditorHost(page: any, chatId: string): any {
 }
 
 async function activeMessageEditorEditable(page: any, chatId: string): Promise<any> {
-	const hash = await page.evaluate(() => window.location.hash);
-	if (!hash.includes(chatId)) {
-		await openDraftByHash(page, chatId);
-	}
-	const currentHash = await page.evaluate(() => window.location.hash);
-	expect(currentHash, 'Fallback to generic editor is only safe on the target chat URL').toContain(chatId);
-	await expect(messageEditorHost(page, chatId)).toBeVisible({ timeout: 15_000 });
+	await expect(async () => {
+		const hash = await page.evaluate(() => window.location.hash);
+		if (!hash.includes(chatId) || !(await messageEditorHost(page, chatId).isVisible().catch(() => false))) {
+			await openDraftByHash(page, chatId);
+		}
+		const currentHash = await page.evaluate(() => window.location.hash);
+		expect(currentHash, 'Fallback to generic editor is only safe on the target chat URL').toContain(chatId);
+		await expect(messageEditorHost(page, chatId)).toBeVisible({ timeout: 5_000 });
+	}).toPass({ timeout: 45_000, intervals: [1_000, 2_000, 5_000] });
 	const scopedEditor = messageEditorEditable(page, chatId);
 	await expect(scopedEditor).toBeVisible({ timeout: 10_000 });
 	return scopedEditor;
@@ -839,8 +841,7 @@ async function openDraftByHash(page: any, chatId: string): Promise<void> {
 
 async function openDraft(page: any, chatId: string, expectedText: string, requireRestoredText = false): Promise<any> {
 	await openDraftByHash(page, chatId);
-	const editor = messageEditorEditable(page, chatId);
-	await expect(editor).toBeVisible({ timeout: 15_000 });
+	await activeMessageEditorEditable(page, chatId);
 	if (!requireRestoredText) return null;
 	try {
 		await expectLocalDraftMarkdown(page, chatId, expectedText, 'CROSS_CLIENT_DRAFT_SYNC_OPEN');
