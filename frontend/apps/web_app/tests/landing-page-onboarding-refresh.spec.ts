@@ -210,6 +210,7 @@ test.describe('Landing page onboarding refresh', () => {
 
 		await page.getByTestId('daily-inspiration-next').click();
 		await expect.poll(async () => (await landingIntroOverlayMetrics(page)).phase, { timeout: 2000 }).toBe('collapsing');
+		await expect(page.getByTestId('landing-intro-headline')).toBeVisible({ timeout: 1000 });
 		await expect.poll(async () => (await landingIntroOverlayMetrics(page)).messageInputOpacity, { timeout: 1500 }).toBeGreaterThan(0.2);
 		const collapsing = await landingIntroOverlayMetrics(page);
 		expect(collapsing.messageInputOpacity, 'message input fades in while intro shrinks').toBeGreaterThan(0.2);
@@ -217,6 +218,8 @@ test.describe('Landing page onboarding refresh', () => {
 
 		await expect(page.getByTestId('landing-intro-expanded')).toHaveCount(0, { timeout: 5000 });
 		await expect(page.getByTestId('daily-inspiration-phrase')).toContainText('Actionable', { timeout: 5000 });
+		await expect(page.getByTestId('recent-chats-scroll-container')).toBeVisible({ timeout: 5000 });
+		await expect(page.getByTestId('guest-interest-tags')).toHaveCount(0);
 		const regular = await landingIntroOverlayMetrics(page);
 		expect(regular.phase).toBe('regular');
 		expect(regular.bannerHeight, 'regular daily inspiration is smaller than the active chat').toBeLessThan(regular.activeHeight * 0.55);

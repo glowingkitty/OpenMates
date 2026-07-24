@@ -4625,6 +4625,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // and the message-input top before we consider the layout "tight".
     const SUGGESTIONS_APPROX_HEIGHT = 150;
     const GUEST_INTEREST_TAGS_PROMPT_GAP = 10;
+    const GUEST_INTEREST_TAGS_APPROX_HEIGHT = 70;
 
     function recalculateGuestInterestTagsTop() {
         if (!chatSideEl || !welcomeContentEl) {
@@ -4634,7 +4635,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
         const chatRect = chatSideEl.getBoundingClientRect();
         const welcomeRect = welcomeContentEl.getBoundingClientRect();
-        guestInterestTagsTop = Math.max(0, welcomeRect.bottom - chatRect.top + GUEST_INTEREST_TAGS_PROMPT_GAP);
+        const desiredTop = welcomeRect.bottom - chatRect.top + GUEST_INTEREST_TAGS_PROMPT_GAP;
+        const inputHeight = Math.max(messageInputHeight + 60, 120);
+        const maxTop = chatRect.height - inputHeight - GUEST_INTEREST_TAGS_APPROX_HEIGHT;
+        guestInterestTagsTop = Math.max(0, Math.min(desiredTop, maxTop));
     }
 
     /**
@@ -5241,8 +5245,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     );
     let activeSuggestionSearchText = $derived(messageInputRecentlyFocused ? liveInputText : '');
     let selectedGuestInterestTagIds = $state<InterestTagId[]>([]);
-    let guestInterestContinueConfirmed = $state(false);
-    let guestInterestSelectorVisible = $state(true);
+    let guestInterestContinueConfirmed = $state(true);
+    let guestInterestSelectorVisible = $state(false);
     type LandingIntroPhase = 'regular' | 'expanded' | 'collapsing' | 'expanding';
     let guestLandingIntroPhase = $state<LandingIntroPhase>('regular');
     let guestLandingIntroOverlayActive = $derived(guestLandingIntroPhase !== 'regular');

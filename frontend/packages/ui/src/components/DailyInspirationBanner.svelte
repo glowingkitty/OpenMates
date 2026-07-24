@@ -1584,13 +1584,6 @@
       transform 760ms cubic-bezier(0.22, 1, 0.36, 1);
   }
 
-  .landing-intro-collapsing .landing-intro-expanded-content,
-  .landing-intro-expanding .landing-intro-expanded-content {
-    animation: none;
-    opacity: 0;
-    transform: scale(0.96);
-  }
-
   .landing-intro-ai-icon {
     width: clamp(68px, 6.2vw, 112px);
     height: clamp(68px, 6.2vw, 112px);
@@ -2504,8 +2497,8 @@
     }
 
     .daily-inspiration-banner.landing-intro-expanded {
-      height: calc(100dvh - 60px - var(--dev-console-height, 0px));
-      min-height: min(620px, calc(100dvh - 60px - var(--dev-console-height, 0px)));
+      height: 100%;
+      min-height: 0;
       max-height: none;
     }
 
