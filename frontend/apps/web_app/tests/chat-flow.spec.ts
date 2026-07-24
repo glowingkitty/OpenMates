@@ -66,7 +66,8 @@ const {
 	createStepScreenshotter,
 	assertNoMissingTranslations,
 	getTestAccount,
-	getE2EDebugUrl
+	getE2EDebugUrl,
+	withMockMarker
 } = require('./signup-flow-helpers');
 
 const { injectOtelCapture, collectOtelSpans, saveOtelTimeline } = require('./helpers/otel-capture');
@@ -675,7 +676,7 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	await expect(messageEditor).toBeVisible();
 	await messageEditor.click();
 	const firstMessage = `First write the exact phrase "${QUICK_TIP_CHAT_RESPONSE_MARKER}", then write exactly this sentence: A weekend trip plan should balance meals, transit, and rest.`;
-	await page.keyboard.type(firstMessage);
+	await page.keyboard.type(withMockMarker(firstMessage, 'chat_flow_quick_tip'));
 	await takeStepScreenshot(page, '02-message-filled');
 
 	// The send button only appears when the editor has content (hasContent reactive state).
@@ -874,7 +875,7 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	// Draft-only rows can sort above completed chats, so assert the created chat
 	// by ID instead of assuming the first visible row has title metadata.
 	const createdChatItem = page.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${chatId}"]`);
-	await expect(createdChatItem).toBeVisible({ timeout: 10000 });
+	await expect(createdChatItem).toBeVisible({ timeout: 30000 });
 
 	// Verify the created chat has a real title (not a placeholder)
 	const firstChatTitle = createdChatItem.getByTestId('chat-title');

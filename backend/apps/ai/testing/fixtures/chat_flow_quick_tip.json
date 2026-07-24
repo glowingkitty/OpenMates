@@ -1,0 +1,44 @@
+{
+  "fixture_id": "chat_flow_quick_tip",
+  "recorded_at": "2026-07-24T21:25:00Z",
+  "speed_profile": "instant",
+  "user_message_snippet": "Kyoto and Osaka quick tip test",
+  "preprocessing": {
+    "can_proceed": true,
+    "category": "travel",
+    "title": "Kyoto and Osaka Weekend Plan",
+    "icon_names": ["map"],
+    "selected_model_id": "anthropic/claude-sonnet-4-20250514",
+    "selected_model_name": "Claude Sonnet",
+    "mate_id": "default",
+    "chat_summary": "User asked for a deterministic weekend trip planning response.",
+    "chat_tags": ["travel", "planning"],
+    "relevant_app_skills": [],
+    "llm_response_temp": 0.7,
+    "complexity": "simple",
+    "steps": [
+      {"step": "title_generated", "data": {"title": "Kyoto and Osaka Weekend Plan"}},
+      {"step": "mate_selected", "data": {"mate_id": "default"}},
+      {"step": "model_selected", "data": {"model_name": "Claude Sonnet", "provider_name": "Anthropic"}}
+    ]
+  },
+  "typing_started": {
+    "category": "travel",
+    "model_name": "Claude Sonnet",
+    "provider_name": "Anthropic",
+    "server_region": "EU"
+  },
+  "response": "Kyoto and Osaka quick tip test\n\nA weekend trip plan should balance meals, transit, and rest.",
+  "postprocessing": {
+    "chat_summary": "User is planning a balanced weekend trip around Kyoto and Osaka.",
+    "quick_tip_slugs": ["travel-can-add-local-context"]
+  },
+  "skill_executions": [],
+  "thinking_content": null,
+  "usage": {
+    "prompt_tokens": 48,
+    "completion_tokens": 18,
+    "total_credits": 3,
+    "model_name": "Claude Sonnet"
+  }
+}
