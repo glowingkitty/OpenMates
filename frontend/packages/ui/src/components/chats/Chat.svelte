@@ -456,7 +456,8 @@
   let activeFocusId = $derived(cachedMetadata?.activeFocusId ?? liveActiveFocusId);
   let activeFocusBadgeAppId = $derived(activeFocusId ? activeFocusId.split('-')[0] : null);
   let plaintextChatTitle = $derived(normalizePlaintextChatTitle(chat?.title));
-  let displayChatTitle = $derived(cachedMetadata?.title ?? plaintextChatTitle);
+  let lastMessageChatTitle = $derived(normalizePlaintextChatTitle(lastMessage?.current_chat_title));
+  let displayChatTitle = $derived(cachedMetadata?.title ?? lastMessageChatTitle ?? plaintextChatTitle);
   
   // CRITICAL: Track if we're waiting for title (reactive variable for template)
   // This ensures we keep showing "Processing..." until title is ready
@@ -2467,7 +2468,7 @@
     align-items: center;
     border-radius: 999px;
     padding: 1px 7px;
-    font-size: 10px;
+    font-size: var(--font-size-tiny);
     font-weight: 700;
     letter-spacing: 0.02em;
     color: white;
