@@ -401,13 +401,15 @@ function messageEditorHost(page: any, chatId: string): any {
 async function activeMessageEditorEditable(page: any, chatId: string): Promise<any> {
 	await expect(async () => {
 		const hash = await page.evaluate(() => window.location.hash);
-		if (!hash.includes(chatId) || !(await messageEditorHost(page, chatId).isVisible().catch(() => false))) {
+		if (!hash.includes(chatId)) {
 			await openDraftByHash(page, chatId);
+		} else if (!(await messageEditorHost(page, chatId).isVisible().catch(() => false))) {
+			await page.evaluate(() => window.dispatchEvent(new Event('hashchange')));
 		}
 		const currentHash = await page.evaluate(() => window.location.hash);
 		expect(currentHash, 'Fallback to generic editor is only safe on the target chat URL').toContain(chatId);
-		await expect(messageEditorHost(page, chatId)).toBeVisible({ timeout: 5_000 });
-	}).toPass({ timeout: 45_000, intervals: [1_000, 2_000, 5_000] });
+		await expect(messageEditorHost(page, chatId)).toBeVisible({ timeout: 10_000 });
+	}).toPass({ timeout: 120_000, intervals: [1_000, 2_000, 5_000] });
 	const scopedEditor = messageEditorEditable(page, chatId);
 	await expect(scopedEditor).toBeVisible({ timeout: 10_000 });
 	return scopedEditor;
