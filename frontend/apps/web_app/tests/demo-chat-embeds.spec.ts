@@ -197,7 +197,7 @@ test.describe('Demo chat embed rendering', () => {
 			'[data-testid="embed-preview"][data-app-id="code"][data-skill-id="image_to_html"][data-status="finished"]'
 		).first();
 		await expect(appSkillEmbed).toBeVisible({ timeout: 30000 });
-		await expect(appSkillEmbed.locator('img[alt="Input preview"]')).toBeVisible({ timeout: 10000 });
+		await expect(appSkillEmbed.getByTestId('generic-app-skill-thumbnail')).toBeVisible({ timeout: 10000 });
 		await expect(appSkillEmbed).toContainText('Image To HTML');
 
 		const fullscreenOverlay = await openFullscreen(page, appSkillEmbed);

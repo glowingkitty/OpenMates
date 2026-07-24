@@ -92,7 +92,7 @@
 >
   {#snippet details()}
     {#if previewImageUrl}
-      <div class="generic-app-skill-thumbnail">
+      <div class="generic-app-skill-thumbnail" data-testid="generic-app-skill-thumbnail">
         <img src={previewImageUrl} alt="Input preview" loading="lazy" />
       </div>
     {:else}
