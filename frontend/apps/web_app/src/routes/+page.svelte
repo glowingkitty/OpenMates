@@ -40,6 +40,7 @@
 		// deep link handler
 		processDeepLink,
 		processSettingsDeepLink as processSettingsDeepLinkUnified,
+		installE2ETestHooks,
 		type DeepLinkHandlers
 	} from '@repo/ui';
 	import {
@@ -1481,6 +1482,7 @@
 
 	onMount(async () => {
 		console.debug('[+page.svelte] onMount started');
+		await installE2ETestHooks();
 		window.addEventListener('hashchange', handleHashChange);
 		document.documentElement.setAttribute('data-hash-router-ready', 'true');
 

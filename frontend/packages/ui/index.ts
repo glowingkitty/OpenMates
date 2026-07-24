@@ -123,6 +123,7 @@ export { isAnonymousChatId } from "./src/services/anonymousChatIds"; // Export a
 export { userDB } from "./src/services/userDB"; // Export user database
 export { chatSyncService } from "./src/services/chatSyncService"; // Export chat sync service
 export { webSocketService } from "./src/services/websocketService"; // Export WebSocket service for auth error handling
+export { installE2ETestHooks } from "./src/services/e2eTestHooks"; // Export dev-only E2E hooks for app startup
 export * from "./src/services/chatUrlService"; // Export chat URL service for deep linking
 export * from "./src/services/deepLinkHandler"; // Export unified deep link handler
 export * from "./src/services/workspacePrefetchService"; // Export workspace prefetch helpers
