@@ -1851,21 +1851,24 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: pending
+        status: skipped_with_reason
+        reason: Historical red phase was not captured for this previously implemented backend route slice; this continuation verified green behavior before spec completion.
         run_id: ""
-        timestamp: ""
+        timestamp: "2026-07-24"
     green_phase:
       required: true
       expected: pass
       evidence:
-        status: pending
-        run_id: ""
-        timestamp: ""
+        status: passed
+        command: docker exec api python -m pytest /app/backend/tests/test_project_remote_sources.py
+        run_id: "docker exec api python -m pytest /app/backend/tests/test_project_remote_sources.py (14 passed)"
+        subject_commit: fc4ba62a0
+        timestamp: "2026-07-24T16:36:00Z"
 
   - id: T-E2E-PROJECT-REMOTE-SOURCES
     type: playwright
     file: frontend/apps/web_app/tests/projects-remote-sources.spec.ts
-    command: python3 scripts/tests.py run -- --spec projects-remote-sources.spec.ts
+    command: python3 scripts/tests.py run --spec projects-remote-sources.spec.ts
     target: app.dev.openmates.org
     covers:
       - AC-2
@@ -1908,16 +1911,21 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: pending
+        status: skipped_with_reason
+        reason: Historical red phase was not captured for this previously implemented Playwright spec; this continuation verified the deployed green flow after commit fc4ba62a0.
         run_id: ""
-        timestamp: ""
+        timestamp: "2026-07-24"
     green_phase:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: pending
-        run_id: ""
-        timestamp: ""
+        status: passed_after_deploy
+        command: python3 scripts/tests.py run --spec projects-remote-sources.spec.ts
+        run_id: "30109549368"
+        subject_commit: fc4ba62a0
+        target: app.dev.openmates.org
+        deployment_reference: dpl_G2CqwLnXsTWk6VgzekUbcgyXiARW
+        timestamp: "2026-07-24T16:35:57Z"
     progress_evidence:
       - status: partial_passed
         timestamp: "2026-06-30"
