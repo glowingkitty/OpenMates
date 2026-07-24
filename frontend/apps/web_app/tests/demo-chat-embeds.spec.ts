@@ -190,7 +190,7 @@ test.describe('Demo chat embed rendering', () => {
 		test.setTimeout(90000);
 
 		await page.goto(getE2EDebugUrl('/example/screenshot-to-html-pricing-card'), { waitUntil: 'domcontentloaded' });
-		await expect(page).toHaveURL(/#chat-id=example-screenshot-to-html-pricing-card$/, { timeout: 15000 });
+		await expect(page).toHaveURL(/#chat-id=example-screenshot-to-html-pricing$/, { timeout: 15000 });
 		await expect(page.getByTestId('message-assistant').first()).toBeVisible({ timeout: 30000 });
 
 		const appSkillEmbed = page.locator(
