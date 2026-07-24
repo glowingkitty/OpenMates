@@ -242,7 +242,7 @@
     overflow: hidden;
     border-radius: 0 0 14px 14px;
     box-shadow: var(--shadow-xl);
-    color: var(--color-grey-0);
+    color: #fff;
     isolation: isolate;
   }
 

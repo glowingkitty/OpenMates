@@ -198,7 +198,7 @@
     top: 20px;
     z-index: var(--z-index-raised);
     max-width: 150px;
-    color: var(--color-grey-100);
+    color: #fff;
     font-size: 0.92rem;
     line-height: 1.08;
     font-weight: 800;

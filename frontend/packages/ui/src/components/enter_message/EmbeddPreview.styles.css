@@ -515,6 +515,25 @@
 }
 
 :global(
+  .ProseMirror
+    .app-skill-use-preview-group
+    .group-scroll-container
+) {
+  gap: 20px;
+  padding: 17px;
+  margin-bottom: -17px;
+}
+
+:global(
+  .ProseMirror
+    .app-skill-use-preview-group
+    .group-scroll-container
+    .unified-embed-preview
+) {
+  box-shadow: 0 8px 10px rgba(0, 0, 0, 0.16);
+}
+
+:global(
   .ProseMirror .embed-group-container .group-scroll-container::-webkit-scrollbar
 ) {
   height: 4px;
