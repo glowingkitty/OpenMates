@@ -67,12 +67,18 @@
   });
 
   $effect(() => {
+    if (normalizeChatSettingsTab(context?.activeTab) !== 'usage') return;
     usageRows = buildChatUsageRows(messages);
+  });
+
+  $effect(() => {
+    if (normalizeChatSettingsTab(context?.activeTab) !== 'files') return;
     void refreshFiles();
   });
 
   $effect(() => {
-    if (!chat?.chat_id) return;
+    const tab = normalizeChatSettingsTab(context?.activeTab);
+    if (!chat?.chat_id || (tab !== 'plan' && tab !== 'tasks')) return;
     void refreshPlanningData(chat.chat_id, isSharedViewer);
   });
 
