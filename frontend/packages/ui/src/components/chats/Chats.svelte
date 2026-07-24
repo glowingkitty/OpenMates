@@ -67,6 +67,22 @@ const UPDATE_DEBOUNCE_MS = 300;
 // coalesced into a single Svelte reactive update.
 let _chatUpdatedFlushPending = false;
 let _chatUpsertsDuringDbRead = new Map<string, ChatType>();
+const LAST_ACTIVE_CHAT_FOR_DISPLAY_GLOBAL_KEY = '__openmates_last_active_chat_for_display__';
+
+function getLastActiveChatIdForDisplay(): string | null {
+	const globalScope = globalThis as typeof globalThis & Record<string, string | undefined>;
+	return globalScope[LAST_ACTIVE_CHAT_FOR_DISPLAY_GLOBAL_KEY] ?? null;
+}
+
+function setLastActiveChatIdForDisplay(chatId: string | null): void {
+	const globalScope = globalThis as typeof globalThis & Record<string, string | undefined>;
+	if (chatId) {
+		globalScope[LAST_ACTIVE_CHAT_FOR_DISPLAY_GLOBAL_KEY] = chatId;
+	} else {
+		delete globalScope[LAST_ACTIVE_CHAT_FOR_DISPLAY_GLOBAL_KEY];
+	}
+	lastActiveChatIdForDisplay = chatId;
+}
 
 	// --- Component State ---
 	let allChatsFromDB: ChatType[] = $state([]); // Holds all chats fetched from chatDB
@@ -75,7 +91,7 @@ let _chatUpsertsDuringDbRead = new Map<string, ChatType>();
 	let syncing = $derived($authStore.isAuthenticated && !$phasedSyncState.initialSyncCompleted);
 	let syncComplete = $state(false); // Shows "Sync complete" message briefly
 	let selectedChatId: string | null = $state(null); // ID of the currently selected chat (synced with activeChatStore)
-	let lastActiveChatIdForDisplay: string | null = $state(null); // Keeps the last active chat visible after returning to new-chat mode
+	let lastActiveChatIdForDisplay: string | null = $state(getLastActiveChatIdForDisplay()); // Keeps the last active chat visible after returning to new-chat mode
 	let _chatIdToSelectAfterUpdate: string | null = $state(null); // Helper to select a chat after list updates
 	let currentServerSortOrder: string[] = $state([]); // Server's preferred sort order for chats
 	let sessionStorageDraftUpdateTrigger = $state(0); // Trigger for reactivity when sessionStorage drafts change
@@ -206,10 +222,10 @@ let _chatUpsertsDuringDbRead = new Map<string, ChatType>();
 		if (activeChat && activeChat !== selectedChatId) {
 			console.debug('[Chats] Syncing selectedChatId with activeChatStore:', activeChat);
 			selectedChatId = activeChat;
-			lastActiveChatIdForDisplay = activeChat;
+			setLastActiveChatIdForDisplay(activeChat);
 		} else if (activeChat && activeChat === selectedChatId) {
 			console.debug('[Chats] selectedChatId already matches activeChat:', activeChat);
-			lastActiveChatIdForDisplay = activeChat;
+			setLastActiveChatIdForDisplay(activeChat);
 		} else if (!activeChat) {
 			console.debug('[Chats] activeChat is null/empty');
 		}
@@ -1022,7 +1038,7 @@ let _chatUpsertsDuringDbRead = new Map<string, ChatType>();
 			dispatch('chatDeselected');
 		}
 		if (lastActiveChatIdForDisplay === event.detail.chat_id) {
-			lastActiveChatIdForDisplay = null;
+			setLastActiveChatIdForDisplay(null);
 		}
 	};
 	
@@ -1643,7 +1659,7 @@ let _chatUpsertsDuringDbRead = new Map<string, ChatType>();
 			console.debug('[Chats] User not authenticated on mount - clearing user chats');
 			allChatsFromDB = []; // Clear user chats immediately
 			selectedChatId = null;
-			lastActiveChatIdForDisplay = null;
+			setLastActiveChatIdForDisplay(null);
 			_chatIdToSelectAfterUpdate = null;
 			currentServerSortOrder = [];
 			// Note: syncing is now derived from authStore and phasedSyncState
@@ -1692,7 +1708,7 @@ let _chatUpsertsDuringDbRead = new Map<string, ChatType>();
 		const currentActiveChat = $activeChatStore;
 		if (currentActiveChat) {
 			selectedChatId = currentActiveChat;
-			lastActiveChatIdForDisplay = currentActiveChat;
+			setLastActiveChatIdForDisplay(currentActiveChat);
 			console.debug('[Chats] Restored active chat from store:', currentActiveChat);
 		}
 
@@ -1751,7 +1767,7 @@ let _chatUpsertsDuringDbRead = new Map<string, ChatType>();
 			const activeIsExample = activeChatId ? isExampleChat(activeChatId) : false;
 			if (!activeIsShared && !activeIsExample) {
 				selectedChatId = null;
-				lastActiveChatIdForDisplay = null;
+				setLastActiveChatIdForDisplay(null);
 			}
 			_chatIdToSelectAfterUpdate = null;
 			currentServerSortOrder = [];
@@ -1819,7 +1835,7 @@ let _chatUpsertsDuringDbRead = new Map<string, ChatType>();
 				console.debug('[Chats] Auth state changed to unauthenticated - clearing user chats immediately');
 				allChatsFromDB = [];
 				selectedChatId = null;
-				lastActiveChatIdForDisplay = null;
+				setLastActiveChatIdForDisplay(null);
 				_chatIdToSelectAfterUpdate = null;
 				currentServerSortOrder = [];
 				olderChatsFromServer = [];
@@ -1897,7 +1913,7 @@ let _chatUpsertsDuringDbRead = new Map<string, ChatType>();
 				if (selectedChatId !== newChatId) {
 					console.debug(`[Chats] Global chat selected event received, updating selectedChatId to: ${newChatId}`);
 					selectedChatId = newChatId;
-					lastActiveChatIdForDisplay = newChatId;
+					setLastActiveChatIdForDisplay(newChatId);
 					
 					// Update the persistent store so the selection survives component unmount/remount.
 					// CRITICAL: Skip if activeChatStore is already null — that means the user
@@ -2372,7 +2388,7 @@ let _chatUpsertsDuringDbRead = new Map<string, ChatType>();
 	async function handleChatClick(chat: ChatType, userInitiated: boolean = true, closePanelOnMobile: boolean = true) {
 		console.debug('[Chats] Chat clicked:', chat.chat_id, 'userInitiated:', userInitiated);
 		selectedChatId = chat.chat_id;
-		lastActiveChatIdForDisplay = chat.chat_id;
+		setLastActiveChatIdForDisplay(chat.chat_id);
 		
 		// CRITICAL: Mark that user made an explicit choice when they click on a chat
 		// This ensures sync phases will NEVER override the user's choice
@@ -2798,7 +2814,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 					const activeId = $activeChatStore;
 					if (activeId && loadedChats.some(c => c.chat_id === activeId)) {
 						selectedChatId = activeId;
-						lastActiveChatIdForDisplay = activeId;
+						setLastActiveChatIdForDisplay(activeId);
 						console.debug(`[Chats] Auto-selected shared chat from activeChatStore: ${activeId}`);
 					}
 				} else {
@@ -2875,7 +2891,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 			const stillExists = flattenedNavigableChats.some(c => c.chat_id === previouslySelectedChatId); // Corrected variable
 			if (stillExists) {
 				selectedChatId = previouslySelectedChatId; // Reselect if it still exists
-				lastActiveChatIdForDisplay = previouslySelectedChatId;
+				setLastActiveChatIdForDisplay(previouslySelectedChatId);
 			} else {
 				selectedChatId = null; // Deselect if it no longer exists
 				dispatch('chatDeselected');
