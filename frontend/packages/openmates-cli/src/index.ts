@@ -23,6 +23,26 @@ export { SUPPORT_URL, renderSupportInfo } from "./support.js";
 export { OpenMates, OpenMatesApiError, OpenMatesConfigError } from "./sdk.js";
 export { APP_SKILL_METADATA } from "./generated/appSkills.js";
 export {
+  buildCreatePlanCriterionInput,
+  buildCreatePlanLearningInput,
+  buildCreatePlanVerificationInput,
+  buildCreateUserPlanInput,
+  buildPlanVerificationEvidenceInput,
+  buildUpdatePlanLearningInput,
+  buildUpdatePlanVerificationInput,
+  buildUpdateUserPlanInput,
+  decryptPlanLearning,
+  decryptPlanLearnings,
+  decryptUserPlan,
+  decryptUserPlans,
+  findPlan,
+  findPlanLearning,
+  renderPlanDetail,
+  renderPlanLearningDetail,
+  renderPlanLearningList,
+  renderPlanList,
+} from "./plansCli.js";
+export {
   ASSISTANT_FEEDBACK_REPORT_TITLE,
   ASSISTANT_FEEDBACK_THANKS,
   buildAssistantFeedbackDecision,

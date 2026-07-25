@@ -43,6 +43,7 @@ import {
   type UserTaskActionInput,
   type UserTaskReorderInput,
   type UserTaskStatus,
+  type UserPlanCriterionRecord,
   type UserPlanStatus,
   type UserPlanVerificationStatus,
   type WorkspaceHistoryResult,
@@ -147,6 +148,7 @@ import {
   buildCreateUserPlanInput,
   buildPlanVerificationEvidenceInput,
   buildUpdatePlanLearningInput,
+  buildUpdatePlanVerificationInput,
   buildUpdateUserPlanInput,
   assertSafeLearningTaskDraft,
   decryptPlanLearning,
@@ -167,6 +169,7 @@ import {
   renderPlanList,
   type DecryptedPlanLearning,
   type DecryptedUserPlan,
+  type PlanProjectKey,
 } from "./plansCli.js";
 import { decryptBytesWithAesGcm, decryptWithAesGcmCombined, encryptBytesWithAesGcm, encryptWithAesGcmCombined } from "./crypto.js";
 import {
@@ -247,6 +250,10 @@ async function main(): Promise<void> {
   // --help with a command shows that command's help, not the global one
   if (parsed.flags.help === true && !subcommand) {
     // e.g. `openmates chats --help` → show chats help
+    if (command === "chat") {
+      printPlansHelp();
+      return;
+    }
     if (command === "chats") {
       printChatsHelp();
       return;
@@ -418,6 +425,11 @@ async function main(): Promise<void> {
 
   if (command === "chats") {
     await handleChats(client, subcommand, rest, parsed.flags, redactor);
+    return;
+  }
+
+  if (command === "chat" && parsed.flags.goal) {
+    await handlePlans(client, "create", [], parsed.flags, redactor);
     return;
   }
 
@@ -1296,6 +1308,38 @@ function appendUniqueId(existing: string[], id: string): string[] {
   return existing.includes(id) ? existing : [...existing, id];
 }
 
+type PlanLinkKeyContext = {
+  primaryChatId: string | null;
+  primaryChatKey: Uint8Array | null;
+  linkedProjectIds: string[];
+  linkedProjectKeys: PlanProjectKey[];
+};
+
+async function resolvePlanLinkKeyContext(
+  client: OpenMatesClient,
+  masterKey: Uint8Array,
+  flags: Record<string, string | boolean>,
+  input: { primaryChatId?: string | null; linkedProjectIds?: string[] },
+): Promise<PlanLinkKeyContext> {
+  let primaryChatId = input.primaryChatId ?? null;
+  let primaryChatKey: Uint8Array | null = null;
+  if (primaryChatId) {
+    const resolved = await client.resolveChatKeyForContext(primaryChatId, teamContextFromFlags(flags));
+    primaryChatId = resolved.chatId;
+    primaryChatKey = resolved.chatKey;
+  }
+  const linkedProjectIds: string[] = [];
+  const linkedProjectKeys: PlanProjectKey[] = [];
+  for (const target of input.linkedProjectIds ?? []) {
+    const project = await requiredResolvedProject(client, masterKey, target, flags);
+    if (!linkedProjectIds.includes(project.projectId)) {
+      linkedProjectIds.push(project.projectId);
+      linkedProjectKeys.push({ projectId: project.projectId, projectKey: project.projectKey });
+    }
+  }
+  return { primaryChatId, primaryChatKey, linkedProjectIds, linkedProjectKeys };
+}
+
 type AddToProjectStorageChoice = {
   targetMode: "save_only_in_openmates" | "store_on_remote_machine_and_include_in_git" | "store_local_only_on_remote_machine";
   source: ProjectSourceRecord | null;
@@ -1546,7 +1590,8 @@ async function handlePlans(
   }
 
   const masterKey = client.getMasterKeyBytes();
-  const scope = planScopeFromFlags(flags);
+  const statusBelongsToChild = ["tasks", "success-criteria", "criterion", "criteria", "learning", "learnings", "check", "checks", "verification"].includes(subcommand);
+  const scope = planScopeFromFlags(flags, { ignoreStatus: statusBelongsToChild });
 
   if (rest[0] === "add-to-project") {
     rejectRemoteCopyFlags(flags);
@@ -1556,7 +1601,16 @@ async function handlePlans(
     const projectId = requiredStringFlag(rest[1], "<project-id>");
     const plan = await requiredResolvedPlan(client, masterKey, subcommand, scope, "add-to-project");
     const linkedProjectIds = appendUniqueId(plan.linkedProjectIds, projectId);
-    const patch = await buildUpdateUserPlanInput(plan, masterKey, { linkedProjectIds });
+    const linkContext = await resolvePlanLinkKeyContext(client, masterKey, flags, {
+      primaryChatId: plan.primaryChatId,
+      linkedProjectIds,
+    });
+    const patch = await buildUpdateUserPlanInput(plan, masterKey, {
+      primaryChatId: linkContext.primaryChatId,
+      primaryChatKey: linkContext.primaryChatKey,
+      linkedProjectIds: linkContext.linkedProjectIds,
+      linkedProjectKeys: linkContext.linkedProjectKeys,
+    });
     const updated = await client.updateUserPlan(plan.planId, patch);
     printPlanOutput(await decryptUserPlan(updated, masterKey), flags);
     return;
@@ -1613,13 +1667,19 @@ async function handlePlans(
       ? { title: instruction, summary: "", goal: instruction }
       : extractRecord(await client.planUserPlanAsk({ instruction }), "proposed_plan");
     const title = requiredString(proposal, "title", instruction);
+    const linkContext = await resolvePlanLinkKeyContext(client, masterKey, flags, {
+      primaryChatId: typeof flags.chat === "string" ? flags.chat : null,
+      linkedProjectIds: splitCsvFlag(flags.project ?? flags.projects),
+    });
     const input = await buildCreateUserPlanInput(masterKey, {
       title,
       summary: typeof flags.summary === "string" ? flags.summary : optionalString(proposal, "summary") ?? "",
       goal: typeof flags.goal === "string" ? flags.goal : optionalString(proposal, "goal") ?? title,
       status: normalizePlanStatus(typeof flags.status === "string" ? flags.status : undefined),
-      primaryChatId: typeof flags.chat === "string" ? flags.chat : null,
-      linkedProjectIds: splitCsvFlag(flags.project ?? flags.projects),
+      primaryChatId: linkContext.primaryChatId,
+      primaryChatKey: linkContext.primaryChatKey,
+      linkedProjectIds: linkContext.linkedProjectIds,
+      linkedProjectKeys: linkContext.linkedProjectKeys,
     });
     const result = await client.askUserPlans({ instruction, encryptedCreate: input });
     if (await handleWorkspaceAskFallbackChat(client, "plan", instruction, result, flags, redactor)) return;
@@ -1629,20 +1689,30 @@ async function handlePlans(
 
   if (subcommand === "create") {
     const title = planTitleFromFlagsOrRest(flags, rest);
+    const linkContext = await resolvePlanLinkKeyContext(client, masterKey, flags, {
+      primaryChatId: typeof flags.chat === "string" ? flags.chat : null,
+      linkedProjectIds: splitCsvFlag(flags.project ?? flags.projects),
+    });
     const input = await buildCreateUserPlanInput(masterKey, {
       title,
       summary: typeof flags.summary === "string" ? flags.summary : typeof flags.description === "string" ? flags.description : "",
       goal: typeof flags.goal === "string" ? flags.goal : "",
       scopeIn: typeof flags["scope-in"] === "string" ? flags["scope-in"] : "",
       scopeOut: typeof flags["scope-out"] === "string" ? flags["scope-out"] : "",
+      userFlows: typeof flags["user-flows"] === "string" ? flags["user-flows"] : "",
+      currentFocus: typeof flags["current-focus"] === "string" ? flags["current-focus"] : "",
       assumptions: typeof flags.assumptions === "string" ? flags.assumptions : "",
       openQuestions: typeof flags["open-questions"] === "string" ? flags["open-questions"] : "",
       constraints: typeof flags.constraints === "string" ? flags.constraints : "",
       decisions: typeof flags.decisions === "string" ? flags.decisions : "",
       risks: typeof flags.risks === "string" ? flags.risks : "",
+      referencePatterns: typeof flags["reference-patterns"] === "string" ? flags["reference-patterns"] : "",
+      context: typeof flags.context === "string" ? flags.context : "",
       status: normalizePlanStatus(typeof flags.status === "string" ? flags.status : undefined),
-      primaryChatId: typeof flags.chat === "string" ? flags.chat : null,
-      linkedProjectIds: splitCsvFlag(flags.project ?? flags.projects),
+      primaryChatId: linkContext.primaryChatId,
+      primaryChatKey: linkContext.primaryChatKey,
+      linkedProjectIds: linkContext.linkedProjectIds,
+      linkedProjectKeys: linkContext.linkedProjectKeys,
       currentPhaseId: typeof flags.phase === "string" ? flags.phase : null,
       currentStepId: typeof flags.step === "string" ? flags.step : null,
       currentTaskId: typeof flags.task === "string" ? flags.task : null,
@@ -1653,24 +1723,41 @@ async function handlePlans(
     return;
   }
 
-  if (subcommand === "edit") {
+  if (subcommand === "edit" || subcommand === "update") {
     const id = rest[0];
-    if (!id) throw new Error("Missing plan ID. Usage: openmates plans edit <plan-id|short-id> [--title ...]");
-    const plan = await resolvePlan(client, masterKey, id, scope);
+    if (!id) throw new Error(`Missing plan ID. Usage: openmates plans ${subcommand} <plan-id|short-id> [--title ...]`);
+    const hasChatRelink = flags.chat !== undefined;
+    const hasProjectRelink = flags.project !== undefined || flags.projects !== undefined;
+    const resolveScope = hasChatRelink || hasProjectRelink
+      ? { ...scope, chatId: hasChatRelink ? undefined : scope.chatId, projectId: hasProjectRelink ? undefined : scope.projectId }
+      : scope;
+    const plan = await resolvePlan(client, masterKey, id, resolveScope);
+    const linkContext = hasChatRelink || hasProjectRelink
+      ? await resolvePlanLinkKeyContext(client, masterKey, flags, {
+        primaryChatId: flags.chat === true ? null : typeof flags.chat === "string" ? flags.chat : plan.primaryChatId,
+        linkedProjectIds: hasProjectRelink ? splitCsvFlag(flags.project ?? flags.projects) : plan.linkedProjectIds,
+      })
+      : null;
     const patch = await buildUpdateUserPlanInput(plan, masterKey, {
       title: typeof flags.title === "string" ? flags.title : undefined,
       summary: typeof flags.summary === "string" ? flags.summary : typeof flags.description === "string" ? flags.description : undefined,
       goal: typeof flags.goal === "string" ? flags.goal : undefined,
       scopeIn: typeof flags["scope-in"] === "string" ? flags["scope-in"] : undefined,
       scopeOut: typeof flags["scope-out"] === "string" ? flags["scope-out"] : undefined,
+      userFlows: typeof flags["user-flows"] === "string" ? flags["user-flows"] : undefined,
+      currentFocus: flags["current-focus"] === true ? "" : typeof flags["current-focus"] === "string" ? flags["current-focus"] : undefined,
       assumptions: typeof flags.assumptions === "string" ? flags.assumptions : undefined,
       openQuestions: typeof flags["open-questions"] === "string" ? flags["open-questions"] : undefined,
       constraints: typeof flags.constraints === "string" ? flags.constraints : undefined,
       decisions: typeof flags.decisions === "string" ? flags.decisions : undefined,
       risks: typeof flags.risks === "string" ? flags.risks : undefined,
+      referencePatterns: typeof flags["reference-patterns"] === "string" ? flags["reference-patterns"] : undefined,
+      context: typeof flags.context === "string" ? flags.context : undefined,
       status: normalizePlanStatus(typeof flags.status === "string" ? flags.status : undefined),
-      primaryChatId: flags.chat === true ? null : typeof flags.chat === "string" ? flags.chat : undefined,
-      linkedProjectIds: flags.project || flags.projects ? splitCsvFlag(flags.project ?? flags.projects) : undefined,
+      primaryChatId: hasChatRelink ? linkContext?.primaryChatId ?? null : undefined,
+      primaryChatKey: linkContext?.primaryChatKey ?? undefined,
+      linkedProjectIds: hasProjectRelink ? linkContext?.linkedProjectIds ?? [] : undefined,
+      linkedProjectKeys: linkContext?.linkedProjectKeys,
       currentPhaseId: flags.phase === true ? null : typeof flags.phase === "string" ? flags.phase : undefined,
       currentStepId: flags.step === true ? null : typeof flags.step === "string" ? flags.step : undefined,
       currentTaskId: flags.task === true ? null : typeof flags.task === "string" ? flags.task : undefined,
@@ -1682,11 +1769,47 @@ async function handlePlans(
   }
 
   if (subcommand === "approve" || subcommand === "activate") {
-    const plan = await requiredResolvedPlan(client, masterKey, rest[0], scope, subcommand);
+    const plan = await requiredResolvedPlan(client, masterKey, rest[0], { ...scope, chatId: undefined }, subcommand);
     const chatId = typeof flags.chat === "string" ? flags.chat : plan.primaryChatId;
     if (!chatId) throw new Error("Activating a plan requires a primary chat. Pass --chat <chat-id>.");
-    const activated = await client.activateUserPlan(plan.planId, { version: plan.version, chat_id: chatId });
+    const linkContext = await resolvePlanLinkKeyContext(client, masterKey, flags, {
+      primaryChatId: chatId,
+      linkedProjectIds: plan.linkedProjectIds,
+    });
+    const wrapperPatch = await buildUpdateUserPlanInput(plan, masterKey, {
+      primaryChatId: linkContext.primaryChatId,
+      primaryChatKey: linkContext.primaryChatKey,
+      linkedProjectIds: linkContext.linkedProjectIds,
+      linkedProjectKeys: linkContext.linkedProjectKeys,
+    });
+    const activated = await client.activateUserPlan(plan.planId, { version: plan.version, chat_id: linkContext.primaryChatId, key_wrappers: wrapperPatch.key_wrappers });
     printPlanOutput(await decryptUserPlan(activated, masterKey), flags);
+    return;
+  }
+
+  if (subcommand === "attach") {
+    const plan = await requiredResolvedPlan(client, masterKey, rest[0], { ...scope, chatId: undefined }, "attach");
+    const chatId = typeof flags.chat === "string" ? flags.chat : plan.primaryChatId;
+    if (!chatId) throw new Error("Attaching a plan requires --chat <chat-id> for this CLI slice.");
+    const linkContext = await resolvePlanLinkKeyContext(client, masterKey, flags, {
+      primaryChatId: chatId,
+      linkedProjectIds: plan.linkedProjectIds,
+    });
+    const wrapperPatch = await buildUpdateUserPlanInput(plan, masterKey, {
+      primaryChatId: linkContext.primaryChatId,
+      primaryChatKey: linkContext.primaryChatKey,
+      linkedProjectIds: linkContext.linkedProjectIds,
+      linkedProjectKeys: linkContext.linkedProjectKeys,
+    });
+    const attached = await client.attachUserPlan(plan.planId, { version: plan.version, chat_id: linkContext.primaryChatId, key_wrappers: wrapperPatch.key_wrappers });
+    printPlanOutput(await decryptUserPlan(attached, masterKey), flags);
+    return;
+  }
+
+  if (subcommand === "start") {
+    const plan = await requiredResolvedPlan(client, masterKey, rest[0], scope, "start");
+    const started = await client.startUserPlan(plan.planId, { version: plan.version, updated_at: Math.floor(Date.now() / 1000) });
+    printPlanOutput(await decryptUserPlan(started, masterKey), flags);
     return;
   }
 
@@ -1705,10 +1828,44 @@ async function handlePlans(
     return;
   }
 
-  if (subcommand === "criterion" || subcommand === "criteria") {
+  if (subcommand === "tasks") {
     const action = rest[0];
-    if (action !== "add" && action !== "create") throw new Error("Usage: openmates plans criteria add <plan-id> --text <criterion>");
-    const plan = await requiredResolvedPlan(client, masterKey, rest[1], scope, "criteria add");
+    const plan = await requiredResolvedPlan(client, masterKey, rest[1], { ...scope, status: undefined }, `tasks ${action ?? ""}`.trim());
+    const taskFlags = { ...flags, plan: plan.planId };
+    await handleTasks(client, action, rest.slice(2), taskFlags, redactor);
+    return;
+  }
+
+  const textSection = PLAN_TEXT_SECTIONS[subcommand];
+  if (textSection) {
+    await handlePlanTextSection(client, masterKey, textSection, rest, flags, scope);
+    return;
+  }
+
+  if (subcommand === "success-criteria" || subcommand === "criterion" || subcommand === "criteria") {
+    const action = rest[0];
+    if (!["add", "create", "edit", "update", "remove", "delete"].includes(action ?? "")) throw new Error("Usage: openmates plans success-criteria add|edit|remove <plan-id> ...");
+    const plan = await requiredResolvedPlan(client, masterKey, rest[1], { ...scope, status: undefined }, "criteria add");
+    if (action === "remove" || action === "delete") {
+      const criterionId = requiredStringFlag(flags.criterion ?? rest[2], "--criterion <criterion-id>");
+      const result = await client.deletePlanCriterion(plan.planId, criterionId);
+      if (flags.json === true) printJson(result);
+      else console.log(`Plan success criterion removed: ${criterionId}`);
+      return;
+    }
+    if (action === "edit" || action === "update") {
+      const criterionId = requiredStringFlag(flags.criterion ?? rest[2], "--criterion <criterion-id>");
+      const patch: Partial<UserPlanCriterionRecord> = {
+        status: typeof flags.status === "string" ? flags.status as UserPlanCriterionRecord["status"] : undefined,
+        required: flags.required === true ? true : flags.optional === true ? false : undefined,
+        verification_ids: flags.verification || flags.verifications ? splitCsvFlag(flags.verification ?? flags.verifications) : undefined,
+        updated_at: Math.floor(Date.now() / 1000),
+      };
+      const updated = await client.updatePlanCriterion(plan.planId, criterionId, patch);
+      if (flags.json === true) printJson({ criterion: updated });
+      else console.log(`Plan success criterion updated: ${updated.criterion_id}`);
+      return;
+    }
     const text = requiredStringFlag(flags.text ?? rest.slice(2).join(" "), "--text <criterion>");
     const criterion = await buildCreatePlanCriterionInput(plan, masterKey, {
       criterionId: typeof flags.id === "string" ? flags.id : undefined,
@@ -1722,28 +1879,28 @@ async function handlePlans(
     });
     const created = await client.createPlanCriterion(plan.planId, criterion);
     if (flags.json === true) printJson({ criterion: created });
-    else console.log(`Plan criterion added: ${created.criterion_id}`);
+    else console.log(`Plan success criterion added: ${created.criterion_id}`);
     return;
   }
 
   if (subcommand === "learning" || subcommand === "learnings") {
     const action = rest[0];
     if (action === "list") {
-      const plan = await requiredResolvedPlan(client, masterKey, rest[1], scope, "learnings list");
+      const plan = await requiredResolvedPlan(client, masterKey, rest[1], { ...scope, status: undefined }, "learnings list");
       const learnings = await loadPlanLearnings(client, masterKey, plan);
       if (flags.json === true) printJson({ learnings: learnings.map(planLearningToJson) });
       else console.log(renderPlanLearningList(learnings));
       return;
     }
     if (action === "show") {
-      const plan = await requiredResolvedPlan(client, masterKey, rest[1], scope, "learnings show");
+      const plan = await requiredResolvedPlan(client, masterKey, rest[1], { ...scope, status: undefined }, "learnings show");
       const learningId = requiredStringFlag(flags.learning ?? rest[2], "--learning <learning-id>");
       const learning = findPlanLearning(await loadPlanLearnings(client, masterKey, plan), learningId);
       printPlanLearningOutput(learning, flags);
       return;
     }
     if (action === "add" || action === "create") {
-      const plan = await requiredResolvedPlan(client, masterKey, rest[1], scope, "learnings add");
+      const plan = await requiredResolvedPlan(client, masterKey, rest[1], { ...scope, status: undefined }, "learnings add");
       const title = requiredStringFlag(flags.title ?? rest.slice(2).join(" "), "--title <title>");
       const input = await buildCreatePlanLearningInput(plan, masterKey, {
         learningId: typeof flags.id === "string" ? flags.id : undefined,
@@ -1767,7 +1924,7 @@ async function handlePlans(
       return;
     }
     if (action === "edit" || action === "update") {
-      const plan = await requiredResolvedPlan(client, masterKey, rest[1], scope, "learnings edit");
+      const plan = await requiredResolvedPlan(client, masterKey, rest[1], { ...scope, status: undefined }, "learnings edit");
       const learningId = requiredStringFlag(flags.learning ?? rest[2], "--learning <learning-id>");
       const patch = await buildUpdatePlanLearningInput(plan, masterKey, {
         status: normalizeLearningStatus(typeof flags.status === "string" ? flags.status : undefined),
@@ -1788,8 +1945,16 @@ async function handlePlans(
       printPlanLearningOutput(await decryptPlanLearning(plan, updated, masterKey), flags);
       return;
     }
+    if (action === "remove" || action === "delete") {
+      const plan = await requiredResolvedPlan(client, masterKey, rest[1], { ...scope, status: undefined }, "learnings remove");
+      const learningId = requiredStringFlag(flags.learning ?? rest[2], "--learning <learning-id>");
+      const result = await client.deletePlanLearning(plan.planId, learningId);
+      if (flags.json === true) printJson(result);
+      else console.log(`Plan learning removed: ${learningId}`);
+      return;
+    }
     if (action === "create-tasks") {
-      const plan = await requiredResolvedPlan(client, masterKey, rest[1], scope, "learnings create-tasks");
+      const plan = await requiredResolvedPlan(client, masterKey, rest[1], { ...scope, status: undefined }, "learnings create-tasks");
       const learningIds = splitCsvFlag(flags.learning ?? flags.learnings).concat(rest.slice(2));
       if (flags.all !== true && learningIds.length === 0) throw new Error("Select at least one learning with --learning <learning-id>, or pass --all.");
       const learnings = await loadPlanLearnings(client, masterKey, plan);
@@ -1820,8 +1985,46 @@ async function handlePlans(
 
   if (subcommand === "check" || subcommand === "checks" || subcommand === "verification") {
     const action = rest[0];
+    if (action === "remove" || action === "delete") {
+      const plan = await requiredResolvedPlan(client, masterKey, rest[1], { ...scope, status: undefined }, "checks remove");
+      const verificationId = requiredStringFlag(flags.verification ?? flags.check ?? rest[2], "--check <check-id>");
+      const result = await client.deletePlanVerification(plan.planId, verificationId);
+      if (flags.json === true) printJson(result);
+      else console.log(`Plan check removed: ${verificationId}`);
+      return;
+    }
+    if (action === "edit" || action === "update") {
+      const plan = await requiredResolvedPlan(client, masterKey, rest[1], { ...scope, status: undefined }, "checks edit");
+      const verificationId = requiredStringFlag(flags.verification ?? flags.check ?? rest[2], "--check <check-id>");
+      const patch = await buildUpdatePlanVerificationInput(plan, masterKey, {
+        kind: typeof flags.kind === "string" ? flags.kind : typeof flags.type === "string" ? flags.type : undefined,
+        phase: typeof flags.phase === "string" ? flags.phase : undefined,
+        status: parsePlanVerificationStatus(flags.status),
+        lifecycleStatus: flags.lifecycle === true ? null : typeof flags.lifecycle === "string" ? flags.lifecycle : typeof flags["lifecycle-status"] === "string" ? flags["lifecycle-status"] : undefined,
+        requiredForDone: flags.required === true ? true : flags.optional === true ? false : undefined,
+        covers: flags.cover || flags.covers ? splitCsvFlag(flags.cover ?? flags.covers) : undefined,
+        sourceHash: flags["source-hash"] === true ? null : typeof flags["source-hash"] === "string" ? flags["source-hash"] : undefined,
+        score: parseOptionalNumberFlag(flags.score, "--score"),
+        threshold: parseOptionalNumberFlag(flags.threshold, "--threshold"),
+        confidence: flags.confidence === true ? null : typeof flags.confidence === "string" ? flags.confidence : undefined,
+        linkedSubChatId: flags["sub-chat"] === true ? null : typeof flags["sub-chat"] === "string" ? flags["sub-chat"] : undefined,
+        sourceEmbedId: flags.embed === true ? null : typeof flags.embed === "string" ? flags.embed : typeof flags["source-embed"] === "string" ? flags["source-embed"] : undefined,
+        runnerKind: flags.runner === true ? null : typeof flags.runner === "string" ? flags.runner : typeof flags["runner-kind"] === "string" ? flags["runner-kind"] : undefined,
+        description: typeof flags.description === "string" ? flags.description : undefined,
+        command: typeof flags.command === "string" ? flags.command : undefined,
+        evaluationPrompt: typeof flags.prompt === "string" ? flags.prompt : typeof flags["evaluation-prompt"] === "string" ? flags["evaluation-prompt"] : undefined,
+        evaluatorInstructions: typeof flags.instructions === "string" ? flags.instructions : typeof flags["evaluator-instructions"] === "string" ? flags["evaluator-instructions"] : undefined,
+        expectedResult: typeof flags.expected === "string" ? flags.expected : typeof flags["expected-result"] === "string" ? flags["expected-result"] : undefined,
+        sourcePath: typeof flags.path === "string" ? flags.path : typeof flags["source-path"] === "string" ? flags["source-path"] : undefined,
+        redPhaseReason: typeof flags["red-phase-reason"] === "string" ? flags["red-phase-reason"] : undefined,
+      });
+      const updated = await client.updatePlanVerification(plan.planId, verificationId, patch);
+      if (flags.json === true) printJson({ verification: updated });
+      else console.log(`Plan check updated: ${updated.verification_id}`);
+      return;
+    }
     if (action === "add" || action === "create") {
-      const plan = await requiredResolvedPlan(client, masterKey, rest[1], scope, "checks add");
+      const plan = await requiredResolvedPlan(client, masterKey, rest[1], { ...scope, status: undefined }, "checks add");
       const kind = requiredStringFlag(flags.kind ?? flags.type, "--kind <manual_check|command|ai_evaluator>");
       const verification = await buildCreatePlanVerificationInput(plan, masterKey, {
         verificationId: typeof flags.id === "string" ? flags.id : undefined,
@@ -1843,14 +2046,14 @@ async function handlePlans(
       return;
     }
     if (action === "evidence" || action === "record") {
-      const plan = await requiredResolvedPlan(client, masterKey, rest[1], scope, "checks evidence");
+      const plan = await requiredResolvedPlan(client, masterKey, rest[1], { ...scope, status: undefined }, "checks evidence");
       const verificationId = requiredStringFlag(flags.verification ?? flags.check ?? rest[2], "--verification <verification-id>");
       const evidence = await buildPlanVerificationEvidenceInput(plan, masterKey, {
-        status: parsePlanVerificationStatus(flags.status, undefined, true),
+        status: parsePlanVerificationStatus(flags.status, undefined, true)!,
         score: parseOptionalNumberFlag(flags.score, "--score"),
         threshold: parseOptionalNumberFlag(flags.threshold, "--threshold"),
-        confidence: typeof flags.confidence === "string" ? flags.confidence : null,
-        runId: typeof flags.run === "string" ? flags.run : null,
+        confidence: flags.confidence === true ? null : typeof flags.confidence === "string" ? flags.confidence : undefined,
+        runId: flags.run === true ? null : typeof flags.run === "string" ? flags.run : undefined,
         resultSummary: typeof flags.summary === "string" ? flags.summary : undefined,
         requiredFixes: typeof flags["required-fixes"] === "string" ? flags["required-fixes"] : undefined,
       });
@@ -1865,9 +2068,12 @@ async function handlePlans(
   throw new Error(`Unknown plans command '${subcommand}'. Run 'openmates plans --help'.`);
 }
 
-function planScopeFromFlags(flags: Record<string, string | boolean>): { status?: UserPlanStatus; chatId?: string; projectId?: string; activeOnly?: boolean; teamId?: string | null; personal?: boolean } {
+function planScopeFromFlags(
+  flags: Record<string, string | boolean>,
+  options: { ignoreStatus?: boolean } = {},
+): { status?: UserPlanStatus; chatId?: string; projectId?: string; activeOnly?: boolean; teamId?: string | null; personal?: boolean } {
   return {
-    status: normalizePlanStatus(typeof flags.status === "string" ? flags.status : undefined),
+    status: options.ignoreStatus ? undefined : normalizePlanStatus(typeof flags.status === "string" ? flags.status : undefined),
     chatId: typeof flags.chat === "string" ? flags.chat : undefined,
     projectId: typeof flags.project === "string" ? flags.project : undefined,
     activeOnly: flags.active === true ? true : undefined,
@@ -1907,6 +2113,56 @@ async function requiredResolvedPlan(
 ): Promise<DecryptedUserPlan> {
   if (!id) throw new Error(`Missing plan ID. Usage: openmates plans ${action} <plan-id|short-id>`);
   return resolvePlan(client, masterKey, id, scope);
+}
+
+type PlanTextSection = {
+  label: string;
+  option: "goal" | "currentFocus" | "scopeIn" | "scopeOut" | "userFlows" | "assumptions" | "openQuestions" | "constraints" | "decisions" | "risks" | "referencePatterns" | "context";
+  read: (plan: DecryptedUserPlan) => string;
+};
+
+const PLAN_TEXT_SECTIONS: Record<string, PlanTextSection> = {
+  goal: { label: "Goal", option: "goal", read: (plan) => plan.goal },
+  "current-focus": { label: "Current focus", option: "currentFocus", read: (plan) => plan.currentFocus },
+  "user-flows": { label: "User flows", option: "userFlows", read: (plan) => plan.userFlows },
+  "scope-in": { label: "Scope in", option: "scopeIn", read: (plan) => plan.scopeIn },
+  "scope-out": { label: "Scope out", option: "scopeOut", read: (plan) => plan.scopeOut },
+  assumptions: { label: "Assumptions", option: "assumptions", read: (plan) => plan.assumptions },
+  "open-questions": { label: "Open questions", option: "openQuestions", read: (plan) => plan.openQuestions },
+  constraints: { label: "Constraints", option: "constraints", read: (plan) => plan.constraints },
+  decisions: { label: "Decisions", option: "decisions", read: (plan) => plan.decisions },
+  risks: { label: "Risks", option: "risks", read: (plan) => plan.risks },
+  "reference-patterns": { label: "Reference patterns", option: "referencePatterns", read: (plan) => plan.referencePatterns },
+  context: { label: "Context", option: "context", read: (plan) => plan.context },
+};
+
+async function handlePlanTextSection(
+  client: OpenMatesClient,
+  masterKey: Uint8Array,
+  section: PlanTextSection,
+  rest: string[],
+  flags: Record<string, string | boolean>,
+  scope: { status?: UserPlanStatus; chatId?: string; projectId?: string; activeOnly?: boolean; teamId?: string | null; personal?: boolean },
+): Promise<void> {
+  const action = rest[0];
+  if (!["set", "clear", "add", "edit", "update", "remove", "answer", "supersede"].includes(action ?? "")) {
+    throw new Error(`Usage: openmates plans ${section.label.toLowerCase()} set|add|edit|remove <plan-id> --text <text>`);
+  }
+  const plan = await requiredResolvedPlan(client, masterKey, rest[1], scope, `${section.label.toLowerCase()} ${action}`);
+  const current = section.read(plan).trim();
+  const rawText = typeof flags.text === "string" ? flags.text : rest.slice(2).join(" ").trim();
+  const next = action === "clear" || action === "remove"
+    ? ""
+    : action === "add" || action === "answer" || action === "supersede"
+      ? appendPlanSectionText(current, requiredStringFlag(rawText, "--text <text>"))
+      : requiredStringFlag(rawText, "--text <text>");
+  const patch = await buildUpdateUserPlanInput(plan, masterKey, { [section.option]: next });
+  const updated = await client.updateUserPlan(plan.planId, patch);
+  printPlanOutput(await decryptUserPlan(updated, masterKey), flags);
+}
+
+function appendPlanSectionText(current: string, addition: string): string {
+  return current ? `${current}\n- ${addition}` : `- ${addition}`;
 }
 
 function printPlanOutput(plan: DecryptedUserPlan, flags: Record<string, string | boolean>): void {
@@ -2469,14 +2725,14 @@ function parsePlanVerificationStatus(
   value: string | boolean | undefined,
   defaultStatus?: UserPlanVerificationStatus,
   required = false,
-): UserPlanVerificationStatus {
+): UserPlanVerificationStatus | undefined {
   if (value === undefined || value === false) {
     if (defaultStatus) return defaultStatus;
-    if (required) throw new Error("Missing --status <pending|passed|failed|passed_unexpectedly|skipped|waived>.");
-    return "pending";
+    if (required) throw new Error("Missing --status <proposed|pending|passed|failed|passed_unexpectedly|skipped|skipped_with_reason|not_applicable|waived>.");
+    return undefined;
   }
   if (value === true) throw new Error("--status requires a value.");
-  const allowed: UserPlanVerificationStatus[] = ["pending", "passed", "failed", "passed_unexpectedly", "skipped", "waived"];
+  const allowed: UserPlanVerificationStatus[] = ["proposed", "pending", "passed", "failed", "passed_unexpectedly", "skipped", "skipped_with_reason", "not_applicable", "waived"];
   if (allowed.includes(value as UserPlanVerificationStatus)) return value as UserPlanVerificationStatus;
   throw new Error(`Unknown plan check status '${value}'. Expected one of: ${allowed.join(", ")}`);
 }
@@ -11278,26 +11534,33 @@ function printPlansHelp(): void {
   openmates plans restore <plan-id|short-id> --entry <history-entry-id> [--state before|after] [--json]
   openmates plans create --title <title> [--goal <goal>] [--summary <text>] [--chat <id>] [--project <id>] [--status <status>] [--json]
   openmates plans create --goal <goal> [--chat <id>] [--json]
-  openmates plans edit <plan-id|short-id> [--title <title>] [--goal <goal>] [--summary <text>] [--status <status>] [--json]
+  openmates plans edit|update <plan-id|short-id> [--title <title>] [--goal <goal>] [--summary <text>] [--status <status>] [--json]
   openmates plans approve <plan-id|short-id> --chat <id> [--json]
   openmates plans activate <plan-id|short-id> --chat <id> [--json]
+  openmates plans attach <plan-id|short-id> --chat <id> [--json]
+  openmates plans start <plan-id|short-id> [--json]
   openmates plans pause <plan-id|short-id> [--json]
   openmates plans resume <plan-id|short-id> [--json]
   openmates plans archive <plan-id|short-id> [--json]
   openmates plans complete <plan-id|short-id> [--json]
-  openmates plans criteria add <plan-id|short-id> --text <criterion> [--type <type>] [--required] [--json]
+  openmates plans success-criteria add|edit|remove <plan-id|short-id> --criterion <id> --text <criterion> [--type <type>] [--required] [--json]
+  openmates plans criteria add|edit|remove <plan-id|short-id> --criterion <id> --text <criterion> [--type <type>] [--required] [--json]
+  openmates plans tasks list|add|edit|remove <plan-id|short-id> [...task options]
   openmates plans learnings list <plan-id|short-id> [--json]
   openmates plans learnings show <plan-id|short-id> --learning <learning-id> [--json]
   openmates plans learnings add <plan-id|short-id> --title <title> [--type workflow_improvement|agent_instruction_improvement] [--target workflow|project_agent_instructions] [--status draft|proposed|accepted] [--task-draft <text>] [--json]
   openmates plans learnings edit <plan-id|short-id> --learning <learning-id> [--status <status>] [--task-draft <text>] [--json]
+  openmates plans learnings remove <plan-id|short-id> --learning <learning-id> [--json]
   openmates plans learnings create-tasks <plan-id|short-id> (--learning <learning-id> | --all) [--json]
   openmates plans checks add <plan-id|short-id> --kind <manual_check|command|ai_evaluator> [--command <cmd>] [--prompt <text>] [--expected <text>] [--required] [--json]
+  openmates plans checks edit|remove <plan-id|short-id> --verification <id> [--status <status>] [--json]
   openmates plans checks evidence <plan-id|short-id> --verification <id> --status <status> [--summary <text>] [--score <n>] [--json]
 
 Chat-scoped aliases:
   openmates chats <chat-id> plans list
   openmates chats <chat-id> plans create --goal <goal>
   openmates chats <chat-id> plans approve <plan-id|short-id>
+  openmates chat --goal <goal>
 
 Statuses:
   draft, checking_assumptions, awaiting_confirmation, active, executing, running_checks, blocked, completed, archived
@@ -11306,7 +11569,7 @@ Learning finalized statuses:
   proposed, accepted, applied
 
 Check statuses:
-  pending, passed, failed, passed_unexpectedly, skipped, waived
+  proposed, pending, passed, failed, passed_unexpectedly, skipped, skipped_with_reason, not_applicable, waived
 
 Notes:
   Plan IDs accept full plan_id or human short IDs such as PLAN-A1B2C3.

@@ -48,11 +48,15 @@ export interface DecryptedUserPlan {
   goal: string;
   scopeIn: string;
   scopeOut: string;
+  userFlows: string;
+  currentFocus: string;
   assumptions: string;
   openQuestions: string;
   constraints: string;
   decisions: string;
   risks: string;
+  referencePatterns: string;
+  context: string;
   status: UserPlanStatus;
   primaryChatId: string | null;
   linkedProjectIds: string[];
@@ -96,14 +100,20 @@ export interface PlanCreateOptions {
   goal?: string;
   scopeIn?: string;
   scopeOut?: string;
+  userFlows?: string;
+  currentFocus?: string;
   assumptions?: string;
   openQuestions?: string;
   constraints?: string;
   decisions?: string;
   risks?: string;
+  referencePatterns?: string;
+  context?: string;
   status?: UserPlanStatus;
   primaryChatId?: string | null;
+  primaryChatKey?: Uint8Array | null;
   linkedProjectIds?: string[];
+  linkedProjectKeys?: PlanProjectKey[];
   currentPhaseId?: string | null;
   currentStepId?: string | null;
   currentTaskId?: string | null;
@@ -116,18 +126,29 @@ export interface PlanUpdateOptions {
   goal?: string;
   scopeIn?: string;
   scopeOut?: string;
+  userFlows?: string;
+  currentFocus?: string;
   assumptions?: string;
   openQuestions?: string;
   constraints?: string;
   decisions?: string;
   risks?: string;
+  referencePatterns?: string;
+  context?: string;
   status?: UserPlanStatus;
   primaryChatId?: string | null;
+  primaryChatKey?: Uint8Array | null;
   linkedProjectIds?: string[];
+  linkedProjectKeys?: PlanProjectKey[];
   currentPhaseId?: string | null;
   currentStepId?: string | null;
   currentTaskId?: string | null;
   plannerFocusId?: string | null;
+}
+
+export interface PlanProjectKey {
+  projectId: string;
+  projectKey: Uint8Array;
 }
 
 export interface PlanCriterionCreateOptions {
@@ -166,6 +187,29 @@ export interface PlanVerificationEvidenceOptions {
   runId?: string | null;
   resultSummary?: string;
   requiredFixes?: string;
+}
+
+export interface PlanVerificationUpdateOptions {
+  kind?: string;
+  phase?: string;
+  status?: UserPlanVerificationStatus;
+  lifecycleStatus?: string | null;
+  requiredForDone?: boolean;
+  covers?: string[];
+  sourceHash?: string | null;
+  threshold?: number | null;
+  score?: number | null;
+  confidence?: string | null;
+  linkedSubChatId?: string | null;
+  sourceEmbedId?: string | null;
+  runnerKind?: string | null;
+  description?: string;
+  command?: string;
+  evaluationPrompt?: string;
+  evaluatorInstructions?: string;
+  expectedResult?: string;
+  sourcePath?: string;
+  redPhaseReason?: string;
 }
 
 export interface PlanLearningCreateOptions {
@@ -237,6 +281,15 @@ export async function buildCreateUserPlanInput(masterKey: Uint8Array, input: Pla
   const encryptedPlanKey = await encryptBytesWithAesGcm(planKey, masterKey);
   const timestamp = nowSeconds();
   const linkedProjectIds = input.linkedProjectIds ?? [];
+  const keyWrappers = await buildUserPlanKeyWrappers({
+    planKey,
+    masterKey,
+    createdAt: timestamp,
+    primaryChatId: input.primaryChatId ?? null,
+    primaryChatKey: input.primaryChatKey ?? null,
+    linkedProjectIds,
+    linkedProjectKeys: input.linkedProjectKeys ?? [],
+  });
   return {
     plan_id: randomUUIDCompat(),
     version: 1,
@@ -246,11 +299,15 @@ export async function buildCreateUserPlanInput(masterKey: Uint8Array, input: Pla
     encrypted_goal: await encryptWithAesGcmCombined(input.goal ?? "", planKey),
     encrypted_scope_in: await encryptWithAesGcmCombined(input.scopeIn ?? "", planKey),
     encrypted_scope_out: await encryptWithAesGcmCombined(input.scopeOut ?? "", planKey),
+    encrypted_user_flows: await encryptWithAesGcmCombined(input.userFlows ?? "", planKey),
+    encrypted_current_focus: await encryptWithAesGcmCombined(input.currentFocus ?? "", planKey),
     encrypted_assumptions: await encryptWithAesGcmCombined(input.assumptions ?? "", planKey),
     encrypted_open_questions: await encryptWithAesGcmCombined(input.openQuestions ?? "", planKey),
     encrypted_constraints: await encryptWithAesGcmCombined(input.constraints ?? "", planKey),
     encrypted_decisions: await encryptWithAesGcmCombined(input.decisions ?? "", planKey),
     encrypted_risks: await encryptWithAesGcmCombined(input.risks ?? "", planKey),
+    encrypted_reference_patterns: await encryptWithAesGcmCombined(input.referencePatterns ?? "", planKey),
+    encrypted_context: await encryptWithAesGcmCombined(input.context ?? "", planKey),
     encrypted_linked_project_ids: await encryptWithAesGcmCombined(JSON.stringify(linkedProjectIds), planKey),
     status: input.status ?? "draft",
     primary_chat_id: input.primaryChatId ?? null,
@@ -261,7 +318,7 @@ export async function buildCreateUserPlanInput(masterKey: Uint8Array, input: Pla
     planner_focus_id: input.plannerFocusId ?? null,
     created_at: timestamp,
     updated_at: timestamp,
-    key_wrappers: [{ key_type: "master", encrypted_plan_key: encryptedPlanKey, created_at: timestamp }],
+    key_wrappers: keyWrappers,
   } as UserPlanCreateInput;
 }
 
@@ -273,22 +330,74 @@ export async function buildUpdateUserPlanInput(plan: DecryptedUserPlan, masterKe
   if (input.goal !== undefined) patch.encrypted_goal = await encryptWithAesGcmCombined(input.goal, planKey);
   if (input.scopeIn !== undefined) patch.encrypted_scope_in = await encryptWithAesGcmCombined(input.scopeIn, planKey);
   if (input.scopeOut !== undefined) patch.encrypted_scope_out = await encryptWithAesGcmCombined(input.scopeOut, planKey);
+  if (input.userFlows !== undefined) patch.encrypted_user_flows = await encryptWithAesGcmCombined(input.userFlows, planKey);
+  if (input.currentFocus !== undefined) patch.encrypted_current_focus = await encryptWithAesGcmCombined(input.currentFocus, planKey);
   if (input.assumptions !== undefined) patch.encrypted_assumptions = await encryptWithAesGcmCombined(input.assumptions, planKey);
   if (input.openQuestions !== undefined) patch.encrypted_open_questions = await encryptWithAesGcmCombined(input.openQuestions, planKey);
   if (input.constraints !== undefined) patch.encrypted_constraints = await encryptWithAesGcmCombined(input.constraints, planKey);
   if (input.decisions !== undefined) patch.encrypted_decisions = await encryptWithAesGcmCombined(input.decisions, planKey);
   if (input.risks !== undefined) patch.encrypted_risks = await encryptWithAesGcmCombined(input.risks, planKey);
+  if (input.referencePatterns !== undefined) patch.encrypted_reference_patterns = await encryptWithAesGcmCombined(input.referencePatterns, planKey);
+  if (input.context !== undefined) patch.encrypted_context = await encryptWithAesGcmCombined(input.context, planKey);
   if (input.status !== undefined) patch.status = input.status;
   if (input.primaryChatId !== undefined) patch.primary_chat_id = input.primaryChatId;
   if (input.linkedProjectIds !== undefined) {
     patch.linked_project_ids = input.linkedProjectIds;
     patch.encrypted_linked_project_ids = await encryptWithAesGcmCombined(JSON.stringify(input.linkedProjectIds), planKey);
   }
+  if (input.primaryChatId !== undefined || input.linkedProjectIds !== undefined) {
+    patch.key_wrappers = await buildUserPlanKeyWrappers({
+      planKey,
+      masterKey,
+      createdAt: patch.updated_at ?? nowSeconds(),
+      primaryChatId: input.primaryChatId !== undefined ? input.primaryChatId : plan.primaryChatId,
+      primaryChatKey: input.primaryChatKey ?? null,
+      linkedProjectIds: input.linkedProjectIds ?? plan.linkedProjectIds,
+      linkedProjectKeys: input.linkedProjectKeys ?? [],
+    });
+  }
   if (input.currentPhaseId !== undefined) patch.current_phase_id = input.currentPhaseId;
   if (input.currentStepId !== undefined) patch.current_step_id = input.currentStepId;
   if (input.currentTaskId !== undefined) patch.current_task_id = input.currentTaskId;
   if (input.plannerFocusId !== undefined) patch.planner_focus_id = input.plannerFocusId;
   return patch;
+}
+
+export async function buildUserPlanKeyWrappers(input: {
+  planKey: Uint8Array;
+  masterKey: Uint8Array;
+  createdAt: number;
+  primaryChatId?: string | null;
+  primaryChatKey?: Uint8Array | null;
+  linkedProjectIds?: string[];
+  linkedProjectKeys?: PlanProjectKey[];
+}): Promise<Array<Record<string, unknown>>> {
+  const wrappers: Array<Record<string, unknown>> = [{
+    key_type: "master",
+    encrypted_plan_key: await encryptBytesWithAesGcm(input.planKey, input.masterKey),
+    created_at: input.createdAt,
+  }];
+  if (input.primaryChatId) {
+    if (!input.primaryChatKey) throw new Error(`Plan chat link requires a locally decrypted chat key for ${input.primaryChatId}.`);
+    wrappers.push({
+      key_type: "chat",
+      hashed_chat_id: sha256Hex(input.primaryChatId),
+      encrypted_plan_key: await encryptBytesWithAesGcm(input.planKey, input.primaryChatKey),
+      created_at: input.createdAt,
+    });
+  }
+  const projectKeys = new Map((input.linkedProjectKeys ?? []).map((entry) => [entry.projectId, entry.projectKey]));
+  for (const projectId of input.linkedProjectIds ?? []) {
+    const projectKey = projectKeys.get(projectId);
+    if (!projectKey) throw new Error(`Plan project link requires a locally decrypted project key for ${projectId}.`);
+    wrappers.push({
+      key_type: "project",
+      hashed_project_id: sha256Hex(projectId),
+      encrypted_plan_key: await encryptBytesWithAesGcm(input.planKey, projectKey),
+      created_at: input.createdAt,
+    });
+  }
+  return wrappers;
 }
 
 export async function decryptUserPlan(record: UserPlanRecord, masterKey: Uint8Array): Promise<DecryptedUserPlan> {
@@ -303,11 +412,15 @@ export async function decryptUserPlan(record: UserPlanRecord, masterKey: Uint8Ar
     goal: await decryptOptional(record.encrypted_goal, planKey),
     scopeIn: await decryptOptional(record.encrypted_scope_in, planKey),
     scopeOut: await decryptOptional(record.encrypted_scope_out, planKey),
+    userFlows: await decryptOptional(record.encrypted_user_flows, planKey),
+    currentFocus: await decryptOptional(record.encrypted_current_focus, planKey),
     assumptions: await decryptOptional(record.encrypted_assumptions, planKey),
     openQuestions: await decryptOptional(record.encrypted_open_questions, planKey),
     constraints: await decryptOptional(record.encrypted_constraints, planKey),
     decisions: await decryptOptional(record.encrypted_decisions, planKey),
     risks: await decryptOptional(record.encrypted_risks, planKey),
+    referencePatterns: await decryptOptional(record.encrypted_reference_patterns, planKey),
+    context: await decryptOptional(record.encrypted_context, planKey),
     status: record.status,
     primaryChatId: record.primary_chat_id ?? null,
     linkedProjectIds: linkedProjectIds.length > 0 ? linkedProjectIds : (record.linked_project_ids ?? []),
@@ -472,6 +585,32 @@ export async function buildPlanVerificationEvidenceInput(plan: DecryptedUserPlan
   };
 }
 
+export async function buildUpdatePlanVerificationInput(plan: DecryptedUserPlan, masterKey: Uint8Array, input: PlanVerificationUpdateOptions): Promise<Partial<UserPlanVerificationRecord>> {
+  const planKey = await planKeyFromRecord(plan.encrypted, masterKey);
+  const patch: Partial<UserPlanVerificationRecord> = { updated_at: nowSeconds() };
+  if (input.kind !== undefined) patch.kind = input.kind;
+  if (input.phase !== undefined) patch.phase = input.phase;
+  if (input.status !== undefined) patch.status = input.status;
+  if (input.lifecycleStatus !== undefined) patch.lifecycle_status = input.lifecycleStatus;
+  if (input.requiredForDone !== undefined) patch.required_for_done = input.requiredForDone;
+  if (input.covers !== undefined) patch.covers = input.covers;
+  if (input.sourceHash !== undefined) patch.source_hash = input.sourceHash;
+  if (input.threshold !== undefined) patch.threshold = input.threshold;
+  if (input.score !== undefined) patch.score = input.score;
+  if (input.confidence !== undefined) patch.confidence = input.confidence;
+  if (input.linkedSubChatId !== undefined) patch.linked_sub_chat_id = input.linkedSubChatId;
+  if (input.sourceEmbedId !== undefined) patch.source_embed_id = input.sourceEmbedId;
+  if (input.runnerKind !== undefined) patch.runner_kind = input.runnerKind;
+  if (input.description !== undefined) patch.encrypted_description = await encryptWithAesGcmCombined(input.description, planKey);
+  if (input.command !== undefined) patch.encrypted_command = await encryptWithAesGcmCombined(input.command, planKey);
+  if (input.evaluationPrompt !== undefined) patch.encrypted_evaluation_prompt = await encryptWithAesGcmCombined(input.evaluationPrompt, planKey);
+  if (input.evaluatorInstructions !== undefined) patch.encrypted_evaluator_instructions = await encryptWithAesGcmCombined(input.evaluatorInstructions, planKey);
+  if (input.expectedResult !== undefined) patch.encrypted_expected_result = await encryptWithAesGcmCombined(input.expectedResult, planKey);
+  if (input.sourcePath !== undefined) patch.encrypted_source_path = await encryptWithAesGcmCombined(input.sourcePath, planKey);
+  if (input.redPhaseReason !== undefined) patch.encrypted_red_phase_reason = await encryptWithAesGcmCombined(input.redPhaseReason, planKey);
+  return patch;
+}
+
 export function renderPlanList(plans: DecryptedUserPlan[]): string {
   if (plans.length === 0) return "No plans found.";
   const lines = ["Plans", "ID          Status                 Chat       Title"];
@@ -493,11 +632,15 @@ export function renderPlanDetail(plan: DecryptedUserPlan): string {
   if (plan.goal) lines.push(`Goal: ${plan.goal}`);
   if (plan.scopeIn) lines.push(`Scope in: ${plan.scopeIn}`);
   if (plan.scopeOut) lines.push(`Scope out: ${plan.scopeOut}`);
+  if (plan.userFlows) lines.push(`User flows: ${plan.userFlows}`);
+  if (plan.currentFocus) lines.push(`Current focus: ${plan.currentFocus}`);
   if (plan.assumptions) lines.push(`Assumptions: ${plan.assumptions}`);
   if (plan.openQuestions) lines.push(`Open questions: ${plan.openQuestions}`);
   if (plan.constraints) lines.push(`Constraints: ${plan.constraints}`);
   if (plan.decisions) lines.push(`Decisions: ${plan.decisions}`);
   if (plan.risks) lines.push(`Risks: ${plan.risks}`);
+  if (plan.referencePatterns) lines.push(`Reference patterns: ${plan.referencePatterns}`);
+  if (plan.context) lines.push(`Context: ${plan.context}`);
   if (plan.primaryChatId) lines.push(`Chat: ${plan.primaryChatId}`);
   if (plan.linkedProjectIds.length > 0) lines.push(`Projects: ${plan.linkedProjectIds.join(", ")}`);
   if (plan.currentPhaseId) lines.push(`Current phase: ${plan.currentPhaseId}`);
@@ -576,11 +719,15 @@ export function finalizedLearningNeedsTaskSafetyScan(learning: DecryptedPlanLear
   return FINALIZED_LEARNING_STATUSES.has(learning.status) && !learning.appliedTaskId && Boolean(learning.taskDraft.trim());
 }
 
-async function planKeyFromRecord(record: UserPlanRecord, masterKey: Uint8Array): Promise<Uint8Array> {
+export async function planKeyFromRecord(record: UserPlanRecord, masterKey: Uint8Array): Promise<Uint8Array> {
   if (!record.encrypted_plan_key) throw new Error(`Plan ${record.plan_id} is missing encrypted plan key.`);
   const planKey = await decryptBytesWithAesGcm(record.encrypted_plan_key, masterKey);
   if (!planKey) throw new Error(`Failed to decrypt plan key for ${record.plan_id}.`);
   return planKey;
+}
+
+function sha256Hex(value: string): string {
+  return createHash("sha256").update(value).digest("hex");
 }
 
 async function decryptOptional(value: string | null | undefined, key: Uint8Array): Promise<string> {

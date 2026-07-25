@@ -70,8 +70,10 @@ import {
   type TaskUpdateOptions,
 } from "./tasksCli.js";
 import {
+  buildUserPlanKeyWrappers,
   buildUpdateUserPlanInput,
   decryptUserPlan,
+  planKeyFromRecord,
 } from "./plansCli.js";
 import { hasRememberMessageReference, rewriteRememberMessageReferences } from "./rememberMessage.js";
 import type {
@@ -398,7 +400,7 @@ const IDEABUCKET_SETTINGS_ITEM_TYPE = "processing_settings";
 const IDEABUCKET_DEFAULT_PROCESSING_TIMES = ["09:00"];
 const IDEABUCKET_PROCESSING_TIME_PATTERN = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
-export type TaskListFilters = { status?: UserTaskStatus; chatId?: string; projectId?: string; labels?: string[]; tags?: string[]; priority?: TaskPriorityLevel | number | null };
+export type TaskListFilters = { status?: UserTaskStatus; chatId?: string; projectId?: string; planId?: string; labels?: string[]; tags?: string[]; priority?: TaskPriorityLevel | number | null };
 export type TaskPlainCreateOptions = TaskCreateOptions;
 export type TaskPlainUpdateOptions = TaskUpdateOptions;
 export type TaskRecord = Omit<DecryptedUserTask, "encrypted">;
@@ -1061,6 +1063,53 @@ async function resolveSdkProject(client: OpenMates, projectId: string): Promise<
   const projectKey = await decryptBytesWithAesGcm(record.encrypted_project_key, await client.masterKey());
   if (!projectKey) throw new OpenMatesConfigError("Failed to decrypt Project key");
   return { record, projectKey };
+}
+
+async function resolveSdkChatKey(client: OpenMates, chatId: string): Promise<Uint8Array> {
+  const payload = await client.get<Record<string, unknown>>(`/v1/sdk/chats/${encodeURIComponent(chatId)}`);
+  const chat = payload.chat as EncryptedChatMetadata | undefined;
+  if (!chat) throw new OpenMatesConfigError("Saved chat payload did not include chat metadata");
+  const hashedChatId = createHash("sha256").update(chat.id).digest("hex");
+  const wrappers = Array.isArray(payload.chat_key_wrappers)
+    ? payload.chat_key_wrappers as ChatKeyWrapperRecord[]
+    : Array.isArray(chat.chat_key_wrappers)
+      ? chat.chat_key_wrappers
+      : [];
+  const wrapper = wrappers.find(
+    (entry) => entry.key_type === "master" && entry.hashed_chat_id === hashedChatId && typeof entry.encrypted_chat_key === "string",
+  );
+  const encryptedChatKey = typeof wrapper?.encrypted_chat_key === "string"
+    ? wrapper.encrypted_chat_key
+    : typeof chat.encrypted_chat_key === "string"
+      ? chat.encrypted_chat_key
+      : null;
+  if (!encryptedChatKey) throw new OpenMatesConfigError("Saved chat does not include encrypted chat key material");
+  const chatKey = await decryptBytesWithAesGcm(encryptedChatKey, await client.masterKey());
+  if (!chatKey) throw new OpenMatesConfigError("Unable to decrypt saved chat key material");
+  return chatKey;
+}
+
+async function buildSdkPlanKeyWrappers(
+  client: OpenMates,
+  planRecord: UserPlanRecord,
+  input: { primaryChatId?: string | null; linkedProjectIds?: string[]; createdAt?: number },
+): Promise<Array<Record<string, unknown>>> {
+  const masterKey = await client.masterKey();
+  const planKey = await planKeyFromRecord(planRecord, masterKey);
+  const linkedProjectIds = input.linkedProjectIds ?? [];
+  const linkedProjectKeys = await Promise.all(linkedProjectIds.map(async (projectId) => {
+    const { projectKey } = await resolveSdkProject(client, projectId);
+    return { projectId, projectKey };
+  }));
+  return buildUserPlanKeyWrappers({
+    planKey,
+    masterKey,
+    createdAt: input.createdAt ?? Math.floor(Date.now() / 1000),
+    primaryChatId: input.primaryChatId ?? null,
+    primaryChatKey: input.primaryChatId ? await resolveSdkChatKey(client, input.primaryChatId) : null,
+    linkedProjectIds,
+    linkedProjectKeys,
+  });
 }
 
 async function createSdkProjectItem(
@@ -2731,6 +2780,7 @@ export class OpenMatesTasks {
       status: filters.status,
       chat_id: filters.chatId,
       project_id: filters.projectId,
+      plan_id: filters.planId,
       label_hash: masterKey ? labelHashes(masterKey, normalizeLabels(filters.labels ?? filters.tags ?? [])) : undefined,
       priority: normalizeTaskPriority(filters.priority),
     }));
@@ -2798,11 +2848,144 @@ function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+type PlanEncryptedFieldFacade = {
+  add: (planId: string, input: UserPlanUpdateInput) => Promise<UserPlanRecord>;
+  update: (planId: string, input: UserPlanUpdateInput) => Promise<UserPlanRecord>;
+  remove: (planId: string, input?: UserPlanUpdateInput) => Promise<UserPlanRecord>;
+};
+
 export class OpenMatesPlans {
   private readonly client: OpenMates;
+  readonly goal: { set: (planId: string, input: Pick<UserPlanUpdateInput, "encrypted_goal" | "version" | "updated_at">) => Promise<UserPlanRecord> };
+  readonly currentFocus: { set: (planId: string, input: Pick<UserPlanUpdateInput, "encrypted_current_focus" | "version" | "updated_at">) => Promise<UserPlanRecord>; clear: (planId: string, input?: Pick<UserPlanUpdateInput, "version" | "updated_at">) => Promise<UserPlanRecord> };
+  readonly successCriteria: {
+    add: (planId: string, input: UserPlanCriterionRecord) => Promise<UserPlanCriterionRecord>;
+    update: (planId: string, criterionId: string, input: Partial<UserPlanCriterionRecord>) => Promise<UserPlanCriterionRecord>;
+    remove: (planId: string, criterionId: string) => Promise<Record<string, unknown>>;
+  };
+  readonly tasks: {
+    list: (planId: string) => Promise<unknown[]>;
+    add: (planId: string, input: TaskCreateOptions) => Promise<Record<string, unknown>>;
+    update: (planId: string, taskId: string, input: TaskUpdateOptions) => Promise<Record<string, unknown>>;
+    remove: (planId: string, taskId: string) => Promise<Record<string, unknown>>;
+  };
+  readonly userFlows: PlanEncryptedFieldFacade;
+  readonly scopeIn: PlanEncryptedFieldFacade;
+  readonly scopeOut: PlanEncryptedFieldFacade;
+  readonly openQuestions: PlanEncryptedFieldFacade & {
+    answer: (planId: string, input: UserPlanUpdateInput) => Promise<UserPlanRecord>;
+  };
+  readonly constraints: PlanEncryptedFieldFacade;
+  readonly decisions: PlanEncryptedFieldFacade & {
+    supersede: (planId: string, input: UserPlanUpdateInput) => Promise<UserPlanRecord>;
+  };
+  readonly risks: PlanEncryptedFieldFacade;
+  readonly checks: {
+    add: (planId: string, input: UserPlanVerificationRecord & Record<string, unknown>) => Promise<UserPlanVerificationRecord>;
+    update: (planId: string, checkId: string, input: Partial<UserPlanVerificationRecord>) => Promise<UserPlanVerificationRecord>;
+    remove: (planId: string, checkId: string) => Promise<Record<string, unknown>>;
+    addEvidence: (planId: string, checkId: string, input: Partial<UserPlanVerificationRecord>) => Promise<UserPlanVerificationRecord>;
+    getRun: (planId: string, checkId: string, runId: string) => Promise<Record<string, unknown>>;
+  };
+  readonly assumptions: {
+    add: (planId: string, input: UserPlanAssumptionRecord) => Promise<UserPlanAssumptionRecord>;
+    update: (planId: string, assumptionId: string, input: Partial<UserPlanAssumptionRecord>) => Promise<UserPlanAssumptionRecord>;
+    check: (planId: string, assumptionId: string, input?: Partial<UserPlanAssumptionRecord>) => Promise<UserPlanAssumptionRecord>;
+    waive: (planId: string, assumptionId: string, input: Partial<UserPlanAssumptionRecord>) => Promise<UserPlanAssumptionRecord>;
+    remove: (planId: string, assumptionId: string) => Promise<Record<string, unknown>>;
+  };
+  readonly referencePatterns: {
+    add: (planId: string, input: UserPlanReferencePatternRecord) => Promise<UserPlanReferencePatternRecord>;
+    update: (planId: string, patternId: string, input: Partial<UserPlanReferencePatternRecord>) => Promise<UserPlanReferencePatternRecord>;
+    inspect: (planId: string, patternId: string, input?: Partial<UserPlanReferencePatternRecord>) => Promise<UserPlanReferencePatternRecord>;
+    waive: (planId: string, patternId: string, input: Partial<UserPlanReferencePatternRecord>) => Promise<UserPlanReferencePatternRecord>;
+    remove: (planId: string, patternId: string) => Promise<Record<string, unknown>>;
+  };
+  readonly learnings: {
+    list: (planId: string) => Promise<UserPlanLearningRecord[]>;
+    show: (planId: string, learningId: string) => Promise<UserPlanLearningRecord>;
+    create: (planId: string, input: UserPlanLearningRecord) => Promise<UserPlanLearningRecord>;
+    update: (planId: string, learningId: string, input: Partial<UserPlanLearningRecord>) => Promise<UserPlanLearningRecord>;
+    remove: (planId: string, learningId: string) => Promise<Record<string, unknown>>;
+    createTasks: (planId: string, input: UserPlanLearningCreateTasksInput) => Promise<UserPlanLearningCreateTasksResult>;
+  };
+  readonly context: { artifacts: PlanEncryptedFieldFacade };
+  readonly activity: { list: (planId: string, options?: { limit?: number }) => Promise<Record<string, unknown>[]> };
 
   constructor(client: OpenMates) {
     this.client = client;
+    this.goal = { set: (planId, input) => this.update(planId, input) };
+    this.currentFocus = {
+      set: (planId, input) => this.update(planId, input),
+      clear: (planId, input = {}) => this.update(planId, { ...input, encrypted_current_focus: null }),
+    };
+    this.successCriteria = {
+      add: (planId, input) => this.createCriterion(planId, input),
+      update: (planId, criterionId, input) => this.updateCriterion(planId, criterionId, input),
+      remove: (planId, criterionId) => this.deleteCriterion(planId, criterionId),
+    };
+    this.tasks = {
+      list: async (planId) => this.client.tasks.list({ planId } as Record<string, unknown>),
+      add: async (planId, input) => this.client.tasks.create({ ...input, planId }),
+      update: async (planId, taskId, input) => this.client.tasks.update(taskId, input, { planId }),
+      remove: async (planId, taskId) => this.client.tasks.delete(taskId, { confirmed: true, filters: { planId } }),
+    };
+    this.userFlows = this.encryptedFieldFacade("encrypted_user_flows");
+    this.scopeIn = this.encryptedFieldFacade("encrypted_scope_in");
+    this.scopeOut = this.encryptedFieldFacade("encrypted_scope_out");
+    this.openQuestions = {
+      ...this.encryptedFieldFacade("encrypted_open_questions"),
+      answer: (planId, input) => this.update(planId, input),
+    };
+    this.constraints = this.encryptedFieldFacade("encrypted_constraints");
+    this.decisions = {
+      ...this.encryptedFieldFacade("encrypted_decisions"),
+      supersede: (planId, input) => this.update(planId, input),
+    };
+    this.risks = this.encryptedFieldFacade("encrypted_risks");
+    this.checks = {
+      add: (planId, input) => this.createVerification(planId, input),
+      update: (planId, checkId, input) => this.updateVerification(planId, checkId, input),
+      remove: (planId, checkId) => this.deleteVerification(planId, checkId),
+      addEvidence: (planId, checkId, input) => this.addVerificationEvidence(planId, checkId, input),
+      getRun: (planId, checkId, runId) => this.getVerificationRun(planId, checkId, runId),
+    };
+    this.assumptions = {
+      add: (planId, input) => this.createAssumption(planId, input),
+      update: (planId, assumptionId, input) => this.updateAssumption(planId, assumptionId, input),
+      check: (planId, assumptionId, input = {}) => this.updateAssumption(planId, assumptionId, { ...input, status: input.status ?? "checking" }),
+      waive: (planId, assumptionId, input) => this.updateAssumption(planId, assumptionId, { ...input, status: "waived" }),
+      remove: (planId, assumptionId) => this.deleteAssumption(planId, assumptionId),
+    };
+    this.referencePatterns = {
+      add: (planId, input) => this.createReferencePattern(planId, input),
+      update: (planId, patternId, input) => this.updateReferencePattern(planId, patternId, input),
+      inspect: (planId, patternId, input = {}) => this.updateReferencePattern(planId, patternId, { ...input, status: input.status ?? "inspected" }),
+      waive: (planId, patternId, input) => this.updateReferencePattern(planId, patternId, { ...input, status: "waived" }),
+      remove: (planId, patternId) => this.deleteReferencePattern(planId, patternId),
+    };
+    this.learnings = {
+      list: (planId) => this.listLearnings(planId),
+      show: async (planId, learningId) => {
+        const learning = (await this.listLearnings(planId)).find((candidate) => candidate.learning_id === learningId);
+        if (!learning) throw new OpenMatesApiError(404, { detail: "Plan learning not found" });
+        return learning;
+      },
+      create: (planId, input) => this.createLearning(planId, input),
+      update: (planId, learningId, input) => this.updateLearning(planId, learningId, input),
+      remove: (planId, learningId) => this.deleteLearning(planId, learningId),
+      createTasks: (planId, input) => this.createLearningTasks(planId, input),
+    };
+    this.context = { artifacts: this.encryptedFieldFacade("encrypted_context") };
+    this.activity = { list: (planId, options = {}) => this.history(planId, options) };
+  }
+
+  private encryptedFieldFacade(field: keyof UserPlanUpdateInput): PlanEncryptedFieldFacade {
+    return {
+      add: (planId, input) => this.update(planId, input),
+      update: (planId, input) => this.update(planId, input),
+      remove: (planId, input = {}) => this.update(planId, { ...input, [field]: null }),
+    };
   }
 
   async list(filters: { status?: UserPlanStatus; chatId?: string; projectId?: string; activeOnly?: boolean } = {}): Promise<UserPlanRecord[]> {
@@ -2816,13 +2999,35 @@ export class OpenMatesPlans {
   }
 
   async create(input: UserPlanCreateInput): Promise<UserPlanRecord> {
-    const response = await this.client.request<{ plan?: UserPlanRecord }>("/v1/user-plans", input);
+    const payload: UserPlanCreateInput = { ...input };
+    if (!payload.key_wrappers && (payload.primary_chat_id || (payload.linked_project_ids?.length ?? 0) > 0)) {
+      payload.key_wrappers = await buildSdkPlanKeyWrappers(this.client, payload as UserPlanRecord, {
+        primaryChatId: payload.primary_chat_id ?? null,
+        linkedProjectIds: payload.linked_project_ids ?? [],
+        createdAt: payload.created_at,
+      });
+    }
+    const response = await this.client.request<{ plan?: UserPlanRecord }>("/v1/user-plans", payload);
     if (!response.plan) throw new OpenMatesApiError(500, { detail: "User plan response missing plan" });
     return response.plan;
   }
 
+  async show(planId: string): Promise<UserPlanRecord> {
+    return this.getRawPlan(planId);
+  }
+
   async update(planId: string, input: UserPlanUpdateInput): Promise<UserPlanRecord> {
-    const response = await this.client.patch<{ plan?: UserPlanRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}`, input);
+    const payload: UserPlanUpdateInput = { ...input };
+    if (!payload.key_wrappers && (payload.primary_chat_id !== undefined || payload.linked_project_ids !== undefined)) {
+      const existing = await this.getRawPlan(planId);
+      const decrypted = await decryptUserPlan(existing, await this.client.masterKey());
+      payload.key_wrappers = await buildSdkPlanKeyWrappers(this.client, existing, {
+        primaryChatId: payload.primary_chat_id !== undefined ? payload.primary_chat_id ?? null : decrypted.primaryChatId,
+        linkedProjectIds: payload.linked_project_ids ?? decrypted.linkedProjectIds,
+        createdAt: payload.updated_at,
+      });
+    }
+    const response = await this.client.patch<{ plan?: UserPlanRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}`, payload);
     if (!response.plan) throw new OpenMatesApiError(500, { detail: "User plan response missing plan" });
     return response.plan;
   }
@@ -2830,8 +3035,16 @@ export class OpenMatesPlans {
   async addToProject(planId: string, projectId: string): Promise<UserPlanRecord> {
     const masterKey = await this.client.masterKey();
     const plan = await decryptUserPlan(await this.getRawPlan(planId), masterKey);
+    const linkedProjectIds = appendUniqueProjectId(plan.linkedProjectIds, projectId);
+    const linkedProjectKeys = await Promise.all(linkedProjectIds.map(async (linkedProjectId) => {
+      const { projectKey } = await resolveSdkProject(this.client, linkedProjectId);
+      return { projectId: linkedProjectId, projectKey };
+    }));
     return this.update(plan.planId, await buildUpdateUserPlanInput(plan, masterKey, {
-      linkedProjectIds: appendUniqueProjectId(plan.linkedProjectIds, projectId),
+      primaryChatId: plan.primaryChatId,
+      primaryChatKey: plan.primaryChatId ? await resolveSdkChatKey(this.client, plan.primaryChatId) : null,
+      linkedProjectIds,
+      linkedProjectKeys,
     }));
   }
 
@@ -2870,11 +3083,33 @@ export class OpenMatesPlans {
   }
 
   async activate(planId: string, input: Record<string, unknown> = {}): Promise<UserPlanRecord> {
-    const response = await this.client.request<{ plan?: UserPlanRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}/activate`, input);
+    const payload: Record<string, unknown> = { ...input };
+    if (!payload.key_wrappers && typeof payload.chat_id === "string") {
+      const existing = await this.getRawPlan(planId);
+      const decrypted = await decryptUserPlan(existing, await this.client.masterKey());
+      payload.key_wrappers = await buildSdkPlanKeyWrappers(this.client, existing, {
+        primaryChatId: payload.chat_id,
+        linkedProjectIds: decrypted.linkedProjectIds,
+        createdAt: typeof payload.updated_at === "number" ? payload.updated_at : undefined,
+      });
+    }
+    const response = await this.client.request<{ plan?: UserPlanRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}/activate`, payload);
     if (!response.plan) throw new OpenMatesApiError(500, { detail: "User plan response missing plan" });
-    return response.plan.primary_chat_id || typeof input.chat_id !== "string"
+    return response.plan.primary_chat_id || typeof payload.chat_id !== "string"
       ? response.plan
-      : { ...response.plan, primary_chat_id: input.chat_id };
+      : { ...response.plan, primary_chat_id: payload.chat_id };
+  }
+
+  async attach(planId: string, input: Record<string, unknown> = {}): Promise<UserPlanRecord> {
+    return this.activate(planId, input);
+  }
+
+  async start(planId: string, input: UserPlanUpdateInput = {}): Promise<UserPlanRecord> {
+    return this.update(planId, { ...input, status: "executing" });
+  }
+
+  async resume(planId: string, input: UserPlanUpdateInput = {}): Promise<UserPlanRecord> {
+    return this.update(planId, { ...input, status: "active" });
   }
 
   async complete(planId: string, input: Record<string, unknown> = {}): Promise<UserPlanRecord> {
@@ -2889,6 +3124,16 @@ export class OpenMatesPlans {
     return response.criterion;
   }
 
+  async updateCriterion(planId: string, criterionId: string, input: Partial<UserPlanCriterionRecord>): Promise<UserPlanCriterionRecord> {
+    const response = await this.client.patch<{ criterion?: UserPlanCriterionRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}/criteria/${encodeURIComponent(criterionId)}`, input);
+    if (!response.criterion) throw new OpenMatesApiError(500, { detail: "User plan criterion response missing criterion" });
+    return response.criterion;
+  }
+
+  async deleteCriterion(planId: string, criterionId: string): Promise<Record<string, unknown>> {
+    return await this.client.delete<Record<string, unknown>>(`/v1/user-plans/${encodeURIComponent(planId)}/criteria/${encodeURIComponent(criterionId)}`);
+  }
+
   async listCriteria(planId: string): Promise<UserPlanCriterionRecord[]> {
     const response = await this.client.get<{ criteria?: UserPlanCriterionRecord[] }>(`/v1/user-plans/${encodeURIComponent(planId)}/criteria`);
     return response.criteria ?? [];
@@ -2898,6 +3143,16 @@ export class OpenMatesPlans {
     const response = await this.client.request<{ verification?: UserPlanVerificationRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}/verification`, input);
     if (!response.verification) throw new OpenMatesApiError(500, { detail: "User plan verification response missing verification" });
     return response.verification;
+  }
+
+  async updateVerification(planId: string, verificationId: string, input: Partial<UserPlanVerificationRecord>): Promise<UserPlanVerificationRecord> {
+    const response = await this.client.patch<{ verification?: UserPlanVerificationRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}/verification/${encodeURIComponent(verificationId)}`, input);
+    if (!response.verification) throw new OpenMatesApiError(500, { detail: "User plan verification response missing verification" });
+    return response.verification;
+  }
+
+  async deleteVerification(planId: string, verificationId: string): Promise<Record<string, unknown>> {
+    return await this.client.delete<Record<string, unknown>>(`/v1/user-plans/${encodeURIComponent(planId)}/verification/${encodeURIComponent(verificationId)}`);
   }
 
   async listVerifications(planId: string): Promise<UserPlanVerificationRecord[]> {
@@ -2922,6 +3177,10 @@ export class OpenMatesPlans {
     return response.assumption;
   }
 
+  async deleteAssumption(planId: string, assumptionId: string): Promise<Record<string, unknown>> {
+    return await this.client.delete<Record<string, unknown>>(`/v1/user-plans/${encodeURIComponent(planId)}/assumptions/${encodeURIComponent(assumptionId)}`);
+  }
+
   async createReferencePattern(planId: string, input: UserPlanReferencePatternRecord): Promise<UserPlanReferencePatternRecord> {
     const response = await this.client.request<{ reference_pattern?: UserPlanReferencePatternRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}/reference-patterns`, input);
     if (!response.reference_pattern) throw new OpenMatesApiError(500, { detail: "User plan reference pattern response missing reference_pattern" });
@@ -2931,6 +3190,16 @@ export class OpenMatesPlans {
   async listReferencePatterns(planId: string): Promise<UserPlanReferencePatternRecord[]> {
     const response = await this.client.get<{ reference_patterns?: UserPlanReferencePatternRecord[] }>(`/v1/user-plans/${encodeURIComponent(planId)}/reference-patterns`);
     return response.reference_patterns ?? [];
+  }
+
+  async updateReferencePattern(planId: string, patternId: string, input: Partial<UserPlanReferencePatternRecord>): Promise<UserPlanReferencePatternRecord> {
+    const response = await this.client.patch<{ reference_pattern?: UserPlanReferencePatternRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}/reference-patterns/${encodeURIComponent(patternId)}`, input);
+    if (!response.reference_pattern) throw new OpenMatesApiError(500, { detail: "User plan reference pattern response missing reference_pattern" });
+    return response.reference_pattern;
+  }
+
+  async deleteReferencePattern(planId: string, patternId: string): Promise<Record<string, unknown>> {
+    return await this.client.delete<Record<string, unknown>>(`/v1/user-plans/${encodeURIComponent(planId)}/reference-patterns/${encodeURIComponent(patternId)}`);
   }
 
   async createLearning(planId: string, input: UserPlanLearningRecord): Promise<UserPlanLearningRecord> {
@@ -2950,6 +3219,10 @@ export class OpenMatesPlans {
     return response.learning;
   }
 
+  async deleteLearning(planId: string, learningId: string): Promise<Record<string, unknown>> {
+    return await this.client.delete<Record<string, unknown>>(`/v1/user-plans/${encodeURIComponent(planId)}/learnings/${encodeURIComponent(learningId)}`);
+  }
+
   async createLearningTasks(planId: string, input: UserPlanLearningCreateTasksInput): Promise<UserPlanLearningCreateTasksResult> {
     return await this.client.request<UserPlanLearningCreateTasksResult>(`/v1/user-plans/${encodeURIComponent(planId)}/learnings/create-tasks`, input);
   }
@@ -2958,6 +3231,10 @@ export class OpenMatesPlans {
     const response = await this.client.request<{ verification?: UserPlanVerificationRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}/verification/${encodeURIComponent(verificationId)}/evidence`, input);
     if (!response.verification) throw new OpenMatesApiError(500, { detail: "User plan verification response missing verification" });
     return response.verification;
+  }
+
+  async getVerificationRun(planId: string, verificationId: string, runId: string): Promise<Record<string, unknown>> {
+    return await this.client.get<Record<string, unknown>>(`/v1/user-plans/${encodeURIComponent(planId)}/verification/${encodeURIComponent(verificationId)}/runs/${encodeURIComponent(runId)}`);
   }
 }
 

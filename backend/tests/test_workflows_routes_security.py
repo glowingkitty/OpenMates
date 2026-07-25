@@ -16,8 +16,8 @@ from backend.core.api.app.routes.auth_routes.auth_dependencies import _enforce_a
 WORKFLOWS_PATH = Path(__file__).resolve().parents[2] / "backend/core/api/app/routes/workflows.py"
 
 
-def _request(method: str, path: str) -> SimpleNamespace:
-    return SimpleNamespace(method=method, url=SimpleNamespace(path=path))
+def _request(method: str, path: str, headers: dict[str, str] | None = None) -> SimpleNamespace:
+    return SimpleNamespace(method=method, url=SimpleNamespace(path=path), headers=headers or {})
 
 
 def test_workflow_routes_have_explicit_slowapi_limits() -> None:
@@ -62,3 +62,24 @@ def test_user_task_and_plan_content_routes_reject_developer_api_keys() -> None:
 
     _enforce_api_key_route_policy(_request("GET", "/v1/user-tasks/task-1/metadata"), api_key_info)
     _enforce_api_key_route_policy(_request("GET", "/v1/user-plans/plan-1/metadata"), api_key_info)
+
+
+def test_first_party_sdk_can_use_encrypted_task_and_plan_routes_with_scopes() -> None:
+    headers = {"x-openmates-sdk": "npm"}
+    api_key_info = {
+        "api_key_metadata": {
+            "full_access": False,
+            "scopes": {"tasks": ["task:read", "task:write"], "plans": ["plan:read", "plan:write"]},
+        }
+    }
+
+    _enforce_api_key_route_policy(_request("GET", "/v1/user-tasks", headers), api_key_info)
+    _enforce_api_key_route_policy(_request("POST", "/v1/user-tasks", headers), api_key_info)
+    _enforce_api_key_route_policy(_request("GET", "/v1/user-plans", headers), api_key_info)
+    _enforce_api_key_route_policy(_request("PATCH", "/v1/user-plans/plan-1", headers), api_key_info)
+
+    limited_info = {"api_key_metadata": {"full_access": False, "scopes": {"plans": ["plan:read"]}}}
+    with pytest.raises(HTTPException) as exc:
+        _enforce_api_key_route_policy(_request("POST", "/v1/user-plans", headers), limited_info)
+    assert exc.value.status_code == 403
+    assert exc.value.detail == {"error": "missing_scope", "missing_scope": "plan:write"}

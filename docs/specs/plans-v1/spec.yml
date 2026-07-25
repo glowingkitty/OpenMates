@@ -29,12 +29,16 @@ scope:
     - Chat header state that shows the active plan title before execution and the current task title during execution, with previous/next task navigation.
     - Chat details/settings Tasks tab showing a Plan section above linked tasks and verification tasks.
     - Project plan management surfaces similar to project chat management, including plan cards, status, progress, linked chat, linked tasks, and open-plan actions.
+    - Plan-created code/document/sheet/mail/Remotion artifacts use the existing diff-based embed editing contract: small assistant edits target the existing embed ref, patch the same parent embed, increment version_number, and append encrypted embed_diffs rows rather than creating duplicate Project items.
+    - Projects, plans, tasks, and workflows can be linked to actual OpenMates app IDs such as code, finance, electronics, business, design, docs, or workflows so UI color/icon treatment and assistant routing reuse app metadata instead of inventing a separate taxonomy.
+    - Preprocessing receives only privacy-minimized workspace context metadata from the client, grouped by object kind and OpenMates app ID, without object titles, descriptions, IDs, counts, statuses, timestamps, or plaintext content.
+    - A unified encrypted-context permission flow can request client-decrypted memories, projects, plans, tasks, and workflows by app ID, replacing the memory-only request path over time while preserving explicit user approval and bounded context limits.
     - Shared chat exports include active/chat-primary plans by default as read-only shared plan context; plan decrypt authority is carried in the share URL fragment payload, matching the existing chat/embed share-link pattern.
     - Acceptance criteria as structured machine-processable plan records with user-facing natural-language descriptions.
     - Reference-pattern enforcement so implementation plans can require matching existing UI, API, CLI, SDK, test, or documentation structure instead of relying on generic LLM style.
     - Acceptance criteria verification policy requiring every required criterion to map to explicit checks, user confirmation, waiver, or blocker before completion.
-    - Architecture and product assumptions as structured machine-processable plan records that must be checked, corrected, waived, or explicitly blocked before implementation starts when required.
-    - Parallel assumption verification through dedicated sub-chats or verification tasks, with each result linked back to source evidence such as files, line anchors, embeds, prior chats, or web sources.
+    - Assumptions as structured machine-processable factual statements for any kind of plan, based on initial user answers plus quick research in approved project data, uploaded content, prior context, or online sources; when required, they must be checked, corrected, waived, or explicitly blocked before the dependent phase starts.
+    - Hardcoded deep assumption verification through dedicated sub-chats for each required assumption unless an explicit grouping rule applies, with each result linked back to source evidence such as embeds, code/text line anchors, prior chats, or quoted web/search sources.
     - Verification records for automated tests, deterministic checks, AI evaluator sub-chats, user confirmation, manual checks, and artifact reviews.
     - Each check includes a user-facing natural-language description of what it verifies before a test/script/evaluator is created.
     - AI validation checks that link to an existing evaluator sub-chat with explicit evaluator instructions instead of pretending to be deterministic test runs.
@@ -62,6 +66,8 @@ scope:
     - Directly modifying workflow definitions, hooks, global agent instructions, or project agent instructions when a learning is recorded.
     - Auto-executing learning improvement tasks or creating recursive improvement plans from learning records in V1.
     - Building Mac/Xcode, electronics CAD, or hardware-control automation in V1; these can be represented as user-confirmed verification tasks.
+    - Sending project, plan, task, workflow, or memory titles/descriptions/details to the chat LLM merely because app-level workspace metadata exists; details require explicit mention or user approval.
+    - Exposing workspace object counts to preprocessing by default, because counts can reveal more than app-level existence.
 
 context_discovery:
   github_issues:
@@ -87,6 +93,11 @@ context_discovery:
     - backend/apps/ai/processing/chat_compressor.py replaces older message history with compression summaries; plans therefore cannot live only as chat message text.
     - backend/core/directus/schemas/chat_compression_checkpoints.yml stores client-encrypted compression checkpoint summaries; Plans V1 should use separate durable plan storage and active-plan context injection.
     - backend/core/directus/schemas/user_tasks.yml and backend/core/api/app/routes/user_tasks.py define the existing privacy-preserving task model that Plans V1 should link to rather than duplicate.
+    - backend/apps/ai/processing/preprocessor.py already accepts app_settings_memories_metadata from the client and validates requested memory keys before the main processor asks for encrypted context.
+    - backend/apps/ai/processing/main_processor.py and backend/core/api/app/utils/app_settings_memories_request.py implement a permission-gated request/confirm/continue flow for client-decrypted app settings and memories that should be generalized for workspace context.
+    - frontend/packages/openmates-cli/src/client.ts already advertises memory metadata and can auto-approve requested memories with --auto-approve-memories, but it needs a generalized encrypted-context approval surface for projects, plans, tasks, workflows, and memories.
+    - frontend/packages/ui/src/components/enter_message/services/mentionSearchService.ts resolves project mentions client-side, which supports the explicit-mention-consent pattern for workspace objects.
+    - backend/shared/python_schemas/app_metadata_schemas.py and backend/apps/*/app.yml provide canonical app IDs, app categories, icons, and focus metadata that should drive workspace object classification and UI color/icon treatment.
     - frontend/packages/ui/src/components/tasks/ActiveChatTaskPreview.svelte shows the existing top-of-chat task preview pattern that Plans V1 extends for plan/title/current-task header state.
     - frontend/packages/ui/src/components/tasks/TasksPage.svelte, TaskBoard.svelte, and TaskCard.svelte provide the reusable task surfaces that verification tasks should appear in.
     - frontend/packages/ui/src/components/settings/elements provides canonical settings components for chat details/settings plan and tasks sections.
@@ -214,6 +225,67 @@ clarification:
         production changes, payments, destructive deletes, credential changes,
         external account mutations, or other high-risk actions without a separate
         explicit permission flag or future permission spec.
+    - question: How should natural-language planning focus mode activate?
+      answer: >
+        Use the existing focus metadata and preprocessor LLM selection path rather
+        than hardcoded keyword routing. The code-planning focus mode should expose
+        clear preprocessor guidance, be validated with multiple real multilingual
+        chat tests for true positives and false positives, and remain cancellable.
+        If the user cancels focus mode, the assistant loses plan-creation skills
+        and continues with an ordinary response strategy.
+    - question: When should a natural-language planning request create a Plan?
+      answer: >
+        The focus mode should first ask one interactive clarifying question at a
+        time, including examples and a recommended answer. A draft Plan is created
+        only after enough scope, target, and success criteria exist. The delayed
+        focus-mode activation pattern used by web must also work in CLI.
+    - question: How should Projects be selected or created for code-building Plans?
+      answer: >
+        Code-building Plans should always create or link a Project, but the
+        assistant should not receive all project details by default. The client
+        sends app-level workspace metadata to preprocessing, then the main
+        processor requests relevant Project details through a permission prompt,
+        unless the user explicitly mentions a specific Project.
+    - question: How should Projects, Plans, Tasks, Workflows, and Memories be represented for assistant context and UI grouping?
+      answer: >
+        Use actual OpenMates app IDs as the taxonomy. Projects, Plans, Tasks, and
+        Workflows should have a primary_app_id and optional secondary_app_ids so
+        the web UI can use app icons/colors and the assistant can request context
+        by app. Preprocessing should see only object-kind to app-ID availability,
+        with no object counts or details. Main processing should use a unified
+        encrypted-context request that can ask for bounded recent memories,
+        projects, plans, tasks, or workflows grouped by app, and details are sent
+        only after user approval or explicit mention consent.
+    - question: What are assumptions for Plans, and how should they be verified?
+      answer: >
+        Assumptions are factual statements for any plan domain, not just software.
+        They are initially saved from user answers and quick research in approved
+        project data/content or online sources. Required assumptions trigger a
+        hardcoded verification phase that spawns dedicated deep-investigation
+        sub-chats, normally one per assumption, so each assumption receives proof
+        links such as embeds, source file or text line anchors, prior-chat links,
+        or website/search-result quotes. Grouping is allowed only when assumptions
+        share the same source and cannot be checked independently.
+    - question: How should public CLI and SDK names describe plan activation, criteria, and verification?
+      answer: >
+        Do not expose activate as the primary user-facing verb. Active means the
+        plan is attached to a chat or project execution context and selected as
+        the current command-center plan. Public CLI and SDK names should use
+        attach for linking an existing plan to a chat or project and start or
+        resume for entering execution mode. Success Criteria and Checks are
+        plan sections/fields, not separate user concepts named criteria and
+        verification. Public commands should therefore edit `success-criteria`
+        and `checks`; lower-level API or storage names may still use acceptance
+        criteria and verification records as implementation terms.
+    - question: How should Open questions gate plan implementation?
+      answer: >
+        Required Open questions must be asked as interactive questions before a
+        plan can start implementation. The assistant asks them one at a time,
+        includes examples and a recommended answer when useful, records the
+        answer into the Plan, and updates affected fields before start. Optional
+        Open questions may remain on the Plan, but required questions must be
+        answered, waived with a visible reason, or converted into an explicit
+        accepted blocker before implementation tasks begin.
   vision_summary: >
     Plans V1 is the durable coordination layer above chats and tasks. Plan focus
     modes create structured plans through one-question-at-a-time clarification,
@@ -497,6 +569,35 @@ scenarios:
       - No workflow record, hook, global instruction, or project instruction is modified by the create-tasks action itself.
       - A repeated create-tasks action skips already applied learnings instead of creating duplicate tasks.
 
+  - id: S-24
+    title: Workspace context uses OpenMates app metadata without exposing object details
+    given:
+      - Alice has encrypted Projects, Plans, Tasks, and Memories associated with Code and Finance app IDs.
+      - Alice sends "Build a small recipe manager CLI" in a normal chat.
+    when:
+      - The client sends preprocessing metadata for the request.
+      - The preprocessor evaluates focus mode activation and context needs.
+    then:
+      - The preprocessor receives only that workspace context exists for object kinds grouped by app IDs such as code and finance.
+      - The preprocessor does not receive Project, Plan, Task, Workflow, or Memory titles, descriptions, IDs, counts, statuses, timestamps, or plaintext content.
+      - The code project-planning focus mode can request recent Code Projects from the main processor because the user is asking for implementation work.
+      - A false positive such as "What are good recipe manager features?" does not create a Plan unless the focus metadata and message indicate build or implementation intent.
+
+  - id: S-25
+    title: Unified encrypted-context permission request is grouped by app
+    given:
+      - Alice has several Code Projects, Plans, Tasks, and Memories on her device.
+      - The code planner needs to know whether to create a new Project or link an existing one.
+    when:
+      - The main processor requests encrypted workspace context.
+      - Alice opens the permission prompt in web or handles the same request in CLI.
+    then:
+      - The request is shown as a grouped app-aware permission prompt, such as "Include recent Code projects" and "Include recent Code plans".
+      - The client limits decrypted details to the bounded requested set, such as recent 10 Projects, recent 5 Plans, or active 10 Tasks for the requested app or selected object.
+      - If Alice approves, the client decrypts and sends only the approved objects for transient assistant use.
+      - If Alice rejects, the assistant continues without those details and can ask whether to create a fresh Project from scratch.
+      - If Alice explicitly mentions one Project, Plan, Task, Workflow, or Memory, only that object is included without asking for unrelated objects from the same app.
+
   - id: S-18
     title: Check cards open either sub-chat validation or structured test run details
     given:
@@ -557,10 +658,10 @@ acceptance_criteria:
     text: Active plans are stored separately from chat messages and injected into assistant context on every active-plan turn, including after compression, without depending on compressed chat history text.
   - id: AC-6
     scenario: S-4
-    text: Plans can contain structured phases, optional grouping steps, optional user flows, linked user_tasks, acceptance criteria, and verification items with stable IDs and traceability between them; user-facing plan Tasks are actual task records, not embedded-only steps.
+    text: Plans can contain structured phases, optional grouping steps, optional user flows, linked user_tasks, Success Criteria, and Checks with stable IDs and traceability between them; user-facing plan Tasks are actual task records, not embedded-only steps.
   - id: AC-7
     scenario: S-4
-    text: Verification items can be represented as user-facing tasks with type verification, assignment, status, and links back to plan acceptance criteria.
+    text: Checks can be represented as user-facing tasks with type verification, assignment, status, and links back to plan Success Criteria.
   - id: AC-8
     scenario: S-5
     text: Coding plans create or identify deterministic test/check files before implementation when feasible, record the check description, command, source hash, and red-phase evidence, and do not fail solely because a red-phase test passes unexpectedly when the result is recorded and handled explicitly.
@@ -666,6 +767,21 @@ acceptance_criteria:
   - id: AC-42
     scenario: S-23
     text: Learnings can create normal task records from their single encrypted suggested task draft with provenance to source plan and source learning, but do not directly mutate workflows, hooks, global instructions, or project agent instructions.
+  - id: AC-43
+    scenario: S-24
+    text: Projects, Plans, Tasks, and Workflows support a primary OpenMates app ID and optional secondary app IDs so UI color/icon treatment and assistant routing reuse canonical app metadata.
+  - id: AC-44
+    scenario: S-24
+    text: Preprocessing receives only app-level workspace context metadata grouped by object kind and app ID, never object details or default counts.
+  - id: AC-45
+    scenario: S-25
+    text: A unified encrypted-context request can ask the client for bounded recent Memories, Projects, Plans, Tasks, and Workflows grouped by OpenMates app ID, and client approval controls which decrypted details are sent.
+  - id: AC-46
+    scenario: S-25
+    text: Explicit mentions of a specific Project, Plan, Task, Workflow, or Memory count as consent for that object only and must not imply consent to include unrelated objects from the same app.
+  - id: AC-47
+    scenario: S-1
+    text: Required Open questions are asked as one-at-a-time interactive questions and must be answered, waived with a visible reason, or accepted as explicit blockers before a plan can start implementation.
 
 contracts:
   product_model:
@@ -678,65 +794,433 @@ contracts:
       required_system_fields:
         - plan_id
         - status
-        - primary_chat_id before activation or execution
+        - primary_chat_id before attach, start, resume, or execution
         - continuation_policy
         - version
       behavior:
         - /goal and --goal create this shape as a normal encrypted Plan.
         - Minimal plans can be expanded into rich plans through user edits or client-applied plan deltas.
         - Minimal mode changes the default UI density, not the storage/enforcement model.
+    build_and_execution_order:
+      - step: route
+        description: Detect @plan, /goal, --goal, selected focus mode, or natural-language planning intent and choose the generic or app-specific planner.
+      - step: clarify
+        description: Ask blocking clarification and required Open questions one at a time as interactive questions, with examples and a recommended answer when useful.
+      - step: draft
+        description: Create a draft Plan only after goal, scope, target context, and initial success criteria are clear enough to be useful.
+      - step: attach_context
+        description: Create or link the required Project/chat context, request permission-gated workspace context when needed, and persist key wrappers without exposing plaintext to the server.
+      - step: user_review
+        description: Show the draft Plan for user review; allow manual edits before approval or autoconfirmed safe execution.
+      - step: resolve_preconditions
+        description: Resolve required Open questions, required assumptions, required reference patterns, constraints, and ambiguous Success Criteria before implementation.
+      - step: normalize_checks
+        description: Convert Success Criteria into concrete Checks, commands, evaluator sub-chats, or user-confirmed verification tasks.
+      - step: start
+        description: Start execution only after approvals and preconditions are satisfied; create or link normal user_tasks for execution and checks.
+      - step: implement
+        description: Work through tasks while injecting active-plan context, applying anti-drift corrections, and editing artifacts through their proper embed/version contracts.
+      - step: verify
+        description: Run required Checks, attach evidence, create follow-up tasks for failed required Checks, and keep the Plan active until blockers are resolved.
+      - step: learn
+        description: Record 1-5 finalized Learnings before completion, optionally creating normal tasks from suggested learning drafts.
+      - step: complete
+        description: Complete only when required Success Criteria are covered, required Checks have passing/user-confirmed/waived/accepted-blocked evidence, required Learnings exist, and unresolved required Open questions or assumptions are gone.
     rich_plan_sections:
       - section: Goal
         purpose: Defines the desired outcome.
         enforcement: Used by active-plan context, anti-drift, and completion review.
+        examples:
+          - Build a recipe manager CLI that stores recipes locally and supports search by ingredient.
+          - Plan and prepare a 60-person community workshop in Berlin.
       - section: Current focus
         purpose: Names the current task, check, question, assumption, or blocker.
         enforcement: Continuation and anti-drift target this field before choosing the next action.
+        examples:
+          - Asking the budget question before drafting workshop tasks.
+          - Implementing the import/export command.
+          - Waiting for user confirmation on the deployment target.
       - section: Tasks
         purpose: User-visible work and verification items.
         enforcement: Must be actual user_tasks linked by plan_id, not embedded-only plan text, so Tasks views can show all work across plans and chats.
+        examples:
+          - Create CLI command parser for recipe add/list/search.
+          - Write pytest coverage for malformed recipe files.
+          - User: confirm venue accessibility requirements.
       - section: Success Criteria
         purpose: Acceptance criteria that define what done means.
         enforcement: Required criteria must have covered, waived, or explicitly blocked verification before completion.
+        examples:
+          - A user can add, list, search, edit, and delete recipes from the CLI.
+          - The workshop plan includes venue, agenda, staffing, budget, risk plan, and follow-up message.
       - section: User Flows
         purpose: Optional end-to-end user journeys that clarify product or process behavior.
         enforcement: Inform tasks/checks and anti-drift but do not block completion by themselves.
+        examples:
+          - "New user runs `recipes add`, enters title/ingredients/steps, then finds it with `recipes search tomato`."
+          - Attendee receives invite, registers, arrives, joins a breakout group, and receives follow-up notes.
       - section: Checks
         purpose: Deterministic commands, runnable checks, AI evaluator sub-chats, user confirmations, manual checks, or artifact reviews that prove criteria.
         enforcement: Required checks block completion until evidence inside the check is passing, user-confirmed, waived, or explicitly blocked.
+        examples:
+          - "`python3 -m pytest tests/test_recipes_cli.py`"
+          - User confirms the venue can seat 60 people and has wheelchair access.
+          - AI evaluator sub-chat reviews the final email for clarity and tone.
       - section: Scope in
         purpose: Defines included work.
         enforcement: Anti-drift and plan updates compare new work against scope-in boundaries.
+        examples:
+          - Local-only JSON storage, no server sync.
+          - Workshop agenda, speaker outreach, registration copy, and day-of checklist.
       - section: Scope out
         purpose: Defines non-goals.
         enforcement: Assistant must ask before doing scope-out work.
+        examples:
+          - No mobile app or hosted backend in V1.
+          - No paid ads campaign for this event plan.
       - section: Assumptions
-        purpose: Inferred facts that plan execution depends on.
+        purpose: Factual statements based on the assistant's current understanding from user answers, approved project/context data, uploaded content, prior chats, quick source inspection, or online research that plan execution depends on.
         enforcement: Assumptions required before implementation or task execution block those phases until confirmed, corrected and applied, waived, or user-resolved.
+        examples:
+          - The project already uses Click for CLI commands.
+          - The venue budget is capped at 1200 EUR.
+          - The uploaded CSV contains the full invitee list.
       - section: Open questions
         purpose: Missing user or external input.
-        enforcement: Required open questions block assumption checking, execution, or completion according to their required_before setting.
+        enforcement: Required Open questions must be asked as interactive questions and answered, waived with a visible reason, or accepted as an explicit blocker before implementation starts.
+        examples:
+          - Should recipe data be stored in JSON, SQLite, or an existing project format? Recommended: JSON for V1 simplicity.
+          - What is the workshop date and target audience?
+          - Should this plan include German copy as well as English?
       - section: Constraints
         purpose: Hard boundaries for tools, files, budget, privacy, permissions, data, and allowed actions.
         enforcement: Tool use, check execution, and continuation must obey constraints.
+        examples:
+          - Do not touch production data.
+          - Keep implementation limited to CLI and SDK packages for now.
+          - Budget must stay under 1200 EUR.
       - section: Decisions
         purpose: Accepted choices and rationale.
         enforcement: Later plan changes must preserve or explicitly supersede decisions.
+        examples:
+          - Use JSON storage for V1 because it keeps installation simple.
+          - Ship CLI/SDK first and defer web UI until the contracts are stable.
       - section: Risks
         purpose: Known risks and mitigations.
         enforcement: High-risk items can require checks, user confirmation, or blockers before completion.
+        examples:
+          - "Risk: ambiguous success criteria cause endless implementation. Mitigation: normalize into required Checks before start."
+          - "Risk: external venue availability changes. Mitigation: user confirmation task before final schedule."
       - section: Reference Patterns
         purpose: Existing files, docs, design guidelines, source components, API/CLI/SDK examples, tests, naming conventions, visual systems, and anti-patterns that the plan must follow.
         enforcement: Required reference patterns block implementation until inspected or explicitly waived; completion checks compare changed work against required patterns so agents do not invent inconsistent structure or visual style.
+        examples:
+          - Match `frontend/packages/openmates-cli/tests/tasks.test.ts` command test style.
+          - Follow existing Project card layout and app color/icon metadata.
       - section: Learnings
         purpose: Final execution reflections that identify improvements to future workflows or project agent instructions.
         enforcement: Completion requires 1-5 finalized learnings; each finalized learning should include exactly one suggested task draft when the improvement is actionable.
+        examples:
+          - Add a future task to document repeated CLI naming decisions.
+          - Record that required Open questions should be asked before plan start, not discovered during implementation.
       - section: Context
         purpose: Compact plan context and artifact references needed after chat compression.
         enforcement: Injected into active-plan turns through protected active-plan context, never by server-side durable decryption.
+        examples:
+          - Linked Project ID, primary chat ID, code embed refs, uploaded source docs, and approved recent Code memories.
+          - Active plan summary containing current focus, blockers, next task, and unresolved required Checks.
       - section: Activity
         purpose: Append-only history of plan edits, assumption results, check evidence, task transitions, continuations, waivers, and blockers.
         enforcement: Provides auditability for completion, waivers, and plan deltas.
+        examples:
+          - User answered required Open question about storage format.
+          - Required Check failed and follow-up task was created.
+          - Assistant recorded final Learning before completion.
+    app_linked_workspace_objects:
+      purpose: Reuse actual OpenMates app metadata for workspace object grouping, UI treatment, and privacy-minimized assistant context routing.
+      object_kinds:
+        - projects
+        - plans
+        - tasks
+        - workflows
+      app_fields:
+        - primary_app_id: One canonical OpenMates app ID such as code, finance, electronics, business, design, docs, or workflows.
+        - secondary_app_ids: Optional supporting OpenMates app IDs used for cross-app workflows and UI hints.
+      privacy_notes:
+        - For Projects, Plans, and Tasks, app link fields should be encrypted client-owned metadata unless a later approved migration explicitly accepts server-visible app filtering.
+        - The client may decrypt app link metadata locally for UI app color/icon grouping and for building ephemeral preprocessing metadata.
+        - Workflows may already support server-side runtime decryption for scheduled execution, but sending workflow details to a chat LLM still follows explicit mention or permission approval.
+    workspace_context_metadata:
+      purpose: Privacy-minimized client-provided routing metadata for preprocessing.
+      shape_example:
+        projects:
+          - code
+          - finance
+        plans:
+          - code
+        tasks:
+          - code
+          - business
+        workflows:
+          - finance
+          - reminder
+        memories:
+          - code:preferred_technologies
+          - docs:writing_style
+      constraints:
+        - Contains object kind and app ID availability only for Projects, Plans, Tasks, and Workflows.
+        - Does not contain object IDs, titles, descriptions, counts, statuses, timestamps, snippets, or plaintext content.
+        - Memories keep their existing app/item-key metadata shape until migrated into the unified context request contract.
+    encrypted_context_request:
+      purpose: Unified permission-gated request for client-decrypted user context needed by the main processor.
+      replaces_over_time:
+        - request_app_settings_memories
+        - app_settings_memories_confirmed
+      request_shape_example:
+        request_id: ctx_123
+        chat_id: <CHAT_ID>
+        reason: The assistant needs existing Code projects to decide whether to create or link a project.
+        items:
+          - kind: projects
+            app_id: code
+            limit: 10
+            sort: recent
+            fields:
+              - id
+              - name
+              - description
+              - updated_at
+          - kind: plans
+            app_id: code
+            limit: 5
+            sort: recent
+            fields:
+              - id
+              - title
+              - summary
+              - status
+              - linked_project_ids
+      default_limits:
+        projects: 10
+        plans: 5
+        tasks: 10
+        workflows: 5
+        memories: existing-requested-category-limit
+      rules:
+        - The client renders requests grouped by OpenMates app with app icon/color metadata.
+        - The client sends only approved decrypted objects, and only for transient assistant processing.
+        - Rejection resumes processing without those details instead of failing the entire chat.
+        - Explicit object mentions bypass the permission prompt only for the mentioned object and never for unrelated objects from the same app.
+        - CLI must expose explicit approval controls such as --auto-approve-context projects,plans or narrower app-specific flags before non-interactive context sharing.
+    cli_sdk_naming:
+      purpose: Keep public CLI and SDK names aligned with user-visible plan sections while allowing lower-level API/storage terms to remain implementation details.
+      public_cli_commands:
+        - openmates chat --goal "<goal>"
+        - openmates plans list
+        - openmates plans show <plan-id>
+        - openmates plans create
+        - openmates plans update <plan-id>
+        - openmates plans goal set <plan-id>
+        - openmates plans current-focus set <plan-id>
+        - openmates plans current-focus clear <plan-id>
+        - openmates plans attach <plan-id> --chat-id <chat-id> or --project-id <project-id>
+        - openmates plans start <plan-id>
+        - openmates plans resume <plan-id>
+        - openmates plans complete <plan-id>
+        - openmates plans tasks list <plan-id>
+        - openmates plans tasks add <plan-id>
+        - openmates plans tasks edit <plan-id> <task-id>
+        - openmates plans tasks remove <plan-id> <task-id>
+        - openmates plans success-criteria add <plan-id>
+        - openmates plans success-criteria edit <plan-id> <criterion-id>
+        - openmates plans success-criteria remove <plan-id> <criterion-id>
+        - openmates plans user-flows add <plan-id>
+        - openmates plans user-flows edit <plan-id> <flow-id>
+        - openmates plans user-flows remove <plan-id> <flow-id>
+        - openmates plans checks add <plan-id>
+        - openmates plans checks edit <plan-id> <check-id>
+        - openmates plans checks remove <plan-id> <check-id>
+        - openmates plans checks evidence <plan-id> <check-id>
+        - openmates plans checks runs show <plan-id> <check-id> <run-id>
+        - openmates plans scope-in add <plan-id>
+        - openmates plans scope-in edit <plan-id> <scope-id>
+        - openmates plans scope-in remove <plan-id> <scope-id>
+        - openmates plans scope-out add <plan-id>
+        - openmates plans scope-out edit <plan-id> <scope-id>
+        - openmates plans scope-out remove <plan-id> <scope-id>
+        - openmates plans assumptions add <plan-id>
+        - openmates plans assumptions edit <plan-id> <assumption-id>
+        - openmates plans assumptions check <plan-id> <assumption-id>
+        - openmates plans assumptions waive <plan-id> <assumption-id>
+        - openmates plans open-questions add <plan-id>
+        - openmates plans open-questions edit <plan-id> <question-id>
+        - openmates plans open-questions answer <plan-id> <question-id>
+        - openmates plans open-questions remove <plan-id> <question-id>
+        - openmates plans constraints add <plan-id>
+        - openmates plans constraints edit <plan-id> <constraint-id>
+        - openmates plans constraints remove <plan-id> <constraint-id>
+        - openmates plans decisions add <plan-id>
+        - openmates plans decisions edit <plan-id> <decision-id>
+        - openmates plans decisions supersede <plan-id> <decision-id>
+        - openmates plans decisions remove <plan-id> <decision-id>
+        - openmates plans risks add <plan-id>
+        - openmates plans risks edit <plan-id> <risk-id>
+        - openmates plans risks remove <plan-id> <risk-id>
+        - openmates plans reference-patterns add <plan-id>
+        - openmates plans reference-patterns edit <plan-id> <pattern-id>
+        - openmates plans reference-patterns inspect <plan-id> <pattern-id>
+        - openmates plans reference-patterns waive <plan-id> <pattern-id>
+        - openmates plans reference-patterns remove <plan-id> <pattern-id>
+        - openmates plans learnings list <plan-id>
+        - openmates plans learnings show <plan-id> <learning-id>
+        - openmates plans learnings add <plan-id>
+        - openmates plans learnings edit <plan-id> <learning-id>
+        - openmates plans learnings create-tasks <plan-id> --all or --learning-id <learning-id>
+        - openmates plans context artifacts add <plan-id>
+        - openmates plans context artifacts edit <plan-id> <artifact-id>
+        - openmates plans context artifacts remove <plan-id> <artifact-id>
+        - openmates plans activity list <plan-id>
+      public_sdk_methods:
+        typescript:
+          - plans.list()
+          - plans.show(planId)
+          - plans.create(input)
+          - plans.update(planId, input)
+          - plans.goal.set(planId, input)
+          - plans.currentFocus.set(planId, input)
+          - plans.currentFocus.clear(planId)
+          - plans.attach(planId, input)
+          - plans.start(planId, input?)
+          - plans.resume(planId, input?)
+          - plans.complete(planId, input)
+          - plans.tasks.list(planId)
+          - plans.tasks.add(planId, input)
+          - plans.tasks.update(planId, taskId, input)
+          - plans.tasks.remove(planId, taskId)
+          - plans.successCriteria.add(planId, input)
+          - plans.successCriteria.update(planId, criterionId, input)
+          - plans.successCriteria.remove(planId, criterionId)
+          - plans.userFlows.add(planId, input)
+          - plans.userFlows.update(planId, flowId, input)
+          - plans.userFlows.remove(planId, flowId)
+          - plans.checks.add(planId, input)
+          - plans.checks.update(planId, checkId, input)
+          - plans.checks.remove(planId, checkId)
+          - plans.checks.addEvidence(planId, checkId, input)
+          - plans.checks.getRun(planId, checkId, runId)
+          - plans.scopeIn.add(planId, input)
+          - plans.scopeIn.update(planId, scopeId, input)
+          - plans.scopeIn.remove(planId, scopeId)
+          - plans.scopeOut.add(planId, input)
+          - plans.scopeOut.update(planId, scopeId, input)
+          - plans.scopeOut.remove(planId, scopeId)
+          - plans.assumptions.add(planId, input)
+          - plans.assumptions.update(planId, assumptionId, input)
+          - plans.assumptions.check(planId, assumptionId, input?)
+          - plans.assumptions.waive(planId, assumptionId, input)
+          - plans.openQuestions.add(planId, input)
+          - plans.openQuestions.update(planId, questionId, input)
+          - plans.openQuestions.answer(planId, questionId, input)
+          - plans.openQuestions.remove(planId, questionId)
+          - plans.constraints.add(planId, input)
+          - plans.constraints.update(planId, constraintId, input)
+          - plans.constraints.remove(planId, constraintId)
+          - plans.decisions.add(planId, input)
+          - plans.decisions.update(planId, decisionId, input)
+          - plans.decisions.supersede(planId, decisionId, input)
+          - plans.decisions.remove(planId, decisionId)
+          - plans.risks.add(planId, input)
+          - plans.risks.update(planId, riskId, input)
+          - plans.risks.remove(planId, riskId)
+          - plans.referencePatterns.add(planId, input)
+          - plans.referencePatterns.update(planId, patternId, input)
+          - plans.referencePatterns.inspect(planId, patternId, input)
+          - plans.referencePatterns.waive(planId, patternId, input)
+          - plans.referencePatterns.remove(planId, patternId)
+          - plans.learnings.list(planId)
+          - plans.learnings.show(planId, learningId)
+          - plans.learnings.create(planId, input)
+          - plans.learnings.update(planId, learningId, input)
+          - plans.learnings.createTasks(planId, input)
+          - plans.context.artifacts.add(planId, input)
+          - plans.context.artifacts.update(planId, artifactId, input)
+          - plans.context.artifacts.remove(planId, artifactId)
+          - plans.activity.list(planId)
+        python:
+          - plans.list()
+          - plans.show(plan_id)
+          - plans.create(input)
+          - plans.update(plan_id, input)
+          - plans.goal.set(plan_id, input)
+          - plans.current_focus.set(plan_id, input)
+          - plans.current_focus.clear(plan_id)
+          - plans.attach(plan_id, input)
+          - plans.start(plan_id, input=None)
+          - plans.resume(plan_id, input=None)
+          - plans.complete(plan_id, input)
+          - plans.tasks.list(plan_id)
+          - plans.tasks.add(plan_id, input)
+          - plans.tasks.update(plan_id, task_id, input)
+          - plans.tasks.remove(plan_id, task_id)
+          - plans.success_criteria.add(plan_id, input)
+          - plans.success_criteria.update(plan_id, criterion_id, input)
+          - plans.success_criteria.remove(plan_id, criterion_id)
+          - plans.user_flows.add(plan_id, input)
+          - plans.user_flows.update(plan_id, flow_id, input)
+          - plans.user_flows.remove(plan_id, flow_id)
+          - plans.checks.add(plan_id, input)
+          - plans.checks.update(plan_id, check_id, input)
+          - plans.checks.remove(plan_id, check_id)
+          - plans.checks.add_evidence(plan_id, check_id, input)
+          - plans.checks.get_run(plan_id, check_id, run_id)
+          - plans.scope_in.add(plan_id, input)
+          - plans.scope_in.update(plan_id, scope_id, input)
+          - plans.scope_in.remove(plan_id, scope_id)
+          - plans.scope_out.add(plan_id, input)
+          - plans.scope_out.update(plan_id, scope_id, input)
+          - plans.scope_out.remove(plan_id, scope_id)
+          - plans.assumptions.add(plan_id, input)
+          - plans.assumptions.update(plan_id, assumption_id, input)
+          - plans.assumptions.check(plan_id, assumption_id, input=None)
+          - plans.assumptions.waive(plan_id, assumption_id, input)
+          - plans.open_questions.add(plan_id, input)
+          - plans.open_questions.update(plan_id, question_id, input)
+          - plans.open_questions.answer(plan_id, question_id, input)
+          - plans.open_questions.remove(plan_id, question_id)
+          - plans.constraints.add(plan_id, input)
+          - plans.constraints.update(plan_id, constraint_id, input)
+          - plans.constraints.remove(plan_id, constraint_id)
+          - plans.decisions.add(plan_id, input)
+          - plans.decisions.update(plan_id, decision_id, input)
+          - plans.decisions.supersede(plan_id, decision_id, input)
+          - plans.decisions.remove(plan_id, decision_id)
+          - plans.risks.add(plan_id, input)
+          - plans.risks.update(plan_id, risk_id, input)
+          - plans.risks.remove(plan_id, risk_id)
+          - plans.reference_patterns.add(plan_id, input)
+          - plans.reference_patterns.update(plan_id, pattern_id, input)
+          - plans.reference_patterns.inspect(plan_id, pattern_id, input)
+          - plans.reference_patterns.waive(plan_id, pattern_id, input)
+          - plans.reference_patterns.remove(plan_id, pattern_id)
+          - plans.learnings.list(plan_id)
+          - plans.learnings.show(plan_id, learning_id)
+          - plans.learnings.create(plan_id, input)
+          - plans.learnings.update(plan_id, learning_id, input)
+          - plans.learnings.create_tasks(plan_id, input)
+          - plans.context.artifacts.add(plan_id, input)
+          - plans.context.artifacts.update(plan_id, artifact_id, input)
+          - plans.context.artifacts.remove(plan_id, artifact_id)
+          - plans.activity.list(plan_id)
+      naming_rules:
+        - Public commands and SDK facades must not use activate as the primary verb.
+        - attach links an existing plan to a chat or project and makes that context able to find the plan.
+        - start begins execution after required approvals, assumptions, and checks are normalized.
+        - resume continues an already-started, blocked, or paused plan in its command-center chat or project context.
+        - Success Criteria are user-visible done conditions stored as acceptance-criteria records internally.
+        - Checks are user-visible verification/manual/runner/evaluator records that prove Success Criteria and contain evidence.
+        - Every user-editable rich plan section must have explicit CLI and SDK add/update/remove or set/clear helpers before the implementation is considered CLI/SDK complete.
+        - Activity is append-only audit history; public clients list it but do not edit or delete entries.
+        - Context artifact references are editable, but protected active-plan execution context remains system-managed and is not directly edited through public section commands.
   api:
     - route: GET /v1/user-plans
       auth: session_or_api_key
@@ -752,7 +1236,7 @@ contracts:
       notes:
         - Creates draft or active durable plans from @plan, natural-language planning, or explicit user actions.
         - /goal and --goal create normal user_plans records with a minimal encrypted field set and can later expand into rich plans.
-        - Draft plans may be created without primary_chat_id for manual planning, but activation or execution requires a primary chat.
+        - Draft plans may be created without primary_chat_id for manual planning, but attach, start, resume, or execution requires a primary chat.
         - linked_project_ids is request-only raw project ID input. The backend stores linked_project_hashes for filtering and encrypted_linked_project_ids for owner-side client use.
         - key_wrappers must include a master wrapper and should include chat/project wrappers whenever primary_chat_id or linked_project_ids are present.
     - route: PATCH /v1/user-plans/{plan_id}
@@ -767,7 +1251,8 @@ contracts:
       request: "{ chat_id?, current_step_id?, version? }"
       response: "{ plan: PlanRecord }"
       notes:
-        - Sets the active plan for a chat or project context.
+        - Low-level endpoint that sets the active plan for a chat or project context.
+        - Public CLI and SDK facades should expose attach, start, and resume instead of activate.
         - Rejects activation/execution when primary_chat_id is missing.
         - Does not imply execution approval unless the plan is already approved or the request carries an explicit autoconfirm flag allowed by policy.
     - route: POST /v1/user-plans/{plan_id}/complete
@@ -961,7 +1446,7 @@ contracts:
           - Must be deleted on plan completion, cancellation, expiry, user deletion, or chat deletion.
           - Must never be sent to shared chat viewers.
       - name: user_plan_assumptions
-        purpose: Machine-processable architecture, product, and context assumptions that plan execution depends on.
+        purpose: Machine-processable fact statements for any plan domain that capture current understanding from user answers, approved context, project/content inspection, or online research, and that plan execution depends on.
         server_visible_fields:
           - id
           - plan_id
@@ -986,6 +1471,7 @@ contracts:
           - encrypted_sources
         notes:
           - Sources are encrypted JSON records that may include source kind, file path, stable anchor, line range when available, embed id, chat/message id, URL, title, and quote or summary.
+          - Assumptions are statements such as "The CLI currently supports choice/input interactive questions but not recommended-option rendering" or "The event venue allows external caterers", not questions such as "Does the CLI support recommended answers?".
           - Required assumptions with status unchecked, checking, contradicted, or blocked prevent implementation or completion depending on required_before unless explicitly waived.
           - Corrected assumptions must update the parent plan summary, scope, tasks, checks, or criteria before implementation starts.
       - name: user_plan_reference_patterns
@@ -1219,6 +1705,9 @@ contracts:
           - Uploaded files are represented as embeds in OpenMates; plan context must reference the embed ID and type, not a separate file ID namespace.
           - artifact_type should distinguish chat, message, embed, command, source, diff, commit, project_remote_source, or external artifact references.
           - Assistant access uses the artifact reference plus the relevant chat/project/embed key path; the backend must not decrypt private artifact labels or metadata.
+          - Diffable plan artifacts must reuse docs/specs/embed-diff-editing-parity/spec.yml: small edits use diff:<embed_ref>, patch the existing parent embed in place, increment version_number, and persist encrypted embed_diffs rows; restore creates a new latest version and never truncates history.
+          - Project links point at the stable parent embed item. The Project item is not duplicated for every small edit; its display metadata may update when the client approves a rename or label change.
+          - Full regeneration is valid only when the diff-editing contract says to regenerate, such as content type changes, very large rewrites, or explicit user request to start over.
     statuses:
       plan:
         - draft
@@ -1336,6 +1825,7 @@ contracts:
   ui_states:
     - Empty chat with @plan typed in the composer.
     - Planner focus mode asking one clarifying question.
+    - Planner focus mode asking required Open questions as one-at-a-time interactive questions with examples, recommended answer, skip/waive controls, and a visible reason field for waivers.
     - Draft plan awaiting user review, manual edits, rejection, or approval.
     - Approved draft entering checking assumptions before execution.
     - Approved active plan before any task starts.
@@ -1374,6 +1864,7 @@ contracts:
     - Active-plan context injection must be bounded and must not leak plans from another user, project, or chat.
     - Plan completion must never silently waive failed or missing required verification.
     - Plan execution must never start from an unapproved draft unless an explicit CLI/autonomous autoconfirm flag is present and allowed by policy.
+    - Plan execution must never start while required Open questions remain unanswered unless they are explicitly waived with a visible reason or accepted as blockers.
     - Active/executable plans must have primary_chat_id so progress, assumption sub-chats, tasks, checks, and continuation events remain visible in the plan command-center chat.
     - Required reference patterns must be inspected before implementation and matched before completion unless explicitly waived; the assistant must not silently ignore existing design guidelines, examples, or source-of-truth structures.
     - Learnings must never store plaintext private execution observations, suggested workflow changes, agent-instruction text, or suggested task drafts in durable server storage.
@@ -1423,6 +1914,7 @@ contracts:
     clarification_contract:
       - Ask one question at a time.
       - Prefer high-value blocking questions.
+      - Required Open questions use the same interactive question path as clarification prompts and block start until answered, waived with a visible reason, or accepted as explicit blockers.
       - Stop asking when enough context exists to draft a useful plan.
       - Present the plan for confirmation before assumption checking and execution unless the user passed an explicit autoconfirm flag.
       - Allow manual plan edits before approval; client-side edits and assistant plan deltas are encrypted by the client before persistence.
@@ -1453,6 +1945,7 @@ contracts:
       - A criterion with coverage_status blocked may pause execution only when the blocker requires user input, credentials, external service recovery, unavailable hardware, or another condition outside assistant control.
       - Waivers must preserve encrypted waiver reason, actor, and timestamp; the UI must distinguish waived from passed.
     done_rule:
+      - Required Open questions whose required_before is implementation must be answered, waived with a visible reason, or accepted as explicit blockers before implementation tasks start.
       - Required assumptions whose required_before is implementation must be confirmed, corrected and applied to the plan, waived, or explicitly resolved from blocker before implementation tasks start.
       - Required reference patterns whose required_before is implementation must be inspected or waived before implementation tasks start.
       - Required reference patterns whose required_before is completion must be matched, waived, or explicitly blocked with a user-visible reason before completion.
@@ -1475,9 +1968,12 @@ contracts:
       - Failed required checks loop the plan back to working_tasks or blocked with linked follow-up tasks.
       - Complete is allowed only after required assumptions, criteria, and checks satisfy the done_rule.
     assumption_verification:
-      - Prefer separate sub-chats for assumptions that require source investigation, cross-system architecture review, web research, or evidence comparison.
+      - Required assumptions enter a hardcoded deep verification phase before the dependent phase starts.
+      - Spawn a dedicated sub-chat for each required assumption by default so every assumption gets an independent verdict and evidence record.
       - Combine assumptions into one sub-chat only when they share the same source area and cannot be checked independently.
+      - Assumption sub-chats are not limited to software plans; they may inspect approved project data, uploaded documents, previous chats, web sources, search results, or domain-specific content depending on the plan.
       - Each sub-chat must return a status, evidence summary, sources, and correction when applicable.
+      - Evidence should link to source embeds, source file/text line anchors, prior chat/message IDs, or quoted website/search-result snippets when available.
       - Corrected assumptions should trigger plan revision before implementation starts.
     reference_pattern_policy:
       - Planner focus modes should identify relevant source-of-truth patterns during drafting, especially for UI/design, existing API conventions, CLI command style, SDK facade shape, tests, docs, privacy, settings, and Apple parity.
@@ -1526,6 +2022,37 @@ contracts:
     - "@plan is a user-friendly explicit planning shorthand, not a replacement for existing @focus syntax."
 
 tests:
+  - id: T-PYTEST-WORKSPACE-CONTEXT-METADATA
+    type: pytest
+    file: backend/tests/test_workspace_context_metadata.py
+    command: python3 -m pytest backend/tests/test_workspace_context_metadata.py
+    covers:
+      - AC-43
+      - AC-44
+      - AC-45
+      - AC-46
+    assertions:
+      - Projects, Plans, Tasks, and Workflows accept a primary_app_id from known OpenMates app metadata and optional secondary_app_ids.
+      - preprocessing accepts workspace_context_metadata grouped by object kind and app ID but rejects or drops object IDs, titles, counts, statuses, timestamps, and descriptions.
+      - unified encrypted-context requests validate requested kind, app_id, limit, sort, and field sets for memories, projects, plans, tasks, and workflows.
+      - explicit object mentions produce cleartext context only for the mentioned object and do not expand to unrelated objects from the same app.
+    red_phase:
+      required: true
+      expected: fail_or_missing
+      evidence:
+        status: pending
+        run_id: null
+        timestamp: null
+        reason: New workspace context metadata contract added after Plans V1 learnings slice; red run must be recorded before implementation.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+        run_id: null
+        timestamp: null
+        reason: Pending implementation of app-linked workspace metadata and unified encrypted-context request flow.
+
   - id: T-PYTEST-PLANS-API
     type: pytest
     file: backend/tests/test_user_plans_api.py
@@ -1537,6 +2064,7 @@ tests:
       - AC-8
       - AC-9
       - AC-17
+      - AC-47
     assertions:
       - unauthenticated plan operations return 401
       - creating a plan stores encrypted fields plus minimal metadata only
@@ -1544,6 +2072,7 @@ tests:
       - plan creation stores per-plan key wrappers for master/chat/project access contexts without raw keys
       - stale plan updates return 409
       - completion is blocked when required verification evidence is missing
+      - plan start is blocked while required Open questions remain unanswered, unwaived, and not accepted as explicit blockers
       - verification task creation links user_tasks to plan_id and verification_id
     red_phase:
       required: true
@@ -1622,10 +2151,12 @@ tests:
       - AC-2
       - AC-3
       - AC-4
+      - AC-47
     assertions:
       - "@plan parses as explicit planning intent"
       - code-like planning routes to code.project_planner when available
       - generic complex planning routes to openmates.plan
+      - required Open questions are emitted through the interactive question path before implementation can start
       - planner completion clears active planner focus while retaining active plan state
     red_phase:
       required: true
@@ -1805,12 +2336,16 @@ tests:
       - AC-39
       - AC-40
       - AC-42
+      - AC-47
     assertions:
-      - CLI can list, create, update, activate, and complete plans through /v1/user-plans
-      - CLI can add acceptance criteria and verification evidence
+      - CLI can list, show, create, update, attach, start, resume, and complete plans through /v1/user-plans
+      - CLI exposes add/edit/remove or set/clear commands for every user-editable rich plan section, including tasks, user flows, scope, assumptions, open questions, constraints, decisions, risks, reference patterns, learnings, and context artifacts
+      - CLI uses success-criteria and checks command groups for user-visible plan fields, not internal criteria and verification wording
+      - CLI can add Success Criteria and Check evidence
       - CLI can add, list, show, edit, and create tasks from plan learnings
       - CLI serializes chat_id and project_id filters
       - CLI exposes completion blockers when verification evidence or finalized learnings are missing
+      - CLI start/resume surfaces required Open-question blockers and supports answering or waiving required Open questions before start
       - CLI uses `plans learnings create-tasks`, not an ambiguous apply command, to materialize suggested improvement tasks
     red_phase:
       required: true
@@ -1826,6 +2361,11 @@ tests:
         status: passed
         run_id: "local:2026-07-24:node --test --experimental-strip-types --loader ./tests/loader.mjs tests/plans.test.ts tests/sdk-plans.test.ts"
         timestamp: "2026-07-24T13:41:58Z"
+    final_phase:
+      evidence:
+        status: passed
+        run_id: "dev-api:2026-07-25:openmates plans live smoke against https://api.dev.openmates.org plan_id=5797101c-0823-4bb3-a588-6409618a83c3"
+        timestamp: "2026-07-25T19:14:00Z"
 
   - id: T-NPM-SDK-PLANS
     type: unit
@@ -1838,10 +2378,13 @@ tests:
       - AC-39
       - AC-40
       - AC-42
+      - AC-47
     assertions:
-      - npm SDK exposes plan list/create/update/activate/complete helpers
-      - npm SDK exposes acceptance-criteria and verification-evidence helpers
+      - npm SDK exposes plan list/show/create/update/attach/start/resume/complete helpers
+      - npm SDK exposes section facades for every user-editable rich plan section and keeps Activity read-only
+      - npm SDK exposes successCriteria and checks helpers, while mapping to lower-level acceptance-criteria and verification API records internally
       - npm SDK exposes learning list/create/update/create-tasks helpers under the plans facade
+      - npm SDK exposes Open-question answer/waive helpers and start/resume returns required Open-question blockers
       - helper paths match /v1/user-plans contracts
     red_phase:
       required: true
@@ -1857,6 +2400,11 @@ tests:
         status: passed
         run_id: "local:2026-07-24:node --test --experimental-strip-types --loader ./tests/loader.mjs tests/plans.test.ts tests/sdk-plans.test.ts"
         timestamp: "2026-07-24T13:41:58Z"
+    final_phase:
+      evidence:
+        status: passed
+        run_id: "dev-api:2026-07-25:npm SDK live smoke against https://api.dev.openmates.org plan_id=5983ad9f-303a-4573-8987-7cdef9ea0699"
+        timestamp: "2026-07-25T19:14:00Z"
 
   - id: T-PIP-SDK-PLANS
     type: pytest
@@ -1869,10 +2417,13 @@ tests:
       - AC-39
       - AC-40
       - AC-42
+      - AC-47
     assertions:
-      - pip SDK exposes plan list/create/update/activate/complete helpers
-      - pip SDK exposes acceptance-criteria and verification-evidence helpers
+      - pip SDK exposes plan list/show/create/update/attach/start/resume/complete helpers
+      - pip SDK exposes section facades for every user-editable rich plan section and keeps Activity read-only
+      - pip SDK exposes success_criteria and checks helpers, while mapping to lower-level acceptance-criteria and verification API records internally
       - pip SDK exposes learning list/create/update/create-tasks helpers under the plans facade
+      - pip SDK exposes Open-question answer/waive helpers and start/resume returns required Open-question blockers
       - helper paths match /v1/user-plans contracts
     red_phase:
       required: true
@@ -1888,6 +2439,11 @@ tests:
         status: passed
         run_id: "local:2026-07-24:python3 -m pytest packages/openmates-python/tests/test_plans.py"
         timestamp: "2026-07-24T13:41:58Z"
+    final_phase:
+      evidence:
+        status: passed
+        run_id: "dev-api:2026-07-25:pip SDK live smoke against https://api.dev.openmates.org plan_id=ed719a40-32ad-4d71-ba8c-f96acefa59bd"
+        timestamp: "2026-07-25T19:14:00Z"
 
   - id: T-E2E-PLANS-CHAT
     type: playwright
@@ -2042,8 +2598,9 @@ implementation_plan:
   data_flow:
     - User sends @plan or a natural-language complex request.
     - Override/preprocessing detects planning intent and selects an app-specific planner or openmates.plan.
-    - Planner asks one clarifying question at a time until it can draft a plan.
+    - Planner asks one clarifying question at a time until it can draft a plan, then keeps required Open questions on the same interactive path until answered, waived, or accepted as blockers before start.
     - Client encrypts plan content and stores durable plan, steps, assumptions, criteria, and verification records through /v1/user-plans.
+    - CLI and SDK can add/edit/remove each user-editable Plan section so plans created outside the web UI have the same shape and enforcement power.
     - Required assumptions enter checking_assumptions and spawn parallel sub-chats or verification tasks that gather source evidence and return confirmed, corrected, contradicted, blocked, or waived results.
     - Corrected assumptions update the plan, tasks, criteria, or checks before the user approves implementation.
     - Approved plan creates linked user_tasks for work and verification tasks.
@@ -2364,8 +2921,8 @@ risks:
   - Learning task drafts could become a backdoor for unsafe instruction changes; create-tasks must route changes through normal tasks and scan drafts rather than mutating workflows or instructions directly.
 
 open_questions:
-  - Which app-specific planner focus modes beyond code.project_planner should ship in the first implementation slice versus later app-by-app follow-up specs?
-  - Should @plan in a chat with an existing active plan update the existing plan by default, create a new draft plan, or ask the user which action they want?
-  - Should plan cards on the Project page appear in the first project overview slice or behind an expandable section until there are linked plans?
-  - What is the first acceptable AI evaluation threshold default for generic qualitative checks: 80, 85, or per-plan only?
-  - Should tasks created from learnings default to backlog, todo, or a dedicated suggested/improvement queue once the Tasks UI has richer source filters?
+  - resolved: Ship only code.project_planner plus generic openmates.plan in the CLI/SDK-first implementation slice; other app-specific planners are later app-by-app follow-up specs.
+  - resolved: If @plan is used in a chat with an existing active plan, ask whether to update the existing plan or create a new draft; CLI non-interactive use may pass --update-active or --new-plan.
+  - resolved: Defer Project-page plan-card UI work for this slice; keep API, CLI, and SDK data ready without requiring new web UI.
+  - resolved: Do not set a global AI evaluation threshold default in V1; each qualitative AI Check must specify a threshold to block completion, otherwise it is advisory/non-blocking.
+  - resolved: Tasks created from Learnings default to backlog when the task model supports it, otherwise todo with source_plan_id and source_learning_id provenance.

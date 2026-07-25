@@ -743,7 +743,7 @@ export type UserTaskReorderInput = {
 
 export type UserPlanStatus = "draft" | "checking_assumptions" | "awaiting_confirmation" | "active" | "executing" | "running_checks" | "blocked" | "completed" | "archived";
 export type UserPlanCriterionStatus = "pending" | "satisfied" | "failed" | "waived";
-export type UserPlanVerificationStatus = "pending" | "passed" | "failed" | "passed_unexpectedly" | "skipped" | "waived";
+export type UserPlanVerificationStatus = "proposed" | "pending" | "passed" | "failed" | "passed_unexpectedly" | "skipped" | "skipped_with_reason" | "not_applicable" | "waived";
 export type UserPlanLearningType = "workflow_improvement" | "agent_instruction_improvement";
 export type UserPlanLearningTargetKind = "workflow" | "project_agent_instructions";
 export type UserPlanLearningStatus = "draft" | "proposed" | "accepted" | "applied" | "rejected" | "duplicate" | "merged";
@@ -757,11 +757,15 @@ export interface UserPlanRecord {
   encrypted_goal?: string | null;
   encrypted_scope_in?: string | null;
   encrypted_scope_out?: string | null;
+  encrypted_user_flows?: string | null;
+  encrypted_current_focus?: string | null;
   encrypted_assumptions?: string | null;
   encrypted_open_questions?: string | null;
   encrypted_constraints?: string | null;
   encrypted_decisions?: string | null;
   encrypted_risks?: string | null;
+  encrypted_reference_patterns?: string | null;
+  encrypted_context?: string | null;
   encrypted_linked_project_ids?: string | null;
   status: UserPlanStatus;
   primary_chat_id?: string | null;
@@ -874,6 +878,7 @@ export interface UserPlanVerificationRecord {
   status?: UserPlanVerificationStatus;
   required_for_done?: boolean;
   covers?: string[];
+  source_hash?: string | null;
   threshold?: number | null;
   score?: number | null;
   confidence?: string | null;
@@ -881,9 +886,17 @@ export interface UserPlanVerificationRecord {
   run_id?: string | null;
   created_at?: number;
   updated_at?: number;
+  lifecycle_status?: string | null;
+  linked_sub_chat_id?: string | null;
+  source_embed_id?: string | null;
+  runner_kind?: string | null;
+  encrypted_description?: string | null;
   encrypted_command?: string | null;
   encrypted_evaluation_prompt?: string | null;
+  encrypted_evaluator_instructions?: string | null;
   encrypted_expected_result?: string | null;
+  encrypted_source_path?: string | null;
+  encrypted_red_phase_reason?: string | null;
   encrypted_result_summary?: string | null;
   encrypted_required_fixes?: string | null;
 }
@@ -4886,6 +4899,19 @@ export class OpenMatesClient {
     return results;
   }
 
+  async resolveChatKeyForContext(query: string, options: TeamContextOptions = {}): Promise<{ chatId: string; chatKey: Uint8Array }> {
+    const teamId = this.resolveTeamContext(options);
+    const cache = await this.ensureSynced(true, [], options);
+    const masterKey = this.getMasterKeyBytes();
+    const wrappingKey = await this.getChatWrappingKey(teamId, masterKey);
+    const found = await this.resolveCachedChatForQuery(query, cache, wrappingKey, teamId);
+    const chatId = String(found.details.id ?? "");
+    if (!chatId) throw new Error(`Chat '${query}' is missing an id.`);
+    const chatKey = await this.resolveChatKey(cache, found, wrappingKey, teamId);
+    if (!chatKey) throw new Error(`Chat '${chatId}' is missing locally decryptable key material.`);
+    return { chatId, chatKey };
+  }
+
   private async decryptRawChatMessages(
     rawMessages: Array<string | Record<string, unknown>>,
     chatItem: ChatListItem,
@@ -8723,6 +8749,18 @@ export class OpenMatesClient {
     return response.data.plan;
   }
 
+  async attachUserPlan(planId: string, input: Record<string, unknown> = {}): Promise<UserPlanRecord> {
+    return this.activateUserPlan(planId, input);
+  }
+
+  async startUserPlan(planId: string, input: Record<string, unknown> = {}): Promise<UserPlanRecord> {
+    return this.updateUserPlan(planId, { ...input, status: "executing" } as UserPlanUpdateInput);
+  }
+
+  async resumeUserPlan(planId: string, input: Record<string, unknown> = {}): Promise<UserPlanRecord> {
+    return this.updateUserPlan(planId, { ...input, status: "active" } as UserPlanUpdateInput);
+  }
+
   async completeUserPlan(planId: string, input: Record<string, unknown> = {}): Promise<UserPlanRecord> {
     this.requireSession();
     const response = await this.http.post<{ plan?: UserPlanRecord; blocked_by?: unknown[]; history?: WorkspaceHistoryResult }>(`/v1/user-plans/${encodeURIComponent(planId)}/complete`, input, this.getCliRequestHeaders());
@@ -8751,6 +8789,22 @@ export class OpenMatesClient {
     return response.data.criteria ?? [];
   }
 
+  async updatePlanCriterion(planId: string, criterionId: string, input: Partial<UserPlanCriterionRecord>): Promise<UserPlanCriterionRecord> {
+    this.requireSession();
+    const response = await this.http.patch<{ criterion?: UserPlanCriterionRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}/criteria/${encodeURIComponent(criterionId)}`, input, this.getCliRequestHeaders());
+    if (!response.ok || !response.data.criterion) {
+      throw new Error(`User plan criterion update failed with HTTP ${response.status}`);
+    }
+    return response.data.criterion;
+  }
+
+  async deletePlanCriterion(planId: string, criterionId: string): Promise<Record<string, unknown>> {
+    this.requireSession();
+    const response = await this.http.delete<Record<string, unknown>>(`/v1/user-plans/${encodeURIComponent(planId)}/criteria/${encodeURIComponent(criterionId)}`, undefined, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`User plan criterion delete failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
   async createPlanVerification(planId: string, input: UserPlanVerificationRecord & Record<string, unknown>): Promise<UserPlanVerificationRecord> {
     this.requireSession();
     const response = await this.http.post<{ verification?: UserPlanVerificationRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}/verification`, input, this.getCliRequestHeaders());
@@ -8767,6 +8821,22 @@ export class OpenMatesClient {
       throw new Error(`User plan verifications list failed with HTTP ${response.status}`);
     }
     return response.data.verifications ?? [];
+  }
+
+  async updatePlanVerification(planId: string, verificationId: string, input: Partial<UserPlanVerificationRecord>): Promise<UserPlanVerificationRecord> {
+    this.requireSession();
+    const response = await this.http.patch<{ verification?: UserPlanVerificationRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}/verification/${encodeURIComponent(verificationId)}`, input, this.getCliRequestHeaders());
+    if (!response.ok || !response.data.verification) {
+      throw new Error(`User plan verification update failed with HTTP ${response.status}`);
+    }
+    return response.data.verification;
+  }
+
+  async deletePlanVerification(planId: string, verificationId: string): Promise<Record<string, unknown>> {
+    this.requireSession();
+    const response = await this.http.delete<Record<string, unknown>>(`/v1/user-plans/${encodeURIComponent(planId)}/verification/${encodeURIComponent(verificationId)}`, undefined, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`User plan verification delete failed with HTTP ${response.status}`);
+    return response.data;
   }
 
   async createPlanAssumption(planId: string, input: UserPlanAssumptionRecord): Promise<UserPlanAssumptionRecord> {
@@ -8796,6 +8866,13 @@ export class OpenMatesClient {
     return response.data.assumption;
   }
 
+  async deletePlanAssumption(planId: string, assumptionId: string): Promise<Record<string, unknown>> {
+    this.requireSession();
+    const response = await this.http.delete<Record<string, unknown>>(`/v1/user-plans/${encodeURIComponent(planId)}/assumptions/${encodeURIComponent(assumptionId)}`, undefined, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`User plan assumption delete failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
   async createPlanReferencePattern(planId: string, input: UserPlanReferencePatternRecord): Promise<UserPlanReferencePatternRecord> {
     this.requireSession();
     const response = await this.http.post<{ reference_pattern?: UserPlanReferencePatternRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}/reference-patterns`, input, this.getCliRequestHeaders());
@@ -8803,6 +8880,22 @@ export class OpenMatesClient {
       throw new Error(`User plan reference pattern create failed with HTTP ${response.status}`);
     }
     return response.data.reference_pattern;
+  }
+
+  async updatePlanReferencePattern(planId: string, patternId: string, input: Partial<UserPlanReferencePatternRecord>): Promise<UserPlanReferencePatternRecord> {
+    this.requireSession();
+    const response = await this.http.patch<{ reference_pattern?: UserPlanReferencePatternRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}/reference-patterns/${encodeURIComponent(patternId)}`, input, this.getCliRequestHeaders());
+    if (!response.ok || !response.data.reference_pattern) {
+      throw new Error(`User plan reference pattern update failed with HTTP ${response.status}`);
+    }
+    return response.data.reference_pattern;
+  }
+
+  async deletePlanReferencePattern(planId: string, patternId: string): Promise<Record<string, unknown>> {
+    this.requireSession();
+    const response = await this.http.delete<Record<string, unknown>>(`/v1/user-plans/${encodeURIComponent(planId)}/reference-patterns/${encodeURIComponent(patternId)}`, undefined, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`User plan reference pattern delete failed with HTTP ${response.status}`);
+    return response.data;
   }
 
   async createPlanLearning(planId: string, input: UserPlanLearningRecord): Promise<UserPlanLearningRecord> {
@@ -8830,6 +8923,13 @@ export class OpenMatesClient {
       throw new Error(`User plan learning update failed with HTTP ${response.status}`);
     }
     return response.data.learning;
+  }
+
+  async deletePlanLearning(planId: string, learningId: string): Promise<Record<string, unknown>> {
+    this.requireSession();
+    const response = await this.http.delete<Record<string, unknown>>(`/v1/user-plans/${encodeURIComponent(planId)}/learnings/${encodeURIComponent(learningId)}`, undefined, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`User plan learning delete failed with HTTP ${response.status}`);
+    return response.data;
   }
 
   async createPlanLearningTasks(planId: string, input: UserPlanLearningCreateTasksInput): Promise<UserPlanLearningCreateTasksResult> {

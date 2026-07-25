@@ -133,6 +133,7 @@ class PlanActivationRequest(BaseModel):
     current_task_id: str | None = None
     updated_at: int | None = None
     version: int | None = None
+    key_wrappers: list[UserPlanKeyWrapperRequest] | None = None
 
 
 class PlanCompletionRequest(BaseModel):
@@ -213,6 +214,30 @@ class PlanVerificationEvidenceRequest(BaseModel):
     run_id: str | None = None
     encrypted_result_summary: str | None = None
     encrypted_required_fixes: str | None = None
+    updated_at: int | None = None
+
+
+class PlanVerificationUpdateRequest(BaseModel):
+    kind: str | None = None
+    phase: str | None = None
+    status: VerificationStatus | None = None
+    lifecycle_status: str | None = None
+    required_for_done: bool | None = None
+    covers: list[str] | None = None
+    source_hash: str | None = None
+    threshold: int | None = None
+    score: int | None = None
+    confidence: str | None = None
+    linked_sub_chat_id: str | None = None
+    source_embed_id: str | None = None
+    runner_kind: str | None = None
+    encrypted_description: str | None = None
+    encrypted_command: str | None = None
+    encrypted_evaluation_prompt: str | None = None
+    encrypted_evaluator_instructions: str | None = None
+    encrypted_expected_result: str | None = None
+    encrypted_source_path: str | None = None
+    encrypted_red_phase_reason: str | None = None
     updated_at: int | None = None
 
 
@@ -859,6 +884,22 @@ async def update_plan_criterion(
         _handle_plan_error(exc)
 
 
+@router.delete("/{plan_id}/criteria/{criterion_id}")
+@limiter.limit("30/minute")
+async def delete_plan_criterion(
+    request: Request,
+    response: Response,
+    plan_id: str,
+    criterion_id: str,
+    service: UserPlanService = Depends(get_user_plan_service),
+) -> dict[str, Any]:
+    current_user = await _current_user(request, response)
+    try:
+        return await service.delete_criterion(plan_id, current_user.id, criterion_id)
+    except Exception as exc:
+        _handle_plan_error(exc)
+
+
 @router.post("/{plan_id}/verification")
 @limiter.limit("60/minute")
 async def create_plan_verification(
@@ -887,6 +928,40 @@ async def list_plan_verifications(
     try:
         await service.ensure_plan_owner(plan_id, current_user.id)
         return {"verifications": await service.plan_methods.list_verifications(plan_id)}
+    except Exception as exc:
+        _handle_plan_error(exc)
+
+
+@router.patch("/{plan_id}/verification/{verification_id}")
+@limiter.limit("60/minute")
+async def update_plan_verification(
+    request: Request,
+    response: Response,
+    plan_id: str,
+    verification_id: str,
+    body: PlanVerificationUpdateRequest,
+    service: UserPlanService = Depends(get_user_plan_service),
+) -> dict[str, Any]:
+    current_user = await _current_user(request, response)
+    try:
+        verification = await service.update_verification(plan_id, current_user.id, verification_id, body.model_dump(exclude_unset=True))
+        return {"verification": verification}
+    except Exception as exc:
+        _handle_plan_error(exc)
+
+
+@router.delete("/{plan_id}/verification/{verification_id}")
+@limiter.limit("30/minute")
+async def delete_plan_verification(
+    request: Request,
+    response: Response,
+    plan_id: str,
+    verification_id: str,
+    service: UserPlanService = Depends(get_user_plan_service),
+) -> dict[str, Any]:
+    current_user = await _current_user(request, response)
+    try:
+        return await service.delete_verification(plan_id, current_user.id, verification_id)
     except Exception as exc:
         _handle_plan_error(exc)
 
@@ -942,6 +1017,22 @@ async def update_plan_assumption(
         _handle_plan_error(exc)
 
 
+@router.delete("/{plan_id}/assumptions/{assumption_id}")
+@limiter.limit("30/minute")
+async def delete_plan_assumption(
+    request: Request,
+    response: Response,
+    plan_id: str,
+    assumption_id: str,
+    service: UserPlanService = Depends(get_user_plan_service),
+) -> dict[str, Any]:
+    current_user = await _current_user(request, response)
+    try:
+        return await service.delete_assumption(plan_id, current_user.id, assumption_id)
+    except Exception as exc:
+        _handle_plan_error(exc)
+
+
 @router.post("/{plan_id}/reference-patterns")
 @limiter.limit("60/minute")
 async def create_plan_reference_pattern(
@@ -993,6 +1084,22 @@ async def update_plan_reference_pattern(
         _handle_plan_error(exc)
 
 
+@router.delete("/{plan_id}/reference-patterns/{pattern_id}")
+@limiter.limit("30/minute")
+async def delete_plan_reference_pattern(
+    request: Request,
+    response: Response,
+    plan_id: str,
+    pattern_id: str,
+    service: UserPlanService = Depends(get_user_plan_service),
+) -> dict[str, Any]:
+    current_user = await _current_user(request, response)
+    try:
+        return await service.delete_reference_pattern(plan_id, current_user.id, pattern_id)
+    except Exception as exc:
+        _handle_plan_error(exc)
+
+
 @router.post("/{plan_id}/learnings")
 @limiter.limit("60/minute")
 async def create_plan_learning(
@@ -1040,6 +1147,22 @@ async def update_plan_learning(
     try:
         learning = await service.update_learning(plan_id, current_user.id, learning_id, body.model_dump(exclude_unset=True))
         return {"learning": learning}
+    except Exception as exc:
+        _handle_plan_error(exc)
+
+
+@router.delete("/{plan_id}/learnings/{learning_id}")
+@limiter.limit("30/minute")
+async def delete_plan_learning(
+    request: Request,
+    response: Response,
+    plan_id: str,
+    learning_id: str,
+    service: UserPlanService = Depends(get_user_plan_service),
+) -> dict[str, Any]:
+    current_user = await _current_user(request, response)
+    try:
+        return await service.delete_learning(plan_id, current_user.id, learning_id)
     except Exception as exc:
         _handle_plan_error(exc)
 

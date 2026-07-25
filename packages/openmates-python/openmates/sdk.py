@@ -578,6 +578,65 @@ def _resolve_project_key(client: OpenMates, project_id: str) -> bytes:
     return project_key
 
 
+def _resolve_chat_key(client: OpenMates, chat_id: str) -> bytes:
+    payload = client._get(f"/v1/sdk/chats/{_quote(chat_id)}")
+    chat = payload.get("chat") if isinstance(payload.get("chat"), dict) else {}
+    resolved_chat_id = str(chat.get("id") or chat_id)
+    hashed_chat_id = hashlib.sha256(resolved_chat_id.encode("utf-8")).hexdigest()
+    chat_key_wrappers = payload.get("chat_key_wrappers") if isinstance(payload.get("chat_key_wrappers"), list) else chat.get("chat_key_wrappers")
+    wrapper = next(
+        (
+            entry
+            for entry in (chat_key_wrappers or [])
+            if isinstance(entry, dict)
+            and entry.get("key_type") == "master"
+            and entry.get("hashed_chat_id") == hashed_chat_id
+            and isinstance(entry.get("encrypted_chat_key"), str)
+        ),
+        None,
+    )
+    encrypted_chat_key = wrapper.get("encrypted_chat_key") if wrapper else chat.get("encrypted_chat_key")
+    if not isinstance(encrypted_chat_key, str):
+        raise OpenMatesConfigError("Saved chat does not include encrypted chat key material")
+    chat_key = _decrypt_aes_gcm_bytes(encrypted_chat_key, client._get_master_key())
+    if chat_key is None:
+        raise OpenMatesConfigError("Unable to decrypt saved chat key material")
+    return chat_key
+
+
+def _build_plan_key_wrappers(
+    client: OpenMates,
+    plan_key: bytes,
+    *,
+    primary_chat_id: str | None,
+    linked_project_ids: list[str],
+    created_at: int,
+) -> list[dict[str, Any]]:
+    master_key = client._get_master_key()
+    wrappers: list[dict[str, Any]] = [{
+        "key_type": "master",
+        "encrypted_plan_key": _encrypt_aes_gcm_bytes(plan_key, master_key),
+        "created_at": created_at,
+    }]
+    if primary_chat_id:
+        chat_key = _resolve_chat_key(client, primary_chat_id)
+        wrappers.append({
+            "key_type": "chat",
+            "hashed_chat_id": hashlib.sha256(primary_chat_id.encode("utf-8")).hexdigest(),
+            "encrypted_plan_key": _encrypt_aes_gcm_bytes(plan_key, chat_key),
+            "created_at": created_at,
+        })
+    for project_id in linked_project_ids:
+        project_key = _resolve_project_key(client, project_id)
+        wrappers.append({
+            "key_type": "project",
+            "hashed_project_id": hashlib.sha256(project_id.encode("utf-8")).hexdigest(),
+            "encrypted_plan_key": _encrypt_aes_gcm_bytes(plan_key, project_key),
+            "created_at": created_at,
+        })
+    return wrappers
+
+
 def _create_encrypted_project_item(
     client: OpenMates,
     project_id: str,
@@ -2135,11 +2194,176 @@ class OpenMatesDrafts:
         }
 
 
+class _PlanEncryptedFieldFacade:
+    def __init__(self, plans: "OpenMatesPlans", field: str):
+        self._plans = plans
+        self._field = field
+
+    def add(self, plan_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        return self._plans.update(plan_id, payload)
+
+    def update(self, plan_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        return self._plans.update(plan_id, payload)
+
+    def set(self, plan_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        return self.update(plan_id, payload)
+
+    def remove(self, plan_id: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+        return self._plans.update(plan_id, {**(payload or {}), self._field: None})
+
+    def clear(self, plan_id: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+        return self.remove(plan_id, payload)
+
+    def answer(self, plan_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        return self.update(plan_id, payload)
+
+    def supersede(self, plan_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        return self.update(plan_id, payload)
+
+
+class _PlanSuccessCriteriaFacade:
+    def __init__(self, plans: "OpenMatesPlans"):
+        self._plans = plans
+
+    def add(self, plan_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        return self._plans.create_criterion(plan_id, payload)
+
+    def update(self, plan_id: str, criterion_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        return self._plans.update_criterion(plan_id, criterion_id, payload)
+
+    def remove(self, plan_id: str, criterion_id: str) -> dict[str, Any]:
+        return self._plans.delete_criterion(plan_id, criterion_id)
+
+
+class _PlanChecksFacade:
+    def __init__(self, plans: "OpenMatesPlans"):
+        self._plans = plans
+
+    def add(self, plan_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        return self._plans.create_verification(plan_id, payload)
+
+    def update(self, plan_id: str, check_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        return self._plans.update_verification(plan_id, check_id, payload)
+
+    def remove(self, plan_id: str, check_id: str) -> dict[str, Any]:
+        return self._plans.delete_verification(plan_id, check_id)
+
+    def add_evidence(self, plan_id: str, check_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        return self._plans.add_verification_evidence(plan_id, check_id, payload)
+
+    def get_run(self, plan_id: str, check_id: str, run_id: str) -> dict[str, Any]:
+        return self._plans.get_verification_run(plan_id, check_id, run_id)
+
+
+class _PlanAssumptionsFacade:
+    def __init__(self, plans: "OpenMatesPlans"):
+        self._plans = plans
+
+    def add(self, plan_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        return self._plans.create_assumption(plan_id, payload)
+
+    def update(self, plan_id: str, assumption_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        return self._plans.update_assumption(plan_id, assumption_id, payload)
+
+    def check(self, plan_id: str, assumption_id: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+        request = {**(payload or {})}
+        request.setdefault("status", "checking")
+        return self._plans.update_assumption(plan_id, assumption_id, request)
+
+    def waive(self, plan_id: str, assumption_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        return self._plans.update_assumption(plan_id, assumption_id, {**payload, "status": "waived"})
+
+    def remove(self, plan_id: str, assumption_id: str) -> dict[str, Any]:
+        return self._plans.delete_assumption(plan_id, assumption_id)
+
+
+class _PlanReferencePatternsFacade:
+    def __init__(self, plans: "OpenMatesPlans"):
+        self._plans = plans
+
+    def add(self, plan_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        return self._plans.create_reference_pattern(plan_id, payload)
+
+    def update(self, plan_id: str, pattern_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        return self._plans.update_reference_pattern(plan_id, pattern_id, payload)
+
+    def inspect(self, plan_id: str, pattern_id: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+        request = {**(payload or {})}
+        request.setdefault("status", "inspected")
+        return self._plans.update_reference_pattern(plan_id, pattern_id, request)
+
+    def waive(self, plan_id: str, pattern_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        return self._plans.update_reference_pattern(plan_id, pattern_id, {**payload, "status": "waived"})
+
+    def remove(self, plan_id: str, pattern_id: str) -> dict[str, Any]:
+        return self._plans.delete_reference_pattern(plan_id, pattern_id)
+
+
+class _PlanLearningsFacade:
+    def __init__(self, plans: "OpenMatesPlans"):
+        self._plans = plans
+
+    def list(self, plan_id: str) -> list[dict[str, Any]]:
+        return self._plans.list_learnings(plan_id)
+
+    def show(self, plan_id: str, learning_id: str) -> dict[str, Any]:
+        for learning in self._plans.list_learnings(plan_id):
+            if learning.get("learning_id") == learning_id:
+                return learning
+        raise OpenMatesApiError(404, {"detail": "Plan learning not found"})
+
+    def create(self, plan_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        return self._plans.create_learning(plan_id, payload)
+
+    def update(self, plan_id: str, learning_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        return self._plans.update_learning(plan_id, learning_id, payload)
+
+    def remove(self, plan_id: str, learning_id: str) -> dict[str, Any]:
+        return self._plans.delete_learning(plan_id, learning_id)
+
+    def create_tasks(self, plan_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        return self._plans.create_learning_tasks(plan_id, payload)
+
+
+class _PlanTasksFacade:
+    def __init__(self, client: OpenMates):
+        self._client = client
+
+    def list(self, plan_id: str) -> list[dict[str, Any]]:
+        return self._client.tasks.list(plan_id=plan_id)
+
+    def add(self, plan_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        return self._client.tasks.create({**payload, "plan_id": plan_id})
+
+    def update(self, plan_id: str, task_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        return self._client.tasks.edit(task_id, payload, plan_id=plan_id)
+
+    def remove(self, plan_id: str, task_id: str) -> dict[str, Any]:
+        return self._client.tasks.delete(task_id, confirmed=True, plan_id=plan_id)
+
+
 class OpenMatesPlans:
     """Encrypted user plans SDK namespace."""
 
     def __init__(self, client: OpenMates):
         self._client = client
+        self.goal = _PlanEncryptedFieldFacade(self, "encrypted_goal")
+        self.current_focus = _PlanEncryptedFieldFacade(self, "encrypted_current_focus")
+        self.tasks = _PlanTasksFacade(client)
+        self.success_criteria = _PlanSuccessCriteriaFacade(self)
+        self.user_flows = _PlanEncryptedFieldFacade(self, "encrypted_user_flows")
+        self.checks = _PlanChecksFacade(self)
+        self.scope_in = _PlanEncryptedFieldFacade(self, "encrypted_scope_in")
+        self.scope_out = _PlanEncryptedFieldFacade(self, "encrypted_scope_out")
+        self.assumptions = _PlanAssumptionsFacade(self)
+        self.open_questions = _PlanEncryptedFieldFacade(self, "encrypted_open_questions")
+        self.constraints = _PlanEncryptedFieldFacade(self, "encrypted_constraints")
+        self.decisions = _PlanEncryptedFieldFacade(self, "encrypted_decisions")
+        self.risks = _PlanEncryptedFieldFacade(self, "encrypted_risks")
+        self.reference_patterns = _PlanReferencePatternsFacade(self)
+        self.learnings = _PlanLearningsFacade(self)
+        self.context = type("PlanContextFacade", (), {"artifacts": _PlanEncryptedFieldFacade(self, "encrypted_context")})()
+        self.activity = type("PlanActivityFacade", (), {"list": lambda _self, plan_id, limit=None: self.history(plan_id, limit=limit)})()
 
     def list(
         self,
@@ -2160,10 +2384,36 @@ class OpenMatesPlans:
         ).get("plans", [])
 
     def create(self, payload: dict[str, Any]) -> dict[str, Any]:
-        return self._client._post("/v1/user-plans", payload).get("plan", {})
+        request_payload = dict(payload)
+        if not request_payload.get("key_wrappers") and (request_payload.get("primary_chat_id") or request_payload.get("linked_project_ids")):
+            plan_key = _plan_key_from_record(request_payload, self._client._get_master_key())
+            request_payload["key_wrappers"] = _build_plan_key_wrappers(
+                self._client,
+                plan_key,
+                primary_chat_id=request_payload.get("primary_chat_id") if isinstance(request_payload.get("primary_chat_id"), str) else None,
+                linked_project_ids=_string_list(request_payload.get("linked_project_ids") or []),
+                created_at=int(request_payload.get("created_at") or time.time()),
+            )
+        return self._client._post("/v1/user-plans", request_payload).get("plan", {})
+
+    def show(self, plan_id: str) -> dict[str, Any]:
+        return _find_plan(self.list(active_only=False), plan_id)
 
     def update(self, plan_id: str, payload: dict[str, Any]) -> dict[str, Any]:
-        return self._client._patch(f"/v1/user-plans/{_quote(plan_id)}", payload).get("plan", {})
+        request_payload = dict(payload)
+        if not request_payload.get("key_wrappers") and ("primary_chat_id" in request_payload or "linked_project_ids" in request_payload):
+            existing = _find_plan(self.list(active_only=False), plan_id)
+            master_key = self._client._get_master_key()
+            plan_key = _plan_key_from_record(existing, master_key)
+            existing_project_ids = _json_string_list(_decrypt_aes_gcm_text(str(existing.get("encrypted_linked_project_ids") or ""), plan_key)) or _string_list(existing.get("linked_project_ids") or [])
+            request_payload["key_wrappers"] = _build_plan_key_wrappers(
+                self._client,
+                plan_key,
+                primary_chat_id=(request_payload.get("primary_chat_id") if "primary_chat_id" in request_payload else existing.get("primary_chat_id")) or None,
+                linked_project_ids=_string_list(request_payload.get("linked_project_ids") if "linked_project_ids" in request_payload else existing_project_ids),
+                created_at=int(request_payload.get("updated_at") or time.time()),
+            )
+        return self._client._patch(f"/v1/user-plans/{_quote(plan_id)}", request_payload).get("plan", {})
 
     def add_to_project(
         self,
@@ -2180,6 +2430,13 @@ class OpenMatesPlans:
             "updated_at": int(time.time()),
             "linked_project_ids": updated_project_ids,
             "encrypted_linked_project_ids": _encrypt_aes_gcm_text(json.dumps(updated_project_ids), plan_key),
+            "key_wrappers": _build_plan_key_wrappers(
+                self._client,
+                plan_key,
+                primary_chat_id=plan.get("primary_chat_id") if isinstance(plan.get("primary_chat_id"), str) else None,
+                linked_project_ids=updated_project_ids,
+                created_at=int(time.time()),
+            ),
         }
         return self.update(str(plan.get("plan_id")), patch)
 
@@ -2211,11 +2468,32 @@ class OpenMatesPlans:
         return self._client._post("/v1/user-plans/ask", payload)
 
     def activate(self, plan_id: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
-        request_payload = payload or {}
+        request_payload = dict(payload or {})
+        if not request_payload.get("key_wrappers") and isinstance(request_payload.get("chat_id"), str):
+            existing = _find_plan(self.list(active_only=False), plan_id)
+            master_key = self._client._get_master_key()
+            plan_key = _plan_key_from_record(existing, master_key)
+            linked_project_ids = _json_string_list(_decrypt_aes_gcm_text(str(existing.get("encrypted_linked_project_ids") or ""), plan_key)) or _string_list(existing.get("linked_project_ids") or [])
+            request_payload["key_wrappers"] = _build_plan_key_wrappers(
+                self._client,
+                plan_key,
+                primary_chat_id=request_payload["chat_id"],
+                linked_project_ids=linked_project_ids,
+                created_at=int(request_payload.get("updated_at") or time.time()),
+            )
         plan = self._client._post(f"/v1/user-plans/{_quote(plan_id)}/activate", request_payload).get("plan", {})
         if "primary_chat_id" not in plan and isinstance(request_payload.get("chat_id"), str):
             plan = {**plan, "primary_chat_id": request_payload["chat_id"]}
         return plan
+
+    def attach(self, plan_id: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+        return self.activate(plan_id, payload)
+
+    def start(self, plan_id: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+        return self.update(plan_id, {**(payload or {}), "status": "executing"})
+
+    def resume(self, plan_id: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+        return self.update(plan_id, {**(payload or {}), "status": "active"})
 
     def complete(self, plan_id: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
         return self._client._post(f"/v1/user-plans/{_quote(plan_id)}/complete", payload or {}).get("plan", {})
@@ -2226,11 +2504,23 @@ class OpenMatesPlans:
     def list_criteria(self, plan_id: str) -> list[dict[str, Any]]:
         return self._client._get(f"/v1/user-plans/{_quote(plan_id)}/criteria").get("criteria", [])
 
+    def update_criterion(self, plan_id: str, criterion_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        return self._client._patch(f"/v1/user-plans/{_quote(plan_id)}/criteria/{_quote(criterion_id)}", payload).get("criterion", {})
+
+    def delete_criterion(self, plan_id: str, criterion_id: str) -> dict[str, Any]:
+        return self._client._delete(f"/v1/user-plans/{_quote(plan_id)}/criteria/{_quote(criterion_id)}")
+
     def create_verification(self, plan_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         return self._client._post(f"/v1/user-plans/{_quote(plan_id)}/verification", payload).get("verification", {})
 
     def list_verifications(self, plan_id: str) -> list[dict[str, Any]]:
         return self._client._get(f"/v1/user-plans/{_quote(plan_id)}/verification").get("verifications", [])
+
+    def update_verification(self, plan_id: str, verification_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        return self._client._patch(f"/v1/user-plans/{_quote(plan_id)}/verification/{_quote(verification_id)}", payload).get("verification", {})
+
+    def delete_verification(self, plan_id: str, verification_id: str) -> dict[str, Any]:
+        return self._client._delete(f"/v1/user-plans/{_quote(plan_id)}/verification/{_quote(verification_id)}")
 
     def create_assumption(self, plan_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         return self._client._post(f"/v1/user-plans/{_quote(plan_id)}/assumptions", payload).get("assumption", {})
@@ -2241,11 +2531,20 @@ class OpenMatesPlans:
     def update_assumption(self, plan_id: str, assumption_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         return self._client._patch(f"/v1/user-plans/{_quote(plan_id)}/assumptions/{_quote(assumption_id)}", payload).get("assumption", {})
 
+    def delete_assumption(self, plan_id: str, assumption_id: str) -> dict[str, Any]:
+        return self._client._delete(f"/v1/user-plans/{_quote(plan_id)}/assumptions/{_quote(assumption_id)}")
+
     def create_reference_pattern(self, plan_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         return self._client._post(f"/v1/user-plans/{_quote(plan_id)}/reference-patterns", payload).get("reference_pattern", {})
 
     def list_reference_patterns(self, plan_id: str) -> list[dict[str, Any]]:
         return self._client._get(f"/v1/user-plans/{_quote(plan_id)}/reference-patterns").get("reference_patterns", [])
+
+    def update_reference_pattern(self, plan_id: str, pattern_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        return self._client._patch(f"/v1/user-plans/{_quote(plan_id)}/reference-patterns/{_quote(pattern_id)}", payload).get("reference_pattern", {})
+
+    def delete_reference_pattern(self, plan_id: str, pattern_id: str) -> dict[str, Any]:
+        return self._client._delete(f"/v1/user-plans/{_quote(plan_id)}/reference-patterns/{_quote(pattern_id)}")
 
     def create_learning(self, plan_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         return self._client._post(f"/v1/user-plans/{_quote(plan_id)}/learnings", payload).get("learning", {})
@@ -2256,6 +2555,9 @@ class OpenMatesPlans:
     def update_learning(self, plan_id: str, learning_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         return self._client._patch(f"/v1/user-plans/{_quote(plan_id)}/learnings/{_quote(learning_id)}", payload).get("learning", {})
 
+    def delete_learning(self, plan_id: str, learning_id: str) -> dict[str, Any]:
+        return self._client._delete(f"/v1/user-plans/{_quote(plan_id)}/learnings/{_quote(learning_id)}")
+
     def create_learning_tasks(self, plan_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         return self._client._post(f"/v1/user-plans/{_quote(plan_id)}/learnings/create-tasks", payload)
 
@@ -2264,6 +2566,9 @@ class OpenMatesPlans:
             f"/v1/user-plans/{_quote(plan_id)}/verification/{_quote(verification_id)}/evidence",
             payload,
         ).get("verification", {})
+
+    def get_verification_run(self, plan_id: str, verification_id: str, run_id: str) -> dict[str, Any]:
+        return self._client._get(f"/v1/user-plans/{_quote(plan_id)}/verification/{_quote(verification_id)}/runs/{_quote(run_id)}")
 
 
 class OpenMatesTasks:
@@ -2278,11 +2583,12 @@ class OpenMatesTasks:
         status: str | None = None,
         chat_id: str | None = None,
         project_id: str | None = None,
+        plan_id: str | None = None,
         labels: list[str] | None = None,
         tags: list[str] | None = None,
         priority: str | int | None = None,
     ) -> list[dict[str, Any]]:
-        return self.list_decrypted(status=status, chat_id=chat_id, project_id=project_id, labels=labels, tags=tags, priority=priority)
+        return self.list_decrypted(status=status, chat_id=chat_id, project_id=project_id, plan_id=plan_id, labels=labels, tags=tags, priority=priority)
 
     def _list_raw(
         self,
@@ -2290,6 +2596,7 @@ class OpenMatesTasks:
         status: str | None = None,
         chat_id: str | None = None,
         project_id: str | None = None,
+        plan_id: str | None = None,
         labels: list[str] | None = None,
         tags: list[str] | None = None,
         priority: str | int | None = None,
@@ -2302,6 +2609,7 @@ class OpenMatesTasks:
                 status=status,
                 chat_id=chat_id,
                 project_id=project_id,
+                plan_id=plan_id,
                 label_hash=label_hashes,
                 priority=_normalize_task_priority(priority),
             )
@@ -2313,13 +2621,14 @@ class OpenMatesTasks:
         status: str | None = None,
         chat_id: str | None = None,
         project_id: str | None = None,
+        plan_id: str | None = None,
         labels: list[str] | None = None,
         tags: list[str] | None = None,
         priority: str | int | None = None,
     ) -> list[dict[str, Any]]:
         return [
             _public_task(task)
-            for task in self._list_internal(status=status, chat_id=chat_id, project_id=project_id, labels=labels, tags=tags, priority=priority)
+            for task in self._list_internal(status=status, chat_id=chat_id, project_id=project_id, plan_id=plan_id, labels=labels, tags=tags, priority=priority)
         ]
 
     def show(self, task_id: str, **filters: Any) -> dict[str, Any]:

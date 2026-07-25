@@ -92,7 +92,9 @@ describe("OpenMatesClient user plans", () => {
       summary: "Coordinate launch work",
       goal: "Ship the public site",
       primaryChatId: "chat-1",
+      primaryChatKey: Buffer.alloc(32, 1),
       linkedProjectIds: ["project-1"],
+      linkedProjectKeys: [{ projectId: "project-1", projectKey: Buffer.alloc(32, 2) }],
       status: "awaiting_confirmation",
     });
 
@@ -150,6 +152,7 @@ describe("OpenMatesClient user plans", () => {
     const plan = encryptedPlanInput();
     await withServer(
       (request, body) => {
+        if (request.method === "DELETE") return { deleted: true };
         if (request.url?.includes("/learnings/create-tasks")) return { tasks: [], skipped: [] };
         if (request.url?.includes("/learnings") && request.method === "GET") return { learnings: [] };
         if (request.url?.includes("/learnings")) return { learning: body };
@@ -166,20 +169,30 @@ describe("OpenMatesClient user plans", () => {
         assert.equal((await client.listUserPlans({ status: "draft", chatId: "chat-1", projectId: "project-1" }))[0]?.plan_id, "plan-1");
         assert.equal((await client.createUserPlan(plan)).encrypted_title, "cipher-title");
         assert.equal((await client.updateUserPlan("plan-1", { status: "active", version: 1 })).status, "active");
-        assert.equal((await client.activateUserPlan("plan-1", { chat_id: "chat-1", version: 2 })).primary_chat_id, "chat-1");
+        assert.equal((await client.attachUserPlan("plan-1", { chat_id: "chat-1", version: 2 })).primary_chat_id, "chat-1");
+        assert.equal((await client.startUserPlan("plan-1", { version: 3 })).status, "executing");
+        assert.equal((await client.resumeUserPlan("plan-1", { version: 4 })).status, "active");
         assert.equal((await client.completeUserPlan("plan-1", { version: 3 })).plan_id, "plan-1");
         assert.equal((await client.createPlanCriterion("plan-1", { criterion_id: "AC-1", encrypted_text: "cipher-ac", created_at: 100 })).criterion_id, "AC-1");
+        assert.equal((await client.updatePlanCriterion("plan-1", "AC-1", { status: "satisfied" })).status, "satisfied");
+        assert.deepEqual(await client.deletePlanCriterion("plan-1", "AC-1"), { deleted: true });
         assert.equal((await client.listPlanCriteria("plan-1")).length, 0);
         assert.equal((await client.createPlanVerification("plan-1", { verification_id: "V-1", kind: "manual_check", created_at: 100 })).verification_id, "V-1");
+        assert.equal((await client.updatePlanVerification("plan-1", "V-1", { status: "passed" })).status, "passed");
+        assert.deepEqual(await client.deletePlanVerification("plan-1", "V-1"), { deleted: true });
         assert.equal((await client.listPlanVerifications("plan-1")).length, 0);
         assert.equal((await client.createPlanAssumption("plan-1", { assumption_id: "A-1", encrypted_text: "cipher-assumption", created_at: 100 })).assumption_id, "A-1");
         assert.equal((await client.listPlanAssumptions("plan-1")).length, 0);
         assert.equal((await client.updatePlanAssumption("plan-1", "A-1", { status: "confirmed" })).status, "confirmed");
+        assert.deepEqual(await client.deletePlanAssumption("plan-1", "A-1"), { deleted: true });
         assert.equal((await client.createPlanReferencePattern("plan-1", { pattern_id: "RP-1", encrypted_title: "cipher-pattern", created_at: 100 })).pattern_id, "RP-1");
         assert.equal((await client.listPlanReferencePatterns("plan-1")).length, 0);
+        assert.equal((await client.updatePlanReferencePattern("plan-1", "RP-1", { status: "inspected" })).status, "inspected");
+        assert.deepEqual(await client.deletePlanReferencePattern("plan-1", "RP-1"), { deleted: true });
         assert.equal((await client.createPlanLearning("plan-1", { learning_id: "LRN-1", type: "workflow_improvement", target_kind: "workflow", encrypted_title: "cipher-learning", created_at: 100 })).learning_id, "LRN-1");
         assert.equal((await client.listPlanLearnings("plan-1")).length, 0);
         assert.equal((await client.updatePlanLearning("plan-1", "LRN-1", { status: "accepted" })).status, "accepted");
+        assert.deepEqual(await client.deletePlanLearning("plan-1", "LRN-1"), { deleted: true });
         assert.deepEqual(await client.createPlanLearningTasks("plan-1", { learning_ids: ["LRN-1"] }), { tasks: [], skipped: [] });
         assert.equal((await client.addPlanVerificationEvidence("plan-1", "V-1", { status: "passed" })).status, "passed");
 
@@ -188,19 +201,29 @@ describe("OpenMatesClient user plans", () => {
           ["POST", "/v1/user-plans"],
           ["PATCH", "/v1/user-plans/plan-1"],
           ["POST", "/v1/user-plans/plan-1/activate"],
+          ["PATCH", "/v1/user-plans/plan-1"],
+          ["PATCH", "/v1/user-plans/plan-1"],
           ["POST", "/v1/user-plans/plan-1/complete"],
           ["POST", "/v1/user-plans/plan-1/criteria"],
+          ["PATCH", "/v1/user-plans/plan-1/criteria/AC-1"],
+          ["DELETE", "/v1/user-plans/plan-1/criteria/AC-1"],
           ["GET", "/v1/user-plans/plan-1/criteria"],
           ["POST", "/v1/user-plans/plan-1/verification"],
+          ["PATCH", "/v1/user-plans/plan-1/verification/V-1"],
+          ["DELETE", "/v1/user-plans/plan-1/verification/V-1"],
           ["GET", "/v1/user-plans/plan-1/verification"],
           ["POST", "/v1/user-plans/plan-1/assumptions"],
           ["GET", "/v1/user-plans/plan-1/assumptions"],
           ["PATCH", "/v1/user-plans/plan-1/assumptions/A-1"],
+          ["DELETE", "/v1/user-plans/plan-1/assumptions/A-1"],
           ["POST", "/v1/user-plans/plan-1/reference-patterns"],
           ["GET", "/v1/user-plans/plan-1/reference-patterns"],
+          ["PATCH", "/v1/user-plans/plan-1/reference-patterns/RP-1"],
+          ["DELETE", "/v1/user-plans/plan-1/reference-patterns/RP-1"],
           ["POST", "/v1/user-plans/plan-1/learnings"],
           ["GET", "/v1/user-plans/plan-1/learnings"],
           ["PATCH", "/v1/user-plans/plan-1/learnings/LRN-1"],
+          ["DELETE", "/v1/user-plans/plan-1/learnings/LRN-1"],
           ["POST", "/v1/user-plans/plan-1/learnings/create-tasks"],
           ["POST", "/v1/user-plans/plan-1/verification/V-1/evidence"],
         ]);
