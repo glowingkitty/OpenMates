@@ -111,6 +111,8 @@ import { text } from "@repo/ui";
 
 // Track mounted components for cleanup
 const mountedComponents = new WeakMap<HTMLElement, ReturnType<typeof mount>>();
+const scrollIndicatorCleanups = new WeakMap<HTMLElement, () => void>();
+const INDICATOR_VISIBLE_RATIO = 0.12;
 
 /**
  * Permissive record type for TOON-decoded embed content.
@@ -750,6 +752,15 @@ export class GroupRenderer implements EmbedRenderer {
 
     console.debug("[GroupRenderer] Final HTML:", finalHtml);
     content.innerHTML = finalHtml;
+    const groupWrapper = content.querySelector<HTMLElement>(
+      `.${CSS.escape(baseType)}-preview-group`,
+    );
+    const scrollContainer = groupWrapper?.querySelector<HTMLElement>(
+      ".group-scroll-container",
+    );
+    if (groupWrapper && scrollContainer) {
+      this.syncGroupScrollIndicator(groupWrapper, scrollContainer);
+    }
   }
 
   private async renderIndividualItem(
@@ -969,6 +980,132 @@ export class GroupRenderer implements EmbedRenderer {
     }
   }
 
+  private syncGroupScrollIndicator(
+    groupWrapper: HTMLElement,
+    scrollContainer: HTMLElement,
+  ): void {
+    const explicitItems = Array.from(
+      scrollContainer.querySelectorAll<HTMLElement>(".embed-group-item"),
+    );
+    const items =
+      explicitItems.length > 0
+        ? explicitItems
+        : Array.from(scrollContainer.children).filter(
+            (child): child is HTMLElement => child instanceof HTMLElement,
+          );
+    let indicator = groupWrapper.querySelector<HTMLElement>(
+      ".group-scroll-indicator",
+    );
+
+    if (items.length <= 1) {
+      indicator?.remove();
+      scrollIndicatorCleanups.get(scrollContainer)?.();
+      scrollIndicatorCleanups.delete(scrollContainer);
+      return;
+    }
+
+    if (!indicator) {
+      indicator = document.createElement("div");
+      indicator.className = "group-scroll-indicator";
+      indicator.dataset.testid = "embed-group-scroll-indicator";
+      indicator.setAttribute("role", "navigation");
+      indicator.setAttribute("aria-label", "Embed group scroll position");
+      groupWrapper.appendChild(indicator);
+    }
+
+    indicator.replaceChildren();
+
+    for (let index = 0; index < items.length; index += 1) {
+      const segment = document.createElement("button");
+      segment.type = "button";
+      segment.className = "group-scroll-indicator-segment";
+      segment.setAttribute(
+        "aria-label",
+        `Show embed ${index + 1} of ${items.length}`,
+      );
+      segment.addEventListener("click", () => {
+        const item = items[index];
+        if (!item) return;
+
+        const canScrollX =
+          scrollContainer.scrollWidth > scrollContainer.clientWidth + 1;
+        const canScrollY =
+          scrollContainer.scrollHeight > scrollContainer.clientHeight + 1;
+        const prefersReducedMotion = window.matchMedia(
+          "(prefers-reduced-motion: reduce)",
+        ).matches;
+        scrollContainer.scrollTo({
+          left: canScrollX
+            ? item.offsetLeft - scrollContainer.offsetLeft
+            : scrollContainer.scrollLeft,
+          top: canScrollY
+            ? item.offsetTop - scrollContainer.offsetTop
+            : scrollContainer.scrollTop,
+          behavior: prefersReducedMotion ? "auto" : "smooth",
+        });
+      });
+      indicator.appendChild(segment);
+    }
+
+    const updateIndicator = () => {
+      const containerRect = scrollContainer.getBoundingClientRect();
+      const isVertical =
+        scrollContainer.scrollHeight - scrollContainer.clientHeight >
+        scrollContainer.scrollWidth - scrollContainer.clientWidth;
+      let strongestVisibleIndex = -1;
+      let strongestVisibility = 0;
+
+      items.forEach((item, index) => {
+        const itemRect = item.getBoundingClientRect();
+        const visibleWidth = Math.max(
+          0,
+          Math.min(itemRect.right, containerRect.right) -
+            Math.max(itemRect.left, containerRect.left),
+        );
+        const visibleHeight = Math.max(
+          0,
+          Math.min(itemRect.bottom, containerRect.bottom) -
+            Math.max(itemRect.top, containerRect.top),
+        );
+        const visibility = isVertical
+          ? visibleHeight / Math.max(itemRect.height, 1)
+          : visibleWidth / Math.max(itemRect.width, 1);
+        const segment = indicator?.children[index] as HTMLElement | undefined;
+        if (!segment) return;
+
+        segment.classList.toggle(
+          "is-visible",
+          visibility > INDICATOR_VISIBLE_RATIO,
+        );
+        if (visibility > strongestVisibility) {
+          strongestVisibility = visibility;
+          strongestVisibleIndex = index;
+        }
+      });
+
+      Array.from(indicator?.children ?? []).forEach((segment, index) => {
+        const isCurrent =
+          index === strongestVisibleIndex &&
+          strongestVisibility > INDICATOR_VISIBLE_RATIO;
+        segment.classList.toggle("is-current", isCurrent);
+        if (isCurrent) {
+          segment.setAttribute("aria-current", "true");
+        } else {
+          segment.removeAttribute("aria-current");
+        }
+      });
+    };
+
+    scrollIndicatorCleanups.get(scrollContainer)?.();
+    const onScroll = () => requestAnimationFrame(updateIndicator);
+    scrollContainer.addEventListener("scroll", onScroll, { passive: true });
+    scrollIndicatorCleanups.set(scrollContainer, () => {
+      scrollContainer.removeEventListener("scroll", onScroll);
+    });
+
+    requestAnimationFrame(updateIndicator);
+  }
+
   /**
    * Try to incrementally update an existing group DOM by only adding new items.
    *
@@ -1044,6 +1181,7 @@ export class GroupRenderer implements EmbedRenderer {
         groupWrapper.querySelector<HTMLElement>(".group-header")!,
         baseType,
       );
+      this.syncGroupScrollIndicator(groupWrapper, scrollContainer);
       return true;
     }
 
@@ -1090,6 +1228,7 @@ export class GroupRenderer implements EmbedRenderer {
     if (header) {
       this.reconcileGroupHeader(scrollContainer, header, baseType);
     }
+    this.syncGroupScrollIndicator(groupWrapper, scrollContainer);
 
     console.debug(
       `[GroupRenderer] ✅ Incremental update complete: ${itemsToAdd.length} new items added`,
@@ -1301,6 +1440,7 @@ export class GroupRenderer implements EmbedRenderer {
     // Safety net: reconcile header count with actual rendered items.
     // Error embeds are now rendered inline, so count should match items.length.
     this.reconcileGroupHeader(scrollContainer, header, baseType);
+    this.syncGroupScrollIndicator(groupWrapper, scrollContainer);
 
     console.debug(
       `[GroupRenderer] ✅ Finished mounting all ${items.length} items in group`,
@@ -2868,6 +3008,8 @@ export class GroupRenderer implements EmbedRenderer {
 
       await this.mountCodePreview(item, itemWrapper);
     }
+
+    this.syncGroupScrollIndicator(groupWrapper, scrollContainer);
   }
 
   /**
@@ -2998,6 +3140,8 @@ export class GroupRenderer implements EmbedRenderer {
 
       await this.mountDocsPreview(item, itemWrapper);
     }
+
+    this.syncGroupScrollIndicator(groupWrapper, scrollContainer);
   }
 
   /**
@@ -4082,6 +4226,8 @@ export class GroupRenderer implements EmbedRenderer {
 
       await this.mountSheetPreview(item, itemWrapper);
     }
+
+    this.syncGroupScrollIndicator(groupWrapper, scrollContainer);
   }
 
   /**
@@ -4501,6 +4647,8 @@ export class GroupRenderer implements EmbedRenderer {
       scrollContainer.appendChild(itemWrapper);
       await this.mountMailPreview(item, itemWrapper);
     }
+
+    this.syncGroupScrollIndicator(groupWrapper, scrollContainer);
   }
 
   /**

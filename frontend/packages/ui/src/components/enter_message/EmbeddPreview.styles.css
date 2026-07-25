@@ -556,6 +556,110 @@
   border-radius: 2px;
 }
 
+:global(.ProseMirror .embed-group-container .group-scroll-indicator) {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 7px;
+  margin: 8px auto 0;
+  padding: 0 12px;
+  min-height: 10px;
+  pointer-events: auto;
+}
+
+:global(
+  .ProseMirror
+    .embed-group-container
+    .group-scroll-indicator-segment
+) {
+  width: 22px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  appearance: none;
+  -webkit-appearance: none;
+  position: relative;
+  border-radius: 999px;
+  background: transparent;
+  cursor: pointer;
+  opacity: 0.72;
+  transition:
+    width 0.18s ease,
+    opacity 0.18s ease;
+}
+
+:global(
+  .ProseMirror
+    .embed-group-container
+    .group-scroll-indicator-segment::before
+) {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 4px;
+  border-radius: 999px;
+  background-color: var(--color-grey-30);
+  transform: translateY(-50%);
+  transition: background-color 0.18s ease;
+}
+
+:global(
+  .ProseMirror
+    .embed-group-container
+    .group-scroll-indicator-segment.is-visible
+) {
+  opacity: 0.9;
+}
+
+:global(
+  .ProseMirror
+    .embed-group-container
+    .group-scroll-indicator-segment.is-visible::before
+) {
+  background-color: var(--color-grey-60);
+}
+
+:global(
+  .ProseMirror
+    .embed-group-container
+    .group-scroll-indicator-segment.is-current
+) {
+  width: 30px;
+  opacity: 1;
+}
+
+:global(
+  .ProseMirror
+    .embed-group-container
+    .group-scroll-indicator-segment.is-current::before
+) {
+  background-color: var(--color-grey-70);
+}
+
+:global(
+  .ProseMirror
+    .embed-group-container
+    .group-scroll-indicator-segment:focus-visible
+) {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :global(
+    .ProseMirror
+      .embed-group-container
+      .group-scroll-indicator-segment,
+    .ProseMirror
+      .embed-group-container
+      .group-scroll-indicator-segment::before
+  ) {
+    transition: none;
+  }
+}
+
 /* Mobile Layout for Grouped Previews */
 :global(
   .ProseMirror .embed-group-container.container-mobile .group-scroll-container
