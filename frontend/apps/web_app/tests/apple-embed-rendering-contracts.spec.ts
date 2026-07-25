@@ -22,6 +22,7 @@ const REGISTRY_CAPTURE_WORKERS = 6;
 const OUTPUT_DIR = path.resolve(process.cwd(), 'test-results', 'apple-ui-contracts', 'embeds');
 const FULLSCREEN_ROOT_TEST_IDS = [
 	'embed-fullscreen-overlay',
+	'finance-check-accounts-fullscreen',
 	'fitness-search-fullscreen',
 	'task-embed-fullscreen',
 	'workflow-embed-fullscreen'
