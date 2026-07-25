@@ -3445,7 +3445,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         const slideExampleIds = GUEST_LANDING_EXAMPLE_CHAT_IDS_BY_INSPIRATION[activeInspirationId];
         if (slideExampleIds) {
             const slideMetas = orderMetasByPreferredIds(communityMetas, slideExampleIds);
-            return [...sharedMetas, ...slideMetas];
+            return [...sharedMetas, ...introMetas, ...slideMetas];
         }
 
         if (selectedTagIds.length === 0) {
