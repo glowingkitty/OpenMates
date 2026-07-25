@@ -2771,10 +2771,12 @@
   @media (max-width: 730px) {
     .daily-inspiration-banner {
       height: 190px;
+      min-height: 190px;
     }
 
     .daily-inspiration-banner.guest-intro-variant:not(.landing-intro-expanded) {
       height: 170px;
+      min-height: 170px;
     }
 
     .daily-inspiration-banner.landing-intro-expanded {
@@ -2792,6 +2794,7 @@
     :global(.menu-open) .daily-inspiration-banner.guest-intro-variant:not(.landing-intro-expanded),
     :global(.side-by-side-active) .daily-inspiration-banner.guest-intro-variant:not(.landing-intro-expanded) {
       height: 170px;
+      min-height: unset;
     }
 
     .banner-inner {

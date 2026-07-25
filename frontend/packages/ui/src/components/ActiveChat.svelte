@@ -12834,7 +12834,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 </div>
 
                 <!-- Right side container for message input -->
-                <div class="message-input-wrapper" data-testid="message-input-wrapper">
+                <div
+                    class="message-input-wrapper"
+                    class:guest-welcome-input-context={showWelcome && !$authStore.isAuthenticated}
+                    data-testid="message-input-wrapper"
+                >
                     {#if showWelcome && !$authStore.isAuthenticated}
                         <a
                             class="guest-input-context-link"
@@ -14188,6 +14192,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     .guest-input-context-link {
         display: inline-flex;
         align-items: center;
+        justify-content: center;
         gap: var(--spacing-2);
         width: fit-content;
         margin: 0 auto var(--spacing-3);
@@ -14198,6 +14203,16 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         text-decoration: none;
         pointer-events: auto;
         transition: color var(--duration-fast) var(--easing-default), opacity 260ms ease;
+    }
+
+    .message-input-wrapper.guest-welcome-input-context {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .message-input-wrapper.guest-welcome-input-context .message-input-container {
+        width: 100%;
     }
 
     .guest-input-context-icon {
