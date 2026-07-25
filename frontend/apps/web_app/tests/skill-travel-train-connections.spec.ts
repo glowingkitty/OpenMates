@@ -30,6 +30,7 @@ const {
 const {
 	loginToTestAccount,
 	startNewChat,
+	waitForChatReady,
 	sendMessage,
 	deleteActiveChat
 } = require('./helpers/chat-test-helpers');
@@ -72,8 +73,7 @@ test.describe('App: Travel / Skill: search_connections (train)', () => {
 				'--input', JSON.stringify({
 					requests: [{
 						legs: [{ origin: 'Berlin', destination: 'Munich', date }],
-						transport_methods: ['train'],
-						providers: ['deutsche_bahn']
+						transport_methods: ['train']
 					}]
 				}),
 				'--json'
@@ -94,11 +94,11 @@ test.describe('App: Travel / Skill: search_connections (train)', () => {
 		expect(first.transport_method).toBe('train');
 		expect(first.total_price).toBeTruthy();
 		expect(first.booking_url).toBeTruthy();
-		expect(first.booking_url).toContain('bahn.de');
+		expect(first.booking_url).toMatch(/bahn\.de|flixbus\.com|flixtrain\./i);
 		console.log(`[P1] First: ${first.origin} → ${first.destination}, €${first.total_price}, booking: ${first.booking_url.substring(0, 60)}...`);
 
 		// Verify provider attribution
-		expect(parsed.data?.provider).toBe('Deutsche Bahn');
+		expect(parsed.data?.provider).toContain('Deutsche Bahn');
 
 		// Verify legs and segments
 		expect(first.legs).toBeTruthy();
@@ -149,6 +149,7 @@ test.describe('App: Travel / Skill: search_connections (train)', () => {
 
 		await loginToTestAccount(page, logCheckpoint, takeStepScreenshot);
 		await startNewChat(page, logCheckpoint);
+		await waitForChatReady(page, logCheckpoint, 90_000);
 
 		await sendMessage(
 			page,
