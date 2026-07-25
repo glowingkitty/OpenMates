@@ -43,7 +43,6 @@ const mocks = vi.hoisted(() => ({
   },
   chatKeyManager: {
     getKey: vi.fn(),
-    getKeySync: vi.fn(),
     receiveKeyFromServer: vi.fn(),
     acceptServerKeyForMismatch: vi.fn(),
     removeKey: vi.fn(),
@@ -250,8 +249,6 @@ describe("handleChatContentBatchResponseImpl", () => {
     mocks.chatDB.saveChatCompressionCheckpoint.mockResolvedValue(undefined);
     mocks.chatDB.updateChat.mockResolvedValue(undefined);
     mocks.chatDB.getMessageCountForChat.mockResolvedValue(1);
-    mocks.chatKeyManager.getKeySync.mockReturnValue(new Uint8Array([1, 2, 3]));
-    mocks.decryptWithChatKey.mockResolvedValue("decrypted-content");
   });
 
   it("upserts the updated chat shell into the global chat-list cache", async () => {
@@ -273,7 +270,7 @@ describe("handleChatContentBatchResponseImpl", () => {
             chat_id: "chat-batch-1",
             role: "assistant",
             created_at: 300,
-            encrypted_content: "encrypted-content",
+            encrypted_content: "",
           },
         ],
       },
