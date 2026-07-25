@@ -247,7 +247,7 @@ class TestModelSelector:
 
         selector = ModelSelector(leaderboard_data=mock_leaderboard_data)
         # Model IDs can be bare or provider-prefixed; include both forms
-        available = ["claude-sonnet-4-6", "anthropic/claude-sonnet-4-6", "mistral-large"]
+        available = ["claude-sonnet-5", "anthropic/claude-sonnet-5", "mistral-large"]
 
         result = selector.select_models(
             task_area="general",

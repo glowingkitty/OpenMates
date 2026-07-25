@@ -24,7 +24,7 @@ class FakeModelSelector:
         return SimpleNamespace(
             primary_model_id="google/gemini-3.6-flash" if complexity == "complex" else "google/gemini-3-flash-preview",
             secondary_model_id="anthropic/claude-haiku-4-5-20251001",
-            fallback_model_id="anthropic/claude-sonnet-4-6",
+            fallback_model_id="anthropic/claude-sonnet-5",
             selection_reason=f"fake selector complexity={complexity}",
             filtered_cn_models=False,
         )

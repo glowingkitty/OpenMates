@@ -62,8 +62,8 @@ SOFTWARE_DEVELOPMENT_CATEGORY = "software_development"
 ONBOARDING_FOCUS_ID = "openmates-welcome"  # active_focus_id when Welcome Onboarding is running
 USER_ROLE = "user"
 DEEPSEEK_V4_FLASH_FALLBACK = "deepseek/deepseek-v4-flash"
-IMAGE_CHAT_SAFE_MODEL_ID = "anthropic/claude-sonnet-4-6"
-IMAGE_CHAT_SAFE_MODEL_NAME = "Claude Sonnet 4.6"
+IMAGE_CHAT_SAFE_MODEL_ID = "anthropic/claude-sonnet-5"
+IMAGE_CHAT_SAFE_MODEL_NAME = "Claude Sonnet 5"
 IMAGE_CHAT_EXCLUDED_PROVIDER_IDS = {"google"}
 
 REPO_SEARCH_ACTION_PATTERN = re.compile(

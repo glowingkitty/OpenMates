@@ -424,7 +424,7 @@ directus_users:
       type: string
       length: 256
       nullable: true
-      note: "User's preferred default model for complex AI requests. Null = auto-select. Format: 'provider/model_id' (e.g., 'anthropic/claude-opus-4-7'). Settable via POST /v1/settings/ai-model-defaults."
+      note: "User's preferred default model for complex AI requests. Null = auto-select. Format: 'provider/model_id' (e.g., 'anthropic/claude-fable-5'). Settable via POST /v1/settings/ai-model-defaults."
 
     follow_up_suggestions_enabled:
       type: boolean

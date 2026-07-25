@@ -95,7 +95,7 @@ openmates settings interface font set lexend
 ## AI
 
 ```
-openmates settings ai models set-defaults --simple gpt-5.4 --complex claude-opus-4-7
+openmates settings ai models set-defaults --simple gpt-5.4 --complex claude-fable-5
 ```
 
 ## Privacy
