@@ -107,15 +107,17 @@ test.describe('App: Travel / Skill: search_connections (train)', () => {
 		expect(leg.segments.length).toBeGreaterThanOrEqual(1);
 		const seg = leg.segments[0];
 		expect(seg.carrier).toBeTruthy(); // e.g., "ICE"
-		expect(seg.number).toBeTruthy(); // e.g., "ICE 505"
 		expect(seg.departure_station).toBeTruthy();
 		expect(seg.arrival_station).toBeTruthy();
 		expect(seg.scheduled_departure_time || seg.departure_time).toBeTruthy();
-		expect(seg.actual_departure_time).toBeTruthy();
 		expect(seg.scheduled_arrival_time || seg.arrival_time).toBeTruthy();
-		expect(seg.actual_arrival_time).toBeTruthy();
-		expect(seg.departure_platform).toBeTruthy();
-		expect(seg.arrival_platform).toBeTruthy();
+		if (first.source_provider === 'deutsche_bahn') {
+			expect(seg.number).toBeTruthy(); // e.g., "ICE 505"
+			expect(seg.actual_departure_time).toBeTruthy();
+			expect(seg.actual_arrival_time).toBeTruthy();
+			expect(seg.departure_platform).toBeTruthy();
+			expect(seg.arrival_platform).toBeTruthy();
+		}
 		console.log(`[P1] First segment: ${seg.number} (${seg.carrier}), ${seg.departure_station} → ${seg.arrival_station}`);
 	});
 

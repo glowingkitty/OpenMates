@@ -127,7 +127,13 @@ test('creates and shares a chat link with QR code and fallback link', async ({
 	await docAssert('share-link-generates-with-fallback-url', async () => {
 		const generateButton = page.getByTestId('share-generate-link');
 		await expect(generateButton).toBeVisible({ timeout: 10000 });
+		const metadataResponsePromise = page.waitForResponse(
+			(response: any) => response.url().includes('/v1/share/chat/metadata') && response.request().method() === 'POST',
+			{ timeout: 90000 }
+		);
 		await generateButton.dispatchEvent('click');
+		const metadataResponse = await metadataResponsePromise;
+		expect(metadataResponse.ok()).toBe(true);
 		await expect(page.getByTestId('share-short-link-section')).toBeVisible({ timeout: 90000 });
 	});
 
@@ -143,6 +149,13 @@ test('creates and shares a chat link with QR code and fallback link', async ({
 	expect(url).toContain(`/share/chat/${activeChatId}#key=`);
 	expect(longUrl).toContain(`/share/chat/${activeChatId}#key=`);
 	expect(expirationText).toMatch(/Auto expire(?: in|:)\s+never/i);
+
+	const apiUrl = process.env.PLAYWRIGHT_TEST_API_URL || 'https://api.dev.openmates.org';
+	const sharedMessagesResponse = await page.request.get(`${apiUrl}/v1/share/chat/${activeChatId}/messages?limit=10`);
+	expect(sharedMessagesResponse.ok()).toBe(true);
+	const sharedMessages = await sharedMessagesResponse.json();
+	expect(sharedMessages.messages?.length ?? 0).toBeGreaterThan(2);
+	expect(sharedMessages.messages?.some((message: any) => String(message.message_id || '').startsWith('dummy-'))).toBe(false);
 	logCheckpoint('Generated chat share link, QR code, and revealed URL verified in browser automation.');
 
 	logCheckpoint('Share chat flow test completed successfully.');
