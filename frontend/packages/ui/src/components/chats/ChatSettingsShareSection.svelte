@@ -11,6 +11,7 @@
   import { getApiEndpoint } from '../../config/api';
   import { chatDB } from '../../services/db';
   import { generateShareKeyBlob, type ShareDuration } from '../../services/shareEncryption';
+  import { shareMetadataQueue } from '../../services/shareMetadataQueue';
   import { generateShortUrlParts, encryptShareUrl, buildShortUrl } from '../../services/shortUrlEncryption';
   import { chatKeyManager } from '../../services/encryption/ChatKeyManager';
   import { encryptWithChatKey, uint8ArrayToBase64 } from '../../services/cryptoService';
@@ -185,6 +186,41 @@
     window.dispatchEvent(new CustomEvent('chatShared', { detail: { chat_id: chat.chat_id } }));
   }
 
+  async function syncShareMetadata(encryptedSharedShortUrl: string | null): Promise<void> {
+    if (!$authStore.isAuthenticated) return;
+    const shareHighlights = chat.share_highlights ?? true;
+    try {
+      const response = await fetch(getApiEndpoint('/v1/share/chat/metadata'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Origin': window.location.origin,
+        },
+        body: JSON.stringify({
+          chat_id: chat.chat_id,
+          title: title || null,
+          summary: summary || null,
+          share_cta_text: summary || title || null,
+          is_shared: true,
+          encrypted_shared_short_url: encryptedSharedShortUrl,
+          share_pii: shareWithCommunity,
+          share_highlights: shareHighlights,
+          share_with_community: shareWithCommunity ? true : undefined,
+          share_link: shareWithCommunity && generatedLink ? generatedLink : undefined,
+        }),
+        credentials: 'include',
+      });
+      if (response.ok) return;
+      const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
+      console.warn('[ChatSettingsShareSection] Failed to sync share metadata:', errorData);
+      await shareMetadataQueue.queueUpdate(chat.chat_id, title || null, summary || null, summary || title || null, encryptedSharedShortUrl, shareWithCommunity, shareHighlights);
+    } catch (error) {
+      console.warn('[ChatSettingsShareSection] Network error syncing share metadata:', error);
+      await shareMetadataQueue.queueUpdate(chat.chat_id, title || null, summary || null, summary || title || null, encryptedSharedShortUrl, shareWithCommunity, shareHighlights);
+    }
+  }
+
   async function generateLink(): Promise<void> {
     if (isGenerating) return;
     isGenerating = true;
@@ -209,9 +245,9 @@
         generatedLongLink = `${window.location.origin}/share/chat/${chat.chat_id}#key=${encryptedBlob}`;
         const result = await createPrimaryShareLink(generatedLongLink, durationSeconds, passwordEnabled);
         generatedLink = result.url;
-        void markChatShared(result.usedLongFallback ? null : generatedLink).catch((error) => {
-          console.error('[ChatSettingsShareSection] Failed to persist shared chat state:', error);
-        });
+        await markChatShared(result.usedLongFallback ? null : generatedLink);
+        const updatedChat = await chatDB.getChat(chat.chat_id);
+        await syncShareMetadata(updatedChat?.encrypted_shared_short_url ?? null);
       }
       generateQrCode(generatedLink);
       showQr = false;

@@ -297,6 +297,29 @@ async def test_create_short_url_stores_no_expiration_as_null():
 
 
 @pytest.mark.asyncio
+async def test_create_chat_short_url_marks_chat_shared():
+    directus = FakeDirectusService()
+    payload = share_routes.CreateShortUrlRequest(
+        token="Abc123XY",
+        encrypted_url="opaque-ciphertext",
+        content_type="chat",
+        content_id="chat-1",
+        password_protected=False,
+        ttl_seconds=None,
+    )
+
+    response = await create_short_url(
+        request=None,
+        payload=payload,
+        current_user=FakeUser(),
+        directus_service=directus,
+    )
+
+    assert response == {"success": True, "expires_at": None}
+    assert ("chats", "chat-1", {"is_shared": True, "is_private": False}) in directus.updated_items
+
+
+@pytest.mark.asyncio
 async def test_create_short_url_uses_cache_fallback_when_durable_storage_is_unavailable():
     directus = FailingCreateDirectusService()
     cache = FakeCacheService()
@@ -459,6 +482,7 @@ async def test_resolve_short_url_returns_only_encrypted_url():
     )
 
     assert response == {"encrypted_url": "opaque-ciphertext"}
+    assert ("chats", "chat-1", {"is_shared": True, "is_private": False}) in directus.updated_items
 
 
 @pytest.mark.asyncio

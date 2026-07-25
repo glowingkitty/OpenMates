@@ -1455,6 +1455,17 @@ async def _verify_short_link_target(
     return current_user_hash
 
 
+async def _mark_chat_shared_for_short_url(content_id: str, directus_service: DirectusService) -> None:
+    updated = await directus_service.update_item(
+        "chats",
+        content_id,
+        {"is_shared": True, "is_private": False},
+        admin_required=True,
+    )
+    if updated is None:
+        raise ShortUrlStorageUnavailable("Failed to mark chat as shared for short URL")
+
+
 async def _create_directus_item(directus_service: DirectusService, collection: str, payload: Dict[str, Any]) -> Dict[str, Any]:
     created = await directus_service.create_item(collection, payload, admin_required=True)
     if isinstance(created, tuple):
@@ -2036,6 +2047,8 @@ async def create_short_url(
             )
 
         hashed_user_id = await _verify_short_link_target(payload, current_user, directus_service)
+        if payload.content_type == "chat":
+            await _mark_chat_shared_for_short_url(payload.content_id, directus_service)
         now = int(time.time())
         expires_at = now + payload.ttl_seconds if payload.ttl_seconds else None
         try:
@@ -2133,6 +2146,8 @@ async def resolve_short_url(
 
         record = await _get_short_link_record(token, directus_service)
         if record and not _short_link_is_expired_or_revoked(record):
+            if record.get("content_type") == "chat" and record.get("content_id"):
+                await _mark_chat_shared_for_short_url(str(record["content_id"]), directus_service)
             return {"encrypted_url": record["encrypted_url"]}
         if record:
             raise HTTPException(status_code=404, detail="Short link expired or not found")
