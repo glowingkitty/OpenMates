@@ -16,6 +16,7 @@
   import { preprocessTiptapJsonForEmbeds } from './enter_message/utils/tiptapContentProcessor';
   import { parse_message } from '../message_parsing/parse_message';
   import { truncateTiptapContent } from '../utils/messageTruncation';
+  import { orderSharedInteractiveQuestionMessages } from '../utils/sharedInteractiveQuestionOrdering';
   import { restorePIIInText } from './enter_message/services/piiDetectionService';
   import type { PIIMapping } from '../types/chat';
   import { piiVisibilityStore } from '../stores/piiVisibilityStore';
@@ -1787,8 +1788,12 @@
 
     const previousMessagesLength = messages.length;
     
+    const orderedMessages = isSharedChat
+      ? orderSharedInteractiveQuestionMessages(newMessagesArray)
+      : newMessagesArray;
+
     // Display merge: show focus activation + following assistant as one bubble
-    const mergedForDisplay = mergeAssistantContinuationsForDisplay(newMessagesArray);
+    const mergedForDisplay = mergeAssistantContinuationsForDisplay(orderedMessages);
     
     // Build cumulative PII mappings from all user messages in the incoming array
     // This allows assistant messages to restore PII from any preceding user message

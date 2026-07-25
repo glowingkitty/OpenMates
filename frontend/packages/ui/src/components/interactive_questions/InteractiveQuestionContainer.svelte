@@ -25,6 +25,7 @@
   import { chatSyncService } from '../../services/chatSyncService';
   import type { Message } from '../../types/chat';
   import { activeChatStore } from '../../stores/activeChatStore';
+  import { orderSharedInteractiveQuestionMessages } from '../../utils/sharedInteractiveQuestionOrdering';
   import ChoiceQuestion from './renderers/ChoiceQuestion.svelte';
   import InputQuestion from './renderers/InputQuestion.svelte';
   import SliderQuestion from './renderers/SliderQuestion.svelte';
@@ -42,9 +43,10 @@
 
   // Reactive message list state
   let loadedHistory = $state<Message[]>([]);
+  let orderedHistory = $derived(orderSharedInteractiveQuestionMessages(loadedHistory));
 
   // Reactive state: find if already answered in subsequent messages
-  let answeredState = $derived(findSubsequentResponse(loadedHistory, payload.id));
+  let answeredState = $derived(findSubsequentResponse(orderedHistory, payload.id));
   let isAnswered = $derived(!!answeredState);
 
   // Selection states managed by the child renderers
