@@ -61,6 +61,7 @@
   const LANDING_INTRO_HEADLINE_ONLY_MS = 1200;
   const LANDING_INTRO_REQUEST_INTERVAL_MS = 2100;
   const LANDING_INTRO_TOTAL_MS = LANDING_INTRO_HEADLINE_ONLY_MS + (LANDING_INTRO_REQUEST_INTERVAL_MS * LANDING_INTRO_REQUESTS_COUNT) + 700;
+  const LANDING_INTRO_CONTENT_FADE_MS = 220;
   const LANDING_INTRO_RESIZE_TRANSITION_MS = 760;
   const TOUCH_SWIPE_DISTANCE_PX = 56;
   const TOUCH_SWIPE_VERTICAL_CANCEL_PX = 48;
@@ -95,7 +96,7 @@
     iconName: string;
   }
 
-  type LandingIntroPhase = 'regular' | 'expanded' | 'collapsing' | 'expanding';
+  type LandingIntroPhase = 'regular' | 'expanded' | 'fading-out' | 'collapsing' | 'expanding';
 
   // ─── Component props ────────────────────────────────────────────────────────
 
@@ -166,6 +167,7 @@
   let landingIntroDismissed = $state(false);
   let landingIntroPhase = $state<LandingIntroPhase>('expanded');
   let landingIntroRequestIndex = $state(-1);
+  let pendingLandingIntroIndex = $state<number | null>(null);
   let landingIntroTransitionTimeout: number | undefined;
   let landingIntroAnimationFrame: number | undefined;
   // Temporarily disabled with the visit-cycling effect below.
@@ -362,10 +364,10 @@
     isGuestIntroVariant && current?.inspiration_id === LANDING_INTRO_INSPIRATION_ID,
   );
   let landingIntroOverlayActive = $derived(
-    landingIntroIsCurrentSlide && !landingIntroDismissed && landingIntroPhase !== 'regular',
+    landingIntroIsCurrentSlide && landingIntroPhase !== 'regular',
   );
   let landingIntroUsesFullHeight = $derived(
-    landingIntroOverlayActive && landingIntroPhase === 'expanded',
+    landingIntroOverlayActive && (landingIntroPhase === 'expanded' || landingIntroPhase === 'fading-out'),
   );
   let landingIntroParentPhase = $derived(
     landingIntroOverlayActive ? landingIntroPhase : 'regular',
@@ -843,19 +845,30 @@
   }
 
   function completeLandingIntro(direction: 1 | -1): void {
-    if (!landingIntroOverlayActive || landingIntroPhase === 'collapsing') return;
+    if (!landingIntroOverlayActive || landingIntroPhase === 'fading-out' || landingIntroPhase === 'collapsing') return;
     window.clearTimeout(landingIntroTransitionTimeout);
     window.cancelAnimationFrame(landingIntroAnimationFrame ?? 0);
-    landingIntroPhase = 'collapsing';
+    pendingLandingIntroIndex = getResolvedVisibleIndex(currentIndex + direction);
+    landingIntroPhase = 'fading-out';
     landingIntroRequestIndex = -1;
     markManualNavigation();
     resumeAutoRotation();
     landingIntroDismissed = true;
-    goToVisibleIndex(currentIndex + direction);
-    restartProgressAnimation();
     landingIntroTransitionTimeout = window.setTimeout(() => {
-      landingIntroPhase = 'regular';
-    }, LANDING_INTRO_RESIZE_TRANSITION_MS);
+      landingIntroPhase = 'collapsing';
+      landingIntroTransitionTimeout = window.setTimeout(() => {
+        finishLandingIntroCollapse();
+      }, LANDING_INTRO_RESIZE_TRANSITION_MS + 80);
+    }, LANDING_INTRO_CONTENT_FADE_MS);
+  }
+
+  function finishLandingIntroCollapse(): void {
+    if (landingIntroPhase !== 'collapsing' || pendingLandingIntroIndex === null) return;
+    window.clearTimeout(landingIntroTransitionTimeout);
+    currentIndex = pendingLandingIntroIndex;
+    pendingLandingIntroIndex = null;
+    landingIntroPhase = 'regular';
+    restartProgressAnimation();
   }
 
   function buildLandingIntroAppIcons(): LandingIntroAppIcon[] {
@@ -920,6 +933,11 @@
     return Array.from({ length: end - start + 1 }, (_, offset) => start + offset);
   }
 
+  function getResolvedVisibleIndex(nextIndex: number): number {
+    if (visibleInspirations.length === 0) return 0;
+    return (nextIndex + visibleInspirations.length) % visibleInspirations.length;
+  }
+
   function landingIntroIconStyle(icon: LandingIntroAppIcon): string {
     return [
       `--landing-intro-icon-url: var(--icon-url-${icon.iconName})`,
@@ -957,10 +975,11 @@
       currentIndex = 0;
       return;
     }
-    const resolvedIndex = (nextIndex + visibleInspirations.length) % visibleInspirations.length;
+    const resolvedIndex = getResolvedVisibleIndex(nextIndex);
     if (options.restoreLandingIntro && visibleInspirations[resolvedIndex]?.inspiration_id === LANDING_INTRO_INSPIRATION_ID) {
       window.clearTimeout(landingIntroTransitionTimeout);
       window.cancelAnimationFrame(landingIntroAnimationFrame ?? 0);
+      pendingLandingIntroIndex = null;
       landingIntroDismissed = false;
       landingIntroRequestIndex = -1;
       landingIntroPhase = 'expanding';
@@ -1061,6 +1080,7 @@
       class:guest-intro-variant={isGuestIntroVariant}
       class:landing-intro-overlay-active={landingIntroOverlayActive}
       class:landing-intro-expanded={landingIntroUsesFullHeight}
+      class:landing-intro-fading-out={landingIntroPhase === 'fading-out'}
       class:landing-intro-collapsing={landingIntroPhase === 'collapsing'}
       class:landing-intro-expanding={landingIntroPhase === 'expanding'}
       data-landing-intro-phase={landingIntroParentPhase}
@@ -1070,6 +1090,11 @@
       style={gradientStyle}
       onclick={handleStartChat}
       onpointerdown={handleBannerPointerDown}
+      ontransitionend={(e) => {
+        if (e.target === e.currentTarget && (e.propertyName === 'height' || e.propertyName === 'min-height')) {
+          finishLandingIntroCollapse();
+        }
+      }}
       ontouchstart={handleTouchStart}
       ontouchmove={handleTouchMove}
       ontouchend={handleTouchEnd}
@@ -1126,7 +1151,6 @@
                 class="landing-intro-expanded-content"
                 class:examples-visible={landingIntroExamplesVisible}
                 data-testid="landing-intro-expanded"
-                out:fade={{ duration: 320 }}
               >
                 <div class="guest-intro-ai-icon landing-intro-ai-icon" data-testid="guest-intro-ai-icon" aria-hidden="true"></div>
                 <h1 class="landing-intro-headline" data-testid="landing-intro-headline">
@@ -1450,7 +1474,7 @@
            of the full-width card, not constrained by the 680px inner width.
            z-index: 20 ensures they are always on top of the embed wrapper. -->
       {#if hasMultiple}
-        {#if isBannerVisible && !isOpeningInspiration}
+        {#if isBannerVisible && !isOpeningInspiration && landingIntroPhase !== 'fading-out' && landingIntroPhase !== 'collapsing'}
           <div
             class="carousel-progress"
             data-testid="daily-inspiration-carousel-progress"
@@ -1531,11 +1555,12 @@
      Fixed height (240px) so the embed is never cut off.
      position:relative is required for the absolutely-positioned arrows. */
   .daily-inspiration-banner {
+    --daily-inspiration-regular-height: max(35vh, 240px);
     position: relative;
     width: 100%;
     border: none;
     border-radius: var(--radius-6);
-    height: max(35vh, 240px);
+    height: var(--daily-inspiration-regular-height);
     min-height: 240px;
     cursor: pointer;
     overflow: hidden;
@@ -1577,12 +1602,36 @@
       min-height 0.75s cubic-bezier(0.22, 1, 0.36, 1);
   }
 
+  .daily-inspiration-banner.landing-intro-fading-out {
+    transition:
+      filter 0.15s ease,
+      transform 0.1s ease,
+      height 0.75s cubic-bezier(0.22, 1, 0.36, 1),
+      min-height 0.75s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
   .daily-inspiration-banner.landing-intro-collapsing {
     transition:
       filter 0.15s ease,
       transform 0.1s ease,
       height 0.75s cubic-bezier(0.22, 1, 0.36, 1),
       min-height 0.75s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .daily-inspiration-banner.landing-intro-fading-out .landing-intro-expanded-content,
+  .daily-inspiration-banner.landing-intro-collapsing .landing-intro-expanded-content {
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-10px) scale(0.985);
+  }
+
+  .daily-inspiration-banner.landing-intro-fading-out .orb,
+  .daily-inspiration-banner.landing-intro-collapsing .orb,
+  .daily-inspiration-banner.landing-intro-fading-out .landing-intro-headline span,
+  .daily-inspiration-banner.landing-intro-collapsing .landing-intro-headline span,
+  .daily-inspiration-banner.landing-intro-fading-out .landing-intro-app-rail,
+  .daily-inspiration-banner.landing-intro-collapsing .landing-intro-app-rail {
+    animation-play-state: paused;
   }
 
   .daily-inspiration-banner.landing-intro-collapsing .landing-intro-expanded-content {
@@ -2770,11 +2819,13 @@
   /* ── Mobile adjustments (≤730px) ── */
   @media (max-width: 730px) {
     .daily-inspiration-banner {
+      --daily-inspiration-regular-height: 190px;
       height: 190px;
       min-height: 190px;
     }
 
     .daily-inspiration-banner.guest-intro-variant:not(.landing-intro-expanded) {
+      --daily-inspiration-regular-height: 170px;
       height: 170px;
       min-height: 170px;
     }

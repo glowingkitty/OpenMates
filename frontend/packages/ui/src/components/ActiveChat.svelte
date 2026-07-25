@@ -4713,6 +4713,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             return;
         }
 
+        if (guestLandingIntroOverlayActive) {
+            return;
+        }
+
         recalculateGuestInterestTagsTop();
 
         const containerRect = chatSideEl.getBoundingClientRect();
@@ -4945,6 +4949,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         void messageInputFocused;
         void isTouchEnvironment;
         void isEffectivelyNarrow;
+        void guestLandingIntroOverlayActive;
         void chatSideEl;
         void welcomeContentEl;
         // chatSideEl must be available (set after mount)
@@ -5305,11 +5310,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     let activeGuestSurface = $state<DailyInspirationSurface>('chats');
     let activeGuestInspirationId = $state(GUEST_DEFAULT_INTRO_INSPIRATION_ID);
     let guestInputLinkIndex = $state(0);
-    type LandingIntroPhase = 'regular' | 'expanded' | 'collapsing' | 'expanding';
+    type LandingIntroPhase = 'regular' | 'expanded' | 'fading-out' | 'collapsing' | 'expanding';
     let guestLandingIntroPhase = $state<LandingIntroPhase>('regular');
     let guestLandingIntroOverlayActive = $derived(guestLandingIntroPhase !== 'regular');
     let guestLandingIntroContentCovered = $derived(
-        guestLandingIntroPhase === 'expanded' || guestLandingIntroPhase === 'expanding'
+        guestLandingIntroPhase === 'expanded' || guestLandingIntroPhase === 'expanding' || guestLandingIntroPhase === 'fading-out'
     );
     let guestInterestShuffleToken = $state(0);
     let lastGuestInspirationShuffleId = $state('');
@@ -15252,7 +15257,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         display: flex;
         flex-direction: column;
         height: 100%;
-        transition: all var(--duration-slow) var(--easing-default);
+        transition:
+            opacity var(--duration-slow) var(--easing-default),
+            box-shadow var(--duration-slow) var(--easing-default),
+            border-radius var(--duration-slow) var(--easing-default);
     }
 
     .chat-wrapper.landing-intro-overlay-active {

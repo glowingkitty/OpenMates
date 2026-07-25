@@ -118,6 +118,7 @@ async function landingIntroOverlayMetrics(page: any): Promise<{
 	bannerActiveBottomDelta: number;
 	messageInputOpacity: number;
 	welcomeContentOpacity: number;
+	introContentOpacity: number | null;
 	messageInputExists: boolean;
 }> {
 	return page.evaluate(() => {
@@ -125,6 +126,7 @@ async function landingIntroOverlayMetrics(page: any): Promise<{
 		const banner = document.querySelector<HTMLElement>('[data-testid="daily-inspiration-banner"]');
 		const messageInput = document.querySelector<HTMLElement>('[data-testid="message-input-wrapper"]');
 		const welcomeContent = document.querySelector<HTMLElement>('[data-testid="welcome-content"]');
+		const introContent = document.querySelector<HTMLElement>('[data-testid="landing-intro-expanded"]');
 		if (!active || !banner || !messageInput || !welcomeContent) {
 			throw new Error('Landing intro overlay elements missing');
 		}
@@ -141,6 +143,7 @@ async function landingIntroOverlayMetrics(page: any): Promise<{
 			bannerActiveBottomDelta: Math.abs(bannerRect.bottom - activeRect.bottom),
 			messageInputOpacity: Number.parseFloat(getComputedStyle(messageInput).opacity),
 			welcomeContentOpacity: Number.parseFloat(getComputedStyle(welcomeContent).opacity),
+			introContentOpacity: introContent ? Number.parseFloat(getComputedStyle(introContent).opacity) : null,
 			messageInputExists: true
 		};
 	});
@@ -209,8 +212,13 @@ test.describe('Landing page onboarding refresh', () => {
 		expect(expanded.welcomeContentOpacity, 'welcome content is transparent while covered').toBeLessThanOrEqual(0.05);
 
 		await page.getByTestId('daily-inspiration-next').click();
+		await expect.poll(async () => {
+			const phase = (await landingIntroOverlayMetrics(page)).phase;
+			return phase === 'fading-out' || phase === 'collapsing';
+		}, { timeout: 1000 }).toBe(true);
+		await expect.poll(async () => (await landingIntroOverlayMetrics(page)).introContentOpacity ?? 1, { timeout: 1500 }).toBeLessThan(0.2);
 		await expect.poll(async () => (await landingIntroOverlayMetrics(page)).phase, { timeout: 2000 }).toBe('collapsing');
-		await expect(page.getByTestId('landing-intro-headline')).toBeVisible({ timeout: 1000 });
+		await expect(page.getByTestId('landing-actionable-event-demo')).toHaveCount(0);
 		await expect.poll(async () => (await landingIntroOverlayMetrics(page)).messageInputOpacity, { timeout: 1500 }).toBeGreaterThan(0.2);
 		const collapsing = await landingIntroOverlayMetrics(page);
 		expect(collapsing.messageInputOpacity, 'message input fades in while intro shrinks').toBeGreaterThan(0.2);
