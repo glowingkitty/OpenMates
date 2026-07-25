@@ -1320,6 +1320,11 @@
        its paint must be kept fresh when its own size/contents change, rather
        than being cached at a stale position. */
     contain: layout paint;
+    color: #fff;
+  }
+
+  .loaded-content :global(.workspace-detail-header.embedded) {
+    color: #fff;
   }
 
   @keyframes fadeIn {
@@ -1333,7 +1338,7 @@
     display: block;
     font-size: var(--font-size-h3);
     font-weight: 700;
-    color: var(--color-font-button);
+    color: #fff;
     text-align: center;
     line-height: 1.3;
     max-width: 100%;
@@ -1353,7 +1358,7 @@
     padding: 3px 12px;
     font-size: var(--font-size-xs);
     font-weight: 600;
-    color: var(--color-font-button);
+    color: #fff;
     background: rgba(255, 255, 255, 0.2);
     border-radius: 20px;
     letter-spacing: 0.02em;
