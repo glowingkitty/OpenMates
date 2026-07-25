@@ -25,7 +25,7 @@ const {
 	sendMessage,
 	deleteActiveChat
 } = require('./helpers/chat-test-helpers');
-const { deriveApiUrl, runCli, parseCliJson } = require('./helpers/cli-test-helpers');
+const { deriveApiUrl, runCli, parseCliJson, expectCliSuccess } = require('./helpers/cli-test-helpers');
 const {
 	verifyEmbedPreviewPage,
 	waitForEmbedFinished,
@@ -33,6 +33,8 @@ const {
 	verifySearchGrid,
 	closeFullscreen
 } = require('./helpers/embed-test-helpers');
+
+const VIDEO_SEARCH_FIXTURE_QUERY = 'openmates_e2e_video_fixture_python';
 
 test.describe('App: Videos / Skill: search', () => {
 	test.setTimeout(120_000);
@@ -55,13 +57,13 @@ test.describe('App: Videos / Skill: search', () => {
 			apiUrl,
 			[
 				'apps', 'videos', 'search',
-				'--input', JSON.stringify({ requests: [{ query: 'python programming tutorial' }] }),
+				'--input', JSON.stringify({ requests: [{ query: VIDEO_SEARCH_FIXTURE_QUERY }] }),
 				'--json'
 			],
 			30_000
 		);
 
-		expect(result.code).toBe(0);
+		expectCliSuccess(result, 'openmates apps videos search');
 		const parsed = parseCliJson(result);
 		expect(parsed.success).toBe(true);
 
@@ -75,7 +77,7 @@ test.describe('App: Videos / Skill: search', () => {
 	test('Phase 3: CLI chats new triggers videos search', async () => {
 		test.skip(!process.env.OPENMATES_TEST_ACCOUNT_API_KEY, 'API key required.');
 
-		const message = withLiveMockMarker('Use videos.search to find videos about Python programming', 'videos_search_cli');
+		const message = withLiveMockMarker(`Use videos.search to find videos for exact query ${VIDEO_SEARCH_FIXTURE_QUERY}`, 'videos_search_cli');
 		const result = await runCli(apiUrl, ['chats', 'new', message, '--json'], 60_000);
 		expect(result.code).toBe(0);
 
@@ -102,7 +104,7 @@ test.describe('App: Videos / Skill: search', () => {
 
 		await sendMessage(
 			page,
-			withLiveMockMarker('Use videos.search to find videos about Python programming', 'videos_search_web'),
+			withLiveMockMarker(`Use videos.search to find videos for exact query ${VIDEO_SEARCH_FIXTURE_QUERY}`, 'videos_search_web'),
 			logCheckpoint, takeStepScreenshot, 'videos-search'
 		);
 

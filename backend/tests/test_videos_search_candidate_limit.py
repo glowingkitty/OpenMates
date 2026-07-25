@@ -6,8 +6,11 @@
 # stay bounded to keep direct app-skill calls responsive.
 
 from backend.apps.videos.skills.search_skill import (
+    E2E_VIDEO_FIXTURE_QUERY_TOKEN,
     MAX_RETURNED_VIDEO_RESULTS,
+    _build_e2e_video_fixture_results,
     _candidate_count_for_requested_count,
+    _is_e2e_video_fixture_query,
     _video_candidates_for_brave_results,
 )
 
@@ -48,3 +51,20 @@ def test_video_candidates_fall_back_to_bounded_brave_results_without_youtube_url
 
     assert has_youtube_candidates is False
     assert candidates == [("", brave_results[0]), ("", brave_results[1])]
+
+
+def test_e2e_video_fixture_query_is_dev_only(monkeypatch) -> None:
+    monkeypatch.setenv("SERVER_ENVIRONMENT", "development")
+    assert _is_e2e_video_fixture_query(E2E_VIDEO_FIXTURE_QUERY_TOKEN) is True
+
+    monkeypatch.setenv("SERVER_ENVIRONMENT", "production")
+    assert _is_e2e_video_fixture_query(E2E_VIDEO_FIXTURE_QUERY_TOKEN) is False
+
+
+def test_e2e_video_fixture_results_match_video_preview_shape() -> None:
+    results = _build_e2e_video_fixture_results(1)
+
+    assert len(results) == 1
+    assert results[0]["title"]
+    assert results[0]["url"].startswith("https://www.youtube.com/watch?v=")
+    assert results[0]["thumbnail"]["original"]

@@ -31,6 +31,39 @@ logger = logging.getLogger(__name__)
 MAX_RETURNED_VIDEO_RESULTS = 20
 MIN_VIDEO_CANDIDATES = 8
 VIDEO_CANDIDATE_BUFFER = 4
+E2E_VIDEO_FIXTURE_QUERY_TOKEN = "openmates_e2e_video_fixture_python"
+E2E_VIDEO_FIXTURE_RESULTS = [
+    {
+        "title": "Python Programming Tutorial for Beginners",
+        "url": "https://www.youtube.com/watch?v=kqtD5dpn9C8",
+        "description": "A beginner-friendly Python programming tutorial used by the OpenMates E2E videos search flow.",
+        "age": "2024-01-01T00:00:00Z",
+        "meta_url": {"profile_image": "https://i.ytimg.com/vi/kqtD5dpn9C8/default.jpg"},
+        "thumbnail": {"original": "https://i.ytimg.com/vi/kqtD5dpn9C8/hqdefault.jpg"},
+        "viewCount": 1200000,
+        "likeCount": 42000,
+        "commentCount": 1800,
+        "tags": ["python", "programming", "tutorial"],
+        "channelTitle": "OpenMates E2E Videos",
+        "publishedAt": "2024-01-01T00:00:00Z",
+        "duration": "PT1H"
+    },
+    {
+        "title": "Learn Python by Building Small Projects",
+        "url": "https://www.youtube.com/watch?v=rfscVS0vtbw",
+        "description": "A project-based Python learning video used by the OpenMates E2E videos search flow.",
+        "age": "2024-02-01T00:00:00Z",
+        "meta_url": {"profile_image": "https://i.ytimg.com/vi/rfscVS0vtbw/default.jpg"},
+        "thumbnail": {"original": "https://i.ytimg.com/vi/rfscVS0vtbw/hqdefault.jpg"},
+        "viewCount": 980000,
+        "likeCount": 35000,
+        "commentCount": 1500,
+        "tags": ["python", "projects", "tutorial"],
+        "channelTitle": "OpenMates E2E Videos",
+        "publishedAt": "2024-02-01T00:00:00Z",
+        "duration": "PT45M"
+    },
+]
 
 
 class VideoSearchRequestItem(BaseModel):
@@ -359,6 +392,14 @@ class SearchSkill(BaseSkill):
             req_country = req_country_upper
         
         logger.debug(f"Executing video search (id: {request_id}): query='{search_query}', country='{req_country}'")
+        if _is_e2e_video_fixture_query(search_query):
+            fixture_results = _build_e2e_video_fixture_results(req_count)
+            logger.info(
+                "Video search (id: %s) using dev/test fixture results for query '%s'",
+                request_id,
+                search_query,
+            )
+            return (request_id, fixture_results, None)
         
         try:
             # Check and enforce rate limits before calling external API
@@ -933,6 +974,19 @@ class SearchSkill(BaseSkill):
 def _candidate_count_for_requested_count(requested_count: int | None) -> int:
     result_count = max(1, min(int(requested_count or 10), MAX_RETURNED_VIDEO_RESULTS))
     return min(MAX_RETURNED_VIDEO_RESULTS, max(MIN_VIDEO_CANDIDATES, result_count + VIDEO_CANDIDATE_BUFFER))
+
+
+def _is_e2e_video_fixture_query(query: str) -> bool:
+    """Return True for the explicit non-production E2E videos search fixture token."""
+    return (
+        os.getenv("SERVER_ENVIRONMENT", "production") != "production"
+        and E2E_VIDEO_FIXTURE_QUERY_TOKEN in query.lower()
+    )
+
+
+def _build_e2e_video_fixture_results(requested_count: int | None) -> List[Dict[str, Any]]:
+    result_count = max(1, min(int(requested_count or 10), len(E2E_VIDEO_FIXTURE_RESULTS)))
+    return [dict(result) for result in E2E_VIDEO_FIXTURE_RESULTS[:result_count]]
 
 
 def _video_candidates_for_brave_results(
