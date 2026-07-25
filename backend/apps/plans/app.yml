@@ -1,0 +1,62 @@
+name_translation_key: plans
+description_translation_key: plans.description
+icon_image: planning.svg
+category: productivity
+last_updated: "2026-07-25"
+settings_and_memories: []
+instructions:
+  - instruction: |
+      **Plan Skills**
+      - Use Plans create when the user asks to save or coordinate a durable execution plan.
+      - Use Plans search when the user asks to find an existing plan.
+      - Plan content is client-side encrypted. Do not invent server-visible plan search results.
+skills:
+  - id: create
+    name_translation_key: plans.skills.create
+    description_translation_key: plans.skills.create.description
+    icon_image: planning.svg
+    preprocessor_hint: >
+      Request creation of a user-visible plan. Durable plan content is
+      client-side encrypted, so a capable connected client must apply the change.
+    providers:
+      - name: OpenMates
+        no_api_key: true
+    pricing:
+      fixed: 1
+    class_path: backend.apps.plans.skills.create_skill.CreateSkill
+    tool_schema:
+      type: object
+      properties:
+        title:
+          type: string
+          description: Short user-facing plan title.
+        summary:
+          type: string
+          description: Optional plan summary.
+        goal:
+          type: string
+          description: Optional plan goal.
+      required:
+        - title
+
+  - id: search
+    name_translation_key: plans.skills.search
+    description_translation_key: plans.skills.search.description
+    icon_image: search.svg
+    preprocessor_hint: >
+      Search the user's encrypted plans through a connected capable client.
+      Do not use server-visible metadata as a private plan-content fallback.
+    providers:
+      - name: OpenMates
+        no_api_key: true
+    pricing:
+      fixed: 1
+    class_path: backend.apps.plans.skills.search_skill.SearchSkill
+    tool_schema:
+      type: object
+      properties:
+        query:
+          type: string
+          description: Private plan text to search for on a connected client.
+      required:
+        - query

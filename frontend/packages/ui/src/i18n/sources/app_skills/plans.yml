@@ -1,0 +1,96 @@
+skills.create:
+  context: Skill name for creating plans
+  en: Create Plan
+  de: Plan erstellen
+  zh: 创建计划
+  es: Crear plan
+  fr: Créer un plan
+  pt: Criar plano
+  ru: Создать план
+  ja: プランを作成
+  ko: 계획 만들기
+  it: Crea piano
+  tr: Plan oluştur
+  vi: Tạo kế hoạch
+  id: Buat rencana
+  pl: Utwórz plan
+  nl: Plan maken
+  ar: إنشاء خطة
+  hi: योजना बनाएं
+  th: สร้างแผน
+  cs: Vytvořit plán
+  sv: Skapa plan
+  he: יצירת תוכנית
+  verified_by_human: []
+skills.create.description:
+  context: Description for creating plans
+  en: Ask a connected client to create an encrypted plan.
+  de: Einen verbundenen Client bitten, einen verschlüsselten Plan zu erstellen.
+  zh: 请求已连接的客户端创建加密计划。
+  es: Pide a un cliente conectado que cree un plan cifrado.
+  fr: Demandez à un client connecté de créer un plan chiffré.
+  pt: Peça a um cliente conectado para criar um plano criptografado.
+  ru: Попросите подключенный клиент создать зашифрованный план.
+  ja: 接続済みクライアントに暗号化されたプランの作成を依頼します。
+  ko: 연결된 클라이언트에 암호화된 계획 생성을 요청합니다.
+  it: Chiedi a un client connesso di creare un piano crittografato.
+  tr: Bağlı bir istemciden şifrelenmiş bir plan oluşturmasını isteyin.
+  vi: Yêu cầu ứng dụng khách đã kết nối tạo kế hoạch được mã hóa.
+  id: Minta klien terhubung membuat rencana terenkripsi.
+  pl: Poproś połączonego klienta o utworzenie zaszyfrowanego planu.
+  nl: Vraag een verbonden client om een versleuteld plan te maken.
+  ar: اطلب من عميل متصل إنشاء خطة مشفرة.
+  hi: जुड़े हुए क्लाइंट से एन्क्रिप्टेड योजना बनाने को कहें।
+  th: ขอให้ไคลเอนต์ที่เชื่อมต่อสร้างแผนที่เข้ารหัส
+  cs: Požádejte připojeného klienta o vytvoření šifrovaného plánu.
+  sv: Be en ansluten klient skapa en krypterad plan.
+  he: בקשה מלקוח מחובר ליצור תוכנית מוצפנת.
+  verified_by_human: []
+skills.search:
+  context: Skill name for searching plans
+  en: Search Plans
+  de: Pläne suchen
+  zh: 搜索计划
+  es: Buscar planes
+  fr: Rechercher des plans
+  pt: Pesquisar planos
+  ru: Поиск планов
+  ja: プランを検索
+  ko: 계획 검색
+  it: Cerca piani
+  tr: Plan ara
+  vi: Tìm kế hoạch
+  id: Cari rencana
+  pl: Szukaj planów
+  nl: Plannen zoeken
+  ar: البحث في الخطط
+  hi: योजनाएँ खोजें
+  th: ค้นหาแผน
+  cs: Hledat plány
+  sv: Sök planer
+  he: חיפוש תוכניות
+  verified_by_human: []
+skills.search.description:
+  context: Description for searching plans
+  en: Find encrypted plans through a capable connected client.
+  de: Verschlüsselte Pläne über einen geeigneten verbundenen Client finden.
+  zh: 通过具备能力的已连接客户端查找加密计划。
+  es: Encuentra planes cifrados mediante un cliente conectado compatible.
+  fr: Trouvez des plans chiffrés via un client connecté compatible.
+  pt: Encontre planos criptografados por meio de um cliente conectado compatível.
+  ru: Находите зашифрованные планы через подходящий подключенный клиент.
+  ja: 対応する接続済みクライアントを通じて暗号化されたプランを見つけます。
+  ko: 지원되는 연결 클라이언트를 통해 암호화된 계획을 찾습니다.
+  it: Trova piani crittografati tramite un client connesso compatibile.
+  tr: Uygun bağlı bir istemciyle şifrelenmiş planları bulun.
+  vi: Tìm kế hoạch được mã hóa thông qua ứng dụng khách đã kết nối phù hợp.
+  id: Temukan rencana terenkripsi melalui klien terhubung yang mampu.
+  pl: Znajdź zaszyfrowane plany przez zgodnego połączonego klienta.
+  nl: Vind versleutelde plannen via een geschikte verbonden client.
+  ar: ابحث عن الخطط المشفرة عبر عميل متصل قادر.
+  hi: सक्षम जुड़े हुए क्लाइंट के ज़रिये एन्क्रिप्टेड योजनाएँ खोजें।
+  th: ค้นหาแผนที่เข้ารหัสผ่านไคลเอนต์ที่เชื่อมต่อและรองรับ
+  cs: Najděte šifrované plány přes schopného připojeného klienta.
+  sv: Hitta krypterade planer via en kapabel ansluten klient.
+  he: מציאת תוכניות מוצפנות דרך לקוח מחובר מתאים.
+  verified_by_human: []

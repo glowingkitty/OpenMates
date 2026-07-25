@@ -342,6 +342,7 @@ class AppYAML(BaseModel):
             "so they are invisible in OpenAPI docs but still reachable at runtime."
         ),
     )
+    internal: bool = Field(default=False, description="Hide this implementation detail from user-facing Apps/settings catalogs.")
     icon_image: Optional[str] = Field(default=None, pattern=r'.+\.svg$') # Filename ending with .svg
     icon_colorgradient: Optional[IconColorGradient] = None
     category: Optional[str] = None

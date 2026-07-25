@@ -28,6 +28,7 @@ export interface AppMetadata {
   settings_and_memories: MemoryFieldMetadata[]; // Maps to 'settings_and_memories' in app.yml
   providers?: string[]; // List of provider names used by this app's skills
   provider_display_order?: string[]; // Optional: Custom order for provider icons in Apps preview
+  internal?: boolean; // Internal implementation apps are omitted from settings metadata
   category?: string; // App category: "work" or "personal"
   last_updated?: string; // ISO date string of when the app was last updated (for "New apps" categorization)
   /** Runtime health status, set by appSkillsStore based on /v1/health.

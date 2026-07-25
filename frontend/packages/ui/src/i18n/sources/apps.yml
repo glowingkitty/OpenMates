@@ -1968,6 +1968,102 @@ events.search.description:
   sv: Hitta meetups, konferenser och lokala evenemang.
   he: מצא מפגשים, כנסים ואירועים מקומיים.
   verified_by_human: []
+plans:
+  context: App name for the Plans app
+  en: Plans
+  de: Pläne
+  zh: 计划
+  es: Planes
+  fr: Plans
+  pt: Planos
+  ru: Планы
+  ja: プラン
+  ko: 계획
+  it: Piani
+  tr: Planlar
+  vi: Kế hoạch
+  id: Rencana
+  pl: Plany
+  nl: Plannen
+  ar: الخطط
+  hi: योजनाएँ
+  th: แผน
+  cs: Plány
+  sv: Planer
+  he: תוכניות
+  verified_by_human: []
+plans.description:
+  context: Description for the Plans app
+  en: Coordinate durable plans, checks, and next steps.
+  de: Dauerhafte Pläne, Prüfungen und nächste Schritte koordinieren.
+  zh: 协调长期计划、检查和后续步骤。
+  es: Coordina planes duraderos, comprobaciones y próximos pasos.
+  fr: Coordonnez des plans durables, des vérifications et les prochaines étapes.
+  pt: Coordene planos duráveis, verificações e próximos passos.
+  ru: Координируйте долгосрочные планы, проверки и следующие шаги.
+  ja: 継続的な計画、確認、次のステップを調整します。
+  ko: 지속적인 계획, 점검, 다음 단계를 조율하세요.
+  it: Coordina piani duraturi, verifiche e prossimi passi.
+  tr: Kalıcı planları, kontrolleri ve sonraki adımları koordine edin.
+  vi: Điều phối kế hoạch lâu dài, kiểm tra và các bước tiếp theo.
+  id: Koordinasikan rencana tahan lama, pemeriksaan, dan langkah berikutnya.
+  pl: Koordynuj trwałe plany, kontrole i kolejne kroki.
+  nl: Coördineer duurzame plannen, controles en vervolgstappen.
+  ar: نسّق الخطط الدائمة والفحوصات والخطوات التالية.
+  hi: टिकाऊ योजनाओं, जाँचों और अगले चरणों का समन्वय करें।
+  th: ประสานแผนระยะยาว การตรวจสอบ และขั้นตอนถัดไป
+  cs: Koordinujte trvalé plány, kontroly a další kroky.
+  sv: Samordna varaktiga planer, kontroller och nästa steg.
+  he: תיאום תוכניות מתמשכות, בדיקות ושלבים הבאים.
+  verified_by_human: []
+projects:
+  context: App name for the Projects app
+  en: Projects
+  de: Projekte
+  zh: 项目
+  es: Proyectos
+  fr: Projets
+  pt: Projetos
+  ru: Проекты
+  ja: プロジェクト
+  ko: 프로젝트
+  it: Progetti
+  tr: Projeler
+  vi: Dự án
+  id: Proyek
+  pl: Projekty
+  nl: Projecten
+  ar: المشاريع
+  hi: प्रोजेक्ट
+  th: โปรเจกต์
+  cs: Projekty
+  sv: Projekt
+  he: פרויקטים
+  verified_by_human: []
+projects.description:
+  context: Description for the Projects app
+  en: Organize chats, files, embeds, and project workspaces.
+  de: Chats, Dateien, Einbettungen und Projektarbeitsbereiche organisieren.
+  zh: 整理聊天、文件、嵌入内容和项目工作区。
+  es: Organiza chats, archivos, embeds y espacios de trabajo de proyectos.
+  fr: Organisez les chats, fichiers, embeds et espaces de projet.
+  pt: Organize chats, arquivos, embeds e espaços de projeto.
+  ru: Организуйте чаты, файлы, встраивания и рабочие области проектов.
+  ja: チャット、ファイル、埋め込み、プロジェクトワークスペースを整理します。
+  ko: 채팅, 파일, 임베드, 프로젝트 작업 공간을 정리하세요.
+  it: Organizza chat, file, embed e spazi di lavoro di progetto.
+  tr: Sohbetleri, dosyaları, gömmeleri ve proje çalışma alanlarını düzenleyin.
+  vi: Sắp xếp cuộc trò chuyện, tệp, embed và không gian làm việc dự án.
+  id: Atur chat, file, embed, dan ruang kerja proyek.
+  pl: Organizuj czaty, pliki, osadzenia i przestrzenie projektowe.
+  nl: Organiseer chats, bestanden, embeds en projectwerkruimtes.
+  ar: نظّم الدردشات والملفات والتضمينات ومساحات عمل المشاريع.
+  hi: चैट, फ़ाइलें, एम्बेड और प्रोजेक्ट कार्यक्षेत्र व्यवस्थित करें।
+  th: จัดระเบียบแชต ไฟล์ embed และพื้นที่ทำงานโปรเจกต์
+  cs: Organizujte chaty, soubory, embedy a projektové pracovní prostory.
+  sv: Organisera chattar, filer, embeds och projektarbetsytor.
+  he: ארגון צ'אטים, קבצים, הטמעות וסביבות עבודה של פרויקטים.
+  verified_by_human: []
 workflows:
   context: App name for the Workflows app
   en: Workflows
