@@ -44,6 +44,30 @@ async def _read_existing_row(
     return (rows or [None])[0]
 
 
+async def _send_store_embed_diff_confirmed(
+    manager: ConnectionManager,
+    user_id: str,
+    device_fingerprint_hash: str,
+    request_id: Any,
+    embed_id: str,
+    version_number: int,
+) -> None:
+    if not request_id:
+        return
+    await manager.send_personal_message(
+        {
+            "type": "store_embed_diff_confirmed",
+            "payload": {
+                "request_id": request_id,
+                "embed_id": embed_id,
+                "version_number": version_number,
+            },
+        },
+        user_id,
+        device_fingerprint_hash,
+    )
+
+
 async def handle_store_embed_diff(
     websocket: WebSocket,
     manager: ConnectionManager,
@@ -72,6 +96,7 @@ async def handle_store_embed_diff(
 
     try:
         embed_id = str(payload.get("embed_id") or "")
+        request_id = payload.get("request_id")
         version_number = payload.get("version_number")
         if not embed_id or not isinstance(version_number, int):
             logger.warning("Invalid store_embed_diff payload from user %s", user_id)
@@ -163,6 +188,14 @@ async def handle_store_embed_diff(
                 user_id=user_id,
                 exclude_device_hash=device_fingerprint_hash,
             )
+            await _send_store_embed_diff_confirmed(
+                manager,
+                user_id,
+                device_fingerprint_hash,
+                request_id,
+                embed_id,
+                version_number,
+            )
             return
 
         await directus_service.create_item("embed_diffs", row)
@@ -176,6 +209,14 @@ async def handle_store_embed_diff(
             },
             user_id=user_id,
             exclude_device_hash=device_fingerprint_hash,
+        )
+        await _send_store_embed_diff_confirmed(
+            manager,
+            user_id,
+            device_fingerprint_hash,
+            request_id,
+            embed_id,
+            version_number,
         )
     finally:
         if _otel_span is not None:

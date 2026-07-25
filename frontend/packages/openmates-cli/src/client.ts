@@ -10152,7 +10152,17 @@ export class OpenMatesClient {
 
     const { ws } = await this.openWsClient();
     try {
+      const storeRequestId = randomUUID();
+      const storeConfirmed = ws.waitForMessage(
+        "store_embed_confirmed",
+        (payload) => {
+          const p = payload as Record<string, unknown>;
+          return p.request_id === storeRequestId && p.embed_id === embedId;
+        },
+        30_000,
+      );
       await ws.sendAsync("store_embed", {
+        request_id: storeRequestId,
         embed_id: embedId,
         encrypted_type: embed.encrypted_type,
         encrypted_content: encryptedRestoredContent,
@@ -10173,7 +10183,21 @@ export class OpenMatesClient {
         created_at: normalizeUnixSeconds(embed.created_at, now),
         updated_at: now,
       });
+      await storeConfirmed;
+
+      const diffRequestId = randomUUID();
+      const diffConfirmed = ws.waitForMessage(
+        "store_embed_diff_confirmed",
+        (payload) => {
+          const p = payload as Record<string, unknown>;
+          return p.request_id === diffRequestId
+            && p.embed_id === embedId
+            && p.version_number === newVersion;
+        },
+        30_000,
+      );
       await ws.sendAsync("store_embed_diff", {
+        request_id: diffRequestId,
         embed_id: embedId,
         version_number: newVersion,
         encrypted_snapshot: null,
@@ -10181,6 +10205,7 @@ export class OpenMatesClient {
         hashed_user_id: embed.hashed_user_id,
         created_at: now,
       });
+      await diffConfirmed;
     } finally {
       ws.close();
     }

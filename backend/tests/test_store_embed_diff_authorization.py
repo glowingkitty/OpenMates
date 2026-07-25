@@ -137,6 +137,42 @@ async def test_store_embed_diff_allows_owner_encrypted_row_and_derives_owner_has
 
 
 @pytest.mark.asyncio
+async def test_store_embed_diff_confirms_request_after_persisting_row():
+    manager = FakeConnectionManager()
+    directus = FakeDirectusService(
+        existing_embed={"embed_id": "embed-1", "hashed_user_id": OWNER_HASH}
+    )
+
+    handle_store_embed_diff = get_handle_store_embed_diff()
+    await handle_store_embed_diff(
+        websocket=None,
+        manager=manager,
+        cache_service=None,
+        directus_service=directus,
+        user_id=OWNER_ID,
+        device_fingerprint_hash="device-1",
+        payload=diff_payload(request_id="request-1", version_number=2),
+    )
+
+    assert len(directus.rows) == 1
+    assert len(manager.broadcasts) == 1
+    assert manager.personal_messages == [
+        (
+            {
+                "type": "store_embed_diff_confirmed",
+                "payload": {
+                    "request_id": "request-1",
+                    "embed_id": "embed-1",
+                    "version_number": 2,
+                },
+            },
+            OWNER_ID,
+            "device-1",
+        )
+    ]
+
+
+@pytest.mark.asyncio
 async def test_store_embed_diff_rejects_shared_recipient_write():
     manager = FakeConnectionManager()
     directus = FakeDirectusService(
