@@ -272,6 +272,7 @@ describe("handleChatContentBatchResponseImpl", () => {
     const existingChat = {
       ...mocks.existingChat,
       chat_id: "chat-batch-1",
+      is_sub_chat: true,
       messages_v: 0,
       updated_at: 200,
       last_edited_overall_timestamp: 200,
