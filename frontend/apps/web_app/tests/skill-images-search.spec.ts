@@ -25,7 +25,7 @@ const {
 	sendMessage,
 	deleteActiveChat
 } = require('./helpers/chat-test-helpers');
-const { deriveApiUrl, runCli, parseCliJson } = require('./helpers/cli-test-helpers');
+const { deriveApiUrl, runCli, parseCliJson, expectCliSuccess } = require('./helpers/cli-test-helpers');
 const {
 	verifyEmbedPreviewPage,
 	waitForEmbedFinished,
@@ -33,6 +33,8 @@ const {
 	verifySearchGrid,
 	closeFullscreen
 } = require('./helpers/embed-test-helpers');
+
+const IMAGE_SEARCH_FIXTURE_QUERY = 'openmates_e2e_image_fixture_sunset';
 
 test.describe('App: Images / Skill: search', () => {
 	test.setTimeout(120_000);
@@ -55,13 +57,13 @@ test.describe('App: Images / Skill: search', () => {
 			apiUrl,
 			[
 				'apps', 'images', 'search',
-				'--input', JSON.stringify({ requests: [{ query: 'sunset over ocean' }] }),
+				'--input', JSON.stringify({ requests: [{ query: IMAGE_SEARCH_FIXTURE_QUERY }] }),
 				'--json'
 			],
 			30_000
 		);
 
-		expect(result.code).toBe(0);
+		expectCliSuccess(result, 'openmates apps images search');
 		const parsed = parseCliJson(result);
 		expect(parsed.success).toBe(true);
 
@@ -73,7 +75,7 @@ test.describe('App: Images / Skill: search', () => {
 	test('Phase 3: CLI chats new triggers images search', async () => {
 		test.skip(!process.env.OPENMATES_TEST_ACCOUNT_API_KEY, 'API key required.');
 
-		const message = withLiveMockMarker('Search for images of sunsets over the ocean', 'images_search_cli');
+		const message = withLiveMockMarker(`Use images.search to find images for exact query ${IMAGE_SEARCH_FIXTURE_QUERY}`, 'images_search_cli');
 		const result = await runCli(apiUrl, ['chats', 'new', message, '--json'], 60_000);
 		expect(result.code).toBe(0);
 
@@ -100,7 +102,7 @@ test.describe('App: Images / Skill: search', () => {
 
 		await sendMessage(
 			page,
-			withLiveMockMarker('Search for images of sunsets over the ocean', 'images_search_web'),
+			withLiveMockMarker(`Use images.search to find images for exact query ${IMAGE_SEARCH_FIXTURE_QUERY}`, 'images_search_web'),
 			logCheckpoint, takeStepScreenshot, 'images-search'
 		);
 

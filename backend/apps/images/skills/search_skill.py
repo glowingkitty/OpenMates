@@ -66,6 +66,40 @@ MAX_PARALLEL_REQUESTS = 5
 DECRYPTED_IMAGE_CONTENT_TYPE = "image/webp"
 # Timeout for internal API calls (temp upload + delete)
 INTERNAL_API_TIMEOUT_SECONDS = 30
+E2E_IMAGE_FIXTURE_QUERY_TOKEN = "openmates_e2e_image_fixture_sunset"
+E2E_IMAGE_FIXTURE_RESULTS = [
+    {
+        "type": "image_result",
+        "title": "Sunset ocean fixture",
+        "source_page_url": "https://app.dev.openmates.org/store-examples/generate-1.webp",
+        "image_url": "https://app.dev.openmates.org/store-examples/generate-1.webp",
+        "thumbnail_url": "https://app.dev.openmates.org/store-examples/generate-1.webp",
+        "source": "app.dev.openmates.org",
+        "favicon_url": "https://app.dev.openmates.org/favicon.png",
+    },
+    {
+        "type": "image_result",
+        "title": "Ocean image fixture",
+        "source_page_url": "https://app.dev.openmates.org/store-examples/generate-2.webp",
+        "image_url": "https://app.dev.openmates.org/store-examples/generate-2.webp",
+        "thumbnail_url": "https://app.dev.openmates.org/store-examples/generate-2.webp",
+        "source": "app.dev.openmates.org",
+        "favicon_url": "https://app.dev.openmates.org/favicon.png",
+    },
+]
+
+
+def _is_e2e_image_fixture_query(query: str) -> bool:
+    """Return True for the explicit non-production E2E images search fixture token."""
+    return (
+        os.getenv("SERVER_ENVIRONMENT", "production") != "production"
+        and E2E_IMAGE_FIXTURE_QUERY_TOKEN in query.lower()
+    )
+
+
+def _build_e2e_image_fixture_results(requested_count: int | None) -> List[Dict[str, Any]]:
+    result_count = max(1, min(int(requested_count or DEFAULT_IMAGE_RESULTS), len(E2E_IMAGE_FIXTURE_RESULTS)))
+    return [dict(result) for result in E2E_IMAGE_FIXTURE_RESULTS[:result_count]]
 
 
 # ── Pydantic models (auto-discovered by apps_api.py for OpenAPI docs) ────────
@@ -418,6 +452,10 @@ class SearchSkill(BaseSkill):
 
         Returns (results_list, provider_name).
         """
+        if _is_e2e_image_fixture_query(query):
+            logger.info("[images.search] Using dev/test fixture results for query '%s'", query)
+            return _build_e2e_image_fixture_results(count), "OpenMates Test Fixture"
+
         from backend.shared.providers.brave.brave_search import search_images
 
         response = await search_images(
