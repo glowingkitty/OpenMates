@@ -3295,6 +3295,15 @@ changes to the documentation (to keep the documentation up to date).
         }
     }
 
+    @media (max-width: 730px) {
+        .referral-cta {
+            inset-inline-end: 58px;
+            width: 42px;
+            min-width: 42px;
+            max-width: 42px;
+        }
+    }
+
     .profile-container.menu-open {
         opacity: 0;
         pointer-events: none;
