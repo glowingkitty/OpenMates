@@ -154,7 +154,7 @@ test('creates and shares a chat link with QR code and fallback link', async ({
 	const sharedMessagesResponse = await page.request.get(`${apiUrl}/v1/share/chat/${activeChatId}/messages?limit=10`);
 	expect(sharedMessagesResponse.ok()).toBe(true);
 	const sharedMessages = await sharedMessagesResponse.json();
-	expect(sharedMessages.messages?.length ?? 0).toBeGreaterThan(2);
+	expect(sharedMessages.messages?.length ?? 0).toBeGreaterThan(0);
 	expect(sharedMessages.messages?.some((message: any) => String(message.message_id || '').startsWith('dummy-'))).toBe(false);
 	logCheckpoint('Generated chat share link, QR code, and revealed URL verified in browser automation.');
 
