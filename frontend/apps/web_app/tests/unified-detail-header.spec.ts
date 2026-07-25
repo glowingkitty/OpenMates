@@ -88,8 +88,22 @@ test.describe('Unified detail header editing', () => {
 			await expect(header).toHaveAttribute('data-header-system', 'workspace-detail');
 
 			const titleField = header.getByTestId('workspace-detail-title-field');
-			await titleField.hover();
 			const titleEditButton = titleField.getByTestId('workspace-detail-title-edit');
+			const descriptionField = header.getByTestId('workspace-detail-description-field');
+			const descriptionEditButton = descriptionField.getByTestId('workspace-detail-description-edit');
+
+			await page.setViewportSize({ width: 390, height: 844 });
+			const mobileTitleFieldRect = await getClientRect(titleField);
+			const mobileTitleValueRect = await getClientRect(header.getByTestId('workspace-detail-title'));
+			expect(mobileTitleValueRect.width / mobileTitleFieldRect.width).toBeGreaterThan(0.9);
+			await expect(titleEditButton).toHaveCSS('opacity', '0');
+			await expect(descriptionEditButton).toHaveCSS('opacity', '0');
+			await header.getByTestId('workspace-detail-title').click();
+			await expect(titleField.getByTestId('workspace-detail-title-input')).toBeVisible();
+			await titleField.getByTestId('workspace-detail-title-undo').click();
+			await page.setViewportSize({ width: 1440, height: 900 });
+
+			await titleField.hover();
 			await expect(titleEditButton).toBeVisible();
 			const titleTextRects = await getTextRects(header.getByTestId('workspace-detail-title'));
 			const titleEditRect = await getClientRect(titleEditButton);
@@ -120,7 +134,6 @@ test.describe('Unified detail header editing', () => {
 			await titleSave;
 			await expect(header.getByTestId('workspace-detail-title')).toHaveText(`Saved title ${suffix}`);
 
-			const descriptionField = header.getByTestId('workspace-detail-description-field');
 			await descriptionField.getByTestId('workspace-detail-description').click();
 			const descriptionInput = descriptionField.getByTestId('workspace-detail-description-input');
 			await expect(descriptionInput).toBeVisible();
