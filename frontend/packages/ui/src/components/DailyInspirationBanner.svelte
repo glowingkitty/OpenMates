@@ -61,7 +61,8 @@
   const LANDING_INTRO_HEADLINE_ONLY_MS = 1200;
   const LANDING_INTRO_REQUEST_INTERVAL_MS = 2100;
   const LANDING_INTRO_TOTAL_MS = LANDING_INTRO_HEADLINE_ONLY_MS + (LANDING_INTRO_REQUEST_INTERVAL_MS * LANDING_INTRO_REQUESTS_COUNT) + 700;
-  const LANDING_INTRO_CONTENT_FADE_MS = 220;
+  const LANDING_INTRO_CONTENT_FADE_MS = 360;
+  const LANDING_INTRO_REGULAR_REVEAL_MS = 520;
   const LANDING_INTRO_RESIZE_TRANSITION_MS = 760;
   const TOUCH_SWIPE_DISTANCE_PX = 56;
   const TOUCH_SWIPE_VERTICAL_CANCEL_PX = 48;
@@ -168,8 +169,12 @@
   let landingIntroPhase = $state<LandingIntroPhase>('expanded');
   let landingIntroRequestIndex = $state(-1);
   let pendingLandingIntroIndex = $state<number | null>(null);
+  let landingIntroRevealActive = $state(false);
+  let landingIntroRevealVisible = $state(false);
   let landingIntroTransitionTimeout: number | undefined;
   let landingIntroAnimationFrame: number | undefined;
+  let landingIntroRevealAnimationFrame: number | undefined;
+  let landingIntroRevealTimeout: number | undefined;
   // Temporarily disabled with the visit-cycling effect below.
   // let visitCycleTargetIndexes = $state(new Map<string, number>());
   // let visitCycleAppliedInspirations = $state<DailyInspiration[] | null>(null);
@@ -232,7 +237,9 @@
     unsubscribeAuth();
     onLandingIntroExpandedChange?.('regular');
     window.clearTimeout(landingIntroTransitionTimeout);
+    window.clearTimeout(landingIntroRevealTimeout);
     window.cancelAnimationFrame(landingIntroAnimationFrame ?? 0);
+    window.cancelAnimationFrame(landingIntroRevealAnimationFrame ?? 0);
   });
 
   // ─── Reload inspirations on language change ─────────────────────────────────
@@ -847,7 +854,11 @@
   function completeLandingIntro(direction: 1 | -1): void {
     if (!landingIntroOverlayActive || landingIntroPhase === 'fading-out' || landingIntroPhase === 'collapsing') return;
     window.clearTimeout(landingIntroTransitionTimeout);
+    window.clearTimeout(landingIntroRevealTimeout);
     window.cancelAnimationFrame(landingIntroAnimationFrame ?? 0);
+    window.cancelAnimationFrame(landingIntroRevealAnimationFrame ?? 0);
+    landingIntroRevealActive = false;
+    landingIntroRevealVisible = false;
     pendingLandingIntroIndex = getResolvedVisibleIndex(currentIndex + direction);
     landingIntroPhase = 'fading-out';
     landingIntroRequestIndex = -1;
@@ -868,7 +879,22 @@
     currentIndex = pendingLandingIntroIndex;
     pendingLandingIntroIndex = null;
     landingIntroPhase = 'regular';
+    startLandingIntroRegularReveal();
     restartProgressAnimation();
+  }
+
+  function startLandingIntroRegularReveal(): void {
+    window.clearTimeout(landingIntroRevealTimeout);
+    window.cancelAnimationFrame(landingIntroRevealAnimationFrame ?? 0);
+    landingIntroRevealActive = true;
+    landingIntroRevealVisible = false;
+    landingIntroRevealAnimationFrame = window.requestAnimationFrame(() => {
+      landingIntroRevealVisible = true;
+      landingIntroRevealTimeout = window.setTimeout(() => {
+        landingIntroRevealActive = false;
+        landingIntroRevealVisible = false;
+      }, LANDING_INTRO_REGULAR_REVEAL_MS);
+    });
   }
 
   function buildLandingIntroAppIcons(): LandingIntroAppIcon[] {
@@ -971,6 +997,11 @@
     nextIndex: number,
     options: { restoreLandingIntro?: boolean } = {},
   ): void {
+    window.clearTimeout(landingIntroRevealTimeout);
+    window.cancelAnimationFrame(landingIntroRevealAnimationFrame ?? 0);
+    landingIntroRevealActive = false;
+    landingIntroRevealVisible = false;
+
     if (visibleInspirations.length === 0) {
       currentIndex = 0;
       return;
@@ -1083,7 +1114,10 @@
       class:landing-intro-fading-out={landingIntroPhase === 'fading-out'}
       class:landing-intro-collapsing={landingIntroPhase === 'collapsing'}
       class:landing-intro-expanding={landingIntroPhase === 'expanding'}
+      class:landing-intro-revealing-next={landingIntroRevealActive}
+      class:landing-intro-reveal-visible={landingIntroRevealVisible}
       data-landing-intro-phase={landingIntroParentPhase}
+      data-landing-intro-revealing-next={landingIntroRevealActive ? 'true' : 'false'}
       data-mounted-slide-indexes={reachableSlideIndexes.join(',')}
       data-visible-inspiration-ids={visibleInspirations.map((inspiration) => inspiration.inspiration_id).join(',')}
       data-testid="daily-inspiration-banner"
@@ -1152,43 +1186,45 @@
                 class:examples-visible={landingIntroExamplesVisible}
                 data-testid="landing-intro-expanded"
               >
-                <div class="guest-intro-ai-icon landing-intro-ai-icon" data-testid="guest-intro-ai-icon" aria-hidden="true"></div>
-                <h1 class="landing-intro-headline" data-testid="landing-intro-headline">
-                  <span>{$text('demo_chats.for_everyone.landing_intro_headline_line1')}</span>
-                  <span>{$text('demo_chats.for_everyone.landing_intro_headline_line2')}</span>
-                </h1>
-                <div class="landing-intro-examples" class:visible={landingIntroExamplesVisible}>
-                  <div class="landing-intro-request" data-testid="landing-intro-request" aria-live="polite">
-                    {#key landingIntroRequestLabel}
-                      <span>{landingIntroRequestLabel}</span>
-                    {/key}
-                  </div>
-                  <div class="landing-intro-app-rails" aria-hidden="true">
-                    <div class="landing-intro-app-rail-row landing-intro-app-rail-row-primary">
-                      <div class="landing-intro-app-rail landing-intro-app-rail-primary" data-testid="landing-intro-app-rail">
-                        {#each [...landingIntroFirstRail, ...landingIntroFirstRail] as icon, index (`primary-${icon.appId}-${index}`)}
-                          <span
-                            class="landing-intro-app-icon"
-                            class:highlighted={icon.appId === landingIntroActiveAppId}
-                            data-testid="landing-intro-app-icon"
-                            data-app-id={icon.appId}
-                            data-highlighted={icon.appId === landingIntroActiveAppId ? 'true' : 'false'}
-                            style={landingIntroIconStyle(icon)}
-                          ></span>
-                        {/each}
-                      </div>
+                <div class="landing-intro-expanded-motion">
+                  <div class="guest-intro-ai-icon landing-intro-ai-icon" data-testid="guest-intro-ai-icon" aria-hidden="true"></div>
+                  <h1 class="landing-intro-headline" data-testid="landing-intro-headline">
+                    <span>{$text('demo_chats.for_everyone.landing_intro_headline_line1')}</span>
+                    <span>{$text('demo_chats.for_everyone.landing_intro_headline_line2')}</span>
+                  </h1>
+                  <div class="landing-intro-examples" class:visible={landingIntroExamplesVisible}>
+                    <div class="landing-intro-request" data-testid="landing-intro-request" aria-live="polite">
+                      {#key landingIntroRequestLabel}
+                        <span>{landingIntroRequestLabel}</span>
+                      {/key}
                     </div>
-                    <div class="landing-intro-app-rail-row landing-intro-app-rail-row-secondary">
-                      <div class="landing-intro-app-rail landing-intro-app-rail-secondary" data-testid="landing-intro-app-rail">
-                        {#each [...landingIntroSecondRail, ...landingIntroSecondRail] as icon, index (`secondary-${icon.appId}-${index}`)}
-                          <span
-                            class="landing-intro-app-icon"
-                            data-testid="landing-intro-app-icon"
-                            data-app-id={icon.appId}
-                            data-highlighted="false"
-                            style={landingIntroIconStyle(icon)}
-                          ></span>
-                        {/each}
+                    <div class="landing-intro-app-rails" aria-hidden="true">
+                      <div class="landing-intro-app-rail-row landing-intro-app-rail-row-primary">
+                        <div class="landing-intro-app-rail landing-intro-app-rail-primary" data-testid="landing-intro-app-rail">
+                          {#each [...landingIntroFirstRail, ...landingIntroFirstRail] as icon, index (`primary-${icon.appId}-${index}`)}
+                            <span
+                              class="landing-intro-app-icon"
+                              class:highlighted={icon.appId === landingIntroActiveAppId}
+                              data-testid="landing-intro-app-icon"
+                              data-app-id={icon.appId}
+                              data-highlighted={icon.appId === landingIntroActiveAppId ? 'true' : 'false'}
+                              style={landingIntroIconStyle(icon)}
+                            ></span>
+                          {/each}
+                        </div>
+                      </div>
+                      <div class="landing-intro-app-rail-row landing-intro-app-rail-row-secondary">
+                        <div class="landing-intro-app-rail landing-intro-app-rail-secondary" data-testid="landing-intro-app-rail">
+                          {#each [...landingIntroSecondRail, ...landingIntroSecondRail] as icon, index (`secondary-${icon.appId}-${index}`)}
+                            <span
+                              class="landing-intro-app-icon"
+                              data-testid="landing-intro-app-icon"
+                              data-app-id={icon.appId}
+                              data-highlighted="false"
+                              style={landingIntroIconStyle(icon)}
+                            ></span>
+                          {/each}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1620,10 +1656,19 @@
 
   .daily-inspiration-banner.landing-intro-fading-out .landing-intro-expanded-content,
   .daily-inspiration-banner.landing-intro-collapsing .landing-intro-expanded-content {
-    animation: none;
     opacity: 0;
     pointer-events: none;
-    transform: translateY(-10px) scale(0.985);
+    transform: translateY(-14px) scale(0.985);
+  }
+
+  .daily-inspiration-banner.landing-intro-revealing-next:not(.landing-intro-reveal-visible) .guest-intro-copy,
+  .daily-inspiration-banner.landing-intro-revealing-next:not(.landing-intro-reveal-visible) .guest-intro-video-box,
+  .daily-inspiration-banner.landing-intro-revealing-next:not(.landing-intro-reveal-visible) .guest-intro-feature-card,
+  .daily-inspiration-banner.landing-intro-revealing-next:not(.landing-intro-reveal-visible) .guest-product-demo-shell,
+  .daily-inspiration-banner.landing-intro-revealing-next:not(.landing-intro-reveal-visible) .guest-actionable-demo-shell {
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(12px) scale(0.985);
   }
 
   .daily-inspiration-banner.landing-intro-fading-out .orb,
@@ -1725,11 +1770,22 @@
     box-sizing: border-box;
     overflow: visible;
     color: white;
+    opacity: 1;
     text-align: center;
-    animation: landingIntroEnter 620ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    transform: translateY(0) scale(1);
     transition:
       opacity 360ms ease,
-      transform 760ms cubic-bezier(0.22, 1, 0.36, 1);
+      transform 360ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .landing-intro-expanded-motion {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    animation: landingIntroEnter 620ms cubic-bezier(0.22, 1, 0.36, 1) both;
   }
 
   .landing-intro-ai-icon {
@@ -2014,7 +2070,12 @@
     justify-content: center;
     gap: 4px;
     color: white;
+    opacity: 1;
     text-align: left;
+    transform: translateY(0) scale(1);
+    transition:
+      opacity 420ms ease,
+      transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
   }
 
   .guest-intro-ai-icon {
@@ -2107,8 +2168,13 @@
     border-radius: var(--radius-4);
     border: 1px solid rgba(255, 255, 255, 0.16);
     overflow: hidden;
+    opacity: 1;
     background: rgba(18, 18, 18, 0.9);
     box-shadow: 0 18px 44px rgba(0, 0, 0, 0.3), 0 4px 12px rgba(0, 0, 0, 0.18);
+    transform: translateY(0) scale(1);
+    transition:
+      opacity 420ms ease,
+      transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
   }
 
   .guest-actionable-demo-shell {
