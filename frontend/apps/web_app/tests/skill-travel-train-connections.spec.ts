@@ -72,7 +72,8 @@ test.describe('App: Travel / Skill: search_connections (train)', () => {
 				'--input', JSON.stringify({
 					requests: [{
 						legs: [{ origin: 'Berlin', destination: 'Munich', date }],
-						transport_methods: ['train']
+						transport_methods: ['train'],
+						providers: ['deutsche_bahn']
 					}]
 				}),
 				'--json'
