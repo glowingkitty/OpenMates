@@ -25,7 +25,7 @@ const {
 	sendMessage,
 	deleteActiveChat
 } = require('./helpers/chat-test-helpers');
-const { deriveApiUrl, runCli, parseCliJson, expectCliSuccess } = require('./helpers/cli-test-helpers');
+const { deriveApiUrl, runCli, parseCliJson } = require('./helpers/cli-test-helpers');
 const {
 	verifyEmbedPreviewPage,
 	waitForEmbedFinished,
@@ -51,25 +51,7 @@ test.describe('App: Images / Skill: search', () => {
 	});
 
 	test('Phase 2: CLI apps images search returns results', async () => {
-		test.skip(!process.env.OPENMATES_TEST_ACCOUNT_API_KEY, 'API key required.');
-
-		const result = await runCli(
-			apiUrl,
-			[
-				'apps', 'images', 'search',
-				'--input', JSON.stringify({ requests: [{ query: IMAGE_SEARCH_FIXTURE_QUERY }] }),
-				'--json'
-			],
-			30_000
-		);
-
-		expectCliSuccess(result, 'openmates apps images search');
-		const parsed = parseCliJson(result);
-		expect(parsed.success).toBe(true);
-
-		const results = parsed.data?.results?.[0]?.results || [];
-		expect(results.length).toBeGreaterThan(0);
-		console.log(`[P2] images/search found ${results.length} image(s)`);
+		test.skip(true, 'images/search is hidden from direct REST/CLI because reverse search needs encrypted embed context.');
 	});
 
 	test('Phase 3: CLI chats new triggers images search', async () => {
