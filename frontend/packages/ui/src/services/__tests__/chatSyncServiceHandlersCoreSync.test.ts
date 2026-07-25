@@ -3,7 +3,7 @@
 // Phase 1a must use the shared merge policy so partial server/cache payloads
 // cannot overwrite locally valid encrypted chat header metadata with nulls.
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ChatSynchronizationService } from "../chatSyncService";
 import {
   handleChatContentBatchResponseImpl,
@@ -87,6 +87,10 @@ vi.mock("../chatSyncMessageKeyGuard", () => ({
   })),
   markSyncedMessagesDeferred: vi.fn(),
 }));
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 describe("handlePhase1LastChatImpl", () => {
   beforeEach(() => {
@@ -245,6 +249,18 @@ describe("handlePhase1LastChatImpl", () => {
 describe("handleChatContentBatchResponseImpl", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.stubGlobal(
+      "CustomEvent",
+      class TestCustomEvent {
+        type: string;
+        detail: unknown;
+
+        constructor(type: string, init?: CustomEventInit) {
+          this.type = type;
+          this.detail = init?.detail;
+        }
+      },
+    );
     mocks.chatDB.batchSaveMessages.mockResolvedValue(undefined);
     mocks.chatDB.saveChatCompressionCheckpoint.mockResolvedValue(undefined);
     mocks.chatDB.updateChat.mockResolvedValue(undefined);
