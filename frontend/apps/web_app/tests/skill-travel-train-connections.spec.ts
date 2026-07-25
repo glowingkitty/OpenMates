@@ -123,9 +123,10 @@ test.describe('App: Travel / Skill: search_connections (train)', () => {
 
 	test('Phase 2: CLI chat triggers train search', async () => {
 		test.skip(!process.env.OPENMATES_TEST_ACCOUNT_API_KEY, 'API key required.');
+		const date = futureDate();
 
 		const message = withLiveMockMarker(
-			'Find train connections from Hamburg to Frankfurt next week',
+			`Find train connections from Berlin to Munich on ${date}`,
 			'travel_train_cli'
 		);
 		const result = await runCli(apiUrl, ['chats', 'new', message, '--json'], 90_000);
@@ -148,6 +149,7 @@ test.describe('App: Travel / Skill: search_connections (train)', () => {
 		const logCheckpoint = createSignupLogger('skill-travel-train');
 		await archiveExistingScreenshots(logCheckpoint);
 		const takeStepScreenshot = createStepScreenshotter(logCheckpoint);
+		const date = futureDate();
 
 		await loginToTestAccount(page, logCheckpoint, takeStepScreenshot);
 		await startNewChat(page, logCheckpoint);
@@ -155,7 +157,7 @@ test.describe('App: Travel / Skill: search_connections (train)', () => {
 
 		await sendMessage(
 			page,
-			withLiveMockMarker('Find trains from Berlin to Dresden next week', 'travel_train_web'),
+			withLiveMockMarker(`Find train connections from Berlin to Munich on ${date}`, 'travel_train_web'),
 			logCheckpoint, takeStepScreenshot, 'travel-train'
 		);
 
