@@ -289,21 +289,18 @@
   .editable-field { position: relative; width: 100%; }
   .editable-field:has(.edit-affordance) {
     --edit-affordance-size: 36px;
-    display: grid;
-    grid-template-columns: var(--edit-affordance-size) minmax(0, 1fr) var(--edit-affordance-size);
-    align-items: start;
-    column-gap: var(--spacing-3);
+    display: block;
   }
   .display-value { width: 100%; border: 0; background: transparent; color: inherit; font: inherit; cursor: text; }
-  .editable-field:has(.edit-affordance) .display-value { grid-column: 2; min-width: 0; }
-  .align-start .editable-field:has(.edit-affordance) { grid-template-columns: minmax(0, 1fr) var(--edit-affordance-size); }
-  .align-start .editable-field:has(.edit-affordance) .display-value { grid-column: 1; }
-  .align-start .edit-affordance { grid-column: 2; }
+  .editable-field:has(.edit-affordance) .display-value { min-width: 0; }
   .display-value:disabled { cursor: default; opacity: 1; }
   .title-value, .title-input { font-size: var(--font-size-h3); font-weight: 700; text-align: center; }
   .description-value, textarea { font-size: var(--font-size-small); line-height: 1.5; text-align: center; }
   .edit-affordance {
-    grid-column: 3;
+    position: absolute;
+    inset-block-start: 50%;
+    inset-inline-end: 0;
+    transform: translateY(-50%);
     display: inline-flex;
     width: var(--edit-affordance-size);
     height: var(--edit-affordance-size);
@@ -313,9 +310,10 @@
     justify-content: center;
     padding: 0;
     opacity: 0;
+    pointer-events: none;
     transition: opacity 0.2s ease;
   }
-  .editable-field:hover .edit-affordance, .editable-field:focus-within .edit-affordance { opacity: 1; }
+  .editable-field:hover .edit-affordance, .editable-field:focus-within .edit-affordance { opacity: 1; pointer-events: auto; }
 
   input, textarea {
     box-sizing: border-box;
@@ -339,8 +337,7 @@
     .workspace-detail-header { min-height: 190px; }
     .decorative-icon { display: none; }
     .header-content { width: calc(100% - 24px); padding: var(--spacing-8); }
-    .editable-field:has(.edit-affordance) { --edit-affordance-size: 32px; column-gap: var(--spacing-2); }
-    .edit-affordance { opacity: 0.75; }
+    .editable-field:has(.edit-affordance) { --edit-affordance-size: 32px; }
   }
 
   @media (prefers-reduced-motion: reduce) {

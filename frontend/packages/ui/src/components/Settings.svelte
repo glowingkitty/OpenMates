@@ -809,6 +809,7 @@ changes to the documentation (to keep the documentation up to date).
         $authStore.isAuthenticated && !$isRestrictedSession && !isSelfHosted && !!$referralStatus?.available
     );
     let showLearningModeCta = $derived($learningMode.enabled);
+    let hideHeaderGithubLink = $derived($isMobileView && (showReferralCta || showLearningModeCta));
 
     $effect(() => {
         const url = $userProfile.profile_image_url;
@@ -2782,7 +2783,7 @@ changes to the documentation (to keep the documentation up to date).
     	out:fade
     >
     <div bind:this={profileContainerWrapper}> <!-- Bind the wrapper -->
-        {#if visuallyAuthenticated}
+        {#if visuallyAuthenticated && !hideHeaderGithubLink}
             <a
                 class="header-github-link"
                 data-testid="header-github-link"

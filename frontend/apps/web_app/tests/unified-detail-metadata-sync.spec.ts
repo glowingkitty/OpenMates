@@ -168,6 +168,24 @@ async function waitForColdBootHeaderMetadata(
 	);
 }
 
+async function expectMobileHeaderEditLayout(header: any): Promise<void> {
+	const titleField = header.getByTestId('workspace-detail-title-field');
+	const titleValue = header.getByTestId('chat-header-title');
+	const descriptionEdit = header.getByTestId('workspace-detail-description-edit');
+	const titleEdit = header.getByTestId('workspace-detail-title-edit');
+	const [fieldBox, titleBox] = await Promise.all([titleField.boundingBox(), titleValue.boundingBox()]);
+
+	expect(fieldBox).toBeTruthy();
+	expect(titleBox).toBeTruthy();
+	expect(titleBox!.width / fieldBox!.width).toBeGreaterThan(0.9);
+	await expect(titleEdit).toHaveCSS('opacity', '0');
+	await expect(descriptionEdit).toHaveCSS('opacity', '0');
+
+	await titleValue.click();
+	await expect(header.getByTestId('workspace-detail-title-input')).toBeVisible();
+	await header.getByTestId('workspace-detail-title-undo').click();
+}
+
 async function deleteExactChat(page: any, chatId: string): Promise<void> {
 	await page.goto(getE2EDebugUrl(`/#chat-id=${encodeURIComponent(chatId)}`), {
 		waitUntil: 'domcontentloaded'
@@ -239,8 +257,8 @@ test.describe('Unified detail metadata multi-device sync', () => {
 			expect(chatId).toBeTruthy();
 			await expect(pageA.getByTestId('message-assistant').last()).toBeVisible({ timeout: 60_000 });
 
-			const headerA = await openOwnedChat(pageA, chatId);
-			const headerB = await openOwnedChat(pageB, chatId);
+			let headerA = await openOwnedChat(pageA, chatId);
+			let headerB = await openOwnedChat(pageB, chatId);
 			await expect
 				.poll(
 					() =>
@@ -255,6 +273,13 @@ test.describe('Unified detail metadata multi-device sync', () => {
 				'post_processing_metadata_stored',
 				'encrypted_metadata_stored'
 			]);
+
+			await pageA.setViewportSize({ width: 390, height: 844 });
+			headerA = await openOwnedChat(pageA, chatId);
+			await expectMobileHeaderEditLayout(headerA);
+			await pageA.setViewportSize({ width: 1440, height: 900 });
+			headerA = await openOwnedChat(pageA, chatId);
+			headerB = await openOwnedChat(pageB, chatId);
 
 			const savedTitle = `Synced detail title ${unique}`;
 			await headerA.getByTestId('chat-header-title').click();
