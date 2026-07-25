@@ -2928,8 +2928,8 @@ class OpenMatesTasks:
     def _create_raw(self, payload: dict[str, Any]) -> dict[str, Any]:
         return self._client._post("/v1/user-tasks", payload).get("task", {})
 
-    def update(self, task_id: str, payload: dict[str, Any]) -> dict[str, Any]:
-        return self.edit(task_id, payload)
+    def update(self, task_id: str, payload: dict[str, Any], **filters: Any) -> dict[str, Any]:
+        return self.edit(task_id, payload, **filters)
 
     def _update_raw(self, task_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         return self._client._patch(f"/v1/user-tasks/{_quote(task_id)}", payload).get("task", {})

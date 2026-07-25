@@ -411,6 +411,7 @@ tests:
       - every public npm SDK method has a pip equivalent or approved exclusion.
       - every public pip SDK method has an npm equivalent or approved exclusion.
       - option names are semantically equivalent after camelCase/snake_case normalization.
+      - method signatures expose equivalent public input tokens and return categories.
     red_phase:
       required: true
       expected: fail_or_missing
