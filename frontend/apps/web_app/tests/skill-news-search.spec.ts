@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 /**
  * Unified 4-phase E2E test for news/search skill.
@@ -35,6 +34,8 @@ const {
 	closeFullscreen
 } = require('./helpers/embed-test-helpers');
 
+const NEWS_SEARCH_FIXTURE_QUERY = 'openmates_e2e_news_fixture_ai';
+
 test.describe('App: News / Skill: search', () => {
 	test.setTimeout(120_000);
 
@@ -56,7 +57,7 @@ test.describe('App: News / Skill: search', () => {
 			apiUrl,
 			[
 				'apps', 'news', 'search',
-				'--input', JSON.stringify({ requests: [{ query: 'artificial intelligence', freshness: 'pw' }] }),
+				'--input', JSON.stringify({ requests: [{ query: NEWS_SEARCH_FIXTURE_QUERY, freshness: 'pw' }] }),
 				'--json'
 			],
 			30_000
@@ -76,7 +77,7 @@ test.describe('App: News / Skill: search', () => {
 	test('Phase 3: CLI chats new triggers news search', async () => {
 		test.skip(!process.env.OPENMATES_TEST_ACCOUNT_API_KEY, 'API key required.');
 
-		const message = withLiveMockMarker("What's the latest AI news?", 'news_search_cli');
+		const message = withLiveMockMarker(`Search news for ${NEWS_SEARCH_FIXTURE_QUERY}`, 'news_search_cli');
 		const result = await runCli(apiUrl, ['chats', 'new', message, '--json'], 60_000);
 		expect(result.code).toBe(0);
 
@@ -103,7 +104,7 @@ test.describe('App: News / Skill: search', () => {
 
 		await sendMessage(
 			page,
-			withLiveMockMarker("What's the latest AI news?", 'news_search_web'),
+			withLiveMockMarker(`Search news for ${NEWS_SEARCH_FIXTURE_QUERY}`, 'news_search_web'),
 			logCheckpoint, takeStepScreenshot, 'news-search'
 		);
 

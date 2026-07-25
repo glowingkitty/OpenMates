@@ -21,6 +21,10 @@ from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.shared.python_utils.app_skill_helpers import sanitize_external_content, check_rate_limit, wait_for_rate_limit
 # RateLimitScheduledException is no longer caught here - it bubbles up to route handler
 from backend.core.api.app.services.cache import CacheService
+from backend.apps.news.skills.search_fixture import (
+    build_e2e_news_fixture_results,
+    is_e2e_news_fixture_query,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -366,6 +370,14 @@ class SearchSkill(BaseSkill):
             req_country = req_country_upper
         
         logger.debug(f"Executing news search (id: {request_id}): query='{search_query}', country='{req_country}'")
+        if is_e2e_news_fixture_query(search_query):
+            fixture_results = build_e2e_news_fixture_results(req_count)
+            logger.info(
+                "News search (id: %s) using dev/test fixture results for query '%s'",
+                request_id,
+                search_query,
+            )
+            return (request_id, fixture_results, None)
         
         try:
             # Check and enforce rate limits before calling external API
