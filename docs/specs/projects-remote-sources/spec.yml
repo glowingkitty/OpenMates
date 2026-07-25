@@ -224,7 +224,7 @@ clarification:
     - question: How should OpenMates protect users from accidentally creating many Projects?
       answer: >
         Bulk Project creation must always go through an explicit review screen in
-        CLI/SDK flow. The detected source tree remains visible, and Project
+        CLI flow. The detected source tree remains visible, and Project
         candidates are shown as a selected-by-default list that the user can modify
         with keyboard navigation. Users can move up/down, select/unselect
         candidates, rename candidates, group folders into one Project, choose
@@ -543,7 +543,7 @@ v1_product_model:
       billable_behavior: >
         Repo connection should recommend a billable instruction audit before it
         runs, because resolving conflicting or oversized instructions can improve
-        output quality and reduce later context/model costs. CLI, SDK, and later UI
+        output quality and reduce later context/model costs. CLI and later UI
         surfaces must ask permission first, show that the audit uses credits or
         metered model calls, and label the audit as recommended. The audit should
         not be hidden behind a generic indexing label.
@@ -605,7 +605,7 @@ v1_product_model:
         concrete machine-readable suggestion records. Each suggestion includes a
         selected-by-default flag, short bullet summary, expandable description,
         affected paths, base hashes, and an actual diff or create-file patch. CLI
-        and SDK consumers can apply approved suggestions directly from this JSON
+        and later first-party clients can apply approved suggestions directly from this JSON
         without making another LLM request. Applying suggestions follows normal
         Project write policy, README/rules file base-hash checks, PII/secret scans,
         and approval cards. Suggestions should edit existing repo instruction files
@@ -852,13 +852,13 @@ v1_product_model:
       Users should not need a generic export command; they add the object from its
       own namespace, such as chats, workflows, tasks, or plans.
     add_commands:
-      - openmates chats <chat-id> add-to-project <project-id> [--folder <folder-path>]
-      - openmates workflows <workflow-id> add-to-project <project-id> [--folder <folder-path>]
-      - openmates plans <plan-id> add-to-project <project-id> [--folder <folder-path>]
-      - openmates tasks <task-id> add-to-project <project-id>
+      - openmates chats <chat-id> add-to-project <project-id> [--folder <folder-id>] [--openmates-only|--repo-copy|--remote-cache-copy|--remote-copy]
+      - openmates workflows <workflow-id> add-to-project <project-id> [--folder <folder-id>] [--openmates-only|--repo-copy|--remote-cache-copy|--remote-copy]
+      - openmates plans <plan-id|short-id> add-to-project <project-id>
+      - openmates tasks <task-id|short-id> add-to-project <project-id>
     remote_storage_prompt: >
       When adding an object to a Project that has a remote source and the object is
-      meaningful as a repo/remote-machine file, CLI/SDK can ask whether to also
+      meaningful as a repo/remote-machine file, CLI can ask whether to also
       store a copy on the remote machine. For chats, the prompt is required when
       the target is a remote-access Project because chats may contain private
       conversation content, tool results, file paths, secrets, or PII. The prompt
@@ -911,12 +911,13 @@ v1_product_model:
     privacy_behavior: >
       Remote-machine file proposals for chats, workflows, plans, and tasks run
       PII/secret scans before writing. Findings block auto-approval and must be
-      shown in CLI/SDK output. Chat remote copies should default to a summarized or
+      shown in CLI output. Chat remote copies should default to a summarized or
       redacted Markdown transcript unless the user explicitly asks for the full
       conversation copy.
     implementation_notes:
-      - CLI, npm SDK, and pip SDK create encrypted OpenMates Project item links for chats and workflows before returning optional non-mutating create-file proposal payloads.
-      - CLI, npm SDK, and pip SDK currently support chat Markdown and workflow YAML remote-copy proposals with writes_files=false; tasks and plans remain encrypted Project links only.
+      - CLI creates encrypted OpenMates Project item links for chats and workflows before returning optional non-mutating create-file proposal payloads.
+      - npm SDK and pip SDK create encrypted OpenMates-only Project links for chats and workflows and do not expose remote-copy proposal payloads or source attachment APIs.
+      - CLI currently supports chat Markdown and workflow YAML remote-copy proposals with writes_files=false; tasks and plans remain encrypted Project links only.
       - Proposal apply/write execution remains out of scope for V1.
   remote_diff_virtual_artifact:
     description: >
@@ -1010,7 +1011,7 @@ contracts:
         stored in OpenMates metadata, not in the repo. Users should not need a
         separate command to analyze instructions; startup detects candidates and
         prompts automatically.
-    - command: openmates chats <chat-id> add-to-project <project-id> [--folder <folder-path>]
+    - command: openmates chats <chat-id> add-to-project <project-id> [--folder <folder-id>] [--openmates-only|--repo-copy|--remote-cache-copy|--remote-copy]
       status: implemented_cli_sdk_first_slice
       behavior: >
         Adds a chat to a Project and optional Project folder in encrypted
@@ -1018,20 +1019,20 @@ contracts:
         store a summarized/redacted or full chat copy on the remote machine and
         whether that file should be included in Git. It warns that Git-tracked
         chats in public/open-source repos may be visible to everyone.
-    - command: openmates workflows <workflow-id> add-to-project <project-id> [--folder <folder-path>]
+    - command: openmates workflows <workflow-id> add-to-project <project-id> [--folder <folder-id>] [--openmates-only|--repo-copy|--remote-cache-copy|--remote-copy]
       status: implemented_cli_sdk_first_slice
       behavior: >
         Adds a workflow to a Project and optional folder in encrypted OpenMates
         storage. If the Project has a remote source, can ask whether to also store
         a YAML workflow file on the remote machine, with Git-tracking choice and
         concrete diff/create-file proposal.
-    - command: openmates plans <plan-id> add-to-project <project-id> [--folder <folder-path>]
+    - command: openmates plans <plan-id|short-id> add-to-project <project-id>
       status: implemented_cli_sdk_first_slice
       behavior: >
-        Links an existing plan to a Project and optional Project folder. Plan data
-        remains encrypted OpenMates storage by default; remote-machine file storage
-        is optional and explicit.
-    - command: openmates tasks <task-id> add-to-project <project-id>
+        Links an existing plan to a Project. Plan data remains encrypted OpenMates
+        storage by default; remote-machine file storage is out of scope for plans
+        in the current slice.
+    - command: openmates tasks <task-id|short-id> add-to-project <project-id>
       status: implemented_cli_sdk_first_slice
       behavior: >
         Links an existing task to a Project so it appears in the Project Kanban
@@ -1039,54 +1040,28 @@ contracts:
         default.
   sdk:
     cleartext_contract: >
-      Public npm and pip SDK methods must not expose `encrypted_*` fields to users.
-      SDK callers pass and receive cleartext Project/source names, descriptions,
-      paths, statuses, findings, suggestions, and export metadata. Encryption,
-      decryption, key wrapping, and encrypted REST payload construction happen
-      automatically inside the SDK/client layer.
+      Public npm and pip SDK Project-linking methods must not expose `encrypted_*`
+      fields to users. SDK callers can list Projects and link OpenMates-owned
+      chats, workflows, plans, and tasks to encrypted Projects, with encryption,
+      decryption, key wrapping, and encrypted REST payload construction handled
+      automatically inside the SDK/client layer. Remote bridge/source attachment,
+      remote-copy proposal generation, and instruction-audit control remain CLI or
+      later first-party client responsibilities, not SDK methods in this slice.
     methods:
-      - method: projects.listSources(projectId)
-        behavior: >
-          Returns cleartext source display records available to the authenticated
-          user, including source id, display name, type, status, capabilities, and
-          redacted/root-label metadata. It must not return raw encrypted metadata
-          fields to SDK users.
-      - method: projects.createSource(projectId, input)
-        behavior: >
-          Accepts cleartext source metadata from SDK users and encrypts/wraps it in
-          the client before calling backend source routes. SDK users should not need
-          to manually provide `encrypted_display_name` or `encrypted_metadata`.
-      - method: projects.auditInstructions(projectId, sourceId, options)
-        status: reserved_sdk_surface_until_backend_audit_routes_exist
-        behavior: >
-          Exposes the intended audit entrypoint with an explicit consent flag and a
-          visible reserved-slice error until backend audit routes exist. The method
-          must not silently perform metered model calls or fabricate audit results.
-      - method: projects.applySelectedInstructionAuditSuggestions(projectId, sourceId, selectedSuggestionIds)
-        status: reserved_sdk_surface_until_backend_audit_routes_exist
-        behavior: >
-          Exposes the intended selected-suggestion apply entrypoint with explicit
-          consent and a visible reserved-slice error until backend audit routes
-          exist. This is not a standalone user-facing CLI command and must not call
-          the LLM to regenerate rewrites.
-      - method: projects.getInstructionAuditStatus(projectId, sourceId)
-        status: reserved_sdk_surface_until_backend_audit_routes_exist
-        behavior: >
-          Exposes the intended audit status entrypoint and returns a visible
-          reserved-slice error until backend audit routes exist, rather than reading
-          repository marker files or returning guessed status.
+      - method: projects.list(options)
+        behavior: Returns Project records available to the authenticated user without creating or attaching sources.
       - method: chats.addToProject(chatId, projectId, options) / chats.add_to_project(chat_id, project_id, **options)
         status: implemented_cli_sdk_first_slice
-        behavior: Adds a chat to a Project/folder and optionally returns a non-mutating remote-machine storage proposal when the Project has remote access.
+        behavior: Adds a chat to a Project/folder as an encrypted OpenMates-only Project item and does not expose remote-copy options or proposal payloads.
       - method: workflows.addToProject(workflowId, projectId, options) / workflows.add_to_project(workflow_id, project_id, **options)
         status: implemented_cli_sdk_first_slice
-        behavior: Adds a workflow to a Project/folder and optionally returns a non-mutating YAML remote-machine storage proposal.
-      - method: plans.addToProject(planId, projectId, options)
+        behavior: Adds a workflow to a Project/folder as an encrypted OpenMates-only Project item and does not expose remote-copy options or proposal payloads.
+      - method: plans.addToProject(planId, projectId) / plans.add_to_project(plan_id, project_id)
         status: implemented_cli_sdk_first_slice
-        behavior: Links a plan to a Project/folder with cleartext SDK options and encrypted storage handled internally.
-      - method: tasks.addToProject(taskId, projectId, options)
+        behavior: Links a plan to a Project with encrypted storage handled internally.
+      - method: tasks.addToProject(taskId, projectId, options) / tasks.add_to_project(task_id, project_id, **filters)
         status: implemented_cli_sdk_first_slice
-        behavior: Links a task to a Project so it appears in Project task boards.
+        behavior: Links a task to a Project so it appears in Project task boards, with filters used only to resolve the task.
   api:
     - route: POST /v1/projects/{project_id}/sources
       request: "encrypted source metadata, source type, opaque source id, capabilities"
@@ -1633,7 +1608,7 @@ acceptance_criteria:
     text: Repository connection instruction audit is recommended but permission-gated before billable work, stores skipped/not-run state in OpenMates metadata outside the repo, detects missing and nested instruction files, shows grouped scope selection with a visible size/cost cap, shows clear "Checking agent instructions..." copy, imports only explicit repo-local linked instruction documents by default, runs separate contradiction and length/cost prompts, returns selected-by-default rewrite suggestions with summaries, descriptions, and concrete diffs, applies accepted diffs without another LLM request, and warns when declined rewrites may reduce quality or increase cost.
   - id: AC-21
     scenario: S-21
-    text: Chats, workflows, plans, and tasks are added to Projects through their own resource-specific add-to-project commands or SDK methods, store encrypted OpenMates Project links by default, support Project folder placement for chats/workflows/plans while tasks appear in Project Kanban boards, ask about optional remote-machine storage only for remote-access Projects, require a separate Git-tracking decision and public-repo visibility warning for chat copies, use YAML by default for workflow remote copies, include PII/secret scan results and concrete diffs/create-file patches before remote writes, default local-only remote copies to remote cache, and require separate high-risk approval for any `.gitignore` mutation.
+    text: Chats, workflows, plans, and tasks are added to Projects through their own resource-specific add-to-project commands or SDK methods, store encrypted OpenMates Project links by default, support Project folder placement for CLI and SDK chat/workflow links while tasks appear in Project Kanban boards, keep SDK links OpenMates-only without remote-copy proposal APIs, ask about optional remote-machine storage only in the CLI remote-access flow, require a separate Git-tracking decision and public-repo visibility warning for CLI chat copies, use YAML by default for CLI workflow remote copies, include PII/secret scan results and concrete diffs/create-file patches before remote writes, default local-only remote copies to remote cache, and require separate high-risk approval for any `.gitignore` mutation.
   - id: AC-22
     scenario: S-22
     text: Remote-access startup preserves the approved root as one browsable source tree, inspects common folder structures, recommends Project creation only when processed-root metadata does not show prior handling, shows Project candidates as editable overlays on the tree, supports keyboard selection/unselection, renaming, grouping, browse-only/local-only, and cancel before creation, prints a final exact confirmation, never creates Projects silently, stores metadata in remote cache by default, creates local `.openmates/metadata.json` only after explicit approval at the parent Projects folder or single Project root, and avoids duplicate child-repo metadata when parent metadata tracks them.
@@ -1755,7 +1730,7 @@ tests:
         run_id: "cd frontend/packages/ui && npm run test:unit:project-remote-sources"
         timestamp: "2026-06-30"
 
-  - id: T-UNIT-SDK-PROJECT-SOURCES
+  - id: T-UNIT-SDK-PROJECT-LINKS
     type: unit
     file: frontend/packages/openmates-cli/tests/sdk-projects.test.ts
     command: cd frontend/packages/openmates-cli && npm run test:unit:sdk-projects
@@ -1764,10 +1739,10 @@ tests:
       - AC-20
       - AC-21
     assertions:
-      - npm SDK exposes Project source create/list methods that accept and return cleartext source metadata for SDK users.
-      - npm SDK encrypts/decrypts source metadata internally before using /v1/projects/{project_id}/sources.
-      - npm SDK exposes reserved Project instruction audit status/run/apply method surfaces with explicit consent gates and visible reserved-slice errors until backend audit routes exist.
-      - npm SDK exposes resource-specific add-to-project methods with explicit remote-copy and Git-tracking intent when relevant.
+      - npm SDK lists Projects without creating or attaching remote sources.
+      - npm SDK links chats and workflows to encrypted OpenMates Project item records without calling /v1/projects/{project_id}/sources.
+      - npm SDK add-to-project results do not expose targetMode or remoteCopyProposal payloads.
+      - npm SDK encrypts Project item target IDs, display names, notes, and metadata internally.
     red_phase:
       required: true
       expected: fail
@@ -1781,9 +1756,9 @@ tests:
       evidence:
         status: passed
         run_id: "cd frontend/packages/openmates-cli && npm run test:unit:sdk-projects"
-        timestamp: "2026-07-24"
+        timestamp: "2026-07-25"
 
-  - id: T-PYTEST-PIP-PROJECT-SOURCES
+  - id: T-PYTEST-PIP-PROJECT-LINKS
     type: pytest
     file: packages/openmates-python/tests/test_projects.py
     command: python3 -m pytest packages/openmates-python/tests/test_projects.py
@@ -1792,10 +1767,10 @@ tests:
       - AC-20
       - AC-21
     assertions:
-      - pip SDK exposes Project source create/list methods that accept and return cleartext source metadata for SDK users.
-      - pip SDK encrypts/decrypts source metadata internally before using /v1/projects/{project_id}/sources.
-      - pip SDK exposes reserved instruction audit status/run/apply method surfaces with explicit consent gates and visible reserved-slice errors until backend audit routes exist.
-      - pip SDK add-to-project methods cover chats, workflows, plans, and tasks; chat/workflow methods require explicit remote-copy and Git-tracking intent before returning proposal diffs when remote storage is requested.
+      - pip SDK lists Projects without creating or attaching remote sources.
+      - pip SDK links chats and workflows to encrypted OpenMates Project item records without calling /v1/projects/{project_id}/sources.
+      - pip SDK add-to-project results do not expose targetMode or remoteCopyProposal payloads.
+      - pip SDK encrypts Project item target IDs, display names, notes, and metadata internally.
     red_phase:
       required: true
       expected: fail
@@ -1808,8 +1783,8 @@ tests:
       expected: pass
       evidence:
         status: passed
-        run_id: "python3 -m pytest packages/openmates-python/tests/test_projects.py"
-        timestamp: "2026-07-24"
+        run_id: "python3 -m pytest packages/openmates-python/tests/test_projects.py packages/openmates-python/tests/test_tasks.py packages/openmates-python/tests/test_plans.py"
+        timestamp: "2026-07-25"
 
   - id: T-PYTEST-PROJECT-SOURCES
     type: pytest
@@ -2027,7 +2002,7 @@ implementation_plan:
     - CLI resolves every approved root through realpath, warns for broad roots, and keeps the source online only while the foreground process remains alive.
     - CLI indexes bounded source metadata and writes local cache under the default remote cache path.
     - CLI or client detects Project instruction files such as AGENTS.md and CLAUDE.md and surfaces them as Rules source candidates.
-    - CLI/SDK recommends the billable instruction audit, asks permission before metered model calls, and stores skipped/not-run/completed audit status in OpenMates metadata outside the source repository.
+    - CLI or later first-party clients recommend the billable instruction audit, ask permission before metered model calls, and store skipped/not-run/completed audit status in OpenMates metadata outside the source repository.
     - Instruction audit results include contradiction findings, length/cost findings, and selected-by-default improvement suggestions with concrete diffs so approved suggestions can apply without another LLM call.
     - Client stores encrypted Project source metadata through Projects API.
     - Project Rules processing imports instruction files as AI Instructions, proposes prebuilt Checks or Workflow drafts, and waits for user review before activation.
@@ -2091,9 +2066,9 @@ implementation_plan:
     - path: frontend/packages/openmates-cli/src/client.ts
       reason: Remote access bridge client/API calls.
     - path: frontend/packages/openmates-cli/src/sdk.ts
-      reason: npm SDK Project source and instruction-audit methods.
+      reason: npm SDK encrypted Project listing and OpenMates-only Project link methods.
     - path: packages/openmates-python/openmates/sdk.py
-      reason: pip SDK Project source and instruction-audit methods.
+      reason: pip SDK encrypted Project listing and OpenMates-only Project link methods.
     - path: frontend/packages/openmates-cli/src/cli.ts
       reason: remote-access commands.
     - path: frontend/packages/openmates-cli/src/projectFileRisk.ts
@@ -2207,8 +2182,8 @@ tasks:
     verification:
       - T-UNIT-CLI-REMOTE-SOURCES
       - T-UNIT-CLI-REMOTE-ACCESS-COMMANDS
-      - T-UNIT-SDK-PROJECT-SOURCES
-      - T-PYTEST-PIP-PROJECT-SOURCES
+      - T-UNIT-SDK-PROJECT-LINKS
+      - T-PYTEST-PIP-PROJECT-LINKS
     progress_evidence:
       - status: passed
         timestamp: "2026-06-30"
@@ -2220,9 +2195,9 @@ tasks:
           - "python3 -m pytest packages/openmates-python/tests/test_projects.py"
           - "python3 scripts/audit_sdk_cli_parity.py"
           - "python3 -m pytest scripts/tests/test_sdk_parity_instructions.py"
-        result: "CLI remote-access command tests passed; CLI source contract passed; npm SDK source contract passed; pip SDK source contract passed; SDK/CLI parity audit passed."
+        result: "Historical pre-clarification run; CLI remote-access/source checks passed, while SDK source-management assumptions were later removed from the active SDK contract."
         covered:
-          - CLI client, npm SDK, and pip SDK can list and create encrypted Project source records through /v1/projects/{project_id}/sources.
+          - CLI client can list and create encrypted Project source records through /v1/projects/{project_id}/sources.
           - CLI remote-access primitives resolve default cache paths under ~/.openmates/remote-cache/<source-id>.
           - Internal CLI remote-access search runs injected rg inside the approved source root, passes deny globs before scanning, caps results, and excludes high-risk files.
           - CLI remote-access local source metadata is persisted under temp HOME without network access in tests.
@@ -2237,16 +2212,26 @@ tasks:
           - "cd frontend/packages/openmates-cli && npm run test:unit:remote-access"
           - "python3 -m pytest packages/openmates-python/tests/test_projects.py packages/openmates-python/tests/test_tasks.py packages/openmates-python/tests/test_plans.py"
           - "python3 scripts/spec_validate.py docs/specs/projects-remote-sources/spec.yml"
-        result: "CLI/SDK parity slice passed for cleartext Project source helpers, proposal-capable chat/workflow add-to-project, pip task/plan add-to-project, reserved instruction-audit method surfaces, remote-access unit coverage, and spec validation."
+        result: "Historical pre-clarification CLI/SDK parity run; superseded by the 2026-07-25 decision that remote access/source attachment and remote-copy proposals are CLI-only."
         covered:
-          - npm SDK and pip SDK can create/list Project sources using cleartext caller inputs/outputs while sending encrypted source metadata through /v1/projects/{project_id}/sources.
-          - CLI, npm SDK, and pip SDK can link chats/workflows to encrypted Project item records and return non-mutating remote-copy proposals for explicit remote storage choices.
-          - CLI, npm SDK, and pip SDK cover resource-specific task and plan Project linking, with remote-copy flags visibly rejected for task/plan links.
-          - npm SDK and pip SDK expose instruction-audit status/run/apply method surfaces with consent checks and visible reserved-slice errors because backend audit routes do not exist yet.
-          - Chat remote-cache proposals default to ~/.openmates/remote-cache/<source-id>/exports/chat/<slug>.md and include PII/secret scan metadata.
-          - Workflow remote-copy proposals default to .openmates/workflows/<workflow-slug>.yml and include create-file patch content without writing files.
+          - Earlier SDK source/proposal/audit assumptions were tested before product clarification and are no longer part of the active SDK contract.
         remaining:
           - Interactive remote-access bridge read/stop commands, ignored-file detection from real git state, binary probing beyond extension filtering, and automated check consent.
+      - status: passed
+        timestamp: "2026-07-25"
+        commands:
+          - "cd frontend/packages/openmates-cli && npm run build"
+          - "cd frontend/packages/openmates-cli && npm run test:unit:sdk-projects"
+          - "python3 -m pytest packages/openmates-python/tests/test_projects.py packages/openmates-python/tests/test_tasks.py packages/openmates-python/tests/test_plans.py"
+          - "python3 scripts/audit_sdk_cli_parity.py"
+          - "python3 scripts/spec_validate.py docs/specs/projects-remote-sources/spec.yml"
+        result: "SDK Project-linking contract passed after removing remote source, remote-copy proposal, raw item creation, and instruction-audit SDK surfaces."
+        covered:
+          - npm SDK and pip SDK list Projects without creating or attaching remote sources.
+          - npm SDK and pip SDK link chats/workflows as encrypted OpenMates-only Project item records and do not call /v1/projects/{project_id}/sources.
+          - npm SDK and pip SDK add-to-project results no longer expose targetMode or remoteCopyProposal payloads.
+          - npm SDK and pip SDK retain encrypted task and plan Project linking.
+          - npm package build and generated declarations pass with the reduced SDK surface.
     independently_deployable: false
   - id: TASK-3
     title: Add virtual remote previews and upload-selected file flow
