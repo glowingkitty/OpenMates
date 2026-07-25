@@ -18,6 +18,13 @@ from backend.shared.providers.brave.brave_search import (
 )
 from backend.shared.testing.mock_context import activate_mock_mode, deactivate_mock_mode
 
+pytestmark = pytest.mark.anyio
+
+
+@pytest.fixture
+def anyio_backend() -> str:
+    return "asyncio"
+
 
 class _FakeSecretsManager:
     def __init__(self, values: dict[tuple[str, str], str]) -> None:
@@ -45,7 +52,6 @@ class _FakeClient:
         return self.responses.pop(0)
 
 
-@pytest.mark.asyncio
 async def test_monthly_quota_exhaustion_uses_paid_fallback() -> None:
     free_quota_response = _response(
         429,
@@ -74,7 +80,6 @@ async def test_monthly_quota_exhaustion_uses_paid_fallback() -> None:
     assert [call["X-Subscription-Token"] for call in client.calls] == ["free-key", "paid-key"]
 
 
-@pytest.mark.asyncio
 async def test_transient_rate_limit_retries_without_paid_fallback(monkeypatch: pytest.MonkeyPatch) -> None:
     transient_response = _response(
         429,
@@ -106,7 +111,48 @@ async def test_transient_rate_limit_retries_without_paid_fallback(monkeypatch: p
     sleep_mock.assert_awaited_once()
 
 
-@pytest.mark.asyncio
+async def test_exhausted_transient_rate_limit_uses_paid_fallback(monkeypatch: pytest.MonkeyPatch) -> None:
+    transient_responses = [
+        _response(
+            429,
+            {
+                "error": {
+                    "code": "RATE_LIMITED",
+                    "detail": "Too many requests.",
+                    "meta": {"rate_limit": 1, "rate_current": 1},
+                }
+            },
+        )
+        for _ in range(6)
+    ]
+    paid_success_response = _response(200, {"web": {"results": []}})
+    client = _FakeClient([*transient_responses, paid_success_response])
+    sleep_mock = AsyncMock()
+    monkeypatch.setattr("backend.shared.providers.brave.brave_search.asyncio.sleep", sleep_mock)
+
+    response = await _request_with_429_retry(
+        client=client,
+        url="https://api.search.brave.com/res/v1/web/search",
+        params={"q": "OpenMates"},
+        headers={"X-Subscription-Token": "free-key"},
+        query="OpenMates",
+        search_type="web",
+        fallback_headers=[("paid", {"X-Subscription-Token": "paid-key"})],
+    )
+
+    assert response.status_code == 200
+    assert [call["X-Subscription-Token"] for call in client.calls] == [
+        "free-key",
+        "free-key",
+        "free-key",
+        "free-key",
+        "free-key",
+        "free-key",
+        "paid-key",
+    ]
+    assert sleep_mock.await_count == 5
+
+
 async def test_candidate_order_uses_one_default_then_explicit_paid(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("SECRET__BRAVE__API_KEY", "placeholder-env-key")
     secrets_manager = _FakeSecretsManager(
@@ -124,7 +170,6 @@ async def test_candidate_order_uses_one_default_then_explicit_paid(monkeypatch: 
     ]
 
 
-@pytest.mark.asyncio
 async def test_live_mock_zero_result_group_forces_empty_web_results(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("SERVER_ENVIRONMENT", "development")
     monkeypatch.setenv("MOCK_EXTERNAL_APIS", "true")
