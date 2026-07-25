@@ -1620,6 +1620,7 @@
 
   .daily-inspiration-banner.landing-intro-fading-out .landing-intro-expanded-content,
   .daily-inspiration-banner.landing-intro-collapsing .landing-intro-expanded-content {
+    animation: none;
     opacity: 0;
     pointer-events: none;
     transform: translateY(-10px) scale(0.985);
