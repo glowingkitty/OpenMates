@@ -1788,9 +1788,7 @@
 
     const previousMessagesLength = messages.length;
     
-    const orderedMessages = isSharedChat
-      ? orderSharedInteractiveQuestionMessages(newMessagesArray)
-      : newMessagesArray;
+    const orderedMessages = orderSharedInteractiveQuestionMessages(newMessagesArray);
 
     // Display merge: show focus activation + following assistant as one bubble
     const mergedForDisplay = mergeAssistantContinuationsForDisplay(orderedMessages);

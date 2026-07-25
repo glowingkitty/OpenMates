@@ -1,9 +1,9 @@
 // frontend/packages/ui/src/utils/sharedInteractiveQuestionOrdering.ts
-// Repairs shared-chat display order for historical interactive questions.
-// Shared endpoints can only sort encrypted message rows by stored metadata, and
-// some legacy rows have user answer timestamps before the assistant question.
+// Repairs display order for historical interactive questions.
+// Some legacy rows have user answer timestamps before the assistant question.
 // This utility uses decrypted protocol blocks to infer the visible order without
-// mutating persisted messages or server data.
+// mutating persisted messages or server data. It is a no-op for chronological
+// chats and for messages without matched interactive question/response pairs.
 
 import type { Message } from '../types/chat';
 

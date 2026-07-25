@@ -1,8 +1,7 @@
 // frontend/packages/ui/src/utils/__tests__/sharedInteractiveQuestionOrdering.test.ts
-// Regression coverage for shared-chat interactive question display ordering.
-// Legacy shared rows may have user answer timestamps before their assistant
-// question rows, because the public endpoint cannot inspect encrypted content.
-// The UI must repair only matched interactive pairs after decryption.
+// Regression coverage for interactive question display ordering.
+// Legacy rows may have user answer timestamps before their assistant question
+// rows. The UI must repair only matched interactive pairs after decryption.
 
 import { describe, expect, it } from 'vitest';
 import type { Message } from '../../types/chat';
