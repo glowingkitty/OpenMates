@@ -67,7 +67,7 @@ class FakeDirectusService:
             "user_plans": [{"id": "plan-row-1", "plan_id": "plan-1", "hashed_user_id": _hash("user-1"), "hashed_team_id": None}],
             "workflows": [{"id": "workflow-row-1", "workflow_id": "workflow-1", "hashed_user_id": _hash("user-1"), "hashed_team_id": None}],
             "workflow_runs": [{"id": "workflow-run-row-1", "run_id": "run-1", "workflow_id": "workflow-1", "hashed_user_id": _hash("user-1")}],
-            "usage": [{"id": "usage-1", "user_id_hash": _hash("user-1"), "hashed_team_id": None}],
+            "usage": [{"id": "usage-1", "user_id_hash": _hash("user-1"), "hashed_team_id": None, "encrypted_model_used": "usage-ciphertext"}],
             "usage_monthly_chat_summaries": [{"id": "usage-archive-1", "user_id_hash": _hash("user-1"), "year_month": "2026-01", "is_archived": True, "archive_s3_key": "usage-archives/hash/2026-01/usage.json.gz"}],
             "invoices": [{"id": "invoice-1", "user_id_hash": _hash("user-1")}],
             "user_app_settings_and_memories": [{"id": "memory-1", "hashed_user_id": _hash("user-1"), "hashed_team_id": None}],
@@ -213,7 +213,7 @@ async def test_partial_export_requires_explicit_acceptance_for_last_export_at() 
 @pytest.mark.asyncio
 async def test_download_chunks_never_emit_forbidden_secret_fields() -> None:
     service = AccountExportService(directus_service=FakeDirectusService())
-    job = await service.start_export(user_id="user-1", domains=["chats", "connected_account_overview"])
+    job = await service.start_export(user_id="user-1", domains=["chats", "usage", "connected_account_overview"])
 
     chunks = await service.list_chunks(user_id="user-1", export_id=job["export_id"])
     serialized = repr(chunks).lower()
@@ -229,8 +229,10 @@ async def test_download_chunks_never_emit_forbidden_secret_fields() -> None:
         "encrypted_chat_key",
         "chat_key_wrappers",
         "shared_encrypted_chat_key",
+        "encrypted_model_used",
         "anonymous-wrapped-chat-key",
         "wrapped-chat-key",
         "shared-wrapped-chat-key",
+        "usage-ciphertext",
     ):
         assert forbidden not in serialized

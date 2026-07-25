@@ -67,6 +67,8 @@ IDEABUCKET_DEFAULT_PROCESSING_TIMES = ("09:00",)
 IDEABUCKET_PROCESSING_TIME_PATTERN = re.compile(r"^([01]\d|2[0-3]):([0-5]\d)$")
 REMEMBER_MESSAGE_PREFIX = "Remember my earlier message:"
 REMEMBER_MESSAGE_REFERENCE_RE = re.compile(r"\bRemember my (?:earlier )?message @([A-Za-z0-9-]{4,36})\b", re.IGNORECASE)
+ENCRYPTED_ACCOUNT_EXPORT_MAGIC = b"OMZIP1\n"
+ENCRYPTED_ACCOUNT_EXPORT_KEY_BYTES = 32
 ACCOUNT_EXPORT_FORBIDDEN_FIELD_NAMES = {
     "access_token",
     "api_key",
@@ -823,7 +825,8 @@ def _assert_account_export_payload_safe(value: Any, path: str = "$export") -> No
     if not isinstance(value, dict):
         return
     for key, child in value.items():
-        if str(key).lower() in ACCOUNT_EXPORT_FORBIDDEN_FIELD_NAMES:
+        normalized_key = str(key).lower()
+        if normalized_key.startswith("encrypted_") or normalized_key in ACCOUNT_EXPORT_FORBIDDEN_FIELD_NAMES:
             raise OpenMatesConfigError(f"Account export contains forbidden secret field '{key}' at {path}")
         _assert_account_export_payload_safe(child, f"{path}.{key}")
 
@@ -864,6 +867,32 @@ def _read_import_zip_text(raw: bytes, required_name: str) -> str:
         if resolved is None:
             raise OpenMatesConfigError(f"Import archive is missing {required_name}")
         return archive.read(resolved).decode("utf-8")
+
+
+def _decrypt_openmates_encrypted_zip(payload: bytes, password: str | None) -> bytes:
+    if not payload.startswith(ENCRYPTED_ACCOUNT_EXPORT_MAGIC):
+        return payload
+    if not password:
+        raise OpenMatesConfigError("OpenMates encrypted export requires a password")
+    header_length_end = payload.find(b"\n", len(ENCRYPTED_ACCOUNT_EXPORT_MAGIC))
+    if header_length_end < 0:
+        raise OpenMatesConfigError("OpenMates encrypted export has an invalid header")
+    try:
+        header_length = int(payload[len(ENCRYPTED_ACCOUNT_EXPORT_MAGIC):header_length_end].decode("utf-8"))
+        header_start = header_length_end + 1
+        header_end = header_start + header_length
+        header = json.loads(payload[header_start:header_end].decode("utf-8"))
+        if header.get("magic") != "OMZIP1" or header.get("cipher") != "aes-256-gcm" or header.get("kdf") != "scrypt":
+            raise OpenMatesConfigError("OpenMates encrypted export uses an unsupported encryption format")
+        salt = base64.b64decode(str(header.get("salt") or ""))
+        iv = base64.b64decode(str(header.get("iv") or ""))
+        tag = base64.b64decode(str(header.get("tag") or ""))
+        key = hashlib.scrypt(password.encode("utf-8"), salt=salt, n=16384, r=8, p=1, dklen=ENCRYPTED_ACCOUNT_EXPORT_KEY_BYTES)
+        return AESGCM(key).decrypt(iv, payload[header_end:] + tag, None)
+    except OpenMatesConfigError:
+        raise
+    except Exception as exc:
+        raise OpenMatesConfigError(f"OpenMates encrypted export could not be decrypted: {exc}") from exc
 
 
 def _parse_openmates_manifest_domains(manifest_text: str) -> list[str]:
@@ -1102,6 +1131,200 @@ def _plan_key_from_record(record: dict[str, Any], master_key: bytes) -> bytes:
     if plan_key is None:
         raise OpenMatesConfigError(f"Failed to decrypt plan key for {record.get('plan_id')}")
     return plan_key
+
+
+def _build_plan_create_input(client: OpenMates, payload: dict[str, Any]) -> dict[str, Any]:
+    title = str(payload.get("title") or "").strip()
+    if not title:
+        raise OpenMatesConfigError("Plan title is required")
+    master_key = client._get_master_key()
+    plan_key = os.urandom(32)
+    now = int(time.time())
+    linked_project_ids = _string_list(payload.get("linked_project_ids") or payload.get("linkedProjectIds") or [])
+    primary_chat_id = payload.get("primary_chat_id") or payload.get("primaryChatId") or None
+    return {
+        "plan_id": str(payload.get("plan_id") or uuid.uuid4()),
+        "version": 1,
+        "encrypted_plan_key": _encrypt_aes_gcm_bytes(plan_key, master_key),
+        "encrypted_title": _encrypt_aes_gcm_text(title, plan_key),
+        "encrypted_summary": _encrypt_aes_gcm_text(str(payload.get("summary") or ""), plan_key),
+        "encrypted_goal": _encrypt_aes_gcm_text(str(payload.get("goal") or ""), plan_key),
+        "encrypted_scope_in": _encrypt_aes_gcm_text(str(payload.get("scope_in") or payload.get("scopeIn") or ""), plan_key),
+        "encrypted_scope_out": _encrypt_aes_gcm_text(str(payload.get("scope_out") or payload.get("scopeOut") or ""), plan_key),
+        "encrypted_user_flows": _encrypt_aes_gcm_text(str(payload.get("user_flows") or payload.get("userFlows") or ""), plan_key),
+        "encrypted_current_focus": _encrypt_aes_gcm_text(str(payload.get("current_focus") or payload.get("currentFocus") or ""), plan_key),
+        "encrypted_assumptions": _encrypt_aes_gcm_text(str(payload.get("assumptions") or ""), plan_key),
+        "encrypted_open_questions": _encrypt_aes_gcm_text(str(payload.get("open_questions") or payload.get("openQuestions") or ""), plan_key),
+        "encrypted_constraints": _encrypt_aes_gcm_text(str(payload.get("constraints") or ""), plan_key),
+        "encrypted_decisions": _encrypt_aes_gcm_text(str(payload.get("decisions") or ""), plan_key),
+        "encrypted_risks": _encrypt_aes_gcm_text(str(payload.get("risks") or ""), plan_key),
+        "encrypted_reference_patterns": _encrypt_aes_gcm_text(str(payload.get("reference_patterns") or payload.get("referencePatterns") or ""), plan_key),
+        "encrypted_context": _encrypt_aes_gcm_text(str(payload.get("context") or ""), plan_key),
+        "encrypted_linked_project_ids": _encrypt_aes_gcm_text(json.dumps(linked_project_ids), plan_key),
+        "status": payload.get("status") or "draft",
+        "primary_chat_id": primary_chat_id,
+        "linked_project_ids": linked_project_ids,
+        "current_phase_id": payload.get("current_phase_id") or payload.get("currentPhaseId"),
+        "current_step_id": payload.get("current_step_id") or payload.get("currentStepId"),
+        "current_task_id": payload.get("current_task_id") or payload.get("currentTaskId"),
+        "planner_focus_id": payload.get("planner_focus_id") or payload.get("plannerFocusId"),
+        "created_at": int(payload.get("created_at") or now),
+        "updated_at": int(payload.get("updated_at") or now),
+        "key_wrappers": _build_plan_key_wrappers(client, plan_key, primary_chat_id=primary_chat_id if isinstance(primary_chat_id, str) else None, linked_project_ids=linked_project_ids, created_at=now),
+    }
+
+
+def _decrypt_plan_record(record: dict[str, Any], master_key: bytes) -> dict[str, Any]:
+    plan_key = _plan_key_from_record(record, master_key)
+    linked_project_ids = _json_string_list(_decrypt_aes_gcm_text(str(record.get("encrypted_linked_project_ids") or ""), plan_key)) or _string_list(record.get("linked_project_ids") or [])
+    return {
+        "plan_id": record.get("plan_id"),
+        "short_id": _derive_plan_short_id(record),
+        "title": _decrypt_aes_gcm_text(str(record.get("encrypted_title") or ""), plan_key) or "(untitled plan)",
+        "summary": _decrypt_aes_gcm_text(str(record.get("encrypted_summary") or ""), plan_key) or "",
+        "goal": _decrypt_aes_gcm_text(str(record.get("encrypted_goal") or ""), plan_key) or "",
+        "scope_in": _decrypt_aes_gcm_text(str(record.get("encrypted_scope_in") or ""), plan_key) or "",
+        "scope_out": _decrypt_aes_gcm_text(str(record.get("encrypted_scope_out") or ""), plan_key) or "",
+        "user_flows": _decrypt_aes_gcm_text(str(record.get("encrypted_user_flows") or ""), plan_key) or "",
+        "current_focus": _decrypt_aes_gcm_text(str(record.get("encrypted_current_focus") or ""), plan_key) or "",
+        "assumptions": _decrypt_aes_gcm_text(str(record.get("encrypted_assumptions") or ""), plan_key) or "",
+        "open_questions": _decrypt_aes_gcm_text(str(record.get("encrypted_open_questions") or ""), plan_key) or "",
+        "constraints": _decrypt_aes_gcm_text(str(record.get("encrypted_constraints") or ""), plan_key) or "",
+        "decisions": _decrypt_aes_gcm_text(str(record.get("encrypted_decisions") or ""), plan_key) or "",
+        "risks": _decrypt_aes_gcm_text(str(record.get("encrypted_risks") or ""), plan_key) or "",
+        "reference_patterns": _decrypt_aes_gcm_text(str(record.get("encrypted_reference_patterns") or ""), plan_key) or "",
+        "context": _decrypt_aes_gcm_text(str(record.get("encrypted_context") or ""), plan_key) or "",
+        "status": record.get("status"),
+        "primary_chat_id": record.get("primary_chat_id"),
+        "linked_project_ids": linked_project_ids,
+        "current_phase_id": record.get("current_phase_id"),
+        "current_step_id": record.get("current_step_id"),
+        "current_task_id": record.get("current_task_id"),
+        "planner_focus_id": record.get("planner_focus_id"),
+        "version": int(record.get("version") or 1),
+        "created_at": int(record.get("created_at") or 0),
+        "updated_at": int(record.get("updated_at") or 0),
+        "completed_at": record.get("completed_at"),
+        "encrypted": record,
+    }
+
+
+def _build_plan_update_input(plan: dict[str, Any], master_key: bytes, payload: dict[str, Any]) -> dict[str, Any]:
+    source = plan.get("encrypted") if isinstance(plan.get("encrypted"), dict) else plan
+    plan_key = _plan_key_from_record(source, master_key)
+    patch: dict[str, Any] = {"version": int(plan.get("version") or source.get("version") or 1), "updated_at": int(time.time())}
+    text_fields = {
+        "title": "encrypted_title",
+        "summary": "encrypted_summary",
+        "goal": "encrypted_goal",
+        "scope_in": "encrypted_scope_in",
+        "scopeIn": "encrypted_scope_in",
+        "scope_out": "encrypted_scope_out",
+        "scopeOut": "encrypted_scope_out",
+        "user_flows": "encrypted_user_flows",
+        "userFlows": "encrypted_user_flows",
+        "current_focus": "encrypted_current_focus",
+        "currentFocus": "encrypted_current_focus",
+        "assumptions": "encrypted_assumptions",
+        "open_questions": "encrypted_open_questions",
+        "openQuestions": "encrypted_open_questions",
+        "constraints": "encrypted_constraints",
+        "decisions": "encrypted_decisions",
+        "risks": "encrypted_risks",
+        "reference_patterns": "encrypted_reference_patterns",
+        "referencePatterns": "encrypted_reference_patterns",
+        "context": "encrypted_context",
+    }
+    for public_name, storage_name in text_fields.items():
+        if public_name in payload:
+            patch[storage_name] = _encrypt_aes_gcm_text(str(payload.get(public_name) or ""), plan_key)
+    if "status" in payload:
+        patch["status"] = payload.get("status")
+    if "linked_project_ids" in payload or "linkedProjectIds" in payload:
+        linked_project_ids = _string_list(payload.get("linked_project_ids") or payload.get("linkedProjectIds") or [])
+        patch["linked_project_ids"] = linked_project_ids
+        patch["encrypted_linked_project_ids"] = _encrypt_aes_gcm_text(json.dumps(linked_project_ids), plan_key)
+        patch["key_wrappers"] = _build_plan_key_wrappers(client=payload.get("_client"), plan_key=plan_key, primary_chat_id=plan.get("primary_chat_id"), linked_project_ids=linked_project_ids, created_at=patch["updated_at"]) if isinstance(payload.get("_client"), OpenMates) else None
+    if "primary_chat_id" in payload or "primaryChatId" in payload:
+        patch["primary_chat_id"] = payload.get("primary_chat_id") if "primary_chat_id" in payload else payload.get("primaryChatId")
+    return {key: value for key, value in patch.items() if value is not None}
+
+
+def _public_plan(plan: dict[str, Any]) -> dict[str, Any]:
+    return {key: value for key, value in plan.items() if key != "encrypted"}
+
+
+def _derive_plan_short_id(record: dict[str, Any]) -> str:
+    source = str(record.get("plan_id") or f"{record.get('created_at', '')}-{record.get('updated_at', '')}")
+    return f"PLAN-{int(hashlib.sha256(source.encode('utf-8')).hexdigest()[:4], 16) % 10000}"
+
+
+def _build_project_create_input(master_key: bytes, payload: dict[str, Any]) -> dict[str, Any]:
+    name = str(payload.get("name") or "").strip()
+    if not name:
+        raise OpenMatesConfigError("Project name is required")
+    project_key = os.urandom(32)
+    now = int(time.time())
+    return {
+        "project_id": str(payload.get("project_id") or uuid.uuid4()),
+        "encrypted_project_key": _encrypt_aes_gcm_bytes(project_key, master_key),
+        "encrypted_name": _encrypt_aes_gcm_text(name, project_key),
+        "encrypted_description": _encrypt_aes_gcm_text(str(payload.get("description") or ""), project_key),
+        "encrypted_icon": _encrypt_aes_gcm_text(str(payload.get("icon") or "folder"), project_key),
+        "encrypted_color": _encrypt_aes_gcm_text(str(payload.get("color") or "default"), project_key),
+        "pinned": payload.get("pinned") is True,
+        "archived": payload.get("archived") is True,
+        "created_at": now,
+        "updated_at": now,
+        "last_opened_at": now,
+    }
+
+
+def _decrypt_project_record(record: dict[str, Any], master_key: bytes) -> dict[str, Any]:
+    encrypted_project_key = record.get("encrypted_project_key")
+    if not isinstance(encrypted_project_key, str):
+        raise OpenMatesConfigError(f"Project {record.get('project_id')} is missing encrypted project key")
+    project_key = _decrypt_aes_gcm_bytes(encrypted_project_key, master_key)
+    if project_key is None:
+        raise OpenMatesConfigError(f"Failed to decrypt Project key for {record.get('project_id')}")
+    return {
+        "project_id": record.get("project_id"),
+        "name": _decrypt_aes_gcm_text(str(record.get("encrypted_name") or ""), project_key) or "(untitled project)",
+        "description": _decrypt_aes_gcm_text(str(record.get("encrypted_description") or ""), project_key) or "",
+        "icon": _decrypt_aes_gcm_text(str(record.get("encrypted_icon") or ""), project_key) or "",
+        "color": _decrypt_aes_gcm_text(str(record.get("encrypted_color") or ""), project_key) or "",
+        "pinned": record.get("pinned") is True,
+        "archived": record.get("archived") is True,
+        "version": record.get("version"),
+        "created_at": record.get("created_at"),
+        "updated_at": record.get("updated_at"),
+        "last_opened_at": record.get("last_opened_at"),
+        "encrypted": record,
+    }
+
+
+def _public_project(project: dict[str, Any]) -> dict[str, Any]:
+    return {key: value for key, value in project.items() if key != "encrypted"}
+
+
+def _build_project_update_input(client: OpenMates, update: dict[str, Any]) -> dict[str, Any]:
+    project_id = str(update.get("project_id") or update.get("projectId") or "")
+    project_key = _resolve_project_key(client, project_id)
+    patch_input = dict(update.get("patch") or {})
+    patch: dict[str, Any] = {"updated_at": int(time.time())}
+    if "name" in patch_input:
+        patch["encrypted_name"] = _encrypt_aes_gcm_text(str(patch_input.get("name") or ""), project_key)
+    if "description" in patch_input:
+        patch["encrypted_description"] = _encrypt_aes_gcm_text(str(patch_input.get("description") or ""), project_key)
+    if "icon" in patch_input:
+        patch["encrypted_icon"] = _encrypt_aes_gcm_text(str(patch_input.get("icon") or ""), project_key)
+    if "color" in patch_input:
+        patch["encrypted_color"] = _encrypt_aes_gcm_text(str(patch_input.get("color") or ""), project_key)
+    if "pinned" in patch_input:
+        patch["pinned"] = patch_input.get("pinned") is True
+    if "archived" in patch_input:
+        patch["archived"] = patch_input.get("archived") is True
+    return {"project_id": project_id, "patch": patch}
 
 
 def _append_unique_id(existing: list[str], item_id: str) -> list[str]:
@@ -2197,28 +2420,28 @@ class OpenMatesDrafts:
 class _PlanEncryptedFieldFacade:
     def __init__(self, plans: "OpenMatesPlans", field: str):
         self._plans = plans
-        self._field = field
+        self._field = field.removeprefix("encrypted_")
 
-    def add(self, plan_id: str, payload: dict[str, Any]) -> dict[str, Any]:
-        return self._plans.update(plan_id, payload)
+    def add(self, plan_id: str, value: str) -> dict[str, Any]:
+        return self._plans.update(plan_id, {self._field: value})
 
-    def update(self, plan_id: str, payload: dict[str, Any]) -> dict[str, Any]:
-        return self._plans.update(plan_id, payload)
+    def update(self, plan_id: str, value: str) -> dict[str, Any]:
+        return self._plans.update(plan_id, {self._field: value})
 
-    def set(self, plan_id: str, payload: dict[str, Any]) -> dict[str, Any]:
-        return self.update(plan_id, payload)
+    def set(self, plan_id: str, value: str) -> dict[str, Any]:
+        return self.update(plan_id, value)
 
-    def remove(self, plan_id: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
-        return self._plans.update(plan_id, {**(payload or {}), self._field: None})
+    def remove(self, plan_id: str) -> dict[str, Any]:
+        return self._plans.update(plan_id, {self._field: ""})
 
-    def clear(self, plan_id: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
-        return self.remove(plan_id, payload)
+    def clear(self, plan_id: str) -> dict[str, Any]:
+        return self.remove(plan_id)
 
-    def answer(self, plan_id: str, payload: dict[str, Any]) -> dict[str, Any]:
-        return self.update(plan_id, payload)
+    def answer(self, plan_id: str, value: str) -> dict[str, Any]:
+        return self.update(plan_id, value)
 
-    def supersede(self, plan_id: str, payload: dict[str, Any]) -> dict[str, Any]:
-        return self.update(plan_id, payload)
+    def supersede(self, plan_id: str, value: str) -> dict[str, Any]:
+        return self.update(plan_id, value)
 
 
 class _PlanSuccessCriteriaFacade:
@@ -2343,7 +2566,7 @@ class _PlanTasksFacade:
 
 
 class OpenMatesPlans:
-    """Encrypted user plans SDK namespace."""
+    """Cleartext user plans SDK namespace."""
 
     def __init__(self, client: OpenMates):
         self._client = client
@@ -2373,6 +2596,16 @@ class OpenMatesPlans:
         project_id: str | None = None,
         active_only: bool | None = None,
     ) -> list[dict[str, Any]]:
+        return [_public_plan(_decrypt_plan_record(plan, self._client._get_master_key())) for plan in self._list_raw(status=status, chat_id=chat_id, project_id=project_id, active_only=active_only)]
+
+    def _list_raw(
+        self,
+        *,
+        status: str | None = None,
+        chat_id: str | None = None,
+        project_id: str | None = None,
+        active_only: bool | None = None,
+    ) -> list[dict[str, Any]]:
         return self._client._get(
             _with_query(
                 "/v1/user-plans",
@@ -2384,43 +2617,24 @@ class OpenMatesPlans:
         ).get("plans", [])
 
     def create(self, payload: dict[str, Any]) -> dict[str, Any]:
-        request_payload = dict(payload)
-        if not request_payload.get("key_wrappers") and (request_payload.get("primary_chat_id") or request_payload.get("linked_project_ids")):
-            plan_key = _plan_key_from_record(request_payload, self._client._get_master_key())
-            request_payload["key_wrappers"] = _build_plan_key_wrappers(
-                self._client,
-                plan_key,
-                primary_chat_id=request_payload.get("primary_chat_id") if isinstance(request_payload.get("primary_chat_id"), str) else None,
-                linked_project_ids=_string_list(request_payload.get("linked_project_ids") or []),
-                created_at=int(request_payload.get("created_at") or time.time()),
-            )
-        return self._client._post("/v1/user-plans", request_payload).get("plan", {})
+        plan = self._client._post("/v1/user-plans", _build_plan_create_input(self._client, payload)).get("plan", {})
+        return _public_plan(_decrypt_plan_record(plan, self._client._get_master_key()))
 
     def show(self, plan_id: str) -> dict[str, Any]:
-        return _find_plan(self.list(active_only=False), plan_id)
+        return _public_plan(_decrypt_plan_record(_find_plan(self._list_raw(active_only=False), plan_id), self._client._get_master_key()))
 
     def update(self, plan_id: str, payload: dict[str, Any]) -> dict[str, Any]:
-        request_payload = dict(payload)
-        if not request_payload.get("key_wrappers") and ("primary_chat_id" in request_payload or "linked_project_ids" in request_payload):
-            existing = _find_plan(self.list(active_only=False), plan_id)
-            master_key = self._client._get_master_key()
-            plan_key = _plan_key_from_record(existing, master_key)
-            existing_project_ids = _json_string_list(_decrypt_aes_gcm_text(str(existing.get("encrypted_linked_project_ids") or ""), plan_key)) or _string_list(existing.get("linked_project_ids") or [])
-            request_payload["key_wrappers"] = _build_plan_key_wrappers(
-                self._client,
-                plan_key,
-                primary_chat_id=(request_payload.get("primary_chat_id") if "primary_chat_id" in request_payload else existing.get("primary_chat_id")) or None,
-                linked_project_ids=_string_list(request_payload.get("linked_project_ids") if "linked_project_ids" in request_payload else existing_project_ids),
-                created_at=int(request_payload.get("updated_at") or time.time()),
-            )
-        return self._client._patch(f"/v1/user-plans/{_quote(plan_id)}", request_payload).get("plan", {})
+        master_key = self._client._get_master_key()
+        existing = _decrypt_plan_record(_find_plan(self._list_raw(active_only=False), plan_id), master_key)
+        plan = self._client._patch(f"/v1/user-plans/{_quote(plan_id)}", _build_plan_update_input(existing, master_key, {**payload, "_client": self._client})).get("plan", {})
+        return _public_plan(_decrypt_plan_record(plan, master_key))
 
     def add_to_project(
         self,
         plan_id: str,
         project_id: str,
     ) -> dict[str, Any]:
-        plan = _find_plan(self.list(active_only=False), plan_id)
+        plan = _find_plan(self._list_raw(active_only=False), plan_id)
         master_key = self._client._get_master_key()
         plan_key = _plan_key_from_record(plan, master_key)
         linked_project_ids = _json_string_list(_decrypt_aes_gcm_text(str(plan.get("encrypted_linked_project_ids") or ""), plan_key)) or _string_list(plan.get("linked_project_ids") or [])
@@ -2438,7 +2652,8 @@ class OpenMatesPlans:
                 created_at=int(time.time()),
             ),
         }
-        return self.update(str(plan.get("plan_id")), patch)
+        updated = self._client._patch(f"/v1/user-plans/{_quote(str(plan.get('plan_id')))}", patch).get("plan", {})
+        return _public_plan(_decrypt_plan_record(updated, master_key))
 
     def history(self, plan_id: str, *, limit: int | None = None) -> list[dict[str, Any]]:
         query = f"?limit={limit}" if limit is not None else ""
@@ -2454,23 +2669,39 @@ class OpenMatesPlans:
         self,
         instruction: str,
         *,
-        encrypted_create: dict[str, Any] | None = None,
-        encrypted_update: dict[str, Any] | None = None,
-        encrypted_updates: list[dict[str, Any]] | None = None,
+            create: dict[str, Any] | None = None,
+            update: dict[str, Any] | None = None,
+            updates: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
-        payload: dict[str, Any] = {"instruction": instruction}
-        if encrypted_create is not None:
-            payload["encrypted_create"] = encrypted_create
-        if encrypted_update is not None:
-            payload["encrypted_update"] = encrypted_update
+        master_key = self._client._get_master_key()
+        planned_create = None
+        if create is None and update is None and not updates:
+            planned_create = self._client._post("/v1/user-plans/ask/plan", {"instruction": instruction}).get("proposed_plan")
+        encrypted_updates = None
+        if updates:
+            encrypted_updates = []
+            for item in updates:
+                plan_id = str(item.get("plan_id") or item.get("planId") or "")
+                existing = _decrypt_plan_record(_find_plan(self._list_raw(active_only=False), plan_id), master_key)
+                encrypted_updates.append({"plan_id": existing["plan_id"], "patch": _build_plan_update_input(existing, master_key, {**dict(item.get("patch") or {}), "_client": self._client})})
+        request_payload: dict[str, Any] = {"instruction": instruction}
+        if create is not None or planned_create is not None:
+            request_payload["encrypted_create"] = _build_plan_create_input(self._client, create or planned_create or {"title": instruction})
+        if update is not None:
+            plan_id = str(update.get("plan_id") or update.get("planId") or "")
+            existing = _decrypt_plan_record(_find_plan(self._list_raw(active_only=False), plan_id), master_key)
+            request_payload["encrypted_update"] = {"plan_id": existing["plan_id"], "patch": _build_plan_update_input(existing, master_key, {**dict(update.get("patch") or {}), "_client": self._client})}
         if encrypted_updates is not None:
-            payload["encrypted_updates"] = encrypted_updates
-        return self._client._post("/v1/user-plans/ask", payload)
+            request_payload["encrypted_updates"] = encrypted_updates
+        response = self._client._post("/v1/user-plans/ask", request_payload)
+        records = response.get("plans") if isinstance(response.get("plans"), list) else [response.get("plan")] if isinstance(response.get("plan"), dict) else []
+        plans = [_public_plan(_decrypt_plan_record(plan, master_key)) for plan in records if isinstance(plan, dict)]
+        return {**response, "plan": plans[0] if len(plans) == 1 else None, "plans": plans}
 
-    def activate(self, plan_id: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
-        request_payload = dict(payload or {})
-        if not request_payload.get("key_wrappers") and isinstance(request_payload.get("chat_id"), str):
-            existing = _find_plan(self.list(active_only=False), plan_id)
+    def activate(self, plan_id: str, *, chat_id: str | None = None) -> dict[str, Any]:
+        request_payload = {"chat_id": chat_id} if chat_id is not None else {}
+        if isinstance(request_payload.get("chat_id"), str):
+            existing = _find_plan(self._list_raw(active_only=False), plan_id)
             master_key = self._client._get_master_key()
             plan_key = _plan_key_from_record(existing, master_key)
             linked_project_ids = _json_string_list(_decrypt_aes_gcm_text(str(existing.get("encrypted_linked_project_ids") or ""), plan_key)) or _string_list(existing.get("linked_project_ids") or [])
@@ -2484,19 +2715,21 @@ class OpenMatesPlans:
         plan = self._client._post(f"/v1/user-plans/{_quote(plan_id)}/activate", request_payload).get("plan", {})
         if "primary_chat_id" not in plan and isinstance(request_payload.get("chat_id"), str):
             plan = {**plan, "primary_chat_id": request_payload["chat_id"]}
-        return plan
+        return _public_plan(_decrypt_plan_record(plan, self._client._get_master_key()))
 
-    def attach(self, plan_id: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
-        return self.activate(plan_id, payload)
+    def attach(self, plan_id: str, *, chat_id: str | None = None) -> dict[str, Any]:
+        return self.activate(plan_id, chat_id=chat_id)
 
-    def start(self, plan_id: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
-        return self.update(plan_id, {**(payload or {}), "status": "executing"})
+    def start(self, plan_id: str) -> dict[str, Any]:
+        return self.update(plan_id, {"status": "executing"})
 
-    def resume(self, plan_id: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
-        return self.update(plan_id, {**(payload or {}), "status": "active"})
+    def resume(self, plan_id: str) -> dict[str, Any]:
+        return self.update(plan_id, {"status": "active"})
 
-    def complete(self, plan_id: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
-        return self._client._post(f"/v1/user-plans/{_quote(plan_id)}/complete", payload or {}).get("plan", {})
+    def complete(self, plan_id: str) -> dict[str, Any]:
+        existing = _find_plan(self._list_raw(active_only=False), plan_id)
+        plan = self._client._post(f"/v1/user-plans/{_quote(plan_id)}/complete", {"version": existing.get("version")}).get("plan", {})
+        return _public_plan(_decrypt_plan_record(plan, self._client._get_master_key()))
 
     def create_criterion(self, plan_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         return self._client._post(f"/v1/user-plans/{_quote(plan_id)}/criteria", payload).get("criterion", {})
@@ -2572,7 +2805,7 @@ class OpenMatesPlans:
 
 
 class OpenMatesTasks:
-    """Encrypted user tasks SDK namespace."""
+    """Cleartext user tasks SDK namespace."""
 
     def __init__(self, client: OpenMates):
         self._client = client
@@ -2650,27 +2883,42 @@ class OpenMatesTasks:
         self,
         instruction: str,
         *,
-        encrypted_create: dict[str, Any] | None = None,
-        encrypted_creates: list[dict[str, Any]] | None = None,
-        encrypted_update: dict[str, Any] | None = None,
-        encrypted_updates: list[dict[str, Any]] | None = None,
-        exact_delete: dict[str, Any] | None = None,
-        exact_deletes: list[dict[str, Any]] | None = None,
+            create: dict[str, Any] | None = None,
+            creates: list[dict[str, Any]] | None = None,
+            update: dict[str, Any] | None = None,
+            updates: list[dict[str, Any]] | None = None,
+            exact_delete: dict[str, Any] | None = None,
+            exact_deletes: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
+        master_key = self._client._get_master_key()
+        planned_creates: list[dict[str, Any]] = []
+        if create is None and not creates and update is None and not updates and exact_delete is None and exact_deletes is None:
+            planned_creates = self._client._post("/v1/user-tasks/ask/plan", {"instruction": instruction}).get("proposed_tasks", [])
+        create_payloads = creates if creates is not None else [create] if create is not None else planned_creates
+        encrypted_creates = [_build_task_create_input(master_key, item) for item in create_payloads if isinstance(item, dict)]
         payload: dict[str, Any] = {"instruction": instruction}
-        if encrypted_create is not None:
-            payload["encrypted_create"] = encrypted_create
-        if encrypted_creates is not None:
+        if create is not None and encrypted_creates:
+            payload["encrypted_create"] = encrypted_creates[0]
+        if creates is not None or planned_creates:
             payload["encrypted_creates"] = encrypted_creates
-        if encrypted_update is not None:
-            payload["encrypted_update"] = encrypted_update
-        if encrypted_updates is not None:
-            payload["encrypted_updates"] = encrypted_updates
+        if update is not None:
+            task_id = str(update.get("task_id") or update.get("taskId") or "")
+            task = self._resolve(task_id, dict(update.get("filters") or {}))
+            payload["encrypted_update"] = {"task_id": task["task_id"], "patch": _build_task_update_input(task, master_key, dict(update.get("patch") or {}))}
+        if updates is not None:
+            payload["encrypted_updates"] = []
+            for item in updates:
+                task_id = str(item.get("task_id") or item.get("taskId") or "")
+                task = self._resolve(task_id, dict(item.get("filters") or {}))
+                payload["encrypted_updates"].append({"task_id": task["task_id"], "patch": _build_task_update_input(task, master_key, dict(item.get("patch") or {}))})
         if exact_delete is not None:
             payload["exact_delete"] = exact_delete
         if exact_deletes is not None:
             payload["exact_deletes"] = exact_deletes
-        return self._client._post("/v1/user-tasks/ask", payload)
+        response = self._client._post("/v1/user-tasks/ask", payload)
+        records = response.get("tasks") if isinstance(response.get("tasks"), list) else [response.get("task")] if isinstance(response.get("task"), dict) else []
+        tasks = [_public_task(_decrypt_task_record(task, master_key)) for task in records if isinstance(task, dict)]
+        return {**response, "task": tasks[0] if len(tasks) == 1 else None, "tasks": tasks}
 
     def create(self, payload: dict[str, Any]) -> dict[str, Any]:
         master_key = self._client._get_master_key()
@@ -2840,7 +3088,7 @@ class OpenMatesHistory:
 
 
 class OpenMatesProjects:
-    """Encrypted Project source SDK namespace."""
+    """Cleartext Project source SDK namespace."""
 
     def __init__(self, client: OpenMates):
         self._client = client
@@ -2850,7 +3098,11 @@ class OpenMatesProjects:
         if include_archived is not None:
             params["include_archived"] = "true" if include_archived else "false"
         query = f"?{urlencode(params)}" if params else ""
-        return self._client._get(f"/v1/projects{query}").get("projects", [])
+        return [_public_project(_decrypt_project_record(project, self._client._get_master_key())) for project in self._client._get(f"/v1/projects{query}").get("projects", [])]
+
+    def create(self, payload: dict[str, Any]) -> dict[str, Any]:
+        project = self._client._post("/v1/projects", _build_project_create_input(self._client._get_master_key(), payload)).get("project", {})
+        return _public_project(_decrypt_project_record(project, self._client._get_master_key()))
 
     def history(self, project_id: str, *, limit: int | None = None) -> list[dict[str, Any]]:
         query = f"?limit={limit}" if limit is not None else ""
@@ -2866,24 +3118,31 @@ class OpenMatesProjects:
         self,
         instruction: str,
         *,
-        encrypted_create: dict[str, Any] | None = None,
-        encrypted_update: dict[str, Any] | None = None,
-        encrypted_updates: list[dict[str, Any]] | None = None,
-        exact_delete: dict[str, Any] | None = None,
-        exact_deletes: list[dict[str, Any]] | None = None,
+            create: dict[str, Any] | None = None,
+            update: dict[str, Any] | None = None,
+            updates: list[dict[str, Any]] | None = None,
+            exact_delete: dict[str, Any] | None = None,
+            exact_deletes: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
+        master_key = self._client._get_master_key()
+        planned_create = None
+        if create is None and update is None and not updates and exact_delete is None and exact_deletes is None:
+            planned_create = self._client._post("/v1/projects/ask/plan", {"instruction": instruction}).get("proposed_project")
         payload: dict[str, Any] = {"instruction": instruction}
-        if encrypted_create is not None:
-            payload["encrypted_create"] = encrypted_create
-        if encrypted_update is not None:
-            payload["encrypted_update"] = encrypted_update
-        if encrypted_updates is not None:
-            payload["encrypted_updates"] = encrypted_updates
+        if create is not None or planned_create is not None:
+            payload["encrypted_create"] = _build_project_create_input(master_key, create or planned_create or {"name": instruction})
+        if update is not None:
+            payload["encrypted_update"] = _build_project_update_input(self._client, update)
+        if updates is not None:
+            payload["encrypted_updates"] = [_build_project_update_input(self._client, item) for item in updates]
         if exact_delete is not None:
             payload["exact_delete"] = exact_delete
         if exact_deletes is not None:
             payload["exact_deletes"] = exact_deletes
-        return self._client._post("/v1/projects/ask", payload)
+        response = self._client._post("/v1/projects/ask", payload)
+        records = response.get("projects") if isinstance(response.get("projects"), list) else [response.get("project")] if isinstance(response.get("project"), dict) else []
+        projects = [_public_project(_decrypt_project_record(project, master_key)) for project in records if isinstance(project, dict)]
+        return {**response, "project": projects[0] if len(projects) == 1 else None, "projects": projects}
 
 
 class OpenMatesWorkflows:
@@ -3448,10 +3707,10 @@ class OpenMatesAccount:
             })
         return {"source": "chatgpt", "chats": chats, "skipped_domains": []}
 
-    def parse_openmates_import(self, payload: bytes | str, source_name: str = "openmates-export.zip") -> dict[str, Any]:
+    def parse_openmates_import(self, payload: bytes | str, source_name: str = "openmates-export.zip", password: str | None = None) -> dict[str, Any]:
         raw = payload.encode("utf-8") if isinstance(payload, str) else payload
         try:
-            with zipfile.ZipFile(io.BytesIO(raw)) as archive:  # type: ignore[name-defined]
+            with zipfile.ZipFile(io.BytesIO(_decrypt_openmates_encrypted_zip(raw, password))) as archive:  # type: ignore[name-defined]
                 manifest = archive.read("manifest.yml").decode("utf-8")
                 if not re.search(r"format:\s*openmates-account-export", manifest) or not re.search(r"version:\s*[\"']?1[\"']?", manifest):
                     raise OpenMatesConfigError("Unsupported OpenMates Export V1 archive format or version")

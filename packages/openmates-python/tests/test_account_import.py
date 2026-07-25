@@ -10,6 +10,7 @@ Run: python3 -m pytest packages/openmates-python/tests/test_account_import.py
 from __future__ import annotations
 
 import base64
+import hashlib
 import io
 import json
 from typing import Any
@@ -17,7 +18,7 @@ import zipfile
 
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
-from openmates import OpenMates
+from openmates import OpenMates, OpenMatesConfigError
 from openmates import sdk as sdk_module
 
 
@@ -33,6 +34,27 @@ def wrap_master_key(api_key: str, master_key: bytes) -> dict[str, str]:
     }
 
 
+def encrypted_openmates_export_zip(password: str) -> bytes:
+    archive_buffer = io.BytesIO()
+    with zipfile.ZipFile(archive_buffer, "w", compression=zipfile.ZIP_DEFLATED) as zipped:
+        zipped.writestr("manifest.yml", "format: openmates-account-export\nversion: 1\ndomains:\n  chats: included\n")
+        zipped.writestr("chats/chat-password.yml", "id: chat-password\ntitle: Password chat\n")
+    salt = b"\x03" * 16
+    iv = b"\x04" * 12
+    key = hashlib.scrypt(password.encode("utf-8"), salt=salt, n=16384, r=8, p=1, dklen=32)
+    ciphertext_with_tag = AESGCM(key).encrypt(iv, archive_buffer.getvalue(), None)
+    header = json.dumps({
+        "magic": "OMZIP1",
+        "version": 1,
+        "kdf": "scrypt",
+        "cipher": "aes-256-gcm",
+        "salt": base64.b64encode(salt).decode("utf-8"),
+        "iv": base64.b64encode(iv).decode("utf-8"),
+        "tag": base64.b64encode(ciphertext_with_tag[-16:]).decode("utf-8"),
+    }).encode("utf-8")
+    return b"OMZIP1\n" + str(len(header)).encode("utf-8") + b"\n" + header + ciphertext_with_tag[:-16]
+
+
 def test_account_import_parses_openmates_v1_archive():
     archive = io.BytesIO()
     with zipfile.ZipFile(archive, "w") as zipped:
@@ -45,6 +67,27 @@ def test_account_import_parses_openmates_v1_archive():
     assert parsed["source"] == "openmates"
     assert parsed["chats"][0]["source_chat_id"] == "chat-1"
     assert parsed["skipped_domains"] == ["projects"]
+
+
+def test_account_import_parses_password_protected_openmates_export():
+    payload = encrypted_openmates_export_zip("correct horse battery staple")
+    client = OpenMates(api_key="sk-api-test")
+
+    try:
+        client.account.parse_openmates_import(payload)
+        raise AssertionError("missing password should fail")
+    except OpenMatesConfigError as exc:
+        assert "requires a password" in str(exc)
+
+    try:
+        client.account.parse_openmates_import(payload, password="wrong")
+        raise AssertionError("wrong password should fail")
+    except OpenMatesConfigError as exc:
+        assert "could not be decrypted" in str(exc)
+
+    parsed = client.account.parse_openmates_import(payload, password="correct horse battery staple")
+    assert parsed["source"] == "openmates"
+    assert parsed["chats"][0]["source_chat_id"] == "chat-password"
 
 
 def test_account_import_parses_chatgpt_official_export():

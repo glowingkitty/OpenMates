@@ -496,7 +496,7 @@ def _redact_for_export(value: Any) -> Any:
     redacted: dict[str, Any] = {}
     for key, item in value.items():
         normalized_key = key.lower()
-        if normalized_key in FORBIDDEN_EXPORT_SECRET_FIELDS or normalized_key.endswith("_secret"):
+        if normalized_key.startswith("encrypted_") or normalized_key in FORBIDDEN_EXPORT_SECRET_FIELDS or normalized_key.endswith("_secret"):
             continue
         redacted[key] = _redact_for_export(item)
     return redacted

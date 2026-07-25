@@ -9,6 +9,14 @@
  */
 
 import JSZip from "jszip";
+import { createCipheriv, randomBytes, scryptSync } from "node:crypto";
+
+const ENCRYPTED_ZIP_MAGIC = "OMZIP1";
+const ENCRYPTED_ZIP_KDF = "scrypt";
+const ENCRYPTED_ZIP_CIPHER = "aes-256-gcm";
+const ENCRYPTED_ZIP_SALT_BYTES = 16;
+const ENCRYPTED_ZIP_IV_BYTES = 12;
+const ENCRYPTED_ZIP_KEY_BYTES = 32;
 
 const ACCOUNT_EXPORT_FORBIDDEN_FIELD_NAMES = new Set([
   "access_token",
@@ -71,6 +79,7 @@ export type AccountExportArchiveResult = {
   output: string;
   format: "zip" | "directory";
   files: number;
+  encrypted?: boolean;
 };
 
 export async function writeAccountExportArchive(
@@ -81,9 +90,11 @@ export async function writeAccountExportArchive(
   const { join, dirname } = await import("node:path");
   const exportId = safeArchiveSegment(String(bundle.export.export_id ?? `export-${Date.now()}`));
   const archiveFormat = flags.format === "directory" ? "directory" : "zip";
+  const password = typeof flags.password === "string" && flags.password.length > 0 ? flags.password : null;
+  if (password && archiveFormat !== "zip") throw new Error("Password-protected account export is only supported for zip format.");
   const outputPath = typeof flags.output === "string"
     ? flags.output
-    : join(process.cwd(), archiveFormat === "zip" ? `openmates-account-export-${exportId}.zip` : `openmates-account-export-${exportId}`);
+    : join(process.cwd(), archiveFormat === "zip" ? `openmates-account-export-${exportId}${password ? ".zip.enc" : ".zip"}` : `openmates-account-export-${exportId}`);
   const zip = archiveFormat === "zip" ? new JSZip() : null;
   const writtenFiles: string[] = [];
 
@@ -117,8 +128,26 @@ export async function writeAccountExportArchive(
 
   await mkdir(dirname(outputPath), { recursive: true });
   const zipBuffer = await zip!.generateAsync({ type: "nodebuffer", compression: "DEFLATE" });
-  await writeFile(outputPath, zipBuffer);
-  return { output: outputPath, format: "zip", files: writtenFiles.length };
+  await writeFile(outputPath, password ? encryptZipBuffer(zipBuffer, password) : zipBuffer);
+  return { output: outputPath, format: "zip", files: writtenFiles.length, ...(password ? { encrypted: true } : {}) };
+}
+
+function encryptZipBuffer(zipBuffer: Buffer, password: string): Buffer {
+  const salt = randomBytes(ENCRYPTED_ZIP_SALT_BYTES);
+  const iv = randomBytes(ENCRYPTED_ZIP_IV_BYTES);
+  const key = scryptSync(password, salt, ENCRYPTED_ZIP_KEY_BYTES);
+  const cipher = createCipheriv(ENCRYPTED_ZIP_CIPHER, key, iv);
+  const ciphertext = Buffer.concat([cipher.update(zipBuffer), cipher.final()]);
+  const header = Buffer.from(JSON.stringify({
+    magic: ENCRYPTED_ZIP_MAGIC,
+    version: 1,
+    kdf: ENCRYPTED_ZIP_KDF,
+    cipher: ENCRYPTED_ZIP_CIPHER,
+    salt: salt.toString("base64"),
+    iv: iv.toString("base64"),
+    tag: cipher.getAuthTag().toString("base64"),
+  }), "utf-8");
+  return Buffer.concat([Buffer.from(`${ENCRYPTED_ZIP_MAGIC}\n`, "utf-8"), Buffer.from(`${header.length}\n`, "utf-8"), header, ciphertext]);
 }
 
 export function assertAccountExportPayloadSafe(value: unknown, path = "$export"): void {
@@ -136,7 +165,7 @@ export function assertAccountExportPayloadSafe(value: unknown, path = "$export")
   }
   for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
     const normalizedKey = key.toLowerCase();
-    if (ACCOUNT_EXPORT_FORBIDDEN_FIELD_NAMES.has(normalizedKey)) {
+    if (normalizedKey.startsWith("encrypted_") || ACCOUNT_EXPORT_FORBIDDEN_FIELD_NAMES.has(normalizedKey)) {
       throw new Error(`Account export contains forbidden secret field '${key}' at ${path}`);
     }
     assertAccountExportPayloadSafe(child, `${path}.${key}`);
@@ -166,6 +195,9 @@ function assertAccountExportTextSafe(content: string, relativePath: string): voi
       throw new Error(`Account export file ${relativePath} contains forbidden secret field '${field}'`);
     }
   });
+  if (/(^|[^A-Za-z0-9_])['"]?encrypted_[A-Za-z0-9_]*['"]?\s*:/i.test(content)) {
+    throw new Error(`Account export file ${relativePath} contains forbidden encrypted storage field`);
+  }
 }
 
 function buildAccountExportReadme(bundle: AccountExportArchiveBundle): string {

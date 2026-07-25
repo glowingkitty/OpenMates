@@ -21,6 +21,7 @@ mkdirSync(join(tempHome, ".openmates"), { recursive: true, mode: 0o700 });
 
 const { OpenMatesClient } = await import("../src/client.ts");
 const { assertAccountExportPayloadSafe, writeAccountExportArchive } = await import("../src/accountExportArchive.ts");
+const { parseOpenMatesImportBuffer } = await import("../src/accountImport.ts");
 
 after(() => {
   if (originalHome === undefined) delete process.env.HOME;
@@ -167,5 +168,40 @@ describe("account export client", () => {
       () => assertAccountExportPayloadSafe({ payload: { api_key: "sk-api-secret-value" } }),
       /forbidden secret field 'api_key'/,
     );
+    assert.throws(
+      () => assertAccountExportPayloadSafe({ payload: { encrypted_title: "ciphertext" } }),
+      /forbidden secret field 'encrypted_title'/,
+    );
+  });
+
+  it("writes password-protected zip exports that import only with the local password", async () => {
+    const outputPath = join(tempHome, "account-export-layout.zip.enc");
+    const result = await writeAccountExportArchive({
+      export: { export_id: "export-password", status: "complete" },
+      manifest: {
+        format: "openmates-account-export",
+        version: 1,
+        selected_domains: ["chats"],
+        domains: { chats: "included" },
+      },
+      chunks: [
+        {
+          chunk_id: "chats-0001",
+          domain: "chats",
+          sequence: 1,
+          status: "ready",
+          payload: { items: [{ id: "chat-password", title: "Password Chat" }] },
+        },
+      ],
+    }, { output: outputPath, format: "zip", password: "correct horse battery staple" });
+
+    assert.equal(result.encrypted, true);
+    const encrypted = readFileSync(outputPath);
+    assert.equal(encrypted.subarray(0, 7).toString("utf-8"), "OMZIP1\n");
+    await assert.rejects(() => parseOpenMatesImportBuffer(encrypted, "account-export-layout.zip.enc"), /requires a password/);
+    await assert.rejects(() => parseOpenMatesImportBuffer(encrypted, "account-export-layout.zip.enc", "wrong"), /could not be decrypted/);
+    const parsed = await parseOpenMatesImportBuffer(encrypted, "account-export-layout.zip.enc", "correct horse battery staple");
+    assert.equal(parsed.source, "openmates");
+    assert.equal(parsed.chats[0]?.source_chat_id, "chat-password");
   });
 });

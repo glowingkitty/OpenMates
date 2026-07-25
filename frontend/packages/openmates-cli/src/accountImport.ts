@@ -8,8 +8,11 @@
  * local and are never logged by these helpers.
  */
 
-import { createHash } from "node:crypto";
+import { createDecipheriv, createHash, scryptSync } from "node:crypto";
 import JSZip from "jszip";
+
+const ENCRYPTED_ZIP_MAGIC = "OMZIP1";
+const ENCRYPTED_ZIP_KEY_BYTES = 32;
 
 export type AccountImportSource = "claude" | "chatgpt" | "openmates";
 
@@ -70,6 +73,30 @@ async function readZipText(payload: Buffer, requiredName: string): Promise<strin
   });
   if (!entry) throw new Error(`Import archive is missing ${requiredName}`);
   return entry.async("string");
+}
+
+function decryptOpenMatesEncryptedZip(payload: Buffer, password: string | undefined): Buffer {
+  const magicPrefix = Buffer.from(`${ENCRYPTED_ZIP_MAGIC}\n`, "utf-8");
+  if (!payload.subarray(0, magicPrefix.length).equals(magicPrefix)) return payload;
+  if (!password) throw new Error("OpenMates encrypted export requires a password.");
+  const lengthEnd = payload.indexOf(0x0a, magicPrefix.length);
+  if (lengthEnd < 0) throw new Error("OpenMates encrypted export has an invalid header.");
+  const headerLength = Number(payload.subarray(magicPrefix.length, lengthEnd).toString("utf-8"));
+  if (!Number.isInteger(headerLength) || headerLength <= 0) throw new Error("OpenMates encrypted export has an invalid header length.");
+  const headerStart = lengthEnd + 1;
+  const headerEnd = headerStart + headerLength;
+  const header = JSON.parse(payload.subarray(headerStart, headerEnd).toString("utf-8")) as Record<string, string | number>;
+  if (header.magic !== ENCRYPTED_ZIP_MAGIC || header.cipher !== "aes-256-gcm" || header.kdf !== "scrypt") {
+    throw new Error("OpenMates encrypted export uses an unsupported encryption format.");
+  }
+  const key = scryptSync(password, Buffer.from(String(header.salt), "base64"), ENCRYPTED_ZIP_KEY_BYTES);
+  const decipher = createDecipheriv("aes-256-gcm", key, Buffer.from(String(header.iv), "base64"));
+  decipher.setAuthTag(Buffer.from(String(header.tag), "base64"));
+  try {
+    return Buffer.concat([decipher.update(payload.subarray(headerEnd)), decipher.final()]);
+  } catch (error) {
+    throw new Error(`OpenMates encrypted export could not be decrypted: ${error instanceof Error ? error.message : String(error)}`);
+  }
 }
 
 function claudeMessageContent(message: Record<string, unknown>): { content: string; blockTypes: string[] } {
@@ -268,8 +295,8 @@ function parseOpenMatesManifestDomains(manifestText: string): string[] {
   return domains;
 }
 
-export async function parseOpenMatesImportBuffer(payload: Buffer, sourceName = "openmates-export.zip"): Promise<ParsedAccountImport> {
-  const zip = await JSZip.loadAsync(payload);
+export async function parseOpenMatesImportBuffer(payload: Buffer, sourceName = "openmates-export.zip", password?: string): Promise<ParsedAccountImport> {
+  const zip = await JSZip.loadAsync(decryptOpenMatesEncryptedZip(payload, password));
   const manifest = await zip.file("manifest.yml")?.async("string");
   if (!manifest) throw new Error("OpenMates Export V1 archive is missing manifest.yml");
   if (!/format:\s*openmates-account-export/.test(manifest) || !/version:\s*["']?1["']?/.test(manifest)) {

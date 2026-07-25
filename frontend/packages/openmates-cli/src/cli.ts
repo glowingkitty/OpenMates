@@ -6264,12 +6264,12 @@ function printAccountExportBundle(
 
 type AccountImportCliSource = "claude" | "chatgpt" | "openmates";
 
-async function parseAccountImportFile(source: AccountImportCliSource, file: string): Promise<ParsedAccountImport> {
+async function parseAccountImportFile(source: AccountImportCliSource, file: string, flags: Record<string, string | boolean> = {}): Promise<ParsedAccountImport> {
   const { readFile } = await import("node:fs/promises");
   const payload = await readFile(file);
   if (source === "claude") return parseClaudeImportBuffer(payload, basename(file));
   if (source === "chatgpt") return parseChatGPTImportBuffer(payload, basename(file));
-  return parseOpenMatesImportBuffer(payload, basename(file));
+  return parseOpenMatesImportBuffer(payload, basename(file), typeof flags.password === "string" ? flags.password : undefined);
 }
 
 async function runAccountImport(
@@ -6278,7 +6278,7 @@ async function runAccountImport(
   file: string,
   flags: Record<string, string | boolean>,
 ): Promise<Record<string, unknown>> {
-  const parsed = await parseAccountImportFile(source, file);
+  const parsed = await parseAccountImportFile(source, file, flags);
   if (source === "openmates" && flags.domain !== undefined && flags.domain !== "chats") {
     throw new Error("Account Import V1 only supports --domain chats for OpenMates archives.");
   }
