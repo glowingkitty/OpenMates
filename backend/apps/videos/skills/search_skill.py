@@ -432,30 +432,36 @@ class SearchSkill(BaseSkill):
             # Get Brave Search results
             brave_results = search_result.get("results", [])
             
-            # Extract YouTube video IDs from Brave Search results. Limit candidates before
-            # YouTube enrichment because those client calls are synchronous under the hood.
-            youtube_videos = []  # List of (video_id, brave_result) tuples
-            for result in brave_results:
-                url = result.get("url", "")
-                video_id = extract_youtube_id_from_url(url)
-                if video_id:
-                    youtube_videos.append((video_id, result))
-                if len(youtube_videos) >= brave_search_count:
-                    break
-            
-            if not youtube_videos:
-                logger.warning(f"No YouTube videos found in Brave Search results for query '{search_query}' (id: {request_id})")
-                return (request_id, [], f"Query '{search_query}': No YouTube videos found in search results")
-            
-            logger.debug(f"Found {len(youtube_videos)} YouTube videos out of {len(brave_results)} total results")
+            # Prefer YouTube URLs for metadata enrichment, but Brave's videos index can
+            # return other valid video pages. Keep those as a bounded fallback instead
+            # of turning a successful provider response into an empty result set.
+            video_candidates, has_youtube_candidates = _video_candidates_for_brave_results(
+                brave_results,
+                brave_search_count,
+            )
+            if not video_candidates:
+                logger.warning(f"No video results found in Brave Search results for query '{search_query}' (id: {request_id})")
+                return (request_id, [], f"Query '{search_query}': No video results found in search results")
+
+            if has_youtube_candidates:
+                logger.debug(f"Found {len(video_candidates)} YouTube videos out of {len(brave_results)} total results")
+            else:
+                logger.warning(
+                    "No YouTube videos found in Brave Search results for query '%s' (id: %s); using Brave video results without YouTube enrichment",
+                    search_query,
+                    request_id,
+                )
             
             # Get YouTube metadata for all videos (batched)
-            video_ids = [vid for vid, _ in youtube_videos]
+            video_ids = [vid for vid, _ in video_candidates if vid]
             try:
-                youtube_metadata = await get_video_metadata_batched(
-                    video_ids=video_ids,
-                    secrets_manager=secrets_manager,
-                    batch_size=50
+                youtube_metadata = (
+                    await get_video_metadata_batched(
+                        video_ids=video_ids,
+                        secrets_manager=secrets_manager,
+                        batch_size=50
+                    )
+                    if video_ids else {}
                 )
             except ValueError as e:
                 # YouTube API key not available - fall back to Brave Search results only
@@ -468,7 +474,7 @@ class SearchSkill(BaseSkill):
             
             # Extract channel IDs and fetch channel thumbnails (profile images)
             channel_ids = []
-            for video_id, _ in youtube_videos:
+            for video_id, _ in video_candidates:
                 yt_metadata = youtube_metadata.get(video_id, {})
                 snippet = yt_metadata.get('snippet', {})
                 channel_id = snippet.get('channelId')
@@ -500,7 +506,7 @@ class SearchSkill(BaseSkill):
             
             # Extract view counts and create enriched results
             enriched_videos = []
-            for video_id, brave_result in youtube_videos:
+            for video_id, brave_result in video_candidates:
                 yt_metadata = youtube_metadata.get(video_id, {})
                 
                 # Get view count for sorting (default to 0 if not available)
@@ -927,3 +933,21 @@ class SearchSkill(BaseSkill):
 def _candidate_count_for_requested_count(requested_count: int | None) -> int:
     result_count = max(1, min(int(requested_count or 10), MAX_RETURNED_VIDEO_RESULTS))
     return min(MAX_RETURNED_VIDEO_RESULTS, max(MIN_VIDEO_CANDIDATES, result_count + VIDEO_CANDIDATE_BUFFER))
+
+
+def _video_candidates_for_brave_results(
+    brave_results: List[Dict[str, Any]],
+    limit: int,
+) -> Tuple[List[Tuple[str, Dict[str, Any]]], bool]:
+    youtube_candidates: List[Tuple[str, Dict[str, Any]]] = []
+    for result in brave_results:
+        video_id = extract_youtube_id_from_url(result.get("url", ""))
+        if video_id:
+            youtube_candidates.append((video_id, result))
+        if len(youtube_candidates) >= limit:
+            break
+
+    if youtube_candidates:
+        return youtube_candidates, True
+
+    return [("", result) for result in brave_results[:limit]], False
