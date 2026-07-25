@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 /**
  * Unified 4-phase E2E test for maps/search skill.
@@ -23,6 +22,7 @@ const {
 const {
 	loginToTestAccount,
 	startNewChat,
+	waitForChatReady,
 	sendMessage,
 	deleteActiveChat
 } = require('./helpers/chat-test-helpers');
@@ -98,6 +98,7 @@ test.describe('App: Maps / Skill: search', () => {
 
 		await loginToTestAccount(page, logCheckpoint, takeStepScreenshot);
 		await startNewChat(page, logCheckpoint);
+		await waitForChatReady(page, logCheckpoint, 90_000);
 
 		await sendMessage(
 			page,
