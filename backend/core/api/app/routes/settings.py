@@ -18,6 +18,7 @@ from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.models.user import User
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_directus_service, get_cache_service, get_compliance_service, get_current_user, get_encryption_service, get_current_user_or_api_key, get_current_user_optional
+from backend.core.api.app.routes.auth_routes.auth_sessions import _broadcast_force_logout
 from backend.core.api.app.routes.auth_routes.auth_utils import validate_username
 from backend.core.api.app.services.directus.user.user_lookup import hash_username
 from backend.core.api.app.utils.newsletter_utils import hash_email
@@ -4286,6 +4287,7 @@ async def delete_account(
         
         # Logout user immediately (delete sessions)
         try:
+            await _broadcast_force_logout(cache_service, user_id, "account_deleted")
             await directus_service.logout_all_sessions(user_id)
             # Clear cache
             await cache_service.delete(f"user_profile:{user_id}")

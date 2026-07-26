@@ -1084,4 +1084,38 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
       client.close();
     }
   });
+
+  it("invokes the force logout handler and closes the socket", async () => {
+    const receivedPayloads: unknown[] = [];
+
+    server.once("connection", (socket) => {
+      setTimeout(() => socket.send(JSON.stringify({
+        type: "force_logout",
+        payload: {
+          reason: "session_revoked",
+          revoked_session_id: "browser-session-1",
+        },
+      })), 5);
+    });
+
+    const client = new OpenMatesWsClient({
+      apiUrl,
+      sessionId: "session-force-logout",
+      wsToken: "token",
+      refreshToken: null,
+      onForceLogout: (payload) => {
+        receivedPayloads.push(payload);
+      },
+    });
+    await client.open();
+
+    await new Promise((resolve) => setTimeout(resolve, 30));
+
+    assert.deepEqual(receivedPayloads, [
+      {
+        reason: "session_revoked",
+        revoked_session_id: "browser-session-1",
+      },
+    ]);
+  });
 });

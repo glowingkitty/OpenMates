@@ -1521,9 +1521,8 @@ class UserDatabaseService {
    * closes the existing connection, and waits a short delay before attempting deletion.
    * The delay allows any pending transactions to complete before the deletion request.
    *
-   * NOTE: Unlike the previous implementation, this does NOT reject on onblocked.
-   * Instead, it logs a warning and waits for other connections to close.
-   * The deletion will succeed once all connections are closed.
+   * NOTE: This rejects on onblocked so logout callers keep cleanup retry markers
+   * instead of treating private local data as safely deleted.
    */
   async deleteDatabase(): Promise<void> {
     console.warn(
@@ -1584,12 +1583,11 @@ class UserDatabaseService {
             event,
           );
           // Reset isDeleting so init() is not permanently blocked if deletion
-          // gets stuck (e.g. another tab holds an open connection).
+          // gets stuck (e.g. another tab holds an open connection). Reject so
+          // cleanup retry markers are not cleared prematurely.
           this.isDeleting = false;
           this.deletionPromise = null;
-          // Resolve instead of leaving the promise hanging — callers (init()) waiting
-          // on this promise need to unblock so the app can recover.
-          resolve();
+          reject(new Error(`Deletion of database ${this.DB_NAME} is blocked`));
         };
       }, 100); // Small delay to allow pending transactions to complete
     });

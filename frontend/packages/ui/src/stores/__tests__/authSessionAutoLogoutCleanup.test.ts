@@ -151,6 +151,7 @@ vi.mock("../signupState", async () => {
     getStepFromPath: vi.fn(),
     STEP_ALPHA_DISCLAIMER: "alpha-disclaimer",
     isSignupPath: vi.fn(() => false),
+    isResettingTFA: { set: vi.fn(() => cleanupCalls.push("isResettingTFA.set")) },
     isLoggingOut: writable(false),
     forcedLogoutInProgress: writable(false),
     setForcedLogoutInProgress: vi.fn(),
@@ -358,6 +359,7 @@ describe("checkAuth auto logout cleanup", () => {
     vi.clearAllMocks();
     localStorage.clear();
     sessionStorage.clear();
+    window.location.hash = "#chat-id=old-private-chat";
     authStore.set({ isAuthenticated: true, isInitialized: false });
     loginInterfaceOpen.set(false);
     loginStayLoggedInRequested.set(false);
@@ -384,6 +386,7 @@ describe("checkAuth auto logout cleanup", () => {
     expect(cleanupCalls).toContain("resetChatNavigationList");
     expect(cleanupCalls).toContain("aiTypingStore.reset");
     expect(cleanupCalls).toContain("workflowWorkspaceStore.reset");
+    expect(window.location.hash).toBe("");
     expect(cleanupCalls).toContain(
       "notificationStore.removeNotificationsByDedupeKey:security-reminder",
     );

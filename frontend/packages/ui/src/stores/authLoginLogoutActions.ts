@@ -138,6 +138,9 @@ export function resetLocalLogoutState(): void {
   if (!isOgImageModeLogout && !shouldPreserveExampleChat) {
     activeChatStore.clearActiveChat();
   }
+  if (typeof window !== "undefined" && window.location.hash) {
+    window.location.hash = "";
+  }
 
   authStore.set({
     ...authInitialState,
@@ -595,6 +598,10 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
     // established session. Database deletion is safe regardless (stale old-session data).
     (async () => {
       try {
+        if (typeof localStorage !== "undefined") {
+          localStorage.setItem("openmates_needs_cleanup", "true");
+        }
+
         // Delete local databases in the background
         try {
           await userDB.deleteDatabase();

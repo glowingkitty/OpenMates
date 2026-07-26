@@ -283,6 +283,47 @@ export function clearSession(): void {
   }
 }
 
+export function purgeLocalPrivateData(): void {
+  const stateDir = ensureStateDir();
+  const sessionFilePath = join(stateDir, "session.json");
+  const onDisk = readJsonFile<SessionOnDisk>(sessionFilePath);
+  const hashedEmail = onDisk?.hashedEmail ?? null;
+
+  clearSession();
+  purgeLocalTeamKeys(hashedEmail);
+  purgeSyncCaches(stateDir);
+}
+
+function purgeLocalTeamKeys(hashedEmail: string | null): void {
+  const filePath = join(ensureStateDir(), LOCAL_TEAM_KEYS_FILE);
+  const keys = readJsonFile<LocalTeamKeysOnDisk>(filePath);
+  if (!keys) return;
+
+  let changed = false;
+  const prefix = hashedEmail ? `${hashedEmail}:team:` : null;
+  for (const [storageId, entry] of Object.entries(keys.teams)) {
+    if (prefix && !storageId.startsWith(prefix)) continue;
+    deleteMasterKey(entry.storage, storageId);
+    delete keys.teams[storageId];
+    changed = true;
+  }
+
+  if (!changed) return;
+  if (Object.keys(keys.teams).length === 0) {
+    rmSync(filePath, { force: true });
+    return;
+  }
+  writeJsonFile(filePath, keys);
+}
+
+function purgeSyncCaches(stateDir: string): void {
+  for (const fileName of readdirSync(stateDir)) {
+    if (fileName === SYNC_CACHE_FILE || (fileName.startsWith("sync_cache.team.") && fileName.endsWith(".json"))) {
+      rmSync(join(stateDir, fileName), { force: true });
+    }
+  }
+}
+
 /** Reconstruct in-memory OpenMatesSession from on-disk data + master key. */
 function getEmailEncryptionKeyFromDisk(onDisk: SessionOnDisk): string | null {
   if (!onDisk.emailEncryptionKeyStorage) return onDisk.emailEncryptionKeyB64 ?? null;

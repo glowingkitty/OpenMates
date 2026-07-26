@@ -2420,14 +2420,12 @@ class ChatDatabase {
             event,
           );
           // Reset isDeleting so init() is not permanently blocked if the deletion
-          // gets stuck (e.g. another tab holds an open connection). The browser will
-          // keep retrying the deletion in the background, but we cannot leave the
-          // singleton in a permanently unusable state across a re-login.
+          // gets stuck (e.g. another tab holds an open connection). Reject so
+          // callers leave cleanup retry markers intact instead of treating private
+          // local data as safely deleted.
           this.isDeleting = false;
           this.deletionPromise = null;
-          // Resolve instead of leaving the promise hanging — callers (init()) waiting
-          // on this promise need to unblock so the app can recover.
-          resolve();
+          reject(new Error(`Deletion of database ${this.DB_NAME} is blocked`));
         };
       }, 100);
     });

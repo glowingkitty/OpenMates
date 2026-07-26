@@ -82,6 +82,11 @@ const {
   encryptWithAesGcmCombined,
   sealChatCompletionRecoveryPayload,
 } = await import("../src/crypto.ts");
+const {
+  loadSession: loadStoredSession,
+  loadSyncCache,
+  saveSyncCache,
+} = await import("../src/storage.ts");
 
 after(() => {
   if (originalHome === undefined) {
@@ -217,6 +222,107 @@ describe("OpenMatesClient session API URL", () => {
       const saved = JSON.parse(readFileSync(sessionPath, "utf-8"));
       assert.strictEqual(saved.wsToken, "rotated-ws-token");
       assert.strictEqual(saved.cookies.auth_refresh_token, "rotated-refresh-token");
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  it("purges local private data when session refresh is explicitly invalid", async () => {
+    const emptyCache = {
+      syncedAt: Date.now(),
+      totalChatCount: 0,
+      loadedChatCount: 0,
+      chats: [],
+      embeds: [],
+      embedKeys: [],
+    };
+    const server = createServer((request: IncomingMessage, response: ServerResponse) => {
+      assert.strictEqual(request.url, "/v1/auth/session");
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(JSON.stringify({ success: false, message: "not authenticated" }));
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+
+    try {
+      writeLegacySession(`http://127.0.0.1:${address.port}`);
+      saveSyncCache(emptyCache);
+      const client = OpenMatesClient.load({ apiUrl: `http://127.0.0.1:${address.port}` });
+
+      await assert.rejects(
+        client.ensureSynced(true),
+        /Session expired or invalid/,
+      );
+
+      assert.strictEqual(loadStoredSession(), null);
+      assert.strictEqual(loadSyncCache(), null);
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  it("uses destructive local purge for manual logout", async () => {
+    const emptyCache = {
+      syncedAt: Date.now(),
+      totalChatCount: 0,
+      loadedChatCount: 0,
+      chats: [],
+      embeds: [],
+      embedKeys: [],
+    };
+    const server = createServer((request: IncomingMessage, response: ServerResponse) => {
+      assert.strictEqual(request.url, "/v1/auth/logout");
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(JSON.stringify({ success: true }));
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+
+    try {
+      writeLegacySession(`http://127.0.0.1:${address.port}`);
+      saveSyncCache(emptyCache);
+      const client = OpenMatesClient.load({ apiUrl: `http://127.0.0.1:${address.port}` });
+
+      await client.logout();
+
+      assert.strictEqual(client.hasSession(), false);
+      assert.strictEqual(loadStoredSession(), null);
+      assert.strictEqual(loadSyncCache(), null);
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  it("uses destructive local purge after account deletion", async () => {
+    const emptyCache = {
+      syncedAt: Date.now(),
+      totalChatCount: 0,
+      loadedChatCount: 0,
+      chats: [],
+      embeds: [],
+      embedKeys: [],
+    };
+    const server = createServer((request: IncomingMessage, response: ServerResponse) => {
+      assert.strictEqual(request.url, "/v1/settings/delete-account");
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(JSON.stringify({ success: true, message: "deletion queued" }));
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+
+    try {
+      writeLegacySession(`http://127.0.0.1:${address.port}`);
+      saveSyncCache(emptyCache);
+      const client = OpenMatesClient.load({ apiUrl: `http://127.0.0.1:${address.port}` });
+
+      await client.deleteAccountWithCliVerification("654321");
+
+      assert.strictEqual(client.hasSession(), false);
+      assert.strictEqual(loadStoredSession(), null);
+      assert.strictEqual(loadSyncCache(), null);
     } finally {
       await new Promise<void>((resolve) => server.close(() => resolve()));
     }

@@ -19,6 +19,7 @@ import {
   saveSession,
   loadSession,
   clearSession,
+  purgeLocalPrivateData,
   saveLocalTeamKey,
   saveSyncCache,
   pruneLocalTeamArtifacts,
@@ -132,6 +133,52 @@ describe("clearSession", () => {
   it("does not throw when no session file exists", () => {
     clearSession(); // ensure it's already gone
     assert.doesNotThrow(() => clearSession());
+  });
+});
+
+describe("purgeLocalPrivateData", () => {
+  it("removes session keys, user sync cache, team sync caches, and team keys", () => {
+    const activeTeamId = "team-active";
+    const staleTeamId = "team-stale";
+    const activeCachePath = join(STATE_DIR, `sync_cache.team.${teamDigest(activeTeamId)}.json`);
+    const staleCachePath = join(STATE_DIR, `sync_cache.team.${teamDigest(staleTeamId)}.json`);
+    const emptyCache = {
+      syncedAt: Date.now(),
+      totalChatCount: 0,
+      loadedChatCount: 0,
+      chats: [],
+      embeds: [],
+      embedKeys: [],
+    };
+
+    saveSession({ ...SAMPLE_SESSION, activeTeamId });
+    saveLocalTeamKey(SAMPLE_SESSION.hashedEmail, activeTeamId, "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=");
+    saveLocalTeamKey(SAMPLE_SESSION.hashedEmail, staleTeamId, "AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgI=");
+    saveSyncCache(emptyCache);
+    saveSyncCache(emptyCache, activeTeamId);
+    saveSyncCache(emptyCache, staleTeamId);
+
+    purgeLocalPrivateData();
+
+    assert.strictEqual(loadSession(), null);
+    assert.ok(!existsSync(join(STATE_DIR, "session.json")), "session.json should be removed");
+    assert.ok(!existsSync(join(STATE_DIR, "sync_cache.json")), "user sync cache should be removed");
+    assert.ok(!existsSync(activeCachePath), "active team sync cache should be removed");
+    assert.ok(!existsSync(staleCachePath), "stale team sync cache should be removed");
+    const teamKeysPath = join(STATE_DIR, "team_keys.json");
+    const teamKeys = existsSync(teamKeysPath)
+      ? JSON.parse(readFileSync(teamKeysPath, "utf-8"))
+      : { teams: {} };
+    assert.strictEqual(
+      teamKeys.teams[`${SAMPLE_SESSION.hashedEmail}:team:${teamDigest(activeTeamId)}`],
+      undefined,
+      "active team key should be removed",
+    );
+    assert.strictEqual(
+      teamKeys.teams[`${SAMPLE_SESSION.hashedEmail}:team:${teamDigest(staleTeamId)}`],
+      undefined,
+      "stale team key should be removed",
+    );
   });
 });
 

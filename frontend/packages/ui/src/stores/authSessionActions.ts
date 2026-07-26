@@ -914,6 +914,10 @@ export async function checkAuth(
         // Use setTimeout to defer deletion and avoid blocking the auth initialization
         // The UI state has already been cleared via the event above
         setTimeout(async () => {
+          if (typeof localStorage !== "undefined") {
+            localStorage.setItem("openmates_needs_cleanup", "true");
+          }
+
           try {
             await userDB.deleteDatabase();
             console.debug(
@@ -990,13 +994,8 @@ export async function checkAuth(
           "[AuthSessionActions] ORPHANED DATABASE CLEANUP: Found cleanup marker - triggering database deletion",
         );
 
-        // CRITICAL: Clear the cleanup marker immediately to prevent showing this notification again
-        if (typeof localStorage !== "undefined") {
-          localStorage.removeItem("openmates_needs_cleanup");
-          console.debug(
-            "[AuthSessionActions] Cleared cleanup marker to prevent repeated notifications",
-          );
-        }
+        // Keep the cleanup marker until the IndexedDB delete helpers confirm
+        // success. If another tab blocks deletion, the next app boot must retry.
 
         // CRITICAL: Set isLoggingOut flag to true for orphaned database cleanup
         isLoggingOut.set(true);
@@ -1018,6 +1017,10 @@ export async function checkAuth(
 
         // Clear IndexedDB databases asynchronously without blocking UI
         setTimeout(async () => {
+          if (typeof localStorage !== "undefined") {
+            localStorage.setItem("openmates_needs_cleanup", "true");
+          }
+
           try {
             await userDB.deleteDatabase();
             console.debug(

@@ -45,7 +45,7 @@ import {
   type CachedChat,
   loadSession,
   saveSession,
-  clearSession,
+  purgeLocalPrivateData,
   loadSyncCache,
   saveSyncCache,
   clearSyncCache,
@@ -3942,7 +3942,8 @@ export class OpenMatesClient {
         .post("/v1/auth/logout", {}, this.getCliRequestHeaders())
         .catch(() => undefined);
     }
-    clearSession();
+    purgeLocalPrivateData();
+    this.session = null;
   }
 
   async requestSignupEmailCode(params: {
@@ -9375,8 +9376,8 @@ export class OpenMatesClient {
     if (!response.ok) {
       throw new Error(`Account deletion failed (HTTP ${response.status})`);
     }
-    clearSession();
-    clearSyncCache();
+    purgeLocalPrivateData();
+    this.session = null;
     return response.data;
   }
 
@@ -10587,6 +10588,10 @@ export class OpenMatesClient {
       // Node.js ws library doesn't auto-send cookies on upgrade requests.
       cookies: session.cookies,
       taskUpdateJobs: options.taskUpdateJobs,
+      onForceLogout: () => {
+        purgeLocalPrivateData();
+        this.session = null;
+      },
     });
   }
 
@@ -10615,29 +10620,42 @@ export class OpenMatesClient {
    */
   private async refreshWsToken(): Promise<string | null> {
     const session = this.requireSession();
+    let res: HttpResponse<{
+      success?: boolean;
+      ws_token?: string;
+      user?: { id?: string; user_id?: string };
+    }>;
     try {
-      const res = await this.http.post<{
+      res = await this.http.post<{
         success?: boolean;
         ws_token?: string;
         user?: { id?: string; user_id?: string };
       }>("/v1/auth/session", { session_id: session.sessionId }, this.getCliRequestHeaders());
-      if (res.ok && res.data.ws_token) {
-        session.wsToken = res.data.ws_token;
-      }
-      // Capture any rotated cookies from the response (HTTP client does this
-      // automatically via captureCookies — just persist the updated map).
-      session.cookies = this.http.getCookieMap();
-      saveSession(session);
-      return typeof res.data.user?.id === "string"
-        ? res.data.user.id
-        : typeof res.data.user?.user_id === "string"
-          ? res.data.user.user_id
-          : null;
     } catch {
-      // Best-effort — if /auth/session fails, proceed with the existing
-      // wsToken and let the WebSocket auth cookie fallback handle it.
+      // Network failures are best-effort: proceed with the existing wsToken and
+      // let the WebSocket auth cookie fallback handle it. Explicit server
+      // invalidation below is different and must purge local private data.
       return null;
     }
+
+    if (!res.ok || res.data.success === false) {
+      purgeLocalPrivateData();
+      this.session = null;
+      throw new Error("Session expired or invalid. Please run `openmates login` to re-authenticate.");
+    }
+
+    if (res.data.ws_token) {
+      session.wsToken = res.data.ws_token;
+    }
+    // Capture any rotated cookies from the response (HTTP client does this
+    // automatically via captureCookies — just persist the updated map).
+    session.cookies = this.http.getCookieMap();
+    saveSession(session);
+    return typeof res.data.user?.id === "string"
+      ? res.data.user.id
+      : typeof res.data.user?.user_id === "string"
+        ? res.data.user.user_id
+        : null;
   }
 
   /**

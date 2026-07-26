@@ -23,6 +23,11 @@ export interface WsEnvelope<T = unknown> {
   payload: T;
 }
 
+export interface ForceLogoutPayload {
+  reason?: string;
+  revoked_session_id?: string | null;
+}
+
 /** Streaming event dispatched for each chunk or lifecycle event. */
 export interface StreamEvent {
   /** Event type. */
@@ -362,6 +367,7 @@ export class OpenMatesWsClient {
     userAgent?: string;
     cookies?: Record<string, string>;
     taskUpdateJobs?: boolean;
+    onForceLogout?: (payload: ForceLogoutPayload) => void | Promise<void>;
   }) {
     const wsBase = options.apiUrl.replace(/^http/, "ws").replace(/\/$/, "");
     // Use || (not ??) so empty-string wsToken falls through to refreshToken.
@@ -394,6 +400,7 @@ export class OpenMatesWsClient {
       headers: wsHeaders,
     });
     this.socket.on("message", (rawData: RawData) => {
+      if (this.handleForceLogout(rawData, options.onForceLogout)) return;
       if (this.activeResponseCollectors > 0) return;
       this.bufferPassiveTaskUpdateJobs(rawData);
     });
@@ -484,6 +491,21 @@ export class OpenMatesWsClient {
       }
     } catch {
       // Ignore non-JSON frames.
+    }
+  }
+
+  private handleForceLogout(
+    rawData: RawData,
+    onForceLogout?: (payload: ForceLogoutPayload) => void | Promise<void>,
+  ): boolean {
+    try {
+      const parsed = JSON.parse(rawData.toString()) as WsEnvelope<ForceLogoutPayload>;
+      if (parsed.type !== "force_logout") return false;
+      void onForceLogout?.(parsed.payload ?? {});
+      this.close();
+      return true;
+    } catch {
+      return false;
     }
   }
 
