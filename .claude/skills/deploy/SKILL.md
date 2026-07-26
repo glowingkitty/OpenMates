@@ -39,8 +39,8 @@ python3 scripts/sessions.py worktree ensure --session <SESSION_ID>
 
    Do not run a separate `wait-lock` before normal deploys. `sessions.py deploy`
    scopes the commit from the session worktree diff, guards root integration and
-   commit/push with the dev deploy verification lock, and records wait state for
-   the resulting commit. If root integration is unsafe, sessions.py records a
+   commit/push with the short dev deploy push lock, and releases the lock after
+   push. If root integration is unsafe, sessions.py records a
    visible blocked-deploy item; resolve the conflict and rerun deploy.
 
 3. **Run spec conformance when applicable:**

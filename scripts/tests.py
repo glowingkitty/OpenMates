@@ -771,40 +771,6 @@ def _matches_commit_prefix(actual_sha: str, expected_sha: str) -> bool:
     return bool(expected) and (actual.startswith(expected) or expected.startswith(actual))
 
 
-def release_vercel_deploy_lock_for_commit(commit_sha: str) -> bool:
-    """Release the sessions.py Vercel deploy lock when this test verified it."""
-    commit_sha = commit_sha.strip()
-    if not commit_sha:
-        return False
-
-    SESSIONS_FILE.parent.mkdir(parents=True, exist_ok=True)
-    lock_path = SESSIONS_FILE.with_suffix(".lock")
-    with lock_path.open("a+", encoding="utf-8") as lock_handle:
-        fcntl.flock(lock_handle, fcntl.LOCK_EX)
-        try:
-            try:
-                data = json.loads(SESSIONS_FILE.read_text(encoding="utf-8")) if SESSIONS_FILE.exists() else {}
-            except (json.JSONDecodeError, OSError):
-                return False
-            locks = data.setdefault("locks", {})
-            deploy_lock = locks.get("vercel_deploy", {})
-            locked_commit = str(deploy_lock.get("commit_sha") or "")
-            if deploy_lock.get("status") != "IN_PROGRESS" or not _matches_commit_prefix(locked_commit, commit_sha):
-                return False
-            locks["vercel_deploy"] = {
-                "status": "NONE",
-                "last_released": utc_now(),
-                "released_by": "scripts/tests.py",
-                "released_commit_sha": locked_commit or commit_sha,
-            }
-            tmp = SESSIONS_FILE.with_suffix(".tmp")
-            tmp.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
-            tmp.replace(SESSIONS_FILE)
-            return True
-        finally:
-            fcntl.flock(lock_handle, fcntl.LOCK_UN)
-
-
 @dataclass(frozen=True)
 class ControlRunOptions:
     forwarded_args: list[str]
@@ -1942,8 +1908,6 @@ def command_run(runner_args: list[str]) -> int:
     recorded_commit = record_latest_run_artifact(expected_commit=options.expected_commit, since_mtime=artifact_start_mtime)
     if not recorded_commit:
         return 2 if options.expected_commit else result.returncode
-    if release_vercel_deploy_lock_for_commit(recorded_commit):
-        print(f"Released Vercel deploy lock for verified commit {recorded_commit[:9]}.")
     return result.returncode
 
 

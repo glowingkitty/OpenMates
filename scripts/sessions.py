@@ -821,7 +821,7 @@ def _format_lock_block_message(lock_type: str, lock: dict) -> str:
     return (
         f"BLOCKED: {lock_type} lock held by {lock.get('claimed_by', '?')}"
         f"{commit_text} (since {lock.get('since', '?')}, updated {lock.get('last_updated', '?')}). "
-        "Wait for the deployment/test verification to finish, or run "
+        "Wait for the root deploy push to finish, or run "
         f"`python3 scripts/sessions.py unlock --session <id> --type {_lock_type_short_name(lock_type)}` "
         "if you have confirmed the deploy is no longer active."
     )
@@ -4315,8 +4315,13 @@ def cmd_deploy(args: argparse.Namespace) -> None:
     exclude = set(args.exclude or [])
     worktree_metadata = session.get("worktree") if isinstance(session.get("worktree"), dict) else None
 
+    use_staged = getattr(args, "use_staged", False)
     dirty_files = _get_dirty_files()
     to_commit = _session_deploy_files(session, exclude)
+    staged_files_for_deploy = set(_get_staged_files()) if use_staged and not to_commit else set()
+    if staged_files_for_deploy:
+        to_commit = sorted(f for f in staged_files_for_deploy if f not in exclude)
+        modified = sorted(set(modified) | set(to_commit))
     dirty_but_untracked = [f for f in dirty_files if f not in modified and f not in exclude]
 
     # Session file lists are advisory and may include already-finished work.
@@ -4341,8 +4346,7 @@ def cmd_deploy(args: argparse.Namespace) -> None:
                 _wait_and_acquire_session_lock(
                     "vercel_deploy",
                     sid,
-                    commit_sha=commit_hash_full,
-                    phase="awaiting_vercel_or_e2e",
+                    phase="pushing_existing_commit",
                     timeout=getattr(args, "lock_timeout", None),
                     poll=getattr(args, "lock_poll", 30),
                 )
@@ -4350,14 +4354,14 @@ def cmd_deploy(args: argparse.Namespace) -> None:
             except RuntimeError as exc:
                 print(str(exc), file=sys.stderr)
                 sys.exit(1)
-            print(f"Vercel deploy lock acquired for commit {commit_hash}.")
+            print(f"Dev deploy push lock acquired for commit {commit_hash}.")
 
             print("Checking Vercel web app build machine...")
             try:
                 _enforce_vercel_standard_build_machine()
             except RuntimeError as exc:
                 if deploy_lock_held:
-                    _release_session_lock("vercel_deploy", commit_sha=commit_hash_full, released_by=sid)
+                    _release_session_lock("vercel_deploy", released_by=sid)
                 print(f"VERCEL BUILD MACHINE GATE FAILED — {exc}", file=sys.stderr)
                 sys.exit(1)
             print("Vercel build machine: standard/fixed")
@@ -4366,10 +4370,12 @@ def cmd_deploy(args: argparse.Namespace) -> None:
             rc, stdout, stderr = _run_cmd(["git", "push", "origin", "dev"])
             if rc != 0:
                 if deploy_lock_held:
-                    _release_session_lock("vercel_deploy", commit_sha=commit_hash_full, released_by=sid)
+                    _release_session_lock("vercel_deploy", released_by=sid)
                 print(f"git push failed: {stderr}", file=sys.stderr)
                 print("Existing local commit(s) were not pushed.")
                 sys.exit(1)
+            if deploy_lock_held:
+                _release_session_lock("vercel_deploy", released_by=sid)
 
             if commit_hash_full:
                 _save_last_deploy_sha(commit_hash_full)
@@ -4536,11 +4542,10 @@ def cmd_deploy(args: argparse.Namespace) -> None:
     except RuntimeError as exc:
         print(str(exc), file=sys.stderr)
         sys.exit(1)
-    print("Dev deploy verification lock acquired for commit preparation.")
+    print("Dev deploy push lock acquired for commit preparation.")
 
     # 2. Git add — reset any staged files not belonging to this session first,
     # to prevent index bleed from concurrent sessions that already ran git add.
-    use_staged = getattr(args, "use_staged", False)
     staged_files = _get_staged_files()
     foreign_staged = [f for f in staged_files if f not in to_commit]
     if foreign_staged:
@@ -4655,32 +4660,18 @@ def cmd_deploy(args: argparse.Namespace) -> None:
     commit_hash_full = (commit_hash_full or "").strip()
     commit_hash = commit_hash_full[:7] if commit_hash_full else "unknown"
 
-    # 4. Git push
-    try:
-        _wait_and_acquire_session_lock(
-            "vercel_deploy",
-            sid,
-            commit_sha=commit_hash_full,
-            phase="awaiting_vercel_or_e2e",
-            timeout=0,
-            poll=1,
-        )
-    except RuntimeError as exc:
-        if deploy_lock_held:
-            _release_session_lock("vercel_deploy", released_by=sid)
-        print(str(exc), file=sys.stderr)
-        print("Commit was created locally but not pushed.", file=sys.stderr)
-        sys.exit(1)
-    print(f"Vercel deploy lock acquired for commit {commit_hash}.")
-
+    # 4. Git push. Vercel/test readiness is commit-scoped via
+    # --expected-commit, so this mutex must not outlive the push.
     print("Pushing to origin dev...")
     rc, stdout, stderr = _run_cmd(["git", "push", "origin", "dev"])
     if rc != 0:
         if deploy_lock_held:
-            _release_session_lock("vercel_deploy", commit_sha=commit_hash_full, released_by=sid)
+            _release_session_lock("vercel_deploy", released_by=sid)
         print(f"git push failed: {stderr}", file=sys.stderr)
         print("Commit was created locally but not pushed.")
         sys.exit(1)
+    if deploy_lock_held:
+        _release_session_lock("vercel_deploy", released_by=sid)
 
     # Persist last deploy SHA for --since-last-deploy
     if commit_hash_full:
@@ -7101,7 +7092,7 @@ def main() -> None:
         "--lock-timeout",
         type=int,
         dest="lock_timeout",
-        help="Seconds to wait for the Vercel deploy lock before committing "
+        help="Seconds to wait for the dev deploy push lock before committing "
         "(default: lock stale timeout).",
     )
     p_deploy.add_argument(
@@ -7109,7 +7100,7 @@ def main() -> None:
         type=int,
         default=30,
         dest="lock_poll",
-        help="Seconds between Vercel deploy lock checks (default: 30).",
+        help="Seconds between dev deploy push lock checks (default: 30).",
     )
 
     # lint (run linter on tracked files without deploying)

@@ -344,6 +344,27 @@ class ProjectMethods:
         await self.increment_project_item_count(payload.get("hashed_project_id"), 1)
         return data
 
+    async def delete_item_for_project_target(
+        self,
+        project_id: str,
+        item_type: str,
+        target_id: str,
+        user_id: str,
+    ) -> int:
+        hashed_project_id = hash_id(project_id)
+        deleted = await self.directus_service.delete_items(
+            "project_items",
+            {
+                "hashed_project_id": {"_eq": hashed_project_id},
+                "target_id_hash": {"_eq": hash_id(target_id)},
+                "item_type": {"_eq": item_type},
+                "hashed_user_id": {"_eq": hash_id(user_id)},
+            },
+        )
+        if deleted:
+            await self.increment_project_item_count(hashed_project_id, -deleted)
+        return deleted
+
     async def delete_project_items_by_project_hash(self, hashed_project_id: str, user_id: str) -> int:
         return await self.directus_service.delete_items(
             "project_items",

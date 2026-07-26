@@ -658,10 +658,20 @@ async function handleTasks(
 
   if (rest[0] === "add-to-project") {
     rejectRemoteCopyFlags(flags);
-    const projectId = requiredStringFlag(rest[1], "<project-id>");
+    const project = await requiredResolvedProject(client, masterKey, requiredStringFlag(rest[1], "<project-id>"), flags);
     const task = await requiredResolvedTask(client, masterKey, subcommand, scope, "add-to-project");
-    const linkedProjectIds = appendUniqueId(task.linkedProjectIds, projectId);
+    const linkedProjectIds = appendUniqueId(task.linkedProjectIds, project.projectId);
     const patch = await buildUpdateUserTaskInput(task, masterKey, { projectIds: linkedProjectIds });
+    const updated = await client.updateUserTask(task.taskId, patch);
+    printTaskOutput(await decryptUserTask(updated, masterKey), flags);
+    return;
+  }
+
+  if (rest[0] === "remove-from-project") {
+    rejectRemoteCopyFlags(flags);
+    const project = await requiredResolvedProject(client, masterKey, requiredStringFlag(rest[1], "<project-id>"), flags);
+    const task = await requiredResolvedTask(client, masterKey, subcommand, scope, "remove-from-project");
+    const patch = await buildUpdateUserTaskInput(task, masterKey, { projectIds: removeId(task.linkedProjectIds, project.projectId) });
     const updated = await client.updateUserTask(task.taskId, patch);
     printTaskOutput(await decryptUserTask(updated, masterKey), flags);
     return;
@@ -1308,6 +1318,10 @@ function appendUniqueId(existing: string[], id: string): string[] {
   return existing.includes(id) ? existing : [...existing, id];
 }
 
+function removeId(existing: string[], id: string): string[] {
+  return existing.filter((existingId) => existingId !== id);
+}
+
 type PlanLinkKeyContext = {
   primaryChatId: string | null;
   primaryChatKey: Uint8Array | null;
@@ -1394,7 +1408,7 @@ async function createEncryptedProjectItem(
   client: OpenMatesClient,
   project: DecryptedProject,
   input: {
-    itemType: "chat" | "workflow";
+    itemType: "embed" | "chat" | "workflow";
     targetId: string;
     displayName: string;
     folderId?: string | null;
@@ -1432,6 +1446,19 @@ function printAddToProjectResult(
   } else {
     console.log("Storage: encrypted OpenMates Project link only");
   }
+}
+
+function printRemoveFromProjectResult(
+  result: { objectType: string; objectId: string; projectId: string; deleted: boolean; deletedCount?: number },
+  flags: Record<string, string | boolean>,
+): void {
+  if (flags.json === true) {
+    printJson(result);
+    return;
+  }
+  console.log(result.deleted
+    ? `${result.objectType} removed from Project: ${result.projectId}`
+    : `${result.objectType} was not linked to Project: ${result.projectId}`);
 }
 
 function buildRemoteCopyProposal(input: {
@@ -1601,6 +1628,26 @@ async function handlePlans(
     const projectId = requiredStringFlag(rest[1], "<project-id>");
     const plan = await requiredResolvedPlan(client, masterKey, subcommand, scope, "add-to-project");
     const linkedProjectIds = appendUniqueId(plan.linkedProjectIds, projectId);
+    const linkContext = await resolvePlanLinkKeyContext(client, masterKey, flags, {
+      primaryChatId: plan.primaryChatId,
+      linkedProjectIds,
+    });
+    const patch = await buildUpdateUserPlanInput(plan, masterKey, {
+      primaryChatId: linkContext.primaryChatId,
+      primaryChatKey: linkContext.primaryChatKey,
+      linkedProjectIds: linkContext.linkedProjectIds,
+      linkedProjectKeys: linkContext.linkedProjectKeys,
+    });
+    const updated = await client.updateUserPlan(plan.planId, patch);
+    printPlanOutput(await decryptUserPlan(updated, masterKey), flags);
+    return;
+  }
+
+  if (rest[0] === "remove-from-project") {
+    rejectRemoteCopyFlags(flags);
+    const project = await requiredResolvedProject(client, masterKey, requiredStringFlag(rest[1], "<project-id>"), flags);
+    const plan = await requiredResolvedPlan(client, masterKey, subcommand, scope, "remove-from-project");
+    const linkedProjectIds = removeId(plan.linkedProjectIds, project.projectId);
     const linkContext = await resolvePlanLinkKeyContext(client, masterKey, flags, {
       primaryChatId: plan.primaryChatId,
       linkedProjectIds,
@@ -3120,6 +3167,16 @@ async function handleChats(
     return;
   }
 
+  if (rest[0] === "remove-from-project") {
+    if (apiKey) throw new Error("Chat remove-from-project through --api-key is not supported by the CLI command; use an authenticated CLI session.");
+    const projectId = requiredStringFlag(rest[1], "<project-id>");
+    const project = await requiredResolvedProject(client, client.getMasterKeyBytes(), projectId, flags);
+    const result = await client.getChatMessages(subcommand, teamContext);
+    const removed = await client.deleteProjectItemByTarget(project.projectId, "chat", result.chat.id);
+    printRemoveFromProjectResult({ objectType: "chat", objectId: result.chat.id, projectId: project.projectId, deleted: removed.deleted, deletedCount: removed.deleted_count }, flags);
+    return;
+  }
+
   if (rest[0] === "tasks") {
     await handleTasks(client, rest[1], rest.slice(2), { ...flags, chat: subcommand }, redactor);
     return;
@@ -4429,6 +4486,16 @@ async function handleWorkflows(
       metadata: { storage: storageChoice.targetMode, source: "cli_add_to_project", remote_copy_proposal: remoteCopyProposal ? { target_path: remoteCopyProposal.target_path, source_id: remoteCopyProposal.source_id } : null },
     });
     printAddToProjectResult({ objectType: "workflow", objectId: workflow.id, projectId: project.projectId, item, targetMode: storageChoice.targetMode, remoteCopyProposal }, flags);
+    return;
+  }
+
+  if (rest[0] === "remove-from-project") {
+    const projectId = requiredStringFlag(rest[1], "<project-id>");
+    const masterKey = client.getMasterKeyBytes();
+    const project = await requiredResolvedProject(client, masterKey, projectId, flags);
+    const workflow = await client.getWorkflow(subcommand, teamContextFromFlags(flags));
+    const removed = await client.deleteProjectItemByTarget(project.projectId, "workflow", workflow.id);
+    printRemoveFromProjectResult({ objectType: "workflow", objectId: workflow.id, projectId: project.projectId, deleted: removed.deleted, deletedCount: removed.deleted_count }, flags);
     return;
   }
 
@@ -5914,6 +5981,32 @@ async function handleEmbeds(
     } else {
       await renderEmbedFullscreen(embed, client);
     }
+    return;
+  }
+
+  if (subcommand === "add-to-project") {
+    const embedId = requiredStringFlag(rest[0], "<embed-id>");
+    const projectId = requiredStringFlag(rest[1], "<project-id>");
+    const project = await requiredResolvedProject(client, client.getMasterKeyBytes(), projectId, flags);
+    const embed = await client.getEmbed(embedId);
+    const item = await createEncryptedProjectItem(client, project, {
+      itemType: "embed",
+      targetId: embed.embedId,
+      displayName: embed.textPreview ?? embed.type ?? embed.embedId,
+      folderId: typeof flags.folder === "string" ? flags.folder : null,
+      metadata: { storage: "save_only_in_openmates", source: "cli_add_to_project" },
+    });
+    printAddToProjectResult({ objectType: "embed", objectId: embed.embedId, projectId: project.projectId, item, targetMode: "save_only_in_openmates", remoteCopyProposal: null }, flags);
+    return;
+  }
+
+  if (subcommand === "remove-from-project") {
+    const embedId = requiredStringFlag(rest[0], "<embed-id>");
+    const projectId = requiredStringFlag(rest[1], "<project-id>");
+    const project = await requiredResolvedProject(client, client.getMasterKeyBytes(), projectId, flags);
+    const embed = await client.getEmbed(embedId);
+    const removed = await client.deleteProjectItemByTarget(project.projectId, "embed", embed.embedId);
+    printRemoveFromProjectResult({ objectType: "embed", objectId: embed.embedId, projectId: project.projectId, deleted: removed.deleted, deletedCount: removed.deleted_count }, flags);
     return;
   }
 
@@ -11434,6 +11527,7 @@ function printChatsHelp(): void {
   openmates chats show <chat-id> [--raw] [--json] [--all]
   openmates chats messages <chat-id> [--json]
   openmates chats <chat-id> add-to-project <project-id> [--folder <folder-id>] [--openmates-only|--repo-copy|--remote-cache-copy|--remote-copy] [--json]
+  openmates chats <chat-id> remove-from-project <project-id> [--json]
   openmates chats fork <chat-id> --from-message <message-id> [--title <title>] [--json]
   openmates chats rewind <chat-id> --to-message <message-id> [--send <prompt>] [--dry-run] [--yes] [--json]
   openmates chats retry <chat-id> [--dry-run] [--yes] [--json]
@@ -11564,6 +11658,7 @@ function printTasksHelp(): void {
   openmates tasks board [--chat <id>] [--project <id>] [--label <label>] [--priority <level>] [--json]
   openmates tasks show <task-id|short-id> [--json]
   openmates tasks <task-id|short-id> add-to-project <project-id> [--json]
+  openmates tasks <task-id|short-id> remove-from-project <project-id> [--json]
   openmates tasks history <task-id|short-id> [--limit <n>] [--json]
   openmates tasks restore <task-id|short-id> --entry <history-entry-id> [--state before|after] [--json]
   openmates tasks create --title <title> [--description <text>] [--assign user|ai] [--chat <id>] [--project <id>] [--label <label>] [--priority <level>] [--status <status>] [--due <date>] [--json]
@@ -11599,6 +11694,7 @@ function printPlansHelp(): void {
   openmates plans list [--status <status>] [--active] [--chat <id>] [--project <id>] [--json]
   openmates plans show <plan-id|short-id> [--json]
   openmates plans <plan-id|short-id> add-to-project <project-id> [--json]
+  openmates plans <plan-id|short-id> remove-from-project <project-id> [--json]
   openmates plans history <plan-id|short-id> [--limit <n>] [--json]
   openmates plans restore <plan-id|short-id> --entry <history-entry-id> [--state before|after] [--json]
   openmates plans create --title <title> [--goal <goal>] [--summary <text>] [--chat <id>] [--project <id>] [--status <status>] [--json]
@@ -11812,6 +11908,7 @@ function printWorkflowsHelp(): void {
   openmates workflows create --file workflow.yml [--json]
   openmates workflows update <workflow-id> --file workflow.yml [--json]
   openmates workflows <workflow-id> add-to-project <project-id> [--folder <folder-id>] [--openmates-only|--repo-copy|--remote-cache-copy|--remote-copy] [--json]
+  openmates workflows <workflow-id> remove-from-project <project-id> [--json]
   openmates workflows history <workflow-id> [--limit <n>] [--json]
   openmates workflows restore <workflow-id> --entry <history-entry-id> [--state before|after] [--json]
   openmates workflows create --title <title> --graph '<json>' [--enabled] [--run-content-retention last_5|none] [--json]
@@ -11848,6 +11945,8 @@ Examples:
 function printEmbedsHelp(): void {
   console.log(`Embeds commands:
   openmates embeds show <embed-id> [--json]
+  openmates embeds add-to-project <embed-id> <project-id> [--folder <folder-id>] [--json]
+  openmates embeds remove-from-project <embed-id> <project-id> [--json]
   openmates embeds share <embed-id> [--expires <seconds>] [--password <pwd>] [--json]
   openmates embeds preview start <embed-id> --chat-id <chat-id> [--wait] [--timeout-seconds <n>] [--json]
   openmates embeds preview status <session-id> [--json]

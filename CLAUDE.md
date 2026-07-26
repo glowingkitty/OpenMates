@@ -66,7 +66,7 @@ Architecture decisions: write once in `docs/architecture/`, reference in code.
 - **NEVER** run raw git worktree commands (`git worktree add`) unless explicitly requested. Use `python3 scripts/sessions.py worktree ensure --session <id>` for orchestrated agent worktrees.
 - **Committing and pushing to `dev` via `sessions.py deploy` is NOT destructive** — it is expected after every task.
 - Do not ask before a scoped `dev` deploy via `sessions.py deploy` when deployment is required for verification. Ask first for production deploys, raw git commit/push, broad dirty deploys, destructive data/migrations, secrets, unclear privacy/billing/security scope, unsafely overlapping same-file edits, or planning/review-only requests.
-- `python3 scripts/sessions.py deploy` acquires the dev deploy verification lock for root integration, commit, push, and deployed-test handoff. Do not run a separate `wait-lock` before normal deploys; use `wait-lock` only for diagnostics/manual inspection. Do not verbally pause or force-unlock another session unless its deploy/test is confirmed inactive.
+- `python3 scripts/sessions.py deploy` acquires the dev deploy push lock only for root integration, commit, and push, then releases it immediately after push. Do not run a separate `wait-lock` before normal deploys; use `wait-lock` only for diagnostics/manual inspection. Vercel and test verification must be commit-scoped with `--expected-commit`, not protected by a long-lived global lock.
 - This is **open-source**: use `<PLACEHOLDER>` values for domains, emails, SSH keys, IPs, API keys, repo URLs.
 
 ---

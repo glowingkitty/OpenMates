@@ -681,6 +681,23 @@ def _create_encrypted_project_item(
     return item
 
 
+def _delete_project_item_by_target(
+    client: OpenMates,
+    project_id: str,
+    item_type: str,
+    target_id: str,
+) -> dict[str, Any]:
+    response = client._delete(_with_query(
+        f"/v1/projects/{_quote(project_id)}/items",
+        item_type=item_type,
+        target_id=target_id,
+    ))
+    return {
+        "deleted": response.get("deleted") is True,
+        "deleted_count": int(response.get("deleted_count") or 0),
+    }
+
+
 def _unsupported_sdk_feature(feature: str) -> Any:
     raise OpenMatesConfigError(f"{feature} is not available through the API-key SDK yet")
 
@@ -1674,6 +1691,10 @@ def _append_unique_id(existing: list[str], item_id: str) -> list[str]:
     return existing if item_id in existing else [*existing, item_id]
 
 
+def _remove_id(existing: list[str], item_id: str) -> list[str]:
+    return [existing_id for existing_id in existing if existing_id != item_id]
+
+
 def _find_plan(plans: list[dict[str, Any]], plan_id: str) -> dict[str, Any]:
     matches = [plan for plan in plans if plan.get("plan_id") == plan_id or str(plan.get("plan_id") or "").startswith(plan_id)]
     if len(matches) > 1:
@@ -2049,6 +2070,12 @@ class OpenMatesChats:
             },
         )
 
+    def remove_from_project(self, chat_id: str, project_id: str) -> dict[str, Any]:
+        loaded = self.load(chat_id)
+        chat = loaded.get("chat") if isinstance(loaded.get("chat"), dict) else None
+        target_id = str(chat.get("id") if isinstance(chat, dict) and chat.get("id") else chat_id)
+        return _delete_project_item_by_target(self._client, project_id, "chat", target_id)
+
     def messages(
         self,
         *,
@@ -2286,10 +2313,10 @@ class OpenMatesChats:
         model: str | None,
         chat_id: str | None,
         title: str | None,
-        goal: str | None,
-        goal_title: str | None,
         connected_account_directory: list[dict[str, Any]] | None,
         connected_account_token_ref_inputs: list[dict[str, Any]] | None,
+        goal: str | None,
+        goal_title: str | None,
         recovery_poll_interval_seconds: float,
         recovery_timeout_seconds: float,
     ) -> ChatResponse:
@@ -3024,6 +3051,32 @@ class OpenMatesPlans:
         updated = self._client._patch(f"/v1/user-plans/{_quote(str(plan.get('plan_id')))}", patch).get("plan", {})
         return _public_plan(_decrypt_plan_record(updated, master_key))
 
+    def remove_from_project(
+        self,
+        plan_id: str,
+        project_id: str,
+    ) -> dict[str, Any]:
+        plan = _find_plan(self._list_raw(active_only=False), plan_id)
+        master_key = self._client._get_master_key()
+        plan_key = _plan_key_from_record(plan, master_key)
+        linked_project_ids = _json_string_list(_decrypt_aes_gcm_text(str(plan.get("encrypted_linked_project_ids") or ""), plan_key)) or _string_list(plan.get("linked_project_ids") or [])
+        updated_project_ids = _remove_id(linked_project_ids, project_id)
+        patch = {
+            "version": plan.get("version"),
+            "updated_at": int(time.time()),
+            "linked_project_ids": updated_project_ids,
+            "encrypted_linked_project_ids": _encrypt_aes_gcm_text(json.dumps(updated_project_ids), plan_key),
+            "key_wrappers": _build_plan_key_wrappers(
+                self._client,
+                plan_key,
+                primary_chat_id=plan.get("primary_chat_id") if isinstance(plan.get("primary_chat_id"), str) else None,
+                linked_project_ids=updated_project_ids,
+                created_at=int(time.time()),
+            ),
+        }
+        updated = self._client._patch(f"/v1/user-plans/{_quote(str(plan.get('plan_id')))}", patch).get("plan", {})
+        return _public_plan(_decrypt_plan_record(updated, master_key))
+
     def history(self, plan_id: str, *, limit: int | None = None) -> list[dict[str, Any]]:
         query = f"?limit={limit}" if limit is not None else ""
         return self._client._get(f"/v1/user-plans/{_quote(plan_id)}/history{query}").get("entries", [])
@@ -3367,6 +3420,19 @@ class OpenMatesTasks:
         }))
         return _public_task(_decrypt_task_record(updated, master_key))
 
+    def remove_from_project(
+        self,
+        task_id: str,
+        project_id: str,
+        **filters: Any,
+    ) -> dict[str, Any]:
+        task = self._resolve(task_id, filters)
+        master_key = self._client._get_master_key()
+        updated = self._update_raw(str(task["task_id"]), _build_task_update_input(task, master_key, {
+            "linked_project_ids": _remove_id(_string_list(task.get("linked_project_ids") or []), project_id),
+        }))
+        return _public_task(_decrypt_task_record(updated, master_key))
+
     def start_ai(self, task_id: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
         return self.start(task_id)
 
@@ -3690,6 +3756,11 @@ class OpenMatesWorkflows:
                 "source": "sdk_add_to_project",
             },
         )
+
+    def remove_from_project(self, workflow_id: str, project_id: str) -> dict[str, Any]:
+        workflow = self.get(workflow_id)
+        target_id = str(workflow.get("id") or workflow_id)
+        return _delete_project_item_by_target(self._client, project_id, "workflow", target_id)
 
     def create(
         self,
@@ -4489,6 +4560,23 @@ class OpenMatesEmbeds:
         self._client = client
         self.preview = OpenMatesEmbedPreview(client)
     def show(self, embed_id: str) -> dict[str, Any]: return self._client._get(f"/v1/sdk/embeds/{_quote(embed_id)}")
+    def add_to_project(self, embed_id: str, project_id: str, *, folder: str | None = None) -> dict[str, Any]:
+        project_key = _resolve_project_key(self._client, project_id)
+        return _create_encrypted_project_item(
+            self._client,
+            project_id,
+            project_key,
+            item_type="embed",
+            target_id=embed_id,
+            display_name=embed_id,
+            folder=folder,
+            metadata={
+                "storage": "save_only_in_openmates",
+                "source": "sdk_add_to_project",
+            },
+        )
+    def remove_from_project(self, embed_id: str, project_id: str) -> dict[str, Any]:
+        return _delete_project_item_by_target(self._client, project_id, "embed", embed_id)
     def share(self, embed_id: str, *, expires: int | None = None, password: str | None = None) -> dict[str, Any]:
         shown = self.show(embed_id)
         embed_keys = shown.get("embed_keys") if isinstance(shown.get("embed_keys"), list) else []

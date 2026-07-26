@@ -98,6 +98,7 @@ Run `python3 scripts/generate_sdk_reference.py --check` to verify this file is c
 | `om.chats.load()` | `om.chats.load()` | `id` | `id` | `object` |
 | `om.chats.messagePages()` | `om.chats.message_pages()` | `id, direction, limit, before_timestamp, before_message_id, after_timestamp, after_message_id, anchor_message_id, respect_compression_boundary, all` | `id, limit, input` | `object` |
 | `om.chats.messages()` | `om.chats.messages()` | `id, direction, limit, before_timestamp, before_message_id, after_timestamp, after_message_id, anchor_message_id, respect_compression_boundary, all` | `id, direction, limit, before_timestamp, before_message_id, after_timestamp, after_message_id, anchor_message_id, respect_compression_boundary, all` | `object` |
+| `om.chats.removeFromProject()` | `om.chats.remove_from_project()` | `id, project_id` | `id, project_id` | `object` |
 | `om.chats.retry()` | `om.chats.retry()` | `id, dry_run, confirmed` | `id, dry_run, confirmed` | `object` |
 | `om.chats.rewind()` | `om.chats.rewind()` | `id, to_message_id, send, dry_run, confirmed` | `id, to_message_id, send, dry_run, confirmed` | `object` |
 | `om.chats.search()` | `om.chats.search()` | `input, limit, offset` | `input, limit, offset` | `list` |
@@ -138,6 +139,8 @@ Run `python3 scripts/generate_sdk_reference.py --check` to verify this file is c
 
 | npm | pip | npm inputs | pip inputs | Return |
 | --- | --- | --- | --- | --- |
+| `om.embeds.addToProject()` | `om.embeds.add_to_project()` | `id, project_id, folder` | `id, project_id, folder` | `object` |
+| `om.embeds.removeFromProject()` | `om.embeds.remove_from_project()` | `id, project_id` | `id, project_id` | `object` |
 | `om.embeds.restoreVersion()` | `om.embeds.restore_version()` | `id, version, confirmed` | `id, version, confirmed` | `object` |
 | `om.embeds.share()` | `om.embeds.share()` | `id, expires, password` | `id, expires, password` | `object` |
 | `om.embeds.show()` | `om.embeds.show()` | `id` | `id` | `object` |
@@ -241,6 +244,7 @@ Run `python3 scripts/generate_sdk_reference.py --check` to verify this file is c
 | `om.plans.listLearnings()` | `om.plans.list_learnings()` | `id` | `id` | `list` |
 | `om.plans.listReferencePatterns()` | `om.plans.list_reference_patterns()` | `id` | `id` | `list` |
 | `om.plans.listVerifications()` | `om.plans.list_verifications()` | `id` | `id` | `list` |
+| `om.plans.removeFromProject()` | `om.plans.remove_from_project()` | `id, project_id` | `id, project_id` | `object` |
 | `om.plans.restore()` | `om.plans.restore()` | `id, entry_id, state` | `id, entry_id, state` | `object` |
 | `om.plans.resume()` | `om.plans.resume()` | `id` | `id` | `object` |
 | `om.plans.show()` | `om.plans.show()` | `id` | `id` | `object` |
@@ -297,6 +301,7 @@ Run `python3 scripts/generate_sdk_reference.py --check` to verify this file is c
 | `om.tasks.history()` | `om.tasks.history()` | `id, status, chat_id, project_id, plan_id, labels, tags, priority, limit` | `id, limit, input` | `list` |
 | `om.tasks.list()` | `om.tasks.list()` | `status, chat_id, project_id, plan_id, labels, tags, priority` | `status, chat_id, project_id, plan_id, labels, tags, priority` | `list` |
 | `om.tasks.move()` | `om.tasks.move()` | `id, move, status, chat_id, project_id, plan_id, labels, tags, priority` | `id, move, input` | `list` |
+| `om.tasks.removeFromProject()` | `om.tasks.remove_from_project()` | `id, project_id, input` | `id, project_id, input` | `object` |
 | `om.tasks.reorder()` | `om.tasks.reorder()` | `id, move, status, chat_id, project_id, plan_id, labels, tags, priority` | `id, move, input` | `list` |
 | `om.tasks.restore()` | `om.tasks.restore()` | `id, entry_id, state, input` | `id, entry_id, state, input` | `object` |
 | `om.tasks.show()` | `om.tasks.show()` | `id, status, chat_id, project_id, plan_id, labels, tags, priority` | `id, input` | `object` |
@@ -354,6 +359,7 @@ Run `python3 scripts/generate_sdk_reference.py --check` to verify this file is c
 | `om.workflows.inputSession()` | `om.workflows.input_session()` | `session_id` | `session_id` | `object` |
 | `om.workflows.keep()` | `om.workflows.keep()` | `id` | `id` | `object` |
 | `om.workflows.list()` | `om.workflows.list()` | `none` | `none` | `list` |
+| `om.workflows.removeFromProject()` | `om.workflows.remove_from_project()` | `id, project_id` | `id, project_id` | `object` |
 | `om.workflows.respond()` | `om.workflows.respond()` | `id, run_id, step_id, input` | `id, run_id, step_id, input` | `object` |
 | `om.workflows.restore()` | `om.workflows.restore()` | `id, entry_id, state` | `id, entry_id, state` | `object` |
 | `om.workflows.revokeShortUrl()` | `om.workflows.revoke_short_url()` | `token` | `token` | `object` |

@@ -115,6 +115,7 @@ def test_pip_sdk_decrypted_task_helpers_use_api_key_master_key(monkeypatch):
     assert client.tasks.done("TASK-1")["status"] == "done"
     assert client.tasks.move("TASK-1", {"position": 42, "status": "todo"})[0]["position"] == 42
     assert client.tasks.add_to_project("TASK-1", "project-1")["linked_project_ids"] == ["project-1"]
+    assert client.tasks.remove_from_project("TASK-1", "project-1")["linked_project_ids"] == []
     assert client.tasks.delete_by_id("TASK-1", confirmed=True)["deleted"] is True
     assert any(request["url"].endswith("/v1/sdk/session") for request in requests_seen)
     assert any("priority=3" in request["url"] and request["url"].count("label_hash=") == 2 for request in requests_seen if request["method"] == "GET")

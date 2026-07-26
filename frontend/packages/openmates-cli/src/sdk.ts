@@ -1109,6 +1109,10 @@ function appendUniqueProjectId(existing: string[] = [], projectId: string): stri
   return existing.includes(projectId) ? existing : [...existing, projectId];
 }
 
+function removeProjectId(existing: string[] = [], projectId: string): string[] {
+  return existing.filter((id) => id !== projectId);
+}
+
 async function buildProjectCreatePayload(masterKey: Uint8Array, input: ProjectPlainCreateOptions): Promise<ProjectRecord> {
   const name = input.name.trim();
   if (!name) throw new OpenMatesConfigError("Project name is required");
@@ -1427,7 +1431,7 @@ async function createSdkProjectItem(
   projectId: string,
   projectKey: Uint8Array,
   input: {
-    itemType: "chat" | "workflow";
+    itemType: "embed" | "chat" | "workflow";
     targetId: string;
     displayName: string;
     folder?: string;
@@ -1450,6 +1454,14 @@ async function createSdkProjectItem(
   });
   if (!response.item) throw new OpenMatesApiError(500, { detail: "Project item response missing item" });
   return response.item;
+}
+
+async function deleteSdkProjectItemByTarget(client: OpenMates, projectId: string, itemType: "embed" | "chat" | "workflow", targetId: string): Promise<{ deleted: boolean; deletedCount: number }> {
+  const response = await client.delete<{ deleted?: boolean; deleted_count?: number }>(withQuery(`/v1/projects/${encodeURIComponent(projectId)}/items`, {
+    item_type: itemType,
+    target_id: targetId,
+  }));
+  return { deleted: response.deleted === true, deletedCount: Number(response.deleted_count ?? 0) };
 }
 
 function unsupportedSdkFeature(feature: string): never {
@@ -1550,6 +1562,12 @@ export class OpenMatesChats {
       folder: options.folder,
       metadata: { storage: "save_only_in_openmates", source: "sdk_add_to_project" },
     });
+  }
+
+  async removeFromProject(chatId: string, projectId: string): Promise<{ deleted: boolean; deletedCount: number }> {
+    const loaded = await this.load(chatId);
+    const chat = loaded.chat as EncryptedChatMetadata | undefined;
+    return deleteSdkProjectItemByTarget(this.client, projectId, "chat", String(chat?.id ?? chatId));
   }
 
   async messages(options: ChatMessagesOptions): Promise<ChatMessagesResult> {
@@ -3063,6 +3081,15 @@ export class OpenMatesTasks {
     return toPublicTask(await decryptUserTask(updated, masterKey));
   }
 
+  async removeFromProject(id: string, projectId: string, options: { filters?: TaskListFilters } = {}): Promise<TaskRecord> {
+    const task = await this.resolve(id, options.filters ?? {});
+    const masterKey = await this.client.masterKey();
+    const updated = await this.updateRaw(task.taskId, await buildUpdateUserTaskInput(task, masterKey, {
+      projectIds: removeProjectId(task.linkedProjectIds, projectId),
+    }));
+    return toPublicTask(await decryptUserTask(updated, masterKey));
+  }
+
   async start(id: string, filters: TaskListFilters = {}): Promise<TaskRecord> {
     let task = await this.resolve(id, filters);
     for (let attempt = 0; attempt < 2; attempt += 1) {
@@ -3497,6 +3524,24 @@ export class OpenMatesPlans {
     return toPublicPlan(await decryptUserPlan(response.plan, masterKey));
   }
 
+  async removeFromProject(planId: string, projectId: string): Promise<PlanRecord> {
+    const masterKey = await this.client.masterKey();
+    const plan = await decryptUserPlan(await this.getRawPlan(planId), masterKey);
+    const linkedProjectIds = removeProjectId(plan.linkedProjectIds, projectId);
+    const linkedProjectKeys = await Promise.all(linkedProjectIds.map(async (linkedProjectId) => {
+      const { projectKey } = await resolveSdkProject(this.client, linkedProjectId);
+      return { projectId: linkedProjectId, projectKey };
+    }));
+    const response = await this.client.patch<{ plan?: UserPlanRecord }>(`/v1/user-plans/${encodeURIComponent(plan.planId)}`, await buildUpdateUserPlanInput(plan, masterKey, {
+      primaryChatId: plan.primaryChatId,
+      primaryChatKey: plan.primaryChatId ? await resolveSdkChatKey(this.client, plan.primaryChatId) : null,
+      linkedProjectIds,
+      linkedProjectKeys,
+    }));
+    if (!response.plan) throw new OpenMatesApiError(500, { detail: "User plan response missing plan" });
+    return toPublicPlan(await decryptUserPlan(response.plan, masterKey));
+  }
+
   async history(planId: string, options: { limit?: number } = {}): Promise<Record<string, unknown>[]> {
     const query = options.limit ? `?limit=${encodeURIComponent(String(options.limit))}` : "";
     const response = await this.client.get<{ entries?: Record<string, unknown>[] }>(`/v1/user-plans/${encodeURIComponent(planId)}/history${query}`);
@@ -3775,6 +3820,11 @@ export class OpenMatesWorkflows {
       folder: options.folder,
       metadata: { storage: "save_only_in_openmates", source: "sdk_add_to_project" },
     });
+  }
+
+  async removeFromProject(workflowId: string, projectId: string): Promise<{ deleted: boolean; deletedCount: number }> {
+    const workflow = await this.get(workflowId);
+    return deleteSdkProjectItemByTarget(this.client, projectId, "workflow", workflow.id);
   }
 
   async temporary(): Promise<WorkflowSummary[]> {
@@ -4095,6 +4145,19 @@ export class OpenMatesEmbeds {
   }
 
   async show(embedId: string): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>(`/v1/sdk/embeds/${encodeURIComponent(embedId)}`); }
+  async addToProject(embedId: string, projectId: string, options: { folder?: string } = {}): Promise<ProjectItemRecord> {
+    const { projectKey } = await resolveSdkProject(this.client, projectId);
+    return createSdkProjectItem(this.client, projectId, projectKey, {
+      itemType: "embed",
+      targetId: embedId,
+      displayName: embedId,
+      folder: options.folder,
+      metadata: { storage: "save_only_in_openmates", source: "sdk_add_to_project" },
+    });
+  }
+  async removeFromProject(embedId: string, projectId: string): Promise<{ deleted: boolean; deletedCount: number }> {
+    return deleteSdkProjectItemByTarget(this.client, projectId, "embed", embedId);
+  }
   async share(embedId: string, options: { expires?: number; password?: string } = {}): Promise<Record<string, unknown>> {
     const shown = await this.show(embedId);
     const keys = Array.isArray(shown.embed_keys) ? shown.embed_keys as EmbedKeyRecord[] : [];

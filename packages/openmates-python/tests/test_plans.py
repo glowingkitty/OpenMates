@@ -216,7 +216,8 @@ def test_pip_sdk_plan_add_to_project_encrypts_linked_project_ids(monkeypatch):
         assert headers["Authorization"] == f"Bearer {api_key}"
         assert url.endswith("/v1/user-plans/plan-1")
         seen_patch.update(json)
-        return FakeResponse({"plan": {**plan, **json}})
+        plan.update(json)
+        return FakeResponse({"plan": {**plan}})
 
     monkeypatch.setattr("openmates.sdk.requests.get", fake_get)
     monkeypatch.setattr("openmates.sdk.requests.post", fake_post)
@@ -228,3 +229,8 @@ def test_pip_sdk_plan_add_to_project_encrypts_linked_project_ids(monkeypatch):
     assert isinstance(seen_patch["encrypted_linked_project_ids"], str)
     assert seen_patch["linked_project_ids"] == ["project-1"]
     assert [wrapper["key_type"] for wrapper in seen_patch["key_wrappers"]] == ["master", "project"]
+
+    removed = client.plans.remove_from_project("plan-1", "project-1")
+    assert removed["linked_project_ids"] == []
+    assert seen_patch["linked_project_ids"] == []
+    assert [wrapper["key_type"] for wrapper in seen_patch["key_wrappers"]] == ["master"]

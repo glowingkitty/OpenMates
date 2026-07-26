@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 from backend.apps.ai.utils.mate_utils import load_mates_config
@@ -29,6 +30,18 @@ def test_every_mate_has_explicit_learning_mode_prompt_variant() -> None:
     assert mates
     missing = [mate.id for mate in mates if not mate.learning_mode_system_prompt.strip()]
     assert missing == []
+
+
+def test_mate_prompts_do_not_include_named_identity_instruction() -> None:
+    mates = load_mates_config(str(MATES_DIR))
+
+    assert mates
+    for mate in mates:
+        prompt_text = f"{mate.default_system_prompt}\n{mate.learning_mode_system_prompt}"
+        names = {mate.id, mate.name}
+        for name in names:
+            pattern = re.compile(rf"\bYou are\s+{re.escape(name)}\b", re.IGNORECASE)
+            assert not pattern.search(prompt_text), f"{mate.id} prompt includes named identity instruction"
 
 
 def test_learning_mode_prompt_uses_mate_variant_and_global_instruction() -> None:

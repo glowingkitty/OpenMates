@@ -157,7 +157,7 @@ def test_vercel_deploy_lock_blocks_active_other_session(monkeypatch, tmp_path):
             "vercel_deploy",
             "current",
             commit_sha="123456abcdef",
-            phase="awaiting_vercel_or_e2e",
+            phase="pushing_commit",
         )
 
 
@@ -190,7 +190,7 @@ def test_vercel_deploy_lock_allows_same_session_same_commit_refresh(monkeypatch,
         "vercel_deploy",
         "current",
         commit_sha="abcdef123456",
-        phase="awaiting_vercel_or_e2e",
+        phase="pushing_commit",
     )
 
     assert acquired is False
@@ -208,7 +208,7 @@ def test_vercel_deploy_lock_clears_stale_commit_for_same_session_precommit(monke
       "status": "IN_PROGRESS",
       "claimed_by": "current",
       "commit_sha": "oldcommit123",
-      "phase": "awaiting_vercel_or_e2e",
+      "phase": "pushing_commit",
       "since": "2026-07-21T10:00:00Z",
       "last_updated": "2026-07-21T10:00:00Z"
     }
@@ -261,7 +261,7 @@ def test_wait_lock_times_out_for_active_other_session(monkeypatch, tmp_path):
       "status": "IN_PROGRESS",
       "claimed_by": "other",
       "commit_sha": "abcdef123456",
-      "phase": "awaiting_vercel_or_e2e",
+      "phase": "pushing_commit",
       "since": "2026-07-21T10:00:00Z",
       "last_updated": "2026-07-21T10:00:00Z"
     }
@@ -293,7 +293,7 @@ def test_deploy_blocks_before_commit_when_vercel_lock_is_held(monkeypatch, tmp_p
       "status": "IN_PROGRESS",
       "claimed_by": "other",
       "commit_sha": "abcdef123456",
-      "phase": "awaiting_vercel_or_e2e",
+      "phase": "pushing_commit",
       "since": "2026-07-21T10:00:00Z",
       "last_updated": "2026-07-21T10:00:00Z"
     }
@@ -345,6 +345,132 @@ def test_deploy_blocks_before_commit_when_vercel_lock_is_held(monkeypatch, tmp_p
     assert exc.value.code == 1
     assert not any(cmd[:2] == ["git", "commit"] for cmd in commands)
     assert "No commit was created" in capsys.readouterr().err
+
+
+def test_deploy_releases_vercel_lock_after_successful_push(monkeypatch, tmp_path):
+    sessions = load_sessions_module()
+    sessions_file = tmp_path / "sessions.json"
+    sessions_file.write_text(
+        """
+{
+  "locks": {
+    "docker_rebuild": {"status": "NONE"},
+    "vercel_deploy": {"status": "NONE"}
+  },
+  "sessions": {
+    "current": {
+      "task": "test deploy release",
+      "modified_files": ["docs/test.md"]
+    }
+  }
+}
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    commands: list[list[str]] = []
+
+    def fake_run_cmd(cmd, cwd=None, timeout=None):
+        commands.append(cmd)
+        if cmd == ["git", "commit", "-m", "docs: test deploy release"]:
+            return 0, "[dev abc123] docs: test deploy release", ""
+        if cmd == ["git", "rev-parse", "HEAD"]:
+            return 0, "abc123def456", ""
+        return 0, "", ""
+
+    monkeypatch.setattr(sessions, "SESSIONS_FILE", sessions_file)
+    monkeypatch.setattr(sessions, "_get_dirty_files", lambda: ["docs/test.md"])
+    monkeypatch.setattr(sessions, "_get_staged_files", lambda: ["docs/test.md"])
+    monkeypatch.setattr(sessions, "_run_test_enforcement_gate", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(sessions, "_run_pytest_gate", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(sessions, "_enforce_embed_registry_validation", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(sessions, "_enforce_vercel_standard_build_machine", lambda: None)
+    monkeypatch.setattr(sessions, "_validate_staged_deploy_files", lambda *_args, **_kwargs: True)
+    monkeypatch.setattr(sessions, "_run_cmd", fake_run_cmd)
+    monkeypatch.setattr(sessions, "_save_last_deploy_sha", lambda _sha: None)
+
+    args = argparse.Namespace(
+        session="current",
+        exclude=None,
+        title="docs: test deploy release",
+        message=None,
+        end_session=False,
+        no_verify=False,
+        use_staged=True,
+        skip_tests_reason="unit test",
+        require_parity=False,
+        lock_timeout=0,
+        lock_poll=1,
+    )
+
+    sessions.cmd_deploy(args)
+
+    assert ["git", "push", "origin", "dev"] in commands
+    data = json.loads(sessions_file.read_text(encoding="utf-8"))
+    assert data["locks"]["vercel_deploy"]["status"] == "NONE"
+    assert data["locks"]["vercel_deploy"]["released_by"] == "current"
+
+
+def test_use_staged_deploy_uses_staged_files_when_session_tracking_is_empty(monkeypatch, tmp_path):
+    sessions = load_sessions_module()
+    sessions_file = tmp_path / "sessions.json"
+    sessions_file.write_text(
+        """
+{
+  "locks": {
+    "docker_rebuild": {"status": "NONE"},
+    "vercel_deploy": {"status": "NONE"}
+  },
+  "sessions": {
+    "current": {
+      "task": "test staged deploy fallback",
+      "modified_files": []
+    }
+  }
+}
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    commands: list[list[str]] = []
+
+    def fake_run_cmd(cmd, cwd=None, timeout=None):
+        commands.append(cmd)
+        if cmd == ["git", "commit", "-m", "docs: staged fallback"]:
+            return 0, "[dev abc123] docs: staged fallback", ""
+        if cmd == ["git", "rev-parse", "HEAD"]:
+            return 0, "abc123def456", ""
+        return 0, "", ""
+
+    monkeypatch.setattr(sessions, "SESSIONS_FILE", sessions_file)
+    monkeypatch.setattr(sessions, "_get_dirty_files", lambda: ["docs/test.md"])
+    monkeypatch.setattr(sessions, "_get_staged_files", lambda: {"docs/test.md"})
+    monkeypatch.setattr(sessions, "_run_test_enforcement_gate", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(sessions, "_run_pytest_gate", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(sessions, "_enforce_embed_registry_validation", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(sessions, "_enforce_vercel_standard_build_machine", lambda: None)
+    monkeypatch.setattr(sessions, "_validate_staged_deploy_files", lambda *_args, **_kwargs: True)
+    monkeypatch.setattr(sessions, "_run_cmd", fake_run_cmd)
+    monkeypatch.setattr(sessions, "_save_last_deploy_sha", lambda _sha: None)
+
+    args = argparse.Namespace(
+        session="current",
+        exclude=None,
+        title="docs: staged fallback",
+        message=None,
+        end_session=False,
+        no_verify=False,
+        use_staged=True,
+        skip_tests_reason="unit test",
+        require_parity=False,
+        lock_timeout=0,
+        lock_poll=1,
+    )
+
+    sessions.cmd_deploy(args)
+
+    assert ["git", "commit", "-m", "docs: staged fallback"] in commands
+    assert ["git", "push", "origin", "dev"] in commands
 
 
 def test_use_staged_deploy_rechecks_index_before_commit(monkeypatch, tmp_path, capsys):

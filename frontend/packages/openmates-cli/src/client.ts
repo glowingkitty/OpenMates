@@ -8421,6 +8421,20 @@ export class OpenMatesClient {
     return response.data.item;
   }
 
+  async deleteProjectItemByTarget(projectId: string, itemType: "embed" | "chat" | "workflow", targetId: string): Promise<{ deleted: boolean; deleted_count: number }> {
+    this.requireSession();
+    const params = new URLSearchParams({ item_type: itemType, target_id: targetId });
+    const response = await this.http.delete<{ deleted?: boolean; deleted_count?: number }>(
+      `/v1/projects/${encodeURIComponent(projectId)}/items?${params.toString()}`,
+      undefined,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`Project item delete failed with HTTP ${response.status}`);
+    }
+    return { deleted: response.data.deleted === true, deleted_count: Number(response.data.deleted_count ?? 0) };
+  }
+
   async listWorkspaceHistory(filters: { objectType?: string; objectId?: string; limit?: number } = {}): Promise<Record<string, unknown>[]> {
     this.requireSession();
     const params = new URLSearchParams();

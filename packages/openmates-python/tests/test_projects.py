@@ -69,8 +69,17 @@ def test_pip_sdk_project_links_are_openmates_only(monkeypatch):
             return FakeResponse({"item": {**json}})
         raise AssertionError(f"Unexpected POST {url}")
 
+    def fake_delete(url, *, json, headers, timeout):
+        requests_seen.append({"method": "DELETE", "url": url, "json": json})
+        assert headers["Authorization"] == f"Bearer {api_key}"
+        assert headers["X-OpenMates-SDK"] == "pip"
+        if "/v1/projects/project-1/items?" in url:
+            return FakeResponse({"deleted": True, "deleted_count": 1})
+        raise AssertionError(f"Unexpected DELETE {url}")
+
     monkeypatch.setattr("openmates.sdk.requests.get", fake_get)
     monkeypatch.setattr("openmates.sdk.requests.post", fake_post)
+    monkeypatch.setattr("openmates.sdk.requests.delete", fake_delete)
 
     client = OpenMates(api_key=api_key, device_id="test-device")
     assert client.projects.list(include_archived=False)[0]["project_id"] == "project-1"
@@ -86,7 +95,20 @@ def test_pip_sdk_project_links_are_openmates_only(monkeypatch):
     assert "targetMode" not in workflow_link
     assert "remoteCopyProposal" not in workflow_link
 
+    embed_link = client.embeds.add_to_project("embed-1", "project-1")
+    assert embed_link["item_type"] == "embed"
+    assert "targetMode" not in embed_link
+    assert "remoteCopyProposal" not in embed_link
+
+    assert client.chats.remove_from_project("chat-1", "project-1") == {"deleted": True, "deleted_count": 1}
+    assert client.workflows.remove_from_project("workflow-1", "project-1") == {"deleted": True, "deleted_count": 1}
+    assert client.embeds.remove_from_project("embed-1", "project-1") == {"deleted": True, "deleted_count": 1}
+
     item_bodies = [request["json"] for request in requests_seen if request["method"] == "POST" and request["url"].endswith("/v1/projects/project-1/items")]
     metadata = json.loads(_decrypt_aes_gcm_text(item_bodies[0]["encrypted_metadata"], project_key) or "{}")
     assert metadata == {"storage": "save_only_in_openmates", "source": "sdk_add_to_project"}
+    delete_urls = [request["url"] for request in requests_seen if request["method"] == "DELETE"]
+    assert any("item_type=chat" in url and "target_id=chat-1" in url for url in delete_urls)
+    assert any("item_type=workflow" in url and "target_id=workflow-1" in url for url in delete_urls)
+    assert any("item_type=embed" in url and "target_id=embed-1" in url for url in delete_urls)
     assert all("/sources" not in request["url"] for request in requests_seen)

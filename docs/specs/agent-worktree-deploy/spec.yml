@@ -16,7 +16,7 @@ scope:
   - Update `sessions.py deploy` so each session integrates only its intended changes to `dev`, commits there, pushes through
     the existing guarded path, and returns to isolation.
   - Replace the global Vercel deploy lock as a proof primitive with commit-scoped deploy/test verification while retaining
-    bounded deploy serialization for root integration, commit/push, and deployed-test handoff.
+    bounded deploy serialization for root integration, commit, and push.
   - Add cleanup for merged clean worktrees and visible archive records for stale dirty worktrees after the configured idle
     window.
   - Add transitional then strict root guards so agents do not accidentally edit, stage, commit, or deploy from the shared
@@ -48,7 +48,6 @@ context_discovery:
   - .opencode/plugins/openmates-hooks.js
   tests:
   - scripts/tests/test_sessions_vercel_build_machine_gate.py
-  - scripts/tests/test_tests_vercel_deploy_lock.py
   - scripts/tests/test_opencode_hooks_contract.mjs
   local_evidence:
   - OpenCode log inspection found 24 foreign-staged aborts, 17 lock timeouts, 10 deploy command timeouts, 11 stale-lock detections,
@@ -127,7 +126,7 @@ decisions:
 attempts:
 - id: ATTEMPT-1
   task_id: TASK-1
-  approach: Continue improving the shared-root Vercel deploy lock and staging checks.
+  approach: Continue improving the shared-root deploy push lock and staging checks.
   outcome: rejected
   recorded_at: '2026-07-26T00:00:00Z'
   reason: Local logs show the global lock and shared index remain recurring failure points even after stale-lock handling.

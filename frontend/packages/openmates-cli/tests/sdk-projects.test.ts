@@ -46,7 +46,7 @@ async function withServer(
 }
 
 describe("OpenMates SDK Projects", () => {
-  it("links chats and workflows as OpenMates-only encrypted Project items", async () => {
+  it("links and unlinks embeds, chats, and workflows as OpenMates-only Project items", async () => {
     const masterKey = Buffer.alloc(32, 9);
     const projectKey = Buffer.alloc(32, 8);
     const chatKey = Buffer.alloc(32, 7);
@@ -82,6 +82,7 @@ describe("OpenMates SDK Projects", () => {
         }
         if (request.method === "GET" && request.url === "/v1/workflows/workflow-1") return { workflow };
         if (request.method === "POST" && request.url === "/v1/projects/project-1/items") return { item: { ...(body as Record<string, unknown>) } };
+        if (request.method === "DELETE" && request.url?.startsWith("/v1/projects/project-1/items?")) return { deleted: true, deleted_count: 1 };
         throw new Error(`Unexpected request ${request.method} ${request.url}`);
       },
       async (apiUrl, seen) => {
@@ -99,11 +100,24 @@ describe("OpenMates SDK Projects", () => {
         assert.equal("targetMode" in workflowLink, false);
         assert.equal("remoteCopyProposal" in workflowLink, false);
 
+        const embedLink = await client.embeds.addToProject("embed-1", "project-1");
+        assert.equal(embedLink.item_type, "embed");
+        assert.equal("targetMode" in embedLink, false);
+        assert.equal("remoteCopyProposal" in embedLink, false);
+
+        assert.deepEqual(await client.chats.removeFromProject("chat-1", "project-1"), { deleted: true, deletedCount: 1 });
+        assert.deepEqual(await client.workflows.removeFromProject("workflow-1", "project-1"), { deleted: true, deletedCount: 1 });
+        assert.deepEqual(await client.embeds.removeFromProject("embed-1", "project-1"), { deleted: true, deletedCount: 1 });
+
         const itemBodies = seen
           .filter((request) => request.method === "POST" && request.url === "/v1/projects/project-1/items")
           .map((request) => request.body as Record<string, string>);
         const metadata = await decryptWithAesGcmCombined(itemBodies[0].encrypted_metadata, projectKey);
         assert.deepEqual(JSON.parse(metadata ?? "{}"), { storage: "save_only_in_openmates", source: "sdk_add_to_project" });
+        const deleteUrls = seen.filter((request) => request.method === "DELETE").map((request) => request.url ?? "");
+        assert.ok(deleteUrls.some((url) => url.includes("item_type=chat") && url.includes("target_id=chat-1")));
+        assert.ok(deleteUrls.some((url) => url.includes("item_type=workflow") && url.includes("target_id=workflow-1")));
+        assert.ok(deleteUrls.some((url) => url.includes("item_type=embed") && url.includes("target_id=embed-1")));
         assert.equal(seen.some((request) => request.url?.includes("/sources")), false);
       },
       `Bearer ${material.apiKey}`,

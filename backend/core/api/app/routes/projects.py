@@ -7,7 +7,7 @@ import hashlib
 import logging
 from typing import Any, Dict, List, Literal, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 from starlette.concurrency import run_in_threadpool
 
@@ -651,6 +651,28 @@ async def create_item(
     if not item:
         raise HTTPException(status_code=500, detail="Failed to add project item")
     return {"item": item}
+
+
+@router.delete("/{project_id}/items")
+@limiter.limit("60/minute")
+async def delete_item(
+    request: Request,
+    project_id: str,
+    item_type: Literal["embed", "chat", "workflow"] = Query(...),
+    target_id: str = Query(..., min_length=1),
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+) -> Dict[str, Any]:
+    project = await directus_service.project.get_project(project_id, current_user.id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    deleted = await directus_service.project.delete_item_for_project_target(
+        project_id,
+        item_type,
+        target_id,
+        current_user.id,
+    )
+    return {"deleted": deleted > 0, "deleted_count": deleted}
 
 
 @router.post("/{project_id}/upload-embed")

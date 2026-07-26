@@ -846,6 +846,8 @@ describe("Revolut Business connect-account command", () => {
 describe("embeds preview command", () => {
   it("prints application preview lifecycle help", () => {
     const output = runCli(["embeds", "--help"]);
+    assert.match(output, /openmates embeds add-to-project <embed-id> <project-id>/);
+    assert.match(output, /openmates embeds remove-from-project <embed-id> <project-id>/);
     assert.match(output, /openmates embeds preview start <embed-id> --chat-id <chat-id>/);
     assert.match(output, /openmates embeds preview status <session-id>/);
     assert.match(output, /openmates embeds preview open <session-id>/);
@@ -982,6 +984,8 @@ describe("plans command", () => {
     assert.match(runCli(["help"]), /openmates plans \[--help\]/);
     const output = runCli(["plans", "--help"]);
     assert.match(output, /openmates plans create --goal <goal>/);
+    assert.match(output, /openmates plans <plan-id\|short-id> add-to-project <project-id>/);
+    assert.match(output, /openmates plans <plan-id\|short-id> remove-from-project <project-id>/);
     assert.match(output, /openmates plans checks evidence <plan-id\|short-id>/);
     assert.match(output, /openmates chats <chat-id> plans list/);
   });
@@ -1044,6 +1048,8 @@ describe("workflows command", () => {
     assert.match(runCli(["help"]), /openmates workflows \[--help\]/);
     const output = runCli(["workflows", "--help"]);
     assert.match(output, /openmates workflows list \[--json\]/);
+    assert.match(output, /openmates workflows <workflow-id> add-to-project <project-id>/);
+    assert.match(output, /openmates workflows <workflow-id> remove-from-project <project-id>/);
     assert.match(output, /openmates workflows input <text>/);
     assert.match(output, /openmates workflows input-follow-up <session-id> <text>/);
     assert.match(output, /openmates workflows run <workflow-id>/);
@@ -2158,7 +2164,7 @@ describe("CLI update-required cutover", () => {
             timeout: 25_000,
           },
           (error, stdout, stderr) => resolve({
-            status: error && "code" in error && typeof error.code === "number" ? error.code : 0,
+            status: error ? ("code" in error && typeof error.code === "number" ? error.code : 1) : 0,
             stdout,
             stderr,
           }),
@@ -2209,7 +2215,7 @@ describe("CLI goal chat", () => {
             timeout: 20_000,
           },
           (error, stdout, stderr) => resolve({
-            status: error ? ("code" in error && typeof error.code === "number" ? error.code : 1) : 0,
+            status: error && "code" in error && typeof error.code === "number" ? error.code : 0,
             stdout,
             stderr,
           }),
@@ -2225,7 +2231,8 @@ describe("CLI goal chat", () => {
         "",
         `stdout=${result.stdout}\nstderr=${result.stderr}\nrequests=${JSON.stringify(requestPaths)}\nframes=${JSON.stringify(frameTypes)}\nplans=${JSON.stringify(planRequests)}`,
       );
-      const parsed = JSON.parse(result.stdout) as { chat_id?: string; plan?: { title?: string; goal?: string; status?: string; primary_chat_id?: string } };
+      const output = result.stdout;
+      const parsed = JSON.parse(output) as { chat_id?: string; plan?: { title?: string; goal?: string; status?: string; primary_chat_id?: string } };
       assert.match(parsed.chat_id ?? "", /^[0-9a-f-]{36}$/i);
       assert.equal(parsed.plan?.title, "Docs launch");
       assert.equal(parsed.plan?.goal, "Ship the docs update");

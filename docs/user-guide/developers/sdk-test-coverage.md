@@ -76,6 +76,7 @@ Run `python3 scripts/audit_sdk_test_coverage.py` to verify this file is current 
 | `chats` | `om.chats.load()` | `om.chats.load()` | direct | direct |
 | `chats` | `om.chats.messagePages()` | `om.chats.message_pages()` | namespace smoke: sdk.test.ts, sdk-cleartext-boundary.test.ts | namespace smoke: test_sdk.py, test_cleartext_boundary.py |
 | `chats` | `om.chats.messages()` | `om.chats.messages()` | direct | direct |
+| `chats` | `om.chats.removeFromProject()` | `om.chats.remove_from_project()` | direct | direct |
 | `chats` | `om.chats.retry()` | `om.chats.retry()` | direct | direct |
 | `chats` | `om.chats.rewind()` | `om.chats.rewind()` | direct | direct |
 | `chats` | `om.chats.search()` | `om.chats.search()` | direct | direct |
@@ -91,6 +92,8 @@ Run `python3 scripts/audit_sdk_test_coverage.py` to verify this file is current 
 | `drafts` | `om.drafts.getEncrypted()` | `om.drafts.get_encrypted()` | direct | direct |
 | `drafts` | `om.drafts.list()` | `om.drafts.list()` | direct | direct |
 | `drafts` | `om.drafts.listEncrypted()` | `om.drafts.list_encrypted()` | direct | direct |
+| `embeds` | `om.embeds.addToProject()` | `om.embeds.add_to_project()` | direct | direct |
+| `embeds` | `om.embeds.removeFromProject()` | `om.embeds.remove_from_project()` | direct | direct |
 | `embeds` | `om.embeds.restoreVersion()` | `om.embeds.restore_version()` | direct | direct |
 | `embeds` | `om.embeds.share()` | `om.embeds.share()` | direct | direct |
 | `embeds` | `om.embeds.show()` | `om.embeds.show()` | direct | direct |
@@ -144,6 +147,7 @@ Run `python3 scripts/audit_sdk_test_coverage.py` to verify this file is current 
 | `plans` | `om.plans.listLearnings()` | `om.plans.list_learnings()` | namespace smoke: sdk-plans.test.ts | namespace smoke: test_plans.py |
 | `plans` | `om.plans.listReferencePatterns()` | `om.plans.list_reference_patterns()` | direct | direct |
 | `plans` | `om.plans.listVerifications()` | `om.plans.list_verifications()` | direct | direct |
+| `plans` | `om.plans.removeFromProject()` | `om.plans.remove_from_project()` | direct | direct |
 | `plans` | `om.plans.restore()` | `om.plans.restore()` | direct | direct |
 | `plans` | `om.plans.resume()` | `om.plans.resume()` | direct | direct |
 | `plans` | `om.plans.show()` | `om.plans.show()` | direct | direct |
@@ -180,6 +184,7 @@ Run `python3 scripts/audit_sdk_test_coverage.py` to verify this file is current 
 | `tasks` | `om.tasks.history()` | `om.tasks.history()` | direct | direct |
 | `tasks` | `om.tasks.list()` | `om.tasks.list()` | direct | direct |
 | `tasks` | `om.tasks.move()` | `om.tasks.move()` | direct | direct |
+| `tasks` | `om.tasks.removeFromProject()` | `om.tasks.remove_from_project()` | direct | direct |
 | `tasks` | `om.tasks.reorder()` | `om.tasks.reorder()` | direct | direct |
 | `tasks` | `om.tasks.restore()` | `om.tasks.restore()` | direct | direct |
 | `tasks` | `om.tasks.show()` | `om.tasks.show()` | direct | direct |
@@ -227,6 +232,7 @@ Run `python3 scripts/audit_sdk_test_coverage.py` to verify this file is current 
 | `workflows` | `om.workflows.inputSession()` | `om.workflows.input_session()` | direct | direct |
 | `workflows` | `om.workflows.keep()` | `om.workflows.keep()` | direct | direct |
 | `workflows` | `om.workflows.list()` | `om.workflows.list()` | direct | direct |
+| `workflows` | `om.workflows.removeFromProject()` | `om.workflows.remove_from_project()` | direct | direct |
 | `workflows` | `om.workflows.respond()` | `om.workflows.respond()` | direct | direct |
 | `workflows` | `om.workflows.restore()` | `om.workflows.restore()` | direct | direct |
 | `workflows` | `om.workflows.revokeShortUrl()` | `om.workflows.revoke_short_url()` | direct | direct |

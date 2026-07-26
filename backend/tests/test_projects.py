@@ -74,3 +74,26 @@ async def test_remove_items_for_target_hashes_decrements_each_project_count() ->
     assert deleted == 3
     directus.update_item.assert_any_await("projects", "a", {"item_count": 3})
     directus.update_item.assert_any_await("projects", "b", {"item_count": 1})
+
+
+@pytest.mark.anyio
+async def test_delete_item_for_project_target_filters_project_type_target_and_user() -> None:
+    directus = SimpleNamespace()
+    directus.delete_items = AsyncMock(return_value=1)
+    directus.get_items = AsyncMock(return_value=[{"id": "project-row", "item_count": 4}])
+    directus.update_item = AsyncMock()
+
+    methods = ProjectMethods(directus)
+    deleted = await methods.delete_item_for_project_target("project-1", "embed", "embed-1", "user-1")
+
+    assert deleted == 1
+    directus.delete_items.assert_awaited_once_with(
+        "project_items",
+        {
+            "hashed_project_id": {"_eq": hash_id("project-1")},
+            "target_id_hash": {"_eq": hash_id("embed-1")},
+            "item_type": {"_eq": "embed"},
+            "hashed_user_id": {"_eq": hash_id("user-1")},
+        },
+    )
+    directus.update_item.assert_awaited_once_with("projects", "project-row", {"item_count": 3})

@@ -11,7 +11,7 @@ Load this document when multiple assistants may be working simultaneously, when 
 
 ## Overview
 
-Multiple agent sessions can work on the codebase at the same time. Use **`scripts/sessions.py`** for deploy selection, Docker locks, and dev deploy verification locks. Its `.claude/sessions.json` file is gitignored and records work already touched; it does not reserve ordinary source files.
+Multiple agent sessions can work on the codebase at the same time. Use **`scripts/sessions.py`** for deploy selection, Docker locks, and the short dev deploy push lock. Its `.claude/sessions.json` file is gitignored and records work already touched; it does not reserve ordinary source files.
 
 File edit tracking is automated via hooks in `.claude/settings.json` — every Edit/Write operation is automatically recorded to the active session's `modified_files` list.
 
@@ -115,7 +115,7 @@ Locks prevent multiple sessions from performing the same infrastructure operatio
 | Lock                          | When to use                                    |
 | ----------------------------- | ---------------------------------------------- |
 | `docker` (→ `docker_rebuild`) | Before rebuilding/restarting Docker containers |
-| `vercel` (→ `vercel_deploy`)  | Diagnostics for an active dev deploy/test gate |
+| `vercel` (→ `vercel_deploy`)  | Diagnostics for an active root commit/push gate |
 
 ### Acquiring a Lock
 
@@ -174,9 +174,9 @@ python3 scripts/sessions.py deploy --session <ID> \
 This:
 
 1. Runs the linter on all files to be committed — **aborts if lint fails**
-2. Applies the session worktree diff to the root checkout under the dev deploy verification lock
+2. Applies the session worktree diff to the root checkout under the short dev deploy push lock
 3. Stages only the selected files, commits with the provided title/message, and pushes `dev`
-4. Records the resulting commit for deployed verification
+4. Records the resulting commit for commit-scoped deployed verification
 5. Lists related architecture docs that may need updating
 
 To exclude specific files from the commit:
