@@ -517,9 +517,11 @@
     }
 
     let draftPreviewSummary = $derived(formatDraftPreviewSummary(draftPreviewParts));
+    let hasSendableDraft = $derived(hasContent || hasEmbedContent);
 
-    // Draft preview mode: any inactive draft content collapses to a summary so the rest of the UI is usable.
-    let isDraftPreview = $derived(!!draftPreviewSummary && (hasContent || hasEmbedContent) && !isMessageFieldFocused && !isFullscreen && !forceDraftActionsVisible);
+    // Draft preview mode is only for text drafts. Embed-only drafts must keep the
+    // editor visible so audio/file preview controls remain reachable after blur.
+    let isDraftPreview = $derived(!!draftPreviewSummary && hasContent && !isMessageFieldFocused && !isFullscreen && !forceDraftActionsVisible);
 
     // Computed state for showing action buttons
     // In extended/fullscreen mode: always visible (no tap required).
@@ -539,7 +541,7 @@
         )
     );
     let showEmptyInputAffordances = $derived(
-        !startNewChatOnClick && !isMessageFieldFocused && !hasContent && !isDraftPreview && !showMaps && !showCamera && !showSketch
+        !startNewChatOnClick && !isMessageFieldFocused && !hasSendableDraft && !isDraftPreview && !showMaps && !showCamera && !showSketch
     );
 
     // Single-tap feedback: briefly highlight the inline "Press & hold to record" label
@@ -625,7 +627,7 @@
     }
 
     $effect(() => {
-        if (!editor || editor.isDestroyed || startNewChatOnClick || placeholderText || hasContent || isMessageFieldFocused) {
+        if (!editor || editor.isDestroyed || startNewChatOnClick || placeholderText || hasSendableDraft || isMessageFieldFocused) {
             stopPlaceholderCycle();
             return;
         }
@@ -1801,7 +1803,7 @@
         if (showMaps || showCamera || showSketch) {
             return `height: ${MESSAGE_FIELD_MAPS_HEIGHT}px; max-height: ${MESSAGE_FIELD_MAPS_HEIGHT}px;`;
         }
-        if (inlineCompact && !isMessageFieldFocused && !hasContent) {
+        if (inlineCompact && !isMessageFieldFocused && !hasSendableDraft) {
             return 'height: 48px; max-height: 48px;';
         }
         return `height: auto; max-height: ${MESSAGE_FIELD_MAX_HEIGHT}px;`;
@@ -2189,7 +2191,7 @@
         initializeDraftService(editor);
         hasContent = !isContentEmptyExceptMention(editor);
         refreshDraftPreviewState(editor);
-        if (!hasContent && !isMessageFieldFocused) {
+        if (!hasSendableDraft && !isMessageFieldFocused) {
             startPlaceholderCycle();
         }
 
@@ -3957,6 +3959,8 @@
             // Keep the editor focused by preventing default blur
             event.preventDefault();
             console.debug('[MessageInput] Click on wrapper UI detected, keeping editor focused');
+            isMessageFieldFocused = true;
+            isFocused = true;
             
             // Re-focus the editor
             if (editor && !editor.isDestroyed) {
@@ -4229,6 +4233,8 @@
         lastEditorUpdateText = editor.getText();
         triggerSaveDraft(chatIdForRecording || currentChatId, editor);
         handleStopRecordingCleanup(); // Called here after recording is inserted
+        await tick();
+        focus();
     }
     function handleLocationClick() { showMaps = true; }
 
@@ -4594,7 +4600,8 @@
         // Guard: if there's no content, do nothing (handles edge cases where button
         // is visible but editor is actually empty).
         const editorHasContent = editorHasSendableText(editor);
-        if (!hasContent && !editorHasContent) return;
+        const editorHasEmbed = editor && !editor.isDestroyed ? editorHasEmbedContent(editor) : false;
+        if (!hasSendableDraft && !editorHasContent && !editorHasEmbed) return;
 
         if ($demoMode && !$authStore.isAuthenticated && !anonymousTextSendEnabled) {
             console.info('[MessageInput] Demo mode: Send button is visual-only for unauthenticated captures');
@@ -5590,7 +5597,7 @@
         data-testid="message-field"
         class:drag-over={isDragging}
         class:has-focus-pill={showFocusPill || showIncognitoPill || showIdeaBucketPill}
-        class:inline-compact={inlineCompact && !isMessageFieldFocused && !hasContent}
+        class:inline-compact={inlineCompact && !isMessageFieldFocused && !hasSendableDraft}
         class:placeholder-fading={isPlaceholderFading}
         class:empty-welcome-field={showEmptyInputAffordances}
         style={containerStyle}
@@ -5733,7 +5740,7 @@
              On narrow screens, expand grows the field height to 65dvh.
              Hidden when overlays are open — each overlay renders its own maximize button
              in the top-right corner so the button stays visible above the overlay content. -->
-        {#if !startNewChatOnClick && (isFullscreen || hasContent || isMessageFieldFocused) && !isDraftPreview && !showCamera && !showSketch && !showMaps}
+        {#if !startNewChatOnClick && (isFullscreen || hasSendableDraft || isMessageFieldFocused) && !isDraftPreview && !showCamera && !showSketch && !showMaps}
             <button
                 class="clickable-icon {isFullscreen ? 'icon_minimize' : 'icon_fullscreen'} fullscreen-button"
                 onclick={toggleFullscreen}
@@ -5798,13 +5805,13 @@
         {#if shouldShowActionButtons}
             <div class="action-buttons-fade-wrapper" transition:fade={{ duration: 250 }}>
                 <ActionButtons
-                    showSendButton={hasContent}
+                    showSendButton={hasSendableDraft}
                     isAuthenticated={anonymousFileAttachmentPending ? false : demoVisualAuthenticated}
                     allowAnonymousTextSend={anonymousTextSendEnabled}
                     {hasNoCredits}
                     {unauthenticatedCtaLabel}
                     forceUnauthenticatedCta={anonymousFileAttachmentPending}
-                    reserveTrailingControlSpace={showStopProcessingButton && !hasContent}
+                    reserveTrailingControlSpace={showStopProcessingButton && !hasSendableDraft}
                     isRecordButtonPressed={$recordingState.isRecordButtonPressed}
                     micPermissionState={$recordingState.micPermissionState}
                     {highlightPressHold}
