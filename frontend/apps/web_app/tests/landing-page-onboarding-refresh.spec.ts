@@ -111,6 +111,7 @@ async function landingIntroLayoutMetrics(page: any): Promise<{
 async function landingIntroOverlayMetrics(page: any): Promise<{
 	phase: string | null;
 	activeHeight: number;
+	areaHeight: number;
 	bannerHeight: number;
 	bannerActiveTopDelta: number;
 	bannerActiveLeftDelta: number;
@@ -123,19 +124,22 @@ async function landingIntroOverlayMetrics(page: any): Promise<{
 }> {
 	return page.evaluate(() => {
 		const active = document.querySelector<HTMLElement>('[data-testid="active-chat-container"]');
+		const area = document.querySelector<HTMLElement>('[data-testid="daily-inspiration-area"]');
 		const banner = document.querySelector<HTMLElement>('[data-testid="daily-inspiration-banner"]');
 		const messageInput = document.querySelector<HTMLElement>('[data-testid="message-input-wrapper"]');
 		const welcomeContent = document.querySelector<HTMLElement>('[data-testid="welcome-content"]');
 		const introContent = document.querySelector<HTMLElement>('[data-testid="landing-intro-expanded"]');
-		if (!active || !banner || !messageInput || !welcomeContent) {
+		if (!active || !area || !banner || !messageInput || !welcomeContent) {
 			throw new Error('Landing intro overlay elements missing');
 		}
 
 		const activeRect = active.getBoundingClientRect();
+		const areaRect = area.getBoundingClientRect();
 		const bannerRect = banner.getBoundingClientRect();
 		return {
 			phase: banner.getAttribute('data-landing-intro-phase'),
 			activeHeight: activeRect.height,
+			areaHeight: areaRect.height,
 			bannerHeight: bannerRect.height,
 			bannerActiveTopDelta: Math.abs(bannerRect.top - activeRect.top),
 			bannerActiveLeftDelta: Math.abs(bannerRect.left - activeRect.left),
@@ -208,6 +212,7 @@ test.describe('Landing page onboarding refresh', () => {
 		expect(expanded.bannerActiveLeftDelta, 'expanded intro covers active chat left').toBeLessThanOrEqual(2);
 		expect(expanded.bannerActiveRightDelta, 'expanded intro covers active chat right').toBeLessThanOrEqual(2);
 		expect(expanded.bannerActiveBottomDelta, 'expanded intro covers active chat bottom').toBeLessThanOrEqual(2);
+		expect(expanded.areaHeight, 'expanded intro keeps the in-flow banner reserve at regular height').toBeLessThan(expanded.activeHeight * 0.55);
 		expect(expanded.messageInputOpacity, 'message input is transparent while covered').toBeLessThanOrEqual(0.05);
 		expect(expanded.welcomeContentOpacity, 'welcome content is transparent while covered').toBeLessThanOrEqual(0.05);
 
@@ -221,6 +226,7 @@ test.describe('Landing page onboarding refresh', () => {
 		await expect(page.getByTestId('landing-actionable-event-demo')).toHaveCount(0);
 		await expect.poll(async () => (await landingIntroOverlayMetrics(page)).messageInputOpacity, { timeout: 1500 }).toBeGreaterThan(0.2);
 		const collapsing = await landingIntroOverlayMetrics(page);
+		expect(collapsing.areaHeight, 'collapsing intro keeps lower welcome layout reserve stable').toBeLessThan(collapsing.activeHeight * 0.55);
 		expect(collapsing.messageInputOpacity, 'message input fades in while intro shrinks').toBeGreaterThan(0.2);
 		expect(collapsing.welcomeContentOpacity, 'welcome content fades in while intro shrinks').toBeGreaterThan(0.2);
 

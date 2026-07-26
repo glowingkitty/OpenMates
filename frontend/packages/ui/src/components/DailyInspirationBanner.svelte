@@ -1595,7 +1595,10 @@
   }
 
   .daily-inspiration-wrapper.landing-intro-overlay-active {
+    position: absolute;
+    inset: 0;
     height: 100%;
+    z-index: var(--z-index-dropdown-1);
   }
 
   @keyframes inspirationFadeIn {

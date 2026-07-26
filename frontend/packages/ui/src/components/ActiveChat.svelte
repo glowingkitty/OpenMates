@@ -15296,14 +15296,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         overflow: visible;
     }
 
-    .chat-wrapper.landing-intro-overlay-active .daily-inspiration-area.landing-intro-overlay-active {
-        position: absolute;
-        inset: 0;
-        z-index: var(--z-index-dropdown-1);
-        height: 100%;
-        padding: 0;
-    }
-
     .chat-wrapper.landing-intro-overlay-active .message-input-wrapper {
         position: absolute;
         left: 0;
@@ -15514,8 +15506,36 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
      * Horizontal padding is handled inside DailyInspirationBanner.svelte's .banner-inner.
      */
     .daily-inspiration-area {
+        --daily-inspiration-area-height: max(35vh, 240px);
+        flex: 0 0 var(--daily-inspiration-area-height);
         width: 100%;
+        height: var(--daily-inspiration-area-height);
         box-sizing: border-box;
+    }
+
+    :global(.menu-open) .daily-inspiration-area,
+    :global(.side-by-side-active) .daily-inspiration-area {
+        --daily-inspiration-area-height: 240px;
+    }
+
+    @media (max-width: 730px) {
+        .daily-inspiration-area {
+            --daily-inspiration-area-height: 190px;
+        }
+
+        .active-chat-container[data-authenticated='false'] .daily-inspiration-area {
+            --daily-inspiration-area-height: 170px;
+        }
+
+        :global(.menu-open) .daily-inspiration-area,
+        :global(.side-by-side-active) .daily-inspiration-area {
+            --daily-inspiration-area-height: 190px;
+        }
+
+        :global(.menu-open) .active-chat-container[data-authenticated='false'] .daily-inspiration-area,
+        :global(.side-by-side-active) .active-chat-container[data-authenticated='false'] .daily-inspiration-area {
+            --daily-inspiration-area-height: 170px;
+        }
     }
 
     /* Welcome content fade transition: on short viewports, the daily inspiration
