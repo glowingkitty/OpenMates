@@ -5322,6 +5322,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     let guestInputLinkIndex = $state(0);
     type LandingIntroPhase = 'regular' | 'expanded' | 'fading-out' | 'collapsing' | 'expanding';
     let guestLandingIntroPhase = $state<LandingIntroPhase>('regular');
+    let guestLandingIntroResetToken = $state(0);
     let guestLandingIntroOverlayActive = $derived(guestLandingIntroPhase !== 'regular');
     let guestLandingIntroContentCovered = $derived(
         guestLandingIntroPhase === 'expanded' || guestLandingIntroPhase === 'expanding' || guestLandingIntroPhase === 'fading-out'
@@ -6961,6 +6962,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         currentChat = null;
         currentMessages = [];
         showWelcome = true; // Show welcome message for new chat
+        if (!$authStore.isAuthenticated) {
+            guestAllExamplesVisible = false;
+            guestLandingIntroPhase = 'expanded';
+            guestLandingIntroResetToken += 1;
+        } else {
+            guestLandingIntroPhase = 'regular';
+        }
         isAtBottom = false; // Reset to hide action buttons for new chat (user needs to interact first)
         
         // Clear any active processing phase indicator
@@ -12024,6 +12032,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 onLandingIntroExpandedChange={handleLandingIntroExpandedChange}
                                 containerWidth={effectiveChatWidth}
                                 variant={$authStore.isAuthenticated ? 'default' : 'guest-intro'}
+                                landingIntroResetToken={guestLandingIntroResetToken}
                             />
                         </div>
                     {/if}

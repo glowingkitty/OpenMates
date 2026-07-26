@@ -121,13 +121,15 @@
     surface?: DailyInspirationSurface;
     /** Visual treatment. Guest intro keeps carousel behavior with ChatHeader-like split media. */
     variant?: 'default' | 'guest-intro';
+    /** Increment to force the guest intro carousel back to slide 0. */
+    landingIntroResetToken?: number;
     /** Called when the visible inspiration changes, including manual and automatic carousel moves. */
     onVisibleInspirationChange?: (inspiration: DailyInspiration) => void;
     /** Called while the logged-out intro overlay changes size over the welcome surface. */
     onLandingIntroExpandedChange?: (phase: LandingIntroPhase) => void;
   }
 
-  let { onStartChat, onEmbedFullscreen, containerWidth = 0, surface = 'chats', variant = 'default', onVisibleInspirationChange, onLandingIntroExpandedChange }: Props = $props();
+  let { onStartChat, onEmbedFullscreen, containerWidth = 0, surface = 'chats', variant = 'default', landingIntroResetToken = 0, onVisibleInspirationChange, onLandingIntroExpandedChange }: Props = $props();
   let isGuestIntroVariant = $derived(variant === 'guest-intro');
 
   // ─── Local state (Svelte 5 runes) ──────────────────────────────────────────
@@ -175,6 +177,7 @@
   let landingIntroAnimationFrame: number | undefined;
   let landingIntroRevealAnimationFrame: number | undefined;
   let landingIntroRevealTimeout: number | undefined;
+  let lastLandingIntroResetToken = $state(0);
   // Temporarily disabled with the visit-cycling effect below.
   // let visitCycleTargetIndexes = $state(new Map<string, number>());
   // let visitCycleAppliedInspirations = $state<DailyInspiration[] | null>(null);
@@ -429,6 +432,12 @@
     if (introIndex >= 0 && currentIndex !== introIndex) {
       currentIndex = introIndex;
     }
+  });
+
+  $effect(() => {
+    if (!isGuestIntroVariant || landingIntroResetToken === lastLandingIntroResetToken) return;
+    lastLandingIntroResetToken = landingIntroResetToken;
+    resetLandingIntroToFirstSlide();
   });
 
   $effect(() => {
@@ -766,6 +775,24 @@
 
   function restartProgressAnimation() {
     progressRestartToken += 1;
+  }
+
+  function resetLandingIntroToFirstSlide(): void {
+    window.clearTimeout(landingIntroTransitionTimeout);
+    window.clearTimeout(landingIntroRevealTimeout);
+    window.cancelAnimationFrame(landingIntroAnimationFrame ?? 0);
+    window.cancelAnimationFrame(landingIntroRevealAnimationFrame ?? 0);
+    landingIntroDismissed = false;
+    landingIntroRequestIndex = -1;
+    landingIntroRevealActive = false;
+    landingIntroRevealVisible = false;
+    pendingLandingIntroIndex = null;
+    const introIndex = visibleInspirations.findIndex((inspiration) =>
+      inspiration.inspiration_id === LANDING_INTRO_INSPIRATION_ID,
+    );
+    currentIndex = introIndex >= 0 ? introIndex : 0;
+    landingIntroPhase = 'expanded';
+    restartProgressAnimation();
   }
 
   function handleProgressAnimationEnd(e: AnimationEvent) {

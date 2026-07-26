@@ -53,6 +53,16 @@ async function openForEveryoneIntroChat(page: any) {
 	await expect(newChatButton).toBeVisible({ timeout: 15000 });
 }
 
+async function expectSlideZeroIntro(page: any) {
+	const landingIntro = page.getByTestId('landing-intro-expanded');
+	await expect(landingIntro).toBeVisible({ timeout: 5000 });
+	await expect(page.getByTestId('daily-inspiration-banner')).toHaveAttribute(
+		'data-landing-intro-phase',
+		/^(expanded|expanding)$/,
+		{ timeout: 5000 }
+	);
+}
+
 test.describe('Unauthenticated chat navigation stays reactive', () => {
 	test('clicking intro/example chats and new-chat repeatedly keeps UI responsive', async ({
 		page
@@ -87,6 +97,8 @@ test.describe('Unauthenticated chat navigation stays reactive', () => {
 			await expect(newChatButton).toBeVisible({ timeout: 8000 });
 			await newChatButton.click();
 			console.log(`[chat-nav] [${cycle}] Clicked New Chat button`);
+			await expectSlideZeroIntro(page);
+			console.log(`[chat-nav] [${cycle}] Slide 0 intro visible after New Chat click`);
 
 			// Wait for the welcome screen: message editor and chat cards appear.
 			// The message editor is always present but the nonAuth chat cards only
@@ -125,6 +137,7 @@ test.describe('Unauthenticated chat navigation stays reactive', () => {
 		const finalNewChatButton = page.getByTestId('new-chat-cta-fullwidth');
 		await expect(finalNewChatButton).toBeVisible({ timeout: 8000 });
 		await finalNewChatButton.click();
+		await expectSlideZeroIntro(page);
 
 		const messageEditor = page.getByTestId('message-editor');
 		await expect(messageEditor).toBeVisible({ timeout: 8000 });
