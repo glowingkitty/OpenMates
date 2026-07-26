@@ -582,7 +582,7 @@
   border-radius: 999px;
   background: transparent;
   cursor: pointer;
-  opacity: 0.72;
+  opacity: 0.36;
   transition:
     width 0.18s ease,
     opacity 0.18s ease;
@@ -600,9 +600,9 @@
   top: 50%;
   height: 4px;
   border-radius: 999px;
-  background-color: var(--color-grey-30);
+  background: var(--group-scroll-indicator-color, var(--color-grey-40));
   transform: translateY(-50%);
-  transition: background-color 0.18s ease;
+  transition: filter 0.18s ease;
 }
 
 :global(
@@ -610,15 +610,7 @@
     .embed-group-container
     .group-scroll-indicator-segment.is-visible
 ) {
-  opacity: 0.9;
-}
-
-:global(
-  .ProseMirror
-    .embed-group-container
-    .group-scroll-indicator-segment.is-visible::before
-) {
-  background-color: var(--color-grey-60);
+  opacity: 0.78;
 }
 
 :global(
@@ -628,14 +620,6 @@
 ) {
   width: 30px;
   opacity: 1;
-}
-
-:global(
-  .ProseMirror
-    .embed-group-container
-    .group-scroll-indicator-segment.is-current::before
-) {
-  background-color: var(--color-grey-70);
 }
 
 :global(

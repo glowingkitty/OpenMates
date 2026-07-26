@@ -156,6 +156,16 @@ function escapeHtml(value: string): string {
     .replace(/"/g, "&quot;");
 }
 
+function getAppIdFromEmbedType(type: string): string {
+  if (type === "app-skill-use") return "openmates";
+  return type.split("-")[0] || "";
+}
+
+function normalizeAppIdForCss(appId: string | null | undefined): string {
+  const normalized = appId?.trim() ?? "";
+  return /^[a-z0-9_-]+$/.test(normalized) ? normalized : "";
+}
+
 function cleanDocxModelValue(value: string): string {
   return value
     .trim()
@@ -759,6 +769,7 @@ export class GroupRenderer implements EmbedRenderer {
       ".group-scroll-container",
     );
     if (groupWrapper && scrollContainer) {
+      groupWrapper.dataset.embedGroupBaseType = baseType;
       this.syncGroupScrollIndicator(groupWrapper, scrollContainer);
     }
   }
@@ -1019,6 +1030,20 @@ export class GroupRenderer implements EmbedRenderer {
       const segment = document.createElement("button");
       segment.type = "button";
       segment.className = "group-scroll-indicator-segment";
+      const itemAppId = normalizeAppIdForCss(
+        items[index]?.dataset.embedAppId ||
+          getAppIdFromEmbedType(
+            items[index]?.dataset.embedType ||
+              groupWrapper.dataset.embedGroupBaseType ||
+              "",
+          ),
+      );
+      if (itemAppId) {
+        segment.style.setProperty(
+          "--group-scroll-indicator-color",
+          `var(--color-app-${itemAppId}, var(--color-grey-60))`,
+        );
+      }
       segment.setAttribute(
         "aria-label",
         `Show embed ${index + 1} of ${items.length}`,
@@ -1210,6 +1235,7 @@ export class GroupRenderer implements EmbedRenderer {
     for (const { item, index } of itemsToAdd) {
       const itemWrapper = document.createElement("div");
       itemWrapper.className = "embed-group-item";
+      itemWrapper.dataset.embedType = baseType;
       itemWrapper.style.flex = "0 0 auto";
       itemWrapper.setAttribute(
         "data-embed-item-id",
@@ -1404,6 +1430,7 @@ export class GroupRenderer implements EmbedRenderer {
 
     const groupWrapper = document.createElement("div");
     groupWrapper.className = `${baseType}-preview-group`;
+    groupWrapper.dataset.embedGroupBaseType = baseType;
 
     const header = document.createElement("div");
     header.className = "group-header";
@@ -1420,6 +1447,7 @@ export class GroupRenderer implements EmbedRenderer {
       const item = items[i];
       const itemWrapper = document.createElement("div");
       itemWrapper.className = "embed-group-item";
+      itemWrapper.dataset.embedType = baseType;
       // Ensure items keep their intrinsic (fixed) preview size within the horizontal scroll container
       itemWrapper.style.flex = "0 0 auto";
       // Tag each item wrapper with its ID for incremental updates
@@ -1489,6 +1517,11 @@ export class GroupRenderer implements EmbedRenderer {
     const appId = decodedContent?.app_id || embedData?.app_id || itemAppId;
     const skillId =
       decodedContent?.skill_id || embedData?.skill_id || itemSkillId;
+    const indicatorAppId = normalizeAppIdForCss(appId);
+    if (indicatorAppId) {
+      target.dataset.embedAppId = indicatorAppId;
+    }
+    target.dataset.embedType = "app-skill-use";
     const status = (decodedContent?.status ||
       embedData?.status ||
       item.status ||
@@ -2952,6 +2985,7 @@ export class GroupRenderer implements EmbedRenderer {
 
     const groupWrapper = document.createElement("div");
     groupWrapper.className = `${baseType}-preview-group`;
+    groupWrapper.dataset.embedGroupBaseType = baseType;
 
     // Create header with text and download icon
     const header = document.createElement("div");
@@ -2996,6 +3030,7 @@ export class GroupRenderer implements EmbedRenderer {
     for (const item of items) {
       const itemWrapper = document.createElement("div");
       itemWrapper.className = "embed-group-item";
+      itemWrapper.dataset.embedType = baseType;
       // Ensure items keep their intrinsic (fixed) preview size within the horizontal scroll container
       itemWrapper.style.flex = "0 0 auto";
       // Tag each item wrapper with its ID for incremental updates
@@ -3113,6 +3148,7 @@ export class GroupRenderer implements EmbedRenderer {
 
     const groupWrapper = document.createElement("div");
     groupWrapper.className = `${baseType}-preview-group`;
+    groupWrapper.dataset.embedGroupBaseType = baseType;
 
     const header = document.createElement("div");
     header.className = "group-header";
@@ -3128,6 +3164,7 @@ export class GroupRenderer implements EmbedRenderer {
     for (const item of items) {
       const itemWrapper = document.createElement("div");
       itemWrapper.className = "embed-group-item";
+      itemWrapper.dataset.embedType = baseType;
       // Ensure items keep their intrinsic (fixed) preview size within the horizontal scroll container
       itemWrapper.style.flex = "0 0 auto";
       // Tag each item wrapper with its ID for incremental updates
@@ -4201,6 +4238,7 @@ export class GroupRenderer implements EmbedRenderer {
 
     const groupWrapper = document.createElement("div");
     groupWrapper.className = `${baseType}-preview-group`;
+    groupWrapper.dataset.embedGroupBaseType = baseType;
 
     const header = document.createElement("div");
     header.className = "group-header";
@@ -4216,6 +4254,7 @@ export class GroupRenderer implements EmbedRenderer {
     for (const item of items) {
       const itemWrapper = document.createElement("div");
       itemWrapper.className = "embed-group-item";
+      itemWrapper.dataset.embedType = baseType;
       itemWrapper.style.flex = "0 0 auto";
       itemWrapper.setAttribute(
         "data-embed-item-id",
@@ -4624,6 +4663,7 @@ export class GroupRenderer implements EmbedRenderer {
 
     const groupWrapper = document.createElement("div");
     groupWrapper.className = `${baseType}-preview-group`;
+    groupWrapper.dataset.embedGroupBaseType = baseType;
 
     const header = document.createElement("div");
     header.className = "group-header";
@@ -4639,6 +4679,7 @@ export class GroupRenderer implements EmbedRenderer {
     for (const item of items) {
       const itemWrapper = document.createElement("div");
       itemWrapper.className = "embed-group-item";
+      itemWrapper.dataset.embedType = baseType;
       itemWrapper.style.flex = "0 0 auto";
       itemWrapper.setAttribute(
         "data-embed-item-id",
