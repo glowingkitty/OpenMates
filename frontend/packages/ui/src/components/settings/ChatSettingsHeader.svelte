@@ -18,8 +18,8 @@
     title,
     icon = 'chat',
     credits = 0,
-    gradientStart = '#063f4d',
-    gradientEnd = '#0d6b7c',
+    gradientStart = 'var(--color-primary-start)',
+    gradientEnd = 'var(--color-primary-end)',
     breadcrumbLabel = '',
     fullBreadcrumbLabel = '',
     scrollTop = 0,
@@ -50,7 +50,6 @@
     Math.round(expandedHeight - (expandedHeight - COLLAPSED_HEIGHT) * collapseProgress)
   );
   let iconSize = $derived(Math.round(42 - 10 * collapseProgress));
-  let titleSize = $derived(Math.round(26 - 8 * collapseProgress));
   let detailsOpacity = $derived(Math.max(0, 1 - collapseProgress * 2));
   let resolvedIcon = $derived(resolveIconName(icon || 'chat'));
   let displayCredits = $derived(Number.isFinite(credits) ? Math.max(0, Math.round(credits)) : 0);
@@ -79,7 +78,7 @@
       aria-hidden="true"
       style="width: {iconSize}px; height: {iconSize}px; -webkit-mask-image: var(--icon-url-{resolvedIcon}); mask-image: var(--icon-url-{resolvedIcon});"
     ></div>
-    <h1 data-testid="chat-settings-title" style="font-size: {titleSize}px;">{title}</h1>
+    <h1 class="chat-settings-title" data-testid="chat-settings-title">{title}</h1>
   </div>
 
   <div
@@ -117,13 +116,13 @@
     min-height: 3rem;
     gap: var(--spacing-3);
     padding: 0 var(--spacing-5);
-    color: rgba(255, 255, 255, 0.78);
+    color: color-mix(in srgb, var(--color-white) 78%, transparent);
     font: var(--font-label-md);
     cursor: pointer;
   }
 
   .chat-settings-nav:hover {
-    background: rgba(255, 255, 255, 0.08);
+    background: color-mix(in srgb, var(--color-white) 8%, transparent);
   }
 
   .nav-back-icon {
@@ -160,11 +159,12 @@
     mask-size: contain;
   }
 
-  h1 {
+  .chat-settings-header .chat-settings-title {
     max-width: 22rem;
     margin: 0;
-    line-height: 1.18;
-    font-weight: var(--font-weight-bold);
+    font-size: var(--font-size-h3);
+    line-height: 1.3;
+    font-weight: 700;
     color: var(--color-white);
   }
 

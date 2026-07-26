@@ -7,6 +7,23 @@
  */
 
 import type { Message } from '../../types/chat';
+import { apiEndpoints, getApiEndpoint } from '../../config/api';
+
+interface BackendChatUsageEntry {
+  id: string;
+  type?: string | null;
+  app_id?: string | null;
+  skill_id?: string | null;
+  model_used?: string | null;
+  credits?: number | null;
+  input_tokens?: number | null;
+  output_tokens?: number | null;
+  server_provider?: string | null;
+  server_region?: string | null;
+  chat_id?: string | null;
+  message_id?: string | null;
+  created_at: number | string;
+}
 
 export interface ChatUsageRow {
   id: string;
@@ -15,6 +32,11 @@ export interface ChatUsageRow {
   timestamp: number;
   credits: number | null;
   words: number;
+  iconName?: string;
+  appId?: string | null;
+  skillId?: string | null;
+  inputTokens?: number | null;
+  outputTokens?: number | null;
 }
 
 export function buildChatUsageRows(messages: Message[]): ChatUsageRow[] {
@@ -31,6 +53,88 @@ export function buildChatUsageRows(messages: Message[]): ChatUsageRow[] {
         words: content.trim() ? content.trim().split(/\s+/).length : 0,
       };
     });
+}
+
+export async function loadChatUsageRows(chatId: string, limit = 500): Promise<ChatUsageRow[]> {
+  const url = new URL(getApiEndpoint(apiEndpoints.usage.getChatEntries));
+  url.searchParams.set('chat_id', chatId);
+  url.searchParams.set('limit', String(limit));
+
+  const response = await fetch(url, { credentials: 'include' });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const detail = errorData.detail || errorData.message || response.statusText;
+    throw new Error(`Failed to load chat usage entries: ${response.status} ${detail}`);
+  }
+
+  const data = await response.json();
+  if (!data || typeof data !== 'object' || !Array.isArray(data.entries)) {
+    throw new Error('Invalid chat usage entries response');
+  }
+  return usageEntriesToChatUsageRows(data.entries as BackendChatUsageEntry[]);
+}
+
+export async function loadChatUsageTotal(chatId: string): Promise<number> {
+  const url = new URL(getApiEndpoint(apiEndpoints.usage.chatTotal));
+  url.searchParams.set('chat_id', chatId);
+
+  const response = await fetch(url, { credentials: 'include' });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const detail = errorData.detail || errorData.message || response.statusText;
+    throw new Error(`Failed to load chat usage total: ${response.status} ${detail}`);
+  }
+
+  const data = await response.json();
+  const total = Number(data?.total_credits);
+  if (!Number.isFinite(total)) throw new Error('Invalid chat usage total response');
+  return total;
+}
+
+export function usageEntriesToChatUsageRows(entries: BackendChatUsageEntry[]): ChatUsageRow[] {
+  return entries.map((entry) => ({
+    id: entry.id || entry.message_id || `usage-${normalizeTimestamp(entry.created_at)}`,
+    label: labelForUsageEntry(entry),
+    provider: providerForUsageEntry(entry),
+    timestamp: normalizeTimestamp(entry.created_at),
+    credits: typeof entry.credits === 'number' ? entry.credits : null,
+    words: 0,
+    iconName: iconForUsageEntry(entry),
+    appId: entry.app_id ?? null,
+    skillId: entry.skill_id ?? null,
+    inputTokens: typeof entry.input_tokens === 'number' ? entry.input_tokens : null,
+    outputTokens: typeof entry.output_tokens === 'number' ? entry.output_tokens : null,
+  }));
+}
+
+function labelForUsageEntry(entry: BackendChatUsageEntry): string {
+  if (entry.app_id && entry.skill_id) return `${entry.app_id} | ${entry.skill_id}`;
+  if (entry.app_id) return entry.app_id;
+  return entry.type || 'Unknown activity';
+}
+
+function providerForUsageEntry(entry: BackendChatUsageEntry): string {
+  const providerParts = [entry.server_provider, entry.server_region].filter(Boolean);
+  if (providerParts.length > 0) return providerParts.join(' / ');
+  return entry.model_used || 'Unknown provider';
+}
+
+function iconForUsageEntry(entry: BackendChatUsageEntry): string {
+  const appIconMap: Record<string, string> = {
+    web: 'web',
+    ai: 'ai',
+    news: 'news',
+    videos: 'videos',
+    maps: 'maps',
+    code: 'code',
+  };
+  return entry.app_id ? appIconMap[entry.app_id] || 'chat' : 'chat';
+}
+
+function normalizeTimestamp(timestamp: number | string): number {
+  if (typeof timestamp === 'number') return timestamp;
+  const parsed = Date.parse(timestamp);
+  return Number.isFinite(parsed) ? Math.floor(parsed / 1000) : 0;
 }
 
 export function totalKnownCredits(rows: ChatUsageRow[]): number {

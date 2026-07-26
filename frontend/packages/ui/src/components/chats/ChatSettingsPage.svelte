@@ -11,18 +11,20 @@
   import { SettingsTabs, SettingsCard, SettingsButton, SettingsInfoBox, SettingsProgressBar, SettingsBadge } from '../settings/elements';
   import ChatSettingsShareSection from './ChatSettingsShareSection.svelte';
   import { loadChatFileRows, type ChatFileRow } from './chatSettingsFiles';
-  import { buildChatUsageRows, totalKnownCredits, usageRowsToCsv, usageRowsToYaml, type ChatUsageRow } from './chatUsageRows';
+  import { buildChatUsageRows, loadChatUsageRows, loadChatUsageTotal, totalKnownCredits, usageRowsToCsv, usageRowsToYaml, type ChatUsageRow } from './chatUsageRows';
   import { downloadChatAsZip } from '../../services/zipExportService';
   import { notificationStore } from '../../stores/notificationStore';
   import { listUserTasks, type UserTaskViewModel } from '../../services/userTaskService';
   import { listUserPlans, type UserPlanViewModel } from '../../services/userPlanService';
   import { loadSharedChatDetails } from '../../services/sharedChatDetailsService';
 
+  const USAGE_REFRESH_INTERVAL_MS = 5000;
+
   let { activeSettingsView = '' }: { activeSettingsView?: string } = $props();
 
   const tabs = [
     { id: 'plan', icon: 'task' },
-    { id: 'tasks', icon: 'tasks' },
+    { id: 'tasks', icon: 'task' },
     { id: 'files', icon: 'files' },
     { id: 'usage', icon: 'usage' },
     { id: 'share', icon: 'share' },
@@ -35,6 +37,11 @@
   let plans = $state<UserPlanViewModel[]>([]);
   let isLoadingPlanning = $state(false);
   let usageRows = $state<ChatUsageRow[]>([]);
+  let usageTotalCredits = $state<number | null>(null);
+  let isLoadingUsage = $state(false);
+  let usageError = $state<string | null>(null);
+  let lastUsageTotalKey = $state('');
+  let lastUsageRowsKey = $state('');
 
   let context = $derived($chatSettingsStore);
   let chat = $derived(context?.chat ?? null);
@@ -46,11 +53,18 @@
   let summary = $derived(
     cleanDisplaySummary(display?.summary || chat?.chat_summary || null) || 'No summary available yet.'
   );
-  let totalCredits = $derived(display?.credits ?? chat?.budget_spent ?? totalKnownCredits(usageRows));
+  let totalCredits = $derived(usageTotalCredits ?? display?.credits ?? chat?.budget_spent ?? totalKnownCredits(usageRows));
   let isSharedViewer = $derived(!!chat?.is_shared_by_others);
   let doneTaskCount = $derived(tasks.filter((task) => task.status === 'done').length);
   let taskProgressPercent = $derived(tasks.length > 0 ? Math.round((doneTaskCount / tasks.length) * 100) : 0);
   let activePlans = $derived(plans.filter((plan) => !['completed', 'archived'].includes(plan.status)));
+  let usageRefreshKey = $derived.by(() => {
+    const assistantSignature = messages
+      .filter((message) => message.role === 'assistant')
+      .map((message) => `${message.message_id}:${message.status}`)
+      .join('|');
+    return `${chat?.chat_id ?? ''}:${chat?.budget_spent ?? ''}:${assistantSignature}`;
+  });
 
   $effect(() => {
     activeTab = normalizeChatSettingsTab(context?.activeTab);
@@ -67,8 +81,40 @@
   });
 
   $effect(() => {
+    if (!chat?.chat_id || isSharedViewer) {
+      usageTotalCredits = null;
+      return;
+    }
+    if (usageRefreshKey === lastUsageTotalKey) return;
+    lastUsageTotalKey = usageRefreshKey;
+    void refreshUsageTotal(chat.chat_id);
+  });
+
+  $effect(() => {
+    const chatId = chat?.chat_id;
+    if (!chatId || isSharedViewer) return;
+    const interval = window.setInterval(() => void refreshUsageTotal(chatId), USAGE_REFRESH_INTERVAL_MS);
+    return () => window.clearInterval(interval);
+  });
+
+  $effect(() => {
     if (normalizeChatSettingsTab(context?.activeTab) !== 'usage') return;
-    usageRows = buildChatUsageRows(messages);
+    const chatId = chat?.chat_id;
+    if (!chatId || isSharedViewer) {
+      usageRows = buildChatUsageRows(messages);
+      return;
+    }
+    if (usageRefreshKey === lastUsageRowsKey) return;
+    lastUsageRowsKey = usageRefreshKey;
+    void refreshUsageRows(chatId);
+  });
+
+  $effect(() => {
+    if (normalizeChatSettingsTab(context?.activeTab) !== 'usage') return;
+    const chatId = chat?.chat_id;
+    if (!chatId || isSharedViewer) return;
+    const interval = window.setInterval(() => void refreshUsageRows(chatId), USAGE_REFRESH_INTERVAL_MS);
+    return () => window.clearInterval(interval);
   });
 
   $effect(() => {
@@ -138,6 +184,34 @@
     }
   }
 
+  async function refreshUsageTotal(chatId: string): Promise<void> {
+    try {
+      const total = await loadChatUsageTotal(chatId);
+      if (chat?.chat_id !== chatId) return;
+      usageTotalCredits = total;
+      chatSettingsStore.setCredits(total);
+    } catch (error) {
+      console.error('[ChatSettingsPage] Failed to load chat usage total:', error);
+      usageTotalCredits = null;
+    }
+  }
+
+  async function refreshUsageRows(chatId: string): Promise<void> {
+    isLoadingUsage = true;
+    usageError = null;
+    try {
+      const rows = await loadChatUsageRows(chatId);
+      if (chat?.chat_id !== chatId) return;
+      usageRows = rows;
+    } catch (error) {
+      console.error('[ChatSettingsPage] Failed to load chat usage rows:', error);
+      usageError = error instanceof Error ? error.message : 'Could not load usage data.';
+      usageRows = buildChatUsageRows(messages);
+    } finally {
+      if (chat?.chat_id === chatId) isLoadingUsage = false;
+    }
+  }
+
   function statusBadgeVariant(status: string): 'info' | 'success' | 'warning' | 'danger' | 'neutral' {
     if (status === 'done' || status === 'completed') return 'success';
     if (status === 'blocked') return 'warning';
@@ -179,6 +253,17 @@
     const filename = `chat-usage.${format === 'csv' ? 'csv' : 'yml'}`;
     const content = format === 'csv' ? usageRowsToCsv(usageRows) : usageRowsToYaml(usageRows);
     downloadTextFile(content, filename, format === 'csv' ? 'text/csv' : 'text/yaml');
+  }
+
+  function formatCredits(value: number | null | undefined): string {
+    if (typeof value !== 'number') return 'Unknown';
+    return String(Math.round(value)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  }
+
+  function formatUsageTimestamp(timestamp: number): string {
+    if (!timestamp) return '';
+    const milliseconds = timestamp > 10_000_000_000 ? timestamp : timestamp * 1000;
+    return new Date(milliseconds).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
   }
 </script>
 
@@ -250,7 +335,7 @@
     {:else if activeTab === 'files'}
       <div class="tabpanel" data-testid="chat-settings-tabpanel-files" role="tabpanel" aria-labelledby="chat-settings-tab-files">
         <div class="section-action">
-          <SettingsButton variant="secondary" onClick={() => void downloadAllFiles()} disabled={files.length === 0}>Download files</SettingsButton>
+          <SettingsButton variant="secondary" dataTestid="chat-settings-download-files" onClick={() => void downloadAllFiles()} disabled={files.length === 0}>Download files</SettingsButton>
         </div>
         {#if isLoadingFiles}
           <SettingsInfoBox type="info">Loading file details...</SettingsInfoBox>
@@ -263,7 +348,7 @@
                   <strong>{file.title}</strong>
                   <small>{file.metadata}</small>
                 </div>
-                <button type="button" data-testid="chat-settings-file-download" onclick={() => downloadFileReference(file)}>Download</button>
+                <SettingsButton variant="primary" size="sm" dataTestid="chat-settings-file-download" onClick={() => downloadFileReference(file)}>Download</SettingsButton>
               </article>
             {/each}
           </div>
@@ -274,27 +359,33 @@
     {:else if activeTab === 'usage'}
       <div class="tabpanel" data-testid="chat-settings-tabpanel-usage" role="tabpanel" aria-labelledby="chat-settings-tab-usage">
         <div class="section-action">
-          <SettingsButton variant="secondary" onClick={() => downloadUsage('csv')}>Download usage data</SettingsButton>
-          <SettingsButton variant="ghost" onClick={() => downloadUsage('yaml')}>YAML</SettingsButton>
+          <SettingsButton variant="secondary" dataTestid="chat-settings-download-usage-csv" onClick={() => downloadUsage('csv')} disabled={usageRows.length === 0}>Download usage data</SettingsButton>
+          <SettingsButton variant="ghost" dataTestid="chat-settings-download-usage-yaml" onClick={() => downloadUsage('yaml')} disabled={usageRows.length === 0}>YAML</SettingsButton>
         </div>
         <SettingsCard>
-          <h2>Today</h2>
-          <p class="usage-total" data-testid="chat-settings-usage-total">{totalCredits} credits</p>
-          {#if usageRows.length > 0}
+          <h2>Usage</h2>
+          <p class="usage-total" data-testid="chat-settings-usage-total">{formatCredits(totalCredits)} credits</p>
+          {#if usageError}
+            <SettingsInfoBox type="warning">{usageError}</SettingsInfoBox>
+          {/if}
+          {#if isLoadingUsage}
+            <SettingsInfoBox type="info">Loading usage data...</SettingsInfoBox>
+          {:else if usageRows.length > 0}
             <div data-testid="chat-settings-usage-list">
               {#each usageRows as row (row.id)}
+                {@const timestampLabel = formatUsageTimestamp(row.timestamp)}
                 <article class="usage-row" data-testid="chat-settings-usage-row">
-                  <span class="row-icon icon_ai"></span>
+                  <span class="clickable-icon row-icon icon_{row.iconName || 'chat'}"></span>
                   <div>
                     <strong>{row.label}</strong>
-                    <small>via {row.provider}</small>
+                    <small>{row.provider}{timestampLabel ? ` - ${timestampLabel}` : ''}</small>
                   </div>
-                  <b>{row.credits ?? 'Unknown'}</b>
+                  <b>{formatCredits(row.credits)}</b>
                 </article>
               {/each}
             </div>
           {:else}
-            <SettingsInfoBox type="info">No local usage data is available yet.</SettingsInfoBox>
+            <SettingsInfoBox type="info">No usage data is available for this chat yet.</SettingsInfoBox>
           {/if}
         </SettingsCard>
       </div>
@@ -323,9 +414,9 @@
   .chat-summary {
     margin: 0;
     color: var(--color-text-primary);
-    font-size: clamp(1.35rem, 4vw, 1.9rem);
-    line-height: 1.2;
-    font-weight: var(--font-weight-bold);
+    font-size: var(--font-size-p);
+    line-height: 1.5;
+    font-weight: var(--font-weight-regular);
   }
 
   .tabs-shell {
@@ -415,21 +506,13 @@
     font-weight: var(--font-weight-bold);
   }
 
-  .file-row button {
-    border: 0;
-    border-radius: var(--radius-full);
-    background: var(--color-primary);
-    color: var(--color-white);
-    padding: var(--spacing-2) var(--spacing-3);
-    cursor: pointer;
-  }
-
   .row-icon {
     width: 3rem;
     height: 3rem;
     border: 1px solid var(--color-border);
     border-radius: var(--radius-lg);
     background: var(--color-primary);
+    cursor: default;
   }
 
   .usage-total {

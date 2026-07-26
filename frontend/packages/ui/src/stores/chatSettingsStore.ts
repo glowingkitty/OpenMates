@@ -47,6 +47,12 @@ function createChatSettingsStore() {
         ) {
             set({ chat, messages, activeTab: normalizeChatSettingsTab(activeTab), display });
         },
+        setCredits(credits: number | null) {
+            update((context) => context ? {
+                ...context,
+                display: { ...context.display, credits },
+            } : context);
+        },
         setTab(activeTab: string | null | undefined) {
             update((context) => context ? { ...context, activeTab: normalizeChatSettingsTab(activeTab) } : context);
         },
