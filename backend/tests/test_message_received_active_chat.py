@@ -717,3 +717,116 @@ def test_contextual_pdf_processing_preserves_embed_ref(monkeypatch):
     assert arguments["embed_ref"] == "pdf_document_embed_ref"
     assert arguments["chat_id"] == "chat-123"
     assert arguments["message_id"] == "msg-123"
+
+
+def test_existing_personal_chat_rejects_user_user_ai_cache_history(monkeypatch):
+    from backend.core.api.app.routes.handlers.websocket_handlers import message_received_handler
+
+    manager = FakeManager()
+    captured: dict[str, object] = {}
+
+    class CapturingSkillRegistry:
+        async def dispatch_skill(self, app_name, skill_name, request_payload):
+            captured.update(request_payload)
+            return {"task_id": "task-123"}
+
+    cutover = SimpleNamespace(
+        get_epoch=AsyncMock(return_value=0),
+        admit_legacy_inference=AsyncMock(return_value={"admitted": True}),
+        release_legacy_inference=AsyncMock(return_value={"released": True}),
+    )
+    cached_messages = [
+        json.dumps(
+            {
+                "id": "msg-current",
+                "chat_id": "chat-123",
+                "role": "user",
+                "sender_name": "user",
+                "encrypted_content": "encrypted-current",
+                "created_at": 1_700_000_020,
+            }
+        ),
+        json.dumps(
+            {
+                "id": "msg-first",
+                "chat_id": "chat-123",
+                "role": "user",
+                "sender_name": "user",
+                "encrypted_content": "encrypted-first",
+                "created_at": 1_700_000_000,
+            }
+        ),
+    ]
+    cache_service = SimpleNamespace(
+        get_user_vault_key_id=AsyncMock(return_value="vault-key-123"),
+        save_chat_message_and_update_versions=AsyncMock(
+            return_value={"messages_v": 3, "last_edited_overall_timestamp": 1_700_000_020}
+        ),
+        delete_user_draft_from_cache=AsyncMock(return_value=False),
+        delete_user_draft_version_from_chat_versions=AsyncMock(return_value=False),
+        get_ai_messages_history=AsyncMock(return_value=cached_messages),
+        get_user_by_id=AsyncMock(return_value={"language": "en"}),
+        get_chat_list_item_data=AsyncMock(return_value={}),
+        get_active_ai_task=AsyncMock(return_value=None),
+        set_active_ai_task=AsyncMock(),
+        update_user=AsyncMock(),
+    )
+    directus_service = SimpleNamespace(
+        chat=SimpleNamespace(
+            get_chat_metadata=AsyncMock(return_value={"messages_v": 2, "title_v": 1}),
+            check_chat_ownership=AsyncMock(return_value=True),
+        ),
+        get_user_profile=AsyncMock(),
+        get_user_fields_direct=AsyncMock(return_value={}),
+    )
+    encryption_service = SimpleNamespace(
+        encrypt_with_user_key=AsyncMock(return_value=("encrypted-current", 1)),
+        decrypt_with_user_key=AsyncMock(side_effect=["follow-up", "first question"]),
+    )
+
+    monkeypatch.setitem(
+        sys.modules,
+        "backend.core.api.app.services.embed_service",
+        SimpleNamespace(EmbedService=FakeEmbedService),
+    )
+    monkeypatch.setitem(
+        sys.modules,
+        "backend.core.api.app.services.skill_registry",
+        SimpleNamespace(get_global_registry=lambda: CapturingSkillRegistry()),
+    )
+    monkeypatch.setattr(
+        message_received_handler,
+        "ChatRecoveryCutoverController",
+        lambda cache, directus: cutover,
+    )
+
+    asyncio.run(
+        message_received_handler.handle_message_received(
+            websocket=SimpleNamespace(),
+            manager=manager,
+            cache_service=cache_service,
+            directus_service=directus_service,
+            encryption_service=encryption_service,
+            user_id="user-123",
+            device_fingerprint_hash="device-123",
+            payload={
+                "chat_id": "chat-123",
+                "message": {
+                    "message_id": "msg-current",
+                    "role": "user",
+                    "content": "follow-up",
+                    "created_at": 1_700_000_020,
+                    "chat_has_title": True,
+                },
+            },
+        )
+    )
+
+    assert not captured
+    history_requests = [
+        call
+        for call in manager.calls
+        if call[:2] == ("send_personal_message", "request_chat_history")
+    ]
+    assert history_requests
+    cache_service.set_active_ai_task.assert_not_awaited()

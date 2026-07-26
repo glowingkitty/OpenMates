@@ -1487,6 +1487,11 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                     # NOT include the current message. No need to subtract 1.
                     expected_previous_messages = expected_total_messages
 
+                    previous_history_for_validation = message_history_for_ai
+                    if current_msg_in_cache and message_history_for_ai:
+                        previous_history_for_validation = message_history_for_ai[:-1]
+                    previous_history_roles = [msg.role for msg in previous_history_for_validation]
+
                     logger.debug(f"History validation for chat {chat_id}: expected_total={expected_total_messages}, expected_previous={expected_previous_messages}, actual_previous={actual_previous_messages}, current_msg_in_cache={current_msg_in_cache}, decryption_failures={decryption_failures}")
 
                     # For existing personal chats, validate we have sufficient context.
@@ -1494,6 +1499,31 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                     # authored by other members; rejecting it here prevents explicit
                     # @openmates team turns from ever dispatching.
                     if not is_team_chat and is_existing_chat and expected_previous_messages > 0:
+                        # Count-only validation missed HRFER: Redis had enough entries to
+                        # pass tolerance, but the prior assistant turn was absent, so the
+                        # LLM received user,user and repeated the first answer.
+                        if expected_previous_messages >= 2 and "assistant" not in previous_history_roles:
+                            logger.warning(
+                                f"Implausible AI cache role sequence for existing chat {chat_id}: "
+                                f"expected {expected_previous_messages} previous messages but cached previous roles are "
+                                f"{previous_history_roles}. Requesting full history from client."
+                            )
+                            await manager.send_personal_message(
+                                {
+                                    "type": "request_chat_history",
+                                    "payload": {
+                                        "chat_id": chat_id,
+                                        "reason": "invalid_cache_role_sequence",
+                                        "message": "Server cache missing assistant history. Please resend your message with full chat history included",
+                                        "expected_messages": expected_total_messages,
+                                        "cached_messages": actual_previous_messages,
+                                    }
+                                },
+                                user_id,
+                                device_fingerprint_hash
+                            )
+                            return
+
                         # Check if we have significantly fewer messages than expected
                         # Allow some tolerance for edge cases, but require at least 50% of expected messages
                         minimum_required = max(1, expected_previous_messages // 2)
