@@ -5811,6 +5811,12 @@
 		border-radius: var(--radius-full, 9999px);
 	}
 
+    .message-field.inline-compact.empty-welcome-field {
+        min-height: 48px;
+        max-height: 48px;
+        padding: 0 56px;
+    }
+
     .message-field.empty-welcome-field .scrollable-content {
         padding-top: 0;
         overflow: hidden;
@@ -5823,10 +5829,18 @@
         align-items: center;
     }
 
+    .message-field.inline-compact.empty-welcome-field .content-wrapper {
+        min-height: 48px;
+    }
+
     .message-field.empty-welcome-field :global(.ProseMirror) {
         min-height: auto;
         padding: 0;
         line-height: 62px;
+    }
+
+    .message-field.inline-compact.empty-welcome-field :global(.ProseMirror) {
+        line-height: 48px;
     }
 
     .message-field.empty-welcome-field :global(.ProseMirror p) {
@@ -5840,6 +5854,11 @@
         color: var(--empty-input-placeholder-color, color-mix(in srgb, var(--color-font-primary) 72%, transparent));
         font-weight: 700;
         line-height: 62px;
+    }
+
+    .message-field.inline-compact.empty-welcome-field :global(.ProseMirror p.is-editor-empty:first-child::before) {
+        height: 48px;
+        line-height: 48px;
     }
 
     .empty-input-ai-icon {

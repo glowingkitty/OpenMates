@@ -623,8 +623,16 @@
     }
 
     .record-action-button.finish {
-        background: white;
-        color: var(--color-primary);
+        background: var(--color-button-primary);
+        color: white;
+    }
+
+    .record-action-button.finish:hover {
+        background: var(--color-button-primary-hover);
+    }
+
+    .record-action-button.finish:active {
+        background: var(--color-button-primary-pressed);
     }
 
     @media (max-width: 520px) {

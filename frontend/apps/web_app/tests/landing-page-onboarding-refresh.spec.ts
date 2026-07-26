@@ -414,11 +414,14 @@ test.describe('Landing page onboarding refresh', () => {
 		const visualState = await page.evaluate(() => {
 			const workspaceIcon = document.querySelector<HTMLElement>('[data-testid="guest-workspace-icon"]');
 			const messageField = document.querySelector<HTMLElement>('[data-testid="message-field"]');
+			const newChatButton = document.querySelector<HTMLElement>('[data-testid="new-chat-button"]');
 			const micButton = document.querySelector<HTMLElement>('[data-testid="guest-cta-mic-button"]');
-			if (!workspaceIcon || !messageField || !micButton) throw new Error('Guest landing visual elements missing');
+			if (!workspaceIcon || !messageField || !newChatButton || !micButton) throw new Error('Guest landing visual elements missing');
 			const iconStyle = getComputedStyle(workspaceIcon);
 			const fieldStyle = getComputedStyle(messageField);
+			const buttonRect = newChatButton.getBoundingClientRect();
 			const micStyle = getComputedStyle(micButton);
+			const fieldRect = messageField.getBoundingClientRect();
 			const iconWebkitStyle = iconStyle as CSSStyleDeclaration & { webkitMaskImage?: string };
 			const micRect = micButton.getBoundingClientRect();
 			return {
@@ -428,7 +431,9 @@ test.describe('Landing page onboarding refresh', () => {
 				workspaceBoxShadow: iconStyle.boxShadow,
 				workspaceBorderRadius: iconStyle.borderRadius,
 				fieldBackgroundImage: fieldStyle.backgroundImage,
+				fieldHeight: fieldRect.height,
 				fieldBorderRadius: fieldStyle.borderRadius,
+				newChatButtonHeight: buttonRect.height,
 				micWidth: micRect.width,
 				micHeight: micRect.height,
 				micBorderRadius: micStyle.borderRadius,
@@ -441,6 +446,7 @@ test.describe('Landing page onboarding refresh', () => {
 		expect(visualState.workspaceBoxShadow).toBe('none');
 		expect(visualState.workspaceBorderRadius).toBe('0px');
 		expect(visualState.fieldBackgroundImage).toBe('none');
+		expect(Math.abs(visualState.fieldHeight - visualState.newChatButtonHeight)).toBeLessThanOrEqual(1);
 		expect(Number.parseFloat(visualState.fieldBorderRadius)).toBeGreaterThanOrEqual(24);
 		expect(visualState.micWidth).toBeLessThanOrEqual(30);
 		expect(visualState.micHeight).toBeLessThanOrEqual(30);
@@ -451,6 +457,16 @@ test.describe('Landing page onboarding refresh', () => {
 		await expect(page.getByTestId('record-overlay')).toBeVisible({ timeout: 5000 });
 		await expect(page.getByTestId('record-finish-button')).toContainText('Finish');
 		await expect(page.getByTestId('record-cancel-button')).toContainText('Cancel');
+		const finishButtonStyle = await page.getByTestId('record-finish-button').evaluate((element: HTMLElement) => {
+			const style = getComputedStyle(element);
+			return {
+				backgroundColor: style.backgroundColor,
+				buttonPrimary: getComputedStyle(document.documentElement).getPropertyValue('--color-button-primary').trim(),
+				color: style.color
+			};
+		});
+		expect(finishButtonStyle.backgroundColor).toBe(finishButtonStyle.buttonPrimary);
+		expect(finishButtonStyle.color).toBe('rgb(255, 255, 255)');
 		await expect(page.getByTestId('cancel-hint')).toHaveCount(0);
 		await expect(page.getByTestId('release-text')).toContainText('Recording');
 		await page.keyboard.press('Escape');
