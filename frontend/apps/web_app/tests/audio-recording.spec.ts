@@ -328,10 +328,15 @@ test('keyboard recording shortcut shows Enter and Escape controls without insert
 	test.setTimeout(60000);
 
 	await setupAndFocusMessageField(page);
+	const messageField = page.getByTestId('message-field');
+	await page.locator('body').click({ position: { x: 8, y: 8 } });
+	await expect(messageField).toHaveClass(/compact/, { timeout: 5000 });
 	expect(await getEditorPlainText(page)).toBe('');
 	const embedCountBefore = await page.getByTestId('recording-preview').count();
 
 	await page.keyboard.press('Control+Shift+M');
+	await expect(messageField).toHaveClass(/focused/);
+	await expect(messageField).not.toHaveClass(/compact/);
 
 	const overlay = page.getByTestId('record-overlay');
 	await expect(overlay).toBeVisible({ timeout: 5000 });
