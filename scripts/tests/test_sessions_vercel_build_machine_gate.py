@@ -195,6 +195,118 @@ def test_vercel_deploy_lock_allows_same_session_same_commit_refresh(monkeypatch,
     assert acquired is False
 
 
+def test_wait_lock_returns_immediately_when_available(monkeypatch, tmp_path, capsys):
+    sessions = load_sessions_module()
+    sessions_file = tmp_path / "sessions.json"
+    sessions_file.write_text(
+        '{"locks":{"docker_rebuild":{"status":"NONE"},"vercel_deploy":{"status":"NONE"}},"sessions":{}}\n',
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(sessions, "SESSIONS_FILE", sessions_file)
+
+    sessions.cmd_wait_lock(argparse.Namespace(type="vercel", session="current", timeout=0, poll=1))
+
+    assert "Lock 'vercel_deploy' is available" in capsys.readouterr().out
+
+
+def test_wait_lock_times_out_for_active_other_session(monkeypatch, tmp_path):
+    sessions = load_sessions_module()
+    sessions_file = tmp_path / "sessions.json"
+    sessions_file.write_text(
+        """
+{
+  "locks": {
+    "docker_rebuild": {"status": "NONE"},
+    "vercel_deploy": {
+      "status": "IN_PROGRESS",
+      "claimed_by": "other",
+      "commit_sha": "abcdef123456",
+      "phase": "awaiting_vercel_or_e2e",
+      "since": "2026-07-21T10:00:00Z",
+      "last_updated": "2026-07-21T10:00:00Z"
+    }
+  },
+  "sessions": {}
+}
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(sessions, "SESSIONS_FILE", sessions_file)
+    monkeypatch.setattr(sessions, "_minutes_since", lambda _value: 10)
+
+    with pytest.raises(SystemExit) as exc:
+        sessions.cmd_wait_lock(argparse.Namespace(type="vercel", session="current", timeout=0, poll=1))
+
+    assert exc.value.code == 1
+
+
+def test_deploy_blocks_before_commit_when_vercel_lock_is_held(monkeypatch, tmp_path, capsys):
+    sessions = load_sessions_module()
+    sessions_file = tmp_path / "sessions.json"
+    sessions_file.write_text(
+        """
+{
+  "locks": {
+    "docker_rebuild": {"status": "NONE"},
+    "vercel_deploy": {
+      "status": "IN_PROGRESS",
+      "claimed_by": "other",
+      "commit_sha": "abcdef123456",
+      "phase": "awaiting_vercel_or_e2e",
+      "since": "2026-07-21T10:00:00Z",
+      "last_updated": "2026-07-21T10:00:00Z"
+    }
+  },
+  "sessions": {
+    "current": {
+      "task": "test deploy lock",
+      "modified_files": ["docs/test.md"]
+    }
+  }
+}
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    commands: list[list[str]] = []
+
+    def fake_run_cmd(cmd, cwd=None, timeout=None):
+        commands.append(cmd)
+        return 0, "", ""
+
+    monkeypatch.setattr(sessions, "SESSIONS_FILE", sessions_file)
+    monkeypatch.setattr(sessions, "_minutes_since", lambda _value: 10)
+    monkeypatch.setattr(sessions, "_get_dirty_files", lambda: ["docs/test.md"])
+    monkeypatch.setattr(sessions, "_get_staged_files", lambda: ["docs/test.md"])
+    monkeypatch.setattr(sessions, "_run_test_enforcement_gate", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(sessions, "_run_pytest_gate", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(sessions, "_enforce_embed_registry_validation", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(sessions, "_enforce_vercel_standard_build_machine", lambda: None)
+    monkeypatch.setattr(sessions, "_run_cmd", fake_run_cmd)
+
+    args = argparse.Namespace(
+        session="current",
+        exclude=None,
+        title="docs: test deploy lock",
+        message=None,
+        end_session=False,
+        no_verify=False,
+        use_staged=True,
+        skip_tests_reason="unit test",
+        require_parity=False,
+        lock_timeout=0,
+        lock_poll=1,
+    )
+
+    with pytest.raises(SystemExit) as exc:
+        sessions.cmd_deploy(args)
+
+    assert exc.value.code == 1
+    assert not any(cmd[:2] == ["git", "commit"] for cmd in commands)
+    assert "No commit was created" in capsys.readouterr().err
+
+
 def test_use_staged_deploy_rechecks_index_before_commit(monkeypatch, tmp_path, capsys):
     sessions = load_sessions_module()
     sessions_file = tmp_path / "sessions.json"
@@ -234,6 +346,8 @@ def test_use_staged_deploy_rechecks_index_before_commit(monkeypatch, tmp_path, c
     monkeypatch.setattr(sessions, "_run_pytest_gate", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(sessions, "_enforce_embed_registry_validation", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(sessions, "_enforce_vercel_standard_build_machine", lambda: None)
+    monkeypatch.setattr(sessions, "_wait_and_acquire_session_lock", lambda *_args, **_kwargs: True)
+    monkeypatch.setattr(sessions, "_release_session_lock", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(sessions, "_run_cmd", fake_run_cmd)
 
     args = argparse.Namespace(
@@ -246,6 +360,8 @@ def test_use_staged_deploy_rechecks_index_before_commit(monkeypatch, tmp_path, c
         use_staged=True,
         skip_tests_reason="unit test",
         require_parity=False,
+        lock_timeout=0,
+        lock_poll=1,
     )
 
     with pytest.raises(SystemExit) as exc:
@@ -294,6 +410,8 @@ def test_deploy_rechecks_auto_staged_index_before_commit(monkeypatch, tmp_path, 
     monkeypatch.setattr(sessions, "_run_pytest_gate", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(sessions, "_enforce_embed_registry_validation", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(sessions, "_enforce_vercel_standard_build_machine", lambda: None)
+    monkeypatch.setattr(sessions, "_wait_and_acquire_session_lock", lambda *_args, **_kwargs: True)
+    monkeypatch.setattr(sessions, "_release_session_lock", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(sessions, "_run_cmd", fake_run_cmd)
 
     args = argparse.Namespace(
@@ -306,6 +424,8 @@ def test_deploy_rechecks_auto_staged_index_before_commit(monkeypatch, tmp_path, 
         use_staged=False,
         skip_tests_reason="unit test",
         require_parity=False,
+        lock_timeout=0,
+        lock_poll=1,
     )
 
     with pytest.raises(SystemExit) as exc:
@@ -315,3 +435,64 @@ def test_deploy_rechecks_auto_staged_index_before_commit(monkeypatch, tmp_path, 
     assert any(cmd[:2] in (["git", "add"], ["git", "rm"]) for cmd in commands)
     assert not any(cmd[:2] == ["git", "commit"] for cmd in commands)
     assert "Staged index changed before commit" in capsys.readouterr().err
+
+
+def test_deploy_blocks_sdk_changes_when_cleartext_gate_fails(monkeypatch, tmp_path, capsys):
+    sessions = load_sessions_module()
+    sessions_file = tmp_path / "sessions.json"
+    sessions_file.write_text(
+        """
+{
+  "locks": {
+    "docker_rebuild": {"status": "NONE"},
+    "vercel_deploy": {"status": "NONE"}
+  },
+  "sessions": {
+    "current": {
+      "task": "test sdk deploy gate",
+      "modified_files": ["frontend/packages/openmates-cli/src/sdk.ts"]
+    }
+  }
+}
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    commands: list[list[str]] = []
+
+    def fake_run_cmd(cmd, cwd=None, timeout=None):
+        commands.append(cmd)
+        return 0, "", ""
+
+    def fake_sdk_audit(cmd):
+        return 1, "", "parity drift"
+
+    monkeypatch.setattr(sessions, "SESSIONS_FILE", sessions_file)
+    monkeypatch.setattr(sessions, "_get_dirty_files", lambda: ["frontend/packages/openmates-cli/src/sdk.ts"])
+    monkeypatch.setattr(sessions, "_run_cmd", fake_run_cmd)
+    monkeypatch.setattr(sessions, "_run_translation_build", lambda: (0, "", ""))
+    monkeypatch.setattr(sessions, "_run_translation_validation", lambda: (0, "", ""))
+    monkeypatch.setattr(sessions, "_run_test_enforcement_gate", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(sessions, "_run_sdk_cleartext_audit", fake_sdk_audit)
+
+    args = argparse.Namespace(
+        session="current",
+        exclude=None,
+        title="test: sdk gate",
+        message=None,
+        end_session=False,
+        no_verify=False,
+        use_staged=False,
+        skip_tests_reason=None,
+        require_parity=False,
+        lock_timeout=0,
+        lock_poll=1,
+    )
+
+    with pytest.raises(SystemExit) as exc:
+        sessions.cmd_deploy(args)
+
+    assert exc.value.code == 1
+    assert not any(cmd[:2] == ["git", "add"] for cmd in commands)
+    assert not any(cmd[:2] == ["git", "commit"] for cmd in commands)
+    assert "SDK CLEARTEXT GATE FAILED" in capsys.readouterr().err

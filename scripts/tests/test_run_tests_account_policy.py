@@ -174,6 +174,41 @@ def test_single_regular_spec_falls_back_to_healthy_normal_account(monkeypatch):
     assert result.reason == "Selected normal account slot 1 failed preflight; using fallback slot 2 for regular.spec.ts"
 
 
+def test_discover_single_spec_blocks_missing_file(monkeypatch, tmp_path):
+    run_tests = load_run_tests_module()
+    monkeypatch.setattr(run_tests, "SPEC_DIR", tmp_path / "tests")
+
+    orchestrator = object.__new__(run_tests.TestOrchestrator)
+    orchestrator.spec = "missing.spec.ts"
+
+    try:
+        orchestrator._discover_specs()
+    except RuntimeError as exc:
+        assert "Spec file not found" in str(exc)
+    else:
+        raise AssertionError("missing spec should block dispatch")
+
+
+def test_discover_single_spec_blocks_untracked_file(monkeypatch, tmp_path):
+    run_tests = load_run_tests_module()
+    spec_dir = tmp_path / "frontend" / "apps" / "web_app" / "tests"
+    spec_dir.mkdir(parents=True)
+    spec_path = spec_dir / "local-only.spec.ts"
+    spec_path.write_text("import { test } from '@playwright/test';\n", encoding="utf-8")
+    monkeypatch.setattr(run_tests, "PROJECT_ROOT", tmp_path)
+    monkeypatch.setattr(run_tests, "SPEC_DIR", spec_dir)
+
+    orchestrator = object.__new__(run_tests.TestOrchestrator)
+    orchestrator.spec = "local-only.spec.ts"
+
+    try:
+        orchestrator._discover_specs()
+    except RuntimeError as exc:
+        assert "Spec file is untracked" in str(exc)
+    else:
+        raise AssertionError("untracked spec should block dispatch")
+
+
 def test_single_reserved_spec_does_not_fall_back_when_reserved_account_fails(monkeypatch):
     run_tests = load_run_tests_module()
     preflight_calls: list[list[int] | None] = []

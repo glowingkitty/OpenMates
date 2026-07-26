@@ -109,6 +109,7 @@ Continuous automated maintenance reduces manual toil: deploy failures are auto-i
 | `*/1h (xx:35)`                | `check-eu-vulns-daily.sh`              | EU/OSV/NVD vulnerability detection        |
 | `02:00 Sun`                   | `docker-cleanup.sh`                    | Remove dangling images, build cache; aggressive mode at >90% disk |
 | `01:30 daily`                 | `cleanup-opencode-sessions.sh`         | Delete OpenCode chats older than 14 days, except TODO sessions |
+| `hourly`                      | `sessions.py worktree cleanup`         | Remove clean merged agent worktrees and archive dirty idle worktrees after 12h |
 
 > **Workflow review:** The former scheduled workflow review was removed. `scripts/_workflow_review_helper.py` is an explicit, OpenCode-only deterministic collector and is not part of the daily meeting.
 
@@ -161,6 +162,8 @@ Continuous automated maintenance reduces manual toil: deploy failures are auto-i
 **Docker cleanup** (Sun 02:00): `docker system prune` for dangling images, stopped containers, unused volumes.
 
 **OpenCode session cleanup** (01:30 daily): Deletes OpenCode chats older than 14 days when their title does not contain `TODO`, using `opencode session delete` so session storage is removed with the SQLite row. Logs to `logs/opencode-cleanup.log` and writes `logs/nightly-reports/session-cleanup.json` for daily meeting consumption. Manual: `./scripts/cleanup-opencode-sessions.sh`.
+
+**Agent worktree cleanup** (hourly): Runs `python3 scripts/sessions.py worktree cleanup --idle-hours 12`. Clean merged session worktrees are removed and pruned. Dirty idle worktrees are not committed, pushed, or deleted; they are marked `archived` in `.claude/sessions.json` and copied into the visible `worktree_archive` inbox with path, base commit, archive time, and recovery command. Manual: `python3 scripts/sessions.py worktree cleanup --idle-hours 12`.
 
 **Agent trigger watcher** (`@reboot`): Polls `scripts/.agent-triggers/` every 5s for JSON trigger files from admin sidecar. Dispatches OpenCode investigation chats; completed triggers moved to `done/`.
 

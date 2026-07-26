@@ -48,6 +48,7 @@ import json
 import os
 import re
 import secrets
+import shutil
 import subprocess
 import sys
 import time
@@ -65,6 +66,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 SESSIONS_FILE = PROJECT_ROOT / ".claude" / "sessions.json"
 TASKS_DIR = PROJECT_ROOT / ".claude" / "tasks"
 TASKS_META_FILE = TASKS_DIR / ".meta.json"
+AGENT_WORKTREES_DIR = PROJECT_ROOT.parent / ".openmates-agent-worktrees"
 PROJECT_INDEX_FILE = PROJECT_ROOT / ".claude" / "project-index.json"
 OPENCODE_STALE_READ_STATE_FILE = PROJECT_ROOT / ".opencode" / "stale-read-state.json"
 OPENCODE_STALE_READ_LOCK_FILE = PROJECT_ROOT / ".opencode" / "stale-read-state.lock"
@@ -73,6 +75,7 @@ STALE_SESSION_HOURS = 24
 STALE_EMPTY_SESSION_HOURS = 6  # Sessions with zero tracked files expire faster
 STALE_LOCK_MINUTES = 5
 VERCEL_DEPLOY_LOCK_MINUTES = 90
+WORKTREE_ARCHIVE_IDLE_HOURS = 12
 STALE_DOC_HOURS = 24
 RECENT_COMMITS_COUNT = 5  # Number of recent git commits to show at session start
 CONTRIBUTING_GUIDES_DIR = PROJECT_ROOT / "docs" / "contributing" / "guides"
@@ -467,8 +470,307 @@ def _default_sessions() -> dict:
             "docker_rebuild": {"status": "NONE"},
             "vercel_deploy": {"status": "NONE"},
         },
+        "deploy_queue": [],
+        "worktree_archive": [],
         "sessions": {},
     }
+
+
+def _current_git_sha(cwd: str | Path | None = None) -> str:
+    """Return the current git commit for the requested checkout."""
+    rc, stdout, stderr = _run_cmd(["git", "rev-parse", "HEAD"], cwd=str(cwd) if cwd else None)
+    if rc != 0 or not stdout.strip():
+        raise RuntimeError(f"Failed to resolve current git commit: {stderr}")
+    return stdout.strip()
+
+
+def _safe_worktree_name(session_id: str) -> str:
+    """Return a deterministic local worktree directory name for one session."""
+    safe = re.sub(r"[^A-Za-z0-9_.-]+", "-", session_id).strip(".-")
+    if not safe:
+        raise ValueError("session id must contain at least one safe character")
+    return f"agent-{safe}"
+
+
+def _session_worktree_path(session_id: str) -> Path:
+    return AGENT_WORKTREES_DIR / _safe_worktree_name(session_id)
+
+
+def ensure_session_worktree(session_id: str) -> dict:
+    """Ensure one session has an active local git worktree and metadata."""
+    created: dict | None = None
+
+    def existing(data: dict) -> dict | None:
+        session = data.get("sessions", {}).get(session_id)
+        if not session:
+            raise RuntimeError(f"Session {session_id} not found")
+        metadata = session.get("worktree")
+        if isinstance(metadata, dict) and metadata.get("path") and metadata.get("status") in {"active", "merged"}:
+            metadata["last_active"] = _now_iso()
+            session["last_active"] = _now_iso()
+            return dict(metadata)
+        return None
+
+    current = _mutate_sessions(existing)
+    if current:
+        return current
+
+    base_commit = _current_git_sha()
+    path = _session_worktree_path(session_id)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if not path.exists():
+        rc, _stdout, stderr = _run_cmd(["git", "worktree", "add", str(path), base_commit])
+        if rc != 0:
+            raise RuntimeError(f"Failed to create session worktree: {stderr}")
+    metadata = {
+        "session_id": session_id,
+        "path": str(path),
+        "base_commit": base_commit,
+        "status": "active",
+        "created_at": _now_iso(),
+        "last_active": _now_iso(),
+    }
+
+    def store(data: dict) -> dict:
+        session = data.get("sessions", {}).get(session_id)
+        if not session:
+            raise RuntimeError(f"Session {session_id} not found")
+        session["worktree"] = dict(metadata)
+        session["last_active"] = _now_iso()
+        return dict(metadata)
+
+    created = _mutate_sessions(store)
+    return created
+
+
+def _worktree_changed_files(metadata: dict) -> list[str]:
+    """Return repository-relative files changed in a session worktree."""
+    worktree_path = metadata.get("path")
+    base_commit = metadata.get("base_commit") or "HEAD"
+    if not worktree_path:
+        return []
+    rc, stdout, stderr = _run_cmd(
+        ["git", "diff", "--name-only", str(base_commit), "--"],
+        cwd=str(worktree_path),
+    )
+    if rc != 0:
+        raise RuntimeError(f"Failed to inspect worktree diff: {stderr}")
+    changed = {line.strip() for line in stdout.splitlines() if line.strip()}
+    rc, stdout, stderr = _run_cmd(
+        ["git", "ls-files", "--others", "--exclude-standard"],
+        cwd=str(worktree_path),
+    )
+    if rc != 0:
+        raise RuntimeError(f"Failed to inspect worktree untracked files: {stderr}")
+    changed.update(line.strip() for line in stdout.splitlines() if line.strip())
+    return sorted(changed)
+
+
+def _worktree_untracked_files(metadata: dict) -> set[str]:
+    worktree_path = metadata.get("path")
+    if not worktree_path:
+        return set()
+    rc, stdout, stderr = _run_cmd(
+        ["git", "ls-files", "--others", "--exclude-standard"],
+        cwd=str(worktree_path),
+    )
+    if rc != 0:
+        raise RuntimeError(f"Failed to inspect worktree untracked files: {stderr}")
+    return {line.strip() for line in stdout.splitlines() if line.strip()}
+
+
+def _worktree_has_changes(metadata: dict) -> bool:
+    return bool(_worktree_changed_files(metadata))
+
+
+def _session_deploy_files(session: dict, exclude: set[str]) -> list[str]:
+    """Return the deploy file set, preferring the isolated worktree diff."""
+    metadata = session.get("worktree")
+    if isinstance(metadata, dict) and metadata.get("path"):
+        changed = set(_worktree_changed_files(metadata))
+        tracked = set(session.get("modified_files") or [])
+        if tracked:
+            changed &= tracked
+        return sorted(f for f in changed if f not in exclude)
+    dirty_files = _get_dirty_files()
+    return sorted(f for f in session.get("modified_files", []) if f in dirty_files and f not in exclude)
+
+
+def _relative_repo_path_for_session(path_value: str | Path, session: dict | None = None) -> str:
+    """Normalize a root or worktree path to a repository-relative file path."""
+    candidate = Path(path_value)
+    try:
+        resolved = candidate.resolve()
+    except OSError:
+        resolved = candidate
+    try:
+        return resolved.relative_to(PROJECT_ROOT.resolve()).as_posix()
+    except ValueError:
+        pass
+    metadata = session.get("worktree") if isinstance(session, dict) else None
+    worktree_path = metadata.get("path") if isinstance(metadata, dict) else None
+    if worktree_path:
+        try:
+            return resolved.relative_to(Path(worktree_path).resolve()).as_posix()
+        except ValueError:
+            pass
+    return str(path_value)
+
+
+def _worktree_patch_id(metadata: dict) -> str:
+    """Return a stable identifier for the current worktree diff."""
+    worktree_path = metadata.get("path")
+    base_commit = metadata.get("base_commit") or "HEAD"
+    if not worktree_path:
+        return ""
+    rc, stdout, stderr = _run_cmd(["git", "diff", "--binary", str(base_commit), "--"], cwd=str(worktree_path))
+    if rc != 0:
+        raise RuntimeError(f"Failed to hash worktree diff: {stderr}")
+    digest = hashlib.sha256(stdout.encode("utf-8"))
+    for relative_path in sorted(_worktree_untracked_files(metadata)):
+        path = Path(worktree_path) / relative_path
+        digest.update(relative_path.encode("utf-8"))
+        if path.is_file():
+            digest.update(path.read_bytes())
+    return digest.hexdigest()
+
+
+def _apply_worktree_diff_to_root(metadata: dict, files: list[str]) -> None:
+    """Apply selected worktree changes to the root checkout working tree."""
+    if not files:
+        return
+    worktree_path = metadata.get("path")
+    base_commit = metadata.get("base_commit") or "HEAD"
+    if not worktree_path:
+        return
+    untracked = _worktree_untracked_files(metadata) & set(files)
+    tracked_files = [f for f in files if f not in untracked]
+    diff_cmd = ["git", "diff", "--binary", str(base_commit), "--"] + tracked_files
+    diff_result = subprocess.run(
+        diff_cmd,
+        cwd=str(worktree_path),
+        capture_output=True,
+        text=False,
+        timeout=120,
+    )
+    if diff_result.returncode != 0:
+        raise RuntimeError(diff_result.stderr.decode("utf-8", errors="replace").strip())
+    if diff_result.stdout:
+        apply_result = subprocess.run(
+            ["git", "apply", "--whitespace=nowarn", "-"],
+            cwd=str(PROJECT_ROOT),
+            input=diff_result.stdout,
+            capture_output=True,
+            timeout=120,
+        )
+        if apply_result.returncode != 0:
+            raise RuntimeError(apply_result.stderr.decode("utf-8", errors="replace").strip())
+    for relative_path in sorted(untracked):
+        source = Path(worktree_path) / relative_path
+        destination = PROJECT_ROOT / relative_path
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        if source.is_file():
+            shutil.copy2(source, destination)
+
+
+def enqueue_worktree_deploy(session_id: str, title: str, patch_id: str, *, reason: str) -> dict:
+    """Record a visible deploy queue item for a busy deploy path."""
+    now = _now_iso()
+    item = {
+        "id": f"deploy-{session_id}-{hashlib.sha256((patch_id or title).encode('utf-8')).hexdigest()[:10]}",
+        "session_id": session_id,
+        "title": title,
+        "patch_id": patch_id,
+        "status": "queued",
+        "reason": reason,
+        "created_at": now,
+        "updated_at": now,
+        "next_retry_at": now,
+    }
+
+    def store(data: dict) -> dict:
+        queue = data.setdefault("deploy_queue", [])
+        for existing in queue:
+            if existing.get("id") == item["id"]:
+                existing.update(item)
+                return dict(existing)
+        queue.append(dict(item))
+        return dict(item)
+
+    return _mutate_sessions(store)
+
+
+def _remove_git_worktree(metadata: dict) -> None:
+    path = metadata.get("path")
+    if not path:
+        return
+    rc, _stdout, stderr = _run_cmd(["git", "worktree", "remove", "--force", str(path)])
+    if rc != 0:
+        raise RuntimeError(f"Failed to remove worktree {path}: {stderr}")
+    _run_cmd(["git", "worktree", "prune"])
+
+
+def cleanup_session_worktrees(*, idle_hours: int = WORKTREE_ARCHIVE_IDLE_HOURS) -> list[str]:
+    """Remove clean merged worktrees and archive dirty idle worktrees."""
+    archived: list[str] = []
+
+    def cleanup(data: dict) -> list[str]:
+        sessions = data.setdefault("sessions", {})
+        archive = data.setdefault("worktree_archive", [])
+        for session_id, session in list(sessions.items()):
+            metadata = session.get("worktree")
+            if not isinstance(metadata, dict) or not metadata.get("path"):
+                continue
+            dirty = _worktree_has_changes(metadata)
+            if metadata.get("status") == "merged" and not dirty:
+                _remove_git_worktree(metadata)
+                del sessions[session_id]
+                continue
+            last_active = metadata.get("last_active") or session.get("last_active") or ""
+            if dirty and last_active and _hours_since(last_active) >= idle_hours:
+                metadata["status"] = "archived"
+                metadata["archived_at"] = _now_iso()
+                record = {
+                    "session_id": session_id,
+                    "path": metadata["path"],
+                    "archived_at": metadata["archived_at"],
+                    "base_commit": metadata.get("base_commit", ""),
+                    "recover_command": f"python3 scripts/sessions.py summary --session {session_id}",
+                }
+                if not any(item.get("session_id") == session_id for item in archive):
+                    archive.append(record)
+                archived.append(session_id)
+        return list(archived)
+
+    return _mutate_sessions(cleanup)
+
+
+def _is_root_checkout_path(path: Path) -> bool:
+    try:
+        path.resolve().relative_to(PROJECT_ROOT.resolve())
+        return True
+    except ValueError:
+        return False
+
+
+def evaluate_root_guard(action: str, target_path: str | Path, *, session_id: str = "") -> dict:
+    """Return allow/warn/block for source operations attempted from root."""
+    if action == "control-plane":
+        return {"decision": "allow", "message": "control-plane operation allowed"}
+    mode = os.environ.get("OPENMATES_ROOT_GUARD", "warn").strip().lower()
+    if mode in {"off", "0", "false"}:
+        return {"decision": "allow", "message": "root guard disabled"}
+    target = Path(target_path)
+    if not _is_root_checkout_path(target):
+        return {"decision": "allow", "message": "target is outside root checkout"}
+    command = f"python3 scripts/sessions.py worktree ensure --session {session_id or '<id>'}"
+    message = (
+        "Root checkout is the OpenMates control plane. Use the session worktree for source edits: "
+        f"{command}"
+    )
+    if mode == "strict":
+        return {"decision": "block", "message": message}
+    return {"decision": "warn", "message": message}
 
 
 def _prune_stale(data: dict) -> list[str]:
@@ -2481,6 +2783,14 @@ def cmd_start(args: argparse.Namespace) -> None:
         session_record,
         opencode_session_id,
     )
+    worktree_metadata: dict | None = None
+    worktree_error = ""
+    if mode != "question":
+        try:
+            worktree_metadata = ensure_session_worktree(sid)
+            data = _load_sessions()
+        except (RuntimeError, OSError, ValueError) as exc:
+            worktree_error = str(exc)
 
     # Link task file to this session if --task-id was given
     if linked_task:
@@ -2540,6 +2850,10 @@ def cmd_start(args: argparse.Namespace) -> None:
     zellij_name = data["sessions"][sid].get("zellij_session")
     if zellij_name:
         header_lines.append(f"  Zellij: `zellij attach {zellij_name}` | http://localhost:8082")
+    if worktree_metadata:
+        header_lines.append(f"  Worktree: {worktree_metadata.get('path')}")
+    elif worktree_error:
+        header_lines.append(f"  Worktree: creation failed ({worktree_error})")
 
     # Git status line
     if mode in ("feature", "bug", "testing"):
@@ -3073,6 +3387,86 @@ def cmd_status(args: argparse.Namespace) -> None:
             )
 
 
+def cmd_doctor(args: argparse.Namespace) -> None:
+    """Diagnose deploy blockers without mutating git state."""
+    data = _load_sessions()
+    _prune_stale(data)
+    _prune_stale_locks(data)
+
+    sessions = data.get("sessions", {})
+    session_id = getattr(args, "session", None) or ""
+    dirty_files = sorted(_get_dirty_files())
+    staged_files = sorted(_get_staged_files())
+    git_summary = _get_git_status_summary()
+
+    tracked_by_file: dict[str, list[str]] = {}
+    for sid, info in sessions.items():
+        for path in info.get("modified_files", []):
+            tracked_by_file.setdefault(path, []).append(sid)
+
+    print("== SESSION DOCTOR ==")
+    print(f"Branch: {git_summary.get('branch', 'unknown')} ({git_summary.get('tracking') or 'no upstream status'})")
+    print(f"Active sessions: {len(sessions)}")
+    if session_id:
+        if session_id not in sessions:
+            print(f"Session: {session_id} (not found)")
+        else:
+            print(f"Session: {session_id} — {sessions[session_id].get('task', '?')}")
+    print()
+
+    locks = data.get("locks", {})
+    active_locks = [(name, lock) for name, lock in locks.items() if lock.get("status") == "IN_PROGRESS"]
+    if active_locks:
+        print("Active locks:")
+        for name, lock in active_locks:
+            state = "active" if _is_lock_active(lock, name) else "stale"
+            commit = str(lock.get("commit_sha") or "")[:9]
+            commit_text = f", commit {commit}" if commit else ""
+            print(
+                f"  - {name}: {state}, held by {lock.get('claimed_by', '?')}"
+                f"{commit_text}, phase {lock.get('phase', '?')}"
+            )
+        print()
+
+    if staged_files:
+        print(f"Staged files ({len(staged_files)}):")
+        for path in staged_files:
+            owners = tracked_by_file.get(path, [])
+            owner_text = f" [tracked by: {', '.join(owners)}]" if owners else " [not tracked by a session]"
+            print(f"  - {path}{owner_text}")
+        print()
+
+    if dirty_files:
+        print(f"Dirty files ({len(dirty_files)}):")
+        for path in dirty_files:
+            owners = tracked_by_file.get(path, [])
+            if session_id:
+                if session_id in owners:
+                    state = "tracked by this session"
+                elif owners:
+                    state = f"tracked by other session(s): {', '.join(owners)}"
+                else:
+                    state = "not tracked by any session"
+            else:
+                state = f"tracked by: {', '.join(owners)}" if owners else "not tracked by any session"
+            print(f"  - {path} [{state}]")
+        print()
+    else:
+        print("Dirty files: none")
+        print()
+
+    print("Suggested next commands:")
+    if session_id and session_id in sessions:
+        print(f"  python3 scripts/sessions.py prepare-deploy --session {session_id}")
+        print(f"  python3 scripts/sessions.py track --session {session_id} --file <path>")
+        print(f"  python3 scripts/sessions.py deploy --session {session_id} --title \"type: description\" --message \"...\"")
+    else:
+        print("  python3 scripts/sessions.py status")
+        print("  python3 scripts/sessions.py start --mode <feature|bug|docs|testing> --task \"...\"")
+        print("  python3 scripts/sessions.py prepare-deploy --session <id>")
+    print("== END SESSION DOCTOR ==")
+
+
 def cmd_update(args: argparse.Namespace) -> None:
     """Update a session's task description."""
     data = _load_sessions()
@@ -3241,11 +3635,7 @@ def cmd_track(args: argparse.Namespace) -> None:
 
     changed = False
     for filepath in filepaths_raw:
-        # Make relative to project root for consistent storage
-        try:
-            filepath = str(Path(filepath).resolve().relative_to(PROJECT_ROOT))
-        except ValueError:
-            pass  # Already relative or outside project
+        filepath = _relative_repo_path_for_session(filepath, sessions.get(sid))
 
         # Check for collisions with other sessions
         for other_sid, other_info in sessions.items():
@@ -3290,7 +3680,7 @@ def cmd_track_stdin(args: argparse.Namespace) -> None:
 
     sid = args.session
     if not sid:
-        sid = _resolve_session_from_zellij(sessions)
+        sid = _resolve_session_identity(sessions)
         if sid is None:
             return  # Identity unresolvable; silent exit
 
@@ -3310,12 +3700,7 @@ def cmd_track_stdin(args: argparse.Namespace) -> None:
     if not filepath:
         return
 
-    # Make relative to project root
-    try:
-        filepath = str(Path(filepath).relative_to(PROJECT_ROOT))
-    except ValueError:
-        # Already relative or outside project
-        pass
+    filepath = _relative_repo_path_for_session(filepath, sessions.get(sid))
 
     if filepath not in sessions[sid].get("modified_files", []):
         sessions[sid].setdefault("modified_files", []).append(filepath)
@@ -3517,6 +3902,102 @@ def cmd_unlock(args: argparse.Namespace) -> None:
     print(f"Lock '{lock_type}' released.")
 
 
+def _active_lock_snapshot(lock_type: str) -> dict:
+    """Return the active lock snapshot, or an empty dict when available/stale."""
+    data = _load_sessions()
+    lock = data.get("locks", {}).get(lock_type, {})
+    if _is_lock_active(lock, lock_type):
+        return dict(lock)
+    return {}
+
+
+def cmd_wait_lock(args: argparse.Namespace) -> None:
+    """Wait for a shared lock to become available instead of verbally pausing."""
+    lock_type = _normalize_lock_type(args.type)
+    if lock_type not in ("docker_rebuild", "vercel_deploy"):
+        print(f"Error: Unknown lock type '{args.type}'.", file=sys.stderr)
+        sys.exit(1)
+
+    timeout = args.timeout
+    if timeout is None:
+        timeout = VERCEL_DEPLOY_LOCK_MINUTES * 60 if lock_type == "vercel_deploy" else STALE_LOCK_MINUTES * 60
+    poll = max(1, args.poll)
+    deadline = time.time() + max(0, timeout)
+    last_report = 0.0
+
+    while True:
+        lock = _active_lock_snapshot(lock_type)
+        if not lock:
+            print(f"Lock '{lock_type}' is available.")
+            return
+
+        now = time.time()
+        if now >= deadline:
+            print(_format_lock_block_message(lock_type, lock), file=sys.stderr)
+            print(
+                f"Timed out after {timeout}s waiting for lock '{lock_type}'. "
+                "Do not force-unlock unless you have confirmed the other deploy/test is inactive.",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+
+        if last_report == 0.0 or now - last_report >= 60:
+            commit = str(lock.get("commit_sha") or "")[:9]
+            commit_text = f", commit {commit}" if commit else ""
+            print(
+                f"Waiting for lock '{lock_type}' held by {lock.get('claimed_by', '?')}"
+                f"{commit_text}, phase {lock.get('phase', '?')}..."
+            )
+            last_report = now
+
+        time.sleep(min(poll, max(1, int(deadline - now))))
+
+
+def _wait_and_acquire_session_lock(
+    lock_type: str,
+    session_id: str,
+    *,
+    commit_sha: str = "",
+    phase: str = "",
+    timeout: int | None = None,
+    poll: int = 30,
+) -> bool:
+    """Wait for a shared lock and acquire it in the same loop to avoid races."""
+    if timeout is None:
+        timeout = VERCEL_DEPLOY_LOCK_MINUTES * 60 if lock_type == "vercel_deploy" else STALE_LOCK_MINUTES * 60
+    poll = max(1, poll)
+    deadline = time.time() + max(0, timeout)
+    last_report = 0.0
+    last_error = ""
+
+    while True:
+        try:
+            return _acquire_session_lock(lock_type, session_id, commit_sha=commit_sha, phase=phase)
+        except RuntimeError as exc:
+            last_error = str(exc)
+
+        now = time.time()
+        if now >= deadline:
+            raise RuntimeError(
+                f"{last_error}\nTimed out after {timeout}s waiting for lock '{lock_type}'. "
+                "No commit was created. Do not force-unlock unless you have confirmed "
+                "the other deploy/test is inactive."
+            )
+
+        if last_report == 0.0 or now - last_report >= 60:
+            lock = _active_lock_snapshot(lock_type)
+            if lock:
+                commit = str(lock.get("commit_sha") or "")[:9]
+                commit_text = f", commit {commit}" if commit else ""
+                print(
+                    f"Waiting for lock '{lock_type}' held by {lock.get('claimed_by', '?')}"
+                    f"{commit_text}, phase {lock.get('phase', '?')}..."
+                )
+            last_report = now
+
+        time.sleep(min(poll, max(1, int(deadline - now))))
+
+
 LINT_TIMEOUT = 300  # Lint can be slow for tsc/svelte-check across many files
 
 
@@ -3575,11 +4056,6 @@ def _should_run_sdk_cleartext_gate(files: list[str]) -> bool:
         f.startswith("frontend/packages/openmates-cli/src/")
         or f.startswith("packages/openmates-python/openmates/")
         or f.startswith("scripts/audit_sdk_cleartext_")
-        or f.startswith("scripts/audit_sdk_docs_coverage.py")
-        or f.startswith("scripts/audit_sdk_test_coverage.py")
-        or f.startswith("scripts/generate_sdk_reference.py")
-        or f.startswith("scripts/sdk_reference_common.py")
-        or f.startswith("docs/user-guide/developers/sdk")
         for f in files
     )
 
@@ -3629,7 +4105,7 @@ def _enforce_sdk_cleartext_gate(files: list[str]) -> None:
         [sys.executable, "scripts/audit_sdk_docs_coverage.py"],
         [sys.executable, "scripts/audit_sdk_test_coverage.py"],
     )
-    print("Running SDK cleartext parity/boundary/docs/test audits...")
+    print("Running SDK cleartext parity/boundary audits...")
     for command in checks:
         rc, stdout, stderr = _run_sdk_cleartext_audit(command)
         if rc != 0:
@@ -3690,13 +4166,9 @@ def cmd_prepare_deploy(args: argparse.Namespace) -> None:
     modified = session.get("modified_files", [])
     exclude = set(args.exclude or [])
 
-    # Get dirty files from git
+    worktree_metadata = session.get("worktree") if isinstance(session.get("worktree"), dict) else None
     dirty_files = _get_dirty_files()
-
-    # Files to commit = modified_files that are dirty in git, minus exclusions
-    to_commit = [
-        f for f in modified if f in dirty_files and f not in exclude
-    ]
+    to_commit = _session_deploy_files(session, exclude)
     tracked_but_clean = [f for f in modified if f not in dirty_files]
     dirty_but_untracked = [f for f in dirty_files if f not in modified]
     excluded = [f for f in modified if f in exclude]
@@ -3704,6 +4176,8 @@ def cmd_prepare_deploy(args: argparse.Namespace) -> None:
     print("== DEPLOYMENT PLAN ==")
     print(f"Session: {sid}")
     print(f"Task: {session.get('task', '?')}")
+    if worktree_metadata:
+        print(f"Worktree: {worktree_metadata.get('path')}")
     print()
 
     if to_commit:
@@ -3815,14 +4289,11 @@ def cmd_prepare_deploy(args: argparse.Namespace) -> None:
 
     # Suggest commands
     if to_commit:
-        files_arg = " ".join(f'"{f}"' for f in sorted(to_commit))
         print("== COMMANDS ==")
         print("python3 scripts/verify_parity.py --run --web-spec <spec>.spec.ts --apple build")
-        print(f"git add {files_arg}")
-        print('git commit -m "<type>: <description>"')
-        print("git push origin dev")
+        print(f'python3 scripts/sessions.py deploy --session {sid} --title "<type>: <description>" --message "..."')
         print("# To hard-gate deploy on the latest parity evidence:")
-        print('python3 scripts/sessions.py deploy --session <id> --title "..." --require-parity')
+        print(f'python3 scripts/sessions.py deploy --session {sid} --title "..." --require-parity')
 
     print()
     print("== END DEPLOYMENT PLAN ==")
@@ -3840,13 +4311,10 @@ def cmd_deploy(args: argparse.Namespace) -> None:
     session = data["sessions"][sid]
     modified = session.get("modified_files", [])
     exclude = set(args.exclude or [])
+    worktree_metadata = session.get("worktree") if isinstance(session.get("worktree"), dict) else None
 
-    # Get dirty files from git
     dirty_files = _get_dirty_files()
-
-    to_commit = [
-        f for f in modified if f in dirty_files and f not in exclude
-    ]
+    to_commit = _session_deploy_files(session, exclude)
     dirty_but_untracked = [f for f in dirty_files if f not in modified and f not in exclude]
 
     # Session file lists are advisory and may include already-finished work.
@@ -3866,15 +4334,17 @@ def cmd_deploy(args: argparse.Namespace) -> None:
 
             _enforce_embed_registry_validation(_get_unpushed_files())
 
-            deploy_lock_acquired = False
+            deploy_lock_held = False
             try:
-                _acquire_session_lock(
+                _wait_and_acquire_session_lock(
                     "vercel_deploy",
                     sid,
                     commit_sha=commit_hash_full,
                     phase="awaiting_vercel_or_e2e",
+                    timeout=getattr(args, "lock_timeout", None),
+                    poll=getattr(args, "lock_poll", 30),
                 )
-                deploy_lock_acquired = True
+                deploy_lock_held = True
             except RuntimeError as exc:
                 print(str(exc), file=sys.stderr)
                 sys.exit(1)
@@ -3884,7 +4354,7 @@ def cmd_deploy(args: argparse.Namespace) -> None:
             try:
                 _enforce_vercel_standard_build_machine()
             except RuntimeError as exc:
-                if deploy_lock_acquired:
+                if deploy_lock_held:
                     _release_session_lock("vercel_deploy", commit_sha=commit_hash_full, released_by=sid)
                 print(f"VERCEL BUILD MACHINE GATE FAILED — {exc}", file=sys.stderr)
                 sys.exit(1)
@@ -3893,7 +4363,7 @@ def cmd_deploy(args: argparse.Namespace) -> None:
             print(f"No files to commit; pushing {git_summary['unpushed']} existing commit(s) to origin dev...")
             rc, stdout, stderr = _run_cmd(["git", "push", "origin", "dev"])
             if rc != 0:
-                if deploy_lock_acquired:
+                if deploy_lock_held:
                     _release_session_lock("vercel_deploy", commit_sha=commit_hash_full, released_by=sid)
                 print(f"git push failed: {stderr}", file=sys.stderr)
                 print("Existing local commit(s) were not pushed.")
@@ -3940,6 +4410,17 @@ def cmd_deploy(args: argparse.Namespace) -> None:
             tag = f"  [also tracked by: {tracked_session}; advisory]" if tracked_session else ""
             print(f"  ? {f}{tag}")
         print()
+
+    if worktree_metadata and to_commit:
+        print(f"Applying session worktree diff from {worktree_metadata.get('path')}...")
+        try:
+            _apply_worktree_diff_to_root(worktree_metadata, to_commit)
+        except RuntimeError as exc:
+            patch_id = _worktree_patch_id(worktree_metadata)
+            item = enqueue_worktree_deploy(sid, args.title, patch_id, reason=str(exc))
+            print(f"WORKTREE INTEGRATION QUEUED — {item['id']}: {exc}", file=sys.stderr)
+            print("Resolve the root conflict or wait for the deploy worker to retry.", file=sys.stderr)
+            sys.exit(1)
 
     # 1. Run linter (with CSS/HTML support and longer timeout)
     no_verify = getattr(args, "no_verify", False)
@@ -3992,8 +4473,8 @@ def cmd_deploy(args: argparse.Namespace) -> None:
     skip_tests_reason = getattr(args, "skip_tests_reason", None)
     _run_test_enforcement_gate(to_commit, skip_tests_reason)
 
-    # 1d. Public SDK changes must keep npm/pip feature parity, cleartext
-    # boundaries, generated docs, and test coverage current before deploy.
+    # 1d. Public SDK changes must keep npm/pip feature parity and hide crypto
+    # details behind cleartext APIs before any commit reaches dev.
     _enforce_sdk_cleartext_gate(to_commit)
 
     if getattr(args, "require_parity", False):
@@ -4050,8 +4531,8 @@ def cmd_deploy(args: argparse.Namespace) -> None:
     else:
         # Separate existing files from deleted files — git add fails on deleted files,
         # but they may already be staged via git rm. Only add files that exist on disk.
-        files_to_add = [f for f in to_commit if os.path.exists(f)]
-        deleted_files = [f for f in to_commit if not os.path.exists(f)]
+        files_to_add = [f for f in to_commit if (PROJECT_ROOT / f).exists()]
+        deleted_files = [f for f in to_commit if not (PROJECT_ROOT / f).exists()]
 
         if deleted_files:
             # Ensure deleted files are staged (git rm --cached is safe even if already staged)
@@ -4070,10 +4551,38 @@ def cmd_deploy(args: argparse.Namespace) -> None:
 
         print(f"Staging complete: {len(files_to_add)} added, {len(deleted_files)} deleted")
 
+    deploy_lock_held = False
+    try:
+        _wait_and_acquire_session_lock(
+            "vercel_deploy",
+            sid,
+            phase="preparing_commit",
+            timeout=getattr(args, "lock_timeout", None),
+            poll=getattr(args, "lock_poll", 30),
+        )
+        deploy_lock_held = True
+    except RuntimeError as exc:
+        print(str(exc), file=sys.stderr)
+        sys.exit(1)
+    print("Vercel deploy lock acquired for commit preparation.")
+
+    print("Rechecking Vercel web app build machine before commit...")
+    try:
+        _enforce_vercel_standard_build_machine()
+    except RuntimeError as exc:
+        if deploy_lock_held:
+            _release_session_lock("vercel_deploy", released_by=sid)
+        print(f"VERCEL BUILD MACHINE GATE FAILED — {exc}", file=sys.stderr)
+        print("No commit was created.", file=sys.stderr)
+        sys.exit(1)
+    print("Vercel build machine: standard/fixed")
+
     if not _validate_staged_deploy_files(
         set(to_commit),
         context="before commit",
     ):
+        if deploy_lock_held:
+            _release_session_lock("vercel_deploy", released_by=sid)
         sys.exit(1)
 
     # 3. Git commit
@@ -4105,6 +4614,8 @@ def cmd_deploy(args: argparse.Namespace) -> None:
     rc, stdout, stderr = _run_cmd(commit_cmd)
     os.environ.pop("OPENMATES_SKIP_PRECOMMIT_LOCALES", None)
     if rc != 0:
+        if deploy_lock_held:
+            _release_session_lock("vercel_deploy", released_by=sid)
         print(f"git commit failed: {stderr}", file=sys.stderr)
         sys.exit(1)
 
@@ -4114,36 +4625,27 @@ def cmd_deploy(args: argparse.Namespace) -> None:
     commit_hash = commit_hash_full[:7] if commit_hash_full else "unknown"
 
     # 4. Git push
-    deploy_lock_acquired = False
     try:
-        _acquire_session_lock(
+        _wait_and_acquire_session_lock(
             "vercel_deploy",
             sid,
             commit_sha=commit_hash_full,
             phase="awaiting_vercel_or_e2e",
+            timeout=0,
+            poll=1,
         )
-        deploy_lock_acquired = True
     except RuntimeError as exc:
+        if deploy_lock_held:
+            _release_session_lock("vercel_deploy", released_by=sid)
         print(str(exc), file=sys.stderr)
         print("Commit was created locally but not pushed.", file=sys.stderr)
         sys.exit(1)
     print(f"Vercel deploy lock acquired for commit {commit_hash}.")
 
-    print("Rechecking Vercel web app build machine before push...")
-    try:
-        _enforce_vercel_standard_build_machine()
-    except RuntimeError as exc:
-        if deploy_lock_acquired:
-            _release_session_lock("vercel_deploy", commit_sha=commit_hash_full, released_by=sid)
-        print(f"VERCEL BUILD MACHINE GATE FAILED — {exc}", file=sys.stderr)
-        print("Commit was created locally but not pushed.", file=sys.stderr)
-        sys.exit(1)
-    print("Vercel build machine: standard/fixed")
-
     print("Pushing to origin dev...")
     rc, stdout, stderr = _run_cmd(["git", "push", "origin", "dev"])
     if rc != 0:
-        if deploy_lock_acquired:
+        if deploy_lock_held:
             _release_session_lock("vercel_deploy", commit_sha=commit_hash_full, released_by=sid)
         print(f"git push failed: {stderr}", file=sys.stderr)
         print("Commit was created locally but not pushed.")
@@ -4160,6 +4662,16 @@ def cmd_deploy(args: argparse.Namespace) -> None:
     for f in sorted(to_commit):
         print(f"  {f}")
     print("Branch: dev")
+
+    if worktree_metadata:
+        def mark_worktree_merged(session_data: dict) -> None:
+            metadata = session_data.get("sessions", {}).get(sid, {}).get("worktree")
+            if isinstance(metadata, dict):
+                metadata["status"] = "merged"
+                metadata["merged_commit"] = commit_hash_full
+                metadata["last_active"] = _now_iso()
+
+        _mutate_sessions(mark_worktree_merged)
 
     # Check related architecture docs
     related = _find_related_docs(to_commit)
@@ -4180,6 +4692,27 @@ def cmd_deploy(args: argparse.Namespace) -> None:
 
         _mutate_sessions(remove_session)
         print(f"\nSession {sid} ended.")
+
+
+def cmd_worktree(args: argparse.Namespace) -> None:
+    """Manage automatic local session worktrees."""
+    if args.worktree_action == "ensure":
+        metadata = ensure_session_worktree(args.session)
+        print("== SESSION WORKTREE ==")
+        print(f"Session: {args.session}")
+        print(f"Path: {metadata['path']}")
+        print(f"Base: {metadata.get('base_commit', '')[:9]}")
+        print(f"Status: {metadata.get('status', 'active')}")
+        print("Use this path as the working directory for source edits.")
+        return
+    if args.worktree_action == "cleanup":
+        archived = cleanup_session_worktrees(idle_hours=args.idle_hours)
+        print(f"Archived dirty idle worktrees: {len(archived)}")
+        for session_id in archived:
+            print(f"  - {session_id}")
+        return
+    print("Error: unknown worktree action", file=sys.stderr)
+    sys.exit(1)
 
 
 
@@ -6323,6 +6856,15 @@ def main() -> None:
         help="Output raw JSON (for machine consumers, e.g. opencode plugin)",
     )
 
+    # doctor
+    p_doctor = sub.add_parser(
+        "doctor",
+        help="Diagnose dirty-tree, staging, session tracking, and deploy-lock blockers",
+    )
+    p_doctor.add_argument(
+        "--session", "-s", help="Session ID to focus the diagnosis on"
+    )
+
     # update
     p_update = sub.add_parser("update", help="Update session task")
     p_update.add_argument(
@@ -6393,6 +6935,18 @@ def main() -> None:
         p_stale_read_action.add_argument("--opencode-session", required=True, help="OpenCode session ID")
         p_stale_read_action.add_argument("--file", required=True, help="Repository file path")
 
+    p_worktree = sub.add_parser("worktree", help="Manage automatic local session worktrees")
+    p_worktree_sub = p_worktree.add_subparsers(dest="worktree_action", required=True)
+    p_worktree_ensure = p_worktree_sub.add_parser("ensure", help="Create or show this session's worktree")
+    p_worktree_ensure.add_argument("--session", "-s", required=True, help="Session ID")
+    p_worktree_cleanup = p_worktree_sub.add_parser("cleanup", help="Remove clean merged and archive dirty idle worktrees")
+    p_worktree_cleanup.add_argument(
+        "--idle-hours",
+        type=int,
+        default=WORKTREE_ARCHIVE_IDLE_HOURS,
+        help="Hours before dirty idle worktrees are archived (default: 12)",
+    )
+
     # lock
     p_lock = sub.add_parser("lock", help="Acquire a lock")
     p_lock.add_argument(
@@ -6417,6 +6971,33 @@ def main() -> None:
         required=True,
         choices=["docker", "vercel", "docker_rebuild", "vercel_deploy"],
         help="Lock type",
+    )
+
+    # wait-lock
+    p_wait_lock = sub.add_parser(
+        "wait-lock",
+        help="Wait until a shared Docker/Vercel lock is available",
+    )
+    p_wait_lock.add_argument(
+        "--session", "-s", help="Session ID waiting for the lock"
+    )
+    p_wait_lock.add_argument(
+        "--type",
+        "-t",
+        required=True,
+        choices=["docker", "vercel", "docker_rebuild", "vercel_deploy"],
+        help="Lock type",
+    )
+    p_wait_lock.add_argument(
+        "--timeout",
+        type=int,
+        help="Seconds to wait before failing (default: lock stale timeout)",
+    )
+    p_wait_lock.add_argument(
+        "--poll",
+        type=int,
+        default=30,
+        help="Seconds between checks (default: 30)",
     )
 
     # prepare-deploy
@@ -6484,6 +7065,20 @@ def main() -> None:
         action="store_true",
         dest="require_parity",
         help="Require a fresh no-skip scripts/verify_parity.py summary before deploy.",
+    )
+    p_deploy.add_argument(
+        "--lock-timeout",
+        type=int,
+        dest="lock_timeout",
+        help="Seconds to wait for the Vercel deploy lock before committing "
+        "(default: lock stale timeout).",
+    )
+    p_deploy.add_argument(
+        "--lock-poll",
+        type=int,
+        default=30,
+        dest="lock_poll",
+        help="Seconds between Vercel deploy lock checks (default: 30).",
     )
 
     # lint (run linter on tracked files without deploying)
@@ -6780,6 +7375,7 @@ def main() -> None:
         "start": cmd_start,
         "end": cmd_end,
         "status": cmd_status,
+        "doctor": cmd_doctor,
         "update": cmd_update,
         "claim": cmd_claim,
         "release": cmd_release,
@@ -6788,8 +7384,10 @@ def main() -> None:
         "untrack": cmd_untrack,
         "check-write": cmd_check_write,
         "stale-read": cmd_stale_read,
+        "worktree": cmd_worktree,
         "lock": cmd_lock,
         "unlock": cmd_unlock,
+        "wait-lock": cmd_wait_lock,
         "prepare-deploy": cmd_prepare_deploy,
         "deploy": cmd_deploy,
         "lint": cmd_lint,

@@ -19,6 +19,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SPEC_ROOT = REPO_ROOT / "frontend" / "apps" / "web_app" / "tests"
+HELPER_ROOT = SPEC_ROOT / "helpers"
 SPEC_SUFFIXES = (".spec.ts", ".test.ts")
 CSS_LOCATOR_RE = re.compile(r"\b(?:page|\w+)\.locator\(\s*(['\"`])\.[^'\"`]*\1")
 WAIT_RE = re.compile(r"\bwaitForTimeout\s*\(")
@@ -58,6 +59,15 @@ def _is_spec(path: Path) -> bool:
     return path.name.endswith(SPEC_SUFFIXES) and SPEC_ROOT in path.resolve().parents
 
 
+def _is_test_helper(path: Path) -> bool:
+    resolved = path.resolve()
+    return resolved.suffix == ".ts" and (resolved == HELPER_ROOT or HELPER_ROOT in resolved.parents)
+
+
+def _is_audited_test_source(path: Path) -> bool:
+    return _is_spec(path) or _is_test_helper(path)
+
+
 def _has_allow_marker(lines: list[str], index: int) -> bool:
     current = lines[index]
     previous = lines[index - 1] if index > 0 else ""
@@ -66,7 +76,7 @@ def _has_allow_marker(lines: list[str], index: int) -> bool:
 
 def audit_spec(path: Path) -> list[AuditIssue]:
     """Audit a single Playwright spec for deterministic selector/wait patterns."""
-    if not path.is_file() or not _is_spec(path):
+    if not path.is_file() or not _is_audited_test_source(path):
         return []
 
     rel_path = str(path.relative_to(REPO_ROOT))
@@ -134,7 +144,7 @@ def audit_added_lines(lines: list[tuple[str, int, str]]) -> list[AuditIssue]:
     added_by_location = {(path, line_no): line for path, line_no, line in lines}
     for path, line_no, line in lines:
         spec_path = REPO_ROOT / path
-        if not _is_spec(spec_path):
+        if not _is_audited_test_source(spec_path):
             continue
         stripped = line.strip()
         if not stripped or stripped.startswith("//"):
@@ -174,7 +184,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     if args.all:
-        paths = sorted(SPEC_ROOT.rglob("*.spec.ts")) + sorted(SPEC_ROOT.rglob("*.test.ts"))
+        paths = sorted(SPEC_ROOT.rglob("*.spec.ts")) + sorted(SPEC_ROOT.rglob("*.test.ts")) + sorted(HELPER_ROOT.rglob("*.ts"))
     elif args.paths:
         paths = [REPO_ROOT / path for path in args.paths]
     else:

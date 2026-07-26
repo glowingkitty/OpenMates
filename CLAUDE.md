@@ -63,8 +63,10 @@ Architecture decisions: write once in `docs/architecture/`, reference in code.
 ## Destructive Actions — Explicit Consent Only
 
 - **NEVER** create PRs, merge branches, publish releases, or use `git stash` unless the user explicitly asks.
-- **NEVER** use git worktrees (`git worktree add`) — all work happens in the main working directory.
+- **NEVER** run raw git worktree commands (`git worktree add`) unless explicitly requested. Use `python3 scripts/sessions.py worktree ensure --session <id>` for orchestrated agent worktrees.
 - **Committing and pushing to `dev` via `sessions.py deploy` is NOT destructive** — it is expected after every task.
+- Do not ask before a scoped `dev` deploy via `sessions.py deploy` when deployment is required for verification. Ask first for production deploys, raw git commit/push, broad dirty deploys, destructive data/migrations, secrets, unclear privacy/billing/security scope, unsafely overlapping same-file edits, or planning/review-only requests.
+- `python3 scripts/sessions.py deploy` waits for and acquires the Vercel deploy lock before creating a commit. Do not run a separate `wait-lock` before normal deploys; use `wait-lock` only for diagnostics/manual inspection. Do not verbally pause or force-unlock another session unless its deploy/test is confirmed inactive.
 - This is **open-source**: use `<PLACEHOLDER>` values for domains, emails, SSH keys, IPs, API keys, repo URLs.
 
 ---

@@ -547,6 +547,16 @@ def _latest_vercel_deployment_for_sha(
     return None
 
 
+def _deployment_matches_commit(deployment: dict, git_sha: str, *, exact: bool) -> bool:
+    """Return whether a deployment can prove the requested commit mode."""
+    if not exact:
+        state = str(deployment.get("state", deployment.get("readyState", ""))).upper()
+        return state == "READY"
+    deployed_sha = str((deployment.get("meta") or {}).get("githubCommitSha", ""))
+    requested = str(git_sha or "")
+    return bool(requested and deployed_sha and (deployed_sha.startswith(requested) or requested.startswith(deployed_sha)))
+
+
 def _wait_for_vercel_deployment(git_sha: str, dot_env: dict[str, str]) -> tuple[bool, str]:
     """Block Playwright dispatch until Vercel has deployed the current dev commit."""
     if _get_env("OPENMATES_SKIP_VERCEL_WAIT", dot_env).lower() == "true":
@@ -646,6 +656,44 @@ def _not_started_playwright_specs(specs: list[str], reason: str) -> list[dict]:
         }
         for spec in specs
     ]
+
+
+def _validate_requested_playwright_spec(spec_name: str) -> str:
+    """Return a dispatch-blocking error for missing or uncommitted specs."""
+    if not spec_name.endswith(".spec.ts"):
+        return f"Playwright specs must end with .spec.ts: {spec_name}"
+
+    spec_path = (SPEC_DIR / spec_name).resolve()
+    try:
+        spec_path.relative_to(SPEC_DIR.resolve())
+    except ValueError:
+        return f"Spec path escapes Playwright spec directory: {spec_name}"
+
+    if not spec_path.is_file():
+        try:
+            display_path = str(spec_path.relative_to(PROJECT_ROOT))
+        except ValueError:
+            display_path = str(spec_path)
+        return f"Spec file not found: {display_path}"
+
+    try:
+        rel_path = str(spec_path.relative_to(PROJECT_ROOT))
+    except ValueError:
+        return f"Spec file is outside the repository: {spec_path}"
+    tracked = subprocess.run(
+        ["git", "ls-files", "--error-unmatch", rel_path],
+        cwd=PROJECT_ROOT,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    if tracked.returncode != 0:
+        return (
+            f"Spec file is untracked and cannot run in GitHub Actions until deployed: {rel_path}. "
+            "Track it in the active session and deploy with scripts/sessions.py deploy first."
+        )
+
+    return ""
 
 
 def _safe_write_json(path: Path, data: dict) -> None:
@@ -5717,7 +5765,21 @@ class TestOrchestrator:
 
     def _run_playwright(self) -> SuiteResult:
         """Run Playwright specs via GitHub Actions."""
-        specs = self._discover_specs()
+        try:
+            specs = self._discover_specs()
+        except RuntimeError as exc:
+            reason = str(exc)
+            return SuiteResult(
+                status="failed",
+                tests=[{
+                    "name": self.spec or "playwright-spec-discovery",
+                    "file": self.spec or "playwright-spec-discovery",
+                    "status": "dispatch_error",
+                    "duration_seconds": 0,
+                    "error": reason,
+                }],
+                reason=reason,
+            )
         if not specs:
             return SuiteResult(status="skipped", reason="no specs to run")
 
@@ -6060,6 +6122,9 @@ class TestOrchestrator:
     def _discover_specs(self) -> list[str]:
         """Find which specs to run."""
         if self.spec:
+            validation_error = _validate_requested_playwright_spec(self.spec)
+            if validation_error:
+                raise RuntimeError(validation_error)
             return [self.spec]
 
         if self.only_failed:

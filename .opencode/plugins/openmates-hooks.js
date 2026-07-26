@@ -15,6 +15,7 @@ const SOURCE_FILE_EXTENSION = /\.(?:py|js|mjs|ts|tsx|svelte|swift|md|ya?ml|json)
 const CLI_LOGIN_HINT_MARKER = "[OpenMates CLI login hint]";
 const COMMAND_DOCTOR_MARKER = "[OpenMates command doctor]";
 const FAILED_TEST_LEASE_MARKER = "[OpenMates failed-test lease hint]";
+const ROOT_GUARD_MARKER = "[OpenMates worktree guard]";
 const CLI_AUTH_ERROR_PATTERNS = [
   /Authentication failed\. Run [`']openmates login[`'] to re-authenticate\./i,
   /Session expired or invalid\. Please run [`']openmates login[`'] to re-authenticate\./i,
@@ -237,7 +238,7 @@ function appendCommandDoctorHint(command, output) {
   const text = output.output;
   const suggestions = [];
   if (/usage: tests\.py[\s\S]*unrecognized arguments: --(?:suite|spec)\b/.test(text)) {
-    suggestions.push("Run test dispatch through the passthrough form: python3 scripts/tests.py run -- --suite <suite> or python3 scripts/tests.py run -- --spec <name>.spec.ts");
+    suggestions.push("Run test dispatch through the current control-plane form: python3 scripts/tests.py run --suite <suite> or python3 scripts/tests.py run --spec <name>.spec.ts. For deployed UI evidence, add --gate-deploy --expected-commit <sha>.");
   }
   if (/usage: sessions\.py[\s\S]*unrecognized arguments: --session\b/.test(text) && /scripts\/sessions\.py\s+status\b/.test(command)) {
     suggestions.push("sessions.py status does not take --session in older checkouts. Use python3 scripts/sessions.py status, or python3 scripts/sessions.py summary --session <id> for one session.");
@@ -291,6 +292,41 @@ function toAbsPath(file) {
   return file?.startsWith("/") ? file : `${PROJECT_ROOT}/${file || ""}`;
 }
 
+function isInsideProjectRoot(file) {
+  const target = file || "";
+  return target === PROJECT_ROOT || target.startsWith(`${PROJECT_ROOT}/`);
+}
+
+function isInsideAgentWorktree(cwd, target) {
+  const combined = `${cwd || ""}\n${target || ""}`;
+  return combined.includes("/.openmates-agent-worktrees/") || combined.includes("/.agent-worktrees/");
+}
+
+function worktreeGuardMessage(sessionID) {
+  return `${ROOT_GUARD_MARKER} Root checkout is the OpenMates control plane. Use the session worktree for source edits: python3 scripts/sessions.py worktree ensure --session ${sessionID || "<id>"}`;
+}
+
+export function rootGuardDecisionForTest({ mode = "warn", cwd = PROJECT_ROOT, target = "", sessionID = "" } = {}) {
+  const normalized = String(mode || "warn").toLowerCase();
+  if (["off", "0", "false"].includes(normalized)) return { decision: "allow", message: "root guard disabled" };
+  if (!isInsideProjectRoot(target) || isInsideAgentWorktree(cwd, target)) return { decision: "allow", message: "target is not a root checkout source edit" };
+  const message = worktreeGuardMessage(sessionID);
+  return { decision: normalized === "strict" ? "block" : "warn", message };
+}
+
+function guardRootEdit(files, sessionID) {
+  for (const file of files) {
+    const decision = rootGuardDecisionForTest({
+      mode: process.env.OPENMATES_ROOT_GUARD || "warn",
+      cwd: process.cwd(),
+      target: file,
+      sessionID,
+    });
+    if (decision.decision === "block") throw new Error(decision.message);
+    if (decision.decision === "warn") console.warn(decision.message);
+  }
+}
+
 function editedFiles(args) {
   const input = toolInput(args);
   const explicit = input.file_path || input.filePath || input.path;
@@ -317,6 +353,7 @@ export const OpenMatesHooks = async () => ({
 
     if (BASH_TOOLS.has(tool)) guardBash(bashCommand(output?.args || input?.args));
     bindSessionStart(input, output);
+    if (EDIT_TOOLS.has(tool)) guardRootEdit(editedFiles(output?.args || input?.args), input.sessionID);
     runBridge("PreToolUse", bridgePayload("PreToolUse", tool, output?.args), input.sessionID);
   },
   "tool.execute.after": async (input, output) => {

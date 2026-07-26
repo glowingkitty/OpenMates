@@ -93,10 +93,12 @@ Architecture decisions: write once in `docs/architecture/`, reference in code.
 - Never delete, rewrite, or disable Claude Code setup files unless explicitly requested.
 - Never use destructive git commands such as `git reset --hard` or `git checkout --` unless explicitly requested.
 - Never change the repository default branch away from `dev`, and never switch the local working tree away from `dev`. `dev` is the permanent default/current working branch for agents.
-- Never create PRs, merge branches, publish releases, use `git stash`, or use git worktrees unless explicitly requested.
+- Never create PRs, merge branches, publish releases, use `git stash`, or run raw `git worktree` commands unless explicitly requested. Use `python3 scripts/sessions.py worktree ensure --session <id>` for orchestrated agent worktrees.
 - Treat secrets, credentials, production keys, `.env` files, and private tokens as off-limits.
 - This is open source. Use `<PLACEHOLDER>` values for domains, emails, SSH keys, IPs, API keys, and private repo URLs.
 - Committing and pushing to `dev` via `sessions.py deploy` is not destructive; it is expected after every task.
+- Do not ask for permission before a scoped `dev` deploy through `sessions.py deploy` when deployment is required to verify assigned work. Ask first for production deploys, raw git commit/push, broad or unscoped dirty deploys, destructive data/migrations, secrets, unclear privacy/billing/security scope, same-file overlap that cannot be safely staged, or when the user requested planning/review only.
+- `python3 scripts/sessions.py deploy` waits for and acquires the Vercel deploy lock before creating a commit. Do not run a separate `wait-lock` before normal deploys; use `wait-lock` only for diagnostics/manual inspection. Do not verbally pause and do not force-unlock another session unless you have confirmed its deploy/test is inactive.
 
 ---
 

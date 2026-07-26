@@ -11,6 +11,21 @@ user-invocable: true
 
 You are deploying code changes. Follow this exact sequence:
 
+Scoped `dev` deploys through `sessions.py deploy` are pre-authorized when they
+are required to verify the assigned task. Ask first only for production deploys,
+raw git commit/push, broad dirty deploys, destructive data/migrations, secrets,
+unclear privacy/billing/security scope, unsafe same-file overlap, or
+planning/review-only requests.
+
+Agent edits should live in the automatic session worktree, not the repository
+root checkout. The root checkout is the control plane for orchestration and the
+short `dev` integration window. If the session does not show a worktree, create
+or print it with:
+
+```bash
+python3 scripts/sessions.py worktree ensure --session <SESSION_ID>
+```
+
 1. **Load deployment docs** (commit message format, PR rules):
    ```bash
    python3 scripts/sessions.py deploy-docs
@@ -21,6 +36,12 @@ You are deploying code changes. Follow this exact sequence:
    python3 scripts/sessions.py prepare-deploy --session <SESSION_ID>
    ```
     Review the file list. Exclude any files that shouldn't be committed with `--exclude`.
+
+   Do not run a separate Vercel `wait-lock` before normal deploys. `sessions.py
+   deploy` scopes the commit from the session worktree diff, integrates it to
+   `dev`, and records deploy wait state for the resulting commit. If integration
+   is busy or unsafe, the deploy request is recorded in the visible worktree deploy queue
+   instead of relying on a manual unlock.
 
 3. **Run spec conformance when applicable:**
    - If this work has a full spec under `docs/specs/<slug>/spec.yml`, run `python3 scripts/spec_verify.py docs/specs/<slug>/spec.yml` before deploy.
@@ -43,6 +64,7 @@ You are deploying code changes. Follow this exact sequence:
 ### If Deploy Fails
 - **Lint errors:** Fix them first, then retry
 - **Pre-existing hook bug** (unrelated to your changes): Use `--no-verify` and add a backlog entry
+- **Worktree integration queued:** Check `python3 scripts/sessions.py status` or rerun deploy after the queue retry clears the busy path
 - **Never** use raw `git commit` — it bypasses session tracking
 
 ### After Deploy

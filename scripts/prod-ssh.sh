@@ -127,12 +127,29 @@ set ssh_opts [list \
 ]
 
 log_user 0
-eval spawn ssh $ssh_opts
+set prompt_count 0
+spawn ssh {*}$ssh_opts
 expect {
-    -nocase "assword:"            { send -- "$password\r"; exp_continue }
-    -nocase "erification code:"   { send -- "$otp\r";      exp_continue }
-    -nocase "permission denied"   { puts stderr "\n\[prod-ssh\] ssh denied — check key window / password / OTP"; exit 2 }
-    timeout                       { puts stderr "\n\[prod-ssh\] ssh timed out waiting for prompt"; exit 3 }
+    -nocase "*verification code:*" {
+        incr prompt_count
+        puts stderr "\n\[prod-ssh\] matched verification-code prompt."
+        send -- "$otp\r"
+        exp_continue
+    }
+    -nocase "*totp*:*" {
+        incr prompt_count
+        puts stderr "\n\[prod-ssh\] matched TOTP prompt."
+        send -- "$otp\r"
+        exp_continue
+    }
+    -nocase "*password:*" {
+        incr prompt_count
+        puts stderr "\n\[prod-ssh\] matched password prompt."
+        send -- "$password\r"
+        exp_continue
+    }
+    -nocase "*permission denied*"  { puts stderr "\n\[prod-ssh\] ssh denied — check key window / password / OTP"; exit 2 }
+    timeout                       { puts stderr "\n\[prod-ssh\] ssh timed out waiting for prompt after $prompt_count prompt(s)"; exit 3 }
     eof
 }
 catch wait result

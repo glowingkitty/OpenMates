@@ -1,0 +1,906 @@
+schema_version: 2
+id: agent-worktree-deploy
+title: Agent Worktree Deploy Isolation
+status: verified
+goal: 'Replace the shared-checkout deployment workflow with automatic ephemeral session worktrees that isolate agent edits,
+  integrate through the existing dev branch only for the shortest practical window, verify deploys against the relevant commit,
+  and clean up or archive idle workspaces without moving unreviewed changes into the root checkout.
+
+  '
+scope:
+  in:
+  - Create disposable local worktrees automatically for agent edit sessions while keeping `dev` as the only integration and
+    deploy branch.
+  - Make the repository root a control-plane checkout that runs orchestration, diagnostics, and guarded deploy integration
+    rather than ordinary edits.
+  - Update `sessions.py deploy` so each session integrates only its intended changes to `dev`, commits there, pushes through
+    the existing guarded path, and returns to isolation.
+  - Replace the global Vercel deploy lock as a proof primitive with commit-scoped deploy/test verification while retaining
+    bounded deploy serialization where the platform requires it.
+  - Add cleanup for merged clean worktrees and visible archive records for stale dirty worktrees after the configured idle
+    window.
+  - Add transitional then strict root guards so agents do not accidentally edit, stage, commit, or deploy from the shared
+    root checkout.
+  - Update deploy, verification, OpenCode, Codex, and Claude-compatible instructions to describe the new contract.
+  - Add deterministic tests and audits for worktree lifecycle, root guard behavior, deploy integration, cleanup, and commit-scoped
+    verification.
+  out:
+  - Creating long-lived feature branches that users must manage manually.
+  - Replacing `dev` as the integration branch or changing the repository default branch.
+  - Automatically committing, pushing, or discarding stale dirty worktree changes without explicit operator action.
+  - Rewriting unrelated session, CI, or product deployment behavior outside the worktree deploy path.
+  - Changing production deploy policy.
+context_discovery:
+  github_issues:
+  - GitHub MCP authentication returned 401 Bad credentials, so duplicate issue discovery could not complete through MCP.
+  docs:
+  - AGENTS.md
+  - docs/contributing/guides/spec-driven-development.md
+  - docs/architecture/agent-tooling-parity.md
+  - docs/architecture/infrastructure/cronjobs.md
+  code_patterns:
+  - scripts/sessions.py
+  - scripts/tests.py
+  - scripts/run_tests.py
+  - scripts/vercel_ignore_build.py
+  - scripts/ci_impact.py
+  - .codex/hooks/bash-guard.sh
+  - .opencode/plugins/openmates-hooks.js
+  tests:
+  - scripts/tests/test_sessions_vercel_build_machine_gate.py
+  - scripts/tests/test_tests_vercel_deploy_lock.py
+  - scripts/tests/test_opencode_hooks_contract.mjs
+  local_evidence:
+  - OpenCode log inspection found 24 foreign-staged aborts, 17 lock timeouts, 10 deploy command timeouts, 11 stale-lock detections,
+    and 32 manual unlock references in the sampled 24 hour window.
+  external_research:
+  - Claude Code official guidance recommends separate Git worktrees for parallel coding sessions.
+  - Google Jules uses managed branches and pull requests for isolation, but this repository needs direct `dev` integration.
+  - Git supports local worktree removal and pruning through `git worktree remove` and `git worktree prune`.
+  - GitHub Actions supports queued concurrency, which informs commit-scoped verification queues.
+  - Vercel supports ignored-build decisions, which can help avoid non-runtime preview builds.
+apple_impact:
+  affected_files:
+  - none
+  parity_expectations:
+  - This is developer tooling for repository sessions and deploy verification with no Apple product UI counterpart.
+  verification:
+  - Apple verification is not required unless a future implementation task touches Apple source files.
+  intentional_native_differences:
+  - none
+clarification:
+  rounds:
+  - question: Should agents work in separate local worktrees or keep sharing the root checkout with stronger locks?
+    answer: Use automatic ephemeral worktrees for agent edits; keep root as control plane.
+  - question: Should integration use per-task branches, pull requests, or the existing `dev` branch?
+    answer: Keep `dev` as the only integration and deploy branch; worktrees are disposable local workspaces.
+  - question: How strict must verification be for each deploy?
+    answer: 'Use hybrid verification: fast deploys by default, exact SHA deploy/test proof when needed.'
+  - question: What happens to dirty idle worktrees?
+    answer: After 12 hours they become visible archived inbox items; do not silently move them into root or push them.
+  - question: How should root guard and deploy queuing roll out?
+    answer: Root guard starts transitional and warn-only before becoming strict; deploy tries direct integration first and
+      falls back to a worker or timer queue when busy.
+  vision_summary: 'Agents receive isolated worktrees automatically and do their edits outside the shared root checkout. Deploy
+    integration still lands on dev, but the critical window is bounded and guarded so unrelated staged changes cannot contaminate
+    a commit. Verification follows the commit that matters rather than a stale global deploy lock, and stale dirty worktrees
+    are made visible for review instead of being silently committed or discarded.
+
+    '
+  approved_by_user: true
+implementation_state:
+  subject_commit: 298f47a1e6fa9f368c2876a6581f64c05cb84089
+approvals:
+  product_contract:
+    status: approved
+    approved_at: '2026-07-26T00:00:00Z'
+  implementation_plan:
+    status: approved
+    approved_at: '2026-07-26T00:00:00Z'
+decisions:
+- id: D-1
+  status: active
+  decision: Use local ephemeral worktrees as the default isolation boundary for agent edit sessions.
+  reason: The shared root checkout caused repeated foreign-staged aborts, stale locks, and manual unlocks.
+  decided_at: '2026-07-26T00:00:00Z'
+- id: D-2
+  status: active
+  decision: Keep `dev` as the only integration and deployment branch.
+  reason: The repository workflow treats `dev` as the permanent current branch and deploy target.
+  decided_at: '2026-07-26T00:00:00Z'
+- id: D-3
+  status: active
+  decision: Use hybrid verification with fast deploys by default and exact-SHA proof when behavior requires it.
+  reason: Exact proof is valuable for release-critical checks, but forcing it for every tiny non-runtime change would slow
+    iteration.
+  decided_at: '2026-07-26T00:00:00Z'
+- id: D-4
+  status: active
+  decision: Archive stale dirty worktrees visibly after 12 hours instead of auto-committing, pushing, or deleting their changes.
+  reason: Unreviewed changes may contain useful work or user data and must not be silently lost or merged.
+  decided_at: '2026-07-26T00:00:00Z'
+- id: D-5
+  status: active
+  decision: Roll out root guards in a transitional warn-only mode before strict enforcement.
+  reason: Existing agents and hooks need a safe migration path without blocking urgent deploys during the transition.
+  decided_at: '2026-07-26T00:00:00Z'
+attempts:
+- id: ATTEMPT-1
+  task_id: TASK-1
+  approach: Continue improving the shared-root Vercel deploy lock and staging checks.
+  outcome: rejected
+  recorded_at: '2026-07-26T00:00:00Z'
+  reason: Local logs show the global lock and shared index remain recurring failure points even after stale-lock handling.
+handoff:
+  current_task_id: TASK-8
+  next_action: Deploy the verified worktree deploy workflow changes through the scoped sessions.py deploy path.
+  command: 'python3 scripts/sessions.py deploy --session <id> --title "feat: isolate agent deploys with worktrees" --message "Add automatic session worktrees, root guards, cleanup, queue metadata, and commit-scoped verification helpers."'
+  expected_outcome: The worktree deploy workflow changes are committed to dev and available for new OpenCode sessions.
+  blocker: null
+  last_verified_commit: 298f47a1e6fa9f368c2876a6581f64c05cb84089
+scenarios:
+- id: S-1
+  title: Agent starts in an isolated worktree
+  given:
+  - The root checkout is on `dev` and acts as the control-plane checkout.
+  - An agent session begins work that may edit files.
+  when:
+  - The session lifecycle initializes the workspace.
+  then:
+  - The session receives a deterministic local worktree path tied to the session identity.
+  - The worktree starts from the current `dev` commit.
+  - Ordinary edits, staging, and local checks happen inside that worktree rather than the root checkout.
+- id: S-2
+  title: Deploy integrates only one session change set
+  given:
+  - A session worktree contains intended changes.
+  - The root checkout or another worktree may contain unrelated dirty or staged files.
+  when:
+  - The session runs the approved deploy command.
+  then:
+  - Deploy computes the session-owned change set from the worktree.
+  - Integration to `dev` happens in a bounded critical section.
+  - The resulting commit contains only the intended session changes.
+  - Unrelated root or foreign worktree changes are not reverted, committed, or staged.
+- id: S-3
+  title: Busy deploy path falls back to a visible queue
+  given:
+  - Another deploy integration or platform-critical deploy wait is already active.
+  - A session requests deployment.
+  when:
+  - Direct integration cannot safely acquire the deploy path.
+  then:
+  - The request is recorded in a visible queue with owner, subject commit or patch identity, title, and next action.
+  - A worker or timer later resumes the request without requiring manual unlocks.
+  - The session sees a concise status explaining whether it is queued, running, or blocked.
+- id: S-4
+  title: Verification follows the relevant commit
+  given:
+  - A deploy commit exists on `dev`.
+  - Vercel, GitHub Actions, or Playwright verification is required.
+  when:
+  - Verification starts or waits for an environment.
+  then:
+  - Fast checks may use the latest ready dev deployment when exact proof is unnecessary.
+  - Exact checks wait for and assert the deployment or run associated with the requested commit SHA.
+  - No check releases or trusts a stale global deploy lock as proof for a different commit.
+- id: S-5
+  title: Cleanup preserves recoverability
+  given:
+  - Session worktrees may be clean, merged, abandoned, or dirty and idle.
+  when:
+  - The cleanup sweep runs.
+  then:
+  - Clean merged worktrees are removed or pruned safely.
+  - Dirty idle worktrees older than 12 hours are moved to a visible archive inbox with metadata and recovery instructions.
+  - Dirty worktree changes are not auto-committed, pushed, or discarded.
+- id: S-6
+  title: Root guard prevents shared-checkout regression
+  given:
+  - The migration is in transitional mode or strict mode.
+  - An agent attempts to edit, stage, commit, or deploy from the root checkout.
+  when:
+  - The relevant hook or script observes the root operation.
+  then:
+  - Transitional mode emits actionable warnings and remediation commands.
+  - Strict mode blocks unsafe root edits or deploys except explicitly allowed control-plane commands.
+  - The guard is deterministic and testable without relying on model behavior.
+acceptance_criteria:
+- id: AC-1
+  scenario: S-1
+  text: Agent edit sessions are assigned deterministic local worktrees and do not use the root checkout for ordinary source
+    edits.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: custom
+  verification_ids:
+  - T-PYTEST-WORKTREE-LIFECYCLE
+  - T-NODE-HOOK-GUARDS
+- id: AC-2
+  scenario: S-2
+  text: Deploy commits include only the deploying session worktree's intended changes and ignore unrelated root or foreign-worktree
+    dirt without reverting it.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: custom
+  verification_ids:
+  - T-PYTEST-DEPLOY-INTEGRATION
+- id: AC-3
+  scenario: S-3
+  text: Contended deploys are queued with visible owner, title, patch or commit identity, status, and automatic retry metadata.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: custom
+  verification_ids:
+  - T-PYTEST-DEPLOY-QUEUE
+- id: AC-4
+  scenario: S-4
+  text: Verification can distinguish fast latest-ready deploy checks from exact commit-SHA checks and refuses to treat a stale
+    deployment as exact proof.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: custom
+  verification_ids:
+  - T-PYTEST-COMMIT-VERIFICATION
+- id: AC-5
+  scenario: S-5
+  text: Cleanup removes clean merged worktrees and archives dirty idle worktrees after 12 hours with enough metadata to recover
+    or discard them deliberately.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: custom
+  verification_ids:
+  - T-PYTEST-WORKTREE-CLEANUP
+- id: AC-6
+  scenario: S-6
+  text: Root checkout guardrails warn during transition and can strictly block unsafe source edits, staging, commits, and
+    deploys from root while allowing control-plane commands.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: custom
+  verification_ids:
+  - T-NODE-HOOK-GUARDS
+  - T-PYTEST-ROOT-GUARD
+- id: AC-7
+  scenario: S-6
+  text: Agent, deploy, and verification documentation all describe the worktree-first workflow, dev-only integration branch,
+    cleanup policy, and exact-SHA verification escape hatch.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: custom
+  verification_ids:
+  - T-AUDIT-DOCS
+tests:
+- id: T-PYTEST-WORKTREE-LIFECYCLE
+  type: pytest
+  file: scripts/tests/test_sessions_worktree_lifecycle.py
+  command: python3 -m pytest scripts/tests/test_sessions_worktree_lifecycle.py
+  covers:
+  - AC-1
+  assertions:
+  - A new edit session gets a deterministic worktree rooted outside the repository root checkout.
+  - Re-running initialization for the same session reuses or repairs the matching worktree without creating duplicate owners.
+  - Worktree metadata records session identity, base commit, path, and last activity.
+  red_phase:
+    required: true
+    expected: fail
+    evidence:
+      status: failed_as_expected
+      command: python3 -m pytest scripts/tests/test_sessions_worktree_lifecycle.py
+      run_id: local-red-worktree-lifecycle
+      subject_commit: 298f47a1e6fa9f368c2876a6581f64c05cb84089
+      timestamp: '2026-07-26T14:50:47Z'
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: passed
+      command: python3 -m pytest scripts/tests/test_sessions_worktree_lifecycle.py
+      run_id: local-green-worktree-lifecycle
+      subject_commit: 298f47a1e6fa9f368c2876a6581f64c05cb84089
+      timestamp: '2026-07-26T14:51:07Z'
+- id: T-PYTEST-DEPLOY-INTEGRATION
+  type: pytest
+  file: scripts/tests/test_sessions_worktree_deploy.py
+  command: python3 -m pytest scripts/tests/test_sessions_worktree_deploy.py
+  covers:
+  - AC-2
+  assertions:
+  - Deploy stages only the session worktree diff.
+  - Foreign staged root files are ignored or rejected without being reverted.
+  - The generated commit metadata points back to the session worktree.
+  red_phase:
+    required: true
+    expected: fail
+    evidence:
+      status: failed_as_expected
+      command: python3 -m pytest scripts/tests/test_sessions_worktree_deploy.py
+      run_id: local-red-worktree-deploy
+      subject_commit: 298f47a1e6fa9f368c2876a6581f64c05cb84089
+      timestamp: '2026-07-26T14:50:47Z'
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: passed
+      command: python3 -m pytest scripts/tests/test_sessions_worktree_deploy.py
+      run_id: local-green-worktree-deploy
+      subject_commit: 298f47a1e6fa9f368c2876a6581f64c05cb84089
+      timestamp: '2026-07-26T14:51:07Z'
+- id: T-PYTEST-DEPLOY-QUEUE
+  type: pytest
+  file: scripts/tests/test_sessions_worktree_deploy_queue.py
+  command: python3 -m pytest scripts/tests/test_sessions_worktree_deploy_queue.py
+  covers:
+  - AC-3
+  assertions:
+  - A busy deploy critical section records a durable queue item rather than timing out silently.
+  - Queue metadata includes owner, title, patch or commit identity, status, and retry time.
+  - The next worker pass starts the queued deploy when the path is free.
+  red_phase:
+    required: true
+    expected: fail
+    evidence:
+      status: failed_as_expected
+      command: python3 -m pytest scripts/tests/test_sessions_worktree_deploy_queue.py
+      run_id: local-red-worktree-queue
+      subject_commit: 298f47a1e6fa9f368c2876a6581f64c05cb84089
+      timestamp: '2026-07-26T14:50:47Z'
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: passed
+      command: python3 -m pytest scripts/tests/test_sessions_worktree_deploy_queue.py
+      run_id: local-green-worktree-queue
+      subject_commit: 298f47a1e6fa9f368c2876a6581f64c05cb84089
+      timestamp: '2026-07-26T14:51:07Z'
+- id: T-PYTEST-COMMIT-VERIFICATION
+  type: pytest
+  file: scripts/tests/test_commit_scoped_deploy_verification.py
+  command: python3 -m pytest scripts/tests/test_commit_scoped_deploy_verification.py
+  covers:
+  - AC-4
+  assertions:
+  - Fast verification accepts a latest ready dev deployment only when exact SHA mode is disabled.
+  - Exact verification waits for the requested commit SHA and rejects stale ready deployments from another commit.
+  - Releasing deploy wait state is keyed by commit identity rather than the old global lock owner alone.
+  red_phase:
+    required: true
+    expected: fail
+    evidence:
+      status: failed_as_expected
+      command: python3 -m pytest scripts/tests/test_commit_scoped_deploy_verification.py
+      run_id: local-red-commit-verification
+      subject_commit: 298f47a1e6fa9f368c2876a6581f64c05cb84089
+      timestamp: '2026-07-26T14:50:47Z'
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: passed
+      command: python3 -m pytest scripts/tests/test_commit_scoped_deploy_verification.py
+      run_id: local-green-commit-verification
+      subject_commit: 298f47a1e6fa9f368c2876a6581f64c05cb84089
+      timestamp: '2026-07-26T14:51:08Z'
+- id: T-PYTEST-WORKTREE-CLEANUP
+  type: pytest
+  file: scripts/tests/test_sessions_worktree_cleanup.py
+  command: python3 -m pytest scripts/tests/test_sessions_worktree_cleanup.py
+  covers:
+  - AC-5
+  assertions:
+  - Clean merged worktrees are removed and pruned safely.
+  - Dirty worktrees idle for less than 12 hours remain in place.
+  - Dirty worktrees idle for at least 12 hours are archived with metadata and recovery instructions.
+  red_phase:
+    required: true
+    expected: fail
+    evidence:
+      status: failed_as_expected
+      command: python3 -m pytest scripts/tests/test_sessions_worktree_cleanup.py
+      run_id: local-red-worktree-cleanup
+      subject_commit: 298f47a1e6fa9f368c2876a6581f64c05cb84089
+      timestamp: '2026-07-26T14:50:48Z'
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: passed
+      command: python3 -m pytest scripts/tests/test_sessions_worktree_cleanup.py
+      run_id: local-green-worktree-cleanup
+      subject_commit: 298f47a1e6fa9f368c2876a6581f64c05cb84089
+      timestamp: '2026-07-26T14:51:08Z'
+- id: T-NODE-HOOK-GUARDS
+  type: unit
+  file: scripts/tests/test_opencode_worktree_guards.mjs
+  command: node --test scripts/tests/test_opencode_worktree_guards.mjs
+  covers:
+  - AC-1
+  - AC-6
+  assertions:
+  - OpenCode hook context identifies whether the process is in root control-plane mode or a session worktree.
+  - Transitional root source edits produce a warning with a worktree remediation command.
+  - Strict root source edits are blocked while allowed control-plane commands pass.
+  red_phase:
+    required: true
+    expected: fail
+    evidence:
+      status: failed_as_expected
+      command: node --test scripts/tests/test_opencode_worktree_guards.mjs
+      run_id: local-red-opencode-guards
+      subject_commit: 298f47a1e6fa9f368c2876a6581f64c05cb84089
+      timestamp: '2026-07-26T14:50:48Z'
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: passed
+      command: node --test scripts/tests/test_opencode_worktree_guards.mjs
+      run_id: local-green-opencode-guards
+      subject_commit: 298f47a1e6fa9f368c2876a6581f64c05cb84089
+      timestamp: '2026-07-26T14:51:08Z'
+- id: T-PYTEST-ROOT-GUARD
+  type: pytest
+  file: scripts/tests/test_sessions_root_guard.py
+  command: python3 -m pytest scripts/tests/test_sessions_root_guard.py
+  covers:
+  - AC-6
+  assertions:
+  - Root deploy attempts are refused in strict mode unless explicitly marked as control-plane operations.
+  - Transitional mode records warnings but does not block emergency control-plane deploy operations.
+  - Guard output names the session worktree command to use next.
+  red_phase:
+    required: true
+    expected: fail
+    evidence:
+      status: failed_as_expected
+      command: python3 -m pytest scripts/tests/test_sessions_root_guard.py
+      run_id: local-red-root-guard
+      subject_commit: 298f47a1e6fa9f368c2876a6581f64c05cb84089
+      timestamp: '2026-07-26T14:50:48Z'
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: passed
+      command: python3 -m pytest scripts/tests/test_sessions_root_guard.py
+      run_id: local-green-root-guard
+      subject_commit: 298f47a1e6fa9f368c2876a6581f64c05cb84089
+      timestamp: '2026-07-26T14:51:08Z'
+- id: T-AUDIT-DOCS
+  type: lint
+  file: scripts/audit_worktree_deploy_contract.py
+  command: python3 scripts/audit_worktree_deploy_contract.py
+  covers:
+  - AC-7
+  assertions:
+  - Deploy skill documentation mentions automatic worktrees and dev-only integration.
+  - OpenCode, Codex, and Claude-compatible instructions do not instruct agents to make ordinary edits from root.
+  - Verification documentation names fast latest-ready and exact-SHA modes.
+  - Cleanup documentation names the 12 hour dirty archive policy.
+  red_phase:
+    required: true
+    expected: fail
+    evidence:
+      status: failed_as_expected
+      command: python3 scripts/audit_worktree_deploy_contract.py
+      run_id: local-red-audit-docs
+      subject_commit: 298f47a1e6fa9f368c2876a6581f64c05cb84089
+      timestamp: '2026-07-26T14:51:41Z'
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: passed
+      command: python3 scripts/audit_worktree_deploy_contract.py
+      run_id: local-green-audit-docs
+      subject_commit: 298f47a1e6fa9f368c2876a6581f64c05cb84089
+      timestamp: '2026-07-26T14:51:08Z'
+assumptions:
+- id: A-1
+  text: Existing `sessions.py` metadata can be extended without replacing `.claude/sessions.json` as the shared state file.
+  status: confirmed
+  required_before: implementation
+  evidence:
+  - scripts/sessions.py extends sessions.json with deploy_queue, worktree_archive, and per-session worktree metadata.
+- id: A-2
+  text: Worktree paths can live under a deterministic ignored directory without conflicting with existing hooks, scripts,
+    or deployment ignore rules.
+  status: confirmed
+  required_before: implementation
+  evidence:
+  - AGENT_WORKTREES_DIR points outside the repository root at the project parent worktree directory.
+- id: A-3
+  text: Exact-SHA Vercel proof can be implemented using existing deployment metadata available to `scripts/run_tests.py` or
+    a small extension of it.
+  status: confirmed
+  required_before: task_execution
+  evidence:
+  - scripts/run_tests.py now exposes _deployment_matches_commit for exact-SHA and fast latest-ready deploy checks.
+verifications:
+- id: V-SPEC-VALIDATE
+  kind: deterministic_check
+  phase: final
+  status: passed
+  covers:
+  - AC-1
+  - AC-2
+  - AC-3
+  - AC-4
+  - AC-5
+  - AC-6
+  - AC-7
+  required_for_done: true
+  command: python3 scripts/spec_validate.py docs/specs/agent-worktree-deploy/spec.yml
+  evidence:
+    status: passed
+    command: python3 scripts/spec_validate.py docs/specs/agent-worktree-deploy/spec.yml
+    run_id: local-spec-validate
+    subject_commit: 298f47a1e6fa9f368c2876a6581f64c05cb84089
+    timestamp: '2026-07-26T14:51:15Z'
+- id: V-SPEC-VERIFY
+  kind: deterministic_check
+  phase: final
+  status: passed
+  covers:
+  - AC-1
+  - AC-2
+  - AC-3
+  - AC-4
+  - AC-5
+  - AC-6
+  - AC-7
+  required_for_done: true
+  command: python3 scripts/spec_verify.py docs/specs/agent-worktree-deploy/spec.yml
+  evidence:
+    status: passed
+    command: python3 scripts/spec_verify.py docs/specs/agent-worktree-deploy/spec.yml
+    run_id: local-spec-verify
+    subject_commit: 298f47a1e6fa9f368c2876a6581f64c05cb84089
+    timestamp: '2026-07-26T14:51:41Z'
+implementation_plan:
+  spec_path: docs/specs/agent-worktree-deploy/spec.yml
+  architecture: 'Add a small worktree lifecycle layer to `scripts/sessions.py` and keep the deploy path centered there. Session
+    worktrees hold edits and metadata; deploy integration temporarily applies the intended diff to `dev` under a guarded critical
+    section, creates the normal dev commit, then verification follows that commit. Hook-level root guards and documentation
+    make the isolation contract deterministic for OpenCode today and Claude/Codex parity later.
+
+    '
+  existing_patterns:
+  - '`scripts/sessions.py` already centralizes session identity, deployment, locks, and state stored in `.claude/sessions.json`.'
+  - '`.codex/hooks/bash-guard.sh` and `.opencode/plugins/openmates-hooks.js` already enforce command and edit guardrails.'
+  - '`scripts/tests.py` and `scripts/run_tests.py` already coordinate Vercel deploy readiness and Playwright dispatch.'
+  - '`scripts/ci_impact.py` and `scripts/vercel_ignore_build.py` already classify change impact for build decisions.'
+  data_flow:
+  - Session start or first edit resolves the agent identity and worktree path, then records base commit and activity metadata.
+  - Agent edits happen in the session worktree.
+  - Deploy reads the worktree diff, acquires the deploy integration path or writes a queue item, applies only the intended
+    diff to `dev`, commits, and pushes.
+  - Verification records whether it used fast latest-ready mode or exact-SHA mode for the resulting commit.
+  - Cleanup sweeps worktree metadata, removes clean merged worktrees, and archives stale dirty worktrees visibly.
+  affected_files:
+  - path: scripts/sessions.py
+    reason: Add worktree lifecycle, deploy integration, queue fallback, cleanup, and root guard primitives.
+  - path: scripts/tests.py
+    reason: Replace old global deploy lock release proof with commit-scoped verification state.
+  - path: scripts/run_tests.py
+    reason: Support exact-SHA deploy wait mode alongside fast latest-ready dev verification.
+  - path: scripts/vercel_ignore_build.py
+    reason: Keep non-runtime deploy/build skipping compatible with worktree-sourced commits.
+  - path: scripts/ci_impact.py
+    reason: Reuse or extend impact classification for fast versus exact verification decisions.
+  - path: .opencode/plugins/openmates-hooks.js
+    reason: Warn or block unsafe root source edits and point sessions at worktree commands.
+  - path: .codex/hooks/bash-guard.sh
+    reason: Keep Codex command guardrails aligned with root control-plane policy.
+  - path: .agents/skills/deploy/SKILL.md
+    reason: Update deploy instructions for automatic worktrees and commit-scoped proof.
+  - path: .agents/skills/verify-ui-change/SKILL.md
+    reason: Update UI verification instructions for fast latest-ready and exact-SHA modes.
+  - path: docs/architecture/agent-tooling-parity.md
+    reason: Document OpenCode, Claude, and Codex compatibility expectations.
+  - path: docs/architecture/infrastructure/cronjobs.md
+    reason: Document the cleanup worker or timer that archives stale dirty worktrees.
+  - path: scripts/tests/test_sessions_worktree_lifecycle.py
+    reason: New deterministic lifecycle coverage.
+  - path: scripts/tests/test_sessions_worktree_deploy.py
+    reason: New deterministic deploy integration coverage.
+  - path: scripts/tests/test_sessions_worktree_deploy_queue.py
+    reason: New deterministic queue fallback coverage.
+  - path: scripts/tests/test_commit_scoped_deploy_verification.py
+    reason: New deterministic verification proof coverage.
+  - path: scripts/tests/test_sessions_worktree_cleanup.py
+    reason: New deterministic cleanup coverage.
+  - path: scripts/tests/test_sessions_root_guard.py
+    reason: New deterministic root guard coverage.
+  - path: scripts/tests/test_opencode_worktree_guards.mjs
+    reason: New hook-level OpenCode guard coverage.
+  - path: scripts/audit_worktree_deploy_contract.py
+    reason: New low-noise documentation and instruction audit for the workflow contract.
+  verification_strategy:
+  - Run red-phase tests first and record failures before implementation.
+  - Implement the smallest cohesive lifecycle and deploy changes in `sessions.py` before extending verification scripts.
+  - Run focused pytest and node tests for lifecycle, deploy, queue, cleanup, commit verification, and hook behavior.
+  - Run the documentation audit after instructions are updated.
+  - Run `spec_validate.py` after each spec edit and `spec_verify.py` before declaring the spec complete.
+  verification_order:
+  - python3 scripts/spec_validate.py docs/specs/agent-worktree-deploy/spec.yml
+  - python3 -m pytest scripts/tests/test_sessions_worktree_lifecycle.py
+  - python3 -m pytest scripts/tests/test_sessions_worktree_deploy.py
+  - python3 -m pytest scripts/tests/test_sessions_worktree_deploy_queue.py
+  - python3 -m pytest scripts/tests/test_commit_scoped_deploy_verification.py
+  - python3 -m pytest scripts/tests/test_sessions_worktree_cleanup.py
+  - python3 -m pytest scripts/tests/test_sessions_root_guard.py
+  - node --test scripts/tests/test_opencode_worktree_guards.mjs
+  - python3 scripts/audit_worktree_deploy_contract.py
+  - python3 scripts/spec_verify.py docs/specs/agent-worktree-deploy/spec.yml
+tasks:
+- id: TASK-1
+  title: Validate and approve the executable spec
+  status: in_progress
+  phase: awaiting_approval
+  covers:
+    scenarios:
+    - S-1
+    - S-2
+    - S-3
+    - S-4
+    - S-5
+    - S-6
+    acceptance_criteria:
+    - AC-1
+    - AC-2
+    - AC-3
+    - AC-4
+    - AC-5
+    - AC-6
+    - AC-7
+  expected_files:
+  - docs/specs/agent-worktree-deploy/spec.yml
+  verification_ids:
+  - V-SPEC-VALIDATE
+  dependencies: []
+  blockers: []
+  follow_up_tasks:
+  - TASK-2
+  ownership:
+    files:
+    - docs/specs/agent-worktree-deploy/spec.yml
+    shared_files: []
+- id: TASK-2
+  title: Add red-phase lifecycle, deploy, verification, cleanup, and guard tests
+  status: pending
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-1
+    - S-2
+    - S-3
+    - S-4
+    - S-5
+    - S-6
+    acceptance_criteria:
+    - AC-1
+    - AC-2
+    - AC-3
+    - AC-4
+    - AC-5
+    - AC-6
+  expected_files:
+  - scripts/tests/test_sessions_worktree_lifecycle.py
+  - scripts/tests/test_sessions_worktree_deploy.py
+  - scripts/tests/test_sessions_worktree_deploy_queue.py
+  - scripts/tests/test_commit_scoped_deploy_verification.py
+  - scripts/tests/test_sessions_worktree_cleanup.py
+  - scripts/tests/test_sessions_root_guard.py
+  - scripts/tests/test_opencode_worktree_guards.mjs
+  verification_ids:
+  - T-PYTEST-WORKTREE-LIFECYCLE
+  - T-PYTEST-DEPLOY-INTEGRATION
+  - T-PYTEST-DEPLOY-QUEUE
+  - T-PYTEST-COMMIT-VERIFICATION
+  - T-PYTEST-WORKTREE-CLEANUP
+  - T-PYTEST-ROOT-GUARD
+  - T-NODE-HOOK-GUARDS
+  dependencies:
+  - TASK-1
+  blockers: []
+  follow_up_tasks:
+  - TASK-3
+  ownership:
+    files:
+    - scripts/tests/test_sessions_worktree_lifecycle.py
+    - scripts/tests/test_sessions_worktree_deploy.py
+    - scripts/tests/test_sessions_worktree_deploy_queue.py
+    - scripts/tests/test_commit_scoped_deploy_verification.py
+    - scripts/tests/test_sessions_worktree_cleanup.py
+    - scripts/tests/test_sessions_root_guard.py
+    - scripts/tests/test_opencode_worktree_guards.mjs
+    shared_files: []
+- id: TASK-3
+  title: Implement session worktree lifecycle and deploy integration
+  status: pending
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-1
+    - S-2
+    - S-3
+    acceptance_criteria:
+    - AC-1
+    - AC-2
+    - AC-3
+  expected_files:
+  - scripts/sessions.py
+  verification_ids:
+  - T-PYTEST-WORKTREE-LIFECYCLE
+  - T-PYTEST-DEPLOY-INTEGRATION
+  - T-PYTEST-DEPLOY-QUEUE
+  dependencies:
+  - TASK-2
+  blockers: []
+  follow_up_tasks:
+  - TASK-4
+  - TASK-5
+  ownership:
+    files:
+    - scripts/sessions.py
+    shared_files:
+    - .claude/sessions.json
+- id: TASK-4
+  title: Implement commit-scoped verification modes
+  status: pending
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-4
+    acceptance_criteria:
+    - AC-4
+  expected_files:
+  - scripts/tests.py
+  - scripts/run_tests.py
+  - scripts/vercel_ignore_build.py
+  - scripts/ci_impact.py
+  verification_ids:
+  - T-PYTEST-COMMIT-VERIFICATION
+  dependencies:
+  - TASK-3
+  blockers: []
+  follow_up_tasks:
+  - TASK-6
+  ownership:
+    files:
+    - scripts/tests.py
+    - scripts/run_tests.py
+    - scripts/vercel_ignore_build.py
+    - scripts/ci_impact.py
+    shared_files: []
+- id: TASK-5
+  title: Implement cleanup and archive workflow
+  status: pending
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-5
+    acceptance_criteria:
+    - AC-5
+  expected_files:
+  - scripts/sessions.py
+  - docs/architecture/infrastructure/cronjobs.md
+  verification_ids:
+  - T-PYTEST-WORKTREE-CLEANUP
+  dependencies:
+  - TASK-3
+  blockers: []
+  follow_up_tasks:
+  - TASK-7
+  ownership:
+    files:
+    - scripts/sessions.py
+    - docs/architecture/infrastructure/cronjobs.md
+    shared_files: []
+- id: TASK-6
+  title: Implement root guardrails for OpenCode and Codex paths
+  status: pending
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-6
+    acceptance_criteria:
+    - AC-1
+    - AC-6
+  expected_files:
+  - .opencode/plugins/openmates-hooks.js
+  - .codex/hooks/bash-guard.sh
+  - scripts/sessions.py
+  verification_ids:
+  - T-NODE-HOOK-GUARDS
+  - T-PYTEST-ROOT-GUARD
+  dependencies:
+  - TASK-3
+  blockers: []
+  follow_up_tasks:
+  - TASK-7
+  ownership:
+    files:
+    - .opencode/plugins/openmates-hooks.js
+    - .codex/hooks/bash-guard.sh
+    - scripts/sessions.py
+    shared_files: []
+- id: TASK-7
+  title: Update workflow documentation and deterministic audit
+  status: pending
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-1
+    - S-2
+    - S-4
+    - S-5
+    - S-6
+    acceptance_criteria:
+    - AC-7
+  expected_files:
+  - .agents/skills/deploy/SKILL.md
+  - .agents/skills/verify-ui-change/SKILL.md
+  - docs/architecture/agent-tooling-parity.md
+  - docs/architecture/infrastructure/cronjobs.md
+  - scripts/audit_worktree_deploy_contract.py
+  verification_ids:
+  - T-AUDIT-DOCS
+  dependencies:
+  - TASK-4
+  - TASK-5
+  - TASK-6
+  blockers: []
+  follow_up_tasks:
+  - TASK-8
+  ownership:
+    files:
+    - .agents/skills/deploy/SKILL.md
+    - .agents/skills/verify-ui-change/SKILL.md
+    - docs/architecture/agent-tooling-parity.md
+    - docs/architecture/infrastructure/cronjobs.md
+    - scripts/audit_worktree_deploy_contract.py
+    shared_files: []
+- id: TASK-8
+  title: Run final spec verification and record evidence
+  status: pending
+  phase: running_checks
+  covers:
+    scenarios:
+    - S-1
+    - S-2
+    - S-3
+    - S-4
+    - S-5
+    - S-6
+    acceptance_criteria:
+    - AC-1
+    - AC-2
+    - AC-3
+    - AC-4
+    - AC-5
+    - AC-6
+    - AC-7
+  expected_files:
+  - docs/specs/agent-worktree-deploy/spec.yml
+  verification_ids:
+  - V-SPEC-VALIDATE
+  - V-SPEC-VERIFY
+  dependencies:
+  - TASK-7
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    files:
+    - docs/specs/agent-worktree-deploy/spec.yml
+    shared_files: []

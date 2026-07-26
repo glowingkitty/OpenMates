@@ -39,6 +39,23 @@ def test_e2e_flake_audit_flags_raw_wait(tmp_path):
     assert findings[0].kind == "raw-wait"
 
 
+def test_playwright_determinism_audits_shared_helpers(tmp_path, monkeypatch):
+    audit = load_script("audit_playwright_determinism")
+    repo = tmp_path / "repo"
+    helper_root = repo / "frontend" / "apps" / "web_app" / "tests" / "helpers"
+    helper_root.mkdir(parents=True)
+    helper_path = helper_root / "chat-helper.ts"
+    helper_path.write_text("await page.waitForTimeout(1000);\n", encoding="utf-8")
+    monkeypatch.setattr(audit, "REPO_ROOT", repo)
+    monkeypatch.setattr(audit, "SPEC_ROOT", repo / "frontend" / "apps" / "web_app" / "tests")
+    monkeypatch.setattr(audit, "HELPER_ROOT", helper_root)
+
+    issues = audit.audit_paths([helper_path])
+
+    assert len(issues) == 1
+    assert "waitForTimeout" in issues[0].message
+
+
 def test_spec_evidence_records_verification(tmp_path, monkeypatch):
     spec_evidence = load_script("spec_evidence")
     spec_path = tmp_path / "spec.yml"

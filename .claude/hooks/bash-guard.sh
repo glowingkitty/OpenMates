@@ -16,6 +16,11 @@ if echo "$COMMAND" | grep -qE 'sessions\.py\s+deploy'; then
   exit 0
 fi
 
+# --- Allow orchestrated session worktree commands, not raw git worktree ---
+if echo "$COMMAND" | grep -qE 'sessions\.py\s+worktree\s+(ensure|cleanup)'; then
+  exit 0
+fi
+
 # --- Allow git operations in the marketing repo (no code, just yml/md content) ---
 if echo "$COMMAND" | grep -qE 'openmates-marketing'; then
   exit 0
@@ -91,9 +96,9 @@ for script_path in $(echo "$COMMAND" | grep -oE '(^|[[:space:];&|])([^[:space:];
   fi
 done
 
-# --- Block git worktree (all work in main directory) ---
+# --- Block raw git worktree (use sessions.py worktree so metadata and cleanup stay consistent) ---
 if echo "$COMMAND" | grep -qE '\bgit\s+worktree\b'; then
-  echo '{"decision":"block","reason":"BLOCKED: git worktree is forbidden. All work happens in the main working directory."}' >&2
+  echo '{"decision":"block","reason":"BLOCKED: raw git worktree is forbidden. Use python3 scripts/sessions.py worktree ensure --session <id> so metadata and cleanup stay consistent."}' >&2
   exit 2
 fi
 
