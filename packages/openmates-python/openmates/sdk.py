@@ -2821,7 +2821,10 @@ class OpenMatesTasks:
         tags: list[str] | None = None,
         priority: str | int | None = None,
     ) -> list[dict[str, Any]]:
-        return self.list_decrypted(status=status, chat_id=chat_id, project_id=project_id, plan_id=plan_id, labels=labels, tags=tags, priority=priority)
+        return [
+            _public_task(task)
+            for task in self._list_internal(status=status, chat_id=chat_id, project_id=project_id, plan_id=plan_id, labels=labels, tags=tags, priority=priority)
+        ]
 
     def _list_raw(
         self,
@@ -2847,22 +2850,6 @@ class OpenMatesTasks:
                 priority=_normalize_task_priority(priority),
             )
         ).get("tasks", [])
-
-    def list_decrypted(
-        self,
-        *,
-        status: str | None = None,
-        chat_id: str | None = None,
-        project_id: str | None = None,
-        plan_id: str | None = None,
-        labels: list[str] | None = None,
-        tags: list[str] | None = None,
-        priority: str | int | None = None,
-    ) -> list[dict[str, Any]]:
-        return [
-            _public_task(task)
-            for task in self._list_internal(status=status, chat_id=chat_id, project_id=project_id, plan_id=plan_id, labels=labels, tags=tags, priority=priority)
-        ]
 
     def show(self, task_id: str, **filters: Any) -> dict[str, Any]:
         return _public_task(self._resolve(task_id, filters))
@@ -3754,7 +3741,7 @@ class OpenMatesAccount:
     def scan_import(self, import_id: str, chats: list[dict[str, Any]]) -> dict[str, Any]:
         return self._client._post(f"/v1/account-imports/{quote(import_id, safe='')}/scan", {"chats": chats})
 
-    def persist_encrypted_import(self, import_id: str, chats: list[dict[str, Any]]) -> dict[str, Any]:
+    def persist_import(self, import_id: str, chats: list[dict[str, Any]]) -> dict[str, Any]:
         master_key = self._client._get_master_key()
         encrypted_chats = []
         for chat in chats:
@@ -3791,11 +3778,11 @@ class OpenMatesAccount:
             })
         return self._client._post(f"/v1/account-imports/{quote(import_id, safe='')}/persist-encrypted", {"chats": encrypted_chats})
 
-    def complete_import(self, import_id: str, *, imported_chat_ids: list[str], source_fingerprints: list[str], encrypted_record_counts: dict[str, int], client_failures: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+    def complete_import(self, import_id: str, *, imported_chat_ids: list[str], source_fingerprints: list[str], record_counts: dict[str, int], client_failures: list[dict[str, Any]] | None = None) -> dict[str, Any]:
         return self._client._post(f"/v1/account-imports/{quote(import_id, safe='')}/complete", {
             "imported_chat_ids": imported_chat_ids,
             "source_fingerprints": source_fingerprints,
-            "encrypted_record_counts": encrypted_record_counts,
+            "encrypted_record_counts": record_counts,
             "client_failures": client_failures or [],
         })
 
@@ -3813,12 +3800,12 @@ class OpenMatesAccount:
         selected_chats = chats[:selected_count]
         scan = self.scan_import(import_id, selected_chats)
         sanitized_chats = scan.get("chats") if isinstance(scan.get("chats"), list) and scan.get("chats") else selected_chats
-        persistence = self.persist_encrypted_import(import_id, sanitized_chats)
+        persistence = self.persist_import(import_id, sanitized_chats)
         complete = self.complete_import(
             import_id,
             imported_chat_ids=[str(item) for item in persistence.get("imported_chat_ids", [])] if isinstance(persistence.get("imported_chat_ids"), list) else [],
             source_fingerprints=[str(chat.get("source_fingerprint") or "") for chat in sanitized_chats],
-            encrypted_record_counts=persistence.get("encrypted_record_counts") if isinstance(persistence.get("encrypted_record_counts"), dict) else {"chats": 0, "messages": 0},
+            record_counts=persistence.get("encrypted_record_counts") if isinstance(persistence.get("encrypted_record_counts"), dict) else {"chats": 0, "messages": 0},
             client_failures=persistence.get("failures") if isinstance(persistence.get("failures"), list) else [],
         )
         return {"source": parsed.get("source"), "parsed": parsed, "preview": preview, "import_id": import_id, "scan": scan, "persistence": persistence, "complete": complete}

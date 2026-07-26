@@ -271,7 +271,7 @@ export interface AccountImportPreviewOptions {
 export interface AccountImportCompleteOptions {
   importedChatIds: string[];
   sourceFingerprints: string[];
-  encryptedRecordCounts: Record<string, number>;
+  recordCounts: Record<string, number>;
   clientFailures?: Array<Record<string, unknown>>;
 }
 
@@ -2307,7 +2307,7 @@ export class OpenMatesAccount {
     return this.client.request<Record<string, unknown>>(`/v1/account-imports/${encodeURIComponent(importId)}/scan`, { chats });
   }
 
-  async persistEncryptedImport(importId: string, chats: ParsedImportChat[]): Promise<Record<string, unknown>> {
+  async persistImport(importId: string, chats: ParsedImportChat[]): Promise<Record<string, unknown>> {
     const masterKey = await this.client.masterKey();
     const encryptedChats = [];
     for (const chat of chats) {
@@ -2347,7 +2347,7 @@ export class OpenMatesAccount {
     return this.client.request<Record<string, unknown>>(`/v1/account-imports/${encodeURIComponent(importId)}/complete`, {
       imported_chat_ids: options.importedChatIds,
       source_fingerprints: options.sourceFingerprints,
-      encrypted_record_counts: options.encryptedRecordCounts,
+      encrypted_record_counts: options.recordCounts,
       client_failures: options.clientFailures ?? [],
     });
   }
@@ -2367,11 +2367,11 @@ export class OpenMatesAccount {
     const sanitizedChats = Array.isArray(scan.chats) && scan.chats.length > 0
       ? scan.chats as ParsedImportChat[]
       : selectedChats;
-    const persistence = await this.persistEncryptedImport(importId, sanitizedChats);
+    const persistence = await this.persistImport(importId, sanitizedChats);
     const complete = await this.completeImport(importId, {
       importedChatIds: Array.isArray(persistence.imported_chat_ids) ? persistence.imported_chat_ids as string[] : [],
       sourceFingerprints: sanitizedChats.map((chat) => chat.source_fingerprint),
-      encryptedRecordCounts: typeof persistence.encrypted_record_counts === "object" && persistence.encrypted_record_counts !== null
+      recordCounts: typeof persistence.encrypted_record_counts === "object" && persistence.encrypted_record_counts !== null
         ? persistence.encrypted_record_counts as Record<string, number>
         : { chats: 0, messages: 0 },
       clientFailures: Array.isArray(persistence.failures) ? persistence.failures as Array<Record<string, unknown>> : [],
@@ -2740,10 +2740,6 @@ export class OpenMatesTasks {
 
   async list(filters: TaskListFilters = {}): Promise<TaskRecord[]> {
     return (await this.listInternal(filters)).map(toPublicTask);
-  }
-
-  async listDecrypted(filters: TaskListFilters = {}): Promise<TaskRecord[]> {
-    return this.list(filters);
   }
 
   async show(id: string, filters: TaskListFilters = {}): Promise<TaskRecord> {

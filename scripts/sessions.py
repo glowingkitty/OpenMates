@@ -3545,6 +3545,21 @@ def _should_validate_embed_registry(files: list[str]) -> bool:
     )
 
 
+def _should_run_sdk_cleartext_gate(files: list[str]) -> bool:
+    """Return True when changed files can affect public npm/pip SDK parity."""
+    return any(
+        f.startswith("frontend/packages/openmates-cli/src/")
+        or f.startswith("packages/openmates-python/openmates/")
+        or f.startswith("scripts/audit_sdk_cleartext_")
+        or f.startswith("scripts/audit_sdk_docs_coverage.py")
+        or f.startswith("scripts/audit_sdk_test_coverage.py")
+        or f.startswith("scripts/generate_sdk_reference.py")
+        or f.startswith("scripts/sdk_reference_common.py")
+        or f.startswith("docs/user-guide/developers/sdk")
+        for f in files
+    )
+
+
 def _get_unpushed_files() -> list[str]:
     """Return files changed by local commits that have not reached origin/dev."""
     rc, stdout, _ = _run_cmd(["git", "diff", "--name-only", "origin/dev..HEAD"])
@@ -3575,6 +3590,33 @@ def _enforce_embed_registry_validation(files: list[str]) -> None:
             print(stderr, file=sys.stderr)
         sys.exit(1)
     print("Embed registry: PASSED")
+
+
+def _run_sdk_cleartext_audit(command: list[str]) -> tuple[int, str, str]:
+    return _run_cmd(command, timeout=180)
+
+
+def _enforce_sdk_cleartext_gate(files: list[str]) -> None:
+    if not _should_run_sdk_cleartext_gate(files):
+        return
+    checks = (
+        [sys.executable, "scripts/audit_sdk_cleartext_parity.py"],
+        [sys.executable, "scripts/audit_sdk_cleartext_boundary.py"],
+        [sys.executable, "scripts/audit_sdk_docs_coverage.py"],
+        [sys.executable, "scripts/audit_sdk_test_coverage.py"],
+    )
+    print("Running SDK cleartext parity/boundary/docs/test audits...")
+    for command in checks:
+        rc, stdout, stderr = _run_sdk_cleartext_audit(command)
+        if rc != 0:
+            print("SDK CLEARTEXT GATE FAILED — aborting deploy:", file=sys.stderr)
+            print("  " + " ".join(command), file=sys.stderr)
+            if stdout:
+                print(stdout, file=sys.stderr)
+            if stderr:
+                print(stderr, file=sys.stderr)
+            sys.exit(1)
+    print("SDK cleartext gate: PASSED")
 
 
 def _run_translation_validation() -> tuple[int, str, str]:
@@ -3694,6 +3736,14 @@ def cmd_prepare_deploy(args: argparse.Namespace) -> None:
 
     # Translation validation skipped here — deploy and pre-commit hook both
     # run validate:locales as blocking checks, so this was redundant and slow.
+
+    if to_commit and _should_run_sdk_cleartext_gate(to_commit):
+        print("SDK cleartext gate: REQUIRED")
+        print("  python3 scripts/audit_sdk_cleartext_parity.py")
+        print("  python3 scripts/audit_sdk_cleartext_boundary.py")
+        print("  python3 scripts/audit_sdk_docs_coverage.py")
+        print("  python3 scripts/audit_sdk_test_coverage.py")
+        print()
 
     # Related architecture docs
     related = _find_related_docs(modified)
@@ -3918,6 +3968,10 @@ def cmd_deploy(args: argparse.Namespace) -> None:
     skip_tests_reason = getattr(args, "skip_tests_reason", None)
     _run_test_enforcement_gate(to_commit, skip_tests_reason)
 
+    # 1d. Public SDK changes must keep npm/pip feature parity, cleartext
+    # boundaries, generated docs, and test coverage current before deploy.
+    _enforce_sdk_cleartext_gate(to_commit)
+
     if getattr(args, "require_parity", False):
         print("Checking latest parity evidence...")
         rc, stdout, stderr = _run_cmd([sys.executable, "scripts/verify_parity.py", "--check", "--no-skips"])
@@ -3930,7 +3984,7 @@ def cmd_deploy(args: argparse.Namespace) -> None:
             sys.exit(1)
         print("Parity evidence: PASSED")
 
-    # 1d. Pytest gate — hard-block on failing related pytest unit tests
+    # 1e. Pytest gate — hard-block on failing related pytest unit tests
     _run_pytest_gate(to_commit, skip_reason=skip_tests_reason, no_verify=no_verify)
 
     _enforce_embed_registry_validation(to_commit)

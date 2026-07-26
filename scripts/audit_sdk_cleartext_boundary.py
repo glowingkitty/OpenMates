@@ -23,6 +23,12 @@ INDEX_TS = ROOT / "frontend/packages/openmates-cli/src/index.ts"
 SDK_PY = ROOT / "packages/openmates-python/openmates/sdk.py"
 
 FORBIDDEN_PUBLIC_TOKENS = (
+    "listDecrypted",
+    "list_decrypted",
+    "persistEncryptedImport",
+    "persist_encrypted_import",
+    "encryptedRecordCounts",
+    "encrypted_record_counts",
     "encryptedCreate",
     "encryptedCreates",
     "encryptedUpdate",
@@ -34,8 +40,8 @@ FORBIDDEN_PUBLIC_TOKENS = (
     "key_wrappers",
 )
 
-PUBLIC_NPM_CLASSES = ("OpenMatesTasks", "OpenMatesPlans", "OpenMatesProjects")
-PUBLIC_PIP_CLASSES = ("OpenMatesTasks", "OpenMatesPlans", "OpenMatesProjects")
+PUBLIC_NPM_CLASSES = ()
+PUBLIC_PIP_CLASSES = ()
 
 
 def class_body(source: str, class_name: str, *, language: str) -> str:
@@ -59,19 +65,33 @@ def public_method_signatures(body: str, *, language: str) -> list[str]:
     return signatures
 
 
+def public_classes(source: str, *, language: str) -> list[str]:
+    if language == "ts":
+        return [
+            match.group(1)
+            for match in re.finditer(r"\nexport class (OpenMates[A-Za-z0-9_]*)\b", source)
+            if match.group(1) not in {"OpenMatesApiError", "OpenMatesConfigError"}
+        ]
+    return [
+        match.group(1)
+        for match in re.finditer(r"\nclass (OpenMates[A-Za-z0-9_]*):", source)
+        if match.group(1) not in {"OpenMatesApiError", "OpenMatesConfigError"}
+    ]
+
+
 def main() -> int:
     failures: list[str] = []
     sdk_ts = SDK_TS.read_text(encoding="utf-8")
     index_ts = INDEX_TS.read_text(encoding="utf-8")
     sdk_py = SDK_PY.read_text(encoding="utf-8")
 
-    for class_name in PUBLIC_NPM_CLASSES:
+    for class_name in public_classes(sdk_ts, language="ts"):
         for signature in public_method_signatures(class_body(sdk_ts, class_name, language="ts"), language="ts"):
             for token in FORBIDDEN_PUBLIC_TOKENS:
                 if token in signature:
                     failures.append(f"npm {class_name} public signature exposes {token}: {signature}")
 
-    for class_name in PUBLIC_PIP_CLASSES:
+    for class_name in public_classes(sdk_py, language="py"):
         for signature in public_method_signatures(class_body(sdk_py, class_name, language="py"), language="py"):
             for token in FORBIDDEN_PUBLIC_TOKENS:
                 if token in signature:

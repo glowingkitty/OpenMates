@@ -5,7 +5,9 @@ last_verified: 2026-06-22
 
 # OpenMates SDKs
 
-OpenMates provides JavaScript and Python SDKs for API-key access to app skills, encrypted chat workflows, and CLI-parity account/product operations.
+OpenMates provides JavaScript and Python SDKs for API-key access to app skills, chat workflows, and CLI-parity account/product operations.
+
+For the complete method list, see [SDK Reference](./sdk-reference.md). For the generated test coverage matrix, see [SDK Test Coverage Matrix](./sdk-test-coverage.md).
 
 ## API Keys
 
@@ -41,7 +43,7 @@ const search = await om.apps.web.search({
 
 You do not need to call `connect()`. SDK methods authenticate lazily with the API key.
 
-List the latest encrypted account chats. The default limit is 10 for fast loading; pass `limit: 0` only when you intentionally want all account chats:
+List the latest account chats. The default limit is 10 for fast loading; pass `limit: 0` only when you intentionally want all account chats:
 
 ```ts
 const chats = await om.chats.list({ limit: 10 });
@@ -69,7 +71,7 @@ await om.billing.invoices();
 await om.docs.search("api keys");
 ```
 
-SDK chat deletion/sharing, billing exports/downloads, connected-account import, encrypted memories, assistant feedback, and benchmarks are available through named SDK methods. Debug-log sharing remains CLI-only and returns a typed unavailable error in SDKs.
+SDK chat deletion/sharing, billing exports/downloads, connected-account import, memories, assistant feedback, and benchmarks are available through named SDK methods. Debug-log sharing remains CLI-only and returns a typed unavailable error in SDKs.
 
 ### Workflow Automation
 
@@ -145,7 +147,7 @@ result = om.apps.web.search({
 })
 ```
 
-List latest encrypted account chats. The default limit is 10 for fast loading; pass `limit=0` only when you intentionally want all account chats:
+List latest account chats. The default limit is 10 for fast loading; pass `limit=0` only when you intentionally want all account chats:
 
 ```python
 chats = om.chats.list(limit=10)
@@ -173,7 +175,7 @@ om.billing.invoices()
 om.docs.search("api keys")
 ```
 
-SDK chat deletion/sharing, billing exports/downloads, connected-account import, encrypted memories, assistant feedback, and benchmarks are available through named SDK methods. Debug-log sharing remains CLI-only and returns a typed unavailable error in SDKs.
+SDK chat deletion/sharing, billing exports/downloads, connected-account import, memories, assistant feedback, and benchmarks are available through named SDK methods. Debug-log sharing remains CLI-only and returns a typed unavailable error in SDKs.
 
 ### Workflow Automation
 
@@ -235,7 +237,7 @@ Chat scopes are enforced server-side:
 
 - `chat:create_incognito` allows non-persistent SDK chats.
 - `chat:create_saved` allows saved account chats.
-- `chat:read_existing` allows listing existing encrypted account chats, including `chats.list({ limit })`.
+- `chat:read_existing` allows listing existing account chats, including `chats.list({ limit })`.
 - `chat:append_existing` allows adding messages to existing saved chats.
 - `chat:delete` allows deleting chats.
 - `chat:share` allows creating share links.
