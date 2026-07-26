@@ -453,9 +453,14 @@ test.describe('Landing page onboarding refresh', () => {
 		await expect(page.getByTestId('record-cancel-button')).toContainText('Cancel');
 		const finishButtonStyle = await page.getByTestId('record-finish-button').evaluate((element: HTMLElement) => {
 			const style = getComputedStyle(element);
+			const colorProbe = document.createElement('span');
+			colorProbe.style.backgroundColor = getComputedStyle(document.documentElement).getPropertyValue('--color-button-primary').trim();
+			document.body.appendChild(colorProbe);
+			const buttonPrimary = getComputedStyle(colorProbe).backgroundColor;
+			colorProbe.remove();
 			return {
 				backgroundColor: style.backgroundColor,
-				buttonPrimary: getComputedStyle(document.documentElement).getPropertyValue('--color-button-primary').trim(),
+				buttonPrimary,
 				color: style.color
 			};
 		});

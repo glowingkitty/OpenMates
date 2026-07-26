@@ -1706,6 +1706,9 @@
         if (showMaps || showCamera || showSketch) {
             return `height: ${MESSAGE_FIELD_MAPS_HEIGHT}px; max-height: ${MESSAGE_FIELD_MAPS_HEIGHT}px;`;
         }
+        if (inlineCompact && !isMessageFieldFocused && !hasContent) {
+            return 'height: 48px; max-height: 48px;';
+        }
         return `height: auto; max-height: ${MESSAGE_FIELD_MAX_HEIGHT}px;`;
     })());
 
