@@ -1041,7 +1041,7 @@ export class GroupRenderer implements EmbedRenderer {
       if (itemAppId) {
         segment.style.setProperty(
           "--group-scroll-indicator-color",
-          `var(--color-app-${itemAppId}, var(--color-grey-60))`,
+          `var(--color-app-${itemAppId}-start, var(--color-grey-60))`,
         );
       }
       segment.setAttribute(
