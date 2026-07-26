@@ -33,6 +33,7 @@ const {
 	createStepScreenshotter,
 	assertNoMissingTranslations,
 	getTestAccount,
+	getE2EDebugUrl,
 	withMockMarker
 } = require('./signup-flow-helpers');
 
@@ -368,6 +369,45 @@ test('downloads the active chat as a file via context menu', async ({ page }: { 
 	log(`Download initiated: ${downloadStarted}`);
 
 	await assertNoMissingTranslations(page);
+	await deleteActiveChat(page, log, screenshot, 'cleanup');
+	log('Test complete.');
+});
+
+test('reloads combined chat settings deep link with private chat context', async ({ page }: { page: any }) => {
+	test.slow();
+	test.setTimeout(300000);
+
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+
+	const log = createSignupLogger('CHAT_MGMT_SETTINGS_DEEPLINK');
+	const screenshot = createStepScreenshotter(log);
+	await archiveExistingScreenshots(log);
+
+	await loginToTestAccount(page, log, screenshot);
+	await page.waitForTimeout(3000);
+
+	await createTestChat(page, 'Reply in one short sentence: settings deep links should survive reload.', log);
+	const chatIdMatch = page.url().match(/chat-id=([^&]+)/);
+	const chatId = chatIdMatch?.[1];
+	if (!chatId) throw new Error('Created chat URL is missing chat-id');
+
+	await page.goto(getE2EDebugUrl(`/#chat-id=${chatId}&settings=chats/${chatId}/tasks`), {
+		waitUntil: 'domcontentloaded'
+	});
+
+	const settingsMenu = page.getByTestId('settings-menu');
+	await expect(settingsMenu).toBeVisible({ timeout: 15000 });
+	await expect(settingsMenu).toHaveAttribute('data-active-view', `chats/${chatId}/tasks`, {
+		timeout: 15000
+	});
+
+	const chatSettingsPage = settingsMenu.getByTestId('chat-settings-page');
+	await expect(chatSettingsPage).toBeVisible({ timeout: 15000 });
+	await expect(chatSettingsPage).not.toContainText(/Open a chat before viewing chat settings/i, {
+		timeout: 15000
+	});
+	await expect(settingsMenu.getByTestId('chat-settings-tabpanel-tasks')).toBeVisible({ timeout: 15000 });
+
 	await deleteActiveChat(page, log, screenshot, 'cleanup');
 	log('Test complete.');
 });

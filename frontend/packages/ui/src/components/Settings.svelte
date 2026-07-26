@@ -36,6 +36,7 @@ changes to the documentation (to keep the documentation up to date).
 
 <script lang="ts">
     import { onMount, createEventDispatcher, tick } from 'svelte';
+    import { get } from 'svelte/store';
     import { fly, fade, slide } from 'svelte/transition';
     import { cubicOut } from 'svelte/easing';
     import { authStore, isCheckingAuth, logout } from '../stores/authStore'; // Import logout action
@@ -86,7 +87,7 @@ changes to the documentation (to keep the documentation up to date).
     import { chatMetadataCache } from '../services/chatMetadataCache';
     import { chatDB } from '../services/db';
     import { chatSettingsStore } from '../stores/chatSettingsStore';
-    import type { Chat } from '../types/chat';
+    import type { Chat, Message } from '../types/chat';
     import {
         getCategoryGradientColors,
         getFallbackIconForCategory,
@@ -553,6 +554,46 @@ changes to the documentation (to keep the documentation up to date).
             }
         } finally {
             isRefreshingHeaderIcons = false;
+        }
+    }
+
+    async function hydrateChatSettingsContext(settingsPath: string): Promise<void> {
+        const match = settingsPath.match(/^chats\/([^/]+)(?:\/([^/]+))?$/);
+        if (!match) return;
+
+        const [, chatId, tab] = match;
+        const existingContext = get(chatSettingsStore);
+        if (existingContext?.chat.chat_id === chatId) {
+            chatSettingsStore.setTab(tab);
+            return;
+        }
+
+        try {
+            const chat = await chatDB.getChat(chatId);
+            if (!chat) {
+                chatSettingsStore.clear();
+                console.warn('[Settings] Cannot hydrate chat settings context: chat not found', { chatId });
+                return;
+            }
+
+            let messages: Message[] = [];
+            try {
+                messages = await chatDB.getMessagesForChat(chatId);
+            } catch (error) {
+                console.error('[Settings] Failed to load messages for chat settings deep link:', error);
+            }
+
+            const metadata = await chatMetadataCache.getDecryptedMetadata(chat);
+            chatSettingsStore.open(chat, messages, tab, {
+                title: metadata?.title || chat.title || null,
+                summary: metadata?.summary || chat.chat_summary || null,
+                category: metadata?.category || chat.category || null,
+                icon: metadata?.icon || chat.icon?.split(',')[0]?.trim() || null,
+                credits: chat.budget_spent ?? null,
+            });
+        } catch (error) {
+            chatSettingsStore.clear();
+            console.error('[Settings] Failed to hydrate chat settings deep link:', error);
         }
     }
 
@@ -1469,6 +1510,9 @@ changes to the documentation (to keep the documentation up to date).
         }
 
         const chatSettingsPattern = /^chats\/[^/]+(?:\/[^/]+)?$/;
+        if (chatSettingsPattern.test(settingsPath)) {
+            await hydrateChatSettingsContext(settingsPath);
+        }
         if (chatSettingsPattern.test(settingsPath) && !dynamicEntryRoutes.has(settingsPath)) {
             dynamicEntryRoutes.add(settingsPath);
             dynamicEntryRoutes = new Set(dynamicEntryRoutes);

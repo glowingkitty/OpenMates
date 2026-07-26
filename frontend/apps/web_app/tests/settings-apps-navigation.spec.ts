@@ -89,3 +89,30 @@ test('guest Apps catalog survives settings navigation and opens app details', as
 		timeout: SETTINGS_TIMEOUT
 	});
 });
+
+test('combined chat settings deep link hydrates chat context after reload', async ({
+	page
+}: {
+	page: any;
+}) => {
+	await page.goto(
+		getE2EDebugUrl('/#chat-id=demo-for-everyone&settings=chats/demo-for-everyone/tasks'),
+		{ waitUntil: 'domcontentloaded' }
+	);
+
+	const settingsMenu = page.getByTestId('settings-menu');
+	await expect(settingsMenu).toBeVisible({ timeout: SETTINGS_TIMEOUT });
+	await expect(settingsMenu).toHaveAttribute('data-active-view', 'chats/demo-for-everyone/tasks', {
+		timeout: SETTINGS_TIMEOUT
+	});
+
+	const chatSettingsPage = settingsMenu.getByTestId('chat-settings-page');
+	await expect(chatSettingsPage).toBeVisible({ timeout: SETTINGS_TIMEOUT });
+	await expect(chatSettingsPage).not.toContainText(/Open a chat before viewing chat settings/i, {
+		timeout: SETTINGS_TIMEOUT
+	});
+	await expect(settingsMenu.getByTestId('chat-settings-tabs')).toBeVisible({ timeout: SETTINGS_TIMEOUT });
+	await expect(settingsMenu.getByTestId('chat-settings-tabpanel-tasks')).toBeVisible({
+		timeout: SETTINGS_TIMEOUT
+	});
+});
