@@ -4710,6 +4710,8 @@
         if (action === 'start') {
             if ($recordingState.isRecordButtonPressed || $recordingState.showRecordAudioUI) return;
             recordAudioStartedFromKeyboard = event.detail.source === 'keyboard';
+            focus();
+            await tick();
             const position = getKeyboardRecordStartPosition();
             const syntheticMouseDown = new MouseEvent('mousedown', {
                 button: 0,
