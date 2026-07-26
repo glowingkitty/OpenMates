@@ -78,6 +78,7 @@ from backend.shared.python_utils.learning_mode import (
 )
 
 logger = logging.getLogger(__name__)
+ASSISTANT_RESPONSE_TIMESTAMP_OFFSET_SECONDS = 1
 
 SUB_CHAT_PENDING_TTL_SECONDS = 60 * 60 * 24
 SUB_CHAT_PENDING_KEY_PREFIX = "sub_chat_pending"
@@ -1782,6 +1783,31 @@ async def _persist_sealed_recovery_job(
     return await ChatRecoveryService(directus_service).execute("create_sealed_job", data)
 
 
+def _assistant_response_created_at(request_data: AskSkillRequest, fallback_timestamp: int) -> int:
+    """Return the durable creation timestamp for an assistant response.
+
+    Assistant persistence can finish after the user has already answered an
+    interactive question. Anchor the assistant row to the triggering user turn so
+    stored `created_at` order matches conversation order instead of write order.
+    """
+    messages = list(request_data.message_history or [])
+    for index in range(len(messages) - 1, -1, -1):
+        message = messages[index]
+        if getattr(message, "role", None) != "user":
+            continue
+        try:
+            anchor_timestamp = int(getattr(message, "created_at"))
+        except (AttributeError, TypeError, ValueError):
+            break
+        for later_message in messages[index + 1 :]:
+            try:
+                anchor_timestamp = max(anchor_timestamp, int(getattr(later_message, "created_at")))
+            except (AttributeError, TypeError, ValueError):
+                continue
+        return anchor_timestamp + ASSISTANT_RESPONSE_TIMESTAMP_OFFSET_SECONDS
+    return fallback_timestamp
+
+
 def _create_redis_payload(
     task_id: str,
     request_data: AskSkillRequest,
@@ -1800,6 +1826,7 @@ def _create_redis_payload(
     rejection_reason: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Create standardized Redis payload for streaming chunks."""
+    created_at = _assistant_response_created_at(request_data, int(time.time()))
     payload = {
         "type": "ai_message_chunk",
         "task_id": task_id,
@@ -1808,6 +1835,7 @@ def _create_redis_payload(
         "user_id_hash": request_data.user_id_hash,
         "message_id": task_id,
         "user_message_id": request_data.message_id,
+        "created_at": created_at,
         "full_content_so_far": content,
         "sequence": sequence,
         "is_final_chunk": is_final,
@@ -2302,6 +2330,7 @@ async def _save_to_cache_and_publish(
         client_message: dict = {
             "message_id": task_id,
             "chat_id": request_data.chat_id,
+            "user_message_id": request_data.message_id,
             "role": client_role,
             "category": category,
             "content": content_markdown,  # Send markdown content to client
@@ -2606,7 +2635,7 @@ async def _generate_fake_stream_for_harmful_content(
     # CRITICAL: This is non-blocking - if metadata update fails, the error message should still reach the user
     # EXTERNAL REQUESTS skip this.
     if not request_data.is_external and directus_service and cache_service and predefined_response:
-        timestamp = int(time.time())
+        timestamp = _assistant_response_created_at(request_data, int(time.time()))
         content_tiptap = predefined_response  # Send as markdown
 
         try:
@@ -2712,7 +2741,7 @@ async def _generate_fake_stream_for_simple_message(
     # EXTERNAL REQUESTS skip this.
     if not request_data.is_external and directus_service and cache_service and message_text:
         category = "general_knowledge"  # Default category for simple messages
-        timestamp = int(time.time())
+        timestamp = _assistant_response_created_at(request_data, int(time.time()))
         content_tiptap = message_text  # Send as markdown
 
         try:
@@ -7779,7 +7808,7 @@ async def _consume_main_processing_stream(
         # causing the health check to report "messages_v (N) != actual count (N+1)".
         if not request_data.is_external and directus_service and cache_service and encryption_service and user_vault_key_id:
             category = preprocessing_result.category or "general_knowledge"
-            timestamp = int(time.time())
+            timestamp = _assistant_response_created_at(request_data, int(time.time()))
             try:
                 await _update_chat_metadata(
                     request_data=request_data,
@@ -8440,7 +8469,7 @@ async def _consume_main_processing_stream(
         if not preprocessing_result.category:
             logger.warning(f"{log_prefix} Preprocessing result category is None. Using 'general_knowledge'.")
         
-        timestamp = int(time.time())
+        timestamp = _assistant_response_created_at(request_data, int(time.time()))
         
         # Convert markdown response to TipTap JSON for client event
         # For now, we'll send markdown as-is since the client handles markdown parsing
@@ -8482,7 +8511,7 @@ async def _consume_main_processing_stream(
         if directus_service and cache_service and encryption_service and user_vault_key_id:
             try:
                 category = preprocessing_result.category or "general_knowledge"
-                timestamp = int(time.time())
+                timestamp = _assistant_response_created_at(request_data, int(time.time()))
                 await _update_chat_metadata(
                     request_data=request_data,
                     category=category,

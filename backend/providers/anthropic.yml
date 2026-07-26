@@ -147,23 +147,25 @@ models:
     pricing:
       tokens:
         input:
-          per_credit_unit: 110
+          per_credit_unit: 170
         output:
-          per_credit_unit: 20
+          per_credit_unit: 35
+    # Introductory Claude Sonnet 5 pricing through 2026-08-31.
+    # Update to $3/$15 MTok on 2026-09-01.
     costs:
       input_per_million_token:
-        price: 3.00
+        price: 2.00
         currency: USD
         max_context: 1000000
       output_per_million_token:
-        price: 15.00
+        price: 10.00
         currency: USD
         max_context: 1000000
       cache_write_per_million_token:
-        price: 3.75
+        price: 2.50
         currency: USD
       cache_read_per_million_token:
-        price: 0.30
+        price: 0.20
         currency: USD
 
   - id: "claude-haiku-4-5-20251001" # Official model ID
@@ -221,7 +223,8 @@ models:
     country_origin: "US" # ISO 3166-1 alpha-2 country code for model origin
     for_app_skill: "ai.ask" # This model is for the AI ask skill (text generation)
     release_date: "2026-02-18" # Model release date
-    allow_auto_select: true
+    allow_auto_select: false
+    show_in_mentions: false
     external_ids: # Mapping to external leaderboard IDs for cross-referencing
       lmarena: "claude-sonnet-4-6" # Exact LMArena model name
       openrouter: "anthropic/claude-sonnet-4-6"
@@ -277,7 +280,8 @@ models:
     country_origin: "US" # ISO 3166-1 alpha-2 country code for model origin
     for_app_skill: "ai.ask" # This model is for the AI ask skill (text generation)
     release_date: "2026-02-06" # Model release date
-    allow_auto_select: true
+    allow_auto_select: false
+    show_in_mentions: false
     external_ids: # Mapping to external leaderboard IDs for cross-referencing
       lmarena: "claude-opus-4-6" # Exact LMArena model name
       openrouter: "anthropic/claude-opus-4-6"
@@ -334,7 +338,8 @@ models:
     country_origin: "US"
     for_app_skill: "ai.ask"
     release_date: "2026-04-16"
-    allow_auto_select: true
+    allow_auto_select: false
+    show_in_mentions: false
     external_ids:
       lmarena: "claude-opus-4-7"
       openrouter: "anthropic/claude-opus-4-7"
@@ -390,7 +395,8 @@ models:
     country_origin: "US"
     for_app_skill: "ai.ask"
     release_date: "2026-05-28"
-    allow_auto_select: true
+    allow_auto_select: false
+    show_in_mentions: false
     external_ids:
       lmarena: "claude-opus-4-8"
     search_aliases:

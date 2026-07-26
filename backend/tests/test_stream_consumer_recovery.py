@@ -71,9 +71,89 @@ class _RecoveryCache:
         self.events.append((channel, payload))
 
 
+class _PersistCache:
+    def __init__(self) -> None:
+        self.saved_messages: list[dict] = []
+        self.events: list[tuple[str, dict]] = []
+
+    async def save_chat_message_and_update_versions(self, **kwargs) -> dict:
+        self.saved_messages.append(kwargs)
+        return {"ok": True}
+
+    async def publish_event(self, channel: str, payload: dict) -> None:
+        self.events.append((channel, payload))
+
+
 class _Encryption:
     async def encrypt_with_user_key(self, value: str, _key_id: str) -> tuple[str, dict]:
         return f"encrypted:{value}", {}
+
+
+def _ask_request(message_history: list[AIHistoryMessage] | None = None) -> AskSkillRequest:
+    return AskSkillRequest(
+        chat_id="22222222-2222-4222-8222-222222222222",
+        message_id="33333333-3333-4333-8333-333333333333",
+        user_id="44444444-4444-4444-8444-444444444444",
+        user_id_hash="a" * 64,
+        message_history=message_history or [AIHistoryMessage(role="user", content="hello", created_at=100)],
+    )
+
+
+def test_assistant_response_created_at_anchors_to_triggering_user_turn() -> None:
+    request_data = _ask_request([
+        AIHistoryMessage(role="user", content="first", created_at=10),
+        AIHistoryMessage(role="assistant", content="question", created_at=11),
+        AIHistoryMessage(role="user", content="answer", created_at=200),
+    ])
+
+    created_at = stream_consumer._assistant_response_created_at(request_data, 999)
+    payload = stream_consumer._create_redis_payload(
+        "11111111-1111-4111-8111-111111111111",
+        request_data,
+        "assistant response",
+        1,
+    )
+
+    assert created_at == 201
+    assert payload["created_at"] == 201
+    assert payload["user_message_id"] == request_data.message_id
+
+
+def test_assistant_response_created_at_follows_existing_continuation_messages() -> None:
+    request_data = _ask_request([
+        AIHistoryMessage(role="user", content="start", created_at=100),
+        AIHistoryMessage(role="system", content="request settings", created_at=101),
+        AIHistoryMessage(role="system", content="settings accepted", created_at=102),
+    ])
+
+    assert stream_consumer._assistant_response_created_at(request_data, 999) == 103
+
+
+def test_persisted_ai_message_broadcast_preserves_parent_user_message_id_and_created_at() -> None:
+    request_data = _ask_request()
+    cache = _PersistCache()
+
+    asyncio.run(
+        stream_consumer._save_to_cache_and_publish(
+            request_data=request_data,
+            task_id="11111111-1111-4111-8111-111111111111",
+            category="general_knowledge",
+            timestamp=101,
+            messages_version=2,
+            cache_service=cache,
+            encryption_service=_Encryption(),
+            user_vault_key_id="vault-key",
+            content_markdown="assistant response",
+            log_prefix="test",
+            model_name="test-model",
+        )
+    )
+
+    assert len(cache.saved_messages) == 1
+    assert len(cache.events) == 1
+    _channel, event = cache.events[0]
+    assert event["message"]["created_at"] == 101
+    assert event["message"]["user_message_id"] == request_data.message_id
 
 
 def test_harmful_fake_stream_includes_recovery_job_before_final_marker(monkeypatch) -> None:

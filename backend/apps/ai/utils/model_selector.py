@@ -80,8 +80,6 @@ PREMIUM_MODELS = {
     "claude-fable-5",                 # Most capable Claude
     "claude-opus-5",                  # Latest Opus
     "claude-sonnet-5",                # Latest Sonnet
-    "claude-opus-4-6",               # Top Claude
-    "claude-sonnet-4-6",             # High-quality Claude
     "gemini-3.6-flash",              # Top Gemini Flash
     "gemini-3.5-flash",              # Mid-tier Gemini alternative to Pro
     "gpt-5.4",                       # Top GPT

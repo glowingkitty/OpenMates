@@ -10,7 +10,7 @@
  *
  * Resolution order for each @token:
  *   1. Model alias (@best, @fast)
- *   2. Model name (@Claude-Opus-4.6 → @ai-model:claude-opus-4-6)
+ *   2. Model name (@Claude-Opus-5 → @ai-model:claude-opus-5)
  *   3. Mate name (@Sophia → @mate:software_development)
  *   4. Skill (@Code-Get-Docs → @skill:code:get_docs)
  *   5. Focus mode (@Web-Research → @focus:web:research)
@@ -134,10 +134,6 @@ export const CHAT_MODELS: ModelInfo[] = [
   { id: "claude-fable-5", name: "Claude Fable 5" },
   { id: "claude-opus-5", name: "Claude Opus 5" },
   { id: "claude-sonnet-5", name: "Claude Sonnet 5" },
-  { id: "claude-opus-4-8", name: "Claude Opus 4.8" },
-  { id: "claude-opus-4-7", name: "Claude Opus 4.7" },
-  { id: "claude-opus-4-6", name: "Claude Opus 4.6" },
-  { id: "claude-sonnet-4-6", name: "Claude Sonnet 4.6" },
   { id: "claude-haiku-4-5-20251001", name: "Claude Haiku 4.5" },
   { id: "gpt-5.4", name: "GPT-5.4" },
   { id: "gpt-oss-120b", name: "GPT-OSS-120b" },
@@ -204,7 +200,7 @@ function isTaskShortIdMention(token: string): boolean {
 
 /**
  * Normalize a display name for comparison.
- * "Claude Opus 4.6" → "claude-opus-4.6"
+ * "Claude Opus 5" → "claude-opus-5"
  * "Code-Get-Docs" → "code-get-docs"
  */
 function normalize(name: string): string {

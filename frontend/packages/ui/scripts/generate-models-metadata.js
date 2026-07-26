@@ -15,7 +15,8 @@
 // `isProviderHealthy` function from appHealthStore.
 //
 // NOTE: `allow_auto_select` is for a DIFFERENT feature (automatic model selection
-// by the system). All models should be available for manual selection via @ mention.
+// by the system). Models remain available for exact routed IDs unless explicitly
+// hidden from mention suggestions with `show_in_mentions: false`.
 
 import { readFileSync, readdirSync, writeFileSync } from "fs";
 import { join, dirname, resolve, basename } from "path";
@@ -197,6 +198,10 @@ function parseProviderYaml(providerId, filePath) {
         pricing: Object.keys(pricing).length > 0 ? pricing : null,
       };
 
+      if (model.show_in_mentions === false) {
+        modelMetadata.show_in_mentions = false;
+      }
+
       // Add reasoning flag if model has it
       if (model.reasoning === true) {
         modelMetadata.reasoning = true;
@@ -296,6 +301,10 @@ function generateTypeScript(models) {
         );
       }
 
+      if (model.show_in_mentions === false) {
+        lines.push(`        show_in_mentions: false,`);
+      }
+
       lines.push("    },");
       return lines.join("\n");
     })
@@ -320,6 +329,7 @@ function generateTypeScript(models) {
 //
 // NOTE: All app skill models are included here (text, image, audio). The \`allow_auto_select\`
 // field in provider YAMLs is for a different feature (automatic model selection by the system).
+// Use \`show_in_mentions: false\` for deprecated models that remain routable by exact ID.
 //
 // **Generated**: ${new Date().toISOString()}
 // **Models included**: ${models.length}
@@ -373,6 +383,8 @@ export interface AIModelMetadata {
     name: string;
     /** Brief description of the model's capabilities */
     description: string;
+    /** Whether the model should appear in @ mention suggestions. Defaults to true. */
+    show_in_mentions?: boolean;
     /** Provider ID (anthropic, openai, google, mistral, etc.) */
     provider_id: string;
     /** Provider display name */

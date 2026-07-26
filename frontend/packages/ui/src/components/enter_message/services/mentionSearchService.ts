@@ -457,6 +457,8 @@ function getModelMentionResults(): ModelMentionResult[] {
     modelsMetadata
       // Filter to only include models for the "ai.ask" skill (excludes image generation models)
       .filter((model) => model.for_app_skill === "ai.ask")
+      // Keep deprecated-but-routable models out of suggestions.
+      .filter((model) => model.show_in_mentions !== false)
       // Filter by provider health (offline-first: shows all if health data unavailable)
       .filter((model) => checkProviderHealthy(model.provider_id))
       // Filter out models that user has disabled in settings

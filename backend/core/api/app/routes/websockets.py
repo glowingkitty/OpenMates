@@ -904,6 +904,7 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                                     "chat_id": chat_id_from_payload,
                                     "message_id": redis_payload.get("message_id"), # AI's message ID
                                     "user_message_id": redis_payload.get("user_message_id"),
+                                    "created_at": redis_payload.get("created_at"),
                                     "is_final_chunk": True,
                                     "task_id": redis_payload.get("task_id"),
                                     "full_content": full_content,

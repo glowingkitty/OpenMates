@@ -1127,6 +1127,20 @@ export async function handleChatMessageReceivedImpl(
         return;
       }
 
+      const existingLocalMessage = await chatDB.getMessage(incomingMessage.message_id);
+      if (incomingMessage.role === "assistant" && existingLocalMessage) {
+        if (
+          existingLocalMessage.created_at &&
+          incomingMessage.created_at &&
+          existingLocalMessage.created_at < incomingMessage.created_at
+        ) {
+          incomingMessage.created_at = existingLocalMessage.created_at;
+        }
+        if (!incomingMessage.user_message_id && existingLocalMessage.user_message_id) {
+          incomingMessage.user_message_id = existingLocalMessage.user_message_id;
+        }
+      }
+
       // Use separate transactions for each operation to avoid InvalidStateError
       await chatDB.saveMessage(incomingMessage);
 

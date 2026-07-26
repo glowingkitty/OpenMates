@@ -555,6 +555,7 @@ export interface AIMessageUpdatePayload {
   chat_id: string;
   message_id: string;
   user_message_id: string;
+  created_at?: number;
   full_content_so_far: string;
   sequence: number;
   is_final_chunk: boolean;
@@ -600,6 +601,7 @@ export interface AIBackgroundResponseCompletedPayload {
   chat_id: string;
   message_id: string; // AI's message ID
   user_message_id: string;
+  created_at?: number;
   task_id: string;
   full_content: string;
   model_name?: string | null;

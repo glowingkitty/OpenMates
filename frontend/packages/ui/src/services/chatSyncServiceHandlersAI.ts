@@ -1016,7 +1016,7 @@ export async function handleAIBackgroundResponseCompletedImpl(
       model_name: modelName || undefined,
       content: payload.full_content, // Store as markdown string, not Tiptap JSON
       status: isRejection ? "waiting_for_user" : "synced",
-      created_at: Math.floor(Date.now() / 1000),
+      created_at: payload.created_at ?? Math.floor(Date.now() / 1000),
       // Note: encrypted fields will be populated by encryptMessageFields in chatDB.saveMessage()
       // Do NOT set encrypted_* fields here as they should only exist after encryption
       encrypted_content: "", // Will be set by encryption

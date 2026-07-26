@@ -151,12 +151,12 @@ describe("parseMentions", () => {
   describe("models", () => {
     it("resolves model name to wire syntax", () => {
       const result = parseMentions(
-        "@Claude-Opus-4.6 explain this code",
+        "@Claude-Opus-5 explain this code",
         testContext,
       );
       assert.equal(result.resolved.length, 1);
       assert.equal(result.resolved[0].type, "model");
-      assert.equal(result.resolved[0].wireSyntax, "@ai-model:claude-opus-4-6");
+      assert.equal(result.resolved[0].wireSyntax, "@ai-model:claude-opus-5");
     });
 
     it("resolves model id directly", () => {

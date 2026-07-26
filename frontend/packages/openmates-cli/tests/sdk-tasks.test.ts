@@ -202,7 +202,7 @@ describe("OpenMates SDK user tasks", () => {
         assert.equal(created.priorityLevel, "high");
         assert.equal("encrypted" in created, false);
 
-        const listed = await client.tasks.listDecrypted({ labels: ["sdk", "urgent"], priority: "high" });
+        const listed = await client.tasks.list({ labels: ["sdk", "urgent"], priority: "high" });
         assert.equal(listed[0]?.title, "SDK parity task");
 
         const edited = await client.tasks.edit("TASK-1", { title: "SDK parity task edited", status: "in_progress", addLabels: ["docs"], removeLabels: ["urgent"], priority: "urgent" });

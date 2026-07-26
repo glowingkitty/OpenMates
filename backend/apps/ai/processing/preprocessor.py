@@ -2307,7 +2307,7 @@ async def handle_preprocessing(
     # Plan: later derive these dynamically from tokens_per_second in provider YAMLs.
     # See docs/architecture/model-aliases.md for design rationale.
     MODEL_ALIAS_TO_MODEL_ID = {
-        "best": "claude-opus-4-6",
+        "best": "claude-fable-5",
         "fast": "qwen3-235b-a22b-2507",
     }
     if user_overrides and user_overrides.best_model_category and not user_overrides.model_id:
