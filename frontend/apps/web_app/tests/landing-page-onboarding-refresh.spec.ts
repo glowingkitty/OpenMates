@@ -460,7 +460,7 @@ test.describe('Landing page onboarding refresh', () => {
 			const paragraph = element.querySelector<HTMLElement>('.ProseMirror p[data-placeholder]');
 			return paragraph?.dataset.placeholder ?? '';
 		});
-		expect(guestPlaceholder).toMatch(/Click here to (try for free|ask anything)/);
+		expect(guestPlaceholder).toMatch(/Click here to (test for free|ask anything)/);
 		await expect(page.getByTestId('resume-chat-card').first()).toBeVisible();
 		await expect(page.getByTestId('resume-chat-large-card')).toHaveCount(0);
 

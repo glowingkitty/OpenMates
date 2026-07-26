@@ -48,43 +48,99 @@ touch:
   verified_by_human: []
 guest_try_free_desktop:
   context: Logged-out landing placeholder on desktop when anonymous free text sending is available
-  en: Click here to try for free
+  en: Click here to test for free
   de: Klicke hier, um es kostenlos zu testen
+  zh: 点击此处免费测试
+  es: Haz clic aquí para probar gratis
+  fr: Cliquez ici pour tester gratuitement
+  pt: Clique aqui para testar grátis
+  ru: Нажмите здесь, чтобы протестировать бесплатно
+  ja: ここをクリックして無料でテストする
+  ko: 여기를 클릭하여 무료로 테스트하세요
+  it: Clicca qui per testare gratis
+  tr: Ücretsiz test etmek için buraya tıklayın
+  vi: Nhấp vào đây để thử miễn phí
+  id: Klik di sini untuk mencoba gratis
+  pl: Kliknij tutaj, aby przetestować za darmo
+  nl: Klik hier om gratis te testen
+  ar: انقر هنا للاختبار مجانًا
+  hi: मुफ्त में टेस्ट करने के लिए यहाँ क्लिक करें
+  th: คลิกที่นี่เพื่อทดสอบฟรี
+  cs: Klikněte sem a otestujte zdarma
+  sv: Klicka här för att testa gratis
+  he: לחץ כאן כדי לבדוק בחינם
   verified_by_human: []
 guest_try_free_touch:
   context: Logged-out landing placeholder on touch devices when anonymous free text sending is available
-  en: Tap here to try for free
+  en: Tap here to test for free
   de: Tippe hier, um es kostenlos zu testen
+  zh: 点按此处免费测试
+  es: Toca aquí para probar gratis
+  fr: Appuyez ici pour tester gratuitement
+  pt: Toque aqui para testar grátis
+  ru: Нажмите здесь, чтобы протестировать бесплатно
+  ja: ここをタップして無料でテストする
+  ko: 여기를 탭하여 무료로 테스트하세요
+  it: Tocca qui per testare gratis
+  tr: Ücretsiz test etmek için buraya dokunun
+  vi: Chạm vào đây để thử miễn phí
+  id: Ketuk di sini untuk mencoba gratis
+  pl: Dotknij tutaj, aby przetestować za darmo
+  nl: Tik hier om gratis te testen
+  ar: اضغط هنا للاختبار مجانًا
+  hi: मुफ्त में टेस्ट करने के लिए यहाँ टैप करें
+  th: แตะที่นี่เพื่อทดสอบฟรี
+  cs: Klepněte sem a otestujte zdarma
+  sv: Tryck här för att testa gratis
+  he: הקש כאן כדי לבדוק בחינם
   verified_by_human: []
 guest_ask_anything_desktop:
   context: Logged-out landing placeholder on desktop when free anonymous sending is unavailable
   en: Click here to ask anything
   de: Klicke hier, um alles zu fragen
+  zh: 点击此处询问任何问题
+  es: Haz clic aquí para preguntar lo que sea
+  fr: Cliquez ici pour poser n'importe quelle question
+  pt: Clique aqui para perguntar qualquer coisa
+  ru: Нажмите здесь, чтобы спросить что угодно
+  ja: ここをクリックして何でも質問
+  ko: 여기를 클릭하여 무엇이든 물어보세요
+  it: Clicca qui per chiedere qualsiasi cosa
+  tr: Herhangi bir şey sormak için buraya tıklayın
+  vi: Nhấp vào đây để hỏi bất cứ điều gì
+  id: Klik di sini untuk bertanya apa saja
+  pl: Kliknij tutaj, aby zapytać o cokolwiek
+  nl: Klik hier om iets te vragen
+  ar: انقر هنا لتسأل عن أي شيء
+  hi: कुछ भी पूछने के लिए यहाँ क्लिक करें
+  th: คลิกที่นี่เพื่อถามอะไรก็ได้
+  cs: Klikněte sem a zeptejte se na cokoliv
+  sv: Klicka här för att fråga vad som helst
+  he: לחץ כאן כדי לשאול כל דבר
   verified_by_human: []
 guest_ask_anything_touch:
   context: Logged-out landing placeholder on touch devices when free anonymous sending is unavailable
   en: Tap here to ask anything
   de: Tippe hier, um alles zu fragen
-  verified_by_human: []
-guest_privacy_desktop:
-  context: Logged-out landing placeholder synchronized with the privacy/encryption helper link on desktop
-  en: Click here to ask anything
-  de: Klicke hier, um alles zu fragen
-  verified_by_human: []
-guest_privacy_touch:
-  context: Logged-out landing placeholder synchronized with the privacy/encryption helper link on touch devices
-  en: Tap here to ask anything
-  de: Tippe hier, um alles zu fragen
-  verified_by_human: []
-guest_apps_desktop:
-  context: Logged-out landing placeholder synchronized with the apps helper link on desktop
-  en: Click here to ask OpenMates to use apps
-  de: Klicke hier, damit OpenMates Apps nutzt
-  verified_by_human: []
-guest_apps_touch:
-  context: Logged-out landing placeholder synchronized with the apps helper link on touch devices
-  en: Tap here to ask OpenMates to use apps
-  de: Tippe hier, damit OpenMates Apps nutzt
+  zh: 点按此处询问任何问题
+  es: Toca aquí para preguntar lo que sea
+  fr: Appuyez ici pour poser n'importe quelle question
+  pt: Toque aqui para perguntar qualquer coisa
+  ru: Нажмите здесь, чтобы спросить что угодно
+  ja: ここをタップして何でも質問
+  ko: 여기를 탭하여 무엇이든 물어보세요
+  it: Tocca qui per chiedere qualsiasi cosa
+  tr: Herhangi bir şey sormak için buraya dokunun
+  vi: Chạm vào đây để hỏi bất cứ điều gì
+  id: Ketuk di sini untuk bertanya apa saja
+  pl: Dotknij tutaj, aby zapytać o cokolwiek
+  nl: Tik hier om iets te vragen
+  ar: اضغط هنا لتسأل عن أي شيء
+  hi: कुछ भी पूछने के लिए यहाँ टैप करें
+  th: แตะที่นี่เพื่อถามอะไรก็ได้
+  cs: Klepněte sem a zeptejte se na cokoliv
+  sv: Tryck här för att fråga vad som helst
+  he: הקש כאן כדי לשאול כל דבר
   verified_by_human: []
 followup_desktop:
   context: Placeholder text shown in message input on desktop when viewing someone else's chat (encourages followup)
@@ -205,4 +261,28 @@ record_shortcut_control_desktop:
   cs: Stiskněte Ctrl + Shift + M pro nahrání zprávy...
   sv: "Tryck på Ctrl + Shift + M för att spela in ett meddelande..."
   he: לחץ על Ctrl + Shift + M כדי להקליט הודעה...
+  verified_by_human: []
+record_tap_mic_touch:
+  context: Alternating touch-device placeholder hint explaining that the visible microphone button records an audio request
+  en: Tap mic to record request
+  de: Tippe auf das Mikro, um eine Anfrage aufzunehmen
+  zh: 点按麦克风录制请求
+  es: Toca el micrófono para grabar la solicitud
+  fr: Touchez le micro pour enregistrer la demande
+  pt: Toque no microfone para gravar a solicitação
+  ru: Нажмите на микрофон, чтобы записать запрос
+  ja: マイクをタップしてリクエストを録音
+  ko: 마이크를 탭해 요청을 녹음하세요
+  it: Tocca il microfono per registrare la richiesta
+  tr: İsteği kaydetmek için mikrofona dokunun
+  vi: Chạm vào mic để ghi âm yêu cầu
+  id: Ketuk mikrofon untuk merekam permintaan
+  pl: Dotknij mikrofonu, aby nagrać prośbę
+  nl: Tik op de microfoon om je verzoek op te nemen
+  ar: اضغط على الميكروفون لتسجيل الطلب
+  hi: अनुरोध रिकॉर्ड करने के लिए माइक पर टैप करें
+  th: แตะไมค์เพื่อบันทึกคำขอ
+  cs: Klepnutím na mikrofon nahrajte požadavek
+  sv: Tryck på mikrofonen för att spela in förfrågan
+  he: הקש על המיקרופון כדי להקליט בקשה
   verified_by_human: []

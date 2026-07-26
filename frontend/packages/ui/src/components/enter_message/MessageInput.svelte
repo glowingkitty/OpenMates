@@ -122,7 +122,7 @@
     // Privacy settings store — controls master toggle, per-category toggles, and personal data entries
     import { personalDataStore, type PersonalDataEntry, type PIIDetectionSettings } from '../../stores/personalDataStore';
     import { get } from 'svelte/store';
-    import { isMacPlatform } from '../../utils/platform';
+    import { isDesktop, isMacPlatform } from '../../utils/platform';
     // Draft audio chat tracking — links usage entries to pre-allocated UUIDs for unsent recordings
     import { markChatIdAsDraftAudio, unmarkChatIdAsDraftAudio } from '../../stores/draftAudioChatStore';
     import { draftEditorUIState } from '../../services/drafts/draftState';
@@ -447,8 +447,8 @@
             $recordingState.showRecordAudioUI
         )
     );
-    let showEmptyWelcomeAffordances = $derived(
-        isNewChatContext && !startNewChatOnClick && !isMessageFieldFocused && !hasContent
+    let showEmptyInputAffordances = $derived(
+        !startNewChatOnClick && !isMessageFieldFocused && !hasContent && !isDraftPreview && !showMaps && !showCamera && !showSketch
     );
 
     // Single-tap feedback: briefly highlight the inline "Press & hold to record" label
@@ -477,13 +477,17 @@
         return 'ontouchstart' in window || navigator.maxTouchPoints > 0;
     }
 
+    function hasKeyboardShortcutSupport(): boolean {
+        return isDesktop();
+    }
+
     function getBasePlaceholderText(): string {
-        if (placeholderText) return placeholderText;
         if (guestCtaMode && !$authStore.isAuthenticated) {
             const keySuffix = anonymousTextSendEnabled ? 'try_free' : 'ask_anything';
             const deviceType = isTouchInputDevice() ? 'touch' : 'desktop';
             return $text(`enter_message.placeholder.guest_${keySuffix}_${deviceType}`);
         }
+        if (placeholderText) return placeholderText;
         const variant = get(messageInputPlaceholderVariant);
         const suffix = variant === 'followup' ? 'followup_' : '';
         const deviceType = isTouchInputDevice() ? 'touch' : 'desktop';
@@ -491,18 +495,22 @@
     }
 
     function updateCyclingPlaceholderText() {
-        if (showRecordingPlaceholderHint && !isTouchInputDevice()) {
-            const shortcutKey = isMacPlatform()
-                ? 'enter_message.placeholder.record_shortcut_mac_desktop'
-                : 'enter_message.placeholder.record_shortcut_control_desktop';
-            messageInputPlaceholderOverride.set($text(shortcutKey));
+        if (showRecordingPlaceholderHint) {
+            if (hasKeyboardShortcutSupport()) {
+                const shortcutKey = isMacPlatform()
+                    ? 'enter_message.placeholder.record_shortcut_mac_desktop'
+                    : 'enter_message.placeholder.record_shortcut_control_desktop';
+                messageInputPlaceholderOverride.set($text(shortcutKey));
+            } else {
+                messageInputPlaceholderOverride.set($text('enter_message.placeholder.record_tap_mic_touch'));
+            }
         } else {
             messageInputPlaceholderOverride.set(getBasePlaceholderText());
         }
     }
 
     function startPlaceholderCycle() {
-        if (placeholderCycleTimer || isTouchInputDevice()) return;
+        if (placeholderCycleTimer) return;
         updateCyclingPlaceholderText();
         placeholderCycleTimer = setInterval(() => {
             isPlaceholderFading = true;
@@ -5453,7 +5461,7 @@
         class:has-focus-pill={showFocusPill || showIncognitoPill || showIdeaBucketPill}
         class:inline-compact={inlineCompact && !isMessageFieldFocused && !hasContent}
         class:placeholder-fading={isPlaceholderFading}
-        class:empty-welcome-field={showEmptyWelcomeAffordances}
+        class:empty-welcome-field={showEmptyInputAffordances}
         style={containerStyle}
         ondragover={handleDragOver}
         ondragleave={handleDragLeave}
@@ -5471,7 +5479,7 @@
             ></button>
         {/if}
 
-		{#if showEmptyWelcomeAffordances}
+		{#if showEmptyInputAffordances}
 			<span class="empty-input-ai-icon" aria-hidden="true"></span>
 			<button
 				class="clickable-icon icon_recordaudio empty-input-mic-button"
@@ -5829,7 +5837,7 @@
     .message-field.empty-welcome-field :global(.ProseMirror p.is-editor-empty:first-child::before) {
         top: 0;
         height: 62px;
-        color: color-mix(in srgb, var(--color-font-primary) 72%, transparent);
+        color: var(--empty-input-placeholder-color, color-mix(in srgb, var(--color-font-primary) 72%, transparent));
         font-weight: 700;
         line-height: 62px;
     }
@@ -5841,7 +5849,7 @@
         z-index: 31;
         width: 24px;
         height: 24px;
-        background: var(--color-grey-30);
+        background: var(--empty-input-placeholder-color, color-mix(in srgb, var(--color-font-primary) 72%, transparent));
         transform: translateY(-50%);
         -webkit-mask-image: url('@openmates/ui/static/icons/ai.svg');
         mask-image: url('@openmates/ui/static/icons/ai.svg');
