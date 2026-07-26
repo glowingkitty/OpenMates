@@ -61,6 +61,7 @@ changes to the documentation (to keep the documentation up to date).
     import { isRestrictedSession } from '../stores/pairSessionStore'; // Pair session restricted mode
     import { loadReferralStatus, referralStatus } from '../services/referralService';
     import { DEMO_MARKETING_CREDITS, DEMO_MARKETING_USERNAME } from '../demo_chats/usageDemoData';
+    import { convertDemoChatToChat, convertDemoMessagesToMessages, getPublicChatById, translateDemoChat } from '../demo_chats';
     
     // Import modular components
     import SettingsFooter from './settings/SettingsFooter.svelte';
@@ -569,18 +570,28 @@ changes to the documentation (to keep the documentation up to date).
         }
 
         try {
-            const chat = await chatDB.getChat(chatId);
-            if (!chat) {
-                chatSettingsStore.clear();
-                console.warn('[Settings] Cannot hydrate chat settings context: chat not found', { chatId });
-                return;
-            }
-
+            let chat = await chatDB.getChat(chatId);
             let messages: Message[] = [];
-            try {
-                messages = await chatDB.getMessagesForChat(chatId);
-            } catch (error) {
-                console.error('[Settings] Failed to load messages for chat settings deep link:', error);
+            if (!chat) {
+                const publicChat = getPublicChatById(chatId);
+                if (!publicChat) {
+                    chatSettingsStore.clear();
+                    console.warn('[Settings] Cannot hydrate chat settings context: chat not found', { chatId });
+                    return;
+                }
+                const translatedPublicChat = translateDemoChat(publicChat);
+                chat = convertDemoChatToChat(translatedPublicChat);
+                messages = convertDemoMessagesToMessages(
+                    translatedPublicChat.messages,
+                    chatId,
+                    translatedPublicChat.metadata.category,
+                );
+            } else {
+                try {
+                    messages = await chatDB.getMessagesForChat(chatId);
+                } catch (error) {
+                    console.error('[Settings] Failed to load messages for chat settings deep link:', error);
+                }
             }
 
             const metadata = await chatMetadataCache.getDecryptedMetadata(chat);
