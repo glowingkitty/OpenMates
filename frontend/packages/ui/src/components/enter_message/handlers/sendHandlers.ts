@@ -43,6 +43,7 @@ import {
 import { demoMode } from "../../../stores/demoModeStore";
 import { shouldDispatchDraftChatAsNewChat } from "./sendClassification";
 import { isPreflightAcknowledgementTimeout } from "../../../services/sendersChatMessages";
+import { selectAudioTranscriptUseCorrected } from "../../embeds/audio/audioTranscriptSelection";
 
 const ANONYMOUS_DAILY_CREDITS_EXHAUSTED_KEY = "chat.anonymous_free_usage.daily_credits_exhausted";
 const ANONYMOUS_DAILY_CREDITS_EXHAUSTED_DEDUPE_KEY = "anonymous-daily-credits-exhausted";
@@ -946,6 +947,12 @@ export async function handleSend(
       // The backend audio skill (transcribe) expects this shape.
       // model is included so RecordingRenderer.ts can display "0:42 · voxtral-mini-2602"
       // in the read-only subtitle when loading from EmbedStore.
+      const selectedTranscript = selectAudioTranscriptUseCorrected({
+        transcript: attrs.transcript as string | null | undefined,
+        transcriptOriginal: attrs.transcriptOriginal as string | null | undefined,
+        transcriptCorrected: attrs.transcriptCorrected as string | null | undefined,
+        useCorrected: attrs.useCorrected as boolean | null | undefined,
+      });
       const embedContent = {
         app_id: "audio",
         skill_id: "transcribe",
@@ -956,10 +963,10 @@ export async function handleSend(
         duration: attrs.duration || null,
         waveform: attrs.waveform || null,
         mime_type: attrs.mimeType || null,
-        transcript: attrs.transcript || null,
+        transcript: selectedTranscript.transcript || null,
         transcript_original: attrs.transcriptOriginal || null,
         transcript_corrected: attrs.transcriptCorrected || null,
-        use_corrected: attrs.useCorrected !== undefined ? attrs.useCorrected : null,
+        use_corrected: typeof attrs.useCorrected === "boolean" ? selectedTranscript.useCorrected : null,
         correction_model: attrs.correctionModel || null,
         model: (attrs.model as string) || null,
         s3_base_url: attrs.s3BaseUrl || null,

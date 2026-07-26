@@ -3687,6 +3687,9 @@ class EmbedService:
                 #           vault_wrapped_aes_key — all crypto/infra, resolved server-side.
                 #           app_id, skill_id — internal routing metadata, not useful to LLM.
                 #           embed_id (UUID) — not shown to LLM; use embed_ref instead.
+                if decoded.get("use_corrected") is False and isinstance(decoded.get("transcript_original"), str):
+                    decoded["transcript"] = decoded["transcript_original"]
+
                 _AUDIO_KEEP = frozenset({
                     "type", "transcript", "duration", "mime_type", "filename", "status"
                 })

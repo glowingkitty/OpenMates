@@ -34,6 +34,7 @@
   import { getModelDisplayName } from '../../../utils/modelDisplayName';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
   import { normalizeWaveformData } from '../../../utils/audioWaveform';
+  import { selectAudioTranscriptText } from './audioTranscriptSelection';
 
   /** Max chars for filename display in the info bar */
   const MAX_FILENAME_LENGTH = 40;
@@ -134,12 +135,34 @@
 
   // Sync editableTranscript whenever transcriptProp, transcriptOriginal, transcriptCorrected, or useCorrectedState changes
   $effect(() => {
-    if (transcriptOriginal && transcriptCorrected) {
-      editableTranscript = useCorrectedState ? (transcriptCorrected ?? '') : (transcriptOriginal ?? '');
-    } else {
-      editableTranscript = transcriptProp ?? '';
-    }
+    editableTranscript = selectAudioTranscriptText(
+      {
+        transcript: transcriptProp,
+        transcriptOriginal,
+        transcriptCorrected,
+      },
+      useCorrectedState,
+    );
   });
+
+  function handleUseCorrectedChange(event: CustomEvent<{ checked: boolean }>) {
+    const nextVal = event.detail.checked;
+    useCorrectedState = nextVal;
+    const transcript = selectAudioTranscriptText(
+      {
+        transcript: transcriptProp,
+        transcriptOriginal,
+        transcriptCorrected,
+      },
+      nextVal,
+    );
+    if (isEditable && embedId && onAttrsChange) {
+      onAttrsChange(embedId, {
+        useCorrected: nextVal,
+        transcript,
+      });
+    }
+  }
 
   function handleTranscriptInput(e: Event) {
     const value = (e.currentTarget as HTMLTextAreaElement).value;
@@ -501,17 +524,9 @@
             <span class="toggle-label">Auto-Corrected Transcript</span>
             <div class="toggle-container" style="pointer-events: auto !important;">
               <Toggle
-                checked={useCorrectedState}
-                onchange={() => {
-                  const nextVal = !useCorrectedState;
-                  useCorrectedState = nextVal;
-                  if (isEditable && embedId && onAttrsChange) {
-                    onAttrsChange(embedId, {
-                      useCorrected: nextVal,
-                      transcript: nextVal ? transcriptCorrected : transcriptOriginal,
-                    });
-                  }
-                }}
+                bind:checked={useCorrectedState}
+                on:change={handleUseCorrectedChange}
+                testId="recording-transcript-auto-correct-toggle"
               />
             </div>
           </div>
