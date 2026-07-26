@@ -3572,8 +3572,7 @@ class OpenMatesAccount:
     def cancel_export(self, export_id: str) -> dict[str, Any]:
         return self._client._post(f"/v1/account-exports/{quote(export_id, safe='')}/cancel", {})
 
-    def download_export(self, **options: Any) -> dict[str, Any]:
-        accept_partial = options.pop("accept_partial", False)
+    def download_export(self, *, accept_partial: bool = False, **options: Any) -> dict[str, Any]:
         started = self.start_export(**options)
         export_id = str(started.get("export", {}).get("export_id", ""))
         manifest = self.export_job_manifest(export_id)
@@ -3999,9 +3998,9 @@ class OpenMatesBilling:
     def list_invoices(self) -> dict[str, Any]: return self._client._get("/v1/sdk/billing/invoices")
     def download_invoice(self, invoice_id: str) -> dict[str, Any]: return self._client._get_raw(f"/v1/sdk/billing/invoices/{_quote(invoice_id)}/download")
     def download_credit_note(self, invoice_id: str) -> dict[str, Any]: return self._client._get_raw(f"/v1/sdk/billing/invoices/{_quote(invoice_id)}/credit-note/download")
-    def request_refund(self, invoice_id: str, *, confirmed: bool = False) -> dict[str, Any]:
+    def request_refund(self, invoice_id: str, *, confirmed: bool = False, email_encryption_key: str | None = None) -> dict[str, Any]:
         _require_confirmed(confirmed, "Requesting an invoice refund")
-        return self._client._post("/v1/sdk/billing/refund", {"invoice_id": invoice_id})
+        return self._client._post("/v1/sdk/billing/refund", {"invoice_id": invoice_id, "email_encryption_key": email_encryption_key})
     def redeem_gift_card(self, code: str) -> dict[str, Any]: return self._client._post("/v1/sdk/billing/gift-cards/redeem", {"code": code})
     def list_redeemed_gift_cards(self) -> dict[str, Any]: return self._client._get("/v1/sdk/billing/gift-cards/redeemed")
     def create_gift_card_bank_transfer_order(self, credits: int, *, email_encryption_key: str | None = None) -> dict[str, Any]: return self._client._post("/v1/sdk/billing/gift-cards/bank-transfer-orders", {"credits_amount": credits, "currency": "eur", "email_encryption_key": email_encryption_key})

@@ -241,6 +241,9 @@ export interface AccountExportStartOptions {
   filters?: Record<string, unknown>;
   format?: "zip" | "directory";
   includeAdvancedMetadata?: boolean;
+}
+
+export interface AccountExportDownloadOptions extends AccountExportStartOptions {
   acceptPartial?: boolean;
 }
 
@@ -2248,7 +2251,7 @@ export class OpenMatesAccount {
     return this.client.request<AccountExportResponse>(`/v1/account-exports/${encodeURIComponent(exportId)}/cancel`, {});
   }
 
-  async downloadExport(options: AccountExportStartOptions = {}): Promise<Record<string, unknown>> {
+  async downloadExport(options: AccountExportDownloadOptions = {}): Promise<Record<string, unknown>> {
     const started = await this.startExport(options);
     const exportId = String(started.export.export_id ?? "");
     const [manifest, chunks] = await Promise.all([
@@ -2866,6 +2869,10 @@ export class OpenMatesTasks {
       }
     }
     throw new OpenMatesConfigError("Task delete retry failed unexpectedly");
+  }
+
+  async deleteById(id: string, options: ConfirmedMutationOptions & { filters?: TaskListFilters } = {}): Promise<{ deleted?: boolean; task_id?: string }> {
+    return this.delete(id, options);
   }
 
   async done(id: string, filters: TaskListFilters = {}): Promise<TaskRecord> {
