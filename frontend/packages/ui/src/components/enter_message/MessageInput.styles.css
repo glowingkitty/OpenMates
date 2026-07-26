@@ -175,25 +175,47 @@
   padding: 0 0 10px 0;
 }
 
-/* Draft preview mode: field has content but is not focused.
-   Truncate visible text to 3 lines with ellipsis, hide action buttons via JS. */
+/* Draft preview mode: inactive drafts show a compact text/embed summary while
+   preserving the full TipTap document for immediate restoration on focus. */
 .message-field.draft-preview {
-  min-height: unset;
-  padding-bottom: 10px;
+  min-height: 60px;
+  padding: 0;
   cursor: pointer;
 }
 
 .message-field.draft-preview .scrollable-content {
-  max-height: calc(1.5em * 3 + 1em);
+  max-height: 60px;
   overflow: hidden;
-  padding-top: 0.75em;
+  padding-top: 0;
+}
+
+.message-field.draft-preview .content-wrapper {
+  min-height: 60px;
+  padding: 0 1rem;
 }
 
 .message-field.draft-preview :global(.ProseMirror) {
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
+  visibility: hidden;
+  max-height: 60px;
   overflow: hidden;
+  pointer-events: none;
+}
+
+.draft-preview-summary {
+  position: absolute;
+  inset: 0;
+  z-index: 9;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  padding: 0 1rem;
+  color: var(--color-font-primary);
+  font-size: var(--font-size-m, 1rem);
+  font-weight: 600;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: none;
 }
 
 /* Inline compact mode: single-line height matching the new-chat CTA button (~48px).

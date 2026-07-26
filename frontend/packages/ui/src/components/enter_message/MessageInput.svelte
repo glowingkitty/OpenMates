@@ -371,7 +371,17 @@
     let panelHeightTransitionOverride = $state<string | null>(null);
     let suppressHeightChangeDispatch = $state(false);
     
+    type DraftEmbedKind = 'audio' | 'image' | 'pdf' | 'website' | 'video' | 'map' | 'code' | 'document' | 'sheet' | 'file' | 'app' | 'embed';
+
+    interface DraftPreviewParts {
+        embeds: Array<{ kind: DraftEmbedKind; count: number }>;
+        text: string;
+    }
+
+    const EMPTY_DRAFT_PREVIEW_PARTS: DraftPreviewParts = { embeds: [], text: '' };
+
     let hasEmbedContent = $state(false);
+    let draftPreviewParts = $state<DraftPreviewParts>(EMPTY_DRAFT_PREVIEW_PARTS);
     let anonymousStatusChecked = $state(false);
     let anonymousTextSendEnabled = $derived(
         anonymousStatusChecked &&
@@ -412,6 +422,7 @@
             originalMarkdown = '';
             hasContent = false;
             hasEmbedContent = false;
+            draftPreviewParts = EMPTY_DRAFT_PREVIEW_PARTS;
             lastEditorUpdateText = editor.getText();
             return;
         }
@@ -422,13 +433,93 @@
         editor.commands.setContent(parsedDoc, { emitUpdate: false });
         originalMarkdown = domText;
         hasContent = !isContentEmptyExceptMention(editor);
-        hasEmbedContent = false;
+        refreshDraftPreviewState(editor);
         lastEditorUpdateText = editor.getText();
     }
 
-    // Draft preview mode: text-only field has content but is not focused — show truncated text, hide buttons.
-    // File/PDF/image embeds keep non-send actions visible, but Send still requires text.
-    let isDraftPreview = $derived(hasContent && !hasEmbedContent && !isMessageFieldFocused && !isFullscreen && !forceDraftActionsVisible);
+    function getDraftEmbedKind(type: unknown): DraftEmbedKind {
+        const value = typeof type === 'string' ? type.toLowerCase() : '';
+        if (value.includes('audio') || value.includes('recording')) return 'audio';
+        if (value.includes('image')) return 'image';
+        if (value.includes('pdf')) return 'pdf';
+        if (value.includes('web') || value.includes('website')) return 'website';
+        if (value.includes('video')) return 'video';
+        if (value.includes('map')) return 'map';
+        if (value.includes('code')) return 'code';
+        if (value.includes('doc')) return 'document';
+        if (value.includes('sheet')) return 'sheet';
+        if (value.includes('file')) return 'file';
+        if (value.includes('app-skill')) return 'app';
+        return 'embed';
+    }
+
+    function formatDraftEmbedSummaryPart(kind: DraftEmbedKind, count: number): string {
+        const key = count === 1 ? 'enter_message.draft_summary.embed_one' : 'enter_message.draft_summary.embed_many';
+        return $text(key, {
+            values: {
+                count,
+                type: $text(`enter_message.draft_summary.type.${kind}`),
+            },
+        });
+    }
+
+    function formatDraftPreviewSummary(parts: DraftPreviewParts): string {
+        const embedSummary = parts.embeds.map(({ kind, count }) => formatDraftEmbedSummaryPart(kind, count));
+        return [...embedSummary, parts.text]
+            .filter(Boolean)
+            .join($text('enter_message.draft_summary.separator'));
+    }
+
+    function buildDraftPreviewParts(editor: Editor | null | undefined): DraftPreviewParts {
+        if (!editor || editor.isDestroyed) return EMPTY_DRAFT_PREVIEW_PARTS;
+
+        const textContent = editor.getText().replace(/\s+/g, ' ').trim();
+        const embedCounts = new Map<DraftEmbedKind, number>();
+        const embedOrder: DraftEmbedKind[] = [];
+        const addEmbedCount = (kind: DraftEmbedKind, count = 1) => {
+            if (!embedCounts.has(kind)) embedOrder.push(kind);
+            embedCounts.set(kind, (embedCounts.get(kind) ?? 0) + count);
+        };
+
+        editor.state.doc.descendants((node) => {
+            if (node.type.name !== 'embed') return true;
+
+            const attrs = node.attrs ?? {};
+            const groupedItems = Array.isArray(attrs.groupedItems) ? attrs.groupedItems : [];
+            if (groupedItems.length > 0) {
+                for (const item of groupedItems) {
+                    addEmbedCount(getDraftEmbedKind((item as { type?: unknown }).type));
+                }
+            } else {
+                const groupCount = typeof attrs.groupCount === 'number' && Number.isFinite(attrs.groupCount)
+                    ? Math.max(1, attrs.groupCount)
+                    : 1;
+                addEmbedCount(getDraftEmbedKind(attrs.type), groupCount);
+            }
+
+            return true;
+        });
+
+        return {
+            embeds: embedOrder.map((kind) => ({ kind, count: embedCounts.get(kind) ?? 0 })),
+            text: textContent,
+        };
+    }
+
+    function refreshDraftPreviewState(editor: Editor | null | undefined): void {
+        if (!editor || editor.isDestroyed) {
+            hasEmbedContent = false;
+            draftPreviewParts = EMPTY_DRAFT_PREVIEW_PARTS;
+            return;
+        }
+        hasEmbedContent = editorHasEmbedContent(editor);
+        draftPreviewParts = buildDraftPreviewParts(editor);
+    }
+
+    let draftPreviewSummary = $derived(formatDraftPreviewSummary(draftPreviewParts));
+
+    // Draft preview mode: any inactive draft content collapses to a summary so the rest of the UI is usable.
+    let isDraftPreview = $derived(!!draftPreviewSummary && (hasContent || hasEmbedContent) && !isMessageFieldFocused && !isFullscreen && !forceDraftActionsVisible);
 
     // Computed state for showing action buttons
     // In extended/fullscreen mode: always visible (no tap required).
@@ -792,6 +883,7 @@
 
         await tick();
         hasContent = !isContentEmptyExceptMention(editor);
+        refreshDraftPreviewState(editor);
         updateOriginalMarkdown(editor);
         lastEditorUpdateText = editor.getText();
         triggerSaveDraft(currentChatId, editor);
@@ -825,6 +917,7 @@
         }
 
         hasContent = !isContentEmptyExceptMention(editor);
+        refreshDraftPreviewState(editor);
     }
 
     function insertPreviewPasteEmbed(kind: PastedContentKind, text: string, content: string, language?: string | null) {
@@ -877,6 +970,7 @@
         editor.commands.focus('end');
         setAutoConvertedPasteCandidate(embedId, text);
         hasContent = !isContentEmptyExceptMention(editor);
+        refreshDraftPreviewState(editor);
     }
 
     // --- Unified Parsing Handler ---
@@ -1847,6 +1941,7 @@
 
                             editor.commands.focus('end');
                             hasContent = !isContentEmptyExceptMention(editor);
+                            refreshDraftPreviewState(editor);
                             console.debug('[MessageInput] Pasted embed(s) from clipboard:', embedDataList.length);
                         } catch (err) {
                             console.warn('[MessageInput] Failed to parse embed clipboard data, falling through to default paste:', err);
@@ -1903,6 +1998,7 @@
 
                             editor.commands.focus('end');
                             hasContent = !isContentEmptyExceptMention(editor);
+                            refreshDraftPreviewState(editor);
                             console.debug('[MessageInput] Pasted OpenMates message from text/plain fallback:', {
                                 embedCount: embedRefsFromPlainText.length,
                             });
@@ -2091,6 +2187,7 @@
 
         initializeDraftService(editor);
         hasContent = !isContentEmptyExceptMention(editor);
+        refreshDraftPreviewState(editor);
         if (!hasContent && !isMessageFieldFocused) {
             startPlaceholderCycle();
         }
@@ -2167,6 +2264,7 @@
             if (!editor || editor.isDestroyed || !msgText) return;
             editor.commands.setContent(`<p>${msgText.replace(/\n/g, '<br>')}</p>`);
             hasContent = true;
+            refreshDraftPreviewState(editor);
             editor.commands.focus('end');
             if (autoSend) {
                 // Short delay to let the editor render the content
@@ -2277,6 +2375,7 @@
                 if (editor.isEmpty) {
                     editor.commands.setContent(getInitialContent());
                     hasContent = false;
+                    refreshDraftPreviewState(editor);
                 }
             } else if (isMenuInteraction) {
                 // If it's a menu interaction, don't update focus state
@@ -2748,7 +2847,7 @@
         }
         
         const newHasContent = !isContentEmptyExceptMention(editor);
-        hasEmbedContent = editorHasEmbedContent(editor);
+        refreshDraftPreviewState(editor);
         if (hasContent !== newHasContent) {
             hasContent = newHasContent;
             if (!newHasContent) {
@@ -3503,7 +3602,7 @@
         }
         tick().then(() => {
             hasContent = editorHasSendableText(editor);
-            hasEmbedContent = editorHasEmbedContent(editor);
+            refreshDraftPreviewState(editor);
             updateEmbedGroupLayouts();
             observeEmbedGroupContainers();
         });
@@ -3670,8 +3769,8 @@
     }
 
     function handleSaveDraftBeforeSwitch() { flushCurrentEditorDraft(currentChatId); }
-    function handleBeforeUnload() { if (hasContent) flushCurrentEditorDraft(currentChatId); }
-    function handleVisibilityChange() { if (document.visibilityState === 'hidden' && hasContent) flushCurrentEditorDraft(currentChatId); }
+    function handleBeforeUnload() { if (hasContent || hasEmbedContent) flushCurrentEditorDraft(currentChatId); }
+    function handleVisibilityChange() { if (document.visibilityState === 'hidden' && (hasContent || hasEmbedContent)) flushCurrentEditorDraft(currentChatId); }
     function handleResize() { checkScrollable(); updateHeight(); }
     
     /**
@@ -3716,6 +3815,7 @@
 
         // Update content tracking so the send button and fullscreen button hide/show correctly.
         hasContent = !isContentEmptyExceptMention(editor);
+        refreshDraftPreviewState(editor);
         // Keep the text-change guard in sync so the next legitimate editor update
         // doesn't incorrectly think text hasn't changed.
         lastEditorUpdateText = editor.getText();
@@ -3767,6 +3867,7 @@
         );
         updateOriginalMarkdown(editor);
         hasContent = !isContentEmptyExceptMention(editor);
+        refreshDraftPreviewState(editor);
         lastEditorUpdateText = editor.getText();
         triggerSaveDraft(currentChatId, editor);
         editor.commands.focus('end');
@@ -3994,7 +4095,7 @@
         await handleFileDrop(event, editorElement, editor, $authStore.isAuthenticated);
         tick().then(() => {
             hasContent = editorHasSendableText(editor);
-            hasEmbedContent = editorHasEmbedContent(editor);
+            refreshDraftPreviewState(editor);
             updateEmbedGroupLayouts();
             observeEmbedGroupContainers();
         });
@@ -4017,6 +4118,7 @@
         await handleFileSelectedEvent(event, editor, $authStore.isAuthenticated);
         tick().then(() => {
             hasContent = editorHasSendableText(editor);
+            refreshDraftPreviewState(editor);
             updateEmbedGroupLayouts();
             observeEmbedGroupContainers();
         });
@@ -4052,7 +4154,7 @@
         // isRecording=false: camera photos are not recordings; isAuthenticated controls upload path
         await insertImage(editor, file, false, undefined, undefined, $authStore.isAuthenticated);
         hasContent = editorHasSendableText(editor);
-        hasEmbedContent = true;
+        refreshDraftPreviewState(editor);
         tick().then(() => {
             updateEmbedGroupLayouts();
             observeEmbedGroupContainers();
@@ -4122,6 +4224,7 @@
         // It does NOT need a pre-created blob URL — it creates its own internally.
         await insertRecording(editor, blob, mimeType, formattedDuration, $authStore.isAuthenticated, chatIdForRecording, waveform);
         hasContent = editorHasSendableText(editor);
+        refreshDraftPreviewState(editor);
         lastEditorUpdateText = editor.getText();
         triggerSaveDraft(chatIdForRecording || currentChatId, editor);
         handleStopRecordingCleanup(); // Called here after recording is inserted
@@ -4158,6 +4261,7 @@
         await tick();
         await insertImage(editor, file, false, undefined, undefined, $authStore.isAuthenticated);
         hasContent = editorHasSendableText(editor);
+        refreshDraftPreviewState(editor);
         tick().then(() => {
             updateEmbedGroupLayouts();
             observeEmbedGroupContainers();
@@ -4177,6 +4281,7 @@
         // which the backend uses to inject location context into the LLM prompt.
         await insertMap(editor, previewData);
         hasContent = editorHasSendableText(editor);
+        refreshDraftPreviewState(editor);
     }
     /**
      * Determines whether the currently selected embed supports "Paste as text".
@@ -4349,6 +4454,7 @@
 
             await tick();
             hasContent = !isContentEmptyExceptMention(editor);
+            refreshDraftPreviewState(editor);
 
             // Rebuild originalMarkdown so the draft reflects the text replacement
             updateOriginalMarkdown(editor);
@@ -4376,6 +4482,7 @@
         if (action === 'delete') {
             await tick();
             hasContent = !isContentEmptyExceptMention(editor);
+            refreshDraftPreviewState(editor);
             // Rebuild originalMarkdown from the updated editor state and force a draft save.
             // The textActuallyChanged guard in handleEditorUpdate skips triggerSaveDraft when
             // getText() doesn't change (e.g. editor had only an embed with no text). Without
@@ -4437,6 +4544,7 @@
         // force-save the draft here or a later server echo can restore prompt-only
         // content and drop the newly attached PDF card.
         if (editor && !editor.isDestroyed && currentChatId) {
+            refreshDraftPreviewState(editor);
             updateOriginalMarkdown(editor);
             await flushSaveDraft(editor, currentChatId);
         }
@@ -4519,6 +4627,7 @@
         // work begins, so subsequent taps have no button to press. The editor is
         // cleared by handleSend shortly after, keeping this consistent.
         hasContent = false;
+        draftPreviewParts = EMPTY_DRAFT_PREVIEW_PARTS;
 
         // Flush any debounced heavy parsing so originalMarkdown is fully up-to-date
         if (editor && !editor.isDestroyed) {
@@ -4571,7 +4680,10 @@
         void handleSend(
             editor,
             dispatch,
-            (value) => (hasContent = value),
+            (value) => {
+                hasContent = value;
+                refreshDraftPreviewState(editor);
+            },
             currentChatId,
             piiExclusions, // Pass PII exclusions so excluded matches are not replaced
             broadcastToSiblings
@@ -4641,6 +4753,7 @@
         originalMarkdown = ''; // Clear markdown tracking
         lastEditorUpdateText = ''; // Reset text-change guard
         hasContent = false; // Update content state
+        refreshDraftPreviewState(editor);
         setPendingAnonymousFileAttachment(false);
         
         // Manually dispatch textchange event with empty text to clear liveInputText in ActiveChat
@@ -4770,6 +4883,7 @@
 
             editor.commands.focus('end');
             hasContent = !isContentEmptyExceptMention(editor);
+            refreshDraftPreviewState(editor);
             updateOriginalMarkdown(editor);
             lastEditorUpdateText = editor.getText();
             triggerSaveDraft(currentChatId, editor);
@@ -4867,6 +4981,7 @@
             }
             editor.commands.insertContent(text);
             hasContent = true;
+            refreshDraftPreviewState(editor);
             lastEditorUpdateText = editor.getText(); // Sync text-change guard after external content set
             updateOriginalMarkdown(editor);
             triggerSaveDraft(currentChatId, editor);
@@ -4896,6 +5011,7 @@
         }
         originalMarkdown = text;
         hasContent = !isContentEmptyExceptMention(editor);
+        refreshDraftPreviewState(editor);
         lastEditorUpdateText = editor.getText();
         detectedPII = [];
         currentPIIDecorations = [];
@@ -4930,6 +5046,7 @@
             }
             editor.commands.insertContent(text);
             hasContent = true;
+            refreshDraftPreviewState(editor);
             lastEditorUpdateText = editor.getText();
             updateOriginalMarkdown(editor);
             editor.commands.focus('end');
@@ -4963,6 +5080,7 @@
             .run();
 
         hasContent = editorHasSendableText(editor);
+        refreshDraftPreviewState(editor);
         lastEditorUpdateText = editor.getText();
         updateOriginalMarkdown(editor);
         editor.commands.focus('end');
@@ -5008,6 +5126,7 @@
         if (editor) {
             // Always update hasContent state based on current editor content
             hasContent = !isContentEmptyExceptMention(editor);
+            refreshDraftPreviewState(editor);
             
             // Only update originalMarkdown if there's actual content
             // For demo chats with no draft, we don't want to set originalMarkdown
@@ -5050,6 +5169,7 @@
     export async function clearMessageField(shouldFocus: boolean = true, preserveContext: boolean = false) {
         await clearEditorAndResetDraftState(shouldFocus, preserveContext);
         hasContent = false;
+        refreshDraftPreviewState(editor);
         forceDraftActionsVisible = false;
         originalMarkdown = ''; // Clear markdown tracking
         lastEditorUpdateText = ''; // Reset text-change guard so next update processes fully
@@ -5184,6 +5304,7 @@
                         editor.commands.setContent(`<p>${pendingReply}</p>`);
                         editor.commands.focus('end');
                         hasContent = true;
+                        refreshDraftPreviewState(editor);
                     }
                 });
             }
@@ -5209,6 +5330,7 @@
                 editor.commands.setContent(`<p>${escapedContent}</p>`);
                 editor.commands.focus('end');
                 hasContent = true;
+                refreshDraftPreviewState(editor);
             });
         }
     });
@@ -5364,6 +5486,7 @@
                 }
 
                 hasContent = true;
+                refreshDraftPreviewState(editor);
                 lastEditorUpdateText = editor.getText();
                 updateOriginalMarkdown(editor);
                 editor.commands.focus('end');
@@ -5388,6 +5511,7 @@
                     editor.commands.setContent(rememberDraftMarkdownToHtml(rememberText), { emitUpdate: false });
                 }
                 hasContent = true;
+                refreshDraftPreviewState(editor);
                 lastEditorUpdateText = editor.getText();
                 editor.commands.focus('end');
             });
@@ -5423,6 +5547,7 @@
                     if (editor && !editor.isDestroyed) {
                         editor.commands.clearContent();
                         hasContent = false;
+                        refreshDraftPreviewState(editor);
                     }
                 }}
                 aria-label={$text('chats.edit_banner.cancel')}
@@ -5626,6 +5751,12 @@
                 <div bind:this={editorElement} class="editor-content prose" data-testid="message-editor"></div>
             </div>
         </div>
+
+        {#if isDraftPreview && draftPreviewSummary}
+            <div class="draft-preview-summary" data-testid="message-draft-summary" aria-hidden="true">
+                {draftPreviewSummary}
+            </div>
+        {/if}
 
         {#if autoConvertedPasteCandidate}
             <button
