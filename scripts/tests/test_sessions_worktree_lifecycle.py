@@ -58,6 +58,12 @@ def test_ensure_session_worktree_creates_deterministic_metadata(monkeypatch, tmp
     assert data["sessions"]["abcd"]["worktree"] == metadata
 
 
+def test_default_agent_worktree_directory_stays_inside_project_root():
+    sessions = load_sessions_module()
+
+    assert sessions.AGENT_WORKTREES_DIR == sessions.PROJECT_ROOT / ".openmates-agent-worktrees"
+
+
 def test_ensure_session_worktree_reuses_existing_metadata(monkeypatch, tmp_path):
     sessions = load_sessions_module()
     worktree_path = tmp_path / "worktrees" / "agent-abcd"

@@ -181,6 +181,7 @@ log/
 logs/
 
 # Agent trigger files (written by Docker sidecar, consumed by host watcher)
+.openmates-agent-worktrees/
 scripts/.agent-triggers/
 scripts/.agent-triggers-processed/
 scripts/.tmp/

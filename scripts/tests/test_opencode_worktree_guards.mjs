@@ -8,7 +8,7 @@
 
 import assert from "node:assert/strict";
 import test from "node:test";
-import { editedFilesForTest, rootGuardDecisionForTest } from "../../.opencode/plugins/openmates-hooks.js";
+import { editedFilesForTest, rewriteEditArgsForTest, rootGuardDecisionForTest } from "../../.opencode/plugins/openmates-hooks.js";
 
 test("root guard warns in transitional mode", () => {
   const decision = rootGuardDecisionForTest({
@@ -42,7 +42,7 @@ test("root guard allows edits outside root", () => {
 });
 
 test("edited files resolve relative paths against active worktree cwd", () => {
-  const cwd = "/home/superdev/projects/.openmates-agent-worktrees/agent-abcd";
+  const cwd = "/home/superdev/projects/OpenMates/.openmates-agent-worktrees/agent-abcd";
   assert.deepEqual(
     editedFilesForTest({ file_path: "scripts/sessions.py" }, cwd),
     [`${cwd}/scripts/sessions.py`],
@@ -50,7 +50,7 @@ test("edited files resolve relative paths against active worktree cwd", () => {
 });
 
 test("patch file headers resolve relative paths against active worktree cwd", () => {
-  const cwd = "/home/superdev/projects/.openmates-agent-worktrees/agent-abcd";
+  const cwd = "/home/superdev/projects/OpenMates/.openmates-agent-worktrees/agent-abcd";
   assert.deepEqual(
     editedFilesForTest(
       {
@@ -59,5 +59,36 @@ test("patch file headers resolve relative paths against active worktree cwd", ()
       cwd,
     ),
     [`${cwd}/docs/example.md`],
+  );
+});
+
+test("relative edit args rewrite to the active session worktree", () => {
+  const worktree = "/home/superdev/projects/OpenMates/.openmates-agent-worktrees/agent-abcd";
+  assert.deepEqual(
+    rewriteEditArgsForTest({ file_path: "scripts/sessions.py" }, worktree),
+    { file_path: `${worktree}/scripts/sessions.py` },
+  );
+});
+
+test("patch headers rewrite to the active session worktree", () => {
+  const worktree = "/home/superdev/projects/OpenMates/.openmates-agent-worktrees/agent-abcd";
+  assert.deepEqual(
+    rewriteEditArgsForTest(
+      {
+        patchText: "*** Begin Patch\n*** Update File: docs/example.md\n@@\n-old\n+new\n*** End Patch",
+      },
+      worktree,
+    ),
+    {
+      patchText: `*** Begin Patch\n*** Update File: ${worktree}/docs/example.md\n@@\n-old\n+new\n*** End Patch`,
+    },
+  );
+});
+
+test("absolute and already-worktree edit args are not double rewritten", () => {
+  const worktree = "/home/superdev/projects/OpenMates/.openmates-agent-worktrees/agent-abcd";
+  assert.deepEqual(
+    rewriteEditArgsForTest({ file_path: `${worktree}/scripts/sessions.py`, path: "/tmp/example.txt" }, worktree),
+    { file_path: `${worktree}/scripts/sessions.py`, path: "/tmp/example.txt" },
   );
 });

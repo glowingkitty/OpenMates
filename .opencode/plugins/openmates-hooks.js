@@ -5,11 +5,13 @@
 // with the small set of canonical Claude guards.
 
 import { spawnSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 
 const EDIT_TOOLS = new Set(["apply_patch", "edit", "write", "Edit", "Write"]);
 const BASH_TOOLS = new Set(["bash", "Bash"]);
 const PROJECT_ROOT = "/home/superdev/projects/OpenMates";
 const BRIDGE = `${PROJECT_ROOT}/.codex/hooks/claude-hook-bridge.sh`;
+const SESSIONS_FILE = `${PROJECT_ROOT}/.claude/sessions.json`;
 const REPO_RELATIVE_PREFIXES = ["frontend/", "backend/", "scripts/", "docs/", "apple/", ".opencode/", ".claude/"];
 const SOURCE_FILE_EXTENSION = /\.(?:py|js|mjs|ts|tsx|svelte|swift|md|ya?ml|json)$/;
 const CLI_LOGIN_HINT_MARKER = "[OpenMates CLI login hint]";
@@ -172,6 +174,67 @@ function bindSessionStart(input, output) {
   output.args.command = `${command} --opencode-session ${input.sessionID}`;
 }
 
+function activeWorktreePath(sessionID) {
+  if (!sessionID) return "";
+  try {
+    const data = JSON.parse(readFileSync(SESSIONS_FILE, "utf8"));
+    for (const session of Object.values(data.sessions || {})) {
+      if (session?.opencode_session_id !== sessionID) continue;
+      const worktree = session?.worktree;
+      if (worktree?.status === "active" && typeof worktree.path === "string") return worktree.path;
+    }
+  } catch {
+    return "";
+  }
+  return "";
+}
+
+function pathInProjectRoot(file) {
+  return file === PROJECT_ROOT || file?.startsWith(`${PROJECT_ROOT}/`);
+}
+
+function pathInWorktree(file) {
+  return file?.includes("/.openmates-agent-worktrees/") || file?.includes("/.agent-worktrees/");
+}
+
+function shouldRewriteEditPath(file) {
+  return Boolean(file) && !file.startsWith("/") && !file.startsWith("../") && !pathInWorktree(file);
+}
+
+function rewritePathForWorktree(file, worktreePath) {
+  if (!worktreePath || !shouldRewriteEditPath(file)) return file;
+  let relative = file;
+  while (relative.startsWith("./")) relative = relative.slice(2);
+  return `${worktreePath}/${relative}`;
+}
+
+function rewritePatchHeadersForWorktree(patchText, worktreePath) {
+  if (!worktreePath || typeof patchText !== "string") return patchText;
+  return patchText
+    .split("\n")
+    .map((line) => {
+      for (const prefix of ["*** Add File: ", "*** Update File: ", "*** Delete File: ", "*** Move to: "]) {
+        if (!line.startsWith(prefix)) continue;
+        const file = line.slice(prefix.length).trim();
+        return `${prefix}${rewritePathForWorktree(file, worktreePath)}`;
+      }
+      return line;
+    })
+    .join("\n");
+}
+
+export function rewriteEditArgsForTest(args, worktreePath) {
+  const input = toolInput(args);
+  if (!worktreePath || !input || typeof input !== "object") return input;
+  const rewritten = { ...input };
+  for (const key of ["file_path", "filePath", "path"]) {
+    if (typeof rewritten[key] === "string") rewritten[key] = rewritePathForWorktree(rewritten[key], worktreePath);
+  }
+  if (typeof rewritten.patchText === "string") rewritten.patchText = rewritePatchHeadersForWorktree(rewritten.patchText, worktreePath);
+  if (typeof rewritten.patch === "string") rewritten.patch = rewritePatchHeadersForWorktree(rewritten.patch, worktreePath);
+  return rewritten;
+}
+
 function guardBash(command) {
   guardForbiddenLocalTests(command);
   const repositoryMutation = /\bgit\s+apply\b/.test(command);
@@ -298,12 +361,12 @@ function toAbsPath(file, cwd = activeCwd()) {
 
 function isInsideProjectRoot(file) {
   const target = file || "";
-  return target === PROJECT_ROOT || target.startsWith(`${PROJECT_ROOT}/`);
+  return pathInProjectRoot(target);
 }
 
 function isInsideAgentWorktree(cwd, target) {
   const combined = `${cwd || ""}\n${target || ""}`;
-  return combined.includes("/.openmates-agent-worktrees/") || combined.includes("/.agent-worktrees/");
+  return pathInWorktree(combined);
 }
 
 function worktreeGuardMessage(sessionID) {
@@ -357,7 +420,11 @@ export const OpenMatesHooks = async () => ({
 
     if (BASH_TOOLS.has(tool)) guardBash(bashCommand(output?.args || input?.args));
     bindSessionStart(input, output);
-    if (EDIT_TOOLS.has(tool)) guardRootEdit(editedFilesForTest(output?.args || input?.args), input.sessionID);
+    if (EDIT_TOOLS.has(tool)) {
+      const worktreePath = activeWorktreePath(input.sessionID);
+      if (worktreePath) output.args = rewriteEditArgsForTest(output?.args || input?.args, worktreePath);
+      guardRootEdit(editedFilesForTest(output?.args || input?.args), input.sessionID);
+    }
     runBridge("PreToolUse", bridgePayload("PreToolUse", tool, output?.args), input.sessionID);
   },
   "tool.execute.after": async (input, output) => {
