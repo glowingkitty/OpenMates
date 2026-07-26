@@ -5943,6 +5943,10 @@
         color: var(--color-grey-60);
     }
 
+    .message-input-wrapper.guest-cta-mode .empty-input-ai-icon {
+        background: var(--color-grey-60);
+    }
+
 	.message-field.empty-welcome-field {
 		min-height: 64px;
 		padding: 0 64px;
