@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import importlib.util
+import json
 import sys
 from pathlib import Path
 
@@ -193,6 +194,45 @@ def test_vercel_deploy_lock_allows_same_session_same_commit_refresh(monkeypatch,
     )
 
     assert acquired is False
+
+
+def test_vercel_deploy_lock_clears_stale_commit_for_same_session_precommit(monkeypatch, tmp_path):
+    sessions = load_sessions_module()
+    sessions_file = tmp_path / "sessions.json"
+    sessions_file.write_text(
+        """
+{
+  "locks": {
+    "docker_rebuild": {"status": "NONE"},
+    "vercel_deploy": {
+      "status": "IN_PROGRESS",
+      "claimed_by": "current",
+      "commit_sha": "oldcommit123",
+      "phase": "awaiting_vercel_or_e2e",
+      "since": "2026-07-21T10:00:00Z",
+      "last_updated": "2026-07-21T10:00:00Z"
+    }
+  },
+  "sessions": {}
+}
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(sessions, "SESSIONS_FILE", sessions_file)
+    monkeypatch.setattr(sessions, "_minutes_since", lambda _value: 10)
+
+    acquired = sessions._acquire_session_lock(
+        "vercel_deploy",
+        "current",
+        phase="preparing_commit",
+    )
+
+    assert acquired is False
+    data = json.loads(sessions_file.read_text(encoding="utf-8"))
+    lock = data["locks"]["vercel_deploy"]
+    assert "commit_sha" not in lock
+    assert lock["phase"] == "preparing_commit"
 
 
 def test_wait_lock_returns_immediately_when_available(monkeypatch, tmp_path, capsys):

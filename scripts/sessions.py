@@ -849,6 +849,8 @@ def _acquire_session_lock(lock_type: str, session_id: str, *, commit_sha: str = 
                 lock["last_updated"] = now
                 if commit_sha:
                     lock["commit_sha"] = commit_sha
+                elif phase in {"integrating_worktree", "preparing_commit"}:
+                    lock.pop("commit_sha", None)
                 if phase:
                     lock["phase"] = phase
                 locks[lock_type] = lock
