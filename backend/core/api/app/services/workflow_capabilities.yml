@@ -331,17 +331,6 @@ capabilities:
     test_example_input:
       url: architecture/apps
     output_schema: *search_output
-  openmates.search-docs:
-    available: true
-    execution_mode: sync
-    effect: read
-    unattended: true
-    approval: never
-    binding_requirements: [none]
-    test_allowed: true
-    test_example_input:
-      query: workflows
-    output_schema: *search_output
   pdf.read:
     available: false
     unavailable_reason: WORKFLOW_FILE_OR_EMBED_INPUT_REQUIRED

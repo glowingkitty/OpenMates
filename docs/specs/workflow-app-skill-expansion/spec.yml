@@ -475,7 +475,6 @@ skill_inventory:
     - nutrition.search_recipes
     - openmates.share-usecase
     - openmates.get-docs
-    - openmates.search-docs
     - shopping.search_products
     - social_media.get-posts
     - social_media.search

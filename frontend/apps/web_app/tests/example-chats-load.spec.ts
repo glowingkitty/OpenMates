@@ -281,6 +281,16 @@ test.describe('Example chats loading for new users', () => {
 		const messageEditor = page.getByTestId('message-editor');
 		await expect(messageEditor).toContainText('Remember my earlier message:', { timeout: 10000 });
 		await expect(messageEditor).toContainText('privacy-first AI productivity company from zero', { timeout: 10000 });
+
+		await page.getByTestId('new-chat-cta-fullwidth').click();
+		await expect(
+			page.locator('[data-testid="resume-chat-large-card"], [data-testid="resume-chat-card"]').first()
+		).toBeVisible({ timeout: 10000 });
+		await expect(compressionSummary).toHaveCount(0);
+
+		await page.getByTestId('profile-container').click();
+		await expect(page.getByTestId('settings-menu')).toBeVisible({ timeout: 8000 });
+		await expect(compressionSummary).toHaveCount(0);
 	});
 
 	test('nutrition example renders Edamam recipe search embed card', async ({

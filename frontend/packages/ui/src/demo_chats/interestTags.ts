@@ -142,7 +142,6 @@ export const INTEREST_TAGS: InterestTag[] = [
     exampleChats: [
       "example-svelte-runes-docs",
       "example-python-squares-code-run",
-      "example-openmates-app-skills-embeds-docs",
       "example-openmates-add-app-skill-doc",
       "example-frontend-developer-career-pivot",
     ],

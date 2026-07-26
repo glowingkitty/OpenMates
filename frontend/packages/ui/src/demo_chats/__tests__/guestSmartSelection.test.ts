@@ -110,7 +110,6 @@ describe("guestSmartSelection", () => {
       "example-python-squares-code-run",
       "example-pdf-search-encryption",
       "example-python-squares-code-run",
-      "example-openmates-app-skills-embeds-docs",
       "example-privacy-website-hero-background",
     ];
 
@@ -122,8 +121,8 @@ describe("guestSmartSelection", () => {
     expect(first.slice(0, 4)).toEqual([
       "example-svelte-runes-docs",
       "example-python-squares-code-run",
-      "example-openmates-app-skills-embeds-docs",
       "example-pdf-search-encryption",
+      "example-privacy-website-hero-background",
     ]);
   });
 

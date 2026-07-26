@@ -1709,28 +1709,6 @@ export const APP_SKILL_METADATA = [
     }
   },
   {
-    "app_id": "openmates",
-    "skill_id": "search-docs",
-    "app_namespace_ts": "openmates",
-    "skill_method_ts": "searchDocs",
-    "app_namespace_py": "openmates",
-    "skill_method_py": "search_docs",
-    "description_key": "openmates_app.search_docs.description",
-    "description": "Use when the user asks about OpenMates features, setup, architecture, or documentation. Searches across all OpenMates documentation to find relevant pages.",
-    "schema": {
-      "type": "object",
-      "properties": {
-        "query": {
-          "type": "string",
-          "description": "Search terms to find in OpenMates documentation"
-        }
-      },
-      "required": [
-        "query"
-      ]
-    }
-  },
-  {
     "app_id": "pdf",
     "skill_id": "read",
     "app_namespace_ts": "pdf",
@@ -3797,14 +3775,6 @@ export class OpenmatesAppSkills {
    */
   async getDocs<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
     return this.runSkill<T>("openmates", "get-docs", input, options);
-  }
-  /**
-   * Use when the user asks about OpenMates features, setup, architecture, or documentation. Searches across all OpenMates documentation to find relevant pages.
-   * Description key: openmates_app.search_docs.description
-   * Skill: openmates/search-docs
-   */
-  async searchDocs<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
-    return this.runSkill<T>("openmates", "search-docs", input, options);
   }
   /**
    * Use when the user has explicitly agreed to anonymously share a summary of their intended use cases with the OpenMates team to help improve the product. NEVER call this without clear user consent.

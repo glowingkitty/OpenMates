@@ -35,7 +35,6 @@ import { northstarMetricsSvgLogoChat } from "./data/example_chats/northstar-metr
 import { pythonSquaresCodeRunChat } from "./data/example_chats/python-squares-code-run";
 import { habitTrackerOnboardingDraftChat } from "./data/example_chats/habit-tracker-onboarding-draft";
 import { chickpeaSpinachProteinDinnersChat } from "./data/example_chats/chickpea-spinach-protein-dinners";
-import { openmatesAppSkillsEmbedsDocsChat } from "./data/example_chats/openmates-app-skills-embeds-docs";
 import { openmatesAddAppSkillDocChat } from "./data/example_chats/openmates-add-app-skill-doc";
 import { nonprofitEventPlanningUseCaseChat } from "./data/example_chats/nonprofit-event-planning-use-case";
 import { lh400FlightStatusCheckChat } from "./data/example_chats/lh400-flight-status-check";
@@ -137,7 +136,6 @@ export const ALL_EXAMPLE_CHATS: ExampleChat[] = [
   pythonSquaresCodeRunChat,
   habitTrackerOnboardingDraftChat,
   chickpeaSpinachProteinDinnersChat,
-  openmatesAppSkillsEmbedsDocsChat,
   openmatesAddAppSkillDocChat,
   nonprofitEventPlanningUseCaseChat,
   lh400FlightStatusCheckChat,

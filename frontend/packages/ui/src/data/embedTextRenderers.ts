@@ -233,7 +233,6 @@ export const EMBED_TEXT_RENDERERS: Record<string, EmbedTextRenderer> = {
 	'app:fitness:search_classes': renderFitnessSearch,
 	'app:openmates:share-usecase': renderGenericAppSkill,
 	'app:openmates:get-docs': renderGenericAppSkill,
-	'app:openmates:search-docs': renderGenericAppSkill,
 	'app:pdf:read': renderGenericAppSkill,
 	'app:pdf:search': renderGenericAppSkill,
 	'app:pdf:view': renderGenericAppSkill,

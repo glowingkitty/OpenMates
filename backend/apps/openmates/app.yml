@@ -28,15 +28,6 @@ embed_types:
     icon: library
     gradient_var: "--color-app-openmates"
     i18n_namespace: embeds.openmates.get_docs
-  - id: search_docs
-    category: app-skill-use
-    skill_id: search-docs
-    frontend_type: app-skill-use
-    backend_type: app_skill_use
-    has_children: false
-    icon: search
-    gradient_var: "--color-app-openmates"
-    i18n_namespace: embeds.openmates.search_docs
 
 instructions:
   - instruction: |
@@ -47,8 +38,6 @@ instructions:
         wants to use OpenMates for, as discussed in the conversation.
       - **get-docs**: Retrieve a specific OpenMates documentation page by URL or slug.
         Automatically use this when the user shares an openmates.org/docs URL.
-      - **search-docs**: Search across all OpenMates documentation for a topic or keyword.
-        Use when the user asks about OpenMates features, setup, or architecture.
 
 skills:
   - id: share-usecase
@@ -104,26 +93,6 @@ skills:
             (e.g., 'architecture/chats' or 'https://openmates.org/docs/architecture/chats')
       required:
         - url
-
-  - id: search-docs
-    name_translation_key: openmates_app.search_docs
-    description_translation_key: openmates_app.search_docs.description
-    icon_image: search.svg
-    preprocessor_hint: >
-      Use when the user asks about OpenMates features, setup, architecture, or documentation.
-      Searches across all OpenMates documentation to find relevant pages.
-    providers:
-      - name: OpenMates
-        no_api_key: true
-    class_path: backend.apps.openmates.skills.search_docs_skill.SearchDocsSkill
-    tool_schema:
-      type: object
-      properties:
-        query:
-          type: string
-          description: Search terms to find in OpenMates documentation
-      required:
-        - query
 
 focuses:
   - id: welcome
@@ -231,13 +200,3 @@ marketing_discovery:
         - users need product guidance
       demo_angles:
         - show OpenMates docs answer
-    search-docs:
-      enabled: true
-      keywords:
-        - search OpenMates docs
-        - find OpenMates feature docs
-        - OpenMates help search
-      pain_points:
-        - docs are hard to navigate
-      demo_angles:
-        - show docs search

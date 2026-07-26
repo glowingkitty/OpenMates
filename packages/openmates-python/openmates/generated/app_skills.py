@@ -2700,21 +2700,6 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
   'skill_id': 'get-docs',
   'skill_method_py': 'get_docs',
   'skill_method_ts': 'getDocs'},
- {'app_id': 'openmates',
-  'app_namespace_py': 'openmates',
-  'app_namespace_ts': 'openmates',
-  'description': 'Use when the user asks about OpenMates features, setup, architecture, or '
-                 'documentation. Searches across all OpenMates documentation to find relevant '
-                 'pages.',
-  'description_key': 'openmates_app.search_docs.description',
-  'schema': {'properties': {'query': {'description': 'Search terms to find in OpenMates '
-                                                     'documentation',
-                                      'type': 'string'}},
-             'required': ['query'],
-             'type': 'object'},
-  'skill_id': 'search-docs',
-  'skill_method_py': 'search_docs',
-  'skill_method_ts': 'searchDocs'},
  {'app_id': 'pdf',
   'app_namespace_py': 'pdf',
   'app_namespace_ts': 'pdf',
@@ -5377,14 +5362,6 @@ class OpenmatesAppSkills:
         Skill: openmates/get-docs
         """
         return self._run_skill("openmates", "get-docs", input_data, prompt_injection_protection=prompt_injection_protection)
-
-    def search_docs(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
-        """Use when the user asks about OpenMates features, setup, architecture, or documentation. Searches across all OpenMates documentation to find relevant pages.
-
-        Description key: openmates_app.search_docs.description
-        Skill: openmates/search-docs
-        """
-        return self._run_skill("openmates", "search-docs", input_data, prompt_injection_protection=prompt_injection_protection)
 
     def share_usecase(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
         """Use when the user has explicitly agreed to anonymously share a summary of their intended use cases with the OpenMates team to help improve the product. NEVER call this without clear user consent.
