@@ -993,7 +993,11 @@ async function fetchAndDecryptBlob(
   }
 
   const keyBytes = b64ToBuffer(aesKeyB64);
-  const nonceBytes = b64ToBuffer(nonceB64);
+  const NONCE_BYTES = 12;
+  const nonceBytes = nonceB64
+    ? b64ToBuffer(nonceB64)
+    : encryptedData.slice(0, NONCE_BYTES);
+  const ciphertext = nonceB64 ? encryptedData : encryptedData.slice(NONCE_BYTES);
 
   // Import and apply AES-256-GCM decryption
   const cryptoKey = await crypto.subtle.importKey(
@@ -1006,7 +1010,7 @@ async function fetchAndDecryptBlob(
   const decrypted = await crypto.subtle.decrypt(
     { name: "AES-GCM", iv: nonceBytes },
     cryptoKey,
-    encryptedData,
+    ciphertext,
   );
 
   return new Blob([decrypted], { type: mimeType });
@@ -1088,7 +1092,7 @@ export async function getAudioRecordingsForChat(messages: Message[]): Promise<
         const aesKey = decoded.aes_key as string | undefined;
         const aesNonce = decoded.aes_nonce as string | undefined;
 
-        if (!originalS3Key || !aesKey || !aesNonce) {
+        if (!originalS3Key || !aesKey || aesNonce == null) {
           console.warn(
             "[ZipExportService] Audio embed missing S3/AES fields:",
             embed.embed_id,

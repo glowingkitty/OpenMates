@@ -34,6 +34,7 @@
         activeTab = $bindable(''),
         gradientStart = '',
         gradientEnd = '',
+        maxVisibleTabs = 4.3,
         testIdPrefix = 'settings-tab',
         onChange = undefined,
     }: {
@@ -41,6 +42,7 @@
         activeTab?: string;
         gradientStart?: string;
         gradientEnd?: string;
+        maxVisibleTabs?: number;
         testIdPrefix?: string;
         onChange?: ((tabId: string) => void) | undefined;
     } = $props();
@@ -49,7 +51,8 @@
     let effectiveGradientStart = $derived(gradientStart || 'var(--color-primary-start)');
     let effectiveGradientEnd = $derived(gradientEnd || 'var(--color-primary-end)');
 
-    let isScrollable = $derived(tabs.length > 4);
+    let visibleTabCount = $derived(Math.max(1, maxVisibleTabs));
+    let isScrollable = $derived(tabs.length > visibleTabCount);
 
     /** Index of the active tab (used for pill offset calculation) */
     let activeIndex = $derived(Math.max(0, tabs.findIndex(t => t.id === activeTab)));
@@ -106,6 +109,7 @@
                 style="
                     --tab-count: {tabs.length};
                     --active-index: {activeIndex};
+                    --visible-tab-count: {visibleTabCount};
                     --gradient-start: {effectiveGradientStart};
                     --gradient-end: {effectiveGradientEnd};
                 "
@@ -255,10 +259,10 @@
         z-index: var(--z-index-base);
     }
 
-    /* For scrollable (>4 tabs), pill uses fixed width */
+    /* For scrollable tab bars, pill uses the configured visible tab count. */
     .scrollable .settings-tabs-pill {
-        width: calc(100% / 4.3);
-        left: calc(100% / 4.3 * var(--active-index, 0));
+        width: calc(100% / var(--visible-tab-count, 4.3));
+        left: calc(100% / var(--visible-tab-count, 4.3) * var(--active-index, 0));
     }
 
     /* ── Tab buttons — full reset of buttons.css globals ─────────── */
@@ -283,10 +287,10 @@
         transition: background 0.25s ease;
     }
 
-    /* For scrollable tabs (>4), fixed minimum width so last tab gets cut off */
+    /* For scrollable tabs, fixed minimum width controls how many tabs are visible. */
     .scrollable .settings-tab {
         flex: 0 0 auto;
-        min-width: calc(100% / 4.3);
+        min-width: calc(100% / var(--visible-tab-count, 4.3));
     }
 
     /* Hover on inactive: gradient at 50% opacity with smooth transition */

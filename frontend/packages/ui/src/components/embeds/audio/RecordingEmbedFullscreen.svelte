@@ -234,6 +234,11 @@
     s3Files?.original?.s3_key ?? Object.values(s3Files ?? {})[0]?.s3_key,
   );
 
+  let audioDownloadFilename = $derived.by(() => {
+    const rawFilename = filename || 'voice_note.webm';
+    return rawFilename.replace(/[/\\]/g, '_');
+  });
+
   /** Truncated filename for the info bar */
   let infoBarTitle = $derived.by(() => {
     if (title) return title;
@@ -401,6 +406,10 @@
     const sec = Math.floor(s % 60);
     return `${m}:${sec.toString().padStart(2, '0')}`;
   }
+
+  function noopDownload(): void {
+    // UnifiedEmbedFullscreen requires an onDownload callback to render the native anchor.
+  }
 </script>
 
 <UnifiedEmbedFullscreen
@@ -410,6 +419,9 @@
   embedHeaderTitle={infoBarTitle}
   embedHeaderSubtitle={infoBarSubtitle}
   showShare={false}
+  onDownload={resolvedAudioSrc ? noopDownload : undefined}
+  downloadHref={resolvedAudioSrc ?? null}
+  downloadFilename={audioDownloadFilename}
   {onClose}
   {hasPreviousEmbed}
   {hasNextEmbed}

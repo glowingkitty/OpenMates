@@ -34,9 +34,32 @@ describe('chat settings downloadable files', () => {
     const refs = extractChatEmbedRefs([
       message('Open embed:code:one and embed:image:two'),
       message('Repeated embed:code:one', 'Truncated contains embed:pdf:three'),
+      message('```json\n{"type":"audio-recording","embed_id":"voice-note-1"}\n```'),
     ]);
 
-    expect(refs).toEqual(['embed:code:one', 'embed:image:two', 'embed:pdf:three']);
+    expect(refs).toEqual(['embed:code:one', 'embed:image:two', 'embed:pdf:three', 'embed:voice-note-1']);
+  });
+
+  it('lists audio recording embeds as downloadable files', async () => {
+    uploadedFiles.getUploadedFilesByContentRefs.mockResolvedValueOnce([
+      {
+        embedId: 'voice-note-1',
+        contentRef: 'embed:voice-note-1',
+        title: 'Audio recording',
+        subtitle: '00:08',
+        type: 'audio-recording',
+        nodeType: 'recording',
+        iconName: 'audio',
+        createdAt: 1,
+        updatedAt: 1,
+      },
+    ]);
+
+    const rows = await loadChatFileRows([message('```json\n{"type":"audio-recording","embed_id":"voice-note-1"}\n```')]);
+
+    expect(uploadedFiles.getUploadedFilesByContentRefs).toHaveBeenCalledWith(['embed:voice-note-1']);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ contentRef: 'embed:voice-note-1', iconName: 'audio', metadata: '00:08' });
   });
 
   it('keeps only downloadable file rows and preserves useful metadata', async () => {

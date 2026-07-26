@@ -23,7 +23,7 @@
   let { activeSettingsView = '' }: { activeSettingsView?: string } = $props();
 
   const tabs = [
-    { id: 'plan', icon: 'task' },
+    { id: 'plan', icon: 'planning' },
     { id: 'tasks', icon: 'task' },
     { id: 'files', icon: 'files' },
     { id: 'usage', icon: 'usage' },
@@ -275,7 +275,7 @@
     {/if}
 
     <div class="tabs-shell" data-testid="chat-settings-tabs">
-      <SettingsTabs tabs={tabs} bind:activeTab testIdPrefix="chat-settings-tab" onChange={setTab} />
+      <SettingsTabs tabs={tabs} bind:activeTab maxVisibleTabs={tabs.length} testIdPrefix="chat-settings-tab" onChange={setTab} />
     </div>
 
     {#if activeTab === 'plan'}

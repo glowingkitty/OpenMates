@@ -76,7 +76,12 @@ const FILE_LIKE_EMBED_TYPES = new Set([
   "code",
   "code-code",
   "audio",
+  "audio-recording",
   "recording",
+  "docs",
+  "docs-doc",
+  "sheets",
+  "sheets-sheet",
 ]);
 
 export interface PreviewBackfillMergeResult {

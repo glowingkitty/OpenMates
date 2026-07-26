@@ -165,7 +165,7 @@
     font-size: var(--font-size-h3);
     line-height: 1.3;
     font-weight: 700;
-    color: var(--color-white);
+    color: #fff !important;
   }
 
   .chat-settings-credits {
@@ -176,14 +176,15 @@
     margin-top: var(--spacing-4);
     font: var(--font-heading-sm);
     font-weight: var(--font-weight-bold);
+    color: #fff !important;
     transition: opacity var(--duration-fast) var(--easing-default);
   }
 
   .credits-icon {
     width: 1.375rem;
     height: 1.375rem;
-    background: var(--color-white);
-    -webkit-mask: var(--icon-url-credits) center / contain no-repeat;
-    mask: var(--icon-url-credits) center / contain no-repeat;
+    background: #fff;
+    -webkit-mask: url('@openmates/ui/static/icons/coins.svg') center / contain no-repeat;
+    mask: url('@openmates/ui/static/icons/coins.svg') center / contain no-repeat;
   }
 </style>
