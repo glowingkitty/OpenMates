@@ -124,7 +124,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: b3a001a8b
+  subject_commit: 04d243307
 
 approvals:
   product_contract:
@@ -182,6 +182,20 @@ attempts:
     recorded_at: "2026-07-18T23:19:13Z"
     evidence: github_actions_run_29664968616
     notes: The test control plane dispatched GitHub Actions for committed SHA 533bc56c2, so the uncommitted local spec was not present and GitHub reported "No tests found". This is not valid red evidence for T-E2E-CHAT-SETTINGS.
+  - id: ATTEMPT-5
+    task_id: TASK-3
+    approach: Deploy tab route-sync fix and rerun chat settings plus share regression gates against app.dev.openmates.org.
+    outcome: blocked
+    recorded_at: "2026-07-23T10:37:00Z"
+    evidence: github_actions_run_29999627519
+    notes: >
+      chat-settings-flow.spec.ts passed on deployed 04d243307, proving the tab
+      route-sync fix. share-chat-flow.spec.ts failed on the same deployed
+      subject: first attempt timed out clicking a visible/enabled
+      chat-share-button, retry opened the Share route but share generation did
+      not complete within 60 seconds. Local HEAD then moved to unrelated
+      unpushed commit 4a6b04db, blocking further expected-commit reruns without
+      risking another session's commit.
 
 handoff:
   current_task_id: TASK-3
@@ -422,9 +436,9 @@ tests:
       evidence:
         status: passed
         command: npm run test -- --run src/components/chats/__tests__/chatDownloadableFiles.test.ts
-        run_id: local-vitest-2026-07-23T04:17:39Z
-        subject_commit: b3a001a8b
-        timestamp: "2026-07-23T04:17:40Z"
+        run_id: local-vitest-2026-07-23T10:29:16Z
+        subject_commit: 04d243307
+        timestamp: "2026-07-23T10:29:22Z"
 
   - id: T-UNIT-USAGE
     type: unit
@@ -448,9 +462,9 @@ tests:
       evidence:
         status: passed
         command: npm run test -- --run src/components/chats/__tests__/chatUsageRows.test.ts
-        run_id: local-vitest-2026-07-23T04:17:39Z
-        subject_commit: b3a001a8b
-        timestamp: "2026-07-23T04:17:40Z"
+        run_id: local-vitest-2026-07-23T10:29:16Z
+        subject_commit: 04d243307
+        timestamp: "2026-07-23T10:29:22Z"
 
   - id: T-UNIT-SHARE
     type: unit
@@ -474,9 +488,9 @@ tests:
       evidence:
         status: passed
         command: npm run test -- --run src/services/encryption/__tests__/shareEncryption.test.ts
-        run_id: local-vitest-2026-07-23T04:17:39Z
-        subject_commit: b3a001a8b
-        timestamp: "2026-07-23T04:17:44Z"
+        run_id: local-vitest-2026-07-23T10:29:16Z
+        subject_commit: 04d243307
+        timestamp: "2026-07-23T10:29:22Z"
 
   - id: T-E2E-CHAT-SETTINGS
     type: playwright
@@ -502,13 +516,14 @@ tests:
       expected: pass_after_deploy
       evidence:
         status: passed
-        command: python3 scripts/tests.py run --spec chat-settings-flow.spec.ts --gate-deploy --expected-commit b3a001a8bc7d9e2558ad12c316f75752f0fb0f67
-        run_id: "29978891376"
-        orchestrator_run_id: "2026-07-23T04:09:12Z"
-        subject_commit: b3a001a8b
-        timestamp: "2026-07-23T04:13:10Z"
+        command: python3 scripts/tests.py run --spec chat-settings-flow.spec.ts --gate-deploy --expected-commit 04d243307a9305300d0b777ee39b9f500a086544
+        run_id: "29999256509"
+        orchestrator_run_id: "2026-07-23T10:23:58Z"
+        subject_commit: 04d243307
+        timestamp: "2026-07-23T10:27:57Z"
         target: app.dev.openmates.org
-        deployment_reference: "Vercel dpl_H7dCG1PNvRkpBeGQqx2agWnAhAZa READY for b3a001a8b"
+        deployment_reference: "Vercel dpl_AG5QERAsU1kBKghDzDJ1hRhp4HmX READY for 04d243307"
+        notes: Passed after route-sync fix for tab clicks; Plan, Tasks, Files, Usage, and Share remain aligned with the active Settings deep link.
 
   - id: T-E2E-CHAT-FILES
     type: playwright
@@ -533,13 +548,13 @@ tests:
       expected: pass_after_deploy
       evidence:
         status: passed
-        command: python3 scripts/tests.py run --spec chat-settings-flow.spec.ts --gate-deploy --expected-commit b3a001a8bc7d9e2558ad12c316f75752f0fb0f67
-        run_id: "29978891376"
-        orchestrator_run_id: "2026-07-23T04:09:12Z"
-        subject_commit: b3a001a8b
-        timestamp: "2026-07-23T04:13:10Z"
+        command: python3 scripts/tests.py run --spec chat-settings-flow.spec.ts --gate-deploy --expected-commit 04d243307a9305300d0b777ee39b9f500a086544
+        run_id: "29999256509"
+        orchestrator_run_id: "2026-07-23T10:23:58Z"
+        subject_commit: 04d243307
+        timestamp: "2026-07-23T10:27:57Z"
         target: app.dev.openmates.org
-        deployment_reference: "Vercel dpl_H7dCG1PNvRkpBeGQqx2agWnAhAZa READY for b3a001a8b"
+        deployment_reference: "Vercel dpl_AG5QERAsU1kBKghDzDJ1hRhp4HmX READY for 04d243307"
         notes: Extended chat-settings-flow proves the Files tab opens, shows the empty state for a chat without downloadable fixtures, and disables Download files; row-level downloadable filtering is covered by T-UNIT-DOWNLOADABLE-FILES.
 
   - id: T-E2E-CHAT-USAGE
@@ -563,13 +578,13 @@ tests:
       expected: pass_after_deploy
       evidence:
         status: passed
-        command: python3 scripts/tests.py run --spec chat-settings-flow.spec.ts --gate-deploy --expected-commit b3a001a8bc7d9e2558ad12c316f75752f0fb0f67
-        run_id: "29978891376"
-        orchestrator_run_id: "2026-07-23T04:09:12Z"
-        subject_commit: b3a001a8b
-        timestamp: "2026-07-23T04:13:10Z"
+        command: python3 scripts/tests.py run --spec chat-settings-flow.spec.ts --gate-deploy --expected-commit 04d243307a9305300d0b777ee39b9f500a086544
+        run_id: "29999256509"
+        orchestrator_run_id: "2026-07-23T10:23:58Z"
+        subject_commit: 04d243307
+        timestamp: "2026-07-23T10:27:57Z"
         target: app.dev.openmates.org
-        deployment_reference: "Vercel dpl_H7dCG1PNvRkpBeGQqx2agWnAhAZa READY for b3a001a8b"
+        deployment_reference: "Vercel dpl_AG5QERAsU1kBKghDzDJ1hRhp4HmX READY for 04d243307"
         notes: Extended chat-settings-flow proves the Usage tab opens after an assistant response and exposes total credits plus CSV/YAML export controls; row serialization is covered by T-UNIT-USAGE.
 
   - id: T-E2E-CHAT-SHARE
@@ -595,16 +610,16 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: passed
-        command: python3 scripts/tests.py run --spec share-chat-flow.spec.ts --gate-deploy --expected-commit b3a001a8bc7d9e2558ad12c316f75752f0fb0f67
-        run_id: "29978681100"
-        orchestrator_run_id: "2026-07-23T04:04:08Z"
-        subject_commit: b3a001a8b
-        timestamp: "2026-07-23T04:08:53Z"
+        status: failed
+        command: python3 scripts/tests.py run --spec share-chat-flow.spec.ts --gate-deploy --expected-commit 04d243307a9305300d0b777ee39b9f500a086544
+        run_id: "29999627519"
+        orchestrator_run_id: "2026-07-23T10:29:33Z"
+        subject_commit: 04d243307
+        timestamp: "2026-07-23T10:36:26Z"
         target: app.dev.openmates.org
-        deployment_reference: "Vercel dpl_H7dCG1PNvRkpBeGQqx2agWnAhAZa READY for b3a001a8b"
+        deployment_reference: "Vercel dpl_AG5QERAsU1kBKghDzDJ1hRhp4HmX READY for 04d243307"
         flaky: false
-        notes: Passed with the deployment gate after ChatSettingsPage synced tab changes from the active Settings route. Artifacts saved under test-results/screenshots/current/share-chat-flow/.
+        notes: First attempt timed out clicking a visible/enabled chat-share-button. Retry opened the Share route but share generation did not complete within 60 seconds; artifacts saved under test-results/screenshots/current/share-chat-flow/.
 
   - id: T-E2E-EMBED-SHARE
     type: playwright

@@ -1669,7 +1669,7 @@ enum InterestTagId: String, CaseIterable, Codable, Hashable {
         case .privacy: return ["example-pdf-search-encryption", "example-privacy-website-hero-background", "example-private-workspace-demo-video"]
         case .learning: return ["example-rag-explained-videos", "example-ted-talk-transcript-summary", "example-memory-study-learning-goals"]
         case .writing: return ["example-ted-talk-transcript-summary", "example-building-maintenance-email", "example-memory-docs-writing-style"]
-        case .softwareDevelopment: return ["example-svelte-runes-docs", "example-python-squares-code-run", "example-openmates-app-skills-embeds-docs", "example-openmates-add-app-skill-doc", "example-frontend-developer-career-pivot"]
+        case .softwareDevelopment: return ["example-svelte-runes-docs", "example-python-squares-code-run", "example-openmates-add-app-skill-doc", "example-frontend-developer-career-pivot"]
         case .findEvents: return ["example-ai-workshops-meetups-berlin", "example-creativity-drawing-meetups-berlin", "example-memory-events-saved-events"]
         case .findRestaurant: return ["example-quiet-cafes-tempelhofer-feld", "example-organic-groceries-berlin"]
         case .findDoctorAppointments: return ["example-berlin-dermatology-appointments", "example-memory-health-appointments"]
