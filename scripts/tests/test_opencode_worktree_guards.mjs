@@ -31,6 +31,29 @@ test("root guard blocks strict root edits", () => {
   assert.equal(decision.decision, "block");
 });
 
+test("root guard blocks root edits whenever an active worktree exists", () => {
+  const decision = rootGuardDecisionForTest({
+    mode: "warn",
+    cwd: "/home/superdev/projects/OpenMates",
+    target: "/home/superdev/projects/OpenMates/scripts/sessions.py",
+    worktreePath: "/home/superdev/projects/OpenMates/.openmates-agent-worktrees/agent-abcd",
+    sessionID: "ses_test",
+  });
+  assert.equal(decision.decision, "block");
+  assert.match(decision.message, /\.openmates-agent-worktrees\/agent-abcd/);
+});
+
+test("root guard escape hatch still allows emergency root edits", () => {
+  const decision = rootGuardDecisionForTest({
+    mode: "off",
+    cwd: "/home/superdev/projects/OpenMates",
+    target: "/home/superdev/projects/OpenMates/scripts/sessions.py",
+    worktreePath: "/home/superdev/projects/OpenMates/.openmates-agent-worktrees/agent-abcd",
+    sessionID: "ses_test",
+  });
+  assert.equal(decision.decision, "allow");
+});
+
 test("root guard allows edits outside root", () => {
   const decision = rootGuardDecisionForTest({
     mode: "strict",

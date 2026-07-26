@@ -369,25 +369,28 @@ function isInsideAgentWorktree(cwd, target) {
   return pathInWorktree(combined);
 }
 
-function worktreeGuardMessage(sessionID) {
-  return `${ROOT_GUARD_MARKER} Root checkout is the OpenMates control plane. Use the session worktree for source edits: python3 scripts/sessions.py worktree ensure --session ${sessionID || "<id>"}`;
+function worktreeGuardMessage(sessionID, worktreePath = "") {
+  const target = worktreePath ? ` Edit in ${worktreePath} instead.` : "";
+  return `${ROOT_GUARD_MARKER} Root checkout is the OpenMates control plane.${target} Use the session worktree for source edits: python3 scripts/sessions.py worktree ensure --session ${sessionID || "<id>"}`;
 }
 
-export function rootGuardDecisionForTest({ mode = "warn", cwd = PROJECT_ROOT, target = "", sessionID = "" } = {}) {
+export function rootGuardDecisionForTest({ mode = "warn", cwd = PROJECT_ROOT, target = "", sessionID = "", worktreePath = "" } = {}) {
   const normalized = String(mode || "warn").toLowerCase();
   if (["off", "0", "false"].includes(normalized)) return { decision: "allow", message: "root guard disabled" };
   if (!isInsideProjectRoot(target) || isInsideAgentWorktree(cwd, target)) return { decision: "allow", message: "target is not a root checkout source edit" };
-  const message = worktreeGuardMessage(sessionID);
+  const message = worktreeGuardMessage(sessionID, worktreePath);
+  if (worktreePath) return { decision: "block", message };
   return { decision: normalized === "strict" ? "block" : "warn", message };
 }
 
-function guardRootEdit(files, sessionID) {
+function guardRootEdit(files, sessionID, worktreePath = "") {
   for (const file of files) {
     const decision = rootGuardDecisionForTest({
       mode: process.env.OPENMATES_ROOT_GUARD || "warn",
       cwd: process.cwd(),
       target: file,
       sessionID,
+      worktreePath,
     });
     if (decision.decision === "block") throw new Error(decision.message);
     if (decision.decision === "warn") console.warn(decision.message);
@@ -423,7 +426,7 @@ export const OpenMatesHooks = async () => ({
     if (EDIT_TOOLS.has(tool)) {
       const worktreePath = activeWorktreePath(input.sessionID);
       if (worktreePath) output.args = rewriteEditArgsForTest(output?.args || input?.args, worktreePath);
-      guardRootEdit(editedFilesForTest(output?.args || input?.args), input.sessionID);
+      guardRootEdit(editedFilesForTest(output?.args || input?.args), input.sessionID, worktreePath);
     }
     runBridge("PreToolUse", bridgePayload("PreToolUse", tool, output?.args), input.sessionID);
   },
