@@ -113,6 +113,7 @@ import { text } from "@repo/ui";
 const mountedComponents = new WeakMap<HTMLElement, ReturnType<typeof mount>>();
 const scrollIndicatorCleanups = new WeakMap<HTMLElement, () => void>();
 const INDICATOR_VISIBLE_RATIO = 0.12;
+const INDICATOR_VISIBILITY_TOLERANCE_PX = 1;
 
 /**
  * Permissive record type for TOON-decoded embed content.
@@ -1074,14 +1075,34 @@ export class GroupRenderer implements EmbedRenderer {
 
     const updateIndicator = () => {
       const containerRect = scrollContainer.getBoundingClientRect();
+      const canScrollX =
+        scrollContainer.scrollWidth >
+        scrollContainer.clientWidth + INDICATOR_VISIBILITY_TOLERANCE_PX;
+      const canScrollY =
+        scrollContainer.scrollHeight >
+        scrollContainer.clientHeight + INDICATOR_VISIBILITY_TOLERANCE_PX;
       const isVertical =
         scrollContainer.scrollHeight - scrollContainer.clientHeight >
         scrollContainer.scrollWidth - scrollContainer.clientWidth;
       let strongestVisibleIndex = -1;
       let strongestVisibility = 0;
+      let hasOutOfViewItem = false;
 
       items.forEach((item, index) => {
         const itemRect = item.getBoundingClientRect();
+        const fullyVisibleX =
+          itemRect.left >=
+            containerRect.left - INDICATOR_VISIBILITY_TOLERANCE_PX &&
+          itemRect.right <=
+            containerRect.right + INDICATOR_VISIBILITY_TOLERANCE_PX;
+        const fullyVisibleY =
+          itemRect.top >=
+            containerRect.top - INDICATOR_VISIBILITY_TOLERANCE_PX &&
+          itemRect.bottom <=
+            containerRect.bottom + INDICATOR_VISIBILITY_TOLERANCE_PX;
+        if ((canScrollX && !fullyVisibleX) || (canScrollY && !fullyVisibleY)) {
+          hasOutOfViewItem = true;
+        }
         const visibleWidth = Math.max(
           0,
           Math.min(itemRect.right, containerRect.right) -
@@ -1108,6 +1129,9 @@ export class GroupRenderer implements EmbedRenderer {
         }
       });
 
+      indicator.hidden = !hasOutOfViewItem;
+      indicator.setAttribute("aria-hidden", hasOutOfViewItem ? "false" : "true");
+
       Array.from(indicator?.children ?? []).forEach((segment, index) => {
         const isCurrent =
           index === strongestVisibleIndex &&
@@ -1122,13 +1146,32 @@ export class GroupRenderer implements EmbedRenderer {
     };
 
     scrollIndicatorCleanups.get(scrollContainer)?.();
-    const onScroll = () => requestAnimationFrame(updateIndicator);
+    let animationFrame: number | null = null;
+    const scheduleUpdate = () => {
+      if (animationFrame !== null) return;
+      animationFrame = requestAnimationFrame(() => {
+        animationFrame = null;
+        updateIndicator();
+      });
+    };
+    const resizeObserver =
+      typeof ResizeObserver === "undefined" ? null : new ResizeObserver(scheduleUpdate);
+
+    resizeObserver?.observe(scrollContainer);
+    items.forEach((item) => resizeObserver?.observe(item));
+
+    const onScroll = scheduleUpdate;
     scrollContainer.addEventListener("scroll", onScroll, { passive: true });
     scrollIndicatorCleanups.set(scrollContainer, () => {
+      if (animationFrame !== null) {
+        cancelAnimationFrame(animationFrame);
+        animationFrame = null;
+      }
       scrollContainer.removeEventListener("scroll", onScroll);
+      resizeObserver?.disconnect();
     });
 
-    requestAnimationFrame(updateIndicator);
+    scheduleUpdate();
   }
 
   /**
