@@ -953,6 +953,30 @@ def _get_staged_files() -> set[str]:
     return {line.strip() for line in stdout.splitlines() if line.strip()}
 
 
+def _validate_use_staged_deploy_files(to_commit: set[str], *, context: str) -> bool:
+    """Ensure --use-staged still points at exactly this deploy's file set."""
+    staged_files = _get_staged_files()
+    missing_staged = sorted(to_commit - staged_files)
+    foreign_staged = sorted(staged_files - to_commit)
+    if not missing_staged and not foreign_staged:
+        return True
+
+    print(
+        f"--use-staged index changed {context}; aborting to avoid committing the wrong files:",
+        file=sys.stderr,
+    )
+    if missing_staged:
+        print("  Missing staged deploy file(s):", file=sys.stderr)
+        for f in missing_staged:
+            print(f"    - {f}", file=sys.stderr)
+    if foreign_staged:
+        print("  Foreign staged file(s):", file=sys.stderr)
+        for f in foreign_staged:
+            print(f"    - {f}", file=sys.stderr)
+    print("Restage the intended files and rerun deploy.", file=sys.stderr)
+    return False
+
+
 def _get_recent_commits(count: int = RECENT_COMMITS_COUNT) -> list[str]:
     """Return recent git commits as one-line summaries with relative timestamps."""
     rc, stdout, _ = _run_cmd([
@@ -4045,6 +4069,12 @@ def cmd_deploy(args: argparse.Namespace) -> None:
                 sys.exit(1)
 
         print(f"Staging complete: {len(files_to_add)} added, {len(deleted_files)} deleted")
+
+    if use_staged and not _validate_use_staged_deploy_files(
+        set(to_commit),
+        context="before commit",
+    ):
+        sys.exit(1)
 
     # 3. Git commit
     commit_msg = args.title
