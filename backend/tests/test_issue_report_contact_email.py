@@ -12,6 +12,10 @@ from __future__ import annotations
 import pytest
 
 from backend.core.api.app.utils.issue_report_contact_email import resolve_account_contact_email
+from backend.core.api.app.utils.issue_report_text import (
+    normalize_issue_report_error_sentinels,
+    normalize_issue_report_trace_ids,
+)
 
 
 class FakeDirectus:
@@ -49,3 +53,19 @@ async def test_authenticated_issue_report_can_resolve_server_contact_email():
     )
 
     assert contact_email == "user@example.com"
+
+
+def test_issue_report_normalizes_raw_chat_error_sentinel() -> None:
+    assert (
+        normalize_issue_report_error_sentinels("Schlechte Antwortqualität:\n\nchat.an_error_occured")
+        == "Schlechte Antwortqualität:\n\nAI processing error"
+    )
+    assert normalize_issue_report_error_sentinels("chat.an_error_occurred") == "AI processing error"
+    assert normalize_issue_report_error_sentinels(None) is None
+
+
+def test_issue_report_trace_ids_are_bounded_for_yaml() -> None:
+    long_trace_id = "a" * 100
+
+    assert normalize_issue_report_trace_ids([long_trace_id, "trace-2", ""]) == ["a" * 64, "trace-2"]
+    assert normalize_issue_report_trace_ids(None) == []

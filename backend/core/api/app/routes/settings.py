@@ -37,6 +37,7 @@ from backend.core.api.app.utils.report_issue_ids import (
     issue_identifier_filter,
 )
 from backend.core.api.app.utils.issue_report_contact_email import resolve_account_contact_email
+from backend.core.api.app.utils.issue_report_text import normalize_issue_report_error_sentinels
 from backend.core.api.app.services.api_key_authorization import ApiKeyAuthorizationService
 from backend.core.api.app.services.chat_recovery_service import ChatRecoveryProtocolError
 from backend.core.api.app.routes.handlers.websocket_handlers.chat_recovery_job_handlers import (
@@ -2811,7 +2812,7 @@ async def report_issue(
         # This runs BEFORE html.escape() so hidden characters don't bypass XSS filtering
         from backend.core.api.app.utils.text_sanitization import sanitize_text_for_ascii_smuggling
 
-        raw_title = issue_data.title.strip()
+        raw_title = normalize_issue_report_error_sentinels(issue_data.title.strip()) or ""
         ascii_cleaned_title, title_ascii_stats = sanitize_text_for_ascii_smuggling(
             raw_title, log_prefix="[report_issue/title] ", include_stats=True
         )
@@ -2822,7 +2823,11 @@ async def report_issue(
                 f"(hidden_ascii={title_ascii_stats.get('hidden_ascii_detected', False)})"
             )
 
-        raw_description = issue_data.description.strip() if issue_data.description else None
+        raw_description = (
+            normalize_issue_report_error_sentinels(issue_data.description.strip())
+            if issue_data.description
+            else None
+        )
         ascii_cleaned_description = None
         description_ascii_suspicious = False
         if raw_description:

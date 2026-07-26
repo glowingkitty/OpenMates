@@ -86,6 +86,15 @@
     let emailError = $state('');
     let showTitleWarning = $state(false);
     let showEmailWarning = $state(false);
+    const RAW_CHAT_ERROR_KEYS = new Set(['chat.an_error_occured', 'chat.an_error_occurred']);
+
+    function normalizeIssueReportText(value: string): string {
+        let normalized = value;
+        for (const rawKey of RAW_CHAT_ERROR_KEYS) {
+            normalized = normalized.replaceAll(rawKey, $text('chat.an_error_occured'));
+        }
+        return normalized;
+    }
     
     /**
      * Validate email format - must be a valid email address
@@ -471,19 +480,19 @@
         
         try {
             // SECURITY: Sanitize inputs before sending to backend
-            const sanitizedTitle = sanitizeTextInput(issueTitle);
+            const sanitizedTitle = sanitizeTextInput(normalizeIssueReportText(issueTitle));
 
             // Compose the three structured fields into a single formatted description.
             // Only include sections that have content; send null if everything is empty.
             const descriptionParts: string[] = [];
             if (userFlow.trim()) {
-                descriptionParts.push(`## What did you do?\n${sanitizeTextInput(userFlow)}`);
+                descriptionParts.push(`## What did you do?\n${sanitizeTextInput(normalizeIssueReportText(userFlow))}`);
             }
             if (expectedBehaviour.trim()) {
-                descriptionParts.push(`## Expected behaviour\n${sanitizeTextInput(expectedBehaviour)}`);
+                descriptionParts.push(`## Expected behaviour\n${sanitizeTextInput(normalizeIssueReportText(expectedBehaviour))}`);
             }
             if (actualBehaviour.trim()) {
-                descriptionParts.push(`## Actual behaviour\n${sanitizeTextInput(actualBehaviour)}`);
+                descriptionParts.push(`## Actual behaviour\n${sanitizeTextInput(normalizeIssueReportText(actualBehaviour))}`);
             }
             const sanitizedDescription = descriptionParts.length > 0
                 ? descriptionParts.join('\n\n')
