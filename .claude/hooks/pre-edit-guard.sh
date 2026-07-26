@@ -17,9 +17,33 @@ fi
 PROJECT_DIR="/home/superdev/projects/OpenMates"
 SESSIONS_FILE="$PROJECT_DIR/.claude/sessions.json"
 
+normalize_repo_relative() {
+  local file="$1"
+  case "$file" in
+    "$PROJECT_DIR"/*)
+      printf '%s\n' "${file#$PROJECT_DIR/}"
+      return
+      ;;
+  esac
+
+  jq -r --arg file "$file" '
+    [.sessions[]?.worktree?.path? | select($file | startswith(. + "/"))] |
+    sort_by(length) |
+    reverse |
+    .[0] // empty
+  ' "$SESSIONS_FILE" 2>/dev/null | {
+    read -r worktree_path
+    if [ -n "$worktree_path" ]; then
+      printf '%s\n' "${file#$worktree_path/}"
+    else
+      printf '%s\n' "$file"
+    fi
+  }
+}
+
 if [ -f "$SESSIONS_FILE" ]; then
-  # Get relative path for matching against session tracked files
-  REL_FILE="${FILE#$PROJECT_DIR/}"
+  # Get relative path for matching against session tracked files.
+  REL_FILE=$(normalize_repo_relative "$FILE")
 
   # OpenCode chats share one Zellij process, so their exact `ses_*` identity
   # must win. Claude sessions retain the legacy unique-Zellij fallback.

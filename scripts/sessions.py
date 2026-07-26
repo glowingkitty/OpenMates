@@ -674,18 +674,18 @@ def _apply_worktree_diff_to_root(metadata: dict, files: list[str]) -> None:
 
 
 def enqueue_worktree_deploy(session_id: str, title: str, patch_id: str, *, reason: str) -> dict:
-    """Record a visible deploy queue item for a busy deploy path."""
+    """Record a visible blocked deploy item for manual retry."""
     now = _now_iso()
     item = {
         "id": f"deploy-{session_id}-{hashlib.sha256((patch_id or title).encode('utf-8')).hexdigest()[:10]}",
         "session_id": session_id,
         "title": title,
         "patch_id": patch_id,
-        "status": "queued",
+        "status": "blocked",
         "reason": reason,
         "created_at": now,
         "updated_at": now,
-        "next_retry_at": now,
+        "next_action": "Resolve the root integration conflict, then rerun sessions.py deploy.",
     }
 
     def store(data: dict) -> dict:
@@ -4412,15 +4412,34 @@ def cmd_deploy(args: argparse.Namespace) -> None:
         print()
 
     if worktree_metadata and to_commit:
+        deploy_lock_held = False
+        try:
+            _wait_and_acquire_session_lock(
+                "vercel_deploy",
+                sid,
+                phase="integrating_worktree",
+                timeout=getattr(args, "lock_timeout", None),
+                poll=getattr(args, "lock_poll", 30),
+            )
+            deploy_lock_held = True
+        except RuntimeError as exc:
+            print(str(exc), file=sys.stderr)
+            sys.exit(1)
+        print("Dev deploy integration lock acquired for worktree diff application.")
+
         print(f"Applying session worktree diff from {worktree_metadata.get('path')}...")
         try:
             _apply_worktree_diff_to_root(worktree_metadata, to_commit)
         except RuntimeError as exc:
             patch_id = _worktree_patch_id(worktree_metadata)
             item = enqueue_worktree_deploy(sid, args.title, patch_id, reason=str(exc))
-            print(f"WORKTREE INTEGRATION QUEUED — {item['id']}: {exc}", file=sys.stderr)
-            print("Resolve the root conflict or wait for the deploy worker to retry.", file=sys.stderr)
+            if deploy_lock_held:
+                _release_session_lock("vercel_deploy", released_by=sid)
+            print(f"WORKTREE INTEGRATION BLOCKED — {item['id']}: {exc}", file=sys.stderr)
+            print("Resolve the root conflict, then rerun the same sessions.py deploy command.", file=sys.stderr)
             sys.exit(1)
+        if deploy_lock_held:
+            _release_session_lock("vercel_deploy", released_by=sid)
 
     # 1. Run linter (with CSS/HTML support and longer timeout)
     no_verify = getattr(args, "no_verify", False)
@@ -4502,6 +4521,21 @@ def cmd_deploy(args: argparse.Namespace) -> None:
         sys.exit(1)
     print("Vercel build machine: standard/fixed")
 
+    deploy_lock_held = False
+    try:
+        _wait_and_acquire_session_lock(
+            "vercel_deploy",
+            sid,
+            phase="preparing_commit",
+            timeout=getattr(args, "lock_timeout", None),
+            poll=getattr(args, "lock_poll", 30),
+        )
+        deploy_lock_held = True
+    except RuntimeError as exc:
+        print(str(exc), file=sys.stderr)
+        sys.exit(1)
+    print("Dev deploy verification lock acquired for commit preparation.")
+
     # 2. Git add — reset any staged files not belonging to this session first,
     # to prevent index bleed from concurrent sessions that already ran git add.
     use_staged = getattr(args, "use_staged", False)
@@ -4512,11 +4546,15 @@ def cmd_deploy(args: argparse.Namespace) -> None:
             print("--use-staged found staged files outside this session; aborting to avoid index bleed:", file=sys.stderr)
             for f in sorted(foreign_staged):
                 print(f"  - {f}", file=sys.stderr)
+            if deploy_lock_held:
+                _release_session_lock("vercel_deploy", released_by=sid)
             sys.exit(1)
         print(f"Unstaging {len(foreign_staged)} file(s) staged by another session...")
         rc, _, stderr = _run_cmd(["git", "reset", "HEAD"] + foreign_staged)
         if rc != 0:
             print(f"git reset failed: {stderr}", file=sys.stderr)
+            if deploy_lock_held:
+                _release_session_lock("vercel_deploy", released_by=sid)
             sys.exit(1)
 
     if use_staged:
@@ -4526,6 +4564,8 @@ def cmd_deploy(args: argparse.Namespace) -> None:
             print("--use-staged requires staged changes for every tracked deploy file:", file=sys.stderr)
             for f in sorted(missing_staged):
                 print(f"  - {f}", file=sys.stderr)
+            if deploy_lock_held:
+                _release_session_lock("vercel_deploy", released_by=sid)
             sys.exit(1)
         print(f"Using pre-staged changes for {len(to_commit)} tracked file(s)")
     else:
@@ -4540,6 +4580,8 @@ def cmd_deploy(args: argparse.Namespace) -> None:
             rc, _, stderr = _run_cmd(["git", "rm", "--cached", "--ignore-unmatch"] + deleted_files)
             if rc != 0:
                 print(f"git rm failed: {stderr}", file=sys.stderr)
+                if deploy_lock_held:
+                    _release_session_lock("vercel_deploy", released_by=sid)
                 sys.exit(1)
 
         if files_to_add:
@@ -4547,24 +4589,11 @@ def cmd_deploy(args: argparse.Namespace) -> None:
             rc, _, stderr = _run_cmd(["git", "add"] + files_to_add)
             if rc != 0:
                 print(f"git add failed: {stderr}", file=sys.stderr)
+                if deploy_lock_held:
+                    _release_session_lock("vercel_deploy", released_by=sid)
                 sys.exit(1)
 
         print(f"Staging complete: {len(files_to_add)} added, {len(deleted_files)} deleted")
-
-    deploy_lock_held = False
-    try:
-        _wait_and_acquire_session_lock(
-            "vercel_deploy",
-            sid,
-            phase="preparing_commit",
-            timeout=getattr(args, "lock_timeout", None),
-            poll=getattr(args, "lock_poll", 30),
-        )
-        deploy_lock_held = True
-    except RuntimeError as exc:
-        print(str(exc), file=sys.stderr)
-        sys.exit(1)
-    print("Vercel deploy lock acquired for commit preparation.")
 
     print("Rechecking Vercel web app build machine before commit...")
     try:

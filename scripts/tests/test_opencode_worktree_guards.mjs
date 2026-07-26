@@ -8,7 +8,7 @@
 
 import assert from "node:assert/strict";
 import test from "node:test";
-import { rootGuardDecisionForTest } from "../../.opencode/plugins/openmates-hooks.js";
+import { editedFilesForTest, rootGuardDecisionForTest } from "../../.opencode/plugins/openmates-hooks.js";
 
 test("root guard warns in transitional mode", () => {
   const decision = rootGuardDecisionForTest({
@@ -39,4 +39,25 @@ test("root guard allows edits outside root", () => {
     sessionID: "ses_test",
   });
   assert.equal(decision.decision, "allow");
+});
+
+test("edited files resolve relative paths against active worktree cwd", () => {
+  const cwd = "/home/superdev/projects/.openmates-agent-worktrees/agent-abcd";
+  assert.deepEqual(
+    editedFilesForTest({ file_path: "scripts/sessions.py" }, cwd),
+    [`${cwd}/scripts/sessions.py`],
+  );
+});
+
+test("patch file headers resolve relative paths against active worktree cwd", () => {
+  const cwd = "/home/superdev/projects/.openmates-agent-worktrees/agent-abcd";
+  assert.deepEqual(
+    editedFilesForTest(
+      {
+        patchText: "*** Begin Patch\n*** Update File: docs/example.md\n@@\n-old\n+new\n*** End Patch",
+      },
+      cwd,
+    ),
+    [`${cwd}/docs/example.md`],
+  );
 });

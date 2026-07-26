@@ -50,8 +50,9 @@ integration point only.
      --message "Why this UI/spec change is needed"
    ```
    `sessions.py deploy` scopes the commit from the session worktree diff,
-   integrates it to `dev`, and records verification state for the resulting
-   commit; use `wait-lock` only for diagnostics/manual inspection.
+   guards root integration and commit/push with the dev deploy verification
+   lock, and records verification state for the resulting commit; use
+   `wait-lock` only for diagnostics/manual inspection.
 
 4. Capture the deployed commit SHA from the deploy output. Use fast latest-ready
    verification for low-risk checks that do not need an exact deploy proof. Use

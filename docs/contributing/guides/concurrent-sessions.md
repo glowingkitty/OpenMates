@@ -11,7 +11,7 @@ Load this document when multiple assistants may be working simultaneously, when 
 
 ## Overview
 
-Multiple Claude Code sessions can work on the codebase at the same time. Use **`scripts/sessions.py`** for deploy selection and Docker/Vercel locks. Its `.claude/sessions.json` file is gitignored and records work already touched; it does not reserve ordinary source files.
+Multiple agent sessions can work on the codebase at the same time. Use **`scripts/sessions.py`** for deploy selection, Docker locks, and dev deploy verification locks. Its `.claude/sessions.json` file is gitignored and records work already touched; it does not reserve ordinary source files.
 
 File edit tracking is automated via hooks in `.claude/settings.json` — every Edit/Write operation is automatically recorded to the active session's `modified_files` list.
 
@@ -115,7 +115,7 @@ Locks prevent multiple sessions from performing the same infrastructure operatio
 | Lock                          | When to use                                    |
 | ----------------------------- | ---------------------------------------------- |
 | `docker` (→ `docker_rebuild`) | Before rebuilding/restarting Docker containers |
-| `vercel` (→ `vercel_deploy`)  | Before fixing a Vercel build error             |
+| `vercel` (→ `vercel_deploy`)  | Diagnostics for an active dev deploy/test gate |
 
 ### Acquiring a Lock
 
@@ -161,7 +161,7 @@ This shows:
 - Dirty files not tracked by this session (other sessions' work)
 - Lint results
 - Related architecture docs to verify
-- Exact git commands to run manually if preferred
+- The exact scoped deploy command to run next
 
 ### Deploy (lint + commit + push)
 
@@ -174,9 +174,9 @@ python3 scripts/sessions.py deploy --session <ID> \
 This:
 
 1. Runs the linter on all files to be committed — **aborts if lint fails**
-2. `git add` each file in the session's `modified_files` (minus exclusions)
-3. `git commit` with the provided title and message
-4. `git push origin dev`
+2. Applies the session worktree diff to the root checkout under the dev deploy verification lock
+3. Stages only the selected files, commits with the provided title/message, and pushes `dev`
+4. Records the resulting commit for deployed verification
 5. Lists related architecture docs that may need updating
 
 To exclude specific files from the commit:

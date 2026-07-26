@@ -265,9 +265,13 @@ Parallel failed-test work should be leased before edits:
 Use --lease-required --lease-id <lease> on follow-up test runs when debugging that group.`;
 }
 
+function activeCwd() {
+  return process.cwd() || PROJECT_ROOT;
+}
+
 function runBridge(event, payload, sessionID) {
   const result = spawnSync("bash", [BRIDGE, event], {
-    cwd: PROJECT_ROOT,
+    cwd: activeCwd(),
     env: sessionID ? { ...process.env, OPENCODE_SESSION_ID: sessionID } : process.env,
     input: JSON.stringify(payload),
     encoding: "utf8",
@@ -281,15 +285,15 @@ function runBridge(event, payload, sessionID) {
 
 function bridgePayload(event, tool, args) {
   return {
-    cwd: PROJECT_ROOT,
+    cwd: activeCwd(),
     hook_event_name: event,
     tool_name: normalizeToolName(tool),
     tool_input: toolInput(args),
   };
 }
 
-function toAbsPath(file) {
-  return file?.startsWith("/") ? file : `${PROJECT_ROOT}/${file || ""}`;
+function toAbsPath(file, cwd = activeCwd()) {
+  return file?.startsWith("/") ? file : `${cwd}/${file || ""}`;
 }
 
 function isInsideProjectRoot(file) {
@@ -327,15 +331,15 @@ function guardRootEdit(files, sessionID) {
   }
 }
 
-function editedFiles(args) {
+export function editedFilesForTest(args, cwd = activeCwd()) {
   const input = toolInput(args);
   const explicit = input.file_path || input.filePath || input.path;
-  if (explicit) return [toAbsPath(explicit)];
+  if (explicit) return [toAbsPath(explicit, cwd)];
 
   const files = new Set();
   for (const line of (input.patchText || input.patch || "").split("\n")) {
     for (const prefix of ["*** Add File: ", "*** Update File: ", "*** Delete File: ", "*** Move to: "]) {
-      if (line.startsWith(prefix)) files.add(toAbsPath(line.slice(prefix.length).trim()));
+      if (line.startsWith(prefix)) files.add(toAbsPath(line.slice(prefix.length).trim(), cwd));
     }
   }
   return [...files].sort();
@@ -353,7 +357,7 @@ export const OpenMatesHooks = async () => ({
 
     if (BASH_TOOLS.has(tool)) guardBash(bashCommand(output?.args || input?.args));
     bindSessionStart(input, output);
-    if (EDIT_TOOLS.has(tool)) guardRootEdit(editedFiles(output?.args || input?.args), input.sessionID);
+    if (EDIT_TOOLS.has(tool)) guardRootEdit(editedFilesForTest(output?.args || input?.args), input.sessionID);
     runBridge("PreToolUse", bridgePayload("PreToolUse", tool, output?.args), input.sessionID);
   },
   "tool.execute.after": async (input, output) => {

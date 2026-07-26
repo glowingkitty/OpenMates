@@ -10,6 +10,7 @@ EVENT="${1:-}"
 PROJECT_ROOT="/home/superdev/projects/OpenMates"
 HOOK_DIR="$PROJECT_ROOT/.claude/hooks"
 INPUT=$(cat)
+CALLER_CWD=$(echo "$INPUT" | jq -r --arg fallback "$PROJECT_ROOT" '.cwd // $fallback')
 
 if [ -z "$EVENT" ]; then
   exit 0
@@ -31,7 +32,7 @@ to_abs_path() {
   local file="$1"
   case "$file" in
     /*) printf '%s\n' "$file" ;;
-    *) printf '%s/%s\n' "$PROJECT_ROOT" "$file" ;;
+    *) printf '%s/%s\n' "$CALLER_CWD" "$file" ;;
   esac
 }
 
@@ -88,7 +89,7 @@ payload_for_file() {
   local event="$1"
   local file="$2"
   echo "$INPUT" | jq \
-    --arg cwd "$PROJECT_ROOT" \
+    --arg cwd "$CALLER_CWD" \
     --arg event "$event" \
     --arg file "$file" \
     '{cwd: $cwd, hook_event_name: $event, tool_name: (.tool_name // "Edit"), tool_input: ((.tool_input // {}) + {file_path: $file})}'
@@ -98,7 +99,7 @@ payload_for_bash() {
   local command
   command=$(tool_command)
   jq -n \
-    --arg cwd "$PROJECT_ROOT" \
+    --arg cwd "$CALLER_CWD" \
     --arg command "$command" \
     '{cwd: $cwd, hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: $command}}'
 }

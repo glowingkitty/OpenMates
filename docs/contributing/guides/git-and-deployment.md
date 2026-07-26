@@ -102,18 +102,18 @@ For ad-hoc fixes without a formal issue ID, the Symptom/Cause/Fix block is still
 - [ ] Run linter: `./scripts/lint_changed.sh --path <your_changes>`
 - [ ] Fix all linter and type errors
 - [ ] Remove temporary `console.log` or `print` statements (unless permanent)
-- [ ] Only add files changed/created in this chat (no `git add .`)
+- [ ] Preview the scoped deploy with `python3 scripts/sessions.py prepare-deploy --session <ID>`
 
 ---
 
 ## Auto-Commit and Deployment Workflow
 
-**After completing any task**, automatically commit and push to `dev`:
+**After completing any task**, deploy scoped changes to `dev` through `sessions.py`:
 
-1. Run linter and fix errors
-2. `git add <modified_files>` (never `git add .`)
-3. `git commit -m "<type>: <description>"`
-4. `git push origin dev`
+1. Run the smallest relevant verification and fix errors
+2. Preview with `python3 scripts/sessions.py prepare-deploy --session <ID>`
+3. Deploy with `python3 scripts/sessions.py deploy --session <ID> --title "<type>: <description>" --message "<body>"`
+4. Never use raw `git add`, `git commit`, or `git push` for normal agent deploys
 
 **If translation YAML files were modified**, run `cd frontend/packages/ui && npm run build:translations` before restarting backend services. The generated locale JSON files are ignored by git but are required runtime artifacts mounted at `/translations`; production must not fall back to parsing YAML on worker startup.
 

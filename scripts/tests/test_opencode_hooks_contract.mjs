@@ -12,6 +12,8 @@ import * as pluginModule from "../../.opencode/plugins/openmates-hooks.js";
 
 const source = readFileSync(new URL("../../.opencode/plugins/openmates-hooks.js", import.meta.url), "utf8");
 const preEditGuard = readFileSync(new URL("../../.claude/hooks/pre-edit-guard.sh", import.meta.url), "utf8");
+const autoTrack = readFileSync(new URL("../../.claude/hooks/auto-track.sh", import.meta.url), "utf8");
+const bridge = readFileSync(new URL("../../.codex/hooks/claude-hook-bridge.sh", import.meta.url), "utf8");
 
 async function runBeforeShell(command) {
   const hooks = await pluginModule.OpenMatesHooks({});
@@ -32,7 +34,7 @@ async function runAfterShell(command, text) {
 }
 
 test("plugin module exports one valid OpenCode plugin factory", async () => {
-  assert.deepEqual(Object.keys(pluginModule), ["OpenMatesHooks"]);
+  assert.deepEqual(Object.keys(pluginModule).sort(), ["OpenMatesHooks", "editedFilesForTest", "rootGuardDecisionForTest"]);
   assert.equal(typeof await pluginModule.OpenMatesHooks({}), "object");
 });
 
@@ -51,6 +53,14 @@ test("loaded hook preserves chat identity without blocking file leases", () => {
 test("canonical pre-edit guard prefers exact OpenCode identity", () => {
   assert.match(preEditGuard, /if \[ -n "\$OPENCODE_SESSION_ID" \]/);
   assert.match(preEditGuard, /select\(\.value\.opencode_session_id == \$id\)/);
+});
+
+test("canonical edit hooks preserve worktree-relative paths", () => {
+  assert.match(bridge, /CALLER_CWD=\$\(echo "\$INPUT"/);
+  assert.match(bridge, /printf '%s\/%s\\n' "\$CALLER_CWD" "\$file"/);
+  assert.match(autoTrack, /\.openmates-agent-worktrees/);
+  assert.match(preEditGuard, /normalize_repo_relative/);
+  assert.match(preEditGuard, /\.sessions\[\]\?\.worktree\?\.path\?/);
 });
 
 test("bash guard allows temp writes even when a repo script and source extension appear", async () => {
@@ -115,7 +125,7 @@ test("command doctor appends script usage suggestions", async () => {
     "usage: tests.py [-h] ...\ntests.py: error: unrecognized arguments: --suite",
   );
   assert.match(output, /\[OpenMates command doctor\]/);
-  assert.match(output, /python3 scripts\/tests\.py run -- --suite <suite>/);
+  assert.match(output, /python3 scripts\/tests\.py run --suite <suite>/);
 });
 
 test("failed test triage output gets lease hint", async () => {

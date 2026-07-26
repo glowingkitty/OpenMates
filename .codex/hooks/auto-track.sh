@@ -9,10 +9,11 @@ FILE=$(echo "$INPUT" | jq -r '.tool_input.file_path // empty')
 # Skip if no file path (shouldn't happen for Edit/Write, but be safe)
 [ -z "$FILE" ] && exit 0
 
-# Skip non-project files (e.g. /tmp, /home/.claude/plans)
+# Skip non-project files (e.g. /tmp, /home/.claude/plans). Session
+# worktrees live beside the root checkout and are canonicalized by sessions.py.
 PROJECT_DIR="/home/superdev/projects/OpenMates"
 case "$FILE" in
-  "$PROJECT_DIR"/*) ;;
+  "$PROJECT_DIR"/*|*/.openmates-agent-worktrees/*|*/.agent-worktrees/*) ;;
   *) exit 0 ;;
 esac
 

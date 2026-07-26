@@ -15,7 +15,7 @@ OpenMates supports Claude Code, Codex, and OpenCode from the same repository. Cl
 - `.codex/agents/`: Codex TOML mirror generated from `.claude/agents/`.
 - `.opencode/agents/`: OpenCode Markdown mirror generated from `.claude/agents/`.
 - `.codex/hooks.json` and `.codex/hooks/claude-hook-bridge.sh`: Codex lifecycle bridge to `.claude/hooks/`.
-- `.opencode/agents/` pins generated subagents to `openai/gpt-5.5`; OpenCode does not load the Claude Code provider or Claude hook bridge.
+- `.opencode/agents/` pins generated subagents to `openai/gpt-5.5`; OpenCode does not load the Claude Code provider.
 
 ## Sync Workflow
 
@@ -37,11 +37,11 @@ The check verifies skill mirrors, Codex and OpenCode agent mirrors, copied Codex
 
 Hook scripts are not reimplemented per tool. Codex translates its native lifecycle payloads into the Claude hook payload shape and invokes the same shell scripts. This keeps policy behavior consistent and avoids drift between tools.
 
-Some lifecycle events are tool-specific. Codex supports `UserPromptSubmit` directly, so the bridge runs prompt context hooks there. OpenCode intentionally has no Claude Code hook bridge so it uses its native runtime and configured GPT subagent model only.
+Some lifecycle events are tool-specific. Codex supports `UserPromptSubmit` directly, so the bridge runs prompt context hooks there. OpenCode uses its native plugin runtime and GPT subagent model, with a thin wrapper that invokes the shared `.codex/hooks/claude-hook-bridge.sh` only for deterministic shell hook compatibility.
 
 ## Session Worktrees
 
-Agent edit sessions use automatic local worktrees managed by `scripts/sessions.py`. OpenCode is the primary runtime, but the durable contract remains in `sessions.py` so Claude-compatible and Codex-compatible paths can share the same session metadata, deploy queue, cleanup, and verification policy.
+Agent edit sessions use automatic local worktrees managed by `scripts/sessions.py`. OpenCode is the primary runtime, but the durable contract remains in `sessions.py` so Claude-compatible and Codex-compatible paths can share the same session metadata, blocked-deploy records, cleanup, and verification policy.
 
 The repository root checkout is the control plane. Use it for orchestration commands such as `sessions.py status`, `sessions.py worktree ensure`, `sessions.py deploy`, diagnostics, and deploy verification. Ordinary source edits should happen in the path printed by:
 

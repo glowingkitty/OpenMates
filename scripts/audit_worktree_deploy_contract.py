@@ -17,7 +17,7 @@ REQUIRED_SNIPPETS: dict[str, list[str]] = {
     ".agents/skills/deploy/SKILL.md": [
         "automatic session worktree",
         "dev",
-        "worktree deploy queue",
+        "visible blocked-deploy item",
     ],
     ".agents/skills/verify-ui-change/SKILL.md": [
         "automatic worktree",

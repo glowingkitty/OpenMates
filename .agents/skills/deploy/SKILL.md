@@ -37,11 +37,11 @@ python3 scripts/sessions.py worktree ensure --session <SESSION_ID>
    ```
     Review the file list. Exclude any files that shouldn't be committed with `--exclude`.
 
-   Do not run a separate Vercel `wait-lock` before normal deploys. `sessions.py
-   deploy` scopes the commit from the session worktree diff, integrates it to
-   `dev`, and records deploy wait state for the resulting commit. If integration
-   is busy or unsafe, the deploy request is recorded in the visible worktree deploy queue
-   instead of relying on a manual unlock.
+   Do not run a separate `wait-lock` before normal deploys. `sessions.py deploy`
+   scopes the commit from the session worktree diff, guards root integration and
+   commit/push with the dev deploy verification lock, and records wait state for
+   the resulting commit. If root integration is unsafe, sessions.py records a
+   visible blocked-deploy item; resolve the conflict and rerun deploy.
 
 3. **Run spec conformance when applicable:**
    - If this work has a full spec under `docs/specs/<slug>/spec.yml`, run `python3 scripts/spec_verify.py docs/specs/<slug>/spec.yml` before deploy.
@@ -64,7 +64,7 @@ python3 scripts/sessions.py worktree ensure --session <SESSION_ID>
 ### If Deploy Fails
 - **Lint errors:** Fix them first, then retry
 - **Pre-existing hook bug** (unrelated to your changes): Use `--no-verify` and add a backlog entry
-- **Worktree integration queued:** Check `python3 scripts/sessions.py status` or rerun deploy after the queue retry clears the busy path
+- **Worktree integration blocked:** Resolve the root integration conflict, check `python3 scripts/sessions.py status`, then rerun the same deploy command
 - **Never** use raw `git commit` — it bypasses session tracking
 
 ### After Deploy

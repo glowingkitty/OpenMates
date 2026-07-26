@@ -5,7 +5,7 @@ globs:
 
 # Session Lifecycle
 
-Use `sessions.py` for deploys, durable multi-session work, and Docker/Vercel locks. Ordinary research, reviews, and focused edits do not need a session.
+Use `sessions.py` for deploys, durable multi-session work, Docker locks, and dev deploy verification locks. Ordinary research, reviews, and focused edits do not need a session.
 
 ```bash
 # 1. START (must include --mode):
@@ -31,10 +31,10 @@ python3 scripts/sessions.py end --session <ID>
 - **Always use `sessions.py deploy`** — never raw `git commit`. It selects and verifies the intended files.
 - **Use session worktrees for edits:** source edits belong in the automatic worktree from `python3 scripts/sessions.py worktree ensure --session <ID>`. The root checkout is the control plane for orchestration, diagnostics, and the short `dev` integration window.
 - **Scoped `dev` deploys are pre-authorized for verification:** do not ask before `sessions.py deploy` when the deployment is required to run dev-server, Vercel, GitHub Actions, Playwright, CLI/SDK, or Apple parity verification for the assigned task. Ask first for production deploys, raw git commit/push, broad/unscoped dirty deploys, destructive data/migrations, secrets, unclear privacy/billing/security scope, same-file overlap that cannot be safely staged, or planning/review-only work.
-- **Deploy locks are atomic:** `python3 scripts/sessions.py deploy` waits for and acquires the Vercel deploy lock before creating a commit. Do not run a separate `wait-lock` before normal deploys; use it only for diagnostics/manual inspection. Do not verbally pause and do not force-unlock another session unless you have confirmed its deploy/test is inactive.
+- **Deploy locks are atomic:** `python3 scripts/sessions.py deploy` acquires the dev deploy verification lock for root integration, commit, push, and deployed-test handoff. Do not run a separate `wait-lock` before normal deploys; use it only for diagnostics/manual inspection. Do not verbally pause and do not force-unlock another session unless you have confirmed its deploy/test is inactive.
 - **Active executable specs are non-interruptible:** When the current work has an active `docs/specs/<slug>/spec.yml`, do not stop, summarize, or defer because the task is large, the turn is long, tests fail, the worktree is concurrent, or context is tight. Continue the smallest actionable task, compact if needed, and use the durable handoff to resume. A final response is allowed only after `python3 scripts/spec_verify.py <spec> --json` reports complete, or after the current task records a structured `handoff.blocker` with `task_id`, `requires_user_input: true`, `reason`, `question`, and `next_action`. Future-task gates never block the current task.
 - If deploy fails due to a **pre-existing hook bug**, use `sessions.py deploy --no-verify`.
-- **Concurrent sessions:** `modified_files` means a session touched a file; it is not ownership or a lock. Re-read before editing and proceed unless another session has a current `WRITING` claim on that exact file. Treat short session IDs as diagnostic only: check status, work on non-conflicting files, or retry after release. Do not ask the user to interpret IDs or choose an ownership boundary unless all useful progress is blocked. Use `lock/unlock` only for Docker/Vercel operations.
+- **Concurrent sessions:** `modified_files` means a session touched a file; it is not ownership or a lock. Re-read before editing and proceed unless another session has a current `WRITING` claim on that exact file. Treat short session IDs as diagnostic only: check status, work on non-conflicting files, or retry after release. Do not ask the user to interpret IDs or choose an ownership boundary unless all useful progress is blocked. Use `lock/unlock` only for Docker operations or deploy verification diagnostics.
 
 ## On-Demand Tools
 
