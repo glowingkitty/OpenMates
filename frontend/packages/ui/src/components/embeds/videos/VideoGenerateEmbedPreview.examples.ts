@@ -20,6 +20,7 @@ export interface VideoGenerateStoreExample {
   provider: string;
   status: 'finished';
   previewVideoUrl: string;
+  previewImageUrl: string;
   files: { original: Record<string, unknown> };
   generated_at: string;
   watermarking: string;
@@ -39,6 +40,7 @@ const examples: VideoGenerateStoreExample[] = [
     "provider": "Google Gemini API",
     "status": "finished",
     "previewVideoUrl": "/store-examples/video-generate-1.mp4",
+    "previewImageUrl": "/store-examples/video-generate-1-poster.webp",
     "files": {
       "original": {
         "size_bytes": 11473361,

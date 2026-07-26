@@ -1838,8 +1838,12 @@
         // no template case handles embedType === 'image'.
         const validTopLevelEmbedTypes = new Set(['web-website', 'code-code', 'docs-doc', 'videos-video', 'sheets-sheet', 'maps', 'math-plot']);
         if (resolvedEmbedType === 'app-skill-use' && finalDecodedContent) {
+            const appId = typeof finalDecodedContent.app_id === 'string' ? finalDecodedContent.app_id : null;
+            const skillId = typeof finalDecodedContent.skill_id === 'string' ? finalDecodedContent.skill_id : null;
+            const appSkillRegistryKey = appId && skillId ? `app:${appId}:${skillId}` : null;
+            const hasAppSkillFullscreen = !!appSkillRegistryKey && hasFullscreenComponent(appSkillRegistryKey);
             const contentType = typeof finalDecodedContent.type === 'string' ? finalDecodedContent.type : null;
-            if (contentType) {
+            if (contentType && !hasAppSkillFullscreen) {
                 const refinedType = normalizeEmbedType(contentType);
                 if (refinedType && refinedType !== 'app-skill-use' && validTopLevelEmbedTypes.has(refinedType)) {
                     console.debug('[ActiveChat] Refining embed type from app-skill-use using decoded content type:', {
@@ -1853,6 +1857,11 @@
                         refinedType
                     });
                 }
+            } else if (contentType && hasAppSkillFullscreen) {
+                console.debug('[ActiveChat] Keeping app-skill fullscreen routing despite decoded content type:', {
+                    appSkillRegistryKey,
+                    contentType
+                });
             }
         }
         

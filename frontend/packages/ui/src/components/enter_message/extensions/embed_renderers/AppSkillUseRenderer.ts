@@ -4136,6 +4136,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     const aesKey = decodedContent?.aes_key || "";
     const aesNonce = decodedContent?.aes_nonce || "";
     const previewVideoUrl = decodedContent?.previewVideoUrl || decodedContent?.preview_video_url || "";
+    const previewImageUrl = decodedContent?.previewImageUrl || decodedContent?.preview_image_url || "";
     const error = decodedContent?.error || "";
 
     const existingComponent = mountedComponents.get(content);
@@ -4171,6 +4172,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           aesKey,
           aesNonce,
           previewVideoUrl,
+          previewImageUrl,
           status: status as "processing" | "finished" | "error",
           error,
           taskId,

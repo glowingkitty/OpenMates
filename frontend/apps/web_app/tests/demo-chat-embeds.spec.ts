@@ -186,6 +186,47 @@ test.describe('Demo chat embed rendering', () => {
 		expect(await previewStartAttempt).toBe('not-started');
 	});
 
+	test('generated video example opens generated-video fullscreen instead of YouTube fullscreen', async ({ page }) => {
+		test.setTimeout(90000);
+
+		await page.goto(
+			getE2EDebugUrl(
+				'/#chat-id=example-private-workspace-demo-video&embed-id=57274061-04d4-43a4-958f-fd56bc22f20a'
+			),
+			{ waitUntil: 'domcontentloaded' }
+		);
+		await page.waitForLoadState('networkidle');
+
+		const generatedPreview = page.locator(
+			'[data-testid="embed-preview"][data-app-id="videos"][data-skill-id="generate"][data-status="finished"]'
+		).first();
+		await expect(generatedPreview).toBeVisible({ timeout: 30000 });
+		await expect(generatedPreview.getByTestId('video-generate-video')).toHaveAttribute(
+			'src',
+			/\/store-examples\/video-generate-1\.mp4$/,
+			{ timeout: 10000 }
+		);
+		await expect(generatedPreview.getByTestId('video-generate-video')).toHaveAttribute(
+			'poster',
+			/\/store-examples\/video-generate-1-poster\.webp$/,
+			{ timeout: 10000 }
+		);
+
+		const fullscreenOverlay = page.getByTestId('embed-fullscreen-container');
+		await expect(fullscreenOverlay.getByTestId('video-generate-fullscreen')).toBeVisible({ timeout: 30000 });
+		await expect(fullscreenOverlay.getByTestId('video-generate-fullscreen-video')).toHaveAttribute(
+			'src',
+			/\/store-examples\/video-generate-1\.mp4$/,
+			{ timeout: 10000 }
+		);
+		await expect(fullscreenOverlay.getByTestId('video-generate-fullscreen-video')).toHaveAttribute(
+			'poster',
+			/\/store-examples\/video-generate-1-poster\.webp$/,
+			{ timeout: 10000 }
+		);
+		await expect(fullscreenOverlay.getByRole('link', { name: /open on youtube/i })).toHaveCount(0);
+	});
+
 	test('public screenshot-to-html example opens generated code fullscreen from app skill card', async ({ page }) => {
 		test.setTimeout(90000);
 

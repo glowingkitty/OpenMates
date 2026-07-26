@@ -30,6 +30,7 @@
     aesKey?: string;
     aesNonce?: string;
     previewVideoUrl?: string;
+    previewImageUrl?: string;
     status: 'processing' | 'finished' | 'error';
     error?: string;
     taskId?: string;
@@ -39,7 +40,7 @@
 
   let {
     id, prompt = '', model = '', durationSeconds, resolution = '', s3BaseUrl = '', files,
-    aesKey = '', aesNonce = '', previewVideoUrl = '', status, error = '', taskId, isMobile = false, onFullscreen,
+    aesKey = '', aesNonce = '', previewVideoUrl = '', previewImageUrl = '', status, error = '', taskId, isMobile = false, onFullscreen,
   }: Props = $props();
 
   let videoUrl = $state<string | undefined>();
@@ -56,6 +57,7 @@
   let updatedFiles = $state<{ original?: VideoFileVariant } | undefined>();
   let updatedAesKey = $state<string | undefined>();
   let updatedAesNonce = $state<string | undefined>();
+  let updatedPreviewImageUrl = $state<string | undefined>();
   let updatedError = $state<string | undefined>();
 
   const currentStatus = $derived(updatedStatus ?? status);
@@ -67,6 +69,7 @@
   const currentFiles = $derived(updatedFiles ?? files);
   const currentAesKey = $derived(updatedAesKey ?? aesKey);
   const currentAesNonce = $derived(updatedAesNonce ?? aesNonce);
+  const currentPreviewImageUrl = $derived(updatedPreviewImageUrl ?? previewImageUrl);
   const currentError = $derived(updatedError ?? error);
 
   $effect(() => {
@@ -106,6 +109,9 @@
     updatedFiles = typeof decoded.files === 'object' && decoded.files !== null ? decoded.files as { original?: VideoFileVariant } : updatedFiles;
     updatedAesKey = typeof decoded.aes_key === 'string' ? decoded.aes_key : updatedAesKey;
     updatedAesNonce = typeof decoded.aes_nonce === 'string' ? decoded.aes_nonce : updatedAesNonce;
+    updatedPreviewImageUrl = typeof decoded.previewImageUrl === 'string'
+      ? decoded.previewImageUrl
+      : (typeof decoded.preview_image_url === 'string' ? decoded.preview_image_url : updatedPreviewImageUrl);
     updatedError = typeof decoded.error === 'string' ? decoded.error : updatedError;
   }
 
@@ -132,7 +138,7 @@
   {#snippet details()}
     <div class="video-generate-preview" data-testid="video-generate-preview">
       {#if currentStatus === 'finished' && videoUrl}
-        <video src={videoUrl} controls playsinline preload="metadata" data-testid="video-generate-video">
+        <video src={videoUrl} poster={currentPreviewImageUrl || undefined} controls playsinline preload="metadata" data-testid="video-generate-video">
           <track kind="captions" src="data:text/vtt,WEBVTT" />
         </video>
       {:else if videoError}

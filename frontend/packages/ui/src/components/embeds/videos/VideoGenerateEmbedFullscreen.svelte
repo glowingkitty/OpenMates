@@ -38,7 +38,8 @@
   let files = $derived((typeof dc.files === 'object' && dc.files !== null) ? dc.files as { original?: VideoFileVariant } : undefined);
   let aesKey = $derived(typeof dc.aes_key === 'string' ? dc.aes_key : '');
   let aesNonce = $derived(typeof dc.aes_nonce === 'string' ? dc.aes_nonce : '');
-  let previewVideoUrl = $derived(typeof dc.previewVideoUrl === 'string' ? dc.previewVideoUrl : '');
+  let previewVideoUrl = $derived(typeof dc.previewVideoUrl === 'string' ? dc.previewVideoUrl : (typeof dc.preview_video_url === 'string' ? dc.preview_video_url : ''));
+  let previewImageUrl = $derived(typeof dc.previewImageUrl === 'string' ? dc.previewImageUrl : (typeof dc.preview_image_url === 'string' ? dc.preview_image_url : ''));
   let videoUrl = $state<string | undefined>();
   let error = $state<string | undefined>();
   let retainedS3Key: string | undefined;
@@ -85,7 +86,7 @@
   {#snippet content()}
     <div class="video-fullscreen" data-testid="video-generate-fullscreen">
     {#if videoUrl}
-      <video src={videoUrl} controls playsinline autoplay data-testid="video-generate-fullscreen-video">
+      <video src={videoUrl} poster={previewImageUrl || undefined} controls playsinline autoplay data-testid="video-generate-fullscreen-video">
         <track kind="captions" src="data:text/vtt,WEBVTT" />
       </video>
     {:else if error}
