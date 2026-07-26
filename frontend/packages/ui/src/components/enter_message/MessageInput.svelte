@@ -701,6 +701,7 @@
     let awaitingAITaskTimeoutId: NodeJS.Timeout | null = null;
     let sendClickInProgress = $state(false);
     let pendingNewChatDraftRestore = $state<{ chatId: string | null; text: string } | null>(null);
+    let showStopProcessingButton = $derived(!!activeAITaskId || awaitingAITaskStart);
     
     // --- Backspace State ---
     let isBackspaceOperation = false; // Flag to prevent immediate re-grouping after backspace
@@ -5803,6 +5804,7 @@
                     {hasNoCredits}
                     {unauthenticatedCtaLabel}
                     forceUnauthenticatedCta={anonymousFileAttachmentPending}
+                    reserveTrailingControlSpace={showStopProcessingButton && !hasContent}
                     isRecordButtonPressed={$recordingState.isRecordButtonPressed}
                     micPermissionState={$recordingState.micPermissionState}
                     {highlightPressHold}
@@ -5847,7 +5849,7 @@
 
         <!-- Stop Processing Icon - shown when AI task is active -->
         <!-- Debug: activeAITaskId = {activeAITaskId}, currentChatId = {currentChatId} -->
-        {#if activeAITaskId || awaitingAITaskStart}
+        {#if showStopProcessingButton}
             <button
                 class="stop-processing-button {hasContent ? 'shifted-left' : ''}"
                 data-testid="stop-processing-button"

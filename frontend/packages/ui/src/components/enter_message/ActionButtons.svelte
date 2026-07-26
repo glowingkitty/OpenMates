@@ -36,6 +36,8 @@
         unauthenticatedCtaLabel?: string;
         /** Show the auth CTA even when the editor only has a blocked pending upload. */
         forceUnauthenticatedCta?: boolean;
+        /** Reserve the bottom-right stop/pause slot so mic/camera do not sit under it. */
+        reserveTrailingControlSpace?: boolean;
     }
     let {
         showSendButton = false,
@@ -45,7 +47,8 @@
         hasNoCredits = false,
         isSketchOpen = false,
         unauthenticatedCtaLabel = $text('signup.sign_up'),
-        forceUnauthenticatedCta = false
+        forceUnauthenticatedCta = false,
+        reserveTrailingControlSpace = false
     }: Props = $props();
 
     const dispatch = createEventDispatcher();
@@ -95,7 +98,7 @@
             use:tooltip
         ></button>
     </div>
-    <div class="right-buttons">
+    <div class="right-buttons {reserveTrailingControlSpace ? 'reserve-trailing-control-space' : ''}">
         <button
             class="clickable-icon icon_camera"
             onclick={handleCameraClick}
@@ -182,7 +185,12 @@
         gap: 1rem;
         flex-wrap: nowrap;
         /* Smooth shift when send button appears/disappears */
-        transition: gap 200ms ease;
+        padding-right: 0;
+        transition: gap 200ms ease, padding-right 220ms ease;
+    }
+
+    .right-buttons.reserve-trailing-control-space {
+        padding-right: 48px;
     }
 
     /* Highlight sketch button when the sketch overlay is open */
