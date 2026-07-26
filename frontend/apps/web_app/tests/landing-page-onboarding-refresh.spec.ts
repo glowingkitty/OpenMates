@@ -414,14 +414,11 @@ test.describe('Landing page onboarding refresh', () => {
 		const visualState = await page.evaluate(() => {
 			const workspaceIcon = document.querySelector<HTMLElement>('[data-testid="guest-workspace-icon"]');
 			const messageField = document.querySelector<HTMLElement>('[data-testid="message-field"]');
-			const newChatButton = document.querySelector<HTMLElement>('[data-testid="new-chat-button"]');
 			const micButton = document.querySelector<HTMLElement>('[data-testid="guest-cta-mic-button"]');
-			if (!workspaceIcon || !messageField || !newChatButton || !micButton) throw new Error('Guest landing visual elements missing');
+			if (!workspaceIcon || !messageField || !micButton) throw new Error('Guest landing visual elements missing');
 			const iconStyle = getComputedStyle(workspaceIcon);
 			const fieldStyle = getComputedStyle(messageField);
-			const buttonRect = newChatButton.getBoundingClientRect();
 			const micStyle = getComputedStyle(micButton);
-			const fieldRect = messageField.getBoundingClientRect();
 			const iconWebkitStyle = iconStyle as CSSStyleDeclaration & { webkitMaskImage?: string };
 			const micRect = micButton.getBoundingClientRect();
 			return {
@@ -431,9 +428,7 @@ test.describe('Landing page onboarding refresh', () => {
 				workspaceBoxShadow: iconStyle.boxShadow,
 				workspaceBorderRadius: iconStyle.borderRadius,
 				fieldBackgroundImage: fieldStyle.backgroundImage,
-				fieldHeight: fieldRect.height,
 				fieldBorderRadius: fieldStyle.borderRadius,
-				newChatButtonHeight: buttonRect.height,
 				micWidth: micRect.width,
 				micHeight: micRect.height,
 				micBorderRadius: micStyle.borderRadius,
@@ -446,7 +441,6 @@ test.describe('Landing page onboarding refresh', () => {
 		expect(visualState.workspaceBoxShadow).toBe('none');
 		expect(visualState.workspaceBorderRadius).toBe('0px');
 		expect(visualState.fieldBackgroundImage).toBe('none');
-		expect(Math.abs(visualState.fieldHeight - visualState.newChatButtonHeight)).toBeLessThanOrEqual(1);
 		expect(Number.parseFloat(visualState.fieldBorderRadius)).toBeGreaterThanOrEqual(24);
 		expect(visualState.micWidth).toBeLessThanOrEqual(30);
 		expect(visualState.micHeight).toBeLessThanOrEqual(30);
@@ -508,5 +502,31 @@ test.describe('Landing page onboarding refresh', () => {
 		await expect(page.getByTestId('guest-all-examples-view')).toBeVisible({ timeout: 5000 });
 		await expect(page.getByTestId('guest-all-example-card').first()).toBeVisible();
 		await expect(page.getByTestId('message-input-wrapper')).toBeVisible();
+	});
+
+	test('guest example chat follow-up input matches the adjacent new-chat CTA height', async ({ page }: { page: any }) => {
+		test.setTimeout(45000);
+		await page.setViewportSize({ width: 1280, height: 800 });
+
+		await page.goto(getE2EDebugUrl('/?landing-guest-refresh'), { waitUntil: 'domcontentloaded' });
+		await page.waitForLoadState('networkidle');
+		await waitForLandingIntroExamples(page);
+		await skipExpandedLandingIntro(page);
+
+		await page.getByTestId('resume-chat-card').filter({ hasText: 'AI Workshops' }).first().click();
+		await expect(page.getByTestId('new-chat-button')).toBeVisible({ timeout: 10000 });
+		await expect(page.getByTestId('message-field')).toBeVisible({ timeout: 10000 });
+
+		const heights = await page.evaluate(() => {
+			const messageField = document.querySelector<HTMLElement>('[data-testid="message-field"]');
+			const newChatButton = document.querySelector<HTMLElement>('[data-testid="new-chat-button"]');
+			if (!messageField || !newChatButton) throw new Error('Example chat composer elements missing');
+			return {
+				fieldHeight: messageField.getBoundingClientRect().height,
+				buttonHeight: newChatButton.getBoundingClientRect().height
+			};
+		});
+
+		expect(Math.abs(heights.fieldHeight - heights.buttonHeight)).toBeLessThanOrEqual(1);
 	});
 });
