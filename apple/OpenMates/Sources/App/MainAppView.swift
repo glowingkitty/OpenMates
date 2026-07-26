@@ -6613,7 +6613,7 @@ private struct WelcomeComposer: View {
                     .accessibilityIdentifier("press-hold-label")
             }
 
-            Button(action: {}) {
+            Button(action: onRecordEnded) {
                 Icon("recordaudio", size: 25)
                     .foregroundStyle(recordAttemptActive ? AnyShapeStyle(Color.error) : AnyShapeStyle(LinearGradient.primary))
                     .frame(width: 25, height: 25)

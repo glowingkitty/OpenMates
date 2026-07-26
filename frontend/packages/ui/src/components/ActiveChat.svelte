@@ -186,7 +186,7 @@
     const GUEST_LANDING_DEFAULT_EXAMPLE_IDS = [
         'example-ai-workshops-meetups-berlin',
         'example-privacy-first-local-ai',
-        'example-openmates-app-skills-embeds',
+        'example-openmates-add-app-skill',
         'example-private-workspace-demo-video',
     ];
     const GUEST_LANDING_EXAMPLE_CHAT_IDS_BY_INSPIRATION: Record<string, string[]> = {
@@ -201,9 +201,9 @@
             'example-privacy-first-product-launch',
         ],
         'openmates-mates-focus': [
-            'example-openmates-app-skills-embeds',
             'example-memory-ai-learning-preferences',
             'example-frontend-developer-career-pivot',
+            'example-openmates-add-app-skill',
         ],
         'openmates-provider-cross-platform': [
             'example-private-workspace-demo-video',
@@ -606,6 +606,7 @@
         chat_id: string;
         message_id: string;
         user_message_id?: string | null;
+        created_at?: number;
         full_content_so_far?: string | null;
         is_final_chunk?: boolean;
         category?: string;
@@ -5914,7 +5915,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 // System rejection messages get 'waiting_for_user' status so the chat shows
                 // "Waiting for you..." instead of "Sending..." in the sidebar and typing indicator
                 status: isRejectionMessage ? 'waiting_for_user' : 'streaming',
-                created_at: Math.floor(Date.now() / 1000),
+                created_at: chunk.created_at ?? Math.floor(Date.now() / 1000),
                 // Required encrypted fields (will be populated by encryptMessageFields)
                 encrypted_content: '', // Will be set by encryption
                 // encrypted_sender_name not needed for assistant messages
@@ -6179,6 +6180,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     content: finalContent,
                     status: finalStatus,
                     user_message_id: finalMessageInArray.user_message_id || chunk.user_message_id || undefined,
+                    created_at: chunk.created_at ?? finalMessageInArray.created_at,
                     // Preserve role as 'system' for rejection messages
                     role: isRejection ? 'system' as const : finalMessageInArray.role,
                     model_name: finalModelName, // Explicitly preserve/set model_name
@@ -6304,6 +6306,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         const shouldSaveFinalMessage =
                             !existingMessage ||
                             existingMessage.status !== updatedFinalMessage.status ||
+                            existingMessage.created_at !== updatedFinalMessage.created_at ||
                             existingMessage.content !== updatedFinalMessage.content ||
                             existingMessage.model_name !== updatedFinalMessage.model_name ||
                             existingMessage.thinking_content !== updatedFinalMessage.thinking_content ||
@@ -12802,8 +12805,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                            onChatNavigate={handleChatNavigate}
                            followUpSuggestions={showFollowUpSuggestions ? followUpSuggestions : []}
                            {quickTipSlugs}
-                           compressionCheckpoints={currentCompressionCheckpoints}
-                           hasOlderMessages={currentMessageWindowHasMoreBefore}
+                           compressionCheckpoints={showWelcome ? [] : currentCompressionCheckpoints}
+                           hasOlderMessages={showWelcome ? false : currentMessageWindowHasMoreBefore}
                            olderMessagesLoading={olderMessageWindowLoading}
                            onSuggestionClick={handleFollowUpSuggestionClick}
                            on:quickTipAction={handleQuickTipAction}

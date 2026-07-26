@@ -175,6 +175,7 @@ final class VoiceRecorder: ObservableObject {
 }
 
 struct ComposerRecordingOverlay: View {
+    private static let minimumTouchTargetSize: CGFloat = 44
     private static let waveformTrackHeight: CGFloat = 64
     private static let waveformBarSpacing: CGFloat = 2
     private static let waveformBarMaximumWidth: CGFloat = 3
@@ -206,8 +207,8 @@ struct ComposerRecordingOverlay: View {
                     .foregroundStyle(Color.white)
                     .monospacedDigit()
                     .frame(minWidth: 60)
+                    .frame(minHeight: Self.minimumTouchTargetSize)
                     .padding(.horizontal, .spacing5)
-                    .padding(.vertical, .spacing2)
                     .background(Color.error)
                     .clipShape(RoundedRectangle(cornerRadius: .radius8))
                     .accessibilityIdentifier("timer-pill")
@@ -218,7 +219,7 @@ struct ComposerRecordingOverlay: View {
                             .font(.omSmall.weight(.bold))
                             .foregroundStyle(Color.white)
                             .padding(.horizontal, .spacing8)
-                            .padding(.vertical, .spacing4)
+                            .frame(minHeight: Self.minimumTouchTargetSize)
                             .background(Color.white.opacity(0.18))
                             .clipShape(RoundedRectangle(cornerRadius: .radius8))
                     }
@@ -235,7 +236,7 @@ struct ComposerRecordingOverlay: View {
                             .font(.omSmall.weight(.bold))
                             .foregroundStyle(Color.white)
                             .padding(.horizontal, .spacing8)
-                            .padding(.vertical, .spacing4)
+                            .frame(minHeight: Self.minimumTouchTargetSize)
                             .background(Color.buttonPrimary)
                             .clipShape(RoundedRectangle(cornerRadius: .radius8))
                     }
@@ -246,6 +247,7 @@ struct ComposerRecordingOverlay: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .trailing)
             }
+            .frame(minHeight: Self.minimumTouchTargetSize)
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("record-controls")
         }
