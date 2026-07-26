@@ -18,6 +18,31 @@ cancel:
   en: Cancel
   de: Abbrechen
   verified_by_human: []
+press_and_hold_reminder:
+  context: Hint shown after a short tap on the record button
+  en: Press and hold to record
+  de: Zum Aufnehmen gedrueckt halten
+  verified_by_human: []
+release_to_finish:
+  context: Hint shown while pointer-initiated audio recording is active
+  en: Release to finish
+  de: Zum Fertigstellen loslassen
+  verified_by_human: []
+press_enter_to_finish:
+  context: Hint shown while keyboard-initiated audio recording is active
+  en: Press Enter to finish
+  de: Enter zum Fertigstellen druecken
+  verified_by_human: []
+slide_left_to_cancel:
+  context: Hint shown while pointer-initiated audio recording is active
+  en: Slide left to cancel
+  de: Zum Abbrechen nach links ziehen
+  verified_by_human: []
+press_esc_to_cancel:
+  context: Hint shown while keyboard-initiated audio recording is active
+  en: Press ESC to cancel
+  de: ESC zum Abbrechen druecken
+  verified_by_human: []
 allow_microphone_access:
   context: Hint shown below the action buttons when microphone permission has not yet been granted
   en: Allow microphone access to record
