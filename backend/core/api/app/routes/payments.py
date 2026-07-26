@@ -6161,35 +6161,74 @@ async def _handle_revolut_business_webhook(
     This is invoked as an early-return branch from payment_webhook() when
     the Revolut-Signature header is detected.
     """
-    from backend.core.api.app.services.payment.revolut_business_service import RevolutBusinessService
+    from backend.core.api.app.services.payment.revolut_business_service import (
+        RevolutBusinessService,
+        RevolutBusinessTransactionConfirmationError,
+    )
 
     revolut_service = payment_service.revolut_business
     if not revolut_service:
         logger.error("Revolut Business webhook received but service not initialized")
         return {"status": "provider_not_configured"}
 
-    # Parse the event into a normalized transfer dict
-    transfer = RevolutBusinessService.parse_incoming_transfer(event_payload)
-    if not transfer:
+    if event_type not in {"TransactionCreated", "TransactionStateChanged"}:
         logger.info(f"Revolut Business event '{event_type}' is not a relevant incoming transfer — ignoring")
         return {"status": "ignored_irrelevant_event"}
 
-    if transfer["event_type"] == "TransactionStateChanged":
-        # State change events (e.g. pending → completed/reverted).
-        # We only process TransactionCreated for credit granting.
-        # TransactionStateChanged with new_state="reverted" could trigger cleanup,
-        # but for Phase 1 we just log it.
-        new_state = transfer.get("new_state", "")
-        logger.info(
-            f"Revolut Business transaction {transfer['transaction_id']} "
-            f"state changed: {transfer.get('old_state')} → {new_state}"
-        )
-        if new_state == "reverted":
+    webhook_hint = RevolutBusinessService.parse_incoming_transfer(event_payload) or {}
+    transaction_id_from_webhook = str((event_payload.get("data") or {}).get("id") or "").strip()
+    if not transaction_id_from_webhook:
+        logger.warning("Revolut Business %s webhook did not include a transaction ID", event_type)
+        return {"status": "missing_transaction_id"}
+
+    try:
+        transfer = await revolut_service.fetch_confirmed_incoming_transfer(transaction_id_from_webhook)
+    except RevolutBusinessTransactionConfirmationError as exc:
+        if exc.code == "api_credentials_missing":
             logger.warning(
-                f"Revolut Business transaction {transfer['transaction_id']} was reverted. "
-                f"If credits were already granted, manual review may be needed."
+                "Revolut Business transaction %s could not be auto-settled because API credentials are missing",
+                transaction_id_from_webhook,
             )
-        return {"status": f"state_changed_{new_state}"}
+            return {"status": "transaction_confirmation_unavailable"}
+
+        if exc.code == "transaction_not_completed":
+            transaction_state = exc.state or "not_completed"
+            logger.info(
+                "Revolut Business transaction %s is %s; waiting for a completed state before settlement",
+                transaction_id_from_webhook,
+                transaction_state,
+            )
+            return {"status": f"transaction_{transaction_state}"}
+
+        reference_hint = str(webhook_hint.get("reference") or "").strip()
+        logger.error(
+            "Revolut Business transaction confirmation failed for %s: code=%s",
+            transaction_id_from_webhook,
+            exc.code,
+        )
+        if exc.alert_required:
+            _notify_admin_bank_transfer(
+                subject=f"Bank transfer auto-settlement failed — {transaction_id_from_webhook}",
+                body=(
+                    "A signed Revolut Business webhook was received, but OpenMates could not "
+                    "confirm the transaction through the Revolut Business API. No credits were granted.\n\n"
+                    f"Transaction ID: {transaction_id_from_webhook}\n"
+                    f"Reference hint from webhook: {reference_hint or '(none)'}\n"
+                    f"Failure code: {exc.code}\n\n"
+                    "Action required: fetch the transaction in Revolut Business, verify the OM reference and amount, "
+                    "then manually settle or investigate the matching pending_bank_transfers row."
+                ),
+            )
+        return {"status": "transaction_confirmation_failed"}
+
+    if webhook_hint.get("event_type") == "TransactionStateChanged":
+        new_state = webhook_hint.get("new_state", "")
+        logger.info(
+            "Revolut Business transaction %s state changed %s -> %s and API state is completed",
+            transfer["transaction_id"],
+            webhook_hint.get("old_state"),
+            new_state,
+        )
 
     async def _update_bank_transfer(
         order_id: str, data: dict, ds=directus_service

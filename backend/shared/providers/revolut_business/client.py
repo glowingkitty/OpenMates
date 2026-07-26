@@ -128,15 +128,16 @@ def _normalize_account(item: dict[str, Any]) -> RevolutAccount:
 
 
 def _normalize_transaction(item: dict[str, Any]) -> RevolutTransaction:
+    leg = _select_transaction_leg(item)
     amount = item.get("amount")
-    if amount is None and isinstance(item.get("legs"), list) and item["legs"]:
-        amount = item["legs"][0].get("amount")
+    if amount is None and leg:
+        amount = leg.get("amount")
     account_id = item.get("account_id") or item.get("account")
-    if not account_id and isinstance(item.get("legs"), list) and item["legs"]:
-        account_id = item["legs"][0].get("account_id") or item["legs"][0].get("account")
+    if not account_id and leg:
+        account_id = leg.get("account_id") or leg.get("account")
     currency = item.get("currency")
-    if not currency and isinstance(item.get("legs"), list) and item["legs"]:
-        currency = item["legs"][0].get("currency")
+    if not currency and leg:
+        currency = leg.get("currency")
     return RevolutTransaction(
         id=str(item.get("id") or item.get("transaction_id") or item.get("request_id") or ""),
         account_id=str(account_id or ""),
@@ -148,3 +149,14 @@ def _normalize_transaction(item: dict[str, Any]) -> RevolutTransaction:
         state=str(item.get("state") or "unknown").lower(),
         category_hint=item.get("category_hint"),
     )
+
+
+def _select_transaction_leg(item: dict[str, Any]) -> dict[str, Any] | None:
+    legs = item.get("legs")
+    if not isinstance(legs, list) or not legs:
+        return None
+    for leg in legs:
+        if isinstance(leg, dict) and float(leg.get("amount") or 0) > 0:
+            return leg
+    first_leg = legs[0]
+    return first_leg if isinstance(first_leg, dict) else None

@@ -171,7 +171,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: working-tree
+  subject_commit: 52f131ec4
 
 approvals:
   product_contract:
@@ -652,7 +652,7 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: { status: passed, command: "python3 scripts/spec_validate.py docs/specs/finance-check-accounts-v1/spec.yml", run_id: local-spec-validate-2026-07-22T18:33:10Z, subject_commit: working-tree, timestamp: "2026-07-22T18:33:10Z" }
+      evidence: { status: passed, command: "python3 scripts/spec_validate.py docs/specs/finance-check-accounts-v1/spec.yml", run_id: local-spec-validate-2026-07-22T19:05:46Z, subject_commit: 52f131ec4, timestamp: "2026-07-22T19:05:46Z" }
 
   - id: T-PII-UNIT-REWRITE
     type: unit
@@ -669,7 +669,7 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: { status: passed, command: "npm run test:run -- placeholderRewriteService", run_id: local-vitest-2026-07-22T18:35:22Z-placeholder-rewrite, subject_commit: working-tree, timestamp: "2026-07-22T18:35:22Z" }
+      evidence: { status: passed, command: "npm run test:run -- placeholderRewriteService", run_id: local-vitest-2026-07-22T18:35:22Z-placeholder-rewrite, subject_commit: 52f131ec4, timestamp: "2026-07-22T18:35:22Z" }
 
   - id: T-API-REVOLUT-SANDBOX
     type: manual
@@ -706,7 +706,7 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: { status: passed, command: ".venv/bin/python3 -m pytest backend/tests/test_revolut_connected_accounts.py", run_id: local-pytest-2026-07-22T18:33:10Z-revolut, subject_commit: working-tree, timestamp: "2026-07-22T18:33:10Z" }
+      evidence: { status: passed, command: ".venv/bin/python3 -m pytest backend/tests/test_revolut_connected_accounts.py", run_id: local-pytest-2026-07-22T18:33:10Z-revolut, subject_commit: 52f131ec4, timestamp: "2026-07-22T18:33:10Z" }
 
   - id: T-BACKEND-CSV-NORMALIZER
     type: pytest
@@ -724,7 +724,7 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: { status: passed, command: ".venv/bin/python3 -m pytest backend/tests/test_finance_check_accounts_skill.py backend/tests/test_finance_csv_normalizer.py backend/tests/test_finance_privacy_redaction.py backend/tests/test_sdk_chat_recovery.py::test_sdk_connected_account_skill_endpoint_brokers_refs_before_dispatch", run_id: local-pytest-2026-07-22T18:33:10Z-finance, subject_commit: working-tree, timestamp: "2026-07-22T18:33:10Z" }
+      evidence: { status: passed, command: ".venv/bin/python3 -m pytest backend/tests/test_finance_check_accounts_skill.py backend/tests/test_finance_csv_normalizer.py backend/tests/test_finance_privacy_redaction.py backend/tests/test_sdk_chat_recovery.py::test_sdk_connected_account_skill_endpoint_brokers_refs_before_dispatch", run_id: local-pytest-2026-07-22T18:33:10Z-finance, subject_commit: 52f131ec4, timestamp: "2026-07-22T18:33:10Z" }
 
   - id: T-BACKEND-FINANCE-ANALYSIS
     type: pytest
@@ -745,7 +745,7 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: { status: passed, command: ".venv/bin/python3 -m pytest backend/tests/test_finance_check_accounts_skill.py backend/tests/test_finance_csv_normalizer.py backend/tests/test_finance_privacy_redaction.py backend/tests/test_sdk_chat_recovery.py::test_sdk_connected_account_skill_endpoint_brokers_refs_before_dispatch", run_id: local-pytest-2026-07-22T18:33:10Z-finance, subject_commit: working-tree, timestamp: "2026-07-22T18:33:10Z" }
+      evidence: { status: passed, command: ".venv/bin/python3 -m pytest backend/tests/test_finance_check_accounts_skill.py backend/tests/test_finance_csv_normalizer.py backend/tests/test_finance_privacy_redaction.py backend/tests/test_sdk_chat_recovery.py::test_sdk_connected_account_skill_endpoint_brokers_refs_before_dispatch", run_id: local-pytest-2026-07-22T18:33:10Z-finance, subject_commit: 52f131ec4, timestamp: "2026-07-22T18:33:10Z" }
 
   - id: T-BACKEND-PRIVACY-REDUCTION
     type: pytest
@@ -764,7 +764,7 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: { status: passed, command: ".venv/bin/python3 -m pytest backend/tests/test_finance_check_accounts_skill.py backend/tests/test_finance_csv_normalizer.py backend/tests/test_finance_privacy_redaction.py backend/tests/test_sdk_chat_recovery.py::test_sdk_connected_account_skill_endpoint_brokers_refs_before_dispatch", run_id: local-pytest-2026-07-22T18:33:10Z-finance, subject_commit: working-tree, timestamp: "2026-07-22T18:33:10Z" }
+      evidence: { status: passed, command: ".venv/bin/python3 -m pytest backend/tests/test_finance_check_accounts_skill.py backend/tests/test_finance_csv_normalizer.py backend/tests/test_finance_privacy_redaction.py backend/tests/test_sdk_chat_recovery.py::test_sdk_connected_account_skill_endpoint_brokers_refs_before_dispatch", run_id: local-pytest-2026-07-22T18:33:10Z-finance, subject_commit: 52f131ec4, timestamp: "2026-07-22T18:33:10Z" }
 
   - id: T-FRONTEND-FINANCE-PII-SIDECAR
     type: unit
@@ -782,7 +782,7 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: { status: passed, command: "npm run test:run -- chatSyncServiceHandlersAI -t \"stores Finance owner PII mappings as sidecar data\"", run_id: local-vitest-2026-07-22T18:33:10Z, subject_commit: working-tree, timestamp: "2026-07-22T18:33:10Z" }
+      evidence: { status: passed, command: "npm run test:run -- chatSyncServiceHandlersAI -t \"stores Finance owner PII mappings as sidecar data\"", run_id: local-vitest-2026-07-22T18:33:10Z, subject_commit: 52f131ec4, timestamp: "2026-07-22T18:33:10Z" }
 
   - id: T-CLI-FINANCE-DEV
     type: manual
@@ -818,7 +818,7 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: { status: passed, command: "node --test --experimental-strip-types --loader ./tests/loader.mjs --test-name-pattern 'runs Finance connected-account skills through the SDK-only endpoint' tests/sdk.test.ts", run_id: local-node-test-2026-07-22T18:35:22Z, subject_commit: working-tree, timestamp: "2026-07-22T18:35:22Z" }
+      evidence: { status: passed, command: "node --test --experimental-strip-types --loader ./tests/loader.mjs --test-name-pattern 'runs Finance connected-account skills through the SDK-only endpoint' tests/sdk.test.ts", run_id: local-node-test-2026-07-22T18:35:22Z, subject_commit: 52f131ec4, timestamp: "2026-07-22T18:35:22Z" }
 
   - id: T-PIP-SDK-FINANCE
     type: pytest
@@ -835,7 +835,7 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: { status: passed, command: ".venv/bin/python3 -m pytest packages/openmates-python/tests/test_sdk.py::test_finance_connected_account_skill_uses_sdk_only_endpoint", run_id: local-pytest-2026-07-22T18:35:22Z-pip-sdk, subject_commit: working-tree, timestamp: "2026-07-22T18:35:22Z" }
+      evidence: { status: passed, command: ".venv/bin/python3 -m pytest packages/openmates-python/tests/test_sdk.py::test_finance_connected_account_skill_uses_sdk_only_endpoint", run_id: local-pytest-2026-07-22T18:35:22Z-pip-sdk, subject_commit: 52f131ec4, timestamp: "2026-07-22T18:35:22Z" }
 
   - id: T-PARITY-AUDIT
     type: manual
@@ -874,7 +874,7 @@ tests:
     green_phase:
       required: true
       expected: pass_after_deploy
-      evidence: { status: passed, command: "python3 scripts/tests.py run --spec finance-check-accounts.spec.ts", run_id: github-actions-29882999937, subject_commit: 03b758fce, timestamp: "2026-07-22T01:25:54Z", target: app.dev.openmates.org, deployment_reference: dpl_ALaDkYeLV6X2B2YNNB8fcDsWfYYh, reason: "Deployed Playwright run passed after polishing the public Finance example, provider branding, Finance icon, Revolut Business icon, and fullscreen chart ordering." }
+      evidence: { status: passed, command: "python3 scripts/tests.py run --spec finance-check-accounts.spec.ts", run_id: github-actions-29949295153, subject_commit: 52f131ec4, timestamp: "2026-07-22T19:03:55Z", target: app.dev.openmates.org, deployment_reference: dpl_7haiAzw8PVFAYgRZZPSumV5DoEyR, reason: "Deployed Playwright run passed for the Finance example after adding sheet-embed input support, owner-only PII sidecars, aggregate-only preview, fullscreen filters, placeholder reveal, and no-clipping layout checks." }
 
 verifications:
   - id: V-USER-CONFIRMATION

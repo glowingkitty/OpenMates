@@ -161,6 +161,12 @@ class UserPlanService:
             raise UserPlanNotFoundError("Plan criterion not found")
         return updated
 
+    async def delete_criterion(self, plan_id: str, user_id: str, criterion_id: str) -> dict[str, Any]:
+        await self.ensure_plan_owner(plan_id, user_id)
+        if not await self.plan_methods.delete_criterion(plan_id, criterion_id):
+            raise UserPlanNotFoundError("Plan criterion not found")
+        return {"deleted": True, "criterion_id": criterion_id}
+
     async def create_assumption(self, plan_id: str, user_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         await self.ensure_plan_owner(plan_id, user_id)
         created = await self.plan_methods.create_assumption(plan_id, payload)
@@ -174,6 +180,12 @@ class UserPlanService:
         if not updated:
             raise UserPlanNotFoundError("Plan assumption not found")
         return updated
+
+    async def delete_assumption(self, plan_id: str, user_id: str, assumption_id: str) -> dict[str, Any]:
+        await self.ensure_plan_owner(plan_id, user_id)
+        if not await self.plan_methods.delete_assumption(plan_id, assumption_id):
+            raise UserPlanNotFoundError("Plan assumption not found")
+        return {"deleted": True, "assumption_id": assumption_id}
 
     async def create_reference_pattern(self, plan_id: str, user_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         await self.ensure_plan_owner(plan_id, user_id)
@@ -189,6 +201,12 @@ class UserPlanService:
             raise UserPlanNotFoundError("Plan reference pattern not found")
         return updated
 
+    async def delete_reference_pattern(self, plan_id: str, user_id: str, pattern_id: str) -> dict[str, Any]:
+        await self.ensure_plan_owner(plan_id, user_id)
+        if not await self.plan_methods.delete_reference_pattern(plan_id, pattern_id):
+            raise UserPlanNotFoundError("Plan reference pattern not found")
+        return {"deleted": True, "pattern_id": pattern_id}
+
     async def create_learning(self, plan_id: str, user_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         await self.ensure_plan_owner(plan_id, user_id)
         created = await self.plan_methods.create_learning(plan_id, payload)
@@ -202,6 +220,12 @@ class UserPlanService:
         if not updated:
             raise UserPlanNotFoundError("Plan learning not found")
         return updated
+
+    async def delete_learning(self, plan_id: str, user_id: str, learning_id: str) -> dict[str, Any]:
+        await self.ensure_plan_owner(plan_id, user_id)
+        if not await self.plan_methods.delete_learning(plan_id, learning_id):
+            raise UserPlanNotFoundError("Plan learning not found")
+        return {"deleted": True, "learning_id": learning_id}
 
     async def create_tasks_from_learnings(self, plan_id: str, user_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         if not self.task_service:
@@ -319,6 +343,19 @@ class UserPlanService:
         if not created:
             raise ValueError("Failed to create plan verification")
         return {"verification": created, "task": task}
+
+    async def update_verification(self, plan_id: str, user_id: str, verification_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        await self.ensure_plan_owner(plan_id, user_id)
+        updated = await self.plan_methods.update_verification(plan_id, verification_id, payload)
+        if not updated:
+            raise UserPlanNotFoundError("Plan verification not found")
+        return updated
+
+    async def delete_verification(self, plan_id: str, user_id: str, verification_id: str) -> dict[str, Any]:
+        await self.ensure_plan_owner(plan_id, user_id)
+        if not await self.plan_methods.delete_verification(plan_id, verification_id):
+            raise UserPlanNotFoundError("Plan verification not found")
+        return {"deleted": True, "verification_id": verification_id}
 
     async def add_verification_evidence(self, plan_id: str, user_id: str, verification_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         await self.ensure_plan_owner(plan_id, user_id)

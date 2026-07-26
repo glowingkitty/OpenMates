@@ -502,6 +502,9 @@ class UserPlanMethods:
         update["version"] = int(existing.get("version") or 1) + 1
         return await self.directus_service.update_item("user_plan_acceptance_criteria", existing["id"], update)
 
+    async def delete_criterion(self, plan_id: str, criterion_id: str) -> bool:
+        return await self._delete_plan_child("user_plan_acceptance_criteria", "criterion_id", plan_id, criterion_id)
+
     async def create_verification(self, plan_id: str, payload: dict[str, Any]) -> dict[str, Any] | None:
         record = {
             **payload,
@@ -532,6 +535,9 @@ class UserPlanMethods:
             return None
         return await self.directus_service.update_item("user_plan_verifications", existing_rows[0]["id"], patch)
 
+    async def delete_verification(self, plan_id: str, verification_id: str) -> bool:
+        return await self._delete_plan_child("user_plan_verifications", "verification_id", plan_id, verification_id)
+
     async def create_assumption(self, plan_id: str, payload: dict[str, Any]) -> dict[str, Any] | None:
         record = {**payload, "plan_id": plan_id, "status": payload.get("status") or "unchecked", "version": payload.get("version", 1)}
         success, data = await self.directus_service.create_item("user_plan_assumptions", record)
@@ -560,6 +566,9 @@ class UserPlanMethods:
         update["version"] = int(existing.get("version") or 1) + 1
         return await self.directus_service.update_item("user_plan_assumptions", existing["id"], update)
 
+    async def delete_assumption(self, plan_id: str, assumption_id: str) -> bool:
+        return await self._delete_plan_child("user_plan_assumptions", "assumption_id", plan_id, assumption_id)
+
     async def create_reference_pattern(self, plan_id: str, payload: dict[str, Any]) -> dict[str, Any] | None:
         record = {**payload, "plan_id": plan_id, "status": payload.get("status") or "proposed", "version": payload.get("version", 1)}
         success, data = await self.directus_service.create_item("user_plan_reference_patterns", record)
@@ -587,6 +596,9 @@ class UserPlanMethods:
         update = dict(patch)
         update["version"] = int(existing.get("version") or 1) + 1
         return await self.directus_service.update_item("user_plan_reference_patterns", existing["id"], update)
+
+    async def delete_reference_pattern(self, plan_id: str, pattern_id: str) -> bool:
+        return await self._delete_plan_child("user_plan_reference_patterns", "pattern_id", plan_id, pattern_id)
 
     async def create_learning(self, plan_id: str, payload: dict[str, Any]) -> dict[str, Any] | None:
         record = {
@@ -627,6 +639,20 @@ class UserPlanMethods:
             return None
         update["version"] = int(existing.get("version") or 1) + 1
         return await self.directus_service.update_item("user_plan_learnings", existing["id"], update)
+
+    async def delete_learning(self, plan_id: str, learning_id: str) -> bool:
+        return await self._delete_plan_child("user_plan_learnings", "learning_id", plan_id, learning_id)
+
+    async def _delete_plan_child(self, collection: str, id_field: str, plan_id: str, item_id: str) -> bool:
+        rows = await self.directus_service.get_items(
+            collection,
+            params={"filter[plan_id][_eq]": plan_id, f"filter[{id_field}][_eq]": item_id, "fields": "id", "limit": 1},
+            no_cache=True,
+        )
+        if not rows or not isinstance(rows, list):
+            return False
+        row_id = rows[0].get("id")
+        return bool(row_id and await self.directus_service.delete_item(collection, row_id))
 
     def _validate_learning_record(self, record: dict[str, Any]) -> bool:
         if record.get("type") not in LEARNING_TYPES:

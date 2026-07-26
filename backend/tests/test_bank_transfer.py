@@ -116,6 +116,7 @@ if "backend.core.api.app.routes.websockets" not in sys.modules:
 from backend.core.api.app.routes import payments
 from backend.core.api.app.services.payment.revolut_business_service import (
     RevolutBusinessService,
+    RevolutBusinessTransactionConfirmationError,
 )
 from backend.core.api.app.utils.bank_transfer_references import generate_bank_transfer_reference
 
@@ -183,6 +184,33 @@ def _make_transaction_created_event(
             ],
         },
     }
+
+
+class _FakeConfirmedRevolutBusiness:
+    def __init__(self, event_payload: dict):
+        self.event_payload = event_payload
+
+    async def fetch_confirmed_incoming_transfer(self, transaction_id: str) -> dict:
+        transfer = RevolutBusinessService.parse_incoming_transfer(self.event_payload)
+        assert transfer is not None
+        assert transfer["transaction_id"] == transaction_id
+        return transfer
+
+
+class _FakeFailingRevolutBusiness:
+    def __init__(self, error: RevolutBusinessTransactionConfirmationError):
+        self.error = error
+
+    async def fetch_confirmed_incoming_transfer(self, _transaction_id: str) -> dict:
+        raise self.error
+
+
+def _fake_confirmed_payment_service(event_payload: dict):
+    return types.SimpleNamespace(revolut_business=_FakeConfirmedRevolutBusiness(event_payload))
+
+
+def _fake_failing_payment_service(error: RevolutBusinessTransactionConfirmationError):
+    return types.SimpleNamespace(revolut_business=_FakeFailingRevolutBusiness(error))
 
 
 def _make_state_changed_event(
@@ -493,9 +521,6 @@ class TestBankDetails:
 class TestPersonalBankTransferWebhook:
     """Automation coverage for personal SEPA credit purchases."""
 
-    class FakePaymentService:
-        revolut_business = object()
-
     class FakeEncryption:
         async def encrypt_with_user_key(self, plaintext, key_id):
             return f"encrypted:{plaintext}:{key_id}", "v1"
@@ -631,15 +656,17 @@ class TestPersonalBankTransferWebhook:
         sent_tasks = []
         monkeypatch.setattr(payments.app, "send_task", lambda **kwargs: sent_tasks.append(kwargs))
 
+        event = _make_transaction_created_event(
+            amount=amount,
+            currency="EUR",
+            reference=order["reference"],
+            transaction_id="txn-underpaid",
+        )
+
         result = await payments._handle_revolut_business_webhook(
-            event_payload=_make_transaction_created_event(
-                amount=amount,
-                currency="EUR",
-                reference=order["reference"],
-                transaction_id="txn-underpaid",
-            ),
+            event_payload=event,
             event_type="TransactionCreated",
-            payment_service=self.FakePaymentService(),
+            payment_service=_fake_confirmed_payment_service(event),
             cache_service=cache,
             directus_service=directus,
             encryption_service=self.FakeEncryption(),
@@ -696,15 +723,17 @@ class TestPersonalBankTransferWebhook:
         )
         monkeypatch.setattr(payments.manager, "broadcast_to_user_specific_event", lambda **kwargs: broadcasts.append(kwargs))
 
+        event = _make_transaction_created_event(
+            amount=5.0,
+            currency="EUR",
+            reference=order["reference"],
+            transaction_id="txn-second",
+        )
+
         result = await payments._handle_revolut_business_webhook(
-            event_payload=_make_transaction_created_event(
-                amount=5.0,
-                currency="EUR",
-                reference=order["reference"],
-                transaction_id="txn-second",
-            ),
+            event_payload=event,
             event_type="TransactionCreated",
-            payment_service=self.FakePaymentService(),
+            payment_service=_fake_confirmed_payment_service(event),
             cache_service=cache,
             directus_service=directus,
             encryption_service=self.FakeEncryption(),
@@ -752,15 +781,17 @@ class TestPersonalBankTransferWebhook:
         )
         monkeypatch.setattr(payments.manager, "broadcast_to_user_specific_event", lambda **kwargs: None)
 
+        event = _make_transaction_created_event(
+            amount=50.0,
+            currency="EUR",
+            reference="OM-USER-BTCASE01",
+            transaction_id="txn-uppercase-reference",
+        )
+
         result = await payments._handle_revolut_business_webhook(
-            event_payload=_make_transaction_created_event(
-                amount=50.0,
-                currency="EUR",
-                reference="OM-USER-BTCASE01",
-                transaction_id="txn-uppercase-reference",
-            ),
+            event_payload=event,
             event_type="TransactionCreated",
-            payment_service=self.FakePaymentService(),
+            payment_service=_fake_confirmed_payment_service(event),
             cache_service=cache,
             directus_service=directus,
             encryption_service=self.FakeEncryption(),
@@ -784,15 +815,17 @@ class TestPersonalBankTransferWebhook:
         monkeypatch.setattr(payments.ComplianceService, "log_financial_transaction", lambda **_kwargs: None)
         monkeypatch.setattr(payments.manager, "broadcast_to_user_specific_event", lambda **_kwargs: None)
 
+        event = _make_transaction_created_event(
+            amount=70.0,
+            currency="EUR",
+            reference=order["reference"],
+            transaction_id="txn-overpaid",
+        )
+
         result = await payments._handle_revolut_business_webhook(
-            event_payload=_make_transaction_created_event(
-                amount=70.0,
-                currency="EUR",
-                reference=order["reference"],
-                transaction_id="txn-overpaid",
-            ),
+            event_payload=event,
             event_type="TransactionCreated",
-            payment_service=self.FakePaymentService(),
+            payment_service=_fake_confirmed_payment_service(event),
             cache_service=cache,
             directus_service=directus,
             encryption_service=self.FakeEncryption(),
@@ -832,15 +865,17 @@ class TestPersonalBankTransferWebhook:
         sent_tasks = []
         monkeypatch.setattr(payments.app, "send_task", lambda **kwargs: sent_tasks.append(kwargs))
 
+        event = _make_transaction_created_event(
+            amount=45.0,
+            currency="EUR",
+            reference=order["reference"],
+            transaction_id="txn-duplicate",
+        )
+
         result = await payments._handle_revolut_business_webhook(
-            event_payload=_make_transaction_created_event(
-                amount=45.0,
-                currency="EUR",
-                reference=order["reference"],
-                transaction_id="txn-duplicate",
-            ),
+            event_payload=event,
             event_type="TransactionCreated",
-            payment_service=self.FakePaymentService(),
+            payment_service=_fake_confirmed_payment_service(event),
             cache_service=cache,
             directus_service=directus,
             encryption_service=self.FakeEncryption(),
@@ -849,6 +884,117 @@ class TestPersonalBankTransferWebhook:
         )
 
         assert result == {"status": "duplicate_transaction_ignored"}
+        assert directus.updated_items == []
+        assert cache.status_updates == []
+        assert sent_tasks == []
+
+    @pytest.mark.asyncio
+    async def test_api_confirmation_failure_alerts_admin_and_does_not_settle(self, monkeypatch):
+        order = self._order()
+        cache = self.FakeCache(order)
+        directus = self.FakeDirectus(order)
+        sent_tasks = []
+        monkeypatch.setattr(payments.app, "send_task", lambda **kwargs: sent_tasks.append(kwargs))
+        event = _make_transaction_created_event(
+            amount=50.0,
+            currency="EUR",
+            reference=order["reference"],
+            transaction_id="txn-confirmation-failed",
+        )
+
+        result = await payments._handle_revolut_business_webhook(
+            event_payload=event,
+            event_type="TransactionCreated",
+            payment_service=_fake_failing_payment_service(
+                RevolutBusinessTransactionConfirmationError(
+                    "provider_lookup_failed",
+                    "provider unavailable",
+                )
+            ),
+            cache_service=cache,
+            directus_service=directus,
+            encryption_service=self.FakeEncryption(),
+            secrets_manager=self.FakeSecrets(),
+            tier_service=self.FakeTier(),
+        )
+
+        assert result == {"status": "transaction_confirmation_failed"}
+        assert directus.updated_items == []
+        assert cache.status_updates == []
+        assert sent_tasks[0]["name"] == "app.tasks.email_tasks.alert_notification_email_task.send_alert_notification"
+        assert "txn-confirmation-failed" in sent_tasks[0]["kwargs"]["description"]
+        assert order["reference"] in sent_tasks[0]["kwargs"]["description"]
+
+    @pytest.mark.asyncio
+    async def test_api_pending_transaction_waits_without_admin_alert(self, monkeypatch):
+        order = self._order()
+        cache = self.FakeCache(order)
+        directus = self.FakeDirectus(order)
+        sent_tasks = []
+        monkeypatch.setattr(payments.app, "send_task", lambda **kwargs: sent_tasks.append(kwargs))
+        event = _make_transaction_created_event(
+            amount=50.0,
+            currency="EUR",
+            reference=order["reference"],
+            transaction_id="txn-pending",
+            state="pending",
+        )
+
+        result = await payments._handle_revolut_business_webhook(
+            event_payload=event,
+            event_type="TransactionCreated",
+            payment_service=_fake_failing_payment_service(
+                RevolutBusinessTransactionConfirmationError(
+                    "transaction_not_completed",
+                    "transaction pending",
+                    alert_required=False,
+                    state="pending",
+                )
+            ),
+            cache_service=cache,
+            directus_service=directus,
+            encryption_service=self.FakeEncryption(),
+            secrets_manager=self.FakeSecrets(),
+            tier_service=self.FakeTier(),
+        )
+
+        assert result == {"status": "transaction_pending"}
+        assert directus.updated_items == []
+        assert cache.status_updates == []
+        assert sent_tasks == []
+
+    @pytest.mark.asyncio
+    async def test_missing_api_credentials_do_not_alert_admin(self, monkeypatch):
+        order = self._order()
+        cache = self.FakeCache(order)
+        directus = self.FakeDirectus(order)
+        sent_tasks = []
+        monkeypatch.setattr(payments.app, "send_task", lambda **kwargs: sent_tasks.append(kwargs))
+        event = _make_transaction_created_event(
+            amount=50.0,
+            currency="EUR",
+            reference=order["reference"],
+            transaction_id="txn-missing-api-creds",
+        )
+
+        result = await payments._handle_revolut_business_webhook(
+            event_payload=event,
+            event_type="TransactionCreated",
+            payment_service=_fake_failing_payment_service(
+                RevolutBusinessTransactionConfirmationError(
+                    "api_credentials_missing",
+                    "credentials missing",
+                    alert_required=False,
+                )
+            ),
+            cache_service=cache,
+            directus_service=directus,
+            encryption_service=self.FakeEncryption(),
+            secrets_manager=self.FakeSecrets(),
+            tier_service=self.FakeTier(),
+        )
+
+        assert result == {"status": "transaction_confirmation_unavailable"}
         assert directus.updated_items == []
         assert cache.status_updates == []
         assert sent_tasks == []
@@ -862,9 +1008,6 @@ class TestGiftCardBankTransferWebhook:
         reference = "OM-TEST-btgift01"
         order_id = "bt_gift01"
         user_id = "user-123"
-
-        class FakePaymentService:
-            revolut_business = object()
 
         class FakeCache:
             def __init__(self):
@@ -960,15 +1103,17 @@ class TestGiftCardBankTransferWebhook:
         cache = FakeCache()
         directus = FakeDirectus()
 
+        event = _make_transaction_created_event(
+            amount=20.0,
+            currency="EUR",
+            reference=reference,
+            transaction_id="txn-gift-card",
+        )
+
         result = await payments._handle_revolut_business_webhook(
-            event_payload=_make_transaction_created_event(
-                amount=20.0,
-                currency="EUR",
-                reference=reference,
-                transaction_id="txn-gift-card",
-            ),
+            event_payload=event,
             event_type="TransactionCreated",
-            payment_service=FakePaymentService(),
+            payment_service=_fake_confirmed_payment_service(event),
             cache_service=cache,
             directus_service=directus,
             encryption_service=object(),
@@ -1002,9 +1147,6 @@ class TestTeamBankTransferWebhook:
         user_id = "owner-123"
         team_id = "team-123"
         team_hash = hashlib.sha256(team_id.encode()).hexdigest()
-
-        class FakePaymentService:
-            revolut_business = object()
 
         class FakeTeam:
             async def require_team_role(self, requested_team_id, requested_user_id, roles):
@@ -1110,15 +1252,17 @@ class TestTeamBankTransferWebhook:
         cache = FakeCache()
         directus = FakeDirectus()
 
+        event = _make_transaction_created_event(
+            amount=100.0,
+            currency="EUR",
+            reference=reference,
+            transaction_id="txn-team-credit",
+        )
+
         result = await payments._handle_revolut_business_webhook(
-            event_payload=_make_transaction_created_event(
-                amount=100.0,
-                currency="EUR",
-                reference=reference,
-                transaction_id="txn-team-credit",
-            ),
+            event_payload=event,
             event_type="TransactionCreated",
-            payment_service=FakePaymentService(),
+            payment_service=_fake_confirmed_payment_service(event),
             cache_service=cache,
             directus_service=directus,
             encryption_service=object(),

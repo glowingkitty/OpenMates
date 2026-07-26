@@ -16,6 +16,8 @@ scope:
     - Gift-card bank-transfer purchase orders.
     - Accumulating multiple Revolut transactions with the same OpenMates reference.
     - User email notifications for overpayments and underpayments.
+    - Revolut Business API confirmation before automatic settlement.
+    - Admin alerts when API credentials are configured but confirmation fails and manual settlement/investigation is required.
     - Revolut Sandbox verification via /sandbox/topup when company credentials are available.
   out:
     - Support-contribution bank-transfer automation changes.
@@ -81,7 +83,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: ba97aefd77439a1f0583c8c55a15f5c868dd0f3f+working-tree
+  subject_commit: f94af9ef3d8c64df47987b392b4f5bfa4fc9b400+working-tree
 
 approvals:
   product_contract:
@@ -114,6 +116,11 @@ decisions:
     decision: Expose bank-transfer credit-sale endpoints only on the official cloud deployment.
     reason: Self-hosted OpenMates must not ask instance users to send money to buy OpenMates credits; the operator-only manual script remains available for official-cloud fallback handling.
     decided_at: "2026-07-23T00:23:07Z"
+  - id: D-5
+    status: active
+    decision: Treat signed Revolut webhooks only as transaction-ID triggers; use the Revolut Business API transaction read as the settlement source of truth.
+    reason: Webhook payloads should not be trusted for granting credits if API credentials are available or required for auto-settlement.
+    decided_at: "2026-07-24T00:00:00Z"
 
 attempts:
   - id: ATTEMPT-1
@@ -198,6 +205,18 @@ scenarios:
     then:
       - Settlement uses the same cumulative amount rules as personal credit purchases.
       - Team credits or gift-card code creation happens only after cumulative received money reaches the selected pack price.
+  - id: S-7
+    title: Webhook transaction must be confirmed through Revolut API
+    given:
+      - Revolut sends a signed TransactionCreated or TransactionStateChanged webhook containing a transaction ID.
+    when:
+      - OpenMates processes the webhook.
+    then:
+      - OpenMates fetches that transaction ID from the Revolut Business API before matching the OM reference or granting credits.
+      - Settlement uses the API-confirmed transaction state, amount, currency, receiving account/direction, and reference.
+      - If API confirmation fails, no credits, gift cards, or team credits are granted.
+      - Missing Vault API credentials do not send admin email because auto-settlement is not configured.
+      - When Vault API credentials are configured but confirmation fails for another reason, an admin alert is queued with the Revolut transaction ID and OM reference hint.
 
 acceptance_criteria:
   - id: AC-1
@@ -282,6 +301,24 @@ acceptance_criteria:
     verification_scope: related_backend
     verification_ids:
       - T-PYTEST-SELFHOST-BANK-TRANSFER
+  - id: AC-10
+    scenario: S-7
+    text: Signed Revolut webhooks only trigger a Revolut Business API transaction lookup; automatic settlement uses only the API-confirmed transaction fields.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids:
+      - T-PYTEST-BANK-TRANSFER
+  - id: AC-11
+    scenario: S-7
+    text: Revolut API confirmation failures grant no credits, gift cards, or team credits; missing Vault API credentials do not alert, but configured-credential failures queue an admin alert with transaction ID and OM reference hint when operator action is required.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids:
+      - T-PYTEST-BANK-TRANSFER
 
 assumptions:
   - id: A-1
@@ -317,7 +354,7 @@ contracts:
       rate_limits: Provider webhook route has no normal user rate limit; signature verification and idempotency protect repeated delivery.
       credit_budget: Credits are granted only for matching pending credit-purchase, team-credit-purchase, or gift-card-purchase orders whose cumulative received amount reaches amount_expected_cents.
       encryption_boundary: Uses stored user_id, vault_key_id, encrypted balance, and email_encryption_key; does not expose client-side encrypted chat/memory/file material.
-      behavior: Match Revolut TransactionCreated events by OM reference and classify cumulative EUR amount as underpaid, funded/exact, or overpaid.
+      behavior: Verify the Revolut webhook signature/timestamp, extract the transaction ID, fetch the transaction from Revolut Business API, then match the API-confirmed OM reference and classify cumulative EUR amount as underpaid, funded/exact, or overpaid.
     - route: POST /v1/payments/create-bank-transfer-order and related bank-transfer status/support endpoints
       access_model: first-party official-cloud client surface only
       auth: Authenticated user session is required for credit-purchase order creation and status reads; support-contribution creation is public but official-cloud-only.
@@ -341,6 +378,7 @@ contracts:
   provider:
     - Reuse shared Revolut OAuth/client code for company-level Sandbox probes, but do not reuse user connected-account refresh token envelopes from the Finance app skill.
     - Company Revolut credentials come from Vault or explicit operator env for manual Sandbox verification.
+    - Automatic settlement requires company Revolut API credentials plus the receiving company account ID; missing credentials disable auto-settlement without admin email, while configured-credential confirmation failures alert admins and fall back to manual settlement rather than trusting webhook payload fields.
 
 tests:
   - id: T-PYTEST-BANK-TRANSFER
@@ -354,6 +392,8 @@ tests:
       - AC-4
       - AC-5
       - AC-6
+      - AC-10
+      - AC-11
     assertions:
       - exact personal payment still completes and queues purchase confirmation
       - received amounts below the selected pack price do not auto-complete even when within the old negative tolerance
@@ -362,6 +402,9 @@ tests:
       - second partial with same OM reference completes without double-counting the first partial
       - duplicate Revolut transaction IDs are ignored
       - team and gift-card orders use the same amount rules before their existing settlement side effects
+      - Revolut API confirmation failures do not settle and queue admin alerts only when credentials are configured
+      - missing Revolut API credentials do not settle and do not queue admin alerts
+      - non-completed API states wait without granting credits or alerting admins
     red_phase:
       required: true
       expected: fail
@@ -375,10 +418,10 @@ tests:
       expected: pass
       evidence:
         status: passed
-        command: .venv/bin/python3 -m pytest "backend/tests/test_cli_bank_transfer_gift_card_purchase.py" "backend/tests/test_bank_transfer.py" "backend/tests/test_approve_bank_transfer_script.py"
-        run_id: local-2026-07-23-bank-transfer-56-passed
-        subject_commit: ba97aefd77439a1f0583c8c55a15f5c868dd0f3f+working-tree
-        timestamp: "2026-07-23T00:23:07Z"
+        command: .venv/bin/python3 -m pytest backend/tests/test_bank_transfer.py
+        run_id: local-2026-07-24-revolut-api-confirmation-37-passed
+        subject_commit: f94af9ef3d8c64df47987b392b4f5bfa4fc9b400+working-tree
+        timestamp: "2026-07-24T00:00:00Z"
   - id: T-PYTEST-MANUAL-SCRIPT
     type: pytest
     file: backend/tests/test_approve_bank_transfer_script.py
@@ -402,10 +445,10 @@ tests:
       expected: pass
       evidence:
         status: passed
-        command: .venv/bin/python3 -m pytest "backend/tests/test_cli_bank_transfer_gift_card_purchase.py" "backend/tests/test_bank_transfer.py" "backend/tests/test_approve_bank_transfer_script.py"
-        run_id: local-2026-07-23-bank-transfer-56-passed
-        subject_commit: ba97aefd77439a1f0583c8c55a15f5c868dd0f3f+working-tree
-        timestamp: "2026-07-23T00:23:07Z"
+        command: .venv/bin/python3 -m pytest backend/tests/test_approve_bank_transfer_script.py backend/tests/test_cli_bank_transfer_gift_card_purchase.py
+        run_id: local-2026-07-24-bank-transfer-regressions-25-passed
+        subject_commit: f94af9ef3d8c64df47987b392b4f5bfa4fc9b400+working-tree
+        timestamp: "2026-07-24T00:00:00Z"
   - id: T-PYTEST-SELFHOST-BANK-TRANSFER
     type: pytest
     file: backend/tests/test_cli_bank_transfer_gift_card_purchase.py
@@ -429,10 +472,10 @@ tests:
       expected: pass
       evidence:
         status: passed
-        command: .venv/bin/python3 -m pytest "backend/tests/test_cli_bank_transfer_gift_card_purchase.py" "backend/tests/test_bank_transfer.py" "backend/tests/test_approve_bank_transfer_script.py"
-        run_id: local-2026-07-23-bank-transfer-56-passed
-        subject_commit: ba97aefd77439a1f0583c8c55a15f5c868dd0f3f+working-tree
-        timestamp: "2026-07-23T00:23:07Z"
+        command: .venv/bin/python3 -m pytest backend/tests/test_approve_bank_transfer_script.py backend/tests/test_cli_bank_transfer_gift_card_purchase.py
+        run_id: local-2026-07-24-bank-transfer-regressions-25-passed
+        subject_commit: f94af9ef3d8c64df47987b392b4f5bfa4fc9b400+working-tree
+        timestamp: "2026-07-24T00:00:00Z"
   - id: T-SANDBOX-REVOLUT
     type: manual
     file: scripts/api_tests/test_revolut_business_bank_transfer_settlement.py
@@ -474,14 +517,17 @@ verifications:
       - AC-6
       - AC-7
       - AC-8
+      - AC-9
+      - AC-10
+      - AC-11
     status: pending
     evidence:
       status: passed
-      summary: Spec validation passed after backend implementation and evidence updates.
+      summary: Spec validation passed after API-confirmed settlement implementation and evidence updates.
       command: python3 scripts/spec_validate.py "docs/specs/revolut-bank-transfer-auto-credit/spec.yml"
-      run_id: local-2026-07-22-spec-validate-pass
-      subject_commit: ba97aefd77439a1f0583c8c55a15f5c868dd0f3f+working-tree
-      timestamp: "2026-07-22T23:47:43Z"
+      run_id: local-2026-07-24-spec-validate-pass
+      subject_commit: f94af9ef3d8c64df47987b392b4f5bfa4fc9b400+working-tree
+      timestamp: "2026-07-24T00:00:00Z"
 
 implementation_plan:
   spec_path: docs/specs/revolut-bank-transfer-auto-credit/spec.yml
@@ -500,7 +546,9 @@ implementation_plan:
   data_flow:
     - User starts a bank-transfer order and receives an OM reference.
     - Revolut sends a signed TransactionCreated webhook for incoming EUR money.
-    - The handler matches the pending order by reference.
+    - The handler extracts the Revolut transaction ID from the signed webhook.
+    - The handler fetches and validates the transaction through the Revolut Business API.
+    - The handler matches the pending order by the API-confirmed reference.
     - The handler ignores duplicate Revolut transaction IDs.
     - The handler appends the transaction amount to the order ledger and recomputes cumulative received amount.
     - If cumulative received is below expected, the order remains pending, expires_at extends 7 days, and remaining-payment email is queued.
@@ -526,7 +574,9 @@ implementation_plan:
     - path: scripts/api_tests/test_revolut_business_bank_transfer_settlement.py
       reason: Optional real Sandbox verification against the dev API.
     - path: backend/shared/providers/revolut_business/client.py
-      reason: Optional Sandbox top-up helper for live provider testing.
+      reason: Shared Revolut Business transaction read and incoming-leg normalization.
+    - path: backend/core/api/app/services/payment/revolut_business_service.py
+      reason: Company credential loading and API-confirmed incoming transfer validation.
   verification_strategy:
     - python3 scripts/spec_validate.py docs/specs/revolut-bank-transfer-auto-credit/spec.yml
     - python3 -m pytest backend/tests/test_bank_transfer.py backend/tests/test_approve_bank_transfer_script.py
@@ -638,12 +688,44 @@ tasks:
         requires_user_input: false
     follow_up_tasks: []
     independently_deployable: false
+  - id: TASK-4
+    title: Require Revolut API confirmation before webhook settlement
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-7
+      acceptance_criteria:
+        - AC-10
+        - AC-11
+    expected_files:
+      - backend/core/api/app/routes/payments.py
+      - backend/core/api/app/services/payment/revolut_business_service.py
+      - backend/shared/providers/revolut_business/client.py
+      - backend/tests/test_bank_transfer.py
+    verification:
+      - T-PYTEST-BANK-TRANSFER
+    verification_ids:
+      - T-PYTEST-BANK-TRANSFER
+    dependencies:
+      - TASK-1
+    ownership:
+      files:
+        - backend/core/api/app/routes/payments.py
+        - backend/core/api/app/services/payment/revolut_business_service.py
+        - backend/shared/providers/revolut_business/client.py
+        - backend/tests/test_bank_transfer.py
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: true
 
 risks:
   - Duplicate webhook retries can create financial over-crediting if transaction ID idempotency is incomplete.
   - Directus schema changes need migration/deployment coordination before live provider webhooks rely on new fields.
   - Email decryption can fail if the original order lacks email_encryption_key and the user lacks server-side email fallback.
   - Revolut Sandbox webhook delivery depends on external configuration and may not be reliable enough for default CI.
+  - Missing company Revolut API credentials now intentionally prevent auto-settlement and require manual operator handling.
 
 open_questions:
   - Should support-contribution overpayments/underpayments get similar user emails in a later slice?
