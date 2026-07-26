@@ -328,7 +328,7 @@ test('keyboard recording shortcut shows Enter and Escape controls without insert
 
 	await setupAndFocusMessageField(page);
 	const messageField = page.getByTestId('message-field');
-	await page.locator('body').click({ position: { x: 8, y: 8 } });
+	await page.mouse.click(8, 8);
 	await expect(messageField).toHaveClass(/compact/, { timeout: 5000 });
 	expect(await getEditorPlainText(page)).toBe('');
 	const embedCountBefore = await page.getByTestId('recording-preview').count();
