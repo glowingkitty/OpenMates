@@ -75,7 +75,7 @@ describe("OpenMates SDK Projects", () => {
           return { projects: [{ project_id: "project-1", encrypted_project_key: encryptedProjectKey }] };
         }
         if (request.method === "GET" && request.url === "/v1/projects?include_archived=false") {
-          return { projects: [{ project_id: "project-1" }] };
+          return { projects: [{ project_id: "project-1", encrypted_project_key: encryptedProjectKey }] };
         }
         if (request.method === "GET" && request.url === "/v1/sdk/chats/chat-1") {
           return { chat: { id: "chat-1", encrypted_chat_key: encryptedChatKey, encrypted_title: encryptedTitle, updated_at: 200 }, messages: [] };
@@ -86,7 +86,7 @@ describe("OpenMates SDK Projects", () => {
       },
       async (apiUrl, seen) => {
         const client = new OpenMates({ apiKey: material.apiKey, apiUrl, deviceId: "test-device" });
-        assert.equal((await client.projects.list({ includeArchived: false }))[0]?.project_id, "project-1");
+        assert.equal((await client.projects.list({ includeArchived: false }))[0]?.projectId, "project-1");
 
         const chatLink = await client.chats.addToProject("chat-1", "project-1", { folder: "folder-1" });
         assert.equal(chatLink.item_type, "chat");

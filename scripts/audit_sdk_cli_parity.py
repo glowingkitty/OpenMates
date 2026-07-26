@@ -44,6 +44,7 @@ TOP_LEVEL_CLASSIFICATION = {
     "signup": "browser-high-risk",
     "logout": "cli-auth-session",
     "whoami": "account.info",
+    "chat": "chats.send",
     "chats": "chats.*",
     "drafts": "drafts.*",
     "apps": "apps.<generated>.<skill>",
@@ -97,6 +98,7 @@ class WorkflowTemplateTransportEntry:
 
 PARITY_ENTRIES = [
     ParityEntry('command === "whoami"', "account.info", "account.info"),
+    ParityEntry('command === "chat"', "chats.send", "chats.send"),
     ParityEntry('subcommand === "list"', "chats.list", "chats.list"),
     ParityEntry('subcommand === "search"', "chats.search", "chats.search"),
     ParityEntry('subcommand === "show"', "chats.load", "chats.load"),

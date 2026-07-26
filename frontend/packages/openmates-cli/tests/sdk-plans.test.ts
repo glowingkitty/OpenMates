@@ -16,6 +16,10 @@ import { createApiKeyCryptoMaterial, encryptBytesWithAesGcm, encryptWithAesGcmCo
 
 type SeenRequest = { method: string | undefined; url: string | undefined; body: unknown };
 
+function assertNoPlaintextMarker(value: unknown, marker: string): void {
+  assert.equal(JSON.stringify(value).includes(marker), false);
+}
+
 const plan = {
   plan_id: "plan-1",
   encrypted_plan_key: "cipher-key",
@@ -136,36 +140,49 @@ describe("OpenMates SDK user plans", () => {
         assert.equal((await client.plans.scopeIn.add("plan-1", "Scope")).scopeIn, "Scope");
         assert.equal((await client.plans.openQuestions.answer("plan-1", "Answered")).openQuestions, "Answered");
         assert.equal((await client.plans.complete("plan-1")).planId, "plan-1");
-        assert.equal((await client.plans.successCriteria.add("plan-1", { criterion_id: "AC-1", encrypted_text: "cipher-ac", created_at: 100 })).criterion_id, "AC-1");
+        const criterion = await client.plans.successCriteria.add("plan-1", { criterionId: "AC-1", text: "Plain AC" });
+        assert.equal(criterion.criterionId, "AC-1");
+        assert.equal(criterion.text, "Plain AC");
         assert.equal((await client.plans.successCriteria.update("plan-1", "AC-1", { status: "satisfied" })).status, "satisfied");
         assert.deepEqual(await client.plans.successCriteria.remove("plan-1", "AC-1"), { deleted: true });
         assert.equal((await client.plans.listCriteria("plan-1")).length, 0);
-        assert.equal((await client.plans.checks.add("plan-1", { verification_id: "V-1", kind: "manual_check", created_at: 100 })).verification_id, "V-1");
+        const check = await client.plans.checks.add("plan-1", { verificationId: "V-1", kind: "manual_check", command: "npm test" });
+        assert.equal(check.verificationId, "V-1");
+        assert.equal(check.command, "npm test");
         assert.equal((await client.plans.checks.update("plan-1", "V-1", { status: "passed" })).status, "passed");
         assert.equal(((await client.plans.checks.getRun("plan-1", "V-1", "run-1")).run as Record<string, unknown>).run_id, "run-1");
         assert.deepEqual(await client.plans.checks.remove("plan-1", "V-1"), { deleted: true });
         assert.equal((await client.plans.listVerifications("plan-1")).length, 0);
-        assert.equal((await client.plans.assumptions.add("plan-1", { assumption_id: "A-1", encrypted_text: "cipher-assumption", created_at: 100 })).assumption_id, "A-1");
+        const assumption = await client.plans.assumptions.add("plan-1", { assumptionId: "A-1", text: "Plain assumption" });
+        assert.equal(assumption.assumptionId, "A-1");
+        assert.equal(assumption.text, "Plain assumption");
         assert.equal((await client.plans.listAssumptions("plan-1")).length, 0);
         assert.equal((await client.plans.assumptions.check("plan-1", "A-1")).status, "checking");
-        assert.equal((await client.plans.assumptions.waive("plan-1", "A-1", { encrypted_waiver_reason: "cipher-reason" })).status, "waived");
+        assert.equal((await client.plans.assumptions.waive("plan-1", "A-1", { waiverReason: "Known limitation" })).status, "waived");
         assert.deepEqual(await client.plans.assumptions.remove("plan-1", "A-1"), { deleted: true });
-        assert.equal((await client.plans.referencePatterns.add("plan-1", { pattern_id: "RP-1", encrypted_title: "cipher-pattern", created_at: 100 })).pattern_id, "RP-1");
+        const pattern = await client.plans.referencePatterns.add("plan-1", { patternId: "RP-1", title: "Plain pattern" });
+        assert.equal(pattern.patternId, "RP-1");
+        assert.equal(pattern.title, "Plain pattern");
         assert.equal((await client.plans.listReferencePatterns("plan-1")).length, 0);
         assert.equal((await client.plans.referencePatterns.inspect("plan-1", "RP-1")).status, "inspected");
         assert.deepEqual(await client.plans.referencePatterns.remove("plan-1", "RP-1"), { deleted: true });
-        assert.equal((await client.plans.learnings.create("plan-1", { learning_id: "LRN-1", type: "workflow_improvement", target_kind: "workflow", encrypted_title: "cipher-learning", created_at: 100 })).learning_id, "LRN-1");
+        const learning = await client.plans.learnings.create("plan-1", { learningId: "LRN-1", type: "workflow_improvement", targetKind: "workflow", title: "Plain learning" });
+        assert.equal(learning.learningId, "LRN-1");
+        assert.equal(learning.title, "Plain learning");
         assert.equal((await client.plans.learnings.list("plan-1")).length, 0);
         assert.equal((await client.plans.learnings.update("plan-1", "LRN-1", { status: "accepted" })).status, "accepted");
         assert.deepEqual(await client.plans.learnings.remove("plan-1", "LRN-1"), { deleted: true });
         assert.deepEqual(await client.plans.learnings.createTasks("plan-1", { learning_ids: ["LRN-1"] }), { tasks: [], skipped: [] });
-        assert.equal((await client.plans.checks.addEvidence("plan-1", "V-1", { status: "passed" })).status, "passed");
+        assert.equal((await client.plans.checks.addEvidence("plan-1", "V-1", { status: "passed", resultSummary: "Passed locally" })).status, "passed");
 
         const urls = seen.map((request) => request.url);
         assert.ok(urls.includes("/v1/sdk/session"));
         assert.ok(urls.includes("/v1/user-plans"));
         assert.ok(urls.includes("/v1/user-plans/plan-1/activate"));
         assert.ok(urls.includes("/v1/user-plans/plan-1/verification/V-1/evidence"));
+        for (const marker of ["Plain AC", "Plain assumption", "Plain pattern", "Plain learning", "Passed locally"]) {
+          assertNoPlaintextMarker(seen, marker);
+        }
       },
       `Bearer ${material.apiKey}`,
     );

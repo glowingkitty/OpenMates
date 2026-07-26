@@ -47,7 +47,7 @@ def test_pip_sdk_project_links_are_openmates_only(monkeypatch):
         assert headers["Authorization"] == f"Bearer {api_key}"
         assert headers["X-OpenMates-SDK"] == "pip"
         if url.endswith("/v1/projects?include_archived=false"):
-            return FakeResponse({"projects": [{"project_id": "project-1"}]})
+            return FakeResponse({"projects": [{"project_id": "project-1", "encrypted_project_key": encrypted_project_key}]})
         if url.endswith("/v1/projects?include_archived=true"):
             return FakeResponse({"projects": [{"project_id": "project-1", "encrypted_project_key": encrypted_project_key}]})
         if url.endswith("/v1/sdk/chats/chat-1"):

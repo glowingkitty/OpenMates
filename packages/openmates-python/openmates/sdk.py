@@ -1254,6 +1254,337 @@ def _public_plan(plan: dict[str, Any]) -> dict[str, Any]:
     return {key: value for key, value in plan.items() if key != "encrypted"}
 
 
+def _plan_child_value(payload: dict[str, Any], *names: str) -> Any:
+    for name in names:
+        if name in payload:
+            return payload.get(name)
+    return None
+
+
+def _omit_none(payload: dict[str, Any]) -> dict[str, Any]:
+    return {key: value for key, value in payload.items() if value is not None}
+
+
+def _decrypt_plan_child_text(record: dict[str, Any], plan_key: bytes, field: str) -> str:
+    value = record.get(field)
+    if not isinstance(value, str):
+        return ""
+    return _decrypt_aes_gcm_text(value, plan_key) or ""
+
+
+def _public_plan_criterion(record: dict[str, Any], plan_key: bytes) -> dict[str, Any]:
+    return {
+        "criterion_id": record.get("criterion_id"),
+        "text": _decrypt_plan_child_text(record, plan_key, "encrypted_text"),
+        "type": record.get("type"),
+        "status": record.get("status"),
+        "required": record.get("required"),
+        "linked_step_ids": _string_list(record.get("linked_step_ids") or []),
+        "linked_task_ids": _string_list(record.get("linked_task_ids") or []),
+        "verification_ids": _string_list(record.get("verification_ids") or []),
+        "created_at": record.get("created_at"),
+        "updated_at": record.get("updated_at"),
+    }
+
+
+def _public_plan_assumption(record: dict[str, Any], plan_key: bytes) -> dict[str, Any]:
+    return {
+        "assumption_id": record.get("assumption_id"),
+        "text": _decrypt_plan_child_text(record, plan_key, "encrypted_text"),
+        "category": record.get("category"),
+        "status": record.get("status"),
+        "required_before": record.get("required_before"),
+        "linked_sub_chat_id": record.get("linked_sub_chat_id"),
+        "linked_task_id": record.get("linked_task_id"),
+        "linked_step_ids": _string_list(record.get("linked_step_ids") or []),
+        "linked_criterion_ids": _string_list(record.get("linked_criterion_ids") or []),
+        "source_count": record.get("source_count"),
+        "corrected_text": _decrypt_plan_child_text(record, plan_key, "encrypted_corrected_text"),
+        "evidence_summary": _decrypt_plan_child_text(record, plan_key, "encrypted_evidence_summary"),
+        "blocker_reason": _decrypt_plan_child_text(record, plan_key, "encrypted_blocker_reason"),
+        "waiver_reason": _decrypt_plan_child_text(record, plan_key, "encrypted_waiver_reason"),
+        "sources": _decrypt_plan_child_text(record, plan_key, "encrypted_sources"),
+        "created_at": record.get("created_at"),
+        "updated_at": record.get("updated_at"),
+    }
+
+
+def _public_plan_reference_pattern(record: dict[str, Any], plan_key: bytes) -> dict[str, Any]:
+    return {
+        "pattern_id": record.get("pattern_id"),
+        "title": _decrypt_plan_child_text(record, plan_key, "encrypted_title") or "(untitled pattern)",
+        "description": _decrypt_plan_child_text(record, plan_key, "encrypted_description"),
+        "category": record.get("category"),
+        "status": record.get("status"),
+        "required_before": record.get("required_before"),
+        "source_count": record.get("source_count"),
+        "linked_task_ids": _string_list(record.get("linked_task_ids") or []),
+        "linked_check_ids": _string_list(record.get("linked_check_ids") or []),
+        "sources": _decrypt_plan_child_text(record, plan_key, "encrypted_sources"),
+        "match_rules": _decrypt_plan_child_text(record, plan_key, "encrypted_match_rules"),
+        "anti_patterns": _decrypt_plan_child_text(record, plan_key, "encrypted_anti_patterns"),
+        "evidence_summary": _decrypt_plan_child_text(record, plan_key, "encrypted_evidence_summary"),
+        "waiver_reason": _decrypt_plan_child_text(record, plan_key, "encrypted_waiver_reason"),
+        "created_at": record.get("created_at"),
+        "updated_at": record.get("updated_at"),
+    }
+
+
+def _public_plan_verification(record: dict[str, Any], plan_key: bytes) -> dict[str, Any]:
+    return {
+        "verification_id": record.get("verification_id"),
+        "kind": record.get("kind"),
+        "phase": record.get("phase"),
+        "status": record.get("status"),
+        "required_for_done": record.get("required_for_done"),
+        "covers": _string_list(record.get("covers") or []),
+        "source_hash": record.get("source_hash"),
+        "threshold": record.get("threshold"),
+        "score": record.get("score"),
+        "confidence": record.get("confidence"),
+        "linked_task_id": record.get("linked_task_id"),
+        "run_id": record.get("run_id"),
+        "lifecycle_status": record.get("lifecycle_status"),
+        "linked_sub_chat_id": record.get("linked_sub_chat_id"),
+        "source_embed_id": record.get("source_embed_id"),
+        "runner_kind": record.get("runner_kind"),
+        "description": _decrypt_plan_child_text(record, plan_key, "encrypted_description"),
+        "command": _decrypt_plan_child_text(record, plan_key, "encrypted_command"),
+        "evaluation_prompt": _decrypt_plan_child_text(record, plan_key, "encrypted_evaluation_prompt"),
+        "evaluator_instructions": _decrypt_plan_child_text(record, plan_key, "encrypted_evaluator_instructions"),
+        "expected_result": _decrypt_plan_child_text(record, plan_key, "encrypted_expected_result"),
+        "source_path": _decrypt_plan_child_text(record, plan_key, "encrypted_source_path"),
+        "red_phase_reason": _decrypt_plan_child_text(record, plan_key, "encrypted_red_phase_reason"),
+        "result_summary": _decrypt_plan_child_text(record, plan_key, "encrypted_result_summary"),
+        "required_fixes": _decrypt_plan_child_text(record, plan_key, "encrypted_required_fixes"),
+        "created_at": record.get("created_at"),
+        "updated_at": record.get("updated_at"),
+    }
+
+
+def _public_plan_learning(record: dict[str, Any], plan_key: bytes) -> dict[str, Any]:
+    return {
+        "learning_id": record.get("learning_id"),
+        "type": record.get("type"),
+        "target_kind": record.get("target_kind"),
+        "status": record.get("status"),
+        "severity": record.get("severity"),
+        "confidence": record.get("confidence"),
+        "linked_task_ids": _string_list(record.get("linked_task_ids") or []),
+        "linked_check_ids": _string_list(record.get("linked_check_ids") or []),
+        "applied_task_id": record.get("applied_task_id"),
+        "title": _decrypt_plan_child_text(record, plan_key, "encrypted_title") or "(untitled learning)",
+        "observation": _decrypt_plan_child_text(record, plan_key, "encrypted_observation"),
+        "root_cause": _decrypt_plan_child_text(record, plan_key, "encrypted_root_cause"),
+        "suggested_change": _decrypt_plan_child_text(record, plan_key, "encrypted_suggested_change"),
+        "evidence_summary": _decrypt_plan_child_text(record, plan_key, "encrypted_evidence_summary"),
+        "task_draft": _decrypt_plan_child_text(record, plan_key, "encrypted_task_draft"),
+        "rejection_reason": _decrypt_plan_child_text(record, plan_key, "encrypted_rejection_reason"),
+        "version": record.get("version"),
+        "created_at": record.get("created_at"),
+        "updated_at": record.get("updated_at"),
+    }
+
+
+def _build_plan_criterion_create_input(plan: dict[str, Any], master_key: bytes, payload: dict[str, Any]) -> dict[str, Any]:
+    plan_key = _plan_key_from_record(plan.get("encrypted") if isinstance(plan.get("encrypted"), dict) else plan, master_key)
+    now = int(time.time())
+    return _omit_none({
+        "criterion_id": str(_plan_child_value(payload, "criterion_id", "criterionId") or uuid.uuid4()),
+        "encrypted_text": _encrypt_aes_gcm_text(str(_plan_child_value(payload, "text") or ""), plan_key),
+        "type": _plan_child_value(payload, "type"),
+        "status": _plan_child_value(payload, "status"),
+        "required": _plan_child_value(payload, "required"),
+        "linked_step_ids": _string_list(_plan_child_value(payload, "linked_step_ids", "linkedStepIds") or []),
+        "linked_task_ids": _string_list(_plan_child_value(payload, "linked_task_ids", "linkedTaskIds") or []),
+        "verification_ids": _string_list(_plan_child_value(payload, "verification_ids", "verificationIds") or []),
+        "created_at": now,
+        "updated_at": now,
+    })
+
+
+def _build_plan_criterion_update_input(plan: dict[str, Any], master_key: bytes, payload: dict[str, Any]) -> dict[str, Any]:
+    plan_key = _plan_key_from_record(plan.get("encrypted") if isinstance(plan.get("encrypted"), dict) else plan, master_key)
+    patch: dict[str, Any] = {"updated_at": int(time.time())}
+    for public_name, storage_name in (("status", "status"), ("required", "required")):
+        if public_name in payload:
+            patch[storage_name] = payload.get(public_name)
+    if "linked_step_ids" in payload or "linkedStepIds" in payload:
+        patch["linked_step_ids"] = _string_list(_plan_child_value(payload, "linked_step_ids", "linkedStepIds") or [])
+    if "linked_task_ids" in payload or "linkedTaskIds" in payload:
+        patch["linked_task_ids"] = _string_list(_plan_child_value(payload, "linked_task_ids", "linkedTaskIds") or [])
+    if "verification_ids" in payload or "verificationIds" in payload:
+        patch["verification_ids"] = _string_list(_plan_child_value(payload, "verification_ids", "verificationIds") or [])
+    for public_name, storage_name in (("evidence", "encrypted_evidence"), ("coverage_note", "encrypted_coverage_note"), ("coverageNote", "encrypted_coverage_note"), ("waiver_reason", "encrypted_waiver_reason"), ("waiverReason", "encrypted_waiver_reason")):
+        if public_name in payload:
+            patch[storage_name] = _encrypt_aes_gcm_text(str(payload.get(public_name) or ""), plan_key)
+    return patch
+
+
+def _build_plan_assumption_create_input(plan: dict[str, Any], master_key: bytes, payload: dict[str, Any]) -> dict[str, Any]:
+    plan_key = _plan_key_from_record(plan.get("encrypted") if isinstance(plan.get("encrypted"), dict) else plan, master_key)
+    now = int(time.time())
+    output = {
+        "assumption_id": str(_plan_child_value(payload, "assumption_id", "assumptionId") or uuid.uuid4()),
+        "encrypted_text": _encrypt_aes_gcm_text(str(_plan_child_value(payload, "text") or ""), plan_key),
+        "category": _plan_child_value(payload, "category"),
+        "status": _plan_child_value(payload, "status"),
+        "required_before": _plan_child_value(payload, "required_before", "requiredBefore"),
+        "linked_sub_chat_id": _plan_child_value(payload, "linked_sub_chat_id", "linkedSubChatId"),
+        "linked_task_id": _plan_child_value(payload, "linked_task_id", "linkedTaskId"),
+        "linked_step_ids": _string_list(_plan_child_value(payload, "linked_step_ids", "linkedStepIds") or []),
+        "linked_criterion_ids": _string_list(_plan_child_value(payload, "linked_criterion_ids", "linkedCriterionIds") or []),
+        "source_count": _plan_child_value(payload, "source_count", "sourceCount"),
+        "created_at": now,
+        "updated_at": now,
+    }
+    for public_name, storage_name in (("corrected_text", "encrypted_corrected_text"), ("correctedText", "encrypted_corrected_text"), ("evidence_summary", "encrypted_evidence_summary"), ("evidenceSummary", "encrypted_evidence_summary"), ("blocker_reason", "encrypted_blocker_reason"), ("blockerReason", "encrypted_blocker_reason"), ("waiver_reason", "encrypted_waiver_reason"), ("waiverReason", "encrypted_waiver_reason"), ("sources", "encrypted_sources")):
+        if public_name in payload:
+            output[storage_name] = _encrypt_aes_gcm_text(str(payload.get(public_name) or ""), plan_key)
+    return _omit_none(output)
+
+
+def _build_plan_assumption_update_input(plan: dict[str, Any], master_key: bytes, payload: dict[str, Any]) -> dict[str, Any]:
+    plan_key = _plan_key_from_record(plan.get("encrypted") if isinstance(plan.get("encrypted"), dict) else plan, master_key)
+    patch: dict[str, Any] = {"updated_at": int(time.time())}
+    for public_name, storage_name in (("category", "category"), ("status", "status"), ("required_before", "required_before"), ("requiredBefore", "required_before"), ("linked_sub_chat_id", "linked_sub_chat_id"), ("linkedSubChatId", "linked_sub_chat_id"), ("linked_task_id", "linked_task_id"), ("linkedTaskId", "linked_task_id"), ("source_count", "source_count"), ("sourceCount", "source_count")):
+        if public_name in payload:
+            patch[storage_name] = payload.get(public_name)
+    for public_name, storage_name in (("corrected_text", "encrypted_corrected_text"), ("correctedText", "encrypted_corrected_text"), ("evidence_summary", "encrypted_evidence_summary"), ("evidenceSummary", "encrypted_evidence_summary"), ("blocker_reason", "encrypted_blocker_reason"), ("blockerReason", "encrypted_blocker_reason"), ("waiver_reason", "encrypted_waiver_reason"), ("waiverReason", "encrypted_waiver_reason"), ("sources", "encrypted_sources")):
+        if public_name in payload:
+            patch[storage_name] = _encrypt_aes_gcm_text(str(payload.get(public_name) or ""), plan_key)
+    return patch
+
+
+def _build_plan_reference_pattern_create_input(plan: dict[str, Any], master_key: bytes, payload: dict[str, Any]) -> dict[str, Any]:
+    plan_key = _plan_key_from_record(plan.get("encrypted") if isinstance(plan.get("encrypted"), dict) else plan, master_key)
+    now = int(time.time())
+    output = {
+        "pattern_id": str(_plan_child_value(payload, "pattern_id", "patternId") or uuid.uuid4()),
+        "encrypted_title": _encrypt_aes_gcm_text(str(_plan_child_value(payload, "title") or ""), plan_key),
+        "category": _plan_child_value(payload, "category"),
+        "status": _plan_child_value(payload, "status"),
+        "required_before": _plan_child_value(payload, "required_before", "requiredBefore"),
+        "source_count": _plan_child_value(payload, "source_count", "sourceCount"),
+        "linked_task_ids": _string_list(_plan_child_value(payload, "linked_task_ids", "linkedTaskIds") or []),
+        "linked_check_ids": _string_list(_plan_child_value(payload, "linked_check_ids", "linkedCheckIds") or []),
+        "created_at": now,
+        "updated_at": now,
+    }
+    for public_name, storage_name in (("description", "encrypted_description"), ("sources", "encrypted_sources"), ("match_rules", "encrypted_match_rules"), ("matchRules", "encrypted_match_rules"), ("anti_patterns", "encrypted_anti_patterns"), ("antiPatterns", "encrypted_anti_patterns"), ("evidence_summary", "encrypted_evidence_summary"), ("evidenceSummary", "encrypted_evidence_summary"), ("waiver_reason", "encrypted_waiver_reason"), ("waiverReason", "encrypted_waiver_reason")):
+        if public_name in payload:
+            output[storage_name] = _encrypt_aes_gcm_text(str(payload.get(public_name) or ""), plan_key)
+    return _omit_none(output)
+
+
+def _build_plan_reference_pattern_update_input(plan: dict[str, Any], master_key: bytes, payload: dict[str, Any]) -> dict[str, Any]:
+    plan_key = _plan_key_from_record(plan.get("encrypted") if isinstance(plan.get("encrypted"), dict) else plan, master_key)
+    patch: dict[str, Any] = {"updated_at": int(time.time())}
+    for public_name, storage_name in (("category", "category"), ("status", "status"), ("required_before", "required_before"), ("requiredBefore", "required_before"), ("source_count", "source_count"), ("sourceCount", "source_count")):
+        if public_name in payload:
+            patch[storage_name] = payload.get(public_name)
+    if "linked_task_ids" in payload or "linkedTaskIds" in payload:
+        patch["linked_task_ids"] = _string_list(_plan_child_value(payload, "linked_task_ids", "linkedTaskIds") or [])
+    if "linked_check_ids" in payload or "linkedCheckIds" in payload:
+        patch["linked_check_ids"] = _string_list(_plan_child_value(payload, "linked_check_ids", "linkedCheckIds") or [])
+    for public_name, storage_name in (("description", "encrypted_description"), ("sources", "encrypted_sources"), ("match_rules", "encrypted_match_rules"), ("matchRules", "encrypted_match_rules"), ("anti_patterns", "encrypted_anti_patterns"), ("antiPatterns", "encrypted_anti_patterns"), ("evidence_summary", "encrypted_evidence_summary"), ("evidenceSummary", "encrypted_evidence_summary"), ("waiver_reason", "encrypted_waiver_reason"), ("waiverReason", "encrypted_waiver_reason")):
+        if public_name in payload:
+            patch[storage_name] = _encrypt_aes_gcm_text(str(payload.get(public_name) or ""), plan_key)
+    return patch
+
+
+def _build_plan_verification_create_input(plan: dict[str, Any], master_key: bytes, payload: dict[str, Any]) -> dict[str, Any]:
+    plan_key = _plan_key_from_record(plan.get("encrypted") if isinstance(plan.get("encrypted"), dict) else plan, master_key)
+    now = int(time.time())
+    output = {
+        "verification_id": str(_plan_child_value(payload, "verification_id", "verificationId") or uuid.uuid4()),
+        "kind": _plan_child_value(payload, "kind"),
+        "phase": _plan_child_value(payload, "phase"),
+        "status": _plan_child_value(payload, "status") or "pending",
+        "required_for_done": _plan_child_value(payload, "required_for_done", "requiredForDone"),
+        "covers": _string_list(_plan_child_value(payload, "covers") or []),
+        "threshold": _plan_child_value(payload, "threshold"),
+        "score": _plan_child_value(payload, "score"),
+        "confidence": _plan_child_value(payload, "confidence"),
+        "linked_task_id": _plan_child_value(payload, "linked_task_id", "linkedTaskId"),
+        "run_id": _plan_child_value(payload, "run_id", "runId"),
+        "created_at": now,
+        "updated_at": now,
+    }
+    for public_name, storage_name in (("description", "encrypted_description"), ("command", "encrypted_command"), ("evaluation_prompt", "encrypted_evaluation_prompt"), ("evaluationPrompt", "encrypted_evaluation_prompt"), ("evaluator_instructions", "encrypted_evaluator_instructions"), ("evaluatorInstructions", "encrypted_evaluator_instructions"), ("expected_result", "encrypted_expected_result"), ("expectedResult", "encrypted_expected_result"), ("source_path", "encrypted_source_path"), ("sourcePath", "encrypted_source_path"), ("red_phase_reason", "encrypted_red_phase_reason"), ("redPhaseReason", "encrypted_red_phase_reason")):
+        if public_name in payload:
+            output[storage_name] = _encrypt_aes_gcm_text(str(payload.get(public_name) or ""), plan_key)
+    return _omit_none(output)
+
+
+def _build_plan_verification_update_input(plan: dict[str, Any], master_key: bytes, payload: dict[str, Any]) -> dict[str, Any]:
+    plan_key = _plan_key_from_record(plan.get("encrypted") if isinstance(plan.get("encrypted"), dict) else plan, master_key)
+    patch: dict[str, Any] = {"updated_at": int(time.time())}
+    for public_name, storage_name in (("kind", "kind"), ("phase", "phase"), ("status", "status"), ("lifecycle_status", "lifecycle_status"), ("lifecycleStatus", "lifecycle_status"), ("required_for_done", "required_for_done"), ("requiredForDone", "required_for_done"), ("source_hash", "source_hash"), ("sourceHash", "source_hash"), ("threshold", "threshold"), ("score", "score"), ("confidence", "confidence"), ("linked_sub_chat_id", "linked_sub_chat_id"), ("linkedSubChatId", "linked_sub_chat_id"), ("source_embed_id", "source_embed_id"), ("sourceEmbedId", "source_embed_id"), ("runner_kind", "runner_kind"), ("runnerKind", "runner_kind")):
+        if public_name in payload:
+            patch[storage_name] = payload.get(public_name)
+    if "covers" in payload:
+        patch["covers"] = _string_list(payload.get("covers") or [])
+    for public_name, storage_name in (("description", "encrypted_description"), ("command", "encrypted_command"), ("evaluation_prompt", "encrypted_evaluation_prompt"), ("evaluationPrompt", "encrypted_evaluation_prompt"), ("evaluator_instructions", "encrypted_evaluator_instructions"), ("evaluatorInstructions", "encrypted_evaluator_instructions"), ("expected_result", "encrypted_expected_result"), ("expectedResult", "encrypted_expected_result"), ("source_path", "encrypted_source_path"), ("sourcePath", "encrypted_source_path"), ("red_phase_reason", "encrypted_red_phase_reason"), ("redPhaseReason", "encrypted_red_phase_reason")):
+        if public_name in payload:
+            patch[storage_name] = _encrypt_aes_gcm_text(str(payload.get(public_name) or ""), plan_key)
+    return patch
+
+
+def _build_plan_verification_evidence_input(plan: dict[str, Any], master_key: bytes, payload: dict[str, Any]) -> dict[str, Any]:
+    plan_key = _plan_key_from_record(plan.get("encrypted") if isinstance(plan.get("encrypted"), dict) else plan, master_key)
+    output = {
+        "status": _plan_child_value(payload, "status"),
+        "score": _plan_child_value(payload, "score"),
+        "threshold": _plan_child_value(payload, "threshold"),
+        "confidence": _plan_child_value(payload, "confidence"),
+        "run_id": _plan_child_value(payload, "run_id", "runId"),
+        "updated_at": int(time.time()),
+    }
+    for public_name, storage_name in (("result_summary", "encrypted_result_summary"), ("resultSummary", "encrypted_result_summary"), ("required_fixes", "encrypted_required_fixes"), ("requiredFixes", "encrypted_required_fixes")):
+        if public_name in payload:
+            output[storage_name] = _encrypt_aes_gcm_text(str(payload.get(public_name) or ""), plan_key)
+    return _omit_none(output)
+
+
+def _build_plan_learning_create_input(plan: dict[str, Any], master_key: bytes, payload: dict[str, Any]) -> dict[str, Any]:
+    plan_key = _plan_key_from_record(plan.get("encrypted") if isinstance(plan.get("encrypted"), dict) else plan, master_key)
+    now = int(time.time())
+    output = {
+        "learning_id": str(_plan_child_value(payload, "learning_id", "learningId") or uuid.uuid4()),
+        "type": _plan_child_value(payload, "type"),
+        "target_kind": _plan_child_value(payload, "target_kind", "targetKind"),
+        "status": _plan_child_value(payload, "status") or "draft",
+        "severity": _plan_child_value(payload, "severity") or "medium",
+        "confidence": _plan_child_value(payload, "confidence") or "medium",
+        "linked_task_ids": _string_list(_plan_child_value(payload, "linked_task_ids", "linkedTaskIds") or []),
+        "linked_check_ids": _string_list(_plan_child_value(payload, "linked_check_ids", "linkedCheckIds") or []),
+        "encrypted_title": _encrypt_aes_gcm_text(str(_plan_child_value(payload, "title") or ""), plan_key),
+        "created_at": now,
+        "updated_at": now,
+    }
+    for public_name, storage_name in (("observation", "encrypted_observation"), ("root_cause", "encrypted_root_cause"), ("rootCause", "encrypted_root_cause"), ("suggested_change", "encrypted_suggested_change"), ("suggestedChange", "encrypted_suggested_change"), ("evidence_summary", "encrypted_evidence_summary"), ("evidenceSummary", "encrypted_evidence_summary"), ("task_draft", "encrypted_task_draft"), ("taskDraft", "encrypted_task_draft"), ("rejection_reason", "encrypted_rejection_reason"), ("rejectionReason", "encrypted_rejection_reason")):
+        if public_name in payload:
+            output[storage_name] = _encrypt_aes_gcm_text(str(payload.get(public_name) or ""), plan_key)
+    return _omit_none(output)
+
+
+def _build_plan_learning_update_input(plan: dict[str, Any], master_key: bytes, payload: dict[str, Any]) -> dict[str, Any]:
+    plan_key = _plan_key_from_record(plan.get("encrypted") if isinstance(plan.get("encrypted"), dict) else plan, master_key)
+    patch: dict[str, Any] = {"updated_at": int(time.time())}
+    for public_name, storage_name in (("status", "status"), ("severity", "severity"), ("confidence", "confidence"), ("applied_task_id", "applied_task_id"), ("appliedTaskId", "applied_task_id")):
+        if public_name in payload:
+            patch[storage_name] = payload.get(public_name)
+    if "linked_task_ids" in payload or "linkedTaskIds" in payload:
+        patch["linked_task_ids"] = _string_list(_plan_child_value(payload, "linked_task_ids", "linkedTaskIds") or [])
+    if "linked_check_ids" in payload or "linkedCheckIds" in payload:
+        patch["linked_check_ids"] = _string_list(_plan_child_value(payload, "linked_check_ids", "linkedCheckIds") or [])
+    for public_name, storage_name in (("title", "encrypted_title"), ("observation", "encrypted_observation"), ("root_cause", "encrypted_root_cause"), ("rootCause", "encrypted_root_cause"), ("suggested_change", "encrypted_suggested_change"), ("suggestedChange", "encrypted_suggested_change"), ("evidence_summary", "encrypted_evidence_summary"), ("evidenceSummary", "encrypted_evidence_summary"), ("task_draft", "encrypted_task_draft"), ("taskDraft", "encrypted_task_draft"), ("rejection_reason", "encrypted_rejection_reason"), ("rejectionReason", "encrypted_rejection_reason")):
+        if public_name in payload:
+            patch[storage_name] = _encrypt_aes_gcm_text(str(payload.get(public_name) or ""), plan_key)
+    return patch
+
+
 def _derive_plan_short_id(record: dict[str, Any]) -> str:
     source = str(record.get("plan_id") or f"{record.get('created_at', '')}-{record.get('updated_at', '')}")
     return f"PLAN-{int(hashlib.sha256(source.encode('utf-8')).hexdigest()[:4], 16) % 10000}"
@@ -2729,64 +3060,111 @@ class OpenMatesPlans:
     def complete(self, plan_id: str) -> dict[str, Any]:
         existing = _find_plan(self._list_raw(active_only=False), plan_id)
         plan = self._client._post(f"/v1/user-plans/{_quote(plan_id)}/complete", {"version": existing.get("version")}).get("plan", {})
+        if not plan:
+            plan = _find_plan(self._list_raw(active_only=False), plan_id)
         return _public_plan(_decrypt_plan_record(plan, self._client._get_master_key()))
 
     def create_criterion(self, plan_id: str, payload: dict[str, Any]) -> dict[str, Any]:
-        return self._client._post(f"/v1/user-plans/{_quote(plan_id)}/criteria", payload).get("criterion", {})
+        master_key = self._client._get_master_key()
+        plan = _decrypt_plan_record(_find_plan(self._list_raw(active_only=False), plan_id), master_key)
+        criterion = self._client._post(f"/v1/user-plans/{_quote(plan_id)}/criteria", _build_plan_criterion_create_input(plan, master_key, payload)).get("criterion", {})
+        return _public_plan_criterion(criterion, _plan_key_from_record(plan["encrypted"], master_key))
 
     def list_criteria(self, plan_id: str) -> list[dict[str, Any]]:
-        return self._client._get(f"/v1/user-plans/{_quote(plan_id)}/criteria").get("criteria", [])
+        master_key = self._client._get_master_key()
+        plan = _decrypt_plan_record(_find_plan(self._list_raw(active_only=False), plan_id), master_key)
+        plan_key = _plan_key_from_record(plan["encrypted"], master_key)
+        return [_public_plan_criterion(criterion, plan_key) for criterion in self._client._get(f"/v1/user-plans/{_quote(plan_id)}/criteria").get("criteria", [])]
 
     def update_criterion(self, plan_id: str, criterion_id: str, payload: dict[str, Any]) -> dict[str, Any]:
-        return self._client._patch(f"/v1/user-plans/{_quote(plan_id)}/criteria/{_quote(criterion_id)}", payload).get("criterion", {})
+        master_key = self._client._get_master_key()
+        plan = _decrypt_plan_record(_find_plan(self._list_raw(active_only=False), plan_id), master_key)
+        criterion = self._client._patch(f"/v1/user-plans/{_quote(plan_id)}/criteria/{_quote(criterion_id)}", _build_plan_criterion_update_input(plan, master_key, payload)).get("criterion", {})
+        return _public_plan_criterion(criterion, _plan_key_from_record(plan["encrypted"], master_key))
 
     def delete_criterion(self, plan_id: str, criterion_id: str) -> dict[str, Any]:
         return self._client._delete(f"/v1/user-plans/{_quote(plan_id)}/criteria/{_quote(criterion_id)}")
 
     def create_verification(self, plan_id: str, payload: dict[str, Any]) -> dict[str, Any]:
-        return self._client._post(f"/v1/user-plans/{_quote(plan_id)}/verification", payload).get("verification", {})
+        master_key = self._client._get_master_key()
+        plan = _decrypt_plan_record(_find_plan(self._list_raw(active_only=False), plan_id), master_key)
+        verification = self._client._post(f"/v1/user-plans/{_quote(plan_id)}/verification", _build_plan_verification_create_input(plan, master_key, payload)).get("verification", {})
+        return _public_plan_verification(verification, _plan_key_from_record(plan["encrypted"], master_key))
 
     def list_verifications(self, plan_id: str) -> list[dict[str, Any]]:
-        return self._client._get(f"/v1/user-plans/{_quote(plan_id)}/verification").get("verifications", [])
+        master_key = self._client._get_master_key()
+        plan = _decrypt_plan_record(_find_plan(self._list_raw(active_only=False), plan_id), master_key)
+        plan_key = _plan_key_from_record(plan["encrypted"], master_key)
+        return [_public_plan_verification(verification, plan_key) for verification in self._client._get(f"/v1/user-plans/{_quote(plan_id)}/verification").get("verifications", [])]
 
     def update_verification(self, plan_id: str, verification_id: str, payload: dict[str, Any]) -> dict[str, Any]:
-        return self._client._patch(f"/v1/user-plans/{_quote(plan_id)}/verification/{_quote(verification_id)}", payload).get("verification", {})
+        master_key = self._client._get_master_key()
+        plan = _decrypt_plan_record(_find_plan(self._list_raw(active_only=False), plan_id), master_key)
+        verification = self._client._patch(f"/v1/user-plans/{_quote(plan_id)}/verification/{_quote(verification_id)}", _build_plan_verification_update_input(plan, master_key, payload)).get("verification", {})
+        return _public_plan_verification(verification, _plan_key_from_record(plan["encrypted"], master_key))
 
     def delete_verification(self, plan_id: str, verification_id: str) -> dict[str, Any]:
         return self._client._delete(f"/v1/user-plans/{_quote(plan_id)}/verification/{_quote(verification_id)}")
 
     def create_assumption(self, plan_id: str, payload: dict[str, Any]) -> dict[str, Any]:
-        return self._client._post(f"/v1/user-plans/{_quote(plan_id)}/assumptions", payload).get("assumption", {})
+        master_key = self._client._get_master_key()
+        plan = _decrypt_plan_record(_find_plan(self._list_raw(active_only=False), plan_id), master_key)
+        assumption = self._client._post(f"/v1/user-plans/{_quote(plan_id)}/assumptions", _build_plan_assumption_create_input(plan, master_key, payload)).get("assumption", {})
+        return _public_plan_assumption(assumption, _plan_key_from_record(plan["encrypted"], master_key))
 
     def list_assumptions(self, plan_id: str) -> list[dict[str, Any]]:
-        return self._client._get(f"/v1/user-plans/{_quote(plan_id)}/assumptions").get("assumptions", [])
+        master_key = self._client._get_master_key()
+        plan = _decrypt_plan_record(_find_plan(self._list_raw(active_only=False), plan_id), master_key)
+        plan_key = _plan_key_from_record(plan["encrypted"], master_key)
+        return [_public_plan_assumption(assumption, plan_key) for assumption in self._client._get(f"/v1/user-plans/{_quote(plan_id)}/assumptions").get("assumptions", [])]
 
     def update_assumption(self, plan_id: str, assumption_id: str, payload: dict[str, Any]) -> dict[str, Any]:
-        return self._client._patch(f"/v1/user-plans/{_quote(plan_id)}/assumptions/{_quote(assumption_id)}", payload).get("assumption", {})
+        master_key = self._client._get_master_key()
+        plan = _decrypt_plan_record(_find_plan(self._list_raw(active_only=False), plan_id), master_key)
+        assumption = self._client._patch(f"/v1/user-plans/{_quote(plan_id)}/assumptions/{_quote(assumption_id)}", _build_plan_assumption_update_input(plan, master_key, payload)).get("assumption", {})
+        return _public_plan_assumption(assumption, _plan_key_from_record(plan["encrypted"], master_key))
 
     def delete_assumption(self, plan_id: str, assumption_id: str) -> dict[str, Any]:
         return self._client._delete(f"/v1/user-plans/{_quote(plan_id)}/assumptions/{_quote(assumption_id)}")
 
     def create_reference_pattern(self, plan_id: str, payload: dict[str, Any]) -> dict[str, Any]:
-        return self._client._post(f"/v1/user-plans/{_quote(plan_id)}/reference-patterns", payload).get("reference_pattern", {})
+        master_key = self._client._get_master_key()
+        plan = _decrypt_plan_record(_find_plan(self._list_raw(active_only=False), plan_id), master_key)
+        pattern = self._client._post(f"/v1/user-plans/{_quote(plan_id)}/reference-patterns", _build_plan_reference_pattern_create_input(plan, master_key, payload)).get("reference_pattern", {})
+        return _public_plan_reference_pattern(pattern, _plan_key_from_record(plan["encrypted"], master_key))
 
     def list_reference_patterns(self, plan_id: str) -> list[dict[str, Any]]:
-        return self._client._get(f"/v1/user-plans/{_quote(plan_id)}/reference-patterns").get("reference_patterns", [])
+        master_key = self._client._get_master_key()
+        plan = _decrypt_plan_record(_find_plan(self._list_raw(active_only=False), plan_id), master_key)
+        plan_key = _plan_key_from_record(plan["encrypted"], master_key)
+        return [_public_plan_reference_pattern(pattern, plan_key) for pattern in self._client._get(f"/v1/user-plans/{_quote(plan_id)}/reference-patterns").get("reference_patterns", [])]
 
     def update_reference_pattern(self, plan_id: str, pattern_id: str, payload: dict[str, Any]) -> dict[str, Any]:
-        return self._client._patch(f"/v1/user-plans/{_quote(plan_id)}/reference-patterns/{_quote(pattern_id)}", payload).get("reference_pattern", {})
+        master_key = self._client._get_master_key()
+        plan = _decrypt_plan_record(_find_plan(self._list_raw(active_only=False), plan_id), master_key)
+        pattern = self._client._patch(f"/v1/user-plans/{_quote(plan_id)}/reference-patterns/{_quote(pattern_id)}", _build_plan_reference_pattern_update_input(plan, master_key, payload)).get("reference_pattern", {})
+        return _public_plan_reference_pattern(pattern, _plan_key_from_record(plan["encrypted"], master_key))
 
     def delete_reference_pattern(self, plan_id: str, pattern_id: str) -> dict[str, Any]:
         return self._client._delete(f"/v1/user-plans/{_quote(plan_id)}/reference-patterns/{_quote(pattern_id)}")
 
     def create_learning(self, plan_id: str, payload: dict[str, Any]) -> dict[str, Any]:
-        return self._client._post(f"/v1/user-plans/{_quote(plan_id)}/learnings", payload).get("learning", {})
+        master_key = self._client._get_master_key()
+        plan = _decrypt_plan_record(_find_plan(self._list_raw(active_only=False), plan_id), master_key)
+        learning = self._client._post(f"/v1/user-plans/{_quote(plan_id)}/learnings", _build_plan_learning_create_input(plan, master_key, payload)).get("learning", {})
+        return _public_plan_learning(learning, _plan_key_from_record(plan["encrypted"], master_key))
 
     def list_learnings(self, plan_id: str) -> list[dict[str, Any]]:
-        return self._client._get(f"/v1/user-plans/{_quote(plan_id)}/learnings").get("learnings", [])
+        master_key = self._client._get_master_key()
+        plan = _decrypt_plan_record(_find_plan(self._list_raw(active_only=False), plan_id), master_key)
+        plan_key = _plan_key_from_record(plan["encrypted"], master_key)
+        return [_public_plan_learning(learning, plan_key) for learning in self._client._get(f"/v1/user-plans/{_quote(plan_id)}/learnings").get("learnings", [])]
 
     def update_learning(self, plan_id: str, learning_id: str, payload: dict[str, Any]) -> dict[str, Any]:
-        return self._client._patch(f"/v1/user-plans/{_quote(plan_id)}/learnings/{_quote(learning_id)}", payload).get("learning", {})
+        master_key = self._client._get_master_key()
+        plan = _decrypt_plan_record(_find_plan(self._list_raw(active_only=False), plan_id), master_key)
+        learning = self._client._patch(f"/v1/user-plans/{_quote(plan_id)}/learnings/{_quote(learning_id)}", _build_plan_learning_update_input(plan, master_key, payload)).get("learning", {})
+        return _public_plan_learning(learning, _plan_key_from_record(plan["encrypted"], master_key))
 
     def delete_learning(self, plan_id: str, learning_id: str) -> dict[str, Any]:
         return self._client._delete(f"/v1/user-plans/{_quote(plan_id)}/learnings/{_quote(learning_id)}")
@@ -2795,10 +3173,13 @@ class OpenMatesPlans:
         return self._client._post(f"/v1/user-plans/{_quote(plan_id)}/learnings/create-tasks", payload)
 
     def add_verification_evidence(self, plan_id: str, verification_id: str, payload: dict[str, Any]) -> dict[str, Any]:
-        return self._client._post(
+        master_key = self._client._get_master_key()
+        plan = _decrypt_plan_record(_find_plan(self._list_raw(active_only=False), plan_id), master_key)
+        verification = self._client._post(
             f"/v1/user-plans/{_quote(plan_id)}/verification/{_quote(verification_id)}/evidence",
-            payload,
+            _build_plan_verification_evidence_input(plan, master_key, payload),
         ).get("verification", {})
+        return _public_plan_verification(verification, _plan_key_from_record(plan["encrypted"], master_key))
 
     def get_verification_run(self, plan_id: str, verification_id: str, run_id: str) -> dict[str, Any]:
         return self._client._get(f"/v1/user-plans/{_quote(plan_id)}/verification/{_quote(verification_id)}/runs/{_quote(run_id)}")

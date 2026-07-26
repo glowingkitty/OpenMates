@@ -21,6 +21,8 @@ ROOT = Path(__file__).resolve().parents[1]
 SDK_TS = ROOT / "frontend/packages/openmates-cli/src/sdk.ts"
 INDEX_TS = ROOT / "frontend/packages/openmates-cli/src/index.ts"
 SDK_PY = ROOT / "packages/openmates-python/openmates/sdk.py"
+NPM_PLAN_TEST = ROOT / "frontend/packages/openmates-cli/tests/sdk-plans.test.ts"
+PIP_PLAN_TEST = ROOT / "packages/openmates-python/tests/test_plans.py"
 
 FORBIDDEN_PUBLIC_TOKENS = (
     "listDecrypted",
@@ -42,6 +44,7 @@ FORBIDDEN_PUBLIC_TOKENS = (
 
 PUBLIC_NPM_CLASSES = ()
 PUBLIC_PIP_CLASSES = ()
+PLAN_CHILD_TEST_TOKENS = ("encrypted_", "key_wrappers")
 
 
 def class_body(source: str, class_name: str, *, language: str) -> str:
@@ -65,6 +68,11 @@ def public_method_signatures(body: str, *, language: str) -> list[str]:
     return signatures
 
 
+def public_ts_property_declarations(body: str) -> list[str]:
+    pattern = re.compile(r"\n\s{2}readonly\s+[A-Za-z_][A-Za-z0-9_]*\s*:[\s\S]*?;", re.MULTILINE)
+    return [" ".join(match.group(0).split()) for match in pattern.finditer(body)]
+
+
 def public_classes(source: str, *, language: str) -> list[str]:
     if language == "ts":
         return [
@@ -84,12 +92,19 @@ def main() -> int:
     sdk_ts = SDK_TS.read_text(encoding="utf-8")
     index_ts = INDEX_TS.read_text(encoding="utf-8")
     sdk_py = SDK_PY.read_text(encoding="utf-8")
+    npm_plan_test = NPM_PLAN_TEST.read_text(encoding="utf-8")
+    pip_plan_test = PIP_PLAN_TEST.read_text(encoding="utf-8")
 
     for class_name in public_classes(sdk_ts, language="ts"):
-        for signature in public_method_signatures(class_body(sdk_ts, class_name, language="ts"), language="ts"):
+        body = class_body(sdk_ts, class_name, language="ts")
+        for signature in public_method_signatures(body, language="ts"):
             for token in FORBIDDEN_PUBLIC_TOKENS:
                 if token in signature:
                     failures.append(f"npm {class_name} public signature exposes {token}: {signature}")
+        for declaration in public_ts_property_declarations(body):
+            for token in FORBIDDEN_PUBLIC_TOKENS:
+                if token in declaration:
+                    failures.append(f"npm {class_name} public property exposes {token}: {declaration}")
 
     for class_name in public_classes(sdk_py, language="py"):
         for signature in public_method_signatures(class_body(sdk_py, class_name, language="py"), language="py"):
@@ -102,6 +117,14 @@ def main() -> int:
         for token in FORBIDDEN_PUBLIC_TOKENS:
             if token in line:
                 failures.append(f"npm public barrel export exposes {token}: {line}")
+
+    for label, source in (("npm", npm_plan_test), ("pip", pip_plan_test)):
+        for line_number, line in enumerate(source.splitlines(), start=1):
+            if "client.plans" not in line:
+                continue
+            for token in PLAN_CHILD_TEST_TOKENS:
+                if token in line:
+                    failures.append(f"{label} plan SDK test line {line_number} exercises public plan API with storage field {token}: {line.strip()}")
 
     if failures:
         for failure in failures:

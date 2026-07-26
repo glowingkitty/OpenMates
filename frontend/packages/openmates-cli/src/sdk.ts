@@ -70,13 +70,27 @@ import {
   type TaskUpdateOptions,
 } from "./tasksCli.js";
 import {
+  buildCreatePlanCriterionInput,
+  buildCreatePlanLearningInput,
+  buildCreatePlanVerificationInput,
   buildCreateUserPlanInput,
   buildUserPlanKeyWrappers,
+  buildPlanVerificationEvidenceInput,
+  buildUpdatePlanLearningInput,
+  buildUpdatePlanVerificationInput,
   buildUpdateUserPlanInput,
+  decryptPlanLearning,
   decryptUserPlan,
   decryptUserPlans,
   planKeyFromRecord,
+  type DecryptedPlanLearning,
   type DecryptedUserPlan,
+  type PlanCriterionCreateOptions,
+  type PlanLearningCreateOptions,
+  type PlanLearningUpdateOptions,
+  type PlanVerificationCreateOptions,
+  type PlanVerificationEvidenceOptions,
+  type PlanVerificationUpdateOptions,
   type PlanCreateOptions,
   type PlanUpdateOptions,
 } from "./plansCli.js";
@@ -1216,6 +1230,187 @@ async function buildSdkPlanKeyWrappers(
     linkedProjectIds,
     linkedProjectKeys,
   });
+}
+
+async function decryptOptionalPlanField(value: string | null | undefined, planKey: Uint8Array): Promise<string> {
+  return value ? (await decryptWithAesGcmCombined(value, planKey)) ?? "" : "";
+}
+
+function withoutEncryptedLearning(learning: DecryptedPlanLearning): PlanLearningRecord {
+  const { encrypted: _encrypted, ...publicLearning } = learning;
+  return publicLearning;
+}
+
+async function toPublicPlanCriterion(record: UserPlanCriterionRecord, planKey: Uint8Array): Promise<PlanCriterionRecord> {
+  return {
+    criterionId: record.criterion_id,
+    text: await decryptOptionalPlanField(record.encrypted_text, planKey),
+    type: record.type,
+    status: record.status,
+    required: record.required,
+    linkedStepIds: record.linked_step_ids ?? [],
+    linkedTaskIds: record.linked_task_ids ?? [],
+    verificationIds: record.verification_ids ?? [],
+    createdAt: typeof record.created_at === "number" ? record.created_at : null,
+    updatedAt: typeof record.updated_at === "number" ? record.updated_at : null,
+  };
+}
+
+async function toPublicPlanAssumption(record: UserPlanAssumptionRecord, planKey: Uint8Array): Promise<PlanAssumptionRecord> {
+  return {
+    assumptionId: record.assumption_id,
+    text: await decryptOptionalPlanField(record.encrypted_text, planKey),
+    category: record.category,
+    status: record.status,
+    requiredBefore: record.required_before,
+    linkedSubChatId: record.linked_sub_chat_id ?? null,
+    linkedTaskId: record.linked_task_id ?? null,
+    linkedStepIds: record.linked_step_ids ?? [],
+    linkedCriterionIds: record.linked_criterion_ids ?? [],
+    sourceCount: record.source_count,
+    correctedText: await decryptOptionalPlanField(record.encrypted_corrected_text, planKey),
+    evidenceSummary: await decryptOptionalPlanField(record.encrypted_evidence_summary, planKey),
+    blockerReason: await decryptOptionalPlanField(record.encrypted_blocker_reason, planKey),
+    waiverReason: await decryptOptionalPlanField(record.encrypted_waiver_reason, planKey),
+    sources: await decryptOptionalPlanField(record.encrypted_sources, planKey),
+    createdAt: typeof record.created_at === "number" ? record.created_at : null,
+    updatedAt: typeof record.updated_at === "number" ? record.updated_at : null,
+  };
+}
+
+async function toPublicPlanReferencePattern(record: UserPlanReferencePatternRecord, planKey: Uint8Array): Promise<PlanReferencePatternRecord> {
+  return {
+    patternId: record.pattern_id,
+    title: await decryptOptionalPlanField(record.encrypted_title, planKey) || "(untitled pattern)",
+    description: await decryptOptionalPlanField(record.encrypted_description, planKey),
+    category: record.category,
+    status: record.status,
+    requiredBefore: record.required_before,
+    sourceCount: record.source_count,
+    linkedTaskIds: record.linked_task_ids ?? [],
+    linkedCheckIds: record.linked_check_ids ?? [],
+    sources: await decryptOptionalPlanField(record.encrypted_sources, planKey),
+    matchRules: await decryptOptionalPlanField(record.encrypted_match_rules, planKey),
+    antiPatterns: await decryptOptionalPlanField(record.encrypted_anti_patterns, planKey),
+    evidenceSummary: await decryptOptionalPlanField(record.encrypted_evidence_summary, planKey),
+    waiverReason: await decryptOptionalPlanField(record.encrypted_waiver_reason, planKey),
+    createdAt: typeof record.created_at === "number" ? record.created_at : null,
+    updatedAt: typeof record.updated_at === "number" ? record.updated_at : null,
+  };
+}
+
+async function toPublicPlanVerification(record: UserPlanVerificationRecord, planKey: Uint8Array): Promise<PlanVerificationRecord> {
+  return {
+    verificationId: record.verification_id,
+    kind: record.kind,
+    phase: record.phase,
+    status: record.status,
+    requiredForDone: record.required_for_done,
+    covers: record.covers ?? [],
+    sourceHash: record.source_hash ?? null,
+    threshold: record.threshold ?? null,
+    score: record.score ?? null,
+    confidence: record.confidence ?? null,
+    linkedTaskId: record.linked_task_id ?? null,
+    runId: record.run_id ?? null,
+    lifecycleStatus: record.lifecycle_status ?? null,
+    linkedSubChatId: record.linked_sub_chat_id ?? null,
+    sourceEmbedId: record.source_embed_id ?? null,
+    runnerKind: record.runner_kind ?? null,
+    description: await decryptOptionalPlanField(record.encrypted_description, planKey),
+    command: await decryptOptionalPlanField(record.encrypted_command, planKey),
+    evaluationPrompt: await decryptOptionalPlanField(record.encrypted_evaluation_prompt, planKey),
+    evaluatorInstructions: await decryptOptionalPlanField(record.encrypted_evaluator_instructions, planKey),
+    expectedResult: await decryptOptionalPlanField(record.encrypted_expected_result, planKey),
+    sourcePath: await decryptOptionalPlanField(record.encrypted_source_path, planKey),
+    redPhaseReason: await decryptOptionalPlanField(record.encrypted_red_phase_reason, planKey),
+    resultSummary: await decryptOptionalPlanField(record.encrypted_result_summary, planKey),
+    requiredFixes: await decryptOptionalPlanField(record.encrypted_required_fixes, planKey),
+    createdAt: typeof record.created_at === "number" ? record.created_at : null,
+    updatedAt: typeof record.updated_at === "number" ? record.updated_at : null,
+  };
+}
+
+async function buildPlanAssumptionCreateInput(plan: DecryptedUserPlan, masterKey: Uint8Array, input: PlanAssumptionCreateOptions): Promise<UserPlanAssumptionRecord> {
+  const planKey = await planKeyFromRecord(plan.encrypted, masterKey);
+  const timestamp = Math.floor(Date.now() / 1000);
+  return {
+    assumption_id: input.assumptionId ?? randomUUID(),
+    encrypted_text: await encryptWithAesGcmCombined(input.text, planKey),
+    category: input.category,
+    status: input.status,
+    required_before: input.requiredBefore,
+    linked_sub_chat_id: input.linkedSubChatId,
+    linked_task_id: input.linkedTaskId,
+    linked_step_ids: input.linkedStepIds,
+    linked_criterion_ids: input.linkedCriterionIds,
+    source_count: input.sourceCount,
+    encrypted_corrected_text: input.correctedText !== undefined ? await encryptWithAesGcmCombined(input.correctedText, planKey) : undefined,
+    encrypted_evidence_summary: input.evidenceSummary !== undefined ? await encryptWithAesGcmCombined(input.evidenceSummary, planKey) : undefined,
+    encrypted_blocker_reason: input.blockerReason !== undefined ? await encryptWithAesGcmCombined(input.blockerReason, planKey) : undefined,
+    encrypted_waiver_reason: input.waiverReason !== undefined ? await encryptWithAesGcmCombined(input.waiverReason, planKey) : undefined,
+    encrypted_sources: input.sources !== undefined ? await encryptWithAesGcmCombined(input.sources, planKey) : undefined,
+    created_at: timestamp,
+    updated_at: timestamp,
+  };
+}
+
+async function buildPlanAssumptionUpdateInput(plan: DecryptedUserPlan, masterKey: Uint8Array, input: PlanAssumptionUpdateOptions): Promise<Partial<UserPlanAssumptionRecord>> {
+  const planKey = await planKeyFromRecord(plan.encrypted, masterKey);
+  const patch: Partial<UserPlanAssumptionRecord> = { updated_at: Math.floor(Date.now() / 1000) };
+  if (input.category !== undefined) patch.category = input.category;
+  if (input.status !== undefined) patch.status = input.status;
+  if (input.requiredBefore !== undefined) patch.required_before = input.requiredBefore;
+  if (input.linkedSubChatId !== undefined) patch.linked_sub_chat_id = input.linkedSubChatId;
+  if (input.linkedTaskId !== undefined) patch.linked_task_id = input.linkedTaskId;
+  if (input.sourceCount !== undefined) patch.source_count = input.sourceCount;
+  if (input.correctedText !== undefined) patch.encrypted_corrected_text = await encryptWithAesGcmCombined(input.correctedText, planKey);
+  if (input.evidenceSummary !== undefined) patch.encrypted_evidence_summary = await encryptWithAesGcmCombined(input.evidenceSummary, planKey);
+  if (input.blockerReason !== undefined) patch.encrypted_blocker_reason = await encryptWithAesGcmCombined(input.blockerReason, planKey);
+  if (input.waiverReason !== undefined) patch.encrypted_waiver_reason = await encryptWithAesGcmCombined(input.waiverReason, planKey);
+  if (input.sources !== undefined) patch.encrypted_sources = await encryptWithAesGcmCombined(input.sources, planKey);
+  return patch;
+}
+
+async function buildPlanReferencePatternCreateInput(plan: DecryptedUserPlan, masterKey: Uint8Array, input: PlanReferencePatternCreateOptions): Promise<UserPlanReferencePatternRecord> {
+  const planKey = await planKeyFromRecord(plan.encrypted, masterKey);
+  const timestamp = Math.floor(Date.now() / 1000);
+  return {
+    pattern_id: input.patternId ?? randomUUID(),
+    encrypted_title: await encryptWithAesGcmCombined(input.title, planKey),
+    encrypted_description: input.description !== undefined ? await encryptWithAesGcmCombined(input.description, planKey) : undefined,
+    category: input.category,
+    status: input.status,
+    required_before: input.requiredBefore,
+    source_count: input.sourceCount,
+    linked_task_ids: input.linkedTaskIds,
+    linked_check_ids: input.linkedCheckIds,
+    encrypted_sources: input.sources !== undefined ? await encryptWithAesGcmCombined(input.sources, planKey) : undefined,
+    encrypted_match_rules: input.matchRules !== undefined ? await encryptWithAesGcmCombined(input.matchRules, planKey) : undefined,
+    encrypted_anti_patterns: input.antiPatterns !== undefined ? await encryptWithAesGcmCombined(input.antiPatterns, planKey) : undefined,
+    encrypted_evidence_summary: input.evidenceSummary !== undefined ? await encryptWithAesGcmCombined(input.evidenceSummary, planKey) : undefined,
+    encrypted_waiver_reason: input.waiverReason !== undefined ? await encryptWithAesGcmCombined(input.waiverReason, planKey) : undefined,
+    created_at: timestamp,
+    updated_at: timestamp,
+  };
+}
+
+async function buildPlanReferencePatternUpdateInput(plan: DecryptedUserPlan, masterKey: Uint8Array, input: PlanReferencePatternUpdateOptions): Promise<Partial<UserPlanReferencePatternRecord>> {
+  const planKey = await planKeyFromRecord(plan.encrypted, masterKey);
+  const patch: Partial<UserPlanReferencePatternRecord> = { updated_at: Math.floor(Date.now() / 1000) };
+  if (input.description !== undefined) patch.encrypted_description = await encryptWithAesGcmCombined(input.description, planKey);
+  if (input.category !== undefined) patch.category = input.category;
+  if (input.status !== undefined) patch.status = input.status;
+  if (input.requiredBefore !== undefined) patch.required_before = input.requiredBefore;
+  if (input.sourceCount !== undefined) patch.source_count = input.sourceCount;
+  if (input.linkedTaskIds !== undefined) patch.linked_task_ids = input.linkedTaskIds;
+  if (input.linkedCheckIds !== undefined) patch.linked_check_ids = input.linkedCheckIds;
+  if (input.sources !== undefined) patch.encrypted_sources = await encryptWithAesGcmCombined(input.sources, planKey);
+  if (input.matchRules !== undefined) patch.encrypted_match_rules = await encryptWithAesGcmCombined(input.matchRules, planKey);
+  if (input.antiPatterns !== undefined) patch.encrypted_anti_patterns = await encryptWithAesGcmCombined(input.antiPatterns, planKey);
+  if (input.evidenceSummary !== undefined) patch.encrypted_evidence_summary = await encryptWithAesGcmCombined(input.evidenceSummary, planKey);
+  if (input.waiverReason !== undefined) patch.encrypted_waiver_reason = await encryptWithAesGcmCombined(input.waiverReason, planKey);
+  return patch;
 }
 
 async function createSdkProjectItem(
@@ -2992,13 +3187,95 @@ type PlanTextSectionFacade = {
   remove: (planId: string) => Promise<PlanRecord>;
 };
 
+export type PlanCriterionRecord = Omit<PlanCriterionCreateOptions, "criterionId"> & {
+  criterionId: string;
+  createdAt: number | null;
+  updatedAt: number | null;
+};
+
+export type PlanCriterionUpdateOptions = Partial<Omit<PlanCriterionCreateOptions, "criterionId" | "text">> & {
+  evidence?: string;
+  coverageNote?: string;
+  waiverReason?: string;
+};
+
+export interface PlanAssumptionCreateOptions {
+  assumptionId?: string;
+  text: string;
+  category?: string;
+  status?: string;
+  requiredBefore?: string;
+  linkedSubChatId?: string | null;
+  linkedTaskId?: string | null;
+  linkedStepIds?: string[];
+  linkedCriterionIds?: string[];
+  sourceCount?: number;
+  correctedText?: string;
+  evidenceSummary?: string;
+  blockerReason?: string;
+  waiverReason?: string;
+  sources?: string;
+}
+
+export type PlanAssumptionUpdateOptions = Partial<Omit<PlanAssumptionCreateOptions, "assumptionId" | "text">>;
+
+export type PlanAssumptionRecord = Omit<PlanAssumptionCreateOptions, "assumptionId"> & {
+  assumptionId: string;
+  createdAt: number | null;
+  updatedAt: number | null;
+};
+
+export interface PlanReferencePatternCreateOptions {
+  patternId?: string;
+  title: string;
+  description?: string;
+  category?: string;
+  status?: string;
+  requiredBefore?: string;
+  sourceCount?: number;
+  linkedTaskIds?: string[];
+  linkedCheckIds?: string[];
+  sources?: string;
+  matchRules?: string;
+  antiPatterns?: string;
+  evidenceSummary?: string;
+  waiverReason?: string;
+}
+
+export type PlanReferencePatternUpdateOptions = Partial<Omit<PlanReferencePatternCreateOptions, "patternId" | "title">>;
+
+export type PlanReferencePatternRecord = Omit<PlanReferencePatternCreateOptions, "patternId"> & {
+  patternId: string;
+  createdAt: number | null;
+  updatedAt: number | null;
+};
+
+export type PlanVerificationRecord = Omit<PlanVerificationCreateOptions, "verificationId"> & {
+  verificationId: string;
+  sourceHash: string | null;
+  lifecycleStatus: string | null;
+  linkedSubChatId: string | null;
+  sourceEmbedId: string | null;
+  runnerKind: string | null;
+  description: string;
+  evaluatorInstructions: string;
+  sourcePath: string;
+  redPhaseReason: string;
+  resultSummary: string;
+  requiredFixes: string;
+  createdAt: number | null;
+  updatedAt: number | null;
+};
+
+export type PlanLearningRecord = Omit<DecryptedPlanLearning, "encrypted">;
+
 export class OpenMatesPlans {
   private readonly client: OpenMates;
   readonly goal: { set: (planId: string, value: string) => Promise<PlanRecord> };
   readonly currentFocus: { set: (planId: string, value: string) => Promise<PlanRecord>; clear: (planId: string) => Promise<PlanRecord> };
   readonly successCriteria: {
-    add: (planId: string, input: UserPlanCriterionRecord) => Promise<UserPlanCriterionRecord>;
-    update: (planId: string, criterionId: string, input: Partial<UserPlanCriterionRecord>) => Promise<UserPlanCriterionRecord>;
+    add: (planId: string, input: PlanCriterionCreateOptions) => Promise<PlanCriterionRecord>;
+    update: (planId: string, criterionId: string, input: PlanCriterionUpdateOptions) => Promise<PlanCriterionRecord>;
     remove: (planId: string, criterionId: string) => Promise<Record<string, unknown>>;
   };
   readonly tasks: {
@@ -3019,31 +3296,31 @@ export class OpenMatesPlans {
   };
   readonly risks: PlanTextSectionFacade;
   readonly checks: {
-    add: (planId: string, input: UserPlanVerificationRecord & Record<string, unknown>) => Promise<UserPlanVerificationRecord>;
-    update: (planId: string, checkId: string, input: Partial<UserPlanVerificationRecord>) => Promise<UserPlanVerificationRecord>;
+    add: (planId: string, input: PlanVerificationCreateOptions) => Promise<PlanVerificationRecord>;
+    update: (planId: string, checkId: string, input: PlanVerificationUpdateOptions) => Promise<PlanVerificationRecord>;
     remove: (planId: string, checkId: string) => Promise<Record<string, unknown>>;
-    addEvidence: (planId: string, checkId: string, input: Partial<UserPlanVerificationRecord>) => Promise<UserPlanVerificationRecord>;
+    addEvidence: (planId: string, checkId: string, input: PlanVerificationEvidenceOptions) => Promise<PlanVerificationRecord>;
     getRun: (planId: string, checkId: string, runId: string) => Promise<Record<string, unknown>>;
   };
   readonly assumptions: {
-    add: (planId: string, input: UserPlanAssumptionRecord) => Promise<UserPlanAssumptionRecord>;
-    update: (planId: string, assumptionId: string, input: Partial<UserPlanAssumptionRecord>) => Promise<UserPlanAssumptionRecord>;
-    check: (planId: string, assumptionId: string, input?: Partial<UserPlanAssumptionRecord>) => Promise<UserPlanAssumptionRecord>;
-    waive: (planId: string, assumptionId: string, input: Partial<UserPlanAssumptionRecord>) => Promise<UserPlanAssumptionRecord>;
+    add: (planId: string, input: PlanAssumptionCreateOptions) => Promise<PlanAssumptionRecord>;
+    update: (planId: string, assumptionId: string, input: PlanAssumptionUpdateOptions) => Promise<PlanAssumptionRecord>;
+    check: (planId: string, assumptionId: string, input?: PlanAssumptionUpdateOptions) => Promise<PlanAssumptionRecord>;
+    waive: (planId: string, assumptionId: string, input: PlanAssumptionUpdateOptions) => Promise<PlanAssumptionRecord>;
     remove: (planId: string, assumptionId: string) => Promise<Record<string, unknown>>;
   };
   readonly referencePatterns: {
-    add: (planId: string, input: UserPlanReferencePatternRecord) => Promise<UserPlanReferencePatternRecord>;
-    update: (planId: string, patternId: string, input: Partial<UserPlanReferencePatternRecord>) => Promise<UserPlanReferencePatternRecord>;
-    inspect: (planId: string, patternId: string, input?: Partial<UserPlanReferencePatternRecord>) => Promise<UserPlanReferencePatternRecord>;
-    waive: (planId: string, patternId: string, input: Partial<UserPlanReferencePatternRecord>) => Promise<UserPlanReferencePatternRecord>;
+    add: (planId: string, input: PlanReferencePatternCreateOptions) => Promise<PlanReferencePatternRecord>;
+    update: (planId: string, patternId: string, input: PlanReferencePatternUpdateOptions) => Promise<PlanReferencePatternRecord>;
+    inspect: (planId: string, patternId: string, input?: PlanReferencePatternUpdateOptions) => Promise<PlanReferencePatternRecord>;
+    waive: (planId: string, patternId: string, input: PlanReferencePatternUpdateOptions) => Promise<PlanReferencePatternRecord>;
     remove: (planId: string, patternId: string) => Promise<Record<string, unknown>>;
   };
   readonly learnings: {
-    list: (planId: string) => Promise<UserPlanLearningRecord[]>;
-    show: (planId: string, learningId: string) => Promise<UserPlanLearningRecord>;
-    create: (planId: string, input: UserPlanLearningRecord) => Promise<UserPlanLearningRecord>;
-    update: (planId: string, learningId: string, input: Partial<UserPlanLearningRecord>) => Promise<UserPlanLearningRecord>;
+    list: (planId: string) => Promise<PlanLearningRecord[]>;
+    show: (planId: string, learningId: string) => Promise<PlanLearningRecord>;
+    create: (planId: string, input: PlanLearningCreateOptions) => Promise<PlanLearningRecord>;
+    update: (planId: string, learningId: string, input: PlanLearningUpdateOptions) => Promise<PlanLearningRecord>;
     remove: (planId: string, learningId: string) => Promise<Record<string, unknown>>;
     createTasks: (planId: string, input: UserPlanLearningCreateTasksInput) => Promise<UserPlanLearningCreateTasksResult>;
   };
@@ -3105,7 +3382,7 @@ export class OpenMatesPlans {
     this.learnings = {
       list: (planId) => this.listLearnings(planId),
       show: async (planId, learningId) => {
-        const learning = (await this.listLearnings(planId)).find((candidate) => candidate.learning_id === learningId);
+        const learning = (await this.listLearnings(planId)).find((candidate) => candidate.learningId === learningId);
         if (!learning) throw new OpenMatesApiError(404, { detail: "Plan learning not found" });
         return learning;
       },
@@ -3257,109 +3534,160 @@ export class OpenMatesPlans {
   async complete(planId: string): Promise<PlanRecord> {
     const existing = await this.getRawPlan(planId);
     const response = await this.client.request<{ plan?: UserPlanRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}/complete`, { version: existing.version });
-    if (!response.plan) throw new OpenMatesApiError(500, { detail: "User plan response missing plan" });
-    return toPublicPlan(await decryptUserPlan(response.plan, await this.client.masterKey()));
+    return toPublicPlan(await decryptUserPlan(response.plan ?? await this.getRawPlan(planId), await this.client.masterKey()));
   }
 
-  async createCriterion(planId: string, input: UserPlanCriterionRecord): Promise<UserPlanCriterionRecord> {
-    const response = await this.client.request<{ criterion?: UserPlanCriterionRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}/criteria`, input);
-    if (!response.criterion) throw new OpenMatesApiError(500, { detail: "User plan criterion response missing criterion" });
-    return response.criterion;
+  private async decryptedPlanForChildren(planId: string, masterKey: Uint8Array): Promise<DecryptedUserPlan> {
+    return decryptUserPlan(await this.getRawPlan(planId), masterKey);
   }
 
-  async updateCriterion(planId: string, criterionId: string, input: Partial<UserPlanCriterionRecord>): Promise<UserPlanCriterionRecord> {
-    const response = await this.client.patch<{ criterion?: UserPlanCriterionRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}/criteria/${encodeURIComponent(criterionId)}`, input);
+  private async planKeyForChildren(plan: DecryptedUserPlan, masterKey: Uint8Array): Promise<Uint8Array> {
+    return planKeyFromRecord(plan.encrypted, masterKey);
+  }
+
+  async createCriterion(planId: string, input: PlanCriterionCreateOptions): Promise<PlanCriterionRecord> {
+    const masterKey = await this.client.masterKey();
+    const plan = await this.decryptedPlanForChildren(planId, masterKey);
+    const response = await this.client.request<{ criterion?: UserPlanCriterionRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}/criteria`, await buildCreatePlanCriterionInput(plan, masterKey, input));
     if (!response.criterion) throw new OpenMatesApiError(500, { detail: "User plan criterion response missing criterion" });
-    return response.criterion;
+    return toPublicPlanCriterion(response.criterion, await this.planKeyForChildren(plan, masterKey));
+  }
+
+  async updateCriterion(planId: string, criterionId: string, input: PlanCriterionUpdateOptions): Promise<PlanCriterionRecord> {
+    const masterKey = await this.client.masterKey();
+    const plan = await this.decryptedPlanForChildren(planId, masterKey);
+    const planKey = await this.planKeyForChildren(plan, masterKey);
+    const payload: Partial<UserPlanCriterionRecord> = { updated_at: Math.floor(Date.now() / 1000) };
+    if (input.status !== undefined) payload.status = input.status as UserPlanCriterionRecord["status"];
+    if (input.required !== undefined) payload.required = input.required;
+    if (input.linkedStepIds !== undefined) payload.linked_step_ids = input.linkedStepIds;
+    if (input.linkedTaskIds !== undefined) payload.linked_task_ids = input.linkedTaskIds;
+    if (input.verificationIds !== undefined) payload.verification_ids = input.verificationIds;
+    if (input.evidence !== undefined) (payload as Record<string, unknown>).encrypted_evidence = await encryptWithAesGcmCombined(input.evidence, planKey);
+    if (input.coverageNote !== undefined) (payload as Record<string, unknown>).encrypted_coverage_note = await encryptWithAesGcmCombined(input.coverageNote, planKey);
+    if (input.waiverReason !== undefined) (payload as Record<string, unknown>).encrypted_waiver_reason = await encryptWithAesGcmCombined(input.waiverReason, planKey);
+    const response = await this.client.patch<{ criterion?: UserPlanCriterionRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}/criteria/${encodeURIComponent(criterionId)}`, payload);
+    if (!response.criterion) throw new OpenMatesApiError(500, { detail: "User plan criterion response missing criterion" });
+    return toPublicPlanCriterion(response.criterion, planKey);
   }
 
   async deleteCriterion(planId: string, criterionId: string): Promise<Record<string, unknown>> {
     return await this.client.delete<Record<string, unknown>>(`/v1/user-plans/${encodeURIComponent(planId)}/criteria/${encodeURIComponent(criterionId)}`);
   }
 
-  async listCriteria(planId: string): Promise<UserPlanCriterionRecord[]> {
+  async listCriteria(planId: string): Promise<PlanCriterionRecord[]> {
+    const masterKey = await this.client.masterKey();
+    const plan = await this.decryptedPlanForChildren(planId, masterKey);
+    const planKey = await this.planKeyForChildren(plan, masterKey);
     const response = await this.client.get<{ criteria?: UserPlanCriterionRecord[] }>(`/v1/user-plans/${encodeURIComponent(planId)}/criteria`);
-    return response.criteria ?? [];
+    return Promise.all((response.criteria ?? []).map((criterion) => toPublicPlanCriterion(criterion, planKey)));
   }
 
-  async createVerification(planId: string, input: UserPlanVerificationRecord & Record<string, unknown>): Promise<UserPlanVerificationRecord> {
-    const response = await this.client.request<{ verification?: UserPlanVerificationRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}/verification`, input);
+  async createVerification(planId: string, input: PlanVerificationCreateOptions): Promise<PlanVerificationRecord> {
+    const masterKey = await this.client.masterKey();
+    const plan = await this.decryptedPlanForChildren(planId, masterKey);
+    const response = await this.client.request<{ verification?: UserPlanVerificationRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}/verification`, await buildCreatePlanVerificationInput(plan, masterKey, input));
     if (!response.verification) throw new OpenMatesApiError(500, { detail: "User plan verification response missing verification" });
-    return response.verification;
+    return toPublicPlanVerification(response.verification, await this.planKeyForChildren(plan, masterKey));
   }
 
-  async updateVerification(planId: string, verificationId: string, input: Partial<UserPlanVerificationRecord>): Promise<UserPlanVerificationRecord> {
-    const response = await this.client.patch<{ verification?: UserPlanVerificationRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}/verification/${encodeURIComponent(verificationId)}`, input);
+  async updateVerification(planId: string, verificationId: string, input: PlanVerificationUpdateOptions): Promise<PlanVerificationRecord> {
+    const masterKey = await this.client.masterKey();
+    const plan = await this.decryptedPlanForChildren(planId, masterKey);
+    const response = await this.client.patch<{ verification?: UserPlanVerificationRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}/verification/${encodeURIComponent(verificationId)}`, await buildUpdatePlanVerificationInput(plan, masterKey, input));
     if (!response.verification) throw new OpenMatesApiError(500, { detail: "User plan verification response missing verification" });
-    return response.verification;
+    return toPublicPlanVerification(response.verification, await this.planKeyForChildren(plan, masterKey));
   }
 
   async deleteVerification(planId: string, verificationId: string): Promise<Record<string, unknown>> {
     return await this.client.delete<Record<string, unknown>>(`/v1/user-plans/${encodeURIComponent(planId)}/verification/${encodeURIComponent(verificationId)}`);
   }
 
-  async listVerifications(planId: string): Promise<UserPlanVerificationRecord[]> {
+  async listVerifications(planId: string): Promise<PlanVerificationRecord[]> {
+    const masterKey = await this.client.masterKey();
+    const plan = await this.decryptedPlanForChildren(planId, masterKey);
+    const planKey = await this.planKeyForChildren(plan, masterKey);
     const response = await this.client.get<{ verifications?: UserPlanVerificationRecord[] }>(`/v1/user-plans/${encodeURIComponent(planId)}/verification`);
-    return response.verifications ?? [];
+    return Promise.all((response.verifications ?? []).map((verification) => toPublicPlanVerification(verification, planKey)));
   }
 
-  async createAssumption(planId: string, input: UserPlanAssumptionRecord): Promise<UserPlanAssumptionRecord> {
-    const response = await this.client.request<{ assumption?: UserPlanAssumptionRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}/assumptions`, input);
+  async createAssumption(planId: string, input: PlanAssumptionCreateOptions): Promise<PlanAssumptionRecord> {
+    const masterKey = await this.client.masterKey();
+    const plan = await this.decryptedPlanForChildren(planId, masterKey);
+    const response = await this.client.request<{ assumption?: UserPlanAssumptionRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}/assumptions`, await buildPlanAssumptionCreateInput(plan, masterKey, input));
     if (!response.assumption) throw new OpenMatesApiError(500, { detail: "User plan assumption response missing assumption" });
-    return response.assumption;
+    return toPublicPlanAssumption(response.assumption, await this.planKeyForChildren(plan, masterKey));
   }
 
-  async listAssumptions(planId: string): Promise<UserPlanAssumptionRecord[]> {
+  async listAssumptions(planId: string): Promise<PlanAssumptionRecord[]> {
+    const masterKey = await this.client.masterKey();
+    const plan = await this.decryptedPlanForChildren(planId, masterKey);
+    const planKey = await this.planKeyForChildren(plan, masterKey);
     const response = await this.client.get<{ assumptions?: UserPlanAssumptionRecord[] }>(`/v1/user-plans/${encodeURIComponent(planId)}/assumptions`);
-    return response.assumptions ?? [];
+    return Promise.all((response.assumptions ?? []).map((assumption) => toPublicPlanAssumption(assumption, planKey)));
   }
 
-  async updateAssumption(planId: string, assumptionId: string, input: Partial<UserPlanAssumptionRecord>): Promise<UserPlanAssumptionRecord> {
-    const response = await this.client.patch<{ assumption?: UserPlanAssumptionRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}/assumptions/${encodeURIComponent(assumptionId)}`, input);
+  async updateAssumption(planId: string, assumptionId: string, input: PlanAssumptionUpdateOptions): Promise<PlanAssumptionRecord> {
+    const masterKey = await this.client.masterKey();
+    const plan = await this.decryptedPlanForChildren(planId, masterKey);
+    const response = await this.client.patch<{ assumption?: UserPlanAssumptionRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}/assumptions/${encodeURIComponent(assumptionId)}`, await buildPlanAssumptionUpdateInput(plan, masterKey, input));
     if (!response.assumption) throw new OpenMatesApiError(500, { detail: "User plan assumption response missing assumption" });
-    return response.assumption;
+    return toPublicPlanAssumption(response.assumption, await this.planKeyForChildren(plan, masterKey));
   }
 
   async deleteAssumption(planId: string, assumptionId: string): Promise<Record<string, unknown>> {
     return await this.client.delete<Record<string, unknown>>(`/v1/user-plans/${encodeURIComponent(planId)}/assumptions/${encodeURIComponent(assumptionId)}`);
   }
 
-  async createReferencePattern(planId: string, input: UserPlanReferencePatternRecord): Promise<UserPlanReferencePatternRecord> {
-    const response = await this.client.request<{ reference_pattern?: UserPlanReferencePatternRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}/reference-patterns`, input);
+  async createReferencePattern(planId: string, input: PlanReferencePatternCreateOptions): Promise<PlanReferencePatternRecord> {
+    const masterKey = await this.client.masterKey();
+    const plan = await this.decryptedPlanForChildren(planId, masterKey);
+    const response = await this.client.request<{ reference_pattern?: UserPlanReferencePatternRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}/reference-patterns`, await buildPlanReferencePatternCreateInput(plan, masterKey, input));
     if (!response.reference_pattern) throw new OpenMatesApiError(500, { detail: "User plan reference pattern response missing reference_pattern" });
-    return response.reference_pattern;
+    return toPublicPlanReferencePattern(response.reference_pattern, await this.planKeyForChildren(plan, masterKey));
   }
 
-  async listReferencePatterns(planId: string): Promise<UserPlanReferencePatternRecord[]> {
+  async listReferencePatterns(planId: string): Promise<PlanReferencePatternRecord[]> {
+    const masterKey = await this.client.masterKey();
+    const plan = await this.decryptedPlanForChildren(planId, masterKey);
+    const planKey = await this.planKeyForChildren(plan, masterKey);
     const response = await this.client.get<{ reference_patterns?: UserPlanReferencePatternRecord[] }>(`/v1/user-plans/${encodeURIComponent(planId)}/reference-patterns`);
-    return response.reference_patterns ?? [];
+    return Promise.all((response.reference_patterns ?? []).map((pattern) => toPublicPlanReferencePattern(pattern, planKey)));
   }
 
-  async updateReferencePattern(planId: string, patternId: string, input: Partial<UserPlanReferencePatternRecord>): Promise<UserPlanReferencePatternRecord> {
-    const response = await this.client.patch<{ reference_pattern?: UserPlanReferencePatternRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}/reference-patterns/${encodeURIComponent(patternId)}`, input);
+  async updateReferencePattern(planId: string, patternId: string, input: PlanReferencePatternUpdateOptions): Promise<PlanReferencePatternRecord> {
+    const masterKey = await this.client.masterKey();
+    const plan = await this.decryptedPlanForChildren(planId, masterKey);
+    const response = await this.client.patch<{ reference_pattern?: UserPlanReferencePatternRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}/reference-patterns/${encodeURIComponent(patternId)}`, await buildPlanReferencePatternUpdateInput(plan, masterKey, input));
     if (!response.reference_pattern) throw new OpenMatesApiError(500, { detail: "User plan reference pattern response missing reference_pattern" });
-    return response.reference_pattern;
+    return toPublicPlanReferencePattern(response.reference_pattern, await this.planKeyForChildren(plan, masterKey));
   }
 
   async deleteReferencePattern(planId: string, patternId: string): Promise<Record<string, unknown>> {
     return await this.client.delete<Record<string, unknown>>(`/v1/user-plans/${encodeURIComponent(planId)}/reference-patterns/${encodeURIComponent(patternId)}`);
   }
 
-  async createLearning(planId: string, input: UserPlanLearningRecord): Promise<UserPlanLearningRecord> {
-    const response = await this.client.request<{ learning?: UserPlanLearningRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}/learnings`, input);
+  async createLearning(planId: string, input: PlanLearningCreateOptions): Promise<PlanLearningRecord> {
+    const masterKey = await this.client.masterKey();
+    const plan = await this.decryptedPlanForChildren(planId, masterKey);
+    const response = await this.client.request<{ learning?: UserPlanLearningRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}/learnings`, await buildCreatePlanLearningInput(plan, masterKey, input));
     if (!response.learning) throw new OpenMatesApiError(500, { detail: "User plan learning response missing learning" });
-    return response.learning;
+    return withoutEncryptedLearning(await decryptPlanLearning(plan, response.learning, masterKey));
   }
 
-  async listLearnings(planId: string): Promise<UserPlanLearningRecord[]> {
+  async listLearnings(planId: string): Promise<PlanLearningRecord[]> {
+    const masterKey = await this.client.masterKey();
+    const plan = await this.decryptedPlanForChildren(planId, masterKey);
     const response = await this.client.get<{ learnings?: UserPlanLearningRecord[] }>(`/v1/user-plans/${encodeURIComponent(planId)}/learnings`);
-    return response.learnings ?? [];
+    return Promise.all((response.learnings ?? []).map(async (learning) => withoutEncryptedLearning(await decryptPlanLearning(plan, learning, masterKey))));
   }
 
-  async updateLearning(planId: string, learningId: string, input: Partial<UserPlanLearningRecord>): Promise<UserPlanLearningRecord> {
-    const response = await this.client.patch<{ learning?: UserPlanLearningRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}/learnings/${encodeURIComponent(learningId)}`, input);
+  async updateLearning(planId: string, learningId: string, input: PlanLearningUpdateOptions): Promise<PlanLearningRecord> {
+    const masterKey = await this.client.masterKey();
+    const plan = await this.decryptedPlanForChildren(planId, masterKey);
+    const response = await this.client.patch<{ learning?: UserPlanLearningRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}/learnings/${encodeURIComponent(learningId)}`, await buildUpdatePlanLearningInput(plan, masterKey, input));
     if (!response.learning) throw new OpenMatesApiError(500, { detail: "User plan learning response missing learning" });
-    return response.learning;
+    return withoutEncryptedLearning(await decryptPlanLearning(plan, response.learning, masterKey));
   }
 
   async deleteLearning(planId: string, learningId: string): Promise<Record<string, unknown>> {
@@ -3370,10 +3698,12 @@ export class OpenMatesPlans {
     return await this.client.request<UserPlanLearningCreateTasksResult>(`/v1/user-plans/${encodeURIComponent(planId)}/learnings/create-tasks`, input);
   }
 
-  async addVerificationEvidence(planId: string, verificationId: string, input: Partial<UserPlanVerificationRecord>): Promise<UserPlanVerificationRecord> {
-    const response = await this.client.request<{ verification?: UserPlanVerificationRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}/verification/${encodeURIComponent(verificationId)}/evidence`, input);
+  async addVerificationEvidence(planId: string, verificationId: string, input: PlanVerificationEvidenceOptions): Promise<PlanVerificationRecord> {
+    const masterKey = await this.client.masterKey();
+    const plan = await this.decryptedPlanForChildren(planId, masterKey);
+    const response = await this.client.request<{ verification?: UserPlanVerificationRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}/verification/${encodeURIComponent(verificationId)}/evidence`, await buildPlanVerificationEvidenceInput(plan, masterKey, input));
     if (!response.verification) throw new OpenMatesApiError(500, { detail: "User plan verification response missing verification" });
-    return response.verification;
+    return toPublicPlanVerification(response.verification, await this.planKeyForChildren(plan, masterKey));
   }
 
   async getVerificationRun(planId: string, verificationId: string, runId: string): Promise<Record<string, unknown>> {

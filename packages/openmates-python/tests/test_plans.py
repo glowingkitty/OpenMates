@@ -20,6 +20,10 @@ PLAN = {
 }
 
 
+def assert_no_plaintext_marker(value, marker):
+    assert marker not in str(value)
+
+
 def test_pip_sdk_user_plan_methods_use_shared_plans_api(monkeypatch):
     requests_seen = []
     master_key = bytes([8]) * 32
@@ -122,30 +126,43 @@ def test_pip_sdk_user_plan_methods_use_shared_plans_api(monkeypatch):
     assert client.plans.current_focus.clear("plan-1")["current_focus"] == ""
     assert client.plans.open_questions.answer("plan-1", "Answered")["open_questions"] == "Answered"
     assert client.plans.complete("plan-1")["plan_id"] == "plan-1"
-    assert client.plans.success_criteria.add("plan-1", {"criterion_id": "AC-1", "encrypted_text": "cipher-ac", "created_at": 100})["criterion_id"] == "AC-1"
+    criterion = client.plans.success_criteria.add("plan-1", {"criterion_id": "AC-1", "text": "Plain AC"})
+    assert criterion["criterion_id"] == "AC-1"
+    assert criterion["text"] == "Plain AC"
     assert client.plans.success_criteria.update("plan-1", "AC-1", {"status": "satisfied"})["status"] == "satisfied"
     assert client.plans.success_criteria.remove("plan-1", "AC-1") == {"deleted": True}
     assert client.plans.list_criteria("plan-1") == []
-    assert client.plans.checks.add("plan-1", {"verification_id": "V-1", "kind": "manual_check", "created_at": 100})["verification_id"] == "V-1"
+    check = client.plans.checks.add("plan-1", {"verification_id": "V-1", "kind": "manual_check", "command": "pytest"})
+    assert check["verification_id"] == "V-1"
+    assert check["command"] == "pytest"
     assert client.plans.checks.update("plan-1", "V-1", {"status": "passed"})["status"] == "passed"
     assert client.plans.checks.get_run("plan-1", "V-1", "run-1")["run"]["run_id"] == "run-1"
     assert client.plans.checks.remove("plan-1", "V-1") == {"deleted": True}
     assert client.plans.list_verifications("plan-1") == []
-    assert client.plans.assumptions.add("plan-1", {"assumption_id": "A-1", "encrypted_text": "cipher-assumption", "created_at": 100})["assumption_id"] == "A-1"
+    assumption = client.plans.assumptions.add("plan-1", {"assumption_id": "A-1", "text": "Plain assumption"})
+    assert assumption["assumption_id"] == "A-1"
+    assert assumption["text"] == "Plain assumption"
     assert client.plans.list_assumptions("plan-1") == []
     assert client.plans.assumptions.check("plan-1", "A-1")["status"] == "checking"
-    assert client.plans.assumptions.waive("plan-1", "A-1", {"encrypted_waiver_reason": "cipher-reason"})["status"] == "waived"
+    assert client.plans.assumptions.waive("plan-1", "A-1", {"waiver_reason": "Known limitation"})["status"] == "waived"
     assert client.plans.assumptions.remove("plan-1", "A-1") == {"deleted": True}
-    assert client.plans.reference_patterns.add("plan-1", {"pattern_id": "RP-1", "encrypted_title": "cipher-pattern", "created_at": 100})["pattern_id"] == "RP-1"
+    pattern = client.plans.reference_patterns.add("plan-1", {"pattern_id": "RP-1", "title": "Plain pattern"})
+    assert pattern["pattern_id"] == "RP-1"
+    assert pattern["title"] == "Plain pattern"
     assert client.plans.list_reference_patterns("plan-1") == []
     assert client.plans.reference_patterns.inspect("plan-1", "RP-1")["status"] == "inspected"
     assert client.plans.reference_patterns.remove("plan-1", "RP-1") == {"deleted": True}
-    assert client.plans.learnings.create("plan-1", {"learning_id": "LRN-1", "type": "workflow_improvement", "target_kind": "workflow", "encrypted_title": "cipher-learning", "created_at": 100})["learning_id"] == "LRN-1"
+    learning = client.plans.learnings.create("plan-1", {"learning_id": "LRN-1", "type": "workflow_improvement", "target_kind": "workflow", "title": "Plain learning"})
+    assert learning["learning_id"] == "LRN-1"
+    assert learning["title"] == "Plain learning"
     assert client.plans.learnings.list("plan-1") == []
     assert client.plans.learnings.update("plan-1", "LRN-1", {"status": "accepted"})["status"] == "accepted"
     assert client.plans.learnings.remove("plan-1", "LRN-1") == {"deleted": True}
     assert client.plans.learnings.create_tasks("plan-1", {"learning_ids": ["LRN-1"]}) == {"tasks": [], "skipped": []}
-    assert client.plans.checks.add_evidence("plan-1", "V-1", {"status": "passed"})["status"] == "passed"
+    assert client.plans.checks.add_evidence("plan-1", "V-1", {"status": "passed", "result_summary": "Passed locally"})["status"] == "passed"
+
+    for marker in ["Plain AC", "Plain assumption", "Plain pattern", "Plain learning", "Passed locally"]:
+        assert_no_plaintext_marker(requests_seen, marker)
 
     urls = [request["url"].replace("https://api.openmates.org", "") for request in requests_seen]
     assert "/v1/sdk/session" in urls
