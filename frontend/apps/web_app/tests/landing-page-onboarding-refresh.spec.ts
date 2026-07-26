@@ -522,16 +522,11 @@ test.describe('Landing page onboarding refresh', () => {
 		await expect(page.getByTestId('new-chat-button')).toBeVisible({ timeout: 10000 });
 		await expect(page.getByTestId('message-field')).toBeVisible({ timeout: 10000 });
 
-		const heights = await page.evaluate(() => {
+		await expect.poll(async () => page.evaluate(() => {
 			const messageField = document.querySelector<HTMLElement>('[data-testid="message-field"]');
 			const newChatButton = document.querySelector<HTMLElement>('[data-testid="new-chat-button"]');
 			if (!messageField || !newChatButton) throw new Error('Example chat composer elements missing');
-			return {
-				fieldHeight: messageField.getBoundingClientRect().height,
-				buttonHeight: newChatButton.getBoundingClientRect().height
-			};
-		});
-
-		expect(Math.abs(heights.fieldHeight - heights.buttonHeight)).toBeLessThanOrEqual(1);
+			return Math.abs(messageField.getBoundingClientRect().height - newChatButton.getBoundingClientRect().height);
+		}), { timeout: 3000 }).toBeLessThanOrEqual(1);
 	});
 });

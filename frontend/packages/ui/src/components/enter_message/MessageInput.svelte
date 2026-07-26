@@ -5815,9 +5815,11 @@
 	}
 
     .message-field.inline-compact.empty-welcome-field {
+        height: 48px;
         min-height: 48px;
         max-height: 48px;
         padding: 0 56px;
+        transition: border-radius 0.3s ease-in-out;
     }
 
     .message-field.empty-welcome-field .scrollable-content {
