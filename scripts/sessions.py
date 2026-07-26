@@ -953,8 +953,8 @@ def _get_staged_files() -> set[str]:
     return {line.strip() for line in stdout.splitlines() if line.strip()}
 
 
-def _validate_use_staged_deploy_files(to_commit: set[str], *, context: str) -> bool:
-    """Ensure --use-staged still points at exactly this deploy's file set."""
+def _validate_staged_deploy_files(to_commit: set[str], *, context: str) -> bool:
+    """Ensure the staged index still points at exactly this deploy's file set."""
     staged_files = _get_staged_files()
     missing_staged = sorted(to_commit - staged_files)
     foreign_staged = sorted(staged_files - to_commit)
@@ -962,7 +962,7 @@ def _validate_use_staged_deploy_files(to_commit: set[str], *, context: str) -> b
         return True
 
     print(
-        f"--use-staged index changed {context}; aborting to avoid committing the wrong files:",
+        f"Staged index changed {context}; aborting to avoid committing the wrong files:",
         file=sys.stderr,
     )
     if missing_staged:
@@ -4070,7 +4070,7 @@ def cmd_deploy(args: argparse.Namespace) -> None:
 
         print(f"Staging complete: {len(files_to_add)} added, {len(deleted_files)} deleted")
 
-    if use_staged and not _validate_use_staged_deploy_files(
+    if not _validate_staged_deploy_files(
         set(to_commit),
         context="before commit",
     ):

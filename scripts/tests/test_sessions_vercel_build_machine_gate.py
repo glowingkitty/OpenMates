@@ -253,4 +253,65 @@ def test_use_staged_deploy_rechecks_index_before_commit(monkeypatch, tmp_path, c
 
     assert exc.value.code == 1
     assert not any(cmd[:2] == ["git", "commit"] for cmd in commands)
-    assert "--use-staged index changed before commit" in capsys.readouterr().err
+    assert "Staged index changed before commit" in capsys.readouterr().err
+
+
+def test_deploy_rechecks_auto_staged_index_before_commit(monkeypatch, tmp_path, capsys):
+    sessions = load_sessions_module()
+    sessions_file = tmp_path / "sessions.json"
+    sessions_file.write_text(
+        """
+{
+  "locks": {
+    "docker_rebuild": {"status": "NONE"},
+    "vercel_deploy": {"status": "NONE"}
+  },
+  "sessions": {
+    "current": {
+      "task": "test auto staged deploy race",
+      "modified_files": ["docs/test.md"]
+    }
+  }
+}
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    commands: list[list[str]] = []
+    staged_snapshots = iter([
+        set(),
+        {"frontend/apps/web_app/tests/other.spec.ts"},
+    ])
+
+    def fake_run_cmd(cmd, cwd=None, timeout=None):
+        commands.append(cmd)
+        return 0, "", ""
+
+    monkeypatch.setattr(sessions, "SESSIONS_FILE", sessions_file)
+    monkeypatch.setattr(sessions, "_get_dirty_files", lambda: ["docs/test.md"])
+    monkeypatch.setattr(sessions, "_get_staged_files", lambda: next(staged_snapshots))
+    monkeypatch.setattr(sessions, "_run_test_enforcement_gate", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(sessions, "_run_pytest_gate", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(sessions, "_enforce_embed_registry_validation", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(sessions, "_enforce_vercel_standard_build_machine", lambda: None)
+    monkeypatch.setattr(sessions, "_run_cmd", fake_run_cmd)
+
+    args = argparse.Namespace(
+        session="current",
+        exclude=None,
+        title="docs: test auto deploy race",
+        message=None,
+        end_session=False,
+        no_verify=False,
+        use_staged=False,
+        skip_tests_reason="unit test",
+        require_parity=False,
+    )
+
+    with pytest.raises(SystemExit) as exc:
+        sessions.cmd_deploy(args)
+
+    assert exc.value.code == 1
+    assert any(cmd[:2] in (["git", "add"], ["git", "rm"]) for cmd in commands)
+    assert not any(cmd[:2] == ["git", "commit"] for cmd in commands)
+    assert "Staged index changed before commit" in capsys.readouterr().err
