@@ -589,6 +589,20 @@ describe("role-based server planning", () => {
     }
   });
 
+  it("wires packaged core Promtail to generated config and required log sources", () => {
+    const template = readFileSync(new URL("../templates/core/docker-compose.selfhost.yml", import.meta.url), "utf-8");
+    const promtailBlock = template.match(/\n {2}promtail:\n([\s\S]*?)(?=\n {2}[a-zA-Z0-9_-]+:|\nnetworks:)/)?.[1] ?? "";
+    const source = readFileSync(new URL("../src/server.ts", import.meta.url), "utf-8");
+
+    assert.match(promtailBlock, /env_file: \.\.\/\.\.\/\.env/);
+    assert.match(promtailBlock, /\.\/monitoring\/promtail:\/etc\/promtail:ro/);
+    assert.match(promtailBlock, /\/var\/run\/docker\.sock:\/var\/run\/docker\.sock:ro/);
+    assert.match(promtailBlock, /api-logs:\/var\/log\/api:ro/);
+    assert.match(promtailBlock, /-config\.file=\/etc\/promtail\/promtail-config\.yaml/);
+    assert.match(source, /CORE_PROMTAIL_CONFIG_FILE = join\("backend", "core", "monitoring", "promtail", "promtail-config\.yaml"\)/);
+    assert.match(source, /writeFileSync\(promtailConfigPath, SELFHOST_PROMTAIL_CONFIG_TEMPLATE\)/);
+  });
+
   it("keeps packaged core task workers wired to Vault and config volumes", () => {
     const template = readFileSync(new URL("../templates/core/docker-compose.selfhost.yml", import.meta.url), "utf-8");
     const baseBlock = template.slice(

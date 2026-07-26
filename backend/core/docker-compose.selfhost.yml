@@ -367,6 +367,23 @@ services:
     healthcheck:
       disable: true
 
+  promtail:
+    container_name: promtail
+    image: grafana/promtail:3.2.1
+    restart: unless-stopped
+    env_file: ../../.env
+    volumes:
+      - ./monitoring/promtail:/etc/promtail:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - api-logs:/var/log/api:ro
+    command:
+      - "-config.file=/etc/promtail/promtail-config.yaml"
+      - "-config.expand-env=true"
+    depends_on:
+      - openobserve
+    networks:
+      - openmates
+
   admin-sidecar:
     container_name: core-admin-sidecar
     image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-admin-sidecar:${OPENMATES_IMAGE_TAG:-v0.15.0}

@@ -341,7 +341,16 @@ services:
     image: grafana/promtail:3.2.1
     container_name: promtail
     restart: unless-stopped
-    command: -config.file=/etc/promtail/config.yml
+    env_file: ../../.env
+    volumes:
+      - ./monitoring/promtail:/etc/promtail:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - api-logs:/var/log/api:ro
+    command:
+      - "-config.file=/etc/promtail/promtail-config.yaml"
+      - "-config.expand-env=true"
+    depends_on:
+      - openobserve
     networks: [openmates]
 
   prometheus:

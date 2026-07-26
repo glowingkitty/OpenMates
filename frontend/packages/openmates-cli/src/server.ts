@@ -64,6 +64,7 @@ const ROLE_TEMPLATE_FILES: Record<ServerRole, string> = {
   upload: join("upload", "docker-compose.yml"),
   preview: join("preview", "docker-compose.preview.yml"),
 };
+const CORE_PROMTAIL_CONFIG_FILE = join("backend", "core", "monitoring", "promtail", "promtail-config.yaml");
 const COMPOSE_OVERRIDE = join("backend", "core", "docker-compose.override.yml");
 const DEFAULT_INSTALL_PATH = join(homedir(), "openmates");
 const REPO_URL = "https://github.com/glowingkitty/OpenMates.git";
@@ -79,6 +80,74 @@ const IMAGE_CHANNEL_TAGS = {
   main: MAIN_BRANCH,
   dev: DEV_BRANCH,
 } as const;
+const SELFHOST_PROMTAIL_CONFIG_TEMPLATE = `server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://openobserve:5080/api/default/loki/api/v1/push
+    basic_auth:
+      username: "\${OPENOBSERVE_ROOT_EMAIL}"
+      password: "\${OPENOBSERVE_ROOT_PASSWORD}"
+
+scrape_configs:
+  - job_name: api-logs
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: api-logs
+          service: api
+          container: api
+          compose_project: openmates-core
+          __path__: /var/log/api/api.log
+    pipeline_stages:
+      - drop:
+          expression: '^\\s*$'
+      - json:
+          expressions:
+            level: level
+            message: message
+            name: name
+            event_type: event_type
+            status: status
+          ignore_parse_errors: true
+      - labels:
+          level:
+          name:
+          event_type:
+          status:
+
+  - job_name: container-logs
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 30s
+    relabel_configs:
+      - source_labels: ["__meta_docker_container_name"]
+        regex: "/(.*)"
+        target_label: "container"
+      - source_labels: ["__meta_docker_container_log_stream"]
+        target_label: "logstream"
+      - source_labels: ["__meta_docker_container_label_com_docker_compose_service"]
+        target_label: "service"
+      - source_labels: ["__meta_docker_container_label_com_docker_compose_project"]
+        target_label: "compose_project"
+    pipeline_stages:
+      - drop:
+          expression: '^\\s*$'
+      - json:
+          expressions:
+            json_level: level
+          ignore_parse_errors: true
+      - template:
+          source: log_level
+          template: "{{ if .json_level }}{{ .json_level }}{{ else }}info{{ end }}"
+      - labels:
+          level: log_level
+`;
 const BACKEND_CONFIG_FILE = join("backend", "config", "backend_config.yml");
 const IMAGE_RUNTIME_CONFIG_FILE = join("config", "backend_config.yml");
 const LOCAL_AI_MODELS_FILE = "local-ai-models.yml";
@@ -538,6 +607,11 @@ async function writeImageModeRuntimeFiles(installPath: string, imageTag: string,
   mkdirSync(vaultConfigDir, { recursive: true });
   mkdirSync(join(installPath, "config", "providers"), { recursive: true });
   writeFileSync(join(installPath, ROLE_IMAGE_COMPOSE_FILES[role]), await loadSelfHostComposeTemplate(templateRefForImageTag(imageTag, getPackageVersion()), role));
+  if (role === "core") {
+    const promtailConfigPath = join(installPath, CORE_PROMTAIL_CONFIG_FILE);
+    mkdirSync(dirname(promtailConfigPath), { recursive: true });
+    writeFileSync(promtailConfigPath, SELFHOST_PROMTAIL_CONFIG_TEMPLATE);
+  }
   writeFileSync(join(vaultConfigDir, "vault.hcl"), VAULT_CONFIG_TEMPLATE);
   ensureImageRuntimeConfig(installPath);
 
