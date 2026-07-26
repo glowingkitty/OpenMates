@@ -173,6 +173,13 @@ function withAppSkillRunOptions(input: unknown, options?: AppSkillRunOptions): u
   };
 }
 
+function normalizeOptionalGoal(value: string | undefined): string | null {
+  if (value === undefined) return null;
+  const trimmed = value.trim();
+  if (!trimmed) throw new OpenMatesConfigError("Chat goal must not be empty");
+  return trimmed;
+}
+
 export interface OpenMatesOptions {
   apiKey?: string;
   apiUrl?: string;
@@ -186,6 +193,8 @@ export interface ChatCreateOptions {
   focusMode?: FocusModeSelection;
   chatId?: string;
   title?: string;
+  goal?: string;
+  goalTitle?: string;
 }
 
 export interface ChatSendOptions extends ChatCreateOptions {
@@ -1714,7 +1723,11 @@ export class OpenMatesChats {
     const finalMessage = hasRememberMessageReference(message)
       ? rewriteRememberMessageReferences(message, rememberableMessagesFromRecords(history))
       : message;
-    if (options.saveToAccount === true) {
+    const goal = normalizeOptionalGoal(options.goal);
+    if (goal && options.saveToAccount === false) {
+      throw new OpenMatesConfigError("Chat goals require a saved account chat. Omit saveToAccount or set saveToAccount: true.");
+    }
+    if (options.saveToAccount === true || goal) {
       return this.sendSaved(finalMessage, options);
     }
     const result = await this.client.request<{ response?: ChatResponse }>("/v1/sdk/chats", {
@@ -1877,6 +1890,15 @@ export class OpenMatesChats {
     if (terminal.state !== "TERMINAL") {
       throw new OpenMatesConfigError("Saved chat recovery did not reach terminal persistence");
     }
+    const goal = normalizeOptionalGoal(options.goal);
+    const plan = goal
+      ? await this.createAttachedGoalPlan({
+          chatId,
+          chatKey,
+          goal,
+          title: normalizeOptionalGoal(options.goalTitle) ?? options.title ?? goal,
+        })
+      : null;
     return {
       content: recovered.content,
       category: recovered.category,
@@ -1885,7 +1907,27 @@ export class OpenMatesChats {
       task_id: result.task_id,
       preflight: result.preflight,
       terminal,
+      ...(plan ? { plan } : {}),
     };
+  }
+
+  private async createAttachedGoalPlan(input: {
+    chatId: string;
+    chatKey: Uint8Array;
+    goal: string;
+    title: string;
+  }): Promise<PlanRecord> {
+    const masterKey = await this.client.masterKey();
+    const payload = await buildCreateUserPlanInput(masterKey, {
+      title: input.title,
+      goal: input.goal,
+      primaryChatId: input.chatId,
+      primaryChatKey: input.chatKey,
+      status: "draft",
+    });
+    const response = await this.client.request<{ plan?: UserPlanRecord }>("/v1/user-plans", payload);
+    if (!response.plan) throw new OpenMatesApiError(500, { detail: "User plan response missing plan" });
+    return toPublicPlan(await decryptUserPlan(response.plan, masterKey));
   }
 
   private async pollRecoveryClaim(

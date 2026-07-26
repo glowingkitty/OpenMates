@@ -122,6 +122,16 @@ class ChatResponse:
 
     content: str | None = None
     raw: dict[str, Any] | None = None
+    plan: dict[str, Any] | None = None
+
+
+def _normalize_optional_goal(value: str | None) -> str | None:
+    if value is None:
+        return None
+    trimmed = value.strip()
+    if not trimmed:
+        raise OpenMatesConfigError("Chat goal must not be empty")
+    return trimmed
 
 
 def _with_app_skill_prompt_injection_option(
@@ -613,6 +623,7 @@ def _build_plan_key_wrappers(
     primary_chat_id: str | None,
     linked_project_ids: list[str],
     created_at: int,
+    primary_chat_key: bytes | None = None,
 ) -> list[dict[str, Any]]:
     master_key = client._get_master_key()
     wrappers: list[dict[str, Any]] = [{
@@ -621,7 +632,7 @@ def _build_plan_key_wrappers(
         "created_at": created_at,
     }]
     if primary_chat_id:
-        chat_key = _resolve_chat_key(client, primary_chat_id)
+        chat_key = primary_chat_key or _resolve_chat_key(client, primary_chat_id)
         wrappers.append({
             "key_type": "chat",
             "hashed_chat_id": hashlib.sha256(primary_chat_id.encode("utf-8")).hexdigest(),
@@ -1142,6 +1153,7 @@ def _build_plan_create_input(client: OpenMates, payload: dict[str, Any]) -> dict
     now = int(time.time())
     linked_project_ids = _string_list(payload.get("linked_project_ids") or payload.get("linkedProjectIds") or [])
     primary_chat_id = payload.get("primary_chat_id") or payload.get("primaryChatId") or None
+    primary_chat_key = payload.get("_primary_chat_key") if isinstance(payload.get("_primary_chat_key"), bytes) else None
     return {
         "plan_id": str(payload.get("plan_id") or uuid.uuid4()),
         "version": 1,
@@ -1170,7 +1182,7 @@ def _build_plan_create_input(client: OpenMates, payload: dict[str, Any]) -> dict
         "planner_focus_id": payload.get("planner_focus_id") or payload.get("plannerFocusId"),
         "created_at": int(payload.get("created_at") or now),
         "updated_at": int(payload.get("updated_at") or now),
-        "key_wrappers": _build_plan_key_wrappers(client, plan_key, primary_chat_id=primary_chat_id if isinstance(primary_chat_id, str) else None, linked_project_ids=linked_project_ids, created_at=now),
+        "key_wrappers": _build_plan_key_wrappers(client, plan_key, primary_chat_id=primary_chat_id if isinstance(primary_chat_id, str) else None, primary_chat_key=primary_chat_key, linked_project_ids=linked_project_ids, created_at=now),
     }
 
 
@@ -2214,12 +2226,14 @@ class OpenMatesChats:
         message: str,
         *,
         history: Any = None,
-        save_to_account: bool = False,
+        save_to_account: bool | None = None,
         focus_mode: dict[str, str] | None = None,
         memory_ids: list[str] | None = None,
         model: str | None = None,
         chat_id: str | None = None,
         title: str | None = None,
+        goal: str | None = None,
+        goal_title: str | None = None,
         connected_account_directory: list[dict[str, Any]] | None = None,
         connected_account_token_ref_inputs: list[dict[str, Any]] | None = None,
         recovery_poll_interval_seconds: float = DEFAULT_RECOVERY_POLL_INTERVAL_SECONDS,
@@ -2227,7 +2241,10 @@ class OpenMatesChats:
     ) -> ChatResponse:
         normalized_history = _normalize_history(history)
         final_message = _rewrite_remember_message_references(message, normalized_history) if _has_remember_message_reference(message) else message
-        if save_to_account:
+        normalized_goal = _normalize_optional_goal(goal)
+        if normalized_goal and save_to_account is False:
+            raise OpenMatesConfigError("Chat goals require a saved account chat. Omit save_to_account or set save_to_account=True.")
+        if save_to_account is True or normalized_goal:
             return self._send_saved(
                 final_message,
                 history=normalized_history,
@@ -2236,6 +2253,8 @@ class OpenMatesChats:
                 model=model,
                 chat_id=chat_id,
                 title=title,
+                goal=normalized_goal,
+                goal_title=goal_title,
                 connected_account_directory=connected_account_directory,
                 connected_account_token_ref_inputs=connected_account_token_ref_inputs,
                 recovery_poll_interval_seconds=recovery_poll_interval_seconds,
@@ -2246,7 +2265,7 @@ class OpenMatesChats:
             {
                 "message": final_message,
                 "history": normalized_history,
-                "save_to_account": save_to_account,
+                "save_to_account": bool(save_to_account),
                 "focus_mode": focus_mode,
                 "memory_ids": memory_ids or [],
                 "model": model,
@@ -2267,6 +2286,8 @@ class OpenMatesChats:
         model: str | None,
         chat_id: str | None,
         title: str | None,
+        goal: str | None,
+        goal_title: str | None,
         connected_account_directory: list[dict[str, Any]] | None,
         connected_account_token_ref_inputs: list[dict[str, Any]] | None,
         recovery_poll_interval_seconds: float,
@@ -2395,7 +2416,24 @@ class OpenMatesChats:
         )
         if terminal.get("state") != "TERMINAL":
             raise OpenMatesConfigError("Saved chat recovery did not reach terminal persistence")
-        return ChatResponse(content=recovered["content"], raw={**data, "terminal": terminal})
+        plan = None
+        if goal:
+            plan_payload = _build_plan_create_input(
+                self._client,
+                {
+                    "title": _normalize_optional_goal(goal_title) or title or goal,
+                    "goal": goal,
+                    "primary_chat_id": saved_chat_id,
+                    "_primary_chat_key": chat_key,
+                    "status": "draft",
+                },
+            )
+            plan_record = self._client._post("/v1/user-plans", plan_payload).get("plan", {})
+            plan = _public_plan(_decrypt_plan_record(plan_record, master_key)) if isinstance(plan_record, dict) and plan_record else None
+        raw = {**data, "terminal": terminal}
+        if plan is not None:
+            raw["plan"] = plan
+        return ChatResponse(content=recovered["content"], raw=raw, plan=plan)
 
     def _poll_recovery_claim(
         self,

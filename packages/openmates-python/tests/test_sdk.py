@@ -1196,6 +1196,108 @@ def test_saved_chat_preflights_epoch_one_encrypted_recovery_material(monkeypatch
     assert isinstance(saved["encrypted_chat_metadata"]["encrypted_title"], str)
 
 
+def test_goal_chat_creates_attached_draft_plan(monkeypatch):
+    api_key = "sk-api-python-goal"
+    key_wrapper = _wrap_master_key(api_key, os.urandom(32))
+    requests_seen = []
+    task_id = "77777777-7777-4777-8777-777777777777"
+    job_id = "88888888-8888-4888-8888-888888888888"
+
+    class FakeResponse:
+        status_code = 200
+
+        def __init__(self, payload):
+            self._payload = payload
+
+        def json(self):
+            return self._payload
+
+    def fake_post(url, *, json, headers, timeout):
+        requests_seen.append({"url": url, "json": json})
+        if url.endswith("/v1/sdk/session"):
+            return FakeResponse({
+                "user": {"id": "11111111-1111-4111-8111-111111111111"},
+                "key_wrapper": key_wrapper,
+            })
+        if url.endswith("/v1/sdk/chats"):
+            return FakeResponse({"persistent": True, "chat_id": json["chat_id"], "task_id": task_id})
+        if url.endswith(f"/{task_id}/claim"):
+            saved = next(request["json"] for request in requests_seen if request["url"].endswith("/v1/sdk/chats"))
+            assistant_message_id = task_id
+            plaintext = json_module.dumps({
+                "assistant_message_id": assistant_message_id,
+                "category": "general",
+                "chat_id": saved["chat_id"],
+                "content": "goal reply",
+                "job_id": job_id,
+                "key_version": 1,
+                "model_name": "test-model",
+                "turn_id": saved["turn_id"],
+            }, sort_keys=True, separators=(",", ":")).encode()
+            envelope = seal_recovery_payload(
+                plaintext,
+                recovery_public_key=saved["recovery_public_key"],
+                owner_id="11111111-1111-4111-8111-111111111111",
+                chat_id=saved["chat_id"],
+                turn_id=saved["turn_id"],
+                job_id=job_id,
+                assistant_message_id=assistant_message_id,
+                key_version=1,
+            )
+            return FakeResponse({
+                "job_id": job_id,
+                "state": "LEASED",
+                "lease_token": "lease-token",
+                "lease_generation": 1,
+                "sealed_payload": json_module.dumps(envelope),
+                "chat_id": saved["chat_id"],
+                "turn_id": saved["turn_id"],
+                "assistant_message_id": assistant_message_id,
+                "chat_key_version": 1,
+            })
+        if url.endswith(f"/{task_id}/persist"):
+            return FakeResponse({"job_id": job_id, "state": "TERMINAL", "committed_messages_v": 2})
+        assert url.endswith("/v1/user-plans")
+        return FakeResponse({"plan": json})
+
+    monkeypatch.setattr("openmates.sdk.requests.post", fake_post)
+
+    client = OpenMates(api_key=api_key, device_id="test-device-id")
+    response = client.chats.send(
+        "Start the work",
+        goal="Ship the docs update",
+        goal_title="Docs launch",
+        recovery_poll_interval_seconds=0.001,
+    )
+
+    assert response.content == "goal reply"
+    assert response.plan["title"] == "Docs launch"
+    assert response.plan["goal"] == "Ship the docs update"
+    assert response.plan["status"] == "draft"
+    assert [request["url"] for request in requests_seen] == [
+        "https://api.openmates.org/v1/sdk/session",
+        "https://api.openmates.org/v1/sdk/chats",
+        f"https://api.openmates.org/v1/sdk/chats/recovery/{task_id}/claim",
+        f"https://api.openmates.org/v1/sdk/chats/recovery/{task_id}/persist",
+        "https://api.openmates.org/v1/user-plans",
+    ]
+    saved = requests_seen[1]["json"]
+    plan_payload = requests_seen[4]["json"]
+    assert saved["save_to_account"] is True
+    assert plan_payload["primary_chat_id"] == saved["chat_id"]
+    assert plan_payload["status"] == "draft"
+    assert isinstance(plan_payload["encrypted_goal"], str)
+    assert "Ship the docs update" not in json_module.dumps(plan_payload)
+    chat_wrapper = next(wrapper for wrapper in plan_payload["key_wrappers"] if wrapper["key_type"] == "chat")
+    assert chat_wrapper["hashed_chat_id"] == hashlib.sha256(saved["chat_id"].encode()).hexdigest()
+
+
+def test_goal_chat_rejects_explicit_non_persistent_mode():
+    client = OpenMates(api_key="sk-api-python-goal-conflict", device_id="test-device-id")
+    with pytest.raises(OpenMatesConfigError, match="Chat goals require a saved account chat"):
+        client.chats.send("hello", goal="Do the work", save_to_account=False)
+
+
 def test_saved_chat_times_out_when_recovery_job_stays_unavailable(monkeypatch):
     api_key = "sk-api-python-timeout"
     key_wrapper = _wrap_master_key(api_key, os.urandom(32))

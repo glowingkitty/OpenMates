@@ -251,7 +251,7 @@ async function main(): Promise<void> {
   if (parsed.flags.help === true && !subcommand) {
     // e.g. `openmates chats --help` → show chats help
     if (command === "chat") {
-      printPlansHelp();
+      printGoalChatHelp();
       return;
     }
     if (command === "chats") {
@@ -429,7 +429,7 @@ async function main(): Promise<void> {
   }
 
   if (command === "chat" && parsed.flags.goal) {
-    await handlePlans(client, "create", [], parsed.flags, redactor);
+    await handleGoalChat(client, parsed.flags, redactor);
     return;
   }
 
@@ -2171,6 +2171,74 @@ function printPlanOutput(plan: DecryptedUserPlan, flags: Record<string, string |
     console.log(renderPlanDetail(plan));
     printHistoryCommands(plan.encrypted.history ?? null);
   }
+}
+
+function normalizeGoalFlag(value: string | boolean | undefined): string {
+  if (typeof value !== "string" || !value.trim()) {
+    throw new Error("Missing goal. Usage: openmates chat --goal <goal>");
+  }
+  return value.trim();
+}
+
+async function handleGoalChat(
+  client: OpenMatesClient,
+  flags: Record<string, string | boolean>,
+  redactor?: OutputRedactor,
+): Promise<void> {
+  if (resolveApiKey(flags)) {
+    throw new Error("openmates chat --goal uses your paired CLI session. For API-key clients, use the npm or pip SDK chats.send(..., { goal }).");
+  }
+  if (!client.hasSession()) {
+    throw new Error("openmates chat --goal requires login. Run 'openmates login' first.");
+  }
+  const goal = normalizeGoalFlag(flags.goal);
+  const result = await sendMessageStreaming(
+    client,
+    {
+      message: typeof flags.message === "string" && flags.message.trim() ? flags.message.trim() : goal,
+      chatId: undefined,
+      incognito: false,
+      json: flags.json === true,
+      autoApproveSubChats: flags["auto-approve"] === true,
+      autoApproveMemories: flags["auto-approve-memories"] === true,
+      acceptTaskProposals: flags["accept-task-proposals"] === true,
+      piiDetection: flags["no-pii-detection"] !== true,
+      responseTimeoutMs: parseResponseTimeoutMs(flags),
+      ...teamContextFromFlags(flags),
+    },
+    redactor,
+  );
+  if (!("chatId" in result) || !result.chatId) {
+    throw new Error("Goal chat did not return a saved chat id.");
+  }
+
+  const masterKey = client.getMasterKeyBytes();
+  const linkContext = await resolvePlanLinkKeyContext(client, masterKey, flags, {
+    primaryChatId: result.chatId,
+    linkedProjectIds: splitCsvFlag(flags.project ?? flags.projects),
+  });
+  const planInput = await buildCreateUserPlanInput(masterKey, {
+    title: typeof flags.title === "string" && flags.title.trim() ? flags.title.trim() : goal,
+    summary: typeof flags.summary === "string" ? flags.summary : "",
+    goal,
+    status: normalizePlanStatus(typeof flags.status === "string" ? flags.status : undefined),
+    primaryChatId: linkContext.primaryChatId,
+    primaryChatKey: linkContext.primaryChatKey,
+    linkedProjectIds: linkContext.linkedProjectIds,
+    linkedProjectKeys: linkContext.linkedProjectKeys,
+  });
+  const plan = await decryptUserPlan(await client.createUserPlan(planInput), masterKey);
+  if (flags.json === true) {
+    printJson({ ...result, chat_id: result.chatId, plan: planToJson(plan) });
+    return;
+  }
+  const shortChatId = result.chatId.slice(0, 8);
+  process.stdout.write(
+    `${SEP}\n` +
+      `\x1b[2mPlan attached: ${plan.shortId} (${plan.status.replaceAll("_", " ")})\x1b[0m\n` +
+      `\x1b[2mPlan:     openmates plans show ${plan.shortId}\x1b[0m\n` +
+      `\x1b[2mContinue: openmates chats send --chat ${shortChatId} "your message"\x1b[0m\n`,
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -11121,6 +11189,7 @@ Commands:
   openmates signup                           Create an account from the terminal
   openmates logout                           Log out and clear session
   openmates whoami [--json]                  Show account info
+  openmates chat --goal <goal>               Start a saved chat with an attached draft plan
   openmates chats [--help]                   Chat commands (list, search, show, ...)
   openmates tasks [--help]                   Task commands (list, create, board, ...)
   openmates plans [--help]                   Plan commands (list, create, approve, checks, ...)
@@ -11577,6 +11646,26 @@ Notes:
   approve/activate require a primary chat because active plans use the chat as the command center.
   pause currently moves a plan back to awaiting_confirmation; resume sets it active.
   Normal output decrypts plan fields locally; use --json for machine-readable plaintext fields.`);
+}
+
+function printGoalChatHelp(): void {
+  console.log(`Goal chat command:
+  openmates chat --goal <goal> [--title <title>] [--project <id>] [--json]
+
+Starts a new saved chat and attaches a minimal encrypted draft Plan to it.
+Use this for lightweight agentic work that should keep a durable goal, checks,
+and continuation state available from the chat.
+
+Options:
+  --goal <goal>      Required durable goal for the attached Plan
+  --title <title>    Optional Plan title (defaults to the goal)
+  --summary <text>   Optional Plan summary
+  --project <id>     Also link the Plan to a Project
+  --json             Output chat and Plan details as JSON
+
+Examples:
+  openmates chat --goal "Improve the onboarding email and verify it reads clearly"
+  openmates chat --goal "Ship the docs update" --title "Docs launch" --json`);
 }
 
 function printProjectsHelp(): void {

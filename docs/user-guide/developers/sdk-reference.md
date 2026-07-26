@@ -101,7 +101,7 @@ Run `python3 scripts/generate_sdk_reference.py --check` to verify this file is c
 | `om.chats.retry()` | `om.chats.retry()` | `id, dry_run, confirmed` | `id, dry_run, confirmed` | `object` |
 | `om.chats.rewind()` | `om.chats.rewind()` | `id, to_message_id, send, dry_run, confirmed` | `id, to_message_id, send, dry_run, confirmed` | `object` |
 | `om.chats.search()` | `om.chats.search()` | `input, limit, offset` | `input, limit, offset` | `list` |
-| `om.chats.send()` | `om.chats.send()` | `message, save_to_account, focus_mode, id, title, history, memory_ids, model, recovery_poll_interval, recovery_timeout, connected_account_directory, connected_account_token_ref_inputs` | `message, history, save_to_account, focus_mode, memory_ids, model, id, title, connected_account_directory, connected_account_token_ref_inputs, recovery_poll_interval, recovery_timeout` | `object` |
+| `om.chats.send()` | `om.chats.send()` | `message, save_to_account, focus_mode, id, title, goal, goal_title, history, memory_ids, model, recovery_poll_interval, recovery_timeout, connected_account_directory, connected_account_token_ref_inputs` | `message, history, save_to_account, focus_mode, memory_ids, model, id, title, goal, goal_title, connected_account_directory, connected_account_token_ref_inputs, recovery_poll_interval, recovery_timeout` | `object` |
 | `om.chats.share()` | `om.chats.share()` | `id, expires, password` | `id, expires, password` | `object` |
 
 ## `connected_accounts`

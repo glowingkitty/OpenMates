@@ -345,6 +345,156 @@ async function withWorkspaceAskFallbackChatMock<T>(
   }
 }
 
+async function withGoalChatMock<T>(
+  run: (params: { apiUrl: string; tempHome: string; frameTypes: string[]; requestPaths: string[]; chatMessages: string[]; planRequests: Record<string, unknown>[] }) => Promise<T>,
+): Promise<T> {
+  const tempHome = join(tmpdir(), `openmates-cli-goal-chat-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+  const stateDir = join(tempHome, ".openmates");
+  const frameTypes: string[] = [];
+  const requestPaths: string[] = [];
+  const chatMessages: string[] = [];
+  const planRequests: Record<string, unknown>[] = [];
+  let latestChatId = "11111111-2222-4333-8444-555555555555";
+  let latestEncryptedChatKey = "";
+  mkdirSync(stateDir, { recursive: true });
+  const wss = new WebSocketServer({ noServer: true });
+  const server = createServer(async (request, response) => {
+    if (request.url) requestPaths.push(`${request.method ?? "GET"} ${request.url}`);
+    if (request.method === "POST" && request.url === "/v1/auth/session") {
+      writeJson(response, {
+        success: true,
+        ws_token: "fresh-ws-token",
+        user: { id: "11111111-1111-4111-8111-111111111111" },
+      });
+      return;
+    }
+    if (request.method === "GET" && request.url === "/v1/settings/export-account-data?include_usage=false&include_invoices=false") {
+      writeJson(response, { data: { app_settings_memories: [] } });
+      return;
+    }
+    if (request.method === "POST" && request.url === "/v1/user-plans") {
+      const body = await readJsonBody(request);
+      planRequests.push(body);
+      writeJson(response, { plan: body });
+      return;
+    }
+    response.writeHead(404);
+    response.end();
+  });
+  server.on("upgrade", (request, socket, head) => {
+    if (request.url) requestPaths.push(`${request.method ?? "GET"} ${request.url}`);
+    wss.handleUpgrade(request, socket, head, (ws) => {
+      let turnId = "22222222-2222-4222-8222-222222222222";
+      let chatId = "11111111-2222-4333-8444-555555555555";
+      let messageId = "33333333-3333-4333-8333-333333333333";
+      ws.on("message", (raw) => {
+        const frame = JSON.parse(raw.toString()) as { type: string; payload?: Record<string, unknown> };
+        frameTypes.push(frame.type);
+        const payload = frame.payload ?? {};
+        if (frame.type === "chat_turn_preflight") {
+          turnId = String(payload.turn_id ?? turnId);
+          chatId = String(payload.chat_id ?? chatId);
+          latestChatId = chatId;
+          latestEncryptedChatKey = String(payload.encrypted_chat_key ?? latestEncryptedChatKey);
+          messageId = String(payload.message_id ?? messageId);
+          ws.send(JSON.stringify({
+            type: "chat_turn_preflight_ack",
+            payload: { chat_id: chatId, turn_id: turnId, preflight_id: "preflight-1", committed_messages_v: 1 },
+          }));
+          return;
+        }
+        if (frame.type === "chat_message_added") {
+          const message = payload.message as Record<string, unknown> | undefined;
+          if (typeof message?.content === "string") chatMessages.push(message.content);
+          ws.send(JSON.stringify({
+            type: "chat_message_confirmed",
+            payload: { chat_id: chatId, message_id: messageId, new_messages_v: 1 },
+          }));
+          setTimeout(() => {
+            ws.send(JSON.stringify({
+              type: "ai_message_update",
+              payload: {
+                chat_id: chatId,
+                user_message_id: messageId,
+                message_id: "44444444-4444-4444-8444-444444444444",
+                full_content_so_far: "I will start with a concise plan.",
+                is_final_chunk: true,
+                category: "general",
+                model_name: "Test Model",
+                recovery_job_id: "recovery-1",
+                recovery_protocol_version: 1,
+              },
+            }));
+            ws.send(JSON.stringify({
+              type: "post_processing_metadata",
+              payload: { chat_id: chatId, follow_up_request_suggestions: [] },
+            }));
+          }, 10);
+          return;
+        }
+        if (frame.type === "recovery_job_claim") {
+          ws.send(JSON.stringify({
+            type: "recovery_job_claimed",
+            payload: {
+              job_id: "recovery-1",
+              state: "TERMINAL",
+              chat_id: chatId,
+              turn_id: turnId,
+              assistant_message_id: "44444444-4444-4444-8444-444444444444",
+              chat_key_version: 1,
+            },
+          }));
+        }
+        if (frame.type === "phased_sync_request") {
+          ws.send(JSON.stringify({
+            type: "phase_2_last_20_chats_ready",
+            payload: {
+              total_chat_count: 1,
+              chats: [{
+                chat_details: {
+                  id: latestChatId,
+                  encrypted_chat_key: latestEncryptedChatKey,
+                  messages_v: 1,
+                  title_v: 0,
+                  draft_v: 0,
+                  last_edited_overall_timestamp: 1780000000,
+                },
+              }],
+            },
+          }));
+          ws.send(JSON.stringify({ type: "phased_sync_complete", payload: {} }));
+        }
+      });
+    });
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  const apiUrl = `http://127.0.0.1:${address.port}`;
+  writeFileSync(join(stateDir, "session.json"), `${JSON.stringify({
+    apiUrl,
+    sessionId: "session-1",
+    wsToken: "ws-token",
+    cookies: { auth_refresh_token: "refresh-token" },
+    masterKeyExportedB64: Buffer.alloc(32).toString("base64"),
+    masterKeyStorage: "plaintext",
+    hashedEmail: "hashed-email",
+    userEmailSalt: "salt",
+    createdAt: Date.now(),
+    authorizerDeviceName: "test-device",
+    autoLogoutMinutes: null,
+  })}\n`);
+
+  try {
+    return await run({ apiUrl, tempHome, frameTypes, requestPaths, chatMessages, planRequests });
+  } finally {
+    wss.close();
+    server.closeAllConnections();
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+    rmSync(tempHome, { recursive: true, force: true });
+  }
+}
+
 async function runCliWithEmptyCacheSession(
   apiUrl: string,
   args: string[],
@@ -2030,6 +2180,68 @@ describe("CLI update-required cutover", () => {
     const output = JSON.parse(result.stdout) as { messages?: unknown[] };
     assert.ok(Array.isArray(output.messages));
     assert.ok(output.messages.length > 0);
+  });
+});
+
+describe("CLI goal chat", () => {
+  it("shows goal-chat help for the singular chat command", () => {
+    const output = runCli(["chat", "--help"]);
+    assert.match(output, /Goal chat command:/);
+    assert.match(output, /openmates chat --goal <goal>/);
+  });
+
+  it("rejects API-key goal chats with SDK guidance", () => {
+    const result = runCliWithoutSessionResult(["chat", "--goal", "Ship docs", "--api-key", "sk-test"]);
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /For API-key clients, use the npm or pip SDK chats\.send/);
+  });
+
+  it("starts a saved chat and attaches a draft plan", async () => {
+    await withGoalChatMock(async ({ apiUrl, tempHome, frameTypes, requestPaths, chatMessages, planRequests }) => {
+      const result = await new Promise<{ status: number | null; stdout: string; stderr: string }>((resolve) => {
+        execFile(
+          "node",
+          ["dist/cli.js", "chat", "--goal", "Ship the docs update", "--title", "Docs launch", "--json"],
+          {
+            cwd: PACKAGE_ROOT,
+            encoding: "utf-8",
+            env: { ...process.env, TERM: "dumb", HOME: tempHome, USERPROFILE: tempHome, OPENMATES_API_URL: apiUrl },
+            timeout: 20_000,
+          },
+          (error, stdout, stderr) => resolve({
+            status: error ? ("code" in error && typeof error.code === "number" ? error.code : 1) : 0,
+            stdout,
+            stderr,
+          }),
+        );
+      });
+      assert.equal(
+        result.status,
+        0,
+        `stdout=${result.stdout}\nstderr=${result.stderr}\nrequests=${JSON.stringify(requestPaths)}\nframes=${JSON.stringify(frameTypes)}\nplans=${JSON.stringify(planRequests)}`,
+      );
+      assert.notEqual(
+        result.stdout.trim(),
+        "",
+        `stdout=${result.stdout}\nstderr=${result.stderr}\nrequests=${JSON.stringify(requestPaths)}\nframes=${JSON.stringify(frameTypes)}\nplans=${JSON.stringify(planRequests)}`,
+      );
+      const parsed = JSON.parse(result.stdout) as { chat_id?: string; plan?: { title?: string; goal?: string; status?: string; primary_chat_id?: string } };
+      assert.match(parsed.chat_id ?? "", /^[0-9a-f-]{36}$/i);
+      assert.equal(parsed.plan?.title, "Docs launch");
+      assert.equal(parsed.plan?.goal, "Ship the docs update");
+      assert.equal(parsed.plan?.status, "draft");
+      assert.equal(parsed.plan?.primary_chat_id, parsed.chat_id);
+      assert.deepEqual(chatMessages, ["Ship the docs update"]);
+      assert.equal(frameTypes.includes("chat_turn_preflight"), true);
+      assert.equal(frameTypes.includes("chat_message_added"), true);
+      assert.equal(planRequests.length, 1);
+      assert.equal(planRequests[0].primary_chat_id, parsed.chat_id);
+      assert.equal(planRequests[0].status, "draft");
+      assert.equal(typeof planRequests[0].encrypted_goal, "string");
+      assert.equal(JSON.stringify(planRequests[0]).includes("Ship the docs update"), false);
+      const wrappers = planRequests[0].key_wrappers as Array<Record<string, unknown>>;
+      assert.equal(wrappers.some((wrapper) => wrapper.key_type === "chat"), true);
+    });
   });
 });
 
