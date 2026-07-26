@@ -22,6 +22,7 @@ final class ChatManagementSharingParityTests: XCTestCase {
             typesAndTitles,
             [
                 "org.openmates.ask|\(AppStrings.quickActionAsk)",
+                "org.openmates.record-request|\(AppStrings.quickActionRecordRequest)",
                 "org.openmates.ask-about-photo|\(AppStrings.quickActionAskAboutPhoto)",
                 "org.openmates.search|\(AppStrings.search)",
                 "org.openmates.incognito-ask|\(AppStrings.quickActionIncognitoAsk)"
@@ -30,9 +31,10 @@ final class ChatManagementSharingParityTests: XCTestCase {
 
         XCTAssertEqual(AppQuickAction(shortcutItem: UIApplicationShortcutItem(type: "org.openmates.newchat", localizedTitle: "New Chat")), .ask)
         XCTAssertEqual(AppQuickAction(shortcutItem: items[0]), .ask)
-        XCTAssertEqual(AppQuickAction(shortcutItem: items[1]), .askAboutPhoto)
-        XCTAssertEqual(AppQuickAction(shortcutItem: items[2]), .search)
-        XCTAssertEqual(AppQuickAction(shortcutItem: items[3]), .incognitoAsk)
+        XCTAssertEqual(AppQuickAction(shortcutItem: items[1]), .recordRequest)
+        XCTAssertEqual(AppQuickAction(shortcutItem: items[2]), .askAboutPhoto)
+        XCTAssertEqual(AppQuickAction(shortcutItem: items[3]), .search)
+        XCTAssertEqual(AppQuickAction(shortcutItem: items[4]), .incognitoAsk)
         #endif
     }
 
@@ -52,6 +54,7 @@ final class ChatManagementSharingParityTests: XCTestCase {
             typesAndTitles,
             [
                 "org.openmates.ask|Ask",
+                "org.openmates.record-request|Record request",
                 "org.openmates.ask-about-photo|Ask About Photo",
                 "org.openmates.search|Search",
                 "org.openmates.incognito-ask|Incognito Ask"
@@ -107,6 +110,7 @@ final class ChatManagementSharingParityTests: XCTestCase {
             await manager.setLanguage(language)
             let titles = [
                 AppStrings.quickActionAsk,
+                AppStrings.quickActionRecordRequest,
                 AppStrings.quickActionAskAboutPhoto,
                 AppStrings.quickActionIncognitoAsk
             ]

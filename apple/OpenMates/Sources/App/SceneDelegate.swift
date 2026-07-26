@@ -23,6 +23,8 @@ extension AppQuickAction {
         switch shortcutItem.type {
         case AppQuickAction.askType, AppQuickAction.legacyNewChatType:
             self = .ask
+        case AppQuickAction.recordRequestType:
+            self = .recordRequest
         case AppQuickAction.askAboutPhotoType:
             self = .askAboutPhoto
         case AppQuickAction.searchType:

@@ -42,6 +42,14 @@
 		</dict>
 		<dict>
 			<key>UIApplicationShortcutItemIconSymbolName</key>
+			<string>mic</string>
+			<key>UIApplicationShortcutItemTitle</key>
+			<string>Record request</string>
+			<key>UIApplicationShortcutItemType</key>
+			<string>org.openmates.record-request</string>
+		</dict>
+		<dict>
+			<key>UIApplicationShortcutItemIconSymbolName</key>
 			<string>camera</string>
 			<key>UIApplicationShortcutItemTitle</key>
 			<string>Ask About Photo</string>

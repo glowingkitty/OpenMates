@@ -44,6 +44,7 @@ struct AppWindowLaunchCommand: Codable, Hashable {
 
 enum AppQuickAction: String {
     case ask
+    case recordRequest
     case askAboutPhoto
     case search
     case incognitoAsk
@@ -53,6 +54,7 @@ enum AppQuickAction: String {
 extension AppQuickAction {
     static let askType = "org.openmates.ask"
     static let legacyNewChatType = "org.openmates.newchat"
+    static let recordRequestType = "org.openmates.record-request"
     static let askAboutPhotoType = "org.openmates.ask-about-photo"
     static let searchType = "org.openmates.search"
     static let incognitoAskType = "org.openmates.incognito-ask"
@@ -61,6 +63,8 @@ extension AppQuickAction {
         switch self {
         case .ask:
             return Self.askType
+        case .recordRequest:
+            return Self.recordRequestType
         case .askAboutPhoto:
             return Self.askAboutPhotoType
         case .search:
@@ -78,6 +82,13 @@ extension AppQuickAction {
                 localizedTitle: AppStrings.quickActionAsk,
                 localizedSubtitle: nil,
                 icon: UIApplicationShortcutIcon(systemImageName: "square.and.pencil"),
+                userInfo: nil
+            ),
+            UIApplicationShortcutItem(
+                type: AppQuickAction.recordRequest.shortcutType,
+                localizedTitle: AppStrings.quickActionRecordRequest,
+                localizedSubtitle: nil,
+                icon: UIApplicationShortcutIcon(systemImageName: "mic"),
                 userInfo: nil
             ),
             UIApplicationShortcutItem(

@@ -1,0 +1,75 @@
+separator:
+  context: Separator between collapsed draft preview parts in the message composer
+  en: ", "
+  de: ", "
+  verified_by_human: []
+embed_one:
+  context: Collapsed composer draft summary for a single embed, with {count} and {type}
+  en: "{count} {type} embed"
+  de: "{count} {type}-Einbettung"
+  verified_by_human: []
+embed_many:
+  context: Collapsed composer draft summary for multiple embeds, with {count} and {type}
+  en: "{count} {type} embeds"
+  de: "{count} {type}-Einbettungen"
+  verified_by_human: []
+type.audio:
+  context: Embed type label in the collapsed composer draft summary
+  en: audio
+  de: Audio
+  verified_by_human: []
+type.image:
+  context: Embed type label in the collapsed composer draft summary
+  en: image
+  de: Bild
+  verified_by_human: []
+type.pdf:
+  context: Embed type label in the collapsed composer draft summary
+  en: PDF
+  de: PDF
+  verified_by_human: []
+type.website:
+  context: Embed type label in the collapsed composer draft summary
+  en: website
+  de: Website
+  verified_by_human: []
+type.video:
+  context: Embed type label in the collapsed composer draft summary
+  en: video
+  de: Video
+  verified_by_human: []
+type.map:
+  context: Embed type label in the collapsed composer draft summary
+  en: map
+  de: Karte
+  verified_by_human: []
+type.code:
+  context: Embed type label in the collapsed composer draft summary
+  en: code
+  de: Code
+  verified_by_human: []
+type.document:
+  context: Embed type label in the collapsed composer draft summary
+  en: document
+  de: Dokument
+  verified_by_human: []
+type.sheet:
+  context: Embed type label in the collapsed composer draft summary
+  en: sheet
+  de: Tabelle
+  verified_by_human: []
+type.file:
+  context: Embed type label in the collapsed composer draft summary
+  en: file
+  de: Datei
+  verified_by_human: []
+type.app:
+  context: Embed type label in the collapsed composer draft summary
+  en: app
+  de: App
+  verified_by_human: []
+type.embed:
+  context: Generic embed type label in the collapsed composer draft summary
+  en: embed
+  de: Einbettung
+  verified_by_human: []

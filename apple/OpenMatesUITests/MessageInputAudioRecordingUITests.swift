@@ -41,6 +41,27 @@ final class MessageInputAudioRecordingUITests: XCTestCase {
         XCTAssertTrue(app.buttons["send-button"].waitForExistence(timeout: 5))
     }
 
+    func testRecordRequestLaunchStartsWelcomeRecordingOverlay() throws {
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "--ui-test-disable-auth-cache",
+            "--ui-test-start-recording",
+            "--ui-test-welcome-mic-granted",
+            "--ui-test-welcome-simulated-recording"
+        ]
+        app.launch()
+
+        let skipInterests = app.buttons["guest-interest-skip"]
+        if skipInterests.waitForExistence(timeout: 3) {
+            skipInterests.tap()
+        }
+
+        XCTAssertTrue(element(in: app, identifier: "record-overlay").waitForExistence(timeout: 8))
+        assertReleaseText(in: app, contains: "Press Enter to finish", excludes: "Release to finish")
+        XCTAssertTrue(element(in: app, identifier: "record-finish-button").waitForExistence(timeout: 2))
+        XCTAssertTrue(element(in: app, identifier: "message-field").exists)
+    }
+
     func testSignedOutWelcomeRecordingCancelDoesNotInsertPreview() throws {
         let app = launchFocusedWelcomeComposer(extraArguments: [
             "--ui-test-welcome-mic-granted",
@@ -50,9 +71,9 @@ final class MessageInputAudioRecordingUITests: XCTestCase {
 
         XCTAssertTrue(element(in: app, identifier: "record-overlay").waitForExistence(timeout: 5))
         assertReleaseText(in: app, contains: "Press Enter to finish", excludes: "Release to finish")
-        assertCancelHint(in: app, contains: "Press ESC to cancel", excludes: "Slide left to cancel")
+        XCTAssertTrue(element(in: app, identifier: "record-cancel-button").waitForExistence(timeout: 2))
 
-        element(in: app, identifier: "cancel-hint").tap()
+        element(in: app, identifier: "record-cancel-button").tap()
 
         XCTAssertTrue(waitForAbsence(element(in: app, identifier: "record-overlay")))
         XCTAssertFalse(element(in: app, identifier: "native-composer-preview-recording-finished").exists)
@@ -92,9 +113,8 @@ final class MessageInputAudioRecordingUITests: XCTestCase {
         XCTAssertTrue(releaseText.waitForExistence(timeout: 2))
         XCTAssertTrue(releaseText.label.localizedCaseInsensitiveContains("Release to finish"), "Expected pointer overlay release text; label=\(releaseText.label)")
         XCTAssertTrue(element(in: app, identifier: "timer-pill").waitForExistence(timeout: 2))
-        XCTAssertTrue(element(in: app, identifier: "cancel-hint").waitForExistence(timeout: 2))
-        assertCancelHint(in: app, contains: "Slide left to cancel", excludes: "Press ESC to cancel")
-        XCTAssertTrue(element(in: app, identifier: "mic-button").waitForExistence(timeout: 2))
+        XCTAssertTrue(element(in: app, identifier: "record-cancel-button").waitForExistence(timeout: 2))
+        XCTAssertTrue(element(in: app, identifier: "record-finish-button").waitForExistence(timeout: 2))
 
         let controls = element(in: app, identifier: "record-controls")
         XCTAssertTrue(controls.waitForExistence(timeout: 2))
@@ -121,8 +141,8 @@ final class MessageInputAudioRecordingUITests: XCTestCase {
 
         XCTAssertTrue(app.staticTexts["Native Chat Opening Preview"].waitForExistence(timeout: 12))
         assertReleaseText(in: app, contains: "Press Enter to finish", excludes: "Release to finish")
-        XCTAssertTrue(element(in: app, identifier: "cancel-hint").waitForExistence(timeout: 2))
-        assertCancelHint(in: app, contains: "Press ESC to cancel", excludes: "Slide left to cancel")
+        XCTAssertTrue(element(in: app, identifier: "record-cancel-button").waitForExistence(timeout: 2))
+        XCTAssertTrue(element(in: app, identifier: "record-finish-button").waitForExistence(timeout: 2))
     }
 
     private func element(in app: XCUIApplication, identifier: String) -> XCUIElement {
@@ -135,14 +155,6 @@ final class MessageInputAudioRecordingUITests: XCTestCase {
         app.staticTexts
             .matching(NSPredicate(format: "label CONTAINS[c] %@", text))
             .firstMatch
-    }
-
-    private func assertCancelHint(in app: XCUIApplication, contains expected: String, excludes unexpected: String) {
-        let hint = element(in: app, identifier: "cancel-hint")
-        XCTAssertTrue(hint.waitForExistence(timeout: 2))
-        let label = hint.label
-        XCTAssertTrue(label.localizedCaseInsensitiveContains(expected), "Expected cancel hint label to contain \(expected); label=\(label)")
-        XCTAssertFalse(label.localizedCaseInsensitiveContains(unexpected), "Expected cancel hint label to exclude \(unexpected); label=\(label)")
     }
 
     private func assertReleaseText(in app: XCUIApplication, contains expected: String, excludes unexpected: String) {

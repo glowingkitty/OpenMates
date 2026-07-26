@@ -26,6 +26,7 @@ enum AppStrings {
     static var skip: String { L("common.skip") }
     static var search: String { L("activity.search") }
     static var quickActionAsk: String { L("activity.quick_action_ask") }
+    static var quickActionRecordRequest: String { L("activity.quick_action_record_request") }
     static var quickActionAskAboutPhoto: String { L("activity.quick_action_ask_about_photo") }
     static var quickActionIncognitoAsk: String { L("activity.quick_action_incognito_ask") }
     static var retry: String { L("common.retry") }
@@ -745,6 +746,8 @@ enum AppStrings {
     static var pressEnterToFinishRecording: String { L("enter_message.record_audio.press_enter_to_finish") }
     static var slideLeftToCancelRecording: String { L("enter_message.record_audio.slide_left_to_cancel") }
     static var pressEscToCancelRecording: String { L("enter_message.record_audio.press_esc_to_cancel") }
+    static var finishRecording: String { L("enter_message.record_audio.finish") }
+    static var cancelRecording: String { L("enter_message.record_audio.cancel") }
     static var microphoneBlocked: String { L("enter_message.record_audio.microphone_blocked") }
     static var allowMicrophoneAccess: String { L("enter_message.record_audio.allow_microphone_access") }
     static var getLocation: String { L("enter_message.location.get_location") }

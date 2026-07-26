@@ -121,6 +121,7 @@ struct MainAppView: View {
     @State private var queuedNotificationReplies: [NotificationReplyRequest] = []
     @State private var pendingExternalEmbedOpen: PendingExternalEmbedOpen?
     @State private var newChatFocusRequest = 0
+    @State private var newChatRecordRequest = 0
     @State private var chatInputFocusRequest = 0
     @State private var chatCameraCaptureRequest = 0
 
@@ -775,6 +776,12 @@ struct MainAppView: View {
         newChatFocusRequest += 1
     }
 
+    private func openNewChatRecordingScreen() {
+        openNewChatScreen()
+        incognitoManager.isEnabled = false
+        newChatRecordRequest += 1
+    }
+
     private func openNewChatWithCameraCapture() {
         guard isAuthenticated else {
             openFocusedNewChatScreen()
@@ -893,6 +900,8 @@ struct MainAppView: View {
         switch action {
         case .ask:
             openFocusedNewChatScreen()
+        case .recordRequest:
+            openNewChatRecordingScreen()
         case .askAboutPhoto:
             openNewChatWithCameraCapture()
         case .search:
@@ -929,11 +938,15 @@ struct MainAppView: View {
 
         #if DEBUG
         let shouldStartNewChatForUITest = ProcessInfo.processInfo.arguments.contains("--ui-test-start-new-chat")
+        let shouldStartRecordingForUITest = ProcessInfo.processInfo.arguments.contains("--ui-test-start-recording")
         #else
         let shouldStartNewChatForUITest = false
+        let shouldStartRecordingForUITest = false
         #endif
 
-        if launchCommand?.action == .newChat || shouldStartNewChatForUITest {
+        if shouldStartRecordingForUITest {
+            openNewChatRecordingScreen()
+        } else if launchCommand?.action == .newChat || shouldStartNewChatForUITest {
             openNewChatScreen()
         }
 
@@ -1439,6 +1452,7 @@ struct MainAppView: View {
                 serverSuggestions: syncedNewChatSuggestions,
                 accountInterestTagIds: accountInterestTagIds,
                 focusRequest: newChatFocusRequest,
+                recordRequest: newChatRecordRequest,
                 isSettingsOpen: !isCompactShell && showSettings,
                 onCreateChatWithMessage: { message, piiMappings, composerEmbeds in
                     let now = ChatSendPipeline.isoString(from: Date())
@@ -4658,6 +4672,7 @@ struct NewChatWelcomeView: View {
     let serverSuggestions: [NewChatSuggestionsView.ChatSuggestion]
     let accountInterestTagIds: [InterestTagId]
     let focusRequest: Int
+    let recordRequest: Int
     let isSettingsOpen: Bool
     let onCreateChatWithMessage: (String, [PIIMapping], [ComposerPendingEmbed]) async throws -> String
     let onChatCreated: (String) -> Void
@@ -4678,6 +4693,7 @@ struct NewChatWelcomeView: View {
     @State private var appliedGuestInterestTagIds: [InterestTagId] = []
     @State private var isGuestInterestSelectionActive = true
     @State private var handledFocusRequest = 0
+    @State private var handledRecordRequest = 0
     @State private var detectedPIIMatches: [PIIMatch] = []
     @State private var piiExclusions = Set<String>()
     @State private var anonymousAttachmentPending = false
@@ -4926,9 +4942,13 @@ struct NewChatWelcomeView: View {
             isGuestInterestSelectionActive = !isAuthenticated && appliedGuestInterestTagIds.isEmpty
             applyWelcomeComposerUITestFlagsIfNeeded()
             applyFocusRequestIfNeeded()
+            applyRecordRequestIfNeeded()
         }
         .onChange(of: focusRequest) { _, _ in
             applyFocusRequestIfNeeded()
+        }
+        .onChange(of: recordRequest) { _, _ in
+            applyRecordRequestIfNeeded()
         }
         .onChange(of: serverSuggestions.map(\.id)) { _, _ in
             if !serverSuggestions.isEmpty {
@@ -5211,7 +5231,11 @@ struct NewChatWelcomeView: View {
                 micPermissionState = granted ? .granted : .denied
                 recordAttemptActive = false
                 recordStartedFromKeyboard = false
-                showRecordHint(duration: granted ? 2500 : 0)
+                if granted && startedFromKeyboard {
+                    beginRecordAttempt(startedFromKeyboard: true)
+                } else {
+                    showRecordHint(duration: granted ? 2500 : 0)
+                }
             }
             return
         }
@@ -5698,6 +5722,18 @@ struct NewChatWelcomeView: View {
         Task { @MainActor in
             await Task.yield()
             isFocused = true
+        }
+    }
+
+    private func applyRecordRequestIfNeeded() {
+        guard recordRequest > 0, handledRecordRequest != recordRequest else { return }
+        handledRecordRequest = recordRequest
+        isGuestInterestSelectionActive = false
+        isComposerActivated = true
+        isComposerExpanded = true
+        Task { @MainActor in
+            await Task.yield()
+            beginRecordAttempt(startedFromKeyboard: true)
         }
     }
 

@@ -212,48 +212,39 @@ struct ComposerRecordingOverlay: View {
                     .clipShape(RoundedRectangle(cornerRadius: .radius8))
                     .accessibilityIdentifier("timer-pill")
 
-                Button(action: onCancel) {
-                    Group {
-                        if startedFromKeyboard {
-                            Text(AppStrings.pressEscToCancelRecording)
-                                .font(.omXs)
-                                .foregroundStyle(Color.white.opacity(0.7))
-                        } else {
-                            HStack(spacing: .spacing2) {
-                                Text("‹")
-                                    .font(.omH3)
-                                    .foregroundStyle(Color.white.opacity(0.5))
-                                Text(AppStrings.slideLeftToCancelRecording)
-                                    .font(.omXs)
-                                    .foregroundStyle(Color.white.opacity(0.7))
-                            }
-                        }
+                HStack(spacing: .spacing3) {
+                    Button(action: onCancel) {
+                        Text(AppStrings.cancelRecording)
+                            .font(.omSmall.weight(.bold))
+                            .foregroundStyle(Color.white)
+                            .padding(.horizontal, .spacing8)
+                            .padding(.vertical, .spacing4)
+                            .background(Color.white.opacity(0.18))
+                            .clipShape(RoundedRectangle(cornerRadius: .radius8))
                     }
-                    .frame(maxWidth: .infinity)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .opacity(max(0.3, 1 + Double(dragOffsetX / 80)))
-                .accessibilityLabel(startedFromKeyboard ? AppStrings.pressEscToCancelRecording : AppStrings.slideLeftToCancelRecording)
-                .accessibilityIdentifier("cancel-hint")
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(AppStrings.cancelRecording)
+                    .accessibilityIdentifier("record-cancel-button")
 
-                Button {
-                    if let url = recorder.stopRecording() {
-                        onStop(url)
+                    Button {
+                        if let url = recorder.stopRecording() {
+                            onStop(url)
+                        }
+                    } label: {
+                        Text(AppStrings.finishRecording)
+                            .font(.omSmall.weight(.bold))
+                            .foregroundStyle(Color.white)
+                            .padding(.horizontal, .spacing8)
+                            .padding(.vertical, .spacing4)
+                            .background(Color.buttonPrimary)
+                            .clipShape(RoundedRectangle(cornerRadius: .radius8))
                     }
-                } label: {
-                    Icon("recordaudio", size: 22)
-                        .foregroundStyle(Color.white)
-                        .frame(width: 44, height: 44)
-                        .background(Color.buttonPrimary)
-                        .clipShape(Circle())
-                        .shadow(color: .black.opacity(0.25), radius: 8, x: 0, y: 2)
-                        .offset(x: max(-120, dragOffsetX))
+                    .buttonStyle(.plain)
+                    .help(Text(startedFromKeyboard ? AppStrings.pressEnterToFinishRecording : AppStrings.releaseToFinishRecording))
+                    .accessibilityLabel(AppStrings.finishRecording)
+                    .accessibilityIdentifier("record-finish-button")
                 }
-                .buttonStyle(.plain)
-                .help(Text(startedFromKeyboard ? AppStrings.pressEnterToFinishRecording : AppStrings.releaseToFinishRecording))
-                .accessibilityLabel(startedFromKeyboard ? AppStrings.pressEnterToFinishRecording : AppStrings.releaseToFinishRecording)
-                .accessibilityIdentifier("mic-button")
+                .frame(maxWidth: .infinity, alignment: .trailing)
             }
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("record-controls")
