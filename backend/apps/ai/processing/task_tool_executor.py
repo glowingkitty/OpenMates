@@ -146,16 +146,20 @@ async def execute_task_tool_call(
     now = int(time.time())
     skill_id = task_tool_skill_id(tool_name)
     if skill_id == "create":
+        title = str(args.get("title") or "").strip()
+        title_key = _normalize_task_title(title)
+        if title_key and title_key in context.client_persisted_create_titles:
+            return _already_applied_result("create", {"task_id": context.client_persisted_create_titles[title_key], "version": 1})
         task_id = str(uuid.uuid4())
         position = _safe_int(args.get("position"), default=now + context.created_task_sequence)
         context.created_task_sequence += 1
-        return await _stage_client_persisted_task_change(
+        result = await _stage_client_persisted_task_change(
             operation="create",
             event_type="created",
             task_id=task_id,
             args=args,
             private_patch={
-                "title": str(args.get("title") or "").strip(),
+                "title": title,
                 "description": str(args.get("description") or ""),
             },
             safe_metadata={
@@ -174,6 +178,21 @@ async def execute_task_tool_call(
             message_id=message_id,
             now=now,
         )
+        if title_key:
+            context.client_persisted_create_titles[title_key] = task_id
+        context.attached_tasks.append({
+            "task_id": task_id,
+            "primary_chat_id": context.chat_id,
+            "title": title,
+            "description": str(args.get("description") or ""),
+            "status": _safe_status(args.get("status"), default="todo"),
+            "assignee_type": _safe_assignee_type(args.get("assignee_type")),
+            "position": position,
+            "created_at": now,
+            "updated_at": now,
+            "version": 1,
+        })
+        return result
 
     if skill_id == "update":
         task = _attached_task(context, str(args.get("task_id") or ""))
@@ -581,6 +600,10 @@ def _parse_version(value: Any) -> int:
 
 def _normalize_task_lookup_id(value: Any) -> str:
     return str(value or "").strip().lstrip("@").strip("`'\".,:;()[]{}<>")
+
+
+def _normalize_task_title(value: Any) -> str:
+    return " ".join(str(value or "").strip().casefold().split())
 
 
 def _has_pending_client_persistence(context: TaskToolContext, task_id: str) -> bool:

@@ -362,7 +362,19 @@ async def test_repeated_task_create_calls_get_monotonic_positions_in_same_turn()
         )
         assert result["status"] == "pending_client_persistence"
 
+    duplicate_result = await execute_task_tool_call(
+        tool_name=TASK_TOOL_CREATE,
+        args={"title": " first ", "assignee_type": "ai", "status": "todo"},
+        context=context,
+        cache_service=FakeCache(),
+        directus_service=AsyncMock(),
+        encryption_service=FakeEncryption(),
+        user_vault_key_id="vault-key-1",
+        message_id="message-1",
+    )
+
     assert len(stored_jobs) == 3
+    assert duplicate_result["status"] == "already_applied"
     staged_positions = [copy["safe_metadata"]["position"] for copy in stored_working_copies]
     assert staged_positions == sorted(staged_positions)
     assert len(set(staged_positions)) == 3
