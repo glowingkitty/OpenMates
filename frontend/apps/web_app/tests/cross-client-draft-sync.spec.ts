@@ -398,6 +398,13 @@ function messageEditorHost(page: any, chatId: string): any {
 		.first();
 }
 
+function messageInputSendButton(page: any, chatId: string): any {
+	return page
+		.locator(`[data-action="message-input"][data-current-chat-id="${chatId}"]`)
+		.locator('[data-action="send-message"]')
+		.first();
+}
+
 async function loadLocalChatWithE2EHook(page: any, chatId: string): Promise<{
 	loaded: boolean;
 	reason?: string;
@@ -1015,7 +1022,7 @@ test.describe('Cross-client encrypted draft sync', () => {
 			await openDraft(page, apiUrl, sentChatId, sentText, true);
 			await replaceMessageEditorText(page, sentChatId, sentText);
 			await messageEditorEditable(page, sentChatId).click();
-			const sendButton = page.locator('[data-action="send-message"]');
+			const sendButton = messageInputSendButton(page, sentChatId);
 			await expect(sendButton).toBeVisible({ timeout: 15_000 });
 			await sendButton.click();
 			await expect(page.getByTestId('message-user').last()).toContainText(sentText, { timeout: 30_000 });
