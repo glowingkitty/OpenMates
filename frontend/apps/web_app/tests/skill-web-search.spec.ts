@@ -152,10 +152,9 @@ test.describe('App: Web / Skill: search', () => {
 		const assistantMessage = page.getByTestId('message-assistant').last();
 		await expect(assistantMessage).toBeVisible({ timeout: 30_000 });
 
-		// Zero-result embed must render a clear "No results found for '<query>'"
-		// message (not a generic empty state). This is the UX follow-up to the
-		// OPE-405 backend fix. The testid is added by WebSearchEmbedPreview and
-		// SearchResultsTemplate components.
+		// Zero-result embed must render a clear generic "No results found" message.
+		// The query is already shown above this line in the card, so repeating it
+		// creates redundant wrapping pressure in narrow assistant messages.
 		const noResultsPreviewMessage = anyEmbed.getByTestId('search-no-results-message');
 		await expect(
 			noResultsPreviewMessage,
@@ -166,12 +165,14 @@ test.describe('App: Web / Skill: search', () => {
 			previewText.toLowerCase(),
 			`No-results preview text must mention "no results" (got: "${previewText}")`
 		).toContain('no results');
-		// If the query was wired through, the message should contain part of it.
 		expect(
 			previewText,
-			`No-results preview should include the query string "xyznonexistentproduct123456" ` +
-			`to prove the query placeholder substitution works (got: "${previewText}")`
-		).toContain('xyznonexistentproduct123456');
+			`No-results preview must not repeat the query string (got: "${previewText}")`
+		).not.toContain('xyznonexistentproduct123456');
+		expect(
+			previewText,
+			`No-results preview should be generic (got: "${previewText}")`
+		).toMatch(/^\s*No results found\s*$/i);
 		logCheckpoint(`Preview no-results message: "${previewText}"`);
 
 		// Open the fullscreen and verify the same message renders there too.
@@ -183,7 +184,8 @@ test.describe('App: Web / Skill: search', () => {
 			'Fullscreen must also render the no-results message when the search returned 0 hits.'
 		).toBeVisible({ timeout: 10_000 });
 		const fullscreenText = (await fullscreenNoResults.textContent()) || '';
-		expect(fullscreenText).toContain('xyznonexistentproduct123456');
+		expect(fullscreenText).not.toContain('xyznonexistentproduct123456');
+		expect(fullscreenText).toMatch(/^\s*No results found\s*$/i);
 		await takeStepScreenshot(page, 'zero-results-fullscreen');
 		await closeFullscreen(page, fullscreenOverlay);
 		logCheckpoint('Fullscreen closed.');

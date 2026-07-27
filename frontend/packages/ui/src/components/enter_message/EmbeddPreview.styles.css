@@ -462,8 +462,17 @@
   display: block;
   margin: 10px 0;
   width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
   background-color: transparent;
   cursor: default;
+}
+
+:global(.ProseMirror .app-skill-use-preview-group) {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 /* Group Header */
@@ -507,6 +516,9 @@
   display: flex;
   gap: 8px;
   align-items: flex-start;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
   overflow-x: auto;
   overflow-y: hidden;
   padding: 4px 0;
@@ -563,6 +575,9 @@
   gap: 7px;
   margin: 8px auto 0;
   padding: 0 12px;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
   min-height: 10px;
   pointer-events: auto;
 }

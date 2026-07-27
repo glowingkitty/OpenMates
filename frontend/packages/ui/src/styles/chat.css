@@ -18,6 +18,7 @@
   margin-top: var(--mate-profile-margin);
   margin-bottom: 5px;
   box-sizing: border-box;
+  min-width: 0;
 }
 
 .mate-message-content {
@@ -110,6 +111,7 @@
   margin-inline-start: auto;
   padding-inline-start: 12px;
   box-sizing: border-box;
+  min-width: 0;
   /* Cap width so the user bubble near-side edge sits ~20px from the assistant bubble content edge.
      Assistant content starts ~80px from start (60px avatar + margins/gap). */
   max-width: calc(100% - 100px);
@@ -127,6 +129,7 @@
   margin-inline-end: auto;
   padding-inline-end: 12px;
   box-sizing: border-box;
+  min-width: 0;
   max-width: calc(100% - 70px);
 }
 

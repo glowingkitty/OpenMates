@@ -419,9 +419,7 @@
           {#if resultState === 'known_zero_results'}
             <!-- Search completed and the parent explicitly says there were zero results. -->
             <span class="no-results-text" data-testid="search-no-results-message">
-              {query
-                ? $text('embeds.search_no_results_for_query').replace('{query}', query)
-                : $text('embeds.search_no_results')}
+              {$text('embeds.search_no_results')}
             </span>
           {:else if resultState === 'missing_preview_metadata'}
             <span class="no-results-text" data-testid="search-preview-metadata-missing-message">

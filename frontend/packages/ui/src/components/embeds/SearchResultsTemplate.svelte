@@ -101,11 +101,7 @@
     emptyTestId?: string;
     /** Current status for error state display */
     status?: 'processing' | 'finished' | 'error' | 'cancelled';
-    /**
-     * Original search query string. When provided, the empty-results state
-     * shows "No results found for '<query>'" instead of a generic message.
-     * Introduced for OPE-405 (zero-result web search UX).
-     */
+    /** Original search query string. Kept for callers that also display it elsewhere. */
     query?: string;
 
     // ── Consumer snippets ──
@@ -154,7 +150,6 @@
     errorMessage: errorMessageProp,
     emptyTestId = 'search-template-empty',
     status = 'finished',
-    query,
 
     // Snippets
     resultCard,
@@ -386,11 +381,7 @@
       {:else}
         <div class="search-template-empty" data-testid={emptyTestId}>
           <p data-testid="search-no-results-message">
-            {#if query}
-              {$text('embeds.search_no_results_for_query').replace('{query}', query)}
-            {:else}
-              {$text('embeds.search_no_results')}
-            {/if}
+            {$text('embeds.search_no_results')}
           </p>
         </div>
       {/if}
@@ -451,7 +442,7 @@
   .search-template-initial-child-shield {
     position: absolute;
     inset: 0;
-    z-index: 101;
+    z-index: var(--z-index-dropdown);
     background: var(--color-grey-20);
     border-radius: 17px;
   }
@@ -492,7 +483,7 @@
   .skeleton-body {
     width: 100%;
     height: 180px;
-    background: var(--color-grey-15, #ebebeb);
+    background: var(--color-grey-20, #ebebeb);
     animation: search-skeleton-pulse 1.5s ease-in-out infinite;
   }
 
