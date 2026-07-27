@@ -21,7 +21,7 @@
 	import { phasedSyncState } from '../../stores/phasedSyncStateStore'; // For tracking sync state across component lifecycle
 	import { activeChatStore } from '../../stores/activeChatStore'; // For persisting active chat across component lifecycle
 	import { userProfile } from '../../stores/userProfile'; // For hidden_demo_chats
-	import { INTRO_CHATS, LEGAL_CHATS, translateDemoChat, isLegalChat, getDemoMessages, isPublicChat, isExampleChat, getRecentExampleChats, getExampleSubChats, getActiveNewsletterChatsByKind } from '../../demo_chats'; // For demo/intro chats
+	import { INTRO_CHATS, LEGAL_CHATS, translateDemoChat, isLegalChat, getDemoMessages, isPublicChat, isExampleChat, getRecentExampleChats, getAllExampleChats, getExampleSubChats, getActiveNewsletterChatsByKind } from '../../demo_chats'; // For demo/intro chats
 	import { convertDemoChatToChat } from '../../demo_chats/convertToChat'; // For converting demo chats to Chat type
 	import { getAllDraftChatIdsWithDrafts, clearAllSessionStorageDrafts } from '../../services/drafts/sessionStorageDraftService'; // Import sessionStorage draft service
 	import { notificationStore } from '../../stores/notificationStore'; // For notifications
@@ -321,6 +321,29 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 
 	function getHiddenPublicChatIds(): string[] {
 		return $authStore.isAuthenticated ? ($userProfile.hidden_demo_chats || []) : [];
+	}
+
+	function uniqueChatsById(chats: ChatType[]): ChatType[] {
+		const seenIds = new Set<string>();
+		const uniqueChats: ChatType[] = [];
+		for (const chat of chats) {
+			if (seenIds.has(chat.chat_id)) continue;
+			seenIds.add(chat.chat_id);
+			uniqueChats.push(chat);
+		}
+		return uniqueChats;
+	}
+
+	function getSearchableChats(): ChatType[] {
+		const hiddenIds = getHiddenPublicChatIds();
+		const allExampleChats = getAllExampleChats()
+			.filter(chat => !hiddenIds.includes(chat.chat_id))
+			.map(chat => ({
+				...chat,
+				group_key: 'examples'
+			}));
+
+		return uniqueChatsById([...allChats, ...allExampleChats]);
 	}
 
 	// Get filtered public chats (intro + example chats + legal) - exclude hidden ones for authenticated users
@@ -2504,10 +2527,13 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 		try {
 		// Include hidden chats in search if they are currently unlocked
 		const unlocked = hiddenChatState.isUnlocked ? hiddenChats : [];
-		// Pass auth context so settings search filters out entries the user cannot access
+		// Pass auth context so settings search filters out entries the user cannot access.
+		// The sidebar intentionally shows only the newest examples, but global search
+		// must cover the complete public example catalog.
+		const searchableChats = getSearchableChats();
 		const results = await performSearch(
 			query,
-			allChats,
+			searchableChats,
 			$text,
 			unlocked,
 			$authStore.isAuthenticated,

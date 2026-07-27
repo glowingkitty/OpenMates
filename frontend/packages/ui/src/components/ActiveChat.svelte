@@ -212,6 +212,8 @@
             'example-svelte-runes-docs',
         ],
     };
+    const GuestAllExamplesBackIcon = getLucideIcon('grid-2x2');
+    const GuestAllExamplesSearchIcon = getLucideIcon('search');
     const CANCELLED_NEW_CHAT_DRAFT_RESTORE_ATTEMPTS = 5;
     const CANCELLED_NEW_CHAT_DRAFT_RESTORE_DELAY_MS = 50;
     const DRAFT_RESTORE_REF_RETRY_ATTEMPTS = 80;
@@ -3405,6 +3407,24 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     type PriorityContinueItem = PriorityChatContinueItem | SavedEmbedContinueCandidate;
 
+    function buildExampleChatMeta(chat: Chat): RecentChatMeta {
+        return {
+            chat,
+            title: chat.title ?? null,
+            category: chat.category ?? null,
+            icon: chat.icon?.split(',')[0]?.trim() ?? null,
+            summary: chat.chat_summary ?? null,
+            imageBubbles: null,
+            draftPreview: null,
+        };
+    }
+
+    let guestAllExampleMetas = $derived.by(() => {
+        void $text;
+        void $locale;
+        return getAllExampleChats().map(buildExampleChatMeta);
+    });
+
     function getPriorityChatImageBubbles(item: PriorityContinueItem): ResumeCardImageBubble[] | null {
         return item.kind === 'chat' ? item.imageBubbles : null;
     }
@@ -3630,15 +3650,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
         // Example chats are static and always available; intro chats stay reachable
         // through /intro/* but are no longer advertised in this examples list.
-        const communityMetas: RecentChatMeta[] = getAllExampleChats().map((chat) => ({
-            chat,
-            title: chat.title ?? null,
-            category: chat.category ?? null,
-            icon: chat.icon?.split(',')[0] ?? null,
-            summary: chat.chat_summary ?? null,
-            imageBubbles: null,
-            draftPreview: null,
-        }));
+        const communityMetas: RecentChatMeta[] = getAllExampleChats().map(buildExampleChatMeta);
 
         const slideExampleIds = GUEST_LANDING_EXAMPLE_CHAT_IDS_BY_INSPIRATION[activeInspirationId];
         if (slideExampleIds) {
@@ -5557,6 +5569,16 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     function handleShowAllGuestExamples() {
         guestAllExamplesVisible = true;
+    }
+
+    function handleBackToRecentGuestExamples() {
+        guestAllExamplesVisible = false;
+    }
+
+    function handleSearchGuestExamples() {
+        panelState.openChats();
+        openSearch({ closeChatsOnEscape: false });
+        setSearchQuery('');
     }
 
     function handleGuestAppsLinkClick(event: MouseEvent) {
@@ -12379,32 +12401,66 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         >
                             {#if guestAllExamplesVisible && !$authStore.isAuthenticated}
                                 <div class="guest-all-examples-view" data-testid="guest-all-examples-view" transition:fade={fadeParams}>
+                                    <div class="guest-all-examples-toolbar" data-testid="guest-all-examples-toolbar">
+                                        <button
+                                            type="button"
+                                            class="guest-all-examples-action"
+                                            data-testid="guest-all-examples-back"
+                                            onclick={handleBackToRecentGuestExamples}
+                                        >
+                                            <GuestAllExamplesBackIcon size={18} color="currentColor" />
+                                            <span>{$text('chat.welcome.back_to_recent')}</span>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            class="guest-all-examples-action"
+                                            data-testid="guest-all-examples-search"
+                                            onclick={handleSearchGuestExamples}
+                                        >
+                                            <GuestAllExamplesSearchIcon size={18} color="currentColor" />
+                                            <span>{$text('common.search')}</span>
+                                        </button>
+                                    </div>
                                     <div class="guest-all-examples-header">
                                         <GuestWorkspaceIcon size={36} color="var(--color-primary)" />
                                         <h2>{$text('chat.welcome.all_examples_title')}</h2>
                                         <p>{$text('chat.welcome.all_examples_subtitle')}</p>
                                     </div>
                                     <div class="guest-all-examples-grid" data-testid="guest-all-examples-grid">
-                                        {#each nonAuthRecentChats.filter((meta) => isExampleChat(meta.chat.chat_id)) as meta (meta.chat.chat_id)}
+                                        {#each guestAllExampleMetas as meta (meta.chat.chat_id)}
                                             {@const category = meta.category || 'general_knowledge'}
                                             {@const gradientColors = getCategoryGradientColors(category)}
                                             {@const iconName = getValidIconName(meta.icon || '', category)}
                                             {@const IconComponent = getLucideIcon(iconName)}
                                             <button
                                                 type="button"
-                                                class="guest-all-example-card"
-                                                data-testid="guest-all-example-card"
+                                                class="resume-chat-large-card"
+                                                data-testid="resume-chat-large-card"
                                                 data-chat-id={meta.chat.chat_id}
-                                                style={getResumeCardGradientStyle(gradientColors)}
+                                                style={getResumeLargeCardStyle(gradientColors)}
                                                 onclick={() => handleOpenRecentChat(meta.chat)}
                                             >
-                                                <span class="guest-all-example-icon" aria-hidden="true">
-                                                    <IconComponent size={20} color="rgba(255, 255, 255, 0.95)" />
-                                                </span>
-                                                <span class="guest-all-example-title">{meta.title || $text('common.untitled_chat')}</span>
+                                                <div class="resume-large-orbs" aria-hidden="true">
+                                                    <div class="resume-orb resume-orb-1"></div>
+                                                    <div class="resume-orb resume-orb-2"></div>
+                                                    <div class="resume-orb resume-orb-3"></div>
+                                                </div>
+                                                <div class="resume-large-deco resume-large-deco-left">
+                                                    <IconComponent size={80} color="white" />
+                                                </div>
+                                                <div class="resume-large-deco resume-large-deco-right">
+                                                    <IconComponent size={80} color="white" />
+                                                </div>
+                                                <div class="resume-large-content">
+                                                    <span class="resume-chat-kind-badge" data-testid="example-chat-badge">{$text('chat.header.example_chat')}</span>
+                                                    <div class="resume-large-icon">
+                                                        <IconComponent size={32} color="white" />
+                                                    </div>
+                                                    <span class="resume-large-title" data-testid="resume-large-title">{meta.title || $text('common.untitled_chat')}</span>
                                                 {#if meta.summary}
-                                                    <span class="guest-all-example-summary">{meta.summary}</span>
+                                                        <p class="resume-large-summary">{meta.summary}</p>
                                                 {/if}
+                                                </div>
                                             </button>
                                         {/each}
                                     </div>
@@ -14343,12 +14399,38 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     }
 
     .guest-all-examples-view {
-        width: min(100% - 32px, 1040px);
-        max-height: min(42vh, 430px);
+        width: min(100% - 32px, 1120px);
+        max-height: min(58vh, 680px);
         display: flex;
         flex-direction: column;
-        gap: var(--spacing-7);
+        gap: var(--spacing-5);
         pointer-events: auto;
+    }
+
+    .guest-all-examples-toolbar {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: var(--spacing-8);
+        color: var(--color-grey-60);
+    }
+
+    .guest-all-examples-action {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--spacing-2);
+        border: 0;
+        background: transparent;
+        color: inherit;
+        font: inherit;
+        font-size: var(--font-size-p);
+        font-weight: 800;
+        cursor: pointer;
+        padding: 0;
+    }
+
+    .guest-all-examples-action:hover {
+        color: var(--color-primary);
     }
 
     .guest-all-examples-header {
@@ -14376,53 +14458,17 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     .guest-all-examples-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-        gap: var(--spacing-5);
+        grid-template-columns: repeat(auto-fill, minmax(280px, 300px));
+        justify-content: center;
+        gap: var(--spacing-8);
         overflow-y: auto;
-        padding: var(--spacing-1) var(--spacing-2) var(--spacing-4);
+        padding: var(--spacing-2) var(--spacing-4) var(--spacing-5);
         scrollbar-width: thin;
     }
 
-    .guest-all-example-card {
-        position: relative;
-        min-height: 132px;
-        display: flex;
-        flex-direction: column;
-        align-items: flex-start;
-        gap: var(--spacing-3);
-        padding: var(--spacing-7);
-        border: 0;
-        border-radius: 24px;
-        color: white;
-        text-align: left;
-        overflow: hidden;
-        box-shadow: 0 12px 28px rgba(30, 45, 90, 0.16);
-    }
-
-    .guest-all-example-icon {
-        display: grid;
-        place-items: center;
-        width: 34px;
-        height: 34px;
-        border-radius: 999px;
-        background: rgba(255, 255, 255, 0.16);
-    }
-
-    .guest-all-example-title {
-        font-size: var(--font-size-p);
-        font-weight: 800;
-        line-height: 1.18;
-    }
-
-    .guest-all-example-summary {
-        display: -webkit-box;
-        -webkit-line-clamp: 2;
-        line-clamp: 2;
-        -webkit-box-orient: vertical;
-        overflow: hidden;
-        color: rgba(255, 255, 255, 0.84);
-        font-size: var(--font-size-xs);
-        line-height: 1.35;
+    .guest-all-examples-grid .resume-chat-large-card {
+        width: 300px;
+        min-width: 300px;
     }
 
     .guest-input-context-link {
@@ -14479,20 +14525,24 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             gap: var(--spacing-5);
         }
 
+        .guest-all-examples-toolbar {
+            gap: var(--spacing-5);
+        }
+
+        .guest-all-examples-action {
+            font-size: var(--font-size-small);
+        }
+
         .guest-all-examples-grid {
             display: flex;
             flex-direction: column;
             gap: var(--spacing-4);
         }
 
-        .guest-all-example-card {
-            min-height: 74px;
-            border-radius: 20px;
-            padding: var(--spacing-5) var(--spacing-6);
-        }
-
-        .guest-all-example-summary {
-            display: none;
+        .guest-all-examples-grid .resume-chat-large-card {
+            width: 300px;
+            min-width: 300px;
+            align-self: center;
         }
     }
 

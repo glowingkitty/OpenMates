@@ -155,6 +155,56 @@ test.describe('Example chats loading for new users', () => {
 		}
 	});
 
+	test('guest show-all examples uses expanded resume cards and global search covers every example', async ({
+		page
+	}: {
+		page: any;
+	}) => {
+		test.setTimeout(90000);
+		await page.setViewportSize({ width: 1600, height: 1000 });
+
+		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
+		await page.waitForLoadState('networkidle');
+		await expectGuestSlideZeroIntro(page);
+
+		const showAllExamples = page.getByTestId('guest-show-all-examples');
+		await expect(showAllExamples).toBeVisible({ timeout: 10000 });
+		await showAllExamples.click();
+
+		const allExamplesView = page.getByTestId('guest-all-examples-view');
+		await expect(allExamplesView).toBeVisible({ timeout: 10000 });
+
+		const allExampleCards = allExamplesView.getByTestId('resume-chat-large-card');
+		await expect.poll(async () => allExampleCards.count(), {
+			message: 'Show all examples should render the full unfiltered example catalog, not the current slide subset',
+			timeout: 10000
+		}).toBeGreaterThan(10);
+		await expect(allExamplesView.getByTestId('guest-all-example-card')).toHaveCount(0);
+		await expect(allExamplesView.locator('[data-chat-id="example-screenshot-to-html-pricing"]')).toBeVisible({ timeout: 10000 });
+
+		const backToRecent = page.getByTestId('guest-all-examples-back');
+		await expect(backToRecent).toBeVisible({ timeout: 10000 });
+		await backToRecent.click();
+		await expect(allExamplesView).toHaveCount(0);
+		await expect(page.getByTestId('guest-show-all-examples')).toBeVisible({ timeout: 10000 });
+
+		await page.getByTestId('guest-show-all-examples').click();
+		await expect(page.getByTestId('guest-all-examples-view')).toBeVisible({ timeout: 10000 });
+		const searchAllExamples = page.getByTestId('guest-all-examples-search');
+		await expect(searchAllExamples).toBeVisible({ timeout: 10000 });
+		await searchAllExamples.click();
+
+		const searchInput = page.getByTestId('search-input');
+		await expect(searchInput).toBeVisible({ timeout: 10000 });
+		await searchInput.fill('screenshot');
+
+		const searchResults = page.getByTestId('search-results');
+		await expect(searchResults).toBeVisible({ timeout: 10000 });
+		await expect(
+			page.locator('[data-testid="search-chat-item"][data-result-id="example-screenshot-to-html-pricing"]')
+		).toBeVisible({ timeout: 30000 });
+	});
+
 	test('deep research example renders static sub-chat cards without a forced focus mention', async ({
 		page
 	}: {

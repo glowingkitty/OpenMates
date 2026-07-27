@@ -310,3 +310,27 @@ all_examples_subtitle:
   sv: Välj en för att se hur arbetsytan känns i praktiken.
   he: בחר אחד כדי לראות איך סביבת העבודה מרגישה בפועל.
   verified_by_human: []
+back_to_recent:
+  context: Button in the logged-out all examples view that returns to the recent/example carousel
+  en: Back to recent
+  de: Zurück zu den neuesten
+  zh: 返回最近
+  es: Volver a recientes
+  fr: Retour aux récents
+  pt: Voltar aos recentes
+  ru: Назад к недавним
+  ja: 最近の項目に戻る
+  ko: 최근 항목으로 돌아가기
+  it: Torna ai recenti
+  tr: Son kullanılanlara dön
+  vi: Quay lại gần đây
+  id: Kembali ke terbaru
+  pl: Wróć do ostatnich
+  nl: Terug naar recent
+  ar: الرجوع إلى الأحدث
+  hi: हाल के पर वापस जाएं
+  th: กลับไปยังล่าสุด
+  cs: Zpět na nedávné
+  sv: Tillbaka till senaste
+  he: חזרה לאחרונים
+  verified_by_human: []
