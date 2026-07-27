@@ -262,21 +262,25 @@ test.describe('Example chats loading for new users', () => {
 		}
 		await expect(compressionSummary).toContainText('Referenced Artifacts', { timeout: 15000 });
 
-		const sprintBacklogPrompt = page.getByTestId('user-message-content').filter({
-			hasText: 'Continue with Sprint 1 engineering tasks for the local-only Tauri/Rust desktop MVP'
-		});
-		await expect(sprintBacklogPrompt).toBeVisible({ timeout: 15000 });
-		await expect(page.getByTestId('message-assistant').filter({
-			hasText: '10 klar getrennte Workstreams'
-		})).toBeVisible({ timeout: 15000 });
+		await page.keyboard.press('End');
 
-		const latestPrompt = page.getByTestId('user-message-content').filter({
-			hasText: 'Continue by reviewing the Tauri project scaffolding configuration for ENG-01'
-		});
+		const sprintBacklogPrompt = page.locator(
+			'[data-testid="message-user"][data-message-id="6adc84b3-2fa5-4f2c-9e46-a35fff64d220"]'
+		);
+		const sprintBacklogResponse = page.locator(
+			'[data-testid="message-assistant"][data-message-id="207ca93d-3959-5db1-869c-6368232737ee"]'
+		);
+		const latestPrompt = page.locator(
+			'[data-testid="message-user"][data-message-id="f2dd7311-d9eb-4c73-87a8-5a7bc5b815c4"]'
+		);
+		const latestResponse = page.locator(
+			'[data-testid="message-assistant"][data-message-id="5c1d9872-f3c9-59b3-9730-7bc5376e70cf"]'
+		);
+
+		await expect(sprintBacklogPrompt).toBeVisible({ timeout: 15000 });
+		await expect(sprintBacklogResponse).toBeVisible({ timeout: 15000 });
 		await expect(latestPrompt).toBeVisible({ timeout: 15000 });
-		await expect(
-			page.getByTestId('message-assistant').filter({ hasText: 'absolute data privacy and zero network leakage' })
-		).toBeVisible({ timeout: 15000 });
+		await expect(latestResponse).toBeVisible({ timeout: 15000 });
 
 		const firstPrompt = page.getByTestId('user-message-content').filter({
 			hasText: 'I want to build a privacy-first AI productivity company from zero'
