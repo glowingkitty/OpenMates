@@ -105,7 +105,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: af9f16f79aad0d2175915079bd494353e4340c84+working-tree-20260727T180642Z
+  subject_commit: dbe97cbe479431297c1b040eeee0453812e25ce6+cli-smoke-20260727T1928Z
 
 approvals:
   product_contract:
@@ -176,14 +176,23 @@ attempts:
     run_id: local-20260727T1806Z
     subject_commit: af9f16f79aad0d2175915079bd494353e4340c84+working-tree-20260727T180642Z
     summary: Focused backend suite passed 35 tests covering task runtime tools, task app skill embeds, continuation event payloads, plan-skill filtering, and synthetic-user role mapping for persisted continuation notices.
+  - id: ATTEMPT-4
+    task_id: TASK-7
+    approach: Deploy task context refresh before queue retries, rerun natural and blocking CLI smoke, and make the blocking smoke seed deterministic queue positions.
+    outcome: succeeded
+    recorded_at: "2026-07-27T19:28:00Z"
+    command: set -a && . "/home/superdev/projects/OpenMates/.env" && set +a && python3 scripts/verify_tasks_main_processor_cli_smoke.py --api-url https://api.dev.openmates.org --cli-dir "/home/superdev/projects/OpenMates/frontend/packages/openmates-cli" --scenario natural-task-workflow --skip-build --chat-timeout 420 --task-ready-timeout 120 --natural-followup-turns 6 --keep-artifacts
+    run_id: local-20260727T1913Z-chat-3024f93f-d6c1-4fbd-a999-6c08e77e82a3
+    subject_commit: dbe97cbe479431297c1b040eeee0453812e25ce6+cli-smoke-20260727T1928Z
+    summary: Deployed natural workflow completed all three exact-title AI tasks through continuation events without plan creation; blocking smoke then confirmed a later AI task stayed todo until the human gate was unblocked and subsequently continued/completed.
 
 handoff:
   current_task_id: TASK-7
-  next_action: Deploy the continuation-message follow-up and rerun the live natural CLI smoke to confirm persisted system continuation events against https://api.dev.openmates.org.
+  next_action: Task queue continuation backend and CLI smoke evidence are complete; keep web and Apple parity deferred until those clients enable task_update_jobs for task queues.
   command: set -a && . "/home/superdev/projects/OpenMates/.env" && set +a && python3 scripts/verify_tasks_main_processor_cli_smoke.py --api-url https://api.dev.openmates.org --cli-dir "/home/superdev/projects/OpenMates/frontend/packages/openmates-cli" --scenario natural-task-workflow --skip-build --chat-timeout 420 --task-ready-timeout 120 --natural-followup-turns 6 --keep-artifacts
-  expected_outcome: Real dev CLI smoke observes continuation task_event system messages, no duplicate task creation, ordered task completion, and no plan creation.
+  expected_outcome: Real dev CLI smoke observes continuation task_event system messages, no duplicate task creation, ordered task completion, blocker pauses, unblock continuation, and no plan creation.
   blocker: null
-  last_verified_commit: af9f16f79aad0d2175915079bd494353e4340c84+working-tree-20260727T180642Z
+  last_verified_commit: dbe97cbe479431297c1b040eeee0453812e25ce6+cli-smoke-20260727T1928Z
 
 scenarios:
   - id: S-1
@@ -439,10 +448,10 @@ tests:
       evidence:
         status: passed
         command: python3 -m pytest backend/tests/test_user_task_runtime_tools.py backend/tests/test_task_queue_auto_continuation.py backend/tests/test_user_task_execution_contexts.py backend/tests/test_task_main_processor_tools.py
-        run_id: local-20260727T1335Z
-        subject_commit: cc08b649bf9fd81e387e442fd2679d81836eb8b0+working-tree-20260727T140704Z
-        timestamp: "2026-07-27T13:35:00Z"
-        summary: Focused backend suite passed 36 tests including ordered queue continuation, blockers, and independent human tasks.
+        run_id: local-20260727T1918Z
+        subject_commit: dbe97cbe479431297c1b040eeee0453812e25ce6+cli-smoke-20260727T1928Z
+        timestamp: "2026-07-27T19:18:00Z"
+        summary: Focused backend suite passed 45 tests including ordered queue continuation, blockers, independent human tasks, task context refresh before retry, and task activity LLM-history role mapping.
 
   - id: T-PYTEST-PROCESSOR
     type: pytest
@@ -470,10 +479,10 @@ tests:
       evidence:
         status: passed
         command: python3 -m pytest backend/tests/test_user_task_runtime_tools.py backend/tests/test_task_queue_auto_continuation.py backend/tests/test_user_task_execution_contexts.py backend/tests/test_task_main_processor_tools.py
-        run_id: local-20260727T1335Z
-        subject_commit: cc08b649bf9fd81e387e442fd2679d81836eb8b0+working-tree-20260727T140704Z
-        timestamp: "2026-07-27T13:35:00Z"
-        summary: Processor helper tests passed for task-before-plan blocking, active-task retry, and human-gate pause.
+        run_id: local-20260727T1918Z
+        subject_commit: dbe97cbe479431297c1b040eeee0453812e25ce6+cli-smoke-20260727T1928Z
+        timestamp: "2026-07-27T19:18:00Z"
+        summary: Processor helper tests passed for task-before-plan blocking, active-task retry, human-gate pause, retry context refresh, short-ID retry prompts, and persisted task activity history mapping.
 
   - id: T-PYTEST-EXECUTION-CONTEXT
     type: pytest
@@ -499,10 +508,10 @@ tests:
       evidence:
         status: passed
         command: python3 -m pytest backend/tests/test_user_task_runtime_tools.py backend/tests/test_task_queue_auto_continuation.py backend/tests/test_user_task_execution_contexts.py backend/tests/test_task_main_processor_tools.py
-        run_id: local-20260727T1335Z
-        subject_commit: cc08b649bf9fd81e387e442fd2679d81836eb8b0+working-tree-20260727T140704Z
-        timestamp: "2026-07-27T13:35:00Z"
-        summary: Execution-context tests passed for hashed owner/task/chat scoping, encrypted context storage, expiry filtering, cleanup, and invalid expiry rejection.
+        run_id: local-20260727T1918Z
+        subject_commit: dbe97cbe479431297c1b040eeee0453812e25ce6+cli-smoke-20260727T1928Z
+        timestamp: "2026-07-27T19:18:00Z"
+        summary: Execution-context tests passed for hashed owner/task/chat scoping, encrypted context storage, expiry filtering, cleanup, invalid expiry rejection, and adjacent task queue processor coverage.
 
   - id: T-CLI-CONTINUATION
     type: unit
@@ -533,11 +542,11 @@ tests:
       expected: pass
       evidence:
         status: passed
-        command: python3 scripts/verify_tasks_main_processor_cli_smoke.py --api-url https://api.dev.openmates.org --scenario auto-continuation --skip-build --keep-artifacts --chat-timeout 300 --task-ready-timeout 90
-        run_id: local-20260727T1342Z-chat-73270047-8f16-4ea6-8c2d-6fd811282b46
-        subject_commit: cc08b649bf9fd81e387e442fd2679d81836eb8b0+working-tree-20260727T140704Z
-        timestamp: "2026-07-27T13:42:36Z"
-        summary: Real dev CLI smoke used natural chat send to call task_complete for the first AI task and observed the second ordered AI task move to in_progress with no plans for the chat.
+        command: set -a && . "/home/superdev/projects/OpenMates/.env" && set +a && python3 scripts/verify_tasks_main_processor_cli_smoke.py --api-url https://api.dev.openmates.org --cli-dir "/home/superdev/projects/OpenMates/frontend/packages/openmates-cli" --scenario natural-task-workflow --skip-build --chat-timeout 420 --task-ready-timeout 120 --natural-followup-turns 6 --keep-artifacts
+        run_id: local-20260727T1913Z-chat-3024f93f-d6c1-4fbd-a999-6c08e77e82a3
+        subject_commit: dbe97cbe479431297c1b040eeee0453812e25ce6+cli-smoke-20260727T1928Z
+        timestamp: "2026-07-27T19:13:00Z"
+        summary: Real dev CLI natural workflow created exactly three chat-attached AI tasks, emitted continuation events, completed all three tasks across natural follow-ups, and confirmed no plans existed for the chat.
 
   - id: T-CLI-BLOCKING
     type: unit
@@ -564,11 +573,11 @@ tests:
       expected: pass
       evidence:
         status: passed
-        command: python3 scripts/verify_tasks_main_processor_cli_smoke.py --api-url https://api.dev.openmates.org --scenario blocking-continuation --skip-build --keep-artifacts --chat-timeout 300 --task-ready-timeout 90
-        run_id: local-20260727T1344Z-chat-0aaf008b-6d5d-4437-ace5-511c42faf961
-        subject_commit: cc08b649bf9fd81e387e442fd2679d81836eb8b0+working-tree-20260727T140704Z
-        timestamp: "2026-07-27T13:44:42Z"
-        summary: Real dev CLI smoke used natural chat sends for first-task completion and blocker resolution; the later AI task stayed todo while blocked, then moved to in_progress after unblock; no plans existed for the chat.
+        command: set -a && . "/home/superdev/projects/OpenMates/.env" && set +a && python3 scripts/verify_tasks_main_processor_cli_smoke.py --api-url https://api.dev.openmates.org --cli-dir "/home/superdev/projects/OpenMates/frontend/packages/openmates-cli" --scenario blocking-continuation --skip-build --chat-timeout 420 --task-ready-timeout 120 --keep-artifacts
+        run_id: local-20260727T1926Z-chat-abd548e2-5bb7-4c54-80a9-cb4376a8c9be
+        subject_commit: dbe97cbe479431297c1b040eeee0453812e25ce6+cli-smoke-20260727T1928Z
+        timestamp: "2026-07-27T19:27:00Z"
+        summary: Real dev CLI blocking smoke completed the first AI task, verified the later AI task stayed todo while the human gate remained blocked, then unblocked the gate and observed the later AI task continue and complete without plan creation.
 
 verifications:
   - id: V-SPEC-VALIDATE
@@ -588,9 +597,9 @@ verifications:
     evidence:
       status: passed
       command: python3 scripts/spec_validate.py docs/specs/task-queue-auto-continuation/spec.yml
-      run_id: local-20260727T1334Z
-      subject_commit: cc08b649bf9fd81e387e442fd2679d81836eb8b0+working-tree-20260727T140704Z
-      timestamp: "2026-07-27T13:34:00Z"
+      run_id: local-20260727T1929Z
+      subject_commit: dbe97cbe479431297c1b040eeee0453812e25ce6+cli-smoke-20260727T1928Z
+      timestamp: "2026-07-27T19:29:00Z"
 
 implementation_plan:
   spec_path: docs/specs/task-queue-auto-continuation/spec.yml

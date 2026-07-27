@@ -177,6 +177,21 @@ def wait_for_task_status(chat_id: str, task_id: str, status: str, *, timeout: in
     raise AssertionError(f"task {task_id} did not reach status {status}: got {last_task}")
 
 
+def wait_for_task_status_in(chat_id: str, task_id: str, statuses: set[str], *, timeout: int) -> dict[str, Any]:
+    deadline = time.monotonic() + timeout
+    last_task: dict[str, Any] | None = None
+    while time.monotonic() < deadline:
+        listed = run_cli_json(["tasks", "list", "--chat", chat_id], timeout=60)
+        by_id = {str(task.get("task_id") or ""): task for task in tasks_from_result(listed)}
+        task = by_id.get(task_id)
+        if task:
+            last_task = task
+            if str(task.get("status") or "") in statuses:
+                return task
+        time.sleep(2)
+    raise AssertionError(f"task {task_id} did not reach one of {sorted(statuses)}: got {last_task}")
+
+
 def create_setup_chat(args: argparse.Namespace, prompt: str) -> str:
     result = run_cli_json([
         "chats",
@@ -450,7 +465,9 @@ def scenario_blocking_continuation(args: argparse.Namespace) -> dict[str, Any]:
         f"Tasks blocking-continuation smoke {suffix}: reply setup complete only. Do not create tasks or plans.",
     )
     first = create_task_for_chat(chat_id, f"MPT-{suffix}-BLOCK first AI task", assign="ai")
+    time.sleep(1)
     blocker = create_task_for_chat(chat_id, f"MPT-{suffix}-BLOCK human gate", assign="user", status="blocked")
+    time.sleep(1)
     later = create_task_for_chat(chat_id, f"MPT-{suffix}-BLOCK later AI task", assign="ai")
     first_id = str(first["task_id"])
     blocker_id = str(blocker["task_id"])
@@ -498,7 +515,7 @@ def scenario_blocking_continuation(args: argparse.Namespace) -> dict[str, Any]:
         any(event.get("event_type") in {"unblocked", "completed"} and event.get("task_id") == blocker_id for event in blocker_events),
         f"expected unblock or complete event for {blocker_id}, got {blocker_events}",
     )
-    later_started = wait_for_task_status(chat_id, later_id, "in_progress", timeout=args.task_ready_timeout)
+    later_started = wait_for_task_status_in(chat_id, later_id, {"in_progress", "done"}, timeout=args.task_ready_timeout)
     assert_no_plans_for_chat(chat_id)
     return {
         "chat_id": chat_id,
