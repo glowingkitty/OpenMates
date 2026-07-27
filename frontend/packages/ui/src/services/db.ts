@@ -1796,6 +1796,24 @@ class ChatDatabase {
     storeNames: string | string[],
     mode: IDBTransactionMode,
   ): Promise<IDBTransaction> {
+    const requestedStores = Array.isArray(storeNames)
+      ? storeNames
+      : [storeNames];
+    const existingMissingStores = this.getMissingRequiredStores(this.db);
+    const requestedMissingStores = requestedStores.filter(
+      (storeName) => !this.db?.objectStoreNames.contains(storeName),
+    );
+    if (
+      this.db &&
+      existingMissingStores.length === 0 &&
+      requestedMissingStores.length === 0 &&
+      !this.isDeleting &&
+      !get(forcedLogoutInProgress) &&
+      !get(isLoggingOut)
+    ) {
+      return this.db.transaction(storeNames, mode);
+    }
+
     await this.init();
     if (!this.db) {
       console.error(
@@ -1803,9 +1821,6 @@ class ChatDatabase {
       );
       throw new Error("Database not initialized despite awaiting init()");
     }
-    const requestedStores = Array.isArray(storeNames)
-      ? storeNames
-      : [storeNames];
     let missingStores = requestedStores.filter(
       (storeName) => !this.db?.objectStoreNames.contains(storeName),
     );
