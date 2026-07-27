@@ -398,7 +398,11 @@ function messageEditorHost(page: any, chatId: string): any {
 		.first();
 }
 
-async function dispatchLocalChatNavigation(page: any, chatId: string): Promise<boolean> {
+async function dispatchLocalChatNavigation(page: any, chatId: string): Promise<{
+	dispatched: boolean;
+	chatFound: boolean;
+	messageInputs: Array<{ chatId: string | null; visible: boolean }>;
+}> {
 	return page.evaluate(async (targetChatId: string) => {
 		const chat = await new Promise<Record<string, unknown> | null>((resolve) => {
 			let db: IDBDatabase | null = null;
@@ -424,9 +428,14 @@ async function dispatchLocalChatNavigation(page: any, chatId: string): Promise<b
 				}
 			};
 		});
-		if (!chat) return false;
+		if (!chat) return { dispatched: false, chatFound: false, messageInputs: [] };
 		window.dispatchEvent(new CustomEvent('chatHeaderNavigation', { detail: { chat, scrollToTop: false } }));
-		return true;
+		await new Promise((resolve) => window.setTimeout(resolve, 250));
+		const messageInputs = Array.from(document.querySelectorAll('[data-action="message-input"]')).map((element) => ({
+			chatId: element.getAttribute('data-current-chat-id'),
+			visible: !!(element as HTMLElement).offsetParent,
+		}));
+		return { dispatched: true, chatFound: true, messageInputs };
 	}, chatId);
 }
 
@@ -440,7 +449,8 @@ async function activeMessageEditorEditable(page: any, chatId: string): Promise<a
 				window.dispatchEvent(new Event('hashchange'));
 				window.dispatchEvent(new CustomEvent('processPendingDeepLink', { detail: { hash: targetHash } }));
 			}, `#chat-id=${chatId}`);
-			await dispatchLocalChatNavigation(page, chatId);
+			const fallback = await dispatchLocalChatNavigation(page, chatId);
+			console.log(`[CROSS_CLIENT_DRAFT_SYNC_OPEN_EDITOR] Local navigation fallback: ${JSON.stringify(fallback)}`);
 		}
 		const currentHash = await page.evaluate(() => window.location.hash);
 		expect(currentHash, 'Fallback to generic editor is only safe on the target chat URL').toContain(chatId);
