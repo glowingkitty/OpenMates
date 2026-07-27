@@ -331,6 +331,7 @@
         __openmatesE2ELoadLocalChat?: (input: { chatId: string; chat?: Chat }) => Promise<{ chatId: string }>;
         __openmatesE2ESendCurrentMessage?: (input: { chatId: string }) => Promise<{
             expectedChatId: string;
+            didSendComplete: boolean;
             text: string;
             sendDebug: Record<string, unknown> | null;
             messageInputs: Array<{ chatId: string | null; visible: boolean }>;
@@ -2926,11 +2927,18 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             const inputRef = messageInputFieldRef;
             if (!inputRef?.sendCurrentMessage) throw new Error('Message input send helper is unavailable');
             inputRef.focus();
-            await inputRef.sendCurrentMessage();
+            let didSendComplete = false;
+            await Promise.race([
+                Promise.resolve(inputRef.sendCurrentMessage()).then(() => {
+                    didSendComplete = true;
+                }),
+                new Promise<void>((resolve) => window.setTimeout(resolve, 5_000)),
+            ]);
             await tick();
             await new Promise((resolve) => window.setTimeout(resolve, 500));
             return {
                 expectedChatId: chatId,
+                didSendComplete,
                 text: inputRef.getTextContent(),
                 sendDebug: activeChatWindow.__openmatesLastSendDebug ?? null,
                 messageInputs: Array.from(document.querySelectorAll('[data-action="message-input"]')).map((element) => ({

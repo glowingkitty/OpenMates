@@ -448,6 +448,7 @@ async function loadLocalChatWithE2EHook(page: any, chatId: string): Promise<{
 
 async function sendCurrentMessageWithE2EHook(page: any, chatId: string): Promise<{
 	expectedChatId: string;
+	didSendComplete: boolean;
 	text: string;
 	sendDebug: Record<string, unknown> | null;
 	messageInputs: Array<{ chatId: string | null; visible: boolean }>;
@@ -457,6 +458,7 @@ async function sendCurrentMessageWithE2EHook(page: any, chatId: string): Promise
 		const helper = (window as typeof window & {
 			__openmatesE2ESendCurrentMessage?: (input: { chatId: string }) => Promise<{
 				expectedChatId: string;
+				didSendComplete: boolean;
 				text: string;
 				sendDebug: Record<string, unknown> | null;
 				messageInputs: Array<{ chatId: string | null; visible: boolean }>;
