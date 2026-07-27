@@ -68,6 +68,8 @@
   const TOUCH_SWIPE_VERTICAL_CANCEL_PX = 48;
   const LANDING_INTRO_INSPIRATION_ID = 'openmates-intro';
   const LANDING_ACTIONABLE_EVENTS_ID = 'openmates-actionable-events';
+  const LANDING_SIGNUP_CTA_ID = 'openmates-signup-cta';
+  const SIGNUP_START_HASH = '#signup/alpha-disclaimer';
   const LANDING_INTRO_RAIL_MIN_ICON_COUNT = 40;
   // Temporarily disabled with the visit-cycling effect below.
   // const VISIT_INDEX_STORAGE_PREFIX = 'openmates.daily_inspiration.visit_index.';
@@ -392,6 +394,10 @@
   let isGuestActionableSlide = $derived(
     isGuestIntroVariant && !landingIntroOverlayActive && current?.inspiration_id === LANDING_ACTIONABLE_EVENTS_ID,
   );
+  let isGuestSignupCtaSlide = $derived(
+    isGuestIntroVariant && !landingIntroOverlayActive && current?.inspiration_id === LANDING_SIGNUP_CTA_ID,
+  );
+  let shouldHoldOnFinalSlide = $derived(isGuestSignupCtaSlide && currentIndex === visibleInspirations.length - 1);
   let guestProductAnimationKind = $derived.by(() => {
     if (!isGuestIntroVariant || landingIntroOverlayActive) return '';
     if (current?.inspiration_id === 'openmates-privacy-safety') return 'privacy';
@@ -441,10 +447,11 @@
   });
 
   $effect(() => {
-    if (!landingIntroOverlayActive || landingIntroPhase !== 'expanded') {
+    if (!landingIntroOverlayActive || landingIntroPhase === 'regular') {
       landingIntroRequestIndex = -1;
       return;
     }
+    if (landingIntroPhase !== 'expanded') return;
 
     landingIntroRequestIndex = -1;
     let interval: number | undefined;
@@ -636,7 +643,7 @@
     }
     markManualNavigation();
     resumeAutoRotation();
-    goToVisibleIndex(currentIndex - 1, { restoreLandingIntro: true });
+    goToNavigableVisibleIndex(currentIndex - 1, -1);
     restartProgressAnimation();
   }
 
@@ -651,9 +658,10 @@
       completeLandingIntro(1);
       return;
     }
+    if (shouldHoldOnFinalSlide) return;
     markManualNavigation();
     resumeAutoRotation();
-    goToVisibleIndex(currentIndex + 1);
+    goToNavigableVisibleIndex(currentIndex + 1, 1);
     restartProgressAnimation();
   }
 
@@ -693,15 +701,16 @@
         completeLandingIntro(1);
         return;
       }
+      if (shouldHoldOnFinalSlide) return;
       resumeAutoRotation();
-      goToVisibleIndex(currentIndex + 1);
+      goToNavigableVisibleIndex(currentIndex + 1, 1);
     } else {
       if (landingIntroOverlayActive) {
         completeLandingIntro(-1);
         return;
       }
       resumeAutoRotation();
-      goToVisibleIndex(currentIndex - 1, { restoreLandingIntro: true });
+      goToNavigableVisibleIndex(currentIndex - 1, -1);
     }
   }
 
@@ -750,6 +759,12 @@
     }
 
     if (!current) return;
+    if (isGuestSignupCtaSlide) {
+      e.stopPropagation();
+      e.preventDefault();
+      openSignup();
+      return;
+    }
     isOpeningInspiration = true;
 
     // Send viewed event if not already sent
@@ -801,9 +816,18 @@
       completeLandingIntro(1);
       return;
     }
-    if (!isBannerVisible || visibleInspirations.length <= 1) return;
+    if (!isBannerVisible || visibleInspirations.length <= 1 || shouldHoldOnFinalSlide) return;
     if (isUserInteracting || isOpeningInspiration) return;
-    goToVisibleIndex(currentIndex + 1);
+    goToNavigableVisibleIndex(currentIndex + 1, 1);
+  }
+
+  function openSignup(): void {
+    if (typeof window === 'undefined') return;
+    if (window.location.hash === SIGNUP_START_HASH) {
+      window.dispatchEvent(new HashChangeEvent('hashchange'));
+      return;
+    }
+    window.location.hash = SIGNUP_START_HASH;
   }
 
   /**
@@ -888,7 +912,6 @@
     landingIntroRevealVisible = false;
     pendingLandingIntroIndex = getResolvedVisibleIndex(currentIndex + direction);
     landingIntroPhase = 'fading-out';
-    landingIntroRequestIndex = -1;
     markManualNavigation();
     resumeAutoRotation();
     landingIntroDismissed = true;
@@ -905,6 +928,7 @@
     window.clearTimeout(landingIntroTransitionTimeout);
     currentIndex = pendingLandingIntroIndex;
     pendingLandingIntroIndex = null;
+    landingIntroRequestIndex = -1;
     landingIntroPhase = 'regular';
     startLandingIntroRegularReveal();
     restartProgressAnimation();
@@ -1046,6 +1070,19 @@
       });
     }
     currentIndex = resolvedIndex;
+  }
+
+  function goToNavigableVisibleIndex(nextIndex: number, direction: 1 | -1): void {
+    if (!isGuestIntroVariant || !landingIntroDismissed || visibleInspirations.length <= 1) {
+      goToVisibleIndex(nextIndex, { restoreLandingIntro: direction < 0 });
+      return;
+    }
+
+    let resolvedIndex = getResolvedVisibleIndex(nextIndex);
+    if (visibleInspirations[resolvedIndex]?.inspiration_id === LANDING_INTRO_INSPIRATION_ID) {
+      resolvedIndex = getResolvedVisibleIndex(resolvedIndex + direction);
+    }
+    goToVisibleIndex(resolvedIndex);
   }
 
   // Temporarily disabled with the visit-cycling effect above.
@@ -1270,6 +1307,18 @@
                     <span class="guest-intro-copy-line">{$text('demo_chats.for_everyone.teaser_line1')}</span>
                     <span class="guest-intro-copy-line">{$text('demo_chats.for_everyone.teaser_line2')}</span>
                     <span class="guest-intro-copy-line">{$text('demo_chats.for_everyone.teaser_line3')}</span>
+                  {:else if isGuestSignupCtaSlide}
+                    <div class="guest-signup-cta" data-testid="landing-signup-cta">
+                      <h2>{current.phrase}</h2>
+                      <ul aria-label={current.feature?.description ?? current.phrase}>
+                        {#each current.follow_up_suggestions ?? [] as reason}
+                          <li><span aria-hidden="true">✓</span>{reason}</li>
+                        {/each}
+                      </ul>
+                      <button class="guest-signup-cta-button" type="button" onclick={(e) => { e.stopPropagation(); openSignup(); }}>
+                        {current.title ?? current.phrase}
+                      </button>
+                    </div>
                   {:else}
                   {#if InfoCardIconComponent}
                     <span class="guest-feature-inline-icon" aria-hidden="true">
@@ -1537,7 +1586,7 @@
            of the full-width card, not constrained by the 680px inner width.
            z-index: 20 ensures they are always on top of the embed wrapper. -->
       {#if hasMultiple}
-        {#if isBannerVisible && !isOpeningInspiration && landingIntroPhase !== 'fading-out' && landingIntroPhase !== 'collapsing'}
+        {#if isBannerVisible && !isOpeningInspiration && !shouldHoldOnFinalSlide && landingIntroPhase !== 'fading-out' && landingIntroPhase !== 'collapsing'}
           <div
             class="carousel-progress"
             data-testid="daily-inspiration-carousel-progress"
@@ -1562,15 +1611,17 @@
           </button>
         {/if}
 
-        <button
-          class="carousel-arrow carousel-arrow-right"
-          data-testid="daily-inspiration-next"
-          onclick={handleNext}
-          aria-label={$text('daily_inspiration.next')}
-          type="button"
-        >
-          <ChevronRight size={22} color="rgba(255,255,255,0.85)" />
-        </button>
+        {#if !shouldHoldOnFinalSlide}
+          <button
+            class="carousel-arrow carousel-arrow-right"
+            data-testid="daily-inspiration-next"
+            onclick={handleNext}
+            aria-label={$text('daily_inspiration.next')}
+            type="button"
+          >
+            <ChevronRight size={22} color="rgba(255,255,255,0.85)" />
+          </button>
+        {/if}
       {/if}
     </div><!-- /.daily-inspiration-banner -->
   </div>
@@ -2182,6 +2233,71 @@
   .guest-feature-inline-icon :global(svg) {
     width: 100%;
     height: 100%;
+  }
+
+  .guest-signup-cta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: clamp(12px, 1.4vw, 22px);
+  }
+
+  .guest-signup-cta h2 {
+    margin: 0;
+    color: rgba(255, 255, 255, 0.98);
+    font-size: clamp(2rem, 2.8vw, 4rem);
+    line-height: 1.02;
+    font-weight: 800;
+    letter-spacing: -0.045em;
+    text-shadow: 0 2px 18px rgba(0, 0, 0, 0.2);
+  }
+
+  .guest-signup-cta ul {
+    display: grid;
+    gap: clamp(6px, 0.7vw, 10px);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .guest-signup-cta li {
+    display: flex;
+    align-items: center;
+    gap: clamp(10px, 1vw, 16px);
+    color: rgba(255, 255, 255, 0.96);
+    font-size: clamp(1rem, 1.55vw, 2rem);
+    line-height: 1.1;
+    font-weight: 750;
+    letter-spacing: -0.03em;
+  }
+
+  .guest-signup-cta li span {
+    color: #62cf20;
+    font-size: 1.25em;
+    line-height: 1;
+    text-shadow: none;
+  }
+
+  .guest-signup-cta-button {
+    min-width: 0 !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 14px 24px !important;
+    border: 0 !important;
+    border-radius: 999px !important;
+    background: var(--color-red, #ff453a) !important;
+    color: white !important;
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.24) !important;
+    filter: none !important;
+    font: inherit;
+    font-size: clamp(0.95rem, 1.1vw, 1.2rem) !important;
+    font-weight: 800 !important;
+    letter-spacing: -0.02em;
+    cursor: pointer;
+  }
+
+  .guest-signup-cta-button:hover {
+    filter: brightness(1.06) !important;
   }
 
   .guest-intro-video-box,
@@ -3047,6 +3163,29 @@
       display: -webkit-box;
       -webkit-box-orient: vertical;
       overflow: hidden;
+    }
+
+    .guest-signup-cta {
+      gap: 8px;
+    }
+
+    .guest-signup-cta h2 {
+      font-size: clamp(1.35rem, 7vw, 2rem);
+    }
+
+    .guest-signup-cta ul {
+      gap: 4px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .guest-signup-cta li {
+      gap: 7px;
+      font-size: clamp(0.72rem, 3.4vw, 0.96rem);
+    }
+
+    .guest-signup-cta-button {
+      padding: 9px 16px !important;
+      font-size: 0.82rem !important;
     }
 
     .guest-intro-video-box,

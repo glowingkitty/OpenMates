@@ -181,6 +181,7 @@
     import { externalLinks } from '../config/links';
 
     const GUEST_DEFAULT_INTRO_INSPIRATION_ID = 'openmates-intro';
+    const GUEST_DEFAULT_EXAMPLE_INSPIRATION_ID = 'openmates-actionable-events';
     const GUEST_EXAMPLE_SURFACES = new Set<DailyInspirationSurface>(['chats', 'projects', 'workflows']);
     const GUEST_INPUT_LINK_ROTATION_MS = 6500;
     const GUEST_LANDING_DEFAULT_EXAMPLE_IDS = [
@@ -190,7 +191,7 @@
         'example-private-workspace-demo-video',
     ];
     const GUEST_LANDING_EXAMPLE_CHAT_IDS_BY_INSPIRATION: Record<string, string[]> = {
-        'openmates-actionable-events': [
+        [GUEST_DEFAULT_EXAMPLE_INSPIRATION_ID]: [
             'example-ai-workshops-meetups-berlin',
             'example-urban-sports-fitness-studios',
             'example-berlin-dermatology-appointments',
@@ -5303,7 +5304,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     let guestInterestSelectorVisible = $state(false);
     let guestAllExamplesVisible = $state(false);
     let activeGuestSurface = $state<DailyInspirationSurface>('chats');
-    let activeGuestInspirationId = $state(GUEST_DEFAULT_INTRO_INSPIRATION_ID);
+    let activeGuestInspirationId = $state(GUEST_DEFAULT_EXAMPLE_INSPIRATION_ID);
     let guestInputLinkIndex = $state(0);
     type LandingIntroPhase = 'regular' | 'expanded' | 'fading-out' | 'collapsing' | 'expanding';
     let guestLandingIntroPhase = $state<LandingIntroPhase>('regular');
@@ -5418,7 +5419,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     function handleVisibleInspirationChange(inspiration: DailyInspiration) {
         if ($authStore.isAuthenticated) return;
         activeGuestSurface = inspiration.surface ?? 'chats';
-        const nextId = inspiration.inspiration_id;
+        const nextId = inspiration.inspiration_id === GUEST_DEFAULT_INTRO_INSPIRATION_ID
+            ? GUEST_DEFAULT_EXAMPLE_INSPIRATION_ID
+            : inspiration.inspiration_id;
         activeGuestInspirationId = nextId;
         if (!lastGuestInspirationShuffleId) {
             lastGuestInspirationShuffleId = nextId;

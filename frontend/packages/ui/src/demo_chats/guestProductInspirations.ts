@@ -8,12 +8,13 @@ import { OPENMATES_VIDEOS } from "./data/videos";
 
 const INTRO_VIDEO = OPENMATES_VIDEOS["intro-en"];
 const ACTIONABLE_EVENTS_INSPIRATION_ID = "openmates-actionable-events";
+const SIGNUP_CTA_INSPIRATION_ID = "openmates-signup-cta";
 
 interface ProductIntroText {
   phrase: string;
   title: string;
   assistantResponse: string;
-  suggestions: [string, string, string];
+  suggestions: string[];
   featureTitle: string;
   featureDescription: string;
 }
@@ -23,7 +24,7 @@ interface LandingProductSlide {
   phrase: string;
   title: string;
   assistantResponse: string;
-  suggestions: [string, string, string];
+  suggestions: string[];
   featureId: string;
   icon: string;
   featureTitle: string;
@@ -117,6 +118,19 @@ const LANDING_PRODUCT_SLIDES: Record<string, LandingProductSlide[]> = {
       tags: ["privacy", "software_development"],
       order: 40,
     },
+    {
+      inspiration_id: SIGNUP_CTA_INSPIRATION_ID,
+      phrase: "Sign up now",
+      title: "Sign up now",
+      assistantResponse: "Create your OpenMates account to start using a private, pay-per-use AI workspace.",
+      suggestions: ["No ads", "No subscription", "Privacy focus", "Pay per use"],
+      featureId: SIGNUP_CTA_INSPIRATION_ID,
+      icon: "check",
+      featureTitle: "Sign up now",
+      featureDescription: "No ads, no subscription, privacy focus, and pay per use.",
+      tags: ["privacy"],
+      order: 50,
+    },
   ],
   de: [
     {
@@ -172,6 +186,19 @@ const LANDING_PRODUCT_SLIDES: Record<string, LandingProductSlide[]> = {
       featureDescription: "Vermeide, deine Arbeit an einen Modellanbieter oder eine App-Oberflaeche zu binden.",
       tags: ["privacy", "software_development"],
       order: 40,
+    },
+    {
+      inspiration_id: SIGNUP_CTA_INSPIRATION_ID,
+      phrase: "Jetzt registrieren",
+      title: "Jetzt registrieren",
+      assistantResponse: "Erstelle dein OpenMates-Konto und nutze einen privaten KI-Arbeitsbereich mit Pay-per-Use.",
+      suggestions: ["Keine Werbung", "Kein Abo", "Datenschutz im Fokus", "Pay-per-Use"],
+      featureId: SIGNUP_CTA_INSPIRATION_ID,
+      icon: "check",
+      featureTitle: "Jetzt registrieren",
+      featureDescription: "Keine Werbung, kein Abo, Datenschutz im Fokus und Pay-per-Use.",
+      tags: ["privacy"],
+      order: 50,
     },
   ],
 };
