@@ -870,7 +870,7 @@
                         <span class="clickable-icon icon_text"></span>
                         <input
                             id="login-otp-input"
-                            data-testid="login-otp-input"
+                            data-testid="login-backup-code-input"
                             bind:this={tfaInput}
                             type="text"
                             bind:value={tfaCode}
@@ -911,7 +911,7 @@
 
         <button
             id="login-submit-button"
-            data-testid="login-submit-button"
+            data-testid={isBackupMode ? 'login-backup-code-submit-button' : 'login-submit-button'}
             type="submit"
             class="login-button"
             disabled={isLoading || !isFormValid}
