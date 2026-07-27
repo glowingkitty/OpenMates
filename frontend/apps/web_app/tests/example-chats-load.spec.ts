@@ -196,11 +196,11 @@ test.describe('Example chats loading for new users', () => {
 		await expect(exampleCard).toBeVisible({ timeout: 15000 });
 
 		await exampleCard.click();
-		await expect(page).toHaveURL(/#chat-id=example-memory-books-currently-reading/, { timeout: 15000 });
+		await expect(page).toHaveURL(/[&#]chat-id=example-memory-books-currently-reading/, { timeout: 15000 });
 		await expect(page.getByTestId('chat-history-container')).toBeVisible({ timeout: 15000 });
 
 		await page.reload({ waitUntil: 'domcontentloaded' });
-		await expect(page).toHaveURL(/#chat-id=example-memory-books-currently-reading/, { timeout: 15000 });
+		await expect(page).toHaveURL(/[&#]chat-id=example-memory-books-currently-reading/, { timeout: 15000 });
 		await expect(page.getByTestId('message-assistant').filter({ hasText: 'spoiler-free one-week reading plan' })).toBeVisible({ timeout: 15000 });
 	});
 
