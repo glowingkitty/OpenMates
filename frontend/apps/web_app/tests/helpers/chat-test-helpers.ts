@@ -768,6 +768,26 @@ async function sendMessage(
 			'local_message_dispatch_started'
 		].includes(step) && isFreshDebugStep;
 	};
+	const waitForSendAlreadyStarted = async () => {
+		return expect
+			.poll(
+				async () => {
+					if (await sendAlreadyInProgress()) return true;
+					return userMessagePersisted(
+						userMessages,
+						userCountBeforeSend,
+						message,
+						messageEditor,
+						assistantMessages,
+						assistantCountBeforeSend
+					);
+				},
+				{ timeout: 10_000, intervals: [500, 1000, 2000] }
+			)
+			.toBeTruthy()
+			.then(() => true)
+			.catch(() => false);
+	};
 	try {
 		await expect(sendButton).toBeVisible({ timeout: 5000 });
 		await sendButton.click({ timeout: 5000 });
@@ -780,7 +800,7 @@ async function sendMessage(
 			lastSendDebug: lastSendDebugAfterClickAttempt,
 			diagnostics: diagnosticsBeforeFallback
 		})}`);
-		if (await sendAlreadyInProgress()) {
+		if (await waitForSendAlreadyStarted()) {
 			logCheckpoint('Send appears to be in progress; skipping duplicate fallback dispatch.');
 		} else if ((diagnosticsBeforeFallback.editorText ?? '').trim() === '') {
 			await messageEditor.click();
