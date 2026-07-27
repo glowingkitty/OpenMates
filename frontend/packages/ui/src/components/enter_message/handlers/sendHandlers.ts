@@ -1270,7 +1270,15 @@ export async function handleSend(
     }
   }
 
-  if (get(forcedLogoutInProgress)) {
+  const isForcedLogoutInProgress = get(forcedLogoutInProgress);
+  const isAuthenticatedForSend = get(authStore).isAuthenticated;
+  recordSendDebugStep("session_state_checked", {
+    currentChatId,
+    forcedLogoutInProgress: isForcedLogoutInProgress,
+    isAuthenticated: isAuthenticatedForSend,
+  });
+
+  if (isForcedLogoutInProgress) {
     console.error(
       "[handleSend] Cannot send message - forced logout in progress",
     );
@@ -1284,7 +1292,8 @@ export async function handleSend(
   let messagePayload: Message; // Defined here to be accessible for sendNewMessage
 
   try {
-    if (!get(authStore).isAuthenticated) {
+    if (!isAuthenticatedForSend) {
+      recordSendDebugStep("anonymous_send_path_started", { currentChatId });
       const anonymousStatus = await refreshAnonymousFreeUsageStatus();
       if (anonymousStatus?.active !== true || anonymousStatus.can_send_text === false) {
         showAnonymousDailyCreditsExhaustedNotification();
