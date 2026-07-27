@@ -7542,6 +7542,26 @@ providers.web_and_search.firecrawl.description:
 providers.web_and_search.iconify.heading:
   context: Heading for Iconify provider entry
   en: Iconify (public SVG icon search)
+  de: Iconify (öffentliche SVG-Icon-Suche)
+  zh: Iconify (公共 SVG 图标搜索)
+  fr: "Iconify (recherche publique d'icônes SVG)"
+  pt: Iconify (pesquisa pública de ícones SVG)
+  ru: Iconify (публичный поиск SVG-иконок)
+  ja: Iconify (公開SVGアイコン検索)
+  ko: Iconify (공개 SVG 아이콘 검색)
+  it: Iconify (ricerca pubblica di icone SVG)
+  tr: Iconify (herkese açık SVG simge araması)
+  vi: Iconify (tìm kiếm biểu tượng SVG công khai)
+  id: Iconify (pencarian ikon SVG publik)
+  pl: Iconify (publiczna wyszukiwarka ikon SVG)
+  nl: Iconify (openbare SVG-iconen zoekmachine)
+  ar: Iconify (بحث عام عن أيقونات SVG)
+  hi: Iconify (सार्वजनिक SVG आइकन खोज)
+  th: Iconify (การค้นหาไอคอน SVG สาธารณะ)
+  cs: Iconify (veřejné vyhledávání SVG ikon)
+  sv: Iconify (offentlig sökning efter SVG-ikoner)
+  es: Iconify (búsqueda pública de iconos SVG)
+  he: Iconify (חיפוש סמלי SVG ציבורי)
   verified_by_human: []
 providers.web_and_search.iconify.description:
   context: Iconify description
@@ -7550,6 +7570,26 @@ providers.web_and_search.iconify.description:
     queries and the icon collection/name needed to fetch SVG previews, but no
     OpenMates user identifier. OpenMates fetches Iconify data server-side and
     clients do not call Iconify directly.
+  de: Iconify ermöglicht den Skill design.search_icons. Iconify sieht Suchanfragen für Icons sowie die Icon-Sammlung/den Namen, der zum Abrufen von SVG-Vorschauen benötigt wird, aber keine OpenMates-Nutzerkennung. OpenMates ruft Iconify-Daten serverseitig ab; Clients rufen Iconify nicht direkt auf.
+  zh: Iconify 为 design.search_icons 技能提供支持。Iconify 会看到图标搜索查询以及获取 SVG 预览所需的图标库/名称，但不会看到 OpenMates 用户标识符。OpenMates 在服务器端获取 Iconify 数据，客户端不会直接调用 Iconify。
+  fr: "Iconify alimente la compétence design.search_icons. Iconify voit les requêtes de recherche d'icônes et la collection/le nom de l'icône nécessaires pour récupérer les aperçus SVG, mais aucun identifiant d'utilisateur OpenMates. OpenMates récupère les données d'Iconify côté serveur et les clients n'appellent pas Iconify directement."
+  pt: O Iconify alimenta a funcionalidade design.search_icons. O Iconify vê as consultas de pesquisa de ícones e a coleção/nome do ícone necessário para obter pré-visualizações SVG, mas nenhum identificador de utilizador do OpenMates. O OpenMates obtém os dados do Iconify no lado do servidor e os clientes não contactam o Iconify diretamente.
+  ru: Iconify обеспечивает работу навыка design.search_icons. Iconify видит поисковые запросы и названия коллекций иконок, необходимых для предпросмотра SVG, но не видит идентификатор пользователя OpenMates. OpenMates получает данные Iconify на стороне сервера, клиенты не обращаются к Iconify напрямую.
+  ja: Iconifyはdesign.search_iconsスキルを支えています。Iconifyは、アイコンの検索クエリやSVGプレビューの取得に必要なアイコンコレクション名/名前を参照しますが、OpenMatesのユーザー識別子は参照しません。OpenMatesはサーバー側でIconifyのデータを取得し、クライアントが直接Iconifyを呼び出すことはありません。
+  ko: Iconify는 design.search_icons 기능을 제공합니다. Iconify는 아이콘 검색 쿼리와 SVG 미리보기를 가져오는 데 필요한 아이콘 컬렉션/이름을 확인하지만, OpenMates 사용자 식별자는 확인하지 않습니다. OpenMates는 서버 측에서 Iconify 데이터를 가져오며 클라이언트는 Iconify를 직접 호출하지 않습니다.
+  it: "Iconify gestisce la funzione design.search_icons. Iconify vede le query di ricerca delle icone e la collezione/nome dell'icona necessari per recuperare le anteprime SVG, ma nessun identificativo utente di OpenMates. OpenMates recupera i dati di Iconify lato server e i client non chiamano Iconify direttamente."
+  tr: "Iconify, design.search_icons yeteneğini destekler. Iconify, simge arama sorgularını ve SVG önizlemelerini getirmek için gereken simge koleksiyonunu/adını görür ancak herhangi bir OpenMates kullanıcı tanımlayıcısı görmez. OpenMates, Iconify verilerini sunucu tarafında getirir ve istemciler doğrudan Iconify'ı çağırmaz."
+  vi: Iconify cung cấp sức mạnh cho kỹ năng design.search_icons. Iconify nhìn thấy các truy vấn tìm kiếm biểu tượng và bộ sưu tập/tên biểu tượng cần thiết để tải bản xem trước SVG, nhưng không thấy mã định danh người dùng OpenMates. OpenMates tải dữ liệu Iconify từ phía máy chủ và ứng dụng khách không gọi trực tiếp đến Iconify.
+  id: Iconify mendukung keahlian design.search_icons. Iconify melihat kueri pencarian ikon dan koleksi/nama ikon yang diperlukan untuk mengambil pratinjau SVG, tetapi tidak melihat pengenal pengguna OpenMates. OpenMates mengambil data Iconify di sisi server dan klien tidak memanggil Iconify secara langsung.
+  pl: Iconify obsługuje umiejętność design.search_icons. Iconify widzi zapytania wyszukiwania ikon oraz kolekcję/nazwę ikony potrzebną do pobrania podglądu SVG, ale nie widzi identyfikatora użytkownika OpenMates. OpenMates pobiera dane Iconify po stronie serwera, a klienci nie łączą się z Iconify bezpośrednio.
+  nl: Iconify drijft de design.search_icons skill aan. Iconify ziet zoekopdrachten voor iconen en de iconencollectie/-naam die nodig is om SVG-voorbeelden op te halen, maar geen OpenMates-gebruikersidentificatie. OpenMates haalt Iconify-gegevens op aan de serverzijde en clients maken niet rechtstreeks verbinding met Iconify.
+  ar: يدعم Iconify مهارة design.search_icons. يرى Iconify استعلامات البحث عن الأيقونات واسم/مجموعة الأيقونات المطلوبة لجلب معاينات SVG، ولكن لا يرى أي معرف لمستخدم OpenMates. يقوم OpenMates بجلب بيانات Iconify من جانب الخادم ولا تتصل التطبيقات بـ Iconify مباشرة.
+  hi: Iconify design.search_icons स्किल को संचालित करता है। Iconify आइकन सर्च क्वेरी और SVG प्रीव्यू प्राप्त करने के लिए आवश्यक आइकन कलेक्शन/नाम देख सकता है, लेकिन कोई OpenMates यूजर आइडेंटिफायर नहीं। OpenMates सर्वर-साइड पर Iconify डेटा प्राप्त करता है और क्लाइंट सीधे Iconify को कॉल नहीं करते हैं।
+  th: Iconify เป็นผู้ให้บริการทักษะ design.search_icons โดย Iconify จะเห็นคำค้นหาไอคอนและชื่อชุดไอคอนที่จำเป็นในการดึงตัวอย่าง SVG แต่จะไม่เห็นตัวระบุผู้ใช้ OpenMates ทั้งนี้ OpenMates จะดึงข้อมูลจาก Iconify ผ่านฝั่งเซิร์ฟเวอร์ และไคลเอนต์จะไม่ได้เรียกใช้ Iconify โดยตรง
+  cs: Iconify pohání dovednost design.search_icons. Iconify vidí dotazy na vyhledávání ikon a název/sbírku ikon potřebnou k načtení náhledů SVG, ale nevidí žádný identifikátor uživatele OpenMates. OpenMates načítá data z Iconify na straně serveru a klienti nevolají Iconify přímo.
+  sv: Iconify driver färdigheten design.search_icons. Iconify ser sökfrågor för ikoner och den ikonsamling/det namn som behövs för att hämta SVG-förhandsvisningar, men ingen OpenMates-användaridentifierare. OpenMates hämtar Iconify-data på serversidan och klienter anropar inte Iconify direkt.
+  es: Iconify hace funcionar la habilidad design.search_icons. Iconify ve las consultas de búsqueda de iconos y la colección/nombre del icono necesario para obtener las vistas previas SVG, pero ningún identificador de usuario de OpenMates. OpenMates obtiene los datos de Iconify en el servidor y los clientes no llaman a Iconify directamente.
+  he: Iconify מפעיל את מיומנות design.search_icons. ‏Iconify רואה שאילתות לחיפוש סמלים ואת אוסף/שם הסמל הדרושים לאחזור תצוגות מקדימות של SVG, אך לא את מזהה המשתמש ב-OpenMates. ‏OpenMates מאחזר נתוני Iconify בצד השרת והלקוחות אינם פונים ל-Iconify ישירות.
   verified_by_human: []
 providers.web_and_search.webshare.heading:
   context: Heading for Webshare provider entry

@@ -810,101 +810,501 @@ pair_confirm_on_iphone:
   context: Watch login state shown when a paired iPhone is reachable and must approve the login request
   en: Confirm login on iPhone
 
+  de: Login auf iPhone bestätigen
+  zh: 在 iPhone 上确认登录
+  es: Confirma el inicio de sesión en el iPhone
+  fr: "Confirme la connexion sur l'iPhone"
+  pt: Confirmar login no iPhone
+  ru: Подтверди вход на iPhone
+  ja: iPhoneでログインを確認
+  ko: iPhone에서 로그인 확인
+  tr: "Girişi iPhone'dan onayla"
+  vi: Xác nhận đăng nhập trên iPhone
+  id: Konfirmasi login di iPhone
+  pl: "Potwierdź logowanie na iPhone'ie"
+  nl: Bevestig inloggen op iPhone
+  ar: تأكيد تسجيل الدخول على iPhone
+  hi: iPhone पर लॉगिन की पुष्टि करें
+  th: ยืนยันการเข้าสู่ระบบบน iPhone
+  cs: Potvrď přihlášení na iPhonu
+  sv: Bekräfta inloggning på iPhone
+  it: "Conferma l'accesso su iPhone"
+  he: אשר כניסה ב-iPhone
   verified_by_human: []
 pair_confirm_on_iphone_description:
   context: Description on Apple Watch explaining that the iPhone must approve the login request
   en: We sent a login request to your connected iPhone. Approve it there to continue.
 
+  de: Wir haben eine Login-Anfrage an dein verbundenes iPhone gesendet. Bestätige sie dort, um fortzufahren.
+  zh: 我们已向你连接的 iPhone 发送了登录请求。请在手机上批准以继续。
+  es: Hemos enviado una solicitud de inicio de sesión a tu iPhone conectado. Apruébala allí para continuar.
+  fr: Nous avons envoyé une demande de connexion à ton iPhone connecté. Approuve-la pour continuer.
+  pt: Enviamos uma solicitação de login para o teu iPhone conectado. Aprova-a lá para continuar.
+  ru: Мы отправили запрос на вход на твой подключенный iPhone. Подтверди его там, чтобы продолжить.
+  ja: 接続されているiPhoneにログインリクエストを送信しました。続行するにはiPhoneで承認してください。
+  ko: 연결된 iPhone으로 로그인 요청을 보냈습니다. 계속하려면 iPhone에서 승인해 주세요.
+  tr: "Bağlı iPhone'una bir giriş isteği gönderdik. Devam etmek için oradan onayla."
+  vi: Chúng tôi đã gửi yêu cầu đăng nhập đến iPhone đã kết nối của bạn. Hãy phê duyệt tại đó để tiếp tục.
+  id: Kami mengirimkan permintaan login ke iPhone kamu yang terhubung. Setujui di sana untuk melanjutkan.
+  pl: Wysłaliśmy prośbę o logowanie na Twój połączony iPhone. Zatwierdź ją tam, aby kontynuować.
+  nl: We hebben een inlogverzoek naar je verbonden iPhone gestuurd. Keur het daar goed om door te gaan.
+  ar: لقد أرسلنا طلب تسجيل دخول إلى جهاز iPhone المتصل الخاص بك. وافق عليه هناك للمتابعة.
+  hi: हमने आपके कनेक्टेड iPhone पर लॉगिन अनुरोध भेजा है। जारी रखने के लिए वहां इसे अनुमति दें।
+  th: เราได้ส่งคำขอเข้าสู่ระบบไปยัง iPhone ที่เชื่อมต่อของคุณแล้ว โปรดอนุมัติที่นั่นเพื่อดำเนินการต่อ
+  cs: Na tvůj připojený iPhone jsme odeslali žádost o přihlášení. Pro pokračování ji tam schval.
+  sv: Vi har skickat en inloggningsförfrågan till din anslutna iPhone. Godkänn den där för att fortsätta.
+  it: Abbiamo inviato una richiesta di accesso al tuo iPhone collegato. Approvatela lì per continuare.
+  he: שלחנו בקשת כניסה ל-iPhone המחובר שלך. אשר אותה שם כדי להמשיך.
   verified_by_human: []
 pair_login_without_iphone:
   context: Button on Apple Watch that reveals the manual pair-login fallback
   en: Login without iPhone
 
+  de: Ohne iPhone anmelden
+  zh: 不使用 iPhone 登录
+  es: Iniciar sesión sin el iPhone
+  fr: Se connecter sans iPhone
+  pt: Login sem iPhone
+  ru: Войти без iPhone
+  ja: iPhoneなしでログイン
+  ko: iPhone 없이 로그인
+  tr: iPhone olmadan giriş yap
+  vi: Đăng nhập không cần iPhone
+  id: Login tanpa iPhone
+  pl: "Zaloguj się bez iPhone'a"
+  nl: Inloggen zonder iPhone
+  ar: تسجيل الدخول بدون iPhone
+  hi: iPhone के बिना लॉगिन करें
+  th: เข้าสู่ระบบโดยไม่ใช้ iPhone
+  cs: Přihlásit se bez iPhonu
+  sv: Logga in utan iPhone
+  it: Accedi senza iPhone
+  he: כניסה ללא iPhone
   verified_by_human: []
 pair_show_qr_code:
   context: Button on Apple Watch that opens the full-screen pair-login QR code
   en: Show QR code
 
+  de: QR-Code anzeigen
+  zh: 显示二维码
+  es: Mostrar código QR
+  fr: Afficher le code QR
+  pt: Mostrar código QR
+  ru: Показать QR-код
+  ja: QRコードを表示
+  ko: QR 코드 표시
+  tr: QR kodu göster
+  vi: Hiển thị mã QR
+  id: Tampilkan kode QR
+  pl: Pokaż kod QR
+  nl: Toon QR-code
+  ar: إظهار رمز QR
+  hi: QR कोड दिखाएं
+  th: แสดงรหัส QR
+  cs: Zobrazit QR kód
+  sv: Visa QR-kod
+  it: Mostra codice QR
+  he: הצג קוד QR
   verified_by_human: []
 pair_full_url_label:
   context: Label for the full pair-login URL shown on Apple Watch fallback
   en: Full login URL
 
+  de: Vollständige Login-URL
+  zh: 完整登录 URL
+  es: URL de inicio de sesión completa
+  fr: URL de connexion complète
+  pt: URL de login completa
+  ru: Полный URL для входа
+  ja: ログインURL（フル）
+  ko: 전체 로그인 URL
+  tr: "Tam giriş URL'si"
+  vi: URL đăng nhập đầy đủ
+  id: URL login lengkap
+  pl: Pełny adres URL logowania
+  nl: Volledige inlog-URL
+  ar: رابط تسجيل الدخول الكامل
+  hi: पूर्ण लॉगिन URL
+  th: URL การเข้าสู่ระบบแบบเต็ม
+  cs: Úplná přihlašovací URL
+  sv: Fullständig inloggnings-URL
+  it: URL di accesso completo
+  he: כתובת URL מלאה לכניסה
   verified_by_human: []
 pair_server_label:
   context: Compact label on Apple Watch showing which OpenMates server/domain the login will use
   en: Server
 
+  de: Server
+  zh: 服务器
+  es: Servidor
+  fr: Serveur
+  pt: Servidor
+  ru: Сервер
+  ja: サーバー
+  ko: 서버
+  it: Server
+  tr: Sunucu
+  vi: Máy chủ
+  id: Server
+  pl: Serwer
+  nl: Server
+  ar: الخادم
+  hi: सर्वर
+  th: เซิร์ฟเวอร์
+  cs: Server
+  sv: Server
+  he: שרת
   verified_by_human: []
 pair_server_production:
   context: Apple Watch button label for using the production OpenMates server during login
   en: Production
 
+  de: Produktion
+  zh: 正式版
+  es: Producción
+  fr: Production
+  pt: Produção
+  ru: Production
+  ja: 本番用
+  ko: 프로덕션
+  it: Produzione
+  tr: Üretim
+  vi: Chính thức
+  id: Produksi
+  pl: Produkcja
+  nl: Productie
+  ar: الإنتاج
+  hi: प्रोडक्शन
+  th: Production
+  cs: Produkce
+  sv: Produktion
+  he: פרודקשן
   verified_by_human: []
 pair_server_development:
   context: Apple Watch button label for using the development OpenMates server during login
   en: Dev
 
+  de: Dev
+  zh: 开发版
+  es: Desarrollo
+  fr: Dév
+  pt: Dev
+  ru: Dev
+  ja: 開発用
+  ko: 개발
+  it: Dev
+  tr: Geliştirme
+  vi: Dev
+  id: Dev
+  pl: Dev
+  nl: Dev
+  ar: تطوير
+  hi: डेव (Dev)
+  th: Dev
+  cs: Dev
+  sv: Dev
+  he: פיתוח
   verified_by_human: []
 pair_server_custom_placeholder:
   context: Apple Watch text field placeholder for a custom or self-hosted OpenMates domain
   en: custom domain
 
+  de: Eigene Domain
+  zh: 自定义域名
+  es: dominio personalizado
+  fr: domaine personnalisé
+  pt: domínio personalizado
+  ru: свой домен
+  ja: カスタムドメイン
+  ko: 사용자 지정 도메인
+  it: dominio personalizzato
+  tr: özel alan adı
+  vi: tên miền tùy chỉnh
+  id: domain kustom
+  pl: własna domena
+  nl: eigen domein
+  ar: نطاق مخصص
+  hi: कस्टम डोमेन
+  th: โดเมนที่กำหนดเอง
+  cs: vlastní doména
+  sv: egen domän
+  he: דומיין מותאם אישית
   verified_by_human: []
 pair_server_use_custom:
   context: Apple Watch button label that applies the typed custom/self-hosted OpenMates domain
   en: Use custom
 
+  de: Eigene verwenden
+  zh: 使用自定义域名
+  es: Usar personalizado
+  fr: Utiliser le domaine personnalisé
+  pt: Usar personalizado
+  ru: Свой домен
+  ja: カスタムを使用
+  ko: 사용자 지정 사용
+  it: Usa personalizzato
+  tr: Özel kullan
+  vi: Dùng tùy chỉnh
+  id: Gunakan kustom
+  pl: Użyj własnej
+  nl: Gebruik eigen domein
+  ar: استخدام مخصص
+  hi: कस्टम का उपयोग करें
+  th: ใช้โดเมนที่กำหนดเอง
+  cs: Použít vlastní
+  sv: Använd egen
+  he: שימוש במותאם אישית
   verified_by_human: []
 pair_self_hosted_edition:
   context: Optional Apple Watch action that reveals manual server URL entry
   en: Connect self-hosted edition
 
+  de: Self-Hosted-Edition verbinden
+  zh: 连接自托管版本
+  es: Conectar edición autoalojada
+  fr: Connecter une édition auto-hébergée
+  pt: Ligar edição self-hosted
+  ru: Подключить self-hosted версию
+  ja: セルフホスト版を接続
+  ko: 셀프 호스팅 에디션 연결
+  it: Connetti edizione self-hosted
+  tr: Kendi barındırılan sürümü bağla
+  vi: Kết nối bản tự lưu trữ
+  id: Hubungkan edisi self-hosted
+  pl: Połącz z wersją self-hosted
+  nl: Verbind self-hosted editie
+  ar: اتصال بنسخة الاستضافة الذاتية
+  hi: सेल्फ-होस्टेड एडिशन कनेक्ट करें
+  th: เชื่อมต่อรุ่น Self-hosted
+  cs: Připojit self-hosted edici
+  sv: Anslut självhostad version
+  he: חיבור לגרסה באירוח עצמי
   verified_by_human: []
 pair_self_hosted_placeholder:
   context: Apple Watch text field placeholder for a self-hosted OpenMates web URL
   en: Server URL
 
+  de: Server-URL
+  zh: 服务器 URL
+  es: URL del servidor
+  fr: URL du serveur
+  pt: URL do servidor
+  ru: URL сервера
+  ja: サーバーURL
+  ko: 서버 URL
+  it: URL del server
+  tr: "Sunucu URL'si"
+  vi: URL máy chủ
+  id: URL Server
+  pl: URL serwera
+  nl: Server-URL
+  ar: رابط الخادم
+  hi: सर्वर URL
+  th: URL เซิร์ฟเวอร์
+  cs: URL serveru
+  sv: Server-URL
+  he: כתובת השרת
   verified_by_human: []
 pair_self_hosted_connect:
   context: Apple Watch button that starts pairing with the entered self-hosted server
   en: Connect
 
+  de: Verbinden
+  zh: 连接
+  es: Conectar
+  fr: Se connecter
+  pt: Ligar
+  ru: Подключиться
+  ja: 接続
+  ko: 연결
+  it: Connetti
+  tr: Bağlan
+  vi: Kết nối
+  id: Hubungkan
+  pl: Połącz
+  nl: Verbinden
+  ar: اتصال
+  hi: कनेक्ट करें
+  th: เชื่อมต่อ
+  cs: Připojit
+  sv: Anslut
+  he: התחברות
   verified_by_human: []
 pair_self_hosted_invalid_url:
   context: Apple Watch validation error for an invalid or insecure self-hosted server URL
   en: Enter a valid HTTPS server URL.
 
+  de: Gib eine gültige HTTPS-Server-URL ein.
+  zh: 请输入有效的 HTTPS 服务器 URL。
+  es: Introduce una URL de servidor HTTPS válida.
+  fr: Saisis une URL de serveur HTTPS valide.
+  pt: Introduz um URL de servidor HTTPS válido.
+  ru: Введи корректный URL-адрес сервера HTTPS.
+  ja: 有効なHTTPSサーバーURLを入力してください。
+  ko: 올바른 HTTPS 서버 URL을 입력하세요.
+  it: Inserisci un URL server HTTPS valido.
+  tr: "Geçerli bir HTTPS sunucu URL'si girin."
+  vi: Nhập URL máy chủ HTTPS hợp lệ.
+  id: Masukkan URL server HTTPS yang valid.
+  pl: Wprowadź poprawny adres URL serwera HTTPS.
+  nl: Voer een geldige HTTPS-server-URL in.
+  ar: أدخل رابط خادم HTTPS صالح.
+  hi: एक मान्य HTTPS सर्वर URL दर्ज करें।
+  th: โปรดป้อน URL ของเซิร์ฟเวอร์ HTTPS ที่ถูกต้อง
+  cs: Zadej platnou HTTPS URL serveru.
+  sv: Ange en giltig HTTPS-server-URL.
+  he: יש להזין כתובת שרת HTTPS תקינה.
   verified_by_human: []
 pair_use_production:
   context: Apple Watch action that clears a remembered self-hosted server and pairs with OpenMates production
   en: Use OpenMates.org
 
+  de: OpenMates.org nutzen
+  zh: 使用 OpenMates.org
+  es: Usar OpenMates.org
+  fr: Utiliser OpenMates.org
+  pt: Usar OpenMates.org
+  ru: Использовать OpenMates.org
+  ja: OpenMates.orgを使用
+  ko: OpenMates.org 사용
+  it: Usa OpenMates.org
+  tr: "OpenMates.org'u kullan"
+  vi: Dùng OpenMates.org
+  id: Gunakan OpenMates.org
+  pl: Użyj OpenMates.org
+  nl: Gebruik OpenMates.org
+  ar: استخدام OpenMates.org
+  hi: OpenMates.org का उपयोग करें
+  th: ใช้ OpenMates.org
+  cs: Použít OpenMates.org
+  sv: Använd OpenMates.org
+  he: שימוש ב-OpenMates.org
   verified_by_human: []
 pair_connect_apple_watch_title:
   context: iPhone approval screen title for logging in a paired Apple Watch
   en: Connect Apple Watch
 
+  de: Apple Watch verbinden
+  zh: 连接 Apple Watch
+  es: Conectar Apple Watch
+  fr: "Connecter l'Apple Watch"
+  pt: Ligar Apple Watch
+  ru: Подключить Apple Watch
+  ja: Apple Watchを接続
+  ko: Apple Watch 연결
+  it: Connetti Apple Watch
+  tr: "Apple Watch'u Bağla"
+  vi: Kết nối Apple Watch
+  id: Hubungkan Apple Watch
+  pl: Połącz Apple Watch
+  nl: Apple Watch verbinden
+  ar: ربط Apple Watch
+  hi: Apple Watch कनेक्ट करें
+  th: เชื่อมต่อ Apple Watch
+  cs: Připojit Apple Watch
+  sv: Anslut Apple Watch
+  he: חיבור Apple Watch
   verified_by_human: []
 pair_connect_apple_watch_description:
   context: iPhone approval screen description for an Apple Watch login request
   en: Your Apple Watch is asking to log in to OpenMates. Only approve this if you started the request.
 
+  de: Deine Apple Watch möchte sich bei OpenMates anmelden. Bestätige dies nur, wenn du die Anfrage selbst gestartet hast.
+  zh: 你的 Apple Watch 正在请求登录 OpenMates。只有在你本人发起请求时才批准。
+  es: Tu Apple Watch está solicitando iniciar sesión en OpenMates. Solo aprueba esto si tú iniciaste la solicitud.
+  fr: "Ton Apple Watch demande à se connecter à OpenMates. N'approuve cette demande que si tu en es à l'origine."
+  pt: O teu Apple Watch está a pedir para iniciar sessão no OpenMates. Só deves aprovar se tiveres iniciado o pedido.
+  ru: Твои Apple Watch запрашивают вход в OpenMates. Подтверждай это только в том случае, если ты сам инициировал запрос.
+  ja: Apple WatchがOpenMatesへのログインを求めています。あなたがリクエストを開始した場合のみ承認してください。
+  ko: Apple Watch에서 OpenMates 로그인을 요청하고 있습니다. 본인이 요청한 경우에만 승인하세요.
+  it: Il tuo Apple Watch sta chiedendo di accedere a OpenMates. Approva solo se hai avviato tu la richiesta.
+  tr: "Apple Watch'unuz OpenMates'e giriş yapmak istiyor. Bunu yalnızca isteği siz başlattıysanız onaylayın."
+  vi: Apple Watch của bạn đang yêu cầu đăng nhập vào OpenMates. Chỉ phê duyệt nếu bạn là người bắt đầu yêu cầu này.
+  id: Apple Watch kamu meminta untuk masuk ke OpenMates. Hanya setujui ini jika kamu yang memulai permintaan tersebut.
+  pl: Twój Apple Watch prosi o zalogowanie do OpenMates. Zatwierdź to tylko, jeśli to Ty wysłałeś prośbę.
+  nl: Je Apple Watch vraagt om in te loggen bij OpenMates. Keur dit alleen goed als je dit verzoek zelf bent gestart.
+  ar: تطلب ساعة Apple Watch الخاصة بك تسجيل الدخول إلى OpenMates. لا توافق على هذا إلا إذا كنت أنت من بدأ الطلب.
+  hi: आपकी Apple Watch, OpenMates में लॉग इन करने का अनुरोध कर रही है। इसे केवल तभी अनुमति दें जब आपने यह अनुरोध शुरू किया हो।
+  th: Apple Watch ของคุณกำลังขอเข้าสู่ระบบ OpenMates โปรดอนุมัติหากคุณเป็นผู้เริ่มคำขอนี้ด้วยตนเองเท่านั้น
+  cs: Tvoje Apple Watch žádají o přihlášení k OpenMates. Schval to jen v případě, že jsi požadavek spustil/a ty.
+  sv: Din Apple Watch begär att få logga in på OpenMates. Godkänn endast om det var du som startade begäran.
+  he: ה-Apple Watch שלך מבקש להתחבר ל-OpenMates. אשר זאת רק אם אתה יזמת את הבקשה.
   verified_by_human: []
 pair_watch_login_server_mismatch:
   context: Error shown on iPhone when Apple Watch login was created for a different OpenMates server/domain than the iPhone is currently using
   en: This Apple Watch login was created for {watch_server}, but this iPhone is using {phone_server}. Switch both devices to the same OpenMates server and restart Watch login.
 
+  de: "Dieser Apple-Watch-Login wurde für {watch_server} erstellt, aber dieses iPhone verwendet {phone_server}. Stelle beide Geräte auf denselben OpenMates-Server ein und starte den Watch-Login erneut."
+  zh: "此 Apple Watch 登录是为 {watch_server} 创建的，但此 iPhone 正在使用 {phone_server}。请将两台设备切换到同一个 OpenMates 服务器并重新开始手表登录。"
+  es: "Este inicio de sesión de Apple Watch se creó para {watch_server}, pero este iPhone está usando {phone_server}. Cambia ambos dispositivos al mismo servidor de OpenMates y reinicia el inicio de sesión del Watch."
+  fr: "Cette connexion Apple Watch a été créée pour {watch_server}, mais cet iPhone utilise {phone_server}. Bascule les deux appareils sur le même serveur OpenMates et redémarre la connexion de la montre."
+  pt: "Este login do Apple Watch foi criado para {watch_server}, mas este iPhone está a usar {phone_server}. Muda ambos os dispositivos para o mesmo servidor OpenMates e reinicia o login no Watch."
+  ru: "Этот запрос на вход с Apple Watch был создан для {watch_server}, но этот iPhone использует {phone_server}. Переключи оба устройства на один и тот же сервер OpenMates и начни вход заново."
+  ja: "このApple Watchのログインは{watch_server}用に作成されましたが、このiPhoneは{phone_server}を使用しています。両方のデバイスを同じOpenMatesサーバーに切り替えて、Watchのログインをやり直してください。"
+  ko: "이 Apple Watch 로그인은 {watch_server}용으로 생성되었으나, 현재 iPhone은 {phone_server}을(를) 사용 중입니다. 두 기기를 동일한 OpenMates 서버로 전환한 후 Watch 로그인을 다시 시작하세요."
+  it: "Questo accesso per Apple Watch è stato creato per {watch_server}, ma questo iPhone sta usando {phone_server}. Imposta lo stesso server OpenMates su entrambi i dispositivi e riavvia l'accesso dall'Apple Watch."
+  tr: "Bu Apple Watch girişi {watch_server} için oluşturuldu, ancak bu iPhone {phone_server} kullanıyor. Her iki cihazı da aynı OpenMates sunucusuna geçirin ve Watch girişini yeniden başlatın."
+  vi: "Yêu cầu đăng nhập Apple Watch này được tạo cho {watch_server}, nhưng iPhone này đang dùng {phone_server}. Hãy chuyển cả hai thiết bị sang cùng một máy chủ OpenMates và bắt đầu lại."
+  id: "Login Apple Watch ini dibuat untuk {watch_server}, tetapi iPhone ini menggunakan {phone_server}. Ubah kedua perangkat ke server OpenMates yang sama dan mulai ulang login Watch."
+  pl: "To logowanie Apple Watch zostało utworzone dla {watch_server}, ale ten iPhone używa {phone_server}. Przełącz oba urządzenia na ten sam serwer OpenMates i zrestartuj logowanie na zegarku."
+  nl: "Deze Apple Watch-login is aangemaakt voor {watch_server}, maar deze iPhone gebruikt {phone_server}. Schakel beide apparaten naar dezelfde OpenMates-server en start de Watch-login opnieuw."
+  ar: "تم إنشاء تسجيل دخول Apple Watch هذا لـ {watch_server}، لكن جهاز iPhone هذا يستخدم {phone_server}. قم بتحويل كلا الجهازين إلى نفس خادم OpenMates وأعد تشغيل تسجيل دخول الساعة."
+  hi: "यह Apple Watch लॉगिन {watch_server} के लिए बनाया गया था, लेकिन यह iPhone {phone_server} का उपयोग कर रहा है। दोनों डिवाइस को एक ही OpenMates सर्वर पर स्विच करें और वॉच लॉगिन फिर से शुरू करें।"
+  th: "การเข้าสู่ระบบ Apple Watch นี้ถูกสร้างขึ้นสำหรับ {watch_server} แต่ iPhone นี้กำลังใช้ {phone_server} โปรดเปลี่ยนอุปกรณ์ทั้งสองเครื่องให้ใช้เซิร์ฟเวอร์ OpenMates เดียวกันแล้วเริ่มการเข้าสู่ระบบบน Watch ใหม่"
+  cs: "Toto přihlášení Apple Watch bylo vytvořeno pro {watch_server}, ale tento iPhone používá {phone_server}. Přepni obě zařízení na stejný server OpenMates a restartuj přihlášení na Watch."
+  sv: "Denna Apple Watch-inloggning skapades för {watch_server}, men denna iPhone använder {phone_server}. Växla båda enheterna till samma OpenMates-server och starta om Watch-inloggningen."
+  he: "התחברות ה-Apple Watch נוצרה עבור {watch_server}, אך ה-iPhone משתמש ב-{phone_server}. העבר את שני המכשירים לאותו שרת OpenMates והפעל מחדש את ההתחברות מהשעון."
   verified_by_human: []
 pair_approve_watch_login:
   context: iPhone button label to approve an Apple Watch login request
   en: Allow Watch Login
 
+  de: Watch-Login erlauben
+  zh: 允许手表登录
+  es: Permitir inicio de sesión en el Watch
+  fr: Autoriser la connexion de la montre
+  pt: Permitir login no Watch
+  ru: Разрешить вход с часов
+  ja: Watchのログインを許可
+  ko: Watch 로그인 허용
+  it: Consenti accesso Watch
+  tr: Watch Girişine İzin Ver
+  vi: Cho phép đăng nhập Watch
+  id: Izinkan Login Watch
+  pl: Zezwól na logowanie zegarka
+  nl: Watch-login toestaan
+  ar: السماح بتسجيل دخول الساعة
+  hi: वॉच लॉगिन की अनुमति दें
+  th: อนุญาตให้ Watch เข้าสู่ระบบ
+  cs: Povolit přihlášení Watch
+  sv: Tillåt Watch-inloggning
+  he: אשר התחברות מהשעון
   verified_by_human: []
 pair_watch_login_approved:
   context: Success message after the iPhone approves an Apple Watch login request
   en: Apple Watch login approved.
 
+  de: Apple-Watch-Login genehmigt.
+  zh: Apple Watch 登录已批准。
+  es: Inicio de sesión en Apple Watch aprobado.
+  fr: "Connexion de l'Apple Watch approuvée."
+  pt: Login no Apple Watch aprovado.
+  ru: Вход с Apple Watch разрешен.
+  ja: Apple Watchのログインを承認しました。
+  ko: Apple Watch 로그인이 승인되었습니다.
+  it: Accesso Apple Watch approvato.
+  tr: Apple Watch girişi onaylandı.
+  vi: Đã phê duyệt đăng nhập Apple Watch.
+  id: Login Apple Watch disetujui.
+  pl: Zatwierdzono logowanie Apple Watch.
+  nl: Apple Watch-login goedgekeurd.
+  ar: تمت الموافقة على تسجيل دخول Apple Watch.
+  hi: Apple Watch लॉगिन स्वीकृत।
+  th: อนุมัติการเข้าสู่ระบบของ Apple Watch แล้ว
+  cs: Přihlášení Apple Watch bylo schváleno.
+  sv: Apple Watch-inloggning godkänd.
+  he: התחברות ה-Apple Watch אושרה.
   verified_by_human: []
 pair_auto_logout_label:
   context: Label for the auto-logout timer selector on the pair initiation page

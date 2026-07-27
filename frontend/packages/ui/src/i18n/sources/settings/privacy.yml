@@ -697,6 +697,27 @@ connected_accounts.provider_google_calendar:
 connected_accounts.provider_proton_mail_bridge:
   context: Provider display name for Proton Mail Bridge local connector accounts.
   en: Proton Mail Bridge
+  de: Proton Mail Bridge
+  zh: Proton Mail Bridge
+  fr: Proton Mail Bridge
+  pt: Proton Mail Bridge
+  ru: Proton Mail Bridge
+  ja: Proton Mail Bridge
+  ko: Proton Mail Bridge
+  it: Proton Mail Bridge
+  tr: Proton Mail Bridge
+  vi: Proton Mail Bridge
+  id: Proton Mail Bridge
+  pl: Proton Mail Bridge
+  nl: Proton Mail Bridge
+  ar: Proton Mail Bridge
+  hi: Proton Mail Bridge
+  th: Proton Mail Bridge
+  cs: Proton Mail Bridge
+  sv: Proton Mail Bridge
+  es: Proton Mail Bridge
+  he: Proton Mail Bridge
+  verified_by_human: []
 connected_accounts.app:
   context: Detail row label for connected account app scope.
   en: App
@@ -724,21 +745,147 @@ connected_accounts.app:
 connected_accounts.status:
   context: Detail row label for connected account connection status.
   en: Status
+  de: Status
+  zh: 状态
+  fr: Statut
+  pt: Estado
+  ru: Статус
+  ja: ステータス
+  ko: 상태
+  it: Stato
+  tr: Durum
+  vi: Trạng thái
+  id: Status
+  pl: Status
+  nl: Status
+  ar: الحالة
+  hi: स्थिति
+  th: สถานะ
+  cs: Stav
+  sv: Status
+  es: Estado
+  he: סטטוס
+  verified_by_human: []
 connected_accounts.status_oauth:
   context: Connected account status for standard OAuth/imported accounts.
   en: Connected
+  de: Verbunden
+  zh: 已连接
+  fr: Connecté
+  pt: Ligado
+  ru: Подключено
+  ja: 接続済み
+  ko: 연결됨
+  it: Connesso
+  tr: Bağlı
+  vi: Đã kết nối
+  id: Terhubung
+  pl: Połączono
+  nl: Verbonden
+  ar: متصل
+  hi: जुड़ा हुआ है
+  th: เชื่อมต่อแล้ว
+  cs: Připojeno
+  sv: Ansluten
+  es: Conectado
+  he: מחובר
+  verified_by_human: []
 connected_accounts.status_online_cli:
   context: Connected account status for a local CLI connector with active heartbeat.
   en: Online via CLI
+  de: Online via CLI
+  zh: 通过 CLI 在线
+  es: En línea vía CLI
+  fr: En ligne via CLI
+  pt: Online via CLI
+  ru: В сети через CLI
+  ja: CLI経由でオンライン
+  ko: CLI를 통해 온라인 연결됨
+  tr: CLI üzerinden çevrimiçi
+  vi: Trực tuyến qua CLI
+  id: Online via CLI
+  pl: Online przez CLI
+  nl: Online via CLI
+  ar: متصل عبر CLI
+  hi: CLI के माध्यम से ऑनलाइन
+  th: ออนไลน์ผ่าน CLI
+  cs: Online přes CLI
+  sv: Online via CLI
+  it: Online via CLI
+  he: מחובר דרך ה-CLI
+  verified_by_human: []
 connected_accounts.status_offline:
   context: Connected account status for a local CLI connector that is not running.
   en: Offline
+  de: Offline
+  zh: 离线
+  es: Desconectado
+  fr: Hors ligne
+  pt: Offline
+  ru: Не в сети
+  ja: オフライン
+  ko: 오프라인
+  tr: Çevrimdışı
+  vi: Ngoại tuyến
+  id: Offline
+  pl: Offline
+  nl: Offline
+  ar: غير متصل
+  hi: ऑफ़लाइन
+  th: ออฟไลน์
+  cs: Offline
+  sv: Frånkopplad
+  it: Offline
+  he: לא מחובר
+  verified_by_human: []
 connected_accounts.status_setup_required:
   context: Connected account status for a local CLI connector that needs setup.
   en: Setup required
+  de: Einrichtung erforderlich
+  zh: 需要设置
+  es: Configuración requerida
+  fr: Configuration requise
+  pt: Configuração necessária
+  ru: Требуется настройка
+  ja: セットアップが必要
+  ko: 설정 필요
+  tr: Kurulum gerekiyor
+  vi: Yêu cầu thiết lập
+  id: Perlu penyiapan
+  pl: Wymagana konfiguracja
+  nl: Configuratie vereist
+  ar: الإعداد مطلوب
+  hi: सेटअप आवश्यक
+  th: ต้องตั้งค่า
+  cs: Vyžadováno nastavení
+  sv: Konfiguration krävs
+  it: Configurazione richiesta
+  he: נדרשת הגדרה
+  verified_by_human: []
 connected_accounts.status_revoked:
   context: Connected account status for a revoked local connector.
   en: Revoked
+  de: Widerrufen
+  zh: 已撤销
+  es: Revocado
+  fr: Révoqué
+  pt: Revogado
+  ru: Отозвано
+  ja: 無効化済み
+  ko: 취소됨
+  tr: İptal edildi
+  vi: Đã bị thu hồi
+  id: Dicabut
+  pl: Unieważnione
+  nl: Ingetrokken
+  ar: ملغى
+  hi: निरस्त
+  th: ถูกเพิกถอนแล้ว
+  cs: Odvoláno
+  sv: Återkallad
+  it: Revocato
+  he: בוטל
+  verified_by_human: []
 connected_accounts.capabilities:
   context: Detail row label for connected account capabilities.
   en: Capabilities
@@ -3718,84 +3865,504 @@ auth.description:
 native.save_error:
   context: Error shown by Apple Privacy settings when a mutation fails.
   en: Could not save this privacy setting. Please try again.
+  de: Diese Privatsphäre-Einstellung konnte nicht gespeichert werden. Bitte versuche es erneut.
+  zh: 无法保存此隐私设置。请重试。
+  es: No se pudo guardar este ajuste de privacidad. Inténtalo de nuevo.
+  fr: "Impossible d'enregistrer ce paramètre de confidentialité. Réessaie."
+  pt: Não foi possível salvar esta configuração de privacidade. Tenta novamente.
+  ru: Не удалось сохранить эту настройку конфиденциальности. Пожалуйста, попробуй еще раз.
+  ja: このプライバシー設定を保存できませんでした。もう一度お試しください。
+  ko: 이 개인정보 보호 설정을 저장할 수 없습니다. 다시 시도해 주세요.
+  tr: Bu gizlilik ayarı kaydedilemedi. Lütfen tekrar dene.
+  vi: Không thể lưu cài đặt quyền riêng tư này. Vui lòng thử lại.
+  id: Gagal menyimpan pengaturan privasi ini. Silakan coba lagi.
+  pl: Nie udało się zapisać tego ustawienia prywatności. Spróbuj ponownie.
+  nl: Kon deze privacyinstelling niet opslaan. Probeer het opnieuw.
+  ar: تعذر حفظ إعداد الخصوصية هذا. يرجى المحاولة مرة أخرى.
+  hi: यह गोपनीयता सेटिंग सहेजी नहीं जा सकी। कृपया पुनः प्रयास करें।
+  th: ไม่สามารถบันทึกการตั้งค่าความเป็นส่วนตัวนี้ได้ โปรดลองอีกครั้ง
+  cs: Toto nastavení soukromí se nepodařilo uložit. Zkus to prosím znovu.
+  sv: Kunde inte spara denna integritetsinställning. Försök igen.
+  it: Impossibile salvare questa impostazione sulla privacy. Riprova.
+  he: לא ניתן לשמור הגדרת פרטיות זו. כדאי לנסות שוב.
   verified_by_human: []
 native.master_key_unavailable:
   context: Error shown by Apple Privacy settings when encrypted account data cannot be opened.
   en: Your encryption key is unavailable. Sign in again to manage this setting.
+  de: Dein Verschlüsselungs-Key ist nicht verfügbar. Melde dich erneut an, um diese Einstellung zu verwalten.
+  zh: 你的加密密钥不可用。请重新登录以管理此设置。
+  es: Tu clave de cifrado no está disponible. Inicia sesión de nuevo para gestionar este ajuste.
+  fr: Ta clé de chiffrement est indisponible. Connecte-toi à nouveau pour gérer ce paramètre.
+  pt: Tua chave de criptografia está indisponível. Inicia sessão novamente para gerenciar esta configuração.
+  ru: Твой ключ шифрования недоступен. Войди снова, чтобы управлять этой настройкой.
+  ja: 暗号化キーを利用できません。この設定を管理するには、再度サインインしてください。
+  ko: 암호화 키를 사용할 수 없습니다. 이 설정을 관리하려면 다시 로그인하세요.
+  tr: Şifreleme anahtarına ulaşılamıyor. Bu ayarı yönetmek için tekrar giriş yap.
+  vi: Khóa mã hóa của bạn không khả dụng. Hãy đăng nhập lại để quản lý cài đặt này.
+  id: Kunci enkripsi kamu tidak tersedia. Masuk lagi untuk mengelola pengaturan ini.
+  pl: Twój klucz szyfrowania jest niedostępny. Zaloguj się ponownie, aby zarządzać tym ustawieniem.
+  nl: Je encryptiesleutel is niet beschikbaar. Log opnieuw in om deze instelling te beheren.
+  ar: مفتاح التشفير الخاص بك غير متوفر. سجل الدخول مرة أخرى لإدارة هذا الإعداد.
+  hi: आपकी एन्क्रिप्शन कुंजी उपलब्ध नहीं है। इस सेटिंग को प्रबंधित करने के लिए फिर से साइन इन करें।
+  th: คีย์การเข้ารหัสของคุณไม่พร้อมใช้งาน โปรดลงชื่อเข้าใช้อีกครั้งเพื่อจัดการการตั้งค่านี้
+  cs: Tvůj šifrovací klíč není k dispozici. Pro správu tohoto nastavení se znovu přihlas.
+  sv: Din krypteringsnyckel är inte tillgänglig. Logga in igen för att hantera denna inställning.
+  it: La tua chiave di crittografia non è disponibile. Accedi di nuovo per gestire questa impostazione.
+  he: מפתח ההצפנה שלך אינו זמין. עליך להיכנס שוב כדי לנהל הגדרה זו.
   verified_by_human: []
 native.debug_session.description:
   context: Apple temporary debug sharing description.
   en: Temporarily share sanitized native diagnostics with support. Message content, encryption keys, credentials, file names, and personal data are never shared.
+  de: Teile vorübergehend bereinigte native Diagnosedaten mit dem Support. Nachrichteninhalte, Verschlüsselungs-Keys, Zugangsdaten, Dateinamen und persönliche Daten werden niemals geteilt.
+  zh: 暂时与支持团队共享脱敏后的原生诊断信息。消息内容、加密密钥、凭据、文件名和个人数据绝不会被共享。
+  es: Comparte temporalmente diagnósticos nativos anonimizados con el equipo de soporte. El contenido de los mensajes, las claves de cifrado, las credenciales, los nombres de archivos y los datos personales nunca se comparten.
+  fr: "Partage temporairement des diagnostics natifs anonymisés avec l'assistance. Le contenu des messages, les clés de chiffrement, les identifiants, les noms de fichiers et les données personnelles ne sont jamais partagés."
+  pt: Compartilha temporariamente diagnósticos nativos higienizados com o suporte. Conteúdo de mensagens, chaves de criptografia, credenciais, nomes de arquivos e dados pessoais nunca são compartilhados.
+  ru: Временно делись очищенными нативными диагностическими данными со службой поддержки. Содержимое сообщений, ключи шифрования, учетные данные, имена файлов и личные данные никогда не передаются.
+  ja: サニタイズされたネイティブ診断情報を一時的にサポートと共有します。メッセージの内容、暗号化キー、資格情報、ファイル名、個人データが共有されることはありません。
+  ko: 익명화된 네이티브 진단 정보를 지원팀과 일시적으로 공유합니다. 메시지 내용, 암호화 키, 자격 증명, 파일 이름 및 개인 데이터는 절대 공유되지 않습니다.
+  tr: Ayıklanmış yerel tanılamaları geçici olarak destek ekibiyle paylaş. Mesaj içeriği, şifreleme anahtarları, kimlik bilgileri, dosya adları ve kişisel veriler asla paylaşılmaz.
+  vi: Chia sẻ tạm thời dữ liệu chẩn đoán gốc đã được lược bỏ thông tin nhạy cảm với bộ phận hỗ trợ. Nội dung tin nhắn, khóa mã hóa, thông tin đăng nhập, tên tệp và dữ liệu cá nhân sẽ không bao giờ được chia sẻ.
+  id: Bagikan diagnostik native yang telah dibersihkan secara sementara dengan tim dukungan. Isi pesan, kunci enkripsi, kredensial, nama file, dan data pribadi tidak akan pernah dibagikan.
+  pl: Tymczasowo udostępniaj wsparciu technicznemu zanonimizowane dane diagnostyczne. Treści wiadomości, klucze szyfrowania, dane uwierzytelniające, nazwy plików i dane osobowe nigdy nie są udostępniane.
+  nl: Deel tijdelijk geanonimiseerde systeemanalyse met support. Berichtinhoud, encryptiesleutels, inloggegevens, bestandsnamen en persoonlijke gegevens worden nooit gedeeld.
+  ar: شارك تشخيصات النظام الأصلية المفلترة مؤقتاً مع الدعم. لا يتم أبداً مشاركة محتوى الرسائل، أو مفاتيح التشفير، أو بيانات الاعتماد، أو أسماء الملفات، أو البيانات الشخصية.
+  hi: सहायता टीम के साथ अस्थायी रूप से सैनिटाइज़्ड नेटिव डायग्नोस्टिक्स साझा करें। संदेश सामग्री, एन्क्रिप्शन कुंजी, क्रेडेंशियल, फ़ाइल नाम और व्यक्तिगत डेटा कभी साझा नहीं किए जाते हैं।
+  th: แชร์ข้อมูลการวินิจฉัยเนทีฟที่ผ่านการคัดกรองข้อมูลส่วนตัวแล้วกับฝ่ายสนับสนุนเป็นการชั่วคราว เนื้อหาข้อความ, คีย์การเข้ารหัส, ข้อมูลประจำตัว, ชื่อไฟล์ และข้อมูลส่วนบุคคลจะไม่ถูกแชร์โดยเด็ดขาด
+  cs: Dočasně sdílej s podporou anonymizovanou nativní diagnostiku. Obsah zpráv, šifrovací klíče, přihlašovací údaje, názvy souborů a osobní údaje se nikdy nesdílejí.
+  sv: Dela tillfälligt rensad diagnostik med supporten. Meddelandeinnehåll, krypteringsnycklar, inloggningsuppgifter, filnamn och personuppgifter delas aldrig.
+  it: "Condividi temporaneamente con l'assistenza la diagnostica nativa anonimizzata. Il contenuto dei messaggi, le chiavi di crittografia, le credenziali, i nomi dei file e i dati personali non vengono mai condivisi."
+  he: שתף זמנית נתוני אבחון מקומיים שעברו ניקוי עם צוות התמיכה. תוכן הודעות, מפתחות הצפנה, אישורי גישה, שמות קבצים ומידע אישי לעולם אינם משותפים.
   verified_by_human: []
 native.debug_session.duration:
   context: Apple temporary debug sharing duration field label.
   en: Duration
+  de: Dauer
+  zh: 时长
+  es: Duración
+  fr: Durée
+  pt: Duração
+  ru: Длительность
+  ja: 期間
+  ko: 기간
+  tr: Süre
+  vi: Thời lượng
+  id: Durasi
+  pl: Czas trwania
+  nl: Duur
+  ar: المدة
+  hi: अवधि
+  th: ระยะเวลา
+  cs: Doba trvání
+  sv: Varaktighet
+  it: Durata
+  he: משך זמן
   verified_by_human: []
 native.debug_session.start:
   context: Apple button to start temporary debug sharing.
   en: Start sharing debug logs
+  de: Debug-Logs teilen
+  zh: 开始共享调试日志
+  es: Empezar a compartir registros de depuración
+  fr: Partager les journaux de débogage
+  pt: Iniciar compartilhamento de logs de depuração
+  ru: Начать передачу логов отладки
+  ja: デバッグログの共有を開始
+  ko: 디버그 로그 공유 시작
+  tr: Hata ayıklama günlüklerini paylaşmaya başla
+  vi: Bắt đầu chia sẻ nhật ký gỡ lỗi
+  id: Mulai bagikan log debug
+  pl: Zacznij udostępniać logi debugowania
+  nl: Debug-logs delen starten
+  ar: بدء مشاركة سجلات تصحيح الأخطاء
+  hi: डीबग लॉग साझा करना शुरू करें
+  th: เริ่มแชร์บันทึกการดีบัก
+  cs: Začít sdílet ladicí protokoly
+  sv: Börja dela felsökningsloggar
+  it: Avvia condivisione log di debug
+  he: התחל לשתף יומני ניפוי שגיאות
   verified_by_human: []
 native.debug_session.activating:
   context: Apple temporary debug sharing activation progress label.
   en: Activating...
+  de: Wird aktiviert...
+  zh: 正在激活...
+  es: Activando...
+  fr: Activation...
+  pt: Ativando...
+  ru: Активация...
+  ja: 有効化中...
+  ko: 활성화 중...
+  tr: Etkinleştiriliyor...
+  vi: Đang kích hoạt...
+  id: Mengaktifkan...
+  pl: Aktywowanie...
+  nl: Activeren...
+  ar: جاري التنشيط...
+  hi: सक्रिय किया जा रहा है...
+  th: กำลังเปิดใช้งาน...
+  cs: Aktivace...
+  sv: Aktiverar...
+  it: Attivazione...
+  he: מפעיל...
   verified_by_human: []
 native.debug_session.active:
   context: Apple temporary debug sharing active section title.
   en: Active debug session
+  de: Aktive Debug-Sitzung
+  zh: 活动调试会话
+  es: Sesión de depuración activa
+  fr: Session de débogage active
+  pt: Sessão de depuração ativa
+  ru: Активная сессия отладки
+  ja: 有効なデバッグセッション
+  ko: 활성 디버그 세션
+  tr: Etkin hata ayıklama oturumu
+  vi: Phiên gỡ lỗi đang hoạt động
+  id: Sesi debug aktif
+  pl: Aktywna sesja debugowania
+  nl: Actieve debug-sessie
+  ar: جلسة تصحيح أخطاء نشطة
+  hi: सक्रिय डीबग सत्र
+  th: เซสชันการดีบักที่ใช้งานอยู่
+  cs: Aktivní relace ladění
+  sv: Aktiv felsökningssession
+  it: Sessione di debug attiva
+  he: סשן ניפוי שגיאות פעיל
   verified_by_human: []
 native.debug_session.id:
   context: Apple label for the temporary debug session ID.
   en: Your Debug ID
+  de: Deine Debug-ID
+  zh: 你的调试 ID
+  es: Tu ID de depuración
+  fr: Ton ID de débogage
+  pt: Teu ID de Depuração
+  ru: Твой ID отладки
+  ja: デバッグID
+  ko: 내 디버그 ID
+  tr: Hata Ayıklama Kimliğin
+  vi: ID Gỡ lỗi của bạn
+  id: ID Debug kamu
+  pl: Twój identyfikator debugowania (Debug ID)
+  nl: Je Debug-ID
+  ar: معرف تصحيح الأخطاء الخاص بك
+  hi: आपकी डीबग आईडी
+  th: ID การดีบักของคุณ
+  cs: Tvé ID ladění
+  sv: Ditt felsöknings-ID
+  it: Il tuo ID debug
+  he: מזהה ניפוי השגיאות שלך
   verified_by_human: []
 native.debug_session.share_hint:
   context: Apple hint explaining how to use a temporary debug session ID.
   en: Share this ID with the support team so they can find your sanitized logs.
+  de: Teile diese ID mit dem Support-Team, damit es deine bereinigten Protokolle finden kann.
+  zh: 请将此 ID 提供给支持团队，以便他们查找你的脱敏日志。
+  es: Comparte este ID con el equipo de soporte para que puedan encontrar tus registros anonimizados.
+  fr: "Partage cet ID avec l'équipe d'assistance pour qu'elle puisse trouver tes journaux anonymisés."
+  pt: Compartilha este ID com a equipe de suporte para que possam encontrar teus logs higienizados.
+  ru: Сообщи этот ID службе поддержки, чтобы они могли найти твои очищенные логи.
+  ja: サポートチームがサニタイズされたログを確認できるよう、このIDを共有してください。
+  ko: 지원팀이 익명화된 로그를 찾을 수 있도록 이 ID를 공유해 주세요.
+  tr: Ayıklanmış günlüklerini bulabilmeleri için bu kimliği destek ekibiyle paylaş.
+  vi: Chia sẻ ID này với đội ngũ hỗ trợ để họ có thể tìm thấy nhật ký đã lược bỏ thông tin nhạy cảm của bạn.
+  id: Bagikan ID ini kepada tim dukungan agar mereka dapat menemukan log kamu yang telah dibersihkan.
+  pl: Udostępnij ten identyfikator zespołowi wsparcia, aby mogli odnaleźć Twoje zanonimizowane logi.
+  nl: Deel deze ID met het supportteam zodat zij je geanonimiseerde logs kunnen vinden.
+  ar: شارك هذا المعرف مع فريق الدعم ليتمكنوا من العثور على سجلاتك المفلترة.
+  hi: सहायता टीम के साथ यह आईडी साझा करें ताकि वे आपके सैनिटाइज़्ड लॉग ढूंढ सकें।
+  th: แชร์ ID นี้กับทีมสนับสนุนเพื่อให้พวกเขาสามารถค้นหาบันทึกที่ผ่านการคัดกรองข้อมูลส่วนตัวของคุณได้
+  cs: Sdílej toto ID s týmem podpory, aby mohli najít tvé anonymizované protokoly.
+  sv: Dela detta ID med supportteamet så att de kan hitta dina rensade loggar.
+  it: Condividi questo ID con il team di assistenza affinché possa trovare i tuoi log anonimizzati.
+  he: שתף את המזהה הזה עם צוות התמיכה כדי שיוכלו למצוא את יומני הרישום המנוקים שלך.
   verified_by_human: []
 native.debug_session.stop:
   context: Apple button to stop temporary debug sharing.
   en: Stop sharing
+  de: Teilen beenden
+  zh: 停止共享
+  es: Dejar de compartir
+  fr: Arrêter le partage
+  pt: Parar compartilhamento
+  ru: Остановить передачу
+  ja: 共有を停止
+  ko: 공유 중단
+  tr: Paylaşımı durdur
+  vi: Dừng chia sẻ
+  id: Berhenti membagikan
+  pl: Zatrzymaj udostępnianie
+  nl: Stoppen met delen
+  ar: إيقاف المشاركة
+  hi: साझा करना बंद करें
+  th: หยุดแชร์
+  cs: Zastavit sdílení
+  sv: Sluta dela
+  it: Interrompi condivisione
+  he: הפסק שיתוף
   verified_by_human: []
 native.debug_session.stopping:
   context: Apple temporary debug sharing stop progress label.
   en: Stopping...
+  de: Wird beendet...
+  zh: 正在停止...
+  es: Deteniendo...
+  fr: Arrêt...
+  pt: Parando...
+  ru: Остановка...
+  ja: 停止中...
+  ko: 중단 중...
+  tr: Durduruluyor...
+  vi: Đang dừng...
+  id: Menghentikan...
+  pl: Zatrzymywanie...
+  nl: Stoppen...
+  ar: جاري الإيقاف...
+  hi: बंद किया जा रहा है...
+  th: กำลังหยุด...
+  cs: Zastavování...
+  sv: Stoppar...
+  it: Interruzione...
+  he: מפסיק...
   verified_by_human: []
 native.debug_session.no_expiry:
   context: Apple temporary debug sharing session without an expiry.
   en: Active until manually stopped
+  de: Aktiv, bis manuell beendet
+  zh: 在手动停止前一直有效
+  es: Activa hasta que se detenga manualmente
+  fr: "Active jusqu'à l'arrêt manuel"
+  pt: Ativa até ser interrompida manualmente
+  ru: Активна до ручной остановки
+  ja: 手動で停止するまで有効
+  ko: 수동으로 중단할 때까지 활성 상태 유지
+  tr: Manuel olarak durdurulana kadar etkin
+  vi: Hoạt động cho đến khi dừng thủ công
+  id: Aktif hingga dihentikan secara manual
+  pl: Aktywne do ręcznego zatrzymania
+  nl: Actief tot handmatig gestopt
+  ar: نشط حتى يتم إيقافه يدوياً
+  hi: मैन्युअल रूप से बंद किए जाने तक सक्रिय
+  th: ใช้งานได้จนกว่าจะหยุดด้วยตนเอง
+  cs: Aktivní do ručního zastavení
+  sv: Aktiv tills den stoppas manuellt
+  it: "Attiva fino all'interruzione manuale"
+  he: פעיל עד להפסקה ידנית
   verified_by_human: []
 native.debug_session.error:
   context: Apple temporary debug sharing request failure.
   en: Could not update the debug sharing session. Please try again.
+  de: Die Debug-Freigabesitzung konnte nicht aktualisiert werden. Bitte versuche es erneut.
+  zh: 无法更新调试共享会话。请重试。
+  es: No se pudo actualizar la sesión de depuración compartida. Inténtalo de nuevo.
+  fr: Impossible de mettre à jour la session de partage de débogage. Réessaie.
+  pt: Não foi possível atualizar a sessão de compartilhamento de depuração. Tenta novamente.
+  ru: Не удалось обновить сессию отладки. Пожалуйста, попробуй еще раз.
+  ja: デバッグ共有セッションを更新できませんでした。もう一度お試しください。
+  ko: 디버그 공유 세션을 업데이트할 수 없습니다. 다시 시도해 주세요.
+  tr: Hata ayıklama paylaşım oturumu güncellenemedi. Lütfen tekrar dene.
+  vi: Không thể cập nhật phiên chia sẻ gỡ lỗi. Vui lòng thử lại.
+  id: Gagal memperbarui sesi berbagi debug. Silakan coba lagi.
+  pl: Nie udało się zaktualizować sesji udostępniania debugowania. Spróbuj ponownie.
+  nl: Kon de debug-sessie niet bijwerken. Probeer het opnieuw.
+  ar: تعذر تحديث جلسة مشاركة تصحيح الأخطاء. يرجى المحاولة مرة أخرى.
+  hi: डीबग साझाकरण सत्र को अपडेट नहीं किया जा सका। कृपया पुनः प्रयास करें।
+  th: ไม่สามารถอัปเดตเซสชันการแชร์ข้อมูลการดีบักได้ โปรดลองอีกครั้ง
+  cs: Relaci sdílení ladění se nepodařilo aktualizovat. Zkus to prosím znovu.
+  sv: Kunde inte uppdatera felsökningssessionen. Försök igen.
+  it: Impossibile aggiornare la sessione di condivisione debug. Riprova.
+  he: לא ניתן לעדכן את סשן שיתוף ניפוי השגיאות. כדאי לנסות שוב.
   verified_by_human: []
 native.debug_session.duration_5m:
   context: Apple temporary debug sharing duration option.
   en: 5 minutes
+  de: 5 Minuten
+  zh: 5 分钟
+  es: 5 minutos
+  fr: 5 minutes
+  pt: 5 minutos
+  ru: 5 минут
+  ja: 5分
+  ko: 5분
+  tr: 5 dakika
+  vi: 5 phút
+  id: 5 menit
+  pl: 5 minut
+  nl: 5 minuten
+  ar: 5 دقائق
+  hi: 5 मिनट
+  th: 5 นาที
+  cs: 5 minut
+  sv: 5 minuter
+  it: 5 minuti
+  he: 5 דקות
   verified_by_human: []
 native.debug_session.duration_1h:
   context: Apple temporary debug sharing duration option.
   en: 1 hour
+  de: 1 Stunde
+  zh: 1 小时
+  es: 1 hora
+  fr: 1 heure
+  pt: 1 hora
+  ru: 1 час
+  ja: 1時間
+  ko: 1시간
+  tr: 1 saat
+  vi: 1 giờ
+  id: 1 jam
+  pl: 1 godzina
+  nl: 1 uur
+  ar: ساعة واحدة
+  hi: 1 घंटा
+  th: 1 ชั่วโมง
+  cs: 1 hodina
+  sv: 1 timme
+  it: 1 ora
+  he: שעה אחת
   verified_by_human: []
 native.debug_session.duration_3d:
   context: Apple temporary debug sharing duration option.
   en: 3 days
+  de: 3 Tage
+  zh: 3 天
+  es: 3 días
+  fr: 3 jours
+  pt: 3 dias
+  ru: 3 дня
+  ja: 3日間
+  ko: 3일
+  tr: 3 gün
+  vi: 3 ngày
+  id: 3 hari
+  pl: 3 dni
+  nl: 3 dagen
+  ar: 3 أيام
+  hi: 3 दिन
+  th: 3 วัน
+  cs: 3 dny
+  sv: 3 dagar
+  it: 3 giorni
+  he: 3 ימים
   verified_by_human: []
 native.debug_session.duration_7d:
   context: Apple temporary debug sharing duration option.
   en: 7 days
+  de: 7 Tage
+  zh: 7 天
+  es: 7 días
+  fr: 7 jours
+  pt: 7 dias
+  ru: 7 дней
+  ja: 7日間
+  ko: 7일
+  tr: 7 gün
+  vi: 7 ngày
+  id: 7 hari
+  pl: 7 dni
+  nl: 7 dagen
+  ar: 7 أيام
+  hi: 7 दिन
+  th: 7 วัน
+  cs: 7 dní
+  sv: 7 dagar
+  it: 7 giorni
+  he: 7 ימים
   verified_by_human: []
 native.debug_session.duration_none:
   context: Apple temporary debug sharing no-limit duration option.
   en: No time limit
+  de: Kein Zeitlimit
+  zh: 无时间限制
+  es: Sin límite de tiempo
+  fr: Aucune limite de temps
+  pt: Sem limite de tempo
+  ru: Без ограничения по времени
+  ja: 制限なし
+  ko: 시간 제한 없음
+  tr: Zaman sınırı yok
+  vi: Không giới hạn thời gian
+  id: Tanpa batas waktu
+  pl: Bez limitu czasu
+  nl: Geen tijdslimiet
+  ar: بدون حد زمني
+  hi: कोई समय सीमा नहीं
+  th: ไม่จำกัดเวลา
+  cs: Bez časového omezení
+  sv: Ingen tidsgräns
+  it: Nessun limite di tempo
+  he: ללא הגבלת זמן
   verified_by_human: []
 native.debug_session.minutes_remaining:
   context: Apple temporary debug sharing remaining minutes. {count} is the number of minutes.
   en: "{count}m remaining"
+  de: "{count} Min. verbleibend"
+  zh: "剩余 {count} 分钟"
+  es: "Faltan {count} min"
+  fr: "{count} min restantes"
+  pt: "{count}m restantes"
+  ru: "Осталось {count} мин."
+  ja: "残り{count}分"
+  ko: "{count}분 남음"
+  tr: "{count} dk. kaldı"
+  vi: "Còn {count} phút"
+  id: "Sisa {count}m"
+  pl: "Pozostało: {count} min"
+  nl: "Nog {count}m"
+  ar: "متبقي {count} دقيقة"
+  hi: "{count} मिनट शेष"
+  th: "เหลืออีก {count} นาที"
+  cs: "Zbývá {count} min"
+  sv: "{count} min återstår"
+  it: "{count}m rimanenti"
+  he: "נותרו עוד {count} דקות"
   verified_by_human: []
 native.debug_session.hours_remaining:
   context: Apple temporary debug sharing remaining hours. {count} is the number of hours.
   en: "{count}h remaining"
+  de: "{count} Std. verbleibend"
+  zh: "剩余 {count} 小时"
+  es: "Faltan {count} h"
+  fr: "{count} h restantes"
+  pt: "{count}h restantes"
+  ru: "Осталось {count} ч."
+  ja: "残り{count}時間"
+  ko: "{count}시간 남음"
+  tr: "{count} sa. kaldı"
+  vi: "Còn {count} giờ"
+  id: "Sisa {count}j"
+  pl: "Pozostało: {count} godz."
+  nl: "Nog {count}u"
+  ar: "متبقي {count} ساعة"
+  hi: "{count} घंटे शेष"
+  th: "เหลืออีก {count} ชม."
+  cs: "Zbývá {count} h"
+  sv: "{count} tim återstår"
+  it: "{count}o rimanenti"
+  he: "נותרו עוד {count} שעות"
   verified_by_human: []
 native.debug_session.days_remaining:
   context: Apple temporary debug sharing remaining days. {count} is the number of days.
   en: "{count}d remaining"
+  de: "{count} Tg. verbleibend"
+  zh: "剩余 {count} 天"
+  es: "Faltan {count} d"
+  fr: "{count} j restants"
+  pt: "{count}d restantes"
+  ru: "Осталось {count} дн."
+  ja: "残り{count}日"
+  ko: "{count}일 남음"
+  tr: "{count} gün kaldı"
+  vi: "Còn {count} ngày"
+  id: "Sisa {count}h"
+  pl: "Pozostało: {count} d"
+  nl: "Nog {count}d"
+  ar: "متبقي {count} يوم"
+  hi: "{count} दिन शेष"
+  th: "เหลืออีก {count} วัน"
+  cs: "Zbývá {count} d"
+  sv: "{count} d återstår"
+  it: "{count}g rimanenti"
+  he: "נותרו עוד {count} ימים"
   verified_by_human: []

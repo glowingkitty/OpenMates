@@ -746,81 +746,385 @@ inactive_account_deletion_reminder.subject_14d:
   context: Subject for inactive account deletion reminder sent 14 days before deletion
   en: Your inactive OpenMates account will be deleted in 14 days
   de: Dein inaktives OpenMates-Konto wird in 14 Tagen gelöscht
+  zh: 你的闲置 OpenMates 账号将在 14 天后被删除
+  es: Tu cuenta inactiva de OpenMates se eliminará en 14 días
+  fr: Ton compte OpenMates inactif sera supprimé dans 14 jours
+  pt: A tua conta inativa do OpenMates será eliminada em 14 dias
+  ru: Твой неактивный аккаунт OpenMates будет удален через 14 дней
+  ja: 利用のないOpenMatesアカウントは14日後に削除されるよ
+  ko: 비활성 OpenMates 계정이 14일 후에 삭제됩니다
+  it: Il tuo account OpenMates inattivo verrà eliminato tra 14 giorni
+  tr: İnaktif OpenMates hesabın 14 gün içinde silinecek
+  vi: Tài khoản OpenMates không hoạt động của bạn sẽ bị xóa sau 14 ngày
+  id: Akun OpenMates kamu yang tidak aktif akan dihapus dalam 14 hari
+  pl: Twoje nieaktywne konto OpenMates zostanie usunięte za 14 dni
+  nl: Je inactieve OpenMates-account wordt over 14 dagen verwijderd
+  ar: سيتم حذف حساب OpenMates غير النشط الخاص بك خلال 14 يومًا
+  hi: तुम्हारा निष्क्रिय OpenMates अकाउंट 14 दिनों में हटा दिया जाएगा
+  th: บัญชี OpenMates ที่ไม่ได้ใช้งานของคุณจะถูกลบในอีก 14 วัน
+  cs: Tvůj neaktivní účet OpenMates bude smazán za 14 dní
+  sv: Ditt inaktiva OpenMates-konto raderas om 14 dagar
+  he: חשבון OpenMates הלא פעיל שלך יימחק בעוד 14 ימים
   verified_by_human: []
 inactive_account_deletion_reminder.headline_14d:
   context: Headline for inactive account deletion reminder sent 14 days before deletion
   en: Your account is scheduled for deletion
   de: Dein Konto ist zur Löschung vorgesehen
+  zh: 你的账号已计划删除
+  es: Tu cuenta está programada para ser eliminada
+  fr: La suppression de ton compte est planifiée
+  pt: A tua conta tem a eliminação agendada
+  ru: Твой аккаунт запланирован к удалению
+  ja: アカウントの削除が予定されているよ
+  ko: 계정 삭제가 예약되었습니다
+  it: "L'eliminazione del tuo account è programmata"
+  tr: Hesabın silinmek üzere planlandı
+  vi: Tài khoản của bạn đã được lên lịch xóa
+  id: Akun kamu dijadwalkan untuk dihapus
+  pl: Twoje konto zostało zaplanowane do usunięcia
+  nl: Je account staat gepland voor verwijdering
+  ar: تمت جدولة حسابك للحذف
+  hi: तुम्हारा अकाउंट हटाए जाने के लिए निर्धारित है
+  th: บัญชีของคุณมีกำหนดการที่จะถูกลบ
+  cs: Tvůj účet je naplánován ke smazání
+  sv: Ditt konto är schemalagt för radering
+  he: החשבון שלך מיועד למחיקה
   verified_by_human: []
 inactive_account_deletion_reminder.deletion_time_14d:
   context: Time until deletion for the 14-day inactive account reminder
   en: in 14 days
   de: in 14 Tagen
+  zh: 14 天后
+  es: en 14 días
+  fr: dans 14 jours
+  pt: em 14 dias
+  ru: через 14 дней
+  ja: 14日後
+  ko: 14일 후
+  it: tra 14 giorni
+  tr: 14 gün içinde
+  vi: sau 14 ngày
+  id: dalam 14 hari
+  pl: za 14 dni
+  nl: over 14 dagen
+  ar: خلال 14 يومًا
+  hi: 14 दिनों में
+  th: ในอีก 14 วัน
+  cs: za 14 dní
+  sv: om 14 dagar
+  he: בעוד 14 ימים
   verified_by_human: []
 inactive_account_deletion_reminder.wait_time_14d:
   context: Wait time phrase for the manual delete link in the 14-day reminder
   en: 14 days
   de: 14 Tage
+  zh: 14 天
+  es: 14 días
+  fr: 14 jours
+  pt: 14 dias
+  ru: 14 дней
+  ja: 14日間
+  ko: 14일
+  it: 14 giorni
+  tr: 14 gün
+  vi: 14 ngày
+  id: 14 hari
+  pl: 14 dni
+  nl: 14 dagen
+  ar: 14 يومًا
+  hi: 14 दिन
+  th: 14 วัน
+  cs: 14 dní
+  sv: 14 dagar
+  he: 14 ימים
   verified_by_human: []
 inactive_account_deletion_reminder.reminder_info_14d:
   context: Follow-up reminder schedule for the 14-day inactive account reminder
   en: If you take no action, you will be reminded again 7 days before deletion and 1 day before deletion.
   de: Wenn du nichts unternimmst, wirst du erneut 7 Tage vor der Löschung und 1 Tag vor der Löschung informiert.
+  zh: 如果你不采取任何行动，我们将在删除前 7 天和删除前 1 天再次提醒你。
+  es: Si no realizas ninguna acción, se te recordará de nuevo 7 días antes de la eliminación y 1 día antes de la eliminación.
+  fr: Si tu ne fais rien, tu recevras un nouveau rappel 7 jours avant la suppression, puis 1 jour avant.
+  pt: Se não fizeres nada, receberás novo lembrete 7 dias antes da eliminação e 1 dia antes da eliminação.
+  ru: Если ничего не предпринимать, мы напомним еще раз за 7 дней и за 1 день до удаления.
+  ja: 何もしなかった場合、削除の7日前と1日前にもう一度通知が届くよ。
+  ko: 아무런 조치를 취하지 않으면 삭제 7일 전과 1일 전에 다시 안내해 드립니다.
+  it: "Se non intervieni, riceverai un altro promemoria 7 giorni prima dell'eliminazione e un altro 1 giorno prima."
+  tr: Herhangi bir işlem yapmazsan, silinmeden 7 gün önce ve 1 gün önce tekrar hatırlatılacaksın.
+  vi: Nếu bạn không thực hiện hành động nào, bạn sẽ được nhắc lại vào 7 ngày và 1 ngày trước khi xóa.
+  id: Jika kamu tidak mengambil tindakan, kamu akan diingatkan lagi 7 hari sebelum penghapusan dan 1 hari sebelum penghapusan.
+  pl: Jeśli nie podejmiesz żadnych działań, otrzymasz ponowne przypomnienie na 7 dni oraz na 1 dzień przed usunięciem.
+  nl: Als je geen actie onderneemt, ontvang je 7 dagen en 1 dag voor verwijdering opnieuw een herinnering.
+  ar: إذا لم تتخذ أي إجراء، فسيتم تذكيرك مرة أخرى قبل 7 أيام من الحذف وقبل يوم واحد من الحذف.
+  hi: यदि तुम कोई कार्रवाई नहीं करते हो, तो तुम्हें अकाउंट हटाए जाने से 7 दिन पहले और 1 दिन पहले फिर से याद दिलाया जाएगा।
+  th: หากคุณไม่ดำเนินการใดๆ เราจะแจ้งเตือนคุณอีกครั้งใน 7 วันก่อนการลบ และ 1 วันก่อนการลบ
+  cs: Pokud nepodnikneš žádné kroky, připomeneme se ti znovu 7 dní a 1 den před smazáním.
+  sv: Om du inte gör något kommer du att få en ny påminnelse 7 dagar före radering och 1 dag före radering.
+  he: אם לא תבצע שום פעולה, תישלח אליך תזכורת נוספת 7 ימים לפני המחיקה ויום אחד לפני המחיקה.
   verified_by_human: []
 inactive_account_deletion_reminder.subject_7d:
   context: Subject for inactive account deletion reminder sent 7 days before deletion
   en: Your inactive OpenMates account will be deleted in 7 days
   de: Dein inaktives OpenMates-Konto wird in 7 Tagen gelöscht
+  zh: 你的闲置 OpenMates 账号将在 7 天后被删除
+  es: Tu cuenta inactiva de OpenMates se eliminará en 7 días
+  fr: Ton compte OpenMates inactif sera supprimé dans 7 jours
+  pt: A tua conta inativa do OpenMates será eliminada em 7 dias
+  ru: Твой неактивный аккаунт OpenMates будет удален через 7 дней
+  ja: 利用のないOpenMatesアカウントは7日後に削除されるよ
+  ko: 비활성 OpenMates 계정이 7일 후에 삭제됩니다
+  it: Il tuo account OpenMates inattivo verrà eliminato tra 7 giorni
+  tr: İnaktif OpenMates hesabın 7 gün içinde silinecek
+  vi: Tài khoản OpenMates không hoạt động của bạn sẽ bị xóa sau 7 ngày
+  id: Akun OpenMates kamu yang tidak aktif akan dihapus dalam 7 hari
+  pl: Twoje nieaktywne konto OpenMates zostanie usunięte za 7 dni
+  nl: Je inactieve OpenMates-account wordt over 7 dagen verwijderd
+  ar: سيتم حذف حساب OpenMates غير النشط الخاص بك خلال 7 أيام
+  hi: तुम्हारा निष्क्रिय OpenMates अकाउंट 7 दिनों में हटा दिया जाएगा
+  th: บัญชี OpenMates ที่ไม่ได้ใช้งานของคุณจะถูกลบในอีก 7 วัน
+  cs: Tvůj neaktivní účet OpenMates bude smazán za 7 dní
+  sv: Ditt inaktiva OpenMates-konto raderas om 7 dagar
+  he: חשבון OpenMates הלא פעיל שלך יימחק בעוד 7 ימים
   verified_by_human: []
 inactive_account_deletion_reminder.headline_7d:
   context: Headline for inactive account deletion reminder sent 7 days before deletion
   en: Your account will be deleted soon
   de: Dein Konto wird bald gelöscht
+  zh: 你的账号即将被删除
+  es: Tu cuenta se eliminará pronto
+  fr: Ton compte sera bientôt supprimé
+  pt: A tua conta será eliminada em breve
+  ru: Твой аккаунт скоро будет удален
+  ja: まもなくアカウントが削除されるよ
+  ko: 계정이 곧 삭제됩니다
+  it: Il tuo account verrà eliminato a breve
+  tr: Hesabın yakında silinecek
+  vi: Tài khoản của bạn sẽ sớm bị xóa
+  id: Akun kamu akan segera dihapus
+  pl: Twoje konto zostanie wkrótce usunięte
+  nl: Je account wordt binnenkort verwijderd
+  ar: سيتم حذف حسابك قريبًا
+  hi: तुम्हारा अकाउंट जल्द ही हटा दिया जाएगा
+  th: บัญชีของคุณจะถูกลบเร็วๆ นี้
+  cs: Tvůj účet bude brzy smazán
+  sv: Ditt konto kommer snart att raderas
+  he: החשבון שלך יימחק בקרוב
   verified_by_human: []
 inactive_account_deletion_reminder.deletion_time_7d:
   context: Time until deletion for the 7-day inactive account reminder
   en: in 7 days
   de: in 7 Tagen
+  zh: 7 天后
+  es: en 7 días
+  fr: dans 7 jours
+  pt: em 7 dias
+  ru: через 7 дней
+  ja: 7日後
+  ko: 7일 후
+  it: tra 7 giorni
+  tr: 7 gün içinde
+  vi: sau 7 ngày
+  id: dalam 7 hari
+  pl: za 7 dni
+  nl: over 7 dagen
+  ar: خلال 7 أيام
+  hi: 7 दिनों में
+  th: ในอีก 7 วัน
+  cs: za 7 dní
+  sv: om 7 dagar
+  he: בעוד 7 ימים
   verified_by_human: []
 inactive_account_deletion_reminder.wait_time_7d:
   context: Wait time phrase for the manual delete link in the 7-day reminder
   en: 7 days
   de: 7 Tage
+  zh: 7 天
+  es: 7 días
+  fr: 7 jours
+  pt: 7 dias
+  ru: 7 дней
+  ja: 7日間
+  ko: 7일
+  it: 7 giorni
+  tr: 7 gün
+  vi: 7 ngày
+  id: 7 hari
+  pl: 7 dni
+  nl: 7 dagen
+  ar: 7 أيام
+  hi: 7 दिन
+  th: 7 วัน
+  cs: 7 dní
+  sv: 7 dagar
+  he: 7 ימים
   verified_by_human: []
 inactive_account_deletion_reminder.reminder_info_7d:
   context: Follow-up reminder schedule for the 7-day inactive account reminder
   en: If you take no action, you will receive one final reminder 1 day before deletion.
   de: Wenn du nichts unternimmst, erhältst du 1 Tag vor der Löschung eine letzte Erinnerung.
+  zh: 如果你不采取任何行动，你将在删除前 1 天收到最后一次提醒。
+  es: Si no realizas ninguna acción, recibirás un último recordatorio 1 día antes de la eliminación.
+  fr: Si tu ne fais rien, tu recevras un dernier rappel 1 jour avant la suppression.
+  pt: Se não fizeres nada, receberás um último lembrete 1 dia antes da eliminação.
+  ru: Если ничего не предпринимать, ты получишь последнее напоминание за 1 день до удаления.
+  ja: 何もしなかった場合、削除の1日前に最終通知が届くよ。
+  ko: 아무런 조치를 취하지 않으면 삭제 1일 전에 마지막 안내를 드립니다.
+  it: "Se non intervieni, riceverai un ultimo promemoria 1 giorno prima dell'eliminazione."
+  tr: Herhangi bir işlem yapmazsan, silinmeden 1 gün önce son bir hatırlatma alacaksın.
+  vi: Nếu bạn không thực hiện hành động nào, bạn sẽ nhận được một lời nhắc cuối cùng vào 1 ngày trước khi xóa.
+  id: Jika kamu tidak mengambil tindakan, kamu akan menerima satu pengingat terakhir 1 hari sebelum penghapusan.
+  pl: Jeśli nie podejmiesz żadnych działań, otrzymasz ostatnie przypomnienie na 1 dzień przed usunięciem.
+  nl: Als je geen actie onderneemt, ontvang je 1 dag voor verwijdering een laatste herinnering.
+  ar: إذا لم تتخذ أي إجراء، فستتلقى تذكيرًا نهائيًا واحدًا قبل يوم واحد من الحذف.
+  hi: यदि तुम कोई कार्रवाई नहीं करते हो, तो तुम्हें अकाउंट हटाए जाने से 1 दिन पहले एक अंतिम रिमाइंडर मिलेगा।
+  th: หากคุณไม่ดำเนินการใดๆ คุณจะได้รับการแจ้งเตือนครั้งสุดท้ายใน 1 วันก่อนการลบ
+  cs: Pokud nepodnikneš žádné kroky, obdržíš poslední připomenutí 1 den před smazáním.
+  sv: Om du inte gör något kommer du att få en sista påminnelse 1 dag före radering.
+  he: אם לא תבצע שום פעולה, תישלח אליך תזכורת אחרונה יום אחד לפני המחיקה.
   verified_by_human: []
 inactive_account_deletion_reminder.subject_1d:
   context: Subject for inactive account deletion final reminder sent 1 day before deletion
   en: Your inactive OpenMates account will be deleted tomorrow
   de: Dein inaktives OpenMates-Konto wird morgen gelöscht
+  zh: 你的闲置 OpenMates 账号将于明天删除
+  es: Tu cuenta inactiva de OpenMates se eliminará mañana
+  fr: Ton compte OpenMates inactif sera supprimé demain
+  pt: A tua conta inativa do OpenMates será eliminada amanhã
+  ru: Твой неактивный аккаунт OpenMates будет удален завтра
+  ja: 利用のないOpenMatesアカウントは明日削除されるよ
+  ko: 비활성 OpenMates 계정이 내일 삭제됩니다
+  it: Il tuo account OpenMates inattivo verrà eliminato domani
+  tr: İnaktif OpenMates hesabın yarın silinecek
+  vi: Tài khoản OpenMates không hoạt động của bạn sẽ bị xóa vào ngày mai
+  id: Akun OpenMates kamu yang tidak aktif akan dihapus besok
+  pl: Twoje nieaktywne konto OpenMates zostanie usunięte jutro
+  nl: Je inactieve OpenMates-account wordt morgen verwijderd
+  ar: سيتم حذف حساب OpenMates غير النشط الخاص بك غدًا
+  hi: तुम्हारा निष्क्रिय OpenMates अकाउंट कल हटा दिया जाएगा
+  th: บัญชี OpenMates ที่ไม่ได้ใช้งานของคุณจะถูกลบในวันพรุ่งนี้
+  cs: Tvůj neaktivní účet OpenMates bude smazán zítra
+  sv: Ditt inaktiva OpenMates-konto raderas i morgon
+  he: חשבון OpenMates הלא פעיל שלך יימחק מחר
   verified_by_human: []
 inactive_account_deletion_reminder.headline_1d:
   context: Headline for inactive account deletion final reminder sent 1 day before deletion
   en: Final reminder before account deletion
   de: Letzte Erinnerung vor der Kontolöschung
+  zh: 账号删除前的最后提醒
+  es: Recordatorio final antes de la eliminación de la cuenta
+  fr: Dernier rappel avant la suppression du compte
+  pt: Lembrete final antes da eliminação da conta
+  ru: Последнее напоминание перед удалением аккаунта
+  ja: アカウント削除前の最終通知だよ
+  ko: 계정 삭제 전 마지막 안내
+  it: "Ultimo promemoria prima dell'eliminazione dell'account"
+  tr: Hesap silinmeden önceki son hatırlatma
+  vi: Lời nhắc cuối cùng trước khi xóa tài khoản
+  id: Pengingat terakhir sebelum penghapusan akun
+  pl: Ostatnie przypomnienie przed usunięciem konta
+  nl: Laatste herinnering voor verwijdering van account
+  ar: التذكير النهائي قبل حذف الحساب
+  hi: अकाउंट हटाए जाने से पहले अंतिम रिमाइंडर
+  th: แจ้งเตือนครั้งสุดท้ายก่อนการลบบัญชี
+  cs: Poslední připomenutí před smazáním účtu
+  sv: Sista påminnelsen före radering av konto
+  he: תזכורת אחרונה לפני מחיקת החשבון
   verified_by_human: []
 inactive_account_deletion_reminder.deletion_time_1d:
   context: Time until deletion for the 1-day inactive account reminder
   en: tomorrow
   de: morgen
+  zh: 明天
+  es: mañana
+  fr: demain
+  pt: amanhã
+  ru: завтра
+  ja: 明日
+  ko: 내일
+  it: domani
+  tr: yarın
+  vi: vào ngày mai
+  id: besok
+  pl: jutro
+  nl: morgen
+  ar: غدًا
+  hi: कल
+  th: ในวันพรุ่งนี้
+  cs: zítra
+  sv: i morgon
+  he: מחר
   verified_by_human: []
 inactive_account_deletion_reminder.wait_time_1d:
   context: Wait time phrase for the manual delete link in the 1-day reminder
   en: 1 day
   de: 1 Tag
+  zh: 1 天
+  es: 1 día
+  fr: 1 jour
+  pt: 1 dia
+  ru: 1 день
+  ja: 1日
+  ko: 1일
+  it: 1 giorno
+  tr: 1 gün
+  vi: 1 ngày
+  id: 1 hari
+  pl: 1 dzień
+  nl: 1 dag
+  ar: يوم واحد
+  hi: 1 दिन
+  th: 1 วัน
+  cs: 1 den
+  sv: 1 dag
+  he: יום אחד
   verified_by_human: []
 inactive_account_deletion_reminder.reminder_info_1d:
-  context: Empty follow-up reminder slot for final inactive account reminder
-  en: ""
-  de: ""
+  context: Final reminder note for inactive account deletion reminder sent 1 day before deletion
+  en: This is the final reminder before deletion.
+  de: Dies ist die letzte Erinnerung vor der Löschung.
+  zh: 这是删除前的最后一次提醒。
+  es: Este es el último recordatorio antes de la eliminación.
+  fr: Ceci est le dernier rappel avant la suppression.
+  pt: Este é o lembrete final antes da eliminação.
+  ru: Это последнее напоминание перед удалением.
+  ja: これが削除前の最後の通知だよ。
+  ko: 삭제 전 마지막 안내입니다.
+  it: "Questo è l'ultimo promemoria prima dell'eliminazione."
+  tr: Bu, silinmeden önceki son hatırlatmadır.
+  vi: Đây là lời nhắc cuối cùng trước khi xóa.
+  id: Ini adalah pengingat terakhir sebelum penghapusan.
+  pl: To jest ostatnie przypomnienie przed usunięciem.
+  nl: Dit is de laatste herinnering voor verwijdering.
+  ar: هذا هو التذكير النهائي قبل الحذف.
+  hi: अकाउंट हटाए जाने से पहले यह अंतिम रिमाइंडर है।
+  th: นี่คือการแจ้งเตือนครั้งสุดท้ายก่อนการลบ
+  cs: Toto je poslední připomenutí před smazáním.
+  sv: Detta är den sista påminnelsen före radering.
+  he: זוהי התזכורת האחרונה לפני המחיקה.
   verified_by_human: []
 inactive_account_deletion_reminder.greeting:
   context: Greeting in inactive account deletion reminder email
   en: Hey{greeting_name},
   de: Hallo{greeting_name},
+  zh: "嘿{greeting_name}，"
+  es: "Hola{greeting_name},"
+  fr: "Salut{greeting_name},"
+  pt: "Olá{greeting_name},"
+  ru: "Привет{greeting_name},"
+  ja: "{greeting_name}、こんにちは。"
+  ko: "안녕하세요{greeting_name}님,"
+  it: "Ciao{greeting_name},"
+  tr: "Selam{greeting_name},"
+  vi: "Chào{greeting_name},"
+  id: "Hai{greeting_name},"
+  pl: "Hej{greeting_name},"
+  nl: "Hoi{greeting_name},"
+  ar: "مرحبًا{greeting_name}،"
+  hi: "नमस्ते{greeting_name},"
+  th: "สวัสดี{greeting_name},"
+  cs: "Ahoj{greeting_name},"
+  sv: "Hej{greeting_name},"
+  he: "היי{greeting_name},"
   verified_by_human: []
 inactive_account_deletion_reminder.intro:
   context: Intro paragraph in inactive account deletion reminder email
@@ -828,11 +1132,49 @@ inactive_account_deletion_reminder.intro:
     We noticed that this OpenMates account has been inactive and currently has no credits, no usage, no active payment state, and no saved chats.
   de: >-
     Wir haben festgestellt, dass dieses OpenMates-Konto inaktiv ist und aktuell keine Credits, keine Nutzung, keinen aktiven Zahlungsstatus und keine gespeicherten Chats hat.
+  zh: 我们注意到此 OpenMates 账号一直处于闲置状态，目前没有余额、没有使用记录、没有活跃的支付状态，也没有保存的对话。
+  es: Hemos notado que esta cuenta de OpenMates ha estado inactiva y actualmente no tiene créditos, ni uso, ni estado de pago activo, ni chats guardados.
+  fr: "Nous avons remarqué que ce compte OpenMates est inactif et ne possède actuellement ni crédits, ni historique d'utilisation, ni mode de paiement actif, ni discussions enregistrées."
+  pt: Reparámos que esta conta do OpenMates tem estado inativa e não tem créditos, utilização, estado de pagamento ativo nem conversas guardadas.
+  ru: "Мы заметили, что этот аккаунт OpenMates неактивен: на нем нет кредитов, он не используется, нет активной подписки и сохраненных чатов."
+  ja: このOpenMatesアカウントは現在、利用がなく、クレジット、使用履歴、有効な支払い状態、保存されたチャットも確認できないよ。
+  ko: 이 OpenMates 계정이 비활성 상태이며 현재 크레딧, 사용 기록, 활성 결제 상태 및 저장된 채팅이 없음을 확인했습니다.
+  it: Abbiamo notato che questo account OpenMates è inattivo e al momento non presenta crediti, utilizzi, stati di pagamento attivi o chat salvate.
+  tr: Bu OpenMates hesabının inaktif olduğunu ve şu anda kredisinin, kullanımının, aktif ödeme durumunun ve kayıtlı sohbetinin bulunmadığını fark ettik.
+  vi: Chúng tôi nhận thấy tài khoản OpenMates này đã không hoạt động và hiện không có tín dụng, không có lượt sử dụng, không có trạng thái thanh toán đang hoạt động và không có cuộc trò chuyện nào được lưu.
+  id: Kami melihat bahwa akun OpenMates ini tidak aktif dan saat ini tidak memiliki kredit, tidak ada penggunaan, tidak ada status pembayaran aktif, dan tidak ada obrolan yang disimpan.
+  pl: Zauważyliśmy, że to konto OpenMates jest nieaktywne i obecnie nie posiada środków, nie wykazuje zużycia, nie ma aktywnego statusu płatności ani zapisanych czatów.
+  nl: Het is ons opgevallen dat dit OpenMates-account inactief is en momenteel geen tegoed, geen verbruik, geen actieve betalingsstatus en geen opgeslagen chats heeft.
+  ar: لقد لاحظنا أن حساب OpenMates هذا غير نشط حاليًا، ولا يحتوي على رصيد، ولا يوجد له سجل استخدام، ولا حالة دفع نشطة، ولا محادثات محفوظة.
+  hi: हमने देखा कि यह OpenMates अकाउंट निष्क्रिय है और वर्तमान में इसमें कोई क्रेडिट, कोई उपयोग, कोई सक्रिय भुगतान स्थिति और कोई सहेजी गई चैट नहीं है।
+  th: เราพบว่าบัญชี OpenMates นี้ไม่ได้ใช้งาน และในปัจจุบันไม่มีเครดิต ไม่มีการใช้งาน ไม่มีสถานะการชำระเงินที่ใช้งานอยู่ และไม่มีแชทที่บันทึกไว้
+  cs: Všimli jsme si, že tento účet OpenMates je neaktivní a momentálně nemá žádné kredity, žádné využití, žádný aktivní stav platby ani žádné uložené chaty.
+  sv: Vi har märkt att det här OpenMates-kontot har varit inaktivt och för närvarande inte har några krediter, ingen användning, ingen aktiv betalningsstatus och inga sparade chattar.
+  he: "שמנו לב שחשבון OpenMates זה אינו פעיל וכעת אין בו קרדיטים, שימוש, מצב תשלום פעיל או צ'אטים שמורים."
   verified_by_human: []
 inactive_account_deletion_reminder.scheduled:
   context: Bold scheduled deletion sentence in inactive account deletion reminder email
   en: Your inactive account is scheduled for deletion {deletion_time_text}.
   de: Dein inaktives Konto ist {deletion_time_text} zur Löschung vorgesehen.
+  zh: "你的闲置账号计划于 {deletion_time_text} 删除。"
+  es: "Tu cuenta inactiva está programada para ser eliminada {deletion_time_text}."
+  fr: "Ton compte inactif est programmé pour être supprimé {deletion_time_text}."
+  pt: "A tua conta inativa tem a eliminação agendada para {deletion_time_text}."
+  ru: "Твой неактивный аккаунт запланирован к удалению {deletion_time_text}."
+  ja: "このアカウントは、{deletion_time_text}に削除される予定だよ。"
+  ko: "비활성 계정이 {deletion_time_text}에 삭제될 예정입니다."
+  it: "L'eliminazione del tuo account inattivo è programmata {deletion_time_text}."
+  tr: "İnaktif hesabın {deletion_time_text} silinmek üzere planlandı."
+  vi: "Tài khoản không hoạt động của bạn đã được lên lịch xóa {deletion_time_text}."
+  id: "Akun kamu yang tidak aktif dijadwalkan untuk dihapus {deletion_time_text}."
+  pl: "Twoje nieaktywne konto zostanie usunięte {deletion_time_text}."
+  nl: "Je inactieve account staat gepland voor verwijdering {deletion_time_text}."
+  ar: "تمت جدولة حسابك غير النشط للحذف {deletion_time_text}."
+  hi: "तुम्हारा निष्क्रिय अकाउंट {deletion_time_text} हटाए जाने के लिए निर्धारित है।"
+  th: "บัญชีที่ไม่ได้ใช้งานของคุณมีกำหนดการที่จะถูกลบ {deletion_time_text}"
+  cs: "Tvůj neaktivní účet je naplánován ke smazání {deletion_time_text}."
+  sv: "Ditt inaktiva konto är schemalagt för radering {deletion_time_text}."
+  he: "החשבון הלא פעיל שלך מיועד למחיקה {deletion_time_text}."
   verified_by_human: []
 inactive_account_deletion_reminder.keep_account:
   context: Paragraph explaining how to keep an inactive account
@@ -840,6 +1182,25 @@ inactive_account_deletion_reminder.keep_account:
     If you want to keep the account, log in to <a href="{finish_setup_link}" style="color: #4867CD; text-decoration: underline;">OpenMates.org</a> and start using it again before then. Adding credits, creating a chat, or using OpenMates will remove the account from this cleanup flow.
   de: >-
     Wenn du das Konto behalten möchtest, melde dich vor der Löschung wieder auf <a href="{finish_setup_link}" style="color: #4867CD; text-decoration: underline;">OpenMates.org</a> an und nutze es erneut. Credits hinzuzufügen, einen Chat zu erstellen oder OpenMates zu verwenden, entfernt das Konto aus diesem Aufräumprozess.
+  zh: "如果你想保留该账号，请在此之前登录 <a href=\"{finish_setup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a> 并重新开始使用。充值、创建对话或使用 OpenMates 都会将该账号从清理流程中移除。"
+  es: "Si quieres conservar la cuenta, inicia sesión en <a href=\"{finish_setup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a> y vuelve a usarla antes de esa fecha. Añadir créditos, crear un chat o usar OpenMates eliminará la cuenta de este proceso de limpieza."
+  fr: "Si tu souhaites conserver ton compte, connecte-toi sur <a href=\"{finish_setup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a> et recommence à l'utiliser avant cette date. Ajouter des crédits, créer une discussion ou utiliser OpenMates retirera le compte de ce processus de nettoyage."
+  pt: "Se quiseres manter a conta, inicia sessão em <a href=\"{finish_setup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a> e volta a usá-la antes dessa data. Adicionar créditos, criar uma conversa ou usar o OpenMates removerá a conta deste processo de limpeza."
+  ru: "Если ты хочешь сохранить аккаунт, войди на <a href=\"{finish_setup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a> и начни снова им пользоваться до этого времени. Пополнение баланса, создание чата или любое использование OpenMates исключит аккаунт из процесса очистки."
+  ja: "アカウントを維持したい場合は、それまでに <a href=\"{finish_setup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a> にログインして利用を再開してね。クレジットの追加、チャットの作成、またはOpenMatesの利用があれば、このクリーンアップ対象から外れるよ。"
+  ko: "계정을 유지하려면 그전에 <a href=\"{finish_setup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a>에 로그인하여 다시 사용을 시작해 주세요. 크레딧 추가, 채팅 생성 또는 OpenMates 사용 시 계정 정리 대상에서 제외됩니다."
+  it: "Se vuoi mantenere l'account, accedi a <a href=\"{finish_setup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a> e ricomincia a usarlo prima di allora. Aggiungere crediti, creare una chat o utilizzare OpenMates rimuoverà l'account da questa procedura di pulizia."
+  tr: "Hesabı tutmak istiyorsan, o zamandan önce <a href=\"{finish_setup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a> adresinde oturum aç ve tekrar kullanmaya baş. Kredi eklemek, bir sohbet oluşturmak veya OpenMates'i kullanmak, hesabı bu temizleme sürecinden çıkaracaktır."
+  vi: "Nếu bạn muốn giữ tài khoản, hãy đăng nhập vào <a href=\"{finish_setup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a> và bắt đầu sử dụng lại trước thời điểm đó. Việc nạp thêm tín dụng, tạo cuộc trò chuyện hoặc sử dụng OpenMates sẽ đưa tài khoản ra khỏi quy trình dọn dẹp này."
+  id: "Jika kamu ingin mempertahankan akun tersebut, masuklah ke <a href=\"{finish_setup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a> dan mulai gunakan lagi sebelum waktu tersebut. Menambahkan kredit, membuat obrolan, atau menggunakan OpenMates akan menghapus akun dari alur pembersihan ini."
+  pl: "Jeśli chcesz zachować konto, zaloguj się na <a href=\"{finish_setup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a> i zacznij z niego ponownie korzystać przed tym terminem. Dodanie środków, utworzenie czatu lub korzystanie z OpenMates usunie konto z procesu czyszczenia."
+  nl: "Als je het account wilt behouden, log dan in op <a href=\"{finish_setup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a> en begin het voor die tijd weer te gebruiken. Door tegoed toe te voegen, een chat te starten of OpenMates te gebruiken, wordt het account uit dit opschoningsproces verwijderd."
+  ar: "إذا كنت ترغب في الاحتفاظ بالحساب، فقم بتسجيل الدخول إلى <a href=\"{finish_setup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a> وابدأ في استخدامه مرة أخرى قبل ذلك الوقت. إن إضافة رصيد، أو إنشاء محادثة، أو استخدام OpenMates سيؤدي إلى إزالة الحساب من عملية التنظيف هذه."
+  hi: "यदि तुम अकाउंट रखना चाहते हो, तो <a href=\"{finish_setup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a> पर लॉग इन करें और उससे पहले इसका फिर से उपयोग करना शुरू करें। क्रेडिट जोड़ने, चैट बनाने या OpenMates का उपयोग करने से अकाउंट इस क्लीनअप प्रक्रिया से हट जाएगा।"
+  th: "หากคุณต้องการรักษาบัญชีไว้ โปรดเข้าสู่ระบบที่ <a href=\"{finish_setup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a> และเริ่มใช้งานอีกครั้งก่อนถึงเวลานั้น การเพิ่มเครดิต การสร้างแชท หรือการใช้งาน OpenMates จะเป็นการนำบัญชีออกจากกระบวนการล้างข้อมูลนี้"
+  cs: "Pokud si chceš účet ponechat, přihlas se na <a href=\"{finish_setup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a> a začni ho do té doby znovu používat. Přidání kreditů, vytvoření chatu nebo používání OpenMates odstraní účet z tohoto procesu čištění."
+  sv: "Om du vill behålla kontot, logga in på <a href=\"{finish_setup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a> och börja använda det igen innan dess. Genom att lägga till krediter, skapa en chatt eller använda OpenMates tas kontot bort från detta rensningsflöde."
+  he: "אם ברצונך לשמור את החשבון, עליך להיכנס ל-<a href=\"{finish_setup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a> ולהתחיל להשתמש בו שוב לפני כן. הוספת קרדיטים, יצירת צ'אט או שימוש ב-OpenMates יסירו את החשבון מתהליך הניקוי הזה."
   verified_by_human: []
 inactive_account_deletion_reminder.delete_now:
   context: Paragraph with direct delete account link in inactive account deletion reminder email
@@ -847,41 +1208,193 @@ inactive_account_deletion_reminder.delete_now:
     If you do not want to keep the account, you can delete it now from your account settings: <a href="{direct_delete_account_link}" style="color: #4867CD; text-decoration: underline;">delete account</a>.
   de: >-
     Wenn du das Konto nicht behalten möchtest, kannst du es jetzt in deinen Kontoeinstellungen löschen: <a href="{direct_delete_account_link}" style="color: #4867CD; text-decoration: underline;">Konto löschen</a>.
+  zh: "如果你不想保留该账号，现在可以从账号设置中将其删除：<a href=\"{direct_delete_account_link}\" style=\"color: #4867CD; text-decoration: underline;\">删除账号</a>。"
+  es: "Si no quieres conservar la cuenta, puedes eliminarla ahora desde los ajustes de tu cuenta: <a href=\"{direct_delete_account_link}\" style=\"color: #4867CD; text-decoration: underline;\">eliminar cuenta</a>."
+  fr: "Si tu ne souhaites pas conserver le compte, tu peux le supprimer dès maintenant dans les paramètres de ton compte : <a href=\"{direct_delete_account_link}\" style=\"color: #4867CD; text-decoration: underline;\">supprimer le compte</a>."
+  pt: "Se não quiseres manter a conta, podes eliminá-la agora nas definições da tua conta: <a href=\"{direct_delete_account_link}\" style=\"color: #4867CD; text-decoration: underline;\">eliminar conta</a>."
+  ru: "Если ты не хочешь сохранять аккаунт, ты можешь удалить его прямо сейчас в настройках: <a href=\"{direct_delete_account_link}\" style=\"color: #4867CD; text-decoration: underline;\">удалить аккаунт</a>."
+  ja: "アカウントを維持したくない場合は、アカウント設定から今すぐ削除できる：<a href=\"{direct_delete_account_link}\" style=\"color: #4867CD; text-decoration: underline;\">アカウントを削除する</a>。"
+  ko: "계정 유지를 원하지 않는 경우, 계정 설정에서 지금 삭제할 수 있습니다: <a href=\"{direct_delete_account_link}\" style=\"color: #4867CD; text-decoration: underline;\">계정 삭제</a>."
+  it: "Se non vuoi mantenere l'account, puoi eliminarlo ora dalle impostazioni del tuo account: <a href=\"{direct_delete_account_link}\" style=\"color: #4867CD; text-decoration: underline;\">elimina account</a>."
+  tr: "Hesabı tutmak istemiyorsan, hesap ayarlarından şimdi silebilirsin: <a href=\"{direct_delete_account_link}\" style=\"color: #4867CD; text-decoration: underline;\">hesabı sil</a>."
+  vi: "Nếu bạn không muốn giữ tài khoản, bạn có thể xóa nó ngay bây giờ trong phần cài đặt tài khoản: <a href=\"{direct_delete_account_link}\" style=\"color: #4867CD; text-decoration: underline;\">xóa tài khoản</a>."
+  id: "Jika kamu tidak ingin mempertahankan akun tersebut, kamu dapat menghapusnya sekarang dari pengaturan akun kamu: <a href=\"{direct_delete_account_link}\" style=\"color: #4867CD; text-decoration: underline;\">hapus akun</a>."
+  pl: "Jeśli nie chcesz zachować konta, możesz je usunąć teraz w ustawieniach konta: <a href=\"{direct_delete_account_link}\" style=\"color: #4867CD; text-decoration: underline;\">usuń konto</a>."
+  nl: "Als je het account niet wilt behouden, kun je het nu verwijderen via je accountinstellingen: <a href=\"{direct_delete_account_link}\" style=\"color: #4867CD; text-decoration: underline;\">account verwijderen</a>."
+  ar: "إذا كنت لا ترغب في الاحتفاظ بالحساب، يمكنك حذفه الآن من إعدادات حسابك: <a href=\"{direct_delete_account_link}\" style=\"color: #4867CD; text-decoration: underline;\">حذف الحساب</a>."
+  hi: "यदि तुम अकाउंट नहीं रखना चाहते हो, तो तुम इसे अभी अपनी अकाउंट सेटिंग्स से हटा सकते हो: <a href=\"{direct_delete_account_link}\" style=\"color: #4867CD; text-decoration: underline;\">अकाउंट हटाएं</a>।"
+  th: "หากคุณไม่ต้องการรักษาบัญชีไว้ คุณสามารถลบได้ทันทีจากการตั้งค่าบัญชีของคุณ: <a href=\"{direct_delete_account_link}\" style=\"color: #4867CD; text-decoration: underline;\">ลบบัญชี</a>."
+  cs: "Pokud si účet ponechat nechceš, můžeš ho smazat hned v nastavení účtu: <a href=\"{direct_delete_account_link}\" style=\"color: #4867CD; text-decoration: underline;\">smazat účet</a>."
+  sv: "Om du inte vill behålla kontot kan du radera det nu från dina kontoinställningar: <a href=\"{direct_delete_account_link}\" style=\"color: #4867CD; text-decoration: underline;\">radera konto</a>."
+  he: "אם אין ברצונך לשמור את החשבון, באפשרותך למחוק אותו כעת מהגדרות החשבון שלך: <a href=\"{direct_delete_account_link}\" style=\"color: #4867CD; text-decoration: underline;\">מחיקת חשבון</a>."
   verified_by_human: []
 inactive_account_deletion_reminder.signoff:
   context: Signoff in inactive account deletion reminder email
   en: Thank you,
   de: Danke,
+  zh: 谢谢，
+  es: Gracias,
+  fr: Merci,
+  pt: Obrigado,
+  ru: Спасибо,
+  ja: よろしくお願いいたします。
+  ko: 감사합니다.
+  it: Grazie,
+  tr: Teşekkürler,
+  vi: Trân trọng,
+  id: Terima kasih,
+  pl: Dziękuję,
+  nl: Bedankt,
+  ar: شكراً لك،
+  hi: धन्यवाद,
+  th: ขอบคุณ,
+  cs: Děkuji,
+  sv: Tack,
+  he: תודה,
   verified_by_human: []
 inactive_account_deletion_reminder.creator_title:
   context: Creator title shown below Marco's signature in inactive account deletion reminder email
   en: Creator of OpenMates
   de: Gründer von OpenMates
+  zh: OpenMates 创始人
+  es: Creador de OpenMates
+  fr: "Créateur d'OpenMates"
+  pt: Criador do OpenMates
+  ru: Создатель OpenMates
+  ja: OpenMates 創設者
+  ko: OpenMates 제작자
+  it: Creatore di OpenMates
+  tr: "OpenMates'in Yaratıcısı"
+  vi: Người sáng lập OpenMates
+  id: Pencipta OpenMates
+  pl: Twórca OpenMates
+  nl: Maker van OpenMates
+  ar: مؤسس OpenMates
+  hi: OpenMates के निर्माता
+  th: ผู้สร้าง OpenMates
+  cs: Tvůrce OpenMates
+  sv: Skapare av OpenMates
+  he: היוצר של OpenMates
   verified_by_human: []
 inactive_account_deleted.subject:
   context: Subject for inactive account deleted confirmation email
   en: Your inactive OpenMates account has been deleted
   de: Dein inaktives OpenMates-Konto wurde gelöscht
+  zh: 你的非活跃 OpenMates 帐号已被删除
+  es: Tu cuenta inactiva de OpenMates ha sido eliminada
+  fr: Ton compte OpenMates inactif a été supprimé
+  pt: Tua conta inativa do OpenMates foi excluída
+  ru: Твой неактивный аккаунт OpenMates был удален
+  ja: 非アクティブなOpenMatesアカウントが削除されました
+  ko: 비활성 OpenMates 계정이 삭제되었습니다
+  it: Il tuo account OpenMates inattivo è stato eliminato
+  tr: İnaktif OpenMates hesabın silindi
+  vi: Tài khoản OpenMates không hoạt động của bạn đã bị xóa
+  id: Akun OpenMates kamu yang tidak aktif telah dihapus
+  pl: Twoje nieaktywne konto OpenMates zostało usunięte
+  nl: Je inactieve OpenMates-account is verwijderd
+  ar: تم حذف حسابك غير النشط على OpenMates
+  hi: तुम्हारा निष्क्रिय OpenMates खाता हटा दिया गया है
+  th: บัญชี OpenMates ที่ไม่ได้ใช้งานของคุณถูกลบแล้ว
+  cs: Tvůj neaktivní účet OpenMates byl smazán
+  sv: Ditt inaktiva OpenMates-konto har raderats
+  he: חשבון ה-OpenMates הלא פעיל שלך נמחק
   verified_by_human: []
 inactive_account_deleted.header:
   context: Header for inactive account deleted confirmation email
   en: Your OpenMates account was deleted
   de: Dein OpenMates-Konto wurde gelöscht
+  zh: 你的 OpenMates 帐号已删除
+  es: Tu cuenta de OpenMates ha sido eliminada
+  fr: Ton compte OpenMates a été supprimé
+  pt: Tua conta do OpenMates foi excluída
+  ru: Твой аккаунт OpenMates удален
+  ja: OpenMatesのアカウントが削除されました
+  ko: OpenMates 계정이 삭제되었습니다
+  it: Il tuo account OpenMates è stato eliminato
+  tr: OpenMates hesabın silindi
+  vi: Tài khoản OpenMates của bạn đã bị xóa
+  id: Akun OpenMates kamu telah dihapus
+  pl: Twoje konto OpenMates zostało usunięte
+  nl: Je OpenMates-account is verwijderd
+  ar: تم حذف حسابك على OpenMates
+  hi: तुम्हारा OpenMates खाता हटा दिया गया था
+  th: บัญชี OpenMates ของคุณถูกลบแล้ว
+  cs: Tvůj účet OpenMates byl smazán
+  sv: Ditt OpenMates-konto raderades
+  he: חשבון ה-OpenMates שלך נמחק
   verified_by_human: []
 inactive_account_deleted.greeting:
   context: Greeting in inactive account deleted confirmation email
   en: Hey{greeting_name},
   de: Hallo{greeting_name},
+  zh: "嘿{greeting_name}，"
+  es: "Hola{greeting_name},"
+  fr: "Salut{greeting_name},"
+  pt: "Olá{greeting_name},"
+  ru: "Привет{greeting_name},"
+  ja: "{greeting_name}さん、こんにちは。"
+  ko: "안녕{greeting_name},"
+  it: "Ciao{greeting_name},"
+  tr: "Selam{greeting_name},"
+  vi: "Chào {greeting_name},"
+  id: "Hai{greeting_name},"
+  pl: "Hej{greeting_name},"
+  nl: "Hoi{greeting_name},"
+  ar: "مرحباً {greeting_name}،"
+  hi: "नमस्ते{greeting_name},"
+  th: "สวัสดี{greeting_name},"
+  cs: "Ahoj{greeting_name},"
+  sv: "Hej{greeting_name},"
+  he: "היי{greeting_name},"
   verified_by_human: []
 inactive_account_deleted.deleted_notice:
   context: Deletion notice in inactive account deleted confirmation email
   en: Your inactive OpenMates account has now been deleted because it remained inactive after the staged deletion reminders.
   de: Dein inaktives OpenMates-Konto wurde jetzt gelöscht, weil es nach den gestaffelten Löschhinweisen weiterhin inaktiv war.
+  zh: 由于在分阶段发送删除提醒后你的 OpenMates 帐号仍处于非活跃状态，该帐号现已被删除。
+  es: Tu cuenta inactiva de OpenMates ha sido eliminada porque seguía sin actividad tras los recordatorios de eliminación programada.
+  fr: Ton compte OpenMates inactif a maintenant été supprimé car il est resté inactif après les rappels de suppression.
+  pt: Tua conta inativa do OpenMates foi excluída porque permaneceu inativa após os lembretes de exclusão programada.
+  ru: Твой неактивный аккаунт OpenMates был удален, так как он оставался неактивным после напоминаний о предстоящем удалении.
+  ja: 段階的な削除リマインダーの後もアカウントが非アクティブなままであったため、OpenMatesのアカウントは削除されました。
+  ko: 단계별 계정 삭제 예고 후에도 활동이 감지되지 않아, 비활성 OpenMates 계정이 삭제되었습니다.
+  it: Il tuo account OpenMates inattivo è stato eliminato perché è rimasto inattivo dopo i promemoria di eliminazione graduale.
+  tr: İnaktif OpenMates hesabın, kademeli silme hatırlatmalarından sonra inaktif kalmaya devam ettiği için silindi.
+  vi: Tài khoản OpenMates không hoạt động của bạn hiện đã bị xóa vì tài khoản vẫn không hoạt động sau các thông báo nhắc nhở xóa theo giai đoạn.
+  id: Akun OpenMates kamu yang tidak aktif kini telah dihapus karena tetap tidak aktif setelah pengingat penghapusan bertahap.
+  pl: Twoje nieaktywne konto OpenMates zostało usunięte, ponieważ pozostało nieaktywne po wysłaniu przypomnień o usunięciu.
+  nl: Je inactieve OpenMates-account is nu verwijderd omdat deze inactief bleef na de herinneringen voor accountverwijdering.
+  ar: لقد تم الآن حذف حسابك غير النشط على OpenMates لأنه ظل غير نشط بعد تذكيرات الحذف المرحلية.
+  hi: तुम्हारा निष्क्रिय OpenMates खाता अब हटा दिया गया है क्योंकि यह चरणबद्ध विलोपन अनुस्मारकों के बाद भी निष्क्रिय रहा।
+  th: บัญชี OpenMates ที่ไม่ได้ใช้งานของคุณถูกลบแล้ว เนื่องจากไม่มีการเคลื่อนไหวหลังจากที่มีการส่งการแจ้งเตือนการลบตามขั้นตอน
+  cs: Tvůj neaktivní účet OpenMates byl nyní smazán, protože zůstal neaktivní i po upomínkách na plánované smazání.
+  sv: Ditt inaktiva OpenMates-konto har nu raderats eftersom det förblev inaktivt efter påminnelserna om radering.
+  he: חשבון ה-OpenMates הלא פעיל שלך נמחק כעת מכיוון שהוא נותר לא פעיל לאחר תזכורות המחיקה המדורגות.
   verified_by_human: []
 inactive_account_deleted.no_action:
   context: No action required sentence in inactive account deleted confirmation email
   en: No further action is needed.
   de: Du musst nichts weiter tun.
+  zh: 无需进一步操作。
+  es: No es necesario realizar ninguna otra acción.
+  fr: "Aucune autre action n'est requise."
+  pt: Nenhuma ação adicional é necessária.
+  ru: Никаких дальнейших действий не требуется.
+  ja: これ以上の手続きは必要ありません。
+  ko: 추가로 취해야 할 조치는 없습니다.
+  it: Non è richiesta alcuna ulteriore azione.
+  tr: Başka bir işlem yapmana gerek yok.
+  vi: Bạn không cần thực hiện thêm hành động nào.
+  id: Tidak ada tindakan lebih lanjut yang diperlukan.
+  pl: Nie musisz podejmować żadnych dalszych działań.
+  nl: Er is geen verdere actie vereist.
+  ar: لا يلزم اتخاذ أي إجراء آخر.
+  hi: आगे किसी कार्रवाई की आवश्यकता नहीं है।
+  th: ไม่จำเป็นต้องดำเนินการใดๆ เพิ่มเติม
+  cs: Není vyžadována žádná další akce.
+  sv: Ingen ytterligare åtgärd krävs.
+  he: אין צורך בפעולה נוספת.
   verified_by_human: []
 inactive_account_deleted.signup_again:
   context: Signup again paragraph in inactive account deleted confirmation email
@@ -889,6 +1402,25 @@ inactive_account_deleted.signup_again:
     If you want to use OpenMates again later, you can create a new account at <a href="{signup_link}" style="color: #4867CD; text-decoration: underline;">OpenMates.org</a>.
   de: >-
     Wenn du OpenMates später wieder verwenden möchtest, kannst du auf <a href="{signup_link}" style="color: #4867CD; text-decoration: underline;">OpenMates.org</a> ein neues Konto erstellen.
+  zh: "如果你以后想再次使用 OpenMates，可以在 <a href=\"{signup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a> 创建新帐号。"
+  es: "Si quieres volver a usar OpenMates más adelante, puedes crear una cuenta nueva en <a href=\"{signup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a>."
+  fr: "Si tu souhaites utiliser OpenMates à nouveau plus tard, tu peux créer un nouveau compte sur <a href=\"{signup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a>."
+  pt: "Se quiseres usar o OpenMates novamente mais tarde, podes criar uma nova conta em <a href=\"{signup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a>."
+  ru: "Если ты захочешь снова использовать OpenMates позже, ты можешь создать новый аккаунт на <a href=\"{signup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a>."
+  ja: "今後またOpenMatesを利用したい場合は、<a href=\"{signup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a>から新しいアカウントを作成できます。"
+  ko: "나중에 OpenMates를 다시 이용하고 싶다면, <a href=\"{signup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a>에서 새 계정을 만들 수 있어."
+  it: "Se desideri utilizzare nuovamente OpenMates in futuro, puoi creare un nuovo account su <a href=\"{signup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a>."
+  tr: "OpenMates'i daha sonra tekrar kullanmak istersen, <a href=\"{signup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a> adresinden yeni bir hesap oluşturabilirsin."
+  vi: "Nếu bạn muốn sử dụng lại OpenMates sau này, bạn có thể tạo tài khoản mới tại <a href=\"{signup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a>."
+  id: "Jika kamu ingin menggunakan OpenMates lagi nanti, kamu dapat membuat akun baru di <a href=\"{signup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a>."
+  pl: "Jeśli zechcesz ponownie korzystać z OpenMates w przyszłości, możesz utworzyć nowe konto na stronie <a href=\"{signup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a>."
+  nl: "Als je OpenMates later weer wilt gebruiken, kun je een nieuw account aanmaken op <a href=\"{signup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a>."
+  ar: "إذا كنت ترغب في استخدام OpenMates مرة أخرى لاحقاً، يمكنك إنشاء حساب جديد عبر <a href=\"{signup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a>."
+  hi: "यदि तुम बाद में फिर से OpenMates का उपयोग करना चाहते हो, तो तुम <a href=\"{signup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a> पर एक नया खाता बना सकते हो।"
+  th: "หากคุณต้องการใช้ OpenMates อีกครั้งในภายหลัง คุณสามารถสร้างบัญชีใหม่ได้ที่ <a href=\"{signup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a>"
+  cs: "Pokud budeš chtít OpenMates v budoucnu znovu používat, můžeš si vytvořit nový účet na <a href=\"{signup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a>."
+  sv: "Om du vill använda OpenMates igen senare kan du skapa ett nytt konto på <a href=\"{signup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a>."
+  he: "אם תרצה להשתמש ב-OpenMates שוב בעתיד, תוכל ליצור חשבון חדש בכתובת <a href=\"{signup_link}\" style=\"color: #4867CD; text-decoration: underline;\">OpenMates.org</a>."
   verified_by_human: []
 inactive_account_deleted.newsletter:
   context: Newsletter preference paragraph in inactive account deleted confirmation email
@@ -896,16 +1428,73 @@ inactive_account_deleted.newsletter:
     This does not change your newsletter preferences. You can manage them anytime in the newsletter settings.
   de: >-
     Deine Newsletter-Einstellungen bleiben davon unberührt. Du kannst sie jederzeit in den Newsletter-Einstellungen verwalten.
+  zh: 这不会改变你的新闻通讯偏好。你可以随时在新闻通讯设置中进行管理。
+  es: Esto no cambia tus preferencias de la newsletter. Puedes gestionarlas en cualquier momento en los ajustes de la newsletter.
+  fr: Cela ne modifie pas tes préférences de newsletter. Tu peux les gérer à tout moment dans les paramètres de la newsletter.
+  pt: Isso não altera tuas preferências de newsletter. Podes gerenciá-las a qualquer momento nas configurações da newsletter.
+  ru: Это не меняет твои настройки рассылки. Ты можешь изменить их в любое время в настройках рассылки.
+  ja: これによりニュースレターの設定が変更されることはありません。ニュースレターの設定はいつでも管理できます。
+  ko: 이 조치는 뉴스레터 수신 설정에 영향을 주지 않습니다. 뉴스레터 설정에서 언제든지 관리할 수 있습니다.
+  it: Questo non modifica le tue preferenze per la newsletter. Puoi gestirle in qualsiasi momento nelle impostazioni della newsletter.
+  tr: Bu durum bülten tercihlerini değiştirmez. Tercihlerini istediğin zaman bülten ayarlarından yönetebilirsin.
+  vi: Điều này không thay đổi tùy chọn nhận bản tin của bạn. Bạn có thể quản lý chúng bất cứ lúc nào trong phần cài đặt bản tin.
+  id: Ini tidak mengubah preferensi buletin kamu. Kamu dapat mengelolanya kapan saja di pengaturan buletin.
+  pl: To nie zmienia Twoich preferencji dotyczących newslettera. Możesz nimi zarządzać w dowolnym momencie w ustawieniach newslettera.
+  nl: Dit heeft geen invloed op je nieuwsbriefvoorkeuren. Je kunt deze op elk moment beheren in de instellingen van de nieuwsbrief.
+  ar: هذا لا يغير تفضيلات النشرة الإخبارية الخاصة بك. يمكنك إدارتها في أي وقت في إعدادات النشرة الإخبارية.
+  hi: इससे तुम्हारी न्यूज़लेटर प्राथमिकताएं नहीं बदलती हैं। तुम उन्हें न्यूज़लेटर सेटिंग्स में कभी भी प्रबंधित कर सकते हो।
+  th: การดำเนินการนี้จะไม่เปลี่ยนการตั้งค่าจดหมายข่าวของคุณ คุณสามารถจัดการได้ทุกเมื่อในการตั้งค่าจดหมายข่าว
+  cs: Tímto se nemění tvé předvolby pro zasílání novinek. Můžeš je kdykoli spravovat v nastavení newsletteru.
+  sv: Detta ändrar inte dina inställningar för nyhetsbrev. Du kan hantera dem när som helst i inställningarna för nyhetsbrev.
+  he: זה לא משנה את העדפות הניוזלטר שלך. ניתן לנהל אותן בכל עת בהגדרות הניוזלטר.
   verified_by_human: []
 inactive_account_deleted.signoff:
   context: Signoff in inactive account deleted confirmation email
   en: Thank you,
   de: Danke,
+  zh: 谢谢，
+  es: Gracias,
+  fr: Merci,
+  pt: Obrigado,
+  ru: Спасибо,
+  ja: よろしくお願いいたします。
+  ko: 감사합니다.
+  it: Grazie,
+  tr: Teşekkürler,
+  vi: Trân trọng,
+  id: Terima kasih,
+  pl: Dziękuję,
+  nl: Bedankt,
+  ar: شكراً لك،
+  hi: धन्यवाद,
+  th: ขอบคุณ,
+  cs: Děkuji,
+  sv: Tack,
+  he: תודה,
   verified_by_human: []
 inactive_account_deleted.creator_title:
   context: Creator title shown below Marco's signature in inactive account deleted confirmation email
   en: Creator of OpenMates
   de: Gründer von OpenMates
+  zh: OpenMates 创始人
+  es: Creador de OpenMates
+  fr: "Créateur d'OpenMates"
+  pt: Criador do OpenMates
+  ru: Создатель OpenMates
+  ja: OpenMates 創設者
+  ko: OpenMates 제작자
+  it: Creatore di OpenMates
+  tr: "OpenMates'in Yaratıcısı"
+  vi: Người sáng lập OpenMates
+  id: Pencipta OpenMates
+  pl: Twórca OpenMates
+  nl: Maker van OpenMates
+  ar: مؤسس OpenMates
+  hi: OpenMates के निर्माता
+  th: ผู้สร้าง OpenMates
+  cs: Tvůrce OpenMates
+  sv: Skapare av OpenMates
+  he: היוצר של OpenMates
   verified_by_human: []
 incomplete_signup_deletion_reminder.subject_14d:
   context: Subject for incomplete signup deletion reminder sent 14 days before deletion
@@ -10399,7 +10988,7 @@ bank_transfer_reminder:
   verified_by_human: []
 bank_transfer_reminder_intro:
   context: Intro text in reminder email — {credits} is replaced with credit count, {amount} with EUR amount
-  en: "Here are the details to add {credits} credits to your account. Please transfer exactly €{amount} with the reference below."
+  en: "Here are the details to add {credits} credits to your account. Please transfer exactly €{amount} with the single-use reference below. To buy more credits later, create a new purchase and use its new reference."
   de: "Hier sind die Details, um {credits} Credits Ihrem Konto hinzuzufügen. Bitte überweisen Sie genau €{amount} mit dem unten angegebenen Verwendungszweck."
   zh: "以下是向您账户添加 {credits} 积分的详情。请按以下参考号精确转账 €{amount}。"
   es: "Aquí están los detalles para añadir {credits} créditos a su cuenta. Por favor transfiera exactamente €{amount} con la referencia a continuación."
@@ -10519,7 +11108,7 @@ bank_transfer_reference:
   verified_by_human: []
 bank_transfer_reference_warning_short:
   context: Short note under the reference in reminder email emphasizing the reference must be included exactly
-  en: Include this reference exactly as shown in your transfer.
+  en: Include this single-use reference exactly as shown in your transfer.
   de: Fügen Sie diesen Verwendungszweck exakt wie angegeben in Ihrer Überweisung ein.
   zh: 请在您的转账中完全按照所示包含此参考号。
   es: Incluya esta referencia exactamente como se muestra en su transferencia.

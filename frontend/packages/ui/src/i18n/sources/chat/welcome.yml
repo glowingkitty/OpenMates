@@ -74,49 +74,239 @@ guest_explore_desktop:
   context: Logged-out landing prompt on non-touch devices after the daily inspiration intro
   en: "Click or swipe, to explore real chats:"
   de: "Klicke oder wische, um echte Chats zu entdecken:"
+  zh: 点击或滑动，探索真实对话：
+  es: "Haz clic o desliza para explorar chats reales:"
+  fr: "Clique ou balaie pour explorer de vraies discussions :"
+  pt: "Clica ou desliza para explorares conversas reais:"
+  ru: "Нажми или смахни, чтобы изучить реальные чаты:"
+  ja: クリックまたはスワイプして、実際のチャットを見てみよう：
+  ko: "클릭하거나 스와이프하여 실제 채팅을 살펴보세요:"
+  it: "Clicca o scorri per esplorare chat reali:"
+  tr: "Gerçek sohbetleri keşfetmek için tıkla veya kaydır:"
+  vi: "Nhấp hoặc vuốt để khám phá các cuộc trò chuyện thực tế:"
+  id: "Klik atau geser, untuk menjelajahi obrolan nyata:"
+  pl: "Kliknij lub przesuń, aby odkryć prawdziwe czaty:"
+  nl: "Klik of swipe om echte chats te ontdekken:"
+  ar: "انقر أو اسحب لاستكشاف محادثات حقيقية:"
+  hi: "असली चैट देखने के लिए क्लिक करें या स्वाइप करें:"
+  th: "คลิกหรือปัดเพื่อสำรวจแชทจริง:"
+  cs: "Klikni nebo přejeď, a prozkoumej skutečné chaty:"
+  sv: "Klicka eller svep för att utforska riktiga chattar:"
+  he: "לחץ או החלק, כדי לגלות צ'אטים אמיתיים:"
   verified_by_human: []
 guest_explore_touch:
   context: Logged-out landing prompt on touch devices after the daily inspiration intro
   en: "Tap or swipe, to explore real chats:"
   de: "Tippe oder wische, um echte Chats zu entdecken:"
+  zh: 轻触或滑动，探索真实对话：
+  es: "Toca o desliza para explorar chats reales:"
+  fr: "Appuie ou balaie pour explorer de vraies discussions :"
+  pt: "Toca ou desliza para explorares conversas reais:"
+  ru: "Коснись или смахни, чтобы изучить реальные чаты:"
+  ja: タップまたはスワイプして、実際のチャットを見てみよう：
+  ko: "탭하거나 스와이프하여 실제 채팅을 살펴보세요:"
+  it: "Tocca o scorri per esplorare chat reali:"
+  tr: "Gerçek sohbetleri keşfetmek için dokun veya kaydır:"
+  vi: "Chạm hoặc vuốt để khám phá các cuộc trò chuyện thực tế:"
+  id: "Ketuk atau geser, untuk menjelajahi obrolan nyata:"
+  pl: "Dotknij lub przesuń, aby odkryć prawdziwe czaty:"
+  nl: "Tik of swipe om echte chats te ontdekken:"
+  ar: "المس أو اسحب لاستكشاف محادثات حقيقية:"
+  hi: "असली चैट देखने के लिए टैप करें या स्वाइप करें:"
+  th: "แตะหรือปัดเพื่อสำรวจแชทจริง:"
+  cs: "Klepni nebo přejeď, a prozkoumej skutečné chaty:"
+  sv: "Tryck eller svep för att utforska riktiga chattar:"
+  he: "הקש או החלק, כדי לגלות צ'אטים אמיתיים:"
   verified_by_human: []
 guest_privacy_link:
   context: Small rotating link above the logged-out message input that opens the privacy policy
   en: Your chats & memories will be encrypted
   de: Deine Chats und Erinnerungen werden verschlüsselt
+  zh: 你的对话和记忆将被加密
+  es: Tus chats y memorias estarán cifrados
+  fr: Tes discussions et souvenirs seront chiffrés
+  pt: As tuas conversas e memórias serão encriptadas
+  ru: Твои чаты и воспоминания будут зашифрованы
+  ja: チャットとメモリは暗号化されるよ
+  ko: 채팅과 기억은 암호화됩니다
+  it: Le tue chat e i tuoi ricordi saranno crittografati
+  tr: Sohbetlerin ve anıların şifrelenecek
+  vi: Các cuộc trò chuyện và ký ức của bạn sẽ được mã hóa
+  id: "Obrolan & memori kamu akan dienkripsi"
+  pl: Twoje czaty i wspomnienia będą szyfrowane
+  nl: Je chats en herinneringen worden versleuteld
+  ar: سيتم تشفير محادثاتك وذكرياتك
+  hi: तुम्हारी चैट और यादें एन्क्रिप्टेड रहेंगी
+  th: แชทและความทรงจำของคุณจะถูกเข้ารหัส
+  cs: Tvé chaty a vzpomínky budou šifrovány
+  sv: Dina chattar och minnen kommer att krypteras
+  he: "הצ'אטים והזיכרונות שלך יהיו מוצפנים"
   verified_by_human: []
 guest_apps_link:
   context: Small rotating link above the logged-out message input that opens app settings
   en: OpenMates uses apps to fulfill tasks
   de: OpenMates nutzt Apps, um Aufgaben zu erledigen
+  zh: OpenMates 使用应用来完成任务
+  es: OpenMates usa aplicaciones para realizar tareas
+  fr: OpenMates utilise des apps pour accomplir des tâches
+  pt: O OpenMates usa apps para realizar tarefas
+  ru: OpenMates использует приложения для выполнения задач
+  ja: OpenMatesはアプリを使ってタスクを実行するよ
+  ko: OpenMates는 앱을 사용하여 작업을 수행합니다
+  it: OpenMates usa le app per svolgere attività
+  tr: OpenMates görevleri yerine getirmek için uygulamaları kullanır
+  vi: OpenMates sử dụng các ứng dụng để hoàn thành nhiệm vụ
+  id: OpenMates menggunakan aplikasi untuk menyelesaikan tugas
+  pl: OpenMates używa aplikacji do wykonywania zadań
+  nl: OpenMates gebruikt apps om taken uit te voeren
+  ar: يستخدم OpenMates تطبيقات لإنجاز المهام
+  hi: OpenMates कार्यों को पूरा करने के लिए ऐप्स का उपयोग करता है
+  th: OpenMates ใช้แอปเพื่อทำงานต่างๆ ให้สำเร็จ
+  cs: OpenMates používá aplikace k plnění úkolů
+  sv: OpenMates använder appar för att utföra uppgifter
+  he: OpenMates משתמש באפליקציות לביצוע משימות
   verified_by_human: []
 show_all_examples:
   context: Link below logged-out example cards that replaces the inspiration area with all examples
   en: Show all examples
   de: Alle Beispiele anzeigen
+  zh: 显示所有示例
+  es: Mostrar todos los ejemplos
+  fr: Afficher tous les exemples
+  pt: Mostrar todos os exemplos
+  ru: Показать все примеры
+  ja: すべての例を表示
+  ko: 모든 예시 보기
+  it: Mostra tutti gli esempi
+  tr: Tüm örnekleri göster
+  vi: Hiển thị tất cả ví dụ
+  id: Tampilkan semua contoh
+  pl: Pokaż wszystkie przykłady
+  nl: Toon alle voorbeelden
+  ar: عرض جميع الأمثلة
+  hi: सभी उदाहरण दिखाएं
+  th: แสดงตัวอย่างทั้งหมด
+  cs: Zobrazit všechny příklady
+  sv: Visa alla exempel
+  he: הצג את כל הדוגמאות
   verified_by_human: []
 show_all_chats:
   context: Link below logged-out example chat cards that replaces the inspiration area with all chat examples
   en: Show all chats
   de: Alle Chats anzeigen
+  zh: 显示所有对话
+  es: Mostrar todos los chats
+  fr: Afficher toutes les discussions
+  pt: Mostrar todas as conversas
+  ru: Показать все чаты
+  ja: すべてのチャットを表示
+  ko: 모든 채팅 보기
+  it: Mostra tutte le chat
+  tr: Tüm sohbetleri göster
+  vi: Hiển thị tất cả cuộc trò chuyện
+  id: Tampilkan semua obrolan
+  pl: Pokaż wszystkie czaty
+  nl: Toon alle chats
+  ar: عرض جميع المحادثات
+  hi: सभी चैट दिखाएं
+  th: แสดงแชททั้งหมด
+  cs: Zobrazit všechny chaty
+  sv: Visa alla chattar
+  he: "הצג את כל הצ'אטים"
   verified_by_human: []
 show_all_projects:
   context: Link below logged-out project example cards that replaces the inspiration area with all project examples
   en: Show all projects
   de: Alle Projekte anzeigen
+  zh: 显示所有项目
+  es: Mostrar todos los proyectos
+  fr: Afficher tous les projets
+  pt: Mostrar todos os projetos
+  ru: Показать все проекты
+  ja: すべてのプロジェクトを表示
+  ko: 모든 프로젝트 보기
+  it: Mostra tutti i progetti
+  tr: Tüm projeleri göster
+  vi: Hiển thị tất cả dự án
+  id: Tampilkan semua proyek
+  pl: Pokaż wszystkie projekty
+  nl: Toon alle projecten
+  ar: عرض جميع المشاريع
+  hi: सभी प्रोजेक्ट दिखाएं
+  th: แสดงโปรเจกต์ทั้งหมด
+  cs: Zobrazit všechny projekty
+  sv: Visa alla projekt
+  he: הצג את כל הפרויקטים
   verified_by_human: []
 show_all_workflows:
   context: Link below logged-out workflow example cards that replaces the inspiration area with all workflow examples
   en: Show all workflows
   de: Alle Workflows anzeigen
+  zh: 显示所有工作流
+  es: Mostrar todos los flujos de trabajo
+  fr: Afficher tous les workflows
+  pt: Mostrar todos os fluxos de trabalho
+  ru: Показать все рабочие процессы
+  ja: すべてのワークフローを表示
+  ko: 모든 워크플로 보기
+  it: Mostra tutti i workflow
+  tr: Tüm iş akışlarını göster
+  vi: Hiển thị tất cả quy trình công việc
+  id: Tampilkan semua alur kerja
+  pl: Pokaż wszystkie procesy pracy
+  nl: Toon alle workflows
+  ar: عرض جميع سير العمل
+  hi: सभी वर्कफ़्लो दिखाएं
+  th: แสดงเวิร์กโฟลว์ทั้งหมด
+  cs: Zobrazit všechny workflowy
+  sv: Visa alla arbetsflöden
+  he: הצג את כל תהליכי העבודה
   verified_by_human: []
 all_examples_title:
   context: Heading for the logged-out all examples replacement view
   en: Explore real OpenMates chats
   de: Entdecke echte OpenMates-Chats
+  zh: 探索真实的 OpenMates 对话
+  es: Explora chats reales de OpenMates
+  fr: Explore de vraies discussions OpenMates
+  pt: Explora conversas reais do OpenMates
+  ru: Исследуй реальные чаты OpenMates
+  ja: OpenMatesの実際のチャットを見てみよう
+  ko: 실제 OpenMates 채팅 살펴보기
+  it: Esplora le chat reali di OpenMates
+  tr: Gerçek OpenMates sohbetlerini keşfet
+  vi: Khám phá các cuộc trò chuyện OpenMates thực tế
+  id: Jelajahi obrolan OpenMates yang nyata
+  pl: Odkryj prawdziwe czaty OpenMates
+  nl: Ontdek echte OpenMates-chats
+  ar: استكشف محادثات OpenMates حقيقية
+  hi: असली OpenMates चैट देखें
+  th: สำรวจแชทจริงของ OpenMates
+  cs: Prozkoumej skutečné chaty OpenMates
+  sv: Utforska riktiga OpenMates-chattar
+  he: "גלה צ'אטים אמיתיים ב-OpenMates"
   verified_by_human: []
 all_examples_subtitle:
   context: Subtitle for the logged-out all examples replacement view
   en: Pick one to see how the workspace feels in practice.
   de: Wähle einen aus, um das Workspace-Gefühl praktisch zu sehen.
+  zh: 选择一个，体验工作区的实际操作感。
+  es: Elige uno para ver cómo funciona el espacio de trabajo en la práctica.
+  fr: "Choisis-en une pour voir comment l'espace de travail fonctionne en pratique."
+  pt: Escolhe uma para veres como o espaço de trabalho funciona na prática.
+  ru: Выбери один, чтобы увидеть, как рабочее пространство выглядит на практике.
+  ja: どれか選んで、実際のワークスペースの雰囲気を体験してみよう。
+  ko: 하나를 선택하여 워크스페이스가 실제로 어떻게 작동하는지 확인해 보세요.
+  it: "Scegline una per vedere come funziona l'area di lavoro in pratica."
+  tr: Çalışma alanının pratikte nasıl hissettirdiğini görmek için birini seç.
+  vi: Chọn một ví dụ để xem không gian làm việc hoạt động như thế nào trong thực tế.
+  id: Pilih satu untuk melihat bagaimana ruang kerja terasa dalam praktiknya.
+  pl: Wybierz jeden, aby zobaczyć, jak przestrzeń robocza wygląda w praktyce.
+  nl: Kies er een om te zien hoe de werkruimte in de praktijk aanvoelt.
+  ar: اختر واحدة لترى كيف تبدو مساحة العمل في الواقع.
+  hi: यह देखने के लिए कि वर्कस्पेस असल में कैसा लगता है, कोई एक चुनें।
+  th: เลือกสักอันเพื่อดูว่าพื้นที่ทำงานใช้งานจริงเป็นอย่างไร
+  cs: Vyber si jeden a podívej se, jak pracovní prostředí vypadá v praxi.
+  sv: Välj en för att se hur arbetsytan känns i praktiken.
+  he: בחר אחד כדי לראות איך סביבת העבודה מרגישה בפועל.
   verified_by_human: []

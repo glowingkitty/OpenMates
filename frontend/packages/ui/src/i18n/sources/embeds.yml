@@ -7333,114 +7333,475 @@ business.company_financials.revenue:
   context: Label for company revenue metric
   en: Revenue
   de: Umsatz
+  zh: 营收
+  es: Ingresos
+  fr: "Chiffre d'affaires"
+  pt: Receita
+  ru: Выручка
+  ja: 売上高
+  ko: 매출액
+  it: Fatturato
+  tr: Gelir
+  vi: Doanh thu
+  id: Pendapatan
+  pl: Przychody
+  nl: Omzet
+  ar: الإيرادات
+  hi: राजस्व
+  th: รายได้
+  cs: Tržby
+  sv: Omsättning
+  he: הכנסות
   verified_by_human: [en, de]
 
 business.company_financials.gross_profit:
   context: Label for company gross profit metric
   en: Gross profit
   de: Bruttogewinn
+  zh: 毛利润
+  es: Beneficio bruto
+  fr: Bénéfice brut
+  pt: Lucro bruto
+  ru: Валовая прибыль
+  ja: 売上総利益
+  ko: 매출총이익
+  it: Utile lordo
+  tr: Brüt kâr
+  vi: Lợi nhuận gộp
+  id: Laba kotor
+  pl: Zysk brutto
+  nl: Brutowinst
+  ar: إجمالي الربح
+  hi: सकल लाभ
+  th: กำไรขั้นต้น
+  cs: Hrubý zisk
+  sv: Bruttovinst
+  he: רווח גולמי
   verified_by_human: [en, de]
 
 business.company_financials.operating_income:
   context: Label for company operating income metric
   en: Operating income
   de: Operatives Ergebnis
+  zh: 营业收入
+  es: Ingresos operativos
+  fr: "Résultat d'exploitation"
+  pt: Lucro operacional
+  ru: Операционная прибыль
+  ja: 営業利益
+  ko: 영업이익
+  it: Risultato operativo
+  tr: Faaliyet kârı
+  vi: Thu nhập hoạt động
+  id: Pendapatan operasional
+  pl: Zysk operacyjny
+  nl: Bedrijfsresultaat
+  ar: الدخل التشغيلي
+  hi: परिचालन आय
+  th: กำไรจากการดำเนินงาน
+  cs: Provozní zisk
+  sv: Rörelseresultat
+  he: רווח תפעולי
   verified_by_human: [en, de]
 
 business.company_financials.net_income:
   context: Label for company net income metric
   en: Net income
   de: Nettogewinn
+  zh: 净利润
+  es: Ingresos netos
+  fr: Résultat net
+  pt: Lucro líquido
+  ru: Чистая прибыль
+  ja: 純利益
+  ko: 당기순이익
+  it: Utile netto
+  tr: Net gelir
+  vi: Thu nhập ròng
+  id: Laba bersih
+  pl: Zysk netto
+  nl: Nettowinst
+  ar: صافي الدخل
+  hi: शुद्ध आय
+  th: กำไรสุทธิ
+  cs: Čistý zisk
+  sv: Nettoresultat
+  he: רווח נקי
   verified_by_human: [en, de]
 
 business.company_financials.operating_cash_flow:
   context: Label for operating cash flow metric
   en: Operating cash flow
   de: Operativer Cashflow
+  zh: 经营性现金流
+  es: Flujo de caja operativo
+  fr: Flux de trésorerie opérationnel
+  pt: Fluxo de caixa operacional
+  ru: Операционный денежный поток
+  ja: 営業キャッシュフロー
+  ko: 영업활동 현금흐름
+  it: Flusso di cassa operativo
+  tr: İşletme nakit akışı
+  vi: Dòng tiền từ hoạt động kinh doanh
+  id: Arus kas operasional
+  pl: Operacyjne przepływy pieniężne
+  nl: Operationele kasstroom
+  ar: التدفق النقدي التشغيلي
+  hi: ऑपरेटिंग कैश फ्लो
+  th: กระแสเงินสดจากการดำเนินงาน
+  cs: Provozní cash flow
+  sv: Operativt kassaflöde
+  he: תזרים מזומנים מפעילות שוטפת
   verified_by_human: [en, de]
 
 business.company_financials.assets:
   context: Label for company assets metric
   en: Assets
   de: Vermögenswerte
+  zh: 资产
+  es: Activos
+  fr: Actifs
+  pt: Ativos
+  ru: Активы
+  ja: 資産
+  ko: 자산
+  it: Attività
+  tr: Varlıklar
+  vi: Tài sản
+  id: Aset
+  pl: Aktywa
+  nl: Activa
+  ar: الأصول
+  hi: संपत्ति
+  th: สินทรัพย์
+  cs: Aktiva
+  sv: Tillgångar
+  he: נכסים
   verified_by_human: [en, de]
 
 business.company_financials.liabilities:
   context: Label for company liabilities metric
   en: Liabilities
   de: Verbindlichkeiten
+  zh: 负债
+  es: Pasivos
+  fr: Passifs
+  pt: Passivos
+  ru: Обязательства
+  ja: 負債
+  ko: 부채
+  it: Passività
+  tr: Yükümlülükler
+  vi: Nợ phải trả
+  id: Liabilitas
+  pl: Zobowiązania
+  nl: Passiva
+  ar: الالتزامات المتداولة
+  hi: देनदारियां
+  th: หนี้สิน
+  cs: Závazky
+  sv: Skulder
+  he: התחייבויות
   verified_by_human: [en, de]
 
 business.company_financials.equity:
   context: Label for company equity metric
   en: Equity
   de: Eigenkapital
+  zh: 权益
+  es: Patrimonio neto
+  fr: Capitaux propres
+  pt: Patrimônio líquido
+  ru: Капитал
+  ja: 純資産
+  ko: 자본
+  it: Patrimonio netto
+  tr: Özkaynaklar
+  vi: Vốn chủ sở hữu
+  id: Ekuitas
+  pl: Kapitał własny
+  nl: Eigen vermogen
+  ar: حقوق الملكية
+  hi: इक्विटी
+  th: ส่วนของผู้ถือหุ้น
+  cs: Vlastní kapitál
+  sv: Eget kapital
+  he: הון עצמי
   verified_by_human: [en, de]
 
 business.company_financials.filed:
   context: Label prefix for SEC filing date
   en: Filed
   de: Eingereicht
+  zh: 提交日期
+  es: Presentado el
+  fr: Déposé
+  pt: Arquivado em
+  ru: Подано
+  ja: 提出日
+  ko: "제출일:"
+  it: Depositato il
+  tr: Dosyalandı
+  vi: Đã nộp
+  id: Dilaporkan pada
+  pl: Złożono
+  nl: Ingediend
+  ar: تاريخ الإيداع
+  hi: दायर किया गया
+  th: ยื่นเมื่อ
+  cs: Podáno
+  sv: Inlämnad
+  he: הוגש
   verified_by_human: [en, de]
 
 business.company_financials.annual:
   context: Label for annual financial periods
   en: Annual
   de: Jährlich
+  zh: 年度
+  es: Anual
+  fr: Annuel
+  pt: Anual
+  ru: Годовые
+  ja: 通期
+  ko: 연간
+  it: Annuale
+  tr: Yıllık
+  vi: Hàng năm
+  id: Tahunan
+  pl: Roczne
+  nl: Jaarlijks
+  ar: سنوي
+  hi: वार्षिक
+  th: รายปี
+  cs: Roční
+  sv: Årlig
+  he: שנתי
   verified_by_human: [en, de]
 
 business.company_financials.quarterly:
   context: Label for quarterly financial periods
   en: Quarterly
   de: Quartalsweise
+  zh: 季度
+  es: Trimestral
+  fr: Trimestriel
+  pt: Trimestral
+  ru: Квартальные
+  ja: 四半期
+  ko: 분기별
+  it: Trimestrale
+  tr: Çeyreklik
+  vi: Hàng quý
+  id: Kuartalan
+  pl: Kwartalne
+  nl: Kwartaalbasis
+  ar: ربع سنوي
+  hi: तिमाही
+  th: รายไตรมาส
+  cs: Čtvrtletní
+  sv: Kvartalsvis
+  he: רבעוני
   verified_by_human: [en, de]
 
 business.company_financials.period:
   context: Generic label for a financial period
   en: Period
   de: Zeitraum
+  zh: 期间
+  es: Periodo
+  fr: Période
+  pt: Período
+  ru: Период
+  ja: 期間名
+  ko: 기간
+  it: Periodo
+  tr: Dönem
+  vi: Kỳ hạn
+  id: Periode
+  pl: Okres
+  nl: Periode
+  ar: الفترة
+  hi: अवधि
+  th: รอบระยะเวลา
+  cs: Období
+  sv: Period
+  he: תקופה
   verified_by_human: [en, de]
 
 business.company_financials.metrics:
   context: Section heading for company financial metrics
   en: Metrics
   de: Kennzahlen
+  zh: 指标
+  es: Métricas
+  fr: Indicateurs
+  pt: Métricas
+  ru: Показатели
+  ja: 指標
+  ko: 지표
+  it: Metriche
+  tr: Metrikler
+  vi: Chỉ số tài chính
+  id: Metrik
+  pl: Wskaźniki
+  nl: Kengetallen
+  ar: المقاييس
+  hi: मीट्रिक
+  th: ตัวชี้วัด
+  cs: Metriky
+  sv: Nyckeltal
+  he: מדדים
   verified_by_human: [en, de]
 
 business.company_financials.no_metrics:
   context: Empty state when no standardized financial metrics are available
   en: No standardized metrics were available in SEC facts.
   de: In den SEC-Daten waren keine standardisierten Kennzahlen verfügbar.
+  zh: SEC 事实中没有可用的标准化指标。
+  es: No se encontraron métricas estandarizadas en los datos de la SEC.
+  fr: "Aucun indicateur standardisé n'était disponible dans les données de la SEC."
+  pt: Nenhuma métrica padronizada disponível nos fatos da SEC.
+  ru: В данных SEC не найдено стандартизированных показателей.
+  ja: SEC Factsに標準化された指標が見つかりませんでした。
+  ko: SEC 데이터에서 표준화된 지표를 찾을 수 없습니다.
+  it: Nessuna metrica standardizzata disponibile nei dati SEC.
+  tr: SEC verilerinde standartlaştırılmış metrik bulunamadı.
+  vi: Không có chỉ số tiêu chuẩn nào trong dữ liệu SEC.
+  id: Tidak ada metrik standar yang tersedia dalam fakta SEC.
+  pl: W danych SEC nie znaleziono ustandaryzowanych wskaźników.
+  nl: Geen gestandaardiseerde kengetallen beschikbaar in SEC-gegevens.
+  ar: لم تتوفر مقاييس موحدة في بيانات هيئة الأوراق المالية والبورصات (SEC).
+  hi: SEC तथ्यों में कोई मानकीकृत मीट्रिक उपलब्ध नहीं थे।
+  th: ไม่มีตัวชี้วัดมาตรฐานในข้อมูล SEC
+  cs: V datech SEC nebyly k dispozici žádné standardizované metriky.
+  sv: Inga standardiserade nyckeltal fanns tillgängliga i SEC-fakta.
+  he: לא היו מדדים סטנדרטיים זמינים בנתוני ה-SEC.
   verified_by_human: [en, de]
 
 business.company_financials.source:
   context: Section heading for source filing metadata
   en: Source filing
   de: Quelldokument
+  zh: 源申报文件
+  es: Informe de origen
+  fr: Dépôt source
+  pt: Arquivamento de origem
+  ru: Исходный отчет
+  ja: 提出書類ソース
+  ko: 원본 공시 자료
+  it: Deposito di origine
+  tr: Kaynak dosya
+  vi: Hồ sơ nguồn
+  id: Sumber pelaporan
+  pl: Zgłoszenie źródłowe
+  nl: Bron van de deponering
+  ar: إيداع المصدر
+  hi: स्रोत फाइलिंग
+  th: เอกสารต้นทาง
+  cs: Zdrojové podání
+  sv: Källarkivering
+  he: דיווח מקור
   verified_by_human: [en, de]
 
 business.company_financials.sec_filing:
   context: Kicker label identifying data as SEC filing data
   en: SEC filing data
   de: SEC-Filing-Daten
+  zh: SEC 申报数据
+  es: Datos de informes de la SEC
+  fr: Données de dépôt SEC
+  pt: Dados de arquivamento da SEC
+  ru: Данные отчетности SEC
+  ja: SEC提出データ
+  ko: SEC 공시 데이터
+  it: Dati deposito SEC
+  tr: SEC dosyalama verileri
+  vi: Dữ liệu hồ sơ SEC
+  id: Data pelaporan SEC
+  pl: Dane ze zgłoszenia SEC
+  nl: SEC-deponeringsgegevens
+  ar: بيانات إيداع SEC
+  hi: SEC फाइलिंग डेटा
+  th: ข้อมูลการยื่นต่อ SEC
+  cs: Data z podání SEC
+  sv: SEC-arkiveringsdata
+  he: נתוני דיווח SEC
   verified_by_human: [en, de]
 
 business.company_financials.open_filing:
   context: CTA label to open an SEC filing source
   en: Open SEC filing
   de: SEC-Filing öffnen
+  zh: 打开 SEC 申报文件
+  es: Abrir informe de la SEC
+  fr: Ouvrir le dépôt SEC
+  pt: Abrir arquivamento da SEC
+  ru: Открыть отчет SEC
+  ja: SEC提出書類を開く
+  ko: SEC 공시 자료 열기
+  it: Apri deposito SEC
+  tr: SEC dosyasını aç
+  vi: Mở hồ sơ SEC
+  id: Buka pelaporan SEC
+  pl: Otwórz zgłoszenie SEC
+  nl: Open SEC-deponering
+  ar: فتح إيداع SEC
+  hi: SEC फाइलिंग खोलें
+  th: เปิดเอกสารที่ยื่นต่อ SEC
+  cs: Otevřít podání SEC
+  sv: Öppna SEC-arkivering
+  he: פתיחת דיווח SEC
   verified_by_human: [en, de]
 
 business.company_financials.notes:
   context: Section heading for notes about missing standardized metrics
   en: Notes
   de: Hinweise
+  zh: 备注说明
+  es: Notas
+  fr: Notes
+  pt: Notas
+  ru: Примечания
+  ja: 備考
+  ko: 참고
+  it: Note
+  tr: Notlar
+  vi: Ghi chú
+  id: Catatan
+  pl: Uwagi
+  nl: Notities
+  ar: ملاحظات
+  hi: नोट्स
+  th: หมายเหตุ
+  cs: Poznámky
+  sv: Anteckningar
+  he: הערות
   verified_by_human: [en, de]
 
 business.company_financials.not_available:
   context: Fallback value when a financial metric is unavailable
   en: N/A
   de: N/V
+  zh: 不适用
+  es: N/D
+  fr: N/A
+  pt: N/D
+  ru: Н/Д
+  ja: N/A
+  ko: 해당 없음
+  it: N/D
+  tr: N/A
+  vi: N/A
+  id: T/A
+  pl: N/D
+  nl: n.v.t.
+  ar: غير متاح
+  hi: लागू नहीं
+  th: N/A
+  cs: N/A
+  sv: Ej tillgängligt
+  he: לא זמין
   verified_by_human: [en, de]
 
 image_search.view_source:

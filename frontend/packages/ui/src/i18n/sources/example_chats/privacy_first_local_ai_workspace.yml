@@ -96,7 +96,7 @@ message_2:
     {"type":"app_skill_use","embed_id":"28dc9b68-c6eb-41c7-a1c3-f67330fd63de","app_id":"web","skill_id":"search","provider":"Brave","status":"finished"}
     ```
     
-    Als dein Operating Partner gehe ich das sehr gern an. Ein datenschutzorientiertes KI-Produktivitätsunternehmen aufzubauen, ist gerade eine der spannendsten und notwendigsten Aufgaben in der Tech-Welt, weil viele Fachleute und regulierte Unternehmen wegen Datenabfluss- und Compliance-Risiken von Mainstream-Tools ausgeschlossen sind.
+    As your operating partner, I'm glad to tackle this. Building a privacy-first AI productivity company is one of the most exciting and necessary challenges in tech right now, because many professionals and regulated companies are blocked from mainstream tools by data leakage and compliance risks.
     
     Let's lay down the foundational blueprint to kick off our multi-step planning process:
     
@@ -1218,7 +1218,7 @@ message_3:
 message_4:
   context: "assistant message 4 in example chat: Build a Privacy-First Local AI Workspace. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: |
-    Lass uns in die Kundenerkundung einsteigen. Ziel ist hier nicht, unsere Lösung zu verkaufen, sondern zu diagnostizieren, wie schmerzhaft die aktuelle Compliance-Reibung ist und ob dadurch abrechenbare Stunden oder Deals verloren gehen.
+    Let's get into customer discovery. The goal here is not to sell our solution, but to diagnose how painful today's compliance friction is and whether it causes lost billable hours or lost deals.
     
     Here is a practical, rigorous interview plan for our first 20 prospects.
     
@@ -2465,7 +2465,7 @@ message_5:
 message_6:
   context: "assistant message 6 in example chat: Build a Privacy-First Local AI Workspace. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: |
-    Lass uns die technische Architektur für unseren datenschutzorientierten Copiloten bewerten. Die richtige Day-1-Architektur bestimmt Infrastrukturkosten, Entwicklungsgeschwindigkeit und wie leicht wir während der Kundenerkundung ein strenges Security-Audit bestehen.
+    Let's evaluate the technical architecture for our privacy-first copilot. The day-one architecture determines infrastructure costs, development speed, and how easily we can pass a strict security audit during customer discovery.
     
     Here is a comparison of the three architectural approaches, followed by a tradeoff matrix and our recommended first version.
     
@@ -3460,7 +3460,7 @@ message_7:
 message_8:
   context: "assistant message 8 in example chat: Build a Privacy-First Local AI Workspace. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: |
-    Lass uns den **MVP-Funktionsumfang und die UX** für unsere rein lokale Desktop-App festzurren.
+    Let's lock down the **MVP feature scope and UX** for our local-only desktop app.
     
     To make this product truly lovable (not just functional), we need to solve the friction of setting up local models while delivering an interface that feels as snappy and polished as a modern cloud SaaS tool (like Notion or Raycast), but running 100% offline.
     
@@ -4770,7 +4770,7 @@ message_9:
 message_10:
   context: "assistant message 10 in example chat: Build a Privacy-First Local AI Workspace. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: |
-    Lass uns einen rigorosen, persönlichen **30-Tage-Plan zur Gewinnung von Designpartnern** erstellen, um die ersten 10 Pilotnutzer zu sichern.
+    Let's create a rigorous, personal **30-day design-partner acquisition plan** to secure the first 10 pilot users.
     
     For a privacy-first product, trust is our primary asset. We aren't running broad ad campaigns; we are conducting a selective, high-trust concierge recruitment campaign to find professionals who feel the compliance bottleneck most acutely.
     
@@ -6101,7 +6101,7 @@ message_11:
 message_12:
   context: "assistant message 12 in example chat: Build a Privacy-First Local AI Workspace. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: |
-    Hier sind die konkreten Outbound- und Conversion-Materialien zur Gewinnung unserer ersten 10 Designpartner. Jedes Asset ist im Ton ruhiger Kompetenz formuliert, respektiert ihre professionelle Sorgfalt und vermeidet Hype-Sprache.
+    Here are the concrete outbound and conversion assets for recruiting our first 10 design partners. Each asset uses a tone of calm competence, respects their professional diligence, and avoids hype language.
     
     ---
     
@@ -8041,7 +8041,7 @@ message_13:
 message_14:
   context: "assistant message 14 in example chat: Build a Privacy-First Local AI Workspace. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: |
-    Lass uns ein umfassendes **Product Requirements Document (PRD)** für unseren datenschutzorientierten Tauri-Desktop-Client-Wrapper ausarbeiten. Dieses Dokument dient als Engineering-Nordstern für den 30-Tage-MVP-Build.
+    Let's draft a comprehensive **Product Requirements Document (PRD)** for our privacy-first Tauri desktop client wrapper. This document is the engineering North Star for the 30-day MVP build.
     
     ---
     
@@ -9624,7 +9624,7 @@ message_15:
 message_16:
   context: "assistant message 16 in example chat: Build a Privacy-First Local AI Workspace. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: |
-    Hier ist die vollständige **Aufschlüsselung der Sprint-1-Engineering-Aufgaben** für unseren 30-Tage-MVP. Die Arbeit ist in 10 klar getrennte Workstreams gegliedert, mit Abhängigkeiten, technischen Risiken und überprüfbaren Akzeptanzkriterien für jedes Ticket.
+    Here is the complete **Sprint 1 engineering task breakdown** for our 30-day MVP. The work is split into 10 clearly separated workstreams, with dependencies, technical risks, and verifiable acceptance criteria for each ticket.
     
     ---
     
@@ -13013,7 +13013,7 @@ message_17:
 message_18:
   context: "assistant message 18 in example chat: Build a Privacy-First Local AI Workspace. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: |
-    Um unter **Ticket `ENG-01`** eine robuste, abgeschottete Grundlage für **Project Citadel** zu schaffen, müssen wir unser Tauri-2.x-Projektscaffolding mit Zero-Trust-IPC-Grenzen, strengen Content Security Policies (CSP), expliziten Dateisystem-Capability-Scopes und automatisierten Smoke-Tests konfigurieren.
+    To create a robust, locked-down foundation for **Project Citadel** under **Ticket `ENG-01`**, we need to configure our Tauri 2.x project scaffolding with zero-trust IPC boundaries, strict Content Security Policies (CSP), explicit filesystem capability scopes, and automated smoke tests.
     
     Since our core thesis is absolute data privacy and zero network leakage, our configuration must actively clamp down on default Tauri permissive settings.
     
