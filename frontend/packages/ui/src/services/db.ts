@@ -1831,6 +1831,11 @@ class ChatDatabase {
   }
 
   public async ensureReadyForSend(): Promise<void> {
+    const existingMissingStores = this.getMissingRequiredStores(this.db);
+    if (this.db && existingMissingStores.length === 0) {
+      return;
+    }
+
     await this.init();
     const missingStores = this.getMissingRequiredStores(this.db);
     if (missingStores.length > 0) {
