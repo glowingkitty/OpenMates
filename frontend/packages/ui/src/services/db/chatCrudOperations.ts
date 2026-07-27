@@ -466,7 +466,9 @@ export async function addChat(
     throw new Error("Cannot create encrypted chat during forced logout");
   }
 
-  await dbInstance.init();
+  if (!dbInstance.db || get(isLoggingOut)) {
+    await dbInstance.init();
+  }
 
   // CRITICAL FIX: Ensure draft_v always defaults to 0 if undefined
   // This prevents warnings during decryption and ensures consistency
@@ -1009,7 +1011,9 @@ export async function getChat(
     return null;
   }
 
-  await dbInstance.init();
+  if (!dbInstance.db || get(isLoggingOut)) {
+    await dbInstance.init();
+  }
   return new Promise((resolve, reject) => {
     const execute = async () => {
       try {
