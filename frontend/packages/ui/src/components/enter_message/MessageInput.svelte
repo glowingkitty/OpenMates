@@ -4971,7 +4971,7 @@
     export function flushCurrentDraft(): Promise<void> | undefined {
         return flushCurrentEditorDraft(currentChatId);
     }
-    export function sendCurrentMessage() { handleSendMessage(); }
+    export function sendCurrentMessage() { return handleSendMessage(); }
     export function setSuggestionText(text: string) {
         console.debug('[MessageInput] setSuggestionText called with:', text);
         console.debug('[MessageInput] editor available:', !!editor);

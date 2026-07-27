@@ -307,7 +307,7 @@
         focus: () => void;
         revealDraftActions?: () => void;
         flushCurrentDraft?: () => Promise<void> | void;
-        sendCurrentMessage: () => void;
+        sendCurrentMessage: () => Promise<void> | void;
         getTextContent: () => string;
         clearMessageField: (shouldSaveDraft: boolean, preserveContext?: boolean) => Promise<void>;
     };
@@ -2926,7 +2926,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             const inputRef = messageInputFieldRef;
             if (!inputRef?.sendCurrentMessage) throw new Error('Message input send helper is unavailable');
             inputRef.focus();
-            inputRef.sendCurrentMessage();
+            await inputRef.sendCurrentMessage();
             await tick();
             await new Promise((resolve) => window.setTimeout(resolve, 500));
             return {
