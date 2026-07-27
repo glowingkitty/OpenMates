@@ -35,6 +35,7 @@
 		chatDB,
 		chatListCache,
 		chatSyncService,
+		LOCAL_CHAT_LIST_CHANGED_EVENT,
 		webSocketService, // Import WebSocket service to listen for auth errors
 		mostUsedAppsStore, // Import most used apps store to fetch on app load
 		// deep link handler
@@ -70,7 +71,8 @@
 		getPendingGiftCardRedemptionCode,
 		markPendingGiftCardRedemption,
 		buildSettingsHash,
-		getSettingsPathFromHash
+		getSettingsPathFromHash,
+		getApiEndpoint
 	} from '@repo/ui';
 	import {
 		checkAndClearMasterKeyOnLoad,
@@ -155,6 +157,56 @@
 			ideabucket_processing_window_id:
 				cachedChat.ideabucket_processing_window_id ?? chat.ideabucket_processing_window_id
 		};
+	}
+
+	type AuthenticatedDraftResponse = {
+		draft?: {
+			chat_id?: string;
+			encrypted_draft_md?: string | null;
+			encrypted_draft_preview?: string | null;
+			draft_v?: number;
+		} | null;
+	};
+
+	async function fetchAuthenticatedDraftChat(chatId: string): Promise<Chat | null> {
+		try {
+			const response = await fetch(getApiEndpoint(`/v1/drafts/${encodeURIComponent(chatId)}`), {
+				method: 'GET',
+				credentials: 'include'
+			});
+
+			if (!response.ok) {
+				console.warn(`[+page.svelte] Draft fetch failed for deep-linked chat ${chatId}: ${response.status}`);
+				return null;
+			}
+
+			const data = (await response.json().catch(() => null)) as AuthenticatedDraftResponse | null;
+			const draft = data?.draft;
+			if (!draft?.encrypted_draft_md && !draft?.encrypted_draft_preview) return null;
+
+			const now = Math.floor(Date.now() / 1000);
+			const chat: Chat = {
+				chat_id: draft.chat_id || chatId,
+				encrypted_title: null,
+				encrypted_draft_md: draft.encrypted_draft_md ?? null,
+				encrypted_draft_preview: draft.encrypted_draft_preview ?? null,
+				draft_v: draft.draft_v ?? 0,
+				title_v: 0,
+				messages_v: 0,
+				last_edited_overall_timestamp: now,
+				created_at: now,
+				updated_at: now,
+				unread_count: 0
+			};
+
+			await chatDB.upsertRawChat(chat);
+			chatListCache.upsertChat(chat);
+			window.dispatchEvent(new CustomEvent(LOCAL_CHAT_LIST_CHANGED_EVENT, { detail: { chat_id: chat.chat_id } }));
+			return chat;
+		} catch (error) {
+			console.warn(`[+page.svelte] Draft fetch recovery failed for deep-linked chat ${chatId}:`, error);
+			return null;
+		}
 	}
 
 	async function waitForLocaleTextStores(): Promise<void> {
@@ -845,6 +897,7 @@
 					: await chatDB.getChat(chatId);
 				if ($authStore.isAuthenticated) {
 					chat = mergeCachedDraftFields(chat, chatId);
+					if (!chat) chat = await fetchAuthenticatedDraftChat(chatId);
 				}
 
 				if (chat) {
@@ -1090,6 +1143,7 @@
 					chat = await chatDB.getChat(activeChatId).catch(() => null);
 					chat = mergeCachedDraftFields(chat, activeChatId);
 				}
+				if (!chat) chat = await fetchAuthenticatedDraftChat(activeChatId);
 
 				if (!chat || lastLoadedChatId === activeChatId) return;
 				console.debug(`[+page.svelte] Recovering authenticated active chat from hash/store: ${activeChatId}`);
