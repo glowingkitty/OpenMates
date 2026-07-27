@@ -2831,7 +2831,17 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             }
             if (text.trim().length === 0) {
                 await inputRef.replaceDraftWithPlainText(chatId, '', version, false);
-                void clearCurrentDraft();
+                await chatDB.clearCurrentUserChatDraft(chatId);
+                draftEditorUIState.update((state) => state.currentChatId === chatId
+                    ? {
+                        ...state,
+                        currentUserDraftVersion: 0,
+                        hasUnsavedChanges: false,
+                        lastSavedContentMarkdown: null,
+                    }
+                    : state
+                );
+                void chatSyncService.sendDeleteDraft(chatId);
                 return { text: inputRef.getTextContent() };
             }
             await inputRef.replaceDraftWithPlainText(chatId, text, version, true);
