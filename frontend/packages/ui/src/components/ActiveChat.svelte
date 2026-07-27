@@ -2824,14 +2824,56 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         if (!isDevHost) return;
 
         const activeChatWindow = window as ActiveChatE2EWindow;
+        const clearLocalDraftRow = (chatId: string): Promise<void> => new Promise((resolve) => {
+            let settled = false;
+            let db: IDBDatabase | null = null;
+            const finish = () => {
+                if (settled) return;
+                settled = true;
+                window.clearTimeout(timeout);
+                db?.close();
+                resolve();
+            };
+            const timeout = window.setTimeout(() => {
+                console.warn('[ActiveChat] E2E raw local draft clear timed out', { chatId });
+                finish();
+            }, 5_000);
+            const request = indexedDB.open('chats_db');
+            request.onerror = () => finish();
+            request.onsuccess = () => {
+                db = request.result;
+                try {
+                    const transaction = db.transaction('chats', 'readwrite');
+                    const store = transaction.objectStore('chats');
+                    const getRequest = store.get(chatId);
+                    getRequest.onerror = () => finish();
+                    getRequest.onsuccess = () => {
+                        const chat = getRequest.result as Chat | undefined;
+                        if (!chat) return finish();
+                        store.put({
+                            ...chat,
+                            encrypted_draft_md: null,
+                            encrypted_draft_preview: null,
+                            draft_v: 0,
+                            updated_at: Math.floor(Date.now() / 1000),
+                        });
+                    };
+                    transaction.oncomplete = () => finish();
+                    transaction.onerror = () => finish();
+                    transaction.onabort = () => finish();
+                } catch {
+                    finish();
+                }
+            };
+        });
         const helper = async ({ chatId, text, version = 0 }: { chatId: string; text: string; version?: number }) => {
             const inputRef = messageInputFieldRef;
             if (!inputRef?.replaceDraftWithPlainText) {
                 throw new Error('Message input draft replacement helper is unavailable');
             }
             if (text.trim().length === 0) {
-                await inputRef.replaceDraftWithPlainText(chatId, '', version, false);
-                await chatDB.clearCurrentUserChatDraft(chatId);
+                void inputRef.replaceDraftWithPlainText(chatId, '', version, false);
+                await clearLocalDraftRow(chatId);
                 draftEditorUIState.update((state) => state.currentChatId === chatId
                     ? {
                         ...state,
