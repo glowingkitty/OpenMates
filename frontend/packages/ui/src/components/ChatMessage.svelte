@@ -3033,6 +3033,8 @@
         {#if compressionNeedsExpand}
           <button
             class="compression-summary-toggle"
+            type="button"
+            data-testid="compression-summary-toggle"
             onclick={() => { compressionExpanded = !compressionExpanded; }}
           >
             {compressionExpanded ? $text('common.show_less') : $text('chat.compression.show_more')}

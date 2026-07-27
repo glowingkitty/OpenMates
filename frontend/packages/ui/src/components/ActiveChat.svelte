@@ -6953,6 +6953,17 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
      */
     async function handleNewChatClick() {
         console.debug("[ActiveChat] New chat creation initiated");
+        if (blurTimer) {
+            clearTimeout(blurTimer);
+            blurTimer = undefined;
+        }
+        messageInputFocused = false;
+        messageInputRecentlyFocused = false;
+        suggestionsWouldOverlapWelcome = false;
+        const activeElement = typeof document !== 'undefined' ? document.activeElement : null;
+        if (activeElement instanceof HTMLElement) {
+            activeElement.blur();
+        }
         // CRITICAL: Clear activeChatStore BEFORE setting showWelcome = true.
         // The resume card $effect guards on $activeChatStore — if it's still set
         // when showWelcome triggers the effect, the guard returns early and the
@@ -6965,6 +6976,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // Reset current chat metadata and messages
         currentChat = null;
         currentMessages = [];
+        currentCompressionCheckpoints = [];
+        currentMessageWindowHasMoreBefore = false;
+        olderMessageWindowLoading = false;
         showWelcome = true; // Show welcome message for new chat
         if (!$authStore.isAuthenticated) {
             guestAllExamplesVisible = false;
@@ -7024,7 +7038,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         
         // Auto-focus the message input field on desktop devices only
         // On touch devices, users must manually tap to focus to avoid unwanted keyboard popups
-        if (isDesktop() && messageInputFieldRef) {
+        if ($authStore.isAuthenticated && isDesktop() && messageInputFieldRef) {
             // Use a small delay to ensure the editor is ready after clearing
             setTimeout(() => {
                 if (messageInputFieldRef) {

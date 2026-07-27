@@ -65,6 +65,11 @@ get_shared_chat_manifest = getattr(
     "__wrapped__",
     share_routes.get_shared_chat_manifest,
 )
+get_shared_chat = getattr(
+    share_routes.get_shared_chat,
+    "__wrapped__",
+    share_routes.get_shared_chat,
+)
 get_shared_chat_message_window = getattr(
     share_routes.get_shared_chat_message_window,
     "__wrapped__",
@@ -151,6 +156,14 @@ class FakeChatMethods:
         rows = sorted(rows, key=lambda row: (row["created_at"], row["client_message_id"]), reverse=True)[:limit]
         rows.reverse()
         return [json.dumps({**row, "message_id": row["client_message_id"]}) for row in rows]
+
+    async def get_all_messages_for_chat(self, chat_id: str, decrypt_content: bool = False):
+        assert decrypt_content is False
+        return [
+            json.dumps({**row, "message_id": row["client_message_id"]})
+            for row in self.messages
+            if row["chat_id"] == chat_id
+        ]
 
     async def get_message_for_chat_by_client_id(self, chat_id: str, message_id: str):
         return next(
@@ -254,6 +267,19 @@ async def test_shared_chat_manifest_includes_compression_checkpoints():
     directus = FakeDirectusService()
 
     payload = await get_shared_chat_manifest(
+        request=None,
+        chat_id="chat-shared",
+        directus_service=directus,
+    )
+
+    assert payload["compression_checkpoints"] == directus.checkpoints
+
+
+@pytest.mark.anyio
+async def test_shared_chat_legacy_payload_includes_compression_checkpoints():
+    directus = FakeDirectusService()
+
+    payload = await get_shared_chat(
         request=None,
         chat_id="chat-shared",
         directus_service=directus,

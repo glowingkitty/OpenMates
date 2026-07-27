@@ -415,6 +415,7 @@ async def get_shared_chat(
         ) or []
 
         sub_chats = await get_shared_sub_chats(chat_id, directus_service)
+        compression_checkpoints = await get_shared_chat_compression_checkpoints(chat_id, directus_service)
         
         return {
             "chat_id": chat_id,
@@ -427,6 +428,7 @@ async def get_shared_chat(
             "embeds": embeds or [],
             "embed_keys": embed_keys,
             "sub_chats": sub_chats,
+            "compression_checkpoints": compression_checkpoints,
             "code_run_outputs": code_run_outputs,
             "message_highlights": message_highlights,
             "share_pii": share_pii,

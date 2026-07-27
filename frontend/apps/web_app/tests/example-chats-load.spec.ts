@@ -58,6 +58,16 @@ function extractJsonLd(html: string): Record<string, any> {
 	return JSON.parse(match[1]);
 }
 
+async function expectGuestSlideZeroIntro(page: any) {
+	await expect(page.getByTestId('welcome-content')).toBeVisible({ timeout: 10000 });
+	await expect(page.getByTestId('landing-intro-expanded')).toBeVisible({ timeout: 10000 });
+	await expect(page.getByTestId('daily-inspiration-banner')).toHaveAttribute(
+		'data-landing-intro-phase',
+		/^(expanded|expanding)$/,
+		{ timeout: 10000 }
+	);
+}
+
 test.describe('Example chats loading for new users', () => {
 	async function ensureSidebarVisible(page: any): Promise<void> {
 		const history = page.getByTestId('activity-history-wrapper');
@@ -256,10 +266,12 @@ test.describe('Example chats loading for new users', () => {
 		await expect(compressionSummary).not.toContainText('## Conversation History Summary');
 		await expect(compressionSummary).not.toContainText('**Compressed Messages:**');
 
-		const summaryShowMore = compressionSummary.getByRole('button', { name: /Show full summary|Show more/ });
-		if (await summaryShowMore.isVisible().catch(() => false)) {
-			await summaryShowMore.click();
-		}
+		const summaryShowMore = compressionSummary.getByTestId('compression-summary-toggle');
+		await expect(summaryShowMore).toBeVisible({ timeout: 10000 });
+		await expect(summaryShowMore).toHaveText(/Show full summary|Show more/);
+		await expect(compressionSummary).not.toContainText('Referenced Artifacts');
+		await summaryShowMore.click();
+		await expect(summaryShowMore).toHaveText(/Show less/);
 		await expect(compressionSummary).toContainText('Referenced Artifacts', { timeout: 15000 });
 
 		await page.keyboard.press('End');
@@ -303,6 +315,7 @@ test.describe('Example chats loading for new users', () => {
 		await expect(messageEditor).toContainText('privacy-first AI productivity company from zero', { timeout: 10000 });
 
 		await page.locator('[data-testid="new-chat-cta-fullwidth"], [data-testid="new-chat-button"]').first().click();
+		await expectGuestSlideZeroIntro(page);
 		await expect(
 			page.locator('[data-testid="resume-chat-large-card"], [data-testid="resume-chat-card"]').first()
 		).toBeVisible({ timeout: 10000 });
