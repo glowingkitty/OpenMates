@@ -3295,6 +3295,30 @@
 		if (settingsPathFromCombinedHash) {
 			processSettingsDeepLink(buildSettingsHash(settingsPathFromCombinedHash));
 		}
+
+		if (
+			hashChatId &&
+			activeChat &&
+			$authStore.isAuthenticated &&
+			lastLoadedChatId !== hashChatId &&
+			!isPublicChat(hashChatId) &&
+			!isAnonymousChatId(hashChatId)
+		) {
+			try {
+				await chatDB.init();
+				const localDraftChat = mergeCachedDraftFields(
+					await chatDB.getRawChat(hashChatId).catch(() => null),
+					hashChatId
+				);
+				if (localDraftChat?.encrypted_draft_md || localDraftChat?.encrypted_draft_preview) {
+					console.debug(`[+page.svelte] Loading local draft chat after hash processing: ${hashChatId}`);
+					activeChat.loadChat(localDraftChat);
+					lastLoadedChatId = hashChatId;
+				}
+			} catch (error) {
+				console.warn(`[+page.svelte] Local draft hash fallback failed for ${hashChatId}:`, error);
+			}
+		}
 	}
 
 	// Add handler for chatSelected event
