@@ -398,44 +398,23 @@ function messageEditorHost(page: any, chatId: string): any {
 		.first();
 }
 
-async function dispatchLocalChatNavigation(page: any, chatId: string): Promise<{
-	dispatched: boolean;
-	chatFound: boolean;
+async function loadLocalChatWithE2EHook(page: any, chatId: string): Promise<{
+	loaded: boolean;
+	reason?: string;
 	messageInputs: Array<{ chatId: string | null; visible: boolean }>;
 }> {
 	return page.evaluate(async (targetChatId: string) => {
-		const chat = await new Promise<Record<string, unknown> | null>((resolve) => {
-			let db: IDBDatabase | null = null;
-			const request = indexedDB.open('chats_db');
-			request.onerror = () => resolve(null);
-			request.onsuccess = () => {
-				db = request.result;
-				let transaction: IDBTransaction | null = null;
-				try {
-					transaction = db.transaction('chats', 'readonly');
-					const getRequest = transaction.objectStore('chats').get(targetChatId);
-					getRequest.onerror = () => resolve(null);
-					getRequest.onsuccess = () => resolve((getRequest.result as Record<string, unknown> | undefined) ?? null);
-				} catch {
-					resolve(null);
-				} finally {
-					if (transaction) {
-						transaction.oncomplete = () => db?.close();
-						transaction.onerror = () => db?.close();
-					} else {
-						db.close();
-					}
-				}
-			};
-		});
-		if (!chat) return { dispatched: false, chatFound: false, messageInputs: [] };
-		window.dispatchEvent(new CustomEvent('chatHeaderNavigation', { detail: { chat, scrollToTop: false } }));
+		const helper = (window as typeof window & {
+			__openmatesE2ELoadLocalChat?: (input: { chatId: string }) => Promise<{ chatId: string }>;
+		}).__openmatesE2ELoadLocalChat;
+		if (typeof helper !== 'function') return { loaded: false, reason: 'helper_unavailable', messageInputs: [] };
+		await helper({ chatId: targetChatId });
 		await new Promise((resolve) => window.setTimeout(resolve, 250));
 		const messageInputs = Array.from(document.querySelectorAll('[data-action="message-input"]')).map((element) => ({
 			chatId: element.getAttribute('data-current-chat-id'),
 			visible: !!(element as HTMLElement).offsetParent,
 		}));
-		return { dispatched: true, chatFound: true, messageInputs };
+		return { loaded: true, messageInputs };
 	}, chatId);
 }
 
@@ -449,8 +428,8 @@ async function activeMessageEditorEditable(page: any, chatId: string): Promise<a
 				window.dispatchEvent(new Event('hashchange'));
 				window.dispatchEvent(new CustomEvent('processPendingDeepLink', { detail: { hash: targetHash } }));
 			}, `#chat-id=${chatId}`);
-			const fallback = await dispatchLocalChatNavigation(page, chatId);
-			console.log(`[CROSS_CLIENT_DRAFT_SYNC_OPEN_EDITOR] Local navigation fallback: ${JSON.stringify(fallback)}`);
+			const fallback = await loadLocalChatWithE2EHook(page, chatId);
+			console.log(`[CROSS_CLIENT_DRAFT_SYNC_OPEN_EDITOR] Local load fallback: ${JSON.stringify(fallback)}`);
 		}
 		const currentHash = await page.evaluate(() => window.location.hash);
 		expect(currentHash, 'Fallback to generic editor is only safe on the target chat URL').toContain(chatId);
