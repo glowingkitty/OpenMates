@@ -575,8 +575,9 @@ test.describe('Landing page onboarding refresh', () => {
 
 		await page.getByTestId('guest-show-all-examples').click();
 		await expect(page.getByTestId('daily-inspiration-area')).toHaveCount(0);
-		await expect(page.getByTestId('guest-all-examples-view')).toBeVisible({ timeout: 5000 });
-		await expect(page.getByTestId('guest-all-example-card').first()).toBeVisible();
+		const allExamplesView = page.getByTestId('guest-all-examples-view');
+		await expect(allExamplesView).toBeVisible({ timeout: 5000 });
+		await expect(allExamplesView.getByTestId('resume-chat-large-card').first()).toBeVisible();
 		await expect(page.getByTestId('message-input-wrapper')).toBeVisible();
 	});
 
