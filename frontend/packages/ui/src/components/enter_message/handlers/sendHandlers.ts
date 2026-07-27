@@ -431,6 +431,18 @@ function recordSendDebugStep(
   };
 }
 
+function serializeSendDebugError(error: unknown): Record<string, unknown> {
+  if (error instanceof Error) {
+    return {
+      name: error.name,
+      message: error.message,
+      stack: error.stack?.slice(0, 1000) ?? null,
+    };
+  }
+
+  return { message: String(error) };
+}
+
 async function waitForDraftSaveIdle(): Promise<void> {
   if (!get(draftEditorUIState).isSaveInProgress) return;
 
@@ -1289,6 +1301,7 @@ export async function handleSend(
   let chatIdToUse = currentChatId;
   let chatToUpdate: import("../../../types/chat").Chat | null = null;
   let isNewChatCreation = false;
+  let didCreateMessagePayload = false;
   let messagePayload: Message; // Defined here to be accessible for sendNewMessage
 
   try {
@@ -1317,6 +1330,8 @@ export async function handleSend(
       void refreshAnonymousFreeUsageStatus();
       return;
     }
+
+    recordSendDebugStep("authenticated_send_path_started", { currentChatId });
 
     // Check if there's already a chat with a draft (created during typing)
     const draftState = get(draftEditorUIState);
@@ -1352,6 +1367,12 @@ export async function handleSend(
     // Check whether this ID already has a local chat record. ActiveChat stores a
     // temporary new-chat ID in draft state before the chat/key exists; that must
     // not be treated as an existing draft chat.
+    recordSendDebugStep("send_chat_classification_started", {
+      currentChatId,
+      chatIdToUse,
+      draftChatId: draftState.currentChatId,
+      isNewChatCreation,
+    });
     let existingChatCheck: import("../../../types/chat").Chat | null =
       await getRawChatForSendClassification(chatIdToUse);
     if (!existingChatCheck) {
@@ -1393,6 +1414,16 @@ export async function handleSend(
       chatIdToUse,
       existingChat: existingChatCheck,
       existingChatHasUsableKey,
+    });
+
+    recordSendDebugStep("send_chat_classification_complete", {
+      currentChatId,
+      chatIdToUse,
+      draftChatId: draftState.currentChatId,
+      hasExistingChat: !!existingChatCheck,
+      existingChatHasUsableKey,
+      isUsingDraftChat,
+      messagesV: existingChatCheck?.messages_v ?? null,
     });
 
     // Check if we're dealing with a temporary chat ID (not a real chat in local storage)
@@ -1464,6 +1495,7 @@ export async function handleSend(
       chatIdToUse,
       piiMappingsForStorage,
     );
+    didCreateMessagePayload = true;
     ((messagePayload as unknown) as Record<string, unknown>).broadcast = broadcastToSiblings;
 
     // Optimistically cache the last message so the chat list can show "Sending..." immediately
@@ -1630,6 +1662,10 @@ export async function handleSend(
         // This also ensures chatToUpdate has the correct messages_v (which is 1)
         chatToUpdate = await chatDB.getChat(chatIdToUse);
         if (!chatToUpdate) {
+          recordSendDebugStep("send_aborted_created_chat_missing", {
+            currentChatId,
+            chatIdToUse,
+          });
           console.error(
             `[handleSend] CRITICAL: Newly created chat ${chatIdToUse} not found in DB immediately after addChat and saveMessage.`,
           );
@@ -1734,6 +1770,11 @@ export async function handleSend(
             );
           }
         } else {
+          recordSendDebugStep("send_aborted_existing_chat_missing", {
+            currentChatId,
+            chatIdToUse,
+            isUsingDraftChat,
+          });
           console.error(
             `[handleSend] Existing chat ${chatIdToUse} not found when trying to add a message.`,
           );
@@ -1747,6 +1788,10 @@ export async function handleSend(
 
     // If chatToUpdate is null at this point, the local DB operation failed.
     if (!chatToUpdate) {
+      recordSendDebugStep("send_aborted_chat_update_missing", {
+        currentChatId,
+        chatIdToUse,
+      });
       console.error(
         `[handleSend] Failed to update local chat ${chatIdToUse} with new message. Aborting send.`,
       );
@@ -1811,6 +1856,13 @@ export async function handleSend(
     // The messagePayload is already defined and includes the correct chat_id
     // If it's a new chat (isNewChatCreation is true) OR we're using an existing draft chat,
     // chatToUpdate will hold the Chat object.
+    recordSendDebugStep("local_message_dispatch_started", {
+      currentChatId,
+      chatIdToUse,
+      messageId: messagePayload.message_id,
+      isNewChatCreation,
+      isUsingDraftChat,
+    });
     dispatch("sendMessage", {
       message: messagePayload,
       newChat: isNewChatCreation || isUsingDraftChat ? chatToUpdate : undefined,
@@ -1823,6 +1875,13 @@ export async function handleSend(
       isNewChatCreation,
       isUsingDraftChat,
       contentLength: messagePayload.content.length,
+    });
+    recordSendDebugStep("local_message_dispatched", {
+      currentChatId,
+      chatIdToUse,
+      messageId: messagePayload.message_id,
+      isNewChatCreation,
+      isUsingDraftChat,
     });
 
     // chatToUpdate should be the definitive version of the chat from the DB
@@ -1919,6 +1978,12 @@ export async function handleSend(
     }
     cleanupSpan.end();
   } catch (error) {
+    recordSendDebugStep("send_failed", {
+      currentChatId,
+      chatIdToUse,
+      hasMessagePayload: didCreateMessagePayload,
+      error: serializeSendDebugError(error),
+    });
     if (error instanceof AnonymousFreeUsageExhaustedError) {
       showAnonymousDailyCreditsExhaustedNotification();
       if (editor && !editor.isDestroyed) {
