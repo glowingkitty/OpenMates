@@ -69,7 +69,6 @@
   const LANDING_INTRO_INSPIRATION_ID = 'openmates-intro';
   const LANDING_ACTIONABLE_EVENTS_ID = 'openmates-actionable-events';
   const LANDING_SIGNUP_CTA_ID = 'openmates-signup-cta';
-  const SIGNUP_START_HASH = '#signup/alpha-disclaimer';
   const LANDING_INTRO_RAIL_MIN_ICON_COUNT = 40;
   // Temporarily disabled with the visit-cycling effect below.
   // const VISIT_INDEX_STORAGE_PREFIX = 'openmates.daily_inspiration.visit_index.';
@@ -823,11 +822,7 @@
 
   function openSignup(): void {
     if (typeof window === 'undefined') return;
-    if (window.location.hash === SIGNUP_START_HASH) {
-      window.dispatchEvent(new HashChangeEvent('hashchange'));
-      return;
-    }
-    window.location.hash = SIGNUP_START_HASH;
+    window.dispatchEvent(new CustomEvent('openSignupInterface'));
   }
 
   /**
@@ -1080,9 +1075,11 @@
 
     let resolvedIndex = getResolvedVisibleIndex(nextIndex);
     if (visibleInspirations[resolvedIndex]?.inspiration_id === LANDING_INTRO_INSPIRATION_ID) {
-      resolvedIndex = getResolvedVisibleIndex(resolvedIndex + direction);
+      if (direction > 0) {
+        resolvedIndex = getResolvedVisibleIndex(resolvedIndex + direction);
+      }
     }
-    goToVisibleIndex(resolvedIndex);
+    goToVisibleIndex(resolvedIndex, { restoreLandingIntro: direction < 0 });
   }
 
   // Temporarily disabled with the visit-cycling effect above.
@@ -1315,7 +1312,7 @@
                           <li><span aria-hidden="true">✓</span>{reason}</li>
                         {/each}
                       </ul>
-                      <button class="guest-signup-cta-button" type="button" onclick={(e) => { e.stopPropagation(); openSignup(); }}>
+                      <button class="guest-signup-cta-button" data-testid="landing-signup-cta-button" type="button" onclick={(e) => { e.stopPropagation(); openSignup(); }}>
                         {current.title ?? current.phrase}
                       </button>
                     </div>

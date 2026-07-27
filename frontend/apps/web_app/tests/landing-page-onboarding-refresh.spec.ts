@@ -558,7 +558,7 @@ test.describe('Landing page onboarding refresh', () => {
 		expect(bannerState.mountedIndexes).toBe('0,1,2');
 		expect(bannerState.progressHeight).toBeGreaterThanOrEqual(4);
 		expect(bannerState.visibleIds).toBe(
-			'openmates-intro,openmates-actionable-events,openmates-privacy-safety,openmates-mates-focus,openmates-provider-cross-platform'
+			'openmates-intro,openmates-actionable-events,openmates-privacy-safety,openmates-mates-focus,openmates-provider-cross-platform,openmates-signup-cta'
 		);
 		for (const oldId of [
 			'pii-detection',
@@ -578,6 +578,40 @@ test.describe('Landing page onboarding refresh', () => {
 		await expect(page.getByTestId('guest-all-examples-view')).toBeVisible({ timeout: 5000 });
 		await expect(page.getByTestId('guest-all-example-card').first()).toBeVisible();
 		await expect(page.getByTestId('message-input-wrapper')).toBeVisible();
+	});
+
+	test('final signup CTA opens the shared signup interface without a signup hash', async ({ page }: { page: any }) => {
+		test.setTimeout(45000);
+		await page.setViewportSize({ width: 1280, height: 800 });
+
+		await page.goto(getE2EDebugUrl('/?landing-signup-cta'), { waitUntil: 'domcontentloaded' });
+		await page.waitForLoadState('networkidle');
+		await waitForLandingIntroExamples(page);
+		await skipExpandedLandingIntro(page);
+
+		for (let index = 0; index < 4; index += 1) {
+			await page.getByTestId('daily-inspiration-next').click();
+		}
+
+		await expect(page.getByTestId('landing-signup-cta')).toBeVisible({ timeout: 5000 });
+		await expect(page.getByTestId('daily-inspiration-next')).toHaveCount(0);
+		await expect(page.getByTestId('daily-inspiration-previous')).toBeVisible();
+
+		await page.evaluate(() => {
+			const trackedWindow = window as Window & { __landingSignupEventCount?: number };
+			trackedWindow.__landingSignupEventCount = 0;
+			window.addEventListener('openSignupInterface', () => {
+				trackedWindow.__landingSignupEventCount = (trackedWindow.__landingSignupEventCount ?? 0) + 1;
+			});
+		});
+
+		await page.getByTestId('landing-signup-cta-button').click();
+		await expect.poll(async () => page.evaluate(() => {
+			const trackedWindow = window as Window & { __landingSignupEventCount?: number };
+			return trackedWindow.__landingSignupEventCount ?? 0;
+		}), { timeout: 1000 }).toBe(1);
+		await expect(page.getByTestId('login-wrapper')).toBeVisible({ timeout: 5000 });
+		await expect.poll(async () => page.evaluate(() => window.location.hash), { timeout: 1000 }).not.toContain('#signup/');
 	});
 
 	test('guest example chat follow-up input matches the adjacent new-chat CTA height', async ({ page }: { page: any }) => {
