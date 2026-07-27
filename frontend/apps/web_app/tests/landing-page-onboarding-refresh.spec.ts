@@ -594,6 +594,9 @@ test.describe('Landing page onboarding refresh', () => {
 		}
 
 		await expect(page.getByTestId('landing-signup-cta')).toBeVisible({ timeout: 5000 });
+		await expect(page.getByTestId('landing-signup-cta')).toContainText('Start using OpenMates:');
+		await expect(page.getByTestId('landing-signup-benefits')).toBeVisible();
+		await expect(page.getByTestId('landing-signup-benefits')).toContainText('No ads');
 		await expect(page.getByTestId('daily-inspiration-next')).toHaveCount(0);
 		await expect(page.getByTestId('daily-inspiration-previous')).toBeVisible();
 
@@ -605,7 +608,7 @@ test.describe('Landing page onboarding refresh', () => {
 			});
 		});
 
-		await page.getByTestId('landing-signup-cta-button').click();
+		await page.getByTestId('daily-inspiration-banner').click({ position: { x: 920, y: 120 } });
 		await expect.poll(async () => page.evaluate(() => {
 			const trackedWindow = window as Window & { __landingSignupEventCount?: number };
 			return trackedWindow.__landingSignupEventCount ?? 0;

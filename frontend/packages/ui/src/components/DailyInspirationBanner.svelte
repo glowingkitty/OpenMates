@@ -736,8 +736,8 @@
   }
 
   /**
-   * Handle clicking on the banner body — start a chat from this inspiration.
-   * Also marks the inspiration as viewed via WebSocket.
+   * Handle clicking on the banner body. Guest intro slides advance through the
+   * explainer carousel; regular inspiration banners still start/open chats.
    */
   function handleStartChat(e: MouseEvent) {
     const sourceCapabilities = (e as MouseEvent & {
@@ -762,6 +762,15 @@
       e.stopPropagation();
       e.preventDefault();
       openSignup();
+      return;
+    }
+    if (isGuestIntroVariant) {
+      e.stopPropagation();
+      e.preventDefault();
+      markManualNavigation();
+      resumeAutoRotation();
+      goToNavigableVisibleIndex(currentIndex + 1, 1);
+      restartProgressAnimation();
       return;
     }
     isOpeningInspiration = true;
@@ -866,6 +875,10 @@
   }
 
   function handleDirectVideoClick(e: MouseEvent | KeyboardEvent) {
+    if (isGuestIntroVariant) {
+      handleStartChat(e as MouseEvent);
+      return;
+    }
     if (!directVideoMp4Url) return;
     e.stopPropagation();
     e.preventDefault();
@@ -1307,11 +1320,6 @@
                   {:else if isGuestSignupCtaSlide}
                     <div class="guest-signup-cta" data-testid="landing-signup-cta">
                       <h2>{current.phrase}</h2>
-                      <ul aria-label={current.feature?.description ?? current.phrase}>
-                        {#each current.follow_up_suggestions ?? [] as reason}
-                          <li><span aria-hidden="true">✓</span>{reason}</li>
-                        {/each}
-                      </ul>
                       <button class="guest-signup-cta-button" data-testid="landing-signup-cta-button" type="button" onclick={(e) => { e.stopPropagation(); openSignup(); }}>
                         {current.title ?? current.phrase}
                       </button>
@@ -1371,7 +1379,22 @@
             <!-- The expanded intro owns the full banner; no side preview is rendered. -->
           {:else if isGuestIntroVariant}
             {#key current.inspiration_id}
-              {#if isGuestActionableSlide}
+              {#if isGuestSignupCtaSlide}
+                <div
+                  class="guest-product-demo-shell guest-signup-benefits-shell"
+                  data-testid="landing-signup-benefits"
+                  in:fade={{ duration: 320 }}
+                >
+                  <ul class="guest-signup-benefits-list" aria-label={current.feature?.description ?? current.phrase}>
+                    {#each current.follow_up_suggestions ?? [] as reason, index}
+                      <li style={`--benefit-index: ${index}`}>
+                        <span class="guest-signup-benefit-check" aria-hidden="true">✓</span>
+                        <span>{reason}</span>
+                      </li>
+                    {/each}
+                  </ul>
+                </div>
+              {:else if isGuestActionableSlide}
                 <div class="guest-actionable-demo-shell" in:fade={{ duration: 320 }}>
                   <LandingActionableEventDemo />
                 </div>
@@ -2236,7 +2259,7 @@
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    gap: clamp(12px, 1.4vw, 22px);
+    gap: clamp(18px, 1.8vw, 28px);
   }
 
   .guest-signup-cta h2 {
@@ -2249,30 +2272,61 @@
     text-shadow: 0 2px 18px rgba(0, 0, 0, 0.2);
   }
 
-  .guest-signup-cta ul {
+  .guest-signup-benefits-shell {
+    padding: clamp(22px, 3vw, 46px);
+  }
+
+  .guest-signup-benefits-list {
     display: grid;
-    gap: clamp(6px, 0.7vw, 10px);
+    gap: clamp(12px, 1.2vw, 20px);
+    width: min(100%, 560px);
     margin: 0;
     padding: 0;
     list-style: none;
   }
 
-  .guest-signup-cta li {
+  .guest-signup-benefits-list li {
     display: flex;
     align-items: center;
     gap: clamp(10px, 1vw, 16px);
     color: rgba(255, 255, 255, 0.96);
-    font-size: clamp(1rem, 1.55vw, 2rem);
+    font-size: clamp(1.05rem, 1.7vw, 2.1rem);
     line-height: 1.1;
     font-weight: 750;
     letter-spacing: -0.03em;
+    text-shadow: 0 2px 18px rgba(0, 0, 0, 0.22);
+    opacity: 0;
+    transform: translate3d(18px, 8px, 0) scale(0.98);
+    animation:
+      landingSignupBenefitIn 520ms cubic-bezier(0.22, 1, 0.36, 1) forwards,
+      landingSignupBenefitFloat 5.4s ease-in-out infinite;
+    animation-delay:
+      calc(90ms * var(--benefit-index)),
+      calc(720ms + 90ms * var(--benefit-index));
   }
 
-  .guest-signup-cta li span {
+  .guest-signup-benefit-check {
+    display: grid;
+    place-items: center;
+    width: 1.25em;
+    height: 1.25em;
+    flex: 0 0 auto;
     color: #62cf20;
     font-size: 1.25em;
     line-height: 1;
     text-shadow: none;
+  }
+
+  @keyframes landingSignupBenefitIn {
+    to {
+      opacity: 1;
+      transform: translate3d(0, 0, 0) scale(1);
+    }
+  }
+
+  @keyframes landingSignupBenefitFloat {
+    0%, 100% { transform: translate3d(0, 0, 0); }
+    50% { transform: translate3d(0, -4px, 0); }
   }
 
   .guest-signup-cta-button {
@@ -2282,7 +2336,7 @@
     padding: 14px 24px !important;
     border: 0 !important;
     border-radius: 999px !important;
-    background: var(--color-red, #ff453a) !important;
+    background: var(--color-button-primary, #ff553b) !important;
     color: white !important;
     box-shadow: 0 12px 28px rgba(0, 0, 0, 0.24) !important;
     filter: none !important;
@@ -2982,8 +3036,14 @@
     .guest-product-lock-ring,
     .guest-product-platform-core,
     .guest-product-mate-node,
-    .guest-product-platform-node {
+    .guest-product-platform-node,
+    .guest-signup-benefits-list li {
       animation: none !important;
+    }
+
+    .guest-signup-benefits-list li {
+      opacity: 1;
+      transform: none;
     }
   }
 
@@ -3166,19 +3226,21 @@
     }
 
     .guest-signup-cta {
-      gap: 8px;
+      align-items: center;
+      gap: 10px;
+      text-align: center;
     }
 
     .guest-signup-cta h2 {
       font-size: clamp(1.35rem, 7vw, 2rem);
     }
 
-    .guest-signup-cta ul {
-      gap: 4px;
+    .guest-signup-benefits-list {
+      gap: 6px 10px;
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
-    .guest-signup-cta li {
+    .guest-signup-benefits-list li {
       gap: 7px;
       font-size: clamp(0.72rem, 3.4vw, 0.96rem);
     }
