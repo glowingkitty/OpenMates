@@ -71,7 +71,7 @@ test.describe('Unified workspace detail pages', () => {
 
 		try {
 			await page.goto(getE2EDebugUrl('/tasks'), { waitUntil: 'domcontentloaded' });
-			await expect(page.getByTestId('plan-title-input')).toBeVisible({ timeout: 30000 });
+			await expect(page.getByTestId('task-title-input')).toBeVisible({ timeout: 30000 });
 			await expect.soft(page.getByTestId('report-issue-button')).toBeVisible();
 			await page.getByTestId('task-title-input').fill(title);
 			const created = page.waitForResponse(
@@ -95,7 +95,7 @@ test.describe('Unified workspace detail pages', () => {
 
 		try {
 			await page.goto(getE2EDebugUrl('/plans'), { waitUntil: 'domcontentloaded' });
-			await expect(page.getByTestId('tasks-page')).toBeVisible({ timeout: 30000 });
+			await expect(page.getByTestId('plan-title-input')).toBeVisible({ timeout: 30000 });
 			await expect.soft(page.getByTestId('report-issue-button')).toBeVisible();
 			await page.getByTestId('plan-title-input').fill(title);
 			const created = page.waitForResponse(
