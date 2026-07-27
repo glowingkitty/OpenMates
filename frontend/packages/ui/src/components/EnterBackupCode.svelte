@@ -29,6 +29,28 @@
         errorMessage?: string | null;
     } = $props();
 
+    type BackupCodeLoginUser = {
+        encrypted_key?: string;
+        salt?: string;
+        key_iv?: string;
+        username?: string;
+        profile_image_url?: string | null;
+        credits?: number;
+        is_admin?: boolean;
+        last_opened?: string;
+        tfa_app_name?: string | null;
+        tfa_enabled?: boolean;
+        consent_privacy_and_apps_default_settings?: boolean;
+        consent_mates_default_settings?: boolean;
+        language?: string;
+        darkmode?: boolean;
+    };
+
+    type BackupCodeLoginResponse = {
+        user?: BackupCodeLoginUser;
+        ws_token?: string;
+    };
+
     // Form data
     let backupCode = $state('');
     let backupCodeInput: HTMLInputElement = $state();
@@ -139,7 +161,7 @@
     }
 
     // Handle successful login
-    async function handleSuccessfulLogin(data: any) {
+    async function handleSuccessfulLogin(data: BackupCodeLoginResponse) {
         console.debug('[EnterBackupCode] handleSuccessfulLogin called with data:', {
             hasUser: !!data.user,
             hasEncryptedKey: !!data.user?.encrypted_key,
@@ -303,6 +325,7 @@
 <div class="backup-code-login" in:fade={{ duration: 300 }}>
     <div class="backup-code-section">
         <p class="backup-code-text">
+            <!-- eslint-disable-next-line svelte/no-at-html-tags -- trusted internal translation copy uses inline markup -->
             {@html $text('login.enter_backup_code_description')}
         </p>
 
@@ -318,6 +341,7 @@
                         placeholder="XXXX-XXXX-XXXX"
                         maxlength="14"
                         autocomplete="one-time-code"
+                        data-testid="login-backup-code-input"
                         class:error={!!errorMessage}
                         style="font-family: monospace; letter-spacing: 0.1em;"
                     />
@@ -332,6 +356,7 @@
             <button 
                 type="submit" 
                 class="login-button" 
+                data-testid="login-backup-code-submit-button"
                 disabled={isLoading || !isBackupCodeValid} 
             >
                 {#if isLoading}

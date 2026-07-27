@@ -377,16 +377,16 @@ test('sets up backup codes in settings and logs in with a backup code', async ({
 		code: `${backupCodeToUse.slice(0, 5)}*****`
 	});
 
-	// The TFA input now accepts backup code format (alphanumeric 14-char)
-	const backupCodeInput = page.getByTestId('login-otp-input');
+	const backupCodeInput = page.getByTestId('login-backup-code-input');
 	await expect(backupCodeInput).toBeVisible();
 	await backupCodeInput.fill(backupCodeToUse);
 	await takeStepScreenshot(page, 'backup-code-entered');
 	logCheckpoint('Entered backup code.');
 
-	// Submit login with password + backup code using the form submit button
-	await expect(loginSubmitButton).toBeVisible();
-	await loginSubmitButton.click();
+	// Submit login with password + backup code using the backup-code form submit button
+	const backupCodeSubmitButton = page.getByTestId('login-backup-code-submit-button');
+	await expect(backupCodeSubmitButton).toBeVisible();
+	await backupCodeSubmitButton.click();
 	logCheckpoint('Submitted login with backup code.');
 
 	// Wait for successful login. The app now lands on the authenticated new-chat
