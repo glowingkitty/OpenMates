@@ -15,6 +15,7 @@ from backend.apps.ai.processing.task_queue_continuation import (
     build_task_queue_continuation_event,
     evaluate_task_queue_post_turn,
     filter_plan_skills_for_task_queue,
+    is_task_activity_system_content,
     is_task_queue_continuation_system_content,
     task_context_blocks_plan_creation,
     task_queue_llm_history_role,
@@ -175,8 +176,17 @@ def test_task_queue_continuation_system_content_detects_synthetic_user_history()
     assert is_task_queue_continuation_system_content("TASK-42 created") is False
 
 
+def test_task_activity_system_content_detects_client_persisted_task_events() -> None:
+    assert is_task_activity_system_content("TASK-42 completed") is True
+    assert is_task_activity_system_content("ae083c42-a81d-488b-ad25-95b2e7b2c6dc created \"Task\" (todo)") is True
+    assert is_task_activity_system_content("Task queue continuation: TASK-42 started") is False
+    assert is_task_activity_system_content("Something else completed") is False
+
+
 def test_llm_history_maps_persisted_task_queue_system_notice_to_user() -> None:
     prompt = task_queue_post_turn_prompt({"state": "active_ai_task", "task_id": "TASK-42"})
 
     assert task_queue_llm_history_role("system", prompt) == "user"
-    assert task_queue_llm_history_role("system", "TASK-42 created") == "system"
+    assert task_queue_llm_history_role("system", "TASK-42 created") == "user"
+    assert task_queue_llm_history_role("system", "ae083c42-a81d-488b-ad25-95b2e7b2c6dc created \"Task\" (todo)") == "user"
+    assert task_queue_llm_history_role("system", "Something else completed") == "system"

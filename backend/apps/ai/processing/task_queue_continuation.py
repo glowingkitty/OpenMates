@@ -17,6 +17,7 @@ TASK_QUEUE_MODEL_RETRY_STATES = {"started_next_ai_task", "active_ai_task"}
 TASK_QUEUE_BLOCKING_STATES = {"blocked_by_human_task", "blocked_by_ai_task"}
 TASK_QUEUE_CONTINUATION_SYSTEM_PREFIX = "Task queue continuation:"
 PLAN_APP_SKILL_PREFIX = "plans-"
+TASK_ACTIVITY_EVENT_WORDS = {"blocked", "completed", "created", "unblocked", "updated"}
 
 
 def task_context_blocks_plan_creation(task_tool_context: Any) -> bool:
@@ -53,8 +54,29 @@ def is_task_queue_continuation_system_content(content: Any) -> bool:
     return isinstance(content, str) and content.strip().startswith(TASK_QUEUE_CONTINUATION_SYSTEM_PREFIX)
 
 
+def _looks_like_task_system_label(value: str) -> bool:
+    if value.startswith("TASK-") and value[5:].isdigit():
+        return True
+    compact_uuid = value.replace("-", "")
+    return len(value) == 36 and value.count("-") == 4 and len(compact_uuid) == 32 and all(
+        char in "0123456789abcdefABCDEF" for char in compact_uuid
+    )
+
+
+def is_task_activity_system_content(content: Any) -> bool:
+    if not isinstance(content, str):
+        return False
+    task_label, separator, rest = content.strip().partition(" ")
+    if not separator or not _looks_like_task_system_label(task_label):
+        return False
+    event_word = rest.split(maxsplit=1)[0].strip(":").lower()
+    return event_word in TASK_ACTIVITY_EVENT_WORDS
+
+
 def task_queue_llm_history_role(role: Any, content: Any) -> Any:
-    if role == "system" and is_task_queue_continuation_system_content(content):
+    if role == "system" and (
+        is_task_queue_continuation_system_content(content) or is_task_activity_system_content(content)
+    ):
         return "user"
     return role
 
