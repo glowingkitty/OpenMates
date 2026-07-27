@@ -405,10 +405,31 @@ async function loadLocalChatWithE2EHook(page: any, chatId: string): Promise<{
 }> {
 	return page.evaluate(async (targetChatId: string) => {
 		const helper = (window as typeof window & {
-			__openmatesE2ELoadLocalChat?: (input: { chatId: string }) => Promise<{ chatId: string }>;
+			__openmatesE2ELoadLocalChat?: (input: { chatId: string; chat?: Record<string, unknown> }) => Promise<{ chatId: string }>;
 		}).__openmatesE2ELoadLocalChat;
 		if (typeof helper !== 'function') return { loaded: false, reason: 'helper_unavailable', messageInputs: [] };
-		await helper({ chatId: targetChatId });
+		const chat = await new Promise<Record<string, unknown> | null>((resolve) => {
+			let db: IDBDatabase | null = null;
+			const finish = (value: Record<string, unknown> | null) => {
+				db?.close();
+				resolve(value);
+			};
+			const request = indexedDB.open('chats_db');
+			request.onerror = () => finish(null);
+			request.onsuccess = () => {
+				db = request.result;
+				try {
+					const transaction = db.transaction('chats', 'readonly');
+					const getRequest = transaction.objectStore('chats').get(targetChatId);
+					getRequest.onerror = () => finish(null);
+					getRequest.onsuccess = () => finish((getRequest.result as Record<string, unknown> | undefined) ?? null);
+				} catch {
+					finish(null);
+				}
+			};
+		});
+		if (!chat) return { loaded: false, reason: 'chat_unavailable', messageInputs: [] };
+		await helper({ chatId: targetChatId, chat });
 		await new Promise((resolve) => window.setTimeout(resolve, 250));
 		const messageInputs = Array.from(document.querySelectorAll('[data-action="message-input"]')).map((element) => ({
 			chatId: element.getAttribute('data-current-chat-id'),
