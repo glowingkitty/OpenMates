@@ -108,6 +108,13 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
     // ========================================================================
     
     function initializeAuthMethod() {
+        if (show2FAInput && hasPassword && !passwordVerifiedFor2FA && tfaCode.length === 0 && !isAuthenticating) {
+            show2FAInput = false;
+            showPasswordInput = true;
+            errorMessage = null;
+            return;
+        }
+
         if (showPasswordInput || show2FAInput || showEmailOtpInput || isPasskeyLoading || isAuthenticating) {
             return;
         }
