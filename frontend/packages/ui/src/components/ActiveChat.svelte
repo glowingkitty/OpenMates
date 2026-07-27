@@ -2758,9 +2758,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         const loadLocalChatHelper = async ({ chatId, chat }: { chatId: string; chat?: Chat }) => {
             if (!chat) throw new Error(`Local chat ${chatId} is unavailable`);
             activeChatStore.setActiveChat(chatId);
-            void loadChat(chat).catch((error) => {
-                console.error(`[ActiveChat] E2E local chat loader failed for ${chatId}:`, error);
-            });
+            await loadChat(chat);
+            await tick();
             return { chatId };
         };
 
