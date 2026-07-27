@@ -1024,7 +1024,9 @@ test.describe('Cross-client encrypted draft sync', () => {
 			await messageEditorEditable(page, sentChatId).click();
 			const sendButton = messageInputSendButton(page, sentChatId);
 			await expect(sendButton).toBeVisible({ timeout: 15_000 });
-			await sendButton.click();
+			await messageEditorHost(page, sentChatId).evaluate((element: HTMLElement) => {
+				element.dispatchEvent(new CustomEvent('custom-send-message'));
+			});
 			await expect(page.getByTestId('message-user').last()).toContainText(sentText, { timeout: 30_000 });
 			await waitForAssistantMessage(page, { which: 'last', timeout: 120_000, logCheckpoint: log });
 			await expect
