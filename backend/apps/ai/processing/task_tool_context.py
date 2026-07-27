@@ -108,6 +108,32 @@ async def resolve_task_tool_context(
     )
 
 
+async def refresh_task_tool_context(
+    *,
+    existing_context: TaskToolContext | None,
+    task_methods: Any,
+    user_id: str,
+    chat_id: str,
+    message_text: str | None,
+    attached_limit: int = DEFAULT_ATTACHED_TASK_LIMIT,
+) -> TaskToolContext:
+    """Reload attached tasks while preserving same-turn staged task bookkeeping."""
+    refreshed = await resolve_task_tool_context(
+        task_methods=task_methods,
+        user_id=user_id,
+        chat_id=chat_id,
+        message_text=message_text,
+        attached_limit=attached_limit,
+    )
+    if existing_context is None:
+        return refreshed
+
+    refreshed.client_persisted_task_ids.update(existing_context.client_persisted_task_ids)
+    refreshed.client_persisted_create_titles.update(existing_context.client_persisted_create_titles)
+    refreshed.created_task_sequence = existing_context.created_task_sequence
+    return refreshed
+
+
 def build_task_context_prompt(context: TaskToolContext) -> str:
     """Build minimal safe task context for the model without changing ownership."""
     if not context.visible_tasks:

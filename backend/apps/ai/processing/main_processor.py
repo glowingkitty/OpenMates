@@ -72,7 +72,7 @@ from backend.apps.ai.processing.task_queue_continuation import (
     task_queue_llm_history_role,
     task_queue_post_turn_prompt,
 )
-from backend.apps.ai.processing.task_tool_context import build_task_context_prompt, resolve_task_tool_context
+from backend.apps.ai.processing.task_tool_context import build_task_context_prompt, refresh_task_tool_context, resolve_task_tool_context
 from backend.apps.ai.processing.task_tool_executor import (
     TASK_TOOL_CANONICAL_NAMES,
     TASK_TOOL_RESOLVER_APP_ID,
@@ -3884,8 +3884,37 @@ async def handle_main_processing(
                                 log_prefix,
                                 exc_info=True,
                             )
+                retry_task_context_prompt = ""
+                task_methods = getattr(directus_service, "user_task", None) if directus_service else None
+                if task_methods is not None:
+                    try:
+                        task_tool_context = await refresh_task_tool_context(
+                            existing_context=task_tool_context,
+                            task_methods=task_methods,
+                            user_id=request_data.user_id,
+                            chat_id=request_data.chat_id,
+                            message_text=request_data.current_user_content,
+                        )
+                        retry_task_context_prompt = build_task_context_prompt(task_tool_context)
+                        if task_tools_enabled and not suppress_task_runtime_tools:
+                            refreshed_task_tools = build_task_runtime_tools(task_tool_context)
+                            available_tools_for_llm = merge_task_runtime_tools(available_tools_for_llm, refreshed_task_tools)
+                            for refreshed_tool in refreshed_task_tools:
+                                refreshed_name = str(refreshed_tool.get("function", {}).get("name") or "")
+                                if refreshed_name:
+                                    allowed_tool_names.add(_canonicalize_tool_name(refreshed_name))
+                                    allowed_tool_names.update(task_tool_name_variants(refreshed_name))
+                    except Exception:
+                        logger.error(
+                            "%s [TASK_QUEUE_CONTINUATION] Failed to refresh task context before retry",
+                            log_prefix,
+                            exc_info=True,
+                        )
+                retry_prompt = task_queue_post_turn_prompt(task_queue_result)
+                if retry_task_context_prompt:
+                    retry_prompt = f"{retry_prompt}\n\n{retry_task_context_prompt}"
                 current_message_history.append({"role": "assistant", "content": final_buffered_text_for_turn or None})
-                current_message_history.append({"role": "user", "content": task_queue_post_turn_prompt(task_queue_result)})
+                current_message_history.append({"role": "user", "content": retry_prompt})
                 logger.info(
                     "%s [TASK_QUEUE_CONTINUATION] Retrying main processing for state=%s task_id=%s retry=%s/%s",
                     log_prefix,

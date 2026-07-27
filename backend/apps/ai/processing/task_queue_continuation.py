@@ -17,7 +17,7 @@ TASK_QUEUE_MODEL_RETRY_STATES = {"started_next_ai_task", "active_ai_task"}
 TASK_QUEUE_BLOCKING_STATES = {"blocked_by_human_task", "blocked_by_ai_task"}
 TASK_QUEUE_CONTINUATION_SYSTEM_PREFIX = "Task queue continuation:"
 PLAN_APP_SKILL_PREFIX = "plans-"
-TASK_ACTIVITY_EVENT_WORDS = {"blocked", "completed", "created", "unblocked", "updated"}
+TASK_ACTIVITY_EVENT_WORDS = {"blocked", "completed", "continuing", "created", "moved", "started", "unblocked", "updated"}
 
 
 def task_context_blocks_plan_creation(task_tool_context: Any) -> bool:
@@ -137,7 +137,7 @@ async def evaluate_task_queue_post_turn(
 
 
 def task_queue_post_turn_prompt(queue_result: dict[str, Any]) -> str:
-    task_id = queue_result.get("task_id") or "the current task"
+    task_id = queue_result.get("short_id") or queue_result.get("task_id") or "the current task"
     state = queue_result.get("state")
     if state == "started_next_ai_task":
         return (

@@ -21,6 +21,7 @@ from backend.apps.ai.processing.task_queue_continuation import (
     task_queue_llm_history_role,
     task_queue_post_turn_prompt,
 )
+from backend.apps.ai.processing.task_tool_context import TaskToolContext, build_task_context_prompt, refresh_task_tool_context
 
 
 @pytest.mark.asyncio
@@ -178,6 +179,9 @@ def test_task_queue_continuation_system_content_detects_synthetic_user_history()
 
 def test_task_activity_system_content_detects_client_persisted_task_events() -> None:
     assert is_task_activity_system_content("TASK-42 completed") is True
+    assert is_task_activity_system_content("TASK-42 continuing (in_progress)") is True
+    assert is_task_activity_system_content("TASK-42 started (in_progress)") is True
+    assert is_task_activity_system_content("TASK-42 moved") is True
     assert is_task_activity_system_content("ae083c42-a81d-488b-ad25-95b2e7b2c6dc created \"Task\" (todo)") is True
     assert is_task_activity_system_content("Task queue continuation: TASK-42 started") is False
     assert is_task_activity_system_content("Something else completed") is False
@@ -188,5 +192,51 @@ def test_llm_history_maps_persisted_task_queue_system_notice_to_user() -> None:
 
     assert task_queue_llm_history_role("system", prompt) == "user"
     assert task_queue_llm_history_role("system", "TASK-42 created") == "user"
+    assert task_queue_llm_history_role("system", "TASK-42 continuing (in_progress)") == "user"
     assert task_queue_llm_history_role("system", "ae083c42-a81d-488b-ad25-95b2e7b2c6dc created \"Task\" (todo)") == "user"
     assert task_queue_llm_history_role("system", "Something else completed") == "system"
+
+
+def test_task_queue_post_turn_prompt_prefers_short_id() -> None:
+    prompt = task_queue_post_turn_prompt({"state": "started_next_ai_task", "task_id": "uuid-task", "short_id": "TASK-42"})
+
+    assert "TASK-42" in prompt
+    assert "uuid-task" not in prompt
+
+
+@pytest.mark.asyncio
+async def test_refresh_task_tool_context_reloads_tasks_and_preserves_turn_state() -> None:
+    existing = TaskToolContext(
+        user_id="user-1",
+        chat_id="chat-1",
+        attached_tasks=[{"task_id": "task-next", "short_id": "TASK-42", "status": "todo", "version": 1}],
+    )
+    existing.client_persisted_task_ids.add("task-created")
+    existing.client_persisted_create_titles["created task"] = "task-created"
+    existing.created_task_sequence = 3
+    methods = AsyncMock()
+    methods.list_tasks.return_value = [
+        {
+            "task_id": "task-next",
+            "short_id": "TASK-42",
+            "primary_chat_id": "chat-1",
+            "status": "in_progress",
+            "queue_state": "active",
+            "version": 2,
+        },
+    ]
+
+    refreshed = await refresh_task_tool_context(
+        existing_context=existing,
+        task_methods=methods,
+        user_id="user-1",
+        chat_id="chat-1",
+        message_text=None,
+    )
+
+    assert refreshed.attached_tasks[0]["status"] == "in_progress"
+    assert refreshed.attached_tasks[0]["version"] == 2
+    assert refreshed.client_persisted_task_ids == {"task-created"}
+    assert refreshed.client_persisted_create_titles == {"created task": "task-created"}
+    assert refreshed.created_task_sequence == 3
+    assert "TASK-42: status=in_progress, version=2" in build_task_context_prompt(refreshed)
