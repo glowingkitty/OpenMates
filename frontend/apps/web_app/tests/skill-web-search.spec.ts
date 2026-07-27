@@ -37,6 +37,10 @@ const {
 	closeFullscreen
 } = require('./helpers/embed-test-helpers');
 
+function isBraveQuotaFailure(result: { stderr: string }): boolean {
+	return /Brave Search API error: 429/.test(result.stderr) && /QUOTA_LIMITED/.test(result.stderr);
+}
+
 test.describe('App: Web / Skill: search', () => {
 	test.setTimeout(120_000);
 
@@ -60,6 +64,10 @@ test.describe('App: Web / Skill: search', () => {
 		);
 
 		const result = await runCli(apiUrl, ['apps', 'web', 'search', 'OpenMates AI assistant']);
+		test.skip(
+			isBraveQuotaFailure(result),
+			'Brave Search provider quota exhausted; direct provider contract cannot run in this environment.'
+		);
 		expectCliSuccess(result);
 		expect(result.stdout.length).toBeGreaterThan(10);
 		expect(result.stderr).not.toMatch(/error|failed|exception/i);
