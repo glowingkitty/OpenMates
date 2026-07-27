@@ -3283,6 +3283,10 @@
 			}
 		}
 
+		if (hashChatId && $activeChatStore !== hashChatId) {
+			activeChatStore.setWithoutHashUpdate(hashChatId);
+		}
+
 		console.debug('[+page.svelte] Hash changed:', newHash);
 
 		const handlers = createDeepLinkHandlers();
