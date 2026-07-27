@@ -2831,7 +2831,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             }
             if (text.trim().length === 0) {
                 await inputRef.replaceDraftWithPlainText(chatId, '', version, false);
-                await clearCurrentDraft();
+                void clearCurrentDraft();
                 return { text: inputRef.getTextContent() };
             }
             await inputRef.replaceDraftWithPlainText(chatId, text, version, true);
