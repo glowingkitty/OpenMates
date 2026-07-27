@@ -13966,9 +13966,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
 	.welcome-text {
 		position: relative;
+		isolation: isolate;
 	}
 
 	.welcome-text h2 {
+		position: relative;
+		z-index: 1;
 		margin: 0;
         color: var(--color-grey-80);
         font-size: var(--font-size-h2-mobile);
@@ -13976,6 +13979,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     }
 
     .welcome-text p {
+        position: relative;
+        z-index: 1;
         margin: 8px 0 0;
         color: var(--color-grey-60);
         font-size: var(--font-size-p);

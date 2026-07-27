@@ -2572,6 +2572,7 @@
   .guest-intro-feature-text h3 {
     font-size: var(--font-size-lg);
     line-height: 1.15;
+    color: rgba(255, 255, 255, 0.96);
   }
 
   .guest-intro-feature-text p {
@@ -2805,12 +2806,14 @@
     font-size: var(--font-size-sm);
     line-height: 1.2;
     font-weight: 700;
+    color: rgba(255, 255, 255, 0.96);
   }
 
   .banner-info-text p {
     margin-top: var(--spacing-2);
     font-size: var(--font-size-xs);
     line-height: 1.25;
+    color: rgba(255, 255, 255, 0.9);
     opacity: 0.9;
   }
 
