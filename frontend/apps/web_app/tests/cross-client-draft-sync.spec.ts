@@ -841,13 +841,20 @@ async function openDraftByHash(page: any, chatId: string): Promise<void> {
 	await page.goto(`${new URL(page.url()).origin}/#chat-id=${chatId}`);
 }
 
-async function openDraft(page: any, chatId: string, expectedText: string, requireRestoredText = false): Promise<any> {
+async function openDraft(page: any, apiUrl: string, chatId: string, expectedText: string, requireRestoredText = false): Promise<any> {
 	await openDraftByHash(page, chatId);
-	await activeMessageEditorEditable(page, chatId);
+	try {
+		await activeMessageEditorEditable(page, chatId);
+	} catch (error) {
+		await logServerDraftDiagnostics(page, apiUrl, chatId, 'CROSS_CLIENT_DRAFT_SYNC_OPEN_EDITOR', expectedText);
+		await logDraftOpenDiagnostics(page, chatId, 'CROSS_CLIENT_DRAFT_SYNC_OPEN_EDITOR', expectedText);
+		throw error;
+	}
 	if (!requireRestoredText) return null;
 	try {
 		await expectLocalDraftMarkdown(page, chatId, expectedText, 'CROSS_CLIENT_DRAFT_SYNC_OPEN');
 	} catch (error) {
+		await logServerDraftDiagnostics(page, apiUrl, chatId, 'CROSS_CLIENT_DRAFT_SYNC_OPEN', expectedText);
 		await logDraftOpenDiagnostics(page, chatId, 'CROSS_CLIENT_DRAFT_SYNC', expectedText);
 		throw error;
 	}
@@ -890,7 +897,7 @@ test.describe('Cross-client encrypted draft sync', () => {
 			const draftChatId = String(created.chatId);
 			expect(draftChatId).toMatch(/^[0-9a-f-]{36}$/i);
 			cleanupDraftIds.add(draftChatId);
-			await openDraft(page, draftChatId, initialText, true);
+			await openDraft(page, apiUrl, draftChatId, initialText, true);
 			log('CLI-created draft opened in web client.');
 
 			const draftUpdateFrameStart = wsFrames.length;
@@ -926,7 +933,7 @@ test.describe('Cross-client encrypted draft sync', () => {
 			}
 			log('Web draft edit reconciled to CLI.');
 
-			await openDraft(page, draftChatId, updatedText, true);
+			await openDraft(page, apiUrl, draftChatId, updatedText, true);
 			const draftDeleteFrameStart = wsFrames.length;
 			await replaceMessageEditorText(page, draftChatId, '');
 			const dismissButton = page.getByTestId('input-dismiss-button');
