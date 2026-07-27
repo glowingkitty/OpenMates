@@ -446,6 +446,28 @@ async function loadLocalChatWithE2EHook(page: any, chatId: string): Promise<{
 	}, chatId);
 }
 
+async function sendCurrentMessageWithE2EHook(page: any, chatId: string): Promise<{
+	expectedChatId: string;
+	text: string;
+	sendDebug: Record<string, unknown> | null;
+	messageInputs: Array<{ chatId: string | null; visible: boolean }>;
+	userMessageCount: number;
+}> {
+	return page.evaluate(async (targetChatId: string) => {
+		const helper = (window as typeof window & {
+			__openmatesE2ESendCurrentMessage?: (input: { chatId: string }) => Promise<{
+				expectedChatId: string;
+				text: string;
+				sendDebug: Record<string, unknown> | null;
+				messageInputs: Array<{ chatId: string | null; visible: boolean }>;
+				userMessageCount: number;
+			}>;
+		}).__openmatesE2ESendCurrentMessage;
+		if (typeof helper !== 'function') throw new Error('send helper unavailable');
+		return helper({ chatId: targetChatId });
+	}, chatId);
+}
+
 async function activeMessageEditorEditable(page: any, chatId: string): Promise<any> {
 	await expect(async () => {
 		const hash = await page.evaluate(() => window.location.hash);
@@ -1024,9 +1046,8 @@ test.describe('Cross-client encrypted draft sync', () => {
 			await messageEditorEditable(page, sentChatId).click();
 			const sendButton = messageInputSendButton(page, sentChatId);
 			await expect(sendButton).toBeVisible({ timeout: 15_000 });
-			await messageEditorHost(page, sentChatId).evaluate((element: HTMLElement) => {
-				element.dispatchEvent(new CustomEvent('custom-send-message'));
-			});
+			const sendDiagnostics = await sendCurrentMessageWithE2EHook(page, sentChatId);
+			console.info(`[CROSS_CLIENT_DRAFT_SYNC] Send helper diagnostics: ${JSON.stringify(sendDiagnostics)}`);
 			await expect(page.getByTestId('message-user').last()).toContainText(sentText, { timeout: 30_000 });
 			await waitForAssistantMessage(page, { which: 'last', timeout: 120_000, logCheckpoint: log });
 			await expect

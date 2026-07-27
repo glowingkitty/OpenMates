@@ -329,6 +329,14 @@
     type ActiveChatE2EWindow = Window & {
         __openmatesE2EReplaceDraft?: (input: { chatId: string; text: string; version?: number }) => Promise<{ text: string }>;
         __openmatesE2ELoadLocalChat?: (input: { chatId: string; chat?: Chat }) => Promise<{ chatId: string }>;
+        __openmatesE2ESendCurrentMessage?: (input: { chatId: string }) => Promise<{
+            expectedChatId: string;
+            text: string;
+            sendDebug: Record<string, unknown> | null;
+            messageInputs: Array<{ chatId: string | null; visible: boolean }>;
+            userMessageCount: number;
+        }>;
+        __openmatesLastSendDebug?: Record<string, unknown>;
     };
 
     type EmbedDataRecord = EmbedStoreEntry | EmbedResolverData | Partial<EmbedResolverData>;
@@ -2914,15 +2922,37 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             await tick();
             return { chatId };
         };
+        const sendCurrentMessageHelper = async ({ chatId }: { chatId: string }) => {
+            const inputRef = messageInputFieldRef;
+            if (!inputRef?.sendCurrentMessage) throw new Error('Message input send helper is unavailable');
+            inputRef.focus();
+            inputRef.sendCurrentMessage();
+            await tick();
+            await new Promise((resolve) => window.setTimeout(resolve, 500));
+            return {
+                expectedChatId: chatId,
+                text: inputRef.getTextContent(),
+                sendDebug: activeChatWindow.__openmatesLastSendDebug ?? null,
+                messageInputs: Array.from(document.querySelectorAll('[data-action="message-input"]')).map((element) => ({
+                    chatId: element.getAttribute('data-current-chat-id'),
+                    visible: !!(element as HTMLElement).offsetParent,
+                })),
+                userMessageCount: document.querySelectorAll('[data-testid="message-user"]').length,
+            };
+        };
 
         activeChatWindow.__openmatesE2EReplaceDraft = helper;
         activeChatWindow.__openmatesE2ELoadLocalChat = loadLocalChatHelper;
+        activeChatWindow.__openmatesE2ESendCurrentMessage = sendCurrentMessageHelper;
         return () => {
             if (activeChatWindow.__openmatesE2EReplaceDraft === helper) {
                 delete activeChatWindow.__openmatesE2EReplaceDraft;
             }
             if (activeChatWindow.__openmatesE2ELoadLocalChat === loadLocalChatHelper) {
                 delete activeChatWindow.__openmatesE2ELoadLocalChat;
+            }
+            if (activeChatWindow.__openmatesE2ESendCurrentMessage === sendCurrentMessageHelper) {
+                delete activeChatWindow.__openmatesE2ESendCurrentMessage;
             }
         };
     });
