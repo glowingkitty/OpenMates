@@ -267,7 +267,7 @@ test.describe('Example chats loading for new users', () => {
 		});
 		await expect(sprintBacklogPrompt).toBeVisible({ timeout: 15000 });
 		await expect(page.getByTestId('message-assistant').filter({
-			hasText: 'Sprint 1 Engineering Backlog: Local-Only Tauri Desktop MVP'
+			hasText: '10 klar getrennte Workstreams'
 		})).toBeVisible({ timeout: 15000 });
 
 		const latestPrompt = page.getByTestId('user-message-content').filter({
@@ -275,7 +275,7 @@ test.describe('Example chats loading for new users', () => {
 		});
 		await expect(latestPrompt).toBeVisible({ timeout: 15000 });
 		await expect(
-			page.getByTestId('message-assistant').filter({ hasText: 'zero-trust IPC boundaries' })
+			page.getByTestId('message-assistant').filter({ hasText: 'absolute data privacy and zero network leakage' })
 		).toBeVisible({ timeout: 15000 });
 
 		const firstPrompt = page.getByTestId('user-message-content').filter({
