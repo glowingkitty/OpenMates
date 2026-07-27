@@ -512,6 +512,77 @@
         };
     }
 
+    async function applyAuthenticatedDraftOnlyChatForE2E(chatId: string, chat: Chat): Promise<void> {
+        const inputRef = messageInputFieldRef;
+        if (!inputRef) throw new Error('Message input helper is unavailable');
+
+        let draftChat = chat;
+        try {
+            const rawChat = await chatDB.getRawChat(chatId);
+            if (rawChat) draftChat = { ...draftChat, ...rawChat };
+        } catch (error) {
+            console.debug('[ActiveChat] E2E local draft helper could not hydrate raw chat fields:', chatId, error);
+        }
+
+        loadChatGeneration += 1;
+        activeChatStore.setActiveChat(chatId);
+        currentChat = draftChat;
+        currentMessages = [];
+        currentCompressionCheckpoints = [];
+        currentMessageWindowHasMoreBefore = false;
+        olderMessageWindowLoading = false;
+        followUpSuggestions = [];
+        showWelcome = false;
+        chatHistoryRef?.updateMessages([]);
+        await tick();
+
+        const ref = messageInputFieldRef;
+        if (!ref) throw new Error('Message input helper disappeared before draft restore');
+
+        const draftVersion = draftChat.draft_v || 1;
+        const decryptDraftWithRetry = async (encryptedValue: string, fieldName: string): Promise<string | null> => {
+            for (let attempt = 0; attempt < 20; attempt += 1) {
+                const decrypted = await decryptWithMasterKey(encryptedValue);
+                if (decrypted !== null) return decrypted;
+                await new Promise((resolve) => setTimeout(resolve, 250));
+            }
+            console.warn(`[ActiveChat] E2E local draft helper failed to decrypt ${fieldName} for ${chatId}`);
+            return null;
+        };
+
+        if (draftChat.encrypted_draft_md) {
+            const decryptedMarkdown = await decryptDraftWithRetry(draftChat.encrypted_draft_md, 'encrypted_draft_md');
+            if (decryptedMarkdown) {
+                const editableMarkdown = extractPlainIdeaBucketText(decryptedMarkdown) ?? await restoreEmbedPreviewLinksForWriteMode(decryptedMarkdown, chatId);
+                let draftContent = parse_message(editableMarkdown, 'write', { unifiedParsingEnabled: true });
+                const embedOnlyDraftContent = hasEditorUnsupportedDraftNode(draftContent)
+                    ? buildEmbedOnlyDraftContent(editableMarkdown)
+                    : null;
+                if (embedOnlyDraftContent) draftContent = embedOnlyDraftContent;
+
+                ref.setDraftContent(chatId, draftContent, draftVersion, false);
+                if (!hasMeaningfulTiptapContent(draftContent) && editableMarkdown.trim() && ref.replaceDraftWithPlainText) {
+                    await ref.replaceDraftWithPlainText(chatId, editableMarkdown.trim(), draftVersion);
+                }
+                await tick();
+                return;
+            }
+        }
+
+        if (draftChat.encrypted_draft_preview) {
+            const decryptedPreview = await decryptDraftWithRetry(draftChat.encrypted_draft_preview, 'encrypted_draft_preview');
+            const previewText = decryptedPreview?.trim();
+            if (previewText && !/^\[[^\]]+\]$/.test(previewText)) {
+                ref.setDraftContent(chatId, parse_message(previewText, 'write', { unifiedParsingEnabled: true }), draftVersion, false);
+                await tick();
+                return;
+            }
+        }
+
+        ref.setCurrentChatContext?.(chatId, null, draftVersion);
+        await tick();
+    }
+
     type EmbedDecodedContent = Record<string, unknown> & {
         app_id?: string;
         skill_id?: string;
@@ -2757,6 +2828,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         };
         const loadLocalChatHelper = async ({ chatId, chat }: { chatId: string; chat?: Chat }) => {
             if (!chat) throw new Error(`Local chat ${chatId} is unavailable`);
+            if ($authStore.isAuthenticated && isEncryptedDraftOnlyChat(chat)) {
+                await applyAuthenticatedDraftOnlyChatForE2E(chatId, chat);
+                return { chatId };
+            }
             activeChatStore.setActiveChat(chatId);
             await loadChat(chat);
             await tick();
