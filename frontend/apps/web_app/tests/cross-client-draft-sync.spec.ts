@@ -398,13 +398,49 @@ function messageEditorHost(page: any, chatId: string): any {
 		.first();
 }
 
+async function dispatchLocalChatNavigation(page: any, chatId: string): Promise<boolean> {
+	return page.evaluate(async (targetChatId: string) => {
+		const chat = await new Promise<Record<string, unknown> | null>((resolve) => {
+			let db: IDBDatabase | null = null;
+			const request = indexedDB.open('chats_db');
+			request.onerror = () => resolve(null);
+			request.onsuccess = () => {
+				db = request.result;
+				let transaction: IDBTransaction | null = null;
+				try {
+					transaction = db.transaction('chats', 'readonly');
+					const getRequest = transaction.objectStore('chats').get(targetChatId);
+					getRequest.onerror = () => resolve(null);
+					getRequest.onsuccess = () => resolve((getRequest.result as Record<string, unknown> | undefined) ?? null);
+				} catch {
+					resolve(null);
+				} finally {
+					if (transaction) {
+						transaction.oncomplete = () => db?.close();
+						transaction.onerror = () => db?.close();
+					} else {
+						db.close();
+					}
+				}
+			};
+		});
+		if (!chat) return false;
+		window.dispatchEvent(new CustomEvent('chatHeaderNavigation', { detail: { chat, scrollToTop: false } }));
+		return true;
+	}, chatId);
+}
+
 async function activeMessageEditorEditable(page: any, chatId: string): Promise<any> {
 	await expect(async () => {
 		const hash = await page.evaluate(() => window.location.hash);
 		if (!hash.includes(chatId)) {
 			await openDraftByHash(page, chatId);
 		} else if (!(await messageEditorHost(page, chatId).isVisible().catch(() => false))) {
-			await page.evaluate(() => window.dispatchEvent(new Event('hashchange')));
+			await page.evaluate((targetHash: string) => {
+				window.dispatchEvent(new Event('hashchange'));
+				window.dispatchEvent(new CustomEvent('processPendingDeepLink', { detail: { hash: targetHash } }));
+			}, `#chat-id=${chatId}`);
+			await dispatchLocalChatNavigation(page, chatId);
 		}
 		const currentHash = await page.evaluate(() => window.location.hash);
 		expect(currentHash, 'Fallback to generic editor is only safe on the target chat URL').toContain(chatId);
