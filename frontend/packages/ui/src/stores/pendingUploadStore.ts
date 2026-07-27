@@ -27,6 +27,7 @@
 
 import { writable, get } from "svelte/store";
 import type { PIIMapping } from "../types/chat";
+import type { TipTapDoc, TipTapNode } from "../message_parsing/types";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -387,6 +388,55 @@ export function findPendingSendByEmbedId(
     });
   });
   return found;
+}
+
+/**
+ * Build the read-only preview document for a message queued on uploads.
+ *
+ * The persisted optimistic message intentionally has empty markdown because the
+ * final markdown cannot be serialized until uploads finish. The UI can still
+ * render the user's original text/embed layout from the editor snapshot stored
+ * in PendingSendContext.
+ */
+export function buildPendingSendPreviewContent(
+  context: PendingSendContext,
+): TipTapDoc | null {
+  if (!context.editorSnapshot || typeof context.editorSnapshot !== "object") {
+    return null;
+  }
+
+  const snapshot = JSON.parse(
+    JSON.stringify(context.editorSnapshot),
+  ) as TipTapDoc;
+
+  function patchEmbedNodes(nodes: TipTapNode[] | undefined): void {
+    if (!nodes) return;
+
+    for (const node of nodes) {
+      if (node.type === "embed" && node.attrs) {
+        const embedId = typeof node.attrs.id === "string" ? node.attrs.id : "";
+        const embedSnapshot = embedId
+          ? context.embedSnapshots.get(embedId)
+          : undefined;
+        const progress = embedId ? context.embedProgress.get(embedId) : undefined;
+
+        node.attrs = {
+          ...node.attrs,
+          type: embedSnapshot?.embedType ?? node.attrs.type,
+          filename: embedSnapshot?.filename ?? node.attrs.filename,
+          uploadEmbedId:
+            embedSnapshot?.uploadEmbedId ?? node.attrs.uploadEmbedId,
+          contentRef: embedSnapshot?.contentRef ?? node.attrs.contentRef,
+          status: progress?.status ?? node.attrs.status ?? "uploading",
+        };
+      }
+
+      patchEmbedNodes(node.content);
+    }
+  }
+
+  patchEmbedNodes(snapshot.content);
+  return snapshot;
 }
 
 // Export the raw store for components that need to subscribe reactively

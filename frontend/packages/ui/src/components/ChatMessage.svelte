@@ -74,7 +74,7 @@
   import { reportIssueStore } from '../stores/reportIssueStore';
   import { startEdit } from '../stores/editMessageStore';
   import { messageHighlightStore, searchTextHighlightStore } from '../stores/messageHighlightStore';
-  import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadStore';
+  import { buildPendingSendPreviewContent, pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadStore';
   import { pendingRememberMessageStore } from '../stores/pendingRememberMessageStore';
   import { formatRememberMessageDraft } from '../utils/rememberMessage';
   import { chatDB } from '../services/db';
@@ -2962,6 +2962,15 @@
     return Array.from(ctx.embedProgress.values()) as EmbedProgress[];
   })());
 
+  let pendingUploadPreviewContent = $derived((() => {
+    if (status !== 'waiting_for_upload' || !original_message?.message_id) return null;
+    const chatId = original_message.chat_id as string | undefined;
+    if (!chatId) return null;
+    const queue = $pendingUploadStore.get(chatId);
+    const ctx = queue?.find(c => c.messageId === original_message.message_id);
+    return ctx ? buildPendingSendPreviewContent(ctx) : null;
+  })());
+
   // Functions for handling truncated message display
   async function handleShowFullMessage() {
     if (showFullMessage || !original_message) return;
@@ -3392,7 +3401,7 @@
           {:else}
             <ReadOnlyMessage
                 bind:this={readOnlyMessageComponent}
-                {content}
+                content={pendingUploadPreviewContent ?? content}
                 chatId={currentChatId}
                 isStreaming={status === 'streaming'}
                 {_embedUpdateTimestamp}
