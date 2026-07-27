@@ -902,24 +902,6 @@ export const saveDraftDebounced = debounce(
     // Now currentChatIdForOperation is the one to use.
     // If chatIdFromMessageInput was null, currentChatIdForOperation remains what was in the state.
 
-    // CRITICAL: Check if we're saving a draft to a demo/legal chat (public chat)
-    // If so, we MUST generate a new UUID for the chat so it becomes a regular chat
-    // This ensures the chat can't be identified as demo/legal later
-    if (currentChatIdForOperation && isPublicChat(currentChatIdForOperation)) {
-      const oldChatId = currentChatIdForOperation;
-      currentChatIdForOperation = crypto.randomUUID();
-      console.info(
-        `[DraftService] 🔄 Converting public chat ${oldChatId} to regular chat ${currentChatIdForOperation} - user created draft in demo/legal chat`,
-      );
-
-      // Update draft state to use the new chat ID
-      draftEditorUIState.update((s) => ({
-        ...s,
-        currentChatId: currentChatIdForOperation,
-        newlyCreatedChatIdToSelect: currentChatIdForOperation,
-      }));
-    }
-
     const contentJSON = editor.getJSON() as TiptapJSON;
 
     // Convert TipTap content to markdown for storage
@@ -933,16 +915,54 @@ export const saveDraftDebounced = debounce(
     // isContentEmptyExceptMention is for SENDING (where a lone mention isn't a valid message),
     // but for DRAFTS, a mention alone IS valid content that should be saved.
     if (editor.isEmpty) {
-      console.info(
-        "[DraftService] Editor content is empty. Triggering draft deletion process.",
-      );
       if (currentChatIdForOperation) {
+        if (isPublicChat(currentChatIdForOperation)) {
+          console.info(
+            `[DraftService] Empty public chat draft flush for ${currentChatIdForOperation}; resetting local draft UI without converting or syncing deletion.`,
+          );
+          draftEditorUIState.update((s) => ({
+            ...s,
+            currentUserDraftVersion: 0,
+            hasUnsavedChanges: false,
+            lastSavedContentMarkdown: null,
+            newlyCreatedChatIdToSelect: null,
+          }));
+          window.dispatchEvent(
+            new CustomEvent(LOCAL_CHAT_LIST_CHANGED_EVENT, {
+              detail: { chat_id: currentChatIdForOperation, draftDeleted: true },
+            }),
+          );
+          return;
+        }
+        console.info(
+          "[DraftService] Editor content is empty. Triggering draft deletion process.",
+        );
         // clearCurrentDraft reads from draftEditorUIState, which we've just updated if necessary.
         await clearCurrentDraft();
       } else {
+        console.info(
+          "[DraftService] Editor content is empty with no current chat. Resetting draft UI.",
+        );
         clearEditorAndResetDraftState(false);
       }
       return;
+    }
+
+    // CRITICAL: Check if we're saving a non-empty draft to a demo/legal/example chat.
+    // If so, generate a new UUID so the saved draft becomes a regular private chat.
+    if (currentChatIdForOperation && isPublicChat(currentChatIdForOperation)) {
+      const oldChatId = currentChatIdForOperation;
+      currentChatIdForOperation = crypto.randomUUID();
+      console.info(
+        `[DraftService] 🔄 Converting public chat ${oldChatId} to regular chat ${currentChatIdForOperation} - user created draft in demo/legal chat`,
+      );
+
+      // Update draft state to use the new chat ID
+      draftEditorUIState.update((s) => ({
+        ...s,
+        currentChatId: currentChatIdForOperation,
+        newlyCreatedChatIdToSelect: currentChatIdForOperation,
+      }));
     }
 
     // Acquire the lock before encryption/DB work so send can reliably wait for an

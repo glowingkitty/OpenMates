@@ -5,10 +5,26 @@ authoritative-deletion contract used by non-web clients. Draft payloads are
 opaque ciphertext; no server-side test or implementation decrypts them.
 """
 
-from types import SimpleNamespace
 import hashlib
+import sys
+import types
+from types import SimpleNamespace
 
 import pytest
+
+
+if "redis.asyncio" not in sys.modules:
+    redis_module = types.ModuleType("redis")
+    redis_asyncio_module = types.ModuleType("redis.asyncio")
+
+    class FakeRedis:
+        pass
+
+    redis_asyncio_module.Redis = FakeRedis
+    redis_module.asyncio = redis_asyncio_module
+    redis_module.exceptions = SimpleNamespace(RedisError=Exception, ConnectionError=Exception, TimeoutError=Exception)
+    sys.modules["redis"] = redis_module
+    sys.modules["redis.asyncio"] = redis_asyncio_module
 
 from backend.core.api.app.routes.handlers.websocket_handlers.draft_update_handler import (
     handle_update_draft,
@@ -359,10 +375,6 @@ async def test_offline_draft_sync_uses_user_specific_draft_version() -> None:
             draft_updates.append(("update", user_id, chat_id, encrypted_md, draft_v, encrypted_draft_preview))
             return True
 
-        async def update_chat_score_in_ids_versions(self, user_id, chat_id, timestamp):
-            draft_updates.append(("score", user_id, chat_id, timestamp))
-            return True
-
     await handle_sync_offline_changes(
         websocket=_WebSocket(),
         manager=manager,
@@ -382,6 +394,7 @@ async def test_offline_draft_sync_uses_user_specific_draft_version() -> None:
 
     assert draft_updates[0] == ("increment", "user-1", "chat-1")
     assert draft_updates[1] == ("update", "user-1", "chat-1", "cipher-md", 5, None)
+    assert len(draft_updates) == 2
     assert manager.broadcasts[0]["event"] == "chat_draft_updated"
     assert manager.broadcasts[0]["versions"] == {"draft_v": 5}
     assert "user_draft_v" not in str(manager.broadcasts[0])

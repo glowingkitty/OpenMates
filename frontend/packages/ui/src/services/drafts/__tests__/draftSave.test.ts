@@ -12,28 +12,99 @@
 //
 // Architecture: frontend/packages/ui/src/services/drafts/draftSave.ts
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+
+const mocks = vi.hoisted(() => {
+  const initialDraftEditorState = {
+    currentChatId: null as string | null,
+    currentUserDraftVersion: 0,
+    hasUnsavedChanges: false,
+    newlyCreatedChatIdToSelect: null as string | null,
+    lastSavedContentMarkdown: null as string | null,
+    isSwitchingContext: false,
+    isSaveInProgress: false,
+  };
+  let draftState = { ...initialDraftEditorState };
+
+  const draftEditorUIState = {
+    subscribe: vi.fn((fn: (value: typeof initialDraftEditorState) => void) => {
+      fn(draftState);
+      return () => {};
+    }),
+    set: vi.fn((value: typeof initialDraftEditorState) => {
+      draftState = value;
+    }),
+    update: vi.fn((updater: (value: typeof initialDraftEditorState) => typeof initialDraftEditorState) => {
+      draftState = updater(draftState);
+    }),
+  };
+
+  return {
+    initialDraftEditorState,
+    get draftState() {
+      return draftState;
+    },
+    resetDraftState(value: Partial<typeof initialDraftEditorState> = {}) {
+      draftState = { ...initialDraftEditorState, ...value };
+    },
+    draftEditorUIState,
+    chatDB: {
+      chats: {
+        delete: vi.fn().mockResolvedValue(undefined),
+        put: vi.fn().mockResolvedValue(undefined),
+        get: vi.fn().mockResolvedValue(undefined),
+      },
+      getChat: vi.fn().mockResolvedValue(undefined),
+      getMessagesForChat: vi.fn().mockResolvedValue([]),
+      deleteChat: vi.fn().mockResolvedValue({ deletedEmbedIds: [] }),
+      getRawChat: vi.fn().mockResolvedValue(undefined),
+      addChat: vi.fn().mockResolvedValue(undefined),
+      upsertRawChat: vi.fn().mockResolvedValue(undefined),
+      createNewChatWithCurrentUserDraft: vi.fn().mockResolvedValue({
+        chat_id: "created-chat-id",
+        draft_v: 1,
+        encrypted_draft_md: "encrypted-data",
+        encrypted_draft_preview: null,
+      }),
+    },
+    chatSyncService: {
+      getEncryptedFields: vi.fn().mockResolvedValue(null),
+      sendDeleteDraft: vi.fn().mockResolvedValue(undefined),
+      sendDeleteChat: vi.fn().mockResolvedValue(undefined),
+      sendUpdateDraft: vi.fn().mockResolvedValue(undefined),
+      queueOfflineChange: vi.fn().mockResolvedValue(undefined),
+      sendOfflineChanges: vi.fn().mockResolvedValue(undefined),
+      dispatchEvent: vi.fn(),
+    },
+    getEditorInstance: vi.fn(),
+    clearEditorAndResetDraftState: vi.fn(() => {
+      draftState = { ...initialDraftEditorState };
+    }),
+    incognitoChatService: {
+      getChat: vi.fn().mockResolvedValue(null),
+    },
+    incognitoMode: {
+      get: vi.fn().mockReturnValue(false),
+    },
+    deleteSessionStorageDraft: vi.fn(),
+    saveSessionStorageDraft: vi.fn(),
+    chatMetadataCache: {
+      invalidateChat: vi.fn(),
+    },
+    tipTapToCanonicalMarkdown: vi.fn().mockReturnValue(""),
+  };
+});
 
 // Mock all heavy dependencies before importing the module
 
 // chatDB (IndexedDB)
-const mockDelete = vi.fn().mockResolvedValue(undefined);
-const mockPut = vi.fn().mockResolvedValue(undefined);
 vi.mock("../../db", () => ({
-  chatDB: {
-    chats: {
-      delete: (...args: unknown[]) => mockDelete(...args),
-      put: (...args: unknown[]) => mockPut(...args),
-      get: vi.fn().mockResolvedValue(undefined),
-    },
-  },
+  chatDB: mocks.chatDB,
 }));
 
 // chatSyncService
 vi.mock("../../chatSyncService", () => ({
-  chatSyncService: {
-    getEncryptedFields: vi.fn().mockResolvedValue(null),
-  },
+  chatSyncService: mocks.chatSyncService,
 }));
 
 // cryptoService
@@ -75,14 +146,9 @@ vi.mock("../../websocketService", () => ({
 }));
 
 // draftEditorUIState
-vi.mock("../../../stores/draftEditorUIState", () => ({
-  draftEditorUIState: {
-    subscribe: vi.fn((fn: (v: unknown) => void) => {
-      fn(null);
-      return () => {};
-    }),
-    set: vi.fn(),
-  },
+vi.mock("../draftState", () => ({
+  draftEditorUIState: mocks.draftEditorUIState,
+  initialDraftEditorState: mocks.initialDraftEditorState,
 }));
 
 // activeChatStore
@@ -96,37 +162,57 @@ vi.mock("../../../stores/activeChatStore", () => ({
   },
 }));
 
-// editor instance
-vi.mock("../../../components/editor/editorInstance", () => ({
-  getEditorInstance: vi.fn().mockReturnValue(null),
+// draftCore — prevent real editor access
+vi.mock("../draftCore", () => ({
+  getEditorInstance: mocks.getEditorInstance,
+  clearEditorAndResetDraftState: mocks.clearEditorAndResetDraftState,
+}));
+
+vi.mock("../../incognitoChatService", () => ({
+  incognitoChatService: mocks.incognitoChatService,
+}));
+
+vi.mock("../../../stores/incognitoModeStore", () => ({
+  incognitoMode: mocks.incognitoMode,
+}));
+
+vi.mock("../../../demo_chats/convertToChat", () => ({
+  isPublicChat: (chatId: string) =>
+    chatId.startsWith("demo-") ||
+    chatId.startsWith("legal-") ||
+    chatId.startsWith("example-") ||
+    chatId.startsWith("announcements-") ||
+    chatId.startsWith("tips-"),
+}));
+
+vi.mock("../../../message_parsing/serializers", () => ({
+  tipTapToCanonicalMarkdown: mocks.tipTapToCanonicalMarkdown,
+}));
+
+vi.mock("../../../components/enter_message/services/urlMetadataService", () => ({
+  extractUrlFromJsonEmbedBlock: vi.fn().mockReturnValue(null),
+}));
+
+vi.mock("../sessionStorageDraftService", () => ({
+  saveSessionStorageDraft: mocks.saveSessionStorageDraft,
+  deleteSessionStorageDraft: mocks.deleteSessionStorageDraft,
+}));
+
+vi.mock("../../chatMetadataCache", () => ({
+  chatMetadataCache: mocks.chatMetadataCache,
 }));
 
 // metadata stores
-vi.mock("../../../stores/modelsMetadataStore", () => ({
-  modelsMetadata: {
-    subscribe: vi.fn((fn: (v: unknown) => void) => {
-      fn({});
-      return () => {};
-    }),
-  },
+vi.mock("../../../data/modelsMetadata", () => ({
+  modelsMetadata: [],
 }));
 
-vi.mock("../../../stores/matesMetadataStore", () => ({
-  matesMetadata: {
-    subscribe: vi.fn((fn: (v: unknown) => void) => {
-      fn({});
-      return () => {};
-    }),
-  },
+vi.mock("../../../data/matesMetadata", () => ({
+  matesMetadata: [],
 }));
 
 vi.mock("../../../stores/appSkillsStore", () => ({
-  appSkillsStore: {
-    subscribe: vi.fn((fn: (v: unknown) => void) => {
-      fn({});
-      return () => {};
-    }),
-  },
+  appSkillsStore: { apps: {} },
 }));
 
 // lodash-es debounce — replace with immediate execution for testing
@@ -144,11 +230,33 @@ import {
   clearCurrentDraft,
   triggerSaveDraft,
   flushSaveDraft,
+  saveDraftDebounced,
 } from "../draftSave";
+
+function createEditor(isEmpty: boolean) {
+  const run = vi.fn();
+  const clearContent = vi.fn(() => ({ run }));
+  const chain = vi.fn(() => ({ clearContent }));
+  return {
+    isEmpty,
+    isDestroyed: false,
+    isEditable: true,
+    getJSON: vi.fn().mockReturnValue({ type: "doc", content: [] }),
+    chain,
+  };
+}
 
 describe("draftSave", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.resetDraftState();
+    mocks.getEditorInstance.mockReturnValue(null);
+    mocks.incognitoMode.get.mockReturnValue(false);
+    mocks.incognitoChatService.getChat.mockResolvedValue(null);
+    mocks.chatDB.getChat.mockResolvedValue(undefined);
+    mocks.chatDB.getMessagesForChat.mockResolvedValue([]);
+    mocks.chatDB.deleteChat.mockResolvedValue({ deletedEmbedIds: [] });
+    mocks.tipTapToCanonicalMarkdown.mockReturnValue("");
   });
 
   // ──────────────────────────────────────────────────────────────────
@@ -163,9 +271,28 @@ describe("draftSave", () => {
     });
 
     it("does not throw on DB errors", async () => {
-      mockDelete.mockRejectedValueOnce(new Error("DB error"));
+      mocks.chatDB.chats.delete.mockRejectedValueOnce(new Error("DB error"));
       // Should not throw — best-effort deletion
       await expect(clearCurrentDraft()).resolves.not.toThrow();
+    });
+  });
+
+  describe("public chat empty draft saves", () => {
+    it("does not convert empty public-chat flushes into private draft deletions", async () => {
+      const editor = createEditor(true);
+      mocks.getEditorInstance.mockReturnValue(editor);
+      mocks.resetDraftState({ currentChatId: "example-empty-draft" });
+      const randomUUID = vi
+        .spyOn(crypto, "randomUUID")
+        .mockReturnValue("11111111-1111-4111-8111-111111111111");
+
+      await saveDraftDebounced("example-empty-draft", editor as never);
+
+      expect(randomUUID).not.toHaveBeenCalled();
+      expect(mocks.chatSyncService.sendDeleteDraft).not.toHaveBeenCalled();
+      expect(mocks.chatSyncService.sendDeleteChat).not.toHaveBeenCalled();
+      expect(mocks.chatSyncService.queueOfflineChange).not.toHaveBeenCalled();
+      expect(mocks.draftState.currentChatId).toBe("example-empty-draft");
     });
   });
 
