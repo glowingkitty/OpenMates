@@ -63,6 +63,11 @@ from backend.core.api.app.services.translations import TranslationService
 # Import tool generator
 from backend.apps.ai.processing.tool_generator import generate_tools_from_apps
 from backend.apps.ai.processing.task_runtime_tools import build_task_runtime_tools, merge_task_runtime_tools
+from backend.apps.ai.processing.task_queue_continuation import (
+    TASK_QUEUE_GUARD_MAX_RETRIES,
+    evaluate_task_queue_post_turn,
+    task_queue_post_turn_prompt,
+)
 from backend.apps.ai.processing.task_tool_context import build_task_context_prompt, resolve_task_tool_context
 from backend.apps.ai.processing.task_tool_executor import (
     TASK_TOOL_CANONICAL_NAMES,
@@ -3089,6 +3094,7 @@ async def handle_main_processing(
     budget_warning_injected = False
     images_search_executed = False  # Track whether images-search ran, to inject embed preview instruction
     force_no_tools = False  # When True, force tool_choice="none" to make LLM answer with gathered info
+    task_queue_guard_retries = 0
     
     # === SKILL CALL DEDUPLICATION ===
     # Track successfully completed skill calls to prevent duplicate executions.
@@ -3788,6 +3794,32 @@ async def handle_main_processing(
         final_buffered_text_for_turn = "".join(current_turn_text_buffer)
 
         if not tool_calls_for_this_turn:
+            task_queue_result = await evaluate_task_queue_post_turn(
+                task_tool_context=task_tool_context,
+                directus_service=directus_service,
+                user_id=request_data.user_id,
+                chat_id=request_data.chat_id,
+                now=int(time.time()),
+            )
+            if (
+                task_queue_result
+                and task_queue_result.get("requires_model_retry")
+                and not force_no_tools
+                and task_queue_guard_retries < TASK_QUEUE_GUARD_MAX_RETRIES
+                and iteration < MAX_TOOL_CALL_ITERATIONS - 1
+            ):
+                task_queue_guard_retries += 1
+                current_message_history.append({"role": "assistant", "content": final_buffered_text_for_turn or None})
+                current_message_history.append({"role": "system", "content": task_queue_post_turn_prompt(task_queue_result)})
+                logger.info(
+                    "%s [TASK_QUEUE_CONTINUATION] Retrying main processing for state=%s task_id=%s retry=%s/%s",
+                    log_prefix,
+                    task_queue_result.get("state"),
+                    task_queue_result.get("task_id"),
+                    task_queue_guard_retries,
+                    TASK_QUEUE_GUARD_MAX_RETRIES,
+                )
+                continue
             # Safety net: if the LLM emitted ONLY hallucinated tool calls (all
             # rejected) and produced no visible text, the user would see zero
             # response.  Force one more LLM iteration with tool_choice="none"

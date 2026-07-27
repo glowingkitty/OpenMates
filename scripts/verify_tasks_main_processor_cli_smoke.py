@@ -167,6 +167,45 @@ def wait_for_task_status(chat_id: str, task_id: str, status: str, *, timeout: in
     raise AssertionError(f"task {task_id} did not reach status {status}: got {last_task}")
 
 
+def create_setup_chat(args: argparse.Namespace, prompt: str) -> str:
+    result = run_cli_json([
+        "chats",
+        "new",
+        prompt,
+        "--no-pii-detection",
+        "--response-timeout-seconds",
+        str(args.chat_timeout),
+    ], timeout=args.chat_timeout + 30)
+    chat_id = result.get("chatId")
+    require(isinstance(chat_id, str) and chat_id, f"setup chat did not return chatId: {result}")
+    return chat_id
+
+
+def create_task_for_chat(chat_id: str, title: str, *, assign: str = "user", status: str = "todo") -> dict[str, Any]:
+    created = run_cli_json([
+        "tasks",
+        "create",
+        "--title",
+        title,
+        "--chat",
+        chat_id,
+        "--assign",
+        assign,
+        "--status",
+        status,
+    ], timeout=60)
+    task = task_from_result(created)
+    require(str(task.get("task_id") or "") and str(task.get("short_id") or ""), f"created task missing identifiers: {task}")
+    return task
+
+
+def assert_no_plans_for_chat(chat_id: str) -> None:
+    result = run_cli_json(["plans", "list", "--chat", chat_id], timeout=60)
+    plans = result.get("plans")
+    require(isinstance(plans, list), f"plans list result did not include plans: {result}")
+    require(plans == [], f"task continuation smoke must not create plans, got {plans}")
+
+
 def wait_for_task_chat(task_id: str, chat_id: str, *, timeout: int) -> dict[str, Any]:
     deadline = time.monotonic() + timeout
     last_task: dict[str, Any] | None = None
@@ -305,6 +344,108 @@ def scenario_block_unblock(args: argparse.Namespace, seed: dict[str, Any]) -> di
     return {"chat_id": chat_id, "task_events": events}
 
 
+def scenario_auto_continuation(args: argparse.Namespace) -> dict[str, Any]:
+    suffix = str(int(time.time()))
+    chat_id = create_setup_chat(
+        args,
+        f"Tasks auto-continuation smoke {suffix}: reply setup complete only. Do not create tasks or plans.",
+    )
+    first = create_task_for_chat(chat_id, f"MPT-{suffix}-AUTO first AI task", assign="ai")
+    second = create_task_for_chat(chat_id, f"MPT-{suffix}-AUTO second AI task", assign="ai")
+    first_id = str(first["task_id"])
+    second_id = str(second["task_id"])
+    first_short = str(first["short_id"])
+    wait_for_task_status(chat_id, first_id, "in_progress", timeout=args.task_ready_timeout)
+    wait_for_task_status(chat_id, second_id, "todo", timeout=args.task_ready_timeout)
+
+    force_cli_sync_refresh()
+    completion = run_cli_json([
+        "chats",
+        "send",
+        "--chat",
+        chat_id,
+        (
+            f"Use the task_complete tool for existing visible task {first_short}, currently version 1. "
+            "Do not create tasks or plans. Reply briefly after the task tool succeeds."
+        ),
+        "--no-pii-detection",
+        "--response-timeout-seconds",
+        str(args.chat_timeout),
+    ], timeout=args.chat_timeout + 30)
+    events = task_events(completion)
+    require(any(event.get("event_type") == "completed" and event.get("task_id") == first_id for event in events), f"expected completed event for {first_id}, got {events}")
+    first_done = wait_for_task_status(chat_id, first_id, "done", timeout=args.task_ready_timeout)
+    second_started = wait_for_task_status(chat_id, second_id, "in_progress", timeout=args.task_ready_timeout)
+    assert_no_plans_for_chat(chat_id)
+    return {"chat_id": chat_id, "task_events": events, "first": first_done, "second": second_started}
+
+
+def scenario_blocking_continuation(args: argparse.Namespace) -> dict[str, Any]:
+    suffix = str(int(time.time()))
+    chat_id = create_setup_chat(
+        args,
+        f"Tasks blocking-continuation smoke {suffix}: reply setup complete only. Do not create tasks or plans.",
+    )
+    first = create_task_for_chat(chat_id, f"MPT-{suffix}-BLOCK first AI task", assign="ai")
+    blocker = create_task_for_chat(chat_id, f"MPT-{suffix}-BLOCK human gate", assign="user", status="blocked")
+    later = create_task_for_chat(chat_id, f"MPT-{suffix}-BLOCK later AI task", assign="ai")
+    first_id = str(first["task_id"])
+    blocker_id = str(blocker["task_id"])
+    later_id = str(later["task_id"])
+
+    wait_for_task_status(chat_id, first_id, "in_progress", timeout=args.task_ready_timeout)
+    wait_for_task_status(chat_id, blocker_id, "blocked", timeout=args.task_ready_timeout)
+    wait_for_task_status(chat_id, later_id, "todo", timeout=args.task_ready_timeout)
+    force_cli_sync_refresh()
+    complete_first = run_cli_json([
+        "chats",
+        "send",
+        "--chat",
+        chat_id,
+        (
+            f"Use the task_complete tool for existing visible task {first['short_id']}, currently version 1. "
+            "Do not create tasks or plans. Reply briefly after the task tool succeeds."
+        ),
+        "--no-pii-detection",
+        "--response-timeout-seconds",
+        str(args.chat_timeout),
+    ], timeout=args.chat_timeout + 30)
+    first_events = task_events(complete_first)
+    require(any(event.get("event_type") == "completed" and event.get("task_id") == first_id for event in first_events), f"expected completed event for {first_id}, got {first_events}")
+    wait_for_task_status(chat_id, first_id, "done", timeout=args.task_ready_timeout)
+    later_still_todo = wait_for_task_status(chat_id, later_id, "todo", timeout=args.task_ready_timeout)
+
+    force_cli_sync_refresh()
+    resolve_blocker = run_cli_json([
+        "chats",
+        "send",
+        "--chat",
+        chat_id,
+        (
+            f"The blocker for existing visible task {blocker['short_id']}, currently version 1, is resolved. "
+            "Use the appropriate task tool to unblock it or mark it complete. Do not create tasks or plans. "
+            "Reply briefly after the task tool succeeds."
+        ),
+        "--no-pii-detection",
+        "--response-timeout-seconds",
+        str(args.chat_timeout),
+    ], timeout=args.chat_timeout + 30)
+    blocker_events = task_events(resolve_blocker)
+    require(
+        any(event.get("event_type") in {"unblocked", "completed"} and event.get("task_id") == blocker_id for event in blocker_events),
+        f"expected unblock or complete event for {blocker_id}, got {blocker_events}",
+    )
+    later_started = wait_for_task_status(chat_id, later_id, "in_progress", timeout=args.task_ready_timeout)
+    assert_no_plans_for_chat(chat_id)
+    return {
+        "chat_id": chat_id,
+        "first_task_events": first_events,
+        "blocker_task_events": blocker_events,
+        "later_before_unblock": later_still_todo,
+        "later_after_unblock": later_started,
+    }
+
+
 def scenario_mention_move(args: argparse.Namespace, seed: dict[str, Any]) -> dict[str, Any]:
     target_chat_id = seed.get("chat_id")
     require(isinstance(target_chat_id, str) and target_chat_id, "create scenario did not return a target chat id")
@@ -373,7 +514,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Verify real CLI main-processor task-tool flows.")
     parser.add_argument("--api-url", default="https://api.dev.openmates.org", help="Real API URL to test against")
     parser.add_argument("--skip-build", action="store_true", help="Do not rebuild the CLI first")
-    parser.add_argument("--scenario", choices=["all", "create", "update", "block-unblock", "mention-move"], default="all")
+    parser.add_argument("--scenario", choices=["all", "create", "update", "block-unblock", "mention-move", "auto-continuation", "blocking-continuation"], default="all")
     parser.add_argument("--chat-timeout", type=int, default=360, help="Seconds per real AI chat CLI call")
     parser.add_argument("--task-ready-timeout", type=int, default=90, help="Seconds to wait for created tasks to become visible before update")
     parser.add_argument("--keep-artifacts", action="store_true", help="Do not delete created chats")
@@ -385,21 +526,37 @@ def main() -> int:
 
     results: dict[str, Any] = {"api_url": args.api_url, "scenarios": {}}
     created_chat_id: str | None = None
+    cleanup_chat_ids: set[str] = set()
     try:
-        seed = scenario_create(args)
-        results["scenarios"]["create"] = seed
-        created_chat_id = seed.get("chat_id") if isinstance(seed.get("chat_id"), str) else None
-        if args.scenario in {"all", "update"}:
+        seed: dict[str, Any] | None = None
+        if args.scenario in {"all", "create", "update", "block-unblock", "mention-move"}:
+            seed = scenario_create(args)
+            results["scenarios"]["create"] = seed
+            created_chat_id = seed.get("chat_id") if isinstance(seed.get("chat_id"), str) else None
+            if created_chat_id:
+                cleanup_chat_ids.add(created_chat_id)
+        if seed and args.scenario in {"all", "update"}:
             results["scenarios"]["update"] = scenario_update(args, seed)
-        if args.scenario in {"all", "block-unblock"}:
+        if seed and args.scenario in {"all", "block-unblock"}:
             results["scenarios"]["block_unblock"] = scenario_block_unblock(args, seed)
-        if args.scenario in {"all", "mention-move"}:
+        if seed and args.scenario in {"all", "mention-move"}:
             results["scenarios"]["mention_move"] = scenario_mention_move(args, seed)
+        if args.scenario in {"all", "auto-continuation"}:
+            auto_result = scenario_auto_continuation(args)
+            results["scenarios"]["auto_continuation"] = auto_result
+            if isinstance(auto_result.get("chat_id"), str):
+                cleanup_chat_ids.add(auto_result["chat_id"])
+        if args.scenario in {"all", "blocking-continuation"}:
+            blocking_result = scenario_blocking_continuation(args)
+            results["scenarios"]["blocking_continuation"] = blocking_result
+            if isinstance(blocking_result.get("chat_id"), str):
+                cleanup_chat_ids.add(blocking_result["chat_id"])
         print(json.dumps(results, indent=2))
         return 0
     finally:
         if not args.keep_artifacts:
-            delete_chat_quietly(created_chat_id)
+            for chat_id in cleanup_chat_ids or ({created_chat_id} if created_chat_id else set()):
+                delete_chat_quietly(chat_id)
 
 
 if __name__ == "__main__":

@@ -678,6 +678,15 @@ def _apply_turn_task_update(context: TaskToolContext, updated_task: dict[str, An
     task_id = str(updated_task.get("task_id") or "")
     if task_id:
         _apply_turn_task_patch(context, task_id, updated_task)
+    queue_result = updated_task.get("queue_result")
+    if isinstance(queue_result, dict) and queue_result.get("state") == "started_next_ai_task":
+        next_task_id = str(queue_result.get("task_id") or "")
+        if next_task_id:
+            _apply_turn_task_patch(
+                context,
+                next_task_id,
+                {"status": "in_progress", "queue_state": "active", "ai_execution_state": "queued"},
+            )
 
 
 def _apply_turn_task_patch(context: TaskToolContext, task_id: str, patch: dict[str, Any]) -> None:

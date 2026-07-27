@@ -28,9 +28,10 @@ class UserTaskQueueService:
             "blocked_reason_code": None,
             "ai_execution_state": "completed",
         })
-        next_task = await self._start_next_eligible(user_id, existing.get("primary_chat_id"), exclude_task_id=task_id, now=current_time)
-        if next_task:
-            task["next_task_id"] = next_task.get("task_id")
+        queue_result = await self.evaluate_chat_queue(user_id, existing.get("primary_chat_id"), exclude_task_id=task_id, now=current_time)
+        task["queue_result"] = queue_result
+        if queue_result.get("state") == "started_next_ai_task":
+            task["next_task_id"] = queue_result.get("task_id")
         return task
 
     async def block_task(
@@ -63,9 +64,10 @@ class UserTaskQueueService:
             "ai_execution_state": None,
             "updated_at": current_time,
         })
-        next_task = await self._start_next_eligible(user_id, existing.get("primary_chat_id"), now=current_time)
-        if next_task:
-            task["next_task_id"] = next_task.get("task_id")
+        queue_result = await self.evaluate_chat_queue(user_id, existing.get("primary_chat_id"), now=current_time)
+        task["queue_result"] = queue_result
+        if queue_result.get("state") == "started_next_ai_task":
+            task["next_task_id"] = queue_result.get("task_id")
         return task
 
     async def skip_task(self, task_id: str, user_id: str, *, version: int, now: int | None = None) -> dict[str, Any]:
@@ -79,9 +81,10 @@ class UserTaskQueueService:
             "ai_execution_state": "skipped",
             "updated_at": current_time,
         })
-        next_task = await self._start_next_eligible(user_id, existing.get("primary_chat_id"), exclude_task_id=task_id, now=current_time)
-        if next_task:
-            task["next_task_id"] = next_task.get("task_id")
+        queue_result = await self.evaluate_chat_queue(user_id, existing.get("primary_chat_id"), exclude_task_id=task_id, now=current_time)
+        task["queue_result"] = queue_result
+        if queue_result.get("state") == "started_next_ai_task":
+            task["next_task_id"] = queue_result.get("task_id")
         return task
 
     async def _get_existing(self, task_id: str, user_id: str) -> dict[str, Any]:
@@ -99,32 +102,63 @@ class UserTaskQueueService:
             raise UserTaskConflictError("Task version changed before the action")
         return updated
 
-    async def _start_next_eligible(
+    async def evaluate_chat_queue(
         self,
         user_id: str,
         chat_id: str | None,
         *,
         exclude_task_id: str | None = None,
         now: int,
-    ) -> dict[str, Any] | None:
+    ) -> dict[str, Any]:
         if not chat_id:
-            return None
-        candidates = await self.task_methods.list_tasks(user_id, chat_id=chat_id, status="todo")
-        next_task = next(
+            return {"state": "no_chat"}
+        candidates = await self.task_methods.list_tasks(user_id, chat_id=chat_id, limit=500)
+        for task in self._ordered_workable_tasks(candidates, exclude_task_id=exclude_task_id):
+            task_id = str(task.get("task_id") or "")
+            if self._is_blocking_task(task):
+                return {
+                    "state": "blocked_by_human_task" if task.get("assignee_type") != "ai" else "blocked_by_ai_task",
+                    "task_id": task_id,
+                    "chat_id": chat_id,
+                    "blocked_reason_code": task.get("blocked_reason_code") or "needs_user_input",
+                }
+            if task.get("assignee_type") != "ai":
+                continue
+            if self._task_status(task) == "in_progress":
+                return {"state": "active_ai_task", "task_id": task_id, "chat_id": chat_id}
+            if self._task_status(task) != "todo":
+                continue
+            updated = await self._update(task_id, user_id, {
+                "version": task.get("version"),
+                "status": "in_progress",
+                "queue_state": "active",
+                "ai_execution_state": "queued",
+                "started_at": task.get("started_at") or now,
+                "updated_at": now,
+            })
+            return {"state": "started_next_ai_task", "task_id": updated.get("task_id"), "chat_id": chat_id}
+        return {"state": "no_work", "chat_id": chat_id}
+
+    def _ordered_workable_tasks(self, tasks: list[dict[str, Any]], *, exclude_task_id: str | None = None) -> list[dict[str, Any]]:
+        return sorted(
             (
                 task
-                for task in candidates
-                if task.get("task_id") != exclude_task_id and task.get("assignee_type") == "ai"
+                for task in tasks
+                if task.get("task_id") != exclude_task_id
+                and self._task_status(task) not in {"done", "backlog"}
+                and task.get("queue_state") != "skipped"
             ),
-            None,
+            key=lambda task: (self._sort_int(task.get("position")), self._sort_int(task.get("created_at"))),
         )
-        if not next_task:
-            return None
-        return await self._update(str(next_task["task_id"]), user_id, {
-            "version": next_task.get("version"),
-            "status": "in_progress",
-            "queue_state": "active",
-            "ai_execution_state": "queued",
-            "started_at": next_task.get("started_at") or now,
-            "updated_at": now,
-        })
+
+    def _is_blocking_task(self, task: dict[str, Any]) -> bool:
+        return self._task_status(task) == "blocked" or task.get("queue_state") == "waiting_for_user"
+
+    def _task_status(self, task: dict[str, Any]) -> str:
+        return str(task.get("status") or "todo")
+
+    def _sort_int(self, value: Any) -> int:
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return 0

@@ -32,6 +32,8 @@ USER_TASK_KEY_WRAPPER_FIELDS = (
     "hashed_plan_id,hashed_team_id,team_key_epoch,encrypted_task_key,created_at,expires_at,wrapper_version"
 )
 
+USER_TASK_EXECUTION_CONTEXT_FIELDS = "id,hashed_user_id,hashed_task_id,hashed_chat_id,encrypted_context,created_at,expires_at"
+
 
 def hash_id(value: str) -> str:
     return hashlib.sha256(value.encode()).hexdigest()
@@ -482,6 +484,66 @@ class UserTaskMethods:
         }
         response = await self.directus_service.get_items("user_task_key_wrappers", params=params, no_cache=True, admin_required=True)
         return response if isinstance(response, list) else []
+
+    async def create_task_execution_context(
+        self,
+        *,
+        user_id: str,
+        task_id: str,
+        chat_id: str,
+        encrypted_context: str,
+        created_at: int,
+        expires_at: int,
+    ) -> dict[str, Any] | None:
+        if expires_at <= created_at:
+            raise ValueError("Task execution context must expire after creation")
+        record = {
+            "hashed_user_id": hash_id(user_id),
+            "hashed_task_id": hash_id(task_id),
+            "hashed_chat_id": hash_id(chat_id),
+            "encrypted_context": encrypted_context,
+            "created_at": created_at,
+            "expires_at": expires_at,
+        }
+        success, data = await self.directus_service.create_item("user_task_execution_contexts", record, admin_required=True)
+        if not success:
+            logger.error("Failed to create user task execution context: %s", data)
+            return None
+        return data
+
+    async def get_task_execution_context(self, *, user_id: str, task_id: str, chat_id: str, now: int) -> dict[str, Any] | None:
+        params = {
+            "filter[hashed_user_id][_eq]": hash_id(user_id),
+            "filter[hashed_task_id][_eq]": hash_id(task_id),
+            "filter[hashed_chat_id][_eq]": hash_id(chat_id),
+            "filter[expires_at][_gt]": now,
+            "fields": USER_TASK_EXECUTION_CONTEXT_FIELDS,
+            "sort": "-created_at",
+            "limit": 1,
+        }
+        response = await self.directus_service.get_items("user_task_execution_contexts", params=params, no_cache=True, admin_required=True)
+        if response and isinstance(response, list):
+            return response[0]
+        return None
+
+    async def delete_expired_task_execution_contexts(self, now: int, *, limit: int = 100) -> int:
+        response = await self.directus_service.get_items(
+            "user_task_execution_contexts",
+            params={
+                "filter[expires_at][_lte]": now,
+                "fields": "id",
+                "limit": max(1, min(limit, 500)),
+            },
+            no_cache=True,
+            admin_required=True,
+        )
+        contexts = response if isinstance(response, list) else []
+        deleted = 0
+        for context in contexts:
+            context_id = context.get("id")
+            if context_id and await self.directus_service.delete_item("user_task_execution_contexts", context_id, admin_required=True) is not False:
+                deleted += 1
+        return deleted
 
     async def update_task(self, task_id: str, user_id: str, patch: dict[str, Any]) -> dict[str, Any] | None:
         lock_key = self._task_lock_key(user_id, task_id)

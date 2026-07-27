@@ -104,3 +104,86 @@ async def test_complete_starts_next_eligible_ai_task() -> None:
     assert methods.update_task_if_version.await_args_list[1].args[3] == 1
     assert next_patch["status"] == "in_progress"
     assert next_patch["queue_state"] == "active"
+
+
+@pytest.mark.asyncio
+async def test_complete_uses_ordered_chat_queue_for_next_ai_task() -> None:
+    methods = AsyncMock()
+    methods.get_task.return_value = {"task_id": "task-1", "primary_chat_id": "chat-1", "version": 5}
+    methods.list_tasks.return_value = [
+        {"task_id": "task-late", "assignee_type": "ai", "status": "todo", "version": 1, "position": 30, "created_at": 100},
+        {"task_id": "task-early", "assignee_type": "ai", "status": "todo", "version": 2, "position": 20, "created_at": 200},
+        {"task_id": "task-same-position", "assignee_type": "ai", "status": "todo", "version": 3, "position": 20, "created_at": 100},
+    ]
+    methods.update_task_if_version.side_effect = [
+        {"task_id": "task-1", "status": "done", "queue_state": "none"},
+        {"task_id": "task-same-position", "status": "in_progress", "queue_state": "active"},
+    ]
+
+    result = await UserTaskQueueService(methods).complete_task("task-1", "user-1", version=5, now=1200)
+
+    assert result["next_task_id"] == "task-same-position"
+    assert result["queue_result"] == {
+        "state": "started_next_ai_task",
+        "task_id": "task-same-position",
+        "chat_id": "chat-1",
+    }
+    methods.list_tasks.assert_awaited_once_with("user-1", chat_id="chat-1", limit=500)
+    next_call = methods.update_task_if_version.await_args_list[1]
+    assert next_call.args[0] == "task-same-position"
+    assert next_call.args[3] == 3
+
+
+@pytest.mark.asyncio
+async def test_complete_pauses_on_blocking_human_task_before_later_ai_task() -> None:
+    methods = AsyncMock()
+    methods.get_task.return_value = {"task_id": "task-1", "primary_chat_id": "chat-1", "version": 5}
+    methods.list_tasks.return_value = [
+        {
+            "task_id": "task-human-blocker",
+            "assignee_type": "user",
+            "status": "blocked",
+            "queue_state": "waiting_for_user",
+            "blocked_reason_code": "needs_user_input",
+            "position": 20,
+            "created_at": 100,
+        },
+        {"task_id": "task-ai", "assignee_type": "ai", "status": "todo", "version": 2, "position": 30, "created_at": 100},
+    ]
+    methods.update_task_if_version.return_value = {"task_id": "task-1", "status": "done", "queue_state": "none"}
+
+    result = await UserTaskQueueService(methods).complete_task("task-1", "user-1", version=5, now=1200)
+
+    assert "next_task_id" not in result
+    assert result["queue_result"] == {
+        "state": "blocked_by_human_task",
+        "task_id": "task-human-blocker",
+        "chat_id": "chat-1",
+        "blocked_reason_code": "needs_user_input",
+    }
+    assert methods.update_task_if_version.await_count == 1
+
+
+@pytest.mark.asyncio
+async def test_complete_skips_independent_human_task_and_starts_later_ai_task() -> None:
+    methods = AsyncMock()
+    methods.get_task.return_value = {"task_id": "task-1", "primary_chat_id": "chat-1", "version": 5}
+    methods.list_tasks.return_value = [
+        {"task_id": "task-human", "assignee_type": "user", "status": "todo", "queue_state": "none", "position": 20, "created_at": 100},
+        {"task_id": "task-ai", "assignee_type": "ai", "status": "todo", "version": 2, "position": 30, "created_at": 100},
+    ]
+    methods.update_task_if_version.side_effect = [
+        {"task_id": "task-1", "status": "done", "queue_state": "none"},
+        {"task_id": "task-ai", "status": "in_progress", "queue_state": "active"},
+    ]
+
+    result = await UserTaskQueueService(methods).complete_task("task-1", "user-1", version=5, now=1200)
+
+    assert result["next_task_id"] == "task-ai"
+    assert result["queue_result"] == {
+        "state": "started_next_ai_task",
+        "task_id": "task-ai",
+        "chat_id": "chat-1",
+    }
+    next_call = methods.update_task_if_version.await_args_list[1]
+    assert next_call.args[0] == "task-ai"
