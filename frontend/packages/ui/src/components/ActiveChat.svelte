@@ -221,6 +221,7 @@
     const DRAFT_EMBED_HYDRATION_DELAY_MS = 250;
     const ON_DEMAND_MESSAGE_LOAD_POLL_ATTEMPTS = 20;
     const ON_DEMAND_MESSAGE_LOAD_POLL_DELAY_MS = 500;
+    const E2E_DRAFT_FLUSH_TIMEOUT_MS = 10_000;
     const MESSAGE_WINDOW_LIMIT = 30;
     const EMBED_ID_IN_REF_RE = /[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/i;
     function extractPlainIdeaBucketText(markdown: string): string | null {
@@ -2829,7 +2830,19 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 throw new Error('Message input draft replacement helper is unavailable');
             }
             await inputRef.replaceDraftWithPlainText(chatId, text, version, true);
-            await inputRef.flushCurrentDraft?.();
+            const flushResult = inputRef.flushCurrentDraft?.();
+            if (flushResult) {
+                let didFlushComplete = false;
+                await Promise.race([
+                    Promise.resolve(flushResult).then(() => {
+                        didFlushComplete = true;
+                    }),
+                    new Promise<void>((resolve) => window.setTimeout(resolve, E2E_DRAFT_FLUSH_TIMEOUT_MS)),
+                ]);
+                if (!didFlushComplete) {
+                    console.warn('[ActiveChat] E2E draft replacement flush timed out; continuing so the test can assert persisted draft state', { chatId });
+                }
+            }
             return { text: inputRef.getTextContent() };
         };
         const loadLocalChatHelper = async ({ chatId, chat }: { chatId: string; chat?: Chat }) => {
