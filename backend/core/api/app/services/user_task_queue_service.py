@@ -148,7 +148,7 @@ class UserTaskQueueService:
                 and self._task_status(task) not in {"done", "backlog"}
                 and task.get("queue_state") != "skipped"
             ),
-            key=lambda task: (self._sort_int(task.get("position")), self._sort_int(task.get("created_at"))),
+            key=lambda task: (self._sort_int(task.get("position")), self._sort_int(task.get("created_at")), str(task.get("task_id") or "")),
         )
 
     def _is_blocking_task(self, task: dict[str, Any]) -> bool:

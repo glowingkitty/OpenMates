@@ -332,6 +332,43 @@ async def test_client_persisted_task_update_sequences_later_completion_in_same_t
 
 
 @pytest.mark.asyncio
+async def test_repeated_task_create_calls_get_monotonic_positions_in_same_turn() -> None:
+    stored_jobs: list[dict] = []
+    stored_working_copies: list[dict] = []
+
+    class FakeCache:
+        async def set(self, key: str, value: dict, ttl: int | None = None) -> bool:
+            if key.startswith("user_task_update_job:"):
+                stored_jobs.append(value)
+            if key.startswith("user_task_working_copy:"):
+                stored_working_copies.append(value)
+            return True
+
+    class FakeEncryption:
+        async def encrypt_with_user_key(self, plaintext: str, vault_key_id: str) -> tuple[str, int]:
+            return f"cipher:{plaintext}", 1
+
+    context = TaskToolContext(user_id="user-1", chat_id="chat-1")
+    for title in ["First", "Second", "Third"]:
+        result = await execute_task_tool_call(
+            tool_name=TASK_TOOL_CREATE,
+            args={"title": title, "assignee_type": "ai", "status": "todo"},
+            context=context,
+            cache_service=FakeCache(),
+            directus_service=AsyncMock(),
+            encryption_service=FakeEncryption(),
+            user_vault_key_id="vault-key-1",
+            message_id="message-1",
+        )
+        assert result["status"] == "pending_client_persistence"
+
+    assert len(stored_jobs) == 3
+    staged_positions = [copy["safe_metadata"]["position"] for copy in stored_working_copies]
+    assert staged_positions == sorted(staged_positions)
+    assert len(set(staged_positions)) == 3
+
+
+@pytest.mark.asyncio
 async def test_task_move_job_includes_source_task_chat_for_client_lookup() -> None:
     stored_jobs: list[dict] = []
 

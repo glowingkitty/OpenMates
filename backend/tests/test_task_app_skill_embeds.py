@@ -30,6 +30,7 @@ class FakeTaskStageService:
         description: str,
         assignee_type: str,
         status: str,
+        position: int | None = None,
     ) -> dict[str, Any]:
         call = {
             "user_id": user_id,
@@ -39,6 +40,7 @@ class FakeTaskStageService:
             "description": description,
             "assignee_type": assignee_type,
             "status": status,
+            "position": position,
         }
         self.calls.append(call)
         index = len(self.calls)
@@ -91,6 +93,10 @@ async def test_task_create_returns_embed_ready_children_without_system_events() 
 
     assert stage_service.calls[0]["assignee_type"] == "user"
     assert stage_service.calls[1]["assignee_type"] == "ai"
+    assert [call["position"] for call in stage_service.calls] == [
+        stage_service.calls[0]["position"],
+        stage_service.calls[0]["position"] + 1,
+    ]
 
 
 @pytest.mark.anyio
@@ -119,6 +125,7 @@ async def test_task_create_accepts_flat_single_task_arguments() -> None:
             "description": "Check launch blockers",
             "assignee_type": "user",
             "status": "todo",
+            "position": stage_service.calls[0]["position"],
         }
     ]
 

@@ -147,6 +147,8 @@ async def execute_task_tool_call(
     skill_id = task_tool_skill_id(tool_name)
     if skill_id == "create":
         task_id = str(uuid.uuid4())
+        position = _safe_int(args.get("position"), default=now + context.created_task_sequence)
+        context.created_task_sequence += 1
         return await _stage_client_persisted_task_change(
             operation="create",
             event_type="created",
@@ -160,7 +162,7 @@ async def execute_task_tool_call(
                 "status": _safe_status(args.get("status"), default="todo"),
                 "assignee_type": _safe_assignee_type(args.get("assignee_type")),
                 "primary_chat_id": context.chat_id,
-                "position": now,
+                "position": position,
                 "created_at": now,
                 "updated_at": now,
             },
@@ -718,6 +720,13 @@ def _safe_status(value: Any, *, default: str) -> str:
 
 def _safe_assignee_type(value: Any) -> str:
     return "ai" if value == "ai" else "user"
+
+
+def _safe_int(value: Any, *, default: int) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
 
 
 def _client_job_summary(job: dict[str, Any]) -> dict[str, Any]:

@@ -60,6 +60,7 @@ class TaskStageService:
         description: str,
         assignee_type: str,
         status: str,
+        position: int | None = None,
     ) -> dict[str, Any]:
         context = TaskToolContext(user_id=user_id, chat_id=chat_id or "")
         result = await execute_task_tool_call(
@@ -69,6 +70,7 @@ class TaskStageService:
                 "description": description,
                 "assignee_type": assignee_type,
                 "status": status,
+                "position": position,
             },
             context=context,
             cache_service=self.cache_service,
@@ -117,7 +119,8 @@ class CreateSkill(BaseSkill):
                 user_vault_key_id=user_vault_key_id,
             )
             results: list[dict[str, Any]] = []
-            for task_input in task_inputs:
+            base_position = int(time.time())
+            for index, task_input in enumerate(task_inputs):
                 assignment = normalize_task_assignment(task_input.get("assignee"))
                 task_status = _safe_create_status(task_input.get("status"))
                 staged = await stage_service.stage_create(
@@ -128,6 +131,7 @@ class CreateSkill(BaseSkill):
                     description=str(task_input.get("description") or ""),
                     assignee_type=assignment.storage_assignee_type,
                     status=task_status,
+                    position=base_position + index,
                 )
                 results.append(_task_embed_result(task_input, staged, task_status))
             return CreateTasksResponse(success=True, results=results, result_count=len(results))

@@ -18,7 +18,8 @@ from typing import Any
 
 
 ROOT = Path(__file__).resolve().parents[1]
-CLI_DIR = ROOT / "frontend" / "packages" / "openmates-cli"
+DEFAULT_CLI_DIR = ROOT / "frontend" / "packages" / "openmates-cli"
+CLI_DIR = DEFAULT_CLI_DIR
 
 
 def run(command: list[str], *, cwd: Path = ROOT, check: bool = True, timeout: int = 240) -> subprocess.CompletedProcess[str]:
@@ -34,8 +35,7 @@ def run_cli(args: list[str], *, check: bool = True, timeout: int = 240) -> subpr
     return run(["node", "dist/cli.js", *args], cwd=CLI_DIR, check=check, timeout=timeout)
 
 
-def run_cli_json(args: list[str], *, timeout: int = 240) -> dict[str, Any]:
-    output = run_cli([*args, "--json"], timeout=timeout).stdout
+def parse_cli_json(output: str, args: list[str]) -> dict[str, Any]:
     try:
         parsed = json.loads(output)
     except json.JSONDecodeError as exc:
@@ -43,6 +43,11 @@ def run_cli_json(args: list[str], *, timeout: int = 240) -> dict[str, Any]:
     if not isinstance(parsed, dict):
         raise AssertionError(f"CLI returned non-object JSON for {' '.join(args)}: {parsed!r}")
     return parsed
+
+
+def run_cli_json(args: list[str], *, timeout: int = 240) -> dict[str, Any]:
+    output = run_cli([*args, "--json"], timeout=timeout).stdout
+    return parse_cli_json(output, args)
 
 
 def require(condition: bool, message: str) -> None:
@@ -100,6 +105,11 @@ def wait_for_visible_tasks(chat_id: str, task_ids: set[str], *, timeout: int) ->
 def force_cli_sync_refresh() -> None:
     sync_cache = Path.home() / ".openmates" / "sync_cache.json"
     sync_cache.unlink(missing_ok=True)
+
+
+def refresh_cli_chat_sync(chat_id: str) -> dict[str, Any]:
+    force_cli_sync_refresh()
+    return run_cli_json(["chats", "show", chat_id], timeout=90)
 
 
 def wait_for_updated_task_state(
@@ -204,6 +214,59 @@ def assert_no_plans_for_chat(chat_id: str) -> None:
     plans = result.get("plans")
     require(isinstance(plans, list), f"plans list result did not include plans: {result}")
     require(plans == [], f"task continuation smoke must not create plans, got {plans}")
+
+
+def list_chat_tasks(chat_id: str, *, refresh_sync: bool = False) -> list[dict[str, Any]]:
+    if refresh_sync:
+        refresh_cli_chat_sync(chat_id)
+    return tasks_from_result(run_cli_json(["tasks", "list", "--chat", chat_id], timeout=60))
+
+
+def wait_for_tasks_with_titles(chat_id: str, titles: list[str], *, timeout: int) -> list[dict[str, Any]]:
+    expected = {title.lower(): title for title in titles}
+    deadline = time.monotonic() + timeout
+    last_tasks: list[dict[str, Any]] = []
+    last_chat: dict[str, Any] | None = None
+    while time.monotonic() < deadline:
+        last_chat = refresh_cli_chat_sync(chat_id)
+        last_tasks = list_chat_tasks(chat_id)
+        by_title = {str(task.get("title") or "").lower(): task for task in last_tasks}
+        if expected.keys() <= by_title.keys():
+            return [by_title[title.lower()] for title in titles]
+        time.sleep(2)
+    raise AssertionError(
+        f"expected natural-language-created task titles {titles}, got tasks={last_tasks}, chat={last_chat}"
+    )
+
+
+def completed_natural_tasks(tasks: list[dict[str, Any]], titles: list[str]) -> set[str]:
+    title_set = {title.lower() for title in titles}
+    return {
+        str(task.get("title") or "")
+        for task in tasks
+        if str(task.get("title") or "").lower() in title_set and task.get("status") == "done"
+    }
+
+
+def wait_for_natural_task_progress(
+    chat_id: str,
+    titles: list[str],
+    previous_completed: set[str],
+    *,
+    timeout: int,
+) -> list[dict[str, Any]]:
+    deadline = time.monotonic() + timeout
+    last_tasks: list[dict[str, Any]] = []
+    while time.monotonic() < deadline:
+        last_tasks = wait_for_tasks_with_titles(chat_id, titles, timeout=10)
+        completed = completed_natural_tasks(last_tasks, titles)
+        if len(completed) > len(previous_completed) or len(completed) == len(titles):
+            return last_tasks
+        time.sleep(2)
+    raise AssertionError(
+        f"natural-language follow-up did not complete another task; "
+        f"previous={sorted(previous_completed)}, got={last_tasks}"
+    )
 
 
 def wait_for_task_chat(task_id: str, chat_id: str, *, timeout: int) -> dict[str, Any]:
@@ -446,6 +509,107 @@ def scenario_blocking_continuation(args: argparse.Namespace) -> dict[str, Any]:
     }
 
 
+def scenario_natural_task_workflow(args: argparse.Namespace) -> dict[str, Any]:
+    suffix = str(int(time.time()))
+    titles = [
+        f"MPT-{suffix}-NAT draft one sentence launch note",
+        f"MPT-{suffix}-NAT identify one launch risk",
+        f"MPT-{suffix}-NAT write final go recommendation",
+    ]
+    prompt = (
+        "I need help organizing a tiny launch prep checklist. "
+        "Please create exactly three AI-owned tasks in this chat, one task for each numbered title below. "
+        "Copy each title exactly, do not create duplicate or untitled tasks, and do not start working on the tasks yet. "
+        f"1. {titles[0]} 2. {titles[1]} 3. {titles[2]}. "
+        "Do not create a plan."
+    )
+    result = run_cli_json([
+        "chats",
+        "new",
+        prompt,
+        "--no-pii-detection",
+        "--response-timeout-seconds",
+        str(args.chat_timeout),
+    ], timeout=args.chat_timeout + 30)
+    chat_id = result.get("chatId")
+    require(isinstance(chat_id, str) and chat_id, f"natural workflow did not return chatId: {result}")
+    events = task_events(result)
+    require(pending_jobs(result) == [], "CLI should finish natural task update jobs before final JSON output")
+    assert_no_plans_for_chat(chat_id)
+
+    tasks = wait_for_tasks_with_titles(chat_id, titles, timeout=args.task_ready_timeout)
+    require(
+        all(str(task.get("assignee_type") or "") == "ai" for task in tasks),
+        f"expected natural workflow tasks to be AI-owned, got {tasks}",
+    )
+    completed = completed_natural_tasks(tasks, titles)
+    followup_results: list[dict[str, Any]] = []
+    for attempt, title in enumerate(titles[: args.natural_followup_turns], start=1):
+        if len(completed) == len(titles):
+            break
+        force_cli_sync_refresh()
+        followup_args = [
+            "chats",
+            "send",
+            "--chat",
+            chat_id,
+            (
+                f"Please work on the existing task titled \"{title}\" in this chat. "
+                "Use only your current knowledge, do not browse the web, write the result briefly, "
+                "and mark that task complete when finished. Do not create new tasks and do not create a plan."
+            ),
+            "--no-pii-detection",
+            "--response-timeout-seconds",
+            str(args.chat_timeout),
+        ]
+        followup_process = run_cli([*followup_args, "--json"], check=False, timeout=args.chat_timeout + 30)
+        recovered_preflight_conflict = False
+        if followup_process.returncode == 0:
+            followup = parse_cli_json(followup_process.stdout, followup_args)
+            followup_events = task_events(followup)
+            events.extend(followup_events)
+            require(pending_jobs(followup) == [], "CLI should finish natural follow-up task update jobs before final JSON output")
+            tasks = wait_for_natural_task_progress(
+                chat_id,
+                titles,
+                completed,
+                timeout=args.task_ready_timeout,
+            )
+        else:
+            combined_output = f"{followup_process.stdout}\n{followup_process.stderr}"
+            if "Encrypted chat preflight was rejected" not in combined_output:
+                sys.stderr.write(followup_process.stdout)
+                sys.stderr.write(followup_process.stderr)
+                raise RuntimeError(f"Command failed ({followup_process.returncode}): node dist/cli.js {' '.join(followup_args)} --json")
+            recovered_preflight_conflict = True
+            tasks = wait_for_natural_task_progress(
+                chat_id,
+                titles,
+                completed,
+                timeout=args.task_ready_timeout,
+            )
+            followup_events = []
+        assert_no_plans_for_chat(chat_id)
+        followup_results.append({
+            "attempt": attempt,
+            "title": title,
+            "task_events": followup_events,
+            "recovered_preflight_conflict": recovered_preflight_conflict,
+        })
+        completed = completed_natural_tasks(tasks, titles)
+
+    require(len(completed) == len(titles), f"expected all natural workflow tasks completed, got tasks={tasks}")
+    require(any(event.get("event_type") == "completed" for event in events), f"expected completed task events, got {events}")
+    assert_no_plans_for_chat(chat_id)
+    return {
+        "chat_id": chat_id,
+        "titles": titles,
+        "task_events": events,
+        "followups": followup_results,
+        "final_tasks": tasks,
+    }
+
+
 def scenario_mention_move(args: argparse.Namespace, seed: dict[str, Any]) -> dict[str, Any]:
     target_chat_id = seed.get("chat_id")
     require(isinstance(target_chat_id, str) and target_chat_id, "create scenario did not return a target chat id")
@@ -511,14 +675,32 @@ def delete_chat_quietly(chat_id: str | None) -> None:
 
 
 def main() -> int:
+    global CLI_DIR
+
     parser = argparse.ArgumentParser(description="Verify real CLI main-processor task-tool flows.")
     parser.add_argument("--api-url", default="https://api.dev.openmates.org", help="Real API URL to test against")
+    parser.add_argument("--cli-dir", default=str(DEFAULT_CLI_DIR), help="Path to a built frontend/packages/openmates-cli directory")
     parser.add_argument("--skip-build", action="store_true", help="Do not rebuild the CLI first")
-    parser.add_argument("--scenario", choices=["all", "create", "update", "block-unblock", "mention-move", "auto-continuation", "blocking-continuation"], default="all")
+    parser.add_argument(
+        "--scenario",
+        choices=[
+            "all",
+            "create",
+            "update",
+            "block-unblock",
+            "mention-move",
+            "auto-continuation",
+            "blocking-continuation",
+            "natural-task-workflow",
+        ],
+        default="all",
+    )
     parser.add_argument("--chat-timeout", type=int, default=360, help="Seconds per real AI chat CLI call")
     parser.add_argument("--task-ready-timeout", type=int, default=90, help="Seconds to wait for created tasks to become visible before update")
+    parser.add_argument("--natural-followup-turns", type=int, default=5, help="Maximum natural follow-up turns to finish natural workflow tasks")
     parser.add_argument("--keep-artifacts", action="store_true", help="Do not delete created chats")
     args = parser.parse_args()
+    CLI_DIR = Path(args.cli_dir).resolve()
 
     if not args.skip_build:
         run(["npm", "run", "build"], cwd=CLI_DIR, timeout=180)
@@ -551,6 +733,11 @@ def main() -> int:
             results["scenarios"]["blocking_continuation"] = blocking_result
             if isinstance(blocking_result.get("chat_id"), str):
                 cleanup_chat_ids.add(blocking_result["chat_id"])
+        if args.scenario in {"all", "natural-task-workflow"}:
+            natural_result = scenario_natural_task_workflow(args)
+            results["scenarios"]["natural_task_workflow"] = natural_result
+            if isinstance(natural_result.get("chat_id"), str):
+                cleanup_chat_ids.add(natural_result["chat_id"])
         print(json.dumps(results, indent=2))
         return 0
     finally:

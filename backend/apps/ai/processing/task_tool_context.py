@@ -28,6 +28,7 @@ class TaskToolContext:
     referenced_tasks: list[dict[str, Any]] = field(default_factory=list)
     missing_reference_ids: list[str] = field(default_factory=list)
     client_persisted_task_ids: set[str] = field(default_factory=set)
+    created_task_sequence: int = 0
 
     @property
     def visible_tasks(self) -> list[dict[str, Any]]:
