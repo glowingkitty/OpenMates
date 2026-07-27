@@ -153,14 +153,23 @@ attempts:
     approach: Create a focused Schema V2 spec linked to Tasks V1 and Tasks Main Processor Tools before adding red tests.
     outcome: planned
     recorded_at: "2026-07-27T00:00:00Z"
+  - id: ATTEMPT-2
+    task_id: TASK-7
+    approach: Rerun deployed real CLI natural-task-workflow smoke after fixing duplicate same-title staged task creates.
+    outcome: succeeded
+    recorded_at: "2026-07-27T15:42:04Z"
+    command: set -a && . "/home/superdev/projects/OpenMates/.env" && set +a && python3 scripts/verify_tasks_main_processor_cli_smoke.py --api-url https://api.dev.openmates.org --cli-dir "/home/superdev/projects/OpenMates/frontend/packages/openmates-cli" --scenario natural-task-workflow --skip-build --chat-timeout 420 --task-ready-timeout 120 --natural-followup-turns 6 --keep-artifacts
+    run_id: local-20260727T1541Z-chat-c513cc86-2866-4178-b811-0afde3ac494f
+    subject_commit: ac61711950e5adc191f7475fafa768225c6ffb65
+    summary: Real dev CLI natural-task workflow created exactly three chat-attached AI tasks, observed one create event per title, and completed all three exact-title follow-ups without duplicate persisted tasks or plan creation.
 
 handoff:
   current_task_id: TASK-7
-  next_action: Implementation and verification complete; deploy if the session requires committing these changes.
+  next_action: Implementation and verification complete; live natural CLI evidence recorded.
   command: python3 scripts/spec_verify.py docs/specs/task-queue-auto-continuation/spec.yml --phase complete
   expected_outcome: Spec verification passed for recorded red, green, and final evidence.
   blocker: null
-  last_verified_commit: cc08b649bf9fd81e387e442fd2679d81836eb8b0+working-tree-20260727T140704Z
+  last_verified_commit: ac61711950e5adc191f7475fafa768225c6ffb65
 
 scenarios:
   - id: S-1
