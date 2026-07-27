@@ -33,11 +33,9 @@ const CYCLES = 5;
 const CHAT_LOAD_TIMEOUT = 12000;
 const SETTINGS_TIMEOUT = 8000;
 
-async function openForEveryoneIntroChat(page: any) {
+async function openFirstIntroOrExampleChat(page: any) {
 	const skipInterests = page.getByTestId('guest-interest-skip');
-	const forEveryoneCard = page
-		.locator('[data-testid="resume-chat-large-card"][data-chat-id="demo-for-everyone"], [data-testid="resume-chat-card"][data-chat-id="demo-for-everyone"]')
-		.first();
+	const firstCard = page.locator('[data-testid="resume-chat-large-card"], [data-testid="resume-chat-card"]').first();
 	const newChatButton = page.getByTestId('new-chat-cta-fullwidth');
 
 	if (await skipInterests.isVisible({ timeout: 5000 }).catch(() => false)) {
@@ -46,8 +44,8 @@ async function openForEveryoneIntroChat(page: any) {
 	}
 
 	if (!(await newChatButton.isVisible({ timeout: 1000 }).catch(() => false))) {
-		await expect(forEveryoneCard).toBeVisible({ timeout: 10000 });
-		await forEveryoneCard.click();
+		await expect(firstCard).toBeVisible({ timeout: 10000 });
+		await firstCard.click();
 	}
 
 	await expect(newChatButton).toBeVisible({ timeout: 15000 });
@@ -85,8 +83,8 @@ test.describe('Unauthenticated chat navigation stays reactive', () => {
 		await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 10000 });
 		expect(await page.evaluate(() => window.location.hash)).not.toContain('demo-for-everyone');
 		console.log('[chat-nav] Initial logged-out welcome screen loaded');
-		await openForEveryoneIntroChat(page);
-		console.log('[chat-nav] Intro chat opened after guest-interest onboarding');
+		await openFirstIntroOrExampleChat(page);
+		console.log('[chat-nav] Intro/example chat opened after guest-interest onboarding');
 
 		// ─── 2. Cycle: new chat → intro/example chat card, CYCLES times ──────
 		for (let cycle = 1; cycle <= CYCLES; cycle++) {
