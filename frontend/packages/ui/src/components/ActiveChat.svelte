@@ -327,7 +327,7 @@
 
     type ActiveChatE2EWindow = Window & {
         __openmatesE2EReplaceDraft?: (input: { chatId: string; text: string; version?: number }) => Promise<{ text: string }>;
-        __openmatesE2ELoadLocalChat?: (input: { chatId: string }) => Promise<{ chatId: string }>;
+        __openmatesE2ELoadLocalChat?: (input: { chatId: string; chat?: Chat }) => Promise<{ chatId: string }>;
     };
 
     type EmbedDataRecord = EmbedStoreEntry | EmbedResolverData | Partial<EmbedResolverData>;
@@ -2755,10 +2755,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             await inputRef.flushCurrentDraft?.();
             return { text: inputRef.getTextContent() };
         };
-        const loadLocalChatHelper = async ({ chatId }: { chatId: string }) => {
-            await chatDB.init();
-            const rawChat = await chatDB.getRawChat(chatId).catch(() => null);
-            const chat = rawChat ?? await chatDB.getChat(chatId);
+        const loadLocalChatHelper = async ({ chatId, chat }: { chatId: string; chat?: Chat }) => {
             if (!chat) throw new Error(`Local chat ${chatId} is unavailable`);
             activeChatStore.setActiveChat(chatId);
             void loadChat(chat).catch((error) => {
