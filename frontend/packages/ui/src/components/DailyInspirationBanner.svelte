@@ -1597,7 +1597,7 @@
   .daily-inspiration-wrapper.landing-intro-overlay-active {
     position: absolute;
     inset: 0;
-    height: 100%;
+    bottom: calc(-1 * var(--landing-intro-input-reserve, 0px));
     z-index: var(--z-index-dropdown-1);
   }
 

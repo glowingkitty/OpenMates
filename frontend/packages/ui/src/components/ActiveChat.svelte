@@ -2781,6 +2781,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     // Add state for message input height using $state
     let messageInputHeight = $state(0);
+    let messageInputWrapperHeight = $state(0);
 
     function getInitialActiveChatIdFromStore(): string | null {
         if (typeof window === 'undefined') return null;
@@ -3458,7 +3459,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         return [...sharedMetas, ...rankedCommunityMetas];
     }
 
-    // State for non-authenticated users' intro + example chats scroll list
+    // State for non-authenticated users' example chats scroll list
     let nonAuthRecentChats = $state<RecentChatMeta[]>([]);
     let nonAuthRecentChatsRequestId = 0;
 
@@ -11987,6 +11988,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 class:side-by-side-restoring={sideBySideAnimating && sideBySideAnimationDirection === 'restore'}
                 class:landing-intro-overlay-active={showWelcome && guestLandingIntroOverlayActive}
                 class:landing-intro-content-covered={showWelcome && guestLandingIntroContentCovered}
+                style:--landing-intro-input-reserve={`${messageInputWrapperHeight}px`}
             >
                 <!-- 404 Not-Found screen: shown exclusively when the user landed on an unknown URL.
                      Replaces both chat-side and message-input-wrapper entirely. -->
@@ -12847,6 +12849,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     class="message-input-wrapper"
                     class:guest-welcome-input-context={showWelcome && !$authStore.isAuthenticated}
                     data-testid="message-input-wrapper"
+                    bind:clientHeight={messageInputWrapperHeight}
                 >
                     {#if showWelcome && !$authStore.isAuthenticated}
                         <a
@@ -15272,19 +15275,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     }
 
     .chat-wrapper.landing-intro-overlay-active .chat-side {
-        position: absolute;
-        inset: 0;
-        width: 100%;
-        height: 100%;
         overflow: visible;
-    }
-
-    .chat-wrapper.landing-intro-overlay-active .message-input-wrapper {
-        position: absolute;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        z-index: var(--z-index-raised);
     }
 
     /* 
