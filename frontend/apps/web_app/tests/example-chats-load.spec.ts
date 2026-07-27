@@ -262,6 +262,22 @@ test.describe('Example chats loading for new users', () => {
 		}
 		await expect(compressionSummary).toContainText('Referenced Artifacts', { timeout: 15000 });
 
+		const sprintBacklogPrompt = page.getByTestId('user-message-content').filter({
+			hasText: 'Continue with Sprint 1 engineering tasks for the local-only Tauri/Rust desktop MVP'
+		});
+		await expect(sprintBacklogPrompt).toBeVisible({ timeout: 15000 });
+		await expect(page.getByTestId('message-assistant').filter({
+			hasText: 'Sprint 1 Engineering Backlog: Local-Only Tauri Desktop MVP'
+		})).toBeVisible({ timeout: 15000 });
+
+		const latestPrompt = page.getByTestId('user-message-content').filter({
+			hasText: 'Continue by reviewing the Tauri project scaffolding configuration for ENG-01'
+		});
+		await expect(latestPrompt).toBeVisible({ timeout: 15000 });
+		await expect(
+			page.getByTestId('message-assistant').filter({ hasText: 'zero-trust IPC boundaries' })
+		).toBeVisible({ timeout: 15000 });
+
 		const firstPrompt = page.getByTestId('user-message-content').filter({
 			hasText: 'I want to build a privacy-first AI productivity company from zero'
 		});

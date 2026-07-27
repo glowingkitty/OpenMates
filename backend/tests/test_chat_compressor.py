@@ -314,6 +314,22 @@ class TestSplitHistoryForCompression:
         assert latest_assistant not in to_compress
         assert follow_up not in to_compress
 
+    def test_forced_tail_split_keeps_latest_user_prompt_with_assistant_response(self):
+        history = _make_history(12, chars_per_msg=400)
+        latest_user = _msg("latest user prompt", role="user", created_at=10_000)
+        latest_assistant = _msg("latest assistant response", role="assistant", created_at=10_001)
+        history.extend([latest_user, latest_assistant])
+
+        to_compress, recent = split_history_for_compression(
+            history,
+            force_latest_assistant_tail_split=True,
+        )
+
+        assert latest_user in recent
+        assert latest_assistant in recent
+        assert latest_user not in to_compress
+        assert latest_assistant not in to_compress
+
     def test_forced_tail_split_compresses_older_messages_when_all_fit_recent_budget(self):
         history = _make_history(12, chars_per_msg=400)
         latest_assistant = _msg("latest assistant", role="assistant", created_at=10_000)
