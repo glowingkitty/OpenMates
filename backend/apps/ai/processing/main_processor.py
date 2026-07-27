@@ -65,7 +65,11 @@ from backend.apps.ai.processing.tool_generator import generate_tools_from_apps
 from backend.apps.ai.processing.task_runtime_tools import build_task_runtime_tools, merge_task_runtime_tools
 from backend.apps.ai.processing.task_queue_continuation import (
     TASK_QUEUE_GUARD_MAX_RETRIES,
+    build_task_queue_continuation_event,
     evaluate_task_queue_post_turn,
+    filter_plan_skills_for_task_queue,
+    task_context_blocks_plan_creation,
+    task_queue_llm_history_role,
     task_queue_post_turn_prompt,
 )
 from backend.apps.ai.processing.task_tool_context import build_task_context_prompt, resolve_task_tool_context
@@ -145,6 +149,20 @@ def _message_content(message: Any) -> Optional[str]:
         message.get("content") if isinstance(message, dict) else None
     )
     return content if isinstance(content, str) else None
+
+
+def _llm_history_message(message: Any) -> Dict[str, Any]:
+    if hasattr(message, "model_dump"):
+        payload = message.model_dump(exclude_none=True)
+    elif isinstance(message, dict):
+        payload = dict(message)
+    else:
+        payload = {}
+    llm_role = task_queue_llm_history_role(payload.get("role"), payload.get("content"))
+    if llm_role != payload.get("role"):
+        payload["role"] = llm_role
+        payload["sender_name"] = "user"
+    return payload
 
 
 def _metadata_value(item: Any, field_name: str) -> Any:
@@ -2122,6 +2140,55 @@ async def handle_main_processing(
             )
             preselected_skills = preselected_skills | companions_to_add
 
+    task_tool_context = None
+    task_context_prompt = ""
+    task_tools_enabled = "task_update_jobs" in (getattr(request_data, "client_capabilities", None) or [])
+    suppress_task_runtime_tools = should_suppress_task_runtime_tools_for_app_skill(
+        preselected_skills,
+        user_requested_skills_only=user_requested_skills_only,
+    )
+    if suppress_task_runtime_tools:
+        logger.info(
+            "%s [USER_SKILLS] Suppressing legacy task runtime tools because a Tasks app skill was explicitly requested.",
+            log_prefix,
+        )
+    if task_tools_enabled and not request_data.is_incognito and not suppress_task_runtime_tools:
+        task_methods = getattr(directus_service, "user_task", None)
+        if task_methods is not None:
+            try:
+                task_tool_context = await resolve_task_tool_context(
+                    task_methods=task_methods,
+                    user_id=request_data.user_id,
+                    chat_id=request_data.chat_id,
+                    message_text=request_data.current_user_content,
+                )
+                task_context_prompt = build_task_context_prompt(task_tool_context)
+                logger.info(
+                    "%s Resolved task tool context: %s attached, %s referenced, %s hidden/missing mentions",
+                    log_prefix,
+                    len(task_tool_context.attached_tasks),
+                    len(task_tool_context.referenced_tasks),
+                    len(task_tool_context.missing_reference_ids),
+                )
+            except Exception:
+                logger.error("%s Failed to resolve task tool context", log_prefix, exc_info=True)
+
+    task_queue_blocks_plan_tools = task_context_blocks_plan_creation(task_tool_context)
+    preselected_skills, removed_plan_skills = filter_plan_skills_for_task_queue(
+        preselected_skills,
+        task_tool_context,
+    )
+    if removed_plan_skills:
+        logger.info(
+            "%s [TASK_QUEUE_PLAN_GUARD] Removed plan skill(s) while chat tasks remain: %s",
+            log_prefix,
+            sorted(removed_plan_skills),
+        )
+    if task_queue_blocks_plan_tools:
+        prompt_parts.append(
+            "Open chat tasks remain. Continue or explicitly block/complete those tasks before creating or switching to a plan."
+        )
+
     # When user explicitly requested skills, add a mandatory instruction so the model must use them
     if user_requested_skills_only and preselected_skills:
         mandatory_skills_list = ", ".join(sorted(preselected_skills))
@@ -2434,39 +2501,8 @@ async def handle_main_processing(
 
     prompt_parts.append(INTERACTIVE_QUESTIONS_INSTRUCTION)
 
-    task_tool_context = None
-    task_tools_enabled = "task_update_jobs" in (getattr(request_data, "client_capabilities", None) or [])
-    suppress_task_runtime_tools = should_suppress_task_runtime_tools_for_app_skill(
-        preselected_skills,
-        user_requested_skills_only=user_requested_skills_only,
-    )
-    if suppress_task_runtime_tools:
-        logger.info(
-            "%s [USER_SKILLS] Suppressing legacy task runtime tools because a Tasks app skill was explicitly requested.",
-            log_prefix,
-        )
-    if task_tools_enabled and not request_data.is_incognito and not suppress_task_runtime_tools:
-        task_methods = getattr(directus_service, "user_task", None)
-        if task_methods is not None:
-            try:
-                task_tool_context = await resolve_task_tool_context(
-                    task_methods=task_methods,
-                    user_id=request_data.user_id,
-                    chat_id=request_data.chat_id,
-                    message_text=request_data.current_user_content,
-                )
-                task_context_prompt = build_task_context_prompt(task_tool_context)
-                if task_context_prompt:
-                    prompt_parts.append(task_context_prompt)
-                logger.info(
-                    "%s Resolved task tool context: %s attached, %s referenced, %s hidden/missing mentions",
-                    log_prefix,
-                    len(task_tool_context.attached_tasks),
-                    len(task_tool_context.referenced_tasks),
-                    len(task_tool_context.missing_reference_ids),
-                )
-            except Exception:
-                logger.error("%s Failed to resolve task tool context", log_prefix, exc_info=True)
+    if task_context_prompt:
+        prompt_parts.append(task_context_prompt)
 
     # --- Add sub-chats usage instructions for LLM ---
     enable_subchats_results = preprocessing_results.enable_subchats if hasattr(preprocessing_results, 'enable_subchats') else False
@@ -2511,6 +2547,19 @@ async def handle_main_processing(
         preselected_skills=preselected_skills,
         translation_service=translation_service
     )
+
+    if task_queue_blocks_plan_tools:
+        original_tool_count = len(available_tools_for_llm)
+        available_tools_for_llm = [
+            tool for tool in available_tools_for_llm
+            if not str(tool.get("function", {}).get("name") or "").startswith("plans-")
+        ]
+        if len(available_tools_for_llm) != original_tool_count:
+            logger.info(
+                "%s [TASK_QUEUE_PLAN_GUARD] Removed %s generated plan tool(s) while chat tasks remain.",
+                log_prefix,
+                original_tool_count - len(available_tools_for_llm),
+            )
 
     if task_tools_enabled and task_tool_context is not None and not suppress_task_runtime_tools:
         task_tools = build_task_runtime_tools(task_tool_context)
@@ -2835,7 +2884,7 @@ async def handle_main_processing(
         tool_resolver_map[task_tool_name] = (TASK_TOOL_RESOLVER_APP_ID, task_tool_skill_id(task_tool_name))
         tool_resolver_map[task_tool_name.replace("-", "_")] = (TASK_TOOL_RESOLVER_APP_ID, task_tool_skill_id(task_tool_name))
 
-    current_message_history: List[Dict[str, Any]] = [msg.model_dump(exclude_none=True) for msg in request_data.message_history]
+    current_message_history: List[Dict[str, Any]] = [_llm_history_message(msg) for msg in request_data.message_history]
     
     # Truncate message history to fit within the conversation token budget.
     # This ensures the main LLM receives the most recent context within its context window,
@@ -2855,6 +2904,7 @@ async def handle_main_processing(
     # Without this, the message markdown would contain embed references for embeds
     # that no longer exist, causing the client to re-request them on every page load.
     failed_embed_ids: set[str] = set()
+    published_task_queue_continuation_event_ids: set[str] = set()
     
     # --- Yield debug metadata for the inspection script ---
     # This provides the full system prompt, tool definitions, and truncated message history
@@ -3809,8 +3859,33 @@ async def handle_main_processing(
                 and iteration < MAX_TOOL_CALL_ITERATIONS - 1
             ):
                 task_queue_guard_retries += 1
+                continuation_event = build_task_queue_continuation_event(
+                    task_queue_result,
+                    message_id=request_data.message_id,
+                    now=int(time.time()),
+                )
+                if continuation_event and cache_service:
+                    continuation_event_id = str(continuation_event.get("event_id") or "")
+                    if continuation_event_id and continuation_event_id not in published_task_queue_continuation_event_ids:
+                        published_task_queue_continuation_event_ids.add(continuation_event_id)
+                        try:
+                            await cache_service.publish_event(
+                                f"chat_stream::{request_data.chat_id}",
+                                {
+                                    **continuation_event,
+                                    "type": "task_event",
+                                    "user_id_uuid": request_data.user_id,
+                                    "user_id_hash": request_data.user_id_hash,
+                                },
+                            )
+                        except Exception:
+                            logger.error(
+                                "%s [TASK_QUEUE_CONTINUATION] Failed to publish continuation task event",
+                                log_prefix,
+                                exc_info=True,
+                            )
                 current_message_history.append({"role": "assistant", "content": final_buffered_text_for_turn or None})
-                current_message_history.append({"role": "system", "content": task_queue_post_turn_prompt(task_queue_result)})
+                current_message_history.append({"role": "user", "content": task_queue_post_turn_prompt(task_queue_result)})
                 logger.info(
                     "%s [TASK_QUEUE_CONTINUATION] Retrying main processing for state=%s task_id=%s retry=%s/%s",
                     log_prefix,

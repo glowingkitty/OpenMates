@@ -105,7 +105,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: cc08b649bf9fd81e387e442fd2679d81836eb8b0+working-tree-20260727T140704Z
+  subject_commit: af9f16f79aad0d2175915079bd494353e4340c84+working-tree-20260727T180642Z
 
 approvals:
   product_contract:
@@ -146,6 +146,11 @@ decisions:
     decision: Real CLI smoke tests use natural chat prompts against https://api.dev.openmates.org and must avoid plan creation.
     reason: The regression is user-visible in normal chat task execution, so direct function tests alone are insufficient.
     decided_at: "2026-07-27T00:00:00Z"
+  - id: D-7
+    status: active
+    decision: Task queue continuation notices remain product-visible system/activity messages, while the LLM sees those continuation notices as synthetic user turns.
+    reason: Persisted chat activity must render as system UI, but provider message history should avoid adding mid-conversation system prompts beyond the compiled top prompt.
+    decided_at: "2026-07-27T18:06:42Z"
 
 attempts:
   - id: ATTEMPT-1
@@ -162,14 +167,23 @@ attempts:
     run_id: local-20260727T1541Z-chat-c513cc86-2866-4178-b811-0afde3ac494f
     subject_commit: ac61711950e5adc191f7475fafa768225c6ffb65
     summary: Real dev CLI natural-task workflow created exactly three chat-attached AI tasks, observed one create event per title, and completed all three exact-title follow-ups without duplicate persisted tasks or plan creation.
+  - id: ATTEMPT-3
+    task_id: TASK-7
+    approach: Add persisted continuation task_event frames, synthetic-user LLM role mapping, and deterministic plan-skill suppression while chat tasks remain.
+    outcome: succeeded
+    recorded_at: "2026-07-27T18:06:42Z"
+    command: python3 -m pytest backend/tests/test_task_main_processor_tools.py backend/tests/test_task_app_skill_embeds.py backend/tests/test_task_queue_auto_continuation.py
+    run_id: local-20260727T1806Z
+    subject_commit: af9f16f79aad0d2175915079bd494353e4340c84+working-tree-20260727T180642Z
+    summary: Focused backend suite passed 35 tests covering task runtime tools, task app skill embeds, continuation event payloads, plan-skill filtering, and synthetic-user role mapping for persisted continuation notices.
 
 handoff:
   current_task_id: TASK-7
-  next_action: Implementation and verification complete; live natural CLI evidence recorded.
-  command: python3 scripts/spec_verify.py docs/specs/task-queue-auto-continuation/spec.yml --phase complete
-  expected_outcome: Spec verification passed for recorded red, green, and final evidence.
+  next_action: Deploy the continuation-message follow-up and rerun the live natural CLI smoke to confirm persisted system continuation events against https://api.dev.openmates.org.
+  command: set -a && . "/home/superdev/projects/OpenMates/.env" && set +a && python3 scripts/verify_tasks_main_processor_cli_smoke.py --api-url https://api.dev.openmates.org --cli-dir "/home/superdev/projects/OpenMates/frontend/packages/openmates-cli" --scenario natural-task-workflow --skip-build --chat-timeout 420 --task-ready-timeout 120 --natural-followup-turns 6 --keep-artifacts
+  expected_outcome: Real dev CLI smoke observes continuation task_event system messages, no duplicate task creation, ordered task completion, and no plan creation.
   blocker: null
-  last_verified_commit: ac61711950e5adc191f7475fafa768225c6ffb65
+  last_verified_commit: af9f16f79aad0d2175915079bd494353e4340c84+working-tree-20260727T180642Z
 
 scenarios:
   - id: S-1

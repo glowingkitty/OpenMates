@@ -11,7 +11,15 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from backend.apps.ai.processing.task_queue_continuation import evaluate_task_queue_post_turn, task_queue_post_turn_prompt
+from backend.apps.ai.processing.task_queue_continuation import (
+    build_task_queue_continuation_event,
+    evaluate_task_queue_post_turn,
+    filter_plan_skills_for_task_queue,
+    is_task_queue_continuation_system_content,
+    task_context_blocks_plan_creation,
+    task_queue_llm_history_role,
+    task_queue_post_turn_prompt,
+)
 
 
 @pytest.mark.asyncio
@@ -104,3 +112,71 @@ async def test_post_turn_guard_blocks_plan_on_human_gate_without_retry() -> None
         "task_queue_blocks_plan": True,
     }
     methods.update_task_if_version.assert_not_awaited()
+
+
+def test_task_context_blocks_plan_creation_for_open_chat_tasks() -> None:
+    context = SimpleNamespace(
+        visible_tasks=[
+            {"task_id": "task-done", "status": "done", "queue_state": "none"},
+            {"task_id": "task-open", "status": "todo", "queue_state": "none"},
+        ]
+    )
+
+    assert task_context_blocks_plan_creation(context) is True
+
+    filtered, removed = filter_plan_skills_for_task_queue(
+        {"plans-create", "plans-search", "web-search"},
+        context,
+    )
+    assert filtered == {"web-search"}
+    assert removed == {"plans-create", "plans-search"}
+
+
+def test_task_context_allows_plan_creation_when_tasks_are_closed() -> None:
+    context = SimpleNamespace(
+        visible_tasks=[
+            {"task_id": "task-done", "status": "done", "queue_state": "none"},
+            {"task_id": "task-skipped", "status": "todo", "queue_state": "skipped"},
+        ]
+    )
+
+    assert task_context_blocks_plan_creation(context) is False
+    filtered, removed = filter_plan_skills_for_task_queue({"plans-create"}, context)
+    assert filtered == {"plans-create"}
+    assert removed == set()
+
+
+def test_task_queue_continuation_event_is_turn_scoped_and_safe() -> None:
+    result = {
+        "state": "started_next_ai_task",
+        "task_id": "task-ai",
+        "short_id": "TASK-42",
+        "chat_id": "chat-1",
+    }
+
+    event = build_task_queue_continuation_event(result, message_id="message-1", now=1700)
+
+    assert event == {
+        "event_id": "task-queue-continuation-message-1-task-ai-started_next_ai_task",
+        "chat_id": "chat-1",
+        "task_id": "task-ai",
+        "event_type": "started",
+        "status": "in_progress",
+        "created_at": 1700,
+        "message_id": "message-1",
+        "short_id": "TASK-42",
+    }
+
+
+def test_task_queue_continuation_system_content_detects_synthetic_user_history() -> None:
+    prompt = task_queue_post_turn_prompt({"state": "active_ai_task", "task_id": "TASK-42"})
+
+    assert is_task_queue_continuation_system_content(prompt) is True
+    assert is_task_queue_continuation_system_content("TASK-42 created") is False
+
+
+def test_llm_history_maps_persisted_task_queue_system_notice_to_user() -> None:
+    prompt = task_queue_post_turn_prompt({"state": "active_ai_task", "task_id": "TASK-42"})
+
+    assert task_queue_llm_history_role("system", prompt) == "user"
+    assert task_queue_llm_history_role("system", "TASK-42 created") == "system"

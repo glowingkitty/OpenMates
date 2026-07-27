@@ -119,13 +119,19 @@ class UserTaskQueueService:
                 return {
                     "state": "blocked_by_human_task" if task.get("assignee_type") != "ai" else "blocked_by_ai_task",
                     "task_id": task_id,
+                    **self._short_id_field(task),
                     "chat_id": chat_id,
                     "blocked_reason_code": task.get("blocked_reason_code") or "needs_user_input",
                 }
             if task.get("assignee_type") != "ai":
                 continue
             if self._task_status(task) == "in_progress":
-                return {"state": "active_ai_task", "task_id": task_id, "chat_id": chat_id}
+                return {
+                    "state": "active_ai_task",
+                    "task_id": task_id,
+                    **self._short_id_field(task),
+                    "chat_id": chat_id,
+                }
             if self._task_status(task) != "todo":
                 continue
             updated = await self._update(task_id, user_id, {
@@ -136,7 +142,12 @@ class UserTaskQueueService:
                 "started_at": task.get("started_at") or now,
                 "updated_at": now,
             })
-            return {"state": "started_next_ai_task", "task_id": updated.get("task_id"), "chat_id": chat_id}
+            return {
+                "state": "started_next_ai_task",
+                "task_id": updated.get("task_id"),
+                **self._short_id_field(updated, fallback=task),
+                "chat_id": chat_id,
+            }
         return {"state": "no_work", "chat_id": chat_id}
 
     def _ordered_workable_tasks(self, tasks: list[dict[str, Any]], *, exclude_task_id: str | None = None) -> list[dict[str, Any]]:
@@ -162,3 +173,7 @@ class UserTaskQueueService:
             return int(value)
         except (TypeError, ValueError):
             return 0
+
+    def _short_id_field(self, task: dict[str, Any], *, fallback: dict[str, Any] | None = None) -> dict[str, Any]:
+        short_id = task.get("short_id") or (fallback or {}).get("short_id")
+        return {"short_id": short_id} if short_id else {}

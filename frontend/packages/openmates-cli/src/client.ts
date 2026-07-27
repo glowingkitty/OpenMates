@@ -1423,6 +1423,10 @@ function formatTaskEventSystemContent(event: TaskEventFrame): string {
   const status = event.status ? ` (${event.status})` : "";
   const reason = event.reason ? `: ${event.reason}` : "";
   switch (event.event_type) {
+    case "started":
+      return `Task queue continuation: ${taskLabel} started${title}${status}`;
+    case "continuing":
+      return `Task queue continuation: continuing ${taskLabel}${title}${status}`;
     case "created":
       return `${taskLabel} created${title}${status}`;
     case "updated":
@@ -6479,6 +6483,7 @@ export class OpenMatesClient {
         subChatEvents = resp.subChatEvents;
 
         if (resp.status === "waiting_for_user") {
+          await persistTaskEventSystemMessages(taskEvents);
           return {
             status: resp.status,
             chatId,
@@ -6543,6 +6548,7 @@ export class OpenMatesClient {
             });
             clearSyncCache(teamId);
             await persistCompressionCheckpoints(resp.compressionCheckpoints);
+            await persistTaskEventSystemMessages(taskEvents);
             const mateName = category ? (MATE_NAMES[category] ?? null) : null;
             return {
               status: "completed",
