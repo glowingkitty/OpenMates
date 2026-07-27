@@ -838,7 +838,11 @@ async function locateDraftInSidebarOrSearch(page: any, chatId: string, expectedT
 
 async function openDraftByHash(page: any, chatId: string): Promise<void> {
 	await closeSearchIfOpen(page);
-	await page.goto(`${new URL(page.url()).origin}/#chat-id=${chatId}`);
+	const hash = `#chat-id=${chatId}`;
+	await page.goto(`${new URL(page.url()).origin}/${hash}`);
+	await page.evaluate((targetHash: string) => {
+		window.dispatchEvent(new CustomEvent('processPendingDeepLink', { detail: { hash: targetHash } }));
+	}, hash);
 }
 
 async function openDraft(page: any, apiUrl: string, chatId: string, expectedText: string, requireRestoredText = false): Promise<any> {
