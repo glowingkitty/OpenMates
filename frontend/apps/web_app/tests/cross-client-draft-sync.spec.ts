@@ -1012,7 +1012,7 @@ test.describe('Cross-client encrypted draft sync', () => {
 			cleanupDraftIds.add(sentChatId);
 			await page.reload();
 			await waitForChatReady(page, log);
-			await openDraft(page, sentChatId, sentText, true);
+			await openDraft(page, apiUrl, sentChatId, sentText, true);
 			await replaceMessageEditorText(page, sentChatId, sentText);
 			await messageEditorEditable(page, sentChatId).click();
 			const sendButton = page.locator('[data-action="send-message"]');
