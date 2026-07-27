@@ -2883,7 +2883,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     }
                     : state
                 );
-                void chatSyncService.sendDeleteDraft(chatId);
+                const { webSocketService } = await import('../services/websocketService');
+                void webSocketService.sendMessage('delete_draft', { chatId });
                 return { text: inputRef.getTextContent() };
             }
             await inputRef.replaceDraftWithPlainText(chatId, text, version, true);
