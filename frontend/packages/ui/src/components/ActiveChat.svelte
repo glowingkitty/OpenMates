@@ -2829,6 +2829,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             if (!inputRef?.replaceDraftWithPlainText) {
                 throw new Error('Message input draft replacement helper is unavailable');
             }
+            if (text.trim().length === 0) {
+                await inputRef.replaceDraftWithPlainText(chatId, '', version, false);
+                await clearCurrentDraft();
+                return { text: inputRef.getTextContent() };
+            }
             await inputRef.replaceDraftWithPlainText(chatId, text, version, true);
             const flushResult = inputRef.flushCurrentDraft?.();
             if (flushResult) {
