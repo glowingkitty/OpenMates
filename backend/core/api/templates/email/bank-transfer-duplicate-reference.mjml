@@ -1,0 +1,58 @@
+<mjml>
+  <mj-head>
+    <mj-title>Duplicate bank transfer reference received</mj-title>
+    <mj-attributes>
+      <mj-all font-family="Arial, Helvetica, sans-serif" font-size="16px" align="center" font-weight="bold" line-height="1.3"/>
+      {% if darkmode %}
+      <mj-text color="#e6e6e6" />
+      {% else %}
+      <mj-text color="#000000" />
+      {% endif %}
+    </mj-attributes>
+    <mj-include path="./components/email-styles.mjml" />
+  </mj-head>
+  <mj-body css-class="{% if darkmode == False %}light-mode{% else %}dark-mode{% endif %}">
+    <mj-include path="./components/header.mjml" />
+
+    <mj-wrapper css-class="content-box" padding="20px" padding-bottom="0">
+      <mj-section padding-bottom="10px">
+        <mj-column>
+          <mj-image width="50px" height="50px" src="icons/coins.png" align="center" alt="Credits icon" css-class="email-icon-50" />
+          <mj-text font-size="26px">
+            <mark>Duplicate bank transfer reference received</mark>
+          </mj-text>
+          <mj-text font-size="16px" padding-bottom="10px">
+            We received another bank transfer of €{{ received_amount_eur }} using payment reference {{ reference }}.
+          </mj-text>
+          <mj-text font-size="16px" padding-bottom="10px">
+            This reference is single-use and was already completed for your {{ credits_amount }} credit purchase. We did not add duplicate credits automatically.
+          </mj-text>
+          <mj-text font-size="16px" padding-bottom="10px">
+            Please reply to this email or contact <a href="{{ support_mailto }}">{{ support_email }}</a> and tell us which option you prefer.
+          </mj-text>
+        </mj-column>
+      </mj-section>
+
+      <mj-section padding="10px 20px">
+        <mj-column>
+          <mj-text align="left" font-size="12px" color="#888888" font-weight="normal" padding-bottom="2px">Payment reference</mj-text>
+          <mj-text align="left" font-size="18px" font-weight="bold" color="#d32f2f" padding-bottom="12px">{{ reference }}</mj-text>
+
+          <mj-text align="left" font-size="12px" color="#888888" font-weight="normal" padding-bottom="2px">Duplicate transfer amount</mj-text>
+          <mj-text align="left" font-size="16px" font-weight="bold" padding-bottom="12px">€{{ received_amount_eur }}</mj-text>
+
+          <mj-text align="left" font-size="12px" color="#888888" font-weight="normal" padding-bottom="2px">Original selected pack</mj-text>
+          <mj-text align="left" font-size="16px" font-weight="bold" padding-bottom="12px">€{{ expected_amount_eur }} for {{ credits_amount }} credits</mj-text>
+
+          <mj-text align="left" font-size="12px" color="#888888" font-weight="normal" padding-bottom="2px">Option 1</mj-text>
+          <mj-text align="left" font-size="16px" font-weight="normal" padding-bottom="12px">We can issue a credits gift card for the extra money.</mj-text>
+
+          <mj-text align="left" font-size="12px" color="#888888" font-weight="normal" padding-bottom="2px">Option 2</mj-text>
+          <mj-text align="left" font-size="16px" font-weight="normal" padding-bottom="12px">We can refund the duplicate transfer. For this, reply with your IBAN and account holder name.</mj-text>
+        </mj-column>
+      </mj-section>
+    </mj-wrapper>
+
+    <mj-include path="./components/footer.mjml" />
+  </mj-body>
+</mjml>

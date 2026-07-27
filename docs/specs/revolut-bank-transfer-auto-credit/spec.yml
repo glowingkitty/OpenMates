@@ -16,13 +16,14 @@ scope:
     - Gift-card bank-transfer purchase orders.
     - Accumulating multiple Revolut transactions with the same OpenMates reference.
     - User email notifications for overpayments and underpayments.
+    - User email notifications when a distinct new transfer reuses an already-completed OM reference.
     - Revolut Business API confirmation before automatic settlement.
     - Admin alerts when API credentials are configured but confirmation fails and manual settlement/investigation is required.
     - Revolut Sandbox verification via /sandbox/topup when company credentials are available.
   out:
     - Support-contribution bank-transfer automation changes.
     - Automatically upgrading users to a larger credit pack when they overpay.
-    - Automatically refunding surplus money.
+    - Automatically refunding surplus or duplicate-reference money.
     - Production Revolut writes outside normal incoming-transfer webhook processing.
     - Web UI redesign for bank-transfer status.
     - Self-hosted credit-sale or support-contribution bank-transfer endpoints.
@@ -36,6 +37,8 @@ context_discovery:
     - docs/specs/bank-transfer-invoice-visibility/spec.yml
     - docs/specs/cli-signup-billing-provisioning/spec.yml
     - docs/apis/revolut-business.md
+    - https://developer.revolut.com/docs/guides/manage-accounts/transfers/bank-transfers
+    - https://developer.revolut.com/docs/guides/manage-accounts/transfers/payout-links
     - https://developer.revolut.com/docs/guides/manage-accounts/api-usage-and-testing/test-flows-with-simulations
   code_patterns:
     - backend/core/api/app/routes/payments.py
@@ -83,7 +86,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: f94af9ef3d8c64df47987b392b4f5bfa4fc9b400+working-tree
+  subject_commit: 923d939943853a711a8ca3241f3559c30e2121ca+working-tree
 
 approvals:
   product_contract:
@@ -121,6 +124,11 @@ decisions:
     decision: Treat signed Revolut webhooks only as transaction-ID triggers; use the Revolut Business API transaction read as the settlement source of truth.
     reason: Webhook payloads should not be trusted for granting credits if API credentials are available or required for auto-settlement.
     decided_at: "2026-07-24T00:00:00Z"
+  - id: D-6
+    status: active
+    decision: Distinct transfers that reuse an already-completed OM reference must not auto-credit again; email the OpenMates account contact with gift-card or refund options.
+    reason: OM references are single-use purchase contracts. Revolut docs do not expose a safe original-transfer refund primitive, so user choice and support handling are required.
+    decided_at: "2026-07-27T00:00:00Z"
 
 attempts:
   - id: ATTEMPT-1
@@ -129,14 +137,20 @@ attempts:
     outcome: succeeded
     recorded_at: "2026-07-22T00:00:00Z"
     notes: Current webhook auto-settles exact-ish matches but sends amount mismatches to admin_review.
+  - id: ATTEMPT-2
+    task_id: TASK-5
+    approach: Add deterministic duplicate-reference tests first, then implement completed-reference lookup, user email task/template, test-send script, and single-use UI/email copy.
+    outcome: succeeded
+    recorded_at: "2026-07-27T14:26:41Z"
+    notes: Focused pytest passed and the duplicate-reference preview email was sent to testing@openmates.org via Brevo message ID <202607271426.44786995593@smtp-relay.mailin.fr>.
 
 handoff:
-  current_task_id: TASK-3
-  next_action: Optional live Revolut Sandbox verification after dev API deployment and company webhook credentials are available.
-  command: python3 scripts/api_tests/test_revolut_business_bank_transfer_settlement.py --api-url https://api.dev.openmates.org --scenarios exact,overpaid,underpaid-complete
-  expected_outcome: Exact, overpaid, and underpaid-then-complete flows settle through the real dev API and Revolut Sandbox webhook path.
+  current_task_id: TASK-5
+  next_action: Await design confirmation of the duplicate-reference preview email before trusting production auto-send.
+  command: docker exec api python /app/backend/scripts/send_bank_transfer_duplicate_reference_email_test.py
+  expected_outcome: Preview email arrives at testing@openmates.org and support confirms the copy/design is acceptable.
   blocker: null
-  last_verified_commit: ba97aefd77439a1f0583c8c55a15f5c868dd0f3f+working-tree
+  last_verified_commit: 923d939943853a711a8ca3241f3559c30e2121ca+working-tree
 
 scenarios:
   - id: S-1
@@ -217,6 +231,19 @@ scenarios:
       - If API confirmation fails, no credits, gift cards, or team credits are granted.
       - Missing Vault API credentials do not send admin email because auto-settlement is not configured.
       - When Vault API credentials are configured but confirmation fails for another reason, an admin alert is queued with the Revolut transaction ID and OM reference hint.
+  - id: S-8
+    title: Distinct transfer reuses completed OM reference
+    given:
+      - Alice's EUR 10.00 credit order under OM-ACCT-bt123456 is already completed.
+      - Revolut sends a new completed EUR 10.00 transaction with a different transaction ID but the same OM reference.
+    when:
+      - OpenMates processes the webhook.
+    then:
+      - Alice receives no duplicate credits, gift card, team credit, purchase confirmation, or stats increment automatically.
+      - The completed order records that extra EUR 10.00 is unresolved under the same reference when schema fields are available.
+      - Alice receives a duplicate-reference email explaining the reference is single-use and asking her to choose a credits gift card or refund by replying with IBAN details.
+      - Admins are alerted with the OM reference and Revolut transaction ID for operational follow-up.
+      - The email is idempotent per Revolut transaction ID.
 
 acceptance_criteria:
   - id: AC-1
@@ -319,6 +346,25 @@ acceptance_criteria:
     verification_scope: related_backend
     verification_ids:
       - T-PYTEST-BANK-TRANSFER
+  - id: AC-12
+    scenario: S-8
+    text: Distinct Revolut transactions that reuse a completed OM reference do not grant credits again and queue exactly one duplicate-reference user email plus an admin alert.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids:
+      - T-PYTEST-BANK-TRANSFER
+      - T-PYTEST-DUPLICATE-REFERENCE-EMAIL
+  - id: AC-13
+    scenario: S-8
+    text: The bank-transfer UI and bank-transfer reminder email clearly state that each OM reference is single-use and users must create a new purchase for more credits.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids:
+      - T-PYTEST-DUPLICATE-REFERENCE-EMAIL
 
 assumptions:
   - id: A-1
@@ -367,14 +413,17 @@ contracts:
     - Underpaid rows remain status pending and extend expires_at by 7 days from the latest partial receipt.
     - Completed rows store overpaid_amount_cents when cumulative received exceeds amount_expected_cents.
     - Directus remains the durable store; Redis cache is updated with the same settlement summary fields when available.
+    - Completed-reference duplicate transfers may append a ledger entry to the completed order and increase unresolved overpaid_amount_cents, but must not create a second credit-sale side effect.
   ui_states:
     - Existing bank-transfer status polling can continue to show pending until enough cumulative money arrives.
     - No new web UI is required for surplus or remaining amount in this slice; email is the user-facing mismatch channel.
+    - The bank-transfer details info box and signup reminder email must tell users that OM references are single-use.
   privacy_security:
     - Do not store or log full Revolut counterparty data for these flows.
     - Do not include raw user IDs, Vault keys, email encryption keys, or Revolut credentials in user emails, logs, or Sandbox evidence.
     - Support email link is mailto:support@openmates.org or equivalent safe text.
     - Idempotency must prevent replayed provider webhooks from granting duplicate credits or gift cards.
+    - Duplicate-reference emails may include the OM reference, EUR amount, and support options, but must not include raw user IDs, email encryption keys, Vault data, or Revolut credentials.
   provider:
     - Reuse shared Revolut OAuth/client code for company-level Sandbox probes, but do not reuse user connected-account refresh token envelopes from the Finance app skill.
     - Company Revolut credentials come from Vault or explicit operator env for manual Sandbox verification.
@@ -394,6 +443,7 @@ tests:
       - AC-6
       - AC-10
       - AC-11
+      - AC-12
     assertions:
       - exact personal payment still completes and queues purchase confirmation
       - received amounts below the selected pack price do not auto-complete even when within the old negative tolerance
@@ -405,23 +455,26 @@ tests:
       - Revolut API confirmation failures do not settle and queue admin alerts only when credentials are configured
       - missing Revolut API credentials do not settle and do not queue admin alerts
       - non-completed API states wait without granting credits or alerting admins
+      - distinct transaction IDs for completed OM references do not re-credit and queue duplicate-reference email/admin alert
     red_phase:
       required: true
       expected: fail
       evidence:
-        status: missing_test
-        run_id: ""
-        timestamp: "2026-07-22T23:47:43Z"
-        reason: Deterministic webhook coverage for cumulative partial payments, overpayments, and duplicate Revolut transaction IDs did not exist before this implementation.
+        status: failed
+        command: .venv/bin/python3 -m pytest backend/tests/test_bank_transfer.py::TestPersonalBankTransferWebhook::test_distinct_transaction_for_completed_reference_emails_user_without_recredit
+        run_id: local-2026-07-27-duplicate-reference-webhook-red-1-failed
+        subject_commit: 923d939943853a711a8ca3241f3559c30e2121ca+working-tree
+        timestamp: "2026-07-27T14:19:00Z"
+        reason: Before the completed-reference branch, distinct transfers that reused a completed OM reference were treated as unmatched_transfer_flagged instead of queuing the duplicate-reference user email without re-crediting.
     green_phase:
       required: true
       expected: pass
       evidence:
         status: passed
-        command: .venv/bin/python3 -m pytest backend/tests/test_bank_transfer.py
-        run_id: local-2026-07-24-revolut-api-confirmation-37-passed
-        subject_commit: f94af9ef3d8c64df47987b392b4f5bfa4fc9b400+working-tree
-        timestamp: "2026-07-24T00:00:00Z"
+        command: .venv/bin/python3 -m pytest backend/tests/test_bank_transfer.py backend/tests/test_bank_transfer_duplicate_reference_email.py
+        run_id: local-2026-07-27-duplicate-reference-44-passed
+        subject_commit: 923d939943853a711a8ca3241f3559c30e2121ca+working-tree
+        timestamp: "2026-07-27T14:34:00Z"
   - id: T-PYTEST-MANUAL-SCRIPT
     type: pytest
     file: backend/tests/test_approve_bank_transfer_script.py
@@ -446,9 +499,9 @@ tests:
       evidence:
         status: passed
         command: .venv/bin/python3 -m pytest backend/tests/test_approve_bank_transfer_script.py backend/tests/test_cli_bank_transfer_gift_card_purchase.py
-        run_id: local-2026-07-24-bank-transfer-regressions-25-passed
-        subject_commit: f94af9ef3d8c64df47987b392b4f5bfa4fc9b400+working-tree
-        timestamp: "2026-07-24T00:00:00Z"
+        run_id: local-2026-07-27-bank-transfer-regressions-25-passed
+        subject_commit: 923d939943853a711a8ca3241f3559c30e2121ca+working-tree
+        timestamp: "2026-07-27T14:30:00Z"
   - id: T-PYTEST-SELFHOST-BANK-TRANSFER
     type: pytest
     file: backend/tests/test_cli_bank_transfer_gift_card_purchase.py
@@ -473,9 +526,9 @@ tests:
       evidence:
         status: passed
         command: .venv/bin/python3 -m pytest backend/tests/test_approve_bank_transfer_script.py backend/tests/test_cli_bank_transfer_gift_card_purchase.py
-        run_id: local-2026-07-24-bank-transfer-regressions-25-passed
-        subject_commit: f94af9ef3d8c64df47987b392b4f5bfa4fc9b400+working-tree
-        timestamp: "2026-07-24T00:00:00Z"
+        run_id: local-2026-07-27-bank-transfer-regressions-25-passed
+        subject_commit: 923d939943853a711a8ca3241f3559c30e2121ca+working-tree
+        timestamp: "2026-07-27T14:30:00Z"
   - id: T-SANDBOX-REVOLUT
     type: manual
     file: scripts/api_tests/test_revolut_business_bank_transfer_settlement.py
@@ -502,6 +555,37 @@ tests:
         run_id: ""
         subject_commit: ""
         timestamp: ""
+  - id: T-PYTEST-DUPLICATE-REFERENCE-EMAIL
+    type: pytest
+    file: backend/tests/test_bank_transfer_duplicate_reference_email.py
+    command: python3 -m pytest backend/tests/test_bank_transfer_duplicate_reference_email.py
+    covers:
+      - AC-12
+      - AC-13
+    assertions:
+      - duplicate-reference email task is registered as a Celery email task
+      - duplicate-reference MJML template contains gift-card and refund reply options
+      - bank-transfer reminder and UI translation source copy mention single-use references
+      - test-send script targets testing@openmates.org by default and uses the duplicate-reference template
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed
+        command: .venv/bin/python3 -m pytest backend/tests/test_bank_transfer_duplicate_reference_email.py
+        run_id: local-2026-07-27-duplicate-reference-email-red-5-failed
+        subject_commit: 923d939943853a711a8ca3241f3559c30e2121ca+working-tree
+        timestamp: "2026-07-27T14:18:00Z"
+        reason: Duplicate-reference email template/task/test-send script and single-use copy do not exist yet.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: .venv/bin/python3 -m pytest backend/tests/test_bank_transfer_duplicate_reference_email.py
+        run_id: local-2026-07-27-duplicate-reference-email-green-5-passed
+        subject_commit: 923d939943853a711a8ca3241f3559c30e2121ca+working-tree
+        timestamp: "2026-07-27T14:22:00Z"
 
 verifications:
   - id: V-SPEC-VALIDATE
@@ -520,14 +604,16 @@ verifications:
       - AC-9
       - AC-10
       - AC-11
-    status: pending
+      - AC-12
+      - AC-13
+    status: passed
     evidence:
       status: passed
-      summary: Spec validation passed after API-confirmed settlement implementation and evidence updates.
-      command: python3 scripts/spec_validate.py "docs/specs/revolut-bank-transfer-auto-credit/spec.yml"
-      run_id: local-2026-07-24-spec-validate-pass
-      subject_commit: f94af9ef3d8c64df47987b392b4f5bfa4fc9b400+working-tree
-      timestamp: "2026-07-24T00:00:00Z"
+      summary: Spec validation passed after duplicate-reference implementation, email preview evidence, and AC-13 scope correction.
+      command: .venv/bin/python3 scripts/spec_validate.py docs/specs/revolut-bank-transfer-auto-credit/spec.yml
+      run_id: local-2026-07-27-spec-validate-pass
+      subject_commit: 923d939943853a711a8ca3241f3559c30e2121ca+working-tree
+      timestamp: "2026-07-27T14:28:00Z"
 
 implementation_plan:
   spec_path: docs/specs/revolut-bank-transfer-auto-credit/spec.yml
@@ -535,6 +621,7 @@ implementation_plan:
     - backend/core/api/app/routes/payments.py _handle_revolut_business_webhook owns settlement branching.
     - backend/scripts/approve_bank_transfer.py has the operator fallback settlement path.
     - backend/core/api/app/tasks/email_tasks/bank_transfer_reminder_email_task.py has the bank-transfer user email decryption pattern.
+    - backend/core/api/app/tasks/email_tasks/bank_transfer_reminder_email_task.py and bank-transfer-reminder.mjml show the existing bank-transfer email design pattern.
     - backend/shared/providers/revolut_business/oauth.py and client.py already implement token exchange and read-only client calls.
     - scripts/revolut_business_setup.py already proves /sandbox/topup shape but should not remain the long-term test contract.
   architecture: >
@@ -554,6 +641,7 @@ implementation_plan:
     - If cumulative received is below expected, the order remains pending, expires_at extends 7 days, and remaining-payment email is queued.
     - If cumulative received is at least expected, existing settlement logic grants the selected personal/team/gift-card value and queues existing purchase confirmation.
     - If cumulative received exceeds expected, an overpayment email is additionally queued.
+    - If the reference matches a completed order instead of a pending order, the handler records the extra transaction as duplicate-reference unresolved money, queues the duplicate-reference email, alerts admins, and stops without settlement side effects.
   affected_files:
     - path: docs/specs/revolut-bank-transfer-auto-credit/spec.yml
       reason: Durable product contract and evidence ledger.
@@ -565,8 +653,16 @@ implementation_plan:
       reason: Cache extra settlement fields for status polling and duplicate checks.
     - path: backend/core/api/app/tasks/email_tasks/bank_transfer_amount_notice_email_task.py
       reason: User-facing overpayment and underpayment emails.
+    - path: backend/core/api/app/tasks/email_tasks/bank_transfer_duplicate_reference_email_task.py
+      reason: User-facing duplicate-reference email.
+    - path: backend/core/api/templates/email/bank-transfer-duplicate-reference.mjml
+      reason: Duplicate completed-reference email design.
+    - path: backend/scripts/send_bank_transfer_duplicate_reference_email_test.py
+      reason: Operator test-send to testing@openmates.org before auto-send is trusted.
     - path: frontend/packages/ui/src/i18n/sources/email/main.yml
-      reason: Email template copy for bank-transfer amount notices.
+      reason: Email template copy for bank-transfer amount notices and single-use reminder copy.
+    - path: frontend/packages/ui/src/i18n/sources/settings/billing.yml
+      reason: Bank-transfer UI copy that explains OM references are single-use.
     - path: backend/tests/test_bank_transfer.py
       reason: Core webhook and settlement coverage.
     - path: backend/tests/test_approve_bank_transfer_script.py
@@ -580,6 +676,8 @@ implementation_plan:
   verification_strategy:
     - python3 scripts/spec_validate.py docs/specs/revolut-bank-transfer-auto-credit/spec.yml
     - python3 -m pytest backend/tests/test_bank_transfer.py backend/tests/test_approve_bank_transfer_script.py
+    - python3 -m pytest backend/tests/test_bank_transfer_duplicate_reference_email.py
+    - docker exec api python /app/backend/scripts/send_bank_transfer_duplicate_reference_email_test.py --to testing@openmates.org --lang en
     - python3 scripts/api_tests/test_revolut_business_bank_transfer_settlement.py --api-url https://api.dev.openmates.org --scenarios exact,overpaid,underpaid-complete when Vault/company Sandbox credentials are configured.
   verification_order:
     - Backend deterministic pytest first.
@@ -719,6 +817,51 @@ tasks:
     blockers: []
     follow_up_tasks: []
     independently_deployable: true
+  - id: TASK-5
+    title: Add duplicate completed-reference user email and single-use copy
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-8
+      acceptance_criteria:
+        - AC-12
+        - AC-13
+    expected_files:
+      - backend/core/api/app/routes/payments.py
+      - backend/core/api/app/tasks/email_tasks/bank_transfer_duplicate_reference_email_task.py
+      - backend/core/api/app/tasks/email_tasks/__init__.py
+      - backend/core/api/app/services/email_template.py
+      - backend/core/api/templates/email/bank-transfer-duplicate-reference.mjml
+      - backend/scripts/send_bank_transfer_duplicate_reference_email_test.py
+      - backend/tests/test_bank_transfer.py
+      - backend/tests/test_bank_transfer_duplicate_reference_email.py
+      - frontend/packages/ui/src/i18n/sources/email/main.yml
+      - frontend/packages/ui/src/i18n/sources/settings/billing.yml
+    verification:
+      - T-PYTEST-BANK-TRANSFER
+      - T-PYTEST-DUPLICATE-REFERENCE-EMAIL
+    verification_ids:
+      - T-PYTEST-BANK-TRANSFER
+      - T-PYTEST-DUPLICATE-REFERENCE-EMAIL
+    dependencies:
+      - TASK-4
+    ownership:
+      files:
+        - backend/core/api/app/routes/payments.py
+        - backend/core/api/app/tasks/email_tasks/bank_transfer_duplicate_reference_email_task.py
+        - backend/core/api/app/tasks/email_tasks/__init__.py
+        - backend/core/api/app/services/email_template.py
+        - backend/core/api/templates/email/bank-transfer-duplicate-reference.mjml
+        - backend/scripts/send_bank_transfer_duplicate_reference_email_test.py
+        - backend/tests/test_bank_transfer.py
+        - backend/tests/test_bank_transfer_duplicate_reference_email.py
+        - frontend/packages/ui/src/i18n/sources/email/main.yml
+        - frontend/packages/ui/src/i18n/sources/settings/billing.yml
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: true
 
 risks:
   - Duplicate webhook retries can create financial over-crediting if transaction ID idempotency is incomplete.
@@ -726,7 +869,9 @@ risks:
   - Email decryption can fail if the original order lacks email_encryption_key and the user lacks server-side email fallback.
   - Revolut Sandbox webhook delivery depends on external configuration and may not be reliable enough for default CI.
   - Missing company Revolut API credentials now intentionally prevent auto-settlement and require manual operator handling.
+  - Duplicate-reference refunds require user-provided bank details or payout-link support; this slice must not send money automatically.
 
 open_questions:
   - Should support-contribution overpayments/underpayments get similar user emails in a later slice?
   - Should Billing > Invoices eventually display partial paid/remaining amount state before completion?
+  - Should a later admin tool create credits gift cards or Revolut payout links directly from duplicate-reference records?

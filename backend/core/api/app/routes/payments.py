@@ -117,6 +117,10 @@ BANK_TRANSFER_AMOUNT_NOTICE_TASK = (
     "app.tasks.email_tasks.bank_transfer_amount_notice_email_task."
     "send_bank_transfer_amount_notice"
 )
+BANK_TRANSFER_DUPLICATE_REFERENCE_EMAIL_TASK = (
+    "app.tasks.email_tasks.bank_transfer_duplicate_reference_email_task."
+    "send_bank_transfer_duplicate_reference"
+)
 
 
 def _paid_signup_completion_update_payload(**extra_fields: Any) -> Dict[str, Any]:
@@ -6017,6 +6021,7 @@ def _bank_transfer_received_summary(
     currency: str,
     created_at: Optional[str],
     expected_amount_cents: int,
+    source: Optional[str] = None,
 ) -> Dict[str, Any]:
     ledger = _parse_bank_transfer_transaction_ledger(order.get("revolut_transactions"))
     existing_ids = {str(tx.get("transaction_id") or "") for tx in ledger}
@@ -6052,14 +6057,15 @@ def _bank_transfer_received_summary(
                 }
             )
 
-    ledger.append(
-        {
-            "transaction_id": transaction_id,
-            "amount_cents": int(amount_cents or 0),
-            "currency": currency,
-            "received_at": created_at or datetime.now(timezone.utc).isoformat(),
-        }
-    )
+    new_transaction = {
+        "transaction_id": transaction_id,
+        "amount_cents": int(amount_cents or 0),
+        "currency": currency,
+        "received_at": created_at or datetime.now(timezone.utc).isoformat(),
+    }
+    if source:
+        new_transaction["source"] = source
+    ledger.append(new_transaction)
     received_total_cents = prior_total + int(amount_cents or 0)
     return {
         "duplicate": False,
@@ -6108,6 +6114,46 @@ def _queue_bank_transfer_amount_notice(
         )
     except Exception as exc:
         logger.error("Failed to dispatch bank-transfer %s notice for %s: %s", notice_type, order_id, exc)
+
+
+def _queue_bank_transfer_duplicate_reference_email(
+    *,
+    order_id: str,
+    user_id: str,
+    email_encryption_key: Optional[str],
+    credits_amount: int,
+    reference: str,
+    expected_amount_cents: int,
+    received_amount_cents: int,
+    total_received_cents: int,
+    overpaid_amount_cents: int,
+    transaction_id: str,
+) -> bool:
+    if not email_encryption_key:
+        logger.warning("Cannot queue bank-transfer duplicate-reference email for %s: missing email key", order_id)
+        return False
+    try:
+        app.send_task(
+            name=BANK_TRANSFER_DUPLICATE_REFERENCE_EMAIL_TASK,
+            kwargs={
+                "user_id": user_id,
+                "order_id": order_id,
+                "email_encryption_key": email_encryption_key,
+                "credits_amount": credits_amount,
+                "reference": reference,
+                "expected_amount_eur": _format_eur_cents(expected_amount_cents),
+                "received_amount_eur": _format_eur_cents(received_amount_cents),
+                "total_received_eur": _format_eur_cents(total_received_cents),
+                "overpaid_amount_eur": _format_eur_cents(overpaid_amount_cents),
+                "transaction_id": transaction_id,
+                "support_email": "support@openmates.org",
+            },
+            queue="email",
+        )
+        return True
+    except Exception as exc:
+        logger.error("Failed to dispatch bank-transfer duplicate-reference email for %s: %s", order_id, exc)
+        return False
 
 
 def _notify_admin_bank_transfer(subject: str, body: str) -> None:
@@ -6303,6 +6349,114 @@ async def _handle_revolut_business_webhook(
                     break
             except Exception as db_err:
                 logger.error(f"Error querying Directus for bank transfer reference '{candidate_reference}': {db_err}")
+
+    completed_order = None
+    if pending_order and pending_order.get("status") == "completed":
+        completed_order = pending_order
+        pending_order = None
+
+    if not pending_order and not completed_order:
+        for candidate_reference in bank_transfer_reference_lookup_variants(reference):
+            try:
+                results = await directus_service.get_items(
+                    "pending_bank_transfers",
+                    params={
+                        "filter[reference][_eq]": candidate_reference,
+                        "filter[status][_eq]": "completed",
+                        "limit": 1,
+                    }
+                )
+                if results:
+                    completed_order = results[0]
+                    logger.info(
+                        "Found completed bank transfer in Directus for reused reference '%s'",
+                        candidate_reference,
+                    )
+                    break
+            except Exception as db_err:
+                logger.error(
+                    "Error querying Directus for completed bank transfer reference '%s': %s",
+                    candidate_reference,
+                    db_err,
+                )
+
+    if completed_order and completed_order.get("order_type", "credit_purchase") in {
+        "credit_purchase",
+        "team_credit_purchase",
+        "gift_card_purchase",
+    }:
+        order_id = completed_order.get("order_id", "")
+        reference = completed_order.get("reference") or reference
+        expected_amount_cents = int(completed_order.get("amount_expected_cents") or 0)
+        user_id = completed_order.get("user_id", "")
+        credits_amount = int(completed_order.get("credits_amount") or 0)
+        received_summary = _bank_transfer_received_summary(
+            completed_order,
+            transaction_id=transaction_id,
+            amount_cents=received_amount_cents,
+            currency=received_currency,
+            created_at=transfer.get("created_at"),
+            expected_amount_cents=expected_amount_cents,
+            source="duplicate_completed_reference",
+        )
+        if received_summary["duplicate"]:
+            logger.info("Duplicate Revolut transaction %s for completed bank transfer %s ignored", transaction_id, order_id)
+            return {"status": "duplicate_transaction_ignored"}
+
+        received_total_cents = int(received_summary["received_total_cents"])
+        overpaid_amount_cents = int(received_summary["overpaid_amount_cents"])
+        await _update_bank_transfer(order_id, {
+            "status": "completed",
+            "received_amount_cents": received_total_cents,
+            "remaining_amount_cents": int(received_summary["remaining_amount_cents"]),
+            "overpaid_amount_cents": overpaid_amount_cents,
+            "revolut_transaction_id": transaction_id,
+            "revolut_transactions": received_summary["ledger"],
+            "admin_note": (
+                "Distinct Revolut transfer reused an already-completed bank-transfer reference; "
+                "no duplicate credits were granted automatically."
+            ),
+        })
+
+        email_queued = _queue_bank_transfer_duplicate_reference_email(
+            order_id=order_id,
+            user_id=user_id,
+            email_encryption_key=completed_order.get("email_encryption_key"),
+            credits_amount=credits_amount,
+            reference=reference,
+            expected_amount_cents=expected_amount_cents,
+            received_amount_cents=int(received_amount_cents or 0),
+            total_received_cents=received_total_cents,
+            overpaid_amount_cents=overpaid_amount_cents,
+            transaction_id=transaction_id,
+        )
+        _notify_admin_bank_transfer(
+            subject=f"Duplicate completed bank-transfer reference received — {reference}",
+            body=(
+                "A SEPA bank transfer arrived with an OpenMates reference that already belongs "
+                "to a completed credit purchase. No duplicate credits, team credits, gift cards, "
+                "or purchase confirmation were created automatically.\n\n"
+                f"Order ID: {order_id}\n"
+                f"Reference: {reference}\n"
+                f"Duplicate transfer amount: €{_format_eur_cents(int(received_amount_cents or 0))}\n"
+                f"Total recorded under reference: €{_format_eur_cents(received_total_cents)}\n"
+                f"Unresolved amount above selected pack: €{_format_eur_cents(overpaid_amount_cents)}\n"
+                f"Transaction ID: {transaction_id}\n\n"
+                "Action required: wait for the user's reply, then issue a credits gift card or "
+                "refund the transfer using the IBAN/account holder details they provide."
+            ),
+        )
+        logger.warning(
+            "Bank transfer reused completed reference %s for order %s; duplicate amount=%s transaction_id=%s",
+            reference,
+            order_id,
+            received_amount_cents,
+            transaction_id,
+        )
+        return {
+            "status": "duplicate_completed_reference_emailed"
+            if email_queued else "duplicate_completed_reference_flagged"
+        }
 
     if not pending_order:
         logger.warning(

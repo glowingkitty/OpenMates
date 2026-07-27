@@ -889,6 +889,92 @@ class TestPersonalBankTransferWebhook:
         assert sent_tasks == []
 
     @pytest.mark.asyncio
+    @pytest.mark.parametrize("cache_returns_completed", [True, False])
+    async def test_distinct_transaction_for_completed_reference_emails_user_without_recredit(
+        self,
+        monkeypatch,
+        cache_returns_completed,
+    ):
+        order = self._order(
+            status="completed",
+            received_amount_cents=5000,
+            remaining_amount_cents=0,
+            overpaid_amount_cents=0,
+            revolut_transaction_id="txn-original",
+            revolut_transactions=[
+                {
+                    "transaction_id": "txn-original",
+                    "amount_cents": 5000,
+                    "currency": "eur",
+                    "received_at": "2026-04-13T12:00:00.000Z",
+                }
+            ],
+        )
+
+        class CompletedReferenceCache(self.FakeCache):
+            async def get_bank_transfer_by_reference(self, _reference):
+                if cache_returns_completed:
+                    return dict(self.order)
+                return None
+
+        class CompletedReferenceDirectus(self.FakeDirectus):
+            def __init__(self, order):
+                super().__init__(order)
+                self.query_statuses = []
+
+            async def get_items(self, collection, params=None, **_kwargs):
+                if collection == "pending_bank_transfers":
+                    status_filter = (params or {}).get("filter[status][_eq]")
+                    self.query_statuses.append(status_filter)
+                    if status_filter == "pending":
+                        return []
+                    if status_filter == "completed":
+                        return [dict(self.pending_bank_transfer)]
+                    return [{"id": self.pending_bank_transfer["id"]}]
+                return []
+
+        cache = CompletedReferenceCache(order)
+        directus = CompletedReferenceDirectus(order)
+        sent_tasks = []
+        monkeypatch.setattr(payments.app, "send_task", lambda **kwargs: sent_tasks.append(kwargs))
+
+        event = _make_transaction_created_event(
+            amount=50.0,
+            currency="EUR",
+            reference=order["reference"],
+            transaction_id="txn-duplicate-reference",
+        )
+
+        result = await payments._handle_revolut_business_webhook(
+            event_payload=event,
+            event_type="TransactionCreated",
+            payment_service=_fake_confirmed_payment_service(event),
+            cache_service=cache,
+            directus_service=directus,
+            encryption_service=self.FakeEncryption(),
+            secrets_manager=self.FakeSecrets(),
+            tier_service=self.FakeTier(),
+        )
+
+        assert result == {"status": "duplicate_completed_reference_emailed"}
+        assert cache.set_user_calls == []
+        assert cache.status_updates == []
+        update = directus.updated_items[0][2]
+        assert update["status"] == "completed"
+        assert update["received_amount_cents"] == 10000
+        assert update["overpaid_amount_cents"] == 5000
+        assert update["revolut_transaction_id"] == "txn-duplicate-reference"
+        assert update["revolut_transactions"][-1]["source"] == "duplicate_completed_reference"
+        assert [task["name"] for task in sent_tasks] == [
+            payments.BANK_TRANSFER_DUPLICATE_REFERENCE_EMAIL_TASK,
+            "app.tasks.email_tasks.alert_notification_email_task.send_alert_notification",
+        ]
+        assert sent_tasks[0]["kwargs"]["received_amount_eur"] == "50.00"
+        assert sent_tasks[0]["kwargs"]["reference"] == order["reference"]
+        assert sent_tasks[0]["kwargs"]["transaction_id"] == "txn-duplicate-reference"
+        assert order["reference"] in sent_tasks[1]["kwargs"]["description"]
+
+    @pytest.mark.asyncio
     async def test_api_confirmation_failure_alerts_admin_and_does_not_settle(self, monkeypatch):
         order = self._order()
         cache = self.FakeCache(order)
