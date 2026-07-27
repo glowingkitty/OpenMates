@@ -1,6 +1,6 @@
 # backend/providers/moonshot.yml
 # Moonshot AI provider configuration (Kimi models).
-# Kimi models can be accessed via Together AI API (primary) with OpenRouter as fallback.
+# Kimi models can be accessed via Together AI API; older K2 models keep OpenRouter fallback.
 
 provider_id: "moonshot"
 name: "Moonshot AI"
@@ -112,6 +112,52 @@ models:
       tool_use: true
       streaming: true
 
+  - id: "kimi-k3"
+    name: "Kimi K3"
+    description: "Kimi K3 is Moonshot AI's 2.8T-parameter open-weights MoE model with native vision, a 1M-token context window, and reasoning for long-horizon coding and knowledge work. Primary: Together AI."
+    country_origin: "CN" # ISO 3166-1 alpha-2 country code for model origin (China)
+    for_app_skill: "ai.ask" # This model is for the AI ask skill (text generation)
+    release_date: "2026-07-27" # Together AI serverless availability / open-weights release
+    allow_auto_select: true
+    reasoning: true
+    external_ids: # Mapping to external leaderboard/provider IDs for cross-referencing
+      together: "moonshotai/Kimi-K3"
+    input_types:
+      - text
+      - image
+    output_types:
+      - text
+    default_server: "together" # Default to Together AI for serverless inference
+    servers:
+      - id: "together"
+        name: "Together AI"
+        model_id: "moonshotai/Kimi-K3"
+        region: "US" # Server region for UI display
+    pricing:
+      tokens:
+        input:
+          per_credit_unit: 110 # Based on $3.00/M input (Together AI): 333.33 / 3.00 = 111.1, rounded down
+        output:
+          per_credit_unit: 20 # Based on $15.00/M output (Together AI): 333.33 / 15.00 = 22.2, rounded down
+    costs:
+      input_per_million_token:
+        price: 3.00
+        currency: USD
+        max_context: 1000000
+      cached_input_per_million_token:
+        price: 0.30
+        currency: USD
+        max_context: 1000000
+      output_per_million_token:
+        price: 15.00
+        currency: USD
+        max_context: 1000000
+    features:
+      knowledge_cutoff: "2026-07"
+      max_output_tokens: 1000000
+      tool_use: true
+      streaming: true
+
 # Pricing Formula:
 # 1. Cost per token = (your_cost_usd_per_million * markup) / 1,000,000
 # 2. Tokens per credit = credit_value_usd / cost_per_token
@@ -125,3 +171,7 @@ models:
 # Examples for Kimi K2.7 Code (Together AI / OpenRouter pricing):
 # - Input ($0.95/M): 333.33 / 0.95 = 350.9 tokens/credit -> round to 350
 # - Output ($4.00/M): 333.33 / 4.00 = 83.3 tokens/credit -> round to 80
+#
+# Examples for Kimi K3 (Together AI pricing):
+# - Input ($3.00/M): 333.33 / 3.00 = 111.1 tokens/credit -> round to 110
+# - Output ($15.00/M): 333.33 / 15.00 = 22.2 tokens/credit -> round to 20

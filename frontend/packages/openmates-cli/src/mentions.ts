@@ -149,6 +149,7 @@ export const CHAT_MODELS: ModelInfo[] = [
   { id: "qwen3-235b-a22b-2507", name: "Qwen 3 256b" },
   { id: "kimi-k2.5", name: "Kimi K2.5" },
   { id: "kimi-k2.6", name: "Kimi K2.6" },
+  { id: "kimi-k3", name: "Kimi K3" },
   { id: "zai-glm-4.7", name: "GLM 4.7" },
   { id: "mistral-medium-latest", name: "Mistral Medium 3.5", providerId: "mistral" },
   { id: "mistral-small-2506", name: "Mistral Small 3.2", providerId: "mistral" },
