@@ -55,7 +55,7 @@ test.describe('Unified workspace detail pages', () => {
 			);
 			await page.getByTestId('project-create-button').click();
 			projectId = (await (await created).json()).project.project_id;
-			const card = page.getByTestId('project-card').filter({ hasText: title });
+			const card = page.getByTestId('project-card').filter({ hasText: title }).first();
 			await card.getByTestId('project-detail-link').click();
 			await expectUnifiedDetail(page, 'projects', projectId);
 		} finally {
@@ -79,7 +79,7 @@ test.describe('Unified workspace detail pages', () => {
 			);
 			await page.getByTestId('task-create-button').click();
 			taskId = (await (await created).json()).task.task_id;
-			const card = page.getByTestId('task-card').filter({ hasText: title });
+			const card = page.getByTestId('task-card').filter({ hasText: title }).first();
 			await card.getByTestId('task-detail-link').click();
 			await expectUnifiedDetail(page, 'tasks', taskId);
 		} finally {
@@ -103,7 +103,7 @@ test.describe('Unified workspace detail pages', () => {
 			);
 			await page.getByTestId('plan-create-button').click();
 			planId = (await (await created).json()).plan.plan_id;
-			const card = page.getByTestId('linked-plan-card').filter({ hasText: title });
+			const card = page.getByTestId('linked-plan-card').filter({ hasText: title }).first();
 			await card.getByTestId('plan-detail-link').click();
 			await expectUnifiedDetail(page, 'plans', planId);
 		} finally {
@@ -137,7 +137,7 @@ test.describe('Unified workspace detail pages', () => {
 			await page.goto(getE2EDebugUrl('/workflows'), { waitUntil: 'domcontentloaded' });
 			await expect(page.getByTestId('workflows-page')).toBeVisible({ timeout: 30000 });
 			await expect.soft(page.getByTestId('report-issue-button')).toBeVisible();
-			const card = page.getByTestId('workflow-landing-card').filter({ hasText: title });
+			const card = page.getByTestId('workflow-landing-card').filter({ hasText: title }).first();
 			await card.click();
 			await expectUnifiedDetail(page, 'workflows', workflowId, 'workflow-detail');
 		} finally {
