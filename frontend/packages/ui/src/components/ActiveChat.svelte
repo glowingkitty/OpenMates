@@ -539,6 +539,12 @@
         const ref = messageInputFieldRef;
         if (!ref) throw new Error('Message input helper disappeared before draft restore');
 
+        const revealRestoredDraft = async () => {
+            ref.revealDraftActions?.();
+            ref.focus();
+            await tick();
+        };
+
         const draftVersion = draftChat.draft_v || 1;
         const decryptDraftWithRetry = async (encryptedValue: string, fieldName: string): Promise<string | null> => {
             for (let attempt = 0; attempt < 20; attempt += 1) {
@@ -564,7 +570,7 @@
                 if (!hasMeaningfulTiptapContent(draftContent) && editableMarkdown.trim() && ref.replaceDraftWithPlainText) {
                     await ref.replaceDraftWithPlainText(chatId, editableMarkdown.trim(), draftVersion);
                 }
-                await tick();
+                await revealRestoredDraft();
                 return;
             }
         }
@@ -574,13 +580,13 @@
             const previewText = decryptedPreview?.trim();
             if (previewText && !/^\[[^\]]+\]$/.test(previewText)) {
                 ref.setDraftContent(chatId, parse_message(previewText, 'write', { unifiedParsingEnabled: true }), draftVersion, false);
-                await tick();
+                await revealRestoredDraft();
                 return;
             }
         }
 
         ref.setCurrentChatContext?.(chatId, null, draftVersion);
-        await tick();
+        await revealRestoredDraft();
     }
 
     type EmbedDecodedContent = Record<string, unknown> & {
