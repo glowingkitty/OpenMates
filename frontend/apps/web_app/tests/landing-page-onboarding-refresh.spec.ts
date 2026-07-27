@@ -158,6 +158,39 @@ async function waitForExpandedIntroToCoverActiveChat(page: any): Promise<void> {
 	await expect.poll(async () => (await landingIntroOverlayMetrics(page)).bannerActiveBottomDelta, { timeout: 5000 }).toBeLessThanOrEqual(2);
 }
 
+async function guestExploreLayoutMetrics(page: any): Promise<{
+	promptText: string;
+	promptTop: number;
+	carouselTop: number;
+	firstCardTop: number;
+	linkRowTop: number;
+}> {
+	return page.evaluate(() => {
+		const prompt = document.querySelector<HTMLElement>('[data-testid="guest-interest-prompt"]');
+		const carousel = document.querySelector<HTMLElement>('[data-testid="recent-chats-scroll-container"]');
+		const firstCard = document.querySelector<HTMLElement>('[data-testid="resume-chat-large-card"], [data-testid="resume-chat-card"]');
+		const linkRow = document.querySelector<HTMLElement>('[data-testid="guest-example-link-row"]');
+		if (!prompt || !carousel || !firstCard || !linkRow) {
+			throw new Error('Guest explore layout elements missing');
+		}
+
+		return {
+			promptText: prompt.textContent?.trim() ?? '',
+			promptTop: prompt.getBoundingClientRect().top,
+			carouselTop: carousel.getBoundingClientRect().top,
+			firstCardTop: firstCard.getBoundingClientRect().top,
+			linkRowTop: linkRow.getBoundingClientRect().top
+		};
+	});
+}
+
+function expectStableGuestExploreLayout(before: Awaited<ReturnType<typeof guestExploreLayoutMetrics>>, after: Awaited<ReturnType<typeof guestExploreLayoutMetrics>>): void {
+	expect(Math.abs(after.promptTop - before.promptTop), 'guest prompt must not move while slide 0 changes to slide 1').toBeLessThanOrEqual(2);
+	expect(Math.abs(after.carouselTop - before.carouselTop), 'example carousel must not move while slide 0 changes to slide 1').toBeLessThanOrEqual(2);
+	expect(Math.abs(after.firstCardTop - before.firstCardTop), 'first example card must not move while slide 0 changes to slide 1').toBeLessThanOrEqual(2);
+	expect(Math.abs(after.linkRowTop - before.linkRowTop), 'example links must not move while slide 0 changes to slide 1').toBeLessThanOrEqual(2);
+}
+
 test.describe('Landing page onboarding refresh', () => {
 	test('expanded intro fits all target device viewports', async ({ page }: { page: any }) => {
 		test.setTimeout(120000);
@@ -247,6 +280,38 @@ test.describe('Landing page onboarding refresh', () => {
 		expect(restored.bannerActiveBottomDelta, 'returning to slide one expands over active chat bottom').toBeLessThanOrEqual(2);
 		expect(restored.messageInputOpacity, 'message input fades out when slide one expands again').toBeLessThanOrEqual(0.05);
 		expect(restored.welcomeContentOpacity, 'welcome content fades out when slide one expands again').toBeLessThanOrEqual(0.05);
+	});
+
+	test('touch guest prompt and example cards stay fixed when intro advances to slide two', async ({ page }: { page: any }) => {
+		test.setTimeout(60000);
+		await page.setViewportSize({ width: 768, height: 1024 });
+		await page.addInitScript(() => {
+			Object.defineProperty(navigator, 'maxTouchPoints', {
+				configurable: true,
+				get: () => 5
+			});
+			Object.defineProperty(window, 'ontouchstart', {
+				configurable: true,
+				value: null
+			});
+		});
+
+		await page.goto(getE2EDebugUrl('/?landing-touch-stable-examples'), { waitUntil: 'domcontentloaded' });
+		await page.waitForLoadState('networkidle');
+		await waitForLandingIntroExamples(page);
+		await waitForExpandedIntroToCoverActiveChat(page);
+
+		await page.getByTestId('daily-inspiration-next').click();
+		await expect.poll(async () => (await landingIntroOverlayMetrics(page)).phase, { timeout: 2000 }).toBe('collapsing');
+		await expect.poll(async () => (await landingIntroOverlayMetrics(page)).welcomeContentOpacity, { timeout: 1500 }).toBeGreaterThan(0.2);
+		const collapsing = await guestExploreLayoutMetrics(page);
+		expect(collapsing.promptText).toContain('Tap or swipe, to explore real chats:');
+
+		await expect(page.getByTestId('landing-intro-expanded')).toHaveCount(0, { timeout: 5000 });
+		await expect(page.getByTestId('daily-inspiration-phrase')).toContainText('Actionable', { timeout: 5000 });
+		const regular = await guestExploreLayoutMetrics(page);
+		expect(regular.promptText).toContain('Tap or swipe, to explore real chats:');
+		expectStableGuestExploreLayout(collapsing, regular);
 	});
 
 	test('settings panel keeps active chat fixed inside the viewport', async ({ page }: { page: any }) => {

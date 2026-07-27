@@ -711,7 +711,7 @@
 
     let guestInterestHeadingParts = $derived.by(() => {
         if (!guestInterestSelectorVisible) {
-            return splitHtmlLineBreaks($text($isMobileView ? 'chat.welcome.guest_explore_touch' : 'chat.welcome.guest_explore_desktop'));
+            return splitHtmlLineBreaks($text(isTouchEnvironment ? 'chat.welcome.guest_explore_touch' : 'chat.welcome.guest_explore_desktop'));
         }
         const key = 'chat.interests.active_title';
         return splitHtmlLineBreaks($text(key));
@@ -3385,9 +3385,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     }
 
     /**
-     * Build the scrollable intro list for non-authenticated users.
-     * Prepends locally imported shared-by-others chats, then adds intro and
-     * example chats after the guest has confirmed/skipped interest selection.
+     * Build the scrollable example list for non-authenticated users.
+     * Prepends locally imported shared-by-others chats, then adds example chats
+     * after the guest has confirmed/skipped interest selection.
      * Returns Chat[] ready for rendering with the standard card components.
      */
     async function loadSharedByOthersRecentChats(): Promise<RecentChatMeta[]> {
@@ -3424,24 +3424,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             return sharedMetas;
         }
 
-        // 1. Static intro chats (DEMO_CHATS = INTRO_CHATS, already excludes LEGAL_CHATS)
-        const introMetas: RecentChatMeta[] = DEMO_CHATS
-            .filter((demoChat) => demoChat.chat_id === 'demo-for-everyone')
-            .map((demoChat) => {
-                const translated = translateDemoChat(demoChat);
-                const chat = convertDemoChatToChat(translated);
-                return {
-                    chat,
-                    title: translated.title ?? null,
-                    category: translated.metadata.category ?? null,
-                    icon: translated.metadata.icon_names?.[0] ?? null,
-                    summary: translated.description ?? null,
-                    imageBubbles: null,
-                    draftPreview: null,
-                };
-            });
-
-        // 2. Example chats (static, always available, no legal chats)
+        // Example chats are static and always available; intro chats stay reachable
+        // through /intro/* but are no longer advertised in this examples list.
         const communityMetas: RecentChatMeta[] = getAllExampleChats().map((chat) => ({
             chat,
             title: chat.title ?? null,
@@ -3455,23 +3439,23 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         const slideExampleIds = GUEST_LANDING_EXAMPLE_CHAT_IDS_BY_INSPIRATION[activeInspirationId];
         if (slideExampleIds) {
             const slideMetas = orderMetasByPreferredIds(communityMetas, slideExampleIds);
-            return [...sharedMetas, ...introMetas, ...slideMetas];
+            return [...sharedMetas, ...slideMetas];
         }
 
         if (selectedTagIds.length === 0) {
-            return [...sharedMetas, ...introMetas, ...orderMetasByPreferredIds(communityMetas, GUEST_LANDING_DEFAULT_EXAMPLE_IDS)];
+            return [...sharedMetas, ...orderMetasByPreferredIds(communityMetas, GUEST_LANDING_DEFAULT_EXAMPLE_IDS)];
         }
 
         const rankedExampleIds = rankExampleChatIdsByInterests(
             communityMetas.map((meta) => meta.chat.chat_id),
             selectedTagIds
         );
-        const metaById = new Map([...introMetas, ...communityMetas].map((meta) => [meta.chat.chat_id, meta]));
+        const metaById = new Map(communityMetas.map((meta) => [meta.chat.chat_id, meta]));
         const rankedCommunityMetas = rankedExampleIds
             .map((id) => metaById.get(id))
             .filter((meta): meta is RecentChatMeta => Boolean(meta));
 
-        return [...sharedMetas, ...introMetas, ...rankedCommunityMetas];
+        return [...sharedMetas, ...rankedCommunityMetas];
     }
 
     // State for non-authenticated users' intro + example chats scroll list
@@ -12180,7 +12164,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                         <p>{$text('chat.welcome.all_examples_subtitle')}</p>
                                     </div>
                                     <div class="guest-all-examples-grid" data-testid="guest-all-examples-grid">
-                                        {#each nonAuthRecentChats.filter((meta) => isExampleChat(meta.chat.chat_id) || meta.chat.chat_id === 'demo-for-everyone') as meta (meta.chat.chat_id)}
+                                        {#each nonAuthRecentChats.filter((meta) => isExampleChat(meta.chat.chat_id)) as meta (meta.chat.chat_id)}
                                             {@const category = meta.category || 'general_knowledge'}
                                             {@const gradientColors = getCategoryGradientColors(category)}
                                             {@const iconName = getValidIconName(meta.icon || '', category)}
@@ -12217,7 +12201,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                         </h2>
                                     {/if}
                                     {#if !$authStore.isAuthenticated}
-                                        <p class="guest-interest-prompt" transition:fade={fadeParams}>
+                                        <p class="guest-interest-prompt" data-testid="guest-interest-prompt" transition:fade={fadeParams}>
                                             {#each guestInterestHeadingParts as part, index}
                                                 <span>{part}</span>{#if index < guestInterestHeadingParts.length - 1}<br>{/if}
                                             {/each}
@@ -12616,13 +12600,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                         </button>
                                     {/if}
                                 </div>
-                            <!-- Non-auth: scrollable list of intro + example chats (same card design as auth recent chats) -->
+                            <!-- Non-auth: scrollable list of example chats (same card design as auth recent chats) -->
                             {:else if !$authStore.isAuthenticated && (guestInterestContinueConfirmed || nonAuthRecentChats.some((meta) => meta.chat.is_shared_by_others)) && nonAuthRecentChats.length > 0}
                                 <div
                                     class="recent-chats-scroll-container"
                                     data-testid="recent-chats-scroll-container"
                                     bind:this={recentChatsScrollEl}
-                                    transition:slide={{ duration: 360 }}
                                 >
                                     {#each nonAuthRecentChats as meta, i (meta.chat.chat_id)}
                                         {@const tilt = nonAuthChatTiltStates[i]}
