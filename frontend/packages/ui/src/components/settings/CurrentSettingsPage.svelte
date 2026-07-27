@@ -425,17 +425,19 @@
 
             {/if}
 
-            <div data-testid="learning-mode-toggle-wrapper">
-                <SettingsItem
-                    type="quickaction"
-                    icon="study"
-                    title={$text('settings.learning_mode')}
-                    hasToggle={true}
-                    checked={$learningMode.enabled}
-                    disabled={$learningMode.loading}
-                    onClick={() => showSettingsView('learning-mode/setup', null)}
-                />
-            </div>
+            {#if isAuthenticated}
+                <div data-testid="learning-mode-toggle-wrapper">
+                    <SettingsItem
+                        type="quickaction"
+                        icon="study"
+                        title={$text('settings.learning_mode')}
+                        hasToggle={true}
+                        checked={$learningMode.enabled}
+                        disabled={$learningMode.loading}
+                        onClick={() => showSettingsView('learning-mode/setup', null)}
+                    />
+                </div>
+            {/if}
 
             <!-- Regular Settings -->
             {#each Object.entries(settingsViews).filter(([key]) => isVisibleTopLevelView(key) && (key !== 'logs' || isAdminUser)) as [key]}

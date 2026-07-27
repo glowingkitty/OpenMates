@@ -152,6 +152,7 @@ test.describe('Unauthenticated chat navigation stays reactive', () => {
 
 		const settingsMenu = page.getByTestId('settings-menu');
 		await expect(settingsMenu).toBeVisible({ timeout: SETTINGS_TIMEOUT });
+		await expect(settingsMenu.getByTestId('learning-mode-toggle-wrapper')).toHaveCount(0);
 		console.log('[chat-nav] Settings menu opened — settings panel is reactive');
 
 		// ─── 5. Close the settings panel ─────────────────────────────────────

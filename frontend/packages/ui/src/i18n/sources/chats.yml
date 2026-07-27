@@ -1,3 +1,28 @@
+chat.welcome.back_to_recent:
+  context: Button label in the logged-out example chat gallery that returns from the full list to recent examples.
+  en: Back to recent
+  de: Zurueck zu den neuesten
+  zh: 返回最近
+  es: Volver a recientes
+  fr: Retour aux recents
+  pt: Voltar aos recentes
+  ru: Назад к недавним
+  ja: 最近に戻る
+  ko: 최근 항목으로 돌아가기
+  it: Torna ai recenti
+  tr: Son kullanılanlara dön
+  vi: Quay lại gần đây
+  id: Kembali ke terbaru
+  pl: Wroc do ostatnich
+  nl: Terug naar recent
+  ar: العودة إلى الأحدث
+  hi: हाल के आइटम पर वापस
+  th: กลับไปยังรายการล่าสุด
+  cs: Zpet na nedavne
+  sv: Tillbaka till senaste
+  he: חזרה לאחרונים
+  verified_by_human: []
+
 context_menu.download:
   context: Menu option to download chat as markdown file
   en: Download

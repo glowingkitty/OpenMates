@@ -860,7 +860,7 @@ changes to the documentation (to keep the documentation up to date).
     let showReferralCta = $derived(
         $authStore.isAuthenticated && !$isRestrictedSession && !isSelfHosted && !!$referralStatus?.available
     );
-    let showLearningModeCta = $derived($learningMode.enabled);
+    let showLearningModeCta = $derived($authStore.isAuthenticated && $learningMode.enabled);
     let hideHeaderGithubLink = $derived($isMobileView && (showReferralCta || showLearningModeCta));
 
     $effect(() => {
