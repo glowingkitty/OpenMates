@@ -3981,14 +3981,16 @@
         
         // If clicking on the editor itself, ensure it gets focus
         if (editor?.view.dom.contains(target)) {
-            // Click is on the editor - ensure it's focused
-            // Use a small delay to ensure the focus event fires after any potential blur
-            setTimeout(() => {
-                if (editor && !editor.isDestroyed && !editor.isFocused) {
-                    editor.commands.focus('end');
-                    console.debug('[MessageInput] Ensuring editor focus after click on editor');
-                }
-            }, 10);
+            if (blurTimeoutId) {
+                clearTimeout(blurTimeoutId);
+                blurTimeoutId = null;
+            }
+            if (editor && !editor.isDestroyed && !editor.isFocused) {
+                editor.commands.focus('end');
+                console.debug('[MessageInput] Ensuring editor focus on editor mousedown');
+            }
+            isMessageFieldFocused = true;
+            isFocused = true;
             return;
         }
         
