@@ -432,12 +432,12 @@
         return editor.getText().trim().length > 0 && !isContentEmptyExceptMention(editor);
     }
 
-    function syncTextOnlyDomToEditorBeforeDraftSave(editor: Editor): void {
-        if (editor.isDestroyed || editorHasEmbedContent(editor)) return;
+    function syncTextOnlyDomToEditorBeforeDraftSave(editor: Editor): boolean {
+        if (editor.isDestroyed || editorHasEmbedContent(editor)) return false;
         const dom = editor.view.dom;
         const domText = ((dom instanceof HTMLElement ? dom.innerText : dom.textContent) ?? '').replace(/\u00a0/g, ' ');
         const editorText = editor.getText().replace(/\u00a0/g, ' ');
-        if (domText.trim() === editorText.trim()) return;
+        if (domText.trim() === editorText.trim()) return false;
 
         if (domText.trim().length === 0) {
             editor.commands.setContent(getInitialContent(), { emitUpdate: false });
@@ -446,17 +446,18 @@
             hasEmbedContent = false;
             draftPreviewParts = EMPTY_DRAFT_PREVIEW_PARTS;
             lastEditorUpdateText = editor.getText();
-            return;
+            return true;
         }
 
         const parsedDoc = parse_message(domText, 'write', { unifiedParsingEnabled: true });
-        if (!parsedDoc?.content) return;
+        if (!parsedDoc?.content) return false;
 
         editor.commands.setContent(parsedDoc, { emitUpdate: false });
         originalMarkdown = domText;
         hasContent = !isContentEmptyExceptMention(editor);
         refreshDraftPreviewState(editor);
         lastEditorUpdateText = editor.getText();
+        return true;
     }
 
     function getDraftEmbedKind(type: unknown): DraftEmbedKind {
@@ -748,6 +749,7 @@
     // further DOM mutations → more input events → an infinite feedback loop that
     // crashes performance.
     let lastEditorUpdateText = '';
+    let editorDomInputSyncTimer: ReturnType<typeof setTimeout> | null = null;
     
     // --- Blur timeout tracking ---
     let blurTimeoutId: NodeJS.Timeout | null = null; // Track blur timeout to cancel it if focus is regained
@@ -2845,6 +2847,20 @@
         view.dispatch(state.tr);
     }
 
+    function scheduleEditorDomInputSync(event?: Event) {
+        if ((event as InputEvent | undefined)?.isComposing) return;
+        if (editorDomInputSyncTimer) clearTimeout(editorDomInputSyncTimer);
+        editorDomInputSyncTimer = setTimeout(() => {
+            editorDomInputSyncTimer = null;
+            if (!editor || editor.isDestroyed) return;
+
+            const repairedDomDrift = syncTextOnlyDomToEditorBeforeDraftSave(editor);
+            hasContent = editorHasSendableText(editor);
+            refreshDraftPreviewState(editor);
+            if (repairedDomDrift) triggerSaveDraft(currentChatId, editor);
+        }, 0);
+    }
+
     function handleEditorUpdate({ editor }: { editor: Editor }) {
         // --- Text-change guard ---
         // On iOS Firefox, double-tap to select text fires spurious `input` events
@@ -2965,6 +2981,7 @@
         // embed component and we catch it here to open PressAndHoldMenu.
         editorElement?.addEventListener('embed-context-menu', handleEmbedContextMenu as EventListener);
         editorElement?.addEventListener('paste', handlePaste);
+        editorElement?.addEventListener('input', scheduleEditorDomInputSync);
         editorElement?.addEventListener('custom-send-message', handleSendMessage as EventListener);
         editorElement?.addEventListener('custom-sign-up-click', handleSignUpClick as EventListener); // Handle Enter key for unauthenticated users
         editorElement?.addEventListener('keydown', handleKeyDown);
@@ -3216,10 +3233,15 @@
             clearTimeout(mountCompleteTimeout);
             mountCompleteTimeout = null;
         }
+        if (editorDomInputSyncTimer) {
+            clearTimeout(editorDomInputSyncTimer);
+            editorDomInputSyncTimer = null;
+        }
         document.removeEventListener('embedclick', handleEmbedClick as EventListener);
         document.removeEventListener('mateclick', handleMateClick as EventListener);
         editorElement?.removeEventListener('embed-context-menu', handleEmbedContextMenu as EventListener);
         editorElement?.removeEventListener('paste', handlePaste);
+        editorElement?.removeEventListener('input', scheduleEditorDomInputSync);
         editorElement?.removeEventListener('custom-send-message', handleSendMessage as EventListener);
         editorElement?.removeEventListener('custom-sign-up-click', handleSignUpClick as EventListener);
         editorElement?.removeEventListener('keydown', handleKeyDown);
