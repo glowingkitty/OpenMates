@@ -167,12 +167,16 @@ test('resets backup codes via Settings > Security > 2FA', async ({
 
 	// If 2FA required in SecurityAuth, enter OTP
 	const authTfaInput = authModal.getByTestId('tfa-input');
-	const authTfaVisible = await authTfaInput.isVisible({ timeout: 5000 }).catch(() => false);
+	const authTfaVisible = await Promise.race([
+		authTfaInput.waitFor({ state: 'visible', timeout: 15000 }).then(() => true),
+		authModal.waitFor({ state: 'hidden', timeout: 15000 }).then(() => false)
+	]).catch(() => false);
 	if (authTfaVisible) {
 		const authOtp = generateTotp(OPENMATES_TEST_ACCOUNT_OTP_KEY);
 		await authTfaInput.fill(authOtp);
 		// Auto-submits on 6 digits
 		logCheckpoint('Entered OTP in SecurityAuth.');
+		await authModal.waitFor({ state: 'hidden', timeout: 15000 }).catch(() => {});
 	}
 
 	// ========================================================================
