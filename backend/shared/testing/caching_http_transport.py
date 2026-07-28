@@ -15,7 +15,7 @@
 import json
 import logging
 import os
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 import httpx
 
@@ -31,6 +31,12 @@ from backend.shared.testing.mock_context import (
 )
 
 logger = logging.getLogger(__name__)
+
+_DECODED_BODY_HEADER_NAMES = {
+    "content-encoding",
+    "content-length",
+    "transfer-encoding",
+}
 
 
 class CachingHTTPTransport(httpx.AsyncBaseTransport):
@@ -85,7 +91,7 @@ class CachingHTTPTransport(httpx.AsyncBaseTransport):
             response_data = cached.get("response", {})
             return httpx.Response(
                 status_code=response_data.get("status_code", 200),
-                headers=response_data.get("headers", {}),
+                headers=self._replay_headers(response_data.get("headers", {})),
                 content=self._decode_body(response_data.get("body", "")),
             )
 
@@ -158,6 +164,17 @@ class CachingHTTPTransport(httpx.AsyncBaseTransport):
         if isinstance(body, dict) or isinstance(body, list):
             return json.dumps(body, ensure_ascii=False).encode("utf-8")
         return str(body).encode("utf-8")
+
+    @staticmethod
+    def _replay_headers(headers: Any) -> Dict[str, str]:
+        """Return cached headers safe for a decoded replay body."""
+        if not isinstance(headers, dict):
+            return {}
+        return {
+            str(name): str(value)
+            for name, value in headers.items()
+            if str(name).lower() not in _DECODED_BODY_HEADER_NAMES
+        }
 
 
 def create_http_client(category: str, **httpx_kwargs: Any) -> httpx.AsyncClient:
