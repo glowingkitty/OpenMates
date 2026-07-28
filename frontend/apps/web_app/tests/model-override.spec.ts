@@ -35,6 +35,9 @@ const {
 const { loginToTestAccount, startNewChat, deleteActiveChat } = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
+const SHOULD_SKIP_GPT54_LIVE = !process.env.E2E_USE_MOCKS && !process.env.TEST_LIVE_RECORD;
+const GPT54_LIVE_SKIP_REASON = 'GPT-5.4 live OpenAI route is quota-dependent; deterministic coverage runs via recorded fixtures.';
+
 async function focusMessageEditor(messageEditor: any): Promise<void> {
 	await messageEditor.click();
 	await expect
@@ -393,6 +396,8 @@ test('select qwen model via @ mention dropdown', async ({ page }: { page: any })
  * 6. Verify response shows "GPT-5.4" in generated-by text
  */
 test('select gpt-5.4 model via @ mention dropdown', async ({ page }: { page: any }) => {
+	test.skip(SHOULD_SKIP_GPT54_LIVE, GPT54_LIVE_SKIP_REASON);
+
 	page.on('console', (msg: any) => {
 		const timestamp = new Date().toISOString();
 		consoleLogs.push(`[${timestamp}] [${msg.type()}] ${msg.text()}`);
@@ -480,6 +485,8 @@ test('select gpt-5.4 model via @ mention dropdown', async ({ page }: { page: any
  * 5. Delete chat
  */
 test('switch between qwen and gpt-5.4 via @ mention dropdown', async ({ page }: { page: any }) => {
+	test.skip(SHOULD_SKIP_GPT54_LIVE, GPT54_LIVE_SKIP_REASON);
+
 	page.on('console', (msg: any) => {
 		const timestamp = new Date().toISOString();
 		consoleLogs.push(`[${timestamp}] [${msg.type()}] ${msg.text()}`);
