@@ -1,7 +1,7 @@
 schema_version: 2
 id: encrypted-metadata-key-acceptance-race
 title: Encrypted Metadata Key Acceptance Race
-status: implementing
+status: verified
 
 goal: >
   Prevent cross-device encrypted chat metadata sync from reusing a stale local
@@ -77,7 +77,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 2a821221e78742b310eee708955a9d057835892d
+  subject_commit: 1106146ab2c5ea27576d4a938c325f79adafb524
 
 approvals:
   product_contract:
@@ -113,14 +113,19 @@ attempts:
     approach: Routed multi-session-encryption through the stabilized shared sendMessage helper; original Send button failure progressed, exposing Session B key mismatch on chat 2.
     outcome: succeeded
     recorded_at: "2026-07-28T18:41:59Z"
+  - id: ATTEMPT-3
+    task_id: TASK-3
+    approach: Reran the Playwright spec after deploy; the wrapper timed out locally after dispatching duplicate GitHub runs, then GitHub run 30407513739 completed successfully on the deployed commit.
+    outcome: succeeded
+    recorded_at: "2026-07-28T23:23:59Z"
 
 handoff:
-  current_task_id: TASK-2
-  next_action: Run available checks, deploy to dev, then rerun the leased multi-session encryption spec.
-  command: python3 scripts/tests.py run --suite vitest
-  expected_outcome: Vitest includes the new regression after deployment and passes with the handler ordering fix.
+  current_task_id: TASK-3
+  next_action: Run spec verification and release/close the leased test work.
+  command: python3 scripts/spec_verify.py docs/specs/encrypted-metadata-key-acceptance-race/spec.yml
+  expected_outcome: Spec evidence verifies for the deployed subject commit.
   blocker: null
-  last_verified_commit: 2a821221e78742b310eee708955a9d057835892d
+  last_verified_commit: 1106146ab2c5ea27576d4a938c325f79adafb524
 
 scenarios:
   - id: S-1
@@ -159,7 +164,7 @@ acceptance_criteria:
     scenario: S-1
     text: A receiving web session accepts the incoming encrypted_chat_key before validating or decrypting encrypted_chat_metadata when its cached key differs.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: related_frontend
     verification_ids:
@@ -169,7 +174,7 @@ acceptance_criteria:
     scenario: S-1
     text: A stale IndexedDB key cannot be reloaded and used for metadata/messages after a mismatched incoming key has been accepted.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: related_frontend
     verification_ids:
@@ -179,7 +184,7 @@ acceptance_criteria:
     scenario: S-2
     text: Matching incoming and cached keys keep the existing successful metadata handling path unchanged.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: related_frontend
     verification_ids:
@@ -188,7 +193,7 @@ acceptance_criteria:
     scenario: S-3
     text: The fix does not log raw chat keys, master keys, decrypted private content, or encrypted payload bodies.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids:
@@ -255,6 +260,7 @@ tests:
       evidence:
         status: missing_test
         command: "not run yet; regression test will be added before implementation"
+        reason: The focused unit regression did not exist before this implementation slice; the pre-existing Playwright failure supplied red evidence for the user-visible bug.
         run_id: ""
         subject_commit: 2a821221e78742b310eee708955a9d057835892d
         timestamp: "2026-07-28T20:48:00Z"
@@ -262,11 +268,11 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        command: ""
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: python3 scripts/tests.py run --suite vitest
+        run_id: "2026-07-28T23:02:14Z / GitHub run 30406676150"
+        subject_commit: 1106146ab2c5ea27576d4a938c325f79adafb524
+        timestamp: "2026-07-28T23:03:29Z"
   - id: T-PLAYWRIGHT-001
     type: playwright
     file: frontend/apps/web_app/tests/multi-session-encryption.spec.ts
@@ -291,11 +297,13 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: ""
-        command: ""
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: python3 scripts/tests.py run --spec multi-session-encryption.spec.ts --expected-commit 1106146 --lease-id lease-chat_sync_encryption-30e9a67ffe-8d534261
+        run_id: "GitHub run 30407513739"
+        subject_commit: 1106146ab2c5ea27576d4a938c325f79adafb524
+        timestamp: "2026-07-28T23:23:59Z"
+        target: app.dev.openmates.org
+        deployment_reference: dpl_BZ5WsogpTYABTUHpph593ih7GDT4
   - id: T-LINT-001
     type: lint
     file: frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts
@@ -318,11 +326,11 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        command: ""
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: ./scripts/lint_changed.sh --ts --path frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts --path frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersChatUpdates.test.ts
+        run_id: "local 2026-07-28T23:00:00Z"
+        subject_commit: 1106146ab2c5ea27576d4a938c325f79adafb524
+        timestamp: "2026-07-28T23:00:00Z"
 
 implementation_plan:
   spec_path: docs/specs/encrypted-metadata-key-acceptance-race/spec.yml
@@ -385,7 +393,7 @@ tasks:
       shared_files: []
   - id: TASK-2
     title: Fix encrypted metadata key acceptance ordering
-    status: in_progress
+    status: done
     phase: working_tasks
     covers:
       scenarios:
@@ -413,7 +421,7 @@ tasks:
         - frontend/packages/ui/src/services/encryption/ChatKeyManager.ts
   - id: TASK-3
     title: Deploy and verify multi-session encryption
-    status: pending
+    status: done
     phase: running_checks
     covers:
       scenarios:
