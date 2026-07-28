@@ -31,7 +31,8 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
-	getTestAccount
+	getTestAccount,
+	withMockMarker
 } = require('./signup-flow-helpers');
 
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
@@ -399,30 +400,32 @@ test('multi-session encryption: two simultaneous sessions can send and read 4 ch
 		const chatScenarios = [
 			{
 				question: 'What is the capital of France?',
+				fixtureId: 'hidden_chats_1',
 				expectedAnswer: 'Paris' as string | RegExp,
 				expectedTitle: 'Capital'
 			},
 			{
-				question: 'What is 5 multiplied by 7?',
-				expectedAnswer: '35' as string | RegExp,
-				expectedTitle: '5'
+				question: 'What is the speed of light?',
+				fixtureId: 'hidden_chats_2',
+				expectedAnswer: '299,792' as string | RegExp,
+				expectedTitle: 'Speed'
 			},
 			{
-				question: 'Name one planet in our solar system.',
-				expectedAnswer: /.+/ as
-					| string
-					| RegExp,
-				expectedTitle: 'planet'
+				question: 'What is photosynthesis?',
+				fixtureId: 'hidden_chats_3',
+				expectedAnswer: 'Photosynthesis' as string | RegExp,
+				expectedTitle: 'photosynthesis'
 			},
 			{
-				question: 'What color is the sky on a clear day?',
-				expectedAnswer: 'blue' as string | RegExp,
-				expectedTitle: 'sky'
+				question: 'What is the boiling point of water?',
+				fixtureId: 'hidden_chats_4',
+				expectedAnswer: '100' as string | RegExp,
+				expectedTitle: 'Boiling'
 			}
 		];
 
 		for (let i = 0; i < chatScenarios.length; i++) {
-			const { question, expectedAnswer, expectedTitle } = chatScenarios[i];
+			const { question, fixtureId, expectedAnswer, expectedTitle } = chatScenarios[i];
 			const chatNum = i + 1;
 
 			logA(`\n===== CHAT ${chatNum}/4 =====`);
@@ -436,7 +439,7 @@ test('multi-session encryption: two simultaneous sessions can send and read 4 ch
 			await startNewChat(pageA, logA);
 			await screenshotA(pageA, `chat${chatNum}-new-chat`);
 
-			const chatId = await sendMessageAndGetChatId(pageA, question, logA);
+			const chatId = await sendMessageAndGetChatId(pageA, withMockMarker(question, fixtureId), logA);
 			chatIds.push(chatId);
 
 			// ── Session A: Wait for AI response ──────────────────────────
