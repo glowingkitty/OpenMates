@@ -249,6 +249,80 @@ describe("handleRecoveryJobsAvailableImpl", () => {
     window.history.replaceState(null, "", "/");
   });
 
+  it("treats already-terminal matching recovery claims as handled", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const handlers = new Map<string, (payload: unknown) => void>();
+    let claimRequestId: string | undefined;
+    mocks.webSocketService.on.mockImplementation((type: string, handler: (payload: unknown) => void) => {
+      handlers.set(type, handler);
+    });
+    mocks.webSocketService.off.mockImplementation((type: string) => {
+      handlers.delete(type);
+    });
+    mocks.webSocketService.sendMessage.mockImplementation(async (
+      type: string,
+      payload: Record<string, unknown>,
+    ) => {
+      if (type === "recovery_job_claim") {
+        claimRequestId = payload.request_id as string;
+      }
+    });
+    mocks.chatDB.getChat.mockResolvedValue({
+      chat_id: "chat-1",
+      user_id: "user-1",
+      messages_v: 2,
+    });
+    mocks.chatKeyManager.getKey.mockResolvedValue(new Uint8Array([1, 2, 3]));
+    mocks.ensureChatKeySafeForWrite.mockResolvedValue(true);
+    const activeAITasks = new Map([["chat-1", { taskId: "assistant-1" }]]);
+    const service = {
+      activeAITasks,
+      dispatchEvent: vi.fn(),
+      hasCompletedInitialSync_FOR_HANDLERS_ONLY: true,
+      requestChatContentBatch_FOR_HANDLERS_ONLY: vi.fn().mockResolvedValue(undefined),
+    } as unknown as ChatSynchronizationService;
+
+    const recovery = handleRecoveryJobsAvailableImpl(service, {
+      jobs: [{
+        job_id: "job-1",
+        chat_id: "chat-1",
+        turn_id: "turn-1",
+        assistant_message_id: "assistant-1",
+        chat_key_version: 1,
+      }],
+    });
+    await vi.waitFor(() => {
+      expect(claimRequestId).toEqual(expect.any(String));
+    });
+    handlers.get("recovery_job_claimed")?.({
+      job_id: "job-1",
+      request_id: claimRequestId,
+      state: "TERMINAL",
+      chat_id: "chat-1",
+      turn_id: "turn-1",
+      assistant_message_id: "assistant-1",
+      chat_key_version: 1,
+      committed_messages_v: 3,
+    });
+    await recovery;
+
+    expect(mocks.webSocketService.sendMessage).toHaveBeenCalledTimes(1);
+    expect(mocks.webSocketService.sendMessage).toHaveBeenCalledWith(
+      "recovery_job_claim",
+      expect.objectContaining({ job_id: "job-1" }),
+    );
+    expect(service.requestChatContentBatch_FOR_HANDLERS_ONLY).toHaveBeenCalledTimes(2);
+    expect(mocks.chatDB.getEncryptedFields).not.toHaveBeenCalled();
+    expect(mocks.chatDB.saveMessage).not.toHaveBeenCalled();
+    expect(mocks.aiTypingStore.clearTyping).toHaveBeenCalledWith("chat-1", "assistant-1");
+    expect(activeAITasks.has("chat-1")).toBe(false);
+    expect(consoleError).not.toHaveBeenCalledWith(
+      expect.stringContaining("[ChatSyncService:Recovery] Failed recovery job"),
+      expect.anything(),
+    );
+    consoleError.mockRestore();
+  });
+
   it("persists an available recovery job even when the assistant row is locally synced", async () => {
     mocks.activeChatStore.get.mockReturnValue("chat-1");
     window.location.hash = "#chat-id=chat-2";

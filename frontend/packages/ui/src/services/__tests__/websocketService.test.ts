@@ -69,6 +69,30 @@ describe("webSocketService recovery protocol errors", () => {
     );
   });
 
+  it("does not emit a global server error for retryable recovery lease conflicts", () => {
+    const consoleDebug = vi.spyOn(console, "debug").mockImplementation(() => undefined);
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const handlers = (webSocketService as unknown as {
+      messageHandlers: Map<string, Array<(payload: unknown) => void>>;
+    }).messageHandlers.get("error");
+
+    handlers?.[0]?.({
+      code: "lease_conflict",
+      job_id: "job-1",
+      request_id: "request-1",
+      message: "Encrypted completion recovery was rejected.",
+    });
+
+    expect(consoleDebug).toHaveBeenCalledWith(
+      "[WebSocketService] Received retryable recovery protocol error:",
+      expect.objectContaining({ code: "lease_conflict" }),
+    );
+    expect(consoleError).not.toHaveBeenCalledWith(
+      "[WebSocketService] Received error message from server:",
+      expect.anything(),
+    );
+  });
+
   it("does not emit a global server error for stale legacy recovery persistence", () => {
     const consoleDebug = vi.spyOn(console, "debug").mockImplementation(() => undefined);
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);

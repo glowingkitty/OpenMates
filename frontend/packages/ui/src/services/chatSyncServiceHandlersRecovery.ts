@@ -268,15 +268,27 @@ export async function handleRecoveryJobsAvailableImpl(
           job_id: job.job_id,
         },
       );
+
+      const claimMatchesJob =
+        claim.chat_id === job.chat_id &&
+        claim.turn_id === job.turn_id &&
+        claim.assistant_message_id === job.assistant_message_id &&
+        claim.chat_key_version === job.chat_key_version;
+      if (claim.state === "TERMINAL" && claimMatchesJob) {
+        await serviceInstance.requestChatContentBatch_FOR_HANDLERS_ONLY([job.chat_id]);
+        const taskInfo = serviceInstance.activeAITasks?.get(job.chat_id);
+        if (taskInfo && taskInfo.taskId === job.assistant_message_id) {
+          serviceInstance.activeAITasks?.delete(job.chat_id);
+        }
+        aiTypingStore.clearTyping(job.chat_id, job.assistant_message_id);
+        return;
+      }
       if (
         claim.state !== "LEASED" ||
         typeof claim.lease_token !== "string" ||
         typeof claim.lease_generation !== "number" ||
         typeof claim.sealed_payload !== "string" ||
-        claim.chat_id !== job.chat_id ||
-        claim.turn_id !== job.turn_id ||
-        claim.assistant_message_id !== job.assistant_message_id ||
-        claim.chat_key_version !== job.chat_key_version
+        !claimMatchesJob
       ) {
         throw new Error(`Recovery job ${job.job_id} returned invalid lease or identity data.`);
       }
