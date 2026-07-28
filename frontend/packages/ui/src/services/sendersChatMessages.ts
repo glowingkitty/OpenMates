@@ -693,6 +693,10 @@ export async function sendNewMessageImpl(
 
 	// Use processed content (with code blocks and tables replaced by embed references)
 	const contentForServer = processedContent;
+	const getHistoryContentForServer = (msg: Message): string => {
+		if (msg.message_id === message.message_id) return contentForServer ?? "";
+		return typeof msg.content === "string" ? msg.content : "";
+	};
 
 	// Extract embed references from message content (now includes the newly created code embeds)
 	// Embeds are referenced as JSON code blocks: ```json\n{"type": "app_skill_use", "embed_id": "..."}\n```
@@ -760,7 +764,10 @@ export async function sendNewMessageImpl(
 		});
 	}
 
-	// For incognito chats, load full message history (no server-side caching)
+	// Load local history up front for chats whose earlier turns may not be in the
+	// server-side AI cache. The durable preflight commitment must cover this
+	// history on the original request; adding it later via request_chat_history
+	// would require a second preflight for an already-committed user message.
 	let messageHistory: Message[] = [];
 	if (isIncognitoChat) {
 		try {
@@ -771,6 +778,21 @@ export async function sendNewMessageImpl(
 		} catch (error) {
 			console.error(
 				`[ChatSyncService:Senders] Error loading incognito chat message history:`,
+				error
+			);
+		}
+	} else {
+		try {
+			const localHistory = await chatDB.getMessagesForChat(message.chat_id);
+			if (localHistory.length > 1) {
+				messageHistory = localHistory;
+				console.debug(
+					`[ChatSyncService:Senders] Loaded ${messageHistory.length} local messages for durable saved-chat history`
+				);
+			}
+		} catch (error) {
+			console.error(
+				`[ChatSyncService:Senders] Error loading saved chat message history:`,
 				error
 			);
 		}
@@ -856,7 +878,7 @@ export async function sendNewMessageImpl(
 			sender_name: message.sender_name, // Include for cache but not critical for AI
 			chat_has_title: chatHasTitle // ZERO-KNOWLEDGE: Send true if chat already has a title (title_v > 0), false if new
 			// NO category or encrypted fields - those go to Phase 2
-			// NO message_history - server will request if cache is stale (unless incognito)
+			// message_history is attached at top-level below when local history exists.
 		},
 		encrypted_chat_key: encryptedChatKey, // Include the key for device sync broadcast
 		is_incognito: isIncognitoChat // Flag for backend to skip persistence
@@ -961,8 +983,7 @@ export async function sendNewMessageImpl(
 				({
 					message_id: msg.message_id,
 					role: msg.role,
-					content:
-						typeof msg.content === "string" ? msg.content : JSON.stringify(msg.content),
+					content: getHistoryContentForServer(msg),
 					created_at: msg.created_at,
 					sender_name: msg.sender_name
 				}) as Message
@@ -972,18 +993,17 @@ export async function sendNewMessageImpl(
 		);
 	}
 
-	// For duplicated demo chats or new chats with history, include full message history
-	// This allows the server to persist history for a brand-new chat ID in one go.
-	// The server will use the cleartext 'content' for AI context and 'encrypted_content' for DB storage.
-	if (!isIncognitoChat && !chatHasTitle && messageHistory.length > 0) {
+	// For saved chats with local history, include full message history in the
+	// original inference request. This lets the server rebuild a cold AI cache
+	// without asking the client to resend after preflight has committed the user row.
+	if (!isIncognitoChat && messageHistory.length > 0) {
 		payload.message_history = messageHistory.map(
 			(msg) =>
 				({
 					message_id: msg.message_id,
 					chat_id: message.chat_id,
 					role: msg.role,
-					content:
-						typeof msg.content === "string" ? msg.content : JSON.stringify(msg.content),
+					content: getHistoryContentForServer(msg),
 					encrypted_content: msg.encrypted_content,
 					encrypted_sender_name: msg.encrypted_sender_name,
 					encrypted_category: msg.encrypted_category,
@@ -995,7 +1015,7 @@ export async function sendNewMessageImpl(
 		);
 
 		console.info(
-			`[ChatSyncService:Senders] Including full history for new chat ${message.chat_id} (duplication flow): ${messageHistory.length} messages`
+			`[ChatSyncService:Senders] Including full saved-chat history for ${message.chat_id}: ${messageHistory.length} messages`
 		);
 	}
 
