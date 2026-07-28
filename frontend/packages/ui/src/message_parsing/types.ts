@@ -105,6 +105,10 @@ export interface EmbedNodeAttributes {
   // Removing them from the composer must not delete the underlying uploaded file.
   referenceOnly?: boolean;
 
+  // Local-only previews inserted for signed-out file attachments. They render in
+  // the composer but cannot be uploaded/sent until the user signs up.
+  needsSignup?: boolean;
+
   // Rendering context for embed references. Large previews can request higher
   // resolution assets without changing the standard inline card layout.
   previewVariant?: "small" | "large";

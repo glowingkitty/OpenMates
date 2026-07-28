@@ -69,6 +69,38 @@ export type FileEmbedNodeContent = {
   attrs: Record<string, unknown>;
 };
 
+function getMarkdownTableDimensions(tableMarkdown: string): {
+  rowCount: number;
+  colCount: number;
+  cellCount: number;
+} {
+  const rows = tableMarkdown
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.startsWith("|") && line.endsWith("|"));
+  const headerLine = rows[0] || "";
+  const colCount = Math.max(0, (headerLine.match(/\|/g) || []).length - 1);
+  const rowCount = Math.max(0, rows.length - 2);
+  return { rowCount, colCount, cellCount: rowCount * colCount };
+}
+
+export function createPdfFileEmbedNode(file: File): FileEmbedNodeContent {
+  const embedId = generateUUID();
+  return {
+    type: "embed",
+    attrs: {
+      id: embedId,
+      type: "pdf",
+      status: "finished",
+      contentRef: null,
+      filename: file.name,
+      uploadEmbedId: null,
+      pageCount: null,
+      needsSignup: true,
+    },
+  };
+}
+
 function dispatchEmbedFinished(embedId: string): void {
   if (typeof window === "undefined") return;
   window.dispatchEvent(
@@ -296,6 +328,7 @@ export async function insertImage(
           originalFile: file,
           filename: file.name,
           isRecording,
+          needsSignup: true,
           uploadEmbedId: null,
           s3Files: null,
           s3BaseUrl: null,
@@ -597,17 +630,27 @@ async function _performUpload(
 /**
  * Inserts a PDF embed into the editor and triggers the server upload + OCR pipeline.
  *
- * Upload flow (authenticated users only — no demo mode for PDFs):
+ * Upload flow (authenticated users):
  *  1. Insert the embed node immediately with status: 'uploading' and the filename.
  *  2. Upload the PDF to the server in the background.
  *  3. On success: update the embed node with S3 keys, AES metadata, page_count,
  *     and status: 'processing' (background OCR will update to 'finished' via WebSocket).
  *  4. On failure: update the embed node with status: 'error'.
  *
+ * Signed-out users receive a local-only placeholder card with no server upload.
  * The server triggers background OCR processing (Mistral + pymupdf) after the upload
  * and delivers the final embed content via WebSocket embed_update event.
  */
-export async function insertPDF(editor: Editor, file: File): Promise<void> {
+export async function insertPDF(
+  editor: Editor,
+  file: File,
+  isAuthenticated: boolean = true,
+): Promise<void> {
+  if (!isAuthenticated) {
+    insertFileEmbedNodes(editor, [createPdfFileEmbedNode(file)]);
+    return;
+  }
+
   // Generate a stable embed ID to reference the node after insertion
   const embedId = generateUUID();
 
@@ -925,6 +968,7 @@ export async function createCodeFileEmbedNode(
         contentRef: null,
         src: URL.createObjectURL(file),
         filename: file.name,
+        needsSignup: !isAuthenticated,
         language: language,
       },
     };
@@ -967,6 +1011,7 @@ export async function createCodeFileEmbedNode(
         filename: file.name,
         language: language,
         lineCount: lineCount,
+        needsSignup: true,
       },
     };
   }
@@ -1065,6 +1110,7 @@ export async function insertDelimitedTableFile(
 
 export async function createDelimitedTableFileEmbedNode(
   file: File,
+  isAuthenticated: boolean = true,
 ): Promise<FileEmbedNodeContent | null> {
   let fileContent: string;
   try {
@@ -1079,6 +1125,27 @@ export async function createDelimitedTableFileEmbedNode(
   if (!tableMarkdown) {
     console.warn("[EmbedHandlers] Empty table file skipped:", file.name);
     return null;
+  }
+
+  if (!isAuthenticated) {
+    const embedId = generateUUID();
+    const { redactedContent } = redactEmbedContent(tableMarkdown);
+    const { rowCount, colCount, cellCount } = getMarkdownTableDimensions(redactedContent);
+    return {
+      type: "embed",
+      attrs: {
+        id: embedId,
+        type: "sheets-sheet",
+        status: "finished",
+        contentRef: `preview:sheets-sheet:${embedId}`,
+        title: file.name,
+        code: redactedContent,
+        rows: rowCount,
+        cols: colCount,
+        cellCount,
+        needsSignup: true,
+      },
+    };
   }
 
   const result = await createSheetEmbed(tableMarkdown, file.name);
@@ -1104,6 +1171,7 @@ export async function insertEmailFile(
 
 export async function createEmailFileEmbedNode(
   file: File,
+  isAuthenticated: boolean = true,
 ): Promise<FileEmbedNodeContent | null> {
   let fileContent: string;
   try {
@@ -1114,6 +1182,29 @@ export async function createEmailFileEmbedNode(
   }
 
   const parsedEmail = parseEmlText(fileContent);
+  if (!isAuthenticated) {
+    const embedId = generateUUID();
+    const receiver = redactEmbedContent(parsedEmail.receiver || "").redactedContent;
+    const subject = redactEmbedContent(parsedEmail.subject || "").redactedContent;
+    const content = redactEmbedContent(parsedEmail.content || "").redactedContent;
+    const footer = redactEmbedContent(parsedEmail.footer || "").redactedContent;
+    return {
+      type: "embed",
+      attrs: {
+        id: embedId,
+        type: "mail-email",
+        status: "finished",
+        contentRef: `preview:mail-email:${embedId}`,
+        receiver,
+        subject,
+        content,
+        footer,
+        filename: file.name,
+        needsSignup: true,
+      },
+    };
+  }
+
   const result = await createMailEmbed(parsedEmail, file.name);
   return {
     type: "embed",
@@ -1137,6 +1228,7 @@ export async function insertOfficeDocumentFile(
 
 export async function createOfficeDocumentFileEmbedNode(
   file: File,
+  isAuthenticated: boolean = true,
 ): Promise<FileEmbedNodeContent | null> {
   let html: string;
   try {
@@ -1149,6 +1241,26 @@ export async function createOfficeDocumentFileEmbedNode(
   if (!html) {
     console.warn("[EmbedHandlers] Empty DOCX file skipped:", file.name);
     return null;
+  }
+
+  if (!isAuthenticated) {
+    const embedId = generateUUID();
+    const { redactedContent } = redactEmbedContent(html);
+    const wordCount = redactedContent.split(/\s+/).filter((word) => word.trim()).length;
+    return {
+      type: "embed",
+      attrs: {
+        id: embedId,
+        type: "docs-doc",
+        status: "finished",
+        contentRef: `preview:docs-doc:${embedId}`,
+        title: file.name,
+        filename: file.name,
+        code: redactedContent,
+        wordCount,
+        needsSignup: true,
+      },
+    };
   }
 
   const result = await createDocEmbed(html, file.name, file.name);
@@ -1175,6 +1287,7 @@ export async function insertOfficeSpreadsheetFile(
 
 export async function createOfficeSpreadsheetFileEmbedNode(
   file: File,
+  isAuthenticated: boolean = true,
 ): Promise<FileEmbedNodeContent | null> {
   let tableMarkdown: string;
   try {
@@ -1187,6 +1300,27 @@ export async function createOfficeSpreadsheetFileEmbedNode(
   if (!tableMarkdown) {
     console.warn("[EmbedHandlers] Empty XLSX file skipped:", file.name);
     return null;
+  }
+
+  if (!isAuthenticated) {
+    const embedId = generateUUID();
+    const { redactedContent } = redactEmbedContent(tableMarkdown);
+    const { rowCount, colCount, cellCount } = getMarkdownTableDimensions(redactedContent);
+    return {
+      type: "embed",
+      attrs: {
+        id: embedId,
+        type: "sheets-sheet",
+        status: "finished",
+        contentRef: `preview:sheets-sheet:${embedId}`,
+        title: file.name,
+        code: redactedContent,
+        rows: rowCount,
+        cols: colCount,
+        cellCount,
+        needsSignup: true,
+      },
+    };
   }
 
   const result = await createSheetEmbed(tableMarkdown, file.name);

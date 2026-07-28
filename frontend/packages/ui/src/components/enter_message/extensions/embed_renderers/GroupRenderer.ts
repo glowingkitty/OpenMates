@@ -115,6 +115,10 @@ const scrollIndicatorCleanups = new WeakMap<HTMLElement, () => void>();
 const INDICATOR_VISIBLE_RATIO = 0.12;
 const INDICATOR_VISIBILITY_TOLERANCE_PX = 1;
 
+function needsSignupForLocalPreview(item: EmbedNodeAttributes): boolean {
+  return item.needsSignup === true;
+}
+
 /**
  * Permissive record type for TOON-decoded embed content.
  * TOON serialisation produces dynamic objects whose shape depends on the embed type
@@ -1326,7 +1330,6 @@ export class GroupRenderer implements EmbedRenderer {
     const embedId = item.contentRef?.startsWith("embed:")
       ? item.contentRef.replace("embed:", "")
       : "";
-
     if (!embedId) return null;
 
     try {
@@ -3282,14 +3285,25 @@ export class GroupRenderer implements EmbedRenderer {
     target.innerHTML = "";
 
     const handleFullscreen = () => {
-      this.openFullscreen(item, embedData, decodedContent);
+      const fullscreenContent =
+        decodedContent ||
+        (htmlContent
+          ? {
+              html: htmlContent,
+              code: htmlContent,
+              title,
+              filename,
+              word_count: wordCount,
+            }
+          : null);
+      this.openFullscreen(item, embedData, fullscreenContent);
     };
 
     try {
       const component = mount(DocsEmbedPreview, {
         target,
         props: {
-          id: embedId || item.id || "",
+          id: embedId || previewId || item.id || "",
           title,
           filename,
           wordCount,
@@ -3298,6 +3312,7 @@ export class GroupRenderer implements EmbedRenderer {
           isMobile: false,
           onFullscreen: handleFullscreen,
           htmlContent,
+          needsSignup: needsSignupForLocalPreview(item),
         },
       });
       mountedComponents.set(target, component);
@@ -3421,6 +3436,7 @@ export class GroupRenderer implements EmbedRenderer {
           isMobile: false,
           onFullscreen: handleFullscreen,
           codeContent, // Pass full code content - component handles preview extraction
+          needsSignup: needsSignupForLocalPreview(item),
         },
       });
       mountedComponents.set(target, component);
@@ -4004,7 +4020,12 @@ export class GroupRenderer implements EmbedRenderer {
     decodedContent: DecodedEmbedContent | null = null,
     content: HTMLElement,
   ): Promise<void> {
-    const embedId = item.contentRef?.replace("embed:", "") || item.id || "";
+    const embedId =
+      item.contentRef
+        ?.replace("embed:", "")
+        ?.replace("preview:docs-doc:", "") ||
+      item.id ||
+      "";
     const status = item.status === "cancelled" ? "error" : embedData?.status || decodedContent?.status || item.status || "finished";
 
     const existingComponent = mountedComponents.get(content);
@@ -4020,7 +4041,18 @@ export class GroupRenderer implements EmbedRenderer {
 
     try {
       const handleFullscreen = () => {
-        this.openFullscreen(item, embedData, decodedContent);
+        const fullscreenContent =
+          decodedContent ||
+          (htmlContent
+            ? {
+                html: htmlContent,
+                code: htmlContent,
+                title,
+                filename,
+                word_count: wordCount,
+              }
+            : null);
+        this.openFullscreen(item, embedData, fullscreenContent);
       };
 
       const component = mount(ApplicationEmbedPreview, {
@@ -4089,7 +4121,12 @@ export class GroupRenderer implements EmbedRenderer {
     const status = item.status || (htmlContent ? "finished" : "processing");
 
     // Get embed ID
-    const embedId = item.contentRef?.replace("embed:", "") || item.id || "";
+    const embedId =
+      item.contentRef
+        ?.replace("embed:", "")
+        ?.replace("preview:docs-doc:", "") ||
+      item.id ||
+      "";
 
     // Cleanup any existing mounted component
     const existingComponent = mountedComponents.get(content);
@@ -4107,7 +4144,18 @@ export class GroupRenderer implements EmbedRenderer {
     // Mount the Svelte component
     try {
       const handleFullscreen = () => {
-        this.openFullscreen(item, embedData, decodedContent);
+        const fullscreenContent =
+          decodedContent ||
+          (htmlContent
+            ? {
+                html: htmlContent,
+                code: htmlContent,
+                title,
+                filename,
+                word_count: wordCount,
+              }
+            : null);
+        this.openFullscreen(item, embedData, fullscreenContent);
       };
 
       const component = mount(DocsEmbedPreview, {
@@ -4121,6 +4169,7 @@ export class GroupRenderer implements EmbedRenderer {
           isMobile: false,
           onFullscreen: handleFullscreen,
           htmlContent,
+          needsSignup: needsSignupForLocalPreview(item),
         },
       });
 
@@ -4221,6 +4270,7 @@ export class GroupRenderer implements EmbedRenderer {
           isMobile: false,
           onFullscreen: handleFullscreen,
           tableContent,
+          needsSignup: needsSignupForLocalPreview(item),
         },
       });
 
@@ -4404,6 +4454,7 @@ export class GroupRenderer implements EmbedRenderer {
           isMobile: false,
           onFullscreen: handleFullscreen,
           tableContent,
+          needsSignup: needsSignupForLocalPreview(item),
         },
       });
       mountedComponents.set(target, component);
@@ -4658,6 +4709,7 @@ export class GroupRenderer implements EmbedRenderer {
           taskId,
           isMobile: false,
           onFullscreen: handleFullscreen,
+          needsSignup: needsSignupForLocalPreview(item),
         },
       });
 

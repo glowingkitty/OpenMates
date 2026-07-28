@@ -99,6 +99,7 @@
         {#if !hideDelete}
             <button 
                 class="menu-item delete"
+                data-testid="embed-context-menu-delete"
                 onclick={(event) => handleMenuItemClick('delete', event)}
             >
                 <div class="clickable-icon icon_delete"></div>

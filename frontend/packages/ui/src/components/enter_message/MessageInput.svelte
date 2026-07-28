@@ -405,6 +405,28 @@
         return found;
     }
 
+    function embedAttrsNeedSignup(attrs: Record<string, unknown> | null | undefined): boolean {
+        if (!attrs) return false;
+        if (attrs.needsSignup === true) return true;
+        const groupedItems = attrs.groupedItems;
+        return Array.isArray(groupedItems) && groupedItems.some((item) => {
+            return !!item && typeof item === 'object' && embedAttrsNeedSignup(item as Record<string, unknown>);
+        });
+    }
+
+    function editorHasSignupRequiredEmbed(editor: Editor | null | undefined): boolean {
+        if (!editor || editor.isDestroyed) return false;
+        let found = false;
+        editor.state.doc.descendants((node) => {
+            if (node.type.name === 'embed' && embedAttrsNeedSignup(node.attrs)) {
+                found = true;
+                return false;
+            }
+            return !found;
+        });
+        return found;
+    }
+
     function editorHasSendableText(editor: Editor | null | undefined): boolean {
         if (!editor || editor.isDestroyed || editor.isEmpty) return false;
         return editor.getText().trim().length > 0 && !isContentEmptyExceptMention(editor);
@@ -514,6 +536,7 @@
         }
         hasEmbedContent = editorHasEmbedContent(editor);
         draftPreviewParts = buildDraftPreviewParts(editor);
+        setPendingAnonymousFileAttachment(editorHasSignupRequiredEmbed(editor));
     }
 
     let draftPreviewSummary = $derived(formatDraftPreviewSummary(draftPreviewParts));
@@ -3558,18 +3581,9 @@
         return false;
     }
 
-    function blockAnonymousFileAttachment(event?: Event) {
-        event?.preventDefault();
-        event?.stopPropagation();
-        setPendingAnonymousFileAttachment(true);
-        isMessageFieldFocused = true;
-        focus();
-    }
-
     async function handlePaste(event: ClipboardEvent) {
         if (!$authStore.isAuthenticated && hasClipboardFiles(event)) {
-            blockAnonymousFileAttachment(event);
-            return;
+            setPendingAnonymousFileAttachment(true);
         }
         await handleFilePaste(event, editor, $authStore.isAuthenticated);
         if (!event.defaultPrevented && editor && !editor.isDestroyed) {
@@ -4094,8 +4108,7 @@
     async function handleDrop(event: DragEvent) {
         isDragging = false; // Hide drop overlay when files are dropped
         if (!$authStore.isAuthenticated && event.dataTransfer?.files?.length) {
-            blockAnonymousFileAttachment(event);
-            return;
+            setPendingAnonymousFileAttachment(true);
         }
         await handleFileDrop(event, editorElement, editor, $authStore.isAuthenticated);
         tick().then(() => {
@@ -4116,9 +4129,7 @@
     async function onFileSelected(event: Event) {
         const input = event.target as HTMLInputElement;
         if (!$authStore.isAuthenticated && input.files?.length) {
-            blockAnonymousFileAttachment(event);
-            input.value = '';
-            return;
+            setPendingAnonymousFileAttachment(true);
         }
         await handleFileSelectedEvent(event, editor, $authStore.isAuthenticated);
         tick().then(() => {
@@ -4129,10 +4140,6 @@
         });
     }
     function handleCameraClick() {
-        if (!$authStore.isAuthenticated) {
-            blockAnonymousFileAttachment();
-            return;
-        }
         const isMobile = window.matchMedia('(max-width: 768px), (pointer: coarse)').matches && ('ontouchstart' in window || navigator.maxTouchPoints > 0);
         if (isMobile) cameraInput?.click(); else showCamera = true;
     }
@@ -4144,11 +4151,6 @@
      * so we skip the redundant blob URL and let it generate fresh URLs from the file.
      */
     async function handlePhotoCaptured(event: CustomEvent<{ blob: Blob, previewUrl?: string }>) {
-        if (!$authStore.isAuthenticated) {
-            showCamera = false;
-            blockAnonymousFileAttachment();
-            return;
-        }
         const { blob } = event.detail;
         // Use the blob's MIME type to preserve PNG/JPEG/HEIC from native camera
         const mimeType = blob.type || 'image/jpeg';
@@ -4240,10 +4242,6 @@
 
     /** Open the sketch canvas overlay. */
     function handleSketchClick() {
-        if (!$authStore.isAuthenticated) {
-            blockAnonymousFileAttachment();
-            return;
-        }
         showSketch = true;
     }
 
@@ -4257,11 +4255,6 @@
      * and edit the drawing later.
      */
     async function handleSketchCaptured(event: CustomEvent<{ blob: Blob }>) {
-        if (!$authStore.isAuthenticated) {
-            showSketch = false;
-            blockAnonymousFileAttachment();
-            return;
-        }
         const { blob } = event.detail;
         const file = new File([blob], `sketch_${Date.now()}.jpg`, { type: 'image/jpeg' });
         showSketch = false;
@@ -4602,6 +4595,12 @@
         const editorHasContent = editorHasSendableText(editor);
         const editorHasEmbed = editor && !editor.isDestroyed ? editorHasEmbedContent(editor) : false;
         if (!hasSendableDraft && !editorHasContent && !editorHasEmbed) return;
+
+        if (editorHasSignupRequiredEmbed(editor)) {
+            setPendingAnonymousFileAttachment(true);
+            console.warn('[MessageInput] Blocked send for local-only file preview that still requires signup/upload');
+            return;
+        }
 
         if ($demoMode && !$authStore.isAuthenticated && !anonymousTextSendEnabled) {
             console.info('[MessageInput] Demo mode: Send button is visual-only for unauthenticated captures');

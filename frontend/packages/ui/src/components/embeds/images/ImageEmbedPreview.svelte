@@ -79,6 +79,8 @@
     isMobile?: boolean;
     /** Whether the user is authenticated (affects subtitle text) */
     isAuthenticated?: boolean;
+    /** Local-only anonymous preview that cannot upload until signup. */
+    needsSignup?: boolean;
     /** File size in bytes (from the original File object) */
     fileSize?: number;
     /** File MIME type (from the original File object, e.g. 'image/jpeg') */
@@ -110,6 +112,7 @@
     aesNonce,
     isMobile = false,
     isAuthenticated = true,
+    needsSignup = false,
     fileSize,
     fileType,
     onFullscreen,
@@ -318,6 +321,7 @@
     if (status === 'error') return uploadError || $text('common.upload_failed');
     if (imageError) return imageError;
     if (status === 'finished') {
+      if (needsSignup) return $text('app_skills.images.view.signup_to_upload');
       const hasRenderableSource = !!displayUrl || !!(previewS3Key && s3BaseUrl && aesKey && aesNonce);
       if (!isAuthenticated && !hasRenderableSource) {
         return $text('app_skills.images.view.signup_to_upload');

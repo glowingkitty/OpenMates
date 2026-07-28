@@ -52,6 +52,7 @@ export async function processFiles(
   };
 
   for (const file of files) {
+    const filenameLower = file.name.toLowerCase();
     if (file.size > MAX_PER_FILE_SIZE) {
       alert(
         `File ${file.name} exceeds the size limit of ${FILE_SIZE_LIMITS.PER_FILE_MAX_SIZE}MB`,
@@ -59,8 +60,10 @@ export async function processFiles(
       continue; // Skip this file
     }
 
-    // Supported via the upload button: images, PDFs (authenticated only), code/text files.
-    // All other file types (video, audio, EPUB, etc.) are silently skipped.
+    // Supported via the upload button: images, PDFs, docs/sheets, email, and code/text files.
+    // Signed-out users get local-only previews marked with needsSignup; no bytes upload.
+    // Mind maps currently require the authenticated EmbedStore path. All other
+    // file types (video, audio, EPUB, etc.) are silently skipped.
     if (file.type.startsWith("image/")) {
       flushPendingLocalEmbeds();
       editor.commands.focus("end");
@@ -73,32 +76,31 @@ export async function processFiles(
         undefined,
         isAuthenticated,
       );
-    } else if (file.type === "application/pdf") {
-      // PDF upload requires authentication — no demo mode (server-side OCR pipeline)
-      if (isAuthenticated) {
-        flushPendingLocalEmbeds();
-        editor.commands.focus("end");
-        await insertPDF(editor, file);
-      } else {
-        console.warn(
-          "[FileHandlers] PDF upload requires authentication — skipping in demo mode",
-        );
-      }
+    } else if (file.type === "application/pdf" || filenameLower.endsWith(".pdf")) {
+      flushPendingLocalEmbeds();
+      editor.commands.focus("end");
+      await insertPDF(editor, file, isAuthenticated);
     } else if (isMindMapUploadFile(file.name)) {
+      if (!isAuthenticated) {
+        console.warn(
+          `[FileHandlers] Skipping anonymous mind map upload: ${file.name}`,
+        );
+        continue;
+      }
       flushPendingLocalEmbeds();
       editor.commands.focus("end");
       await insertMindMapFile(editor, file);
     } else if (isDelimitedTableFile(file.name)) {
-      const node = await createDelimitedTableFileEmbedNode(file);
+      const node = await createDelimitedTableFileEmbedNode(file, isAuthenticated);
       if (node) pendingLocalEmbeds.push(node);
     } else if (isEmailFile(file.name)) {
-      const node = await createEmailFileEmbedNode(file);
+      const node = await createEmailFileEmbedNode(file, isAuthenticated);
       if (node) pendingLocalEmbeds.push(node);
     } else if (isOfficeDocumentFile(file.name)) {
-      const node = await createOfficeDocumentFileEmbedNode(file);
+      const node = await createOfficeDocumentFileEmbedNode(file, isAuthenticated);
       if (node) pendingLocalEmbeds.push(node);
     } else if (isOfficeSpreadsheetFile(file.name)) {
-      const node = await createOfficeSpreadsheetFileEmbedNode(file);
+      const node = await createOfficeSpreadsheetFileEmbedNode(file, isAuthenticated);
       if (node) pendingLocalEmbeds.push(node);
     } else if (isCodeOrTextFile(file.name)) {
       const node = await createCodeFileEmbedNode(file, isAuthenticated);

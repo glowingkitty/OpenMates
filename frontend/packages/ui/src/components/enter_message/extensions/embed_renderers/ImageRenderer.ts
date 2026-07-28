@@ -82,6 +82,8 @@ interface ImageEmbedAttrs extends Omit<EmbedNodeAttributes, "status"> {
    * read-only context (from TOON blob 'file_type' field).
    */
   fileType?: string;
+  /** Local-only anonymous preview that cannot upload until signup. */
+  needsSignup?: boolean;
 }
 
 /**
@@ -436,6 +438,7 @@ export class ImageRenderer implements EmbedRenderer {
           isAuthenticated,
           fileSize,
           fileType,
+          needsSignup: attrs.needsSignup === true,
           aiDetection: attrs.aiDetection ?? null,
           onFullscreen: handleFullscreen,
           onStop: handleStop,

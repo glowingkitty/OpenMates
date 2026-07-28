@@ -53,6 +53,8 @@
     htmlContent?: string;
     /** Optional pre-rendered preview page URLs for local/dev previews */
     previewPageUrls?: Record<string, string>;
+    /** Local-only anonymous file preview that cannot upload until signup. */
+    needsSignup?: boolean;
   }
   
   let {
@@ -65,7 +67,8 @@
     isMobile = false,
     onFullscreen,
     htmlContent: htmlContentProp = '',
-    previewPageUrls: previewPageUrlsProp
+    previewPageUrls: previewPageUrlsProp,
+    needsSignup = false
   }: Props = $props();
   
   // Local reactive state for embed data - updated via onEmbedDataUpdated callback
@@ -170,6 +173,8 @@
   
   // Build status text: word count
   let statusText = $derived.by(() => {
+    if (needsSignup && status === 'finished') return $text('app_skills.pdf.view.signup_to_upload');
+
     const wc = actualWordCount;
     if (wc === 0) return '';
     

@@ -57,6 +57,8 @@
     appId?: string;
     skillId?: string;
     skillIconName?: string;
+    /** Local-only anonymous file preview that cannot upload until signup. */
+    needsSignup?: boolean;
   }
   
   let {
@@ -71,7 +73,8 @@
     codeContent: codeContentProp = '',
     appId = 'code',
     skillId = 'code',
-    skillIconName = 'coding'
+    skillIconName = 'coding',
+    needsSignup = false
   }: Props = $props();
   
   // Local reactive state for embed data - these can be updated when embed data changes
@@ -252,6 +255,8 @@
   // When line count is not yet available (embed data still loading from EmbedStore),
   // fall back to just the display language so "Completed" is never shown.
   let statusText = $derived.by(() => {
+    if (needsSignup && status === 'finished') return $text('app_skills.pdf.view.signup_to_upload');
+
     const lineCount = actualLineCount;
     const languageToShow = displayLanguage;
 

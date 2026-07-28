@@ -896,37 +896,44 @@ test.describe('Anonymous free chat', () => {
 		await openDemoForEveryoneAndStartAnonymousChat(page);
 
 		await page.getByTestId('message-file-input').setInputFiles({
-			name: 'anonymous-empty-upload.png',
-			mimeType: 'image/png',
-			buffer: Buffer.from([0x89, 0x50, 0x4e, 0x47])
+			name: 'anonymous-empty-upload.pdf',
+			mimeType: 'application/pdf',
+			buffer: Buffer.from('%PDF-1.4\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF')
 		});
-		await expect(page.getByTestId('anonymous-upload-signup-banner')).toBeVisible({ timeout: 5000 });
+		await expect(page.getByTestId('anonymous-upload-signup-banner')).toHaveCount(0);
+		await expect(page.locator('[data-testid="embed-preview"][data-app-id="pdf"][data-skill-id="read"]')).toBeVisible({ timeout: 5000 });
+		await expect(page.getByText('anonymous-empty-upload.pdf')).toBeVisible({ timeout: 5000 });
+		await expect(page.getByText('Signup to upload')).toBeVisible({ timeout: 5000 });
 		await expect(page.locator('[data-action="send-message"]')).toHaveCount(0);
 		await expect(page.locator('[data-action="sign-up-to-send"]')).toBeVisible({ timeout: 5000 });
 		await expect.poll(() => uploadRequests).toEqual([]);
-		await page.getByTestId('anonymous-upload-signup-remove').click();
+		await page.getByTestId('embed-full-width-wrapper').first().click({ button: 'right' });
+		await page.getByTestId('embed-context-menu-delete').click();
 		await expect(page.getByTestId('anonymous-upload-signup-banner')).toHaveCount(0);
 		await expect(page.locator('[data-action="send-message"]')).toHaveCount(0);
 
-		const editor = await typeMessageText(page, 'Please summarize this image after I sign up.');
+		const editor = await typeMessageText(page, 'Please summarize this file after I sign up.');
 
 		await page.getByTestId('message-file-input').setInputFiles({
-			name: 'anonymous-upload.png',
-			mimeType: 'image/png',
-			buffer: Buffer.from([0x89, 0x50, 0x4e, 0x47])
+			name: 'anonymous-upload.pdf',
+			mimeType: 'application/pdf',
+			buffer: Buffer.from('%PDF-1.4\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF')
 		});
 
-		const banner = page.getByTestId('anonymous-upload-signup-banner');
-		await expect(banner).toBeVisible({ timeout: 5000 });
-		await expect(banner).toContainText('Create an account to upload files');
+		await expect(page.getByTestId('anonymous-upload-signup-banner')).toHaveCount(0);
+		const pdfPreview = page.locator('[data-testid="embed-preview"][data-app-id="pdf"][data-skill-id="read"]');
+		await expect(pdfPreview).toBeVisible({ timeout: 5000 });
+		await expect(pdfPreview).toContainText('anonymous-upload.pdf');
+		await expect(pdfPreview).toContainText('Signup to upload');
 		await expect(page.locator('[data-action="sign-up-to-send"]')).toBeVisible({ timeout: 5000 });
 		await expect(page.locator('[data-action="send-message"]')).toHaveCount(0);
-		await expect(editor).toContainText('Please summarize this image after I sign up.');
+		await expect(editor).toContainText('Please summarize this file after I sign up.');
 
 		await expect.poll(() => uploadRequests).toEqual([]);
 
-		await page.getByTestId('anonymous-upload-signup-remove').click();
-		await expect(banner).toHaveCount(0);
+		await page.getByTestId('embed-full-width-wrapper').first().click({ button: 'right' });
+		await page.getByTestId('embed-context-menu-delete').click();
+		await expect(pdfPreview).toHaveCount(0);
 		await expect(page.locator('[data-action="send-message"]')).toBeVisible({ timeout: 5000 });
 		await assertNoMissingTranslations(page);
 	});

@@ -22,6 +22,8 @@
     taskId?: string;
     isMobile?: boolean;
     onFullscreen: () => void;
+    /** Local-only anonymous file preview that cannot upload until signup. */
+    needsSignup?: boolean;
   }
 
   let {
@@ -34,6 +36,7 @@
     taskId,
     isMobile = false,
     onFullscreen,
+    needsSignup = false,
   }: Props = $props();
 
   let localReceiver = $state('');
@@ -84,7 +87,7 @@
   let status = $derived(localStatus);
 
   let skillName = $derived(subject || $text('embeds.mail.email'));
-  let statusText = $derived(receiver ? `${$text('embeds.mail.to')} ${receiver}` : '');
+  let statusText = $derived(needsSignup && status === 'finished' ? $text('app_skills.pdf.view.signup_to_upload') : receiver ? `${$text('embeds.mail.to')} ${receiver}` : '');
 
   /** Build a multi-line body preview from the content, trimming empty lines.
    *  If the full content exceeds the visible lines we append '...' */

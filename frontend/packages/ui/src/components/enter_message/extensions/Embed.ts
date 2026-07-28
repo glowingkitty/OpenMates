@@ -561,6 +561,8 @@ export const Embed = Node.create<EmbedOptions>({
       originalFile: { default: null, rendered: false },
       /** Number of pages in an uploaded PDF (set by insertPDF after upload completes) */
       pageCount: { default: null, rendered: false },
+      /** Local-only unauthenticated file preview that should show the signup CTA. */
+      needsSignup: { default: false, rendered: false },
       /** True for existing embeds inserted from search; removal must not delete storage. */
       referenceOnly: {
         default: false,
