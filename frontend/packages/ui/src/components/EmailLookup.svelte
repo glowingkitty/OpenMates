@@ -197,29 +197,33 @@
             const data = await response.json();
             
             if (response.ok) {
-                // Store the email salt if provided
-                if (data.user_email_salt) {
+                if (!data.user_email_salt) {
+                    console.error('Email lookup response missing user_email_salt');
+                    loginFailedWarning = true;
+                    return;
+                }
+
+                try {
+                    // Convert base64 string to Uint8Array and store it before password login.
+                    const emailSalt = base64ToUint8Array(data.user_email_salt);
+                    cryptoService.saveEmailSalt(emailSalt, stayLoggedIn);
+                    console.debug('Email salt stored successfully');
+
+                    // Generate and store email encryption key for zero-knowledge email decryption
                     try {
-                        // Convert base64 string to Uint8Array and store it
-                        const emailSalt = base64ToUint8Array(data.user_email_salt);
-                        cryptoService.saveEmailSalt(emailSalt, stayLoggedIn);
-                        console.debug('Email salt stored successfully');
-                        
-                        // Generate and store email encryption key for zero-knowledge email decryption
-                        try {
-                            // Derive email encryption key from email and salt
-                            const emailEncryptionKey = await cryptoService.deriveEmailEncryptionKey(email, emailSalt);
-                            // Store the email encryption key on the client for server communication
-                            cryptoService.saveEmailEncryptionKey(emailEncryptionKey, stayLoggedIn);
-                            console.debug('Email encryption key generated and stored successfully');
-                        } catch (encKeyError) {
-                            console.error('Error generating email encryption key:', encKeyError);
-                            // Continue with login even if encryption key generation fails
-                        }
-                    } catch (error) {
-                        console.error('Error storing email salt:', error);
-                        // Continue with login even if salt storage fails
+                        // Derive email encryption key from email and salt
+                        const emailEncryptionKey = await cryptoService.deriveEmailEncryptionKey(email, emailSalt);
+                        // Store the email encryption key on the client for server communication
+                        cryptoService.saveEmailEncryptionKey(emailEncryptionKey, stayLoggedIn);
+                        console.debug('Email encryption key generated and stored successfully');
+                    } catch (encKeyError) {
+                        console.error('Error generating email encryption key:', encKeyError);
+                        // Continue with login even if encryption key generation fails
                     }
+                } catch (error) {
+                    console.error('Error storing email salt:', error);
+                    loginFailedWarning = true;
+                    return;
                 }
                 
                 // Check if passkey is available
@@ -247,34 +251,10 @@
                 // Handle error
                 console.warn("Email lookup failed:", data.error || "Unknown error");
                 loginFailedWarning = true;
-                // Still dispatch with default methods if lookup fails
-                dispatch('lookupSuccess', {
-                    email,
-                    availableLoginMethods: ['password', 'recovery_key'],
-                    preferredLoginMethod: 'password',
-                    stayLoggedIn,
-                    tfa_app_name: null,
-                    tfa_enabled: true // Always true for anti-enumeration consistency
-                });
-
-                // Clear only the input field value after lookup
-                emailInputValue = '';
             }
         } catch (error) {
             console.error('Email lookup error:', error);
             loginFailedWarning = true;
-            // Still dispatch with default methods if lookup fails
-            dispatch('lookupSuccess', {
-                email,
-                availableLoginMethods: ['password'],
-                preferredLoginMethod: 'password',
-                stayLoggedIn,
-                tfa_app_name: null,
-                tfa_enabled: true // Always true for anti-enumeration consistency
-            });
-            
-            // Clear only the input field value after lookup
-            emailInputValue = '';
         } finally {
             clearTimeout(lookupTimeout);
             isLoading = false;
