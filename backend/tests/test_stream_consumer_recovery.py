@@ -264,3 +264,64 @@ def test_recovery_metadata_update_caches_ai_context_without_terminal_persistence
     }]
     assert "messages_v" not in directus.updates[0]
     assert "last_message_timestamp" not in directus.updates[0]
+
+
+def test_standardized_server_error_fallback_can_be_sealed_for_recovery(monkeypatch) -> None:
+    task_id = "11111111-1111-4111-8111-111111111111"
+    request_data = AskSkillRequest(
+        chat_id="22222222-2222-4222-8222-222222222222",
+        message_id="33333333-3333-4333-8333-333333333333",
+        user_id="44444444-4444-4444-8444-444444444444",
+        user_id_hash="a" * 64,
+        message_history=[AIHistoryMessage(role="user", content="hello", created_at=100)],
+        recovery_task_id=task_id,
+        recovery_preflight_id="55555555-5555-4555-8555-555555555555",
+        recovery_turn_id="66666666-6666-4666-8666-666666666666",
+        recovery_public_key="public-key",
+        chat_key_version=1,
+    )
+    captured: dict[str, object] = {}
+
+    def fake_build_sealed_recovery_job_data(**kwargs) -> dict[str, object]:
+        captured.update(kwargs)
+        return {
+            "protocol_version": 1,
+            "job_id": "77777777-7777-4777-8777-777777777777",
+            "sealed_payload": "sealed",
+        }
+
+    class FakeChatRecoveryService:
+        def __init__(self, directus_service) -> None:
+            self.directus_service = directus_service
+
+        async def execute(self, operation: str, data: dict[str, object]) -> dict[str, object]:
+            captured["operation"] = operation
+            captured["directus_service"] = self.directus_service
+            captured["request"] = data
+            return {"job_id": data["job_id"]}
+
+    monkeypatch.setattr(
+        stream_consumer,
+        "build_sealed_recovery_job_data",
+        fake_build_sealed_recovery_job_data,
+    )
+    monkeypatch.setattr(stream_consumer, "ChatRecoveryService", FakeChatRecoveryService)
+
+    directus_service = object()
+    result = asyncio.run(
+        stream_consumer._persist_sealed_recovery_job(
+            directus_service=directus_service,
+            request_data=request_data,
+            task_id=task_id,
+            content=stream_consumer.STANDARDIZED_USER_ERROR_MESSAGE,
+            category="general_knowledge",
+            model_name="fallback-model",
+        )
+    )
+
+    assert captured["operation"] == "create_sealed_job"
+    assert captured["directus_service"] is directus_service
+    assert captured["content"] == stream_consumer.STANDARDIZED_USER_ERROR_MESSAGE
+    assert captured["category"] == "general_knowledge"
+    assert captured["model_name"] == "fallback-model"
+    assert result == {"job_id": "77777777-7777-4777-8777-777777777777"}

@@ -8456,7 +8456,7 @@ async def _consume_main_processing_stream(
     )
 
     recovery_job = None
-    if request_data.recovery_task_id and not is_server_error:
+    if request_data.recovery_task_id:
         recovery_job = await _persist_sealed_recovery_job(
             directus_service=directus_service,
             request_data=request_data,
@@ -8464,15 +8464,6 @@ async def _consume_main_processing_stream(
             content=aggregated_response,
             category=preprocessing_result.category or "general_knowledge",
             model_name=stream_model_name,
-        )
-    elif request_data.recovery_task_id and is_server_error:
-        await ChatRecoveryService(directus_service).execute(
-            "mark_inference_failed",
-            {
-                "protocol_version": 1,
-                "inference_task_id": task_id,
-                "failure_category": "provider_error",
-            },
         )
     
     billing_info = {}
