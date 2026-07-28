@@ -481,6 +481,10 @@ test.describe('Landing page onboarding refresh', () => {
 		await expect(page.getByTestId('welcome-content')).toContainText('Click or swipe, to explore real chats:');
 		await expect(page.getByTestId('welcome-content')).not.toContainText('Hey there');
 		await expect(page.getByTestId('guest-input-context-link')).toBeVisible();
+		await page.getByTestId('message-editor').click();
+		await expect(page.getByTestId('guest-input-context-link')).not.toBeVisible({ timeout: 1000 });
+		await page.getByTestId('welcome-content').click();
+		await expect(page.getByTestId('guest-input-context-link')).toBeVisible({ timeout: 1000 });
 		await expect(page.getByTestId('guest-cta-mic-button')).toBeVisible();
 		const visualState = await page.evaluate(() => {
 			const workspaceIcon = document.querySelector<HTMLElement>('[data-testid="guest-workspace-icon"]');
