@@ -217,7 +217,8 @@
     $text('demo_chats.for_everyone.teaser_line3'),
   ]);
   const isIntroTeaserChat = $derived(currentChatId === 'demo-for-everyone');
-  const teaserCopyLines = $derived(isIntroTeaserChat ? introTeaserCopyLines : [title]);
+  const displayTitle = $derived(title || (isSharedChat ? $text('chat.header.shared_chat') : ''));
+  const teaserCopyLines = $derived(isIntroTeaserChat ? introTeaserCopyLines : [displayTitle]);
 
   // ─── In-place video player ────────────────────────────────────────────────
   //
@@ -564,8 +565,9 @@
   /** Whether the loaded state should be shown (transition from processing → loaded).
    *  For incognito chats, this is always true — there's no loading phase.
    *  Category can be absent on legacy/cross-device partial metadata; render the
-   *  title with the primary gradient instead of keeping the header stuck loading. */
-  let isLoaded = $derived(isIncognito || (!isLoading && !!title));
+   *  title or shared-chat label with the primary gradient instead of keeping the
+   *  header stuck loading. */
+  let isLoaded = $derived(isIncognito || (!isLoading && !!displayTitle));
 
   /** Whether to show the summary with its expand animation. */
   let showSummary = $derived(isLoaded && !!summary);
@@ -809,7 +811,7 @@
           {:else}
             <div class="teaser-copy">
               <WorkspaceDetailHeader
-                {title}
+                title={displayTitle}
                 description={summary ?? ''}
                 category={category ?? 'general'}
                 icon={icon ?? 'ai'}
@@ -967,7 +969,7 @@
           {#if !showSignupCta}
             <div class="loaded-content">
               <WorkspaceDetailHeader
-                {title}
+                title={displayTitle}
                 description=""
                 category={category ?? 'general'}
                 icon={icon ?? 'ai'}
@@ -1079,7 +1081,7 @@
       {:else}
         <div class="loaded-content">
           <WorkspaceDetailHeader
-            {title}
+            title={displayTitle}
             description={summary ?? ''}
             category={category ?? 'general'}
             icon={icon ?? 'ai'}

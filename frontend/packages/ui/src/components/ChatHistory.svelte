@@ -1528,8 +1528,11 @@
   //   a) isNewChatGeneratingTitle is true (shimmer placeholder state), or
   //   b) we have a title (loaded state; category may be missing on older partial metadata), or
   //   c) isNewChatCreditsError is true (credits error state), or
-  //   d) isIncognito is true (always show the incognito header immediately)
-  let showChatHeader = $derived(isIncognito || isNewChatGeneratingTitle || isNewChatCreditsError || !!chatTitle);
+  //   d) isIncognito is true (always show the incognito header immediately), or
+  //   e) isSharedChat is true (badge remains visible even if shared metadata has no title)
+  let showChatHeader = $derived(
+    isIncognito || isNewChatGeneratingTitle || isNewChatCreditsError || !!chatTitle || isSharedChat,
+  );
   let chatHeaderWritable = $derived(
     !!currentChatId &&
     !isIncognito &&
