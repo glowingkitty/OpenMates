@@ -5886,7 +5886,6 @@
                 use:tooltip
                 title={$text('common.stop')}
                 aria-label={$text('common.stop')}
-                transition:fade={{ duration: 300 }}
             >
                 <span class="clickable-icon icon_stop_processing"></span>
             </button>

@@ -7096,7 +7096,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
             const currentText = messageInputFieldRef.getTextContent?.() ?? '';
             if (!currentText.includes(text)) {
-                messageInputFieldRef.setSuggestionText(text);
+                if (messageInputFieldRef.replaceDraftWithPlainText) {
+                    await messageInputFieldRef.replaceDraftWithPlainText(null, text, 0, true);
+                } else {
+                    messageInputFieldRef.setSuggestionText(text);
+                }
             }
 
             const restoredText = messageInputFieldRef.getTextContent?.() ?? '';
