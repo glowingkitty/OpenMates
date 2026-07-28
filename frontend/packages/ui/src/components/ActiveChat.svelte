@@ -13140,7 +13140,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     data-testid="message-input-wrapper"
                     bind:clientHeight={messageInputWrapperHeight}
                 >
-                    {#if showWelcome && !$authStore.isAuthenticated}
+                    {#if showWelcome && !$authStore.isAuthenticated && !messageInputFocused}
                         <a
                             class="guest-input-context-link"
                             data-testid="guest-input-context-link"
