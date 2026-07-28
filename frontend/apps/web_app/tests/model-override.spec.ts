@@ -35,6 +35,24 @@ const {
 const { loginToTestAccount, startNewChat, deleteActiveChat } = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
+async function focusMessageEditor(messageEditor: any): Promise<void> {
+	await messageEditor.click();
+	await expect
+		.poll(async () => messageEditor.evaluate((editor: HTMLElement) => {
+			const activeElement = document.activeElement;
+			const selectionNode = document.getSelection()?.anchorNode ?? null;
+			const selectionElement = selectionNode instanceof Element
+				? selectionNode
+				: selectionNode?.parentElement ?? null;
+			return (
+				editor === activeElement ||
+				editor.contains(activeElement) ||
+				(!!selectionElement && editor.contains(selectionElement))
+			);
+		}), { timeout: 5000 })
+		.toBe(true);
+}
+
 /**
  * Model override test via MentionDropdown autocomplete.
  *
@@ -80,17 +98,18 @@ async function selectModelViaMentionDropdown(
 ): Promise<void> {
 	const messageEditor = page.getByTestId('message-editor');
 	await expect(messageEditor).toBeVisible();
-	await messageEditor.click();
+	await focusMessageEditor(messageEditor);
 	logCheckpoint('Clicked on message editor.');
 
-	// Type "@" to trigger the mention dropdown
-	await page.keyboard.type('@');
-	logCheckpoint('Typed "@" to trigger mention dropdown.');
-	await page.waitForTimeout(500);
-
-	// Type the model search term to filter
-	await page.keyboard.type(modelSearchTerm);
-	logCheckpoint(`Typed model search term: "${modelSearchTerm}"`);
+	// Insert the trigger and query only after the contenteditable owns focus.
+	// Otherwise Chromium can drop the leading "@", leaving plain text like "qwen"
+	// and the mention plugin never enters dropdown mode.
+	const mentionQuery = `@${modelSearchTerm}`;
+	await page.keyboard.insertText(mentionQuery);
+	await expect
+		.poll(async () => ((await messageEditor.textContent()) || '').replace(/\s+/g, ' ').trim(), { timeout: 5000 })
+		.toContain(mentionQuery);
+	logCheckpoint(`Typed model mention query: "${mentionQuery}"`);
 	await page.waitForTimeout(500);
 
 	// Wait for the mention dropdown to appear with increased timeout
