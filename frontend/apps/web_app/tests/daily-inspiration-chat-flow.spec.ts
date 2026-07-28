@@ -80,6 +80,45 @@ const {
 const { loginToTestAccount, sendMessage, waitForAssistantMessage } = require('./helpers/chat-test-helpers');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
+const START_CHAT_CTA_PATTERN = /start chat/i;
+const PERSONALIZED_INSPIRATION_READY_TIMEOUT_MS = 30000;
+const CAROUSEL_STEP_WAIT_MS = 300;
+
+async function waitForStartChatInspiration(page: any, log: (message: string, data?: unknown) => void) {
+	const inspirationBanner = page.getByTestId('daily-inspiration-banner').first();
+	const ctaText = inspirationBanner.getByTestId('daily-inspiration-cta-text').first();
+	const inspirationPhrase = inspirationBanner.getByTestId('daily-inspiration-phrase').first();
+	const nextButton = page.getByTestId('daily-inspiration-next');
+	const seenStates: string[] = [];
+	const deadline = Date.now() + PERSONALIZED_INSPIRATION_READY_TIMEOUT_MS;
+
+	while (Date.now() < deadline) {
+		await expect(ctaText).toBeVisible({ timeout: 5000 });
+		const cta = ((await ctaText.textContent().catch(() => '')) || '').trim();
+		const phrase = ((await inspirationPhrase.textContent().catch(() => '')) || '')
+			.trim()
+			.replace(/\s+/g, ' ');
+		const state = `${cta || '(empty CTA)'} :: ${phrase.slice(0, 100) || '(empty phrase)'}`;
+		if (seenStates[seenStates.length - 1] !== state) seenStates.push(state);
+
+		if (START_CHAT_CTA_PATTERN.test(cta)) {
+			log('Found a fresh daily inspiration chat CTA.', { attempts: seenStates.length, cta });
+			return ctaText;
+		}
+
+		if (await nextButton.isVisible().catch(() => false)) {
+			await nextButton.click();
+		}
+		await page.waitForTimeout(CAROUSEL_STEP_WAIT_MS);
+	}
+
+	throw new Error(
+		`Timed out waiting for a daily inspiration with a start-chat CTA. Seen states:\n${seenStates
+			.slice(-20)
+			.map((state, index) => `${index + 1}. ${state}`)
+			.join('\n')}`
+	);
+}
 
 test('daily inspiration chat: creates chat and allows follow-up message without shared-chat error', async ({
 	page
@@ -183,14 +222,9 @@ test('daily inspiration chat: creates chat and allows follow-up message without 
 
 	// Feature inspirations open settings, and already-opened inspirations resume an
 	// existing chat. This regression needs a fresh inspiration chat creation path.
-	const ctaText = page.getByTestId('daily-inspiration-cta-text').first();
-	for (let attempt = 0; attempt < 10; attempt += 1) {
-		const text = ((await ctaText.textContent().catch(() => '')) || '').toLowerCase();
-		if (text.includes('start chat')) break;
-		await page.getByTestId('daily-inspiration-next').click();
-		await page.waitForTimeout(300);
-	}
-	await expect(ctaText).toContainText(/start chat/i, { timeout: 5000 });
+	// Pending delivery intentionally waits on the backend before broadcasting, so
+	// wait on the observable CTA state rather than a fixed post-login sleep.
+	const ctaText = await waitForStartChatInspiration(page, log);
 
 	// ── 9. Click the banner to create an inspiration chat ────────────────────
 	await ctaText.click();
