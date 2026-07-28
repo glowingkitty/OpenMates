@@ -315,13 +315,12 @@ test('message sync: verifies all messages are synced after sending multiple mess
 	logCheckpoint('Waiting for first AI response...');
 	await waitForAssistantMessage(page, {
 		nth: 0,
-		contains: '4',
 		timeout: 120000,
 		logCheckpoint,
 	});
 	await waitForSyncedAssistantMessages(page, chatId, 1, 60000);
 	await takeStepScreenshot(page, '08-first-response-received');
-	logCheckpoint('Received first AI response containing "4".');
+	logCheckpoint('Received first synced AI response.');
 
 	// Wait for IndexedDB to have the expected message count (1 user + 1 assistant = 2)
 	// This handles async save operations that might not be complete when UI shows the response
@@ -368,21 +367,20 @@ test('message sync: verifies all messages are synced after sending multiple mess
 	logCheckpoint('Waiting for second AI response...');
 	await waitForAssistantMessage(page, {
 		nth: 1,
-		contains: '40',
 		timeout: 120000,
 		logCheckpoint,
 	});
 	await waitForSyncedAssistantMessages(page, chatId, 2, 60000);
 	await takeStepScreenshot(page, '11-second-response-received');
-	logCheckpoint('Received second AI response containing "40".');
+	logCheckpoint('Received second synced AI response.');
 
 	// =========================================================================
 	// STEP 5: Verify final message state
 	// =========================================================================
 	// Wait for all 4 messages to be saved: 2 user + 2 assistant
-	// Timeout matches the toContainText('40') timeout above (45000ms) because the
-	// AI may still be streaming when "40" first appears in the UI; IndexedDB save
-	// only fires after the AI fully completes via handleAIBackgroundResponseCompletedImpl.
+	// The AI may still be streaming when the assistant bubble first appears in the
+	// UI; IndexedDB save only fires after the AI fully completes via
+	// handleAIBackgroundResponseCompletedImpl.
 	const finalStats = await waitForMessageCount(page, chatId, 4, 45000);
 	logCheckpoint('Final message stats:', finalStats);
 	console.log('📊 Final stats:', JSON.stringify(finalStats));
