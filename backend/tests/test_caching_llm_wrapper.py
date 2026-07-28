@@ -10,6 +10,7 @@ import asyncio
 
 from backend.apps.ai.testing.caching_llm_wrapper import wrap_provider_with_cache
 from backend.apps.ai.llm_providers.openai_shared import OpenAIUsageMetadata, ParsedOpenAIToolCall
+from backend.shared.testing.api_response_cache import ApiResponseCache
 from backend.shared.testing.mock_context import activate_mock_mode, deactivate_mock_mode
 
 
@@ -50,6 +51,25 @@ class FakeSavedResponseCache(FakeCache):
         assert category == "llm/test-model"
         assert fingerprint == "cached-fingerprint"
         return {"response": self.response_data}
+
+
+class FakeFallbackCache(FakeCache):
+    def __init__(self):
+        self.fallback_summary = None
+        self.excluded_fingerprint = None
+
+    def load(self, group_id, category, fingerprint):
+        assert group_id == "fork-conversation"
+        assert category == "llm/test-model"
+        assert fingerprint == "cached-fingerprint"
+        return None
+
+    def load_compatible_llm_response(self, group_id, category, request_summary, excluded_fingerprint=None):
+        assert group_id == "fork-conversation"
+        assert category == "llm/test-model"
+        self.fallback_summary = request_summary
+        self.excluded_fingerprint = excluded_fingerprint
+        return {"response": {"type": "stream", "body": "fallback"}}
 
 
 def test_cached_stream_provider_remains_awaitable():
@@ -108,6 +128,48 @@ def test_cached_stream_provider_accepts_model_id_alias():
 
     assert asyncio.run(exercise_wrapper()) == ["alpha"]
     assert provider_calls == 0
+
+
+def test_cached_stream_provider_uses_compatible_fallback_on_fingerprint_miss():
+    provider_calls = 0
+    cache = FakeFallbackCache()
+
+    async def provider_fn(**_kwargs):
+        nonlocal provider_calls
+        provider_calls += 1
+
+        async def _stream():
+            yield "real"
+
+        return _stream()
+
+    async def exercise_wrapper():
+        activate_mock_mode("mock", "fork-conversation")
+        try:
+            wrapped_provider = wrap_provider_with_cache(provider_fn, cache)
+            chunk_stream = await wrapped_provider(
+                model="test-model",
+                messages=[{"role": "user", "content": "Find 3D printable benchy models"}],
+                tools=[{"type": "function"}],
+                temperature=0.4,
+                tool_choice="auto",
+                stream=True,
+            )
+            return [chunk async for chunk in chunk_stream]
+        finally:
+            deactivate_mock_mode()
+
+    assert asyncio.run(exercise_wrapper()) == ["fallback"]
+    assert provider_calls == 0
+    assert cache.excluded_fingerprint == "cached-fingerprint"
+    assert cache.fallback_summary == {
+        "model": "test-model",
+        "messages_count": 1,
+        "tools_count": 1,
+        "temperature": 0.4,
+        "tool_choice": "auto",
+        "last_message_preview": {"role": "user", "content": "Find 3D printable benchy models"},
+    }
 
 
 def test_inactive_stream_provider_awaits_real_provider_before_iterating():
@@ -348,3 +410,40 @@ def test_cached_stream_provider_replays_google_chunks_without_google_import():
     assert chunks[1].input_tokens == 7
     assert chunks[1].output_tokens == 5
     assert chunks[1].total_tokens == 12
+
+
+def test_api_response_cache_loads_compatible_llm_response(tmp_path):
+    cache = ApiResponseCache(root=tmp_path)
+    response_data = {"type": "stream", "body": "cached", "chunk_count": 1}
+    cache.save(
+        group_id="models3d_search_web",
+        category="llm/gemini-3.5-flash-lite",
+        fingerprint="old-fingerprint",
+        request_summary={
+            "model": "gemini-3.5-flash-lite",
+            "messages_count": 2,
+            "tools_count": 3,
+            "temperature": 0.4,
+            "tool_choice": "auto",
+            "last_message_preview": {"role": "user", "content": "Find 3D printable benchy models"},
+        },
+        response_data=response_data,
+    )
+
+    cached = cache.load_compatible_llm_response(
+        "models3d_search_web",
+        "llm/gemini-3.5-flash-lite",
+        {
+            "model": "gemini-3.5-flash-lite",
+            "messages_count": 3,
+            "tools_count": 3,
+            "temperature": 0.4,
+            "tool_choice": "auto",
+            "last_message_preview": {"role": "user", "content": "Find 3D printable benchy models"},
+        },
+        excluded_fingerprint="new-fingerprint",
+    )
+
+    assert cached is not None
+    assert cached["fingerprint"] == "old-fingerprint"
+    assert cached["response"] == response_data

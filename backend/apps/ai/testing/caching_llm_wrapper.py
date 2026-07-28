@@ -91,9 +91,19 @@ def wrap_provider_with_cache(
             temperature=temperature,
             tool_choice=tool_choice,
         )
+        request_summary = _build_llm_request_summary(kwargs, model)
 
         # Try cache first
         cached = cache.load(group_id, category, fingerprint)
+        if cached is None and not is_record_mode():
+            compatible_loader = getattr(cache, "load_compatible_llm_response", None)
+            if callable(compatible_loader):
+                cached = compatible_loader(
+                    group_id,
+                    category,
+                    request_summary,
+                    excluded_fingerprint=fingerprint,
+                )
         if cached is not None:
             response_data = cached.get("response", {})
             response_body = response_data.get("body", "")
@@ -180,25 +190,7 @@ def _save_to_cache(
     except (json.JSONDecodeError, TypeError):
         pass
 
-    # Build request summary for debugging
-    messages = kwargs.get("messages", [])
-    tools = kwargs.get("tools")
-    request_summary: dict = {
-        "model": _model_from_kwargs(kwargs),
-        "messages_count": len(messages),
-        "tools_count": len(tools) if tools else 0,
-        "temperature": kwargs.get("temperature"),
-        "tool_choice": kwargs.get("tool_choice"),
-    }
-    if messages:
-        last_msg = messages[-1]
-        content = last_msg.get("content", "")
-        if isinstance(content, str) and len(content) > 200:
-            content = content[:200] + "..."
-        request_summary["last_message_preview"] = {
-            "role": last_msg.get("role", ""),
-            "content": content,
-        }
+    request_summary = _build_llm_request_summary(kwargs, _model_from_kwargs(kwargs))
 
     response_data = {
         "type": response_type,
@@ -409,3 +401,25 @@ def _model_from_kwargs(kwargs: dict[str, Any]) -> str:
     """Return the provider model name regardless of the caller's parameter spelling."""
     model = kwargs.get("model") or kwargs.get("model_id") or "unknown"
     return str(model)
+
+
+def _build_llm_request_summary(kwargs: dict[str, Any], model: str) -> dict[str, Any]:
+    messages = kwargs.get("messages", [])
+    tools = kwargs.get("tools")
+    request_summary: dict[str, Any] = {
+        "model": model,
+        "messages_count": len(messages),
+        "tools_count": len(tools) if tools else 0,
+        "temperature": kwargs.get("temperature"),
+        "tool_choice": kwargs.get("tool_choice"),
+    }
+    if messages:
+        last_msg = messages[-1]
+        content = last_msg.get("content", "")
+        if isinstance(content, str) and len(content) > 200:
+            content = content[:200] + "..."
+        request_summary["last_message_preview"] = {
+            "role": last_msg.get("role", ""),
+            "content": content,
+        }
+    return request_summary

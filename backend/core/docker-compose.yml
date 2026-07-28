@@ -214,8 +214,10 @@ services:
     command: >
       sh -c "chown -R celeryuser:celeryuser /vault-data && \
              mkdir -p /app/logs /app/backend/core/api/logs /app/backend/apps/ai/testing/api_cache && \
-             chown -R celeryuser:celeryuser /app/logs /app/backend/core/api/logs /app/backend/apps/ai/testing/api_cache && \
-             chmod -R 777 /app/logs /app/backend/core/api/logs /app/backend/apps/ai/testing/api_cache && \
+             chown -R celeryuser:celeryuser /app/logs /app/backend/core/api/logs && \
+             chmod -R 777 /app/logs /app/backend/core/api/logs && \
+             find /app/backend/apps/ai/testing/api_cache -type d -exec chmod 777 {} + && \
+             find /app/backend/apps/ai/testing/api_cache -type f -exec chmod 666 {} + && \
              gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
              --loglevel=info \
              --queues=email,user_init,persistence,health_check,server_stats,demo,e2e_tests,reminder,push \
