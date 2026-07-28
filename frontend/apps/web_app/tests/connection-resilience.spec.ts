@@ -291,7 +291,11 @@ test('delivers AI response after page reload during processing', async ({ page }
 	const { logCheckpoint, takeStepScreenshot } = await loginAndNavigateToChat(page, test, 'RELOAD');
 
 	// Send a message
-	const chatId = await sendMessageAndGetChatId(page, 'What is the capital of France?', logCheckpoint);
+	const chatId = await sendMessageAndGetChatId(
+		page,
+		withMockMarker('What is the capital of Germany?', 'chat_flow_capital'),
+		logCheckpoint
+	);
 	await takeStepScreenshot(page, 'message-sent');
 
 	// Wait briefly for the request to register on the server
@@ -320,12 +324,12 @@ test('delivers AI response after page reload during processing', async ({ page }
 	// The assistant response should arrive
 	await waitForAssistantMessage(page, {
 		which: 'last',
-		contains: 'Paris',
+		contains: 'Berlin',
 		timeout: 120000,
 		logCheckpoint
 	});
 	await takeStepScreenshot(page, 'response-after-reload');
-	logCheckpoint('AI response received after page reload. Contains "Paris".');
+	logCheckpoint('AI response received after page reload. Contains "Berlin".');
 
 	// Verify no missing translations on the chat page after reconnect
 	await assertNoMissingTranslations(page);

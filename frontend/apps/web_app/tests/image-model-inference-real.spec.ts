@@ -20,7 +20,14 @@ const {
 	getTestAccount,
 	getE2EDebugUrl
 } = require('./signup-flow-helpers');
-const { loginToTestAccount, startNewChat, deleteActiveChat } = require('./helpers/chat-test-helpers');
+const {
+	loginToTestAccount,
+	startNewChat,
+	sendMessage,
+	deleteActiveChat,
+	waitForChatReady,
+	waitForAssistantMessage
+} = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 const IMAGE_FIXTURE = path.resolve(
@@ -184,34 +191,19 @@ async function closeEmbedFullscreenIfOpen(
 	log('Closed fullscreen overlay before sending.');
 }
 
-async function sendImageQuestion(
-	page: any,
-	message: string,
-	log: (message: string, metadata?: Record<string, unknown>) => void
-) {
-	const editor = page.getByTestId('message-editor');
-	await expect(editor).toBeVisible({ timeout: 10000 });
-	await editor.click();
-	await page.keyboard.type(message);
-	log('Typed image question.', { message });
-
-	const sendButton = page.locator('[data-action="send-message"]');
-	await expect(sendButton).toBeEnabled({ timeout: 30000 });
-	await closeEmbedFullscreenIfOpen(page, log);
-	await sendButton.click({ force: true });
-	log('Sent image question.');
-}
-
 async function waitForImageViewAndResponse(page: any, log: (message: string, metadata?: Record<string, unknown>) => void) {
 	const imageViewEmbed = page.locator('[data-app-id="images"][data-skill-id="view"]').last();
 	await expect(imageViewEmbed).toBeVisible({ timeout: IMAGE_VIEW_TIMEOUT_MS });
 	log('images.view embed is visible.');
 
-	const assistantMessage = page.getByTestId('message-assistant').last();
-	await expect(assistantMessage).toBeVisible({ timeout: ASSISTANT_MESSAGE_START_TIMEOUT_MS });
+	const assistantMessage = await waitForAssistantMessage(page, {
+		which: 'last',
+		contains: DESIGN_FEEDBACK_PATTERN,
+		timeout: ASSISTANT_COMPLETION_TIMEOUT_MS,
+		logCheckpoint: log
+	});
 	const generatedBy = assistantMessage.getByTestId('generated-by');
-	await expect(generatedBy).toBeVisible({ timeout: ASSISTANT_COMPLETION_TIMEOUT_MS });
-	await expect(assistantMessage).toContainText(DESIGN_FEEDBACK_PATTERN, { timeout: ASSISTANT_COMPLETION_TIMEOUT_MS });
+	await expect(generatedBy).toBeVisible({ timeout: ASSISTANT_MESSAGE_START_TIMEOUT_MS });
 	const generatedByText = (await generatedBy.textContent()) || '';
 	const responseText = (await assistantMessage.textContent()) || '';
 	return { generatedByText, responseText };
@@ -237,10 +229,12 @@ for (const model of activeModels) {
 			await page.goto(getE2EDebugUrl('/'));
 			await loginToTestAccount(page, log, screenshot);
 			await startNewChat(page, log);
+			await waitForChatReady(page, log, 90000);
 			await attachImage(page, log);
 
 			const message = `${PROMPT} ${modelDirective(model)}`;
-			await sendImageQuestion(page, message, log);
+			await closeEmbedFullscreenIfOpen(page, log);
+			await sendMessage(page, message, log, screenshot, `image-question-${model.label}-${trial}`);
 			const { generatedByText, responseText } = await waitForImageViewAndResponse(page, log);
 			const score = scoreResponse(responseText);
 
