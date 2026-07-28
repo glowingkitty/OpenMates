@@ -282,31 +282,6 @@ export async function insertImage(
   // Step 2: Generate a stable embed ID to reference the node after insertion
   const embedId = generateUUID();
 
-  // Step 2b: Resize the image to 2K max before uploading.
-  // This runs client-side to cap the upload file size regardless of camera resolution,
-  // improving upload speed and reducing server storage — without affecting the local
-  // preview (which uses the already-resized thumbnail from resizeImage() above).
-  // Only applies to authenticated uploads; demo mode skips the server entirely.
-  let uploadFile = file;
-  if (isAuthenticated) {
-    try {
-      const { resizedBlob } = await resizeForUpload(file, 1280);
-      // Preserve the original filename and MIME type so the server stores it correctly.
-      // Use the resized blob's type (may differ from file.type if HEIC was decoded).
-      const uploadMime = resizedBlob.type || file.type;
-      uploadFile = new File([resizedBlob], file.name, { type: uploadMime });
-      console.debug(
-        `[EmbedHandlers] Camera/image resized for upload: ${file.size} → ${uploadFile.size} bytes`,
-      );
-    } catch (resizeErr) {
-      // Non-fatal: log and fall back to the original file so the upload still works.
-      console.error(
-        "[EmbedHandlers] resizeForUpload failed — uploading original file:",
-        resizeErr,
-      );
-    }
-  }
-
   if (!isAuthenticated) {
     // Demo mode: insert with status 'finished' immediately — no server upload.
     // The image is local-only; it lets unauthenticated users draft a message
@@ -390,11 +365,30 @@ export async function insertImage(
   }, 50);
 
   // Step 4: Upload in the background — non-blocking.
-  // uploadFile is the 2K-capped version (or original if resize failed / unauthenticated).
+  // Resize after insertion so preview optimization can never block the editor embed.
   // Register an AbortController so the upload can be cancelled via cancelUpload().
   const controller = new AbortController();
   _uploadControllers.set(embedId, controller);
-  _performUpload(editor, embedId, uploadFile, controller.signal).catch(
+  (async () => {
+    let uploadFile = file;
+    try {
+      const { resizedBlob } = await resizeForUpload(file, 1280);
+      // Preserve the original filename and MIME type so the server stores it correctly.
+      // Use the resized blob's type (may differ from file.type if HEIC was decoded).
+      const uploadMime = resizedBlob.type || file.type;
+      uploadFile = new File([resizedBlob], file.name, { type: uploadMime });
+      console.debug(
+        `[EmbedHandlers] Camera/image resized for upload: ${file.size} → ${uploadFile.size} bytes`,
+      );
+    } catch (resizeErr) {
+      // Non-fatal: log and fall back to the original file so the upload still works.
+      console.error(
+        "[EmbedHandlers] resizeForUpload failed — uploading original file:",
+        resizeErr,
+      );
+    }
+    await _performUpload(editor, embedId, uploadFile, controller.signal);
+  })().catch(
     (err) => {
       console.error("[EmbedHandlers] Unhandled error in _performUpload:", err);
     },
