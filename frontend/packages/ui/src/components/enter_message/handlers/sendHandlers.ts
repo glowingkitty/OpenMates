@@ -721,7 +721,7 @@ export async function handleSend(
     // reconstruct the final markdown later without needing the live editor.
     // The upload callbacks in embedHandlers.ts will store finished embed data in
     // EmbedStore (with contentRef). The deferred sender reads EmbedStore when it fires.
-    const { addPendingSend } =
+    const { addPendingSend, removePendingSend } =
       await import("../../../stores/pendingUploadStore");
     const embedSnapshots = new Map<
       string,
@@ -741,37 +741,52 @@ export async function handleSend(
       return true;
     });
 
+    // The upload can finish between the initial blocking scan and pending-send
+    // registration, which would otherwise miss the only embedUploadFinished event.
+    const stillBlockingEmbedIds = new Set(blockingEmbeds.map((e) => e.id));
+    for (const { id } of blockingEmbeds) {
+      const snapshot = embedSnapshots.get(id);
+      if (snapshot?.contentRef || snapshot?.uploadEmbedId) {
+        stillBlockingEmbedIds.delete(id);
+      }
+    }
+
     // Build per-embed progress map for the store.
     const embedProgressMap = new Map(
-      blockingEmbeds.map((e) => [
-        e.id,
-        {
-          embedId: e.id,
-          status: "uploading" as string,
-          uploadPercent: 0,
-          label: e.label,
-        },
-      ]),
+      blockingEmbeds.map((e) => {
+        const isStillBlocking = stillBlockingEmbedIds.has(e.id);
+        return [
+          e.id,
+          {
+            embedId: e.id,
+            status: isStillBlocking ? "uploading" : "finished",
+            uploadPercent: isStillBlocking ? 0 : 100,
+            label: e.label,
+          },
+        ];
+      }),
     );
+
+    const pendingContext = {
+      pendingId: `${deferredMessageId}-pending`,
+      chatId: deferredChatId,
+      messageId: deferredMessageId,
+      editorSnapshot: editor.getJSON(),
+      embedSnapshots,
+      blockingEmbedIds: stillBlockingEmbedIds,
+      embedProgress: embedProgressMap,
+      createdAt: Date.now(),
+      piiExclusions: new Set(activePIIExclusions),
+      piiRewriteMappings: getActivePIIMappingsForRewrite(),
+      partialMarkdown: "",
+    };
 
     // Register in pendingUploadStore.
     // The editor will be CLEARED after this — the user is free to navigate away.
     // When all blocking embeds finish (notified via embedUploadFinished), the
     // deferred sender reconstructs the final markdown from editorSnapshot +
     // EmbedStore data and sends the message without needing the live editor.
-    addPendingSend({
-      pendingId: `${deferredMessageId}-pending`,
-      chatId: deferredChatId,
-      messageId: deferredMessageId,
-      editorSnapshot: editor.getJSON(),
-      embedSnapshots,
-      blockingEmbedIds: new Set(blockingEmbeds.map((e) => e.id)),
-      embedProgress: embedProgressMap,
-      createdAt: Date.now(),
-      piiExclusions: new Set(activePIIExclusions),
-      piiRewriteMappings: getActivePIIMappingsForRewrite(),
-      partialMarkdown: "",
-    });
+    addPendingSend(pendingContext);
 
     // Optimistically show the stub message in the chat UI immediately.
     // The message stays at status "waiting_for_upload" until the deferred send fires.
@@ -786,8 +801,17 @@ export async function handleSend(
     editor.commands.blur();
 
     console.info(
-      `[handleSend] Deferred send queued for chat ${deferredChatId.slice(-6)}: blocking on ${blockingEmbeds.length} embed(s), editor cleared`,
+      `[handleSend] Deferred send queued for chat ${deferredChatId.slice(-6)}: blocking on ${stillBlockingEmbedIds.size} embed(s), editor cleared`,
     );
+    if (stillBlockingEmbedIds.size === 0) {
+      removePendingSend(deferredChatId, pendingContext.pendingId);
+      void executeDeferredSend(pendingContext).catch((error) => {
+        console.error(
+          `[handleSend] Immediate deferred send failed for chat ${deferredChatId.slice(-6)}:`,
+          error,
+        );
+      });
+    }
     rootSpan.setAttribute('message.send.deferred', true);
     rootSpan.end();
     return; // Exit — the actual send will happen when embedUploadFinished fires
