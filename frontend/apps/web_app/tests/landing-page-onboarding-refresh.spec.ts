@@ -483,7 +483,10 @@ test.describe('Landing page onboarding refresh', () => {
 		await expect(page.getByTestId('guest-input-context-link')).toBeVisible();
 		await page.getByTestId('message-editor').click();
 		await expect(page.getByTestId('guest-input-context-link')).not.toBeVisible({ timeout: 1000 });
-		await page.getByTestId('welcome-content').click();
+		await page.evaluate(() => {
+			const activeElement = document.activeElement;
+			if (activeElement instanceof HTMLElement) activeElement.blur();
+		});
 		await expect(page.getByTestId('guest-input-context-link')).toBeVisible({ timeout: 1000 });
 		await expect(page.getByTestId('guest-cta-mic-button')).toBeVisible();
 		const visualState = await page.evaluate(() => {
