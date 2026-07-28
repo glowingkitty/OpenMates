@@ -110,12 +110,13 @@ async function sendMessageAndGetChatId(
 	message: string,
 	logFn: (msg: string) => void
 ): Promise<string> {
-	const messageEditor = page.getByTestId('message-editor');
+	const messageField = page.getByTestId('message-field').last();
+	const messageEditor = messageField.getByTestId('message-editor');
 	await expect(messageEditor).toBeVisible({ timeout: 15000 });
 	await messageEditor.click();
-	await page.keyboard.type(message);
+	await page.keyboard.insertText(message);
 
-	const sendButton = page.locator('[data-action="send-message"]');
+	const sendButton = messageField.locator('[data-action="send-message"]');
 	await expect(sendButton).toBeEnabled({ timeout: 10000 });
 	await sendButton.click();
 	logFn(`Message sent: "${message}"`);
