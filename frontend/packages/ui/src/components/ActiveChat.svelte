@@ -3436,11 +3436,32 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             .filter((item): item is PriorityChatContinueItem => item.kind === 'chat')
             .map((item) => item.chat.chat_id)
     ));
+    const RECENT_CHATS_TOTAL = 10;
+    let hasVisibleResumeChat = $derived.by(() =>
+        !!resumeChatData &&
+        !priorityContinueChatIds.has(resumeChatData.chat_id) &&
+        priorityContinueItems.length < RECENT_CHATS_TOTAL
+    );
+    let visibleRecentChats = $derived.by(() => {
+        const remainingSlots = Math.max(
+            RECENT_CHATS_TOTAL - priorityContinueItems.length - (hasVisibleResumeChat ? 1 : 0),
+            0
+        );
+        return recentChats
+            .filter((meta) => meta.chat.chat_id !== resumeChatData?.chat_id && !priorityContinueChatIds.has(meta.chat.chat_id))
+            .slice(0, remainingSlots);
+    });
+    let authRecentOverflowCount = $derived.by(() => {
+        const visiblePriorityChatCount = priorityContinueItems.filter(
+            (item): item is PriorityChatContinueItem => item.kind === 'chat'
+        ).length;
+        const visibleChatCount = visiblePriorityChatCount + (hasVisibleResumeChat ? 1 : 0) + visibleRecentChats.length;
+        return Math.max(($userProfile.total_chat_count ?? 0) - visibleChatCount, 0);
+    });
     let recentChatsScrollEl = $state<HTMLElement | null>(null);
     // Set to true the first time the user manually scrolls the carousel so
     // that reactive effects don't snap it back to the initial position.
     let recentChatsScrolledByUser = false;
-    const RECENT_CHATS_TOTAL = 10;
     // Incremented by event handlers (chatDeleted, chatUpdated, syncComplete,
     // visibilitychange) to trigger the $effect that calls loadRecentChats().
     let carouselInvalidationCounter = $state(0);
@@ -4813,7 +4834,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // potentially causing all UI effects to stall without throwing an error.
     let recentChatTiltStates = $state<RecentChatTiltState[]>([]);
     $effect(() => {
-        const len = recentChats.length;
+        const len = visibleRecentChats.length;
         if (recentChatTiltStates.length !== len) {
             recentChatTiltStates = reconcileRecentChatTiltStates(recentChatTiltStates, len);
         }
@@ -12615,7 +12636,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                     {/each}
 
                                     <!-- ── Primary resume card (most recent / last-opened) ── -->
-                                    {#if resumeChatData && !priorityContinueChatIds.has(resumeChatData.chat_id)}
+                                    {#if resumeChatData && hasVisibleResumeChat}
                                         {#if isTallViewport && !resumeChatIsCreditsError}
                                             {@const category = resumeChatCategory || 'general_knowledge'}
                                             {@const gradientColors = getCategoryGradientColors(category)}
@@ -12732,7 +12753,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                     <!-- ── Additional recent chats (scrollable after primary card) ── -->
                                     <!-- Dedup: skip any chat already shown as the resume card to prevent
                                          duplicates when loadRecentChats and resumeChatData use different sources -->
-                                    {#each recentChats.filter(m => m.chat.chat_id !== resumeChatData?.chat_id && !priorityContinueChatIds.has(m.chat.chat_id)) as meta, i (meta.chat.chat_id)}
+                                    {#each visibleRecentChats as meta, i (meta.chat.chat_id)}
                                         {@const tilt = recentChatTiltStates[i]}
                                         {@const isDraft = !!meta.draftPreview && !meta.title}
                                         {@const category = meta.category || 'general_knowledge'}
@@ -12859,14 +12880,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                     {/each}
 
                                     <!-- "+N more" overflow button (auth) -->
-                                    {#if ($userProfile.total_chat_count ?? 0) > ((resumeChatData ? 1 : 0) + recentChats.length)}
+                                    {#if authRecentOverflowCount > 0}
                                         <button
                                             class="recent-chat-overflow"
                                             class:compact={!isTallViewport}
                                             type="button"
                                             onclick={() => panelState.toggleChats()}
                                         >
-                                            +{($userProfile.total_chat_count ?? 0) - ((resumeChatData ? 1 : 0) + recentChats.length)}
+                                            +{authRecentOverflowCount}
                                         </button>
                                     {/if}
                                 </div>
