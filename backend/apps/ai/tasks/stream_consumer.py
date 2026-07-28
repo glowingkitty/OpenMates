@@ -2095,6 +2095,45 @@ async def _update_chat_metadata(
             f"{log_prefix} Updated recovery chat metadata without advancing terminal messages_v: "
             f"timestamp {timestamp}, category {category}"
         )
+
+        if cache_service:
+            from backend.core.api.app.schemas.chat import MessageInCache
+
+            try:
+                encrypted_content_for_cache, _ = await encryption_service.encrypt_with_user_key(
+                    content_markdown,
+                    user_vault_key_id,
+                )
+                ai_message_for_cache = MessageInCache(
+                    id=task_id,
+                    chat_id=request_data.chat_id,
+                    role="assistant",
+                    category=category,
+                    sender_name=None,
+                    encrypted_content=encrypted_content_for_cache,
+                    created_at=timestamp,
+                    status="synced",
+                    model_name=model_name,
+                )
+                cached = await cache_service.add_ai_message_to_history(
+                    request_data.user_id,
+                    request_data.chat_id,
+                    ai_message_for_cache.model_dump_json(),
+                )
+                if cached:
+                    logger.info(
+                        f"{log_prefix} Saved recovery assistant response to AI cache "
+                        "without publishing or advancing messages_v."
+                    )
+                else:
+                    logger.warning(
+                        f"{log_prefix} Failed to save recovery assistant response to AI cache; "
+                        "follow-up context may be incomplete."
+                    )
+            except Exception:
+                logger.exception(
+                    f"{log_prefix} Failed to cache recovery assistant response for follow-up context."
+                )
         return
 
     # 1. Increment messages_v atomically via cache HINCRBY (same mechanism as system_message_handler)

@@ -221,7 +221,7 @@ def test_harmful_fake_stream_includes_recovery_job_before_final_marker(monkeypat
     assert final_chunks[0]["category"] == "general_knowledge"
 
 
-def test_recovery_metadata_update_does_not_claim_terminal_or_inference_persistence() -> None:
+def test_recovery_metadata_update_caches_ai_context_without_terminal_persistence() -> None:
     request_data = SimpleNamespace(
         chat_id="22222222-2222-4222-8222-222222222222",
         user_id="44444444-4444-4444-8444-444444444444",
@@ -251,7 +251,12 @@ def test_recovery_metadata_update_does_not_claim_terminal_or_inference_persisten
     assert cache.version_increments == []
     assert cache.version_sets == []
     assert cache.events == []
-    assert cache.ai_messages == []
+    assert len(cache.ai_messages) == 1
+    cached_user_id, cached_chat_id, cached_message_json = cache.ai_messages[0]
+    assert cached_user_id == request_data.user_id
+    assert cached_chat_id == request_data.chat_id
+    assert "encrypted:assistant response" in cached_message_json
+    assert "Gemini 3.5 Flash-Lite" in cached_message_json
     assert directus.updates == [{
         "last_edited_overall_timestamp": 1234,
         "last_mate_category": "software_development",
