@@ -33,10 +33,14 @@ const CYCLES = 5;
 const CHAT_LOAD_TIMEOUT = 12000;
 const SETTINGS_TIMEOUT = 8000;
 
+function getNewChatButton(page: any) {
+	return page.locator('[data-testid="new-chat-cta-fullwidth"], [data-testid="new-chat-button"]').first();
+}
+
 async function openFirstIntroOrExampleChat(page: any) {
 	const skipInterests = page.getByTestId('guest-interest-skip');
 	const firstCard = page.locator('[data-testid="resume-chat-large-card"], [data-testid="resume-chat-card"]').first();
-	const newChatButton = page.getByTestId('new-chat-cta-fullwidth');
+	const newChatButton = getNewChatButton(page);
 
 	if (await skipInterests.isVisible({ timeout: 5000 }).catch(() => false)) {
 		await skipInterests.click();
@@ -91,7 +95,7 @@ test.describe('Unauthenticated chat navigation stays reactive', () => {
 			console.log(`[chat-nav] === Cycle ${cycle}/${CYCLES} ===`);
 
 			// ── 2a. Click "New Chat" CTA (fullwidth on intro/demo chats) ────
-			const newChatButton = page.getByTestId('new-chat-cta-fullwidth');
+			const newChatButton = getNewChatButton(page);
 			await expect(newChatButton).toBeVisible({ timeout: 8000 });
 			await newChatButton.click();
 			console.log(`[chat-nav] [${cycle}] Clicked New Chat button`);
@@ -132,7 +136,7 @@ test.describe('Unauthenticated chat navigation stays reactive', () => {
 		console.log(`[chat-nav] All ${CYCLES} cycles completed — UI remained reactive throughout`);
 
 		// ─── 3. Navigate back to new chat one final time ──────────────────────
-		const finalNewChatButton = page.getByTestId('new-chat-cta-fullwidth');
+		const finalNewChatButton = getNewChatButton(page);
 		await expect(finalNewChatButton).toBeVisible({ timeout: 8000 });
 		await finalNewChatButton.click();
 		await expectSlideZeroIntro(page);
