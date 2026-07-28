@@ -47,7 +47,13 @@ const {
 	getE2EDebugUrl
 } = require('./signup-flow-helpers');
 
-const { loginToTestAccount, waitForAssistantMessage, waitForChatReady } = require('./helpers/chat-test-helpers');
+const {
+	loginToTestAccount,
+	sendMessage,
+	startNewChat,
+	waitForAssistantMessage,
+	waitForChatReady
+} = require('./helpers/chat-test-helpers');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
@@ -483,8 +489,7 @@ test('message sync: verifies messages_v is properly updated', async ({ page }: {
 	test.setTimeout(120000);
 
 	const logCheckpoint = createSignupLogger('MSG_V_TEST');
-	// Screenshot utility available but not used in this abbreviated test
-	createStepScreenshotter(logCheckpoint);
+	const takeStepScreenshot = createStepScreenshotter(logCheckpoint);
 
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
@@ -492,24 +497,10 @@ test('message sync: verifies messages_v is properly updated', async ({ page }: {
 
 	// Login flow (via shared helper with OTP retry + clock-drift compensation)
 	await loginToTestAccount(page, logCheckpoint);
-	await page.waitForTimeout(3000);
+	await waitForChatReady(page, logCheckpoint, 60000);
 
-	// Start new chat
-	const newChatButton = page.getByTestId('new-chat-button');
-	if (await newChatButton.isVisible()) {
-		await newChatButton.click();
-		await page.waitForTimeout(2000);
-	}
-
-	// Send message
-	const messageEditor = page.getByTestId('message-editor');
-	await expect(messageEditor).toBeVisible();
-	await messageEditor.click();
-	await page.keyboard.type('Hello!');
-
-	const sendButton = page.locator('[data-action="send-message"]');
-	await expect(sendButton).toBeEnabled();
-	await sendButton.click();
+	await startNewChat(page, logCheckpoint);
+	await sendMessage(page, 'Hello!', logCheckpoint, takeStepScreenshot, 'msg-v');
 	logCheckpoint('Sent message.');
 
 	// Get chat ID
