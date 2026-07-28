@@ -186,6 +186,9 @@ scripts/.agent-triggers/
 scripts/.agent-triggers-processed/
 scripts/.tmp/
 scripts/.*-state.json
+
+# Official-cloud operator helpers and credentials
+scripts/revolut_business_setup.py
 processed_websites/
 temp_data
 tmp/

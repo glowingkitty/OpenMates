@@ -69,6 +69,7 @@ async def exchange_revolut_business_refresh_token(
             token_url,
             data={
                 "grant_type": "refresh_token",
+                "client_id": client_id,
                 "refresh_token": refresh_token,
                 "client_assertion_type": REVOLUT_CLIENT_ASSERTION_TYPE,
                 "client_assertion": client_assertion,

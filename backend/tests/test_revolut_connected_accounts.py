@@ -177,6 +177,7 @@ async def test_revolut_refresh_exchange_generates_sandbox_client_assertion(monke
             "url": oauth.REVOLUT_SANDBOX_TOKEN_URL,
             "data": {
                 "grant_type": "refresh_token",
+                "client_id": "client-1",
                 "refresh_token": "refresh-secret",
                 "client_assertion_type": oauth.REVOLUT_CLIENT_ASSERTION_TYPE,
                 "client_assertion": "signed-assertion",
@@ -188,6 +189,43 @@ async def test_revolut_refresh_exchange_generates_sandbox_client_assertion(monke
     assert signed_payloads[0]["payload"]["iss"] == "app.dev.openmates.org"
     assert signed_payloads[0]["payload"]["sub"] == "client-1"
     assert signed_payloads[0]["payload"]["aud"] == oauth.REVOLUT_AUDIENCE
+
+
+@pytest.mark.anyio
+async def test_revolut_client_uses_documented_single_transaction_endpoint() -> None:
+    from backend.shared.providers.revolut_business.client import RevolutBusinessClient
+
+    requests: list[dict[str, Any]] = []
+
+    class FakeResponse:
+        is_error = False
+
+        def json(self) -> dict[str, Any]:
+            return {
+                "id": "txn-1",
+                "state": "completed",
+                "legs": [{"account_id": "acct-1", "amount": 2, "currency": "EUR", "description": "OM-REF"}],
+            }
+
+    class FakeAsyncClient:
+        async def get(self, url: str, *, params: dict[str, Any] | None = None, headers: dict[str, str]) -> FakeResponse:
+            requests.append({"url": url, "params": params, "headers": headers})
+            return FakeResponse()
+
+    transaction = await RevolutBusinessClient(
+        access_token="access-token",
+        base_url="https://sandbox-b2b.revolut.com/api/1.0/",
+        http_client=FakeAsyncClient(),
+    ).get_transaction("txn-1")
+
+    assert transaction.id == "txn-1"
+    assert requests == [
+        {
+            "url": "https://sandbox-b2b.revolut.com/api/1.0/transaction/txn-1",
+            "params": None,
+            "headers": {"Authorization": "Bearer access-token"},
+        }
+    ]
 
 
 @pytest.mark.anyio

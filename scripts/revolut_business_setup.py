@@ -355,6 +355,13 @@ def write_env_secrets(env: str, secrets: dict) -> None:
         f"SECRET__REVOLUT_BUSINESS__{env_upper}_ACCOUNT_HOLDER_CITY": secrets.get("account_holder_city", "Berlin"),
         f"SECRET__REVOLUT_BUSINESS__{env_upper}_ACCOUNT_HOLDER_COUNTRY": secrets.get("account_holder_country", "Germany"),
     }
+    optional_target = {
+        f"SECRET__REVOLUT_BUSINESS__{env_upper}_ACCOUNT_ID": secrets.get("account_id"),
+        f"SECRET__REVOLUT_BUSINESS__{env_upper}_CLIENT_ID": secrets.get("client_id"),
+        f"SECRET__REVOLUT_BUSINESS__{env_upper}_REFRESH_TOKEN": secrets.get("refresh_token"),
+        f"SECRET__REVOLUT_BUSINESS__{env_upper}_PRIVATE_KEY_PEM": str(secrets.get("private_key_pem") or "").replace("\n", "\\n"),
+    }
+    target.update({key: value for key, value in optional_target.items() if value})
 
     env_path = project_root() / ".env"
     if not env_path.exists():
@@ -409,6 +416,81 @@ def load_state(env: str) -> dict:
     if not path.exists():
         return {}
     return json.loads(path.read_text())
+
+
+def sync_refresh_token_to_vault(env: str, refresh_token: str) -> None:
+    """Sync a rotated Revolut refresh token before emitting sandbox webhooks."""
+    sync_code = r'''
+import json
+import os
+import sys
+import urllib.error
+import urllib.request
+
+vault_addr = (os.environ.get("VAULT_URL") or os.environ.get("VAULT_ADDR") or "http://vault:8200").rstrip("/")
+token_path = "/vault-data/api.token"
+secret_path = "kv/data/providers/revolut_business"
+payload = json.load(sys.stdin)
+secret_key = payload["key"]
+secret_value = payload["value"]
+
+with open(token_path, "r", encoding="utf-8") as token_file:
+    vault_token = token_file.read().strip()
+
+def vault_request(method, path, data=None):
+    body = json.dumps(data).encode("utf-8") if data is not None else None
+    request = urllib.request.Request(
+        f"{vault_addr}/v1/{path}",
+        method=method,
+        data=body,
+        headers={
+            "Content-Type": "application/json",
+            "X-Vault-Token": vault_token,
+        },
+    )
+    with urllib.request.urlopen(request, timeout=30) as response:
+        raw = response.read().decode("utf-8")
+        return json.loads(raw or "{}")
+
+try:
+    existing_response = vault_request("GET", secret_path)
+    existing = existing_response.get("data", {}).get("data", {})
+except urllib.error.HTTPError as exc:
+    if exc.code != 404:
+        raise
+    existing = {}
+
+if not isinstance(existing, dict):
+    existing = {}
+existing[secret_key] = secret_value
+vault_request("POST", secret_path, {"data": existing})
+print("rotated refresh token synced")
+'''
+
+    command = [
+        "docker",
+        "exec",
+        "-i",
+        "api",
+        "python",
+        "-c",
+        sync_code,
+    ]
+    result = subprocess.run(
+        command,
+        cwd=project_root(),
+        input=json.dumps({"key": f"{env}_refresh_token", "value": refresh_token}),
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        timeout=240,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(
+            "Vault refresh-token sync failed before sandbox topup. "
+            f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+        )
+    ok("Synced rotated refresh token to Vault")
 
 
 # ────────────────────────────────────────────────────────────────────
@@ -664,6 +746,10 @@ def setup(env: str, write_env: bool = False) -> None:
             "webhook_secret": signing_secret,
             "iban": iban,
             "bic": bic,
+            "account_id": eur_account["id"],
+            "client_id": client_id,
+            "refresh_token": refresh_token,
+            "private_key_pem": private_key,
             "account_holder_address_line1": "Sorauer Str. 19",
             "account_holder_postal_code": "10997",
             "account_holder_city": "Berlin",
@@ -676,6 +762,10 @@ def setup(env: str, write_env: bool = False) -> None:
     SECRET__REVOLUT_BUSINESS__{env_upper}_WEBHOOK_SECRET={signing_secret}
     SECRET__REVOLUT_BUSINESS__{env_upper}_IBAN={iban}
     SECRET__REVOLUT_BUSINESS__{env_upper}_BIC={bic}
+    SECRET__REVOLUT_BUSINESS__{env_upper}_ACCOUNT_ID={eur_account["id"]}
+    SECRET__REVOLUT_BUSINESS__{env_upper}_CLIENT_ID={client_id}
+    SECRET__REVOLUT_BUSINESS__{env_upper}_REFRESH_TOKEN=<refresh token from {state_path(env)}>
+    SECRET__REVOLUT_BUSINESS__{env_upper}_PRIVATE_KEY_PEM=<contents of {private_key_path} with \\n line breaks>
     SECRET__REVOLUT_BUSINESS__{env_upper}_ACCOUNT_HOLDER_ADDRESS_LINE1=Sorauer Str. 19
     SECRET__REVOLUT_BUSINESS__{env_upper}_ACCOUNT_HOLDER_POSTAL_CODE=10997
     SECRET__REVOLUT_BUSINESS__{env_upper}_ACCOUNT_HOLDER_CITY=Berlin
@@ -720,6 +810,7 @@ def simulate_topup(env: str, reference: str, amount: float) -> None:
     access_token = tokens["access_token"]
     if tokens.get("refresh_token"):
         save_state(env, {"refresh_token": tokens["refresh_token"]})
+        sync_refresh_token_to_vault(env, tokens["refresh_token"])
 
     response = requests.post(
         f"{REVOLUT_HOSTS[env]['api']}/sandbox/topup",

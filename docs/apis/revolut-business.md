@@ -23,6 +23,38 @@ Fallback production-shaped names are also accepted by the manual script for loca
 
 Only one assertion credential is required: either `REVOLUT_BUSINESS_SANDBOX_PRIVATE_KEY_PEM`, `REVOLUT_BUSINESS_SANDBOX_PRIVATE_KEY_FILE`, or `REVOLUT_BUSINESS_SANDBOX_CLIENT_ASSERTION`. The generated client assertion is short-lived and signed locally; the script never prints secret values.
 
+## Dev Bank-Transfer Auto-Settlement
+
+The dev API does not read the operator probe names above. For automatic SEPA settlement on `https://api.dev.openmates.org`, add these Vault-importer names to `.env`:
+
+| Purpose | `.env` / Vault importer name |
+| --- | --- |
+| Webhook signing secret | `SECRET__REVOLUT_BUSINESS__SANDBOX_WEBHOOK_SECRET` |
+| EUR account IBAN | `SECRET__REVOLUT_BUSINESS__SANDBOX_IBAN` |
+| EUR account BIC | `SECRET__REVOLUT_BUSINESS__SANDBOX_BIC` |
+| EUR account ID | `SECRET__REVOLUT_BUSINESS__SANDBOX_ACCOUNT_ID` |
+| Client ID | `SECRET__REVOLUT_BUSINESS__SANDBOX_CLIENT_ID` |
+| Refresh token | `SECRET__REVOLUT_BUSINESS__SANDBOX_REFRESH_TOKEN` |
+| Private key PEM | `SECRET__REVOLUT_BUSINESS__SANDBOX_PRIVATE_KEY_PEM` |
+| Legal account holder name | `SECRET__REVOLUT_BUSINESS__SANDBOX_ACCOUNT_HOLDER_NAME` |
+
+`SECRET__REVOLUT_BUSINESS__SANDBOX_PRIVATE_KEY_PEM` should contain the PEM with `\n` line breaks. `SECRET__REVOLUT_BUSINESS__SANDBOX_CLIENT_ASSERTION` can replace it temporarily, but assertions expire and are not suitable as the normal dev setup. `SECRET__REVOLUT_BUSINESS__SANDBOX_PRIVATE_KEY_FILE` is only for local operator scripts; the API service does not read file paths from Vault.
+
+After changing `.env`, import the values into Vault and restart the API process:
+
+```bash
+docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml up -d --force-recreate vault-setup
+docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml up -d api
+```
+
+Then run the read-only readiness check before any mutating sandbox topup:
+
+```bash
+.venv/bin/python3 scripts/api_tests/test_revolut_business_bank_transfer_settlement.py \
+  --api-url https://api.dev.openmates.org \
+  --scenarios exact,overpaid,underpaid-complete,duplicate-completed-reference
+```
+
 Register the OAuth redirect URI on the app host, not the API host:
 
 | Environment | Redirect URI |

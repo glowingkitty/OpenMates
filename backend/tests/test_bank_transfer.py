@@ -114,6 +114,7 @@ if "backend.core.api.app.routes.websockets" not in sys.modules:
     sys.modules["backend.core.api.app.routes.websockets"] = websockets_module
 
 from backend.core.api.app.routes import payments
+from backend.core.api.app.services.payment import revolut_business_service as revolut_business_service_module
 from backend.core.api.app.services.payment.revolut_business_service import (
     RevolutBusinessService,
     RevolutBusinessTransactionConfirmationError,
@@ -518,6 +519,126 @@ class TestBankDetails:
         assert details["account_holder_country"] == ""
 
 
+class TestRevolutBusinessTransactionConfirmation:
+    """Provider API confirmation coverage for company Revolut credentials."""
+
+    class FakeSecrets:
+        def __init__(self, *, store_ok: bool = True):
+            self.store_ok = store_ok
+            self.data = {
+                "sandbox_refresh_token": "vault-fresh-refresh",
+                "sandbox_client_id": "client-id",
+                "sandbox_account_id": "acc-uuid-company",
+                "sandbox_webhook_secret": "webhook-secret",
+            }
+            self.store_calls = []
+
+        async def get_secret(self, secret_path, secret_key, log_missing=True):
+            if secret_key == "sandbox_refresh_token":
+                return "stale-cached-refresh"
+            return self.data.get(secret_key)
+
+        async def get_secrets_from_path(self, secret_path):
+            return dict(self.data)
+
+        async def store_secrets_at_path(self, secret_path, data):
+            self.store_calls.append((secret_path, dict(data)))
+            if not self.store_ok:
+                return False
+            self.data = dict(data)
+            return True
+
+    @staticmethod
+    def _service(secrets):
+        svc = RevolutBusinessService(secrets)
+        svc._is_production = False
+        svc._api_base = revolut_business_service_module.REVOLUT_API_BASE_SANDBOX
+        svc._account_id = "acc-uuid-company"
+        svc._client_id = "client-id"
+        svc._refresh_token = "stale-memory-refresh"
+        svc._private_key_pem = "private-key-pem"
+        svc._client_assertion = None
+        return svc
+
+    @staticmethod
+    def _patch_successful_provider(monkeypatch, exchanges):
+        async def fake_exchange(refresh_token, scope_context):
+            exchanges.append({"refresh_token": refresh_token, "scope_context": scope_context})
+            return {
+                "access_token": "access-token",
+                "rotated_refresh_token_bundle": {
+                    "provider": "revolut_business",
+                    "refresh_token": "rotated-refresh-token",
+                },
+            }
+
+        class FakeRevolutClient:
+            def __init__(self, *, access_token, base_url):
+                assert access_token == "access-token"
+                assert base_url == revolut_business_service_module.REVOLUT_API_BASE_SANDBOX
+
+            async def get_transaction(self, transaction_id):
+                return types.SimpleNamespace(
+                    id=transaction_id,
+                    state="completed",
+                    amount=2.0,
+                    currency="EUR",
+                    description="OM-TEST123-bt_abc123",
+                    completed_at="2026-07-28T12:00:00Z",
+                    created_at="2026-07-28T11:59:00Z",
+                    account_id="acc-uuid-company",
+                )
+
+        monkeypatch.setattr(
+            revolut_business_service_module,
+            "exchange_revolut_business_refresh_token",
+            fake_exchange,
+        )
+        monkeypatch.setattr(revolut_business_service_module, "RevolutBusinessClient", FakeRevolutClient)
+
+    @pytest.mark.asyncio
+    async def test_transaction_confirmation_refreshes_from_vault_and_persists_rotated_token(self, monkeypatch):
+        secrets = self.FakeSecrets()
+        svc = self._service(secrets)
+        exchanges = []
+        self._patch_successful_provider(monkeypatch, exchanges)
+
+        transfer = await svc.fetch_confirmed_incoming_transfer("txn-uuid-123")
+
+        assert transfer["transaction_id"] == "txn-uuid-123"
+        assert transfer["amount_cents"] == 200
+        assert exchanges[0]["refresh_token"] == "vault-fresh-refresh"
+        assert exchanges[0]["scope_context"]["refresh_token_envelope"]["redirect_uri"] == (
+            "https://api.dev.openmates.org/v1/payments/webhook"
+        )
+        assert svc._refresh_token == "rotated-refresh-token"
+        assert secrets.store_calls == [
+            (
+                "kv/data/providers/revolut_business",
+                {
+                    "sandbox_account_id": "acc-uuid-company",
+                    "sandbox_client_id": "client-id",
+                    "sandbox_refresh_token": "rotated-refresh-token",
+                    "sandbox_webhook_secret": "webhook-secret",
+                },
+            )
+        ]
+
+    @pytest.mark.asyncio
+    async def test_rotated_token_persistence_failure_does_not_block_confirmed_transfer(self, monkeypatch, caplog):
+        secrets = self.FakeSecrets(store_ok=False)
+        svc = self._service(secrets)
+        exchanges = []
+        self._patch_successful_provider(monkeypatch, exchanges)
+
+        transfer = await svc.fetch_confirmed_incoming_transfer("txn-uuid-123")
+
+        assert transfer["state"] == "completed"
+        assert svc._refresh_token == "rotated-refresh-token"
+        assert "rotated refresh token persistence failed" in caplog.text
+        assert "rotated-refresh-token" not in caplog.text
+
+
 class TestPersonalBankTransferWebhook:
     """Automation coverage for personal SEPA credit purchases."""
 
@@ -632,6 +753,86 @@ class TestPersonalBankTransferWebhook:
         }
         order.update(overrides)
         return order
+
+    @pytest.mark.asyncio
+    async def test_transaction_created_uses_signed_webhook_reference_when_api_reference_missing(self, monkeypatch):
+        order = self._order()
+        cache = self.FakeCache(order)
+        directus = self.FakeDirectus(order)
+        sent_tasks = []
+        monkeypatch.setattr(payments.app, "send_task", lambda **kwargs: sent_tasks.append(kwargs))
+
+        class ApiConfirmedWithoutReference:
+            async def fetch_confirmed_incoming_transfer(self, transaction_id):
+                return {
+                    "event_type": "TransactionCreated",
+                    "transaction_id": transaction_id,
+                    "state": "completed",
+                    "reference": "",
+                    "amount_cents": 4500,
+                    "currency": "eur",
+                    "counterparty": {},
+                    "created_at": "2026-04-13T12:00:00.000Z",
+                }
+
+        event = _make_transaction_created_event(
+            amount=45.0,
+            currency="EUR",
+            reference=order["reference"],
+            transaction_id="txn-api-no-reference",
+        )
+
+        result = await payments._handle_revolut_business_webhook(
+            event_payload=event,
+            event_type="TransactionCreated",
+            payment_service=types.SimpleNamespace(revolut_business=ApiConfirmedWithoutReference()),
+            cache_service=cache,
+            directus_service=directus,
+            encryption_service=self.FakeEncryption(),
+            secrets_manager=self.FakeSecrets(),
+            tier_service=self.FakeTier(),
+        )
+
+        assert result == {"status": "bank_transfer_underpaid"}
+        assert directus.updated_items[0][2]["received_amount_cents"] == 4500
+        assert sent_tasks[0]["name"] == payments.BANK_TRANSFER_AMOUNT_NOTICE_TASK
+
+    @pytest.mark.asyncio
+    async def test_state_changed_without_any_reference_waits_for_created_event(self, monkeypatch):
+        order = self._order()
+        cache = self.FakeCache(order)
+        directus = self.FakeDirectus(order)
+        sent_tasks = []
+        monkeypatch.setattr(payments.app, "send_task", lambda **kwargs: sent_tasks.append(kwargs))
+
+        class ApiConfirmedWithoutReference:
+            async def fetch_confirmed_incoming_transfer(self, transaction_id):
+                return {
+                    "event_type": "TransactionCreated",
+                    "transaction_id": transaction_id,
+                    "state": "completed",
+                    "reference": "",
+                    "amount_cents": 5000,
+                    "currency": "eur",
+                    "counterparty": {},
+                    "created_at": "2026-04-13T12:00:00.000Z",
+                }
+
+        result = await payments._handle_revolut_business_webhook(
+            event_payload=_make_state_changed_event(transaction_id="txn-state-no-reference"),
+            event_type="TransactionStateChanged",
+            payment_service=types.SimpleNamespace(revolut_business=ApiConfirmedWithoutReference()),
+            cache_service=cache,
+            directus_service=directus,
+            encryption_service=self.FakeEncryption(),
+            secrets_manager=self.FakeSecrets(),
+            tier_service=self.FakeTier(),
+        )
+
+        assert result == {"status": "transaction_reference_unavailable"}
+        assert directus.updated_items == []
+        assert cache.status_updates == []
+        assert sent_tasks == []
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(

@@ -6276,6 +6276,18 @@ async def _handle_revolut_business_webhook(
             new_state,
         )
 
+    webhook_reference = str(webhook_hint.get("reference") or "").strip()
+    api_reference = str(transfer.get("reference") or "").strip()
+    if webhook_reference and not api_reference:
+        transfer["reference"] = webhook_reference
+    elif not api_reference and webhook_hint.get("event_type") == "TransactionStateChanged":
+        logger.info(
+            "Revolut Business transaction %s state-change event has no reference in webhook or API response; "
+            "waiting for TransactionCreated event",
+            transfer.get("transaction_id"),
+        )
+        return {"status": "transaction_reference_unavailable"}
+
     async def _update_bank_transfer(
         order_id: str, data: dict, ds=directus_service
     ) -> None:

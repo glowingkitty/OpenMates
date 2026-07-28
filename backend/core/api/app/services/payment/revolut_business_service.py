@@ -37,6 +37,11 @@ logger = logging.getLogger(__name__)
 # Revolut Business API base URLs
 REVOLUT_API_BASE_PRODUCTION = "https://b2b.revolut.com/api/1.0"
 REVOLUT_API_BASE_SANDBOX = "https://sandbox-b2b.revolut.com/api/1.0"
+REVOLUT_BUSINESS_SECRET_PATH = "kv/data/providers/revolut_business"
+REVOLUT_BUSINESS_COMPANY_REDIRECT_URIS = {
+    "production": "https://api.openmates.org/v1/payments/webhook",
+    "sandbox": "https://api.dev.openmates.org/v1/payments/webhook",
+}
 
 # Maximum allowed age for webhook timestamps (5 minutes) to prevent replay attacks
 WEBHOOK_TIMESTAMP_TOLERANCE_MS = 5 * 60 * 1000
@@ -109,7 +114,7 @@ class RevolutBusinessService:
             REVOLUT_API_BASE_PRODUCTION if is_production else REVOLUT_API_BASE_SANDBOX
         )
         env = "production" if is_production else "sandbox"
-        secret_path = "kv/data/providers/revolut_business"
+        secret_path = REVOLUT_BUSINESS_SECRET_PATH
 
         self._webhook_secret = await self.secrets_manager.get_secret(
             secret_path=secret_path,
@@ -238,12 +243,15 @@ class RevolutBusinessService:
             "private_key_pem": self._private_key_pem,
             "client_assertion": self._client_assertion,
             "environment": environment,
+            "redirect_uri": REVOLUT_BUSINESS_COMPANY_REDIRECT_URIS[environment],
         }
         try:
+            refresh_token = await self._current_refresh_token_from_vault(environment)
             token = await exchange_revolut_business_refresh_token(
-                self._refresh_token or "",
+                refresh_token,
                 {"refresh_token_envelope": envelope},
             )
+            await self._persist_rotated_refresh_token(token.get("rotated_refresh_token_bundle"), environment)
             access_token = str(token.get("access_token") or "").strip()
             if not access_token:
                 raise RevolutBusinessTokenExchangeError("Revolut Business token exchange returned no access token")
@@ -293,6 +301,60 @@ class RevolutBusinessService:
             "created_at": transaction.completed_at or transaction.created_at,
             "account_id": transaction.account_id,
         }
+
+    async def _current_refresh_token_from_vault(self, environment: str) -> str:
+        """Use the latest company refresh token because Revolut rotates it on exchange."""
+
+        secret_key = f"{environment}_refresh_token"
+        try:
+            secrets = await self.secrets_manager.get_secrets_from_path(REVOLUT_BUSINESS_SECRET_PATH)
+            vault_refresh_token = (
+                secrets.get(secret_key)
+                if isinstance(secrets, dict)
+                else None
+            )
+        except Exception as exc:
+            logger.error(
+                "Revolut Business refresh token reload failed for %s environment: %s",
+                environment,
+                exc,
+                exc_info=True,
+            )
+            vault_refresh_token = None
+
+        if vault_refresh_token and vault_refresh_token != self._refresh_token:
+            logger.info("Revolut Business refresh token reloaded from Vault for %s environment", environment)
+            self._refresh_token = vault_refresh_token
+        return self._refresh_token or ""
+
+    async def _persist_rotated_refresh_token(self, rotated_bundle: Any, environment: str) -> None:
+        if not isinstance(rotated_bundle, dict):
+            return
+
+        rotated_refresh_token = str(rotated_bundle.get("refresh_token") or "").strip()
+        if not rotated_refresh_token or rotated_refresh_token == self._refresh_token:
+            return
+
+        # Keep this worker usable even if Vault persistence fails; other workers
+        # will pick up the token after the merged write succeeds.
+        self._refresh_token = rotated_refresh_token
+        secret_key = f"{environment}_refresh_token"
+        try:
+            existing = await self.secrets_manager.get_secrets_from_path(REVOLUT_BUSINESS_SECRET_PATH)
+            merged = dict(existing) if isinstance(existing, dict) else {}
+            merged[secret_key] = rotated_refresh_token
+            stored = await self.secrets_manager.store_secrets_at_path(REVOLUT_BUSINESS_SECRET_PATH, merged)
+            if not stored:
+                logger.error("Revolut Business rotated refresh token persistence failed for %s environment", environment)
+                return
+            logger.info("Revolut Business rotated refresh token persisted for %s environment", environment)
+        except Exception as exc:
+            logger.error(
+                "Revolut Business rotated refresh token persistence failed for %s environment: %s",
+                environment,
+                exc,
+                exc_info=True,
+            )
 
     async def verify_webhook(
         self,

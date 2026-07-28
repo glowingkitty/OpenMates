@@ -86,7 +86,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 923d939943853a711a8ca3241f3559c30e2121ca+working-tree
+  subject_commit: 642f3a8870c002776c348512a960604cab6e4815+working-tree
 
 approvals:
   product_contract:
@@ -143,14 +143,20 @@ attempts:
     outcome: succeeded
     recorded_at: "2026-07-27T14:26:41Z"
     notes: Focused pytest passed and the duplicate-reference preview email was sent to testing@openmates.org via Brevo message ID <202607271426.44786995593@smtp-relay.mailin.fr>.
+  - id: ATTEMPT-3
+    task_id: TASK-3
+    approach: Configure dev Vault/company Revolut Sandbox credentials, restart the real dev API service, and run live /sandbox/topup settlement smoke tests against api.dev.openmates.org.
+    outcome: succeeded
+    recorded_at: "2026-07-28T17:04:02Z"
+    notes: Exact, overpaid, underpaid-complete, and duplicate-completed-reference scenarios all completed through real Revolut Sandbox webhooks without exposing credentials or account identifiers.
 
 handoff:
-  current_task_id: TASK-5
-  next_action: Await design confirmation of the duplicate-reference preview email before trusting production auto-send.
-  command: docker exec api python /app/backend/scripts/send_bank_transfer_duplicate_reference_email_test.py
-  expected_outcome: Preview email arrives at testing@openmates.org and support confirms the copy/design is acceptable.
+  current_task_id: TASK-3
+  next_action: Deploy the scoped Revolut Business Sandbox/Vault confirmation fixes after spec validation and verification pass.
+  command: python3 scripts/sessions.py deploy --session b699 --include <scoped Revolut/Vault files>
+  expected_outcome: Dev receives a committed version of the Sandbox-tested settlement fixes without staging unrelated worktree changes.
   blocker: null
-  last_verified_commit: 923d939943853a711a8ca3241f3559c30e2121ca+working-tree
+  last_verified_commit: 642f3a8870c002776c348512a960604cab6e4815+working-tree
 
 scenarios:
   - id: S-1
@@ -472,9 +478,9 @@ tests:
       evidence:
         status: passed
         command: .venv/bin/python3 -m pytest backend/tests/test_bank_transfer.py backend/tests/test_bank_transfer_duplicate_reference_email.py
-        run_id: local-2026-07-27-duplicate-reference-44-passed
-        subject_commit: 923d939943853a711a8ca3241f3559c30e2121ca+working-tree
-        timestamp: "2026-07-27T14:34:00Z"
+        run_id: local-2026-07-28-bank-transfer-regressions-48-passed
+        subject_commit: 642f3a8870c002776c348512a960604cab6e4815+working-tree
+        timestamp: "2026-07-28T17:06:13Z"
   - id: T-PYTEST-MANUAL-SCRIPT
     type: pytest
     file: backend/tests/test_approve_bank_transfer_script.py
@@ -499,9 +505,9 @@ tests:
       evidence:
         status: passed
         command: .venv/bin/python3 -m pytest backend/tests/test_approve_bank_transfer_script.py backend/tests/test_cli_bank_transfer_gift_card_purchase.py
-        run_id: local-2026-07-27-bank-transfer-regressions-25-passed
-        subject_commit: 923d939943853a711a8ca3241f3559c30e2121ca+working-tree
-        timestamp: "2026-07-27T14:30:00Z"
+        run_id: local-2026-07-28-manual-selfhost-regressions-25-passed
+        subject_commit: 642f3a8870c002776c348512a960604cab6e4815+working-tree
+        timestamp: "2026-07-28T17:06:13Z"
   - id: T-PYTEST-SELFHOST-BANK-TRANSFER
     type: pytest
     file: backend/tests/test_cli_bank_transfer_gift_card_purchase.py
@@ -526,13 +532,13 @@ tests:
       evidence:
         status: passed
         command: .venv/bin/python3 -m pytest backend/tests/test_approve_bank_transfer_script.py backend/tests/test_cli_bank_transfer_gift_card_purchase.py
-        run_id: local-2026-07-27-bank-transfer-regressions-25-passed
-        subject_commit: 923d939943853a711a8ca3241f3559c30e2121ca+working-tree
-        timestamp: "2026-07-27T14:30:00Z"
+        run_id: local-2026-07-28-manual-selfhost-regressions-25-passed
+        subject_commit: 642f3a8870c002776c348512a960604cab6e4815+working-tree
+        timestamp: "2026-07-28T17:06:13Z"
   - id: T-SANDBOX-REVOLUT
     type: manual
     file: scripts/api_tests/test_revolut_business_bank_transfer_settlement.py
-    command: python3 scripts/api_tests/test_revolut_business_bank_transfer_settlement.py --api-url https://api.dev.openmates.org --scenarios exact,overpaid,underpaid-complete
+    command: python3 scripts/api_tests/test_revolut_business_bank_transfer_settlement.py --api-url https://api.dev.openmates.org --scenarios exact,overpaid,underpaid-complete,duplicate-completed-reference --execute
     covers:
       - AC-8
     assertions:
@@ -550,11 +556,12 @@ tests:
       required: false
       expected: pass
       evidence:
-        status: ""
-        command: ""
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: .venv/bin/python3 scripts/api_tests/test_revolut_business_bank_transfer_settlement.py --api-url https://api.dev.openmates.org --scenarios exact,overpaid,underpaid-complete,duplicate-completed-reference --execute
+        run_id: local-2026-07-28-revolut-sandbox-full-pass
+        subject_commit: 642f3a8870c002776c348512a960604cab6e4815+working-tree
+        timestamp: "2026-07-28T17:04:02Z"
+        summary: The live dev API completed exact, overpaid, underpaid-complete, and duplicate-completed-reference orders after real Revolut Sandbox /sandbox/topup events; a prior exact-only smoke also completed pending order bt_6fd273845f244c6c.
   - id: T-PYTEST-DUPLICATE-REFERENCE-EMAIL
     type: pytest
     file: backend/tests/test_bank_transfer_duplicate_reference_email.py
@@ -582,10 +589,10 @@ tests:
       expected: pass
       evidence:
         status: passed
-        command: .venv/bin/python3 -m pytest backend/tests/test_bank_transfer_duplicate_reference_email.py
-        run_id: local-2026-07-27-duplicate-reference-email-green-5-passed
-        subject_commit: 923d939943853a711a8ca3241f3559c30e2121ca+working-tree
-        timestamp: "2026-07-27T14:22:00Z"
+        command: .venv/bin/python3 -m pytest backend/tests/test_bank_transfer.py backend/tests/test_bank_transfer_duplicate_reference_email.py
+        run_id: local-2026-07-28-bank-transfer-regressions-48-passed
+        subject_commit: 642f3a8870c002776c348512a960604cab6e4815+working-tree
+        timestamp: "2026-07-28T17:06:13Z"
 
 verifications:
   - id: V-SPEC-VALIDATE
@@ -609,11 +616,11 @@ verifications:
     status: passed
     evidence:
       status: passed
-      summary: Spec validation passed after duplicate-reference implementation, email preview evidence, and AC-13 scope correction.
+      summary: Spec validation passed after Revolut Sandbox live evidence, Vault token-rotation fixes, and reference-merge settlement coverage were recorded.
       command: .venv/bin/python3 scripts/spec_validate.py docs/specs/revolut-bank-transfer-auto-credit/spec.yml
-      run_id: local-2026-07-27-spec-validate-pass
-      subject_commit: 923d939943853a711a8ca3241f3559c30e2121ca+working-tree
-      timestamp: "2026-07-27T14:28:00Z"
+      run_id: local-2026-07-28-spec-validate-pass
+      subject_commit: 642f3a8870c002776c348512a960604cab6e4815+working-tree
+      timestamp: "2026-07-28T17:06:13Z"
 
 implementation_plan:
   spec_path: docs/specs/revolut-bank-transfer-auto-credit/spec.yml
@@ -671,8 +678,16 @@ implementation_plan:
       reason: Optional real Sandbox verification against the dev API.
     - path: backend/shared/providers/revolut_business/client.py
       reason: Shared Revolut Business transaction read and incoming-leg normalization.
+    - path: backend/shared/providers/revolut_business/oauth.py
+      reason: Shared Revolut Business refresh-token exchange for company Sandbox credentials.
     - path: backend/core/api/app/services/payment/revolut_business_service.py
       reason: Company credential loading and API-confirmed incoming transfer validation.
+    - path: backend/core/vault/setup/vault_setup/policies.py
+      reason: API Vault policy access for official-cloud Revolut Business provider credentials.
+    - path: backend/core/vault/setup/setup_vault.py
+      reason: Reapply API Vault policies before syncing provider secrets from temp-root setup.
+    - path: docs/apis/revolut-business.md
+      reason: Operator documentation for dev Sandbox credential import and API restart.
   verification_strategy:
     - python3 scripts/spec_validate.py docs/specs/revolut-bank-transfer-auto-credit/spec.yml
     - python3 -m pytest backend/tests/test_bank_transfer.py backend/tests/test_approve_bank_transfer_script.py
@@ -756,8 +771,8 @@ tasks:
     independently_deployable: true
   - id: TASK-3
     title: Add optional Revolut Sandbox verification script
-    status: pending
-    phase: blocked
+    status: done
+    phase: working_tasks
     covers:
       scenarios:
         - S-1
@@ -769,6 +784,11 @@ tasks:
     expected_files:
       - scripts/api_tests/test_revolut_business_bank_transfer_settlement.py
       - backend/shared/providers/revolut_business/client.py
+      - backend/shared/providers/revolut_business/oauth.py
+      - backend/core/api/app/services/payment/revolut_business_service.py
+      - backend/core/vault/setup/vault_setup/policies.py
+      - backend/core/vault/setup/setup_vault.py
+      - docs/apis/revolut-business.md
     verification:
       - T-SANDBOX-REVOLUT
     verification_ids:
@@ -780,10 +800,13 @@ tasks:
       files:
         - scripts/api_tests/test_revolut_business_bank_transfer_settlement.py
         - backend/shared/providers/revolut_business/client.py
+        - backend/shared/providers/revolut_business/oauth.py
+        - backend/core/api/app/services/payment/revolut_business_service.py
+        - backend/core/vault/setup/vault_setup/policies.py
+        - backend/core/vault/setup/setup_vault.py
+        - docs/apis/revolut-business.md
       shared_files: []
-    blockers:
-      - reason: Requires live dev API, company Revolut Sandbox credentials, and webhook configured to api.dev.openmates.org.
-        requires_user_input: false
+    blockers: []
     follow_up_tasks: []
     independently_deployable: false
   - id: TASK-4

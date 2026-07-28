@@ -88,7 +88,7 @@ class RevolutBusinessClient:
     async def get_transaction(self, transaction_id: str) -> RevolutTransaction:
         if not transaction_id:
             raise ValueError("transaction_id is required")
-        return _normalize_transaction(await self._get_json(f"transactions/{transaction_id}"))
+        return _normalize_transaction(await self._get_json(f"transaction/{transaction_id}"))
 
     async def _get_json(self, path: str, params: dict[str, Any] | None = None) -> Any:
         client = self._http_client or httpx.AsyncClient(timeout=self.timeout)
@@ -145,7 +145,7 @@ def _normalize_transaction(item: dict[str, Any]) -> RevolutTransaction:
         completed_at=item.get("completed_at"),
         amount=float(amount or 0),
         currency=str(currency or "").upper(),
-        description=str(item.get("reference") or item.get("description") or item.get("reason") or "Revolut transaction"),
+        description=str(item.get("reference") or item.get("description") or item.get("reason") or ""),
         state=str(item.get("state") or "unknown").lower(),
         category_hint=item.get("category_hint"),
     )

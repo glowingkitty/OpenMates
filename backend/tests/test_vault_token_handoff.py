@@ -92,3 +92,24 @@ async def test_validate_token_file_rejects_token_missing_required_policies():
     assert result.valid is False
     assert result.reason == "missing_policies"
     assert result.missing_policies == ["api-encryption"]
+
+
+@pytest.mark.asyncio
+async def test_api_policy_allows_revolut_business_refresh_token_rotation():
+    from core.vault.setup.vault_setup.policies import PolicyManager
+
+    captured = {}
+
+    class FakeVaultClient:
+        async def vault_request(self, method, path, data):
+            captured["method"] = method
+            captured["path"] = path
+            captured["data"] = data
+
+    assert await PolicyManager(FakeVaultClient()).create_api_policy() is True
+
+    policy = captured["data"]["policy"]
+    assert captured["method"] == "post"
+    assert captured["path"] == "sys/policies/acl/api-service"
+    assert 'path "kv/data/providers/revolut_business"' in policy
+    assert 'capabilities = ["create", "read", "update", "list"]' in policy
