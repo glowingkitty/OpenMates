@@ -13,6 +13,7 @@
 # Architecture context: See docs/architecture/live-mock-testing.md
 
 import asyncio
+import inspect
 import json
 import logging
 from typing import Any, AsyncIterator, Callable, List
@@ -66,7 +67,7 @@ def wrap_provider_with_cache(
     # Streaming wrapper (async generator — uses yield)
     async def _cached_stream(**kwargs: Any) -> AsyncIterator[str]:
         if not is_mock_active():
-            async for chunk in provider_fn(**kwargs):
+            async for chunk in _provider_stream(**kwargs):
                 yield chunk
             return
 
@@ -119,11 +120,18 @@ def wrap_provider_with_cache(
         )
 
         all_chunks: List[str] = []
-        async for chunk in provider_fn(**kwargs):
+        async for chunk in _provider_stream(**kwargs):
             all_chunks.append(chunk)
             yield chunk
 
         _save_to_cache(cache, group_id, category, fingerprint, all_chunks, kwargs)
+
+    async def _provider_stream(**kwargs: Any) -> AsyncIterator[str]:
+        stream = provider_fn(**kwargs)
+        if inspect.isawaitable(stream):
+            stream = await stream
+        async for chunk in stream:
+            yield chunk
 
     # Non-streaming wrapper (regular coroutine — returns awaitable result)
     async def _cached_non_stream(**kwargs: Any) -> Any:
