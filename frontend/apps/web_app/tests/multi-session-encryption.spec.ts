@@ -35,7 +35,7 @@ const {
 	withMockMarker
 } = require('./signup-flow-helpers');
 
-const { loginToTestAccount } = require('./helpers/chat-test-helpers');
+const { loginToTestAccount, sendMessage } = require('./helpers/chat-test-helpers');
 const { assertChatKeyInvariants } = require('./helpers/chat-key-invariants');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
@@ -110,15 +110,7 @@ async function sendMessageAndGetChatId(
 	message: string,
 	logFn: (msg: string) => void
 ): Promise<string> {
-	const messageField = page.getByTestId('message-field').last();
-	const messageEditor = messageField.getByTestId('message-editor');
-	await expect(messageEditor).toBeVisible({ timeout: 15000 });
-	await messageEditor.click();
-	await page.keyboard.insertText(message);
-
-	const sendButton = messageField.locator('[data-action="send-message"]');
-	await expect(sendButton).toBeEnabled({ timeout: 10000 });
-	await sendButton.click();
+	await sendMessage(page, message, logFn);
 	logFn(`Message sent: "${message}"`);
 
 	// Wait for a real UUID chat ID in the URL (not the demo-for-everyone placeholder).
