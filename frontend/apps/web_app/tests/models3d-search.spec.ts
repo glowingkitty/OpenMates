@@ -64,7 +64,7 @@ test.describe('App: Models3D / Skill: search', () => {
 		);
 
 		const finishedSearchEmbeds = page.locator('[data-testid="embed-preview"][data-app-id="models3d"][data-skill-id="search"][data-status="finished"]');
-		const embed = finishedSearchEmbeds.filter({ hasText: /[1-9][0-9]*\s+results?/i }).last();
+		const embed = finishedSearchEmbeds.filter({ hasText: /[1-9][0-9]*\s+(?:results?|models?\s+found)/i }).last();
 		await expect(embed).toBeVisible({ timeout: 120_000 });
 		await expect(embed.getByTestId('models3d-search-preview')).toBeVisible({ timeout: 30_000 });
 		await expect(embed).toContainText(/result|model|Printables/i);
