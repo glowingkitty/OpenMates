@@ -1333,24 +1333,13 @@ async def _handle_phase2_sync(
             chats_skipped,
             newer_drafts_sent,
         )
-        phase2_chat_ids = [
-            str(wrapper["chat_details"]["id"])
-            for wrapper in chats_to_send
-            if wrapper.get("chat_details", {}).get("id")
-        ]
-        phase2_chat_key_wrappers = await _fetch_chat_key_wrappers_for_chats(
-            directus_service,
-            phase2_chat_ids,
-            user_id,
-        )
-
-        # Send metadata-only payload (no messages, no embeds, no embed_keys)
+        # Send metadata-only payload (no messages, no embeds, no embed_keys, no key wrappers).
+        # Content-bearing paths fetch chat key wrappers when keys are needed.
         await manager.send_personal_message(
             {
                 "type": "phase_2_last_20_chats_ready",
                 "payload": {
                     "chats": chats_to_send,
-                    "chat_key_wrappers": phase2_chat_key_wrappers,
                     "chat_count": len(chats_to_send),
                     "total_chat_count": total_chat_count,
                     "phase": "phase2",
