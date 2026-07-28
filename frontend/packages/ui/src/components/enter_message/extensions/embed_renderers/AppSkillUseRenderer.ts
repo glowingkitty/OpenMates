@@ -5661,18 +5661,57 @@ export class AppSkillUseRenderer implements EmbedRenderer {
   ): Promise<void> {
     const rawEmbedId = attrs.contentRef?.replace("embed:", "");
     const attrsData = attrs as any;
+    let latestEmbedData = embedData;
+    let latestDecodedContent = decodedContent;
+
+    if (rawEmbedId) {
+      try {
+        const resolvedEmbed = await resolveEmbed(rawEmbedId);
+        if (resolvedEmbed) {
+          latestEmbedData = resolvedEmbed;
+          latestDecodedContent = resolvedEmbed.content
+            ? await decodeToonContent(resolvedEmbed.content)
+            : latestDecodedContent;
+        }
+      } catch (error) {
+        console.warn(
+          "[AppSkillUseRenderer] Failed to refresh embed before fullscreen:",
+          error,
+        );
+      }
+    }
+
     const fullscreenDecodedContent: Record<string, any> =
-      decodedContent && typeof decodedContent === "object" && !Array.isArray(decodedContent)
-        ? { ...decodedContent }
+      latestDecodedContent &&
+      typeof latestDecodedContent === "object" &&
+      !Array.isArray(latestDecodedContent)
+        ? { ...latestDecodedContent }
         : {};
-    fullscreenDecodedContent.app_id ||= embedData?.app_id || attrsData.app_id;
-    fullscreenDecodedContent.skill_id ||= embedData?.skill_id || attrsData.skill_id;
-    fullscreenDecodedContent.query ||= embedData?.query || attrsData.query;
-    fullscreenDecodedContent.provider ||= embedData?.provider;
+    fullscreenDecodedContent.app_id ||= latestEmbedData?.app_id ||
+      embedData?.app_id ||
+      attrsData.app_id;
+    fullscreenDecodedContent.skill_id ||= latestEmbedData?.skill_id ||
+      embedData?.skill_id ||
+      attrsData.skill_id;
+    fullscreenDecodedContent.query ||= latestEmbedData?.query || embedData?.query ||
+      attrsData.query;
+    fullscreenDecodedContent.provider ||= latestEmbedData?.provider || embedData?.provider;
+    fullscreenDecodedContent.status ||= latestEmbedData?.status || embedData?.status;
+    fullscreenDecodedContent.embed_ids ||= latestEmbedData?.embed_ids ||
+      embedData?.embed_ids ||
+      attrsData.embed_ids;
+    fullscreenDecodedContent.result_count ||= latestEmbedData?.result_count ||
+      embedData?.result_count ||
+      attrsData.result_count;
+    fullscreenDecodedContent.results ||= latestEmbedData?.results || embedData?.results ||
+      attrsData.results;
+    fullscreenDecodedContent.preview_results ||= latestEmbedData?.preview_results ||
+      embedData?.preview_results ||
+      attrsData.preview_results;
 
     const inferredEmbedType = this.inferFullscreenEmbedType(
       attrs,
-      embedData,
+      latestEmbedData,
       fullscreenDecodedContent,
     );
     let targetEmbedId = rawEmbedId;
@@ -5694,7 +5733,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     // generic parent app-skill fullscreen.
     const detail = {
       embedId: targetEmbedId,
-      embedData,
+      embedData: latestEmbedData,
       decodedContent: fullscreenDecodedContent,
       embedType: inferredEmbedType,
       attrs,
