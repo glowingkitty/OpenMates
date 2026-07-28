@@ -19,6 +19,10 @@ embeds:
       options:
         unique: true
 
+    hashed_embed_id:
+      type: string
+      note: "[Indexed] SHA256 hash of embed_id. Enables shared-chat key-wrapper lookups without exposing plaintext embed IDs."
+
     hashed_chat_id:
       type: string
       note: "[Indexed] SHA256 hash of chat_id (for linking without exposing actual chat_id, protects privacy). Client-side hashed before sending to server."

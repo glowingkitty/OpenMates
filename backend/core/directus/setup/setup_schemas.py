@@ -5,6 +5,7 @@ import random
 import string
 import requests
 import glob
+import hashlib
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
@@ -90,6 +91,8 @@ USAGE_OVERVIEW_INDEXES = (
     'usage_daily_app_user_date_idx',
     'usage_daily_api_key_user_date_idx',
 )
+EMBED_HASH_INDEXES = ('embeds_hashed_embed_id_idx',)
+EMBED_HASH_BACKFILL_BATCH_SIZE = 500
 
 BACKEND_PERMISSION_COLLECTIONS = (
     'anonymous_free_usage_budget',
@@ -945,6 +948,65 @@ def connect_database():
     )
 
 
+def apply_and_verify_embed_hash_contract():
+    """Backfill and index the embed hash used by shared-chat key lookups."""
+    with connect_database() as connection:
+        connection.autocommit = True
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "ALTER TABLE public.embeds "
+                "ADD COLUMN IF NOT EXISTS hashed_embed_id varchar(255);"
+            )
+
+            backfilled = 0
+            while True:
+                cursor.execute(
+                    """
+                    SELECT id, embed_id
+                    FROM public.embeds
+                    WHERE embed_id IS NOT NULL
+                      AND (hashed_embed_id IS NULL OR hashed_embed_id = '')
+                    LIMIT %s
+                    """,
+                    (EMBED_HASH_BACKFILL_BATCH_SIZE,),
+                )
+                rows = cursor.fetchall()
+                if not rows:
+                    break
+
+                updates = [
+                    (hashlib.sha256(str(embed_id).encode()).hexdigest(), row_id)
+                    for row_id, embed_id in rows
+                ]
+                cursor.executemany(
+                    "UPDATE public.embeds SET hashed_embed_id = %s WHERE id = %s",
+                    updates,
+                )
+                backfilled += len(updates)
+
+            cursor.execute(
+                "CREATE INDEX CONCURRENTLY IF NOT EXISTS embeds_hashed_embed_id_idx "
+                "ON public.embeds (hashed_embed_id) WHERE hashed_embed_id IS NOT NULL;"
+            )
+            cursor.execute(
+                """
+                SELECT indexname
+                FROM pg_indexes
+                WHERE schemaname = 'public' AND indexname = ANY(%s)
+                """,
+                (list(EMBED_HASH_INDEXES),),
+            )
+            installed_indexes = {row[0] for row in cursor.fetchall()}
+
+    missing_indexes = set(EMBED_HASH_INDEXES) - installed_indexes
+    if missing_indexes:
+        raise RuntimeError(
+            "Embed hash index verification failed: "
+            + ", ".join(sorted(missing_indexes))
+        )
+    print(f"Verified embed hashed_embed_id contract; backfilled {backfilled} row(s)")
+
+
 def apply_and_verify_chat_recovery_indexes():
     """Apply the idempotent recovery migration and require every unique index."""
     if not os.path.isfile(CHAT_RECOVERY_MIGRATION_PATH):
@@ -1169,6 +1231,9 @@ def setup_schemas():
 
                 print("\n--- Ensuring backend collection permissions ---")
                 ensure_backend_collection_permissions(token)
+
+        print("\n--- Ensuring embed hash lookup contract ---")
+        apply_and_verify_embed_hash_contract()
 
         print("\n--- Applying chat recovery database indexes ---")
         apply_and_verify_chat_recovery_indexes()

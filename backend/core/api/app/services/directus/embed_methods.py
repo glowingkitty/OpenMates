@@ -29,6 +29,18 @@ _BULK_FETCH_PAGE_SIZE: int = 500
 _VAULT_CIPHERTEXT_PREFIX = "vault:v1:"
 
 
+def _hash_embed_id(embed_id: str) -> str:
+    return hashlib.sha256(embed_id.encode()).hexdigest()
+
+
+def _with_hashed_embed_id(payload: Dict[str, Any], embed_id: str) -> Dict[str, Any]:
+    if not embed_id:
+        return payload
+    updated_payload = dict(payload)
+    updated_payload["hashed_embed_id"] = _hash_embed_id(embed_id)
+    return updated_payload
+
+
 def _validate_client_encrypted_embed_content(embed_id: str, payload: Dict[str, Any]) -> None:
     """Block server-side Vault ciphertext from being persisted as chat embed content."""
     encrypted_content = payload.get("encrypted_content")
@@ -42,6 +54,7 @@ def _validate_client_encrypted_embed_content(embed_id: str, payload: Dict[str, A
 EMBED_ALL_FIELDS = (
     "id,"
     "embed_id,"
+    "hashed_embed_id,"
     "hashed_chat_id,"
     "hashed_message_id,"
     "hashed_task_id,"
@@ -270,8 +283,10 @@ class EmbedMethods:
         Returns:
             Created embed dictionary if successful, None otherwise
         """
-        embed_id = str(embed_data.get('embed_id', 'unknown'))
-        _validate_client_encrypted_embed_content(embed_id, embed_data)
+        raw_embed_id = embed_data.get('embed_id')
+        embed_id = str(raw_embed_id) if raw_embed_id else ''
+        _validate_client_encrypted_embed_content(embed_id or 'unknown', embed_data)
+        embed_data = _with_hashed_embed_id(embed_data, embed_id)
         logger.debug(f"Creating embed with embed_id: {embed_id}")
         try:
             # Use create_item from api_methods
@@ -317,6 +332,7 @@ class EmbedMethods:
             Updated embed dictionary if successful, None otherwise
         """
         _validate_client_encrypted_embed_content(embed_id, update_data)
+        update_data = _with_hashed_embed_id(update_data, embed_id)
         logger.debug(f"Updating embed with embed_id: {embed_id}")
         try:
             # ── Step 1: Resolve the Directus internal UUID ────────────────────

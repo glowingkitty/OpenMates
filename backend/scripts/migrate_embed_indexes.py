@@ -13,6 +13,7 @@ safe to run against a live production database).
 Indexes added:
   embeds:
     - embeds_embed_id_unique_idx   UNIQUE (embed_id)          — replaces Directus app-layer uniqueness check
+    - embeds_hashed_embed_id_idx   (hashed_embed_id)          — key-wrapper shared-chat lookup
     - embeds_hashed_chat_id_idx    (hashed_chat_id)           — primary lookup for chat sync and deletion
     - embeds_hashed_user_id_idx    (hashed_user_id)           — user-scoped queries and deletion
     - embeds_hashed_message_id_idx (hashed_message_id)        — per-message embed lookup and deletion
@@ -57,6 +58,15 @@ INDEXES = [
         "CREATE UNIQUE INDEX CONCURRENTLY IF NOT EXISTS embeds_embed_id_unique_idx "
         "ON public.embeds (embed_id);",
         "DROP INDEX CONCURRENTLY IF EXISTS embeds_embed_id_unique_idx;",
+    ),
+    (
+        "embeds_hashed_embed_id_idx",
+        "embeds",
+        # Shared-chat payloads use chat-scoped embed_keys.hashed_embed_id values
+        # to fetch file embeds whose rows are not discoverable by hashed_chat_id.
+        "CREATE INDEX CONCURRENTLY IF NOT EXISTS embeds_hashed_embed_id_idx "
+        "ON public.embeds (hashed_embed_id) WHERE hashed_embed_id IS NOT NULL;",
+        "DROP INDEX CONCURRENTLY IF EXISTS embeds_hashed_embed_id_idx;",
     ),
     (
         "embeds_hashed_chat_id_idx",
