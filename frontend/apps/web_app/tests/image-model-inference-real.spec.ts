@@ -169,9 +169,15 @@ async function attachImage(page: any, log: (message: string, metadata?: Record<s
 	log('Attached image fixture.', { image: IMAGE_FIXTURE });
 
 	const editor = page.getByTestId('message-editor');
-	const editorEmbed = editor.locator('[data-testid="embed-full-width-wrapper"]');
+	const editorEmbed = editor.locator('[data-testid="embed-full-width-wrapper"][data-embed-type="image"]');
+	const editorPreview = editorEmbed.locator(
+		'[data-testid="embed-preview"][data-app-id="images"][data-skill-id="view"]'
+	);
 	await expect(editorEmbed.first()).toBeVisible({ timeout: 20000 });
-	await expect(editorEmbed.first()).toHaveAttribute('data-embed-status', 'finished', { timeout: 90000 });
+	// The upload-ready state is owned by the mounted UnifiedEmbedPreview. The
+	// TipTap NodeView wrapper can be recreated while upload attrs propagate, so
+	// wait on the preview's canonical data-status instead of the wrapper attr.
+	await expect(editorPreview.first()).toHaveAttribute('data-status', 'finished', { timeout: 120000 });
 	await closeEmbedFullscreenIfOpen(page, log);
 	await page.keyboard.press('Escape');
 	await editor.press('End');
