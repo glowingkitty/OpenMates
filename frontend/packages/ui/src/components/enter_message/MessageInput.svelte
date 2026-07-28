@@ -2889,7 +2889,7 @@
             lastEditorUpdateText = currentText;
         }
         
-        const newHasContent = !isContentEmptyExceptMention(editor);
+        const newHasContent = editorHasSendableText(editor);
         refreshDraftPreviewState(editor);
         if (hasContent !== newHasContent) {
             hasContent = newHasContent;
@@ -3854,7 +3854,7 @@
         updateOriginalMarkdown(editor);
 
         // Update content tracking so the send button and fullscreen button hide/show correctly.
-        hasContent = !isContentEmptyExceptMention(editor);
+        hasContent = editorHasSendableText(editor);
         refreshDraftPreviewState(editor);
         // Keep the text-change guard in sync so the next legitimate editor update
         // doesn't incorrectly think text hasn't changed.
