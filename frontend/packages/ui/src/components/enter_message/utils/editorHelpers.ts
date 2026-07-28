@@ -51,10 +51,9 @@ export function isContentEmptyExceptMention(editor: Editor): boolean {
     return false; // Contains actual text
   }
 
-  // If we are here, the editor is not technically "isEmpty", but it has no text and no other nodes.
-  // This means it must contain one or more mentions.
-  // We consider it "empty" for sending purposes only if it contains exactly one mention.
-  return mentionCount === 1;
+  // TipTap can leave editor.isEmpty=false after node deletion while the doc only
+  // contains an empty paragraph. Treat zero mentions as empty too.
+  return mentionCount === 0 || mentionCount === 1;
 }
 
 /**
