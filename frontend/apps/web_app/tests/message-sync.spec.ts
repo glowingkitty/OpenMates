@@ -287,26 +287,13 @@ test('message sync: verifies all messages are synced after sending multiple mess
 	// =========================================================================
 	// STEP 2: Start a new chat
 	// =========================================================================
-	const newChatButton = page.getByTestId('new-chat-button');
-	if (await newChatButton.isVisible()) {
-		logCheckpoint('Clicking New Chat button.');
-		await newChatButton.click();
-		await page.waitForTimeout(2000);
-	}
+	await startNewChat(page, logCheckpoint);
 	await takeStepScreenshot(page, '05-new-chat');
 
 	// =========================================================================
 	// STEP 3: Send first user message
 	// =========================================================================
-	const messageEditor = page.getByTestId('message-editor');
-	await expect(messageEditor).toBeVisible();
-	await messageEditor.click();
-	await page.keyboard.type('What is 2 + 2?');
-	await takeStepScreenshot(page, '06-first-message-typed');
-
-	const sendButton = page.locator('[data-action="send-message"]');
-	await expect(sendButton).toBeEnabled();
-	await sendButton.click();
+	await sendMessage(page, 'What is 2 + 2?', logCheckpoint, takeStepScreenshot, '06-first');
 	logCheckpoint('Sent first message: "What is 2 + 2?"');
 	await takeStepScreenshot(page, '07-first-message-sent');
 
@@ -348,14 +335,7 @@ test('message sync: verifies all messages are synced after sending multiple mess
 	// =========================================================================
 	// STEP 4: Send second user message
 	// =========================================================================
-	await page.waitForTimeout(2000); // Wait for UI to stabilize
-
-	await messageEditor.click();
-	await page.keyboard.type('Now multiply that by 10');
-	await takeStepScreenshot(page, '09-second-message-typed');
-
-	await expect(sendButton).toBeEnabled();
-	await sendButton.click();
+	await sendMessage(page, 'Now multiply that by 10', logCheckpoint, takeStepScreenshot, '09-second');
 	logCheckpoint('Sent second message: "Now multiply that by 10"');
 	await takeStepScreenshot(page, '10-second-message-sent');
 
