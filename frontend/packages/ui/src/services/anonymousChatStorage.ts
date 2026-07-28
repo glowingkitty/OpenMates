@@ -369,6 +369,7 @@ class AnonymousChatStorage {
 
     await chatDB.saveMessage(syncedUserMessage);
     await chatDB.addChat(stripPlainChatFields(updatedChat));
+    await chatDB.saveMessage(assistantMessage);
     window.dispatchEvent(new CustomEvent("anonymousChatsUpdated"));
 
     const hydratedUpdatedChat = await this.hydrateAnonymousChat(updatedChat);
@@ -384,8 +385,6 @@ class AnonymousChatStorage {
         modelName: response.modelName ?? null,
       });
     }
-
-    await chatDB.saveMessage(assistantMessage);
 
     return {
       chat: hydratedUpdatedChat,
