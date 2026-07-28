@@ -134,14 +134,12 @@ def wrap_provider_with_cache(
         logger.debug("[LiveMock] Non-streaming mock not implemented, calling real provider")
         return await provider_fn(**kwargs)
 
-    # Dispatcher: returns the right type based on stream kwarg.
-    # When stream=False, provider returns a regular awaitable (UnifiedResponse).
-    # When stream=True (default), provider returns an async iterator of chunks.
-    # The dispatcher preserves this contract so health checks (stream=False) can await.
-    def cached_provider(**kwargs: Any) -> Any:
+    # Dispatcher: provider clients are awaited by llm_utils. Streaming calls must
+    # therefore resolve to an async iterator after the await, not return one directly.
+    async def cached_provider(**kwargs: Any) -> Any:
         if kwargs.get("stream", True):
             return _cached_stream(**kwargs)
-        return _cached_non_stream(**kwargs)
+        return await _cached_non_stream(**kwargs)
 
     return cached_provider
 
