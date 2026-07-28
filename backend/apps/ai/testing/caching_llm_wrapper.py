@@ -14,6 +14,7 @@
 
 import asyncio
 import inspect
+import importlib
 import json
 import logging
 from typing import Any, AsyncIterator, Callable, List
@@ -43,6 +44,9 @@ DEFAULT_STREAM_SPEED = "instant"
 # Average characters per simulated chunk
 CHARS_PER_CHUNK = 20
 
+MIXED_STREAM_RESPONSE_TYPE = "mixed_stream"
+STREAM_CHUNK_FORMAT_VERSION = 1
+
 
 def wrap_provider_with_cache(
     provider_fn: Callable,
@@ -65,14 +69,14 @@ def wrap_provider_with_cache(
     """
 
     # Streaming wrapper (async generator — uses yield)
-    async def _cached_stream(**kwargs: Any) -> AsyncIterator[str]:
+    async def _cached_stream(**kwargs: Any) -> AsyncIterator[Any]:
         if not is_mock_active():
             async for chunk in _provider_stream(**kwargs):
                 yield chunk
             return
 
         group_id = get_mock_group()
-        model = kwargs.get("model", "unknown")
+        model = _model_from_kwargs(kwargs)
         category = f"llm/{model}"
 
         messages = kwargs.get("messages", [])
@@ -95,7 +99,10 @@ def wrap_provider_with_cache(
             response_body = response_data.get("body", "")
             response_type = response_data.get("type", "stream")
 
-            if response_type == "structured":
+            if response_type == MIXED_STREAM_RESPONSE_TYPE:
+                for chunk in _deserialize_stream_chunks(response_data.get("chunks", [])):
+                    yield chunk
+            elif response_type == "structured":
                 yield response_body
             else:
                 delay = STREAM_SPEED_PROFILES.get(DEFAULT_STREAM_SPEED, 0)
@@ -119,14 +126,14 @@ def wrap_provider_with_cache(
             f"— model={model}, messages={len(messages)}"
         )
 
-        all_chunks: List[str] = []
+        all_chunks: List[Any] = []
         async for chunk in _provider_stream(**kwargs):
             all_chunks.append(chunk)
             yield chunk
 
         _save_to_cache(cache, group_id, category, fingerprint, all_chunks, kwargs)
 
-    async def _provider_stream(**kwargs: Any) -> AsyncIterator[str]:
+    async def _provider_stream(**kwargs: Any) -> AsyncIterator[Any]:
         stream = provider_fn(**kwargs)
         if inspect.isawaitable(stream):
             stream = await stream
@@ -157,11 +164,12 @@ def _save_to_cache(
     group_id: str,
     category: str,
     fingerprint: str,
-    all_chunks: List[str],
+    all_chunks: List[Any],
     kwargs: dict,
 ) -> None:
     """Save collected LLM response chunks to the cache for future replay."""
-    full_response = "".join(all_chunks)
+    text_chunks = [chunk for chunk in all_chunks if isinstance(chunk, str)]
+    full_response = "".join(text_chunks)
 
     # Determine response type
     response_type = "stream"
@@ -176,7 +184,7 @@ def _save_to_cache(
     messages = kwargs.get("messages", [])
     tools = kwargs.get("tools")
     request_summary: dict = {
-        "model": kwargs.get("model", "unknown"),
+        "model": _model_from_kwargs(kwargs),
         "messages_count": len(messages),
         "tools_count": len(tools) if tools else 0,
         "temperature": kwargs.get("temperature"),
@@ -197,6 +205,15 @@ def _save_to_cache(
         "body": full_response,
         "chunk_count": len(all_chunks),
     }
+
+    if len(text_chunks) != len(all_chunks):
+        response_data = {
+            "type": MIXED_STREAM_RESPONSE_TYPE,
+            "body": full_response,
+            "chunk_count": len(all_chunks),
+            "chunk_format_version": STREAM_CHUNK_FORMAT_VERSION,
+            "chunks": [_serialize_stream_chunk(chunk) for chunk in all_chunks],
+        }
 
     cache.save(
         group_id=group_id,
@@ -238,3 +255,157 @@ def _split_into_chunks(text: str, chunk_size: int) -> List[str]:
         pos = end
 
     return chunks
+
+
+def _serialize_stream_chunk(chunk: Any) -> dict[str, Any]:
+    """Convert a streamed provider chunk into JSON-safe cache data."""
+    if isinstance(chunk, str):
+        return {"kind": "text", "value": chunk}
+
+    if isinstance(chunk, dict):
+        return {"kind": "json", "value": _json_safe(chunk)}
+
+    class_name = chunk.__class__.__name__
+    module_name = chunk.__class__.__module__
+
+    if hasattr(chunk, "model_dump") or hasattr(chunk, "json"):
+        value = _model_to_jsonable_dict(chunk)
+        tool_call = getattr(chunk, "tool_call", None)
+        if tool_call is not None:
+            value["tool_call"] = _serialize_stream_chunk(tool_call)
+        return {
+            "kind": "pydantic",
+            "module": module_name,
+            "class": class_name,
+            "value": value,
+        }
+
+    return {
+        "kind": "repr",
+        "module": module_name,
+        "class": class_name,
+        "value": str(chunk),
+    }
+
+
+def _deserialize_stream_chunks(chunks: Any) -> List[Any]:
+    """Restore cached mixed stream chunks in provider order."""
+    if not isinstance(chunks, list):
+        logger.warning("[LiveMock] Mixed LLM cache entry has no chunk list; replaying empty stream")
+        return []
+    return [_deserialize_stream_chunk(chunk) for chunk in chunks]
+
+
+def _deserialize_stream_chunk(chunk_data: Any) -> Any:
+    if not isinstance(chunk_data, dict):
+        return chunk_data
+
+    kind = chunk_data.get("kind")
+    if kind == "text":
+        return chunk_data.get("value", "")
+    if kind == "json":
+        return chunk_data.get("value")
+    if kind == "pydantic":
+        value = chunk_data.get("value", {})
+        if not isinstance(value, dict):
+            value = {}
+
+        if isinstance(value.get("tool_call"), dict):
+            value = dict(value)
+            value["tool_call"] = _deserialize_stream_chunk(value["tool_call"])
+
+        chunk_class = _load_chunk_class(chunk_data.get("module"), chunk_data.get("class"))
+        if chunk_class is None:
+            return _deserialize_portable_provider_chunk(chunk_data.get("class"), value)
+
+        try:
+            if hasattr(chunk_class, "model_validate"):
+                return chunk_class.model_validate(value)
+            if hasattr(chunk_class, "parse_obj"):
+                return chunk_class.parse_obj(value)
+            return chunk_class(**value)
+        except Exception as exc:
+            logger.warning(
+                "[LiveMock] Failed to rebuild cached %s.%s chunk: %s",
+                chunk_data.get("module"),
+                chunk_data.get("class"),
+                exc,
+            )
+            return value
+
+    if kind == "repr":
+        return chunk_data.get("value", "")
+    return chunk_data
+
+
+def _deserialize_portable_provider_chunk(class_name: Any, value: dict[str, Any]) -> Any:
+    """Restore provider chunks when optional provider modules are unavailable.
+
+    Some cached Gemini chunks point at google_client.py, which imports optional
+    provider dependencies that are not present in every test runtime. Replay only
+    needs the common tool-call/usage attributes, so map those chunks to the
+    shared OpenAI-compatible models instead of returning plain dicts.
+    """
+    if not isinstance(class_name, str):
+        return value
+
+    try:
+        from backend.apps.ai.llm_providers.openai_shared import OpenAIUsageMetadata, ParsedOpenAIToolCall
+
+        class PortableParsedToolCall(ParsedOpenAIToolCall):
+            thought_signature: str | None = None
+
+        if class_name.startswith("Parsed") and class_name.endswith("ToolCall"):
+            required = {"tool_call_id", "function_name", "function_arguments_raw", "function_arguments_parsed"}
+            if required.issubset(value):
+                return PortableParsedToolCall.model_validate(value)
+
+        if class_name == "GoogleUsageMetadata":
+            return OpenAIUsageMetadata(
+                input_tokens=int(value.get("prompt_token_count") or 0),
+                output_tokens=int(value.get("candidates_token_count") or 0),
+                total_tokens=int(value.get("total_token_count") or 0),
+                user_input_tokens=value.get("user_input_tokens"),
+                system_prompt_tokens=value.get("system_prompt_tokens"),
+            )
+    except Exception as exc:
+        logger.warning("[LiveMock] Failed to rebuild portable cached chunk %s: %s", class_name, exc)
+
+    return value
+
+
+def _model_to_jsonable_dict(model: Any) -> dict[str, Any]:
+    if hasattr(model, "model_dump"):
+        try:
+            return model.model_dump(mode="json")
+        except TypeError:
+            return _json_safe(model.model_dump())
+
+    if hasattr(model, "json"):
+        return json.loads(model.json())
+
+    if hasattr(model, "dict"):
+        return _json_safe(model.dict())
+
+    return _json_safe(model)
+
+
+def _json_safe(value: Any) -> Any:
+    return json.loads(json.dumps(value, ensure_ascii=False, default=str))
+
+
+def _load_chunk_class(module_name: Any, class_name: Any) -> Any:
+    if not isinstance(module_name, str) or not isinstance(class_name, str):
+        return None
+    try:
+        module = importlib.import_module(module_name)
+        return getattr(module, class_name, None)
+    except Exception as exc:
+        logger.warning("[LiveMock] Failed to import cached chunk class %s.%s: %s", module_name, class_name, exc)
+        return None
+
+
+def _model_from_kwargs(kwargs: dict[str, Any]) -> str:
+    """Return the provider model name regardless of the caller's parameter spelling."""
+    model = kwargs.get("model") or kwargs.get("model_id") or "unknown"
+    return str(model)

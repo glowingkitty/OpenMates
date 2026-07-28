@@ -1,0 +1,39 @@
+{
+  "fingerprint": "b35c0da5992ca885",
+  "category": "wikipedia",
+  "group_id": "models3d_search_web",
+  "recorded_at": "2026-07-28T21:16:30.584713+00:00",
+  "request": {
+    "method": "GET",
+    "url": "https://en.wikipedia.org/w/api.php?action=query&titles=3DBenchy%7C3D_printing&prop=pageprops%7Cpageimages%7Cdescription&ppprop=wikibase_item&piprop=thumbnail&pithumbsize=300&format=json&formatversion=2&redirects=1"
+  },
+  "response": {
+    "status_code": 200,
+    "headers": {
+      "date": "Tue, 28 Jul 2026 21:16:30 GMT",
+      "server": "mw-api-ext.eqiad.main-5ccdf4f4d9-gtz84",
+      "x-content-type-options": "nosniff",
+      "content-security-policy": "default-src 'self'; script-src 'none'; object-src 'none'",
+      "x-frame-options": "DENY",
+      "content-disposition": "inline; filename=api-result.json",
+      "cache-control": "private, must-revalidate, max-age=0",
+      "content-type": "application/json; charset=utf-8",
+      "content-encoding": "gzip",
+      "age": "0",
+      "accept-ranges": "bytes",
+      "x-cache": "cp3067 miss, cp3067 pass",
+      "x-cache-status": "pass",
+      "strict-transport-security": "max-age=106384710; includeSubDomains; preload",
+      "report-to": "{ \"group\": \"wm_nel\", \"max_age\": 604800, \"endpoints\": [{ \"url\": \"https://intake-logging.wikimedia.org/v1/events?stream=w3c.reportingapi.network_error&schema_uri=/w3c/reportingapi/network_error/1.0.0\" }] }",
+      "nel": "{ \"report_to\": \"wm_nel\", \"max_age\": 604800, \"failure_fraction\": 0.05, \"success_fraction\": 0.0}",
+      "set-cookie": "WMF-Last-Access=28-Jul-2026;Path=/;HttpOnly;secure;Expires=Sat, 29 Aug 2026 12:00:00 GMT, WMF-Last-Access-Global=28-Jul-2026;Path=/;Domain=.wikipedia.org;HttpOnly;secure;Expires=Sat, 29 Aug 2026 12:00:00 GMT, GeoIP=FI:18:Helsinki:60.17:24.93:v4; Path=/; secure; Domain=.wikipedia.org, NetworkProbeLimit=0.001;Path=/;Secure;SameSite=None;Max-Age=3600, WMF-Uniq=xc4ZRIO4CjExOlZ8rzEyQQOrAAAAAFvdwXyzFiiWbp9S3JDXnDWgEYhZvNbH852D;Domain=.wikipedia.org;Path=/;HttpOnly;secure;SameSite=None;Expires=Wed, 28 Jul 2027 00:00:00 GMT",
+      "x-client-ip": "46.62.139.27",
+      "vary": "Accept-Encoding,X-Subdomain,Treat-as-Untrusted,X-Forwarded-Proto,Cookie,Authorization,User-Agent",
+      "content-length": "407",
+      "x-request-id": "4464b93a-372a-4392-8b08-159f1062ab99",
+      "x-analytics": "",
+      "server-timing": "cache;desc=\"pass\", host;desc=\"cp3067\",co_id;desc=\"2712321140\""
+    },
+    "body": "{\"batchcomplete\":true,\"query\":{\"normalized\":[{\"fromencoded\":false,\"from\":\"3D_printing\",\"to\":\"3D printing\"}],\"pages\":[{\"pageid\":1305947,\"ns\":0,\"title\":\"3D printing\",\"pageprops\":{\"wikibase_item\":\"Q229367\"},\"thumbnail\":{\"source\":\"https://upload.wikimedia.org/wikipedia/commons/thumb/f/f4/Robot_3D_print_timelapse_on_RepRapPro_Fisher.webm/330px--Robot_3D_print_timelapse_on_RepRapPro_Fisher.webm.jpg\",\"width\":300,\"height\":169},\"description\":\"Additive process used to make a 3D object\",\"descriptionsource\":\"local\"},{\"pageid\":51196155,\"ns\":0,\"title\":\"3DBenchy\",\"pageprops\":{\"wikibase_item\":\"Q26197395\"},\"thumbnail\":{\"source\":\"https://upload.wikimedia.org/wikipedia/commons/thumb/7/7f/3DBenchy.png/330px-3DBenchy.png\",\"width\":300,\"height\":300},\"description\":\"Benchmark model for testing 3D printers\",\"descriptionsource\":\"local\"}]}}"
+  }
+}

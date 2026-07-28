@@ -25,7 +25,6 @@ const {
 	deleteActiveChat
 } = require('./helpers/chat-test-helpers');
 const {
-	waitForEmbedFinished,
 	openFullscreen,
 	verifySearchGrid,
 	closeFullscreen
@@ -64,7 +63,9 @@ test.describe('App: Models3D / Skill: search', () => {
 			'models3d-search'
 		);
 
-		const embed = await waitForEmbedFinished(page, 'models3d', 'search', 120_000);
+		const finishedSearchEmbeds = page.locator('[data-testid="embed-preview"][data-app-id="models3d"][data-skill-id="search"][data-status="finished"]');
+		const embed = finishedSearchEmbeds.filter({ hasText: /[1-9][0-9]*\s+results?/i }).last();
+		await expect(embed).toBeVisible({ timeout: 120_000 });
 		await expect(embed.getByTestId('models3d-search-preview')).toBeVisible({ timeout: 30_000 });
 		await expect(embed).toContainText(/result|model|Printables/i);
 		logCheckpoint('Models3D search embed finished.');

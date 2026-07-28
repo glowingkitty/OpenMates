@@ -1,0 +1,39 @@
+{
+  "fingerprint": "efebb7e0d6bf14e4",
+  "category": "printables",
+  "group_id": "models3d_search_web",
+  "recorded_at": "2026-07-28T21:16:22.581948+00:00",
+  "request": {
+    "method": "POST",
+    "url": "https://api.printables.com/graphql/",
+    "body_preview": {
+      "query": "\n        query SearchPrints($query: String!, $limit: Int!) {\n          searchPrints2(query: $query, printType: print, limit: $limit, ordering: best_match) {\n            items {\n              id\n              name\n              slug\n              summary\n              description\n              created\n              firstPublish\n              datePublished\n              modified\n              likesCount\n              downloadCount\n              ratingAvg\n              filesCount\n              price\n              user { publicUsername }\n              image { filePath }\n              license { name }\n              category { name }\n              tags { name }\n            }\n          }\n        }\n        ",
+      "variables": {
+        "query": "3D benchy calibration boat",
+        "limit": 10
+      }
+    }
+  },
+  "response": {
+    "status_code": 200,
+    "headers": {
+      "date": "Tue, 28 Jul 2026 21:16:22 GMT",
+      "content-type": "application/json",
+      "content-length": "39",
+      "connection": "keep-alive",
+      "vary": "Cookie, Accept-Language, origin",
+      "operationname": "None",
+      "x-frame-options": "DENY",
+      "x-content-type-options": "nosniff",
+      "referrer-policy": "same-origin",
+      "cross-origin-opener-policy": "same-origin",
+      "content-language": "en",
+      "set-cookie": "csrftoken=Tk46JIy02wefXSSu61iywyM0V1J5RCgv; expires=Tue, 27 Jul 2027 21:16:22 GMT; Max-Age=31449600; Path=/; SameSite=Lax",
+      "strict-transport-security": "max-age=31536000; includeSubDomains",
+      "cf-cache-status": "DYNAMIC",
+      "server": "cloudflare",
+      "cf-ray": "a226e7909a290df3-AMS"
+    },
+    "body": "{\"data\":{\"searchPrints2\":{\"items\":[]}}}"
+  }
+}

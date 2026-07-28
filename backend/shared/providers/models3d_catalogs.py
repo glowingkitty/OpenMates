@@ -11,8 +11,9 @@ from __future__ import annotations
 import re
 from typing import Any, Iterable, Protocol
 
-import httpx
 from pydantic import BaseModel, Field
+
+from backend.shared.testing.caching_http_transport import create_http_client
 
 
 DEFAULT_TIMEOUT_SECONDS = 15.0
@@ -251,7 +252,7 @@ class PrintablesSearchProvider:
           }
         }
         """
-        async with httpx.AsyncClient(timeout=DEFAULT_TIMEOUT_SECONDS) as client:
+        async with create_http_client("printables", timeout=DEFAULT_TIMEOUT_SECONDS) as client:
             response = await client.post(
                 PRINTABLES_GRAPHQL_URL,
                 json={"query": graphql_query, "variables": {"query": query, "limit": count}},

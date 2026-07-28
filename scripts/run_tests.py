@@ -1060,6 +1060,7 @@ class GitHubActionsClient:
         spec: str,
         account: int,
         use_mocks: bool = True,
+        record_live_fixtures: bool = False,
         create_account_slot: Optional[int] = None,
     ) -> Optional[int]:
         """
@@ -1078,7 +1079,7 @@ class GitHubActionsClient:
             "-f", f"account={account}",
             "-f", f"use_mocks={'true' if use_mocks else 'false'}",
             "-f", f"use_live_mocks={'true' if use_mocks else 'false'}",
-            "-f", "record_live_fixtures=false",
+            "-f", f"record_live_fixtures={'true' if record_live_fixtures else 'false'}",
             "-f", f"dispatch_token={dispatch_token}",
         ]
         if self.git_sha:
@@ -1411,6 +1412,7 @@ class BatchRunner:
         batch_size: int = 20,
         fail_fast: bool = True,
         use_mocks: bool = True,
+        record_live_fixtures: bool = False,
         normal_account_slots: tuple[int, ...] = NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS,
         create_account_slot: Optional[int] = None,
     ) -> None:
@@ -1419,6 +1421,7 @@ class BatchRunner:
         self.batch_size = batch_size
         self.fail_fast = fail_fast
         self.use_mocks = use_mocks
+        self.record_live_fixtures = record_live_fixtures
         self.normal_account_slots = normal_account_slots
         self.create_account_slot = create_account_slot
 
@@ -1496,11 +1499,23 @@ class BatchRunner:
             _log(f"  Dispatching {spec} (account {account})")
 
             create_account_slot = self.create_account_slot if spec == PROVISION_AUTH_ACCOUNTS_SPEC else None
-            run_id = self.client.dispatch_spec(spec, account, self.use_mocks, create_account_slot=create_account_slot)
+            run_id = self.client.dispatch_spec(
+                spec,
+                account,
+                self.use_mocks,
+                self.record_live_fixtures,
+                create_account_slot=create_account_slot,
+            )
             if run_id is None:
                 # Retry once
                 time.sleep(5)
-                run_id = self.client.dispatch_spec(spec, account, self.use_mocks, create_account_slot=create_account_slot)
+                run_id = self.client.dispatch_spec(
+                    spec,
+                    account,
+                    self.use_mocks,
+                    self.record_live_fixtures,
+                    create_account_slot=create_account_slot,
+                )
 
             if run_id is None:
                 dispatch_errors.append(SpecResult(
@@ -5446,6 +5461,7 @@ class TestOrchestrator:
         self.create_account_slot = args.create_account_slot
         self.fail_fast = not args.no_fail_fast
         self.use_mocks = not args.no_mocks
+        self.record_live_fixtures = args.record_live_fixtures
         self.dry_run = args.dry_run
         self.dot_env = _read_env_file()
 
@@ -5522,6 +5538,7 @@ class TestOrchestrator:
             "only_failed": self.only_failed,
             "fail_fast": self.fail_fast,
             "use_mocks": self.use_mocks,
+            "record_live_fixtures": self.record_live_fixtures,
         }
 
         result = ResultAggregator.build_run_result(
@@ -5973,6 +5990,7 @@ class TestOrchestrator:
             batch_size=self.max_concurrent,
             fail_fast=self.fail_fast,
             use_mocks=self.use_mocks,
+            record_live_fixtures=self.record_live_fixtures,
             normal_account_slots=normal_account_slots,
             create_account_slot=self.create_account_slot,
         )
@@ -6014,7 +6032,12 @@ class TestOrchestrator:
             return SuiteResult(status="skipped", reason="dry run")
 
         client = GitHubActionsClient()
-        run_id = client.dispatch_spec(CLI_INTEGRATION_SPEC, account=1, use_mocks=self.use_mocks)
+        run_id = client.dispatch_spec(
+            CLI_INTEGRATION_SPEC,
+            account=1,
+            use_mocks=self.use_mocks,
+            record_live_fixtures=self.record_live_fixtures,
+        )
         if run_id is None:
             detail = client.last_dispatch_error or "Could not dispatch CLI integration workflow"
             return SuiteResult(
@@ -6372,6 +6395,8 @@ def main() -> int:
                         help="Don't stop on first batch failure")
     parser.add_argument("--no-mocks", action="store_true",
                         help="Run with real LLM calls instead of mocks")
+    parser.add_argument("--record-live-fixtures", action="store_true",
+                        help="Dispatch Playwright with TEST_LIVE_RECORD markers instead of replaying live-mock fixtures")
     parser.add_argument("--dry-run", action="store_true",
                         help="Show what would run without executing")
     parser.add_argument("--flaky-report", action="store_true",
@@ -6411,6 +6436,9 @@ def main() -> int:
         return 2
     if args.create_account_slot is not None and args.spec != PROVISION_AUTH_ACCOUNTS_SPEC:
         _log("--create-account-slot requires --spec cli-provision-auth-accounts.spec.ts", "ERROR")
+        return 2
+    if args.no_mocks and args.record_live_fixtures:
+        _log("--record-live-fixtures requires live-mock markers; do not combine it with --no-mocks", "ERROR")
         return 2
 
     # Always source .env into the process so cron jobs (which only run via
