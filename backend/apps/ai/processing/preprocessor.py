@@ -68,6 +68,48 @@ IMAGE_CHAT_SAFE_MODEL_NAME = "Claude Haiku 4.5"
 IMAGE_CHAT_EXCLUDED_PROVIDER_IDS = {"google"}
 IMAGE_UPLOAD_REF_EXTENSIONS = (".jpg", ".jpeg", ".png", ".webp", ".gif")
 
+
+def _resolve_override_model_provider(model_id: str, override_provider: Optional[str], config_manager_obj: Any) -> Optional[str]:
+    """Return the canonical provider for a model override.
+
+    The web mention payload stores the selected server id in the provider slot
+    (for example cerebras/together). Billing and inference routing need the
+    creator/provider namespace (for example alibaba/moonshot) so downstream
+    code can resolve the configured default server and pricing.
+    """
+    if not model_id:
+        return override_provider
+
+    if not override_provider:
+        return config_manager_obj.find_provider_for_model(model_id)
+
+    provider_config = config_manager_obj.get_provider_config(override_provider)
+    if provider_config:
+        for model in provider_config.get("models", []):
+            if isinstance(model, dict) and (model.get("id") == model_id or model_id in model.get("aliases", [])):
+                return override_provider
+
+    resolved_provider = config_manager_obj.find_provider_for_model(model_id)
+    if not resolved_provider:
+        return override_provider
+
+    resolved_provider_config = config_manager_obj.get_provider_config(resolved_provider)
+    if not resolved_provider_config:
+        return override_provider
+
+    for model in resolved_provider_config.get("models", []):
+        if not isinstance(model, dict) or not (model.get("id") == model_id or model_id in model.get("aliases", [])):
+            continue
+        server_ids = {
+            str(server.get("id")).lower()
+            for server in model.get("servers", [])
+            if isinstance(server, dict) and server.get("id")
+        }
+        if override_provider.lower() in server_ids:
+            return resolved_provider
+
+    return override_provider
+
 REPO_SEARCH_ACTION_PATTERN = re.compile(
     r"\b(search|find|look\s+for|discover|show\s+me|list|recommend|suggest)\b",
     re.IGNORECASE,
@@ -2416,9 +2458,16 @@ async def handle_preprocessing(
                 )
         elif override_provider:
             # User provided model + provider (e.g., @ai-model:claude-opus-4-5:anthropic)
-            selected_llm_for_main_id = f"{override_provider}/{override_model_id}"
+            resolved_override_provider = _resolve_override_model_provider(override_model_id, override_provider, config_manager)
+            if resolved_override_provider and resolved_override_provider != override_provider:
+                logger.info(
+                    f"{log_prefix} USER_OVERRIDE: Normalized server override '{override_provider}' "
+                    f"to provider '{resolved_override_provider}' for model '{override_model_id}'."
+                )
+            selected_provider = resolved_override_provider or override_provider
+            selected_llm_for_main_id = f"{selected_provider}/{override_model_id}"
             # Look up human-readable name from config
-            selected_llm_for_main_name = config_manager.get_model_display_name(override_model_id, override_provider) or override_model_id
+            selected_llm_for_main_name = config_manager.get_model_display_name(override_model_id, selected_provider) or override_model_id
             model_override_applied = True
             model_selection_reason = f"User override with provider: {selected_llm_for_main_id}"
             logger.info(

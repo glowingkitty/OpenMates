@@ -18,6 +18,7 @@ try:
         _contains_rain_radar_intent_in_user_history,
         _contains_repo_search_intent_in_user_history,
         _request_has_image_upload_embed,
+        _resolve_override_model_provider,
         IMAGE_CHAT_SAFE_MODEL_ID,
         IMAGE_CHAT_SAFE_MODEL_NAME,
         _latest_assistant_category_from_history,
@@ -57,6 +58,59 @@ def _assistant_msg(content: str) -> FakeMessage:
 
 def _assistant_msg_with_category(content: str, category: str) -> FakeMessage:
     return FakeMessage(role="assistant", content=content, category=category)
+
+
+class FakeConfigManager:
+    def __init__(self):
+        self.provider_configs = {
+            "alibaba": {
+                "models": [
+                    {
+                        "id": "qwen3-235b-a22b-2507",
+                        "servers": [{"id": "cerebras"}, {"id": "openrouter"}],
+                    }
+                ]
+            },
+            "openai": {
+                "models": [
+                    {
+                        "id": "gpt-5.4",
+                        "servers": [{"id": "openai"}],
+                    }
+                ]
+            },
+        }
+
+    def get_provider_config(self, provider_id: str):
+        return self.provider_configs.get(provider_id)
+
+    def find_provider_for_model(self, model_id: str):
+        for provider_id, provider_config in self.provider_configs.items():
+            for model in provider_config.get("models", []):
+                aliases = model.get("aliases", [])
+                if model.get("id") == model_id or model_id in aliases:
+                    return provider_id
+        return None
+
+
+def test_resolve_override_model_provider_normalizes_server_id():
+    result = _resolve_override_model_provider(
+        "qwen3-235b-a22b-2507",
+        "cerebras",
+        FakeConfigManager(),
+    )
+
+    assert result == "alibaba"
+
+
+def test_resolve_override_model_provider_keeps_direct_provider_id():
+    result = _resolve_override_model_provider(
+        "gpt-5.4",
+        "openai",
+        FakeConfigManager(),
+    )
+
+    assert result == "openai"
 
 
 # ===========================================================================
