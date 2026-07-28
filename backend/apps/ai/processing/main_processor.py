@@ -492,6 +492,7 @@ def _build_pending_app_settings_memories_context(
         "is_incognito": request_data.is_incognito,
         "user_preferences": request_data.user_preferences or {},
         "embed_file_path_index": request_data.embed_file_path_index,
+        "has_image_upload_embed": getattr(request_data, "has_image_upload_embed", False),
         "requested_keys": missing_keys,
         "task_id": task_id,
     }

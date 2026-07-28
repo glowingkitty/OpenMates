@@ -44,6 +44,10 @@ class AskSkillRequest(BaseModel):
             "file_path argument instead of a raw embed_id."
         ),
     )
+    has_image_upload_embed: bool = Field(
+        default=False,
+        description="True when the current turn includes an uploaded image embed.",
+    )
     # Sub-chat orchestration fields
     parent_id: Optional[str] = Field(default=None, description="The ID of the parent chat.")
     is_sub_chat: bool = Field(default=False, description="Whether this is a sub-chat.")

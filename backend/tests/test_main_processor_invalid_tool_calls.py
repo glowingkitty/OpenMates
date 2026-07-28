@@ -197,6 +197,7 @@ def test_pending_app_settings_memories_context_preserves_model_preferences() -> 
         is_incognito=False,
         user_preferences={"default_ai_model_simple": "mistral/mistral-small-latest"},
         embed_file_path_index={"snippet.py": "embed-1"},
+        has_image_upload_embed=True,
     )
 
     context = _build_pending_app_settings_memories_context(
@@ -209,6 +210,7 @@ def test_pending_app_settings_memories_context_preserves_model_preferences() -> 
     assert context["user_preferences"] == {"default_ai_model_simple": "mistral/mistral-small-latest"}
     assert context["current_chat_title"] == "Coding help"
     assert context["embed_file_path_index"] == {"snippet.py": "embed-1"}
+    assert context["has_image_upload_embed"] is True
     assert "message_history" not in context
 
 

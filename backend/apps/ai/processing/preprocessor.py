@@ -135,6 +135,9 @@ def _embed_ref_is_image_upload(embed_ref: Any) -> bool:
 
 def _request_has_image_upload_embed(request_data: AskSkillRequest) -> bool:
     """Return True when history or current-turn metadata references an uploaded image."""
+    if getattr(request_data, "has_image_upload_embed", False):
+        return True
+
     for msg in request_data.message_history:
         content = msg.content if hasattr(msg, "content") else (msg.get("content") if isinstance(msg, dict) else None)
         if _content_has_image_upload_embed(content):

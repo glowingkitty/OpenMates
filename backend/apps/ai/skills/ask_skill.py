@@ -97,6 +97,7 @@ class AskSkillRequest(BaseModel):
     # so skills like images-view can resolve a file_path argument back to the actual embed UUID
     # for Redis cache lookup — keeping UUIDs invisible to the LLM entirely.
     embed_file_path_index: Optional[Dict[str, str]] = Field(default=None, description="Maps embed_ref filename → embed_id UUID for server-side skill resolution.")
+    has_image_upload_embed: bool = Field(default=False, description="True when the current turn includes an uploaded image embed.")
     
     # Sub-chat orchestration fields
     parent_id: Optional[str] = Field(default=None, description="The ID of the parent chat.")

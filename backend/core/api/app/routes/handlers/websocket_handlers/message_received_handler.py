@@ -857,6 +857,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         # Process embeds if provided by client
         # Embeds are sent as cleartext (TOON-encoded) and will be encrypted server-side for cache
         _client_embed_file_path_index: Dict[str, str] = {}
+        _has_image_upload_embed = False
         embeds_from_client = payload.get("embeds", [])
         if embeds_from_client:
             logger.info(f"Processing {len(embeds_from_client)} embeds from client for message {message_id}")
@@ -892,6 +893,10 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                     embed_ref = decoded_embed_content.get("embed_ref")
                     if isinstance(embed_ref, str) and embed_ref:
                         _client_embed_file_path_index[embed_ref] = embed_id
+
+                    decoded_embed_type = decoded_embed_content.get("type")
+                    if embed_type == "image" or decoded_embed_type == "image":
+                        _has_image_upload_embed = True
                     
                     # Encrypt embed content with vault key for server cache
                     # Server can decrypt for AI context building
@@ -1868,6 +1873,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             team_workspace_type=team_ai_context.get("team_workspace_type"),
             team_object_id_hash=team_ai_context.get("team_object_id_hash"),
             embed_file_path_index=_embed_file_path_index if _embed_file_path_index else None,  # Maps embed_ref (filename) → embed_id UUID for skill resolution
+            has_image_upload_embed=_has_image_upload_embed,
             parent_id=db_parent_id,
             is_sub_chat=db_is_sub_chat,
             budget_limit=db_budget_limit,

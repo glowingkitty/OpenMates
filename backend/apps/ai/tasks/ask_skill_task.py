@@ -2064,7 +2064,9 @@ async def _async_process_ai_skill_ask_task(
                     chat_has_title=combined_chat_has_title,
                     mate_id=current_mate_id,  # Preserve current mate instead of forcing re-selection
                     active_focus_id=combined_active_focus_id or request_data.active_focus_id,
-                    user_preferences={}
+                    user_preferences={},
+                    embed_file_path_index=request_data.embed_file_path_index,
+                    has_image_upload_embed=getattr(request_data, "has_image_upload_embed", False),
                 )
                 
                 # Dispatch a new Celery task for the combined queued message

@@ -436,6 +436,7 @@ async def _dispatch_sub_chat_parent_continuation(
         mentioned_settings_memories_cleartext=original_request.mentioned_settings_memories_cleartext,
         is_sub_chat_continuation=True,
         embed_file_path_index=original_request.embed_file_path_index,
+        has_image_upload_embed=getattr(original_request, "has_image_upload_embed", False),
     )
 
     task_result = celery_config.app.send_task(

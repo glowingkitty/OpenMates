@@ -245,6 +245,7 @@ def test_message_send_forwards_client_embed_ref_index(monkeypatch):
     )
 
     assert captured["embed_file_path_index"] == {"mockup-png-abc123": "embed-image-1"}
+    assert captured["has_image_upload_embed"] is True
     cache_service.set_active_ai_task.assert_awaited_once_with("chat-123", "task-123")
 
 
