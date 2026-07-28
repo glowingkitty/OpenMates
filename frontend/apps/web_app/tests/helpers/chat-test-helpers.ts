@@ -275,6 +275,13 @@ async function waitForEmailLookupReady(page: any): Promise<boolean> {
 	return hasPasswordInput && hasSalt;
 }
 
+async function clickLoginContinueWhenReady(page: any): Promise<void> {
+	const continueButton = page.getByTestId('login-continue-button');
+	await expect(continueButton).toBeVisible({ timeout: 10000 });
+	await expect(continueButton).toBeEnabled({ timeout: 15000 });
+	await continueButton.click();
+}
+
 async function ensureStayLoggedInChecked(
 	page: any,
 	logCheckpoint: (message: string, metadata?: Record<string, unknown>) => void = noopLog
@@ -357,7 +364,7 @@ async function loginToTestAccount(
 	// Click "Stay logged in" toggle so keys survive any page navigation during the test.
 	await ensureStayLoggedInChecked(page, logCheckpoint);
 
-	await page.getByTestId('login-continue-button').click();
+	await clickLoginContinueWhenReady(page);
 	logCheckpoint('Entered email and clicked continue.');
 
 	// Retry if lookup fails before password login. 429 shows a rate-limit view,
@@ -391,7 +398,7 @@ async function loginToTestAccount(
 		await expect(retryEmailInput).toBeVisible({ timeout: 15000 });
 		await retryEmailInput.fill(TEST_EMAIL);
 		await ensureStayLoggedInChecked(page, logCheckpoint);
-		await page.getByTestId('login-continue-button').click();
+		await clickLoginContinueWhenReady(page);
 		logCheckpoint(`Retry ${retryCount + 1}: re-entered email and clicked continue.`);
 		lookupReady = await waitForEmailLookupReady(page);
 	}
