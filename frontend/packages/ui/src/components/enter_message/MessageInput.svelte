@@ -545,7 +545,7 @@
 
     // Draft preview mode is only for text drafts. Embed-only drafts must keep the
     // editor visible so audio/file preview controls remain reachable after blur.
-    let isDraftPreview = $derived(!!draftPreviewSummary && hasContent && !isMessageFieldFocused && !isFullscreen && !forceDraftActionsVisible);
+    let isDraftPreview = $derived(!!draftPreviewSummary && hasContent && !hasEmbedContent && !isMessageFieldFocused && !isFullscreen && !forceDraftActionsVisible);
 
     // Computed state for showing action buttons
     // In extended/fullscreen mode: always visible (no tap required).
