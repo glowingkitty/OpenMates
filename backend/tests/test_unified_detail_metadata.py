@@ -14,10 +14,14 @@ import pytest
 
 from backend.core.api.app.routes.handlers.websocket_handlers import (
     encrypted_chat_metadata_handler,
+    post_processing_metadata_handler,
     title_update_handler,
 )
 from backend.core.api.app.routes.handlers.websocket_handlers.encrypted_chat_metadata_handler import (
     handle_encrypted_chat_metadata,
+)
+from backend.core.api.app.routes.handlers.websocket_handlers.post_processing_metadata_handler import (
+    handle_post_processing_metadata,
 )
 from backend.core.api.app.routes.handlers.websocket_handlers.title_update_handler import (
     handle_update_title,
@@ -151,6 +155,61 @@ class TitleUpdateDirectus:
                 }
             )
         )
+
+
+class PostProcessingCache:
+    def __init__(self, events: list[tuple]) -> None:
+        self.events = events
+        self.metadata_v = 4
+
+    async def get_chat_versions(self, _user_id: str, _chat_id: str) -> SimpleNamespace:
+        return SimpleNamespace(messages_v=12, title_v=7, metadata_v=self.metadata_v)
+
+    async def set_chat_version_component(
+        self, _user_id: str, _chat_id: str, component: str, value: int
+    ) -> bool:
+        if component == "metadata_v":
+            self.metadata_v = value
+        return True
+
+    async def increment_chat_component_version(
+        self, _user_id: str, _chat_id: str, component: str
+    ) -> int:
+        if component == "metadata_v":
+            self.metadata_v += 1
+            return self.metadata_v
+        raise AssertionError(f"Unexpected component increment: {component}")
+
+    async def update_chat_list_item_field(
+        self,
+        user_id: str,
+        chat_id: str,
+        field: str,
+        value: str,
+    ) -> bool:
+        self.events.append(("cache", user_id, chat_id, field, value))
+        return True
+
+
+class OrderedPostProcessingManager(ChatMetadataManager):
+    def __init__(self, events: list[tuple]) -> None:
+        super().__init__()
+        self.events = events
+
+    async def send_personal_message(
+        self, message: dict, user_id: str, device_hash: str
+    ) -> None:
+        self.events.append(("personal", message["type"]))
+        await super().send_personal_message(message, user_id, device_hash)
+
+    async def broadcast_to_user(
+        self,
+        message: dict,
+        user_id: str,
+        exclude_device_hash: str | None = None,
+    ) -> None:
+        self.events.append(("broadcast", message["type"]))
+        await super().broadcast_to_user(message, user_id, exclude_device_hash)
 
 
 def chat_metadata_payload(**overrides: object) -> dict[str, object]:
@@ -375,6 +434,48 @@ def test_chat_metadata_acceptance_is_server_versioned_ciphertext_only_and_broadc
     assert "title" not in broadcast["payload"]
     assert "summary" not in broadcast["payload"]
     assert "chat_summary" not in broadcast["payload"]
+
+
+def test_post_processing_summary_updates_sync_cache_before_version_broadcast(monkeypatch) -> None:
+    events: list[tuple] = []
+    queued_tasks: list[tuple[str, list, str | None]] = []
+
+    def queue_task(name: str, args=None, queue: str | None = None):
+        queued_tasks.append((name, args or [], queue))
+        return SimpleNamespace(id="task-1")
+
+    monkeypatch.setattr(post_processing_metadata_handler.celery_app, "send_task", queue_task)
+
+    manager = OrderedPostProcessingManager(events)
+    asyncio.run(
+        handle_post_processing_metadata(
+            websocket=None,
+            manager=manager,
+            cache_service=PostProcessingCache(events),
+            directus_service=ChatMetadataDirectus(is_owner=True),
+            encryption_service=None,
+            user_id="owner-1",
+            user_id_hash="owner-hash",
+            device_fingerprint_hash="device-1",
+            payload=chat_metadata_payload(encrypted_chat_summary="cipher-summary-v5"),
+        )
+    )
+
+    assert events[0] == (
+        "cache",
+        "owner-1",
+        "chat-1",
+        "encrypted_chat_summary",
+        "cipher-summary-v5",
+    )
+    assert events[1:] == [
+        ("personal", "post_processing_metadata_stored"),
+        ("broadcast", "encrypted_chat_metadata"),
+    ]
+    task_name, task_args, queue = queued_tasks[0]
+    assert task_name == "app.tasks.persistence_tasks.persist_encrypted_chat_metadata"
+    assert queue == "persistence"
+    assert task_args[1]["metadata_v"] == 5
 
 
 def test_chat_title_update_broadcasts_server_versions(monkeypatch) -> None:

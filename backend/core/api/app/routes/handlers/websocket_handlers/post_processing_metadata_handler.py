@@ -193,6 +193,21 @@ async def handle_post_processing_metadata(
                 )
                 chat_update_fields.update(accepted_versions)
 
+                cache_updates = []
+                if encrypted_title:
+                    cache_updates.append(("title", encrypted_title))
+                if encrypted_chat_summary:
+                    cache_updates.append(("encrypted_chat_summary", encrypted_chat_summary))
+
+                for field, value in cache_updates:
+                    update_field_success = await cache_service.update_chat_list_item_field(
+                        user_id, chat_id, field, value
+                    )
+                    if not update_field_success:
+                        logger.error(
+                            f"Failed to update {field} in list_item_data for chat {chat_id}. User: {user_id}"
+                        )
+
             logger.info(f"Storing encrypted post-processing metadata for chat {chat_id}: {list(chat_update_fields.keys())}")
 
             # Queue task to update chat metadata in Directus
