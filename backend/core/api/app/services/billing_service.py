@@ -9,6 +9,7 @@ from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.services.server_stats_service import ServerStatsService
 from backend.core.api.app.routes.websockets import manager as websocket_manager
+from backend.shared.python_utils.e2e_user_detection import is_non_production_e2e_user_profile
 
 logger = logging.getLogger(__name__)
 
@@ -257,7 +258,7 @@ class BillingService:
             _is_incognito_charge = (
                 usage_details.get("is_incognito", False) if usage_details else False
             )
-            if not _is_incognito_charge:
+            if not _is_incognito_charge and not is_non_production_e2e_user_profile(user):
                 try:
                     # Pass the user's UI language so generated inspirations match their locale.
                     # The language is available on the cached user profile (set during login).
@@ -269,6 +270,11 @@ class BillingService:
                     logger.warning(
                         f"Failed to track paid request for daily inspiration (non-fatal): {e_track}"
                     )
+            elif not _is_incognito_charge:
+                logger.debug(
+                    "Skipping daily inspiration paid-request tracking for non-production E2E user %s...",
+                    user_id[:8],
+                )
 
             # 4.5. Update Server Global Stats (Incremental)
             # Track credits used and decrease total liability

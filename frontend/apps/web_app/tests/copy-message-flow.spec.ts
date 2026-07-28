@@ -1,4 +1,3 @@
-/* eslint-disable no-console */
 /* eslint-disable @typescript-eslint/no-require-imports */
 /**
  * Copy message flow test: verify that copying a message with embeds produces
@@ -38,10 +37,12 @@ const {
 } = require('./helpers/chat-test-helpers');
 
 const {
-	getTestAccount
+	getTestAccount,
+	withLiveMockMarker
 } = require('./signup-flow-helpers');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
+const WEB_SEARCH_FIXTURE_QUERY = 'openmates_e2e_web_fixture_ai';
 
 // ─── Log buckets ────────────────────────────────────────────────────────────
 const consoleLogs: string[] = [];
@@ -94,10 +95,14 @@ test.describe('Copy message with embeds', () => {
 		await startNewChat(page, logCheckpoint);
 		logCheckpoint('New chat started.');
 
-		// Send a query that reliably triggers a web search embed.
+		// Send a fixture-backed query that reliably triggers a web search embed.
 		// "search the web for" is an explicit skill trigger that guarantees
 		// the AI will use the web search skill and produce embed results.
-		await sendMessage(page, 'search the web for "playwright testing framework"', logCheckpoint);
+		await sendMessage(
+			page,
+			withLiveMockMarker(`search the web for "${WEB_SEARCH_FIXTURE_QUERY}"`, 'copy_message_web_search'),
+			logCheckpoint
+		);
 		logCheckpoint('Web search message sent.');
 
 		// ── Step 3: Wait for AI response with embed ────────────────

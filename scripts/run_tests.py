@@ -99,6 +99,14 @@ ACCOUNT_PREFLIGHT_SPEC = "test-account-preflight.spec.ts"
 PROVISION_AUTH_ACCOUNTS_SPEC = "cli-provision-auth-accounts.spec.ts"
 E2E_CREDIT_GUARD_DEFAULT_MINIMUM = 20_000
 E2E_CREDIT_GUARD_DEFAULT_TARGET = 50_000
+BACKEND_LIVE_MOCK_PREFLIGHT_CONTAINERS = (
+    "api",
+    "app-ai-worker",
+    "task-worker",
+    "app-images-worker",
+    "app-videos-worker",
+)
+BACKEND_LIVE_MOCK_PREFLIGHT_DISABLED_VALUES = {"0", "false", "False", "no", "NO"}
 RESERVED_PLAYWRIGHT_ACCOUNTS_BY_SPEC = {
     "account-recovery-flow.spec.ts": 14,
     "backup-code-login-flow.spec.ts": 15,
@@ -458,6 +466,62 @@ def _get_env(key: str, dot_env: Optional[dict] = None, default: str = "") -> str
     if not val and dot_env:
         val = dot_env.get(key, "")
     return val or default
+
+
+def _docker_container_env(container: str, key: str) -> tuple[Optional[str], Optional[str]]:
+    try:
+        proc = subprocess.run(
+            ["docker", "exec", container, "printenv", key],
+            cwd=str(PROJECT_ROOT),
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+    except FileNotFoundError:
+        return None, "docker CLI is unavailable"
+    except subprocess.TimeoutExpired:
+        return None, f"docker exec {container} printenv {key} timed out"
+
+    if proc.returncode != 0:
+        detail = (proc.stderr or proc.stdout or f"{key} is unset").strip()
+        return None, detail[:200]
+    return proc.stdout.strip(), None
+
+
+def _development_backend_live_mock_preflight_error() -> Optional[str]:
+    if os.getenv("OPENMATES_E2E_BACKEND_MOCK_PREFLIGHT", "1") in BACKEND_LIVE_MOCK_PREFLIGHT_DISABLED_VALUES:
+        _log("Backend live-mock preflight disabled via OPENMATES_E2E_BACKEND_MOCK_PREFLIGHT", "WARN")
+        return None
+
+    problems: list[str] = []
+    for container in BACKEND_LIVE_MOCK_PREFLIGHT_CONTAINERS:
+        values: dict[str, str] = {}
+        read_errors: set[str] = set()
+        for key in ("SERVER_ENVIRONMENT", "MOCK_EXTERNAL_APIS"):
+            value, error = _docker_container_env(container, key)
+            if error:
+                problems.append(f"{container}: cannot read {key} ({error})")
+                read_errors.add(key)
+                continue
+            values[key] = value or ""
+
+        server_env = values.get("SERVER_ENVIRONMENT", "").strip().lower()
+        mock_external_apis = values.get("MOCK_EXTERNAL_APIS", "").strip()
+        if "SERVER_ENVIRONMENT" not in read_errors and server_env in {"", "production", "prod"}:
+            problems.append(f"{container}: SERVER_ENVIRONMENT={values.get('SERVER_ENVIRONMENT') or '<unset>'}")
+        if "MOCK_EXTERNAL_APIS" not in read_errors and mock_external_apis != "true":
+            problems.append(f"{container}: MOCK_EXTERNAL_APIS={mock_external_apis or '<unset>'}")
+
+    if not problems:
+        return None
+
+    joined = "; ".join(problems)
+    return (
+        "Backend live-mock preflight failed. Playwright was about to dispatch with "
+        "cached live mocks enabled, but dev backend containers would ignore live-mock markers: "
+        f"{joined}. Set MOCK_EXTERNAL_APIS=true, restart the affected dev services, or run "
+        "with --no-mocks for an intentional real-provider run."
+    )
 
 
 def _vercel_project_config() -> tuple[str, str]:
@@ -5793,6 +5857,24 @@ class TestOrchestrator:
                 reserved = " reserved" if spec in RESERVED_PLAYWRIGHT_ACCOUNTS_BY_SPEC else ""
                 print(f"    account {account:02d}{reserved}  {spec}")
             return SuiteResult(status="skipped", reason="dry run")
+
+        if self.environment == "development" and self.use_mocks:
+            backend_mock_error = _development_backend_live_mock_preflight_error()
+            if backend_mock_error:
+                return SuiteResult(
+                    status="failed",
+                    tests=[
+                        {
+                            "name": "backend-live-mock-preflight",
+                            "file": "scripts/run_tests.py",
+                            "status": "failed",
+                            "duration_seconds": 0,
+                            "error": backend_mock_error,
+                        },
+                        *_not_started_playwright_specs(specs, backend_mock_error),
+                    ],
+                    reason=backend_mock_error,
+                )
 
         if self.environment == "development":
             deployment_ready, deployment_reason = _wait_for_vercel_deployment(self.git_sha, self.dot_env)

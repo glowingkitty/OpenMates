@@ -37,6 +37,8 @@ const {
 	closeFullscreen
 } = require('./helpers/embed-test-helpers');
 
+const WEB_SEARCH_FIXTURE_QUERY = 'openmates_e2e_web_fixture_ai';
+
 function isBraveQuotaFailure(result: { stderr: string }): boolean {
 	return /Brave Search API error: 429/.test(result.stderr) && /QUOTA_LIMITED/.test(result.stderr);
 }
@@ -63,7 +65,15 @@ test.describe('App: Web / Skill: search', () => {
 			'OPENMATES_TEST_ACCOUNT_API_KEY required.'
 		);
 
-		const result = await runCli(apiUrl, ['apps', 'web', 'search', 'OpenMates AI assistant']);
+		const result = await runCli(
+			apiUrl,
+			[
+				'apps', 'web', 'search',
+				'--input', JSON.stringify({ requests: [{ query: WEB_SEARCH_FIXTURE_QUERY }] }),
+				'--json'
+			],
+			30_000
+		);
 		test.skip(
 			isBraveQuotaFailure(result),
 			'Brave Search provider quota exhausted; direct provider contract cannot run in this environment.'
@@ -81,7 +91,7 @@ test.describe('App: Web / Skill: search', () => {
 			'OPENMATES_TEST_ACCOUNT_API_KEY required.'
 		);
 
-		const message = withLiveMockMarker('Search the web for OpenMates AI assistant', 'web_search_cli');
+		const message = withLiveMockMarker(`Search the web for ${WEB_SEARCH_FIXTURE_QUERY}`, 'web_search_cli');
 		const result = await runCli(apiUrl, ['chats', 'new', message, '--json'], 60_000);
 		expectCliSuccess(result);
 
@@ -216,7 +226,7 @@ test.describe('App: Web / Skill: search', () => {
 		await startNewChat(page, logCheckpoint);
 
 		const message = withLiveMockMarker(
-			'Search the web for OpenMates AI assistant',
+			`Search the web for ${WEB_SEARCH_FIXTURE_QUERY}`,
 			'web_search_web'
 		);
 		await sendMessage(page, message, logCheckpoint, takeStepScreenshot, 'web-search');

@@ -29,6 +29,10 @@ from backend.shared.providers.youtube.youtube_metadata import (
     get_video_metadata_batched,
     get_channel_thumbnails_batched,
 )
+from backend.apps.web.skills.search_fixture import (
+    build_e2e_web_fixture_results,
+    is_e2e_web_fixture_query,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -411,6 +415,14 @@ class SearchSkill(BaseSkill):
             req_country = req_country_upper
         
         logger.debug(f"Executing search (id: {request_id}): query='{search_query}', country='{req_country}', result_filter='{req_result_filter}'")
+        if is_e2e_web_fixture_query(search_query):
+            fixture_results = build_e2e_web_fixture_results(req_count)
+            logger.info(
+                "Web search (id: %s) using dev/test fixture results for query '%s'",
+                request_id,
+                search_query,
+            )
+            return (request_id, fixture_results, None)
         
         try:
             # Check and enforce rate limits before calling external API

@@ -187,6 +187,14 @@ async def _request_with_429_retry(
                         fallback_label,
                     )
                 break
+            if quota_limited:
+                logger.warning(
+                    "Brave %s search monthly quota exhausted for query '%s'. "
+                    "No fallback key is available; failing without retrying the same exhausted key.",
+                    search_type,
+                    query,
+                )
+                response.raise_for_status()
             
             # 429 Too Many Requests — wait and retry
             if retries_exhausted:

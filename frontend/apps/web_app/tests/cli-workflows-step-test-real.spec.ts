@@ -23,6 +23,8 @@ const {
 } = require('./helpers/workflow-cli-e2e-helpers');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
+const WEB_SEARCH_FIXTURE_QUERY = 'openmates_e2e_web_fixture_ai';
+const NEWS_SEARCH_FIXTURE_QUERY = 'openmates_e2e_news_fixture_ai';
 
 test.describe('CLI Workflows real step tests', () => {
 	test.setTimeout(420_000);
@@ -46,7 +48,7 @@ steps:
     use_app_skill: web.search
     input:
       requests:
-        - query: OpenMates
+        - query: ${WEB_SEARCH_FIXTURE_QUERY}
           count: 1
   - id: weather
     use_app_skill: weather.forecast
@@ -55,7 +57,7 @@ steps:
     use_app_skill: news.search
     input:
       requests:
-        - query: OpenMates
+        - query: ${NEWS_SEARCH_FIXTURE_QUERY}
           count: 1
   - id: events
     use_app_skill: events.search

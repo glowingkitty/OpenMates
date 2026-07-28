@@ -80,6 +80,37 @@ async def test_monthly_quota_exhaustion_uses_paid_fallback() -> None:
     assert [call["X-Subscription-Token"] for call in client.calls] == ["free-key", "paid-key"]
 
 
+async def test_monthly_quota_exhaustion_without_fallback_fails_without_retry(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    free_quota_response = _response(
+        429,
+        {
+            "error": {
+                "code": "QUOTA_LIMITED",
+                "detail": "Request quota limit exceeded for plan.",
+                "meta": {"plan": "Free AI", "quota_limit": 2000, "quota_current": 2001},
+            }
+        },
+    )
+    client = _FakeClient([free_quota_response])
+    sleep_mock = AsyncMock()
+    monkeypatch.setattr("backend.shared.providers.brave.brave_search.asyncio.sleep", sleep_mock)
+
+    with pytest.raises(httpx.HTTPStatusError):
+        await _request_with_429_retry(
+            client=client,
+            url="https://api.search.brave.com/res/v1/web/search",
+            params={"q": "OpenMates"},
+            headers={"X-Subscription-Token": "free-key"},
+            query="OpenMates",
+            search_type="web",
+        )
+
+    assert [call["X-Subscription-Token"] for call in client.calls] == ["free-key"]
+    sleep_mock.assert_not_awaited()
+
+
 async def test_transient_rate_limit_retries_without_paid_fallback(monkeypatch: pytest.MonkeyPatch) -> None:
     transient_response = _response(
         429,

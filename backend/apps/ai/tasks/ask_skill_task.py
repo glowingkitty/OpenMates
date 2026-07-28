@@ -2338,6 +2338,7 @@ async def _async_process_ai_skill_ask_task(
                         secrets_manager=secrets_manager,
                         task_id=task_id,
                         language=_inspiration_language,
+                        directus_service=directus_service_instance,
                     )
                 except Exception as e_first_run:
                     # Non-fatal: daily inspiration generation is a best-effort feature
