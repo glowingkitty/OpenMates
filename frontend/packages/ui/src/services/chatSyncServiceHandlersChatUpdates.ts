@@ -1803,11 +1803,36 @@ export async function handleEncryptedChatMetadataImpl(
         );
       } else if (cachedKey) {
         // Genuinely different raw key — this is a real key rotation (e.g. hidden chat toggle).
-        // Clear the cached key so the new one is loaded on next access.
+        // Clear the cached key and accept the incoming key before any validation can
+        // call withKey(), otherwise withKey() may reload the stale IndexedDB key.
         console.info(
-          `[ChatSyncService:ChatUpdates] encrypted_chat_key changed for chat ${payload.chat_id} (raw key differs) — clearing cached key`,
+          `[ChatSyncService:ChatUpdates] encrypted_chat_key changed for chat ${payload.chat_id} (raw key differs) — accepting incoming key`,
         );
         chatDB.clearChatKey(payload.chat_id);
+        try {
+          const rawKey = await chatKeyManager.receiveKeyFromServer(
+            payload.chat_id,
+            payload.encrypted_chat_key,
+          );
+          if (rawKey) {
+            console.info(
+              `[ChatSyncService:ChatUpdates] Accepted rotated key for chat ${payload.chat_id} — ` +
+                `flushing pending messages`,
+            );
+            await flushPendingMessagesForChat(payload.chat_id);
+            await flushPendingSystemMessagesForChat(payload.chat_id);
+          } else {
+            console.warn(
+              `[ChatSyncService:ChatUpdates] Rotated key delivery for chat ${payload.chat_id} — ` +
+                `decryptChatKeyWithMasterKey returned null (master key unavailable?)`,
+            );
+          }
+        } catch (e) {
+          console.error(
+            `[ChatSyncService:ChatUpdates] Failed to decrypt rotated key for chat ${payload.chat_id}:`,
+            e,
+          );
+        }
       } else {
         // FIRST-TIME KEY DELIVERY: No cached key existed — this is a secondary device
         // receiving the chat key for the first time (e.g. brand-new chat created on

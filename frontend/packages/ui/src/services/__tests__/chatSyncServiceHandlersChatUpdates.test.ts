@@ -23,6 +23,7 @@ const mocks = vi.hoisted(() => ({
     updateChat: vi.fn(),
     saveMessage: vi.fn(),
     getMessage: vi.fn(),
+    clearChatKey: vi.fn(),
   },
   userDB: {
     getUserProfile: vi.fn(),
@@ -56,6 +57,8 @@ const mocks = vi.hoisted(() => ({
   ensureChatKeySafeForWrite: vi.fn(),
   encryptWithChatKey: vi.fn(),
   decryptWithChatKey: vi.fn(),
+  decryptChatKeyWithMasterKey: vi.fn(),
+  encryptChatKeyWithMasterKey: vi.fn(),
   flushPendingSystemMessagesForChat: vi.fn(),
 }));
 
@@ -72,6 +75,10 @@ vi.mock("../chatKeyWriteGuard", () => ({
 vi.mock("../encryption/MessageEncryptor", () => ({
   encryptWithChatKey: mocks.encryptWithChatKey,
   decryptWithChatKey: mocks.decryptWithChatKey,
+}));
+vi.mock("../encryption/MetadataEncryptor", () => ({
+  decryptChatKeyWithMasterKey: mocks.decryptChatKeyWithMasterKey,
+  encryptChatKeyWithMasterKey: mocks.encryptChatKeyWithMasterKey,
 }));
 vi.mock("../chatSyncServiceHandlersAppSettings", () => ({
   flushPendingSystemMessagesForChat: mocks.flushPendingSystemMessagesForChat,
@@ -166,8 +173,11 @@ describe("handleEncryptedChatMetadataImpl", () => {
     mocks.chatDB.getChat.mockResolvedValue(null);
     mocks.chatDB.addChat.mockResolvedValue(undefined);
     mocks.chatDB.updateChat.mockResolvedValue(undefined);
+    mocks.chatDB.clearChatKey.mockReturnValue(undefined);
     mocks.userDB.getUserProfile.mockResolvedValue({ user_id: "user-1" });
     mocks.chatKeyManager.getKeySync.mockReturnValue(null);
+    mocks.decryptChatKeyWithMasterKey.mockResolvedValue(new Uint8Array([1, 2, 3]));
+    mocks.encryptChatKeyWithMasterKey.mockResolvedValue("encrypted-chat-key");
     mocks.chatKeyManager.receiveKeyFromServer.mockResolvedValue(
       new Uint8Array([1, 2, 3]),
     );
@@ -290,6 +300,73 @@ describe("handleEncryptedChatMetadataImpl", () => {
       }),
     );
     expect(mocks.chatDB.addChat).not.toHaveBeenCalled();
+  });
+
+  it("accepts a mismatched incoming metadata key before validating encrypted fields", async () => {
+    const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+    const staleKey = new Uint8Array([9, 9, 9]);
+    const incomingKey = new Uint8Array([1, 2, 3]);
+    const callOrder: string[] = [];
+
+    mocks.chatDB.getChat.mockResolvedValue({
+      chat_id: "chat-key-race",
+      encrypted_title: "old-title",
+      encrypted_chat_key: "old-encrypted-chat-key",
+      messages_v: 1,
+      title_v: 1,
+      metadata_v: 1,
+      draft_v: 0,
+      last_edited_overall_timestamp: 100,
+      unread_count: 0,
+      created_at: 100,
+      updated_at: 100,
+    });
+    mocks.chatKeyManager.getKeySync.mockReturnValue(staleKey);
+    mocks.decryptChatKeyWithMasterKey.mockResolvedValue(incomingKey);
+    mocks.chatDB.clearChatKey.mockImplementation(() => {
+      callOrder.push("clear");
+    });
+    mocks.chatKeyManager.receiveKeyFromServer.mockImplementation(async () => {
+      callOrder.push("receive");
+      return incomingKey;
+    });
+    mocks.chatKeyManager.withKey.mockImplementation(
+      async (
+        _chatId: string,
+        _reason: string,
+        callback: (key: Uint8Array) => Promise<void>,
+      ) => {
+        callOrder.push("withKey");
+        await callback(
+          mocks.chatKeyManager.receiveKeyFromServer.mock.calls.length > 0
+            ? incomingKey
+            : staleKey,
+        );
+      },
+    );
+    mocks.decryptWithChatKey.mockResolvedValue("decrypts");
+
+    await handleEncryptedChatMetadataImpl(service, {
+      chat_id: "chat-key-race",
+      encrypted_chat_key: "new-encrypted-chat-key",
+      encrypted_title: "new-title",
+      versions: {
+        messages_v: 1,
+        title_v: 2,
+        metadata_v: 2,
+        draft_v: 0,
+      },
+    });
+
+    expect(callOrder).toEqual(["clear", "receive", "withKey"]);
+    expect(mocks.decryptWithChatKey).toHaveBeenCalledWith("new-title", incomingKey);
+    expect(mocks.chatDB.updateChat).toHaveBeenCalledWith(
+      expect.objectContaining({
+        chat_id: "chat-key-race",
+        encrypted_chat_key: "new-encrypted-chat-key",
+        encrypted_title: "new-title",
+      }),
+    );
   });
 });
 
