@@ -28,6 +28,7 @@ const noopLog = (_message: string, _metadata?: Record<string, unknown>): void =>
 
 type LastSendState = {
 	assistantCount: number;
+	assistantMessageIds: string[];
 	assistantLastText: string;
 };
 
@@ -35,6 +36,14 @@ const lastSendStateByPage = new WeakMap<object, LastSendState>();
 
 async function locatorCount(locator: any): Promise<number> {
 	return locator.count().catch(() => 0);
+}
+
+async function locatorMessageIds(locator: any): Promise<string[]> {
+	return locator.evaluateAll((elements: Element[]) =>
+		elements
+			.map((element) => element.getAttribute('data-message-id') ?? '')
+			.filter((messageId): messageId is string => messageId.length > 0)
+	).catch(() => []);
 }
 
 function visibleMessageAnchors(message: string): string[] {
@@ -708,6 +717,7 @@ async function sendMessage(
 	const assistantMessages = page.getByTestId('message-assistant');
 	const userCountBeforeSend = await locatorCount(userMessages);
 	const assistantCountBeforeSend = await locatorCount(assistantMessages);
+	const assistantMessageIdsBeforeSend = await locatorMessageIds(assistantMessages);
 	const assistantLastTextBeforeSend = assistantCountBeforeSend > 0
 		? ((await assistantMessages.last()
 			.textContent({ timeout: 1000 })
@@ -930,6 +940,7 @@ async function sendMessage(
 			await waitForNewChatSendContext(page, startedFromNewChat, logCheckpoint);
 			lastSendStateByPage.set(page, {
 				assistantCount: assistantCountBeforeSend,
+				assistantMessageIds: assistantMessageIdsBeforeSend,
 				assistantLastText: assistantLastTextBeforeSend
 			});
 			logCheckpoint('Message send accepted after synthetic send fallback.', {
@@ -949,6 +960,7 @@ async function sendMessage(
 	await waitForNewChatSendContext(page, startedFromNewChat, logCheckpoint);
 	lastSendStateByPage.set(page, {
 		assistantCount: assistantCountBeforeSend,
+		assistantMessageIds: assistantMessageIdsBeforeSend,
 		assistantLastText: assistantLastTextBeforeSend
 	});
 	logCheckpoint('Message send accepted after send.', {
@@ -1177,10 +1189,20 @@ async function waitForAssistantMessage(
 			typeof nth === 'number'
 				? Math.max(nth + 1, lastSendState.assistantCount + 1)
 				: Math.min(lastSendState.assistantCount + 1, currentAssistantCount + 1);
+		const previousAssistantMessageIds = new Set(lastSendState.assistantMessageIds);
 		await expect
 			.poll(async () => {
 				const assistantCount = await locatorCount(assistantMessages);
 				if (assistantCount >= minimumAssistantCount) return true;
+
+				// New-chat sends can replace old chat bubbles with a shorter fresh history.
+				// Detect that response by ID instead of requiring the old count to grow.
+				if (previousAssistantMessageIds.size > 0 && assistantCount > 0) {
+					const assistantMessageIds = await locatorMessageIds(assistantMessages);
+					if (assistantMessageIds.some((messageId) => !previousAssistantMessageIds.has(messageId))) {
+						return true;
+					}
+				}
 
 				// ChatHistory merges adjacent assistant continuations into one bubble.
 				// In that case the count stays stable, but the last assistant text expands.
