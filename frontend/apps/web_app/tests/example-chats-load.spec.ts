@@ -173,6 +173,8 @@ test.describe('Example chats loading for new users', () => {
 
 		const allExamplesView = page.getByTestId('guest-all-examples-view');
 		await expect(allExamplesView).toBeVisible({ timeout: 10000 });
+		await expect(allExamplesView.getByText('Explore real OpenMates chats')).toHaveCount(0);
+		await expect(allExamplesView.getByText('Pick one to see how the workspace feels in practice.')).toHaveCount(0);
 
 		const allExampleCards = allExamplesView.getByTestId('resume-chat-large-card');
 		await expect.poll(async () => allExampleCards.count(), {
@@ -183,14 +185,24 @@ test.describe('Example chats loading for new users', () => {
 		await expect(allExamplesView.locator('[data-chat-id="example-screenshot-to-html-pricing"]')).toBeVisible({ timeout: 10000 });
 
 		const backToRecent = page.getByTestId('guest-all-examples-back');
+		const searchAllExamples = page.getByTestId('guest-all-examples-search');
 		await expect(backToRecent).toBeVisible({ timeout: 10000 });
+		await expect(searchAllExamples).toBeVisible({ timeout: 10000 });
+		await expect(backToRecent).toHaveCSS('box-shadow', 'none');
+		await expect(searchAllExamples).toHaveCSS('box-shadow', 'none');
+		await expect(backToRecent).toHaveCSS('text-shadow', 'none');
+		await expect(searchAllExamples).toHaveCSS('text-shadow', 'none');
+
+		const firstCardTop = await allExampleCards.first().evaluate((node: HTMLElement) => node.getBoundingClientRect().top);
+		expect(firstCardTop, 'All examples should start near the visible content top, without the guest intro banner reserve gap.').toBeLessThan(420);
+
 		await backToRecent.click();
 		await expect(allExamplesView).toHaveCount(0);
 		await expect(page.getByTestId('guest-show-all-examples')).toBeVisible({ timeout: 10000 });
 
 		await page.getByTestId('guest-show-all-examples').click();
 		await expect(page.getByTestId('guest-all-examples-view')).toBeVisible({ timeout: 10000 });
-		const searchAllExamples = page.getByTestId('guest-all-examples-search');
+
 		await expect(searchAllExamples).toBeVisible({ timeout: 10000 });
 		await searchAllExamples.click();
 
