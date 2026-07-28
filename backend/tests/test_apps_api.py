@@ -17,7 +17,7 @@ from pathlib import Path
 
 import pytest
 import yaml
-from fastapi import FastAPI, HTTPException, Response
+from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.testclient import TestClient
 from pydantic import BaseModel, Field
 
@@ -409,6 +409,108 @@ def test_code_run_app_skill_route_starts_direct_run(monkeypatch) -> None:
     assert captured["target_embed_id"] is None
     assert captured["target_path"] == "main.py"
     assert captured["enable_internet"] is True
+
+
+def test_code_run_app_skill_route_preserves_api_key_attribution(monkeypatch) -> None:
+    captured: dict[str, object] = {}
+    user = User(id="user-1", username="alice", vault_key_id="vault-1", credits=10)
+    user_info = {
+        "auth_source": "api_key",
+        "user_id": user.id,
+        "api_key_encrypted_name": "key-name",
+        "api_key_hash": "api-key-hash",
+        "api_key_metadata": {
+            "full_access": False,
+            "scopes": {"apps": {"mode": "selected", "allowed_skills": ["code:run"]}},
+        },
+        "device_hash": "device-hash",
+    }
+
+    async def fake_auth(request: Request):
+        request.state.auth_info = user_info
+        request.state.auth_source = "api_key"
+        request.state.api_key_metadata = user_info["api_key_metadata"]
+        return user
+
+    async def fake_start_code_run_execution(**kwargs):
+        captured["start"] = kwargs
+        return code_execution.CodeRunStartResponse(
+            execution_id="exec-1",
+            status="queued",
+            target_filename="main.py",
+            files=["main.py"],
+        )
+
+    async def fake_require_api_key_budget_for_charge(_directus_service, *, user_info, requested_credits):
+        captured["budget"] = {"user_info": user_info, "requested_credits": requested_credits}
+
+    app = FastAPI()
+    monkeypatch.setitem(sys.modules, "backend.core.api.app.routes.code_execution", code_execution)
+    app.dependency_overrides[get_current_user_or_api_key] = fake_auth
+    app.dependency_overrides[apps_api.get_cache_service] = lambda: object()
+    app.dependency_overrides[apps_api.get_directus_service] = lambda: object()
+    app.dependency_overrides[apps_api.get_encryption_service] = lambda: object()
+
+    monkeypatch.setattr(code_execution, "start_code_run_execution", fake_start_code_run_execution)
+    monkeypatch.setattr(apps_api, "require_api_key_budget_for_charge", fake_require_api_key_budget_for_charge)
+    apps_api._register_code_custom_routes(app, "code")
+
+    response = TestClient(app).post(
+        "/v1/apps/code/skills/run",
+        json={
+            "requests": [{
+                "entry_path": "main.py",
+                "files": [{"path": "main.py", "content_base64": _b64("print('ok')\n"), "language": "python"}],
+            }]
+        },
+    )
+
+    assert response.status_code == 200
+    budget = captured["budget"]
+    assert budget["requested_credits"] == code_execution.RUN_CREDITS_PER_MINUTE
+    assert budget["user_info"]["api_key_hash"] == "api-key-hash"
+    assert budget["user_info"]["api_key_metadata"] == user_info["api_key_metadata"]
+    assert budget["user_info"]["device_hash"] == "device-hash"
+    assert captured["start"]["api_key_hash"] == "api-key-hash"
+    assert captured["start"]["device_hash"] == "device-hash"
+
+
+def test_internal_skill_omits_generic_rest_routes() -> None:
+    app_yml = AppYAML.model_validate({
+        "id": "workflows",
+        "name_translation_key": "apps.workflows",
+        "description_translation_key": "apps.workflows.description",
+        "skills": [{
+            "id": "run",
+            "name_translation_key": "app_skills.workflows.run",
+            "description_translation_key": "app_skills.workflows.run.description",
+            "internal": True,
+            "tool_schema": {
+                "type": "object",
+                "properties": {"workflow_id": {"type": "string"}},
+                "required": ["workflow_id"],
+            },
+        }],
+    })
+    app = FastAPI()
+
+    apps_api.register_app_and_skill_routes(app, {"workflows": app_yml})
+
+    internal_skill_routes = [route for route in app.routes if route.path == "/v1/apps/workflows/skills/run"]
+    assert internal_skill_routes == []
+
+
+def test_internal_skill_policy_blocks_direct_rest_dispatch() -> None:
+    registry = types.SimpleNamespace(
+        get_metadata=lambda _app_id: types.SimpleNamespace(
+            skills=[types.SimpleNamespace(id="run", internal=True, api_config=None)]
+        )
+    )
+
+    with pytest.raises(HTTPException) as exc_info:
+        apps_api.assert_rest_skill_execution_allowed(registry, "workflows", "run")
+
+    assert exc_info.value.status_code == 403
 
 
 def test_apps_api_uses_image_to_html_result_declared_credits() -> None:

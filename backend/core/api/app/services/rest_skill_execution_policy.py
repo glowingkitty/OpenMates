@@ -14,7 +14,7 @@ from fastapi import HTTPException
 
 
 def assert_rest_skill_execution_allowed(registry: Any, app_id: str, skill_id: str) -> None:
-    """Block REST helper execution for skills whose POST endpoint is disabled."""
+    """Block REST helper execution for skills that are not generic REST surfaces."""
 
     get_metadata = getattr(registry, "get_metadata", None)
     if not callable(get_metadata):
@@ -25,6 +25,11 @@ def assert_rest_skill_execution_allowed(registry: Any, app_id: str, skill_id: st
     for skill in app_metadata.skills or []:
         if skill.id != skill_id:
             continue
+        if getattr(skill, "internal", False):
+            raise HTTPException(
+                status_code=403,
+                detail="This skill is internal and cannot be executed via the REST API.",
+            )
         if skill.api_config and not skill.api_config.expose_post:
             raise HTTPException(
                 status_code=403,

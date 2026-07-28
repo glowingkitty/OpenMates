@@ -216,6 +216,19 @@ def test_sensitive_logging_audit_allows_counts() -> None:
     assert issues == []
 
 
+def test_webhook_key_generation_uses_web_crypto() -> None:
+    """Webhook bearer secrets must use CSPRNG randomness, never Math.random()."""
+
+    source = (
+        REPO_ROOT
+        / "frontend/packages/ui/src/components/settings/developers/SettingsWebhooks.svelte"
+    ).read_text(encoding="utf-8")
+    function_body = source.split("function generateWebhookKey()", 1)[1].split("async function hashKey", 1)[0]
+
+    assert "crypto.getRandomValues" in function_body
+    assert "Math.random" not in function_body
+
+
 def test_opencode_budget_audit_blocks_unbounded_permission_skip(tmp_path, monkeypatch) -> None:
     """Permission-skipping OpenCode automation needs budget and approval controls."""
 

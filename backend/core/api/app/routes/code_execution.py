@@ -1243,6 +1243,8 @@ async def start_code_run_execution(
     target_embed_id: str | None,
     message_id: str | None,
     dependency_installs: list[CodeRunDependencyInstall],
+    api_key_hash: str | None = None,
+    device_hash: str | None = None,
 ) -> CodeRunStartResponse:
     if current_user.credits < RUN_CREDITS_PER_MINUTE:
         raise HTTPException(status_code=402, detail="Not enough credits to run code")
@@ -1300,6 +1302,8 @@ async def start_code_run_execution(
         "enable_internet": enable_internet,
         "files": files,
         "dependency_installs": [install.model_dump() for install in dependency_installs],
+        "api_key_hash": api_key_hash,
+        "device_hash": device_hash,
         "active_run_key": active_key,
         "active_run_owner": execution_id,
         "provider_active_run_key": _provider_active_run_key(),

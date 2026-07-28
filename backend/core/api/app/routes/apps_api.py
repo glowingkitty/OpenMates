@@ -251,6 +251,40 @@ async def get_session_or_api_key_info(
 SessionOrApiKeyAuth = Depends(get_session_or_api_key_info)
 
 
+def _custom_route_user_info(request: Request | None, user: Any) -> Dict[str, Any]:
+    """Return the full auth context for custom app routes that receive a User."""
+
+    user_id = user.id if hasattr(user, "id") else str(user)
+    auth_info = getattr(getattr(request, "state", None), "auth_info", None) or {}
+    return {
+        "user_id": user_id,
+        "api_key_encrypted_name": auth_info.get("api_key_encrypted_name", ""),
+        "api_key_hash": auth_info.get("api_key_hash"),
+        "api_key_metadata": auth_info.get("api_key_metadata"),
+        "device_hash": auth_info.get("device_hash"),
+        "is_cli": auth_info.get("is_cli", False),
+        "email": auth_info.get("email"),
+        "vault_key_id": auth_info.get("vault_key_id") or getattr(user, "vault_key_id", None),
+        "auth_source": auth_info.get("auth_source", "session"),
+    }
+
+
+def _require_api_key_app_skill_scope(user_info: Dict[str, Any], app_id: str, skill_id: str) -> None:
+    if not user_info.get("api_key_hash"):
+        return
+    try:
+        ApiKeyAuthorizationService().require_app_skill_scope(
+            user_info.get("api_key_metadata") or {},
+            app_id,
+            skill_id,
+        )
+    except ApiKeyScopeError as exc:
+        raise HTTPException(
+            status_code=403,
+            detail={"error": "missing_scope", "missing_scope": exc.missing_scope},
+        ) from exc
+
+
 async def get_encryption_service(request: Request) -> EncryptionService:
     """Get encryption service from app state"""
     return request.app.state.encryption_service
@@ -1458,6 +1492,10 @@ async def list_apps(
             # See audit finding #5.
             skills = []
             for skill in app_metadata.skills or []:
+                if getattr(skill, "internal", False):
+                    logger.debug(f"Skipping internal skill '{skill.id}' from app '{app_id}' list response")
+                    continue
+
                 # Check if skill is available based on API key configuration.
                 # When include_unavailable=True (used by CLI to match the web app's
                 # build-time static metadata), skip provider availability checks.
@@ -1679,8 +1717,14 @@ def _register_travel_custom_routes(app: FastAPI, app_name: str) -> None:
 
         Supports both session authentication (web app) and API key authentication.
         """
-        # Extract user_id from the User object (works for both session and API key auth)
-        user_id = user.id if hasattr(user, 'id') else str(user)
+        user_info = _custom_route_user_info(request, user)
+        _require_api_key_app_skill_scope(user_info, "travel", "booking_link")
+        await require_api_key_budget_for_charge(
+            directus_service,
+            user_info=user_info,
+            requested_credits=25,
+        )
+        user_id = user_info["user_id"]
 
         try:
             logger.info(
@@ -1722,6 +1766,8 @@ def _register_travel_custom_routes(app: FastAPI, app_name: str) -> None:
                     app_id="travel",
                     skill_id="booking_link",
                     usage_details=usage_details,
+                    api_key_hash=user_info.get("api_key_hash"),
+                    device_hash=user_info.get("device_hash"),
                 )
 
             return BookingLinkResponse(
@@ -1800,7 +1846,14 @@ def _register_travel_custom_routes(app: FastAPI, app_name: str) -> None:
 
         Supports both session and API key authentication.
         """
-        user_id = user.id if hasattr(user, "id") else str(user)
+        user_info = _custom_route_user_info(request, user)
+        _require_api_key_app_skill_scope(user_info, "travel", "get_flight")
+        await require_api_key_budget_for_charge(
+            directus_service,
+            user_info=user_info,
+            requested_credits=7,
+        )
+        user_id = user_info["user_id"]
 
         try:
             logger.info(
@@ -1882,6 +1935,8 @@ def _register_travel_custom_routes(app: FastAPI, app_name: str) -> None:
                 app_id="travel",
                 skill_id="get_flight",
                 usage_details=usage_details,
+                api_key_hash=user_info.get("api_key_hash"),
+                device_hash=user_info.get("device_hash"),
             )
 
             return FlightDetailsResponse(
@@ -2011,9 +2066,8 @@ def _register_audio_custom_routes(app: FastAPI, app_name: str) -> None:
 
         Supports both session authentication (webapp) and API key authentication (external).
         """
-        # Extract user_id from the User object returned by get_current_user_or_api_key.
-        # Works for both session auth (User.id) and API key auth (User.id from profile fetch).
-        user_id = user.id if hasattr(user, "id") else str(user)
+        user_info = _custom_route_user_info(request, user)
+        user_id = user_info["user_id"]
 
         try:
             logger.info(f"Audio transcribe: User {user_id[:8]}... initiating transcription")
@@ -2040,15 +2094,7 @@ def _register_audio_custom_routes(app: FastAPI, app_name: str) -> None:
             # framework reads this and passes it as user_vault_key_id kwarg to execute().
             request_body["_user_vault_key_id"] = vault_key_id
 
-            # Build a user_info dict compatible with call_app_skill's expectations.
-            # api_key_encrypted_name and api_key_hash are not available for session auth —
-            # use empty string / None as safe defaults.  The transcribe skill ignores them.
-            user_info = {
-                "user_id": user_id,
-                "api_key_encrypted_name": "",
-                "api_key_hash": None,
-                "device_hash": None,
-            }
+            user_info["vault_key_id"] = vault_key_id
 
             result = await call_app_skill(
                 app_id="audio",
@@ -2201,6 +2247,7 @@ def _register_code_custom_routes(app: FastAPI, app_name: str) -> None:
         CodeRunAppSkillResponseData,
         CodeRunAppSkillResult,
         CodeRunClientFile,
+        RUN_CREDITS_PER_MINUTE,
         collect_direct_code_run_files,
         _collect_code_files,
         _get_embed_metadata,
@@ -2215,6 +2262,13 @@ def _register_code_custom_routes(app: FastAPI, app_name: str) -> None:
         directus_service: DirectusService = Depends(get_directus_service),
         encryption_service: EncryptionService = Depends(get_encryption_service),
     ) -> CodeRunAppSkillResponse:
+        user_info = _custom_route_user_info(request, user)
+        _require_api_key_app_skill_scope(user_info, "code", "run")
+        await require_api_key_budget_for_charge(
+            directus_service,
+            user_info=user_info,
+            requested_credits=len(body.requests) * RUN_CREDITS_PER_MINUTE,
+        )
         results: list[CodeRunAppSkillResult] = []
         for item in body.requests:
             if item.mode == "direct":
@@ -2231,6 +2285,8 @@ def _register_code_custom_routes(app: FastAPI, app_name: str) -> None:
                     target_embed_id=None,
                     message_id=None,
                     dependency_installs=item.dependency_installs,
+                    api_key_hash=user_info.get("api_key_hash"),
+                    device_hash=user_info.get("device_hash"),
                 )
                 persisted_output = False
             else:
@@ -2269,6 +2325,8 @@ def _register_code_custom_routes(app: FastAPI, app_name: str) -> None:
                     target_embed_id=item.target_embed_id,
                     message_id=target_message_id if isinstance(target_message_id, str) else None,
                     dependency_installs=item.dependency_installs,
+                    api_key_hash=user_info.get("api_key_hash"),
+                    device_hash=user_info.get("device_hash"),
                 )
                 persisted_output = True
 
@@ -2358,6 +2416,10 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                     # Convert skills
                     skills = []
                     for skill in captured_app_metadata.skills or []:
+                        if getattr(skill, "internal", False):
+                            logger.debug(f"Skipping internal skill '{skill.id}' from app '{captured_app_id}' metadata response")
+                            continue
+
                         skill_name = resolve_translation(
                             trans_service,
                             skill.name_translation_key,
@@ -2466,6 +2528,10 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
         
         # Register routes for each skill in the app
         for skill in app_metadata.skills or []:
+            if getattr(skill, "internal", False):
+                logger.info(f"Skipping generic REST endpoints for internal skill {app_id}/{skill.id}")
+                continue
+
             # Resolve skill name for documentation
             skill_name = resolve_translation(
                 translation_service,

@@ -13,6 +13,7 @@ from types import ModuleType, SimpleNamespace
 from typing import Any
 
 import pytest
+from fastapi import HTTPException
 
 pytest.importorskip("redis.asyncio", reason="apps_api imports backend service dependencies")
 pytest.importorskip("celery", reason="skill_registry imports backend app dependencies")
@@ -39,15 +40,16 @@ from backend.core.api.app.services import skill_registry  # noqa: E402
 
 
 class FakeRegistry:
-    def __init__(self) -> None:
+    def __init__(self, skills: list[Any] | None = None) -> None:
         self.calls: list[tuple[str, str, dict[str, Any]]] = []
+        self.skills = skills or []
 
     async def dispatch_skill(self, app_id: str, skill_id: str, request: dict[str, Any]) -> dict[str, Any]:
         self.calls.append((app_id, skill_id, request))
         return {"success": True, "results": []}
 
     def get_metadata(self, app_id: str):
-        return SimpleNamespace(id=app_id, skills=[])
+        return SimpleNamespace(id=app_id, skills=self.skills)
 
 
 @pytest.mark.anyio
@@ -159,3 +161,24 @@ async def test_call_app_skill_passes_output_safety_dependencies(
     assert captured_contexts[0].external_data is True
     assert captured_contexts[0].secrets_manager is secrets_manager
     assert captured_contexts[0].cache_service is cache_service
+
+
+@pytest.mark.anyio
+async def test_call_app_skill_blocks_internal_skills_before_dispatch(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    registry = FakeRegistry(skills=[SimpleNamespace(id="run", internal=True, api_config=None)])
+
+    monkeypatch.setattr(skill_registry, "get_global_registry", lambda: registry)
+
+    with pytest.raises(HTTPException) as exc_info:
+        await apps_api.call_app_skill(
+            "workflows",
+            "run",
+            {"workflow_id": "wf-1"},
+            {},
+            {"user_id": "user-1", "api_key_hash": None, "device_hash": "device-1"},
+        )
+
+    assert exc_info.value.status_code == 403
+    assert registry.calls == []
