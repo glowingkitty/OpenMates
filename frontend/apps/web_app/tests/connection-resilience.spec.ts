@@ -201,17 +201,8 @@ async function sendMessageUntilChatIdAssigned(
 	protocolEvents: Array<{ direction: 'sent' | 'received'; type: string }> = []
 ): Promise<string> {
 	const eventStartIndex = protocolEvents.length;
-	const messageField = page.getByTestId('message-field').last();
-	const messageEditor = messageField.getByTestId('message-editor');
-	await expect(messageEditor).toBeVisible({ timeout: 30000 });
-	await messageEditor.click();
-	await page.keyboard.insertText(message);
-	logCheckpoint(`Typed recovery message: "${message}"`);
-
-	const sendButton = messageField.locator('[data-action="send-message"]');
-	await expect(sendButton).toBeVisible({ timeout: 5000 });
-	await sendButton.click({ timeout: 5000 });
-	logCheckpoint('Clicked recovery send button; waiting for chat_message_added dispatch before closing origin.');
+	await sendMessage(page, message, logCheckpoint);
+	logCheckpoint('Recovery message sent; waiting for chat_message_added dispatch before closing origin.');
 
 	await expect(page).toHaveURL(/chat-id=[a-zA-Z0-9-]+/, { timeout: 30000 });
 	await expect
