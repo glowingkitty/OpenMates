@@ -108,8 +108,9 @@ jobs:
               --api-url "$API_URL"; then
               login_status=0
               break
+            else
+              login_status=$?
             fi
-            login_status=$?
             if [ "$attempt" -eq 3 ]; then
               exit "$login_status"
             fi

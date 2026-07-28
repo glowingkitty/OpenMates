@@ -43,5 +43,13 @@ def test_signup_invite_secret_is_scoped_to_invite_required_specs() -> None:
         "|| github.event.inputs.spec == 'create-test-account.spec.ts') "
         "&& secrets.E2E_SIGNUP_INVITE_CODE || '' }}"
     ) in workflow
-    assert "OPENMATES_TEST_ACCOUNT_API_KEY: ${{ secrets.OPENMATES_TEST_ACCOUNT_API_KEY }}" in workflow
+    assert 'echo "OPENMATES_TEST_ACCOUNT_API_KEY=${{ secrets.OPENMATES_TEST_ACCOUNT_API_KEY }}" >> "$GITHUB_ENV"' in workflow
+    assert 'echo "OPENMATES_TEST_ACCOUNT_API_KEY=$api_key" >> "$GITHUB_ENV"' in workflow
     assert "/v1/auth/e2e/restore_signup_invite_code" not in workflow
+
+
+def test_cli_account_login_failure_exits_with_original_status() -> None:
+    workflow = WORKFLOW_PATH.read_text(encoding="utf-8")
+
+    assert "else\n              login_status=$?" in workflow
+    assert "exit \"$login_status\"" in workflow
