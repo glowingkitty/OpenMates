@@ -22,6 +22,7 @@ const mocks = vi.hoisted(() => ({
     addChat: vi.fn(),
     updateChat: vi.fn(),
     saveMessage: vi.fn(),
+    getMessage: vi.fn(),
   },
   userDB: {
     getUserProfile: vi.fn(),
@@ -417,6 +418,7 @@ describe("handleChatMessageReceivedImpl", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.chatDB.saveMessage.mockResolvedValue(undefined);
+    mocks.chatDB.getMessage.mockResolvedValue(null);
     mocks.chatDB.updateChat.mockResolvedValue(undefined);
     mocks.chatKeyManager.getKeySync.mockReturnValue(new Uint8Array([1, 2, 3]));
     mocks.incognitoChatService.getChat.mockResolvedValue(null);
