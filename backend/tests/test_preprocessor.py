@@ -17,6 +17,9 @@ try:
         _contains_image_to_html_intent_in_user_history,
         _contains_rain_radar_intent_in_user_history,
         _contains_repo_search_intent_in_user_history,
+        _request_has_image_upload_embed,
+        IMAGE_CHAT_SAFE_MODEL_ID,
+        IMAGE_CHAT_SAFE_MODEL_NAME,
         _latest_assistant_category_from_history,
         _normalize_topic_area,
         _resolve_category_from_topic_area,
@@ -303,6 +306,39 @@ class TestContainsImageToHtmlIntent:
         ]
 
         assert _contains_image_to_html_intent_in_user_history(history) is False
+
+
+class TestImageUploadEmbedDetection:
+    def test_detects_history_image_upload_toon(self):
+        request = type("Request", (), {
+            "message_history": [_user_msg("app_id: images\nskill_id: upload\nembed_ref: photo.jpg")],
+            "current_user_content": "Evaluate this design.",
+            "embed_file_path_index": None,
+        })()
+
+        assert _request_has_image_upload_embed(request) is True
+
+    def test_detects_current_turn_image_file_path_index(self):
+        request = type("Request", (), {
+            "message_history": [_user_msg("Evaluate this design.")],
+            "current_user_content": "Evaluate this design.",
+            "embed_file_path_index": {"large_message_e2e.jpg": "embed-image-1"},
+        })()
+
+        assert _request_has_image_upload_embed(request) is True
+
+    def test_ignores_non_image_file_path_index(self):
+        request = type("Request", (), {
+            "message_history": [_user_msg("Summarize this document.")],
+            "current_user_content": "Summarize this document.",
+            "embed_file_path_index": {"notes.pdf": "embed-pdf-1"},
+        })()
+
+        assert _request_has_image_upload_embed(request) is False
+
+    def test_safe_model_matches_image_reroute_contract(self):
+        assert IMAGE_CHAT_SAFE_MODEL_ID == "anthropic/claude-haiku-4-5-20251001"
+        assert IMAGE_CHAT_SAFE_MODEL_NAME == "Claude Haiku 4.5"
 
 
 # ===========================================================================

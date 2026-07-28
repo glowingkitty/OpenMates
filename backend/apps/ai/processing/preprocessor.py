@@ -62,9 +62,10 @@ SOFTWARE_DEVELOPMENT_CATEGORY = "software_development"
 ONBOARDING_FOCUS_ID = "openmates-welcome"  # active_focus_id when Welcome Onboarding is running
 USER_ROLE = "user"
 DEEPSEEK_V4_FLASH_FALLBACK = "deepseek/deepseek-v4-flash"
-IMAGE_CHAT_SAFE_MODEL_ID = "anthropic/claude-sonnet-5"
-IMAGE_CHAT_SAFE_MODEL_NAME = "Claude Sonnet 5"
+IMAGE_CHAT_SAFE_MODEL_ID = "anthropic/claude-haiku-4-5-20251001"
+IMAGE_CHAT_SAFE_MODEL_NAME = "Claude Haiku 4.5"
 IMAGE_CHAT_EXCLUDED_PROVIDER_IDS = {"google"}
+IMAGE_UPLOAD_REF_EXTENSIONS = (".jpg", ".jpeg", ".png", ".webp", ".gif")
 
 REPO_SEARCH_ACTION_PATTERN = re.compile(
     r"\b(search|find|look\s+for|discover|show\s+me|list|recommend|suggest)\b",
@@ -124,11 +125,34 @@ SAME_TOPIC_SHIFT_VALUES = {"same_topic", "unclear"}
 FOLLOW_UP_CONTINUITY_TOPIC_AREAS = {"education_learning"}
 
 
-def _message_history_has_image_upload_embed(request_data: AskSkillRequest) -> bool:
-    """Return True when chat history contains a user-uploaded image embed."""
+def _content_has_image_upload_embed(content: Any) -> bool:
+    return isinstance(content, str) and "app_id: images" in content and "skill_id: upload" in content
+
+
+def _embed_ref_is_image_upload(embed_ref: Any) -> bool:
+    return isinstance(embed_ref, str) and embed_ref.lower().strip().endswith(IMAGE_UPLOAD_REF_EXTENSIONS)
+
+
+def _request_has_image_upload_embed(request_data: AskSkillRequest) -> bool:
+    """Return True when history or current-turn metadata references an uploaded image."""
     for msg in request_data.message_history:
         content = msg.content if hasattr(msg, "content") else (msg.get("content") if isinstance(msg, dict) else None)
-        if isinstance(content, str) and "app_id: images" in content and "skill_id: upload" in content:
+        if _content_has_image_upload_embed(content):
+            return True
+
+    if _content_has_image_upload_embed(getattr(request_data, "current_user_content", None)):
+        return True
+
+    embed_file_path_index = getattr(request_data, "embed_file_path_index", None) or {}
+    if any(_embed_ref_is_image_upload(embed_ref) for embed_ref in embed_file_path_index.keys()):
+        return True
+
+    for embed in getattr(request_data, "embeds", None) or []:
+        if not isinstance(embed, dict):
+            continue
+        if embed.get("app_id") == "images" and embed.get("skill_id") == "upload":
+            return True
+        if embed.get("type") == "image" or _embed_ref_is_image_upload(embed.get("embed_ref")):
             return True
     return False
 
@@ -2287,7 +2311,7 @@ async def handle_preprocessing(
             f"China-origin models will be excluded from selection."
         )
 
-    has_image_upload_embed = _message_history_has_image_upload_embed(request_data)
+    has_image_upload_embed = _request_has_image_upload_embed(request_data)
     if has_image_upload_embed:
         logger.info(
             f"{log_prefix} IMAGE_MODEL_GUARD: Detected uploaded image embed in chat history. "
@@ -3092,7 +3116,7 @@ async def handle_preprocessing(
             if not isinstance(content, str):
                 continue
             # Quick substring checks — avoids YAML parsing overhead on plain-text messages
-            if not has_image_upload_embed and "app_id: images" in content and "skill_id: upload" in content:
+            if not has_image_upload_embed and _content_has_image_upload_embed(content):
                 has_image_upload_embed = True
             if not has_pdf_embed and "app_id: pdf" in content and "status: finished" in content:
                 has_pdf_embed = True
