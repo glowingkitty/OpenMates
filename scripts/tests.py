@@ -58,6 +58,7 @@ DEV_HEALTH_URLS = (
 PROBLEM_STATUSES = {"failed", "dispatch_error", "timeout", "result_unknown"}
 LEASE_TTL_HOURS = 8
 MAX_LINKED_FILES = 12
+MAX_IMPORTED_ERROR_CHARS = 4000
 
 CATEGORY_PRIORITY = {
     "environment_blocked": 5,
@@ -929,9 +930,252 @@ def normalize_import_run_data(
 ) -> dict[str, Any]:
     if isinstance(run_data.get("suites"), dict):
         return run_data
+    if isinstance(run_data.get("suites"), list) and isinstance(run_data.get("config"), dict):
+        return normalize_playwright_json_report(run_data, path, external_run_id=external_run_id, workflow=workflow)
     if isinstance(run_data.get("tests"), list) and isinstance(run_data.get("summary"), dict):
         return normalize_pytest_json_report(run_data, path, external_run_id=external_run_id, workflow=workflow)
     return run_data
+
+
+def normalize_playwright_json_report(
+    report: dict[str, Any],
+    path: Path,
+    external_run_id: str = "",
+    workflow: str = "",
+) -> dict[str, Any]:
+    tests_by_file: dict[str, list[dict[str, Any]]] = {}
+    for suite in report.get("suites") or []:
+        if isinstance(suite, dict):
+            _collect_playwright_specs_by_file(suite, tests_by_file, default_file=path.name)
+
+    tests = [
+        _normalize_playwright_file_result(file_name, specs, external_run_id=external_run_id)
+        for file_name, specs in sorted(tests_by_file.items())
+    ]
+
+    top_level_error = _first_playwright_error(report.get("errors") or [])
+    if top_level_error and not tests:
+        tests.append({
+            "name": path.name,
+            "file": path.name,
+            "status": "failed",
+            "duration_seconds": 0,
+            "error": top_level_error,
+        })
+
+    summary = _summarize_imported_tests(tests)
+    metadata = _playwright_report_metadata(report)
+    git_commit = metadata.get("gitCommit") if isinstance(metadata.get("gitCommit"), dict) else {}
+    ci_metadata = metadata.get("ci") if isinstance(metadata.get("ci"), dict) else {}
+    suite_status = "failed" if any(is_problem(str(test.get("status") or "")) for test in tests) else "passed"
+    if tests and all(str(test.get("status") or "") == "skipped" for test in tests):
+        suite_status = "skipped"
+    duration_seconds = round(sum(float(test.get("duration_seconds") or 0) for test in tests), 1)
+
+    return {
+        "run_id": str(external_run_id or _first_playwright_start_time(report) or path.stem or utc_now()),
+        "git_sha": git_commit.get("hash") or ci_metadata.get("commitHash"),
+        "git_branch": git_commit.get("branch"),
+        "environment": "development",
+        "duration_seconds": duration_seconds,
+        "summary": summary,
+        "flags": {"suite": "playwright", "imported_format": "playwright-json", "workflow": workflow},
+        "suites": {
+            "playwright": {
+                "status": suite_status,
+                "tests": tests,
+                "duration_seconds": duration_seconds,
+            }
+        },
+    }
+
+
+def _collect_playwright_specs_by_file(
+    suite: dict[str, Any],
+    tests_by_file: dict[str, list[dict[str, Any]]],
+    default_file: str,
+) -> None:
+    suite_file = str(suite.get("file") or suite.get("title") or default_file)
+    for spec in suite.get("specs") or []:
+        if not isinstance(spec, dict):
+            continue
+        spec_file = str(spec.get("file") or suite_file or default_file)
+        tests_by_file.setdefault(spec_file, []).append(spec)
+    for child_suite in suite.get("suites") or []:
+        if isinstance(child_suite, dict):
+            _collect_playwright_specs_by_file(child_suite, tests_by_file, default_file=suite_file)
+
+
+def _normalize_playwright_file_result(
+    file_name: str,
+    specs: list[dict[str, Any]],
+    external_run_id: str = "",
+) -> dict[str, Any]:
+    terminal_statuses: list[str] = []
+    attempt_statuses: list[str] = []
+    duration_seconds = 0.0
+    retries = 0
+    flaky = False
+    first_error = ""
+
+    for spec in specs:
+        for test in spec.get("tests") or []:
+            if not isinstance(test, dict):
+                continue
+            results = [result for result in (test.get("results") or []) if isinstance(result, dict)]
+            if not results:
+                continue
+            statuses = [_map_playwright_status(str(result.get("status") or "")) for result in results if result.get("status")]
+            attempt_statuses.extend(statuses)
+            retries += max(0, len(results) - 1)
+            duration_seconds += sum(float(result.get("duration") or 0) / 1000 for result in results)
+
+            terminal_index = _playwright_terminal_result_index(results)
+            terminal_status = _map_playwright_status(str(results[terminal_index].get("status") or ""))
+            if terminal_status:
+                terminal_statuses.append(terminal_status)
+            if terminal_status == "passed" and any(status not in {"passed", "skipped"} for status in statuses[:terminal_index]):
+                flaky = True
+            if not first_error:
+                first_error = _playwright_result_error(results[terminal_index])
+            if not first_error:
+                for result in results:
+                    first_error = _playwright_result_error(result)
+                    if first_error:
+                        break
+
+    status = _aggregate_playwright_status(terminal_statuses)
+    entry: dict[str, Any] = {
+        "name": file_name,
+        "file": file_name,
+        "status": status,
+        "duration_seconds": round(duration_seconds, 1),
+        "retries": retries,
+        "flaky": flaky,
+        "attempt_statuses": attempt_statuses,
+    }
+    if external_run_id:
+        entry["run_id"] = external_run_id
+        entry["github_run_url"] = f"https://github.com/glowingkitty/OpenMates/actions/runs/{external_run_id}"
+    if first_error and is_problem(status):
+        entry["error"] = first_error[:MAX_IMPORTED_ERROR_CHARS]
+    return entry
+
+
+def _playwright_terminal_result_index(results: list[dict[str, Any]]) -> int:
+    if any("retry" in result for result in results):
+        return max(range(len(results)), key=lambda index: int(results[index].get("retry", index) or 0))
+    return len(results) - 1
+
+
+def _map_playwright_status(status: str) -> str:
+    normalized = status.strip()
+    if normalized == "timedOut":
+        return "timeout"
+    if normalized in {"failed", "interrupted"}:
+        return "failed"
+    if normalized in {"passed", "skipped"}:
+        return normalized
+    return normalized or "result_unknown"
+
+
+def _aggregate_playwright_status(statuses: list[str]) -> str:
+    if not statuses:
+        return "not_started"
+    if "failed" in statuses:
+        return "failed"
+    if "timeout" in statuses:
+        return "timeout"
+    if "result_unknown" in statuses:
+        return "result_unknown"
+    if all(status == "skipped" for status in statuses):
+        return "skipped"
+    return "passed"
+
+
+def _playwright_result_error(result: dict[str, Any]) -> str:
+    error = result.get("error")
+    if isinstance(error, dict):
+        message = str(error.get("message") or "").strip()
+        if message:
+            return message
+    for entry in result.get("errors") or []:
+        if isinstance(entry, dict):
+            message = str(entry.get("message") or "").strip()
+            if message:
+                return message
+    return ""
+
+
+def _first_playwright_error(errors: list[Any]) -> str:
+    for error in errors:
+        if isinstance(error, dict):
+            message = str(error.get("message") or "").strip()
+            if message:
+                return message[:MAX_IMPORTED_ERROR_CHARS]
+        elif error:
+            return str(error)[:MAX_IMPORTED_ERROR_CHARS]
+    return ""
+
+
+def _first_playwright_start_time(report: dict[str, Any]) -> str:
+    for suite in report.get("suites") or []:
+        if not isinstance(suite, dict):
+            continue
+        start_time = _first_playwright_start_time_from_suite(suite)
+        if start_time:
+            return start_time
+    return ""
+
+
+def _first_playwright_start_time_from_suite(suite: dict[str, Any]) -> str:
+    for spec in suite.get("specs") or []:
+        if not isinstance(spec, dict):
+            continue
+        for test in spec.get("tests") or []:
+            if not isinstance(test, dict):
+                continue
+            for result in test.get("results") or []:
+                if isinstance(result, dict) and result.get("startTime"):
+                    return str(result["startTime"])
+    for child_suite in suite.get("suites") or []:
+        if isinstance(child_suite, dict):
+            start_time = _first_playwright_start_time_from_suite(child_suite)
+            if start_time:
+                return start_time
+    return ""
+
+
+def _playwright_report_metadata(report: dict[str, Any]) -> dict[str, Any]:
+    config = report.get("config") if isinstance(report.get("config"), dict) else {}
+    metadata = config.get("metadata") if isinstance(config.get("metadata"), dict) else {}
+    if metadata:
+        return metadata
+    for project in config.get("projects") or []:
+        if isinstance(project, dict) and isinstance(project.get("metadata"), dict):
+            return project["metadata"]
+    return {}
+
+
+def _summarize_imported_tests(tests: list[dict[str, Any]]) -> dict[str, int]:
+    summary = {
+        "total": 0,
+        "passed": 0,
+        "failed": 0,
+        "dispatch_error": 0,
+        "timeout": 0,
+        "result_unknown": 0,
+        "skipped": 0,
+        "not_started": 0,
+    }
+    for test in tests:
+        summary["total"] += 1
+        status = str(test.get("status") or "unknown")
+        if status in summary:
+            summary[status] += 1
+        else:
+            summary["skipped"] += 1
+    return summary
 
 
 def normalize_pytest_json_report(
@@ -954,7 +1198,7 @@ def normalize_pytest_json_report(
         if status == "failed":
             longrepr = (item.get("call") or {}).get("longrepr") or item.get("longrepr")
             if longrepr:
-                entry["error"] = str(longrepr)[:4000]
+                entry["error"] = str(longrepr)[:MAX_IMPORTED_ERROR_CHARS]
         tests.append(entry)
     suite_status = "failed" if any(is_problem(str(test.get("status") or "")) for test in tests) else "passed"
     created = report.get("created")

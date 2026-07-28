@@ -124,6 +124,72 @@ def test_record_run_preserves_passing_flake_metadata(tmp_path, monkeypatch):
     assert record["attempt_statuses"] == ["failed", "passed"]
 
 
+def test_import_normalizes_raw_playwright_json_report(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    raw_report = {
+        "config": {
+            "metadata": {
+                "gitCommit": {"hash": "abc123", "branch": "HEAD"},
+            },
+        },
+        "suites": [
+            {
+                "title": "file-attachment-flow.spec.ts",
+                "file": "file-attachment-flow.spec.ts",
+                "specs": [
+                    {
+                        "title": "passes first",
+                        "file": "file-attachment-flow.spec.ts",
+                        "tests": [{"results": [{"status": "passed", "duration": 1200, "startTime": "2026-07-28T21:16:13.746Z"}]}],
+                    },
+                    {
+                        "title": "fails after retry",
+                        "file": "file-attachment-flow.spec.ts",
+                        "tests": [{
+                            "results": [
+                                {"status": "failed", "duration": 2000, "retry": 0},
+                                {
+                                    "status": "failed",
+                                    "duration": 3000,
+                                    "retry": 1,
+                                    "error": {"message": "Error: Login email lookup did not store the email salt."},
+                                },
+                            ],
+                        }],
+                    },
+                ],
+            },
+        ],
+        "errors": [],
+    }
+
+    normalized = tests_control.normalize_import_run_data(
+        raw_report,
+        tmp_path / "playwright.json",
+        external_run_id="30399876387",
+        workflow="Playwright: Single Spec",
+    )
+
+    test = normalized["suites"]["playwright"]["tests"][0]
+    assert normalized["run_id"] == "30399876387"
+    assert normalized["summary"] == {
+        "total": 1,
+        "passed": 0,
+        "failed": 1,
+        "dispatch_error": 0,
+        "timeout": 0,
+        "result_unknown": 0,
+        "skipped": 0,
+        "not_started": 0,
+    }
+    assert test["file"] == "file-attachment-flow.spec.ts"
+    assert test["status"] == "failed"
+    assert test["retries"] == 1
+    assert test["attempt_statuses"] == ["passed", "failed", "failed"]
+    assert test["github_run_url"] == "https://github.com/glowingkitty/OpenMates/actions/runs/30399876387"
+    assert "Login email lookup" in test["error"]
+
+
 def test_triage_ranks_account_and_chat_failures_with_linked_files(tmp_path, monkeypatch):
     tests_control = load_tests_control(tmp_path, monkeypatch)
     spec_dir = tests_control.SPEC_DIR
