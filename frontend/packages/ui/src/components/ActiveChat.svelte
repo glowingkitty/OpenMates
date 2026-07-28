@@ -5547,18 +5547,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     let showGuestAllExamplesLink = $derived(
         !$authStore.isAuthenticated && GUEST_EXAMPLE_SURFACES.has(activeGuestSurface)
     );
-    let GuestWorkspaceIcon = $derived.by(() => {
-        const iconName = activeGuestSurface === 'projects'
-            ? 'folder-kanban'
-            : activeGuestSurface === 'plans'
-                ? 'calendar-clock'
-                : activeGuestSurface === 'tasks'
-                    ? 'check-square'
-                    : activeGuestSurface === 'workflows'
-                        ? 'workflow'
-                        : 'message-square';
-        return getLucideIcon(iconName);
-    });
     let activeGuestInputLinkKey = $derived(
         guestInputLinkIndex === 0 ? 'chat.welcome.guest_privacy_link' : 'chat.welcome.guest_apps_link'
     );
@@ -12409,6 +12397,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             class="center-content"
                             data-testid="welcome-content"
                             class:guest-welcome-content={!$authStore.isAuthenticated}
+                            class:guest-all-examples-content={guestAllExamplesVisible && !$authStore.isAuthenticated}
                             class:welcome-hiding={hideWelcomeForKeyboard}
                             inert={hideWelcomeForKeyboard}
                             bind:this={welcomeContentEl}
@@ -12434,11 +12423,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                             <GuestAllExamplesSearchIcon size={18} color="currentColor" />
                                             <span>{$text('common.search')}</span>
                                         </button>
-                                    </div>
-                                    <div class="guest-all-examples-header">
-                                        <GuestWorkspaceIcon size={36} color="var(--color-primary)" />
-                                        <h2>{$text('chat.welcome.all_examples_title')}</h2>
-                                        <p>{$text('chat.welcome.all_examples_subtitle')}</p>
                                     </div>
                                     <div class="guest-all-examples-grid" data-testid="guest-all-examples-grid">
                                         {#each guestAllExampleMetas as meta (meta.chat.chat_id)}
@@ -14227,6 +14211,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         max-width: 100cqw;
     }
 
+    .center-content.guest-all-examples-content {
+        top: 50%;
+    }
+
     .team-profile {
         display: flex;
         flex-direction: column;
@@ -14415,6 +14403,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     }
 
     .guest-all-examples-action {
+        appearance: none;
         display: inline-flex;
         align-items: center;
         gap: var(--spacing-2);
@@ -14426,33 +14415,16 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         font-weight: 800;
         cursor: pointer;
         padding: 0;
+        box-shadow: none;
+        text-shadow: none;
+        filter: none;
     }
 
     .guest-all-examples-action:hover {
         color: var(--color-primary);
-    }
-
-    .guest-all-examples-header {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: var(--spacing-2);
-    }
-
-    .guest-all-examples-header h2,
-    .guest-all-examples-header p {
-        margin: 0;
-    }
-
-    .guest-all-examples-header h2 {
-        color: var(--color-grey-80);
-        font-size: clamp(1.25rem, 2.4vw, 2rem);
-        line-height: 1.1;
-    }
-
-    .guest-all-examples-header p {
-        color: var(--color-grey-60);
-        font-size: var(--font-size-small);
+        box-shadow: none;
+        text-shadow: none;
+        filter: none;
     }
 
     .guest-all-examples-grid {
