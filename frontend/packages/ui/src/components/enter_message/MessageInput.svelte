@@ -3350,7 +3350,7 @@
      * Handle AI task ended event - fade out stop button when task completes
      */
     function handleAiTaskEnded(event: CustomEvent) {
-        const { chatId, taskId } = event.detail;
+        const { chatId, taskId, status } = event.detail;
         console.debug('[MessageInput] handleAiTaskEnded received:', {
             chatId,
             taskId,
@@ -3363,7 +3363,9 @@
             updateActiveAITaskStatus();
             // Clear queued message text when task ends
             queuedMessageText = null;
-            pendingNewChatDraftRestore = null;
+            if (status !== 'cancelled') {
+                pendingNewChatDraftRestore = null;
+            }
         }
     }
 

@@ -214,8 +214,9 @@
     };
     const GuestAllExamplesBackIcon = getLucideIcon('grid-2x2');
     const GuestAllExamplesSearchIcon = getLucideIcon('search');
-    const CANCELLED_NEW_CHAT_DRAFT_RESTORE_ATTEMPTS = 5;
-    const CANCELLED_NEW_CHAT_DRAFT_RESTORE_DELAY_MS = 50;
+    const CANCELLED_NEW_CHAT_DRAFT_RESTORE_ATTEMPTS = 50;
+    const CANCELLED_NEW_CHAT_DRAFT_RESTORE_DELAY_MS = 100;
+    const CANCELLED_NEW_CHAT_DRAFT_STABLE_READS = 5;
     const DRAFT_RESTORE_REF_RETRY_ATTEMPTS = 80;
     const DRAFT_RESTORE_REF_RETRY_DELAY_MS = 50;
     const DRAFT_RESTORE_APPLY_DELAY_MS = 50;
@@ -7086,16 +7087,20 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     }
 
     async function restoreCancelledNewChatDraft(text: string): Promise<void> {
+        let stableReads = 0;
+
         for (let attempt = 0; attempt < CANCELLED_NEW_CHAT_DRAFT_RESTORE_ATTEMPTS; attempt++) {
             await tick();
             await new Promise(resolve => setTimeout(resolve, CANCELLED_NEW_CHAT_DRAFT_RESTORE_DELAY_MS));
 
             if (!messageInputFieldRef?.setSuggestionText) {
+                stableReads = 0;
                 continue;
             }
 
             const currentText = messageInputFieldRef.getTextContent?.() ?? '';
             if (!currentText.includes(text)) {
+                stableReads = 0;
                 if (messageInputFieldRef.replaceDraftWithPlainText) {
                     await messageInputFieldRef.replaceDraftWithPlainText(null, text, 0, true);
                 } else {
@@ -7105,8 +7110,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
             const restoredText = messageInputFieldRef.getTextContent?.() ?? '';
             if (restoredText.includes(text)) {
-                messageInputFieldRef.focus();
-                return;
+                stableReads += 1;
+                if (stableReads >= CANCELLED_NEW_CHAT_DRAFT_STABLE_READS) {
+                    messageInputFieldRef.focus();
+                    return;
+                }
+            } else {
+                stableReads = 0;
             }
         }
 
