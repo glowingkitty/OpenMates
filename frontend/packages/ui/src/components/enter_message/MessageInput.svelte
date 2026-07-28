@@ -4504,7 +4504,7 @@
         showMenu = false; isMenuInteraction = false; selectedNode = null; selectedEmbedId = null;
         if (action === 'delete') {
             await tick();
-            hasContent = !isContentEmptyExceptMention(editor);
+            hasContent = editorHasSendableText(editor);
             refreshDraftPreviewState(editor);
             // Rebuild originalMarkdown from the updated editor state and force a draft save.
             // The textActuallyChanged guard in handleEditorUpdate skips triggerSaveDraft when
