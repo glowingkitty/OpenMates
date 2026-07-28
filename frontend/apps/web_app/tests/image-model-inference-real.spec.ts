@@ -23,7 +23,6 @@ const {
 const {
 	loginToTestAccount,
 	startNewChat,
-	sendMessage,
 	deleteActiveChat,
 	waitForChatReady,
 	waitForAssistantMessage
@@ -169,10 +168,14 @@ async function attachImage(page: any, log: (message: string, metadata?: Record<s
 	});
 	log('Attached image fixture.', { image: IMAGE_FIXTURE });
 
-	const editorEmbed = page.getByTestId('message-editor').locator('[data-testid="embed-full-width-wrapper"]');
+	const editor = page.getByTestId('message-editor');
+	const editorEmbed = editor.locator('[data-testid="embed-full-width-wrapper"]');
 	await expect(editorEmbed.first()).toBeVisible({ timeout: 20000 });
-	await page.waitForTimeout(5000);
+	await expect(editorEmbed.first()).toHaveAttribute('data-embed-status', 'finished', { timeout: 90000 });
 	await closeEmbedFullscreenIfOpen(page, log);
+	await page.keyboard.press('Escape');
+	await editor.press('End');
+	log('Image upload finished and editor cursor moved after embed.');
 }
 
 async function closeEmbedFullscreenIfOpen(
@@ -189,6 +192,45 @@ async function closeEmbedFullscreenIfOpen(
 	}
 	await expect(overlay).not.toBeVisible({ timeout: 10000 });
 	log('Closed fullscreen overlay before sending.');
+}
+
+async function typePromptAndSendAfterAttachment(
+	page: any,
+	message: string,
+	log: (message: string, metadata?: Record<string, unknown>) => void,
+	takeStepScreenshot: (page: any, label: string) => Promise<void>,
+	stepLabel: string
+) {
+	const editor = page.getByTestId('message-editor');
+	await expect(editor).toBeVisible({ timeout: 10000 });
+	await page.keyboard.press('Escape');
+	await editor.press('End');
+	await page.keyboard.type(message);
+	log(`Typed message after image embed: "${message}"`);
+	await takeStepScreenshot(page, `${stepLabel}-message-typed`);
+
+	const userMessages = page.getByTestId('message-user');
+	const assistantMessages = page.getByTestId('message-assistant');
+	const userCountBeforeSend = await userMessages.count().catch(() => 0);
+	const assistantCountBeforeSend = await assistantMessages.count().catch(() => 0);
+	const sendButton = page.locator('[data-action="send-message"]');
+	await expect(sendButton).toBeVisible({ timeout: 15000 });
+	await expect(sendButton).toBeEnabled({ timeout: 10000 });
+	await page.keyboard.press('Escape');
+	await sendButton.click({ timeout: 10000 });
+	log('Clicked send button after image upload.');
+
+	await expect
+		.poll(
+			async () => {
+				const userCount = await userMessages.count().catch(() => 0);
+				const assistantCount = await assistantMessages.count().catch(() => 0);
+				return userCount > userCountBeforeSend || assistantCount > assistantCountBeforeSend;
+			},
+			{ timeout: 60000, intervals: [1000, 2000, 5000] }
+		)
+		.toBeTruthy();
+	log('Message send accepted after attachment-preserving send.', { assistantCountBeforeSend });
 }
 
 async function waitForImageViewAndResponse(page: any, log: (message: string, metadata?: Record<string, unknown>) => void) {
@@ -234,7 +276,7 @@ for (const model of activeModels) {
 
 			const message = `${PROMPT} ${modelDirective(model)}`;
 			await closeEmbedFullscreenIfOpen(page, log);
-			await sendMessage(page, message, log, screenshot, `image-question-${model.label}-${trial}`);
+			await typePromptAndSendAfterAttachment(page, message, log, screenshot, `image-question-${model.label}-${trial}`);
 			const { generatedByText, responseText } = await waitForImageViewAndResponse(page, log);
 			const score = scoreResponse(responseText);
 
