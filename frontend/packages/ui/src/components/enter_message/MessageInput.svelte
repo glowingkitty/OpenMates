@@ -541,11 +541,12 @@
     }
 
     let draftPreviewSummary = $derived(formatDraftPreviewSummary(draftPreviewParts));
-    let hasSendableDraft = $derived(hasContent || hasEmbedContent);
+    let hasDraftPreviewEmbeds = $derived(draftPreviewParts.embeds.some(({ count }) => count > 0));
+    let hasSendableDraft = $derived(hasContent || hasEmbedContent || hasDraftPreviewEmbeds);
 
     // Draft preview mode is only for text drafts. Embed-only drafts must keep the
     // editor visible so audio/file preview controls remain reachable after blur.
-    let isDraftPreview = $derived(!!draftPreviewSummary && hasContent && !hasEmbedContent && !isMessageFieldFocused && !isFullscreen && !forceDraftActionsVisible);
+    let isDraftPreview = $derived(!!draftPreviewSummary && hasContent && !hasEmbedContent && !hasDraftPreviewEmbeds && !isMessageFieldFocused && !isFullscreen && !forceDraftActionsVisible);
 
     // Computed state for showing action buttons
     // In extended/fullscreen mode: always visible (no tap required).
@@ -559,6 +560,7 @@
             isFullscreen ||
             showActionButtons ||
             hasEmbedContent ||
+            hasDraftPreviewEmbeds ||
             isMessageFieldFocused ||
             $recordingState.isRecordButtonPressed ||
             $recordingState.showRecordAudioUI
